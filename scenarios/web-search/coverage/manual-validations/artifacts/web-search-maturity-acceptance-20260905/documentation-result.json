@@ -1,0 +1,402 @@
+{
+  "success": true,
+  "verdict": "PASS",
+  "status": "passed",
+  "scenario": "web-search",
+  "runId": "20260905-073023-3b1174c4",
+  "executionId": "20260905-073023-3b1174c4",
+  "phaseSummary": {
+    "total": 2,
+    "passed": 2,
+    "failed": 0,
+    "skipped": 0,
+    "durationSeconds": 2,
+    "observationCount": 0
+  },
+  "phases": [
+    {
+      "name": "business",
+      "status": "passed",
+      "durationSeconds": 1,
+      "logPath": "",
+      "error": "",
+      "classification": "",
+      "remediation": "",
+      "runnabilityVerdict": "",
+      "runnabilityReason": "",
+      "observations": null,
+      "phasePresentation": {
+        "contract_version": "v1",
+        "provider": "business-health",
+        "phase": "business",
+        "current_level": "L3",
+        "current_level_label": "Complete",
+        "ceiling_level": "L3",
+        "clean": true,
+        "next_action_reason": "lowest current level",
+        "focus_capability_id": "prd_contract",
+        "focus_capability_label": "PRD Contract",
+        "north_star": "The PRD is a trustworthy statement of intent.",
+        "at_maximum": true,
+        "capabilities": [
+          {
+            "id": "prd_contract",
+            "label": "PRD Contract",
+            "current_level": "L3",
+            "current_level_label": "Complete",
+            "current_summary": "The PRD is a trustworthy statement of intent.",
+            "clean": true,
+            "priority_rank": 1,
+            "priority_reason": "lowest current level"
+          },
+          {
+            "id": "requirements_registry",
+            "label": "Requirements Registry",
+            "current_level": "L3",
+            "current_level_label": "Complete",
+            "current_summary": "The registry is a complete, falsifiable claim set.",
+            "clean": true,
+            "priority_rank": 2,
+            "priority_reason": "lowest current level"
+          },
+          {
+            "id": "intent_linkage",
+            "label": "Intent Linkage",
+            "current_level": "L3",
+            "current_level_label": "Complete",
+            "current_summary": "The intent spine is fully closed.",
+            "clean": true,
+            "priority_rank": 3,
+            "priority_reason": "lowest current level"
+          },
+          {
+            "id": "evidence_traceability",
+            "label": "Evidence Traceability",
+            "current_level": "L3",
+            "current_level_label": "Complete",
+            "current_summary": "Every claim is provably current.",
+            "clean": true,
+            "priority_rank": 4,
+            "priority_reason": "lowest current level"
+          }
+        ]
+      },
+      "findingsSummary": {}
+    },
+    {
+      "name": "docs",
+      "status": "passed",
+      "durationSeconds": 1,
+      "logPath": "",
+      "error": "",
+      "classification": "",
+      "remediation": "",
+      "runnabilityVerdict": "",
+      "runnabilityReason": "",
+      "observations": null,
+      "phasePresentation": {
+        "contract_version": "v1",
+        "provider": "knowledge-observatory",
+        "phase": "docs",
+        "current_level": "L0",
+        "current_level_label": "Blocked",
+        "next_level": "L1",
+        "ceiling_level": "L3",
+        "blocking_finding_codes": [
+          "broken_command_snippet"
+        ],
+        "next_action": "Resolve partial and unknown marked-reference or command-snippet validation.",
+        "next_action_reason": "lowest current level with required/blocking findings WARNING evolvability_gap debt=37",
+        "focus_capability_id": "reference_integrity",
+        "focus_capability_label": "Reference Integrity",
+        "north_star": "Reference integrity has no maturity-blocking findings.",
+        "capabilities": [
+          {
+            "id": "reference_integrity",
+            "label": "Reference Integrity",
+            "current_level": "L0",
+            "current_level_label": "Blocked",
+            "next_level": "L1",
+            "current_summary": "Documentation references are broken.",
+            "next_unlock": "Resolve partial and unknown marked-reference or command-snippet validation.",
+            "blocking_finding_codes": [
+              "broken_command_snippet"
+            ],
+            "priority_rank": 1,
+            "priority_reason": "lowest current level with required/blocking findings WARNING evolvability_gap debt=37",
+            "findings": [
+              {
+                "code": "broken_command_snippet",
+                "severity": "FINDING_SEVERITY_WARNING",
+                "count": 17,
+                "title": "broken_command_snippet",
+                "message": "/home/matthalloran8/Vrooli/scenarios/web-search/README.md:11 broken command snippet \"test-genie runs wait --json web-search \\\"<run-id>\\\"\": verdict=invalid level=owner_identified; unknown_command: command path was not found in the CLI Health catalog; suggestion: test-genie runs abort; suggestion: test-genie runs artifact; suggestion: test-genie runs artifacts; Fix the command to a current catalog command, or use cli[future]/cli[old] only when the reference is intentionally not current.",
+                "locations": [
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/README.md:11",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/bas/README.md:25",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/QUICKSTART.md:63",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/QUICKSTART.md:64",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/START-HERE.md:111",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/START-HERE.md:166",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/START-HERE.md:372",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/START-HERE.md:381",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/START-HERE.md:382",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/START-HERE.md:390",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/START-HERE.md:397",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/internal/TESTING.md:1026",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/reference/cli-commands.md:147",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/reference/cli-commands.md:148",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/reference/cli-commands.md:157",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/reference/cli-commands.md:169",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/reference/cli-commands.md:182"
+                ],
+                "fix_affordance": 2
+              },
+              {
+                "code": "partial_command_snippet",
+                "severity": "FINDING_SEVERITY_INFO",
+                "count": 20,
+                "title": "partial_command_snippet",
+                "message": "/home/matthalloran8/Vrooli/scenarios/web-search/README.md:9 partially validated command snippet \"vrooli scenario test web-search\": verdict=partial level=command_exists; argument_schema_unavailable: command exists, but argument shape cannot be validated from reliable metadata; CLI Health proved the command path exists, but not every flag or positional argument.",
+                "locations": [
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/README.md:9",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/QUICKSTART.md:50",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/QUICKSTART.md:62",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/START-HERE.md:120",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/START-HERE.md:174",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/guides/troubleshooting.md:26",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/guides/troubleshooting.md:28",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/guides/troubleshooting.md:52",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/guides/troubleshooting.md:74",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/guides/troubleshooting.md:77",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/operations/DEPLOYMENT.md:81",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/reference/cli-commands.md:115",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/reference/cli-commands.md:116",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/reference/cli-commands.md:125",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/reference/cli-commands.md:126",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/reference/cli-commands.md:132",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/reference/configuration.md:181",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/reference/configuration.md:182",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/requirements/README.md:53",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/requirements/README.md:56"
+                ],
+                "fix_affordance": 2
+              }
+            ]
+          },
+          {
+            "id": "content_quality",
+            "label": "Content Quality",
+            "current_level": "L1",
+            "current_level_label": "Readable",
+            "next_level": "L2",
+            "current_summary": "Content is readable with quality findings still present.",
+            "next_unlock": "Keep content quality clean as documentation changes.",
+            "blocking_finding_codes": [
+              "content_issue",
+              "placeholder_style"
+            ],
+            "priority_rank": 2,
+            "priority_reason": "lowest current level with required/blocking findings WARNING evolvability_gap debt=100",
+            "findings": [
+              {
+                "code": "content_issue",
+                "severity": "FINDING_SEVERITY_WARNING",
+                "count": 11,
+                "title": "content_issue",
+                "message": "missing heading: Customize Safely",
+                "locations": [
+                  "README.md",
+                  "docs/concepts/DOMAINS.md",
+                  "docs/manifest.json"
+                ],
+                "fix_affordance": 2
+              },
+              {
+                "code": "placeholder_style",
+                "severity": "FINDING_SEVERITY_WARNING",
+                "count": 17,
+                "title": "placeholder_style",
+                "message": "/home/matthalloran8/Vrooli/scenarios/web-search/docs/START-HERE.md:360 command snippet \"react-component-library components draft-begin <component>\": placeholder <component> is unquoted; `<` and `>` are live shell operators when pasted verbatim \u2014 wrap the placeholder in double quotes",
+                "locations": [
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/START-HERE.md:360",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/START-HERE.md:362",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/START-HERE.md:363",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/START-HERE.md:372",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/START-HERE.md:380",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/START-HERE.md:381",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/START-HERE.md:382",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/START-HERE.md:390",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/START-HERE.md:397",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/concepts/FLOWS.md:198",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/concepts/FLOWS.md:199",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/reference/cli-commands.md:126",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/reference/configuration.md:182"
+                ],
+                "fix_affordance": 2
+              },
+              {
+                "code": "unmarked_number",
+                "severity": "FINDING_SEVERITY_WARNING",
+                "count": 72,
+                "title": "unmarked_number",
+                "message": "/home/matthalloran8/Vrooli/scenarios/web-search/DESIGN.md:167 unmarked count \"two\" before \"kinds\" \u2014 counts in prose drift. Reword it out, point at the source of truth, or if it is owner-backed tag it as `num[<category>]:two` (category \u2208 target/threshold/price/version/decision/sot).",
+                "locations": [
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/DESIGN.md:167",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/PRD.md:8",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/QUICKSTART.md:115",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/START-HERE.md:303",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/START-HERE.md:37",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/business/MONETIZATION.md:30",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/concepts/ARCHITECTURE.md:139",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/concepts/ARCHITECTURE.md:152",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/concepts/ARCHITECTURE.md:218",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/concepts/ARCHITECTURE.md:235",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/concepts/ARCHITECTURE.md:48",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/concepts/ARCHITECTURE.md:8",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/concepts/DATA.md:100",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/concepts/DATA.md:30",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/concepts/DOMAINS.md:152",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/concepts/DOMAINS.md:31",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/concepts/DOMAINS.md:50",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/concepts/FLOWS.md:142",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/guides/troubleshooting.md:135",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/guides/troubleshooting.md:150",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/guides/troubleshooting.md:203",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/internal/DECISIONS.md:25",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/internal/DECISIONS.md:37",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/internal/DECISIONS.md:38",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/internal/ERROR-HANDLING.md:9",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/internal/PERFORMANCE.md:22",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/internal/PERFORMANCE.md:44",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/internal/PERFORMANCE.md:76",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/internal/PROBLEMS.md:135",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/internal/PROBLEMS.md:148",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/internal/PROBLEMS.md:162",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/internal/PROBLEMS.md:171",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/internal/PROBLEMS.md:200",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/internal/PROBLEMS.md:282",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/internal/PROBLEMS.md:57",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/internal/PROBLEMS.md:98",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/internal/PROBLEMS.md:99",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/internal/PROGRESS.md:113",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/internal/PROGRESS.md:16",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/internal/PROGRESS.md:23",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/internal/PROGRESS.md:38",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/internal/PROGRESS.md:60",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/internal/PROGRESS.md:65",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/internal/PROGRESS.md:84",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/internal/PROGRESS.md:86",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/internal/PROGRESS.md:97",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/internal/SEAMS.md:211",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/internal/SEAMS.md:221",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/internal/SEAMS.md:350",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/internal/SEAMS.md:38",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/internal/SEAMS.md:91",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/internal/TESTING.md:1016",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/internal/TESTING.md:229",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/internal/TESTING.md:536",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/internal/TESTING.md:65",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/operations/LIVE_VALIDATION.md:13",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/operations/LIVE_VALIDATION.md:15",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/operations/LIVE_VALIDATION.md:29",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/operations/LIVE_VALIDATION.md:37",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/operations/LIVE_VALIDATION.md:41",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/operations/LIVE_VALIDATION.md:45",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/reference/api-endpoints.md:18",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/reference/cli-commands.md:24",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/docs/reference/configuration.md:63",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/skills/web-search-improve/SKILL.md:40",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/skills/web-search-improve/SKILL.md:42",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/skills/web-search/SKILL.md:51",
+                  "/home/matthalloran8/Vrooli/scenarios/web-search/skills/web-search/SKILL.md:66"
+                ],
+                "fix_affordance": 2
+              }
+            ]
+          },
+          {
+            "id": "doc_contract",
+            "label": "Documentation Contract",
+            "current_level": "L3",
+            "current_level_label": "Clean",
+            "current_summary": "Documentation contract is valid and scenario-owned.",
+            "clean": true,
+            "priority_rank": 3,
+            "priority_reason": "lowest current level"
+          },
+          {
+            "id": "required_docs",
+            "label": "Required Documentation",
+            "current_level": "L3",
+            "current_level_label": "Clean",
+            "current_summary": "Required documentation is present and correctly placed.",
+            "clean": true,
+            "priority_rank": 4,
+            "priority_reason": "lowest current level"
+          },
+          {
+            "id": "append_log_integrity",
+            "label": "Append-Log Integrity",
+            "current_level": "L3",
+            "current_level_label": "Clean",
+            "current_summary": "Append-log integrity is clean.",
+            "clean": true,
+            "priority_rank": 5,
+            "priority_reason": "lowest current level"
+          },
+          {
+            "id": "link_health",
+            "label": "Link Health",
+            "current_level": "L3",
+            "current_level_label": "Clean",
+            "current_summary": "Documentation links are clean.",
+            "clean": true,
+            "priority_rank": 6,
+            "priority_reason": "lowest current level"
+          },
+          {
+            "id": "manifest_coverage",
+            "label": "Manifest Coverage",
+            "current_level": "L3",
+            "current_level_label": "Clean",
+            "current_summary": "Manifest coverage is clean.",
+            "clean": true,
+            "priority_rank": 7,
+            "priority_reason": "lowest current level"
+          }
+        ],
+        "documentation_topics": [
+          "docs maturity next move",
+          "docs broken_command_snippet canonical fix"
+        ]
+      },
+      "findingsSummary": {
+        "warnings": 117,
+        "infos": 20,
+        "total": 137
+      }
+    }
+  ],
+  "topPriority": {
+    "phase": "docs",
+    "provider": "knowledge-observatory",
+    "currentLevel": "L0",
+    "currentLevelLabel": "Blocked",
+    "nextLevel": "L1",
+    "nextMove": "Resolve partial and unknown marked-reference or command-snippet validation.",
+    "nextMoveReason": "lowest current level with required/blocking findings WARNING evolvability_gap debt=37",
+    "priorityCapabilityId": "reference_integrity",
+    "priorityCapabilityLabel": "Reference Integrity",
+    "docSearchTopic": "docs maturity next move",
+    "blockingFindingCodes": [
+      "broken_command_snippet"
+    ]
+  },
+  "runHandle": {
+    "runId": "20260905-073023-3b1174c4",
+    "scenario": "web-search",
+    "reattach": "test-genie runs wait --json web-search 20260905-073023-3b1174c4",
+    "follow": "test-genie runs follow web-search 20260905-073023-3b1174c4"
+  }
+}

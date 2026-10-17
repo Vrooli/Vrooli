@@ -1,3 +1,4 @@
+import type { ProposalTrailer } from "@vrooli/proto-types/git-control-tower/v1/proposals/proposals_pb";
 // ============================================================================
 // Core Repo & Branch Type Definitions
 // ============================================================================
@@ -74,6 +75,8 @@ export interface RepoFilesStatus {
   binary?: string[];
   ignored?: string[];
   statuses?: Record<string, string>;
+  /** Renamed or copied file's current path mapped to the path it came from. */
+  renames?: Record<string, string>;
 }
 
 export interface RepoFileStats {
@@ -190,11 +193,31 @@ export interface RepoHistoryResponse {
 }
 
 export interface RepoHistoryEntry {
+ full_message?: string;
+ body?: string;
+ trailers?: ProposalTrailer[];
+ continuation_message?: string;
   hash: string;
   author?: string;
   date?: string;
   subject: string;
   files: string[];
+  checks?: CommitCheckRun[];
+}
+
+export type CommitCheckKind = "precommit";
+export type CommitCheckStatus = "passed" | "failed" | "timeout" | "skipped";
+
+export interface CommitCheckRun {
+  kind: CommitCheckKind;
+  status: CommitCheckStatus;
+  command: string;
+  exit_code: number;
+  summary: string;
+  stdout?: string;
+  stderr?: string;
+  duration_ms: number;
+  timestamp: string;
 }
 
 export interface DiffHunk {

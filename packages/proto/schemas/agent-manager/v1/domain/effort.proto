@@ -1,0 +1,393 @@
+syntax = "proto3";
+
+package agent_manager.v1;
+
+import "agent-manager/v1/domain/watch.proto";
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain;domain";
+
+// @stability experimental
+// Effort supervision extends the existing supervision owner. CLI, UI and recurring
+// runtime consumers read the same projection. Declarations are not runtime grants.
+
+// An exact subject reference. Ordering is the enrollment's declared order.
+message EffortSubject {
+  string owner = 1;
+  string kind = 2;
+  string reference = 3;
+  // Exact Agent Manager run identity, when applicable.
+  string run_id = 4;
+  // orchestrator, worker, supervisor, reviewer, investigator or repair.
+  string role = 5;
+  string assignment = 6;
+}
+
+// Monitoring configuration; authority_ref is evidence, never a bearer credential.
+message EffortEnrollment {
+  string effort_ref = 1 [(buf.validate.field).string = {min_len: 1, max_len: 512}];
+  string display_name = 2;
+  string destination_ref = 3;
+  string target_revision = 4;
+  string source_revision = 5;
+  string authority_ref = 6;
+  string supervisor_run_id = 7;
+  repeated EffortSubject subjects = 8;
+  uint64 revision = 10;
+  bool withdrawn = 11;
+  // Relative immediate directory under the configured effort root; empty for owner-only enrollment.
+  string workspace = 12;
+  string work_shape = 13;
+  google.protobuf.Timestamp updated_at = 14;
+  // Set only by authenticated owner enrollment; discovery cannot set it.
+  string authorized_by = 15;
+  string withdrawal_reason = 19;
+  // Retired steering grant, directive allowance and supervisor dispatch fields.
+  reserved 9, 16, 17, 18, 20, 21, 22, 23, 24, 25;
+  reserved "permitted_actions", "authority_expires_at", "maximum_directives", "cooldown_seconds", "supervisor_owner_subject", "supervisor_scope", "dispatch_authorization", "autonomous_supervision", "supervision_priority";
+}
+
+// Freshness of evidence, independently of runtime or outcome state.
+enum EffortFreshness {
+  EFFORT_FRESHNESS_UNSPECIFIED = 0;
+  EFFORT_FRESHNESS_FRESH = 1;
+  EFFORT_FRESHNESS_STALE = 2;
+  EFFORT_FRESHNESS_UNAVAILABLE = 3;
+}
+
+// A provider failure or schema/path/coverage finding; source is an evidence reference.
+message EffortDiscoveryFinding {
+  string source = 1;
+  string code = 2;
+  string reason = 3;
+}
+
+// Persisted scan coverage. Generation advances only when the source cut changes.
+message EffortDiscovery {
+  uint64 generation = 1;
+  string change_identity = 2;
+  google.protobuf.Timestamp last_scan_at = 3;
+  google.protobuf.Timestamp last_successful_scan_at = 4;
+  uint32 scan_limit = 5;
+  uint32 scanned_count = 6;
+  bool partial = 7;
+  repeated EffortDiscoveryFinding findings = 8;
+  uint64 byte_limit = 9;
+  string root = 10;
+  // Persisted lexical cursor for a rotating bounded manifest scan.
+  string scan_cursor = 11;
+  // Hard directory-index bound; exceeding it refuses this root scan explicitly.
+  uint32 directory_limit = 12;
+  // Standing discovery has an explicit accounting boundary; absent allowance is unknown.
+  string standing_allowance_ref = 13;
+  EffortUsage standing_usage = 14;
+}
+
+// Presence distinguishes unknown usage from an observed zero. Sums cover unique
+// owner execution identities, including supervisor/reviewer/repair assignments.
+message EffortUsage {
+  optional int64 tokens = 1;
+  optional double reported_cost_usd = 2;
+  optional double agent_seconds = 3;
+  uint32 observed_runs = 4;
+  uint32 declared_runs = 5;
+  bool partial = 6;
+  repeated string limitations = 7;
+  string source = 8;
+}
+
+// Provider-reported subscription standing. Percentage is retained only when
+// the provider reported it; token and dollar usage are never inferred here.
+message EffortQuotaObservation {
+  string provider = 1;
+  string pool = 2;
+  string window = 3;
+  google.protobuf.Timestamp observed_at = 4;
+  string standing = 5;
+  optional double used_percent = 6;
+  optional int64 window_minutes = 7;
+  google.protobuf.Timestamp reset_at = 8;
+  string source_run_id = 9;
+  string freshness = 10;
+  string provenance = 11;
+  string uncertainty = 12;
+  string evidence_ref = 13;
+}
+
+// Current owner observation with requested and effective settings kept separate.
+message EffortAssignment {
+  EffortSubject subject = 1;
+  string runtime_state = 2;
+  string requested_model = 3;
+  string effective_model = 4;
+  string requested_runner = 5;
+  string effective_runner = 6;
+  string requested_reasoning = 7;
+  string effective_reasoning = 8;
+  EffortUsage usage = 9;
+  google.protobuf.Timestamp observed_at = 10;
+  string unavailable_reason = 11;
+  string execution_identity = 12;
+}
+
+// Attributed outcome evidence; a workspace self-report cannot establish owner acceptance.
+message EffortOutcomeStanding {
+  string state = 1;
+  string attribution = 2;
+  repeated string evidence_refs = 3;
+  optional uint32 met_count = 4;
+  optional uint32 required_count = 5;
+  repeated string limitations = 6;
+}
+
+// One bounded row. Unknown facts remain explicit even if another source succeeds.
+message EffortBoardRow {
+  EffortEnrollment enrollment = 1;
+  google.protobuf.Timestamp observed_at = 2;
+  EffortFreshness freshness = 3;
+  string runtime_state = 4;
+  EffortOutcomeStanding outcome_standing = 5;
+  repeated EffortAssignment assignments = 6;
+  repeated string pending_operations = 7;
+  repeated string blockers = 8;
+  string next_action = 9;
+  string rationale = 10;
+  EffortUsage usage = 11;
+  repeated string limitations = 13;
+  repeated string evidence_refs = 14;
+  // Subject/evidence trigger: excludes supervisor activity, accounting and assessments.
+  string change_identity = 15;
+  // Full row visibility identity, including supervisory activity. Not an inference trigger.
+  string visibility_change_identity = 17;
+  // Provider observations are joined by source run when attribution exists.
+  repeated EffortQuotaObservation quota_observations = 18;
+  // Goal-home facts read on the scan cycle when the enrollment's
+  // destination_ref is "path:<goal home>/GOAL.md" (DL-9). Absent otherwise.
+  EffortGoalHome goal_home = 19;
+  // Retired directive and assessment projections.
+  reserved 12, 16;
+  reserved "directives", "last_assessment";
+}
+
+// Shared operator/runtime projection. Active count spans the whole enrollment set.
+message EffortBoard {
+  repeated EffortBoardRow rows = 1;
+  EffortDiscovery discovery = 2;
+  google.protobuf.Timestamp observed_at = 3;
+  uint32 active_count = 4;
+  bool partial = 5;
+  repeated string limitations = 6;
+  string next_page_token = 7;
+  string change_identity = 8;
+  // One bounded owner read retained once for shared account/pool observations.
+  repeated EffortQuotaObservation quota_observations = 9;
+}
+
+message GetEffortBoardRequest {
+  string effort_ref = 1;
+  uint32 page_size = 2 [(buf.validate.field).uint32.lte = 100];
+  string page_token = 3;
+}
+message ListEffortsRequest {
+  uint32 page_size = 1 [(buf.validate.field).uint32.lte = 100];
+  string page_token = 2;
+}
+message ListEffortsResponse {
+  repeated EffortEnrollment efforts = 1;
+  string next_page_token = 2;
+  uint32 active_count = 3;
+}
+message EnrollEffortRequest {
+  EffortEnrollment enrollment = 1;
+  uint64 expected_revision = 2;
+  string idempotency_key = 3;
+}
+// Metadata reconciliation deliberately excludes authority and
+// withdrawal state. It lets an explicitly scoped effort coordinator keep the
+// owner projection current without renewing or revoking a grant.
+message ReconcileEffortMetadataRequest {
+  EffortEnrollment enrollment = 1;
+  uint64 expected_revision = 2;
+  string idempotency_key = 3;
+  WatchAuthority authority = 4;
+}
+message WithdrawEffortRequest {
+  string effort_ref = 1;
+  uint64 expected_revision = 2;
+  string reason = 3;
+  string idempotency_key = 4;
+}
+message ReconcileEffortDiscoveryRequest {}
+
+// One weighted-token cap reading for an active run of a goal-home effort.
+// Absent weighted_tokens or cap means unknown, never zero.
+message EffortCapUsage {
+  string run_id = 1;
+  string role = 2;
+  optional double weighted_tokens = 3;
+  optional int64 cap = 4;
+  // off, report or enforce.
+  string mode = 5;
+}
+
+// Facts read from a registered goal home (large-effort-orchestration §3).
+// Every optional or empty field is unknown, never zero.
+message EffortGoalHome {
+  // Repository-relative goal-home directory.
+  string path = 1;
+  // available or unavailable; limitations name why.
+  string state = 2;
+  repeated string limitations = 3;
+  string destination_metric = 4;
+  string destination_op = 5;
+  optional double destination_target = 6;
+  optional double current_value = 7;
+  google.protobuf.Timestamp current_as_of = 8;
+  // Highest-numbered epoch without an ACCEPTED line, e.g. "E27".
+  string active_epoch = 9;
+  string active_status = 10;
+  repeated string active_workers = 11;
+  string last_accepted_epoch = 12;
+  google.protobuf.Timestamp last_accepted_at = 13;
+  // "+3 journeys"; empty when the acceptance line records no yield.
+  string last_yield = 14;
+  // First lines of ## Needs operator items, at most 8.
+  repeated string needs_operator = 15;
+  optional uint32 open_workarounds = 16;
+  repeated string open_feedback_ids = 17;
+  // Operator decisions not yet recorded in FEEDBACK.md.
+  repeated EffortDecision open_decisions = 18;
+  // Mean weighted tokens of the measured accepted epochs' Workers runs.
+  optional double weighted_tokens_per_accepted_epoch = 19;
+  uint32 accepted_epochs_measured = 20;
+  repeated EffortCapUsage cap_usage = 21;
+  // "unknown" until the delivery canary reports (DL-6).
+  string canary_status = 22;
+  // Blocking lint finding codes, e.g. "handoff-count".
+  repeated string lint_findings = 23;
+  google.protobuf.Timestamp read_at = 24;
+}
+
+// One durable effort signal (DL-2). seq increases monotonically per effort;
+// one fact is one signal.
+message EffortSignal {
+  int64 seq = 1;
+  string effort_ref = 2;
+  // child_run_ended, step_back, feedback, operator_answer or cap_stop.
+  string kind = 3;
+  string run_id = 4;
+  string detail = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+
+message ListEffortSignalsRequest {
+  string effort_ref = 1 [(buf.validate.field).string = {min_len: 1, max_len: 512}];
+  // Return signals with seq greater than after_seq.
+  int64 after_seq = 2 [(buf.validate.field).int64.gte = 0];
+  // 0 means 100; at most 500.
+  int32 limit = 3 [(buf.validate.field).int32 = {gte: 0, lte: 500}];
+}
+
+message ListEffortSignalsResponse {
+  repeated EffortSignal signals = 1;
+  // Highest seq recorded for the effort, also when signals is empty.
+  int64 latest_seq = 2;
+}
+
+// Records a caller-owned signal: step_back (a worker's epoch-check) or
+// feedback (whoever writes an operator or supervisor FEEDBACK.md entry).
+// The other kinds are written by Agent Manager itself.
+message RecordEffortSignalRequest {
+  string effort_ref = 1 [(buf.validate.field).string = {min_len: 1, max_len: 512}];
+  string kind = 2 [(buf.validate.field).string = {min_len: 1, max_len: 64}];
+  string run_id = 3 [(buf.validate.field).string.max_len = 64];
+  string detail = 4 [(buf.validate.field).string.max_len = 2048];
+  // Same key, same signal. Empty derives kind:run_id:detail.
+  string dedupe_key = 5 [(buf.validate.field).string.max_len = 512];
+}
+
+message EffortDecisionOption {
+  string key = 1;
+  string label = 2;
+}
+
+// An operator decision for one goal home (DL-5). The notification-hub ask is
+// the delivery channel; this record is the effort's copy.
+message EffortDecision {
+  string effort_ref = 1;
+  // Repository-relative goal-home directory.
+  string goal_home = 2;
+  string decision_id = 3;
+  string question = 4;
+  // Recommended option first.
+  repeated EffortDecisionOption options = 5;
+  string recommended = 6;
+  string recommendation_reason = 7;
+  string default_answer = 8;
+  bool reversible = 9;
+  string urgency = 10;
+  string note = 11;
+  string context_url = 12;
+  google.protobuf.Timestamp deadline = 13;
+  // pending, answered, defaulted or expired.
+  string state = 14;
+  string answer = 15;
+  string answer_label = 16;
+  // Operator note, verbatim.
+  string answer_note = 17;
+  // phone, desktop or default.
+  string answered_via = 18;
+  bool late = 19;
+  google.protobuf.Timestamp answered_at = 20;
+  string resolution_reason = 21;
+  // Deterministic Vrooli Events id of the decision_requested event.
+  string event_id = 22;
+  string ask_id = 23;
+  string raised_by_run_id = 24;
+  google.protobuf.Timestamp created_at = 25;
+  google.protobuf.Timestamp published_at = 26;
+  string publish_error = 27;
+  // Set by effort decision sync after it writes FEEDBACK.md; cleared when a
+  // later answer supersedes the recorded one.
+  google.protobuf.Timestamp recorded_at = 28;
+}
+
+message RaiseEffortDecisionRequest {
+  EffortDecision decision = 1;
+}
+
+message RaiseEffortDecisionResponse {
+  EffortDecision decision = 1;
+  // False when the same decision was already stored (idempotent re-raise).
+  bool created = 2;
+  // True when this call published the event.
+  bool published = 3;
+}
+
+message ListEffortDecisionsRequest {
+  string goal_home = 1 [(buf.validate.field).string.max_len = 1024];
+  string effort_ref = 2 [(buf.validate.field).string.max_len = 512];
+  // Only decisions not yet recorded in FEEDBACK.md.
+  bool unrecorded_only = 3;
+  int32 limit = 4 [(buf.validate.field).int32 = {gte: 0, lte: 200}];
+}
+
+message ListEffortDecisionsResponse {
+  repeated EffortDecision decisions = 1;
+}
+
+// A desktop answer. Requires operator authority.
+message AnswerEffortDecisionRequest {
+  string goal_home = 1 [(buf.validate.field).string = {min_len: 1, max_len: 1024}];
+  string decision_id = 2 [(buf.validate.field).string = {min_len: 1, max_len: 128}];
+  string answer = 3 [(buf.validate.field).string = {min_len: 1, max_len: 64}];
+  string note = 4 [(buf.validate.field).string.max_len = 4096];
+}
+
+// Fenced on answered_at so a later answer is never marked recorded.
+message MarkEffortDecisionRecordedRequest {
+  string goal_home = 1 [(buf.validate.field).string = {min_len: 1, max_len: 1024}];
+  string decision_id = 2 [(buf.validate.field).string = {min_len: 1, max_len: 128}];
+  google.protobuf.Timestamp answered_at = 3;
+}

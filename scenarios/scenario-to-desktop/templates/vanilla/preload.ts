@@ -162,6 +162,15 @@ interface DesktopAPI {
          */
         signIn: () => Promise<{ state: string }>;
 
+        /** Connect the desktop installation to a scoped LPBS account link. */
+        connectDesktop: (options: {
+            installationId: string;
+            resource: string;
+            audience: string;
+            scopes: string[];
+            state?: string;
+        }) => Promise<void>;
+
         /**
          * Sign out and clear stored tokens.
          */
@@ -172,6 +181,15 @@ interface DesktopAPI {
          * Returns null if not authenticated or token expired.
          */
         getAccessToken: () => Promise<string | null>;
+
+        /**
+         * Get the bundled runtime's local session token for same-machine API
+         * calls. The bridge only serves trusted local renderer origins.
+         */
+        getLocalSessionToken: () => Promise<string | null>;
+
+        /** Get the encrypted-and-cached signed LPBS entitlement lease. */
+        getEntitlementLease: () => Promise<string | null>;
 
         /**
          * Get the current authenticated user's information.
@@ -242,6 +260,7 @@ const ALLOWED_CHANNELS = {
         "auth:sign-in",
         "auth:sign-out",
         "auth:get-access-token",
+        "auth:get-entitlement-lease",
         "auth:get-user",
         "auth:is-authenticated",
         "auth:refresh",
@@ -354,12 +373,30 @@ const desktopAPI: DesktopAPI = {
             return ipcRenderer.invoke("auth:sign-in");
         },
 
+        connectDesktop: async (options: {
+            installationId: string;
+            resource: string;
+            audience: string;
+            scopes: string[];
+            state?: string;
+        }) => {
+            return ipcRenderer.invoke("auth:connect-desktop", options);
+        },
+
         signOut: async () => {
             return ipcRenderer.invoke("auth:sign-out");
         },
 
         getAccessToken: async () => {
             return ipcRenderer.invoke("auth:get-access-token");
+        },
+
+        getLocalSessionToken: async () => {
+            return ipcRenderer.invoke("auth:get-local-session-token");
+        },
+
+        getEntitlementLease: async () => {
+            return ipcRenderer.invoke("auth:get-entitlement-lease");
         },
 
         getUser: async () => {
@@ -552,6 +589,13 @@ const desktopUtils = {
 contextBridge.exposeInMainWorld("desktopAPI", desktopAPI);
 contextBridge.exposeInMainWorld("desktopUtils", desktopUtils);
 
+// Validation and smoke-test launches may provide a managed API endpoint while
+// retaining a static renderer bundle. Expose the value through the same small
+// compatibility seam used by simple scenario UIs (for example,
+// `window.API_BASE_URL`); normal launches receive an empty value.
+const validationAPIBaseURL = process.env.VROOLI_VALIDATION_API_URL?.trim() ?? "";
+contextBridge.exposeInMainWorld("API_BASE_URL", validationAPIBaseURL);
+
 // Also expose some common patterns for easier use
 contextBridge.exposeInMainWorld("desktop", {
     // Quick access to common functions (dialog-based file operations)
@@ -597,6 +641,7 @@ declare global {
     interface Window {
         desktopAPI: typeof desktopAPI;
         desktopUtils: typeof desktopUtils;
+        API_BASE_URL: string;
         desktop: {
             // Dialog-based file operations
             save: typeof desktopAPI.file.save;
@@ -651,3 +696,38 @@ console.log('[Desktop API] Available features:', {
     autoUpdater: {{ENABLE_AUTO_UPDATER}},
     multiWindow: false
 });
+
+// This narrow bridge never accepts native code, paths, channel names or credentials.
+if (JSON.parse("{{NATIVE_EXTENSION_CONFIG}}")) {
+    const ready = new Promise<void>(resolve => {
+        ipcRenderer.once("native:presentation:ready", () => resolve());
+    });
+    const awaitReady = async () => {
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        try {
+            await Promise.race([ready, new Promise<never>((_resolve, reject) => {
+                timer = setTimeout(() => reject(new Error("Native presentation is not ready")), 10000);
+            })]);
+        } finally { if (timer) clearTimeout(timer); }
+    };
+    contextBridge.exposeInMainWorld("desktopPresentation", {
+        onQuit: (listener: (id: number) => void) => {
+            let disposed = false;
+            const receive = (_event: Electron.IpcRendererEvent, id: number) => { if (!disposed) listener(id); };
+            ipcRenderer.on("native:presentation:quit-request", receive);
+            void (async () => { await awaitReady(); const pending: unknown = await ipcRenderer.invoke("native:presentation:quit-guard"); if (!disposed && typeof pending === "number" && pending > 0) listener(pending); })().catch(error => { console.error("Native quit guard unavailable", error); });
+            return () => { disposed = true; ipcRenderer.removeListener("native:presentation:quit-request", receive); };
+        },
+        decideQuit: async (id: number, decision: "quit" | "cancel" | "background") => { await awaitReady(); return ipcRenderer.invoke("native:presentation:quit-decision", id, decision); },
+        subscribe: (listener: (snapshot: unknown) => void) => {
+            const receive = (_event: Electron.IpcRendererEvent, snapshot: unknown) => listener(snapshot);
+            ipcRenderer.on("native:presentation:changed", receive);
+            return () => ipcRenderer.removeListener("native:presentation:changed", receive);
+        },
+        readContextImage: async () => { await awaitReady(); return ipcRenderer.invoke("native:presentation:read-context-image"); },
+        dismissContext: async () => { await awaitReady(); return ipcRenderer.invoke("native:presentation:dismiss-context"); },
+        setShortcut: async (accelerator: string) => { await awaitReady(); return ipcRenderer.invoke("native:presentation:shortcut", accelerator); },
+        get: async () => { await awaitReady(); return ipcRenderer.invoke("native:presentation:get"); },
+        set: async (mode: "expanded" | "palette" | "pill" | "hidden") => { await awaitReady(); return ipcRenderer.invoke("native:presentation:set", mode); },
+    });
+}

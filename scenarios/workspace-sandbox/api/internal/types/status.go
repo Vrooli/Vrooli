@@ -5,37 +5,26 @@
 //
 // The following diagram shows all valid status transitions:
 //
-//	                         ┌─────────┐
-//	                         │ CREATING │
-//	                         └────┬────┘
-//	                   success │    │ error
-//	               ┌───────────┘    └──────────┐
-//	               ▼                           ▼
-//	          ┌────────┐                  ┌───────┐
-//	┌────────►│ ACTIVE │◄────┐            │ ERROR │
-//	│ resume  └───┬────┘     │ resume     └───┬───┘
-//	│             │          │                │
-//	│       stop  │          │                │ delete
-//	│             ▼          │                │
-//	│        ┌─────────┐     │                │
-//	└────────│ STOPPED │─────┘                │
-//	         └────┬────┘                      │
-//	  approve │      │ reject                 │
-//	          ▼      ▼                        │
-//	     ┌──────────┐ ┌──────────┐            │
-//	     │ APPROVED │ │ REJECTED │            │
-//	     └────┬─────┘ └────┬─────┘            │
-//	          │            │                  │
-//	          │ delete     │ delete           │
-//	          ▼            ▼                  ▼
-//	     ┌────────────────────────────────────────┐
-//	     │               DELETED                  │
-//	     └────────────────────────────────────────┘
+//	CREATING ──success──► ACTIVE ──stop────► STOPPED ──start──► ACTIVE
+//	    │                   │                  │
+//	    │ error             │ checkpoint       │ approve/reject/delete
+//	    ▼                   ▼                  ▼
+//	  ERROR          CHECKPOINTING ─────► CHECKPOINTED
+//	    │                   │                  │
+//	    │ delete            │ error            │ resume/reject/delete
+//	    ▼                   ▼                  ▼
+//	  DELETED            ERROR           ACTIVE/REJECTED/DELETED
+//
+// Active and stopped sandboxes may be approved or rejected. Checkpointed
+// sandboxes are resumable or rejectable, but never approvable; a checkpoint is
+// already the post-turn apply boundary. Approved, rejected, and deleted are
+// terminal except that approved/rejected may be garbage-collected to deleted.
 //
 // # Status Categories
 //
 //   - Active statuses (Creating, Active): sandbox has resources, can do work
 //   - Stopped: sandbox is paused, data preserved, can resume or finalize
+//   - Checkpointed: accepted turn changes are applied, mounts released, can resume
 //   - Terminal statuses (Approved, Rejected, Deleted): no further transitions
 //   - Error: something went wrong; can only be deleted
 //
@@ -53,13 +42,15 @@ import "fmt"
 type Status string
 
 const (
-	StatusCreating Status = "creating"
-	StatusActive   Status = "active"
-	StatusStopped  Status = "stopped"
-	StatusApproved Status = "approved"
-	StatusRejected Status = "rejected"
-	StatusDeleted  Status = "deleted"
-	StatusError    Status = "error"
+	StatusCreating      Status = "creating"
+	StatusActive        Status = "active"
+	StatusStopped       Status = "stopped"
+	StatusCheckpointing Status = "checkpointing"
+	StatusCheckpointed  Status = "checkpointed"
+	StatusApproved      Status = "approved"
+	StatusRejected      Status = "rejected"
+	StatusDeleted       Status = "deleted"
+	StatusError         Status = "error"
 )
 
 // --- Status Classification ---
@@ -84,7 +75,13 @@ func (s Status) IsMounted() bool {
 // RequiresCleanup returns true if the sandbox may have filesystem resources
 // that need cleanup.
 func (s Status) RequiresCleanup() bool {
-	return s == StatusActive || s == StatusStopped || s == StatusError || s == StatusCreating
+	return s == StatusActive || s == StatusStopped || s == StatusCheckpointing || s == StatusCheckpointed || s == StatusError || s == StatusCreating
+}
+
+// CanRunProcess reports whether a sandbox may launch foreground or background
+// processes. Process execution requires a mounted active workspace.
+func CanRunProcess(status Status) bool {
+	return status == StatusActive
 }
 
 // --- State Transition Decisions ---
@@ -114,6 +111,32 @@ func CanStart(status Status) error {
 		Current:   status,
 		Attempted: StatusActive,
 		Reason:    "only stopped sandboxes can be started",
+	}
+}
+
+// CanResumeWork checks if a checkpointed sandbox can be remounted for a new
+// turn. Normal stopped sandboxes continue to use Start; checkpointed sandboxes
+// use Resume so turn lifecycle cannot blur with manual pause semantics.
+func CanResumeWork(status Status) error {
+	if status == StatusCheckpointed {
+		return nil
+	}
+	return &InvalidTransitionError{
+		Current:   status,
+		Attempted: StatusActive,
+		Reason:    "only checkpointed sandboxes can be resumed",
+	}
+}
+
+// CanCheckpointTurn checks if a sandbox can be parked after an agent turn.
+func CanCheckpointTurn(status Status) error {
+	if status == StatusActive {
+		return nil
+	}
+	return &InvalidTransitionError{
+		Current:   status,
+		Attempted: StatusCheckpointed,
+		Reason:    "only active sandboxes can be checkpointed",
 	}
 }
 
@@ -154,7 +177,7 @@ func CanApprove(status Status) error {
 // Rejection discards all changes without applying them.
 func CanReject(status Status) error {
 	switch status {
-	case StatusActive, StatusStopped:
+	case StatusActive, StatusStopped, StatusCheckpointed:
 		return nil
 	case StatusRejected:
 		return &InvalidTransitionError{
@@ -202,6 +225,11 @@ func CanGenerateDiff(status Status) error {
 	switch status {
 	case StatusActive, StatusStopped:
 		return nil
+	case StatusCheckpointed:
+		return &InvalidTransitionError{
+			Current: status,
+			Reason:  "sandbox is checkpointed, resume it before generating a live diff",
+		}
 	case StatusCreating:
 		return &InvalidTransitionError{
 			Current: status,
@@ -230,13 +258,15 @@ func CanGetWorkspacePath(status Status) error {
 // ValidTransitions documents which state transitions are allowed.
 // This is the authoritative source for the state machine.
 var ValidTransitions = map[Status][]Status{
-	StatusCreating: {StatusActive, StatusError, StatusDeleted},
-	StatusActive:   {StatusStopped, StatusApproved, StatusRejected, StatusError, StatusDeleted},
-	StatusStopped:  {StatusActive, StatusApproved, StatusRejected, StatusDeleted},
-	StatusApproved: {StatusDeleted},
-	StatusRejected: {StatusDeleted},
-	StatusError:    {StatusDeleted},
-	StatusDeleted:  {}, // No transitions from deleted
+	StatusCreating:      {StatusActive, StatusError, StatusDeleted},
+	StatusActive:        {StatusStopped, StatusCheckpointing, StatusApproved, StatusRejected, StatusError, StatusDeleted},
+	StatusStopped:       {StatusActive, StatusApproved, StatusRejected, StatusDeleted},
+	StatusCheckpointing: {StatusCheckpointed, StatusActive, StatusError, StatusDeleted},
+	StatusCheckpointed:  {StatusActive, StatusRejected, StatusDeleted},
+	StatusApproved:      {StatusDeleted},
+	StatusRejected:      {StatusDeleted},
+	StatusError:         {StatusDeleted},
+	StatusDeleted:       {}, // No transitions from deleted
 }
 
 // CanTransitionTo checks if a transition from the current status to the target is valid.

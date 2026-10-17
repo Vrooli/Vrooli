@@ -1,0 +1,225 @@
+syntax = "proto3";
+
+package vrooli.plan_manager.v1.log;
+
+import "plan-manager/v1/shared/model.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/log;log_v1";
+
+// =============================================================================
+// LOG DOMAIN — the typed execution-log ledger
+// =============================================================================
+//
+// @stability draft
+//
+// LogService is Plan Manager's single durable ledger for the work products an
+// agent produces while executing a plan: design decisions, candidate findings,
+// filed bug reports, reusable records, and lightweight notes. It replaces the
+// scattered decision/finding capture that used to live on the execution runner,
+// so findings, bug reports, and records stay DISTINCT concepts owned by one
+// domain (PM-LOG-001).
+//
+// Plan Manager owns downstream bug-report and record submission INTERNALLY,
+// through seams/adapters — an agent never runs swarm-manager / scenario-qa /
+// prompt-manager bug commands from the plan workflow (PM-LOG-002). When a
+// downstream system is unavailable or rejects a write, the local entry stays
+// durable with a sync_status of PENDING or SYNC_FAILED, and resume/status/
+// handoff surface the degraded state for explicit retry via SyncEntry
+// (PM-LOG-003). Idempotency keys make retries safe (PM-LOG-004).
+//
+// The structured LogEntry/LogSummary types live in shared/model.proto so the
+// execution domain can read compact summaries through an internal seam without
+// importing this service.
+// =============================================================================
+
+service LogService {
+  // AddDecision records an in-flow design decision (feeds the handoff).
+  rpc AddDecision(AddDecisionRequest) returns (AddEntryResponse);
+  // AddFinding records a CANDIDATE finding (a possible bug; never auto-promoted).
+  rpc AddFinding(AddFindingRequest) returns (AddEntryResponse);
+  // AddBug files a bug report and forwards it to the downstream issue tracker
+  // through an internal seam; the local entry stays durable if the sync fails.
+  rpc AddBug(AddBugRequest) returns (AddEntryResponse);
+  // AddRecord captures a reusable record and forwards it to Swarm Manager
+  // through an internal seam; the local entry stays durable if the sync fails.
+  rpc AddRecord(AddRecordRequest) returns (AddEntryResponse);
+  // AddNote records a lightweight progress/context note (local-only).
+  rpc AddNote(AddNoteRequest) returns (AddEntryResponse);
+  // ListEntries returns ledger entries for a plan/execution/phase with an
+  // attached compact summary.
+  rpc ListEntries(ListEntriesRequest) returns (ListEntriesResponse);
+  // GetEntry returns one ledger entry by id, including its downstream reference.
+  rpc GetEntry(GetEntryRequest) returns (GetEntryResponse);
+  // UpdateEntry edits an entry's mutable fields (title/detail/severity/triage,
+  // append evidence). Empty/UNSPECIFIED fields are left unchanged.
+  rpc UpdateEntry(UpdateEntryRequest) returns (GetEntryResponse);
+  // ReassignEntry moves an existing entry to another phase. The phase may be a
+  // canonical phase id or a 1-based ordinal in the entry's plan.
+  rpc ReassignEntry(ReassignEntryRequest) returns (GetEntryResponse);
+  // PromoteEntry promotes a finding into a bug_report or record, preserving the
+  // original finding (marked promoted) and linking the new entry back to it.
+  rpc PromoteEntry(PromoteEntryRequest) returns (PromoteEntryResponse);
+  // SyncEntry retries downstream forwarding for a pending/failed bug or record.
+  rpc SyncEntry(SyncEntryRequest) returns (GetEntryResponse);
+}
+
+// AddEntryResponse is the common response for the typed Add* RPCs.
+message AddEntryResponse {
+  shared.LogEntry entry = 1;
+  shared.GuidedStep step = 2;
+  // True when an existing entry was returned via idempotency/dedup rather than a
+  // new one being created.
+  bool deduplicated = 3;
+}
+
+// AddDecisionRequest records a design decision.
+message AddDecisionRequest {
+  // Plan id/slug or execution id the entry attaches to. An execution id also
+  // binds the entry to that run; a plan id attaches it plan-wide.
+  string plan_or_execution = 1;
+  string phase_id = 2;
+  string title = 3;
+  string detail = 4;
+  repeated string evidence = 5;
+  // The plan-manager CLI command that produced this entry (audit trail).
+  string source_command = 6;
+  // Optional idempotency key; a retry with the same key returns the existing
+  // entry. Falls back to attribution-keyed dedup when empty.
+  string idempotency_key = 7;
+  // Optional explicitly supplied or server-verified attribution run id.
+  string run_id = 8;
+}
+
+// AddFindingRequest records a candidate finding (a possible bug).
+message AddFindingRequest {
+  string plan_or_execution = 1;
+  string phase_id = 2;
+  string title = 3;
+  string detail = 4;
+  shared.LogSeverity severity = 5;
+  repeated string evidence = 6;
+  string source_command = 7;
+  string idempotency_key = 8;
+  string run_id = 9;
+}
+
+// AddBugRequest files a bug report (forwarded downstream).
+message AddBugRequest {
+  string plan_or_execution = 1;
+  string phase_id = 2;
+  string title = 3;
+  string detail = 4;
+  shared.LogSeverity severity = 5;
+  repeated string evidence = 6;
+  string source_command = 7;
+  string idempotency_key = 8;
+  string run_id = 9;
+  string signal_type = 10;
+  string report_severity = 11;
+  repeated string repro = 12;
+  string expected = 13;
+  string actual = 14;
+  string description = 15;
+  map<string, string> context = 16;
+  repeated string honesty_flags = 17;
+}
+
+// AddRecordRequest captures a reusable record (forwarded downstream).
+message AddRecordRequest {
+  string plan_or_execution = 1;
+  string phase_id = 2;
+  string title = 3;
+  string detail = 4;
+  repeated string evidence = 5;
+  string source_command = 6;
+  string idempotency_key = 7;
+  string run_id = 8;
+  string kind = 9;
+  string scenario = 10;
+  string trigger = 11;
+  string approach = 12;
+  string record_evidence = 13;
+  string outcome = 14;
+  string created_by = 15;
+}
+
+// AddNoteRequest records a lightweight note.
+message AddNoteRequest {
+  string plan_or_execution = 1;
+  string phase_id = 2;
+  string title = 3;
+  string detail = 4;
+  repeated string evidence = 5;
+  string source_command = 6;
+  string idempotency_key = 7;
+  string run_id = 8;
+}
+
+message ListEntriesRequest {
+  // Plan id/slug or execution id to scope the listing. Empty lists across all.
+  string plan_or_execution = 1;
+  string phase_id = 2;
+  // Optional type filter (UNSPECIFIED = all types).
+  shared.LogEntryType type = 3;
+  // Optional triage filter for finding entries (UNSPECIFIED = all).
+  shared.FindingTriage triage = 4;
+  // Optional sync-status filter (UNSPECIFIED = all).
+  shared.LogSyncStatus sync_status = 5;
+}
+
+message ListEntriesResponse {
+  repeated shared.LogEntry entries = 1;
+  shared.LogSummary summary = 2;
+  shared.GuidedStep step = 3;
+}
+
+message GetEntryRequest {
+  string id = 1;
+}
+
+message GetEntryResponse {
+  shared.LogEntry entry = 1;
+  shared.GuidedStep step = 2;
+}
+
+message UpdateEntryRequest {
+  string id = 1;
+  // Empty leaves the field unchanged.
+  string title = 2;
+  string detail = 3;
+  // UNSPECIFIED leaves severity unchanged.
+  shared.LogSeverity severity = 4;
+  // UNSPECIFIED leaves triage unchanged (e.g. promote/dismiss a finding).
+  shared.FindingTriage triage = 5;
+  // Evidence locators to append.
+  repeated string add_evidence = 6;
+}
+
+message ReassignEntryRequest {
+  string id = 1;
+  // Phase id or 1-based ordinal in the entry's plan.
+  string phase_id = 2;
+}
+
+message PromoteEntryRequest {
+  // The finding entry id to promote.
+  string id = 1;
+  // Target type: BUG_REPORT or RECORD.
+  shared.LogEntryType to_type = 2;
+  // Optional overrides for the promoted entry; empty reuses the finding's.
+  string title = 3;
+  string detail = 4;
+  shared.LogSeverity severity = 5;
+}
+
+message PromoteEntryResponse {
+  // The newly created bug_report/record entry.
+  shared.LogEntry entry = 1;
+  // The original finding, now marked promoted with the link recorded.
+  shared.LogEntry source = 2;
+  shared.GuidedStep step = 3;
+}
+
+message SyncEntryRequest {
+  string id = 1;
+}

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Aquila — One system, many hands</title>
+  <style>
+    :root { --paper:#f5f3ee; --ink:#10151d; --muted:#64707b; --line:rgba(16,21,29,.16); --orange:#ed641b; --teal:#227b83; --blue:#527a8b; --cream:#e9e5dc; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-width:320px; color:var(--ink); background:var(--paper); font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    body:before { content:""; position:fixed; inset:0; opacity:.25; pointer-events:none; background-image:linear-gradient(120deg,rgba(16,21,29,.035) 1px,transparent 1px); background-size:17px 17px; mask-image:linear-gradient(to bottom,black,transparent); }
+    .wrap { width:min(1240px,calc(100% - 66px)); margin:auto; position:relative; }
+    nav { height:85px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--line); }
+    .brand { display:flex; align-items:center; gap:11px; color:var(--ink); text-decoration:none; font:650 18px "Space Grotesk",Inter,sans-serif; letter-spacing:-.03em; }
+    .mark { width:28px; height:28px; display:grid; place-items:center; color:var(--paper); background:var(--ink); border-radius:50%; font:800 14px "Space Grotesk",sans-serif; }
+    .nav { display:flex; gap:25px; align-items:center; color:var(--muted); font-size:12px; }.nav a { color:inherit; text-decoration:none; }.nav .cta { padding:10px 15px; color:var(--paper); background:var(--ink); border-radius:999px; }
+    main { min-height:calc(100vh - 85px); display:grid; grid-template-columns:.75fr 1.25fr; gap:7vw; align-items:center; padding:65px 0 80px; }
+    .copy { max-width:510px; position:relative; z-index:3; }
+    .eyebrow { color:var(--orange); font:700 11px "JetBrains Mono",monospace; letter-spacing:.12em; text-transform:uppercase; }
+    h1 { margin:22px 0; font:600 clamp(50px,6.3vw,80px)/.99 "Space Grotesk",Inter,sans-serif; letter-spacing:-.073em; }
+    h1 span { color:var(--teal); }
+    .lede { max-width:480px; margin:0; color:var(--muted); font-size:18px; line-height:1.68; }
+    .actions { display:flex; gap:12px; flex-wrap:wrap; margin-top:34px; }.button { padding:15px 20px; border-radius:999px; text-decoration:none; font:650 14px "Space Grotesk",Inter,sans-serif; }.primary { color:var(--paper); background:var(--ink); box-shadow:0 9px 18px rgba(16,21,29,.13); }.secondary { color:var(--ink); border:1px solid var(--line); }
+    .quote { margin-top:49px; padding-left:17px; border-left:2px solid var(--orange); color:var(--muted); font-size:12px; line-height:1.55; }.quote strong { display:block; margin-top:6px; color:var(--ink); font:650 11px "Space Grotesk",sans-serif; }
+    .flow { min-height:580px; position:relative; display:flex; align-items:center; }.flow-bg { position:absolute; inset:4% -7% 4% -4%; overflow:hidden; background:var(--cream); border:1px solid var(--line); box-shadow:18px 21px 0 #d9d4c9; }.flow-bg:before { content:""; position:absolute; width:690px; height:690px; top:-39%; right:-23%; border:1px solid rgba(34,123,131,.22); border-radius:50%; box-shadow:0 0 0 34px rgba(34,123,131,.05),0 0 0 68px rgba(34,123,131,.04),0 0 0 102px rgba(34,123,131,.03); }.flow-bg:after { content:""; position:absolute; width:430px; height:160px; left:-10%; bottom:4%; border:1px solid rgba(237,100,27,.24); border-radius:50%; transform:rotate(-18deg); }
+    .flow-head { position:absolute; top:23px; left:27px; right:27px; display:flex; justify-content:space-between; color:var(--muted); font:10px "JetBrains Mono",monospace; letter-spacing:.1em; text-transform:uppercase; }.flow-head b { color:var(--teal); font-weight:700; }
+    .path { position:relative; z-index:2; width:90%; margin:50px auto 0; }.pathline { position:absolute; top:76px; left:8%; right:8%; height:1px; background:var(--ink); opacity:.34; }.pathline:after { content:""; position:absolute; left:18%; right:18%; top:-2px; height:5px; background:var(--orange); opacity:.32; }
+    .steps { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; position:relative; }
+    .step { text-align:center; }.step-num { width:47px; height:47px; display:grid; place-items:center; margin:0 auto 21px; border:1px solid var(--ink); border-radius:50%; background:var(--paper); font:700 12px "JetBrains Mono",monospace; }.step:nth-child(2) .step-num { background:var(--orange); color:var(--paper); border-color:var(--orange); }.step:nth-child(3) .step-num { background:var(--teal); color:var(--paper); border-color:var(--teal); }.step:nth-child(4) .step-num { background:var(--ink); color:var(--paper); }.step h2 { margin:0; font:600 17px "Space Grotesk",sans-serif; letter-spacing:-.03em; }.step p { margin:9px auto 0; max-width:125px; color:var(--muted); font-size:10px; line-height:1.45; }
+    .apps { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:55px; }.app { padding:14px; background:rgba(245,243,238,.72); border:1px solid var(--line); }.app-top { display:flex; align-items:center; justify-content:space-between; }.app-icon { width:22px; height:22px; display:grid; place-items:center; border-radius:6px; color:var(--paper); background:var(--ink); font:700 10px "Space Grotesk",sans-serif; }.app:nth-child(2) .app-icon { color:var(--ink); background:var(--orange); }.app strong { font:650 11px "Space Grotesk",sans-serif; }.app span { display:block; margin-top:8px; color:var(--muted); font-size:9px; }.flow-caption { position:absolute; left:28px; bottom:19px; color:var(--muted); font:9px "JetBrains Mono",monospace; letter-spacing:.05em; }
+    @media (max-width:900px) { .wrap { width:min(100% - 36px,650px); }.nav a:not(.cta) { display:none; } main { display:block; padding:62px 0 80px; }.flow { min-height:530px; margin-top:55px; }.flow-bg { inset:3% -1% 3% -1%; }.path { width:94%; }.apps { margin-top:48px; } }
+    @media (max-width:560px) { .wrap { width:calc(100% - 28px); }.flow { min-height:430px; transform:scale(.9); transform-origin:top center; margin-bottom:-40px; }.flow-bg { box-shadow:10px 12px 0 #d9d4c9; }.flow-head { left:17px; right:17px; }.path { margin-top:35px; }.steps { gap:5px; }.step-num { width:37px; height:37px; margin-bottom:17px; font-size:10px; }.pathline { top:55px; }.step h2 { font-size:13px; }.step p { font-size:9px; }.apps { gap:6px; margin-top:37px; }.app { padding:10px; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <nav><a class="brand" href="index.html"><span class="mark">A</span><span>Aquila</span></a><div class="nav"><a href="#flow">The operating model</a><a href="#apps">The apps</a><a class="cta" href="#start">See the bundle ↗</a></div></nav>
+    <main>
+      <section class="copy"><div class="eyebrow">The Aquila business suite</div><h1>Many hands. <span>One system.</span></h1><p class="lede">A focused set of tools for the work that does not fit neatly inside one tool: orient the team, automate the repeatable, and make every important handoff easier to trust.</p><div class="actions" id="start"><a class="button primary" href="#flow">Explore the suite <span>↗</span></a><a class="button secondary" href="#apps">View the apps <span>↓</span></a></div><div class="quote">A product family should feel like a shared practice, not a row of unrelated downloads.<strong>— bundle design principle / AQL-02</strong></div></section>
+      <section class="flow" id="flow" aria-label="Aquila bundle workflow"><div class="flow-bg"></div><div class="flow-head"><span>bundle / operating model</span><b>01—04 / in sequence</b></div><div class="path"><div class="pathline"></div><div class="steps"><div class="step"><div class="step-num">01</div><h2>Orient</h2><p>Bring the work and context into view.</p></div><div class="step"><div class="step-num">02</div><h2>Automate</h2><p>Turn the repeatable into a reliable path.</p></div><div class="step"><div class="step-num">03</div><h2>Shape</h2><p>Give every surface a deliberate form.</p></div><div class="step"><div class="step-num">04</div><h2>Ship</h2><p>Make the final state easy to trust.</p></div></div><div class="apps" id="apps"><div class="app"><div class="app-top"><span class="app-icon">A</span><strong>Aquila workspace</strong></div><span>Live now · command center</span></div><div class="app"><div class="app-top"><span class="app-icon">B</span><strong>Browser Automation Studio</strong></div><span>Coming next · browser workflows</span></div></div></div><div class="flow-caption">ARTIFACT 04 / EDITORIAL PROCESS MAP / BUNDLE HERO</div></section>
+    </main>
+  </div>
+</body>
+</html>

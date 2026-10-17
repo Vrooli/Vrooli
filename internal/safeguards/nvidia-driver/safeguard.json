@@ -1,0 +1,97 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "nvidia_driver",
+  "storage": {
+    "entries": {
+      "apt_policy_blacklist": {
+        "path": "/etc/apt/apt.conf.d/52-vrooli-nvidia-coupling",
+        "rung": "owned",
+        "kind": "file",
+        "class": "config",
+        "regenerable": false,
+        "platforms": [
+          "linux"
+        ],
+        "rationale": "This policy file keeps the NVIDIA coupled package set version-coherent under guard update control."
+      }
+    },
+    "rationale": "The safeguard owns the apt policy file that prevents unattended upgrades from separating the running kernel from its NVIDIA module set."
+  },
+  "description": "Validate and repair the NVIDIA kernel driver for the running Ubuntu kernel, and keep the compute device nodes durable across boots, when NVIDIA display hardware is present",
+  "handler": "nvidia_driver",
+  "risk": "high",
+  "privilege": "elevated",
+  "bundling": "prohibited",
+  "capability": "gpu-driver-health",
+  "capability_role": "control",
+  "invariants": [
+    {
+      "id": "module-loadable-on-running-kernel",
+      "kind": "kernel_module_available",
+      "statement": "The capability module set is loadable for the running kernel.",
+      "severity": "critical",
+      "applicability": {
+        "device_class": "display",
+        "vendor_id": "10de",
+        "platforms": [
+          "linux"
+        ],
+        "capability": "gpu-driver-health"
+      }
+    },
+    {
+      "id": "kernel-and-module-move-together",
+      "kind": "update_atomicity",
+      "statement": "The running kernel and capability module set move together during host updates.",
+      "severity": "critical",
+      "applicability": {
+        "device_class": "display",
+        "vendor_id": "10de",
+        "platforms": [
+          "linux"
+        ],
+        "capability": "gpu-driver-health"
+      }
+    }
+  ],
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        }
+      }
+    }
+  },
+  "platform_status": {
+    "linux": {
+      "status": "build-verified",
+      "mechanism": "handler",
+      "evidence": "The Linux provider and host safeguard were exercised on this host after the 2026-08-25 NVIDIA kernel-module repair; the running driver is serving CUDA workloads. A durable structured run record is not available, so this claim remains build-verified until that evidence is captured."
+    },
+    "macos": {
+      "status": "not_applicable",
+      "evidence": "Windows does not expose the Linux host interface used by safeguard nvidia_driver; the platform has a distinct host security and lifecycle model.",
+      "review_by": "2027-08-26"
+    },
+    "windows": {
+      "status": "not_implemented",
+      "mechanism": "nvidia_driver_store",
+      "evidence": "The Windows NVIDIA provider is not wired into this safeguard yet; the host mechanism is the Windows driver store and kernel-mode display driver interface.",
+      "since": "2026-08-26"
+    }
+  },
+  "risk_class": "boot_critical"
+}

@@ -1,0 +1,1 @@
+{"gate":"visual","assetId":"calibration-visual","kind":"component","runner":"external","requiredFailureCode":"catalog.visual_calibration","description":"A visual fixture with a planted layout mismatch."}

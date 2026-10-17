@@ -3,11 +3,17 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"regexp"
+	"strings"
 	"sync"
 
 	"scenario-to-cloud/domain"
+	"scenario-to-cloud/reach"
+	"scenario-to-cloud/reach/sshadapter"
 	"scenario-to-cloud/secrets"
-	"scenario-to-cloud/ssh"
+
+	"github.com/vrooli/api-core/identity"
 )
 
 // =============================================================================
@@ -19,7 +25,7 @@ import (
 // Example usage:
 //
 //	srv := &Server{
-//	    sshRunner:        &FakeSSHRunner{Responses: map[string]ssh.Result{"echo ok": {ExitCode: 0}}},
+//	    sshRunner:        &FakeSSHRunner{Responses: map[string]sshadapter.Result{"echo ok": {ExitCode: 0}}},
 //	    scpRunner:        &FakeSCPRunner{},
 //	    secretsFetcher:   &FakeSecretsFetcher{Response: testSecrets},
 //	    secretsGenerator: &FakeSecretsGenerator{Values: map[string]string{"key": "value"}}, // implements secrets.GeneratorFunc
@@ -27,14 +33,14 @@ import (
 //	}
 // =============================================================================
 
-// FakeSSHRunner provides a controllable ssh.Runner for testing.
+// FakeSSHRunner provides a controllable sshadapter.Runner for testing.
 // Configure expected command responses, or set default error behavior.
 type FakeSSHRunner struct {
 	// Handler is called first for every command. If nil or returns false,
 	// falls through to map-based matching.
-	Handler func(command string) (ssh.Result, error, bool)
-	// Responses maps commands to their ssh.Result responses
-	Responses map[string]ssh.Result
+	Handler func(command string) (sshadapter.Result, error, bool)
+	// Responses maps commands to their sshadapter.Result responses
+	Responses map[string]sshadapter.Result
 	// Errs maps commands to errors (takes precedence over Responses)
 	Errs map[string]error
 	// DefaultErr is returned for unknown commands if set
@@ -44,17 +50,24 @@ type FakeSSHRunner struct {
 	mu    sync.Mutex
 }
 
-// Ensure FakeSSHRunner implements ssh.Runner at compile time.
-var _ ssh.Runner = (*FakeSSHRunner)(nil)
+// Ensure FakeSSHRunner implements sshadapter.Runner at compile time.
+var _ sshadapter.Runner = (*FakeSSHRunner)(nil)
 
 // Run returns the configured response for a command, or an error.
-func (f *FakeSSHRunner) Run(_ context.Context, _ ssh.Config, command string, _ ssh.RunOptions) (ssh.Result, error) {
+func (f *FakeSSHRunner) Run(_ context.Context, _ sshadapter.ConnectionConfig, command string, _ sshadapter.RunOptions) (sshadapter.Result, error) {
 	f.mu.Lock()
 	f.Calls = append(f.Calls, command)
 	f.mu.Unlock()
 
-	// Try handler first (supports prefix/regex matching)
+	// Try the legacy semantic spelling first for typed observations so old
+	// handlers remain meaningful while the production transport changes.
 	if f.Handler != nil {
+		if legacy, ok := f.typedObservationLegacy(command); ok {
+			if res, err, handled := f.Handler(legacy); handled {
+				return res, err
+			}
+		}
+		// Try handler first for all other commands (supports prefix/regex matching).
 		if res, err, handled := f.Handler(command); handled {
 			return res, err
 		}
@@ -62,18 +75,74 @@ func (f *FakeSSHRunner) Run(_ context.Context, _ ssh.Config, command string, _ s
 
 	// Fall back to exact-match maps (backward compatible)
 	if err, ok := f.Errs[command]; ok {
-		return ssh.Result{ExitCode: 255}, err
+		return sshadapter.Result{ExitCode: 255}, err
 	}
 	if res, ok := f.Responses[command]; ok {
 		return res, nil
 	}
-	if f.DefaultErr != nil {
-		return ssh.Result{ExitCode: 1}, f.DefaultErr
+	if res, ok := f.typedObservationResponse(command); ok {
+		return res, nil
 	}
-	return ssh.Result{Stdout: "", ExitCode: 127}, fmt.Errorf("unknown command: %s", command)
+	if f.DefaultErr != nil {
+		return sshadapter.Result{ExitCode: 1}, f.DefaultErr
+	}
+	return sshadapter.Result{Stdout: "", ExitCode: 127}, fmt.Errorf("unknown command: %s", command)
 }
 
-// FakeSCPRunner provides a controllable ssh.SCPRunner for testing.
+var quotedToken = regexp.MustCompile(`'([^']*)'`)
+
+// typedObservationResponse keeps legacy semantic fixtures reusable while the
+// SSH adapter now invokes the target-owned cloud-target host observe verb.
+// It is test compatibility only; production never parses remote shell text.
+func (f *FakeSSHRunner) typedObservationResponse(command string) (sshadapter.Result, bool) {
+	legacy, ok := f.typedObservationLegacy(command)
+	if !ok {
+		return sshadapter.Result{}, false
+	}
+	if result, ok := f.Responses[legacy]; ok {
+		return result, true
+	}
+	return sshadapter.Result{}, false
+}
+
+func (f *FakeSSHRunner) typedObservationLegacy(command string) (string, bool) {
+	if !strings.Contains(command, "'cloud-target' 'host' 'observe'") {
+		return "", false
+	}
+	matches := quotedToken.FindAllStringSubmatch(command, -1)
+	var tokens []string
+	for _, match := range matches {
+		tokens = append(tokens, match[1])
+	}
+	kindIndex := -1
+	for i, token := range tokens {
+		if token == "--kind" && i+1 < len(tokens) {
+			kindIndex = i + 1
+			break
+		}
+	}
+	if kindIndex < 0 {
+		return "", false
+	}
+	kind := tokens[kindIndex]
+	var args []string
+	for i := kindIndex + 1; i+1 < len(tokens); i++ {
+		if tokens[i] == "--arg" {
+			args = append(args, tokens[i+1])
+			i++
+		}
+	}
+	for program, mapped := range reach.ObservationKinds {
+		if mapped != kind {
+			continue
+		}
+		legacy := sshadapter.ObservationCommand(append([]string{program}, args...))
+		return legacy, true
+	}
+	return "", false
+}
+
+// FakeSCPRunner provides a controllable sshadapter.SCPRunner for testing.
 // Configure specific path errors or use default success behavior.
 type FakeSCPRunner struct {
 	// Errs maps "localPath->remotePath" to errors
@@ -85,11 +154,11 @@ type FakeSCPRunner struct {
 	mu    sync.Mutex
 }
 
-// Ensure FakeSCPRunner implements ssh.SCPRunner at compile time.
-var _ ssh.SCPRunner = (*FakeSCPRunner)(nil)
+// Ensure FakeSCPRunner implements sshadapter.SCPRunner at compile time.
+var _ sshadapter.SCPRunner = (*FakeSCPRunner)(nil)
 
 // Copy records the operation and returns any configured error.
-func (f *FakeSCPRunner) Copy(_ context.Context, _ ssh.Config, localPath, remotePath string, _ ssh.SCPOptions) error {
+func (f *FakeSCPRunner) Copy(_ context.Context, _ sshadapter.ConnectionConfig, localPath, remotePath string, _ sshadapter.SCPOptions) error {
 	f.mu.Lock()
 	f.Calls = append(f.Calls, struct{ Local, Remote string }{localPath, remotePath})
 	f.mu.Unlock()
@@ -206,4 +275,53 @@ func (f *FakeSecretsGenerator) GenerateSecrets(plans []domain.BundleSecretPlan) 
 	}
 
 	return generated, nil
+}
+
+// FakePrincipalProvider is an authn.Provider that returns a fixed principal
+// (or a fixed failure). Tests mutate it between requests to model expiry and
+// revocation; it is never wired outside newTestEnforcer.
+type FakePrincipalProvider struct {
+	mu        sync.Mutex
+	Principal identity.Principal
+	Fail      error
+	// Anonymous makes the provider report a missing credential.
+	Anonymous bool
+	// RevokeAfterCalls, when > 0, makes every verification after that many
+	// calls fail as an invalid credential (revoked between admission and effect).
+	RevokeAfterCalls int
+	Calls            int
+}
+
+func (f *FakePrincipalProvider) Source() identity.AuthSource { return identity.SourcePersonalLocal }
+
+func (f *FakePrincipalProvider) VerifyRequest(_ context.Context, _ *http.Request) (identity.Principal, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.Calls++
+	if f.Anonymous {
+		return identity.Principal{}, identity.NewFailure(identity.FailureMissing, f.Source())
+	}
+	if f.Fail != nil {
+		return identity.Principal{}, f.Fail
+	}
+	if f.RevokeAfterCalls > 0 && f.Calls > f.RevokeAfterCalls {
+		return identity.Principal{}, identity.NewFailure(identity.FailureInvalid, f.Source())
+	}
+	return f.Principal, nil
+}
+
+// Set replaces the principal under the lock.
+func (f *FakePrincipalProvider) Set(principal identity.Principal) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.Principal = principal
+	f.Fail = nil
+	f.Anonymous = false
+}
+
+// Revoke makes every later verification fail as an invalid credential.
+func (f *FakePrincipalProvider) Revoke() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.Fail = identity.NewFailure(identity.FailureInvalid, f.Source())
 }

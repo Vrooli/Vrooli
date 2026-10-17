@@ -1,0 +1,91 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "overlays.dialog",
+    "name": "Dialog",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "overlays",
+    "description": "The modal or non-modal conversation surface with focus containment, inert background, reference-counted scroll lock, structured regions, async actions, and nested-overlay support.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.class-merge",
+        "reason": "Dialog class composition uses the shared Tailwind conflict resolver."
+      },
+      {
+        "asset": "react-component-library:Portal",
+        "reason": "The dialog surface is mounted through the shared portal boundary."
+      },
+      {
+        "asset": "react-component-library:StyleSheet",
+        "reason": "Dialog styles use the shared stylesheet registry."
+      },
+      {
+        "asset": "react-component-library:useOverlaySurface",
+        "reason": "The shared overlay substrate owns focus, dismissal, presence, and scroll behavior."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "layer-manager"
+    }
+  ],
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "layered-dismissal",
+    "contrast-floor",
+    "dark-parity",
+    "reduced-motion",
+    "transition-class-conformance",
+    "no-layout-animation",
+    "responsive-transformation",
+    "focus-containment",
+    "focus-restoration",
+    "status-announced",
+    "tap-target-size"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "submitting",
+    "success",
+    "request-error"
+  ],
+  "api": {
+    "levels": [
+      "compound",
+      "convenience"
+    ],
+    "modes": [
+      "controlled",
+      "uncontrolled"
+    ],
+    "parts": [
+      "trigger",
+      "overlay",
+      "content",
+      "header",
+      "title",
+      "description",
+      "body",
+      "footer",
+      "close"
+    ]
+  }
+}

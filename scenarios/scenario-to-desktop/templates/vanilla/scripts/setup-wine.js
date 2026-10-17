@@ -23,12 +23,41 @@ const WINE_BIN_DIR = path.join(os.homedir(), '.local', 'bin');
 const WINE_APPIMAGE_PATH = path.join(WINE_DIR, 'wine.AppImage');
 const WINE_WRAPPER_PATH = path.join(WINE_BIN_DIR, 'wine');
 
-// Latest stable Wine AppImage from mmtrt/WINE_AppImage
-const WINE_APPIMAGE_URL = 'https://github.com/mmtrt/WINE_AppImage/releases/download/continuous-stable/wine-stable_10.0-x86_64.AppImage';
+// Resolve the current stable asset instead of pinning a versioned filename.
+const WINE_RELEASE_API_URL = 'https://api.github.com/repos/mmtrt/WINE_AppImage/releases/tags/continuous-stable';
+
+function wineEnvironment() {
+  return { ...process.env, PATH: `${WINE_BIN_DIR}${path.delimiter}${process.env.PATH || ''}` };
+}
+
+function latestWineAppImageUrl() {
+  return new Promise((resolve, reject) => {
+    const request = https.get(WINE_RELEASE_API_URL, { headers: { 'User-Agent': 'vrooli-scenario-to-desktop' } }, (response) => {
+      let body = '';
+      response.setEncoding('utf8');
+      response.on('data', (chunk) => { body += chunk; });
+      response.on('end', () => {
+        if (response.statusCode !== 200) {
+          reject(new Error(`Failed to resolve Wine release: HTTP ${response.statusCode}`));
+          return;
+        }
+        try {
+          const assets = JSON.parse(body).assets || [];
+          const asset = assets.find((candidate) => typeof candidate.browser_download_url === 'string' && /^wine-stable_.*-x86_64\.AppImage$/.test(candidate.name || ''));
+          if (!asset) throw new Error('stable Wine AppImage asset not found');
+          resolve(asset.browser_download_url);
+        } catch (error) {
+          reject(error);
+        }
+      });
+    });
+    request.on('error', reject);
+  });
+}
 
 async function checkWineInstalled() {
   try {
-    execSync('wine --version', { stdio: 'pipe' });
+    execSync('wine --version', { stdio: 'pipe', env: wineEnvironment() });
     return true;
   } catch {
     return false;
@@ -41,22 +70,23 @@ async function downloadFile(url, destPath) {
     console.log(`   URL: ${url}`);
     console.log(`   Destination: ${destPath}`);
 
-    const file = fs.createWriteStream(destPath);
-
     https.get(url, (response) => {
       // Follow redirects
       if (response.statusCode === 301 || response.statusCode === 302) {
         const redirectUrl = response.headers.location;
         console.log(`   Following redirect to: ${redirectUrl}`);
+        response.resume();
         downloadFile(redirectUrl, destPath).then(resolve).catch(reject);
         return;
       }
 
       if (response.statusCode !== 200) {
+        response.resume();
+        fs.unlink(destPath, () => {});
         reject(new Error(`Failed to download: HTTP ${response.statusCode}`));
         return;
       }
-
+      const file = fs.createWriteStream(destPath);
       const totalBytes = parseInt(response.headers['content-length'] || '0', 10);
       let downloadedBytes = 0;
       let lastPercent = 0;
@@ -108,8 +138,14 @@ async function setupWineAppImage() {
     fs.mkdirSync(WINE_DIR, { recursive: true });
     fs.mkdirSync(WINE_BIN_DIR, { recursive: true });
 
-    // Download Wine AppImage
-    await downloadFile(WINE_APPIMAGE_URL, WINE_APPIMAGE_PATH);
+    // Download the current Wine AppImage
+    const wineUrl = await latestWineAppImageUrl();
+    await downloadFile(wineUrl, WINE_APPIMAGE_PATH);
+
+    const downloaded = fs.statSync(WINE_APPIMAGE_PATH);
+    if (!downloaded.isFile() || downloaded.size < 1024 * 1024) {
+      throw new Error(`Wine AppImage is unexpectedly small (${downloaded.size} bytes)`);
+    }
 
     // Make executable
     fs.chmodSync(WINE_APPIMAGE_PATH, 0o755);
@@ -124,6 +160,14 @@ exec "${WINE_APPIMAGE_PATH}" "$@"
 
     fs.writeFileSync(WINE_WRAPPER_PATH, wrapperScript);
     fs.chmodSync(WINE_WRAPPER_PATH, 0o755);
+
+    // npm scripts prepend node_modules/.bin to PATH, so expose the same
+    // validated wrapper to electron-builder in this generated package.
+    const localBin = path.join(process.cwd(), 'node_modules', '.bin');
+    fs.mkdirSync(localBin, { recursive: true });
+    const localWrapper = path.join(localBin, 'wine');
+    fs.writeFileSync(localWrapper, `#!/bin/sh\nexec "${WINE_WRAPPER_PATH}" "$@"\n`);
+    fs.chmodSync(localWrapper, 0o755);
     console.log('✓ Created Wine wrapper script');
 
     // Verify installation

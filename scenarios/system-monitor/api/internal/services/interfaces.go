@@ -5,8 +5,8 @@ import (
 	"net/http"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
-	"system-monitor-api/internal/agentmanager"
-	"system-monitor-api/internal/models"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/agentmanager"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
 )
 
 // MetricsSource provides on-demand metrics collection.
@@ -19,12 +19,9 @@ type MetricsSource interface {
 type AgentExecutor interface {
 	IsEnabled() bool
 	IsAvailable(ctx context.Context) bool
-	Initialize(ctx context.Context, cfg *agentmanager.ProfileConfig) error
+	Initialize(ctx context.Context) error
 	Execute(ctx context.Context, req agentmanager.ExecuteRequest) (*agentmanager.ExecuteResult, error)
-	GetProfile(ctx context.Context) (*domainpb.AgentProfile, error)
 	GetProfileID() string
-	UpdateProfile(ctx context.Context, cfg *agentmanager.ProfileConfig) (*domainpb.AgentProfile, error)
-	GetAvailableRunners(ctx context.Context) ([]agentmanager.RunnerInfo, error)
 	GetRunByTag(ctx context.Context, tag string) (*domainpb.Run, error)
 	ListActiveRuns(ctx context.Context) ([]*domainpb.Run, error)
 	StopRun(ctx context.Context, runID string) error

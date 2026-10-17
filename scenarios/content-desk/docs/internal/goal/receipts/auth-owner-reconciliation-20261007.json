@@ -1,0 +1,61 @@
+{
+  "preparedAt": "2026-10-07T17:22:47.872125+00:00",
+  "files": [
+    {
+      "target": "/home/matthalloran8/Vrooli/scenarios/content-desk/docs/internal/goal/GOAL.md",
+      "staged": "/home/matthalloran8/Documents/Codex/2026-10-02/task-13/marketing-live-status-20261007/auth-reconciled-0",
+      "beforeSha256": "e97cc4f70e48ab2dd53219a0dfbe441081abcbf54495f6376db7bc32fc266fa9",
+      "afterSha256": "a4a5f1829e3ecf57acdd0d138dae5ed967a9806bdfe34cf878d21955b59f7bf5"
+    },
+    {
+      "target": "/home/matthalloran8/Vrooli/scenarios/content-desk/docs/internal/goal/COORDINATOR.md",
+      "staged": "/home/matthalloran8/Documents/Codex/2026-10-02/task-13/marketing-live-status-20261007/auth-reconciled-1",
+      "beforeSha256": "271561d49514d95904639465d14fdfa10d8d4abbb2ef15f82effbd9e4f3ce3dd",
+      "afterSha256": "8643ecce55c69490746137606a3b8d56b54c23169de790daf8f7132bfe9e2158"
+    },
+    {
+      "target": "/home/matthalloran8/Vrooli/scenarios/content-desk/docs/internal/goal/QUEUE.md",
+      "staged": "/home/matthalloran8/Documents/Codex/2026-10-02/task-13/marketing-live-status-20261007/auth-reconciled-2",
+      "beforeSha256": "052dfaa669f6a6e0dc20613b22542a01c5c427131fed4e757a8795580db84a87",
+      "afterSha256": "ee3dbbcf02292d6de2b994430b82fab8f0abdd0ef9c2398a652db40a44d84212"
+    },
+    {
+      "target": "/home/matthalloran8/Vrooli/scenarios/content-desk/docs/internal/goal/COMMISSION.md",
+      "staged": "/home/matthalloran8/Documents/Codex/2026-10-02/task-13/marketing-live-status-20261007/auth-reconciled-3",
+      "beforeSha256": "4a0110aa7a8aa1f172b711750192bb6f13ab32ca45bae3059eb06a0d43adc46d",
+      "afterSha256": "65c6b1879d5d5a0baf6d82858002c2d09d5dcefb072c603fc1fa377f1d54d049"
+    },
+    {
+      "target": "/home/matthalloran8/Vrooli/scenarios/content-desk/docs/internal/goal/receipts/marketing-commission-repair-setup-v2.json",
+      "staged": "/home/matthalloran8/Documents/Codex/2026-10-02/task-13/marketing-live-status-20261007/auth-reconciled-4",
+      "beforeSha256": null,
+      "afterSha256": "adcd65ca94d53eff230a0ef621ef79dba2d58a4afa029106c77668a4b93e2187"
+    },
+    {
+      "target": "/home/matthalloran8/Vrooli/scenarios/content-desk/docs/internal/goal/receipts/auth-marketing-owner-20261007-owner-packet.json",
+      "staged": "/home/matthalloran8/Documents/Codex/2026-10-02/task-13/marketing-live-status-20261007/auth-reconciled-5",
+      "beforeSha256": null,
+      "afterSha256": "8b83cfd9605ca9d89b5f3579365477ed760e4a408aa74b80e9c164188eccde24"
+    },
+    {
+      "target": "/home/matthalloran8/Vrooli/scenarios/content-desk/docs/internal/goal/receipts/auth-marketing-owner-20261007-owner-packet.txt",
+      "staged": "/home/matthalloran8/Documents/Codex/2026-10-02/task-13/marketing-live-status-20261007/auth-reconciled-6",
+      "beforeSha256": null,
+      "afterSha256": "cb43af0f9fa8cae52fc816a71ab54e9259541c48d0690e91587ac2a5d49284ad"
+    },
+    {
+      "target": "/home/matthalloran8/Vrooli/scenarios/content-desk/docs/internal/goal/receipts/auth-marketing-owner-20261007-owner-packet-pins.json",
+      "staged": "/home/matthalloran8/Documents/Codex/2026-10-02/task-13/marketing-live-status-20261007/auth-reconciled-7",
+      "beforeSha256": null,
+      "afterSha256": "ee677a63548c26aa4b94d4912a1bf42567009dea5f7062cc860a6b317f57af35"
+    }
+  ],
+  "operation": "authorized non-secret AUTH return reconciliation; no native/host/security/runtime action",
+  "scopePreserved": {
+    "contentDeskRequirements": 22,
+    "specialistRequirements": 5,
+    "visualOriginals": 47,
+    "criteria": 96
+  },
+  "nativeMetadataAmended": false
+}

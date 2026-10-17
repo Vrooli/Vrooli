@@ -307,6 +307,12 @@ export function getTimelineEventLabel(entry: TimelineEventEntry): string {
   }
 }
 
+export function getToolResultOutcome(payload: Record<string, unknown>): "success" | "failure" | "unknown" {
+  if (typeof payload.exitCode === "number") return payload.exitCode === 0 ? "success" : "failure";
+  if (payload.outcomeKnown === false) return "unknown";
+  return payload.success && !payload.error ? "success" : "failure";
+}
+
 export function getTimelineEventSummary(entry: TimelineEventEntry): string {
   const { event } = entry;
   const payload = event.data.value as Record<string, unknown>;
@@ -322,7 +328,7 @@ export function getTimelineEventSummary(entry: TimelineEventEntry): string {
     case "toolCall":
       return String(payload.toolName ?? "Unknown tool");
     case "toolResult":
-      return `${payload.success ? "Completed" : "Failed"} ${String(payload.toolName ?? "tool")}`;
+      return `${{ success: "Completed", failure: "Failed", unknown: "Returned (outcome unknown)" }[getToolResultOutcome(payload)]} ${String(payload.toolName ?? "tool")}`;
     case "status":
       return `${String(payload.oldStatus ?? "unknown")} -> ${String(payload.newStatus ?? "unknown")}`;
     case "progress":

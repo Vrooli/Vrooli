@@ -1,0 +1,185 @@
+{
+  "$schema": "../../../.vrooli/schemas/search.schema.json",
+  "version": "1.0.0",
+  "providers": [
+    {
+      "provider_id": "ui-health.surfaces",
+      "lifecycle": "production",
+      "provider_group": "ui-health",
+      "bucket": "BUCKET_REUSE",
+      "type": "surface",
+      "description": "UI surfaces across every scenario — components, pages, features, and hooks — searchable by what each surface is or does (for example \"settings page\", \"date picker component\", \"health dashboard overview\"). Route here to find an existing UI building block to reuse rather than rebuild.",
+      "routing_profile": {
+        "answer_spaces": ["ui_surface", "component", "page", "frontend_hook"],
+        "intents": ["locate", "reuse", "understand_ui"],
+        "positive_examples": ["find the settings page", "which component renders this control", "reuse an existing health dashboard surface"],
+        "exclusions": ["backend implementation", "service contract", "workflow test evidence"]
+      },
+      "scope": "SCOPE_PROJECT",
+      "class": "local_index",
+      "index_timestamp_field": "lastReconcileAt",
+      "performance": {"p95_ms": 1500, "degraded_rate_max": 0.05, "telemetry_required": true, "minimum_samples": 8},
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "ui-health",
+          "path": "/vrooli.ui_health.v1.search.SearchService/Search",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}},\"mode\":\"MODE_AI\"}",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "ui-health",
+          "path": "/vrooli.ui_health.v1.search.SearchService/Status",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{}",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "reindex_endpoint": {
+        "http_json": {
+          "scenario_id": "ui-health",
+          "path": "/vrooli.ui_health.v1.reindex.ReindexService/Reindex",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"scenario\":\"\",\"dry_run\":false}",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "result_mapping": {
+        "results_path": "results",
+        "id_field": "filePath",
+        "title_field": "displayName",
+        "score_field": "score",
+        "snippet_field": "description",
+        "path_field": "filePath",
+        "score_scale": "SCORE_SCALE_COSINE_0_1"
+      },
+      "tuning": {
+        "engine": "dense",
+        "embed_model": "nomic-embed-text",
+        "embed_task_prefix": false,
+        "rerank_enabled": false,
+        "rerank_blend": false,
+        "rerank_shortlist": 50,
+        "floor": {
+          "max_gap": 0,
+          "hard_floor": 0
+        }
+      },
+    "tests": {
+      "minimum": {"reviewed_positive": 1, "negative": 1},
+        "name": "ui-health surfaces — reviewed production corpus",
+        "description": "Rank-centric reviewed corpus for reusable UI surfaces. Cases span configuration, search evaluation, audit, theme, dashboard, and shared feedback components; every added expected path was verified by a live provider query on 2026-07-12.",
+        "cases": [
+          {
+            "id": "settings-surface",
+            "query": "where do I change settings",
+            "tags": [
+              "strong",
+              "settings"
+            ],
+            "expect_ids": [
+              "ui/src/pages/SettingsPage.tsx"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "search-surface",
+            "query": "search page",
+            "tags": [
+              "strong",
+              "search"
+            ],
+            "expect_ids": [
+              "ui/src/pages/SearchPage.tsx"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "dashboard-surface",
+            "query": "health dashboard overview",
+            "tags": [
+              "strong",
+              "dashboard"
+            ],
+            "expect_ids": [
+              "ui/src/pages/DashboardPage.tsx"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "evals-surface",
+            "query": "search quality evaluation page",
+            "tags": ["strong", "evals", "reviewed-live"],
+            "expect_ids": ["ui/src/pages/EvalsPage.tsx"],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "audit-surface",
+            "query": "audit a scenario interface",
+            "tags": ["weak-real", "audit", "reviewed-live"],
+            "expect_ids": ["ui/src/pages/AuditPage.tsx"],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "theme-surface",
+            "query": "choose light dark theme",
+            "tags": ["hard", "theme", "reviewed-live"],
+            "expect_ids": ["ui/src/theme/ThemeProvider.tsx"],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "progress-surface",
+            "query": "reusable progress indicator component",
+            "tags": ["weak", "component", "reviewed-live"],
+            "expect_ids": ["ui/src/components/ui/ProgressBar.tsx"],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "gibberish-1",
+            "query": "asdfqwer zxcvbnm qwertyuiop florbnax",
+            "tags": [
+              "gibberish"
+            ],
+            "expect_no_strong_hit": true,
+            "expect_max_score": 0.6
+          },
+          {
+            "id": "gibberish-2",
+            "query": "florbnax qwop zxcv visual nonsense",
+            "tags": ["gibberish", "reviewed-live"],
+            "expect_no_strong_hit": true,
+            "expect_max_score": 0.6
+          }
+        ],
+        "coverage": {
+          "required_tag_groups": [
+            {
+              "id": "core-surfaces",
+              "description": "Core reusable UI surfaces the provider promises to locate.",
+              "tags": [
+                "settings",
+                "search",
+                "dashboard",
+                "evals",
+                "audit",
+                "theme",
+                "component"
+              ],
+              "min_reviewed_positive": 7
+            }
+          ]
+        }
+      },
+      "config_writable": false,
+      "config_pinned_reason": "ui-health surface indexing currently uses fixed provider tuning; Search Hub may reindex but cannot write sweep winners back."
+    }
+  ]
+}

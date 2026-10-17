@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
-import { useStorageState, useServiceWorkers, useHistory } from '@/domains/recording';
+import { useStorageState } from '@/domains/recording/hooks/useStorageState';
+import { useServiceWorkers } from '@/domains/recording/hooks/useServiceWorkers';
+import { useHistory } from '@/domains/recording/hooks/useHistory';
 import { useTabs } from '@/domains/recording/hooks/useTabs';
 import type {
   StorageStateResponse,

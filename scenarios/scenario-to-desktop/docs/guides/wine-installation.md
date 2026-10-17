@@ -182,8 +182,8 @@ If Flatpak is not available, Wine AppImages provide a portable Wine installation
 ## References
 
 - [Flathub Wine Package](https://flathub.org/apps/org.winehq.Wine)
-- [Wine HQ Documentation](https://wiki.winehq.org/)
-- [electron-builder Wine Configuration](https://www.electron.build/multi-platform-build#linux)
+- WineHQ documentation (consult it when diagnosing platform-specific compatibility)
+- [electron-builder Multi-Platform Build](https://www.electron.build/docs/features/multi-platform-build/)
 
 ---
 

@@ -8,6 +8,7 @@ describe("routeController", () => {
     expect(parseRouteFromHash("#/viewer")).toBe("viewer");
     expect(parseRouteFromHash("#/metrics")).toBe("metrics");
     expect(parseRouteFromHash("#/graph")).toBe("graph");
+    expect(parseRouteFromHash("#/maintenance")).toBe("maintenance");
     expect(parseRouteFromHash("#/collections/knowledge_chunks_v1")).toBe("collection");
     expect(parseRouteFromHash("#/")).toBe("dashboard");
   });
@@ -22,9 +23,11 @@ describe("routeController", () => {
     expect(routeToHash("explorer")).toBe("#/explorer");
     expect(routeToHash("viewer")).toBe("#/viewer");
     expect(routeToHash("collection")).toBe("#/collections");
+    expect(routeToHash("maintenance")).toBe("#/maintenance");
     expect(getPageTitle("graph")).toBe("Knowledge Graph");
     expect(getPageTitle("viewer")).toBe("Document Viewer");
     expect(getPageTitle("collection")).toBe("Collection Details");
+    expect(getPageTitle("maintenance")).toBe("Maintenance Queue");
   });
 
   it("parses and builds collection hashes", () => {

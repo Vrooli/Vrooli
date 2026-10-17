@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package landing_page_business_suite.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1";
+
+// TrafficExclusions is shared by analytics and the business digest because
+// both surfaces report the same ingestion-quality exclusions.
+message TrafficExclusions {
+  int64 bot_events = 1;
+  int64 internal_events = 2;
+}

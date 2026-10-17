@@ -16,13 +16,14 @@ import {
 import { useState, useRef, useEffect } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { useWorkflowStore, type Workflow } from "@stores/workflowStore";
-import { useProjectStore, type Project } from "@/domains/projects";
+import { useProjectStore, type Project } from "@/domains/projects/store";
 import { AIEditModal } from "@/domains/ai";
 import toast from "react-hot-toast";
 import { usePopoverPosition } from "@hooks/usePopoverPosition";
 import ResponsiveDialog from "./ResponsiveDialog";
 import { selectors } from "@constants/selectors";
 import { SubscriptionBadge } from "@shared/components";
+import { useEntitlementStore, useIsEntitlementsEnabled } from "@stores/entitlementStore";
 import Breadcrumbs from "./Breadcrumbs";
 
 type HeaderWorkflow = Pick<
@@ -48,6 +49,7 @@ interface HeaderProps {
   currentProject?: Project | null;
   currentWorkflow?: HeaderWorkflow | null;
   showBackToProject?: boolean;
+  onExecuteWorkflow?: () => void;
   onOpenHelp?: () => void;
   onOpenSettings?: () => void;
 }
@@ -59,10 +61,13 @@ function Header({
   currentProject,
   currentWorkflow: selectedWorkflow,
   showBackToProject,
+  onExecuteWorkflow,
   onOpenHelp,
   onOpenSettings,
 }: HeaderProps) {
   const currentWorkflow = useWorkflowStore((state) => state.currentWorkflow);
+  const entitlement = useEntitlementStore((state) => state.status);
+  const entitlementsEnabled = useIsEntitlementsEnabled();
   const saveWorkflow = useWorkflowStore((state) => state.saveWorkflow);
   const updateWorkflow = useWorkflowStore((state) => state.updateWorkflow);
   const loadWorkflow = useWorkflowStore((state) => state.loadWorkflow);
@@ -612,6 +617,7 @@ function Header({
                           label: currentProject.name,
                           onClick: onBackToProject,
                           current: !displayWorkflow,
+                          testId: selectors.header.buttons.backToProject,
                         }]
                       : []),
                     ...(displayWorkflow
@@ -828,7 +834,14 @@ function Header({
           </div>
 
           <div className="flex items-center gap-1 sm:gap-2">
-            <SubscriptionBadge onClick={onOpenSettings} />
+            {entitlementsEnabled && entitlement ? (
+              <SubscriptionBadge
+                plan={entitlement.tier}
+                status={entitlement.status}
+                credits={entitlement.monthly_remaining}
+                onClick={onOpenSettings}
+              />
+            ) : null}
             {onOpenHelp && (
               <button
                 onClick={onOpenHelp}
@@ -851,7 +864,13 @@ function Header({
             </button>
 
             <button
-              onClick={() => window.dispatchEvent(new CustomEvent('execute-workflow'))}
+              onClick={() => {
+                if (onExecuteWorkflow) {
+                  onExecuteWorkflow();
+                  return;
+                }
+                window.dispatchEvent(new CustomEvent('execute-workflow'));
+              }}
               className="bg-flow-accent hover:bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg flex items-center gap-0 sm:gap-2 transition-colors"
               title="Execute Workflow"
               aria-label="Execute Workflow"

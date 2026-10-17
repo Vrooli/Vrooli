@@ -1,0 +1,282 @@
+{
+  "version": 1,
+  "limits": "Local references; not a universal template or repeatability certification.",
+  "examples": [
+    {
+      "id": "aquila-r5",
+      "product": "aquila",
+      "purpose": [
+        "story",
+        "mobile",
+        "rich-messages",
+        "search",
+        "browser-frame",
+        "material-art",
+        "energetic-music"
+      ],
+      "viewport": "430x880 mobile plus desktop",
+      "date": "2026-10-16",
+      "build": "see capture manifests; unchanged Aquila frontend fixture / fresh read-only Vega",
+      "proof_scope": "ui",
+      "operator_rating": 8,
+      "rating_scale": 10,
+      "video": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/films/aquila-prism-film/video.mp4",
+      "sha256": "6e5d114b42c0442bb0917a42ee7c426def383e1bbe14f7a48e980dc2e96931f3",
+      "feedback": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/revision-05/feedback.json",
+      "method": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/revision-05/production-method.md",
+      "review": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/revision-05/review-final.json",
+      "limits": [
+        "Local operator rating; future acceptance and conversion unmeasured",
+        "Generated stills with camera/light motion, not animated 3D geometry",
+        "No new agent audio audition",
+        "QR machine-decode is not physical phone certification"
+      ],
+      "feedback_history": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/revision-05/feedback-history.md",
+      "build_evidence": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/revision-04/fixture/frontend-source-manifest.json"
+    },
+    {
+      "id": "vega-r5",
+      "product": "vega",
+      "purpose": [
+        "metrics",
+        "detail",
+        "custom-cursor",
+        "browser-frame",
+        "material-art",
+        "cut-boundaries"
+      ],
+      "viewport": "desktop + 664x648 detail",
+      "date": "2026-10-16",
+      "build": "see capture manifests; unchanged Aquila frontend fixture / fresh read-only Vega",
+      "proof_scope": "observed-read-only-metrics",
+      "operator_rating": 7,
+      "rating_scale": 10,
+      "video": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/films/vega-spectrum-film/video.mp4",
+      "sha256": "e75fca3cb9affc04a35c9dc78432d193a30c2d2d083bec1b748191a26e3c2f3f",
+      "feedback": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/revision-05/feedback.json",
+      "method": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/revision-05/production-method.md",
+      "review": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/revision-05/review-final.json",
+      "limits": [
+        "Local operator rating; future acceptance and conversion unmeasured",
+        "Generated stills with camera/light motion, not animated 3D geometry",
+        "No new agent audio audition",
+        "QR machine-decode is not physical phone certification"
+      ],
+      "feedback_history": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/revision-05/feedback-history.md",
+      "build_evidence": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/revision-05/runtime-before.json"
+    },
+    {
+      "id": "query-as-headline",
+      "purpose": [
+        "semantic",
+        "search",
+        "offline"
+      ],
+      "kind": "failure",
+      "lesson": "Feature, sample input and observed result must be distinct.",
+      "evidence": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/revision-05/skill-change-proposal.md",
+      "date": "2026-10-16",
+      "proof_scope": "observed-production-failure"
+    },
+    {
+      "id": "internal-route-cta",
+      "purpose": [
+        "cta",
+        "url",
+        "qr"
+      ],
+      "kind": "failure",
+      "lesson": "Use full public URL, rendered destination verification and final-video QR decoding.",
+      "evidence": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/revision-05/skill-change-proposal.md",
+      "date": "2026-10-16",
+      "proof_scope": "observed-production-failure"
+    },
+    {
+      "id": "silent-audio-tail",
+      "purpose": [
+        "audio",
+        "coverage",
+        "arrangement"
+      ],
+      "kind": "failure",
+      "lesson": "Container duration hid an early audio end; require sample math and encoded stream coverage.",
+      "evidence": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/revision-05/review/audio-investigation.md",
+      "date": "2026-10-16",
+      "proof_scope": "observed-production-failure"
+    },
+    {
+      "id": "loading-at-cut",
+      "purpose": [
+        "capture",
+        "trim",
+        "cut-boundaries"
+      ],
+      "kind": "failure",
+      "lesson": "Middle frames passed; first detail frames contained dashboard/loading state.",
+      "evidence": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/revision-05/production-method.md",
+      "date": "2026-10-16",
+      "proof_scope": "observed-production-failure"
+    },
+    {
+      "id": "flat-procedural-broll",
+      "purpose": [
+        "craft",
+        "3d",
+        "materials"
+      ],
+      "kind": "failure",
+      "lesson": "Approve materials/light and silhouette before animation; switch weak medium.",
+      "evidence": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/revision-04/skill-change-proposal.md",
+      "date": "2026-10-16",
+      "proof_scope": "observed-production-failure"
+    },
+    {
+      "id": "native-style-bypass",
+      "purpose": [
+        "bas",
+        "frame",
+        "cursor",
+        "export"
+      ],
+      "kind": "failure",
+      "lesson": "Stored styles did not apply to recorded-video exports.",
+      "evidence": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/revision-04/bas/debugging.md",
+      "date": "2026-10-16",
+      "proof_scope": "observed-production-failure"
+    },
+    {
+      "id": "aquila-music-candidate",
+      "kind": "music",
+      "product": "aquila",
+      "purpose": [
+        "music",
+        "energetic",
+        "drum-bass",
+        "audition",
+        "arrangement"
+      ],
+      "date": "2026-10-16",
+      "proof_scope": "retained-governed-audio",
+      "asset": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/revision-03/music/drum-bass-02.wav",
+      "sha256": "f5f6beea9d4d1cffed91a6171fba67ce408c0c5a357e95cdff2e3fdb6059607b",
+      "evidence": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/revision-05/music/aquila-selection.json",
+      "lesson": "Operator preferred Aquila track over Vega; compare rhythm, bass, seams and ending on the next brief. No new agent audition.",
+      "limits": [
+        "No automatic reuse or taste score",
+        "Final mix requires its own listening review"
+      ]
+    },
+    {
+      "id": "vega-music-candidate",
+      "kind": "music",
+      "product": "vega",
+      "purpose": [
+        "music",
+        "energetic",
+        "drum-bass",
+        "audition",
+        "arrangement"
+      ],
+      "date": "2026-10-16",
+      "proof_scope": "retained-governed-audio",
+      "asset": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/revision-03/music/drum-bass-01.wav",
+      "sha256": "72780b0d4ccbc6e270003b4d250a69920c26e5812d8c30adfa66f40ac12af1d8",
+      "evidence": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/revision-05/music/vega-selection.json",
+      "lesson": "Operator preferred Aquila track over Vega; compare rhythm, bass, seams and ending on the next brief. No new agent audition.",
+      "limits": [
+        "No automatic reuse or taste score",
+        "Final mix requires its own listening review"
+      ]
+    },
+    {
+      "id": "thin-browser-and-phone",
+      "kind": "frame",
+      "purpose": [
+        "browser-frame",
+        "phone",
+        "clean",
+        "framing"
+      ],
+      "date": "2026-10-16",
+      "proof_scope": "recipe / see source evidence limits",
+      "evidence": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/scripts/r5-compose.py",
+      "lesson": "Retained R5 composition uses a thin browser bar and phone rim. This is a recipe, not a portable render service."
+    },
+    {
+      "id": "observed-mint-pointer",
+      "kind": "cursor",
+      "purpose": [
+        "cursor",
+        "mint",
+        "contrast",
+        "events"
+      ],
+      "date": "2026-10-16",
+      "proof_scope": "recipe / see source evidence limits",
+      "evidence": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/scripts/r5-capture.mjs",
+      "lesson": "Retain observed event positions; choose contrast, scale and shape before capture."
+    },
+    {
+      "id": "rich-fictional-workspace",
+      "kind": "demo-world",
+      "purpose": [
+        "demo-world",
+        "messages",
+        "tables",
+        "diagrams",
+        "mobile"
+      ],
+      "date": "2026-10-16",
+      "proof_scope": "recipe / see source evidence limits",
+      "evidence": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/revision-04/fixture/world.json",
+      "lesson": "Use the actual unmodified frontend with schema-checked fiction and denied unhandled egress; review R4 fixture and take records. UI-only proof."
+    },
+    {
+      "id": "technical-pass-creative-regression",
+      "kind": "failure",
+      "purpose": [
+        "creative-regression",
+        "music",
+        "energy",
+        "motion",
+        "material-art",
+        "broll"
+      ],
+      "date": "2026-10-16",
+      "proof_scope": "operator feedback on exact delivered films",
+      "evidence": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/video-toolchain-reliability-2026-10-16/production/feedback.json",
+      "method": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/video-toolchain-reliability-2026-10-16/research/creative-regression.md",
+      "lesson": "Technical passes did not preserve creative quality. Vega128BPM house was selected for family variety against an energy brief; Aquila kept favored source but altered arrangement and motion. Material plates were omitted. Compare current excerpt/motion against rated reference; do not require genre changes or B-roll filler.",
+      "operator_rating": null,
+      "relative_rating": "approximately one point below prior rated references; exact scores not supplied"
+    },
+    {
+      "id": "r5-generated-material-plates",
+      "kind": "material-art",
+      "purpose": [
+        "broll",
+        "material-art",
+        "imagegen",
+        "camera",
+        "light",
+        "craft"
+      ],
+      "date": "2026-10-16",
+      "proof_scope": "retained generated still plates and exact compositor",
+      "evidence": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/revision-05/sources/image-prompts.json",
+      "method": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/scripts/r5-compose.py",
+      "lesson": "Rich raster material plates from image_gen.imagegen plus GSAP camera/light motion increased perceived quality. This was not new Blender geometry. Use the technique when it serves the story; create a distinct scene rather than copying the reference motif."
+    }
+  ],
+  "excluded_audio_source_ids": [
+    "25d4cdfc-08aa-447b-a081-baf110c4c0fd",
+    "efc8c831-527d-4398-80c6-6065dc79c719-take-02",
+    "efc8c831-527d-4398-80c6-6065dc79c719-take-01",
+    "4d0f02e4-2305-46f7-8f2d-6bc430549052-take-01",
+    "d09c9c44-cc3a-484a-b948-d55f665f4af2-take-01",
+    "8bb80015-1891-4f39-8342-50f27dca1f1e-take-01",
+    "ec08ddd9-857e-4d1b-861f-ef04db66dcbc-take-01",
+    "2448720b-acc3-4a40-826b-0432b96c4062-take-01"
+  ],
+  "exclusion_note": "Retained production rejection. Also preserve the operator rejection of the original reused bed; resolve its exact source before considering reuse. Do not classify a whole genre as rejected. On2026-10-16 the operator rejected all four matched continuation excerpts as insufficiently good/fast/hardcore, including prior174DnB anchors; exact feedback/hash scope is in the continuation feedback record. Preserve historical ratings, but do not silently reuse these sources as the current stronger sound direction. The operator also explicitly rejected all three harder-v3 songs as primitive-sounding. Do not reuse those takes or laundering arrangements. Exact quote/hashes are in harder-v3-operator-rejection-v2.json; v4 takes were paused without an inferred taste verdict."
+}

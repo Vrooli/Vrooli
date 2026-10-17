@@ -1,0 +1,228 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "vrooli://agent-manager/supervision-evaluate/output/v1",
+  "title": "Supervision Evaluate Envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "program",
+    "version",
+    "status",
+    "phase",
+    "inputs",
+    "signals",
+    "errors",
+    "evidence"
+  ],
+  "properties": {
+    "program": {
+      "const": "agent-manager.supervision-evaluate"
+    },
+    "version": {
+      "const": "1"
+    },
+    "status": {
+      "enum": [
+        "ok",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "classify",
+        "decide",
+        "report"
+      ]
+    },
+    "inputs": {
+      "type": "object"
+    },
+    "signals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "disposition",
+        "classification",
+        "confidence",
+        "abstained",
+        "recommended_action",
+        "next_cursor",
+        "cursor_reset",
+        "wake_condition",
+        "policy_version",
+        "inference_calls",
+        "event_count",
+        "friction_count",
+        "run_count"
+      ],
+      "properties": {
+        "disposition": {
+          "enum": [
+            "quiet",
+            "signal",
+            "terminal",
+            "cursor_reset",
+            "unavailable"
+          ]
+        },
+        "classification": {
+          "enum": [
+            "quiet",
+            "progress",
+            "stalled",
+            "blocked",
+            "failed",
+            "completed",
+            "cursor_gap",
+            "ambiguous",
+            "dependency_unavailable",
+            "abstained",
+            "budget_exhausted",
+            "invalid_input",
+            "deadline",
+            "quiet_time"
+          ]
+        },
+        "confidence": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "abstained": {
+          "type": "boolean"
+        },
+        "recommended_action": {
+          "enum": [
+            "observe",
+            "nudge",
+            "park",
+            "continue",
+            "stop",
+            "escalate",
+            "wake_parent"
+          ]
+        },
+        "next_cursor": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 512
+        },
+        "cursor_reset": {
+          "type": "boolean"
+        },
+        "wake_condition": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "after_seconds"
+          ],
+          "properties": {
+            "kind": {
+              "enum": [
+                "immediate",
+                "after",
+                "terminal"
+              ]
+            },
+            "after_seconds": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 86400
+            }
+          }
+        },
+        "policy_version": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "inference_calls": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "event_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 64
+        },
+        "friction_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 16
+        },
+        "run_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 32
+        },
+        "inference_identity": {
+          "type": "object",
+          "required": [
+            "provider",
+            "model",
+            "applied"
+          ],
+          "properties": {
+            "provider": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "model": {
+              "type": "string",
+              "maxLength": 256
+            },
+            "applied": {
+              "type": "object"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "errors": {
+      "type": "array",
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "class",
+          "detail",
+          "where"
+        ],
+        "properties": {
+          "class": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "detail": {
+            "type": "string",
+            "maxLength": 240
+          },
+          "where": {
+            "type": "string",
+            "maxLength": 64
+          }
+        }
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "string",
+        "maxLength": 128
+      }
+    }
+  }
+}

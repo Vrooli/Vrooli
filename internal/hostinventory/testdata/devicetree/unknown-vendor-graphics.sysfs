@@ -1,0 +1,40 @@
+# A host with one graphics controller the PCI ID database knows and one from a
+# vendor it has never heard of. The unknown card is the case that matters: no
+# vendor tool on this host can see it, and the pci.ids database cannot name it,
+# so the device tree is the only thing that can prove it is there at all.
+
+>>> file devices/pci0000:00/0000:00:01.1/uevent
+DRIVER=pcieport
+PCI_CLASS=60400
+PCI_SLOT_NAME=0000:00:01.1
+
+>>> file devices/pci0000:00/0000:00:01.1/0000:01:00.0/uevent
+DRIVER=nvidia
+PCI_CLASS=30000
+PCI_ID=10DE:2705
+PCI_SLOT_NAME=0000:01:00.0
+
+>>> file devices/pci0000:00/0000:00:01.1/0000:01:00.0/class
+0x030000
+
+>>> dir devices/pci0000:00/0000:00:01.1/0000:01:00.0/drm/card0
+>>> dir devices/pci0000:00/0000:00:01.1/0000:01:00.0/drm/renderD128
+
+# The unfamiliar accelerator: a display-class function whose vendor is absent
+# from the database, bound to an out-of-tree driver.
+>>> file devices/pci0000:00/0000:00:03.1/uevent
+DRIVER=pcieport
+PCI_CLASS=60400
+PCI_SLOT_NAME=0000:00:03.1
+
+>>> file devices/pci0000:00/0000:00:03.1/0000:65:00.0/uevent
+DRIVER=vrx_drm
+PCI_CLASS=30200
+PCI_ID=1E57:7001
+PCI_SLOT_NAME=0000:65:00.0
+
+>>> file devices/pci0000:00/0000:00:03.1/0000:65:00.0/class
+0x030200
+
+>>> dir devices/pci0000:00/0000:00:03.1/0000:65:00.0/drm/card1
+>>> dir devices/pci0000:00/0000:00:03.1/0000:65:00.0/drm/renderD129

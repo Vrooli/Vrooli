@@ -7,17 +7,19 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"path/filepath"
 	"runtime"
 	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
 
-	"scenario-to-desktop-runtime/fileutil"
-	"scenario-to-desktop-runtime/gpu"
-	"scenario-to-desktop-runtime/health"
-	"scenario-to-desktop-runtime/infra"
-	"scenario-to-desktop-runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/fileutil"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/gpu"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/health"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	resourceplan "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/resources"
 )
 
 // BundleValidationResult contains the results of bundle validation.
@@ -99,6 +101,50 @@ type Runtime interface {
 	RuntimeInfo() RuntimeInfo
 }
 
+// IsolationObservationSource exposes safe, runtime-measured child resolution
+// facts without exposing environment values or credentials.
+type IsolationObservationSource interface {
+	IsolationObservations() []IsolationObservation
+}
+
+type IsolationObservation struct {
+	ServiceID           string   `json:"service_id"`
+	StateRoot           string   `json:"state_root,omitempty"`
+	SocketPath          string   `json:"socket_path,omitempty"`
+	DatabasePath        string   `json:"database_path,omitempty"`
+	AdoptedSessionCount int      `json:"adopted_session_count"`
+	Source              string   `json:"source,omitempty"`
+	ResolvedPaths       []string `json:"resolved_paths,omitempty"`
+}
+
+// ProviderObservationSource is optional so older/test runtimes can keep the
+// core control API while the bundled supervisor exposes safe provider facts.
+type ProviderObservationSource interface {
+	ProviderObservations() map[string]resourceplan.ProviderObservation
+}
+
+// AuthenticationStatusSource is optional so status consumers can observe the
+// selected mode and safe provider/lease state without exposing credentials.
+type AuthenticationStatusSource interface {
+	AuthenticationStatus() map[string]interface{}
+}
+
+// AuthenticationModeSource exposes the protected operator surface for
+// selecting and rolling back a declared authentication mode. Implementations
+// must return metadata only; credentials and human tokens never cross this
+// interface.
+type AuthenticationModeSource interface {
+	AuthenticationModeOptions() []map[string]interface{}
+	SelectAuthenticationMode(context.Context, string) (map[string]interface{}, error)
+	RollbackAuthenticationMode(context.Context) (map[string]interface{}, error)
+}
+
+type ResourceUpgradeSource interface {
+	ResourceUpgradeOffers() ([]resourceplan.UpgradeOffer, error)
+	ApplyResourceUpgrade(context.Context, string) error
+	RecordResourceUpgrade(outcome resourceplan.UpgradeOutcome) error
+}
+
 // SecretStore defines the interface for secret management used by the API.
 type SecretStore interface {
 	Get() map[string]string
@@ -135,9 +181,22 @@ func (s *Server) RegisterHandlers(mux *http.ServeMux) {
 	mux.HandleFunc("/logs/tail", s.handleLogs)
 	mux.HandleFunc("/shutdown", s.handleShutdown)
 	mux.HandleFunc("/secrets", s.handleSecrets)
+	mux.HandleFunc("/credentials/status", s.handleCredentialStatus)
+	mux.HandleFunc("/credentials/resolve", s.handleCredentialResolve)
+	mux.HandleFunc("/credentials/provision", s.handleCredentialProvision)
+	mux.HandleFunc("/credentials/delete", s.handleCredentialDelete)
+	mux.HandleFunc("/credentials/list", s.handleCredentialList)
+	mux.HandleFunc("/credentials/doctor", s.handleCredentialDoctor)
+	mux.HandleFunc("/credentials/recovery/export", s.handleCredentialRecoveryExport)
+	mux.HandleFunc("/credentials/recovery/restore", s.handleCredentialRecoveryRestore)
 	mux.HandleFunc("/telemetry", s.handleTelemetry)
 	mux.HandleFunc("/validate", s.handleValidate)
 	mux.HandleFunc("/status", s.handleStatus)
+	mux.HandleFunc("/authentication/modes", s.handleAuthenticationModes)
+	mux.HandleFunc("/authentication/mode", s.handleAuthenticationMode)
+	mux.HandleFunc("/authentication/rollback", s.handleAuthenticationRollback)
+	mux.HandleFunc("/provider-observations", s.handleProviderObservations)
+	mux.HandleFunc("/resource-upgrades", s.handleResourceUpgrades)
 }
 
 // AuthMiddleware returns middleware that enforces bearer token authentication.
@@ -191,6 +250,7 @@ type RuntimeInfo struct {
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	info := s.runtime.RuntimeInfo()
 	manifest := s.runtime.Manifest()
+	authenticationStatus := authenticationStatus(s.runtime, manifest)
 	startedAt := ""
 	if !info.StartedAt.IsZero() {
 		startedAt = info.StartedAt.Format(time.RFC3339)
@@ -203,6 +263,19 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 		"bundle_root":   info.BundleRoot,
 		"dry_run":       info.DryRun,
 		"manifest_hash": info.ManifestHash,
+		"isolation_observations": func() interface{} {
+			if source, ok := s.runtime.(IsolationObservationSource); ok {
+				return source.IsolationObservations()
+			}
+			return []IsolationObservation{}
+		}(),
+		"authentication": func() interface{} {
+			if manifest == nil {
+				return nil
+			}
+			return manifest.Authentication
+		}(),
+		"authentication_status": authenticationStatus,
 		"manifest_schema": func() string {
 			if manifest == nil {
 				return ""
@@ -242,6 +315,145 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 		"runtime_version": runtime.Version(),
 		"build_version":   runtimeBuildVersion(),
 	})
+}
+
+func authenticationStatus(rt Runtime, m *manifest.Manifest) map[string]interface{} {
+	if source, ok := rt.(AuthenticationStatusSource); ok {
+		return source.AuthenticationStatus()
+	}
+	if m == nil || m.Authentication == nil {
+		return nil
+	}
+	profile := m.Authentication
+	return map[string]interface{}{
+		"mode":                   profile.Mode,
+		"provider":               profile.Provider,
+		"resource":               profile.Resource,
+		"audience":               profile.Audience,
+		"human_sign_in":          profile.HumanSignIn,
+		"offline":                profile.Offline,
+		"lease_path":             profile.LeasePath,
+		"recovery_url":           profile.RecoveryURL,
+		"state":                  "declared",
+		"requires_authenticator": profile.RequiresAuthenticator,
+	}
+}
+
+func (s *Server) authenticationModes() (AuthenticationModeSource, bool) {
+	source, ok := s.runtime.(AuthenticationModeSource)
+	return source, ok
+}
+
+func (s *Server) handleAuthenticationModes(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	source, ok := s.authenticationModes()
+	if !ok {
+		http.Error(w, "authentication mode management unavailable", http.StatusNotImplemented)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]interface{}{"modes": source.AuthenticationModeOptions()})
+}
+
+func (s *Server) handleAuthenticationMode(w http.ResponseWriter, r *http.Request) {
+	source, ok := s.authenticationModes()
+	if !ok {
+		http.Error(w, "authentication mode management unavailable", http.StatusNotImplemented)
+		return
+	}
+	switch r.Method {
+	case http.MethodGet:
+		if status, ok := s.runtime.(AuthenticationStatusSource); ok {
+			writeJSON(w, http.StatusOK, status.AuthenticationStatus())
+			return
+		}
+		http.Error(w, "authentication status unavailable", http.StatusNotImplemented)
+	case http.MethodPost:
+		var request struct {
+			Mode string `json:"mode"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil || strings.TrimSpace(request.Mode) == "" {
+			http.Error(w, "authentication mode is required", http.StatusBadRequest)
+			return
+		}
+		result, err := source.SelectAuthenticationMode(r.Context(), strings.TrimSpace(request.Mode))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusConflict)
+			return
+		}
+		writeJSON(w, http.StatusOK, result)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	}
+}
+
+func (s *Server) handleAuthenticationRollback(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	source, ok := s.authenticationModes()
+	if !ok {
+		http.Error(w, "authentication mode management unavailable", http.StatusNotImplemented)
+		return
+	}
+	result, err := source.RollbackAuthenticationMode(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusConflict)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (s *Server) handleProviderObservations(w http.ResponseWriter, r *http.Request) {
+	source, ok := s.runtime.(ProviderObservationSource)
+	if !ok {
+		http.Error(w, "provider observations unavailable", http.StatusNotImplemented)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]interface{}{"observations": source.ProviderObservations()})
+}
+
+func (s *Server) handleResourceUpgrades(w http.ResponseWriter, r *http.Request) {
+	source, ok := s.runtime.(ResourceUpgradeSource)
+	if !ok {
+		http.Error(w, "resource upgrades unavailable", http.StatusNotImplemented)
+		return
+	}
+	if r.Method == http.MethodGet {
+		offers, err := source.ResourceUpgradeOffers()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]interface{}{"offers": offers})
+		return
+	}
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	var outcome resourceplan.UpgradeOutcome
+	if err := json.NewDecoder(r.Body).Decode(&outcome); err != nil {
+		http.Error(w, "invalid upgrade outcome", http.StatusBadRequest)
+		return
+	}
+	if outcome.Decision == "accepted" {
+		if err := source.ApplyResourceUpgrade(r.Context(), outcome.Resource); err != nil {
+			outcome.Decision = "failed"
+			outcome.Reason = err.Error()
+			_ = source.RecordResourceUpgrade(outcome)
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+	}
+	if err := source.RecordResourceUpgrade(outcome); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "recorded"})
 }
 
 func runtimeBuildVersion() string {
@@ -313,7 +525,31 @@ func (s *Server) handleLogs(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Find the service.
+	// Bundled managed resources have no manifest launcher entry. Their logs are
+	// still available through the normal authenticated runtime surface using the
+	// explicit resource:<name> identifier.
+	if resource, ok := strings.CutPrefix(serviceID, "resource:"); ok {
+		provider, ok := s.runtime.(interface{ ResourceLogPath(string) (string, bool) })
+		if !ok {
+			http.Error(w, "managed resource logs are unavailable", http.StatusBadRequest)
+			return
+		}
+		logPath, ok := provider.ResourceLogPath(resource)
+		if !ok {
+			http.Error(w, "unknown managed resource", http.StatusBadRequest)
+			return
+		}
+		content, err := fileutil.TailFile(s.runtime.FileSystem(), logPath, lines)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("tail logs: %v", err), http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "text/plain")
+		_, _ = w.Write(content)
+		return
+	}
+
+	// Find the manifest service.
 	m := s.runtime.Manifest()
 	var service *manifest.Service
 	for i := range m.Services {
@@ -328,12 +564,14 @@ func (s *Server) handleLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if service.LogDir == "" {
-		http.Error(w, "service has no log_dir", http.StatusBadRequest)
-		return
+	logPath := ""
+	if service.LogDir != "" {
+		logPath = manifest.ResolvePath(s.runtime.AppDataDir(), service.LogDir)
+	} else {
+		// The bundled supervisor creates this conventional path for every
+		// declared service, even when the manifest omits log_dir.
+		logPath = filepath.Join(s.runtime.AppDataDir(), "resources", service.ID, "logs", "service.log")
 	}
-
-	logPath := manifest.ResolvePath(s.runtime.AppDataDir(), service.LogDir)
 	fs := s.runtime.FileSystem()
 
 	info, err := fs.Stat(logPath)

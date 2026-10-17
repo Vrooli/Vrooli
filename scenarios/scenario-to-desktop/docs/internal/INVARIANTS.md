@@ -17,12 +17,18 @@
 
 ## Important Invariants
 
+| Provider-neutral journey, evidence, target, matrix, transport, and disposition semantics are defined once in `packages/delivery-ramp-go` | Cross-ramp contract ownership | Shared package tests and the reference-ramp conformance test | Scenario adapter and baseline validation |
+
 | Invariant | Domain Concept | Enforcement |
 |-----------|----------------|-------------|
 | CORS origins default to localhost-only if misconfigured | Security default-deny | `CORSMiddleware` falls back to `http://localhost:{UI_PORT}` |
 | Template generation requires `scenario_name` in config | Input validation | `ValidateConfig()` in generation package |
 | Pipeline blocking mode extends HTTP write deadline | Timeout safety | `SetWriteDeadline` called in handler before orchestrator invocation |
 | Async pipelines use `context.Background()` to survive HTTP disconnects | Pipeline independence | Orchestrator creates fresh context for async runs |
+| Shared resources may prefer the local Tier-1 broker, then an explicitly authenticated desktop-peer candidate, then the private bundle artifact; the peer candidate is not a peer protocol | Provider selection and recovery | `PrioritySharedServiceResolver` in `runtime/resources/shared_broker.go` | Runtime provider-priority tests |
+| External resource credentials are scoped, expiring, loopback-only, and never exposed to the private fallback | Credential boundary | `BrokerSharedServiceResolver` and `ServiceSupervisor` | Shared broker and supervisor tests |
+| Supporting scenario/resource manifests may be cataloged, but their UI payloads are not copied into the main desktop bundle | Bundle footprint | `stageManifestCatalog` and packager UI staging | Bundle packager tests |
+| Desktop credential persistence uses the native authority; no app-data secrets file is read or written | Credential durability | `runtime/secrets.Manager` | Runtime secrets tests |
 
 ## Replay/Idempotency Invariants
 

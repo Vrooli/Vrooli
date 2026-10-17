@@ -1,0 +1,38 @@
+{
+  "requirement": "CHANMGR-P0-019",
+  "owner": "channel-manager",
+  "state": "unadmitted implementation work item; status unchanged",
+  "cases": [
+    {
+      "case": "Per-identity warming stage, gate and progress",
+      "expected": "Two identities at distinct stages render their actual criteria, fulfilled and outstanding gates, progress and health; unknown/missing data is explicit. A BAS assignment gate cannot stand in for warming eligibility."
+    },
+    {
+      "case": "Baseline-backed signal history",
+      "expected": "Selected identity renders chronological measurement history with its correct baseline and provenance; distinguish missing baseline, zero measurement and no observations; identity changes never reuse another identity's series."
+    },
+    {
+      "case": "Honest partial/loading/error recovery",
+      "expected": "Independently delayed or failed roster, due-work and history sources preserve valid data, identify unavailable portions and recover through retry without inventing gate progress or baseline values."
+    },
+    {
+      "case": "Keyboard-only manual workflow",
+      "expected": "Tab/focus/Enter/Space exercise due-action selection, evidence entry and completion; focus remains visible and predictable after success, validation error and retry. Synthetic pointer clicks do not establish this case."
+    },
+    {
+      "case": "Populated console light/dark accessibility",
+      "expected": "Meaningful populated, empty and error surfaces receive semantic/accessibility checks and actual contrast/focus verification in both themes. Axe helper currently disables color-contrast and cannot alone earn this claim."
+    },
+    {
+      "case": "Native evidence/status ownership",
+      "expected": "After functional gaps and focused tests pass, follow docs/TESTING.md and Test Genie STATUS_MODEL to obtain qualifying server-owned evidence. Scoped runs cannot create authoritative requirements sync; retain failures and exact run/build IDs."
+    }
+  ],
+  "non_actions": [
+    "No implementation/test authored now",
+    "No requirement downgrade",
+    "No comprehensive run merely to silence business failure",
+    "No forced sync"
+  ],
+  "source": "packages/api-base/src/testing/a11y.ts:7 disables color-contrast"
+}

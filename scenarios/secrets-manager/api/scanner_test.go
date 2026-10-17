@@ -89,13 +89,13 @@ Configuration requires API_KEY
 	t.Run("BinaryFiles", func(t *testing.T) {
 		// Create a resource with binary files
 		resourceDir := filepath.Join(env.TempDir, "resources", "binary-resource")
-		if err := os.MkdirAll(resourceDir, 0755); err != nil {
+		if err := os.MkdirAll(resourceDir, 0o755); err != nil {
 			t.Fatal(err)
 		}
 
 		// Create a binary file
 		binaryFile := filepath.Join(resourceDir, "binary.dat")
-		if err := os.WriteFile(binaryFile, []byte{0xFF, 0xFE, 0x00, 0x01}, 0644); err != nil {
+		if err := os.WriteFile(binaryFile, []byte{0xFF, 0xFE, 0x00, 0x01}, 0o644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -114,18 +114,18 @@ Configuration requires API_KEY
 		// Create nested directory structure
 		resourceDir := filepath.Join(env.TempDir, "resources", "nested-resource")
 		subDir := filepath.Join(resourceDir, "config", "production")
-		if err := os.MkdirAll(subDir, 0755); err != nil {
+		if err := os.MkdirAll(subDir, 0o755); err != nil {
 			t.Fatal(err)
 		}
 
 		// Create files in nested directories
 		rootConfig := filepath.Join(resourceDir, ".env")
-		if err := os.WriteFile(rootConfig, []byte("ROOT_API_KEY=test\n"), 0644); err != nil {
+		if err := os.WriteFile(rootConfig, []byte("ROOT_API_KEY=test\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 
 		nestedConfig := filepath.Join(subDir, "secrets.env")
-		if err := os.WriteFile(nestedConfig, []byte("NESTED_SECRET=value\n"), 0644); err != nil {
+		if err := os.WriteFile(nestedConfig, []byte("NESTED_SECRET=value\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -137,214 +137,6 @@ Configuration requires API_KEY
 		// Should find secrets from nested directories
 		if len(secrets) == 0 {
 			t.Error("Expected to find secrets in nested directories")
-		}
-	})
-}
-
-// TestParseVaultCLIOutput tests vault CLI output parsing
-func TestParseVaultCLIOutput(t *testing.T) {
-	t.Run("ConfiguredResource", func(t *testing.T) {
-		output := `Resource: postgres
-Status: Configured
-Secrets Found: 3
-- DATABASE_URL (configured)
-- DB_PASSWORD (configured)
-- DB_USER (configured)
-`
-		status := parseVaultCLIOutput(output, "postgres")
-
-		if status == nil {
-			t.Fatal("Expected non-nil status")
-		}
-
-		if status.ConfiguredResources == 0 {
-			t.Error("Expected at least one configured resource")
-		}
-	})
-
-	t.Run("MissingSecrets", func(t *testing.T) {
-		output := `Resource: openai
-Status: Missing
-Missing Secrets:
-- OPENAI_API_KEY (required)
-- OPENAI_ORG_ID (optional)
-`
-		status := parseVaultCLIOutput(output, "openai")
-
-		if status == nil {
-			t.Fatal("Expected non-nil status")
-		}
-
-		if len(status.MissingSecrets) == 0 {
-			t.Error("Expected missing secrets to be parsed")
-		}
-	})
-
-	t.Run("AllResources", func(t *testing.T) {
-		output := `Total Resources: 10
-Configured: 7
-Missing: 3
-
-Resource: postgres (configured)
-Resource: vault (configured)
-Resource: openai (missing)
-`
-		status := parseVaultCLIOutput(output, "")
-
-		if status == nil {
-			t.Fatal("Expected non-nil status")
-		}
-
-		if status.TotalResources == 0 {
-			t.Error("Expected total resources to be parsed")
-		}
-	})
-
-	t.Run("EmptyOutput", func(t *testing.T) {
-		status := parseVaultCLIOutput("", "")
-
-		if status == nil {
-			t.Fatal("Expected non-nil status even for empty output")
-		}
-	})
-
-	t.Run("MalformedOutput", func(t *testing.T) {
-		output := "This is not valid vault output"
-		status := parseVaultCLIOutput(output, "")
-
-		if status == nil {
-			t.Fatal("Expected non-nil status for malformed output")
-		}
-	})
-}
-
-// TestParseVaultScanOutput tests vault scan output parsing
-func TestParseVaultScanOutput(t *testing.T) {
-	t.Run("ValidScanOutput", func(t *testing.T) {
-		output := `Scanning resources...
-Found: postgres
-Found: vault
-Found: openai
-Found: n8n
-Scan complete: 4 resources
-`
-		resources := parseVaultScanOutput(output)
-
-		if len(resources) == 0 {
-			t.Error("Expected to parse resources from scan output")
-		}
-
-		// Check for expected resources
-		hasPostgres := false
-		for _, r := range resources {
-			if r == "postgres" {
-				hasPostgres = true
-			}
-		}
-		if !hasPostgres {
-			t.Error("Expected to find 'postgres' in scanned resources")
-		}
-	})
-
-	t.Run("EmptyScanOutput", func(t *testing.T) {
-		output := "Scan complete: 0 resources"
-		resources := parseVaultScanOutput(output)
-
-		if len(resources) != 0 {
-			t.Errorf("Expected 0 resources, got %d", len(resources))
-		}
-	})
-
-	t.Run("MalformedScanOutput", func(t *testing.T) {
-		output := "Invalid scan output format"
-		resources := parseVaultScanOutput(output)
-
-		// Should handle gracefully
-		if resources == nil {
-			resources = []string{}
-		}
-	})
-}
-
-// TestParseVaultValidationOutput tests vault validation output parsing
-func TestParseVaultValidationOutput(t *testing.T) {
-	t.Run("ValidValidationOutput", func(t *testing.T) {
-		output := `Validation Results:
-Configured: 12
-Missing: 3
-
-Resource: postgres
-- DATABASE_URL: configured
-- DB_PASSWORD: configured
-
-Resource: openai
-- OPENAI_API_KEY: missing
-`
-		summary := parseVaultValidationOutput(output)
-
-		if summary.ConfiguredCount == 0 {
-			t.Log("Expected to parse configured count (may be 0 if parsing failed)")
-		}
-
-		if len(summary.MissingSecrets) == 0 {
-			t.Log("Expected to parse missing secrets (may be empty if none missing)")
-		}
-	})
-
-	t.Run("EmptyValidationOutput", func(t *testing.T) {
-		output := ""
-		summary := parseVaultValidationOutput(output)
-
-		// Should return a valid structure even for empty input
-		if summary.ConfiguredCount < 0 {
-			t.Error("Configured count should not be negative")
-		}
-	})
-}
-
-// TestParseVaultResourceCheck tests resource-specific vault checks
-func TestParseVaultResourceCheck(t *testing.T) {
-	t.Run("ConfiguredResource", func(t *testing.T) {
-		output := `Resource: postgres
-Status: configured
-Secrets: 3/3
-Health: healthy
-`
-		status := parseVaultResourceCheck("postgres", output)
-
-		if status.ResourceName != "postgres" {
-			t.Errorf("Expected resource name 'postgres', got %s", status.ResourceName)
-		}
-
-		if status.HealthStatus != "healthy" {
-			t.Logf("Expected health status 'healthy', got %s (may be due to parsing)", status.HealthStatus)
-		}
-	})
-
-	t.Run("UnconfiguredResource", func(t *testing.T) {
-		output := `Resource: openai
-Status: missing
-Secrets: 0/2
-Health: unhealthy
-`
-		status := parseVaultResourceCheck("openai", output)
-
-		if status.ResourceName != "openai" {
-			t.Errorf("Expected resource name 'openai', got %s", status.ResourceName)
-		}
-
-		if status.SecretsMissing == 0 {
-			t.Log("Expected some missing secrets (may be due to parsing)")
-		}
-	})
-
-	t.Run("MalformedOutput", func(t *testing.T) {
-		output := "Invalid output"
-		status := parseVaultResourceCheck("test", output)
-
-		// Should create a valid status structure
-		if status.ResourceName != "test" {
-			t.Errorf("Expected resource name 'test', got %s", status.ResourceName)
 		}
 	})
 }
@@ -435,21 +227,21 @@ func TestScannerEdgeCases(t *testing.T) {
 	t.Run("PermissionDenied", func(t *testing.T) {
 		// Create a directory with no read permissions
 		restrictedDir := filepath.Join(env.TempDir, "resources", "restricted")
-		if err := os.MkdirAll(restrictedDir, 0755); err != nil {
+		if err := os.MkdirAll(restrictedDir, 0o755); err != nil {
 			t.Fatal(err)
 		}
 
 		// Create a file
 		testFile := filepath.Join(restrictedDir, "secret.env")
-		if err := os.WriteFile(testFile, []byte("SECRET=test\n"), 0644); err != nil {
+		if err := os.WriteFile(testFile, []byte("SECRET=test\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 
 		// Remove read permissions
-		if err := os.Chmod(restrictedDir, 0000); err != nil {
+		if err := os.Chmod(restrictedDir, 0o000); err != nil {
 			t.Skip("Cannot modify permissions on this system")
 		}
-		defer os.Chmod(restrictedDir, 0755) // Restore for cleanup
+		defer func() { _ = os.Chmod(restrictedDir, 0o755) }() // Restore for cleanup
 
 		// Scan should handle permission errors gracefully
 		secrets, err := scanResourceDirectory("restricted", restrictedDir)
@@ -464,7 +256,7 @@ func TestScannerEdgeCases(t *testing.T) {
 	t.Run("LargeFiles", func(t *testing.T) {
 		// Create a large file
 		resourceDir := filepath.Join(env.TempDir, "resources", "large-resource")
-		if err := os.MkdirAll(resourceDir, 0755); err != nil {
+		if err := os.MkdirAll(resourceDir, 0o755); err != nil {
 			t.Fatal(err)
 		}
 
@@ -473,7 +265,7 @@ func TestScannerEdgeCases(t *testing.T) {
 		for i := range content {
 			content[i] = 'a'
 		}
-		if err := os.WriteFile(largeFile, content, 0644); err != nil {
+		if err := os.WriteFile(largeFile, content, 0o644); err != nil {
 			t.Skip("Cannot create large file")
 		}
 
@@ -508,7 +300,7 @@ func TestScannerEdgeCases(t *testing.T) {
 func TestNewSecretScanner(t *testing.T) {
 	scanner := NewSecretScanner(nil)
 	if scanner == nil {
-		t.Error("NewSecretScanner() returned nil")
+		t.Fatal("NewSecretScanner() returned nil")
 	}
 	if scanner.db != nil {
 		t.Error("Expected nil database, got non-nil")
@@ -586,18 +378,18 @@ func TestGetSecretKeywords(t *testing.T) {
 func TestScanResources(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
-	env := setupTestDirectory(t)
-	defer env.Cleanup()
-
-	// Set VROOLI_ROOT to test directory
-	oldVrooliRoot := os.Getenv("VROOLI_ROOT")
-	os.Setenv("VROOLI_ROOT", env.TempDir)
-	defer os.Setenv("VROOLI_ROOT", oldVrooliRoot)
+	root := newContractFixtureRepo(t)
+	nested := filepath.Join(root, "scenarios", "secrets-manager", "api")
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatalf("mkdir nested: %v", err)
+	}
+	t.Setenv("VROOLI_SOURCE_ROOT", nested)
+	t.Setenv("VROOLI_ROOT", "")
 
 	t.Run("Success_QuickScan", func(t *testing.T) {
 		// Create test resource files
-		resourceDir := filepath.Join(env.TempDir, "resources", "test-resource")
-		if err := os.MkdirAll(resourceDir, 0755); err != nil {
+		resourceDir := filepath.Join(root, "resources", "test-resource")
+		if err := os.MkdirAll(resourceDir, 0o755); err != nil {
 			t.Fatal(err)
 		}
 
@@ -607,7 +399,7 @@ func TestScanResources(t *testing.T) {
 DATABASE_URL=postgresql://localhost:5432/testdb
 SECRET_TOKEN=secret-abc
 PORT=8080`
-		if err := os.WriteFile(configFile, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(configFile, []byte(content), 0o644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -658,18 +450,18 @@ PORT=8080`
 func TestFindResourceFiles(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
-	env := setupTestDirectory(t)
-	defer env.Cleanup()
-
-	// Set VROOLI_ROOT to test directory
-	oldVrooliRoot := os.Getenv("VROOLI_ROOT")
-	os.Setenv("VROOLI_ROOT", env.TempDir)
-	defer os.Setenv("VROOLI_ROOT", oldVrooliRoot)
+	root := newContractFixtureRepo(t)
+	nested := filepath.Join(root, "scenarios", "secrets-manager", "api")
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatalf("mkdir nested: %v", err)
+	}
+	t.Setenv("VROOLI_SOURCE_ROOT", nested)
+	t.Setenv("VROOLI_ROOT", "")
 
 	t.Run("Success_FindConfigFiles", func(t *testing.T) {
 		// Create test resources
-		resourceDir := filepath.Join(env.TempDir, "resources", "postgres")
-		if err := os.MkdirAll(resourceDir, 0755); err != nil {
+		resourceDir := filepath.Join(root, "resources", "postgres")
+		if err := os.MkdirAll(resourceDir, 0o755); err != nil {
 			t.Fatal(err)
 		}
 
@@ -683,7 +475,7 @@ func TestFindResourceFiles(t *testing.T) {
 
 		for filename, content := range testFiles {
 			path := filepath.Join(resourceDir, filename)
-			if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+			if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -760,7 +552,7 @@ func TestDetermineSecretType(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			gotType := ClassifySecretType(tt.secretKey)
 			if gotType != tt.wantType {
-				t.Logf("ClassifySecretType(%s) = %s, want %s", tt.secretKey, gotType, tt.wantType)
+				t.Errorf("ClassifySecretType(%s) = %s, want %s", tt.secretKey, gotType, tt.wantType)
 			}
 		})
 	}

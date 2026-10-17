@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@/test-utils/renderWithProviders'
 import { RunInvestigationTab } from './RunInvestigationTab'
 import {
   listRuns,
+  listTypedInvestigations,
   continueRun,
   getRunDetails,
-  createInvestigationRun,
+  createTypedInvestigationRun,
   createInvestigationApplyRun,
 } from '@/services/heartbeatService'
 
@@ -15,9 +16,10 @@ vi.mock('@/components/shared/EventsDisplay', () => ({
 
 vi.mock('@/services/heartbeatService', () => ({
   listRuns: vi.fn(),
+  listTypedInvestigations: vi.fn(),
   continueRun: vi.fn(),
   getRunDetails: vi.fn(),
-  createInvestigationRun: vi.fn(),
+  createTypedInvestigationRun: vi.fn(),
   createInvestigationApplyRun: vi.fn(),
 }))
 
@@ -30,9 +32,18 @@ function makeRun(id: string, status: string) {
   }
 }
 
+function makeTyped(id: string, status = 'queued') {
+  return {
+    investigationId: id,
+    operationStatus: status,
+    request: { subject: { runIds: ['source-1'] } },
+  }
+}
+
 describe('RunInvestigationTab', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(listTypedInvestigations).mockResolvedValue([])
     vi.mocked(listRuns).mockResolvedValue({
       runs: [makeRun('inv-1', 'completed')],
       total: 1,
@@ -40,7 +51,7 @@ describe('RunInvestigationTab', () => {
     })
     vi.mocked(getRunDetails).mockResolvedValue(makeRun('inv-1', 'completed'))
     vi.mocked(continueRun).mockResolvedValue()
-    vi.mocked(createInvestigationRun).mockResolvedValue(makeRun('inv-2', 'running'))
+    vi.mocked(createTypedInvestigationRun).mockResolvedValue(makeTyped('typed-2'))
     vi.mocked(createInvestigationApplyRun).mockResolvedValue(makeRun('apply-1', 'running'))
   })
 
@@ -70,7 +81,7 @@ describe('RunInvestigationTab', () => {
     await waitFor(() => {
       expect(continueRun).toHaveBeenCalledWith('inv-1', 'Please explain root cause in one paragraph.')
     })
-    expect(createInvestigationRun).not.toHaveBeenCalled()
+      expect(createTypedInvestigationRun).not.toHaveBeenCalled()
   })
 
   it('starts a new investigation from follow-up message when requested', async () => {
@@ -85,7 +96,7 @@ describe('RunInvestigationTab', () => {
     fireEvent.click(screen.getByRole('button', { name: /Send new/i }))
 
     await waitFor(() => {
-      expect(createInvestigationRun).toHaveBeenCalledWith(
+      expect(createTypedInvestigationRun).toHaveBeenCalledWith(
         ['source-1'],
         expect.objectContaining({
           depth: 'standard',

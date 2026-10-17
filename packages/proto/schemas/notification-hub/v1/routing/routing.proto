@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package vrooli.notification_hub.v1.routing;
+
+import "notification-hub/v1/shared/types.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/routing;routing_v1";
+
+service RoutingService { rpc ChannelsStatus(ChannelsStatusRequest) returns (ChannelsStatusResponse); }
+message ChannelsStatusRequest { string machine_id = 1; }
+message ChannelsStatusResponse { repeated shared.ChannelStatus channels = 1; }

@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "scenario": "workflow-health",
+  "input_digest": "sha256:9b59bfc08083cdc101bf1784519d4236bb55ce903defe9f97a09866a9cdccc15",
+  "input_files": [
+    "schemas/workflow-health/v1/shared/errors.proto",
+    "schemas/workflow-health/v1/shared/health.proto",
+    "schemas/workflow-health/v1/workflows/workflows.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/workflow-health/v1/shared/errors.pb.go": "sha256:ff5253278459a5014bb5042382e0c6efc1211706fb6cbed6de2c4af145567f56",
+    "gen/go/workflow-health/v1/shared/health.pb.go": "sha256:9197468f056db9ea38283d0da0ff8626e8130d37c5693bd73a8e733b4bdd3aa1",
+    "gen/go/workflow-health/v1/workflows/workflows.pb.go": "sha256:cff8283e48cb81ffa1fb332e3c4f665838f9598f3f503ae1ae9a04996319a14a",
+    "gen/go/workflow-health/v1/workflows/workflows_v1connect/workflows.connect.go": "sha256:7924481ef3c00e8d4185ba5efd5c2a13f412f909c9088027f3da2a97fe7e0cf6",
+    "gen/python/workflow_health/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/workflow_health/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/workflow_health/v1/shared/errors_pb2.py": "sha256:bff82df6f8c5419c4ee79ac4ae8e8d29214acfa4f8edf5892cabb28e85062eac",
+    "gen/python/workflow_health/v1/shared/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
+    "gen/python/workflow_health/v1/shared/health_pb2.py": "sha256:fed253abe971143ce115f6a63599e5101c10a2f5aba56ba65646a1f042e179a1",
+    "gen/python/workflow_health/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
+    "gen/python/workflow_health/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/workflow_health/v1/workflows/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/workflow_health/v1/workflows/workflows_pb2.py": "sha256:44c666471d1b2aea1dd90ddd49c3e3276c3b24360b7fca46f653a0e7b8fd1c3c",
+    "gen/python/workflow_health/v1/workflows/workflows_pb2.pyi": "sha256:ee29864995a825fbc18677670d002e82a40bc1aa3c043474e64938d352eec194",
+    "gen/typescript/workflow-health/v1/shared/errors_pb.ts": "sha256:bf7dd16848c170c5aac622c35a8a82564ec174954c070414810aa540ac1a1471",
+    "gen/typescript/workflow-health/v1/shared/health_pb.ts": "sha256:3754365011da6a643ce7873b3ad99ebb0ddb9dc37819e21f6fff7276e6755c6d",
+    "gen/typescript/workflow-health/v1/workflows/workflows_pb.ts": "sha256:1e3f6f3494302f6afcc04f2cac60039143b42e689134a49d924713abb35e82d6"
+  }
+}

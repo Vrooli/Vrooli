@@ -1,0 +1,103 @@
+{
+  "$schema": "../../../../.vrooli/schemas/experience-capability-registry.schema.json",
+  "kind": "capability-group",
+  "schemaVersion": "1.0.0",
+  "group": {
+    "id": "motion",
+    "description": "Whether transitions are drawn from the kit's declared motion language rather than improvised per component, and whether they explain causality without obstructing the task."
+  },
+  "capabilities": [
+    {
+      "id": "reduced-motion",
+      "title": "Honors reduced-motion preference",
+      "facets": ["promises", "port"],
+      "description": "Under a reduced-motion preference every transition collapses to its declared reduced behavior with no meaning lost and no lifecycle broken — and the preference is resolved by the host rather than queried by each component.",
+      "proves": {
+        "axes": { "motion-preference": ["no-preference", "reduce"] },
+        "evidence": ["computed-style", "timing"],
+        "claimTypes": ["motion-duration", "state-distinct"]
+      },
+      "port": {
+        "contract": "Resolves the reduced-motion preference once at the composition root, exposes it to all descendants, and updates them when the operating-system preference changes.",
+        "satisfiedBy": ["template-provides", "asset"],
+        "minimumVersion": "1.0.0"
+      },
+      "tierCeiling": "machine",
+      "rationale": "The canonical dual-facet capability named in the registry doctrine. A component both promises correct reduced behavior and depends on the host to tell it the preference; if each component queried the media feature itself the policy could not be overridden or tested."
+    },
+    {
+      "id": "transition-class-conformance",
+      "title": "Every transition uses a declared class",
+      "facets": ["promises"],
+      "description": "Each state transition the surface performs resolves to one of the kit's declared transition classes, so no component invents its own timing, easing, or animated property set.",
+      "proves": {
+        "evidence": ["computed-style"],
+        "claimTypes": ["transition-class-conformance"]
+      },
+      "tierCeiling": "machine",
+      "rationale": "The mechanism that makes motion consistent by construction: a component declares a state transition and the kit's table decides how it renders. Statically checkable in part — raw duration and easing literals in source are lintable without any capture at all."
+    },
+    {
+      "id": "motion-duration-conformance",
+      "title": "Measured duration matches its token",
+      "facets": ["promises"],
+      "description": "A transition's observed duration matches the duration token its class declares, so the motion language is real at runtime and not merely declared in source.",
+      "proves": {
+        "evidence": ["computed-style", "timing"],
+        "claimTypes": ["motion-duration"]
+      },
+      "tierCeiling": "machine",
+      "rationale": "Needs per-transition timing, which does not exist — settle timing is persisted through CaptureTargetTiming but transition measurement is not. The distinction matters: a component can reference the right token and still be overridden by a stray CSS rule."
+    },
+    {
+      "id": "no-layout-animation",
+      "title": "Only compositable properties animate",
+      "facets": ["promises"],
+      "description": "Transitions animate transform, opacity, color, and filter only; height and width changes are expressed through clipping or a layout-difference technique rather than by tweening layout properties.",
+      "proves": {
+        "evidence": ["computed-style"],
+        "claimTypes": ["no-layout-animation"]
+      },
+      "tierCeiling": "machine",
+      "rationale": "Statically lintable from source today and confirmable from computed style at runtime. This is the rule that keeps motion from becoming a performance problem as the catalog grows."
+    },
+    {
+      "id": "transition-non-blocking",
+      "title": "Motion never gates task completion",
+      "facets": ["promises"],
+      "description": "A user can proceed with their task while any transition is running; no animation delays the availability of a control or the acceptance of input.",
+      "proves": {
+        "evidence": ["timing", "ax-tree"],
+        "claimTypes": ["motion-duration"]
+      },
+      "tierCeiling": "machine",
+      "rationale": "DESIGN.md already requires this in every kit. It becomes enforceable rather than aspirational because no declared transition class exceeds 400ms, so a measured transition longer than its class ceiling is a finding."
+    },
+    {
+      "id": "entrance-restraint",
+      "title": "Nothing animates on first paint",
+      "facets": ["promises"],
+      "description": "Initial render is immediate; entrance motion applies only to asynchronously resolved regions and to surfaces the user explicitly opened.",
+      "proves": {
+        "evidence": ["timing", "screenshot"],
+        "claimTypes": ["entrance-restraint"]
+      },
+      "tierCeiling": "machine",
+      "appliesTo": ["page", "page-template", "pattern", "navigation"],
+      "rationale": "A page that animates itself in on every navigation reads as slow regardless of how fast it actually is. This is the most common way motion makes a product feel worse rather than better."
+    },
+    {
+      "id": "transition-causality",
+      "title": "Motion explains what happened",
+      "facets": ["promises"],
+      "description": "A transition communicates where an object went, what it became, or which action caused the change — rather than being decoration applied uniformly to every state change.",
+      "proves": {
+        "evidence": ["screenshot", "timing"],
+        "claimTypes": ["transition-causality"]
+      },
+      "tierCeiling": "manual",
+      "appliesTo": ["component", "pattern", "page-template"],
+      "rationale": "The genuinely judgmental half of motion quality. Whether a shared-element transition actually preserved object identity for a human observer is not something a duration comparison can settle, so the ceiling is manual with expiry."
+    }
+  ]
+}

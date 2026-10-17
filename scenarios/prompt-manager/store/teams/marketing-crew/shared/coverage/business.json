@@ -1,0 +1,15 @@
+{
+  "sku_id": "business",
+  "display_name": "Business Bundle",
+  "last_touched": null,
+  "status": "missing",
+  "stalenessPolicy": { "windowDays": 30 },
+  "channels": {
+    "x-twitter": { "last_posted": null, "artifact_ref": null },
+    "blog": { "last_posted": null, "artifact_ref": null },
+    "video": { "last_posted": null, "artifact_ref": null },
+    "linkedin": { "last_posted": null, "artifact_ref": null }
+  },
+  "next_review_date": "2026-05-24",
+  "notes": "Initialized on first publisher heartbeat (2026-04-24). No component scenarios are shipped yet (web-console, git-control-tower, agent-manager, workspace-sandbox, prompt-manager are in-progress; swarm-manager is blocked). No committed launch window in CATALOG.md / catalog/base/business.md — operating rule 13 forbids speculative pre-launch marketing. File exists to surface the gap once a launch window is committed or a component ships deployably."
+}

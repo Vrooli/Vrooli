@@ -1,0 +1,35 @@
+{
+  "id": "churn",
+  "label": "Churned · 30 days",
+  "description": "Subscriptions cancelled inside the thirty-day window.",
+  "unit": "count",
+  "format": "integer",
+  "shape": "series",
+  "source": {
+    "team": "monetization",
+    "binding": "scenario:landing-page-business-suite",
+    "read": "/api/v1/admin/dashboard/revenue",
+    "select": "churn",
+    "ttlSeconds": 300,
+    "integrationId": "landing-page-business-suite",
+    "origin": "production",
+    "featureId": "churn",
+    "contractVersion": "revenue-summary.v1",
+    "selector": "churn",
+    "expectedUnit": "count",
+    "sourceTimePolicy": "producer_required"
+  },
+  "coverage": "IN-REACH",
+  "sample": {
+    "value": 7,
+    "series": [
+      4,
+      6,
+      5,
+      8,
+      6,
+      7
+    ],
+    "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+  }
+}

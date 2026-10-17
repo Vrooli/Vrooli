@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { selectorsManifest } from "./selectors";
+import { selectors, selectorsManifest } from "./selectors";
 
 // [REQ:REQ-UI-014] Navigation selectors exist for all routes
 describe("selector manifest - nav selectors", () => {
@@ -25,6 +25,16 @@ describe("selector manifest - nav selectors", () => {
       testId: "nav-health-indicator",
       selector: '[data-testid="nav-health-indicator"]',
     });
+  });
+});
+
+describe("dynamic selector parameter validation", () => {
+  it("formats valid event row selectors and rejects invalid parameters", () => {
+    expect(selectors.eventTable.rowByIndex({ index: 2 })).toBe('[data-testid="event-row-2"]');
+    expect(selectors.eventTable.rowByEventId({ eventId: "evt-1" })).toContain("evt-1");
+    expect(() => selectors.eventTable.rowByIndex(undefined as never)).toThrow(/missing parameter/);
+    expect(() => selectors.eventTable.rowByIndex({ index: "2" as never })).toThrow(/must be numeric/);
+    expect(() => selectors.eventTable.rowByIndex({ index: 2, extra: "x" } as never)).toThrow(/unknown parameter/);
   });
 });
 

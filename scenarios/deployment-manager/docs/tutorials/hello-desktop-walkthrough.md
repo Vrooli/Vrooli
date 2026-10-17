@@ -6,7 +6,7 @@ This tutorial walks through the complete desktop deployment pipeline using `hell
 
 ## Prerequisites
 
-- Vrooli environment configured (`vrooli info` works)
+- Vrooli environment configured
 - Node.js 18+
 - Go 1.21+ (for API binary compilation)
 - deployment-manager running (`make start` in `scenarios/deployment-manager`)

@@ -1,0 +1,128 @@
+syntax = "proto3";
+
+package vrooli.system_monitor.v1.devicegraph;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/devicegraph;devicegraph";
+
+// DeviceGraph exposes the host's parent-linked hardware device graph, graded
+// against the five-rung capability ladder.
+//
+// The graph is collected by this scenario on a 60s cycle and was previously
+// reachable only as a metric payload. This service is the typed read verb, and
+// it exists so another instrument can join the device layer without parsing a
+// metrics blob or re-walking the host.
+//
+// READ-ONLY. Nothing here mutates a device, a driver, or the host.
+
+service DeviceGraphService {
+  // GetDeviceGraph returns the current graded device graph, served from the
+  // same cached provider the collector uses so a reader never triggers a
+  // second host walk.
+  rpc GetDeviceGraph(GetDeviceGraphRequest) returns (GetDeviceGraphResponse);
+}
+
+// Rung names one step of the capability ladder, in dependency order: a device
+// must be identified before it can be measured, measured before the
+// measurement can be retained, retained before an operator can act on it, and
+// acted upon before a forward-looking signal means anything.
+enum Rung {
+  RUNG_UNSPECIFIED = 0;
+  RUNG_IDENTITY = 1;
+  RUNG_TELEMETRY = 2;
+  RUNG_EVIDENCE = 3;
+  RUNG_CONTROL = 4;
+  RUNG_ANTICIPATION = 5;
+}
+
+// RungGrade is the outcome of grading one rung.
+//
+// The three non-measured values are DIFFERENT FACTS and must never be
+// collapsed into one another or into a boolean:
+//
+//   - UNMEASURABLE: the rung applies, a value should exist, and the host
+//     refused or could not produce it. It is not zero, not healthy, and not
+//     absent. It always carries a reason.
+//   - UNAVAILABLE: the mechanism that would produce the value is not present
+//     on this host at all — no reader installed, no interface registered.
+//   - NOT_APPLICABLE: the rung is meaningless for this device class.
+//
+// UNSPECIFIED is deliberately distinct from MEASURED so a field nobody set can
+// never be read as a successful measurement.
+enum RungGrade {
+  RUNG_GRADE_UNSPECIFIED = 0;
+  RUNG_GRADE_MEASURED = 1;
+  RUNG_GRADE_UNMEASURABLE = 2;
+  RUNG_GRADE_UNAVAILABLE = 3;
+  RUNG_GRADE_NOT_APPLICABLE = 4;
+}
+
+// RungState records one rung's grade together with the evidence for it. The
+// rung is carried inside the message rather than as a map key, because maps
+// with enum keys are awkward to consume across languages.
+message RungState {
+  Rung rung = 1;
+  RungGrade grade = 2;
+  // reason names what blocked the reading, in operator-readable terms. It is
+  // mandatory for every grade other than MEASURED; dropping it turns an
+  // explained gap into an unexplained one.
+  string reason = 3;
+  // mechanism names the interface the reading was, or would be, taken from.
+  string mechanism = 4;
+  // remediation names the declared host change that would close the gap. It is
+  // set on control-rung gaps a commissioning step can fix.
+  string remediation = 5;
+  google.protobuf.Timestamp observed_at = 6;
+}
+
+// Device is one node of the graph.
+message Device {
+  // id is the durable, platform-stable address, so the same physical part
+  // keeps the same identity across reboots and across collectors. On Linux the
+  // PCI form is byte-identical to the control plane's host inventory ids.
+  string id = 1;
+  string class = 2;
+  string parent_id = 3;
+  string vendor = 4;
+  string model = 5;
+  string driver = 6;
+  // sys_path is the resolved platform path the device was enumerated from. It
+  // is provenance, not identity.
+  string sys_path = 7;
+  map<string, string> attributes = 8;
+  map<string, double> readings = 9;
+  repeated RungState rungs = 10;
+}
+
+// Subsystem is a host-wide graded fact not attached to a single device, such
+// as "no EDAC memory controller registers on this host". It is graded against
+// the same ladder as a device.
+message Subsystem {
+  string name = 1;
+  map<string, string> attributes = 2;
+  repeated RungState rungs = 3;
+}
+
+message Graph {
+  google.protobuf.Timestamp collected_at = 1;
+  string platform = 2;
+  repeated Device devices = 3;
+  repeated Subsystem subsystems = 4;
+  // virtual_network_interfaces names kernel interfaces that are not hardware
+  // (bridges, veth, loopback, container interfaces). They are reported so
+  // their exclusion from the hardware grading is visible rather than silent.
+  repeated string virtual_network_interfaces = 5;
+  repeated string warnings = 6;
+  // available is false when the walk produced neither a device nor a graded
+  // subsystem, or failed its structural invariants. A failed walk is reported
+  // as a failure to observe, NEVER as a host with no hardware.
+  bool available = 7;
+  string unavailable_reason = 8;
+}
+
+message GetDeviceGraphRequest {}
+
+message GetDeviceGraphResponse {
+  Graph graph = 1;
+}

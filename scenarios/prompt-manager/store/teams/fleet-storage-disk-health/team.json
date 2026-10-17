@@ -1,0 +1,77 @@
+{
+  "coordination": {
+    "pattern": "leader-led",
+    "leadAgentId": "fleet-storage-disk-health-coordinator",
+    "reportingMode": "leader",
+    "messagingMode": "in-session",
+    "capabilities": {
+      "showOrgContext": true,
+      "injectInbox": false,
+      "allowPeerTriggers": false,
+      "showTaskBoardGuidance": true,
+      "showKnowledgeLogGuidance": true,
+      "requireHandoff": true
+    }
+  },
+  "createdAt": "2026-09-14T13:08:47Z",
+  "displayName": "Fleet Storage \u0026 Disk Health",
+  "effortRefs": [
+    "effort:001573d5-e40f-4b34-bd1f-57d56146c9a0"
+  ],
+  "enabled": false,
+  "execution": {
+    "queuePolicy": "serialized",
+    "maxConcurrentRuns": 1
+  },
+  "id": "fleet-storage-disk-health",
+  "kind": "team",
+  "lifetime": "finite",
+  "mission": "Deliver the finite fleet storage and disk-health effort: system-monitor disk-wear monitoring and alerting proven against prompt-manager's write storm, then fix prompt-manager and prove the alert clears; and investigate and properly address every other open storage/host-health item recorded in the effort workspace.",
+  "operatingContract": {
+    "schemaVersion": 1,
+    "governance": {},
+    "documents": {
+      "planOfRecord": [],
+      "sharedState": []
+    },
+    "knowledgeTopics": {
+      "effort-wake/*": {
+        "ownerMemberId": "fleet-storage-disk-health-coordinator",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      }
+    },
+    "members": {
+      "fleet-storage-disk-health-coordinator": {
+        "lane": "Coordinate the finite fleet storage and disk-health effort from its workspace (~/.vrooli/plan-artifacts/efforts/fleet-storage-disk-health-2026-09-14): reconcile owner state, delegate bounded investigation/implementation/review assignments, retain evidence against requirements.json, and stop at blockers, approval gates or terminal evidence.",
+        "allowedWrites": [
+          {
+            "kind": "knowledge"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "safetyCriticalRules": [
+          "The effort reference is an attribution edge, not an authority grant; execution.status in effort.json governs what may run.",
+          "Never use git; manage scenarios only via make or vrooli scenario; dependencies only via scenario-dependency-analyzer.",
+          "Never mutate a live scenario database with raw SQL, VACUUM or file deletion; use the owning scenario's operation under its maintenance fence.",
+          "Restarting running scenarios, deleting or pruning retained data, and changing storage budgets require the operator approval recorded in the effort workspace.",
+          "Do not start, cancel, repair, or replace owner work without qualified control and the exact retained identity.",
+          "Retain exact effort, plan, run, task, revision, and evidence references in every handoff."
+        ],
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": true,
+          "stillWriteHandoff": true
+        }
+      }
+    }
+  },
+  "purpose": "delivery",
+  "revision": 2,
+  "runtime": {
+    "mode": "single-process"
+  },
+  "schemaVersion": 1,
+  "updatedAt": "2026-09-14T13:11:24Z"
+}

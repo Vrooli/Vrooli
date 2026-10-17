@@ -1,0 +1,77 @@
+{
+  "scope": "Proposed explicit token pairs, not runtime computed CSS or accessibility certification",
+  "checks": [
+    {
+      "role": "Ink on paper",
+      "foreground": "#171B2E",
+      "background": "#FCFBF7",
+      "ratio": 16.453
+    },
+    {
+      "role": "Muted on paper",
+      "foreground": "#5B6070",
+      "background": "#FCFBF7",
+      "ratio": 6.051
+    },
+    {
+      "role": "Blue on paper",
+      "foreground": "#1230CD",
+      "background": "#FCFBF7",
+      "ratio": 8.704
+    },
+    {
+      "role": "White on blue",
+      "foreground": "#FFFFFF",
+      "background": "#1230CD",
+      "ratio": 9.013
+    },
+    {
+      "role": "Red on rose",
+      "foreground": "#B12626",
+      "background": "#FDECEC",
+      "ratio": 5.791
+    },
+    {
+      "role": "Ink on pale",
+      "foreground": "#171B2E",
+      "background": "#EDF1FF",
+      "ratio": 15.111
+    },
+    {
+      "role": "Dark body",
+      "foreground": "#F4F1E8",
+      "background": "#121829",
+      "ratio": 15.646
+    },
+    {
+      "role": "Dark muted",
+      "foreground": "#BAC3D5",
+      "background": "#121829",
+      "ratio": 9.975
+    },
+    {
+      "role": "Dark muted side panel",
+      "foreground": "#BAC3D5",
+      "background": "#1C2439",
+      "ratio": 8.712
+    },
+    {
+      "role": "Dark accent",
+      "foreground": "#A9BEFF",
+      "background": "#1C2439",
+      "ratio": 8.448
+    },
+    {
+      "role": "Dark selected text",
+      "foreground": "#F4F1E8",
+      "background": "#2B3B63",
+      "ratio": 9.743
+    },
+    {
+      "role": "Dark button text",
+      "foreground": "#121829",
+      "background": "#A9BEFF",
+      "ratio": 9.674
+    }
+  ]
+}

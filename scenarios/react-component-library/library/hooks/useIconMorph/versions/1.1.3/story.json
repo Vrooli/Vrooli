@@ -1,0 +1,38 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "schemaVersion": 5,
+  "kind": "hook",
+  "title": "useIconMorph",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Idle until the icon changes",
+      "role": "anatomy",
+      "mode": "live",
+      "description": "The hook reports no transition while the icon identity is unchanged.",
+      "args": {},
+      "composition": { "specimen": { "module": "./story.tsx", "export": "Default" } },
+      "expect": [
+        { "kind": "visible", "selector": "[data-testid='hooks.use-icon-morph']" },
+        { "kind": "text", "selector": "[data-testid='hooks.use-icon-morph-technique']", "value": "idle" }
+      ]
+    },
+    {
+      "id": "swap-decides-a-technique",
+      "name": "A swap resolves to a measured technique",
+      "role": "boundary",
+      "mode": "live",
+      "description": "Changing the icon identity starts a transition whose technique is measured, not declared.",
+      "args": {},
+      "composition": { "specimen": { "module": "./story.tsx", "export": "Default" } },
+      "interactions": [
+        { "kind": "click", "target": { "selector": "[data-rcl-hook-action='start']" } }
+      ],
+      "expect": [
+        { "kind": "visible", "selector": "[data-testid='hooks.use-icon-morph-technique']" }
+      ]
+    }
+  ]
+}

@@ -1,13 +1,10 @@
 import { mkdir } from 'fs/promises';
-import type { Browser, BrowserContext } from 'rebrowser-playwright';
+import type { Browser, BrowserContext, CDPSession, Frame, Page } from 'rebrowser-playwright';
 import type { SessionSpec, BehaviorSettings } from '../types';
 import type { Config } from '../config';
 import { logger } from '../utils';
 import { ServiceWorkerController } from '../service-worker';
-import {
-  RecordingContextInitializer,
-  createRecordingContextInitializer,
-} from '../recording';
+import { RecordingContextInitializer, createRecordingContextInitializer } from '../recording';
 import {
   mergeWithPreset,
   resolveUserAgent,
@@ -18,19 +15,82 @@ import {
   mergeClientHintsWithHeaders,
   BEHAVIOR_SETTINGS_KEY,
 } from '../browser-profile';
-import {
-  resolveArtifactPaths,
-  getArtifactDir,
-} from './artifact-paths';
+import { resolveArtifactPaths, getArtifactDir } from './artifact-paths';
 import {
   logContextOptions,
   logClientHints,
   logAntiDetectionApplied,
   logAdBlockerConfig,
 } from './diagnostic-logger';
+import { generateSilentSinkPatch, type AudioStrategy } from './audio';
+import { configureInteractionState } from './interaction-state';
 
 // Re-export for backward compatibility (canonical location is browser-profile)
 export { BEHAVIOR_SETTINGS_KEY } from '../browser-profile';
+
+/**
+ * A phone-class viewport renders nothing of value for layout correctness unless
+ * the display safe-area insets are present. Real devices report a notch/status
+ * bar at the top and a home-indicator at the bottom via env(safe-area-inset-*),
+ * and applications pad their fixed chrome against them. Headless Chromium reports
+ * all insets as 0, so a "mobile" capture silently validates a layout no physical
+ * phone ever shows — the exact blind spot that let GCT ship a bottom-nav safe-area
+ * regression past the mobile-regression gate. Inject representative iPhone insets
+ * (Dynamic Island 59px top, home indicator 34px bottom) for mobile viewports so
+ * captures and geometry assertions exercise nonzero insets. This models CSS
+ * safe-area geometry, not Safari browser chrome or an installed iOS viewport.
+ */
+export const MOBILE_SAFE_AREA_INSETS = { top: 59, bottom: 34, left: 0, right: 0 } as const;
+
+/** A viewport is phone-class when its shorter edge is a phone width. */
+export function isMobileViewport(viewport?: { width: number; height: number }): boolean {
+  return !!viewport && Math.min(viewport.width, viewport.height) <= 480;
+}
+
+/**
+ * Apply display safe-area insets to a page for phone-class viewports via the CDP
+ * Emulation domain (Playwright has no first-class API). No-op for larger viewports
+ * and best-effort: a driver without this CDP command must not fail the capture.
+ * Assertions requiring a notch must measure env() and fail if it is absent.
+ */
+const safeAreaSessions = new WeakMap<Page, CDPSession>();
+
+export async function applySafeAreaInsets(
+  page: Page,
+  viewport?: { width: number; height: number }
+): Promise<void> {
+  if (!isMobileViewport(viewport)) return;
+  try {
+    let cdp = safeAreaSessions.get(page);
+    if (!cdp) {
+      cdp = await page.context().newCDPSession(page);
+      safeAreaSessions.set(page, cdp);
+      const owner = cdp;
+      page.once('close', () => {
+        safeAreaSessions.delete(page);
+        void owner.detach().catch(() => {});
+      });
+    }
+    // setSafeAreaInsetsOverride is newer than some protocol typings ship, hence the cast.
+    await (cdp as unknown as { send: (m: string, p: unknown) => Promise<unknown> }).send(
+      'Emulation.setSafeAreaInsetsOverride',
+      { insets: MOBILE_SAFE_AREA_INSETS }
+    );
+    // Detaching leaves the current document inset but drops the override on the
+    // next navigation. Keep its CDP owner alive for the entire page lifetime.
+    logger.info('Configured mobile safe-area emulation', {
+      viewport,
+      insets: MOBILE_SAFE_AREA_INSETS,
+    });
+  } catch (error) {
+    logger.warn(
+      'Safe-area inset override unavailable; mobile capture will render with zero insets',
+      {
+        error: error instanceof Error ? error.message : String(error),
+      }
+    );
+  }
+}
 
 /**
  * Build BrowserContext from SessionSpec
@@ -55,10 +115,10 @@ export { BEHAVIOR_SETTINGS_KEY } from '../browser-profile';
  * This attribution helps users understand why dimensions may differ from requested.
  */
 export type ViewportSource =
-  | 'requested'           // Used the UI-requested dimensions
-  | 'fingerprint'         // Browser profile fingerprint override
+  | 'requested' // Used the UI-requested dimensions
+  | 'fingerprint' // Browser profile fingerprint override
   | 'fingerprint_partial' // Fingerprint set one dimension, requested used for other
-  | 'default';            // Fallback defaults used
+  | 'default'; // Fallback defaults used
 
 export interface ActualViewport {
   width: number;
@@ -71,9 +131,11 @@ export interface ActualViewport {
 export async function buildContext(
   browser: Browser,
   spec: SessionSpec,
-  config: Config
+  config: Config,
+  audioStrategy: AudioStrategy = 'host_device'
 ): Promise<{
   context: BrowserContext;
+  storageOrigins: Set<string>;
   harPath?: string;
   tracePath?: string;
   videoDir?: string;
@@ -115,7 +177,12 @@ export async function buildContext(
   let viewportSource: ViewportSource;
   let viewportReason: string;
 
-  if (explicitWidth !== undefined && explicitHeight !== undefined && explicitWidth > 0 && explicitHeight > 0) {
+  if (
+    explicitWidth !== undefined &&
+    explicitHeight !== undefined &&
+    explicitWidth > 0 &&
+    explicitHeight > 0
+  ) {
     // User explicitly provided a browser_profile with complete viewport override
     viewportWidth = explicitWidth;
     viewportHeight = explicitHeight;
@@ -124,12 +191,15 @@ export async function buildContext(
   } else if (explicitHasWidth || explicitHasHeight) {
     // User provided partial fingerprint override - warn but use requested viewport
     // This is likely unintentional, so we don't apply partial overrides
-    logger.warn('Partial viewport override detected in session profile - using requested viewport instead', {
-      explicitWidth: explicitFingerprint?.viewport_width,
-      explicitHeight: explicitFingerprint?.viewport_height,
-      requestedWidth: spec.viewport.width,
-      requestedHeight: spec.viewport.height,
-    });
+    logger.warn(
+      'Partial viewport override detected in session profile - using requested viewport instead',
+      {
+        explicitWidth: explicitFingerprint?.viewport_width,
+        explicitHeight: explicitFingerprint?.viewport_height,
+        requestedWidth: spec.viewport.width,
+        requestedHeight: spec.viewport.height,
+      }
+    );
     // Fall through to use requested viewport
     if (spec.viewport.width > 0 && spec.viewport.height > 0) {
       viewportWidth = spec.viewport.width;
@@ -176,7 +246,10 @@ export async function buildContext(
   const clientHints = generateClientHints(userAgent);
 
   // Merge Client Hints with user-provided headers (user headers take precedence)
-  const finalHeaders = mergeClientHintsWithHeaders(clientHints, spec.browser_profile?.extra_headers);
+  const finalHeaders = mergeClientHintsWithHeaders(
+    clientHints,
+    spec.browser_profile?.extra_headers
+  );
 
   const contextOptions: Parameters<typeof browser.newContext>[0] = {
     viewport: {
@@ -184,12 +257,18 @@ export async function buildContext(
       height: viewportHeight,
     },
     deviceScaleFactor,
+    // A mobile capture must drive the media features applications actually
+    // branch on. A narrow desktop viewport still reports fine/hover and cannot
+    // prove pointer-independent controls or mobile action-sheet behavior.
+    hasTouch: Math.min(viewportWidth, viewportHeight) <= 480,
+    isMobile: Math.min(viewportWidth, viewportHeight) <= 480,
     baseURL: spec.base_url,
     ignoreHTTPSErrors: config.browser.ignoreHTTPSErrors,
     userAgent,
     locale: spec.locale || fingerprint.locale || undefined,
     timezoneId: spec.timezone || fingerprint.timezone_id || undefined,
     colorScheme: fingerprint.color_scheme || undefined,
+    reducedMotion: spec.browser_profile?.motion_preference === 'reduce' ? 'reduce' : undefined,
     extraHTTPHeaders: Object.keys(finalHeaders).length > 0 ? finalHeaders : undefined,
   };
 
@@ -258,48 +337,40 @@ export async function buildContext(
 
   // Create context
   const context = await browser.newContext(contextOptions);
+  const storageOrigins = new Set(spec.storage_state?.origins.map(({ origin }) => origin));
+  const rememberOrigin = (frame: Frame): void => {
+    if (!frame.url()) return;
+    const url = new URL(frame.url());
+    // Chromium file documents share a storage origin even though WHATWG URL reports null.
+    const origin = url.protocol === 'file:' ? 'file://' : url.origin;
+    if (origin !== 'null') storageOrigins.add(origin);
+  };
+  context.on('page', (page) => {
+    page.frames().forEach(rememberOrigin);
+    page.on('framenavigated', rememberOrigin);
+  });
+  configureInteractionState(context, spec.browser_profile?.interaction_state);
 
-  // Fix gray bar in video recording caused by window/viewport size mismatch.
-  //
-  // ROOT CAUSE (Playwright issue #36032): When launched with headless:false +
-  // --headless=new, Playwright calculates the window size as viewport + browser
-  // chrome height (assuming a headed browser). But --headless=new means there's
-  // no actual chrome, so the window is taller than the viewport. Chrome's video
-  // encoder captures the full window area, but only viewport-height pixels have
-  // rendered page content — the rest fills with gray (VP8 framebuffer default
-  // RGB 128,128,128).
-  //
-  // FIX: Override the screen dimensions via CDP so the compositor knows the
-  // true renderable area. This must be applied to each page since it's a
-  // per-target CDP command. The 'page' event fires before any navigation,
-  // giving us time to set the override before frames are captured.
-  //
-  // See: docs/bugs/VIDEO_BOTTOM_FLICKER.md for full investigation.
-  if (videoDir) {
-    context.on('page', (page) => {
-      context.newCDPSession(page).then((session) => {
-        return session.send('Emulation.setDeviceMetricsOverride', {
-          width: viewportWidth,
-          height: viewportHeight,
-          deviceScaleFactor,
-          mobile: false,
-          screenWidth: viewportWidth,
-          screenHeight: viewportHeight,
-        });
-      }).catch((err) => {
-        // Non-fatal: video may have gray bar but functionality is unaffected
-        logger.warn('Failed to apply video recording screen metrics override', {
-          executionId: spec.execution_id,
-          error: err instanceof Error ? err.message : String(err),
-        });
-      });
-    });
-    logger.debug('Video recording screen metrics fix registered', {
+  if (audioStrategy === 'synthetic_sink') {
+    await context.addInitScript({ content: generateSilentSinkPatch() });
+    logger.info('Synthetic Web Audio sink enabled for host without output device', {
       executionId: spec.execution_id,
-      viewport: `${viewportWidth}x${viewportHeight}`,
-      deviceScaleFactor,
     });
+  }
 
+  // A fixture is a driver-level test-only opt-in. Chromium still obtains a
+  // real getUserMedia stream; BrowserManager supplies its deterministic fake
+  // device only when BAS_FAKE_MICROPHONE_FILE is configured. The isolated
+  // qualification driver grants this permission to its sessions; normal BAS
+  // instances do neither.
+  if (config.browser.fakeMicrophoneFile) {
+    await context.grantPermissions(['microphone']);
+    logger.debug('Deterministic microphone permission granted', {
+      executionId: spec.execution_id,
+    });
+  }
+
+  if (videoDir) {
     // Stabilize viewport layout for video recording. When page content changes
     // during execution, a vertical scrollbar can appear/disappear, changing the
     // content width by ~17px. CSS reflow cascades downward, so the bottom ~50px
@@ -339,7 +410,9 @@ export async function buildContext(
     const enabledPatches = Object.entries(antiDetection)
       .filter(([, v]) => v)
       .map(([k]) => k);
-    await applyAntiDetection(context, antiDetection, fingerprint);
+    await applyAntiDetection(context, antiDetection, fingerprint, {
+      deterministicAudio: Boolean(spec.fake_media?.microphone_wav),
+    });
     logger.debug('Anti-detection patches applied', {
       executionId: spec.execution_id,
       patches: enabledPatches,
@@ -362,7 +435,11 @@ export async function buildContext(
       whitelistDomains: adBlockWhitelist.length,
     });
     // Log for diagnostic debugging
-    logAdBlockerConfig(spec.execution_id, antiDetection.ad_blocking_mode as string, adBlockWhitelist);
+    logAdBlockerConfig(
+      spec.execution_id,
+      antiDetection.ad_blocking_mode as string,
+      adBlockWhitelist
+    );
   }
 
   // Initialize service worker controller
@@ -449,6 +526,7 @@ export async function buildContext(
 
   return {
     context,
+    storageOrigins,
     harPath,
     tracePath,
     videoDir,

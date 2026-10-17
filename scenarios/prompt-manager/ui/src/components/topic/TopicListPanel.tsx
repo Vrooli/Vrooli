@@ -10,11 +10,14 @@
  * - Selection mode with checkboxes
  */
 
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo } from 'react'
 import { Plus, Layers, ChevronRight } from 'lucide-react'
+import { CollectionList } from '@vrooli/react-component-library/CollectionList/1.0.0'
+import type { RowAction } from '@vrooli/react-component-library/useCollection/1'
 import { cn } from '@/lib/utils'
 import { useTopics } from '@/hooks/useTopicData'
 import type { DetailMode } from '@/types/filterSort'
+import type { Topic } from '@/lib/schemas'
 
 interface TopicListPanelProps {
   selectedTopicId: string | null
@@ -30,6 +33,10 @@ interface TopicListPanelProps {
   selectedIds?: Set<string>
   /** Called when an item is toggled in selection mode */
   onToggleSelection?: (id: string) => void
+}
+
+function topicActions(onOpen: (topic: Topic) => void): RowAction<Topic>[] {
+  return [{ id: 'open', label: 'Open', shortcut: 'Enter', onSelect: (rows) => { const topic = rows[0]; if (topic) onOpen(topic) } }]
 }
 
 /**
@@ -78,13 +85,13 @@ export function TopicListPanel({
     }
   }
 
-  const handleItemClick = useCallback((id: string) => {
-    if (isSelectMode && onToggleSelection) {
-      onToggleSelection(id)
-    } else {
-      onSelectTopic(id)
-    }
-  }, [isSelectMode, onToggleSelection, onSelectTopic])
+  const actions = useMemo(() => topicActions((topic) => onSelectTopic(topic.id)), [onSelectTopic])
+  const syncSelection = (keys: string[]) => {
+    if (!onToggleSelection) return
+    const next = new Set(keys)
+    selectedIds?.forEach((id) => { if (!next.has(id)) onToggleSelection(id) })
+    next.forEach((id) => { if (!selectedIds?.has(id)) onToggleSelection(id) })
+  }
 
   if (isLoading) {
     return (
@@ -104,94 +111,27 @@ export function TopicListPanel({
 
   return (
     <div className={cn('flex flex-col min-h-0', className)}>
-      {/* Topic list */}
-      <div className="flex-1 overflow-y-auto py-1">
-        {topics.length === 0 ? (
-          <div className="px-3 py-8 text-center">
-            <Layers className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-            <p className="text-xs text-muted-foreground mb-4">No topics yet</p>
-            <button
-              type="button"
-              onClick={() => void handleCreateTopic()}
-              className="text-xs text-primary hover:underline"
-              disabled={isCreating}
-            >
-              Create your first topic
-            </button>
-          </div>
-        ) : filteredTopics.length === 0 ? (
-          <div className="px-3 py-8 text-center">
-            <Layers className="h-8 w-8 mx-auto mb-2 text-muted-foreground opacity-60" />
-            <p className="text-xs text-muted-foreground">No matching topics</p>
-          </div>
-        ) : (
-          filteredTopics.map((topic) => (
-            <button
-              key={topic.id}
-              type="button"
-              onClick={() => handleItemClick(topic.id)}
-              className={cn(
-                'w-full flex items-center gap-3 px-3 py-2 text-left',
-                'hover:bg-muted/50 transition-colors',
-                !isSelectMode && selectedTopicId === topic.id && 'bg-primary/10',
-                isSelectMode && selectedIds?.has(topic.id) && 'bg-primary/10'
-              )}
-              data-topic-id={topic.id}
-            >
-              {/* Selection checkbox */}
-              {isSelectMode && (
-                <div className="flex-shrink-0">
-                  <div
-                    className={cn(
-                      'h-4 w-4 rounded border transition-colors',
-                      selectedIds?.has(topic.id)
-                        ? 'bg-primary border-primary'
-                        : 'border-border bg-background'
-                    )}
-                  >
-                    {selectedIds?.has(topic.id) && (
-                      <svg viewBox="0 0 16 16" className="h-4 w-4 text-primary-foreground" fill="currentColor">
-                        <path d="M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z" />
-                      </svg>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Topic icon */}
-              <div className="flex-shrink-0 w-7 h-7 rounded-md bg-muted flex items-center justify-center">
-                {topic.icon ? (
-                  <span className="text-sm">{topic.icon}</span>
-                ) : (
-                  <Layers className="h-3.5 w-3.5 text-muted-foreground" />
-                )}
-              </div>
-
-              {/* Topic info */}
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground truncate">
-                  {topic.name}
-                </p>
-                {detailMode === 'full' && (
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    {topic.parentTopicId && topicNameMap.has(topic.parentTopicId) && (
-                      <span className="flex items-center gap-0.5 truncate">
-                        <ChevronRight className="h-3 w-3 flex-shrink-0" />
-                        <span className="truncate">{topicNameMap.get(topic.parentTopicId)}</span>
-                      </span>
-                    )}
-                    {topic.skills.length > 0 && (
-                      <span className="flex-shrink-0 px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-medium">
-                        {topic.skills.length} skill{topic.skills.length !== 1 ? 's' : ''}
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-
-            </button>
-          ))
-        )}
+      <div className="min-h-0 flex-1 overflow-y-auto py-1">
+        <CollectionList
+          items={filteredTopics}
+          getKey={(topic) => topic.id}
+          label="Topics"
+          virtualize
+          height="100%"
+          selection={{ mode: isSelectMode ? 'multi' : 'none', selected: selectedIds ? [...selectedIds] : undefined, onChange: syncSelection }}
+          onOpen={(topic) => onSelectTopic(topic.id)}
+          actions={actions}
+          empty={topics.length === 0 ? (
+            <div className="px-3 py-8 text-center"><Layers className="mx-auto mb-2 h-8 w-8 text-muted-foreground" /><p className="mb-4 text-xs text-muted-foreground">No topics yet</p><button type="button" onClick={() => void handleCreateTopic()} className="text-xs text-primary hover:underline" disabled={isCreating}>Create your first topic</button></div>
+          ) : (
+            <div className="px-3 py-8 text-center"><Layers className="mx-auto mb-2 h-8 w-8 text-muted-foreground opacity-60" /><p className="text-xs text-muted-foreground">No matching topics</p></div>
+          )}
+          renderItem={(topic) => <div className={cn('flex w-full items-center gap-3 px-3 py-2 text-left', !isSelectMode && selectedTopicId === topic.id && 'bg-primary/10')} data-topic-id={topic.id}>
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted">{topic.icon ? <span className="text-sm">{topic.icon}</span> : <Layers className="h-3.5 w-3.5 text-muted-foreground" />}</div>
+            <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-foreground">{topic.name}</p>{detailMode === 'full' && <div className="flex items-center gap-1.5 text-xs text-muted-foreground">{topic.parentTopicId && topicNameMap.has(topic.parentTopicId) && <span className="flex items-center gap-0.5 truncate"><ChevronRight className="h-3 w-3 shrink-0" /><span className="truncate">{topicNameMap.get(topic.parentTopicId)}</span></span>}{topic.skills.length > 0 && <span className="shrink-0 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">{topic.skills.length} skill{topic.skills.length !== 1 ? 's' : ''}</span>}</div>}</div>
+          </div>}
+          className="h-full w-full"
+        />
       </div>
 
       {/* Footer - New topic button (hidden in select mode) */}

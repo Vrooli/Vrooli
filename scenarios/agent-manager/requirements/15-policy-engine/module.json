@@ -9,20 +9,76 @@
       "description": "Build configurable policy engine for enforcing run constraints",
       "id": "REQ-P1-004",
       "prd_ref": "OT-P1-004",
-      "status": "draft",
+      "status": "in_progress",
       "title": "Policy Engine Core",
       "validation": [
         {
-          "notes": "Test policy evaluation",
+          "notes": "Test portable role resolution records immutable resource-owned evidence",
           "phase": "unit",
-          "ref": "",
+          "ref": "api/internal/rolepolicy/resolution_test.go::TestResolveCapturesConcreteResourceEvidenceWithoutDroppingUnavailableFallback",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "Verify policy enforcement",
+          "notes": "Verify persisted role snapshot skips unavailable candidates",
           "phase": "integration",
-          "ref": "",
+          "ref": "api/internal/orchestration/phases/execute_test.go::TestPolicySnapshotFallbackSkipsUnavailablePersistedCandidate",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify persisted snapshot fallback across runner boundaries",
+          "phase": "integration",
+          "ref": "api/internal/orchestration/phases/execute_test.go::TestPolicySnapshotFallbackUsesPersistedCandidatesAcrossRunners",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify terminal exhaustion and digest-qualified event evidence",
+          "phase": "integration",
+          "ref": "api/internal/orchestration/phases/execute_test.go::TestPolicySnapshotFallbackExhaustionIsTerminalAndObservable",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify restart/resume continues from the persisted candidate",
+          "phase": "integration",
+          "ref": "api/internal/orchestration/phases/execute_test.go::TestPolicySnapshotResumeStartsAtPersistedCandidate",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify an enforced tool restriction skips fallback candidates that cannot enforce it",
+          "phase": "integration",
+          "ref": "api/internal/orchestration/phases/execute_test.go::TestToolRestrictionCandidateReason",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "notes": "Verify catalog reload failures retain the active role revision",
+          "phase": "integration",
+          "ref": "api/internal/rolepolicy/state_test.go::TestStateRetainsActiveRevisionAfterInvalidReload",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify read-only role status/catalog and removed legacy surface",
+          "phase": "integration",
+          "ref": "api/internal/handlers/role_policy_test.go::TestRolePolicyStatusCatalogAndLegacySurfaceRemoval",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify controlled role-policy reload preserves the active revision",
+          "phase": "integration",
+          "ref": "api/internal/handlers/role_policy_test.go::TestRolePolicyValidateAndFailedReloadPreserveActiveRevision",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify role snapshot round-trips its requested role and candidate sequence",
+          "phase": "integration",
+          "ref": "api/internal/protoconv/convert_test.go::TestExecutionPolicySnapshotRoundTrip",
           "status": "pending",
           "type": "test"
         },
@@ -36,6 +92,23 @@
         {
           "notes": "Validate policy effectiveness",
           "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "description": "Where policy templates are offered, Agent Manager may provide versioned pre-built configurations that operators can inspect before applying.",
+      "id": "REQ-P2-013",
+      "prd_ref": "OT-P2-004",
+      "status": "planned",
+      "title": "Inspectable policy templates",
+      "validation": [
+        {
+          "notes": "Verify template versioning, preview, and explicit application when the capability is implemented",
+          "phase": "unit",
           "ref": "",
           "status": "pending",
           "type": "test"

@@ -1,0 +1,12 @@
+{
+  "kind": "team-roles",
+  "schemaVersion": 1,
+  "teamId": "fleet-storage-disk-health",
+  "roles": [
+    {
+      "id": "fleet-storage-disk-health-coordinator",
+      "name": "fleet-storage-disk-health-coordinator",
+      "description": "Coordinator for the finite fleet storage and disk-health effort (effort:001573d5-e40f-4b34-bd1f-57d56146c9a0): disk-wear monitoring in system-monitor, prompt-manager write amplification, over-budget scenario data, stale binaries, memory leaks, backup coverage, SQLite reclaim substrate, AM vector copies and tests."
+    }
+  ]
+}

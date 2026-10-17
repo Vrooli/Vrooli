@@ -13,6 +13,7 @@ type ReviewTidinessClient interface {
 type ReviewTestGenieClient interface {
 	ListExecutions(ctx context.Context, scenario string, limit int) (*TestExecutionListResponse, error)
 	ExecuteSuite(ctx context.Context, req TestExecutionRequest) (*TestExecutionResult, error)
+	GetExecution(ctx context.Context, executionID string) (*TestExecutionResult, error)
 }
 
 // ReviewAuditorClient is the subset of AuditorClient used by review handlers.

@@ -24,7 +24,6 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"agent-manager/internal/adapters/runner"
@@ -72,6 +71,7 @@ type Terminator struct {
 	runs    repository.RunRepository
 	runners runner.Registry
 	config  TerminatorConfig
+	clock   func() time.Time
 }
 
 // NewTerminator creates a new terminator with the given dependencies.
@@ -84,7 +84,16 @@ func NewTerminator(
 		runs:    runs,
 		runners: runners,
 		config:  config,
+		clock:   time.Now,
 	}
+}
+
+// WithClock supplies deterministic duration measurements for termination tests.
+func (t *Terminator) WithClock(clock func() time.Time) *Terminator {
+	if clock != nil {
+		t.clock = clock
+	}
+	return t
 }
 
 // UpdateConfig applies new configuration at runtime.
@@ -104,7 +113,7 @@ type TerminateResult struct {
 
 // Terminate attempts to stop a run with full retry and escalation logic.
 func (t *Terminator) Terminate(ctx context.Context, runID uuid.UUID) (*TerminateResult, error) {
-	start := time.Now()
+	start := t.clock()
 	result := &TerminateResult{}
 
 	// Get the run
@@ -198,17 +207,7 @@ func (t *Terminator) Terminate(ctx context.Context, runID uuid.UUID) (*Terminate
 
 	result.Duration = time.Since(start)
 
-	// Update run status if successful
-	if result.Success {
-		now := time.Now()
-		run.Status = domain.RunStatusCancelled
-		run.EndedAt = &now
-		run.UpdatedAt = now
-		if err := t.runs.Update(ctx, run); err != nil {
-			// Log but don't fail - the process is dead
-			result.Error = err
-		}
-	} else {
+	if !result.Success {
 		result.Error = domain.NewInternalError(fmt.Sprintf("failed to terminate run after %d attempts", result.Attempts), nil)
 	}
 
@@ -217,7 +216,7 @@ func (t *Terminator) Terminate(ctx context.Context, runID uuid.UUID) (*Terminate
 
 // TerminateByTag attempts to stop a process by its tag (for orphan cleanup).
 func (t *Terminator) TerminateByTag(ctx context.Context, tag string) (*TerminateResult, error) {
-	start := time.Now()
+	start := t.clock()
 	result := &TerminateResult{}
 
 	for attempt := 1; attempt <= t.config.MaxRetries; attempt++ {
@@ -307,6 +306,18 @@ func (t *Terminator) findProcessPIDForRun(run *domain.Run, tag string) int {
 			return pid
 		}
 		return findProcessPIDByResourceTag("resource-opencode", tag)
+	case domain.RunnerTypeGrok:
+		// No legacy resource-wrapper fallback — grok is invoked as the raw
+		// binary only (the grok resource ships no `run` passthrough).
+		if pid := findProcessPIDByRunnerEnvTag("grok", tag); pid != 0 {
+			return pid
+		}
+		return t.findProcessPIDByTag(tag)
+	case domain.RunnerTypeAntigravity:
+		if pid := findProcessPIDByRunnerEnvTag("agy", tag); pid != 0 {
+			return pid
+		}
+		return t.findProcessPIDByTag(tag)
 	default:
 		return t.findProcessPIDByTag(tag)
 	}
@@ -415,7 +426,7 @@ func (t *Terminator) trySIGTERM(pid int) bool {
 	if err != nil {
 		return false
 	}
-	return process.Signal(syscall.SIGTERM) == nil
+	return gracefulTerminateProcess(process)
 }
 
 // trySIGKILL sends SIGKILL to a process.
@@ -429,30 +440,12 @@ func (t *Terminator) trySIGKILL(pid int) bool {
 
 // getProcessGroupID gets the process group ID for a PID.
 func (t *Terminator) getProcessGroupID(pid int) int {
-	// Read from /proc/[pid]/stat
-	statPath := fmt.Sprintf("/proc/%d/stat", pid)
-	data, err := os.ReadFile(statPath)
-	if err != nil {
-		return 0
-	}
-
-	// PGID is field 5 (0-indexed: 4)
-	fields := strings.Fields(string(data))
-	if len(fields) < 5 {
-		return 0
-	}
-
-	pgid, err := strconv.Atoi(fields[4])
-	if err != nil {
-		return 0
-	}
-	return pgid
+	return processGroupID(pid)
 }
 
 // tryKillProcessGroup kills all processes in a process group.
 func (t *Terminator) tryKillProcessGroup(pgid int) bool {
-	// Use negative PID to signal the entire process group
-	return syscall.Kill(-pgid, syscall.SIGKILL) == nil
+	return killProcessGroupID(pgid)
 }
 
 // verifyTerminated checks if a process is truly dead.
@@ -474,23 +467,4 @@ func (t *Terminator) calculateBackoff(attempt int) time.Duration {
 		backoff = t.config.MaxBackoff
 	}
 	return backoff
-}
-
-// =============================================================================
-// ENHANCED STOP RUN FOR SERVICE
-// =============================================================================
-
-// StopRunWithRetry is an enhanced StopRun implementation that uses the terminator.
-// This should replace the simple StopRun in service.go
-func (t *Terminator) StopRunWithRetry(ctx context.Context, runID uuid.UUID) error {
-	result, err := t.Terminate(ctx, runID)
-	if err != nil {
-		return err
-	}
-
-	if !result.Success {
-		return result.Error
-	}
-
-	return nil
 }

@@ -122,7 +122,7 @@ func (h *Handler) Cascade(w http.ResponseWriter, r *http.Request) {
 	if fromDep == "postgres" {
 		cascadingImpacts = append(cascadingImpacts, map[string]interface{}{
 			"affected_scenario": "example-dependent-scenario",
-			"reason":            "Depends on postgres-specific features (JSONB queries)",
+			"reason":            "Depends on postgres-specific features (TEXT queries)",
 			"severity":          "high",
 			"remediation":       "Update queries to use SQLite-compatible syntax",
 		})

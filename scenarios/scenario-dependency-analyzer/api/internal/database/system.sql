@@ -1,0 +1,4 @@
+-- System schema for scenario-dependency-analyzer.
+--
+-- SQLite-backed SDA has no cross-cutting SQL today. Domain tables live next to
+-- the code that owns them.

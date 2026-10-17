@@ -32,7 +32,12 @@ jest.mock('../../../src/utils', () => ({
 
 import { chromium } from 'rebrowser-playwright';
 import type { Browser, BrowserContext, Page } from 'rebrowser-playwright';
-import { BrowserManager, createBrowserManager } from '../../../src/session/browser-manager';
+import {
+  BrowserManager,
+  createBrowserManager,
+  getBrowserPoolKey,
+} from '../../../src/session/browser-manager';
+import { getAudioLaunchArgs } from '../../../src/session/audio';
 import type { Config } from '../../../src/config';
 
 // Helper to create mock browser
@@ -82,8 +87,7 @@ describe('BrowserManager', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockBrowser = createMockBrowser();
-    (chromium.launch as jest.MockedFunction<typeof chromium.launch>)
-      .mockResolvedValue(mockBrowser);
+    (chromium.launch as jest.MockedFunction<typeof chromium.launch>).mockResolvedValue(mockBrowser);
     manager = new BrowserManager(testConfig);
   });
 
@@ -107,7 +111,8 @@ describe('BrowserManager', () => {
       const error = await manager.verifyBrowserLaunch();
 
       expect(error).toBeNull();
-      const launchCalls = (chromium.launch as jest.MockedFunction<typeof chromium.launch>).mock.calls;
+      const launchCalls = (chromium.launch as jest.MockedFunction<typeof chromium.launch>).mock
+        .calls;
       expect(launchCalls[0]?.[0]).toEqual({
         headless: true,
         executablePath: undefined,
@@ -122,8 +127,9 @@ describe('BrowserManager', () => {
     });
 
     it('returns error message on launch failure', async () => {
-      (chromium.launch as jest.MockedFunction<typeof chromium.launch>)
-        .mockRejectedValue(new Error('Chromium not found'));
+      (chromium.launch as jest.MockedFunction<typeof chromium.launch>).mockRejectedValue(
+        new Error('Chromium not found')
+      );
 
       const error = await manager.verifyBrowserLaunch();
 
@@ -243,8 +249,7 @@ describe('BrowserManager', () => {
       const slowLaunch: Promise<Browser> = new Promise((resolve) => {
         resolveFirst = resolve;
       });
-      (chromium.launch as jest.MockedFunction<typeof chromium.launch>)
-        .mockReturnValue(slowLaunch);
+      (chromium.launch as jest.MockedFunction<typeof chromium.launch>).mockReturnValue(slowLaunch);
 
       // Start two concurrent getBrowser calls
       const promise1 = manager.getBrowser();
@@ -258,34 +263,38 @@ describe('BrowserManager', () => {
       // Both should get the same browser
       expect(browser1).toBe(browser2);
       // Launch should only be called once
-      expect((chromium.launch as jest.MockedFunction<typeof chromium.launch>).mock.calls.length).toBe(1);
+      expect(
+        (chromium.launch as jest.MockedFunction<typeof chromium.launch>).mock.calls.length
+      ).toBe(1);
     });
 
-    it('retries if concurrent launch fails', async () => {
+    it('coalesces one retry across callers when a launch fails', async () => {
       // First launch fails
       let rejectFirst!: (reason: Error) => void;
       const failingLaunch: Promise<Browser> = new Promise((_, reject) => {
         rejectFirst = reject;
       });
-      (chromium.launch as jest.MockedFunction<typeof chromium.launch>)
-        .mockReturnValueOnce(failingLaunch);
+      (chromium.launch as jest.MockedFunction<typeof chromium.launch>).mockReturnValueOnce(
+        failingLaunch
+      );
 
       // Second launch succeeds
       const newMockBrowser = createMockBrowser();
-      (chromium.launch as jest.MockedFunction<typeof chromium.launch>)
-        .mockResolvedValueOnce(newMockBrowser);
+      (chromium.launch as jest.MockedFunction<typeof chromium.launch>).mockResolvedValueOnce(
+        newMockBrowser
+      );
 
-      // Start first call that will fail
+      // Start a concurrent launch wave that shares the initial failure and one retry.
       const promise1 = manager.getBrowser();
-
-      // Fail the first launch
+      const promise2 = manager.getBrowser();
       rejectFirst(new Error('First launch failed'));
 
-      await expect(promise1).rejects.toThrow('First launch failed');
-
-      // Second call should retry and succeed
-      const browser = await manager.getBrowser();
-      expect(browser).toBe(newMockBrowser);
+      const [browser1, browser2] = await Promise.all([promise1, promise2]);
+      expect(browser1).toBe(newMockBrowser);
+      expect(browser2).toBe(newMockBrowser);
+      expect(
+        (chromium.launch as jest.MockedFunction<typeof chromium.launch>).mock.calls.length
+      ).toBe(2);
     });
 
     it('passes config options to chromium.launch', async () => {
@@ -301,11 +310,40 @@ describe('BrowserManager', () => {
 
       await customManager.getBrowser();
 
-      const launchCalls = (chromium.launch as jest.MockedFunction<typeof chromium.launch>).mock.calls;
+      const launchCalls = (chromium.launch as jest.MockedFunction<typeof chromium.launch>).mock
+        .calls;
       expect(launchCalls[0]?.[0]).toEqual({
         headless: false,
         executablePath: '/custom/chromium',
         args: ['--no-sandbox', '--disable-gpu'],
+      });
+    });
+
+    it('enables Chromium real fake-media capture only for an explicit fixture', async () => {
+      const fixtureConfig = {
+        browser: {
+          headless: false,
+          executablePath: undefined,
+          args: ['--headless=new'],
+          ignoreHTTPSErrors: false,
+          fakeMicrophoneFile: '/fixtures/speech.wav',
+        },
+      } as unknown as Config;
+      const fixtureManager = new BrowserManager(fixtureConfig);
+
+      await fixtureManager.getBrowser();
+
+      expect(
+        (chromium.launch as jest.MockedFunction<typeof chromium.launch>).mock.calls[0]?.[0]
+      ).toEqual({
+        headless: false,
+        executablePath: undefined,
+        args: [
+          '--headless=new',
+          '--use-fake-device-for-media-stream',
+          '--use-fake-ui-for-media-stream',
+          '--use-file-for-fake-audio-capture=/fixtures/speech.wav',
+        ],
       });
     });
   });
@@ -361,6 +399,30 @@ describe('BrowserManager', () => {
       mockBrowser.isConnected.mockReturnValue(false);
       expect(manager.isConnected()).toBe(false);
     });
+  });
+});
+
+describe('getBrowserPoolKey', () => {
+  it('separates audio strategies for one fake microphone WAV', () => {
+    expect(getBrowserPoolKey('/tmp/input.wav', 'host_device')).not.toBe(
+      getBrowserPoolKey('/tmp/input.wav', 'synthetic_sink')
+    );
+  });
+
+  it('separates host and synthetic strategies without fake media', () => {
+    expect(getBrowserPoolKey('', 'host_device')).not.toBe(getBrowserPoolKey('', 'synthetic_sink'));
+  });
+});
+
+describe('getAudioLaunchArgs', () => {
+  it('enables the muted AudioContext API only for the synthetic pool', () => {
+    expect(getAudioLaunchArgs('host_device')).toEqual([]);
+    expect(getAudioLaunchArgs('synthetic_sink')).toEqual(
+      expect.arrayContaining([
+        '--enable-blink-features=AudioContextSetSinkId',
+        '--enable-features=AudioContextSetSinkId',
+      ])
+    );
   });
 });
 

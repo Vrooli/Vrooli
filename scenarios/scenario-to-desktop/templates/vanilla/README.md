@@ -96,12 +96,14 @@ vanilla/
 
 ### auth/ - Authentication
 
-Secure authentication with magic links and encrypted token storage.
+Secure authentication with magic links, explicit LPBS desktop linking, and
+lease-only durable entitlement storage.
 
 **Key Features:**
 - Magic link authentication (opens browser for login)
-- Token encryption using Electron's `safeStorage`
-- Automatic token refresh scheduling
+- Website access/refresh tokens remain process-memory compatibility state
+- Signed entitlement leases are the only durable auth artifact
+- Explicit scoped desktop-link redemption uses a verified local identity proof
 - CSRF protection with state validation
 - Protocol URL handling for custom schemes
 
@@ -118,13 +120,17 @@ const auth = createAuthManager({
   uuid: uuidGenerator,
   config: { protocol: 'myapp', lpbsUrl: 'https://...' },
   onAuthChange: (event) => { /* handle auth state */ },
-  onTokenRefresh: (tokens) => { /* handle refresh */ },
 });
 
-await auth.startLogin();       // Initiate magic link flow
-await auth.handleProtocolUrl(url);  // Process callback
-const user = auth.getCurrentUser();
-await auth.logout();
+await auth.signIn();           // Initiate compatibility website sign-in
+await auth.connectDesktop({    // Explicit LPBS-to-local link
+  installationId: 'install-1',
+  resource: 'my-scenario',
+  audience: 'scenario:my-scenario',
+  scopes: ['my-scenario:use'],
+});
+const lease = await auth.getEntitlementLease();
+await auth.signOut();
 ```
 
 **Testing Seams:** `ISafeStorage`, `IAuthHttpClient`, `IShell`, `IAuthTimer`, `IUuidGenerator`

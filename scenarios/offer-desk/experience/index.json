@@ -1,0 +1,101 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": {
+    "kind": "scenario-experience",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "schemaVersion": "1.0.0",
+  "scenario": "offer-desk",
+  "description": "Experience contract for Offer Desk. This is an operator tool read a few times a week, not a monitored dashboard: every surface must be understandable cold, without remembering what was true last visit.",
+  "pages": [
+    {
+      "id": "dashboard",
+      "path": "pages/dashboard.json",
+      "title": "Board",
+      "status": "active"
+    },
+    {
+      "id": "offers",
+      "path": "pages/offers.json",
+      "title": "Offers",
+      "status": "active"
+    },
+    {
+      "id": "release-ladder",
+      "path": "pages/release-ladder.json",
+      "title": "Release ladder",
+      "status": "active"
+    },
+    {
+      "id": "triggers",
+      "path": "pages/triggers.json",
+      "title": "Triggers",
+      "status": "active"
+    },
+    {
+      "id": "proposals",
+      "path": "pages/proposals.json",
+      "title": "Proposals",
+      "status": "active"
+    },
+    {
+      "id": "settings",
+      "path": "pages/settings.json",
+      "title": "Settings",
+      "status": "active"
+    }
+  ],
+  "components": [
+    {
+      "id": "form-section",
+      "path": "components/form-section.json",
+      "title": "Form Section",
+      "status": "active"
+    },
+    {
+      "id": "dirty-state-guard",
+      "path": "components/dirty-state-guard.json",
+      "title": "Dirty State Guard",
+      "status": "active"
+    },
+    {
+      "id": "cartesian-charts",
+      "path": "components/cartesian-charts.json",
+      "title": "Cartesian Charts",
+      "status": "draft"
+    }
+  ],
+  "journeys": [
+    {
+      "id": "author-a-trigger",
+      "path": "journeys/author-a-trigger.json",
+      "title": "Author a trigger",
+      "status": "active"
+    },
+    {
+      "id": "disposition-a-fired-trigger",
+      "path": "journeys/disposition-a-fired-trigger.json",
+      "title": "Disposition a fired trigger",
+      "status": "active"
+    },
+    {
+      "id": "learn-from-a-refusal",
+      "path": "journeys/learn-from-a-refusal.json",
+      "title": "Learn from a refusal",
+      "status": "active"
+    },
+    {
+      "id": "first-run",
+      "path": "journeys/first-run.json",
+      "title": "Start a new Offer Desk",
+      "status": "active"
+    },
+    {
+      "id": "merge-duplicate-catalog-records",
+      "path": "journeys/merge-duplicate-catalog-records.json",
+      "title": "Merge duplicate catalog records",
+      "status": "active"
+    }
+  ]
+}

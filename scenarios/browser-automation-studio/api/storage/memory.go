@@ -63,7 +63,7 @@ func (m *MemoryStorage) StoreScreenshot(ctx context.Context, executionID uuid.UU
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	objectName := fmt.Sprintf("%s/artifacts/screenshots/%s.png", executionID.String(), stepName)
+	objectName := fmt.Sprintf("%s/artifacts/screenshots/%s%s", executionID.String(), stepName, screenshotExtension(contentType))
 
 	m.objects[objectName] = memoryObject{
 		data:        append([]byte{}, data...), // Copy data
@@ -112,11 +112,6 @@ func (m *MemoryStorage) StoreArtifactFromFile(ctx context.Context, executionID u
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file: %w", err)
 	}
-	info, err := os.Stat(filePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to stat file: %w", err)
-	}
-
 	objectName := artifactObjectName(executionID, label, filepath.Ext(filePath))
 	derivedType := detectContentTypeFromFile(filePath, contentType)
 
@@ -130,7 +125,8 @@ func (m *MemoryStorage) StoreArtifactFromFile(ctx context.Context, executionID u
 
 	return &ArtifactInfo{
 		URL:         artifactURL(objectName),
-		SizeBytes:   info.Size(),
+		SizeBytes:   int64(len(data)),
+		SHA256:      artifactDigest(data),
 		ContentType: derivedType,
 		ObjectName:  objectName,
 	}, nil
@@ -155,6 +151,7 @@ func (m *MemoryStorage) StoreArtifact(ctx context.Context, objectName string, da
 	return &ArtifactInfo{
 		URL:         artifactURL(objectName),
 		SizeBytes:   int64(len(data)),
+		SHA256:      artifactDigest(data),
 		ContentType: contentType,
 		ObjectName:  objectName,
 	}, nil

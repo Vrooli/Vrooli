@@ -1,0 +1,139 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "audio-tools.setpoint-read",
+  "version": "2",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Read bounded engine, health, and selected experiment measurements without promoting diagnostic or replay evidence into voice acceptance.",
+  "inputs": {
+    "experiment_id": {
+      "type": "string",
+      "default": "",
+      "description": "Optional explicit experiment ID (ASCII letters, digits, hyphen, underscore; at most 128 characters). No automatic latest-run selection."
+    }
+  },
+  "assumptions": [
+    "Audio Tools and Program Runtime are running; reads may fail independently.",
+    "Current PRD targets remain authoritative; pilot numeric, corpus, and commercial decisions in TESTING.md and MONETIZATION.md are not approved bands.",
+    "Experiment metrics are diagnostic replay readings, not current browser latency, native-device qualification, or billing evidence.",
+    "Protojson omits some zero/default scalar fields; absent values remain unknown rather than being imputed as zero."
+  ],
+  "invariants": [
+    "No audio, transcript, credential, raw provider error, inference request, or mutation appears in output or is initiated by this program.",
+    "All 15 portable-voice-v1 target rows remain unknown until owner-backed acceptance sensors exist. Target text summarizes published scope, not approved numeric bands or billing details. Status ok only means collection succeeded.",
+    "Each binding failure is isolated and reported; no missing read becomes a zero or a passing band.",
+    "Engine and health inventories use a sentinel above their bounds; oversized inventories are declined, never silently truncated into exact counts.",
+    "A selected experiment must match identity and have succeeded before exposing its bounded replay metrics; zero reference words, missing metrics, and nonfinite values are not quality evidence.",
+    "The program prints one standard JSON envelope on every path."
+  ],
+  "bindings": [
+    {
+      "id": "audio-tools/stt/engines",
+      "effect": "read"
+    },
+    {
+      "id": "audio-tools/health/show",
+      "effect": "read"
+    },
+    {
+      "id": "audio-tools/experiment/report",
+      "effect": "read",
+      "optional": true,
+      "note": "Only called for an explicit experiment_id; meta contains experiment and report, not run rows."
+    }
+  ],
+  "verbs": [
+    "gather"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "method": "audio-tools-evidence-board-v2",
+      "target_revision": "portable-voice-v1",
+      "acceptance": "Always unknown in v2; target enumeration and collection are not product acceptance.",
+      "rows": "Fifteen {row,reading,target,in_band,unavailable,reason} outcome rows, one per published PRD target. Target strings are scope summaries, not adopted numeric SLOs. Readings and in_band remain null; owner-backed receipt joins are not implemented. Existing nine row IDs are preserved and six are added; use row identity, not list position or a cached row count.",
+      "diagnostics": "At most three inventory rows, never banded as outcome proof.",
+      "readable": "Count of measured diagnostic rows.",
+      "unavailable": "Count of unknown outcome and diagnostic rows.",
+      "experiment": "Selection presence and ID, status, finished_at, acceptance_eligible=false, and evidence limitation; never recipe transcripts.",
+      "replay_metrics": "At most 16 cells containing engine_id, strategy, lane, diagnostic verdict, ref_words, WER, RTF and replay finalization p95; absent/invalid readings are null."
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    },
+    "evidence": "Successful governed binding IDs; no private payloads."
+  },
+  "budget": {
+    "wall_ms": 60000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 26,
+    "output_bytes": 65536
+  },
+  "fixtures": [
+    {
+      "id": "live-inventory",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "ok"
+        ],
+        "signals": {
+          "acceptance": "unknown"
+        }
+      },
+      "requires": [
+        "audio-tools",
+        "program-runtime"
+      ],
+      "note": "A live read, not an audio qualification or a zero-unavailable gate."
+    },
+    {
+      "id": "invalid-selector",
+      "inputs": {
+        "experiment_id": "../private"
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      },
+      "requires": [
+        "program-runtime"
+      ],
+      "note": "Reject before bindings; no filesystem selector or transcript input."
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "audio-tools-improve"
+}

@@ -1,0 +1,52 @@
+syntax = "proto3";
+package vrooli.backdrop_studio.v1.compose;
+
+import "backdrop-studio/v1/shared/shared.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/compose;compose_v1";
+
+service ComposeService {
+  rpc ResolvePlan(ResolvePlanRequest) returns (ResolvedPlan);
+  rpc ComposeDeviceFrame(ComposeDeviceFrameRequest) returns (ComposeDeviceFrameResponse);
+}
+message Brief {
+  string brand_id = 1;
+  string placement = 2;
+  int64 seed = 3;
+  string prompt = 4;
+}
+message ResolvePlanRequest {
+  // Compose accepts the shared catalog snapshot without duplicating its DTO.
+  shared.Style style = 1;
+  Brief brief = 2;
+  map<string, string> brand_tokens = 3;
+  string adapter = 4;
+  bool adapter_commercial_use = 5;
+}
+message Operation {
+  string name = 1;
+  string params_json = 2;
+}
+message ComposeDeviceFrameRequest {
+  bytes backdrop_png = 1;
+  bytes screenshot_png = 2;
+  string arrangement = 3;
+  string caption = 4;
+  int32 width = 5;
+  int32 height = 6;
+  string surface_id = 7;
+}
+message ComposeDeviceFrameResponse {
+  bytes image_png = 1;
+  int32 width = 2;
+  int32 height = 3;
+  shared.ReservedRegion occlusion_region = 4;
+}
+message ResolvedPlan {
+  string style_id = 1;
+  string strategy = 2;
+  repeated Operation operations = 3;
+  map<string, string> resolved_slots = 4;
+  string expected_execution_path = 5;
+  bool executable = 6;
+}

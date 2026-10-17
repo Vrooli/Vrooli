@@ -1,0 +1,43 @@
+{
+  "id": "5c2c5dfb-4f10-4a39-b2f0-5c1fa3b5d6e7",
+  "project_id": "0c037e4d-dd01-4c3b-a23b-0e6a9e3ac9ff",
+  "name": "message-rewind-safety-dialog",
+  "folder_path": "/bas/cases/02-messages/05-rewind",
+  "description": "Open Messages, reveal an assistant action menu, invoke Rewind, and verify the confirmation safety dialog.",
+  "metadata": {
+    "name": "message-rewind-safety-dialog",
+    "description": "Open Messages, reveal an assistant action menu, invoke Rewind, and verify the confirmation safety dialog.",
+    "execution_mode": "mutating",
+    "reset": "none",
+    "labels": {
+      "reset": "none",
+      "requires_confirmation": "true",
+      "routed_isolation": "true",
+      "requirements_json": "[\"REQ-P0-015f\"]"
+    }
+  },
+  "tags": ["reset:none", "messages", "rewind", "desktop", "requirements_json:[\"REQ-P0-015f\"]"],
+  "version": 1,
+  "flow_definition": {
+    "settings": {"viewport_width": 1440, "viewport_height": 900},
+    "nodes": [
+      {"id":"navigate","action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"scenario":"web-console","scenario_path":"/#/workspace"}}},
+      {"id":"wait","action":{"type":"ACTION_TYPE_WAIT","wait":{"duration_ms":3000}}},
+      {"id":"show-messages","action":{"type":"ACTION_TYPE_EVALUATE","evaluate":{"expression":"(async () => { const sleep = (ms) => new Promise((r) => setTimeout(r, ms)); const button = [...document.querySelectorAll('button')].find((el) => el.getAttribute('aria-label') === 'Show messages' && el.getBoundingClientRect().width > 0); if (!button) throw new Error('No visible Show messages control'); button.click(); await sleep(1200); })()"}}},
+      {"id":"assert-pane","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"[data-testid^='messages-pane-']","failure_message":"Messages pane did not render"}}},
+      {"id":"open-actions","action":{"type":"ACTION_TYPE_EVALUATE","evaluate":{"expression":"(async () => { const sleep = (ms) => new Promise((r) => setTimeout(r, ms)); const cards = [...document.querySelectorAll('[data-testid^=msg-card-]')]; const card = cards.find((el) => el.querySelector('[data-testid^=msg-speaker-]')?.textContent !== 'You'); if (!card) throw new Error('No assistant message card rendered'); card.dispatchEvent(new MouseEvent('contextmenu', {bubbles:true, clientX:300, clientY:300})); await sleep(500); })()"}}},
+      {"id":"assert-rewind","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"[data-testid^='msg-rewind-']","failure_message":"Rewind action did not render in the assistant action menu"}}},
+      {"id":"click-rewind","action":{"type":"ACTION_TYPE_EVALUATE","evaluate":{"expression":"(() => { const button = document.querySelector('[data-testid^=msg-rewind-]'); if (!(button instanceof HTMLElement)) throw new Error('Rewind action missing'); button.click(); })()"}}},
+      {"id":"assert-dialog","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"[role='dialog'][aria-label='Return to message']","failure_message":"Rewind safety dialog did not open","timeout_ms":10000}}}
+    ],
+    "edges": [
+      {"source":"navigate","target":"wait"},
+      {"source":"wait","target":"show-messages"},
+      {"source":"show-messages","target":"assert-pane"},
+      {"source":"assert-pane","target":"open-actions"},
+      {"source":"open-actions","target":"assert-rewind"},
+      {"source":"assert-rewind","target":"click-rewind"},
+      {"source":"click-rewind","target":"assert-dialog"}
+    ]
+  }
+}

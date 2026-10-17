@@ -1,23 +1,30 @@
 package render
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"os/exec"
 	"strings"
 	"testing"
+	"time"
+
+	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 
-	"github.com/vrooli/browser-automation-studio/services/export"
+	exportsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/exports"
 )
 
 func TestBuildPlaywrightCaptureInstructions_FrameCount(t *testing.T) {
 	spec := &ReplayMovieSpec{
-		Summary: export.ExportSummary{
+		Summary: &exportsv1.ReplaySummary{
 			TotalDurationMs: 5000,
 		},
-		Playback: export.ExportPlayback{
+		Playback: &exportsv1.ReplayPlayback{
 			FrameIntervalMs: 500,
 		},
-		Frames: []export.ExportFrame{{DurationMs: 500}},
+		Frames: []*exportsv1.ReplayFrame{{DurationMs: 500}},
 	}
 	instr, err := buildPlaywrightCaptureInstructions("http://example.com/export", spec, 500)
 	if err != nil {
@@ -29,31 +36,34 @@ func TestBuildPlaywrightCaptureInstructions_FrameCount(t *testing.T) {
 	}
 }
 
-func TestBuildPlaywrightCaptureInstructions_ClampCount(t *testing.T) {
-	spec := &ReplayMovieSpec{
-		Summary: export.ExportSummary{
-			TotalDurationMs: 999999,
-		},
-		Playback: export.ExportPlayback{
-			FrameIntervalMs: 10,
-		},
-		Frames: []export.ExportFrame{{DurationMs: 10}},
+func TestBuildPlaywrightCaptureInstructions_RejectsBudgetWithoutTruncating(t *testing.T) {
+	spec := &ReplayMovieSpec{Summary: &exportsv1.ReplaySummary{TotalDurationMs: 999999}, Frames: []*exportsv1.ReplayFrame{{DurationMs: 10}}}
+	_, err := buildPlaywrightCaptureInstructions("http://example.com/export", spec, 10)
+	if err == nil || !strings.Contains(err.Error(), "timeline will not be truncated") {
+		t.Fatalf("expected actionable frame budget refusal, got %v", err)
 	}
-	instr, err := buildPlaywrightCaptureInstructions("http://example.com/export", spec, 10)
+}
+
+func TestBuildPlaywrightCaptureInstructions_CoversEndBeyondOld120FrameLimit(t *testing.T) {
+	spec := &ReplayMovieSpec{Summary: &exportsv1.ReplaySummary{TotalDurationMs: 8446}, Frames: []*exportsv1.ReplayFrame{{DurationMs: 8446}}}
+	instructions, err := buildPlaywrightCaptureInstructions("http://example.com/export", spec, 40)
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatal(err)
 	}
-	// clamp at 120 frames => 240 instructions + 3 initial
-	if len(instr) != 243 {
-		t.Fatalf("expected 243 instructions, got %d", len(instr))
+	if len(instructions) != 3+213*2 {
+		t.Fatalf("incomplete timeline: %d instructions", len(instructions))
+	}
+	expression := instructions[len(instructions)-2].Action.GetEvaluate().GetExpression()
+	if !strings.Contains(expression, "seekTo(8446)") {
+		t.Fatalf("missing timeline end: %s", expression)
 	}
 }
 
 func TestBuildPlaywrightCaptureInstructions_ScreenshotIsViewportOnly(t *testing.T) {
 	spec := &ReplayMovieSpec{
-		Summary:  export.ExportSummary{TotalDurationMs: 2000},
-		Playback: export.ExportPlayback{FrameIntervalMs: 1000},
-		Frames:   []export.ExportFrame{{DurationMs: 1000}},
+		Summary:  &exportsv1.ReplaySummary{TotalDurationMs: 2000},
+		Playback: &exportsv1.ReplayPlayback{FrameIntervalMs: 1000},
+		Frames:   []*exportsv1.ReplayFrame{{DurationMs: 1000}},
 	}
 	instr, err := buildPlaywrightCaptureInstructions("http://example.com/export", spec, 1000)
 	if err != nil {
@@ -97,9 +107,9 @@ func TestBuildPlaywrightCaptureInstructions_ScreenshotIsViewportOnly(t *testing.
 
 func TestBuildPlaywrightCaptureInstructions_InitialInstructions(t *testing.T) {
 	spec := &ReplayMovieSpec{
-		Summary:  export.ExportSummary{TotalDurationMs: 1000},
-		Playback: export.ExportPlayback{FrameIntervalMs: 1000},
-		Frames:   []export.ExportFrame{{DurationMs: 1000}},
+		Summary:  &exportsv1.ReplaySummary{TotalDurationMs: 1000},
+		Playback: &exportsv1.ReplayPlayback{FrameIntervalMs: 1000},
+		Frames:   []*exportsv1.ReplayFrame{{DurationMs: 1000}},
 	}
 	instr, err := buildPlaywrightCaptureInstructions("http://localhost:3000/export", spec, 1000)
 	if err != nil {
@@ -134,9 +144,9 @@ func TestBuildPlaywrightCaptureInstructions_InitialInstructions(t *testing.T) {
 
 func TestBuildPlaywrightCaptureInstructions_WaitScreenshotAlternation(t *testing.T) {
 	spec := &ReplayMovieSpec{
-		Summary:  export.ExportSummary{TotalDurationMs: 3000},
-		Playback: export.ExportPlayback{FrameIntervalMs: 1000},
-		Frames:   []export.ExportFrame{{DurationMs: 1000}},
+		Summary:  &exportsv1.ReplaySummary{TotalDurationMs: 3000},
+		Playback: &exportsv1.ReplayPlayback{FrameIntervalMs: 1000},
+		Frames:   []*exportsv1.ReplayFrame{{DurationMs: 1000}},
 	}
 	instr, err := buildPlaywrightCaptureInstructions("http://example.com/export", spec, 1000)
 	if err != nil {
@@ -156,9 +166,9 @@ func TestBuildPlaywrightCaptureInstructions_WaitScreenshotAlternation(t *testing
 
 func TestBuildPlaywrightCaptureInstructions_DefaultDuration(t *testing.T) {
 	spec := &ReplayMovieSpec{
-		Summary:  export.ExportSummary{TotalDurationMs: 0},
-		Playback: export.ExportPlayback{FrameIntervalMs: 0},
-		Frames:   []export.ExportFrame{{DurationMs: 0}},
+		Summary:  &exportsv1.ReplaySummary{TotalDurationMs: 0},
+		Playback: &exportsv1.ReplayPlayback{FrameIntervalMs: 0},
+		Frames:   []*exportsv1.ReplayFrame{{DurationMs: 0}},
 	}
 	// With zero duration and zero interval, should use defaults and not panic
 	instr, err := buildPlaywrightCaptureInstructions("http://example.com/export", spec, 0)
@@ -172,9 +182,9 @@ func TestBuildPlaywrightCaptureInstructions_DefaultDuration(t *testing.T) {
 
 func TestBuildPlaywrightCaptureInstructions_NegativeCaptureInterval(t *testing.T) {
 	spec := &ReplayMovieSpec{
-		Summary:  export.ExportSummary{TotalDurationMs: 5000},
-		Playback: export.ExportPlayback{FrameIntervalMs: 100},
-		Frames:   []export.ExportFrame{{DurationMs: 100}},
+		Summary:  &exportsv1.ReplaySummary{TotalDurationMs: 5000},
+		Playback: &exportsv1.ReplayPlayback{FrameIntervalMs: 100},
+		Frames:   []*exportsv1.ReplayFrame{{DurationMs: 100}},
 	}
 	// Negative interval should be treated as default (1000ms), not panic or error
 	instr, err := buildPlaywrightCaptureInstructions("http://example.com/export", spec, -500)
@@ -189,9 +199,9 @@ func TestBuildPlaywrightCaptureInstructions_NegativeCaptureInterval(t *testing.T
 func TestBuildPlaywrightCaptureInstructions_FallbackDuration(t *testing.T) {
 	// When TotalDurationMs is 0 but DurationMs is set, should use DurationMs
 	spec := &ReplayMovieSpec{
-		Summary:  export.ExportSummary{TotalDurationMs: 0},
-		Playback: export.ExportPlayback{DurationMs: 3000, FrameIntervalMs: 1000},
-		Frames:   []export.ExportFrame{{DurationMs: 1000}},
+		Summary:  &exportsv1.ReplaySummary{TotalDurationMs: 0},
+		Playback: &exportsv1.ReplayPlayback{DurationMs: 3000, FrameIntervalMs: 1000},
+		Frames:   []*exportsv1.ReplayFrame{{DurationMs: 1000}},
 	}
 	instr, err := buildPlaywrightCaptureInstructions("http://example.com/export", spec, 1000)
 	if err != nil {
@@ -210,9 +220,9 @@ func TestBuildPlaywrightCaptureInstructions_FallbackDuration(t *testing.T) {
 // that manifest as bottom-of-frame flickering in assembled videos.
 func TestBuildPlaywrightCaptureInstructions_ViewportStabilization(t *testing.T) {
 	spec := &ReplayMovieSpec{
-		Summary:  export.ExportSummary{TotalDurationMs: 1000},
-		Playback: export.ExportPlayback{FrameIntervalMs: 1000},
-		Frames:   []export.ExportFrame{{DurationMs: 1000}},
+		Summary:  &exportsv1.ReplaySummary{TotalDurationMs: 1000},
+		Playback: &exportsv1.ReplayPlayback{FrameIntervalMs: 1000},
+		Frames:   []*exportsv1.ReplayFrame{{DurationMs: 1000}},
 	}
 	instr, err := buildPlaywrightCaptureInstructions("http://example.com/export", spec, 1000)
 	if err != nil {
@@ -237,14 +247,10 @@ func TestBuildPlaywrightCaptureInstructions_ViewportStabilization(t *testing.T) 
 
 		script := params.GetExpression()
 
-		// Must force permanent vertical scrollbar
-		if !strings.Contains(script, "overflow-y:scroll") {
-			t.Fatalf("stabilization script must force overflow-y:scroll, got: %s", script)
-		}
-
-		// Must hide horizontal overflow to prevent horizontal layout shifts
-		if !strings.Contains(script, "overflow-x:hidden") {
-			t.Fatalf("stabilization script must hide overflow-x, got: %s", script)
+		// The export is a fixed canvas: neither scrollbar painting nor root
+		// reflow belongs in the encoded result.
+		if !strings.Contains(script, "html,body{overflow:hidden") || strings.Contains(script, "overflow-y:scroll") {
+			t.Fatalf("fixed export canvas must hide root overflow: %s", script)
 		}
 
 		break
@@ -272,9 +278,9 @@ func TestBuildPlaywrightCaptureInstructions_ViewportStabilization(t *testing.T) 
 
 func TestBuildPlaywrightCaptureInstructions_SingleFrame(t *testing.T) {
 	spec := &ReplayMovieSpec{
-		Summary:  export.ExportSummary{TotalDurationMs: 100},
-		Playback: export.ExportPlayback{FrameIntervalMs: 1000},
-		Frames:   []export.ExportFrame{{DurationMs: 100}},
+		Summary:  &exportsv1.ReplaySummary{TotalDurationMs: 100},
+		Playback: &exportsv1.ReplayPlayback{FrameIntervalMs: 1000},
+		Frames:   []*exportsv1.ReplayFrame{{DurationMs: 100}},
 	}
 	instr, err := buildPlaywrightCaptureInstructions("http://example.com/export", spec, 1000)
 	if err != nil {
@@ -285,3 +291,161 @@ func TestBuildPlaywrightCaptureInstructions_SingleFrame(t *testing.T) {
 		t.Fatalf("expected at least 5 instructions for minimal capture, got %d", len(instr))
 	}
 }
+
+// The export page accepts bas:spec:set and exposes basExport.ready/seekTo.
+// A video of its error screen must never count as a successful capture.
+func TestBuildPlaywrightCaptureInstructions_ComposerProtocol(t *testing.T) {
+	spec := &ReplayMovieSpec{Summary: &exportsv1.ReplaySummary{TotalDurationMs: 200}, Frames: []*exportsv1.ReplayFrame{{DurationMs: 200}}}
+	instr, err := buildPlaywrightCaptureInstructions("http://example.com/export", spec, 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(instr[0].Action.GetNavigate().GetUrl(), "mode=capture") {
+		t.Fatal("composer controller is only exposed in export mode")
+	}
+	inject := instr[2].Action.GetEvaluate().GetExpression()
+	for _, contract := range []string{"bas:spec:set", "basExport.ready", "basExport.error"} {
+		if !strings.Contains(inject, contract) {
+			t.Errorf("capture must honor composer contract %s", contract)
+		}
+	}
+	for i := 3; i < len(instr); i += 2 {
+		if instr[i].Action.GetType() != basactions.ActionType_ACTION_TYPE_EVALUATE || !strings.Contains(instr[i].Action.GetEvaluate().GetExpression(), "basExport.seekTo(") {
+			t.Fatal("each captured frame must await a deterministic composer seek")
+		}
+	}
+}
+
+func TestCaptureRecorderRefusesMemoryOverflowBeforeRetainingFrame(t *testing.T) {
+	recorder := &inMemoryCaptureRecorder{capturedBytes: 128 * 1024 * 1024}
+	_, err := recorder.RecordStepOutcome(context.Background(), autocontracts.ExecutionPlan{}, autocontracts.StepOutcome{Screenshot: &autocontracts.Screenshot{Data: []byte{1}}})
+	if err == nil || len(recorder.outcomes) != 0 {
+		t.Fatal("over-budget frame retained")
+	}
+}
+
+// Execute the emitted browser script against a deterministic public-API fake.
+// This validates message-delivery ordering without starting a browser or renderer.
+func TestCaptureComposerWaitsForRequestedReplayIdentity(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("Node is required to evaluate the emitted JavaScript contract")
+	}
+	spec := &ReplayMovieSpec{
+		Execution: &exportsv1.ReplayExecutionMetadata{ExecutionId: "requested-execution"},
+		Summary:   &exportsv1.ReplaySummary{TotalDurationMs: 200},
+		Frames:    []*exportsv1.ReplayFrame{{DurationMs: 200}},
+	}
+	instructions, err := buildPlaywrightCaptureInstructions("http://example.test/export", spec, 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expression := instructions[2].Action.GetEvaluate().GetExpression()
+	nextInstructions, err := buildPlaywrightCaptureInstructions("http://example.test/export", spec, 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	nextExpression := nextInstructions[2].Action.GetEvaluate().GetExpression()
+	for _, test := range []struct {
+		name, wantError string
+		minimumTicks    int
+	}{
+		{name: "old-ready", minimumTicks: 1},
+		{name: "same-execution", minimumTicks: 1},
+		{name: "consecutive-same-execution", minimumTicks: 2},
+		{name: "stale-token", minimumTicks: 2},
+		{name: "wrong-token", wantError: "Replay composer did not become ready", minimumTicks: 15},
+		{name: "matching-but-not-ready", minimumTicks: 2},
+		{name: "wrong-identity", wantError: "Replay composer did not become ready", minimumTicks: 15},
+		{name: "current-error", wantError: "current composer failure", minimumTicks: 1},
+		{name: "old-error", minimumTicks: 1},
+		{name: "stale-request-error", minimumTicks: 2},
+		{name: "current-request-error", wantError: "Invalid replay spec", minimumTicks: 1},
+		{name: "unavailable", wantError: "Replay composer unavailable", minimumTicks: 15},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			input, err := json.Marshal(map[string]string{"expression": expression, "nextExpression": nextExpression, "mode": test.name})
+			if err != nil {
+				t.Fatal(err)
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+			command := exec.CommandContext(ctx, node, "-e", composerIdentityHarness)
+			command.Stdin = bytes.NewReader(input)
+			output, err := command.CombinedOutput()
+			if err != nil {
+				t.Fatalf("JavaScript harness: %v: %s", err, output)
+			}
+			var got struct {
+				Error  string `json:"error"`
+				Ticks  int    `json:"ticks"`
+				Pauses int    `json:"pauses"`
+				Seeks  int    `json:"seeks"`
+				Ready  bool   `json:"ready"`
+			}
+			if err := json.Unmarshal(output, &got); err != nil {
+				t.Fatalf("harness witness: %v: %s", err, output)
+			}
+			if got.Error != test.wantError || got.Ticks < test.minimumTicks {
+				t.Fatalf("captured stale/unready replay or lost bounded failure: %+v", got)
+			}
+			if test.wantError == "" {
+				expectedCalls := 1
+				if test.name == "consecutive-same-execution" {
+					expectedCalls = 2
+				}
+				if !got.Ready || got.Pauses != expectedCalls || got.Seeks != expectedCalls {
+					t.Fatalf("matching ready replay was not initialized: %+v", got)
+				}
+			} else if got.Ready || got.Pauses != 0 || got.Seeks != 0 {
+				t.Fatalf("failed composer was captured: %+v", got)
+			}
+		})
+	}
+}
+
+const composerIdentityHarness = `
+const { expression, nextExpression, mode } = JSON.parse(require('node:fs').readFileSync(0, 'utf8'));
+let now = 0, ticks = 0, pauses = 0, seeks = 0, posts = 0, posted;
+const state = { id: mode === 'same-execution' ? 'requested-execution' : 'old-execution', token: 'previous-token', applied: 0, ready: true, error: null };
+if (mode === 'old-error' || mode === 'stale-request-error') { state.ready = false; state.error = 'previous composer failure'; }
+if (mode === 'stale-request-error') state.requestError = { requestToken: 'previous-token', message: 'previous composer failure' };
+Date.now = () => now;
+const assertCurrent = () => {
+  if (!posted || state.applied !== posts || state.id !== posted.spec.execution.executionId || !posted.requestToken || state.token !== posted.requestToken || !state.ready) throw Error('captured stale replay');
+};
+global.window = {
+  location: { origin: 'http://example.test' },
+  basExport: {
+    get ready() { return state.ready; },
+    get error() { return state.error; },
+    getMetadata: () => ({ specId: state.id, requestToken: state.token, requestError: state.requestError }),
+    pause: () => { assertCurrent(); pauses++; },
+    seekTo: async () => { assertCurrent(); seeks++; },
+  },
+  postMessage: message => { posted = message; posts++; },
+};
+if (mode === 'unavailable') window.basExport = undefined;
+global.document = { fonts: { ready: Promise.resolve() } };
+global.setTimeout = callback => {
+  ticks++; now += 1000;
+  if (posted) {
+    state.applied = posts;
+    if (mode === 'current-error') { state.error = 'current composer failure'; state.token = posted.requestToken; state.ready = false; }
+    else if (mode === 'current-request-error') { state.error = 'Invalid replay spec'; state.requestError = { requestToken: posted.requestToken, message: state.error }; state.ready = false; }
+    else if (mode === 'stale-request-error' && ticks < 2) { /* prior error is not a failure of the new request */ }
+    else {
+      state.error = null;
+      state.requestError = undefined;
+      state.id = mode === 'wrong-identity' ? 'old-execution' : posted.spec.execution.executionId;
+      state.token = mode === 'wrong-token' || (mode === 'stale-token' && ticks < 2) ? 'stale-token' : posted.requestToken;
+      state.ready = mode !== 'matching-but-not-ready' || ticks >= 2;
+    }
+  }
+  callback();
+};
+(async () => {
+  try { let result = await eval(expression); if (mode === 'consecutive-same-execution') result = await eval(nextExpression); console.log(JSON.stringify({ ready: result.ready, ticks, pauses, seeks, error: '' })); }
+  catch (error) { console.log(JSON.stringify({ ready: false, ticks, pauses, seeks, error: error.message })); }
+})();
+`

@@ -1,0 +1,181 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "k6",
+  "storage": {
+    "entries": {
+      "content": {
+        "rung": "owned",
+        "path": "$USER_HOME/.k6",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "The resource's K6_DATA_DIR contains operator-owned scripts, input data, configuration, and test results.",
+        "budget": {
+          "max_bytes": "20GiB",
+          "rationale": "Durable data storage ceiling is derived from the expected working set and raises an alarm before host capacity is threatened."
+        }
+      }
+    }
+  },
+  "display_name": "k6",
+  "description": "Grafana k6 CLI resource with a thin Go entrypoint and external-cli-specific logic organized under internal packages.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-k6",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "resource-k6_${os}_${arch}"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-k6"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "driver": "external-cli",
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "conditional",
+          "mode": "native-host-tool",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "k6"
+          ],
+          "limitations": [
+            "The upstream executable, licensing, authentication, and version policy are host-managed."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "host-tool-preflight"
+          ]
+        },
+        "macos": {
+          "support": "conditional",
+          "mode": "native-host-tool",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "k6"
+          ],
+          "limitations": [
+            "The upstream executable, licensing, authentication, and version policy are host-managed."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "host-tool-preflight"
+          ]
+        },
+        "windows": {
+          "support": "conditional",
+          "mode": "native-host-tool",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "k6"
+          ],
+          "limitations": [
+            "The upstream executable, licensing, authentication, and version policy are host-managed."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "host-tool-preflight"
+          ]
+        }
+      }
+    }
+  },
+  "binary": "k6",
+  "version_args": [
+    "version"
+  ],
+  "category": "development",
+  "requirements": {
+    "ram_mb": 512,
+    "disk_mb": 1024,
+    "cpu_cores": 1,
+    "network": "optional",
+    "bucket": "small",
+    "source": "estimated",
+    "confidence": "low",
+    "class": "development",
+    "weight": 1
+  },
+  "platforms": {
+    "linux": "supported",
+    "macos": "build-verified",
+    "windows": "build-verified"
+  },
+  "health_checks": [
+    {
+      "type": "command",
+      "kind": "liveness",
+      "command": [
+        "k6",
+        "version"
+      ],
+      "timeout_seconds": 15
+    }
+  ],
+  "orchestration": {
+    "startup_order": 300,
+    "startup_timeout_seconds": 15,
+    "startup_time_estimate": "3-8s",
+    "dependencies": [],
+    "recovery_attempts": 2,
+    "priority": "low"
+  },
+  "install": {
+    "platforms": {
+      "linux": [
+        "resource-k6",
+        "install-direct"
+      ],
+      "macos": [
+        "resource-k6",
+        "install-direct"
+      ],
+      "windows": [
+        "resource-k6",
+        "install-direct"
+      ]
+    }
+  },
+  "capabilities": {
+    "supports_logs": false
+  },
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "host-required"
+}

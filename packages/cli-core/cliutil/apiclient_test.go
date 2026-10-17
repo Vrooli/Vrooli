@@ -1,13 +1,17 @@
 package cliutil
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func TestAPIClientAppliesBaseAndToken(t *testing.T) {
@@ -29,6 +33,222 @@ func TestAPIClientAppliesBaseAndToken(t *testing.T) {
 	}
 	if string(body) != `{"ok":true}` {
 		t.Fatalf("unexpected body: %s", string(body))
+	}
+}
+
+func TestWithTokenIsRequestLocalAndPreservesProvenance(t *testing.T) {
+	var auth []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		auth = append(auth, r.Header.Get("Authorization"))
+		if r.Header.Get(HeaderInvocationCommand) != "effort withdraw" {
+			t.Error("lost invocation provenance")
+		}
+		fmt.Fprint(w, `{}`)
+	}))
+	defer server.Close()
+	base := NewHTTPClient(HTTPClientOptions{})
+	base.SetInvocationHeaderSource(func() map[string]string { return map[string]string{HeaderInvocationCommand: "effort withdraw"} })
+	client := NewAPIClient(base, func() APIBaseOptions { return APIBaseOptions{DefaultBase: server.URL} }, func() string { return "ordinary-fixture" })
+	for _, c := range []*APIClient{client.WithToken("operator-fixture"), client, client.WithToken("")} {
+		if _, err := c.Get("/test", nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if strings.Join(auth, "|") != "Bearer operator-fixture|Bearer ordinary-fixture|" {
+		t.Fatal("request override leaked into receiver or empty credential fell back")
+	}
+}
+
+func TestWithoutRedirectsPreservesOwnerTransportAndOrdinaryDefault(t *testing.T) {
+	for _, changedHost := range []bool{false, true} {
+		t.Run(fmt.Sprintf("changed-host=%t", changedHost), func(t *testing.T) {
+			var destinations atomic.Int32
+			dest := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				destinations.Add(1)
+				fmt.Fprint(w, "{}")
+			}))
+			defer dest.Close()
+			location := dest.URL
+			if changedHost {
+				location = strings.Replace(location, "127.0.0.1", "localhost", 1)
+			}
+			var originals atomic.Int32
+			origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				originals.Add(1)
+				if r.Header.Get("Authorization") != "Bearer synthetic-owner" || r.Header.Get(HeaderInvocationCommand) != "effort exact-setup" {
+					t.Error("owner authentication or invocation provenance lost")
+				}
+				w.Header().Set("Location", location)
+				w.WriteHeader(http.StatusTemporaryRedirect)
+				fmt.Fprint(w, "{\"mustNotConfirm\":true}")
+			}))
+			defer origin.Close()
+			transport := &http.Transport{}
+			defer transport.CloseIdleConnections()
+			raw := &http.Client{Transport: transport, Timeout: time.Second}
+			base := NewHTTPClient(HTTPClientOptions{Client: raw})
+			base.SetInvocationHeaderSource(func() map[string]string { return map[string]string{HeaderInvocationCommand: "effort exact-setup"} })
+			client := NewAPIClient(base, func() APIBaseOptions { return APIBaseOptions{Override: origin.URL} }, func() string { return "synthetic-owner" })
+			protected := client.WithoutRedirects()
+			if protected.client.client.Transport != raw.Transport || protected.client.client.Jar != raw.Jar || protected.client.client.Timeout != raw.Timeout || raw.CheckRedirect != nil || protected.tokenSource() != client.tokenSource() {
+				t.Fatal("redirect copy changed transport, cookies, timeout, authentication or receiver")
+			}
+			if body, err := protected.Get("/setup", nil); err == nil || len(body) != 0 || destinations.Load() != 0 || originals.Load() != 1 {
+				t.Fatal("protected request followed or confirmed redirect")
+			}
+			if _, err := client.Get("/ordinary", nil); err != nil || destinations.Load() != 1 || originals.Load() != 2 {
+				t.Fatal("ordinary client redirect behavior changed", err)
+			}
+		})
+	}
+}
+
+type redirectResponseFixture func(*http.Request) (*http.Response, error)
+
+func (f redirectResponseFixture) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+type redirectResponseBody struct {
+	io.Reader
+	reads, closes *atomic.Int32
+}
+
+func (b redirectResponseBody) Read(p []byte) (int, error) {
+	b.reads.Add(1)
+	return b.Reader.Read(p)
+}
+func (b redirectResponseBody) Close() error { b.closes.Add(1); return nil }
+
+func TestWithoutRedirectsRejectsEvery3xxResponse(t *testing.T) {
+	for code := 300; code < 400; code++ {
+		for _, emptyLocation := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%d/empty-location=%t", code, emptyLocation), func(t *testing.T) {
+				var requests, reads, closes atomic.Int32
+				transport := redirectResponseFixture(func(r *http.Request) (*http.Response, error) {
+					requests.Add(1)
+					header := http.Header{}
+					if emptyLocation {
+						header.Set("Location", "")
+					}
+					return &http.Response{
+						StatusCode: code, Header: header, Request: r,
+						Body: redirectResponseBody{Reader: strings.NewReader("{\"confirmed\":true}"), reads: &reads, closes: &closes},
+					}, nil
+				})
+				client := NewAPIClient(NewHTTPClient(HTTPClientOptions{Client: &http.Client{Transport: transport}}),
+					func() APIBaseOptions { return APIBaseOptions{Override: "http://fixture.invalid"} }, nil)
+				body, err := client.WithoutRedirects().Get("/protected", nil)
+				var apiErr *APIError
+				if !errors.As(err, &apiErr) || apiErr.StatusCode != code || len(body) != 0 || len(apiErr.RawResponse) != 0 || reads.Load() != 0 || closes.Load() != 1 || requests.Load() != 1 {
+					t.Fatal("3xx became a confirmed/body-bearing result, was read, retried or left open")
+				}
+				body, err = client.Get("/ordinary", nil)
+				if err != nil || string(body) != "{\"confirmed\":true}" || reads.Load() == 0 || closes.Load() != 2 || requests.Load() != 2 {
+					t.Fatal("ordinary response classification changed", err)
+				}
+			})
+		}
+	}
+}
+
+// A long maintenance call must not have to choose between finishing and
+// keeping its provenance: the longer-timeout copy has to carry the same token
+// and headers the CLI sends on every other request.
+func TestWithTimeoutPreservesTokenAndHeaders(t *testing.T) {
+	var gotAuth, gotInvocation string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuth = r.Header.Get("Authorization")
+		gotInvocation = r.Header.Get(HeaderInvocationCommand)
+		fmt.Fprint(w, `{"ok":true}`)
+	}))
+	defer server.Close()
+
+	base := NewHTTPClient(HTTPClientOptions{})
+	base.SetInvocationHeaderSource(func() map[string]string {
+		return map[string]string{HeaderInvocationCommand: "import-sweep"}
+	})
+	client := NewAPIClient(base, func() APIBaseOptions {
+		return APIBaseOptions{DefaultBase: server.URL}
+	}, func() string { return "secret" })
+
+	if _, err := client.WithTimeout(time.Minute).Get("/ping", nil); err != nil {
+		t.Fatalf("api get: %v", err)
+	}
+	if gotAuth != "Bearer secret" {
+		t.Fatalf("authorization = %q", gotAuth)
+	}
+	if gotInvocation != "import-sweep" {
+		t.Fatalf("invocation command header = %q", gotInvocation)
+	}
+}
+
+func TestWithTimeoutLeavesTheReceiverUnchanged(t *testing.T) {
+	base := NewHTTPClient(HTTPClientOptions{Timeout: 30 * time.Second})
+	client := NewAPIClient(base, nil, nil)
+
+	extended := client.WithTimeout(15 * time.Minute)
+
+	if got := extended.client.Timeout(); got != 15*time.Minute {
+		t.Fatalf("clone timeout = %s", got)
+	}
+	if got := base.Timeout(); got != 30*time.Second {
+		t.Fatalf("receiver timeout changed to %s", got)
+	}
+	if extended.client == base {
+		t.Fatal("clone must not share the receiver's HTTP client")
+	}
+}
+
+// A non-positive timeout is a caller mistake, not a request for "no timeout".
+// Returning the receiver keeps the CLI default rather than hanging forever.
+func TestWithTimeoutIgnoresNonPositiveDurations(t *testing.T) {
+	client := NewAPIClient(NewHTTPClient(HTTPClientOptions{Timeout: time.Second}), nil, nil)
+	for _, timeout := range []time.Duration{0, -time.Second} {
+		if got := client.WithTimeout(timeout); got != client {
+			t.Fatalf("timeout %s should return the receiver", timeout)
+		}
+	}
+}
+
+func TestWithoutTimeoutPreservesTransportIdentityAndContextCancellation(t *testing.T) {
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		if r.Header.Get("Authorization") != "Bearer saved-token" || r.Header.Get(HeaderInvocationCommand) != "workflow execution-wait" {
+			t.Errorf("wait lost authentication/provenance: %+v", r.Header)
+		}
+		select {
+		case <-time.After(60 * time.Millisecond):
+		case <-r.Context().Done():
+			return
+		}
+		_, _ = fmt.Fprint(w, `{"terminal":true}`)
+	}))
+	defer server.Close()
+	transport := &http.Transport{}
+	defer transport.CloseIdleConnections()
+	base := NewHTTPClient(HTTPClientOptions{Client: &http.Client{Timeout: 10 * time.Millisecond, Transport: transport}})
+	base.SetInvocationHeaderSource(func() map[string]string { return map[string]string{HeaderInvocationCommand: "workflow execution-wait"} })
+	client := NewAPIClient(base, func() APIBaseOptions { return APIBaseOptions{DefaultBase: server.URL} }, func() string { return "saved-token" })
+	wait := client.WithoutTimeout()
+	if wait.client.Timeout() != 0 || wait.client.client.Transport != transport || base.Timeout() != 10*time.Millisecond || wait.client == base {
+		t.Fatal("explicit wait clone lost transport or changed ordinary defaults")
+	}
+	if body, err := wait.Get("/wait", nil); err != nil || string(body) != `{"terminal":true}` {
+		t.Fatalf("durable wait inherited default timeout: %s %v", body, err)
+	}
+	if _, err := client.Get("/ordinary", nil); err == nil {
+		t.Fatal("ordinary request lost its timeout")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+	if _, err := wait.client.DoWithContext(ctx, http.MethodGet, "/wait", nil, nil); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("explicit request cancellation lost: %v", err)
+	}
+	if requests.Load() != 3 {
+		t.Fatalf("unexpected retry: requests=%d", requests.Load())
+	}
+	if empty := NewAPIClient(nil, nil, nil).WithoutTimeout(); empty.client.Timeout() != 0 {
+		t.Fatal("empty client inherited a default timeout")
 	}
 }
 
@@ -63,6 +283,14 @@ func TestParseAPIError(t *testing.T) {
 			response:       `{"error":"not found","code":"NOT_FOUND"}`,
 			wantMessage:    "not found",
 			wantCode:       "NOT_FOUND",
+			wantStructured: true,
+		},
+		{
+			name:           "connect error message",
+			statusCode:     400,
+			response:       `{"code":"invalid_argument","message":"filters.occurred_after is invalid"}`,
+			wantMessage:    "filters.occurred_after is invalid",
+			wantCode:       "invalid_argument",
 			wantStructured: true,
 		},
 		{

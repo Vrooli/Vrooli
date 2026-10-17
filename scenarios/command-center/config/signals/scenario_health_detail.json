@@ -1,0 +1,22 @@
+{
+  "id": "scenario_health_detail",
+  "label": "Degraded apps",
+  "description": "Running apps whose health probe reports degraded or unhealthy.",
+  "unit": "count",
+  "format": "integer",
+  "shape": "scalar",
+  "source": {
+    "team": "meta-optimization",
+    "binding": "scenario:vrooli-core",
+    "read": "/scenarios",
+    "select": "scenario_health_detail",
+    "ttlSeconds": 60,
+    "integrationId": "vrooli-core",
+    "featureId": "scenario_health_detail",
+    "contractVersion": "legacy.v1",
+    "selector": "scenario_health_detail",
+    "expectedUnit": "count",
+    "sourceTimePolicy": "producer_required"
+  },
+  "coverage": "NOW"
+}

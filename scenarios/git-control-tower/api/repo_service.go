@@ -14,8 +14,9 @@ const repoIDHeader = "X-Repo-Id"
 
 // RepoService coordinates repository registry and resolution logic.
 type RepoService struct {
-	store RepoStore
-	git   GitRunner
+	store       RepoStore
+	git         GitRunner
+	statusCache *RepoStatusCache
 }
 
 // ResolvedRepo describes a repository resolved for a request.
@@ -28,6 +29,18 @@ type ResolvedRepo struct {
 // NewRepoService creates a new repository service.
 func NewRepoService(store RepoStore, git GitRunner) *RepoService {
 	return &RepoService{store: store, git: git}
+}
+
+func (s *RepoService) SetStatusCache(cache *RepoStatusCache) {
+	if s != nil {
+		s.statusCache = cache
+	}
+}
+
+func (s *RepoService) InvalidateStatus(repoDir string) {
+	if s != nil && s.statusCache != nil {
+		s.statusCache.Invalidate(repoDir)
+	}
 }
 
 func (s *RepoService) List(ctx context.Context) ([]RepoRecord, int64, error) {
@@ -57,6 +70,13 @@ func (s *RepoService) GetActive(ctx context.Context) (*RepoRecord, error) {
 }
 
 func (s *RepoService) SetActive(ctx context.Context, id int64) (*RepoRecord, error) {
+	if err := requireHumanPrincipal(ctx, "set active repository"); err != nil {
+		return nil, err
+	}
+	return s.setActive(ctx, id)
+}
+
+func (s *RepoService) setActive(ctx context.Context, id int64) (*RepoRecord, error) {
 	if s.store == nil {
 		return nil, fmt.Errorf("repo store not configured")
 	}
@@ -81,6 +101,9 @@ func (s *RepoService) SetActive(ctx context.Context, id int64) (*RepoRecord, err
 }
 
 func (s *RepoService) Remove(ctx context.Context, id int64) error {
+	if err := requireHumanPrincipal(ctx, "remove repository"); err != nil {
+		return err
+	}
 	if s.store == nil {
 		return fmt.Errorf("repo store not configured")
 	}
@@ -98,6 +121,9 @@ func (s *RepoService) Remove(ctx context.Context, id int64) error {
 }
 
 func (s *RepoService) Open(ctx context.Context, path string) (*RepoRecord, error) {
+	if err := requireHumanPrincipal(ctx, "open repository"); err != nil {
+		return nil, err
+	}
 	if s.store == nil {
 		return nil, fmt.Errorf("repo store not configured")
 	}
@@ -116,14 +142,16 @@ func (s *RepoService) Open(ctx context.Context, path string) (*RepoRecord, error
 	if err != nil {
 		return nil, err
 	}
-	if err := s.store.SetActive(ctx, repo.ID); err != nil {
+	if _, err := s.setActive(ctx, repo.ID); err != nil {
 		return nil, err
 	}
-	_ = s.store.TouchLastOpened(ctx, repo.ID)
 	return &repo, nil
 }
 
 func (s *RepoService) Clone(ctx context.Context, url string, destination string) (*RepoRecord, error) {
+	if err := requireHumanPrincipal(ctx, "clone repository"); err != nil {
+		return nil, err
+	}
 	if s.store == nil {
 		return nil, fmt.Errorf("repo store not configured")
 	}
@@ -157,7 +185,7 @@ func (s *RepoService) Resolve(ctx context.Context, r *http.Request) (ResolvedRep
 		return ResolvedRepo{ID: repo.ID, Path: repo.Path, Source: "explicit"}, nil
 	}
 
-	if resolved, resolveErr, tried := s.resolveFromActive(ctx); tried {
+	if resolved, tried, resolveErr := s.resolveFromActive(ctx); tried {
 		return resolved, resolveErr
 	}
 
@@ -167,19 +195,18 @@ func (s *RepoService) Resolve(ctx context.Context, r *http.Request) (ResolvedRep
 // resolveFromActive attempts to resolve from the active repo in the store.
 // Returns (repo, nil, true) on success, (empty, err, true) on validation failure,
 // or (empty, nil, false) if no active repo was found.
-func (s *RepoService) resolveFromActive(ctx context.Context) (ResolvedRepo, error, bool) {
+func (s *RepoService) resolveFromActive(ctx context.Context) (ResolvedRepo, bool, error) {
 	if s.store == nil {
-		return ResolvedRepo{}, nil, false
+		return ResolvedRepo{}, false, nil
 	}
 	active, err := s.store.GetActive(ctx)
 	if err != nil || active == nil {
-		return ResolvedRepo{}, nil, false
+		return ResolvedRepo{}, false, nil
 	}
 	if err := s.validateRepo(ctx, active.Path); err != nil {
-		return ResolvedRepo{}, newRepoError(RepoErrorInvalid, "active repository is not accessible", err), true
+		return ResolvedRepo{}, true, newRepoError(RepoErrorInvalid, "active repository is not accessible", err)
 	}
-	_ = s.store.TouchLastOpened(ctx, active.ID)
-	return ResolvedRepo{ID: active.ID, Path: active.Path, Source: "active"}, nil, true
+	return ResolvedRepo{ID: active.ID, Path: active.Path, Source: "active"}, true, nil
 }
 
 func (s *RepoService) resolveFromRoot(ctx context.Context) (ResolvedRepo, error) {
@@ -192,12 +219,7 @@ func (s *RepoService) resolveFromRoot(ctx context.Context) (ResolvedRepo, error)
 		return ResolvedRepo{Path: root, Source: "fallback"}, nil
 	}
 
-	repo, err := s.ensureRepo(ctx, root)
-	if err != nil {
-		return ResolvedRepo{}, err
-	}
-	_ = s.store.SetActive(ctx, repo.ID)
-	return ResolvedRepo{ID: repo.ID, Path: repo.Path, Source: "fallback"}, nil
+	return ResolvedRepo{Path: root, Source: "fallback"}, nil
 }
 
 func (s *RepoService) resolveByID(ctx context.Context, id int64) (*RepoRecord, error) {
@@ -217,7 +239,6 @@ func (s *RepoService) resolveByID(ctx context.Context, id int64) (*RepoRecord, e
 	if err := s.validateRepo(ctx, repo.Path); err != nil {
 		return nil, newRepoError(RepoErrorInvalid, "repository is not accessible", err)
 	}
-	_ = s.store.TouchLastOpened(ctx, repo.ID)
 	return repo, nil
 }
 

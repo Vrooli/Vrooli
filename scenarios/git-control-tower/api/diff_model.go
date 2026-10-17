@@ -12,7 +12,17 @@ const (
 	ViewModeFullDiff ViewMode = "full_diff"
 	// ViewModeSource shows just the file content without diff highlighting
 	ViewModeSource ViewMode = "source"
+	// ViewModePreview renders the file (image, markdown) instead of showing text.
+	// Like ViewModeFullDiff it needs the whole file, but it keeps the diff hunks
+	// so the UI can still report what changed alongside the rendered preview.
+	ViewModePreview ViewMode = "preview"
 )
+
+// needsFullContent reports whether a view mode requires the complete file body
+// rather than just diff hunks.
+func (m ViewMode) needsFullContent() bool {
+	return m == ViewModeFullDiff || m == ViewModePreview
+}
 
 // LineChange indicates what type of change occurred on a line
 type LineChange string

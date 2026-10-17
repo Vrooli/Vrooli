@@ -1,0 +1,24 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "rcl-rehabilitation-orchestrator",
+  "displayName": "RCL Rehabilitation Orchestrator",
+  "description": "Orchestrates the selected-core RCL rehabilitation through epochs; owns the scenario goal home, steers workers and independently accepts outcomes.",
+  "status": "active",
+  "appearance": {
+    "body": "#3B82F6",
+    "head": "#F59E0B",
+    "accent": "#10B981"
+  },
+  "tags": [
+    "delivery",
+    "orchestration",
+    "react-component-library"
+  ],
+  "fileOrder": [
+    "AGENT.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-10-01T00:39:44Z",
+  "updatedAt": "2026-10-01T00:39:44Z"
+}

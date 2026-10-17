@@ -87,6 +87,8 @@ export interface IStorageFileSystem {
     readFile(path: string): Promise<Buffer>;
     readFile(path: string, encoding: "utf-8"): Promise<string>;
     writeFile(path: string, data: string | Buffer, encoding?: "utf-8"): Promise<void>;
+    /** Replace a file atomically when the host filesystem supports it. */
+    rename?(from: string, to: string): Promise<void>;
     mkdir(path: string, options?: { recursive?: boolean }): Promise<void>;
     readdir(path: string, options: { withFileTypes: true }): Promise<DirentLike[]>;
     unlink(path: string): Promise<void>;

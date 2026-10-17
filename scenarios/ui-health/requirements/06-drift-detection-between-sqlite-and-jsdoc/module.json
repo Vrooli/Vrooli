@@ -1,0 +1,87 @@
+{
+  "description": "`ui-health validate scenario \u003cname\u003e` reports a finding whenever a file's JSDoc provenance block disagrees with the authoritative SQLite adoption row (drift_hash mismatch or missing-on-either-side).",
+  "module_id": "MOD-P1-006",
+  "prd_ref": "OT-P1-001",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-006",
+        "REQ-P0-007",
+        "REQ-P0-001"
+      ],
+      "description": "The `ui-health validate scenario \u003cname\u003e` command must compare each adopted file's JSDoc provenance block against the authoritative SQLite adoption row in `react-component-library`. A Finding of type PROVENANCE_DRIFT must be emitted whenever: (a) the drift_hash in the JSDoc block does not match the SQLite row, (b) a JSDoc block exists on a file with no corresponding SQLite adoption row, or (c) a SQLite adoption row exists for a file that has no JSDoc block.",
+      "id": "REQ-P1-001",
+      "prd_ref": "OT-P1-001",
+      "status": "draft",
+      "title": "JSDoc vs SQLite Provenance Drift Detection in Validation",
+      "validation": [
+        {
+          "notes": "Mismatched drift_hash between JSDoc and SQLite row produces a PROVENANCE_DRIFT Finding",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "File with JSDoc provenance block but no SQLite row produces a PROVENANCE_DRIFT Finding",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "File with SQLite row but no JSDoc provenance block produces a PROVENANCE_DRIFT Finding",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "File where JSDoc and SQLite agree produces no PROVENANCE_DRIFT Finding",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Modify the drift_hash in a JSDoc block of an adopted file without updating SQLite, run validation, and confirm PROVENANCE_DRIFT Finding is emitted",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Delete the JSDoc block from an adopted file while keeping the SQLite row, run validation, and confirm PROVENANCE_DRIFT Finding is emitted",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Confirm that clean scenarios with synchronized JSDoc and SQLite produce zero PROVENANCE_DRIFT Findings",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Drift check for a scenario with 200 adopted files completes within 3 seconds",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Developers are alerted when adopted component metadata goes out of sync between the SQLite store and source file annotations",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Drift detection between SQLite and JSDoc"
+}

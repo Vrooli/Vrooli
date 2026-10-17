@@ -1,0 +1,126 @@
+syntax = "proto3";
+
+package vrooli.vrooli_onboarding.v1.host;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/host;hostv1";
+
+// HostService exposes the operator-facing host substrate for one onboarding
+// node. Requirements and facts are target-scoped; the target list describes
+// the fleet and is therefore deliberately fleet-wide.
+service HostService {
+  rpc ListHostRequirements(ListHostRequirementsRequest) returns (ListHostRequirementsResponse);
+  rpc GetHostFacts(GetHostFactsRequest) returns (GetHostFactsResponse);
+  // ListTargets is fleet-wide and intentionally has no target field: a target
+  // selector cannot scope the inventory it is asking the operator to choose.
+  rpc ListTargets(ListTargetsRequest) returns (ListTargetsResponse);
+  rpc PatchHostSafeguardConfig(PatchHostSafeguardConfigRequest) returns (PatchHostSafeguardConfigResponse);
+  rpc SetNotificationRecipient(SetNotificationRecipientRequest) returns (SetNotificationRecipientResponse);
+}
+
+message ListHostRequirementsRequest { string target = 1; }
+message GetHostFactsRequest { string target = 1; }
+message ListTargetsRequest {}
+
+message HostRequirement {
+  string name = 1;
+  bool required = 2;
+  string reason = 3;
+  string notes = 4;
+  string description = 5;
+  string risk = 6;
+  string privilege = 7;
+  string bundling = 8;
+  repeated string platforms = 9;
+  repeated string commands = 10;
+  google.protobuf.Struct config_schema = 11;
+  google.protobuf.Struct config = 12;
+  string status = 13;
+  SafeguardDisposition disposition = 14;
+  string detail = 15;
+  string remediation = 16;
+}
+
+enum SafeguardDisposition {
+  SAFEGUARD_DISPOSITION_UNSPECIFIED = 0;
+  SAFEGUARD_DISPOSITION_READY = 1;
+  SAFEGUARD_DISPOSITION_MISSING = 2;
+  // The probe could not inspect the host because the required privilege was
+  // unavailable. This is distinct from a readable content mismatch.
+  SAFEGUARD_DISPOSITION_PERMISSION_DENIED = 3;
+  // The host was readable, but its observed content differs from the
+  // declared safeguard.
+  SAFEGUARD_DISPOSITION_CONTENT_MISMATCH = 4;
+  SAFEGUARD_DISPOSITION_DEFERRED = 5;
+  SAFEGUARD_DISPOSITION_UNSUPPORTED = 6;
+  SAFEGUARD_DISPOSITION_NOT_APPLICABLE = 7;
+}
+
+message ListHostRequirementsResponse {
+  repeated HostRequirement tools = 1;
+  repeated HostRequirement safeguards = 2;
+}
+
+message GetHostFactsResponse {
+  bool available = 1;
+  string reason = 2;
+  optional int32 cpu_count = 3;
+  optional uint64 memory_total_bytes = 4;
+  optional uint64 memory_available_bytes = 5;
+  optional uint64 disk_free_bytes = 6;
+  repeated string gpus = 7;
+  string platform = 8;
+}
+
+message ReadinessCheck {
+  string identity = 1;
+  string label = 2;
+  bool passed = 3;
+  string state = 4;
+  string version = 5;
+  string detail = 6;
+  string recovery_action = 7;
+}
+
+message Target {
+  string id = 1;
+  string name = 2;
+  string status = 3;
+  string os = 4;
+  string architecture = 5;
+  string kind = 6;
+  bool online = 7;
+  bool available = 8;
+  string reason = 9;
+  string next_action = 10;
+  repeated string capabilities = 11;
+  repeated string scopes = 12;
+  repeated ReadinessCheck readiness = 13;
+}
+
+message ListTargetsResponse {
+  repeated Target targets = 1;
+  string error = 2;
+}
+
+message PatchHostSafeguardConfigRequest {
+  string target = 1;
+  string safeguard_name = 2 [(buf.validate.field).string.min_len = 1];
+  string config_key = 3 [(buf.validate.field).string.min_len = 1];
+  google.protobuf.Value value = 4;
+}
+
+message PatchHostSafeguardConfigResponse {
+  string status = 1;
+}
+
+message SetNotificationRecipientRequest {
+  string target = 1;
+  string subject = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+message SetNotificationRecipientResponse {
+  string status = 1;
+}

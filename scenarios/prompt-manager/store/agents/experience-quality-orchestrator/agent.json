@@ -1,0 +1,24 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "experience-quality-orchestrator",
+  "displayName": "Experience Quality Orchestrator",
+  "description": "Coordinate the finite experience-quality-delivery effort through measured epochs and independent acceptance. Preserve Dot cloud continuity, native access, shared evidence and debt reduction. Preparation stays disabled.",
+  "status": "active",
+  "appearance": {
+    "body": "#3B82F6",
+    "head": "#F59E0B",
+    "accent": "#10B981"
+  },
+  "tags": [
+    "delivery",
+    "orchestration",
+    "experience-quality"
+  ],
+  "fileOrder": [
+    "AGENT.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-10-16T15:39:22Z",
+  "updatedAt": "2026-10-16T15:39:22Z"
+}

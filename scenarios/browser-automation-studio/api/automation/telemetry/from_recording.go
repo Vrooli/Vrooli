@@ -2,70 +2,11 @@ package telemetry
 
 import (
 	"strings"
-	"time"
 
 	"github.com/vrooli/browser-automation-studio/automation/driver"
 	"github.com/vrooli/browser-automation-studio/internal/enums"
-	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	basdomain "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
 )
-
-// RecordedActionToTelemetry converts a recorded action from the
-// playwright-driver to the unified ActionTelemetry format.
-func RecordedActionToTelemetry(action *driver.RecordedAction) *ActionTelemetry {
-	if action == nil {
-		return nil
-	}
-
-	tel := &ActionTelemetry{
-		ID:          action.ID,
-		SequenceNum: action.SequenceNum,
-		ActionType:  enums.StringToActionType(action.ActionType),
-		Params:      normalizeRecordingParams(action),
-		URL:         action.URL,
-		FrameID:     action.FrameID,
-		Success:     true, // Recording capture always succeeds
-		DurationMs:  action.DurationMs,
-	}
-
-	// Parse timestamp
-	if action.Timestamp != "" {
-		if ts, err := time.Parse(time.RFC3339Nano, action.Timestamp); err == nil {
-			tel.Timestamp = ts
-		} else if ts, err := time.Parse(time.RFC3339, action.Timestamp); err == nil {
-			tel.Timestamp = ts
-		}
-	}
-
-	// Element context
-	if action.Selector != nil {
-		tel.Selector = action.Selector.Primary
-	}
-	tel.SelectorConfidence = action.Confidence
-	if action.ElementMeta != nil {
-		tel.ElementSnapshot = convertDriverElementMeta(action.ElementMeta)
-	}
-	if action.BoundingBox != nil {
-		tel.BoundingBox = action.BoundingBox
-	}
-	if action.CursorPos != nil {
-		tel.CursorPosition = action.CursorPos
-	}
-
-	// Generate label from element info
-	tel.Label = generateRecordingLabel(action)
-
-	// Recording-specific origin
-	tel.Origin = &RecordingOrigin{
-		SessionID:          action.SessionID,
-		Confidence:         action.Confidence,
-		SelectorCandidates: convertSelectorCandidates(action.Selector),
-		NeedsConfirmation:  shouldRequireConfirmation(action),
-		Source:             basbase.RecordingSource_RECORDING_SOURCE_AUTO,
-	}
-
-	return tel
-}
 
 // normalizeRecordingParams converts RecordedAction payload to standardized params.
 // Handles recording-specific field name aliases.

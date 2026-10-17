@@ -1,1 +1,0 @@
--- Placeholder schema file. Add CREATE TABLE statements when operational targets demand persistence.

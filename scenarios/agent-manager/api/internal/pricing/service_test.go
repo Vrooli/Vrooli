@@ -2,6 +2,8 @@ package pricing
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -23,6 +25,15 @@ func newMockProvider(name string) *mockProvider {
 		pricing:        make(map[string]*ModelPricing),
 		supportsModels: make(map[string]bool),
 	}
+}
+
+type testModelResolver struct{}
+
+func (testModelResolver) Resolve(_ context.Context, _ string, model string) (string, string, error) {
+	if strings.Contains(model, "/") {
+		return model, "openrouter", nil
+	}
+	return "", "", fmt.Errorf("no fixture mapping for %q", model)
 }
 
 func (p *mockProvider) Name() string { return p.name }
@@ -63,7 +74,8 @@ func testService(t *testing.T, providers ...Provider) (Service, *MemoryRepositor
 	log := logrus.New()
 	log.SetLevel(logrus.WarnLevel)
 
-	svc := NewService(repo, providers, log)
+	svc := NewServiceWithModelResolver(repo, providers, log, testModelResolver{})
+	require.NoError(t, svc.RefreshPricing(context.Background()))
 	return svc, repo
 }
 
@@ -345,13 +357,29 @@ func TestResolveCanonicalModel_FromAlias(t *testing.T) {
 func TestResolveCanonicalModel_DefaultResolution(t *testing.T) {
 	svc, _ := testService(t)
 
-	// Test model that should use default alias resolution
-	canonical, provider, err := svc.ResolveCanonicalModel(context.Background(), "gpt-4", "codex")
-	require.NoError(t, err)
+	// Bare names are not guessed from provider/model spelling.
+	_, _, err := svc.ResolveCanonicalModel(context.Background(), "future-model", "codex")
+	require.Error(t, err)
+}
 
-	// Default resolution should handle common patterns
-	assert.NotEmpty(t, canonical)
-	assert.NotEmpty(t, provider)
+func TestResolveCanonicalModel_ReportsUnresolvedBareAlias(t *testing.T) {
+	svc, _ := testService(t)
+	_, _, err := svc.ResolveCanonicalModel(context.Background(), "opus", "codex")
+	// Resource-observed aliases must resolve through the resource resolver or
+	// an explicit database alias, never through a global default table.
+	require.Error(t, err)
+	canonical, _, err := svc.ResolveCanonicalModel(context.Background(), "not-a-model", "codex")
+	require.Error(t, err)
+	assert.Empty(t, canonical)
+}
+
+func TestCalculateCost_UnlabelledModelIsUnpriced(t *testing.T) {
+	svc, _ := testService(t)
+	calc, err := svc.CalculateCost(context.Background(), CostRequest{RunnerType: "codex", InputTokens: 100})
+	require.NoError(t, err)
+	assert.Equal(t, "unpriced", calc.CostSource)
+	assert.Equal(t, "model_unlabelled", calc.ChargeReason)
+	assert.Zero(t, calc.TotalCostUSD)
 }
 
 func TestSetOverride_ClearsCache(t *testing.T) {
@@ -568,6 +596,46 @@ func TestRefreshPricing_ClearsCache(t *testing.T) {
 	calc, err := svc.CalculateCost(context.Background(), req)
 	require.NoError(t, err)
 	assert.InDelta(t, float64(1000)*newPrice, calc.InputCostUSD, 0.0001)
+}
+
+func TestRefreshModelPricingCacheStatusAndListExposeEffectivePricing(t *testing.T) {
+	provider := newMockProvider("openrouter")
+	input, output := 0.000002, 0.000004
+	now := time.Now().UTC()
+	provider.SetPricing("provider/model", &ModelPricing{
+		CanonicalModelName: "provider/model", Provider: "openrouter", InputTokenPrice: &input, OutputTokenPrice: &output,
+		InputTokenSource: SourceProviderAPI, OutputTokenSource: SourceProviderAPI, FetchedAt: now, ExpiresAt: now.Add(time.Hour), PricingVersion: "v1",
+	})
+	svc, repo := testService(t, provider)
+	ctx := context.Background()
+	if err := svc.RefreshModelPricing(ctx, "provider/model"); err != nil {
+		t.Fatalf("refresh model: %v", err)
+	}
+	if err := svc.RefreshModelPricing(ctx, "unknown/model"); err == nil {
+		t.Fatal("refresh unexpectedly succeeded for unsupported model")
+	}
+	status, err := svc.GetCacheStatus(ctx)
+	if err != nil || status.TotalModels != 1 || status.ExpiredCount != 0 {
+		t.Fatalf("cache status=%+v err=%v", status, err)
+	}
+	items, err := svc.ListModelsWithPricing(ctx)
+	if err != nil || len(items) != 1 {
+		t.Fatalf("pricing list=%+v err=%v", items, err)
+	}
+	if items[0].CanonicalName != "provider/model" || items[0].InputPricePer1M != 2 || items[0].OutputPricePer1M != 4 || items[0].InputSource != SourceProviderAPI {
+		t.Fatalf("effective list item=%+v", items[0])
+	}
+	// A cache entry must be invalidated by targeted refresh; the repository is
+	// the durable source that feeds subsequent cost calculations.
+	if _, err := svc.GetModelPricing(ctx, "provider/model", ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.UpsertPricing(ctx, &ModelPricing{CanonicalModelName: "provider/model", Provider: "openrouter", InputTokenPrice: &output, ExpiresAt: now.Add(time.Hour)}); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.RefreshModelPricing(ctx, "provider/model"); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestTokensToMillion(t *testing.T) {

@@ -1,0 +1,16 @@
+{
+  "_metadata": {
+    "description": "Parent registry linking operational targets to technical requirements",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0"
+  },
+  "imports": [
+    "01-scenario-boundary/module.json",
+    "02-ground-truth-and-intent/module.json",
+    "03-structure-and-lifecycle-rules/module.json",
+    "04-profile-conformance/module.json",
+    "05-autofix/module.json",
+    "06-fleet/module.json",
+    "07-integration-and-cli/module.json"
+  ]
+}

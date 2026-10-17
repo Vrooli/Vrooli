@@ -4,7 +4,7 @@ Organize requirement modules by PRD operational targets, keeping the filesystem 
 
 ## Lifecycle
 1. Operational targets in PRD map to folders here.
-2. `requirements/index.json` imports each module; tests auto-sync their status when they run.
+2. `requirements/index.json` imports each module; tests auto-sync their status and validation evidence when they run.
 3. Coverage summaries live in `coverage/phase-results/` after each test phase.
 
 ## Contributor Notes

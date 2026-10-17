@@ -1,0 +1,224 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "compose",
+    "title": "Compose",
+    "routes": [
+      "/compose"
+    ],
+    "purpose": "Submit a batch of takes from a style or a written brief, and be honest before the work starts about what it will cost, what rung it will run at, and that the result is a set to choose from rather than a track.",
+    "prd_refs": [
+      "OT-P0-008",
+      "OT-P0-007",
+      "OT-P0-003"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "The take count is visible and defaults above one. A caller must not be able to submit a single take by accident and conclude the model is poor."
+    },
+    {
+      "statement": "The brief the model will actually receive is shown before submission. The caption a caller wrote and the caption that reaches the generator are the same thing unless a rewrite is explicitly requested, and if they ever differ the difference is visible."
+    },
+    {
+      "statement": "Cost is stated before submission, not discovered during it. A ten-take batch is minutes of GPU time."
+    },
+    {
+      "statement": "Contention is disclosed before submission. If the card is busy the batch will run at a reduced rung and take roughly three times as long; the caller should know that before waiting."
+    },
+    {
+      "statement": "Composition being structurally unavailable — no capable GPU, or the runtime stopped — is stated plainly rather than presented as a transient error."
+    }
+  ],
+  "states": [
+    {
+      "id": "idle",
+      "example": "idle",
+      "description": "Ready to submit; a style or brief is selected.",
+      "setup": {
+        "route": "/compose",
+        "query": {
+          "fixture": "idle"
+        }
+      }
+    },
+    {
+      "id": "validation-error",
+      "example": "validation-error",
+      "description": "The brief or parameters are rejected, with the failing field named.",
+      "setup": {
+        "route": "/compose",
+        "query": {
+          "fixture": "validation-error"
+        }
+      }
+    },
+    {
+      "id": "contended",
+      "example": "contended",
+      "description": "The GPU is held by another tenant; the batch will run degraded or wait.",
+      "setup": {
+        "route": "/compose",
+        "query": {
+          "fixture": "contended"
+        }
+      }
+    },
+    {
+      "id": "submitting",
+      "example": "submitting",
+      "description": "The batch is being enqueued.",
+      "setup": {
+        "route": "/compose",
+        "query": {
+          "fixture": "submitting"
+        }
+      }
+    },
+    {
+      "id": "unavailable",
+      "example": "permission-denied",
+      "description": "Composition cannot run at all — the runtime is stopped or no capable GPU exists.",
+      "setup": {
+        "route": "/compose",
+        "query": {
+          "fixture": "unavailable"
+        }
+      }
+    }
+  ],
+  "elements": [
+    {
+      "id": "style-picker",
+      "role": "combobox",
+      "description": "The named style the batch is configured with."
+    },
+    {
+      "id": "brief-field",
+      "role": "textbox",
+      "description": "The caption as authored."
+    },
+    {
+      "id": "effective-caption",
+      "role": "status",
+      "description": "The caption as it will reach the generator."
+    },
+    {
+      "id": "take-count",
+      "role": "spinbutton",
+      "description": "How many takes the batch produces."
+    },
+    {
+      "id": "cost-estimate",
+      "role": "status",
+      "description": "Estimated GPU time and storage for the batch."
+    },
+    {
+      "id": "rung-notice",
+      "role": "status",
+      "description": "The profile rung the batch will be admitted at, and why."
+    },
+    {
+      "id": "unavailable-reason",
+      "role": "alert",
+      "description": "Why composition cannot run, and what is still available."
+    },
+    {
+      "id": "submit",
+      "role": "button",
+      "description": "Enqueue the batch."
+    }
+  ],
+  "claims": [
+    {
+      "id": "take-count-is-visible",
+      "type": "element-present",
+      "statement": "The take count is shown on the submission surface and defaults above one.",
+      "tier": "machine",
+      "elements": [
+        "take-count"
+      ],
+      "states": [
+        "idle"
+      ]
+    },
+    {
+      "id": "effective-caption-is-shown",
+      "type": "element-present",
+      "statement": "The caption that will reach the generator is visible before submission.",
+      "tier": "machine",
+      "elements": [
+        "effective-caption"
+      ],
+      "states": [
+        "idle"
+      ]
+    },
+    {
+      "id": "cost-precedes-submission",
+      "type": "element-present",
+      "statement": "An estimate of GPU time and storage is shown before the batch is enqueued.",
+      "tier": "machine",
+      "elements": [
+        "cost-estimate"
+      ],
+      "states": [
+        "idle"
+      ]
+    },
+    {
+      "id": "contention-is-disclosed",
+      "type": "element-present",
+      "statement": "When the card is contended, the rung the batch will run at is stated before submission.",
+      "tier": "machine",
+      "elements": [
+        "rung-notice"
+      ],
+      "states": [
+        "contended"
+      ]
+    },
+    {
+      "id": "unavailability-is-explained",
+      "type": "element-present",
+      "statement": "When composition cannot run, the reason and the still-available operations are named rather than shown as a bare failure.",
+      "tier": "machine",
+      "elements": [
+        "unavailable-reason"
+      ],
+      "states": [
+        "unavailable"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "style-picker": {
+        "testid": "compose-style"
+      },
+      "brief-field": {
+        "testid": "compose-brief"
+      },
+      "effective-caption": {
+        "testid": "compose-effective-caption"
+      },
+      "take-count": {
+        "testid": "compose-take-count"
+      },
+      "cost-estimate": {
+        "testid": "compose-cost"
+      },
+      "rung-notice": {
+        "testid": "compose-rung-notice"
+      },
+      "unavailable-reason": {
+        "testid": "compose-unavailable"
+      },
+      "submit": {
+        "testid": "compose-submit"
+      }
+    }
+  }
+}

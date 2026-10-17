@@ -1,0 +1,9 @@
+{
+  "gate": "graph-reconciled",
+  "assetId": "calibration.graph-reconciled",
+  "kind": "component",
+  "runner": "static",
+  "requiredFailureCode": "catalog.graph_reconciled",
+  "description": "A declared catalog asset with no implementation must be reported as not implemented.",
+  "catalogAsset": "asset.json"
+}

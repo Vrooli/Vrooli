@@ -1,0 +1,63 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "forms.generated-settings-form",
+    "name": "GeneratedSettingsForm",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "forms",
+    "description": "The settings-oriented generated form with categorized navigation, per-field autosave, search across settings, defaults and reset, conflict handling, and responsive section layout.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "generated",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "forms.generated-form",
+        "reason": "Compilation, dependency graph, and field runtime are shared."
+      },
+      {
+        "asset": "forms.autosave-indicator",
+        "reason": "Per-field save status is shown through the shared indicator."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "storage-adapter",
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "error-association",
+    "input-preservation",
+    "status-announced",
+    "freshness-disclosure",
+    "offline-behavior",
+    "recovery-path",
+    "responsive-transformation",
+    "focus-order"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "saving",
+    "success",
+    "stale",
+    "validation-error",
+    "request-error",
+    "permission-denied",
+    "offline",
+    "retry"
+  ]
+}

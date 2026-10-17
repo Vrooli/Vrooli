@@ -1,0 +1,42 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "measurement-bar",
+    "title": "MeasurementBar",
+    "purpose": "Make observed and required values comparable in the testing surface.",
+    "storyRef": "../../library/components/MeasurementBar/versions/1.0.14/story.json"
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "An unmet requirement is explicit."
+    },
+    {
+      "id": "passing",
+      "example": "default",
+      "description": "A satisfied requirement is explicit."
+    }
+  ],
+  "elements": [
+    {
+      "id": "surface",
+      "role": "region",
+      "description": "The measured requirement surface."
+    }
+  ],
+  "claims": [
+    { "id": "review-measurement-context", "type": "manual-review", "statement": "A reviewer confirms the measurement remains meaningful with its label and scale.", "tier": "manual", "states": ["default"] },
+    {
+      "id": "surface-present",
+      "type": "element-present",
+      "statement": "The measurement surface is present in every state.",
+      "tier": "machine",
+      "elements": ["surface"],
+      "states": ["default", "passing"]
+    }
+  ],
+  "bindings": { "elements": { "surface": { "selector": "[data-rcl-asset]" } } }
+}

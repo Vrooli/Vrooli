@@ -18,6 +18,19 @@
         "best-practices": { "error": 0.85, "warn": 0.90 },
         "seo": { "error": 0.80, "warn": 0.90 }
       }
+    },
+    {
+      "id": "home-mobile",
+      "path": "/",
+      "label": "Home (mobile)",
+      "viewport": "mobile",
+      "waitForSelector": "[data-mobile-shell=\"true\"]",
+      "thresholds": {
+        "performance": { "error": 0.70, "warn": 0.80 },
+        "accessibility": { "error": 0.90, "warn": 0.95 },
+        "best-practices": { "error": 0.85, "warn": 0.90 },
+        "seo": { "error": 0.80, "warn": 0.90 }
+      }
     }
   ],
   "global_options": {

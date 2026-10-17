@@ -58,14 +58,19 @@ const (
 
 	// ServiceTypeResource is a bundled resource (database, cache, etc.).
 	ServiceTypeResource = "resource"
+
+	// ServiceTypeEmbeddedStorage is a bundled embedded storage dependency.
+	// Kept for compatibility with existing deployment-manager bundle samples.
+	ServiceTypeEmbeddedStorage = "embedded-storage"
 )
 
 // validServiceTypes lists all accepted service type values.
 var validServiceTypes = map[string]bool{
-	ServiceTypeUIBundle:  true,
-	ServiceTypeAPIBinary: true,
-	ServiceTypeWorker:    true,
-	ServiceTypeResource:  true,
+	ServiceTypeUIBundle:        true,
+	ServiceTypeAPIBinary:       true,
+	ServiceTypeWorker:          true,
+	ServiceTypeResource:        true,
+	ServiceTypeEmbeddedStorage: true,
 }
 
 // IsValidServiceType decides whether a service type value is recognized.
@@ -78,7 +83,7 @@ func GetServiceTypeError(serviceType string) error {
 	if IsValidServiceType(serviceType) {
 		return nil
 	}
-	return fmt.Errorf("type %q is not supported (valid: ui-bundle, api-binary, worker, resource)", serviceType)
+	return fmt.Errorf("type %q is not supported (valid: ui-bundle, api-binary, worker, resource, embedded-storage)", serviceType)
 }
 
 // Secret target type constants define how secrets are injected into services.

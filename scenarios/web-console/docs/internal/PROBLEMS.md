@@ -1,5 +1,424 @@
 # Web Console — Known Problems and Risks
 
+## 2026-10-16 — Replace fragile HTML body pinch scaling (W3)
+
+**Implementation replaced; native iPhone Safari qualification remains open.**
+Operator feedback: "very laggy and glitchy and easy easily breaks".
+Screenshot `IMG_1682.png` shows large white gutters above/beside the report.
+This evidence supersedes the native-quality implication of the earlier pinch
+completion and work record `25616e66-b6b7-4ee8-887c-074c1ecbe313`.
+The prior Chromium checks measured successful magnification, not Safari quality.
+
+Bounded task: replace the document-mutating gesture path; verify stable focal
+zoom, bounded panning, repeated pinch-out, unchanged authored styles, and existing
+controls using focused regressions and browser fixtures. Do not relax the sandbox.
+Hypotheses: body scaling/read/write/scroll work causes expensive updates and
+exposes the iframe canvas; alternatively app-wide visual viewport changes cause
+chrome/layout movement. Source and screenshot support the first mechanism;
+app-wide zoom was unchanged in browser observations. Native Safari was not
+available to reproduce its exact white-gutter behavior.
+
+Measured the old live bundle over 240 touch moves: **248 body style mutations,
+488 body measurements, 240 scroll calls**, and **24px accumulated scroll drift**
+after four in/out cycles. The replacement transports gestures from the opaque
+iframe and applies one clipped iframe transform per animation frame in the host.
+It never transforms/measures the authored body during a gesture. Screen-space
+contacts remain independent of iframe transforms. Offsets clamp at every edge;
+residual panning continues through the document only after reaching an edge.
+Frame identity and numeric payload checks restrict the message channel to that
+preview's inspection/scrolling. No host operation or same-origin privilege is added.
+
+Evidence: **36 focused tests PASS** across compositor/transport, renderers and
+workspace wrapper. TypeScript, standalone-runtime strict JS checking, scoped
+TypeScript lint, whitespace checks, production/profile builds PASS. Browser
+fixtures in both bundles exercise eight pinch strokes (240 moves), pan through
+1,298px of document scroll, pinch-out, source switching, and viewport/zoom controls.
+During pinch: **0 body mutations, 0 body measurements, 0 scroll calls, 0 scroll
+drift**. Coverage checks find no exposed edge beyond subpixel rounding (0.002px).
+Authored body scale remains unset; the document viewport and opaque origin remain.
+
+These browser fixtures construct explicit touch coordinates: Chromium's
+[documented CDP coordinate defect](https://issues.chromium.org/issues/40280325)
+returns identical screen coordinates for different contacts. This limitation was
+confirmed locally. An attempted client-coordinate fallback fed back through the
+changing iframe transform and was removed; no such workaround ships. Fixtures
+exercise the DOM/rendering/message path but do not certify physical Safari input
+or device frame rate. Local iOS simulator tooling is unsupported on Linux; the
+bridge inventory probe is unauthenticated, so no device-disconnection claim is
+made. Native iPhone Safari remains unverified.
+
+Evidence: `/tmp/wc-html-pinch-old-probe.json`,
+`/tmp/wc-pinch-compositor-{unit.log,browser-proof.json,profile-proof.json,
+types.log,runtime-types.log,build.log}`, and
+`/tmp/wc-pinch-compositor-{magnified,panned}.png`.
+Scoped Test Genie unit run **20261016-151253-40c6b1f2 FAIL** reports only the API
+Go command failure (existing **knw-1792160172206667201**), with no UI command
+failure. Source changed during validation; final focused/browser checks cover
+the final transport and compositor, without claiming an exact-version full-suite
+certificate. The final production bundle is served by the existing UI runtime.
+
+## 2026-10-16 — Independent HTML preview pinch magnification (W3)
+
+**Scoped repair complete.** Follow-up to toolbar work record
+`1e62ba1b-0321-424e-836c-e55629ec3356`. The operator requested browser-like pinch
+magnification independent of rendering zoom. Bounded task goal: work until
+preview-local pinch, focal anchoring, panning and pinch-out hold without changing
+the toolbar zoom, CSS viewport/media queries, app chrome or sandbox authority;
+prove with focused tests, browser touch input, type/lint/build and scoped unit phase.
+
+Root-cause hypotheses: (1) app viewport directives intentionally disable native
+browser zoom; (2) the iframe has no local gesture handler and its touch events do
+not bubble into the parent; (3) sandbox policy prevents gesture scripting.
+Source inspection supported (1)/(2); real-touch browser checks reject (3) because
+the handler runs under the existing script-only opaque-origin sandbox. Related
+Messages/terminal pinch hooks change typography and do not supply this separate
+inspection behavior. The regression first failed because the HTML document had
+no installed pinch handler. With the handler removed from the same production
+srcdoc, real pinch leaves painting at 1×; restoring it produces 2× magnification.
+
+Implemented a self-contained inline module inside srcdoc: distance-based 1–5×
+paint scaling around the moving finger midpoint; one-finger panning when
+magnified, including continuation after lifting one finger; pinch-out restores
+author styles. Single-finger scrolling/taps at 1× and ordinary wheel scrolling
+remain native; Ctrl+wheel supports trackpad pinch. Cancelled/degenerate gestures
+are bounded. The runtime is embedded from a raw JavaScript asset rather than
+serializing a bundled function, avoiding missing helper references in profiling
+builds. It needs no parent bridge, external dependency, or sandbox relaxation.
+
+Evidence: **44 focused tests PASS** across pinch, renderers, workspace wrapper and
+locale catalogs. TypeScript, strict checking of the standalone JS runtime,
+scoped TypeScript lint, production build and profiling build PASS. Chromium real
+touch dispatch verifies 1440px layout/desktop media queries remain constant while
+paint width doubles to 2880px, one-finger panning moves both axes, pinch-out
+returns to 1440px, toolbar remains Fit and outer visualViewport.scale stays 1.
+Actual browser checks also verify restoration of authored !important scale/origin
+styles, which the jsdom iframe style implementation cannot represent faithfully.
+Both production and profiling bundles pass. Native iPhone Safari remains
+unverified. Evidence: `/tmp/wc-html-pinch-{focused-final.log,typecheck.log,build-final.log,
+runtime-typecheck.log,browser-proof.json,profile-browser-proof.json}` and
+`/tmp/wc-html-pinch-{magnified,restored}.png`.
+
+Scoped Test Genie unit run **20261016-142915-1ef25621 FAIL**, with one execution
+error: the API Go command. No UI command failure is reported. This remains the
+recorded API issue **knw-1792160172206667201**; no duplicate report was filed.
+The shared worktree changed during the run, so it is not an exact-version
+certificate for the final module extraction; final focused and browser checks
+above explicitly cover that extraction. No W0–W2 or full-suite pass is claimed.
+
+## 2026-10-16 — HTML drawer viewport and zoom controls (W3)
+
+**Scoped repair complete.** Work shape: bounded task. The operator screenshot and
+`TextRenderers.tsx` identified W3: a dark Preview/Source button row and a frame
+fixed to drawer width. Target and composition: [Architecture](../concepts/ARCHITECTURE.md)
+and [desktop/mobile mockup](../mockups/html-preview-toolbar.svg).
+
+Bounded handoff goal: Work until the documented HTML toolbar behavior holds,
+proven by focused renderer/locale tests, type-check/lint/build, and desktop/mobile
+browser assertions. Keep adjacent failures outside the UI repair boundary.
+
+Implemented: shared morphing ghost icon toggle, transparent toolbar, Responsive/
+Phone (390px)/Tablet (768px)/Desktop (1440px), Fit and 10–200% zoom. Presets fit
+immediately; manual zoom preserves CSS viewport width and permits horizontal
+panning. Resize observation updates Fit; source switches preserve choices and a
+new preview resets them. English/Arabic/Japanese labels are aligned. The existing
+sandbox, asset restrictions, and source-first line/truncation behavior remain.
+
+Evidence: **35 focused tests PASS** (renderer, workspace wrapper, locale parity).
+Scoped ESLint, TypeScript, production build, and whitespace checks PASS. Chromium
+at desktop and 390px/320px touch widths verifies native iframe width=1440,
+desktop media-query matching while scaled to the available width, horizontal
+panning at 100%, source/zoom preservation, no toolbar overflow, and 44px touch
+targets. Native Safari is unverified. Evidence: `/tmp/wc-html-preview-focused-final.log`,
+`/tmp/wc-html-preview-typecheck.log`, `/tmp/wc-html-preview-build-final.log`,
+`/tmp/wc-html-preview-browser-extra-proof.json`, and
+`/tmp/wc-html-preview-{mobile,mobile-narrow,desktop}.png`.
+
+Scoped Test Genie unit run **20261016-140952-25784903 FAIL**: API Go command
+failure and initial missing locale keys. The locale omission is repaired and
+all seven catalog checks pass in the final focused cohort. The API root cause
+is unknown: retained evidence contains a truncated passing-test tail plus package
+FAIL. Reported as **knw-1792160172206667201**. The actual HTML report also depends
+on unavailable external Mermaid code (**knw-1792159967422613968**). This is not
+a scenario-wide unit certificate or W0–W2 audit. The final build is served by
+the existing UI runtime. Documentation append through Knowledge Observatory
+returned HTTP 400, so this record was added directly to the existing file.
+
+## 2026-10-16 — Large video blocked inside HTML previews (W3)
+
+**RESOLVED (bounded implementation repair):** The operator could see the new
+Aquila film's poster but could not play its 33,949,998-byte MP4 in the report.
+The HTML runtime applied its 16 MiB presentation-resource cap to media. A HEAD
+request through the live UI proxy returned **413**; the direct blob transport
+already supported large files. This localized mismatch justified W3 repair;
+no missing product contract or traceability audit was inferred.
+
+The competing proxy-buffering and codec hypotheses did not explain the 413:
+the proxy pipes responses and the H264/AAC film plays after the runtime cap is
+removed for allowed audio/video. Non-media resources keep the 16 MiB limit.
+Both preview byte routes stream from disk with native HEAD/ranges. Their writes
+renew the 150-second response deadline per chunk, so ongoing large transfers
+are not cut off by a total-response budget. Session binding, directory/symlink
+confinement, stale-file checks, sandbox policy, and preview expiry remain enforced.
+
+Evidence: regressions first failed with 413 for every embedded media fixture
+while the same direct blob tests passed. All 18 focused file-preview tests now
+pass, including 5 GiB files, suffix/late ranges beyond 4 GiB, 416 responses,
+non-media rejection, and a real HTTP stream spanning multiple write budgets.
+The internal resolver/store suite also passed. Live Chrome verification used
+the production HTML document helper, its `allow-scripts` sandbox, and the UI
+proxy: the actual Aquila film played and sought to 40 seconds. A valid sparse
+5,368,773,026-byte H264 MP4 played and sought to 4 seconds; Chrome fetched its
+metadata at byte 5,368,741,888 with **206**. The sparse fixture contains a large
+`free` box, not five gigabytes of encoded frames; only 69,632 disk bytes were
+allocated. This proves browser/transport handling of large lengths and offsets.
+
+Regression lesson: standalone report hosting bypassed this runtime limit.
+Future report QA must include playback through web-console's preview route.
+Retained limitation: preview IDs expire after 30 minutes; reopening resolves a
+new ID. This repair removes the media size cap, not that separate expiry policy.
+
+Evidence directory:
+`~/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/web-console-large-video-2026-10-16/`.
+The broader API run found unrelated catalogue/documentation failures and a
+server-construction fixture that accesses real host sessions/legacy storage.
+Filed through `report-bug` as **knw-1792125249934722814**,
+**knw-1792125250578899496**, and **knw-1792125249221022524**, respectively.
+The current canonical live database is separate from the legacy path mentioned
+by that test; no claim of live data loss is made.
+Scoped Test Genie unit run **20261016-042955-006b9b41** returned **FAIL**, with
+test-command failures and UI render-policy findings; it is not a
+passing scenario-wide certificate. Final changed-code regressions and live
+browser assertions above passed independently.
+
+## 2026-10-15–16 — Long-session UI performance (W3)
+
+Implemented and measured against the real 574-message heartbeat investigation.
+Collapsed previews are bounded without losing full reader/copy/export text; row
+measurement consumes delivered resize boxes; find/search avoids duplicate work;
+one event-aware snippet handler replaces a per-event callback cache. RCL canvas
+styles now use the existing LayerManager lifecycle flag instead of root `:has`
+queries. Governed releases: LayerManager 2.0.2, BottomSheet 1.3.5, FullPageDrawer
+1.4.5, ResponsiveDialog 1.3.5; adopted through Scenario Dependency Analyzer.
+
+Desktop MessagesPane average commit: **3.1 → 2.4ms**. Mobile long tasks:
+**1,186 → 581 / 612ms**; mounted transcript nodes **2,186 → 1,249**. Captures
+match the session, final scroll position and 23,998-character reader content.
+Final focused checks: **216 Web Console + 5 library tests PASS**. Native mobile
+search/account canvas colors agree across html/body/panel; guarded navigation,
+long-reader inspection and restored unsent draft produce no prohibited attempts
+or page errors. Ordinary production runtime is restored and healthy.
+
+Retained debt: scoped Performance phase **20261016-040746-e5211c49 FAIL** on
+Lighthouse **49 < 75**. Cold loading remains expensive; the owner also ignores
+the configured desktop measurement settings (**knw-1792123967704779496**).
+Existing machine/desktop fixture type-check errors remain. Desktop voice toolbar
+overlap filed as **knw-1792123204122572156**. No sessions were created, messages
+sent, or conversations archived/deleted. See
+[full evidence and limits](../perf/2026-10-15-long-session-performance.md).
+Work record: **67b8f5d5-e3be-420c-861a-626815e05689**.
+
+## 2026-10-15 — Keyboard spacing and launch continuity (W3)
+
+Operator confirms the bottom-overlap repair is fixed on the phone and GCT
+looks perfect. This follow-up is a bounded finish pass: remove surplus space
+above the keyboard and make the initial launch, health check, lazy workspace,
+and session hydration share the existing Aquila identity and canvas. No
+artificial loading delay or new viewport detector belongs in Web Console.
+
+Hypotheses: a keyboard that contracts layout and visual viewports together
+escapes the shared detector's layout-minus-visual comparison; retained safe
+padding and toolbar gutters waste space. During launch, viewport projection
+starts only in lazy Workspace, while two independent plain loading views
+paint slate-950 over a slate-900 body. The screenshot's transient bottom band
+is consistent with that timing and color mismatch.
+
+Target: the shared owner detects settled, focus-qualified layout contraction
+as well as visual occlusion; keyboard-open chrome removes bottom safe padding
+and tightens outer gutters without reducing key hit areas. One branded launch
+composition is visible before JS and throughout hydration, fills the measured
+canvas, respects reduced motion, and hands off immediately when ready. Native
+iPhone launch images reuse the existing icon. Validate focused regressions,
+slowed-loading captures, keyboard/rotation/hardware-focus cases, and scoped
+UI-health. Native OS launch timing remains device-qualified evidence.
+
+Implemented: published **useViewportEnvironment 1.1.2** through draft ownership
+and `content-set`; refreshed Web Console through Scenario Dependency Analyzer.
+`App` now publishes viewport state before asynchronous loading. The initial
+HTML and both React loading boundaries use one shared launch HTML/CSS source,
+with the existing Aquila icon, name, and indeterminate dots on **#0f172a**.
+Native portrait/landscape startup images cover the 11 declared phone profiles
+(22 PNGs, about 1.1 MiB). No artificial delay or brand replacement was added.
+
+Evidence:
+
+- The new resizes-content regression failed against 1.1.1 and passes against
+  1.1.2. Shared viewport cohort: **20 PASS**, including unchanged drawable
+  frame, visual-only keyboard occlusion, ordinary resize, rotation, desktop
+  hardware focus, and layout contraction without editable focus.
+- Web Console: **190 PASS** across eight focused files; focused new/changed
+  launch/layout/App tests and sources pass ESLint. Production UI build and
+  strict shared-package build PASS. Initial strict artifact:
+  **1fee8a8ea21a564ae136b15374788b9954dfa7bcdcfdfa2e9019567ae330d8b9**.
+- Browser staging held the entry script, health response, workspace chunk,
+  and session list independently. Every stage retained three **852px** roots,
+  the same **rgb(15,23,42)** html/body/launch canvas, a loaded mark, and no
+  visible plain loading label. Captures: `/tmp/wc-launch-{before-javascript,
+  health,workspace-chunk,session-hydration}.png`; measurements:
+  `/tmp/wc-polish-browser-proof.json`.
+- Mobile toolbar: **159px → 147px → 159px** across keyboard open/dismissal
+  with unchanged key heights and all **16** control centers reachable. The
+  keyboard-open safe-bottom variable is **0px**. The synthetic browser uses
+  zero native insets; the previously retained device home inset is removed
+  in addition to the measured **12px** gutter reduction.
+- Desktop 1440×900 launch has one uniform canvas, all three progress
+  animations disabled under reduced motion, and **22** startup links. Handoff
+  removes every launch node immediately and retains a **900px** document.
+  Screenshot: `/tmp/wc-launch-desktop.png`; measurements:
+  `/tmp/wc-polish-desktop-proof.json`.
+- Two fresh final review passes found no further material implementation
+  findings: source/ownership/state restoration, then staged mobile/desktop
+  rendering and accessibility/motion. Earlier finish findings (a possible
+  4px adaptive-tint sliver and asymmetric native/HTML centering) were resolved.
+
+Limits: native iPhone keyboard spacing and OS startup-image selection await
+device feedback. Shared story run **ctr_4a0ba55b2ead3e46 FAIL**: default behavior,
+source/closure/contract and default browser evidence pass, but inherited
+boundary-story readiness and review-sheet screenshot failures remain, related
+to **knw-1792082382843370162**. RCL preview UI rebuild, token check, all 180 pin
+checks, and 12-route registration check pass. Test Genie UI-health
+**20261015-174648-b421e805 FAIL** retains missing workspace/shell contract debt
+and terminal visual findings; new findings filed as **knw-1792086641427937775**.
+The previously reported unrelated machine/desktop fixture type failures remain.
+Work record: **9f823026-98fa-419b-9e0d-19533bc242af**. Documentation CLI append
+failure was separately captured as **knw-1792086733379798376**; canonical files
+were updated directly to complete this work.
+
+## 2026-10-15 — Mobile toolbar and full-page drawer bottom clipping
+
+**Scoped W3 root-sizing repair built and served; native confirmation open.**
+Operator screenshots `IMG_1656.jpeg` and
+`IMG_1657.jpeg` show the toolbar's second button row and the account drawer
+cut off at the same bottom edge after today's shared viewport changes.
+
+Related prior work: Git Control Tower's 2026-10-15 drawable-frame repair in
+its `docs/internal/PROBLEMS.md`, work record
+`bcaf815a-11a4-4af9-8dd7-61fd0ccc5227`. That change published shared viewport
+1.1.1 and overlay 1.4.5 and made Web Console consume `frameHeight`.
+
+Hypotheses and checks:
+
+- A foreground tint strip covers controls: inspect strip geometry and layer.
+  The only local strip is 4px at z-index 0, inconsistent with the large band
+  and the same clipping inside a modal.
+- Web Console expanded its content without expanding the document canvas:
+  measure all roots in the running browser. Before repair, at 393×852,
+  `html` measures **0px** with `overflow:hidden`; body and React root measure
+  **852px**. GCT explicitly sizes all three. The new root-height contract
+  fails for html, body fallback, and React root before the CSS repair.
+- Keyboard-dismissal state retained a short frame: exercise the measured
+  793px layout / 852px frame through keyboard open and dismissal. The existing
+  projection correctly restores 852px even with a stale visual height; this
+  hypothesis does not explain the missing root sizing.
+
+Target: html, body, React root, and workspace fill the same shared measured
+frame; modal portals use the library's geometry and layer; bottom safe-area
+padding is reserved inside the toolbar or drawer once. Validate focused root,
+viewport, settings, and toolbar regressions plus browser geometry/hit tests
+and the scoped Test Genie UI phase. Native iPhone pixels remain unverified
+until actual-device confirmation; Chromium geometry is narrower evidence.
+
+Bounded task handoff: finish this target inside Web Console's UI and existing
+documentation, retain failing/passing proof here, and report any unrelated
+failures without broadening the repair. No new viewport detector or overlay
+stack is needed.
+
+Repair: size html, body, and React root to `--wc-app-height` together, with
+the same `100dvh` fallback as the workspace. Preserve the shared detector,
+overlay layering, keyboard projection, internal safe-area padding, and tint
+strip behavior. No library release or copied viewport detector was needed.
+
+Verification:
+
+- Focused viewport/overlay/settings/toolbar cohort: **92 PASS** across five
+  files; changed-test ESLint PASS; production build PASS and served directly
+  by the lifecycle-managed UI server.
+- Live Chromium at 393×852: all roots **852px**; all **16** toolbar control
+  centers pass hit testing, with the lowest controls ending at **846px**.
+  Account drawer and scroller end at **852px**; the lower OpenRouter input
+  scrolls into view and passes hit testing.
+- Synthetic installed-app geometry: reported layout **793px**, drawable
+  frame **852px**, all roots and drawer **852px**. Established keyboard
+  shrinks all roots to **500px**; dismissal restores **852px** even while
+  the visual measurement stays **500px**. Evidence retained during the run
+  at `/tmp/wc-bottom-frame-browser.json`; this is Chromium, not native pixels.
+- Test Genie **20261015-172628-8f2c9d62 FAIL**: missing declared
+  `workspace-shell` experience surface and shell manifest; shared adoption
+  warnings; native-screen/safe-area qualification absent. These findings
+  do not establish a browser clipping regression. Contract debt filed as
+  **knw-1792085363990345979** through report-bug.
+- Type-check still fails in unrelated MachineList and desktopTransport test
+  fixtures, already filed as **knw-1792081948624493753** by the prior work.
+
+The root-height mismatch is measured and repaired. Whether this fully removes
+the photographed iPhone band remains unverified until actual-device feedback.
+Work record: **13d7339b-3136-4157-968b-68257548802f**.
+
+## Work ladder
+
+- Rung: W1
+- Evidence: `business-health validate scenario web-console` reports `business_status_unearned` for eight requirements declared complete while no requirements-sync snapshot exists.
+- Blocker: None; the unearned declarations were demoted to `in_progress` while their validation references remain intact so a future comprehensive run can earn completion.
+- Measured: 2026-09-04
+
+## 2026-09-16 — Stale keyboard-shrunken viewport after dismissal
+
+**RESOLVED, scoped W3 UI repair:** On mobile WebKit, the terminal shell could
+remain constrained to the upper portion of the screen after the virtual
+keyboard was dismissed. The reported screenshots showed the terminal and its
+toolbar ending halfway down the device, with the remaining screen painted
+black.
+
+**Root cause:** `useAppViewport` projected `visualViewport.height` into the
+shell height even when `useViewportEnvironment` had not positively established
+that a keyboard was visible. WebKit can retain a keyboard-shrunken visual
+viewport during dismissal or until another interaction, so the shell treated a
+stale transient measurement as its permanent height.
+
+**Fix and prevention:** The shell now uses the stable layout viewport height
+unless `keyboardVisible` is true, and uses the visual height only for an
+established keyboard. A regression test covers a shrunken visual viewport with
+the keyboard closed. Focused viewport tests, type-check, and production build
+pass.
+
+## 2026-09-12 — Session get manifest positional mismatch
+
+**RESOLVED, scoped W3 CLI repair:** `web-console session get
+e29964c2-1c16-4ee1-af25-1eb7620c7854 --json` panicked before the owner read because
+the embedded canonical manifest named its required argument `sessionId`, while
+`domains/session/handlers.go::get` requested `session-id`. The handler-only test
+constructed its own matching `ArgSchema`, and the registration test checked only
+that commands existed, so neither exercised the failing production route.
+
+Changed only the `session get` positional name in `cli/manifest.json` to
+`session-id`; its required status, read governance and protobuf binding to `id`
+remain intact. No handler fallback, generated schema or shared parser change.
+The CLI reference now identifies manifest versus registration ownership.
+
+`TestSessionGetRoutesEmbeddedManifest` uses `NewApp`, the actual embedded
+manifest/parser/dispatcher, and a test-only Connect server. It reproduced the
+exact panic before the manifest change. Afterward, its five cases cover get JSON,
+the show alias, human output, a missing required ID without an owner Get, and an
+owner not-found response without success output. Exact request identity and call
+counts are checked. `go test -race . ./domains/session -count=1 -timeout=60s`
+passed in `cli/` (2.567s and 1.034s); scoped `git diff --check` passed.
+
+The exact live command then exited zero with the same session ID, persistent
+backend, owner `agent-manager`, and label `swarm-execution-a91b2b02a04c3bbb`.
+The standard launcher rebuilt the CLI from the updated embedded manifest before
+retrying the read. No terminal input, session mutation, recovery, service restart
+or broad test admission occurred. Metadata observation does not establish that
+the interactive run is fresh, progressing or complete.
+
 ## 1. Interactive CLI Fidelity Edge Cases
 
 PTY handling for complex interactive CLIs (Claude Code, Codex) may have edge cases around resize during active output, cursor reporting conflicts, and reconnect during mid-escape-sequence. Requires dedicated e2e validation.
@@ -12,9 +431,25 @@ Floating keyboard toolbar behavior varies across mobile browsers (Safari iOS, Ch
 
 While single-user bounds concurrency, rapid terminal output from multiple panes could create write contention on the SQLite transcript table. WAL mode mitigates but may need monitoring.
 
-## 4. AI Provider Timeout Tuning
+## 4. AI Provider Timeout and Summarize Model Selection
 
-Ollama timeout before OpenRouter fallback needs empirical tuning. Too short = unnecessary fallbacks; too long = poor UX when Ollama is down.
+**PARTIALLY RESOLVED** (2026-05-17): The TTS summarize path now separates
+audio-tools unreachable, deadline exceeded, and selected Ollama model missing.
+Model selection is exposed in Voice Output settings through a catalog returned
+by audio-tools. The catalog marks recommended, installed, missing,
+default-eligible, and reasoning models, and reasoning models are excluded from
+default selection.
+
+Current default: `llama3.2:3b`, because it is installed locally and was
+validated as a fast non-reasoning fallback. Research-backed candidates
+(`gemma3:4b`, `gemma3n:e2b`, `phi4-mini:3.8b`) remain uninstalled on the
+target machine as of 2026-05-17, so they are visible as recommended missing
+models with `ollama pull` commands instead of being silently selected.
+
+Remaining gap: run a local benchmark after explicitly installing newer
+candidates. The default should change only if a candidate beats
+`llama3.2:3b` on latency and preserves summary quality without visible
+reasoning/prompt leakage.
 
 ## 5. Standards: Setup Steps Configuration (MEDIUM)
 
@@ -32,6 +467,232 @@ Ollama timeout before OpenRouter fallback needs empirical tuning. Too short = un
 
 Sessions with default never-expire policy could accumulate unbounded transcript data in SQLite. May need eventual transcript rotation or archival strategy (deferred — not MVP).
 
+## 8a. Web Mic Lifecycle Wedge and iOS/WebKit Residual (2026-07-02)
+
+**RESOLVED for web-console-owned JS lifecycle drift:** server-final, user stop,
+auto-stop, error, and page-lifecycle stop paths now converge on the same capture
+teardown path, and production `getUserMedia` calls are forced through the mic
+ownership registry. Persisted `lowLatencyVoice` / `wakeWordEnabled` flags no
+longer acquire the mic on mount or tab-visible; prewarm/passive arming requires
+explicit mic-control intent. Tests cover the old server-final-before-client-stop
+wedge, stale-lease self-heal, no eager acquisition, and the structural
+`getUserMedia` boundary.
+
+**Residual platform limitation we cannot fix from web JS:** if iOS/WebKit fully
+freezes or kills the page's JavaScript before `visibilitychange: hidden`,
+`pagehide`, or `freeze` is delivered, no application code can run
+`MediaStreamTrack.stop()`. In that narrow case the OS mic indicator may remain
+active until the OS reclaims the track. The mitigation is to release on the
+earliest delivered lifecycle signal and cancel in-flight starts; a native shell
+would only matter for this hard-freeze class, not for the now-fixed web-console
+state-machine wedge.
+
+## 8b. Idle audio-session activation (background-audio interruption + wedge prevention) (2026-07-07)
+
+**Symptom:** on iOS, opening web-console (HTTPS PWA) stopped other apps' audio
+(Spotify/YouTube) — but only after the first touch/scroll, with low-latency/keep-
+alive off. Separately, the mic could get wedged until a device reboot (survives
+PWA force-quit — the platform residual in §8a).
+
+**Root cause (the preventable part):** we activated the iOS `AVAudioSession` when
+we did not need to, and never released it.
+- `ensureAudioContextOnGesture()` installed a document-wide capture-phase
+  `pointerdown`/`keydown` listener on mount and, on the **first interaction of any
+  kind**, created+`resume()`d the shared AudioContext — purely to shave ~20-50ms
+  off a *possible future* mic press. Resuming a WebAudio context activates the iOS
+  audio session and interrupts other apps' non-mixable audio, even when the user
+  never used voice.
+- The context was app-lifetime and **never suspended**, so it held the session
+  indefinitely.
+- Low-latency voice mode (`lowLatencyVoice` + `micReadiness` pre-warm) similarly
+  held a `getUserMedia` stream open while idle.
+
+**Fix (prevention, not recovery):**
+- Removed eager `ensureAudioContextOnGesture`; the AudioContext is resumed lazily
+  inside the real voice/cue gesture and **suspended when idle** — on background
+  (`visibilitychange:hidden`) and ~1.5s after a capture turn ends
+  (`armIdleSuspend`/`keepAudioContextAwake`/`suspendSharedAudioContext` in
+  `sharedAudioContext.ts`).
+- Removed low-latency voice mode entirely (setting, `micReadiness` module,
+  `retainStream`, injected pre-warmed streams). Providers always acquire and own a
+  fresh mic stream per turn and release it fully on stop.
+- Result: the audio session is active only while actually capturing or cueing, so
+  background audio is no longer interrupted, and the unnecessary session churn
+  that plausibly fed the §8a wedge is gone.
+
+**Second offender (found after the first fix shipped): TTS "unlock on any gesture".**
+`useTextToSpeechCore` installed persistent global `pointerdown`/`keydown`/
+`touchstart` listeners that called `KokoroProvider.unlock()` — a **silent
+`HTMLAudioElement.play()`** — whenever the provider reported not-yet-unlocked. On
+iOS, playing an audio element (even a muted silent one) activates AVAudioSession
+and ducks other apps' audio. Because the provider is rebuilt whenever the TTS
+backend re-resolves (`unlocked` resets to `false`), the persistent listener
+re-ran the silent play on essentially every interaction — the "after a while,
+web-console pauses my music on any tap, and only a force-quit fixes it" report
+(force-quit destroys the primed audio element). **Fix:** removed the preemptive
+unlock from the gesture handler (it still flips the no-audio `browserAudioReady`
+flag). The media element is now unlocked lazily — a real speak in a user gesture
+unlocks it naturally, and a programmatic speak blocked by autoplay surfaces
+`needsUnlock` + the Enable-Audio affordance (a deliberate tap → `unlock(true)`).
+
+Together: the app now activates the iOS audio session **only while actually
+capturing or playing speech**, never on incidental interaction.
+
+This cannot *recover* an already-wedged mic (still a platform limitation, §8a),
+but it removes the app behaviours that put the session into that state. See
+[VOICE-LATENCY.md §3 (AudioContext lifecycle) + §5 (low-latency removed)].
+
+## 8c. Mic auto-stops mid-sentence under kyutai — client RMS VAD is sole authority (2026-07-08, under triage)
+
+**Symptom:** during *continuous* dictation the microphone abruptly stops ~10 s in
+(before any real timeout) and the rest of the utterance is lost. This surfaced
+right after the streaming backpressure wedge was fixed (audio-tools `PROBLEMS.md`
+2026-07-08): the fix synced mic-state to actual transcription, so a premature
+turn-end is now *visible* instead of masked by a frozen-but-still-green mic.
+
+**Root cause (diagnosed):** the live STT engine is **kyutai/passthrough**, which
+emits **no `vad-state`** events (unlike whisper-VADSegment). So on the client the
+auto-stop SSOT `decideAutoStop` (`hooks/voice/autoStopDecision.ts`) has no server
+tick (`serverVad.receivedAt === 0`) and falls to **§2: the client RMS VAD is the
+SOLE turn-ending authority**. Under whisper the server VAD was authoritative and
+vetoed the client VAD's known "stops while I'm still talking" false positives
+(both signals had to agree); under kyutai that veto is gone. A client-VAD silence
+verdict (`vadTick` → `stop` after `silenceTimeoutMs` of RMS below `speechThreshold`)
+then ends the *whole turn* whenever the analyser reads silence — which happens when
+the audio source stops delivering samples even though the user is still speaking:
+  1. **Muted mic track** — the OS/browser mutes the track on sleep/wake, a
+     default-input-device change, or another app seizing the mic. The `ended`
+     event does NOT fire for muting (`streamHealth.isTrackUsable`), so no samples
+     flow yet the track stays "live" and the analyser reads pure silence.
+  2. **Suspended AudioContext** — if the shared context suspends mid-capture
+     (`ctx.state !== "running"`), the analyser returns flat/silent data.
+  3. **Threshold miscalibration** — the adaptive `speechThreshold` (= noise floor
+     × 3) rising above the user's real speech RMS in a noisy room.
+
+Relay evidence: sessions close `graceful=true tailFinalDelivered=true` in a
+regular ~10–12 s cadence — i.e. **client-initiated** stops, not backend kills. The
+frequent kyutai `reaping wedged prior streaming session` warnings are a *separate*
+benign-but-noisy lock-release-latency issue (the relay dials kyutai and takes
+`MODEL.lock` the instant the browser WS connects — including the mount-time
+pre-connect — so overlapping/rapid sessions reap already-delivered holders; NOT
+the cause of the mic stop; tracked as a follow-up).
+
+**First changes shipped (2026-07-08):**
+- **Instrumentation to make the next repro conclusive** (`useVoiceCore.ts`): every
+  VAD/auto-stop log now carries `rms / trackAlive / trackMuted / ctx.state`; an
+  `audio-source WENT SILENT / RECOVERED` line fires the instant the source stops
+  delivering; `provider.onError` logs its triggering reason; `endCapture` logs its
+  `reason`.
+- **Honest mic-source handling** (`VoiceStreamProvider.attachCaptureLifecycleHandlers`
+  + `MediaRecorder.onerror`): a mid-capture `mute` surfaces a `mic_muted` status
+  (transient, turn kept open); a terminal `ended` recovers the retained audio via
+  HTTP fallback instead of drifting into a silent VAD stop; an encoder error is
+  surfaced. Covered by `VoiceStreamProvider.trackLifecycle.test.ts`.
+- **Guard**: a client-VAD (`client-fallback`) auto-stop is **suppressed when the
+  audio source is not delivering samples** (muted / ctx not running) — a silence
+  verdict on a non-delivering source is an artifact, not a real pause; a suspended
+  context is resumed. Terminal loss is still owned by the track handlers +
+  no-audio watchdog.
+
+**To close (needs one real-device repro with DevTools console open):** dictate
+continuously ≥30 s until the mic stops, then read the console. The decisive line
+is the `VAD client-stop` / `auto-stop` at the stop instant:
+  - `trackMuted=true` or `ctx=suspended` → the source went silent (mute/suspend);
+    the guard now keeps the turn alive — confirm dictation resumes on unmute.
+  - `trackAlive=true trackMuted=false ctx=running` with `rms` *below* `speechThresh`
+    → threshold miscalibration; the durable fix is to give kyutai a server-VAD (so
+    the client isn't the sole authority) or make the sole-authority client VAD more
+    conservative (longer sustained-silence requirement / segment-boundary-continue
+    instead of hard turn-stop). Do NOT blind-tune thresholds without this line.
+
+See audio-tools `docs/internal/PROBLEMS.md` (2026-07-08 wedge entry + follow-up).
+
+## 8d. Mic won't start — "could not determine audio codec" (2026-07-08, FIXED + live-proven)
+
+**Symptom:** the mic fails to start with `provider.onError → ending turn:
+audio-tools/audioformat: could not determine audio codec (declare input_format)`.
+Intermittent at first, then persistent (every session `segments=0` in the relay
+log).
+
+**Root cause:** the streaming path relied on the backend **sniffing** the codec
+from the first audio frame (`buildVoiceStreamWsUrl` declared no `format`). The
+backend's `audioformat.Detect` needs the first chunk's leading bytes to be the
+WebM/EBML header (`0x1A45DFA3`) — the header MediaRecorder emits in its FIRST
+`ondataavailable` chunk. But `VoiceStreamProvider.ondataavailable` sent each
+chunk via `e.data.arrayBuffer().then(send)` — **independent async promises that
+can resolve out of order**. The header chunk is the largest, so its
+`arrayBuffer()` can consistently resolve *after* the next chunk once timing
+shifts (GC/load) — putting a headerless frame on the wire first → sniff fails.
+Because it's timing-driven it presents as "worked, then persistently broke."
+
+**Fix (two parts, both shipped + live-proven against the running backend):**
+1. **Ordered delivery** (`VoiceStreamProvider`): send the Blob directly and
+   synchronously in `ondataavailable` order (`enqueueOutbound`/`flushPending`,
+   `pendingChunks: Blob[]`) — no async `arrayBuffer()` that can reorder. The
+   header chunk is now always the first frame on the wire. Regression test in
+   `VoiceStreamProvider.trackLifecycle.test.ts` ("sends audio chunks in recording
+   order as raw Blobs").
+2. **Declare-first** (`buildVoiceStreamWsUrl`): declare `format=webm` (the
+   web-console always records WebM/Opus) so the backend skips the fragile sniff
+   entirely — defense-in-depth if any frame is ever reordered/dropped.
+
+**Live proof (synthetic client → audio-tools :19630):** no-format + headerless
+first chunk → `could not determine audio codec` (reproduces the bug); `format=webm`
++ headerless first chunk → no codec error (declare-first bypasses sniff);
+`format=webm` + header-first → clean `status`, stream processes.
+
+## 8e. Mic stays live but transcription stalls mid-session (2026-07-08, instrumented, under triage)
+
+**Symptom:** the original wedge shape — after a while (tens of seconds) the mic
+stays active and audio keeps streaming, but new transcription stops appearing.
+Confirmed from a real console log: a ~110s session delivered ~17 segments then
+`Final received: 0 chars`; the WS closed only at the *end* (after the final), so
+it is **not** a kyutai reap (a reap closes the connection mid-session → client
+reconnect, which did not happen).
+
+**What it is NOT:** the send-side backpressure wedge (fixed 2026-07-08 — kyutai's
+decode enqueues to a non-blocking send worker; verified) and not the codec bug
+(§8d, fixed). Kyutai's reap warnings are a *separate* lock-release-latency issue
+that hits short overlapping sessions (0-segment closes), not this stall.
+
+**Leading hypothesis:** kyutai's streaming LM context saturating over a long
+continuous session. `server.py` force-commits at `MAX_SEGMENT_FRAMES`, so
+continuous speech normally keeps committing; a stall where partials AND segments
+both stop, correlated with session *duration* (not audio content), points to the
+streaming transformer degrading to padding-only output once its context window
+fills. To be confirmed by the new instrumentation before any server-side change.
+
+**Instrumentation shipped to make the next repro conclusive:**
+- `VoiceStreamProvider` transcription-stall watchdog: logs `⚠ transcription STALL:
+  no partial/segment for <gap>ms while still recording (chunks/bytes/segments)`
+  whenever the backend stops emitting for >4s while audio keeps streaming.
+- `segment-final #N at +Tms (gap=…): "…"` logged on every committed segment (so
+  the exact time segments stop is visible), plus per-partial event tracking.
+- **Also fixed:** all voice console logs used printf `%.4f` — NOT a browser
+  console specifier, so every such line rendered with its args shifted by one
+  (e.g. `trackAlive=running, trackMuted=true` was really ctx/trackAlive). Now
+  template literals. Prior logs from before this fix must be read de-shifted.
+
+**To close:** dictate continuously until it stalls; the console will show the last
+`segment-final` time and the `⚠ transcription STALL` gap. If segments stop at a
+consistent *elapsed time* regardless of speech, it confirms context saturation →
+fix in kyutai `server.py` (reset/rotate the LM streaming state on a bounded
+window). If it correlates with audio, look at the VAD/commit path instead.
+
+## 8f. Mid-recording empty final masked backend loss (2026-07-09, fixed in working tree)
+
+**Symptom:** the user could keep recording while the backend stream died, then the
+client accepted a `final` with empty text as successful completion. `onclose`
+then skipped reconnect/fallback because `finalReceived=true`, silently dropping
+retained audio.
+
+**Fix:** `VoiceStreamProvider` now treats any `final` received while
+`MediaRecorder.state === "recording"` and the stop was not intentional as backend
+loss: it does not set `finalReceived`, does not call `onResult`, closes the WS,
+and lets the existing reconnect-then-HTTP-fallback path recover retained audio.
+The kyutai relay also preserves typed busy as `stt_busy`, which the client
+surfaces as a visible busy status.
+
 ## 9. E2E Issues
 
 **PARTIALLY RESOLVED** (2026-02-19): Added BAS workflows for terminal command execution, route-level session persistence, reconnect replay, and multi-pane independence:
@@ -45,3 +706,665 @@ Sessions with default never-expire policy could accumulate unbounded transcript 
 **Remaining gaps:**
 - No BAS mobile viewport workflow yet for floating toolbar key/chord behavior.
 - Playbooks phase currently blocks on BAS startup when browser-automation-studio dependencies are unavailable (e2e workflows present but cannot execute).
+
+**Added recovery coverage (2026-07-12):**
+`bas/cases/02-messages/02-voice/deterministic-incomplete-coverage.json`
+executed successfully as `06696480-3902-47e3-8db6-8e7971ef42e0`. It grants the
+WAV-backed fake microphone to the real Web Console UI, crosses its same-origin
+voice WebSocket proxy, injects a server close only after the first PCM chunk,
+and asserts the visible `incomplete_coverage` error plus metadata-only
+diagnostic export. The Audio Tools fault gate was enabled only for this run and
+restored to false afterward. This is deterministic desktop-browser evidence,
+not a substitute for the remaining iOS/Android device matrix.
+
+## 9a. File Preview — Intentionally Deferred (2026-06-30)
+
+The file-preview subsystem (`api/internal/filepreview`, `FilePreviewService`, blob/range route, UI renderer registry) ships these deliberate deferrals — all are working-as-intended, not bugs:
+
+- **PDF.js deferred.** PDFs render via the native browser viewer (`<iframe>` at the blob href) with a download/open fallback. PDF.js is only worth adopting if native rendering proves inadequate in validation across target browsers.
+- **No media transcoding.** Audio/video play through native browser codecs only. Unsupported codecs (`.mov`, `.flac`, …) show a clear "your browser may not support this format" hint plus download — web-console does not transcode.
+- **CLI is metadata/text only.** `web-console file-preview resolve` and `file-preview text` cover programmatic metadata + bounded text. Blob streaming/download has no CLI command (no clear operator workflow yet); it stays UI/browser-only because the blob route is consumed by native media elements.
+- **In-memory preview-id store.** Preview ids live in a process-local store with a 30m TTL; they do not survive an API restart. That is acceptable for the single-operator, reopen-on-demand UX. A persistent store would only matter for long-lived shareable preview links, which are out of scope.
+
+## 9b. File Upload — Policy and Deferred (2026-09-18)
+
+The session upload endpoint (`POST /api/v1/sessions/{id}/upload`, `api/upload_handler.go`) accepts any non-executable file, not just images. The composer exposes a **Camera / Photos / Files** source menu; the terminal pane accepts image paste, drag-drop of any non-executable file, and a general file input.
+
+**Policy:**
+
+- The file part is streamed straight to disk via `r.MultipartReader()`, not buffered by `ParseMultipartForm`, so large video does not sit in memory.
+- Native executables are refused twice: by extension (`.exe`, `.dll`, `.so`, `.dylib`, `.msi`, `.jar`, …) and by leading magic bytes (PE/`MZ`, ELF, Mach-O, `cafebabe`), so renaming does not launder a binary.
+- Size caps are per category: images 25 MiB, video 512 MiB, audio 128 MiB, PDF 64 MiB, archives 128 MiB, text/code 25 MiB, other 64 MiB. A 513 MiB request-body ceiling backstops the lot.
+- Bytes land in the cache-class `uploads/<sessionID>/` root and are removed when the PTY exits or the session is terminated.
+
+**Deferred (working-as-intended, not bugs):**
+
+- **Ephemeral storage.** Uploads are cache-class and deleted with the session; they are not durable evidence and have no metadata row. Durable attachments would move to a data-class root or MinIO and add an `AttachmentMeta` row.
+- **No resumable/chunked upload.** One `multipart/form-data` request, no retry/resume, so a large video depends on the connection holding. A chunked/`tus` path or presigned direct-to-object-storage upload is the upgrade.
+- **No media understanding.** Uploading video/audio only puts a path in the workspace; transcription or keyframe extraction are separate resource-level capabilities (whisper/ffmpeg), not upload concerns.
+
+## 10. Audio Extraction Prep — Deferred Sub-Phases (2026-05-16)
+
+Active initiative: `swarm-manager/initiatives/continuous-audio-platform`. The
+plan at `/home/matthalloran8/.vrooli/plans/web-console-audio-extraction-prep-for-audio-tools.md`
+defines 8 phases. The 2026-05-16 implementation pass completed:
+
+- **Phase 0** (baseline) — focused voice/TTS tests green.
+- **Phase 2 (partial)** — `NormalizeTextForSpeech`, `SplitIntoSpeechParagraphs`,
+  `TTSMaxChunkLength` and their tests now live in `api/internal/tts`. The
+  `inttts.*` qualifier is the new call shape for `package main` consumers
+  (`conversation_router.go`, `conversation_adapter.go`, `conversation_store.go`,
+  `tts_summarization_service.go`).
+- **Phase 3** — voice domain dependency direction inverted. Handler types,
+  Service interface, Backend interface, and the production Adapter all live in
+  `api/internal/voice` (`types.go`, `handler_adapter.go`). `handlers/voice/module.go`
+  is now a thin re-export shim; `handlers/voice/adapter.go` deleted. Exit
+  criterion verified: `rg 'web-console/handlers/voice|voiceH\\.' internal/voice
+  --type go` → zero hits.
+- **Phase 5 (partial)** — `TestGreenfield_TTSReusableCoreNotInPackageMain` and
+  `TestGreenfield_InternalAudioDomainsDoNotImportHandlers` added to
+  `api/greenfield_assertions_test.go`. They lock the boundary against
+  regression.
+
+The following sub-phases are deferred and **must be completed before the
+`scenarios/audio-tools` greenfield item can land cleanly**:
+
+- **Phase 2 (remaining) — DONE 2026-05-16.** All reusable TTS core types and
+  functions have moved into `api/internal/tts`:
+  - `Cache`, `CacheKey`, `CacheEntry`, `CacheStats`, `NewCache`,
+    `cacheKeyHash` live in `internal/tts/cache.go`.
+  - `Summarizer`, `SummarizerResponse`, `NewSummarizer`, `StripThinkTags`,
+    `summarizeSystemPrompts`, `summarizeTokenBudget` live in
+    `internal/tts/summarizer.go`.
+  - `SummarizationService`, `SummarizeRequest`, `SummarizeResult`,
+    `NewSummarizationService`, sentinel errors `ErrSummarizeCoolingDown`,
+    `ErrSummarizeBudgetInThink`, `ErrSummarizeTruncated`,
+    `ErrSummarizeEmptyAfterStrip`, `ErrSummarizeTrulyEmpty`,
+    `SummarizeErrorMessage`, `classifyEmptySummary` live in
+    `internal/tts/summarization_service.go`. The previous
+    `audioports.SpeechTextProcessor` indirection inside the service is gone;
+    the service calls `NormalizeTextForSpeech` / `SplitIntoSpeechParagraphs`
+    directly (same package — no port needed). The port abstraction at the
+    consumer (conversation/store) layer is unchanged.
+  - `DefaultConfig`, `ConfigPatch.Apply`, `LoadConfig`, `SaveConfig` live in
+    `internal/tts/config.go` (the `Config` and `ConfigPatch` types
+    pre-existed in `types.go`).
+  - `DefaultSummarizeConfig`, `SummarizeConfigPatch.Apply`,
+    `LoadSummarizeConfig`, `SaveSummarizeConfig`,
+    `MinSummarizeTimeoutSeconds`, `DefaultSummarizeTimeoutSeconds`,
+    `MaxSummarizeTimeoutSeconds` live in `internal/tts/summarize_config.go`.
+  - Pure-logic tests moved alongside: `cache_test.go`, `config_test.go`,
+    `summarize_config_test.go`, `summarizer_test.go`,
+    `summarization_service_test.go` all under `internal/tts`.
+  - Server-tied glue stays in `package main`: `tts_cache.go` keeps
+    `invalidateTTSCacheForEvent`, `preSynthesizeTTS`,
+    `synthesizeParagraphs`; `tts_config.go` keeps `getTTSConfig`/
+    `setTTSConfig`/`getTTSSummarizeConfig`/`setTTSSummarizeConfig`/
+    `resolveTTSSummarizeConfigPath`. The `Server` fields now type-hold
+    `inttts.Config`, `inttts.SummarizeConfig`, `inttts.Cache`,
+    `inttts.Summarizer`, `inttts.SummarizationService` directly — no
+    aliases.
+  - `greenfield_assertions_test.go::TestGreenfield_TTSReusableCoreNotInPackageMain`
+    locks the boundary against regression for the moved files and the
+    type/function definitions.
+- **Phase 4 (extension) — DONE 2026-05-16.** `LocalSpeechToText` and
+  `LocalTextToSpeech` adapters now live under `internal/audioports/`
+  (`local_stt.go`, `local_tts.go`) and are wired by `NewServer` into
+  `Server.sttPort` / `Server.ttsPort`. `SetSpeechToText` / `SetTextToSpeech`
+  setters let tests substitute fakes. Orchestration callsites in
+  `tts_adapter.go` (Synthesize / ListVoices / GetCache) and
+  `tts_cache.go::synthesizeParagraphs` / `preSynthesizeTTS` route through
+  `s.ttsPort`; cache writes in the on-demand path still go via
+  `s.ttsCache.Put` because the conversation-event-keyed cache is web-console
+  glue (per the Phase 8 dossier). The greenfield assertion
+  `TestGreenfield_OrchestrationGoesThroughAudioPorts` in
+  `greenfield_assertions_test.go` locks the boundary: package-main files
+  (other than `main.go` which constructs the local adapters) must not
+  reference `s.voiceService.Transcribe`, `s.ttsSynthesizer.Synthesize`,
+  `s.ttsVoiceLister.ListVoices`, `internal/voice.Service.Transcribe`,
+  `internal/tts.KokoroSynthesizer`, or `internal/tts.KokoroVoiceLister`. The
+  summarize pipeline (`SummarizationService`, `SummarizeRequest`,
+  `SummarizeResult`, `SummarizeErrorMessage`, `ErrSummarizeCoolingDown`) is
+  explicitly NOT routed through audioports in this pass — that port shape
+  remains an open audio-tools-shared-contract question (see Phase 8
+  dossier). Also resolved the orchestration-level double-normalize wart:
+  `conversation_router.go::asyncSummarizeAndNotify` and
+  `conversation_adapter.go::SummarizeEvent` now pass `event.Text` directly
+  to `ttsSummarization.Summarize`, since normalization is a property of the
+  summarize pipeline (handled inside `SummarizationService.run`).
+- **Phase 6 (extension) — DONE 2026-05-16.** All UI consumers now import
+  audio capability surface through `ui/src/domains/audio` rather than
+  reaching directly into `hooks/voice/**` / `hooks/tts/**`. 16 consumer
+  files migrated (Workspace, TerminalPane, WorkspacePaneShell, MessagesPane,
+  MobileToolbar, VoiceRejectionBanner, VoiceCommandSuggestion, AudioPlayerBar,
+  tts/AudioSettingsContent, settings/VoiceInputSection, api/voice.ts,
+  domains/tts-playback/types.ts, and five `__tests__/*` consumer tests).
+  Added re-exports to `ui/src/domains/audio/index.ts`: `CommandSuggestion`,
+  `VoiceRejection` (voice types), `TTSPlaybackState`, `TTSPlaybackCapabilities`
+  (tts types), and the reusable wake-word surface (`createWakeWordEngine`,
+  `MIN_ENROLLMENT_SAMPLES`, `MAX_ENROLLMENT_SAMPLES`, `AudioFeatures`,
+  `WakeWordTemplate`, `useWakeWordTest`). Web-console-specific paths
+  (`hooks/voice/commands`, `commandParser`, `audioCues`, `activity`,
+  `useVoiceInput`, `useTextToSpeech`) deliberately stay direct per README
+  classification. Boundary locked by
+  `ui/src/__tests__/audio-boundary.test.ts`, which walks `src/**/*.{ts,tsx}`,
+  skips the adoption surface / underlying hooks / test files, and flags any
+  `from "...hooks/voice/...|hooks/tts/..."` import outside the documented
+  web-console-specific allowlist. Verification: `pnpm type-check`,
+  `pnpm test -- --run` (116/116 batches pass, including the new boundary
+  test), and `pnpm build` all clean.
+- **Phase 7 — DONE 2026-05-16.** `ARCHITECTURE.md` now has an "Audio
+  Ownership Map" section with backend/frontend ownership tables, the
+  Connected Scenarios Registry contract, and the capability-port adoption
+  seam description. DOMAINS.md and SEAMS.md already covered earlier in the
+  pass.
+- **Connected scenarios registry — DONE 2026-05-16.** `audio-tools` is now
+  declared in `capabilities.Known` with `DependencyKind: DependencyScenario`;
+  `ScenarioChecker` probes via `vrooli scenario status <slug>`; the
+  Integrations settings tab renders a "Connected Scenarios" subsection
+  separate from "Local Resources". When `scenarios/audio-tools` ships, no
+  registry change is required — the existing checker will start returning
+  `available` automatically.
+- **Phase 8 — DOSSIER BELOW 2026-05-16.** Source dossier captured inline (next
+  subsection) since in-repo edits to
+  `swarm-manager/execute/audio-tools-greenfield-scenario/plan.md` were not
+  authorized in this pass. Promote into that plan when the audio-tools
+  greenfield item is picked up.
+
+### Phase 8 Dossier — input for `audio-tools-greenfield-scenario`
+
+**Source inventory — files to port into audio-tools (reusable capability core):**
+
+Backend:
+- `api/internal/voice/transcribe.go` — Whisper HTTP proxy, language passthrough, hallucination filter (deduplicate identical repeated outputs).
+- `api/internal/voice/stream_ws.go` — streaming transcription, partials, segment finals, final retranscription, cancellation, VAD boundaries.
+- `api/internal/voice/speaker.go` + `speaker_client.go` + `speaker_config.go` — speaker verification accept/reject/advisory/fallback decisions.
+- `api/internal/voice/wakeword.go`, `config.go` — wake-word config and voice config schema.
+- `api/internal/audio/transcode.go` — ffmpeg-backed transcode primitives.
+- `api/internal/tts/` — entire package: `kokoro_synthesize.go`, `kokoro_voices.go`, `normalizer.go`, `chunker.go`, `service.go`, `types.go`.
+- `api/tts_cache.go` — `TTSCache`, `TTSCacheKey`, `cacheKeyHash`, LRU + eviction (event-keyed `Evict()` is a thin convenience over key prefix — provider-level cache is the reusable part).
+- `api/tts_summarizer.go` — Ollama-backed `TTSSummarizer`, `summarizeSystemPrompts`, `summarizeTokenBudget`, `stripThinkTags`.
+- `api/tts_summarization_service.go` — `TTSSummarizationService` with cooldown, inflight dedupe, empty-summary classification, timeout/error sentinels.
+- `api/tts_config.go`, `api/tts_summarize_config.go` — config schemas + load/save (atomic JSON write).
+
+Frontend:
+- `ui/src/hooks/voice/**` — capture readiness, VAD utilities, provider mechanics (Whisper/VoiceStream/WebSpeech).
+- `ui/src/hooks/tts/**` — Kokoro provider, browser TTS provider, cache playback controls, unlock primitive.
+- `ui/src/hooks/useVoiceInput.ts`, `useTextToSpeech.ts` — split: lifecycle/readiness portion is reusable; terminal-input-gate wiring stays.
+- See [`ui/src/domains/audio/README.md`](../../ui/src/domains/audio/README.md) for the authoritative per-file classification.
+
+**Files that stay in web-console (consumer integration glue — do NOT port):**
+
+- `api/conversation_router.go`, `api/conversation_store.go`, `api/conversation_adapter.go` — auto-TTS trigger policy, listened-cursor, fan-out.
+- `api/tts_hook_handler.go` — Claude Stop hook attribution.
+- `api/codex_tailer.go` — Codex rollout tailer.
+- `api/tts_playback.go` — playback ack / status snapshots tied to conversation cursor.
+- `api/terminal_ws_input.go` — terminal-input-gate routing.
+- `api/internal/audioports/` — adoption boundary lives in the consumer; audio-tools provides an implementation.
+- `ui/src/domains/tts-playback/**` — conversation-cursor state machine.
+- `ui/src/components/VoiceMicButton.tsx`, `VoiceCommandSuggestion.tsx`, `VoiceRejectionBanner.tsx` — terminal-target UX (the underlying capture primitive is reusable; the targeting policy is not).
+
+**P0 behavior currently proven by web-console tests (must be replicated in audio-tools):**
+
+- Transcribe: language passthrough, hallucination filter, speaker verification bypass via flag, gating by speaker verification result.
+- Stream WS: partials emitted while listening, segment-final on VAD boundary, final retranscription on stop, cancellation, speaker advisory/reject flows.
+- Transcode: passthrough when no resample needed, ffmpeg invocation arg shape.
+- TTS config & summarize config: load returns defaults when file missing, atomic save, patch-apply semantics, timeout clamp on load.
+- TTS service: synthesize via Kokoro, voice list, Kokoro availability gating, invalid-args rejection, cache hit/miss, cache eviction by `eventID`.
+- Normalization/chunking: `NormalizeTextForSpeech`, `SplitIntoSpeechParagraphs` for code blocks, tables, diagrams, lists.
+- Summarizer + service: cooldown after timeout, inflight dedupe by `EventID`, `<think>` stripping, four-way empty-summary classification (budget-in-think / truncated / empty-after-strip / truly-empty), timeout clamp.
+
+**Contract decisions already settled by `audio-provider-routing-contract`:**
+
+- Provider precedence is BYOK → Vrooli/LPBS → Local. Web-console does not implement this — audio-tools owns it.
+- `ErrInsufficientCredits` short-circuits without falling through providers (BYOK/LPBS fail-fast).
+- Canonical voice mapping is owned by audio-tools (provider-specific voice IDs map to canonical names).
+- LPBS usage reporting and credit metering are not web-console concerns.
+
+**Tests that should be ported or rewritten in audio-tools:**
+
+- `api/voice_transcribe_test.go` → audio-tools STT service tests (drop the speaker-verification bypass cases that exercise web-console env-flag wiring).
+- `api/internal/voice/stream_ws_test.go` (if present) → audio-tools streaming-STT tests.
+- `api/internal/audio/transcode_test.go` → audio-tools transcoder tests.
+- `api/internal/tts/service_test.go`, `chunker_test.go`, `normalizer_test.go` → audio-tools TTS tests.
+- `api/tts_cache_test.go` → split: provider-level cache tests to audio-tools; conversation-eviction tests stay in web-console.
+- `api/tts_summarizer_test.go`, `tts_summarization_service_test.go` → audio-tools summarization tests.
+- `api/tts_config_test.go`, `api/tts_summarize_config_test.go` → audio-tools config tests.
+
+Tests that **stay** in web-console: `tts_hook_handler_test.go`, `tts_router_test.go` (conversation routing), `conversation_*_test.go` (auto-TTS trigger, listened cursor).
+
+**Open questions for `audio-tools-shared-scenario-contract`:**
+
+- Should `EventID` survive across the audio-tools boundary, or does audio-tools take an opaque cache key from the consumer? (Web-console invalidates by `EventID` today on conversation summarization.)
+- Is the `SpeechTextProcessor` port worth exposing remotely, or do consumers just call `Synthesize` and let audio-tools normalize/split internally?
+- Streaming STT transport: WebSocket-only, or Connect-streaming as the canonical surface with WebSocket as a browser-friendly mapping?
+- Speaker verification: separate Connect service or a `Transcribe` request flag?
+- Does audio-tools own the `qwen3:4b` summarization model choice, or does the consumer pass model preference?
+- Whose responsibility is the unlock-on-user-gesture primitive for browser TTS — audio-tools-provided component, or web-console-owned?
+
+**Adoption checklist for `web-console-adopt-audio-tools` (depends on this dossier):**
+
+1. Replace `audioports.LocalSpeechTextProcessor` with `audioports.AudioToolsProcessor` (HTTP/Connect client).
+2. Replace `Server.ttsSynthesizer` wiring (currently `internal/tts.NewKokoroSynthesizer`) with an audio-tools-backed `TextToSpeech` port.
+3. Replace `Server.voiceService` wiring with an audio-tools-backed `SpeechToText` port.
+4. Delete `api/internal/voice/`, `api/internal/audio/`, `api/internal/tts/` (or shrink to thin pass-through adapters if any web-console-specific behavior remains).
+5. Update `capabilities.Known["audio-tools"]` checker — already wired; ScenarioChecker starts returning `available` automatically.
+6. UI: change `ui/src/domains/audio/index.ts` re-exports from `hooks/voice/**` / `hooks/tts/**` to the audio-tools client; delete `ui/src/hooks/voice/**` and `ui/src/hooks/tts/**`.
+7. Migrate remaining UI consumers (Workspace, TerminalPane, settings) to import from `domains/audio` (deferred ratchet — see Phase 6 extension below).
+
+Preexisting failing tests not caused by this work:
+- `TestDocsManifestResolves` and `TestDocsNoStaleOldPaths` reference removed
+  doc paths (`DESIGN.md`, `concepts/FLOWS.md`, and the internal progress log).
+Stale `docs/manifest.json` and `docs/START-HERE.md`; unrelated to audio
+extraction prep.
+
+## Archive browse and transcript regression (2026-08-19, fixed)
+
+- **Symptoms:** Recent archive cards in the sidebar were non-interactive; the
+  archive drawer showed a search prompt instead of sessions for an empty query;
+  and opening an archived result produced "No conversation events yet for this
+  session."
+- **Root cause:** Sidebar archive cards were plain `div` elements without an
+  activation callback. The drawer deliberately cleared results and selection
+  for an empty query. On the API side, transcript `Get`, `Search`, and
+  `GetRange` rejected any session absent from the live PTY manager even though
+  archive metadata and conversation events remained durably persisted.
+- **Repair:** Archive cards are now keyboard-accessible buttons that open the
+  selected session in the drawer; empty search browses the filtered archive;
+  and read-only conversation operations authorize explicitly archived,
+  dismissed, or recovery-pending metadata without recreating a live PTY.
+  Mutation operations retain the live-session requirement.
+- **Regression evidence:** `TestGetConversationSession_AllowsArchivedTranscript`
+  proves an archived transcript remains readable without restoring a live
+  session. Archive drawer and sidebar component suites cover initial browsing,
+  direct card activation, read-only transcript selection, and coexistence with
+  crash-recovery rows. Focused results: Go archive tests pass; 20 UI tests pass;
+  UI type-check and the full 151-batch UI suite pass.
+- **E2E note:** Browser Automation Studio execution
+  `1d23329e-22b2-40c4-9bdf-1a8c05d59874` captured only the application's
+  initial loading surface at
+  `/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/web-console-archive-visual/1d23329e-22b2-40c4-9bdf-1a8c05d59874/screenshots/step-01-27a9e373-3266-469b-bb33-74cd1bf48496.png`.
+  Live archive clicks were not forced through an observer workflow because that
+  would mutate browser state against user-owned sessions; deterministic
+  component and API regressions are the authoritative evidence for this repair.
+
+## Terminal fidelity plan closeout status (2026-08-25)
+
+**Closed in the current implementation:** cumulative UTF-8 offset reconciliation
+replaces timer-based stdin retries; prediction is an overlay rather than a write to
+the xterm buffer; mouse-tracking bytes use the single control-lane predicate;
+terminal status is rendered in pane chrome; the terminal pane is split into focused
+session, lifecycle, selection, attachment, speech, and follower seams; local and
+bridged sessions use the same session manager and terminal WebSocket; and the
+integration catalogue now has live checkers for audio-tools, vrooli-bridge, Ollama,
+OpenRouter, and both session backends.
+
+**Still open:** the immutable GCT baseline collection is terminally unavailable because
+the source changed during both capture attempts. The latest server-owned Test Genie run
+`20260825-124448-3feddfc4` remains usable for comparison: it is 14/23 passed, and the
+comparison against `20260825-120927-25345d78` reports 14 clean, 9 pre-existing, and 0
+regressed common phases; six newer descriptor phases are non-comparable. Portability
+passes after the provider learned the canonical `platform_status` manifest. The Linux
+host still cannot supply macOS or Windows runtime measurements, so those rows retain
+explicit source/cross-build reasons. Quantitative gates show 75.7% Go service and 75.4%
+Go CLI. The six API and six CLI cross-build cells and the three shared package suites
+are green. The lifecycle owner starts web-console healthy and the live integration
+catalogue contains audio-tools, Ollama, OpenRouter, both session backends, and Remote
+Terminals; Remote Terminals is correctly unavailable without a bridge URL. The current
+UI suite shards all pass (188 files / 1,728 tests), and an Istanbul-merged aggregate
+reports 88.70% lines/statements, 86.53% functions, and 84.41% branches. Root
+`make cross-compile` passes on the rerun after a transient proto-health termination.
+Remaining scenario findings are named in the comparison rather than silently treated as
+fixed. The input protocol is now offset-only: the old sequence/ack and paste-gate
+compatibility symbols are absent, and programmatic viewport correction uses the shared
+terminal scroll seam.
+
+The required measured-behaviour ledger is explicit about unavailable evidence:
+
+The closing validation attempt on 2026-08-25 recorded runs
+`20260825-174447-0df374df` and `20260825-175107-7ad93721`. The first stopped at
+provider startup while the per-user `vrooli` binary was being rebuilt. The
+second executed 22 of 23 phases: 9 passed, 13 failed, and 1 was skipped. Its
+comparison with `20260825-124448-3feddfc4` marked UI health, docs, soak,
+performance, unit, workflow, business, experience, security, and proto as
+pre-existing; portability remained unavailable because
+`scenario-dependency-analyzer` could not start its unhealthy Ollama
+dependency. Storage also found the existing control-plane key tree outside the
+scenario's declared roots. The cache-class `uploads` root is now declared in
+`.vrooli/service.json`, matching the upload writer; the control-plane key
+finding remains outside this scenario's ownership boundary. The Phase 1 run
+`20260825-034457-c7651d3d` is not present in the Test Genie index, so a direct
+comparison to that immutable baseline remains unavailable.
+
+Follow-up validation on 2026-08-25 recorded run `20260825-181025-07fdd7d5`: 13 phases
+passed, 9 failed, and 1 was skipped. Portability, dependencies, API, unit, quality,
+architecture, and the terminal protocol checks remained green. The UI-health failure
+still reports its standing `visual_status_bar_color_mismatch`; this is the browser
+chrome declaration check, not terminal ANSI output. The terminal color report was
+traced to the host `NO_COLOR=1` environment leaking into PTY and tmux children while
+`TERM` was already `xterm-256color`. `filterServiceEnv` now removes `NO_COLOR` for both
+backends, a regression test covers the complete child environment, and the live tmux
+server was cleared so new sessions inherit color-capable defaults.
+
+| Row | Before | After/current | Disposition |
+|---|---|---|---|
+| tmux keystroke-to-echo latency | blocked: no pre-change harness | blocked: no repeatable latency instrument | No honest before/after number can be produced on this host. |
+| tmux subprocesses per typed character | blocked: no pre-change process capture | blocked: no process-count instrument | The plan's required `strace`-class capture was not available as a durable baseline. |
+| fixed-flick scroll distance at 60/120 Hz | blocked: no pre-change device/BAS trace | blocked: no 60/120 Hz device capture | Injectable-clock tests cover logic; they are not device measurements. |
+| full-scrollback snapshot bytes/duration | blocked: no pre-change benchmark | blocked: protocol tests emit no benchmark | Snapshot ordering/completeness is tested, but benchmark numbers are not inferred. |
+| bridgePTY resident memory per session | blocked: no pre-change remote allocation capture | blocked: no controlled remote-node run | The local bridge fixture proves protocol behavior, not production memory cost. |
+| fixed-window grid on Linux/macOS/Windows | blocked: no comparable pre-change grids | Linux: source/font-gated only; macOS/Windows: blocked | Cross-build/source evidence is marked reasoned-from-source, not runtime qualification. |
+
+## Work ladder
+
+- Rung: W3 / R0 (overlay consumer migration execution)
+- Evidence: W0 remains aligned with goals `hosted-cloud-tier-foundation` and `portal-front-door`; the PRD's P0 controls-surface target continues to cover the drawer/sidebar surface. `business-health validate scenario web-console` and `vrooli scenario requirements validate web-console` both pass. Baseline run `20260827-043743-f8d9edda` is terminal and records the pre-existing red implementation baseline before the overlay migration.
+- Blocker: None. The plan must preserve terminal workflows while replacing local and portable overlay surfaces, and final evidence must be compared with this baseline.
+- Measured: 2026-08-27.
+
+- Rung: W3 (implementation)
+- Evidence: W0 comparison remains aligned: goals `hosted-cloud-tier-foundation` and
+  `portal-front-door` do not contradict this work, and the PRD continues to name
+  the relevant P0 capabilities. W1 passes with `business-health validate scenario
+  web-console`; the stale `REQ-P0-008a` test reference was repaired to the existing
+  drawer test. W2 passes with `vrooli scenario requirements validate web-console`.
+  The mobile toolbar now supplies RCL's semantic color contract from the live
+  terminal-derived `--wc-*` palette at the toolbar boundary, so adopted arrows,
+  voice, and icon/text controls share one theme path. Focused UI evidence: 36
+  `MobileToolbar` tests pass, TypeScript/string checks pass, and BAS mobile
+  capture `web-console-mobile-toolbar-theme-bridge` shows named, centered controls
+  with matching surfaces and borders. Prior implementation evidence includes the
+  platform matrix, dedicated route and
+  migration packages, the three-lock session seam, cached echo probing, the pure
+  terminal protocol reducer, typed hook commands, storage declarations, focused
+  Go/UI tests, race-tested Go suites, and six-target build/vet validation.
+- Remaining validation caveat: the latest server-owned Test Genie run
+  `20260826-104603-fd2ab54a` passed 15/23 phases. The terminal plan's unit,
+  performance-build, and CLI-contract execution failures are cleared: the UI
+  build and coverage phase pass, the `hooks dispatch` command is declared, and
+  the local UI suite reports 194 files / 1,826 tests with 90.66% lines,
+  85.00% branches, and 85.76% functions. The remaining eight failed phases
+  are standing UI-health, documentation, soak configuration, Lighthouse,
+  storage isolation, workflow, experience, and security/proto findings; none
+  is a terminal transport or portable-PTY failure. A full scenario pass
+  therefore remains open. The plan validation operation
+  `0928e81e-8eac-4686-b7db-af8ad46da03c` completed with a clean baseline
+  comparison (`web-console:ready:preexisting`); it establishes no regression
+  in the plan-owned scenario, but does not waive the standing failures. The
+  post-run findings projection is currently unavailable because the rebuilt
+  Test Genie CLI panics while loading another scenario's unsupported `asset`
+  target kind; the completed run itself remains durable.
+- Blocker: none. The remaining findings are diagnosable repository or environment
+  debt, not missing authority.
+- Measured: 2026-08-26.
+
+- Rung: W3 (implementation/evidence)
+- Evidence: The named-goal W0 search returns only archived `hosted-cloud-tier-foundation` and `portal-front-door`; neither contradicts this speech-stack work. The provider-feature capability contract, generic TTS gate, focused UI tests, live capability RPC, and production build pass; the full scenario suite remains outside the bounded validation scope.
+- Blocker: None for targeted implementation; full-suite comparison remains unproven.
+- Measured: 2026-08-31.
+
+- Rung: W3 (implementation)
+- Evidence: The named-goal W0 search found no goal explicitly naming web-console; the
+  active Plan Manager execution `9790f7b1-de4e-4b83-9bd1-ad7716ca02ad` is the
+  authoritative work directive. Existing implementation had process-exit,
+  watchdog, and expiry paths deleting session metadata, and archive undo depended
+  on an in-memory timer. Targeted changes preserve exited metadata and add a
+  provider-neutral lifecycle transition table plus durable receipt repository.
+- Blocker: Requirements validation is currently blocked by a missing `go.sum`
+  entry in the unrelated `business-health` CLI; Web Console targeted tests pass.
+- Measured: 2026-09-05.
+
+- Rung: W3 (implementation/evidence)
+- Evidence: Web Console starts through the managed lifecycle and exposes honest
+  degraded health for the live orphan corpus. The typed continuity CLI returned
+  a read-only inventory of 332 sessions, 428 conversation identities, 142,623
+  events, 338 checkpoints, and 1,431 panes, with 123/104/1,352 orphan classes.
+  A live dry-run observed 1,685 records with zero mutations and manifest
+  `sha256:ee7ee3e9cdd22c3d57f106d26c4dd11c4c7d32d3bc7b4ac42091d3a41e89cb9f`.
+  The incident thread identity query returned a match. The governed audit
+  program ran successfully in both hash and hashless modes; program phase
+  validation passed. `cli-health validate scenario web-console` passed, and
+  targeted API/CLI/UI checks passed.
+- Remaining validation caveat: comprehensive Test Genie run
+  `20260906-001445-071e7267` is terminally failed on broad existing CLI/UI,
+  dependency, docs, storage, security, and other maturity findings. The
+  follow-up scoped run `20260906-004339-0f6fc58d` remained queued past its wait
+  window with no terminal verdict. Cross-scenario Agent Manager/Search Hub
+  publication and real BAS restart/recovery evidence remain open; no live
+  reconciliation apply was attempted because the disposable-copy backup and
+  restore gate is not yet proven.
+- Blocker: None for further implementation; the remaining gaps are evidence or
+  diagnosable repository debt, not missing authority.
+- Measured: 2026-09-06.
+
+## Work ladder
+
+- Rung: W3 (implementation/evidence)
+- Evidence: `vrooli scenario requirements validate web-console --json` remains structurally passing, while targeted Test Genie experience run `20260906-100500-81708c63` still reports three `experience.capture_bindings_unjoined` errors and seven deterministic-setup warnings. The authored `workspace-shell` readiness region now has an explicit required binding and the Experience Manager profile returns it, but direct BAS readiness diagnostics still fall back to generic navigation and capture a transient five-node `Loading...` tree. Focused continuity, CLI, and race tests remain passing; storage validation still reports scenario-wide filesystem ownership findings and an unrelated autoheal path.
+- Blocker: The remaining experience errors are at the BAS/Experience Manager capture boundary, not proven Web Console selector failures; broad storage/readiness debt remains open. Continue with targeted implementation and evidence repair; do not weaken active bindings or claim the experience gate is green.
+- Measured: 2026-09-06.
+
+## Work ladder
+
+- Rung: W3 (implementation/evidence)
+- Evidence: Test Genie run `20260906-040729-4fd8c864` reached terminal status but failed solely on `test_genie.phase_timeout` after its durable provider run exceeded the 15-minute workflow deadline; the workflow artifact reported no scenario blockers/errors/warnings apart from that timeout observation. Requirements and business-health validation pass; the governed continuity audit succeeds with typed projection-drift evidence. Managed restart is healthy, and focused/race lifecycle tests plus vet pass after degraded-manager archive hardening.
+- Blocker: Broad completion evidence remains open because the workflow provider timed out and storage validation reports scenario-wide ownership findings; BAS, baseline, generation-promotion, and final DoD evidence are not terminal.
+- Measured: 2026-09-06.
+
+## Work ladder
+
+- Rung: W3 (implementation/evidence)
+- Evidence: The named-goal W0 comparison remains aligned: `hosted-cloud-tier-foundation`
+  and `portal-front-door` mention Web Console without directing this continuity
+  capability to be removed or contradicted. `business-health validate scenario
+  web-console` and `vrooli scenario requirements validate web-console --json`
+  both pass; the latter reports only the known stale comprehensive-suite
+  advisory. The implementation has fresh focused Go and UI evidence, managed
+  restart evidence, and a durable failed recovery-receipt regression. The
+  authoritative Test Genie run `20260906-040729-4fd8c864` reached terminal
+  status but failed on the workflow provider timeout, so it is not passing
+  broad W3 evidence.
+- Blocker: None for further implementation. Full plan completion remains open
+  pending Test Genie, baseline collection, cross-scenario generation promotion,
+  BAS lifecycle/restart interaction evidence, and the remaining DoD audit.
+- Measured: 2026-09-06.
+
+## HTML file rendering and formatted-link colors (2026-09-07, scoped W3 repair)
+
+- Scope: HTML file previews and markdown link-label colors. W0–W2 were not re-audited.
+- Expected/actual: Opening an HTML artifact should offer a rendered view; the code/text renderer previously showed only source.
+- Cause/fix: HTML now specializes the existing bounded text transport with Preview/Source controls. An opaque-origin iframe renders styles and scripts. A leading CSP blocks API requests, embedded pages, and form submissions; an `about:srcdoc` base preserves fragment links without resolving local assets against web-console. Line targets and truncated content initially show source. Local supporting files remain unavailable.
+- Link hypotheses: A missing accent token would affect plain links too; descendant color overrides would affect formatted labels only. Chromium showed cyan plain links (`rgb(34, 211, 238)`) but white bold/code labels (`rgb(248, 250, 252)`), confirming the latter. Scenario CSS now makes formatted labels inherit the link color. No RCL release was edited.
+- Evidence: 48 focused renderer/markdown tests pass, including failing-before/passing-after regressions. Scoped ESLint, TypeScript, and the production build pass. Chromium checks confirm inline CSS, an interactive counter, standards mode, parent-document isolation, and matching plain/bold/code link colors. Browser reproduction and results: `/tmp/wc-preview-browser-check.cjs`, `/tmp/wc-browser-before.html`, `/tmp/wc-browser-after.html`.
+- Broader limitation: Test Genie unit run `20260907-235545-1ab76aee` failed with API/CLI/UI command failures and configuration/architecture findings. The shared worktree changed during that run; it is not exact-final-input evidence. Final focused checks supersede intermediate local assertions, not the broader failed verdict.
+- Separate defect: Locale-parity tests fail on unrelated catalog keys/interpolation. Reported as Scenario QA `knw-1788825510125479292`. The new HTML strings exist in English, Arabic, and Japanese.
+
+## Experience follow-ups
+
+- Add a keyboard shortcut or visible help for toggling AI input.
+- Add short explanatory copy for session expiration policies and countdowns.
+- Consider swipe gestures for mobile pane switching after the current
+  single-column flow has stronger device evidence.
+
+### 2026-09-10 — Fleet configuration exposes target route incompatibility
+
+- Rung: W3 (implementation/evidence)
+- Evidence: `ConfigurationTab` now renders the remote failure detail and warns
+  that re-apply may not fix a missing backend route. Focused Vitest coverage
+  passes for the Bridge 502/target 404 case. Live `GetConfiguration` for
+  `bridge-node:25c7e426-c76c-421a-8351-aaf964589802` now returns Web Console
+  Connect `failed_precondition` with `target_onboarding_incompatible`; the
+  target still returns HTTP 404 for `ListOperatorInputs`, while local Web
+  Console and Bridge services remain healthy.
+- Blocker: The target-side onboarding deployment requires an authorized
+  refresh/redeployment before the semantic configuration journey can pass.
+- Measured: 2026-09-10.
+
+### 2026-09-10 — Target onboarding contract and proxy errors are typed
+
+- Rung: W3 (implementation/evidence)
+- Evidence: `vrooli-onboarding` now returns `contract_version=1` with
+  `ListOperatorInputs`; Web Console rejects an absent or unsupported marker as
+  `target_onboarding_incompatible`. `vrooli-bridge` maps target HTTP 404,
+  timeout, authorization, contract, and 5xx outcomes to distinct Connect
+  classifications. The live minimouse request now returns Connect
+  `failed_precondition` with an actionable onboarding incompatibility message,
+  rather than a generic HTTP 502/503.
+- Result: Reachability and API compatibility are now separate signals. The
+  target still needs an authorized onboarding refresh because its current
+  route is absent; no remote mutation was performed.
+- Measured: 2026-09-10.
+
+### 2026-09-10 — Bridge endpoint selection now uses API Core discovery
+
+- Rung: W3 (implementation/evidence)
+- Evidence: Web Console previously allowed its `nodereach` clients to fall
+  back to the CLI port detector when `WC_BRIDGE_URL` was empty. The Bridge
+  client, remote PTY client, and Bridge capability probe now use
+  `api-core/discovery.ResolveScenarioURLDefault("vrooli-bridge")`; focused Go
+  regressions pass. Normal remote PTY sessions no longer pin the discovered
+  URL into their launch spec; only an explicit `WC_BRIDGE_URL` is pinned. The
+  managed Web Console restart is healthy.
+- Result: The Web Console-to-Bridge seam no longer captures a sibling API port
+  through a separate resolver. The live minimouse request still returns 503
+  because the target-side onboarding route returns 404, so this repair does
+  not yet close the remote target compatibility defect above.
+- Measured: 2026-09-10.
+
+## Work ladder
+
+- Rung: W3 (misleading remedy on a correctly classified failure)
+- Evidence: the Configuration tab told the operator to "refresh or redeploy
+  vrooli-onboarding on the target" and offered Re-apply for minimouse, whose
+  onboarding API is missing `ListOperatorInputs` because the machine runs
+  `8ec19147c85f+dirty` (2026-09-01), 108 commits behind the control plane.
+  Neither action can add a procedure to an older build.
+- Repair: `targetSkewMessage` renders Bridge's `X-Vrooli-Target-Revision`,
+  `X-Vrooli-Control-Plane-Revision` and `X-Vrooli-Update-Command`; the tab
+  titles the state "running an older version of Vrooli", shows the update
+  command, and withholds Re-apply. api-core `targetmodel` provisioning readiness
+  now requires the node's `bridge-provisioner` report and a non-working-tree
+  revision instead of mirroring headless readiness.
+- Evidence of repair: `TestControlPlaneErrorExplainsTargetVersionSkew`,
+  `TestProvisioningReadinessRequiresTheNodesOwnReport`, ConfigurationTab vitest
+  "names the update command for an older machine and withholds re-apply".
+  Unrelated pre-existing failures in the same runs: `TestDocsNoStaleOldPaths`,
+  `TestOpenCodeWatcher_*`, and `locales.test.ts` (ar.json missing 67 keys).
+- Measured: 2026-09-15
+
+- Rung: W3 (every remote-machine action broken by one lookup; errors misnamed)
+- Evidence: after the version fix minimouse still could not start a session
+  ("remote machine authorization has expired"), install an agent ("Install
+  failed", 400 in 20ms), or clear drift (every Fix ran the same re-apply; the
+  only feedback was a status line below the credentials). Bridge logged
+  `GET /api/v1/channel/session status=401` with no credential and 84
+  `local owner session rejected` lines per boot.
+- Root causes: (1) `targetByID` returned the selected `Target` without its
+  connection, so sessions opened with no Authorization header and installs saw
+  an empty Bridge URL; (2) the Bridge capability checker and the install relay
+  client held a 15-minute LocalSession minted at startup, and nodereach replayed
+  the Open header on reconnect; (3) nodereach mapped every 401 to
+  `missing_reauth`; (4) the install HTTP client timed out at 30s inside a 90s
+  relay window and every action error was `invalid_argument`; (5) the
+  `bridge-provisioner` node fact reached the browser under `capability:` and
+  became an installable "agent"; (6) re-apply polling stopped at 3 minutes
+  while runs take ~4.5.
+- Repair: `targetByID` keeps the connection; per-call credential sources
+  (`bridgeCredentialSource`, `freshOwnerAuthorization`, nodereach session
+  `authorize`); nodereach `ErrUnauthenticated`; typed `RunAction` codes;
+  `node_capability:` browser key; Configuration tab rows carry their own action
+  (Install / Re-apply / "Not fixable from here") and a top-of-panel apply panel
+  that polls to the end and names each failed step's cause; the launcher lists
+  install-failure reasons under the grid instead of in a tooltip.
+- Evidence of repair: `TestTargetByIDKeepsTheConnection`,
+  `TestNodeCapabilitiesAreNotPresentedAsAgents`, nodereach
+  `TestOpenClassifiesHandshakeHTTPStatuses` and
+  `TestSessionReconnectMintsAFreshCredential`, vitest
+  `ConfigurationTab.actions.test.tsx` and `applyRunSummary.test.ts`. Live:
+  remote session Create on minimouse succeeded; Bridge logged 0 LocalSession
+  rejections after restart; minimouse drift is empty.
+- Measured: 2026-09-15
+
+## Work ladder
+
+- Rung: W3 (scoped repair) — remote machine health had no surface
+- Evidence: the Machines view showed drift and missing agents but nothing about
+  disk, memory, swap or leftover onboarding folders, so minimouse's 6.8 GiB of
+  stale artifacts and swap use were found only by SSH.
+- Repair: `browserFactKey` maps agent observations `node-health.<reading>` to
+  `node_health:<reading>` (never `node_capability:`, which would read as a
+  missing feature). `machineHealth` orders readings problems-first;
+  `machineIssues.healthWarnings` counts toward the card's "needs attention"
+  total while `configurationCount` keeps the Drift section to configuration
+  items. ConfigurationTab has a Health section (measurement + remedy, code
+  stripped, OK / Needs attention / Not measured) and says plainly when the
+  machine's agent is too old to report health. New keys `machines.health*` in
+  en/ar/ja.
+- Evidence of repair: `go test -run TestNodeCapabilitiesAreNotPresentedAsAgents .`;
+  vitest `ConfigurationTab.health.test.tsx` plus the existing ConfigurationTab
+  and fleet tests (51 passing); `tsc --noEmit` clean; web-console restarted.
+- Pre-existing, not fixed here: `src/i18n/locales/locales.test.ts` fails —
+  ar.json and ja.json lack 87 keys that en.json has (93 before this change
+  added its keys to all three), including every machine key added earlier on
+  2026-09-15.
+- Measured: 2026-09-15
+
+## 2026-09-16 — Maintained unit gate still has UI execution debt
+
+**PARTIALLY RESOLVED (scoped W3 test-infrastructure repair):** Test Genie run
+`20260916-185137-bcbbdf26` initially reported direct Testing Library render
+imports and a test-only `remoteCreateErrorService` that duplicated the shape
+of `databasetest.SliceRepo`. The three actual component offenders now use the
+scenario-owned `renderWithProviders`; the remote fake embeds the existing
+`RemoteService` seam; and `authStore` has explicit success, expiry, and error
+regressions.
+
+Focused evidence is green: 24 UI tests for the render-policy repairs, 6
+auth-store tests, the sessions Go package, the REST-exception contract (2
+tests), locale parity (7 tests), and `pnpm run type-check`. The canonical UI
+coverage command still fails honestly across remaining pre-existing
+UI cohorts. The overlay keyboard contract is green (50 tests), AlertDialog
+and SettingsModal focused contracts are green (23 tests), and the terminal
+reliability cohort is green (21 tests) after completing xterm and capability
+fixtures. The shared audio transport setup gap, REST-exception registry drift,
+locale catalog drift, overlay contract drift, and terminal fixture drift are
+now repaired in
+`src/test-utils/setup.ts`, `src/api/__tests__/no-rest-exceptions.test.ts`, and
+`src/i18n/locales/{en,ar,ja}.json`;
+The canonical UI suite now has zero assertion failures (278 files, 2,701
+tests); its only remaining exit failure is function coverage at 82.44% against
+the configured 85% floor. The threshold was not weakened. The next repair
+should add meaningful coverage for the largest uncovered production branches,
+then re-run the canonical command.
+
+- Measured: 2026-09-16
+
+
+## 2026-10-14T03:10:31.675440+00:00 — Interactive stable-create has no authenticated creator owner
+
+Original Nooch E30 and Desktop E3 native admissions failed before worker prompt/session Create with `web-console stable-create identity unsupported; no Create submitted`. Read-only SessionsService/List on live WC reports supportsStableCreateIdentity=true and stableCreateOwner empty, matching AM wiring NewClient(baseURL,nil). WC List derives creator owner from verified PrincipalFromContext; the transport supplies none. No session-store capability absence is established. Preserve stable UUID/owner/fingerprint checks and do not substitute an execution mode, invent a principal, drop an offered credential or restart as proof. Required owner boundary: carry a verified authorized session-creator principal through the registered native route; qualify stable create, uncertain-result get-by-ID owner/fingerprint readback, conflict refusal, original interactive prompt delivery and existing-session preservation. Existing reports: Desktop knw-1791945836169396257, Nooch knw-1791946783491615210. Evidence: docs/internal/delivery-operations/2026-10-12/sources/execution-evidence/2026-10-13/web-console-stable-create-capability.json. Shared AM identity correction is source/serving/consumer-qualified and final unit 20261014-024937-9072cd54 PASS; this is a separate remaining boundary.
+
+
+## 2026-10-16 — Authorized performance follow-up repairs (W3)
+
+Follow-up to the long-session audit above: corrected the Lighthouse owner device
+settings; prioritized/shared history loading with two background workers; moved
+conversation subscriptions into navigation and selected-session playback; deferred
+closed settings/appearance/fleet/archive surfaces; reserved navigation clearance
+for floating controls; repaired machine/desktop fixture types. No thresholds or
+real-session mutation permissions changed. The original audit's retained-debt
+paragraph is historical; current evidence and remaining limits are in the
+[follow-up audit](../perf/2026-10-15-long-session-performance.md#authorized-follow-up-implementation--2026-10-16).
+
+Final validation: all 2,862 UI tests pass with every configured coverage floor
+met; full type-check and touched-file lint pass. Original-code regressions establish
+the root-render, hydration and reorder-lifecycle defects. Production startup
+JavaScript is 15.95% smaller; peak history requests fall from 31 to 3 while total
+startup reads remain 32. Live rendering traces are mixed and do not establish a
+rendering-speed improvement. Performance Health unit run `20261016-131741-30ff3215`
+and final deployed Web Console performance run `20261016-134657-6b914169` pass.
+The broader Web Console unit run has an API failure of unverified cause, filed as
+`knw-1792157470039179090`; no whole-scenario certification is claimed. Final Console
+and API health checks pass. Physical iPhone behavior remains unverified; the user
+accepted available browser checks after bridge inventory could not authenticate.
+Full artifacts and limitations are retained in the audit.

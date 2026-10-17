@@ -1,0 +1,802 @@
+{
+  "selectedStates": 47,
+  "selectedOriginalHashesMatchPriorDelivery": true,
+  "allSelectedPngDimensionsMatch": true,
+  "decoded": [
+    {
+      "path": "review/dossier-exact-native.pdf",
+      "decode": "PDF",
+      "pages": 97
+    },
+    {
+      "path": "review/visual-atlas.pdf",
+      "decode": "PDF",
+      "pages": 28
+    },
+    {
+      "path": "review/commission-with-approval.pdf",
+      "decode": "PDF",
+      "pages": 35
+    },
+    {
+      "path": "review/commission-accepted-basis.pdf",
+      "decode": "PDF",
+      "pages": 34
+    },
+    {
+      "path": "review/article-native.pdf",
+      "decode": "PDF",
+      "pages": 6
+    },
+    {
+      "path": "design-source/screens/M19-source-detail-v01-phone.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M10-ownership-v05.png",
+      "decode": "PNG",
+      "dimensions": [
+        1440,
+        1880
+      ]
+    },
+    {
+      "path": "design-source/screens/M07-outcome-v04-phone.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M04-editor-v03-phone.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M14-readiness-v04-desktop.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M18-journey-v02.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M05-plan-v04-desktop.png",
+      "decode": "PNG",
+      "dimensions": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "path": "design-source/screens/M06-review-v04-phone.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M16-article-v03-desktop.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M04-editor-v03-desktop.png",
+      "decode": "PNG",
+      "dimensions": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "path": "design-source/screens/M12-simple-v05-phone.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M19-request-changes-v01-phone.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M21-adaptive-art-v02-desktop.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M25-observation-v02-phone.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M06-review-v04-phone-changes.png",
+      "decode": "PNG",
+      "dimensions": [
+        780,
+        1688
+      ]
+    },
+    {
+      "path": "design-source/screens/M17-work-v02-phone.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M16-thread-v01-desktop.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M11-contributor-v03-phone.png",
+      "decode": "PNG",
+      "dimensions": [
+        780,
+        1688
+      ]
+    },
+    {
+      "path": "design-source/screens/M09-recovery-v04-desktop.png",
+      "decode": "PNG",
+      "dimensions": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "path": "design-source/screens/M23-assistance-v01-phone.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M21-adaptive-art-v02-desktop.png",
+      "decode": "PNG",
+      "dimensions": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "path": "design-source/screens/M18-journey-v02.png",
+      "decode": "PNG",
+      "dimensions": [
+        1440,
+        2060
+      ]
+    },
+    {
+      "path": "design-source/screens/M24-release-v03-desktop.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M25-manual-outcome-v02-phone.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M13-intake-v06-phone.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M02-strategy-v03-desktop.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M11-contributor-v03-desktop.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M09-recovery-v04-phone.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M25-observation-v02-phone.png",
+      "decode": "PNG",
+      "dimensions": [
+        780,
+        1688
+      ]
+    },
+    {
+      "path": "design-source/screens/M22-dark-editor-v02-desktop.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M12-simple-v05-desktop.png",
+      "decode": "PNG",
+      "dimensions": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "path": "design-source/screens/M13-intake-v06-desktop.png",
+      "decode": "PNG",
+      "dimensions": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "path": "design-source/screens/M22-dark-editor-v02-desktop.png",
+      "decode": "PNG",
+      "dimensions": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "path": "design-source/screens/M04-editor-v03-phone.png",
+      "decode": "PNG",
+      "dimensions": [
+        780,
+        1688
+      ]
+    },
+    {
+      "path": "design-source/screens/M14-readiness-v04-phone.png",
+      "decode": "PNG",
+      "dimensions": [
+        780,
+        1688
+      ]
+    },
+    {
+      "path": "design-source/screens/M02-strategy-v03-phone.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M07-outcome-v04-desktop.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M07-outcome-v04-desktop.png",
+      "decode": "PNG",
+      "dimensions": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "path": "design-source/screens/M03-evidence-v03-desktop.png",
+      "decode": "PNG",
+      "dimensions": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "path": "design-source/screens/M08-learning-v04-desktop.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M15-content-v01-desktop.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M09-recovery-v04-phone.png",
+      "decode": "PNG",
+      "dimensions": [
+        780,
+        1688
+      ]
+    },
+    {
+      "path": "design-source/screens/M08-learning-v04-phone.png",
+      "decode": "PNG",
+      "dimensions": [
+        780,
+        1688
+      ]
+    },
+    {
+      "path": "design-source/screens/M14-readiness-v04-desktop.png",
+      "decode": "PNG",
+      "dimensions": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "path": "design-source/screens/M12-simple-v05-desktop.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M13-intake-v06-desktop.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M15-content-v01-phone.png",
+      "decode": "PNG",
+      "dimensions": [
+        780,
+        1688
+      ]
+    },
+    {
+      "path": "design-source/screens/M01-today-v05-phone.png",
+      "decode": "PNG",
+      "dimensions": [
+        780,
+        1688
+      ]
+    },
+    {
+      "path": "design-source/screens/M24-release-v03-phone.png",
+      "decode": "PNG",
+      "dimensions": [
+        780,
+        1688
+      ]
+    },
+    {
+      "path": "design-source/screens/M23-assistance-v01-desktop.png",
+      "decode": "PNG",
+      "dimensions": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "path": "design-source/screens/M01-today-v05-desktop.png",
+      "decode": "PNG",
+      "dimensions": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "path": "design-source/screens/M13-intake-v06-phone.png",
+      "decode": "PNG",
+      "dimensions": [
+        780,
+        1688
+      ]
+    },
+    {
+      "path": "design-source/screens/M25-manual-outcome-v02-phone.png",
+      "decode": "PNG",
+      "dimensions": [
+        780,
+        1688
+      ]
+    },
+    {
+      "path": "design-source/screens/M17-work-v02-desktop.png",
+      "decode": "PNG",
+      "dimensions": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "path": "design-source/screens/M20-states-v01-desktop.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M19-source-detail-v01-phone.png",
+      "decode": "PNG",
+      "dimensions": [
+        780,
+        1688
+      ]
+    },
+    {
+      "path": "design-source/screens/M01-today-v05-phone.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M06-review-v04-phone-changes.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M03-evidence-v03-phone.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M06-review-v04-desktop.png",
+      "decode": "PNG",
+      "dimensions": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "path": "design-source/screens/M11-contributor-v03-phone.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M20-states-v01-desktop.png",
+      "decode": "PNG",
+      "dimensions": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "path": "design-source/screens/M03-evidence-v03-desktop.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M17-work-v02-desktop.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M15-content-v01-desktop.png",
+      "decode": "PNG",
+      "dimensions": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "path": "design-source/screens/M05-plan-v04-phone.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M14-readiness-v04-phone.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M08-learning-v04-desktop.png",
+      "decode": "PNG",
+      "dimensions": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "path": "design-source/screens/M11-contributor-v03-desktop.png",
+      "decode": "PNG",
+      "dimensions": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "path": "design-source/screens/M07-outcome-v04-phone.png",
+      "decode": "PNG",
+      "dimensions": [
+        780,
+        1688
+      ]
+    },
+    {
+      "path": "design-source/screens/M23-assistance-v01-phone.png",
+      "decode": "PNG",
+      "dimensions": [
+        780,
+        1688
+      ]
+    },
+    {
+      "path": "design-source/screens/M15-content-v01-phone.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M24-release-v03-desktop.png",
+      "decode": "PNG",
+      "dimensions": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "path": "design-source/screens/M05-plan-v04-desktop.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M01-today-v05-desktop.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M06-review-v04-desktop.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M09-recovery-v04-desktop.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M16-storyboard-v01-desktop.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M03-evidence-v03-phone.png",
+      "decode": "PNG",
+      "dimensions": [
+        780,
+        1688
+      ]
+    },
+    {
+      "path": "design-source/screens/M16-thread-v01-desktop.png",
+      "decode": "PNG",
+      "dimensions": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "path": "design-source/screens/M08-learning-v04-phone.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M19-request-changes-v01-phone.png",
+      "decode": "PNG",
+      "dimensions": [
+        780,
+        1688
+      ]
+    },
+    {
+      "path": "design-source/screens/M04-editor-v03-desktop.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M12-simple-v05-phone.png",
+      "decode": "PNG",
+      "dimensions": [
+        780,
+        1688
+      ]
+    },
+    {
+      "path": "design-source/screens/M23-assistance-v01-desktop.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M10-ownership-v05.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M02-strategy-v03-desktop.png",
+      "decode": "PNG",
+      "dimensions": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "path": "design-source/screens/M06-review-v04-phone.png",
+      "decode": "PNG",
+      "dimensions": [
+        780,
+        1688
+      ]
+    },
+    {
+      "path": "design-source/screens/M17-work-v02-phone.png",
+      "decode": "PNG",
+      "dimensions": [
+        780,
+        1688
+      ]
+    },
+    {
+      "path": "design-source/screens/M05-plan-v04-phone.png",
+      "decode": "PNG",
+      "dimensions": [
+        780,
+        1688
+      ]
+    },
+    {
+      "path": "design-source/screens/M24-release-v03-phone.pdf",
+      "decode": "PDF",
+      "pages": 1
+    },
+    {
+      "path": "design-source/screens/M02-strategy-v03-phone.png",
+      "decode": "PNG",
+      "dimensions": [
+        780,
+        1688
+      ]
+    },
+    {
+      "path": "design-source/screens/M16-article-v03-desktop.png",
+      "decode": "PNG",
+      "dimensions": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "path": "design-source/screens/M16-storyboard-v01-desktop.png",
+      "decode": "PNG",
+      "dimensions": [
+        2880,
+        1800
+      ]
+    },
+    {
+      "path": "design-source/references/article/original-pdf-image-1.png",
+      "decode": "PNG",
+      "dimensions": [
+        1600,
+        900
+      ]
+    },
+    {
+      "path": "design-source/references/article/original-pdf-image-3.png",
+      "decode": "PNG",
+      "dimensions": [
+        1080,
+        1350
+      ]
+    },
+    {
+      "path": "design-source/references/article/original-pdf-image-2.png",
+      "decode": "PNG",
+      "dimensions": [
+        1080,
+        1350
+      ]
+    },
+    {
+      "path": "design-source/references/selected-c-concepts/Marketing-C-Plan-task-led-v2.png",
+      "decode": "PNG",
+      "dimensions": [
+        1586,
+        992
+      ]
+    },
+    {
+      "path": "design-source/references/selected-c-concepts/Marketing-C-Review-task-led-v2.png",
+      "decode": "PNG",
+      "dimensions": [
+        1586,
+        992
+      ]
+    },
+    {
+      "path": "design-source/references/selected-c-concepts/Marketing-C-Create-task-led-v2.png",
+      "decode": "PNG",
+      "dimensions": [
+        1586,
+        992
+      ]
+    },
+    {
+      "path": "design-source/references/selected-c-concepts/Marketing-C-Learn-task-led-v2.png",
+      "decode": "PNG",
+      "dimensions": [
+        1586,
+        992
+      ]
+    },
+    {
+      "path": "design-source/references/selected-c-concepts/Marketing-C-The-Modernist-Press-unapproved.png",
+      "decode": "PNG",
+      "dimensions": [
+        1586,
+        992
+      ]
+    },
+    {
+      "path": "examples/article-assets/diagram-01-bounded-cycle-portrait.png",
+      "decode": "PNG",
+      "dimensions": [
+        1080,
+        1350
+      ]
+    },
+    {
+      "path": "examples/article-assets/diagram-02-recovery-portrait.svg",
+      "decode": "SVG XML"
+    },
+    {
+      "path": "examples/article-assets/diagram-02-recovery-portrait.png",
+      "decode": "PNG",
+      "dimensions": [
+        1080,
+        1350
+      ]
+    },
+    {
+      "path": "examples/article-assets/cover-01-next-decision.png",
+      "decode": "PNG",
+      "dimensions": [
+        1600,
+        900
+      ]
+    },
+    {
+      "path": "examples/article-assets/cover-01-next-decision.svg",
+      "decode": "SVG XML"
+    },
+    {
+      "path": "examples/article-assets/Reuse specimen save reply.svg",
+      "decode": "SVG XML"
+    },
+    {
+      "path": "examples/article-assets/cover-01-next-decision-portrait.png",
+      "decode": "PNG",
+      "dimensions": [
+        1080,
+        1350
+      ]
+    },
+    {
+      "path": "examples/article-assets/diagram-01-bounded-cycle-mobile.png",
+      "decode": "PNG",
+      "dimensions": [
+        900,
+        2900
+      ]
+    },
+    {
+      "path": "examples/article-assets/diagram-02-recovery-mobile.svg",
+      "decode": "SVG XML"
+    },
+    {
+      "path": "examples/article-assets/cover-01-next-decision-portrait.svg",
+      "decode": "SVG XML"
+    },
+    {
+      "path": "examples/article-assets/diagram-01-bounded-cycle-portrait.svg",
+      "decode": "SVG XML"
+    },
+    {
+      "path": "examples/article-assets/diagram-02-recovery-mobile.png",
+      "decode": "PNG",
+      "dimensions": [
+        900,
+        2710
+      ]
+    },
+    {
+      "path": "examples/article-assets/diagram-01-bounded-cycle-mobile.svg",
+      "decode": "SVG XML"
+    },
+    {
+      "path": "examples/article-assets/Reuse specimen save reply.png",
+      "decode": "PNG",
+      "dimensions": [
+        1520,
+        720
+      ]
+    },
+    {
+      "path": "examples/article-assets/cover-directions-contact-sheet.png",
+      "decode": "PNG",
+      "dimensions": [
+        1800,
+        940
+      ]
+    }
+  ],
+  "producerOnly": true,
+  "receivingIndependentInspection": "Required before enablement; not claimed by these checks",
+  "designChanged": false
+}

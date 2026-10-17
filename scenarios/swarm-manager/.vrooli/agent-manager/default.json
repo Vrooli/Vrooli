@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "agent-profile/v1",
+  "name": "swarm-manager-default",
+  "profileKey": "swarm-manager/default",
+  "description": "Agent profile for swarm-manager research and execution",
+  "roleRef": "code.default",
+  "maxTurns": 600,
+  "timeout": "3600s",
+  "allowedTools": ["read", "write", "edit", "glob", "grep", "shell"],
+  "toolRestrictionPolicy": "advisory",
+  "skipPermissionPrompt": false,
+  "sandboxConfig": {
+    "mode": "SANDBOX_MODE_PROTECTED"
+  },
+  "spawnPolicy": {"axisOrder": ["sandboxMode", "executionMode"], "sandboxMode": {"prefer": ["protected", "tracking", "off"]}, "executionMode": {"prefer": ["codec_pipe", "interactive"]}, "require": []},
+  "createdBy": "swarm-manager",
+  "effort": "medium"
+}

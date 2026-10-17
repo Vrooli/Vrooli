@@ -1,0 +1,7 @@
+{
+  "family": "bugfix",
+  "negative": false,
+  "prompt_file": "spec.md",
+  "oracle": ["bash", "check.sh"],
+  "target_dir": "target"
+}

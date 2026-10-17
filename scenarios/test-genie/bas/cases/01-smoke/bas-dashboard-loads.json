@@ -1,9 +1,11 @@
 {
   "metadata": {
-    "name": "bas-dashboard-loads",
-    "description": "Verifies browser-automation-studio dashboard loads correctly",
+    "name": "test-genie-dashboard-loads",
+    "description": "Observer smoke workflow for the Test Genie dashboard. It opens the live scenario and asserts the dashboard header so the delegated workflow phase has executable self-check evidence.",
+    "requirement": "TESTGENIE-ORCH-P0",
     "labels": {
-      "reset": "none"
+      "reset": "none",
+      "purpose": "operator-ui-smoke"
     },
     "execution_mode": "observer"
   },
@@ -13,30 +15,18 @@
   },
   "nodes": [
     {
-      "id": "navigate-bas",
+      "id": "navigate-dashboard",
       "action": {
         "type": "ACTION_TYPE_NAVIGATE",
         "navigate": {
           "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
-          "scenario": "browser-automation-studio",
+          "scenario": "test-genie",
           "scenario_path": "/",
           "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
           "timeout_ms": 30000
         },
         "metadata": {
-          "label": "Open BAS dashboard"
-        }
-      }
-    },
-    {
-      "id": "wait-render",
-      "action": {
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "duration_ms": 1000
-        },
-        "metadata": {
-          "label": "Wait for initial render"
+          "label": "Open Test Genie dashboard"
         }
       }
     },
@@ -45,13 +35,17 @@
       "action": {
         "type": "ACTION_TYPE_ASSERT",
         "assert": {
-          "selector": "body",
-          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/dashboard.header",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "stringValue": "Test Genie"
+          },
+          "case_sensitive": true,
           "timeout_ms": 10000,
-          "failure_message": "BAS dashboard body should be present"
+          "failure_message": "Test Genie dashboard header did not render"
         },
         "metadata": {
-          "label": "Dashboard content visible"
+          "label": "Dashboard header visible"
         }
       }
     }
@@ -59,13 +53,7 @@
   "edges": [
     {
       "id": "e1",
-      "source": "navigate-bas",
-      "target": "wait-render",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e2",
-      "source": "wait-render",
+      "source": "navigate-dashboard",
       "target": "assert-page-loaded",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }

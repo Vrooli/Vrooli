@@ -97,6 +97,35 @@ func TestSQLiteStore_ListFilters(t *testing.T) {
 	}
 }
 
+// REQ: receipt projections are durable, centrally matched allow-lists rather
+// than scenario-local receipt configuration.
+func TestSQLiteStore_ReceiptProjectionCRUDAndMatch(t *testing.T) {
+	ps := newTestPolicyStore(t)
+	ctx := context.Background()
+	id, err := ps.CreateReceiptProjection(ctx, ReceiptProjectionRule{
+		SourceScenario: "agent-manager", TargetScenario: "plan-manager", OperationPattern: "POST /plans/*",
+		ResponseFields: []string{"plan_id", "status"}, RedactFields: []string{"status"},
+		MaxBytes: 1024, SamplePerTenK: 10000, RetentionDays: 30, Priority: 10, Enabled: true,
+	})
+	if err != nil {
+		t.Fatalf("create receipt projection: %v", err)
+	}
+	rule, err := ps.MatchReceiptProjection(ctx, "agent-manager", "plan-manager", "POST /plans/123")
+	if err != nil || rule == nil || rule.ID != id {
+		t.Fatalf("match = %#v, %v", rule, err)
+	}
+	rule.Enabled = false
+	if err := ps.UpdateReceiptProjection(ctx, *rule); err != nil {
+		t.Fatalf("update receipt projection: %v", err)
+	}
+	if matched, err := ps.MatchReceiptProjection(ctx, "agent-manager", "plan-manager", "POST /plans/123"); err != nil || matched != nil {
+		t.Fatalf("disabled match = %#v, %v", matched, err)
+	}
+	if err := ps.DeleteReceiptProjection(ctx, id); err != nil {
+		t.Fatalf("delete receipt projection: %v", err)
+	}
+}
+
 // [REQ:REQ-POL-002] Rate limit rule storage
 func TestSQLiteStore_RateLimitRule(t *testing.T) {
 	ps := newTestPolicyStore(t)

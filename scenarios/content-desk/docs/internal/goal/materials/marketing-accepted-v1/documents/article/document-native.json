@@ -1,0 +1,3497 @@
+{
+  "documentId": "1y3wD0fEipdbS6InO5sQi4zbRrQEfDZ700dUR0GIXOuc",
+  "title": "How I’m trying to get more useful work from my ChatGPT dot",
+  "revisionId": "AHj4eMRhZd9AGggrk_bcS_Ho18OhZ7RHLkJjWa5TH7DXL5aT9915SvQjGhXhHPTYKHAZ6m11aFWyMfY029AZG6dp7c32JrxOAFwLsjluRw",
+  "suggestionsViewMode": "SUGGESTIONS_INLINE",
+  "url": null,
+  "body": null,
+  "tabs": [
+    {
+      "tabId": "t.0",
+      "title": "Tab 1",
+      "parentTabId": null,
+      "index": 0,
+      "nestingLevel": null,
+      "iconEmoji": null,
+      "body": {
+        "content": [
+          {
+            "endIndex": 1,
+            "sectionBreak": {
+              "sectionStyle": {
+                "columnSeparatorStyle": "NONE",
+                "contentDirection": "LEFT_TO_RIGHT",
+                "sectionType": "CONTINUOUS"
+              }
+            }
+          },
+          {
+            "startIndex": 1,
+            "endIndex": 60,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 1,
+                  "endIndex": 60,
+                  "textRun": {
+                    "content": "How I’m trying to get more useful work from my ChatGPT dot\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "TITLE",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 60,
+            "endIndex": 144,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 60,
+                  "endIndex": 144,
+                  "textRun": {
+                    "content": "What I’m learning from giving an assistant an ongoing responsibility for my writing\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "SUBTITLE",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 144,
+            "endIndex": 185,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 144,
+                  "endIndex": 184,
+                  "textRun": {
+                    "content": "Private editorial draft for owner review",
+                    "textStyle": {
+                      "italic": true,
+                      "fontSize": {
+                        "magnitude": 9.5,
+                        "unit": "PT"
+                      }
+                    }
+                  }
+                },
+                {
+                  "startIndex": 184,
+                  "endIndex": 185,
+                  "textRun": {
+                    "content": "\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 185,
+            "endIndex": 187,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 185,
+                  "endIndex": 186,
+                  "inlineObjectElement": {
+                    "inlineObjectId": "i.0",
+                    "textStyle": {}
+                  }
+                },
+                {
+                  "startIndex": 186,
+                  "endIndex": 187,
+                  "textRun": {
+                    "content": "\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "alignment": "CENTER",
+                "direction": "LEFT_TO_RIGHT",
+                "spaceBelow": {
+                  "magnitude": 6,
+                  "unit": "PT"
+                },
+                "keepWithNext": true
+              }
+            }
+          },
+          {
+            "startIndex": 187,
+            "endIndex": 344,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 187,
+                  "endIndex": 343,
+                  "textRun": {
+                    "content": "Conceptual illustration informed by official ChatGPT dots artwork. The product character represents the topic, not my personal dot or a live product screen.",
+                    "textStyle": {
+                      "italic": true,
+                      "fontSize": {
+                        "magnitude": 10.5,
+                        "unit": "PT"
+                      }
+                    }
+                  }
+                },
+                {
+                  "startIndex": 343,
+                  "endIndex": 344,
+                  "textRun": {
+                    "content": "\n",
+                    "textStyle": {
+                      "bold": false,
+                      "italic": true,
+                      "underline": false,
+                      "strikethrough": false,
+                      "smallCaps": false,
+                      "backgroundColor": {},
+                      "foregroundColor": {
+                        "color": {
+                          "rgbColor": {}
+                        }
+                      },
+                      "fontSize": {
+                        "magnitude": 10.5,
+                        "unit": "PT"
+                      },
+                      "weightedFontFamily": {
+                        "fontFamily": "Arial",
+                        "weight": 400
+                      },
+                      "baselineOffset": "NONE"
+                    }
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "alignment": "START",
+                "lineSpacing": 100,
+                "direction": "LEFT_TO_RIGHT",
+                "spacingMode": "NEVER_COLLAPSE",
+                "spaceAbove": {
+                  "unit": "PT"
+                },
+                "spaceBelow": {
+                  "magnitude": 12,
+                  "unit": "PT"
+                },
+                "borderBetween": {
+                  "color": {},
+                  "width": {
+                    "unit": "PT"
+                  },
+                  "padding": {
+                    "unit": "PT"
+                  },
+                  "dashStyle": "SOLID"
+                },
+                "borderTop": {
+                  "color": {},
+                  "width": {
+                    "unit": "PT"
+                  },
+                  "padding": {
+                    "unit": "PT"
+                  },
+                  "dashStyle": "SOLID"
+                },
+                "borderBottom": {
+                  "color": {},
+                  "width": {
+                    "unit": "PT"
+                  },
+                  "padding": {
+                    "unit": "PT"
+                  },
+                  "dashStyle": "SOLID"
+                },
+                "borderLeft": {
+                  "color": {},
+                  "width": {
+                    "unit": "PT"
+                  },
+                  "padding": {
+                    "unit": "PT"
+                  },
+                  "dashStyle": "SOLID"
+                },
+                "borderRight": {
+                  "color": {},
+                  "width": {
+                    "unit": "PT"
+                  },
+                  "padding": {
+                    "unit": "PT"
+                  },
+                  "dashStyle": "SOLID"
+                },
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "indentEnd": {
+                  "unit": "PT"
+                },
+                "keepLinesTogether": true,
+                "keepWithNext": false,
+                "avoidWidowAndOrphan": true,
+                "shading": {
+                  "backgroundColor": {}
+                },
+                "pageBreakBefore": false
+              }
+            }
+          },
+          {
+            "startIndex": 344,
+            "endIndex": 521,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 344,
+                  "endIndex": 521,
+                  "textRun": {
+                    "content": "My new ChatGPT dot was working on an article. Other proposals had been prepared too. Yet I still had to ask why only one piece of work was moving and which decisions needed me.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 521,
+            "endIndex": 812,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 521,
+                  "endIndex": 812,
+                  "textRun": {
+                    "content": "I wanted its help with an ongoing part of my life: my writing and personal marketing. Producing a draft was useful. Building a body of work also meant choosing what came next, learning from feedback and keeping track of what needed my attention. I was still doing some of that coordination.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 812,
+            "endIndex": 1137,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 812,
+                  "endIndex": 829,
+                  "textRun": {
+                    "content": "OpenAI has begun ",
+                    "textStyle": {}
+                  }
+                },
+                {
+                  "startIndex": 829,
+                  "endIndex": 845,
+                  "textRun": {
+                    "content": "rolling out dots",
+                    "textStyle": {
+                      "foregroundColor": {
+                        "color": {
+                          "rgbColor": {
+                            "red": 0.06666667,
+                            "green": 0.33333334,
+                            "blue": 0.8
+                          }
+                        }
+                      },
+                      "link": {
+                        "url": "https://help.openai.com/en/articles/6825453-chatgpt-release-notes"
+                      }
+                    }
+                  }
+                },
+                {
+                  "startIndex": 845,
+                  "endIndex": 1137,
+                  "textRun": {
+                    "content": " in ChatGPT, with gradual access. The prospect of an assistant that remembers what matters and works between conversations made an ongoing job an appealing place to start. My early experience raised a practical question: what could it carry forward without needing me to restart the process?\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 1137,
+            "endIndex": 1488,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 1137,
+                  "endIndex": 1488,
+                  "textRun": {
+                    "content": "I’m testing a simple arrangement: give it a continuing objective, approve bounded pieces of work, check what comes back and expect the next useful decision to reach me before I have to go looking for it. I think of that as a work flywheel. I have useful results from parts of it. I’m still finding out whether the whole arrangement can hold together.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 1488,
+            "endIndex": 1534,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 1488,
+                  "endIndex": 1534,
+                  "textRun": {
+                    "content": "Give it a responsibility that outlasts a task\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "HEADING_1",
+                "direction": "LEFT_TO_RIGHT",
+                "pageBreakBefore": true
+              }
+            }
+          },
+          {
+            "startIndex": 1534,
+            "endIndex": 1808,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 1534,
+                  "endIndex": 1808,
+                  "textRun": {
+                    "content": "“Write this article” has a finish line. “Help me build a useful body of writing about what I’m learning” continues after one draft. It involves choosing a subject, deciding why anyone would care, making the piece, getting feedback and carrying the lesson into the next one.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 1808,
+            "endIndex": 2108,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 1808,
+                  "endIndex": 1856,
+                  "textRun": {
+                    "content": "Dots are designed for ongoing responsibilities. ",
+                    "textStyle": {}
+                  }
+                },
+                {
+                  "startIndex": 1856,
+                  "endIndex": 1881,
+                  "textRun": {
+                    "content": "OpenAI’s product guidance",
+                    "textStyle": {
+                      "foregroundColor": {
+                        "color": {
+                          "rgbColor": {
+                            "red": 0.06666667,
+                            "green": 0.33333334,
+                            "blue": 0.8
+                          }
+                        }
+                      },
+                      "link": {
+                        "url": "https://help.openai.com/en/articles/20001530-getting-started-with-your-dot"
+                      }
+                    }
+                  }
+                },
+                {
+                  "startIndex": 1881,
+                  "endIndex": 2108,
+                  "textRun": {
+                    "content": " describes giving your dot a goal, setting boundaries, and receiving work and decisions for review. My experiment is about making that arrangement concrete in my own work. I haven’t established that it runs reliably over time.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 2108,
+            "endIndex": 2417,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 2108,
+                  "endIndex": 2417,
+                  "textRun": {
+                    "content": "For each assignment, I want a proposal I can understand without reconstructing the conversation: what problem it solves, what I’ll receive, how the result will be checked, and what the assistant may do. When the scope is already clear, one coherent approval should cover the routine work needed to finish it.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 2417,
+            "endIndex": 2695,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 2417,
+                  "endIndex": 2694,
+                  "textRun": {
+                    "content": "That leaves me with the decisions where my judgment matters. A writing assignment can include drafting, images and revisions in private documents. Publishing the result or contacting someone is a different action. The phrase “keep going” should not quietly erase that boundary.",
+                    "textStyle": {}
+                  }
+                },
+                {
+                  "startIndex": 2694,
+                  "endIndex": 2695,
+                  "textRun": {
+                    "content": "\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 2695,
+            "endIndex": 2740,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 2695,
+                  "endIndex": 2740,
+                  "textRun": {
+                    "content": "The next decision should arrive before I ask\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "HEADING_1",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 2740,
+            "endIndex": 3026,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 2740,
+                  "endIndex": 3026,
+                  "textRun": {
+                    "content": "The first coordination gap showed up between assignments. Having proposals saved somewhere didn’t mean the useful choices were reaching me. I wanted help sustaining the writing work, but I remained the person who noticed that capacity was going unused and asked what needed a decision.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 3026,
+            "endIndex": 3328,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 3026,
+                  "endIndex": 3328,
+                  "textRun": {
+                    "content": "My correction was to make looking ahead part of the job. While approved work runs, the dot can prepare independent next proposals within its existing permissions. If something is waiting for my approval, it should surface a small, intelligible set of choices. Dependent work still waits for my answer.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 3328,
+            "endIndex": 3508,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 3328,
+                  "endIndex": 3508,
+                  "textRun": {
+                    "content": "This is the kind of handoff I now want. These hypothetical writing choices illustrate the arrangement; this is not a transcript or a claim that the behavior is already dependable:\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 3508,
+            "endIndex": 3577,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 3508,
+                  "endIndex": 3577,
+                  "textRun": {
+                    "content": "Current work: the illustrated article is approved and being drafted.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "lineSpacing": 104.99999,
+                "direction": "LEFT_TO_RIGHT",
+                "spaceBelow": {
+                  "magnitude": 5,
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "keepWithNext": false
+              }
+            }
+          },
+          {
+            "startIndex": 3577,
+            "endIndex": 3773,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 3577,
+                  "endIndex": 3773,
+                  "textRun": {
+                    "content": "Ready for you: choose a short piece on checking an AI-generated feature, or an illustrated explanation of a misleading save-success message. The fuller prioritized list is in one review document.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "lineSpacing": 104.99999,
+                "direction": "LEFT_TO_RIGHT",
+                "spaceBelow": {
+                  "magnitude": 5,
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "keepWithNext": false
+              }
+            }
+          },
+          {
+            "startIndex": 3773,
+            "endIndex": 3861,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 3773,
+                  "endIndex": 3860,
+                  "textRun": {
+                    "content": "Why now: choosing the next assignment would let useful work continue as capacity opens.",
+                    "textStyle": {}
+                  }
+                },
+                {
+                  "startIndex": 3860,
+                  "endIndex": 3861,
+                  "textRun": {
+                    "content": "\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "lineSpacing": 104.99999,
+                "direction": "LEFT_TO_RIGHT",
+                "spaceAbove": {
+                  "unit": "PT"
+                },
+                "spaceBelow": {
+                  "magnitude": 5,
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "keepWithNext": false
+              }
+            }
+          },
+          {
+            "startIndex": 3861,
+            "endIndex": 4067,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 3861,
+                  "endIndex": 4066,
+                  "textRun": {
+                    "content": "Recommendation: start with the feature-checking piece because it has the clearest practical takeaway. Keep the save-message explanation ready for later. Hold either if it does not advance the current goal.",
+                    "textStyle": {}
+                  }
+                },
+                {
+                  "startIndex": 4066,
+                  "endIndex": 4067,
+                  "textRun": {
+                    "content": "\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "lineSpacing": 104.99999,
+                "direction": "LEFT_TO_RIGHT",
+                "spaceAbove": {
+                  "unit": "PT"
+                },
+                "spaceBelow": {
+                  "magnitude": 5,
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "keepWithNext": false
+              }
+            }
+          },
+          {
+            "startIndex": 4067,
+            "endIndex": 4251,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 4067,
+                  "endIndex": 4250,
+                  "textRun": {
+                    "content": "That gives me a decision and its reason. It also leaves room for “neither.” The point is to reduce the coordination I have to supply, not to fill every available minute with activity.",
+                    "textStyle": {}
+                  }
+                },
+                {
+                  "startIndex": 4250,
+                  "endIndex": 4251,
+                  "textRun": {
+                    "content": "\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "lineSpacing": 104.99999,
+                "direction": "LEFT_TO_RIGHT",
+                "spaceAbove": {
+                  "unit": "PT"
+                },
+                "spaceBelow": {
+                  "magnitude": 5,
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "keepWithNext": false
+              }
+            }
+          },
+          {
+            "startIndex": 4251,
+            "endIndex": 4484,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 4251,
+                  "endIndex": 4483,
+                  "textRun": {
+                    "content": "The diagram below shows the arrangement I’m testing. One assignment moves through execution and review, while the dot keeps an eye on independent next steps. A task finishing is one reason to reassess; it should not be the only one.",
+                    "textStyle": {}
+                  }
+                },
+                {
+                  "startIndex": 4483,
+                  "endIndex": 4484,
+                  "textRun": {
+                    "content": "\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "lineSpacing": 104.99999,
+                "direction": "LEFT_TO_RIGHT",
+                "spaceAbove": {
+                  "unit": "PT"
+                },
+                "spaceBelow": {
+                  "magnitude": 5,
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "keepWithNext": false
+              }
+            }
+          },
+          {
+            "startIndex": 4484,
+            "endIndex": 4486,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 4484,
+                  "endIndex": 4485,
+                  "inlineObjectElement": {
+                    "inlineObjectId": "i.1",
+                    "textStyle": {}
+                  }
+                },
+                {
+                  "startIndex": 4485,
+                  "endIndex": 4486,
+                  "textRun": {
+                    "content": "\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "alignment": "CENTER",
+                "direction": "LEFT_TO_RIGHT",
+                "spaceBelow": {
+                  "magnitude": 6,
+                  "unit": "PT"
+                },
+                "keepWithNext": true,
+                "pageBreakBefore": true
+              }
+            }
+          },
+          {
+            "startIndex": 4486,
+            "endIndex": 4758,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 4486,
+                  "endIndex": 4757,
+                  "textRun": {
+                    "content": "Figure 1. One assignment sits inside an ongoing coordination loop. While work runs or awaits review, prepare independent proposals and surface ready decisions. Rework stays within approval; wait only when no useful permitted action remains, with a named resumption event.",
+                    "textStyle": {
+                      "italic": true,
+                      "fontSize": {
+                        "magnitude": 10.5,
+                        "unit": "PT"
+                      }
+                    }
+                  }
+                },
+                {
+                  "startIndex": 4757,
+                  "endIndex": 4758,
+                  "textRun": {
+                    "content": "\n",
+                    "textStyle": {
+                      "bold": false,
+                      "italic": true,
+                      "underline": false,
+                      "strikethrough": false,
+                      "smallCaps": false,
+                      "backgroundColor": {},
+                      "foregroundColor": {
+                        "color": {
+                          "rgbColor": {}
+                        }
+                      },
+                      "fontSize": {
+                        "magnitude": 10.5,
+                        "unit": "PT"
+                      },
+                      "weightedFontFamily": {
+                        "fontFamily": "Arial",
+                        "weight": 400
+                      },
+                      "baselineOffset": "NONE"
+                    }
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "alignment": "START",
+                "lineSpacing": 100,
+                "direction": "LEFT_TO_RIGHT",
+                "spacingMode": "NEVER_COLLAPSE",
+                "spaceAbove": {
+                  "unit": "PT"
+                },
+                "spaceBelow": {
+                  "magnitude": 12,
+                  "unit": "PT"
+                },
+                "borderBetween": {
+                  "color": {},
+                  "width": {
+                    "unit": "PT"
+                  },
+                  "padding": {
+                    "unit": "PT"
+                  },
+                  "dashStyle": "SOLID"
+                },
+                "borderTop": {
+                  "color": {},
+                  "width": {
+                    "unit": "PT"
+                  },
+                  "padding": {
+                    "unit": "PT"
+                  },
+                  "dashStyle": "SOLID"
+                },
+                "borderBottom": {
+                  "color": {},
+                  "width": {
+                    "unit": "PT"
+                  },
+                  "padding": {
+                    "unit": "PT"
+                  },
+                  "dashStyle": "SOLID"
+                },
+                "borderLeft": {
+                  "color": {},
+                  "width": {
+                    "unit": "PT"
+                  },
+                  "padding": {
+                    "unit": "PT"
+                  },
+                  "dashStyle": "SOLID"
+                },
+                "borderRight": {
+                  "color": {},
+                  "width": {
+                    "unit": "PT"
+                  },
+                  "padding": {
+                    "unit": "PT"
+                  },
+                  "dashStyle": "SOLID"
+                },
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "indentEnd": {
+                  "unit": "PT"
+                },
+                "keepLinesTogether": true,
+                "keepWithNext": false,
+                "avoidWidowAndOrphan": true,
+                "shading": {
+                  "backgroundColor": {}
+                },
+                "pageBreakBefore": false
+              }
+            }
+          },
+          {
+            "startIndex": 4758,
+            "endIndex": 4796,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 4758,
+                  "endIndex": 4796,
+                  "textRun": {
+                    "content": "Make feedback change the next attempt\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "HEADING_1",
+                "direction": "LEFT_TO_RIGHT",
+                "pageBreakBefore": true
+              }
+            }
+          },
+          {
+            "startIndex": 4796,
+            "endIndex": 5234,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 4796,
+                  "endIndex": 5234,
+                  "textRun": {
+                    "content": "Bringing me the next proposal would address one part of that gap. I also wanted each assignment to benefit from what we had learned in the last one. This article showed why. The first draft and its images were well made, and I was happy with that quality. But the premise was too generic. It explained AI delegation without telling the story that made me want to write it: I had just got a dot and was trying to make it genuinely useful.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "lineSpacing": 104.99999,
+                "direction": "LEFT_TO_RIGHT",
+                "spaceBelow": {
+                  "magnitude": 4,
+                  "unit": "PT"
+                }
+              }
+            }
+          },
+          {
+            "startIndex": 5234,
+            "endIndex": 5477,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 5234,
+                  "endIndex": 5477,
+                  "textRun": {
+                    "content": "I asked for the piece to be rewritten around that experience. I also asked for the images to use real references for what dots look like. A polished illustration of a generic loop would miss the subject just as a polished generic opening did.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "lineSpacing": 104.99999,
+                "direction": "LEFT_TO_RIGHT",
+                "spaceBelow": {
+                  "magnitude": 4,
+                  "unit": "PT"
+                }
+              }
+            }
+          },
+          {
+            "startIndex": 5477,
+            "endIndex": 5720,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 5477,
+                  "endIndex": 5720,
+                  "textRun": {
+                    "content": "Fixing this draft is only half of what I wanted. I wanted the next writing assignment to begin with better questions: why would this reader care now, what can I credibly add, and does the title promise something the article actually delivers?\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "lineSpacing": 104.99999,
+                "direction": "LEFT_TO_RIGHT",
+                "spaceBelow": {
+                  "magnitude": 4,
+                  "unit": "PT"
+                }
+              }
+            }
+          },
+          {
+            "startIndex": 5720,
+            "endIndex": 6040,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 5720,
+                  "endIndex": 6040,
+                  "textRun": {
+                    "content": "So the correction belongs in the reusable writing guide as well as in the draft. For an article about an existing product, the visual work should begin by inspecting actual product references. That is a change to the working material used for future assignments, not a claim that feedback retrains the underlying model.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "lineSpacing": 104.99999,
+                "direction": "LEFT_TO_RIGHT",
+                "spaceBelow": {
+                  "magnitude": 4,
+                  "unit": "PT"
+                }
+              }
+            }
+          },
+          {
+            "startIndex": 6040,
+            "endIndex": 6312,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 6040,
+                  "endIndex": 6312,
+                  "textRun": {
+                    "content": "One earlier, small writing test gave me a reason to keep trying this. A separate AI writer found the guide and applied it to a different technical explanation, producing a concrete example and a matching diagram. Written guidance had been picked up and used in that case.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "lineSpacing": 104.99999,
+                "direction": "LEFT_TO_RIGHT",
+                "spaceBelow": {
+                  "magnitude": 4,
+                  "unit": "PT"
+                }
+              }
+            }
+          },
+          {
+            "startIndex": 6312,
+            "endIndex": 6698,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 6312,
+                  "endIndex": 6698,
+                  "textRun": {
+                    "content": "That is a limited result. It did not test my latest feedback, validate the explanation with human readers, or show that future assignments would reliably improve. For the next article, I want the relevant lesson to appear before I repeat it. Sometimes that means a timely product story; sometimes it means a clear evergreen explanation. The aim is better judgment about the assignment.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "lineSpacing": 104.99999,
+                "direction": "LEFT_TO_RIGHT",
+                "spaceBelow": {
+                  "magnitude": 4,
+                  "unit": "PT"
+                }
+              }
+            }
+          },
+          {
+            "startIndex": 6698,
+            "endIndex": 6726,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 6698,
+                  "endIndex": 6726,
+                  "textRun": {
+                    "content": "Know where the work stopped\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "HEADING_1",
+                "lineSpacing": 104.99999,
+                "direction": "LEFT_TO_RIGHT",
+                "spaceBelow": {
+                  "magnitude": 4,
+                  "unit": "PT"
+                }
+              }
+            }
+          },
+          {
+            "startIndex": 6726,
+            "endIndex": 7040,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 6726,
+                  "endIndex": 7040,
+                  "textRun": {
+                    "content": "Keeping an ongoing job moving also means knowing how to resume it after an interruption. During the work on this article, a document read failed while the workspace was restarting. The saved article and other completed parts still existed. The unfinished part needed a state check, not a fresh copy of everything.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "lineSpacing": 104.99999,
+                "direction": "LEFT_TO_RIGHT",
+                "spaceBelow": {
+                  "magnitude": 4,
+                  "unit": "PT"
+                }
+              }
+            }
+          },
+          {
+            "startIndex": 7040,
+            "endIndex": 7339,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 7040,
+                  "endIndex": 7339,
+                  "textRun": {
+                    "content": "The useful questions were specific: which document was saved, which check had failed, and what was still missing? Once the normal read worked again, work could continue from the saved result. That is a bounded recovery I can point to; it does not prove that every interruption will be handled well.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "lineSpacing": 104.99999,
+                "direction": "LEFT_TO_RIGHT",
+                "spaceBelow": {
+                  "magnitude": 4,
+                  "unit": "PT"
+                }
+              }
+            }
+          },
+          {
+            "startIndex": 7339,
+            "endIndex": 7613,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 7339,
+                  "endIndex": 7613,
+                  "textRun": {
+                    "content": "I want the same discipline whenever the dot resumes work. Inspect the last confirmed state, complete a known safe step within the approval, and check the actual result. If a missing fact or unavailable environment prevents progress, tell me what would allow it to continue.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "lineSpacing": 104.99999,
+                "direction": "LEFT_TO_RIGHT",
+                "spaceBelow": {
+                  "magnitude": 4,
+                  "unit": "PT"
+                }
+              }
+            }
+          },
+          {
+            "startIndex": 7613,
+            "endIndex": 7912,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 7613,
+                  "endIndex": 7912,
+                  "textRun": {
+                    "content": "A timeout after a consequential submission needs particular care. It does not prove that nothing happened. Repeating the action blindly could create a duplicate. The dot should first check the destination, then bring me the decision if the outcome remains uncertain or recovery needs new authority.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "lineSpacing": 104.99999,
+                "direction": "LEFT_TO_RIGHT",
+                "spaceBelow": {
+                  "magnitude": 4,
+                  "unit": "PT"
+                }
+              }
+            }
+          },
+          {
+            "startIndex": 7912,
+            "endIndex": 8142,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 7912,
+                  "endIndex": 8142,
+                  "textRun": {
+                    "content": "A saved “in progress” label is useful context, but it cannot establish that a worker is still running or an action succeeded. The recovery path needs evidence. That is why I want completion claims tied to something I can inspect.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "lineSpacing": 104.99999,
+                "direction": "LEFT_TO_RIGHT",
+                "spaceBelow": {
+                  "magnitude": 4,
+                  "unit": "PT"
+                }
+              }
+            }
+          },
+          {
+            "startIndex": 8142,
+            "endIndex": 8144,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 8142,
+                  "endIndex": 8143,
+                  "inlineObjectElement": {
+                    "inlineObjectId": "i.2",
+                    "textStyle": {}
+                  }
+                },
+                {
+                  "startIndex": 8143,
+                  "endIndex": 8144,
+                  "textRun": {
+                    "content": "\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "alignment": "CENTER",
+                "direction": "LEFT_TO_RIGHT",
+                "spaceBelow": {
+                  "magnitude": 6,
+                  "unit": "PT"
+                },
+                "keepWithNext": true,
+                "pageBreakBefore": true
+              }
+            }
+          },
+          {
+            "startIndex": 8144,
+            "endIndex": 8516,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 8144,
+                  "endIndex": 8515,
+                  "textRun": {
+                    "content": "Figure 2. Know where the work stopped. Resume a known safe, in-scope step; seek an owner decision if a consequential submission remains uncertain or scope must change. The owner can approve the next step or keep it on hold. If proceeding, perform the approved next step, then inspect the actual outcome before marking the work complete. Never blindly repeat a submission.",
+                    "textStyle": {
+                      "italic": true,
+                      "fontSize": {
+                        "magnitude": 10.5,
+                        "unit": "PT"
+                      }
+                    }
+                  }
+                },
+                {
+                  "startIndex": 8515,
+                  "endIndex": 8516,
+                  "textRun": {
+                    "content": "\n",
+                    "textStyle": {
+                      "bold": false,
+                      "italic": true,
+                      "underline": false,
+                      "strikethrough": false,
+                      "smallCaps": false,
+                      "backgroundColor": {},
+                      "foregroundColor": {
+                        "color": {
+                          "rgbColor": {}
+                        }
+                      },
+                      "fontSize": {
+                        "magnitude": 10.5,
+                        "unit": "PT"
+                      },
+                      "weightedFontFamily": {
+                        "fontFamily": "Arial",
+                        "weight": 400
+                      },
+                      "baselineOffset": "NONE"
+                    }
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "alignment": "START",
+                "lineSpacing": 100,
+                "direction": "LEFT_TO_RIGHT",
+                "spacingMode": "NEVER_COLLAPSE",
+                "spaceAbove": {
+                  "unit": "PT"
+                },
+                "spaceBelow": {
+                  "magnitude": 12,
+                  "unit": "PT"
+                },
+                "borderBetween": {
+                  "color": {},
+                  "width": {
+                    "unit": "PT"
+                  },
+                  "padding": {
+                    "unit": "PT"
+                  },
+                  "dashStyle": "SOLID"
+                },
+                "borderTop": {
+                  "color": {},
+                  "width": {
+                    "unit": "PT"
+                  },
+                  "padding": {
+                    "unit": "PT"
+                  },
+                  "dashStyle": "SOLID"
+                },
+                "borderBottom": {
+                  "color": {},
+                  "width": {
+                    "unit": "PT"
+                  },
+                  "padding": {
+                    "unit": "PT"
+                  },
+                  "dashStyle": "SOLID"
+                },
+                "borderLeft": {
+                  "color": {},
+                  "width": {
+                    "unit": "PT"
+                  },
+                  "padding": {
+                    "unit": "PT"
+                  },
+                  "dashStyle": "SOLID"
+                },
+                "borderRight": {
+                  "color": {},
+                  "width": {
+                    "unit": "PT"
+                  },
+                  "padding": {
+                    "unit": "PT"
+                  },
+                  "dashStyle": "SOLID"
+                },
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "indentEnd": {
+                  "unit": "PT"
+                },
+                "keepLinesTogether": true,
+                "keepWithNext": false,
+                "avoidWidowAndOrphan": true,
+                "shading": {
+                  "backgroundColor": {}
+                },
+                "pageBreakBefore": false
+              }
+            }
+          },
+          {
+            "startIndex": 8516,
+            "endIndex": 8563,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 8516,
+                  "endIndex": 8563,
+                  "textRun": {
+                    "content": "Measure how much coordination comes back to me\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "HEADING_1",
+                "direction": "LEFT_TO_RIGHT",
+                "pageBreakBefore": true
+              }
+            }
+          },
+          {
+            "startIndex": 8563,
+            "endIndex": 8934,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 8563,
+                  "endIndex": 8934,
+                  "textRun": {
+                    "content": "Choosing the next assignment, carrying feedback forward and resuming interrupted work are all places where coordination can come back to me. The attraction of giving my dot an ongoing job is practical: a few minutes of clear direction and review could support useful work I would otherwise struggle to get to. I want to find out how much of that continuity it can carry.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 8934,
+            "endIndex": 9191,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 8934,
+                  "endIndex": 9191,
+                  "textRun": {
+                    "content": "But forty minutes of agent activity is not automatically forty minutes saved. The work might be unnecessary, duplicated or expensive to correct. If I have to integrate ten reports to discover one decision, some of the coordination has simply changed shape.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 9191,
+            "endIndex": 9500,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 9191,
+                  "endIndex": 9500,
+                  "textRun": {
+                    "content": "I’m moving toward one organized review document with simple decision IDs and recommended choices, with short messages pointing me there. I also want a larger buffer of worthwhile ready work, with the priorities at the top. Whether that reduces my effort or stays usefully replenished still needs observation.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 9500,
+            "endIndex": 9816,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 9500,
+                  "endIndex": 9816,
+                  "textRun": {
+                    "content": "An empty queue should prompt a look at the goals, not a quota of new tasks. Useful preparation can continue within the existing scope. Ready approvals should be surfaced. When no useful permitted action remains, waiting is sensible, with a clear reason to resume such as my answer, a task result or an agreed check.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 9816,
+            "endIndex": 10066,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 9816,
+                  "endIndex": 10066,
+                  "textRun": {
+                    "content": "I’ll judge this by useful results I accept, the attention needed to approve and correct them, and whether the same mistakes recur. Keeping the dot busy is easy to count. Getting better work with less coordination from me is the outcome I care about.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 10066,
+            "endIndex": 10093,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 10066,
+                  "endIndex": 10093,
+                  "textRun": {
+                    "content": "Start with one ongoing job\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "HEADING_1",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 10093,
+            "endIndex": 10363,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 10093,
+                  "endIndex": 10363,
+                  "textRun": {
+                    "content": "If you’re experimenting with a new dot, I’d start with one responsibility you already care about. Give it the relevant context, a concrete first deliverable and clear boundaries. Ask what it will bring back for review and what it should do while that review is pending.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 10363,
+            "endIndex": 10604,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 10363,
+                  "endIndex": 10604,
+                  "textRun": {
+                    "content": "Then inspect the next handoff. Can you see what changed, what was checked and what remains uncertain? Does it recommend a worthwhile next step? If your feedback changes the approach, can you find that lesson in the next relevant assignment?\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 10604,
+            "endIndex": 10947,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 10604,
+                  "endIndex": 10947,
+                  "textRun": {
+                    "content": "So far, my dot has produced useful artifacts, resumed work on this article from saved progress after an interruption and shown one small case of written guidance being reused. I still had to catch gaps in how the work was coordinated. I haven’t established that the whole arrangement holds up over time or reduces the attention it asks of me.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 10947,
+            "endIndex": 11225,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 10947,
+                  "endIndex": 11225,
+                  "textRun": {
+                    "content": "The next test is the kind of moment that started this article: a piece is underway and more useful work is possible. Does my dot bring me a clear next decision, with the relevant feedback already carried forward, or do I have to ask again? That is where I’ll look for progress.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          }
+        ]
+      },
+      "headers": null,
+      "footers": {
+        "kix.hf0": {
+          "footerId": "kix.hf0",
+          "content": [
+            {
+              "endIndex": 2,
+              "paragraph": {
+                "elements": [
+                  {
+                    "endIndex": 1,
+                    "autoText": {
+                      "type": "PAGE_NUMBER",
+                      "textStyle": {
+                        "bold": false,
+                        "italic": false,
+                        "underline": false,
+                        "strikethrough": false,
+                        "smallCaps": false,
+                        "backgroundColor": {},
+                        "foregroundColor": {
+                          "color": {
+                            "rgbColor": {}
+                          }
+                        },
+                        "fontSize": {
+                          "magnitude": 11.5,
+                          "unit": "PT"
+                        },
+                        "weightedFontFamily": {
+                          "fontFamily": "Arial",
+                          "weight": 400
+                        },
+                        "baselineOffset": "NONE"
+                      }
+                    }
+                  },
+                  {
+                    "startIndex": 1,
+                    "endIndex": 2,
+                    "textRun": {
+                      "content": "\n",
+                      "textStyle": {
+                        "bold": false,
+                        "italic": false,
+                        "underline": false,
+                        "strikethrough": false,
+                        "smallCaps": false,
+                        "backgroundColor": {},
+                        "foregroundColor": {
+                          "color": {
+                            "rgbColor": {}
+                          }
+                        },
+                        "fontSize": {
+                          "magnitude": 11.5,
+                          "unit": "PT"
+                        },
+                        "weightedFontFamily": {
+                          "fontFamily": "Arial",
+                          "weight": 400
+                        },
+                        "baselineOffset": "NONE"
+                      }
+                    }
+                  }
+                ],
+                "paragraphStyle": {
+                  "namedStyleType": "NORMAL_TEXT",
+                  "alignment": "END",
+                  "lineSpacing": 100,
+                  "direction": "LEFT_TO_RIGHT",
+                  "spacingMode": "NEVER_COLLAPSE",
+                  "spaceAbove": {
+                    "unit": "PT"
+                  },
+                  "spaceBelow": {
+                    "unit": "PT"
+                  },
+                  "borderBetween": {
+                    "color": {},
+                    "width": {
+                      "unit": "PT"
+                    },
+                    "padding": {
+                      "unit": "PT"
+                    },
+                    "dashStyle": "SOLID"
+                  },
+                  "borderTop": {
+                    "color": {},
+                    "width": {
+                      "unit": "PT"
+                    },
+                    "padding": {
+                      "unit": "PT"
+                    },
+                    "dashStyle": "SOLID"
+                  },
+                  "borderBottom": {
+                    "color": {},
+                    "width": {
+                      "unit": "PT"
+                    },
+                    "padding": {
+                      "unit": "PT"
+                    },
+                    "dashStyle": "SOLID"
+                  },
+                  "borderLeft": {
+                    "color": {},
+                    "width": {
+                      "unit": "PT"
+                    },
+                    "padding": {
+                      "unit": "PT"
+                    },
+                    "dashStyle": "SOLID"
+                  },
+                  "borderRight": {
+                    "color": {},
+                    "width": {
+                      "unit": "PT"
+                    },
+                    "padding": {
+                      "unit": "PT"
+                    },
+                    "dashStyle": "SOLID"
+                  },
+                  "indentFirstLine": {
+                    "unit": "PT"
+                  },
+                  "indentStart": {
+                    "unit": "PT"
+                  },
+                  "indentEnd": {
+                    "unit": "PT"
+                  },
+                  "tabStops": [
+                    {
+                      "offset": {
+                        "magnitude": 234,
+                        "unit": "PT"
+                      },
+                      "alignment": "CENTER"
+                    },
+                    {
+                      "offset": {
+                        "magnitude": 468,
+                        "unit": "PT"
+                      },
+                      "alignment": "END"
+                    }
+                  ],
+                  "keepLinesTogether": false,
+                  "keepWithNext": false,
+                  "avoidWidowAndOrphan": true,
+                  "shading": {
+                    "backgroundColor": {}
+                  },
+                  "pageBreakBefore": false
+                }
+              }
+            }
+          ]
+        }
+      },
+      "footnotes": null,
+      "documentStyle": {
+        "background": {
+          "color": {}
+        },
+        "defaultFooterId": "kix.hf0",
+        "pageNumberStart": 1,
+        "marginTop": {
+          "magnitude": 50.4,
+          "unit": "PT"
+        },
+        "marginBottom": {
+          "magnitude": 50.4,
+          "unit": "PT"
+        },
+        "marginRight": {
+          "magnitude": 57.6,
+          "unit": "PT"
+        },
+        "marginLeft": {
+          "magnitude": 57.6,
+          "unit": "PT"
+        },
+        "pageSize": {
+          "height": {
+            "magnitude": 792,
+            "unit": "PT"
+          },
+          "width": {
+            "magnitude": 612,
+            "unit": "PT"
+          }
+        },
+        "marginHeader": {
+          "magnitude": 36,
+          "unit": "PT"
+        },
+        "marginFooter": {
+          "magnitude": 36,
+          "unit": "PT"
+        },
+        "useCustomHeaderFooterMargins": true,
+        "documentFormat": {
+          "documentMode": "PAGES"
+        }
+      },
+      "suggestedDocumentStyleChanges": null,
+      "namedStyles": {
+        "styles": [
+          {
+            "namedStyleType": "NORMAL_TEXT",
+            "textStyle": {
+              "bold": false,
+              "italic": false,
+              "underline": false,
+              "strikethrough": false,
+              "smallCaps": false,
+              "backgroundColor": {},
+              "foregroundColor": {
+                "color": {
+                  "rgbColor": {}
+                }
+              },
+              "fontSize": {
+                "magnitude": 11.5,
+                "unit": "PT"
+              },
+              "weightedFontFamily": {
+                "fontFamily": "Arial",
+                "weight": 400
+              },
+              "baselineOffset": "NONE"
+            },
+            "paragraphStyle": {
+              "namedStyleType": "NORMAL_TEXT",
+              "alignment": "START",
+              "lineSpacing": 112.08333,
+              "direction": "LEFT_TO_RIGHT",
+              "spacingMode": "NEVER_COLLAPSE",
+              "spaceAbove": {
+                "unit": "PT"
+              },
+              "spaceBelow": {
+                "magnitude": 8,
+                "unit": "PT"
+              },
+              "borderBetween": {
+                "color": {},
+                "width": {
+                  "unit": "PT"
+                },
+                "padding": {
+                  "unit": "PT"
+                },
+                "dashStyle": "SOLID"
+              },
+              "borderTop": {
+                "color": {},
+                "width": {
+                  "unit": "PT"
+                },
+                "padding": {
+                  "unit": "PT"
+                },
+                "dashStyle": "SOLID"
+              },
+              "borderBottom": {
+                "color": {},
+                "width": {
+                  "unit": "PT"
+                },
+                "padding": {
+                  "unit": "PT"
+                },
+                "dashStyle": "SOLID"
+              },
+              "borderLeft": {
+                "color": {},
+                "width": {
+                  "unit": "PT"
+                },
+                "padding": {
+                  "unit": "PT"
+                },
+                "dashStyle": "SOLID"
+              },
+              "borderRight": {
+                "color": {},
+                "width": {
+                  "unit": "PT"
+                },
+                "padding": {
+                  "unit": "PT"
+                },
+                "dashStyle": "SOLID"
+              },
+              "indentFirstLine": {
+                "unit": "PT"
+              },
+              "indentStart": {
+                "unit": "PT"
+              },
+              "indentEnd": {
+                "unit": "PT"
+              },
+              "keepLinesTogether": false,
+              "keepWithNext": false,
+              "avoidWidowAndOrphan": true,
+              "shading": {
+                "backgroundColor": {}
+              },
+              "pageBreakBefore": false
+            }
+          },
+          {
+            "namedStyleType": "HEADING_1",
+            "textStyle": {
+              "bold": true,
+              "foregroundColor": {
+                "color": {
+                  "rgbColor": {}
+                }
+              },
+              "fontSize": {
+                "magnitude": 15,
+                "unit": "PT"
+              },
+              "weightedFontFamily": {
+                "fontFamily": "Arial",
+                "weight": 400
+              }
+            },
+            "paragraphStyle": {
+              "namedStyleType": "NORMAL_TEXT",
+              "direction": "LEFT_TO_RIGHT",
+              "spaceAbove": {
+                "magnitude": 13,
+                "unit": "PT"
+              },
+              "spaceBelow": {
+                "magnitude": 8,
+                "unit": "PT"
+              },
+              "keepLinesTogether": true,
+              "keepWithNext": true
+            }
+          },
+          {
+            "namedStyleType": "HEADING_2",
+            "textStyle": {
+              "bold": true,
+              "foregroundColor": {
+                "color": {
+                  "rgbColor": {}
+                }
+              },
+              "fontSize": {
+                "magnitude": 12,
+                "unit": "PT"
+              },
+              "weightedFontFamily": {
+                "fontFamily": "Arial",
+                "weight": 400
+              }
+            },
+            "paragraphStyle": {
+              "namedStyleType": "NORMAL_TEXT",
+              "direction": "LEFT_TO_RIGHT",
+              "spaceAbove": {
+                "magnitude": 13,
+                "unit": "PT"
+              },
+              "spaceBelow": {
+                "magnitude": 8,
+                "unit": "PT"
+              },
+              "keepLinesTogether": true,
+              "keepWithNext": true
+            }
+          },
+          {
+            "namedStyleType": "HEADING_3",
+            "textStyle": {
+              "bold": true,
+              "foregroundColor": {
+                "color": {
+                  "rgbColor": {
+                    "red": 0.30980393,
+                    "green": 0.5058824,
+                    "blue": 0.7411765
+                  }
+                }
+              },
+              "weightedFontFamily": {
+                "fontFamily": "Calibri",
+                "weight": 400
+              }
+            },
+            "paragraphStyle": {
+              "namedStyleType": "NORMAL_TEXT",
+              "direction": "LEFT_TO_RIGHT",
+              "spaceAbove": {
+                "magnitude": 10,
+                "unit": "PT"
+              },
+              "spaceBelow": {
+                "unit": "PT"
+              },
+              "keepLinesTogether": true,
+              "keepWithNext": true
+            }
+          },
+          {
+            "namedStyleType": "HEADING_4",
+            "textStyle": {
+              "bold": true,
+              "italic": true,
+              "foregroundColor": {
+                "color": {
+                  "rgbColor": {
+                    "red": 0.30980393,
+                    "green": 0.5058824,
+                    "blue": 0.7411765
+                  }
+                }
+              },
+              "weightedFontFamily": {
+                "fontFamily": "Calibri",
+                "weight": 400
+              }
+            },
+            "paragraphStyle": {
+              "namedStyleType": "NORMAL_TEXT",
+              "direction": "LEFT_TO_RIGHT",
+              "spaceAbove": {
+                "magnitude": 10,
+                "unit": "PT"
+              },
+              "spaceBelow": {
+                "unit": "PT"
+              },
+              "keepLinesTogether": true,
+              "keepWithNext": true
+            }
+          },
+          {
+            "namedStyleType": "HEADING_5",
+            "textStyle": {
+              "foregroundColor": {
+                "color": {
+                  "rgbColor": {
+                    "red": 0.14117648,
+                    "green": 0.24705882,
+                    "blue": 0.38039216
+                  }
+                }
+              },
+              "weightedFontFamily": {
+                "fontFamily": "Calibri",
+                "weight": 400
+              }
+            },
+            "paragraphStyle": {
+              "namedStyleType": "NORMAL_TEXT",
+              "direction": "LEFT_TO_RIGHT",
+              "spaceAbove": {
+                "magnitude": 10,
+                "unit": "PT"
+              },
+              "spaceBelow": {
+                "unit": "PT"
+              },
+              "keepLinesTogether": true,
+              "keepWithNext": true
+            }
+          },
+          {
+            "namedStyleType": "HEADING_6",
+            "textStyle": {
+              "italic": true,
+              "foregroundColor": {
+                "color": {
+                  "rgbColor": {
+                    "red": 0.14117648,
+                    "green": 0.24705882,
+                    "blue": 0.38039216
+                  }
+                }
+              },
+              "weightedFontFamily": {
+                "fontFamily": "Calibri",
+                "weight": 400
+              }
+            },
+            "paragraphStyle": {
+              "namedStyleType": "NORMAL_TEXT",
+              "direction": "LEFT_TO_RIGHT",
+              "spaceAbove": {
+                "magnitude": 10,
+                "unit": "PT"
+              },
+              "spaceBelow": {
+                "unit": "PT"
+              },
+              "keepLinesTogether": true,
+              "keepWithNext": true
+            }
+          },
+          {
+            "namedStyleType": "TITLE",
+            "textStyle": {
+              "bold": true,
+              "foregroundColor": {
+                "color": {
+                  "rgbColor": {}
+                }
+              },
+              "fontSize": {
+                "magnitude": 26,
+                "unit": "PT"
+              },
+              "weightedFontFamily": {
+                "fontFamily": "Arial",
+                "weight": 400
+              }
+            },
+            "paragraphStyle": {
+              "namedStyleType": "NORMAL_TEXT",
+              "lineSpacing": 100,
+              "direction": "LEFT_TO_RIGHT",
+              "spacingMode": "NEVER_COLLAPSE",
+              "spaceBelow": {
+                "magnitude": 8,
+                "unit": "PT"
+              }
+            }
+          },
+          {
+            "namedStyleType": "SUBTITLE",
+            "textStyle": {
+              "italic": false,
+              "foregroundColor": {
+                "color": {
+                  "rgbColor": {}
+                }
+              },
+              "fontSize": {
+                "magnitude": 12,
+                "unit": "PT"
+              },
+              "weightedFontFamily": {
+                "fontFamily": "Arial",
+                "weight": 400
+              }
+            },
+            "paragraphStyle": {
+              "namedStyleType": "NORMAL_TEXT",
+              "direction": "LEFT_TO_RIGHT",
+              "spaceBelow": {
+                "magnitude": 8,
+                "unit": "PT"
+              }
+            }
+          }
+        ]
+      },
+      "suggestedNamedStylesChanges": null,
+      "lists": {
+        "kix.list.1": {
+          "listProperties": {
+            "nestingLevels": [
+              {
+                "bulletAlignment": "START",
+                "glyphSymbol": "●",
+                "glyphFormat": "%0",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "magnitude": 18,
+                  "unit": "PT"
+                },
+                "textStyle": {
+                  "weightedFontFamily": {
+                    "fontFamily": "Noto Sans Symbols",
+                    "weight": 400
+                  }
+                },
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              }
+            ]
+          }
+        },
+        "kix.list.2": {
+          "listProperties": {
+            "nestingLevels": [
+              {
+                "bulletAlignment": "START",
+                "glyphSymbol": "●",
+                "glyphFormat": "%0",
+                "indentFirstLine": {
+                  "magnitude": 18,
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "magnitude": 36,
+                  "unit": "PT"
+                },
+                "textStyle": {
+                  "weightedFontFamily": {
+                    "fontFamily": "Noto Sans Symbols",
+                    "weight": 400
+                  }
+                },
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              }
+            ]
+          }
+        },
+        "kix.list.3": {
+          "listProperties": {
+            "nestingLevels": [
+              {
+                "bulletAlignment": "START",
+                "glyphSymbol": "●",
+                "glyphFormat": "%0",
+                "indentFirstLine": {
+                  "magnitude": 36,
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "magnitude": 54,
+                  "unit": "PT"
+                },
+                "textStyle": {
+                  "weightedFontFamily": {
+                    "fontFamily": "Noto Sans Symbols",
+                    "weight": 400
+                  }
+                },
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              }
+            ]
+          }
+        },
+        "kix.list.4": {
+          "listProperties": {
+            "nestingLevels": [
+              {
+                "bulletAlignment": "START",
+                "glyphSymbol": "●",
+                "glyphFormat": "%0",
+                "indentFirstLine": {
+                  "magnitude": 54,
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "magnitude": 72,
+                  "unit": "PT"
+                },
+                "textStyle": {
+                  "weightedFontFamily": {
+                    "fontFamily": "Noto Sans Symbols",
+                    "weight": 400
+                  }
+                },
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              }
+            ]
+          }
+        },
+        "kix.list.5": {
+          "listProperties": {
+            "nestingLevels": [
+              {
+                "bulletAlignment": "START",
+                "glyphType": "DECIMAL",
+                "glyphFormat": "%0.",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "magnitude": 18,
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              }
+            ]
+          }
+        },
+        "kix.list.6": {
+          "listProperties": {
+            "nestingLevels": [
+              {
+                "bulletAlignment": "START",
+                "glyphType": "DECIMAL",
+                "glyphFormat": "%0.",
+                "indentFirstLine": {
+                  "magnitude": 18,
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "magnitude": 36,
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              }
+            ]
+          }
+        },
+        "kix.list.7": {
+          "listProperties": {
+            "nestingLevels": [
+              {
+                "bulletAlignment": "START",
+                "glyphType": "DECIMAL",
+                "glyphFormat": "%0.",
+                "indentFirstLine": {
+                  "magnitude": 36,
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "magnitude": 54,
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              }
+            ]
+          }
+        },
+        "kix.list.8": {
+          "listProperties": {
+            "nestingLevels": [
+              {
+                "bulletAlignment": "START",
+                "glyphType": "DECIMAL",
+                "glyphFormat": "%0.",
+                "indentFirstLine": {
+                  "magnitude": 54,
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "magnitude": 72,
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              }
+            ]
+          }
+        },
+        "kix.list.9": {
+          "listProperties": {
+            "nestingLevels": [
+              {
+                "bulletAlignment": "START",
+                "glyphType": "DECIMAL",
+                "glyphFormat": "%0.",
+                "indentFirstLine": {
+                  "magnitude": 72,
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "magnitude": 90,
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              }
+            ]
+          }
+        }
+      },
+      "namedRanges": null,
+      "inlineObjects": {
+        "i.0": {
+          "objectId": "i.0",
+          "inlineObjectProperties": {
+            "embeddedObject": {
+              "imageProperties": {
+                "cropProperties": {
+                  "offsetTop": 7.200746e-08,
+                  "offsetBottom": 7.200746e-08
+                }
+              },
+              "title": "Recommended article cover",
+              "description": "Original conceptual illustration informed by official ChatGPT dots product references. A coral scalloped monocle character presents undecided work cards to a human hand beside a checked manuscript. The headline reads How I’m trying to get more useful work from my ChatGPT dot. This is not the author’s personal dot or a product screenshot.",
+              "embeddedObjectBorder": {
+                "color": {
+                  "color": {
+                    "rgbColor": {}
+                  }
+                },
+                "width": {
+                  "unit": "PT"
+                },
+                "dashStyle": "SOLID",
+                "propertyState": "NOT_RENDERED"
+              },
+              "size": {
+                "height": {
+                  "magnitude": 273.37496062992125,
+                  "unit": "PT"
+                },
+                "width": {
+                  "magnitude": 486,
+                  "unit": "PT"
+                }
+              },
+              "marginTop": {
+                "unit": "PT"
+              },
+              "marginBottom": {
+                "unit": "PT"
+              },
+              "marginRight": {
+                "magnitude": 9,
+                "unit": "PT"
+              },
+              "marginLeft": {
+                "magnitude": 9,
+                "unit": "PT"
+              }
+            }
+          }
+        },
+        "i.1": {
+          "objectId": "i.1",
+          "inlineObjectProperties": {
+            "embeddedObject": {
+              "imageProperties": {
+                "cropProperties": {
+                  "offsetTop": 1.110223e-16,
+                  "offsetBottom": 1.110223e-16
+                }
+              },
+              "title": "Inline figure 1, 4:5 narrow layout",
+              "description": "Parallel lookahead runs alongside one bounded assignment. While approved work runs or awaits review, prepare independent next proposals and surface ready owner choices. Dependent work waits for approval. Six stages show objective, proposal, approval, execution with in-scope correction, owner review and reassessment. Rework returns to execution; reassessment can lead to another proposal. Wait only when no useful permitted action remains, resuming on an owner answer, task result or named check.",
+              "embeddedObjectBorder": {
+                "color": {
+                  "color": {
+                    "rgbColor": {}
+                  }
+                },
+                "width": {
+                  "unit": "PT"
+                },
+                "dashStyle": "SOLID",
+                "propertyState": "NOT_RENDERED"
+              },
+              "size": {
+                "height": {
+                  "magnitude": 522,
+                  "unit": "PT"
+                },
+                "width": {
+                  "magnitude": 417.6,
+                  "unit": "PT"
+                }
+              },
+              "marginTop": {
+                "unit": "PT"
+              },
+              "marginBottom": {
+                "unit": "PT"
+              },
+              "marginRight": {
+                "magnitude": 9,
+                "unit": "PT"
+              },
+              "marginLeft": {
+                "magnitude": 9,
+                "unit": "PT"
+              }
+            }
+          }
+        },
+        "i.2": {
+          "objectId": "i.2",
+          "inlineObjectProperties": {
+            "embeddedObject": {
+              "imageProperties": {
+                "cropProperties": {
+                  "offsetTop": 1.110223e-16,
+                  "offsetBottom": 1.110223e-16
+                }
+              },
+              "title": "Inline figure 2, 4:5 narrow layout",
+              "description": "A missing result triggers inspection of the last confirmed state. Assess whether continuation is known, safe and within approval. If so, perform that known safe step. An uncertain consequential submission or changed scope goes to the owner, who may approve the next step or keep it on hold. Only if proceeding, perform the approved step, then inspect the actual result. A held step does not lead to execution. Attempted does not mean verified. Never blindly duplicate a submission.",
+              "embeddedObjectBorder": {
+                "color": {
+                  "color": {
+                    "rgbColor": {}
+                  }
+                },
+                "width": {
+                  "unit": "PT"
+                },
+                "dashStyle": "SOLID",
+                "propertyState": "NOT_RENDERED"
+              },
+              "size": {
+                "height": {
+                  "magnitude": 522,
+                  "unit": "PT"
+                },
+                "width": {
+                  "magnitude": 417.6,
+                  "unit": "PT"
+                }
+              },
+              "marginTop": {
+                "unit": "PT"
+              },
+              "marginBottom": {
+                "unit": "PT"
+              },
+              "marginRight": {
+                "magnitude": 9,
+                "unit": "PT"
+              },
+              "marginLeft": {
+                "magnitude": 9,
+                "unit": "PT"
+              }
+            }
+          }
+        }
+      },
+      "positionedObjects": null,
+      "documentId": "1y3wD0fEipdbS6InO5sQi4zbRrQEfDZ700dUR0GIXOuc",
+      "document_url": "https://docs.google.com/document/d/1y3wD0fEipdbS6InO5sQi4zbRrQEfDZ700dUR0GIXOuc"
+    }
+  ],
+  "document_url": "https://docs.google.com/document/d/1y3wD0fEipdbS6InO5sQi4zbRrQEfDZ700dUR0GIXOuc"
+}

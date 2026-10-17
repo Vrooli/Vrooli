@@ -6,6 +6,8 @@ describe('adminPages config', () => {
     const page = getAdminPageByPath('/admin/customization/variants/control/sections/42');
 
     expect(page?.id).toBe('section-editor');
+    expect(getAdminPageByPath('/admin/presentation')?.id).toBe('presentation-editor');
+    expect(getAdminPageByPath('/admin/presentation/control')?.id).toBe('presentation-editor-variant');
   });
 
   it('builds doc links for pages with documentation', () => {

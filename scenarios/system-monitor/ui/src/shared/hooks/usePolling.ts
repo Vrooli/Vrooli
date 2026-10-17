@@ -52,11 +52,11 @@ export function usePolling(
           );
         }
       }
-      timeoutId = setTimeout(tick, currentIntervalRef.current);
+      timeoutId = setTimeout(() => { void tick(); }, currentIntervalRef.current);
     };
 
-    timeoutId = setTimeout(tick, currentIntervalRef.current);
+    timeoutId = setTimeout(() => { void tick(); }, currentIntervalRef.current);
 
-    return () => clearTimeout(timeoutId);
+    return () => { clearTimeout(timeoutId); };
   }, [intervalMs, enabled]);
 }

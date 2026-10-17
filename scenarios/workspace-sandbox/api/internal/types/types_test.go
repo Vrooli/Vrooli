@@ -64,14 +64,14 @@ func TestConflictTypeConstants(t *testing.T) {
 	}
 }
 
-func TestSandbox_WorkspacePath(t *testing.T) {
+func TestSandbox_HostWorkspacePath(t *testing.T) {
 	t.Run("returns merged dir when active", func(t *testing.T) {
 		s := &Sandbox{
 			Status:    StatusActive,
 			MergedDir: "/var/lib/sandbox/merged",
 		}
-		if got := s.WorkspacePath(); got != "/var/lib/sandbox/merged" {
-			t.Errorf("WorkspacePath() = %q, want '/var/lib/sandbox/merged'", got)
+		if got := s.HostWorkspacePath(); got != "/var/lib/sandbox/merged" {
+			t.Errorf("HostWorkspacePath() = %q, want '/var/lib/sandbox/merged'", got)
 		}
 	})
 
@@ -81,8 +81,8 @@ func TestSandbox_WorkspacePath(t *testing.T) {
 				Status:    status,
 				MergedDir: "/var/lib/sandbox/merged",
 			}
-			if got := s.WorkspacePath(); got != "" {
-				t.Errorf("WorkspacePath() with status %s = %q, want ''", status, got)
+			if got := s.HostWorkspacePath(); got != "" {
+				t.Errorf("HostWorkspacePath() with status %s = %q, want ''", status, got)
 			}
 		}
 	})
@@ -92,8 +92,8 @@ func TestSandbox_WorkspacePath(t *testing.T) {
 			Status:    StatusActive,
 			MergedDir: "",
 		}
-		if got := s.WorkspacePath(); got != "" {
-			t.Errorf("WorkspacePath() with empty MergedDir = %q, want ''", got)
+		if got := s.HostWorkspacePath(); got != "" {
+			t.Errorf("HostWorkspacePath() with empty MergedDir = %q, want ''", got)
 		}
 	})
 }
@@ -199,7 +199,7 @@ func TestSandboxStructure(t *testing.T) {
 		ErrorMsg:       "",
 		CreatedAt:      now,
 		LastUsedAt:     now,
-		Driver:         "overlayfs",
+		DriverID:       "overlayfs-userns",
 		DriverVersion:  "1.0",
 		LowerDir:       "/lower",
 		UpperDir:       "/upper",
@@ -235,6 +235,12 @@ func TestStatusConstants(t *testing.T) {
 	if StatusStopped != "stopped" {
 		t.Errorf("StatusStopped = %q, want 'stopped'", StatusStopped)
 	}
+	if StatusCheckpointing != "checkpointing" {
+		t.Errorf("StatusCheckpointing = %q, want 'checkpointing'", StatusCheckpointing)
+	}
+	if StatusCheckpointed != "checkpointed" {
+		t.Errorf("StatusCheckpointed = %q, want 'checkpointed'", StatusCheckpointed)
+	}
 	if StatusApproved != "approved" {
 		t.Errorf("StatusApproved = %q, want 'approved'", StatusApproved)
 	}
@@ -257,6 +263,8 @@ func TestStatus_IsActive(t *testing.T) {
 		{StatusCreating, true},
 		{StatusActive, true},
 		{StatusStopped, false},
+		{StatusCheckpointing, false},
+		{StatusCheckpointed, false},
 		{StatusApproved, false},
 		{StatusRejected, false},
 		{StatusDeleted, false},
@@ -280,6 +288,8 @@ func TestStatus_IsTerminal(t *testing.T) {
 		{StatusCreating, false},
 		{StatusActive, false},
 		{StatusStopped, false},
+		{StatusCheckpointing, false},
+		{StatusCheckpointed, false},
 		{StatusApproved, true},
 		{StatusRejected, true},
 		{StatusDeleted, true},
@@ -295,6 +305,44 @@ func TestStatus_IsTerminal(t *testing.T) {
 	}
 }
 
+func TestCanRunProcessOnlyActive(t *testing.T) {
+	tests := []struct {
+		status Status
+		want   bool
+	}{
+		{StatusCreating, false},
+		{StatusActive, true},
+		{StatusStopped, false},
+		{StatusCheckpointing, false},
+		{StatusCheckpointed, false},
+		{StatusApproved, false},
+		{StatusRejected, false},
+		{StatusDeleted, false},
+		{StatusError, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(string(tt.status), func(t *testing.T) {
+			if got := CanRunProcess(tt.status); got != tt.want {
+				t.Errorf("CanRunProcess(%s) = %v, want %v", tt.status, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCanResumeWorkOnlyCheckpointed(t *testing.T) {
+	for _, status := range []Status{StatusCreating, StatusActive, StatusStopped, StatusCheckpointing, StatusApproved, StatusRejected, StatusDeleted, StatusError} {
+		t.Run(string(status), func(t *testing.T) {
+			if err := CanResumeWork(status); err == nil {
+				t.Fatalf("CanResumeWork(%s) error = nil, want error", status)
+			}
+		})
+	}
+	if err := CanResumeWork(StatusCheckpointed); err != nil {
+		t.Fatalf("CanResumeWork(checkpointed) error = %v, want nil", err)
+	}
+}
+
 func TestStatus_IsMounted(t *testing.T) {
 	tests := []struct {
 		status Status
@@ -303,6 +351,8 @@ func TestStatus_IsMounted(t *testing.T) {
 		{StatusCreating, false},
 		{StatusActive, true},
 		{StatusStopped, false},
+		{StatusCheckpointing, false},
+		{StatusCheckpointed, false},
 		{StatusApproved, false},
 		{StatusRejected, false},
 		{StatusDeleted, false},
@@ -326,6 +376,8 @@ func TestStatus_RequiresCleanup(t *testing.T) {
 		{StatusCreating, true},
 		{StatusActive, true},
 		{StatusStopped, true},
+		{StatusCheckpointing, true},
+		{StatusCheckpointed, true},
 		{StatusApproved, false},
 		{StatusRejected, false},
 		{StatusDeleted, false},
@@ -378,6 +430,7 @@ func TestCanApprove(t *testing.T) {
 	}{
 		{StatusActive, false},
 		{StatusStopped, false},
+		{StatusCheckpointed, true},
 		{StatusCreating, true},
 		{StatusApproved, true},
 		{StatusRejected, true},
@@ -402,6 +455,7 @@ func TestCanReject(t *testing.T) {
 	}{
 		{StatusActive, false},
 		{StatusStopped, false},
+		{StatusCheckpointed, false},
 		{StatusCreating, true},
 		{StatusApproved, true},
 		{StatusRejected, true},
@@ -427,6 +481,7 @@ func TestCanDelete(t *testing.T) {
 		{StatusCreating, false},
 		{StatusActive, false},
 		{StatusStopped, false},
+		{StatusCheckpointed, false},
 		{StatusApproved, false},
 		{StatusRejected, false},
 		{StatusError, false},
@@ -450,6 +505,7 @@ func TestCanGenerateDiff(t *testing.T) {
 	}{
 		{StatusActive, false},
 		{StatusStopped, false},
+		{StatusCheckpointed, true},
 		{StatusApproved, false}, // Allow historical view
 		{StatusRejected, false}, // Allow historical view
 		{StatusCreating, true},
@@ -475,6 +531,7 @@ func TestCanGetWorkspacePath(t *testing.T) {
 		{StatusActive, false},
 		{StatusCreating, true},
 		{StatusStopped, true},
+		{StatusCheckpointed, true},
 		{StatusApproved, true},
 		{StatusRejected, true},
 		{StatusDeleted, true},
@@ -506,6 +563,8 @@ func TestCanTransitionTo(t *testing.T) {
 
 		// From Active
 		{StatusActive, StatusStopped, true},
+		{StatusActive, StatusCheckpointing, true},
+		{StatusActive, StatusCheckpointed, false},
 		{StatusActive, StatusApproved, true},
 		{StatusActive, StatusRejected, true},
 		{StatusActive, StatusError, true},
@@ -519,6 +578,21 @@ func TestCanTransitionTo(t *testing.T) {
 		{StatusStopped, StatusDeleted, true},
 		{StatusStopped, StatusCreating, false},
 		{StatusStopped, StatusError, false},
+
+		// From Checkpointing
+		{StatusCheckpointing, StatusCheckpointed, true},
+		{StatusCheckpointing, StatusActive, true},
+		{StatusCheckpointing, StatusError, true},
+		{StatusCheckpointing, StatusDeleted, true},
+		{StatusCheckpointing, StatusApproved, false},
+		{StatusCheckpointing, StatusStopped, false},
+
+		// From Checkpointed
+		{StatusCheckpointed, StatusActive, true},
+		{StatusCheckpointed, StatusRejected, true},
+		{StatusCheckpointed, StatusDeleted, true},
+		{StatusCheckpointed, StatusApproved, false},
+		{StatusCheckpointed, StatusStopped, false},
 
 		// From Approved (terminal)
 		{StatusApproved, StatusDeleted, true},
@@ -551,7 +625,7 @@ func TestCanTransitionTo(t *testing.T) {
 
 func TestValidTransitionsCompleteness(t *testing.T) {
 	// Ensure all statuses have entries in ValidTransitions
-	allStatuses := []Status{StatusCreating, StatusActive, StatusStopped, StatusApproved, StatusRejected, StatusDeleted, StatusError}
+	allStatuses := []Status{StatusCreating, StatusActive, StatusStopped, StatusCheckpointing, StatusCheckpointed, StatusApproved, StatusRejected, StatusDeleted, StatusError}
 
 	for _, status := range allStatuses {
 		if _, exists := ValidTransitions[status]; !exists {

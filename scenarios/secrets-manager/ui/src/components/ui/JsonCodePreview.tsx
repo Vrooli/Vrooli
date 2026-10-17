@@ -28,11 +28,15 @@ function tokenizeJson(json: string): Token[][] {
     let i = 0;
 
     while (i < line.length) {
+		const current = line[i];
+		if (current === undefined) break;
       // Skip whitespace - add as punctuation to preserve indentation
-      if (/\s/.test(line[i])) {
+      if (/\s/.test(current)) {
         let ws = "";
-        while (i < line.length && /\s/.test(line[i])) {
-          ws += line[i];
+        while (i < line.length) {
+          const whitespace = line[i];
+          if (whitespace === undefined || !/\s/.test(whitespace)) break;
+          ws += whitespace;
           i++;
         }
         tokens.push({ type: "punctuation", value: ws });
@@ -40,17 +44,22 @@ function tokenizeJson(json: string): Token[][] {
       }
 
       // String (could be key or value)
-      if (line[i] === '"') {
+      if (current === '"') {
         let str = '"';
         i++;
-        while (i < line.length && line[i] !== '"') {
-          if (line[i] === "\\" && i + 1 < line.length) {
-            str += line[i] + line[i + 1];
-            i += 2;
-          } else {
-            str += line[i];
-            i++;
+        while (i < line.length) {
+          const character = line[i];
+          if (character === undefined || character === '"') break;
+          if (character === "\\") {
+            const escaped = line[i + 1];
+            if (escaped !== undefined) {
+              str += character + escaped;
+              i += 2;
+              continue;
+            }
           }
+          str += character;
+          i++;
         }
         if (i < line.length) {
           str += '"';
@@ -59,7 +68,11 @@ function tokenizeJson(json: string): Token[][] {
 
         // Check if this is a key (followed by colon)
         let j = i;
-        while (j < line.length && /\s/.test(line[j])) j++;
+        while (j < line.length) {
+          const whitespace = line[j];
+          if (whitespace === undefined || !/\s/.test(whitespace)) break;
+          j++;
+        }
         const isKey = j < line.length && line[j] === ":";
 
         tokens.push({ type: isKey ? "key" : "string", value: str });
@@ -67,10 +80,12 @@ function tokenizeJson(json: string): Token[][] {
       }
 
       // Number
-      if (/[-\d]/.test(line[i])) {
+      if (/[-\d]/.test(current)) {
         let num = "";
-        while (i < line.length && /[-\d.eE+]/.test(line[i])) {
-          num += line[i];
+        while (i < line.length) {
+          const character = line[i];
+          if (character === undefined || !/[-\d.eE+]/.test(character)) break;
+          num += character;
           i++;
         }
         tokens.push({ type: "number", value: num });
@@ -95,7 +110,7 @@ function tokenizeJson(json: string): Token[][] {
       }
 
       // Punctuation (braces, brackets, colons, commas)
-      tokens.push({ type: "punctuation", value: line[i] });
+      tokens.push({ type: "punctuation", value: current });
       i++;
     }
 
@@ -105,7 +120,7 @@ function tokenizeJson(json: string): Token[][] {
 
 export function JsonCodePreview({ data, className = "" }: JsonCodePreviewProps) {
   const { lines, lineCount } = useMemo(() => {
-    const json = JSON.stringify(data, null, 2);
+    const json = JSON.stringify(data, null, 2) ?? "null";
     const tokenized = tokenizeJson(json);
     return {
       lines: tokenized,

@@ -8,7 +8,8 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useActionMutation } from "../../hooks/useActionMutation";
 import { defaultQueryOptions } from "../../lib";
 import { getContentTypeForFile, getFileType } from "../../lib/file-type-utils";
 import { useFileService } from "../../contexts/FileServiceContext";
@@ -107,13 +108,18 @@ export function useFilePreviewState({
   }, [isDirty]);
 
   // Save mutation
-  const saveMutation = useMutation({
+  const saveMutation = useActionMutation({
     mutationFn: async (nextContent: string) =>
       fileService.saveFileContent(
         filePath,
         nextContent,
         getContentTypeForFile(fileName)
       ),
+    errorMessage: "Couldn't save this file",
+    // The editor shows `saveErrorMessage` beside the Save button and must keep
+    // the operator's unsaved draft visible while they read it.
+    silentError: true,
+    source: "FilePreview.save",
     onSuccess: (_result, nextContent) => {
       setFileStateByPath((prev) => ({
         ...prev,
@@ -131,18 +137,14 @@ export function useFilePreviewState({
     },
   });
 
-  // Reset save mutation state on file change
+  // Reset only when the selected file changes, preserving pending/error state.
+  const { reset: resetSaveMutation } = saveMutation;
   useEffect(() => {
-    saveMutation.reset();
-  }, [filePath, saveMutation]);
+    resetSaveMutation();
+  }, [filePath, resetSaveMutation]);
 
   const isSaving = saveMutation.isPending;
-  const saveErrorMessage =
-    saveMutation.error instanceof Error
-      ? saveMutation.error.message
-      : saveMutation.error
-        ? "Unable to save file."
-        : "";
+  const saveErrorMessage = saveMutation.errorDescription?.message ?? "";
 
   const handleDraftChange = useCallback(
     (nextValue?: string) => {
@@ -205,7 +207,11 @@ export function useFilePreviewState({
 
   // Derived booleans for rendering decisions
   const showMarkdownToggle = fileType === "markdown" && !isDiffMode;
-  const showEditor = isEditable && !isDiffMode && (fileType !== "markdown" || markdownView === "raw");
+  // Viewing is independent of editing: read-only files still render in the
+  // editor, which receives `readOnly: !isEditable`. Gating this on `isEditable`
+  // left protected files (spec.json / goal.json — the default selection) with a
+  // blank content pane.
+  const showEditor = !isImage && !isDiffMode && (fileType !== "markdown" || markdownView === "raw");
   const showRenderedMarkdown = fileType === "markdown" && markdownView === "rendered" && !isDiffMode;
   const showDiff = isEditable && isDiffMode && !isLoading && !error;
   const canSave = isEditable && isDirty && !isSaving && !isLoading && !error;

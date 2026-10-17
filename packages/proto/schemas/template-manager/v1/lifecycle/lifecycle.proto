@@ -1,0 +1,242 @@
+syntax = "proto3";
+
+package vrooli.template_manager.v1.lifecycle;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/template-manager/v1/lifecycle;lifecycle_v1";
+
+// TemplateLifecycleService owns scenario template lifecycle operations that
+// previously lived under `vrooli scenario generate|orient|detemplate|template`.
+service TemplateLifecycleService {
+  rpc GenerateScenario(GenerateScenarioRequest) returns (GenerateScenarioResponse);
+  rpc OrientScenario(OrientScenarioRequest) returns (OrientScenarioResponse);
+  rpc DetemplateScenario(DetemplateScenarioRequest) returns (DetemplateScenarioResponse);
+  // DestroyScenario is the inverse of GenerateScenario. Generation writes the
+  // scenario directory AND six codegen outputs into the shared packages/proto
+  // tree; without a matching teardown, deleting the directory strands all six.
+  rpc DestroyScenario(DestroyScenarioRequest) returns (DestroyScenarioResponse);
+  rpc ValidateTemplate(ValidateTemplateRequest) returns (ValidateTemplateResponse);
+  rpc DriftReport(DriftReportRequest) returns (DriftReportResponse);
+  rpc CleanupRuns(CleanupRunsRequest) returns (CleanupRunsResponse);
+}
+
+// DesignKitService owns design-kit discovery and validation.
+service DesignKitService {
+  rpc ListDesignKits(ListDesignKitsRequest) returns (ListDesignKitsResponse);
+  rpc GetDesignKit(GetDesignKitRequest) returns (GetDesignKitResponse);
+  rpc ValidateDesignKits(ValidateDesignKitsRequest) returns (ValidateDesignKitsResponse);
+}
+
+message GenerateScenarioRequest {
+  string template = 1;
+  string id = 2;
+  string display_name = 3;
+  string description = 4;
+  string destination = 5;
+  string design = 6;
+  bool force = 7;
+  bool dry_run = 8;
+  bool run_hooks = 9;
+  map<string, string> values = 10;
+}
+
+message GenerateScenarioResponse {
+  string template = 1;
+  string display_name = 2;
+  string destination = 3;
+  bool dry_run = 4;
+  bool run_hooks = 5;
+  string manifest_version = 6;
+  string design_kit = 7;
+}
+
+message OrientScenarioRequest {
+  string scenario = 1;
+  bool finalize = 2;
+}
+
+message OrientScenarioResponse {
+  string scenario = 1;
+  string scenario_path = 2;
+  bool finalized = 3;
+  int32 completed = 4;
+  int32 required = 5;
+  bool finalize_required = 6;
+  string next_step = 7;
+  string message = 8;
+}
+
+message DetemplateScenarioRequest {
+  string scenario = 1;
+  bool dry_run = 2;
+}
+
+message DetemplateScenarioResponse {
+  string scenario = 1;
+  string scenario_path = 2;
+  string marker = 3;
+  bool dry_run = 4;
+  int32 blocks_removed = 5;
+  int32 lines_stripped = 6;
+  repeated string paths_deleted = 7;
+  string message = 8;
+}
+
+message DestroyScenarioRequest {
+  // Scenario id as generated (hyphenated). Also names the proto surface.
+  string scenario = 1;
+  // Preview every path that would be removed without deleting anything.
+  bool dry_run = 2;
+  // Remove only the packages/proto footprint, leaving the scenario directory.
+  // This is how an already-deleted scenario's stranded codegen gets reaped.
+  bool proto_only = 3;
+  // Required when the scenario directory still exists: destroying a live
+  // scenario is not something to do by accident.
+  bool force = 4;
+}
+
+message DestroyScenarioResponse {
+  string scenario = 1;
+  bool dry_run = 2;
+  bool proto_only = 3;
+  // Every path removed (or that would be removed under dry_run), including the
+  // scenario directory and all six codegen outputs.
+  repeated string paths_removed = 4;
+  // Paths that were part of the footprint but did not exist. Reported rather
+  // than hidden so a partial teardown is visible.
+  repeated string paths_absent = 5;
+  // True when codegen must be re-run to drop the surface from descriptor sets.
+  bool needs_proto_generate = 6;
+  string message = 7;
+}
+
+message ValidateTemplateRequest {
+  string template = 1;
+  string mode = 2;
+  string test_preset = 3;
+  string warning_policy = 4;
+  bool retain_temp = 5;
+}
+
+message TemplateValidationIssue {
+  string template = 1;
+  string path = 2;
+  string message = 3;
+}
+
+message ValidateTemplateResponse {
+  string mode = 1;
+  string template = 2;
+  // count is the number of templates validated by this call, not the number of
+  // issues found. Read status/issues_count for the pass-fail verdict.
+  int32 count = 3;
+  repeated TemplateValidationIssue issues = 4;
+  // status is the machine verdict: "pass" when no issues were found, "fail"
+  // otherwise. Always populated so consumers never infer pass-fail from an
+  // omitted repeated field.
+  string status = 5;
+  // issues_count mirrors len(issues); it is the failure count, distinct from
+  // count (templates validated).
+  int32 issues_count = 6;
+  // warnings carry non-fatal advisories about the request itself (e.g. a flag
+  // that has no effect in the selected mode). They never change the verdict.
+  repeated string warnings = 7;
+}
+
+message DriftReportRequest {
+  string scenario = 1;
+  bool all = 2;
+  bool verbose = 3;
+}
+
+message DriftScenario {
+  string scenario = 1;
+  string template = 2;
+  string status = 3;
+  bool manifest_drifted = 4;
+  bool content_drifted = 5;
+  string message = 6;
+}
+
+message DriftReportResponse {
+  repeated DriftScenario scenarios = 1;
+}
+
+message CleanupRunsRequest {
+  bool dry_run = 1;
+  string older_than = 2;
+  bool include_retained = 3;
+  string run_id = 4;
+}
+
+message CleanupSkippedRun {
+  string run_id = 1;
+  string path = 2;
+  // reason explains why the workspace was not removed (e.g. "retained run; use
+  // --include-retained or --run <id>") so a dry-run is self-explaining.
+  string reason = 3;
+}
+
+message CleanupRunsResponse {
+  int32 matched = 1;
+  int32 removed = 2;
+  bool dry_run = 3;
+  string message = 4;
+  // skipped is the number of workspaces left in place; skipped_runs enumerates
+  // each with the reason it was retained.
+  int32 skipped = 5;
+  repeated CleanupSkippedRun skipped_runs = 6;
+}
+
+message ListDesignKitsRequest {}
+
+message DesignKit {
+  string id = 1;
+  string name = 2;
+  string version = 3;
+  bool default = 4;
+  string description = 5;
+  repeated string tags = 6;
+  repeated string adapters = 7;
+}
+
+message ListDesignKitsResponse {
+  repeated DesignKit kits = 1;
+}
+
+message GetDesignKitRequest {
+  string id = 1;
+}
+
+message GetDesignKitResponse {
+  DesignKit kit = 1;
+}
+
+message ValidateDesignKitsRequest {
+  string id = 1;
+  bool all = 2;
+}
+
+message DesignValidationIssue {
+  string kit = 1;
+  string adapter = 2;
+  string path = 3;
+  string message = 4;
+}
+
+message DesignKitValidationResult {
+  string kit = 1;
+  // status is "pass" when the kit produced no issues, "fail" otherwise.
+  string status = 2;
+  repeated DesignValidationIssue issues = 3;
+}
+
+message ValidateDesignKitsResponse {
+  int32 count = 1;
+  // issues is the flat list across every kit plus any fleet-level issue (e.g.
+  // more than one kit marked default). results groups the per-kit verdicts.
+  repeated DesignValidationIssue issues = 2;
+  // status is the overall verdict: "pass" when issues is empty, "fail" otherwise.
+  string status = 3;
+  int32 issues_count = 4;
+  repeated DesignKitValidationResult results = 5;
+}

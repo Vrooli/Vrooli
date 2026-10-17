@@ -218,7 +218,11 @@ func (s *SmartScanner) processBatch(ctx context.Context, batchID int, files []st
 // readFileContent reads the content of a file from the scenario directory
 func (s *SmartScanner) readFileContent(scenario, filePath string) (string, error) {
 	// Security: Prevent path traversal attacks
-	scenarioPath := filepath.Clean(s.scenarioPath(scenario))
+	resolvedScenarioPath, err := s.scenarioPath(scenario)
+	if err != nil {
+		return "", err
+	}
+	scenarioPath := filepath.Clean(resolvedScenarioPath)
 	fullPath := filepath.Join(scenarioPath, filePath)
 
 	// Ensure the resolved path is within the scenario directory
@@ -336,11 +340,11 @@ func (s *SmartScanner) markFileAnalyzed(file string) {
 	s.analyzedFiles[file] = true
 }
 
-func (s *SmartScanner) scenarioPath(scenario string) string {
+func (s *SmartScanner) scenarioPath(scenario string) (string, error) {
 	if s.scenarioLocator != nil {
 		return s.scenarioLocator.ScenarioPath(scenario)
 	}
-	return defaultScenarioPath(scenario)
+	return resolveDefaultScenarioPath(scenario)
 }
 
 // createBatches splits files into batches

@@ -110,12 +110,12 @@ export function formatDiscountBadge(
   if (coupon.percent_off && coupon.percent_off > 0) {
     // Percentage discount
     if (coupon.duration === 'once') {
-      return `First ${interval} ${Math.round(coupon.percent_off)}% off`;
+      return `First ${interval} ${String(Math.round(coupon.percent_off))}% off`;
     }
     if (coupon.duration === 'forever') {
-      return `${Math.round(coupon.percent_off)}% off`;
+      return `${String(Math.round(coupon.percent_off))}% off`;
     }
-    return `${Math.round(coupon.percent_off)}% off ${durationText}`;
+    return `${String(Math.round(coupon.percent_off))}% off ${durationText}`;
   }
 
   if (coupon.amount_off && coupon.amount_off > 0) {
@@ -143,9 +143,9 @@ function getDurationText(coupon: StripeCoupon, interval: 'month' | 'year'): stri
         const months = coupon.duration_in_months;
         if (interval === 'year') {
           const years = Math.floor(months / 12);
-          return years > 1 ? `for ${years} years` : 'for 1 year';
+          return years > 1 ? `for ${String(years)} years` : 'for 1 year';
         }
-        return months > 1 ? `for ${months} months` : 'for 1 month';
+        return months > 1 ? `for ${String(months)} months` : 'for 1 month';
       }
       return '';
     default:
@@ -190,7 +190,7 @@ export function getCouponSummary(coupon: StripeCoupon): string {
   let discountText = '';
 
   if (typeof coupon.percent_off === 'number' && coupon.percent_off > 0) {
-    discountText = `${Math.round(coupon.percent_off)}% off`;
+    discountText = `${String(Math.round(coupon.percent_off))}% off`;
   } else if (typeof coupon.amount_off === 'number' && coupon.amount_off > 0) {
     discountText = `${formatCurrency(coupon.amount_off, coupon.currency ?? 'usd')} off`;
   } else {
@@ -204,7 +204,7 @@ export function getCouponSummary(coupon: StripeCoupon): string {
       return `${discountText} (forever)`;
     case 'repeating':
       if (coupon.duration_in_months && coupon.duration_in_months > 0) {
-        return `${discountText} (${coupon.duration_in_months} months)`;
+        return `${discountText} (${String(coupon.duration_in_months)} months)`;
       }
       return discountText;
     default:

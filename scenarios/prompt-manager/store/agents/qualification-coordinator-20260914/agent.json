@@ -1,0 +1,23 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "qualification-coordinator-20260914",
+  "displayName": "qualification-coordinator-20260914",
+  "description": "Disposable coordinator for finite team qualification",
+  "status": "active",
+  "appearance": {
+    "body": "#3B82F6",
+    "head": "#F59E0B",
+    "accent": "#10B981"
+  },
+  "tags": [
+    "qualification",
+    "disposable"
+  ],
+  "fileOrder": [
+    "AGENT.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-09-14T04:44:49Z",
+  "updatedAt": "2026-09-14T04:44:49Z"
+}

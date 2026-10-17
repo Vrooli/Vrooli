@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+package vrooli.notification_hub.v1.identity;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/identity;identity_v1";
+
+// =============================================================================
+// IDENTITY DOMAIN — same-origin owner sign-in facade
+// =============================================================================
+//
+// @stability stable
+//
+// Notification Hub does not own identity; scenario-authenticator does. The
+// installed PWA must stay on its own origin, so it signs in through this thin
+// facade. The hub forwards to scenario-authenticator (resolved through
+// api-core/discovery), sets an HttpOnly, Secure (behind HTTPS), SameSite=Lax
+// owner cookie, and verifies that cookie locally against the authenticator's
+// JWKS on every owner-gated RPC. Browser calls (X-Vrooli-Browser-Session: 1)
+// never receive the token in the body. Precedent: device-sync-hub
+// IdentityService and git-control-tower AuthService.
+//
+// Consumed by:
+//   - API: handlers/identity (forwarder plus cookie)
+//   - UI:  ui/src/features/session (sign in, signed-in state, sign out)
+// =============================================================================
+
+service IdentityService {
+  // Login forwards email + password. Invalid credentials map to
+  // CodeUnauthenticated; an unreachable authenticator to CodeUnavailable.
+  rpc Login(LoginRequest) returns (LoginResponse);
+  // GetSession reports whether the presented cookie or bearer is a verified
+  // owner, without forwarding anything.
+  rpc GetSession(GetSessionRequest) returns (GetSessionResponse);
+  // Logout clears the owner cookie. Idempotent.
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
+}
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+message LoginResponse {
+  // Empty for browser sessions; the cookie carries the session.
+  string token = 1;
+  string refresh_token = 2;
+  string email = 3;
+  string user_id = 4;
+}
+message GetSessionRequest {}
+message GetSessionResponse {
+  bool signed_in = 1;
+  string subject = 2;
+  string email = 3;
+}
+message LogoutRequest {}
+message LogoutResponse {}

@@ -8,13 +8,20 @@ import { act } from "@testing-library/react";
 import { usePipelineStore } from "./pipelineStore";
 import type { PipelineRunStatus } from "./pipelineTypes";
 import type { VerbosePipelineStatus } from "../lib/api";
+import { createPipelineStatus } from "../test-utils/mocks";
+import {
+  StageName,
+  StageStatus,
+} from "@vrooli/proto-types/scenario-to-desktop/v1/shared/common_pb";
 
 // Mock the API module — keep ApiError so error-utils instanceof checks work
 vi.mock("../lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../lib/api")>();
   return {
     ...actual,
-    runPipeline: vi.fn().mockResolvedValue({ pipeline_id: "test-pipeline-123" }),
+    runPipeline: vi
+      .fn()
+      .mockResolvedValue({ pipeline_id: "test-pipeline-123" }),
     getPipelineStatus: vi.fn().mockResolvedValue({
       pipeline_id: "test-pipeline-123",
       status: "running",
@@ -27,7 +34,9 @@ vi.mock("../lib/api", async (importOriginal) => {
       },
     }),
     cancelPipeline: vi.fn().mockResolvedValue({ success: true }),
-    getActivePipeline: vi.fn().mockResolvedValue({ pipeline: null, created: false }),
+    getActivePipeline: vi
+      .fn()
+      .mockResolvedValue({ pipeline: null, created: false }),
   };
 });
 
@@ -104,10 +113,12 @@ describe("pipelineStore", () => {
 
       act(() => {
         store.setScenario("scenario-1");
-        store._setPipelineStatus({
-          pipeline_id: "pipeline-1",
-          status: "running",
-        } as VerbosePipelineStatus);
+        store._setPipelineStatus(
+          createPipelineStatus({
+            pipelineId: "pipeline-1",
+            status: StageStatus.RUNNING,
+          }),
+        );
       });
 
       const pipelineId = usePipelineStore.getState().pipelineId;
@@ -126,16 +137,22 @@ describe("pipelineStore", () => {
     it("sets pipeline status from verbose status", () => {
       const store = usePipelineStore.getState();
 
-      const verboseStatus: VerbosePipelineStatus = {
-        pipeline_id: "test-pipeline",
-        status: "running",
-        current_stage: "bundle",
-        stage_order: ["bundle", "preflight"],
+      const verboseStatus = createPipelineStatus({
+        pipelineId: "test-pipeline",
+        status: StageStatus.RUNNING,
+        currentStage: StageName.BUNDLE,
+        stageOrder: [StageName.BUNDLE, StageName.PREFLIGHT],
         stages: {
-          bundle: { stage: "bundle", status: "completed", started_at: Date.now() },
-          preflight: { stage: "preflight", status: "running", started_at: Date.now() },
+          bundle: {
+            stage: StageName.BUNDLE,
+            status: StageStatus.COMPLETED,
+          },
+          preflight: {
+            stage: StageName.PREFLIGHT,
+            status: StageStatus.RUNNING,
+          },
         },
-      } as VerbosePipelineStatus;
+      });
 
       act(() => {
         store._setPipelineStatus(verboseStatus);
@@ -150,20 +167,22 @@ describe("pipelineStore", () => {
     it("maps status to runStatus correctly", () => {
       const store = usePipelineStore.getState();
 
-      const testCases: Array<{ apiStatus: string; expectedRunStatus: PipelineRunStatus }> = [
-        { apiStatus: "pending", expectedRunStatus: "running" },
-        { apiStatus: "running", expectedRunStatus: "running" },
-        { apiStatus: "completed", expectedRunStatus: "completed" },
-        { apiStatus: "failed", expectedRunStatus: "failed" },
-        { apiStatus: "cancelled", expectedRunStatus: "cancelled" },
+      const testCases: Array<{
+        apiStatus: StageStatus;
+        expectedRunStatus: PipelineRunStatus;
+      }> = [
+        { apiStatus: StageStatus.PENDING, expectedRunStatus: "running" },
+        { apiStatus: StageStatus.RUNNING, expectedRunStatus: "running" },
+        { apiStatus: StageStatus.COMPLETED, expectedRunStatus: "completed" },
+        { apiStatus: StageStatus.FAILED, expectedRunStatus: "failed" },
+        { apiStatus: StageStatus.CANCELLED, expectedRunStatus: "cancelled" },
       ];
 
       for (const { apiStatus, expectedRunStatus } of testCases) {
         act(() => {
-          store._setPipelineStatus({
-            pipeline_id: "test",
-            status: apiStatus,
-          } as VerbosePipelineStatus);
+          store._setPipelineStatus(
+            createPipelineStatus({ pipelineId: "test", status: apiStatus }),
+          );
         });
 
         expect(usePipelineStore.getState().runStatus).toBe(expectedRunStatus);
@@ -175,10 +194,12 @@ describe("pipelineStore", () => {
 
       // First set a status
       act(() => {
-        store._setPipelineStatus({
-          pipeline_id: "test",
-          status: "running",
-        } as VerbosePipelineStatus);
+        store._setPipelineStatus(
+          createPipelineStatus({
+            pipelineId: "test",
+            status: StageStatus.RUNNING,
+          }),
+        );
       });
 
       expect(usePipelineStore.getState().pipelineStatus).not.toBeNull();
@@ -214,7 +235,9 @@ describe("pipelineStore", () => {
         store.setPreflightSecret("API_KEY", "secret-value");
       });
 
-      expect(usePipelineStore.getState().preflightSecrets.API_KEY).toBe("secret-value");
+      expect(usePipelineStore.getState().preflightSecrets.API_KEY).toBe(
+        "secret-value",
+      );
     });
 
     it("setPreflightSecret preserves other secrets", () => {
@@ -255,7 +278,9 @@ describe("pipelineStore", () => {
         store.setPreflightOverride(true);
       });
 
-      expect(usePipelineStore.getState().preflightSecrets).toEqual({ KEY: "value" });
+      expect(usePipelineStore.getState().preflightSecrets).toEqual({
+        KEY: "value",
+      });
       expect(usePipelineStore.getState().preflightOverride).toBe(true);
 
       // Reset
@@ -276,10 +301,12 @@ describe("pipelineStore", () => {
       act(() => {
         store.setScenario("test-scenario");
         usePipelineStore.setState({ pipelineId: "test-pipeline" });
-        store._setPipelineStatus({
-          pipeline_id: "test",
-          status: "running",
-        } as VerbosePipelineStatus);
+        store._setPipelineStatus(
+          createPipelineStatus({
+            pipelineId: "test",
+            status: StageStatus.RUNNING,
+          }),
+        );
         store.setPreflightSecrets({ KEY: "value" });
         store.setPreflightOverride(true);
       });
@@ -445,15 +472,19 @@ describe("pipelineStore", () => {
 
       // Set up a pipeline
       act(() => {
-        store._setPipelineStatus({
-          pipeline_id: "pipeline-1",
-          status: "completed",
-        } as VerbosePipelineStatus);
+        store._setPipelineStatus(
+          createPipelineStatus({
+            pipelineId: "pipeline-1",
+            status: StageStatus.COMPLETED,
+          }),
+        );
       });
 
       // The history tracking depends on implementation
       // but we can verify the history field exists
-      expect(Array.isArray(usePipelineStore.getState().pipelineHistory)).toBe(true);
+      expect(Array.isArray(usePipelineStore.getState().pipelineHistory)).toBe(
+        true,
+      );
     });
   });
 

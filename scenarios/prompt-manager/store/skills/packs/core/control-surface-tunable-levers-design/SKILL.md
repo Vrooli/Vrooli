@@ -1,3 +1,23 @@
+---
+name: "control-surface-tunable-levers-design"
+description: "Design configuration and control points for flexibility"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","configuration"]
+  tags: ["skill"]
+  icon: "sliders"
+  status: "active"
+  revision: 43
+  createdAt: "2025-01-15T00:00:00Z"
+  updatedAt: "2026-02-04T13:13:54Z"
+  requires:
+    scenarios: []
+    commands: []
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Control Surface & Tunable Levers Design
 
 Prioritize designing and refining this scenario’s **control surface**: the small set of **meaningful, safe levers** (config, options, flags, parameters) that shape its behavior.
@@ -112,7 +132,7 @@ Update `docs/reference/configuration.md` (user-facing) to document the control s
 
 * The code is the source of truth. Verify existing claims against actual code before extending.
 * Correct any inaccuracies and extend with your new discoveries.
-* Create the `docs/reference/` directory if needed.
+* Create the `path:docs/reference/` directory if needed.
 
 Include:
 * New tunable levers: name, purpose, valid ranges, default, impact

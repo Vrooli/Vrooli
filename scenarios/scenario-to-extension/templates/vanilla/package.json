@@ -6,9 +6,9 @@
   "private": true,
   "scripts": {
     "build": "node build.js",
-    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node build.js --watch'",
-    "clean": "rm -rf dist",
-    "pack": "npm run build && cd dist && zip -r ../{{PACKAGE_NAME}}-v{{VERSION}}.zip *",
+    "dev": "vrooli lifecycle protect -- node build.js --watch",
+    "clean": "node scripts/clean.mjs",
+    "pack": "npm run build && node scripts/pack.mjs {{PACKAGE_NAME}}-v{{VERSION}}.zip",
     "lint": "eslint *.js",
     "test": "node test.js"
   },

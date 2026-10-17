@@ -1,0 +1,102 @@
+{
+  "description": "Ship extract-shared-types, invert-dependency, and split-file recipes as mechanical executors for known patterns, each validated by the build-green guardrail and released only after history shows ≥10 recurring instances.",
+  "module_id": "MOD-P1-012",
+  "prd_ref": "OT-P1-002",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-003",
+        "REQ-P0-008",
+        "REQ-P0-009",
+        "REQ-P0-005"
+      ],
+      "description": "Cartographer must ship three refactor recipes as mechanical executors for known conflict patterns: extract-shared-types (AC-RECIPE-EXTRACT-TYPES), invert-dependency (AC-RECIPE-INVERT-DEP), and split-file (AC-RECIPE-SPLIT-FILE). Each recipe must implement a common Recipe interface (AC-RECIPE-INTERFACE) that accepts a Conflict envelope and emits an ordered operation plan. Each recipe must enforce the build-green guardrail (AC-RECIPE-BUILD-GREEN) before reporting success. Recipes must be released only after analytics history shows ≥10 recurring instances of the target pattern.",
+      "id": "REQ-P1-002",
+      "prd_ref": "OT-P1-002",
+      "status": "draft",
+      "title": "Refactor Recipes — First Batch of Mechanical Executors",
+      "validation": [
+        {
+          "notes": "AC-RECIPE-INTERFACE: Recipe interface accepts a Conflict envelope and returns an ordered operation plan without side effects",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-RECIPE-EXTRACT-TYPES: Given a type-only cycle conflict, recipe emits operations to move shared types to a new shared package",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-RECIPE-INVERT-DEP: Given a cross-domain cycle conflict, recipe emits operations to introduce an interface and invert the dependency direction",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-RECIPE-SPLIT-FILE: Given a junk-drawer conflict, recipe emits operations to split the file by domain responsibility",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-RECIPE-BUILD-GREEN: Recipe executor refuses to report success if build is broken after applying its operations",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "extract-shared-types recipe applied to bas/fixtures/go-cycles/ resolves the type-only cycle and build remains green",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "invert-dependency recipe applied to a fixture cross-domain cycle resolves the conflict and build remains green",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "split-file recipe applied to bas/fixtures/ts-junk-drawer/ reduces junk-drawer node degree and build remains green",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Analytics records recipe execution event after each successful recipe application",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Each recipe is only available in production after ≥10 analytics-confirmed recurring instances of its target pattern",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "A recipe never makes a business-logic decision; it only performs mechanical structural transformations",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Refactor Recipes (First Batch)"
+}

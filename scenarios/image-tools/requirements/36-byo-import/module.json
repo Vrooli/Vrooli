@@ -1,0 +1,69 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-07-28T23:34:11-04:00"
+  },
+  "requirements": [
+    {
+      "id": "IMG-BYO-001",
+      "title": "Self-serve bring-your-own model import",
+      "status": "in_progress",
+      "prd_ref": "Functional Requirements \u003e Bring-Your-Own Model Import",
+      "category": "feature.import",
+      "description": "A guided import flow (inspect → confirm → install) over CLI + RPC + UI accepts a Hugging Face repo id (gold path), direct URL, or local path; auto-detects single-file vs diffusers-repo layout (routed to Assets[] vs Repo); fetches metadata and infers the architecture (returning confidence + evidence) for the user to confirm; reads license / NSFW; installs via the shared internal/fetch spine with a pinned checksum; and registers add-only at local tier with a user-imported provenance label. Public/BYOK serving of an unverified-license import is refused unless commercial rights are attested (D4). The imported model immediately offers its native + proven-derived ops.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/hfmeta/hfmeta_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "HF metadata seam (fake + recorded fixture) feeding architecture inference + layout detection."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/models/architecture_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "InferArchitecture pipeline-class/tag → Architecture table with confidence + evidence; ambiguous/unknown returns low confidence (never silently guessed)."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/models/import_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "ProposeImport / BuildImportEntry layout→backend routing, provenance label, local-tier + commercial-attestation gate; add-only enforcement."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/fetch/download_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Shared download / HF snapshot / checksum-pin / artifact-kind validation spine reused by models + adapters import."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/features/models/ImportModelWizard.test.tsx",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Import wizard states (inspect → preview detected metadata → confirm architecture/license → install with progress)."
+        }
+      ]
+    },
+    {
+      "id": "IMG-CN-E2E-IMPORT",
+      "title": "Attended GPU E2E — import an HF base by repo id",
+      "status": "complete",
+      "prd_ref": "Functional Requirements \u003e Bring-Your-Own Model Import",
+      "category": "feature.import.e2e",
+      "description": "Import a real SD1.5/SDXL checkpoint by HF repo id → confirm the inferred architecture → install → ai generate at 512px → non-empty output; verify the import offers its derived img2img + inpaint. Proven via `make gpu-e2e-import` (IMAGE_TOOLS_E2E_IMPORT_REPO=\u003crepo\u003e); skips gracefully off-GPU and is excluded from the default test run.",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "Makefile:gpu-e2e-import",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Attended GPU run PROVEN on this host: imported Lykon/dreamshaper-8 by HF repo id → architecture inferred sd15 → installed (diffusers) → `ai generate` @512 real output → derived image_to_image offered. `make gpu-e2e-import` (idempotent regression guard, set IMAGE_TOOLS_E2E_IMPORT_REPO/_ID)."
+        }
+      ]
+    }
+  ]
+}

@@ -9,14 +9,15 @@ package app
 // Key functions:
 // - detectorInstance(): Get or create the detector
 // - isKnownScenario/isKnownResource: Check catalog membership
-// - scanForResourceUsage, scanForScenarioDependencies, scanForSharedWorkflows: Detection ops
+// - scanForResourceUsage, scanForScenarioDependencies: Detection ops
 // - refreshDependencyCatalogs: Invalidate cached catalogs after filesystem changes
 
 import (
 	"fmt"
 
-	"scenario-dependency-analyzer/internal/detection"
-	types "scenario-dependency-analyzer/internal/types"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/detection"
+
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 // detectorInstance returns the detector from the active analyzer, constructing via runtime when absent.
@@ -37,22 +38,6 @@ func refreshDependencyCatalogs() {
 	}
 }
 
-func isKnownScenario(name string) bool {
-	det := detectorInstance()
-	if det == nil {
-		return true
-	}
-	return det.KnownScenario(name)
-}
-
-func isKnownResource(name string) bool {
-	det := detectorInstance()
-	if det == nil {
-		return true
-	}
-	return det.KnownResource(name)
-}
-
 func scanForScenarioDependencies(scenarioPath, scenarioName string) ([]types.ScenarioDependency, error) {
 	det := detectorInstance()
 	if det == nil {
@@ -61,19 +46,11 @@ func scanForScenarioDependencies(scenarioPath, scenarioName string) ([]types.Sce
 	return det.ScanScenarioDependencies(scenarioPath, scenarioName)
 }
 
-func scanForSharedWorkflows(scenarioPath, scenarioName string) ([]types.ScenarioDependency, error) {
-	det := detectorInstance()
-	if det == nil {
-		return nil, fmt.Errorf("detector not initialized")
-	}
-	return det.ScanSharedWorkflows(scenarioPath, scenarioName)
-}
-
 func scanForResourceUsage(scenarioPath, scenarioName string) ([]types.ScenarioDependency, error) {
 	return scanForResourceUsageWithConfig(scenarioPath, scenarioName, nil)
 }
 
-func scanForResourceUsageWithConfig(scenarioPath, scenarioName string, cfg *types.ServiceConfig) ([]types.ScenarioDependency, error) {
+func scanForResourceUsageWithConfig(scenarioPath, scenarioName string, cfg *types.Manifest) ([]types.ScenarioDependency, error) {
 	det := detectorInstance()
 	if det == nil {
 		return nil, fmt.Errorf("detector not initialized")

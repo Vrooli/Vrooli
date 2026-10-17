@@ -1,11 +1,11 @@
-# Scenario Playbooks
+# BAS Automation
 
 Store automation workflows here. Keep it short:
 
-- `capabilities/<operational-target>/<surface>/` mirrors the PRD targets (rename folders as needed).
-- `journeys/` contains multi-surface flows (new user onboarding, AI happy path, etc.).
-- `__subflows/` hosts fixtures referenced via `@fixture/<slug>`.
-- `__seeds/` includes optional setup/cleanup scripts when deterministic data is required.
+- `cases/<operational-target>/<surface>/` mirrors operational targets (rename folders as needed).
+- `flows/` contains multi-surface user flows.
+- `actions/` hosts fixtures referenced via `@fixture/<slug>`.
+- `seeds/` includes optional setup scripts when deterministic data is required.
 
 Each workflow JSON must include:
 

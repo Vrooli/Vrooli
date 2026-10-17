@@ -1,0 +1,93 @@
+{
+  "observedUTC": "2026-10-07T17:09:38.386601+00:00",
+  "scope": "Read-only owner coordination",
+  "repositoryEdited": false,
+  "nativeMutation": false,
+  "testsRun": false,
+  "newDenial": false,
+  "confirmedExactEffortHTTP": 404,
+  "sourceTracePinsCurrent": 24,
+  "currentSource379Matched": 378,
+  "sourceDriftCount": 1,
+  "generatedEpochStableClaimed": false,
+  "protectedStartupRootPresent": false,
+  "independentClaimsAuditedJSONSHA256": "8b83cfd9605ca9d89b5f3579365477ed760e4a408aa74b80e9c164188eccde24",
+  "plaintextSummarySHA256": "cb43af0f9fa8cae52fc816a71ab54e9259541c48d0690e91587ac2a5d49284ad",
+  "paths": [
+    {
+      "path": "/home/matthalloran8/Documents/Codex/2026-10-03/task-2/contracts/option-a/marketing-owner-readonly/am-health.json",
+      "sha256": "3b696c09470c70347e7805f6a6ee781a3e4f56dbca0fc388dc220489f18752b2",
+      "bytes": 1358
+    },
+    {
+      "path": "/home/matthalloran8/Documents/Codex/2026-10-03/task-2/contracts/option-a/marketing-owner-readonly/am-role-catalog.json",
+      "sha256": "5f82496d1b5d5555fa068050dd46276a8773da44f43bd592d6f78b8ad86e4a33",
+      "bytes": 9760
+    },
+    {
+      "path": "/home/matthalloran8/Documents/Codex/2026-10-03/task-2/contracts/option-a/marketing-owner-readonly/am-role-status.json",
+      "sha256": "d595dd9770d7c33b9e0efc1c48be7507fc4af607cb87653e03ab452ca72e1898",
+      "bytes": 947
+    },
+    {
+      "path": "/home/matthalloran8/Documents/Codex/2026-10-03/task-2/contracts/option-a/marketing-owner-readonly/current-source-reconciliation.json",
+      "sha256": "349ef064d107a74fee6c7c84465a9bb14342b6100346db16ded9c756484a8394",
+      "bytes": 4977
+    },
+    {
+      "path": "/home/matthalloran8/Documents/Codex/2026-10-03/task-2/contracts/option-a/marketing-owner-readonly/exact-effort.json",
+      "sha256": "edd5e176770d3dc1b9fe98617d36752c712bce722716498ea8342802e529ea40",
+      "bytes": 319
+    },
+    {
+      "path": "/home/matthalloran8/Documents/Codex/2026-10-03/task-2/contracts/option-a/marketing-owner-readonly/final-readonly-observation.json",
+      "sha256": "3536538f0f6b30c19dec910712d87c6a18640d490dd66ec04a715f61e598cec8",
+      "bytes": 735
+    },
+    {
+      "path": "/home/matthalloran8/Documents/Codex/2026-10-03/task-2/contracts/option-a/marketing-owner-readonly/independent-source-claims-audit.json",
+      "sha256": "18dd77a04ba05377db30eb01375d8bb7849f15e4bd80211d9fbf97fa65bb5073",
+      "bytes": 1374
+    },
+    {
+      "path": "/home/matthalloran8/Documents/Codex/2026-10-03/task-2/contracts/option-a/marketing-owner-readonly/independent-source-claims-review.md",
+      "sha256": "122c519b2c91223be73380ec3091bafd5243feaf74719b348b6c5b3417adecc0",
+      "bytes": 2038
+    },
+    {
+      "path": "/home/matthalloran8/Documents/Codex/2026-10-03/task-2/contracts/option-a/marketing-owner-readonly/issuer-health.json",
+      "sha256": "b4952453877073da4377a103360f6a3dbda07d6013131e34d4f51c64e4e9f585",
+      "bytes": 787
+    },
+    {
+      "path": "/home/matthalloran8/Documents/Codex/2026-10-03/task-2/contracts/option-a/marketing-owner-readonly/orchestration-25-to-26.diff",
+      "sha256": "4efb7be316ec4491b9452433aef3cab1217687461f58a29d48433b4ca916b7cb",
+      "bytes": 4739
+    },
+    {
+      "path": "/home/matthalloran8/Documents/Codex/2026-10-03/task-2/contracts/option-a/marketing-owner-readonly/orchestration-revision25-HEAD.md",
+      "sha256": "9fc0a674935a95bc248c6d1e53bbfe8277ca6d6bb6675ef2064cf2d7fc1743e5",
+      "bytes": 21851
+    },
+    {
+      "path": "/home/matthalloran8/Documents/Codex/2026-10-03/task-2/contracts/option-a/marketing-owner-readonly/owner-packet.json",
+      "sha256": "8b83cfd9605ca9d89b5f3579365477ed760e4a408aa74b80e9c164188eccde24",
+      "bytes": 16994
+    },
+    {
+      "path": "/home/matthalloran8/Documents/Codex/2026-10-03/task-2/contracts/option-a/marketing-owner-readonly/owner-packet.txt",
+      "sha256": "cb43af0f9fa8cae52fc816a71ab54e9259541c48d0690e91587ac2a5d49284ad",
+      "bytes": 5302
+    },
+    {
+      "path": "/home/matthalloran8/Documents/Codex/2026-10-03/task-2/contracts/option-a/marketing-owner-readonly/pm-health.json",
+      "sha256": "d8a511ef680782bcc427e56790e2949befa51e5fd6fb20593dda63dc5ba3d78c",
+      "bytes": 827
+    },
+    {
+      "path": "/home/matthalloran8/Documents/Codex/2026-10-03/task-2/contracts/option-a/marketing-owner-readonly/swarm-health.json",
+      "sha256": "0dae21126720e31ef8fe2b34468baec16d64d23f6ab2b048b18c1838affabc3e",
+      "bytes": 750
+    }
+  ]
+}

@@ -1,0 +1,156 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.0.0",
+  "component": {
+    "id": "transcript",
+    "title": "Transcript",
+    "purpose": "The message history of one thread, where a person can tell at a glance who wrote each message and whether an agent wrote it. This is the product's centre of gravity and its most demanding surface.",
+    "storyRef": "../../../react-component-library/library/components/Message/versions/1.0.11/story.json"
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "A thread with messages from a person and an agent."
+    }
+  ],
+  "elements": [
+    {
+      "id": "transcript-root",
+      "role": "log",
+      "name": "Conversation"
+    },
+    {
+      "id": "message-row",
+      "role": "article",
+      "name": "Message"
+    },
+    {
+      "id": "author-name",
+      "role": "img",
+      "name": "Author"
+    },
+    {
+      "id": "agent-marker",
+      "role": "note",
+      "name": "Written by an agent"
+    },
+    {
+      "id": "delivery-status",
+      "role": "status",
+      "name": "Delivery"
+    },
+    {
+      "id": "day-divider",
+      "role": "separator",
+      "name": "Date"
+    }
+  ],
+  "claims": [
+    {
+      "id": "authorship-at-a-glance",
+      "type": "state-distinct",
+      "statement": "Human-authored and agent-authored messages are perceivably distinct without relying on colour alone.",
+      "tier": "aspirational",
+      "elements": [
+        "message-row",
+        "agent-marker"
+      ],
+      "states": [
+        "default"
+      ],
+      "rationale": "OT-P1-004 makes authorship functional, not decorative: it is what stops one agent answering another."
+    },
+    {
+      "id": "sidedness-is-not-the-only-cue",
+      "type": "custom",
+      "statement": "Authorship is legible even where the layout cannot place messages on opposite sides, such as a group thread with several authors.",
+      "tier": "manual",
+      "elements": [
+        "message-row",
+        "author-name"
+      ],
+      "states": [
+        "default"
+      ],
+      "rationale": "A two-sided bubble layout stops working the moment a room has three participants."
+    },
+    {
+      "id": "log-role",
+      "type": "accessible-name",
+      "statement": "The transcript exposes a log role so arriving messages are announced without moving focus.",
+      "tier": "aspirational",
+      "elements": [
+        "transcript-root"
+      ]
+    },
+    {
+      "id": "delivery-is-stated",
+      "type": "element-present",
+      "statement": "A message that failed to deliver says so on the message itself, not only in a page-level banner.",
+      "tier": "aspirational",
+      "elements": [
+        "delivery-status"
+      ],
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "grouping-reduces-noise",
+      "type": "custom",
+      "statement": "Consecutive messages from one author are visually grouped, and a date divider separates days.",
+      "tier": "manual",
+      "elements": [
+        "message-row",
+        "day-divider"
+      ],
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "dark-parity",
+      "type": "dark-parity",
+      "statement": "Authorship and delivery treatments hold in both themes.",
+      "tier": "aspirational",
+      "elements": [
+        "message-row"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "transcript-root": {
+        "testid": "transcript"
+      },
+      "message-row": {
+        "testid": "transcript-message"
+      },
+      "author-name": {
+        "testid": "transcript-author"
+      },
+      "agent-marker": {
+        "testid": "transcript-agent-marker"
+      },
+      "delivery-status": {
+        "testid": "transcript-delivery"
+      },
+      "day-divider": {
+        "testid": "transcript-day-divider"
+      }
+    }
+  },
+  "priorities": [
+    {
+      "statement": "Who wrote each message"
+    },
+    {
+      "statement": "Whether an agent wrote it"
+    },
+    {
+      "statement": "Whether it actually got there"
+    }
+  ]
+}

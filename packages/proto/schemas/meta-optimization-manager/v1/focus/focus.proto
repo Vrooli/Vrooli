@@ -1,0 +1,162 @@
+syntax = "proto3";
+
+package vrooli.meta_optimization_manager.v1.focus;
+
+import "meta-optimization-manager/v1/shared/model.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/meta-optimization-manager/v1/focus;focus_v1";
+
+// =============================================================================
+// FOCUS DOMAIN — gaps registry + prioritization
+// =============================================================================
+//
+// @stability draft
+//
+// FocusService maintains the gaps registry (every known gap with its qualitative
+// notes/approaches/context, including cross-cutting/global gaps and
+// explored-but-unbuilt ideas) and ranks gaps by impact x importance across all
+// projections + convergence. It answers the team's "what do I do next?" question
+// with context, not just a percentage. See docs/concepts/COVERAGE-MODEL.md.
+// =============================================================================
+
+service FocusService {
+  // GetFocus returns the ranked next-best gaps (impact x importance) (OT-P0-002).
+  rpc GetFocus(GetFocusRequest) returns (GetFocusResponse);
+
+  // ListGaps returns the full gaps registry, optionally filtered (OT-P0-003).
+  rpc ListGaps(ListGapsRequest) returns (ListGapsResponse);
+
+  // GetGap returns one gap with its full qualitative context.
+  rpc GetGap(GetGapRequest) returns (GetGapResponse);
+
+  // AddGapNote appends an explored approach/idea to a gap — the one focus write
+  // verb (the "store our thinking" primitive).
+  rpc AddGapNote(AddGapNoteRequest) returns (AddGapNoteResponse);
+
+  // ListCondition returns observed condition findings derived from live
+  // serving telemetry, without mixing them into authored coverage cells.
+  rpc ListCondition(ListConditionRequest) returns (ListConditionResponse);
+
+  // ExplainCondition traces one provider leg to its observed evidence.
+  rpc ExplainCondition(ExplainConditionRequest) returns (ExplainConditionResponse);
+}
+
+// Gap is one known gap with its qualitative context.
+message Gap {
+  string id = 1;
+  shared.Projection projection = 2; // UNSPECIFIED for convergence / cross-cutting gaps
+  string title = 3;
+  shared.CellStatus status = 4; // the source cell's status (usually MISSING / IN_REACH)
+  string source_cell_id = 5; // the denominator cell this gap came from, if any
+  bool global = 6; // a cross-cutting gap not tied to a single cell
+  repeated string notes = 7; // qualitative context
+  repeated string approaches = 8; // explored-but-unbuilt ideas (the "store our thinking")
+  repeated string follow_ups = 9; // suggested next reads / commands
+  shared.GapAxis axis = 10; // coverage or empirical
+  int32 recurrence = 11; // independent observations for empirical gaps
+  string evidence_source = 12; // source scenario/domain that produced the evidence
+  string evidence_locator = 13; // run/task locator a reader can follow
+  string availability_reason = 14; // honest per-source degradation, when present
+  repeated string provider_ids = 15; // owning Search Hub leaves/groups used for ranking
+  string condition_status = 16; // observed condition verdict for empirical condition gaps
+  repeated MaturityFinding maturity_findings = 17; // structured blocking evidence from Search Hub
+  string cause_key = 18; // stable shared-cause identity for a rolled-up finding
+  repeated string affected_cell_ids = 19; // denominator cells recovered by the cause
+  int32 affected_cell_count = 20; // explicit count for compact consumers
+}
+
+// MaturityFinding is one blocking Search Hub rule with enough context to
+// understand and execute its repair from the focus board.
+message MaturityFinding {
+  string code = 1;
+  string message = 2;
+  string location = 3;
+  string remediation = 4;
+  string fix_class = 5;
+  string repair_command = 6;
+}
+
+// FocusItem is a ranked next-best gap.
+message FocusItem {
+  Gap gap = 1;
+  double impact = 2;
+  double importance = 3;
+  double priority_score = 4; // impact x importance
+  string rationale = 5;
+}
+
+message GetFocusRequest {
+  int32 limit = 1; // top-N; 0 => default
+  shared.Projection projection = 2; // optional filter
+}
+
+message GetFocusResponse {
+  repeated FocusItem items = 1;
+  bool degraded = 2; // true when live joins or ranking telemetry fell back
+  string degraded_reason = 3; // actionable reason for the fallback
+}
+
+message ListGapsRequest {
+  shared.Projection projection = 1; // optional filter
+  string cell_id = 2; // optional filter
+  shared.CellStatus status = 3; // optional filter
+}
+
+message ListGapsResponse {
+  repeated Gap gaps = 1;
+}
+
+message GetGapRequest {
+  string id = 1;
+}
+
+message GetGapResponse {
+  Gap gap = 1;
+}
+
+message AddGapNoteRequest {
+  string id = 1;
+  string approach = 2; // the approach / idea to append
+}
+
+message AddGapNoteResponse {
+  Gap gap = 1; // the updated gap
+}
+
+message ListConditionRequest {}
+
+message ListConditionResponse {
+  repeated Gap gaps = 1;
+  ConditionInstrumentation instrumentation = 2;
+}
+
+message ConditionInstrumentation {
+  int32 healthy = 1;
+  int32 degraded = 2;
+  int32 dormant = 3;
+  int32 uninstrumented = 4;
+  int32 unavailable = 5;
+  // Deprecated receipt-basis alias retained for wire compatibility.
+  int32 instrumented = 6 [deprecated = true];
+  int32 total = 7;
+  // Runtime condition legs excluded because their owner does not currently
+  // back a live NOW cell in the coverage population.
+  int32 filtered_out = 8;
+  ExerciseBasisInstrumentation ledger_exercise = 9;
+  ExerciseBasisInstrumentation receipt_exercise = 10;
+}
+
+message ExerciseBasisInstrumentation {
+  string basis = 1;
+  int32 instrumented = 2;
+  int32 total = 3;
+  int64 invocations = 4;
+}
+
+message ExplainConditionRequest {
+  string provider_id = 1;
+}
+
+message ExplainConditionResponse {
+  Gap gap = 1;
+}

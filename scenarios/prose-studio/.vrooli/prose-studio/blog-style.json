@@ -1,0 +1,12 @@
+{
+  "schema_version": "1",
+  "kind": "style",
+  "key": "prose-studio/blog",
+  "created_by": "prose-studio",
+  "record": {
+    "directives": ["Use concrete verbs.", "Make the reader's next action clear.", "Prefer short paragraphs with one idea each."],
+    "anti_patterns": ["hollow claims", "unbounded superlatives"],
+    "lexicon": ["evidence", "builder"],
+    "targets": {"mattr": 0.42}
+  }
+}

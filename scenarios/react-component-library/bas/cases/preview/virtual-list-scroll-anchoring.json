@@ -1,0 +1,530 @@
+{
+  "metadata": {
+    "name": "virtual-list-scroll-anchoring",
+    "description": "Exercise the current VirtualList release through its history specimen. Verify live-edge following, preserved keyed reading position during append/prepend/growth, focused-row retention, public controller navigation, and empty recovery.",
+    "requirement": "PR-001",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "surface": "virtual-list",
+      "spec_entry_id": "component-harness",
+      "requires_confirmation": "true",
+      "routed_isolation": "true",
+      "requirements_json": "[\"PR-001\"]"
+    },
+    "execution_mode": "EXECUTION_MODE_MUTATING"
+  },
+  "settings": {
+    "viewport_width": 900,
+    "viewport_height": 700
+  },
+  "nodes": [
+    {
+      "id": "open",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "react-component-library",
+          "scenario_path": "/preview/react-component-library%3AVirtualList/harness.html?story=scroll-anchoring",
+          "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED",
+          "timeout_ms": 30000
+        }
+      }
+    },
+    {
+      "id": "ready",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-rcl-virtual-list-row]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      }
+    },
+    {
+      "id": "initial-settle",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 350
+        }
+      }
+    },
+    {
+      "id": "starts-at-end",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const v=document.querySelector('[data-rcl-virtual-list-viewport]');const distance=v.scrollHeight-v.clientHeight-v.scrollTop;if(Math.abs(distance)>1)throw Error('Not at live edge: '+distance);return {scrollTop:v.scrollTop,distance,report:document.querySelector('[data-scroll-report]').textContent};})()"
+        }
+      }
+    },
+    {
+      "id": "append-at-end",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "button:has-text(\"Append message\")"
+        }
+      }
+    },
+    {
+      "id": "append-end-settle",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 350
+        }
+      }
+    },
+    {
+      "id": "follows-append",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const v=document.querySelector('[data-rcl-virtual-list-viewport]');const distance=v.scrollHeight-v.clientHeight-v.scrollTop;if(Math.abs(distance)>1)throw Error('Not at live edge: '+distance);return {scrollTop:v.scrollTop,distance,report:document.querySelector('[data-scroll-report]').textContent};})()"
+        }
+      }
+    },
+    {
+      "id": "grow-at-end",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "button:has-text(\"Grow latest message\")"
+        }
+      }
+    },
+    {
+      "id": "grow-end-settle",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 350
+        }
+      }
+    },
+    {
+      "id": "follows-growth",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const v=document.querySelector('[data-rcl-virtual-list-viewport]');const distance=v.scrollHeight-v.clientHeight-v.scrollTop;if(Math.abs(distance)>1)throw Error('Not at live edge: '+distance);return {scrollTop:v.scrollTop,distance,report:document.querySelector('[data-scroll-report]').textContent};})()"
+        }
+      }
+    },
+    {
+      "id": "scroll-away",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "document.querySelector('[data-rcl-virtual-list-viewport]').scrollTop=900; true"
+        }
+      }
+    },
+    {
+      "id": "reader-settle",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 350
+        }
+      }
+    },
+    {
+      "id": "remember-reader",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const v=document.querySelector('[data-rcl-virtual-list-viewport]');const r=[...v.querySelectorAll('[data-rcl-virtual-list-row]')].find(r=>r.getBoundingClientRect().top>=v.getBoundingClientRect().top);if(!r)throw Error('No reader anchor');window.__reader={key:r.dataset.rclVirtualListKey,top:r.getBoundingClientRect().top};return window.__reader;})()"
+        }
+      }
+    },
+    {
+      "id": "append-away",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "button:has-text(\"Append message\")"
+        }
+      }
+    },
+    {
+      "id": "append-away-settle",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 350
+        }
+      }
+    },
+    {
+      "id": "append-preserves-reader",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const a=window.__reader;const r=document.querySelector('[data-rcl-virtual-list-key=\"'+a.key+'\"]');const top=r?.getBoundingClientRect().top;if(top===undefined||Math.abs(top-a.top)>1)throw Error('Reader anchor moved: '+JSON.stringify({before:a,top}));return {key:a.key,before:a.top,after:top};})()"
+        }
+      }
+    },
+    {
+      "id": "prepend",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "button:has-text(\"Load earlier messages\")"
+        }
+      }
+    },
+    {
+      "id": "prepend-settle",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 350
+        }
+      }
+    },
+    {
+      "id": "history-preserves-reader",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const a=window.__reader;const r=document.querySelector('[data-rcl-virtual-list-key=\"'+a.key+'\"]');const top=r?.getBoundingClientRect().top;if(top===undefined||Math.abs(top-a.top)>1)throw Error('Reader anchor moved: '+JSON.stringify({before:a,top}));return {key:a.key,before:a.top,after:top};})()"
+        }
+      }
+    },
+    {
+      "id": "grow-history",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "button:has-text(\"Grow earlier message\")"
+        }
+      }
+    },
+    {
+      "id": "history-growth-settle",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 350
+        }
+      }
+    },
+    {
+      "id": "growth-preserves-reader",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const a=window.__reader;const r=document.querySelector('[data-rcl-virtual-list-key=\"'+a.key+'\"]');const top=r?.getBoundingClientRect().top;if(top===undefined||Math.abs(top-a.top)>1)throw Error('Reader anchor moved: '+JSON.stringify({before:a,top}));return {key:a.key,before:a.top,after:top};})()"
+        }
+      }
+    },
+    {
+      "id": "focus-reader",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const key=window.__reader.key;document.querySelector('[data-history-action=\"'+key+'\"]').focus({preventScroll:true});return {key};})()"
+        }
+      }
+    },
+    {
+      "id": "focus-settle",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 350
+        }
+      }
+    },
+    {
+      "id": "scroll-focused-away",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const v=document.querySelector('[data-rcl-virtual-list-viewport]');v.scrollTop=v.scrollHeight;return true;})()"
+        }
+      }
+    },
+    {
+      "id": "focus-scroll-settle",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 350
+        }
+      }
+    },
+    {
+      "id": "focus-retained",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const key=document.activeElement?.dataset.historyAction;if(key!==window.__reader.key)throw Error('Focused row was unmounted: '+key);return {key};})()"
+        }
+      }
+    },
+    {
+      "id": "return-to-end",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "button:has-text(\"Go to latest\")"
+        }
+      }
+    },
+    {
+      "id": "return-end-settle",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 350
+        }
+      }
+    },
+    {
+      "id": "controller-at-end",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const v=document.querySelector('[data-rcl-virtual-list-viewport]');const distance=v.scrollHeight-v.clientHeight-v.scrollTop;if(Math.abs(distance)>1)throw Error('Not at live edge: '+distance);return {scrollTop:v.scrollTop,distance,report:document.querySelector('[data-scroll-report]').textContent};})()"
+        }
+      }
+    },
+    {
+      "id": "empty",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "button:has-text(\"Toggle empty\")"
+        }
+      }
+    },
+    {
+      "id": "empty-settle",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 350
+        }
+      }
+    },
+    {
+      "id": "empty-viewport",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const v=document.querySelector('[data-rcl-virtual-list-viewport]');if(!v||v.querySelector('[data-rcl-virtual-list-row]'))throw Error('Empty viewport missing or still has rows');return {scrollTop:v.scrollTop};})()"
+        }
+      }
+    },
+    {
+      "id": "restore",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "button:has-text(\"Toggle empty\")"
+        }
+      }
+    },
+    {
+      "id": "restore-settle",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 350
+        }
+      }
+    },
+    {
+      "id": "restored-at-end",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const v=document.querySelector('[data-rcl-virtual-list-viewport]');const distance=v.scrollHeight-v.clientHeight-v.scrollTop;if(Math.abs(distance)>1)throw Error('Not at live edge: '+distance);return {scrollTop:v.scrollTop,distance,report:document.querySelector('[data-scroll-report]').textContent};})()"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e0",
+      "source": "open",
+      "target": "ready"
+    },
+    {
+      "id": "e1",
+      "source": "ready",
+      "target": "initial-settle"
+    },
+    {
+      "id": "e2",
+      "source": "initial-settle",
+      "target": "starts-at-end"
+    },
+    {
+      "id": "e3",
+      "source": "starts-at-end",
+      "target": "append-at-end"
+    },
+    {
+      "id": "e4",
+      "source": "append-at-end",
+      "target": "append-end-settle"
+    },
+    {
+      "id": "e5",
+      "source": "append-end-settle",
+      "target": "follows-append"
+    },
+    {
+      "id": "e6",
+      "source": "follows-append",
+      "target": "grow-at-end"
+    },
+    {
+      "id": "e7",
+      "source": "grow-at-end",
+      "target": "grow-end-settle"
+    },
+    {
+      "id": "e8",
+      "source": "grow-end-settle",
+      "target": "follows-growth"
+    },
+    {
+      "id": "e9",
+      "source": "follows-growth",
+      "target": "scroll-away"
+    },
+    {
+      "id": "e10",
+      "source": "scroll-away",
+      "target": "reader-settle"
+    },
+    {
+      "id": "e11",
+      "source": "reader-settle",
+      "target": "remember-reader"
+    },
+    {
+      "id": "e12",
+      "source": "remember-reader",
+      "target": "append-away"
+    },
+    {
+      "id": "e13",
+      "source": "append-away",
+      "target": "append-away-settle"
+    },
+    {
+      "id": "e14",
+      "source": "append-away-settle",
+      "target": "append-preserves-reader"
+    },
+    {
+      "id": "e15",
+      "source": "append-preserves-reader",
+      "target": "prepend"
+    },
+    {
+      "id": "e16",
+      "source": "prepend",
+      "target": "prepend-settle"
+    },
+    {
+      "id": "e17",
+      "source": "prepend-settle",
+      "target": "history-preserves-reader"
+    },
+    {
+      "id": "e18",
+      "source": "history-preserves-reader",
+      "target": "grow-history"
+    },
+    {
+      "id": "e19",
+      "source": "grow-history",
+      "target": "history-growth-settle"
+    },
+    {
+      "id": "e20",
+      "source": "history-growth-settle",
+      "target": "growth-preserves-reader"
+    },
+    {
+      "id": "e21",
+      "source": "growth-preserves-reader",
+      "target": "focus-reader"
+    },
+    {
+      "id": "e22",
+      "source": "focus-reader",
+      "target": "focus-settle"
+    },
+    {
+      "id": "e23",
+      "source": "focus-settle",
+      "target": "scroll-focused-away"
+    },
+    {
+      "id": "e24",
+      "source": "scroll-focused-away",
+      "target": "focus-scroll-settle"
+    },
+    {
+      "id": "e25",
+      "source": "focus-scroll-settle",
+      "target": "focus-retained"
+    },
+    {
+      "id": "e26",
+      "source": "focus-retained",
+      "target": "return-to-end"
+    },
+    {
+      "id": "e27",
+      "source": "return-to-end",
+      "target": "return-end-settle"
+    },
+    {
+      "id": "e28",
+      "source": "return-end-settle",
+      "target": "controller-at-end"
+    },
+    {
+      "id": "e29",
+      "source": "controller-at-end",
+      "target": "empty"
+    },
+    {
+      "id": "e30",
+      "source": "empty",
+      "target": "empty-settle"
+    },
+    {
+      "id": "e31",
+      "source": "empty-settle",
+      "target": "empty-viewport"
+    },
+    {
+      "id": "e32",
+      "source": "empty-viewport",
+      "target": "restore"
+    },
+    {
+      "id": "e33",
+      "source": "restore",
+      "target": "restore-settle"
+    },
+    {
+      "id": "e34",
+      "source": "restore-settle",
+      "target": "restored-at-end"
+    }
+  ]
+}

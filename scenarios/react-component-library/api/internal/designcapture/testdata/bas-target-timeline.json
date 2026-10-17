@@ -1,0 +1,180 @@
+{
+  "executionId": "bas-fixture",
+  "status": "EXECUTION_STATUS_COMPLETED",
+  "entries": [
+    {
+      "nodeId": "open",
+      "context": {
+        "success": true
+      }
+    },
+    {
+      "nodeId": "ready",
+      "context": {
+        "success": true
+      }
+    },
+    {
+      "nodeId": "target",
+      "context": {
+        "success": true
+      },
+      "telemetry": {
+        "screenshot": {
+          "artifactId": "dd2bc99b-881d-451c-b3ca-0ce42463d77e"
+        }
+      },
+      "aggregates": {
+        "artifacts": [
+          {
+            "id": "929de1cc-77d4-4ef5-aeda-426a9a3b3480",
+            "payload": {
+              "value": {
+                "object_value": {
+                  "fields": {
+                    "result": {
+                      "object_value": {
+                        "fields": {
+                          "regions": {
+                            "list_value": {
+                              "values": [
+                                {
+                                  "object_value": {
+                                    "fields": {
+                                      "height": {
+                                        "double_value": 104
+                                      },
+                                      "region": {
+                                        "string_value": "gate-region"
+                                      },
+                                      "width": {
+                                        "double_value": 390
+                                      },
+                                      "x": {
+                                        "double_value": 0
+                                      },
+                                      "y": {
+                                        "double_value": 0
+                                      }
+                                    }
+                                  }
+                                },
+                                {
+                                  "object_value": {
+                                    "fields": {
+                                      "height": {
+                                        "double_value": 22
+                                      },
+                                      "region": {
+                                        "string_value": "filters"
+                                      },
+                                      "width": {
+                                        "double_value": 390
+                                      },
+                                      "x": {
+                                        "double_value": 0
+                                      },
+                                      "y": {
+                                        "double_value": 120
+                                      }
+                                    }
+                                  }
+                                },
+                                {
+                                  "object_value": {
+                                    "fields": {
+                                      "height": {
+                                        "double_value": 22
+                                      },
+                                      "region": {
+                                        "string_value": "thread-list-region"
+                                      },
+                                      "width": {
+                                        "double_value": 390
+                                      },
+                                      "x": {
+                                        "double_value": 0
+                                      },
+                                      "y": {
+                                        "double_value": 158
+                                      }
+                                    }
+                                  }
+                                },
+                                {
+                                  "object_value": {
+                                    "fields": {
+                                      "height": {
+                                        "double_value": 22
+                                      },
+                                      "region": {
+                                        "string_value": "bulk-actions"
+                                      },
+                                      "width": {
+                                        "double_value": 390
+                                      },
+                                      "x": {
+                                        "double_value": 0
+                                      },
+                                      "y": {
+                                        "double_value": 196
+                                      }
+                                    }
+                                  }
+                                },
+                                {
+                                  "object_value": {
+                                    "fields": {
+                                      "height": {
+                                        "double_value": 22
+                                      },
+                                      "region": {
+                                        "string_value": "transcript-region"
+                                      },
+                                      "width": {
+                                        "double_value": 390
+                                      },
+                                      "x": {
+                                        "double_value": 0
+                                      },
+                                      "y": {
+                                        "double_value": 234
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          "renderHash": {
+                            "string_value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                          },
+                          "viewport": {
+                            "object_value": {
+                              "fields": {
+                                "height": {
+                                  "double_value": 844
+                                },
+                                "width": {
+                                  "double_value": 390
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "id": "dd2bc99b-881d-451c-b3ca-0ce42463d77e",
+            "type": "ARTIFACT_TYPE_SCREENSHOT"
+          }
+        ]
+      }
+    }
+  ]
+}

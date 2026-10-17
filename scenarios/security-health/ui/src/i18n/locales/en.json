@@ -1,0 +1,148 @@
+{
+  "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Security Health are uppercase-snake-case placeholders replaced by `vrooli scenario generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
+  "app": {
+    "title": "Security Health"
+  },
+  "layout": {
+    "sidebarLabel": "Primary navigation",
+    "bottomNavLabel": "Primary",
+    "nav": {
+      "posture": "Posture",
+      "dependencies": "Dependencies",
+      "secrets": "Secrets",
+      "settings": "Settings"
+    }
+  },
+  "theme": {
+    "switcherLabel": "Theme",
+    "choice": {
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
+    }
+  },
+  "pages": {
+    "posture": {
+      "title": "Security Posture",
+      "description": "Scan a scenario and review its normalized findings, grouped by severity with remediation guidance."
+    },
+    "dependencies": {
+      "title": "Dependencies",
+      "description": "Search the fleet-wide dependency index, filter by ecosystem, and surface known vulnerabilities."
+    },
+    "secrets": {
+      "title": "Secrets",
+      "description": "Secret-scanner findings for a scenario. Locations only — values are never shown."
+    },
+    "settings": {
+      "title": "Settings",
+      "themeHeading": "Appearance",
+      "localeHeading": "Language"
+    }
+  },
+  "health": {
+    "title": "API Health",
+    "loading": "Checking API status…",
+    "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
+    "refresh": "Refresh",
+    "refreshCount": "Refreshed {{count}} times",
+    "refreshCount_one": "Refreshed once",
+    "statusLabel": "Status:",
+    "serviceLabel": "Service:",
+    "timestampLabel": "Timestamp:"
+  },
+  "notifications": {
+    "summary": "{{count}} notifications",
+    "summary_zero": "No notifications",
+    "summary_one": "1 notification"
+  },
+  "posture": {
+    "title": "Security Posture",
+    "scenarioLabel": "Scenario",
+    "scenarioPlaceholder": "scenario id (e.g. security-health)",
+    "scan": "Scan",
+    "scanning": "Scanning…",
+    "loading": "Running scanners…",
+    "empty": "No findings — this scenario is clean.",
+    "passed": "Passed",
+    "failed": "Failed",
+    "lastScan": "Last scan:",
+    "summary": "{{errors}} errors · {{warnings}} warnings · {{infos}} infos",
+    "skippedScanners": "Skipped (not installed): {{scanners}}",
+    "remediationLabel": "Remediation",
+    "fileLabel": "File:",
+    "severity": {
+      "error": "Error",
+      "warning": "Warning",
+      "info": "Info"
+    }
+  },
+  "dependencies": {
+    "title": "Dependencies",
+    "queryLabel": "Search",
+    "queryPlaceholder": "package name or natural-language query",
+    "search": "Search",
+    "searching": "Searching…",
+    "vulnerableOnly": "Vulnerable only",
+    "ecosystem": "Ecosystem",
+    "ecosystemAll": "All",
+    "ecosystemGo": "Go",
+    "ecosystemNpm": "npm",
+    "ecosystemYarn": "Yarn",
+    "ecosystemBun": "Bun",
+    "ecosystemPython": "Python",
+    "ecosystemRust": "Rust",
+    "ecosystemC": "C",
+    "ecosystemCpp": "C++",
+    "empty": "No matching dependencies.",
+    "textModeHint": "Text mode — semantic search is unavailable; structured filters still apply.",
+    "indexedCount": "{{count}} dependencies indexed",
+    "vulnerableCount": "{{count}} vulnerable",
+    "indexBuilding": "Index building… {{percent}}%",
+    "indexReady": "Index ready ({{percent}}%)",
+    "coverageTooltip": "AI semantic search is served only once the vector index reaches its coverage threshold; until then queries fall back to deterministic text search.",
+    "lastReconcile": "Last reconcile:",
+    "columns": {
+      "scenario": "Scenario",
+      "name": "Package",
+      "version": "Version",
+      "ecosystem": "Ecosystem",
+      "vulns": "Vulnerabilities"
+    }
+  },
+  "secrets": {
+    "redactedNote": "Secret values are never shown — only the file:line where each was detected."
+  },
+  "widget": {
+    "title": "Security Posture",
+    "loading": "Checking…",
+    "error": "Unavailable",
+    "clean": "Clean"
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "Language"
+  },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
+    "retry": "Try again"
+  }
+}

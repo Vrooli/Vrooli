@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { CheckCircle2, AlertTriangle, ChevronRight, ChevronLeft, X, AlertCircle, Copy, Check } from "lucide-react";
 import type { TidinessLightScanResult, TidinessStalenessInfo } from "../lib/api";
+import { useGlobalKeydown } from "../hooks/useGlobalKeydown";
 
 // Shared utilities extracted from ScenarioReviewPanel
 
@@ -36,11 +37,7 @@ export function MediaLightbox({
     if (e.key === "ArrowRight") setIndex(i => Math.min(items.length - 1, i + 1));
   }, [onClose, items.length]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, handleKeyDown]);
+  useGlobalKeydown(handleKeyDown, { disabled: !isOpen, target: document });
 
   if (!isOpen || items.length === 0) return null;
 

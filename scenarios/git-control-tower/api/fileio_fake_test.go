@@ -84,6 +84,10 @@ func (f *FakeFileIO) Stat(path string) (os.FileInfo, error) {
 	return &FakeFileInfo{name: path, size: int64(len(content))}, nil
 }
 
+// Lstat mirrors Stat: the fake models regular files only, so there is no link
+// to distinguish. Tests that need symlink behaviour use a real temp dir.
+func (f *FakeFileIO) Lstat(path string) (os.FileInfo, error) { return f.Stat(path) }
+
 func (f *FakeFileIO) MkdirAll(_ string, _ os.FileMode) error {
 	if f.WriteErr != nil {
 		return f.WriteErr

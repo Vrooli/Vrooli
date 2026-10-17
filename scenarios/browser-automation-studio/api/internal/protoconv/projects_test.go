@@ -11,11 +11,11 @@ import (
 func TestProjectToProto(t *testing.T) {
 	now := time.Now()
 	project := &database.ProjectIndex{
-		ID:          uuid.New(),
-		Name:        "Test Project",
-		FolderPath:  "/folder",
-		CreatedAt:   now,
-		UpdatedAt:   now,
+		ID:         uuid.New(),
+		Name:       "Test Project",
+		FolderPath: "/folder",
+		CreatedAt:  now,
+		UpdatedAt:  now,
 	}
 
 	pb := ProjectToProto(project)

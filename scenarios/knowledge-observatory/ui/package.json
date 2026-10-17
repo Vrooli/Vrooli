@@ -5,12 +5,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "vrooli lifecycle protect -- vite",
+    "build": "pnpm selector:manifest && vite build",
     "preview": "vite preview",
     "lint": "eslint src --ext ts,tsx",
     "type-check": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "selector:manifest": "node scripts/generate-selector-manifest.mjs",
+    "selector:check": "node scripts/generate-selector-manifest.mjs --check"
   },
   "dependencies": {
     "@bufbuild/protobuf": "^2.11.0",
@@ -20,6 +22,7 @@
     "@vrooli/api-base": "file:../../../packages/api-base",
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
     "@vrooli/proto-types": "file:../../../packages/proto/gen/typescript",
+    "@vrooli/ui-selectors": "file:../../../packages/ui-selectors",
     "@vrooli/vitest-requirement-reporter": "file:../../../packages/vitest-requirement-reporter",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",

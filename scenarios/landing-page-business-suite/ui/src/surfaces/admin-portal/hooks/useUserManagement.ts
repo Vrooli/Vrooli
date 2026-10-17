@@ -86,7 +86,7 @@ export function useUserManagement(): UseUserManagementReturn {
       setDebouncedSearch(search);
       setPage(1); // Reset to first page on search change
     }, 300);
-    return () => clearTimeout(timer);
+    return () => { clearTimeout(timer); };
   }, [search]);
 
   /**
@@ -113,7 +113,7 @@ export function useUserManagement(): UseUserManagementReturn {
 
   // Load users on mount and when search/page changes
   useEffect(() => {
-    loadUsers();
+    void loadUsers();
   }, [loadUsers]);
 
   /**
@@ -171,7 +171,7 @@ export function useUserManagement(): UseUserManagementReturn {
         );
         // Refresh user data to update session count
         if (selectedUser?.id === userId) {
-          loadUserDetails(userId);
+          void loadUserDetails(userId);
         }
         return { success: true };
       } catch (err) {
@@ -198,9 +198,9 @@ export function useUserManagement(): UseUserManagementReturn {
         );
         // Refresh user data to update session count
         if (selectedUser?.id === userId) {
-          loadUserDetails(userId);
+          void loadUserDetails(userId);
         }
-        return { success: true, message: `${result.sessions_revoked} sessions revoked` };
+        return { success: true, message: `${String(result.sessions_revoked)} sessions revoked` };
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to revoke sessions';
         return { success: false, message };

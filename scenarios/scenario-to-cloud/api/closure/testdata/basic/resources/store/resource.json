@@ -1,0 +1,89 @@
+{
+  "name": "store",
+  "privilege": "none",
+  "bundling": "vendorable",
+  "requirements": {
+    "ram_mb": 2048,
+    "disk_mb": 8192,
+    "cpu_cores": 2,
+    "class": "storage"
+  },
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "fixture/store",
+        "field": "password",
+        "env": "STORE_PASSWORD",
+        "required": true
+      }
+    ]
+  },
+  "hostTools": [
+    {
+      "name": "curl",
+      "required": true,
+      "reason": "readiness probe"
+    }
+  ],
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "conditional",
+          "mode": "bundled-service",
+          "architectures": [
+            "amd64"
+          ],
+          "limitations": [
+            "amd64 archive only"
+          ],
+          "evidence": [
+            "manifest-validation"
+          ]
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "no macos archive"
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "no windows archive"
+        }
+      }
+    },
+    "persistent_data": [
+      {
+        "id": "store-data",
+        "binding": "data-dir",
+        "backup_provider": "data-backup-manager",
+        "migration_owner": "resource"
+      }
+    ]
+  },
+  "managed_service": {
+    "provider_policy": {
+      "allowed_modes": [
+        "managed-private",
+        "attach-only"
+      ]
+    },
+    "artifact": {
+      "path": "server/store",
+      "version": "16",
+      "layout": "dir",
+      "entry_path": "bin/store",
+      "sha256_by_platform": {
+        "linux-amd64": "8c18753fd1965bb4eaf099ad88412be883b25396b6a5e3b97ad610ddfa3855f2"
+      },
+      "bundle_artifact": "store_${os}_${arch}"
+    }
+  },
+  "ports": [
+    {
+      "name": "store",
+      "host": 5432
+    }
+  ]
+}

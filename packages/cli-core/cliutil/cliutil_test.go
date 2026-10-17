@@ -2,6 +2,9 @@ package cliutil
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -60,6 +63,55 @@ func TestDetermineAPIBasePrecedence(t *testing.T) {
 	base = DetermineAPIBase(opts)
 	if base != "http://default" {
 		t.Fatalf("expected default base, got %s", base)
+	}
+}
+
+func TestDetermineAPIBaseIgnoresGenericBaseEnvInAgentContext(t *testing.T) {
+	t.Setenv(EnvIdentityToken, "tok")
+	t.Setenv("API_BASE_URL", "http://wrong.example")
+	t.Setenv("VITE_API_BASE_URL", "http://also-wrong.example")
+	t.Setenv("DEMO_API_BASE", "http://scenario.example")
+
+	base := DetermineAPIBase(APIBaseOptions{
+		EnvVars: []string{"API_BASE_URL", "VITE_API_BASE_URL", "DEMO_API_BASE"},
+	})
+	if base != "http://scenario.example" {
+		t.Fatalf("expected scenario-specific env to win, got %s", base)
+	}
+}
+
+func TestDetermineAPIBaseKeepsGenericBaseEnvOutsideAgentContext(t *testing.T) {
+	t.Setenv("API_BASE_URL", "http://generic.example")
+
+	base := DetermineAPIBase(APIBaseOptions{
+		EnvVars: []string{"API_BASE_URL"},
+	})
+	if base != "http://generic.example" {
+		t.Fatalf("expected generic env outside agent context, got %s", base)
+	}
+}
+
+func TestAPIBaseOverrideWarningNamesDisagreeingGenericVariable(t *testing.T) {
+	t.Setenv("API_BASE_URL", "http://wrong.example")
+	warning := APIBaseOverrideWarning(APIBaseOptions{
+		EnvVars:      []string{"API_BASE_URL"},
+		PortDetector: func() string { return "18888" },
+	})
+	if !strings.Contains(warning, "API_BASE_URL") || !strings.Contains(warning, "http://wrong.example") || !strings.Contains(warning, "http://localhost:18888") {
+		t.Fatalf("warning=%q", warning)
+	}
+}
+
+func TestDetermineAPIBaseIgnoresGenericAPIPortLeakage(t *testing.T) {
+	t.Setenv(EnvIdentityToken, "tok")
+	t.Setenv("API_PORT", "18800")
+
+	base := DetermineAPIBase(APIBaseOptions{
+		PortEnvVars:  []string{"SWARM_MANAGER_API_PORT"},
+		PortDetector: func() string { return "15000" },
+	})
+	if base != "http://localhost:15000" {
+		t.Fatalf("expected lifecycle detector to win over generic API_PORT, got %s", base)
 	}
 }
 
@@ -310,6 +362,154 @@ func TestHTTPClientRespectsContextCancellation(t *testing.T) {
 	}
 }
 
+func TestHTTPClientHeaderSourceInjectsHeaders(t *testing.T) {
+	gotHeaders := make(http.Header)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		for k, v := range r.Header {
+			gotHeaders[k] = v
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	client := NewHTTPClient(HTTPClientOptions{
+		BaseOptions: APIBaseOptions{DefaultBase: server.URL},
+	})
+
+	calls := 0
+	client.SetHeaderSource(func() map[string]string {
+		calls++
+		return map[string]string{
+			"X-Vrooli-Attribution": "test-value",
+			"X-Skip-Empty":         "",
+			"X-Custom":             "another",
+		}
+	})
+
+	if _, err := client.Do(http.MethodGet, "/test", nil, nil); err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if calls != 1 {
+		t.Fatalf("expected header source called once, got %d", calls)
+	}
+	if got := gotHeaders.Get("X-Vrooli-Attribution"); got != "test-value" {
+		t.Errorf("X-Vrooli-Attribution = %q, want test-value", got)
+	}
+	if got := gotHeaders.Get("X-Custom"); got != "another" {
+		t.Errorf("X-Custom = %q, want another", got)
+	}
+	if _, present := gotHeaders["X-Skip-Empty"]; present {
+		t.Errorf("empty-value header should be skipped, got %v", gotHeaders["X-Skip-Empty"])
+	}
+
+	// Second request: source must be re-invoked.
+	if _, err := client.Do(http.MethodGet, "/test", nil, nil); err != nil {
+		t.Fatalf("second request: %v", err)
+	}
+	if calls != 2 {
+		t.Fatalf("expected header source called per-request, got %d", calls)
+	}
+}
+
+func TestHTTPClientHeaderSourceClearsWhenNil(t *testing.T) {
+	gotHeader := ""
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotHeader = r.Header.Get("X-Custom")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	client := NewHTTPClient(HTTPClientOptions{
+		BaseOptions: APIBaseOptions{DefaultBase: server.URL},
+	})
+
+	client.SetHeaderSource(func() map[string]string {
+		return map[string]string{"X-Custom": "set"}
+	})
+	if _, err := client.Do(http.MethodGet, "/test", nil, nil); err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if gotHeader != "set" {
+		t.Fatalf("expected X-Custom=set, got %q", gotHeader)
+	}
+
+	client.SetHeaderSource(nil)
+	gotHeader = ""
+	if _, err := client.Do(http.MethodGet, "/test", nil, nil); err != nil {
+		t.Fatalf("second request: %v", err)
+	}
+	if gotHeader != "" {
+		t.Fatalf("expected X-Custom cleared, got %q", gotHeader)
+	}
+}
+
+func TestHTTPClientApplicationAndInvocationHeaderSourcesCompose(t *testing.T) {
+	gotHeaders := make(http.Header)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotHeaders = r.Header.Clone()
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	client := NewHTTPClient(HTTPClientOptions{BaseOptions: APIBaseOptions{DefaultBase: server.URL}})
+	client.SetHeaderSource(func() map[string]string { return map[string]string{"X-Vrooli-Attribution": "required"} })
+	client.SetInvocationHeaderSource(func() map[string]string { return map[string]string{"X-Vrooli-Invocation-ID": "invocation"} })
+
+	if _, err := client.Do(http.MethodPost, "/capture", nil, map[string]string{"ok": "true"}); err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if got := gotHeaders.Get("X-Vrooli-Attribution"); got != "required" {
+		t.Fatalf("attribution header = %q, want required", got)
+	}
+	if got := gotHeaders.Get("X-Vrooli-Invocation-ID"); got != "invocation" {
+		t.Fatalf("invocation header = %q, want invocation", got)
+	}
+}
+
+func TestIdentityForwardingTransportAddsProcessIdentityForRawClient(t *testing.T) {
+	t.Setenv(EnvIdentityToken, "opaque-agent-token")
+	gotIdentity := ""
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotIdentity = r.Header.Get(HeaderAgentIdentityToken)
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+
+	client := &http.Client{Transport: identityForwardingTransport{next: http.DefaultTransport}}
+	resp, err := client.Get(server.URL)
+	if err != nil {
+		t.Fatalf("raw client request: %v", err)
+	}
+	resp.Body.Close()
+	if gotIdentity != "opaque-agent-token" {
+		t.Fatalf("identity header = %q, want process token", gotIdentity)
+	}
+}
+
+func TestIdentityForwardingTransportPreservesExplicitIdentity(t *testing.T) {
+	t.Setenv(EnvIdentityToken, "environment-token")
+	gotIdentity := ""
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotIdentity = r.Header.Get(HeaderAgentIdentityToken)
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+
+	req, err := http.NewRequest(http.MethodGet, server.URL, nil)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	req.Header.Set(HeaderAgentIdentityToken, "explicit-token")
+	resp, err := identityForwardingTransport{next: http.DefaultTransport}.RoundTrip(req)
+	if err != nil {
+		t.Fatalf("round trip: %v", err)
+	}
+	resp.Body.Close()
+	if gotIdentity != "explicit-token" {
+		t.Fatalf("identity header = %q, want explicit token", gotIdentity)
+	}
+}
+
 func TestStringListFlagCollectsValues(t *testing.T) {
 	var list StringList
 	list.Set("a")
@@ -351,5 +551,116 @@ func TestReadFileString(t *testing.T) {
 	}
 	if got != content {
 		t.Fatalf("expected %q, got %q", content, got)
+	}
+}
+
+type pinnedExactRecordingTransport struct {
+	next  http.RoundTripper
+	calls *int
+}
+
+func (t *pinnedExactRecordingTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	*t.calls++
+	return t.next.RoundTrip(r)
+}
+func TestPinnedExactCarrierRefusesRedirectsWithoutChangingOrdinaryClient(t *testing.T) {
+	namespace, err := os.MkdirTemp("", "exact-pin-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(namespace)
+	t.Setenv("TMPDIR", namespace)
+	t.Setenv(EnvIdentityToken, "")
+	phases := []struct {
+		name, path string
+		proof      bool
+	}{
+		{"challenge", "/api/v1/keyring/exact-challenge", false},
+		{"mutation", "/agent_manager.v1.AgentManagerService/ReconcileEffortMetadata", true},
+		{"receipt", "/api/v1/keyring/exact-receipt", true},
+	}
+	for _, custom := range []bool{false, true} {
+		for _, status := range []int{307, 308} {
+			for _, phase := range phases {
+				for _, changedHost := range []bool{false, true} {
+					t.Run(fmt.Sprintf("%s/%d/custom=%t/changed-host=%t", phase.name, status, custom, changedHost), func(t *testing.T) {
+						destinationCalls := 0
+						destination := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { destinationCalls++; io.WriteString(w, `{"ok":true}`) }))
+						defer destination.Close()
+						destinationURL := destination.URL
+						if changedHost {
+							destinationURL = strings.Replace(destinationURL, "127.0.0.1", "localhost", 1)
+						}
+						firstCalls, originalEffects := 0, 0
+						first := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+							firstCalls++
+							if r.URL.Path == phase.path && phase.name == "mutation" {
+								originalEffects++
+							}
+							if r.URL.Path == phase.path {
+								if r.Header.Get(HeaderAgentIdentityToken) != "synthetic-pinned-leaf" || r.Header.Get("Authorization") != "" {
+									t.Error("pin/owner carrier changed")
+								}
+								if phase.proof && (r.Header.Get("X-Keyring-Exact-Proof") != "synthetic-proof" || r.Header.Get("X-Keyring-Exact-Signature") != "synthetic-signature") {
+									t.Error("missing protected proof")
+								}
+							}
+							w.Header().Set("Location", destinationURL+"/leak")
+							w.WriteHeader(status)
+						}))
+						defer first.Close()
+						wires := 0
+						raw := &http.Client{Timeout: time.Second}
+						if custom {
+							raw.Transport = &pinnedExactRecordingTransport{next: &http.Transport{}, calls: &wires}
+						}
+						original := NewAPIClient(NewHTTPClient(HTTPClientOptions{Client: raw}), func() APIBaseOptions { return APIBaseOptions{Override: first.URL} }, func() string { return "ordinary-synthetic-owner" })
+						flow := original
+						if phase.proof {
+							flow = flow.WithHeaders(map[string]string{"X-Keyring-Exact-Proof": "synthetic-proof", "X-Keyring-Exact-Signature": "synthetic-signature"})
+						}
+						resolutions := 0
+						pinned := flow.WithPinnedAgentCredential("synthetic-pinned-leaf", func(context.Context) (string, error) { resolutions++; return "synthetic-pinned-leaf", nil })
+						body, err := pinned.Request("POST", phase.path, nil, []byte(`{"public":"synthetic-body"}`))
+						if body != nil || err == nil || !strings.Contains(err.Error(), "pinned exact request redirect refused") || firstCalls != 1 || destinationCalls != 0 || resolutions < 2 {
+							t.Fatal("protected redirect/pin", err, firstCalls, destinationCalls, resolutions)
+						}
+						// Refusing a redirect proves no destination request, not no original
+						// mutation effect. Preserve unknown-outcome reconciliation at the caller.
+						if phase.name == "mutation" && originalEffects != 1 {
+							t.Fatal("original mutation outcome lost", originalEffects)
+						}
+						if custom && wires != 1 {
+							t.Fatal("custom transport not retained", wires)
+						}
+						if raw.CheckRedirect != nil || original.client.client != raw {
+							t.Fatal("ordinary client mutated")
+						}
+						_, err = original.Request("POST", "/ordinary", nil, []byte(`{"ordinary":true}`))
+						if err != nil || destinationCalls != 1 || firstCalls != 2 {
+							t.Fatal("ordinary redirect compatibility", err, firstCalls, destinationCalls)
+						}
+					})
+				}
+			}
+		}
+	}
+}
+func TestPinnedExactCustomTransportRechecksCustodyBeforeWire(t *testing.T) {
+	wires := 0
+	raw := &http.Client{Transport: &pinnedExactRecordingTransport{next: &http.Transport{}, calls: &wires}}
+	api := NewAPIClient(NewHTTPClient(HTTPClientOptions{Client: raw}), func() APIBaseOptions { return APIBaseOptions{Override: "http://127.0.0.1:1"} }, nil)
+	resolutions := 0
+	pinned := api.WithPinnedAgentCredential("synthetic-held-leaf", func(context.Context) (string, error) {
+		resolutions++
+		if resolutions > 1 {
+			return "", &AgentAuthorizationError{Code: "revoked"}
+		}
+		return "synthetic-held-leaf", nil
+	})
+	_, err := pinned.Request("POST", "/api/v1/keyring/exact-challenge", nil, []byte(`{}`))
+	var denied *AgentAuthorizationError
+	if !errors.As(err, &denied) || denied.Code != "revoked" || wires != 0 {
+		t.Fatal("custom custody refusal reached wire", err, wires)
 	}
 }

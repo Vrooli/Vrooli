@@ -200,7 +200,8 @@ export function useDeploymentInvestigation(deploymentId: string | null) {
       : false;
     if (!activeInvestigationId || !hasActive) {
       // Investigations are sorted by created_at desc, so first is most recent
-      setActiveInvestigationId(investigations[0].id);
+      const mostRecent = investigations[0];
+      if (mostRecent) setActiveInvestigationId(mostRecent.id);
     }
   }, [investigationsQuery.data, activeInvestigationId]);
 

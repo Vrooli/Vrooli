@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+package vrooli.brand_manager.v1.design;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/brand-manager/v1/design;design_v1";
+
+// =============================================================================
+// DESIGN DOMAIN — render a brand's identity as a canonical DESIGN.md export
+// =============================================================================
+//
+// @layer 5
+// @domain design
+// @stability stable
+//
+// Wire contract for the DesignService Connect-RPC service. Design is a
+// stateless orchestration domain: it owns no table of its own. It reads a brand
+// through the brands domain and renders a canonical DESIGN.md document — front
+// matter, an identity section, a color-system table, typography, voice, derived
+// visual patterns, and notes — that other tools (or a human) can drop into a
+// scenario's docs. All cross-domain wiring lives only at the composition root
+// (handlers/design/module.go); the internal domains never import each other.
+//
+// The render is pure and read-only: GenerateDesignLanguage returns the markdown
+// in its response and writes nothing. (Materializing brand files into a target
+// scenario's source tree is the apply domain's job — design only produces the
+// document.) Safety:
+//   - A missing brand id → INVALID_ARGUMENT.
+//   - A brand id that matches no brand → NOT_FOUND.
+//
+// Consumed by:
+//   - API: handlers/design/connect_handler.go implements the generated
+//          DesignServiceHandler interface.
+//   - UI:  ui/src/api/design.ts exposes the generated Connect-Web client.
+//   - CLI: cli/domains/design/handlers.go calls the generated Connect-Go client.
+// =============================================================================
+
+service DesignService {
+  // GenerateDesignLanguage reads the brand and returns a canonical DESIGN.md
+  // document rendered from its identity. Read-only: writes nothing.
+  rpc GenerateDesignLanguage(GenerateDesignLanguageRequest) returns (GenerateDesignLanguageResponse);
+}
+
+// GenerateDesignLanguageRequest asks for the DESIGN.md export of one brand.
+message GenerateDesignLanguageRequest {
+  // Required. The id of the brand to render.
+  string brand_id = 1;
+}
+
+// GenerateDesignLanguageResponse carries the rendered DESIGN.md document.
+message GenerateDesignLanguageResponse {
+  // The id of the brand that was rendered (echoes the request).
+  string brand_id = 1;
+  // The complete DESIGN.md document as markdown text.
+  string markdown = 2;
+}

@@ -163,6 +163,25 @@ func TestComplexityAnalyzer_EmptyFileList(t *testing.T) {
 	assertSkipped(t, result, "")
 }
 
+func TestComplexityAnalyzer_RejectsEscapedPaths(t *testing.T) {
+	if !commandExists("gocyclo") {
+		t.Skip("gocyclo not installed, skipping subprocess path-boundary test")
+	}
+
+	analyzer := newTestComplexityAnalyzer(t)
+	for _, filePath := range []string{
+		"../outside.go",
+		filepath.Join("api", "..", "..", "outside.go"),
+		filepath.Join(string(filepath.Separator), "tmp", "outside.go"),
+	} {
+		result, err := analyzer.AnalyzeComplexity(context.Background(), LanguageGo, []string{filePath})
+		if err != nil {
+			t.Fatalf("AnalyzeComplexity(%q) failed: %v", filePath, err)
+		}
+		assertSkipped(t, result, "escapes scenario root")
+	}
+}
+
 func TestCommandExists(t *testing.T) {
 	// Test with a command that should exist
 	if !commandExists("go") {
@@ -172,5 +191,11 @@ func TestCommandExists(t *testing.T) {
 	// Test with a command that shouldn't exist
 	if commandExists("nonexistent-command-12345") {
 		t.Error("Expected 'nonexistent-command-12345' to not exist")
+	}
+}
+
+func TestCommandExists_RejectsDisallowedCommand(t *testing.T) {
+	if commandExists("sh") {
+		t.Error("Expected disallowed command 'sh' to be rejected even when present in PATH")
 	}
 }

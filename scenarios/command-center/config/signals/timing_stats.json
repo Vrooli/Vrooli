@@ -1,0 +1,22 @@
+{
+  "id": "timing_stats",
+  "label": "Mean execution",
+  "description": "Average wall-clock minutes per agent execution.",
+  "unit": "minutes",
+  "format": "minutes",
+  "shape": "scalar",
+  "source": {
+    "team": "director-swarm",
+    "binding": "scenario:swarm-manager",
+    "read": "/api/v1/stats",
+    "select": "timing_stats",
+    "ttlSeconds": 30,
+    "integrationId": "swarm-manager",
+    "featureId": "timing_stats",
+    "contractVersion": "legacy.v1",
+    "selector": "timing_stats",
+    "expectedUnit": "minutes",
+    "sourceTimePolicy": "producer_required"
+  },
+  "coverage": "NOW"
+}

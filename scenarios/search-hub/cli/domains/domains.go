@@ -1,0 +1,90 @@
+package domains
+
+import (
+	"search-hub/cli/domains/embedding"
+	"search-hub/cli/domains/evals"
+	"search-hub/cli/domains/federation"
+	"search-hub/cli/domains/insights"
+	"search-hub/cli/domains/maturity"
+	"search-hub/cli/domains/metrics"
+	"search-hub/cli/domains/providers"
+	"search-hub/cli/domains/query"
+	"search-hub/cli/domains/strategy"
+
+	"github.com/vrooli/api-core/spacecli"
+	"github.com/vrooli/api-core/spacedoc"
+	"github.com/vrooli/cli-core/cliapp"
+)
+
+// CommandGroups aggregates flat command groups from domain packages.
+//
+// Keep app.go focused on CLI metadata and cli-core wiring. As the scenario
+// grows, add domains like domains/tasks or domains/projects and append their
+// registrations here. For greenfield scenarios, domain packages are the
+// default architecture; do not treat flat command files as the long-term plan.
+func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
+	_ = core
+	// search-hub owns the Answer projection denominator (docs/spaces/answer-space.md);
+	// `space` is the cross-scenario read contract meta-optimization-manager consumes.
+	return []cliapp.CommandGroup{
+		spacecli.CommandGroup(spacecli.Config{Owner: "search-hub", Projection: spacedoc.ProjectionAnswer}),
+	}
+}
+
+// SubcommandGroups aggregates hierarchical command groups from domain packages.
+//
+// Each domain package owns a Register(core, manifest) function returning a
+// SubcommandGroup built from the scenario's cli/manifest.json. The aggregator
+// passes the embedded manifest bytes through unchanged; per-domain Register
+// implementations call cliapp.LoadFromManifest with the relevant group name.
+//
+// This is the CLI side of the domain-module pattern; the API side uses
+// the same one-liner-per-domain shape via server.New(deps, modules...).
+// See docs/concepts/ARCHITECTURE.md "Domain modules" for the canonical
+// pattern. `providers` is search-hub's first real domain (the registry
+// registration surface), replacing the notes reference.
+//
+// For API-backed commands the manifest carries the declarative surface
+// (governance, flags, positionals, RPC binding). Handlers stay in
+// handlers.go and are wired via the bindings map; refer to
+// templates/scenarios/react-vite/docs/internal/SEAMS.md (manifest ↔
+// handlers bindings seam) for the contract.
+func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
+	providersGroup, err := providers.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	queryGroup, err := query.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	federationGroup, err := federation.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	insightsGroup, err := insights.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	metricsGroup, err := metrics.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	evalsGroup, err := evals.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	embeddingGroup, err := embedding.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	maturityGroup, err := maturity.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	strategyGroup, err := strategy.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	return []cliapp.SubcommandGroup{providersGroup, queryGroup, federationGroup, insightsGroup, metricsGroup, evalsGroup, maturityGroup, embeddingGroup, strategyGroup}, nil
+}

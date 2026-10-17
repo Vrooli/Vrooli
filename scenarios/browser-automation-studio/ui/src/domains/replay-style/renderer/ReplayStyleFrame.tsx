@@ -85,7 +85,7 @@ export function ReplayStyleFrame({
     viewportContentRect,
   ]);
 
-  const hasDeviceFrameWrapper = deviceFrameDecor?.wrapperClass || deviceFrameDecor?.wrapperStyle;
+  const bezel = deviceFrameDecor?.bezelWidth ?? 0;
 
   const backgroundContent = (
     <div
@@ -98,8 +98,6 @@ export function ReplayStyleFrame({
     >
       {backgroundDecor.baseLayer}
       {backgroundDecor.overlay}
-      {/* Device frame overlay for notch/punch-hole (positioned inside the screen area) */}
-      {deviceFrameDecor?.overlay && !deviceFrameDecor.wrapperStyle && deviceFrameDecor.overlay}
       <div
         className={clsx('relative z-[1]', backgroundDecor.contentClass, contentClassName)}
         style={contentStyle}
@@ -129,7 +127,14 @@ export function ReplayStyleFrame({
                 height: `${layout.frameRect.height}px`,
               }}
             >
-              <div className={clsx('flex h-full w-full flex-col overflow-hidden rounded-2xl', chromeDecor.frameClass)}>
+              {deviceFrameDecor && <div
+                data-testid="replay-device-bezel"
+                className={deviceFrameDecor.wrapperClass}
+                style={{ ...deviceFrameDecor.wrapperStyle, position: 'absolute', left: -bezel, top: -bezel,
+                  width: layout.frameRect.width + 2 * bezel, height: layout.frameRect.height + 2 * bezel,
+                  padding: 0, borderRadius: deviceFrameDecor.innerRadius + bezel, pointerEvents: 'none' }}
+              />}
+              <div className={clsx('relative flex h-full w-full flex-col overflow-hidden rounded-2xl', chromeDecor.frameClass)} style={deviceFrameDecor ? { borderRadius: deviceFrameDecor.innerRadius } : undefined}>
                 {chromeDecor.header && (
                   <div className="flex-shrink-0" style={{ height: `${chromeHeaderHeight}px` }}>
                     {chromeDecor.header}
@@ -145,8 +150,10 @@ export function ReplayStyleFrame({
                   }}
                 >
                   {children}
+                  {deviceFrameDecor?.overlay && !deviceFrameDecor.wrapperStyle && deviceFrameDecor.overlay}
                 </div>
               </div>
+              {deviceFrameDecor?.overlay && deviceFrameDecor.wrapperStyle && <div className="pointer-events-none absolute inset-x-0 top-full">{deviceFrameDecor.overlay}</div>}
             </div>
             {overlayNode && (
               <OverlayRegistryContext.Provider value={registryRef.current}>
@@ -177,19 +184,6 @@ export function ReplayStyleFrame({
     </div>
   );
 
-  // Wrap in device frame bezel if wrapper styling is provided
-  if (hasDeviceFrameWrapper) {
-    return (
-      <div
-        className={deviceFrameDecor?.wrapperClass}
-        style={deviceFrameDecor?.wrapperStyle}
-      >
-        {backgroundContent}
-        {/* Device frame overlay for monitor stand (positioned outside the screen area) */}
-        {deviceFrameDecor?.overlay && deviceFrameDecor.wrapperStyle && deviceFrameDecor.overlay}
-      </div>
-    );
-  }
 
   return backgroundContent;
 }

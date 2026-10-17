@@ -1,0 +1,21 @@
+{
+  "catalogId": "forms.password-input",
+  "deprecatedVersions": [
+    "2.0.0",
+    "2.0.1",
+    "2.0.2"
+  ],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "2.0.0"
+  ],
+  "latest": "2.0.3",
+  "libraryId": "react-component-library:PasswordInput"
+}

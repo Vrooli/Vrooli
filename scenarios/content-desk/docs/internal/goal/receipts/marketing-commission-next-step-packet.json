@@ -1,0 +1,339 @@
+{
+  "schema": "marketing-non-secret-commission-preparation/1",
+  "preparedAt": "2026-10-07T16:41:35.909625+00:00",
+  "status": "non-submittable specification; no authority, activation or admission",
+  "approval": {
+    "reference": "Sentinel_7062584135208191865fc82f43a4ded8",
+    "at": "2026-10-04T20:54:00Z",
+    "source": "scenarios/content-desk/docs/internal/goal/materials/marketing-accepted-v1/approval.md",
+    "principalProof": null
+  },
+  "nativeReads": {
+    "effort": "marketing-effort-current.json",
+    "result": "404 effort control revision not found for exact effort:marketing-I16",
+    "team": "marketing-team-current.json",
+    "heartbeats": "marketing-heartbeats-current.json",
+    "profiles": [
+      "current-orchestrator-profile-rest.json",
+      "current-epoch-worker-profile-rest.json"
+    ]
+  },
+  "targetSpecification": {
+    "effort": "effort:marketing-I16",
+    "team": "marketing-i16-delivery",
+    "repository": "/home/matthalloran8/Vrooli",
+    "workShape": "bounded-authority candidate: no accepted native plan identified; AUTH task must confirm supported target resolution",
+    "kind": null,
+    "name": null,
+    "revision": null,
+    "authorityDigest": null,
+    "acceptanceGeneration": null,
+    "ownerPrincipal": null
+  },
+  "disabledHeartbeatSpecification": {
+    "teamId": "marketing-i16-delivery",
+    "agentId": "marketing-i16-orchestrator",
+    "enabled": false,
+    "profileKey": "prompt-manager/delivery-orchestrator",
+    "finiteLeader": {
+      "effortRef": "effort:marketing-I16",
+      "acceptedRevision": null,
+      "coordinatorPromptRef": "path:scenarios/content-desk/docs/internal/goal/COORDINATOR.md",
+      "sourceRefs": [
+        "path:scenarios/content-desk/docs/internal/goal/GOAL.md",
+        "path:scenarios/content-desk/docs/internal/goal/TARGETS.md",
+        "path:scenarios/content-desk/docs/internal/goal/QUEUE.md",
+        "path:scenarios/content-desk/docs/internal/goal/selected-state-requirement-map.json",
+        "path:scenarios/content-desk/docs/internal/goal/format-target-map.json",
+        "path:scenarios/content-desk/docs/internal/goal/materials/marketing-accepted-v1/approval.md"
+      ],
+      "keepAlive": true,
+      "retired": false
+    },
+    "schedule": "not chosen or installed; owner must qualify bounded recurrence"
+  },
+  "profiles": [
+    {
+      "key": "prompt-manager/delivery-orchestrator",
+      "id": "01ed3efc-aff6-44c7-b77c-0c548d56d1c9",
+      "nativeContractDigest": null
+    },
+    {
+      "key": "prompt-manager/delivery-epoch-worker",
+      "id": "4c19aef1-36a2-4cc5-8961-42648692883b",
+      "nativeContractDigest": null
+    }
+  ],
+  "scope": {
+    "contentDeskRequirementCount": 22,
+    "specialistRequirementCount": 5,
+    "visualOriginalCount": 47,
+    "criteria": [
+      "CONTENTD-P0-016",
+      "CONTENTD-P0-017",
+      "CONTENTD-P0-018",
+      "CONTENTD-P0-019",
+      "CONTENTD-P0-020",
+      "CONTENTD-P0-021",
+      "CONTENTD-P0-022",
+      "CONTENTD-P0-023",
+      "CONTENTD-P0-024",
+      "CONTENTD-P0-025",
+      "CONTENTD-P0-026",
+      "CONTENTD-P0-027",
+      "CONTENTD-P0-028",
+      "CONTENTD-P0-029",
+      "CONTENTD-P0-030",
+      "CONTENTD-P0-031",
+      "CONTENTD-P0-032",
+      "CONTENTD-P0-033",
+      "CONTENTD-P0-034",
+      "CONTENTD-P0-035",
+      "CONTENTD-P0-036",
+      "CONTENTD-P0-037",
+      "CHANMGR-P0-020",
+      "CHANMGR-P0-021",
+      "CHANMGR-P0-022",
+      "ASSET-P0-019",
+      "ASSET-P0-020",
+      "dossier-A1",
+      "dossier-A2",
+      "dossier-A3",
+      "dossier-A4",
+      "dossier-A5",
+      "dossier-A6",
+      "dossier-A7",
+      "dossier-A8",
+      "dossier-A9",
+      "dossier-A10",
+      "dossier-D1",
+      "dossier-D2",
+      "dossier-D3",
+      "dossier-D4",
+      "dossier-D5",
+      "dossier-D6",
+      "dossier-D7",
+      "visual:0.3/M01-today-v05-desktop",
+      "visual:0.3/M01-today-v05-phone",
+      "visual:0.3/M02-strategy-v03-desktop",
+      "visual:0.3/M02-strategy-v03-phone",
+      "visual:0.3/M03-evidence-v03-desktop",
+      "visual:0.3/M03-evidence-v03-phone",
+      "visual:0.3/M04-editor-v03-desktop",
+      "visual:0.3/M04-editor-v03-phone",
+      "visual:0.3/M05-plan-v04-desktop",
+      "visual:0.3/M05-plan-v04-phone",
+      "visual:0.3/M06-review-v04-desktop",
+      "visual:0.3/M06-review-v04-phone",
+      "visual:0.3/M06-review-v04-phone-changes",
+      "visual:0.3/M07-outcome-v04-desktop",
+      "visual:0.3/M07-outcome-v04-phone",
+      "visual:0.3/M08-learning-v04-desktop",
+      "visual:0.3/M08-learning-v04-phone",
+      "visual:0.3/M09-recovery-v04-desktop",
+      "visual:0.3/M09-recovery-v04-phone",
+      "visual:0.3/M10-ownership-v05",
+      "visual:0.3/M11-contributor-v03-desktop",
+      "visual:0.3/M11-contributor-v03-phone",
+      "visual:0.3/M12-simple-v05-desktop",
+      "visual:0.3/M12-simple-v05-phone",
+      "visual:0.3/M13-intake-v06-desktop",
+      "visual:0.3/M13-intake-v06-phone",
+      "visual:0.3/M14-readiness-v04-desktop",
+      "visual:0.3/M14-readiness-v04-phone",
+      "visual:0.3/M15-content-v01-desktop",
+      "visual:0.3/M15-content-v01-phone",
+      "visual:0.3/M16-article-v03-desktop",
+      "visual:0.3/M16-storyboard-v01-desktop",
+      "visual:0.3/M16-thread-v01-desktop",
+      "visual:0.3/M17-work-v02-desktop",
+      "visual:0.3/M17-work-v02-phone",
+      "visual:0.3/M18-journey-v02",
+      "visual:0.3/M19-request-changes-v01-phone",
+      "visual:0.3/M19-source-detail-v01-phone",
+      "visual:0.3/M20-states-v01-desktop",
+      "visual:0.3/M21-adaptive-art-v02-desktop",
+      "visual:0.3/M22-dark-editor-v02-desktop",
+      "visual:0.3/M23-assistance-v01-desktop",
+      "visual:0.3/M23-assistance-v01-phone",
+      "visual:0.3/M24-release-v03-desktop",
+      "visual:0.3/M24-release-v03-phone",
+      "visual:0.3/M25-manual-outcome-v02-phone",
+      "visual:0.3/M25-observation-v02-phone",
+      "retained-native-functionality",
+      "migration-new-write-rollback",
+      "runtime-accessibility-responsive",
+      "channel-P0-019-earned-validation",
+      "whole-outcome-operations-handover"
+    ],
+    "artifactCandidates": [
+      {
+        "relativePath": "scenarios/content-desk/docs/internal/goal/GOAL.md",
+        "sha256": "e97cc4f70e48ab2dd53219a0dfbe441081abcbf54495f6376db7bc32fc266fa9",
+        "sizeBytes": 1846,
+        "observedAt": "2026-10-07T16:41:35.909625+00:00",
+        "snapshotDigest": null
+      },
+      {
+        "relativePath": "scenarios/content-desk/docs/internal/goal/TARGETS.md",
+        "sha256": "4e91460bce18583f215bd97c6a52c378538960c46b2743bac01292feabd20121",
+        "sizeBytes": 2140,
+        "observedAt": "2026-10-07T16:41:35.909625+00:00",
+        "snapshotDigest": null
+      },
+      {
+        "relativePath": "scenarios/content-desk/docs/internal/goal/COORDINATOR.md",
+        "sha256": "271561d49514d95904639465d14fdfa10d8d4abbb2ef15f82effbd9e4f3ce3dd",
+        "sizeBytes": 767,
+        "observedAt": "2026-10-07T16:41:35.909625+00:00",
+        "snapshotDigest": null
+      },
+      {
+        "relativePath": "scenarios/content-desk/docs/internal/goal/QUEUE.md",
+        "sha256": "052dfaa669f6a6e0dc20613b22542a01c5c427131fed4e757a8795580db84a87",
+        "sizeBytes": 3446,
+        "observedAt": "2026-10-07T16:41:35.909625+00:00",
+        "snapshotDigest": null
+      },
+      {
+        "relativePath": "scenarios/content-desk/docs/internal/goal/selected-state-requirement-map.json",
+        "sha256": "ec1b07960e8f65160a6ed6fb4fc008145fb8f60193859ebc23b04f580856cee3",
+        "sizeBytes": 110328,
+        "observedAt": "2026-10-07T16:41:35.909625+00:00",
+        "snapshotDigest": null
+      },
+      {
+        "relativePath": "scenarios/content-desk/docs/internal/goal/format-target-map.json",
+        "sha256": "775e6f08acfe52ffa35e1c0fb5ab151747948684a042e43bf8c56859d3ebc817",
+        "sizeBytes": 534,
+        "observedAt": "2026-10-07T16:41:35.909625+00:00",
+        "snapshotDigest": null
+      },
+      {
+        "relativePath": "scenarios/content-desk/docs/internal/goal/materials/marketing-accepted-v1/approval.md",
+        "sha256": "15b952c6521a9fea76d58b1a2342de1a540638fd44a97e803f66750bf6d2fda4",
+        "sizeBytes": 5028,
+        "observedAt": "2026-10-07T16:41:35.909625+00:00",
+        "snapshotDigest": null
+      },
+      {
+        "relativePath": "scenarios/content-desk/docs/internal/goal/materials/marketing-accepted-v1/manifest.json",
+        "sha256": "5f229a64c0ae3fbff74cf59b36817cbe1df9f6ab8ce699b6604d0c0c733094fa",
+        "sizeBytes": 38223,
+        "observedAt": "2026-10-07T16:41:35.909625+00:00",
+        "snapshotDigest": null
+      },
+      {
+        "relativePath": "scenarios/content-desk/docs/internal/goal/materials/marketing-accepted-v1/selected-assets.json",
+        "sha256": "18fed610ddc35b81dc2025da871103c45da8d938bcc6c5ed593bdc7216d3e76d",
+        "sizeBytes": 87458,
+        "observedAt": "2026-10-07T16:41:35.909625+00:00",
+        "snapshotDigest": null
+      },
+      {
+        "relativePath": "scenarios/content-desk/docs/internal/goal/materials/marketing-accepted-v1/source-register.json",
+        "sha256": "a67a63f7a5f9a23219309ab2e31948ccb62e9549b423b12faa48312711a904e0",
+        "sizeBytes": 11260,
+        "observedAt": "2026-10-07T16:41:35.909625+00:00",
+        "snapshotDigest": null
+      },
+      {
+        "relativePath": "scenarios/content-desk/requirements/04-marketing-i16/module.json",
+        "sha256": "b97bb5695eaa1428a39bd8bb22f8f230ce6d8db73785e4b9b4ea471d25e66cc9",
+        "sizeBytes": 30149,
+        "observedAt": "2026-10-07T16:41:35.909625+00:00",
+        "snapshotDigest": null
+      },
+      {
+        "relativePath": "scenarios/channel-manager/requirements/04-marketing-i16/module.json",
+        "sha256": "b0a30217785283eb7b6314ca24608d81ad88422c7d0252c18c13c27c6619d937",
+        "sizeBytes": 2718,
+        "observedAt": "2026-10-07T16:41:35.909625+00:00",
+        "snapshotDigest": null
+      },
+      {
+        "relativePath": "scenarios/asset-studio/requirements/04-marketing-i16/module.json",
+        "sha256": "89b4d6fd2aaf61f367c02fc550a6974caa8a2f73c477e532dd8369c6a70cf2ea",
+        "sizeBytes": 1883,
+        "observedAt": "2026-10-07T16:41:35.909625+00:00",
+        "snapshotDigest": null
+      },
+      {
+        "relativePath": "scenarios/content-desk/PRD.md",
+        "sha256": "abadea9393d45e887703bd53e34b711ad47aa956237fa6833a923ea0bbe8fad9",
+        "sizeBytes": 24223,
+        "observedAt": "2026-10-07T16:41:35.909625+00:00",
+        "snapshotDigest": null
+      },
+      {
+        "relativePath": "scenarios/content-desk/DESIGN.md",
+        "sha256": "fa43ce891e6c2f5bcf846a081558e2400ce1107246f768dc0ab13fe305258d8f",
+        "sizeBytes": 22016,
+        "observedAt": "2026-10-07T16:41:35.909625+00:00",
+        "snapshotDigest": null
+      },
+      {
+        "relativePath": "scenarios/channel-manager/PRD.md",
+        "sha256": "1a8fd44fab59a48451e019ab84484e22cba0578ef33037548199d1f5e4336564",
+        "sizeBytes": 14252,
+        "observedAt": "2026-10-07T16:41:35.909625+00:00",
+        "snapshotDigest": null
+      },
+      {
+        "relativePath": "scenarios/channel-manager/DESIGN.md",
+        "sha256": "523bf832bd240058d9361ce2ca9078fb15fcd7cd50a32ed6769ba74397a52c0e",
+        "sizeBytes": 19191,
+        "observedAt": "2026-10-07T16:41:35.909625+00:00",
+        "snapshotDigest": null
+      },
+      {
+        "relativePath": "scenarios/asset-studio/PRD.md",
+        "sha256": "5bde5679d322494536cafc0ccb149be032ce844791a97cc7801f0b14102f673a",
+        "sizeBytes": 17538,
+        "observedAt": "2026-10-07T16:41:35.909625+00:00",
+        "snapshotDigest": null
+      },
+      {
+        "relativePath": "scenarios/asset-studio/DESIGN.md",
+        "sha256": "a6046a2d93909b3fef45bfc79acd600c410e8fd27925a702380d6eb3fc7b9d09",
+        "sizeBytes": 19126,
+        "observedAt": "2026-10-07T16:41:35.909625+00:00",
+        "snapshotDigest": null
+      }
+    ],
+    "allOriginalsRehashed": true,
+    "directArtifactLimit": "64 artifacts, each <=512KiB; retained manifests reference full original tree; native snapshot digests/immutability and complete transitive coverage must be resolved by actual owner, not fabricated here"
+  },
+  "unresolvedNativeValues": [
+    "verified human source/subject/issuer/realm",
+    "actual admitted EffortControl revision/authority digest",
+    "acceptance generation/current commission",
+    "complete profile/team/binding digests",
+    "retained artifact snapshot digests/evidence-owner exclusion",
+    "actual deployed build/private peer publication/isolation qualification"
+  ],
+  "authEvidenceRequest": {
+    "task": "01a103d6-6c3c-766c-93be-b8ceee8ff033",
+    "through": "parent/root only",
+    "requests": [
+      "Confirm whether effort:marketing-I16 is the exact native effort key; documented GET currently 404. If another existing accepted record is authoritative, return its exact identity and source evidence; do not silently rename/create.",
+      "Return exact supported non-dispatch target/DevelopmentOwner setup route, target source/retained roots, immutable criterion/artifact bindings, and current acceptance revision/generation using existing verified owner proof.",
+      "Return native profile/team/binding contract digest read route and effective policy, including existing 43200s profiles versus finite native ceiling; do not widen permissions or global policy.",
+      "Identify whether existing TLS/purpose identities and human proof can be reused without new credentials/grants, and the exact protected installation actions/consequences requiring confirmation.",
+      "Identify latest source qualification receipt/build pins for the claimed 379-path packet versus actual deployed AM/PM/Swarm/issuer build IDs; return exact unresolved runtime gates."
+    ]
+  },
+  "preservedBoundaries": [
+    "full approved Today/Plan/Create/Review/Learn/Content and all formats",
+    "external writing first-class; generation optional but capability remains commissioned",
+    "YouTube/online presence priority before DataAnnotation; no publication authority",
+    "BAS, Prompt Manager repair and queued Vega work untouched",
+    "Swarm may own acceptance; delivery dispatch remains Agent Manager goal/queue/epochs"
+  ],
+  "protocolFreshness": {
+    "preparedTeamPin": 25,
+    "canonicalSkillRevision": 26,
+    "requiredAction": "review revision-26 delta with native delivery owner and prepare coherent metadata/brief update before pinning contract; no product design reapproval"
+  },
+  "transportObservation": "Native swarm-manager effort get automatically rebuilt its CLI executable before returning 404; no service/team activation. Subsequent evidence used documented read-only HTTP routes. Two initial PM namespace 404s were corrected to the previously verified native prefix; corrected current reads both 200."
+}

@@ -1,0 +1,76 @@
+{
+  "at_utc": "2026-10-04T22:15:17.926479+00:00",
+  "team_id": "marketing-i16-delivery",
+  "team_enabled": false,
+  "actual_members": [
+    {
+      "agentId": "marketing-i16-orchestrator",
+      "displayName": "Marketing I16 delivery orchestrator",
+      "roles": [
+        "orchestrator"
+      ],
+      "status": "active"
+    }
+  ],
+  "scope_id": "team:marketing-i16-delivery",
+  "scope_registered": true,
+  "scope_policy": {
+    "effective": {
+      "frontierTarget": 16,
+      "wakeBudgetLines": 96,
+      "wakeBudgetChars": 12000,
+      "maxEntryLines": 2,
+      "maxEntryChars": 200,
+      "frontierTargetOrigin": "scope-override",
+      "wakeBudgetLinesOrigin": "scope-override",
+      "wakeBudgetCharsOrigin": "scope-override",
+      "maxEntryLinesOrigin": "scope-override",
+      "maxEntryCharsOrigin": "scope-override"
+    },
+    "defaults": {
+      "frontierTarget": 16,
+      "wakeBudgetLines": 96,
+      "wakeBudgetChars": 12000,
+      "maxEntryLines": 2,
+      "maxEntryChars": 200,
+      "frontierTargetOrigin": "file-default",
+      "wakeBudgetLinesOrigin": "file-default",
+      "wakeBudgetCharsOrigin": "file-default",
+      "maxEntryLinesOrigin": "file-default",
+      "maxEntryCharsOrigin": "file-default"
+    },
+    "liveness": {}
+  },
+  "agent_id": "marketing-i16-orchestrator",
+  "agent_status": "active",
+  "profile_binding": "none",
+  "heartbeat_readback": {
+    "data": []
+  },
+  "protected_binding": "not attempted",
+  "activation": "none",
+  "contract_validation_findings": {
+    "GetTeam": [],
+    "GetMemberContext": "team_role_member_drift absent after native role reconciliation; full rendered context retained for review"
+  },
+  "member_context_readback": "roles-member-context-after.json; post-role reconciliation; no runtime qualification implied",
+  "brief_sha256": "271561d49514d95904639465d14fdfa10d8d4abbb2ef15f82effbd9e4f3ce3dd",
+  "file_write_500": "response translation error; exact readback establishes save; not replayed",
+  "no_credentials_grants_admission": true,
+  "role_reconciliation": {
+    "finding_before": "team_role_member_drift: missing roles.json entry",
+    "native_owner_route": "TeamsService/SetRoles",
+    "roles_after": {
+      "roles": [
+        {
+          "id": "marketing-i16-orchestrator",
+          "name": "Marketing I16 delivery orchestrator",
+          "description": "Accountable finite coordinator; owns goal, queue and epoch acceptance under the canonical large-effort-orchestration contract. No product implementation or activation."
+        }
+      ]
+    },
+    "rendered_member_context_after": "roles-member-context-after.json",
+    "role_drift_after": "absent",
+    "review": "Independent reviewer identified missed rendered-context finding; corrected through native writer."
+  }
+}

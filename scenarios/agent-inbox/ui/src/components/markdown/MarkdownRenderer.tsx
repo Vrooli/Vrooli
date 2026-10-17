@@ -1,10 +1,14 @@
-import { Component, memo, useMemo, type ComponentPropsWithoutRef, type ReactNode, type ErrorInfo } from "react";
+import React, { Component, memo, useEffect, useMemo, useRef, useState, type ComponentPropsWithoutRef, type ReactNode, type ErrorInfo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { CodeBlock } from "./components/CodeBlock";
 import { InlineCode } from "./components/InlineCode";
 import { LinkWithPreview } from "./components/LinkWithPreview";
 import { MermaidDiagram } from "./components/MermaidDiagram";
+import { onProfilerRender } from "../../lib/profiler";
+
+const REMARK_PLUGINS = [remarkGfm];
+const LAZY_MARKDOWN_LENGTH = 1200;
 
 /**
  * Lightweight error boundary specifically for markdown rendering.
@@ -62,8 +66,13 @@ interface MarkdownRendererProps {
 export const MarkdownRenderer = memo(function MarkdownRenderer({
   content,
   className,
-  isStreaming: _isStreaming = false,
+  isStreaming = false,
 }: MarkdownRendererProps) {
+  const safeContent = content;
+  const shouldLazyParse = !isStreaming && safeContent.length > LAZY_MARKDOWN_LENGTH;
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [hasIntersected, setHasIntersected] = useState(!shouldLazyParse);
+
   // Memoize the components object to prevent recreation
   const components = useMemo(
     () => ({
@@ -181,22 +190,59 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
     []
   );
 
-  // Don't render if content is empty or not a string
-  if (!content) {
+  useEffect(() => {
+    if (!shouldLazyParse) {
+      setHasIntersected(true);
+      return;
+    }
+    const element = containerRef.current;
+    if (!element || typeof IntersectionObserver === "undefined") {
+      setHasIntersected(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          setHasIntersected(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "600px 0px" },
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [shouldLazyParse, safeContent]);
+
+  const renderedContent = useMemo(() => {
+    if (isStreaming || !hasIntersected) {
+      return (
+        <p className="my-2 whitespace-pre-wrap leading-relaxed break-words [overflow-wrap:anywhere]">
+          {safeContent}
+        </p>
+      );
+    }
+    return (
+      <ReactMarkdown remarkPlugins={REMARK_PLUGINS} components={components}>
+        {safeContent}
+      </ReactMarkdown>
+    );
+  }, [components, hasIntersected, isStreaming, safeContent]);
+
+  if (!safeContent) {
     return null;
   }
 
-  // Defensive: ensure content is a string
-  const safeContent = typeof content === "string" ? content : String(content);
-
   return (
-    <MarkdownErrorBoundary content={safeContent}>
-      <div className={`markdown-content min-w-0 max-w-full break-words [overflow-wrap:anywhere] ${className || ""}`}>
-        <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
-          {safeContent}
-        </ReactMarkdown>
-      </div>
-    </MarkdownErrorBoundary>
+    <React.Profiler id="MarkdownRenderer" onRender={onProfilerRender}>
+      <MarkdownErrorBoundary content={safeContent}>
+        <div
+          ref={containerRef}
+          className={`markdown-content min-w-0 max-w-full break-words [overflow-wrap:anywhere] [content-visibility:auto] [contain-intrinsic-size:auto_160px] ${className || ""}`}
+        >
+          {renderedContent}
+        </div>
+      </MarkdownErrorBoundary>
+    </React.Profiler>
   );
 }, (prevProps, nextProps) => {
   // Custom comparison for memoization

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
 )
 
@@ -166,4 +167,47 @@ func intSliceToString(values []int) string {
 		parts[i] = fmt.Sprintf("%d", v)
 	}
 	return strings.Join(parts, ",")
+}
+
+func profileShowReport(profile Profile) cliapp.ListReport {
+	report := cliapp.ListReport{
+		Summary: []string{
+			fmt.Sprintf("Profile: %s", firstNonEmpty(profile.ID, profile.Name)),
+			fmt.Sprintf("Scenario: %s", profile.Scenario),
+			fmt.Sprintf("Tiers: %s", fallbackProfileValue(intSliceToString(profile.Tiers), "(none)")),
+		},
+		ResultsHeading: "Details",
+		RetrievalHints: []string{
+			fmt.Sprintf("deployment-manager profile versions %s", firstNonEmpty(profile.ID, profile.Name)),
+			fmt.Sprintf("deployment-manager profile diff %s", firstNonEmpty(profile.ID, profile.Name)),
+		},
+	}
+	report.Results = append(report.Results,
+		fmt.Sprintf("Version: v%d", versionNumber(profile)),
+		fmt.Sprintf("Swaps: %d", profile.Swaps.len()),
+		fmt.Sprintf("Secrets keys: %d", len(profile.Secrets)),
+		fmt.Sprintf("Settings keys: %d", len(profile.Settings)),
+	)
+	if len(profile.Swaps) > 0 {
+		for _, swap := range profile.Swaps {
+			report.Results = append(report.Results, fmt.Sprintf("Swap %s -> %s", swap.From, swap.To))
+		}
+	}
+	return report
+}
+
+func fallbackProfileValue(value string, fallback string) string {
+	if strings.TrimSpace(value) == "" {
+		return fallback
+	}
+	return value
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }

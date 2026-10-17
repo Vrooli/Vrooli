@@ -1,0 +1,33 @@
+{
+  "entry":  {
+    "id":  "1c3d64fb-eb25-408a-88d4-1873edc42948",
+    "body":  "Owner-approved Personal Planner I18 finite delivery team commissioned and native leader dispatched.\n\nTrigger: Owner authorized integrated Planner repair and delegated native execution/acceptance ownership\nApproach: Fetched exact approved source, recorded corrected native-policy ownership, created disabled team/goal/ledger, validated contract and disposable native route, enrolled effort, enabled native finite leader once\nEvidence: Team personal-planner-delivery; effort personal-planner-I18 revision1; qualification run f5378dbe-dcee-444b-82d7-0a61d2729902 completed native_verified; leader run58257550-4062-40d8-aa7d-ffa4f01d279f retained through native binding\nOutcome: Goal home and receipts created; orchestrator owns queue and independent acceptance; no product acceptance claimed and unrelated BAS unchanged",
+    "facet_id":  "entity-record",
+    "attribution":  {
+      "actor_kind":  "operator",
+      "source_runtime":  "vrooli-memory",
+      "verification_status":  "absent",
+      "harness_session_id":  "01a0feeb-5527-703e-a010-98bbf5e8401e",
+      "harness_kind":  "codex"
+    },
+    "correlation":  {
+      "actor_kind":  "operator"
+    },
+    "facet_texts":  [
+      {
+        "kind":  "topic",
+        "text":  "Owner-approved Personal Planner I18 finite delivery team commissioned and native leader dispatched.\n\nTrigger: Owner authorized integrated Planner repair and delegated native execution/acceptance ownership\nApproach: Fetched exact approved source, recorded corrected native-policy ownership, created disabled team/goal/ledger, validated contract and disposable native route, enrolled effort, enabled native finite leader once\nEvidence: Team personal-planner-delivery; effort personal-planner-I18 revision1; qualification run f5378dbe-dcee-444b-82d7-0a61d2729902 completed native_verified; leader run58257550-4062-40d8-aa7d-ffa4f01d279f retained through native binding\nOutcome: Goal home and receipts created; orchestrator owns queue and independent acceptance; no product acceptance claimed and unrelated BAS unchanged"
+      },
+      {
+        "kind":  "rule",
+        "text":  "Implication: Owner-approved Personal Planner I18 finite delivery team commissioned and native leader dispatched.\n\nTrigger: Owner authorized integrated Planner repair and delegated native execution/acceptance ownership\nApproach: Fetched exact approved source, recorded corrected native-policy ownership, created disabled team/goal/ledger, validated contract and disposable native route, enrolled effort, enabled native finite leader once\nEvidence: Team personal-planner-delivery; effort personal-planner-I18 revision1; qualification run f5378dbe-dcee-444b-82d7-0a61d2729902 completed native_verified; leader run58257550-4062-40d8-aa7d-ffa4f01d279f retained through native binding\nOutcome: Goal home and receipts created; orchestrator owns queue and independent acceptance; no product acceptance claimed and unrelated BAS unchanged"
+      },
+      {
+        "kind":  "entities",
+        "text":  "Entities: Owner-approved Personal Planner I18 finite delivery team commissioned and native leader dispatched.\n\nTrigger: Owner authorized integrated Planner repair and delegated native execution/acceptance ownership\nApproach: Fetched exact approved source, recorded corrected native-policy ownership, created disabled team/goal/ledger, validated contract and disposable native route, enrolled effort, enabled native finite leader once\nEvidence: Team personal-planner-delivery; effort personal-planner-I18 revision1; qualification run f5378dbe-dcee-444b-82d7-0a61d2729902 completed native_verified; leader run58257550-4062-40d8-aa7d-ffa4f01d279f retained through native binding\nOutcome: Goal home and receipts created; orchestrator owns queue and independent acceptance; no product acceptance claimed and unrelated BAS unchanged"
+      }
+    ],
+    "created_at":  "2026-10-03T02:52:04.850175689Z",
+    "kind":  "work-record"
+  }
+}

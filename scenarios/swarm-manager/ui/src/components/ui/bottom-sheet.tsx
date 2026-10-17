@@ -7,6 +7,7 @@
 
 import { useId, type ReactNode } from "react";
 import { cn } from "../../lib/utils";
+import { useIsMobile } from "../../hooks/useMediaQuery";
 import { Dialog } from "./dialog";
 
 interface BottomSheetProps {
@@ -24,6 +25,8 @@ interface BottomSheetProps {
   footer?: ReactNode;
   /** Optional className for the sheet container */
   className?: string;
+  /** Optional className for the fixed outer container */
+  containerClassName?: string;
   /** Optional className for the content area */
   contentClassName?: string;
   /** data-testid attribute */
@@ -38,11 +41,13 @@ export function BottomSheet({
   children,
   footer,
   className,
+  containerClassName,
   contentClassName,
   "data-testid": testId,
 }: BottomSheetProps) {
   const titleElementId = useId();
   const descriptionElementId = useId();
+  const isMobile = useIsMobile();
 
   return (
     <Dialog
@@ -52,11 +57,20 @@ export function BottomSheet({
       testId={testId}
       titleId={title ? titleElementId : undefined}
       descriptionId={description ? descriptionElementId : undefined}
-      containerClassName="!items-end"
+      // Mobile: bottom sheet (anchored to viewport bottom).
+      // Desktop: fall through to Dialog's centered (vertical + horizontal) modal.
+      containerClassName={cn(isMobile && "!items-end", containerClassName)}
       className={cn(
-        "!mx-0 !mb-0 !rounded-b-none rounded-t-2xl !p-0",
-        "!animate-none",
-        "animate-in slide-in-from-bottom duration-200",
+        "flex flex-col !overflow-hidden !p-0",
+        isMobile
+          ? [
+              "!max-h-[calc(100dvh-0.75rem)]",
+              "!mx-0 !mb-0 !rounded-b-none rounded-t-2xl",
+              "!animate-none",
+              "animate-in slide-in-from-bottom duration-200",
+            ]
+          : // Desktop keeps Dialog defaults: mx-4, rounded-xl, max-h-[85vh], zoom-in.
+            null,
         className,
       )}
     >
@@ -78,7 +92,7 @@ export function BottomSheet({
 
       <div
         className={cn(
-          "max-h-[70vh] overflow-y-auto px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))]",
+          "min-h-0 flex-1 overflow-y-auto px-4 py-4 pb-4",
           contentClassName,
         )}
       >
@@ -86,7 +100,7 @@ export function BottomSheet({
       </div>
 
       {footer && (
-        <div className="border-t border-white/10 px-4 py-3">
+        <div className="shrink-0 border-t border-white/10 px-4 pb-[max(2rem,calc(0.75rem+env(safe-area-inset-bottom)))] pt-3">
           {footer}
         </div>
       )}

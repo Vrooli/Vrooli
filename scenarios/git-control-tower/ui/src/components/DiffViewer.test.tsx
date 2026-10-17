@@ -1,10 +1,10 @@
-import "@testing-library/jest-dom";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { DiffViewer } from "./DiffViewer";
 import type { DiffResponse, LineChange, ViewMode } from "../lib/api";
 import { FileContentConflictError } from "../lib/api";
+import { renderWithProviders } from "../test-utils/renderWithProviders";
 
 vi.mock("../lib/highlighter", () => ({
   highlightCode: vi.fn(async (content: string) =>
@@ -48,7 +48,7 @@ function renderViewer(
   viewMode: ViewMode = "source",
   overrides: Partial<ComponentProps<typeof DiffViewer>> = {}
 ) {
-  return render(
+  return renderWithProviders(
     <DiffViewer
       diff={diff}
       selectedFile="src/main.ts"
@@ -175,7 +175,7 @@ describe("DiffViewer minimap", () => {
     );
 
     fireEvent.click(screen.getByTestId("start-editing-button"));
-    const editor = screen.getByTestId("monaco-editor");
+    const editor = await screen.findByTestId("monaco-editor");
     fireEvent.change(editor, { target: { value: "const a = 2;\n" } });
     fireEvent.click(screen.getByTestId("save-file-button"));
 
@@ -198,7 +198,7 @@ describe("DiffViewer minimap", () => {
     );
 
     fireEvent.click(screen.getByTestId("start-editing-button"));
-    const editor = screen.getByTestId("monaco-editor");
+    const editor = await screen.findByTestId("monaco-editor");
     fireEvent.change(editor, { target: { value: "const a = 3;\n" } });
     fireEvent.click(screen.getByTestId("save-file-button"));
 
@@ -207,4 +207,43 @@ describe("DiffViewer minimap", () => {
       expect(screen.getByTestId("save-error")).toHaveTextContent("server-hash");
     });
   });
+});
+
+describe("DiffViewer image preview", () => {
+  it("renders SVG from its source with a decodable MIME type", () => {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg"><rect width="1"/></svg>';
+    renderViewer(
+      buildDiffResponse({ path: "assets/logo.svg", full_content: svg }),
+      "preview",
+      { selectedFile: "assets/logo.svg" }
+    );
+
+    const img = screen.getByAltText("assets/logo.svg") as HTMLImageElement;
+    // `image/svg` (no `+xml`) is what produced the broken-image placeholder.
+    expect(img.src.startsWith("data:image/svg+xml;charset=utf-8,")).toBe(true);
+    expect(img.src).not.toContain("base64");
+    expect(decodeURIComponent(img.src.split(",")[1] ?? "")).toBe(svg);
+  });
+
+  it("renders raster images from base64", () => {
+    renderViewer(
+      buildDiffResponse({ path: "assets/logo.png", full_content: "iVBORw0KGgo=" }),
+      "preview",
+      { selectedFile: "assets/logo.png" }
+    );
+
+    const img = screen.getByAltText("assets/logo.png") as HTMLImageElement;
+    expect(img.src).toBe("data:image/png;base64,iVBORw0KGgo=");
+  });
+});
+
+it("keeps captured proposal diffs immutable even when write callbacks are supplied", async () => {
+  renderViewer(buildDiffResponse({ full_content: "retained contents" }), "diff", {
+    isProposalMode: true,
+    onStage: vi.fn(), onDiscard: vi.fn(), onSaveFileContent: vi.fn(),
+  });
+  await screen.findByText("Proposed");
+  expect(screen.queryByRole("button", { name: /^edit/i })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /^stage/i })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /^discard/i })).not.toBeInTheDocument();
 });

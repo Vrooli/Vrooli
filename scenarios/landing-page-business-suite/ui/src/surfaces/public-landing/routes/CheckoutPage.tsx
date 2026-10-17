@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { WifiOff, RefreshCw, AlertTriangle } from 'lucide-react';
-import { Button } from '../../../shared/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { AlertTriangle, ArrowLeft, ArrowRight, Check, Lock, RefreshCw, SearchX, Sparkles, WifiOff } from 'lucide-react';
+import { SiteShell } from '../site/SiteShell';
 import { createCheckoutSession, getPlans, isApiError, type PlanOption, type PricingOverview } from '../../../shared/api';
+import { getAttributionContext } from '../../../shared/lib/attribution';
+
+const SHELL_META = { title: 'Checkout', description: 'Secure checkout powered by Stripe.', noindex: true };
 
 function formatCurrency(amount: number, currency = 'usd') {
   return new Intl.NumberFormat('en-US', {
@@ -15,15 +17,22 @@ function formatCurrency(amount: number, currency = 'usd') {
 
 function describePlan(plan?: PlanOption) {
   if (!plan) return '';
-  const interval = plan.billing_interval === 'year' ? 'year' : 'month';
+  const interval = plan.billing_interval === 'one_time' ? 'one-time' : plan.billing_interval === 'year' ? 'year' : 'month';
   const price = typeof plan.amount_cents === 'number' && plan.amount_cents > 0 ? formatCurrency(plan.amount_cents, plan.currency) : 'Custom';
-  return `${price} / ${interval}`;
+  return interval === 'one-time' ? price : `${price} / ${interval}`;
+}
+
+function getPlanFeatures(plan: PlanOption): string[] {
+  const metadata = plan.metadata as { features?: unknown } | undefined;
+  return Array.isArray(metadata?.features)
+    ? metadata.features.filter((feature): feature is string => typeof feature === 'string')
+    : [];
 }
 
 function buildDefaultURLs() {
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   return {
-    success: origin ? `${origin}/?checkout=success` : '/?checkout=success',
+    success: origin ? `${origin}/thank-you?type=checkout` : '/thank-you?type=checkout',
     cancel: typeof window !== 'undefined' ? window.location.href : '/checkout',
   };
 }
@@ -44,30 +53,38 @@ function classifyErrorState(err: unknown): ErrorState {
   }
   if (isApiError(err, 'server_error')) {
     return {
-      message: isApiError(err) ? err.userMessage : 'Our servers are experiencing issues. Please try again later.',
+      message: err.userMessage,
       type: 'server',
       retryable: true,
     };
   }
   if (isApiError(err, 'rate_limited')) {
     return {
-      message: isApiError(err) ? err.userMessage : 'Too many requests. Please wait a moment and try again.',
+      message: err.userMessage,
       type: 'server',
       retryable: true,
     };
   }
   if (isApiError(err, 'validation')) {
     return {
-      message: isApiError(err) ? err.userMessage : 'Invalid request. Please try again.',
+      message: err.userMessage,
       type: 'validation',
       retryable: false,
     };
   }
   if (isApiError(err, 'not_found')) {
     return {
-      message: isApiError(err) ? err.userMessage : 'Requested resource was not found.',
+      message: err.userMessage,
       type: 'validation',
       retryable: false,
+    };
+  }
+  const detail = err instanceof Error ? err.message : String(err ?? '');
+  if (/stripe configuration|create checkout session/i.test(detail)) {
+    return {
+      message: 'Payments are temporarily unavailable. Please try again later.',
+      type: 'server',
+      retryable: true,
     };
   }
   return {
@@ -81,6 +98,9 @@ export function CheckoutPage() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const priceParam = params.get('price_id') || '';
+  const planParam = params.get('plan')?.trim().toLowerCase() || '';
+  const businessAccountId = params.get('business_account_id')?.trim() || undefined;
+  const freeRequested = planParam === 'free';
 
   const [pricing, setPricing] = useState<PricingOverview | null>(null);
   const [loading, setLoading] = useState(true);
@@ -90,44 +110,64 @@ export function CheckoutPage() {
   const [attemptKey, setAttemptKey] = useState(0);
   const [loadAttemptKey, setLoadAttemptKey] = useState(0);
   const startedRef = useRef(false);
+  const loadRequestRef = useRef(0);
 
   useEffect(() => {
-    let mounted = true;
-    (async () => {
+    const requestId = ++loadRequestRef.current;
+    const loadPlans = async () => {
+      if (freeRequested) {
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       setError(null);
       try {
         const plans = await getPlans();
-        if (mounted) {
+        if (loadRequestRef.current === requestId) {
           setPricing(plans);
         }
       } catch (err) {
-        if (mounted) {
+        if (loadRequestRef.current === requestId) {
           setError(classifyErrorState(err));
         }
       } finally {
-        if (mounted) setLoading(false);
+        if (loadRequestRef.current === requestId) setLoading(false);
       }
-    })();
-    return () => {
-      mounted = false;
     };
-  }, [loadAttemptKey]);
+    void loadPlans();
+    return () => {
+      if (loadRequestRef.current === requestId) {
+        loadRequestRef.current += 1;
+      }
+    };
+  }, [freeRequested, loadAttemptKey]);
 
   const selectedPlan = useMemo<PlanOption | undefined>(() => {
     if (!pricing) return undefined;
-    const candidates = [...(pricing.monthly || []), ...(pricing.yearly || [])].filter((plan) => plan.display_enabled);
+    const monthlyPlans = Array.isArray(pricing.monthly) ? pricing.monthly : [];
+    const yearlyPlans = Array.isArray(pricing.yearly) ? pricing.yearly : [];
+    const creditTopupPlans = Array.isArray(pricing.credit_topups) ? pricing.credit_topups : [];
+    const candidates = [...monthlyPlans, ...yearlyPlans, ...creditTopupPlans].filter((plan) => plan.display_enabled);
     if (priceParam) {
-      const match = candidates.find((plan) => plan.stripe_price_id === priceParam);
-      if (match) return match;
+      return candidates.find((plan) => plan.stripe_price_id === priceParam);
+    }
+    if (planParam) {
+      return candidates.find((plan) => (
+        plan.plan_tier.trim().toLowerCase() === planParam
+        || plan.plan_name.trim().toLowerCase() === planParam
+      ));
     }
     return candidates[0];
-  }, [pricing, priceParam]);
+  }, [planParam, pricing, priceParam]);
+  const selectedPlanFeatures = useMemo(
+    () => (selectedPlan ? getPlanFeatures(selectedPlan) : []),
+    [selectedPlan],
+  );
 
   useEffect(() => {
     let cancelled = false;
     const startCheckout = async () => {
-      if (!selectedPlan || startedRef.current) return;
+      if (freeRequested || !selectedPlan || startedRef.current) return;
       startedRef.current = true;
       setSubmitting(true);
       setSessionError(null);
@@ -137,9 +177,11 @@ export function CheckoutPage() {
           price_id: selectedPlan.stripe_price_id,
           success_url: urls.success,
           cancel_url: urls.cancel,
+          business_account_id: businessAccountId,
+          attribution: getAttributionContext(new URLSearchParams(window.location.search).get('variant_slug') ?? new URLSearchParams(window.location.search).get('variant')),
         });
 
-        if (!cancelled && session?.url) {
+        if (!cancelled && session.url) {
           window.location.href = session.url;
           return;
         }
@@ -163,186 +205,148 @@ export function CheckoutPage() {
       }
     };
 
-    startCheckout();
+    void startCheckout();
 
     return () => {
       cancelled = true;
     };
-  }, [selectedPlan, attemptKey]);
+  }, [attemptKey, businessAccountId, freeRequested, selectedPlan]);
+
+  const back = <button type="button" className="button button-secondary" onClick={() => { navigate('/'); }}><ArrowLeft aria-hidden="true" />Back to home</button>;
+  const status = (props: { icon: ReactNode; tone?: 'warning' | 'danger' | 'success'; title: string; body: ReactNode; actions: ReactNode }) => (
+    <SiteShell meta={SHELL_META} width="narrow">
+      <section className="site-card site-status-card" data-tone={props.tone}>
+        <span className="site-status-mark" aria-hidden="true">{props.icon}</span>
+        <h1>{props.title}</h1>
+        <p className="site-lede">{props.body}</p>
+        <div className="site-actions">{props.actions}</div>
+      </section>
+    </SiteShell>
+  );
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white">
-        <div className="animate-pulse text-lg">Loading pricing…</div>
-      </div>
+      <SiteShell meta={SHELL_META} width="narrow">
+        <section className="site-card site-status-card" aria-busy="true">
+          <span className="site-status-mark" aria-hidden="true"><span className="site-spinner" /></span>
+          <h1>Loading pricing…</h1>
+          <p className="site-lede">Getting the latest plan details.</p>
+        </section>
+      </SiteShell>
     );
+  }
+
+  if (freeRequested) {
+    return status({
+      icon: <Sparkles />, tone: 'success', title: 'Start with the free edition',
+      body: 'Free access does not require payment. Continue to the landing page to choose a download.',
+      actions: <><button type="button" className="button button-primary" onClick={() => { navigate('/#downloads-section'); }}>View free downloads<ArrowRight aria-hidden="true" /></button>{back}</>,
+    });
+  }
+
+  if (pricing && (priceParam || planParam) && !selectedPlan) {
+    return status({
+      icon: <SearchX />, tone: 'danger', title: 'Plan unavailable',
+      body: 'The requested plan is not available. Choose a current plan from the landing page and try again.',
+      actions: back,
+    });
   }
 
   if (error) {
-    const ErrorIcon = error.type === 'network' ? WifiOff : AlertTriangle;
-    const borderColor = error.type === 'network' ? 'border-amber-500/30' : 'border-rose-500/30';
-    const iconColor = error.type === 'network' ? 'text-amber-400' : 'text-rose-400';
-    const bgColor = error.type === 'network' ? 'bg-amber-500/10' : 'bg-rose-500/10';
-
-    return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white px-6">
-        <Card className={`max-w-xl bg-slate-900 ${borderColor} text-white`}>
-          <CardHeader>
-            <div className={`w-12 h-12 rounded-full ${bgColor} flex items-center justify-center mb-4`}>
-              <ErrorIcon className={`w-6 h-6 ${iconColor}`} />
-            </div>
-            <CardTitle>
-              {error.type === 'network' ? 'Connection Issue' : 'Unable to Load Checkout'}
-            </CardTitle>
-            <CardDescription className="text-slate-300">{error.message}</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3 sm:flex-row">
-            {error.retryable && (
-              <Button
-                onClick={() => setLoadAttemptKey((k) => k + 1)}
-                className="gap-2"
-              >
-                <RefreshCw className="w-4 h-4" />
-                Try Again
-              </Button>
-            )}
-            <Button variant="ghost" onClick={() => navigate('/')}>
-              Back to Landing
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
+    return status({
+      icon: error.type === 'network' ? <WifiOff /> : <AlertTriangle />, tone: error.type === 'network' ? 'warning' : 'danger',
+      title: error.type === 'network' ? 'Connection issue' : 'Unable to load checkout',
+      body: error.message,
+      actions: <>{error.retryable && <button type="button" className="button button-primary" onClick={() => { setLoadAttemptKey((k) => k + 1); }}><RefreshCw aria-hidden="true" />Try again</button>}{back}</>,
+    });
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white">
-      <div className="mx-auto max-w-5xl px-6 py-16 space-y-10">
-        <div className="flex flex-col gap-3">
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            className="self-start rounded-full border border-white/10 px-3 py-1 text-xs uppercase tracking-[0.25em] text-slate-300 hover:border-white/30"
-          >
-            Go back
-          </button>
-          <h1 className="text-4xl font-semibold leading-tight">Secure checkout</h1>
-          <p className="text-lg text-slate-300">
+    <SiteShell meta={SHELL_META}>
+      <div className="site-checkout">
+        <header className="site-hero">
+          <p className="eyebrow">Secure checkout</p>
+          <h1>You&apos;re almost there.</h1>
+          <p className="site-lede">
             We&apos;re sending you to Stripe to finish payment. Stripe will collect your email during checkout.
           </p>
-        </div>
+        </header>
 
-        <div className="grid gap-6 lg:grid-cols-[1.25fr_1fr]">
-          <Card className="bg-slate-900 border-slate-800 shadow-2xl shadow-indigo-900/30">
-            <CardHeader>
-              <CardTitle>Plan details</CardTitle>
-              <CardDescription className="text-slate-300">
-                {selectedPlan ? selectedPlan.plan_name : 'No plan selected'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {selectedPlan ? (
-                <div className="space-y-4">
-                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm uppercase tracking-[0.3em] text-indigo-300">Plan</p>
-                        <h2 className="text-2xl font-bold">{selectedPlan.plan_name}</h2>
-                        <p className="text-slate-300">{selectedPlan.plan_tier.toUpperCase()}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-3xl font-bold">{describePlan(selectedPlan)}</p>
-                        {selectedPlan.intro_enabled && selectedPlan.intro_amount_cents != null && (
-                          <p className="text-xs text-emerald-300">
-                            Intro {formatCurrency(selectedPlan.intro_amount_cents, selectedPlan.currency)} for{' '}
-                            {selectedPlan.intro_periods || 1} month{selectedPlan.intro_periods === 1 ? '' : 's'}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    {Array.isArray(selectedPlan.metadata?.features) && selectedPlan.metadata?.features.length > 0 && (
-                      <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                        {(selectedPlan.metadata?.features as string[]).map((feature) => (
-                          <div key={feature} className="rounded-xl border border-white/5 bg-black/20 px-3 py-2 text-sm text-slate-200">
-                            {feature}
-                          </div>
-                        ))}
-                      </div>
+        <div className="site-checkout-grid">
+          <section className="site-card site-checkout-plan" aria-label="Plan details">
+            {selectedPlan ? (
+              <>
+                <div className="site-checkout-plan-head">
+                  <div>
+                    <p className="site-checkout-kicker">{selectedPlan.plan_tier.toUpperCase()}</p>
+                    <h2>{selectedPlan.plan_name}</h2>
+                  </div>
+                  <div className="site-checkout-price">
+                    <p>{describePlan(selectedPlan)}</p>
+                    {selectedPlan.intro_enabled && selectedPlan.intro_amount_cents != null && (
+                      <small>
+                        Intro {formatCurrency(selectedPlan.intro_amount_cents, selectedPlan.currency)} for{' '}
+                        {selectedPlan.intro_periods || 1} month{selectedPlan.intro_periods === 1 ? '' : 's'}
+                      </small>
                     )}
                   </div>
-                  <p className="text-sm text-slate-400">
-                    Payments are processed by Stripe. You&apos;ll get a portal link to manage billing after checkout.
-                  </p>
                 </div>
-              ) : (
-                <p className="text-slate-300">No active plans are available right now.</p>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="bg-slate-900 border-slate-800 shadow-2xl shadow-indigo-900/30">
-            <CardHeader>
-              <CardTitle>Redirecting to Stripe</CardTitle>
-              <CardDescription className="text-slate-300">Sit tight — we&apos;re creating your checkout session.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {sessionError ? (
-                  <div className="space-y-4">
-                    <div className={`rounded-lg border p-4 ${
-                      sessionError.type === 'network'
-                        ? 'border-amber-500/20 bg-amber-500/10'
-                        : 'border-rose-500/20 bg-rose-500/10'
-                    }`}>
-                      <div className="flex items-start gap-3">
-                        {sessionError.type === 'network' ? (
-                          <WifiOff className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
-                        ) : (
-                          <AlertTriangle className="w-5 h-5 text-rose-400 flex-shrink-0 mt-0.5" />
-                        )}
-                        <div>
-                          <p className={`text-sm font-medium ${
-                            sessionError.type === 'network' ? 'text-amber-300' : 'text-rose-300'
-                          }`}>
-                            {sessionError.type === 'network' ? 'Connection Issue' : 'Checkout Failed'}
-                          </p>
-                          <p className={`text-sm mt-1 ${
-                            sessionError.type === 'network' ? 'text-amber-200/80' : 'text-rose-200/80'
-                          }`}>
-                            {sessionError.message}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    {sessionError.retryable && (
-                      <Button
-                        onClick={() => {
-                          startedRef.current = false;
-                          setSessionError(null);
-                          setAttemptKey((key) => key + 1);
-                        }}
-                        className="w-full gap-2"
-                        variant="default"
-                      >
-                        <RefreshCw className="w-4 h-4" />
-                        Retry Checkout
-                      </Button>
-                    )}
-                  </div>
-                ) : (
-                  <Button disabled className="w-full">
-                    {submitting ? 'Redirecting…' : 'Preparing checkout…'}
-                  </Button>
+                {selectedPlanFeatures.length > 0 && (
+                  <ul className="site-checkout-features">
+                    {selectedPlanFeatures.map((feature) => (
+                      <li key={feature}><Check aria-hidden="true" />{feature}</li>
+                    ))}
+                  </ul>
                 )}
-                <Button variant="ghost" onClick={() => navigate('/')}>Back to landing</Button>
-              </div>
-              <p className="pt-4 text-xs text-slate-500">
-                By continuing you agree to the terms and acknowledge this subscription powers the Silent Founder OS suite.
-              </p>
-            </CardContent>
-          </Card>
+                <p className="site-checkout-note"><Lock aria-hidden="true" />Payments are processed by Stripe. You&apos;ll get a portal link to manage billing after checkout.</p>
+              </>
+            ) : (
+              <p className="site-lede">No active plans are available right now.</p>
+            )}
+          </section>
+
+          <section className="site-card site-checkout-status" aria-live="polite">
+            {sessionError ? (
+              <>
+                <div className="site-alert" data-tone={sessionError.type === 'network' ? 'warning' : 'danger'} role="alert">
+                  {sessionError.type === 'network' ? <WifiOff aria-hidden="true" /> : <AlertTriangle aria-hidden="true" />}
+                  <div>
+                    <p className="site-alert-title">{sessionError.type === 'network' ? 'Connection issue' : 'Checkout failed'}</p>
+                    <p>{sessionError.message}</p>
+                  </div>
+                </div>
+                {sessionError.retryable && (
+                  <button
+                    type="button"
+                    className="button button-primary"
+                    onClick={() => {
+                      startedRef.current = false;
+                      setSessionError(null);
+                      setAttemptKey((key) => key + 1);
+                    }}
+                  >
+                    <RefreshCw aria-hidden="true" />
+                    Retry checkout
+                  </button>
+                )}
+              </>
+            ) : (
+              <>
+                <span className="site-status-mark" aria-hidden="true"><span className="site-spinner" /></span>
+                <h2>Redirecting to Stripe</h2>
+                <p className="site-checkout-note">Sit tight — we&apos;re creating your checkout session.</p>
+                <button type="button" className="button button-primary" disabled>
+                  {submitting ? 'Redirecting…' : 'Preparing checkout…'}
+                </button>
+              </>
+            )}
+            {back}
+            <p className="site-checkout-fine">
+              By continuing you agree to the <Link to="/terms">terms</Link> and acknowledge this subscription{pricing?.bundle.name.trim() ? ` is for ${pricing.bundle.name.trim()}` : ' is for the selected plan'}. See our <Link to="/privacy">privacy policy</Link>.
+            </p>
+          </section>
         </div>
       </div>
-    </div>
+    </SiteShell>
   );
 }

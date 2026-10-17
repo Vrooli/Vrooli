@@ -6,7 +6,5 @@ interface StatusBadgeProps {
 }
 
 export const StatusBadge = ({ variant, children }: StatusBadgeProps) => (
-  <span className={`badge badge-${variant}`}>
-    {children}
-  </span>
+  <span className={`badge badge-${variant}`}>{children}</span>
 );

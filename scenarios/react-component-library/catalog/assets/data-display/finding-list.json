@@ -1,0 +1,47 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "data-display.finding-list",
+    "name": "FindingList",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "data-display",
+    "description": "An actionable list of gate findings with severity, identity, and remediation.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "implemented"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
+      }
+    ],
+    "suggests": []
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "non-color-status",
+    "text-scale-resilience"
+  ],
+  "requiredStates": [
+    "default",
+    "empty",
+    "request-error"
+  ],
+  "qualityGates": [
+    "accessibility",
+    "surface-discipline",
+    "composition"
+  ],
+  "rationale": "A finding must explain what failed and what to do next without requiring a chart or hover state."
+}

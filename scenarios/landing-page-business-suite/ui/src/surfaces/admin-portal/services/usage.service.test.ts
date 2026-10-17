@@ -89,7 +89,7 @@ describe('usage.service', () => {
     it('uses default limit of 10', () => {
       const userTotals: Record<string, number> = {};
       for (let i = 0; i < 15; i++) {
-        userTotals[`user${i}`] = i * 10;
+        userTotals[`user${String(i)}`] = i * 10;
       }
       const result = getTopUsers(userTotals);
       expect(result).toHaveLength(10);
@@ -121,7 +121,7 @@ describe('usage.service', () => {
     it('returns limited records', () => {
       const records = Array.from({ length: 50 }, (_, i) => ({
         id: String(i),
-        user_identity: `user${i}`,
+        user_identity: `user${String(i)}`,
         billing_period: '2024-01',
         limit_key: 'ai_credits',
         usage_amount: i * 10,
@@ -137,7 +137,7 @@ describe('usage.service', () => {
     it('returns all if less than limit', () => {
       const records = Array.from({ length: 5 }, (_, i) => ({
         id: String(i),
-        user_identity: `user${i}`,
+        user_identity: `user${String(i)}`,
         billing_period: '2024-01',
         limit_key: 'ai_credits',
         usage_amount: i * 10,
@@ -153,7 +153,7 @@ describe('usage.service', () => {
     it('uses default limit of 20', () => {
       const records = Array.from({ length: 50 }, (_, i) => ({
         id: String(i),
-        user_identity: `user${i}`,
+        user_identity: `user${String(i)}`,
         billing_period: '2024-01',
         limit_key: 'ai_credits',
         usage_amount: i * 10,

@@ -1,3 +1,5 @@
+// DOC: docs/concepts/ARCHITECTURE.md#ui-dashboard
+// DOC: docs/internal/COHERENCE-NOTES.md
 import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Layout } from "./components/Layout";

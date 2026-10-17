@@ -83,6 +83,7 @@ export const EntitlementPayloadSchema = z.object({
   features: z.array(z.string()).optional(),
   credits: CreditInfoSchema.optional(),
   subscription: SubscriptionInfoSchema.optional(),
+  billing_cycle_start: z.number().int().optional(),
 });
 
 // Verify stripe price response schema

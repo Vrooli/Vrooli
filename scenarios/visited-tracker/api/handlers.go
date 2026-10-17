@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	apiVersion = "3.0.0"
-	serviceName = "visited-tracker"
+	apiVersion      = "3.0.0"
+	serviceName     = "visited-tracker"
 	defaultMaxFiles = 200
 )
 
@@ -69,12 +69,19 @@ func listCampaignsHandler(w http.ResponseWriter, r *http.Request) {
 	})
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"campaigns": campaigns,
 		"count":     len(campaigns),
 	})
 }
+
 func createCampaignHandler(w http.ResponseWriter, r *http.Request) {
+	release, lockErr := lockCampaignCatalog(r.Context())
+	if lockErr != nil {
+		http.Error(w, "campaign catalog unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	defer release()
 	var req CreateCampaignRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error": "Invalid JSON"}`, http.StatusBadRequest)
@@ -160,8 +167,8 @@ func createCampaignHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Save to file (includes any synced files)
-	if err := saveCampaign(&campaign); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error": "Failed to save campaign: %v"}`, err), http.StatusInternalServerError)
+	if err := saveCampaign(r.Context(), &campaign); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": "Failed to save campaign: %v"}`, err), campaignWriteStatus(err))
 		return
 	}
 
@@ -185,8 +192,9 @@ func createCampaignHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(campaign)
+	_ = json.NewEncoder(w).Encode(campaign)
 }
+
 func getCampaignHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	campaignID, err := uuid.Parse(vars["id"])
@@ -223,8 +231,9 @@ func getCampaignHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(campaign)
+	_ = json.NewEncoder(w).Encode(campaign)
 }
+
 func deleteCampaignHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	campaignID, err := uuid.Parse(vars["id"])
@@ -241,7 +250,7 @@ func deleteCampaignHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Delete the campaign file (idempotent operation)
-	if err := deleteCampaignFile(campaignID); err != nil {
+	if err := deleteCampaignFile(r.Context(), campaignID); err != nil {
 		// Only return error if it's not a "file not found" error
 		if !os.IsNotExist(err) {
 			http.Error(w, fmt.Sprintf(`{"error": "Failed to delete campaign: %v"}`, err), http.StatusInternalServerError)
@@ -256,12 +265,19 @@ func deleteCampaignHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"deleted": true,
 		"id":      campaignID,
 	})
 }
+
 func findOrCreateCampaignHandler(w http.ResponseWriter, r *http.Request) {
+	release, lockErr := lockCampaignCatalog(r.Context())
+	if lockErr != nil {
+		http.Error(w, "campaign catalog unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	defer release()
 	var req CreateCampaignRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error": "Invalid JSON"}`, http.StatusBadRequest)
@@ -278,7 +294,7 @@ func findOrCreateCampaignHandler(w http.ResponseWriter, r *http.Request) {
 					// Found existing campaign with matching location+tag
 					logger.Printf("🔍 Found existing campaign for location=%s, tag=%s: %s", *req.Location, *req.Tag, campaign.Name)
 					w.Header().Set("Content-Type", "application/json")
-					json.NewEncoder(w).Encode(map[string]interface{}{
+					_ = json.NewEncoder(w).Encode(map[string]interface{}{
 						"created":  false,
 						"campaign": campaign,
 					})
@@ -352,14 +368,14 @@ func findOrCreateCampaignHandler(w http.ResponseWriter, r *http.Request) {
 		campaign.Metadata["files_added"] = syncResult.Added
 	}
 
-	if err := saveCampaign(&campaign); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error": "Failed to save campaign: %v"}`, err), http.StatusInternalServerError)
+	if err := saveCampaign(r.Context(), &campaign); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": "Failed to save campaign: %v"}`, err), campaignWriteStatus(err))
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"created":  true,
 		"campaign": campaign,
 	})
@@ -393,14 +409,14 @@ func updateCampaignHandler(w http.ResponseWriter, r *http.Request) {
 		campaign.Notes = updates.Notes
 		campaign.UpdatedAt = time.Now().UTC()
 
-		if err := saveCampaign(campaign); err != nil {
-			http.Error(w, fmt.Sprintf(`{"error": "Failed to save campaign: %v"}`, err), http.StatusInternalServerError)
+		if err := saveCampaign(r.Context(), campaign); err != nil {
+			http.Error(w, fmt.Sprintf(`{"error": "Failed to save campaign: %v"}`, err), campaignWriteStatus(err))
 			return
 		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(campaign)
+	_ = json.NewEncoder(w).Encode(campaign)
 }
 
 func resetCampaignHandler(w http.ResponseWriter, r *http.Request) {
@@ -432,8 +448,8 @@ func resetCampaignHandler(w http.ResponseWriter, r *http.Request) {
 	updateStalenessScores(campaign)
 
 	campaign.UpdatedAt = time.Now().UTC()
-	if err := saveCampaign(campaign); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error": "Failed to save campaign: %v"}`, err), http.StatusInternalServerError)
+	if err := saveCampaign(r.Context(), campaign); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": "Failed to save campaign: %v"}`, err), campaignWriteStatus(err))
 		return
 	}
 
@@ -446,7 +462,7 @@ func resetCampaignHandler(w http.ResponseWriter, r *http.Request) {
 	campaign.CoveragePercent = 0.0
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"message":  "Campaign reset successfully",
 		"campaign": campaign,
 	})

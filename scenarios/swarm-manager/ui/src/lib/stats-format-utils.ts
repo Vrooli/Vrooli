@@ -51,20 +51,6 @@ export function formatDelta(value: number): string {
 }
 
 /**
- * Formats estimated weeks remaining to a human-readable string.
- *
- * @example
- * formatWeeksRemaining(0)     // "Done"
- * formatWeeksRemaining(0.3)   // "< 1 week"
- * formatWeeksRemaining(8.6)   // "~8.6 weeks"
- */
-export function formatWeeksRemaining(weeks: number): string {
-  if (weeks <= 0) return "Done";
-  if (weeks < 1) return "< 1 week";
-  return `~${weeks.toFixed(1)} weeks`;
-}
-
-/**
  * Computes a bar width percentage, clamped to 0–100.
  *
  * @example

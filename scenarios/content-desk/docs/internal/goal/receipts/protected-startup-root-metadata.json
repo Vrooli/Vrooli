@@ -1,0 +1,7 @@
+{
+  "path": "/etc/vrooli/finite-startup",
+  "inspection": "directory metadata only; no bundle/credential content acquired",
+  "exists": false,
+  "errno": 2,
+  "error": "[Errno 2] No such file or directory: '/etc/vrooli/finite-startup'"
+}

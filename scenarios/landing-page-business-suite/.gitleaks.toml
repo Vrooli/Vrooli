@@ -1,0 +1,12 @@
+# Keep the default rules active. The only exception is a reviewed public
+# variant fixture whose stable section identifiers match gitleaks' generic key
+# heuristic; this JSON file contains landing copy and section metadata only,
+# never credentials or deployment configuration.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Public variant fixture uses durable section keys, not credentials"
+paths = [
+  '''^config/variants/agency-marketing-visionary\.json$''',
+]

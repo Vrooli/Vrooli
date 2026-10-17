@@ -1,0 +1,78 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "kopia",
+  "storage": {
+    "entries": {},
+    "rationale": "This tool has no tool-owned persistent storage in the supported Vrooli workflow; the explicit empty declaration records that caches or credentials are owned by the invoking workflow."
+  },
+  "description": "Kopia backup CLI supplied by the operator",
+  "commands": [
+    "kopia"
+  ],
+  "versionArgs": [
+    "--version"
+  ],
+  "installHint": "Run `vrooli host install kopia`; it installs the checksum-verified Kopia release for this platform.",
+  "acquisition": {
+    "kind": "url",
+    "targets": [
+      {
+        "when": {
+          "os": "linux",
+          "arch": "amd64"
+        },
+        "url": "https://github.com/kopia/kopia/releases/download/v0.23.1/kopia-0.23.1-linux-x64.tar.gz",
+        "sha256": "416d0f84a3dbb321a8b2d8f0997b1a0a6e915babe79ee76fa6e4d2bd1e1c5178",
+        "archive": "tar.gz",
+        "bin_path": "kopia-0.23.1-linux-x64/kopia"
+      },
+      {
+        "when": {
+          "os": "linux",
+          "arch": "arm64"
+        },
+        "url": "https://github.com/kopia/kopia/releases/download/v0.23.1/kopia-0.23.1-linux-arm64.tar.gz",
+        "sha256": "a4ffbc019e0b0f932e2632054e73ec521dc1e80172a00095369c53ecf4e5a6cb",
+        "archive": "tar.gz",
+        "bin_path": "kopia-0.23.1-linux-arm64/kopia"
+      },
+      {
+        "when": {
+          "os": "darwin",
+          "arch": "amd64"
+        },
+        "url": "https://github.com/kopia/kopia/releases/download/v0.23.1/kopia-0.23.1-macOS-x64.tar.gz",
+        "sha256": "89dd7160a1266413c73bd0aa92459c5e739fcaed2ba30a4cca30aef179f11042",
+        "archive": "tar.gz",
+        "bin_path": "kopia-0.23.1-macOS-x64/kopia"
+      },
+      {
+        "when": {
+          "os": "darwin",
+          "arch": "arm64"
+        },
+        "url": "https://github.com/kopia/kopia/releases/download/v0.23.1/kopia-0.23.1-macOS-arm64.tar.gz",
+        "sha256": "19e6ed637221f4dfd46a46e978ec4c509c386b522d746db2cd6762b217478111",
+        "archive": "tar.gz",
+        "bin_path": "kopia-0.23.1-macOS-arm64/kopia"
+      }
+    ]
+  },
+  "bundling": "host-required",
+  "capability": "backup-storage",
+  "capability_role": "primary",
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "macos": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "windows": {
+      "status": "unqualified",
+      "evidence": null
+    }
+  }
+}

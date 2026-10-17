@@ -1,0 +1,218 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "treasury",
+    "displayName": "Agent Treasury",
+    "description": "Holds what an agent is permitted to spend and permitted to charge, evaluates every attempt against a grant a human made, and settles it through whichever rail fits",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "tags": [
+      "react-ui",
+      "go-api"
+    ]
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.6.5"
+    },
+    "generated_at": "2026-08-18T19:12:35Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "a03095c2f8c1ca51deeaa91182a4d7de08db6b7744aff3d0b58eaef9017de936",
+    "content_sha": "a8b2a3025441b1e658f96935a24e446e45a3524fa138824c99d642e5d51506e9"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "treasury",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "source_build": {
+      "kind": "go_module"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "treasury"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    }
+  },
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/treasury",
+        "field": "operator-token",
+        "env": "TREASURY_OPERATOR_TOKEN",
+        "label": "Treasury operator API token",
+        "description": "Authenticates the local operator realm. Agent credentials are always rejected at this boundary.",
+        "required": true
+      },
+      {
+        "logical_id": "vrooli/treasury",
+        "field": "mandate-signing-key",
+        "env": "TREASURY_MANDATE_SIGNING_KEY",
+        "label": "Treasury mandate signing key",
+        "description": "Signs canonical immutable mandate payloads and is intentionally independent from the operator API credential.",
+        "required": true
+      },
+      {
+        "logical_id": "vrooli/treasury/lithic",
+        "field": "value",
+        "env": "TREASURY_LITHIC_CREDENTIAL",
+        "label": "Lithic sandbox issuing credential",
+        "description": "Strict JSON containing an operator-created Lithic sandbox api_key and optional account_token. Resolved only while issuing a scoped card.",
+        "required": false
+      }
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 15000
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "x402-facilitator": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Self-hosted x402 v2 facilitator used by both outbound payment and inbound earning adapters. It starts fail-closed with no supported network until an operator provisions a signer and explicit RPC route.",
+        "degraded_behavior": "P0 manual settlement and all non-x402 paths remain available. Automated x402 spend and earning refuse while the facilitator is unavailable or has no configured network."
+      }
+    },
+    "scenarios": {
+      "agent-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": true,
+        "startup_policy": "must_start",
+        "description": "Verifies the calling agent's signed run claims and supplies the delegation chain this scenario consumes but never extends. Identity verification is a live call on the authorization path.",
+        "degraded_behavior": "Fail closed: TRS-P0-005 refuses automated spend that cannot be verified rather than recording it at a degraded evidence grade. The operator console, evidence reads and the manual rail remain available. This is the one dependency that refuses rather than degrades, and the availability cost is accepted deliberately."
+      },
+      "money-ledger": {
+        "type": "scenario",
+        "enabled": true,
+        "required": true,
+        "startup_policy": "try_start",
+        "description": "Receives one idempotent money event per settled charge through its existing inbound contract. The direction is one-way; money-ledger has no knowledge of this scenario, which is what preserves its neutrality as the journal.",
+        "degraded_behavior": "Emission queues and retries with its own idempotency. Settlement is never blocked, because money that already moved must still be recorded locally; local evidence is authoritative until the emission is accepted.",
+        "supervision_precedence": "required"
+      },
+      "secrets-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "description": "Holds instrument credential material by reference so card numbers and keys never enter this scenario's storage. Not exercised until an automated rail holds a credential (TRS-P1-003).",
+        "degraded_behavior": "Rails needing a credential refuse. No credential is cached, because a cache would convert a revocation into a delayed refusal. The manual rail and all read paths are unaffected."
+      },
+      "notification-hub": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "description": "Optional relay for approval requests. Deliberately not a dependency: TRS-P0-006 requires the in-scenario approval queue to work without it.",
+        "degraded_behavior": "The relay attempt is recorded as failed and the approval outcome is unchanged. The console queue remains fully functional, so approval never stops working."
+      }
+    }
+  },
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned SQLite custody, authorization, settlement, evidence, idempotency and outbox records under SCENARIO_DATA_DIR.",
+        "budget": {
+          "max_bytes": "100GiB",
+          "rationale": "Single-operator transaction history is bounded by documented retention and backup policy; this ceiling forces explicit review before exceptional growth."
+        }
+      }
+    },
+    "rationale": "Treasury owns one durable SQLite database; Money Ledger journals and facilitator state remain externally owned and are not claimed here."
+  },
+  "environment": {},
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  }
+}

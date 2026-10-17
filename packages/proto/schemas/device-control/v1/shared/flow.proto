@@ -1,0 +1,44 @@
+syntax = "proto3";
+package vrooli.device_control.v1.shared;
+
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/shared;shared_v1";
+
+// Flow is shared by the flow service and desktop owner operations. Keeping the
+// reusable procedure in the shared domain prevents desktop consumers from
+// depending on a service-owned package.
+message Flow {
+  string id = 1;
+  string name = 2;
+  repeated Step steps = 3;
+  bool allow_unredacted_capture = 4;
+  // usb is the default; wireless must be explicitly requested after promotion.
+  string transport = 5;
+  bool require_unlocked = 6;
+  string auth_profile_id = 7;
+  int64 max_duration_ms = 8;
+  int32 retry_budget = 9;
+  string application_id = 10;
+  string application_revision = 11;
+}
+
+message Step {
+  string id = 1;
+  string kind = 2;
+  repeated string required_capabilities = 3;
+  string target = 4;
+  int64 timeout_ms = 5;
+  google.protobuf.Struct arguments = 6;
+  repeated Condition preconditions = 7;
+  repeated Condition postconditions = 8;
+  bool observation_required = 9;
+  int32 retry_budget = 10;
+  string idempotency_key = 11;
+}
+
+message Condition {
+  string kind = 1;
+  string target = 2;
+  google.protobuf.Value expected = 3;
+}

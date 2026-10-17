@@ -1,0 +1,8 @@
+{
+  "id": "prompt-manager",
+  "name": "Prompt Manager",
+  "enabled": true,
+  "transport": "connect",
+  "baseUrlEnv": "PROMPT_MANAGER_BASE_URL",
+  "paths": ["/vrooli.prompt_manager.v1.skills.SkillService/List"]
+}

@@ -1,0 +1,652 @@
+// This file reclaims expired persisted state and orphaned run directories.
+package orchestration
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"path/filepath"
+	"time"
+
+	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration/obs"
+	"agent-manager/internal/repository"
+	"agent-manager/internal/runstate"
+
+	"github.com/google/uuid"
+)
+
+type RecoverResult struct {
+	Run        *domain.Run
+	Recovered  bool
+	Idempotent bool
+	Message    string
+}
+
+func (r *Reconciler) RecoverInFlightRuns(ctx context.Context) error {
+	running := domain.RunStatusRunning
+	runs, err := r.runs.List(ctx, repository.RunListFilter{Status: &running})
+	if err != nil {
+		return err
+	}
+	recoveryLog := obs.Component("recovery")
+	for _, run := range runs {
+		// List() returns runs with a pruned column set that omits
+		// ResolvedConfig — re-fetch with Get so recoveryParser has the
+		// runner type. Skipping this re-fetch silently no-ops recovery
+		// (recoveryParser bails when ResolvedConfig is nil), which was
+		// the original 2026-04-29 production bug surfaced by the
+		// restart-resume integration test.
+		full, err := r.runs.Get(ctx, run.ID)
+		if err != nil || full == nil {
+			recoveryLog.Warn("run hydrate failed", obs.KeyRunID, run.ID.String(), obs.KeyError, errString(err))
+			continue
+		}
+		if _, err := r.recoverRun(ctx, full, true); err != nil {
+			recoveryLog.Warn("run recovery failed", obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
+		}
+	}
+
+	pending := domain.RunStatusPending
+	pendingRuns, err := r.runs.List(ctx, repository.RunListFilter{Status: &pending})
+	if err != nil {
+		return err
+	}
+	for _, run := range pendingRuns {
+		if r.pendingRunRecovery == nil {
+			recoveryLog.Warn("pending run cannot be re-enqueued; recovery owner is not wired", obs.KeyRunID, run.ID.String())
+			continue
+		}
+		if _, err := r.pendingRunRecovery.ResumeRun(ctx, run.ID); err != nil {
+			recoveryLog.Warn("pending run re-enqueue failed", obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
+		}
+	}
+	return nil
+}
+
+// errString returns the error message or "<nil>" when err is nil. Used
+// by structured logging sites where err is nullable but we still want a
+// stable string representation.
+func errString(err error) string {
+	if err == nil {
+		return "<nil>"
+	}
+	return err.Error()
+}
+
+func (r *Reconciler) RecoverRun(ctx context.Context, runID uuid.UUID) (*RecoverResult, error) {
+	run, err := r.runs.Get(ctx, runID)
+	if err != nil {
+		return nil, err
+	}
+	if run == nil {
+		return nil, domain.NewNotFoundErrorWithID("Run", runID.String())
+	}
+	return r.recoverRun(ctx, run, false)
+}
+
+func (r *Reconciler) recoverRun(ctx context.Context, run *domain.Run, allowTail bool) (_ *RecoverResult, recoveryErr error) {
+	defer func() {
+		if recoveryErr != nil && run.ExecutionMode.Normalized() != domain.ExecutionModeInteractive && r.isProcessAlive(ctx, run) {
+			recoveryErr = fmt.Errorf("recovery outcome unknown; agent-manager owner diagnosis required for run %s transcript %q; live executor retained: %w", run.ID, run.TranscriptPath, recoveryErr)
+		}
+	}()
+	if !run.Status.LivenessPolicy().ExpectsProcess {
+		if run.RunnerPID > 0 || run.RunnerPGID > 0 {
+			// Terminal rows may retain historical process identity from a crash
+			// that happened after finalization. Do not let that stale identity
+			// keep lifecycle admission unknown, but never clear it while the
+			// exact tagged executor is still alive.
+			if r.isProcessAlive(ctx, run) {
+				return nil, fmt.Errorf("terminal run retains a live executor")
+			}
+			if clearer, ok := r.runs.(repository.RunRecoveryProcessIdentityClearer); ok {
+				cleared, err := clearer.ClearTerminalRunnerProcessIdentity(ctx, run.ID, run.LifecycleVersion, run.OwnerEpoch, int64(run.RunnerPID), int64(run.RunnerPGID))
+				if err != nil {
+					return nil, err
+				}
+				if cleared && r.events != nil {
+					if err := r.events.Append(ctx, run.ID, domain.NewLogEvent(run.ID, "terminal_runner_identity_retired", fmt.Sprintf("retired absent runner pid=%d pgid=%d during recovery", run.RunnerPID, run.RunnerPGID))); err != nil {
+						r.log().Warn("terminal runner identity event append failed", obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
+					}
+				}
+			}
+		}
+		return &RecoverResult{Run: run, Idempotent: true, Message: "run no longer expects an executor"}, nil
+	}
+	// Interactive runs use a parallel recovery path: liveness is the web-console
+	// session (GetSession), not a local process, and completion is driven by the
+	// reattached transcript tailer's turn-boundary debounce, not a bare drain.
+	if run.ExecutionMode.Normalized() == domain.ExecutionModeInteractive {
+		return r.recoverInteractiveRun(ctx, run, allowTail)
+	}
+
+	parser, transcriptPath, state, err := r.recoveryParser(ctx, run)
+	if err != nil {
+		return nil, err
+	}
+	if parser == nil {
+		if r.isProcessAlive(ctx, run) {
+			return nil, fmt.Errorf("no transcript parser available for live executor")
+		}
+		return &RecoverResult{Run: run, Idempotent: true, Message: "no transcript parser available"}, nil
+	}
+
+	terminal, err := r.drainTranscript(ctx, run, transcriptPath, state, parser)
+	if err != nil {
+		return nil, err
+	}
+
+	if terminal != nil {
+		return r.finalizeRecoveredRun(ctx, run, terminal)
+	}
+
+	if r.isProcessAlive(ctx, run) {
+		if allowTail {
+			if err := r.startTailer(ctx, run, transcriptPath, state, parser); err != nil {
+				return nil, err
+			}
+		}
+		return &RecoverResult{Run: run, Recovered: true, Message: fmt.Sprintf("resumed run %s from transcript at offset %d", run.ID, run.TranscriptCursor)}, nil
+	}
+
+	return r.failRecoveredRun(ctx, run, "runner exited before terminal event")
+}
+
+func (r *Reconciler) finalizeRecoveredRun(ctx context.Context, run *domain.Run, terminal *runner.TranscriptTerminal) (*RecoverResult, error) {
+	now := r.now()
+	if terminal != nil && terminal.Success {
+		run.Status = domain.RunStatusComplete
+		run.ErrorMsg = ""
+		run.EndedAt = &now
+		run.UpdatedAt = now
+		run.ExitCode = intPtr(terminal.ExitCode)
+		result, summary, resultErr := r.buildRecoveredResult(ctx, run.ID, true, terminal.ExitCode, "completed")
+		if resultErr == nil {
+			if result.Selection.Status == domain.FinalOutputSelectionUnavailable && terminal.Summary != nil && terminal.Summary.Description != "" {
+				evidence := domain.NewProviderMessageEvent(run.ID, "assistant", terminal.Summary.Description, domain.MessageEventData{
+					ProviderOrigin:    "recovery",
+					CompletionReason:  "terminal_summary",
+					Terminal:          true,
+					ProviderEventType: "transcript_terminal",
+					RawEvidenceRef:    "transcript:terminal.summary",
+				})
+				result = domain.ResolveRunResult([]*domain.RunEvent{evidence}, true, terminal.ExitCode, "completed")
+				summary = domain.SummaryFromRunResult(result, terminal.Summary.TurnsUsed, terminal.Summary.TokensUsed, terminal.Summary.ContextTokens, terminal.Summary.CostEstimate)
+			}
+			if r.structuredResults != nil && run.ResolvedConfig != nil {
+				result.Structured = r.structuredResults.Resolve(ctx, run.ResolvedConfig.ResultSpec, result)
+			}
+			run.Result = result
+			run.Summary = summary
+		}
+		if err := r.runs.Update(ctx, run); err != nil {
+			return nil, err
+		}
+		if r.broadcaster != nil {
+			r.broadcaster.BroadcastRunStatus(run)
+		}
+		return &RecoverResult{Run: run, Recovered: true, Message: "recovered terminal success from transcript"}, nil
+	}
+
+	if terminal != nil && !terminal.Success {
+		run.Status = domain.RunStatusFailed
+		run.ErrorMsg = terminal.ErrorMessage
+		run.EndedAt = &now
+		run.UpdatedAt = now
+		run.ExitCode = intPtr(terminal.ExitCode)
+		result, summary, resultErr := r.buildRecoveredResult(ctx, run.ID, false, terminal.ExitCode, "failed")
+		if resultErr == nil {
+			if r.structuredResults != nil && run.ResolvedConfig != nil {
+				result.Structured = r.structuredResults.Resolve(ctx, run.ResolvedConfig.ResultSpec, result)
+			}
+			run.Result = result
+			run.Summary = summary
+		}
+		if err := r.runs.Update(ctx, run); err != nil {
+			return nil, err
+		}
+		if r.broadcaster != nil {
+			r.broadcaster.BroadcastRunStatus(run)
+		}
+		return &RecoverResult{Run: run, Recovered: true, Message: "recovered terminal failure from transcript"}, nil
+	}
+
+	return r.failRecoveredRun(ctx, run, "runner exited before terminal event")
+}
+
+func (r *Reconciler) failRecoveredRun(ctx context.Context, run *domain.Run, message string) (*RecoverResult, error) {
+	now := r.now()
+	// A dead executor without a terminal transcript is not evidence of an
+	// ordinary provider failure. Preserve the run as a resumable interruption
+	// so an operator/supervisor can reconcile the missing boundary and continue
+	// the same session. This is deliberately distinct from a terminal failure:
+	// the transcript may contain accepted progress or an external effect whose
+	// outcome was not observed by Agent Manager.
+	run.Status = domain.RunStatusNeedsReview
+	run.TerminalClass = domain.RunTerminalClassInterruption
+	run.StopReason = domain.RunStopReasonCrash
+	run.LastHandoff = message
+	run.ErrorMsg = message
+	run.EndedAt = &now
+	run.UpdatedAt = now
+	if err := r.runs.Update(ctx, run); err != nil {
+		return nil, err
+	}
+	if r.broadcaster != nil {
+		r.broadcaster.BroadcastRunStatus(run)
+	}
+	return &RecoverResult{Run: run, Recovered: true, Message: message}, nil
+}
+
+func (r *Reconciler) drainTranscript(ctx context.Context, run *domain.Run, transcriptPath string, state *runstate.Snapshot, parser runner.TranscriptParser) (*runner.TranscriptTerminal, error) {
+	runStateRoot := ""
+	if state != nil {
+		var err error
+		runStateRoot, err = r.resolveRunStateRoot(ctx)
+		if err != nil {
+			return nil, err
+		}
+	}
+	sink := r.recoveryEventSink(run.ID)
+	transcriptParser := parser
+	if factory, ok := parser.(runner.TranscriptParserFactory); ok {
+		transcriptParser = factory.NewTranscriptParser()
+	}
+	if setter, ok := transcriptParser.(runner.TranscriptModelSetter); ok {
+		setter.SetTranscriptModel(runTranscriptModel(run))
+	}
+	if setter, ok := transcriptParser.(runner.TranscriptBillingSetter); ok {
+		setter.SetTranscriptBilling(run.Billing)
+	}
+	_, terminal, err := runner.Consume(ctx, runner.ConsumeArgs{
+		RunID:      run.ID,
+		Transcript: transcriptPath,
+		StartAt:    run.TranscriptCursor,
+		ParseFn: func(runID uuid.UUID, line string) runner.TranscriptParseResult {
+			return transcriptParser.ParseTranscriptLine(runID, line)
+		},
+		EventSink: sink,
+		OnTerminal: func(_ *runner.TranscriptTerminal) error {
+			// A transcript may retain an earlier attempt's terminal/deadline.
+			// Until the positively identified process exits, do not consume
+			// that boundary or use it to settle the current lifecycle. Consume
+			// calls this before OnAdvance, preserving it for later diagnosis.
+			if r.isProcessAlive(ctx, run) {
+				return fmt.Errorf("terminal transcript evidence conflicts with a live executor")
+			}
+			return nil
+		},
+		OnAdvance: func(cursor, lastSeq int64) error {
+			if cursor > run.TranscriptCursor {
+				run.TranscriptCursor = cursor
+			}
+			if lastSeq > run.TranscriptLastSeq {
+				run.TranscriptLastSeq = lastSeq
+			}
+			updated, err := r.runs.UpdateRunnerStreamState(ctx, run)
+			if err != nil {
+				return err
+			}
+			if !updated {
+				return domain.NewStateError("Run", "superseded", "recover transcript", "lifecycle writer changed")
+			}
+			if state != nil {
+				s, err := runstate.Open(run.ID, runstate.OpenOptions{
+					RootDir:    runStateRoot,
+					RunnerType: run.ResolvedConfig.RunnerType,
+					WorkingDir: state.Meta.WorkingDir,
+					StartedAt:  state.Meta.StartedAt,
+					OnWrite: func() {
+						if r.runStateResolver != nil {
+							r.runStateResolver.RecordWrite(ctx)
+						}
+					},
+				})
+				if err == nil {
+					_ = s.PersistCursor(run.TranscriptCursor, run.TranscriptLastSeq)
+					_ = s.Close()
+				}
+			}
+			return nil
+		},
+		OnSessionID: func(sessionID string) error {
+			if sessionID == "" || run.SessionID == sessionID {
+				return nil
+			}
+			run.SessionID = sessionID
+			updated, err := r.runs.UpdateRunnerStreamState(ctx, run)
+			if err == nil && !updated {
+				return domain.NewStateError("Run", "superseded", "recover transcript", "lifecycle writer changed")
+			}
+			return err
+		},
+	})
+	return terminal, err
+}
+
+func runTranscriptModel(run *domain.Run) string {
+	if run == nil {
+		return ""
+	}
+	if run.ResolvedConfig != nil && run.ResolvedConfig.Model != "" {
+		return run.ResolvedConfig.Model
+	}
+	if run.ActualModel != "" {
+		return run.ActualModel
+	}
+	return run.RequestedModel
+}
+
+func (r *Reconciler) recoveryParser(ctx context.Context, run *domain.Run) (runner.TranscriptParser, string, *runstate.Snapshot, error) {
+	if run.ResolvedConfig == nil {
+		return nil, "", nil, nil
+	}
+	rr, err := r.runners.Get(run.ResolvedConfig.RunnerType)
+	if err != nil {
+		return nil, "", nil, err
+	}
+	parser, ok := rr.(runner.TranscriptParser)
+	if !ok {
+		return nil, "", nil, nil
+	}
+
+	transcriptPath := run.TranscriptPath
+	var state *runstate.Snapshot
+	if transcriptPath != "" {
+		root, rootErr := r.resolveRunStateRoot(ctx)
+		if rootErr != nil {
+			return nil, "", nil, rootErr
+		}
+		if snapshot, err := runstate.Load(run.ID, root); err == nil {
+			state = snapshot
+		}
+		return parser, transcriptPath, state, nil
+	}
+
+	if run.ResolvedConfig.RunnerType == domain.RunnerTypeClaudeCode && run.SessionID != "" {
+		fallback, err := findClaudeNativeTranscript(run.SessionID)
+		if err == nil {
+			return parser, fallback, state, nil
+		}
+	}
+
+	return parser, "", state, fmt.Errorf("transcript missing for run %s", run.ID)
+}
+
+func (r *Reconciler) recoveryEventSink(runID uuid.UUID) runner.EventSink {
+	if r.events != nil {
+		if r.broadcaster != nil {
+			return &broadcastingEventSink{store: r.events, runID: runID, broadcaster: r.broadcaster}
+		}
+		return &eventStoreAdapter{store: r.events, runID: runID}
+	}
+	return &noOpEventSink{}
+}
+
+func (r *Reconciler) startTailer(ownerCtx context.Context, run *domain.Run, transcriptPath string, state *runstate.Snapshot, parser runner.TranscriptParser) error {
+	if transcriptPath == "" {
+		return fmt.Errorf("cannot attach recovery without a transcript path")
+	}
+	attacher, ok := r.runs.(repository.RunRecoveryAttacher)
+	if !ok {
+		return fmt.Errorf("run repository does not support guarded recovery attachment")
+	}
+
+	r.recoveryMu.Lock()
+	previousCancel, previousOwner := r.tailers[run.ID], r.tailerOwners[run.ID]
+	ctx, cancel := context.WithCancel(context.WithoutCancel(ownerCtx))
+	r.tailers[run.ID] = cancel
+	if r.tailerOwners == nil {
+		r.tailerOwners = make(map[uuid.UUID]context.Context)
+	}
+	r.tailerOwners[run.ID] = ctx
+	attachedAt := r.now().UTC()
+	var attached bool
+	var err error
+	if claimer, ok := r.runs.(repository.RunRecoveryOwnerClaimer); ok {
+		var epoch int64
+		epoch, attached, err = claimer.ClaimRecoveryOwnership(ownerCtx, run.ID, run.LifecycleVersion, r.ownerIdentity, attachedAt)
+		if err == nil && attached {
+			run.OwnerIdentity = r.ownerIdentity
+			run.OwnerEpoch = epoch
+		}
+	} else {
+		attached, err = attacher.AttachRecovery(ownerCtx, run.ID, run.LifecycleVersion, attachedAt)
+	}
+	if err != nil || !attached {
+		cancel()
+		delete(r.tailers, run.ID)
+		delete(r.tailerOwners, run.ID)
+		if previousCancel != nil {
+			r.tailers[run.ID], r.tailerOwners[run.ID] = previousCancel, previousOwner
+		}
+		r.recoveryMu.Unlock()
+		if err != nil {
+			return err
+		}
+		return domain.NewStateError("Run", "superseded", "attach recovery", "run lifecycle or cancellation changed before attachment")
+	}
+	if previousCancel != nil {
+		previousCancel()
+	}
+	// Update only the returned snapshot's attachment fields. The repository
+	// deliberately preserves all progress, accounting and transcript evidence.
+	run.EndedAt, run.ExitCode = nil, nil
+	run.ErrorMsg, run.TerminalClass, run.StopReason = "", "", ""
+	if run.LastHeartbeat == nil || run.LastHeartbeat.Before(attachedAt) {
+		run.LastHeartbeat = &attachedAt
+	}
+	r.recoveryMu.Unlock()
+
+	go func() {
+		defer func() {
+			r.recoveryMu.Lock()
+			if r.tailerOwners[run.ID] == ctx {
+				delete(r.tailers, run.ID)
+				delete(r.tailerOwners, run.ID)
+			}
+			r.recoveryMu.Unlock()
+		}()
+		// Log-only containment: the process may still be healthy, so the run
+		// must not be failed here; the stale sweep is the backstop.
+		defer obs.RecoverToFailure("recovery transcript tailer", nil)
+
+		ticker := time.NewTicker(r.levers.Recovery.TranscriptTailInterval)
+		defer ticker.Stop()
+		for {
+			if ctx.Err() != nil {
+				return
+			}
+			// A tailer owns one lifecycle, never a mutable snapshot retained
+			// through a park or subsequent continuation.
+			current, err := r.runs.Get(ctx, run.ID)
+			if err != nil {
+				return
+			}
+			if current.LifecycleVersion != run.LifecycleVersion || !current.Status.LivenessPolicy().ExpectsProcess {
+				return
+			}
+			if _, err := r.recoverRun(ctx, current, false); err == nil && !r.isProcessAlive(ctx, current) {
+				return
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+			}
+			_, _ = transcriptPath, state
+			_, _ = parser, run
+		}
+	}()
+	return nil
+}
+
+func (r *Reconciler) buildRecoveredResult(ctx context.Context, runID uuid.UUID, success bool, exitCode int, terminalReason string) (*domain.RunResult, *domain.RunSummary, error) {
+	return resolvePersistedRunResult(ctx, r.events, runID, success, exitCode, terminalReason)
+}
+
+func findClaudeNativeTranscript(sessionID string) (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	pattern := filepath.Join(home, ".claude", "projects", "*", sessionID+".jsonl")
+	matches, err := filepath.Glob(pattern)
+	if err != nil || len(matches) == 0 {
+		return "", fmt.Errorf("native claude transcript not found for session %s", sessionID)
+	}
+	best := matches[0]
+	bestInfo, _ := os.Stat(best)
+	for _, match := range matches[1:] {
+		info, err := os.Stat(match)
+		if err == nil && bestInfo != nil && info.ModTime().After(bestInfo.ModTime()) {
+			best = match
+			bestInfo = info
+		}
+	}
+	return best, nil
+}
+
+func intPtr(v int) *int {
+	return &v
+}
+
+// cleanupRestingRunStateDirs covers runs whose process has exited but which
+// are not terminal. needs_review waits for an operator: its caches go after the
+// grace period, and the whole directory once the review is untouched past the
+// stale window. parked waits on an await handle and wake resumes its session
+// home, so only its regenerable caches are ever removed.
+func (r *Reconciler) cleanupRestingRunStateDirs(ctx context.Context, root string, now time.Time) {
+	staleDays := r.levers.Storage.StaleRunStateRetentionDays
+	for _, status := range []domain.RunStatus{domain.RunStatusNeedsReview, domain.RunStatusParked} {
+		if status.LivenessPolicy().ExpectsProcess {
+			continue
+		}
+		runs, err := r.runs.List(ctx, repository.RunListFilter{Status: &status})
+		if err != nil {
+			continue
+		}
+		for _, run := range runs {
+			if run == nil || r.recoveryTailerActive(run.ID) {
+				continue
+			}
+			runDir, err := runstate.RunDir(root, run.ID)
+			if err != nil {
+				continue
+			}
+			idle := now.Sub(run.UpdatedAt)
+			switch {
+			case status == domain.RunStatusNeedsReview && staleDays > 0 && idle >= time.Duration(staleDays)*24*time.Hour:
+				_ = os.RemoveAll(runDir)
+			case idle >= runStateCacheGrace:
+				_ = PruneRunnerCaches(runDir)
+			}
+		}
+	}
+}
+
+// recoveryTailerActive reports whether a recovery tailer is following this
+// run's transcript; its state is in use regardless of the run's status.
+func (r *Reconciler) recoveryTailerActive(runID uuid.UUID) bool {
+	r.recoveryMu.Lock()
+	defer r.recoveryMu.Unlock()
+	_, active := r.tailers[runID]
+	return active
+}
+
+// runStateCacheGrace is how long a run that stopped keeps its downloaded runner
+// caches, so a prompt follow-up turn does not immediately fetch them again.
+const runStateCacheGrace = time.Hour
+
+func (r *Reconciler) cleanupRunStateDirs(ctx context.Context) {
+	now := r.now()
+	cutoff := now.Add(-time.Duration(r.levers.Storage.RunStateRetentionDays) * 24 * time.Hour)
+	root, rootErr := r.resolveRunStateRoot(ctx)
+	if rootErr != nil {
+		r.log().Warn("run-state retention skipped: root unavailable", obs.KeyError, rootErr.Error())
+		return
+	}
+	// Unknown is terminal: imported history without a trustworthy terminal
+	// signal has no process and never resumes, so its directory ages out like
+	// any other finished run's.
+	statuses := []domain.RunStatus{
+		domain.RunStatusComplete,
+		domain.RunStatusFailed,
+		domain.RunStatusCancelled,
+		domain.RunStatusUnknown,
+	}
+	for _, status := range statuses {
+		runs, err := r.runs.List(ctx, repository.RunListFilter{Status: &status})
+		if err != nil {
+			continue
+		}
+		for _, run := range runs {
+			if run == nil || r.recoveryTailerActive(run.ID) {
+				continue
+			}
+			terminalAt := run.UpdatedAt
+			if run.EndedAt != nil && !run.EndedAt.IsZero() {
+				terminalAt = *run.EndedAt
+			}
+			runDir, err := runstate.RunDir(root, run.ID)
+			if err != nil {
+				continue
+			}
+			switch {
+			case !terminalAt.After(cutoff):
+				_ = os.RemoveAll(runDir)
+			case now.Sub(terminalAt) >= runStateCacheGrace:
+				_ = PruneRunnerCaches(runDir)
+			}
+		}
+	}
+	r.cleanupRestingRunStateDirs(ctx, root, now)
+
+	// Rows can disappear before their private state directory (for example a
+	// failed transaction or a manually deleted run). Sweep those orphaned UUID
+	// directories by age as well; row-driven cleanup alone can never reclaim
+	// them.
+	runs, err := r.runs.List(ctx, repository.RunListFilter{})
+	if err != nil {
+		r.log().Warn("run-state orphan retention skipped: list runs failed", obs.KeyError, err.Error())
+		return
+	}
+	known := make(map[string]struct{}, len(runs))
+	live := make(map[uuid.UUID]bool, len(runs))
+	for _, run := range runs {
+		if run != nil {
+			known[run.ID.String()] = struct{}{}
+			live[run.ID] = true
+		}
+	}
+	if err := SweepOrphanedSkillScopes(root, live); err != nil {
+		r.log().Warn("skill-scope orphan sweep failed", obs.KeyError, err.Error())
+	}
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			r.log().Warn("run-state orphan retention skipped: list root failed", obs.KeyError, err.Error())
+		}
+		return
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		if _, err := uuid.Parse(entry.Name()); err != nil {
+			continue
+		}
+		if _, exists := known[entry.Name()]; exists {
+			continue
+		}
+		info, err := entry.Info()
+		if err != nil || info.ModTime().After(cutoff) {
+			continue
+		}
+		if err := os.RemoveAll(filepath.Join(root, entry.Name())); err != nil {
+			r.log().Warn("remove orphaned run-state directory failed", "runDir", entry.Name(), obs.KeyError, err.Error())
+		}
+	}
+}

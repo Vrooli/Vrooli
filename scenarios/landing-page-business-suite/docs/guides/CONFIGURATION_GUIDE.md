@@ -422,11 +422,11 @@ Variant content snapshots. These are the deployable source of truth for landing 
 - Set `VARIANT_SNAPSHOT_MODE=full` to allow snapshot-provided weights/status (primarily for one-time bootstraps).
 - Missing snapshots are archived by default during sync. Set `VARIANT_SNAPSHOT_PRUNE=ignore` to disable or `VARIANT_SNAPSHOT_PRUNE=delete` to soft-delete.
 - Set `VARIANT_SNAPSHOT_ALLOW_RESURRECT=true` to let snapshot files revive variants that were previously deleted.
-- Use `make export-variants ADMIN_SESSION=...` to export the current database variants into `.vrooli/variants/*.json`.
+- Use `make export-variants ADMIN_SESSION=...` to export the current database variants into `config/variants/*.json`.
 
 ### Variant Lifecycle (Source of Truth)
 
-1. Edit `.vrooli/variants/*.json` locally (copy, sections, header, SEO, axes).
+1. Edit `config/variants/*.json` locally (copy, sections, header, SEO, axes).
 2. Deploy those files to your VPS alongside the scenario.
 3. On boot (or via the admin sync endpoint), the API imports the file snapshots into Postgres.
 4. Weights + performance stats stay in Postgres and survive deploys.
@@ -585,3 +585,33 @@ When customizing a generated landing page:
 6. **Configure resources** - Enable/disable in `service.json` > `dependencies.resources`
 
 Always validate changes against the schemas in `schemas/` before deploying.
+
+## Sign-in email
+
+Use a dedicated sending subdomain such as `mail.vrooli.com` for the From address.
+In SendGrid, authenticate that domain and publish the records it provides. A
+typical configuration is:
+
+```text
+mail.vrooli.com.                 TXT   "v=spf1 include:sendgrid.net -all"
+s1._domainkey.mail.vrooli.com.   CNAME s1.domainkey.uNNNN.wlNNN.sendgrid.net.
+s2._domainkey.mail.vrooli.com.   CNAME s2.domainkey.uNNNN.wlNNN.sendgrid.net.
+em1234.mail.vrooli.com.          CNAME uNNNN.wlNNN.sendgrid.net.
+_dmarc.vrooli.com.               TXT   "v=DMARC1; p=none; rua=mailto:dmarc@vrooli.com; adkim=r; aspf=r"
+```
+
+Set `EMAIL_FROM_ADDRESS=sign-in@mail.vrooli.com` and `EMAIL_FROM_NAME=Vrooli`.
+DKIM selectors belong in the durable email provider registry. Start DMARC at `p=none`, review aggregate reports for 2–4 weeks,
+then move to `p=quarantine` and eventually `p=reject` after all legitimate
+senders align.
+
+Provision a restricted SendGrid API key with only Mail Send permission and the
+SendGrid Signed Event Webhook public key through the credential authority. Enable
+events `processed`, `delivered`, `deferred`, `bounce`, `dropped`, and `spamreport`
+at `https://<domain>/api/v1/webhooks/sendgrid`. Disable account-level click
+tracking as defense in depth. `admin-email-readiness` performs read-only DNS and
+webhook checks; it never changes DNS or SendGrid settings.
+
+If a person loses access to the mailbox, support must recover the mailbox or
+change the verified account address through the approved account process. Admins
+must not issue sign-in links manually.

@@ -1,0 +1,12 @@
+{
+  "service": {
+    "name": "beta"
+  },
+  "dependencies": {
+    "scenarios": {
+      "gamma": {
+        "required": true
+      }
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "simple-private-post",
+    "title": "Simple private writing",
+    "purpose": "Demonstrate the accepted simple private writing outcome with exact identities, authority and adverse branches.",
+    "prd_refs": [
+      "OT-P0-017",
+      "OT-P0-022",
+      "OT-P0-031"
+    ]
+  },
+  "steps": [
+    {
+      "page": "today",
+      "state": "new-workspace",
+      "intent": "Choose simple writing without strategy interview, campaign or connection."
+    },
+    {
+      "page": "create",
+      "state": "simple-post",
+      "intent": "Save into explicit project or Unassigned under the supported one-off/type contract."
+    },
+    {
+      "page": "content",
+      "state": "record-detail",
+      "intent": "Reopen the exact record and optionally copy reviewed text without publication inference."
+    }
+  ],
+  "x-i16-source": "package/documents/dossier-accepted-basis/document-text.md chapter 13 and package/documents/commission-accepted-basis/document-text.md implementation acceptance."
+}

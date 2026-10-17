@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+
+	"github.com/vrooli/api-core/database"
 )
 
 // Config holds validated environment configuration
@@ -19,7 +21,6 @@ type Config struct {
 	QdrantURL string
 
 	// Ollama configuration
-	OllamaURL string
 
 	// Server configuration
 	APIPort string
@@ -108,7 +109,6 @@ func LoadConfig() (*Config, error) {
 
 		// Service defaults
 		QdrantURL: getEnv("QDRANT_URL", "http://localhost:6333"),
-		OllamaURL: getEnv("OLLAMA_URL", "http://localhost:11434"),
 
 		// Server defaults
 		APIPort: getEnv("API_PORT", "16018"),
@@ -133,7 +133,6 @@ func LoadConfig() (*Config, error) {
 			"postgres_port":     config.PostgresPort,
 			"postgres_db":       config.PostgresDB,
 			"qdrant_url":        config.QdrantURL,
-			"ollama_url":        config.OllamaURL,
 			"api_port":          config.APIPort,
 			"lifecycle_managed": config.LifecycleManaged,
 			"use_mock_testing":  config.UseMockTesting,
@@ -146,12 +145,20 @@ func LoadConfig() (*Config, error) {
 
 // GetDatabaseConnectionString returns the PostgreSQL connection string
 func (c *Config) GetDatabaseConnectionString() string {
-	return fmt.Sprintf(
-		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		c.PostgresHost,
-		c.PostgresPort,
-		c.PostgresUser,
-		c.PostgresPassword,
-		c.PostgresDB,
-	)
+	dsn, _ := database.ResolvePostgresDSN(func(key string) string {
+		switch key {
+		case "POSTGRES_HOST":
+			return c.PostgresHost
+		case "POSTGRES_PORT":
+			return c.PostgresPort
+		case "POSTGRES_USER":
+			return c.PostgresUser
+		case "POSTGRES_PASSWORD":
+			return c.PostgresPassword
+		case "POSTGRES_DB":
+			return c.PostgresDB
+		}
+		return ""
+	})
+	return dsn
 }

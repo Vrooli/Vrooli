@@ -1,3 +1,4 @@
+import { PushSafetyNotice } from "./PushSafetyIndicators";
 import { useState, useRef, useEffect } from "react";
 import { ArrowUpDown, ArrowUp, ArrowDown, Loader2 } from "lucide-react";
 import { Button } from "./ui/button";
@@ -11,6 +12,8 @@ interface SyncButtonProps {
   onPull: () => void;
   isPushing: boolean;
   isPulling: boolean;
+  /** Phase and elapsed time of the running operation, e.g. "Pushing 1m 12s". */
+  progressLabel?: string;
   warning?: string;
 }
 
@@ -23,10 +26,12 @@ export function SyncButton({
   onPull,
   isPushing,
   isPulling,
+  progressLabel,
   warning
 }: SyncButtonProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const isActive = isPushing || isPulling;
 
   useEffect(() => {
     if (!open) return;
@@ -39,16 +44,26 @@ export function SyncButton({
     return () => window.removeEventListener("mousedown", handler);
   }, [open]);
 
-  if (ahead === 0 && behind === 0) return null;
+  // Progress for a running push/pull is surfaced by the sticky sync snackbar (notifySync),
+  // which stays legible from anywhere. The popover no longer force-opens during an operation
+  // so the two indicators don't duplicate each other; the trigger spinner still signals activity.
 
-  const isActive = isPushing || isPulling;
+  if (ahead === 0 && behind === 0 && !isActive) return null;
+
+  const pushLabel = isPushing
+    ? progressLabel ?? "Pushing…"
+    : `Push ${ahead} commit${ahead !== 1 ? "s" : ""}`;
+  const pullLabel = isPulling
+    ? progressLabel ?? "Pulling…"
+    : `Pull ${behind} commit${behind !== 1 ? "s" : ""}`;
 
   return (
     <div className="relative" ref={ref} data-testid="sync-button">
+      <PushSafetyNotice />
       <button
         className="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-slate-800 transition-colors text-sm"
         onClick={() => setOpen((prev) => !prev)}
-        title={warning || "Sync with remote"}
+        title={isActive ? progressLabel ?? "Syncing with remote" : warning || "Sync with remote"}
         data-testid="sync-button-trigger"
       >
         {isActive ? (
@@ -71,14 +86,14 @@ export function SyncButton({
       </button>
 
       {open && (
-        <div className="absolute left-0 mt-2 w-48 rounded-lg border border-slate-800 bg-slate-950/95 p-2 shadow-xl z-50">
+        <div className="absolute left-0 mt-2 w-56 rounded-lg border border-slate-800 bg-slate-950/95 p-2 shadow-xl z-50">
           <div className="space-y-1">
-            {ahead > 0 && (
+            {(ahead > 0 || isPushing) && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => { onPush(); setOpen(false); }}
-                disabled={isPushing || !canPush}
+                disabled={isActive || !canPush}
                 className="w-full justify-start gap-2 h-8 text-xs"
                 data-testid="sync-push-button"
               >
@@ -87,15 +102,15 @@ export function SyncButton({
                 ) : (
                   <ArrowUp className="h-3.5 w-3.5 text-emerald-400" />
                 )}
-                Push {ahead} commit{ahead !== 1 ? "s" : ""}
+                {pushLabel}
               </Button>
             )}
-            {behind > 0 && (
+            {(behind > 0 || isPulling) && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => { onPull(); setOpen(false); }}
-                disabled={isPulling || !canPull}
+                disabled={isActive || !canPull}
                 className="w-full justify-start gap-2 h-8 text-xs"
                 data-testid="sync-pull-button"
               >
@@ -104,13 +119,13 @@ export function SyncButton({
                 ) : (
                   <ArrowDown className="h-3.5 w-3.5 text-amber-400" />
                 )}
-                Pull {behind} commit{behind !== 1 ? "s" : ""}
+                {pullLabel}
               </Button>
             )}
-            {!canPush && ahead > 0 && (
+            {!isActive && !canPush && ahead > 0 && (
               <p className="text-[11px] text-amber-400 px-2 py-1">Pull required before push</p>
             )}
-            {warning && (
+            {!isActive && warning && (
               <p className="text-[11px] text-amber-400 px-2 py-1">{warning}</p>
             )}
           </div>

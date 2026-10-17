@@ -1,0 +1,346 @@
+{
+  "scenario": "content-desk",
+  "status": "PASSED",
+  "targetPath": "/home/matthalloran8/Vrooli/scenarios/content-desk",
+  "report": {
+    "findings": [
+      {
+        "code": "business_evidence_stale",
+        "severity": "warning",
+        "message": "suite runs exist but no requirements-sync snapshot was written",
+        "location": "coverage/requirements-sync/latest.json",
+        "remediation": "Run the comprehensive suite (`vrooli scenario test <scenario>`); sync refreshes the snapshot during execution."
+      }
+    ]
+  },
+  "assessment": {
+    "scenario": "content-desk",
+    "provider": "business-health",
+    "phase": "business",
+    "version": "2.0.0",
+    "local": {
+      "currentLevel": "L3",
+      "levels": [
+        {
+          "id": "L0",
+          "name": "No evidence",
+          "description": "No requirements-sync snapshot or manual-validation ledger exists for the scenario.",
+          "statusLabel": "Unavailable",
+          "capabilitySummary": "Requirement statuses are pure assertion.",
+          "nextUnlock": "A comprehensive suite run producing a sync snapshot, or logged manual attestations."
+        },
+        {
+          "id": "L1",
+          "name": "Evidence present",
+          "description": "Evidence artifacts exist but honesty findings remain: unproven checked-off outcomes or statuses that contradict the sync writer.",
+          "statusLabel": "Foundation",
+          "capabilitySummary": "Some claims are evidence-backed; some are not honest.",
+          "nextUnlock": "No unproven claims; every status earned, not asserted."
+        },
+        {
+          "id": "L2",
+          "name": "Claims honest",
+          "description": "All statuses are earned; remaining findings are freshness-level (stale snapshot, expired manual attestations).",
+          "statusLabel": "Ready",
+          "capabilitySummary": "The contract tells the truth as of its last evidence.",
+          "nextUnlock": "Fresh snapshot and unexpired attestations."
+        },
+        {
+          "id": "L3",
+          "name": "Evidence fresh",
+          "description": "Evidence traceability checks are clean and current.",
+          "statusLabel": "Complete",
+          "capabilitySummary": "Every claim is provably current."
+        }
+      ],
+      "clean": true
+    },
+    "findings": [
+      {
+        "code": "business_evidence_stale",
+        "severity": "FINDING_SEVERITY_WARNING",
+        "message": "suite runs exist but no requirements-sync snapshot was written",
+        "location": "coverage/requirements-sync/latest.json",
+        "remediation": "Run the comprehensive suite (`vrooli scenario test <scenario>`); sync refreshes the snapshot during execution.",
+        "maturity": {
+          "localLevel": "L2",
+          "globalImpact": "GLOBAL_IMPACT_UNKNOWN",
+          "dimension": "business",
+          "cleanRequirement": "CLEAN_REQUIREMENT_ADVISORY",
+          "capabilityId": "evidence_traceability"
+        },
+        "fixClass": "manual"
+      }
+    ],
+    "findingsByGlobalImpact": {
+      "unknown": 1
+    },
+    "findingsBySeverity": {
+      "FINDING_SEVERITY_WARNING": 1
+    },
+    "findingsByCleanRequirement": {
+      "advisory": 1,
+      "required": 0,
+      "uncheckable": 0
+    },
+    "autofixableTotal": 1,
+    "capabilities": [
+      {
+        "id": "prd_contract",
+        "label": "PRD Contract",
+        "description": "PRD.md exists and conforms to the canonical template: required sections and priority tiers present, no unknown sections, section content substantive, operational-target lines well-formed.",
+        "currentLevel": "L3",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "PRD unavailable",
+            "description": "PRD.md is missing or unreadable; the scenario states no product intent.",
+            "statusLabel": "Unavailable",
+            "capabilitySummary": "Business Health cannot evaluate the scenario's stated intent.",
+            "nextUnlock": "A PRD.md at the scenario root."
+          },
+          {
+            "id": "L1",
+            "name": "PRD present",
+            "description": "PRD.md exists but required template sections or priority tiers are missing.",
+            "statusLabel": "Foundation",
+            "capabilitySummary": "Intent is stated but not in the canonical, machine-checkable shape.",
+            "nextUnlock": "All required template sections and P0/P1/P2 operational-target tiers present."
+          },
+          {
+            "id": "L2",
+            "name": "Template conformant",
+            "description": "All required sections exist; remaining findings are content-level (placeholders, thin sections, unknown headings, malformed OT IDs).",
+            "statusLabel": "Ready",
+            "capabilitySummary": "The PRD is structurally sound and safe for tooling to parse.",
+            "nextUnlock": "Section content substantive, no unknown sections, canonical OT ID format."
+          },
+          {
+            "id": "L3",
+            "name": "PRD clean",
+            "description": "PRD contract checks are clean.",
+            "statusLabel": "Complete",
+            "capabilitySummary": "The PRD is a trustworthy statement of intent."
+          }
+        ],
+        "currentSummary": "The PRD is a trustworthy statement of intent.",
+        "clean": true,
+        "priorityRank": 2,
+        "priorityReason": "lowest current level"
+      },
+      {
+        "id": "requirements_registry",
+        "label": "Requirements Registry",
+        "description": "requirements/ exists and is structurally sound: parseable index + modules, unique IDs, acyclic imports, resolvable refs, valid statuses, no starter-template residue, every requirement carrying validation.",
+        "currentLevel": "L3",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Registry unavailable",
+            "description": "requirements/index.json is missing or unparseable.",
+            "statusLabel": "Unavailable",
+            "capabilitySummary": "The scenario makes no machine-checkable requirement claims.",
+            "nextUnlock": "A parseable requirements/index.json with at least one module."
+          },
+          {
+            "id": "L1",
+            "name": "Registry parseable",
+            "description": "The registry parses but has structural integrity findings (duplicate IDs, cycles, orphaned refs, missing ids) or is still the starter template.",
+            "statusLabel": "Foundation",
+            "capabilitySummary": "Requirement claims exist but cannot all be trusted.",
+            "nextUnlock": "No structural integrity findings; starter template replaced with scenario-specific requirements."
+          },
+          {
+            "id": "L2",
+            "name": "Registry honest",
+            "description": "Structure is sound; remaining findings are quality-level (missing titles, invalid status vocabulary, requirements without validation, README drift).",
+            "statusLabel": "Ready",
+            "capabilitySummary": "The registry is a structurally trustworthy claim set.",
+            "nextUnlock": "Every requirement titled, valid statuses, at least one validation entry each."
+          },
+          {
+            "id": "L3",
+            "name": "Registry clean",
+            "description": "Requirements registry checks are clean.",
+            "statusLabel": "Complete",
+            "capabilitySummary": "The registry is a complete, falsifiable claim set."
+          }
+        ],
+        "currentSummary": "The registry is a complete, falsifiable claim set.",
+        "clean": true,
+        "priorityRank": 3,
+        "priorityReason": "lowest current level"
+      },
+      {
+        "id": "intent_linkage",
+        "label": "Intent Linkage",
+        "description": "The OT \u2194 requirement \u2194 validation spine holds in both directions: every prd_ref resolves to a real operational target, every P0/P1 target has requirements, every validation ref exists on disk.",
+        "currentLevel": "L3",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Linkage unevaluable",
+            "description": "PRD.md or the requirements registry is missing, so the linkage join cannot run.",
+            "statusLabel": "Unavailable",
+            "capabilitySummary": "Intent linkage cannot be evaluated.",
+            "nextUnlock": "Both a PRD and a parseable registry."
+          },
+          {
+            "id": "L1",
+            "name": "Spine joinable",
+            "description": "The join runs but linkage findings exist: dangling prd_refs, orphaned operational targets, or validation refs that resolve to nothing.",
+            "statusLabel": "Foundation",
+            "capabilitySummary": "Intent and implementation claims are partially connected.",
+            "nextUnlock": "Every prd_ref resolves, every P0/P1 target is covered, every code-typed ref exists."
+          },
+          {
+            "id": "L2",
+            "name": "Spine linked",
+            "description": "Both linkage directions are clean on current artifacts.",
+            "statusLabel": "Ready",
+            "capabilitySummary": "Stated outcomes and requirement claims form a closed, navigable graph.",
+            "nextUnlock": "Maximum intent-linkage maturity."
+          },
+          {
+            "id": "L3",
+            "name": "Linkage clean",
+            "description": "Intent linkage checks are clean.",
+            "statusLabel": "Complete",
+            "capabilitySummary": "The intent spine is fully closed."
+          }
+        ],
+        "currentSummary": "The intent spine is fully closed.",
+        "clean": true,
+        "priorityRank": 4,
+        "priorityReason": "lowest current level"
+      },
+      {
+        "id": "evidence_traceability",
+        "label": "Evidence Traceability",
+        "description": "Requirement statuses are earned from evidence: sync snapshots fresh relative to the latest suite run, manual attestations unexpired, no checked-off outcome without passing linked evidence, no hand-edited statuses.",
+        "currentLevel": "L3",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "No evidence",
+            "description": "No requirements-sync snapshot or manual-validation ledger exists for the scenario.",
+            "statusLabel": "Unavailable",
+            "capabilitySummary": "Requirement statuses are pure assertion.",
+            "nextUnlock": "A comprehensive suite run producing a sync snapshot, or logged manual attestations."
+          },
+          {
+            "id": "L1",
+            "name": "Evidence present",
+            "description": "Evidence artifacts exist but honesty findings remain: unproven checked-off outcomes or statuses that contradict the sync writer.",
+            "statusLabel": "Foundation",
+            "capabilitySummary": "Some claims are evidence-backed; some are not honest.",
+            "nextUnlock": "No unproven claims; every status earned, not asserted."
+          },
+          {
+            "id": "L2",
+            "name": "Claims honest",
+            "description": "All statuses are earned; remaining findings are freshness-level (stale snapshot, expired manual attestations).",
+            "statusLabel": "Ready",
+            "capabilitySummary": "The contract tells the truth as of its last evidence.",
+            "nextUnlock": "Fresh snapshot and unexpired attestations."
+          },
+          {
+            "id": "L3",
+            "name": "Evidence fresh",
+            "description": "Evidence traceability checks are clean and current.",
+            "statusLabel": "Complete",
+            "capabilitySummary": "Every claim is provably current."
+          }
+        ],
+        "currentSummary": "Every claim is provably current.",
+        "clean": true,
+        "findingsByGlobalImpact": {
+          "unknown": 1
+        },
+        "findingsBySeverity": {
+          "FINDING_SEVERITY_WARNING": 1
+        },
+        "findingsByCleanRequirement": {
+          "advisory": 1
+        },
+        "priorityRank": 1,
+        "priorityReason": "lowest current level with advisory findings WARNING unknown debt=1"
+      }
+    ],
+    "highestPriorityCapability": {
+      "capabilityId": "evidence_traceability",
+      "capabilityLabel": "Evidence Traceability",
+      "currentLevel": "L3",
+      "reason": "lowest current level with advisory findings WARNING unknown debt=1"
+    },
+    "presentation": {
+      "contractVersion": "v1",
+      "provider": "business-health",
+      "phase": "business",
+      "currentLevel": "L3",
+      "currentLevelLabel": "Complete",
+      "ceilingLevel": "L3",
+      "clean": true,
+      "nextActionReason": "lowest current level with advisory findings WARNING unknown debt=1",
+      "focusCapabilityId": "evidence_traceability",
+      "focusCapabilityLabel": "Evidence Traceability",
+      "northStar": "Every claim is provably current.",
+      "atMaximum": true,
+      "capabilities": [
+        {
+          "id": "evidence_traceability",
+          "label": "Evidence Traceability",
+          "currentLevel": "L3",
+          "currentLevelLabel": "Complete",
+          "currentSummary": "Every claim is provably current.",
+          "clean": true,
+          "priorityRank": 1,
+          "priorityReason": "lowest current level with advisory findings WARNING unknown debt=1",
+          "findings": [
+            {
+              "code": "business_evidence_stale",
+              "severity": "FINDING_SEVERITY_WARNING",
+              "count": 1,
+              "message": "suite runs exist but no requirements-sync snapshot was written",
+              "locations": [
+                "coverage/requirements-sync/latest.json"
+              ],
+              "remediation": "Run the comprehensive suite (`vrooli scenario test <scenario>`); sync refreshes the snapshot during execution.",
+              "fixAffordance": "FIX_AFFORDANCE_MANUAL"
+            }
+          ]
+        },
+        {
+          "id": "prd_contract",
+          "label": "PRD Contract",
+          "currentLevel": "L3",
+          "currentLevelLabel": "Complete",
+          "currentSummary": "The PRD is a trustworthy statement of intent.",
+          "clean": true,
+          "priorityRank": 2,
+          "priorityReason": "lowest current level"
+        },
+        {
+          "id": "requirements_registry",
+          "label": "Requirements Registry",
+          "currentLevel": "L3",
+          "currentLevelLabel": "Complete",
+          "currentSummary": "The registry is a complete, falsifiable claim set.",
+          "clean": true,
+          "priorityRank": 3,
+          "priorityReason": "lowest current level"
+        },
+        {
+          "id": "intent_linkage",
+          "label": "Intent Linkage",
+          "currentLevel": "L3",
+          "currentLevelLabel": "Complete",
+          "currentSummary": "The intent spine is fully closed.",
+          "clean": true,
+          "priorityRank": 4,
+          "priorityReason": "lowest current level"
+        }
+      ]
+    }
+  }
+}

@@ -17,7 +17,8 @@ import type {
   InjectionVerification,
   RecordingContextInitializer,
 } from '../../../src/recording';
-import type { Page, BrowserContext } from 'rebrowser-playwright';
+import type { Page } from 'rebrowser-playwright';
+import { createMockContext, createMockPage } from '../../helpers';
 
 // Mock the verification module
 jest.mock('../../../src/recording/validation/verification', () => ({
@@ -42,27 +43,6 @@ import { verifyScriptInjection } from '../../../src/recording/validation/verific
 const mockVerifyScriptInjection = verifyScriptInjection as jest.MockedFunction<
   typeof verifyScriptInjection
 >;
-
-// Helper to create mock page
-function createMockPage(): jest.Mocked<Page> {
-  return {
-    evaluate: jest.fn().mockResolvedValue(undefined),
-    on: jest.fn(),
-    off: jest.fn(),
-    context: jest.fn().mockReturnValue({
-      newCDPSession: jest.fn().mockResolvedValue({
-        send: jest.fn().mockResolvedValue({ result: { type: 'string', value: '{}' } }),
-        detach: jest.fn().mockResolvedValue(undefined),
-      }),
-    }),
-    url: jest.fn().mockReturnValue('https://example.com'),
-  } as unknown as jest.Mocked<Page>;
-}
-
-// Helper to create mock context
-function createMockContext(): jest.Mocked<BrowserContext> {
-  return {} as unknown as jest.Mocked<BrowserContext>;
-}
 
 // Helper to create mock context initializer
 type MockContextInitializer = {

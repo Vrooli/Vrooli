@@ -1,0 +1,214 @@
+{
+  "assets": [
+    {
+      "path": "examples/article-assets/Image asset catalog.json",
+      "drive_id": "1mS0hZgOAya_HYyvpXdryPAO43FrOwGwF",
+      "canonical_url": "https://drive.google.com/file/d/1mS0hZgOAya_HYyvpXdryPAO43FrOwGwF/view",
+      "bytes": 26923,
+      "sha256": "c260a8903107758c78428f83f5f1e05ecc11ff97755894fe75d281b22cd4ffb6",
+      "role": "Dated original catalogue source; prior replacement was held, so current retrieved original bytes and native article descriptions govern actual intake, not an assumed latest catalogue"
+    },
+    {
+      "path": "examples/article-assets/Image captions and editable originals.txt",
+      "drive_id": "1Xb413p-z9YBYOsGyKXTtUuCr66aN_NS9",
+      "canonical_url": "https://drive.google.com/file/d/1Xb413p-z9YBYOsGyKXTtUuCr66aN_NS9/view",
+      "bytes": 12424,
+      "sha256": "12dec9a4daf20006a55591a67c2e7555ec459a9cab7d39ef0bb77e39999e6188",
+      "role": "Original source asset for private article/quality fixture; public acceptance and publication remain separate"
+    },
+    {
+      "path": "examples/article-assets/cover-01-next-decision-portrait.svg",
+      "drive_id": "1H634gm2VPAMKAmlzx_cQSBZisZsNr-Mn",
+      "canonical_url": "https://drive.google.com/file/d/1H634gm2VPAMKAmlzx_cQSBZisZsNr-Mn/view",
+      "bytes": 2120068,
+      "sha256": "2939ce8133309836d4a95cae073c74cf938640e65a39b7b82d84e451227e81ad",
+      "role": "Original source asset for private article/quality fixture; public acceptance and publication remain separate",
+      "format": "SVG",
+      "viewBox": "0 0 1080 1350",
+      "width": "1080",
+      "height": "1350"
+    },
+    {
+      "path": "examples/article-assets/cover-01-next-decision-portrait.png",
+      "drive_id": "1ULoU0868t6AnUcryHqYCwmiFzie3fGR5",
+      "canonical_url": "https://drive.google.com/file/d/1ULoU0868t6AnUcryHqYCwmiFzie3fGR5/view",
+      "bytes": 1422293,
+      "sha256": "c7679d10dc28416ea9f80fe54d7f823458a2c0efeb8a750a410daef5221b552a",
+      "role": "Original source asset for private article/quality fixture; public acceptance and publication remain separate",
+      "dimensions": [
+        1080,
+        1350
+      ],
+      "format": "PNG"
+    },
+    {
+      "path": "examples/article-assets/cover-01-next-decision.svg",
+      "drive_id": "1Te2qzjPksq_gHpbjxBxuPXwn-5EvVq9O",
+      "canonical_url": "https://drive.google.com/file/d/1Te2qzjPksq_gHpbjxBxuPXwn-5EvVq9O/view",
+      "bytes": 1984241,
+      "sha256": "51ae4112a172295b425826e7dea6821427936b4fde8581ecd5193e67c3a574c3",
+      "role": "Original source asset for private article/quality fixture; public acceptance and publication remain separate",
+      "format": "SVG",
+      "viewBox": "0 0 1600 900",
+      "width": "1600",
+      "height": "900"
+    },
+    {
+      "path": "examples/article-assets/cover-01-next-decision.png",
+      "drive_id": "1VazO3K09ijdmEXpDcArwbAIEpviW84wL",
+      "canonical_url": "https://drive.google.com/file/d/1VazO3K09ijdmEXpDcArwbAIEpviW84wL/view",
+      "bytes": 1322979,
+      "sha256": "a721a5d00357459e838595cb7beadf163612805fafcb7705c987bdef26719b08",
+      "role": "Original source asset for private article/quality fixture; public acceptance and publication remain separate",
+      "dimensions": [
+        1600,
+        900
+      ],
+      "format": "PNG"
+    },
+    {
+      "path": "examples/article-assets/diagram-02-recovery-mobile.svg",
+      "drive_id": "19_dxgNNpQR5LbWnPWzt_ZZtuhF6jtNpI",
+      "canonical_url": "https://drive.google.com/file/d/19_dxgNNpQR5LbWnPWzt_ZZtuhF6jtNpI/view",
+      "bytes": 9669,
+      "sha256": "44e249f47ec37e0ee732e79a1c605c71c3dc883b1de00a32b734474dad9c7ec4",
+      "role": "Original source asset for private article/quality fixture; public acceptance and publication remain separate",
+      "format": "SVG",
+      "viewBox": "0 0 900 2710",
+      "width": "900",
+      "height": "2710"
+    },
+    {
+      "path": "examples/article-assets/diagram-02-recovery-mobile.png",
+      "drive_id": "1d_lNqRM5E_15XgekcTcF58JU6WcK_Lym",
+      "canonical_url": "https://drive.google.com/file/d/1d_lNqRM5E_15XgekcTcF58JU6WcK_Lym/view",
+      "bytes": 296690,
+      "sha256": "06272d23554e89a4dbe3ae3ecbe3209824158be0fbb89bfc5fce924e4b8d44bb",
+      "role": "Original source asset for private article/quality fixture; public acceptance and publication remain separate",
+      "dimensions": [
+        900,
+        2710
+      ],
+      "format": "PNG"
+    },
+    {
+      "path": "examples/article-assets/diagram-01-bounded-cycle-mobile.svg",
+      "drive_id": "1phzn3QLPOkynh6pHfiXv5sRrz_bKug4T",
+      "canonical_url": "https://drive.google.com/file/d/1phzn3QLPOkynh6pHfiXv5sRrz_bKug4T/view",
+      "bytes": 14743,
+      "sha256": "4fa30419f2826c80a4bd0527ef2a68dafe3b2c6d70c2edcc738fd2e11a5ec776",
+      "role": "Original source asset for private article/quality fixture; public acceptance and publication remain separate",
+      "format": "SVG",
+      "viewBox": "0 0 900 2900",
+      "width": "900",
+      "height": "2900"
+    },
+    {
+      "path": "examples/article-assets/diagram-01-bounded-cycle-mobile.png",
+      "drive_id": "1QZJBWBoneIo2x3q_CpmmkuSCdS7EbdR1",
+      "canonical_url": "https://drive.google.com/file/d/1QZJBWBoneIo2x3q_CpmmkuSCdS7EbdR1/view",
+      "bytes": 400475,
+      "sha256": "43cd4d564fb5bc95e000d4248d98a4bfcdca3a704ed818e80cea593be9d85fbc",
+      "role": "Original source asset for private article/quality fixture; public acceptance and publication remain separate",
+      "dimensions": [
+        900,
+        2900
+      ],
+      "format": "PNG"
+    },
+    {
+      "path": "examples/article-assets/diagram-02-recovery-portrait.svg",
+      "drive_id": "1OGez1n-DXzASd4MySznRmEI9bW8oBOC2",
+      "canonical_url": "https://drive.google.com/file/d/1OGez1n-DXzASd4MySznRmEI9bW8oBOC2/view",
+      "bytes": 7867,
+      "sha256": "61f8b50c88db9e30262f9eaba8b00bc2892ee7e13ed3a9552ee72f4bc3ff6d64",
+      "role": "Original source asset for private article/quality fixture; public acceptance and publication remain separate",
+      "format": "SVG",
+      "viewBox": "0 0 1080 1350",
+      "width": "1080",
+      "height": "1350"
+    },
+    {
+      "path": "examples/article-assets/diagram-01-bounded-cycle-portrait.svg",
+      "drive_id": "1UGBQEFkTwAS6SDlrgwL6IKEG01qXgl3d",
+      "canonical_url": "https://drive.google.com/file/d/1UGBQEFkTwAS6SDlrgwL6IKEG01qXgl3d/view",
+      "bytes": 13663,
+      "sha256": "53c5f10b2f1835d287cfb03c247f9ad9209f38d0937d2b43af6a12a744770bd0",
+      "role": "Original source asset for private article/quality fixture; public acceptance and publication remain separate",
+      "format": "SVG",
+      "viewBox": "0 0 1080 1350",
+      "width": "1080",
+      "height": "1350"
+    },
+    {
+      "path": "examples/article-assets/diagram-02-recovery-portrait.png",
+      "drive_id": "1EXbggSoKKdeQZX6hULSVSF4C3oh-trc4",
+      "canonical_url": "https://drive.google.com/file/d/1EXbggSoKKdeQZX6hULSVSF4C3oh-trc4/view",
+      "bytes": 191397,
+      "sha256": "f12c037647004c18ec38f30191485aec6d3ca6dd6cc59af0ae029b0b98258008",
+      "role": "Original source asset for private article/quality fixture; public acceptance and publication remain separate",
+      "dimensions": [
+        1080,
+        1350
+      ],
+      "format": "PNG"
+    },
+    {
+      "path": "examples/article-assets/diagram-01-bounded-cycle-portrait.png",
+      "drive_id": "1B4SNhdPeCYsQs_y_QazY2SboH3zqf9PQ",
+      "canonical_url": "https://drive.google.com/file/d/1B4SNhdPeCYsQs_y_QazY2SboH3zqf9PQ/view",
+      "bytes": 272924,
+      "sha256": "8a9495f69d852d79ca0b79611c05f34541367318dab306c1c6266a28950df7b7",
+      "role": "Original source asset for private article/quality fixture; public acceptance and publication remain separate",
+      "dimensions": [
+        1080,
+        1350
+      ],
+      "format": "PNG"
+    },
+    {
+      "path": "examples/article-assets/cover-directions-contact-sheet.png",
+      "drive_id": "1osNBwsUaAxLK4FzI2eio695gFSpl3gjf",
+      "canonical_url": "https://drive.google.com/file/d/1osNBwsUaAxLK4FzI2eio695gFSpl3gjf/view",
+      "bytes": 727604,
+      "sha256": "5d39ee5721c70ae5d05cedca868466454a624dc7f891af2a9d8113fbf357763a",
+      "role": "Context of earlier article cover alternatives; not the selected Marketing UI state set",
+      "dimensions": [
+        1800,
+        940
+      ],
+      "format": "PNG"
+    },
+    {
+      "path": "examples/article-assets/Reuse specimen save reply.svg",
+      "drive_id": "1A0JCDiBC4LdGE485js5ypui5LeHXPrBd",
+      "canonical_url": "https://drive.google.com/file/d/1A0JCDiBC4LdGE485js5ypui5LeHXPrBd/view",
+      "bytes": 2526,
+      "sha256": "69943c23a7f181922c7df30361910e4e242c3dfa3bc0cb8d4db81617b80df18a",
+      "role": "Original source asset for private article/quality fixture; public acceptance and publication remain separate",
+      "format": "SVG",
+      "viewBox": "0 0 760 360",
+      "width": "760",
+      "height": "360"
+    },
+    {
+      "path": "examples/article-assets/Reuse specimen save reply.png",
+      "drive_id": "1wE9A8qVwKQsrW_xVN36YZDXJ26pNZyFR",
+      "canonical_url": "https://drive.google.com/file/d/1wE9A8qVwKQsrW_xVN36YZDXJ26pNZyFR/view",
+      "bytes": 130634,
+      "sha256": "c3f987c0a627b627c5936e67d0c59199790dd39846a4131fc3e11f335c266925",
+      "role": "Original source asset for private article/quality fixture; public acceptance and publication remain separate",
+      "dimensions": [
+        1520,
+        720
+      ],
+      "format": "PNG"
+    }
+  ],
+  "native_article_image_mapping": {
+    "i.0": "cover-01-next-decision.png",
+    "i.1": "diagram-01-bounded-cycle-portrait.png",
+    "i.2": "diagram-02-recovery-portrait.png"
+  },
+  "mapping_basis": "Current native article object title/description and selected article package; receiver must compare actual pixels and preserve source originals. No claim PDF-extracted image bytes equal these originals."
+}

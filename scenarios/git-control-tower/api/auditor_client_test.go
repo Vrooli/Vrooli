@@ -2,46 +2,33 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/vrooli/api-core/discovery"
+	httpx "github.com/vrooli/api-core/servertest"
 )
 
 func TestAuditorClient_StartCheck(t *testing.T) {
 	t.Parallel()
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/api/v1/standards/check/my-scenario", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			t.Errorf("expected POST, got %s", r.Method)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusAccepted)
-		_ = json.NewEncoder(w).Encode(AuditorCheckJobResponse{
-			JobID: "standards-abc123",
-			Status: AuditorJobStatus{
-				ID:       "standards-abc123",
-				Scenario: "my-scenario",
-				ScanType: "full",
-				Status:   "running",
-				Message:  "Standards scan started",
-			},
-		})
-	})
-	server := httptest.NewServer(mux)
-	defer server.Close()
-
-	client := &AuditorClient{
-		BaseClient: BaseClient{
-			httpClient:  &http.Client{Timeout: 5 * time.Second},
-			resolver:    discovery.NewStaticResolver(server.URL),
-			serviceName: "scenario-auditor",
+	server := httpx.NewServer(t, map[string]http.HandlerFunc{
+		"/api/v1/standards/check/my-scenario": func(w http.ResponseWriter, r *http.Request) {
+			httpx.AssertMethod(t, r, http.MethodPost)
+			httpx.WriteJSON(t, w, http.StatusAccepted, AuditorCheckJobResponse{
+				JobID: "standards-abc123",
+				Status: AuditorJobStatus{
+					ID:       "standards-abc123",
+					Scenario: "my-scenario",
+					ScanType: "full",
+					Status:   "running",
+					Message:  "Standards scan started",
+				},
+			})
 		},
-	}
+	})
+
+	client := newTestAuditorClient(server.URL)
 
 	result, err := client.StartCheck(context.Background(), "my-scenario", "full")
 	if err != nil {
@@ -58,21 +45,13 @@ func TestAuditorClient_StartCheck(t *testing.T) {
 func TestAuditorClient_StartCheck_ServerError(t *testing.T) {
 	t.Parallel()
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/api/v1/standards/check/my-scenario", func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "internal failure"})
-	})
-	server := httptest.NewServer(mux)
-	defer server.Close()
-
-	client := &AuditorClient{
-		BaseClient: BaseClient{
-			httpClient:  &http.Client{Timeout: 5 * time.Second},
-			resolver:    discovery.NewStaticResolver(server.URL),
-			serviceName: "scenario-auditor",
+	server := httpx.NewServer(t, map[string]http.HandlerFunc{
+		"/api/v1/standards/check/my-scenario": func(w http.ResponseWriter, _ *http.Request) {
+			httpx.WriteJSON(t, w, http.StatusInternalServerError, map[string]string{"error": "internal failure"})
 		},
-	}
+	})
+
+	client := newTestAuditorClient(server.URL)
 
 	_, err := client.StartCheck(context.Background(), "my-scenario", "full")
 	if err == nil {
@@ -83,36 +62,26 @@ func TestAuditorClient_StartCheck_ServerError(t *testing.T) {
 func TestAuditorClient_GetJobStatus(t *testing.T) {
 	t.Parallel()
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/api/v1/standards/check/jobs/standards-abc123", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			t.Errorf("expected GET, got %s", r.Method)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(AuditorJobStatus{
-			ID:       "standards-abc123",
-			Scenario: "my-scenario",
-			Status:   "completed",
-			Result: &AuditorCheckResult{
-				CheckID:      "standards-abc123",
-				Status:       "completed",
-				FilesScanned: 42,
-				Violations: []AuditorViolation{
-					{ID: "v1", Type: "MAKEFILE_STRUCTURE", Severity: "high", Title: "Missing target", Source: "scenario-stack-governor"},
+	server := httpx.NewServer(t, map[string]http.HandlerFunc{
+		"/api/v1/standards/check/jobs/standards-abc123": func(w http.ResponseWriter, r *http.Request) {
+			httpx.AssertMethod(t, r, http.MethodGet)
+			httpx.WriteJSON(t, w, http.StatusOK, AuditorJobStatus{
+				ID:       "standards-abc123",
+				Scenario: "my-scenario",
+				Status:   "completed",
+				Result: &AuditorCheckResult{
+					CheckID:      "standards-abc123",
+					Status:       "completed",
+					FilesScanned: 42,
+					Violations: []AuditorViolation{
+						{ID: "v1", Type: "PACKAGE_GOVERNANCE_SCENARIO_ADOPTION", Severity: "high", Title: "Workspace package drift", Source: "scenario-stack-governor"},
+					},
 				},
-			},
-		})
-	})
-	server := httptest.NewServer(mux)
-	defer server.Close()
-
-	client := &AuditorClient{
-		BaseClient: BaseClient{
-			httpClient:  &http.Client{Timeout: 5 * time.Second},
-			resolver:    discovery.NewStaticResolver(server.URL),
-			serviceName: "scenario-auditor",
+			})
 		},
-	}
+	})
+
+	client := newTestAuditorClient(server.URL)
 
 	result, err := client.GetJobStatus(context.Background(), "standards-abc123")
 	if err != nil {
@@ -132,31 +101,21 @@ func TestAuditorClient_GetJobStatus(t *testing.T) {
 func TestAuditorClient_ListRules(t *testing.T) {
 	t.Parallel()
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/api/v1/rules", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			t.Errorf("expected GET, got %s", r.Method)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(AuditorRulesListResponse{
-			Rules: map[string]AuditorRule{
-				"MAKEFILE_STRUCTURE": {ID: "MAKEFILE_STRUCTURE", Name: "Makefile Structure", Category: "makefile", Severity: "high", Enabled: true},
-				"GO_CLI_WORKSPACE":   {ID: "GO_CLI_WORKSPACE", Name: "Go CLI Workspace", Category: "go", Severity: "high", Enabled: true},
-			},
-			Count: 2,
-			Total: 2,
-		})
-	})
-	server := httptest.NewServer(mux)
-	defer server.Close()
-
-	client := &AuditorClient{
-		BaseClient: BaseClient{
-			httpClient:  &http.Client{Timeout: 5 * time.Second},
-			resolver:    discovery.NewStaticResolver(server.URL),
-			serviceName: "scenario-auditor",
+	server := httpx.NewServer(t, map[string]http.HandlerFunc{
+		"/api/v1/rules": func(w http.ResponseWriter, r *http.Request) {
+			httpx.AssertMethod(t, r, http.MethodGet)
+			httpx.WriteJSON(t, w, http.StatusOK, AuditorRulesListResponse{
+				Rules: map[string]AuditorRule{
+					"PACKAGE_GOVERNANCE_SCENARIO_ADOPTION": {ID: "PACKAGE_GOVERNANCE_SCENARIO_ADOPTION", Name: "Package Governance", Category: "packages", Severity: "high", Enabled: true},
+					"GO_CLI_WORKSPACE_INDEPENDENCE":        {ID: "GO_CLI_WORKSPACE_INDEPENDENCE", Name: "Go CLI Workspace", Category: "go", Severity: "high", Enabled: true},
+				},
+				Count: 2,
+				Total: 2,
+			})
 		},
-	}
+	})
+
+	client := newTestAuditorClient(server.URL)
 
 	result, err := client.ListRules(context.Background())
 	if err != nil {
@@ -170,33 +129,23 @@ func TestAuditorClient_ListRules(t *testing.T) {
 func TestAuditorClient_ApplyFix(t *testing.T) {
 	t.Parallel()
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/api/v1/standards/fix", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			t.Errorf("expected POST, got %s", r.Method)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(AuditorFixResponse{
-			Results: []AuditorFixResult{
-				{ScenarioName: "my-scenario", RuleID: "MAKEFILE_STRUCTURE", Fixed: true, FilePath: "Makefile", Changes: []AuditorFixChange{{Type: "line", Detail: "Added start target"}}},
-			},
-			Count: 1,
-		})
-	})
-	server := httptest.NewServer(mux)
-	defer server.Close()
-
-	client := &AuditorClient{
-		BaseClient: BaseClient{
-			httpClient:  &http.Client{Timeout: 5 * time.Second},
-			resolver:    discovery.NewStaticResolver(server.URL),
-			serviceName: "scenario-auditor",
+	server := httpx.NewServer(t, map[string]http.HandlerFunc{
+		"/api/v1/standards/fix": func(w http.ResponseWriter, r *http.Request) {
+			httpx.AssertMethod(t, r, http.MethodPost)
+			httpx.WriteJSON(t, w, http.StatusOK, AuditorFixResponse{
+				Results: []AuditorFixResult{
+					{ScenarioName: "my-scenario", RuleID: "GO_CLI_WORKSPACE_INDEPENDENCE", Fixed: true, FilePath: "cli/go.mod", Changes: []AuditorFixChange{{Type: "replace", Detail: "Added local replace"}}},
+				},
+				Count: 1,
+			})
 		},
-	}
+	})
+
+	client := newTestAuditorClient(server.URL)
 
 	result, err := client.ApplyFix(context.Background(), AuditorFixRequest{
 		ScenarioNames: []string{"my-scenario"},
-		RuleIDs:       []string{"MAKEFILE_STRUCTURE"},
+		RuleIDs:       []string{"GO_CLI_WORKSPACE_INDEPENDENCE"},
 		DryRun:        true,
 	})
 	if err != nil {
@@ -213,32 +162,22 @@ func TestAuditorClient_ApplyFix(t *testing.T) {
 func TestAuditorClient_GetViolations(t *testing.T) {
 	t.Parallel()
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/api/v1/standards/violations", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			t.Errorf("expected GET, got %s", r.Method)
-		}
-		scenario := r.URL.Query().Get("scenario")
-		if scenario != "my-scenario" {
-			t.Errorf("expected scenario=my-scenario, got %s", scenario)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(AuditorViolationsResponse{
-			Violations: []AuditorViolation{
-				{ID: "v1", ScenarioName: "my-scenario", Type: "MAKEFILE_STRUCTURE", Severity: "high", Title: "Missing target"},
-			},
-		})
-	})
-	server := httptest.NewServer(mux)
-	defer server.Close()
-
-	client := &AuditorClient{
-		BaseClient: BaseClient{
-			httpClient:  &http.Client{Timeout: 5 * time.Second},
-			resolver:    discovery.NewStaticResolver(server.URL),
-			serviceName: "scenario-auditor",
+	server := httpx.NewServer(t, map[string]http.HandlerFunc{
+		"/api/v1/standards/violations": func(w http.ResponseWriter, r *http.Request) {
+			httpx.AssertMethod(t, r, http.MethodGet)
+			scenario := r.URL.Query().Get("scenario")
+			if scenario != "my-scenario" {
+				t.Errorf("expected scenario=my-scenario, got %s", scenario)
+			}
+			httpx.WriteJSON(t, w, http.StatusOK, AuditorViolationsResponse{
+				Violations: []AuditorViolation{
+					{ID: "v1", ScenarioName: "my-scenario", Type: "PACKAGE_GOVERNANCE_SCENARIO_ADOPTION", Severity: "high", Title: "Workspace package drift"},
+				},
+			})
 		},
-	}
+	})
+
+	client := newTestAuditorClient(server.URL)
 
 	result, err := client.GetViolations(context.Background(), "my-scenario")
 	if err != nil {
@@ -246,5 +185,15 @@ func TestAuditorClient_GetViolations(t *testing.T) {
 	}
 	if len(result.Violations) != 1 {
 		t.Errorf("expected 1 violation, got %d", len(result.Violations))
+	}
+}
+
+func newTestAuditorClient(serverURL string) *AuditorClient {
+	return &AuditorClient{
+		BaseClient: BaseClient{
+			httpClient:  httpx.TestClient(),
+			resolver:    discovery.NewStaticResolver(serverURL),
+			serviceName: "scenario-auditor",
+		},
 	}
 }

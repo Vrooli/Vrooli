@@ -1,18 +1,21 @@
+import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1";
 import { useState } from "react";
 import { Settings, X } from "lucide-react";
 import { Button } from "./ui/button";
 import { useIsMobile } from "../hooks";
+import { useHealthIssueCount } from "../lib/hooks";
 import { SettingsTabLayout } from "./SettingsTabLayout";
 import { SettingsTabCredentials } from "./SettingsTabCredentials";
 import { SettingsTabHealth } from "./SettingsTabHealth";
 import { SettingsTabIntegrations } from "./SettingsTabIntegrations";
 import { SettingsTabStorage } from "./SettingsTabStorage";
 import { SettingsTabGrouping } from "./SettingsTabGrouping";
+import { SettingsTabPrecommit } from "./SettingsTabPrecommit";
 import type { LayoutPreset, LayoutSection } from "./LayoutSettingsModal";
-import type { SyncStatusResponse } from "../lib/api";
+import type { ChangeGroupAPI, SyncStatusResponse } from "../lib/api";
 import type { GroupingRule } from "./FileList";
 
-export type SettingsTab = "layout" | "grouping" | "credentials" | "integrations" | "health" | "storage";
+export type SettingsTab = "layout" | "grouping" | "credentials" | "integrations" | "precommit" | "health" | "storage";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -30,6 +33,7 @@ interface SettingsModalProps {
   onToggleGrouping: () => void;
   groupingRules: GroupingRule[];
   onChangeGroupingRules: (rules: GroupingRule[]) => void;
+  contractGroups?: ChangeGroupAPI[];
   // Common
   onClose: () => void;
   initialTab?: SettingsTab;
@@ -40,6 +44,7 @@ const tabLabels: Record<SettingsTab, string> = {
   grouping: "Grouping",
   credentials: "Credentials",
   integrations: "Integrations",
+  precommit: "Precommit",
   health: "Health",
   storage: "Storage",
 };
@@ -58,11 +63,15 @@ export function SettingsModal({
   onToggleGrouping,
   groupingRules,
   onChangeGroupingRules,
+  contractGroups,
   onClose,
   initialTab = "layout"
 }: SettingsModalProps) {
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
+  // Actionable findings only -- see useHealthIssueCount for why informational
+  // items are excluded from the badge.
+  const healthIssueCount = useHealthIssueCount(repoId);
 
   if (!isOpen) return null;
 
@@ -72,48 +81,51 @@ export function SettingsModal({
   // Mobile: full-screen modal
   if (isMobile) {
     return (
-      <div
-        className="fixed inset-0 z-50 flex flex-col bg-slate-950 animate-in slide-in-from-bottom duration-200"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Settings"
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-800 px-4 py-4 pt-safe">
-          <div className="flex items-center gap-3">
-            <Settings className="h-5 w-5 text-slate-400" />
-            <h2 className="text-base font-semibold text-slate-100">Settings</h2>
+      <FullPageDrawer
+        open={isOpen}
+        onClose={onClose}
+        title="Settings"
+        closeLabel="Close"
+        dismissAffordance="close"
+        contentClassName="px-4 py-6"
+        subheader={
+          <div className="flex border-b border-slate-800 px-4 overflow-x-auto">
+            {(Object.keys(tabLabels) as SettingsTab[]).map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => setActiveTab(tab)}
+                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  activeTab === tab
+                    ? "text-blue-400 border-blue-400"
+                    : "text-slate-400 border-transparent hover:text-slate-200"
+                }`}
+              >
+                {tabLabels[tab]}
+                {tab === "health" && healthIssueCount > 0 && (
+                  <span
+                    className="ml-1.5 inline-flex items-center justify-center rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-amber-300"
+                    aria-label={`${healthIssueCount} health ${healthIssueCount === 1 ? "issue" : "issues"} need attention`}
+                  >
+                    {healthIssueCount}
+                  </span>
+                )}
+              </button>
+            ))}
           </div>
-          <button
-            type="button"
-            className="h-11 w-11 inline-flex items-center justify-center rounded-full border border-slate-700 text-slate-300 hover:bg-slate-800/60 active:bg-slate-700 touch-target"
+        }
+        footer={
+          <Button
+            variant="default"
+            size="sm"
             onClick={onClose}
-            aria-label="Close"
+            className="w-full h-12 text-sm touch-target"
           >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        {/* Tab Navigation */}
-        <div className="flex border-b border-slate-800 px-4 overflow-x-auto">
-          {(Object.keys(tabLabels) as SettingsTab[]).map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => setActiveTab(tab)}
-              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                activeTab === tab
-                  ? "text-blue-400 border-blue-400"
-                  : "text-slate-400 border-transparent hover:text-slate-200"
-              }`}
-            >
-              {tabLabels[tab]}
-            </button>
-          ))}
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto px-4 py-6">
+            Done
+          </Button>
+        }
+      >
+        <>
           {repoDir && (
             <p className="text-xs text-slate-500 mb-4">Repo: {repoDir}</p>
           )}
@@ -136,6 +148,7 @@ export function SettingsModal({
               rules={groupingRules}
               onChangeRules={onChangeGroupingRules}
               isMobile={true}
+              contractGroups={contractGroups}
             />
           )}
 
@@ -149,39 +162,22 @@ export function SettingsModal({
           )}
 
           {activeTab === "integrations" && (
-            <SettingsTabIntegrations
-              isMobile={true}
-              repoId={repoId}
-            />
+            <SettingsTabIntegrations isMobile={true} repoId={repoId} />
+          )}
+
+          {activeTab === "precommit" && (
+            <SettingsTabPrecommit isMobile={true} repoId={repoId} />
           )}
 
           {activeTab === "health" && (
-            <SettingsTabHealth
-              isMobile={true}
-              repoId={repoId}
-            />
+            <SettingsTabHealth isMobile={true} repoId={repoId} />
           )}
 
           {activeTab === "storage" && (
-            <SettingsTabStorage
-              isMobile={true}
-              repoId={repoId}
-            />
+            <SettingsTabStorage isMobile={true} repoId={repoId} />
           )}
-        </div>
-
-        {/* Footer */}
-        <div className="border-t border-slate-800 px-4 py-4 pb-safe">
-          <Button
-            variant="default"
-            size="sm"
-            onClick={onClose}
-            className="w-full h-12 text-sm touch-target"
-          >
-            Done
-          </Button>
-        </div>
-      </div>
+        </>
+      </FullPageDrawer>
     );
   }
 
@@ -229,6 +225,14 @@ export function SettingsModal({
               }`}
             >
               {tabLabels[tab]}
+              {tab === "health" && healthIssueCount > 0 && (
+                <span
+                  className="ml-1.5 inline-flex items-center justify-center rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-amber-300"
+                  aria-label={`${healthIssueCount} health ${healthIssueCount === 1 ? "issue" : "issues"} need attention`}
+                >
+                  {healthIssueCount}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -253,6 +257,7 @@ export function SettingsModal({
               rules={groupingRules}
               onChangeRules={onChangeGroupingRules}
               isMobile={false}
+              contractGroups={contractGroups}
             />
           )}
 
@@ -267,6 +272,13 @@ export function SettingsModal({
 
           {activeTab === "integrations" && (
             <SettingsTabIntegrations
+              isMobile={false}
+              repoId={repoId}
+            />
+          )}
+
+          {activeTab === "precommit" && (
+            <SettingsTabPrecommit
               isMobile={false}
               repoId={repoId}
             />

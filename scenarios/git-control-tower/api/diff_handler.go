@@ -25,6 +25,8 @@ func (s *Server) handleDiff(w http.ResponseWriter, r *http.Request) {
 		mode = ViewModeFullDiff
 	case "source":
 		mode = ViewModeSource
+	case "preview":
+		mode = ViewModePreview
 	default:
 		mode = ViewModeDiff
 	}

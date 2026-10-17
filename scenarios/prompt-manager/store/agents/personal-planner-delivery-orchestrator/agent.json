@@ -1,0 +1,24 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "personal-planner-delivery-orchestrator",
+  "displayName": "Personal Planner Delivery Orchestrator",
+  "description": "Own approved I18 Planner delivery goal and epochs using native large-effort-orchestration.",
+  "status": "active",
+  "appearance": {
+    "body": "#3B82F6",
+    "head": "#F59E0B",
+    "accent": "#10B981"
+  },
+  "tags": [
+    "personal-planner",
+    "delivery",
+    "I18"
+  ],
+  "fileOrder": [
+    "AGENT.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-10-03T02:36:01Z",
+  "updatedAt": "2026-10-03T02:36:01Z"
+}

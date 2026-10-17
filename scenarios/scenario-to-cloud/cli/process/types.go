@@ -59,7 +59,9 @@ type ProcessResult struct {
 
 // VPSActionRequest is the request for VPS-level actions.
 type VPSActionRequest struct {
-	Action string `json:"action"` // reboot, shutdown, start
+	Action       string `json:"action"` // reboot, shutdown, start, stop_vrooli, cleanup
+	CleanupLevel int    `json:"cleanup_level,omitempty"`
+	Confirmation string `json:"confirmation,omitempty"`
 }
 
 // VPSActionResponse is the response from VPS actions.

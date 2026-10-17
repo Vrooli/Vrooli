@@ -1,7 +1,7 @@
 {
   "metadata": {
     "name": "File Diff API",
-    "description": "Validates /api/v1/repo/diff returns structured diff output",
+    "description": "Validates RepoService.GetRepoDiff returns structured diff output",
     "tags": [
       "e2e",
       "api",
@@ -20,9 +20,10 @@
       "id": "diff-all",
       "type": "http_request",
       "data": {
-        "label": "GET /api/v1/repo/diff (all changes)",
-        "method": "GET",
-        "url": "{{API_URL}}/api/v1/repo/diff",
+        "label": "POST RepoService/GetRepoDiff (all changes)",
+        "method": "POST",
+        "url": "{{API_URL}}/vrooli.git_control_tower.v1.repo.RepoService/GetRepoDiff",
+        "body": {},
         "headers": {
           "Content-Type": "application/json"
         },
@@ -66,9 +67,10 @@
       "id": "diff-staged",
       "type": "http_request",
       "data": {
-        "label": "GET /api/v1/repo/diff?staged=true",
-        "method": "GET",
-        "url": "{{API_URL}}/api/v1/repo/diff?staged=true",
+        "label": "POST RepoService/GetRepoDiff (staged)",
+        "method": "POST",
+        "url": "{{API_URL}}/vrooli.git_control_tower.v1.repo.RepoService/GetRepoDiff",
+        "body": {"staged": true},
         "headers": {
           "Content-Type": "application/json"
         },

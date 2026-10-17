@@ -2,11 +2,11 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
-	"path/filepath"
+	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -43,7 +43,7 @@ func (s *Server) CreateChatbotHandler(w http.ResponseWriter, r *http.Request) {
 
 	if req.ModelConfig == nil {
 		req.ModelConfig = map[string]interface{}{
-			"model":       "llama3.2",
+			"model":       "chat.default",
 			"temperature": 0.7,
 			"max_tokens":  1000,
 		}
@@ -468,48 +468,34 @@ func (s *Server) GenerateAIResponse(chatbot *Chatbot, history []Message) (string
 
 	// Current user message is already in history, no need to add it again
 
-	// Prepare Ollama request
-	model := "llama3.2"
-	if m, ok := chatbot.ModelConfig["model"].(string); ok {
-		model = m
+	var prompt strings.Builder
+	for _, msg := range ollamaMessages {
+		fmt.Fprintf(&prompt, "%s: %s\n", msg.Role, msg.Content)
 	}
-
-	ollamaReq := OllamaRequest{
-		Model:    model,
-		Messages: ollamaMessages,
-		Stream:   false,
-		Options:  chatbot.ModelConfig,
-	}
-
-	// Send request to Ollama
-	reqBody, err := json.Marshal(ollamaReq)
+	role := "chat.default"
+	ctx, cancel := context.WithTimeout(context.Background(), httpTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "resource-ollama", "gateway", "generate", "--role", role, "--json", "--prompt-stdin")
+	cmd.Stdin = strings.NewReader(prompt.String())
+	output, err := cmd.Output()
 	if err != nil {
 		return "", 0, err
 	}
 
-	client := &http.Client{Timeout: httpTimeout}
-	resp, err := client.Post(s.config.OllamaURL+"/api/chat", "application/json", bytes.NewBuffer(reqBody))
-	if err != nil {
-		return "", 0, err
+	var ollamaResp struct {
+		Response string `json:"response"`
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", 0, fmt.Errorf("Ollama API error: %d", resp.StatusCode)
-	}
-
-	var ollamaResp OllamaResponse
-	if err := json.NewDecoder(resp.Body).Decode(&ollamaResp); err != nil {
+	if err := json.Unmarshal(bytes.TrimSpace(output), &ollamaResp); err != nil {
 		return "", 0, err
 	}
 
 	// Calculate confidence (simplified)
 	confidence := 0.8 // Default confidence
-	if len(ollamaResp.Message.Content) > 10 {
+	if len(ollamaResp.Response) > 10 {
 		confidence = 0.9
 	}
 
-	return ollamaResp.Message.Content, confidence, nil
+	return ollamaResp.Response, confidence, nil
 }
 
 // AnalyzeForLeadQualification analyzes messages for lead qualification signals

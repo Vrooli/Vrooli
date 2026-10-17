@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "source_head": "c8e4a67baafcb11b7495377eee7c0fab56c0d487",
+  "proposal_id": "1zRlVbD5tYa1XwjI2Xjoxqz7JQEhthmtztXGLVqGsY3I",
+  "proposal_modified": "2026-10-03T02:18:00.602Z",
+  "authority": "I18 + subsequent native-policy correction",
+  "accepted_revision": "sha256:8ea48135bcbfd758c0ca08f4235ece3b32b6869b307bd2fd7214a96a46627783",
+  "files": {
+    "GOAL.md": "4d0e49c65a25d8e146f02ea3bf5768bb7660695ea05ded47c016980cb324e03f",
+    "ACCEPTANCE.md": "c939883e5773d753c982fc8d02937ce6b7518256d7d2365a92fe9be40fda9b58",
+    "TARGETS.md": "6f40c25e1147a5ec66d953aab019e748f9cd28140a0bc6848636a7c463f82453",
+    "AUTHORIZATION.md": "d2370fd1afa2dcda40e4da5c09fd46ae996372910bc975ce602e4e6054aec2ee",
+    "CONTRACT.md": "8ea48135bcbfd758c0ca08f4235ece3b32b6869b307bd2fd7214a96a46627783",
+    "WORKAROUNDS.md": "eaeba6fd2e896d37025366300d60d5499aa4b443deea645d0b0bf17bd960ee21",
+    "QUEUE.md": "943b690f12d47dc6f9c53aa4dee058553a38e53ebe39bb565d5dc7aac18d3c6e",
+    "FEEDBACK.md": "573f8799acfe834c165b5de9d571cea648a7f9c8f68cc54cedeeb5c598ac4442",
+    "INSTALLS.md": "d034e26d9249f0298b6097c86a26f659dc15870884a621a4e85e36eae28b3cd6",
+    "receipts/planner-native-permission-doctor.json": "706051b6872b9130b0e5f5d89a1f7dcabf5fff4fbf45e2f173da6070375b525c",
+    "receipts/planner-created-orchestrator.json": "f4aa0365f130cb8041f6a2e90a03893e165a902a9a0f346c95cd03c7f5d844f5",
+    "receipts/planner-commission-roles.json": "46de290b69dcfab83dbd974e0a6fc7abba4835720ff42e5a42a4f3ccb1f6788f",
+    "receipts/planner-created-scope.json": "9f4bab64e519ba029badb99c8414324120d6542cbdd1d711f3208216ee376413",
+    "receipts/planner-created-reviewer.json": "c2bc5202a87e70ddfad7e74745b7bb536f6ee87e0242795e025c66afccc633a4",
+    "receipts/planner-orchestrator-role.json": "dde3eb984f082c257be5d5622bd1525545ee9585822164a595a0cf8aafc6c349",
+    "receipts/planner-commission-profiles.json": "93d745ab04d06acf2a0d0a4501599140920c7a7c7ce881c94e51a75882011a96",
+    "receipts/planner-created-team.json": "235f38370f9f08914850e3deeebcfa9026bf74aa3389fa1da87d9933d2a9758d",
+    "sources/approved-proposal.txt": "42cb1c1a7dda6755fe131f7d2e4601b1d4c72ef7ea83e8d2b15bda376fa0102c",
+    "sources/local-evidence.json": "c80d91684c7d78829209ed0abb480b1bf28fc03ef9fa42489e567ccbe238865e",
+    "sources/calendar-manifest.json": "7d5e8b33a46da4c8303cf22ab9b07e6ea34827075600639aff12d8c373849b38"
+  }
+}

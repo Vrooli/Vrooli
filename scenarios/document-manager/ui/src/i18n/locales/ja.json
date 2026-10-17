@@ -1,0 +1,115 @@
+{
+  "_comment": "このファイルには2種類の補間があります。(1) 生成時: Document Manager のような大文字スネークケースのプレースホルダーは、`template-manager generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
+  "app": {
+    "title": "Document Manager"
+  },
+  "layout": {
+    "sidebarLabel": "メインナビゲーション",
+    "bottomNavLabel": "モバイルナビゲーション",
+    "mainLabel": "メインコンテンツ",
+    "nav": {
+      "dashboard": "ダッシュボード",
+      "corpus": "Corpus",
+      "reader": "Reader",
+      "receipt": "Receipt",
+      "settings": "設定"
+    }
+  },
+  "theme": {
+    "switcherLabel": "テーマ",
+    "choice": {
+      "light": "ライト",
+      "dark": "ダーク",
+      "system": "システム"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "ダッシュボード",
+      "description": "シナリオのヘルスと主要指標の概要。製品の成長に合わせてこれらのカードを実際のサーフェスに置き換えてください。",
+      "statPlaceholderLabel": "指標"
+    },
+    "settings": {
+      "title": "設定",
+      "themeHeading": "外観",
+      "localeHeading": "言語"
+    },
+    "corpus": {
+      "title": "Corpus",
+      "description": "このサービスが保持するコレクションとソース文書。",
+      "collections": "コレクション",
+      "collectionDescription": "プライバシー境界と連携ポリシー。",
+      "documents": "文書",
+      "documentDescription": "コンテンツアドレス化されたソース一覧。",
+      "empty": "コレクションはまだありません。",
+      "noDocuments": "文書はまだありません。",
+      "unnamed": "名前のないソース",
+      "federated": "連携済み・オプトイン",
+      "localOnly": "ローカルのみ",
+      "privacy": "プライバシー {{value}}"
+    },
+    "reader": {
+      "title": "Reader",
+      "description": "派生ユニットを検索し、ポインターなしで引用間を移動します。",
+      "searchLabel": "ユニットを検索",
+      "placeholder": "コーパスを検索",
+      "partial": "部分インデックス・意味検索は利用不可",
+      "sourceRegion": "ソース領域",
+      "derivedUnits": "派生ユニット",
+      "derivedUnitsLabel": "派生ユニット",
+      "noMatches": "一致するユニットはありません。",
+      "sourceHint": "引用ユニットを選択するとソース領域を強調表示します。",
+      "confidence": "信頼度 {{value}}",
+      "local": "ローカル",
+      "sourceFor": "{{anchor}} のソース領域"
+    },
+    "receipt": {
+      "title": "Receipt",
+      "description": "ローカル性とプライバシーを明示した文書ごとの処理タイムライン。",
+      "timeline": "処理タイムライン",
+      "empty": "処理レシートはまだありません。",
+      "unnamed": "名前のないソース",
+      "privacy": "プライバシークラス {{value}}",
+      "local": "ローカル",
+      "parsed": "Tier 1・解析済み"
+    }
+  },
+  "health": {
+    "title": "API ステータス",
+    "loading": "API のステータスを確認中…",
+    "error": "API に接続できません。`vrooli scenario start` でシナリオが起動していることを確認してください。",
+    "refresh": "再読み込み",
+    "refreshCount": "{{count}} 回更新しました",
+    "serviceLabel": "サービス:",
+    "timestampLabel": "タイムスタンプ:"
+  },
+  "notifications": {
+    "summary": "{{count}} 件の通知"
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "言語"
+  },
+  "errorBoundary": {
+    "title": "問題が発生しました",
+    "message": "ページの表示中に予期しないエラーが発生しました。再試行するか、解決しない場合はページを再読み込みしてください。",
+    "retry": "再試行"
+  }
+}

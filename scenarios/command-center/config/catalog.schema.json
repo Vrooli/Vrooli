@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "command-center/catalog/v1",
+  "title": "Command Center split catalog entry",
+  "type": "object",
+  "required": ["id"],
+  "properties": { "id": {"type":"string", "minLength":1}, "shape": {"enum":["scalar","series","rows","meta"]}, "columns": {"type":"object"} },
+  "additionalProperties": true
+}

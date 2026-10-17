@@ -1,0 +1,69 @@
+syntax = "proto3";
+
+package vrooli.ui_health.v1.contracts.provenance;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/contracts/provenance;provenance_v1";
+
+// =============================================================================
+// COMPONENT PROVENANCE CONTRACT
+// =============================================================================
+//
+// @layer 4  (cross-scenario contract)
+// @domain contracts.provenance
+// @stability unstable
+//
+// Single source of truth for the shape of adoption metadata that every
+// component-library scenario must produce. Cross-framework: React, Vue,
+// Svelte, Python-TUI, etc. all emit instances of this message.
+//
+// Authoritative store: SQLite inside each component-library scenario
+// (today: scenarios/react-component-library/api/internal/adoptions/sqlite.go).
+// Heal-from signal: per-file JSDoc-equivalent block on the adopted source
+// (today: @vrooliComponent* tags). Drift between the two is surfaced as a
+// finding by ui-health validate, not silently reconciled.
+//
+// Field-name parity with the react-component-library JSDoc emitter:
+//   @vrooliComponentSource        -> library
+//   @vrooliComponentVersion       -> library_version
+//   @vrooliComponentAdoption      -> adoption_id
+//   @vrooliComponentAppliedAt     -> applied_at
+//   @vrooliComponentSourceSha256  -> source_sha256
+//   @vrooliComponentDriftHash     -> drift_hash    (new in this contract)
+// =============================================================================
+
+// Classification of how the on-disk file relates to its upstream source.
+enum Provenance {
+  PROVENANCE_UNSPECIFIED = 0;
+  // File was authored in this scenario; no upstream library row exists.
+  PROVENANCE_CUSTOM = 1;
+  // File was adopted from a component-library scenario and source_sha256 still
+  // matches the SQLite-recorded sha (drift_hash equal).
+  PROVENANCE_ADOPTED_UNMODIFIED = 2;
+  // File was adopted but local edits diverge from the recorded sha
+  // (drift_hash mismatch).
+  PROVENANCE_ADOPTED_MODIFIED = 3;
+  // File has a JSDoc provenance block but no matching SQLite row, or vice
+  // versa. Surfaced as a drift finding.
+  PROVENANCE_UNKNOWN = 4;
+}
+
+message ComponentProvenance {
+  Provenance provenance = 1;
+  // Component-library scenario id (e.g. "react-component-library").
+  string library = 2;
+  // Version of the library at adoption time.
+  string library_version = 3;
+  // Component name as registered in the library.
+  string component_name = 4;
+  // Library-side adoption record id (UUID/ULID).
+  string adoption_id = 5;
+  // RFC3339 timestamp of the adoption write.
+  string applied_at = 6;
+  // SHA-256 of the upstream component source at adoption time.
+  string source_sha256 = 7;
+  // SHA-256 of the on-disk file at scan time. Equal to source_sha256 means
+  // unmodified; not equal means modified.
+  string drift_hash = 8;
+  // Scenario-relative path of the on-disk file (e.g. "ui/src/components/ui/button.tsx").
+  string file_path = 9;
+}

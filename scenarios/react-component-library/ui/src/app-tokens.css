@@ -1,0 +1,28 @@
+/* Authored application layout tokens. Not owned by design-token-generate. */
+:root {
+  --layout-avatar-md: 5rem;
+  --layout-avatar-sm: 4rem;
+  --layout-column: 12rem;
+  --layout-column-wide: 14rem;
+  --layout-content: 34rem;
+  --layout-content-compact: 28rem;
+  --layout-content-short: 12rem;
+  --layout-content-wide: 42rem;
+  --layout-field: 9rem;
+  --layout-field-compact: 7rem;
+  --layout-field-medium: 10rem;
+  --layout-field-short: 8rem;
+  --layout-field-wide: 11rem;
+  --layout-inline-overlay: calc(100% - var(--space-sm));
+  --layout-overlay-label: 45%;
+  --layout-panel: 20rem;
+  --layout-panel-compact: 16rem;
+  --layout-separator: 0.25rem;
+  --layout-stage-empty: 18rem;
+  --layout-stage-panel: min(30rem, calc(100% - var(--space-sm)));
+  --layout-surface: 8rem;
+  --layout-surface-short: 6rem;
+  --layout-surface-tall: 10rem;
+  --layout-surface-tiny: 5rem;
+  --wc-kb-height: 0px;
+}

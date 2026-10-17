@@ -1,5 +1,5 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Activity, Play, Pause, StopCircle, Info, Terminal, Copy } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Activity, Play, Pause, StopCircle, Info, Terminal } from "lucide-react";
 import { fetchCampaigns } from "../lib/api";
 import { useToast } from "../components/ui/toast";
 import { PageHeader } from "../components/layout/PageHeader";
@@ -11,7 +11,6 @@ import { Alert, AlertDescription } from "../components/ui/alert";
 import { cn } from "../lib/utils";
 
 export default function CampaignsView() {
-  const queryClient = useQueryClient();
   const { showToast } = useToast();
 
   const { data: campaigns = [], isLoading, error } = useQuery({
@@ -219,10 +218,9 @@ export default function CampaignsView() {
                     <div className="flex items-center justify-between text-sm mb-2">
                       <div className="flex items-center gap-1">
                         <span className="text-slate-400">Progress</span>
-                        <Info
-                          className="h-3 w-3 text-slate-500 cursor-help"
-                          title="File visit progress. Campaign completes when all files are analyzed or max sessions reached."
-                        />
+                        <span title="File visit progress. Campaign completes when all files are analyzed or max sessions reached.">
+                          <Info className="h-3 w-3 text-slate-500 cursor-help" />
+                        </span>
                       </div>
                       <span className="text-slate-300">
                         {Math.round((campaign.files_visited / campaign.files_total) * 100)}%
@@ -260,10 +258,9 @@ export default function CampaignsView() {
                         <span className="text-slate-500">Files per Session</span>
                         <p className="text-slate-200">{campaign.config.max_files_per_session}</p>
                       </div>
-                      <Info
-                        className="h-3 w-3 text-slate-500 cursor-help mt-0.5"
-                        title="Maximum number of files analyzed in each session. Smaller batches reduce cost but increase session count."
-                      />
+                      <span title="Maximum number of files analyzed in each session. Smaller batches reduce cost but increase session count.">
+                        <Info className="h-3 w-3 text-slate-500 cursor-help mt-0.5" />
+                      </span>
                     </div>
                     <div className="flex items-start gap-1">
                       <div className="flex-1">
@@ -272,10 +269,9 @@ export default function CampaignsView() {
                           {campaign.config.priority_rules?.length || 0} rules
                         </p>
                       </div>
-                      <Info
-                        className="h-3 w-3 text-slate-500 cursor-help mt-0.5"
-                        title="Custom rules for prioritizing which files to analyze first (e.g., prefer main.go over test fixtures)."
-                      />
+                      <span title="Custom rules for prioritizing which files to analyze first (e.g., prefer main.go over test fixtures).">
+                        <Info className="h-3 w-3 text-slate-500 cursor-help mt-0.5" />
+                      </span>
                     </div>
                   </div>
 

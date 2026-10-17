@@ -445,115 +445,35 @@ func assertWarning(warnings []Issue, code string) bool {
 // Node Type Validation Tests
 // ============================================================================
 
-func TestValidatorClickRequiresSelector(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
-	}
+func TestValidatorPointerNodesRequireSelector(t *testing.T) {
+	for _, nodeType := range []string{"click", "hover", "focus", "blur"} {
+		t.Run(nodeType, func(t *testing.T) {
+			v, err := NewValidator()
+			if err != nil {
+				t.Fatalf("failed to init validator: %v", err)
+			}
 
-	workflow := map[string]any{
-		"nodes": []any{
-			map[string]any{
-				"id":       "click-missing",
-				"type":     "click",
-				"position": map[string]any{"x": 0, "y": 0},
-				"data":     map[string]any{"label": "Click something"},
-			},
-		},
-		"edges": []any{},
-	}
+			workflow := map[string]any{
+				"nodes": []any{
+					map[string]any{
+						"id":   nodeType + "-missing",
+						"type": nodeType,
+						"data": map[string]any{},
+					},
+				},
+				"edges": []any{},
+			}
 
-	res, err := v.Validate(context.Background(), workflow, Options{})
-	if err != nil {
-		t.Fatalf("validation returned error: %v", err)
+			res, err := v.Validate(context.Background(), workflow, Options{})
+			if err != nil {
+				t.Fatalf("validation returned error: %v", err)
+			}
+			if res.Valid {
+				t.Fatalf("expected %s without selector to fail", nodeType)
+			}
+			assertIssue(t, res.Errors, "WF_NODE_FIELD_REQUIRED")
+		})
 	}
-	if res.Valid {
-		t.Fatalf("expected click without selector to fail")
-	}
-	assertIssue(t, res.Errors, "WF_NODE_FIELD_REQUIRED")
-}
-
-func TestValidatorHoverRequiresSelector(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
-	}
-
-	workflow := map[string]any{
-		"nodes": []any{
-			map[string]any{
-				"id":       "hover-missing",
-				"type":     "hover",
-				"position": map[string]any{"x": 0, "y": 0},
-				"data":     map[string]any{},
-			},
-		},
-		"edges": []any{},
-	}
-
-	res, err := v.Validate(context.Background(), workflow, Options{})
-	if err != nil {
-		t.Fatalf("validation returned error: %v", err)
-	}
-	if res.Valid {
-		t.Fatalf("expected hover without selector to fail")
-	}
-	assertIssue(t, res.Errors, "WF_NODE_FIELD_REQUIRED")
-}
-
-func TestValidatorFocusRequiresSelector(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
-	}
-
-	workflow := map[string]any{
-		"nodes": []any{
-			map[string]any{
-				"id":       "focus-missing",
-				"type":     "focus",
-				"position": map[string]any{"x": 0, "y": 0},
-				"data":     map[string]any{},
-			},
-		},
-		"edges": []any{},
-	}
-
-	res, err := v.Validate(context.Background(), workflow, Options{})
-	if err != nil {
-		t.Fatalf("validation returned error: %v", err)
-	}
-	if res.Valid {
-		t.Fatalf("expected focus without selector to fail")
-	}
-	assertIssue(t, res.Errors, "WF_NODE_FIELD_REQUIRED")
-}
-
-func TestValidatorBlurRequiresSelector(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
-	}
-
-	workflow := map[string]any{
-		"nodes": []any{
-			map[string]any{
-				"id":   "blur-missing",
-				"type": "blur",
-				"data": map[string]any{},
-			},
-		},
-		"edges": []any{},
-	}
-
-	res, err := v.Validate(context.Background(), workflow, Options{})
-	if err != nil {
-		t.Fatalf("validation returned error: %v", err)
-	}
-	if res.Valid {
-		t.Fatalf("expected blur without selector to fail")
-	}
-	assertIssue(t, res.Errors, "WF_NODE_FIELD_REQUIRED")
 }
 
 func TestValidatorDragDropValidation(t *testing.T) {
@@ -1321,17 +1241,17 @@ func TestValidatorSubflowNodeValidation(t *testing.T) {
 			errorCodes: []string{"WF_SUBFLOW_TARGET"},
 		},
 		{
-			name: "inline definition with empty nodes",
+			name: "inline definition is rejected",
 			data: map[string]any{
 				"workflowDefinition": map[string]any{
 					"nodes": []any{},
 					"edges": []any{},
 				},
 			},
-			errorCodes: []string{"WF_SUBFLOW_INLINE_NODES"},
+			errorCodes: []string{"WF_SUBFLOW_TARGET"},
 		},
 		{
-			name: "inline definition missing edges",
+			name: "inline definition without edges is rejected",
 			data: map[string]any{
 				"workflowDefinition": map[string]any{
 					"nodes": []any{
@@ -1339,7 +1259,7 @@ func TestValidatorSubflowNodeValidation(t *testing.T) {
 					},
 				},
 			},
-			errorCodes: []string{"WF_SUBFLOW_INLINE_EDGES"},
+			errorCodes: []string{"WF_SUBFLOW_TARGET"},
 		},
 	}
 
@@ -1383,222 +1303,77 @@ func TestValidatorSubflowNodeValidation(t *testing.T) {
 // Edge Validation Tests
 // ============================================================================
 
-func TestValidatorEdgeSelfReference(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
+func TestValidatorInvalidEdgeStructure(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		edge map[string]any
+		code string
+	}{
+		{name: "self reference", edge: map[string]any{"id": "self-edge", "source": "node", "target": "node"}, code: "WF_EDGE_CYCLE_SELF"},
+		{name: "unknown source", edge: map[string]any{"id": "bad-edge", "source": "missing", "target": "node"}, code: "WF_EDGE_SOURCE_UNKNOWN"},
+		{name: "unknown target", edge: map[string]any{"id": "bad-edge", "source": "node", "target": "missing"}, code: "WF_EDGE_TARGET_UNKNOWN"},
+		{name: "missing endpoints", edge: map[string]any{"id": "incomplete-edge"}, code: "WF_EDGE_ENDPOINT_MISSING"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			v, err := NewValidator()
+			if err != nil {
+				t.Fatalf("failed to init validator: %v", err)
+			}
+			workflow := map[string]any{
+				"nodes": []any{map[string]any{
+					"id": "node", "type": "wait",
+					"data": map[string]any{"waitType": "duration", "durationMs": 1000},
+				}},
+				"edges": []any{tc.edge},
+			}
+			res, err := v.Validate(context.Background(), workflow, Options{})
+			if err != nil {
+				t.Fatalf("validation returned error: %v", err)
+			}
+			if res.Valid {
+				t.Fatal("expected invalid edge structure to fail validation")
+			}
+			assertIssue(t, res.Errors, tc.code)
+		})
 	}
-
-	workflow := map[string]any{
-		"nodes": []any{
-			map[string]any{
-				"id":   "self-loop",
-				"type": "wait",
-				"data": map[string]any{"waitType": "duration", "durationMs": 1000},
-			},
-		},
-		"edges": []any{
-			map[string]any{
-				"id":     "self-edge",
-				"source": "self-loop",
-				"target": "self-loop",
-			},
-		},
-	}
-
-	res, err := v.Validate(context.Background(), workflow, Options{})
-	if err != nil {
-		t.Fatalf("validation returned error: %v", err)
-	}
-	if res.Valid {
-		t.Fatalf("expected self-referencing edge to fail validation")
-	}
-	assertIssue(t, res.Errors, "WF_EDGE_CYCLE_SELF")
-}
-
-func TestValidatorEdgeUnknownSource(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
-	}
-
-	workflow := map[string]any{
-		"nodes": []any{
-			map[string]any{
-				"id":   "valid-node",
-				"type": "wait",
-				"data": map[string]any{"waitType": "duration", "durationMs": 1000},
-			},
-		},
-		"edges": []any{
-			map[string]any{
-				"id":     "bad-edge",
-				"source": "nonexistent",
-				"target": "valid-node",
-			},
-		},
-	}
-
-	res, err := v.Validate(context.Background(), workflow, Options{})
-	if err != nil {
-		t.Fatalf("validation returned error: %v", err)
-	}
-	if res.Valid {
-		t.Fatalf("expected edge with unknown source to fail validation")
-	}
-	assertIssue(t, res.Errors, "WF_EDGE_SOURCE_UNKNOWN")
-}
-
-func TestValidatorEdgeUnknownTarget(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
-	}
-
-	workflow := map[string]any{
-		"nodes": []any{
-			map[string]any{
-				"id":   "valid-node",
-				"type": "wait",
-				"data": map[string]any{"waitType": "duration", "durationMs": 1000},
-			},
-		},
-		"edges": []any{
-			map[string]any{
-				"id":     "bad-edge",
-				"source": "valid-node",
-				"target": "nonexistent",
-			},
-		},
-	}
-
-	res, err := v.Validate(context.Background(), workflow, Options{})
-	if err != nil {
-		t.Fatalf("validation returned error: %v", err)
-	}
-	if res.Valid {
-		t.Fatalf("expected edge with unknown target to fail validation")
-	}
-	assertIssue(t, res.Errors, "WF_EDGE_TARGET_UNKNOWN")
-}
-
-func TestValidatorEdgeMissingEndpoints(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
-	}
-
-	workflow := map[string]any{
-		"nodes": []any{
-			map[string]any{
-				"id":   "node",
-				"type": "wait",
-				"data": map[string]any{"waitType": "duration", "durationMs": 1000},
-			},
-		},
-		"edges": []any{
-			map[string]any{
-				"id": "incomplete-edge",
-			},
-		},
-	}
-
-	res, err := v.Validate(context.Background(), workflow, Options{})
-	if err != nil {
-		t.Fatalf("validation returned error: %v", err)
-	}
-	if res.Valid {
-		t.Fatalf("expected edge without source/target to fail validation")
-	}
-	assertIssue(t, res.Errors, "WF_EDGE_ENDPOINT_MISSING")
 }
 
 // ============================================================================
 // Node Structural Tests
 // ============================================================================
 
-func TestValidatorDuplicateNodeIDs(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
+func TestValidatorInvalidNodeStructure(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		nodes []any
+		code  string
+	}{
+		{name: "duplicate ID", nodes: []any{
+			map[string]any{"id": "duplicate-id", "type": "wait", "data": map[string]any{"waitType": "duration", "durationMs": 1000}},
+			map[string]any{"id": "duplicate-id", "type": "wait", "data": map[string]any{"waitType": "duration", "durationMs": 500}},
+		}, code: "WF_NODE_ID_DUPLICATE"},
+		{name: "missing ID", nodes: []any{
+			map[string]any{"type": "wait", "data": map[string]any{"waitType": "duration", "durationMs": 1000}},
+		}, code: "WF_NODE_ID_MISSING"},
+		{name: "missing type", nodes: []any{
+			map[string]any{"id": "no-type", "data": map[string]any{}},
+		}, code: "WF_NODE_TYPE_MISSING"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			v, err := NewValidator()
+			if err != nil {
+				t.Fatalf("failed to init validator: %v", err)
+			}
+			res, err := v.Validate(context.Background(), map[string]any{"nodes": tc.nodes, "edges": []any{}}, Options{})
+			if err != nil {
+				t.Fatalf("validation returned error: %v", err)
+			}
+			if res.Valid {
+				t.Fatal("expected invalid node structure to fail validation")
+			}
+			assertIssue(t, res.Errors, tc.code)
+		})
 	}
-
-	workflow := map[string]any{
-		"nodes": []any{
-			map[string]any{
-				"id":   "duplicate-id",
-				"type": "wait",
-				"data": map[string]any{"waitType": "duration", "durationMs": 1000},
-			},
-			map[string]any{
-				"id":   "duplicate-id",
-				"type": "wait",
-				"data": map[string]any{"waitType": "duration", "durationMs": 500},
-			},
-		},
-		"edges": []any{},
-	}
-
-	res, err := v.Validate(context.Background(), workflow, Options{})
-	if err != nil {
-		t.Fatalf("validation returned error: %v", err)
-	}
-	if res.Valid {
-		t.Fatalf("expected duplicate node IDs to fail validation")
-	}
-	assertIssue(t, res.Errors, "WF_NODE_ID_DUPLICATE")
-}
-
-func TestValidatorMissingNodeID(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
-	}
-
-	workflow := map[string]any{
-		"nodes": []any{
-			map[string]any{
-				"type": "wait",
-				"data": map[string]any{"waitType": "duration", "durationMs": 1000},
-			},
-		},
-		"edges": []any{},
-	}
-
-	res, err := v.Validate(context.Background(), workflow, Options{})
-	if err != nil {
-		t.Fatalf("validation returned error: %v", err)
-	}
-	if res.Valid {
-		t.Fatalf("expected missing node ID to fail validation")
-	}
-	assertIssue(t, res.Errors, "WF_NODE_ID_MISSING")
-}
-
-func TestValidatorMissingNodeType(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
-	}
-
-	workflow := map[string]any{
-		"nodes": []any{
-			map[string]any{
-				"id":   "no-type",
-				"data": map[string]any{},
-			},
-		},
-		"edges": []any{},
-	}
-
-	res, err := v.Validate(context.Background(), workflow, Options{})
-	if err != nil {
-		t.Fatalf("validation returned error: %v", err)
-	}
-	if res.Valid {
-		t.Fatalf("expected missing node type to fail validation")
-	}
-	assertIssue(t, res.Errors, "WF_NODE_TYPE_MISSING")
 }
 
 // ============================================================================
@@ -2136,30 +1911,43 @@ func TestValidateResolvedMultipleIssues(t *testing.T) {
 // Execution Mode Tests
 // ============================================================================
 
-func TestValidatorExecutionModeValid(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
+func TestValidatorExecutionModeValidation(t *testing.T) {
+	tests := []struct {
+		name        string
+		mode        string
+		wantMode    string
+		wantWarning string
+		wantError   string
+	}{
+		{name: "observer", mode: "observer", wantMode: "observer"},
+		{name: "mutating", mode: "mutating", wantMode: "mutating"},
+		{name: "destructive", mode: "destructive", wantMode: "destructive"},
+		{name: "missing", wantWarning: "WF_EXECUTION_MODE_MISSING"},
+		{name: "invalid", mode: "yolo", wantWarning: "WF_EXECUTION_MODE_MISSING", wantError: "WF_EXECUTION_MODE_INVALID"},
 	}
 
-	for _, mode := range []string{"observer", "mutating", "destructive"} {
-		t.Run(mode, func(t *testing.T) {
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			v, err := NewValidator()
+			if err != nil {
+				t.Fatalf("failed to init validator: %v", err)
+			}
+
+			metadata := map[string]any{"description": "execution mode case"}
+			if tc.mode != "" {
+				metadata["execution_mode"] = tc.mode
+			}
 			workflow := map[string]any{
-				"metadata": map[string]any{
-					"description":    "test execution mode",
-					"execution_mode": mode,
-				},
-				"nodes": []any{
-					map[string]any{
-						"id":   "nav",
-						"type": "navigate",
-						"data": map[string]any{
-							"destinationType": "url",
-							"url":             "https://example.com",
-							"label":           "Go to site",
-						},
+				"metadata": metadata,
+				"nodes": []any{map[string]any{
+					"id":   "nav",
+					"type": "navigate",
+					"data": map[string]any{
+						"destinationType": "url",
+						"url":             "https://example.com",
+						"label":           "Go to site",
 					},
-				},
+				}},
 				"edges": []any{},
 			}
 
@@ -2167,99 +1955,31 @@ func TestValidatorExecutionModeValid(t *testing.T) {
 			if err != nil {
 				t.Fatalf("validation returned error: %v", err)
 			}
-
-			if !res.Stats.HasExecutionMode {
-				t.Error("expected HasExecutionMode to be true")
+			if got := res.Stats.HasExecutionMode; got != (tc.wantMode != "") {
+				t.Errorf("HasExecutionMode = %v, want %v", got, tc.wantMode != "")
 			}
-			if res.Stats.ExecutionMode != mode {
-				t.Errorf("expected ExecutionMode %q, got %q", mode, res.Stats.ExecutionMode)
+			if tc.wantMode != "" && res.Stats.ExecutionMode != tc.wantMode {
+				t.Errorf("ExecutionMode = %q, want %q", res.Stats.ExecutionMode, tc.wantMode)
 			}
-
-			// Should have no WF_EXECUTION_MODE_MISSING warning
-			for _, w := range res.Warnings {
-				if w.Code == "WF_EXECUTION_MODE_MISSING" {
-					t.Error("unexpected WF_EXECUTION_MODE_MISSING warning when execution_mode is set")
+			if tc.wantWarning != "" {
+				assertIssue(t, res.Warnings, tc.wantWarning)
+			}
+			if tc.wantWarning == "" {
+				for _, issue := range res.Warnings {
+					if issue.Code == "WF_EXECUTION_MODE_MISSING" {
+						t.Errorf("unexpected %s warning", issue.Code)
+					}
 				}
 			}
-			// Should have no WF_EXECUTION_MODE_INVALID error
-			for _, e := range res.Errors {
-				if e.Code == "WF_EXECUTION_MODE_INVALID" {
-					t.Error("unexpected WF_EXECUTION_MODE_INVALID error for valid mode")
+			if tc.wantError != "" {
+				assertIssue(t, res.Errors, tc.wantError)
+			} else {
+				for _, issue := range res.Errors {
+					if issue.Code == "WF_EXECUTION_MODE_INVALID" {
+						t.Errorf("unexpected %s error", issue.Code)
+					}
 				}
 			}
 		})
 	}
-}
-
-func TestValidatorExecutionModeMissing(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
-	}
-
-	workflow := map[string]any{
-		"metadata": map[string]any{
-			"description": "no execution mode",
-		},
-		"nodes": []any{
-			map[string]any{
-				"id":   "nav",
-				"type": "navigate",
-				"data": map[string]any{
-					"destinationType": "url",
-					"url":             "https://example.com",
-					"label":           "Go to site",
-				},
-			},
-		},
-		"edges": []any{},
-	}
-
-	res, err := v.Validate(context.Background(), workflow, Options{})
-	if err != nil {
-		t.Fatalf("validation returned error: %v", err)
-	}
-
-	if res.Stats.HasExecutionMode {
-		t.Error("expected HasExecutionMode to be false")
-	}
-
-	assertIssue(t, res.Warnings, "WF_EXECUTION_MODE_MISSING")
-}
-
-func TestValidatorExecutionModeInvalid(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
-	}
-
-	workflow := map[string]any{
-		"metadata": map[string]any{
-			"description":    "bad execution mode",
-			"execution_mode": "yolo",
-		},
-		"nodes": []any{
-			map[string]any{
-				"id":   "nav",
-				"type": "navigate",
-				"data": map[string]any{
-					"destinationType": "url",
-					"url":             "https://example.com",
-					"label":           "Go to site",
-				},
-			},
-		},
-		"edges": []any{},
-	}
-
-	res, err := v.Validate(context.Background(), workflow, Options{})
-	if err != nil {
-		t.Fatalf("validation returned error: %v", err)
-	}
-
-	if res.Stats.HasExecutionMode {
-		t.Error("expected HasExecutionMode to be false for invalid mode")
-	}
-
-	assertIssue(t, res.Errors, "WF_EXECUTION_MODE_INVALID")
 }

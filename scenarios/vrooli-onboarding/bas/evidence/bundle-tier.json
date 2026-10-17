@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "producer": "browser-automation-studio",
+  "scenario": "vrooli-onboarding",
+  "generated_at": "2026-08-12T23:24:00Z",
+  "records": [
+    {
+      "requirement_id": "ONB-TIER-BUNDLE-COMPLETENESS",
+      "validation_ref": "bas/evidence/bundle-tier.json",
+      "status": "passed",
+      "phase": "integration",
+      "evidence": "BAS execution 7076a1e2-747f-49b8-b91c-180d6f34fc99 completed the all-steps bundle case with only BUNDLE_ROOT set; the V2 endpoint sweep returned HTTP 200 for every endpoint and the video artifact was non-empty.",
+      "source_path": "bas/cases/accessibility/all-steps.json",
+      "run_id": "7076a1e2-747f-49b8-b91c-180d6f34fc99",
+      "metadata": {
+        "artifact_path": "execution-7076a1e2-747f-49b8-b91c-180d6f34fc99-page-1.webm",
+        "artifact_sha256": "127effab0d00fc8e9d65b1f8a3966f8a1c15090d31c6364b14fd114aafeb833c",
+        "artifact_size_bytes": 1400307,
+        "bundle_root_only": true,
+        "repository_present": false,
+        "endpoint_sweep_http_status": 200
+      }
+    }
+  ]
+}

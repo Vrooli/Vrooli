@@ -1,3 +1,23 @@
+---
+name: "e2e-testing"
+description: "Strategy and implementation guide for end-to-end testing using BAS workflows and requirement integration"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","test"]
+  tags: ["skill"]
+  icon: "checkcircle"
+  status: "active"
+  revision: 49
+  createdAt: "2026-01-25T00:00:00Z"
+  updatedAt: "2026-07-21T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager", "vrooli"]
+    commands: ["prompt-manager skill", "prompt-manager skill read", "vrooli scenario"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: E2E Testing with Browser Automation Studio
 
 Prioritize **end-to-end test coverage** for critical user journeys using BAS workflows.
@@ -8,10 +28,10 @@ Focus on validating **requirements and user-visible behavior**, not implementati
 For CLI commands and artifact analysis, see the **browser-automation-studio** skill.
 
 Required reading:
-- `prompt-manager skills read visited-tracker-tools knowledge-observatory-tools`
+- `prompt-manager skill read visited-tracker-tools knowledge-observatory-tools`
 
 Optional reading:
-- `prompt-manager skills read browser-automation-studio`
+- `prompt-manager skill read browser-automation-studio`
 
 ---
 
@@ -220,6 +240,23 @@ Link E2E tests to requirements using the `automation` validation type.
 vrooli scenario requirements manual-log {{TARGET}} REQ-XXX "Reason for manual check"
 ```
 Then build a BAS workflow as soon as possible.
+
+#### Acceptance-Criteria Wording (Gherkin)
+
+Write workflow `metadata.description` values and any acceptance criteria in
+**Given/When/Then** form: "Given a logged-out user on /login, when they submit
+valid credentials, then the dashboard heading is visible." The shape forces
+you to name the starting state, the action, and the observable outcome — the
+three things a workflow must encode anyway — and it maps one-to-one onto the
+workflow's setup steps, action steps, and assertions. Avoid intent-free
+descriptions ("test login works").
+
+One anti-pattern to refuse: after a feature is **removed**, do not author a
+workflow asserting the old UI is gone (a tombstone test). Delete the old
+workflow, update the requirement, and cover the replacement behavior
+positively. An ongoing prohibition (e.g. a locked-out user must not reach the
+dashboard) is different — write it as a positive assertion on the observable
+response (the lockout message is visible).
 
 ---
 
@@ -491,10 +528,43 @@ Use `knowledge-observatory-tools` to read the current `problems` doc for `{{TARG
 
 ---
 
+### **9. Two-Engine Test Isolation (Automatic)**
+
+Mutating workflow execution is allowed only when workflow-health installs a
+lease on the running target scenario. The lease covers both the test database
+and leased file roots. There is no restart fallback.
+
+workflow-health attaches `X-Vrooli-Test-Mode: 1` to every BAS execution,
+including observer-labeled cases. The header is a safety net for a mistaken
+label; do not add it manually to workflow JSON.
+
+| Execution mode | Allowed node types | Required labels | Meaning |
+|---|---|---|---|
+| `observer` | `navigate`, `screenshot`, `assert`, `extract`, `wait` | `reset: none` | Read-only observation. A click, input, or subflow that resolves to a mutating action fails catalog validation. |
+| `mutating` | Any supported action | `requires_confirmation: "true"`, `routed_isolation: "true"`, plus `reset` | Creates or changes state only in the lease. |
+| `destructive` | Any supported action | Same as `mutating` | Deletes or irreversibly changes leased state; use only when the journey requires it. |
+
+`reset` is one of `none`, `partial`, or `full`. Use `full` only when the case
+declares deterministic seed or fixture setup. Config-class file writes route
+to the leased root under test mode; data, cache, logs, and state roots begin
+empty. ClearTestPool returns SQL and file leak counters. Any primary-storage
+counter is a hard failure.
+
+What this means for test authors:
+
+- **Seed data**: any `bas/seeds/seed.go` runs against the leased test database and file roots, not production storage.
+- **Mutations are safe only after proof**: workflows can create, update, delete after the target passes storage-manager's SQL and file seam checks; otherwise workflow-health refuses them.
+- **Don't try to set the test-mode header yourself** in workflow JSON. It's already attached at the browser context for every request; doing it again per-step is redundant and confusing.
+- **If your test only passes against prod data**, it's not really an E2E test — it's an observation. Fix it: seed what you need.
+
+Full details (mode flag, opt-in for new scenarios, lease/concurrency model) live in `path:docs/agent-system/routed-test-db.md`. Test authors usually don't need to read it.
+
+---
+
 ### **10. Output Expectations**
 
 You may update:
-* Workflow JSON files in `bas/cases/`, `bas/flows/`, `bas/actions/`
+* Workflow JSON files in `path:bas/cases/`, `path:bas/flows/`, `path:bas/actions/`
 * Selector registry in `ui/src/constants/selectors.ts`
 * Component `data-testid` attributes
 * Requirements validation references

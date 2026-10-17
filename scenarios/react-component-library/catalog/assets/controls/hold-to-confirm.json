@@ -1,0 +1,64 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "controls.hold-to-confirm",
+    "name": "HoldToConfirm",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "controls",
+    "description": "The deliberate-action control requiring sustained activation, showing progress toward commitment, supporting cancellation, and always offering a keyboard-accessible alternative.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P2",
+      "maturity": "implemented",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Sizing, spacing, and radius resolve to declared ramps rather than literals."
+      },
+      {
+        "asset": "controls.pressable",
+        "reason": "Pointer, touch, keyboard, press, and focus-visible behavior is owned once rather than reimplemented."
+      },
+      {
+        "asset": "hooks.use-long-press",
+        "reason": "Sustained activation shares movement tolerance and cancellation."
+      },
+      {
+        "asset": "primitives.progress",
+        "reason": "Commitment progress is shown through the shared progress primitive."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "tap-target-size",
+    "contrast-floor",
+    "hover-contrast",
+    "cursor-discipline",
+    "ramp-conformance",
+    "dark-parity",
+    "text-scale-resilience",
+    "gesture-alternative",
+    "destructive-confirmation",
+    "status-announced",
+    "reduced-motion"
+  ],
+  "beauty": {
+    "signatureMoment": {
+      "description": "Holding visibly fills toward commitment and releasing early visibly unwinds, so the user feels the weight of the action before it happens."
+    }
+  }
+}

@@ -25,6 +25,7 @@ export const createMetricHistory = (overrides: Partial<MetricHistory> = {}): Met
   sampleIntervalSeconds: 5,
   cpu: [],
   memory: [],
+  swap: [],
   network: [],
   ...overrides,
 })

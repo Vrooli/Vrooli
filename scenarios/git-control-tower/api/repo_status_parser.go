@@ -140,7 +140,7 @@ func parseChangedRecord(status *RepoStatus, record string) error {
 	return nil
 }
 
-func parseRenamedRecord(status *RepoStatus, record string, _ string) error {
+func parseRenamedRecord(status *RepoStatus, record string, orig string) error {
 	xy, ok := nthField(record, 1)
 	if !ok || len(xy) < 2 {
 		return fmt.Errorf("invalid rename record: %q", record)
@@ -152,6 +152,7 @@ func parseRenamedRecord(status *RepoStatus, record string, _ string) error {
 	unquotedPath := unquoteGitPath(path)
 	addPathByXY(status, xy[:2], unquotedPath)
 	recordStatus(status, unquotedPath, xy[:2])
+	recordRename(status, unquotedPath, unquoteGitPath(orig))
 	return nil
 }
 
@@ -185,6 +186,19 @@ func addPathByXY(status *RepoStatus, xy string, path string) {
 	if worktree != '.' {
 		status.Files.Unstaged = append(status.Files.Unstaged, path)
 	}
+}
+
+// recordRename remembers where a renamed or copied path came from. A rename
+// whose origin equals its destination carries no extra information and is
+// skipped so callers can treat a present entry as a genuine pair.
+func recordRename(status *RepoStatus, path string, orig string) {
+	if path == "" || orig == "" || path == orig {
+		return
+	}
+	if status.Files.Renames == nil {
+		status.Files.Renames = map[string]string{}
+	}
+	status.Files.Renames[path] = orig
 }
 
 func recordStatus(status *RepoStatus, path string, code string) {

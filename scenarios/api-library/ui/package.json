@@ -3,28 +3,28 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-router-dom": "^6.20.0",
+    "@vrooli/api-base": "file:../../../packages/api-base",
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
+    "@vrooli/react-component-library": "file:../../../packages/react-component-library",
     "axios": "^1.6.2",
     "lucide-react": "^0.294.0",
-    "@vrooli/api-base": "file:../../../packages/api-base",
-    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.20.0"
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build && node -e \"const fs=require('fs');const path=require('path');const cwd=process.cwd();const buildDir=path.join(cwd,'build');const distDir=path.join(cwd,'dist');if(!fs.existsSync(buildDir)){console.error('[WARN] Missing build output at', buildDir);process.exit(1);}if(fs.existsSync(distDir)){fs.rmSync(distDir,{recursive:true,force:true});}fs.cpSync(buildDir,distDir,{recursive:true});\"",
+    "build": "react-scripts build && node scripts/stage-dist.mjs",
     "test": "react-scripts test",
-    "eject": "react-scripts eject",
-    "postinstall": "bash -c 'mkdir -p node_modules/@vrooli && ln -snf ../../../../../packages/iframe-bridge node_modules/@vrooli/iframe-bridge'"
+    "eject": "react-scripts eject"
   },
   "devDependencies": {
-    "react-scripts": "5.0.1",
+    "@testing-library/jest-dom": "^6.1.5",
+    "@testing-library/react": "^14.0.0",
+    "@testing-library/user-event": "^14.5.1",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
-    "@testing-library/react": "^14.0.0",
-    "@testing-library/jest-dom": "^6.1.5",
-    "@testing-library/user-event": "^14.5.1"
+    "react-scripts": "5.0.1"
   },
   "eslintConfig": {
     "extends": [

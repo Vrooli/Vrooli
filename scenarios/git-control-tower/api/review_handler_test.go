@@ -50,6 +50,10 @@ func (m *mockTestGenieClient) ExecuteSuite(_ context.Context, _ TestExecutionReq
 	return m.execRes, m.execErr
 }
 
+func (m *mockTestGenieClient) GetExecution(_ context.Context, _ string) (*TestExecutionResult, error) {
+	return m.execRes, m.execErr
+}
+
 type mockAuditorClient struct {
 	violations    *AuditorViolationsResponse
 	violationsErr error
@@ -654,6 +658,17 @@ func TestReviewJobStore_ActiveJobForScenario(t *testing.T) {
 	store.Complete("job-1", nil)
 	if id := store.ActiveJobForScenario("foo"); id != "" {
 		t.Errorf("expected empty after complete, got %s", id)
+	}
+}
+
+func TestReviewJobStore_IdempotencyIdentity(t *testing.T) {
+	store := NewReviewJobStore()
+	store.CreateWithIdempotency("job-1", "request-1", []string{"tests"}, "foo", 0, DefaultReadinessThresholds())
+	if id, ok := store.FindByIdempotency("request-1"); !ok || id != "job-1" {
+		t.Fatalf("expected request-1 to resolve to job-1, got %q, %v", id, ok)
+	}
+	if _, ok := store.FindByIdempotency("request-2"); ok {
+		t.Fatal("unexpected idempotency match for a different request")
 	}
 }
 

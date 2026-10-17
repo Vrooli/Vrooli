@@ -1,0 +1,25 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "desktop-packaging-orchestrator",
+  "displayName": "Desktop Packaging Orchestrator",
+  "description": "Long-lived orchestrator of the native-feel desktop packaging goal: admits and accepts epochs, spawns and steers one Luna epoch worker per epoch, parks between check-ins, and owns the goal home.",
+  "status": "active",
+  "appearance": {
+    "body": "#3B82F6",
+    "head": "#F59E0B",
+    "accent": "#10B981"
+  },
+  "tags": [
+    "delivery",
+    "orchestration",
+    "scenario-to-desktop",
+    "performance"
+  ],
+  "fileOrder": [
+    "AGENT.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-10-06T20:11:53Z",
+  "updatedAt": "2026-10-06T20:11:53Z"
+}

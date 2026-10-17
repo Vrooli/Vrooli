@@ -1,6 +1,7 @@
 import { useCallback, useRef } from 'react';
 import { describe, expect, it, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
+import { renderWithProviders as render } from '@/test-utils';
 import { computeAnchoredPopoverStyle } from './anchoredPopoverUtils';
 import { useAnchoredPopover } from './useAnchoredPopover';
 

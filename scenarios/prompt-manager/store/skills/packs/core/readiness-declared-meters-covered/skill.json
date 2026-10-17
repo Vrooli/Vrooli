@@ -1,0 +1,23 @@
+{
+  "createdAt": "2026-09-01T20:28:23Z",
+  "description": "Evaluate the deployment readiness check: Declared meters have limits and enforcement",
+  "entry": "SKILL.md",
+  "id": "readiness-declared-meters-covered",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "tools"
+  ],
+  "name": "readiness-declared-meters-covered",
+  "origin": {
+    "kind": "authored"
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "readiness-check",
+    "deployment-manager"
+  ],
+  "updatedAt": "2026-09-01T20:28:23Z"
+}

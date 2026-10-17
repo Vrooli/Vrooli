@@ -266,6 +266,22 @@ Conversions are tracked when Stripe checkout completes:
 
 ## Client-Side Implementation
 
+## Read contracts
+
+The canonical machine-readable read surface is Connect. `MetricsService` owns
+`GetAnalyticsSummary`, `GetVariantStats`, `GetTrafficBreakdown`, and
+`GetTrafficSeries`; `AdminRevenueService.GetRevenueSummary` owns finance
+aggregates; and `BusinessDigestService.GetBusinessDigest` owns the windowed
+visitor-to-revenue digest. Read procedures accept an admin session or a
+scoped `metrics:read` reader token. They return aggregate data only: no email,
+visitor id, IP address, or other identity is exposed. Supported digest windows
+are 7, 30, and 90 days, defaulting to 30.
+
+Analytics reads count `traffic_class=human` events only. Bot and internal
+exclusions remain observable in the digest. Traffic breakdown shares are based
+on distinct visitor keys and carry an `exhaustive` flag when a limit truncates
+the result.
+
 Example JavaScript for tracking:
 
 ```javascript
@@ -310,6 +326,6 @@ track('click', { element_id: 'hero-cta' });
 
 ## See Also
 
-- [API Overview](README.md)
+- [API Overview](OVERVIEW.md)
 - [Variants](variants.md) - A/B testing with metrics
 - [Admin Guide](../../guides/ADMIN_GUIDE.md#analytics-dashboard) - Using the analytics dashboard

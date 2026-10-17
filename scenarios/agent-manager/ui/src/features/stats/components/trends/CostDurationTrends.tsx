@@ -1,5 +1,6 @@
 // Cost and Duration Trends - dual-axis line chart
 
+import { useMemo } from "react";
 import {
   LineChart,
   Line,
@@ -18,43 +19,31 @@ import {
 import { formatChartAxisByPreset, formatStatsDateTime } from "../../../../lib/dateTime";
 import { formatUsdFixed } from "../../../../lib/currency";
 import { CHART_COLORS, CHART_MARGINS, TOOLTIP_STYLE } from "../../utils/chartConfig";
+import { MeasureFrame } from "../measure/MeasureFrame";
+import { useMeasureDefinitions } from "../../hooks/useMeasureDefinitions";
 
 export function CostDurationTrends() {
   const { data, isLoading, error } = useRunTrends();
   const { preset } = useTimeWindow();
+  const definitions = useMeasureDefinitions();
+  const buckets = data?.buckets;
+  const { chartData, maxCost, maxDuration } = useMemo(() => {
+    const nextChartData = (buckets ?? []).map((bucket) => ({
+      time: bucket.timestamp,
+      cost: bucket.totalCostUsd,
+      duration: bucket.avgDurationMs,
+    }));
 
-  if (isLoading) {
-    return (
-      <div className="rounded-lg border border-border bg-card/50 p-4 sm:p-6">
-        <div className="mb-2 sm:mb-4 h-5 w-40 animate-pulse rounded bg-muted/30" />
-        <div className="h-[200px] sm:h-[300px] animate-pulse rounded bg-muted/20" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-4 sm:p-6">
-        <h3 className="text-sm font-semibold">Cost & Duration</h3>
-        <p className="mt-2 text-sm text-red-500">Failed to load: {error.message}</p>
-      </div>
-    );
-  }
-
-  const buckets = data?.buckets ?? [];
-
-  const chartData = buckets.map((bucket) => ({
-    time: bucket.timestamp,
-    cost: bucket.totalCostUsd,
-    duration: bucket.avgDurationMs,
-  }));
-
-  // Find max values for dual axes
-  const maxCost = Math.max(...chartData.map((d) => d.cost), 0);
-  const maxDuration = Math.max(...chartData.map((d) => d.duration), 0);
+    return {
+      chartData: nextChartData,
+      maxCost: Math.max(...nextChartData.map((d) => d.cost), 0),
+      maxDuration: Math.max(...nextChartData.map((d) => d.duration), 0),
+    };
+  }, [buckets]);
 
   return (
-    <div className="rounded-lg border border-border bg-card/50 p-4 sm:p-6">
+    <MeasureFrame label="Cost and duration trends" result={data?.measure} definition={definitions.data?.find((item) => item.id === "throughput.terminal_run_trend")} loading={isLoading} error={error?.message}>
+    <div className="rounded-lg border border-border bg-card/50 p-4 sm:p-6 min-w-0">
       <h3 className="mb-2 sm:mb-4 text-sm font-semibold text-muted-foreground">
         Cost & Duration Trends
       </h3>
@@ -94,10 +83,12 @@ export function CostDurationTrends() {
               />
               <Tooltip
                 contentStyle={TOOLTIP_STYLE}
-                labelFormatter={(label: string) => formatStatsDateTime(label)}
-                formatter={(value: number, name: string) => {
-                  if (name === "Cost") return [formatUsdFixed(value, 2), name];
-                  return [formatDuration(value), name];
+                labelFormatter={(label) => formatStatsDateTime(String(label ?? ""))}
+                formatter={(value, name) => {
+                  const numericValue = typeof value === "number" ? value : Number(value ?? 0);
+                  const label = String(name ?? "");
+                  if (label === "Cost") return [formatUsdFixed(numericValue, 2), label];
+                  return [formatDuration(numericValue), label];
                 }}
               />
               <Legend
@@ -126,5 +117,6 @@ export function CostDurationTrends() {
         </div>
       )}
     </div>
+    </MeasureFrame>
   );
 }

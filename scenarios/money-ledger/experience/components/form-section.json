@@ -1,0 +1,51 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "form-section",
+    "title": "FormSection",
+    "purpose": "A semantic section that keeps form hierarchy, validation context, and optional disclosure coherent.",
+    "storyRef": "../../../react-component-library/library/components/FormSection/versions/1.0.0/story.json"
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "A readable group of related fields."
+    },
+    {
+      "id": "validation",
+      "example": "validation",
+      "description": "A visible issue count keeps recovery context near the section."
+    },
+    {
+      "id": "collapsed",
+      "example": "collapsed",
+      "description": "Optional disclosure reduces secondary-task density."
+    }
+  ],
+  "claims": [
+    {
+      "id": "semantic-group",
+      "type": "custom",
+      "statement": "The section preserves heading, field grouping, and live validation context without requiring consumer layout glue.",
+      "tier": "manual",
+      "states": ["default", "validation"]
+    },
+    {
+      "id": "keyboard-collapse",
+      "type": "custom",
+      "statement": "Collapsible sections use a native button with an accurate expanded relationship and remain keyboard-operable.",
+      "tier": "manual",
+      "states": ["collapsed"]
+    },
+    {
+      "id": "responsive-rhythm",
+      "type": "custom",
+      "statement": "Section padding and field rhythm remain readable on narrow screens without horizontal overflow.",
+      "tier": "manual",
+      "states": ["default", "validation", "collapsed"]
+    }
+  ]
+}

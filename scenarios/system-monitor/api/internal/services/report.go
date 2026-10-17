@@ -1,4 +1,5 @@
 package services
+
 // DOC: docs/concepts/ARCHITECTURE.md#reporting
 
 import (
@@ -9,10 +10,10 @@ import (
 	"sort"
 	"time"
 
-	"system-monitor-api/internal/apierrors"
-	"system-monitor-api/internal/config"
-	"system-monitor-api/internal/models"
-	"system-monitor-api/internal/repository"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
 )
 
 // ReportService handles report generation and analysis
@@ -185,21 +186,37 @@ func (s *ReportService) generateExecutiveSummary(metrics []*models.MetricsRespon
 	var highCPUCount, highMemoryCount int
 
 	for _, metric := range metrics {
-		totalCPU += metric.CPUUsage
-		totalMemory += metric.MemoryUsage
-		totalTCP += metric.TCPConnections
+		if metric.CPUState.Status == "measured" {
+			totalCPU += metric.CPUUsage
+		}
+		if metric.MemoryState.Status == "measured" {
+			totalMemory += metric.MemoryUsage
+		}
+		if metric.ConnectionsState.Status == "measured" {
+			totalTCP += metric.TCPConnections
+		}
 
-		if metric.CPUUsage > 80 {
+		if metric.CPUState.Status == "measured" && metric.CPUUsage > 80 {
 			highCPUCount++
 		}
-		if metric.MemoryUsage > 85 {
+		if metric.MemoryState.Status == "measured" && metric.MemoryUsage > 85 {
 			highMemoryCount++
 		}
 	}
 
-	avgCPU := totalCPU / float64(len(metrics))
-	avgMemory := totalMemory / float64(len(metrics))
-	avgTCP := float64(totalTCP) / float64(len(metrics))
+	cpuMetrics := measuredCPU(metrics)
+	memoryMetrics := measuredMemory(metrics)
+	networkMetrics := measuredConnections(metrics)
+	avgCPU, avgMemory, avgTCP := 0.0, 0.0, 0.0
+	if len(cpuMetrics) > 0 {
+		avgCPU = totalCPU / float64(len(cpuMetrics))
+	}
+	if len(memoryMetrics) > 0 {
+		avgMemory = totalMemory / float64(len(memoryMetrics))
+	}
+	if len(networkMetrics) > 0 {
+		avgTCP = float64(totalTCP) / float64(len(networkMetrics))
+	}
 
 	// Determine overall health
 	health := "healthy"
@@ -250,8 +267,8 @@ func (s *ReportService) analyzePerformance(metrics []*models.MetricsResponse, ti
 	}
 
 	// Calculate performance statistics with timestamps
-	cpuStats := calculateStatsWithTime(metrics, func(m *models.MetricsResponse) float64 { return m.CPUUsage })
-	memoryStats := calculateStatsWithTime(metrics, func(m *models.MetricsResponse) float64 { return m.MemoryUsage })
+	cpuStats := calculateStatsWithTime(measuredCPU(metrics), func(m *models.MetricsResponse) float64 { return m.CPUUsage })
+	memoryStats := calculateStatsWithTime(measuredMemory(metrics), func(m *models.MetricsResponse) float64 { return m.MemoryUsage })
 
 	return models.PerformanceAnalysis{
 		CPU: models.MetricStats{
@@ -332,6 +349,25 @@ func calculateStatsWithTime(metrics []*models.MetricsResponse, valueExtractor fu
 		minTime: minTime,
 		maxTime: maxTime,
 	}
+}
+
+func measuredCPU(metrics []*models.MetricsResponse) []*models.MetricsResponse {
+	return measuredMetric(metrics, func(m *models.MetricsResponse) bool { return m.CPUState.Status == "measured" })
+}
+func measuredMemory(metrics []*models.MetricsResponse) []*models.MetricsResponse {
+	return measuredMetric(metrics, func(m *models.MetricsResponse) bool { return m.MemoryState.Status == "measured" })
+}
+func measuredConnections(metrics []*models.MetricsResponse) []*models.MetricsResponse {
+	return measuredMetric(metrics, func(m *models.MetricsResponse) bool { return m.ConnectionsState.Status == "measured" })
+}
+func measuredMetric(metrics []*models.MetricsResponse, keep func(*models.MetricsResponse) bool) []*models.MetricsResponse {
+	result := make([]*models.MetricsResponse, 0, len(metrics))
+	for _, metric := range metrics {
+		if keep(metric) {
+			result = append(result, metric)
+		}
+	}
+	return result
 }
 
 // formatDuration formats a duration in a human-readable format

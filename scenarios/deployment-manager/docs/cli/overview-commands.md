@@ -178,4 +178,4 @@ deployment-manager fitness picker-wheel
 
 - [Fitness Scoring Guide](../guides/fitness-scoring.md) - Detailed scoring rubric
 - [Dependency Swapping Guide](../guides/dependency-swapping.md) - How to resolve blockers
-- [Tier Reference](../tiers/README.md) - What each tier means
+- [Tier Reference](../tiers/tier-2-desktop.md) - What the desktop tier means

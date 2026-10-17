@@ -5,8 +5,11 @@ import (
 	"context"
 	"image"
 	"image/color"
+	"image/jpeg"
 	"image/png"
 	"io"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/google/uuid"
@@ -38,6 +41,78 @@ func TestFileStorage_StoreAndGet(t *testing.T) {
 	assert.Equal(t, data, readData)
 	assert.Equal(t, int64(len(data)), meta.Size)
 	assert.Equal(t, "image/png", meta.ContentType)
+}
+
+func TestFileStorage_StoreArtifactFromFileReportsCopiedByteDigest(t *testing.T) {
+	root := t.TempDir()
+	store, err := NewFileStorage(root, nil)
+	require.NoError(t, err)
+	data := []byte("trace bytes retained by file storage")
+	source := filepath.Join(root, "trace.zip")
+	require.NoError(t, os.WriteFile(source, data, 0o600))
+
+	info, err := store.StoreArtifactFromFile(context.Background(), uuid.New(), "trace", source, "application/zip")
+	require.NoError(t, err)
+	require.Equal(t, artifactDigest(data), info.SHA256)
+
+	stored, _, err := store.GetArtifact(context.Background(), info.ObjectName)
+	require.NoError(t, err)
+	defer stored.Close()
+	actual, err := io.ReadAll(stored)
+	require.NoError(t, err)
+	require.Equal(t, artifactDigest(actual), info.SHA256)
+}
+
+func TestFileStorage_StoreJPEGUsesMatchingExtensionAndContentType(t *testing.T) {
+	root := t.TempDir()
+	store, err := NewFileStorage(root, nil)
+	require.NoError(t, err)
+
+	var encoded bytes.Buffer
+	require.NoError(t, jpeg.Encode(&encoded, image.NewRGBA(image.Rect(0, 0, 3, 2)), nil))
+	execID := uuid.New()
+	info, err := store.StoreScreenshot(context.Background(), execID, "jpeg-capture", encoded.Bytes(), "image/jpeg")
+	require.NoError(t, err)
+	require.NotNil(t, info)
+	assert.True(t, bytes.HasSuffix([]byte(info.ObjectName), []byte(".jpg")), info.ObjectName)
+
+	reader, meta, err := store.GetScreenshot(context.Background(), info.ObjectName)
+	require.NoError(t, err)
+	defer reader.Close()
+	stored, err := io.ReadAll(reader)
+	require.NoError(t, err)
+	assert.Equal(t, encoded.Bytes(), stored)
+	assert.Equal(t, "image/jpeg", meta.ContentType)
+}
+
+func TestMemoryStorage_StoreJPEGUsesMatchingObjectExtension(t *testing.T) {
+	store := NewMemoryStorage()
+	execID := uuid.New()
+	data := []byte("jpeg bytes")
+	info, err := store.StoreScreenshot(context.Background(), execID, "jpeg-capture", data, "image/jpeg")
+	require.NoError(t, err)
+	require.NotNil(t, info)
+	assert.True(t, bytes.HasSuffix([]byte(info.ObjectName), []byte(".jpg")), info.ObjectName)
+
+	reader, meta, err := store.GetScreenshot(context.Background(), info.ObjectName)
+	require.NoError(t, err)
+	defer reader.Close()
+	stored, err := io.ReadAll(reader)
+	require.NoError(t, err)
+	assert.Equal(t, data, stored)
+	assert.Equal(t, "image/jpeg", meta.ContentType)
+}
+
+func TestScreenshotExtensionMatchesSupportedImageTypes(t *testing.T) {
+	for _, tc := range []struct{ contentType, want string }{
+		{"image/png", ".png"},
+		{"image/png; charset=binary", ".png"},
+		{"image/jpeg", ".jpg"},
+		{"image/gif", ".gif"},
+		{"unknown", ".png"},
+	} {
+		t.Run(tc.contentType, func(t *testing.T) { assert.Equal(t, tc.want, screenshotExtension(tc.contentType)) })
+	}
 }
 
 func TestFileStorage_DeleteAndList(t *testing.T) {

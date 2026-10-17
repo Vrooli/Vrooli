@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "scenario": "music-library",
+  "input_digest": "sha256:e8f8fe20dc64fceea677b790581219fd4a0aa95b690b0b9dd528af9fa7d1bf45",
+  "input_files": [
+    "schemas/measures/v1/measures.proto",
+    "schemas/music-library/v1/notes/attachments.proto",
+    "schemas/music-library/v1/notes/notes.proto",
+    "schemas/music-library/v1/shared/errors.proto",
+    "schemas/music-library/v1/shared/health.proto",
+    "vendor/protovalidate/buf/validate/validate.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/music-library/v1/notes/attachments.pb.go": "sha256:c343cb2b6ff6895b0c4e8c3915fbce4889332e4f9d79038b790094af187830d5",
+    "gen/go/music-library/v1/notes/notes.pb.go": "sha256:8fc46539c50fad09ddfda7b24c92905fc4bbfb0411ceb5955a934cee342790dd",
+    "gen/go/music-library/v1/notes/notes_v1connect/notes.connect.go": "sha256:7c1654952081a189dc1a239c7b3248919b70a3c587ac18f6b6ade3ce1d861cfc",
+    "gen/go/music-library/v1/shared/errors.pb.go": "sha256:536abe964ab95d049ff504573f9d79a99f5455498d709b9c72cdc89004519b70",
+    "gen/go/music-library/v1/shared/health.pb.go": "sha256:5292e0d1792f1bdc51a604d7025113a412c16d521470a750e99c5bb08adb80f9",
+    "gen/python/music_library/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/music_library/v1/notes/attachments_pb2.py": "sha256:515ae315f843a153fd4722e038ebbab74c7d59e3c7b3cabf1d8c354f5cbc67b2",
+    "gen/python/music_library/v1/notes/attachments_pb2.pyi": "sha256:5594188beec26dac8bb0ab7d1ece27e28d425bc57b7544c9e509610cbb5e37fa",
+    "gen/python/music_library/v1/notes/notes_pb2.py": "sha256:3c85d2c0f870f1c9013b7ce03a6f870f5868b8aac6c1434d82d4b9f9a7407931",
+    "gen/python/music_library/v1/notes/notes_pb2.pyi": "sha256:359aac5d47799ae41e88608988e03caee63bd56ec270e6b9959e4bcd3b139386",
+    "gen/python/music_library/v1/notes/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/music_library/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/music_library/v1/shared/errors_pb2.py": "sha256:a1190e24ac88a7cb51b4b1483ea8e600063c374bf8f0fd7d71923e0f7134a667",
+    "gen/python/music_library/v1/shared/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
+    "gen/python/music_library/v1/shared/health_pb2.py": "sha256:0f873f4805aa931c855a44cd1b9799be98a0c6f93d391ac72abc8e8891d5c515",
+    "gen/python/music_library/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
+    "gen/python/music_library/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/music-library/v1/notes/attachments_pb.ts": "sha256:fafe6d5090a3ba0126b9396a9258edc4aaeada63b9a111a082690b703eeb326f",
+    "gen/typescript/music-library/v1/notes/notes_pb.ts": "sha256:39db1b193992d1050ca1b875b0768a417f5569b378fe3d1d89c1563b43027760",
+    "gen/typescript/music-library/v1/shared/errors_pb.ts": "sha256:5189b203062fcc42573c38873f2f3aff17bda540aac33c537cbd9150facacc7d",
+    "gen/typescript/music-library/v1/shared/health_pb.ts": "sha256:e2daf09a51c85b04989ee6c27dc82c0948f765318170d297200dbaf22407cee4"
+  }
+}

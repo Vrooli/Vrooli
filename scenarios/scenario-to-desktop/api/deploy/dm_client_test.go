@@ -62,6 +62,21 @@ func TestDMClient_CreateApproval_Success(t *testing.T) {
 	}
 }
 
+func TestDMClient_SendsDeploymentManagerServiceCredential(t *testing.T) {
+	t.Setenv("DEPLOYMENT_MANAGER_SERVICE_TOKEN", "owner-token")
+	server := newTestDMServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Authorization"); got != "Bearer owner-token" {
+			t.Errorf("authorization = %q, want bearer token", got)
+		}
+		_ = json.NewEncoder(w).Encode(ReleaseGateStatus{Ready: true})
+	})
+	defer server.Close()
+	client := newTestDMClient(server.URL)
+	if _, err := client.CheckReleaseGate(context.Background(), "prof-1", "abc123"); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestDMClient_CreateApproval_409_Idempotent(t *testing.T) {
 	server := newTestDMServer(t, func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusConflict)

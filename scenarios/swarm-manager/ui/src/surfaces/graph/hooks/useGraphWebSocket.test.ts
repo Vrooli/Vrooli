@@ -108,7 +108,7 @@ describe("useGraphWebSocket", () => {
 
   it("refreshes only when the current lens is invalidated", async () => {
     const fetchGraphSpy = resetStore();
-    renderHook(() => useGraphWebSocket({ enabled: true, lens: "operations" }));
+    renderHook(() => useGraphWebSocket({ enabled: true, lens: "focus" }));
     const ws = getFirstSocket();
 
     await vi.advanceTimersByTimeAsync(0);
@@ -127,13 +127,13 @@ describe("useGraphWebSocket", () => {
     act(() => {
       ws.simulateMessage({
         type: "invalidate",
-        data: { lenses: ["topology", "operations"] },
+        data: { lenses: ["topology", "focus"] },
         timestamp: Date.now(),
       });
     });
 
     await vi.advanceTimersByTimeAsync(150);
-    expect(fetchGraphSpy).toHaveBeenCalledWith("operations", { silent: true, force: true });
+    expect(fetchGraphSpy).toHaveBeenCalledWith("focus", { silent: true, force: true });
   });
 
   it("ignores heartbeat messages", async () => {
@@ -158,7 +158,7 @@ describe("useGraphWebSocket", () => {
   it("pulses updated nodes without forcing a refresh on node events alone", async () => {
     const fetchGraphSpy = resetStore();
     const pulseSpy = vi.fn();
-    renderHook(() => useGraphWebSocket({ enabled: true, lens: "operations", onNodePulse: pulseSpy }));
+    renderHook(() => useGraphWebSocket({ enabled: true, lens: "focus", onNodePulse: pulseSpy }));
     const ws = getFirstSocket();
 
     await vi.advanceTimersByTimeAsync(0);
@@ -178,7 +178,7 @@ describe("useGraphWebSocket", () => {
 
   it("refreshes the current lens before reconnecting after close", async () => {
     const fetchGraphSpy = resetStore();
-    renderHook(() => useGraphWebSocket({ enabled: true, lens: "operations" }));
+    renderHook(() => useGraphWebSocket({ enabled: true, lens: "focus" }));
     const ws = getFirstSocket();
 
     await vi.advanceTimersByTimeAsync(0);
@@ -189,7 +189,7 @@ describe("useGraphWebSocket", () => {
 
     expect(fetchGraphSpy).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(1000);
-    expect(fetchGraphSpy).toHaveBeenCalledWith("operations", { silent: true, force: true });
+    expect(fetchGraphSpy).toHaveBeenCalledWith("focus", { silent: true, force: true });
     expect(MockWebSocket.instances).toHaveLength(2);
   });
 
@@ -216,5 +216,86 @@ describe("useGraphWebSocket", () => {
     unmount();
 
     expect(ws.close).toHaveBeenCalled();
+  });
+});
+
+describe("plan-lens invalidation coalescing", () => {
+  beforeEach(() => {
+    MockWebSocket.instances = [];
+    vi.stubGlobal("WebSocket", MockWebSocket);
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  // The Plan board refetches a whole cross-entity projection. A burst of
+  // mutations — a batch queue, a multi-item decision — must cost one refetch,
+  // not one per mutation.
+  it("collapses a burst of plan invalidations into a single refetch", async () => {
+    const fetchGraphSpy = resetStore();
+    renderHook(() => useGraphWebSocket({ enabled: true, lens: "plan" }));
+    const socket = getFirstSocket();
+
+    await act(async () => {
+      socket.simulateMessage({ type: "invalidate", data: { lenses: ["topology", "plan"] }, timestamp: 1 });
+      await vi.advanceTimersByTimeAsync(200);
+      socket.simulateMessage({ type: "invalidate", data: { lenses: ["topology", "plan"] }, timestamp: 2 });
+      await vi.advanceTimersByTimeAsync(200);
+      socket.simulateMessage({ type: "invalidate", data: { lenses: ["topology", "plan"] }, timestamp: 3 });
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+
+    expect(fetchGraphSpy).toHaveBeenCalledTimes(1);
+    expect(fetchGraphSpy).toHaveBeenCalledWith("plan", { silent: true, force: true });
+  });
+
+  // Coalescing must not become swallowing: mutations separated by more than
+  // the window are distinct operator actions and each must be reflected.
+  it("still refetches for invalidations separated by more than the window", async () => {
+    const fetchGraphSpy = resetStore();
+    renderHook(() => useGraphWebSocket({ enabled: true, lens: "plan" }));
+    const socket = getFirstSocket();
+
+    await act(async () => {
+      socket.simulateMessage({ type: "invalidate", data: { lenses: ["plan"] }, timestamp: 1 });
+      await vi.advanceTimersByTimeAsync(2000);
+      socket.simulateMessage({ type: "invalidate", data: { lenses: ["plan"] }, timestamp: 2 });
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+
+    expect(fetchGraphSpy).toHaveBeenCalledTimes(2);
+  });
+
+  // The Plan board renders columns of cards and never renders an edge, so an
+  // edge change cannot alter it.
+  it("ignores topology edge events on the plan lens", async () => {
+    const fetchGraphSpy = resetStore();
+    renderHook(() => useGraphWebSocket({ enabled: true, lens: "plan" }));
+    const socket = getFirstSocket();
+
+    await act(async () => {
+      socket.simulateMessage({ type: "edge-add", data: {}, timestamp: 1 });
+      socket.simulateMessage({ type: "edge-remove", data: {}, timestamp: 2 });
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+
+    expect(fetchGraphSpy).not.toHaveBeenCalled();
+  });
+
+  // The graph lenses do render edges, so the same events must still refresh them.
+  it("still refreshes graph lenses on edge events", async () => {
+    const fetchGraphSpy = resetStore();
+    renderHook(() => useGraphWebSocket({ enabled: true, lens: "topology" }));
+    const socket = getFirstSocket();
+
+    await act(async () => {
+      socket.simulateMessage({ type: "edge-add", data: {}, timestamp: 1 });
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+
+    expect(fetchGraphSpy).toHaveBeenCalledTimes(1);
   });
 });

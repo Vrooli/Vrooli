@@ -1,0 +1,303 @@
+syntax = "proto3";
+
+package vrooli.scenario_to_desktop.v1.shared;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/shared;shared";
+
+// =============================================================================
+// SHARED TYPES AND ENUMS
+// =============================================================================
+//
+// @stability beta
+//
+// Foundation types and enumerations used across the scenario-to-desktop domain.
+// Contains platform identifiers, status enums, and shared validation types.
+//
+// USAGE CONTEXTS:
+//   - Pipeline: Stage names and status tracking
+//   - Build: Platform targeting and build status
+//   - Distribution: Upload status and provider types
+//   - Config: Deployment modes, frameworks, templates
+//
+// =============================================================================
+
+// =============================================================================
+// PLATFORM AND TARGETING
+// =============================================================================
+
+// Platform enumerates supported desktop target platforms.
+//
+// Used throughout the pipeline for platform-specific build, test, and
+// distribution operations.
+//
+enum Platform {
+  // Default/unknown platform. Should never appear in valid data.
+  PLATFORM_UNSPECIFIED = 0;
+
+  // Microsoft Windows (x64, arm64).
+  // Produces .exe installers, NSIS, or MSI packages.
+  PLATFORM_WIN = 1;
+
+  // Apple macOS (x64, arm64/Apple Silicon).
+  // Produces .dmg disk images or .pkg installers.
+  PLATFORM_MAC = 2;
+
+  // Linux distributions (x64, arm64).
+  // Produces .deb, .rpm, .AppImage, or .snap packages.
+  PLATFORM_LINUX = 3;
+}
+
+// =============================================================================
+// PIPELINE STAGES
+// =============================================================================
+
+// StageName enumerates the discrete stages in the desktop deployment pipeline.
+//
+// Stages execute in order: BUNDLE -> PREFLIGHT -> GENERATE -> BUILD -> SMOKE_TEST -> DISTRIBUTION
+// Some stages may be skipped based on configuration.
+//
+enum StageName {
+  // Default/unknown stage. Should never appear in valid data.
+  STAGE_NAME_UNSPECIFIED = 0;
+
+  // Bundle stage: Package scenario assets into deployment bundle.
+  // Creates the manifest and copies runtime binaries.
+  STAGE_NAME_BUNDLE = 1;
+
+  // Preflight stage: Validate bundle configuration and dependencies.
+  // Performs dry-run to detect missing secrets and configuration issues.
+  STAGE_NAME_PREFLIGHT = 2;
+
+  // Generate stage: Create the Electron wrapper application.
+  // Generates the desktop application scaffold with configured settings.
+  STAGE_NAME_GENERATE = 3;
+
+  // Build stage: Compile and package desktop application.
+  // Produces platform-specific installers (.exe, .dmg, .deb, etc.).
+  STAGE_NAME_BUILD = 4;
+
+  // Smoke test stage: Validate built artifact functionality.
+  // Launches the application and performs basic health checks.
+  STAGE_NAME_SMOKE_TEST = 5;
+
+  // Distribution stage: Upload artifacts to cloud storage.
+  // Publishes installers to S3, R2, or other configured targets.
+  STAGE_NAME_DISTRIBUTION = 6;
+
+  // Deploy stage: publish a completed artifact to a configured release target.
+  STAGE_NAME_DEPLOY = 7;
+
+  // Resolve deployment stage: derive the deployment plan before bundling.
+  STAGE_NAME_RESOLVE_DEPLOYMENT = 8;
+}
+
+// =============================================================================
+// STATUS ENUMS
+// =============================================================================
+
+// StageStatus enumerates the lifecycle states for pipeline stages.
+//
+// State machine:
+//   PENDING -> RUNNING -> COMPLETED|FAILED|SKIPPED|CANCELLED
+//
+enum StageStatus {
+  // Default/unknown status. Should never appear in valid data.
+  STAGE_STATUS_UNSPECIFIED = 0;
+
+  // Stage is queued, waiting for prior stages to complete.
+  STAGE_STATUS_PENDING = 1;
+
+  // Stage is actively executing.
+  STAGE_STATUS_RUNNING = 2;
+
+  // Stage finished successfully.
+  // Terminal state for this stage.
+  STAGE_STATUS_COMPLETED = 3;
+
+  // Stage terminated due to an error.
+  // Check error field for details. Terminal state.
+  STAGE_STATUS_FAILED = 4;
+
+  // Stage was skipped due to configuration or prior failure.
+  // Terminal state. No work was performed.
+  STAGE_STATUS_SKIPPED = 5;
+
+  // Stage was manually cancelled by user or API call.
+  // Terminal state. Partial results may be available.
+  STAGE_STATUS_CANCELLED = 6;
+
+  // Pipeline has been created but has not started yet.
+  STAGE_STATUS_IDLE = 7;
+}
+
+// BuildStatus enumerates the overall build operation states.
+//
+// Used for tracking multi-platform builds where some platforms
+// may succeed while others fail.
+//
+enum BuildStatus {
+  // Default/unknown status. Should never appear in valid data.
+  BUILD_STATUS_UNSPECIFIED = 0;
+
+  // Build is in progress. At least one platform is still building.
+  BUILD_STATUS_BUILDING = 1;
+
+  // All requested platforms built successfully.
+  BUILD_STATUS_READY = 2;
+
+  // Some platforms succeeded, others failed or were skipped.
+  // Check platform_results for details.
+  BUILD_STATUS_PARTIAL = 3;
+
+  // All platforms failed to build.
+  BUILD_STATUS_FAILED = 4;
+}
+
+// UploadStatus enumerates the states for distribution uploads.
+//
+// State machine:
+//   PENDING -> UPLOADING -> COMPLETED|FAILED
+//
+enum UploadStatus {
+  // Default/unknown status. Should never appear in valid data.
+  UPLOAD_STATUS_UNSPECIFIED = 0;
+
+  // Upload is queued, waiting to start.
+  UPLOAD_STATUS_PENDING = 1;
+
+  // Upload is actively transferring data.
+  UPLOAD_STATUS_UPLOADING = 2;
+
+  // Upload completed successfully.
+  // url field contains the public/signed URL.
+  UPLOAD_STATUS_COMPLETED = 3;
+
+  // Upload failed. Check error field for details.
+  UPLOAD_STATUS_FAILED = 4;
+}
+
+// =============================================================================
+// CONFIGURATION ENUMS
+// =============================================================================
+
+// DeploymentMode enumerates how the desktop app connects to the backend.
+//
+enum DeploymentMode {
+  // Default/unknown mode. Treat as BUNDLED.
+  DEPLOYMENT_MODE_UNSPECIFIED = 0;
+
+  // Proxy mode: Desktop app connects to remote backend URL.
+  // App is a thin wrapper that proxies to external server.
+  // Requires proxy_url configuration.
+  DEPLOYMENT_MODE_PROXY = 1;
+
+  // Bundled mode: Backend is packaged within the desktop app.
+  // App runs fully offline with embedded services.
+  // Requires bundle manifest and runtime binaries.
+  DEPLOYMENT_MODE_BUNDLED = 2;
+}
+
+// Framework enumerates supported desktop application frameworks.
+//
+enum Framework {
+  // Default/unknown framework. Treat as ELECTRON.
+  FRAMEWORK_UNSPECIFIED = 0;
+
+  // Electron framework (Chromium + Node.js).
+  // Most mature, largest bundle size, best compatibility.
+  FRAMEWORK_ELECTRON = 1;
+}
+
+// TemplateType enumerates the Electron/desktop application templates.
+//
+// Each template provides different window configurations and features.
+//
+enum TemplateType {
+  // Default/unknown template. Treat as BASIC.
+  TEMPLATE_TYPE_UNSPECIFIED = 0;
+
+  // Basic single-window application.
+  // Standard menu bar, single main window.
+  TEMPLATE_TYPE_BASIC = 1;
+
+  // Advanced template with additional features.
+  // Includes system tray, custom protocols, etc.
+  TEMPLATE_TYPE_ADVANCED = 2;
+
+  // Multi-window application template.
+  // Supports multiple independent windows.
+  TEMPLATE_TYPE_MULTI_WINDOW = 3;
+
+  // Kiosk mode application template.
+  // Fullscreen, no window chrome, restricted navigation.
+  TEMPLATE_TYPE_KIOSK = 4;
+}
+
+// DistributionProvider enumerates supported cloud storage providers.
+//
+enum DistributionProvider {
+  // Default/unknown provider. Should never appear in valid data.
+  DISTRIBUTION_PROVIDER_UNSPECIFIED = 0;
+
+  // Amazon S3.
+  DISTRIBUTION_PROVIDER_S3 = 1;
+
+  // Cloudflare R2 (S3-compatible).
+  DISTRIBUTION_PROVIDER_R2 = 2;
+
+  // Generic S3-compatible storage (MinIO, DigitalOcean Spaces, etc.).
+  DISTRIBUTION_PROVIDER_S3_COMPATIBLE = 3;
+}
+
+// =============================================================================
+// VALIDATION TYPES
+// =============================================================================
+
+// ValidationError represents a blocking validation error.
+//
+// Errors prevent the pipeline from proceeding and must be fixed.
+//
+message ValidationError {
+  // Error code for programmatic handling.
+  // Use SCREAMING_SNAKE_CASE (e.g., "MISSING_CERTIFICATE").
+  string code = 1;
+
+  // Human-readable error message.
+  string message = 2;
+
+  // Field or component that caused the error.
+  // Example: "windows.certificate_path", "preflight.secrets.API_KEY"
+  optional string field = 3;
+}
+
+// ValidationWarning represents a non-blocking validation warning.
+//
+// Warnings allow the pipeline to proceed but indicate potential issues.
+//
+message ValidationWarning {
+  // Warning code for programmatic handling.
+  // Use SCREAMING_SNAKE_CASE (e.g., "WEAK_TIMESTAMP_SERVER").
+  string code = 1;
+
+  // Human-readable warning message.
+  string message = 2;
+
+  // Field or component that caused the warning.
+  optional string field = 3;
+}
+
+// ErrorEnvelope is the structured diagnostic payload attached to every
+// non-success Connect response. Connect's status code continues to describe
+// transport semantics; this message preserves the remediation information
+// needed by the UI and automated fix loop.
+message ErrorEnvelope {
+  string code = 1;
+  string category = 2;
+  string recovery = 3;
+  string recovery_hint = 4;
+  map<string, string> details = 5;
+  string retry_strategy = 6;
+  string auto_fix = 7;
+  repeated string manual_steps = 8;
+  string diagnostic = 9;
+}

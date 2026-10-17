@@ -1,0 +1,33 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": {
+    "kind": "scenario-experience",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "schemaVersion": "1.0.0",
+  "scenario": "scenario-to-repository",
+  "description": "Source repository operator experience: inspect closure and exact evidence before human publication.",
+  "pages": [
+    {
+      "id": "dashboard",
+      "path": "pages/dashboard.json",
+      "title": "Home",
+      "status": "active"
+    },
+    {
+      "id": "settings",
+      "path": "pages/settings.json",
+      "title": "Settings",
+      "status": "active"
+    }
+  ],
+  "journeys": [
+    {
+      "id": "prepare-source-export",
+      "title": "Prepare and review a source export",
+      "path": "journeys/prepare-source-export.json",
+      "status": "active"
+    }
+  ]
+}

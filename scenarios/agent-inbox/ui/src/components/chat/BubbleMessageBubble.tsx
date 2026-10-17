@@ -31,7 +31,13 @@ function formatToolContent(content: unknown): string {
   } else if (content && typeof content === "object") {
     return JSON.stringify(content, null, 2);
   }
-  return String(content ?? "");
+  if (content === null || content === undefined) {
+    return "";
+  }
+  if (typeof content === "number" || typeof content === "boolean" || typeof content === "bigint") {
+    return String(content);
+  }
+  return JSON.stringify(content);
 }
 
 export function BubbleMessageBubble({

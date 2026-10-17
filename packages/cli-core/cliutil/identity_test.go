@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -82,7 +83,7 @@ func TestVerifyIdentity_Success(t *testing.T) {
 	}))
 	defer server.Close()
 
-	t.Setenv(EnvAgentManagerBase, server.URL)
+	t.Setenv("AGENT_MANAGER_API_BASE", server.URL)
 
 	env := IdentityEnv{Token: "valid-token"}
 	result, err := env.VerifyIdentity()
@@ -126,7 +127,7 @@ func TestVerifyIdentity_InvalidToken(t *testing.T) {
 	}))
 	defer server.Close()
 
-	t.Setenv(EnvAgentManagerBase, server.URL)
+	t.Setenv("AGENT_MANAGER_API_BASE", server.URL)
 
 	env := IdentityEnv{Token: "bad-token"}
 	result, err := env.VerifyIdentity()
@@ -146,7 +147,7 @@ func TestVerifyIdentity_NetworkError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 	server.Close()
 
-	t.Setenv(EnvAgentManagerBase, server.URL)
+	t.Setenv("AGENT_MANAGER_API_BASE", server.URL)
 
 	env := IdentityEnv{Token: "some-token"}
 	_, err := env.VerifyIdentity()
@@ -162,7 +163,7 @@ func TestVerifyIdentity_MalformedResponse(t *testing.T) {
 	}))
 	defer server.Close()
 
-	t.Setenv(EnvAgentManagerBase, server.URL)
+	t.Setenv("AGENT_MANAGER_API_BASE", server.URL)
 
 	env := IdentityEnv{Token: "some-token"}
 	_, err := env.VerifyIdentity()
@@ -180,11 +181,47 @@ func TestVerifyIdentity_EmptyToken(t *testing.T) {
 }
 
 func TestVerifyIdentity_NoBaseURL(t *testing.T) {
-	t.Setenv(EnvAgentManagerBase, "")
+	t.Setenv("AGENT_MANAGER_API_BASE", "")
+	t.Setenv("AGENT_MANAGER_API_URL", "")
+	t.Setenv("AGENT_MANAGER_API_PORT", "")
+
+	originalDetector := detectAgentManagerPort
+	t.Cleanup(func() { detectAgentManagerPort = originalDetector })
+	detectAgentManagerPort = func() string { return "" }
 
 	env := IdentityEnv{Token: "some-token"}
 	_, err := env.VerifyIdentity()
 	if err == nil {
 		t.Fatal("expected error for missing base URL")
+	}
+	if !strings.Contains(err.Error(), "not discoverable") {
+		t.Fatalf("expected discovery guidance, got %v", err)
+	}
+}
+
+func TestVerifyIdentity_UsesLifecyclePortDiscovery(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" || r.URL.Path != "/api/v1/identity/verify" {
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		json.NewEncoder(w).Encode(VerifyResult{Valid: true, RunStatus: "running"})
+	}))
+	defer server.Close()
+
+	originalDetector := detectAgentManagerPort
+	t.Cleanup(func() { detectAgentManagerPort = originalDetector })
+	detectAgentManagerPort = func() string {
+		return strings.TrimPrefix(server.URL, "http://127.0.0.1:")
+	}
+
+	env := IdentityEnv{Token: "valid-token"}
+	result, err := env.VerifyIdentity()
+	if err != nil {
+		t.Fatalf("VerifyIdentity: %v", err)
+	}
+	if !result.Valid {
+		t.Fatal("expected Valid=true")
 	}
 }

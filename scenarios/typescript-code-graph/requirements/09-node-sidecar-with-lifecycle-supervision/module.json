@@ -1,0 +1,103 @@
+{
+  "description": "Spawn a Node child process that hosts `ts-morph` and communicates with the Go API via a stable IPC channel (JSON over stdio or a local Unix socket). Lifecycle-supervised: crash → restart with backoff; health surfaced via `/health`. Hide all sidecar mechanics behind the Connect-RPC interface.",
+  "module_id": "MOD-P0-009",
+  "prd_ref": "OT-P0-009",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "integration",
+      "description": "The Go API must spawn and manage a Node.js child process that hosts ts-morph and handles all TypeScript AST operations. Communication between Go and Node must use a stable IPC channel (JSON-over-stdio or a local Unix domain socket). The sidecar lifecycle must be fully supervised: automatic restart on crash with exponential backoff, health probe endpoint surfaced at /health reflecting sidecar status, and maximum restart budget before escalating to a hard error. All sidecar mechanics (spawn, restart, IPC framing) must be hidden behind the Connect-RPC interface. The sidecar must be shut down cleanly on Go process exit.",
+      "id": "REQ-P0-009",
+      "prd_ref": "OT-P0-009",
+      "status": "draft",
+      "title": "Node Sidecar Process with Lifecycle Supervision",
+      "validation": [
+        {
+          "notes": "Test IPC message framing (length-prefixed JSON) for request and response envelopes",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test exponential backoff timing for restart attempts (delays increase correctly across retries)",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that exceeding the restart budget returns a typed SIDECAR_UNAVAILABLE error to callers",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that /health response reflects sidecar status (UP, RESTARTING, FAILED) accurately",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test graceful shutdown sends SIGTERM to sidecar and waits for drain before SIGKILL",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "TCG-SIDECAR-RESTART: Kill the Node sidecar process mid-test and assert Go API restarts it and subsequent Extract calls succeed",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "TCG-SIDECAR-HEALTH: Assert /health returns UP when sidecar is running and RESTARTING during restart backoff",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "TCG-SIDECAR-LIFECYCLE: Run 10 consecutive Extract calls and assert no sidecar process leaks (process count stable)",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Assert that no ts-morph code executes in the Go process; all AST operations are in the Node sidecar",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Sidecar restart and recovery completes within 10 seconds under backoff; subsequent Extract succeeds within normal SLA",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Sidecar crash during an Extract call returns a structured error to the caller rather than hanging indefinitely",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Operators can observe sidecar health status via /health without inspecting process tables",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Node Sidecar With Lifecycle Supervision"
+}

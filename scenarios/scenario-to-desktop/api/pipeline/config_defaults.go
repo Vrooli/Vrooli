@@ -43,9 +43,10 @@ const (
 	// Lever impacts:
 	//   Increase: Allow apps with slow startup (heavy initialization, large bundles).
 	//   Decrease: Fail faster on apps that hang during startup.
-	//   Range: 30s (simple apps) to 5m (apps with heavy initialization)
-	//   Default rationale: 2m allows for typical Electron app startup with assertions.
-	DefaultSmokeTestTimeout = 2 * time.Minute
+	//   Range: 30s (simple apps) to 7m (isolated targets with lifecycle setup)
+	//   Default rationale: isolated proxy targets may spend up to five minutes in
+	//   lifecycle setup before smoke execution and journey assertions begin.
+	DefaultSmokeTestTimeout = 7 * time.Minute
 
 	// DefaultDeployTimeout is the maximum time to wait for artifact uploads.
 	// Large artifacts to slow endpoints may need this full duration.
@@ -58,7 +59,7 @@ const (
 	DefaultDeployTimeout = 30 * time.Minute
 
 	// DefaultPreflightTimeout is the default timeout for preflight validation.
-	// Can be overridden via Config.PreflightTimeoutSeconds.
+	// Can be overridden via PipelineConfig.PreflightTimeoutSeconds.
 	//
 	// Lever impacts:
 	//   Increase: Allow slow dependency installations or network checks.
@@ -218,9 +219,6 @@ const (
 const (
 	// FrameworkElectron is the Electron desktop framework.
 	FrameworkElectron = "electron"
-
-	// FrameworkTauri is the Tauri desktop framework (future support).
-	FrameworkTauri = "tauri"
 )
 
 // Template type constants.

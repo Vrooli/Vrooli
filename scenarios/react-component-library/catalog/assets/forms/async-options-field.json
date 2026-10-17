@@ -1,0 +1,59 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "forms.async-options-field",
+    "name": "AsyncOptionsField",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "forms",
+    "description": "The reusable controller for remote choices with query debouncing, cancellation, caching, pagination, error handling, retry, and stale-result protection.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "hooks.use-abortable-task",
+        "reason": "Superseded queries are cancelled rather than raced."
+      },
+      {
+        "asset": "hooks.use-retry",
+        "reason": "Retryable option failures are distinguished from permanent ones."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "data-source",
+      "typeArguments": [
+        "TOption"
+      ]
+    }
+  ],
+  "requiredCapabilities": [
+    "status-announced",
+    "recovery-path",
+    "error-honesty"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "empty",
+    "request-error",
+    "offline",
+    "retry"
+  ]
+}

@@ -1,0 +1,8 @@
+DECLARED GAP: no AMD host was available to capture this output.
+The documented shape of `rocm-smi --showid` is:
+
+========================= ROCm System Management Interface =========================
+================================= ID ===============================================
+GPU[0]		: GPU ID: 0x73bf
+====================================================================================
+=============================== End of ROCm SMI Log ================================

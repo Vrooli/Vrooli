@@ -1,0 +1,137 @@
+{
+  "_metadata": {
+    "description": "P1 capabilities to add after the P0 backbone is proven.",
+    "last_validated_at": "2026-06-01T10:39:28-04:00",
+    "module": "post-launch",
+    "prd_ref": "OT-P1-001",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "DBM-HOOK-001",
+      "title": "Quiesce pre/post hooks for app-consistent snapshots",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "category": "consistency",
+      "criticality": "P1",
+      "description": "A target can declare pre/post hooks (e.g. flush, pause writes) so live databases and stateful scenarios get application-consistent snapshots.",
+      "tags": [
+        "quiesce",
+        "consistency",
+        "hooks"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Deferred: implement target-owned pre/post quiesce hooks, then prove ordering and failure rollback against a live source adapter."
+        }
+      ]
+    },
+    {
+      "id": "DBM-RET-001",
+      "title": "GFS retention policies per plan",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "retention",
+      "criticality": "P1",
+      "description": "Grandfather-father-son retention configurable per plan, applied through kopia snapshot policies.",
+      "tags": [
+        "retention",
+        "gfs"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Deferred: replace keep-latest-only policy with explicit grandfather-father-son retention and prove the kept set over simulated time."
+        }
+      ]
+    },
+    {
+      "id": "DBM-DEST-DRYRUN",
+      "title": "Destination reachability dry-run",
+      "status": "complete",
+      "prd_ref": "OT-P1-003",
+      "category": "destination",
+      "criticality": "P1",
+      "description": "Verify a destination is reachable and writable before a plan depends on it.",
+      "tags": [
+        "destination",
+        "dry-run",
+        "preflight"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Implemented and covered: dry-run validates the preparation plan without invoking the preparer; missing destinations fail closed during readiness analysis."
+        }
+      ]
+    },
+    {
+      "id": "DBM-RST-GRAN",
+      "title": "Restore granularity (path / point-in-time)",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
+      "category": "restore",
+      "criticality": "P1",
+      "description": "Restore a single path or a chosen point-in-time from a snapshot, not just the whole artifact.",
+      "tags": [
+        "restore",
+        "granularity",
+        "point-in-time"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Deferred: add path-level and point-in-time restore selection, then prove content and version selection against multiple snapshots."
+        }
+      ]
+    },
+    {
+      "id": "DBM-MIG-PM",
+      "title": "prompt-manager store migration (first customer)",
+      "status": "planned",
+      "prd_ref": "OT-P1-005",
+      "category": "adoption",
+      "criticality": "P1",
+      "description": "prompt-manager registers store/teams/** as a target, a verified restore is proven, and the data stops being committed to git.",
+      "tags": [
+        "adoption",
+        "prompt-manager",
+        "migration"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Register prompt-manager store target; run verified restore; confirm git no longer tracks the churned runtime files."
+        }
+      ]
+    },
+    {
+      "id": "DBM-ALERT-001",
+      "title": "Alerting integration",
+      "status": "planned",
+      "prd_ref": "OT-P1-006",
+      "category": "observability",
+      "criticality": "P1",
+      "description": "Stale and failed backups surface through platform monitoring/notifications.",
+      "tags": [
+        "alerting",
+        "notifications"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Deferred: connect grouped posture incidents to a real platform notification sink. Current logging/event seams are diagnostic evidence, not notification delivery."
+        }
+      ]
+    }
+  ]
+}

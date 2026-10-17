@@ -30,8 +30,6 @@ const (
 //
 // Each type corresponds to a specific *Params message in ActionDefinition.params.
 // The type field MUST match the populated params oneof case.
-//
-// @usage ActionDefinition.type, workflow editor action palette
 type ActionType int32
 
 const (
@@ -243,8 +241,6 @@ func (ActionType) EnumDescriptor() ([]byte, []int) {
 }
 
 // MouseButton enumerates supported mouse buttons for click actions.
-//
-// @usage ClickParams.button
 type MouseButton int32
 
 const (
@@ -306,8 +302,6 @@ func (MouseButton) EnumDescriptor() ([]byte, []int) {
 //
 // Controls when navigation is considered "complete". Affects reliability
 // vs. speed tradeoff. Maps to Playwright's waitUntil option.
-//
-// @usage NavigateParams.wait_until
 type NavigateWaitEvent int32
 
 const (
@@ -371,8 +365,6 @@ func (NavigateWaitEvent) EnumDescriptor() ([]byte, []int) {
 //
 // Allows workflows to navigate to other Vrooli scenarios by name instead
 // of hardcoding URLs, enabling portable workflows across environments.
-//
-// @usage NavigateParams.destination_type
 type NavigateDestinationType int32
 
 const (
@@ -432,8 +424,6 @@ func (NavigateDestinationType) EnumDescriptor() ([]byte, []int) {
 //
 // Used with WaitParams to wait for specific element lifecycle events.
 // Maps to Playwright's waitForSelector state option.
-//
-// @usage WaitParams.state
 type WaitState int32
 
 const (
@@ -502,8 +492,6 @@ func (WaitState) EnumDescriptor() ([]byte, []int) {
 //
 // Controls whether scrolling is instant or animated. Smooth scrolling
 // is more realistic but slower.
-//
-// @usage ScrollParams.behavior
 type ScrollBehavior int32
 
 const (
@@ -561,8 +549,6 @@ func (ScrollBehavior) EnumDescriptor() ([]byte, []int) {
 //
 // Controls the keyboard event lifecycle. Most actions should use PRESS.
 // DOWN/UP are for advanced scenarios like holding modifier keys.
-//
-// @usage KeyboardParams.action
 type KeyAction int32
 
 const (
@@ -626,8 +612,6 @@ func (KeyAction) EnumDescriptor() ([]byte, []int) {
 //
 // Modifiers are held during other actions (clicks, key presses).
 // Multiple modifiers can be combined.
-//
-// @usage KeyboardParams.modifiers, ClickParams.modifiers
 type KeyboardModifier int32
 
 const (
@@ -693,8 +677,6 @@ func (KeyboardModifier) EnumDescriptor() ([]byte, []int) {
 }
 
 // ExtractType enumerates what data to extract from an element.
-//
-// @usage ExtractParams.extract_type
 type ExtractType int32
 
 const (
@@ -764,8 +746,6 @@ func (ExtractType) EnumDescriptor() ([]byte, []int) {
 }
 
 // FrameSwitchAction enumerates frame navigation actions.
-//
-// @usage FrameSwitchParams.action
 type FrameSwitchAction int32
 
 const (
@@ -823,8 +803,6 @@ func (FrameSwitchAction) EnumDescriptor() ([]byte, []int) {
 }
 
 // TabSwitchAction enumerates tab/window management actions.
-//
-// @usage TabSwitchParams.action
 type TabSwitchAction int32
 
 const (
@@ -886,8 +864,6 @@ func (TabSwitchAction) EnumDescriptor() ([]byte, []int) {
 }
 
 // CookieOperation enumerates cookie/storage operations.
-//
-// @usage CookieStorageParams.operation
 type CookieOperation int32
 
 const (
@@ -949,8 +925,6 @@ func (CookieOperation) EnumDescriptor() ([]byte, []int) {
 }
 
 // StorageType enumerates browser storage types.
-//
-// @usage CookieStorageParams.storage_type
 type StorageType int32
 
 const (
@@ -1008,8 +982,6 @@ func (StorageType) EnumDescriptor() ([]byte, []int) {
 }
 
 // GestureType enumerates touch gesture types.
-//
-// @usage GestureParams.gesture_type
 type GestureType int32
 
 const (
@@ -1075,8 +1047,6 @@ func (GestureType) EnumDescriptor() ([]byte, []int) {
 }
 
 // SwipeDirection enumerates swipe gesture directions.
-//
-// @usage GestureParams.direction
 type SwipeDirection int32
 
 const (
@@ -1138,8 +1108,6 @@ func (SwipeDirection) EnumDescriptor() ([]byte, []int) {
 }
 
 // NetworkMockOperation enumerates network interception operations.
-//
-// @usage NetworkMockParams.operation
 type NetworkMockOperation int32
 
 const (
@@ -1205,8 +1173,6 @@ func (NetworkMockOperation) EnumDescriptor() ([]byte, []int) {
 }
 
 // DeviceOrientation enumerates device orientations.
-//
-// @usage RotateParams.orientation
 type DeviceOrientation int32
 
 const (
@@ -1260,8 +1226,6 @@ func (DeviceOrientation) EnumDescriptor() ([]byte, []int) {
 }
 
 // CookieSameSite enumerates SameSite cookie attribute values.
-//
-// @usage CookieOptions.same_site
 type CookieSameSite int32
 
 const (
@@ -3676,7 +3640,15 @@ type DragDropParams struct {
 	// Timeout in milliseconds (default: 5000).
 	// @unit milliseconds
 	// @constraint >= 0, <= 60000
-	TimeoutMs     *int32 `protobuf:"varint,7,opt,name=timeout_ms,json=timeoutMs,proto3,oneof" json:"timeout_ms,omitempty"`
+	TimeoutMs *int32 `protobuf:"varint,7,opt,name=timeout_ms,json=timeoutMs,proto3,oneof" json:"timeout_ms,omitempty"`
+	// Horizontal offset from the target center. This keeps a semantic target
+	// selector while letting canvas workflows choose a non-overlapping drop point.
+	// @unit pixels
+	TargetOffsetX *int32 `protobuf:"varint,8,opt,name=target_offset_x,json=targetOffsetX,proto3,oneof" json:"target_offset_x,omitempty"`
+	// Vertical offset from the target center. This keeps a semantic target
+	// selector while letting canvas workflows choose a non-overlapping drop point.
+	// @unit pixels
+	TargetOffsetY *int32 `protobuf:"varint,9,opt,name=target_offset_y,json=targetOffsetY,proto3,oneof" json:"target_offset_y,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3760,6 +3732,20 @@ func (x *DragDropParams) GetTimeoutMs() int32 {
 	return 0
 }
 
+func (x *DragDropParams) GetTargetOffsetX() int32 {
+	if x != nil && x.TargetOffsetX != nil {
+		return *x.TargetOffsetX
+	}
+	return 0
+}
+
+func (x *DragDropParams) GetTargetOffsetY() int32 {
+	if x != nil && x.TargetOffsetY != nil {
+		return *x.TargetOffsetY
+	}
+	return 0
+}
+
 // GestureParams configures touch gesture actions.
 type GestureParams struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -3779,7 +3765,31 @@ type GestureParams struct {
 	// Duration of the gesture in milliseconds.
 	// @unit milliseconds
 	// @constraint >= 0
-	DurationMs    *int32 `protobuf:"varint,6,opt,name=duration_ms,json=durationMs,proto3,oneof" json:"duration_ms,omitempty"`
+	DurationMs *int32 `protobuf:"varint,6,opt,name=duration_ms,json=durationMs,proto3,oneof" json:"duration_ms,omitempty"`
+	// Number of driver-level input steps to emit during the gesture.
+	// Performance captures should set this high enough to create a sustained
+	// interaction window instead of a synchronous burst.
+	// @constraint >= 1
+	Steps *int32 `protobuf:"varint,7,opt,name=steps,proto3,oneof" json:"steps,omitempty"`
+	// Delay between input steps in milliseconds. When omitted and duration_ms is
+	// set, implementations may derive a cadence from duration_ms / steps.
+	// @unit milliseconds
+	// @constraint >= 0
+	StepDelayMs *int32 `protobuf:"varint,8,opt,name=step_delay_ms,json=stepDelayMs,proto3,oneof" json:"step_delay_ms,omitempty"`
+	// Stable label for trace markers emitted around the gesture segment.
+	// Implementations SHOULD emit performance marks:
+	// bas.gesture.<trace_label>.start and bas.gesture.<trace_label>.end.
+	TraceLabel *string `protobuf:"bytes,9,opt,name=trace_label,json=traceLabel,proto3,oneof" json:"trace_label,omitempty"`
+	// Idle wait after the gesture so rendering fallout is captured in the trace.
+	// @unit milliseconds
+	// @constraint >= 0
+	IdleAfterMs *int32 `protobuf:"varint,10,opt,name=idle_after_ms,json=idleAfterMs,proto3,oneof" json:"idle_after_ms,omitempty"`
+	// Per-step wheel delta for zoom/pinch gestures. Negative values zoom in for
+	// wheel-driven UIs; positive values zoom out.
+	WheelDeltaY *int32 `protobuf:"varint,11,opt,name=wheel_delta_y,json=wheelDeltaY,proto3,oneof" json:"wheel_delta_y,omitempty"`
+	// Hold Control while emitting wheel input. Useful for apps that model
+	// trackpad pinch/zoom as Ctrl+wheel.
+	CtrlKey       *bool `protobuf:"varint,12,opt,name=ctrl_key,json=ctrlKey,proto3,oneof" json:"ctrl_key,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3854,6 +3864,48 @@ func (x *GestureParams) GetDurationMs() int32 {
 		return *x.DurationMs
 	}
 	return 0
+}
+
+func (x *GestureParams) GetSteps() int32 {
+	if x != nil && x.Steps != nil {
+		return *x.Steps
+	}
+	return 0
+}
+
+func (x *GestureParams) GetStepDelayMs() int32 {
+	if x != nil && x.StepDelayMs != nil {
+		return *x.StepDelayMs
+	}
+	return 0
+}
+
+func (x *GestureParams) GetTraceLabel() string {
+	if x != nil && x.TraceLabel != nil {
+		return *x.TraceLabel
+	}
+	return ""
+}
+
+func (x *GestureParams) GetIdleAfterMs() int32 {
+	if x != nil && x.IdleAfterMs != nil {
+		return *x.IdleAfterMs
+	}
+	return 0
+}
+
+func (x *GestureParams) GetWheelDeltaY() int32 {
+	if x != nil && x.WheelDeltaY != nil {
+		return *x.WheelDeltaY
+	}
+	return 0
+}
+
+func (x *GestureParams) GetCtrlKey() bool {
+	if x != nil && x.CtrlKey != nil {
+		return *x.CtrlKey
+	}
+	return false
 }
 
 // NetworkMockParams configures network request interception.
@@ -4469,8 +4521,6 @@ func (x *ConditionalParams) GetPollIntervalMs() int32 {
 //   - Editing: Users can adjust selectors on failed steps using captured alternatives
 //
 // See "UNIFIED RECORDING/EXECUTION MODEL" in shared.proto for the design rationale.
-//
-// @usage ActionDefinition.metadata
 type ActionMetadata struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Human-readable label for the action.
@@ -5353,7 +5403,7 @@ const file_browser_automation_studio_v1_actions_action_proto_rawDesc = "" +
 	"\x0eShortcutParams\x12#\n" +
 	"\bshortcut\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bshortcut\x12\x1f\n" +
 	"\bselector\x18\x02 \x01(\tH\x00R\bselector\x88\x01\x01B\v\n" +
-	"\t_selector\"\x82\x03\n" +
+	"\t_selector\"\x84\x04\n" +
 	"\x0eDragDropParams\x120\n" +
 	"\x0fsource_selector\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x0esourceSelector\x12,\n" +
 	"\x0ftarget_selector\x18\x02 \x01(\tH\x00R\x0etargetSelector\x88\x01\x01\x12\x1e\n" +
@@ -5362,13 +5412,17 @@ const file_browser_automation_studio_v1_actions_action_proto_rawDesc = "" +
 	"\x05steps\x18\x05 \x01(\x05B\a\xbaH\x04\x1a\x02(\x01H\x03R\x05steps\x88\x01\x01\x12'\n" +
 	"\bdelay_ms\x18\x06 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00H\x04R\adelayMs\x88\x01\x01\x12/\n" +
 	"\n" +
-	"timeout_ms\x18\a \x01(\x05B\v\xbaH\b\x1a\x06\x18\xe0\xd4\x03(\x00H\x05R\ttimeoutMs\x88\x01\x01B\x12\n" +
+	"timeout_ms\x18\a \x01(\x05B\v\xbaH\b\x1a\x06\x18\xe0\xd4\x03(\x00H\x05R\ttimeoutMs\x88\x01\x01\x12+\n" +
+	"\x0ftarget_offset_x\x18\b \x01(\x05H\x06R\rtargetOffsetX\x88\x01\x01\x12+\n" +
+	"\x0ftarget_offset_y\x18\t \x01(\x05H\aR\rtargetOffsetY\x88\x01\x01B\x12\n" +
 	"\x10_target_selectorB\v\n" +
 	"\t_offset_xB\v\n" +
 	"\t_offset_yB\b\n" +
 	"\x06_stepsB\v\n" +
 	"\t_delay_msB\r\n" +
-	"\v_timeout_ms\"\x9f\x03\n" +
+	"\v_timeout_msB\x12\n" +
+	"\x10_target_offset_xB\x12\n" +
+	"\x10_target_offset_y\"\xf3\x05\n" +
 	"\rGestureParams\x12V\n" +
 	"\fgesture_type\x18\x01 \x01(\x0e2).browser_automation_studio.v1.GestureTypeB\b\xbaH\x05\x82\x01\x02\x10\x01R\vgestureType\x12\x1f\n" +
 	"\bselector\x18\x02 \x01(\tH\x00R\bselector\x88\x01\x01\x12O\n" +
@@ -5376,13 +5430,28 @@ const file_browser_automation_studio_v1_actions_action_proto_rawDesc = "" +
 	"\bdistance\x18\x04 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00H\x02R\bdistance\x88\x01\x01\x12)\n" +
 	"\x05scale\x18\x05 \x01(\x01B\x0e\xbaH\v\x12\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x03R\x05scale\x88\x01\x01\x12-\n" +
 	"\vduration_ms\x18\x06 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00H\x04R\n" +
-	"durationMs\x88\x01\x01B\v\n" +
+	"durationMs\x88\x01\x01\x12\"\n" +
+	"\x05steps\x18\a \x01(\x05B\a\xbaH\x04\x1a\x02(\x01H\x05R\x05steps\x88\x01\x01\x120\n" +
+	"\rstep_delay_ms\x18\b \x01(\x05B\a\xbaH\x04\x1a\x02(\x00H\x06R\vstepDelayMs\x88\x01\x01\x12$\n" +
+	"\vtrace_label\x18\t \x01(\tH\aR\n" +
+	"traceLabel\x88\x01\x01\x120\n" +
+	"\ridle_after_ms\x18\n" +
+	" \x01(\x05B\a\xbaH\x04\x1a\x02(\x00H\bR\vidleAfterMs\x88\x01\x01\x12'\n" +
+	"\rwheel_delta_y\x18\v \x01(\x05H\tR\vwheelDeltaY\x88\x01\x01\x12\x1e\n" +
+	"\bctrl_key\x18\f \x01(\bH\n" +
+	"R\actrlKey\x88\x01\x01B\v\n" +
 	"\t_selectorB\f\n" +
 	"\n" +
 	"_directionB\v\n" +
 	"\t_distanceB\b\n" +
 	"\x06_scaleB\x0e\n" +
-	"\f_duration_ms\"\xf3\x03\n" +
+	"\f_duration_msB\b\n" +
+	"\x06_stepsB\x10\n" +
+	"\x0e_step_delay_msB\x0e\n" +
+	"\f_trace_labelB\x10\n" +
+	"\x0e_idle_after_msB\x10\n" +
+	"\x0e_wheel_delta_yB\v\n" +
+	"\t_ctrl_key\"\xf3\x03\n" +
 	"\x11NetworkMockParams\x12Z\n" +
 	"\toperation\x18\x01 \x01(\x0e22.browser_automation_studio.v1.NetworkMockOperationB\b\xbaH\x05\x82\x01\x02\x10\x01R\toperation\x12(\n" +
 	"\vurl_pattern\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\n" +

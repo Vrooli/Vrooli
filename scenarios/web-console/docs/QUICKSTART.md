@@ -33,7 +33,7 @@ This builds the Go API and Vite UI, then starts both services. Ports are dynamic
 
 ## Configuration
 
-API behavior is controlled via environment variables (e.g., `WC_MAX_SESSIONS`, `WC_OFFLINE_BUFFER_MAX`). See [Configuration Reference](reference/configuration.md) for details.
+API behavior is controlled via environment variables (e.g., `WC_MAX_SESSIONS`, `WC_TERMINAL_SCROLLBACK_LINES`). See [Configuration Reference](reference/configuration.md) for details.
 
 UI appearance is controlled via compile-time constants in [CODE: ui/src/consts/config.ts].
 
@@ -51,3 +51,4 @@ make stop    # Stop all services
 - **"Unable to reach the API"**: Ensure the scenario is running via `make start` or `vrooli scenario start web-console`
 - **Terminal not responding**: The PTY process may have exited — close the pane and open a new terminal
 - **Port conflicts**: Ports are dynamically allocated; check `vrooli scenario port web-console API_PORT`
+- **Lost panes after a host crash**: See [Session Recovery](guides/SESSION_RECOVERY.md)

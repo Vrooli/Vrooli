@@ -1,0 +1,66 @@
+{
+  "description": "`cli-health` validate and search findings are exposed to `scenario-auditor` as an additional rule source, enabling cross-scenario policy enforcement without duplicating validation logic.",
+  "module_id": "MOD-P2-008",
+  "prd_ref": "OT-P2-001",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "integration",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-002",
+        "REQ-P0-003"
+      ],
+      "description": "The structured findings produced by `cli-health validate` and `cli-health search` must be exposable to `scenario-auditor` as an additional rule source via a defined integration contract (e.g., a structured JSON findings file written to a well-known path, or a Connect-RPC endpoint on the cli-health service). The scenario-auditor must be able to consume these findings and incorporate them into cross-scenario policy enforcement without duplicating the underlying validation logic. The integration must not require scenario-auditor to invoke raw HTTP endpoints.",
+      "id": "REQ-P2-001",
+      "prd_ref": "OT-P2-001",
+      "status": "draft",
+      "title": "Scenario-Auditor Integration as an Additional Rule Source",
+      "validation": [
+        {
+          "notes": "Given a completed validate run with --output-findings=\u003cpath\u003e, a structured JSON findings file is written to the specified path with the correct schema",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Given the findings file consumed by a mock scenario-auditor rule loader, all findings are correctly parsed and typed",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Given zero findings, the output findings file contains an empty findings array, not a missing file",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Configure scenario-auditor to consume cli-health findings for a test scenario; run both tools and assert scenario-auditor's report includes cli-health-sourced findings without re-running validation logic",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Assert that scenario-auditor's integration path does not make raw HTTP calls to cli-health (verified by network trace or mock assertion)",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Cross-scenario policy enforcement is centralized in scenario-auditor; cli-health remains the single source of truth for manifest validation findings",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Scenario-auditor rule integration"
+}

@@ -1,0 +1,102 @@
+{
+  "description": "A design-token / theming standard. Static checks verify token definitions are present and that component styles contain no raw hex values. Runtime checks verify `[data-theme]`/`data-resolved-theme` applies, dark-mode toggles, and `var(--surface-*)` resolves. Auto-fix can scaffold a token file (safe) while raw-hex-to-token rewrites are report-only.",
+  "module_id": "MOD-P1-020",
+  "prd_ref": "OT-P1-006",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "Static design-token checks must verify that token definitions are present and that component styles contain no raw hex color literals. A missing token file or a raw hex value in a component style must produce a Finding.",
+      "id": "REQ-P1-009",
+      "prd_ref": "OT-P1-006",
+      "status": "draft",
+      "title": "Static token checks",
+      "validation": [
+        {
+          "notes": "Missing token definitions produce a Finding",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "A raw hex color literal in a component style produces a no-raw-hex Finding",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Token references via var(--*) do not trigger raw-hex Findings",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run ui-health against a scenario with a hardcoded hex color and confirm the raw-hex Finding is emitted",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "The design-token static standard enforces tokenized colors across scenarios",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "ui",
+      "dependencies": [
+        "REQ-P1-009"
+      ],
+      "description": "Runtime theming checks must verify `[data-theme]`/`data-resolved-theme` applies, dark-mode toggles correctly, and `var(--surface-*)` variables resolve. A safe auto-fixer scaffolds the token file; raw-hex-to-token rewrites must be report-only (risky).",
+      "id": "REQ-P1-010",
+      "prd_ref": "OT-P1-006",
+      "status": "draft",
+      "title": "Runtime theme-apply + report-only raw-hex",
+      "validation": [
+        {
+          "notes": "Runtime check confirms data-theme/data-resolved-theme applies and var(--surface-*) resolves",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "The token-file scaffold fixer is marked safe and is idempotent; raw-hex-to-token is report-only",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Dark-mode toggle failure surfaces as a runtime theming Finding",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run ui-health runtime checks and confirm theme apply and surface-var resolution are validated against the live UI",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Theming runtime checks plus safe token scaffolding round out the design-token standard while keeping risky rewrites report-only",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "design-token / theming standard"
+}

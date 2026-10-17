@@ -1,0 +1,35 @@
+{
+  "id": "revenue_rollup",
+  "label": "Revenue · 30 days",
+  "description": "Revenue from successful checkout sessions in the trailing thirty days.",
+  "unit": "currency",
+  "format": "currency.compact",
+  "shape": "series",
+  "source": {
+    "team": "monetization",
+    "binding": "scenario:landing-page-business-suite",
+    "read": "/api/v1/admin/dashboard/revenue",
+    "select": "revenue_rollup",
+    "ttlSeconds": 300,
+    "integrationId": "landing-page-business-suite",
+    "origin": "production",
+    "featureId": "revenue_rollup",
+    "contractVersion": "revenue-summary.v1",
+    "selector": "revenue_rollup",
+    "expectedUnit": "currency",
+    "sourceTimePolicy": "producer_required"
+  },
+  "coverage": "NOW",
+  "sample": {
+    "value": 9800,
+    "series": [
+      6100,
+      6900,
+      7500,
+      8200,
+      9100,
+      9800
+    ],
+    "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+  }
+}

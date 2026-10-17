@@ -1,0 +1,31 @@
+{
+  "id": "offer_posture",
+  "label": "Default-alive posture",
+  "description": "Money Ledger cash, burn, revenue, runway, goal verdicts and default-alive gap surfaced through Offer Desk.",
+  "unit": "currency",
+  "format": "currency.compact",
+  "kind": "posture",
+  "shape": "meta",
+  "source": {
+    "team": "monetization",
+    "binding": "scenario:offer-desk",
+    "read": "/vrooli.offer_desk.v1.offers.BoardService/GetBoard?projection=ledger",
+    "select": "offer_posture",
+    "ttlSeconds": 300,
+    "integrationId": "offer-desk",
+    "origin": "local",
+    "featureId": "offer_posture",
+    "contractVersion": "offer-board.v1",
+    "selector": "offer_posture",
+    "expectedUnit": "currency",
+    "sourceTimePolicy": "producer_required"
+  },
+  "coverage": "IN-REACH",
+  "sample": {
+    "value": 0,
+    "series": [
+      0
+    ],
+    "basis": "authored posture placeholder; live Money Ledger reading required"
+  }
+}

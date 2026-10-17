@@ -1,0 +1,11 @@
+{
+  "gate": "deprecated-import",
+  "assetId": "calibration.deprecated-import",
+  "kind": "component",
+  "runner": "static",
+  "requiredFailureCode": "catalog.deprecated-import",
+  "source": "broken.tsx",
+  "catalogAsset": "asset.json",
+  "mutation": "deprecated-import",
+  "description": "Pins a dependency to a version deprecated by its manifest."
+}

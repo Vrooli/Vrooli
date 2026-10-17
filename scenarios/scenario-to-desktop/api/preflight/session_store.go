@@ -12,8 +12,8 @@ import (
 
 	"github.com/google/uuid"
 
-	bundleruntime "scenario-to-desktop-runtime"
-	bundlemanifest "scenario-to-desktop-runtime/manifest"
+	bundleruntime "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime"
+	bundlemanifest "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
 
 // SupervisorFactory creates runtime supervisors for preflight sessions.
@@ -265,7 +265,9 @@ func shutdownSession(session *Session) {
 		return
 	}
 	if session.Supervisor != nil {
-		_ = session.Supervisor.Shutdown(context.Background())
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = session.Supervisor.Shutdown(ctx)
 	}
 	if session.AppData != "" {
 		_ = os.RemoveAll(session.AppData)

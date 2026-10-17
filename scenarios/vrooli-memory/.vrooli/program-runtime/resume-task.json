@@ -1,0 +1,97 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "vrooli-memory.resume-task",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Requeue a durable frozen learning capture using its recovery capability; never repeat the domain action.",
+  "inputs": {
+    "attempt_id": {
+      "type": "string",
+      "required": true
+    },
+    "resume_token": {
+      "type": "string",
+      "required": true
+    }
+  },
+  "assumptions": [
+    "Runtime checks recovery capability and owns the capture outbox"
+  ],
+  "invariants": [
+    "Domain action is never replayed",
+    "Delivery status is independent of task outcome",
+    "Print one bounded envelope"
+  ],
+  "bindings": [],
+  "verbs": [
+    "tasks.resume"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "report"
+      ]
+    },
+    "signals": {
+      "task": "Bounded durable task delivery receipt"
+    },
+    "errors": {
+      "classes": [
+        "task_unavailable",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    },
+    "evidence": "No domain action is performed"
+  },
+  "budget": {
+    "wall_ms": 15000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 1,
+    "output_bytes": 65536
+  },
+  "fixtures": [
+    {
+      "id": "missing-input",
+      "inputs": {},
+      "expect": {
+        "admission_error": "invalid_argument"
+      },
+      "requires": [
+        "vrooli-memory"
+      ]
+    },
+    {
+      "id": "live-valid",
+      "inputs": {
+        "attempt_id": "fixture",
+        "resume_token": "fixture"
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "partial",
+          "unavailable",
+          "refused",
+          "failed"
+        ]
+      },
+      "requires": [
+        "vrooli-memory"
+      ],
+      "note": "Valid bounded exercise fixture added after admission-only fixtures left the contract unexercised."
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "vrooli-memory"
+}

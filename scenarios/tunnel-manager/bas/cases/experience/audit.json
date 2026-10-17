@@ -1,0 +1,65 @@
+{
+  "metadata": {
+    "name": "experience-audit",
+    "description": "Navigate to the audit experience page so its active experience specification has a browser automation evidence seam.",
+    "requirement": "UX-EXPERIENCE-AUDIT",
+    "version": "1",
+    "labels": {"spec_entry_id": "audit", "reset": "none", "purpose": "experience-contract"},
+    "execution_mode": "observer"
+  },
+  "settings": {"viewport_width": 1280, "viewport_height": 800},
+  "nodes": [
+    {
+      "id": "navigate-audit",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "tunnel-manager",
+          "scenario_path": "/audit",
+          "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED",
+          "timeout_ms": 30000
+        },
+        "metadata": {"label": "Navigate to audit"}
+      }
+    },
+    {
+      "id": "wait-audit-page",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.audit",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {"label": "Wait for the audit surface"}
+      }
+    },
+    {
+      "id": "assert-audit-page",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.audit",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 10000,
+          "failure_message": "Audit did not render its bound page surface"
+        },
+        "metadata": {"label": "Assert audit surface is visible"}
+      }
+    },
+    {
+      "id": "assert-audit-results-lifecycle",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-experience-surface=\"audit-results\"][data-experience-state=\"loading\"], [data-experience-surface=\"audit-results\"][data-experience-state=\"ready\"]",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 10000,
+          "failure_message": "Audit results did not expose its async lifecycle surface"
+        },
+        "metadata": {"label": "Assert audit results lifecycle"}
+      }
+    }
+  ]
+}

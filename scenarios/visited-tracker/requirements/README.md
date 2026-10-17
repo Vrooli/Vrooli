@@ -1,56 +1,31 @@
-# Requirements Structure
+# Visited Tracker requirements
 
-This directory contains the requirements for the visited-tracker scenario, organized into modules that align with operational targets from the PRD.
+The module JSON files are the requirement registry. Their `prd_ref` values link
+obligations to the operational targets in [PRD.md](../PRD.md).
 
-## Module Organization
+- [Campaign tracking](01-campaign-tracking/module.json) owns campaign identity,
+  visits, staleness, the CLI, and file persistence.
+- [Web interface](02-web-interface/module.json) owns the HTTP and UI obligations,
+  including export/import. Consult each requirement's title; IDs are stable and
+  are not interchangeable with an older prose index.
+- [Advanced features](03-advanced-features/module.json) records the extended
+  capability obligations and their current validation gaps.
+- [Phase integration](04-phase-integration/module.json) owns agent-facing
+  coordination, revision-aware attention, claims, and program composition.
 
-### 01-campaign-tracking (P0)
-**Operational Target**: OT-P0-001 - Campaign-Based File Tracking
+Run validation with `vrooli scenario test visited-tracker`. Test Genie owns
+execution and the terminal receipt. Requirement auto-sync derives evidence
+status from managed validation; do not hand-mark requirements passed or widen
+assertions to match a failure. A source file reference is not execution proof.
 
-Core functionality for creating campaigns, tracking file visits, calculating staleness scores, and providing CLI/API interfaces.
+`api/attention_test.go` exercises claim concurrency, expiry, replay, revision
+changes, cancellation, and bounded exploration. `api/attention_program_test.go`
+executes the shipped program sources with controlled bindings.
+`api/import_test.go` includes a real HTTP export/import round-trip through the
+production router. The historical `test/api/http-api.bats` path does not exist
+and is not a validation source.
 
-**Requirements**:
-- VT-REQ-001: Campaign-Based File Tracking
-- VT-REQ-002: Visit Count Tracking
-- VT-REQ-003: Staleness Scoring Algorithm
-- VT-REQ-004: CLI Interface
-- VT-REQ-005: JSON File Persistence
-
-**Validation**: Unit tests, API tests, CLI BATS tests
-
-### 02-web-interface (P1)
-**Operational Target**: OT-P1-001 - Web Interface & API
-
-HTTP API and React-based web interface for manual campaign management, file synchronization, and prioritization.
-
-**Requirements**:
-- VT-REQ-006: HTTP API
-- VT-REQ-007: Web Interface
-- VT-REQ-008: File Synchronization
-- VT-REQ-009: File Prioritization
-- VT-REQ-010: Campaign Export/Import
-
-**Validation**: API integration tests, UI workflow tests
-
-### 03-advanced-features (P2)
-**Operational Target**: OT-P2-001 - Advanced Features
-
-Future enhancements including analytics, git history integration, multi-project management, and automated discovery.
-
-**Requirements**:
-- VT-REQ-011: Advanced Analytics
-- VT-REQ-012: Git History Integration
-- VT-REQ-013: Multi-Project Management
-- VT-REQ-014: Automated File Discovery
-
-**Validation**: TBD (planned for future iterations)
-
-## Testing Strategy
-
-Each module includes validation methods at multiple layers:
-- **Unit**: Core logic and algorithms
-- **API**: HTTP endpoints and data flow
-- **UI**: User workflows and visual components
-- **E2E**: Complete user journeys across the system
-
-See `/bas/` for automated workflow tests organized by capability.
+Use `business-health validate scenario visited-tracker` and
+`vrooli scenario requirements validate visited-tracker` to check links and
+obligations. These checks do not replace behavioral tests or establish a live
+correctness or durability sensor.

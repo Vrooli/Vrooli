@@ -2,24 +2,28 @@
 package persistence
 
 import (
+	"context"
 	"io/fs"
 	"os"
+	"time"
+
+	"github.com/vrooli/api-core/storage"
+	platform "github.com/vrooli/platform-go"
 )
 
 // FileSystem abstracts file operations for testability.
 // It provides a subset of os package functions needed by FileRepository.
 type FileSystem interface {
+	// Lock admits one writer, with a bounded wait, across repository instances.
+	Lock(path string) (release func(), err error)
 	// ReadFile reads the contents of a file.
 	ReadFile(name string) ([]byte, error)
 
-	// WriteFile writes data to a file, creating it if necessary.
-	WriteFile(name string, data []byte, perm fs.FileMode) error
+	// WriteFileAtomic syncs a complete temporary file before replacing the target.
+	WriteFileAtomic(name string, data []byte, perm fs.FileMode) error
 
 	// Remove removes a file.
 	Remove(name string) error
-
-	// Rename renames (moves) a file.
-	Rename(oldpath, newpath string) error
 
 	// ReadDir reads a directory and returns its entries.
 	ReadDir(name string) ([]fs.DirEntry, error)
@@ -34,24 +38,25 @@ type FileSystem interface {
 // OSFileSystem implements FileSystem using the real os package.
 type OSFileSystem struct{}
 
+func (OSFileSystem) Lock(path string) (func(), error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	return platform.AcquireFileLockContext(ctx, path)
+}
+
 // ReadFile reads the contents of a file.
 func (OSFileSystem) ReadFile(name string) ([]byte, error) {
 	return os.ReadFile(name)
 }
 
-// WriteFile writes data to a file, creating it if necessary.
-func (OSFileSystem) WriteFile(name string, data []byte, perm fs.FileMode) error {
-	return os.WriteFile(name, data, perm)
+// WriteFileAtomic uses the shared storage owner's publication primitive.
+func (OSFileSystem) WriteFileAtomic(name string, data []byte, perm fs.FileMode) error {
+	return storage.WriteFileAtomic(name, data, perm)
 }
 
 // Remove removes a file.
 func (OSFileSystem) Remove(name string) error {
 	return os.Remove(name)
-}
-
-// Rename renames (moves) a file.
-func (OSFileSystem) Rename(oldpath, newpath string) error {
-	return os.Rename(oldpath, newpath)
 }
 
 // ReadDir reads a directory and returns its entries.

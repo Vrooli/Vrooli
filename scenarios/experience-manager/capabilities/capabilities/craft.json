@@ -1,0 +1,115 @@
+{
+  "$schema": "../../../../.vrooli/schemas/experience-capability-registry.schema.json",
+  "kind": "capability-group",
+  "schemaVersion": "1.0.0",
+  "group": {
+    "id": "craft",
+    "description": "The detail work that separates a correct surface from a beautiful one. Declared in full so the intended standard is visible and plannable; deliberately capped below machine tier because most of it is judgment. Entries are promoted individually as checkers become possible."
+  },
+  "capabilities": [
+    {
+      "id": "icon-weight-consistency",
+      "title": "Icons share one optical weight",
+      "facets": ["promises"],
+      "description": "Icons rendered together share stroke width, corner treatment, and optical size, so a row of controls reads as one family rather than as assets from different sets.",
+      "proves": {
+        "evidence": ["computed-style", "screenshot"],
+        "claimTypes": ["icon-weight-consistency"]
+      },
+      "tierCeiling": "manual",
+      "appliesTo": ["component", "pattern", "navigation"],
+      "rationale": "Partly deterministic once an icon registry normalizes geometry — stroke width and box size become comparable numbers. Optical size, which is what the eye actually judges, is not."
+    },
+    {
+      "id": "text-balance",
+      "title": "Headings and labels break well",
+      "facets": ["promises"],
+      "description": "Multi-line headings and labels break into balanced lines with no single orphaned word, and truncation happens at a meaningful boundary rather than mid-token.",
+      "proves": {
+        "evidence": ["computed-style", "layout-box"],
+        "claimTypes": ["text-balance"]
+      },
+      "tierCeiling": "manual",
+      "rationale": "Orphan detection is mechanical. Whether a given break reads well is not, and it varies by locale — German compounds and Japanese line breaking have different notions of a good break."
+    },
+    {
+      "id": "cursor-discipline",
+      "title": "The cursor tells the truth",
+      "facets": ["promises"],
+      "description": "Cursor treatment matches what an element actually does: pointer for activation, text for selectable content, grab for draggable objects, not-allowed for disabled, and default for everything inert.",
+      "proves": {
+        "axes": { "interaction-state": ["rest", "hover", "disabled"] },
+        "evidence": ["computed-style"],
+        "claimTypes": ["cursor-discipline"]
+      },
+      "tierCeiling": "machine",
+      "rationale": "The most deterministic entry in this group — cursor is a computed style and the correct value follows from the element's role and disabled state. Likely the first craft capability to be promoted to machine tier."
+    },
+    {
+      "id": "empty-state-craft",
+      "title": "Empty states teach rather than apologize",
+      "facets": ["promises"],
+      "description": "An empty state explains why it is empty, distinguishes no-results from never-created, and offers the most relevant next action rather than showing blank space or a bare message.",
+      "proves": {
+        "axes": { "data-shape": ["empty"] },
+        "evidence": ["ax-tree", "screenshot"],
+        "claimTypes": ["state-covered", "affordance-present"]
+      },
+      "tierCeiling": "manual",
+      "appliesTo": ["component", "pattern", "page-template"],
+      "rationale": "The structural half is checkable — an empty state that renders dedicated content with an actionable affordance rather than nothing. Whether the offered action is the right one is judgment."
+    },
+    {
+      "id": "card-restraint",
+      "title": "Cards frame objects, not everything",
+      "facets": ["promises"],
+      "description": "Containment is used for repeated records, focused tools, modals, and genuinely framed objects — while page structure is expressed through alignment, typography, whitespace, and separators instead of nested rounded rectangles.",
+      "proves": {
+        "evidence": ["ax-tree", "layout-box", "computed-style"],
+        "claimTypes": ["card-restraint"]
+      },
+      "tierCeiling": "manual",
+      "appliesTo": ["page", "page-template", "pattern"],
+      "rationale": "DESIGN.md already forbids wrapping whole page sections in floating cards, and the library ships Card as a near-default wrapper. Nesting depth and the ratio of containers to content are countable, which makes the worst cases detectable even if the judgment is not."
+    },
+    {
+      "id": "controlled-irregularity",
+      "title": "Composition has rhythm, not just a grid",
+      "facets": ["promises"],
+      "description": "Content-driven surfaces may use unequal dimensions, deliberate overlap, and variable rhythm where the content warrants it, without the layout becoming arbitrary.",
+      "proves": {
+        "evidence": ["layout-box", "screenshot"],
+        "claimTypes": ["controlled-irregularity"]
+      },
+      "tierCeiling": "aspirational",
+      "appliesTo": ["pattern", "page-template"],
+      "rationale": "Declared because the current model assumes uniform components in uniform grids and cannot express anything else — which is a real ceiling on the editorial and content-first kits. Aspirational because there is no credible deterministic formulation of it yet, and pretending otherwise would produce a checker that punishes good work."
+    },
+    {
+      "id": "signature-moment",
+      "title": "The declared signature moment is realized",
+      "facets": ["promises"],
+      "description": "The one interaction an asset declares as its signature — the moment a user would recognize without a logo — is actually present and behaves as described.",
+      "proves": {
+        "evidence": ["screenshot", "timing"],
+        "claimTypes": ["signature-moment"]
+      },
+      "tierCeiling": "manual",
+      "appliesTo": ["pattern", "page-template", "navigation"],
+      "rationale": "Pairs with the per-asset `signatureMoment` field on the catalog descriptor. Its value is mostly in forcing the question at authoring time — an asset that cannot name its signature moment usually does not have one."
+    },
+    {
+      "id": "celebration-budget",
+      "title": "Delight is allocated, not sprayed",
+      "facets": ["promises"],
+      "description": "Emphatic feedback is reserved for genuinely significant completions; routine successes settle quietly, so the emphatic moments retain their meaning.",
+      "proves": {
+        "evidence": ["timing", "screenshot"],
+        "claimTypes": ["celebration-budget"]
+      },
+      "tierCeiling": "aspirational",
+      "appliesTo": ["component", "pattern", "page-template"],
+      "rationale": "Directly relevant to a system where agents complete work constantly. If every completed task celebrates, none of them mean anything, and the interface becomes exhausting to sit in front of."
+    }
+  ]
+}

@@ -1,0 +1,151 @@
+{
+  "team": {
+    "id": "marketing-i16-delivery",
+    "displayName": "Marketing I16 Delivery",
+    "mission": "Deliver the full approved Marketing specification and beautiful Content Desk UX overhaul through finite native epochs, preserving specialist authority and all accepted content/review/planning/release/learning/recovery seams.",
+    "enabled": false,
+    "purpose": "delivery",
+    "lifetime": "finite",
+    "effortRefs": [
+      "effort:marketing-I16"
+    ],
+    "runtime": {
+      "mode": "multi-process"
+    },
+    "coordination": {
+      "pattern": "leader-led",
+      "reportingMode": "leader",
+      "messagingMode": "async-inbox",
+      "capabilities": {
+        "showOrgContext": true,
+        "injectInbox": true,
+        "allowPeerTriggers": false,
+        "showTaskBoardGuidance": false,
+        "showKnowledgeLogGuidance": true,
+        "requireHandoff": true
+      },
+      "leadAgentId": "marketing-i16-orchestrator"
+    },
+    "execution": {
+      "queuePolicy": "serialized",
+      "maxConcurrentRuns": 1
+    },
+    "operatingContract": {
+      "schemaVersion": 1,
+      "governance": {},
+      "documents": {
+        "planOfRecord": [
+          {
+            "id": "marketing-i16-goal",
+            "hub": {
+              "base": "repo-root",
+              "path": "scenarios/content-desk/docs/internal/goal/GOAL.md"
+            },
+            "paths": [
+              {
+                "base": "repo-root",
+                "path": "scenarios/content-desk/docs/internal/goal/GOAL.md"
+              },
+              {
+                "base": "repo-root",
+                "path": "scenarios/content-desk/docs/internal/goal/TARGETS.md"
+              },
+              {
+                "base": "repo-root",
+                "path": "scenarios/content-desk/docs/internal/goal/selected-state-requirement-map.json"
+              }
+            ],
+            "writePolicy": "Owner-approved source changes; orchestrator maintains goal/queue/epochs under large-effort-orchestration revision 25.",
+            "consumers": [
+              "marketing-i16-delivery",
+              "effort-supervision"
+            ],
+            "useFor": "The full approved destination, exact sources and acceptance; article increment is not completion."
+          },
+          {
+            "id": "delivery-worker-card",
+            "hub": {
+              "base": "repo-root",
+              "path": "scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/references/worker.md"
+            },
+            "paths": [
+              {
+                "base": "repo-root",
+                "path": "scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/references/worker.md"
+              }
+            ],
+            "writePolicy": "Canonical skill owner only.",
+            "consumers": [
+              "marketing-i16-delivery"
+            ],
+            "useFor": "Worker protocol."
+          }
+        ],
+        "sharedState": [
+          {
+            "id": "marketing-queue",
+            "path": {
+              "base": "repo-root",
+              "path": "scenarios/content-desk/docs/internal/goal/QUEUE.md"
+            },
+            "kind": "working-register",
+            "required": true
+          },
+          {
+            "id": "marketing-feedback",
+            "path": {
+              "base": "repo-root",
+              "path": "scenarios/content-desk/docs/internal/goal/FEEDBACK.md"
+            },
+            "kind": "operator-input",
+            "required": true
+          },
+          {
+            "id": "marketing-workarounds",
+            "path": {
+              "base": "repo-root",
+              "path": "scenarios/content-desk/docs/internal/goal/WORKAROUNDS.md"
+            },
+            "kind": "working-register",
+            "required": true
+          },
+          {
+            "id": "marketing-installs",
+            "path": {
+              "base": "repo-root",
+              "path": "scenarios/content-desk/docs/internal/goal/INSTALLS.md"
+            },
+            "kind": "working-register",
+            "required": true
+          }
+        ]
+      },
+      "knowledgeTopics": {},
+      "members": {
+        "marketing-i16-orchestrator": {
+          "lane": "Own the complete Marketing goal/queue/epochs; admit measured worker briefs, steer, park and accept through revision-25 gates. Never implement product work.",
+          "allowedWrites": [
+            {
+              "kind": "handoff"
+            },
+            {
+              "base": "repo-root",
+              "path": "scenarios/content-desk/docs/internal/goal"
+            }
+          ],
+          "safetyCriticalRules": [
+            "Do not enable/admit while AUTH qualification is held.",
+            "Whole accepted outcome includes required specialist/shared contracts; child exclusions return remaining work to native owner.",
+            "Do not implement product work or accept own worker result; use qualified delivery profiles and existing native policy.",
+            "Preserve unrelated authored changes, identities and actual action authority.",
+            "No public posting, purchases, new credentials or grants are authorized by this commission."
+          ],
+          "readOnlyModeBehavior": {
+            "stillWriteKnowledge": false,
+            "stillWriteHandoff": true
+          }
+        }
+      }
+    }
+  }
+}

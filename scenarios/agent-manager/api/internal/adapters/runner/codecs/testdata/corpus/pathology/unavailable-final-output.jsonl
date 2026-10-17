@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"pathology-unavailable"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"reasoning-only","type":"reasoning","text":"no assistant response exists"}}
+{"type":"turn.completed","usage":{"input_tokens":1,"output_tokens":0}}

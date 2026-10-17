@@ -1,0 +1,23 @@
+{
+  "$schema": "schemas/package.schema.json",
+  "version": "1.0.0",
+  "package": {
+    "name": "envkit-go",
+    "display_name": "github.com/vrooli/envkit-go",
+    "description": "Portable, boundary-aware process environment derivation.",
+    "kind": "go_runtime",
+    "language": "go",
+    "module_identifiers": ["github.com/vrooli/envkit-go"],
+    "adoption": {
+      "scenario_adoptable": true,
+      "allowed_consumers": ["scenario_api", "scenario_cli", "scenario_test"],
+      "adoption_modes": ["go_module_replace"]
+    },
+    "lifecycle": {},
+    "refresh": {
+      "strategy": "restart_running_consumers",
+      "restart_running_consumers": true
+    },
+    "docs": []
+  }
+}

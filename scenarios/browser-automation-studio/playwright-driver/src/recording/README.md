@@ -12,8 +12,8 @@ The recording system uses a **proto-first architecture** where all events are co
 Context Setup (once per context)        Recording Sessions (per session)
 ┌─────────────────────────────────┐     ┌─────────────────────────────────┐
 │  RecordingContextInitializer    │     │  RecordingPipelineManager       │
-│  ├─ html-injector.ts            │     │  ├─ state-machine.ts (state)    │
-│  │   └─ Inject script into HTML │     │  ├─ startRecording()/stop()     │
+│  ├─ init-script-injection.ts    │     │  ├─ state-machine.ts (state)    │
+│  │   └─ context.addInitScript() │     │  ├─ startRecording()/stop()     │
 │  └─ event-route.ts              │     │  ├─ handleRawEvent()            │
 │      └─ Page event interception │     │  │   └─ rawBrowserEventTo...()  │
 └─────────────────────────────────┘     │  └─ verifyPipeline()            │
@@ -37,7 +37,7 @@ Browser Page (MAIN context)                            │
 | `state-machine.ts` | Core state machine (single source of truth for recording state) |
 | `pipeline-manager.ts` | Main orchestrator (start/stop, state transitions, event handling) |
 | `context-initializer.ts` | Context-level setup coordinator |
-| `html-injector.ts` | HTML injection into document responses (sub-module of context-initializer) |
+| `injection/strategies/init-script-injection.ts` | Installs the recorder with `context.addInitScript()` |
 | `event-route.ts` | Page-level event route setup (sub-module of context-initializer) |
 | `decisions.ts` | Named decision functions (inject? process?) for debuggability |
 | `init-script-generator.ts` | Generates init script for `context.addInitScript()` |
@@ -49,7 +49,7 @@ Browser Page (MAIN context)                            │
 ### Adding a New Action Type
 
 1. `packages/proto/schemas/.../action.proto` - Add to ActionType enum
-2. `../proto/action-type-utils.ts` - Add string ↔ enum mappings
+2. `./action-types.ts` - Add string ↔ enum mappings
 3. `../handlers/*.ts` - Implement handler (preferred)
    OR `action-executor.ts` - Add executor (if handler not suitable)
 
@@ -92,7 +92,7 @@ const result = await pipelineManager.stopRecording();
 
 This is a coordinator that composes specialized modules:
 
-- **`html-injector.ts`** - Intercepts document requests and injects recording script into HTML
+- **`init-script-injection.ts`** - Installs the recording script into every new document in the context
 - **`event-route.ts`** - Sets up page-level routes for event interception
 
 Why this architecture:

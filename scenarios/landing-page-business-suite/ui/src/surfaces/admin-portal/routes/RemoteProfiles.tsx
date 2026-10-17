@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../..
 import { useToast } from '../../../shared/ui/useToast';
 import { formatDateTime } from '../../../shared/lib/dateFormatters';
 import type { RemoteProfile } from '../../../shared/api';
+import { RemoteProfileOwnerSettingsDialog } from '../components/RemoteProfileOwnerSettingsDialog';
 import { useRemoteProfilesForm } from '../hooks/useRemoteProfilesForm';
 import {
   DEFAULT_REMOTE_PROFILE_FORM,
@@ -79,6 +80,7 @@ export function RemoteProfiles() {
   const [loginProfile, setLoginProfile] = useState<RemoteProfile | null>(null);
   const [loginForm, setLoginForm] = useState(DEFAULT_REMOTE_PROFILE_LOGIN);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [ownerSettingsProfile, setOwnerSettingsProfile] = useState<RemoteProfile | null>(null);
 
   const openCreateModal = () => {
     setEditingProfile(null);
@@ -228,7 +230,6 @@ export function RemoteProfiles() {
     <AdminLayout maxWidth="default">
       <div className={LAYOUT.pageSpacing}>
         <PageHeader
-          variant="icon-title"
           title="Remote Profiles"
           description="Connect to deployed Landing Page Business Suite instances for secure admin automation."
           icon={Server}
@@ -240,7 +241,7 @@ export function RemoteProfiles() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={refresh}
+                onClick={() => { void refresh(); }}
                 disabled={actions.refreshing}
                 className="gap-2"
               >
@@ -281,7 +282,7 @@ export function RemoteProfiles() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={refreshIncomingSessions}
+                    onClick={() => { void refreshIncomingSessions(); }}
                     disabled={actions.incomingRefreshing}
                     className="gap-2"
                   >
@@ -313,7 +314,7 @@ export function RemoteProfiles() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleIncomingRevoke(session.session_id)}
+                            onClick={() => { void handleIncomingRevoke(session.session_id); }}
                             disabled={actions.incomingRevokeSessionId === session.session_id}
                             className="gap-1 text-rose-400 hover:text-rose-300 hover:border-rose-500/50"
                           >
@@ -411,7 +412,7 @@ export function RemoteProfiles() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => openLoginModal(profile)}
+                          onClick={() => { openLoginModal(profile); }}
                           disabled={busy.login}
                           className="gap-1"
                         >
@@ -421,7 +422,7 @@ export function RemoteProfiles() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleTestProfile(profile)}
+                          onClick={() => { void handleTestProfile(profile); }}
                           disabled={!canTest || busy.test}
                           className="gap-1"
                         >
@@ -431,7 +432,7 @@ export function RemoteProfiles() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleLogoutProfile(profile)}
+                          onClick={() => { void handleLogoutProfile(profile); }}
                           disabled={!profile.has_session || busy.logout}
                           className="gap-1"
                         >
@@ -441,7 +442,7 @@ export function RemoteProfiles() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleInspectRemoteProfile(profile)}
+                          onClick={() => { void handleInspectRemoteProfile(profile); }}
                           disabled={actions.loadingLinksId === profile.id || !profile.has_session}
                           className="gap-1"
                         >
@@ -451,7 +452,17 @@ export function RemoteProfiles() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleRemoteRevokeProfile(profile)}
+                          onClick={() => { setOwnerSettingsProfile(profile); }}
+                          disabled={!profile.has_session}
+                          className="gap-1"
+                        >
+                          <ShieldCheck className="h-4 w-4" />
+                          Owner Settings
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => { void handleRemoteRevokeProfile(profile); }}
                           disabled={actions.remoteRevokeId === profile.id || !profile.has_session}
                           className="gap-1 text-rose-400 hover:text-rose-300 hover:border-rose-500/50"
                         >
@@ -461,7 +472,7 @@ export function RemoteProfiles() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => openEditModal(profile)}
+                          onClick={() => { openEditModal(profile); }}
                           disabled={busy.update}
                           className="gap-1"
                         >
@@ -471,7 +482,7 @@ export function RemoteProfiles() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleDeleteProfile(profile)}
+                          onClick={() => { void handleDeleteProfile(profile); }}
                           disabled={busy.delete}
                           className="gap-1 text-rose-400 hover:text-rose-300 hover:border-rose-500/50"
                         >
@@ -487,7 +498,7 @@ export function RemoteProfiles() {
                           </p>
                           {(links.remote_sessions?.length ?? 0) > 0 && (
                             <div className="mt-2 space-y-1">
-                              {links.remote_sessions!.map((session) => (
+                              {links.remote_sessions?.map((session) => (
                                 <p key={session.session_id} className="text-xs text-slate-400 font-mono">
                                   {session.session_id} • {session.origin || 'unknown'} • {formatDateTime(session.last_activity, 'short')}
                                 </p>
@@ -523,27 +534,30 @@ export function RemoteProfiles() {
             </div>
 
             <div className={LAYOUT.contentSpacing}>
-              <FormField label="Tag" helpText="Lowercase letters, numbers, '-' or '_' (used in CLI commands).">
+              <FormField label="Tag" htmlFor="remote-profile-tag" helpText="Lowercase letters, numbers, '-' or '_' (used in CLI commands).">
                 <input
+                  id="remote-profile-tag"
                   type="text"
                   value={profileForm.tag}
-                  onChange={(e) => setProfileForm((prev) => ({ ...prev, tag: e.target.value }))}
+                  onChange={(e) => { setProfileForm((prev) => ({ ...prev, tag: e.target.value })); }}
                   className={inputClassName}
                 />
               </FormField>
-              <FormField label="Label" helpText="Human-friendly display name. Optional.">
+              <FormField label="Label" htmlFor="remote-profile-label" helpText="Human-friendly display name. Optional.">
                 <input
+                  id="remote-profile-label"
                   type="text"
                   value={profileForm.label}
-                  onChange={(e) => setProfileForm((prev) => ({ ...prev, label: e.target.value }))}
+                  onChange={(e) => { setProfileForm((prev) => ({ ...prev, label: e.target.value })); }}
                   className={inputClassName}
                 />
               </FormField>
-              <FormField label="API Base" helpText="Full remote base URL ending with /api/v1. Changing this clears the stored session.">
+              <FormField label="API Base" htmlFor="remote-profile-api-base" helpText="Full remote base URL ending with /api/v1. Changing this clears the stored session.">
                 <input
+                  id="remote-profile-api-base"
                   type="url"
                   value={profileForm.apiBase}
-                  onChange={(e) => setProfileForm((prev) => ({ ...prev, apiBase: e.target.value }))}
+                  onChange={(e) => { setProfileForm((prev) => ({ ...prev, apiBase: e.target.value })); }}
                   className={inputClassName}
                 />
               </FormField>
@@ -560,8 +574,8 @@ export function RemoteProfiles() {
                 Cancel
               </Button>
               <Button
-                onClick={handleSaveProfile}
-                disabled={actions.creating || actions.updatingId === editingProfile?.id}
+                onClick={() => { void handleSaveProfile(); }}
+                disabled={actions.creating || (editingProfile !== null && actions.updatingId === editingProfile.id)}
                 className="gap-2"
               >
                 <CheckCircle2 className="h-4 w-4" />
@@ -588,18 +602,20 @@ export function RemoteProfiles() {
             </div>
 
             <div className={LAYOUT.contentSpacing}>
-              <FormField label="Admin Email">
+              <FormField label="Admin Email" htmlFor="remote-profile-admin-email">
                 <input
+                  id="remote-profile-admin-email"
                   type="email"
                   value={loginForm.email}
-                  onChange={(e) => setLoginForm((prev) => ({ ...prev, email: e.target.value }))}
+                  onChange={(e) => { setLoginForm((prev) => ({ ...prev, email: e.target.value })); }}
                   className={inputClassName}
                 />
               </FormField>
-              <FormField label="Admin Password">
+              <FormField label="Admin Password" htmlFor="remote-profile-admin-password">
                 <PasswordInput
+                  id="remote-profile-admin-password"
                   value={loginForm.password}
-                  onChange={(e) => setLoginForm((prev) => ({ ...prev, password: e.target.value }))}
+                  onChange={(e) => { setLoginForm((prev) => ({ ...prev, password: e.target.value })); }}
                   placeholder="Enter remote admin password"
                   autoComplete="current-password"
                 />
@@ -617,7 +633,7 @@ export function RemoteProfiles() {
                 Cancel
               </Button>
               <Button
-                onClick={handleLoginProfile}
+                onClick={() => { void handleLoginProfile(); }}
                 disabled={actions.loginId === loginProfile.id}
                 className="gap-2"
               >
@@ -628,6 +644,12 @@ export function RemoteProfiles() {
           </div>
         </div>
       )}
+
+      <RemoteProfileOwnerSettingsDialog
+        profile={ownerSettingsProfile}
+        open={ownerSettingsProfile !== null}
+        onOpenChange={(open) => { if (!open) setOwnerSettingsProfile(null); }}
+      />
     </AdminLayout>
   );
 }

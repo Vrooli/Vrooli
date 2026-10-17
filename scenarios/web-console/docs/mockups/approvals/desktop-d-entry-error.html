@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Approvals — Desktop FloatingToolbar entry + error state + run-review context panel</title>
+<style>
+:root{
+  --wc-surface-base:2 6 23; --wc-surface-raised:15 23 42; --wc-surface-input:30 41 59; --wc-card:23 32 51;
+  --wc-text-primary:248 250 252; --wc-text-secondary:226 232 240; --wc-text-muted:148 163 184; --wc-text-faint:100 116 139;
+  --wc-border-default:255 255 255; --wc-accent:34 211 238; --wc-accent-fg:15 23 42; --wc-accent-border:6 182 212;
+  --wc-error-text:252 165 165; --wc-error-detail:248 113 113; --wc-error-border:239 68 68; --wc-error-surface:69 10 10;
+  --wc-success:74 222 128; --wc-warning:245 178 63;
+  --font-sans:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,Menlo,Monaco,Consolas,monospace;
+  --r-panel:.5rem;--r-ctrl:.375rem;--r-pill:9999px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans);background:rgb(var(--wc-surface-base));color:rgb(var(--wc-text-primary));font-size:14px;line-height:22px;min-height:100vh;padding:24px;display:flex;flex-direction:column;align-items:center;gap:12px}
+.caption{color:rgb(var(--wc-text-faint));font-size:12px}
+.stage{position:relative;width:1120px;max-width:100%;height:720px}
+.drawer{position:absolute;inset:0;background:rgb(var(--wc-surface-raised));border:1px solid rgb(var(--wc-border-default)/.1);border-radius:var(--r-panel);overflow:hidden;display:flex;flex-direction:column;box-shadow:0 16px 48px rgba(9,18,22,.5)}
+.drawer-head{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid rgb(var(--wc-border-default)/.1)}
+.drawer-head h1{font-size:18px;font-weight:600}
+.pending-count{background:rgb(var(--wc-accent));color:rgb(var(--wc-accent-fg));border-radius:var(--r-pill);font-size:12px;font-weight:700;padding:2px 9px}
+.spacer{flex:1}
+.icon-btn{width:36px;height:36px;border-radius:var(--r-ctrl);border:1px solid rgb(var(--wc-border-default)/.1);background:transparent;color:rgb(var(--wc-text-muted));display:flex;align-items:center;justify-content:center;font-size:15px}
+.body{flex:1;display:flex;min-height:0}
+.list{width:420px;border-right:1px solid rgb(var(--wc-border-default)/.1);display:flex;flex-direction:column}
+/* inline error banner (Banner, danger tone) */
+.err-banner{margin:12px 16px;border-radius:var(--r-ctrl);background:rgb(var(--wc-error-surface)/.5);border:1px solid rgb(var(--wc-error-border)/.3);color:rgb(var(--wc-error-text));padding:11px 14px;display:flex;gap:10px;align-items:center;font-size:13px}
+.err-banner button{margin-left:auto;background:transparent;border:1px solid rgb(var(--wc-error-border)/.5);color:rgb(var(--wc-error-text));border-radius:var(--r-ctrl);padding:5px 12px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit}
+.rows{overflow:auto;flex:1}
+.row{display:flex;cursor:pointer;border-bottom:1px solid rgb(var(--wc-border-default)/.06);position:relative}
+.row.sel{background:rgb(var(--wc-accent)/.1)}
+.row.sel::after{content:"";position:absolute;inset:0 auto 0 0;width:3px;background:rgb(var(--wc-accent))}
+.urail{width:4px}.u-normal{background:rgb(var(--wc-accent)/.6)}.u-high{background:rgb(var(--wc-warning))}
+.rcontent{flex:1;padding:12px 14px;min-width:0}
+.rtop{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.src{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;padding:2px 7px;border-radius:var(--r-pill)}
+.src .dot{width:7px;height:7px;border-radius:50%}
+.src-am{background:rgb(var(--wc-accent)/.14);color:rgb(var(--wc-accent))}
+.src-dep{background:rgb(var(--wc-warning)/.14);color:rgb(var(--wc-warning))}
+.rtime{margin-left:auto;font-size:11px;color:rgb(var(--wc-text-faint))}
+.rtitle{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rq{font-size:13px;color:rgb(var(--wc-text-muted));margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rmeta{display:flex;gap:8px;margin-top:7px}
+.pill{font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:var(--r-pill)}
+.pill-rev{color:rgb(var(--wc-success));background:rgb(var(--wc-success)/.12)}
+.pill-rec{color:rgb(var(--wc-accent));background:rgb(var(--wc-accent)/.12)}
+.detail{flex:1;display:flex;flex-direction:column;overflow:auto}
+.dhead{padding:20px 24px 16px;border-bottom:1px solid rgb(var(--wc-border-default)/.08)}
+.row2{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.dsubject{font-size:20px;font-weight:600;line-height:28px}
+.dbody{padding:20px 24px;display:flex;flex-direction:column;gap:20px}
+.question{font-size:15px;line-height:24px;color:rgb(var(--wc-text-secondary))}
+.sect-label{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:rgb(var(--wc-text-faint));margin-bottom:10px}
+.ctx{background:rgb(var(--wc-card));border:1px solid rgb(var(--wc-border-default)/.1);border-radius:var(--r-panel);padding:16px 18px;border-left:3px solid rgb(var(--wc-accent))}
+.kv{display:grid;grid-template-columns:140px 1fr;gap:6px 16px;font-size:13px}
+.kv dt{color:rgb(var(--wc-text-faint))}.kv dd{color:rgb(var(--wc-text-secondary))}
+.diffbar{display:flex;gap:10px;align-items:center;font-size:13px;font-family:var(--mono)}
+.add{color:rgb(var(--wc-success))}.del{color:rgb(var(--wc-error-detail))}
+.scopetag{font-size:11.5px;padding:2px 9px;border-radius:var(--r-pill);background:rgb(var(--wc-accent)/.12);color:rgb(var(--wc-accent));font-family:var(--mono)}
+.filelist{margin-top:4px;font-family:var(--mono);font-size:12px;color:rgb(var(--wc-text-muted));line-height:19px}
+.ctxlink{display:inline-flex;gap:6px;color:rgb(var(--wc-accent));font-size:13px;margin-top:14px;text-decoration:none}
+.answers{display:flex;flex-direction:column;gap:12px}
+.rec-reason{font-size:13px;color:rgb(var(--wc-text-muted));line-height:19px}
+.opt-row{display:flex;gap:10px;flex-wrap:wrap}
+.btn{border-radius:var(--r-ctrl);font-size:14px;font-weight:600;padding:11px 20px;min-height:44px;cursor:pointer;border:1px solid transparent;font-family:inherit;display:inline-flex;align-items:center;gap:8px}
+.btn-primary{background:rgb(var(--wc-accent));color:rgb(var(--wc-accent-fg))}
+.btn-secondary{background:transparent;border-color:rgb(var(--wc-border-default)/.16);color:rgb(var(--wc-text-secondary))}
+.btn-danger{background:transparent;border-color:rgb(var(--wc-error-border)/.4);color:rgb(var(--wc-error-text))}
+.notefield{width:100%;min-height:72px;border-radius:var(--r-ctrl);background:rgb(var(--wc-surface-input));border:1px solid rgb(var(--wc-border-default)/.1);color:rgb(var(--wc-text-primary));padding:10px 12px;font-size:13px;font-family:inherit;resize:vertical}
+/* FloatingToolbar (desktop-only) docked right */
+.floating{position:absolute;right:14px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:8px;
+  background:rgb(var(--wc-surface-raised)/.92);border:1px solid rgb(var(--wc-border-default)/.12);border-radius:var(--r-pill);
+  padding:8px;box-shadow:0 4px 12px rgba(9,18,22,.4);backdrop-filter:blur(6px);z-index:5}
+.ft-btn{position:relative;width:40px;height:40px;border-radius:50%;border:1px solid rgb(var(--wc-border-default)/.1);background:rgb(var(--wc-surface-input));color:rgb(var(--wc-text-muted));display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px}
+.ft-btn.active{background:rgb(var(--wc-accent)/.16);border-color:rgb(var(--wc-accent-border)/.5);color:rgb(var(--wc-accent))}
+.ft-badge{position:absolute;top:-3px;right:-3px;min-width:18px;height:18px;border-radius:var(--r-pill);background:rgb(var(--wc-accent));color:rgb(var(--wc-accent-fg));font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 4px;border:2px solid rgb(var(--wc-surface-raised))}
+.ft-note{position:absolute;right:62px;top:50%;transform:translateY(-50%);white-space:nowrap;font-size:11px;color:rgb(var(--wc-text-faint));background:rgb(var(--wc-surface-base)/.9);padding:4px 8px;border-radius:var(--r-ctrl);border:1px solid rgb(var(--wc-border-default)/.1)}
+</style>
+</head>
+<body>
+<div class="caption">Desktop · FloatingToolbar inbox entry (badged, right-docked) · inline error on list · run-review context panel</div>
+<div class="stage">
+  <div class="drawer">
+    <div class="drawer-head"><h1>Approvals</h1><span class="pending-count">4</span><span class="spacer"></span><button class="icon-btn">⟳</button><button class="icon-btn">✕</button></div>
+    <div class="body">
+      <div class="list">
+        <div class="err-banner"><span>⚠</span><span>Couldn't resolve "Grant deploy scope" — the producer rejected the answer (ask already expired).</span><button>Retry</button></div>
+        <div class="rows">
+          <div class="row sel"><div class="urail u-normal"></div><div class="rcontent">
+            <div class="rtop"><span class="src src-am"><span class="dot" style="background:rgb(var(--wc-accent))"></span>agent-manager</span><span class="rtime">8m ago</span></div>
+            <div class="rtitle">Run r-7f2a needs review before resuming</div>
+            <div class="rq">Approve the proposed diff and resume the run, or send it back?</div>
+            <div class="rmeta"><span class="pill pill-rev">Reversible</span><span class="pill pill-rec">★ Recommends: Approve</span></div>
+          </div></div>
+          <div class="row"><div class="urail u-high"></div><div class="rcontent">
+            <div class="rtop"><span class="src src-dep"><span class="dot" style="background:rgb(var(--wc-warning))"></span>deployment-manager</span><span class="rtime">2m ago</span></div>
+            <div class="rtitle">Release web-console v3.4.0 to production</div>
+            <div class="rq">Promote build sha256:9f3c…a1 to production (2 targets)?</div>
+            <div class="rmeta"><span class="pill pill-rec">★ Recommends: Promote</span></div>
+          </div></div>
+        </div>
+      </div>
+      <!-- DETAIL: agent-manager run review (per-source context panel #2) -->
+      <div class="detail">
+        <div class="dhead">
+          <div class="row2"><span class="src src-am"><span class="dot" style="background:rgb(var(--wc-accent))"></span>agent-manager · run-review</span><span class="pill pill-rev">Reversible</span></div>
+          <div class="dsubject">Run r-7f2a needs review before resuming</div>
+        </div>
+        <div class="dbody">
+          <div class="question">The run "desktop-packaging-delivery / worker-3" paused for review after proposing a diff and requesting a new authorization scope. Approve and resume, request changes, or stop the run?</div>
+          <div>
+            <div class="sect-label">Run context</div>
+            <div class="ctx">
+              <dl class="kv">
+                <dt>Run</dt><dd>r-7f2a · worker-3 · epoch E2</dd>
+                <dt>Proposed diff</dt><dd><div class="diffbar"><span class="add">+214</span><span class="del">−37</span><span style="color:rgb(var(--wc-text-faint))">· 6 files</span></div>
+                  <div class="filelist">api/internal/handlers/release.go<br/>ui/src/components/ReleaseCard.tsx<br/>+4 more</div></dd>
+                <dt>Requested scope</dt><dd><span class="scopetag">deployment.write · 2h</span></dd>
+                <dt>Last turn</dt><dd>"Canary passed; requesting scope to publish."</dd>
+              </dl>
+              <a class="ctxlink" href="#">Open run in agent-manager ↗</a>
+            </div>
+          </div>
+          <div>
+            <div class="sect-label">Your decision</div>
+            <div class="answers">
+              <div class="rec-reason">Recommended: <b>Approve &amp; resume</b> — diff is scoped to the release surface and the canary gate passed. Reversible: the run can be re-paused.</div>
+              <div class="opt-row">
+                <button class="btn btn-primary">★ Approve &amp; resume</button>
+                <button class="btn btn-secondary">Request changes</button>
+                <button class="btn btn-danger">Stop run</button>
+              </div>
+              <textarea class="notefield" placeholder="Add a note (optional)…"></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- FloatingToolbar, desktop-only, with the badged Approvals entry -->
+  <div class="floating">
+    <button class="ft-btn" title="Settings">⚙</button>
+    <button class="ft-btn" title="AI">✦</button>
+    <button class="ft-btn" title="Machines">🖥</button>
+    <button class="ft-btn active" title="Approvals"><span>✓</span><span class="ft-badge">4</span><span class="ft-note">Approvals · 4 need you</span></button>
+    <button class="ft-btn" title="New session">＋</button>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,9 @@
+[package]
+name = "vrooli-doc-parse-shim"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+anydoc = "=0.1.9"
+pdf-inspector = "=1.14.2"

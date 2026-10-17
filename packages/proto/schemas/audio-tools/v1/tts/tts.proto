@@ -1,0 +1,294 @@
+syntax = "proto3";
+
+package vrooli.audio_tools.v1.tts;
+
+import "audio-tools/v1/common/common.proto";
+import "audio-tools/v1/shared/shared.proto";
+import "buf/validate/validate.proto";
+import "google/protobuf/field_mask.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts;tts_v1";
+
+// =============================================================================
+// TTS DOMAIN — text-to-speech synthesis, voice catalog, content-addressable
+//              cache, default TTS config, and pure text-preparation helpers
+//              (NormalizeForSpeech, SplitParagraphs).
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain tts
+// @stability stable
+//
+// Provider routing: BYOK -> Vrooli/LPBS -> Local (fixed precedence).
+// Per-request credentials travel in metadata headers — see
+// audio-tools/v1/auth/auth.proto for the typed Credentials envelope
+// shared by the server-side and client-side Connect interceptors.
+//
+// Cache is content-addressable: key = SHA256(voice|speed|format|text-content).
+// Web-console wraps this cache with an event->content-key map maintained in
+// conversation glue. The on-disk cache lives in audio-tools state scope.
+//
+// Voice IDs are canonical:
+//   voice.feminine.warm, voice.feminine.neutral,
+//   voice.masculine.warm, voice.masculine.neutral,
+//   voice.neutral.default
+// voice_overrides ([]AdapterMapping) wins over the canonical mapping for
+// the matching (tier, provider_id) pair.
+// =============================================================================
+
+service TTSService {
+  rpc Synthesize(SynthesizeRequest) returns (SynthesizeResponse);
+  // SynthesizeStream returns audio as a server-stream of AudioFrame
+  // messages. Adapters that declare StreamingCapability=true emit
+  // multiple frames as synthesis progresses (so the player can start
+  // playback before the full clip is rendered). Adapters that cannot
+  // stream natively emit a single is_final=true frame with the full
+  // audio bytes — semantically equivalent to Synthesize.
+  rpc SynthesizeStream(SynthesizeRequest) returns (stream AudioFrame);
+  rpc ListVoices(ListVoicesRequest) returns (ListVoicesResponse);
+  rpc GetCache(GetCacheRequest) returns (GetCacheResponse);
+
+  rpc GetConfig(GetConfigRequest) returns (GetConfigResponse);
+  rpc UpdateConfig(UpdateConfigRequest) returns (UpdateConfigResponse);
+  rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
+  rpc RecordPlaybackEvent(RecordPlaybackEventRequest) returns (RecordPlaybackEventResponse);
+
+  // GetSupportedFormats reports the TTS egress capability matrix: the
+  // response_format containers the API can produce. Purely informational —
+  // it backs `audio-tools tts formats`.
+  rpc GetSupportedFormats(GetSupportedFormatsRequest) returns (GetSupportedFormatsResponse);
+
+  // Pure text-preparation helpers. Consumers normally batch these into a
+  // single per-utterance call. Kept on TTSService rather than a separate
+  // service because they are TTS-pipeline-specific.
+  rpc NormalizeForSpeech(NormalizeForSpeechRequest) returns (NormalizeForSpeechResponse);
+  rpc SplitParagraphs(SplitParagraphsRequest) returns (SplitParagraphsResponse);
+}
+
+// -----------------------------------------------------------------------------
+// Voice catalog typed shapes
+// -----------------------------------------------------------------------------
+
+// AdapterMapping pins a canonical voice id to a concrete backend voice
+// for a specific (tier, provider_id) pair. Replaces the legacy
+// map<string,string> with a "tier:provider-id" key shape.
+message AdapterMapping {
+  vrooli.audio_tools.v1.common.ProviderTier tier = 1;
+  string provider_id = 2;
+  string backend_voice_id = 3;
+}
+
+// -----------------------------------------------------------------------------
+// Synthesize
+// -----------------------------------------------------------------------------
+
+message SynthesizeRequest {
+  string text = 1 [(buf.validate.field).string.min_len = 1];
+  // Canonical voice ID (e.g., "voice.feminine.warm"). The active adapter
+  // resolves this to a backend voice name via the catalog + voice_overrides.
+  // Empty string = use server default.
+  string voice = 2;
+  // Per-call overrides. Wins over the canonical mapping for the matching
+  // (tier, provider_id) pair.
+  repeated AdapterMapping voice_overrides = 3;
+  // 0.5–4.0 when set; 0 = use server default.
+  double speed = 4 [(buf.validate.field).cel = {
+    id: "tts.synthesize.speed.range"
+    message: "speed must be 0 (default) or in [0.5, 4.0]"
+    expression: "this == 0.0 || (this >= 0.5 && this <= 4.0)"
+  }];
+  vrooli.audio_tools.v1.common.ResponseFormat response_format = 5;
+  // Optional cache control. When event_id is set, the server stores the
+  // synthesized audio under a content-addressable + event index.
+  string event_id = 6;
+  string version = 7;
+  // Paragraph index within the event. A spoken assistant message is
+  // synthesized as N ordered paragraphs (chunks); chunk_index disambiguates
+  // them under the same event_id so per-paragraph audio does not collide on a
+  // single whole-message key. Defaults to 0 (single-chunk / whole-message).
+  int32 chunk_index = 8;
+}
+
+message SynthesizeResponse {
+  bytes audio = 1;
+  string content_type = 2;
+  string content_hash = 3; // SHA256 of the synthesis input key
+  vrooli.audio_tools.v1.common.ProviderTier provider_tier = 4;
+  string provider_id = 5;
+  string model_id = 6;
+  string voice_used = 7; // resolved backend voice name
+  double latency_ms = 8;
+}
+
+// AudioFrame is one frame in a server-streamed Synthesize response.
+// Provider trace fields are populated on the final frame (is_final=true)
+// only; intermediate frames leave them empty.
+message AudioFrame {
+  bytes audio = 1;
+  string content_type = 2;
+  bool is_final = 3;
+
+  // Trace populated on the final frame:
+  vrooli.audio_tools.v1.common.ProviderTier provider_tier = 4;
+  string provider_id = 5;
+  string model_id = 6;
+  string voice_used = 7;
+  double latency_ms = 8;
+  string content_hash = 9;
+}
+
+// -----------------------------------------------------------------------------
+// Voices
+// -----------------------------------------------------------------------------
+
+message Voice {
+  string id = 1; // canonical id (e.g., voice.feminine.warm)
+  string name = 2; // human label
+  string description = 3;
+  // Per-adapter mapping snapshot.
+  repeated AdapterMapping adapter_mappings = 4;
+}
+
+message ListVoicesRequest {}
+
+message ListVoicesResponse {
+  repeated Voice voices = 1;
+}
+
+// -----------------------------------------------------------------------------
+// Cache
+// -----------------------------------------------------------------------------
+
+message GetCacheRequest {
+  // Either event_id + version (web-console glue path) OR content_hash
+  // (direct hit) are accepted. Voice + speed + format disambiguate event_id.
+  string event_id = 1;
+  string voice = 2;
+  double speed = 3;
+  string version = 4; // defaults to "active"
+  string content_hash = 5; // direct content-addressable lookup
+  vrooli.audio_tools.v1.common.ResponseFormat response_format = 6;
+  // Paragraph index within the event (see SynthesizeRequest.chunk_index).
+  // Part of the event_id-glue cache key; defaults to 0.
+  int32 chunk_index = 7;
+}
+
+message GetCacheResponse {
+  bytes audio = 1;
+  string content_type = 2;
+  string content_hash = 3;
+  bool hit = 4;
+}
+
+// -----------------------------------------------------------------------------
+// Default config (per-instance defaults; per-user moves later)
+// -----------------------------------------------------------------------------
+
+message Config {
+  bool auto_enabled = 1;
+  string default_voice = 2; // canonical voice id
+  double default_speed = 3;
+  vrooli.audio_tools.v1.common.ResponseFormat default_response_format = 4;
+  // Summarize config has migrated to SummarizeService.SummarizeConfig
+  // (audio-tools/v1/summarize/summarize.proto). Consumers should call
+  // SummarizeService.GetSummarizeConfig / UpdateSummarizeConfig.
+  reserved 5, 6, 7, 8, 9;
+  reserved "summarize_enabled", "summarize_char_threshold", "summarize_level", "summarize_model", "summarize_timeout_seconds";
+}
+
+message GetConfigRequest {}
+
+message GetConfigResponse {
+  Config config = 1;
+}
+
+// UpdateConfigRequest carries FieldMask + a full Config payload. Server
+// validates every path in `update_mask.paths`; unknown paths return
+// CodeInvalidArgument; empty mask returns CodeInvalidArgument
+// ("no fields specified").
+message UpdateConfigRequest {
+  google.protobuf.FieldMask update_mask = 1;
+  Config config = 2;
+}
+
+message UpdateConfigResponse {
+  Config config = 1;
+}
+
+// -----------------------------------------------------------------------------
+// Status + playback ack
+// -----------------------------------------------------------------------------
+
+// Status is the TTS-domain snapshot of "what the chain looks like right
+// now". The per-provider availability list is modeled as a slice of
+// shared.ProviderHealth so the shape is identical to the canonical
+// HealthStatusService surface — consumers that already render
+// ProviderHealth can reuse the same code. The capability field on each
+// ProviderHealth is always CAPABILITY_TTS here.
+message Status {
+  Config config = 1;
+  repeated vrooli.audio_tools.v1.shared.ProviderHealth availability = 2;
+  string capability = 3;
+  string capability_label = 4;
+}
+
+message GetStatusRequest {}
+
+message GetStatusResponse {
+  Status status = 1;
+}
+
+message PlaybackEvent {
+  string source = 1;
+  string stage = 2;
+  string backend = 3;
+  string session_id = 4;
+  string message = 5;
+  string event_id = 6;
+}
+
+message RecordPlaybackEventRequest {
+  PlaybackEvent event = 1;
+}
+
+message RecordPlaybackEventResponse {
+  string status = 1;
+}
+
+message GetSupportedFormatsRequest {}
+
+// GetSupportedFormatsResponse describes the TTS egress capability matrix.
+message GetSupportedFormatsResponse {
+  // Output containers the API can produce for a `response_format`. The
+  // local synthesis engine encodes to these itself, so the set is fixed
+  // regardless of ffmpeg_available.
+  repeated vrooli.audio_tools.v1.common.ResponseFormat emitted_formats = 1;
+  // True when the local ffmpeg encode backend is present (informational;
+  // the synthesis engine does its own encoding).
+  bool ffmpeg_available = 2;
+}
+
+// -----------------------------------------------------------------------------
+// Pure helpers
+// -----------------------------------------------------------------------------
+
+message NormalizeForSpeechRequest {
+  string text = 1;
+  // Optional: target voice influences certain normalization rules (e.g., the
+  // pronunciation hints for symbol-heavy text).
+  string voice = 2;
+}
+
+message NormalizeForSpeechResponse {
+  string text = 1;
+}
+
+message SplitParagraphsRequest {
+  string text = 1;
+  // Maximum characters per paragraph chunk; 0 = adapter default.
+  int32 max_chars = 2;
+}
+
+message SplitParagraphsResponse {
+  repeated string paragraphs = 1;
+}

@@ -67,16 +67,13 @@ export class PerfCollector {
   private readonly targetFps: number;
 
   /** Ring buffer of frame timings */
-  private readonly timings: FrameTimings[] = [];
+  private readonly timings: { timing: FrameTimings; startMs: number }[] = [];
+  private next = 0;
 
-  /** Total frames recorded (including those evicted from buffer) */
-  private frameCount = 0;
-
-  /** Total frames skipped */
-  private skippedCount = 0;
-
-  /** When collection started */
-  private readonly startTime: Date;
+  // Wall time labels are anchored to monotonic observation time, not remote clocks.
+  private startTime = new Date();
+  private startMs = performance.now();
+  private lastRecordedMs = this.startMs;
 
   /** Current sequence number */
   private sequenceNum = 0;
@@ -86,7 +83,6 @@ export class PerfCollector {
     this.bufferSize = Math.max(1, config.bufferSize);
     this.logSummaryInterval = Math.max(0, config.logSummaryInterval);
     this.targetFps = config.targetFps;
-    this.startTime = new Date();
   }
 
   /**
@@ -106,10 +102,6 @@ export class PerfCollector {
    */
   recordFrame(input: FrameTimingInput): void {
     this.sequenceNum++;
-    this.frameCount++;
-    if (input.skipped) {
-      this.skippedCount++;
-    }
 
     const timing: FrameTimings = {
       frame_id: `${this.sessionId}-${this.sequenceNum}`,
@@ -124,11 +116,10 @@ export class PerfCollector {
       skipped: input.skipped,
     };
 
-    // Ring buffer: evict oldest if full
-    if (this.timings.length >= this.bufferSize) {
-      this.timings.shift();
-    }
-    this.timings.push(timing);
+    const sample = { timing, startMs: this.lastRecordedMs };
+    this.lastRecordedMs = performance.now();
+    this.timings[this.next] = sample;
+    this.next = (this.next + 1) % this.bufferSize;
   }
 
   /**
@@ -174,15 +165,14 @@ export class PerfCollector {
    * Check if we should log a summary based on frame count.
    */
   shouldLogSummary(): boolean {
-    if (this.logSummaryInterval <= 0) return false;
-    return this.frameCount % this.logSummaryInterval === 0;
+    return this.sequenceNum > 0 && this.logSummaryInterval > 0 && this.sequenceNum % this.logSummaryInterval === 0;
   }
 
   /**
    * Get current frame count.
    */
   getFrameCount(): number {
-    return this.frameCount;
+    return this.sequenceNum;
   }
 
   /**
@@ -196,88 +186,40 @@ export class PerfCollector {
    * Get aggregated statistics from the ring buffer.
    */
   getAggregatedStats(): FrameStatsAggregated {
-    const now = new Date();
-    const windowDurationMs = now.getTime() - this.startTime.getTime();
-
-    if (this.timings.length === 0) {
-      return {
-        session_id: this.sessionId,
-        window_start_time: this.startTime.toISOString(),
-        window_duration_ms: windowDurationMs,
-        frame_count: 0,
-        skipped_count: 0,
-        capture_p50_ms: 0,
-        capture_p90_ms: 0,
-        capture_p99_ms: 0,
-        capture_max_ms: 0,
-        e2e_p50_ms: 0,
-        e2e_p90_ms: 0,
-        e2e_p99_ms: 0,
-        e2e_max_ms: 0,
-        actual_fps: 0,
-        target_fps: this.targetFps,
-        avg_frame_bytes: 0,
-        bandwidth_bytes_per_sec: 0,
-        primary_bottleneck: 'none',
-        bottleneck_description: 'No frames recorded yet',
-      };
-    }
-
-    // Extract timing arrays for percentile calculation
-    const captureTimes = this.timings.map((t) => t.capture_ms);
-    const e2eTimes = this.timings.map((t) => t.driver_total_ms);
-    const frameSizes = this.timings.filter((t) => !t.skipped).map((t) => t.frame_bytes);
-
-    // Sort for percentile calculation
-    const sortedCapture = [...captureTimes].sort((a, b) => a - b);
-    const sortedE2E = [...e2eTimes].sort((a, b) => a - b);
-
-    // Calculate percentiles
-    const captureP50 = percentile(sortedCapture, 0.5);
-    const captureP90 = percentile(sortedCapture, 0.9);
-    const captureP99 = percentile(sortedCapture, 0.99);
-    const captureMax = sortedCapture[sortedCapture.length - 1] ?? 0;
-
-    const e2eP50 = percentile(sortedE2E, 0.5);
-    const e2eP90 = percentile(sortedE2E, 0.9);
-    const e2eP99 = percentile(sortedE2E, 0.99);
-    const e2eMax = sortedE2E[sortedE2E.length - 1] ?? 0;
-
-    // Calculate throughput
-    const actualFps = (this.frameCount / windowDurationMs) * 1000;
-    const avgFrameBytes =
-      frameSizes.length > 0
-        ? Math.round(frameSizes.reduce((a, b) => a + b, 0) / frameSizes.length)
-        : 0;
-    const totalBytes = frameSizes.reduce((a, b) => a + b, 0);
-    const bandwidthBytesPerSec = Math.round((totalBytes / windowDurationMs) * 1000);
-
-    // Identify bottleneck
-    const { bottleneck, description } = identifyBottleneck(
-      captureP50,
-      captureP90,
-      e2eP90,
-      this.targetFps
-    );
+    const first = this.timings[this.next % this.timings.length];
+    const windowStartMs = first?.startMs ?? this.lastRecordedMs;
+    const windowDurationMs = Math.max(0, performance.now() - windowStartMs);
+    const samples = this.timings.map(({ timing }) => timing);
+    const sent = samples.filter((t) => !t.skipped);
+    const captureTimes = samples.map((t) => t.capture_ms).sort((a, b) => a-b);
+    const processingTimes = sent.map((t) => t.driver_total_ms).sort((a, b) => a-b);
+    const totalBytes = sent.reduce((total, t) => total + t.frame_bytes, 0);
+    const captureP50 = percentile(captureTimes, .5);
+    const captureP90 = percentile(captureTimes, .9);
+    const processingP90 = percentile(processingTimes, .9);
+    const { bottleneck, description } = samples.length
+      ? identifyBottleneck(captureP50, captureP90, processingP90, this.targetFps)
+      : { bottleneck: 'none' as const, description: 'No frames recorded yet' };
 
     return {
       session_id: this.sessionId,
-      window_start_time: this.startTime.toISOString(),
+      window_start_time: new Date(this.startTime.getTime() + windowStartMs - this.startMs).toISOString(),
       window_duration_ms: windowDurationMs,
-      frame_count: this.frameCount,
-      skipped_count: this.skippedCount,
+      frame_count: samples.length,
+      skipped_count: samples.length - sent.length,
       capture_p50_ms: round2(captureP50),
       capture_p90_ms: round2(captureP90),
-      capture_p99_ms: round2(captureP99),
-      capture_max_ms: round2(captureMax),
-      e2e_p50_ms: round2(e2eP50),
-      e2e_p90_ms: round2(e2eP90),
-      e2e_p99_ms: round2(e2eP99),
-      e2e_max_ms: round2(e2eMax),
-      actual_fps: round2(actualFps),
+      capture_p99_ms: round2(percentile(captureTimes, .99)),
+      capture_max_ms: round2(percentile(captureTimes, 1)),
+      // Legacy wire names: sums of processing durations, not measured transit/paint.
+      e2e_p50_ms: round2(percentile(processingTimes, .5)),
+      e2e_p90_ms: round2(processingP90),
+      e2e_p99_ms: round2(percentile(processingTimes, .99)),
+      e2e_max_ms: round2(percentile(processingTimes, 1)),
+      actual_fps: windowDurationMs > 0 ? round2(sent.length * 1000 / windowDurationMs) : 0,
       target_fps: this.targetFps,
-      avg_frame_bytes: avgFrameBytes,
-      bandwidth_bytes_per_sec: bandwidthBytesPerSec,
+      avg_frame_bytes: sent.length ? Math.round(totalBytes / sent.length) : 0,
+      bandwidth_bytes_per_sec: windowDurationMs > 0 ? Math.round(totalBytes * 1000 / windowDurationMs) : 0,
       primary_bottleneck: bottleneck,
       bottleneck_description: description,
     };
@@ -288,8 +230,10 @@ export class PerfCollector {
    * @param limit Maximum number of frames to return (default: 10)
    */
   getRecentFrames(limit = 10): FrameTimings[] {
-    const start = Math.max(0, this.timings.length - limit);
-    return this.timings.slice(start);
+    const count = limit > 0 ? Math.min(limit, this.timings.length) : this.timings.length;
+    return Array.from({ length: count }, (_, i) => ({
+      ...this.timings[(this.next + this.timings.length - count + i) % this.timings.length]!.timing,
+    }));
   }
 
   /**
@@ -297,8 +241,10 @@ export class PerfCollector {
    */
   reset(): void {
     this.timings.length = 0;
-    this.frameCount = 0;
-    this.skippedCount = 0;
+    this.next = 0;
+    this.startTime = new Date();
+    this.startMs = performance.now();
+    this.lastRecordedMs = this.startMs;
     this.sequenceNum = 0;
   }
 }
@@ -357,18 +303,17 @@ function identifyBottleneck(
     };
   }
 
-  // If E2E P90 > 150% of target frame time and capture is fine, it's likely network
-  if (e2eP90 > targetFrameTime * 1.5 && captureP90 < targetFrameTime * 0.5) {
-    const networkTime = e2eP90 - captureP90;
+  // Component durations cannot establish network transit or client rendering cost.
+  if (e2eP90 > targetFrameTime * 1.5) {
     return {
-      bottleneck: 'network',
-      description: `End-to-end P90 (${round2(e2eP90)}ms) indicates network latency. Estimated network overhead: ${round2(networkTime)}ms.`,
+      bottleneck: 'processing',
+      description: `Processing P90 (${round2(e2eP90)}ms) exceeds the frame budget. Network transit and client rendering are not measured.`,
     };
   }
 
   return {
     bottleneck: 'none',
-    description: 'No significant bottlenecks detected. Performance is within expected bounds.',
+    description: 'No significant bottlenecks in measured processing. Network transit and client rendering are not measured.',
   };
 }
 

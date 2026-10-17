@@ -10,6 +10,7 @@ import (
 )
 
 // TestSubmitReportIntegration tests the full submit report workflow
+// [REQ:REQ-P1-001][REQ:REQ-P1-004] Report submission persists crowd reports and optional photo URLs.
 func TestSubmitReportIntegration(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
@@ -32,7 +33,6 @@ func TestSubmitReportIntegration(t *testing.T) {
 				"photo_url":      "https://example.com/photo123.jpg",
 			},
 		}, reportsHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to submit report: %v", err)
 		}
@@ -60,7 +60,6 @@ func TestSubmitReportIntegration(t *testing.T) {
 			Path:        "/api/reports",
 			QueryParams: map[string]string{"region_id": fmt.Sprintf("%d", regionID)},
 		}, reportsHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to get reports: %v", err)
 		}
@@ -93,7 +92,6 @@ func TestSubmitReportIntegration(t *testing.T) {
 				"photo_url":      "https://example.com/autumn.jpg",
 			},
 		}, reportsHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to make request: %v", err)
 		}
@@ -115,6 +113,7 @@ func TestSubmitReportIntegration(t *testing.T) {
 }
 
 // TestTripPlanningIntegration tests the full trip planning workflow
+// [REQ:REQ-P1-003] Trip planning integration persists and retrieves multi-region trips.
 func TestTripPlanningIntegration(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
@@ -135,7 +134,6 @@ func TestTripPlanningIntegration(t *testing.T) {
 				"notes":      "Don't forget the camera!",
 			},
 		}, tripsHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to create trip: %v", err)
 		}
@@ -168,7 +166,6 @@ func TestTripPlanningIntegration(t *testing.T) {
 			Method: "GET",
 			Path:   "/api/trips",
 		}, tripsHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to get trips: %v", err)
 		}
@@ -211,7 +208,6 @@ func TestTripPlanningIntegration(t *testing.T) {
 				"regions":    []int{1},
 			},
 		}, tripsHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to make request: %v", err)
 		}
@@ -241,7 +237,7 @@ func TestTripPlanningIntegration(t *testing.T) {
 	})
 }
 
-// TestWeatherDataEdgeCases tests weather handler edge cases
+// [REQ:REQ-P0-004] Weather handler handles missing and malformed weather queries.
 func TestWeatherDataEdgeCases(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
@@ -258,7 +254,6 @@ func TestWeatherDataEdgeCases(t *testing.T) {
 				"date":      "2025-01-01",
 			},
 		}, weatherHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to make request: %v", err)
 		}
@@ -279,7 +274,6 @@ func TestWeatherDataEdgeCases(t *testing.T) {
 			Path:        "/api/weather",
 			QueryParams: map[string]string{"region_id": "1"},
 		}, weatherHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to make request: %v", err)
 		}
@@ -289,6 +283,7 @@ func TestWeatherDataEdgeCases(t *testing.T) {
 }
 
 // TestGetReportsEdgeCases tests report retrieval edge cases
+// [REQ:REQ-P1-001] Report listing handles empty, invalid, and disconnected states.
 func TestGetReportsEdgeCases(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
@@ -305,7 +300,6 @@ func TestGetReportsEdgeCases(t *testing.T) {
 			Path:        "/api/reports",
 			QueryParams: map[string]string{"region_id": "not_a_number"},
 		}, reportsHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to make request: %v", err)
 		}
@@ -323,7 +317,6 @@ func TestGetReportsEdgeCases(t *testing.T) {
 			Path:        "/api/reports",
 			QueryParams: map[string]string{"region_id": "1"},
 		}, reportsHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to make request: %v", err)
 		}
@@ -346,7 +339,6 @@ func TestGetReportsEdgeCases(t *testing.T) {
 				"description":    "Test",
 			},
 		}, reportsHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to make request: %v", err)
 		}
@@ -357,6 +349,7 @@ func TestGetReportsEdgeCases(t *testing.T) {
 }
 
 // TestGetTripsEdgeCases tests trip retrieval edge cases
+// [REQ:REQ-P1-003] Trip listing handles disconnected storage without crashing.
 func TestGetTripsEdgeCases(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
@@ -370,7 +363,6 @@ func TestGetTripsEdgeCases(t *testing.T) {
 			Method: "GET",
 			Path:   "/api/trips",
 		}, tripsHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to make request: %v", err)
 		}
@@ -393,6 +385,7 @@ func TestGetTripsEdgeCases(t *testing.T) {
 }
 
 // TestSaveTripEdgeCases tests trip save edge cases
+// [REQ:REQ-P1-003] Trip saving validates JSON and required fields.
 func TestSaveTripEdgeCases(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
@@ -415,7 +408,6 @@ func TestSaveTripEdgeCases(t *testing.T) {
 				"end_date": "2025-10-10",
 			},
 		}, tripsHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to make request: %v", err)
 		}
@@ -438,7 +430,6 @@ func TestSaveTripEdgeCases(t *testing.T) {
 				"regions":    []int{1},
 			},
 		}, tripsHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to make request: %v", err)
 		}

@@ -1,0 +1,15 @@
+{
+  "_metadata": {
+    "description": "Parent registry linking API Health operational targets to provider, lifecycle, health-probe, HTTP semantics, runtime hygiene, autofix, and cutover requirements.",
+    "auto_sync_enabled": false,
+    "schema_version": "1.0.0"
+  },
+  "imports": [
+    "01-provider-contract/module.json",
+    "02-api-lifecycle/module.json",
+    "03-health-endpoint/module.json",
+    "04-http-semantics/module.json",
+    "05-runtime-hygiene/module.json",
+    "06-autofix-and-cutover/module.json"
+  ]
+}

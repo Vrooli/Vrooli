@@ -1,0 +1,312 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "knowledge-observatory.verify-change",
+  "version": "2",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Verify documentation cleanup, consolidation, moves and retirement: intended revisions, absent paths, preserved excerpts with editorial evidence, retrieval expectations and reference regressions.",
+  "inputs": {
+    "expectations": {
+      "type": "array",
+      "required": true
+    },
+    "queries": {
+      "type": "array",
+      "required": true
+    },
+    "base_path": {
+      "type": "string",
+      "required": true
+    },
+    "mode": {
+      "type": "string",
+      "default": "auto",
+      "enum": [
+        "auto",
+        "hybrid",
+        "dense",
+        "text"
+      ]
+    },
+    "absent_paths": {
+      "type": "array",
+      "required": false
+    },
+    "preservation": {
+      "type": "array",
+      "required": false
+    },
+    "reference_baseline": {
+      "type": "object",
+      "required": false
+    }
+  },
+  "assumptions": [
+    "Source owners retain knowledge authority; no search score establishes acceptance.",
+    "Knowledge Observatory and declared read dependencies are running."
+  ],
+  "invariants": [
+    "One bounded envelope on every path; no writes, retries, or shell access.",
+    "Unknown applicability and unavailable reads remain explicit.",
+    "The caller owns final task verification and one learning capture; no memory writes inside these programs."
+  ],
+  "bindings": [
+    {
+      "id": "knowledge-observatory/knowledge-base/inspect",
+      "effect": "read"
+    },
+    {
+      "id": "knowledge-observatory/knowledge-base/search",
+      "effect": "read"
+    },
+    {
+      "id": "knowledge-observatory/knowledge-base/health",
+      "effect": "read"
+    }
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "failed",
+        "refused",
+        "unavailable"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "report"
+      ]
+    },
+    "signals": {
+      "checks": "Explicit revision, retrieval, and reference checks; task_success_verified remains false.",
+      "reference_findings": "Bounded sample with full count; caller distinguishes new failures from pre-existing debt.",
+      "editorial_review_complete": "Caller-supplied editorial review status; never proof of task completion.",
+      "reference_delta": "Full finding identity comparison with identical complete baseline selectors; known debt remains visible."
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "no_match",
+        "verification_failed",
+        "revision_changed",
+        "output_bound",
+        "editorial_review_pending",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    },
+    "evidence": "Repository-relative paths and source revisions or owner run IDs; no private corpus dump."
+  },
+  "budget": {
+    "wall_ms": 90000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 100,
+    "output_bytes": 65536
+  },
+  "fixtures": [
+    {
+      "id": "invalid-input",
+      "inputs": {
+        "unexpected": true
+      },
+      "expect": {
+        "admission_error": "invalid_argument"
+      },
+      "requires": [
+        "knowledge-observatory"
+      ]
+    },
+    {
+      "id": "reject-unversioned-source",
+      "inputs": {
+        "expectations": [
+          {
+            "path": "docs/README.md"
+          }
+        ],
+        "queries": [],
+        "base_path": "docs"
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      },
+      "requires": [
+        "knowledge-observatory"
+      ]
+    },
+    {
+      "id": "verify-versioned-fixture",
+      "inputs": {
+        "expectations": [
+          {
+            "path": "scenarios/knowledge-observatory/api/internal/knowledgebase/testdata/guide.md",
+            "sha256": "d1ba9ca8f0ad39667ceb39f1be9e02ee2eaa3f313e4d0b4b6aa8ef7d88b2ed68"
+          }
+        ],
+        "queries": [
+          {
+            "query": "Task knowledge fixture marker",
+            "expected_paths": [
+              "scenarios/knowledge-observatory/api/internal/knowledgebase/testdata/guide.md"
+            ],
+            "forbidden_paths": [
+              "scenarios/knowledge-observatory/api/internal/knowledgebase/testdata/retired-guide.md"
+            ]
+          }
+        ],
+        "base_path": "scenarios/knowledge-observatory/api/internal/knowledgebase/testdata",
+        "mode": "text",
+        "preservation": [
+          {
+            "id": "fixture-knowledge",
+            "path": "scenarios/knowledge-observatory/api/internal/knowledgebase/testdata/guide.md",
+            "offset": 0,
+            "excerpt": "# Knowledge workflow fixture\n\nTask knowledge fixture marker. This is test data, not project policy.\n",
+            "review": "preserved",
+            "evidence_ref": "path:scenarios/knowledge-observatory/api/internal/knowledgebase/testdata/guide.md"
+          }
+        ],
+        "absent_paths": [
+          "scenarios/knowledge-observatory/api/internal/knowledgebase/testdata/retired-guide.md"
+        ]
+      },
+      "expect": {
+        "status": [
+          "ok"
+        ],
+        "signals": {
+          "editorial_review_complete": true,
+          "task_success_verified": false
+        }
+      },
+      "requires": [
+        "knowledge-observatory"
+      ],
+      "note": "Committed portable test corpus; no host identity, writes, or production policy. Hash pins the desired source revision."
+    },
+    {
+      "id": "reject-lost-preserved-qualification",
+      "inputs": {
+        "expectations": [
+          {
+            "path": "scenarios/knowledge-observatory/api/internal/knowledgebase/testdata/guide.md",
+            "sha256": "d1ba9ca8f0ad39667ceb39f1be9e02ee2eaa3f313e4d0b4b6aa8ef7d88b2ed68"
+          }
+        ],
+        "queries": [
+          {
+            "query": "Task knowledge fixture marker",
+            "expected_paths": [
+              "scenarios/knowledge-observatory/api/internal/knowledgebase/testdata/guide.md"
+            ],
+            "forbidden_paths": [
+              "scenarios/knowledge-observatory/api/internal/knowledgebase/testdata/retired-guide.md"
+            ]
+          }
+        ],
+        "base_path": "scenarios/knowledge-observatory/api/internal/knowledgebase/testdata",
+        "mode": "text",
+        "preservation": [
+          {
+            "id": "fixture-knowledge",
+            "path": "scenarios/knowledge-observatory/api/internal/knowledgebase/testdata/guide.md",
+            "offset": 0,
+            "excerpt": "A required qualification that is not in the source.",
+            "review": "preserved",
+            "evidence_ref": "path:scenarios/knowledge-observatory/api/internal/knowledgebase/testdata/guide.md"
+          }
+        ],
+        "absent_paths": [
+          "scenarios/knowledge-observatory/api/internal/knowledgebase/testdata/retired-guide.md"
+        ]
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ],
+        "signals": {
+          "task_success_verified": false
+        }
+      },
+      "requires": [
+        "knowledge-observatory"
+      ],
+      "note": "A source and retrieval match cannot compensate for missing required knowledge."
+    },
+    {
+      "id": "retain-unresolved-editorial-review",
+      "inputs": {
+        "expectations": [
+          {
+            "path": "scenarios/knowledge-observatory/api/internal/knowledgebase/testdata/guide.md",
+            "sha256": "d1ba9ca8f0ad39667ceb39f1be9e02ee2eaa3f313e4d0b4b6aa8ef7d88b2ed68"
+          }
+        ],
+        "queries": [
+          {
+            "query": "Task knowledge fixture marker",
+            "expected_paths": [
+              "scenarios/knowledge-observatory/api/internal/knowledgebase/testdata/guide.md"
+            ],
+            "forbidden_paths": [
+              "scenarios/knowledge-observatory/api/internal/knowledgebase/testdata/retired-guide.md"
+            ]
+          }
+        ],
+        "base_path": "scenarios/knowledge-observatory/api/internal/knowledgebase/testdata",
+        "mode": "text",
+        "preservation": [
+          {
+            "id": "fixture-knowledge",
+            "path": "scenarios/knowledge-observatory/api/internal/knowledgebase/testdata/guide.md",
+            "offset": 0,
+            "excerpt": "# Knowledge workflow fixture\n\nTask knowledge fixture marker. This is test data, not project policy.\n",
+            "review": "unresolved",
+            "evidence_ref": "path:scenarios/knowledge-observatory/api/internal/knowledgebase/testdata/guide.md"
+          }
+        ],
+        "absent_paths": [
+          "scenarios/knowledge-observatory/api/internal/knowledgebase/testdata/retired-guide.md"
+        ]
+      },
+      "expect": {
+        "status": [
+          "partial"
+        ],
+        "signals": {
+          "editorial_review_complete": false,
+          "task_success_verified": false
+        }
+      },
+      "requires": [
+        "knowledge-observatory"
+      ],
+      "note": "Mechanical checks do not turn an unresolved editorial decision into completion."
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "knowledge-observatory-maintenance",
+  "verbs": [
+    "agent.collect",
+    "capture",
+    "tasks.get",
+    "validate"
+  ]
+}

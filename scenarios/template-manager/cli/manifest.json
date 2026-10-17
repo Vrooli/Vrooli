@@ -1,0 +1,829 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "template-manager",
+  "description": "Template Manager CLI. Thin Connect wrapper over registry, validation-run, drift, and debt-ledger APIs.",
+  "groups": [
+    {
+      "name": "lifecycle",
+      "description": "Generate, orient, and detemplate scenarios",
+      "commands": [
+        {
+          "name": "generate",
+          "description": "Generate a scenario from a governed template",
+          "positionals": [
+            {
+              "name": "template",
+              "required": true,
+              "description": "Template id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "id",
+              "description": "Scenario id"
+            },
+            {
+              "name": "display-name",
+              "description": "Scenario display name"
+            },
+            {
+              "name": "description",
+              "description": "Scenario description"
+            },
+            {
+      "name": "dest",
+      "description": "Destination path",
+      "local_only": true
+            },
+            {
+              "name": "design",
+              "description": "Design kit id"
+            },
+            {
+              "name": "var",
+              "description": "Template variable KEY=VALUE",
+              "bind": {
+                "field": "values"
+              }
+            },
+            {
+              "name": "force",
+              "description": "Overwrite an existing destination"
+            },
+            {
+              "name": "dry-run",
+              "description": "Preview generation without writing"
+            },
+            {
+              "name": "run-hooks",
+              "description": "Run template post-generation hooks"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TemplateLifecycleService",
+            "method": "GenerateScenario"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "orient",
+          "description": "Show or finalize generated scenario orientation progress",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug"
+            }
+          ],
+          "flags": [
+            {
+              "name": "finalize",
+              "description": "Remove orientation metadata after required checks pass"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TemplateLifecycleService",
+            "method": "OrientScenario"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "detemplate",
+          "description": "Remove the template example domain from a generated scenario",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug"
+            }
+          ],
+          "flags": [
+            {
+              "name": "dry-run",
+              "description": "Preview removals without writing"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TemplateLifecycleService",
+            "method": "DetemplateScenario"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "template",
+      "description": "Validate templates, inspect drift, and clean validation workspaces",
+      "commands": [
+        {
+          "name": "validate",
+          "description": "Validate scenario templates",
+          "flags": [
+            {
+              "name": "template",
+              "description": "Template id"
+            },
+            {
+              "name": "mode",
+              "description": "Validation mode"
+            },
+            {
+              "name": "test-preset",
+              "description": "test-genie preset for deep validation"
+            },
+            {
+              "name": "warning-policy",
+              "description": "Warning policy"
+            },
+            {
+              "name": "retain-temp",
+              "description": "Retain deep-validation workspace"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TemplateLifecycleService",
+            "method": "ValidateTemplate"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "drift",
+          "description": "Report template drift",
+          "positionals": [
+            {
+              "name": "scenario",
+              "description": "Scenario slug"
+            }
+          ],
+          "flags": [
+            {
+              "name": "all",
+              "description": "Audit all generated scenarios"
+            },
+            {
+              "name": "verbose",
+              "description": "Include verbose drift details"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TemplateLifecycleService",
+            "method": "DriftReport"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "cleanup",
+          "description": "Clean retained or stale deep-validation workspaces",
+          "flags": [
+            {
+              "name": "dry-run",
+              "description": "Preview cleanup without deleting"
+            },
+            {
+              "name": "older-than",
+              "description": "Age threshold"
+            },
+            {
+              "name": "include-retained",
+              "description": "Include retained workspaces"
+            },
+            {
+              "name": "run",
+              "description": "Run id",
+              "bind": {
+                "field": "run_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TemplateLifecycleService",
+            "method": "CleanupRuns"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "design",
+      "description": "Inspect and validate scenario design kits",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List design kits",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DesignKitService",
+            "method": "ListDesignKits"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "show",
+          "description": "Show one design kit",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Design kit id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DesignKitService",
+            "method": "GetDesignKit"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "validate",
+          "description": "Validate design kits",
+          "flags": [
+            {
+              "name": "id",
+              "description": "Design kit id"
+            },
+            {
+              "name": "all",
+              "description": "Validate all kits"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DesignKitService",
+            "method": "ValidateDesignKits"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    },
+    {
+      "name": "guidance",
+      "description": "Inspect generated-scenario orientation guidance",
+      "commands": [
+        {
+          "name": "next",
+          "description": "Return the next incomplete orientation gate for a scenario",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GuidanceService",
+            "method": "NextGate"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    },
+    {
+      "name": "monitor",
+      "description": "Inspect recurring deep-validation monitor state",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Show recurring deep-validation monitor status",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MonitorService",
+            "method": "GetMonitorStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    },
+    {
+      "name": "registry",
+      "description": "Inspect governed template records",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List template records",
+          "flags": [
+            {
+              "name": "kind",
+              "description": "Filter by template kind: scenario, design, or resource"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RegistryService",
+            "method": "ListTemplates"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "show",
+          "description": "Show one template record",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Template id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RegistryService",
+            "method": "GetTemplate"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    },
+    {
+      "name": "runs",
+      "description": "Inspect validation runs and drift snapshots",
+      "commands": [
+        {
+          "name": "run",
+          "description": "Run template validation and persist the result",
+          "flags": [
+            {
+              "name": "template",
+              "description": "Template id to validate",
+              "bind": {
+                "field": "template_id"
+              }
+            },
+            {
+              "name": "mode",
+              "description": "Validation mode: shallow or deep"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ValidationRunService",
+            "method": "RunTemplateValidation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "list",
+          "description": "List validation runs",
+          "flags": [
+            {
+              "name": "template",
+              "description": "Filter by template id",
+              "bind": {
+                "field": "template_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ValidationRunService",
+            "method": "ListValidationRuns"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "show",
+          "description": "Show one validation run",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Validation run id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ValidationRunService",
+            "method": "GetValidationRun"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "drift",
+          "description": "List drift snapshots",
+          "flags": [
+            {
+              "name": "template",
+              "description": "Filter by template id",
+              "bind": {
+                "field": "template_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ValidationRunService",
+            "method": "ListDriftSnapshots"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "drift-record",
+          "description": "Run fleet drift and persist a snapshot",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ValidationRunService",
+            "method": "RecordFleetDrift"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "resource-template",
+      "description": "Inspect, validate, and generate resource templates",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List resource templates",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ResourceTemplateService",
+            "method": "ListResourceTemplates"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "show",
+          "description": "Show one resource template",
+          "positionals": [
+            {
+              "name": "name",
+              "required": true,
+              "description": "Resource template id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ResourceTemplateService",
+            "method": "GetResourceTemplate"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "validate",
+          "description": "Validate resource templates",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ResourceTemplateService",
+            "method": "ValidateResourceTemplates"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "generate",
+          "description": "Generate files from a resource template",
+          "positionals": [
+            {
+              "name": "template",
+              "description": "Resource template id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "from-blueprint",
+              "description": "Use a resource blueprint's suggested template and seed values"
+            },
+            {
+              "name": "dest",
+              "description": "Destination path",
+              "bind": {
+                "field": "destination"
+              }
+            },
+            {
+              "name": "var",
+              "description": "Template variable KEY=VALUE",
+              "bind": {
+                "field": "values"
+              }
+            },
+            {
+              "name": "force",
+              "description": "Overwrite an existing destination"
+            },
+            {
+              "name": "dry-run",
+              "description": "Preview generation without writing"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ResourceTemplateService",
+            "method": "GenerateResourceTemplate"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "debt",
+      "description": "Inspect inherited template debt",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List debt entries",
+          "flags": [
+            {
+              "name": "template",
+              "description": "Filter by template id",
+              "bind": {
+                "field": "template_id"
+              }
+            },
+            {
+              "name": "status",
+              "description": "Filter by debt status"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DebtService",
+            "method": "ListDebt"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "show",
+          "description": "Show one debt entry",
+          "positionals": [
+            {
+              "name": "key",
+              "required": true,
+              "description": "Debt entry key"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DebtService",
+            "method": "GetDebt"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    }
+  ],
+  "omitted": [
+    {
+      "service": "ScenarioValidationService",
+      "method": "ValidateScenario",
+      "reason": "Shared cross-scenario validation surface for Test Genie delegation; template-manager's operator CLI uses registry, runs, and debt commands while Test Genie calls this provider contract directly."
+    },
+    {
+      "service": "ScenarioValidationService",
+      "method": "PreviewFix",
+      "reason": "Shared deterministic-fix preview surface for Test Genie delegation; not a standalone operator command in this phase."
+    },
+    {
+      "service": "ScenarioValidationService",
+      "method": "ApplyFix",
+      "reason": "Shared deterministic-fix apply surface for Test Genie delegation; write access is driven by Test Genie fix workflows rather than a template-manager CLI verb in this phase."
+    },
+    {
+      "service": "MeasuresService",
+      "method": "OpenDebtCount",
+      "reason": "Covered by the generic `template-manager measures run template.open-debt-count` dispatcher so operators can run measures by canonical measure name."
+    },
+    {
+      "service": "MeasuresService",
+      "method": "DeepValidateGreenStreak",
+      "reason": "Covered by the generic `template-manager measures run template.deep-validate-green-streak` dispatcher so operators can run measures by canonical measure name."
+    },
+    {
+      "service": "MeasuresService",
+      "method": "FleetStandingDistribution",
+      "reason": "Covered by the generic `template-manager measures run template.fleet-standing-distribution` dispatcher so operators can run measures by canonical measure name."
+    },
+    {
+      "service": "MeasuresService",
+      "method": "MaxVersionLag",
+      "reason": "Covered by the generic `template-manager measures run template.max-version-lag` dispatcher so operators can run measures by canonical measure name."
+    }
+  ]
+}

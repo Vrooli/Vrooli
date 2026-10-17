@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { timestampMs } from "@bufbuild/protobuf/wkt";
+import { useSearchParams } from "react-router-dom";
 import {
   AlertCircle,
   ClipboardList,
@@ -23,27 +24,21 @@ import {
 } from "../components/ui/dialog";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
-import { ModelConfigSelector } from "../components/ModelConfigSelector";
+import { RoleSelector } from "../components/RoleSelector";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Textarea } from "../components/ui/textarea";
-import { runnerTypeLabel, runnerTypeToSlug } from "../lib/utils";
-import type { AgentProfile, ModelRegistry, ProfileFormData, Run, RunFormData, RunnerStatus, RunnerType, Task, TaskFormData } from "../types";
-import { ModelPreset, RunMode, RunnerType as RunnerTypeEnum, TaskStatus } from "../types";
+import type { RolePolicyCatalog } from "@vrooli/proto-types/agent-manager/v1/api/service_pb";
+import type { AgentProfile, ProfileFormData, Run, RunFormData, Task, TaskFormData } from "../types";
+import { RunMode, TaskStatus } from "../types";
 import { formatStandardRelativeTime } from "../lib/dateTime";
 
 import { MasterDetailLayout, ListPanel, DetailPanel } from "../components/patterns/MasterDetail";
 import { SearchToolbar, type FilterConfig, type SortOption } from "../components/patterns/SearchToolbar";
-import { ListItem, ListItemTitle, ListItemSubtitle } from "../components/patterns/ListItem";
+import { BoundedList, ListItem, ListItemTitle, ListItemSubtitle } from "../components/patterns/ListItem";
 import { TaskDetail } from "../components/TaskDetail";
 import { ContextAttachmentEditor } from "../components/ContextAttachmentEditor";
 import { useViewportSize } from "../hooks/useViewportSize";
 import { useTasksRunDialogState } from "../hooks/useTasksRunDialogState";
-
-const RUNNER_TYPES: RunnerType[] = [
-  RunnerTypeEnum.CLAUDE_CODE,
-  RunnerTypeEnum.CODEX,
-  RunnerTypeEnum.OPENCODE,
-];
 
 interface TasksPageProps {
   tasks: Task[];
@@ -57,8 +52,7 @@ interface TasksPageProps {
   onCreateRun: (run: RunFormData) => Promise<Run>;
   onCreateProfile: (profile: ProfileFormData) => Promise<AgentProfile>;
   onRefresh: () => void;
-  runners?: Record<string, RunnerStatus>;
-  modelRegistry?: ModelRegistry;
+  rolePolicyCatalog?: RolePolicyCatalog;
 }
 
 const taskStatusLabel = (status: TaskStatus): string => {
@@ -82,10 +76,6 @@ const taskStatusLabel = (status: TaskStatus): string => {
   }
 };
 
-const getModelId = (model: string | { id: string }): string => {
-  return typeof model === "string" ? model : model.id;
-};
-
 const STATUS_FILTER_OPTIONS = [
   { value: String(TaskStatus.QUEUED), label: "Queued" },
   { value: String(TaskStatus.RUNNING), label: "Running" },
@@ -102,6 +92,47 @@ const SORT_OPTIONS: SortOption[] = [
   { value: "title", label: "Title A-Z" },
 ];
 
+type TaskStatusBadgeVariant =
+  | "queued"
+  | "running"
+  | "needs_review"
+  | "approved"
+  | "rejected"
+  | "failed"
+  | "cancelled";
+
+interface TaskListRowProps {
+  task: Task;
+  selected: boolean;
+  onSelect: (taskId: string) => void;
+}
+
+const TaskListRow = memo(function TaskListRow({
+  task,
+  selected,
+  onSelect,
+}: TaskListRowProps) {
+  const statusLabel = taskStatusLabel(task.status);
+
+  return (
+    <ListItem
+      selected={selected}
+      onClick={() => onSelect(task.id)}
+      icon={<FolderOpen className="h-4 w-4 text-muted-foreground flex-shrink-0" />}
+      actions={
+        <Badge variant={statusLabel as TaskStatusBadgeVariant}>
+          {statusLabel.replace("_", " ")}
+        </Badge>
+      }
+    >
+      <ListItemTitle>{task.title}</ListItemTitle>
+      <ListItemSubtitle>
+        {task.scopePath} | {formatStandardRelativeTime(task.createdAt)}
+      </ListItemSubtitle>
+    </ListItem>
+  );
+});
+
 export function TasksPage({
   tasks,
   profiles,
@@ -114,26 +145,11 @@ export function TasksPage({
   onCreateRun,
   onCreateProfile,
   onRefresh,
-  runners,
-  modelRegistry,
+  rolePolicyCatalog,
 }: TasksPageProps) {
   const { isDesktop } = useViewportSize();
-  const getRegistryForRunner = (runnerType: RunnerType) => {
-    return modelRegistry?.runners?.[runnerTypeToSlug(runnerType)];
-  };
-
-  const getModelsForRunner = (runnerType: RunnerType) => {
-    const registry = getRegistryForRunner(runnerType);
-    if (registry?.models?.length) {
-      return registry.models;
-    }
-    const runner = runners?.[runnerType];
-    return runner?.supportedModels ?? [];
-  };
-
-  const getPresetMapForRunner = (runnerType: RunnerType) => {
-    return getRegistryForRunner(runnerType)?.presets ?? {};
-  };
+  const [searchParams] = useSearchParams();
+  const taskIdParam = searchParams.get("taskId");
 
   // Selection state
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
@@ -176,12 +192,6 @@ export function TasksPage({
     setProfileFormError,
     resetProfileForm,
     resetRunDialog,
-    handleAddInlineFallback,
-    handleInlineFallbackChange,
-    handleRemoveInlineFallback,
-    handleAddProfileFallback,
-    handleProfileFallbackChange,
-    handleRemoveProfileFallback,
   } = useTasksRunDialogState();
 
   const [submitting, setSubmitting] = useState(false);
@@ -195,6 +205,11 @@ export function TasksPage({
     () => tasks.find((t) => t.id === selectedTaskId) || null,
     [tasks, selectedTaskId]
   );
+
+  useEffect(() => {
+    if (!taskIdParam) return;
+    setSelectedTaskId(taskIdParam);
+  }, [taskIdParam]);
 
   const resetForm = () => {
     setFormData({
@@ -270,20 +285,12 @@ export function TasksPage({
       if (runConfigMode === "profile") {
         request.agentProfileId = selectedProfileId;
       } else {
-        request.runnerType = inlineConfig.runnerType;
-        if (inlineConfig.modelMode === "model" && inlineConfig.model.trim() !== "") {
-          request.model = inlineConfig.model;
-        }
-        if (inlineConfig.modelMode === "preset") {
-          request.modelPreset = inlineConfig.modelPreset;
-        }
+        request.roleRef = inlineConfig.roleRef;
         request.maxTurns = inlineConfig.maxTurns;
         request.timeoutMinutes = inlineConfig.timeoutMinutes;
+		request.effort = inlineConfig.effort;
         request.runMode = inlineConfig.runMode;
         request.skipPermissionPrompt = inlineConfig.skipPermissionPrompt;
-        if (inlineConfig.fallbackRunnerTypes.length > 0) {
-          request.fallbackRunnerTypes = inlineConfig.fallbackRunnerTypes;
-        }
       }
       if (existingSandboxId.trim() !== "") {
         request.existingSandboxId = existingSandboxId.trim();
@@ -305,16 +312,8 @@ export function TasksPage({
     try {
       const newProfile = await onCreateProfile({
         ...profileFormData,
-        model:
-          profileFormData.modelMode === "model"
-            ? profileFormData.model?.trim() ?? ""
-            : "",
-        modelPreset:
-          profileFormData.modelMode === "preset"
-            ? profileFormData.modelPreset ?? ModelPreset.FAST
-            : ModelPreset.UNSPECIFIED,
+        roleRef: profileFormData.roleRef.trim(),
         timeoutMinutes: profileFormData.timeoutMinutes ?? 30,
-        fallbackRunnerTypes: profileFormData.fallbackRunnerTypes ?? [],
       });
       setSelectedProfileId(newProfile.id);
       setRunConfigMode("profile");
@@ -382,6 +381,7 @@ export function TasksPage({
 
   useEffect(() => {
     if (!isDesktop) return;
+    if (taskIdParam) return;
     if (filteredAndSortedTasks.length === 0) return;
 
     const hasSelection =
@@ -392,7 +392,22 @@ export function TasksPage({
       const first = filteredAndSortedTasks[0];
       if (first) setSelectedTaskId(first.id);
     }
-  }, [filteredAndSortedTasks, isDesktop, selectedTaskId]);
+  }, [filteredAndSortedTasks, isDesktop, selectedTaskId, taskIdParam]);
+
+  const getTaskKey = useCallback((task: Task) => task.id, []);
+  const handleSelectTask = useCallback((taskId: string) => {
+    setSelectedTaskId(taskId);
+  }, []);
+  const renderTaskRow = useCallback(
+    (task: Task) => (
+      <TaskListRow
+        task={task}
+        selected={selectedTaskId === task.id}
+        onSelect={handleSelectTask}
+      />
+    ),
+    [handleSelectTask, selectedTaskId]
+  );
 
   const filters: FilterConfig[] = [
     {
@@ -456,35 +471,11 @@ export function TasksPage({
         </div>
       }
     >
-      {filteredAndSortedTasks.map((task) => (
-        <ListItem
-          key={task.id}
-          selected={selectedTaskId === task.id}
-          onClick={() => setSelectedTaskId(task.id)}
-          icon={<FolderOpen className="h-4 w-4 text-muted-foreground flex-shrink-0" />}
-          actions={
-            <Badge
-              variant={
-                taskStatusLabel(task.status) as
-                  | "queued"
-                  | "running"
-                  | "needs_review"
-                  | "approved"
-                  | "rejected"
-                  | "failed"
-                  | "cancelled"
-              }
-            >
-              {taskStatusLabel(task.status).replace("_", " ")}
-            </Badge>
-          }
-        >
-          <ListItemTitle>{task.title}</ListItemTitle>
-          <ListItemSubtitle>
-            {task.scopePath} | {formatStandardRelativeTime(task.createdAt)}
-          </ListItemSubtitle>
-        </ListItem>
-      ))}
+      <BoundedList
+        items={filteredAndSortedTasks}
+        getKey={getTaskKey}
+        renderItem={renderTaskRow}
+      />
     </ListPanel>
   );
 
@@ -586,6 +577,7 @@ export function TasksPage({
                     The directory scope where the agent can operate
                   </p>
                 </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="projectRoot">Project Root</Label>
                   <Input
@@ -598,6 +590,7 @@ export function TasksPage({
                   />
                 </div>
               </div>
+
               <ContextAttachmentEditor
                 attachments={formData.contextAttachments || []}
                 onChange={(attachments) =>
@@ -759,7 +752,7 @@ export function TasksPage({
                         <option value="">Select a profile...</option>
                         {profiles.map((profile) => (
                           <option key={profile.id} value={profile.id}>
-                            {profile.name} ({runnerTypeLabel(profile.runnerType)})
+                            {profile.name} ({profile.roleRef})
                           </option>
                         ))}
                       </select>
@@ -794,93 +787,13 @@ export function TasksPage({
                 <p className="text-xs text-muted-foreground">
                   Run with custom settings without saving a profile.
                 </p>
-                <div className="space-y-2">
-                  <Label htmlFor="runnerType">Runner Type *</Label>
-                  <select
-                    id="runnerType"
-                    value={String(inlineConfig.runnerType)}
-                    onChange={(e) => {
-                      const newRunnerType = Number(e.target.value) as RunnerType;
-                      const availableModels = getModelsForRunner(newRunnerType);
-                      const firstModel = availableModels.length > 0 ? getModelId(availableModels[0] ?? "") : "";
-                      setInlineConfig({
-                        ...inlineConfig,
-                        runnerType: newRunnerType,
-                        model:
-                          inlineConfig.modelMode === "model"
-                            ? firstModel
-                            : inlineConfig.model,
-                      });
-                    }}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  >
-                    {RUNNER_TYPES.map((type) => (
-                      <option key={type} value={type}>
-                        {runnerTypeLabel(type)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <ModelConfigSelector
-                  value={{
-                    mode: inlineConfig.modelMode,
-                    model: inlineConfig.model,
-                    preset: inlineConfig.modelPreset,
-                  }}
-                  onChange={(selection) =>
-                    setInlineConfig({
-                      ...inlineConfig,
-                      modelMode: selection.mode,
-                      model: selection.model,
-                      modelPreset: selection.preset,
-                    })
-                  }
-                  models={getModelsForRunner(inlineConfig.runnerType)}
-                  presetMap={getPresetMapForRunner(inlineConfig.runnerType)}
-                  label="Model Selection"
+                <RoleSelector
+                  catalog={rolePolicyCatalog}
+                  value={inlineConfig.roleRef}
+                  onChange={(roleRef) => setInlineConfig({ ...inlineConfig, roleRef })}
+                  label="Execution Role"
+                  id="inlineRoleRef"
                 />
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label>Fallback Runners</Label>
-                    <Button type="button" variant="outline" size="sm" onClick={handleAddInlineFallback}>
-                      Add
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Ordered runners to try if the primary runner is unavailable.
-                  </p>
-                  {inlineConfig.fallbackRunnerTypes.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">No fallback runners configured.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {inlineConfig.fallbackRunnerTypes.map((runnerType, index) => (
-                        <div key={`inline-fallback-${index}`} className="flex items-center gap-2">
-                          <select
-                            value={String(runnerType)}
-                            onChange={(e) => handleInlineFallbackChange(index, e.target.value)}
-                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                          >
-                            {RUNNER_TYPES.map((type) => (
-                              <option key={type} value={type}>
-                                {runnerTypeLabel(type)}
-                              </option>
-                            ))}
-                          </select>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleRemoveInlineFallback(index)}
-                          >
-                            Remove
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
 
                 <div className="grid gap-4 grid-cols-2">
                   <div className="space-y-2">
@@ -915,6 +828,23 @@ export function TasksPage({
                       max={1440}
                     />
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="inlineEffort">Reasoning Effort</Label>
+                  <select
+                    id="inlineEffort"
+                    value={inlineConfig.effort}
+                    onChange={(e) => setInlineConfig({ ...inlineConfig, effort: e.target.value as typeof inlineConfig.effort })}
+                    className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                  >
+                    <option value="">Runner default</option>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="xhigh">Extra high</option>
+                    <option value="max">Max</option>
+                  </select>
                 </div>
 
                 <div className="space-y-2">
@@ -1011,8 +941,7 @@ export function TasksPage({
                   </CardContent>
                 </Card>
               )}
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
+              <div className="space-y-2">
                   <Label htmlFor="profileName">Name *</Label>
                   <Input
                     id="profileName"
@@ -1023,34 +952,6 @@ export function TasksPage({
                     placeholder="e.g., Claude Code Default"
                     required
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="profileRunnerType">Runner Type *</Label>
-                  <select
-                    id="profileRunnerType"
-                    value={String(profileFormData.runnerType)}
-                    onChange={(e) => {
-                      const newRunnerType = Number(e.target.value) as RunnerType;
-                      const availableModels = getModelsForRunner(newRunnerType);
-                      const firstModel = availableModels.length > 0 ? getModelId(availableModels[0] ?? "") : "";
-                      setProfileFormData({
-                        ...profileFormData,
-                        runnerType: newRunnerType,
-                        model:
-                          profileFormData.modelMode === "model"
-                            ? firstModel
-                            : profileFormData.model,
-                      });
-                    }}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  >
-                    {RUNNER_TYPES.map((type) => (
-                      <option key={type} value={type}>
-                        {runnerTypeLabel(type)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
               </div>
 
               <div className="space-y-2">
@@ -1078,65 +979,13 @@ export function TasksPage({
                 />
               </div>
 
-              <ModelConfigSelector
-                value={{
-                  mode: profileFormData.modelMode,
-                  model: profileFormData.model ?? "",
-                  preset: profileFormData.modelPreset ?? ModelPreset.UNSPECIFIED,
-                }}
-                onChange={(selection) =>
-                  setProfileFormData({
-                    ...profileFormData,
-                    modelMode: selection.mode,
-                    model: selection.model,
-                    modelPreset: selection.preset,
-                  })
-                }
-                models={getModelsForRunner(profileFormData.runnerType)}
-                presetMap={getPresetMapForRunner(profileFormData.runnerType)}
-                label="Model Selection"
+              <RoleSelector
+                catalog={rolePolicyCatalog}
+                value={profileFormData.roleRef}
+                onChange={(roleRef) => setProfileFormData({ ...profileFormData, roleRef })}
+                label="Execution Role"
+                id="profileRoleRef"
               />
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>Fallback Runners</Label>
-                  <Button type="button" variant="outline" size="sm" onClick={handleAddProfileFallback}>
-                    Add
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Ordered runners to try if the primary runner is unavailable.
-                </p>
-                {(profileFormData.fallbackRunnerTypes ?? []).length === 0 ? (
-                  <p className="text-xs text-muted-foreground">No fallback runners configured.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {(profileFormData.fallbackRunnerTypes ?? []).map((runnerType, index) => (
-                      <div key={`profile-fallback-${index}`} className="flex items-center gap-2">
-                        <select
-                          value={String(runnerType)}
-                          onChange={(e) => handleProfileFallbackChange(index, e.target.value)}
-                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                        >
-                          {RUNNER_TYPES.map((type) => (
-                            <option key={type} value={type}>
-                              {runnerTypeLabel(type)}
-                            </option>
-                          ))}
-                        </select>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveProfileFallback(index)}
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
@@ -1173,29 +1022,47 @@ export function TasksPage({
                 </div>
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="profileEffort">Reasoning Effort</Label>
+                <select
+                  id="profileEffort"
+                  value={profileFormData.effort ?? ""}
+                  onChange={(e) => setProfileFormData({ ...profileFormData, effort: e.target.value as ProfileFormData["effort"] })}
+                  className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                >
+                  <option value="">Runner default</option>
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="xhigh">Extra high</option>
+                  <option value="max">Max</option>
+                </select>
+              </div>
+
               <div className="flex gap-6">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={profileFormData.requiresSandbox}
+                <label className="flex items-center gap-2">
+                  <span className="text-sm">Sandbox Mode</span>
+                  <select
+                    value={profileFormData.sandboxMode ?? "protected"}
                     onChange={(e) =>
-                      setProfileFormData({ ...profileFormData, requiresSandbox: e.target.checked })
+                      setProfileFormData({
+                        ...profileFormData,
+                        sandboxMode: e.target.value as "off" | "tracking" | "protected",
+                      })
                     }
-                    className="h-4 w-4 rounded border-input"
-                  />
-                  <span className="text-sm">Require Sandbox</span>
+                    className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+                  >
+                    <option value="off">Off</option>
+                    <option value="tracking">Tracking</option>
+                    <option value="protected">Protected</option>
+                  </select>
                 </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={profileFormData.requiresApproval}
-                    onChange={(e) =>
-                      setProfileFormData({ ...profileFormData, requiresApproval: e.target.checked })
-                    }
-                    className="h-4 w-4 rounded border-input"
-                  />
-                  <span className="text-sm">Require Approval</span>
-                </label>
+                {/* The "Require Approval" toggle was removed in
+                    agent-sandbox-audit-foundation Phase 3b — operator-gated
+                    apply lives on SandboxConfig.manualReview now. The
+                    "Require Sandbox" boolean was removed in agent-manager
+                    Phase 1: SandboxConfig.mode is the single source of
+                    truth (see DeriveRunMode in domain/decisions.go). */}
                 <label className="flex items-center gap-2">
                   <span className="text-sm">Network Access</span>
                   <select

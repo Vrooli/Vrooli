@@ -1,0 +1,15 @@
+dist
+coverage
+node_modules
+src/consts/strings.generated.ts
+../library/**/versions/*/story.json
+# Released entry sources are immutable ledger bytes. They are formatted and
+# validated at publication time; reformatting them here would create source
+# drift without a version bump.
+../library/components/Menu/versions/1.1.0/Menu.tsx
+../library/components/MonetizationAccount/versions/1.0.0/MonetizationAccount.tsx
+../library/components/MonetizationAccount/versions/1.0.1/MonetizationAccount.tsx
+../library/components/CanvasFrame/versions/1.0.0/CanvasFrame.tsx
+../library/components/PreviewDock/versions/1.0.0/PreviewDock.tsx
+../library/components/PreviewInspector/versions/1.0.0/PreviewInspector.tsx
+../library/components/StoryPalette/versions/1.0.0/StoryPalette.tsx

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ReplayMovieFrame, ReplayMovieSpec } from "@/types/export";
+import type { ReplayFrame as ReplayMovieFrame, ReplaySpec as ReplayMovieSpec } from "@vrooli/generated-proto/browser-automation-studio/v1/exports/exports_pb";
 import {
   isScalingNeeded,
   scaleFrames,
@@ -110,11 +110,11 @@ describe("scaleMovieSpec", () => {
         height: 1080,
       });
 
-      expect(result.canvas).toEqual({ width: 1920, height: 1080 });
-      expect(result.viewport).toEqual({ width: 1920, height: 1080 });
-      expect(result.browser_frame?.width).toBe(1920);
-      expect(result.browser_frame?.height).toBe(1080);
-      expect(result.device_scale_factor).toBe(1);
+      expect(result.canvas).toMatchObject({ width: 1920, height: 1080 });
+      expect(result.viewport).toMatchObject({ width: 1920, height: 1080 });
+      expect(result.browserFrame?.width).toBe(1920);
+      expect(result.browserFrame?.height).toBe(1080);
+      expect(result.deviceScaleFactor).toBe(1);
     });
 
     it("handles downscaling", () => {
@@ -128,8 +128,8 @@ describe("scaleMovieSpec", () => {
         height: 540,
       });
 
-      expect(result.canvas).toEqual({ width: 960, height: 540 });
-      expect(result.viewport).toEqual({ width: 960, height: 540 });
+      expect(result.canvas).toMatchObject({ width: 960, height: 540 });
+      expect(result.viewport).toMatchObject({ width: 960, height: 540 });
     });
 
     it("handles undefined presentation", () => {
@@ -138,7 +138,7 @@ describe("scaleMovieSpec", () => {
         height: 1080,
       });
 
-      expect(result.canvas).toEqual({ width: 1920, height: 1080 });
+      expect(result.canvas).toMatchObject({ width: 1920, height: 1080 });
     });
   });
 
@@ -157,8 +157,8 @@ describe("scaleMovieSpec", () => {
       );
 
       expect(result).toHaveLength(2);
-      expect(result[0].viewport).toEqual({ width: 1920, height: 1080 });
-      expect(result[1].viewport).toEqual({ width: 1920, height: 1080 });
+      expect(result[0].viewport).toMatchObject({ width: 1920, height: 1080 });
+      expect(result[1].viewport).toMatchObject({ width: 1920, height: 1080 });
     });
 
     it("returns empty array for undefined frames", () => {
@@ -182,11 +182,11 @@ describe("scaleMovieSpec", () => {
       });
 
       // Canvas should be target dimensions
-      expect(result.presentation.canvas).toEqual({ width: 1920, height: 1080 });
+      expect(result.presentation.canvas).toMatchObject({ width: 1920, height: 1080 });
 
       // Frames should be scaled
-      expect(result.frames?.[0]?.viewport).toEqual({ width: 1920, height: 1080 });
-      expect(result.frames?.[1]?.viewport).toEqual({ width: 1920, height: 1080 });
+      expect(result.frames?.[0]?.viewport).toMatchObject({ width: 1920, height: 1080 });
+      expect(result.frames?.[1]?.viewport).toMatchObject({ width: 1920, height: 1080 });
 
       // Original spec should be unchanged
       expect(spec.presentation.canvas).toEqual({ width: 1280, height: 720 });
@@ -212,8 +212,8 @@ describe("scaleMovieSpec", () => {
         targetDimensions: { width: 1600, height: 900 },
       });
 
-      expect(result.presentation.canvas).toEqual({ width: 1600, height: 900 });
-      expect(result.frames?.[0]?.viewport).toEqual({ width: 1600, height: 900 });
+      expect(result.presentation.canvas).toMatchObject({ width: 1600, height: 900 });
+      expect(result.frames?.[0]?.viewport).toMatchObject({ width: 1600, height: 900 });
     });
   });
 

@@ -1,0 +1,34 @@
+run:
+  timeout: 5m
+
+linters:
+  enable:
+    - errcheck
+    - gofumpt
+    - govet
+    - ineffassign
+    - staticcheck
+    - typecheck
+    - unused
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck
+        - unused
+    - path: test_helpers\.go
+      linters:
+        - errcheck
+        - unused
+    - path: main\.go
+      text: "Error return value of `\\(\\*encoding/json\\.Encoder\\)\\.Encode` is not checked"
+      linters:
+        - errcheck
+
+linters-settings:
+  gofumpt:
+    # Must match this module's go.mod path. gofumpt treats a first path segment
+    # with no dot as standard library, so without this a module-local import is
+    # sorted into the stdlib group and the three-group convention inverts.
+    module-path: fall-foliage-explorer

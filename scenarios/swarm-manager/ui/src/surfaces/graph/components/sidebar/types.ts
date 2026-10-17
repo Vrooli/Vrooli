@@ -4,21 +4,31 @@
  * Shared type definitions for the multi-tab sidebar.
  */
 
-import type { BacklogKind, BacklogStatus, CaptureStatus, ExecutionMode, ExecutionStatus, InitiativeStatus } from "../../../../types";
+import type {
+  AgentSessionKind,
+  AgentSessionStatus,
+  BacklogKind,
+  BacklogStatus,
+  CaptureStatus,
+  ExecutionMode,
+  ExecutionStatus,
+  GoalStatus,
+} from "../../../../types";
 
 // ============================================================================
 // Tab Definitions
 // ============================================================================
 
-export const SIDEBAR_TABS = ["activity", "backlog", "captures", "initiatives", "executions"] as const;
+export const SIDEBAR_TABS = ["backlog", "captures", "goals", "executions", "scenarios", "sessions"] as const;
 export type SidebarTab = (typeof SIDEBAR_TABS)[number];
 
 export const TAB_LABELS: Record<SidebarTab, string> = {
-  activity: "Activity",
   backlog: "Backlog",
   captures: "Captures",
-  initiatives: "Initiatives",
+  goals: "Goals",
   executions: "Executions",
+  scenarios: "Scenarios",
+  sessions: "Sessions",
 };
 
 // ============================================================================
@@ -34,18 +44,17 @@ export interface SortConfig {
 }
 
 export const DEFAULT_SORT: Record<SidebarTab, SortConfig> = {
-  activity: { field: "priority", direction: "asc" },
   backlog: { field: "priority", direction: "asc" },
   captures: { field: "recency", direction: "desc" },
-  initiatives: { field: "alphabetical", direction: "asc" },
+  goals: { field: "priority", direction: "desc" },
   executions: { field: "recency", direction: "desc" },
+  scenarios: { field: "priority", direction: "asc" },
+  sessions: { field: "recency", direction: "desc" },
 };
 
 // ============================================================================
 // Filter Definitions
 // ============================================================================
-
-export type ValidationStatusFilter = "passed" | "failed" | "none" | "";
 
 export interface BacklogFilters {
   statuses: BacklogStatus[];
@@ -53,15 +62,15 @@ export interface BacklogFilters {
   priorityMin: number | null;
   priorityMax: number | null;
   showArchived: boolean;
-  validationStatus: ValidationStatusFilter;
 }
 
 export interface CaptureFilters {
   statuses: CaptureStatus[];
 }
 
-export interface InitiativeFilters {
-  statuses: InitiativeStatus[];
+/** Compatibility shape for the unmounted legacy goal component. */
+export interface GoalFilters {
+  statuses: GoalStatus[];
   showArchived: boolean;
 }
 
@@ -70,32 +79,34 @@ export interface ExecutionFilters {
   modes: ExecutionMode[];
 }
 
+export interface SessionFilters {
+  statuses: AgentSessionStatus[];
+  kinds: AgentSessionKind[];
+  activeOnly: boolean;
+  hasProposals: boolean;
+  hasAppliedArtifacts: boolean;
+}
+
+export interface ScenarioFilters {
+  lifecycle: string[];
+  evidenceStates: string[];
+  remediationStates: string[];
+}
+
 export interface TabFilters {
-  activity: Record<string, never>;
   backlog: BacklogFilters;
   captures: CaptureFilters;
-  initiatives: InitiativeFilters;
+  goals: Record<string, never>;
   executions: ExecutionFilters;
+  scenarios: ScenarioFilters;
+  sessions: SessionFilters;
 }
 
 export const DEFAULT_FILTERS: TabFilters = {
-  activity: {},
-  backlog: { statuses: [], kinds: [], priorityMin: null, priorityMax: null, showArchived: false, validationStatus: "" },
+  backlog: { statuses: [], kinds: [], priorityMin: null, priorityMax: null, showArchived: false },
   captures: { statuses: [] },
-  initiatives: { statuses: [], showArchived: false },
+  goals: {},
   executions: { statuses: [], modes: [] },
+  scenarios: { lifecycle: [], evidenceStates: [], remediationStates: [] },
+  sessions: { statuses: [], kinds: [], activeOnly: false, hasProposals: false, hasAppliedArtifacts: false },
 };
-
-// ============================================================================
-// URL Param Keys
-// ============================================================================
-
-export const URL_PARAMS = {
-  tab: "stab",
-  statuses: "sst",
-  kinds: "skd",
-  modes: "smd",
-  priorityRange: "spr",
-  sortField: "ssort",
-  sortDirection: "sdir",
-} as const;

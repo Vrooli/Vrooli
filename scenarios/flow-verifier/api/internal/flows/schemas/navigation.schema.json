@@ -1,0 +1,355 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vrooli.dev/schemas/navigation.v1.json",
+  "title": "Navigation Flow Contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "flowId",
+    "domain",
+    "description",
+    "contexts",
+    "routes",
+    "containers",
+    "affordances"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "navigation" },
+    "flowId": { "type": "string", "minLength": 1 },
+    "domain": { "type": "string", "minLength": 1 },
+    "description": { "type": "string", "minLength": 1 },
+
+    "contexts": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "$ref": "#/$defs/context" }
+    },
+
+    "routes": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/route" }
+    },
+
+    "containers": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/container" }
+    },
+
+    "affordances": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/affordance" }
+    },
+
+    "overlays": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/overlay" }
+    },
+
+    "return_paths": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/returnPath" }
+    },
+
+    "shortcuts": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/shortcut" }
+    },
+
+    "reachability_invariants": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/reachabilityInvariant" }
+    },
+
+    "deep_link_policy": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/deepLinkRule" }
+    }
+  },
+
+  "$defs": {
+    "predicate": { "type": "string", "minLength": 1 },
+    "identifier": { "type": "string", "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$" },
+
+    "context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": { "enum": ["enum", "bool"] },
+        "values": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "default": { "type": ["string", "boolean"] },
+        "valid_when": { "$ref": "#/$defs/predicate" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "kind": { "const": "enum" } } },
+          "then": { "required": ["values", "default"] }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "bool" } } },
+          "then": {
+            "properties": {
+              "default": { "type": "boolean" },
+              "values": false
+            },
+            "required": ["default"]
+          }
+        }
+      ]
+    },
+
+    "route": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "path", "page"],
+      "properties": {
+        "id": { "$ref": "#/$defs/identifier" },
+        "path": { "type": "string", "minLength": 1 },
+        "page": { "type": "string", "minLength": 1 },
+        "requires": { "$ref": "#/$defs/predicate" },
+        "redirect_if_unmet": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["to"],
+          "properties": {
+            "to": { "$ref": "#/$defs/identifier" },
+            "preserve_target": { "type": "boolean" }
+          }
+        },
+        "deep_link": { "enum": ["recoverable", "non_recoverable"] },
+        "parents": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/identifier" }
+        }
+      }
+    },
+
+    "trigger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "test_id", "reachable_via"],
+      "properties": {
+        "label": { "type": "string", "minLength": 1 },
+        "test_id": { "type": "string", "minLength": 1 },
+        "reachable_via": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "enum": ["mouse", "keyboard", "gamepad", "touch"] }
+        }
+      }
+    },
+
+    "container": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "host_routes", "disclosure"],
+      "properties": {
+        "id": { "$ref": "#/$defs/identifier" },
+        "kind": { "enum": ["persistent", "drawer", "popover"] },
+        "host_routes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "show_when": { "$ref": "#/$defs/predicate" },
+        "disclosure": {
+          "enum": ["always_visible", "click_to_open", "hover_to_open"]
+        },
+        "trigger": { "$ref": "#/$defs/trigger" },
+        "scope": { "enum": ["modal_panel", "popover", "inline"] },
+        "focus_trap": { "type": "boolean" },
+        "dismiss": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "backdrop",
+              "outside_click",
+              "esc",
+              "swipe",
+              "navigate",
+              "cancel_button"
+            ]
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "disclosure": { "const": "always_visible" } }
+          },
+          "then": {
+            "properties": {
+              "trigger": false
+            }
+          },
+          "else": { "required": ["trigger"] }
+        }
+      ]
+    },
+
+    "presentation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["in", "label", "test_id", "reachable_via"],
+      "properties": {
+        "in": { "$ref": "#/$defs/identifier" },
+        "label": { "type": "string", "minLength": 1 },
+        "icon": { "type": "string", "minLength": 1 },
+        "test_id": { "type": "string", "minLength": 1 },
+        "reachable_via": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "enum": ["mouse", "keyboard", "gamepad", "touch"] }
+        }
+      }
+    },
+
+    "affordance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "to", "presentations"],
+      "properties": {
+        "id": { "$ref": "#/$defs/identifier" },
+        "to": { "$ref": "#/$defs/identifier" },
+        "show_when": { "$ref": "#/$defs/predicate" },
+        "side_effect": { "type": "string", "minLength": 1 },
+        "presentations": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/presentation" }
+        }
+      }
+    },
+
+    "overlay": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "host_routes", "scope", "test_id"],
+      "properties": {
+        "id": { "$ref": "#/$defs/identifier" },
+        "host_routes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "scope": { "enum": ["modal", "drawer", "popover", "inline"] },
+        "focus_trap": { "type": "boolean" },
+        "dismiss": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "backdrop",
+              "outside_click",
+              "esc",
+              "swipe",
+              "navigate",
+              "cancel_button"
+            ]
+          }
+        },
+        "show_when": { "$ref": "#/$defs/predicate" },
+        "test_id": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "returnPath": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "rule"],
+      "properties": {
+        "from": { "$ref": "#/$defs/identifier" },
+        "rule": { "enum": ["history_back", "canonical_parent", "prompt"] },
+        "fallback": { "$ref": "#/$defs/identifier" }
+      }
+    },
+
+    "shortcut": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["binding", "action", "scope"],
+      "properties": {
+        "binding": { "type": "string", "minLength": 1 },
+        "action": { "type": "string", "minLength": 1 },
+        "to": { "$ref": "#/$defs/identifier" },
+        "scope": { "enum": ["global", "local"] },
+        "excluded_routes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/identifier" }
+        },
+        "show_when": { "$ref": "#/$defs/predicate" }
+      }
+    },
+
+    "viewportClickBudget": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "desktop": { "type": "integer", "minimum": 0 },
+        "tablet":  { "type": "integer", "minimum": 0 },
+        "mobile":  { "type": "integer", "minimum": 0 }
+      }
+    },
+
+    "reachabilityInvariant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "given", "from"],
+      "properties": {
+        "id": { "$ref": "#/$defs/identifier" },
+        "given": { "$ref": "#/$defs/predicate" },
+        "from": { "$ref": "#/$defs/identifier" },
+        "must_reach": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/identifier" }
+        },
+        "must_not_reach": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/identifier" }
+        },
+        "max_clicks": {
+          "oneOf": [
+            { "type": "integer", "minimum": 0 },
+            { "$ref": "#/$defs/viewportClickBudget" }
+          ]
+        }
+      },
+      "anyOf": [
+        { "required": ["must_reach"] },
+        { "required": ["must_not_reach"] }
+      ]
+    },
+
+    "deepLinkRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "given", "must"],
+      "properties": {
+        "id": { "$ref": "#/$defs/identifier" },
+        "for_routes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/identifier" }
+        },
+        "for_routes_where": { "$ref": "#/$defs/predicate" },
+        "given": { "$ref": "#/$defs/predicate" },
+        "must": { "type": "string", "minLength": 1 }
+      },
+      "oneOf": [
+        { "required": ["for_routes"] },
+        { "required": ["for_routes_where"] }
+      ]
+    }
+  }
+}

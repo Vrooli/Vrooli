@@ -1,0 +1,431 @@
+{
+  "native_revision": "ANLCKQnRXdhkDwqa2XNv1OV7iNjgAFT16l54t5w8w8CJiYCDXtI9lVKRZ4FQbun9P5N52uzcjrk-yLcZ5kYO5p6PLh9td3rWXCs5_JUA6A",
+  "pdf_file": "Marketing experience 0.3 - exact native review.pdf",
+  "pdf_bytes": 10072373,
+  "pdf_sha256": "ca0f37949bb2b0a69611a3601aa209b7a2844934c5753c19d09401103133d405",
+  "pages": 97,
+  "same_pages_as_inspected_first_export": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    58,
+    59,
+    60,
+    61,
+    62,
+    63,
+    64,
+    65,
+    66,
+    67,
+    68,
+    69,
+    70,
+    71,
+    72,
+    73,
+    74,
+    75,
+    76,
+    77,
+    78,
+    79,
+    80,
+    81,
+    82,
+    83,
+    84,
+    85,
+    86,
+    87,
+    88,
+    89,
+    90,
+    91,
+    92,
+    93,
+    94,
+    95
+  ],
+  "changed_pages": [
+    96,
+    97
+  ],
+  "image_count": 45,
+  "all_image_pixels_equal": true,
+  "images": [
+    {
+      "slot": "IMG01",
+      "page": 3,
+      "pixels_equal": true,
+      "width": 2500,
+      "height": 1563
+    },
+    {
+      "slot": "IMG02",
+      "page": 4,
+      "pixels_equal": true,
+      "width": 780,
+      "height": 1688
+    },
+    {
+      "slot": "IMG03",
+      "page": 6,
+      "pixels_equal": true,
+      "width": 2500,
+      "height": 1563
+    },
+    {
+      "slot": "IMG04",
+      "page": 7,
+      "pixels_equal": true,
+      "width": 780,
+      "height": 1688
+    },
+    {
+      "slot": "IMG19",
+      "page": 9,
+      "pixels_equal": true,
+      "width": 1440,
+      "height": 1880
+    },
+    {
+      "slot": "IMG28",
+      "page": 10,
+      "pixels_equal": true,
+      "width": 2500,
+      "height": 1563
+    },
+    {
+      "slot": "IMG29",
+      "page": 11,
+      "pixels_equal": true,
+      "width": 780,
+      "height": 1688
+    },
+    {
+      "slot": "IMG24",
+      "page": 17,
+      "pixels_equal": true,
+      "width": 2500,
+      "height": 1563
+    },
+    {
+      "slot": "IMG25",
+      "page": 18,
+      "pixels_equal": true,
+      "width": 780,
+      "height": 1688
+    },
+    {
+      "slot": "IMG05",
+      "page": 22,
+      "pixels_equal": true,
+      "width": 2500,
+      "height": 1563
+    },
+    {
+      "slot": "IMG06",
+      "page": 23,
+      "pixels_equal": true,
+      "width": 780,
+      "height": 1688
+    },
+    {
+      "slot": "IMG07",
+      "page": 29,
+      "pixels_equal": true,
+      "width": 2500,
+      "height": 1563
+    },
+    {
+      "slot": "IMG08",
+      "page": 30,
+      "pixels_equal": true,
+      "width": 780,
+      "height": 1688
+    },
+    {
+      "slot": "IMG30",
+      "page": 31,
+      "pixels_equal": true,
+      "width": 2500,
+      "height": 1563
+    },
+    {
+      "slot": "IMG31",
+      "page": 32,
+      "pixels_equal": true,
+      "width": 2500,
+      "height": 1563
+    },
+    {
+      "slot": "IMG32",
+      "page": 32,
+      "pixels_equal": true,
+      "width": 2500,
+      "height": 1563
+    },
+    {
+      "slot": "IMG40",
+      "page": 34,
+      "pixels_equal": true,
+      "width": 2500,
+      "height": 1563
+    },
+    {
+      "slot": "IMG41",
+      "page": 35,
+      "pixels_equal": true,
+      "width": 780,
+      "height": 1688
+    },
+    {
+      "slot": "IMG09",
+      "page": 38,
+      "pixels_equal": true,
+      "width": 2500,
+      "height": 1563
+    },
+    {
+      "slot": "IMG10",
+      "page": 39,
+      "pixels_equal": true,
+      "width": 780,
+      "height": 1688
+    },
+    {
+      "slot": "IMG33",
+      "page": 41,
+      "pixels_equal": true,
+      "width": 2500,
+      "height": 1563
+    },
+    {
+      "slot": "IMG34",
+      "page": 42,
+      "pixels_equal": true,
+      "width": 780,
+      "height": 1688
+    },
+    {
+      "slot": "IMG26",
+      "page": 47,
+      "pixels_equal": true,
+      "width": 2500,
+      "height": 1563
+    },
+    {
+      "slot": "IMG27",
+      "page": 48,
+      "pixels_equal": true,
+      "width": 780,
+      "height": 1688
+    },
+    {
+      "slot": "IMG20",
+      "page": 53,
+      "pixels_equal": true,
+      "width": 2500,
+      "height": 1563
+    },
+    {
+      "slot": "IMG21",
+      "page": 54,
+      "pixels_equal": true,
+      "width": 780,
+      "height": 1688
+    },
+    {
+      "slot": "IMG11",
+      "page": 55,
+      "pixels_equal": true,
+      "width": 2500,
+      "height": 1563
+    },
+    {
+      "slot": "IMG12",
+      "page": 56,
+      "pixels_equal": true,
+      "width": 1600,
+      "height": 1688
+    },
+    {
+      "slot": "IMG36",
+      "page": 58,
+      "pixels_equal": true,
+      "width": 1600,
+      "height": 1688
+    },
+    {
+      "slot": "IMG42",
+      "page": 59,
+      "pixels_equal": true,
+      "width": 2500,
+      "height": 1563
+    },
+    {
+      "slot": "IMG43",
+      "page": 60,
+      "pixels_equal": true,
+      "width": 780,
+      "height": 1688
+    },
+    {
+      "slot": "IMG13",
+      "page": 64,
+      "pixels_equal": true,
+      "width": 2500,
+      "height": 1563
+    },
+    {
+      "slot": "IMG14",
+      "page": 65,
+      "pixels_equal": true,
+      "width": 780,
+      "height": 1688
+    },
+    {
+      "slot": "IMG15",
+      "page": 67,
+      "pixels_equal": true,
+      "width": 2500,
+      "height": 1563
+    },
+    {
+      "slot": "IMG16",
+      "page": 68,
+      "pixels_equal": true,
+      "width": 780,
+      "height": 1688
+    },
+    {
+      "slot": "IMG44",
+      "page": 70,
+      "pixels_equal": true,
+      "width": 1600,
+      "height": 1688
+    },
+    {
+      "slot": "IMG17",
+      "page": 72,
+      "pixels_equal": true,
+      "width": 2500,
+      "height": 1563
+    },
+    {
+      "slot": "IMG18",
+      "page": 73,
+      "pixels_equal": true,
+      "width": 780,
+      "height": 1688
+    },
+    {
+      "slot": "IMG37",
+      "page": 75,
+      "pixels_equal": true,
+      "width": 2500,
+      "height": 1563
+    },
+    {
+      "slot": "IMG45",
+      "page": 76,
+      "pixels_equal": true,
+      "width": 1326,
+      "height": 592
+    },
+    {
+      "slot": "IMG38",
+      "page": 78,
+      "pixels_equal": true,
+      "width": 2500,
+      "height": 1563
+    },
+    {
+      "slot": "IMG39",
+      "page": 79,
+      "pixels_equal": true,
+      "width": 2500,
+      "height": 1563
+    },
+    {
+      "slot": "IMG22",
+      "page": 80,
+      "pixels_equal": true,
+      "width": 2500,
+      "height": 1563
+    },
+    {
+      "slot": "IMG23",
+      "page": 81,
+      "pixels_equal": true,
+      "width": 780,
+      "height": 1688
+    },
+    {
+      "slot": "IMG35",
+      "page": 84,
+      "pixels_equal": true,
+      "width": 1440,
+      "height": 2060
+    }
+  ],
+  "internal_link_count": 57,
+  "all_internal_destinations_valid": true,
+  "link_count": 137,
+  "tail_spacing": "Historical closeout only,108% line spacing/3pt paragraph spacing; semantic text unchanged."
+}

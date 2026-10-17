@@ -1,6 +1,7 @@
-import { BaseHandler, type HandlerContext, type HandlerResult } from './base';
+import { BaseHandler, getDocument, type HandlerContext, type HandlerResult } from './base';
 import type { HandlerInstruction } from '../types';
 import { getExtractParams, getEvaluateParams } from '../types';
+import { getActionType } from '../proto';
 import { DEFAULT_TIMEOUT_MS } from '../constants';
 import { normalizeError } from '../utils';
 
@@ -14,14 +15,12 @@ export class ExtractionHandler extends BaseHandler {
     return ['extract', 'evaluate'];
   }
 
-  async execute(
-    instruction: HandlerInstruction,
-    context: HandlerContext
-  ): Promise<HandlerResult> {
+  async execute(instruction: HandlerInstruction, context: HandlerContext): Promise<HandlerResult> {
     const { logger } = context;
 
     try {
-      switch (instruction.type.toLowerCase()) {
+      const actionType = getActionType(instruction);
+      switch (actionType.toLowerCase()) {
         case 'extract':
           return await this.handleExtract(instruction, context);
 
@@ -32,7 +31,7 @@ export class ExtractionHandler extends BaseHandler {
           return {
             success: false,
             error: {
-              message: `Unsupported extraction type: ${instruction.type}`,
+              message: `Unsupported extraction type: ${actionType}`,
               code: 'UNSUPPORTED_TYPE',
               kind: 'orchestration',
               retryable: false,
@@ -41,7 +40,7 @@ export class ExtractionHandler extends BaseHandler {
       }
     } catch (error) {
       logger.error('Extraction failed', {
-        type: instruction.type,
+        type: getActionType(instruction),
         error: error instanceof Error ? error.message : String(error),
       });
 
@@ -53,7 +52,9 @@ export class ExtractionHandler extends BaseHandler {
           message: driverError.message,
           code: driverError.code,
           kind: driverError.kind,
-          retryable: driverError.retryable,
+          // Arbitrary JavaScript may have committed effects before failing.
+          retryable:
+            getActionType(instruction).toLowerCase() !== 'evaluate' && driverError.retryable,
         },
       };
     }
@@ -63,7 +64,8 @@ export class ExtractionHandler extends BaseHandler {
     instruction: HandlerInstruction,
     context: HandlerContext
   ): Promise<HandlerResult> {
-    const { page, logger } = context;
+    const { logger } = context;
+    const page = getDocument(context);
 
     // Get typed params from instruction.action (required after migration)
     const typedParams = instruction.action ? getExtractParams(instruction.action) : undefined;
@@ -108,7 +110,8 @@ export class ExtractionHandler extends BaseHandler {
     instruction: HandlerInstruction,
     context: HandlerContext
   ): Promise<HandlerResult> {
-    const { page, logger } = context;
+    const { logger } = context;
+    const page = getDocument(context);
 
     // Get typed params from instruction.action (required after migration)
     const typedParams = instruction.action ? getEvaluateParams(instruction.action) : undefined;

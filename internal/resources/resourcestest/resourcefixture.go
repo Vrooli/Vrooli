@@ -1,0 +1,613 @@
+package resourcefixture
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
+	"github.com/vrooli/vrooli/internal/tuning"
+
+	repocontracttest "github.com/vrooli/repo-contract-go/repocontracttest"
+	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
+	hostreqspec "github.com/vrooli/vrooli/internal/hostreqspec"
+	resourceenv "github.com/vrooli/vrooli/internal/resources/env"
+	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
+	"github.com/vrooli/vrooli/internal/scenario"
+	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
+)
+
+type ResourceManifestOption func(*manifestpkg.ResourceManifest)
+
+const (
+	fixtureDriverExternalCLI    = "external-cli"
+	fixtureDriverManagedService = "managed-service"
+	fixtureDigestLength         = 64
+	fixtureReadinessInterval    = 10
+	fixtureLivenessInterval     = 30
+	fixtureHealthTimeout        = 10
+)
+
+type ResourceTemplateVar struct {
+	Flag        string `json:"flag,omitempty"`
+	Description string `json:"description,omitempty"`
+	Default     string `json:"default,omitempty"`
+}
+
+type ResourceTemplateManifest struct {
+	Name                 string                         `json:"name,omitempty"`
+	DisplayName          string                         `json:"displayName,omitempty"`
+	Description          string                         `json:"description,omitempty"`
+	Driver               string                         `json:"driver,omitempty"`
+	RequiredVars         map[string]ResourceTemplateVar `json:"requiredVars,omitempty"`
+	OptionalVars         map[string]ResourceTemplateVar `json:"optionalVars,omitempty"`
+	Docs                 map[string]string              `json:"docs,omitempty"`
+	PlatformExpectations []string                       `json:"platformExpectations,omitempty"`
+	Transitional         bool                           `json:"transitional,omitempty"`
+}
+
+type ResourceTemplateOption func(*ResourceTemplateManifest)
+
+func ResourceManifest(name string, opts ...ResourceManifestOption) manifestpkg.ResourceManifest {
+	manifest := manifestpkg.ResourceManifest{
+		Name:        name,
+		DisplayName: repocontracttest.DefaultDisplayName(name),
+		Description: fmt.Sprintf("%s fixture", repocontracttest.DefaultDisplayName(name)),
+		CLI:         defaultResourceCLIConfig(name),
+		Driver:      fixtureDriverExternalCLI,
+		Binary:      "bash",
+		Platforms: manifestpkg.ResourcePlatforms{
+			Linux:   "supported",
+			MacOS:   "supported",
+			Windows: "supported",
+		},
+	}
+	for _, opt := range opts {
+		opt(&manifest)
+	}
+	if manifest.Driver == fixtureDriverManagedService && manifest.ManagedService == nil {
+		manifest.HealthChecks = []manifestpkg.ResourceHealthCheck{
+			{Type: "http", Target: "http://127.0.0.1:1/health", Kind: "readiness", IntervalSeconds: fixtureReadinessInterval, TimeoutSeconds: fixtureHealthTimeout},
+			{Type: "http", Target: "http://127.0.0.1:1/health", Kind: "liveness", IntervalSeconds: fixtureLivenessInterval, TimeoutSeconds: fixtureHealthTimeout},
+		}
+		manifest.ManagedService = &resourcedeployment.ManagedService{
+			ProviderPolicy: resourcedeployment.ProviderPolicy{
+				TargetDefaults: map[resourcedeployment.ProviderTarget]resourcedeployment.ProviderMode{
+					resourcedeployment.ProviderTargetControlPlane:  resourcedeployment.ProviderManagedShared,
+					resourcedeployment.ProviderTargetDesktopBundle: resourcedeployment.ProviderManagedPrivate,
+				},
+				AllowedModes: []resourcedeployment.ProviderMode{
+					resourcedeployment.ProviderManagedPrivate,
+					resourcedeployment.ProviderManagedShared,
+				},
+				ExternalManagement: "forbidden",
+			},
+			Artifact: resourcedeployment.ServiceArtifact{
+				Path: "server/" + name, Version: "1.0.0", SHA256: strings.Repeat("a", fixtureDigestLength),
+			},
+		}
+	}
+	return manifest
+}
+
+func ResourceTemplate(name string, opts ...ResourceTemplateOption) ResourceTemplateManifest {
+	manifest := ResourceTemplateManifest{
+		Name:        name,
+		DisplayName: repocontracttest.DefaultDisplayName(name),
+		Description: fmt.Sprintf("%s fixture template", repocontracttest.DefaultDisplayName(name)),
+		Driver:      fixtureDriverManagedService,
+		RequiredVars: map[string]ResourceTemplateVar{
+			"RESOURCE_NAME": {Flag: "name", Description: "Fixture resource name"},
+		},
+	}
+	for _, opt := range opts {
+		opt(&manifest)
+	}
+	return manifest
+}
+
+func WithResourceDriver(driver string) ResourceManifestOption {
+	return func(manifest *manifestpkg.ResourceManifest) {
+		manifest.Driver = driver
+	}
+}
+
+func WithTemplateDisplayName(displayName string) ResourceTemplateOption {
+	return func(manifest *ResourceTemplateManifest) {
+		manifest.DisplayName = displayName
+	}
+}
+
+func WithTemplateDescription(description string) ResourceTemplateOption {
+	return func(manifest *ResourceTemplateManifest) {
+		manifest.Description = description
+	}
+}
+
+func WithTemplateDriver(driver string) ResourceTemplateOption {
+	return func(manifest *ResourceTemplateManifest) {
+		manifest.Driver = driver
+	}
+}
+
+func WithTemplateRequiredVars(vars map[string]ResourceTemplateVar) ResourceTemplateOption {
+	return func(manifest *ResourceTemplateManifest) {
+		manifest.RequiredVars = cloneTemplateVarMap(vars)
+	}
+}
+
+func WithTemplateOptionalVars(vars map[string]ResourceTemplateVar) ResourceTemplateOption {
+	return func(manifest *ResourceTemplateManifest) {
+		manifest.OptionalVars = cloneTemplateVarMap(vars)
+	}
+}
+
+func WithTemplateDocs(docs map[string]string) ResourceTemplateOption {
+	return func(manifest *ResourceTemplateManifest) {
+		manifest.Docs = cloneTemplateDocs(docs)
+	}
+}
+
+func WithTemplatePlatformExpectations(expectations ...string) ResourceTemplateOption {
+	return func(manifest *ResourceTemplateManifest) {
+		manifest.PlatformExpectations = append([]string(nil), expectations...)
+	}
+}
+
+func WithTemplateTransitional(enabled bool) ResourceTemplateOption {
+	return func(manifest *ResourceTemplateManifest) {
+		manifest.Transitional = enabled
+	}
+}
+
+func WithResourceTemplate(template string) ResourceManifestOption {
+	return func(manifest *manifestpkg.ResourceManifest) {
+		manifest.Driver = template
+	}
+}
+
+func WithResourceDescription(description string) ResourceManifestOption {
+	return func(manifest *manifestpkg.ResourceManifest) {
+		manifest.Description = description
+	}
+}
+
+func WithResourceDisplayName(displayName string) ResourceManifestOption {
+	return func(manifest *manifestpkg.ResourceManifest) {
+		manifest.DisplayName = displayName
+	}
+}
+
+func WithResourcePlatforms(platforms manifestpkg.ResourcePlatforms) ResourceManifestOption {
+	return func(manifest *manifestpkg.ResourceManifest) {
+		manifest.Platforms = platforms
+	}
+}
+
+func WithResourceRuntime(runtime manifestpkg.ResourceRuntime) ResourceManifestOption {
+	return func(manifest *manifestpkg.ResourceManifest) {
+		manifest.Runtime = runtime
+	}
+}
+
+func WithResourceComposeFile(path string) ResourceManifestOption {
+	return func(manifest *manifestpkg.ResourceManifest) {
+		manifest.ComposeFile = filepath.ToSlash(path)
+	}
+}
+
+func WithResourceBinary(binary string) ResourceManifestOption {
+	return func(manifest *manifestpkg.ResourceManifest) {
+		manifest.Binary = binary
+	}
+}
+
+func WithResourceVersionArgs(args ...string) ResourceManifestOption {
+	return func(manifest *manifestpkg.ResourceManifest) {
+		manifest.VersionArgs = append([]string(nil), args...)
+	}
+}
+
+func WithResourceEndpoint(endpoint string) ResourceManifestOption {
+	return func(manifest *manifestpkg.ResourceManifest) {
+		manifest.Endpoint = endpoint
+	}
+}
+
+func WithResourceCredentialsEnv(env ...string) ResourceManifestOption {
+	return func(manifest *manifestpkg.ResourceManifest) {
+		descriptors := make([]manifestpkg.CredentialDescriptor, 0, len(env))
+		for _, name := range env {
+			descriptors = append(descriptors, manifestpkg.CredentialDescriptor{
+				LogicalID: "vrooli/fixture", Field: strings.ToLower(strings.ReplaceAll(name, "_", "-")), Env: name, Required: true,
+			})
+		}
+		manifest.Credentials.Descriptors = descriptors
+	}
+}
+
+func WithResourceHealthChecks(checks ...manifestpkg.ResourceHealthCheck) ResourceManifestOption {
+	return func(manifest *manifestpkg.ResourceManifest) {
+		manifest.HealthChecks = append([]manifestpkg.ResourceHealthCheck(nil), checks...)
+	}
+}
+
+func WithResourceInstall(install manifestpkg.ResourceInstall) ResourceManifestOption {
+	return func(manifest *manifestpkg.ResourceManifest) {
+		manifest.Install = install
+	}
+}
+
+func WithResourceDependencySchema(raw json.RawMessage) ResourceManifestOption {
+	return func(manifest *manifestpkg.ResourceManifest) {
+		manifest.DependencySchema = append(json.RawMessage(nil), raw...)
+	}
+}
+
+func WithResourceHostTools(tools ...hostreqspec.Declaration) ResourceManifestOption {
+	return func(manifest *manifestpkg.ResourceManifest) {
+		manifest.HostTools = append([]hostreqspec.Declaration(nil), tools...)
+	}
+}
+
+func WithResourceHostSafeguards(safeguards ...hostreqspec.Declaration) ResourceManifestOption {
+	return func(manifest *manifestpkg.ResourceManifest) {
+		manifest.HostSafeguards = append([]hostreqspec.Declaration(nil), safeguards...)
+	}
+}
+
+func WriteResourceManifest(t *testing.T, root, name string, manifest manifestpkg.ResourceManifest) {
+	t.Helper()
+	if strings.TrimSpace(manifest.Name) == "" {
+		manifest.Name = name
+	}
+	if manifest.CLI == nil {
+		manifest.CLI = defaultResourceCLIConfig(name)
+	}
+	if manifest.Driver == fixtureDriverExternalCLI && strings.TrimSpace(manifest.Binary) == "" {
+		manifest.Binary = "bash"
+	}
+	if manifest.Driver == fixtureDriverManagedService && manifest.ManagedService == nil {
+		manifest.ManagedService = &resourcedeployment.ManagedService{
+			ProviderPolicy: resourcedeployment.ProviderPolicy{
+				TargetDefaults: map[resourcedeployment.ProviderTarget]resourcedeployment.ProviderMode{
+					resourcedeployment.ProviderTargetControlPlane:  resourcedeployment.ProviderManagedShared,
+					resourcedeployment.ProviderTargetDesktopBundle: resourcedeployment.ProviderManagedPrivate,
+				},
+				AllowedModes: []resourcedeployment.ProviderMode{
+					resourcedeployment.ProviderManagedPrivate,
+					resourcedeployment.ProviderManagedShared,
+				},
+				ExternalManagement: "forbidden",
+			},
+			Artifact: resourcedeployment.ServiceArtifact{
+				Path: "server/" + name, Version: "1.0.0", SHA256: strings.Repeat("a", fixtureDigestLength),
+			},
+		}
+	}
+	testkitgo.WriteJSON(t, manifestpkg.DefaultPath(root, name), manifest)
+	testkitgo.WriteFile(t, filepath.Join(root, "resources", name, "README.md"), "# "+name+"\n")
+	testkitgo.WriteFile(t, filepath.Join(root, "resources", name, "cli", "main.go"), "package main\n")
+}
+
+func WriteResourceTemplateManifest(t *testing.T, root, name string, manifest ResourceTemplateManifest) {
+	t.Helper()
+	if strings.TrimSpace(manifest.Name) == "" {
+		manifest.Name = name
+	}
+	testkitgo.WriteJSON(t, filepath.Join(root, "templates", "resources", name, "template.json"), manifest)
+}
+
+func WriteResourceCLIGoMod(t *testing.T, root, name, module string) {
+	t.Helper()
+	if strings.TrimSpace(module) == "" {
+		module = "resource-" + name + "/cli"
+	}
+	testkitgo.WriteFile(t, filepath.Join(root, "resources", name, "cli", "go.mod"), "module "+module+"\n")
+}
+
+func WriteMalformedResourceManifest(t *testing.T, root, name, raw string) {
+	t.Helper()
+	testkitgo.WriteMalformedJSON(t, manifestpkg.DefaultPath(root, name), raw, tuning.PermFile)
+}
+
+func ReadResourceManifest(t *testing.T, root, name string) manifestpkg.ResourceManifest {
+	t.Helper()
+	return testkitgo.ReadJSONFileInto[manifestpkg.ResourceManifest](t, manifestpkg.DefaultPath(root, name))
+}
+
+func WriteResourceCLI(t *testing.T, root, name, contents string) string {
+	t.Helper()
+	return testkitgo.WriteRelativeExecutable(t, root, filepath.Join("resources", name, "cli.sh"), contents)
+}
+
+func defaultResourceCLIConfig(name string) *scenario.CLIConfig {
+	return &scenario.CLIConfig{
+		Enabled: true,
+		Command: "resource-" + strings.TrimSpace(name),
+		Adapter: scenario.CLIAdapterConfig{
+			Kind:      "go_module",
+			ModuleDir: "cli",
+		},
+		SourceBuild: &scenario.CLISourceBuildConfig{Kind: "go_module"},
+		Invoke: scenario.CLIInvokeConfig{
+			Kind:    "installed_command",
+			Command: "resource-" + strings.TrimSpace(name),
+		},
+		Freshness: &scenario.CLIFreshnessCheck{Inputs: []string{"cli/**", "resource.json"}},
+	}
+}
+
+func WriteExternalCLIResourceFixture(t *testing.T, root, name, script string, opts ...ResourceManifestOption) string {
+	t.Helper()
+	binary := "resource-" + strings.TrimSpace(name)
+	manifestOpts := append([]ResourceManifestOption{
+		WithResourceDriver("external-cli"),
+		WithResourceTemplate("external-cli"),
+		WithResourceBinary(binary),
+	}, opts...)
+	WriteResourceManifest(t, root, name, ResourceManifest(name, manifestOpts...))
+	WriteResourceCLI(t, root, name, script)
+	return testkitgo.WriteExecutableOnPath(t, binary, script)
+}
+
+func WritePortRegistry(t *testing.T, root string, ports map[string]int) {
+	t.Helper()
+	WritePortRegistryState(t, root, resourceenv.PortRegistry{
+		ResourcePorts:  ports,
+		ReservedRanges: map[string]string{},
+	})
+}
+
+func WritePortRegistryState(t *testing.T, root string, registry resourceenv.PortRegistry) {
+	t.Helper()
+
+	ports := cloneIntMap(registry.ResourcePorts)
+	ranges := cloneStringMap(registry.ReservedRanges)
+	testkitgo.WriteJSON(t, filepath.Join(root, repocontractmeta.ProjectConfigDir, "test-port-registry.json"), resourceenv.PortRegistry{
+		ResourcePorts:  ports,
+		ReservedRanges: ranges,
+	})
+}
+
+func WriteResourceRegistryEntry(t *testing.T, root, name string) {
+	t.Helper()
+	testkitgo.WriteJSON(t, filepath.Join(root, repocontractmeta.ProjectConfigDir, "resource-registry", name+".json"), map[string]any{
+		"name": name,
+	})
+}
+
+// WriteResourcesSchema writes the resources.schema.json artifact that the
+// resource schema generator reads to learn the shared dependency governance
+// keys. Every catalog entry composes resourceConfig with a resource-specific
+// schema through allOf, so a per-resource schema that closes itself with
+// additionalProperties:false has to repeat these names or the composition
+// rejects them. Tests exercising Sync/ValidateSchemaArtifacts need the file
+// present; the default property set mirrors the repository schema.
+func WriteResourcesSchema(t *testing.T, root string, propertyNames ...string) {
+	t.Helper()
+	if len(propertyNames) == 0 {
+		propertyNames = []string{"description", "enabled", "purpose", "required", "startup_policy", "type"}
+	}
+	properties := make(map[string]any, len(propertyNames))
+	for _, name := range propertyNames {
+		properties[name] = map[string]any{}
+	}
+	testkitgo.WriteJSON(t, filepath.Join(root, repocontractmeta.ProjectConfigDir, "schemas", "resources.schema.json"), map[string]any{
+		"$id": "https://vrooli.com/schemas/resources.schema.json",
+		"definitions": map[string]any{
+			"resourceConfig": map[string]any{
+				"type":                 "object",
+				"properties":           properties,
+				"additionalProperties": true,
+			},
+		},
+	})
+}
+
+func WriteResourceDefinitionsMetadata(t *testing.T, root string) {
+	t.Helper()
+	testkitgo.WriteJSON(t, filepath.Join(root, repocontractmeta.ProjectConfigDir, "schemas", "resource-definitions.json"), map[string]any{
+		"definitions": map[string]any{
+			"resourceSchemas": map[string]any{},
+		},
+	})
+}
+
+func WriteFakeDocker(t *testing.T) string {
+	t.Helper()
+
+	dir := t.TempDir()
+	stateFile := filepath.Join(dir, "docker-state.txt")
+	scriptPath := filepath.Join(dir, "docker")
+	script := `#!/usr/bin/env bash
+set -e
+state_file="${FAKE_DOCKER_STATE}"
+cmd="${1:-}"
+shift || true
+
+case "$cmd" in
+  compose)
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        -f|--project-name)
+          shift 2
+          ;;
+        *)
+          break
+          ;;
+      esac
+    done
+    subcmd="${1:-}"
+    shift || true
+    case "$subcmd" in
+      ps)
+        if [[ "${1:-}" == "-a" ]]; then
+          shift
+        fi
+        if [[ "${1:-}" == "--format" ]]; then
+          shift 2
+        fi
+        if [[ -f "$state_file" ]]; then
+          state="$(tr -d '\n' < "$state_file")"
+          if [[ "$state" == "running" ]]; then
+            printf '[{"Service":"app","State":"running","Health":"healthy"}]'
+          else
+            printf '[{"Service":"app","State":"exited","Health":""}]'
+          fi
+        else
+          printf '[]'
+        fi
+        exit 0
+        ;;
+      pull|up)
+        printf 'running\n' > "$state_file"
+        exit 0
+        ;;
+      stop)
+        printf 'stopped\n' > "$state_file"
+        exit 0
+        ;;
+      down)
+        rm -f "$state_file"
+        exit 0
+        ;;
+      logs)
+        echo "fixture logs"
+        exit 0
+        ;;
+    esac
+    ;;
+  image)
+    if [[ "${1:-}" == "inspect" ]]; then
+      exit 0
+    fi
+    ;;
+  container)
+    if [[ "${1:-}" == "inspect" ]]; then
+      shift || true
+      if [[ -f "$state_file" ]]; then
+        state="$(tr -d '\n' < "$state_file")"
+        if [[ "$state" == "running" ]]; then
+          printf '{"Running":true}'
+        else
+          printf '{"Running":false}'
+        fi
+        exit 0
+      fi
+      echo "Error: No such container" >&2
+      exit 1
+    fi
+    ;;
+  network)
+    if [[ "${1:-}" == "inspect" && -f "$state_file" ]]; then
+      exit 0
+    fi
+    echo "Error: No such network" >&2
+    exit 1
+    ;;
+  inspect)
+    if [[ -f "$state_file" ]]; then
+      state="$(tr -d '\n' < "$state_file")"
+      if [[ "$state" == "running" ]]; then
+        printf '{"Running":true}'
+      else
+        printf '{"Running":false}'
+      fi
+      exit 0
+    fi
+    echo "Error: No such object" >&2
+    exit 1
+    ;;
+  run)
+    printf 'running\n' > "$state_file"
+    echo "container-id"
+    exit 0
+    ;;
+  start)
+    printf 'running\n' > "$state_file"
+    exit 0
+    ;;
+  stop)
+    printf 'stopped\n' > "$state_file"
+    exit 0
+    ;;
+  restart)
+    printf 'running\n' > "$state_file"
+    exit 0
+    ;;
+  rm)
+    rm -f "$state_file"
+    exit 0
+    ;;
+  logs)
+    echo "fixture logs"
+    exit 0
+    ;;
+esac
+
+echo "unexpected docker invocation: $cmd $*" >&2
+exit 1
+`
+	testkitgo.WriteExecutable(t, scriptPath, script)
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("FAKE_DOCKER_STATE", stateFile)
+	return stateFile
+}
+
+func UseSystemLookPath(t *testing.T, target *func(file string) (string, error)) {
+	t.Helper()
+	original := *target
+	*target = exec.LookPath
+	t.Cleanup(func() {
+		*target = original
+	})
+}
+
+func cloneIntMap(values map[string]int) map[string]int {
+	if len(values) == 0 {
+		return map[string]int{}
+	}
+	cloned := make(map[string]int, len(values))
+	for key, value := range values {
+		cloned[key] = value
+	}
+	return cloned
+}
+
+func cloneTemplateVarMap(vars map[string]ResourceTemplateVar) map[string]ResourceTemplateVar {
+	if len(vars) == 0 {
+		return nil
+	}
+	cloned := make(map[string]ResourceTemplateVar, len(vars))
+	for name, spec := range vars {
+		cloned[name] = spec
+	}
+	return cloned
+}
+
+func cloneTemplateDocs(docs map[string]string) map[string]string {
+	if len(docs) == 0 {
+		return nil
+	}
+	cloned := make(map[string]string, len(docs))
+	for name, path := range docs {
+		cloned[name] = path
+	}
+	return cloned
+}
+
+func cloneStringMap(values map[string]string) map[string]string {
+	if len(values) == 0 {
+		return map[string]string{}
+	}
+	cloned := make(map[string]string, len(values))
+	for key, value := range values {
+		cloned[key] = value
+	}
+	return cloned
+}

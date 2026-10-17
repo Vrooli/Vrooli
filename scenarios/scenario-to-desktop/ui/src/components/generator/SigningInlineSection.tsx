@@ -3,9 +3,17 @@
  */
 
 import { useEffect, useState } from "react";
-import { AlertTriangle, ExternalLink, RefreshCw, ShieldCheck } from "lucide-react";
+import {
+  AlertTriangle,
+  ExternalLink,
+  RefreshCw,
+  ShieldCheck,
+} from "lucide-react";
 import { Button } from "../ui/button";
-import type { SigningConfig, SigningReadinessResponse } from "../../lib/api";
+import type {
+  SigningConfig,
+  SigningReadinessResponse,
+} from "../../domain/signing";
 
 export interface SigningInlineSectionProps {
   scenarioName: string;
@@ -26,12 +34,14 @@ export function SigningInlineSection({
   loading,
   onToggleSigning,
   onOpenSigning,
-  onRefresh
+  onRefresh,
 }: SigningInlineSectionProps) {
   const hasConfig = Boolean(signingConfig);
   const ready = readiness?.ready;
   const readinessNote =
-    readiness?.issues && readiness.issues.length > 0 ? readiness.issues[0] : undefined;
+    readiness?.issues && readiness.issues.length > 0
+      ? readiness.issues[0]
+      : undefined;
   const [expiryWarning, setExpiryWarning] = useState<string | null>(null);
 
   useEffect(() => {
@@ -46,9 +56,12 @@ export function SigningInlineSection({
     <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-4 space-y-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
-          <p className="text-sm font-semibold text-slate-100">Signing (recommended for production)</p>
+          <p className="text-sm font-semibold text-slate-100">
+            Signing (recommended for production)
+          </p>
           <p className="text-xs text-slate-400">
-            Signed installers avoid OS warnings. Configure details in the Signing tab or reuse saved config here.
+            Signed installers avoid OS warnings. Configure details in the
+            Signing tab or reuse saved config here.
           </p>
         </div>
         <label className="flex items-center gap-2 text-sm text-slate-100">
@@ -57,9 +70,13 @@ export function SigningInlineSection({
             className="h-4 w-4"
             checked={signingEnabled}
             disabled={!scenarioName}
-            onChange={(e) => onToggleSigning(e.target.checked)}
+            onChange={(e) => {
+              onToggleSigning(e.target.checked);
+            }}
           />
-          <span>{signingEnabled ? "Sign this build" : "Skip signing for this build"}</span>
+          <span>
+            {signingEnabled ? "Sign this build" : "Skip signing for this build"}
+          </span>
         </label>
       </div>
 
@@ -79,19 +96,22 @@ export function SigningInlineSection({
             ) : (
               <div className="flex items-center gap-2 text-amber-300">
                 <AlertTriangle className="h-4 w-4" />
-                {readinessNote || "Signing config needs fixes before packaging."}
+                {readinessNote ||
+                  "Signing config needs fixes before packaging."}
               </div>
             )
           ) : (
             <div className="flex items-center gap-2 text-amber-300">
               <AlertTriangle className="h-4 w-4" />
-              No signing config saved yet. Open the Signing tab to add certificates.
+              No signing config saved yet. Open the Signing tab to add
+              certificates.
             </div>
           )
         ) : (
           <div className="flex items-center gap-2 text-slate-300">
             <AlertTriangle className="h-4 w-4 text-slate-400" />
-            Unsigned installers may trigger OS warnings. Enable signing when you&apos;re ready.
+            Unsigned installers may trigger OS warnings. Enable signing when
+            you&apos;re ready.
           </div>
         )}
 
@@ -103,7 +123,13 @@ export function SigningInlineSection({
         )}
 
         <div className="flex items-center gap-2">
-          <Button type="button" size="sm" variant="outline" onClick={onRefresh} disabled={!scenarioName || loading}>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={onRefresh}
+            disabled={!scenarioName || loading}
+          >
             <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
             Refresh
           </Button>
@@ -112,7 +138,9 @@ export function SigningInlineSection({
               type="button"
               size="sm"
               variant="outline"
-              onClick={() => onToggleSigning(true)}
+              onClick={() => {
+                onToggleSigning(true);
+              }}
               disabled={!scenarioName}
               className="gap-1 text-blue-200 hover:text-blue-100"
             >

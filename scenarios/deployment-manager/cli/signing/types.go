@@ -4,8 +4,7 @@ package signing
 import (
 	"fmt"
 
-	"deployment-manager/cli/cmdutil"
-
+	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
 )
 
@@ -60,44 +59,52 @@ func New(api *cliutil.APIClient) *Commands {
 	return &Commands{api: api}
 }
 
-func (c *Commands) printSigningTable(config *SigningConfig) {
-	fmt.Printf("Signing Enabled: %v\n\n", config.Enabled)
-
+func signingShowReport(config *SigningConfig) cliapp.ListReport {
+	report := cliapp.ListReport{
+		Summary: []string{
+			fmt.Sprintf("Signing enabled: %v", config.Enabled),
+		},
+		ResultsHeading: "Platform Configuration",
+		RetrievalHints: []string{
+			"deployment-manager signing validate <profile>",
+			"deployment-manager signing prerequisites",
+		},
+	}
 	if config.Windows != nil {
-		fmt.Println("Windows Configuration:")
-		rows := [][]string{
-			{"Certificate Source", config.Windows.CertificateSource},
-			{"Certificate File", config.Windows.CertificateFile},
-			{"Password Env", config.Windows.CertificatePasswordEnv},
-			{"Timestamp Server", config.Windows.TimestampServer},
-			{"Algorithm", config.Windows.SignAlgorithm},
-		}
-		cmdutil.PrintTable([]string{"Setting", "Value"}, rows)
-		fmt.Println()
+		report.Results = append(report.Results,
+			fmt.Sprintf("Windows certificate-source=%s", config.Windows.CertificateSource),
+			fmt.Sprintf("Windows certificate-file=%s", emptySigningValue(config.Windows.CertificateFile)),
+			fmt.Sprintf("Windows password-env=%s", emptySigningValue(config.Windows.CertificatePasswordEnv)),
+			fmt.Sprintf("Windows timestamp-server=%s", emptySigningValue(config.Windows.TimestampServer)),
+			fmt.Sprintf("Windows algorithm=%s", emptySigningValue(config.Windows.SignAlgorithm)),
+		)
 	}
 
 	if config.MacOS != nil {
-		fmt.Println("macOS Configuration:")
-		rows := [][]string{
-			{"Identity", config.MacOS.Identity},
-			{"Team ID", config.MacOS.TeamID},
-			{"Hardened Runtime", fmt.Sprintf("%v", config.MacOS.HardenedRuntime)},
-			{"Notarize", fmt.Sprintf("%v", config.MacOS.Notarize)},
-		}
-		cmdutil.PrintTable([]string{"Setting", "Value"}, rows)
-		fmt.Println()
+		report.Results = append(report.Results,
+			fmt.Sprintf("macOS identity=%s", emptySigningValue(config.MacOS.Identity)),
+			fmt.Sprintf("macOS team-id=%s", emptySigningValue(config.MacOS.TeamID)),
+			fmt.Sprintf("macOS hardened-runtime=%v", config.MacOS.HardenedRuntime),
+			fmt.Sprintf("macOS notarize=%v", config.MacOS.Notarize),
+		)
 	}
 
 	if config.Linux != nil {
-		fmt.Println("Linux Configuration:")
-		rows := [][]string{
-			{"GPG Key ID", config.Linux.GPGKeyID},
-			{"Passphrase Env", config.Linux.GPGPassphraseEnv},
-		}
-		cmdutil.PrintTable([]string{"Setting", "Value"}, rows)
+		report.Results = append(report.Results,
+			fmt.Sprintf("Linux gpg-key-id=%s", emptySigningValue(config.Linux.GPGKeyID)),
+			fmt.Sprintf("Linux passphrase-env=%s", emptySigningValue(config.Linux.GPGPassphraseEnv)),
+		)
 	}
 
 	if config.Windows == nil && config.MacOS == nil && config.Linux == nil {
-		fmt.Println("No platform signing configurations")
+		report.Results = append(report.Results, "No platform signing configurations")
 	}
+	return report
+}
+
+func emptySigningValue(value string) string {
+	if value == "" {
+		return "(none)"
+	}
+	return value
 }

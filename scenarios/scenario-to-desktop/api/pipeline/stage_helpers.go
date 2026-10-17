@@ -3,6 +3,7 @@ package pipeline
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"scenario-to-desktop-api/shared/errors"
@@ -284,8 +285,11 @@ func (p *Poller[T]) Wait(ctx context.Context, entityID string) (T, *WaitError) {
 				// Status not yet registered, keep waiting
 				notFoundCount++
 				if notFoundCount%logInterval == 0 {
-					fmt.Printf("%s status not yet registered after %d polls, still waiting for %s...\n",
-						p.Config.EntityType, notFoundCount, entityID)
+					slog.Debug("pipeline status not yet registered",
+						"entity_type", p.Config.EntityType,
+						"entity_id", entityID,
+						"poll_count", notFoundCount,
+					)
 				}
 				continue
 			}

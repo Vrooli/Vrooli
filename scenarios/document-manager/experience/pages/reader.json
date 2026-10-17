@@ -1,0 +1,40 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": { "id": "reader", "title": "Reader", "routes": ["/reader"], "purpose": "Search derived units beside a source region, exposing anchor URIs, confidence, locality, and keyboard traversal.", "prd_refs": ["OT-P0-021", "OT-P0-019"] },
+  "priorities": [
+    { "statement": "A result carries its exact anchor URI and can be selected without a pointer." },
+    { "statement": "Confidence and execution locality are visible on each derived unit." },
+    { "statement": "When semantic retrieval is unavailable, the partial-index state is explicit." }
+  ],
+  "states": [
+    { "id": "default", "description": "The reader is ready for a corpus query.", "setup": { "route": "/reader" } },
+    { "id": "results", "description": "Anchored derived units are shown beside the source region.", "setup": { "route": "/reader" } },
+    { "id": "partial", "description": "Results are available but the semantic retrieval leg is unavailable.", "setup": { "route": "/reader" } },
+    { "id": "error", "description": "The query failed and the result list returns to an empty state.", "setup": { "route": "/reader" } }
+  ],
+  "elements": [
+    { "id": "reader-region", "role": "region", "name": "Reader" },
+    { "id": "source-pane", "role": "region", "name": "Source region" },
+    { "id": "units-pane", "role": "listbox", "name": "Derived units" },
+    { "id": "anchor-highlight", "role": "status", "name": "Source anchor" },
+    { "id": "locality-status", "role": "status", "name": "Execution locality" },
+    { "id": "query-input", "role": "textbox", "name": "Search units" }
+  ],
+  "claims": [
+    { "id": "reader-region-present", "type": "element-present", "statement": "The reader exposes a named source region and derived-unit list.", "tier": "machine", "elements": ["reader-region", "source-pane", "units-pane"], "states": ["default", "results", "partial", "error"] },
+    { "id": "results-carry-anchors", "type": "element-present", "statement": "Each displayed result exposes its anchor URI and links the result to a source-region description.", "tier": "machine", "elements": ["units-pane", "anchor-highlight"], "states": ["results", "partial"] },
+    { "id": "confidence-and-locality-visible", "type": "element-present", "statement": "Each result displays a bounded confidence score and a readable Local locality label.", "tier": "machine", "elements": ["units-pane", "locality-status"], "states": ["results", "partial"] },
+    { "id": "reader-keyboard-anchor-traversal", "type": "keyboard-reachable", "statement": "Arrow keys move focus through derived units while preserving the selected source relationship.", "tier": "machine", "elements": ["query-input", "units-pane"], "states": ["results", "partial"] },
+    { "id": "reader-states-covered", "type": "state-covered", "statement": "Ready, results, partial, and error states are distinct.", "tier": "machine", "elements": ["reader-region"], "states": ["default", "results", "partial", "error"] }
+  ],
+  "bindings": { "elements": {
+    "reader-region": { "testid": "page-reader" },
+    "source-pane": { "testid": "reader-source" },
+    "units-pane": { "testid": "reader-units-list" },
+    "anchor-highlight": { "testid": "reader-anchor-highlight" },
+    "locality-status": { "testid": "reader-locality-summary" },
+    "query-input": { "testid": "reader-query" }
+  }}
+}

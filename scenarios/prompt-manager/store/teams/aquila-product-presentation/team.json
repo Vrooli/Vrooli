@@ -1,0 +1,54 @@
+{
+  "purpose": "delivery",
+  "lifetime": "finite",
+  "effortRefs": [
+    "effort:d6177319-8abf-45d8-9fba-5b5885b36ded"
+  ],
+  "kind": "team",
+  "schemaVersion": 1,
+  "id": "aquila-product-presentation",
+  "displayName": "Aquila Product Presentation",
+  "mission": "Deliver a configurable Aquila bundle and app-specific marketing system while preserving Browser Automation Studio as a disabled, fully recoverable product profile; produce evidence-backed single-app, multi-app, Backdrop Studio, catalog, and recording-quality outcomes.",
+  "enabled": false,
+  "archived": false,
+  "runtime": {
+    "mode": "single-process"
+  },
+  "coordination": {
+    "pattern": "leader-led",
+    "leadAgentId": "aquila-product-presentation-coordinator",
+    "reportingMode": "leader",
+    "messagingMode": "in-session",
+    "capabilities": {
+      "showOrgContext": true,
+      "injectInbox": false,
+      "allowPeerTriggers": false,
+      "showTaskBoardGuidance": true,
+      "showKnowledgeLogGuidance": true,
+      "requireHandoff": true
+    }
+  },
+  "execution": {
+    "queuePolicy": "serialized",
+    "maxConcurrentRuns": 1
+  },
+  "operatingContract": {
+    "schemaVersion": 1,
+    "governance": {},
+    "documents": {
+      "planOfRecord": null,
+      "sharedState": null
+    },
+    "knowledgeTopics": {
+      "heartbeat-note": {
+        "ownerMemberId": "unassigned",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      }
+    },
+    "members": {}
+  },
+  "revision": 1,
+  "createdAt": "2026-09-15T02:07:14Z",
+  "updatedAt": "2026-09-15T02:07:14Z"
+}

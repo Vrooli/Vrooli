@@ -3,7 +3,6 @@ package handlers
 import (
 	"context"
 	"net/http"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -75,7 +74,7 @@ func (h *Handlers) GetAuditLog(w http.ResponseWriter, r *http.Request) {
 		"offset":    offset,
 		"hasMore":   offset+len(events) < total,
 		"sandboxId": sandboxID,
-		"timestamp": time.Now(),
+		"timestamp": h.Clock.Now(),
 	})
 }
 
@@ -132,6 +131,6 @@ func (h *Handlers) GetSandboxAuditLog(w http.ResponseWriter, r *http.Request) {
 		"offset":    offset,
 		"hasMore":   offset+len(events) < total,
 		"sandboxId": id,
-		"timestamp": time.Now(),
+		"timestamp": h.Clock.Now(),
 	})
 }

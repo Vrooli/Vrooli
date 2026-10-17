@@ -1,9 +1,12 @@
 package collectors
+
 // DOC: docs/internal/SEAMS.md#collector-interface
 
 import (
 	"context"
 	"os/exec"
+	"runtime"
+	"sync/atomic"
 	"time"
 )
 
@@ -122,6 +125,15 @@ func (b *BaseCollector) GetInterval() time.Duration {
 	return b.interval
 }
 
+// SetInterval changes a collector's cadence during service wiring. The
+// monitor's scheduler reads the value on every tick, so low-power hosts can
+// use a slower, explicit profile without changing collector implementations.
+func (b *BaseCollector) SetInterval(interval time.Duration) {
+	if interval > 0 {
+		b.interval = interval
+	}
+}
+
 // IsEnabled returns whether the collector is enabled
 func (b *BaseCollector) IsEnabled() bool {
 	return b.enabled
@@ -134,7 +146,37 @@ func (b *BaseCollector) SetEnabled(enabled bool) {
 
 const defaultCommandTimeout = 2 * time.Second
 
-func commandOutput(ctx context.Context, timeout time.Duration, name string, args ...string) ([]byte, error) {
+// commandOutput is a package var so tests can stub it and assert how many
+// subprocesses a collection cycle forks (the no-double-fork guard for the
+// process collector). Production always uses execCommandOutput.
+var commandOutput = execCommandOutput
+
+var commandForkCount atomic.Uint64
+
+// collectorOS is injectable so platform behavior can be tested on a host
+// whose native OS differs from the branch under test.
+var collectorOS = runtime.GOOS
+
+func unsupportedMetricData(collector, metricType string) *MetricData {
+	return &MetricData{
+		CollectorName: collector,
+		Timestamp:     time.Now(),
+		Type:          metricType,
+		Values: map[string]interface{}{
+			"status": "unsupported",
+			"reason": "no native backend is available for this platform",
+		},
+		Tags: map[string]string{"os": collectorOS},
+	}
+}
+
+// CommandForkCount returns the number of production collector subprocesses
+// started since process boot.
+func CommandForkCount() uint64 {
+	return commandForkCount.Load()
+}
+
+func execCommandOutput(ctx context.Context, timeout time.Duration, name string, args ...string) ([]byte, error) {
 	if timeout <= 0 {
 		timeout = defaultCommandTimeout
 	}
@@ -142,5 +184,6 @@ func commandOutput(ctx context.Context, timeout time.Duration, name string, args
 	defer cancel()
 
 	cmd := exec.CommandContext(cmdCtx, name, args...)
+	commandForkCount.Add(1)
 	return cmd.Output()
 }

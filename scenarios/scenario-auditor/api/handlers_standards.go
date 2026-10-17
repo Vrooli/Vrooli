@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -62,7 +63,6 @@ const (
 	targetTest                = "test"
 	targetServiceJSON         = "service_json"
 	targetMakefile            = "makefile"
-	targetStructure           = "structure"
 	targetDocumentation       = "documentation"
 	maxStandardsFileSizeBytes = 1 << 20 // 1 MiB guardrail to avoid pathological inputs
 )
@@ -74,8 +74,10 @@ var (
 )
 
 type standardsScanTarget struct {
-	Name string
-	Path string
+	Name                   string
+	Path                   string
+	LogicalRepoRoot        string
+	LogicalScenarioRelPath string
 }
 
 type StandardsScanStatus struct {
@@ -133,8 +135,14 @@ func newStandardsScanManager() *StandardsScanManager {
 	}
 }
 
-func (m *StandardsScanManager) StartScan(scenarioName, scanType string, standards []string, forceDisabled bool, scenarioPath string) (StandardsScanStatus, error) {
-	targets, err := buildStandardsScanTargets(scenarioName, scenarioPath)
+type standardsScanRequestContext struct {
+	ScenarioPath           string
+	LogicalRepoRoot        string
+	LogicalScenarioRelPath string
+}
+
+func (m *StandardsScanManager) StartScan(scenarioName, scanType string, standards []string, forceDisabled bool, req standardsScanRequestContext) (StandardsScanStatus, error) {
+	targets, err := buildStandardsScanTargets(scenarioName, req)
 	if err != nil {
 		return StandardsScanStatus{}, err
 	}
@@ -324,6 +332,9 @@ func getStandardsViolationsSummaryHandler(w http.ResponseWriter, r *http.Request
 	violations := standardsStore.GetViolations(lookup)
 	records := convertStandardsViolationsToRecords(violations)
 	summary := buildViolationSummary(records, limit)
+	if err := attachStandardsMaturityAssessment(firstNonEmpty(scenario, lookup), &summary, records); err != nil {
+		logger.Warn("Failed to build standards maturity assessment", map[string]any{"error": err.Error(), "scenario": lookup})
+	}
 	filtered := cloneSummary(&summary, limit, minSeverity)
 
 	response := map[string]any{
@@ -421,7 +432,7 @@ func (job *StandardsScanJob) run(ctx context.Context, targets []standardsScanTar
 			})
 		}
 
-		violations, filesScanned, err := performStandardsCheck(ctx, target.Path, target.Name, specificStandards, forceDisabled, onFile)
+		violations, filesScanned, err := performStandardsCheck(ctx, target, specificStandards, forceDisabled, onFile)
 		if err != nil {
 			if errors.Is(err, errStandardsScanCancelled) || errors.Is(err, context.Canceled) {
 				job.markCancelled()
@@ -466,6 +477,9 @@ func (job *StandardsScanJob) run(ctx context.Context, targets []standardsScanTar
 
 	records := convertStandardsViolationsToRecords(allViolations)
 	summary := buildViolationSummary(records, maxSummaryBuffer)
+	if err := attachStandardsMaturityAssessment(scenarioName, &summary, records); err != nil {
+		logger.Warn("Failed to build standards maturity assessment", map[string]any{"error": err.Error(), "scenario": scenarioName})
+	}
 	if artifact, err := persistScanArtifact("standards", scenarioName, jobSnapshot.ID, result); err == nil {
 		summary.Artifact = artifact
 	} else {
@@ -481,22 +495,17 @@ func (job *StandardsScanJob) run(ctx context.Context, targets []standardsScanTar
 	logger.Info(fmt.Sprintf("Standards scan %s completed", jobSnapshot.ID))
 }
 
-func getScenariosRoot() string {
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		vrooliRoot = filepath.Join(os.Getenv("HOME"), "Vrooli")
+// buildStandardsScanTargets resolves the scenario(s) to scan. When ScenarioPath
+// is present, it is the physical scenario directory used for file walking.
+func buildStandardsScanTargets(scenarioName string, req standardsScanRequestContext) ([]standardsScanTarget, error) {
+	ctx, err := repoContext()
+	if err != nil {
+		return nil, err
 	}
-	return filepath.Join(vrooliRoot, "scenarios")
-}
-
-// buildStandardsScanTargets resolves the scenario(s) to scan.
-// When scenarioPathOverride is non-empty (set by a CLI running inside a
-// sandboxed agent), it is used as the scan path for the target scenario
-// instead of resolving via VROOLI_ROOT. This allows the auditor to check
-// files within the sandbox overlay.
-// See packages/cli-core/cliutil/sandbox.go for sandbox path resolution.
-func buildStandardsScanTargets(scenarioName string, scenarioPathOverride string) ([]standardsScanTarget, error) {
-	root := getScenariosRoot()
+	if err := validateStandardsScanMapping(scenarioName, req); err != nil {
+		return nil, err
+	}
+	root := ctx.ScenariosRoot()
 
 	if scenarioName == "" {
 		scenarioName = "all"
@@ -512,9 +521,13 @@ func buildStandardsScanTargets(scenarioName string, scenarioPathOverride string)
 			if !entry.IsDir() {
 				continue
 			}
+			scenarioPath, err := ctx.ResolveScenarioPath(entry.Name())
+			if err != nil {
+				return nil, err
+			}
 			targets = append(targets, standardsScanTarget{
 				Name: entry.Name(),
-				Path: filepath.Join(root, entry.Name()),
+				Path: scenarioPath,
 			})
 		}
 		sort.Slice(targets, func(i, j int) bool {
@@ -523,10 +536,13 @@ func buildStandardsScanTargets(scenarioName string, scenarioPathOverride string)
 		return targets, nil
 	}
 
-	// Use the sandbox-provided path if available, otherwise resolve from root.
+	scenarioPathOverride := strings.TrimSpace(req.ScenarioPath)
 	scenarioPath := scenarioPathOverride
 	if scenarioPath == "" {
-		scenarioPath = filepath.Join(root, scenarioName)
+		scenarioPath, err = ctx.ResolveScenarioPath(scenarioName)
+		if err != nil {
+			return nil, err
+		}
 	}
 	info, err := os.Stat(scenarioPath)
 	if err != nil {
@@ -540,9 +556,36 @@ func buildStandardsScanTargets(scenarioName string, scenarioPathOverride string)
 	}
 
 	return []standardsScanTarget{{
-		Name: scenarioName,
-		Path: scenarioPath,
+		Name:                   scenarioName,
+		Path:                   scenarioPath,
+		LogicalRepoRoot:        strings.TrimSpace(req.LogicalRepoRoot),
+		LogicalScenarioRelPath: strings.TrimSpace(req.LogicalScenarioRelPath),
 	}}, nil
+}
+
+func validateStandardsScanMapping(scenarioName string, req standardsScanRequestContext) error {
+	logicalRepoRoot := strings.TrimSpace(req.LogicalRepoRoot)
+	logicalScenarioRelPath := strings.TrimSpace(req.LogicalScenarioRelPath)
+	if logicalRepoRoot == "" && logicalScenarioRelPath == "" {
+		return nil
+	}
+	if logicalRepoRoot == "" || logicalScenarioRelPath == "" {
+		return fmt.Errorf("logical_repo_root and logical_scenario_relpath must be provided together")
+	}
+	if !filepath.IsAbs(logicalRepoRoot) {
+		return fmt.Errorf("logical_repo_root must be absolute")
+	}
+	if filepath.IsAbs(logicalScenarioRelPath) {
+		return fmt.Errorf("logical_scenario_relpath must be relative")
+	}
+	cleanRel := filepath.Clean(logicalScenarioRelPath)
+	if cleanRel == "." || cleanRel == ".." || strings.HasPrefix(cleanRel, ".."+string(filepath.Separator)) {
+		return fmt.Errorf("logical_scenario_relpath must not escape the logical repo root")
+	}
+	if scenarioName != "" && !strings.EqualFold(scenarioName, "all") && filepath.Base(cleanRel) != scenarioName {
+		return fmt.Errorf("logical_scenario_relpath must match the scenario name")
+	}
+	return nil
 }
 
 func buildScanCompletionMessage(scenarioName string, scenarioCount, violations int) string {
@@ -611,12 +654,11 @@ func enhancedStandardsCheckHandler(w http.ResponseWriter, r *http.Request) {
 		Type          string   `json:"type"`
 		Standards     []string `json:"standards"`
 		ForceDisabled bool     `json:"force_disabled"`
-		// ScenarioPath overrides the scenario directory path. Set by the CLI
-		// when running inside a sandboxed agent, pointing to the overlay's
-		// merged directory for the target scenario. When empty, the API
-		// resolves the path using VROOLI_ROOT + scenario name.
-		// See packages/cli-core/cliutil/sandbox.go.
-		ScenarioPath string `json:"scenario_path"`
+		// ScenarioPath is the physical scenario directory to scan. The logical
+		// fields describe repo-relative placement for mapped validations.
+		ScenarioPath           string `json:"scenario_path"`
+		LogicalRepoRoot        string `json:"logical_repo_root"`
+		LogicalScenarioRelPath string `json:"logical_scenario_relpath"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&checkRequest); err != nil {
 		checkRequest.Type = "full"
@@ -638,7 +680,11 @@ func enhancedStandardsCheckHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	status, err := standardsScanManager.StartScan(scenarioName, checkRequest.Type, checkRequest.Standards, checkRequest.ForceDisabled, strings.TrimSpace(checkRequest.ScenarioPath))
+	status, err := standardsScanManager.StartScan(scenarioName, checkRequest.Type, checkRequest.Standards, checkRequest.ForceDisabled, standardsScanRequestContext{
+		ScenarioPath:           strings.TrimSpace(checkRequest.ScenarioPath),
+		LogicalRepoRoot:        strings.TrimSpace(checkRequest.LogicalRepoRoot),
+		LogicalScenarioRelPath: strings.TrimSpace(checkRequest.LogicalScenarioRelPath),
+	})
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			HTTPError(w, "Scenario not found", http.StatusNotFound, err)
@@ -658,7 +704,9 @@ func enhancedStandardsCheckHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func performStandardsCheck(ctx context.Context, scanPath, scenarioName string, specificStandards []string, forceDisabled bool, onFile func(string, string)) ([]StandardsViolation, int, error) {
+func performStandardsCheck(ctx context.Context, target standardsScanTarget, specificStandards []string, forceDisabled bool, onFile func(string, string)) ([]StandardsViolation, int, error) {
+	scanPath := target.Path
+	scenarioName := target.Name
 	internalRules, err := LoadRulesFromFiles()
 	if err != nil {
 		return nil, 0, err
@@ -676,34 +724,6 @@ func performStandardsCheck(ctx context.Context, scanPath, scenarioName string, s
 		return nil, 0, nil
 	}
 
-	type structureScenarioInfo struct {
-		files map[string]struct{}
-	}
-
-	structureData := make(map[string]*structureScenarioInfo)
-	structurePaths := make(map[string]string)
-	scenariosRoot := getScenariosRoot()
-	ensureStructureScenario := func(name string) *structureScenarioInfo {
-		if strings.TrimSpace(name) == "" {
-			return nil
-		}
-		info, ok := structureData[name]
-		if !ok {
-			info = &structureScenarioInfo{files: make(map[string]struct{})}
-			structureData[name] = info
-		}
-		if _, exists := structurePaths[name]; !exists {
-			structurePaths[name] = filepath.Join(scenariosRoot, name)
-		}
-		return info
-	}
-
-	rootScenario := filepath.Base(scanPath)
-	if rootScenario != "" {
-		ensureStructureScenario(rootScenario)
-		structurePaths[rootScenario] = scanPath
-	}
-
 	requestedSet := make(map[string]struct{}, len(normalizedStandards))
 	for _, id := range normalizedStandards {
 		requestedSet[id] = struct{}{}
@@ -711,6 +731,14 @@ func performStandardsCheck(ctx context.Context, scanPath, scenarioName string, s
 
 	var violations []StandardsViolation
 	filesScanned := 0
+
+	// securityMiddlewarePresent records, per scenario, whether a central
+	// security-headers middleware was seen during the walk. The OWASP
+	// Security Headers rule is a per-file check that cannot see a wrapping
+	// middleware; when a scenario applies the headers centrally, its
+	// individual handler files must not be flagged for "missing security
+	// headers". Findings for such scenarios are dropped in a post-pass below.
+	securityMiddlewarePresent := map[string]bool{}
 
 	if ctx == nil {
 		ctx = context.Background()
@@ -747,12 +775,6 @@ func performStandardsCheck(ctx context.Context, scanPath, scenarioName string, s
 		}
 
 		scenarioName, scenarioRelative, targets := classifyFileTargets(path)
-		if scenarioName != "" && scenarioRelative != "" {
-			if info := ensureStructureScenario(scenarioName); info != nil {
-				relative := filepath.ToSlash(scenarioRelative)
-				info.files[relative] = struct{}{}
-			}
-		}
 		if len(targets) == 0 {
 			return nil
 		}
@@ -769,6 +791,10 @@ func performStandardsCheck(ctx context.Context, scanPath, scenarioName string, s
 		}
 
 		contentStr := string(content)
+
+		if scenarioName != "" && looksLikeSecurityHeadersMiddleware(contentStr) {
+			securityMiddlewarePresent[scenarioName] = true
+		}
 
 		if onFile != nil {
 			onFile(scenarioName, scenarioRelative)
@@ -810,43 +836,20 @@ func performStandardsCheck(ctx context.Context, scanPath, scenarioName string, s
 		return violations, filesScanned, err
 	}
 
-	structureRules := collectRulesForTargets([]string{targetStructure}, ruleBuckets)
-	if len(structureRules) > 0 {
-		for scenario, info := range structureData {
-			files := make([]string, 0, len(info.files))
-			for relative := range info.files {
-				files = append(files, relative)
-			}
-			sort.Strings(files)
-			payload := struct {
-				Scenario string   `json:"scenario"`
-				Files    []string `json:"files"`
-			}{
-				Scenario: scenario,
-				Files:    files,
-			}
-			encoded, marshalErr := json.Marshal(payload)
-			if marshalErr != nil {
-				logger.Error("Failed to encode structure payload", marshalErr)
+	// Credit central security-headers middleware: drop per-file Security Headers
+	// findings for any scenario that applies the headers via a middleware. The
+	// rule cannot see middleware wrapping, so without this it false-flags every
+	// raw response writer (downloads, SSE, error writers) in a correctly
+	// hardened scenario.
+	if len(securityMiddlewarePresent) > 0 {
+		filtered := violations[:0]
+		for _, v := range violations {
+			if v.Type == "security_headers" && securityMiddlewarePresent[v.ScenarioName] {
 				continue
 			}
-			scenarioPath := structurePaths[scenario]
-			for _, rule := range structureRules {
-				if !rule.Implementation.Valid {
-					continue
-				}
-
-				ruleViolations, execErr := rule.Check(string(encoded), scenarioPath, scenario)
-				if execErr != nil {
-					logger.Error(fmt.Sprintf("Structure rule %s execution failed for %s", rule.ID, scenario), execErr)
-					continue
-				}
-
-				for _, rv := range ruleViolations {
-					violations = append(violations, convertRuleViolationToStandards(rule, rv, scenario, rv.FilePath))
-				}
-			}
+			filtered = append(filtered, v)
 		}
+		violations = filtered
 	}
 
 	effectiveScenario := scenarioName
@@ -854,7 +857,9 @@ func performStandardsCheck(ctx context.Context, scanPath, scenarioName string, s
 		effectiveScenario = filepath.Base(scanPath)
 	}
 
-	externalViolations, err := runExternalRuleChecks(ctx, effectiveScenario, requestedSet, forceDisabled)
+	externalTarget := target
+	externalTarget.Name = effectiveScenario
+	externalViolations, err := runExternalRuleChecks(ctx, externalTarget, requestedSet, forceDisabled)
 	if err != nil {
 		logger.Warn("External standards checks failed", map[string]any{
 			"scenario": effectiveScenario,
@@ -876,8 +881,11 @@ func evaluateRuleOnScenario(rule RuleInfo, scenarioName string) ([]StandardsViol
 		return nil, 0, nil, fmt.Errorf("rule implementation unavailable: %s", firstNonEmpty(rule.Implementation.Error, "unavailable"))
 	}
 
-	scenarioRoot := getScenariosRoot()
-	scenarioPath := filepath.Join(scenarioRoot, scenarioName)
+	repoCtx, err := repoContext()
+	if err != nil {
+		return nil, 0, nil, err
+	}
+	scenarioPath, err := repoCtx.ResolveScenarioPath(scenarioName)
 	info, err := os.Stat(scenarioPath)
 	if err != nil {
 		return nil, 0, nil, err
@@ -902,16 +910,8 @@ func evaluateRuleOnScenario(rule RuleInfo, scenarioName string) ([]StandardsViol
 		allowedTargets[target] = struct{}{}
 	}
 
-	structureRequested := false
-	if _, ok := allowedTargets[targetStructure]; ok {
-		structureRequested = true
-	}
-
-	structureFiles := make(map[string]struct{})
-	orderedStructureFiles := make([]string, 0)
 	filesScanned := 0
 	var violations []StandardsViolation
-	ruleCategory := strings.ToLower(strings.TrimSpace(rule.Rule.Category))
 
 	err = filepath.Walk(scenarioPath, func(path string, entry os.FileInfo, walkErr error) error {
 		if walkErr != nil {
@@ -942,23 +942,10 @@ func evaluateRuleOnScenario(rule RuleInfo, scenarioName string) ([]StandardsViol
 			return nil
 		}
 
-		if structureRequested && relative != "" {
-			relative = filepath.ToSlash(relative)
-			if _, exists := structureFiles[relative]; !exists {
-				structureFiles[relative] = struct{}{}
-				orderedStructureFiles = append(orderedStructureFiles, relative)
-			}
-		}
-
 		runRule := false
 		for _, target := range fileTargets {
 			if _, ok := allowedTargets[target]; !ok {
 				continue
-			}
-			if ruleCategory == "structure" {
-				if target != targetStructure && target != targetDocumentation {
-					continue
-				}
 			}
 			runRule = true
 			break
@@ -997,30 +984,6 @@ func evaluateRuleOnScenario(rule RuleInfo, scenarioName string) ([]StandardsViol
 	})
 	if err != nil {
 		return violations, filesScanned, targets, err
-	}
-
-	if structureRequested {
-		sort.Strings(orderedStructureFiles)
-		payload := struct {
-			Scenario string   `json:"scenario"`
-			Files    []string `json:"files"`
-		}{
-			Scenario: scenarioName,
-			Files:    orderedStructureFiles,
-		}
-		encoded, marshalErr := json.Marshal(payload)
-		if marshalErr != nil {
-			return violations, filesScanned, targets, marshalErr
-		}
-
-		ruleViolations, execErr := rule.Check(string(encoded), scenarioPath, scenarioName)
-		if execErr != nil {
-			return violations, filesScanned, targets, execErr
-		}
-
-		for _, rv := range ruleViolations {
-			violations = append(violations, convertRuleViolationToStandards(rule, rv, scenarioName, rv.FilePath))
-		}
 	}
 
 	return violations, filesScanned, targets, nil
@@ -1135,16 +1098,10 @@ func defaultTargetsForRule(rule RuleInfo) []string {
 		return []string{targetAPI}
 	case "cli":
 		return []string{targetCLI}
-	case "ui":
-		return []string{targetUI}
 	case "test":
 		return []string{targetTest}
-	case "config":
-		return []string{targetAPI, targetCLI}
 	case "makefile":
 		return []string{targetMakefile}
-	case "structure":
-		return []string{targetStructure}
 	default:
 		return nil
 	}
@@ -1307,6 +1264,29 @@ func isBinaryContent(content []byte) bool {
 	}
 
 	return !utf8.Valid(content)
+}
+
+// securityHeaderSetRE matches the four browser-hardening headers the OWASP
+// Security Headers rule requires, set via w.Header().Set(...). A file matching
+// all four is treated as a central security-headers middleware.
+var securityHeaderSetRE = []*regexp.Regexp{
+	regexp.MustCompile(`w\.Header\(\)\.Set\(["']X-Frame-Options["']`),
+	regexp.MustCompile(`w\.Header\(\)\.Set\(["']X-Content-Type-Options["']`),
+	regexp.MustCompile(`w\.Header\(\)\.Set\(["']X-XSS-Protection["']`),
+	regexp.MustCompile(`w\.Header\(\)\.Set\(["']Strict-Transport-Security["']`),
+}
+
+// looksLikeSecurityHeadersMiddleware reports whether a Go source file sets the
+// full set of browser-hardening security headers — the signature of a central
+// security-headers middleware. Used to credit a scenario so its individual
+// handler files are not false-flagged by the per-file Security Headers rule.
+func looksLikeSecurityHeadersMiddleware(content string) bool {
+	for _, re := range securityHeaderSetRE {
+		if !re.MatchString(content) {
+			return false
+		}
+	}
+	return true
 }
 
 func convertRuleViolationToStandards(rule RuleInfo, violation rulespkg.Violation, scenarioName, fallbackPath string) StandardsViolation {

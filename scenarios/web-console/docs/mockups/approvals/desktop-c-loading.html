@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Approvals — Desktop loading skeletons</title>
+<style>
+:root{
+  --wc-surface-base:2 6 23; --wc-surface-raised:15 23 42; --wc-surface-input:30 41 59;
+  --wc-text-primary:248 250 252; --wc-text-muted:148 163 184; --wc-text-faint:100 116 139;
+  --wc-border-default:255 255 255; --wc-accent:34 211 238;
+  --font-sans:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --r-panel:.5rem;--r-ctrl:.375rem;--r-pill:9999px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans);background:rgb(var(--wc-surface-base));color:rgb(var(--wc-text-primary));font-size:14px;min-height:100vh;padding:24px;display:flex;flex-direction:column;align-items:center;gap:12px}
+.caption{color:rgb(var(--wc-text-faint));font-size:12px}
+.drawer{width:1120px;max-width:100%;height:720px;background:rgb(var(--wc-surface-raised));border:1px solid rgb(var(--wc-border-default)/.1);border-radius:var(--r-panel);overflow:hidden;display:flex;flex-direction:column;box-shadow:0 16px 48px rgba(9,18,22,.5)}
+.drawer-head{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid rgb(var(--wc-border-default)/.1)}
+.drawer-head h1{font-size:18px;font-weight:600}
+.spacer{flex:1}
+.icon-btn{width:36px;height:36px;border-radius:var(--r-ctrl);border:1px solid rgb(var(--wc-border-default)/.1);background:transparent;color:rgb(var(--wc-text-muted));display:flex;align-items:center;justify-content:center;font-size:15px}
+.body{flex:1;display:flex;min-height:0}
+.list{width:420px;border-right:1px solid rgb(var(--wc-border-default)/.1);padding:14px 16px;display:flex;flex-direction:column;gap:14px}
+.detail{flex:1;padding:24px;display:flex;flex-direction:column;gap:18px}
+/* shimmer skeleton */
+.sk{border-radius:var(--r-ctrl);background:linear-gradient(90deg,rgb(var(--wc-surface-input)/.6) 25%,rgb(var(--wc-border-default)/.08) 37%,rgb(var(--wc-surface-input)/.6) 63%);background-size:400% 100%;animation:sh 1.3s ease-in-out infinite}
+@keyframes sh{0%{background-position:100% 0}100%{background-position:-100% 0}}
+.srow{display:flex;gap:12px;align-items:flex-start}
+.srail{width:4px;height:64px;border-radius:2px;flex:none}
+.scol{flex:1;display:flex;flex-direction:column;gap:7px}
+</style>
+</head>
+<body>
+<div class="caption">Desktop · loading skeletons (initial fetch)</div>
+<div class="drawer">
+  <div class="drawer-head"><h1>Approvals</h1><span class="spacer"></span><button class="icon-btn">⟳</button><button class="icon-btn">✕</button></div>
+  <div class="body">
+    <div class="list">
+      <div class="sk" style="height:36px"></div>
+      <div class="sk" style="height:28px;width:70%"></div>
+      <div class="srow"><div class="srail sk"></div><div class="scol"><div class="sk" style="height:12px;width:42%"></div><div class="sk" style="height:15px;width:80%"></div><div class="sk" style="height:13px;width:60%"></div></div></div>
+      <div class="srow"><div class="srail sk"></div><div class="scol"><div class="sk" style="height:12px;width:38%"></div><div class="sk" style="height:15px;width:72%"></div><div class="sk" style="height:13px;width:55%"></div></div></div>
+      <div class="srow"><div class="srail sk"></div><div class="scol"><div class="sk" style="height:12px;width:44%"></div><div class="sk" style="height:15px;width:85%"></div><div class="sk" style="height:13px;width:50%"></div></div></div>
+      <div class="srow"><div class="srail sk"></div><div class="scol"><div class="sk" style="height:12px;width:40%"></div><div class="sk" style="height:15px;width:65%"></div><div class="sk" style="height:13px;width:58%"></div></div></div>
+    </div>
+    <div class="detail">
+      <div class="sk" style="height:14px;width:30%"></div>
+      <div class="sk" style="height:26px;width:65%"></div>
+      <div class="sk" style="height:60px;width:100%"></div>
+      <div class="sk" style="height:150px;width:100%"></div>
+      <div class="sk" style="height:44px;width:40%"></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

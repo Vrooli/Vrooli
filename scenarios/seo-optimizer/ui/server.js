@@ -3,6 +3,7 @@ const path = require('path');
 const http = require('http');
 
 const app = express();
+const staticRoot = path.join(__dirname, 'dist');
 const PORT = process.env.UI_PORT || process.env.PORT;
 const API_PORT = process.env.API_PORT;
 
@@ -78,7 +79,7 @@ app.use('/rankings', (req, res) => {
 });
 
 // Serve static files
-app.use(express.static(__dirname, { 
+app.use(express.static(staticRoot, {
     index: false,
     setHeaders: (res, path) => {
         if (path.endsWith('.js')) {
@@ -89,7 +90,7 @@ app.use(express.static(__dirname, {
 
 // Serve the main page
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    res.sendFile(path.join(staticRoot, 'index.html'));
 });
 
 app.listen(PORT, () => {

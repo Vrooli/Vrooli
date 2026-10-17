@@ -8,7 +8,6 @@ func TestNewServer(t *testing.T) {
 	config := &Config{
 		Port:        "8080",
 		DatabaseURL: "",
-		OllamaURL:   "http://localhost:11434",
 		RedisURL:    "redis://localhost:6379",
 	}
 
@@ -27,7 +26,6 @@ func TestServerInitialize(t *testing.T) {
 	config := &Config{
 		Port:        "8080",
 		DatabaseURL: "",
-		OllamaURL:   "http://localhost:11434",
 		RedisURL:    "redis://localhost:6379",
 	}
 
@@ -44,7 +42,6 @@ func TestServerRoutes(t *testing.T) {
 	config := &Config{
 		Port:        "8080",
 		DatabaseURL: "",
-		OllamaURL:   "http://localhost:11434",
 		RedisURL:    "redis://localhost:6379",
 	}
 

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import { ErrorState } from "./error-state";
 import { ApiError } from "../../lib/api-client";
 import { selectors } from "../../consts/selectors";
@@ -22,7 +23,7 @@ describe("ErrorState", () => {
     it("renders network error variant for network ApiError", () => {
       const error = new ApiError("network", "Failed to fetch");
 
-      render(<ErrorState error={error} />);
+      renderWithCanonicalProviders(<ErrorState error={error} />);
 
       expect(screen.getByTestId(selectors.error.title)).toHaveTextContent(
         "Connection problem"
@@ -35,7 +36,7 @@ describe("ErrorState", () => {
     it("renders timeout error variant for timeout ApiError", () => {
       const error = new ApiError("timeout", "Request aborted");
 
-      render(<ErrorState error={error} />);
+      renderWithCanonicalProviders(<ErrorState error={error} />);
 
       expect(screen.getByTestId(selectors.error.title)).toHaveTextContent(
         "Request timed out"
@@ -48,7 +49,7 @@ describe("ErrorState", () => {
     it("renders server error variant for 5xx ApiError", () => {
       const error = new ApiError("http", "Internal Server Error", { status: 500 });
 
-      render(<ErrorState error={error} />);
+      renderWithCanonicalProviders(<ErrorState error={error} />);
 
       expect(screen.getByTestId(selectors.error.title)).toHaveTextContent(
         "Server error"
@@ -61,7 +62,7 @@ describe("ErrorState", () => {
     it("renders notFound variant for 404 ApiError", () => {
       const error = new ApiError("http", "Not Found", { status: 404 });
 
-      render(<ErrorState error={error} />);
+      renderWithCanonicalProviders(<ErrorState error={error} />);
 
       expect(screen.getByTestId(selectors.error.title)).toHaveTextContent(
         "Not found"
@@ -74,7 +75,7 @@ describe("ErrorState", () => {
     it("renders generic variant for parse ApiError", () => {
       const error = new ApiError("parse", "Invalid JSON");
 
-      render(<ErrorState error={error} />);
+      renderWithCanonicalProviders(<ErrorState error={error} />);
 
       expect(screen.getByTestId(selectors.error.title)).toHaveTextContent(
         "Server error"
@@ -87,7 +88,7 @@ describe("ErrorState", () => {
       const error = new ApiError("network", "Connection failed");
       const onRetry = vi.fn();
 
-      render(<ErrorState error={error} onRetry={onRetry} />);
+      renderWithCanonicalProviders(<ErrorState error={error} onRetry={onRetry} />);
 
       const retryButton = screen.getByTestId(selectors.error.retryButton);
       expect(retryButton).toBeInTheDocument();
@@ -98,7 +99,7 @@ describe("ErrorState", () => {
       const error = new ApiError("network", "Connection failed");
       const onRetry = vi.fn();
 
-      render(<ErrorState error={error} onRetry={onRetry} />);
+      renderWithCanonicalProviders(<ErrorState error={error} onRetry={onRetry} />);
 
       fireEvent.click(screen.getByTestId(selectors.error.retryButton));
       expect(onRetry).toHaveBeenCalledTimes(1);
@@ -108,7 +109,7 @@ describe("ErrorState", () => {
       const error = new ApiError("http", "Not Found", { status: 404 });
       const onRetry = vi.fn();
 
-      render(<ErrorState error={error} onRetry={onRetry} />);
+      renderWithCanonicalProviders(<ErrorState error={error} onRetry={onRetry} />);
 
       expect(screen.queryByTestId(selectors.error.retryButton)).not.toBeInTheDocument();
     });
@@ -117,7 +118,7 @@ describe("ErrorState", () => {
       const error = new ApiError("network", "Connection failed");
       const onRetry = vi.fn();
 
-      render(<ErrorState error={error} onRetry={onRetry} hideRetry={true} />);
+      renderWithCanonicalProviders(<ErrorState error={error} onRetry={onRetry} hideRetry={true} />);
 
       expect(screen.queryByTestId(selectors.error.retryButton)).not.toBeInTheDocument();
     });
@@ -125,7 +126,7 @@ describe("ErrorState", () => {
     it("hides retry button when no onRetry callback provided", () => {
       const error = new ApiError("network", "Connection failed");
 
-      render(<ErrorState error={error} />);
+      renderWithCanonicalProviders(<ErrorState error={error} />);
 
       expect(screen.queryByTestId(selectors.error.retryButton)).not.toBeInTheDocument();
     });
@@ -135,7 +136,7 @@ describe("ErrorState", () => {
     it("allows custom title override", () => {
       const error = new ApiError("network", "Failed to fetch");
 
-      render(
+      renderWithCanonicalProviders(
         <ErrorState error={error} title="Unable to load backlog" />
       );
 
@@ -147,7 +148,7 @@ describe("ErrorState", () => {
     it("allows custom message override", () => {
       const error = new ApiError("network", "Failed to fetch");
 
-      render(
+      renderWithCanonicalProviders(
         <ErrorState error={error} message="Please check your VPN connection." />
       );
 
@@ -157,7 +158,7 @@ describe("ErrorState", () => {
     });
 
     it("allows explicit variant override", () => {
-      render(<ErrorState variant="timeout" />);
+      renderWithCanonicalProviders(<ErrorState variant="timeout" />);
 
       expect(screen.getByTestId(selectors.error.title)).toHaveTextContent(
         "Request timed out"
@@ -169,7 +170,7 @@ describe("ErrorState", () => {
     it("renders generic variant for standard Error", () => {
       const error = new Error("Something went wrong");
 
-      render(<ErrorState error={error} />);
+      renderWithCanonicalProviders(<ErrorState error={error} />);
 
       expect(screen.getByTestId(selectors.error.title)).toHaveTextContent(
         "Something went wrong"
@@ -177,7 +178,7 @@ describe("ErrorState", () => {
     });
 
     it("renders generic variant when no error provided", () => {
-      render(<ErrorState />);
+      renderWithCanonicalProviders(<ErrorState />);
 
       expect(screen.getByTestId(selectors.error.title)).toHaveTextContent(
         "Something went wrong"
@@ -187,7 +188,7 @@ describe("ErrorState", () => {
     it("uses ApiError.userMessage for generic display", () => {
       const error = new ApiError("http", "Unauthorized", { status: 401 });
 
-      render(<ErrorState error={error} />);
+      renderWithCanonicalProviders(<ErrorState error={error} />);
 
       // The ApiError.userMessage for 401 should mention session expired
       expect(screen.getByTestId(selectors.error.message)).toHaveTextContent(
@@ -198,7 +199,7 @@ describe("ErrorState", () => {
 
   describe("accessibility and styling", () => {
     it("renders with test selectors for automation", () => {
-      render(<ErrorState variant="generic" />);
+      renderWithCanonicalProviders(<ErrorState variant="generic" />);
 
       expect(screen.getByTestId(selectors.error.container)).toBeInTheDocument();
       expect(screen.getByTestId(selectors.error.icon)).toBeInTheDocument();
@@ -207,7 +208,7 @@ describe("ErrorState", () => {
     });
 
     it("applies custom className", () => {
-      render(<ErrorState variant="generic" className="custom-class" />);
+      renderWithCanonicalProviders(<ErrorState variant="generic" className="custom-class" />);
 
       expect(screen.getByTestId(selectors.error.container)).toHaveClass(
         "custom-class"

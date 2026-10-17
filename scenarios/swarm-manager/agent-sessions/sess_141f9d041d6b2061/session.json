@@ -1,0 +1,13 @@
+{
+  "id": "sess_141f9d041d6b2061",
+  "title": "Discuss Dependency cycles (1)",
+  "kind": "meta_orchestration",
+  "status": "draft",
+  "skill_id": "swarm-manager-meta-orchestrator",
+  "profile_key": "swarm-manager/default",
+  "created_at": "2026-07-13T23:19:04Z",
+  "updated_at": "2026-07-13T23:19:04Z",
+  "created_by": {
+    "type": "operator"
+  }
+}

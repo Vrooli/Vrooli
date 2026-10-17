@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+package vrooli.web_console.v1.snippets;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/snippets;snippets_v1";
+
+// =============================================================================
+// SNIPPETS DOMAIN — sender-owned reusable message text
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain snippets
+// @stability stable
+//
+// A snippet names no receiver, group, role, or skill. Shipped examples use the
+// same UpsertSnippet operation as operator-authored rows and remain deletable.
+//
+// Consumed by:
+//   - API: handlers/snippets/connect_handler.go
+//   - UI:  ui/src/api/snippets.ts
+//   - CLI: cli/domains/snippets/register.go
+// =============================================================================
+
+service SnippetsService {
+  rpc ListSnippets(ListSnippetsRequest) returns (ListSnippetsResponse);
+  rpc UpsertSnippet(UpsertSnippetRequest) returns (UpsertSnippetResponse);
+  rpc DeleteSnippet(DeleteSnippetRequest) returns (DeleteSnippetResponse);
+  rpc TouchSnippet(TouchSnippetRequest) returns (TouchSnippetResponse);
+  rpc PromoteSnippet(PromoteSnippetRequest) returns (PromoteSnippetResponse);
+}
+
+message Snippet {
+  string id = 1;
+  string name = 2;
+  string body = 3;
+  string color = 4;
+  bool pinned = 5;
+  int32 use_count = 6;
+  string last_used_at = 7;
+  int32 sort_order = 8;
+  string created_at = 9;
+  string updated_at = 10;
+}
+
+message ListSnippetsRequest {}
+message ListSnippetsResponse { repeated Snippet snippets = 1; }
+
+message UpsertSnippetRequest {
+  string id = 1;
+  string name = 2;
+  string body = 3;
+  string color = 4;
+  bool pinned = 5;
+  bool has_pinned = 6;
+  int32 sort_order = 7;
+}
+message UpsertSnippetResponse { Snippet snippet = 1; }
+
+message DeleteSnippetRequest { string id = 1; }
+message DeleteSnippetResponse { bool deleted = 1; }
+
+message TouchSnippetRequest { string id = 1; }
+message TouchSnippetResponse { Snippet snippet = 1; }
+
+// Promotion is a one-way copy into prompt-manager. Neither side stores a link.
+message PromoteSnippetRequest { string id = 1; }
+message PromoteSnippetResponse { string identifier = 1; }

@@ -7,12 +7,12 @@ import (
 	"math"
 	"os"
 	"path/filepath"
-	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
 
-	"system-monitor-api/internal/models"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
 )
 
 // DiskCollector collects disk metrics
@@ -48,6 +48,10 @@ func (c *DiskCollector) Collect(ctx context.Context) (*MetricData, error) {
 			"file_descriptors": fileDescriptors,
 			"inotify_watchers": inotifyStats,
 		},
+		Tags: map[string]string{
+			"os":     collectorOS,
+			"source": "native filesystem statistics",
+		},
 	}, nil
 }
 
@@ -60,29 +64,21 @@ func (c *DiskCollector) getDiskUsage() map[string]interface{} {
 		"percent": float64(0),
 	}
 
-	if runtime.GOOS != "linux" {
-		usage["percent"] = 67.8
-		return usage
-	}
-
-	output, err := commandOutput(context.Background(), 2*time.Second, "bash", "-c", "df -B1 / | tail -1 | awk '{print $2, $3, $4}'")
-	if err != nil {
-		return usage
-	}
-
-	fields := strings.Fields(strings.TrimSpace(string(output)))
-	if len(fields) >= 3 {
-		total, _ := strconv.ParseInt(fields[0], 10, 64)
-		used, _ := strconv.ParseInt(fields[1], 10, 64)
-		free, _ := strconv.ParseInt(fields[2], 10, 64)
-
-		usage["total"] = total
-		usage["used"] = used
-		usage["free"] = free
-		if total > 0 {
-			usage["percent"] = float64(used) / float64(total) * 100
+	measured, err := ReadDiskUsage(RootMountPath())
+	if err != nil || measured.TotalBytes <= 0 {
+		usage["status"] = "failed"
+		usage["reason"] = "disk usage could not be measured"
+		if err != nil {
+			usage["reason"] = err.Error()
 		}
+		return usage
 	}
+	usage["total"] = measured.TotalBytes
+	usage["used"] = measured.UsedBytes
+	// "free" is the space a writer can actually use, which is what every
+	// consumer of this metric cares about.
+	usage["free"] = measured.AvailableBytes
+	usage["percent"] = measured.UsedPercent
 
 	return usage
 }
@@ -97,24 +93,15 @@ func (c *DiskCollector) getIOStats() map[string]interface{} {
 		"reads_per_sec":    float64(0),
 		"writes_per_sec":   float64(0),
 	}
-
-	if runtime.GOOS != "linux" {
-		ioStats["read_mb_per_sec"] = 15.0
-		ioStats["write_mb_per_sec"] = 8.0
-		ioStats["io_wait_percent"] = 2.5
+	if collectorOS != "linux" {
+		ioStats["status"] = "unsupported"
+		ioStats["reason"] = "disk I/O counters are not implemented for this platform"
 		return ioStats
 	}
 
-	// Get I/O wait percentage from /proc/stat
-	output, err := commandOutput(context.Background(), 2*time.Second, "bash", "-c", "grep '^cpu ' /proc/stat | awk '{print ($5/($2+$3+$4+$5+$6+$7+$8))*100}'")
-	if err == nil {
-		ioStats["io_wait_percent"], _ = strconv.ParseFloat(strings.TrimSpace(string(output)), 64)
+	if wait, ok := readIOWaitPercent(); ok {
+		ioStats["io_wait_percent"] = wait
 	}
-
-	// Mock additional stats for now
-	ioStats["read_mb_per_sec"] = 15.0
-	ioStats["write_mb_per_sec"] = 8.0
-	ioStats["queue_depth"] = 0.2
 
 	return ioStats
 }
@@ -126,10 +113,9 @@ func (c *DiskCollector) getFileDescriptors() map[string]interface{} {
 		"max":     65536,
 		"percent": float64(0),
 	}
-
-	if runtime.GOOS != "linux" {
-		fdInfo["used"] = 1024
-		fdInfo["percent"] = 1.56
+	if collectorOS != "linux" {
+		fdInfo["status"] = "unsupported"
+		fdInfo["reason"] = "system-wide file descriptor counters are not implemented for this platform"
 		return fdInfo
 	}
 
@@ -169,7 +155,7 @@ func (c *DiskCollector) getInotifyStats() map[string]interface{} {
 	}
 
 	stats := map[string]interface{}{
-		"supported":         runtime.GOOS == "linux",
+		"supported":         collectorOS == "linux",
 		"watches_used":      0,
 		"watches_max":       0,
 		"watches_percent":   float64(0),
@@ -177,17 +163,8 @@ func (c *DiskCollector) getInotifyStats() map[string]interface{} {
 		"instances_max":     0,
 		"instances_percent": float64(0),
 	}
-
-	if runtime.GOOS != "linux" {
-		// Provide representative sample values for non-Linux environments
-		stats["watches_used"] = 128
-		stats["watches_max"] = 524288
-		stats["instances_used"] = 4
-		stats["instances_max"] = 1024
-		stats["watches_percent"] = (float64(stats["watches_used"].(int)) / float64(stats["watches_max"].(int))) * 100
-		stats["instances_percent"] = (float64(stats["instances_used"].(int)) / float64(stats["instances_max"].(int))) * 100
-		c.lastInotifySample = time.Now()
-		c.lastInotifyStats = cloneMap(stats)
+	if collectorOS != "linux" {
+		stats["reason"] = "inotify is Linux-specific"
 		return stats
 	}
 
@@ -236,68 +213,98 @@ func countInotifyUsage(watchLimit, instanceLimit int) (int, int) {
 	instancesUsed := 0
 
 	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-		pid := entry.Name()
-		if _, err := strconv.Atoi(pid); err != nil {
+		pid, ok := procPID(entry)
+		if !ok {
 			continue
 		}
 
-		fdinfoPath := filepath.Join("/proc", pid, "fdinfo")
-		fdEntries, err := os.ReadDir(fdinfoPath)
-		if err != nil {
+		if countPIDInotifyUsage(pid, watchLimit, instanceLimit, &watchesUsed, &instancesUsed) {
+			return watchLimit, instanceLimit
+		}
+	}
+
+	return clampToLimit(watchesUsed, watchLimit), clampToLimit(instancesUsed, instanceLimit)
+}
+
+// procPID returns the numeric PID name for a /proc directory entry, reporting
+// ok=false for non-directory or non-numeric entries.
+func procPID(entry os.DirEntry) (string, bool) {
+	if !entry.IsDir() {
+		return "", false
+	}
+	pid := entry.Name()
+	if _, err := strconv.Atoi(pid); err != nil {
+		return "", false
+	}
+	return pid, true
+}
+
+// countPIDInotifyUsage accumulates inotify instance/watch usage for a single
+// PID into the supplied totals. It returns true when both limits have been
+// reached, signalling the caller to short-circuit.
+func countPIDInotifyUsage(pid string, watchLimit, instanceLimit int, watchesUsed, instancesUsed *int) bool {
+	fdinfoPath := filepath.Join("/proc", pid, "fdinfo")
+	fdEntries, err := os.ReadDir(fdinfoPath)
+	if err != nil {
+		return false
+	}
+
+	for _, fdEntry := range fdEntries {
+		watchers, ok := scanInotifyFD(filepath.Join(fdinfoPath, fdEntry.Name()))
+		if !ok {
 			continue
 		}
 
-		for _, fdEntry := range fdEntries {
-			filePath := filepath.Join(fdinfoPath, fdEntry.Name())
-			file, err := os.Open(filePath)
-			if err != nil {
-				continue
-			}
+		*instancesUsed++
+		*watchesUsed += watchers
 
-			scanner := bufio.NewScanner(file)
-			hasInotify := false
-			watchersInFile := 0
+		if watchLimit > 0 && *watchesUsed >= watchLimit && instanceLimit > 0 && *instancesUsed >= instanceLimit {
+			return true
+		}
+	}
 
-			for scanner.Scan() {
-				line := scanner.Text()
-				if strings.HasPrefix(line, "inotify") {
-					hasInotify = true
-					if strings.HasPrefix(line, "inotify wd:") {
-						watchersInFile++
-					}
-				}
-			}
+	return false
+}
 
-			file.Close()
+// scanInotifyFD inspects a single fdinfo file, returning the number of watchers
+// it represents and ok=true when the descriptor is an inotify instance. A
+// descriptor with no explicit watches counts as a single watcher.
+func scanInotifyFD(filePath string) (int, bool) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return 0, false
+	}
+	defer file.Close()
 
-			if !hasInotify {
-				continue
-			}
+	scanner := bufio.NewScanner(file)
+	hasInotify := false
+	watchersInFile := 0
 
-			instancesUsed++
-			if watchersInFile == 0 {
-				// Treat a descriptor with no explicit watches as at least one watcher
-				watchersInFile = 1
-			}
-			watchesUsed += watchersInFile
-
-			if watchLimit > 0 && watchesUsed >= watchLimit && instanceLimit > 0 && instancesUsed >= instanceLimit {
-				return watchLimit, instanceLimit
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "inotify") {
+			hasInotify = true
+			if strings.HasPrefix(line, "inotify wd:") {
+				watchersInFile++
 			}
 		}
 	}
 
-	if watchLimit > 0 && watchesUsed > watchLimit {
-		watchesUsed = watchLimit
+	if !hasInotify {
+		return 0, false
 	}
-	if instanceLimit > 0 && instancesUsed > instanceLimit {
-		instancesUsed = instanceLimit
+	if watchersInFile == 0 {
+		watchersInFile = 1
 	}
+	return watchersInFile, true
+}
 
-	return watchesUsed, instancesUsed
+// clampToLimit caps value at limit when limit is positive.
+func clampToLimit(value, limit int) int {
+	if limit > 0 && value > limit {
+		return limit
+	}
+	return value
 }
 
 func cloneMap(source map[string]interface{}) map[string]interface{} {
@@ -311,51 +318,97 @@ func cloneMap(source map[string]interface{}) map[string]interface{} {
 	return clone
 }
 
+func readIOWaitPercent() (float64, bool) {
+	raw, err := os.ReadFile("/proc/stat")
+	if err != nil {
+		return 0, false
+	}
+	for _, line := range strings.Split(string(raw), "\n") {
+		if !strings.HasPrefix(line, "cpu ") {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) < 8 {
+			return 0, false
+		}
+		var total uint64
+		for _, field := range fields[1:] {
+			value, _ := strconv.ParseUint(field, 10, 64)
+			total += value
+		}
+		iowait, _ := strconv.ParseUint(fields[5], 10, 64)
+		if total == 0 {
+			return 0, false
+		}
+		return float64(iowait) / float64(total) * 100, true
+	}
+	return 0, false
+}
+
 // GetDiskPartitions returns information about disk partitions
 func GetDiskPartitions() ([]map[string]interface{}, error) {
-	if runtime.GOOS != "linux" {
+	if collectorOS != "linux" {
 		return []map[string]interface{}{}, nil
 	}
 
-	output, err := commandOutput(context.Background(), 2*time.Second, "bash", "-c", "df -B1 --output=source,size,used,avail,pcent,target | tail -n +2")
+	mounts, err := readProcMounts()
 	if err != nil {
 		return nil, err
 	}
 
-	var partitions []map[string]interface{}
-	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
-
-	for _, line := range lines {
-		if line == "" {
+	partitions := make([]map[string]interface{}, 0, len(mounts))
+	for _, mount := range mounts {
+		measured, err := ReadDiskUsage(mount.mountPoint)
+		if err != nil || measured.TotalBytes <= 0 {
 			continue
 		}
-
-		fields := strings.Fields(line)
-		if len(fields) < 6 {
-			continue
-		}
-
-		sizeBytes, _ := strconv.ParseInt(fields[1], 10, 64)
-		usedBytes, _ := strconv.ParseInt(fields[2], 10, 64)
-		availBytes, _ := strconv.ParseInt(fields[3], 10, 64)
-		percent := strings.TrimSuffix(fields[4], "%")
-		percentVal, _ := strconv.ParseFloat(percent, 64)
-		mountPoint := strings.Join(fields[5:], " ")
 
 		partitions = append(partitions, map[string]interface{}{
-			"device":          fields[0],
-			"size_bytes":      sizeBytes,
-			"size_human":      formatBytesHuman(sizeBytes),
-			"used_bytes":      usedBytes,
-			"used_human":      formatBytesHuman(usedBytes),
-			"available_bytes": availBytes,
-			"available_human": formatBytesHuman(availBytes),
-			"use_percent":     percentVal,
-			"mount_point":     mountPoint,
+			"device":          mount.device,
+			"size_bytes":      measured.TotalBytes,
+			"size_human":      formatBytesHuman(measured.TotalBytes),
+			"used_bytes":      measured.UsedBytes,
+			"used_human":      formatBytesHuman(measured.UsedBytes),
+			"available_bytes": measured.AvailableBytes,
+			"available_human": formatBytesHuman(measured.AvailableBytes),
+			"use_percent":     measured.UsedPercent,
+			"mount_point":     mount.mountPoint,
 		})
 	}
 
 	return partitions, nil
+}
+
+type procMount struct {
+	device     string
+	mountPoint string
+}
+
+func readProcMounts() ([]procMount, error) {
+	file, err := os.Open("/proc/mounts")
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	var mounts []procMount
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		fields := strings.Fields(scanner.Text())
+		if len(fields) < 2 {
+			continue
+		}
+		mounts = append(mounts, procMount{
+			device:     unescapeProcMount(fields[0]),
+			mountPoint: unescapeProcMount(fields[1]),
+		})
+	}
+	return mounts, scanner.Err()
+}
+
+func unescapeProcMount(value string) string {
+	replacer := strings.NewReplacer(`\040`, " ", `\011`, "\t", `\012`, "\n", `\134`, `\`)
+	return replacer.Replace(value)
 }
 
 func formatBytesHuman(bytesValue int64) string {
@@ -378,14 +431,10 @@ func formatBytesHuman(bytesValue int64) string {
 	return fmt.Sprintf("%.1f %s", value, units[index])
 }
 
-func shellQuote(value string) string {
-	return "'" + strings.ReplaceAll(value, "'", "'\\''") + "'"
-}
-
 // GetLargestDirectories returns the heaviest directories inside mount up to the specified depth.
 func GetLargestDirectories(mount string, depth, limit int) ([]models.DiskUsageEntry, error) {
 	entries := []models.DiskUsageEntry{}
-	if runtime.GOOS != "linux" {
+	if collectorOS != "linux" {
 		return entries, nil
 	}
 	if mount == "" {
@@ -397,38 +446,40 @@ func GetLargestDirectories(mount string, depth, limit int) ([]models.DiskUsageEn
 	if limit <= 0 {
 		limit = 8
 	}
-	cmdStr := fmt.Sprintf("du -x -B1 --max-depth=%d %s 2>/dev/null | sort -nr | head -n %d", depth, shellQuote(mount), limit+1)
-	output, err := commandOutput(context.Background(), 2*time.Second, "bash", "-c", cmdStr)
+	sizes := map[string]int64{}
+	root := filepath.Clean(mount)
+	err := filepath.WalkDir(root, func(path string, d os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return filepath.SkipDir
+		}
+		if d.IsDir() {
+			if strings.Count(strings.TrimPrefix(path, root), string(filepath.Separator)) > depth {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		info, e := d.Info()
+		if e == nil {
+			for dir := filepath.Dir(path); strings.HasPrefix(dir, root); dir = filepath.Dir(dir) {
+				sizes[dir] += info.Size()
+				if dir == root {
+					break
+				}
+			}
+		}
+		return nil
+	})
 	if err != nil {
 		return entries, err
 	}
-	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
-	for _, line := range lines {
-		if strings.TrimSpace(line) == "" {
-			continue
+	for path, size := range sizes {
+		if path != root {
+			entries = append(entries, models.DiskUsageEntry{Path: path, SizeBytes: size, SizeHuman: formatBytesHuman(size), Category: "directory"})
 		}
-		fields := strings.Fields(line)
-		if len(fields) < 2 {
-			continue
-		}
-		sizeBytes, err := strconv.ParseInt(fields[0], 10, 64)
-		if err != nil {
-			continue
-		}
-		path := strings.Join(fields[1:], " ")
-		cleanPath := filepath.Clean(path)
-		if cleanPath == filepath.Clean(mount) {
-			continue
-		}
-		entries = append(entries, models.DiskUsageEntry{
-			Path:      cleanPath,
-			SizeBytes: sizeBytes,
-			SizeHuman: formatBytesHuman(sizeBytes),
-			Category:  "directory",
-		})
-		if len(entries) >= limit {
-			break
-		}
+	}
+	sort.Slice(entries, func(i, j int) bool { return entries[i].SizeBytes > entries[j].SizeBytes })
+	if len(entries) > limit {
+		entries = entries[:limit]
 	}
 	return entries, nil
 }
@@ -436,7 +487,7 @@ func GetLargestDirectories(mount string, depth, limit int) ([]models.DiskUsageEn
 // GetLargestFiles returns the largest files within a mount point (size threshold 50MB).
 func GetLargestFiles(mount string, limit int) ([]models.DiskUsageEntry, error) {
 	entries := []models.DiskUsageEntry{}
-	if runtime.GOOS != "linux" {
+	if collectorOS != "linux" {
 		return entries, nil
 	}
 	if mount == "" {
@@ -445,34 +496,26 @@ func GetLargestFiles(mount string, limit int) ([]models.DiskUsageEntry, error) {
 	if limit <= 0 {
 		limit = 8
 	}
-	cmdStr := fmt.Sprintf("find %s -xdev -type f -size +52428800c -printf '%%s\\t%%p\\n' 2>/dev/null | sort -nr | head -n %d", shellQuote(mount), limit)
-	output, err := commandOutput(context.Background(), 2*time.Second, "bash", "-c", cmdStr)
+	root := filepath.Clean(mount)
+	err := filepath.WalkDir(root, func(path string, d os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return filepath.SkipDir
+		}
+		if d.IsDir() {
+			return nil
+		}
+		info, e := d.Info()
+		if e == nil && info.Size() > 50*1024*1024 {
+			entries = append(entries, models.DiskUsageEntry{Path: path, SizeBytes: info.Size(), SizeHuman: formatBytesHuman(info.Size()), Category: "file"})
+		}
+		return nil
+	})
 	if err != nil {
 		return entries, err
 	}
-	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
-	for _, line := range lines {
-		if strings.TrimSpace(line) == "" {
-			continue
-		}
-		parts := strings.SplitN(line, "\t", 2)
-		if len(parts) != 2 {
-			continue
-		}
-		sizeBytes, err := strconv.ParseInt(strings.TrimSpace(parts[0]), 10, 64)
-		if err != nil {
-			continue
-		}
-		path := filepath.Clean(strings.TrimSpace(parts[1]))
-		entries = append(entries, models.DiskUsageEntry{
-			Path:      path,
-			SizeBytes: sizeBytes,
-			SizeHuman: formatBytesHuman(sizeBytes),
-			Category:  "file",
-		})
-		if len(entries) >= limit {
-			break
-		}
+	sort.Slice(entries, func(i, j int) bool { return entries[i].SizeBytes > entries[j].SizeBytes })
+	if len(entries) > limit {
+		entries = entries[:limit]
 	}
 	return entries, nil
 }

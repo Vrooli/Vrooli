@@ -104,7 +104,7 @@ export function useAppLimitsForm(): UseAppLimitsFormReturn {
   const clearEditedValue = useCallback((editKey: string) => {
     setEditedValues((prev) => {
       const next = { ...prev };
-      delete next[editKey];
+      Reflect.deleteProperty(next, editKey);
       return next;
     });
   }, []);

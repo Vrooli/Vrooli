@@ -31,7 +31,6 @@ export interface CompletionState {
 }
 
 export interface CompletionOptions {
-  forcedTool?: { scenario: string; toolName: string };
   skills?: SkillPayloadForAPI[];
 }
 
@@ -41,10 +40,6 @@ export interface CompletionActions {
   cancelCompletion: () => void;
   approveTool: (chatId: string, toolCallId: string) => Promise<import("../lib/api").ApprovalResult>;
   rejectTool: (chatId: string, toolCallId: string, reason?: string) => Promise<void>;
-}
-
-export interface UseCompletionOptions {
-  onTemplateDeactivated?: () => void;
 }
 
 // Stable empty arrays to prevent infinite re-render loops

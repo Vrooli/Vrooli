@@ -1,12 +1,15 @@
 package render
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"image"
 	"math"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -19,26 +22,19 @@ import (
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
 	autoexecutor "github.com/vrooli/browser-automation-studio/automation/executor"
 	"github.com/vrooli/browser-automation-studio/config"
+	sessionprofile "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
+	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
-// viewportStabilizationScript is injected before capture begins to prevent
-// layout shifts that cause bottom-of-frame flickering in assembled videos.
-//
-// The root cause: when page content changes during playback, a vertical
-// scrollbar can appear or disappear, changing the viewport width by ~17px.
-// Each screenshot captures the page at its current width, so frames alternate
-// between two widths. The FFmpeg filter chain normalizes DIMENSIONS via scale,
-// but the page CONTENT was already rendered at different widths — elements
-// shift horizontally, and the bottom ~50px (where content reflow accumulates)
-// flickers visibly. No post-processing filter can fix content that was
-// captured in different positions.
-//
-// The fix: force a permanent scrollbar so the viewport width never changes.
+// The export page is a fixed canvas. Hide root overflow so scrollbar
+// appearance cannot change layout or leave a scrollbar in the delivered film.
+// Scrolling inside recorded product content remains part of the source pixels.
 const viewportStabilizationScript = `(function(){` +
 	`var s=document.createElement('style');` +
 	`s.id='bas-viewport-stabilize';` +
-	`s.textContent='html{overflow-y:scroll!important}body{overflow-x:hidden!important}';` +
+	`s.textContent='html,body{overflow:hidden!important;margin:0!important}';` +
 	`document.head.appendChild(s);` +
 	`})();`
 
@@ -76,7 +72,7 @@ func (c *playwrightCaptureClient) Capture(ctx context.Context, spec *ReplayMovie
 	if c == nil {
 		return nil, fmt.Errorf("playwright capture client not configured")
 	}
-	if spec == nil || len(spec.Frames) == 0 {
+	if spec == nil || len(spec.GetFrames()) == 0 {
 		return nil, fmt.Errorf("movie spec missing frames")
 	}
 	if strings.TrimSpace(c.exportPageURL) == "" {
@@ -108,6 +104,17 @@ func (c *playwrightCaptureClient) Capture(ctx context.Context, spec *ReplayMovie
 	if err != nil {
 		return nil, fmt.Errorf("build capture instructions: %w", err)
 	}
+	canvas := spec.GetPresentation().GetCanvas()
+	viewportWidth, viewportHeight := int(canvas.GetWidth()), int(canvas.GetHeight())
+	if viewportWidth <= 0 {
+		viewportWidth = 1920
+	}
+	if viewportHeight <= 0 {
+		viewportHeight = 1080
+	}
+	if viewportWidth > 4096 || viewportHeight > 4096 || viewportWidth*viewportHeight > 4096*2160 {
+		return nil, fmt.Errorf("replay canvas %dx%d exceeds the 4K pixel budget; choose a smaller output", viewportWidth, viewportHeight)
+	}
 	plan := autocontracts.ExecutionPlan{
 		SchemaVersion:  autocontracts.ExecutionPlanSchemaVersion,
 		PayloadVersion: autocontracts.PayloadVersion,
@@ -115,8 +122,14 @@ func (c *playwrightCaptureClient) Capture(ctx context.Context, spec *ReplayMovie
 		WorkflowID:     uuid.New(),
 		Instructions:   instructions,
 		CreatedAt:      time.Now().UTC(),
+		Metadata:       map[string]any{"executionViewport": map[string]any{"width": viewportWidth, "height": viewportHeight}},
 	}
 
+	// Replay screenshots are explicit actions. Incidental evaluate/navigation
+	// screenshots double capture work and cannot contribute to the movie.
+	artifactConfig := config.ArtifactCollectionSettings{
+		ScreenshotPolicy: basexecution.ScreenshotCapturePolicy_SCREENSHOT_CAPTURE_POLICY_NEVER,
+	}
 	req := autoexecutor.Request{
 		Plan:              plan,
 		EngineName:        "playwright",
@@ -124,6 +137,10 @@ func (c *playwrightCaptureClient) Capture(ctx context.Context, spec *ReplayMovie
 		Recorder:          rec,
 		EventSink:         eventSink,
 		HeartbeatInterval: 0,
+		ArtifactConfig:    &artifactConfig,
+		// The canvas is already in output pixels. Driver-default 2x DPR
+		// quadruples pixels and cost without adding source detail.
+		BrowserProfile: &sessionprofile.BrowserProfile{Fingerprint: &sessionprofile.FingerprintSettings{DeviceScaleFactor: 1}},
 	}
 
 	if err := exec.Execute(ctx, req); err != nil {
@@ -135,10 +152,19 @@ func (c *playwrightCaptureClient) Capture(ctx context.Context, spec *ReplayMovie
 	}
 
 	frames := make([]captureFrame, 0, len(rec.outcomes))
+	rasterWidth, rasterHeight := 0, 0
 	for idx, outcome := range rec.outcomes {
-		if outcome.Screenshot == nil || len(outcome.Screenshot.Data) == 0 {
+		if !strings.HasPrefix(outcome.NodeID, "screenshot-") || outcome.Screenshot == nil || len(outcome.Screenshot.Data) == 0 {
 			continue
 		}
+		dimensions, _, err := image.DecodeConfig(bytes.NewReader(outcome.Screenshot.Data))
+		if err != nil {
+			return nil, fmt.Errorf("invalid replay screenshot: %w", err)
+		}
+		if dimensions.Width != viewportWidth || dimensions.Height != viewportHeight {
+			return nil, fmt.Errorf("replay raster %dx%d differs from requested canvas %dx%d", dimensions.Width, dimensions.Height, viewportWidth, viewportHeight)
+		}
+		rasterWidth, rasterHeight = dimensions.Width, dimensions.Height
 		ts := 0
 		if outcome.CompletedAt != nil && plan.CreatedAt.Before(*outcome.CompletedAt) {
 			ts = int(outcome.CompletedAt.Sub(plan.CreatedAt).Milliseconds())
@@ -152,16 +178,20 @@ func (c *playwrightCaptureClient) Capture(ctx context.Context, spec *ReplayMovie
 	if len(frames) == 0 {
 		return nil, fmt.Errorf("playwright capture returned no frames")
 	}
-	return &captureResponse{Frames: frames}, nil
+	fps := int(math.Round(1000.0 / float64(captureInterval)))
+	if fps < 1 {
+		fps = 1
+	}
+	return &captureResponse{Frames: frames, FPS: fps, Width: rasterWidth, Height: rasterHeight}, nil
 }
 
 func buildPlaywrightCaptureInstructions(exportPageURL string, spec *ReplayMovieSpec, captureInterval int) ([]autocontracts.CompiledInstruction, error) {
-	totalMs := spec.Summary.TotalDurationMs
-	if totalMs <= 0 && spec.Playback.DurationMs > 0 {
-		totalMs = spec.Playback.DurationMs
+	totalMs := int(spec.GetSummary().GetTotalDurationMs())
+	if totalMs <= 0 && int(spec.GetPlayback().GetDurationMs()) > 0 {
+		totalMs = int(spec.GetPlayback().GetDurationMs())
 	}
 	if totalMs <= 0 {
-		totalMs = captureInterval * len(spec.Frames)
+		totalMs = captureInterval * len(spec.GetFrames())
 	}
 	if totalMs <= 0 {
 		totalMs = 5000
@@ -171,15 +201,43 @@ func buildPlaywrightCaptureInstructions(exportPageURL string, spec *ReplayMovieS
 	}
 
 	frameCount := int(math.Ceil(float64(totalMs)/float64(captureInterval))) + 1
-	if frameCount < 1 {
-		frameCount = 1
-	}
-	if frameCount > 120 {
-		frameCount = 120
+	if frameCount > maxCaptureFrames {
+		return nil, fmt.Errorf("replay requires %d frames; budget is %d: choose a lower FPS or export shorter sections; timeline will not be truncated", frameCount, maxCaptureFrames)
 	}
 
-	specJSON, _ := json.Marshal(spec)
-	script := fmt.Sprintf("window.__BAS_RENDER_SPEC=%s;window.dispatchEvent(new CustomEvent('bas:render',{detail:%d}));", string(specJSON), captureInterval)
+	specJSON, err := protojson.Marshal(spec)
+	if err != nil {
+		return nil, fmt.Errorf("serialize replay spec: %w", err)
+	}
+	requestJSON, err := json.Marshal(map[string]string{
+		"specId":       spec.GetExecution().GetExecutionId(),
+		"requestToken": uuid.NewString(),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("serialize replay request identity: %w", err)
+	}
+	// Use the export page's public message/controller contract. The retired
+	// bas:render event has no listener and used to capture the error screen.
+	script := fmt.Sprintf(`(async()=>{
+      const deadline=Date.now()+15000;
+      const request=%s;
+      while(!window.basExport || window.basExport.error==='initializing'){if(Date.now()>deadline)throw Error('Replay composer unavailable');await new Promise(r=>setTimeout(r,25));}
+      window.postMessage({type:'bas:spec:set',spec:%s,requestToken:request.requestToken},window.location.origin);
+      const adopted=()=>{
+        if(!window.basExport || !window.basExport.ready)return false;
+        const metadata=window.basExport.getMetadata();
+        return metadata.requestToken===request.requestToken && (!request.specId || metadata.specId===request.specId);
+      };
+      while(!adopted()){
+        const metadata=window.basExport?.getMetadata();
+        if(metadata?.requestError?.requestToken===request.requestToken)throw Error(metadata.requestError.message);
+        const error=window.basExport?.error;
+        if(metadata?.requestToken===request.requestToken && error && error!=='initializing')throw Error(error);
+        if(Date.now()>deadline)throw Error('Replay composer did not become ready');
+        await new Promise(r=>setTimeout(r,25));
+      }
+      window.basExport.pause();await window.basExport.seekTo(0);await document.fonts.ready;return {ready:true};
+    })()`, string(requestJSON), string(specJSON))
 
 	// Helper to build action with error handling
 	buildAction := func(stepType string, params map[string]any) (*basactions.ActionDefinition, error) {
@@ -190,22 +248,27 @@ func buildPlaywrightCaptureInstructions(exportPageURL string, spec *ReplayMovieS
 		return action, nil
 	}
 
+	// Standalone preview intentionally does not expose the capture controller.
+	// Select capture mode while preserving other owner-supplied URL parameters.
+	composerURL, err := url.Parse(exportPageURL)
+	if err != nil {
+		return nil, fmt.Errorf("parse composer URL: %w", err)
+	}
+	query := composerURL.Query()
+	query.Set("mode", "capture")
+	composerURL.RawQuery = query.Encode()
 	// Build initial navigation and script injection
 	navigateAction, err := buildAction("navigate", map[string]any{
-		"url":       exportPageURL,
+		"url":       composerURL.String(),
+		"waitUntil": "networkidle",
 		"timeoutMs": 45000,
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	// Stabilize the viewport layout before any screenshots. Force a permanent
-	// scrollbar and hide horizontal overflow so that scrollbar appearance/
-	// disappearance during playback cannot change the viewport width. Without
-	// this, frames alternate between two widths (~17px scrollbar difference),
-	// and even though the assembly filter chain normalizes dimensions, the
-	// page CONTENT itself shifts horizontally — causing visible flickering
-	// that no post-processing filter can repair.
+	// Fix root canvas geometry before capture; do not paint scrollbars.
+
 	stabilizeAction, err := buildAction("evaluate", map[string]any{
 		"expression": viewportStabilizationScript,
 	})
@@ -241,8 +304,17 @@ func buildPlaywrightCaptureInstructions(exportPageURL string, spec *ReplayMovieS
 	// Build wait/screenshot pairs for each frame
 	idx := 3
 	for i := 0; i < frameCount; i++ {
-		waitAction, err := buildAction("wait", map[string]any{
-			"ms": captureInterval,
+		targetMs := i * captureInterval
+		if targetMs > totalMs {
+			targetMs = totalMs
+		}
+		waitAction, err := buildAction("evaluate", map[string]any{
+			"expression": fmt.Sprintf(`(async()=>{if(!window.basExport.ready)throw Error(window.basExport.error||'Replay composer unavailable');await window.basExport.seekTo(%d);await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+            for(const video of document.querySelectorAll('video[data-bas-source-video]')){
+                const deadline=Date.now()+10000;
+                while(video.readyState<2||video.seeking){if(video.error)throw Error('Recorded video decode failed: '+video.error.code+' '+video.error.message);if(Date.now()>deadline)throw Error('Recorded video frame did not settle');await new Promise(r=>setTimeout(r,10));}
+            }
+            await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return {ready:true};})()`, targetMs),
 		})
 		if err != nil {
 			return nil, err
@@ -274,11 +346,18 @@ func buildPlaywrightCaptureInstructions(exportPageURL string, spec *ReplayMovieS
 
 // inMemoryCaptureRecorder captures outcomes without touching the database.
 type inMemoryCaptureRecorder struct {
-	outcomes  []autocontracts.StepOutcome
-	telemetry []autocontracts.StepTelemetry
+	outcomes      []autocontracts.StepOutcome
+	capturedBytes int
+	telemetry     []autocontracts.StepTelemetry
 }
 
 func (r *inMemoryCaptureRecorder) RecordStepOutcome(_ context.Context, _ autocontracts.ExecutionPlan, outcome autocontracts.StepOutcome) (executionwriter.RecordResult, error) {
+	if outcome.Screenshot != nil {
+		r.capturedBytes += len(outcome.Screenshot.Data)
+		if r.capturedBytes > 128*1024*1024 {
+			return executionwriter.RecordResult{}, fmt.Errorf("replay screenshots exceed 128 MiB budget; use shorter sections or lower FPS")
+		}
+	}
 	r.outcomes = append(r.outcomes, outcome)
 	return executionwriter.RecordResult{}, nil
 }
@@ -288,11 +367,7 @@ func (r *inMemoryCaptureRecorder) RecordTelemetry(_ context.Context, _ autocontr
 	return nil
 }
 
-func (r *inMemoryCaptureRecorder) MarkCrash(_ context.Context, _ uuid.UUID, _ autocontracts.StepFailure) error {
-	return nil
-}
-
-func (r *inMemoryCaptureRecorder) UpdateCheckpoint(_ context.Context, _ uuid.UUID, _ int, _ int) error {
+func (r *inMemoryCaptureRecorder) RecordCheckpoint(context.Context, executionwriter.Checkpoint) error {
 	return nil // In-memory recorder doesn't persist checkpoints
 }
 
@@ -307,3 +382,9 @@ func (r *inMemoryCaptureRecorder) SetArtifactConfig(_ *config.ArtifactCollection
 func (r *inMemoryCaptureRecorder) GetArtifactConfig() config.ArtifactCollectionSettings {
 	return config.DefaultArtifactSettings() // In-memory recorder uses default (collect all)
 }
+
+func (r *inMemoryCaptureRecorder) SetArtifactConfigForExecution(_ uuid.UUID, _ *config.ArtifactCollectionSettings) {
+	// In-memory recorder ignores per-execution artifact config - collects everything.
+}
+
+func (r *inMemoryCaptureRecorder) ForgetExecution(_ uuid.UUID) {}

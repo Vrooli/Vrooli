@@ -12,7 +12,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render as rtlRender, screen, fireEvent, waitFor } from '@/test-utils/renderWithProviders'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { SkillTreeSidebar } from './SkillTreeSidebar'
 import type { TreeNode } from '@/types/editor'
@@ -21,9 +21,11 @@ import { DEFAULT_FILTER_STATE, DEFAULT_SORT_CONFIG, DEFAULT_VIEW_MODE, DEFAULT_D
 import { getAISearchStatus } from '@/services/skillService'
 
 vi.mock('@/services/skillService', () => ({
-  getAISearchStatus: vi.fn().mockResolvedValue({ available: true }),
+  getAISearchStatus: vi.fn().mockResolvedValue({ available: false }),
   searchSkillContent: vi.fn().mockResolvedValue({ matches: [] }),
 }))
+
+const pendingConfig = new Promise<never>(() => {})
 
 vi.mock('@/lib/api', () => ({
   api: {
@@ -32,9 +34,9 @@ vi.mock('@/lib/api', () => ({
     aiSearchTeams: vi.fn().mockResolvedValue({ results: [], method: 'ai' }),
     discover: vi.fn().mockResolvedValue({ results: [], method: 'ai' }),
     matchTopics: vi.fn().mockResolvedValue([]),
-    getBudgetConfig: vi.fn().mockResolvedValue({ minor: 4000, moderate: 8000, major: 12000, architectural: 18000 }),
+    getBudgetConfig: vi.fn(() => pendingConfig),
     setBudgetConfig: vi.fn().mockResolvedValue({ minor: 4000, moderate: 8000, major: 12000, architectural: 18000 }),
-    getDiscoverFilterConfig: vi.fn().mockResolvedValue({ includeDrafts: false, excludeModes: ['scope'], excludeIds: [], excludeTags: [] }),
+    getDiscoverFilterConfig: vi.fn(() => pendingConfig),
     setDiscoverFilterConfig: vi.fn().mockResolvedValue({ includeDrafts: false, excludeModes: ['scope'], excludeIds: [], excludeTags: [] }),
   },
 }))
@@ -108,14 +110,21 @@ function createItemNode(id: string, label: string, itemId: string, depth = 0): T
 }
 
 /** Render helper that wraps with QueryClientProvider (needed when rendering non-skills tabs) */
-function renderWithQuery(ui: React.ReactElement) {
+function render(ui: React.ReactElement) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return render(
+  const wrap = (element: React.ReactElement) => (
     <QueryClientProvider client={queryClient}>
-      {ui}
+      {element}
     </QueryClientProvider>
   )
+  const result = rtlRender(wrap(ui))
+  return {
+    ...result,
+    rerender: (element: React.ReactElement) => result.rerender(wrap(element)),
+  }
 }
+
+const renderWithQuery = render
 
 describe('SkillTreeSidebar', () => {
   const defaultProps = {
@@ -585,7 +594,7 @@ describe('SkillTreeSidebar', () => {
 
   describe('search input ref', () => {
     it('should forward ref to search input', () => {
-      const ref = { current: null } as React.RefObject<HTMLInputElement>
+      const ref: React.RefObject<HTMLInputElement | null> = { current: null }
       render(<SkillTreeSidebar {...defaultProps} searchInputRef={ref} />)
 
       expect(ref.current).toBeInstanceOf(HTMLInputElement)
@@ -713,7 +722,7 @@ describe('SkillTreeSidebar', () => {
       render(
         <SkillTreeSidebar
           {...defaultProps}
-          combineMode={true}
+          selectionMode={true}
           onEnterCombineMode={vi.fn()}
           onExitCombineMode={onExitCombineMode}
         />
@@ -728,7 +737,7 @@ describe('SkillTreeSidebar', () => {
         <SkillTreeSidebar
           {...defaultProps}
           initialActiveTab="agents"
-          combineMode={true}
+          selectionMode={true}
           combineEntityType="agents"
           combineSelectedIds={new Set(['agent-1'])}
           onCombineFormatChange={vi.fn()}

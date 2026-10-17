@@ -7,8 +7,9 @@
     "generate-desktop-app": "./dist/template-generator.js"
   },
   "scripts": {
-    "build": "tsc",
-    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh ts-node template-generator.ts'",
+    "build": "tsc && node write-build-stamp.js",
+    "typecheck": "tsc --noEmit",
+    "dev": "vrooli lifecycle protect -- ts-node template-generator.ts",
     "test": "jest --passWithNoTests",
     "clean": "rimraf dist"
   },

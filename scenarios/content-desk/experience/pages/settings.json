@@ -1,0 +1,76 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "settings",
+    "title": "Settings",
+    "routes": [
+      "/settings"
+    ],
+    "purpose": "Expose the minimum configuration surface needed to understand and operate Content Desk safely.",
+    "prd_refs": [
+      "OT-P1-001",
+      "OT-P0-021",
+      "OT-P0-030",
+      "OT-P0-032",
+      "OT-P0-033",
+      "OT-P0-035"
+    ]
+  },
+  "states": [
+    {
+      "id": "default",
+      "description": "default has an explicit scope, consequence and permitted next action."
+    },
+    {
+      "id": "method-pin-review",
+      "description": "method pin review has an explicit scope, consequence and permitted next action."
+    },
+    {
+      "id": "privacy-policy",
+      "description": "privacy policy has an explicit scope, consequence and permitted next action."
+    },
+    {
+      "id": "cost-route",
+      "description": "cost route has an explicit scope, consequence and permitted next action."
+    },
+    {
+      "id": "capability-unavailable",
+      "description": "capability unavailable has an explicit scope, consequence and permitted next action."
+    },
+    {
+      "id": "export-preview",
+      "description": "export preview has an explicit scope, consequence and permitted next action."
+    },
+    {
+      "id": "restore-conflict",
+      "description": "restore conflict has an explicit scope, consequence and permitted next action."
+    },
+    {
+      "id": "local-copy-clear",
+      "description": "local copy clear has an explicit scope, consequence and permitted next action."
+    },
+    {
+      "id": "deletion-preview",
+      "description": "deletion preview has an explicit scope, consequence and permitted next action."
+    },
+    {
+      "id": "loading",
+      "description": "loading has an explicit scope, consequence and permitted next action."
+    },
+    {
+      "id": "stale",
+      "description": "stale has an explicit scope, consequence and permitted next action."
+    },
+    {
+      "id": "request-error",
+      "description": "request error has an explicit scope, consequence and permitted next action."
+    },
+    {
+      "id": "permission-denied",
+      "description": "permission denied has an explicit scope, consequence and permitted next action."
+    }
+  ],
+  "x-i16-source": "Retain original active page identity and existing states. Add only accepted intent; future replacement/redirect requires route migration evidence."
+}

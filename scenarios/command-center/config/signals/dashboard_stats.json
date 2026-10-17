@@ -1,0 +1,22 @@
+{
+  "id": "dashboard_stats",
+  "label": "Backlog size",
+  "description": "Open backlog items across every lane.",
+  "unit": "count",
+  "format": "integer",
+  "shape": "scalar",
+  "source": {
+    "team": "director-swarm",
+    "binding": "scenario:swarm-manager",
+    "read": "/api/v1/stats",
+    "select": "dashboard_stats",
+    "ttlSeconds": 30,
+    "integrationId": "swarm-manager",
+    "featureId": "dashboard_stats",
+    "contractVersion": "legacy.v1",
+    "selector": "dashboard_stats",
+    "expectedUnit": "count",
+    "sourceTimePolicy": "producer_required"
+  },
+  "coverage": "NOW"
+}

@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+package vrooli.network_manager.v1.inventory;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/inventory;inventory_v1";
+
+// InventoryService owns LAN-visible device inventory and identity confidence.
+service InventoryService {
+  rpc RefreshInventory(RefreshInventoryRequest) returns (RefreshInventoryResponse);
+  rpc ListDevices(ListDevicesRequest) returns (ListDevicesResponse);
+  rpc UpdateDeviceGroup(UpdateDeviceGroupRequest) returns (UpdateDeviceGroupResponse);
+  rpc ExplainDeviceIdentity(ExplainDeviceIdentityRequest) returns (ExplainDeviceIdentityResponse);
+}
+
+message Device {
+  string id = 1;
+  string hostname = 2;
+  string ip_address = 3;
+  string mac_address = 4;
+  string group = 5;
+  string identity_confidence = 6;
+  repeated string notes = 7;
+}
+
+message RefreshInventoryRequest {
+  bool dry_run = 1;
+}
+
+message RefreshInventoryResponse {
+  repeated Device devices = 1;
+  repeated string findings = 2;
+}
+
+message ListDevicesRequest {
+  string group = 1;
+}
+
+message ListDevicesResponse {
+  repeated Device devices = 1;
+}
+
+message UpdateDeviceGroupRequest {
+  string id = 1;
+  string group = 2;
+}
+
+message UpdateDeviceGroupResponse {
+  Device device = 1;
+}
+
+message ExplainDeviceIdentityRequest {
+  string id = 1;
+}
+
+message ExplainDeviceIdentityResponse {
+  Device device = 1;
+  repeated string evidence = 2;
+}

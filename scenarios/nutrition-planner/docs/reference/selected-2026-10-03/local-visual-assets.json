@@ -1,0 +1,901 @@
+{
+  "selection": "NDL-003 candidate0.3 core30 + accepted Today Sunroom v02",
+  "ownerEvidence": "Sentinel_44e04ed89e408191b22e019ea0bb5aa5",
+  "fidelityClarification": "Sentinel_152f03a5be4081919c0f7af9cdc33aee",
+  "images": [
+    {
+      "version": "nooch.core.week-meals@v01",
+      "family": "nooch.core.week-meals",
+      "title": "A realistic week — Meals view · p1 · before shopping",
+      "url": "https://drive.google.com/file/d/1g4kGhLgbUBuB23ylqt5d3-4gFthvHWRm/view?usp=drivesdk",
+      "sha256": "fac173679473127db513f57d7dc778c8e8dbe939c2bde94cf4d06a3fc713a178",
+      "coverage": "Static desktop 1440 px and compact 390 px; individual captures and paired board in source package. Responsive pair shows the same state.",
+      "driveId": "1g4kGhLgbUBuB23ylqt5d3-4gFthvHWRm",
+      "fileName": "nooch.core.week-meals@v01.paired.png",
+      "size": 817298,
+      "path": "images/nooch.core.week-meals@v01.paired.png",
+      "dimensions": [
+        1930,
+        1498
+      ],
+      "verifiedBytes": 817298,
+      "experiencePages": [
+        "week"
+      ],
+      "requirementIds": [
+        "WEEK-001",
+        "WEEK-002",
+        "PLAN-007",
+        "VIS-001",
+        "VIS-003"
+      ],
+      "currentApproval": "Selected by final owner I21 approval; runtime acceptance unverified"
+    },
+    {
+      "version": "nooch.core.week-impact@v01",
+      "family": "nooch.core.week-impact",
+      "title": "A change with consequences — RP-01 alternative branch · before apply",
+      "url": "https://drive.google.com/file/d/1l9tIzw4Jb8IYd2UP2b97OJSu0rsfolAE/view?usp=drivesdk",
+      "sha256": "9bf5a320bc6ebdee9ed4a04fd496afcdcc206e03dcacf1f09532b711e3a8167f",
+      "coverage": "Static desktop 1440 px and compact 390 px; individual captures and paired board in source package. Responsive pair shows the same state.",
+      "driveId": "1l9tIzw4Jb8IYd2UP2b97OJSu0rsfolAE",
+      "fileName": "nooch.core.week-impact@v01.paired.png",
+      "size": 568126,
+      "path": "images/nooch.core.week-impact@v01.paired.png",
+      "dimensions": [
+        1930,
+        1432
+      ],
+      "verifiedBytes": 568126,
+      "experiencePages": [
+        "week",
+        "today"
+      ],
+      "requirementIds": [
+        "PLAN-006",
+        "TODAY-003",
+        "WEEK-007",
+        "VIS-001",
+        "VIS-003"
+      ],
+      "currentApproval": "Selected by final owner I21 approval; runtime acceptance unverified"
+    },
+    {
+      "version": "nooch.core.groceries-review@v01",
+      "family": "nooch.core.groceries-review",
+      "title": "Review what you need — Recipe r1 · 4 planned portions · before pickup",
+      "url": "https://drive.google.com/file/d/1V96zvi1nSiwPqdCu4wj6HTAC8nCk71kO/view?usp=drivesdk",
+      "sha256": "9cd26ef3a7e6c48120fa88a846613707790e0257fc3468ea1ca917b7ecb76f6b",
+      "coverage": "Static desktop 1440 px and compact 390 px; individual captures and paired board in source package. Responsive pair shows the same state.",
+      "driveId": "1V96zvi1nSiwPqdCu4wj6HTAC8nCk71kO",
+      "fileName": "nooch.core.groceries-review@v01.paired.png",
+      "size": 583919,
+      "path": "images/nooch.core.groceries-review@v01.paired.png",
+      "dimensions": [
+        1930,
+        1627
+      ],
+      "verifiedBytes": 583919,
+      "experiencePages": [
+        "groceries"
+      ],
+      "requirementIds": [
+        "GROC-001",
+        "GROC-006",
+        "COST-001",
+        "VIS-001",
+        "VIS-003"
+      ],
+      "currentApproval": "Selected by final owner I21 approval; runtime acceptance unverified"
+    },
+    {
+      "version": "nooch.core.groceries-shop@v01",
+      "family": "nooch.core.groceries-shop",
+      "title": "A partial shopping trip — One 400 g pack picked up · not confirmed",
+      "url": "https://drive.google.com/file/d/1e_k9FOAw2OIdaS16XOfcGJ8ZCKrTBsgA/view?usp=drivesdk",
+      "sha256": "17e699db9639d52f6f24c4cdb71e26c8a7e6845e91370b68ce431ec24d7f2bdb",
+      "coverage": "Static desktop 1440 px and compact 390 px; individual captures and paired board in source package. Responsive pair shows the same state.",
+      "driveId": "1e_k9FOAw2OIdaS16XOfcGJ8ZCKrTBsgA",
+      "fileName": "nooch.core.groceries-shop@v01.paired.png",
+      "size": 597844,
+      "path": "images/nooch.core.groceries-shop@v01.paired.png",
+      "dimensions": [
+        1930,
+        1623
+      ],
+      "verifiedBytes": 597844,
+      "experiencePages": [
+        "groceries"
+      ],
+      "requirementIds": [
+        "GROC-005",
+        "GROC-006",
+        "VIS-001",
+        "VIS-003"
+      ],
+      "currentApproval": "Selected by final owner I21 approval; runtime acceptance unverified"
+    },
+    {
+      "version": "nooch.core.purchase-preview@v01",
+      "family": "nooch.core.purchase-preview",
+      "title": "Confirm actual quantities — Purchase 1 preview · price unknown",
+      "url": "https://drive.google.com/file/d/1uMKxtNjh653VWi--BXvI1bDWjHwm0pm0/view?usp=drivesdk",
+      "sha256": "f77c68a1b4937a899b7334b3b9bb74f219702eef70b0c69acd661fbb6ca7034d",
+      "coverage": "Static desktop 1440 px and compact 390 px; individual captures and paired board in source package. Responsive pair shows the same state.",
+      "driveId": "1uMKxtNjh653VWi--BXvI1bDWjHwm0pm0",
+      "fileName": "nooch.core.purchase-preview@v01.paired.png",
+      "size": 250749,
+      "path": "images/nooch.core.purchase-preview@v01.paired.png",
+      "dimensions": [
+        1930,
+        1485
+      ],
+      "verifiedBytes": 250749,
+      "experiencePages": [
+        "groceries"
+      ],
+      "requirementIds": [
+        "GROC-005",
+        "SYS-002",
+        "SYS-003",
+        "VIS-001",
+        "VIS-003"
+      ],
+      "currentApproval": "Selected by final owner I21 approval; runtime acceptance unverified"
+    },
+    {
+      "version": "nooch.core.setup-ready@v01",
+      "family": "nooch.core.setup-ready",
+      "title": "Setup that keeps useful progress — Saved configuration · no candidate is not a failed save",
+      "url": "https://drive.google.com/file/d/1U7Jsqe42HUhB5_T816luxFK2aRmH-3IH/view?usp=drivesdk",
+      "sha256": "34acfa9d541972a13787cfa330fbca898013c0f7af4912a714ef1cfa5927924c",
+      "coverage": "Static desktop 1440 px and compact 390 px; individual captures and paired board in source package. Responsive pair shows the same state.",
+      "driveId": "1U7Jsqe42HUhB5_T816luxFK2aRmH-3IH",
+      "fileName": "nooch.core.setup-ready@v01.paired.png",
+      "size": 275532,
+      "path": "images/nooch.core.setup-ready@v01.paired.png",
+      "dimensions": [
+        1930,
+        1461
+      ],
+      "verifiedBytes": 275532,
+      "experiencePages": [
+        "onboarding"
+      ],
+      "requirementIds": [
+        "WS-004",
+        "WS-007",
+        "WS-008",
+        "VIS-001",
+        "VIS-003"
+      ],
+      "currentApproval": "Selected by final owner I21 approval; runtime acceptance unverified"
+    },
+    {
+      "version": "nooch.core.setup-storyboard@v01",
+      "family": "nooch.core.setup-storyboard",
+      "title": "Four purposeful setup steps — Sequential storyboard; these panels are not responsive equivalents",
+      "url": "https://drive.google.com/file/d/1mR_698YfYwYRUpaMvVYn3Ikp6ab_9PbC/view?usp=drivesdk",
+      "sha256": "249cedb60efbf8ed9dbecb5efb823f495d9c3287c66680981cd0fe2a989bd486",
+      "coverage": "Static desktop 1440 px and compact 390 px; individual captures and paired board in source package. Explicit transition/alternative panels.",
+      "driveId": "1mR_698YfYwYRUpaMvVYn3Ikp6ab_9PbC",
+      "fileName": "nooch.core.setup-storyboard@v01.paired.png",
+      "size": 287851,
+      "path": "images/nooch.core.setup-storyboard@v01.paired.png",
+      "dimensions": [
+        1930,
+        1880
+      ],
+      "verifiedBytes": 287851,
+      "experiencePages": [
+        "onboarding"
+      ],
+      "requirementIds": [
+        "WS-004",
+        "WS-005",
+        "WS-006",
+        "VIS-001",
+        "VIS-003"
+      ],
+      "currentApproval": "Selected by final owner I21 approval; runtime acceptance unverified"
+    },
+    {
+      "version": "nooch.core.capture-editor@v01",
+      "family": "nooch.core.capture-editor",
+      "title": "Keep rough recipes useful — Failed extraction · original text retained · Draft d1",
+      "url": "https://drive.google.com/file/d/1Fj84-WWrRzfqQkqbc4ue0t0vh9U0wKvl/view?usp=drivesdk",
+      "sha256": "b48aaea1caa5200cb8f23e23617e609059b8d09643d8607fd83f9559f662c439",
+      "coverage": "Static desktop 1440 px and compact 390 px; individual captures and paired board in source package. Responsive pair shows the same state.",
+      "driveId": "1Fj84-WWrRzfqQkqbc4ue0t0vh9U0wKvl",
+      "fileName": "nooch.core.capture-editor@v01.paired.png",
+      "size": 317102,
+      "path": "images/nooch.core.capture-editor@v01.paired.png",
+      "dimensions": [
+        1930,
+        1910
+      ],
+      "verifiedBytes": 317102,
+      "experiencePages": [
+        "meals",
+        "recipe"
+      ],
+      "requirementIds": [
+        "CAP-001",
+        "CAP-002",
+        "CAP-003",
+        "VIS-001",
+        "VIS-003"
+      ],
+      "currentApproval": "Selected by final owner I21 approval; runtime acceptance unverified"
+    },
+    {
+      "version": "nooch.core.meals-explore@v01",
+      "family": "nooch.core.meals-explore",
+      "title": "Discovery with a destination — Monday dinner context · Save, Favorite, Add, Replace and Adapt differ",
+      "url": "https://drive.google.com/file/d/1PVSK6QfbbVI_0izT8cHwcf0MPld4MVu3/view?usp=drivesdk",
+      "sha256": "49f5c32e97687940e6cfcfdbcc6387dd748228ced2cd14e8400dffeec51136bf",
+      "coverage": "Static desktop 1440 px and compact 390 px; individual captures and paired board in source package. Responsive pair shows the same state.",
+      "driveId": "1PVSK6QfbbVI_0izT8cHwcf0MPld4MVu3",
+      "fileName": "nooch.core.meals-explore@v01.paired.png",
+      "size": 1075266,
+      "path": "images/nooch.core.meals-explore@v01.paired.png",
+      "dimensions": [
+        1930,
+        2008
+      ],
+      "verifiedBytes": 1075266,
+      "experiencePages": [
+        "meals",
+        "explore"
+      ],
+      "requirementIds": [
+        "CAP-007",
+        "EXPL-001",
+        "EXPL-003",
+        "EXPL-004",
+        "VIS-001",
+        "VIS-003"
+      ],
+      "currentApproval": "Selected by final owner I21 approval; runtime acceptance unverified"
+    },
+    {
+      "version": "nooch.core.recipe-reading@v01",
+      "family": "nooch.core.recipe-reading",
+      "title": "A recipe that can be followed — r1 / stovetop r1 · four steps · display scale four",
+      "url": "https://drive.google.com/file/d/1Glrf-_aKq7S-e_p8d-SuCNLB8LZM8DnJ/view?usp=drivesdk",
+      "sha256": "6023fe458fbb37ab575088b011ae1833bc7cc3c6dd70c07b7e68a9edc4e3ed0e",
+      "coverage": "Static desktop 1440 px and compact 390 px; individual captures and paired board in source package. Responsive pair shows the same state.",
+      "driveId": "1Glrf-_aKq7S-e_p8d-SuCNLB8LZM8DnJ",
+      "fileName": "nooch.core.recipe-reading@v01.paired.png",
+      "size": 985214,
+      "path": "images/nooch.core.recipe-reading@v01.paired.png",
+      "dimensions": [
+        1930,
+        2679
+      ],
+      "verifiedBytes": 985214,
+      "experiencePages": [
+        "recipe"
+      ],
+      "requirementIds": [
+        "REC-001",
+        "REC-005",
+        "REC-007",
+        "VIS-001",
+        "VIS-003"
+      ],
+      "currentApproval": "Selected by final owner I21 approval; runtime acceptance unverified"
+    },
+    {
+      "version": "nooch.core.recipe-map@v01",
+      "family": "nooch.core.recipe-map",
+      "title": "One method in two views — Split oil allocations, parallel prep and named outputs remain explicit",
+      "url": "https://drive.google.com/file/d/1Io97ge31UGGYdYWm6o3S5MUHrC8xH2YO/view?usp=drivesdk",
+      "sha256": "f026f86302e7ef2493746562e281c36f3250d6db4e746b5fe2d93e5e35f96a64",
+      "coverage": "Static desktop 1440 px and compact 390 px; individual captures and paired board in source package. Responsive pair shows the same state.",
+      "driveId": "1Io97ge31UGGYdYWm6o3S5MUHrC8xH2YO",
+      "fileName": "nooch.core.recipe-map@v01.paired.png",
+      "size": 373803,
+      "path": "images/nooch.core.recipe-map@v01.paired.png",
+      "dimensions": [
+        1930,
+        2233
+      ],
+      "verifiedBytes": 373803,
+      "experiencePages": [
+        "recipe"
+      ],
+      "requirementIds": [
+        "REC-001",
+        "REC-002",
+        "REC-004",
+        "VIS-001",
+        "VIS-003"
+      ],
+      "currentApproval": "Selected by final owner I21 approval; runtime acceptance unverified"
+    },
+    {
+      "version": "nooch.core.recipe-evidence@v01",
+      "family": "nooch.core.recipe-evidence",
+      "title": "Evidence before certainty — Recipe Nutrition, Notes and serving-scale review",
+      "url": "https://drive.google.com/file/d/1HFwlapL7sskOPBMBYvpVFVFA1QVVQJFV/view?usp=drivesdk",
+      "sha256": "eb0d900cdc01d0edaa2af68d7655ceb9d0038aaaeedc13beded4500410c98cc2",
+      "coverage": "Static desktop 1440 px and compact 390 px; individual captures and paired board in source package. Responsive pair shows the same state.",
+      "driveId": "1HFwlapL7sskOPBMBYvpVFVFA1QVVQJFV",
+      "fileName": "nooch.core.recipe-evidence@v01.paired.png",
+      "size": 319597,
+      "path": "images/nooch.core.recipe-evidence@v01.paired.png",
+      "dimensions": [
+        1930,
+        1880
+      ],
+      "verifiedBytes": 319597,
+      "experiencePages": [
+        "recipe",
+        "nutrition"
+      ],
+      "requirementIds": [
+        "REC-006",
+        "NUT-003",
+        "NUT-004",
+        "VIS-001",
+        "VIS-003"
+      ],
+      "currentApproval": "Selected by final owner I21 approval; runtime acceptance unverified"
+    },
+    {
+      "version": "nooch.core.week-nutrition@v01",
+      "family": "nooch.core.week-nutrition",
+      "title": "A full day without invented totals — Planned / Recorded / Expected remain separate",
+      "url": "https://drive.google.com/file/d/14SDumDKwjPK4BPBytHfWXpOr2OvwqhBA/view?usp=drivesdk",
+      "sha256": "fdd7e46ee11c5b47b4ae292080a73cb5fa797674d5775a0fae1743fa3e96f67a",
+      "coverage": "Static desktop 1440 px and compact 390 px; individual captures and paired board in source package. Responsive pair shows the same state.",
+      "driveId": "14SDumDKwjPK4BPBytHfWXpOr2OvwqhBA",
+      "fileName": "nooch.core.week-nutrition@v01.paired.png",
+      "size": 301638,
+      "path": "images/nooch.core.week-nutrition@v01.paired.png",
+      "dimensions": [
+        1930,
+        1742
+      ],
+      "verifiedBytes": 301638,
+      "experiencePages": [
+        "week",
+        "nutrition"
+      ],
+      "requirementIds": [
+        "WEEK-003",
+        "WEEK-008",
+        "NUT-004",
+        "NUT-005",
+        "VIS-001",
+        "VIS-003"
+      ],
+      "currentApproval": "Selected by final owner I21 approval; runtime acceptance unverified"
+    },
+    {
+      "version": "nooch.core.week-time-allweek@v01",
+      "family": "nooch.core.week-time-allweek",
+      "title": "An all-week view of effort — Active time, elapsed duration and price gaps stay explicit",
+      "url": "https://drive.google.com/file/d/1SZDbOJzHOqYDWcp8BRy0GLft6VAcWLkz/view?usp=drivesdk",
+      "sha256": "7a3d5dd66f1d5d67090689e0d3bf4fb65b663ef71aa6e8416211d99c9344f879",
+      "coverage": "Static desktop 1440 px and compact 390 px; individual captures and paired board in source package. Responsive pair shows the same state.",
+      "driveId": "1SZDbOJzHOqYDWcp8BRy0GLft6VAcWLkz",
+      "fileName": "nooch.core.week-time-allweek@v01.paired.png",
+      "size": 458472,
+      "path": "images/nooch.core.week-time-allweek@v01.paired.png",
+      "dimensions": [
+        1930,
+        2919
+      ],
+      "verifiedBytes": 458472,
+      "experiencePages": [
+        "week"
+      ],
+      "requirementIds": [
+        "WEEK-002",
+        "WEEK-003",
+        "COST-001",
+        "VIS-001",
+        "VIS-003"
+      ],
+      "currentApproval": "Selected by final owner I21 approval; runtime acceptance unverified"
+    },
+    {
+      "version": "nooch.core.stale-plan@v01",
+      "family": "nooch.core.stale-plan",
+      "title": "Keep the draft through a conflict — A changed Tuesday lock requires scoped revalidation",
+      "url": "https://drive.google.com/file/d/159Kc4WzLPRCIHNH-pQ70CoV4g81EO7QY/view?usp=drivesdk",
+      "sha256": "9d1f7ee2f88e9fbfec7c9e38eaf80732e74d95b4d47b14d25cf92ab1a15d33c4",
+      "coverage": "Static desktop 1440 px and compact 390 px; individual captures and paired board in source package. Responsive pair shows the same state.",
+      "driveId": "159Kc4WzLPRCIHNH-pQ70CoV4g81EO7QY",
+      "fileName": "nooch.core.stale-plan@v01.paired.png",
+      "size": 262875,
+      "path": "images/nooch.core.stale-plan@v01.paired.png",
+      "dimensions": [
+        1930,
+        1499
+      ],
+      "verifiedBytes": 262875,
+      "experiencePages": [
+        "week"
+      ],
+      "requirementIds": [
+        "PLAN-003",
+        "PLAN-006",
+        "SYS-004",
+        "VIS-001",
+        "VIS-003"
+      ],
+      "currentApproval": "Selected by final owner I21 approval; runtime acceptance unverified"
+    },
+    {
+      "version": "nooch.core.shopping-recovery@v01",
+      "family": "nooch.core.shopping-recovery",
+      "title": "An uncertain response is not another purchase — Retain the same acquisition draft; find its receipt before retrying",
+      "url": "https://drive.google.com/file/d/1MihmKBIU2WHkb-sUw6OC6DE_2J5xfNRR/view?usp=drivesdk",
+      "sha256": "dfe3722203ddf5aefdf876e591d048536bd539fd8da83a0d5421b194d163b312",
+      "coverage": "Static desktop 1440 px and compact 390 px; individual captures and paired board in source package. Responsive pair shows the same state.",
+      "driveId": "1MihmKBIU2WHkb-sUw6OC6DE_2J5xfNRR",
+      "fileName": "nooch.core.shopping-recovery@v01.paired.png",
+      "size": 259796,
+      "path": "images/nooch.core.shopping-recovery@v01.paired.png",
+      "dimensions": [
+        1930,
+        1430
+      ],
+      "verifiedBytes": 259796,
+      "experiencePages": [
+        "groceries"
+      ],
+      "requirementIds": [
+        "SYS-001",
+        "SYS-002",
+        "SYS-006",
+        "GROC-005",
+        "VIS-001",
+        "VIS-003"
+      ],
+      "currentApproval": "Selected by final owner I21 approval; runtime acceptance unverified"
+    },
+    {
+      "version": "nooch.core.shopping-branches@v01",
+      "family": "nooch.core.shopping-branches",
+      "title": "Shopping through change and uncertainty — Focused branches: changed plan, incompatible units, inventory off and correction",
+      "url": "https://drive.google.com/file/d/1KDz7J2ajZ5RK1XdlZPFgFWETPUg07dOA/view?usp=drivesdk",
+      "sha256": "089738a25c1211681d05721cf2601e6e7e40b8b2fe7fba967cdb224f37d19e40",
+      "coverage": "Static desktop 1440 px and compact 390 px; individual captures and paired board in source package. Explicit transition/alternative panels.",
+      "driveId": "1KDz7J2ajZ5RK1XdlZPFgFWETPUg07dOA",
+      "fileName": "nooch.core.shopping-branches@v01.paired.png",
+      "size": 327285,
+      "path": "images/nooch.core.shopping-branches@v01.paired.png",
+      "dimensions": [
+        1930,
+        2006
+      ],
+      "verifiedBytes": 327285,
+      "experiencePages": [
+        "groceries"
+      ],
+      "requirementIds": [
+        "GROC-002",
+        "GROC-007",
+        "GROC-008",
+        "SYS-006",
+        "VIS-001",
+        "VIS-003"
+      ],
+      "currentApproval": "Selected by final owner I21 approval; runtime acceptance unverified"
+    },
+    {
+      "version": "nooch.core.kitchen-acquisitions@v01",
+      "family": "nooch.core.kitchen-acquisitions",
+      "title": "Stock with a date and a reason — Purchase 1 confirmed: 500 g tofu; a second acquisition is separate",
+      "url": "https://drive.google.com/file/d/1fe5lJA3asZXg4BHW13OBE1ZF78TxxvUN/view?usp=drivesdk",
+      "sha256": "4af12dee829af672de74bf19d8c8ab9914db39f10d9832d151f23eca359d43d7",
+      "coverage": "Static desktop 1440 px and compact 390 px; individual captures and paired board in source package. Responsive pair shows the same state.",
+      "driveId": "1fe5lJA3asZXg4BHW13OBE1ZF78TxxvUN",
+      "fileName": "nooch.core.kitchen-acquisitions@v01.paired.png",
+      "size": 285997,
+      "path": "images/nooch.core.kitchen-acquisitions@v01.paired.png",
+      "dimensions": [
+        1930,
+        1700
+      ],
+      "verifiedBytes": 285997,
+      "experiencePages": [
+        "kitchen",
+        "groceries"
+      ],
+      "requirementIds": [
+        "KIT-001",
+        "KIT-002",
+        "KIT-003",
+        "GROC-003",
+        "GROC-005",
+        "VIS-001",
+        "VIS-003"
+      ],
+      "currentApproval": "Selected by final owner I21 approval; runtime acceptance unverified"
+    },
+    {
+      "version": "nooch.core.cooking-resume@v01",
+      "family": "nooch.core.cooking-resume",
+      "title": "Return to the same cooking session — Four steps, explicit completion and independent timers",
+      "url": "https://drive.google.com/file/d/1wEU3K_leJVK0HZ-JQAXNYNglTEPEwi8g/view?usp=drivesdk",
+      "sha256": "6ee75e46b87c760ed862700bfb0749dbe94dee12e8391b1f1c54cca523ffa4fb",
+      "coverage": "Static desktop 1440 px and compact 390 px; individual captures and paired board in source package. Responsive pair shows the same state.",
+      "driveId": "1wEU3K_leJVK0HZ-JQAXNYNglTEPEwi8g",
+      "fileName": "nooch.core.cooking-resume@v01.paired.png",
+      "size": 293720,
+      "path": "images/nooch.core.cooking-resume@v01.paired.png",
+      "dimensions": [
+        1930,
+        1697
+      ],
+      "verifiedBytes": 293720,
+      "experiencePages": [
+        "cooking"
+      ],
+      "requirementIds": [
+        "COOK-001",
+        "COOK-002",
+        "COOK-003",
+        "COOK-004",
+        "VIS-003",
+        "VIS-001"
+      ],
+      "currentApproval": "Selected by final owner I21 approval; runtime acceptance unverified"
+    },
+    {
+      "version": "nooch.core.timer-transitions@v01",
+      "family": "nooch.core.timer-transitions",
+      "title": "Keep timer actions distinct — Sequential timer specimens, not simultaneous states",
+      "url": "https://drive.google.com/file/d/1EJTmP-qLZpFqYi6qww0PDGxMFROZXMPx/view?usp=drivesdk",
+      "sha256": "fadb1198a2339862d3342584d7ae7827f7dcac6e090a15798fcd6410c1c21d97",
+      "coverage": "Static desktop 1440 px and compact 390 px; individual captures and paired board in source package. Explicit transition/alternative panels.",
+      "driveId": "1EJTmP-qLZpFqYi6qww0PDGxMFROZXMPx",
+      "fileName": "nooch.core.timer-transitions@v01.paired.png",
+      "size": 255934,
+      "path": "images/nooch.core.timer-transitions@v01.paired.png",
+      "dimensions": [
+        1930,
+        1725
+      ],
+      "verifiedBytes": 255934,
+      "experiencePages": [
+        "cooking"
+      ],
+      "requirementIds": [
+        "COOK-003",
+        "COOK-004",
+        "COOK-005",
+        "VIS-001",
+        "VIS-003"
+      ],
+      "currentApproval": "Selected by final owner I21 approval; runtime acceptance unverified"
+    },
+    {
+      "version": "nooch.core.finish-shortfall@v01",
+      "family": "nooch.core.finish-shortfall",
+      "title": "Three prepared portions, one shortfall — Actual yield and raw use are separate from eating",
+      "url": "https://drive.google.com/file/d/197HWq5irMa9yjbhN8mp_Q1XpsKD93YtM/view?usp=drivesdk",
+      "sha256": "b7b8d42c03014450c6e3ed481bd345d4e49be06ddbc275c2135d654942ef5541",
+      "coverage": "Static desktop 1440 px and compact 390 px; individual captures and paired board in source package. Responsive pair shows the same state.",
+      "driveId": "197HWq5irMa9yjbhN8mp_Q1XpsKD93YtM",
+      "fileName": "nooch.core.finish-shortfall@v01.paired.png",
+      "size": 284031,
+      "path": "images/nooch.core.finish-shortfall@v01.paired.png",
+      "dimensions": [
+        1930,
+        1794
+      ],
+      "verifiedBytes": 284031,
+      "experiencePages": [
+        "cooking",
+        "kitchen",
+        "week"
+      ],
+      "requirementIds": [
+        "COOK-006",
+        "GROC-003",
+        "WEEK-005",
+        "VIS-001",
+        "VIS-003"
+      ],
+      "currentApproval": "Selected by final owner I21 approval; runtime acceptance unverified"
+    },
+    {
+      "version": "nooch.core.intake-correction@v01",
+      "family": "nooch.core.intake-correction",
+      "title": "Correct only what changed — Two one-portion intakes; reversing the second restores one",
+      "url": "https://drive.google.com/file/d/13Yf8-b2PdCKOJ5KzlxDJFynt3zchK1OY/view?usp=drivesdk",
+      "sha256": "c241ff21491d5bafdf2b80ab290e32b7365022797c009a1350986c957310fe09",
+      "coverage": "Static desktop 1440 px and compact 390 px; individual captures and paired board in source package. Responsive pair shows the same state.",
+      "driveId": "13Yf8-b2PdCKOJ5KzlxDJFynt3zchK1OY",
+      "fileName": "nooch.core.intake-correction@v01.paired.png",
+      "size": 277503,
+      "path": "images/nooch.core.intake-correction@v01.paired.png",
+      "dimensions": [
+        1930,
+        1557
+      ],
+      "verifiedBytes": 277503,
+      "experiencePages": [
+        "nutrition",
+        "today",
+        "kitchen"
+      ],
+      "requirementIds": [
+        "REV-002",
+        "NUT-005",
+        "GROC-003",
+        "VIS-001",
+        "VIS-003"
+      ],
+      "currentApproval": "Selected by final owner I21 approval; runtime acceptance unverified"
+    },
+    {
+      "version": "nooch.core.equipment@v01",
+      "family": "nooch.core.equipment",
+      "title": "Capabilities, not decoration — Cooktop-only state with complete category and tile access",
+      "url": "https://drive.google.com/file/d/1TSw7VgCRp1rb0joRsRCqL0Ey8bPO-tHW/view?usp=drivesdk",
+      "sha256": "57adb7e2db048616c9b35484e3751035cc0dd1427b854aeaa46c366c0904c657",
+      "coverage": "Static desktop 1440 px and compact 390 px; individual captures and paired board in source package. Responsive pair shows the same state.",
+      "driveId": "1TSw7VgCRp1rb0joRsRCqL0Ey8bPO-tHW",
+      "fileName": "nooch.core.equipment@v01.paired.png",
+      "size": 1661522,
+      "path": "images/nooch.core.equipment@v01.paired.png",
+      "dimensions": [
+        1930,
+        1597
+      ],
+      "verifiedBytes": 1661522,
+      "experiencePages": [
+        "kitchen",
+        "onboarding"
+      ],
+      "requirementIds": [
+        "KIT-004",
+        "KIT-005",
+        "KIT-006",
+        "VIS-001",
+        "VIS-003"
+      ],
+      "currentApproval": "Selected by final owner I21 approval; runtime acceptance unverified"
+    },
+    {
+      "version": "nooch.core.equipment-branches@v01",
+      "family": "nooch.core.equipment-branches",
+      "title": "No appliance assumption — Zero, stove-only and oven-only cases; future impact of removal",
+      "url": "https://drive.google.com/file/d/1D5xcS1KATJtBhumgAYz71xS9wYxv1E0j/view?usp=drivesdk",
+      "sha256": "ce408ce507125c12013f614bef981a5a416fea2e833b7a71523d817d3ca42545",
+      "coverage": "Static desktop 1440 px and compact 390 px; individual captures and paired board in source package. Explicit transition/alternative panels.",
+      "driveId": "1D5xcS1KATJtBhumgAYz71xS9wYxv1E0j",
+      "fileName": "nooch.core.equipment-branches@v01.paired.png",
+      "size": 1761415,
+      "path": "images/nooch.core.equipment-branches@v01.paired.png",
+      "dimensions": [
+        1930,
+        2278
+      ],
+      "verifiedBytes": 1761415,
+      "experiencePages": [
+        "kitchen",
+        "onboarding"
+      ],
+      "requirementIds": [
+        "KIT-005",
+        "KIT-007",
+        "ELIG-001",
+        "VIS-001",
+        "VIS-003"
+      ],
+      "currentApproval": "Selected by final owner I21 approval; runtime acceptance unverified"
+    },
+    {
+      "version": "nooch.core.preferences-constraints@v01",
+      "family": "nooch.core.preferences-constraints",
+      "title": "Preferences with clear boundaries — Temporary priorities, durable rules, empty priorities and required conflict",
+      "url": "https://drive.google.com/file/d/1Guz7-XGzKJuSxXCK4B1eUK_8avqG7mQ0/view?usp=drivesdk",
+      "sha256": "ffd68afef3ab7f9f63302ddd64bd839816264a66b791a295ec416c098d371b52",
+      "coverage": "Static desktop 1440 px and compact 390 px; individual captures and paired board in source package. Responsive pair shows the same state.",
+      "driveId": "1Guz7-XGzKJuSxXCK4B1eUK_8avqG7mQ0",
+      "fileName": "nooch.core.preferences-constraints@v01.paired.png",
+      "size": 321386,
+      "path": "images/nooch.core.preferences-constraints@v01.paired.png",
+      "dimensions": [
+        1930,
+        1932
+      ],
+      "verifiedBytes": 321386,
+      "experiencePages": [
+        "kitchen",
+        "settings"
+      ],
+      "requirementIds": [
+        "KIT-008",
+        "ELIG-004",
+        "WS-007",
+        "VIS-001",
+        "VIS-003"
+      ],
+      "currentApproval": "Selected by final owner I21 approval; runtime acceptance unverified"
+    },
+    {
+      "version": "nooch.core.replan-applied@v01",
+      "family": "nooch.core.replan-applied",
+      "title": "A replan with a real end state — Alternative RP-01 completed as p2; the main shopping trace remains p1",
+      "url": "https://drive.google.com/file/d/1bgu0TAuclafCUM5D_25tX9k2mYAb8_QF/view?usp=drivesdk",
+      "sha256": "2082ae79268e53f21db465fb731deed1861fadbef45525b8a74ecb5f3be25a03",
+      "coverage": "Static desktop 1440 px and compact 390 px; individual captures and paired board in source package. Responsive pair shows the same state.",
+      "driveId": "1bgu0TAuclafCUM5D_25tX9k2mYAb8_QF",
+      "fileName": "nooch.core.replan-applied@v01.paired.png",
+      "size": 274950,
+      "path": "images/nooch.core.replan-applied@v01.paired.png",
+      "dimensions": [
+        1930,
+        1462
+      ],
+      "verifiedBytes": 274950,
+      "experiencePages": [
+        "week",
+        "today"
+      ],
+      "requirementIds": [
+        "PLAN-003",
+        "PLAN-006",
+        "PLAN-007",
+        "VIS-001",
+        "VIS-003"
+      ],
+      "currentApproval": "Selected by final owner I21 approval; runtime acceptance unverified"
+    },
+    {
+      "version": "nooch.core.saved-draft@v01",
+      "family": "nooch.core.saved-draft",
+      "title": "Return to a useful saved draft — Originating Your meals search and selected draft survive",
+      "url": "https://drive.google.com/file/d/14sXkycqG3kBWbUiRftpV9j0N0txZA4KX/view?usp=drivesdk",
+      "sha256": "7ffba9936b437942f2e288c64aac7b73cac9b45cd4acbf5ae15321aa9195928c",
+      "coverage": "Static desktop 1440 px and compact 390 px; individual captures and paired board in source package. Responsive pair shows the same state.",
+      "driveId": "14sXkycqG3kBWbUiRftpV9j0N0txZA4KX",
+      "fileName": "nooch.core.saved-draft@v01.paired.png",
+      "size": 193786,
+      "path": "images/nooch.core.saved-draft@v01.paired.png",
+      "dimensions": [
+        1930,
+        1173
+      ],
+      "verifiedBytes": 193786,
+      "experiencePages": [
+        "meals",
+        "recipe"
+      ],
+      "requirementIds": [
+        "CAP-001",
+        "CAP-004",
+        "CAP-007",
+        "VIS-001",
+        "VIS-003"
+      ],
+      "currentApproval": "Selected by final owner I21 approval; runtime acceptance unverified"
+    },
+    {
+      "version": "nooch.core.editor-review@v01",
+      "family": "nooch.core.editor-review",
+      "title": "Complete one coherent recipe revision — Canonical 2-portion recipe becomes r1; viewer scale four is separate",
+      "url": "https://drive.google.com/file/d/1c2igKO4mto1hrKOQN53NA0R8o3Dig2qO/view?usp=drivesdk",
+      "sha256": "404cba231047b29c3ec3be1a7927305ef16ebf4fdb8cfcfd2e43fbee750f0978",
+      "coverage": "Static desktop 1440 px and compact 390 px; individual captures and paired board in source package. Responsive pair shows the same state.",
+      "driveId": "1c2igKO4mto1hrKOQN53NA0R8o3Dig2qO",
+      "fileName": "nooch.core.editor-review@v01.paired.png",
+      "size": 343040,
+      "path": "images/nooch.core.editor-review@v01.paired.png",
+      "dimensions": [
+        1930,
+        1930
+      ],
+      "verifiedBytes": 343040,
+      "experiencePages": [
+        "meals",
+        "recipe"
+      ],
+      "requirementIds": [
+        "CAP-003",
+        "CAP-006",
+        "REV-001",
+        "VIS-001",
+        "VIS-003"
+      ],
+      "currentApproval": "Selected by final owner I21 approval; runtime acceptance unverified"
+    },
+    {
+      "version": "nooch.core.second-purchase@v01",
+      "family": "nooch.core.second-purchase",
+      "title": "Two actual acquisitions, one plan — P1 + P2 give 900 g before the 800 g preparation",
+      "url": "https://drive.google.com/file/d/1Mjyvp4Ffc0uHo2bBFYHN-GfFWX9uRFTo/view?usp=drivesdk",
+      "sha256": "b981ec5557f00834cf4044c6c3312b1efff3d3e975e61b06edc6cdc3765577fb",
+      "coverage": "Static desktop 1440 px and compact 390 px; individual captures and paired board in source package. Responsive pair shows the same state.",
+      "driveId": "1Mjyvp4Ffc0uHo2bBFYHN-GfFWX9uRFTo",
+      "fileName": "nooch.core.second-purchase@v01.paired.png",
+      "size": 299898,
+      "path": "images/nooch.core.second-purchase@v01.paired.png",
+      "dimensions": [
+        1930,
+        1646
+      ],
+      "verifiedBytes": 299898,
+      "experiencePages": [
+        "groceries",
+        "kitchen"
+      ],
+      "requirementIds": [
+        "GROC-005",
+        "GROC-007",
+        "SYS-002",
+        "VIS-001",
+        "VIS-003"
+      ],
+      "currentApproval": "Selected by final owner I21 approval; runtime acceptance unverified"
+    },
+    {
+      "version": "nooch.core.numeric-coverage@v01",
+      "family": "nooch.core.numeric-coverage",
+      "title": "Useful numbers without false completeness — Separate FIX-02/FIX-04 source fixture; never assigned to Sesame tofu r1",
+      "url": "https://drive.google.com/file/d/1-yhCSCVDR7qYuHkpNldhiqid-clhu5jt/view?usp=drivesdk",
+      "sha256": "24fcb0b56d365de99297b6c510c547f0f9aa7a61ed22680fab0f19a43a922475",
+      "coverage": "Static desktop 1440 px and compact 390 px; individual captures and paired board in source package. Responsive pair shows the same state.",
+      "driveId": "1-yhCSCVDR7qYuHkpNldhiqid-clhu5jt",
+      "fileName": "nooch.core.numeric-coverage@v01.paired.png",
+      "size": 344243,
+      "path": "images/nooch.core.numeric-coverage@v01.paired.png",
+      "dimensions": [
+        1930,
+        1932
+      ],
+      "verifiedBytes": 344243,
+      "experiencePages": [
+        "nutrition",
+        "week",
+        "meals"
+      ],
+      "requirementIds": [
+        "NUT-004",
+        "NUT-005",
+        "COST-003",
+        "CAP-007",
+        "VIS-001",
+        "VIS-003"
+      ],
+      "currentApproval": "Selected by final owner I21 approval; runtime acceptance unverified"
+    },
+    {
+      "version": "today.sunroom@v02",
+      "family": "today.sunroom",
+      "title": "Accepted Today Sunroom v02",
+      "url": "https://drive.google.com/file/d/19XDd-rW6fNsnfLdUl5NZ3wNAJXrWiN60/view",
+      "sha256": "940dbaeb230db286aa992024c4de02dbb674d510589e3739336acc6b39434e87",
+      "coverage": "Accepted Today direction",
+      "driveId": "19XDd-rW6fNsnfLdUl5NZ3wNAJXrWiN60",
+      "fileName": "nooch-today-paired-review-v02.png",
+      "size": 1914107,
+      "path": "images/nooch-today-paired-review-v02.png",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "verifiedBytes": 1914107,
+      "experiencePages": [
+        "today"
+      ],
+      "requirementIds": [
+        "TODAY-001",
+        "TODAY-005",
+        "MEDIA-001",
+        "VIS-001",
+        "VIS-003"
+      ],
+      "currentApproval": "Selected by final owner I21 approval; runtime acceptance unverified"
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "style-to-delivered-track",
+    "title": "From a house sound to a delivered track",
+    "purpose": "The scenario's primary path, and the one the take-set contract exists to serve: configure a style once, generate a batch of takes from it, audition them against each other, reserve one, and leave the rest in the pool so asking for a different track costs nothing.",
+    "prd_refs": ["OT-P0-007", "OT-P0-008", "OT-P1-005"]
+  },
+  "steps": [
+    {
+      "page": "styles",
+      "state": "editing",
+      "intent": "Capture a house sound once as data and see the caption and parameters it compiles to.",
+      "via": "compiled-preview"
+    },
+    {
+      "page": "compose",
+      "state": "idle",
+      "intent": "Submit a batch of takes from that style, knowing the cost and the rung before the work starts.",
+      "via": "submit"
+    },
+    {
+      "page": "audition",
+      "state": "ready",
+      "intent": "Compare the takes against each other as peers and decide which one to keep.",
+      "via": "take-row"
+    },
+    {
+      "page": "audition",
+      "state": "ready",
+      "intent": "Reserve the chosen take so no other consumer is offered the same track.",
+      "via": "keep-action"
+    },
+    {
+      "page": "pool",
+      "state": "below-threshold",
+      "intent": "See that consuming the take dropped the pool below its threshold and that replenishment is already running.",
+      "via": "replenish-status"
+    }
+  ]
+}

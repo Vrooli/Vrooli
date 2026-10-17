@@ -1,0 +1,187 @@
+{
+  "archived": false,
+  "coordination": {
+    "pattern": "leader-led",
+    "leadAgentId": "personal-planner-delivery-orchestrator",
+    "reportingMode": "leader",
+    "messagingMode": "async-inbox",
+    "capabilities": {
+      "showOrgContext": true,
+      "injectInbox": true,
+      "allowPeerTriggers": false,
+      "showTaskBoardGuidance": false,
+      "showKnowledgeLogGuidance": false,
+      "requireHandoff": true
+    }
+  },
+  "createdAt": "2026-10-03T02:36:38Z",
+  "displayName": "Personal Planner Delivery",
+  "effortRefs": [
+    "effort:personal-planner-I18"
+  ],
+  "enabled": true,
+  "execution": {
+    "queuePolicy": "serialized",
+    "maxConcurrentRuns": 1
+  },
+  "id": "personal-planner-delivery",
+  "kind": "team",
+  "lifetime": "finite",
+  "mission": "Deliver owner-approved I18 integrated private calendar, outcomes, actuals, forecasting, learning, CLI parity and R1 read-only ingestion through native epochs.",
+  "operatingContract": {
+    "schemaVersion": 1,
+    "governance": {},
+    "documents": {
+      "planOfRecord": [
+        {
+          "id": "planner-I18-goal",
+          "hub": {
+            "base": "repo-root",
+            "path": "scenarios/personal-planner/docs/internal/goal/GOAL.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "scenarios/personal-planner/docs/internal/goal/GOAL.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "scenarios/personal-planner/docs/internal/goal/AUTHORIZATION.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "scenarios/personal-planner/docs/internal/goal/TARGETS.md"
+            }
+          ],
+          "writePolicy": "Orchestrator maintains goal home; accepted owner amendments change destination.",
+          "consumers": [
+            "personal-planner-delivery-orchestrator",
+            "personal-planner-acceptance-reviewer"
+          ],
+          "useFor": "Approved destination, native authority and targets."
+        },
+        {
+          "id": "planner-I18-contract",
+          "hub": {
+            "base": "repo-root",
+            "path": "scenarios/personal-planner/docs/internal/goal/CONTRACT.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "scenarios/personal-planner/docs/internal/goal/CONTRACT.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "scenarios/personal-planner/docs/internal/goal/ACCEPTANCE.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "scenarios/personal-planner/docs/internal/goal/receipts/source-manifest.json"
+            }
+          ],
+          "writePolicy": "Preserve source snapshot and exact approval; native owner amendment only.",
+          "consumers": [
+            "personal-planner-delivery-orchestrator",
+            "personal-planner-acceptance-reviewer"
+          ],
+          "useFor": "Integrated accepted contract, all journey gates and immutable evidence pins.",
+          "required": false,
+          "optionalReason": "Load at admission/acceptance rather than every wake."
+        }
+      ],
+      "sharedState": [
+        {
+          "id": "planner-queue",
+          "path": {
+            "base": "repo-root",
+            "path": "scenarios/personal-planner/docs/internal/goal/QUEUE.md"
+          },
+          "kind": "working-register",
+          "required": true
+        },
+        {
+          "id": "planner-feedback",
+          "path": {
+            "base": "repo-root",
+            "path": "scenarios/personal-planner/docs/internal/goal/FEEDBACK.md"
+          },
+          "kind": "operator-input",
+          "required": true
+        },
+        {
+          "id": "planner-workarounds",
+          "path": {
+            "base": "repo-root",
+            "path": "scenarios/personal-planner/docs/internal/goal/WORKAROUNDS.md"
+          },
+          "kind": "working-register",
+          "required": true
+        },
+        {
+          "id": "planner-installs",
+          "path": {
+            "base": "repo-root",
+            "path": "scenarios/personal-planner/docs/internal/goal/INSTALLS.md"
+          },
+          "kind": "working-register",
+          "required": true
+        }
+      ]
+    },
+    "knowledgeTopics": {},
+    "members": {
+      "personal-planner-acceptance-reviewer": {
+        "lane": "Independently check epoch gates, user journeys, exact source/readbacks and failure evidence; report acceptance verdict without implementing or self-accepting.",
+        "allowedWrites": [
+          {
+            "kind": "handoff"
+          },
+          {
+            "base": "repo-root",
+            "path": "scenarios/personal-planner/docs/internal/goal/receipts"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Use native judgment profile; preserve source/user data and scope.",
+          "A green aggregate does not hide failed steps or untested journeys.",
+          "Do not implement product work or change acceptance gates."
+        ],
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": false,
+          "stillWriteHandoff": true
+        }
+      },
+      "personal-planner-delivery-orchestrator": {
+        "lane": "Orchestrate approved Planner I18 in native epochs; admit measured briefs, spawn one implementation worker, park, steer, independently review and mechanically accept; maintain goal home.",
+        "allowedWrites": [
+          {
+            "kind": "handoff"
+          },
+          {
+            "base": "repo-root",
+            "path": "scenarios/personal-planner/docs/internal/goal"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Use large-effort-orchestration; never implement product work.",
+          "Native profiles, role/budget/permission controls and action-specific confirmations govern; never weaken them or inherit investigation constraints.",
+          "Preserve accepted product scope and unrelated work/user data; R1 provider reads do not authorize R3 writeback.",
+          "One implementation worker per epoch, independent acceptance then mechanical gate; retain every failed step.",
+          "Park through native children producer; no polling or uncertain dispatch replay."
+        ],
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": false,
+          "stillWriteHandoff": true
+        }
+      }
+    }
+  },
+  "purpose": "delivery",
+  "revision": 3,
+  "runtime": {
+    "mode": "multi-process"
+  },
+  "schemaVersion": 1,
+  "updatedAt": "2026-10-03T02:50:12Z"
+}

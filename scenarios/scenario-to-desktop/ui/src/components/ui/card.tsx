@@ -10,25 +10,38 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
         ref={ref}
         className={cn(
           "rounded-lg border border-slate-800 bg-slate-900/70 shadow-lg",
-          className
+          className,
         )}
         {...props}
       />
     );
-  }
+  },
 );
 Card.displayName = "Card";
 
 type CardHeaderProps = HTMLAttributes<HTMLDivElement>;
 
 export function CardHeader({ className, ...props }: CardHeaderProps) {
-  return <div className={cn("flex flex-col space-y-1.5 p-4", className)} {...props} />;
+  return (
+    <div
+      className={cn("flex flex-col space-y-1.5 p-4", className)}
+      {...props}
+    />
+  );
 }
 
 type CardTitleProps = HTMLAttributes<HTMLHeadingElement>;
 
 export function CardTitle({ className, ...props }: CardTitleProps) {
-  return <h3 className={cn("text-2xl font-semibold leading-none tracking-tight", className)} {...props} />;
+  return (
+    <h3
+      className={cn(
+        "text-2xl font-semibold leading-none tracking-tight",
+        className,
+      )}
+      {...props}
+    />
+  );
 }
 
 type CardDescriptionProps = HTMLAttributes<HTMLParagraphElement>;
@@ -46,5 +59,7 @@ export function CardContent({ className, ...props }: CardContentProps) {
 type CardFooterProps = HTMLAttributes<HTMLDivElement>;
 
 export function CardFooter({ className, ...props }: CardFooterProps) {
-  return <div className={cn("flex items-center px-4 pb-4", className)} {...props} />;
+  return (
+    <div className={cn("flex items-center px-4 pb-4", className)} {...props} />
+  );
 }

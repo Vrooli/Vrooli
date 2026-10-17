@@ -68,14 +68,14 @@ export const ENTITY_REGISTRY: Record<GraphEntityType, EntityConfig> = {
     dimensions: { width: 170, height: 76 },
     icon: ENTITY_TYPE_ICONS.backlog,
   },
-  initiative: {
-    label: "Initiatives",
-    badgeLabel: "initiative",
+  goal: {
+    label: "Goals",
+    badgeLabel: "goal",
     shape: "rounded-rectangle",
     cssClass: "rounded-lg",
     clipPath: null,
     dimensions: { width: 168, height: 76 },
-    icon: ENTITY_TYPE_ICONS.initiative,
+    icon: ENTITY_TYPE_ICONS.goal,
   },
   scenario: {
     label: "Scenarios",

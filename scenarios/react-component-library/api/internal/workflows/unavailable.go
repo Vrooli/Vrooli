@@ -1,0 +1,26 @@
+package workflows
+
+import (
+	"context"
+	"errors"
+)
+
+// UnavailableDispatcher is the explicit graceful-degradation seam used until
+// lifecycle discovery resolves Agent Manager. A durable workflow still records
+// the attempted request; browser callers never fall back to direct dispatch.
+type UnavailableDispatcher struct{ Reason string }
+
+func (d UnavailableDispatcher) Start(context.Context, StartInput) (DispatchResult, error) {
+	if d.Reason == "" {
+		d.Reason = "agent-manager is unavailable"
+	}
+	return DispatchResult{}, errors.New(d.Reason)
+}
+
+func (d UnavailableDispatcher) Wait(context.Context, string) (DispatchResult, error) {
+	return DispatchResult{}, errors.New(d.Reason)
+}
+
+func (d UnavailableDispatcher) Stop(context.Context, string) (RunSnapshot, error) {
+	return RunSnapshot{}, errors.New(d.Reason)
+}

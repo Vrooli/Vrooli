@@ -1,0 +1,33 @@
+{
+  "module_id": "MOD-P1-008",
+  "prd_ref": "OT-P1-002",
+  "priority": "P1",
+  "description": "Answer exposure questions in one query via semantic AI search (degrading to TEXT) plus structured filters (--ecosystem / --vulnerable-only / --name).",
+  "requirements": [
+    {
+      "id": "REQ-P1-003",
+      "title": "AI search with TEXT fallback",
+      "prd_ref": "OT-P1-002",
+      "category": "core",
+      "status": "planned",
+      "description": "SearchService.Search must embed the query via Ollama and rank Qdrant matches when both resources are available, and fall back to substring/keyword TEXT search when either is down; Status must report resource availability, indexed count, and last reconcile time.",
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "pending", "notes": "With embedder+vectorstore available, Search returns AI-mode ranked results." },
+        { "type": "test", "phase": "unit", "status": "pending", "notes": "With Qdrant unavailable, Search degrades to TEXT mode without error." },
+        { "type": "test", "phase": "integration", "status": "pending", "notes": "Status reports indexed count and last reconcile timestamp." }
+      ]
+    },
+    {
+      "id": "REQ-P1-004",
+      "title": "Structured exposure filters",
+      "prd_ref": "OT-P1-002",
+      "category": "cli",
+      "status": "planned",
+      "description": "`deps search` must support --ecosystem, --vulnerable-only, and --name <glob> so 'which scenarios use vulnerable golang.org/x/net?' is a one-line query.",
+      "validation": [
+        { "type": "test", "phase": "integration", "status": "pending", "notes": "deps search --vulnerable-only returns only records with non-empty vuln_ids." },
+        { "type": "test", "phase": "integration", "status": "pending", "notes": "deps search --name 'golang.org/x/*' --vulnerable-only lists the affected scenarios." }
+      ]
+    }
+  ]
+}

@@ -3,13 +3,23 @@ package persistence
 import (
 	"context"
 	"database/sql"
+	"strings"
 	"testing"
 	"time"
 
-	_ "modernc.org/sqlite"
+	"github.com/vrooli/vrooli/internal/hostinventory"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/incidents"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/systemevents"
 
-	"vrooli-autoheal/internal/checks"
+	_ "modernc.org/sqlite"
 )
+
+// productionSchema returns the same embedded SQLite schema used by runtime.
+func productionSchema(t *testing.T) string {
+	t.Helper()
+	return Schema()
+}
 
 func TestSQLiteStore_SaveAndReadHealthResults(t *testing.T) {
 	db := openSQLiteTestDB(t)
@@ -48,6 +58,172 @@ func TestSQLiteStore_SaveAndReadHealthResults(t *testing.T) {
 	}
 }
 
+func TestSQLiteStore_OutageLedgerClosesOneContinuousIntervalAndSurvivesStoreRestart(t *testing.T) {
+	db := openSQLiteTestDB(t)
+	store := NewStore(db)
+	ctx := context.Background()
+	memberID := "resource-qdrant"
+	openedAt := time.Date(2026, 8, 29, 3, 0, 0, 0, time.UTC)
+	observation := func(at time.Time, available bool, message string) checks.Result {
+		return checks.Result{
+			CheckID: memberID,
+			Status:  checks.StatusCritical,
+			Message: message,
+			Details: map[string]interface{}{
+				"supervisionIntent": "must_start",
+				"available":         available,
+			},
+			Timestamp: at,
+		}
+	}
+
+	if err := store.ObserveSupervisedAvailability(ctx, observation(openedAt, false, "qdrant stopped")); err != nil {
+		t.Fatalf("open outage: %v", err)
+	}
+	if err := store.ObserveSupervisedAvailability(ctx, observation(openedAt.Add(15*time.Second), false, "qdrant still stopped")); err != nil {
+		t.Fatalf("repeat outage observation: %v", err)
+	}
+	closedAt := openedAt.Add(45 * time.Second)
+	if err := store.ObserveSupervisedAvailability(ctx, observation(closedAt, true, "qdrant healthy")); err != nil {
+		t.Fatalf("close outage: %v", err)
+	}
+
+	restartedStore := NewStore(db)
+	records, err := restartedStore.ListOutageRecords(ctx, memberID, 10)
+	if err != nil {
+		t.Fatalf("list outage records after store restart: %v", err)
+	}
+	if len(records) != 1 {
+		t.Fatalf("outage records = %d, want exactly one", len(records))
+	}
+	if records[0].ClosedAt == nil || !records[0].ClosedAt.After(records[0].OpenedAt) {
+		t.Fatalf("closed outage = %+v, want non-zero duration", records[0])
+	}
+
+	summary, err := restartedStore.GetOutageSummary(ctx, memberID, openedAt.Add(-time.Minute), closedAt.Add(time.Minute))
+	if err != nil {
+		t.Fatalf("get outage summary: %v", err)
+	}
+	if summary.DistinctOutageCount != 1 || summary.OpenOutageCount != 0 {
+		t.Fatalf("outage counts = distinct %d open %d, want 1 and 0", summary.DistinctOutageCount, summary.OpenOutageCount)
+	}
+	if summary.TotalUnavailableSeconds != 45 {
+		t.Fatalf("unavailable seconds = %v, want 45", summary.TotalUnavailableSeconds)
+	}
+}
+
+func TestSQLiteSchemaRetiresNeverWrittenAutohealActionsLedger(t *testing.T) {
+	db := openSQLiteTestDB(t)
+	var count int
+	if err := db.QueryRowContext(context.Background(), `
+		SELECT COUNT(*) FROM sqlite_master
+		WHERE (type = 'table' AND name = 'autoheal_actions')
+		   OR (type = 'index' AND name = 'idx_autoheal_actions_created_at')
+	`).Scan(&count); err != nil {
+		t.Fatalf("inspect sqlite schema: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("retired autoheal_actions schema objects = %d, want 0", count)
+	}
+}
+
+func TestSQLiteStore_PersistsHealSuspensionAndDisposition(t *testing.T) {
+	db := openSQLiteTestDB(t)
+	store := NewStore(db)
+	now := time.Now().UTC().Truncate(time.Nanosecond)
+	want := &checks.HealTracker{
+		LastAttempt:         now,
+		ConsecutiveFailures: 3,
+		TotalAttempts:       3,
+		SuspendedAt:         now,
+		SuspensionReason:    "reached consecutive failure limit (3)",
+		Disposition:         checks.HealDispositionEscalated,
+		DispositionAt:       now,
+	}
+	if err := store.SaveHealTrackers(context.Background(), map[string]checks.HealTracker{"scenario-failing": *want}); err != nil {
+		t.Fatalf("batch save suspended tracker: %v", err)
+	}
+	loaded, err := store.GetAllHealTrackers(context.Background())
+	if err != nil {
+		t.Fatalf("load suspended trackers: %v", err)
+	}
+	got := loaded["scenario-failing"]
+	if got == nil || got.SuspensionReason != want.SuspensionReason || got.Disposition != checks.HealDispositionEscalated || got.SuspendedAt.IsZero() {
+		t.Fatalf("loaded tracker = %+v, want durable suspension", got)
+	}
+}
+
+func TestSQLiteStore_JournalCursorRoundTrip(t *testing.T) {
+	db := openSQLiteTestDB(t)
+	store := NewStore(db)
+	ctx := context.Background()
+	const key = "journalctl/kernel"
+
+	// Cold read: empty state, no error.
+	got, err := store.GetJournalCursor(ctx, key)
+	if err != nil {
+		t.Fatalf("GetJournalCursor (cold): %v", err)
+	}
+	if got.Cursor != "" || got.BootID != "" {
+		t.Fatalf("cold cursor = %+v, want empty", got)
+	}
+
+	// Persist and read back.
+	want := systemevents.CursorState{Cursor: "s=abc;i=42", BootID: "boot-1", UpdatedAt: time.Now().UTC()}
+	if err := store.SetJournalCursor(ctx, key, want); err != nil {
+		t.Fatalf("SetJournalCursor: %v", err)
+	}
+	got, err = store.GetJournalCursor(ctx, key)
+	if err != nil {
+		t.Fatalf("GetJournalCursor: %v", err)
+	}
+	if got.Cursor != want.Cursor || got.BootID != want.BootID {
+		t.Fatalf("cursor round-trip = %+v, want %+v", got, want)
+	}
+
+	// Upsert (advance) overwrites in place.
+	advanced := systemevents.CursorState{Cursor: "s=abc;i=99", BootID: "boot-1"}
+	if err := store.SetJournalCursor(ctx, key, advanced); err != nil {
+		t.Fatalf("SetJournalCursor (advance): %v", err)
+	}
+	got, _ = store.GetJournalCursor(ctx, key)
+	if got.Cursor != "s=abc;i=99" {
+		t.Fatalf("advanced cursor = %q, want s=abc;i=99", got.Cursor)
+	}
+}
+
+func TestSQLiteStore_ScannedBootMarker(t *testing.T) {
+	db := openSQLiteTestDB(t)
+	store := NewStore(db)
+	ctx := context.Background()
+	const key = "journalctl/kernel"
+
+	scanned, err := store.IsBootScanned(ctx, key, "boot-x")
+	if err != nil {
+		t.Fatalf("IsBootScanned (cold): %v", err)
+	}
+	if scanned {
+		t.Fatal("boot-x should not be scanned initially")
+	}
+
+	if err := store.MarkBootScanned(ctx, key, "boot-x"); err != nil {
+		t.Fatalf("MarkBootScanned: %v", err)
+	}
+	// Idempotent: marking twice is fine.
+	if err := store.MarkBootScanned(ctx, key, "boot-x"); err != nil {
+		t.Fatalf("MarkBootScanned (twice): %v", err)
+	}
+	scanned, _ = store.IsBootScanned(ctx, key, "boot-x")
+	if !scanned {
+		t.Fatal("boot-x should be scanned after marking")
+	}
+	// A different boot id under the same key is independent.
+	other, _ := store.IsBootScanned(ctx, key, "boot-y")
+	if other {
+		t.Fatal("boot-y should be independent of boot-x")
+	}
+}
+
 func TestSQLiteStore_ActionLogRoundTrip(t *testing.T) {
 	db := openSQLiteTestDB(t)
 	store := NewStore(db)
@@ -57,6 +233,7 @@ func TestSQLiteStore_ActionLogRoundTrip(t *testing.T) {
 		"infra-network",
 		"restart",
 		true,
+		false,
 		"Restart executed",
 		"ok",
 		"",
@@ -75,6 +252,332 @@ func TestSQLiteStore_ActionLogRoundTrip(t *testing.T) {
 	}
 	if logs.Logs[0].CheckID != "infra-network" {
 		t.Fatalf("check id = %q, want infra-network", logs.Logs[0].CheckID)
+	}
+}
+
+func TestSQLiteStore_SystemEventsDedupFilterAndCorrelate(t *testing.T) {
+	db := openSQLiteTestDB(t)
+	store := NewStore(db)
+	ctx := context.Background()
+	base := time.Date(2026, 5, 6, 6, 10, 0, 0, time.UTC)
+	events := []systemevents.Event{
+		{Fingerprint: "kernel-1", OccurredAt: base, IngestedAt: base, Source: "dpkg-log", Platform: "linux", Category: "kernel", Severity: systemevents.SeverityInfo, Title: "Kernel installed", Summary: "linux-image installed"},
+		{Fingerprint: "crash-1", OccurredAt: base.Add(2 * time.Hour), IngestedAt: base.Add(2 * time.Hour), Source: "journalctl", Platform: "linux", Category: "crash", Severity: systemevents.SeverityCritical, Title: "Hardware/reset signal", Summary: "unclean reset"},
+	}
+
+	inserted, deduped, err := store.UpsertSystemEvents(ctx, events)
+	if err != nil {
+		t.Fatalf("UpsertSystemEvents() error = %v", err)
+	}
+	if inserted != 2 || deduped != 0 {
+		t.Fatalf("first upsert inserted/deduped = %d/%d, want 2/0", inserted, deduped)
+	}
+	inserted, deduped, err = store.UpsertSystemEvents(ctx, events)
+	if err != nil {
+		t.Fatalf("second UpsertSystemEvents() error = %v", err)
+	}
+	if inserted != 0 || deduped != 2 {
+		t.Fatalf("second upsert inserted/deduped = %d/%d, want 0/2", inserted, deduped)
+	}
+
+	resp, err := store.ListSystemEvents(ctx, systemevents.Filters{Category: []string{"kernel"}, Limit: 10, Correlate: true})
+	if err != nil {
+		t.Fatalf("ListSystemEvents() error = %v", err)
+	}
+	if len(resp.Events) != 1 || resp.Events[0].Category != "kernel" {
+		t.Fatalf("filtered events = %#v, want one kernel event", resp.Events)
+	}
+
+	resp, err = store.ListSystemEvents(ctx, systemevents.Filters{Limit: 10, Correlate: true})
+	if err != nil {
+		t.Fatalf("ListSystemEvents(correlate) error = %v", err)
+	}
+	if len(resp.Correlations) == 0 {
+		t.Fatal("expected correlation hints")
+	}
+}
+
+func TestSQLiteStore_HostInventorySnapshotRoundTrip(t *testing.T) {
+	db := openSQLiteTestDB(t)
+	store := NewStore(db)
+	ctx := context.Background()
+
+	_, _, err := store.SaveHostInventorySnapshot(ctx, hostinventory.HostInventory{
+		CollectedAt: time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC),
+		Platform:    "linux",
+		OS:          "linux",
+		Arch:        "amd64",
+		BootID:      "boot-a",
+		Kernel: hostinventory.KernelInfo{
+			Release:           "1.2.3-test",
+			ModuleTreePresent: true,
+		},
+		ProbeStatus: map[string]hostinventory.IntegrityProbeState{"kernel": hostinventory.IntegrityProbeOK},
+	})
+	if err != nil {
+		t.Fatalf("SaveHostInventorySnapshot() error = %v", err)
+	}
+	latest, err := store.GetLatestHostInventorySnapshot(ctx)
+	if err != nil {
+		t.Fatalf("GetLatestHostInventorySnapshot() error = %v", err)
+	}
+	if latest == nil {
+		t.Fatal("expected latest snapshot")
+	}
+	if latest.KernelRelease != "1.2.3-test" {
+		t.Fatalf("kernel release = %q, want 1.2.3-test", latest.KernelRelease)
+	}
+	if _, _, err := store.SaveHostInventorySnapshot(ctx, hostinventory.HostInventory{
+		CollectedAt: time.Date(2026, 5, 8, 12, 1, 0, 0, time.UTC),
+		Platform:    "linux",
+		OS:          "linux",
+		Arch:        "amd64",
+		BootID:      "boot-a",
+		Kernel:      hostinventory.KernelInfo{Release: "1.2.3-test", ModuleTreePresent: true},
+		ProbeStatus: map[string]hostinventory.IntegrityProbeState{"kernel": hostinventory.IntegrityProbeOK},
+	}); err != nil {
+		t.Fatalf("repeated SaveHostInventorySnapshot() error = %v", err)
+	}
+	var count int
+	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM host_inventory_snapshots`).Scan(&count); err != nil {
+		t.Fatalf("count snapshots: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("snapshot count = %d, want deduplicated count 1", count)
+	}
+}
+
+func TestSQLiteStore_IncidentLifecycle(t *testing.T) {
+	db := openSQLiteTestDB(t)
+	store := NewStore(db)
+	ctx := context.Background()
+
+	incident, err := store.UpsertIncident(ctx, incidents.UpsertInput{
+		Fingerprint:   incidents.Fingerprint("host_integrity", "host-runtime-integrity"),
+		Type:          incidents.TypeHostIntegrity,
+		Severity:      incidents.SeverityCritical,
+		Title:         "Host integrity issue detected",
+		Summary:       "Runtime failed",
+		ObservedAt:    time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC),
+		SourceCheckID: "host-runtime-integrity",
+	})
+	if err != nil {
+		t.Fatalf("UpsertIncident() error = %v", err)
+	}
+	if incident.Status != incidents.StatusOpen {
+		t.Fatalf("status = %s, want open", incident.Status)
+	}
+
+	updated, err := store.UpdateIncidentStatus(ctx, incident.ID, incidents.StatusAcknowledged, "reviewing")
+	if err != nil {
+		t.Fatalf("UpdateIncidentStatus() error = %v", err)
+	}
+	if updated.Status != incidents.StatusAcknowledged {
+		t.Fatalf("status = %s, want acknowledged", updated.Status)
+	}
+	list, err := store.ListIncidents(ctx, incidents.ListFilters{Status: incidents.StatusAcknowledged, Limit: 10})
+	if err != nil {
+		t.Fatalf("ListIncidents() error = %v", err)
+	}
+	if list.Total != 1 {
+		t.Fatalf("incident count = %d, want 1", list.Total)
+	}
+}
+
+func TestSQLiteStore_RemediationAuthorisationIsBoundAndSingleUse(t *testing.T) {
+	db := openSQLiteTestDB(t)
+	store := NewStore(db)
+	ctx := context.Background()
+	approvedAt := time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC)
+	if err := store.RecordRemediationAuthorisation(ctx, "ask-1", "incident-1", "fingerprint-1", "candidate-1", "operator-1", approvedAt); err != nil {
+		t.Fatalf("RecordRemediationAuthorisation() error = %v", err)
+	}
+	claimed, err := store.ClaimRemediationAuthorisation(ctx, "ask-1", "incident-1", "fingerprint-1", "candidate-1", approvedAt.Add(time.Minute))
+	if err != nil || !claimed {
+		t.Fatalf("first claim = %v/%v, want true", claimed, err)
+	}
+	claimed, err = store.ClaimRemediationAuthorisation(ctx, "ask-1", "incident-1", "fingerprint-1", "candidate-1", approvedAt.Add(2*time.Minute))
+	if err != nil || claimed {
+		t.Fatalf("replay claim = %v/%v, want false", claimed, err)
+	}
+	claimed, err = store.ClaimRemediationAuthorisation(ctx, "ask-1", "incident-1", "different-fingerprint", "candidate-1", approvedAt.Add(3*time.Minute))
+	if err != nil || claimed {
+		t.Fatalf("mismatched claim = %v/%v, want false", claimed, err)
+	}
+}
+
+func TestSQLiteStore_RecordsRemediationArtifactAndPreservesAcrossUpsert(t *testing.T) {
+	db := openSQLiteTestDB(t)
+	store := NewStore(db)
+	ctx := context.Background()
+
+	input := incidents.UpsertInput{
+		Fingerprint:           incidents.Fingerprint("host_integrity", "host-kernel-module-drift", "boot-a"),
+		Type:                  incidents.TypeHostIntegrity,
+		Severity:              incidents.SeverityCritical,
+		Title:                 "NVIDIA module package missing",
+		Summary:               "Missing matching module package",
+		ObservedAt:            time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC),
+		SourceCheckID:         "host-kernel-module-drift",
+		RemediationCandidates: []incidents.RemediationCandidate{{ID: "ubuntu-nvidia-kernel-module-mismatch", Applicability: "applicable"}},
+	}
+	incident, err := store.UpsertIncident(ctx, input)
+	if err != nil {
+		t.Fatalf("UpsertIncident() error = %v", err)
+	}
+	artifact := incidents.RemediationArtifact{
+		ID:            "ubuntu-nvidia-kernel-module-mismatch-artifact",
+		RemediationID: "ubuntu-nvidia-kernel-module-mismatch",
+		Path:          "/tmp/remediation",
+		GeneratedAt:   time.Date(2026, 5, 8, 12, 5, 0, 0, time.UTC),
+		Metadata:      map[string]any{"templateId": "ubuntu-nvidia-kernel-module-mismatch"},
+	}
+	incident, err = store.RecordIncidentRemediationArtifact(ctx, incident.ID, artifact)
+	if err != nil {
+		t.Fatalf("RecordIncidentRemediationArtifact() error = %v", err)
+	}
+	if len(incident.RemediationArtifacts) != 1 {
+		t.Fatalf("artifacts = %d, want 1", len(incident.RemediationArtifacts))
+	}
+
+	input.ObservedAt = input.ObservedAt.Add(time.Minute)
+	incident, err = store.UpsertIncident(ctx, input)
+	if err != nil {
+		t.Fatalf("second UpsertIncident() error = %v", err)
+	}
+	if len(incident.RemediationArtifacts) != 1 || incident.RemediationArtifacts[0].Path != artifact.Path {
+		t.Fatalf("artifact not preserved across upsert: %#v", incident.RemediationArtifacts)
+	}
+}
+
+func TestSQLiteStore_RecordsRemediationOutcome(t *testing.T) {
+	db := openSQLiteTestDB(t)
+	store := NewStore(db)
+	ctx := context.Background()
+
+	incident, err := store.UpsertIncident(ctx, incidents.UpsertInput{
+		Fingerprint:   incidents.Fingerprint("host_integrity", "host-kernel-module-drift", "boot-a"),
+		Type:          incidents.TypeHostIntegrity,
+		Severity:      incidents.SeverityCritical,
+		Title:         "NVIDIA module package missing",
+		Summary:       "Missing matching module package",
+		ObservedAt:    time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC),
+		SourceCheckID: "host-kernel-module-drift",
+	})
+	if err != nil {
+		t.Fatalf("UpsertIncident() error = %v", err)
+	}
+	updated, err := store.RecordIncidentRemediationOutcome(ctx, incident.ID, incidents.Outcome{
+		RemediationID: "ubuntu-nvidia-kernel-module-mismatch",
+		Status:        "verified",
+		Note:          "post-checks are healthy",
+		ReportedAt:    time.Date(2026, 5, 8, 12, 10, 0, 0, time.UTC),
+	})
+	if err != nil {
+		t.Fatalf("RecordIncidentRemediationOutcome() error = %v", err)
+	}
+	if updated.Outcome == nil || updated.Outcome.Status != "verified" {
+		t.Fatalf("outcome = %#v, want verified", updated.Outcome)
+	}
+	if !strings.Contains(updated.OperatorNotes, "post-checks are healthy") {
+		t.Fatalf("operator notes = %q, want outcome note", updated.OperatorNotes)
+	}
+}
+
+func TestSQLiteStore_IncidentUpsertCoalescesRepeatedTickObservations(t *testing.T) {
+	db := openSQLiteTestDB(t)
+	store := NewStore(db)
+	ctx := context.Background()
+	fp := incidents.Fingerprint("host_integrity", "host-runtime-integrity", "boot-a")
+	firstSeen := time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC)
+	input := incidents.UpsertInput{
+		Fingerprint:   fp,
+		Type:          incidents.TypeHostIntegrity,
+		Severity:      incidents.SeverityCritical,
+		Title:         "Host integrity issue detected",
+		Summary:       "Runtime failed",
+		ObservedAt:    firstSeen,
+		SourceCheckID: "host-runtime-integrity",
+		Evidence:      map[string]any{"runtime": "nvidia-smi"},
+	}
+
+	incident, err := store.UpsertIncident(ctx, input)
+	if err != nil {
+		t.Fatalf("first UpsertIncident() error = %v", err)
+	}
+	if incident.EventCount != 1 || incident.ObservationCount != 1 {
+		t.Fatalf("counts after first upsert = events %d observations %d, want 1/1", incident.EventCount, incident.ObservationCount)
+	}
+
+	input.ObservedAt = firstSeen.Add(5 * time.Minute)
+	incident, err = store.UpsertIncident(ctx, input)
+	if err != nil {
+		t.Fatalf("second UpsertIncident() error = %v", err)
+	}
+	if incident.EventCount != 1 || incident.ObservationCount != 1 {
+		t.Fatalf("counts after coalesced upsert = events %d observations %d, want 1/1", incident.EventCount, incident.ObservationCount)
+	}
+
+	input.ObservedAt = firstSeen.Add(31 * time.Minute)
+	incident, err = store.UpsertIncident(ctx, input)
+	if err != nil {
+		t.Fatalf("quiet-window UpsertIncident() error = %v", err)
+	}
+	if incident.EventCount != 1 || incident.ObservationCount != 2 {
+		t.Fatalf("counts after quiet-window upsert = events %d observations %d, want 1/2", incident.EventCount, incident.ObservationCount)
+	}
+
+	observations, err := store.ListIncidentObservations(ctx, incident.ID, 10)
+	if err != nil {
+		t.Fatalf("ListIncidentObservations() error = %v", err)
+	}
+	if len(observations) != 2 {
+		t.Fatalf("observation rows = %d, want 2", len(observations))
+	}
+}
+
+func TestSQLiteStore_IncidentReopenRules(t *testing.T) {
+	db := openSQLiteTestDB(t)
+	store := NewStore(db)
+	ctx := context.Background()
+	input := incidents.UpsertInput{
+		Fingerprint:   incidents.Fingerprint("host_integrity", "host-runtime-integrity", "boot-a"),
+		Type:          incidents.TypeHostIntegrity,
+		Severity:      incidents.SeverityCritical,
+		Title:         "Host integrity issue detected",
+		Summary:       "Runtime failed",
+		ObservedAt:    time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC),
+		SourceCheckID: "host-runtime-integrity",
+	}
+
+	incident, err := store.UpsertIncident(ctx, input)
+	if err != nil {
+		t.Fatalf("UpsertIncident() error = %v", err)
+	}
+	_, err = store.UpdateIncidentStatus(ctx, incident.ID, incidents.StatusResolved, "fixed")
+	if err != nil {
+		t.Fatalf("UpdateIncidentStatus(resolved) error = %v", err)
+	}
+	input.ObservedAt = input.ObservedAt.Add(time.Hour)
+	incident, err = store.UpsertIncident(ctx, input)
+	if err != nil {
+		t.Fatalf("UpsertIncident(after resolved) error = %v", err)
+	}
+	if incident.Status != incidents.StatusOpen || incident.EventCount != 2 {
+		t.Fatalf("after resolved recurrence status/events = %s/%d, want open/2", incident.Status, incident.EventCount)
+	}
+
+	_, err = store.UpdateIncidentStatus(ctx, incident.ID, incidents.StatusIgnored, "intentional")
+	if err != nil {
+		t.Fatalf("UpdateIncidentStatus(ignored) error = %v", err)
+	}
+	input.ObservedAt = input.ObservedAt.Add(time.Hour)
+	incident, err = store.UpsertIncident(ctx, input)
+	if err != nil {
+		t.Fatalf("UpsertIncident(after ignored) error = %v", err)
+	}
+	if incident.Status != incidents.StatusIgnored || incident.EventCount != 2 {
+		t.Fatalf("after ignored recurrence status/events = %s/%d, want ignored/2", incident.Status, incident.EventCount)
 	}
 }
 
@@ -133,7 +636,8 @@ func TestSQLiteStore_GetAllHealTrackers_ToleratesLegacyOrInvalidRows(t *testing.
 	db := openSQLiteTestDB(t)
 	store := NewStore(db)
 
-	_, err := db.Exec(`
+	_, err := db.Exec(
+		`
 		INSERT INTO heal_trackers (
 			check_id, last_attempt, last_success, consecutive_failures,
 			total_attempts, total_successes, cooldown_until, updated_at
@@ -242,40 +746,8 @@ func openSQLiteTestDB(t *testing.T) *sql.DB {
 	db.SetMaxOpenConns(1)
 	db.SetMaxIdleConns(1)
 
-	schema := `
-	CREATE TABLE health_results (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		check_id TEXT NOT NULL,
-		status TEXT NOT NULL,
-		message TEXT NOT NULL,
-		details TEXT NOT NULL DEFAULT '{}',
-		duration_ms INTEGER NOT NULL DEFAULT 0,
-		created_at TEXT NOT NULL
-	);
-	CREATE TABLE action_logs (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		check_id TEXT NOT NULL,
-		action_id TEXT NOT NULL,
-		success INTEGER NOT NULL,
-		message TEXT NOT NULL,
-		output TEXT,
-		error TEXT,
-		duration_ms INTEGER NOT NULL DEFAULT 0,
-		created_at TEXT NOT NULL
-	);
-	CREATE TABLE heal_trackers (
-		check_id TEXT PRIMARY KEY,
-		last_attempt TEXT,
-		last_success TEXT,
-		consecutive_failures INTEGER NOT NULL DEFAULT 0,
-		total_attempts INTEGER NOT NULL DEFAULT 0,
-		total_successes INTEGER NOT NULL DEFAULT 0,
-		cooldown_until TEXT,
-		updated_at TEXT NOT NULL
-	);
-	`
-	if _, err := db.Exec(schema); err != nil {
-		t.Fatalf("create schema error = %v", err)
+	if _, err := db.Exec(productionSchema(t)); err != nil {
+		t.Fatalf("apply production schema error = %v", err)
 	}
 
 	return db
@@ -311,5 +783,55 @@ func seedHealthResults(t *testing.T, db *sql.DB, now time.Time) {
 		); err != nil {
 			t.Fatalf("seed insert failed: %v", err)
 		}
+	}
+}
+
+// [REQ:STORM-002] A host_pressure incident (the storm authority's) is storable
+// on a fresh database, and a legacy database whose CHECK constraint predates
+// the type is rebuilt in place with its rows intact.
+func TestIncidentTypeConstraintAdmitsHostPressureAndMigratesLegacyTables(t *testing.T) {
+	ctx := context.Background()
+	db := openSQLiteTestDB(t)
+	store := NewStore(db)
+	if _, err := store.UpsertIncident(ctx, incidents.UpsertInput{Fingerprint: "fp-storm", Type: incidents.TypeHostPressure, Severity: incidents.SeverityCritical, Title: "fork storm from sh pid 1 in scope vrooli-agent-x.scope", Summary: "s", ObservedAt: time.Now().UTC(), SourceCheckID: "system-emergency-watchdog-report"}); err != nil {
+		t.Fatalf("fresh database refused host_pressure: %v", err)
+	}
+
+	legacy := openSQLiteTestDB(t)
+	legacyStore := NewStore(legacy)
+	if _, err := legacyStore.UpsertIncident(ctx, incidents.UpsertInput{Fingerprint: "fp-old", Type: incidents.TypeScenarioFailure, Severity: incidents.SeverityWarning, Title: "old", Summary: "s", ObservedAt: time.Now().UTC(), SourceCheckID: "scenario-x"}); err != nil {
+		t.Fatal(err)
+	}
+	// Recreate the table the way the pre-2026-09-02 schema declared it.
+	legacyDDL, _ := incidentsTableDDL()
+	legacyDDL = strings.Replace(legacyDDL, ", 'host_pressure'", "", 1)
+	for _, statement := range []string{
+		"PRAGMA foreign_keys = OFF",
+		strings.Replace(legacyDDL, "CREATE TABLE IF NOT EXISTS incidents (", "CREATE TABLE incidents_legacy (", 1),
+		"INSERT INTO incidents_legacy SELECT * FROM incidents",
+		"DROP TABLE incidents",
+		"ALTER TABLE incidents_legacy RENAME TO incidents",
+	} {
+		if _, err := legacy.ExecContext(ctx, statement); err != nil {
+			t.Fatalf("%s: %v", statement, err)
+		}
+	}
+	var ddl string
+	if err := legacy.QueryRowContext(ctx, `SELECT sql FROM sqlite_master WHERE name='incidents'`).Scan(&ddl); err != nil || strings.Contains(ddl, "host_pressure") {
+		t.Fatalf("legacy table setup: %q %v", ddl, err)
+	}
+	migrated := NewStore(legacy)
+	if err := legacy.QueryRowContext(ctx, `SELECT sql FROM sqlite_master WHERE name='incidents'`).Scan(&ddl); err != nil || !strings.Contains(ddl, "host_pressure") {
+		t.Fatalf("legacy table was not rebuilt: %q %v", ddl, err)
+	}
+	listed, err := migrated.ListIncidents(ctx, incidents.ListFilters{Limit: 10})
+	if err != nil || len(listed.Incidents) != 1 || listed.Incidents[0].Fingerprint != "fp-old" {
+		t.Fatalf("rows lost in rebuild: %+v %v", listed, err)
+	}
+	if _, err := migrated.UpsertIncident(ctx, incidents.UpsertInput{Fingerprint: "fp-storm-2", Type: incidents.TypeHostPressure, Severity: incidents.SeverityCritical, Title: "storm", Summary: "s", ObservedAt: time.Now().UTC(), SourceCheckID: "system-emergency-watchdog-report"}); err != nil {
+		t.Fatalf("rebuilt table refused host_pressure: %v", err)
+	}
+	if !incidents.ValidType(string(incidents.TypeHostPressure)) {
+		t.Fatal("host_pressure must be a valid list filter")
 	}
 }

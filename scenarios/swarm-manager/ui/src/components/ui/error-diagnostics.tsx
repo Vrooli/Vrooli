@@ -43,6 +43,7 @@ const CATEGORY_COLORS: Record<ErrorCategory, string> = {
   SERVER: "bg-red-500/20 text-red-300 border-red-500/30",
   VALIDATION: "bg-amber-500/20 text-amber-300 border-amber-500/30",
   PARSE: "bg-purple-500/20 text-purple-300 border-purple-500/30",
+  STALE_CHUNK: "bg-cyan-500/20 text-cyan-300 border-cyan-500/30",
   RUNTIME: "bg-red-500/20 text-red-300 border-red-500/30",
 };
 

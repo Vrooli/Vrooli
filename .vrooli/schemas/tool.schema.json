@@ -1,0 +1,168 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Tool Manifest",
+  "description": "Declares a host tool that can be auto-installed by the Vrooli runtime",
+  "type": "object",
+  "required": [
+    "name",
+    "description",
+    "commands",
+    "versionArgs",
+    "bundling",
+    "capability",
+    "capability_role"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "storage": {
+      "$ref": "common.schema.json#/definitions/storageSurface",
+      "description": "Portable declaration of the tool's on-disk storage surface."
+    },
+    "retention": {
+      "$ref": "common.schema.json#/definitions/retention",
+      "description": "Declared storage ceilings for the runtime data this tool accumulates. Enforced by packages/api-core/retention. Distinct from durable_data, which declares what to back up."
+    },
+    "$schema": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string",
+      "description": "Unique tool identifier matching the handler registry name"
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable purpose of the tool"
+    },
+    "commands": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "description": "Command names to check on PATH (first match wins)"
+    },
+    "versionArgs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Arguments passed to the resolved command to extract version output"
+    },
+    "defaultPackage": {
+      "type": "string",
+      "description": "Fallback package name when the host package manager is not listed in packages"
+    },
+    "packages": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Per-package-manager package name overrides (e.g. apt, brew, winget, dnf, pacman, apk). When source is url/release, the matching verified target is preferred and this package is the fallback when no target exists for the host OS/architecture."
+    },
+    "installHint": {
+      "type": "string",
+      "description": "Human-readable install guidance shown when the tool is missing"
+    },
+    "platforms": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "linux",
+          "macos",
+          "windows"
+        ]
+      },
+      "description": "Platforms this tool applies to. Omit for all platforms."
+    },
+    "platform_status": {
+      "type": "object",
+      "description": "Per-host-OS implementation status and evidence.",
+      "additionalProperties": false,
+      "properties": {
+        "linux": { "$ref": "common.schema.json#/definitions/platformStatus" },
+        "macos": { "$ref": "common.schema.json#/definitions/platformStatus" },
+        "windows": { "$ref": "common.schema.json#/definitions/platformStatus" }
+      }
+    },
+    "handler": {
+      "type": "string",
+      "description": "Name of a custom Go handler. When set, the generic package-install logic is bypassed."
+    },
+    "capability": {
+      "type": "string",
+      "enum": ["agent-hooks","ai-cli","autoheal-health-monitoring","autoheal-host-integrity","autoheal-service-recovery","autoheal-watchdog","backup-storage","build-toolchain","clock-accuracy","code-analysis","container-runtime","crash-forensics","credential-storage","data-query","developer-utility","evicted-service-reclaim","file-preview","gpu-driver-health","hardware-error-telemetry","headless-gui","host-pressure-detection","load-testing","media-processing","network-host-config","network-transfer","package-management","process-containment","protobuf-toolchain","remote-desktop","runtime-language","service-resource-limits","session-working-dir","source-control","system-monitor-cpu","system-monitor-device-graph","system-monitor-disk","system-monitor-gpu","system-monitor-memory","system-monitor-memory-errors","system-monitor-network","system-monitor-process","system-monitor-storage-health","system-monitor-thermal","terminal-echo-state","terminal-multiplexing","terminal-persistent-tmux","terminal-remote-bridge","terminal-standard-pty","test-execution","web-proxy","workload-disposal","workload-ownership-reconciliation"],
+      "description": "Capability delivered by this tool; values are governed by .vrooli/capability-vocabulary.json."
+    },
+    "capability_role": {
+      "type": "string",
+      "enum": ["primary", "peer", "control"],
+      "description": "Whether this is the primary implementation, a platform peer, or a required host control for the capability."
+    },
+    "manual": {
+      "type": "boolean",
+      "description": "When true, this tool has no automatic install path (e.g. a pip CLI or a from-source build). The runtime surfaces it as manual-action-required with installHint rather than attempting a fetch/package install."
+    },
+    "privilege": {
+      "enum": ["none", "user", "elevated"],
+      "description": "Optional override for the privilege derived from the install mechanism; privilegeReason is required when set."
+    },
+    "privilegeReason": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Why this tool's explicit privilege overrides the source-mechanism derivation."
+    },
+    "bundling": {
+      "enum": ["vendorable", "host-required", "prohibited"],
+      "description": "Whether the tool may be included in a Tier 2 desktop bundle."
+    },
+    "acquisition": {
+      "$ref": "acquisition.schema.json#",
+      "description": "Fact-predicated, checksum-verified acquisition targets shared by tools and resources."
+    },
+    "requires": {
+      "type": "object",
+      "description": "Hardware-capability gate evaluated against host inventory (GPU/VRAM/arch/RAM). When any condition is unmet the tool is cleanly skipped (not applicable), never failed.",
+      "additionalProperties": false,
+      "properties": {
+        "gpu": {
+          "type": "boolean",
+          "description": "Require (true) or forbid (false) a detected GPU"
+        },
+        "minVramGb": {
+          "type": "number",
+          "description": "Minimum total VRAM in GiB on at least one detected GPU"
+        },
+        "arch": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Allowed host architectures (Go GOARCH, e.g. amd64, arm64)"
+        },
+        "minRamGb": {
+          "type": "number",
+          "description": "Minimum total system RAM in GiB"
+        }
+      }
+    },
+    "verificationCheck": {
+      "$ref": "common.schema.json#/definitions/verificationCheck",
+      "description": "Optional post-install verification. If absent, command presence on PATH is sufficient."
+    },
+    "version": {
+      "type": "string",
+      "description": "Manifest schema version"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Freeform annotation for maintainers (not shown to users during install)"
+    }
+  },
+  "allOf": [
+    {
+      "if": {"required": ["privilege"]},
+      "then": {"required": ["privilegeReason"]}
+    }
+  ]
+}

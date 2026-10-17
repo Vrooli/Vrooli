@@ -5,12 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http/httptest"
-	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/vrooli/api-core/apihttptest"
 	"swarm-manager/internal/execution"
-	"swarm-manager/internal/testutil"
 )
 
 func doBatchQueue(t *testing.T, h *Handler, payload any) *httptest.ResponseRecorder {
@@ -52,7 +51,7 @@ func TestBatchQueue_PreviewMode(t *testing.T) {
 	}
 
 	w := doBatchQueue(t, h, payload)
-	testutil.AssertStatusOK(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 200)
 
 	var resp batchQueueResponse
 	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
@@ -103,7 +102,7 @@ func TestBatchQueue_UnmetDependencies(t *testing.T) {
 	}
 
 	w := doBatchQueue(t, h, payload)
-	testutil.AssertStatusOK(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 200)
 
 	var resp batchQueueResponse
 	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
@@ -158,7 +157,7 @@ func TestBatchQueue_DependencyOrder(t *testing.T) {
 	}
 
 	w := doBatchQueue(t, h, payload)
-	testutil.AssertStatusOK(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 200)
 
 	var resp batchQueueResponse
 	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
@@ -197,7 +196,7 @@ func TestBatchQueue_EmptyBatch(t *testing.T) {
 	}
 
 	w := doBatchQueue(t, h, payload)
-	testutil.AssertStatusBadRequest(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 400)
 }
 
 func TestBatchQueue_NotFound(t *testing.T) {
@@ -209,7 +208,7 @@ func TestBatchQueue_NotFound(t *testing.T) {
 	}
 
 	w := doBatchQueue(t, h, payload)
-	testutil.AssertStatusNotFound(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 404)
 }
 
 func TestBatchQueue_ResearchItemSkipped(t *testing.T) {
@@ -229,7 +228,7 @@ func TestBatchQueue_ResearchItemSkipped(t *testing.T) {
 	}
 
 	w := doBatchQueue(t, h, payload)
-	testutil.AssertStatusOK(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 200)
 
 	var resp batchQueueResponse
 	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
@@ -264,17 +263,13 @@ func TestBatchQueue_CompletedDependencyAllowsQueuing(t *testing.T) {
 		DependsOn: []string{"idea/dep-done"},
 	})
 
-	// Write plan.md for dep-done too so directory exists properly.
-	testutil.WriteFile(t, filepath.Join(rootDir, "ideas", "dep-done", "plan.md"),
-		"# Plan\nCompleted plan.")
-
 	payload := batchQueueRequest{
 		Items:   []string{"idea/needs-dep"},
 		Confirm: false, // preview
 	}
 
 	w := doBatchQueue(t, h, payload)
-	testutil.AssertStatusOK(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 200)
 
 	var resp batchQueueResponse
 	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
@@ -305,7 +300,7 @@ func TestBatchQueue_DuplicateItemsDeduped(t *testing.T) {
 	}
 
 	w := doBatchQueue(t, h, payload)
-	testutil.AssertStatusOK(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 200)
 
 	var resp batchQueueResponse
 	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
@@ -347,7 +342,7 @@ func TestBatchQueue_ConfirmTrue_QueuesAll(t *testing.T) {
 	}
 
 	w := doBatchQueue(t, h, payload)
-	testutil.AssertStatusOK(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 200)
 
 	var resp batchQueueResponse
 	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
@@ -391,7 +386,7 @@ func TestBatchQueue_ConfirmTrue_PreflightBlocks(t *testing.T) {
 	}
 
 	w := doBatchQueue(t, h, payload)
-	testutil.AssertStatusOK(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 200)
 
 	var resp batchQueueResponse
 	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
@@ -432,7 +427,7 @@ func TestBatchQueue_ConfirmTrue_QueueFails(t *testing.T) {
 	}
 
 	w := doBatchQueue(t, h, payload)
-	testutil.AssertStatusOK(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 200)
 
 	var resp batchQueueResponse
 	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
@@ -482,7 +477,7 @@ func TestBatchQueue_ConfirmTrue_PartialSuccess(t *testing.T) {
 	}
 
 	w := doBatchQueue(t, h, payload)
-	testutil.AssertStatusOK(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 200)
 
 	var resp batchQueueResponse
 	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
@@ -524,7 +519,7 @@ func TestBatchQueue_InvalidMode(t *testing.T) {
 		"items": []string{"idea/alpha"},
 		"mode":  "invalid_mode",
 	})
-	testutil.AssertStatus(t, rec, 400)
+	apihttptest.AssertStatus(t, rec.Result(), 400)
 	if body := rec.Body.String(); !strings.Contains(body, "invalid execution mode") {
 		t.Errorf("expected 'invalid execution mode' in body, got: %s", body)
 	}
@@ -551,7 +546,7 @@ func TestBatchQueue_DeletedDependencyDoesNotBlock(t *testing.T) {
 	}
 
 	w := doBatchQueue(t, h, payload)
-	testutil.AssertStatusOK(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 200)
 
 	var resp batchQueueResponse
 	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
@@ -595,7 +590,7 @@ func TestBatchQueue_CycleDetection_ShowsPath(t *testing.T) {
 	}
 
 	w := doBatchQueue(t, h, payload)
-	testutil.AssertStatusBadRequest(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 400)
 
 	body := w.Body.String()
 	if !strings.Contains(body, "dependency cycle detected:") {
@@ -627,7 +622,7 @@ func TestBatchQueue_ForceTrue_NonForceableReasonStillBlocks(t *testing.T) {
 	}
 
 	w := doBatchQueue(t, h, payload)
-	testutil.AssertStatusOK(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 200)
 
 	var resp batchQueueResponse
 	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
@@ -668,7 +663,7 @@ func TestBatchQueue_NonQueueableStatus_Skipped(t *testing.T) {
 	}
 
 	w := doBatchQueue(t, h, payload)
-	testutil.AssertStatusOK(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 200)
 
 	var resp batchQueueResponse
 	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
@@ -711,7 +706,7 @@ func TestBatchQueue_PartialSuccess_DependencyChain(t *testing.T) {
 	}
 
 	w := doBatchQueue(t, h, payload)
-	testutil.AssertStatusOK(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 200)
 
 	var resp batchQueueResponse
 	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {

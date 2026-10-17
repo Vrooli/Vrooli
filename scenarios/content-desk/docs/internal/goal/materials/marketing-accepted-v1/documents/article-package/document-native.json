@@ -1,0 +1,4550 @@
+{
+  "documentId": "1eawDS4HThrBkPHr0txqboR7Koi4LMOiSrFEuu8_AwK8",
+  "title": "ChatGPT dot article package",
+  "revisionId": "AHj4eMS5PuN9ZZqHdGAyuh7zqi2MeX0mlavmX1wiXQznMeDffHPe4Zd17KM8UVqnRC0r5nd4B55ddmkqkLXfl8wAmcdFJP5ujrOOyKpBVA",
+  "suggestionsViewMode": "SUGGESTIONS_INLINE",
+  "url": null,
+  "body": null,
+  "tabs": [
+    {
+      "tabId": "t.0",
+      "title": "Tab 1",
+      "parentTabId": null,
+      "index": 0,
+      "nestingLevel": null,
+      "iconEmoji": null,
+      "body": {
+        "content": [
+          {
+            "endIndex": 1,
+            "sectionBreak": {
+              "sectionStyle": {
+                "columnSeparatorStyle": "NONE",
+                "contentDirection": "LEFT_TO_RIGHT",
+                "sectionType": "CONTINUOUS"
+              }
+            }
+          },
+          {
+            "startIndex": 1,
+            "endIndex": 29,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 1,
+                  "endIndex": 29,
+                  "textRun": {
+                    "content": "ChatGPT dot article package\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "TITLE",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 29,
+            "endIndex": 90,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 29,
+                  "endIndex": 90,
+                  "textRun": {
+                    "content": "Illustrated article and private platform versions for review\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "SUBTITLE",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 90,
+            "endIndex": 542,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 90,
+                  "endIndex": 542,
+                  "textRun": {
+                    "content": "Start with the revised article. It opens on the owner asking what was underway while one article was being written and other proposals were ready. The story follows an ongoing writing responsibility through next decisions, retained feedback and recovery, then returns to the same handoff as the next test. The owner praised the art, prose mechanics, organization and length; this revision strengthens the standalone story. The package remains private.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 542,
+            "endIndex": 562,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 542,
+                  "endIndex": 560,
+                  "textRun": {
+                    "content": "Read the article: ",
+                    "textStyle": {}
+                  }
+                },
+                {
+                  "startIndex": 560,
+                  "endIndex": 561,
+                  "richLink": {
+                    "richLinkId": "kix.llp7iuyzy8rv",
+                    "textStyle": {},
+                    "richLinkProperties": {
+                      "title": "How I’m trying to get more useful work from my ChatGPT dot",
+                      "uri": "https://docs.google.com/document/d/1y3wD0fEipdbS6InO5sQi4zbRrQEfDZ700dUR0GIXOuc/edit",
+                      "mimeType": "application/vnd.google-apps.kix"
+                    }
+                  }
+                },
+                {
+                  "startIndex": 561,
+                  "endIndex": 562,
+                  "textRun": {
+                    "content": "\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 562,
+            "endIndex": 589,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 562,
+                  "endIndex": 587,
+                  "textRun": {
+                    "content": "Reusable writing method: ",
+                    "textStyle": {}
+                  }
+                },
+                {
+                  "startIndex": 587,
+                  "endIndex": 588,
+                  "richLink": {
+                    "richLinkId": "kix.rwyqd4c8ddw8",
+                    "textStyle": {},
+                    "richLinkProperties": {
+                      "title": "Produce a useful illustrated founder article",
+                      "uri": "https://docs.google.com/document/d/1kX7cCuzxqesPXxCWtxOppYV3WfFt1A55p-QFmsC86Bo/edit",
+                      "mimeType": "application/vnd.google-apps.kix"
+                    }
+                  }
+                },
+                {
+                  "startIndex": 588,
+                  "endIndex": 589,
+                  "textRun": {
+                    "content": "\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 589,
+            "endIndex": 619,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 589,
+                  "endIndex": 617,
+                  "textRun": {
+                    "content": "Independent second example: ",
+                    "textStyle": {}
+                  }
+                },
+                {
+                  "startIndex": 617,
+                  "endIndex": 618,
+                  "richLink": {
+                    "richLinkId": "kix.e7il9l4e2s2h",
+                    "textStyle": {},
+                    "richLinkProperties": {
+                      "title": "When a save message refers to an older edit",
+                      "uri": "https://docs.google.com/document/d/1EN3yoimBSjVmpI--nyFGIUvS2_h6Hvbo4swTndR42gg/edit",
+                      "mimeType": "application/vnd.google-apps.kix"
+                    }
+                  }
+                },
+                {
+                  "startIndex": 618,
+                  "endIndex": 619,
+                  "textRun": {
+                    "content": "\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 619,
+            "endIndex": 649,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 619,
+                  "endIndex": 648,
+                  "textRun": {
+                    "content": "Images and editable originals",
+                    "textStyle": {
+                      "underline": true,
+                      "foregroundColor": {
+                        "color": {
+                          "rgbColor": {}
+                        }
+                      },
+                      "link": {
+                        "url": "https://drive.google.com/drive/folders/1wUupfnJBGiPWY1CqigTdL7wz-XCgv0Sv"
+                      }
+                    }
+                  }
+                },
+                {
+                  "startIndex": 648,
+                  "endIndex": 649,
+                  "textRun": {
+                    "content": "\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 649,
+            "endIndex": 678,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 649,
+                  "endIndex": 677,
+                  "textRun": {
+                    "content": "Private composition previews",
+                    "textStyle": {
+                      "underline": true,
+                      "foregroundColor": {
+                        "color": {
+                          "rgbColor": {}
+                        }
+                      },
+                      "link": {
+                        "url": "https://drive.google.com/drive/folders/12RKOAP1bwnHwAxwf35I87ho7B4Dep3Ir"
+                      }
+                    }
+                  }
+                },
+                {
+                  "startIndex": 677,
+                  "endIndex": 678,
+                  "textRun": {
+                    "content": "\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 678,
+            "endIndex": 706,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 678,
+                  "endIndex": 706,
+                  "textRun": {
+                    "content": "Recommended cover and title\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "HEADING_1",
+                "direction": "LEFT_TO_RIGHT",
+                "pageBreakBefore": false
+              }
+            }
+          },
+          {
+            "startIndex": 706,
+            "endIndex": 930,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 706,
+                  "endIndex": 930,
+                  "textRun": {
+                    "content": "Use cover 01: the coral product-reference character presents unchosen proposals beside a checked manuscript. It connects the personal title to the next-decision gap. The article uses this cover and two explanatory diagrams.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 930,
+            "endIndex": 1008,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 930,
+                  "endIndex": 1008,
+                  "textRun": {
+                    "content": "Recommended title: How I’m trying to get more useful work from my ChatGPT dot\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 1008,
+            "endIndex": 1291,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 1008,
+                  "endIndex": 1291,
+                  "textRun": {
+                    "content": "The chosen title promises a practical account of an ongoing experiment. “Trying” matters: the piece reports useful bounded results and coordination gaps, without claiming measured productivity or dependable autonomy. The concrete opening and closing handoff test carry that promise.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 1291,
+            "endIndex": 1293,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 1291,
+                  "endIndex": 1292,
+                  "inlineObjectElement": {
+                    "inlineObjectId": "i.0",
+                    "textStyle": {}
+                  }
+                },
+                {
+                  "startIndex": 1292,
+                  "endIndex": 1293,
+                  "textRun": {
+                    "content": "\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "alignment": "CENTER",
+                "direction": "LEFT_TO_RIGHT",
+                "spaceBelow": {
+                  "magnitude": 6,
+                  "unit": "PT"
+                },
+                "keepWithNext": true
+              }
+            }
+          },
+          {
+            "startIndex": 1293,
+            "endIndex": 1395,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 1293,
+                  "endIndex": 1395,
+                  "textRun": {
+                    "content": "Three actual directions. The full-size images and editable SVGs are in Images and editable originals.\n",
+                    "textStyle": {
+                      "bold": false,
+                      "italic": true,
+                      "underline": false,
+                      "strikethrough": false,
+                      "smallCaps": false,
+                      "backgroundColor": {},
+                      "foregroundColor": {
+                        "color": {
+                          "rgbColor": {}
+                        }
+                      },
+                      "fontSize": {
+                        "magnitude": 10,
+                        "unit": "PT"
+                      },
+                      "weightedFontFamily": {
+                        "fontFamily": "Arial",
+                        "weight": 400
+                      },
+                      "baselineOffset": "NONE"
+                    }
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "alignment": "START",
+                "lineSpacing": 100,
+                "direction": "LEFT_TO_RIGHT",
+                "spacingMode": "NEVER_COLLAPSE",
+                "spaceAbove": {
+                  "unit": "PT"
+                },
+                "spaceBelow": {
+                  "magnitude": 6,
+                  "unit": "PT"
+                },
+                "borderBetween": {
+                  "color": {},
+                  "width": {
+                    "unit": "PT"
+                  },
+                  "padding": {
+                    "unit": "PT"
+                  },
+                  "dashStyle": "SOLID"
+                },
+                "borderTop": {
+                  "color": {},
+                  "width": {
+                    "unit": "PT"
+                  },
+                  "padding": {
+                    "unit": "PT"
+                  },
+                  "dashStyle": "SOLID"
+                },
+                "borderBottom": {
+                  "color": {},
+                  "width": {
+                    "unit": "PT"
+                  },
+                  "padding": {
+                    "unit": "PT"
+                  },
+                  "dashStyle": "SOLID"
+                },
+                "borderLeft": {
+                  "color": {},
+                  "width": {
+                    "unit": "PT"
+                  },
+                  "padding": {
+                    "unit": "PT"
+                  },
+                  "dashStyle": "SOLID"
+                },
+                "borderRight": {
+                  "color": {},
+                  "width": {
+                    "unit": "PT"
+                  },
+                  "padding": {
+                    "unit": "PT"
+                  },
+                  "dashStyle": "SOLID"
+                },
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "indentEnd": {
+                  "unit": "PT"
+                },
+                "keepLinesTogether": false,
+                "keepWithNext": false,
+                "avoidWidowAndOrphan": true,
+                "shading": {
+                  "backgroundColor": {}
+                },
+                "pageBreakBefore": false
+              }
+            }
+          },
+          {
+            "startIndex": 1395,
+            "endIndex": 1423,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 1395,
+                  "endIndex": 1423,
+                  "textRun": {
+                    "content": "Cover choices and asset use\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "HEADING_1",
+                "direction": "LEFT_TO_RIGHT",
+                "pageBreakBefore": true
+              }
+            }
+          },
+          {
+            "startIndex": 1423,
+            "endIndex": 1425,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 1423,
+                  "endIndex": 1424,
+                  "inlineObjectElement": {
+                    "inlineObjectId": "i.1",
+                    "textStyle": {}
+                  }
+                },
+                {
+                  "startIndex": 1424,
+                  "endIndex": 1425,
+                  "textRun": {
+                    "content": "\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "alignment": "CENTER",
+                "direction": "LEFT_TO_RIGHT",
+                "spaceBelow": {
+                  "magnitude": 6,
+                  "unit": "PT"
+                },
+                "keepWithNext": true
+              }
+            }
+          },
+          {
+            "startIndex": 1425,
+            "endIndex": 1557,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 1425,
+                  "endIndex": 1556,
+                  "textRun": {
+                    "content": "Selected cover. The landscape composition is also the 16:9 X image. The LinkedIn portrait below is separately composed, not a crop.",
+                    "textStyle": {
+                      "italic": true,
+                      "fontSize": {
+                        "magnitude": 10,
+                        "unit": "PT"
+                      }
+                    }
+                  }
+                },
+                {
+                  "startIndex": 1556,
+                  "endIndex": 1557,
+                  "textRun": {
+                    "content": "\n",
+                    "textStyle": {
+                      "bold": false,
+                      "italic": true,
+                      "underline": false,
+                      "strikethrough": false,
+                      "smallCaps": false,
+                      "backgroundColor": {},
+                      "foregroundColor": {
+                        "color": {
+                          "rgbColor": {}
+                        }
+                      },
+                      "fontSize": {
+                        "magnitude": 10,
+                        "unit": "PT"
+                      },
+                      "weightedFontFamily": {
+                        "fontFamily": "Arial",
+                        "weight": 400
+                      },
+                      "baselineOffset": "NONE"
+                    }
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "alignment": "START",
+                "lineSpacing": 100,
+                "direction": "LEFT_TO_RIGHT",
+                "spacingMode": "NEVER_COLLAPSE",
+                "spaceAbove": {
+                  "unit": "PT"
+                },
+                "spaceBelow": {
+                  "magnitude": 6,
+                  "unit": "PT"
+                },
+                "borderBetween": {
+                  "color": {},
+                  "width": {
+                    "unit": "PT"
+                  },
+                  "padding": {
+                    "unit": "PT"
+                  },
+                  "dashStyle": "SOLID"
+                },
+                "borderTop": {
+                  "color": {},
+                  "width": {
+                    "unit": "PT"
+                  },
+                  "padding": {
+                    "unit": "PT"
+                  },
+                  "dashStyle": "SOLID"
+                },
+                "borderBottom": {
+                  "color": {},
+                  "width": {
+                    "unit": "PT"
+                  },
+                  "padding": {
+                    "unit": "PT"
+                  },
+                  "dashStyle": "SOLID"
+                },
+                "borderLeft": {
+                  "color": {},
+                  "width": {
+                    "unit": "PT"
+                  },
+                  "padding": {
+                    "unit": "PT"
+                  },
+                  "dashStyle": "SOLID"
+                },
+                "borderRight": {
+                  "color": {},
+                  "width": {
+                    "unit": "PT"
+                  },
+                  "padding": {
+                    "unit": "PT"
+                  },
+                  "dashStyle": "SOLID"
+                },
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "indentEnd": {
+                  "unit": "PT"
+                },
+                "keepLinesTogether": false,
+                "keepWithNext": false,
+                "avoidWidowAndOrphan": true,
+                "shading": {
+                  "backgroundColor": {}
+                },
+                "pageBreakBefore": false
+              }
+            }
+          },
+          {
+            "startIndex": 1557,
+            "endIndex": 1855,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 1557,
+                  "endIndex": 1855,
+                  "textRun": {
+                    "content": "Direction 1 presents the next choices to a human hand. Direction 2 uses an overhead paper junction. Direction 3 uses a miniature decision stage. All three are conceptual editorial illustrations informed by inspected official dots imagery, not screenshots or depictions of the owner’s personal dot.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 1855,
+            "endIndex": 2189,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 1855,
+                  "endIndex": 2189,
+                  "textRun": {
+                    "content": "The redesigned inline diagrams explain one assignment inside continuing parallel preparation, and recovery from confirmed state. The native article uses portrait layouts; separate tall mobile layouts preserve readable type at a 327-pixel content width. Actors, conditions and review boundaries carry the same meaning across editions.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 2189,
+            "endIndex": 2576,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 2189,
+                  "endIndex": 2576,
+                  "textRun": {
+                    "content": "The revised cover art uses generated raster illustration informed by inspected official dots references. SVG compositions retain editable typography and layout around embedded artwork; the raster character art is not fully vector-editable. The explanatory diagrams remain editable vectors. Captions, alt text, dimensions, hashes, source URLs and production prompts accompany the assets.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 2576,
+            "endIndex": 3019,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 2576,
+                  "endIndex": 3019,
+                  "textRun": {
+                    "content": "The static previews check reading order, contrast, labels, spacing and text wrapping. They do not establish native Google Docs phone behavior, live X or LinkedIn rendering, account capabilities or published thread behavior. No account was opened and no post was published. The supplemental full-length narrow article PNG did not upload. Use the native article and the separate narrow diagram originals; both X and LinkedIn previews are saved.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 3019,
+            "endIndex": 3034,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 3019,
+                  "endIndex": 3034,
+                  "textRun": {
+                    "content": "X thread draft\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "HEADING_1",
+                "direction": "LEFT_TO_RIGHT",
+                "pageBreakBefore": true
+              }
+            }
+          },
+          {
+            "startIndex": 3034,
+            "endIndex": 3375,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 3034,
+                  "endIndex": 3375,
+                  "textRun": {
+                    "content": "For people who recently gained access to a ChatGPT dot and builders evaluating proactive assistants. All five posts remain below 280 Unicode characters. The thread uses the personal observed gap, the proposed arrangement and its limits; it makes no claim about broad adoption or likely engagement. Native platform behavior remains untested.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 3375,
+            "endIndex": 3382,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 3375,
+                  "endIndex": 3382,
+                  "textRun": {
+                    "content": "Post 1\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "HEADING_2",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 3382,
+            "endIndex": 3604,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 3382,
+                  "endIndex": 3604,
+                  "textRun": {
+                    "content": "My new ChatGPT dot was writing an article. Other proposals were ready. I still had to ask what needed me. I wanted help building a body of writing, including the decisions between drafts. That gap is what I’m testing now.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 3604,
+            "endIndex": 3606,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 3604,
+                  "endIndex": 3605,
+                  "inlineObjectElement": {
+                    "inlineObjectId": "i.2",
+                    "textStyle": {}
+                  }
+                },
+                {
+                  "startIndex": 3605,
+                  "endIndex": 3606,
+                  "textRun": {
+                    "content": "\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "alignment": "CENTER",
+                "direction": "LEFT_TO_RIGHT",
+                "spaceBelow": {
+                  "magnitude": 6,
+                  "unit": "PT"
+                },
+                "keepWithNext": true
+              }
+            }
+          },
+          {
+            "startIndex": 3606,
+            "endIndex": 3613,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 3606,
+                  "endIndex": 3613,
+                  "textRun": {
+                    "content": "Post 2\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "HEADING_2",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 3613,
+            "endIndex": 3861,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 3613,
+                  "endIndex": 3861,
+                  "textRun": {
+                    "content": "I’m giving it an ongoing job with bounded assignments: propose useful work, get approval, make it, check it and bring back the next decision. Independent preparation can continue while I review a result. Work that depends on my answer still waits.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 3861,
+            "endIndex": 3868,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 3861,
+                  "endIndex": 3868,
+                  "textRun": {
+                    "content": "Post 3\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "HEADING_2",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 3868,
+            "endIndex": 4105,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 3868,
+                  "endIndex": 4105,
+                  "textRun": {
+                    "content": "The next proposal is only part of continuity. I also want the next article to use what I corrected in this one. A well-written draft can still lack a compelling story. The writing guide has to carry that lesson into the next assignment.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 4105,
+            "endIndex": 4112,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 4105,
+                  "endIndex": 4112,
+                  "textRun": {
+                    "content": "Post 4\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "HEADING_2",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 4112,
+            "endIndex": 4357,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 4112,
+                  "endIndex": 4357,
+                  "textRun": {
+                    "content": "When work on this article was interrupted, saved progress let it continue after the normal document read recovered. That is one useful recovery. It doesn’t establish that the whole setup will keep working reliably, or that it has saved me time.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 4357,
+            "endIndex": 4364,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 4357,
+                  "endIndex": 4364,
+                  "textRun": {
+                    "content": "Post 5\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "HEADING_2",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 4364,
+            "endIndex": 4618,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 4364,
+                  "endIndex": 4618,
+                  "textRun": {
+                    "content": "The next test is the moment that started this: an article is underway and more useful work is possible. Does my dot bring a clear next decision, with the relevant feedback carried forward, or do I have to ask again? That is where I’ll look for progress.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 4618,
+            "endIndex": 4869,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 4618,
+                  "endIndex": 4868,
+                  "textRun": {
+                    "content": "Image alt text: A coral scalloped monocle character presents two undecided work cards to a human hand beside a checked manuscript. Conceptual artwork informed by official ChatGPT dots references; not the author’s personal dot or a product screenshot.",
+                    "textStyle": {
+                      "italic": true,
+                      "fontSize": {
+                        "magnitude": 10,
+                        "unit": "PT"
+                      }
+                    }
+                  }
+                },
+                {
+                  "startIndex": 4868,
+                  "endIndex": 4869,
+                  "textRun": {
+                    "content": "\n",
+                    "textStyle": {
+                      "bold": false,
+                      "italic": true,
+                      "underline": false,
+                      "strikethrough": false,
+                      "smallCaps": false,
+                      "backgroundColor": {},
+                      "foregroundColor": {
+                        "color": {
+                          "rgbColor": {}
+                        }
+                      },
+                      "fontSize": {
+                        "magnitude": 10,
+                        "unit": "PT"
+                      },
+                      "weightedFontFamily": {
+                        "fontFamily": "Arial",
+                        "weight": 400
+                      },
+                      "baselineOffset": "NONE"
+                    }
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "alignment": "START",
+                "lineSpacing": 100,
+                "direction": "LEFT_TO_RIGHT",
+                "spacingMode": "NEVER_COLLAPSE",
+                "spaceAbove": {
+                  "unit": "PT"
+                },
+                "spaceBelow": {
+                  "magnitude": 6,
+                  "unit": "PT"
+                },
+                "borderBetween": {
+                  "color": {},
+                  "width": {
+                    "unit": "PT"
+                  },
+                  "padding": {
+                    "unit": "PT"
+                  },
+                  "dashStyle": "SOLID"
+                },
+                "borderTop": {
+                  "color": {},
+                  "width": {
+                    "unit": "PT"
+                  },
+                  "padding": {
+                    "unit": "PT"
+                  },
+                  "dashStyle": "SOLID"
+                },
+                "borderBottom": {
+                  "color": {},
+                  "width": {
+                    "unit": "PT"
+                  },
+                  "padding": {
+                    "unit": "PT"
+                  },
+                  "dashStyle": "SOLID"
+                },
+                "borderLeft": {
+                  "color": {},
+                  "width": {
+                    "unit": "PT"
+                  },
+                  "padding": {
+                    "unit": "PT"
+                  },
+                  "dashStyle": "SOLID"
+                },
+                "borderRight": {
+                  "color": {},
+                  "width": {
+                    "unit": "PT"
+                  },
+                  "padding": {
+                    "unit": "PT"
+                  },
+                  "dashStyle": "SOLID"
+                },
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "indentEnd": {
+                  "unit": "PT"
+                },
+                "keepLinesTogether": false,
+                "keepWithNext": false,
+                "avoidWidowAndOrphan": true,
+                "shading": {
+                  "backgroundColor": {}
+                },
+                "pageBreakBefore": false
+              }
+            }
+          },
+          {
+            "startIndex": 4869,
+            "endIndex": 4889,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 4869,
+                  "endIndex": 4889,
+                  "textRun": {
+                    "content": "LinkedIn adaptation\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "HEADING_1",
+                "direction": "LEFT_TO_RIGHT",
+                "pageBreakBefore": true
+              }
+            }
+          },
+          {
+            "startIndex": 4889,
+            "endIndex": 5121,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 4889,
+                  "endIndex": 5121,
+                  "textRun": {
+                    "content": "This version addresses prospective clients and technical readers evaluating engineering judgment. It is justified by the recovered marketing strategy’s professional-reputation goal; it is not an instruction to fill another channel.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 5121,
+            "endIndex": 5298,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 5121,
+                  "endIndex": 5298,
+                  "textRun": {
+                    "content": "My new ChatGPT dot was working on an article. Other proposals had been prepared too. Yet I still had to ask why only one piece of work was moving and which decisions needed me.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 5298,
+            "endIndex": 5559,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 5298,
+                  "endIndex": 5559,
+                  "textRun": {
+                    "content": "I wanted help with my writing and personal marketing. Producing drafts was useful. Building a body of work also meant choosing what came next, learning from feedback and keeping track of what needed my attention. I was still carrying some of that coordination.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 5559,
+            "endIndex": 5770,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 5559,
+                  "endIndex": 5770,
+                  "textRun": {
+                    "content": "I’m testing whether an ongoing responsibility can make those pieces more connected: a continuing objective, bounded approved assignments, checked results and a useful next decision that reaches me before I ask.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 5770,
+            "endIndex": 6096,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 5770,
+                  "endIndex": 6096,
+                  "textRun": {
+                    "content": "The article itself showed why feedback belongs in that arrangement. I liked the images, prose style, organization and length. The opening and story still weren’t working. I wanted that distinction reflected in the writing guide so the next assignment checks its reader promise and payoff, not just whether the prose is clear.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 6096,
+            "endIndex": 6319,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 6096,
+                  "endIndex": 6319,
+                  "textRun": {
+                    "content": "Recovery matters too. An interrupted document read did not erase the saved work. Once normal access recovered, the article could continue from that state. That is a bounded observation, not evidence of dependable autonomy.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 6319,
+            "endIndex": 6573,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 6319,
+                  "endIndex": 6573,
+                  "textRun": {
+                    "content": "Independent preparation can continue within existing permissions while I review something. Dependent work still waits for approval. I’ll judge the arrangement by useful results I accept, the attention they require and whether the same corrections recur.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 6573,
+            "endIndex": 6774,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 6573,
+                  "endIndex": 6774,
+                  "textRun": {
+                    "content": "The next test is the moment that prompted this experiment: work is underway and more useful work is possible. Does the next decision reach me with enough context to make it, or do I have to ask again?\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 6774,
+            "endIndex": 6776,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 6774,
+                  "endIndex": 6775,
+                  "inlineObjectElement": {
+                    "inlineObjectId": "kix.1p49snnxu8to",
+                    "textStyle": {}
+                  }
+                },
+                {
+                  "startIndex": 6775,
+                  "endIndex": 6776,
+                  "textRun": {
+                    "content": "\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "alignment": "CENTER",
+                "direction": "LEFT_TO_RIGHT",
+                "spaceBelow": {
+                  "magnitude": 6,
+                  "unit": "PT"
+                },
+                "keepWithNext": true
+              }
+            }
+          },
+          {
+            "startIndex": 6776,
+            "endIndex": 6880,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 6776,
+                  "endIndex": 6879,
+                  "textRun": {
+                    "content": "Optional LinkedIn cover, separately composed in 4:5 portrait. Native feed behavior has not been tested.",
+                    "textStyle": {
+                      "italic": true,
+                      "fontSize": {
+                        "magnitude": 10,
+                        "unit": "PT"
+                      }
+                    }
+                  }
+                },
+                {
+                  "startIndex": 6879,
+                  "endIndex": 6880,
+                  "textRun": {
+                    "content": "\n",
+                    "textStyle": {
+                      "bold": false,
+                      "italic": true,
+                      "underline": false,
+                      "strikethrough": false,
+                      "smallCaps": false,
+                      "backgroundColor": {},
+                      "foregroundColor": {
+                        "color": {
+                          "rgbColor": {}
+                        }
+                      },
+                      "fontSize": {
+                        "magnitude": 10,
+                        "unit": "PT"
+                      },
+                      "weightedFontFamily": {
+                        "fontFamily": "Arial",
+                        "weight": 400
+                      },
+                      "baselineOffset": "NONE"
+                    }
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "alignment": "START",
+                "lineSpacing": 100,
+                "direction": "LEFT_TO_RIGHT",
+                "spacingMode": "NEVER_COLLAPSE",
+                "spaceAbove": {
+                  "unit": "PT"
+                },
+                "spaceBelow": {
+                  "magnitude": 6,
+                  "unit": "PT"
+                },
+                "borderBetween": {
+                  "color": {},
+                  "width": {
+                    "unit": "PT"
+                  },
+                  "padding": {
+                    "unit": "PT"
+                  },
+                  "dashStyle": "SOLID"
+                },
+                "borderTop": {
+                  "color": {},
+                  "width": {
+                    "unit": "PT"
+                  },
+                  "padding": {
+                    "unit": "PT"
+                  },
+                  "dashStyle": "SOLID"
+                },
+                "borderBottom": {
+                  "color": {},
+                  "width": {
+                    "unit": "PT"
+                  },
+                  "padding": {
+                    "unit": "PT"
+                  },
+                  "dashStyle": "SOLID"
+                },
+                "borderLeft": {
+                  "color": {},
+                  "width": {
+                    "unit": "PT"
+                  },
+                  "padding": {
+                    "unit": "PT"
+                  },
+                  "dashStyle": "SOLID"
+                },
+                "borderRight": {
+                  "color": {},
+                  "width": {
+                    "unit": "PT"
+                  },
+                  "padding": {
+                    "unit": "PT"
+                  },
+                  "dashStyle": "SOLID"
+                },
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "indentEnd": {
+                  "unit": "PT"
+                },
+                "keepLinesTogether": false,
+                "keepWithNext": false,
+                "avoidWidowAndOrphan": true,
+                "shading": {
+                  "backgroundColor": {}
+                },
+                "pageBreakBefore": false
+              }
+            }
+          },
+          {
+            "startIndex": 6880,
+            "endIndex": 6919,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 6880,
+                  "endIndex": 6919,
+                  "textRun": {
+                    "content": "What review and owner feedback changed\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "HEADING_1",
+                "direction": "LEFT_TO_RIGHT",
+                "pageBreakBefore": true
+              }
+            }
+          },
+          {
+            "startIndex": 6919,
+            "endIndex": 7363,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 6919,
+                  "endIndex": 7363,
+                  "textRun": {
+                    "content": "The method preceded the first draft and changed with specific review findings. The owner first requested the timely personal dots story and product-reference imagery. They then praised the actual images, prose mechanics, organization and length but still found the opening and standalone story weak. Method 0.6 was saved before this narrative revision and distinguishes reader promise, stakes, causal thread and payoff from clarity and polish.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 7363,
+            "endIndex": 7401,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 7363,
+                  "endIndex": 7401,
+                  "textRun": {
+                    "content": "Specific story and timely opportunity\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "HEADING_2",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 7401,
+            "endIndex": 7831,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 7401,
+                  "endIndex": 7831,
+                  "textRun": {
+                    "content": "The previous revision named the dot experience but introduced its coordination method before earning interest in the ongoing writing job. The new opening begins with the actual article/proposals moment. Each later section now explains another part of sustaining that same responsibility, and the ending returns to the next decision the owner wants to see. This is an editorial diagnosis; no measured audience response is claimed.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 7831,
+            "endIndex": 7854,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 7831,
+                  "endIndex": 7854,
+                  "textRun": {
+                    "content": "A falsely serial cycle\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "HEADING_2",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 7854,
+            "endIndex": 8125,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 7854,
+                  "endIndex": 8125,
+                  "textRun": {
+                    "content": "The first diagram put reassessment only after acceptance. The repair explicitly shows independent lookahead while work runs or awaits review, ready choices that unlock capacity, and waiting only when no useful permitted action remains. Method 0.2 added the timing check.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 8125,
+            "endIndex": 8163,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 8125,
+                  "endIndex": 8163,
+                  "textRun": {
+                    "content": "An example described instead of shown\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "HEADING_2",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 8163,
+            "endIndex": 8492,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 8163,
+                  "endIndex": 8492,
+                  "textRun": {
+                    "content": "The main story keeps a concrete hypothetical handoff, clearly distinguished from the observed coordination gap. It shows writing choices, a reason to decide and a recommendation. The surrounding narrative now explains why this would help with the ongoing writing responsibility rather than presenting a detached process example.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 8492,
+            "endIndex": 8531,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 8492,
+                  "endIndex": 8531,
+                  "textRun": {
+                    "content": "Inconsistent scope and reader identity\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "HEADING_2",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 8531,
+            "endIndex": 8890,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 8531,
+                  "endIndex": 8890,
+                  "textRun": {
+                    "content": "The earlier case distinguished read-only revision from executing setup and named the reader as AI. R1 preserves the broader lesson: private writing approval is not publication or contact authority, and an AI writer’s successful use of a guide is not human-user validation. Routine steps may be bundled into one coherent approval when the scope is understood.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 8890,
+            "endIndex": 8913,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 8890,
+                  "endIndex": 8913,
+                  "textRun": {
+                    "content": "Learning left abstract\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "HEADING_2",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 8913,
+            "endIndex": 9366,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 8913,
+                  "endIndex": 9366,
+                  "textRun": {
+                    "content": "Method 0.6 adds separate tests for the reason to keep reading, causal connections and the ending’s payoff. Its informed recheck found the save-message specimen already has those local strengths: “Saved” creates a consequential expectation; Friday becomes Monday while the response is pending; the truthful status preserves the newer edit. No new prose was forced into that evergreen specimen. The earlier independent 0.3 transfer test remains separate.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 9366,
+            "endIndex": 9397,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 9366,
+                  "endIndex": 9397,
+                  "textRun": {
+                    "content": "Visual actions and readability\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "HEADING_2",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 9397,
+            "endIndex": 9766,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 9397,
+                  "endIndex": 9766,
+                  "textRun": {
+                    "content": "The earlier diagram repairs remain: independent lookahead during work or review, explicit waiting conditions, a real hold option, and performing an approved step before checking its result. R1 also changes the visual language using inspected official product references. Concept art is labeled and does not pretend to show the owner’s account or a live product result.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 9766,
+            "endIndex": 10014,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 9766,
+                  "endIndex": 10014,
+                  "textRun": {
+                    "content": "An informed editorial recheck found the new opening, section bridges and ending coherent, then removed one repeated passage. This is a bounded revision check, not a new blind test or evidence of reader engagement. Owner acceptance remains pending.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 10014,
+            "endIndex": 10052,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 10014,
+                  "endIndex": 10052,
+                  "textRun": {
+                    "content": "Independent reuse and resource limits\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "HEADING_1",
+                "direction": "LEFT_TO_RIGHT",
+                "pageBreakBefore": true
+              }
+            }
+          },
+          {
+            "startIndex": 10052,
+            "endIndex": 10078,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 10052,
+                  "endIndex": 10076,
+                  "textRun": {
+                    "content": "Full editable specimen: ",
+                    "textStyle": {}
+                  }
+                },
+                {
+                  "startIndex": 10076,
+                  "endIndex": 10077,
+                  "richLink": {
+                    "richLinkId": "kix.m59vkuzgqlkp",
+                    "textStyle": {},
+                    "richLinkProperties": {
+                      "title": "When a save message refers to an older edit",
+                      "uri": "https://docs.google.com/document/d/1EN3yoimBSjVmpI--nyFGIUvS2_h6Hvbo4swTndR42gg/edit",
+                      "mimeType": "application/vnd.google-apps.kix"
+                    }
+                  }
+                },
+                {
+                  "startIndex": 10077,
+                  "endIndex": 10078,
+                  "textRun": {
+                    "content": "\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 10078,
+            "endIndex": 10373,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 10078,
+                  "endIndex": 10373,
+                  "textRun": {
+                    "content": "A fresh writer received the ordinary marketing entry and a distinct topic, “When a save-success message refers to an older edit.” It was asked for a plan, an opening and one rendered visual in context. It was not given the guide URL, the earlier article, the known errors or the desired answer.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 10373,
+            "endIndex": 10908,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 10373,
+                  "endIndex": 10908,
+                  "textRun": {
+                    "content": "The writer followed the entry’s Writing method smart chip to version 0.3, then the linked playbook. The specimen starts with a concrete Friday-to-Monday edit, shows the A/B payload and preserves editing while a save is in flight. It labels the example hypothetical and the diagram intended behavior, then identifies the truthful next action. The full two-page specimen and its figure were independently inspected. This demonstrates discovery and application in one case; it does not establish causal quality gains or a mature process.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 10908,
+            "endIndex": 10910,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 10908,
+                  "endIndex": 10909,
+                  "inlineObjectElement": {
+                    "inlineObjectId": "i.4",
+                    "textStyle": {}
+                  }
+                },
+                {
+                  "startIndex": 10909,
+                  "endIndex": 10910,
+                  "textRun": {
+                    "content": "\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "alignment": "CENTER",
+                "direction": "LEFT_TO_RIGHT",
+                "spaceBelow": {
+                  "magnitude": 6,
+                  "unit": "PT"
+                },
+                "keepWithNext": true
+              }
+            }
+          },
+          {
+            "startIndex": 10910,
+            "endIndex": 11020,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 10910,
+                  "endIndex": 11020,
+                  "textRun": {
+                    "content": "The independent specimen’s actual figure. Its complete opening and article plan are in the linked native Doc.\n",
+                    "textStyle": {
+                      "bold": false,
+                      "italic": true,
+                      "underline": false,
+                      "strikethrough": false,
+                      "smallCaps": false,
+                      "backgroundColor": {},
+                      "foregroundColor": {
+                        "color": {
+                          "rgbColor": {}
+                        }
+                      },
+                      "fontSize": {
+                        "magnitude": 10,
+                        "unit": "PT"
+                      },
+                      "weightedFontFamily": {
+                        "fontFamily": "Arial",
+                        "weight": 400
+                      },
+                      "baselineOffset": "NONE"
+                    }
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "alignment": "START",
+                "lineSpacing": 100,
+                "direction": "LEFT_TO_RIGHT",
+                "spacingMode": "NEVER_COLLAPSE",
+                "spaceAbove": {
+                  "unit": "PT"
+                },
+                "spaceBelow": {
+                  "magnitude": 6,
+                  "unit": "PT"
+                },
+                "borderBetween": {
+                  "color": {},
+                  "width": {
+                    "unit": "PT"
+                  },
+                  "padding": {
+                    "unit": "PT"
+                  },
+                  "dashStyle": "SOLID"
+                },
+                "borderTop": {
+                  "color": {},
+                  "width": {
+                    "unit": "PT"
+                  },
+                  "padding": {
+                    "unit": "PT"
+                  },
+                  "dashStyle": "SOLID"
+                },
+                "borderBottom": {
+                  "color": {},
+                  "width": {
+                    "unit": "PT"
+                  },
+                  "padding": {
+                    "unit": "PT"
+                  },
+                  "dashStyle": "SOLID"
+                },
+                "borderLeft": {
+                  "color": {},
+                  "width": {
+                    "unit": "PT"
+                  },
+                  "padding": {
+                    "unit": "PT"
+                  },
+                  "dashStyle": "SOLID"
+                },
+                "borderRight": {
+                  "color": {},
+                  "width": {
+                    "unit": "PT"
+                  },
+                  "padding": {
+                    "unit": "PT"
+                  },
+                  "dashStyle": "SOLID"
+                },
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "indentEnd": {
+                  "unit": "PT"
+                },
+                "keepLinesTogether": false,
+                "keepWithNext": false,
+                "avoidWidowAndOrphan": true,
+                "shading": {
+                  "backgroundColor": {}
+                },
+                "pageBreakBefore": false
+              }
+            }
+          },
+          {
+            "startIndex": 11020,
+            "endIndex": 11309,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 11020,
+                  "endIndex": 11309,
+                  "textRun": {
+                    "content": "Resource deviation: the test handoff omitted the package-wide two-worker cap, and the writer started two extra reviewers. One completed; extra activity was then stopped and the cap restored. The owner was informed. Extra usage is unknown, not zero; this was not a fully cap-compliant run.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 11309,
+            "endIndex": 11738,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 11309,
+                  "endIndex": 11738,
+                  "textRun": {
+                    "content": "Method 0.4 repaired neutral scope, permission and resource constraints after the recorded worker-cap violation. The original fresh-writer evidence still belongs to 0.3. Version 0.5 added angle and visual-reference checks; 0.6 separates narrative promise, stakes and payoff from comprehension. The current article and existing evergreen specimen received informed rechecks, not a new generation test. No paid services were added.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 11738,
+            "endIndex": 11759,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 11738,
+                  "endIndex": 11759,
+                  "textRun": {
+                    "content": "Sources and next use\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "HEADING_1",
+                "direction": "LEFT_TO_RIGHT",
+                "pageBreakBefore": true
+              }
+            }
+          },
+          {
+            "startIndex": 11759,
+            "endIndex": 12092,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 11759,
+                  "endIndex": 12092,
+                  "textRun": {
+                    "content": "The main article combines the owner’s recent personal experience, verified production observations and current official dots descriptions. An illustrative handoff is labeled. Actual saved-document recovery and earlier guide reuse are bounded observations; ongoing reliable autonomy, attention savings and engagement remain unproved.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 12092,
+            "endIndex": 12125,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 12092,
+                  "endIndex": 12123,
+                  "textRun": {
+                    "content": "Approved scope and amendments: ",
+                    "textStyle": {}
+                  }
+                },
+                {
+                  "startIndex": 12123,
+                  "endIndex": 12124,
+                  "richLink": {
+                    "richLinkId": "kix.z3j0om2hydrh",
+                    "textStyle": {},
+                    "richLinkProperties": {
+                      "title": "Create an illustrated article about reliable AI delegation",
+                      "uri": "https://docs.google.com/document/d/1n3S6nNmB6jc1ARn3d0NszPDJRkmKW8l46NVvfqGstDg/edit",
+                      "mimeType": "application/vnd.google-apps.kix"
+                    }
+                  }
+                },
+                {
+                  "startIndex": 12124,
+                  "endIndex": 12125,
+                  "textRun": {
+                    "content": "\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 12125,
+            "endIndex": 12186,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 12125,
+                  "endIndex": 12185,
+                  "textRun": {
+                    "content": "Complete shared conversation that supplied the original idea",
+                    "textStyle": {
+                      "underline": true,
+                      "foregroundColor": {
+                        "color": {
+                          "rgbColor": {}
+                        }
+                      },
+                      "link": {
+                        "url": "https://chatgpt.com/share/6ac005b4-b530-83e9-981a-8c81c96bdf69"
+                      }
+                    }
+                  }
+                },
+                {
+                  "startIndex": 12185,
+                  "endIndex": 12186,
+                  "textRun": {
+                    "content": "\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 12186,
+            "endIndex": 12578,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 12186,
+                  "endIndex": 12578,
+                  "textRun": {
+                    "content": "The complete recovered conversation supplied the original idea; its assistant answer was treated as advice. Owner amendments established professional repeatable production, actual images, platform variations and standalone clarity. R1 added the specific recent dots experience and recognizable reference-grounded visuals, while preserving the owner’s positive judgment of the original craft.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 12578,
+            "endIndex": 12616,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 12578,
+                  "endIndex": 12614,
+                  "textRun": {
+                    "content": "Project entry and future discovery: ",
+                    "textStyle": {}
+                  }
+                },
+                {
+                  "startIndex": 12614,
+                  "endIndex": 12615,
+                  "richLink": {
+                    "richLinkId": "kix.ukmfkhyb2f2d",
+                    "textStyle": {},
+                    "richLinkProperties": {
+                      "title": "Vrooli and Founder Marketing start here",
+                      "uri": "https://docs.google.com/document/d/1CRpwt73K1InlJd9nFMXuVn9cSEZXE-8oSDa03T64biY/edit",
+                      "mimeType": "application/vnd.google-apps.kix"
+                    }
+                  }
+                },
+                {
+                  "startIndex": 12615,
+                  "endIndex": 12616,
+                  "textRun": {
+                    "content": "\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 12616,
+            "endIndex": 12664,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 12616,
+                  "endIndex": 12663,
+                  "textRun": {
+                    "content": "Recovered growth and founder marketing playbook",
+                    "textStyle": {
+                      "underline": true,
+                      "foregroundColor": {
+                        "color": {
+                          "rgbColor": {}
+                        }
+                      },
+                      "link": {
+                        "url": "https://drive.google.com/file/d/1D_zvsol1w4q9apXLD4lYu60zSbcjLkeA/view"
+                      }
+                    }
+                  }
+                },
+                {
+                  "startIndex": 12663,
+                  "endIndex": 12664,
+                  "textRun": {
+                    "content": "\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 12664,
+            "endIndex": 12732,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 12664,
+                  "endIndex": 12730,
+                  "textRun": {
+                    "content": "Earlier story used for diagnosis, not as an approved voice model: ",
+                    "textStyle": {}
+                  }
+                },
+                {
+                  "startIndex": 12730,
+                  "endIndex": 12731,
+                  "richLink": {
+                    "richLinkId": "kix.dfkipmhufzxo",
+                    "textStyle": {},
+                    "richLinkProperties": {
+                      "title": "Inspectable agent work — founder story and proof notes",
+                      "uri": "https://docs.google.com/document/d/1e_Y1lVA5YfR92kmCzoXBad8nrvQXlBaEd5Bar7cjzw0/edit",
+                      "mimeType": "application/vnd.google-apps.kix"
+                    }
+                  }
+                },
+                {
+                  "startIndex": 12731,
+                  "endIndex": 12732,
+                  "textRun": {
+                    "content": "\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 12732,
+            "endIndex": 12788,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 12732,
+                  "endIndex": 12784,
+                  "textRun": {
+                    "content": "Shared presentation guidance and feedback approach: ",
+                    "textStyle": {}
+                  }
+                },
+                {
+                  "startIndex": 12784,
+                  "endIndex": 12785,
+                  "richLink": {
+                    "richLinkId": "kix.htfynycjs96a",
+                    "textStyle": {},
+                    "richLinkProperties": {
+                      "title": "Review artifact presentation and PDF production",
+                      "uri": "https://docs.google.com/document/d/1Xa_n6J_LyskwhqbhoRb2GyUETCByv82uPwz1TtwRYw4/edit",
+                      "mimeType": "application/vnd.google-apps.kix"
+                    }
+                  }
+                },
+                {
+                  "startIndex": 12785,
+                  "endIndex": 12786,
+                  "textRun": {
+                    "content": "\u000b",
+                    "textStyle": {}
+                  }
+                },
+                {
+                  "startIndex": 12786,
+                  "endIndex": 12787,
+                  "richLink": {
+                    "richLinkId": "kix.wibu57s291z8",
+                    "textStyle": {},
+                    "richLinkProperties": {
+                      "title": "Biosphere feedback investigation and improvement workflow",
+                      "uri": "https://docs.google.com/document/d/15IENTeT5n2-3F-zt3pOoFYaC_2IeFux0A4jrf2x-Ow4/edit",
+                      "mimeType": "application/vnd.google-apps.kix"
+                    }
+                  }
+                },
+                {
+                  "startIndex": 12787,
+                  "endIndex": 12788,
+                  "textRun": {
+                    "content": "\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 12788,
+            "endIndex": 12817,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 12788,
+                  "endIndex": 12816,
+                  "textRun": {
+                    "content": "OpenAI ChatGPT release notes",
+                    "textStyle": {
+                      "underline": true,
+                      "link": {
+                        "url": "https://help.openai.com/en/articles/6825453-chatgpt-release-notes"
+                      }
+                    }
+                  }
+                },
+                {
+                  "startIndex": 12816,
+                  "endIndex": 12817,
+                  "textRun": {
+                    "content": "\n",
+                    "textStyle": {
+                      "underline": true
+                    }
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 12817,
+            "endIndex": 12854,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 12817,
+                  "endIndex": 12853,
+                  "textRun": {
+                    "content": "OpenAI Getting started with your dot",
+                    "textStyle": {
+                      "underline": true,
+                      "link": {
+                        "url": "https://help.openai.com/en/articles/20001530-getting-started-with-your-dot"
+                      }
+                    }
+                  }
+                },
+                {
+                  "startIndex": 12853,
+                  "endIndex": 12854,
+                  "textRun": {
+                    "content": "\n",
+                    "textStyle": {
+                      "underline": true
+                    }
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 12854,
+            "endIndex": 13227,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 12854,
+                  "endIndex": 13055,
+                  "textRun": {
+                    "content": "The release notes introduce dots with a gradual rollout. The onboarding page describes ongoing responsibilities and controls; its mutable rollout wording is not an exact access date for the owner. The ",
+                    "textStyle": {}
+                  }
+                },
+                {
+                  "startIndex": 13055,
+                  "endIndex": 13081,
+                  "textRun": {
+                    "content": "official dots product page",
+                    "textStyle": {
+                      "underline": true,
+                      "link": {
+                        "url": "https://chatgpt.com/features/dots/"
+                      }
+                    }
+                  }
+                },
+                {
+                  "startIndex": 13081,
+                  "endIndex": 13227,
+                  "textRun": {
+                    "content": " supplied the inspected visual references. These sources describe the product and its imagery, not the reliability of this particular experiment.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 13227,
+            "endIndex": 13273,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 13227,
+                  "endIndex": 13273,
+                  "textRun": {
+                    "content": "Verification and the remaining owner decision\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "HEADING_1",
+                "direction": "LEFT_TO_RIGHT",
+                "pageBreakBefore": false
+              }
+            }
+          },
+          {
+            "startIndex": 13273,
+            "endIndex": 13667,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 13273,
+                  "endIndex": 13667,
+                  "textRun": {
+                    "content": "Native readback checks cover heading structure, source links, image presence and image descriptions. Exported native pages are rendered and inspected, rather than inferred from a successful import. Static article and platform compositions were checked at their stated widths. The image catalog records exact source-file hashes; no broad accessibility or live-platform certification is claimed.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 13667,
+            "endIndex": 14017,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 13667,
+                  "endIndex": 14015,
+                  "textRun": {
+                    "content": "This revision applies the owner’s story feedback while preserving the praised art, organization and approximate length. Method 0.6 records the stronger narrative checks. Review the revised opening, argument and ending in the living review document. Owner acceptance remains pending; publication is a separate decision. Current review and choices:  ",
+                    "textStyle": {}
+                  }
+                },
+                {
+                  "startIndex": 14015,
+                  "endIndex": 14016,
+                  "richLink": {
+                    "richLinkId": "kix.jq6i98d730v",
+                    "textStyle": {},
+                    "richLinkProperties": {
+                      "title": "Biosphere Review and Decisions",
+                      "uri": "https://docs.google.com/document/d/1fKwCpIXAeKK3DsRDSESSedjsHbvu9nLAIj40Oqqt4OE/edit",
+                      "mimeType": "application/vnd.google-apps.kix"
+                    }
+                  }
+                },
+                {
+                  "startIndex": 14016,
+                  "endIndex": 14017,
+                  "textRun": {
+                    "content": "\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          }
+        ]
+      },
+      "headers": null,
+      "footers": {
+        "kix.hf0": {
+          "footerId": "kix.hf0",
+          "content": [
+            {
+              "endIndex": 2,
+              "paragraph": {
+                "elements": [
+                  {
+                    "endIndex": 1,
+                    "autoText": {
+                      "type": "PAGE_NUMBER",
+                      "textStyle": {
+                        "bold": false,
+                        "italic": false,
+                        "underline": false,
+                        "strikethrough": false,
+                        "smallCaps": false,
+                        "backgroundColor": {},
+                        "foregroundColor": {
+                          "color": {
+                            "rgbColor": {}
+                          }
+                        },
+                        "fontSize": {
+                          "magnitude": 11,
+                          "unit": "PT"
+                        },
+                        "weightedFontFamily": {
+                          "fontFamily": "Arial",
+                          "weight": 400
+                        },
+                        "baselineOffset": "NONE"
+                      }
+                    }
+                  },
+                  {
+                    "startIndex": 1,
+                    "endIndex": 2,
+                    "textRun": {
+                      "content": "\n",
+                      "textStyle": {
+                        "bold": false,
+                        "italic": false,
+                        "underline": false,
+                        "strikethrough": false,
+                        "smallCaps": false,
+                        "backgroundColor": {},
+                        "foregroundColor": {
+                          "color": {
+                            "rgbColor": {}
+                          }
+                        },
+                        "fontSize": {
+                          "magnitude": 11,
+                          "unit": "PT"
+                        },
+                        "weightedFontFamily": {
+                          "fontFamily": "Arial",
+                          "weight": 400
+                        },
+                        "baselineOffset": "NONE"
+                      }
+                    }
+                  }
+                ],
+                "paragraphStyle": {
+                  "namedStyleType": "NORMAL_TEXT",
+                  "alignment": "END",
+                  "lineSpacing": 100,
+                  "direction": "LEFT_TO_RIGHT",
+                  "spacingMode": "NEVER_COLLAPSE",
+                  "spaceAbove": {
+                    "unit": "PT"
+                  },
+                  "spaceBelow": {
+                    "unit": "PT"
+                  },
+                  "borderBetween": {
+                    "color": {},
+                    "width": {
+                      "unit": "PT"
+                    },
+                    "padding": {
+                      "unit": "PT"
+                    },
+                    "dashStyle": "SOLID"
+                  },
+                  "borderTop": {
+                    "color": {},
+                    "width": {
+                      "unit": "PT"
+                    },
+                    "padding": {
+                      "unit": "PT"
+                    },
+                    "dashStyle": "SOLID"
+                  },
+                  "borderBottom": {
+                    "color": {},
+                    "width": {
+                      "unit": "PT"
+                    },
+                    "padding": {
+                      "unit": "PT"
+                    },
+                    "dashStyle": "SOLID"
+                  },
+                  "borderLeft": {
+                    "color": {},
+                    "width": {
+                      "unit": "PT"
+                    },
+                    "padding": {
+                      "unit": "PT"
+                    },
+                    "dashStyle": "SOLID"
+                  },
+                  "borderRight": {
+                    "color": {},
+                    "width": {
+                      "unit": "PT"
+                    },
+                    "padding": {
+                      "unit": "PT"
+                    },
+                    "dashStyle": "SOLID"
+                  },
+                  "indentFirstLine": {
+                    "unit": "PT"
+                  },
+                  "indentStart": {
+                    "unit": "PT"
+                  },
+                  "indentEnd": {
+                    "unit": "PT"
+                  },
+                  "tabStops": [
+                    {
+                      "offset": {
+                        "magnitude": 234,
+                        "unit": "PT"
+                      },
+                      "alignment": "CENTER"
+                    },
+                    {
+                      "offset": {
+                        "magnitude": 468,
+                        "unit": "PT"
+                      },
+                      "alignment": "END"
+                    }
+                  ],
+                  "keepLinesTogether": false,
+                  "keepWithNext": false,
+                  "avoidWidowAndOrphan": true,
+                  "shading": {
+                    "backgroundColor": {}
+                  },
+                  "pageBreakBefore": false
+                }
+              }
+            }
+          ]
+        }
+      },
+      "footnotes": null,
+      "documentStyle": {
+        "background": {
+          "color": {}
+        },
+        "defaultFooterId": "kix.hf0",
+        "pageNumberStart": 1,
+        "marginTop": {
+          "magnitude": 48.95,
+          "unit": "PT"
+        },
+        "marginBottom": {
+          "magnitude": 48.95,
+          "unit": "PT"
+        },
+        "marginRight": {
+          "magnitude": 56.15,
+          "unit": "PT"
+        },
+        "marginLeft": {
+          "magnitude": 56.15,
+          "unit": "PT"
+        },
+        "pageSize": {
+          "height": {
+            "magnitude": 792,
+            "unit": "PT"
+          },
+          "width": {
+            "magnitude": 612,
+            "unit": "PT"
+          }
+        },
+        "marginHeader": {
+          "magnitude": 36,
+          "unit": "PT"
+        },
+        "marginFooter": {
+          "magnitude": 36,
+          "unit": "PT"
+        },
+        "useCustomHeaderFooterMargins": true,
+        "documentFormat": {
+          "documentMode": "PAGES"
+        }
+      },
+      "suggestedDocumentStyleChanges": null,
+      "namedStyles": {
+        "styles": [
+          {
+            "namedStyleType": "NORMAL_TEXT",
+            "textStyle": {
+              "bold": false,
+              "italic": false,
+              "underline": false,
+              "strikethrough": false,
+              "smallCaps": false,
+              "backgroundColor": {},
+              "foregroundColor": {
+                "color": {
+                  "rgbColor": {}
+                }
+              },
+              "fontSize": {
+                "magnitude": 11,
+                "unit": "PT"
+              },
+              "weightedFontFamily": {
+                "fontFamily": "Arial",
+                "weight": 400
+              },
+              "baselineOffset": "NONE"
+            },
+            "paragraphStyle": {
+              "namedStyleType": "NORMAL_TEXT",
+              "alignment": "START",
+              "lineSpacing": 110,
+              "direction": "LEFT_TO_RIGHT",
+              "spacingMode": "NEVER_COLLAPSE",
+              "spaceAbove": {
+                "unit": "PT"
+              },
+              "spaceBelow": {
+                "magnitude": 6,
+                "unit": "PT"
+              },
+              "borderBetween": {
+                "color": {},
+                "width": {
+                  "unit": "PT"
+                },
+                "padding": {
+                  "unit": "PT"
+                },
+                "dashStyle": "SOLID"
+              },
+              "borderTop": {
+                "color": {},
+                "width": {
+                  "unit": "PT"
+                },
+                "padding": {
+                  "unit": "PT"
+                },
+                "dashStyle": "SOLID"
+              },
+              "borderBottom": {
+                "color": {},
+                "width": {
+                  "unit": "PT"
+                },
+                "padding": {
+                  "unit": "PT"
+                },
+                "dashStyle": "SOLID"
+              },
+              "borderLeft": {
+                "color": {},
+                "width": {
+                  "unit": "PT"
+                },
+                "padding": {
+                  "unit": "PT"
+                },
+                "dashStyle": "SOLID"
+              },
+              "borderRight": {
+                "color": {},
+                "width": {
+                  "unit": "PT"
+                },
+                "padding": {
+                  "unit": "PT"
+                },
+                "dashStyle": "SOLID"
+              },
+              "indentFirstLine": {
+                "unit": "PT"
+              },
+              "indentStart": {
+                "unit": "PT"
+              },
+              "indentEnd": {
+                "unit": "PT"
+              },
+              "keepLinesTogether": false,
+              "keepWithNext": false,
+              "avoidWidowAndOrphan": true,
+              "shading": {
+                "backgroundColor": {}
+              },
+              "pageBreakBefore": false
+            }
+          },
+          {
+            "namedStyleType": "HEADING_1",
+            "textStyle": {
+              "bold": true,
+              "foregroundColor": {
+                "color": {
+                  "rgbColor": {}
+                }
+              },
+              "fontSize": {
+                "magnitude": 15,
+                "unit": "PT"
+              },
+              "weightedFontFamily": {
+                "fontFamily": "Arial",
+                "weight": 400
+              }
+            },
+            "paragraphStyle": {
+              "namedStyleType": "NORMAL_TEXT",
+              "direction": "LEFT_TO_RIGHT",
+              "spaceAbove": {
+                "magnitude": 11,
+                "unit": "PT"
+              },
+              "spaceBelow": {
+                "magnitude": 6,
+                "unit": "PT"
+              },
+              "keepLinesTogether": true,
+              "keepWithNext": true
+            }
+          },
+          {
+            "namedStyleType": "HEADING_2",
+            "textStyle": {
+              "bold": true,
+              "foregroundColor": {
+                "color": {
+                  "rgbColor": {}
+                }
+              },
+              "fontSize": {
+                "magnitude": 12,
+                "unit": "PT"
+              },
+              "weightedFontFamily": {
+                "fontFamily": "Arial",
+                "weight": 400
+              }
+            },
+            "paragraphStyle": {
+              "namedStyleType": "NORMAL_TEXT",
+              "direction": "LEFT_TO_RIGHT",
+              "spaceAbove": {
+                "magnitude": 11,
+                "unit": "PT"
+              },
+              "spaceBelow": {
+                "magnitude": 6,
+                "unit": "PT"
+              },
+              "keepLinesTogether": true,
+              "keepWithNext": true
+            }
+          },
+          {
+            "namedStyleType": "HEADING_3",
+            "textStyle": {
+              "bold": true,
+              "foregroundColor": {
+                "color": {
+                  "rgbColor": {
+                    "red": 0.30980393,
+                    "green": 0.5058824,
+                    "blue": 0.7411765
+                  }
+                }
+              },
+              "weightedFontFamily": {
+                "fontFamily": "Calibri",
+                "weight": 400
+              }
+            },
+            "paragraphStyle": {
+              "namedStyleType": "NORMAL_TEXT",
+              "direction": "LEFT_TO_RIGHT",
+              "spaceAbove": {
+                "magnitude": 10,
+                "unit": "PT"
+              },
+              "spaceBelow": {
+                "unit": "PT"
+              },
+              "keepLinesTogether": true,
+              "keepWithNext": true
+            }
+          },
+          {
+            "namedStyleType": "HEADING_4",
+            "textStyle": {
+              "bold": true,
+              "italic": true,
+              "foregroundColor": {
+                "color": {
+                  "rgbColor": {
+                    "red": 0.30980393,
+                    "green": 0.5058824,
+                    "blue": 0.7411765
+                  }
+                }
+              },
+              "weightedFontFamily": {
+                "fontFamily": "Calibri",
+                "weight": 400
+              }
+            },
+            "paragraphStyle": {
+              "namedStyleType": "NORMAL_TEXT",
+              "direction": "LEFT_TO_RIGHT",
+              "spaceAbove": {
+                "magnitude": 10,
+                "unit": "PT"
+              },
+              "spaceBelow": {
+                "unit": "PT"
+              },
+              "keepLinesTogether": true,
+              "keepWithNext": true
+            }
+          },
+          {
+            "namedStyleType": "HEADING_5",
+            "textStyle": {
+              "foregroundColor": {
+                "color": {
+                  "rgbColor": {
+                    "red": 0.14117648,
+                    "green": 0.24705882,
+                    "blue": 0.38039216
+                  }
+                }
+              },
+              "weightedFontFamily": {
+                "fontFamily": "Calibri",
+                "weight": 400
+              }
+            },
+            "paragraphStyle": {
+              "namedStyleType": "NORMAL_TEXT",
+              "direction": "LEFT_TO_RIGHT",
+              "spaceAbove": {
+                "magnitude": 10,
+                "unit": "PT"
+              },
+              "spaceBelow": {
+                "unit": "PT"
+              },
+              "keepLinesTogether": true,
+              "keepWithNext": true
+            }
+          },
+          {
+            "namedStyleType": "HEADING_6",
+            "textStyle": {
+              "italic": true,
+              "foregroundColor": {
+                "color": {
+                  "rgbColor": {
+                    "red": 0.14117648,
+                    "green": 0.24705882,
+                    "blue": 0.38039216
+                  }
+                }
+              },
+              "weightedFontFamily": {
+                "fontFamily": "Calibri",
+                "weight": 400
+              }
+            },
+            "paragraphStyle": {
+              "namedStyleType": "NORMAL_TEXT",
+              "direction": "LEFT_TO_RIGHT",
+              "spaceAbove": {
+                "magnitude": 10,
+                "unit": "PT"
+              },
+              "spaceBelow": {
+                "unit": "PT"
+              },
+              "keepLinesTogether": true,
+              "keepWithNext": true
+            }
+          },
+          {
+            "namedStyleType": "TITLE",
+            "textStyle": {
+              "bold": true,
+              "foregroundColor": {
+                "color": {
+                  "rgbColor": {}
+                }
+              },
+              "fontSize": {
+                "magnitude": 24,
+                "unit": "PT"
+              },
+              "weightedFontFamily": {
+                "fontFamily": "Arial",
+                "weight": 400
+              }
+            },
+            "paragraphStyle": {
+              "namedStyleType": "NORMAL_TEXT",
+              "lineSpacing": 100,
+              "direction": "LEFT_TO_RIGHT",
+              "spacingMode": "NEVER_COLLAPSE",
+              "spaceBelow": {
+                "magnitude": 6,
+                "unit": "PT"
+              }
+            }
+          },
+          {
+            "namedStyleType": "SUBTITLE",
+            "textStyle": {
+              "italic": false,
+              "foregroundColor": {
+                "color": {
+                  "rgbColor": {}
+                }
+              },
+              "fontSize": {
+                "magnitude": 12,
+                "unit": "PT"
+              },
+              "weightedFontFamily": {
+                "fontFamily": "Arial",
+                "weight": 400
+              }
+            },
+            "paragraphStyle": {
+              "namedStyleType": "NORMAL_TEXT",
+              "direction": "LEFT_TO_RIGHT",
+              "spaceBelow": {
+                "magnitude": 6,
+                "unit": "PT"
+              }
+            }
+          }
+        ]
+      },
+      "suggestedNamedStylesChanges": null,
+      "lists": {
+        "kix.list.1": {
+          "listProperties": {
+            "nestingLevels": [
+              {
+                "bulletAlignment": "START",
+                "glyphSymbol": "●",
+                "glyphFormat": "%0",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "magnitude": 18,
+                  "unit": "PT"
+                },
+                "textStyle": {
+                  "weightedFontFamily": {
+                    "fontFamily": "Noto Sans Symbols",
+                    "weight": 400
+                  }
+                },
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              }
+            ]
+          }
+        },
+        "kix.list.2": {
+          "listProperties": {
+            "nestingLevels": [
+              {
+                "bulletAlignment": "START",
+                "glyphSymbol": "●",
+                "glyphFormat": "%0",
+                "indentFirstLine": {
+                  "magnitude": 18,
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "magnitude": 36,
+                  "unit": "PT"
+                },
+                "textStyle": {
+                  "weightedFontFamily": {
+                    "fontFamily": "Noto Sans Symbols",
+                    "weight": 400
+                  }
+                },
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              }
+            ]
+          }
+        },
+        "kix.list.3": {
+          "listProperties": {
+            "nestingLevels": [
+              {
+                "bulletAlignment": "START",
+                "glyphSymbol": "●",
+                "glyphFormat": "%0",
+                "indentFirstLine": {
+                  "magnitude": 36,
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "magnitude": 54,
+                  "unit": "PT"
+                },
+                "textStyle": {
+                  "weightedFontFamily": {
+                    "fontFamily": "Noto Sans Symbols",
+                    "weight": 400
+                  }
+                },
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              }
+            ]
+          }
+        },
+        "kix.list.4": {
+          "listProperties": {
+            "nestingLevels": [
+              {
+                "bulletAlignment": "START",
+                "glyphSymbol": "●",
+                "glyphFormat": "%0",
+                "indentFirstLine": {
+                  "magnitude": 54,
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "magnitude": 72,
+                  "unit": "PT"
+                },
+                "textStyle": {
+                  "weightedFontFamily": {
+                    "fontFamily": "Noto Sans Symbols",
+                    "weight": 400
+                  }
+                },
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              }
+            ]
+          }
+        },
+        "kix.list.5": {
+          "listProperties": {
+            "nestingLevels": [
+              {
+                "bulletAlignment": "START",
+                "glyphType": "DECIMAL",
+                "glyphFormat": "%0.",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "magnitude": 18,
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              }
+            ]
+          }
+        },
+        "kix.list.6": {
+          "listProperties": {
+            "nestingLevels": [
+              {
+                "bulletAlignment": "START",
+                "glyphType": "DECIMAL",
+                "glyphFormat": "%0.",
+                "indentFirstLine": {
+                  "magnitude": 18,
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "magnitude": 36,
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              }
+            ]
+          }
+        },
+        "kix.list.7": {
+          "listProperties": {
+            "nestingLevels": [
+              {
+                "bulletAlignment": "START",
+                "glyphType": "DECIMAL",
+                "glyphFormat": "%0.",
+                "indentFirstLine": {
+                  "magnitude": 36,
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "magnitude": 54,
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              }
+            ]
+          }
+        },
+        "kix.list.8": {
+          "listProperties": {
+            "nestingLevels": [
+              {
+                "bulletAlignment": "START",
+                "glyphType": "DECIMAL",
+                "glyphFormat": "%0.",
+                "indentFirstLine": {
+                  "magnitude": 54,
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "magnitude": 72,
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              }
+            ]
+          }
+        },
+        "kix.list.9": {
+          "listProperties": {
+            "nestingLevels": [
+              {
+                "bulletAlignment": "START",
+                "glyphType": "DECIMAL",
+                "glyphFormat": "%0.",
+                "indentFirstLine": {
+                  "magnitude": 72,
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "magnitude": 90,
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              }
+            ]
+          }
+        }
+      },
+      "namedRanges": null,
+      "inlineObjects": {
+        "i.0": {
+          "objectId": "i.0",
+          "inlineObjectProperties": {
+            "embeddedObject": {
+              "imageProperties": {
+                "cropProperties": {
+                  "offsetLeft": 0.03,
+                  "offsetRight": 0.03
+                }
+              },
+              "description": "Three distinct original editorial illustrations informed by the official ChatGPT Dots product character: a character presenting next choices, an overhead paper junction, and a miniature decision stage. Cover 01 is recommended for the strongest personal article hook and recognizable character. No depiction is the user’s avatar or a product screenshot.",
+              "embeddedObjectBorder": {
+                "color": {
+                  "color": {
+                    "rgbColor": {}
+                  }
+                },
+                "width": {
+                  "unit": "PT"
+                },
+                "dashStyle": "SOLID",
+                "propertyState": "NOT_RENDERED"
+              },
+              "size": {
+                "height": {
+                  "magnitude": 266,
+                  "unit": "PT"
+                },
+                "width": {
+                  "magnitude": 478.8,
+                  "unit": "PT"
+                }
+              },
+              "marginTop": {
+                "unit": "PT"
+              },
+              "marginBottom": {
+                "unit": "PT"
+              },
+              "marginRight": {
+                "magnitude": 9,
+                "unit": "PT"
+              },
+              "marginLeft": {
+                "magnitude": 9,
+                "unit": "PT"
+              }
+            }
+          }
+        },
+        "i.1": {
+          "objectId": "i.1",
+          "inlineObjectProperties": {
+            "embeddedObject": {
+              "imageProperties": {
+                "cropProperties": {
+                  "offsetTop": 8.45305e-08,
+                  "offsetBottom": 8.45305e-08
+                }
+              },
+              "description": "Original conceptual editorial illustration informed by official ChatGPT Dots product references. A coral scalloped monocle character presents undecided work cards to a human hand. It does not depict the user’s personal dot or a product screenshot.",
+              "embeddedObjectBorder": {
+                "color": {
+                  "color": {
+                    "rgbColor": {}
+                  }
+                },
+                "width": {
+                  "unit": "PT"
+                },
+                "dashStyle": "SOLID",
+                "propertyState": "NOT_RENDERED"
+              },
+              "size": {
+                "height": {
+                  "magnitude": 232.87496062992125,
+                  "unit": "PT"
+                },
+                "width": {
+                  "magnitude": 414,
+                  "unit": "PT"
+                }
+              },
+              "marginTop": {
+                "unit": "PT"
+              },
+              "marginBottom": {
+                "unit": "PT"
+              },
+              "marginRight": {
+                "magnitude": 9,
+                "unit": "PT"
+              },
+              "marginLeft": {
+                "magnitude": 9,
+                "unit": "PT"
+              }
+            }
+          }
+        },
+        "i.2": {
+          "objectId": "i.2",
+          "inlineObjectProperties": {
+            "embeddedObject": {
+              "imageProperties": {
+                "cropProperties": {
+                  "offsetTop": 1.0682425e-07,
+                  "offsetBottom": 1.0682425e-07
+                }
+              },
+              "description": "Original conceptual editorial illustration informed by official ChatGPT Dots product references. A coral scalloped monocle character presents undecided work cards to a human hand. It does not depict the user’s personal dot or a product screenshot.",
+              "embeddedObjectBorder": {
+                "color": {
+                  "color": {
+                    "rgbColor": {}
+                  }
+                },
+                "width": {
+                  "unit": "PT"
+                },
+                "dashStyle": "SOLID",
+                "propertyState": "NOT_RENDERED"
+              },
+              "size": {
+                "height": {
+                  "magnitude": 184.27496062992125,
+                  "unit": "PT"
+                },
+                "width": {
+                  "magnitude": 327.6,
+                  "unit": "PT"
+                }
+              },
+              "marginTop": {
+                "unit": "PT"
+              },
+              "marginBottom": {
+                "unit": "PT"
+              },
+              "marginRight": {
+                "magnitude": 9,
+                "unit": "PT"
+              },
+              "marginLeft": {
+                "magnitude": 9,
+                "unit": "PT"
+              }
+            }
+          }
+        },
+        "i.4": {
+          "objectId": "i.4",
+          "inlineObjectProperties": {
+            "embeddedObject": {
+              "imageProperties": {
+                "cropProperties": {}
+              },
+              "description": "A hypothetical editor saves A saying Launch on Friday, edits B to Launch on Monday before the response, and retains B as unsaved.",
+              "embeddedObjectBorder": {
+                "color": {
+                  "color": {
+                    "rgbColor": {}
+                  }
+                },
+                "width": {
+                  "unit": "PT"
+                },
+                "dashStyle": "SOLID",
+                "propertyState": "NOT_RENDERED"
+              },
+              "size": {
+                "height": {
+                  "magnitude": 211.45259842519687,
+                  "unit": "PT"
+                },
+                "width": {
+                  "magnitude": 446.4,
+                  "unit": "PT"
+                }
+              },
+              "marginTop": {
+                "unit": "PT"
+              },
+              "marginBottom": {
+                "unit": "PT"
+              },
+              "marginRight": {
+                "magnitude": 9,
+                "unit": "PT"
+              },
+              "marginLeft": {
+                "magnitude": 9,
+                "unit": "PT"
+              }
+            }
+          }
+        },
+        "kix.1p49snnxu8to": {
+          "objectId": "kix.1p49snnxu8to",
+          "inlineObjectProperties": {
+            "embeddedObject": {
+              "imageProperties": {
+                "cropProperties": {}
+              },
+              "description": "A portrait composition of the coral monocle product-reference character, two undecided proposal cards, a checked manuscript and a human hand poised to choose. Original conceptual editorial illustration, not a screenshot or Froggy’s likeness.",
+              "embeddedObjectBorder": {
+                "color": {
+                  "color": {
+                    "rgbColor": {}
+                  }
+                },
+                "width": {
+                  "unit": "PT"
+                },
+                "dashStyle": "SOLID",
+                "propertyState": "NOT_RENDERED"
+              },
+              "size": {
+                "height": {
+                  "magnitude": 427.5,
+                  "unit": "PT"
+                },
+                "width": {
+                  "magnitude": 342,
+                  "unit": "PT"
+                }
+              },
+              "marginTop": {
+                "magnitude": 9,
+                "unit": "PT"
+              },
+              "marginBottom": {
+                "magnitude": 9,
+                "unit": "PT"
+              },
+              "marginRight": {
+                "magnitude": 9,
+                "unit": "PT"
+              },
+              "marginLeft": {
+                "magnitude": 9,
+                "unit": "PT"
+              }
+            }
+          }
+        }
+      },
+      "positionedObjects": null,
+      "documentId": "1eawDS4HThrBkPHr0txqboR7Koi4LMOiSrFEuu8_AwK8",
+      "document_url": "https://docs.google.com/document/d/1eawDS4HThrBkPHr0txqboR7Koi4LMOiSrFEuu8_AwK8"
+    }
+  ],
+  "document_url": "https://docs.google.com/document/d/1eawDS4HThrBkPHr0txqboR7Koi4LMOiSrFEuu8_AwK8"
+}

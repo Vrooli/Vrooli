@@ -1,0 +1,304 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-08-27T17:42:11-04:00"
+  },
+  "requirements": [
+    {
+      "id": "REQ-P0-014a",
+      "title": "Launcher Destination And Appearance Disclosure",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-006",
+      "category": "ui",
+      "description": "The new-session dialog states which group the session will join on every open, including when opened from a group header's add control, and lets the operator change that destination or create a new group without leaving the dialog. The dialog also names the appearance (colour source, theme, font size) the session will receive before launch.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/terminal-launcher.test.tsx:states its destination on every open, including with no pending group",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "The destination control renders on every open, reading No group when none is pending"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/terminal-launcher.test.tsx:names the group it was opened from",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "A group header's add control is reflected in the dialog"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/terminal-launcher.test.tsx:creates a group by typing a name that matches none",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Create-on-type reaches the caller and selects the new group"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/terminal-launcher.test.tsx:names the appearance the session will receive",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Colour source, theme, and font size are shown before launch"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/components/launcher/agentGrid.test.ts",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Attributed variants fold into their parent agent card"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/terminal-launcher.test.tsx:renders no dedicated Codex sign-in card",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "The hardcoded sign-in card is gone"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/terminal-launcher.test.tsx:keeps the sign-in command reachable as an editable shortcut",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "The capability survives as ordinary shortcut data"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-014b",
+      "title": "Compact Machine Selection",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-013",
+      "category": "ui",
+      "description": "Machine selection in the launcher occupies one trigger row that opens a listbox carrying presence, readiness detail, and grant per row, with a pinned link-a-machine action outside the listbox. Focus returns to the trigger on close.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/machine-picker.test.tsx",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Trigger, listbox, presence, readiness meta, grant chip, arrow keys, focus return, and the pinned link action outside the listbox"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/terminal-launcher.test.tsx:renders no full-width target card",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "The TargetCard stack is replaced by one trigger row"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-014c",
+      "title": "Group Assignment And Administration Split",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-001",
+      "category": "ui",
+      "description": "Assigning a session to a group and renaming or recolouring a group happen in place through anchored controls. The Manage Groups drawer is an administration surface only: filter, active and empty sections, per-row selection, bulk close, and an empty-group sweep.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/manage-groups-drawer.test.tsx",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Filter, Active and Empty sections, per-row selection, bulk close, sweep, and the absence of any assign control"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/tab-bar-rename-group.test.tsx:Add to Group opens the anchored picker, not the manager",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Assignment is in place, not a trip through the drawer"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/tab-bar-rename-group.test.tsx:moves a grouped pane through the same anchored picker",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "One picker serves both the add and move cases"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-014d",
+      "title": "Handoff Between Sessions In A Group",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-001",
+      "category": "core",
+      "description": "One generic verb sends a message from one session to one or more targets in the same group. The composer shows the exact text before sending and reports a per-target sent, queued, or failed result. A handoff is never silently dropped. The send path holds no knowledge of what a payload is and never references the capture-rule matcher.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/lib/handoff.test.ts",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "renderHandoffPrompt substitutes, appends, and never inspects the payload"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/handoff-send.test.ts",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Per-target results, the queued path, fan-out sequencing, and group-scoped targets"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/handoff-composer.test.tsx",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Editable rendered text, multi-select, and queued never reported as sent"
+        },
+        {
+          "type": "automation",
+          "ref": "bas/cases/01-foundation/01-terminal/handoff-delivers-payload-to-role.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "A payload sent from one session arrives in another session's terminal output"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-014e",
+      "title": "Waiting Roles",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-001",
+      "category": "core",
+      "description": "A group holds an ordered list of named roles. A role is running when it holds a session id and waiting when it holds a command and no session id. A waiting role costs no process and no PTY, survives a restart, and renders as a placeholder inside its group block. Roles are optional: every existing grouping behaviour keeps working with no role rows present.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/workspace/store_roles_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Role lifecycle, ordering, cascade, the partial unique index, and session-recovery reassignment, in both stores"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/workspace/connect_handler_test.go:TestConnectHandlerRoleOperations",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Four role RPCs and their typed error mapping"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/workspace/connect_handler_test.go:TestGetLayoutReturnsRolesInOneResponse",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Roles ride along in one round trip"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/stores/useWorkspaceStore-roles.test.ts",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Store role actions, the running/waiting derivation, and the cascade on group removal"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/lib/workspaceNavigation.roles.test.ts",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Waiting roles render in their group block, a role-only group stays visible, and running roles are never drawn twice"
+        },
+        {
+          "type": "automation",
+          "ref": "bas/cases/01-foundation/01-terminal/group-template-creates-waiting-role.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "A two-role template starts one process and leaves one waiting placeholder"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-014f",
+      "title": "Group Auto-Close With Undo",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-001",
+      "category": "ui",
+      "description": "A group closes itself when it holds no panes and no waiting roles. The waiting-role exemption keeps a half-started group alive. Every close, automatic or bulk, is reversible through one undo control for a bounded window, restoring the group, its roles, and its surviving pane assignments.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/group-auto-close.test.ts",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "The waiting-role exemption, undo replay, and the snapshot surviving a failed restore"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/stores/useWorkspaceStore-roles.test.ts:isGroupClosable",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "The closable predicate in isolation"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-014g",
+      "title": "Group Templates",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-006",
+      "category": "core",
+      "description": "A saved list of role definitions creates a group and its roles in one action. A role's start mode decides whether it starts a process now or waits. Templates are ordinary editable rows with no privileged built-ins; a seeded example is created through the same write path the UI uses and is deletable without breaking any capability.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/grouptemplates/store_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Role lists at zero, one, and five; validation; use-count preservation; and the seeded example's deletability"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/grouptemplates/connect_handler_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Three RPCs, a three-role round trip, and invalid-argument mapping"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/group-templates.test.tsx",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Group mode seeds from a template, only eager roles start, launcher edits do not touch the stored template, and any template is deletable"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-014h",
+      "title": "Handoff Capture Rules",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-001",
+      "category": "core",
+      "description": "A named pattern decides when the console offers a handoff. A rule produces a dismissible suggestion and never sends anything. Matching is bounded to a recent window of conversation events. Deleting every rule removes the suggestion surface and leaves every other handoff entry point working.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/handoffrules/store_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Rule round-trip, validation, the seeded example's deletability, and seeding skipping a non-empty store"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/handoffrules/connect_handler_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Three RPCs and invalid-argument mapping for all three failures"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/lib/captureRules.test.ts",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Glob and regular-expression matching, capture-group payloads, disabled rules, the bounded scan window, and a pathological pattern staying bounded"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/handoff-suggestions.test.tsx",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "The chip names its rule, opens rather than sends, and is dismissible"
+        }
+      ]
+    }
+  ]
+}

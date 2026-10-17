@@ -1,0 +1,113 @@
+syntax = "proto3";
+
+package vrooli.cli.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1";
+
+// =============================================================================
+// VROOLI CLI — `plans` output contract
+// =============================================================================
+//
+// @stability experimental
+//
+// Canonical wire shapes of the read-only `vrooli plans` command family in
+// --json mode: `plans list`, `plans show`, and `plans path`. Mutation workflows
+// live on the plan-manager CLI directly. Each command emits its output struct
+// directly (cliout.WriteJSON, no extra envelope wrapping), though every payload
+// already carries its own `success` field. Marshaled with protojson
+// (UseProtoNames=true, EmitUnpopulated=true).
+// =============================================================================
+
+// PlansRecord is one plan entry, shared across every plans command payload.
+// Field order mirrors the legacy JSON struct so the migration is additive only.
+message PlansRecord {
+  // Stable plan identifier.
+  string id = 1;
+
+  // Human-readable plan title.
+  string title = 2;
+
+  // URL/file-safe slug derived from the title.
+  string slug = 3;
+
+  // Absolute path to the plan file on disk.
+  string path = 4;
+
+  // Creation timestamp, RFC3339Nano; "" if zero-valued.
+  string created_at = 5;
+
+  // Last-update timestamp, RFC3339Nano; "" if zero-valued.
+  string updated_at = 6;
+
+  // True when the plan is archived.
+  bool archived = 7;
+
+  // Archive timestamp, RFC3339Nano; "" when not archived / zero-valued.
+  string archived_at = 8;
+
+  // Original source path when the plan was imported; "" if not imported.
+  string source_path = 9;
+
+  // Content hash of the plan body; "" if unset.
+  string content_hash = 10;
+}
+
+// PlansListOutput is the shape of `vrooli plans list --json`.
+message PlansListOutput {
+  // True when the listing completed successfully.
+  bool success = 1;
+
+  // All matched plans; empty when none found.
+  repeated PlansRecord plans = 2;
+
+  // Read source: "plan-manager" for canonical reads or "mirror-fallback" for degraded mirror reads.
+  string source = 3;
+
+  // True when the response came from degraded mirror fallback.
+  bool degraded = 4;
+
+  // Human-readable degraded-mode warning; "" for canonical reads.
+  string warning = 5;
+}
+
+// PlansShowOutput is the shape of `vrooli plans show --json`.
+message PlansShowOutput {
+  // True when the plan was resolved successfully.
+  bool success = 1;
+
+  // The resolved plan.
+  PlansRecord plan = 2;
+
+  // Full plan body content; "" when not requested / empty.
+  string content = 3;
+
+  // Read source: "plan-manager" for canonical reads or "mirror-fallback" for degraded mirror reads.
+  string source = 4;
+
+  // True when the response came from degraded mirror fallback.
+  bool degraded = 5;
+
+  // Human-readable degraded-mode warning; "" for canonical reads.
+  string warning = 6;
+}
+
+// PlansPathOutput is the shape of `vrooli plans path --json`.
+message PlansPathOutput {
+  // True when the path was resolved successfully.
+  bool success = 1;
+
+  // Resolved plan identifier.
+  string id = 2;
+
+  // Absolute path to the plan file on disk.
+  string path = 3;
+
+  // Read source: "plan-manager" for canonical reads or "mirror-fallback" for degraded mirror reads.
+  string source = 4;
+
+  // True when the response came from degraded mirror fallback.
+  bool degraded = 5;
+
+  // Human-readable degraded-mode warning; "" for canonical reads.
+  string warning = 6;
+}

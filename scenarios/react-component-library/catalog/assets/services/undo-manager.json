@@ -1,0 +1,33 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "services.undo-manager",
+    "name": "Undo Manager",
+    "kind": "runtime-service",
+    "domain": "services",
+    "description": "The scoped command-history service supporting reversible operations, grouping, expiry, redo, persistence policy, and user-visible undo affordances.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "service",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "services.create-scoped-store",
+        "reason": "History is scoped to the surface that owns the operations."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "recovery-path",
+    "optimistic-rollback"
+  ]
+}

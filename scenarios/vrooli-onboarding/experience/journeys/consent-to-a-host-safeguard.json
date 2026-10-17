@@ -1,0 +1,59 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "consent-to-a-host-safeguard",
+    "title": "Consent to a medium-risk host safeguard",
+    "purpose": "An operator opts into a safeguard that modifies host state, having seen its risk, privilege, what it writes, and its configurable fields before consenting.",
+    "prd_refs": [
+      "OT-P0-004"
+    ]
+  },
+  "steps": [
+    {
+      "page": "setup-host",
+      "intent": "Read the safeguard's risk, privilege, and what it writes.",
+      "via": "requirement row",
+      "state": "default"
+    },
+    {
+      "page": "setup-host",
+      "intent": "Expand and edit a declared config field.",
+      "via": "config fields",
+      "state": "config-expanded"
+    },
+    {
+      "page": "setup-host",
+      "intent": "Submit an invalid value and see the failing field named.",
+      "via": "config fields",
+      "state": "config-invalid"
+    },
+    {
+      "page": "setup-host",
+      "intent": "Correct the value and opt in.",
+      "via": "opt-in toggle",
+      "state": "config-expanded"
+    },
+    {
+      "page": "setup-apply",
+      "intent": "Apply and confirm the safeguard was applied with the declared privilege.",
+      "via": "apply report",
+      "state": "applied"
+    }
+  ],
+  "claims": [
+    {
+      "id": "informed-consent",
+      "type": "custom",
+      "statement": "Risk, privilege, and the host change are all visible before the opt-in is possible.",
+      "tier": "manual"
+    },
+    {
+      "id": "invalid-config-is-recoverable",
+      "type": "custom",
+      "statement": "An invalid config value names its field and leaves the stored document unchanged.",
+      "tier": "manual"
+    }
+  ]
+}

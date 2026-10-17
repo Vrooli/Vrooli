@@ -1,0 +1,22 @@
+{
+  "version": "code-facts-corpus-v1",
+  "governed_roots": ["scenarios", "packages", "resources", "internal", "cmd"],
+  "roles": ["implementation", "contract", "generated_alias", "test", "fixture", "documentation", "transient"],
+  "default_searchable_roles": ["implementation", "contract", "generated_alias"],
+  "excluded_directory_names": [".git", ".cache", ".vite", "node_modules", "vendor", "coverage", "dist", "build", "tmp"],
+  "generated_alias_prefixes": ["packages/proto/gen/"],
+  "transient_prefixes": ["packages/proto/.verify-", ".vrooli/.tmp-"],
+  "scale_multiplier": 3,
+  "execution_start_inventory": {
+    "captured_on": "2026-08-20",
+    "roles": {
+      "implementation": {"files": 22752, "bytes": 121437126},
+      "contract": {"files": 1733, "bytes": 7335458},
+      "generated_alias": {"files": 4724, "bytes": 63572270},
+      "test": {"files": 12123, "bytes": 62311513},
+      "fixture": {"files": 504, "bytes": 3979181},
+      "documentation": {"files": 4229, "bytes": 75446326},
+      "transient": {"files": 5665, "bytes": 90840179}
+    }
+  }
+}

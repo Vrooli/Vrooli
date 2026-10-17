@@ -1,0 +1,12 @@
+{
+  "kind": "team-roles",
+  "schemaVersion": 1,
+  "teamId": "experience-quality-delivery",
+  "roles": [
+    {
+      "id": "experience-quality-orchestrator",
+      "name": "Experience Quality Orchestrator",
+      "description": "Coordinate the finite experience-quality outcome and independently accept substantial epochs; maintain its goal home without implementing product code."
+    }
+  ]
+}

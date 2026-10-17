@@ -2,6 +2,7 @@ package approvals
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -12,8 +13,67 @@ import (
 
 	"deployment-manager/cli/cmdutil"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliutil"
+	approvalconnect "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/approvals/approvalsv1connect"
+	"google.golang.org/protobuf/types/known/structpb"
 )
+
+type fakeApprovalsClient struct {
+	lastMethod  string
+	lastRequest *structpb.Value
+}
+
+func (f *fakeApprovalsClient) response(method string, request *connect.Request[structpb.Value]) (*connect.Response[structpb.Value], error) {
+	f.lastMethod, f.lastRequest = method, request.Msg
+	value, err := structpb.NewValue([]interface{}{map[string]interface{}{"id": "approval-1", "status": "pending"}})
+	if method == "Get" || method == "Create" || method == "Decide" {
+		value, err = structpb.NewValue(map[string]interface{}{"id": "approval-1", "status": "pending"})
+	}
+	if method == "CheckReleaseGate" {
+		value, err = structpb.NewValue(map[string]interface{}{"ready": false, "platforms": []interface{}{}})
+	}
+	if method == "GetRequiredPlatforms" {
+		value, err = structpb.NewValue(map[string]interface{}{"platforms": []interface{}{"linux"}})
+	}
+	return connect.NewResponse(value), err
+}
+
+func (f *fakeApprovalsClient) List(_ context.Context, request *connect.Request[structpb.Value]) (*connect.Response[structpb.Value], error) {
+	return f.response("List", request)
+}
+func (f *fakeApprovalsClient) Get(_ context.Context, request *connect.Request[structpb.Value]) (*connect.Response[structpb.Value], error) {
+	return f.response("Get", request)
+}
+func (f *fakeApprovalsClient) Create(_ context.Context, request *connect.Request[structpb.Value]) (*connect.Response[structpb.Value], error) {
+	return f.response("Create", request)
+}
+func (f *fakeApprovalsClient) Decide(_ context.Context, request *connect.Request[structpb.Value]) (*connect.Response[structpb.Value], error) {
+	return f.response("Decide", request)
+}
+func (f *fakeApprovalsClient) CheckReleaseGate(_ context.Context, request *connect.Request[structpb.Value]) (*connect.Response[structpb.Value], error) {
+	return f.response("CheckReleaseGate", request)
+}
+func (f *fakeApprovalsClient) SetRequiredPlatforms(_ context.Context, request *connect.Request[structpb.Value]) (*connect.Response[structpb.Value], error) {
+	return f.response("SetRequiredPlatforms", request)
+}
+func (f *fakeApprovalsClient) GetRequiredPlatforms(_ context.Context, request *connect.Request[structpb.Value]) (*connect.Response[structpb.Value], error) {
+	return f.response("GetRequiredPlatforms", request)
+}
+
+var _ approvalconnect.ApprovalsServiceClient = (*fakeApprovalsClient)(nil)
+
+func TestTypedApprovalCommandsUseGeneratedClient(t *testing.T) {
+	fake := &fakeApprovalsClient{}
+	cmd := NewWithConnectClient(nil, fake)
+	if err := cmd.Run([]string{"list", "profile-1", "--commit", "abc", "--format", "json"}); err != nil {
+		t.Fatalf("typed approval list failed: %v", err)
+	}
+	request := fake.lastRequest.AsInterface().(map[string]interface{})
+	if fake.lastMethod != "List" || request["profile_id"] != "profile-1" || request["git_commit_hash"] != "abc" {
+		t.Fatalf("unexpected typed approval request: method=%s request=%#v", fake.lastMethod, request)
+	}
+}
 
 func testAPIClient(base string) *cliutil.APIClient {
 	return cliutil.NewAPIClient(
@@ -294,8 +354,8 @@ func TestGateReadyOutput(t *testing.T) {
 	if !strings.Contains(output, "READY") {
 		t.Fatalf("expected READY status, got %s", output)
 	}
-	if strings.Contains(output, "Next Steps") {
-		t.Fatalf("unexpected next steps for ready gate, got %s", output)
+	if !strings.Contains(output, "Next Steps") || !strings.Contains(output, "deployment-manager deploy prof-1") {
+		t.Fatalf("expected standardized next step for ready gate, got %s", output)
 	}
 }
 

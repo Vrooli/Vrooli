@@ -1,0 +1,168 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "The durable SQLite event store is resolved into the scenario-owned data directory.",
+        "budget": {
+          "max_bytes": "2GiB",
+          "rationale": "The event store pruner enforces the same 2 GiB payload ceiling before the durable data surface can grow without bound."
+        }
+      }
+    },
+    "rationale": "The scenario owns its durable SQLite event store; no external resource database is claimed."
+  },
+  "service": {
+    "parent": "vrooli",
+    "name": "vrooli-events",
+    "displayName": "Vrooli Events",
+    "description": "Central event bus for inter-scenario communication — durable SQLite event store with SSE pub/sub and real-time analytics dashboard",
+    "version": "0.0.1",
+    "type": "infrastructure",
+    "category": "messaging",
+    "tags": [
+      "react-ui",
+      "go-api",
+      "event-bus",
+      "sse",
+      "sqlite",
+      "pub-sub"
+    ],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/vrooli-events"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "startup_grace_period": 15000,
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "timeout": 10000,
+          "interval": 30000,
+          "critical": true
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000,
+          "critical": false
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "resources": {},
+    "scenarios": {}
+  },
+  "credentials": {
+    "descriptors": [{
+      "logical_id": "vrooli/vrooli-events",
+      "field": "agent-manager-webhook-secret",
+      "label": "Agent Manager program-event webhook secret",
+      "description": "Generated shared HMAC credential used to sign webhook deliveries.",
+      "required": false,
+      "provisioning": "generated",
+      "tiers": ["tier-1-local"]
+    }]
+  },
+  "cli": {
+    "enabled": true,
+    "command": "vrooli-events",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "vrooli-events"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
+    }
+  }
+}

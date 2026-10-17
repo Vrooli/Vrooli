@@ -1,0 +1,22 @@
+{
+  "id": "scope_stats",
+  "label": "Goals in scope",
+  "description": "Goals Swarm Manager is tracking scope against.",
+  "unit": "count",
+  "format": "integer",
+  "shape": "scalar",
+  "source": {
+    "team": "director-swarm",
+    "binding": "scenario:swarm-manager",
+    "read": "/api/v1/stats",
+    "select": "scope_stats",
+    "ttlSeconds": 30,
+    "integrationId": "swarm-manager",
+    "featureId": "scope_stats",
+    "contractVersion": "legacy.v1",
+    "selector": "scope_stats",
+    "expectedUnit": "count",
+    "sourceTimePolicy": "producer_required"
+  },
+  "coverage": "NOW"
+}

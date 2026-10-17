@@ -1,0 +1,35 @@
+{
+  "id": "4c4b64e8-8d2d-4f9f-9efc-5b1c1c7c4f2a",
+  "name": "ensure-session",
+  "folder_path": "/bas/actions",
+  "description": "Ensure the workspace has exactly one usable terminal session",
+  "metadata": {
+    "name": "ensure-session",
+    "description": "Ensure the workspace has exactly one usable terminal session",
+    "execution_mode": "mutating",
+    "reset": "none",
+    "labels": {
+      "reset": "none",
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
+    }
+  },
+  "tags": ["reset:none"],
+  "version": 1,
+  "flow_definition": {
+    "settings": {"viewport_width": 1440, "viewport_height": 900},
+    "nodes": [
+      {
+        "id": "create-if-needed",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async () => { const existing = document.querySelector('[data-testid=\"terminal-pane\"]'); if (existing) return; const launch = document.querySelector('[data-testid=\"new-terminal-button\"], [data-testid=\"toolbar-new\"]'); if (!(launch instanceof HTMLElement)) throw new Error('empty workspace: new terminal control is unavailable'); launch.click(); const deadline = Date.now() + 90000; while (Date.now() < deadline) { const emptyShell = document.querySelector('[data-testid=\"launcher-empty-shell\"]'); if (emptyShell instanceof HTMLElement) { emptyShell.click(); break; } await new Promise((resolve) => setTimeout(resolve, 250)); } while (Date.now() < deadline) { if (document.querySelector('[data-testid=\"terminal-pane\"]')) return; await new Promise((resolve) => setTimeout(resolve, 250)); } throw new Error('terminal session did not become ready within timeout'); })()"
+          },
+          "metadata": {"label": "Create a session only when the workspace is empty"}
+        }
+      }
+    ],
+    "edges": []
+  }
+}

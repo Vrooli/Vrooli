@@ -1,0 +1,425 @@
+[
+  {
+    "page": 1,
+    "state": "M01-today-v05-desktop",
+    "same_dimensions": true,
+    "pixels_identical": true,
+    "mean_abs_diff": 0.0,
+    "channels_changed_fraction": 0.0,
+    "max_abs_diff": 0
+  },
+  {
+    "page": 1,
+    "state": "M01-today-v05-phone",
+    "same_dimensions": true,
+    "pixels_identical": false,
+    "mean_abs_diff": 0.002878032972819703,
+    "channels_changed_fraction": 0.0001427877020294082,
+    "max_abs_diff": 60
+  },
+  {
+    "page": 2,
+    "state": "M02-strategy-v03-desktop",
+    "same_dimensions": true,
+    "pixels_identical": true,
+    "mean_abs_diff": 0.0,
+    "channels_changed_fraction": 0.0,
+    "max_abs_diff": 0
+  },
+  {
+    "page": 2,
+    "state": "M02-strategy-v03-phone",
+    "same_dimensions": true,
+    "pixels_identical": false,
+    "mean_abs_diff": 0.0021509296390812976,
+    "channels_changed_fraction": 0.0010754648195406488,
+    "max_abs_diff": 2
+  },
+  {
+    "page": 3,
+    "state": "M03-evidence-v03-desktop",
+    "same_dimensions": true,
+    "pixels_identical": true,
+    "mean_abs_diff": 0.0,
+    "channels_changed_fraction": 0.0,
+    "max_abs_diff": 0
+  },
+  {
+    "page": 3,
+    "state": "M03-evidence-v03-phone",
+    "same_dimensions": true,
+    "pixels_identical": true,
+    "mean_abs_diff": 0.0,
+    "channels_changed_fraction": 0.0,
+    "max_abs_diff": 0
+  },
+  {
+    "page": 4,
+    "state": "M04-editor-v03-desktop",
+    "same_dimensions": true,
+    "pixels_identical": false,
+    "mean_abs_diff": 0.00030606995884773663,
+    "channels_changed_fraction": 0.00018364197530864197,
+    "max_abs_diff": 2
+  },
+  {
+    "page": 4,
+    "state": "M04-editor-v03-phone",
+    "same_dimensions": true,
+    "pixels_identical": true,
+    "mean_abs_diff": 0.0,
+    "channels_changed_fraction": 0.0,
+    "max_abs_diff": 0
+  },
+  {
+    "page": 5,
+    "state": "M05-plan-v04-desktop",
+    "same_dimensions": true,
+    "pixels_identical": false,
+    "mean_abs_diff": 0.0022222222222222222,
+    "channels_changed_fraction": 0.0011111111111111111,
+    "max_abs_diff": 2
+  },
+  {
+    "page": 5,
+    "state": "M05-plan-v04-phone",
+    "same_dimensions": true,
+    "pixels_identical": false,
+    "mean_abs_diff": 0.0021509296390812976,
+    "channels_changed_fraction": 0.0010754648195406488,
+    "max_abs_diff": 2
+  },
+  {
+    "page": 6,
+    "state": "M06-review-v04-desktop",
+    "same_dimensions": true,
+    "pixels_identical": false,
+    "mean_abs_diff": 0.0018441358024691358,
+    "channels_changed_fraction": 0.0009220679012345679,
+    "max_abs_diff": 2
+  },
+  {
+    "page": 6,
+    "state": "M06-review-v04-phone",
+    "same_dimensions": true,
+    "pixels_identical": true,
+    "mean_abs_diff": 0.0,
+    "channels_changed_fraction": 0.0,
+    "max_abs_diff": 0
+  },
+  {
+    "page": 7,
+    "state": "M06-review-v04-phone-changes",
+    "same_dimensions": true,
+    "pixels_identical": true,
+    "mean_abs_diff": 0.0,
+    "channels_changed_fraction": 0.0,
+    "max_abs_diff": 0
+  },
+  {
+    "page": 8,
+    "state": "M07-outcome-v04-desktop",
+    "same_dimensions": true,
+    "pixels_identical": true,
+    "mean_abs_diff": 0.0,
+    "channels_changed_fraction": 0.0,
+    "max_abs_diff": 0
+  },
+  {
+    "page": 8,
+    "state": "M07-outcome-v04-phone",
+    "same_dimensions": true,
+    "pixels_identical": true,
+    "mean_abs_diff": 0.0,
+    "channels_changed_fraction": 0.0,
+    "max_abs_diff": 0
+  },
+  {
+    "page": 9,
+    "state": "M08-learning-v04-desktop",
+    "same_dimensions": true,
+    "pixels_identical": true,
+    "mean_abs_diff": 0.0,
+    "channels_changed_fraction": 0.0,
+    "max_abs_diff": 0
+  },
+  {
+    "page": 9,
+    "state": "M08-learning-v04-phone",
+    "same_dimensions": true,
+    "pixels_identical": true,
+    "mean_abs_diff": 0.0,
+    "channels_changed_fraction": 0.0,
+    "max_abs_diff": 0
+  },
+  {
+    "page": 10,
+    "state": "M09-recovery-v04-desktop",
+    "same_dimensions": true,
+    "pixels_identical": true,
+    "mean_abs_diff": 0.0,
+    "channels_changed_fraction": 0.0,
+    "max_abs_diff": 0
+  },
+  {
+    "page": 10,
+    "state": "M09-recovery-v04-phone",
+    "same_dimensions": true,
+    "pixels_identical": true,
+    "mean_abs_diff": 0.0,
+    "channels_changed_fraction": 0.0,
+    "max_abs_diff": 0
+  },
+  {
+    "page": 11,
+    "state": "M10-ownership-v05",
+    "same_dimensions": true,
+    "pixels_identical": true,
+    "mean_abs_diff": 0.0,
+    "channels_changed_fraction": 0.0,
+    "max_abs_diff": 0
+  },
+  {
+    "page": 12,
+    "state": "M11-contributor-v03-desktop",
+    "same_dimensions": true,
+    "pixels_identical": false,
+    "mean_abs_diff": 0.0021296296296296298,
+    "channels_changed_fraction": 0.0010648148148148149,
+    "max_abs_diff": 2
+  },
+  {
+    "page": 12,
+    "state": "M11-contributor-v03-phone",
+    "same_dimensions": true,
+    "pixels_identical": true,
+    "mean_abs_diff": 0.0,
+    "channels_changed_fraction": 0.0,
+    "max_abs_diff": 0
+  },
+  {
+    "page": 13,
+    "state": "M12-simple-v05-desktop",
+    "same_dimensions": true,
+    "pixels_identical": true,
+    "mean_abs_diff": 0.0,
+    "channels_changed_fraction": 0.0,
+    "max_abs_diff": 0
+  },
+  {
+    "page": 13,
+    "state": "M12-simple-v05-phone",
+    "same_dimensions": true,
+    "pixels_identical": true,
+    "mean_abs_diff": 0.0,
+    "channels_changed_fraction": 0.0,
+    "max_abs_diff": 0
+  },
+  {
+    "page": 14,
+    "state": "M13-intake-v06-desktop",
+    "same_dimensions": true,
+    "pixels_identical": false,
+    "mean_abs_diff": 0.0006304012345679013,
+    "channels_changed_fraction": 3.780864197530864e-05,
+    "max_abs_diff": 41
+  },
+  {
+    "page": 14,
+    "state": "M13-intake-v06-phone",
+    "same_dimensions": true,
+    "pixels_identical": true,
+    "mean_abs_diff": 0.0,
+    "channels_changed_fraction": 0.0,
+    "max_abs_diff": 0
+  },
+  {
+    "page": 15,
+    "state": "M14-readiness-v04-desktop",
+    "same_dimensions": true,
+    "pixels_identical": true,
+    "mean_abs_diff": 0.0,
+    "channels_changed_fraction": 0.0,
+    "max_abs_diff": 0
+  },
+  {
+    "page": 15,
+    "state": "M14-readiness-v04-phone",
+    "same_dimensions": true,
+    "pixels_identical": false,
+    "mean_abs_diff": 0.011763276218252522,
+    "channels_changed_fraction": 0.0014015473731113543,
+    "max_abs_diff": 117
+  },
+  {
+    "page": 16,
+    "state": "M15-content-v01-desktop",
+    "same_dimensions": true,
+    "pixels_identical": true,
+    "mean_abs_diff": 0.0,
+    "channels_changed_fraction": 0.0,
+    "max_abs_diff": 0
+  },
+  {
+    "page": 16,
+    "state": "M15-content-v01-phone",
+    "same_dimensions": true,
+    "pixels_identical": false,
+    "mean_abs_diff": 0.005445173573135658,
+    "channels_changed_fraction": 0.001185846801960546,
+    "max_abs_diff": 59
+  },
+  {
+    "page": 17,
+    "state": "M16-article-v03-desktop",
+    "same_dimensions": true,
+    "pixels_identical": true,
+    "mean_abs_diff": 0.0,
+    "channels_changed_fraction": 0.0,
+    "max_abs_diff": 0
+  },
+  {
+    "page": 18,
+    "state": "M16-storyboard-v01-desktop",
+    "same_dimensions": true,
+    "pixels_identical": false,
+    "mean_abs_diff": 0.0021296296296296298,
+    "channels_changed_fraction": 0.0010648148148148149,
+    "max_abs_diff": 2
+  },
+  {
+    "page": 19,
+    "state": "M16-thread-v01-desktop",
+    "same_dimensions": true,
+    "pixels_identical": true,
+    "mean_abs_diff": 0.0,
+    "channels_changed_fraction": 0.0,
+    "max_abs_diff": 0
+  },
+  {
+    "page": 20,
+    "state": "M17-work-v02-desktop",
+    "same_dimensions": true,
+    "pixels_identical": true,
+    "mean_abs_diff": 0.0,
+    "channels_changed_fraction": 0.0,
+    "max_abs_diff": 0
+  },
+  {
+    "page": 20,
+    "state": "M17-work-v02-phone",
+    "same_dimensions": true,
+    "pixels_identical": false,
+    "mean_abs_diff": 0.0021509296390812976,
+    "channels_changed_fraction": 0.0010754648195406488,
+    "max_abs_diff": 2
+  },
+  {
+    "page": 21,
+    "state": "M18-journey-v02",
+    "same_dimensions": true,
+    "pixels_identical": true,
+    "mean_abs_diff": 0.0,
+    "channels_changed_fraction": 0.0,
+    "max_abs_diff": 0
+  },
+  {
+    "page": 22,
+    "state": "M19-request-changes-v01-phone",
+    "same_dimensions": true,
+    "pixels_identical": true,
+    "mean_abs_diff": 0.0,
+    "channels_changed_fraction": 0.0,
+    "max_abs_diff": 0
+  },
+  {
+    "page": 22,
+    "state": "M19-source-detail-v01-phone",
+    "same_dimensions": true,
+    "pixels_identical": true,
+    "mean_abs_diff": 0.0,
+    "channels_changed_fraction": 0.0,
+    "max_abs_diff": 0
+  },
+  {
+    "page": 23,
+    "state": "M20-states-v01-desktop",
+    "same_dimensions": true,
+    "pixels_identical": true,
+    "mean_abs_diff": 0.0,
+    "channels_changed_fraction": 0.0,
+    "max_abs_diff": 0
+  },
+  {
+    "page": 24,
+    "state": "M21-adaptive-art-v02-desktop",
+    "same_dimensions": true,
+    "pixels_identical": true,
+    "mean_abs_diff": 0.0,
+    "channels_changed_fraction": 0.0,
+    "max_abs_diff": 0
+  },
+  {
+    "page": 25,
+    "state": "M22-dark-editor-v02-desktop",
+    "same_dimensions": true,
+    "pixels_identical": true,
+    "mean_abs_diff": 0.0,
+    "channels_changed_fraction": 0.0,
+    "max_abs_diff": 0
+  },
+  {
+    "page": 26,
+    "state": "M23-assistance-v01-desktop",
+    "same_dimensions": true,
+    "pixels_identical": true,
+    "mean_abs_diff": 0.0,
+    "channels_changed_fraction": 0.0,
+    "max_abs_diff": 0
+  },
+  {
+    "page": 26,
+    "state": "M23-assistance-v01-phone",
+    "same_dimensions": true,
+    "pixels_identical": false,
+    "mean_abs_diff": 0.0027808158139911695,
+    "channels_changed_fraction": 0.0001002551950419249,
+    "max_abs_diff": 58
+  },
+  {
+    "page": 27,
+    "state": "M24-release-v03-desktop",
+    "same_dimensions": true,
+    "pixels_identical": true,
+    "mean_abs_diff": 0.0,
+    "channels_changed_fraction": 0.0,
+    "max_abs_diff": 0
+  },
+  {
+    "page": 27,
+    "state": "M24-release-v03-phone",
+    "same_dimensions": true,
+    "pixels_identical": false,
+    "mean_abs_diff": 0.0021509296390812976,
+    "channels_changed_fraction": 0.0010754648195406488,
+    "max_abs_diff": 2
+  },
+  {
+    "page": 28,
+    "state": "M25-manual-outcome-v02-phone",
+    "same_dimensions": true,
+    "pixels_identical": true,
+    "mean_abs_diff": 0.0,
+    "channels_changed_fraction": 0.0,
+    "max_abs_diff": 0
+  },
+  {
+    "page": 28,
+    "state": "M25-observation-v02-phone",
+    "same_dimensions": true,
+    "pixels_identical": false,
+    "mean_abs_diff": 0.0017701624336695426,
+    "channels_changed_fraction": 9.316644387734435e-05,
+    "max_abs_diff": 40
+  }
+]

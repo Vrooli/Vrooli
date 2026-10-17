@@ -1,0 +1,3991 @@
+{
+  "sectors": [
+    {
+      "slug": "business",
+      "cluster_id": "cluster_business",
+      "name": "Business / Governance",
+      "category": "governance",
+      "color": "lightblue",
+      "position": {
+        "x": 120,
+        "y": 120
+      }
+    },
+    {
+      "slug": "household",
+      "cluster_id": "cluster_household",
+      "name": "Household / Personal",
+      "category": "household",
+      "color": "lightgreen",
+      "position": {
+        "x": 360,
+        "y": 120
+      }
+    },
+    {
+      "slug": "prof",
+      "cluster_id": "cluster_prof",
+      "name": "Professional: Software Engineering",
+      "category": "software_engineering",
+      "color": "lightyellow",
+      "position": {
+        "x": 600,
+        "y": 120
+      }
+    },
+    {
+      "slug": "science",
+      "cluster_id": "cluster_science",
+      "name": "Science / Natural World",
+      "category": "science",
+      "color": "lightgoldenrod",
+      "position": {
+        "x": 840,
+        "y": 120
+      }
+    },
+    {
+      "slug": "sim",
+      "cluster_id": "cluster_sim",
+      "name": "Simulation & Meta-Simulation",
+      "category": "simulation",
+      "color": "lightpink",
+      "position": {
+        "x": 1080,
+        "y": 120
+      }
+    },
+    {
+      "slug": "mfg",
+      "cluster_id": "cluster_mfg",
+      "name": "Manufacturing / Industry 4.0",
+      "category": "manufacturing",
+      "color": "lightcyan",
+      "position": {
+        "x": 1320,
+        "y": 120
+      }
+    },
+    {
+      "slug": "energy",
+      "cluster_id": "cluster_energy",
+      "name": "Energy & Utilities",
+      "category": "energy",
+      "color": "lightsteelblue",
+      "position": {
+        "x": 120,
+        "y": 340
+      }
+    },
+    {
+      "slug": "transport",
+      "cluster_id": "cluster_transport",
+      "name": "Transportation & Mobility",
+      "category": "transport",
+      "color": "wheat",
+      "position": {
+        "x": 360,
+        "y": 340
+      }
+    },
+    {
+      "slug": "supply",
+      "cluster_id": "cluster_supply",
+      "name": "Supply Chain & Logistics",
+      "category": "supply_chain",
+      "color": "khaki1",
+      "position": {
+        "x": 600,
+        "y": 340
+      }
+    },
+    {
+      "slug": "retail",
+      "cluster_id": "cluster_retail",
+      "name": "Retail & Commerce",
+      "category": "retail",
+      "color": "mistyrose",
+      "position": {
+        "x": 840,
+        "y": 340
+      }
+    },
+    {
+      "slug": "agri",
+      "cluster_id": "cluster_agri",
+      "name": "Agriculture / Food Systems",
+      "category": "agriculture",
+      "color": "honeydew",
+      "position": {
+        "x": 1080,
+        "y": 340
+      }
+    },
+    {
+      "slug": "smartcity",
+      "cluster_id": "cluster_smartcity",
+      "name": "Built Environment / Smart Cities",
+      "category": "smart_cities",
+      "color": "thistle",
+      "position": {
+        "x": 1320,
+        "y": 340
+      }
+    },
+    {
+      "slug": "aero",
+      "cluster_id": "cluster_aero",
+      "name": "Aerospace & Space Ops",
+      "category": "aerospace",
+      "color": "lavender",
+      "position": {
+        "x": 120,
+        "y": 560
+      }
+    },
+    {
+      "slug": "media",
+      "cluster_id": "cluster_media",
+      "name": "Media & Entertainment",
+      "category": "media",
+      "color": "peachpuff",
+      "position": {
+        "x": 360,
+        "y": 560
+      }
+    },
+    {
+      "slug": "telecom",
+      "cluster_id": "cluster_telecom",
+      "name": "Telecom",
+      "category": "telecom",
+      "color": "azure",
+      "position": {
+        "x": 600,
+        "y": 560
+      }
+    },
+    {
+      "slug": "health",
+      "cluster_id": "cluster_health",
+      "name": "Healthcare Delivery",
+      "category": "healthcare",
+      "color": "lightcoral",
+      "position": {
+        "x": 840,
+        "y": 560
+      }
+    },
+    {
+      "slug": "edu",
+      "cluster_id": "cluster_edu",
+      "name": "Education",
+      "category": "education",
+      "color": "cornsilk",
+      "position": {
+        "x": 1080,
+        "y": 560
+      }
+    },
+    {
+      "slug": "finance",
+      "cluster_id": "cluster_finance",
+      "name": "Finance & Banking",
+      "category": "finance",
+      "color": "beige",
+      "position": {
+        "x": 1320,
+        "y": 560
+      }
+    },
+    {
+      "slug": "earth",
+      "cluster_id": "cluster_earth",
+      "name": "Natural Environment & Earth Systems",
+      "category": "earth_systems",
+      "color": "#e0f7fa",
+      "position": {
+        "x": 120,
+        "y": 780
+      }
+    },
+    {
+      "slug": "defense",
+      "cluster_id": "cluster_defense",
+      "name": "Defense, Security & Geopolitics",
+      "category": "defense",
+      "color": "#ffebee",
+      "position": {
+        "x": 360,
+        "y": 780
+      }
+    },
+    {
+      "slug": "leggov",
+      "cluster_id": "cluster_leggov",
+      "name": "Legal, Governance & Culture",
+      "category": "civic",
+      "color": "#ede7f6",
+      "position": {
+        "x": 600,
+        "y": 780
+      }
+    },
+    {
+      "slug": "social",
+      "cluster_id": "cluster_social",
+      "name": "Human & Social Systems",
+      "category": "social",
+      "color": "#fff8e1",
+      "position": {
+        "x": 840,
+        "y": 780
+      }
+    },
+    {
+      "slug": "research",
+      "cluster_id": "cluster_research",
+      "name": "Research Frontiers",
+      "category": "research",
+      "color": "#e8f5e9",
+      "position": {
+        "x": 1080,
+        "y": 780
+      }
+    },
+    {
+      "slug": "survival",
+      "cluster_id": "cluster_survival",
+      "name": "Survival Systems (Food/Water/Housing)",
+      "category": "survival",
+      "color": "#f1f8e9",
+      "position": {
+        "x": 1320,
+        "y": 780
+      }
+    }
+  ],
+  "stages": [
+    {
+      "slug": "A1",
+      "name": "Individual Productivity",
+      "cluster_id": "cluster_business",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Individual Productivity"
+      },
+      "order": 1
+    },
+    {
+      "slug": "A2",
+      "name": "Knowledge Management",
+      "cluster_id": "cluster_business",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Knowledge Management"
+      },
+      "order": 2
+    },
+    {
+      "slug": "A3",
+      "name": "Enterprise / Digital HQ",
+      "cluster_id": "cluster_business",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Enterprise / Digital HQ"
+      },
+      "order": 3
+    },
+    {
+      "slug": "A4",
+      "name": "Ecosystem / Multi-Org",
+      "cluster_id": "cluster_business",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Ecosystem / Multi-Org"
+      },
+      "order": 4
+    },
+    {
+      "slug": "A5",
+      "name": "Society / Strategic Intelligence",
+      "cluster_id": "cluster_business",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Society / Strategic Intelligence"
+      },
+      "order": 5
+    },
+    {
+      "slug": "A2a",
+      "name": "SOP Hub",
+      "cluster_id": "cluster_business",
+      "stage_type": "macro_component",
+      "attributes": {
+        "label": "SOP Hub"
+      },
+      "order": 6,
+      "parent_slug": "A2"
+    },
+    {
+      "slug": "A2b",
+      "name": "Research & Insights",
+      "cluster_id": "cluster_business",
+      "stage_type": "macro_component",
+      "attributes": {
+        "label": "Research & Insights"
+      },
+      "order": 7,
+      "parent_slug": "A2"
+    },
+    {
+      "slug": "A3a",
+      "name": "OKR Center",
+      "cluster_id": "cluster_business",
+      "stage_type": "macro_component",
+      "attributes": {
+        "label": "OKR Center"
+      },
+      "order": 8,
+      "parent_slug": "A3"
+    },
+    {
+      "slug": "A3b",
+      "name": "Analytics / BI",
+      "cluster_id": "cluster_business",
+      "stage_type": "macro_component",
+      "attributes": {
+        "label": "Analytics / BI"
+      },
+      "order": 9,
+      "parent_slug": "A3"
+    },
+    {
+      "slug": "A3c",
+      "name": "IT Ops / Monitoring",
+      "cluster_id": "cluster_business",
+      "stage_type": "macro_component",
+      "attributes": {
+        "label": "IT Ops / Monitoring"
+      },
+      "order": 10,
+      "parent_slug": "A3"
+    },
+    {
+      "slug": "A4a",
+      "name": "Partner / Vendor Network",
+      "cluster_id": "cluster_business",
+      "stage_type": "macro_component",
+      "attributes": {
+        "label": "Partner / Vendor Network"
+      },
+      "order": 11
+    },
+    {
+      "slug": "A5a",
+      "name": "National Indicators",
+      "cluster_id": "cluster_business",
+      "stage_type": "macro_component",
+      "attributes": {
+        "label": "National Indicators"
+      },
+      "order": 12,
+      "parent_slug": "A5"
+    },
+    {
+      "slug": "A5b",
+      "name": "Public Policy Workspace",
+      "cluster_id": "cluster_business",
+      "stage_type": "macro_component",
+      "attributes": {
+        "label": "Public Policy Workspace"
+      },
+      "order": 13,
+      "parent_slug": "A5"
+    },
+    {
+      "slug": "B1",
+      "name": "Child Dashboard",
+      "cluster_id": "cluster_household",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Child Dashboard"
+      },
+      "order": 1
+    },
+    {
+      "slug": "B2",
+      "name": "Family Dashboard",
+      "cluster_id": "cluster_household",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Family Dashboard"
+      },
+      "order": 2
+    },
+    {
+      "slug": "B3",
+      "name": "Community Hub",
+      "cluster_id": "cluster_household",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Community Hub"
+      },
+      "order": 3
+    },
+    {
+      "slug": "B2a",
+      "name": "Household Finance",
+      "cluster_id": "cluster_household",
+      "stage_type": "macro_component",
+      "attributes": {
+        "label": "Household Finance"
+      },
+      "order": 4,
+      "parent_slug": "B2"
+    },
+    {
+      "slug": "B2b",
+      "name": "Meals & Groceries",
+      "cluster_id": "cluster_household",
+      "stage_type": "macro_component",
+      "attributes": {
+        "label": "Meals & Groceries"
+      },
+      "order": 5,
+      "parent_slug": "B2"
+    },
+    {
+      "slug": "B2c",
+      "name": "Scheduling & Chores",
+      "cluster_id": "cluster_household",
+      "stage_type": "macro_component",
+      "attributes": {
+        "label": "Scheduling & Chores"
+      },
+      "order": 6,
+      "parent_slug": "B2"
+    },
+    {
+      "slug": "B1a",
+      "name": "Games & Learning",
+      "cluster_id": "cluster_household",
+      "stage_type": "macro_component",
+      "attributes": {
+        "label": "Games & Learning"
+      },
+      "order": 7,
+      "parent_slug": "B1"
+    },
+    {
+      "slug": "B1b",
+      "name": "Parental Controls",
+      "cluster_id": "cluster_household",
+      "stage_type": "macro_component",
+      "attributes": {
+        "label": "Parental Controls"
+      },
+      "order": 8,
+      "parent_slug": "B1"
+    },
+    {
+      "slug": "C1",
+      "name": "Dev Environment / IDE",
+      "cluster_id": "cluster_prof",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Dev Environment / IDE"
+      },
+      "order": 1
+    },
+    {
+      "slug": "C2",
+      "name": "CI/CD",
+      "cluster_id": "cluster_prof",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "CI/CD"
+      },
+      "order": 2
+    },
+    {
+      "slug": "C3",
+      "name": "Testing & QA",
+      "cluster_id": "cluster_prof",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Testing & QA"
+      },
+      "order": 3
+    },
+    {
+      "slug": "C4",
+      "name": "Observability (Logs/Metrics/Traces)",
+      "cluster_id": "cluster_prof",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Observability (Logs/Metrics/Traces)"
+      },
+      "order": 4
+    },
+    {
+      "slug": "C5",
+      "name": "Platform / Infra (K8s",
+      "cluster_id": "cluster_prof",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Platform / Infra (K8s"
+      },
+      "order": 5
+    },
+    {
+      "slug": "C6",
+      "name": "Security / IAM",
+      "cluster_id": "cluster_prof",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Security / IAM"
+      },
+      "order": 6
+    },
+    {
+      "slug": "C7",
+      "name": "Architecture Knowledge Base",
+      "cluster_id": "cluster_prof",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Architecture Knowledge Base"
+      },
+      "order": 7
+    },
+    {
+      "slug": "D1",
+      "name": "Math Tools",
+      "cluster_id": "cluster_science",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Math Tools"
+      },
+      "order": 1
+    },
+    {
+      "slug": "D2",
+      "name": "Physics Tools",
+      "cluster_id": "cluster_science",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Physics Tools"
+      },
+      "order": 2
+    },
+    {
+      "slug": "D3",
+      "name": "Chemistry Dashboards",
+      "cluster_id": "cluster_science",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Chemistry Dashboards"
+      },
+      "order": 3
+    },
+    {
+      "slug": "D4",
+      "name": "Biology Dashboards",
+      "cluster_id": "cluster_science",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Biology Dashboards"
+      },
+      "order": 4
+    },
+    {
+      "slug": "D5",
+      "name": "Health/Medicine Dashboards",
+      "cluster_id": "cluster_science",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Health/Medicine Dashboards"
+      },
+      "order": 5
+    },
+    {
+      "slug": "E1",
+      "name": "Society Digital Twin",
+      "cluster_id": "cluster_sim",
+      "stage_type": "capstone",
+      "attributes": {
+        "label": "Society Digital Twin",
+        "shape": "box",
+        "style": "rounded",
+        "fillcolor": "white",
+        "penwidth": "2"
+      },
+      "order": 1
+    },
+    {
+      "slug": "E2",
+      "name": "Sector Simulators (Energy/Health/Econ/Nature)",
+      "cluster_id": "cluster_sim",
+      "stage_type": "simulation",
+      "attributes": {
+        "label": "Sector Simulators (Energy/Health/Econ/Nature)"
+      },
+      "order": 2
+    },
+    {
+      "slug": "E3",
+      "name": "Multi-Society Orchestrator",
+      "cluster_id": "cluster_sim",
+      "stage_type": "simulation",
+      "attributes": {
+        "label": "Multi-Society Orchestrator"
+      },
+      "order": 3
+    },
+    {
+      "slug": "E4",
+      "name": "Meta-Simulation (Cross-Run Learning)",
+      "cluster_id": "cluster_sim",
+      "stage_type": "simulation",
+      "attributes": {
+        "label": "Meta-Simulation (Cross-Run Learning)"
+      },
+      "order": 4
+    },
+    {
+      "slug": "M1",
+      "name": "Product Eng (PLM/CAD/PDM)",
+      "cluster_id": "cluster_mfg",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Product Eng (PLM/CAD/PDM)"
+      },
+      "order": 1
+    },
+    {
+      "slug": "M2",
+      "name": "Process Eng (APS)",
+      "cluster_id": "cluster_mfg",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Process Eng (APS)"
+      },
+      "order": 2
+    },
+    {
+      "slug": "M3",
+      "name": "Production Exec (MES)",
+      "cluster_id": "cluster_mfg",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Production Exec (MES)"
+      },
+      "order": 3
+    },
+    {
+      "slug": "M4",
+      "name": "Quality (QMS/SPC)",
+      "cluster_id": "cluster_mfg",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Quality (QMS/SPC)"
+      },
+      "order": 4
+    },
+    {
+      "slug": "M5",
+      "name": "Maintenance (EAM/CMMS)",
+      "cluster_id": "cluster_mfg",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Maintenance (EAM/CMMS)"
+      },
+      "order": 5,
+      "parent_slug": "M3"
+    },
+    {
+      "slug": "M6",
+      "name": "Industrial IoT (SCADA)",
+      "cluster_id": "cluster_mfg",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Industrial IoT (SCADA)"
+      },
+      "order": 6,
+      "parent_slug": "M3"
+    },
+    {
+      "slug": "M7",
+      "name": "Safety & Compliance (EHS)",
+      "cluster_id": "cluster_mfg",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Safety & Compliance (EHS)"
+      },
+      "order": 7
+    },
+    {
+      "slug": "M8",
+      "name": "Workforce & Skills",
+      "cluster_id": "cluster_mfg",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Workforce & Skills"
+      },
+      "order": 8,
+      "parent_slug": "M3"
+    },
+    {
+      "slug": "M9",
+      "name": "ERP & Costing",
+      "cluster_id": "cluster_mfg",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "ERP & Costing"
+      },
+      "order": 9,
+      "parent_slug": "M3"
+    },
+    {
+      "slug": "M10",
+      "name": "Digital Twin: Product/Asset/Line/Factory",
+      "cluster_id": "cluster_mfg",
+      "stage_type": "capstone",
+      "attributes": {
+        "label": "Digital Twin: Product/Asset/Line/Factory",
+        "shape": "hexagon",
+        "penwidth": "2.5",
+        "color": "#c2185b",
+        "fontcolor": "#c2185b",
+        "fillcolor": "#ffe6ef",
+        "style": "filled"
+      },
+      "order": 10
+    },
+    {
+      "slug": "U1",
+      "name": "Generation",
+      "cluster_id": "cluster_energy",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Generation"
+      },
+      "order": 1
+    },
+    {
+      "slug": "U2",
+      "name": "Transmission (T&D)",
+      "cluster_id": "cluster_energy",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Transmission (T&D)"
+      },
+      "order": 2
+    },
+    {
+      "slug": "U3",
+      "name": "Distribution & AMI",
+      "cluster_id": "cluster_energy",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Distribution & AMI"
+      },
+      "order": 3
+    },
+    {
+      "slug": "U4",
+      "name": "DERMS & Microgrids",
+      "cluster_id": "cluster_energy",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "DERMS & Microgrids"
+      },
+      "order": 4
+    },
+    {
+      "slug": "U5",
+      "name": "Grid Ops (SCADA/EMS/DMS)",
+      "cluster_id": "cluster_energy",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Grid Ops (SCADA/EMS/DMS)"
+      },
+      "order": 5
+    },
+    {
+      "slug": "U6",
+      "name": "Market Ops & Trading",
+      "cluster_id": "cluster_energy",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Market Ops & Trading"
+      },
+      "order": 6,
+      "parent_slug": "U5"
+    },
+    {
+      "slug": "U7",
+      "name": "Reliability & Protection",
+      "cluster_id": "cluster_energy",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Reliability & Protection"
+      },
+      "order": 7,
+      "parent_slug": "U5"
+    },
+    {
+      "slug": "U8",
+      "name": "Asset Mgmt (EAM)",
+      "cluster_id": "cluster_energy",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Asset Mgmt (EAM)"
+      },
+      "order": 8
+    },
+    {
+      "slug": "U9",
+      "name": "Outage Mgmt (OMS)",
+      "cluster_id": "cluster_energy",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Outage Mgmt (OMS)"
+      },
+      "order": 9,
+      "parent_slug": "U5"
+    },
+    {
+      "slug": "U10",
+      "name": "Digital Twin: Grid",
+      "cluster_id": "cluster_energy",
+      "stage_type": "capstone",
+      "attributes": {
+        "label": "Digital Twin: Grid",
+        "shape": "hexagon",
+        "penwidth": "2.5",
+        "color": "#c2185b",
+        "fontcolor": "#c2185b",
+        "fillcolor": "#ffe6ef",
+        "style": "filled"
+      },
+      "order": 10
+    },
+    {
+      "slug": "T1",
+      "name": "Fleet & Telematics",
+      "cluster_id": "cluster_transport",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Fleet & Telematics"
+      },
+      "order": 1
+    },
+    {
+      "slug": "T2",
+      "name": "Routing & Optimization",
+      "cluster_id": "cluster_transport",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Routing & Optimization"
+      },
+      "order": 2
+    },
+    {
+      "slug": "T3",
+      "name": "Dispatch & Control",
+      "cluster_id": "cluster_transport",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Dispatch & Control"
+      },
+      "order": 3
+    },
+    {
+      "slug": "T4",
+      "name": "Ticketing/Fare/Payments",
+      "cluster_id": "cluster_transport",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Ticketing/Fare/Payments"
+      },
+      "order": 4
+    },
+    {
+      "slug": "T5",
+      "name": "Traffic Mgmt",
+      "cluster_id": "cluster_transport",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Traffic Mgmt"
+      },
+      "order": 5,
+      "parent_slug": "T3"
+    },
+    {
+      "slug": "T6",
+      "name": "AV Ops / Simulation",
+      "cluster_id": "cluster_transport",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "AV Ops / Simulation"
+      },
+      "order": 6
+    },
+    {
+      "slug": "T7",
+      "name": "Mobility-as-a-Service",
+      "cluster_id": "cluster_transport",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Mobility-as-a-Service"
+      },
+      "order": 7,
+      "parent_slug": "T3"
+    },
+    {
+      "slug": "T8",
+      "name": "Logistics Hubs / Ports",
+      "cluster_id": "cluster_transport",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Logistics Hubs / Ports"
+      },
+      "order": 8
+    },
+    {
+      "slug": "T9",
+      "name": "Maintenance (MRO)",
+      "cluster_id": "cluster_transport",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Maintenance (MRO)"
+      },
+      "order": 9,
+      "parent_slug": "T3"
+    },
+    {
+      "slug": "T10",
+      "name": "Digital Twin: Mobility Network",
+      "cluster_id": "cluster_transport",
+      "stage_type": "capstone",
+      "attributes": {
+        "label": "Digital Twin: Mobility Network",
+        "shape": "hexagon",
+        "penwidth": "2.5",
+        "color": "#c2185b",
+        "fontcolor": "#c2185b",
+        "fillcolor": "#ffe6ef",
+        "style": "filled"
+      },
+      "order": 10
+    },
+    {
+      "slug": "S1",
+      "name": "Demand Planning (S&OP)",
+      "cluster_id": "cluster_supply",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Demand Planning (S&OP)"
+      },
+      "order": 1
+    },
+    {
+      "slug": "S2",
+      "name": "Procurement",
+      "cluster_id": "cluster_supply",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Procurement"
+      },
+      "order": 2
+    },
+    {
+      "slug": "S3",
+      "name": "Make (Manufacturing)",
+      "cluster_id": "cluster_supply",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Make (Manufacturing)"
+      },
+      "order": 3
+    },
+    {
+      "slug": "S4",
+      "name": "Warehousing (WMS)",
+      "cluster_id": "cluster_supply",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Warehousing (WMS)"
+      },
+      "order": 4
+    },
+    {
+      "slug": "S5",
+      "name": "Transportation Mgmt (TMS)",
+      "cluster_id": "cluster_supply",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Transportation Mgmt (TMS)"
+      },
+      "order": 5
+    },
+    {
+      "slug": "S6",
+      "name": "Order Mgmt (OMS)",
+      "cluster_id": "cluster_supply",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Order Mgmt (OMS)"
+      },
+      "order": 6
+    },
+    {
+      "slug": "S7",
+      "name": "Inventory Optimization",
+      "cluster_id": "cluster_supply",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Inventory Optimization"
+      },
+      "order": 7
+    },
+    {
+      "slug": "S8",
+      "name": "Trade/Customs/Compliance",
+      "cluster_id": "cluster_supply",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Trade/Customs/Compliance"
+      },
+      "order": 8,
+      "parent_slug": "S6"
+    },
+    {
+      "slug": "S9",
+      "name": "Returns / Reverse Logistics",
+      "cluster_id": "cluster_supply",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Returns / Reverse Logistics"
+      },
+      "order": 9,
+      "parent_slug": "S6"
+    },
+    {
+      "slug": "S10",
+      "name": "Digital Twin: Supply Network",
+      "cluster_id": "cluster_supply",
+      "stage_type": "capstone",
+      "attributes": {
+        "label": "Digital Twin: Supply Network",
+        "shape": "hexagon",
+        "penwidth": "2.5",
+        "color": "#c2185b",
+        "fontcolor": "#c2185b",
+        "fillcolor": "#ffe6ef",
+        "style": "filled"
+      },
+      "order": 10
+    },
+    {
+      "slug": "R1",
+      "name": "Product Info (PIM)",
+      "cluster_id": "cluster_retail",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Product Info (PIM)"
+      },
+      "order": 1
+    },
+    {
+      "slug": "R2",
+      "name": "Merchandising & Pricing",
+      "cluster_id": "cluster_retail",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Merchandising & Pricing"
+      },
+      "order": 2
+    },
+    {
+      "slug": "R3",
+      "name": "E-commerce Platform",
+      "cluster_id": "cluster_retail",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "E-commerce Platform"
+      },
+      "order": 3,
+      "parent_slug": "R2"
+    },
+    {
+      "slug": "R4",
+      "name": "POS / Omnichannel",
+      "cluster_id": "cluster_retail",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "POS / Omnichannel"
+      },
+      "order": 4,
+      "parent_slug": "R2"
+    },
+    {
+      "slug": "R5",
+      "name": "Promotions & Loyalty",
+      "cluster_id": "cluster_retail",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Promotions & Loyalty"
+      },
+      "order": 5
+    },
+    {
+      "slug": "R6",
+      "name": "Payments & Fraud",
+      "cluster_id": "cluster_retail",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Payments & Fraud"
+      },
+      "order": 6,
+      "parent_slug": "R3"
+    },
+    {
+      "slug": "R7",
+      "name": "Customer Data Platform (CDP)",
+      "cluster_id": "cluster_retail",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Customer Data Platform (CDP)"
+      },
+      "order": 7
+    },
+    {
+      "slug": "R8",
+      "name": "Order Orchestration",
+      "cluster_id": "cluster_retail",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Order Orchestration"
+      },
+      "order": 8,
+      "parent_slug": "R3"
+    },
+    {
+      "slug": "R9",
+      "name": "Last-Mile Delivery",
+      "cluster_id": "cluster_retail",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Last-Mile Delivery"
+      },
+      "order": 9
+    },
+    {
+      "slug": "R10",
+      "name": "Digital Twin: Store/Network",
+      "cluster_id": "cluster_retail",
+      "stage_type": "capstone",
+      "attributes": {
+        "label": "Digital Twin: Store/Network",
+        "shape": "hexagon",
+        "penwidth": "2.5",
+        "color": "#c2185b",
+        "fontcolor": "#c2185b",
+        "fillcolor": "#ffe6ef",
+        "style": "filled"
+      },
+      "order": 10
+    },
+    {
+      "slug": "Ag1",
+      "name": "Farm Management",
+      "cluster_id": "cluster_agri",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Farm Management"
+      },
+      "order": 1
+    },
+    {
+      "slug": "Ag2",
+      "name": "Precision Ag (IoT)",
+      "cluster_id": "cluster_agri",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Precision Ag (IoT)"
+      },
+      "order": 2
+    },
+    {
+      "slug": "Ag3",
+      "name": "Crop Models & Weather",
+      "cluster_id": "cluster_agri",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Crop Models & Weather"
+      },
+      "order": 3
+    },
+    {
+      "slug": "Ag4",
+      "name": "Livestock Mgmt",
+      "cluster_id": "cluster_agri",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Livestock Mgmt"
+      },
+      "order": 4
+    },
+    {
+      "slug": "Ag5",
+      "name": "Supply & Traceability",
+      "cluster_id": "cluster_agri",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Supply & Traceability"
+      },
+      "order": 5
+    },
+    {
+      "slug": "Ag6",
+      "name": "Equipment/Telematics",
+      "cluster_id": "cluster_agri",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Equipment/Telematics"
+      },
+      "order": 6
+    },
+    {
+      "slug": "Ag7",
+      "name": "Irrigation & Water Mgmt",
+      "cluster_id": "cluster_agri",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Irrigation & Water Mgmt"
+      },
+      "order": 7
+    },
+    {
+      "slug": "Ag8",
+      "name": "Soil & Agrochemistry",
+      "cluster_id": "cluster_agri",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Soil & Agrochemistry"
+      },
+      "order": 8
+    },
+    {
+      "slug": "Ag9",
+      "name": "Markets / Co-ops",
+      "cluster_id": "cluster_agri",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Markets / Co-ops"
+      },
+      "order": 9
+    },
+    {
+      "slug": "Ag10",
+      "name": "Digital Twin: Farm/Watershed",
+      "cluster_id": "cluster_agri",
+      "stage_type": "capstone",
+      "attributes": {
+        "label": "Digital Twin: Farm/Watershed",
+        "shape": "hexagon",
+        "penwidth": "2.5",
+        "color": "#c2185b",
+        "fontcolor": "#c2185b",
+        "fillcolor": "#ffe6ef",
+        "style": "filled"
+      },
+      "order": 10
+    },
+    {
+      "slug": "Bld1",
+      "name": "Building Mgmt (BMS)",
+      "cluster_id": "cluster_smartcity",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Building Mgmt (BMS)"
+      },
+      "order": 1
+    },
+    {
+      "slug": "Bld2",
+      "name": "Permits & Inspections",
+      "cluster_id": "cluster_smartcity",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Permits & Inspections"
+      },
+      "order": 2
+    },
+    {
+      "slug": "Bld3",
+      "name": "Public Safety / 911",
+      "cluster_id": "cluster_smartcity",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Public Safety / 911"
+      },
+      "order": 3
+    },
+    {
+      "slug": "Bld4",
+      "name": "Waste / Water Utilities",
+      "cluster_id": "cluster_smartcity",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Waste / Water Utilities"
+      },
+      "order": 4
+    },
+    {
+      "slug": "Bld5",
+      "name": "Parking / Occupancy",
+      "cluster_id": "cluster_smartcity",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Parking / Occupancy"
+      },
+      "order": 5
+    },
+    {
+      "slug": "Bld6",
+      "name": "Environmental Monitoring",
+      "cluster_id": "cluster_smartcity",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Environmental Monitoring"
+      },
+      "order": 6
+    },
+    {
+      "slug": "Bld7",
+      "name": "Citizen Services / Portal",
+      "cluster_id": "cluster_smartcity",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Citizen Services / Portal"
+      },
+      "order": 7
+    },
+    {
+      "slug": "Bld8",
+      "name": "Asset Management",
+      "cluster_id": "cluster_smartcity",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Asset Management"
+      },
+      "order": 8
+    },
+    {
+      "slug": "Bld9",
+      "name": "Urban Planning / GIS",
+      "cluster_id": "cluster_smartcity",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Urban Planning / GIS"
+      },
+      "order": 9
+    },
+    {
+      "slug": "Bld10",
+      "name": "Digital Twin: City",
+      "cluster_id": "cluster_smartcity",
+      "stage_type": "capstone",
+      "attributes": {
+        "label": "Digital Twin: City",
+        "shape": "hexagon",
+        "penwidth": "2.5",
+        "color": "#c2185b",
+        "fontcolor": "#c2185b",
+        "fillcolor": "#ffe6ef",
+        "style": "filled"
+      },
+      "order": 10
+    },
+    {
+      "slug": "SP2",
+      "name": "Vehicle/Spacecraft Design (CAD/PLM)",
+      "cluster_id": "cluster_aero",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Vehicle/Spacecraft Design (CAD/PLM)"
+      },
+      "order": 1
+    },
+    {
+      "slug": "SP1",
+      "name": "Mission Planning",
+      "cluster_id": "cluster_aero",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Mission Planning"
+      },
+      "order": 2
+    },
+    {
+      "slug": "SP7",
+      "name": "Launch Ops",
+      "cluster_id": "cluster_aero",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Launch Ops"
+      },
+      "order": 3
+    },
+    {
+      "slug": "SP3",
+      "name": "Ground Segment Ops",
+      "cluster_id": "cluster_aero",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Ground Segment Ops"
+      },
+      "order": 4
+    },
+    {
+      "slug": "SP4",
+      "name": "Telemetry & Command",
+      "cluster_id": "cluster_aero",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Telemetry & Command"
+      },
+      "order": 5
+    },
+    {
+      "slug": "SP5",
+      "name": "Flight Dynamics",
+      "cluster_id": "cluster_aero",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Flight Dynamics"
+      },
+      "order": 6
+    },
+    {
+      "slug": "SP6",
+      "name": "Payload/Imagery Pipeline",
+      "cluster_id": "cluster_aero",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Payload/Imagery Pipeline"
+      },
+      "order": 7
+    },
+    {
+      "slug": "SP8",
+      "name": "Debris / Space Traffic Mgmt",
+      "cluster_id": "cluster_aero",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Debris / Space Traffic Mgmt"
+      },
+      "order": 8
+    },
+    {
+      "slug": "SP9",
+      "name": "Satellite Comms Ops",
+      "cluster_id": "cluster_aero",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Satellite Comms Ops"
+      },
+      "order": 9
+    },
+    {
+      "slug": "SP10",
+      "name": "Digital Twin: Space Environment/Constellation",
+      "cluster_id": "cluster_aero",
+      "stage_type": "capstone",
+      "attributes": {
+        "label": "Digital Twin: Space Environment/Constellation",
+        "shape": "hexagon",
+        "penwidth": "2.5",
+        "color": "#c2185b",
+        "fontcolor": "#c2185b",
+        "fillcolor": "#ffe6ef",
+        "style": "filled"
+      },
+      "order": 10
+    },
+    {
+      "slug": "ME1",
+      "name": "Content Creation (DCC)",
+      "cluster_id": "cluster_media",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Content Creation (DCC)"
+      },
+      "order": 1
+    },
+    {
+      "slug": "ME2",
+      "name": "Asset Mgt (MAM/DAM)",
+      "cluster_id": "cluster_media",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Asset Mgt (MAM/DAM)"
+      },
+      "order": 2
+    },
+    {
+      "slug": "ME3",
+      "name": "Rights & Contracts",
+      "cluster_id": "cluster_media",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Rights & Contracts"
+      },
+      "order": 3
+    },
+    {
+      "slug": "ME4",
+      "name": "Encoding/Transcode",
+      "cluster_id": "cluster_media",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Encoding/Transcode"
+      },
+      "order": 4
+    },
+    {
+      "slug": "ME5",
+      "name": "CDN / Streaming",
+      "cluster_id": "cluster_media",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "CDN / Streaming"
+      },
+      "order": 5
+    },
+    {
+      "slug": "ME6",
+      "name": "Ad Tech (SSP/DSP)",
+      "cluster_id": "cluster_media",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Ad Tech (SSP/DSP)"
+      },
+      "order": 6,
+      "parent_slug": "ME5"
+    },
+    {
+      "slug": "ME7",
+      "name": "Audience & Analytics",
+      "cluster_id": "cluster_media",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Audience & Analytics"
+      },
+      "order": 7
+    },
+    {
+      "slug": "ME8",
+      "name": "Personalization/Reco",
+      "cluster_id": "cluster_media",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Personalization/Reco"
+      },
+      "order": 8
+    },
+    {
+      "slug": "ME9",
+      "name": "Commerce / Paywalls",
+      "cluster_id": "cluster_media",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Commerce / Paywalls"
+      },
+      "order": 9,
+      "parent_slug": "ME5"
+    },
+    {
+      "slug": "ME10",
+      "name": "Digital Twin: Media Network/Ops",
+      "cluster_id": "cluster_media",
+      "stage_type": "capstone",
+      "attributes": {
+        "label": "Digital Twin: Media Network/Ops",
+        "shape": "hexagon",
+        "penwidth": "2.5",
+        "color": "#c2185b",
+        "fontcolor": "#c2185b",
+        "fillcolor": "#ffe6ef",
+        "style": "filled"
+      },
+      "order": 10
+    },
+    {
+      "slug": "TEL9",
+      "name": "Spectrum / RF Planning",
+      "cluster_id": "cluster_telecom",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Spectrum / RF Planning"
+      },
+      "order": 1
+    },
+    {
+      "slug": "TEL1",
+      "name": "RAN (Access)",
+      "cluster_id": "cluster_telecom",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "RAN (Access)"
+      },
+      "order": 2
+    },
+    {
+      "slug": "TEL2",
+      "name": "Core Network (5G Core)",
+      "cluster_id": "cluster_telecom",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Core Network (5G Core)"
+      },
+      "order": 3
+    },
+    {
+      "slug": "TEL3",
+      "name": "OSS (Network Ops)",
+      "cluster_id": "cluster_telecom",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "OSS (Network Ops)"
+      },
+      "order": 4
+    },
+    {
+      "slug": "TEL4",
+      "name": "BSS (Billing/CRM)",
+      "cluster_id": "cluster_telecom",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "BSS (Billing/CRM)"
+      },
+      "order": 5
+    },
+    {
+      "slug": "TEL5",
+      "name": "NFV/SDN Orchestration",
+      "cluster_id": "cluster_telecom",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "NFV/SDN Orchestration"
+      },
+      "order": 6,
+      "parent_slug": "TEL3"
+    },
+    {
+      "slug": "TEL6",
+      "name": "Provisioning / IMS",
+      "cluster_id": "cluster_telecom",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Provisioning / IMS"
+      },
+      "order": 7
+    },
+    {
+      "slug": "TEL7",
+      "name": "NOC Monitoring",
+      "cluster_id": "cluster_telecom",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "NOC Monitoring"
+      },
+      "order": 8,
+      "parent_slug": "TEL3"
+    },
+    {
+      "slug": "TEL8",
+      "name": "Field Service",
+      "cluster_id": "cluster_telecom",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Field Service"
+      },
+      "order": 9,
+      "parent_slug": "TEL3"
+    },
+    {
+      "slug": "TEL10",
+      "name": "Digital Twin: Network",
+      "cluster_id": "cluster_telecom",
+      "stage_type": "capstone",
+      "attributes": {
+        "label": "Digital Twin: Network",
+        "shape": "hexagon",
+        "penwidth": "2.5",
+        "color": "#c2185b",
+        "fontcolor": "#c2185b",
+        "fillcolor": "#ffe6ef",
+        "style": "filled"
+      },
+      "order": 10
+    },
+    {
+      "slug": "H2",
+      "name": "Telemedicine",
+      "cluster_id": "cluster_health",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Telemedicine"
+      },
+      "order": 1
+    },
+    {
+      "slug": "H4",
+      "name": "Lab/Rad (LIS/RIS/PACS)",
+      "cluster_id": "cluster_health",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Lab/Rad (LIS/RIS/PACS)"
+      },
+      "order": 2
+    },
+    {
+      "slug": "H1",
+      "name": "EHR / EMR",
+      "cluster_id": "cluster_health",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "EHR / EMR"
+      },
+      "order": 3
+    },
+    {
+      "slug": "H5",
+      "name": "Clinical Decision Support",
+      "cluster_id": "cluster_health",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Clinical Decision Support"
+      },
+      "order": 4,
+      "parent_slug": "H1"
+    },
+    {
+      "slug": "H3",
+      "name": "Billing & RCM",
+      "cluster_id": "cluster_health",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Billing & RCM"
+      },
+      "order": 5,
+      "parent_slug": "H1"
+    },
+    {
+      "slug": "H7",
+      "name": "Hospital Ops / Bed Mgmt",
+      "cluster_id": "cluster_health",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Hospital Ops / Bed Mgmt"
+      },
+      "order": 6
+    },
+    {
+      "slug": "H8",
+      "name": "Pharmacy / Med Mgmt",
+      "cluster_id": "cluster_health",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Pharmacy / Med Mgmt"
+      },
+      "order": 7
+    },
+    {
+      "slug": "H6",
+      "name": "Population Health / Registries",
+      "cluster_id": "cluster_health",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Population Health / Registries"
+      },
+      "order": 8
+    },
+    {
+      "slug": "H9",
+      "name": "Public Health Reporting",
+      "cluster_id": "cluster_health",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Public Health Reporting"
+      },
+      "order": 9
+    },
+    {
+      "slug": "H10",
+      "name": "Digital Twin: Health System",
+      "cluster_id": "cluster_health",
+      "stage_type": "capstone",
+      "attributes": {
+        "label": "Digital Twin: Health System",
+        "shape": "hexagon",
+        "penwidth": "2.5",
+        "color": "#c2185b",
+        "fontcolor": "#c2185b",
+        "fillcolor": "#ffe6ef",
+        "style": "filled"
+      },
+      "order": 10
+    },
+    {
+      "slug": "ED1",
+      "name": "Curriculum Mgmt",
+      "cluster_id": "cluster_edu",
+      "stage_type": "simulation",
+      "attributes": {
+        "label": "Curriculum Mgmt"
+      },
+      "order": 1
+    },
+    {
+      "slug": "ED2",
+      "name": "LMS / VLE",
+      "cluster_id": "cluster_edu",
+      "stage_type": "simulation",
+      "attributes": {
+        "label": "LMS / VLE"
+      },
+      "order": 2
+    },
+    {
+      "slug": "ED3",
+      "name": "Assessment / Proctoring",
+      "cluster_id": "cluster_edu",
+      "stage_type": "simulation",
+      "attributes": {
+        "label": "Assessment / Proctoring"
+      },
+      "order": 3
+    },
+    {
+      "slug": "ED4",
+      "name": "SIS",
+      "cluster_id": "cluster_edu",
+      "stage_type": "simulation",
+      "attributes": {
+        "label": "SIS"
+      },
+      "order": 4
+    },
+    {
+      "slug": "ED5",
+      "name": "Tutoring & Interventions",
+      "cluster_id": "cluster_edu",
+      "stage_type": "simulation",
+      "attributes": {
+        "label": "Tutoring & Interventions"
+      },
+      "order": 5
+    },
+    {
+      "slug": "ED6",
+      "name": "Research / Scholar Tools",
+      "cluster_id": "cluster_edu",
+      "stage_type": "simulation",
+      "attributes": {
+        "label": "Research / Scholar Tools"
+      },
+      "order": 6
+    },
+    {
+      "slug": "ED7",
+      "name": "Campus Ops / Facilities",
+      "cluster_id": "cluster_edu",
+      "stage_type": "simulation",
+      "attributes": {
+        "label": "Campus Ops / Facilities"
+      },
+      "order": 7
+    },
+    {
+      "slug": "ED8",
+      "name": "Parent/Guardian Portal",
+      "cluster_id": "cluster_edu",
+      "stage_type": "simulation",
+      "attributes": {
+        "label": "Parent/Guardian Portal"
+      },
+      "order": 8
+    },
+    {
+      "slug": "ED9",
+      "name": "Career / Placement",
+      "cluster_id": "cluster_edu",
+      "stage_type": "simulation",
+      "attributes": {
+        "label": "Career / Placement"
+      },
+      "order": 9
+    },
+    {
+      "slug": "ED10",
+      "name": "Digital Twin: District/Campus",
+      "cluster_id": "cluster_edu",
+      "stage_type": "capstone",
+      "attributes": {
+        "label": "Digital Twin: District/Campus",
+        "shape": "hexagon",
+        "penwidth": "2.5",
+        "color": "#c2185b",
+        "fontcolor": "#c2185b",
+        "fillcolor": "#ffe6ef",
+        "style": "filled"
+      },
+      "order": 10
+    },
+    {
+      "slug": "F1",
+      "name": "Core Banking / Ledger",
+      "cluster_id": "cluster_finance",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Core Banking / Ledger"
+      },
+      "order": 1
+    },
+    {
+      "slug": "F2",
+      "name": "Payments & Rails",
+      "cluster_id": "cluster_finance",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Payments & Rails"
+      },
+      "order": 2
+    },
+    {
+      "slug": "F3",
+      "name": "KYC / AML / Fraud",
+      "cluster_id": "cluster_finance",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "KYC / AML / Fraud"
+      },
+      "order": 3
+    },
+    {
+      "slug": "F4",
+      "name": "Credit / Risk / Scoring",
+      "cluster_id": "cluster_finance",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Credit / Risk / Scoring"
+      },
+      "order": 4
+    },
+    {
+      "slug": "F5",
+      "name": "Trading / Market Ops",
+      "cluster_id": "cluster_finance",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Trading / Market Ops"
+      },
+      "order": 5
+    },
+    {
+      "slug": "F6",
+      "name": "Treasury / Liquidity",
+      "cluster_id": "cluster_finance",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Treasury / Liquidity"
+      },
+      "order": 6
+    },
+    {
+      "slug": "F7",
+      "name": "Wealth / Advisory",
+      "cluster_id": "cluster_finance",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Wealth / Advisory"
+      },
+      "order": 7
+    },
+    {
+      "slug": "F8",
+      "name": "Open Banking / APIs",
+      "cluster_id": "cluster_finance",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Open Banking / APIs"
+      },
+      "order": 8
+    },
+    {
+      "slug": "F9",
+      "name": "Regulatory Reporting",
+      "cluster_id": "cluster_finance",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Regulatory Reporting"
+      },
+      "order": 9
+    },
+    {
+      "slug": "F10",
+      "name": "Digital Twin: Financial System (Stress)",
+      "cluster_id": "cluster_finance",
+      "stage_type": "capstone",
+      "attributes": {
+        "label": "Digital Twin: Financial System (Stress)",
+        "shape": "hexagon",
+        "penwidth": "2.5",
+        "color": "#c2185b",
+        "fontcolor": "#c2185b",
+        "fillcolor": "#ffe6ef",
+        "style": "filled"
+      },
+      "order": 10
+    },
+    {
+      "slug": "NE1",
+      "name": "Climate & Atmosphere",
+      "cluster_id": "cluster_earth",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Climate & Atmosphere"
+      },
+      "order": 1
+    },
+    {
+      "slug": "NE2",
+      "name": "Weather & Forecasting",
+      "cluster_id": "cluster_earth",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Weather & Forecasting"
+      },
+      "order": 2
+    },
+    {
+      "slug": "NE3",
+      "name": "Hydrology & Oceans",
+      "cluster_id": "cluster_earth",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Hydrology & Oceans"
+      },
+      "order": 3
+    },
+    {
+      "slug": "NE4",
+      "name": "Geology & Geophysics",
+      "cluster_id": "cluster_earth",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Geology & Geophysics"
+      },
+      "order": 4
+    },
+    {
+      "slug": "NE5",
+      "name": "Ecology & Biodiversity",
+      "cluster_id": "cluster_earth",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Ecology & Biodiversity"
+      },
+      "order": 5
+    },
+    {
+      "slug": "NE6",
+      "name": "Earth Observation (Remote Sensing)",
+      "cluster_id": "cluster_earth",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Earth Observation (Remote Sensing)"
+      },
+      "order": 6
+    },
+    {
+      "slug": "NE10",
+      "name": "Digital Twin: Earth System (Climate/Hydro/Eco)",
+      "cluster_id": "cluster_earth",
+      "stage_type": "capstone",
+      "attributes": {
+        "label": "Digital Twin: Earth System (Climate/Hydro/Eco)",
+        "shape": "hexagon",
+        "penwidth": "2.5",
+        "color": "#00796b",
+        "fontcolor": "#00796b",
+        "fillcolor": "#e0f2f1",
+        "style": "filled"
+      },
+      "order": 7
+    },
+    {
+      "slug": "DEF1",
+      "name": "C4ISR",
+      "cluster_id": "cluster_defense",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "C4ISR"
+      },
+      "order": 1
+    },
+    {
+      "slug": "DEF2",
+      "name": "Military Logistics",
+      "cluster_id": "cluster_defense",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Military Logistics"
+      },
+      "order": 2
+    },
+    {
+      "slug": "DEF3",
+      "name": "Wargaming/Sim",
+      "cluster_id": "cluster_defense",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Wargaming/Sim"
+      },
+      "order": 3
+    },
+    {
+      "slug": "DEF4",
+      "name": "Cyber Ops",
+      "cluster_id": "cluster_defense",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Cyber Ops"
+      },
+      "order": 4
+    },
+    {
+      "slug": "DEF5",
+      "name": "Border/Immigration & Customs",
+      "cluster_id": "cluster_defense",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Border/Immigration & Customs"
+      },
+      "order": 5
+    },
+    {
+      "slug": "DEF6",
+      "name": "Force Readiness",
+      "cluster_id": "cluster_defense",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Force Readiness"
+      },
+      "order": 6
+    },
+    {
+      "slug": "DEF10",
+      "name": "Digital Twin: Battlespace/Force Structure",
+      "cluster_id": "cluster_defense",
+      "stage_type": "capstone",
+      "attributes": {
+        "label": "Digital Twin: Battlespace/Force Structure",
+        "shape": "hexagon",
+        "penwidth": "2.5",
+        "color": "#b71c1c",
+        "fontcolor": "#b71c1c",
+        "fillcolor": "#ffdde0",
+        "style": "filled"
+      },
+      "order": 7
+    },
+    {
+      "slug": "GC1",
+      "name": "Legal/Judicial (Case Law",
+      "cluster_id": "cluster_leggov",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Legal/Judicial (Case Law"
+      },
+      "order": 1
+    },
+    {
+      "slug": "GC2",
+      "name": "Legislative Process",
+      "cluster_id": "cluster_leggov",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Legislative Process"
+      },
+      "order": 2
+    },
+    {
+      "slug": "GC3",
+      "name": "Elections & Voting",
+      "cluster_id": "cluster_leggov",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Elections & Voting"
+      },
+      "order": 3
+    },
+    {
+      "slug": "GC4",
+      "name": "Campaigns & Civic Engagement",
+      "cluster_id": "cluster_leggov",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Campaigns & Civic Engagement"
+      },
+      "order": 4
+    },
+    {
+      "slug": "GC5",
+      "name": "Cultural Heritage & Archives",
+      "cluster_id": "cluster_leggov",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Cultural Heritage & Archives"
+      },
+      "order": 5
+    },
+    {
+      "slug": "GC6",
+      "name": "Religion & Institutions",
+      "cluster_id": "cluster_leggov",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Religion & Institutions"
+      },
+      "order": 6
+    },
+    {
+      "slug": "GC10",
+      "name": "Digital Twin: Civic Systems (Legal/Political/Cultural)",
+      "cluster_id": "cluster_leggov",
+      "stage_type": "capstone",
+      "attributes": {
+        "label": "Digital Twin: Civic Systems (Legal/Political/Cultural)",
+        "shape": "hexagon",
+        "penwidth": "2.5",
+        "color": "#4a148c",
+        "fontcolor": "#4a148c",
+        "fillcolor": "#f3e5f5",
+        "style": "filled"
+      },
+      "order": 7
+    },
+    {
+      "slug": "SO1",
+      "name": "Demographics & Population",
+      "cluster_id": "cluster_social",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Demographics & Population"
+      },
+      "order": 1
+    },
+    {
+      "slug": "SO2",
+      "name": "Social Networks & Behavior",
+      "cluster_id": "cluster_social",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Social Networks & Behavior"
+      },
+      "order": 2
+    },
+    {
+      "slug": "SO3",
+      "name": "Mobility & Migration",
+      "cluster_id": "cluster_social",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Mobility & Migration"
+      },
+      "order": 3
+    },
+    {
+      "slug": "SO4",
+      "name": "Labor Markets & Skills",
+      "cluster_id": "cluster_social",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Labor Markets & Skills"
+      },
+      "order": 4
+    },
+    {
+      "slug": "SO5",
+      "name": "Sports & Recreation",
+      "cluster_id": "cluster_social",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Sports & Recreation"
+      },
+      "order": 5
+    },
+    {
+      "slug": "SO6",
+      "name": "Inequality/Wellbeing Indexes",
+      "cluster_id": "cluster_social",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Inequality/Wellbeing Indexes"
+      },
+      "order": 6
+    },
+    {
+      "slug": "SO10",
+      "name": "Digital Twin: Social Dynamics",
+      "cluster_id": "cluster_social",
+      "stage_type": "capstone",
+      "attributes": {
+        "label": "Digital Twin: Social Dynamics",
+        "shape": "hexagon",
+        "penwidth": "2.5",
+        "color": "#ff6f00",
+        "fontcolor": "#ff6f00",
+        "fillcolor": "#fff3e0",
+        "style": "filled"
+      },
+      "order": 7
+    },
+    {
+      "slug": "RF1",
+      "name": "Astronomy & Cosmology",
+      "cluster_id": "cluster_research",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Astronomy & Cosmology"
+      },
+      "order": 1
+    },
+    {
+      "slug": "RF2",
+      "name": "High-Energy Physics",
+      "cluster_id": "cluster_research",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "High-Energy Physics"
+      },
+      "order": 2
+    },
+    {
+      "slug": "RF3",
+      "name": "Nanotech & Materials",
+      "cluster_id": "cluster_research",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Nanotech & Materials"
+      },
+      "order": 3
+    },
+    {
+      "slug": "RF4",
+      "name": "Quantum Computing",
+      "cluster_id": "cluster_research",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Quantum Computing"
+      },
+      "order": 4
+    },
+    {
+      "slug": "RF5",
+      "name": "Computation Theory",
+      "cluster_id": "cluster_research",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Computation Theory"
+      },
+      "order": 5
+    },
+    {
+      "slug": "RF6",
+      "name": "Large Research Facilities",
+      "cluster_id": "cluster_research",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Large Research Facilities"
+      },
+      "order": 6
+    },
+    {
+      "slug": "RF10",
+      "name": "Digital Twin: Research Facilities/Experiments",
+      "cluster_id": "cluster_research",
+      "stage_type": "capstone",
+      "attributes": {
+        "label": "Digital Twin: Research Facilities/Experiments",
+        "shape": "hexagon",
+        "penwidth": "2.5",
+        "color": "#1b5e20",
+        "fontcolor": "#1b5e20",
+        "fillcolor": "#e8f5e9",
+        "style": "filled"
+      },
+      "order": 7
+    },
+    {
+      "slug": "SV1",
+      "name": "Global Food Systems",
+      "cluster_id": "cluster_survival",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Global Food Systems"
+      },
+      "order": 1
+    },
+    {
+      "slug": "SV2",
+      "name": "Nutrition & Diet",
+      "cluster_id": "cluster_survival",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Nutrition & Diet"
+      },
+      "order": 2
+    },
+    {
+      "slug": "SV3",
+      "name": "Water Treatment & Sanitation",
+      "cluster_id": "cluster_survival",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Water Treatment & Sanitation"
+      },
+      "order": 3
+    },
+    {
+      "slug": "SV4",
+      "name": "Potable Water Distribution",
+      "cluster_id": "cluster_survival",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Potable Water Distribution"
+      },
+      "order": 4
+    },
+    {
+      "slug": "SV5",
+      "name": "Housing & Construction (BIM)",
+      "cluster_id": "cluster_survival",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Housing & Construction (BIM)"
+      },
+      "order": 5
+    },
+    {
+      "slug": "SV6",
+      "name": "Waste & Recycling",
+      "cluster_id": "cluster_survival",
+      "stage_type": "macro",
+      "attributes": {
+        "label": "Waste & Recycling"
+      },
+      "order": 6
+    },
+    {
+      "slug": "SV10",
+      "name": "Digital Twin: Basic Needs (Food/Water/Housing)",
+      "cluster_id": "cluster_survival",
+      "stage_type": "capstone",
+      "attributes": {
+        "label": "Digital Twin: Basic Needs (Food/Water/Housing)",
+        "shape": "hexagon",
+        "penwidth": "2.5",
+        "color": "#33691e",
+        "fontcolor": "#33691e",
+        "fillcolor": "#e6ee9c",
+        "style": "filled"
+      },
+      "order": 7
+    }
+  ],
+  "dependencies": [
+    {
+      "from": "A1",
+      "to": "A2",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "A2",
+      "to": "A3",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "A3",
+      "to": "A4",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "A4",
+      "to": "A5",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "A4",
+      "to": "A4a",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "B2",
+      "to": "B3",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "C1",
+      "to": "C2",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "C2",
+      "to": "C3",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "C2",
+      "to": "C4",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "C4",
+      "to": "C5",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "C5",
+      "to": "C6",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "C1",
+      "to": "C7",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "D1",
+      "to": "D2",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "D2",
+      "to": "D3",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "D3",
+      "to": "D4",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "D4",
+      "to": "D5",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "E1",
+      "to": "E2",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "E2",
+      "to": "E3",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "E3",
+      "to": "E4",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "M1",
+      "to": "M2",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "M2",
+      "to": "M3",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "M3",
+      "to": "M4",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "M4",
+      "to": "M7",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "M1",
+      "to": "M10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "M2",
+      "to": "M10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "M3",
+      "to": "M10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "M4",
+      "to": "M10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "M5",
+      "to": "M10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "M6",
+      "to": "M10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "U1",
+      "to": "U2",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "U2",
+      "to": "U5",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "U5",
+      "to": "U3",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "U3",
+      "to": "U4",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "U8",
+      "to": "U5",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "U1",
+      "to": "U10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "U2",
+      "to": "U10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "U3",
+      "to": "U10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "U4",
+      "to": "U10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "U5",
+      "to": "U10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "T1",
+      "to": "T2",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "T2",
+      "to": "T3",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "T2",
+      "to": "T4",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "T5",
+      "to": "T6",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "T8",
+      "to": "T3",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "T1",
+      "to": "T10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "T2",
+      "to": "T10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "T3",
+      "to": "T10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "T5",
+      "to": "T10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "S1",
+      "to": "S2",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "S2",
+      "to": "S3",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "S3",
+      "to": "S4",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "S4",
+      "to": "S5",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "S5",
+      "to": "S6",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "S1",
+      "to": "S7",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "S1",
+      "to": "S10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "S3",
+      "to": "S10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "S4",
+      "to": "S10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "S5",
+      "to": "S10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "R1",
+      "to": "R2",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "R4",
+      "to": "R8",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "R5",
+      "to": "R7",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "R8",
+      "to": "R9",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "R1",
+      "to": "R10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "R2",
+      "to": "R10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "R3",
+      "to": "R10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "R4",
+      "to": "R10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "Ag6",
+      "to": "Ag2",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "Ag7",
+      "to": "Ag2",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "Ag8",
+      "to": "Ag2",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "Ag2",
+      "to": "Ag1",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "Ag3",
+      "to": "Ag1",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "Ag4",
+      "to": "Ag1",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "Ag1",
+      "to": "Ag5",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "Ag9",
+      "to": "Ag1",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "Ag1",
+      "to": "Ag10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "Ag2",
+      "to": "Ag10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "Ag3",
+      "to": "Ag10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "Ag7",
+      "to": "Ag10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "Bld9",
+      "to": "Bld2",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "Bld1",
+      "to": "Bld5",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "Bld1",
+      "to": "Bld10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "Bld3",
+      "to": "Bld10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "Bld4",
+      "to": "Bld10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "Bld5",
+      "to": "Bld10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "Bld6",
+      "to": "Bld10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "Bld9",
+      "to": "Bld10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "Bld7",
+      "to": "Bld8",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "SP2",
+      "to": "SP1",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "SP1",
+      "to": "SP7",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "SP3",
+      "to": "SP4",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "SP5",
+      "to": "SP1",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "SP6",
+      "to": "SP3",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "SP9",
+      "to": "SP3",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "SP1",
+      "to": "SP10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "SP3",
+      "to": "SP10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "SP4",
+      "to": "SP10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "SP5",
+      "to": "SP10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "SP6",
+      "to": "SP10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "SP8",
+      "to": "SP10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "ME1",
+      "to": "ME2",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "ME2",
+      "to": "ME3",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "ME2",
+      "to": "ME4",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "ME4",
+      "to": "ME5",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "ME6",
+      "to": "ME7",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "ME7",
+      "to": "ME8",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "ME2",
+      "to": "ME10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "ME5",
+      "to": "ME10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "ME6",
+      "to": "ME10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "TEL9",
+      "to": "TEL1",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "TEL1",
+      "to": "TEL2",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "TEL2",
+      "to": "TEL3",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "TEL4",
+      "to": "TEL3",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "TEL2",
+      "to": "TEL6",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "TEL1",
+      "to": "TEL10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "TEL2",
+      "to": "TEL10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "TEL3",
+      "to": "TEL10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "TEL5",
+      "to": "TEL10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "TEL9",
+      "to": "TEL10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "H2",
+      "to": "H1",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "H4",
+      "to": "H1",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "H7",
+      "to": "H1",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "H8",
+      "to": "H1",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "H6",
+      "to": "H9",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "H1",
+      "to": "H10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "H2",
+      "to": "H10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "H4",
+      "to": "H10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "H7",
+      "to": "H10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "H6",
+      "to": "H10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "ED1",
+      "to": "ED2",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "ED2",
+      "to": "ED3",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "ED2",
+      "to": "ED4",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "ED3",
+      "to": "ED5",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "ED7",
+      "to": "ED10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "ED2",
+      "to": "ED10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "ED4",
+      "to": "ED10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "ED7",
+      "to": "ED10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "ED6",
+      "to": "ED2",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "ED8",
+      "to": "ED2",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "ED9",
+      "to": "ED4",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "F1",
+      "to": "F2",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "F2",
+      "to": "F3",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "F1",
+      "to": "F4",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "F5",
+      "to": "F6",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "F8",
+      "to": "F1",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "F1",
+      "to": "F9",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "F1",
+      "to": "F10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "F2",
+      "to": "F10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "F4",
+      "to": "F10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "F6",
+      "to": "F10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "NE1",
+      "to": "NE2",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "NE2",
+      "to": "NE3",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "NE1",
+      "to": "NE10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "NE2",
+      "to": "NE10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "NE3",
+      "to": "NE10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "NE4",
+      "to": "NE10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "NE5",
+      "to": "NE10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "NE6",
+      "to": "NE10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "DEF1",
+      "to": "DEF6",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "DEF6",
+      "to": "DEF2",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "DEF1",
+      "to": "DEF10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "DEF2",
+      "to": "DEF10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "DEF3",
+      "to": "DEF10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "DEF4",
+      "to": "DEF10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "DEF5",
+      "to": "DEF10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "DEF3",
+      "to": "DEF10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "GC1",
+      "to": "GC2",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "GC2",
+      "to": "GC3",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "GC4",
+      "to": "GC3",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "GC1",
+      "to": "GC10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "GC2",
+      "to": "GC10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "GC3",
+      "to": "GC10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "GC5",
+      "to": "GC10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "GC6",
+      "to": "GC10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "SO1",
+      "to": "SO10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "SO2",
+      "to": "SO10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "SO3",
+      "to": "SO10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "SO4",
+      "to": "SO10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "SO6",
+      "to": "SO10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "SO5",
+      "to": "SO2",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "RF1",
+      "to": "RF10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "RF2",
+      "to": "RF10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "RF3",
+      "to": "RF10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "RF4",
+      "to": "RF10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "RF6",
+      "to": "RF10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "SV1",
+      "to": "SV10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "SV2",
+      "to": "SV10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "SV3",
+      "to": "SV10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "SV4",
+      "to": "SV10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "SV5",
+      "to": "SV10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "SV6",
+      "to": "SV10",
+      "type": "progression",
+      "label": null
+    },
+    {
+      "from": "M10",
+      "to": "E2",
+      "type": "progression",
+      "label": "sector model"
+    },
+    {
+      "from": "U10",
+      "to": "E2",
+      "type": "progression",
+      "label": "sector model"
+    },
+    {
+      "from": "T10",
+      "to": "E2",
+      "type": "progression",
+      "label": "sector model"
+    },
+    {
+      "from": "S10",
+      "to": "E2",
+      "type": "progression",
+      "label": "sector model"
+    },
+    {
+      "from": "R10",
+      "to": "E2",
+      "type": "progression",
+      "label": "sector model"
+    },
+    {
+      "from": "Ag10",
+      "to": "E2",
+      "type": "progression",
+      "label": "sector model"
+    },
+    {
+      "from": "Bld10",
+      "to": "E2",
+      "type": "progression",
+      "label": "sector model"
+    },
+    {
+      "from": "SP10",
+      "to": "E2",
+      "type": "progression",
+      "label": "sector model"
+    },
+    {
+      "from": "ME10",
+      "to": "E2",
+      "type": "progression",
+      "label": "sector model"
+    },
+    {
+      "from": "TEL10",
+      "to": "E2",
+      "type": "progression",
+      "label": "sector model"
+    },
+    {
+      "from": "H10",
+      "to": "E2",
+      "type": "progression",
+      "label": "sector model"
+    },
+    {
+      "from": "ED10",
+      "to": "E2",
+      "type": "progression",
+      "label": "sector model"
+    },
+    {
+      "from": "F10",
+      "to": "E2",
+      "type": "progression",
+      "label": "sector model"
+    },
+    {
+      "from": "NE10",
+      "to": "E2",
+      "type": "progression",
+      "label": "earth system coupling"
+    },
+    {
+      "from": "DEF10",
+      "to": "E2",
+      "type": "progression",
+      "label": "adversarial scenarios"
+    },
+    {
+      "from": "GC10",
+      "to": "E2",
+      "type": "progression",
+      "label": "policy/legal dynamics"
+    },
+    {
+      "from": "SO10",
+      "to": "E2",
+      "type": "progression",
+      "label": "societal behavior"
+    },
+    {
+      "from": "RF10",
+      "to": "E2",
+      "type": "progression",
+      "label": "research infra models"
+    },
+    {
+      "from": "SV10",
+      "to": "E2",
+      "type": "progression",
+      "label": "basic needs coupling"
+    },
+    {
+      "from": "A5",
+      "to": "E1",
+      "type": "progression",
+      "label": "national indicators \u2192 society twin"
+    },
+    {
+      "from": "E2",
+      "to": "A5b",
+      "type": "progression",
+      "label": "policy sims \u2192 workspace"
+    },
+    {
+      "from": "E3",
+      "to": "A3a",
+      "type": "progression",
+      "label": "strategy options \u2192 OKRs"
+    },
+    {
+      "from": "NE10",
+      "to": "Bld10",
+      "type": "progression",
+      "label": "climate \u2194 city"
+    },
+    {
+      "from": "NE10",
+      "to": "U10",
+      "type": "progression",
+      "label": "climate \u2194 grid"
+    },
+    {
+      "from": "NE10",
+      "to": "Ag10",
+      "type": "progression",
+      "label": "hydro/ecology \u2194 farms"
+    },
+    {
+      "from": "NE3",
+      "to": "SV4",
+      "type": "progression",
+      "label": "watersheds \u2194 potable water"
+    },
+    {
+      "from": "NE6",
+      "to": "SP10",
+      "type": "progression",
+      "label": "sat EO \u2194 models"
+    },
+    {
+      "from": "DEF1",
+      "to": "TEL10",
+      "type": "progression",
+      "label": "C4ISR \u2194 network"
+    },
+    {
+      "from": "DEF2",
+      "to": "S10",
+      "type": "progression",
+      "label": "mil logistics"
+    },
+    {
+      "from": "DEF4",
+      "to": "TEL3",
+      "type": "progression",
+      "label": "cyber ops \u2194 NOC"
+    },
+    {
+      "from": "DEF10",
+      "to": "SP10",
+      "type": "progression",
+      "label": "space assets"
+    },
+    {
+      "from": "DEF10",
+      "to": "A5a",
+      "type": "progression",
+      "label": "readiness \u2194 indicators"
+    },
+    {
+      "from": "DEF10",
+      "to": "F10",
+      "type": "progression",
+      "label": "sanctions/finance"
+    },
+    {
+      "from": "GC3",
+      "to": "A5a",
+      "type": "progression",
+      "label": "election results"
+    },
+    {
+      "from": "GC1",
+      "to": "A5b",
+      "type": "progression",
+      "label": "legal inputs"
+    },
+    {
+      "from": "GC5",
+      "to": "Bld10",
+      "type": "progression",
+      "label": "heritage sites \u2194 city"
+    },
+    {
+      "from": "GC10",
+      "to": "B3",
+      "type": "progression",
+      "label": "civic engagement"
+    },
+    {
+      "from": "SO1",
+      "to": "ED10",
+      "type": "progression",
+      "label": "demographics"
+    },
+    {
+      "from": "SO10",
+      "to": "H10",
+      "type": "progression",
+      "label": "behavior \u2194 health"
+    },
+    {
+      "from": "SO3",
+      "to": "T10",
+      "type": "progression",
+      "label": "migration \u2194 mobility"
+    },
+    {
+      "from": "SO2",
+      "to": "A3b",
+      "type": "progression",
+      "label": "social analytics"
+    },
+    {
+      "from": "RF4",
+      "to": "C5",
+      "type": "progression",
+      "label": "quantum \u2194 infra"
+    },
+    {
+      "from": "RF3",
+      "to": "M10",
+      "type": "progression",
+      "label": "materials \u2194 manufacturing"
+    },
+    {
+      "from": "RF1",
+      "to": "SP10",
+      "type": "progression",
+      "label": "space obs"
+    },
+    {
+      "from": "RF10",
+      "to": "D2",
+      "type": "progression",
+      "label": "physics methods"
+    },
+    {
+      "from": "SV1",
+      "to": "S10",
+      "type": "progression",
+      "label": "food supply"
+    },
+    {
+      "from": "SV2",
+      "to": "H10",
+      "type": "progression",
+      "label": "nutrition"
+    },
+    {
+      "from": "SV3",
+      "to": "Bld4",
+      "type": "progression",
+      "label": "sanitation utility"
+    },
+    {
+      "from": "SV5",
+      "to": "Bld10",
+      "type": "progression",
+      "label": "housing stock"
+    },
+    {
+      "from": "SV6",
+      "to": "Bld10",
+      "type": "progression",
+      "label": "waste \u2194 city"
+    },
+    {
+      "from": "B2a",
+      "to": "A3b",
+      "type": "progression",
+      "label": "household \u2192 BI"
+    },
+    {
+      "from": "B1a",
+      "to": "A2b",
+      "type": "progression",
+      "label": "learning \u2192 research"
+    },
+    {
+      "from": "C4",
+      "to": "A3c",
+      "type": "progression",
+      "label": "telemetry"
+    },
+    {
+      "from": "C6",
+      "to": "A3",
+      "type": "progression",
+      "label": "IAM/SSO"
+    },
+    {
+      "from": "R3",
+      "to": "F2",
+      "type": "progression",
+      "label": "checkout rails"
+    },
+    {
+      "from": "TEL7",
+      "to": "A3c",
+      "type": "progression",
+      "label": "NOC\u2192IT"
+    }
+  ]
+}

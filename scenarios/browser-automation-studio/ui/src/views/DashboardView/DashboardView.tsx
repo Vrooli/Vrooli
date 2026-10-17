@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, lazy, Suspense } from "react";
+import { Profiler, useState, useEffect, useCallback, lazy, Suspense } from "react";
 import {
   Plus,
   WifiOff,
@@ -8,12 +8,13 @@ import {
   Command,
   Circle,
 } from "lucide-react";
-import { useProjectStore, type Project } from "@/domains/projects";
+import { useProjectStore, type Project } from "@/domains/projects/store";
 import { useDashboardStore } from "@stores/dashboardStore";
 import { useWebSocket } from "@/contexts/WebSocketContext";
 import { selectors } from "@constants/selectors";
 import { getModifierKey } from "@hooks/useKeyboardShortcuts";
 import { GlobalSearchModal } from "./GlobalSearchModal";
+import { onProfilerRender } from "@/lib/profiler";
 import { TabNavigation, type DashboardTab } from "./DashboardTabs";
 import { HomeTab } from "./HomeSection";
 import { RunningExecutionsBadge } from "./RunningExecutionsBadge";
@@ -398,7 +399,7 @@ function Dashboard({
               {/* Mobile search button */}
               <button
                 onClick={() => setIsSearchModalOpen(true)}
-                className="sm:hidden p-2 text-subtle hover:text-surface hover:bg-gray-700 rounded-lg transition-colors"
+                className="sm:hidden flex items-center justify-center min-h-[44px] min-w-[44px] p-2 text-subtle hover:text-surface hover:bg-gray-700 rounded-lg transition-colors"
                 title="Search"
                 aria-label="Search"
               >
@@ -408,7 +409,7 @@ function Dashboard({
               {onOpenHelp && (
                 <button
                   onClick={onOpenHelp}
-                  className="hidden sm:flex p-2 text-subtle hover:text-surface hover:bg-gray-700 rounded-lg transition-colors"
+                  className="hidden sm:flex items-center justify-center min-h-[44px] min-w-[44px] p-2 text-subtle hover:text-surface hover:bg-gray-700 rounded-lg transition-colors"
                   title="Help"
                   aria-label="Open help"
                   data-testid={selectors.dashboard.docsButton}
@@ -419,7 +420,7 @@ function Dashboard({
               {onOpenSettings && (
                 <button
                   onClick={() => onOpenSettings()}
-                  className="p-2 text-subtle hover:text-surface hover:bg-gray-700 rounded-lg transition-colors"
+                  className="flex items-center justify-center min-h-[44px] min-w-[44px] p-2 text-subtle hover:text-surface hover:bg-gray-700 rounded-lg transition-colors"
                   title={`Settings (${getModifierKey()}+,)`}
                   aria-label="Open settings"
                   data-testid={selectors.dashboard.settingsButton}
@@ -453,19 +454,21 @@ function Dashboard({
         role="region"
         aria-label="Dashboard content"
       >
-        {isLoading ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-flow-accent"></div>
-          </div>
-        ) : projects.length === 0 && activeTab === 'home' ? (
-          <WelcomeHero
-            onCreateFirstWorkflow={onCreateFirstWorkflow ?? onCreateProject}
-            onOpenTutorial={onOpenTutorial}
-            onStartRecording={onStartRecording}
-          />
-        ) : (
-          renderTabContent()
-        )}
+        <Profiler id="DashboardContent" onRender={onProfilerRender}>
+          {isLoading ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-flow-accent"></div>
+            </div>
+          ) : projects.length === 0 && activeTab === 'home' ? (
+            <WelcomeHero
+              onCreateFirstWorkflow={onCreateFirstWorkflow ?? onCreateProject}
+              onOpenTutorial={onOpenTutorial}
+              onStartRecording={onStartRecording}
+            />
+          ) : (
+            renderTabContent()
+          )}
+        </Profiler>
       </div>
 
       {/* Floating Action Button - Mobile */}

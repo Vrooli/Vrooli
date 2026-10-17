@@ -1,10 +1,79 @@
 package manifest
 
 import (
+	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
+	"strings"
 	"testing"
+
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
+
+func TestManifestValidateRejectsNonLoopbackIPCHost(t *testing.T) {
+	m := Manifest{
+		SchemaVersion: "desktop.v0.1",
+		Target:        "desktop",
+		App:           App{Name: "demo", Version: "1.0.0"},
+		IPC:           IPC{Host: "0.0.0.0", Port: 47710},
+		Services: []Service{{
+			ID: "api", Binaries: map[string]Binary{"linux-x64": {Path: "bin/api"}},
+			Health: HealthCheck{Type: "tcp"}, Readiness: ReadinessCheck{Type: "tcp"},
+		}},
+	}
+	var hostErr InvalidIPCHostError
+	if err := m.Validate("linux", "amd64"); !errors.As(err, &hostErr) || hostErr.Host != "0.0.0.0" {
+		t.Fatalf("Validate() error = %v, want InvalidIPCHostError for 0.0.0.0", err)
+	}
+}
+
+func TestManifestValidateAuthenticationModes(t *testing.T) {
+	base := func(profile *AuthenticationProfile) Manifest {
+		return Manifest{
+			SchemaVersion: "desktop.v0.1", Target: "desktop",
+			App: App{Name: "demo", Version: "1.0.0"}, IPC: IPC{Host: "127.0.0.1", Port: 47710},
+			Authentication: profile,
+			Services:       []Service{{ID: "api", Binaries: map[string]Binary{"linux-x64": {Path: "bin/api"}}, Health: HealthCheck{Type: "tcp"}, Readiness: ReadinessCheck{Type: "tcp"}}},
+		}
+	}
+	t.Run("personal local is provider free", func(t *testing.T) {
+		profile := &AuthenticationProfile{Version: 1, Mode: "personal_local", HumanSignIn: "disabled", Offline: true}
+		m := base(profile)
+		if err := m.Validate("linux", "amd64"); err != nil {
+			t.Fatalf("personal_local validation: %v", err)
+		}
+	})
+	t.Run("remote requires explicit provider endpoint", func(t *testing.T) {
+		profile := &AuthenticationProfile{Version: 1, Mode: "remote_vrooli", Provider: "scenario-authenticator", HumanSignIn: "required", Resource: "demo"}
+		m := base(profile)
+		if err := m.Validate("linux", "amd64"); err == nil || !strings.Contains(err.Error(), "endpoint") {
+			t.Fatalf("remote validation = %v", err)
+		}
+	})
+	t.Run("local multi user requires bundled provider service", func(t *testing.T) {
+		profile := &AuthenticationProfile{Version: 1, Mode: "local_multi_user", Provider: "scenario-authenticator", HumanSignIn: "required", Resource: "demo", RequiresAuthenticator: true, ProviderServiceID: "scenario-authenticator"}
+		m := base(profile)
+		if err := m.Validate("linux", "amd64"); err == nil || !strings.Contains(err.Error(), "not bundled") {
+			t.Fatalf("local_multi_user validation = %v", err)
+		}
+	})
+	t.Run("shared provider requires lease path", func(t *testing.T) {
+		profile := &AuthenticationProfile{Version: 1, Mode: "shared_provider", Provider: "landing-page-business-suite", ProviderEndpoint: "https://provider.example", HumanSignIn: "required", Resource: "demo"}
+		m := base(profile)
+		if err := m.Validate("linux", "amd64"); err == nil || !strings.Contains(err.Error(), "lease path") {
+			t.Fatalf("shared_provider validation = %v", err)
+		}
+	})
+	t.Run("remote rejects credentials in provider endpoint", func(t *testing.T) {
+		profile := &AuthenticationProfile{Version: 1, Mode: "remote_vrooli", Provider: "scenario-authenticator", ProviderEndpoint: "https://user:pass@provider.example", HumanSignIn: "required", Resource: "demo"}
+		m := base(profile)
+		if err := m.Validate("linux", "amd64"); err == nil || !strings.Contains(err.Error(), "no credentials") {
+			t.Fatalf("remote endpoint validation = %v", err)
+		}
+	})
+}
 
 // =============================================================================
 // LoadManifest Tests
@@ -234,7 +303,22 @@ func TestValidate_MissingIPCHost(t *testing.T) {
 	}
 }
 
-func TestValidate_MissingIPCPort(t *testing.T) {
+func TestDeclaredModesDeduplicatesPrimaryProfile(t *testing.T) {
+	profile := &AuthenticationProfile{
+		Mode: "personal_local",
+		ModeProfiles: map[string]AuthenticationModeProfile{
+			"personal_local": {},
+			"remote_vrooli":  {},
+		},
+	}
+	got := profile.DeclaredModes()
+	want := []string{"personal_local", "remote_vrooli"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("DeclaredModes() = %v, want %v", got, want)
+	}
+}
+
+func TestValidate_AllocatorAssignedIPCPort(t *testing.T) {
 	m := Manifest{
 		SchemaVersion: "desktop.v0.1",
 		Target:        "desktop",
@@ -248,9 +332,28 @@ func TestValidate_MissingIPCPort(t *testing.T) {
 		}},
 	}
 
-	err := m.Validate("linux", "amd64")
-	if err == nil {
-		t.Fatal("Validate() expected error for missing ipc.port")
+	if err := m.Validate("linux", "amd64"); err != nil {
+		t.Fatalf("Validate() should accept allocator input port 0: %v", err)
+	}
+}
+
+func TestValidate_DiscoverPeerRequiresBindings(t *testing.T) {
+	m := Manifest{
+		SchemaVersion: "desktop.v0.1",
+		Target:        "desktop",
+		App:           App{Name: "demo", Version: "1.0.0"},
+		IPC:           IPC{Host: "127.0.0.1"},
+		Peers:         []Peer{{Scenario: "authority", BundlePolicy: "discover"}},
+		Services: []Service{{
+			ID:        "api",
+			Binaries:  map[string]Binary{"linux-x64": {Path: "bin/api"}},
+			Health:    HealthCheck{Type: "tcp"},
+			Readiness: ReadinessCheck{Type: "port_open"},
+		}},
+	}
+	var missing MissingPeerDiscoveryPathError
+	if err := m.Validate("linux", "amd64"); !errors.As(err, &missing) {
+		t.Fatalf("Validate() error = %v, want MissingPeerDiscoveryPathError", err)
 	}
 }
 
@@ -404,7 +507,7 @@ func TestResolveBinary(t *testing.T) {
 	// This test is platform-dependent, so just verify it returns something
 	bin, found := m.ResolveBinary(svc)
 	if !found {
-		t.Skip("No binary for current platform, skipping")
+		repocontracttest.SkipPlatform(t, "No binary for current platform, skipping")
 	}
 	if bin.Path == "" {
 		t.Error("ResolveBinary() returned empty path")
@@ -553,5 +656,18 @@ func TestResolvePath_MixedSeparators(t *testing.T) {
 
 	if got != want {
 		t.Errorf("ResolvePath() = %q, want %q", got, want)
+	}
+}
+
+func TestManifestParsesProgramBindingPeersAdditively(t *testing.T) {
+	var parsed Manifest
+	if err := json.Unmarshal([]byte(`{"schema_version":"v0.1","target":"desktop","app":{"name":"demo","version":"1"},"ipc":{"mode":"loopback-http","host":"127.0.0.1","port":0,"auth_token_path":"token"},"telemetry":{"file":"events.jsonl"},"services":[],"program_binding_peers":[{"scenario":"vrooli-memory","bundle_policy":"discover","bindings":[]}]}`), &parsed); err != nil {
+		t.Fatal(err)
+	}
+	if len(parsed.ProgramBindingPeers) != 1 || parsed.ProgramBindingPeers[0].Scenario != "vrooli-memory" {
+		t.Fatalf("program binding peers = %#v", parsed.ProgramBindingPeers)
+	}
+	if len(parsed.Peers) != 0 {
+		t.Fatalf("ordinary peers changed = %#v", parsed.Peers)
 	}
 }

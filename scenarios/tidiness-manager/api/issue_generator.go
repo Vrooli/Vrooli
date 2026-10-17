@@ -6,32 +6,27 @@ import (
 
 // IssueGeneratorConfig defines thresholds for issue generation
 type IssueGeneratorConfig struct {
-	LongFileThreshold             int     // Files with more lines than this generate issues (default: 500)
-	LongFileThresholdTest         int     // Line count threshold for test files (default: 1250)
-	HighComplexityMax             int     // Max complexity above this generates issues (default: 15)
-	HighDuplicationPct            float64 // Duplication percentage above this generates issues (default: 10.0)
-	HighDuplicationPctTest        float64 // Duplication percentage threshold for test files (default: 30.0)
-	HighTechDebtThreshold         int     // Total TODOs + FIXMEs + HACKs above this generates issues (default: 10)
-	HighImportThreshold           int     // Import count above this generates coupling issues (default: 20)
-	HighDangerousPatternThreshold int     // Total as-any + as-type + ts-ignore + non-null above this generates issues (default: 3)
+	LongFileThreshold     int // Files with more lines than this generate issues (default: 500)
+	LongFileThresholdTest int // Line count threshold for test files (default: 1250)
+	HighComplexityMax     int // Max complexity above this generates issues (default: 15)
+	HighTechDebtThreshold int // Total TODOs + FIXMEs + HACKs above this generates issues (default: 10)
+	HighImportThreshold   int // Import count above this generates coupling issues (default: 20)
 }
 
 // DefaultIssueGeneratorConfig returns sensible defaults for issue generation
 func DefaultIssueGeneratorConfig() IssueGeneratorConfig {
 	return IssueGeneratorConfig{
-		LongFileThreshold:             500,
-		LongFileThresholdTest:         1250,
-		HighComplexityMax:             15,
-		HighDuplicationPct:            10.0,
-		HighDuplicationPctTest:        30.0,
-		HighTechDebtThreshold:         10,
-		HighImportThreshold:           20,
-		HighDangerousPatternThreshold: 3,
+		LongFileThreshold:     500,
+		LongFileThresholdTest: 1250,
+		HighComplexityMax:     15,
+		HighTechDebtThreshold: 10,
+		HighImportThreshold:   20,
 	}
 }
 
 // GenerateIssuesFromMetrics creates issues based on file metrics thresholds
-// Categories: length, complexity, duplication, technical_debt, coupling
+// Categories: length, complexity, technical_debt, coupling. Duplication is
+// produced exclusively by normalized block analysis in buildTidinessScan.
 func GenerateIssuesFromMetrics(scenario string, metrics []DetailedFileMetrics, config IssueGeneratorConfig) []Issue {
 	var issues []Issue
 
@@ -69,26 +64,6 @@ func GenerateIssuesFromMetrics(scenario string, metrics []DetailedFileMetrics, c
 			})
 		}
 
-		// Duplication issues - use higher threshold for test files
-		if m.DuplicationPct != nil {
-			dupThreshold := config.HighDuplicationPct
-			if isTestFile && config.HighDuplicationPctTest > 0 {
-				dupThreshold = config.HighDuplicationPctTest
-			}
-			if *m.DuplicationPct > dupThreshold {
-				issues = append(issues, Issue{
-					Scenario: scenario,
-					File:     m.FilePath,
-					Line:     1,
-					Column:   1,
-					Message:  fmt.Sprintf("File has %.1f%% duplicated code, exceeds threshold of %.1f%%", *m.DuplicationPct, dupThreshold),
-					Severity: severityForDuplication(*m.DuplicationPct, dupThreshold),
-					Tool:     "dupl",
-					Category: "duplication",
-				})
-			}
-		}
-
 		// Technical debt issues (TODOs, FIXMEs, HACKs)
 		techDebtCount := m.TodoCount + m.FixmeCount + m.HackCount
 		if techDebtCount > config.HighTechDebtThreshold {
@@ -118,20 +93,9 @@ func GenerateIssuesFromMetrics(scenario string, metrics []DetailedFileMetrics, c
 			})
 		}
 
-		// Type safety issues (dangerous TS/JS patterns)
-		dangerousPatterns := m.AsAnyCount + m.AsTypeAssertionCount + m.TsIgnoreCount + m.NonNullAssertionCount
-		if dangerousPatterns > config.HighDangerousPatternThreshold {
-			issues = append(issues, Issue{
-				Scenario: scenario,
-				File:     m.FilePath,
-				Line:     1,
-				Column:   1,
-				Message:  fmt.Sprintf("File has %d dangerous type-safety patterns (%d as-any, %d as-type, %d ts-ignore, %d non-null assertions), exceeds threshold of %d", dangerousPatterns, m.AsAnyCount, m.AsTypeAssertionCount, m.TsIgnoreCount, m.NonNullAssertionCount, config.HighDangerousPatternThreshold),
-				Severity: severityForTypeSafety(dangerousPatterns, config.HighDangerousPatternThreshold),
-				Tool:     "tidiness-manager",
-				Category: "type_safety",
-			})
-		}
+		// Dangerous TS/JS pattern counts remain available as raw metrics for
+		// historical score compatibility, but Quality Health owns static-quality
+		// enforcement and finding production.
 	}
 
 	return issues
@@ -140,9 +104,7 @@ func GenerateIssuesFromMetrics(scenario string, metrics []DetailedFileMetrics, c
 // severityForLineCount returns severity based on how much line count exceeds threshold
 func severityForLineCount(lines, threshold int) string {
 	ratio := float64(lines) / float64(threshold)
-	if ratio > 3.0 {
-		return "high"
-	} else if ratio > 2.0 {
+	if ratio > 2.0 {
 		return "medium"
 	}
 	return "low"
@@ -150,19 +112,16 @@ func severityForLineCount(lines, threshold int) string {
 
 // severityForComplexity returns severity based on complexity level
 func severityForComplexity(complexity, threshold int) string {
-	if complexity > threshold*2 {
-		return "high"
-	} else if complexity > threshold+5 {
+	if complexity > threshold+5 {
 		return "medium"
 	}
 	return "low"
 }
 
-// severityForDuplication returns severity based on duplication percentage
-func severityForDuplication(pct, threshold float64) string {
-	if pct > threshold*3 {
-		return "high"
-	} else if pct > threshold*2 {
+// severityForDuplicateLineDebt returns severity based on the duplicated span.
+// Duplication is classified from normalized blocks, never from a file percentage.
+func severityForDuplicateLineDebt(lines, threshold float64) string {
+	if lines > threshold*2 {
 		return "medium"
 	}
 	return "low"
@@ -170,9 +129,7 @@ func severityForDuplication(pct, threshold float64) string {
 
 // severityForTechDebt returns severity based on tech debt count
 func severityForTechDebt(count, threshold int) string {
-	if count > threshold*3 {
-		return "high"
-	} else if count > threshold*2 {
+	if count > threshold*2 {
 		return "medium"
 	}
 	return "low"
@@ -180,19 +137,7 @@ func severityForTechDebt(count, threshold int) string {
 
 // severityForCoupling returns severity based on import count
 func severityForCoupling(imports, threshold int) string {
-	if imports > threshold*2 {
-		return "high"
-	} else if imports > threshold+10 {
-		return "medium"
-	}
-	return "low"
-}
-
-// severityForTypeSafety returns severity based on dangerous pattern count
-func severityForTypeSafety(count, threshold int) string {
-	if count > threshold*3 {
-		return "high"
-	} else if count > threshold*2 {
+	if imports > threshold+10 {
 		return "medium"
 	}
 	return "low"

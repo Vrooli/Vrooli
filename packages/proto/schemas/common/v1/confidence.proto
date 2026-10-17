@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package common.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1;commonv1";
+
+// =============================================================================
+// SHARED SEARCH CONFIDENCE CONTRACT
+// =============================================================================
+//
+// @layer 0
+// @domain common
+// @stability beta
+//
+// The canonical weak-match carrier for search results. Scores are regime-local
+// and may be cosine similarities, cross-encoder probabilities, LLM judgments, or
+// fused reciprocal-rank values. Consumers should render confidence from this
+// field rather than thresholding raw scores.
+// =============================================================================
+
+message Confidence {
+  // True when the producer judged this hit uncertain in the active score regime.
+  bool weak = 1;
+  // Score regime that produced the hit's score:
+  // "cosine" | "cross-encoder" | "llm" | "fused".
+  string regime = 2;
+}

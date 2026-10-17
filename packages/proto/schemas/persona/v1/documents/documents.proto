@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package vrooli.persona.v1.documents;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/persona/v1/documents;documents_v1";
+
+service DocumentsService {
+  rpc BindDocument(BindDocumentRequest) returns (BindDocumentResponse);
+  rpc ListBindings(ListBindingsRequest) returns (ListBindingsResponse);
+  rpc ReleaseIntoHandoff(ReleaseIntoHandoffRequest) returns (ReleaseIntoHandoffResponse);
+}
+
+message DocumentBinding {
+  string id = 1;
+  string persona_id = 2;
+  string document_id = 3;
+  string document_kind = 4;
+  google.protobuf.Timestamp valid_until = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+message BindDocumentRequest {
+  string persona_id = 1;
+  string document_id = 2;
+  string document_kind = 3;
+  google.protobuf.Timestamp valid_until = 4;
+}
+message BindDocumentResponse { DocumentBinding binding = 1; }
+message ListBindingsRequest { string persona_id = 1; }
+message ListBindingsResponse { repeated DocumentBinding bindings = 1; }
+message ReleaseIntoHandoffRequest {
+  string persona_id = 1;
+  string document_id = 2;
+  string handoff_id = 3;
+}
+message ReleaseIntoHandoffResponse {
+  string release_id = 1;
+  string handoff_id = 2;
+  string document_id = 3;
+  google.protobuf.Timestamp released_at = 4;
+}

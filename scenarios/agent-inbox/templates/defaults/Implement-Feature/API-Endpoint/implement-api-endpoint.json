@@ -49,6 +49,5 @@
       "defaultValue": "Required",
       "required": true
     }
-  ],
-  "suggestedToolIds": ["spawn_coding_agent"]
+  ]
 }

@@ -1,4 +1,4 @@
-import { Settings, Save, RotateCcw, CheckCircle, Info, AlertTriangle, Download, Upload, Copy } from "lucide-react";
+import { Save, RotateCcw, Info, AlertTriangle, Download, Upload, Copy } from "lucide-react";
 import { useState, useRef } from "react";
 import { useToast } from "../components/ui/toast";
 import { PageHeader } from "../components/layout/PageHeader";

@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
-	"swarm-manager/internal/testutil"
+	"github.com/vrooli/api-core/apihttptest"
 )
 
 func TestList_LoadError(t *testing.T) {
@@ -26,8 +26,7 @@ func TestList_LoadError(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/queue", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
-
-	testutil.AssertStatus(t, rec, http.StatusInternalServerError)
+	apihttptest.AssertStatus(t, rec.Result(), http.StatusInternalServerError)
 }
 
 func TestCreate_InvalidJSON(t *testing.T) {
@@ -38,8 +37,7 @@ func TestCreate_InvalidJSON(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/queue", bytes.NewBufferString("{"))
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
-
-	testutil.AssertStatusBadRequest(t, rec)
+	apihttptest.AssertStatus(t, rec.Result(), 400)
 }
 
 func TestCreate_LoadError(t *testing.T) {
@@ -56,8 +54,7 @@ func TestCreate_LoadError(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/queue", bytes.NewBufferString(`{"kind":"idea"}`))
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
-
-	testutil.AssertStatus(t, rec, http.StatusInternalServerError)
+	apihttptest.AssertStatus(t, rec.Result(), http.StatusInternalServerError)
 }
 
 func TestDelete_MissingID(t *testing.T) {
@@ -66,6 +63,5 @@ func TestDelete_MissingID(t *testing.T) {
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/queue/", nil)
 	rec := httptest.NewRecorder()
 	handler.Delete(rec, req)
-
-	testutil.AssertStatusBadRequest(t, rec)
+	apihttptest.AssertStatus(t, rec.Result(), 400)
 }

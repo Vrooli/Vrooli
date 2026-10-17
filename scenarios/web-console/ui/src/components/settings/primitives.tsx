@@ -1,92 +1,104 @@
-import type { ReactNode } from "react";
+import { useState } from "react";
+import { Switch } from "@vrooli/react-component-library/Switch";
+import { Slider } from "@vrooli/react-component-library/Slider";
+import { useSettingsRowLabelId } from "@vrooli/react-component-library/SettingsList/1";
 import { cn } from "../../lib/classnames";
 
-export function SettingsSectionIntro({
-  eyebrow,
-  title,
-  description,
-}: {
-  eyebrow: string;
-  title: string;
-  description: string;
-}) {
-  return (
-    <div className="space-y-1">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-wc-text-muted">
-        {eyebrow}
-      </p>
-      <div>
-        <h3 className="text-lg font-semibold text-wc-text-primary">{title}</h3>
-        <p className="text-sm text-wc-text-faint">{description}</p>
-      </div>
-    </div>
-  );
-}
-
-export function SettingsCard({
-  className,
-  children,
-}: {
-  className?: string;
-  children: ReactNode;
-}) {
-  return (
-    <div className={cn("rounded-2xl border border-wc-default bg-wc-surface-input/80 p-4", className)}>
-      {children}
-    </div>
-  );
-}
-
-export function SettingsRow({
-  label,
-  hint,
-  hintClassName,
-  control,
-  className,
-}: {
-  label: string;
-  hint?: string;
-  hintClassName?: string;
-  control: ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className={cn("flex items-center justify-between gap-4", className)}>
-      <div className="min-w-0">
-        <div className="text-sm font-medium text-wc-text-secondary">{label}</div>
-        {hint && <div className={cn("text-[11px] text-wc-text-muted", hintClassName)}>{hint}</div>}
-      </div>
-      <div className="shrink-0">{control}</div>
-    </div>
-  );
-}
-
+/**
+ * The settings-row switch. A thin binding over the library control: the row
+ * owns the label, so the switch renders bare and takes its accessible name from
+ * the row through context.
+ */
 export function SettingsToggle({
   checked,
-  onClick,
+  onCheckedChange,
+  disabled,
   testId,
+  ariaLabel,
 }: {
   checked: boolean;
-  onClick: () => void;
+  onCheckedChange: (checked: boolean) => void;
+  disabled?: boolean;
   testId?: string;
+  ariaLabel?: string;
 }) {
+  const rowLabelId = useSettingsRowLabelId();
   return (
-    <button
+    <Switch
       data-testid={testId}
-      role="switch"
-      aria-checked={checked}
-      className={cn(
-        "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
-        checked ? "bg-wc-accent" : "bg-wc-surface-base",
-      )}
-      onClick={onClick}
-    >
-      <span
-        className={cn(
-          "inline-block h-4.5 w-4.5 rounded-full bg-white transition-transform",
-          checked ? "translate-x-[22px]" : "translate-x-[3px]",
-        )}
+      checked={checked}
+      onCheckedChange={onCheckedChange}
+      disabled={disabled}
+      aria-label={ariaLabel}
+      aria-labelledby={ariaLabel ? undefined : rowLabelId}
+    />
+  );
+}
+
+/**
+ * The settings-row slider.
+ *
+ * The live value is held here and only handed to `onCommit` when the
+ * interaction ends, so a drag across the track produces one store write instead
+ * of one per step. `onChange` exists for previews that need to follow the
+ * finger; it must never be used to persist.
+ */
+export function SettingsSlider({
+  value,
+  onChange,
+  onCommit,
+  min,
+  max,
+  step,
+  formatValue,
+  defaultMarker,
+  ticks,
+  disabled,
+  testId,
+  ariaLabel,
+  className,
+}: {
+  value: number;
+  onChange?: (value: number) => void;
+  onCommit: (value: number) => void;
+  min: number;
+  max: number;
+  step?: number;
+  formatValue?: (value: number) => string;
+  defaultMarker?: number;
+  ticks?: number | number[];
+  disabled?: boolean;
+  testId?: string;
+  ariaLabel?: string;
+  className?: string;
+}) {
+  const rowLabelId = useSettingsRowLabelId();
+  // Non-null only while the control is being moved; the committed value in
+  // `value` remains the source of truth the moment the interaction ends.
+  const [draft, setDraft] = useState<number | null>(null);
+  return (
+    <div className={cn("w-[min(16rem,60vw)]", className)}>
+      <Slider
+        data-testid={testId}
+        value={draft ?? value}
+        onChange={(next) => {
+          setDraft(next);
+          onChange?.(next);
+        }}
+        onChangeCommit={(next) => {
+          setDraft(null);
+          onCommit(next);
+        }}
+        min={min}
+        max={max}
+        step={step}
+        ticks={ticks}
+        defaultMarker={defaultMarker}
+        formatValue={formatValue}
+        disabled={disabled}
+        aria-label={ariaLabel}
+        aria-labelledby={ariaLabel ? undefined : rowLabelId}
       />
-    </button>
+    </div>
   );
 }

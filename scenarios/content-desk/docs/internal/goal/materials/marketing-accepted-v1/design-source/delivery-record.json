@@ -1,0 +1,36 @@
+{
+  "candidate": "0.3",
+  "native_document_id": "1LlO2CTsIwHvSlPpjVmdLfjXc2EpulEldwhIS_RVuPko",
+  "native_tab_id": "t.0",
+  "native_revision": "ANLCKQnRXdhkDwqa2XNv1OV7iNjgAFT16l54t5w8w8CJiYCDXtI9lVKRZ4FQbun9P5N52uzcjrk-yLcZ5kYO5p6PLh9td3rWXCs5_JUA6A",
+  "native_pdf": {
+    "path": "Marketing experience 0.3 - exact native review.pdf",
+    "bytes": 10072373,
+    "sha256": "ca0f37949bb2b0a69611a3601aa209b7a2844934c5753c19d09401103133d405",
+    "file_id": "1Qb5AdNnwHzNoejA-NLGYOSRgIyiMOM-W",
+    "pages": 97
+  },
+  "atlas": {
+    "path": "Marketing experience 0.3 - full-size visual atlas.pdf",
+    "bytes": 2649361,
+    "sha256": "9d7a162565967fabf5ccb84e0d4220fe4d7283278a12dc6912b664a2306952b0",
+    "file_id": "15UXSK90NG3YHEqL5C-lya_RahD7kitPt",
+    "pages": 28,
+    "states": 47
+  },
+  "source_package_file_id": "1rsy4cSNIbh3H_wjJxWiGom057s49Y7io",
+  "visual_catalogue_file_id": "1e3Uf-neFK15Jkra2M-Ye_nlkYt3UtRty",
+  "review": "qa/final-independent-review.md",
+  "exact_export_check": {
+    "first_95_pages_identical_to_inspected_first_export": true,
+    "changed_pages_inspected": [
+      96,
+      97
+    ],
+    "inline_images_pixel_identical": 45,
+    "valid_internal_links": 57
+  },
+  "readability_limit": "Desktop figures are overview compositions; phone/focused figures and native prose carry readable controls. Actual live Docs/iOS viewer unverified.",
+  "delivery_set": "Separate native Doc/PDF/atlas plus this source ZIP and live catalogue. PDF/atlas hashes are pinned here; their bytes are served by their existing adjacent IDs, not duplicated in the ZIP.",
+  "authority": "Whole redesign commissioned; exact product choices and implementation remain unaccepted. No publication/accounts/grants/spending."
+}

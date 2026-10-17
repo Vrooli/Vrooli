@@ -1,0 +1,55 @@
+{
+  "_metadata": {
+    "description": "Household and device-group policy profiles.",
+    "last_validated_at": "2026-07-22T01:28:53-04:00",
+    "module": "household-policy-profiles",
+    "prd_ref": "OT-P1-001",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "NM-P1-001",
+      "title": "Household policy profiles group devices by intent",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-001",
+      "category": "policy",
+      "criticality": "P1",
+      "description": "The scenario shall support trusted, kids, guest, IoT, and work profiles with per-group DNS policy, filtering strength, schedule, and override behavior.",
+      "tags": [
+        "household-policy",
+        "device-groups"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/policy/service_test.go::TestHouseholdPolicyProfilePersistsIntentWithoutApplyingLivePolicy",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Verifies household profiles persist intent without claiming live DNS policy apply."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/policy/sqlite_test.go::TestSQLiteRepositoryStoresPolicyProfiles",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Verifies profile persistence uses domain-owned policy storage."
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/policy/handlers_test.go::TestHandlersProfileSetCallsGeneratedClient",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Verifies the profile CLI reaches the shared Connect API contract."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/pages/NetworkPages.test.tsx::creates household policy profiles and evaluates schedules",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Verifies the operator UI can save household profile intent."
+        }
+      ]
+    }
+  ]
+}

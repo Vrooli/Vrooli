@@ -1,25 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter } from "react-router-dom";
+import { screen, waitFor, fireEvent, within } from "@testing-library/react";
+import { QueryClient } from "@tanstack/react-query";
+import { Route, Routes } from "react-router-dom";
 import { ScenarioDetailsPage } from "./ScenarioDetailsPage";
-import { useScenariosStore, useDetailSelectionStore } from "../stores";
+import { useScenariosStore } from "../stores";
+import { createTestQueryClient, installMatchMediaMock, renderWithProviders } from "../test-utils";
 
 // jsdom doesn't provide matchMedia (needed by useIsMobile in DetailPageLayout).
 beforeAll(() => {
-  Object.defineProperty(window, "matchMedia", {
-    writable: true,
-    value: vi.fn().mockImplementation((query: string) => ({
-      matches: false,
-      media: query,
-      onchange: null,
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    })),
-  });
+  installMatchMediaMock();
 });
 
 /**
@@ -43,6 +32,10 @@ vi.mock("../config", () => ({
     requestTimeoutMs: 30000,
     apiVersion: "v1",
   },
+  uiBehaviorConfig: {
+    searchDebounceMs: 300,
+    toastDurationMs: 5000,
+  },
 }));
 
 /**
@@ -52,12 +45,17 @@ vi.mock("../services", () => ({
   scenariosService: {
     list: vi.fn(),
     get: vi.fn(),
+    getContext: vi.fn(),
     getFiles: vi.fn(),
     updateMetadata: vi.fn(),
     delete: vi.fn(),
     start: vi.fn(),
     stop: vi.fn(),
     restart: vi.fn(),
+    previewRemediation: vi.fn(),
+    applyRemediation: vi.fn(),
+    previewMaturityCampaign: vi.fn(),
+    applyMaturityCampaign: vi.fn(),
   },
 }));
 
@@ -81,27 +79,30 @@ describe("ScenarioDetailsPage", () => {
   };
 
   beforeEach(() => {
-    queryClient = new QueryClient({
-      defaultOptions: {
-        queries: {
-          retry: false,
-        },
-      },
-    });
+    queryClient = createTestQueryClient();
     vi.clearAllMocks();
     window.localStorage.clear();
     vi.mocked(scenariosService.getFiles).mockResolvedValue([]);
+    vi.mocked(scenariosService.getContext).mockResolvedValue({
+      scenarioName: "test-scenario",
+      goals: [],
+      orphanItems: [],
+      rollup: { total: 0, completed: 0, inProgress: 0, failed: 0, pending: 0, archived: 0 },
+      fixes: { active: [], archived: [] },
+    });
     useScenariosStore.getState().reset();
   });
 
   const renderPage = (scenarioName = "test-scenario") => {
-    useDetailSelectionStore.getState().selectScenario(scenarioName);
-    return render(
-      <MemoryRouter initialEntries={["/graph"]}>
-        <QueryClientProvider client={queryClient}>
-          <ScenarioDetailsPage />
-        </QueryClientProvider>
-      </MemoryRouter>
+    return renderWithProviders(
+      <Routes>
+        <Route path="/scenarios/:name" element={<ScenarioDetailsPage />} />
+        <Route path="/graph" element={<div data-testid="graph-route" />} />
+      </Routes>,
+      {
+        queryClient,
+        initialEntries: [`/scenarios/${scenarioName}`],
+      },
     );
   };
 
@@ -128,6 +129,53 @@ describe("ScenarioDetailsPage", () => {
 
   // [REQ:REQ-P0-007b] Test scenario metadata display
   describe("scenario metadata display", () => {
+    it("previews before it applies a fresh phase remediation", async () => {
+      vi.mocked(scenariosService.get).mockResolvedValue({ ...mockScenario, health: { evidenceState: "fresh", phases: [{ phase: "unit", priorityCapabilityId: "coverage", priorityCapabilityLabel: "Coverage", blockingCodes: [] }] } as never });
+      vi.mocked(scenariosService.previewRemediation).mockResolvedValue({ proposal: { target: { scenarioName: "test-scenario", providerPhase: "unit", capabilityId: "coverage" }, fingerprint: "srh:test", title: "Improve coverage", description: "Preview", acceptanceCriteria: ["Given evidence"], acceptanceAllow: [], recommendedWorkflows: [] } });
+      renderPage();
+      await waitFor(() => expect(screen.getAllByTestId("scenario-detail-tab-quality")).not.toHaveLength(0));
+      fireEvent.click(screen.getAllByTestId("scenario-detail-tab-quality").at(-1)!);
+      await waitFor(() => expect(screen.getByRole("button", { name: "Preview remediation" })).toBeInTheDocument());
+      fireEvent.click(screen.getByRole("button", { name: "Preview remediation" }));
+      await waitFor(() => expect(screen.getByTestId("scenario-remediation-preview")).toBeInTheDocument());
+      expect(scenariosService.applyRemediation).not.toHaveBeenCalled();
+    });
+
+    it("requires a separate preview and confirmation for a maturity campaign", async () => {
+      vi.mocked(scenariosService.get).mockResolvedValue({ ...mockScenario, health: { evidenceState: "fresh", phases: [{ phase: "unit", priorityCapabilityId: "coverage", priorityCapabilityLabel: "Coverage", blockingCodes: [] }] } as never });
+      vi.mocked(scenariosService.previewMaturityCampaign).mockResolvedValue({ proposal: { target: { scenarioName: "test-scenario", maturityTarget: "operator-selected maturity outcome", providerPhases: ["unit"] }, fingerprint: "smc:test", title: "Raise maturity", description: "Preview", acceptanceCriteria: ["Given evidence"], declaredWorkflow: "scenario-improvement-campaign", trackerAvailability: "unavailable" } });
+      vi.mocked(scenariosService.applyMaturityCampaign).mockResolvedValue({ proposal: { target: { scenarioName: "test-scenario", maturityTarget: "operator-selected maturity outcome", providerPhases: ["unit"] }, fingerprint: "smc:test", title: "Raise maturity", description: "Preview", acceptanceCriteria: ["Given evidence"], declaredWorkflow: "scenario-improvement-campaign", trackerAvailability: "unavailable" }, goalRef: "scenario-maturity-test", created: true, trackerAvailability: "unavailable" });
+      renderPage();
+
+      await waitFor(() => expect(screen.getAllByTestId("scenario-detail-tab-quality")).not.toHaveLength(0));
+      fireEvent.click(screen.getAllByTestId("scenario-detail-tab-quality").at(-1)!);
+      await waitFor(() => expect(screen.getByTestId("scenario-maturity-campaign-preview-button")).toBeInTheDocument());
+      fireEvent.click(screen.getByTestId("scenario-maturity-campaign-preview-button"));
+      await waitFor(() => expect(screen.getByTestId("scenario-maturity-campaign-preview")).toBeInTheDocument());
+      expect(scenariosService.applyMaturityCampaign).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByTestId("scenario-maturity-campaign-confirm-button"));
+      await waitFor(() => expect(scenariosService.applyMaturityCampaign).toHaveBeenCalledTimes(1));
+      expect(screen.getByText("Governed goal: scenario-maturity-test")).toBeInTheDocument();
+    });
+
+    it("renders provider-owned stale health without claiming a verdict", async () => {
+      vi.mocked(scenariosService.get).mockResolvedValue({
+        ...mockScenario,
+        health: { evidenceState: "stale", reason: "Evidence is older than the freshness window.", sourceRunId: "run-42", phases: [] } as never,
+      });
+      renderPage();
+
+      await waitFor(() => expect(screen.getAllByTestId("scenario-detail-tab-quality")).not.toHaveLength(0));
+      fireEvent.click(screen.getAllByTestId("scenario-detail-tab-quality").at(-1)!);
+
+      await waitFor(() => {
+        expect(screen.getByTestId("scenario-health-section")).toBeInTheDocument();
+        expect(screen.getByTestId("scenario-health-state")).toHaveTextContent("stale");
+        expect(screen.getByTestId("scenario-health-reason")).toHaveTextContent("older than the freshness window");
+      });
+    });
+
     it("displays scenario title correctly", async () => {
       vi.mocked(scenariosService.get).mockResolvedValue(mockScenario);
       renderPage();
@@ -186,6 +234,9 @@ describe("ScenarioDetailsPage", () => {
         description: "",
       });
       renderPage();
+
+      await waitFor(() => expect(screen.getAllByTestId("scenario-detail-tab-work")).not.toHaveLength(0));
+      fireEvent.click(screen.getAllByTestId("scenario-detail-tab-work").at(-1)!);
 
       await waitFor(() => {
         expect(screen.getAllByText("No description provided").length).toBeGreaterThan(0);
@@ -434,6 +485,9 @@ describe("ScenarioDetailsPage", () => {
         expect(screen.getByTestId("scenario-details-delete")).toBeInTheDocument();
       });
       fireEvent.click(screen.getByTestId("scenario-details-delete"));
+      await waitFor(() => {
+        expect(screen.getByText("No files selected for archive.")).toBeInTheDocument();
+      });
 
       const confirmButton = screen.getByTestId("scenario-delete-confirm");
       const confirmInput = screen.getByPlaceholderText("test-scenario");
@@ -904,6 +958,9 @@ describe("ScenarioDetailsPage", () => {
       vi.mocked(scenariosService.get).mockResolvedValue(mockScenario);
       renderPage();
 
+      await waitFor(() => expect(screen.getAllByTestId("scenario-detail-tab-manage")).not.toHaveLength(0));
+      fireEvent.click(screen.getAllByTestId("scenario-detail-tab-manage")[0]!);
+
       await waitFor(() => {
         expect(screen.getByRole("button", { name: /Danger Zone/i })).toBeInTheDocument();
       });
@@ -917,14 +974,14 @@ describe("ScenarioDetailsPage", () => {
   // Edge cases
   describe("edge cases", () => {
     it("shows error when rendered without name in selection", async () => {
-      // Clear selection to simulate no name
-      useDetailSelectionStore.getState().clearSelection();
-      render(
-        <MemoryRouter initialEntries={["/graph"]}>
-          <QueryClientProvider client={queryClient}>
-            <ScenarioDetailsPage />
-          </QueryClientProvider>
-        </MemoryRouter>
+      renderWithProviders(
+        <Routes>
+          <Route path="/graph" element={<ScenarioDetailsPage />} />
+        </Routes>,
+        {
+          queryClient,
+          initialEntries: ["/graph"],
+        },
       );
 
       await waitFor(() => {
@@ -945,6 +1002,188 @@ describe("ScenarioDetailsPage", () => {
       });
       // Should not crash and score should not appear
       expect(screen.queryByText("%")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("associated goals & backlog coverage", () => {
+    it("renders the coverage section heading on desktop", async () => {
+      vi.mocked(scenariosService.get).mockResolvedValue(mockScenario);
+      renderPage();
+
+      await waitFor(() => expect(screen.getAllByTestId("scenario-detail-tab-work")).not.toHaveLength(0));
+      fireEvent.click(screen.getAllByTestId("scenario-detail-tab-work").at(-1)!);
+
+      await waitFor(() => {
+        expect(screen.getByTestId("scenario-coverage-section")).toBeInTheDocument();
+      });
+      expect(screen.getByText("Associated Goals & Backlog")).toBeInTheDocument();
+    });
+
+    it("renders goals subsection when context has goals", async () => {
+      vi.mocked(scenariosService.get).mockResolvedValue(mockScenario);
+      vi.mocked(scenariosService.getContext).mockResolvedValue({
+        scenarioName: "test-scenario",
+        goals: [
+          {
+            name: "audio-platform",
+            title: "Audio Platform",
+            status: "active",
+            priority: 3,
+            rollup: { total: 3, completed: 1, inProgress: 1, failed: 0, pending: 1, archived: 0 },
+          },
+        ],
+        orphanItems: [],
+        rollup: { total: 3, completed: 1, inProgress: 1, failed: 0, pending: 1, archived: 0 },
+        fixes: { active: [], archived: [] },
+      });
+      renderPage();
+
+      await waitFor(() => expect(screen.getAllByTestId("scenario-detail-tab-work")).not.toHaveLength(0));
+      fireEvent.click(screen.getAllByTestId("scenario-detail-tab-work").at(-1)!);
+
+      await waitFor(() => {
+        expect(screen.getByTestId("scenario-coverage-goals")).toBeInTheDocument();
+      });
+      expect(screen.getByText("Audio Platform")).toBeInTheDocument();
+      // Orphans subsection should not render when empty.
+      expect(screen.queryByTestId("scenario-coverage-orphans")).not.toBeInTheDocument();
+    });
+
+    it("renders orphan items subsection when context has orphans", async () => {
+      vi.mocked(scenariosService.get).mockResolvedValue(mockScenario);
+      vi.mocked(scenariosService.getContext).mockResolvedValue({
+        scenarioName: "test-scenario",
+        goals: [],
+        orphanItems: [
+          {
+            kind: "execute",
+            name: "orphan-one",
+            title: "Orphan One",
+            status: "backlog",
+            priority: 3,
+          },
+        ],
+        rollup: { total: 1, completed: 0, inProgress: 0, failed: 0, pending: 1, archived: 0 },
+        fixes: { active: [], archived: [] },
+      });
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId("scenario-coverage-orphans")).toBeInTheDocument();
+      });
+      expect(screen.getByText("Orphan One")).toBeInTheDocument();
+      // Goals subsection should not render when empty.
+      expect(screen.queryByTestId("scenario-coverage-goals")).not.toBeInTheDocument();
+    });
+
+    it("renders empty-state copy when no coverage exists", async () => {
+      vi.mocked(scenariosService.get).mockResolvedValue(mockScenario);
+      // Default getContext mock in beforeEach returns empty — confirm the empty state renders.
+      renderPage();
+
+      await waitFor(() => expect(screen.getAllByTestId("scenario-detail-tab-work")).not.toHaveLength(0));
+      fireEvent.click(screen.getAllByTestId("scenario-detail-tab-work").at(-1)!);
+
+      await waitFor(() => {
+        expect(screen.getByTestId("scenario-coverage-empty")).toBeInTheDocument();
+      });
+    });
+
+    it("renders Fix History section with active partition by default", async () => {
+      vi.mocked(scenariosService.get).mockResolvedValue(mockScenario);
+      vi.mocked(scenariosService.getContext).mockResolvedValue({
+        scenarioName: "test-scenario",
+        goals: [],
+        orphanItems: [],
+        rollup: { total: 0, completed: 0, inProgress: 0, failed: 0, pending: 0, archived: 0 },
+        fixes: {
+          active: [
+            { name: "fix-active", title: "Active fix", status: "backlog", priority: 2, path: "fix/fix-active" },
+          ],
+          archived: [
+            { name: "fix-old", title: "Old fix", status: "completed", priority: 1, archivedAt: "2026-04-15T10:00:00Z", path: "fix/fix-old" },
+          ],
+        },
+      });
+      renderPage();
+
+      await waitFor(() => expect(screen.getAllByTestId("scenario-detail-tab-work")).not.toHaveLength(0));
+      fireEvent.click(screen.getAllByTestId("scenario-detail-tab-work").at(-1)!);
+
+      await waitFor(() => {
+        expect(screen.getByTestId("scenario-fix-history")).toBeInTheDocument();
+      });
+      // Default scope=active: shows the active fix, hides the archived one.
+      expect(screen.getByText("Active fix")).toBeInTheDocument();
+      expect(screen.queryByText("Old fix")).not.toBeInTheDocument();
+    });
+
+    it("toggling Archived scope shows archived fixes only", async () => {
+      vi.mocked(scenariosService.get).mockResolvedValue(mockScenario);
+      vi.mocked(scenariosService.getContext).mockResolvedValue({
+        scenarioName: "test-scenario",
+        goals: [],
+        orphanItems: [],
+        rollup: { total: 0, completed: 0, inProgress: 0, failed: 0, pending: 0, archived: 0 },
+        fixes: {
+          active: [
+            { name: "fix-active", title: "Active fix", status: "backlog", priority: 2, path: "fix/fix-active" },
+          ],
+          archived: [
+            { name: "fix-old", title: "Old fix", status: "completed", priority: 1, archivedAt: "2026-04-15T10:00:00Z", path: "fix/fix-old" },
+          ],
+        },
+      });
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId("scenario-fix-history")).toBeInTheDocument();
+      });
+
+      const archivedToggle = screen.getByTestId("scenario-fix-history-scope-archived");
+      fireEvent.click(archivedToggle);
+
+      await waitFor(() => {
+        expect(screen.getByText("Old fix")).toBeInTheDocument();
+      });
+      expect(screen.queryByText("Active fix")).not.toBeInTheDocument();
+    });
+
+    it("search narrows fix history by title", async () => {
+      vi.mocked(scenariosService.get).mockResolvedValue(mockScenario);
+      vi.mocked(scenariosService.getContext).mockResolvedValue({
+        scenarioName: "test-scenario",
+        goals: [],
+        orphanItems: [],
+        rollup: { total: 0, completed: 0, inProgress: 0, failed: 0, pending: 0, archived: 0 },
+        fixes: {
+          active: [
+            { name: "fix-foo", title: "Foo crashes", status: "backlog", priority: 2, path: "fix/fix-foo" },
+            { name: "fix-bar", title: "Bar timeout", status: "backlog", priority: 1, path: "fix/fix-bar" },
+          ],
+          archived: [],
+        },
+      });
+      renderPage();
+
+      const search = await screen.findByTestId("scenario-fix-history-search");
+      fireEvent.change(search, { target: { value: "foo" } });
+
+      await waitFor(() => {
+        expect(screen.queryByText("Bar timeout")).not.toBeInTheDocument();
+      });
+      expect(screen.getByText("Foo crashes")).toBeInTheDocument();
+    });
+
+    it("renders Fix History section exactly once across mobile and desktop layouts", async () => {
+      vi.mocked(scenariosService.get).mockResolvedValue(mockScenario);
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId("scenario-fix-history")).toBeInTheDocument();
+      });
+      // Single instance — no duplicate rendering across layouts.
+      expect(screen.getAllByTestId("scenario-fix-history")).toHaveLength(1);
     });
   });
 });

@@ -1,0 +1,94 @@
+syntax = "proto3";
+
+package vrooli.image_tools.v1.safety;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/safety;safety_v1";
+
+// =============================================================================
+// SAFETY DOMAIN — Responsible-Use deployment gate (IMG-P1-015)
+// =============================================================================
+//
+// @stability alpha
+//
+// Wire contract for SafetyService: the policy surface for the Responsible-Use
+// deployment gate. image-tools' position (DECISIONS.md, 2026-06-18) is that
+// editing real people is gated at DEPLOYMENT, not at the capability —
+// local/personal use is unrestricted, and a public/monetized deployment opts
+// into a stricter policy. This service reports the RESOLVED policy for the
+// running deployment so the UI (settings), the CLI (`safety policy`), and any
+// composing scenario can see exactly what is enforced.
+//
+// The gate itself is server-side (internal/safety, enforced on the AI submit
+// edge): on the public tier, high-consent-weight ops (identity/body/clothing/
+// pose-altering: edit_instruct / inpaint / object_removal / image_to_image)
+// require a consent affirmation (recorded to the consent log) and the generated
+// output is auto-scanned for NSFW/unsafe content. Naturalize is low-weight and
+// never gated. The hard non-goals (no recognition / face-swap / deepfake) hold
+// on EVERY tier regardless of policy.
+//
+// Pure discovery: GetPolicy executes nothing and mutates nothing.
+//
+// Consumed by:
+//   - API: handlers/safety/connect_handler.go (GetPolicy).
+//   - CLI: cli/domains/safety (`safety policy`).
+//   - UI:  ui/src/api/safety.ts → the Settings "Responsible Use" panel.
+// =============================================================================
+
+service SafetyService {
+  // GetPolicy returns the resolved Responsible-Use policy for the running
+  // deployment tier, plus the per-operation consent weights. Pure.
+  rpc GetPolicy(GetPolicyRequest) returns (SafetyPolicy);
+}
+
+// DeploymentTier selects how strict the Responsible-Use gate is.
+enum DeploymentTier {
+  DEPLOYMENT_TIER_UNSPECIFIED = 0;
+  // LOCAL — personal/local use. Unrestricted: no consent gate, no forced scan,
+  // no rate limit. The default.
+  DEPLOYMENT_TIER_LOCAL = 1;
+  // PUBLIC — public/monetized deployment. The gate is active: consent required
+  // for high-weight ops, NSFW auto-scan forced on, provenance marked, abuse
+  // rate-limited.
+  DEPLOYMENT_TIER_PUBLIC = 2;
+}
+
+// ConsentWeight is how identity-sensitive an operation is — the driver of
+// whether the consent gate applies on the public tier.
+enum ConsentWeight {
+  CONSENT_WEIGHT_UNSPECIFIED = 0;
+  // NONE — no identity concern (text_to_image, upscale, background_removal,
+  // denoise, analysis, diff).
+  CONSENT_WEIGHT_NONE = 1;
+  // LOW — texture/realism only, no identity alteration (naturalize). Never gated.
+  CONSENT_WEIGHT_LOW = 2;
+  // HIGH — can alter a real person's identity / body / clothing / pose
+  // (edit_instruct, inpaint, object_removal, image_to_image). Gated on public.
+  CONSENT_WEIGHT_HIGH = 3;
+}
+
+// OpWeight pairs an operation with its consent weight.
+message OpWeight {
+  string operation = 1;
+  ConsentWeight weight = 2;
+}
+
+message GetPolicyRequest {}
+
+// SafetyPolicy is the resolved policy for the running deployment.
+message SafetyPolicy {
+  // Tier is the resolved deployment tier.
+  DeploymentTier tier = 1;
+  // RequireConsent: high-weight ops require a consent affirmation (public only).
+  bool require_consent = 2;
+  // ForceNsfwScan: AI output is auto-scanned for NSFW/unsafe content (public).
+  bool force_nsfw_scan = 3;
+  // RequireProvenance: outputs are marked with provenance (C2PA/watermark). The
+  // marker is recorded today; full C2PA signing is the documented upgrade.
+  bool require_provenance = 4;
+  // RateLimitPerMin: max AI submits per minute on this tier (0 = unlimited).
+  int32 rate_limit_per_min = 5;
+  // OpWeights is the per-operation consent-weight table the gate keys on.
+  repeated OpWeight op_weights = 6;
+  // Summary is a one-line human description of the active policy.
+  string summary = 7;
+}

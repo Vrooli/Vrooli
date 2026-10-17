@@ -4,12 +4,103 @@
 
 :root {
   color-scheme: dark;
+  --gct-chrome-color: #0f172a;
+  --gct-app-color: #020617;
+  /* Canvas outside the reported viewport continues the bottom navigation. */
+  background-color: var(--gct-app-color);
+}
+
+html,
+body,
+#root {
+  height: var(--gct-app-height, 100%);
+  min-height: 0;
+}
+
+/* The app owns all scrolling internally (the active panel scrolls, not the page).
+   Locking the page — as web-console does — stops iOS rubber-band/overscroll from
+   dragging the whole shell (and the bottom nav) out of position. */
+html,
+body {
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 body {
+  position: fixed;
+  inset: 0;
   font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   margin: 0;
-  background-color: #020617;
+  background-color: var(--gct-app-color);
+}
+
+.gct-mobile-chrome {
+  background: var(--rcl-status-fill, var(--gct-chrome-color));
+}
+
+.gct-status-bar-fill {
+  min-height: 0;
+  background: var(--rcl-status-fill, var(--gct-chrome-color));
+}
+
+/* The viewport hook measures this frame; the active panel owns scrolling. */
+.gct-mobile-shell {
+  height: var(--gct-app-height, 100dvh);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #020617;
+}
+
+.gct-mobile-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--gct-app-color);
+}
+
+/* The bottom tab bar sits on the app canvas. Match its background to the content
+   so the safe-area band below the tabs blends with the shell. The RCL top hairline
+   separates it from the content above. (Attribute+class beats the RCL
+   [data-rcl-bottom-nav] background rule.) */
+[data-rcl-bottom-nav].gct-mobile-tabbar {
+  background: var(--gct-app-color);
+  padding-block-start: 2px;
+}
+
+/* Tighten the tab row to a native-height bar (keeps a 44px tap target) so the
+   bar is not ~20px taller than it needs to be above the home-indicator inset. */
+.gct-mobile-tabbar [data-rcl-bottom-nav-item] {
+  min-block-size: 44px;
+  padding-block: 2px;
+}
+
+@media (max-width: 767px) {
+  /* The Changes panel owns the mobile frame edge. Do not let the generic Card
+     recipe create a rounded, inset island with the shell showing through. */
+  .gct-mobile-content [data-testid="file-list-panel"] {
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    background: var(--gct-app-color);
+  }
+
+  .gct-mobile-content [data-testid="file-list-panel"] [data-testid="view-mode-cycle-button"] {
+    display: inline-flex;
+    flex: 0 0 2rem;
+    width: 2rem;
+    min-width: 2rem;
+    height: 2rem;
+    min-height: 2rem;
+    border: 0;
+    opacity: 1;
+  }
+
+  /* Keep the mode control in the header's layout even when the status action
+     set changes after async data arrives. */
+  .gct-mobile-content [data-testid="view-mode-cycle-button"] {
+    flex: 0 0 auto;
+  }
 }
 
 /* Monospace font for code/diffs */
@@ -132,15 +223,6 @@ pre {
   animation-duration: 300ms;
 }
 
-/* Safe area padding for mobile */
-.pb-safe {
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-}
-
-.pt-safe {
-  padding-top: env(safe-area-inset-top, 0px);
-}
-
 /* Touch-friendly minimum sizes */
 .touch-target {
   min-height: 44px;
@@ -212,4 +294,13 @@ pre {
 .monaco-diff-line-gutter-modified {
   border-left: 2px solid rgb(180 83 9 / 0.9);
   margin-left: 2px;
+}
+
+/* The library's toast viewport is fixed to the bottom of the frame. On mobile the shell
+   ends in a flow-positioned BottomNav, so the viewport has to clear it or the newest
+   notice lands under the tab bar. */
+@media (max-width: 767px) {
+  [data-rcl-toast-viewport] {
+    inset-block-end: calc(5rem + env(safe-area-inset-bottom, 0px));
+  }
 }

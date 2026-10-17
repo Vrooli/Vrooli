@@ -1,5 +1,490 @@
 {
-  "_note": "Selector manifest for Knowledge Observatory UI - maps logical names to CSS selectors for automated testing",
-  "_generated_at": "2025-11-28T01:52:00.000Z",
-  "selectors": {}
+  "schemaVersion": 1,
+  "selectors": {
+    "header.title": {
+      "testId": "ko-header-title",
+      "selector": "[data-testid=\"ko-header-title\"]"
+    },
+    "header.statusBadge": {
+      "testId": "ko-status-badge",
+      "selector": "[data-testid=\"ko-status-badge\"]"
+    },
+    "header.pageTitle": {
+      "testId": "ko-page-title",
+      "selector": "[data-testid=\"ko-page-title\"]"
+    },
+    "header.mobileMenuButton": {
+      "testId": "ko-header-mobile-menu-button",
+      "selector": "[data-testid=\"ko-header-mobile-menu-button\"]"
+    },
+    "header.mobileMenuPanel": {
+      "testId": "ko-header-mobile-menu-panel",
+      "selector": "[data-testid=\"ko-header-mobile-menu-panel\"]"
+    },
+    "nav.dashboard": {
+      "testId": "ko-nav-dashboard",
+      "selector": "[data-testid=\"ko-nav-dashboard\"]"
+    },
+    "nav.search": {
+      "testId": "ko-nav-search",
+      "selector": "[data-testid=\"ko-nav-search\"]"
+    },
+    "nav.explorer": {
+      "testId": "ko-nav-explorer",
+      "selector": "[data-testid=\"ko-nav-explorer\"]"
+    },
+    "nav.viewer": {
+      "testId": "ko-nav-viewer",
+      "selector": "[data-testid=\"ko-nav-viewer\"]"
+    },
+    "nav.graph": {
+      "testId": "ko-nav-graph",
+      "selector": "[data-testid=\"ko-nav-graph\"]"
+    },
+    "nav.metrics": {
+      "testId": "ko-nav-metrics",
+      "selector": "[data-testid=\"ko-nav-metrics\"]"
+    },
+    "dashboard.quickActions": {
+      "testId": "ko-dashboard-quick-actions",
+      "selector": "[data-testid=\"ko-dashboard-quick-actions\"]"
+    },
+    "dashboard.quickSearch": {
+      "testId": "ko-dashboard-quick-search",
+      "selector": "[data-testid=\"ko-dashboard-quick-search\"]"
+    },
+    "dashboard.quickSearchForm": {
+      "testId": "ko-dashboard-quick-search-form",
+      "selector": "[data-testid=\"ko-dashboard-quick-search-form\"]"
+    },
+    "dashboard.quickSearchMode": {
+      "testId": "ko-dashboard-quick-search-mode",
+      "selector": "[data-testid=\"ko-dashboard-quick-search-mode\"]"
+    },
+    "dashboard.quickSearchInput": {
+      "testId": "ko-dashboard-quick-search-input",
+      "selector": "[data-testid=\"ko-dashboard-quick-search-input\"]"
+    },
+    "dashboard.quickSearchSubmit": {
+      "testId": "ko-dashboard-quick-search-submit",
+      "selector": "[data-testid=\"ko-dashboard-quick-search-submit\"]"
+    },
+    "dashboard.quickMetrics": {
+      "testId": "ko-dashboard-quick-metrics",
+      "selector": "[data-testid=\"ko-dashboard-quick-metrics\"]"
+    },
+    "dashboard.quickGraph": {
+      "testId": "ko-dashboard-quick-graph",
+      "selector": "[data-testid=\"ko-dashboard-quick-graph\"]"
+    },
+    "dashboard.healthSection": {
+      "testId": "ko-health-section",
+      "selector": "[data-testid=\"ko-health-section\"]"
+    },
+    "dashboard.healthRefresh": {
+      "testId": "ko-health-refresh",
+      "selector": "[data-testid=\"ko-health-refresh\"]"
+    },
+    "dashboard.healthError": {
+      "testId": "ko-health-error",
+      "selector": "[data-testid=\"ko-health-error\"]"
+    },
+    "dashboard.featureSearch": {
+      "testId": "ko-feature-search",
+      "selector": "[data-testid=\"ko-feature-search\"]"
+    },
+    "dashboard.featureExplorer": {
+      "testId": "ko-feature-explorer",
+      "selector": "[data-testid=\"ko-feature-explorer\"]"
+    },
+    "dashboard.featureGraph": {
+      "testId": "ko-feature-graph",
+      "selector": "[data-testid=\"ko-feature-graph\"]"
+    },
+    "dashboard.featureMetrics": {
+      "testId": "ko-feature-metrics",
+      "selector": "[data-testid=\"ko-feature-metrics\"]"
+    },
+    "dashboard.activityFeed": {
+      "testId": "ko-dashboard-activity-feed",
+      "selector": "[data-testid=\"ko-dashboard-activity-feed\"]"
+    },
+    "dashboard.cliSection": {
+      "testId": "ko-cli-section",
+      "selector": "[data-testid=\"ko-cli-section\"]"
+    },
+    "search.form": {
+      "testId": "ko-search-form",
+      "selector": "[data-testid=\"ko-search-form\"]"
+    },
+    "search.input": {
+      "testId": "ko-search-input",
+      "selector": "[data-testid=\"ko-search-input\"]"
+    },
+    "search.submit": {
+      "testId": "ko-search-submit",
+      "selector": "[data-testid=\"ko-search-submit\"]"
+    },
+    "search.clear": {
+      "testId": "ko-search-clear",
+      "selector": "[data-testid=\"ko-search-clear\"]"
+    },
+    "search.sampleGroup": {
+      "testId": "ko-search-samples",
+      "selector": "[data-testid=\"ko-search-samples\"]"
+    },
+    "search.sampleButton": {
+      "testId": "ko-search-sample",
+      "selector": "[data-testid=\"ko-search-sample\"]"
+    },
+    "search.resultsSummary": {
+      "testId": "ko-search-summary",
+      "selector": "[data-testid=\"ko-search-summary\"]"
+    },
+    "search.resultsList": {
+      "testId": "ko-search-results",
+      "selector": "[data-testid=\"ko-search-results\"]"
+    },
+    "search.emptyState": {
+      "testId": "ko-search-empty",
+      "selector": "[data-testid=\"ko-search-empty\"]"
+    },
+    "search.error": {
+      "testId": "ko-search-error",
+      "selector": "[data-testid=\"ko-search-error\"]"
+    },
+    "search.modeSelector": {
+      "testId": "ko-search-mode-selector",
+      "selector": "[data-testid=\"ko-search-mode-selector\"]"
+    },
+    "search.docSearchForm": {
+      "testId": "ko-doc-search-form",
+      "selector": "[data-testid=\"ko-doc-search-form\"]"
+    },
+    "search.docSearchQuery": {
+      "testId": "ko-doc-search-query",
+      "selector": "[data-testid=\"ko-doc-search-query\"]"
+    },
+    "search.docSearchPattern": {
+      "testId": "ko-doc-search-pattern",
+      "selector": "[data-testid=\"ko-doc-search-pattern\"]"
+    },
+    "search.docSearchScope": {
+      "testId": "ko-doc-search-scope",
+      "selector": "[data-testid=\"ko-doc-search-scope\"]"
+    },
+    "search.docSearchScenario": {
+      "testId": "ko-doc-search-scenario",
+      "selector": "[data-testid=\"ko-doc-search-scenario\"]"
+    },
+    "search.docSearchBasePath": {
+      "testId": "ko-doc-search-base-path",
+      "selector": "[data-testid=\"ko-doc-search-base-path\"]"
+    },
+    "search.docSearchFileTypes": {
+      "testId": "ko-doc-search-file-types",
+      "selector": "[data-testid=\"ko-doc-search-file-types\"]"
+    },
+    "search.docSearchContextLines": {
+      "testId": "ko-doc-search-context-lines",
+      "selector": "[data-testid=\"ko-doc-search-context-lines\"]"
+    },
+    "search.docSearchCaseSensitive": {
+      "testId": "ko-doc-search-case-sensitive",
+      "selector": "[data-testid=\"ko-doc-search-case-sensitive\"]"
+    },
+    "search.docSearchIncludeContent": {
+      "testId": "ko-doc-search-include-content",
+      "selector": "[data-testid=\"ko-doc-search-include-content\"]"
+    },
+    "search.docSearchUseSemantic": {
+      "testId": "ko-doc-search-use-semantic",
+      "selector": "[data-testid=\"ko-doc-search-use-semantic\"]"
+    },
+    "search.docSearchSummary": {
+      "testId": "ko-doc-search-summary",
+      "selector": "[data-testid=\"ko-doc-search-summary\"]"
+    },
+    "search.docSearchResults": {
+      "testId": "ko-doc-search-results",
+      "selector": "[data-testid=\"ko-doc-search-results\"]"
+    },
+    "search.docSearchEmpty": {
+      "testId": "ko-doc-search-empty",
+      "selector": "[data-testid=\"ko-doc-search-empty\"]"
+    },
+    "search.docSearchError": {
+      "testId": "ko-doc-search-error",
+      "selector": "[data-testid=\"ko-doc-search-error\"]"
+    },
+    "deepSearch.form": {
+      "testId": "ko-deep-search-form",
+      "selector": "[data-testid=\"ko-deep-search-form\"]"
+    },
+    "deepSearch.input": {
+      "testId": "ko-deep-search-input",
+      "selector": "[data-testid=\"ko-deep-search-input\"]"
+    },
+    "deepSearch.submit": {
+      "testId": "ko-deep-search-submit",
+      "selector": "[data-testid=\"ko-deep-search-submit\"]"
+    },
+    "deepSearch.clear": {
+      "testId": "ko-deep-search-clear",
+      "selector": "[data-testid=\"ko-deep-search-clear\"]"
+    },
+    "deepSearch.status": {
+      "testId": "ko-deep-search-status",
+      "selector": "[data-testid=\"ko-deep-search-status\"]"
+    },
+    "deepSearch.results": {
+      "testId": "ko-deep-search-results",
+      "selector": "[data-testid=\"ko-deep-search-results\"]"
+    },
+    "deepSearch.error": {
+      "testId": "ko-deep-search-error",
+      "selector": "[data-testid=\"ko-deep-search-error\"]"
+    },
+    "metrics.overall": {
+      "testId": "ko-metrics-overall",
+      "selector": "[data-testid=\"ko-metrics-overall\"]"
+    },
+    "metrics.refresh": {
+      "testId": "ko-metrics-refresh",
+      "selector": "[data-testid=\"ko-metrics-refresh\"]"
+    },
+    "metrics.legend": {
+      "testId": "ko-metrics-legend",
+      "selector": "[data-testid=\"ko-metrics-legend\"]"
+    },
+    "metrics.collections": {
+      "testId": "ko-metrics-collections",
+      "selector": "[data-testid=\"ko-metrics-collections\"]"
+    },
+    "metrics.summary": {
+      "testId": "ko-metrics-summary",
+      "selector": "[data-testid=\"ko-metrics-summary\"]"
+    },
+    "graph.container": {
+      "testId": "ko-graph-container",
+      "selector": "[data-testid=\"ko-graph-container\"]"
+    },
+    "graph.form": {
+      "testId": "ko-graph-form",
+      "selector": "[data-testid=\"ko-graph-form\"]"
+    },
+    "graph.centerInput": {
+      "testId": "ko-graph-center-input",
+      "selector": "[data-testid=\"ko-graph-center-input\"]"
+    },
+    "graph.collectionInput": {
+      "testId": "ko-graph-collection-input",
+      "selector": "[data-testid=\"ko-graph-collection-input\"]"
+    },
+    "graph.visibilityInput": {
+      "testId": "ko-graph-visibility-input",
+      "selector": "[data-testid=\"ko-graph-visibility-input\"]"
+    },
+    "graph.namespacesInput": {
+      "testId": "ko-graph-namespaces-input",
+      "selector": "[data-testid=\"ko-graph-namespaces-input\"]"
+    },
+    "graph.tagsInput": {
+      "testId": "ko-graph-tags-input",
+      "selector": "[data-testid=\"ko-graph-tags-input\"]"
+    },
+    "graph.depthInput": {
+      "testId": "ko-graph-depth-input",
+      "selector": "[data-testid=\"ko-graph-depth-input\"]"
+    },
+    "graph.limitInput": {
+      "testId": "ko-graph-limit-input",
+      "selector": "[data-testid=\"ko-graph-limit-input\"]"
+    },
+    "graph.thresholdInput": {
+      "testId": "ko-graph-threshold-input",
+      "selector": "[data-testid=\"ko-graph-threshold-input\"]"
+    },
+    "graph.submit": {
+      "testId": "ko-graph-submit",
+      "selector": "[data-testid=\"ko-graph-submit\"]"
+    },
+    "graph.clear": {
+      "testId": "ko-graph-clear",
+      "selector": "[data-testid=\"ko-graph-clear\"]"
+    },
+    "graph.refresh": {
+      "testId": "ko-graph-refresh",
+      "selector": "[data-testid=\"ko-graph-refresh\"]"
+    },
+    "graph.results": {
+      "testId": "ko-graph-results",
+      "selector": "[data-testid=\"ko-graph-results\"]"
+    },
+    "graph.canvasPanel": {
+      "testId": "ko-graph-canvas-panel",
+      "selector": "[data-testid=\"ko-graph-canvas-panel\"]"
+    },
+    "graph.canvas": {
+      "testId": "ko-graph-canvas",
+      "selector": "[data-testid=\"ko-graph-canvas\"]"
+    },
+    "graph.canvasViewport": {
+      "testId": "ko-graph-canvas-viewport",
+      "selector": "[data-testid=\"ko-graph-canvas-viewport\"]"
+    },
+    "graph.fit": {
+      "testId": "ko-graph-fit",
+      "selector": "[data-testid=\"ko-graph-fit\"]"
+    },
+    "graph.zoomIn": {
+      "testId": "ko-graph-zoom-in",
+      "selector": "[data-testid=\"ko-graph-zoom-in\"]"
+    },
+    "graph.zoomOut": {
+      "testId": "ko-graph-zoom-out",
+      "selector": "[data-testid=\"ko-graph-zoom-out\"]"
+    },
+    "graph.resetViewport": {
+      "testId": "ko-graph-reset-viewport",
+      "selector": "[data-testid=\"ko-graph-reset-viewport\"]"
+    },
+    "graph.zoomLabel": {
+      "testId": "ko-graph-zoom-label",
+      "selector": "[data-testid=\"ko-graph-zoom-label\"]"
+    },
+    "graph.minWeightInput": {
+      "testId": "ko-graph-min-weight-input",
+      "selector": "[data-testid=\"ko-graph-min-weight-input\"]"
+    },
+    "graph.layoutRadial": {
+      "testId": "ko-graph-layout-radial",
+      "selector": "[data-testid=\"ko-graph-layout-radial\"]"
+    },
+    "graph.layoutForce": {
+      "testId": "ko-graph-layout-force",
+      "selector": "[data-testid=\"ko-graph-layout-force\"]"
+    },
+    "graph.layoutColumn": {
+      "testId": "ko-graph-layout-column",
+      "selector": "[data-testid=\"ko-graph-layout-column\"]"
+    },
+    "graph.highlightNeighbors": {
+      "testId": "ko-graph-highlight-neighbors",
+      "selector": "[data-testid=\"ko-graph-highlight-neighbors\"]"
+    },
+    "graph.expandToggle": {
+      "testId": "ko-graph-expand-toggle",
+      "selector": "[data-testid=\"ko-graph-expand-toggle\"]"
+    },
+    "graph.expand": {
+      "testId": "ko-graph-expand",
+      "selector": "[data-testid=\"ko-graph-expand\"]"
+    },
+    "graph.truncatedWarning": {
+      "testId": "ko-graph-truncated-warning",
+      "selector": "[data-testid=\"ko-graph-truncated-warning\"]"
+    },
+    "graph.legend": {
+      "testId": "ko-graph-legend",
+      "selector": "[data-testid=\"ko-graph-legend\"]"
+    },
+    "graph.details": {
+      "testId": "ko-graph-details",
+      "selector": "[data-testid=\"ko-graph-details\"]"
+    },
+    "graph.nodePrefix": {
+      "testId": "ko-graph-node",
+      "selector": "[data-testid=\"ko-graph-node\"]"
+    },
+    "graph.nodes": {
+      "testId": "ko-graph-nodes",
+      "selector": "[data-testid=\"ko-graph-nodes\"]"
+    },
+    "graph.edges": {
+      "testId": "ko-graph-edges",
+      "selector": "[data-testid=\"ko-graph-edges\"]"
+    },
+    "graph.error": {
+      "testId": "ko-graph-error",
+      "selector": "[data-testid=\"ko-graph-error\"]"
+    },
+    "graph.emptyState": {
+      "testId": "ko-graph-empty",
+      "selector": "[data-testid=\"ko-graph-empty\"]"
+    },
+    "explorer.scenarioList": {
+      "testId": "ko-explorer-scenario-list",
+      "selector": "[data-testid=\"ko-explorer-scenario-list\"]"
+    },
+    "explorer.scenarioFilter": {
+      "testId": "ko-explorer-scenario-filter",
+      "selector": "[data-testid=\"ko-explorer-scenario-filter\"]"
+    },
+    "explorer.docTree": {
+      "testId": "ko-explorer-doc-tree",
+      "selector": "[data-testid=\"ko-explorer-doc-tree\"]"
+    },
+    "explorer.healthPanel": {
+      "testId": "ko-explorer-health-panel",
+      "selector": "[data-testid=\"ko-explorer-health-panel\"]"
+    },
+    "viewer.pathInput": {
+      "testId": "ko-viewer-path-input",
+      "selector": "[data-testid=\"ko-viewer-path-input\"]"
+    },
+    "viewer.loadButton": {
+      "testId": "ko-viewer-load-button",
+      "selector": "[data-testid=\"ko-viewer-load-button\"]"
+    },
+    "viewer.modeToggle": {
+      "testId": "ko-viewer-mode-toggle",
+      "selector": "[data-testid=\"ko-viewer-mode-toggle\"]"
+    },
+    "viewer.codeView": {
+      "testId": "ko-viewer-code-view",
+      "selector": "[data-testid=\"ko-viewer-code-view\"]"
+    },
+    "viewer.previewView": {
+      "testId": "ko-viewer-preview-view",
+      "selector": "[data-testid=\"ko-viewer-preview-view\"]"
+    },
+    "viewer.resetPanel": {
+      "testId": "ko-viewer-reset-panel",
+      "selector": "[data-testid=\"ko-viewer-reset-panel\"]"
+    }
+  },
+  "dynamicSelectors": {
+    "search.sampleByQuery": {
+      "description": "Sample query button filtered by query text",
+      "selectorPattern": "[data-testid=\"ko-search-sample\"][data-query=\"${query}\"]",
+      "params": [
+        {
+          "name": "query",
+          "type": "string"
+        }
+      ]
+    },
+    "search.modeButton": {
+      "description": "Search mode selector button by mode",
+      "selectorPattern": "[data-testid=\"ko-search-mode-selector-${mode}\"]",
+      "params": [
+        {
+          "name": "mode",
+          "type": "enum",
+          "values": [
+            "semantic",
+            "files",
+            "text",
+            "unified",
+            "deep"
+          ]
+        }
+      ]
+    }
+  },
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "b59c9936b32366ad576ac2f7b9f9690194df4834f034ef71efa4836e71883eda",
+    "ui/src/consts/selectors.ts": "7c053524033b35b442ead2c4603ff5c4c2c8377f796144fc1cf32459b6a55e99"
+  }
 }

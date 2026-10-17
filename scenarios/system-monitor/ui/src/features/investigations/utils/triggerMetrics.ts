@@ -131,7 +131,7 @@ export function getProgressColor(progress: number): string {
 export function formatMetricValue(value: number, unit: string): string {
   if (unit === '%') return `${Math.round(value)}%`;
   if (Number.isInteger(value)) return `${value}`;
-  return `${value.toFixed(1)}`;
+  return value.toFixed(1);
 }
 
 /** Format a trigger's current/threshold readout string. */

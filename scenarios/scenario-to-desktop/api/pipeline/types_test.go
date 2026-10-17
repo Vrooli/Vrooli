@@ -7,7 +7,7 @@ import (
 
 func TestConfigGetStopOnFailure(t *testing.T) {
 	t.Run("nil returns true", func(t *testing.T) {
-		c := Config{}
+		c := PipelineConfig{}
 		if !c.GetStopOnFailure() {
 			t.Error("expected true for nil StopOnFailure")
 		}
@@ -15,7 +15,7 @@ func TestConfigGetStopOnFailure(t *testing.T) {
 
 	t.Run("explicit true", func(t *testing.T) {
 		b := true
-		c := Config{StopOnFailure: &b}
+		c := PipelineConfig{StopOnFailure: &b}
 		if !c.GetStopOnFailure() {
 			t.Error("expected true")
 		}
@@ -23,7 +23,7 @@ func TestConfigGetStopOnFailure(t *testing.T) {
 
 	t.Run("explicit false", func(t *testing.T) {
 		b := false
-		c := Config{StopOnFailure: &b}
+		c := PipelineConfig{StopOnFailure: &b}
 		if c.GetStopOnFailure() {
 			t.Error("expected false")
 		}
@@ -32,37 +32,46 @@ func TestConfigGetStopOnFailure(t *testing.T) {
 
 func TestConfigGetDeploymentMode(t *testing.T) {
 	t.Run("empty returns bundled (default)", func(t *testing.T) {
-		c := Config{}
+		c := PipelineConfig{}
 		if c.GetDeploymentMode() != DeploymentModeBundled {
 			t.Errorf("expected %q, got %q", DeploymentModeBundled, c.GetDeploymentMode())
 		}
 	})
 
 	t.Run("explicit bundled", func(t *testing.T) {
-		c := Config{DeploymentMode: DeploymentModeBundled}
+		c := PipelineConfig{DeploymentMode: DeploymentModeBundled}
 		if c.GetDeploymentMode() != DeploymentModeBundled {
 			t.Errorf("expected %q, got %q", DeploymentModeBundled, c.GetDeploymentMode())
 		}
 	})
 
 	t.Run("explicit proxy", func(t *testing.T) {
-		c := Config{DeploymentMode: DeploymentModeProxy}
+		c := PipelineConfig{DeploymentMode: DeploymentModeProxy}
 		if c.GetDeploymentMode() != DeploymentModeProxy {
 			t.Errorf("expected %q, got %q", DeploymentModeProxy, c.GetDeploymentMode())
 		}
 	})
 }
 
+func TestConfigValidateFramework(t *testing.T) {
+	if err := (&PipelineConfig{Framework: FrameworkElectron}).ValidateFramework(); err != nil {
+		t.Fatalf("electron should be accepted: %v", err)
+	}
+	if err := (&PipelineConfig{Framework: "unsupported"}).ValidateFramework(); err == nil {
+		t.Fatal("unsupported framework should be rejected")
+	}
+}
+
 func TestConfigGetTemplateType(t *testing.T) {
 	t.Run("empty returns basic", func(t *testing.T) {
-		c := Config{}
+		c := PipelineConfig{}
 		if c.GetTemplateType() != "basic" {
 			t.Errorf("expected 'basic', got %q", c.GetTemplateType())
 		}
 	})
 
 	t.Run("explicit value", func(t *testing.T) {
-		c := Config{TemplateType: "advanced"}
+		c := PipelineConfig{TemplateType: "advanced"}
 		if c.GetTemplateType() != "advanced" {
 			t.Errorf("expected 'advanced', got %q", c.GetTemplateType())
 		}
@@ -356,14 +365,14 @@ func TestIsValidStageName(t *testing.T) {
 
 func TestConfigGetStopAfterStage(t *testing.T) {
 	t.Run("empty returns empty", func(t *testing.T) {
-		c := Config{}
+		c := PipelineConfig{}
 		if c.GetStopAfterStage() != "" {
 			t.Errorf("expected empty, got %q", c.GetStopAfterStage())
 		}
 	})
 
 	t.Run("returns set value", func(t *testing.T) {
-		c := Config{StopAfterStage: "generate"}
+		c := PipelineConfig{StopAfterStage: "generate"}
 		if c.GetStopAfterStage() != "generate" {
 			t.Errorf("expected 'generate', got %q", c.GetStopAfterStage())
 		}
@@ -372,14 +381,14 @@ func TestConfigGetStopAfterStage(t *testing.T) {
 
 func TestConfigGetResumeFromStage(t *testing.T) {
 	t.Run("empty returns empty", func(t *testing.T) {
-		c := Config{}
+		c := PipelineConfig{}
 		if c.GetResumeFromStage() != "" {
 			t.Errorf("expected empty, got %q", c.GetResumeFromStage())
 		}
 	})
 
 	t.Run("returns set value", func(t *testing.T) {
-		c := Config{ResumeFromStage: "build"}
+		c := PipelineConfig{ResumeFromStage: "build"}
 		if c.GetResumeFromStage() != "build" {
 			t.Errorf("expected 'build', got %q", c.GetResumeFromStage())
 		}
@@ -418,7 +427,7 @@ func TestConfigStagesJSONUnmarshal(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var config Config
+			var config PipelineConfig
 			if err := json.Unmarshal([]byte(tt.jsonStr), &config); err != nil {
 				t.Fatalf("failed to unmarshal JSON: %v", err)
 			}
@@ -446,7 +455,7 @@ func TestConfigStagesJSONUnmarshal(t *testing.T) {
 }
 
 func TestConfigStagesJSONMarshal(t *testing.T) {
-	config := Config{
+	config := PipelineConfig{
 		ScenarioName: "test",
 		Stages:       []string{"bundle", "generate"},
 	}
@@ -457,7 +466,7 @@ func TestConfigStagesJSONMarshal(t *testing.T) {
 	}
 
 	// Unmarshal to verify round-trip
-	var parsed Config
+	var parsed PipelineConfig
 	if err := json.Unmarshal(data, &parsed); err != nil {
 		t.Fatalf("failed to unmarshal marshaled data: %v", err)
 	}

@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"swarm-manager/internal/backlog"
-	"swarm-manager/internal/initiatives"
+	"swarm-manager/internal/goals"
 )
 
 // mockBacklogLister implements BacklogLister for testing.
@@ -21,13 +21,13 @@ func (m *mockBacklogLister) LoadAll(_ []backlog.BacklogKind) ([]backlog.BacklogI
 	return m.items, nil
 }
 
-// mockInitiativeLister implements InitiativeLister for testing.
-type mockInitiativeLister struct {
-	items []initiatives.InitiativeWithRollup
+// mockGoalLister implements GoalLister for testing.
+type mockGoalLister struct {
+	items []goals.GoalWithScope
 	err   error
 }
 
-func (m *mockInitiativeLister) List() ([]initiatives.InitiativeWithRollup, error) {
+func (m *mockGoalLister) List() ([]goals.GoalWithScope, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
@@ -37,7 +37,7 @@ func (m *mockInitiativeLister) List() ([]initiatives.InitiativeWithRollup, error
 func TestGetOverview_EmptyBacklog(t *testing.T) {
 	svc := NewService(
 		&mockBacklogLister{items: []backlog.BacklogItem{}},
-		&mockInitiativeLister{items: []initiatives.InitiativeWithRollup{}},
+		&mockGoalLister{items: []goals.GoalWithScope{}},
 	)
 
 	resp, err := svc.GetOverview()
@@ -48,14 +48,14 @@ func TestGetOverview_EmptyBacklog(t *testing.T) {
 	if len(resp.Items) != 0 {
 		t.Errorf("expected 0 items, got %d", len(resp.Items))
 	}
-	if len(resp.Initiatives) != 0 {
-		t.Errorf("expected 0 initiatives, got %d", len(resp.Initiatives))
+	if len(resp.Goals) != 0 {
+		t.Errorf("expected 0 goals, got %d", len(resp.Goals))
 	}
 	if resp.Summary.TotalItems != 0 {
 		t.Errorf("expected total_items=0, got %d", resp.Summary.TotalItems)
 	}
-	if resp.Summary.ActiveInitiatives != 0 {
-		t.Errorf("expected active_initiatives=0, got %d", resp.Summary.ActiveInitiatives)
+	if resp.Summary.ActiveGoals != 0 {
+		t.Errorf("expected active_goals=0, got %d", resp.Summary.ActiveGoals)
 	}
 	if len(resp.DependencyGraph.Edges) != 0 {
 		t.Errorf("expected 0 edges, got %d", len(resp.DependencyGraph.Edges))
@@ -76,15 +76,15 @@ func TestGetOverview_SummaryCounts(t *testing.T) {
 		{Name: "d", Kind: backlog.KindExecute, Status: backlog.StatusInProgress, Priority: 2, Tags: []string{}},
 		{Name: "e", Kind: backlog.KindExecute, Status: backlog.StatusCompleted, Priority: 1, Tags: []string{}},
 	}
-	inits := []initiatives.InitiativeWithRollup{
-		{Initiative: initiatives.Initiative{Name: "i1", Status: "active"}},
-		{Initiative: initiatives.Initiative{Name: "i2", Status: "completed"}},
-		{Initiative: initiatives.Initiative{Name: "i3", Status: "active"}},
+	goalList := []goals.GoalWithScope{
+		{Goal: goals.Goal{Name: "g1", Status: goals.StatusActive}},
+		{Goal: goals.Goal{Name: "g2", Status: goals.StatusArchived}},
+		{Goal: goals.Goal{Name: "g3", Status: goals.StatusActive}},
 	}
 
 	svc := NewService(
 		&mockBacklogLister{items: items},
-		&mockInitiativeLister{items: inits},
+		&mockGoalLister{items: goalList},
 	)
 
 	resp, err := svc.GetOverview()
@@ -95,8 +95,8 @@ func TestGetOverview_SummaryCounts(t *testing.T) {
 	if resp.Summary.TotalItems != 5 {
 		t.Errorf("expected total_items=5, got %d", resp.Summary.TotalItems)
 	}
-	if resp.Summary.ActiveInitiatives != 2 {
-		t.Errorf("expected active_initiatives=2, got %d", resp.Summary.ActiveInitiatives)
+	if resp.Summary.ActiveGoals != 2 {
+		t.Errorf("expected active_goals=2, got %d", resp.Summary.ActiveGoals)
 	}
 
 	// Verify status counts.
@@ -134,7 +134,7 @@ func TestGetOverview_DependencyGraph(t *testing.T) {
 
 	svc := NewService(
 		&mockBacklogLister{items: items},
-		&mockInitiativeLister{items: []initiatives.InitiativeWithRollup{}},
+		&mockGoalLister{items: []goals.GoalWithScope{}},
 	)
 
 	resp, err := svc.GetOverview()
@@ -164,7 +164,7 @@ func TestGetOverview_NoDependencies(t *testing.T) {
 
 	svc := NewService(
 		&mockBacklogLister{items: items},
-		&mockInitiativeLister{items: []initiatives.InitiativeWithRollup{}},
+		&mockGoalLister{items: []goals.GoalWithScope{}},
 	)
 
 	resp, err := svc.GetOverview()
@@ -187,7 +187,7 @@ func TestGetOverview_NoDependencies(t *testing.T) {
 func TestGetOverview_BacklogError(t *testing.T) {
 	svc := NewService(
 		&mockBacklogLister{err: fmt.Errorf("disk error")},
-		&mockInitiativeLister{items: []initiatives.InitiativeWithRollup{}},
+		&mockGoalLister{items: []goals.GoalWithScope{}},
 	)
 
 	_, err := svc.GetOverview()
@@ -196,10 +196,10 @@ func TestGetOverview_BacklogError(t *testing.T) {
 	}
 }
 
-func TestGetOverview_InitiativesError(t *testing.T) {
+func TestGetOverview_GoalsError(t *testing.T) {
 	svc := NewService(
 		&mockBacklogLister{items: []backlog.BacklogItem{}},
-		&mockInitiativeLister{err: fmt.Errorf("disk error")},
+		&mockGoalLister{err: fmt.Errorf("disk error")},
 	)
 
 	_, err := svc.GetOverview()
@@ -242,16 +242,16 @@ func assertNotContains(t *testing.T, slice []string, value, label string) {
 	}
 }
 
-func TestGetOverview_MissingInitiativeGraceful(t *testing.T) {
-	// Items reference an initiative that doesn't appear in the initiative list.
+func TestGetOverview_GoalIndependentItemsGraceful(t *testing.T) {
+	// Items outside every goal remain visible in the overview.
 	items := []backlog.BacklogItem{
-		{Name: "orphan-a", Kind: backlog.KindIdea, Status: backlog.StatusBacklog, Priority: 3, Tags: []string{}, Initiative: "deleted-init"},
-		{Name: "orphan-b", Kind: backlog.KindFix, Status: backlog.StatusReady, Priority: 2, Tags: []string{}, Initiative: "deleted-init"},
+		{Name: "orphan-a", Kind: backlog.KindIdea, Status: backlog.StatusBacklog, Priority: 3, Tags: []string{}},
+		{Name: "orphan-b", Kind: backlog.KindFix, Status: backlog.StatusReady, Priority: 2, Tags: []string{}},
 	}
 
 	svc := NewService(
 		&mockBacklogLister{items: items},
-		&mockInitiativeLister{items: []initiatives.InitiativeWithRollup{}}, // no initiatives returned
+		&mockGoalLister{items: []goals.GoalWithScope{}},
 	)
 
 	resp, err := svc.GetOverview()
@@ -264,9 +264,8 @@ func TestGetOverview_MissingInitiativeGraceful(t *testing.T) {
 		t.Errorf("expected 2 items, got %d", len(resp.Items))
 	}
 
-	// Initiatives section should be empty (deleted initiative not returned).
-	if len(resp.Initiatives) != 0 {
-		t.Errorf("expected 0 initiatives, got %d", len(resp.Initiatives))
+	if len(resp.Goals) != 0 {
+		t.Errorf("expected 0 goals, got %d", len(resp.Goals))
 	}
 
 	// Summary should still count items correctly.

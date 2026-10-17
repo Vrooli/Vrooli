@@ -1,0 +1,20 @@
+{
+  "catalogId": "react-component-library:FilePath",
+  "deprecatedVersions": [],
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "draft": "",
+  "entry": "FilePath.tsx",
+  "evictedVersions": [
+    "1.0.2",
+    "1.0.1",
+    "1.0.0"
+  ],
+  "latest": "1.0.3",
+  "libraryId": "react-component-library:FilePath"
+}

@@ -1,0 +1,65 @@
+{
+  "metadata": {
+    "name": "experience-settings",
+    "description": "Navigate to the settings experience page so its active experience specification has a browser automation evidence seam.",
+    "requirement": "UX-EXPERIENCE-SETTINGS",
+    "version": "1",
+    "labels": {"spec_entry_id": "settings", "reset": "none", "purpose": "experience-contract"},
+    "execution_mode": "observer"
+  },
+  "settings": {"viewport_width": 1280, "viewport_height": 800},
+  "nodes": [
+    {
+      "id": "navigate-settings",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "tunnel-manager",
+          "scenario_path": "/settings",
+          "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED",
+          "timeout_ms": 30000
+        },
+        "metadata": {"label": "Navigate to settings"}
+      }
+    },
+    {
+      "id": "wait-settings-page",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.settings",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {"label": "Wait for the settings surface"}
+      }
+    },
+    {
+      "id": "assert-settings-page",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.settings",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 10000,
+          "failure_message": "Settings did not render its bound page surface"
+        },
+        "metadata": {"label": "Assert settings surface is visible"}
+      }
+    },
+    {
+      "id": "assert-settings-readiness-lifecycle",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-experience-surface=\"settings-readiness\"][data-experience-state=\"loading\"], [data-experience-surface=\"settings-readiness\"][data-experience-state=\"ready\"]",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 10000,
+          "failure_message": "Settings readiness did not expose its async lifecycle surface"
+        },
+        "metadata": {"label": "Assert settings readiness lifecycle"}
+      }
+    }
+  ]
+}

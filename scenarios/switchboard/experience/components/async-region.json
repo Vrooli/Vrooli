@@ -1,0 +1,135 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.0.0",
+  "component": {
+    "id": "async-region",
+    "title": "Async region",
+    "purpose": "The shared treatment for any independently resolving surface, reporting the canonical lifecycle so an operator and an automated capture agree on whether a region is usable.",
+    "storyRef": "../../../react-component-library/library/components/AsyncPanel/versions/1.0.4/story.json"
+  },
+  "states": [
+    {
+      "id": "loading",
+      "example": "loading",
+      "description": "Resolving; the surrounding page stays interactive."
+    },
+    {
+      "id": "default",
+      "example": "ready",
+      "description": "Resolved and usable."
+    },
+    {
+      "id": "empty",
+      "example": "empty",
+      "description": "Resolved with nothing to show."
+    },
+    {
+      "id": "partial",
+      "example": "partial",
+      "description": "Partially resolved; what failed is named."
+    },
+    {
+      "id": "request-error",
+      "example": "error",
+      "description": "Failed to resolve; a retry is offered."
+    }
+  ],
+  "elements": [
+    {
+      "id": "region-root",
+      "role": "region",
+      "name": "Region"
+    },
+    {
+      "id": "region-retry",
+      "role": "button",
+      "name": "Try again"
+    },
+    {
+      "id": "region-reason",
+      "role": "note",
+      "name": "Why this failed"
+    }
+  ],
+  "claims": [
+    {
+      "id": "lifecycle-is-reported",
+      "type": "custom",
+      "statement": "Every region reports one of loading, ready, empty, partial or error, so page readiness is computable rather than guessed.",
+      "tier": "manual",
+      "elements": [
+        "region-root"
+      ],
+      "rationale": "The experience README requires this boundary for every independently meaningful async region."
+    },
+    {
+      "id": "failure-names-itself",
+      "type": "element-present",
+      "statement": "A failed region names what failed instead of collapsing to a blank area.",
+      "tier": "aspirational",
+      "elements": [
+        "region-reason"
+      ],
+      "states": [
+        "request-error"
+      ]
+    },
+    {
+      "id": "partial-stays-usable",
+      "type": "custom",
+      "statement": "A partial region keeps its resolved content interactive.",
+      "tier": "manual",
+      "elements": [
+        "region-root"
+      ],
+      "states": [
+        "partial"
+      ]
+    },
+    {
+      "id": "states-distinct",
+      "type": "state-distinct",
+      "statement": "Loading, empty and error are perceivably different from one another.",
+      "tier": "aspirational",
+      "elements": [
+        "region-root"
+      ],
+      "states": [
+        "loading",
+        "empty",
+        "request-error"
+      ]
+    },
+    {
+      "id": "dark-parity",
+      "type": "dark-parity",
+      "statement": "Region states hold their distinction in both themes.",
+      "tier": "aspirational",
+      "elements": [
+        "region-root"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "region-root": {
+        "testid": "async-region"
+      },
+      "region-retry": {
+        "testid": "async-region-retry"
+      },
+      "region-reason": {
+        "testid": "async-region-reason"
+      }
+    }
+  },
+  "priorities": [
+    {
+      "statement": "Whether this part of the page is usable yet"
+    },
+    {
+      "statement": "What failed, when something did"
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-import type { VaultResourceStatus } from "../../lib/api";
+import type { CredentialResourceStatus } from "../../lib/api";
 import { percentage } from "../../lib/formatters";
 import type { Intent } from "../../lib/constants";
 import { SeverityBadge } from "./SeverityBadge";
@@ -8,7 +8,7 @@ export const SecretsRow = ({
   status,
   onOpenResource
 }: {
-  status: VaultResourceStatus;
+  status: CredentialResourceStatus;
   onOpenResource?: (resourceName: string, secretKey?: string) => void;
 }) => {
   const configuredPercent = percentage(status.secrets_found, status.secrets_total);

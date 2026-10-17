@@ -1,15 +1,19 @@
 package shared
 
 import (
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
-
 	"scenario-to-desktop-api/domain"
 	"scenario-to-desktop-api/pipeline"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 // TaskInput provides all data needed to build a prompt.
 // This is shared between task handlers and the service.
 type TaskInput struct {
+	// PipelineAPIURL is the base URL of the API instance that owns this task.
+	// It is resolved when the server is constructed, never guessed by a worker.
+	PipelineAPIURL string
+
 	// Task is the investigation record (contains task configuration).
 	Task *domain.Investigation
 

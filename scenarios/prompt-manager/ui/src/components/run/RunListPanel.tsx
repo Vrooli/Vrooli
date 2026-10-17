@@ -152,7 +152,15 @@ export function RunListPanel({
                 </p>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <span className="capitalize">{run.status}</span>
+                  {run.source === 'heartbeat-attempt' && (
+                    <span className="truncate">attempt</span>
+                  )}
                 </div>
+                {run.error && (
+                  <p className="mt-0.5 text-[10px] text-destructive truncate">
+                    {run.error}
+                  </p>
+                )}
               </div>
 
               {/* Timestamp */}

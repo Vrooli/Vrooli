@@ -1,0 +1,59 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "ai.task-graph",
+    "name": "TaskGraph",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "ai",
+    "description": "The dependency-oriented task visualization with status, ownership, expansion, selection, filters, and a list-based alternative that is fully equivalent rather than a degraded fallback.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P2",
+      "maturity": "implemented",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "visualization.network-graph",
+        "reason": "Layout, pan, zoom, and the accessible summary are shared."
+      },
+      {
+        "asset": "data-display.tree-view",
+        "reason": "The list-equivalent presentation is a shared hierarchical collection."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-order",
+    "contrast-floor",
+    "text-scale-resilience",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "gesture-alternative",
+    "non-color-status",
+    "semantic-structure"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "empty",
+    "partial",
+    "request-error"
+  ],
+  "qualityGates": [
+    "performance"
+  ],
+  "rationale": "The list alternative must be equivalent, not lesser. A graph-only task view is unusable by keyboard and assistive technology, and is also unusable by anyone on a small screen."
+}

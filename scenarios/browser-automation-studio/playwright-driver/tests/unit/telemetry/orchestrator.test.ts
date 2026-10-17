@@ -4,6 +4,7 @@ import type { HandlerResult } from '../../../src/handlers/base';
 import { createTestConfig } from '../../helpers';
 
 const consoleCollector = {
+  start: jest.fn().mockResolvedValue(undefined),
   getAndClear: jest.fn().mockReturnValue([{ level: 'info', message: 'log', timestamp: 't' }]),
   getLogs: jest.fn().mockReturnValue([{ level: 'info', message: 'log', timestamp: 't' }]),
   clear: jest.fn(),
@@ -68,7 +69,7 @@ describe('TelemetryOrchestrator', () => {
     networkCollector.dispose.mockClear();
   });
 
-  it('initializes collectors only when enabled', () => {
+  it('initializes collectors only when enabled', async () => {
     const config = createTestConfig({
       telemetry: {
         console: { enabled: true },
@@ -77,7 +78,7 @@ describe('TelemetryOrchestrator', () => {
     });
 
     const orchestrator = new TelemetryOrchestrator(page, config);
-    orchestrator.start();
+    await orchestrator.start();
 
     expect(orchestrator.isActive()).toBe(true);
   });
@@ -92,7 +93,7 @@ describe('TelemetryOrchestrator', () => {
   it('collects telemetry and respects handler-provided data', async () => {
     const config = createTestConfig();
     const orchestrator = new TelemetryOrchestrator(page, config);
-    orchestrator.start();
+    await orchestrator.start();
 
     const handlerResult: HandlerResult = {
       success: true,
@@ -118,7 +119,7 @@ describe('TelemetryOrchestrator', () => {
   it('forces capture when requested', async () => {
     const config = createTestConfig();
     const orchestrator = new TelemetryOrchestrator(page, config);
-    orchestrator.start();
+    await orchestrator.start();
 
     const handlerResult: HandlerResult = {
       success: true,
@@ -140,7 +141,7 @@ describe('TelemetryOrchestrator', () => {
   it('captures console and network events from collectors', async () => {
     const config = createTestConfig();
     const orchestrator = new TelemetryOrchestrator(page, config);
-    orchestrator.start();
+    await orchestrator.start();
 
     const telemetry = await orchestrator.collectForStep();
 
@@ -151,7 +152,7 @@ describe('TelemetryOrchestrator', () => {
   it('captures element context for actions', async () => {
     const config = createTestConfig();
     const orchestrator = new TelemetryOrchestrator(page, config);
-    orchestrator.start();
+    await orchestrator.start();
 
     const context = await orchestrator.captureElementContextForAction('#target', {
       timeout: 1000,
@@ -169,16 +170,16 @@ describe('TelemetryOrchestrator', () => {
       },
     });
     const orchestrator = new TelemetryOrchestrator(page, config);
-    orchestrator.start();
+    await orchestrator.start();
 
     expect(await orchestrator.captureScreenshot()).toBeUndefined();
     expect(await orchestrator.captureDomSnapshot()).toBeUndefined();
   });
 
-  it('clears and exposes collected events', () => {
+  it('clears and exposes collected events', async () => {
     const config = createTestConfig();
     const orchestrator = new TelemetryOrchestrator(page, config);
-    orchestrator.start();
+    await orchestrator.start();
 
     orchestrator.getConsoleLogs();
     orchestrator.getNetworkEvents();
@@ -194,8 +195,8 @@ describe('TelemetryOrchestrator', () => {
   it('disposes collectors and blocks further collection', async () => {
     const config = createTestConfig();
     const orchestrator = new TelemetryOrchestrator(page, config);
-    orchestrator.start();
-    orchestrator.dispose();
+    await orchestrator.start();
+    await orchestrator.dispose();
 
     expect(orchestrator.isActive()).toBe(false);
     expect(consoleCollector.dispose).toHaveBeenCalled();
@@ -203,4 +204,18 @@ describe('TelemetryOrchestrator', () => {
 
     await expect(orchestrator.collectForStep()).rejects.toThrow('disposed');
   });
+  it.each(['screenshot', 'dom'])('keeps independent evidence after unexpected %s capture failure', async (channel) => {
+    if (channel === 'screenshot') captureScreenshot.mockRejectedValueOnce(new Error('camera fault'));
+    else captureDOMSnapshot.mockRejectedValueOnce(new Error('document fault'));
+    const orchestrator = new TelemetryOrchestrator(page, createTestConfig());
+    await orchestrator.start();
+    try {
+      const telemetry = await orchestrator.collectForStep({ success: false });
+      expect(telemetry.captureErrors).toEqual([expect.stringContaining(channel === 'screenshot' ? 'camera fault' : 'document fault')]);
+      expect(telemetry.consoleLogs).toEqual([{ level: 'info', message: 'log', timestamp: 't' }]);
+      expect(telemetry.networkEvents).toEqual([{ method: 'GET', url: 'https://example.com' }]);
+      expect(channel === 'screenshot' ? telemetry.domSnapshot : telemetry.screenshot).toBeDefined();
+    } finally { await orchestrator.dispose(); }
+  });
+
 });

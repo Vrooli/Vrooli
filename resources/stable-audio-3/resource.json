@@ -1,0 +1,641 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "stable-audio-3",
+  "display_name": "Stable Audio 3 Medium",
+  "description": "Pinned offline Medium music generation; native qualification pending.",
+  "driver": "managed-service",
+  "cli": {
+    "enabled": true,
+    "command": "resource-stable-audio-3",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "resource-stable-audio-3_${os}_${arch}"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-stable-audio-3"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "server/**",
+        "requirements.in",
+        "requirements.lock",
+        "resource.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/stable-audio-3",
+        "field": "huggingface-token",
+        "label": "Hugging Face gated model read token",
+        "provisioning": "operator",
+        "description": "Acquisition-only access to the accepted Stable Audio 3 Medium model gate. Never injected into the inference process.",
+        "required": false,
+        "obtain_url": "https://huggingface.co/settings/tokens"
+      }
+    ]
+  },
+  "storage": {
+    "entries": {
+      "models": {
+        "rung": "pinned",
+        "kind": "dir",
+        "class": "cache",
+        "regenerable": true,
+        "rationale": "Exact gated Medium model and support files; acquisition requires accepted terms and credential.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "May be reacquired only while authorized."
+        }
+      },
+      "outputs": {
+        "rung": "ephemeral",
+        "kind": "dir",
+        "class": "cache",
+        "regenerable": true,
+        "rationale": "Per-operation audio and receipt retained for caller export; operator-owned bundles outlive transient resource outputs."
+      }
+    }
+  },
+  "managed_service": {
+    "artifact_role": "managed-service",
+    "provenance_class": "upstream-digest",
+    "provider_policy": {
+      "target_defaults": {
+        "control-plane": "managed-private",
+        "desktop-bundle": "managed-private"
+      },
+      "allowed_modes": [
+        "managed-private",
+        "managed-shared",
+        "attach-only",
+        "remote-vrooli",
+        "managed-discovered"
+      ],
+      "shared_reuse_requires_consent": true,
+      "external_management": "forbidden",
+      "external_access_capabilities": [
+        "read-only",
+        "read-write"
+      ]
+    },
+    "artifact": {
+      "path": "server/stable-audio-3",
+      "version": "0.1.0-77e0398c",
+      "layout": "dir",
+      "entry_path": "runtime/bin/python",
+      "sha256_by_platform": {
+        "linux-amd64": "6c2f17b97e8a814cbc61fa70d2b97d2ab460ad605632c2702801b22b0e2cd7f0"
+      },
+      "bundle_artifact": "resource-stable-audio-3_${os}_${arch}"
+    },
+    "acquisition": {
+      "kind": "composed",
+      "license": "MIT source; CPython PSF-2.0; wheel licenses retained; model access governed separately",
+      "provenance": {
+        "kind": "none"
+      },
+      "targets": [
+        {
+          "when": {
+            "os": "linux",
+            "arch": "amd64",
+            "gpu.cuda_compute": ">=8.9"
+          },
+          "layout": "dir",
+          "artifact_sha256": "6c2f17b97e8a814cbc61fa70d2b97d2ab460ad605632c2702801b22b0e2cd7f0",
+          "compose": [
+            {
+              "role": "runtime",
+              "kind": "url",
+              "dest": "runtime",
+              "bin_path": "python",
+              "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20260814/cpython-3.12.14%2B20260814-x86_64-unknown-linux-gnu-install_only.tar.gz",
+              "sha256": "3297691ae34f75fed81ac424e040145fccb0bafe8e581cd5cadbddfa1c0766c0",
+              "archive": "tar.gz"
+            },
+            {
+              "role": "python-wheels",
+              "kind": "python-wheels",
+              "dest": "wheels",
+              "lockfile": "requirements.lock",
+              "index_url": "https://download.pytorch.org/whl/cu126",
+              "extra_index_url": [
+                "https://pypi.org/simple"
+              ]
+            },
+            {
+              "role": "application",
+              "kind": "url",
+              "dest": "source",
+              "bin_path": "stable-audio-3-77e0398c26f7d22d801ec1bb036307e8b231f741",
+              "url": "https://codeload.github.com/Stability-AI/stable-audio-3/tar.gz/77e0398c26f7d22d801ec1bb036307e8b231f741",
+              "sha256": "2cd8dcc690766f8112a8aac8ea3c99cd35fa6690928a49588afb285718837a3f",
+              "archive": "tar.gz"
+            },
+            {
+              "role": "server",
+              "kind": "local",
+              "dest": "source/server.py",
+              "source": "server/server.py"
+            },
+            {
+              "role": "loader",
+              "kind": "local",
+              "dest": "source/loader.py",
+              "source": "server/loader.py"
+            },
+            {
+              "role": "model-lock.json",
+              "kind": "local",
+              "dest": "source/model-lock.json",
+              "source": "server/model-lock.json"
+            },
+            {
+              "role": "wheel-lock",
+              "kind": "local",
+              "dest": "source/requirements.lock",
+              "source": "requirements.lock"
+            }
+          ]
+        },
+        {
+          "when": {
+            "os": "linux",
+            "arch": "arm64"
+          },
+          "unsupported": "No qualified arm64 CUDA closure."
+        },
+        {
+          "when": {
+            "os": "macos"
+          },
+          "unsupported": "Medium CUDA pilot only."
+        },
+        {
+          "when": {
+            "os": "windows"
+          },
+          "unsupported": "Medium CUDA pilot only."
+        }
+      ]
+    },
+    "data_artifacts": [
+      {
+        "name": "model-safetensors",
+        "path": "models/medium/model.safetensors",
+        "acquisition": {
+          "kind": "url",
+          "license": "Stability AI Community License; Gemma terms",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/stabilityai/stable-audio-3-medium/resolve/d4d3579395a8ac0df4ab13b5b1d7138ce7290f81/model.safetensors",
+              "sha256": "48d9c65e290e7bcd5194e0633bfc2424a59ee9683f5c2d58762d997b7d8ce0b5",
+              "layout": "file",
+              "auth": {
+                "scheme": "bearer",
+                "logical_id": "vrooli/stable-audio-3",
+                "field": "huggingface-token"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "model_config-json",
+        "path": "models/medium/model_config.json",
+        "acquisition": {
+          "kind": "url",
+          "license": "Stability AI Community License; Gemma terms",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/stabilityai/stable-audio-3-medium/resolve/d4d3579395a8ac0df4ab13b5b1d7138ce7290f81/model_config.json",
+              "sha256": "4f8846649df59167e1792d134acb6fc2bb7105227c5455300bad6cb107e20c88",
+              "layout": "file",
+              "auth": {
+                "scheme": "bearer",
+                "logical_id": "vrooli/stable-audio-3",
+                "field": "huggingface-token"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "t5gemma-b-b-ul2-config-json",
+        "path": "models/medium/t5gemma-b-b-ul2/config.json",
+        "acquisition": {
+          "kind": "url",
+          "license": "Stability AI Community License; Gemma terms",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/stabilityai/stable-audio-3-medium/resolve/d4d3579395a8ac0df4ab13b5b1d7138ce7290f81/t5gemma-b-b-ul2/config.json",
+              "sha256": "575334409716886ac2952f5a275ed92868deef8a0ea560258d9970a431c6fb3a",
+              "layout": "file",
+              "auth": {
+                "scheme": "bearer",
+                "logical_id": "vrooli/stable-audio-3",
+                "field": "huggingface-token"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "t5gemma-b-b-ul2-generation_config-json",
+        "path": "models/medium/t5gemma-b-b-ul2/generation_config.json",
+        "acquisition": {
+          "kind": "url",
+          "license": "Stability AI Community License; Gemma terms",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/stabilityai/stable-audio-3-medium/resolve/d4d3579395a8ac0df4ab13b5b1d7138ce7290f81/t5gemma-b-b-ul2/generation_config.json",
+              "sha256": "1068b94599a94ceea097dd3936819f108c2e70806d7c6cc5ec425610af347625",
+              "layout": "file",
+              "auth": {
+                "scheme": "bearer",
+                "logical_id": "vrooli/stable-audio-3",
+                "field": "huggingface-token"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "t5gemma-b-b-ul2-model-safetensors",
+        "path": "models/medium/t5gemma-b-b-ul2/model.safetensors",
+        "acquisition": {
+          "kind": "url",
+          "license": "Stability AI Community License; Gemma terms",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/stabilityai/stable-audio-3-medium/resolve/d4d3579395a8ac0df4ab13b5b1d7138ce7290f81/t5gemma-b-b-ul2/model.safetensors",
+              "sha256": "9b05ea5a4f211d023832f706fb2c0e83e4fc721b6da35ab69ceb0b55eb7800d3",
+              "layout": "file",
+              "auth": {
+                "scheme": "bearer",
+                "logical_id": "vrooli/stable-audio-3",
+                "field": "huggingface-token"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "t5gemma-b-b-ul2-special_tokens_map-json",
+        "path": "models/medium/t5gemma-b-b-ul2/special_tokens_map.json",
+        "acquisition": {
+          "kind": "url",
+          "license": "Stability AI Community License; Gemma terms",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/stabilityai/stable-audio-3-medium/resolve/d4d3579395a8ac0df4ab13b5b1d7138ce7290f81/t5gemma-b-b-ul2/special_tokens_map.json",
+              "sha256": "baec30ea10906f16adb8c18af7a34023002c1746542612b8b41c9f09e1351351",
+              "layout": "file",
+              "auth": {
+                "scheme": "bearer",
+                "logical_id": "vrooli/stable-audio-3",
+                "field": "huggingface-token"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "t5gemma-b-b-ul2-tokenizer-json",
+        "path": "models/medium/t5gemma-b-b-ul2/tokenizer.json",
+        "acquisition": {
+          "kind": "url",
+          "license": "Stability AI Community License; Gemma terms",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/stabilityai/stable-audio-3-medium/resolve/d4d3579395a8ac0df4ab13b5b1d7138ce7290f81/t5gemma-b-b-ul2/tokenizer.json",
+              "sha256": "7794135caa3ea73918949c902a781cc61dab674a4b59c17d85931c77c1114cbd",
+              "layout": "file",
+              "auth": {
+                "scheme": "bearer",
+                "logical_id": "vrooli/stable-audio-3",
+                "field": "huggingface-token"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "t5gemma-b-b-ul2-tokenizer-model",
+        "path": "models/medium/t5gemma-b-b-ul2/tokenizer.model",
+        "acquisition": {
+          "kind": "url",
+          "license": "Stability AI Community License; Gemma terms",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/stabilityai/stable-audio-3-medium/resolve/d4d3579395a8ac0df4ab13b5b1d7138ce7290f81/t5gemma-b-b-ul2/tokenizer.model",
+              "sha256": "61a7b147390c64585d6c3543dd6fc636906c9af3865a5548f27f31aee1d4c8e2",
+              "layout": "file",
+              "auth": {
+                "scheme": "bearer",
+                "logical_id": "vrooli/stable-audio-3",
+                "field": "huggingface-token"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "t5gemma-b-b-ul2-tokenizer_config-json",
+        "path": "models/medium/t5gemma-b-b-ul2/tokenizer_config.json",
+        "acquisition": {
+          "kind": "url",
+          "license": "Stability AI Community License; Gemma terms",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/stabilityai/stable-audio-3-medium/resolve/d4d3579395a8ac0df4ab13b5b1d7138ce7290f81/t5gemma-b-b-ul2/tokenizer_config.json",
+              "sha256": "9546baec0dfefec0e29873edea9488ecde153f846e18c06ea48cb44587bf408f",
+              "layout": "file",
+              "auth": {
+                "scheme": "bearer",
+                "logical_id": "vrooli/stable-audio-3",
+                "field": "huggingface-token"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "LICENSE-md",
+        "path": "models/medium/LICENSE.md",
+        "acquisition": {
+          "kind": "url",
+          "license": "Stability AI Community License; Gemma terms",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/stabilityai/stable-audio-3-medium/resolve/d4d3579395a8ac0df4ab13b5b1d7138ce7290f81/LICENSE.md",
+              "sha256": "d6f6b1a4dce5c852bd6d7d9482d002baf0ccdb71e662250b73be9eec8764ee8d",
+              "layout": "file",
+              "auth": {
+                "scheme": "bearer",
+                "logical_id": "vrooli/stable-audio-3",
+                "field": "huggingface-token"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "LICENSE_GEMMA-md",
+        "path": "models/medium/LICENSE_GEMMA.md",
+        "acquisition": {
+          "kind": "url",
+          "license": "Stability AI Community License; Gemma terms",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/stabilityai/stable-audio-3-medium/resolve/d4d3579395a8ac0df4ab13b5b1d7138ce7290f81/LICENSE_GEMMA.md",
+              "sha256": "e77acc0d3163bb7534675045c584b4d04b387b529239fc4b3647da0a01ba4745",
+              "layout": "file",
+              "auth": {
+                "scheme": "bearer",
+                "logical_id": "vrooli/stable-audio-3",
+                "field": "huggingface-token"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "NOTICE",
+        "path": "models/medium/NOTICE",
+        "acquisition": {
+          "kind": "url",
+          "license": "Stability AI Community License; Gemma terms",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/stabilityai/stable-audio-3-medium/resolve/d4d3579395a8ac0df4ab13b5b1d7138ce7290f81/NOTICE",
+              "sha256": "66f856d7da72797f528fca46b7c80634ab481f917bfe020960e123d84b19f75f",
+              "layout": "file",
+              "auth": {
+                "scheme": "bearer",
+                "logical_id": "vrooli/stable-audio-3",
+                "field": "huggingface-token"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "arguments": [
+      "-B",
+      "-m",
+      "uvicorn",
+      "source.server:app",
+      "--host",
+      "127.0.0.1",
+      "--port",
+      "${RESOURCE_PORT_UPSTREAM}",
+      "--workers",
+      "1"
+    ],
+    "environment": {
+      "PYTHONPATH": "${RESOURCE_ARTIFACT_DIR}/source/stable-audio-3-77e0398c26f7d22d801ec1bb036307e8b231f741:${RESOURCE_ARTIFACT_DIR}/source:${RESOURCE_ARTIFACT_DIR}/wheels",
+      "PYTHONDONTWRITEBYTECODE": "1",
+      "PYTHONNOUSERSITE": "1",
+      "SA3_DATA_DIR": "${RESOURCE_DATA_DIR}",
+      "SA3_MODEL_DIR": "${RESOURCE_DATA_DIR}/models/medium",
+      "SA3_OUTPUT_DIR": "${RESOURCE_DATA_DIR}/outputs",
+      "SA3_COMPOSED_SHA256": "6c2f17b97e8a814cbc61fa70d2b97d2ab460ad605632c2702801b22b0e2cd7f0",
+      "HF_HUB_OFFLINE": "1",
+      "TRANSFORMERS_OFFLINE": "1",
+      "HF_HOME": "${RESOURCE_DATA_DIR}/cache/huggingface",
+      "TORCH_HOME": "${RESOURCE_DATA_DIR}/cache/torch",
+      "XDG_CACHE_HOME": "${RESOURCE_DATA_DIR}/cache",
+      "ENABLE_TORCH_COMPILE": "0"
+    },
+    "attach_health_path": "/health",
+    "shutdown": {
+      "signal": "terminate"
+    }
+  },
+  "acceleration": {
+    "backends": [
+      "cuda"
+    ],
+    "require": "required",
+    "cuda": {},
+    "claim": {
+      "resource_kind": "vram",
+      "default_preferred_bytes": 9663676416,
+      "floor_bytes": 9663676416,
+      "default_priority": "batch",
+      "confidence": "estimated",
+      "yield_when_idle": true,
+      "idle_grace_seconds": 900,
+      "profile": {
+        "steps": [
+          {
+            "label": "medium",
+            "default_amount_bytes": 9663676416
+          }
+        ],
+        "apply": {
+          "verb": "capacity",
+          "argv": [
+            "degrade",
+            "--to",
+            "{label}"
+          ]
+        },
+        "upshift": false
+      }
+    }
+  },
+  "ports": [
+    {
+      "name": "http",
+      "host": 8896,
+      "container": 8880
+    },
+    {
+      "name": "upstream",
+      "host": 18896,
+      "container": 8880
+    }
+  ],
+  "companions": [
+    {
+      "name": "activity-edge",
+      "command": "resource-stable-audio-3",
+      "args": [
+        "activity-edge"
+      ],
+      "port": 8896,
+      "required": true
+    }
+  ],
+  "lifecycle": {
+    "start_timeout_seconds": 600,
+    "stop_timeout_seconds": 30
+  },
+  "orchestration": {
+    "startup_order": 561,
+    "startup_timeout_seconds": 600,
+    "dependencies": [],
+    "recovery_attempts": 1,
+    "priority": "medium"
+  },
+  "environment_exports": {
+    "static": {
+      "STABLE_AUDIO_3_HOST": "localhost"
+    },
+    "from_ports": {
+      "STABLE_AUDIO_3_PORT": "http"
+    },
+    "derived": {
+      "STABLE_AUDIO_3_URL": {
+        "template": "http://${STABLE_AUDIO_3_HOST}:${STABLE_AUDIO_3_PORT}"
+      }
+    }
+  },
+  "health_checks": [
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:8896/health",
+      "kind": "readiness",
+      "interval_seconds": 10,
+      "timeout_seconds": 10
+    },
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:8896/health",
+      "kind": "liveness",
+      "interval_seconds": 30,
+      "timeout_seconds": 10
+    }
+  ],
+  "requirements": {
+    "ram_mb": 24576,
+    "disk_mb": 40960,
+    "cpu_cores": 4,
+    "network": "required",
+    "bucket": "large",
+    "source": "estimated",
+    "confidence": "low",
+    "class": "ai",
+    "weight": 5
+  },
+  "category": "ai",
+  "platforms": {
+    "linux": "supported",
+    "macos": "unsupported",
+    "windows": "unsupported"
+  },
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "prohibited",
+  "hostSafeguards": [
+    {
+      "name": "nvidia_driver",
+      "required": true,
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ],
+      "reason": "The admitted pilot requires CUDA; no CPU fallback is qualified."
+    }
+  ]
+}

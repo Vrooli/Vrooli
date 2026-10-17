@@ -1,0 +1,268 @@
+{
+  "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like TypeScript Code Graph are uppercase-snake-case placeholders replaced by `vrooli scenario generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
+  "app": {
+    "title": "TypeScript Code Graph"
+  },
+  "layout": {
+    "sidebarLabel": "Primary navigation",
+    "bottomNavLabel": "Mobile navigation",
+    "mainLabel": "Main content",
+    "nav": {
+      "workbench": "Workbench",
+      "settings": "Settings"
+    }
+  },
+  "theme": {
+    "switcherLabel": "Theme",
+    "choice": {
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
+    }
+  },
+  "pages": {
+    "workbench": {
+      "title": "Workbench",
+      "description": "Inspect an extracted TypeScript code graph, diagnose warnings, compose import rewrites, and validate determinism against golden fixtures."
+    },
+    "settings": {
+      "title": "Settings",
+      "themeHeading": "Appearance",
+      "localeHeading": "Language"
+    }
+  },
+  "health": {
+    "title": "API Health",
+    "loading": "Checking API status…",
+    "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
+    "refresh": "Refresh",
+    "refreshCount": "Refreshed {{count}} times",
+    "refreshCount_one": "Refreshed once",
+    "statusLabel": "Status:",
+    "serviceLabel": "Service:",
+    "timestampLabel": "Timestamp:"
+  },
+  "notifications": {
+    "summary": "{{count}} notifications",
+    "summary_zero": "No notifications",
+    "summary_one": "1 notification"
+  },
+  "shared": {
+    "loading": {
+      "label": "Loading…"
+    },
+    "error": {
+      "title": "Something went wrong",
+      "retry": "Try again"
+    }
+  },
+  "workbench": {
+    "extract": {
+      "targetLabel": "TypeScript project path",
+      "targetPlaceholder": "scenarios/typescript-code-graph or an absolute project root",
+      "projectDirLabel": "Project directory override",
+      "projectDirPlaceholder": "Optional base directory",
+      "submit": "Extract",
+      "submitting": "Extracting…"
+    },
+    "stats": {
+      "files": "Files",
+      "modules": "Modules",
+      "symbols": "Symbols",
+      "imports": "Imports",
+      "warnings": "Warnings",
+      "hash": "Graph hash",
+      "durationLabel": "Extracted in {{count}} ms"
+    },
+    "status": {
+      "idleTitle": "No graph yet",
+      "idleDescription": "Enter a TypeScript project path and run Extract to inspect its module graph.",
+      "errorTitle": "Extraction failed"
+    },
+    "workspaceUnsupported": {
+      "title": "pnpm workspaces aren't supported in v1",
+      "description": "This project root contains a pnpm-workspace.yaml. Multi-project workspaces are out of scope for typescript-code-graph v1 (see OT-P2-005). Point Extract at a single project (one tsconfig.json) instead."
+    },
+    "tabs": {
+      "label": "Workbench views",
+      "graph": "Graph",
+      "warnings": "Warnings",
+      "rewrite": "Rewrite",
+      "fixtures": "Fixtures"
+    }
+  },
+  "sidecar": {
+    "title": "ts-morph sidecar",
+    "loading": "Checking sidecar…",
+    "unreachable": "Sidecar status unavailable",
+    "lastMessage": "Last message:",
+    "status": {
+      "unspecified": "Unknown",
+      "ready": "Ready",
+      "unhealthy": "Unhealthy",
+      "restarting": "Restarting",
+      "permanentlyUnhealthy": "Permanently unhealthy"
+    }
+  },
+  "explorer": {
+    "canvas": {
+      "ariaLabel": "Module dependency graph for {{target}}",
+      "summaryPackages": "{{count}} modules",
+      "summaryPackages_one": "1 module",
+      "summaryImports": "{{count}} dependencies",
+      "summaryImports_one": "1 dependency",
+      "nodeAriaLabel": "Module {{label}}. {{cycle}}",
+      "nodeCyclePresent": "In an import cycle",
+      "nodeCycleAbsent": "No import cycle"
+    },
+    "accessibleList": {
+      "title": "Modules (text view)",
+      "description": "Keyboard-navigable list mirroring every module node in the graph above.",
+      "importsLabel": "Depends on:"
+    },
+    "emptyTitle": "No modules",
+    "emptyDescription": "This project did not produce any module nodes.",
+    "legend": {
+      "title": "Legend",
+      "package": "Module",
+      "cycle": "Import cycle"
+    },
+    "filterBar": {
+      "label": "Filter modules",
+      "all": "All modules",
+      "none": "No modules to filter."
+    },
+    "cycleBanner": {
+      "title": "Import cycles detected",
+      "message": "{{count}} modules participate in import cycles.",
+      "message_one": "1 module participates in an import cycle."
+    },
+    "files": {
+      "title": "Files",
+      "empty": "No files in this graph.",
+      "symbolCount": "{{count}} symbols",
+      "symbolCount_one": "1 symbol",
+      "symbolCount_zero": "No symbols"
+    },
+    "symbols": {
+      "title": "Symbols",
+      "selectFile": "Select a file to list its symbols.",
+      "empty": "No symbols found in this file.",
+      "exported": "Exported",
+      "unexported": "Unexported",
+      "jsdocLabel": "Leading comments / JSDoc"
+    },
+    "kind": {
+      "component": "component",
+      "hook": "hook",
+      "class": "class",
+      "interface": "interface",
+      "type": "type",
+      "function": "function",
+      "var": "var",
+      "const": "const",
+      "reExport": "re-export",
+      "unknown": "symbol"
+    }
+  },
+  "warnings": {
+    "title": "Diagnostics",
+    "description": "Parse warnings and unresolved imports from the most recent extraction.",
+    "empty": "No warnings — extraction was clean.",
+    "fileLabel": "File:",
+    "projectLevel": "Project-level",
+    "count": "{{count}} warnings",
+    "count_zero": "No warnings",
+    "count_one": "1 warning",
+    "kind": {
+      "parse_error": "Parse error",
+      "unresolved_import": "Unresolved import",
+      "type_check_failure": "Type-check failure",
+      "ambiguous_declaration": "Ambiguous declaration",
+      "unspecified": "Warning"
+    }
+  },
+  "rewrite": {
+    "title": "Rewrite workbench",
+    "description": "Compose filesystem operations, preview a dry-run plan, then apply.",
+    "ops": {
+      "title": "Operations",
+      "empty": "No operations yet. Add a file move or import rewrite to begin.",
+      "addFileMove": "Add file move",
+      "addImportRewrite": "Add import rewrite",
+      "fileMove": "File move",
+      "importRewrite": "Import rewrite",
+      "fromPath": "From path",
+      "toPath": "To path",
+      "oldImport": "Old import path",
+      "newImport": "New import path",
+      "remove": "Remove operation"
+    },
+    "plan": {
+      "button": "Preview plan (dry-run)",
+      "planning": "Planning…",
+      "title": "Planned operations",
+      "planIdLabel": "Plan ID:",
+      "empty": "Preview a plan to see normalized operations.",
+      "count": "{{count}} operations",
+      "count_one": "1 operation"
+    },
+    "apply": {
+      "button": "Apply plan",
+      "applying": "Applying…",
+      "confirmTitle": "Apply rewrite to the filesystem?",
+      "confirmMessage": "This mutates files under {{target}}. There is no undo — recover via git if needed.",
+      "confirm": "Apply",
+      "cancel": "Cancel",
+      "resultTitle": "Apply results",
+      "dryRunNote": "Dry run — no files were changed.",
+      "status": {
+        "ok": "OK",
+        "failed": "Failed"
+      }
+    }
+  },
+  "fixtures": {
+    "title": "Fixture validator",
+    "description": "Run a golden fixture server-side and byte-compare its output against the expected graph.",
+    "empty": "No fixtures available.",
+    "validate": "Validate",
+    "validating": "Validating…",
+    "passed": "Passed",
+    "failed": "Failed",
+    "passMessage": "Output is byte-identical to expected-graph.json.",
+    "failMessage": "Output differs from expected-graph.json.",
+    "diffTitle": "Diff (expected vs actual)",
+    "expectedBytes": "Expected {{count}} bytes",
+    "actualBytes": "Actual {{count}} bytes",
+    "hashLabel": "Graph hash:",
+    "hasExpected": "expected graph present",
+    "noExpected": "no expected graph"
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "Language"
+  },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
+    "retry": "Try again"
+  }
+}

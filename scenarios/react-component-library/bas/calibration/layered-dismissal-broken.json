@@ -1,0 +1,119 @@
+{
+  "metadata": {
+    "name": "layered-dismissal-broken",
+    "description": "CALIBRATION: plants two layers whose Escape handler dismisses both and must fail top-layer-only dismissal.",
+    "requirement": "OVERLAY-COMPOSITION",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "surface": "overlay-composition-calibration",
+      "calibration": "expected-failure",
+      "assertion_class": "layered-dismissal-broken",
+      "requirements_json": "[\"OVERLAY-COMPOSITION\"]"
+    },
+    "execution_mode": "EXECUTION_MODE_OBSERVER"
+  },
+  "settings": {
+    "viewport_width": 390,
+    "viewport_height": 844
+  },
+  "nodes": [
+    {
+      "id": "navigate",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "react-component-library",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open calibration host"
+        }
+      }
+    },
+    {
+      "id": "plant-broken-fixture",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { document.body.innerHTML='<div role=\"dialog\" data-layer=\"1\"></div><div role=\"dialog\" data-layer=\"2\"></div>'; addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('[data-layer]').forEach(n=>n.remove())},{once:true}); return 2; })()",
+          "store_result": "plantedEvidence"
+        },
+        "metadata": {
+          "label": "Plant the deliberately broken fixture"
+        }
+      }
+    },
+    {
+      "id": "press-escape",
+      "action": {
+        "type": "ACTION_TYPE_KEYBOARD",
+        "keyboard": {
+          "keys": [
+            "Escape"
+          ]
+        },
+        "metadata": {
+          "label": "Trigger the broken layered dismissal"
+        }
+      }
+    },
+    {
+      "id": "measure-failure",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const remaining=document.querySelectorAll('[data-layer]').length; document.body.dataset.calibrationOk=remaining===1?'yes':'no'; return {remaining}; })()",
+          "store_result": "failureEvidence"
+        },
+        "metadata": {
+          "label": "Measure the planted failure"
+        }
+      }
+    },
+    {
+      "id": "assert-calibration",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "body[data-calibration-ok=\"yes\"]",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 1000,
+          "failure_message": "EXPECTED CALIBRATION FAILURE: one Escape dismissed both planted layers instead of only the top layer."
+        },
+        "metadata": {
+          "label": "Expected failure discriminator"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate",
+      "target": "plant-broken-fixture",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "plant-broken-fixture",
+      "target": "press-escape",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "press-escape",
+      "target": "measure-failure",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "measure-failure",
+      "target": "assert-calibration",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

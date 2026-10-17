@@ -2,24 +2,27 @@ package main
 
 import "net/http"
 
+import "github.com/vrooli/vrooli/scenarios/vrooli-events/internal/store"
+
 func (s *Server) routes() *http.ServeMux {
 	mux := http.NewServeMux()
+	aggregateStore, _ := s.store.(store.ReceiptAggregateStore)
+	aggregatePath, aggregateHandler := receiptAggregateHandler(aggregateStore)
+	mux.Handle(aggregatePath, aggregateHandler)
 
 	// Event endpoints
 	mux.HandleFunc("POST /api/v1/events", s.handleIngest)
 	mux.HandleFunc("GET /api/v1/events", s.handleQuery)
+	mux.HandleFunc("DELETE /api/v1/events", s.handleDeleteEventsByType)
 	mux.HandleFunc("GET /api/v1/events/subscribe", s.handleSubscribe)
 
 	// Policy endpoints
-	mux.HandleFunc("POST /api/v1/policies", s.handleCreatePolicy)
-	mux.HandleFunc("GET /api/v1/policies", s.handleListPolicies)
+	mux.HandleFunc("GET /api/v1/policies/snapshot", s.handlePolicySnapshot)
+	mux.HandleFunc("POST /api/v1/receipt-capture-policies", s.handleCreateCapturePolicy)
+	mux.HandleFunc("GET /api/v1/receipt-capture-policies", s.handleListCapturePolicies)
+	mux.HandleFunc("DELETE /api/v1/receipt-capture-policies/{policyID}", s.handleDeleteCapturePolicy)
+	mux.HandleFunc("POST /api/v1/receipt-capture-policies/reconcile", s.handleReconcileCapturePolicies)
 	mux.HandleFunc("GET /api/v1/policies/subscribe", s.handlePolicySubscribe)
-	mux.HandleFunc("GET /api/v1/policies/violations", s.handleListViolations)
-	mux.HandleFunc("POST /api/v1/policies/evaluate", s.handleEvaluatePolicy)
-	mux.HandleFunc("GET /api/v1/policies/{id}", s.handleGetPolicy)
-	mux.HandleFunc("PUT /api/v1/policies/{id}", s.handleUpdatePolicy)
-	mux.HandleFunc("DELETE /api/v1/policies/{id}", s.handleDeletePolicy)
-	mux.HandleFunc("POST /api/v1/policies/{id}/override", s.handleOverrideCircuitBreaker)
 
 	// Subscription endpoints
 	mux.HandleFunc("POST /api/v1/subscriptions", s.handleCreateSubscription)
@@ -32,6 +35,8 @@ func (s *Server) routes() *http.ServeMux {
 	mux.HandleFunc("POST /api/v1/subscriptions/{id}/deliver", s.handleDeliverSubscription)
 
 	// Health
-	mux.HandleFunc("GET /health", s.handleHealth)
+	// Keep the canonical root route unqualified so lifecycle and static
+	// conformance tools can verify the same health surface callers use.
+	mux.HandleFunc("/health", s.handleHealth)
 	return mux
 }

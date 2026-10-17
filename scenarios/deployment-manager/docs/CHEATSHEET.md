@@ -1,244 +1,126 @@
 # Deployment Manager Cheat Sheet
 
-> Quick reference for common deployment-manager commands. Copy-paste ready.
+Use this page for the current Go CLI. Run the scenario through the Vrooli
+lifecycle manager before using commands that call its API.
 
-## Essential Workflow
-
-```bash
-# 1. Check compatibility
-deployment-manager fitness <scenario> --tier 2
-
-# 2. Create profile
-deployment-manager profile create my-profile <scenario> --tier 2
-
-# 3. Apply swaps (if needed)
-deployment-manager swaps apply <profile-id> postgres sqlite
-
-# 4. Check secrets
-deployment-manager secrets identify <profile-id>
-
-# 5. Validate
-deployment-manager validate <profile-id> --verbose
-
-# 6. Package
-deployment-manager package <profile-id> --packager scenario-to-desktop
-```
-
----
-
-## Health & Analysis
+## Start and inspect
 
 ```bash
-# Check API health
+vrooli scenario start deployment-manager
 deployment-manager status
-
-# Analyze scenario dependencies
-deployment-manager analyze <scenario>
-
-# Check fitness for specific tier
-deployment-manager fitness <scenario> --tier 2        # Desktop
-deployment-manager fitness <scenario> --tier desktop  # Same thing
-deployment-manager fitness <scenario>                 # All tiers
+deployment-manager analyze "my-scenario"
+deployment-manager fitness "my-scenario" --tier desktop
 ```
 
-## Profile Management
+The numeric deployment tier is technical target metadata. Tier 2 means the
+desktop target. It is not a commercial monetization tier.
+
+## Profiles
 
 ```bash
-# List all profiles
-deployment-manager profiles
-
-# Create profile for desktop deployment
-deployment-manager profile create <name> <scenario> --tier 2
-
-# View profile details
-deployment-manager profile show <profile-id>
-
-# Update profile tier
-deployment-manager profile update <profile-id> --tier 3
-
-# Set environment variable
-deployment-manager profile set <profile-id> env LOG_LEVEL info
-
-# Export profile to JSON
-deployment-manager profile export <profile-id> --output ./profile.json
-
-# Import profile from JSON
-deployment-manager profile import ./profile.json --name imported-profile
-
-# View version history
-deployment-manager profile versions <profile-id>
-
-# Rollback to previous version
-deployment-manager profile rollback <profile-id> --version 2
-
-# Delete profile
-deployment-manager profile delete <profile-id>
+deployment-manager profiles list
+deployment-manager profiles create "my-profile" "my-scenario" --tier 2
+deployment-manager profiles show "<profile-id>"
+deployment-manager profiles update "<profile-id>" --tier 2
+deployment-manager profiles versions "<profile-id>"
+deployment-manager profiles delete "<profile-id>"
 ```
 
-## Dependency Swaps
+The `profiles` group is the canonical typed profile surface. The singular
+`profile` command is retained only as a compatibility route; use it only when
+working with a legacy migration or an explicitly recorded historical receipt.
+
+## Swaps and desktop preparation
+
+The swap route is a compatibility operation. Review the result before applying
+it to a profile.
 
 ```bash
-# List available swaps for scenario
-deployment-manager swaps list <scenario>
-
-# Analyze swap impact
+deployment-manager swaps list "my-scenario"
 deployment-manager swaps analyze postgres sqlite
-
-# Check cascading effects
-deployment-manager swaps cascade postgres sqlite
-
-# Apply swap to profile
-deployment-manager swaps apply <profile-id> postgres sqlite
-
-# Apply and show new fitness
-deployment-manager swaps apply <profile-id> postgres sqlite --show-fitness
+deployment-manager swaps apply "<profile-id>" postgres sqlite
+deployment-manager fitness "my-scenario" --tier desktop
 ```
 
-## Secrets
+Prepare an evidence-bound readiness review before a governed release:
 
 ```bash
-# Identify required secrets
-deployment-manager secrets identify <profile-id>
-
-# Generate .env template
-deployment-manager secrets template <profile-id> --format env
-
-# Generate JSON template
-deployment-manager secrets template <profile-id> --format json
-
-# Validate secrets configuration
-deployment-manager secrets validate <profile-id>
+deployment-manager readiness-reviews prepare \
+  "my-scenario" "<profile-id>" "<commit>" "<artifact-digest>" stable linux \
+  --fact commercial_release=true \
+  --fact paid_release=true
 ```
 
-## Deployment & Packaging
+Build the desktop target through the owning target ramp:
 
 ```bash
-# Pre-deployment validation
-deployment-manager validate <profile-id>
-deployment-manager validate <profile-id> --verbose
-
-# Estimate SaaS/cloud costs
-deployment-manager estimate-cost <profile-id>
-deployment-manager estimate-cost <profile-id> --verbose
-
-# Deploy (with dry-run option)
-deployment-manager deploy <profile-id>
-deployment-manager deploy <profile-id> --dry-run
-
-# Package for desktop
-deployment-manager package <profile-id> --packager scenario-to-desktop
-
-# Check deployment status
-deployment-manager deployment status <deployment-id>
+deployment-manager deploy-desktop \
+  --profile "<profile-id>" \
+  --platforms linux \
+  --timeout 20m \
+  --dry-run
 ```
 
-## Logs & Telemetry
+`--dry-run` is a preview. It is not publication evidence.
+
+## Release observation and recovery
 
 ```bash
-# View logs
-deployment-manager logs <profile-id>
-
-# Filter by level
-deployment-manager logs <profile-id> --level error
-
-# Search logs
-deployment-manager logs <profile-id> --search "migration"
-
-# Format as table
-deployment-manager logs <profile-id> --format table
+deployment-manager releases dossier "<release-id>"
+deployment-manager releases health "<release-id>"
+deployment-manager releases operation "<operation-id>"
+deployment-manager releases reconcile "<release-id>"
 ```
 
-## Configuration
+Recovery requires the exact review, candidate, destination revision, action,
+and confirmation. Keep the command effect-free until those values are
+approved:
 
 ```bash
-# Set API base URL
-deployment-manager configure api_base http://localhost:8080
-
-# Set authentication token
-deployment-manager configure token <your-token>
+deployment-manager releases recover "<release-id>" \
+  --review-key "<review-key>" \
+  --candidate-id "<candidate-id>" \
+  --destination-revision-id "<destination-revision-id>" \
+  --dry-run
 ```
 
-## Output Formatting
+## Output and configuration
+
+Global flags must appear before the command group:
 
 ```bash
-# JSON output (prefix any command)
-deployment-manager --json profiles
-
-# Table output
-deployment-manager --format table profiles
+deployment-manager --json profiles list
+deployment-manager configure api_base "http://localhost:8080"
+deployment-manager configure token "<operator-token>"
 ```
 
----
+Do not place secret values in retained documentation, shell history, plans, or
+diagnostic output.
 
-## Tier Mapping
+## Retired compatibility routes
 
-| Input | Tier |
-|-------|------|
-| `local`, `1` | Tier 1 - Local Dev |
-| `desktop`, `2` | Tier 2 - Desktop |
-| `mobile`, `ios`, `android`, `3` | Tier 3 - Mobile |
-| `saas`, `cloud`, `web`, `4` | Tier 4 - SaaS |
-| `enterprise`, `on-prem`, `5` | Tier 5 - Enterprise |
+The following routes remain discoverable only to return retirement guidance.
+Use readiness reviews, evidence operations, release operations, and the owning
+scenario instead:
 
-## Common Swaps
+```text
+cli[old]: deployment-manager build
+cli[old]: deployment-manager logs
+cli[old]: deployment-manager validate
+cli[old]: deployment-manager estimate-cost
+cli[old]: deployment-manager secrets
+cli[old]: deployment-manager signing
+cli[old]: deployment-manager validations
+```
 
-| From | To | Best For |
-|------|----|----------|
-| `postgres` | `sqlite` | Desktop, Mobile |
-| `redis` | `in-process` | Desktop, Mobile |
-| `ollama` | packaged models | Desktop (offline) |
-| `browserless` | `playwright-driver` | Desktop |
+## Bundle API compatibility
 
-## Bundle Manifest (via REST API)
+The bundle REST routes are retained for compatibility. Prefer the typed release
+and readiness surfaces for new workflows.
 
 ```bash
-# Get API port
 API_PORT=$(vrooli scenario port deployment-manager API_PORT)
-
-# Assemble bundle manifest
 curl -X POST "http://localhost:${API_PORT}/api/v1/bundles/assemble" \
   -H "Content-Type: application/json" \
-  -d '{"scenario": "<scenario>", "tier": "tier-2-desktop"}'
-
-# Export with checksum
-curl -X POST "http://localhost:${API_PORT}/api/v1/bundles/export" \
-  -H "Content-Type: application/json" \
-  -d '{"scenario": "<scenario>", "tier": "tier-2-desktop"}' > bundle.json
-
-# Validate manifest
-curl -X POST "http://localhost:${API_PORT}/api/v1/bundles/validate" \
-  -H "Content-Type: application/json" \
-  -d @bundle.json
+  -d '{"scenario":"my-scenario","tier":"tier-2-desktop"}'
 ```
-
-## Build Desktop Installers
-
-```bash
-cd scenarios/<scenario>/platforms/electron
-
-# Install dependencies
-pnpm install
-
-# Build for specific platform
-pnpm run dist:win    # Windows MSI
-pnpm run dist:mac    # macOS PKG
-pnpm run dist:linux  # Linux AppImage + DEB
-
-# Build for all platforms
-pnpm run dist:all
-```
-
----
-
-## Quick Troubleshooting
-
-| Problem | Command |
-|---------|---------|
-| API not responding | `vrooli scenario start deployment-manager` |
-| Unknown API port | `vrooli scenario port deployment-manager API_PORT` |
-| Fitness score is 0 | `deployment-manager fitness <scenario> --tier 2` (check blockers) |
-| Secrets validation failed | Apply swaps to remove infrastructure dependencies |
-
----
-
-**Full Documentation**: [README.md](README.md) | **Step-by-Step Guide**: [DEPLOYMENT-GUIDE.md](DEPLOYMENT-GUIDE.md)

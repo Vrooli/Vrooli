@@ -1,0 +1,52 @@
+/*
+ * Semantic light/dark theme tokens.
+ *
+ * These are the variables that change between light and dark mode. Primitive
+ * design-kit tokens (raw palette, type ramp, spacing scale) live in
+ * `design-tokens.css`, which is generated per-scenario by
+ * `template-manager generate` from the selected design kit. This file
+ * intentionally references those primitives by name and only re-binds them
+ * under a `[data-theme="dark"]` selector — so swapping design kits never
+ * requires touching this file, and dark mode never requires touching the
+ * design kit.
+ *
+ * `ThemeProvider` toggles `data-theme` on `<html>` between `"light"` and
+ * `"dark"` (or removes it for `system`, which falls back to the
+ * `prefers-color-scheme` media query below). The `:root` block holds the
+ * light defaults so an unscripted page still renders with sensible colors.
+ */
+
+:root {
+  --surface-app: var(--color-background);
+  --surface-elevated: var(--color-surface);
+  --surface-muted: var(--color-surface-muted);
+  --text-primary: var(--color-foreground);
+  --text-muted: var(--color-muted-foreground);
+  --border-subtle: var(--color-border);
+  --accent: var(--color-primary);
+  --accent-foreground: var(--color-primary-foreground);
+}
+
+[data-theme="dark"] {
+  --surface-app: var(--color-background-dark);
+  --surface-elevated: var(--color-surface-dark);
+  --surface-muted: var(--color-surface-muted-dark);
+  --text-primary: var(--color-foreground-dark);
+  --text-muted: var(--color-muted-foreground-dark);
+  --border-subtle: var(--color-border-dark);
+  --accent: var(--color-primary-dark);
+  --accent-foreground: var(--color-primary-foreground-dark);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --surface-app: var(--color-background-dark);
+    --surface-elevated: var(--color-surface-dark);
+    --surface-muted: var(--color-surface-muted-dark);
+    --text-primary: var(--color-foreground-dark);
+    --text-muted: var(--color-muted-foreground-dark);
+    --border-subtle: var(--color-border-dark);
+    --accent: var(--color-primary-dark);
+    --accent-foreground: var(--color-primary-foreground-dark);
+  }
+}

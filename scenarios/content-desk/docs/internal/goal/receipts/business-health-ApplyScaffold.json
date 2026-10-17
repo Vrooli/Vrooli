@@ -1,0 +1,11 @@
+{
+  "sessionId": "wiz-content-desk-1791149778121163562",
+  "written": [
+    "PRD.md",
+    "requirements/index.json",
+    "requirements/README.md",
+    "requirements/01-must-ship/module.json",
+    "requirements/02-post-launch/module.json",
+    "requirements/03-future/module.json"
+  ]
+}

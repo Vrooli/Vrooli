@@ -40,14 +40,14 @@ The orchestrator comes with pre-configured profiles:
 
 | Profile | Description | Resources | Use Case |
 |---------|-------------|-----------|----------|
-| `developer-full` | Complete dev environment | postgres, n8n, ollama, browserless, qdrant, redis | Full-stack development |
+| `developer-full` | Complete dev environment | postgres, n8n, ollama, searxng, qdrant, redis | Full-stack development |
 | `developer-light` | Essential dev tools | postgres, n8n, ollama | Laptop/limited resources |
 | `business-productivity` | Business tools | postgres, n8n, ollama | Office productivity |
 | `creative-suite` | Content creation | postgres, n8n, ollama, minio | Creative work |
 | `gaming-entertainment` | Games and fun | postgres, n8n | Entertainment |
 | `household-management` | Family tools | postgres, n8n, ollama | Home management |
-| `demo-showcase` | Curated demos | postgres, n8n, ollama, browserless | Demonstrations |
-| `research-analysis` | Research tools | postgres, n8n, ollama, qdrant, browserless | Research work |
+| `demo-showcase` | Curated demos | postgres, n8n, ollama, qdrant | Demonstrations |
+| `research-analysis` | Research tools | postgres, n8n, ollama, qdrant, searxng | Research work |
 | `minimal` | Basic testing | postgres | Testing/troubleshooting |
 
 ## 🛠️ Quick Start
@@ -209,10 +209,15 @@ curl http://localhost:15001/api/v1/profiles
 
 **CLI not found**
 ```bash
-# Add to PATH
-echo 'export PATH="$HOME/.vrooli/bin:$PATH"' >> ~/.bashrc
-source ~/.bashrc
+# Put ~/.vrooli/bin on PATH exactly once, and first
+vrooli host safeguard path_hygiene
+exec $SHELL -l
 ```
+
+Do not append the export by hand. An unguarded `>> ~/.bashrc` runs again on
+every install and can only accumulate: one host reached 105 such lines and a
+236-entry PATH. The `path_hygiene` safeguard writes a marked, idempotent block
+instead, so a re-run replaces it rather than adding another copy.
 
 **API connection failed** 
 ```bash

@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vrooli.com/schemas/deprecated-resources.schema.json",
+  "title": "Deprecated Resources",
+  "description": "Metadata for resources removed from the active repo surface but retained for archive/restore tracking.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "resources"
+  ],
+  "properties": {
+    "resources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "deprecated_at",
+          "reason",
+          "retention_policy_days",
+          "restore_supported",
+          "purge_after"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          },
+          "deprecated_at": {
+            "type": "string",
+            "format": "date"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          },
+          "replacement": {
+            "type": "string"
+          },
+          "archive_path": {
+            "type": "string"
+          },
+          "archive_hash": {
+            "type": "string"
+          },
+          "retention_policy_days": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "restore_supported": {
+            "type": "boolean"
+          },
+          "purge_after": {
+            "type": "string",
+            "format": "date"
+          },
+          "purged_at": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      }
+    }
+  }
+}

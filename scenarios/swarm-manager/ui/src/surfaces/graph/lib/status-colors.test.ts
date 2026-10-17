@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getStatusColorClasses, getStatusRgb, isActionableBacklogStatus, ACTIONABLE_BACKLOG_STATUSES, STATUS_GROUP_INFO } from "./status-colors";
+import { getStatusColorClasses, isActionableBacklogStatus, ACTIONABLE_BACKLOG_STATUSES, STATUS_GROUP_INFO } from "./status-colors";
 
 describe("getStatusColorClasses", () => {
   it("returns neutral colors for undefined status", () => {
@@ -69,24 +69,6 @@ describe("getStatusColorClasses", () => {
     expect(colors.background).toBeTruthy();
     expect(colors.border).toBeTruthy();
     expect(colors.text).toBeTruthy();
-  });
-});
-
-describe("getStatusRgb", () => {
-  it("returns an rgb string for known status", () => {
-    const rgb = getStatusRgb("running");
-    expect(rgb).toMatch(/^rgb\(/);
-  });
-
-  it("returns neutral rgb for undefined", () => {
-    const rgb = getStatusRgb(undefined);
-    expect(rgb).toMatch(/^rgb\(/);
-  });
-
-  it("returns different rgb for different status groups", () => {
-    const active = getStatusRgb("running");
-    const error = getStatusRgb("failed");
-    expect(active).not.toBe(error);
   });
 });
 

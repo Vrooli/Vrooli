@@ -1,0 +1,225 @@
+{
+  "schemaVersion": 5,
+  "kind": "component",
+  "title": "ComposerAttachmentTray",
+  "args": {},
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "role": "anatomy",
+      "mode": "pinned",
+      "args": {
+        "items": [
+          {
+            "id": "brief",
+            "name": "Launch brief.pdf",
+            "mimeType": "application/pdf",
+            "sizeBytes": 284000,
+            "status": "success"
+          },
+          {
+            "id": "image",
+            "name": "Conversation layout.png",
+            "mimeType": "image/png",
+            "sizeBytes": 1480000,
+            "status": "uploading",
+            "progress": 62
+          }
+        ]
+      },
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "AttachmentTrayStory"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-composer-attachments]"
+        }
+      ]
+    },
+    {
+      "id": "empty",
+      "name": "Empty",
+      "role": "boundary",
+      "mode": "pinned",
+      "args": {
+        "items": []
+      },
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "AttachmentTrayStory"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-composer-attachments]"
+        }
+      ]
+    },
+    {
+      "id": "loading",
+      "name": "Loading",
+      "role": "boundary",
+      "mode": "pinned",
+      "args": {
+        "items": [
+          {
+            "id": "image",
+            "name": "Conversation layout.png",
+            "mimeType": "image/png",
+            "sizeBytes": 1480000,
+            "status": "uploading",
+            "progress": 62
+          }
+        ]
+      },
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "AttachmentTrayStory"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-composer-attachments]"
+        }
+      ]
+    },
+    {
+      "id": "success",
+      "name": "Success",
+      "role": "boundary",
+      "mode": "pinned",
+      "args": {
+        "items": [
+          {
+            "id": "brief",
+            "name": "Launch brief.pdf",
+            "mimeType": "application/pdf",
+            "sizeBytes": 284000,
+            "status": "success"
+          }
+        ]
+      },
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "AttachmentTrayStory"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-composer-attachments]"
+        }
+      ]
+    },
+    {
+      "id": "partial",
+      "name": "Partial",
+      "role": "boundary",
+      "mode": "pinned",
+      "args": {
+        "items": [
+          {
+            "id": "brief",
+            "name": "Launch brief.pdf",
+            "mimeType": "application/pdf",
+            "sizeBytes": 284000,
+            "status": "success"
+          },
+          {
+            "id": "notes",
+            "name": "Research notes.md",
+            "status": "error",
+            "errorMessage": "Upload interrupted. Your file is still here."
+          }
+        ]
+      },
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "AttachmentTrayStory"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-composer-attachments]"
+        }
+      ]
+    },
+    {
+      "id": "request-error",
+      "name": "Request Error",
+      "role": "boundary",
+      "mode": "pinned",
+      "args": {
+        "items": [
+          {
+            "id": "notes",
+            "name": "Research notes.md",
+            "status": "error",
+            "errorMessage": "Upload interrupted. Your file is still here."
+          }
+        ]
+      },
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "AttachmentTrayStory"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-composer-attachments]"
+        }
+      ]
+    },
+    {
+      "id": "retry",
+      "name": "Retry",
+      "role": "boundary",
+      "mode": "pinned",
+      "args": {
+        "items": [
+          {
+            "id": "notes",
+            "name": "Research notes.md",
+            "status": "uploading",
+            "errorMessage": "Upload interrupted. Your file is still here.",
+            "progress": 25
+          }
+        ]
+      },
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "AttachmentTrayStory"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-composer-attachments]"
+        }
+      ]
+    }
+    ,
+    {"id":"disabled","name":"Disabled attachment actions","args":{"disabled":true},"expect":[{"kind":"visible","selector":"[data-rcl-composer-attachments]"}],"role":"boundary","mode":"pinned"},
+    {"id":"one","name":"One attachment","args":{"attachments":[{"id":"brief","name":"project-brief.pdf"}]},"expect":[{"kind":"visible","selector":"[data-rcl-composer-attachments]"}],"role":"boundary","mode":"pinned"},
+    {"id":"many","name":"Many attachments","args":{"attachments":[{"id":"brief","name":"project-brief.pdf"},{"id":"image","name":"diagram.png"},{"id":"notes","name":"release-notes.md"}]},"expect":[{"kind":"visible","selector":"[data-rcl-composer-attachments]"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long attachment name","args":{"attachments":[{"id":"long","name":"release-evidence-with-a-deliberately-long-filename-that-must-wrap.pdf"}]},"expect":[{"kind":"visible","selector":"[data-rcl-composer-attachments]"}],"role":"boundary","mode":"pinned"}
+  ]
+}

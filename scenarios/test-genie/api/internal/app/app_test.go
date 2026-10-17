@@ -1,9 +1,10 @@
 package app
 
 import (
-	"database/sql"
 	"errors"
 	"testing"
+
+	"github.com/vrooli/api-core/database"
 
 	"test-genie/agentmanager"
 	"test-genie/internal/app/httpserver"
@@ -48,12 +49,11 @@ func TestNewServerWiresRuntimeDependenciesIntoHTTPTransport(t *testing.T) {
 		ScenariosRoot: "/tmp/scenarios",
 	}
 	agentSvc := agentmanager.NewAgentService(agentmanager.Config{
-		ProfileName: "Test Genie Agent",
-		ProfileKey:  "test-genie",
-		Enabled:     true,
+		ProfileKey: "test-genie/generation",
+		Enabled:    true,
 	})
 	bootstrapped := &runtime.Bootstrapped{
-		DB:           &sql.DB{},
+		DB:           &database.RoutedDB{},
 		AgentService: agentSvc,
 	}
 

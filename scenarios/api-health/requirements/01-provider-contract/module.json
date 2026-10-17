@@ -1,0 +1,65 @@
+{
+  "_metadata": {
+    "module": "provider-contract",
+    "description": "Shared health-provider foundation: validation RPC, maturity ladder, metrics, target resolution, and provider-native detail.",
+    "prd_ref": "OT-P0-001",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "APIH-PROV-001",
+      "title": "Shared validation RPC emits provider-owned maturity",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "api",
+      "criticality": "P0",
+      "description": "API Health implements scenario-validation/v1 ScenarioValidationService.ValidateScenario, returns canonical status, common.v1.MaturityAssessment, provider-native API Health detail, and real ExecutionMetrics.",
+      "tags": ["provider", "maturity", "metrics"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned ref: api/handlers/validation/connect_handler_test.go. Assert assessment identity, metrics presence, status mapping, and native detail packing."
+        }
+      ]
+    },
+    {
+      "id": "APIH-PROV-002",
+      "title": "Capability ladder maps every finding",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "maturity",
+      "criticality": "P0",
+      "description": ".vrooli/maturity.json declares API Health capabilities and maps every finding code to capability_id, local_level_impact, global_impact, dimension, clean_requirement, severity, and fixability metadata.",
+      "tags": ["maturity-json", "finding-codes"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned ref: api/internal/validation/maturity_spec_test.go. Load and ValidateSpec; assert no emitted finding code is missing from the spec."
+        }
+      ]
+    },
+    {
+      "id": "APIH-PROV-003",
+      "title": "Target resolver reports coverage honestly",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "api",
+      "criticality": "P0",
+      "description": "Target resolution distinguishes missing scenario, scenario with no API surface, unreadable source, and inspectable API surface without reporting a clean pass for an unevaluated target.",
+      "tags": ["target-resolution", "coverage"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned ref: api/internal/validation/target_test.go. Fixtures for missing, no-api, unreadable, and inspectable targets."
+        }
+      ]
+    }
+  ]
+}

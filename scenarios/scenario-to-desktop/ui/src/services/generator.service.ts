@@ -3,20 +3,31 @@
  * Extracted from GeneratorForm.tsx and domain/generator.ts for testability.
  */
 
-import type {
-  SigningConfig,
-  BundlePreflightResponse,
-  PipelineConfig,
-  ProbeResponse,
-} from "../lib/api";
+import type { PipelineConfig, ProbeResponse } from "../lib/api";
+import type { SigningConfig } from "../domain/signing";
+import type { PreflightResponse } from "@vrooli/proto-types/scenario-to-desktop/v1/shared/preflight_results_pb";
+import {
+  deploymentModeFromFormValue,
+  platformFromFormValue,
+  templateTypeFromFormValue,
+} from "../lib/pipeline-enums";
+import { StageName } from "@vrooli/proto-types/scenario-to-desktop/v1/shared/common_pb";
 import type { DesktopConnectionConfig } from "../components/scenario-inventory/types";
 import type { DeploymentMode, ServerType } from "../domain/deployment";
-import type { OutputLocation, PlatformSelection } from "../domain/generator";
+import type {
+  DesktopFramework,
+  OutputLocation,
+  PlatformSelection,
+} from "../domain/generator";
 import {
   getSelectedPlatforms,
   type ValidateFormInputsParams,
 } from "../domain/generator";
-import { decideConnection, DEFAULT_DEPLOYMENT_MODE, DEFAULT_SERVER_TYPE } from "../domain/deployment";
+import {
+  decideConnection,
+  DEFAULT_DEPLOYMENT_MODE,
+  DEFAULT_SERVER_TYPE,
+} from "../domain/deployment";
 import { DEFAULT_LOCAL_API_ENDPOINT } from "../store/formTypes";
 
 // ============================================================================
@@ -57,7 +68,7 @@ export interface GeneratorFormState {
   deployment: {
     mode: DeploymentMode;
     serverType: ServerType;
-    framework: string;
+    framework: DesktopFramework;
   };
   output: {
     locationMode: OutputLocation;
@@ -106,11 +117,13 @@ export interface ScenarioDefaults {
 /**
  * Extract default values from a scenario for form population.
  */
-export function extractScenarioDefaults(scenario: {
-  service_display_name?: string;
-  service_description?: string;
-  service_icon_path?: string;
-} | null): ScenarioDefaults {
+export function extractScenarioDefaults(
+  scenario: {
+    service_display_name?: string;
+    service_description?: string;
+    service_icon_path?: string;
+  } | null,
+): ScenarioDefaults {
   if (!scenario) {
     return {
       displayName: "",
@@ -135,7 +148,7 @@ export function applyScenarioDefaults(
     displayNameEdited: boolean;
     descriptionEdited: boolean;
     iconPathEdited: boolean;
-  }
+  },
 ): Partial<ScenarioDefaults> {
   const updates: Partial<ScenarioDefaults> = {};
 
@@ -160,14 +173,18 @@ export function applyScenarioDefaults(
  * Transform a connection config from the scenario inventory to form state.
  */
 export function transformConnectionConfigToFormState(
-  config: DesktopConnectionConfig | null | undefined
+  config: DesktopConnectionConfig | null | undefined,
 ): Partial<GeneratorFormState> {
   if (!config) return {};
 
   return {
     deployment: {
-      mode: (config.deployment_mode as DeploymentMode) ?? DEFAULT_DEPLOYMENT_MODE,
-      serverType: (config.server_type as ServerType) ?? DEFAULT_SERVER_TYPE,
+      mode: config.deployment_mode
+        ? (config.deployment_mode as DeploymentMode)
+        : DEFAULT_DEPLOYMENT_MODE,
+      serverType: config.server_type
+        ? (config.server_type as ServerType)
+        : DEFAULT_SERVER_TYPE,
       framework: "electron",
     },
     connection: {
@@ -202,17 +219,17 @@ export function transformConnectionConfigToFormState(
  */
 export function buildPipelineConfigFromForm(
   formState: GeneratorFormState,
-  scenarioName: string
+  scenarioName: string,
 ): PipelineConfig {
   const selectedPlatforms = getSelectedPlatforms(formState.platforms);
 
   return {
-    scenario_name: scenarioName,
-    template_type: formState.selectedTemplate,
-    deployment_mode: formState.deployment.mode === "bundled" ? "bundled" : "proxy",
-    proxy_url: formState.connection.proxyUrl || undefined,
-    platforms: selectedPlatforms,
-    stop_after_stage: "generate",
+    scenarioName,
+    templateType: templateTypeFromFormValue(formState.selectedTemplate),
+    deploymentMode: deploymentModeFromFormValue(formState.deployment.mode),
+    proxyUrl: formState.connection.proxyUrl || undefined,
+    platforms: selectedPlatforms.map(platformFromFormValue),
+    stopAfterStage: StageName.GENERATE,
   };
 }
 
@@ -226,19 +243,22 @@ export function buildPipelineConfigFromForm(
 export function buildValidationParams(
   formState: GeneratorFormState,
   scenarioName: string,
-  preflightResult: BundlePreflightResponse | null,
+  preflightResult: PreflightResponse | null,
   preflightOk: boolean,
   signingConfig: SigningConfig | null | undefined,
-  signingReadiness: { ready?: boolean; issues?: string[] } | undefined
+  signingReadiness: { ready?: boolean; issues?: string[] } | undefined,
 ): ValidateFormInputsParams {
   const connectionDecision = decideConnection(
     formState.deployment.mode,
-    formState.deployment.serverType
+    formState.deployment.serverType,
   );
   const isBundled = connectionDecision.kind === "bundled-runtime";
   const requiresProxyUrl = connectionDecision.requiresProxyUrl;
   const selectedPlatforms = getSelectedPlatforms(formState.platforms);
-  const outputPath = formState.output.locationMode === "custom" ? formState.output.outputPath : "";
+  const outputPath =
+    formState.output.locationMode === "custom"
+      ? formState.output.outputPath
+      : "";
 
   return {
     scenarioName,
@@ -269,7 +289,9 @@ import { SERVER_TYPE_OPTIONS } from "../domain/deployment";
 /**
  * Get allowed server types based on deployment mode.
  */
-export function getAllowedServerTypes(deploymentMode: DeploymentMode): ServerType[] {
+export function getAllowedServerTypes(
+  deploymentMode: DeploymentMode,
+): ServerType[] {
   if (deploymentMode === "bundled" || deploymentMode === "cloud-api") {
     return ["external"];
   }
@@ -282,7 +304,7 @@ export function getAllowedServerTypes(deploymentMode: DeploymentMode): ServerTyp
  */
 export function adjustServerTypeForMode(
   currentServerType: ServerType,
-  deploymentMode: DeploymentMode
+  deploymentMode: DeploymentMode,
 ): ServerType {
   const allowed = getAllowedServerTypes(deploymentMode);
   if (!allowed.includes(currentServerType)) {
@@ -303,7 +325,7 @@ export interface SerializedFormState {
   display_name_edited: boolean;
   description_edited: boolean;
   icon_path_edited: boolean;
-  framework: string;
+  framework: DesktopFramework;
   server_type: string;
   deployment_mode: string;
   platforms: PlatformSelection;
@@ -324,7 +346,9 @@ export interface SerializedFormState {
 /**
  * Serialize form state for server persistence.
  */
-export function serializeFormStateForServer(formState: GeneratorFormState): SerializedFormState {
+export function serializeFormStateForServer(
+  formState: GeneratorFormState,
+): SerializedFormState {
   return {
     selected_template: formState.selectedTemplate,
     app_display_name: formState.appMetadata.displayName,
@@ -356,7 +380,7 @@ export function serializeFormStateForServer(formState: GeneratorFormState): Seri
  * Deserialize form state from server response.
  */
 export function deserializeFormStateFromServer(
-  data: Partial<SerializedFormState>
+  data: Partial<SerializedFormState>,
 ): Partial<GeneratorFormState> {
   return {
     selectedTemplate: data.selected_template,
@@ -370,12 +394,18 @@ export function deserializeFormStateFromServer(
       iconPreviewError: false,
     },
     deployment: {
-      mode: (data.deployment_mode as DeploymentMode) ?? DEFAULT_DEPLOYMENT_MODE,
-      serverType: (data.server_type as ServerType) ?? DEFAULT_SERVER_TYPE,
+      mode: data.deployment_mode
+        ? (data.deployment_mode as DeploymentMode)
+        : DEFAULT_DEPLOYMENT_MODE,
+      serverType: data.server_type
+        ? (data.server_type as ServerType)
+        : DEFAULT_SERVER_TYPE,
       framework: data.framework ?? "electron",
     },
     output: {
-      locationMode: (data.location_mode as OutputLocation) ?? "proper",
+      locationMode: data.location_mode
+        ? (data.location_mode as OutputLocation)
+        : "proper",
       outputPath: data.output_path ?? "",
     },
     platforms: data.platforms ?? { win: true, mac: true, linux: true },

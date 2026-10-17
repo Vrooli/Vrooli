@@ -1,0 +1,8 @@
+[
+  {"id":"container-health","name":"Container Health Analyzer","description":"Reports container runtime availability and a bounded health summary","category":"resource-management","mode":"shell","script_file":"container-health.sh","required_tools":["bash","jq","docker"],"platforms":["linux","macos"],"enabled":true},
+  {"id":"master-system-sweep","name":"Master System Sweep","description":"Returns a bounded machine-readable system investigation summary","category":"system","mode":"shell","script_file":"master-system-sweep.sh","required_tools":["bash","jq"],"platforms":["linux","macos"],"enabled":true},
+  {"id":"service-health-monitor","name":"Service Health Monitor","description":"Reports unhealthy services and host log evidence","category":"resource-management","mode":"native","query":"service-health","platforms":["linux","macos","windows"],"enabled":true},
+  {"id":"service-config-validator","name":"Service Configuration Validator","description":"Validates service configuration through the platform service manager","category":"resource-management","mode":"native","query":"service-config","platforms":["linux","macos","windows"],"enabled":true},
+  {"id":"network-anomaly-detector","name":"Network Anomaly Detector","description":"Detects unusual network connections and suspicious ports","category":"network","mode":"native","query":"network-anomalies","platforms":["linux","macos","windows"],"enabled":true},
+  {"id":"resource-leak-detector","name":"Resource Leak Detector","description":"Detects file descriptor, memory, and connection pressure","category":"resource-management","mode":"native","query":"resource-leaks","platforms":["linux","macos","windows"],"enabled":true}
+]

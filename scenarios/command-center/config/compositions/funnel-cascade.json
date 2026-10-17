@@ -1,0 +1,22 @@
+{
+  "id": "funnel-cascade",
+  "slotManifest": "funnel-cascade.slots.json",
+  "slots": {
+    "ladder": {
+      "shape": "rows",
+      "role": "primary",
+      "whenUnbound": "decorative",
+      "columns": {
+        "key": {
+          "type": "string"
+        },
+        "value": {
+          "type": "number"
+        },
+        "share": {
+          "type": "number"
+        }
+      }
+    }
+  }
+}

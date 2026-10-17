@@ -1,0 +1,2382 @@
+{
+  "documentId": "1EN3yoimBSjVmpI--nyFGIUvS2_h6Hvbo4swTndR42gg",
+  "title": "When a save message refers to an older edit",
+  "revisionId": "AHj4eMT3S07GJ-dE1i3G2co9GHMXC9WMfqv2WJfYd9xEDWGasayd2kIYOHNi7dOR9VedrWUGZfhedX0hkkGDGC472Wi18zXk7jbyZnR2UQ",
+  "suggestionsViewMode": "SUGGESTIONS_INLINE",
+  "url": null,
+  "body": null,
+  "tabs": [
+    {
+      "tabId": "t.0",
+      "title": "Tab 1",
+      "parentTabId": null,
+      "index": 0,
+      "nestingLevel": null,
+      "iconEmoji": null,
+      "body": {
+        "content": [
+          {
+            "endIndex": 1,
+            "sectionBreak": {
+              "sectionStyle": {
+                "columnSeparatorStyle": "NONE",
+                "contentDirection": "LEFT_TO_RIGHT",
+                "sectionType": "CONTINUOUS"
+              }
+            }
+          },
+          {
+            "startIndex": 1,
+            "endIndex": 45,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 1,
+                  "endIndex": 45,
+                  "textRun": {
+                    "content": "When a save message refers to an older edit\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "TITLE",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 45,
+            "endIndex": 242,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 45,
+                  "endIndex": 242,
+                  "textRun": {
+                    "content": "For someone editing a launch announcement, “Saved” is permission to move on. Beside newer text, that message can imply the newer text is safe, even when the reply only confirms an earlier version.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 242,
+            "endIndex": 540,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 242,
+                  "endIndex": 540,
+                  "textRun": {
+                    "content": "Consider a hypothetical editor. You write “Launch on Friday” and click Save. That sends revision A. Before the reply returns, you change the sentence to “Launch on Monday,” revision B. Then A’s success message arrives. The editor now shows Monday and “Saved.” The confirmed copy still says Friday.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 540,
+            "endIndex": 614,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 540,
+                  "endIndex": 614,
+                  "textRun": {
+                    "content": "The save succeeded for A. The status now makes a broader promise about B.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 614,
+            "endIndex": 890,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 614,
+                  "endIndex": 890,
+                  "textRun": {
+                    "content": "For the engineer building the editor, the important choice happens when that reply arrives: may it clear the unsaved-change state? Only if it confirms the content currently shown. If the draft has changed since the request, preserve it and keep the newer edit marked unsaved.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 890,
+            "endIndex": 892,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 890,
+                  "endIndex": 891,
+                  "inlineObjectElement": {
+                    "inlineObjectId": "i.0",
+                    "textStyle": {}
+                  }
+                },
+                {
+                  "startIndex": 891,
+                  "endIndex": 892,
+                  "textRun": {
+                    "content": "\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT",
+                "spaceBelow": {
+                  "magnitude": 3,
+                  "unit": "PT"
+                },
+                "keepWithNext": true
+              }
+            }
+          },
+          {
+            "startIndex": 892,
+            "endIndex": 1060,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 892,
+                  "endIndex": 1060,
+                  "textRun": {
+                    "content": "Figure 1. Intended behavior. Editing continues while the save is in flight. A’s reply leaves B unsaved. This conceptual example does not depict or test a live product.\n",
+                    "textStyle": {
+                      "bold": true,
+                      "italic": false,
+                      "underline": false,
+                      "strikethrough": false,
+                      "smallCaps": false,
+                      "backgroundColor": {},
+                      "foregroundColor": {
+                        "color": {
+                          "rgbColor": {}
+                        }
+                      },
+                      "fontSize": {
+                        "magnitude": 9,
+                        "unit": "PT"
+                      },
+                      "weightedFontFamily": {
+                        "fontFamily": "Calibri",
+                        "weight": 400
+                      },
+                      "baselineOffset": "NONE"
+                    }
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "alignment": "START",
+                "lineSpacing": 100,
+                "direction": "LEFT_TO_RIGHT",
+                "spacingMode": "NEVER_COLLAPSE",
+                "spaceAbove": {
+                  "unit": "PT"
+                },
+                "spaceBelow": {
+                  "magnitude": 7,
+                  "unit": "PT"
+                },
+                "borderBetween": {
+                  "color": {},
+                  "width": {
+                    "unit": "PT"
+                  },
+                  "padding": {
+                    "unit": "PT"
+                  },
+                  "dashStyle": "SOLID"
+                },
+                "borderTop": {
+                  "color": {},
+                  "width": {
+                    "unit": "PT"
+                  },
+                  "padding": {
+                    "unit": "PT"
+                  },
+                  "dashStyle": "SOLID"
+                },
+                "borderBottom": {
+                  "color": {},
+                  "width": {
+                    "unit": "PT"
+                  },
+                  "padding": {
+                    "unit": "PT"
+                  },
+                  "dashStyle": "SOLID"
+                },
+                "borderLeft": {
+                  "color": {},
+                  "width": {
+                    "unit": "PT"
+                  },
+                  "padding": {
+                    "unit": "PT"
+                  },
+                  "dashStyle": "SOLID"
+                },
+                "borderRight": {
+                  "color": {},
+                  "width": {
+                    "unit": "PT"
+                  },
+                  "padding": {
+                    "unit": "PT"
+                  },
+                  "dashStyle": "SOLID"
+                },
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "indentEnd": {
+                  "unit": "PT"
+                },
+                "keepLinesTogether": false,
+                "keepWithNext": false,
+                "avoidWidowAndOrphan": true,
+                "shading": {
+                  "backgroundColor": {}
+                },
+                "pageBreakBefore": false
+              }
+            }
+          },
+          {
+            "startIndex": 1060,
+            "endIndex": 1355,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 1060,
+                  "endIndex": 1355,
+                  "textRun": {
+                    "content": "In this example, B has not been sent, so the truthful result is “Earlier edit saved. Newer edit not saved yet.” The user can continue editing or explicitly save B. Identifying the saved snapshot gives the interface enough information to make that distinction; a success response alone does not.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 1355,
+            "endIndex": 1357,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 1355,
+                  "endIndex": 1356,
+                  "pageBreak": {
+                    "textStyle": {}
+                  }
+                },
+                {
+                  "startIndex": 1356,
+                  "endIndex": 1357,
+                  "textRun": {
+                    "content": "\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 1357,
+            "endIndex": 1370,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 1357,
+                  "endIndex": 1370,
+                  "textRun": {
+                    "content": "Article plan\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "HEADING_1",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 1370,
+            "endIndex": 1395,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 1370,
+                  "endIndex": 1395,
+                  "textRun": {
+                    "content": "Reader and useful result\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "HEADING_2",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 1395,
+            "endIndex": 1733,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 1395,
+                  "endIndex": 1733,
+                  "textRun": {
+                    "content": "Technical founders and product engineers who own editor behavior. The timely need is the moment a misleading save status could lose someone’s work; it is an evergreen problem, without a claimed product launch or trend. The reader should identify the exact snapshot a success message confirms and know when an unsaved indicator may clear.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 1733,
+            "endIndex": 1748,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 1733,
+                  "endIndex": 1748,
+                  "textRun": {
+                    "content": "Angle decision\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "HEADING_2",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 1748,
+            "endIndex": 2211,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 1748,
+                  "endIndex": 2211,
+                  "textRun": {
+                    "content": "The title promises to explain how a truthful save reply can mislead beside a newer edit. The opening delivers that promise with Friday becoming Monday, then gives the rule: preserve the newer draft and its unsaved state. This specific timing problem is more useful than a generic story about unreliable software. A retry tutorial would miss the case because A did save. Out-of-order writes, autosave or a real product postmortem would require different evidence.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 2211,
+            "endIndex": 2228,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 2211,
+                  "endIndex": 2228,
+                  "textRun": {
+                    "content": "Article sequence\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "HEADING_2",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 2228,
+            "endIndex": 2292,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 2228,
+                  "endIndex": 2292,
+                  "textRun": {
+                    "content": "Open with Friday becoming Monday while a save reply is pending.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "lineSpacing": 104.99999,
+                "direction": "LEFT_TO_RIGHT",
+                "spacingMode": "COLLAPSE_LISTS",
+                "spaceBelow": {
+                  "magnitude": 3,
+                  "unit": "PT"
+                },
+                "indentFirstLine": {
+                  "magnitude": 18,
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "magnitude": 36,
+                  "unit": "PT"
+                }
+              },
+              "bullet": {
+                "listId": "kix.iys8dqcp8vgm",
+                "textStyle": {
+                  "underline": false
+                }
+              }
+            }
+          },
+          {
+            "startIndex": 2292,
+            "endIndex": 2383,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 2292,
+                  "endIndex": 2383,
+                  "textRun": {
+                    "content": "Use the two-lane sequence to separate the visible draft, the saved snapshot and the reply.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "lineSpacing": 104.99999,
+                "direction": "LEFT_TO_RIGHT",
+                "spacingMode": "COLLAPSE_LISTS",
+                "spaceBelow": {
+                  "magnitude": 3,
+                  "unit": "PT"
+                },
+                "indentFirstLine": {
+                  "magnitude": 18,
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "magnitude": 36,
+                  "unit": "PT"
+                }
+              },
+              "bullet": {
+                "listId": "kix.iys8dqcp8vgm",
+                "textStyle": {
+                  "underline": false
+                }
+              }
+            }
+          },
+          {
+            "startIndex": 2383,
+            "endIndex": 2534,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 2383,
+                  "endIndex": 2534,
+                  "textRun": {
+                    "content": "Develop the decision rule with the actual A/B text. Preserve B; retain its unsaved state. A later user-initiated save of B needs its own confirmation.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "lineSpacing": 104.99999,
+                "direction": "LEFT_TO_RIGHT",
+                "spacingMode": "COLLAPSE_LISTS",
+                "spaceBelow": {
+                  "magnitude": 3,
+                  "unit": "PT"
+                },
+                "indentFirstLine": {
+                  "magnitude": 18,
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "magnitude": 36,
+                  "unit": "PT"
+                }
+              },
+              "bullet": {
+                "listId": "kix.iys8dqcp8vgm",
+                "textStyle": {
+                  "underline": false
+                }
+              }
+            }
+          },
+          {
+            "startIndex": 2534,
+            "endIndex": 2661,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 2534,
+                  "endIndex": 2661,
+                  "textRun": {
+                    "content": "State the boundary: truthful status alone does not solve competing writes, multi-user conflicts or durable-storage guarantees.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "lineSpacing": 104.99999,
+                "direction": "LEFT_TO_RIGHT",
+                "spacingMode": "COLLAPSE_LISTS",
+                "spaceBelow": {
+                  "magnitude": 3,
+                  "unit": "PT"
+                },
+                "indentFirstLine": {
+                  "magnitude": 18,
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "magnitude": 36,
+                  "unit": "PT"
+                }
+              },
+              "bullet": {
+                "listId": "kix.iys8dqcp8vgm",
+                "textStyle": {
+                  "underline": false
+                }
+              }
+            }
+          },
+          {
+            "startIndex": 2661,
+            "endIndex": 2784,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 2661,
+                  "endIndex": 2784,
+                  "textRun": {
+                    "content": "End with a review question: if the user edits again before success returns, which version does your interface say is safe?\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "lineSpacing": 104.99999,
+                "direction": "LEFT_TO_RIGHT",
+                "spacingMode": "COLLAPSE_LISTS",
+                "spaceBelow": {
+                  "magnitude": 3,
+                  "unit": "PT"
+                },
+                "indentFirstLine": {
+                  "magnitude": 18,
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "magnitude": 36,
+                  "unit": "PT"
+                }
+              },
+              "bullet": {
+                "listId": "kix.iys8dqcp8vgm",
+                "textStyle": {
+                  "underline": false
+                }
+              }
+            }
+          },
+          {
+            "startIndex": 2784,
+            "endIndex": 2801,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 2784,
+                  "endIndex": 2801,
+                  "textRun": {
+                    "content": "Scope and visual\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "HEADING_2",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          },
+          {
+            "startIndex": 2801,
+            "endIndex": 3263,
+            "paragraph": {
+              "elements": [
+                {
+                  "startIndex": 2801,
+                  "endIndex": 3263,
+                  "textRun": {
+                    "content": "This specimen supplies only the opening and one explanatory figure. Its visual explains editing during a pending request and the identity of the returned acknowledgment, using labels as well as color. It is a hypothetical interface, so product branding and current-event imagery would add a false association. The R1 revision clarifies audience relevance and title-promise fit in this plan; it does not change or rerun the original independent version 0.3 test.\n",
+                    "textStyle": {}
+                  }
+                }
+              ],
+              "paragraphStyle": {
+                "namedStyleType": "NORMAL_TEXT",
+                "direction": "LEFT_TO_RIGHT"
+              }
+            }
+          }
+        ]
+      },
+      "headers": null,
+      "footers": null,
+      "footnotes": null,
+      "documentStyle": {
+        "background": {
+          "color": {}
+        },
+        "pageNumberStart": 1,
+        "marginTop": {
+          "magnitude": 50.4,
+          "unit": "PT"
+        },
+        "marginBottom": {
+          "magnitude": 50.4,
+          "unit": "PT"
+        },
+        "marginRight": {
+          "magnitude": 54,
+          "unit": "PT"
+        },
+        "marginLeft": {
+          "magnitude": 54,
+          "unit": "PT"
+        },
+        "pageSize": {
+          "height": {
+            "magnitude": 792,
+            "unit": "PT"
+          },
+          "width": {
+            "magnitude": 612,
+            "unit": "PT"
+          }
+        },
+        "marginHeader": {
+          "magnitude": 36,
+          "unit": "PT"
+        },
+        "marginFooter": {
+          "magnitude": 36,
+          "unit": "PT"
+        },
+        "useCustomHeaderFooterMargins": true,
+        "documentFormat": {
+          "documentMode": "PAGES"
+        }
+      },
+      "suggestedDocumentStyleChanges": null,
+      "namedStyles": {
+        "styles": [
+          {
+            "namedStyleType": "NORMAL_TEXT",
+            "textStyle": {
+              "bold": false,
+              "italic": false,
+              "underline": false,
+              "strikethrough": false,
+              "smallCaps": false,
+              "backgroundColor": {},
+              "foregroundColor": {
+                "color": {
+                  "rgbColor": {}
+                }
+              },
+              "fontSize": {
+                "magnitude": 11,
+                "unit": "PT"
+              },
+              "weightedFontFamily": {
+                "fontFamily": "Calibri",
+                "weight": 400
+              },
+              "baselineOffset": "NONE"
+            },
+            "paragraphStyle": {
+              "namedStyleType": "NORMAL_TEXT",
+              "alignment": "START",
+              "lineSpacing": 105.83333,
+              "direction": "LEFT_TO_RIGHT",
+              "spacingMode": "NEVER_COLLAPSE",
+              "spaceAbove": {
+                "unit": "PT"
+              },
+              "spaceBelow": {
+                "magnitude": 7,
+                "unit": "PT"
+              },
+              "borderBetween": {
+                "color": {},
+                "width": {
+                  "unit": "PT"
+                },
+                "padding": {
+                  "unit": "PT"
+                },
+                "dashStyle": "SOLID"
+              },
+              "borderTop": {
+                "color": {},
+                "width": {
+                  "unit": "PT"
+                },
+                "padding": {
+                  "unit": "PT"
+                },
+                "dashStyle": "SOLID"
+              },
+              "borderBottom": {
+                "color": {},
+                "width": {
+                  "unit": "PT"
+                },
+                "padding": {
+                  "unit": "PT"
+                },
+                "dashStyle": "SOLID"
+              },
+              "borderLeft": {
+                "color": {},
+                "width": {
+                  "unit": "PT"
+                },
+                "padding": {
+                  "unit": "PT"
+                },
+                "dashStyle": "SOLID"
+              },
+              "borderRight": {
+                "color": {},
+                "width": {
+                  "unit": "PT"
+                },
+                "padding": {
+                  "unit": "PT"
+                },
+                "dashStyle": "SOLID"
+              },
+              "indentFirstLine": {
+                "unit": "PT"
+              },
+              "indentStart": {
+                "unit": "PT"
+              },
+              "indentEnd": {
+                "unit": "PT"
+              },
+              "keepLinesTogether": false,
+              "keepWithNext": false,
+              "avoidWidowAndOrphan": true,
+              "shading": {
+                "backgroundColor": {}
+              },
+              "pageBreakBefore": false
+            }
+          },
+          {
+            "namedStyleType": "HEADING_1",
+            "textStyle": {
+              "bold": true,
+              "foregroundColor": {
+                "color": {
+                  "rgbColor": {}
+                }
+              },
+              "fontSize": {
+                "magnitude": 19,
+                "unit": "PT"
+              },
+              "weightedFontFamily": {
+                "fontFamily": "Calibri",
+                "weight": 400
+              }
+            },
+            "paragraphStyle": {
+              "namedStyleType": "NORMAL_TEXT",
+              "direction": "LEFT_TO_RIGHT",
+              "spaceAbove": {
+                "magnitude": 24,
+                "unit": "PT"
+              },
+              "spaceBelow": {
+                "magnitude": 10,
+                "unit": "PT"
+              },
+              "keepLinesTogether": true,
+              "keepWithNext": true
+            }
+          },
+          {
+            "namedStyleType": "HEADING_2",
+            "textStyle": {
+              "bold": true,
+              "foregroundColor": {
+                "color": {
+                  "rgbColor": {}
+                }
+              },
+              "fontSize": {
+                "magnitude": 12,
+                "unit": "PT"
+              },
+              "weightedFontFamily": {
+                "fontFamily": "Calibri",
+                "weight": 400
+              }
+            },
+            "paragraphStyle": {
+              "namedStyleType": "NORMAL_TEXT",
+              "direction": "LEFT_TO_RIGHT",
+              "spaceAbove": {
+                "magnitude": 11,
+                "unit": "PT"
+              },
+              "spaceBelow": {
+                "magnitude": 4,
+                "unit": "PT"
+              },
+              "keepLinesTogether": true,
+              "keepWithNext": true
+            }
+          },
+          {
+            "namedStyleType": "HEADING_3",
+            "textStyle": {
+              "bold": true,
+              "foregroundColor": {
+                "color": {
+                  "rgbColor": {
+                    "red": 0.30980393,
+                    "green": 0.5058824,
+                    "blue": 0.7411765
+                  }
+                }
+              },
+              "weightedFontFamily": {
+                "fontFamily": "Calibri",
+                "weight": 400
+              }
+            },
+            "paragraphStyle": {
+              "namedStyleType": "NORMAL_TEXT",
+              "direction": "LEFT_TO_RIGHT",
+              "spaceAbove": {
+                "magnitude": 10,
+                "unit": "PT"
+              },
+              "spaceBelow": {
+                "unit": "PT"
+              },
+              "keepLinesTogether": true,
+              "keepWithNext": true
+            }
+          },
+          {
+            "namedStyleType": "HEADING_4",
+            "textStyle": {
+              "bold": true,
+              "italic": true,
+              "foregroundColor": {
+                "color": {
+                  "rgbColor": {
+                    "red": 0.30980393,
+                    "green": 0.5058824,
+                    "blue": 0.7411765
+                  }
+                }
+              },
+              "weightedFontFamily": {
+                "fontFamily": "Calibri",
+                "weight": 400
+              }
+            },
+            "paragraphStyle": {
+              "namedStyleType": "NORMAL_TEXT",
+              "direction": "LEFT_TO_RIGHT",
+              "spaceAbove": {
+                "magnitude": 10,
+                "unit": "PT"
+              },
+              "spaceBelow": {
+                "unit": "PT"
+              },
+              "keepLinesTogether": true,
+              "keepWithNext": true
+            }
+          },
+          {
+            "namedStyleType": "HEADING_5",
+            "textStyle": {
+              "foregroundColor": {
+                "color": {
+                  "rgbColor": {
+                    "red": 0.14117648,
+                    "green": 0.24705882,
+                    "blue": 0.38039216
+                  }
+                }
+              },
+              "weightedFontFamily": {
+                "fontFamily": "Calibri",
+                "weight": 400
+              }
+            },
+            "paragraphStyle": {
+              "namedStyleType": "NORMAL_TEXT",
+              "direction": "LEFT_TO_RIGHT",
+              "spaceAbove": {
+                "magnitude": 10,
+                "unit": "PT"
+              },
+              "spaceBelow": {
+                "unit": "PT"
+              },
+              "keepLinesTogether": true,
+              "keepWithNext": true
+            }
+          },
+          {
+            "namedStyleType": "HEADING_6",
+            "textStyle": {
+              "italic": true,
+              "foregroundColor": {
+                "color": {
+                  "rgbColor": {
+                    "red": 0.14117648,
+                    "green": 0.24705882,
+                    "blue": 0.38039216
+                  }
+                }
+              },
+              "weightedFontFamily": {
+                "fontFamily": "Calibri",
+                "weight": 400
+              }
+            },
+            "paragraphStyle": {
+              "namedStyleType": "NORMAL_TEXT",
+              "direction": "LEFT_TO_RIGHT",
+              "spaceAbove": {
+                "magnitude": 10,
+                "unit": "PT"
+              },
+              "spaceBelow": {
+                "unit": "PT"
+              },
+              "keepLinesTogether": true,
+              "keepWithNext": true
+            }
+          },
+          {
+            "namedStyleType": "TITLE",
+            "textStyle": {
+              "foregroundColor": {
+                "color": {
+                  "rgbColor": {}
+                }
+              },
+              "fontSize": {
+                "magnitude": 23,
+                "unit": "PT"
+              },
+              "weightedFontFamily": {
+                "fontFamily": "Calibri",
+                "weight": 400
+              }
+            },
+            "paragraphStyle": {
+              "namedStyleType": "NORMAL_TEXT",
+              "lineSpacing": 100,
+              "direction": "LEFT_TO_RIGHT",
+              "spacingMode": "NEVER_COLLAPSE",
+              "spaceBelow": {
+                "magnitude": 12,
+                "unit": "PT"
+              }
+            }
+          },
+          {
+            "namedStyleType": "SUBTITLE",
+            "textStyle": {
+              "italic": true,
+              "foregroundColor": {
+                "color": {
+                  "rgbColor": {
+                    "red": 0.30980393,
+                    "green": 0.5058824,
+                    "blue": 0.7411765
+                  }
+                }
+              },
+              "fontSize": {
+                "magnitude": 12,
+                "unit": "PT"
+              },
+              "weightedFontFamily": {
+                "fontFamily": "Calibri",
+                "weight": 400
+              }
+            },
+            "paragraphStyle": {
+              "namedStyleType": "NORMAL_TEXT",
+              "direction": "LEFT_TO_RIGHT"
+            }
+          }
+        ]
+      },
+      "suggestedNamedStylesChanges": null,
+      "lists": {
+        "kix.iys8dqcp8vgm": {
+          "listProperties": {
+            "nestingLevels": [
+              {
+                "bulletAlignment": "START",
+                "glyphType": "DECIMAL",
+                "glyphFormat": "%0.",
+                "indentFirstLine": {
+                  "magnitude": 18,
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "magnitude": 36,
+                  "unit": "PT"
+                },
+                "textStyle": {
+                  "underline": false
+                },
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "ALPHA",
+                "glyphFormat": "%1.",
+                "indentFirstLine": {
+                  "magnitude": 54,
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "magnitude": 72,
+                  "unit": "PT"
+                },
+                "textStyle": {
+                  "underline": false
+                },
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "END",
+                "glyphType": "ROMAN",
+                "glyphFormat": "%2.",
+                "indentFirstLine": {
+                  "magnitude": 90,
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "magnitude": 108,
+                  "unit": "PT"
+                },
+                "textStyle": {
+                  "underline": false
+                },
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "DECIMAL",
+                "glyphFormat": "%3.",
+                "indentFirstLine": {
+                  "magnitude": 126,
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "magnitude": 144,
+                  "unit": "PT"
+                },
+                "textStyle": {
+                  "underline": false
+                },
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "ALPHA",
+                "glyphFormat": "%4.",
+                "indentFirstLine": {
+                  "magnitude": 162,
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "magnitude": 180,
+                  "unit": "PT"
+                },
+                "textStyle": {
+                  "underline": false
+                },
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "END",
+                "glyphType": "ROMAN",
+                "glyphFormat": "%5.",
+                "indentFirstLine": {
+                  "magnitude": 198,
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "magnitude": 216,
+                  "unit": "PT"
+                },
+                "textStyle": {
+                  "underline": false
+                },
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "DECIMAL",
+                "glyphFormat": "%6.",
+                "indentFirstLine": {
+                  "magnitude": 234,
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "magnitude": 252,
+                  "unit": "PT"
+                },
+                "textStyle": {
+                  "underline": false
+                },
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "ALPHA",
+                "glyphFormat": "%7.",
+                "indentFirstLine": {
+                  "magnitude": 270,
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "magnitude": 288,
+                  "unit": "PT"
+                },
+                "textStyle": {
+                  "underline": false
+                },
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "END",
+                "glyphType": "ROMAN",
+                "glyphFormat": "%8.",
+                "indentFirstLine": {
+                  "magnitude": 306,
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "magnitude": 324,
+                  "unit": "PT"
+                },
+                "textStyle": {
+                  "underline": false
+                },
+                "startNumber": 1
+              }
+            ]
+          }
+        },
+        "kix.list.1": {
+          "listProperties": {
+            "nestingLevels": [
+              {
+                "bulletAlignment": "START",
+                "glyphSymbol": "●",
+                "glyphFormat": "%0",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "magnitude": 18,
+                  "unit": "PT"
+                },
+                "textStyle": {
+                  "weightedFontFamily": {
+                    "fontFamily": "Noto Sans Symbols",
+                    "weight": 400
+                  }
+                },
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              }
+            ]
+          }
+        },
+        "kix.list.2": {
+          "listProperties": {
+            "nestingLevels": [
+              {
+                "bulletAlignment": "START",
+                "glyphSymbol": "●",
+                "glyphFormat": "%0",
+                "indentFirstLine": {
+                  "magnitude": 18,
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "magnitude": 36,
+                  "unit": "PT"
+                },
+                "textStyle": {
+                  "weightedFontFamily": {
+                    "fontFamily": "Noto Sans Symbols",
+                    "weight": 400
+                  }
+                },
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              }
+            ]
+          }
+        },
+        "kix.list.3": {
+          "listProperties": {
+            "nestingLevels": [
+              {
+                "bulletAlignment": "START",
+                "glyphSymbol": "●",
+                "glyphFormat": "%0",
+                "indentFirstLine": {
+                  "magnitude": 36,
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "magnitude": 54,
+                  "unit": "PT"
+                },
+                "textStyle": {
+                  "weightedFontFamily": {
+                    "fontFamily": "Noto Sans Symbols",
+                    "weight": 400
+                  }
+                },
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              }
+            ]
+          }
+        },
+        "kix.list.4": {
+          "listProperties": {
+            "nestingLevels": [
+              {
+                "bulletAlignment": "START",
+                "glyphSymbol": "●",
+                "glyphFormat": "%0",
+                "indentFirstLine": {
+                  "magnitude": 54,
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "magnitude": 72,
+                  "unit": "PT"
+                },
+                "textStyle": {
+                  "weightedFontFamily": {
+                    "fontFamily": "Noto Sans Symbols",
+                    "weight": 400
+                  }
+                },
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              }
+            ]
+          }
+        },
+        "kix.list.5": {
+          "listProperties": {
+            "nestingLevels": [
+              {
+                "bulletAlignment": "START",
+                "glyphType": "DECIMAL",
+                "glyphFormat": "%0.",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "magnitude": 18,
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              }
+            ]
+          }
+        },
+        "kix.list.6": {
+          "listProperties": {
+            "nestingLevels": [
+              {
+                "bulletAlignment": "START",
+                "glyphType": "DECIMAL",
+                "glyphFormat": "%0.",
+                "indentFirstLine": {
+                  "magnitude": 18,
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "magnitude": 36,
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              }
+            ]
+          }
+        },
+        "kix.list.7": {
+          "listProperties": {
+            "nestingLevels": [
+              {
+                "bulletAlignment": "START",
+                "glyphType": "DECIMAL",
+                "glyphFormat": "%0.",
+                "indentFirstLine": {
+                  "magnitude": 36,
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "magnitude": 54,
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              }
+            ]
+          }
+        },
+        "kix.list.8": {
+          "listProperties": {
+            "nestingLevels": [
+              {
+                "bulletAlignment": "START",
+                "glyphType": "DECIMAL",
+                "glyphFormat": "%0.",
+                "indentFirstLine": {
+                  "magnitude": 54,
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "magnitude": 72,
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              }
+            ]
+          }
+        },
+        "kix.list.9": {
+          "listProperties": {
+            "nestingLevels": [
+              {
+                "bulletAlignment": "START",
+                "glyphType": "DECIMAL",
+                "glyphFormat": "%0.",
+                "indentFirstLine": {
+                  "magnitude": 72,
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "magnitude": 90,
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              },
+              {
+                "bulletAlignment": "START",
+                "glyphType": "NONE",
+                "indentFirstLine": {
+                  "unit": "PT"
+                },
+                "indentStart": {
+                  "unit": "PT"
+                },
+                "textStyle": {},
+                "startNumber": 1
+              }
+            ]
+          }
+        }
+      },
+      "namedRanges": null,
+      "inlineObjects": {
+        "i.0": {
+          "objectId": "i.0",
+          "inlineObjectProperties": {
+            "embeddedObject": {
+              "imageProperties": {
+                "cropProperties": {}
+              },
+              "description": "A hypothetical editor sends revision A, Launch on Friday. The user changes the text to revision B, Launch on Monday, before A’s success reply returns. Storage holds A; B remains unsaved.",
+              "embeddedObjectBorder": {
+                "color": {
+                  "color": {
+                    "rgbColor": {}
+                  }
+                },
+                "width": {
+                  "unit": "PT"
+                },
+                "dashStyle": "SOLID",
+                "propertyState": "NOT_RENDERED"
+              },
+              "size": {
+                "height": {
+                  "magnitude": 238.73685039370076,
+                  "unit": "PT"
+                },
+                "width": {
+                  "magnitude": 504,
+                  "unit": "PT"
+                }
+              },
+              "marginTop": {
+                "unit": "PT"
+              },
+              "marginBottom": {
+                "unit": "PT"
+              },
+              "marginRight": {
+                "magnitude": 9,
+                "unit": "PT"
+              },
+              "marginLeft": {
+                "magnitude": 9,
+                "unit": "PT"
+              }
+            }
+          }
+        }
+      },
+      "positionedObjects": null,
+      "documentId": "1EN3yoimBSjVmpI--nyFGIUvS2_h6Hvbo4swTndR42gg",
+      "document_url": "https://docs.google.com/document/d/1EN3yoimBSjVmpI--nyFGIUvS2_h6Hvbo4swTndR42gg"
+    }
+  ],
+  "document_url": "https://docs.google.com/document/d/1EN3yoimBSjVmpI--nyFGIUvS2_h6Hvbo4swTndR42gg"
+}

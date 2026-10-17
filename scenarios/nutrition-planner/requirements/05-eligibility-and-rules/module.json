@@ -1,0 +1,123 @@
+{
+  "_metadata": {
+    "description": "Explainable, evidence-aware eligibility where required rules cannot be traded against preferences.",
+    "module": "eligibility-and-rules",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": false
+  },
+  "requirements": [
+    {
+      "id": "ELIG-001",
+      "title": "Required rules outrank every preference weight",
+      "status": "planned",
+      "prd_ref": "OT-P0-006",
+      "category": "domain",
+      "criticality": "P0",
+      "description": "The scenario shall enforce active food and allergen exclusions, viable equipment and method requirements, and explicit time or capacity constraints as required constraints that no cost, effort, or variety weight can overcome.",
+      "tags": [
+        "constraints",
+        "exclusions",
+        "preferences"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: FIX-06 keeps the soy tofu bowl, chicken salad, and stove-only soup ineligible at any weight vector, while the ready-to-eat lentil salad B and the interchangeably-instantiated bean bowl remain eligible (ACT-020)."
+        }
+      ]
+    },
+    {
+      "id": "ELIG-002",
+      "title": "Missing evidence yields needs-information",
+      "status": "planned",
+      "prd_ref": "OT-P0-006",
+      "category": "policy",
+      "criticality": "P0",
+      "description": "If allergen or diet evidence is unresolved for an active exclusion, then the scenario shall report Needs information instead of eligible, because an absent tag is unknown rather than proof of absence.",
+      "tags": [
+        "evidence",
+        "allergens",
+        "unknown"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: the FIX-06 lentil salad A with unresolved soy status is not automatically recommended, and an empty allergen list does not pass an active exclusion (ACT-004)."
+        }
+      ]
+    },
+    {
+      "id": "ELIG-003",
+      "title": "Every eligibility decision names its rule and remedy",
+      "status": "planned",
+      "prd_ref": "OT-P0-006",
+      "category": "service",
+      "criticality": "P0",
+      "description": "The scenario shall return structured eligibility reasons that name the rule, the affected reference, the viable method IDs, the profile and recipe revisions, and the evaluator version, so a cached result can be invalidated and a user can see a concrete remedy.",
+      "tags": [
+        "explainability",
+        "revisions",
+        "eligibility"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: changing a profile, product composition, or preparation method changes the assessment without changing the recipe name, and excluded alternatives are inspectable but never selectable as compliant."
+        }
+      ]
+    },
+    {
+      "id": "ELIG-004",
+      "title": "Locks and history cannot mask a rule conflict",
+      "status": "planned",
+      "prd_ref": "OT-P0-006",
+      "category": "policy",
+      "criticality": "P0",
+      "description": "When a new required rule conflicts with a future locked occurrence, the scenario shall return a conflict that asks the user to replace or unlock it, shall not continue to display it as compliant, and shall leave already-recorded consumption unchanged as history.",
+      "tags": [
+        "locks",
+        "conflict",
+        "history"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: adding a soy exclusion to a plan with a locked soy dinner surfaces the conflict and a repair preview replaces only explicitly selected future occurrences; past intake is untouched (ACT-007)."
+        }
+      ]
+    },
+    {
+      "id": "ELIG-005",
+      "title": "One eligibility input serves every recommendation path",
+      "status": "planned",
+      "prd_ref": "OT-P0-006",
+      "category": "service",
+      "criticality": "P0",
+      "description": "The scenario shall build eligibility input from the complete active profile, including preset rules, explicit excluded groups, allergies, and equipment, in one shared builder used by planning, swap, Explore, and onboarding counts, so no recommendation path applies weaker restrictions.",
+      "tags": [
+        "eligibility",
+        "consistency",
+        "explore",
+        "planning"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: a profile exclusion present only in excluded groups blocks the same candidate in planning, swap, Explore, and the onboarding count (blocker B7 in docs/internal/REDESIGN_PLAN.md §3.2, AT-019)."
+        }
+      ]
+    }
+  ]
+}

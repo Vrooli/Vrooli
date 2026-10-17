@@ -1,0 +1,33 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {},
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Raised record"
+        }
+      ],
+      "id": "raised-records",
+      "mode": "pinned",
+      "name": "Raised records",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "RaisedRecords"
+        }
+      },
+      "role": "anatomy"
+    },
+    {"id":"empty","name":"Empty grid","args":{"items":[]},"expect":[{"kind":"text","value":"Raised record"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Many grid cards","args":{},"expect":[{"kind":"text","value":"Raised record"}],"role":"boundary","mode":"pinned"}
+  ],
+  "title": "Card Grid"
+}

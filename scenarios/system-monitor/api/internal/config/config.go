@@ -1,4 +1,5 @@
 package config
+
 // DOC: docs/reference/configuration.md
 
 import (
@@ -51,12 +52,24 @@ type MonitoringConfig struct {
 	RetentionDays     int
 	EnableAutoResolve bool
 	MaxInvestigations int
+
+	// ProcSampleInterval is the cadence of the per-process /proc sampler that
+	// feeds the attribution timeline (SYSTEM_MONITOR_PROC_SAMPLE_INTERVAL).
+	ProcSampleInterval time.Duration
+	// ProcSampleTopN caps how many ranked processes are persisted per cycle;
+	// the rest are dropped and logged (SYSTEM_MONITOR_PROC_SAMPLE_TOP_N).
+	ProcSampleTopN int
+	// RawRetention is how long raw per-process rows are kept before they are
+	// downsampled into per-minute rollups (SYSTEM_MONITOR_RAW_RETENTION).
+	RawRetention time.Duration
+	// RollupRetention is how long per-minute rollups are kept
+	// (SYSTEM_MONITOR_ROLLUP_RETENTION).
+	RollupRetention time.Duration
 }
 
 // ResourcesConfig contains resource service configurations
 type ResourcesConfig struct {
 	NodeRedURL string
-	OllamaURL  string
 	GrafanaURL string
 }
 
@@ -112,17 +125,21 @@ func Load() *Config {
 			APIBaseURL:  getEnv("API_BASE_URL", ""),
 		},
 		Monitoring: MonitoringConfig{
-			MetricsInterval:   time.Duration(getEnvAsInt("METRICS_INTERVAL_SECONDS", 10)) * time.Second,
+			MetricsInterval:   time.Duration(getEnvAsInt("METRICS_INTERVAL_SECONDS", 20)) * time.Second,
 			AnomalyInterval:   time.Duration(getEnvAsInt("ANOMALY_INTERVAL_SECONDS", 30)) * time.Second,
 			ReportInterval:    time.Duration(getEnvAsInt("REPORT_INTERVAL_HOURS", 1)) * time.Hour,
 			ThresholdInterval: time.Duration(getEnvAsInt("THRESHOLD_INTERVAL_SECONDS", 20)) * time.Second,
 			RetentionDays:     getEnvAsInt("RETENTION_DAYS", 30),
 			EnableAutoResolve: getEnvAsBool("ENABLE_AUTO_RESOLVE", false),
 			MaxInvestigations: getEnvAsInt("MAX_INVESTIGATIONS", 100),
+
+			ProcSampleInterval: getEnvAsDuration("SYSTEM_MONITOR_PROC_SAMPLE_INTERVAL", 20*time.Second),
+			ProcSampleTopN:     getEnvAsInt("SYSTEM_MONITOR_PROC_SAMPLE_TOP_N", 50),
+			RawRetention:       getEnvAsDuration("SYSTEM_MONITOR_RAW_RETENTION", 6*time.Hour),
+			RollupRetention:    getEnvAsDuration("SYSTEM_MONITOR_ROLLUP_RETENTION", 30*24*time.Hour),
 		},
 		Resources: ResourcesConfig{
-			NodeRedURL: getEnv("NODE_RED_URL", "http://localhost:1880"),
-			OllamaURL:  getEnv("OLLAMA_URL", "http://localhost:11434"),
+			NodeRedURL: getEnv("NODE_RED_URL", ""),
 			GrafanaURL: getEnv("GRAFANA_URL", "http://localhost:3004"),
 		},
 		Alerts: AlertConfig{
@@ -160,7 +177,7 @@ func Load() *Config {
 	}
 
 	if cfg.AgentManager.ProfileKey == "" {
-		cfg.AgentManager.ProfileKey = cfg.AgentManager.ProfileName
+		cfg.AgentManager.ProfileKey = "system-monitor/default"
 	}
 
 	if cfg.Server.APIBaseURL == "" {
@@ -180,7 +197,7 @@ func (c *Config) validate() {
 
 	// Validate monitoring intervals
 	if c.Monitoring.MetricsInterval < time.Second {
-		c.Monitoring.MetricsInterval = 10 * time.Second
+		c.Monitoring.MetricsInterval = 20 * time.Second
 	}
 	if c.Monitoring.AnomalyInterval < time.Second {
 		c.Monitoring.AnomalyInterval = 30 * time.Second
@@ -241,6 +258,21 @@ func getEnvAsInt(key string, defaultValue int) int {
 	value, err := strconv.Atoi(strValue)
 	if err != nil {
 		log.Printf("Warning: Invalid integer value for %s: %s, using default: %d", key, strValue, defaultValue)
+		return defaultValue
+	}
+	return value
+}
+
+// getEnvAsDuration parses a Go duration string (e.g. "20s", "6h", "30d" is NOT
+// valid Go — use "720h"). Falls back to defaultValue on empty or invalid input.
+func getEnvAsDuration(key string, defaultValue time.Duration) time.Duration {
+	strValue := getEnv(key, "")
+	if strValue == "" {
+		return defaultValue
+	}
+	value, err := time.ParseDuration(strValue)
+	if err != nil || value <= 0 {
+		log.Printf("Warning: Invalid duration value for %s: %s, using default: %s", key, strValue, defaultValue)
 		return defaultValue
 	}
 	return value

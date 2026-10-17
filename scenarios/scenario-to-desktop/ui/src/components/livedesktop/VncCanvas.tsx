@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from "react";
-import RFB from "@novnc/novnc/lib/rfb";
+import RFB from "@novnc/novnc";
 import { useLiveDesktopStore } from "../../store/liveDesktopStore";
 import { buildVncWsUrl } from "../../lib/api/livedesktop";
 
@@ -38,17 +38,23 @@ export function VncCanvas({ sessionId }: VncCanvasProps) {
         setConnectionStatus("connected");
       });
 
-      rfb.addEventListener("disconnect", (e: CustomEvent<{ clean: boolean }>) => {
-        if (e.detail?.clean) {
-          setConnectionStatus("disconnected");
-        } else {
-          setError("VNC connection lost");
-        }
-      });
+      rfb.addEventListener(
+        "disconnect",
+        (e: CustomEvent<{ clean: boolean }>) => {
+          if (e.detail.clean) {
+            setConnectionStatus("disconnected");
+          } else {
+            setError("VNC connection lost");
+          }
+        },
+      );
 
-      rfb.addEventListener("securityfailure", (e: CustomEvent<{ reason?: string }>) => {
-        setError(`VNC security error: ${e.detail?.reason ?? "unknown"}`);
-      });
+      rfb.addEventListener(
+        "securityfailure",
+        (e: CustomEvent<{ reason?: string }>) => {
+          setError(`VNC security error: ${e.detail.reason ?? "unknown"}`);
+        },
+      );
 
       // Re-scale when container resizes (e.g. fullscreen toggle)
       const observer = new ResizeObserver(() => {

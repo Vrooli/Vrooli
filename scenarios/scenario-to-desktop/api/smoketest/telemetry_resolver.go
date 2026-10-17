@@ -9,13 +9,13 @@ import (
 
 // DefaultTelemetryPathResolver implements TelemetryPathResolver.
 type DefaultTelemetryPathResolver struct {
-	config    Config
+	config    SmokeTestConfig
 	envReader EnvironmentReader
 	fs        FileSystem
 }
 
 // NewTelemetryPathResolver creates a new telemetry path resolver.
-func NewTelemetryPathResolver(config Config, envReader EnvironmentReader, fs FileSystem) *DefaultTelemetryPathResolver {
+func NewTelemetryPathResolver(config SmokeTestConfig, envReader EnvironmentReader, fs FileSystem) *DefaultTelemetryPathResolver {
 	return &DefaultTelemetryPathResolver{
 		config:    config,
 		envReader: envReader,

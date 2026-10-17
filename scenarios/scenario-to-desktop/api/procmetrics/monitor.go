@@ -27,6 +27,7 @@ const (
 // DefaultMonitor implements Monitor using ProcReader and WindowDetector.
 type DefaultMonitor struct {
 	proc   ProcReader
+	tree   ProcessTreeReader
 	window WindowDetector
 	logger *slog.Logger
 
@@ -38,18 +39,34 @@ type DefaultMonitor struct {
 	stopped bool
 
 	// Previous sample state for CPU delta calculation.
-	prevUtime   int64
-	prevStime   int64
-	prevSampleT time.Time
+	prevUtime          int64
+	prevStime          int64
+	prevSampleT        time.Time
+	treePrev           map[int]int64
+	treeAt             time.Time
+	treeStartedAt      time.Time
+	treeSeen           map[ProcessRole]map[int]struct{}
+	treeCPUAccum       map[ProcessRole]float64
+	treeCPUSamples     map[ProcessRole]int
+	processTreeOptions ProcessTreeOptions
 }
 
 // NewDefaultMonitor creates a monitor with the given dependencies.
 func NewDefaultMonitor(proc ProcReader, window WindowDetector, logger *slog.Logger) *DefaultMonitor {
+	return NewDefaultMonitorWithTree(proc, nil, window, logger)
+}
+
+func NewDefaultMonitorWithTree(proc ProcReader, tree ProcessTreeReader, window WindowDetector, logger *slog.Logger) *DefaultMonitor {
 	return &DefaultMonitor{
-		proc:   proc,
-		window: window,
-		logger: logger,
-		done:   make(chan struct{}),
+		proc:           proc,
+		tree:           tree,
+		window:         window,
+		logger:         logger,
+		done:           make(chan struct{}),
+		treePrev:       make(map[int]int64),
+		treeSeen:       make(map[ProcessRole]map[int]struct{}),
+		treeCPUAccum:   make(map[ProcessRole]float64),
+		treeCPUSamples: make(map[ProcessRole]int),
 	}
 }
 
@@ -66,6 +83,8 @@ func (m *DefaultMonitor) Start(ctx context.Context, pid int, display string, exp
 
 	ctx, m.cancel = context.WithCancel(ctx)
 	m.report.Startup.LaunchAt = time.Now()
+	m.report.ProcessTree = newProcessTreeReport(m.tree != nil)
+	m.collectTreeSample(pid)
 
 	var wg sync.WaitGroup
 	wg.Add(2)
@@ -112,12 +131,19 @@ func (m *DefaultMonitor) Report() *Report {
 
 	// Return a snapshot copy
 	r := Report{
-		Startup: m.report.Startup,
-		Summary: m.report.Summary,
+		Startup:     m.report.Startup,
+		Summary:     m.report.Summary,
+		ProcessTree: m.report.ProcessTree,
 	}
 	if len(m.report.Samples) > 0 {
 		r.Samples = make([]Sample, len(m.report.Samples))
 		copy(r.Samples, m.report.Samples)
+	}
+	if m.report.ProcessTree != nil {
+		r.ProcessTree = &ProcessTreeReport{Supported: m.report.ProcessTree.Supported, Scope: m.report.ProcessTree.Scope, Roles: make(map[ProcessRole]RoleSummary, len(m.report.ProcessTree.Roles))}
+		for role, summary := range m.report.ProcessTree.Roles {
+			r.ProcessTree.Roles[role] = summary
+		}
 	}
 	return &r
 }
@@ -129,14 +155,32 @@ func (m *DefaultMonitor) Done() <-chan struct{} {
 
 // pollResources samples /proc stats at regular intervals.
 func (m *DefaultMonitor) pollResources(ctx context.Context, pid int) {
-	// Take an initial baseline reading for CPU delta calculation.
-	utime, stime, err := m.proc.ReadStat(pid)
-	if err == nil {
-		m.prevUtime = utime
-		m.prevStime = stime
-		m.prevSampleT = time.Now()
+	samplePID := pid
+	identity, hasIdentity := m.tree.(ProcessIdentityReader)
+	if hasIdentity {
+		samplePID = 0 // the launcher is not an app-resource sample
 	}
-
+	setBaseline := func(candidate int) {
+		utime, stime, err := m.proc.ReadStat(candidate)
+		if err == nil {
+			m.prevUtime = utime
+			m.prevStime = stime
+			m.prevSampleT = time.Now()
+		}
+	}
+	if !hasIdentity {
+		setBaseline(samplePID)
+	}
+	// Record a t0 sample so short-lived launches still have a truthful sample
+	// series and duration. The first CPU value remains zero because it has no
+	// prior interval.
+	if !hasIdentity {
+		if sample := m.collectSample(samplePID); sample != nil {
+			m.mu.Lock()
+			m.report.Samples = append(m.report.Samples, *sample)
+			m.mu.Unlock()
+		}
+	}
 	ticker := time.NewTicker(resourcePollInterval)
 	defer ticker.Stop()
 
@@ -145,16 +189,28 @@ func (m *DefaultMonitor) pollResources(ctx context.Context, pid int) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			if !m.proc.IsAlive(pid) {
+			if hasIdentity {
+				if resolved, err := identity.ApplicationPID(pid, m.processTreeOptions); err == nil && resolved != 0 {
+					samplePID = resolved
+					if m.prevSampleT.IsZero() {
+						setBaseline(samplePID)
+					}
+				}
+			}
+			if samplePID == 0 {
+				continue
+			}
+			if !m.proc.IsAlive(samplePID) {
 				return
 			}
 
-			sample := m.collectSample(pid)
+			sample := m.collectSample(samplePID)
 			if sample != nil {
 				m.mu.Lock()
 				m.report.Samples = append(m.report.Samples, *sample)
 				m.mu.Unlock()
 			}
+			m.collectTreeSample(pid)
 		}
 	}
 }
@@ -194,6 +250,103 @@ func (m *DefaultMonitor) collectSample(pid int) *Sample {
 		PeakBytes:  peakBytes,
 		Threads:    threads,
 	}
+}
+
+func newProcessTreeReport(supported bool) *ProcessTreeReport {
+	result := &ProcessTreeReport{Supported: supported, Scope: "unavailable", Roles: make(map[ProcessRole]RoleSummary)}
+	if supported {
+		result.Scope = "linux:/proc"
+	}
+	for _, role := range []ProcessRole{RoleElectronMain, RoleElectronRender, RoleElectronGPU, RoleElectronUtility, RoleElectronCrashpad, RoleBundledRuntime, RoleScenarioService, RoleLauncher} {
+		result.Roles[role] = RoleSummary{Role: role, Unsupported: !supported}
+	}
+	return result
+}
+
+func (m *DefaultMonitor) collectTreeSample(rootPID int) {
+	if m.tree == nil {
+		return
+	}
+	var processes []ProcessInfo
+	var err error
+	if reader, ok := m.tree.(ProcessTreeReaderWithOptions); ok {
+		processes, err = reader.ProcessTreeWithOptions(rootPID, m.processTreeOptions)
+	} else {
+		processes, err = m.tree.ProcessTree(rootPID)
+	}
+	if err != nil {
+		m.logger.Debug("process tree unavailable", "pid", rootPID, "error", err)
+		return
+	}
+	now := time.Now()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.report.ProcessTree == nil {
+		m.report.ProcessTree = newProcessTreeReport(true)
+	}
+	if m.treeStartedAt.IsZero() {
+		m.treeStartedAt = now
+	}
+	currentRSS := make(map[ProcessRole]int64)
+	currentThreads := make(map[ProcessRole]int)
+	currentCPU := make(map[ProcessRole]float64)
+	currentCPUSamples := make(map[ProcessRole]int)
+	for _, process := range processes {
+		role := process.Role
+		if role == "" {
+			role = RoleUnknown
+		}
+		if m.treeSeen[role] == nil {
+			m.treeSeen[role] = make(map[int]struct{})
+		}
+		summary := m.report.ProcessTree.Roles[role]
+		summary.Role = role
+		summary.Available = true
+		summary.Unsupported = false
+		if _, seen := m.treeSeen[role][process.PID]; !seen {
+			m.treeSeen[role][process.PID] = struct{}{}
+			summary.ProcessCount++
+		}
+		currentRSS[role] += process.RSSBytes
+		currentThreads[role] += process.Threads
+		if previous, ok := m.treePrev[process.PID]; ok {
+			elapsed := now.Sub(m.treeAt).Seconds()
+			if elapsed > 0 {
+				cpu := float64(process.CPUJiffies-previous) / float64(clockTicksPerSec) / elapsed * 100
+				if cpu >= 0 {
+					currentCPU[role] += cpu
+					currentCPUSamples[role]++
+				}
+			}
+		}
+		m.treePrev[process.PID] = process.CPUJiffies
+		m.report.ProcessTree.Roles[role] = summary
+	}
+	for role, rss := range currentRSS {
+		summary := m.report.ProcessTree.Roles[role]
+		summary.RSSBytes = rss
+		if rss > summary.PeakRSSBytes {
+			summary.PeakRSSBytes = rss
+		}
+		summary.Threads = currentThreads[role]
+		summary.SampleCount++
+		if samples := currentCPUSamples[role]; samples > 0 {
+			m.treeCPUAccum[role] += currentCPU[role]
+			m.treeCPUSamples[role] += samples
+			summary.CPUPercent = m.treeCPUAccum[role] / float64(m.treeCPUSamples[role])
+			if current := currentCPU[role] / float64(samples); current > summary.PeakCPU {
+				summary.PeakCPU = current
+			}
+		}
+		m.report.ProcessTree.Roles[role] = summary
+	}
+	if !m.treeStartedAt.IsZero() {
+		for role, summary := range m.report.ProcessTree.Roles {
+			summary.DurationMs = now.Sub(m.treeStartedAt).Milliseconds()
+			m.report.ProcessTree.Roles[role] = summary
+		}
+	}
+	m.treeAt = now
 }
 
 // detectWindow polls for visible X11 windows in two phases:

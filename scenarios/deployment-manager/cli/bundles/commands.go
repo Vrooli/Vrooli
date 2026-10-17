@@ -10,6 +10,7 @@ import (
 
 	"deployment-manager/cli/cmdutil"
 
+	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
 )
 
@@ -184,10 +185,19 @@ Examples:
 		if err := os.WriteFile(*output, prettyManifest, 0o644); err != nil {
 			return fmt.Errorf("failed to write file: %w", err)
 		}
-		fmt.Printf("Bundle manifest assembled and written to %s\n", *output)
-		fmt.Printf("  Schema: %s\n", resp.Schema)
-		fmt.Printf("  Status: %s\n", resp.Status)
-		return nil
+		return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{
+			Result: []string{
+				fmt.Sprintf("Bundle manifest assembled to %s", *output),
+			},
+			Changes: []string{
+				fmt.Sprintf("Scenario: %s", scenario),
+				fmt.Sprintf("Schema: %s", resp.Schema),
+				fmt.Sprintf("Status: %s", resp.Status),
+			},
+			NextCommand: []string{
+				fmt.Sprintf("deployment-manager bundle validate %s", *output),
+			},
+		})
 	}
 
 	cmdutil.PrintByFormat(*format, body)
@@ -289,13 +299,21 @@ Examples:
 		if err := os.WriteFile(*output, prettyManifest, 0o644); err != nil {
 			return fmt.Errorf("failed to write file: %w", err)
 		}
-		fmt.Printf("Bundle manifest exported to %s\n", *output)
-		fmt.Printf("  Scenario:    %s\n", resp.Scenario)
-		fmt.Printf("  Tier:        %s\n", resp.Tier)
-		fmt.Printf("  Schema:      %s\n", resp.Schema)
-		fmt.Printf("  Checksum:    %s\n", resp.Checksum)
-		fmt.Printf("  Generated:   %s\n", resp.GeneratedAt)
-		return nil
+		return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{
+			Result: []string{
+				fmt.Sprintf("Bundle manifest exported to %s", *output),
+			},
+			Changes: []string{
+				fmt.Sprintf("Scenario: %s", resp.Scenario),
+				fmt.Sprintf("Tier: %s", resp.Tier),
+				fmt.Sprintf("Schema: %s", resp.Schema),
+				fmt.Sprintf("Checksum: %s", resp.Checksum),
+				fmt.Sprintf("Generated: %s", resp.GeneratedAt),
+			},
+			NextCommand: []string{
+				fmt.Sprintf("deployment-manager bundle validate %s", *output),
+			},
+		})
 	}
 
 	// Output manifest only (for piping)
@@ -375,9 +393,16 @@ Examples:
 	if strings.ToLower(cmdutil.ResolveFormat(*format)) == "json" {
 		cmdutil.PrintByFormat(*format, body)
 	} else {
-		fmt.Printf("Manifest is valid\n")
-		fmt.Printf("  File:   %s\n", filePath)
-		fmt.Printf("  Schema: %s\n", resp.Schema)
+		return cliapp.RenderOperationalReport(os.Stdout, cliapp.OperationalReport{
+			Status: []string{
+				"Manifest validation: valid",
+				fmt.Sprintf("File: %s", filePath),
+				fmt.Sprintf("Schema: %s", resp.Schema),
+			},
+			NextSteps: []string{
+				fmt.Sprintf("deployment-manager bundle export <scenario> --output %s", filePath),
+			},
+		})
 	}
 	return nil
 }

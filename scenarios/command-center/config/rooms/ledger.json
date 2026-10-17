@@ -1,0 +1,74 @@
+{
+  "id": "ledger",
+  "title": "Ledger",
+  "category": "ledger",
+  "theme": "vault",
+  "composition": "ledger-river",
+  "metricIds": [
+    "revenue_mrr",
+    "revenue_rollup",
+    "subscriber_counts",
+    "new_paid_subscriptions_30d",
+    "churn",
+    "credit_balances",
+    "credit_burn_by_app",
+    "credit_burn_by_model",
+    "credits_purchased_30d",
+    "credits_burned_30d",
+    "usage_operations_30d",
+    "offer_posture",
+    "ai_cost_30d",
+    "credit_margin_30d",
+    "revenue_by_line"
+  ],
+  "beats": [
+    {
+      "hero": "revenue_mrr",
+      "readingIds": [
+        "revenue_mrr",
+        "revenue_rollup",
+        "subscriber_counts",
+        "new_paid_subscriptions_30d",
+        "churn"
+      ],
+      "dwellSeconds": 12
+    },
+    {
+      "hero": "credit_burn_by_app",
+      "readingIds": [
+        "credit_burn_by_app",
+        "credit_burn_by_model",
+        "credits_purchased_30d",
+        "credits_burned_30d",
+        "credit_balances",
+        "usage_operations_30d"
+      ],
+      "dwellSeconds": 12
+    },
+    {
+      "hero": "credit_margin_30d",
+      "readingIds": [
+        "credit_margin_30d",
+        "ai_cost_30d",
+        "revenue_by_line",
+        "credit_burn_by_app",
+        "credit_burn_by_model"
+      ],
+      "dwellSeconds": 12
+    },
+    {
+      "hero": "offer_posture",
+      "readingIds": [
+        "offer_posture",
+        "revenue_mrr",
+        "revenue_rollup",
+        "ai_cost_30d",
+        "credit_margin_30d"
+      ],
+      "dwellSeconds": 14
+    }
+  ],
+  "bind": {
+    "posture": "offer_posture"
+  }
+}

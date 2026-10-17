@@ -1,0 +1,69 @@
+syntax = "proto3";
+
+package vrooli.personal_planner.v1.work;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/personal-planner/v1/work;work_v1";
+
+// Work is the first product-owned domain for Personal Planner. It owns the
+// units of effort that Today can recommend; scheduling and capacity remain
+// separate domains and are not implied by this contract.
+service WorkService {
+  rpc ListWorkItems(ListWorkItemsRequest) returns (ListWorkItemsResponse);
+  rpc CreateWorkItem(CreateWorkItemRequest) returns (CreateWorkItemResponse);
+  rpc GetWorkItem(GetWorkItemRequest) returns (GetWorkItemResponse);
+  rpc GetTodayPlan(GetTodayPlanRequest) returns (GetTodayPlanResponse);
+}
+
+message WorkItem {
+  string id = 1;
+  string title = 2;
+  string description = 3;
+  int32 remaining_minutes = 4;
+  string source_label = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
+}
+
+message ListWorkItemsRequest {}
+
+message ListWorkItemsResponse {
+  repeated WorkItem work_items = 1;
+}
+
+message CreateWorkItemRequest {
+  string title = 1;
+  string description = 2;
+  int32 remaining_minutes = 3;
+  string source_label = 4;
+}
+
+message CreateWorkItemResponse {
+  WorkItem work_item = 1;
+}
+
+message GetWorkItemRequest {
+  string id = 1;
+}
+
+message GetWorkItemResponse {
+  WorkItem work_item = 1;
+}
+
+message GetTodayPlanRequest {}
+
+message TodayPlanEntry {
+  string work_item_id = 1;
+  string title = 2;
+  string source_label = 3;
+  int32 start_minutes = 4;
+  int32 duration_minutes = 5;
+}
+
+message GetTodayPlanResponse {
+  repeated TodayPlanEntry entries = 1;
+  int32 planned_minutes = 2;
+  int32 available_minutes = 3;
+  int32 breathing_room_minutes = 4;
+}

@@ -1,0 +1,83 @@
+syntax = "proto3";
+
+package vrooli.tunnel_manager.v1.tunnel;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/tunnel-manager/v1/tunnel;tunnel_v1";
+
+// =============================================================================
+// TUNNEL DOMAIN — tunnel health & metrics
+// =============================================================================
+//
+// @stability stable
+//
+// Wire contract for TunnelService. Reads cloudflared systemd status + /ready,
+// scrapes the Prometheus endpoint into a metrics time-series, and detects
+// degraded mode (HA connections < 4 or RTT spikes). Recovery and operators
+// need a truthful tunnel-wide health signal distinct from per-route probes.
+//
+// Consumed by:
+//   - API: handlers/tunnel/connect_handler.go implements TunnelServiceHandler.
+//   - CLI: cli/domains/tunnel/handlers.go (status).
+//   - UI:  ui/src/features/metrics/ (and the Overview header).
+// =============================================================================
+
+service TunnelService {
+  // GetStatus returns the current composite tunnel health.
+  rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
+  // ListMetrics returns scraped metrics samples within a time window.
+  rpc ListMetrics(ListMetricsRequest) returns (ListMetricsResponse);
+  // Scrape forces one Prometheus scrape and persists the sample.
+  rpc Scrape(ScrapeRequest) returns (ScrapeResponse);
+}
+
+// TunnelStatus is the composite health snapshot.
+message TunnelStatus {
+  // "healthy", "degraded", or "unhealthy".
+  string status = 1;
+  // systemd unit state (e.g., "active").
+  string systemd = 2;
+  // cloudflared /ready probe result (e.g., "ok").
+  string ready = 3;
+  // /ready probe latency in milliseconds.
+  int32 ready_latency_ms = 4;
+  // Composite 0-100 health score.
+  int32 score = 5;
+  // Human-readable detail; empty when healthy.
+  string message = 6;
+  google.protobuf.Timestamp checked_at = 7;
+}
+
+// MetricsSample is one scraped Prometheus sample.
+message MetricsSample {
+  string id = 1;
+  int32 ha_connections = 2;
+  double request_errors = 3;
+  int32 active_streams = 4;
+  double smoothed_rtt_ms = 5;
+  google.protobuf.Timestamp scraped_at = 6;
+}
+
+message GetStatusRequest {}
+
+message GetStatusResponse {
+  TunnelStatus status = 1;
+  // Most recent metrics sample, if any.
+  MetricsSample latest_metrics = 2;
+}
+
+message ListMetricsRequest {
+  google.protobuf.Timestamp from = 1;
+  google.protobuf.Timestamp to = 2;
+}
+
+message ListMetricsResponse {
+  repeated MetricsSample samples = 1;
+}
+
+message ScrapeRequest {}
+
+message ScrapeResponse {
+  MetricsSample sample = 1;
+}

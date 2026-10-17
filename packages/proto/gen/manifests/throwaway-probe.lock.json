@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "scenario": "throwaway-probe",
+  "input_digest": "sha256:249799f03e1a779ca14655b151f6ad592eb91d377982303f92489f5b66479c76",
+  "input_files": [
+    "schemas/measures/v1/measures.proto",
+    "schemas/throwaway-probe/v1/notes/attachments.proto",
+    "schemas/throwaway-probe/v1/notes/notes.proto",
+    "schemas/throwaway-probe/v1/shared/errors.proto",
+    "schemas/throwaway-probe/v1/shared/health.proto",
+    "vendor/protovalidate/buf/validate/validate.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/throwaway-probe/v1/notes/attachments.pb.go": "sha256:d0e2262904de9ea2747aac8e5c47633bd28312adc5bc048d5b3c6ed1265c119e",
+    "gen/go/throwaway-probe/v1/notes/notes.pb.go": "sha256:d35c649fff4e4ec087392f943f0def67b4ab6ecd7685da4356538145df85284a",
+    "gen/go/throwaway-probe/v1/notes/notes_v1connect/notes.connect.go": "sha256:fe49b6d8c03ce25df0933a16f406283325fbf792f184da38a9c1154b946c0cb1",
+    "gen/go/throwaway-probe/v1/shared/errors.pb.go": "sha256:8f1341dc02c040bf691e16695dc04bb9870d4ce99090225e60824e959260f4d5",
+    "gen/go/throwaway-probe/v1/shared/health.pb.go": "sha256:7efbf2e32494286a3e3dab80c4b68e8be3c4447284e5053be74f9a18c57e8f1c",
+    "gen/python/throwaway_probe/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/throwaway_probe/v1/notes/attachments_pb2.py": "sha256:369af8939970fa7807acb8b9c22ce41dce7a81be01b27f1748f29b9192e8e174",
+    "gen/python/throwaway_probe/v1/notes/attachments_pb2.pyi": "sha256:5594188beec26dac8bb0ab7d1ece27e28d425bc57b7544c9e509610cbb5e37fa",
+    "gen/python/throwaway_probe/v1/notes/notes_pb2.py": "sha256:83c39bae48e54d1274cb7ea6d9b6a2bcd572a91727a7ee7ce4b295518ee5c0df",
+    "gen/python/throwaway_probe/v1/notes/notes_pb2.pyi": "sha256:359aac5d47799ae41e88608988e03caee63bd56ec270e6b9959e4bcd3b139386",
+    "gen/python/throwaway_probe/v1/notes/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/throwaway_probe/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/throwaway_probe/v1/shared/errors_pb2.py": "sha256:41a621513807a4e623c8a7257a470e27b7c3247f3d29174f8b0ba7f51293d3f1",
+    "gen/python/throwaway_probe/v1/shared/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
+    "gen/python/throwaway_probe/v1/shared/health_pb2.py": "sha256:7803d86696e5c7fe4be55f4b45c27cb19478049714ba940b1ef706cd50b3367c",
+    "gen/python/throwaway_probe/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
+    "gen/python/throwaway_probe/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/throwaway-probe/v1/notes/attachments_pb.ts": "sha256:5b3a13b3b0c9664ee401f7065a825c9db3e92c45f57b2c985733fde0ee4b389d",
+    "gen/typescript/throwaway-probe/v1/notes/notes_pb.ts": "sha256:1fe11c71115bdea757a6abcd28da4c8fd0e15dca439943df1f0113586a150a50",
+    "gen/typescript/throwaway-probe/v1/shared/errors_pb.ts": "sha256:bbdc99e76ede21b76e25c46f5b5d846e9ab50c6a6fa5c2994e182a08e501d455",
+    "gen/typescript/throwaway-probe/v1/shared/health_pb.ts": "sha256:fa4232f195a2130dc369cb546aefcf722a2fb9749fa84bcdee52aa88d82bf62e"
+  }
+}

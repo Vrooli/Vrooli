@@ -166,11 +166,10 @@ Content → Ollama (embed) → Vectors → Qdrant (store)
 
 #### Implementation
 ```bash
-# Generate embeddings with Ollama
+# Generate embeddings through the Ollama gateway
 generate_embedding() {
     local text="$1"
-    curl -X POST http://localhost:11434/api/embed \
-        -d "{\"model\": \"mxbai-embed-large\", \"input\": [\"$text\"]}"
+    printf '%s' "$text" | resource-ollama gateway embed --role embedding.default --json --input-stdin
 }
 
 # Store in Qdrant

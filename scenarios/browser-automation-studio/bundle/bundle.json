@@ -4,12 +4,13 @@
   "app": {
     "name": "browser-automation-studio",
     "version": "1.0.0",
-    "description": "Visual browser automation studio with AI-powered workflow builder and real-time debugging"
+    "description": "Visual browser automation studio with AI-powered workflow builder and real-time debugging",
+    "scenario": "browser-automation-studio"
   },
   "ipc": {
     "mode": "loopback-http",
     "host": "127.0.0.1",
-    "port": 39200,
+    "port": 0,
     "auth_token_path": "runtime/auth_token"
   },
   "telemetry": {
@@ -49,6 +50,21 @@
       "limitations": ""
     }
   ],
+  "peers": [
+    {
+      "scenario": "landing-page-business-suite",
+      "bundle_policy": "discover",
+      "degraded_behavior": "LPBS-backed Class-A entitlement and shared-session operations report unavailable while the authority is stopped; local Class-B work remains usable under a still-valid cached lease.",
+      "bindings": [
+        {
+          "env_var": "BAS_ENTITLEMENT_SERVICE_URL",
+          "form": "http_base_url",
+          "port": "api",
+          "when_unavailable": "omit"
+        }
+      ]
+    }
+  ],
   "services": [
     {
       "id": "browser-automation-studio-api",
@@ -74,12 +90,20 @@
           "CGO_ENABLED": "0"
         }
       },
-      "env": {
-        "API_PORT": "${browser-automation-studio-api.api}",
-        "BAS_DB_BACKEND": "sqlite",
-        "BAS_SQLITE_PATH": "${data}/data/api/browser-automation-studio.sqlite",
-        "VROOLI_LIFECYCLE_MANAGED": "true"
-      },
+    "env": {
+      "API_PORT": "${browser-automation-studio-api.api}",
+    "BAS_DB_BACKEND": "sqlite",
+    "BAS_SQLITE_PATH": "${data}/data/api/browser-automation-studio.sqlite",
+    "BAS_SCREENSHOT_STORAGE": "local",
+    "BAS_SIDECAR_ENABLED": "true",
+      "BAS_SIDECAR_DRIVER_DIR": "playwright-driver",
+      "VROOLI_LIFECYCLE_MANAGED": "true"
+    },
+    "assets": [
+      {
+        "path": "playwright-driver"
+      }
+    ],
       "data_dirs": [
         "data/api"
       ],

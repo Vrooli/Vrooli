@@ -1,0 +1,63 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": {
+    "kind": "scenario-experience",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "schemaVersion": "1.0.0",
+  "scenario": "scenario-to-ios",
+  "description": "Experience contract for Scenario to iOS. The operator surface is a delivery console with one property no other ramp's has: some rows are permanently unsupported, because a Linux host cannot build for iOS and never will. The disposition vocabulary (pass / failed / unavailable / unsupported / not_run) is the most repeated element on every screen, and the distinction between terminal 'unsupported' and actionable 'unavailable' is the single most important thing the UI must convey.",
+  "pages": [
+    {
+      "id": "dashboard",
+      "path": "pages/dashboard.json",
+      "title": "Delivery matrix",
+      "status": "active"
+    },
+    {
+      "id": "target-detail",
+      "path": "pages/target-detail.json",
+      "title": "Target",
+      "status": "active"
+    },
+    {
+      "id": "run-review",
+      "path": "pages/run-review.json",
+      "title": "Run review",
+      "status": "active"
+    },
+    {
+      "id": "readiness",
+      "path": "pages/readiness.json",
+      "title": "Release readiness",
+      "status": "active"
+    },
+    {
+      "id": "distribution",
+      "path": "pages/distribution.json",
+      "title": "Distribution",
+      "status": "active"
+    },
+    {
+      "id": "settings",
+      "path": "pages/settings.json",
+      "title": "Settings",
+      "status": "active"
+    }
+  ],
+  "journeys": [
+    {
+      "id": "ship-a-scenario-to-a-device",
+      "path": "journeys/ship-a-scenario-to-a-device.json",
+      "title": "Take a scenario from source to an installable iOS app",
+      "status": "active"
+    },
+    {
+      "id": "diagnose-a-blocked-target",
+      "path": "journeys/diagnose-a-blocked-target.json",
+      "title": "Tell what can never work from what is merely blocked, and fix it",
+      "status": "active"
+    }
+  ]
+}

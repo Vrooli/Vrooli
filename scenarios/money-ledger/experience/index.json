@@ -1,0 +1,101 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": {
+    "kind": "scenario-experience",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "schemaVersion": "1.0.0",
+  "scenario": "money-ledger",
+  "description": "Experience contract for Money Ledger. Financial figures are compared across rows, so alignment, tabular numerals, and an always-visible basis matter more here than in a typical operator tool. No figure is presented without the means to judge how much it can be trusted.",
+  "pages": [
+    {
+      "id": "dashboard",
+      "path": "pages/dashboard.json",
+      "title": "Position",
+      "status": "active"
+    },
+    {
+      "id": "journal",
+      "path": "pages/journal.json",
+      "title": "Journal",
+      "status": "active"
+    },
+    {
+      "id": "accounts",
+      "path": "pages/accounts.json",
+      "title": "Books & Accounts",
+      "status": "active"
+    },
+    {
+      "id": "adapters",
+      "path": "pages/adapters.json",
+      "title": "Adapters",
+      "status": "active"
+    },
+    {
+      "id": "statements",
+      "path": "pages/statements.json",
+      "title": "Statements",
+      "status": "active"
+    },
+    {
+      "id": "settings",
+      "path": "pages/settings.json",
+      "title": "Settings",
+      "status": "active"
+    }
+  ],
+  "components": [
+    {
+      "id": "form-section",
+      "path": "components/form-section.json",
+      "title": "Form Section",
+      "status": "active"
+    },
+    {
+      "id": "dirty-state-guard",
+      "path": "components/dirty-state-guard.json",
+      "title": "Dirty State Guard",
+      "status": "active"
+    },
+    {
+      "id": "cartesian-charts",
+      "path": "components/cartesian-charts.json",
+      "title": "Cartesian Charts",
+      "status": "active"
+    }
+  ],
+  "journeys": [
+    {
+      "id": "record-a-source-with-no-api",
+      "path": "journeys/record-a-source-with-no-api.json",
+      "title": "Record a source with no API",
+      "status": "active"
+    },
+    {
+      "id": "learn-a-figure-is-incomplete",
+      "path": "journeys/learn-a-figure-is-incomplete.json",
+      "title": "Learn a figure is incomplete",
+      "status": "active"
+    },
+    {
+      "id": "correct-a-mistake",
+      "path": "journeys/correct-a-mistake.json",
+      "title": "Correct a mistake",
+      "status": "active"
+    },
+    {
+      "id": "record-a-source-with-no-api-mobile",
+      "path": "journeys/record-a-source-with-no-api-mobile.json",
+      "title": "Record a source with no API on mobile",
+      "status": "active"
+    },
+    {
+      "id": "first-run",
+      "path": "journeys/first-run.json",
+      "title": "Start a new Money Ledger",
+      "status": "active"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+# DEPRECATED as a hand-maintained manifest — kept only as a stable entry point.
+#
+# The image-tools Python backends are provisioned from a per-scenario, lock-pinned
+# uv venv. The SINGLE version source of truth is the fully pinned + hashed
+#   internal/pydeps/requirements.lock
+# generated from the governed, ranged
+#   internal/pydeps/requirements.in
+# (see internal/pydeps/README.md to regenerate). At runtime the lock is embedded
+# in the binary, materialized into the scenario data dir, and synced into the venv
+# by github.com/vrooli/pyenv-go — it is NOT read from this path.
+#
+# This file simply re-exports the lock so `pip install -r requirements.txt` (or any
+# tool that still looks here) resolves the exact same pinned set. Do not add loose
+# pins here; edit requirements.in and regenerate the lock.
+-r internal/pydeps/requirements.lock

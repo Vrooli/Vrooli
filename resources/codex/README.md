@@ -1,271 +1,278 @@
 # Codex Resource
 
-AI-powered code generation with two modes:
-1. **Text Generation**: Via OpenAI API (GPT-5/GPT-4 models)
-2. **Full Agent**: Via OpenAI Codex CLI (2025) with tool execution
+OpenAI Codex CLI for local code generation and agentic engineering workflows.
 
-## Overview
+## Intent
 
-Codex provides intelligent code generation through either simple text generation or full agent capabilities with the 2025 Codex CLI. When the Codex CLI is installed, it can create files, run commands, test code, and fix errors automatically - acting as a complete software engineering agent.
+- Resource ID: `codex`
+- Category: `developer-tooling`
+- Driver: `external-cli`
+- Portability tier: `partial`
 
-## Features
+## Use Cases
 
-### Text Generation Mode (Default)
-- Code completion and generation as text
-- Multi-language support (Python, JavaScript, Go, etc.)
-- Script injection and management
-- API-based processing with configurable parameters
-- Integration with Vault for secure credential storage
+- Use Codex as an interactive or scripted coding agent in local workflows.
+- Standardize Codex CLI availability for scenarios and operator tooling.
+- Provide a consistent external CLI dependency for code generation and task execution.
 
-### Agent Mode (With Codex CLI)
-- **Full tool execution**: Creates files, runs commands, tests code
-- **Error correction**: Automatically fixes issues and retries
-- **Multi-step tasks**: Handles complex workflows autonomously
-- **Local execution**: Runs in your terminal with full control
-- **Approval workflow**: Choose automatic or manual approval for actions
-- **Non-interactive pipelines**: Uses `codex exec` under the hood (workspace sandbox + network enabled)
+## Architecture
 
-## Requirements
+This resource uses the updated `external-cli` structure.
 
-- OpenAI API key with Codex access
-- Network connectivity to OpenAI API endpoints
-- jq for JSON processing
+- `resource.json` is the declarative authority for install, binary probing, version checks, exports, health, and freshness metadata.
+- `cli/` is the thin binary entrypoint and delegated command wiring surface.
+- `cli/internal/` is the default home for Codex-specific Go logic when the manifest and shared control plane are not enough.
+- Historical shell behavior has been retired; lifecycle and configuration
+  behavior lives in the shared control plane and typed Go packages.
 
-## Configuration
+The intended escalation path is:
 
-### API Key Setup
+1. express behavior in `resource.json`
+2. rely on the shared `vrooli resource ...` control plane
+3. add Codex-specific Go code under `cli/internal/...` only where specialization is real
+4. add custom CLI commands only when the resource truly needs resource-local operator actions beyond the standard lifecycle surface
 
-The resource checks for API keys in this order:
-1. Environment variable: `OPENAI_API_KEY`
-2. Vault secret: `secret/openai` (field: `api_key`)
-3. Credentials file: `~/.openai/credentials`
+Current internal package boundaries:
 
-### Environment Variables
-
-- `CODEX_API_ENDPOINT`: API endpoint (default: https://api.openai.com/v1)
-- `CODEX_DEFAULT_MODEL`: Default model (default: gpt-5-nano)
-- `CODEX_DEFAULT_TEMPERATURE`: Generation temperature (default: 0.2)
-- `CODEX_DEFAULT_MAX_TOKENS`: Maximum tokens (default: 8192)
-- `CODEX_TIMEOUT`: End-to-end timeout in seconds (default: 30, apply profiles for longer runs)
-- `CODEX_MAX_TURNS`: Maximum conversation turns before the agent stops (default: 10)
-- `CODEX_ALLOWED_TOOLS`: Comma-separated allow list (e.g. `read_file,write_file,execute_command(git *)`)
-- `CODEX_SKIP_PERMISSIONS`: Set to `true` to disable permission checks (equivalent to `--skip-permissions`)
-- `CODEX_CLI_MODE`: Approval policy for Codex CLI (`auto`, `approve`, `always`, `yolo`)
-- `CODEX_CLI_SANDBOX`: Override sandbox policy passed to `codex exec` (default: `workspace-write`)
-- `CODEX_CLI_EXTRA_ARGS`: Additional raw arguments appended to `codex exec`
-
-### Available Models (GPT-5 Released August 2025)
-
-#### GPT-5 Series (Latest - 400K context, 128K output)
-- **gpt-5-nano** (DEFAULT) - Best value: $0.05/1M input, $0.40/1M output
-- **gpt-5-mini** - Mid-tier: $0.25/1M input, $2/1M output  
-- **gpt-5** - Flagship: $1.25/1M input, $10/1M output
-
-#### GPT-4o Series (Still available - 128K context)
-- **gpt-4o-mini** - $0.15/1M input, $0.60/1M output
-- **gpt-4o** - $2.50/1M input, $10/1M output
-
-#### O1 Reasoning Models
-- **o1-mini** - Cost-efficient reasoning
-- **o1-preview** - Advanced reasoning for hardest problems
-
-## Installing Codex CLI (Optional but Recommended)
-
-To enable full agent capabilities with tool execution:
-
-```bash
-# Install via resource-codex
-resource-codex manage install-cli
-
-# Or install directly with npm
-npm install -g @openai/codex
-
-# Configure with your API key
-resource-codex manage configure-cli
-
-# Check installation
-resource-codex status | grep "CLI"
-```
-
-The Codex CLI is a 2025 release from OpenAI that provides:
-- Local code execution in sandboxed environments
-- File creation and modification
-- Command execution with safety controls
-- Automatic error detection and correction
-- Multi-step task orchestration
+- `cli/internal/discovery`: host binary detection and probing helpers
+- `cli/internal/install`: install/bootstrap helpers
+- `cli/internal/version`: version parsing and compatibility helpers
+- `cli/internal/env`: environment and config-path helpers
+- `cli/internal/auth`: auth/config validation helpers
 
 ## Usage
 
-### Basic Commands
-
 ```bash
-# Check status
+# Install using the declarative contract
+vrooli resource install codex
+
+# Check that the binary is available and healthy
 resource-codex status
-
-# Start service (mark as running)
-resource-codex start
-
-# Stop service (mark as stopped)
-resource-codex stop
-
-# List injected scripts
-resource-codex list
-
-# Inject a Python script
-resource-codex inject my_script.py
-
-# Run a script with Codex
-resource-codex run my_script.py
 ```
 
-### Status Check
+## Coding-role policy
+
+Codex owns its concrete coding-role inventory in `model-policy.json`. Use
+`resource-codex policy validate`, `policy roles --json`, and `policy resolve
+--role code.default --json` to inspect it. The response records the concrete
+model, fallbacks, policy provenance, and the intentionally `intent_only`
+permission posture; Agent Manager consumes that response at run creation but
+does not duplicate the inventory or write Codex configuration.
+
+## Permissions
+
+Linux namespace setup is owned by the control-plane `bubblewrap_userns`
+safeguard, declared in `resource.json`. Use the [host repair and no-model
+containment check](../../docs/configuration/host/safeguards.md#native-bubblewrap-namespaces).
+The dedicated executable profile follows the scoped approach in
+[OpenAI's sandbox guidance](https://learn.chatgpt.com/docs/sandboxing).
+Do not switch to unrestricted execution to hide a sandbox startup failure.
+
+Manage Codex Bash rules and native execution intent through `permissions`. User configuration honors `CODEX_HOME`, defaulting to `~/.codex`. V1 documents manage only `[vrooli.permissions]` and preserve native settings. V2 execution documents additionally manage the reserved `[permissions.vrooli]` profile; activation explicitly selects it and updates approval settings. Admin scope resolves system `requirements.toml` (`/etc/codex/requirements.toml` on Unix, `%ProgramData%/OpenAI/Codex/requirements.toml` on Windows). Vrooli Bash metadata there is not native administrative enforcement; v2 execution projection rejects admin scope. Existing user-local `requirements.toml` is never silently migrated.
 
 ```bash
-# Text format
-resource-codex status
+# Block git stash at user scope (motivating example)
+resource-codex permissions deny 'git stash *'
 
-# JSON format
-resource-codex status --format json
+# View managed patterns
+resource-codex permissions list
+resource-codex permissions show --raw
+
+# Detect drift since the last Vrooli write
+resource-codex permissions drift-check
+
+# Check version and surface the enforcement caveat
+resource-codex permissions doctor
 ```
 
-### Agent Commands (Requires Codex CLI)
+Mutating verbs (`deny`, `allow`, `ask`, `remove`, `reset`) refuse agent callers (detected via `cliutil.DetectCallerKind`) unless `--i-was-explicitly-authorized` is passed. Read verbs are always allowed.
 
-When Codex CLI is installed, you get full agent capabilities:
+**Enforcement caveat.** Codex's effective native permission profile (or legacy sandbox) and approval settings remain authoritative; the `[vrooli.permissions]` section is a uniform policy projection rather than a native pattern matcher. Vrooli also projects `~/.codex/hooks.json` with a `PreToolUse` command hook when deny rules exist. The CLI reports this as `hook_unverified` until a live canary proves the installed Codex version fires and honors the hook; do not treat hook-file presence as sandbox enforcement.
+
+For declarative automation, use `permissions plan --scope user|admin --document desired.json --json` and `permissions reconcile --scope user|admin --document desired.json --json`. The strict v1 document contains `schema_version`, matching `scope`, and ID-addressed `allow`/`ask`/`deny` rules with `matcher: {"kind":"bash","pattern":"..."}`. Plan never writes; reconcile is authorization-gated, preserves unmanaged TOML, and reports desired/live fingerprints, native paths, changes, and the `hook_unverified` enforcement posture.
+
+### Native execution documents
+
+`permissions capabilities` reports configuration support, independently of live
+runtime evidence. Codex user scope requires an installed CLI >= 0.138.0 for offline profiles; filtered networking requires >= 0.156.1. Use the same optional `--codex-executable /absolute/path/to/codex` in plan and reconcile to qualify a specific installation. Version and command evidence appear in the preview. The
+other resource adapters explicitly report unsupported execution projection;
+Claude Code, OpenCode and Grok reject execution documents before any native write.
+Antigravity exposes capabilities and retains its existing native CRUD surface.
+
+A complete v2 example (network allowlists govern destinations, not API effects):
+
+```json
+{
+  "schema_version": "v2",
+  "scope": "user",
+  "rules": [],
+  "execution": {
+    "filesystem": {"workspace": "write"},
+    "network": {
+      "enabled": true,
+      "domains": {"localhost": "allow", "127.0.0.1": "allow", "::1": "allow"}
+    },
+    "approval": {"policy": "on-request", "reviewer": "auto_review"}
+  }
+}
+```
+
+`filesystem.workspace` is `read` or `write`. Optional `writable_roots` contains
+clean absolute paths for the current OS, excluding the filesystem root. Added
+roots retain read-only `.git`, `.codex`, and `.agents` descendants. Network
+`enabled` is mandatory. Domains are exact lowercase hostnames or IP literals;
+actions are `allow` or `deny`. Wildcards, URLs, ports, and domains on a disabled
+network are rejected. Approval policy is `on-request` or `never`; reviewer is
+`user` or `auto_review`, with automatic review requiring interactive approvals.
+These settings do not modify app/plugin-specific approval controls.
 
 ```bash
-# Run agent on any task
-resource-codex agent "Create a FastAPI app with user authentication"
+# Preview staging: native profile and intent only, no active-default change.
+resource-codex permissions plan --document desired.json --json
+# Substitute the exact preview_digest returned above.
+resource-codex permissions reconcile --document desired.json --expected-digest DIGEST --json
 
-# Fix code issues
-resource-codex fix app.py "Fix the memory leak"
-
-# Generate and run tests
-resource-codex generate-tests src/calculator.py
-
-# Refactor code
-resource-codex refactor legacy_code.py "Improve readability and add type hints"
+# Activation is a separate preview and reconciliation with matching flags.
+resource-codex permissions plan --document desired.json --activate --json
+resource-codex permissions reconcile --document desired.json --activate --expected-digest DIGEST --json
+resource-codex permissions doctor
+resource-codex permissions drift-check
 ```
 
-### Script Injection
+Agent callers must also have explicit human authorization and pass
+`--i-was-explicitly-authorized`. A digest is not authorization. Preview digests
+bind the document, activation selection, and native config/hook snapshots,
+including modes. Changed previews are rejected under the shared writer lock.
+Activation enables the native network proxy so domain rules are enforceable.
+Staged profiles keep network access disabled until activation, preventing manual selection from bypassing domain filtering.
+Conflicting legacy sandbox settings or an unowned `permissions.vrooli` table
+are rejected, not removed. Previously activated intent requires `--activate`
+for subsequent execution reconciliation. Rule-only operations and reset retain
+native execution intent. TOML values round-trip; formatting/comments may change.
 
-Scripts are stored in `$CODEX_HOME/scripts/` (default `~/.codex/scripts/`, fallback to `/tmp/codex-workspace/.codex-home/scripts`) for processing:
+Writers preserve POSIX modes and Windows access ACLs, create private new files, reject file symlinks,
+and retain private pre-write config backups. Successful reconciliation returns
+`recovery_backup` when a backup was needed. Hook-write failure attempts config
+rollback and reports any partial hook migration. State publishes only after
+native readback succeeds. On failure, inspect the named backup and current config,
+then create a fresh preview; do not blindly restore over concurrent edits.
+Backups may contain private configuration and remain until the operator removes
+them. Reset clears Bash rules only; reverting execution settings requires an
+explicit reviewed configuration migration or restoring the reviewed backup.
+
+`doctor` distinguishes recorded activation intent, native projection equality,
+hook registration equality and unverified effective runtime. Higher-precedence
+project/profile files, launch flags and managed requirements can override this
+file. Confirm a fresh desktop session's effective settings independently;
+CLI version or config equality alone does not prove desktop adoption.
+
+The installed native boundary can be qualified without a model or live user
+config writes, using an explicit executable:
 
 ```bash
-# Inject a new script
-resource-codex inject path/to/script.py
-
-# List all injected scripts
-resource-codex list
-
-# Run a specific script
-resource-codex run script.py
+cd resources
+VROOLI_CODEX_NATIVE_BINARY=/usr/bin/codex go test -v ./codex/cli/internal/permissions -run '^TestNativeExecutionSandboxCanary$' -count=1
 ```
 
-### Permission Profiles & Limits
+The canary uses disposable config and files, checks permitted workspace writes,
+blocked outside and read-only writes, allowed loopback HTTP, a denied hostname
+against the same local server, direct socket bypass rejection and network-off
+behavior, then cleans up its scratch directories. Windows ACL routines have
+Windows-specific tests and cross-compilation coverage; execution on Windows must
+be qualified on that host before claiming runtime verification. Python 3
+and the native runtime's sandbox prerequisites are required. Runtime evidence is
+specific to the tested executable, OS and version; it does not promote hooks or
+the desktop client to verified.
 
-- Use `--allowed-tools` to narrow execution (e.g. `read_file,write_file,execute_command(git *)`).
-- Apply predefined profiles (`safe`, `development`, `admin`) or set `--max-turns` / `--timeout` to cap sessions.
-- `--skip-permissions` (or `CODEX_SKIP_PERMISSIONS=true`) now forces `CODEX_CLI_MODE=yolo` and disables sandboxing, giving Codex full control – combine with care.
-- All agent runs use `codex exec` with workspace sandboxing; network is explicitly enabled for sandbox runs.
+Upstream docs: <https://learn.chatgpt.com/docs/permissions> and
+<https://learn.chatgpt.com/docs/enterprise/managed-configuration>.
 
-## Directory Structure
 
-- `config/` - Configuration defaults
-- `lib/` - Core functionality libraries
-- `injected/` - Backup of injected scripts
-- `$CODEX_HOME/scripts/` - Active script storage
-- `$CODEX_HOME/outputs/` - Generated code outputs
+## Model catalog operations
 
-## Integration
+The operator's amendment permits Sol for infrequent, explicitly admitted
+supervision through `judgment.supervision`. Ordinary roles still deny Sol; Astra
+remains globally excluded. The owner-validated Codex catalog exposes
+`gpt-6-luna` and `gpt-6-sol`, so `code.delivery` selects Luna medium and
+`judgment.supervision` selects Sol medium from the subscription catalog. The
+host can contain multiple Codex installations, so record the executable path
+and `--version` with every catalog observation. On the current host,
+`/usr/bin/codex` 0.156.1 lists GPT-6 Luna/Sol and the 5.6 models. The Vrooli
+PATH may resolve an attribution shim and a different user-local installation.
+Agent Manager's managed codec intentionally bypasses that shim and selects the
+installed system runner (`/usr/bin/codex` or `/bin/codex` on Linux); a direct
+shell `codex --version` is not managed-launch evidence. `~/.codex/models_cache.json`
+is used only as a compatibility fallback. Older caches can omit valid model slugs and are
+marked non-authoritative. The model-policy drift safeguard refuses to make
+availability claims from that fallback, so an unavailable live probe is
+reported as unmeasured rather than as a false missing-model finding. A measured
+runner listing is also not assumed exhaustive: it proves a model is offered when
+listed, but omission produces a non-blocking `unconfirmed_*` finding unless the
+runner explicitly marks the catalog `exhaustive`. Those warnings must never be
+reported as “GPT-6 is unavailable” or used to replace an owner-validated GPT-6
+role with GPT-5.6. Catalog validation is not execution qualification. Keep the delivery team
+disabled until its pilot succeeds and record the actual selected model.
+Operational Codex roles now resolve the owner-validated GPT-6 Luna family;
+`judgment.supervision` is the only ordinary role permitted to select GPT-6 Sol.
+Reserved legacy aliases remain only for historical compatibility and are not
+launch permissions. Keep legacy `model`/`fallbacks` and structured `models`
+candidates consistent. Validate the resource policy and reload Agent
+Manager's role policy after edits; inspect profile resolution to verify adoption
+without buying inference. Existing run snapshots and manually selected native
+sessions retain their original models. Stop an affected managed run through its
+owner before any replacement. Hard deny rules are declared in the catalog's root
+`excluded_models` list.
+`restricted_models` maps a model to the only resource roles that may select it.
+The resource resolves both rules into the existing `excluded_models` response,
+including aliases; global denial always wins. New ordinary roles remain denied
+without copying per-role lists. This controls model selection, not authority to
+assume a role: the execution owner must bind workers and supervisors to their
+admitted roles and enforce review cadence. Existing heartbeats do not become
+Sol runs just because the new role is available.
+Provider prices and subscription quota are separate measurements: do not invent
+token prices or treat an estimated zero-dollar charge as unused weekly allowance.
 
-### With Scenarios
+`resource-codex models list --json` queries `codex debug models` without invoking a model and falls back to the Codex model cache only when the runner probe is unavailable. A live result is authoritative evidence that listed models are offered, not an exhaustive inventory; only `exhaustive: true` permits an absent-model conclusion. Record the measured binary path/version and verify managed launch behavior through the codec's shim-bypass test and bounded runner probe; a direct PATH lookup is not sufficient evidence. Never downgrade owner-validated GPT-6 roles from a stale cache or partial surface. `resource-codex models resolve --model <id> --json` returns the resource-owned canonical pricing identity. Run `resource-codex policy validate --against-live --json` after a retarget. `observed_at` has a 14-day budget; aliases should remain runner-facing while pinned fallbacks must be refreshed from the same live evidence. Policy edits are reviewed explicitly and are never made by the drift safeguard.
 
-Codex can be used in scenarios for:
-- Generating boilerplate code
-- Converting between languages
-- Creating test cases
-- Implementing algorithms
-- Code refactoring
+If this command reports an unexpectedly old partial catalog, rebuild the installed resource CLI from the current resource source before diagnosing model availability; a stale installed CLI can preserve obsolete discovery behavior.
 
-### With Other Resources
+## Notes
 
-- **Vault**: Secure API key storage
-- **Judge0**: Execute generated code
-- **n8n/Node-RED**: Workflow automation with code generation
-- **Ollama**: Fallback for local code generation
+- `codex` is an external CLI resource, not a local daemon owned by this resource.
+- Keep binary/version/install behavior declarative in `resource.json` whenever possible.
+- Keep `cli/main.go` thin; do not treat it as the implementation surface for Codex-specific behavior.
+- Use [docs/OPERATIONS.md](/home/matthalloran8/Vrooli/resources/codex/docs/OPERATIONS.md) as the architecture boundary for future migrations.
+## Maturity
 
-## Troubleshooting
+M4 (2026-08-05): lifecycle, health, platform gates, and Go CLI test evidence are covered by the fleet contract.
 
-### API Key Issues
+## Historical integration summary
 
-```bash
-# Check if API key is configured
-resource-codex status | grep "API Configured"
+The shell-era implementation summary has been retired from current guidance.
+Its references to shell libraries, model prices, and automatic fallback behavior
+are historical, not a description of the current resource implementation.
+The original remains beneath runtime home at
+`plan-artifacts/docs-cleanup-20260907-final-txumdx73/resources/codex/docs/IMPLEMENTATION-SUMMARY.md`.
+Use this README and the resource's current command help for supported behavior.
 
-# Test API connectivity
-curl -H "Authorization: Bearer $OPENAI_API_KEY" \
-  https://api.openai.com/v1/models
-```
 
-### CLI Fails with "failed to initialize rollout recorder"
+### Native compatibility evidence (2026-09-30 UTC)
 
-- Ensure Codex has a writable home directory. The resource automatically falls back to `/tmp/codex-workspace/.codex-home` when `~/.codex` is read-only.
-- You can manually override with `export CODEX_HOME=/path/to/writable/dir` before running agent commands.
+The isolated Linux canary passes on `/usr/bin/codex` 0.156.1 for workspace,
+read-only, loopback allow/deny, direct proxy bypass rejection and network-off
+behavior. The user-local 0.141.0 runtime passes the offline canary but fails the
+network-enabled loopback assertion with connection refusal. The adapter therefore
+rejects filtered-network intent below the tested 0.156.1 floor, including staging;
+it never falls back to unrestricted networking or edits the installed runner.
+This is a conservative compatibility bound, not a claim about the earliest
+upstream fixed release. Desktop behavior and Windows ACL execution remain
+independently unverified.
 
-### Model Selection Guide
-
-**Use gpt-5-nano (default) for:**
-- Quick code generation at lowest cost ($0.05/1M)
-- Simple scripts and functions
-- High-volume operations
-- Everyday coding tasks
-- 400K context window for large files!
-
-**Use gpt-5-mini for:**
-- Balanced performance/cost
-- Medium complexity tasks
-- Better accuracy than nano
-
-**Use gpt-5 for:**
-- Most complex algorithms
-- Best coding performance (94.6% on AIME 2025)
-- Architecture design
-- Production-critical code
-
-**Use o1-mini/o1-preview for:**
-- Deep reasoning tasks
-- Mathematical proofs
-- Logic-heavy implementations
-
-## Text Generation vs Agent Mode
-
-| Feature | Text Generation | Agent Mode (CLI) |
-|---------|----------------|------------------|
-| **Code Generation** | ✅ Returns code as text | ✅ Creates actual files |
-| **File Operations** | ❌ | ✅ Read/write/modify files |
-| **Code Execution** | ❌ | ✅ Run commands and tests |
-| **Error Fixing** | ❌ | ✅ Auto-detect and fix issues |
-| **Multi-step Tasks** | ❌ | ✅ Handle complex workflows |
-| **Installation** | Built-in | Requires `npm install -g @openai/codex` |
-| **Cost** | API usage only | CLI + API usage |
-| **Use Case** | Quick code snippets | Full software development |
-
-**Smart Routing**: The system automatically uses the best available backend:
-1. Codex CLI (if installed) → Full agent capabilities
-2. codex-mini-latest API → Optimized text generation
-3. GPT-5-nano API → Fallback text generation
-
-## Security
-
-### Text Generation Mode
-- No code execution, completely safe
-- Only generates text responses
-- API keys secured in Vault
-
-### Agent Mode (Codex CLI)
-- Executes in controlled sandboxes
-- Approval workflows for sensitive operations
-- Local execution with file system access
-- Audit logging of all operations
-- No internet access during execution
-- User-controllable workspace isolation
+Investigation hypotheses: (1) an unreachable native proxy listener; (2) the
+resource profile losing its domain or feature settings; (3) host service or
+namespace prerequisites. Running the same disposable profile and fixture on the
+same host across two explicit executables rejects a general host/service outage
+and supports a runtime-specific network path limitation. The offline .141 canary
+also proves its filesystem projector works. The precise upstream proxy cause
+remains unconfirmed. The application regression asserts that .141 network intent
+is rejected before writing; it failed before the narrowed compatibility gate.

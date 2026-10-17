@@ -1,0 +1,14 @@
+{
+  "path": "internal/safeguards/kdump-observability/safeguard.json",
+  "name": "kdump_observability",
+  "capability": "crash-forensics",
+  "capability_role": "control",
+  "platform_status": {
+    "macos": {
+      "status": "not_applicable",
+      "mechanism": "handler",
+      "evidence": "macOS does not expose Linux kdump crash summaries; its crash-reporting service uses a different host interface.",
+      "review_by": "2027-08-26"
+    }
+  }
+}

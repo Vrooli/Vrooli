@@ -1,0 +1,75 @@
+{
+  "description": "`cli-health status` reports Ollama and Qdrant availability plus the count of currently indexed commands.",
+  "module_id": "MOD-P0-003",
+  "prd_ref": "OT-P0-003",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "cli",
+      "description": "The `cli-health status` command must report: (1) Ollama availability (reachable / unreachable) including the base URL checked; (2) Qdrant availability (reachable / unreachable) including the base URL checked; (3) the total count of currently indexed commands in the Qdrant collection. The command must respond within 3 seconds under normal conditions and must exit with code 0 regardless of dependency availability (status is informational, not a health gate).",
+      "id": "REQ-P0-006",
+      "prd_ref": "OT-P0-003",
+      "status": "draft",
+      "title": "Dependency Status Reporting",
+      "validation": [
+        {
+          "notes": "Given a mocked Ollama HTTP client returning 200, status reports Ollama as reachable",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Given a mocked Ollama HTTP client returning connection refused, status reports Ollama as unreachable",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Given a mocked Qdrant client returning collection info with 42 vectors, status reports indexed count as 42",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Given both dependencies unreachable, status exits with code 0",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run `cli-health status` with real Qdrant and Ollama running after a reindex; assert reported count matches the number of commands in the indexed manifests",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run `cli-health status` with Qdrant stopped; assert output contains unreachable indicator and exit code is 0",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "`cli-health status` must return output within 3 seconds on a local stack regardless of dependency state (timeouts must be bounded to enforce this)",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Operators can quickly confirm AI search infrastructure readiness before debugging search quality issues",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Dependency status reporting"
+}

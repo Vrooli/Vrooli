@@ -135,5 +135,9 @@ export function summarizeResult(result: unknown, maxLength = 100): string {
     return jsonStr.length > maxLength ? jsonStr.slice(0, maxLength - 3) + "..." : jsonStr;
   }
 
-  return String(result).slice(0, maxLength);
+  if (typeof result === "number" || typeof result === "boolean" || typeof result === "bigint") {
+    return String(result).slice(0, maxLength);
+  }
+  const jsonStr = JSON.stringify(result);
+  return jsonStr.slice(0, maxLength);
 }

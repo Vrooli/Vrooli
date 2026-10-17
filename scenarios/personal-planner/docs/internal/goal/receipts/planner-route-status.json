@@ -1,0 +1,208 @@
+{
+  "run": {
+    "id": "f5378dbe-dcee-444b-82d7-0a61d2729902",
+    "task_id": "4a90daa7-d4cd-4e0e-8448-ffdeb8d7977c",
+    "agent_profile_id": "01ed3efc-aff6-44c7-b77c-0c548d56d1c9",
+    "tag": "planner-I18/qualification",
+    "run_mode": "RUN_MODE_IN_PLACE",
+    "status": "RUN_STATUS_COMPLETE",
+    "started_at": "2026-10-03T02:46:26.881047774Z",
+    "ended_at": "2026-10-03T02:47:10.807240248Z",
+    "phase": "RUN_PHASE_COMPLETED",
+    "last_heartbeat": "2026-10-03T02:46:56.882795064Z",
+    "idempotency_key": "planner-I18-native-qualification-v1",
+    "summary": {
+      "tokens_used": 127324,
+      "turns_used": 2,
+      "context_tokens": 21475
+    },
+    "exit_code": 0,
+    "approval_state": "APPROVAL_STATE_NONE",
+    "resolved_config": {
+      "runner_type": "RUNNER_TYPE_CODEX",
+      "model": "gpt-6-luna",
+      "role_ref": "code.economy.delivery",
+      "max_turns": 1000,
+      "timeout": "43200s",
+      "tool_restriction_policy": "enforced",
+      "effort": "high",
+      "network_access": "NETWORK_ACCESS_FULL",
+      "policy_snapshot": {
+        "catalog_digest": "sha256:a34cb8ef50dfb3a9540ed0c5997e3563e32dc216c8cda152a7cf8c30fb94f6cb",
+        "candidates": [
+          {
+            "runner_type": "RUNNER_TYPE_CODEX",
+            "selection_type": "MODEL_SELECTION_TYPE_MODEL",
+            "model": "gpt-6-luna",
+            "resource_role": "code.delivery",
+            "available": true,
+            "provenance": {
+              "source": "Owner-validated Codex 0.156.1 catalog at /usr/bin/codex exposes gpt-6-luna and gpt-6-sol. Use Luna medium for economical delivery and Sol medium for infrequent independent supervision; Agent Manager's managed codec bypasses the Vrooli attribution shim and selects the installed system runner; Astra remains excluded.",
+              "observed_at": "2026-09-28"
+            },
+            "enforcement": {
+              "permissions": "hook_unverified",
+              "caveats": [
+                "Codex's native permission settings remain intent-only; Vrooli projects a PreToolUse hook, but hook firing requires a live canary on the installed Codex version."
+              ]
+            },
+            "policy_path": "/home/matthalloran8/Vrooli/resources/codex/model-policy.json",
+            "policy_digest": "17c984eca6d24caf23fc1d15d8a428735aaaa9bac75d074ecd5ae78f85605181"
+          }
+        ],
+        "selected_candidate": {
+          "runner_type": "RUNNER_TYPE_CODEX",
+          "selection_type": "MODEL_SELECTION_TYPE_MODEL",
+          "model": "gpt-6-luna",
+          "resource_role": "code.delivery",
+          "available": true,
+          "provenance": {
+            "source": "Owner-validated Codex 0.156.1 catalog at /usr/bin/codex exposes gpt-6-luna and gpt-6-sol. Use Luna medium for economical delivery and Sol medium for infrequent independent supervision; Agent Manager's managed codec bypasses the Vrooli attribution shim and selects the installed system runner; Astra remains excluded.",
+            "observed_at": "2026-09-28"
+          },
+          "enforcement": {
+            "permissions": "hook_unverified",
+            "caveats": [
+              "Codex's native permission settings remain intent-only; Vrooli projects a PreToolUse hook, but hook firing requires a live canary on the installed Codex version."
+            ]
+          },
+          "policy_path": "/home/matthalloran8/Vrooli/resources/codex/model-policy.json",
+          "policy_digest": "17c984eca6d24caf23fc1d15d8a428735aaaa9bac75d074ecd5ae78f85605181"
+        },
+        "explanation": {
+          "source": "portable_role",
+          "summary": "portable role \"code.economy.delivery\" resolved through resource-owned policy catalogs; selected candidate 0 (codex/gpt-6-luna)",
+          "requested_role_ref": "code.economy.delivery",
+          "preflight": [
+            {
+              "candidate": {
+                "runner_type": "RUNNER_TYPE_CODEX",
+                "selection_type": "MODEL_SELECTION_TYPE_MODEL",
+                "model": "gpt-6-luna",
+                "resource_role": "code.delivery",
+                "available": true,
+                "provenance": {
+                  "source": "Owner-validated Codex 0.156.1 catalog at /usr/bin/codex exposes gpt-6-luna and gpt-6-sol. Use Luna medium for economical delivery and Sol medium for infrequent independent supervision; Agent Manager's managed codec bypasses the Vrooli attribution shim and selects the installed system runner; Astra remains excluded.",
+                  "observed_at": "2026-09-28"
+                },
+                "enforcement": {
+                  "permissions": "hook_unverified",
+                  "caveats": [
+                    "Codex's native permission settings remain intent-only; Vrooli projects a PreToolUse hook, but hook firing requires a live canary on the installed Codex version."
+                  ]
+                },
+                "policy_path": "/home/matthalloran8/Vrooli/resources/codex/model-policy.json",
+                "policy_digest": "17c984eca6d24caf23fc1d15d8a428735aaaa9bac75d074ecd5ae78f85605181"
+              },
+              "available": true
+            }
+          ]
+        },
+        "role_ref": "code.economy.delivery",
+        "selection_reason": "catalog_order"
+      },
+      "sandbox_config": {
+        "lifecycle": {
+          "delete_on": [
+            "SANDBOX_LIFECYCLE_EVENT_TERMINAL"
+          ],
+          "checkpoint_on": [
+            "SANDBOX_LIFECYCLE_EVENT_TURN_COMPLETED",
+            "SANDBOX_LIFECYCLE_EVENT_TURN_FAILED",
+            "SANDBOX_LIFECYCLE_EVENT_TURN_CANCELLED"
+          ]
+        },
+        "acceptance": {
+          "mode": "SANDBOX_ACCEPTANCE_MODE_ALLOWLIST"
+        },
+        "mode": "SANDBOX_MODE_OFF",
+        "network_mode": "NETWORK_ACCESS_FULL"
+      },
+      "until": "Work until /tmp/planner-native-route-fixture/qualified.txt contains PLANNER_NATIVE_ROUTE_OK, its readback is shown, and this disposable qualification has a terminal receipt. Do not implement Planner.",
+      "admission": {
+        "requested_model": "gpt-6-luna",
+        "requested_effort": "high",
+        "requested_goal_mode": "until",
+        "effective_runner": "codex",
+        "effective_model": "gpt-6-luna",
+        "effective_effort": "high",
+        "effective_timeout": "43200s",
+        "effective_max_turns": 1000,
+        "effective_until": "Work until /tmp/planner-native-route-fixture/qualified.txt contains PLANNER_NATIVE_ROUTE_OK, its readback is shown, and this disposable qualification has a terminal receipt. Do not implement Planner.",
+        "catalog_digest": "sha256:a34cb8ef50dfb3a9540ed0c5997e3563e32dc216c8cda152a7cf8c30fb94f6cb",
+        "policy_digest": "17c984eca6d24caf23fc1d15d8a428735aaaa9bac75d074ecd5ae78f85605181",
+        "policy_path": "/home/matthalloran8/Vrooli/resources/codex/model-policy.json",
+        "selection_reason": "catalog_order",
+        "passed_control_args": [
+          "--dangerously-bypass-approvals-and-sandbox",
+          "-m",
+          "gpt-6-luna",
+          "-c",
+          "model_reasoning_effort=high"
+        ],
+        "runtime_version": "codex-cli 0.156.1"
+      }
+    },
+    "session_id": "01a0ffa7-a164-7aa3-8ffb-84ca08a6d373",
+    "created_at": "2026-10-03T02:46:06.124526975Z",
+    "updated_at": "2026-10-03T02:47:10Z",
+    "actions": {
+      "can_investigate": true,
+      "can_delete": true,
+      "can_retry": true,
+      "can_continue": true,
+      "can_resume_from_failure_reason": "resume is only available for failed or cancelled runs"
+    },
+    "requested_model": "gpt-6-luna",
+    "finalization_status": "RUN_FINALIZATION_STATUS_NONE",
+    "execution_mode": "EXECUTION_MODE_INTERACTIVE",
+    "web_console_session_id": "5e192eff-d525-48c1-913d-a6c243d97f03",
+    "web_console_session_url": "http://localhost:21233/?session=5e192eff-d525-48c1-913d-a6c243d97f03",
+    "result": {
+      "selection": {
+        "status": "FINAL_OUTPUT_SELECTION_STATUS_AMBIGUOUS",
+        "rule": "multiple_equally_supported_candidates",
+        "algorithm_version": "final-output/v2",
+        "evidence": [
+          "2 candidates at evidence tier 0"
+        ]
+      },
+      "candidates": [
+        {
+          "id": "6da453fb-cb05-4282-bb0e-5faee2f5ed20",
+          "event_id": "6da453fb-cb05-4282-bb0e-5faee2f5ed20",
+          "sequence": "4",
+          "content": "I’ll inspect the disposable fixture and the available execution route, then write and read back the exact qualification text.",
+          "message_id": "msg_06fe9106106dab0c016ac06c862ed087d190eec3d9ad820807",
+          "conversation_id": "01a0ffa7-a164-7aa3-8ffb-84ca08a6d373",
+          "turn_id": "01a0ffa7-df78-7e41-a0c9-663bf633281d",
+          "provider_origin": "codex",
+          "provider_event_type": "response_item.message",
+          "raw_evidence_ref": "codex:response_item.message"
+        },
+        {
+          "id": "784b3811-6164-45dc-802c-257be3687889",
+          "event_id": "784b3811-6164-45dc-802c-257be3687889",
+          "sequence": "17",
+          "content": "The first receipt exposed a byte-count mismatch in my check: the text is 23 bytes, not 22. I’m rerunning the receipt with a strict check before recording completion.",
+          "message_id": "msg_06fe9106106dab0c016ac06ca7b19487d1ac72bb46c88e4819",
+          "conversation_id": "01a0ffa7-a164-7aa3-8ffb-84ca08a6d373",
+          "turn_id": "01a0ffa7-df78-7e41-a0c9-663bf633281d",
+          "provider_origin": "codex",
+          "provider_event_type": "response_item.message",
+          "raw_evidence_ref": "codex:response_item.message"
+        }
+      ],
+      "success": true,
+      "terminal_reason": "goal_complete",
+      "observations": {
+        "state": "RECEIPT_OBSERVATION_STATE_UNOBSERVED"
+      }
+    },
+    "label": "Personal Planner native route qualification",
+    "label_source": "derived",
+    "goal_delivery": "native_verified",
+    "terminal_class": "verdict",
+    "stop_reason": "complete"
+  }
+}

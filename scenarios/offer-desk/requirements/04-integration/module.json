@@ -1,0 +1,150 @@
+{
+  "_metadata": {
+    "description": "Reading actuals, serving the fleet contract, and the ranked board.",
+    "last_validated_at": "2026-08-13T23:59:16-04:00",
+    "module": "integration",
+    "prd_ref": "PRD.md",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "INT-001",
+      "title": "Deliverable membership is validated against reality",
+      "status": "complete",
+      "prd_ref": "OT-P1-001",
+      "category": "integration",
+      "criticality": "P1",
+      "description": "Membership rows naming a deliverable that does not exist are reported as findings. In the source catalog this mapping was a hand-curated JSON file with no validation, which is how it drifted.",
+      "tags": [
+        "integration",
+        "validation"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/catalog/operator_import.go",
+          "status": "implemented",
+          "notes": "The operator import resolves every mapped SKU to an offer, writes valid belongs_to edges, and records unresolved members as findings."
+        }
+      ]
+    },
+    {
+      "id": "INT-002",
+      "title": "Actuals join degrades honestly",
+      "status": "complete",
+      "prd_ref": "OT-P1-002",
+      "category": "integration",
+      "criticality": "P1",
+      "description": "Money Ledger is read over a typed client with a short deadline. When it is unavailable the response marks the actuals unavailable with a stated reason. Reporting zero earnings for an unreachable ledger would be indistinguishable from an offer that genuinely earned nothing.",
+      "tags": [
+        "integration",
+        "honesty"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers/offers/module_test.go",
+          "status": "implemented",
+          "notes": "A faked unavailable ledger yields an availability entry, never a zero amount."
+        },
+        {
+          "type": "test",
+          "status": "implemented",
+          "notes": "A slow ledger is bounded by the deadline and does not stall the response."
+        }
+      ]
+    },
+    {
+      "id": "INT-003",
+      "title": "The board ranks across independent sources",
+      "status": "complete",
+      "prd_ref": "OT-P1-003",
+      "category": "service",
+      "criticality": "P1",
+      "description": "One surface returns fired triggers, blocked offers, and active offers with no earnings, each entry naming its source. A source that cannot be read becomes a visible availability entry while healthy sources continue to rank.",
+      "tags": [
+        "service",
+        "board"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers/offers/module_test.go",
+          "status": "implemented",
+          "notes": "With one source faked unavailable, the board still ranks the others and reports the degradation."
+        },
+        {
+          "type": "test",
+          "status": "implemented",
+          "notes": "Board ordering is deterministic for a fixed input set."
+        }
+      ]
+    },
+    {
+      "id": "INT-004",
+      "title": "The projection verb serves obligation cells",
+      "status": "complete",
+      "prd_ref": "OT-P1-004",
+      "category": "contract",
+      "criticality": "P1",
+      "description": "`space --projection offers --json` returns the owning team's obligation cells with a denominator confidence, under the shared fleet contract, so a consuming board reads this scenario rather than re-deriving it.",
+      "tags": [
+        "contract",
+        "fleet"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers/offers/module.go",
+          "status": "implemented",
+          "notes": "The live space RPC and CLI return schema_version, projection, owner, denominator_confidence, confidence_rationale, source, and cells."
+        },
+        {
+          "type": "test",
+          "ref": "docs/spaces/offers.json",
+          "status": "implemented",
+          "notes": "The authored offers projection contract matches the typed SpaceResponse fields and is exercised by the CLI rehearsal."
+        }
+      ]
+    },
+    {
+      "id": "INT-005",
+      "title": "The board carries financial posture as well as offer state",
+      "status": "complete",
+      "prd_ref": "OT-P1-003",
+      "category": "integration",
+      "criticality": "P1",
+      "description": "The board returns runway, goal verdicts with sustain-window progress, and the default-alive gap alongside the offer entries, each read from Money Ledger and rendered with its source and age. This scenario is the monetization team's single address, so its financial member must be served by the same surface as its catalog members; without these rows the team has two addresses, which is the deviation the instrument exists to remove. Posture figures are surfaced and never stored, computed, or corrected here. Where the ledger reports a position as partial, the board propagates the qualification rather than flattening it.",
+      "tags": [
+        "integration",
+        "board",
+        "instrument"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers/offers/module_test.go",
+          "status": "implemented",
+          "notes": "A faked unavailable posture read yields an availability entry with a reason and a last-good age — never a zero runway and never an unmet goal verdict."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/offers/module_test.go",
+          "status": "implemented",
+          "notes": "The actuals read and the posture read degrade independently: either may be unavailable while the other ranks."
+        },
+        {
+          "type": "test",
+          "status": "implemented",
+          "notes": "A position the ledger marked partial arrives on the board still marked partial."
+        },
+        {
+          "type": "test",
+          "status": "implemented",
+          "notes": "No posting, balance, or posture amount is persisted by this scenario; an architecture test asserts the board package owns no amount-bearing storage."
+        }
+      ]
+    }
+  ]
+}

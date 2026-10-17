@@ -4,12 +4,12 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Alert } from "../ui/alert";
 import { HelpTooltip } from "../ui/tooltip";
-import { SSHKeySetup } from "./SSHKeySetup";
 import { ValidationSummary } from "./ValidationSummary";
 import { AutoFixPanel } from "./AutoFixPanel";
 import { AnnotatedCodeBlock, type LineAnnotation } from "../ui/annotated-code-block";
 import { mapJsonPathsToLines } from "../../lib/jsonPathToLine";
 import { selectors } from "../../consts/selectors";
+import { useManifestKeyboardShortcuts } from "../../hooks/useManifestKeyboardShortcuts";
 import type { useDeployment } from "../../hooks/useDeployment";
 import {
   listScenarios,
@@ -31,7 +31,8 @@ function getPortFromConfig(config: PortConfig): number | null {
   if (config.port) return config.port;
   if (config.range) {
     const match = config.range.match(/^(\d+)/);
-    if (match) return parseInt(match[1], 10);
+    const portText = match?.[1];
+    if (portText) return parseInt(portText, 10);
   }
   return null;
 }
@@ -76,35 +77,7 @@ export function StepManifest({ deployment }: StepManifestProps) {
   const [showResetMenu, setShowResetMenu] = useState(false);
   const resetMenuRef = useRef<HTMLDivElement>(null);
 
-  // Keyboard shortcuts for undo/redo
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Only handle when not typing in an input/textarea (except our JSON editor)
-      const target = e.target as HTMLElement;
-      const isEditorTextarea = target.getAttribute("data-testid") === selectors.manifest.input;
-      const isInputElement = target.tagName === "INPUT" || (target.tagName === "TEXTAREA" && !isEditorTextarea);
-
-      if (isInputElement) return;
-
-      if ((e.ctrlKey || e.metaKey) && e.key === "z") {
-        if (e.shiftKey) {
-          e.preventDefault();
-          redo();
-        } else {
-          e.preventDefault();
-          undo();
-        }
-      }
-      // Also support Ctrl+Y for redo
-      if ((e.ctrlKey || e.metaKey) && e.key === "y") {
-        e.preventDefault();
-        redo();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [undo, redo]);
+  useManifestKeyboardShortcuts(undo, redo);
 
   // Close reset menu when clicking outside
   useEffect(() => {
@@ -711,7 +684,7 @@ export function StepManifest({ deployment }: StepManifestProps) {
                   {/* Dependencies info */}
                   {isFetchingDependencies && (
                     <p className="text-xs text-slate-400 flex items-center gap-1">
-                      <div className="h-3 w-3 animate-spin rounded-full border border-slate-500 border-t-transparent" />
+                      <span className="inline-block h-3 w-3 animate-spin rounded-full border border-slate-500 border-t-transparent" />
                       Fetching dependencies...
                     </p>
                   )}
@@ -776,28 +749,13 @@ export function StepManifest({ deployment }: StepManifestProps) {
             </div>
           </div>
 
-          {/* SSH Configuration Section - shown when host is entered */}
+          {/* Target access: keys never travel through the manifest. */}
           {formValues.host && formValues.host !== "203.0.113.10" && (
-            <div className="md:col-span-2">
-              <SSHKeySetup
-                host={formValues.host}
-                port={parsedManifest.ok ? parsedManifest.value.target?.vps?.port ?? 22 : 22}
-                user={parsedManifest.ok ? parsedManifest.value.target?.vps?.user ?? "root" : "root"}
-                selectedKeyPath={deployment.sshKeyPath}
-                onKeyPathChange={(keyPath) => {
-                  deployment.setSSHKeyPath(keyPath);
-                  // Also update the manifest's key_path field
-                  if (keyPath && parsedManifest.ok) {
-                    const manifest = { ...parsedManifest.value };
-                    manifest.target = {
-                      ...manifest.target,
-                      vps: { ...manifest.target.vps, key_path: keyPath }
-                    };
-                    deployment.setManifestJson(JSON.stringify(manifest, null, 2));
-                  }
-                }}
-                onConnectionStatusChange={deployment.setSSHConnectionStatus}
-              />
+            <div className="md:col-span-2 rounded-lg border border-slate-800 bg-slate-900/40 p-3 text-xs text-slate-400">
+              Target access is bound outside the manifest: enroll the host with{" "}
+              <code className="text-slate-300">vrooli-bridge onboard</code>, or let the cloud reach it over SSH with
+              your agent or default key. A deployment converted from an older manifest keeps its key through the
+              credential binding <code className="text-slate-300">vrooli/scenario-to-cloud:ssh-key</code>.
             </div>
           )}
 

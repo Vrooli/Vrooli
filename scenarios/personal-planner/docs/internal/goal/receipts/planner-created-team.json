@@ -1,0 +1,54 @@
+{
+  "purpose": "delivery",
+  "lifetime": "finite",
+  "effortRefs": [
+    "effort:personal-planner-I18"
+  ],
+  "id": "personal-planner-delivery",
+  "displayName": "Personal Planner Delivery",
+  "mission": "Deliver owner-approved I18 integrated private calendar, outcomes, actuals, forecasting, learning, CLI parity and R1 read-only ingestion through native epochs.",
+  "enabled": false,
+  "archived": false,
+  "runtime": {
+    "mode": "multi-process"
+  },
+  "coordination": {
+    "pattern": "leader-led",
+    "leadAgentId": "personal-planner-delivery-orchestrator",
+    "reportingMode": "leader",
+    "messagingMode": "async-inbox",
+    "capabilities": {
+      "showOrgContext": true,
+      "injectInbox": true,
+      "allowPeerTriggers": false,
+      "showTaskBoardGuidance": false,
+      "showKnowledgeLogGuidance": false,
+      "requireHandoff": true
+    }
+  },
+  "execution": {
+    "queuePolicy": "serialized",
+    "maxConcurrentRuns": 1
+  },
+  "operatingContract": {
+    "schemaVersion": 1,
+    "governance": {},
+    "documents": {
+      "planOfRecord": null,
+      "sharedState": null
+    },
+    "knowledgeTopics": {
+      "heartbeat-note": {
+        "ownerMemberId": "unassigned",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      }
+    },
+    "members": {}
+  },
+  "memberCount": 0,
+  "createdAt": "2026-10-03T02:36:38Z",
+  "updatedAt": "2026-10-03T02:36:38Z",
+  "roles": null,
+  "members": null
+}

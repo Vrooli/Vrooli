@@ -1,0 +1,274 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "agent-new",
+    "title": "New agent",
+    "routes": [
+      "/agents/new"
+    ],
+    "purpose": "Describe an agent in plain language and get a complete drafted profile back to confirm. The draft is always presented before anything is written, and the write goes through a typed action rather than a free-form model write.",
+    "prd_refs": [
+      "OT-P1-008",
+      "OT-P1-007"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "That a plain description is enough, and nothing else is required to start"
+    },
+    {
+      "statement": "Exactly what will be written, before it is written"
+    },
+    {
+      "statement": "Which capabilities the draft proposes, and that they are editable before saving"
+    },
+    {
+      "statement": "That the draft can be discarded without leaving residue"
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "An empty description field and one dominant action."
+    },
+    {
+      "id": "submitting",
+      "description": "The description is being drafted; the action is busy."
+    },
+    {
+      "id": "success",
+      "description": "A complete draft is shown for confirmation, with every field editable."
+    },
+    {
+      "id": "validation-error",
+      "description": "The description cannot be drafted from; the message sits beside the field."
+    },
+    {
+      "id": "request-error",
+      "description": "Drafting failed; the description is preserved and retry is offered."
+    },
+    {
+      "id": "saving",
+      "description": "The confirmed draft is being written through the typed action."
+    },
+    {
+      "id": "permission-denied",
+      "description": "The signed-in person may not create agents."
+    },
+    {
+      "id": "offline",
+      "description": "Assisted drafting is unavailable; manual authoring still works."
+    },
+    {
+      "id": "loading",
+      "description": "The page's regions are resolving; each reports its own placeholder."
+    },
+    {
+      "id": "empty",
+      "description": "Nothing to show yet; the surface says so and offers the action that would fill it."
+    },
+    {
+      "id": "partial",
+      "description": "One region failed while the rest resolved; the failure is named and the page stays usable."
+    },
+    {
+      "id": "stale",
+      "description": "Content is from a cached read; its age is stated."
+    }
+  ],
+  "elements": [
+    {
+      "id": "describe-field",
+      "role": "textbox",
+      "name": "Describe the agent"
+    },
+    {
+      "id": "draft-action",
+      "role": "button",
+      "name": "Draft"
+    },
+    {
+      "id": "draft-preview",
+      "role": "region",
+      "name": "Drafted profile"
+    },
+    {
+      "id": "name-field",
+      "role": "textbox",
+      "name": "Name"
+    },
+    {
+      "id": "grant-proposal",
+      "role": "group",
+      "name": "Proposed capabilities"
+    },
+    {
+      "id": "confirm-action",
+      "role": "button",
+      "name": "Create agent"
+    },
+    {
+      "id": "discard-action",
+      "role": "button",
+      "name": "Discard draft"
+    },
+    {
+      "id": "manual-link",
+      "role": "link",
+      "name": "Author manually instead"
+    }
+  ],
+  "claims": [
+    {
+      "id": "nothing-written-before-confirm",
+      "type": "element-present",
+      "statement": "The drafted profile is presented for confirmation and no agent exists until the confirm action is used.",
+      "tier": "aspirational",
+      "elements": [
+        "draft-preview",
+        "confirm-action"
+      ],
+      "states": [
+        "success"
+      ],
+      "rationale": "OT-P1-008 requires present-before-write."
+    },
+    {
+      "id": "draft-is-editable",
+      "type": "affordance-present",
+      "statement": "Every field in the draft is editable before confirming, including the proposed capabilities.",
+      "tier": "aspirational",
+      "elements": [
+        "name-field",
+        "grant-proposal"
+      ],
+      "states": [
+        "success"
+      ],
+      "rationale": "A draft that can only be accepted or rejected wholesale gets accepted wholesale."
+    },
+    {
+      "id": "proposed-grants-are-conservative",
+      "type": "custom",
+      "statement": "The proposed capability set never includes an owner-only capability by default.",
+      "tier": "manual",
+      "elements": [
+        "grant-proposal"
+      ],
+      "states": [
+        "success"
+      ]
+    },
+    {
+      "id": "input-survives-failure",
+      "type": "custom",
+      "statement": "A failed draft preserves the typed description verbatim.",
+      "tier": "manual",
+      "elements": [
+        "describe-field"
+      ],
+      "states": [
+        "request-error"
+      ]
+    },
+    {
+      "id": "manual-path-exists",
+      "type": "element-present",
+      "statement": "A manual authoring path is available and does not depend on the drafting service.",
+      "tier": "aspirational",
+      "elements": [
+        "manual-link"
+      ],
+      "states": [
+        "default",
+        "offline"
+      ],
+      "rationale": "Assisted authoring is a convenience; it must never be the only way to create an agent."
+    },
+    {
+      "id": "discard-is-clean",
+      "type": "custom",
+      "statement": "Discarding a draft leaves no partially-written agent behind.",
+      "tier": "manual",
+      "elements": [
+        "discard-action"
+      ],
+      "states": [
+        "success"
+      ]
+    },
+    {
+      "id": "one-dominant-action",
+      "type": "single-dominant-action",
+      "statement": "Exactly one action dominates in each of the default and success states.",
+      "tier": "aspirational",
+      "elements": [
+        "draft-action",
+        "confirm-action"
+      ],
+      "states": [
+        "default",
+        "success"
+      ]
+    },
+    {
+      "id": "dark-parity",
+      "type": "dark-parity",
+      "statement": "The draft preview holds its hierarchy in both themes.",
+      "tier": "aspirational"
+    }
+  ],
+  "regions": [
+    {
+      "id": "draft-region",
+      "purpose": "The drafted agent profile.",
+      "required": true,
+      "component": {
+        "local": "async-region"
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": [
+          "loading",
+          "ready",
+          "error"
+        ]
+      }
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "describe-field": {
+        "testid": "agent-new-describe"
+      },
+      "draft-action": {
+        "testid": "agent-new-draft"
+      },
+      "draft-preview": {
+        "testid": "agent-new-preview"
+      },
+      "name-field": {
+        "testid": "agent-new-name"
+      },
+      "grant-proposal": {
+        "testid": "agent-new-grants"
+      },
+      "confirm-action": {
+        "testid": "agent-new-confirm"
+      },
+      "discard-action": {
+        "testid": "agent-new-discard"
+      },
+      "manual-link": {
+        "testid": "agent-new-manual"
+      }
+    },
+    "regions": {
+      "draft-region": {
+        "testid": "agent-new-draft-region"
+      }
+    }
+  }
+}

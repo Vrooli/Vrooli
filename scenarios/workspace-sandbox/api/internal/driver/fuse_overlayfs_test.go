@@ -7,13 +7,15 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/google/uuid"
 	"workspace-sandbox/internal/types"
+
+	"github.com/google/uuid"
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 func TestFuseOverlayfsGetChangedFilesSkipsOpaqueAndMapsWhiteouts(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("fuse-overlayfs tests require Linux")
+		repocontracttest.SkipPlatform(t, "fuse-overlayfs tests require Linux")
 	}
 
 	tmpDir := t.TempDir()
@@ -61,7 +63,7 @@ func TestFuseOverlayfsGetChangedFilesSkipsOpaqueAndMapsWhiteouts(t *testing.T) {
 		t.Fatalf("failed to create added file: %v", err)
 	}
 
-	drv := NewFuseOverlayfsDriver(DefaultConfig())
+	drv := NewFuseOverlayfsDriver(DefaultConfig(), testDeps())
 	sb := &types.Sandbox{
 		ID:       uuid.New(),
 		LowerDir: lowerDir,

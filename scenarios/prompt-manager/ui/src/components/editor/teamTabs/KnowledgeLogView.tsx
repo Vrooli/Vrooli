@@ -8,13 +8,14 @@
  * - 30-second auto-refresh
  */
 
-import { useEffect, useState, useCallback } from 'react'
-import { Plus, ChevronDown, Loader2, Pencil, X, Trash2 } from 'lucide-react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
+import { Plus, ChevronDown, Loader2, Pencil, X, Trash2, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TeamMember } from '@/types/team'
 import type { Agent } from '@/types/agent'
 import { AgentColorBadge } from '@/components/shared/AgentColorBadge'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
+import { MarkdownRenderer } from '@/components/markdown'
 import { formatRelativePastTime } from '@/lib/timeUtils'
 import * as heartbeatService from '@/services/heartbeatService'
 import type { KnowledgeEntry } from '@/services/heartbeatService'
@@ -31,15 +32,21 @@ export function KnowledgeLogView({ teamId, members, allAgents }: KnowledgeLogVie
   const [error, setError] = useState<string | null>(null)
   const [mutationError, setMutationError] = useState<string | null>(null)
   const [topicFilter, setTopicFilter] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
   const [expandedTopics, setExpandedTopics] = useState<Set<string>>(new Set(['__all__']))
   const [showAddForm, setShowAddForm] = useState(false)
   const [supersededIds, setSupersededIds] = useState<Set<string>>(new Set())
 
-  // Add form state
+  // Add form state. Identity is no longer a form field — every UI
+  // write is attributed to `kind=operator-direct` and the API derives
+  // the `caller` display string. Operators can attach an optional
+  // freeform note (e.g., "acting-as researcher") via newCallerNote;
+  // it is never used by validators. Canon:
+  // docs/agent-system/RUNTIME_ATTRIBUTION.md.
   const [newTopic, setNewTopic] = useState('')
   const [newContent, setNewContent] = useState('')
   const [newSource, setNewSource] = useState('')
-  const [newBy, setNewBy] = useState('')
+  const [newCallerNote, setNewCallerNote] = useState('')
   const [newSupersedes, setNewSupersedes] = useState('')
   const [addLoading, setAddLoading] = useState(false)
 
@@ -57,7 +64,7 @@ export function KnowledgeLogView({ teamId, members, allAgents }: KnowledgeLogVie
   const loadEntries = useCallback(async () => {
     try {
       setError(null)
-      const resp = await heartbeatService.getKnowledge(teamId, {
+      const resp = await heartbeatService.getTeamCorpus(teamId, {
         topic: topicFilter || undefined,
         last: 50,
       })
@@ -82,14 +89,14 @@ export function KnowledgeLogView({ teamId, members, allAgents }: KnowledgeLogVie
     return () => clearInterval(interval)
   }, [loadEntries])
 
-  const getAgentName = (agentId: string) => {
+  const getAgentName = useCallback((agentId: string) => {
     const member = members.find(m => m.agentId === agentId)
     return member?.displayName ?? agentId
-  }
+  }, [members])
 
-  const getAgentAppearance = (agentId: string) => {
+  const getAgentAppearance = useCallback((agentId: string) => {
     return allAgents?.find(a => a.id === agentId)?.appearance ?? null
-  }
+  }, [allAgents])
 
   const clearMutationError = () => setMutationError(null)
 
@@ -99,16 +106,16 @@ export function KnowledgeLogView({ teamId, members, allAgents }: KnowledgeLogVie
     clearMutationError()
     try {
       await heartbeatService.addKnowledge(teamId, {
-        by: newBy || 'ui-user',
         topic: newTopic,
         content: newContent,
+        caller_note: newCallerNote || undefined,
         source: newSource || undefined,
         supersedes: newSupersedes || undefined,
       })
       setNewTopic('')
       setNewContent('')
       setNewSource('')
-      setNewBy('')
+      setNewCallerNote('')
       setNewSupersedes('')
       setShowAddForm(false)
       void loadEntries()
@@ -180,9 +187,26 @@ export function KnowledgeLogView({ teamId, members, allAgents }: KnowledgeLogVie
     })
   }
 
+  const filteredEntries = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    if (!query) return entries
+    return entries.filter((entry) => {
+      const agentName = getAgentName(entry.caller)
+      return [
+        entry.id,
+        entry.caller,
+        agentName,
+        entry.topic,
+        entry.content,
+        entry.source,
+        entry.supersedes,
+      ].some((value) => (value ?? '').toLowerCase().includes(query))
+    })
+  }, [entries, searchQuery, getAgentName])
+
   // Group by topic
   const grouped = new Map<string, KnowledgeEntry[]>()
-  for (const entry of entries) {
+  for (const entry of filteredEntries) {
     const t = entry.topic || '(untagged)'
     const existing = grouped.get(t)
     if (existing) {
@@ -225,6 +249,16 @@ export function KnowledgeLogView({ teamId, members, allAgents }: KnowledgeLogVie
             <option key={tag} value={tag}>{tag}</option>
           ))}
         </select>
+        <div className="relative min-w-[180px] flex-1">
+          <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search knowledge..."
+            className="w-full rounded border border-border bg-background py-1 pl-7 pr-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+          />
+        </div>
         <button
           onClick={() => { setShowAddForm(!showAddForm); clearMutationError() }}
           className="flex items-center gap-1 text-xs px-2 py-1 border border-border rounded hover:bg-muted transition-colors"
@@ -262,17 +296,15 @@ export function KnowledgeLogView({ teamId, members, allAgents }: KnowledgeLogVie
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">By</label>
-                <select
-                  value={newBy}
-                  onChange={e => setNewBy(e.target.value)}
-                  className="w-full text-xs border border-border rounded-md px-2 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
-                >
-                  <option value="">Select agent</option>
-                  {members.map(m => (
-                    <option key={m.agentId} value={m.agentId}>{m.displayName}</option>
-                  ))}
-                </select>
+                <label className="block text-xs font-medium text-muted-foreground mb-1" title="Optional freeform note. Identity is auto-attributed as operator-direct.">Note</label>
+                <input
+                  type="text"
+                  placeholder="optional, e.g. acting-as researcher"
+                  value={newCallerNote}
+                  onChange={e => setNewCallerNote(e.target.value)}
+                  className="w-full text-sm border border-border rounded-md px-3 py-1.5 bg-background text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/50"
+                  maxLength={256}
+                />
               </div>
             </div>
             <div>
@@ -338,6 +370,8 @@ export function KnowledgeLogView({ teamId, members, allAgents }: KnowledgeLogVie
       {/* Grouped entries */}
       {entries.length === 0 ? (
         <div className="text-sm text-muted-foreground text-center py-8">No knowledge entries yet.</div>
+      ) : filteredEntries.length === 0 ? (
+        <div className="text-sm text-muted-foreground text-center py-8">No matching knowledge entries.</div>
       ) : (
         Array.from(grouped.entries()).map(([topic, topicEntries]) => {
           const isExpanded = expandedTopics.has(topic) || expandedTopics.has('__all__')
@@ -360,7 +394,7 @@ export function KnowledgeLogView({ teamId, members, allAgents }: KnowledgeLogVie
                       <div
                         key={entry.id}
                         className={cn(
-                          'px-3 py-3 transition-colors',
+                          'min-w-0 overflow-hidden px-3 py-3 transition-colors',
                           isSuperseded && 'opacity-50'
                         )}
                       >
@@ -423,9 +457,10 @@ export function KnowledgeLogView({ teamId, members, allAgents }: KnowledgeLogVie
                           <>
                             <div className="flex items-start justify-between gap-2">
                               <div className="flex-1 min-w-0">
-                                <div className="text-sm text-foreground whitespace-pre-wrap">
-                                  {entry.content}
-                                </div>
+                                <MarkdownRenderer
+                                  content={entry.content}
+                                  className="break-words text-sm text-foreground [&_*]:break-words [&_pre]:max-w-full [&_pre]:overflow-x-auto"
+                                />
                                 <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
                                   {entry.at ? formatRelativePastTime(new Date(entry.at)) : ''}
                                   {entry.source && (
@@ -434,8 +469,8 @@ export function KnowledgeLogView({ teamId, members, allAgents }: KnowledgeLogVie
                                 </div>
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
-                                <AgentColorBadge appearance={getAgentAppearance(entry.by)} size="xs" />
-                                <span className="text-xs text-muted-foreground">{getAgentName(entry.by)}</span>
+                                <AgentColorBadge appearance={getAgentAppearance(entry.caller)} size="xs" />
+                                <span className="max-w-[12rem] truncate text-xs text-muted-foreground">{getAgentName(entry.caller)}</span>
                               </div>
                             </div>
 

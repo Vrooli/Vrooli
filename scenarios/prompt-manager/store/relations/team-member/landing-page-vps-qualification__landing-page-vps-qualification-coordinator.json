@@ -1,0 +1,10 @@
+{
+  "kind": "team-member",
+  "schemaVersion": 1,
+  "teamId": "landing-page-vps-qualification",
+  "agentId": "landing-page-vps-qualification-coordinator",
+  "roles": [
+    "coordinator"
+  ],
+  "status": "active"
+}

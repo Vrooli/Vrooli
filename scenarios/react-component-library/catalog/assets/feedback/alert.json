@@ -1,0 +1,78 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "feedback.alert",
+    "name": "Alert",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "feedback",
+    "description": "The local semantic message surface for information, success, warning, or error, carrying a title, description, optional actions, dismissal, and meaning that survives without colour.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Spacing, radius, and semantic colour resolve to declared ramps."
+      },
+      {
+        "asset": "primitives.text",
+        "reason": "Copy uses the shared text styles rather than local typography."
+      },
+      {
+        "asset": "primitives.stack",
+        "reason": "Layout uses the shared spacing ramp."
+      },
+      {
+        "asset": "primitives.icon",
+        "reason": "The tone glyph resolves through the registry."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "status-announced",
+    "non-color-status",
+    "contrast-floor",
+    "text-scale-resilience",
+    "forced-colors-legibility",
+    "content-reflow",
+    "recovery-path",
+    "error-message-usefulness"
+  ],
+  "api": {
+    "levels": [
+      "convenience"
+    ],
+    "variants": {
+      "tone": [
+        "info",
+        "success",
+        "warning",
+        "danger"
+      ]
+    },
+    "parts": [
+      "icon",
+      "title",
+      "description",
+      "actions",
+      "close"
+    ]
+  },
+  "beauty": {
+    "avoid": [
+      "color-without-semantic-purpose"
+    ]
+  }
+}

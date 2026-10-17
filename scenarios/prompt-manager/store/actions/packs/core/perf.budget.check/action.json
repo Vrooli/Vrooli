@@ -1,0 +1,83 @@
+{
+  "kind": "action",
+  "schemaVersion": 1,
+  "id": "perf.budget.check",
+  "name": "Check a scenario's performance budget (regression gate)",
+  "description": "Evaluate a scenario's latest measured performance sample against its declared budget — the baseline-diff regression gate. With --flow, check one interaction journey's per-flow budget (LCP, component-commit) against its latest flow-tagged sample instead of the scenario aggregate.",
+  "status": "active",
+  "owner": {
+    "type": "scenario",
+    "id": "performance-health"
+  },
+  "command": {
+    "argv": [
+      "performance-health",
+      "budget",
+      "check",
+      "{{scenario}}",
+      "--flow",
+      "{{flow}}",
+      "--json"
+    ]
+  },
+  "inputs": {
+    "scenario": {
+      "type": "string",
+      "required": true,
+      "description": "Scenario slug."
+    },
+    "flow": {
+      "type": "string",
+      "required": false,
+      "description": "Interaction-flow slug for a per-flow check; empty = scenario-level."
+    }
+  },
+  "outputs": {
+    "passed": {
+      "type": "string",
+      "description": "Whether every measured axis is within budget."
+    },
+    "violations": {
+      "type": "string",
+      "description": "JSON of over-budget axes."
+    }
+  },
+  "permissions": {
+    "filesystemRead": true,
+    "filesystemWrite": false,
+    "externalNetwork": true,
+    "processStart": true
+  },
+  "examples": [
+    {
+      "description": "Check the scroll-library flow budget for image-tools.",
+      "input": {
+        "scenario": "image-tools",
+        "flow": "scroll-library"
+      }
+    }
+  ],
+  "tags": [
+    "performance",
+    "budget",
+    "gate",
+    "regression",
+    "lcp",
+    "component",
+    "commit",
+    "latency",
+    "baseline",
+    "ui"
+  ],
+  "execution": {
+    "timeoutSeconds": 120,
+    "outputMode": "stdout",
+    "runEligible": true
+  },
+  "validation": {
+    "mode": "contract"
+  },
+  "revision": 1,
+  "createdAt": "2026-06-22T00:00:00Z",
+  "updatedAt": "2026-06-22T00:00:00Z"
+}

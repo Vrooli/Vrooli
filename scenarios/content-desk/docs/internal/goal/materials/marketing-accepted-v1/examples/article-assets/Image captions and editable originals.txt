@@ -1,0 +1,102 @@
+ChatGPT dot article image captions and editable originals
+R1 narrative follow-up. Saved under existing Drive IDs; original artwork and diagrams preserved. Owner review remains pending.
+
+Cover compositions have editable text/layout and embedded generated raster artwork. Diagrams retain editable vector geometry and text.
+
+Selected article cover
+cover-01-next-decision
+How I’m trying to get more useful work from my ChatGPT dot. The next useful choice should reach me before I ask. Original conceptual illustration informed by official ChatGPT Dots product references; not a screenshot, endorsement or depiction of my personal dot.
+Alt text: Original conceptual editorial illustration informed by official ChatGPT Dots product references. A coral scalloped monocle character presents undecided work cards to a human hand. It does not depict the user’s personal dot or a product screenshot.
+PNG: https://drive.google.com/file/d/1VazO3K09ijdmEXpDcArwbAIEpviW84wL/view?usp=drivesdk
+SVG: https://drive.google.com/file/d/1Te2qzjPksq_gHpbjxBxuPXwn-5EvVq9O/view?usp=drivesdk
+
+Selected article cover
+cover-01-next-decision-portrait
+How I’m trying to get more useful work from my ChatGPT dot. The next useful choice should reach me before I ask. Original conceptual illustration informed by official ChatGPT Dots product references; not a screenshot, endorsement or depiction of my personal dot.
+Alt text: A portrait composition of the coral monocle product-reference character, two undecided proposal cards, a checked manuscript and a human hand poised to choose. Original conceptual editorial illustration, not a screenshot or Froggy’s likeness.
+PNG: https://drive.google.com/file/d/1ULoU0868t6AnUcryHqYCwmiFzie3fGR5/view?usp=drivesdk
+SVG: https://drive.google.com/file/d/1H634gm2VPAMKAmlzx_cQSBZisZsNr-Mn/view?usp=drivesdk
+
+Selected article cover
+cover-selected-x-16x9
+How I’m trying to get more useful work from my ChatGPT dot. The next useful choice should reach me before I ask. Original conceptual illustration informed by official ChatGPT Dots product references; not a screenshot, endorsement or depiction of my personal dot.
+Alt text: Original conceptual editorial illustration informed by official ChatGPT Dots product references. A coral scalloped monocle character presents undecided work cards to a human hand. It does not depict the user’s personal dot or a product screenshot.
+PNG: https://drive.google.com/file/d/1nOMzptqLDA3yV__J3GsnLEPrSxeOHm6m/view?usp=drivesdk
+SVG: https://drive.google.com/file/d/1uHOKIFaavACps8Ih872IERLZkaiI2KeE/view?usp=drivesdk
+
+Alternative cover
+cover-02-owner-aperture
+Between assignments. Checked work, future work and an unresolved owner choice meet at a paper junction. Conceptual illustration informed by official ChatGPT dots references, not a screenshot or personal avatar.
+Alt text: Overhead paper junction on lavender: a coral scalloped monocle character stands between a checked manuscript, an unopened stack and a coral decision card under a poised human hand. Original conceptual illustration informed by official dots artwork; not a product screenshot or the author’s personal dot.
+PNG: https://drive.google.com/file/d/1jNxp_YuwfhtoiWnpAcVof5fbwCRgvPzO/view?usp=drivesdk
+SVG: https://drive.google.com/file/d/1DQETC27mXuWL9soV4GNDZQej_3ul9j0w/view?usp=drivesdk
+
+Alternative cover
+cover-03-inspectable-packets
+The decision stage. The next choice is placed in the foreground, with completed work behind it. Conceptual illustration informed by official ChatGPT dots references, not a screenshot or personal avatar.
+Alt text: A coral scalloped monocle character stands on a cream miniature stage beside two upright undecided proposal cards. A human hand hovers above them, and checked work rests behind the character. Original conceptual illustration informed by official dots artwork; not a product screenshot or the author’s personal dot.
+PNG: https://drive.google.com/file/d/1DwXXM-rTCB04IBuiKN7V5Oo012c0gFUT/view?usp=drivesdk
+SVG: https://drive.google.com/file/d/1abd4rzmfQevFk4GlnJ947SSHa3OslCl-/view?usp=drivesdk
+
+Inline figure 1: coordination
+diagram-01-bounded-cycle-wide
+The arrangement I’m testing: one bounded assignment moves through execution and review, while the dot prepares independent next proposals and surfaces ready owner decisions. Dependent work still waits for approval. Wait only when no useful permitted action remains, with an owner answer, task result or agreed check named as the resumption trigger.
+Alt text: One bounded assignment runs beside parallel lookahead. While approved work runs or awaits review, the dot prepares independent proposals and surfaces ready owner choices that unlock capacity. Dependent work awaits approval. Owner steps define, approve and review. In-scope rework returns to execution. Reassessment can lead to the next proposal. Wait only if no useful permitted action remains, with an owner answer, task result or agreed check named as the resumption trigger.
+PNG: https://drive.google.com/file/d/1k3TivJ86fmDXdaOdrD1O9zY-Jd8kS0pz/view?usp=drivesdk
+SVG: https://drive.google.com/file/d/1IZaDpSRLVqgMcgPcON6ARFNTeyJZyak2/view?usp=drivesdk
+
+Inline figure 1: coordination
+diagram-01-bounded-cycle-portrait
+The arrangement I’m testing: one bounded assignment moves through execution and review, while the dot prepares independent next proposals and surfaces ready owner decisions. Dependent work still waits for approval. Wait only when no useful permitted action remains, with an owner answer, task result or agreed check named as the resumption trigger.
+Alt text: Parallel lookahead is shown before and alongside one assignment, not after owner acceptance. While work runs or awaits review, prepare independent next proposals and surface ready choices when approval is pending. Dependent work waits for the owner. Six stages show objective, proposal, approval, execution with in-scope correction, owner review and reassessment. Rework and next-proposal returns are explicit arrows. Wait only when no useful permitted action remains, resuming on an owner answer, task result or named check.
+PNG: https://drive.google.com/file/d/1B4SNhdPeCYsQs_y_QazY2SboH3zqf9PQ/view?usp=drivesdk
+SVG: https://drive.google.com/file/d/1UGBQEFkTwAS6SDlrgwL6IKEG01qXgl3d/view?usp=drivesdk
+
+Inline figure 1: coordination
+diagram-01-bounded-cycle-mobile
+The arrangement I’m testing: one bounded assignment moves through execution and review, while the dot prepares independent next proposals and surfaces ready owner decisions. Dependent work still waits for approval. Wait only when no useful permitted action remains, with an owner answer, task result or agreed check named as the resumption trigger.
+Alt text: Large-type mobile composition of one bounded assignment with a persistent parallel lookahead band. Independent proposals can be prepared while work runs or awaits review. Pending approval calls for surfacing ready owner decisions; dependent execution still waits for approval. Six steps separate owner decisions from dot work and in-scope rework. Wait only when no useful permitted action remains. Resume on an owner answer, task result or named check.
+PNG: https://drive.google.com/file/d/1QZJBWBoneIo2x3q_CpmmkuSCdS7EbdR1/view?usp=drivesdk
+SVG: https://drive.google.com/file/d/1phzn3QLPOkynh6pHfiXv5sRrz_bKug4T/view?usp=drivesdk
+
+Inline figure 2: recovery
+diagram-02-recovery-wide
+Recover from the last confirmed state. Perform a known safe step within approval; seek an owner decision if a consequential submission is uncertain or scope must change. The owner may hold. If proceeding, perform the approved next step, then inspect the actual result before marking complete. Never blindly duplicate a submission.
+Alt text: A missing result triggers inspection of the last confirmed state. Assess whether continuation is known, safe and within approval. If so, perform that known safe step. An uncertain consequential submission or changed scope goes to the owner, who may approve the next step or keep it on hold. Only if proceeding, perform the approved step, then inspect the actual result. A held step does not lead to execution. Attempted does not mean verified. Never blindly duplicate a submission.
+PNG: https://drive.google.com/file/d/1ZSlZQYb3wY9IwvKawbLiOLKtaspH6KEq/view?usp=drivesdk
+SVG: https://drive.google.com/file/d/1LKA113RrtDuuEyCNb-WjWVUgkRs9TZuO/view?usp=drivesdk
+
+Inline figure 2: recovery
+diagram-02-recovery-portrait
+Recover from the last confirmed state. Perform a known safe step within approval; seek an owner decision if a consequential submission is uncertain or scope must change. The owner may hold. If proceeding, perform the approved next step, then inspect the actual result before marking complete. Never blindly duplicate a submission.
+Alt text: A missing result triggers inspection of the last confirmed state. Assess whether continuation is known, safe and within approval. If so, perform that known safe step. An uncertain consequential submission or changed scope goes to the owner, who may approve the next step or keep it on hold. Only if proceeding, perform the approved step, then inspect the actual result. A held step does not lead to execution. Attempted does not mean verified. Never blindly duplicate a submission.
+PNG: https://drive.google.com/file/d/1EXbggSoKKdeQZX6hULSVSF4C3oh-trc4/view?usp=drivesdk
+SVG: https://drive.google.com/file/d/1OGez1n-DXzASd4MySznRmEI9bW8oBOC2/view?usp=drivesdk
+
+Inline figure 2: recovery
+diagram-02-recovery-mobile
+Recover from the last confirmed state. Perform a known safe step within approval; seek an owner decision if a consequential submission is uncertain or scope must change. The owner may hold. If proceeding, perform the approved next step, then inspect the actual result before marking complete. Never blindly duplicate a submission.
+Alt text: A missing result triggers inspection of the last confirmed state. Assess whether continuation is known, safe and within approval. If so, perform that known safe step. An uncertain consequential submission or changed scope goes to the owner, who may approve the next step or keep it on hold. Only if proceeding, perform the approved step, then inspect the actual result. A held step does not lead to execution. Attempted does not mean verified. Never blindly duplicate a submission.
+PNG: https://drive.google.com/file/d/1d_lNqRM5E_15XgekcTcF58JU6WcK_Lym/view?usp=drivesdk
+SVG: https://drive.google.com/file/d/19_dxgNNpQR5LbWnPWzt_ZZtuhF6jtNpI/view?usp=drivesdk
+
+Cover review contact sheet
+cover-directions-contact-sheet
+How I’m trying to get more useful work from my ChatGPT dot. The next useful choice should reach me before I ask. Original conceptual illustration informed by official ChatGPT Dots product references; not a screenshot, endorsement or depiction of my personal dot.
+Alt text: Three distinct original editorial illustrations informed by the official ChatGPT Dots product character: a character presenting next choices, an overhead paper junction, and a miniature decision stage. Cover 01 is recommended for the strongest personal article hook and recognizable character. No depiction is the user’s avatar or a product screenshot.
+PNG: https://drive.google.com/file/d/1osNBwsUaAxLK4FzI2eio695gFSpl3gjf/view?usp=drivesdk
+SVG: https://drive.google.com/file/d/17N-flUJvZP0d_MfWqLQ6hjYvEeKtGLyw/view?usp=drivesdk
+
+Source and output comparison
+PNG: https://drive.google.com/file/d/18YImDL0wAD_u_VPvNDUwveVdwbyMaaab/view?usp=drivesdk
+Editable SVG: https://drive.google.com/file/d/1bbGGBzPeXnZ57LE2Q2aQ4aevvll02MBL/view?usp=drivesdk
+
+Official reference sources
+Official dots product page: https://chatgpt.com/features/dots/
+Official goal and activity image: https://images.ctfassets.net/8su2tbn87fck/koe4nuXekXUfuUGqiAPCS/d8985552b4a8b25fd758373a7e3e4953/bento_goal_desktop.png
+Official ring mark: https://images.ctfassets.net/8su2tbn87fck/PulStHeDuz5begF06sEwk/c2080ae53243122046ba61074a5f0bd2/dots-o-updated.svg
+Official Alfred poster: https://images.ctfassets.net/8su2tbn87fck/1kV9mVs6c09GY7Fd6Kqe0Y/4cd80b14db0c087697481458a833005e/poster-alfred.webp
+
+Verification limits
+The supplemental full-length narrow article PNG failed to upload and is absent from the project preview folder. No blind retry was made. The native illustrated article, standalone narrow diagrams and four X/LinkedIn previews are available.
+Native platform and phone behavior remain untested.

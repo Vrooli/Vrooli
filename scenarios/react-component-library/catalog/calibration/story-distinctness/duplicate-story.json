@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 5,
+  "kind": "component",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    { "id": "first", "name": "First", "role": "anatomy", "args": {}, "expect": [{ "kind": "text", "value": "calibration" }] },
+    { "id": "second", "name": "Second", "role": "anatomy", "args": {}, "expect": [{ "kind": "text", "value": "calibration" }] }
+  ]
+}

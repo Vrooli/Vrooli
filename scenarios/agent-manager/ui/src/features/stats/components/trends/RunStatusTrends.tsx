@@ -1,5 +1,6 @@
 // Run Status Trends - stacked area chart showing complete/failed/cancelled over time
 
+import { useMemo } from "react";
 import {
   AreaChart,
   Area,
@@ -15,41 +16,28 @@ import { useTimeWindow } from "../../hooks/useTimeWindow";
 import { formatNumber } from "../../utils/formatters";
 import { formatChartAxisByPreset, formatStatsDateTime } from "../../../../lib/dateTime";
 import { CHART_COLORS, CHART_MARGINS, TOOLTIP_STYLE } from "../../utils/chartConfig";
+import { MeasureFrame } from "../measure/MeasureFrame";
+import { useMeasureDefinitions } from "../../hooks/useMeasureDefinitions";
 
 export function RunStatusTrends() {
   const { data, isLoading, error } = useRunTrends();
   const { preset } = useTimeWindow();
-
-  if (isLoading) {
-    return (
-      <div className="rounded-lg border border-border bg-card/50 p-4 sm:p-6">
-        <div className="mb-2 sm:mb-4 h-5 w-32 animate-pulse rounded bg-muted/30" />
-        <div className="h-[200px] sm:h-[300px] animate-pulse rounded bg-muted/20" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-4 sm:p-6">
-        <h3 className="text-sm font-semibold">Run Trends</h3>
-        <p className="mt-2 text-sm text-red-500">Failed to load: {error.message}</p>
-      </div>
-    );
-  }
-
-  const buckets = data?.buckets ?? [];
-
-  // Transform data for stacked area
-  const chartData = buckets.map((bucket) => ({
-    time: bucket.timestamp,
-    completed: bucket.runsCompleted,
-    failed: bucket.runsFailed,
-    started: bucket.runsStarted,
-  }));
+  const definitions = useMeasureDefinitions();
+  const buckets = data?.buckets;
+  const chartData = useMemo(
+    () =>
+      (buckets ?? []).map((bucket) => ({
+        time: bucket.timestamp,
+        completed: bucket.runsCompleted,
+        failed: bucket.runsFailed,
+        started: bucket.runsStarted,
+      })),
+    [buckets]
+  );
 
   return (
-    <div className="rounded-lg border border-border bg-card/50 p-4 sm:p-6">
+    <MeasureFrame label="Run trends" result={data?.measure} definition={definitions.data?.find((item) => item.id === "throughput.terminal_run_trend")} loading={isLoading} error={error?.message}>
+    <div className="rounded-lg border border-border bg-card/50 p-4 sm:p-6 min-w-0">
       <h3 className="mb-2 sm:mb-4 text-sm font-semibold text-muted-foreground">
         Run Trends
       </h3>
@@ -87,11 +75,12 @@ export function RunStatusTrends() {
               />
               <Tooltip
                 contentStyle={TOOLTIP_STYLE}
-                labelFormatter={(label: string) => formatStatsDateTime(label)}
-                formatter={(value: number, name: string) => [
-                  formatNumber(value),
-                  name.charAt(0).toUpperCase() + name.slice(1),
-                ]}
+                labelFormatter={(label) => formatStatsDateTime(String(label ?? ""))}
+                formatter={(value, name) => {
+                  const numericValue = typeof value === "number" ? value : Number(value ?? 0);
+                  const label = String(name ?? "");
+                  return [formatNumber(numericValue), label.charAt(0).toUpperCase() + label.slice(1)];
+                }}
               />
               <Legend
                 wrapperStyle={{ fontSize: "12px", color: CHART_COLORS.text }}
@@ -117,5 +106,6 @@ export function RunStatusTrends() {
         </div>
       )}
     </div>
+    </MeasureFrame>
   );
 }

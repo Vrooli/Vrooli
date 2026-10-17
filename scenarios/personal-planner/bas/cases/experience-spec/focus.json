@@ -1,0 +1,46 @@
+{
+  "metadata": {
+    "name": "experience-focus-spec-smoke",
+    "description": "Generated observer smoke for active experience page focus.",
+    "requirement": "OT-P1-005",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "spec_entry_id": "focus",
+      "surface": "experience-focus"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1280,
+    "viewport_height": 800
+  },
+  "nodes": [
+    {
+      "id": "navigate-focus",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "personal-planner",
+          "scenario_path": "/focus",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Open focus" }
+      }
+    },
+    {
+      "id": "wait-focus-page",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.focus",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "focus page visible" }
+      }
+    }
+  ]
+}

@@ -26,6 +26,15 @@ flowchart TD
     N --> O[Return results]
 ```
 
+### Resource observation flow
+
+Resource checks share one typed fleet snapshot provider. The provider applies a
+20-second TTL, coalesces concurrent refreshes, and returns explicit source,
+freshness, completeness, age, and probe-level metadata. A fresh fast anomaly
+gets one named deep status confirmation. Refresh failure returns undetermined
+evidence and a bounded retry time; cached healthy data is not used to clear an
+incident or certify recovery.
+
 ## Platform Filtering
 
 Checks specify which platforms they support:

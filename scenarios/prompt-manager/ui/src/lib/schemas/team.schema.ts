@@ -8,6 +8,7 @@
  */
 
 import { z } from 'zod'
+import { ProtoBoolDefaultFalseSchema, ProtoInt64Schema } from './common.schema'
 
 const nullableStringArray = z
   .array(z.string())
@@ -30,6 +31,12 @@ export const TeamMemberSchema = z.object({
   displayName: z.string(),
   roles: nullableStringArray,
   status: z.string(),
+  memberType: z.enum(['employee', 'contractor']).optional(),
+  runId: z.string().optional(),
+  effortRef: z.string().optional(),
+  assignment: z.string().optional(),
+  model: z.string().optional(),
+  runner: z.string().optional(),
 })
 export type TeamMember = z.infer<typeof TeamMemberSchema>
 
@@ -48,15 +55,63 @@ export type MessagingMode = z.infer<typeof MessagingModeSchema>
 export const QueuePolicySchema = z.enum(['serialized', 'bounded-parallel'])
 export type QueuePolicy = z.infer<typeof QueuePolicySchema>
 
-export const DecisionModeSchema = z.enum(['yolo', 'approval'])
-export type DecisionMode = z.infer<typeof DecisionModeSchema>
+const PathRefSchema = z.object({
+  base: z.enum(['repo-root', 'team-root', 'team-shared', 'team-member', 'agent-root']).optional(),
+  path: z.string().optional(),
+  memberId: z.string().optional(),
+  agentId: z.string().optional(),
+  required: z.boolean().optional(),
+  optionalReason: z.string().optional(),
+})
+
+const WriteRefSchema = PathRefSchema.extend({
+  kind: z.enum(['handoff', 'knowledge', 'task', 'inbox-message']).optional(),
+})
+
+export const OperatingContractSchema = z.object({
+  schemaVersion: z.literal(1),
+  documents: z.object({
+    planOfRecord: z.array(z.object({
+      id: z.string(),
+      paths: z.array(PathRefSchema),
+      writePolicy: z.string(),
+      consumers: z.array(z.string()).optional(),
+      rationale: z.string().optional(),
+      required: z.boolean().optional(),
+      optionalReason: z.string().optional(),
+    })).nullable().optional().transform((val) => val ?? []),
+    sharedState: z.array(z.object({
+      id: z.string(),
+      path: PathRefSchema,
+      ownerMemberId: z.string().optional(),
+      kind: z.string(),
+      required: z.boolean(),
+      optionalReason: z.string().optional(),
+    })).nullable().optional().transform((val) => val ?? []),
+  }),
+  knowledgeTopics: z.record(z.string(), z.object({
+    ownerMemberId: z.string(),
+    retention: z.string().optional(),
+  })),
+  members: z.record(z.string(), z.object({
+    lane: z.string(),
+    allowedWrites: z.array(WriteRefSchema).optional(),
+    forbiddenWrites: z.array(WriteRefSchema).optional(),
+    safetyCriticalRules: z.array(z.string()).optional(),
+    readOnlyModeBehavior: z.object({
+      stillWriteKnowledge: z.boolean(),
+      stillWriteHandoff: z.boolean(),
+    }),
+    taskParameters: z.record(z.string(), z.unknown()).optional(),
+  })),
+})
+export type OperatingContract = z.infer<typeof OperatingContractSchema>
 
 export const CoordinationCapabilitiesSchema = z.object({
   showOrgContext: z.boolean(),
   injectInbox: z.boolean(),
   allowPeerTriggers: z.boolean(),
   showTaskBoardGuidance: z.boolean(),
-  showDecisionLogGuidance: z.boolean(),
   showKnowledgeLogGuidance: z.boolean(),
   requireHandoff: z.boolean(),
 })
@@ -82,16 +137,41 @@ export const ExecutionSchema = z.object({
 })
 export type Execution = z.infer<typeof ExecutionSchema>
 
+export const TeamPurposeSchema = z.enum(['domain-stewardship', 'delivery', 'supervision'])
+export type TeamPurpose = z.infer<typeof TeamPurposeSchema>
+export const TeamLifetimeSchema = z.enum(['standing', 'finite'])
+export type TeamLifetime = z.infer<typeof TeamLifetimeSchema>
+
+const TeamClassificationFields = {
+  purpose: z.union([TeamPurposeSchema, z.literal('')]).optional(),
+  lifetime: z.union([TeamLifetimeSchema, z.literal('')]).optional(),
+  effortRefs: z.array(z.string().trim().min(1)).optional(),
+}
+
+const ObjectiveReferenceSchema = z.looseObject({
+  id: z.string(),
+  role: z.string().optional(),
+  coverage: z.string().optional(),
+  note: z.string().optional(),
+  acknowledgedRevision: z.string().optional(),
+})
+
 export const TeamSchema = z.object({
   id: z.string(),
   displayName: z.string(),
   mission: z.string().optional(),
+  ...TeamClassificationFields,
+  objectivesServed: z.array(ObjectiveReferenceSchema).nullish(),
   enabled: z.boolean().optional().default(false),
+  // Optional for compatibility with team records written before archive state existed.
+  archived: z.boolean().optional(),
+  managedTeamIds: z.array(z.string()).nullable().optional(),
+  managedByTeamIds: z.array(z.string()).nullable().optional(),
   runtime: RuntimeSchema,
   coordination: CoordinationSchema,
   execution: ExecutionSchema,
-  decisionMode: DecisionModeSchema.optional().default('yolo'),
-  memberCount: z.number().int(),
+  operatingContract: OperatingContractSchema,
+  memberCount: z.number().int().default(0),
   createdAt: z.string(),
   updatedAt: z.string(),
 })
@@ -109,21 +189,25 @@ export const CreateTeamRequestSchema = z.object({
   id: z.string().optional(),
   displayName: z.string().min(1, 'Display name is required').max(100, 'Display name must be 100 characters or less'),
   mission: z.string().max(500).optional(),
+  ...TeamClassificationFields,
+  archived: z.boolean().optional(),
   runtime: RuntimeSchema,
   coordination: CoordinationSchema,
   execution: ExecutionSchema,
-  decisionMode: DecisionModeSchema.optional(),
+  operatingContract: OperatingContractSchema,
 })
 export type CreateTeamRequest = z.infer<typeof CreateTeamRequestSchema>
 
 export const UpdateTeamRequestSchema = z.object({
   displayName: z.string().min(1).max(100).optional(),
   mission: z.string().max(500).optional(),
+  ...TeamClassificationFields,
   enabled: z.boolean().optional(),
+  archived: z.boolean().optional(),
   runtime: RuntimeSchema.optional(),
   coordination: CoordinationSchema.optional(),
   execution: ExecutionSchema.optional(),
-  decisionMode: DecisionModeSchema.optional(),
+  operatingContract: OperatingContractSchema.optional(),
 })
 export type UpdateTeamRequest = z.infer<typeof UpdateTeamRequestSchema>
 
@@ -146,21 +230,56 @@ export type SetRolesRequest = z.infer<typeof SetRolesRequestSchema>
 
 export const TeamSharedFileEntrySchema = z.object({
   path: z.string(),
-  isDir: z.boolean(),
-  size: z.number().int().nonnegative().optional(),
+  isDir: ProtoBoolDefaultFalseSchema,
+  size: ProtoInt64Schema.pipe(z.number().int().nonnegative()).optional(),
 })
 export type TeamSharedFileEntry = z.infer<typeof TeamSharedFileEntrySchema>
 
 export const TeamSharedFileListResponseSchema = z.object({
   teamId: z.string(),
-  files: z.array(TeamSharedFileEntrySchema),
+  // Proto3 JSON omits empty repeated fields. Treat an omitted files field as
+  // the valid empty-directory response rather than a transport failure.
+  files: z.array(TeamSharedFileEntrySchema).default([]),
 })
 export type TeamSharedFileListResponse = z.infer<typeof TeamSharedFileListResponseSchema>
+
+export const EffortWorkspaceFileSchema = TeamSharedFileEntrySchema
+export type EffortWorkspaceFile = z.infer<typeof EffortWorkspaceFileSchema>
+
+export const EffortWorkspaceSchema = z.object({
+  effortRef: z.string(),
+  slug: z.string(),
+  stage: z.string().optional(),
+  files: z.array(EffortWorkspaceFileSchema),
+})
+export type EffortWorkspace = z.infer<typeof EffortWorkspaceSchema>
+
+export const EffortWorkspaceListResponseSchema = z.object({
+  teamId: z.string(),
+  workspaces: z.array(EffortWorkspaceSchema),
+  unavailable: z.array(z.object({ effortRef: z.string(), reason: z.string() })).default([]),
+})
+export type EffortWorkspaceListResponse = z.infer<typeof EffortWorkspaceListResponseSchema>
+
+export const EffortWorkspaceContentResponseSchema = z.object({
+  effortRef: z.string(),
+  path: z.string(),
+  content: z.string().default(''),
+  contentBytes: z.string().optional(),
+  contentType: z.string().optional(),
+  contentTruncated: z.boolean().optional(),
+  previewDataUrl: z.string().optional(),
+})
+export type EffortWorkspaceContentResponse = z.infer<typeof EffortWorkspaceContentResponseSchema>
 
 export const TeamSharedFileContentResponseSchema = z.object({
   teamId: z.string(),
   path: z.string(),
-  content: z.string(),
+  content: z.string().default(''),
+  contentBytes: z.string().optional(),
+  contentType: z.string().optional(),
+  contentTruncated: z.boolean().optional(),
+  previewDataUrl: z.string().optional(),
 })
 export type TeamSharedFileContentResponse = z.infer<typeof TeamSharedFileContentResponseSchema>
 
@@ -214,7 +333,6 @@ export const DEFAULT_INDEPENDENT_CAPABILITIES: CoordinationCapabilities = {
   injectInbox: false,
   allowPeerTriggers: false,
   showTaskBoardGuidance: true,
-  showDecisionLogGuidance: true,
   showKnowledgeLogGuidance: true,
   requireHandoff: true,
 }
@@ -224,7 +342,6 @@ export const DEFAULT_PEER_CAPABILITIES: CoordinationCapabilities = {
   injectInbox: true,
   allowPeerTriggers: true,
   showTaskBoardGuidance: true,
-  showDecisionLogGuidance: true,
   showKnowledgeLogGuidance: true,
   requireHandoff: true,
 }
@@ -234,7 +351,6 @@ export const DEFAULT_LEADER_LED_CAPABILITIES: CoordinationCapabilities = {
   injectInbox: false,
   allowPeerTriggers: false,
   showTaskBoardGuidance: true,
-  showDecisionLogGuidance: true,
   showKnowledgeLogGuidance: true,
   requireHandoff: true,
 }
@@ -293,6 +409,11 @@ export function buildDefaultCreateTeamRequest(displayName: string): CreateTeamRe
     runtime: { mode: 'multi-process' },
     coordination: buildIndependentCoordination(),
     execution: buildBoundedParallelExecution(2),
-    decisionMode: 'yolo',
+    operatingContract: {
+      schemaVersion: 1,
+      documents: { planOfRecord: [], sharedState: [] },
+      knowledgeTopics: {},
+      members: {},
+    },
   }
 }

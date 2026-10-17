@@ -3,17 +3,16 @@ package scenarios
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
-	"time"
+
+	apistorage "github.com/vrooli/api-core/storage"
 
 	"test-genie/internal/shared"
-	"test-genie/internal/smoke"
 )
 
 type scenarioSummaryStore interface {
@@ -49,11 +48,39 @@ type RunScenarioTestOptions struct {
 	ExtraArgs []string
 }
 
+// scenarioTestLogDir resolves where scenario-test logs are written.
+//
+// These logs used to land in <scenariosRoot>/_artifacts/scenario-tests, i.e.
+// inside the scenarios/ SOURCE namespace, where the directory reads like a
+// scenario named "_artifacts" and every run dirtied the repo. Run logs are
+// runtime state, so they belong in the platform's logs class alongside every
+// other scenario's operational output.
+//
+// Resolution failure falls back to the OS temp dir, never to the repo: a log
+// path is not worth failing startup over, but it must never write into source.
+func scenarioTestLogDir() string {
+	resolver, err := apistorage.NewResolver(apistorage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: apistorage.ProfileAuto,
+	})
+	if err == nil {
+		path, perr := resolver.Path(
+			apistorage.Options{ScenarioID: "test-genie"},
+			apistorage.ClassLogs,
+			"scenario-tests",
+		)
+		if perr == nil {
+			return path
+		}
+	}
+	return filepath.Join(os.TempDir(), "vrooli-test-genie", "scenario-tests")
+}
+
 func NewScenarioDirectoryService(repo scenarioSummaryStore, lister ScenarioLister, scenariosRoot string) *ScenarioDirectoryService {
 	defaultRunner := TestingRunner{
 		Timeout: defaultTestingTimeout,
 		Output:  log.Writer(),
-		LogDir:  filepath.Join(strings.TrimSpace(scenariosRoot), "_artifacts", "scenario-tests"),
+		LogDir:  scenarioTestLogDir(),
 	}
 	return &ScenarioDirectoryService{
 		repo:          repo,
@@ -119,8 +146,6 @@ func (s *ScenarioDirectoryService) ListSummaries(ctx context.Context) ([]Scenari
 		}
 		summary := applyScenarioMetadata(ScenarioSummary{
 			ScenarioName:    name,
-			PendingRequests: 0,
-			TotalRequests:   0,
 			TotalExecutions: 0,
 		}, meta)
 		s.decorateScenario(&summary)
@@ -174,8 +199,6 @@ func (s *ScenarioDirectoryService) GetSummary(ctx context.Context, scenario stri
 
 	placeholder := applyScenarioMetadata(ScenarioSummary{
 		ScenarioName:    meta.Name,
-		PendingRequests: 0,
-		TotalRequests:   0,
 		TotalExecutions: 0,
 	}, *meta)
 	s.decorateScenario(&placeholder)
@@ -221,7 +244,7 @@ func (s *ScenarioDirectoryService) decorateScenario(summary *ScenarioSummary) {
 	}
 	dir := filepath.Join(s.scenariosRoot, summary.ScenarioName)
 	caps := s.detectTesting(dir)
-	if !caps.HasTests && !caps.Lifecycle && !caps.Legacy && !caps.Phased {
+	if !caps.HasTests {
 		summary.Testing = nil
 		return
 	}
@@ -270,173 +293,4 @@ func (s *ScenarioDirectoryService) RunScenarioTests(ctx context.Context, scenari
 		return nil, nil, err
 	}
 	return cmd, result, nil
-}
-
-// UISmokeResult represents the outcome of a UI smoke test.
-type UISmokeResult struct {
-	Scenario            string          `json:"scenario"`
-	Status              string          `json:"status"`
-	BlockedReason       string          `json:"blocked_reason,omitempty"`
-	Message             string          `json:"message"`
-	Timestamp           time.Time       `json:"timestamp"`
-	DurationMs          int64           `json:"duration_ms"`
-	UIURL               string          `json:"ui_url,omitempty"`
-	Handshake           json.RawMessage `json:"handshake,omitempty"`
-	NetworkFailureCount int             `json:"network_failure_count"`
-	PageErrorCount      int             `json:"page_error_count"`
-	ConsoleErrorCount   int             `json:"console_error_count"`
-	Artifacts           json.RawMessage `json:"artifacts,omitempty"`
-	Bundle              json.RawMessage `json:"bundle,omitempty"`
-}
-
-// RunUISmoke executes a UI smoke test for the specified scenario.
-// If uiURL is provided, it overrides the auto-detected URL.
-// If browserlessURL is provided, it overrides the default Browserless endpoint.
-// If timeoutMs is > 0, it overrides the default timeout.
-// When scenarioDirOverride is non-empty, it is used instead of resolving via
-// scenariosRoot. See packages/cli-core/cliutil/sandbox.go.
-func (s *ScenarioDirectoryService) RunUISmoke(ctx context.Context, scenario string, uiURL string, browserlessURL string, timeoutMs int64, scenarioDirOverride string) (*UISmokeResult, error) {
-	scenario = strings.TrimSpace(scenario)
-	if scenario == "" {
-		return nil, shared.NewValidationError("scenario name is required")
-	}
-	dir := strings.TrimSpace(scenarioDirOverride)
-	if dir == "" {
-		if s.scenariosRoot == "" {
-			return nil, fmt.Errorf("scenarios root is not configured")
-		}
-		dir = filepath.Join(s.scenariosRoot, scenario)
-	}
-	info, err := os.Stat(dir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("scenario directory not found: %w", os.ErrNotExist)
-		}
-		return nil, fmt.Errorf("failed to access scenario directory: %w", err)
-	}
-	if !info.IsDir() {
-		return nil, fmt.Errorf("scenario path is not a directory")
-	}
-
-	// Use default browserless URL if not provided
-	if browserlessURL == "" {
-		browserlessURL = smoke.DefaultBrowserlessURL
-	}
-
-	opts := []smoke.RunnerOption{smoke.WithRunnerLogger(log.Writer())}
-	if timeoutMs > 0 {
-		opts = append(opts, smoke.WithRunnerTimeout(time.Duration(timeoutMs)*time.Millisecond))
-	}
-	if uiURL != "" {
-		opts = append(opts, smoke.WithUIURL(uiURL))
-	}
-
-	runner := smoke.NewRunner(browserlessURL, opts...)
-	result, err := runner.Run(ctx, scenario, dir)
-	if err != nil {
-		return nil, fmt.Errorf("ui smoke test failed: %w", err)
-	}
-
-	return convertSmokeResult(result), nil
-}
-
-// UISmokeOptions contains options for running a UI smoke test.
-type UISmokeOptions struct {
-	URL            string
-	BrowserlessURL string
-	TimeoutMs      int64
-	NoRecovery     bool
-	SharedMode     bool
-	AutoStart      bool
-	// ScenarioDirOverride overrides the scenario directory path for sandboxed agents.
-	// See packages/cli-core/cliutil/sandbox.go.
-	ScenarioDirOverride string
-}
-
-// RunUISmokeWithOpts executes a UI smoke test with full options support.
-func (s *ScenarioDirectoryService) RunUISmokeWithOpts(ctx context.Context, scenario string, opts UISmokeOptions) (*UISmokeResult, error) {
-	scenario = strings.TrimSpace(scenario)
-	if scenario == "" {
-		return nil, shared.NewValidationError("scenario name is required")
-	}
-	dir := strings.TrimSpace(opts.ScenarioDirOverride)
-	if dir == "" {
-		if s.scenariosRoot == "" {
-			return nil, fmt.Errorf("scenarios root is not configured")
-		}
-		dir = filepath.Join(s.scenariosRoot, scenario)
-	}
-	info, err := os.Stat(dir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("scenario directory not found: %w", os.ErrNotExist)
-		}
-		return nil, fmt.Errorf("failed to access scenario directory: %w", err)
-	}
-	if !info.IsDir() {
-		return nil, fmt.Errorf("scenario path is not a directory")
-	}
-
-	// Use default browserless URL if not provided
-	browserlessURL := opts.BrowserlessURL
-	if browserlessURL == "" {
-		browserlessURL = smoke.DefaultBrowserlessURL
-	}
-
-	runnerOpts := []smoke.RunnerOption{smoke.WithRunnerLogger(log.Writer())}
-	if opts.TimeoutMs > 0 {
-		runnerOpts = append(runnerOpts, smoke.WithRunnerTimeout(time.Duration(opts.TimeoutMs)*time.Millisecond))
-	}
-	if opts.URL != "" {
-		runnerOpts = append(runnerOpts, smoke.WithUIURL(opts.URL))
-	}
-	// Apply recovery options
-	if opts.NoRecovery {
-		runnerOpts = append(runnerOpts, smoke.WithAutoRecovery(false))
-	}
-	if opts.SharedMode {
-		runnerOpts = append(runnerOpts, smoke.WithSharedMode(true))
-	}
-	if opts.AutoStart {
-		runnerOpts = append(runnerOpts, smoke.WithAutoStart(true))
-	}
-
-	runner := smoke.NewRunner(browserlessURL, runnerOpts...)
-	result, err := runner.Run(ctx, scenario, dir)
-	if err != nil {
-		return nil, fmt.Errorf("ui smoke test failed: %w", err)
-	}
-
-	return convertSmokeResult(result), nil
-}
-
-// convertSmokeResult converts a smoke.Result to a UISmokeResult API response.
-func convertSmokeResult(result *smoke.Result) *UISmokeResult {
-	apiResult := &UISmokeResult{
-		Scenario:            result.Scenario,
-		Status:              string(result.Status),
-		BlockedReason:       string(result.BlockedReason),
-		Message:             result.Message,
-		Timestamp:           result.Timestamp,
-		DurationMs:          result.DurationMs,
-		UIURL:               result.UIURL,
-		NetworkFailureCount: result.NetworkFailureCount,
-		PageErrorCount:      result.PageErrorCount,
-		ConsoleErrorCount:   result.ConsoleErrorCount,
-	}
-
-	// Marshal nested structs to JSON
-	if handshakeData, err := json.Marshal(result.Handshake); err == nil {
-		apiResult.Handshake = handshakeData
-	}
-	if artifactsData, err := json.Marshal(result.Artifacts); err == nil {
-		apiResult.Artifacts = artifactsData
-	}
-	if result.Bundle != nil {
-		if bundleData, err := json.Marshal(result.Bundle); err == nil {
-			apiResult.Bundle = bundleData
-		}
-	}
-
-	return apiResult
 }

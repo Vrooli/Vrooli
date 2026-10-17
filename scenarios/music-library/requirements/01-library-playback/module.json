@@ -1,0 +1,63 @@
+{
+  "_metadata": {
+    "module": "library-playback",
+    "description": "Point-at library model with reliable playback and no mutation of source files.",
+    "prd_ref": "OT-P0-001",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "MLIB-P0-001",
+      "title": "Source files are never moved or mutated",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "core",
+      "criticality": "P0",
+      "description": "The library points at listener-managed folders and treats them as read-only. Scanning, tagging, and analysis never write to, rename, relocate, or delete a source file. Managed storage holds only generated audio and derived artifacts.",
+      "tags": ["library", "safety"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/library/readonly_test.go", "phase": "unit", "status": "planned", "notes": "No write path exists to a source root; scan is provably read-only" }
+      ]
+    },
+    {
+      "id": "MLIB-P0-002",
+      "title": "Scan is incremental and resumable",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "core",
+      "criticality": "P0",
+      "description": "Library scanning detects additions, moves, and deletions without a full re-read, survives interruption, and resumes from where it stopped. Track identity is content-derived so a moved or retagged file is not treated as a new track.",
+      "tags": ["library", "durability"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/library/scan_test.go", "phase": "unit", "status": "planned", "notes": "Incremental scan resumes; moved files retain identity and history" }
+      ]
+    },
+    {
+      "id": "MLIB-P0-003",
+      "title": "Playback covers formats the browser cannot decode",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "core",
+      "criticality": "P0",
+      "description": "Playback serves lossless and uncommon formats by transcoding on demand rather than refusing them, preserves gapless playback where the source supports it, and never rewrites the source to achieve either.",
+      "tags": ["playback"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/playback/transcode_test.go", "phase": "unit", "status": "planned", "notes": "Non-native formats stream successfully; gapless boundaries preserved; source untouched" }
+      ]
+    },
+    {
+      "id": "MLIB-P0-004",
+      "title": "Playback control is fully keyboard-operable",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "ux",
+      "criticality": "P0",
+      "description": "Transport, queue manipulation, and rating are reachable and operable by keyboard alone, with state changes announced to assistive technology.",
+      "tags": ["playback", "accessibility"],
+      "validation": [
+        { "type": "test", "ref": "ui/src/features/player/keyboard.test.tsx", "phase": "unit", "status": "planned", "notes": "All transport and queue actions keyboard-reachable with announced state" }
+      ]
+    }
+  ]
+}

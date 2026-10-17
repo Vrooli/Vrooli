@@ -1,0 +1,194 @@
+{
+  "success": true,
+  "verdict": "PASS",
+  "status": "passed",
+  "scenario": "content-desk",
+  "runId": "20261004-214434-27c5b9ef",
+  "executionId": "20261004-214434-27c5b9ef",
+  "phaseSummary": {
+    "total": 2,
+    "passed": 2,
+    "failed": 0,
+    "skipped": 0,
+    "durationSeconds": 12,
+    "observationCount": 0
+  },
+  "phases": [
+    {
+      "name": "business",
+      "status": "passed",
+      "durationSeconds": 1,
+      "logPath": "",
+      "error": "",
+      "classification": "",
+      "remediation": "",
+      "runnabilityVerdict": "",
+      "runnabilityReason": "",
+      "observations": null,
+      "phasePresentation": {
+        "contract_version": "v1",
+        "provider": "business-health",
+        "phase": "business",
+        "current_level": "L3",
+        "current_level_label": "Complete",
+        "ceiling_level": "L3",
+        "clean": true,
+        "next_action_reason": "lowest current level with advisory findings WARNING unknown debt=1",
+        "focus_capability_id": "evidence_traceability",
+        "focus_capability_label": "Evidence Traceability",
+        "north_star": "Every claim is provably current.",
+        "at_maximum": true,
+        "capabilities": [
+          {
+            "id": "evidence_traceability",
+            "label": "Evidence Traceability",
+            "current_level": "L3",
+            "current_level_label": "Complete",
+            "current_summary": "Every claim is provably current.",
+            "clean": true,
+            "priority_rank": 1,
+            "priority_reason": "lowest current level with advisory findings WARNING unknown debt=1",
+            "findings": [
+              {
+                "code": "business_evidence_stale",
+                "severity": "FINDING_SEVERITY_WARNING",
+                "count": 1,
+                "message": "suite runs exist but no requirements-sync snapshot was written",
+                "locations": [
+                  "coverage/requirements-sync/latest.json"
+                ],
+                "remediation": "Run the comprehensive suite (`vrooli scenario test \u003cscenario\u003e`); sync refreshes the snapshot during execution.",
+                "fix_affordance": 2
+              }
+            ]
+          },
+          {
+            "id": "prd_contract",
+            "label": "PRD Contract",
+            "current_level": "L3",
+            "current_level_label": "Complete",
+            "current_summary": "The PRD is a trustworthy statement of intent.",
+            "clean": true,
+            "priority_rank": 2,
+            "priority_reason": "lowest current level"
+          },
+          {
+            "id": "requirements_registry",
+            "label": "Requirements Registry",
+            "current_level": "L3",
+            "current_level_label": "Complete",
+            "current_summary": "The registry is a complete, falsifiable claim set.",
+            "clean": true,
+            "priority_rank": 3,
+            "priority_reason": "lowest current level"
+          },
+          {
+            "id": "intent_linkage",
+            "label": "Intent Linkage",
+            "current_level": "L3",
+            "current_level_label": "Complete",
+            "current_summary": "The intent spine is fully closed.",
+            "clean": true,
+            "priority_rank": 4,
+            "priority_reason": "lowest current level"
+          }
+        ]
+      },
+      "findingsSummary": {
+        "warnings": 1,
+        "total": 1
+      }
+    },
+    {
+      "name": "structure",
+      "status": "passed",
+      "durationSeconds": 11,
+      "logPath": "",
+      "error": "",
+      "classification": "",
+      "remediation": "",
+      "runnabilityVerdict": "",
+      "runnabilityReason": "",
+      "observations": null,
+      "phasePresentation": {
+        "contract_version": "v1",
+        "provider": "structure-health",
+        "phase": "structure",
+        "current_level": "L3",
+        "current_level_label": "Complete",
+        "ceiling_level": "L3",
+        "clean": true,
+        "next_action": "Maximum cross-kind structure maturity.",
+        "next_action_reason": "lowest current level",
+        "focus_capability_id": "cross_kind_structure",
+        "focus_capability_label": "Cross-Kind Structure",
+        "north_star": "Cross-kind structural conformance is clean.",
+        "at_maximum": true,
+        "capabilities": [
+          {
+            "id": "cross_kind_structure",
+            "label": "Cross-Kind Structure",
+            "current_level": "L3",
+            "current_level_label": "Complete",
+            "current_summary": "Cross-kind structural conformance is clean.",
+            "clean": true,
+            "priority_rank": 1,
+            "priority_reason": "lowest current level"
+          },
+          {
+            "id": "surface_skeleton",
+            "label": "Surface Skeleton",
+            "current_level": "L3",
+            "current_level_label": "Complete",
+            "current_summary": "Surface skeleton is clean.",
+            "clean": true,
+            "priority_rank": 2,
+            "priority_reason": "lowest current level"
+          },
+          {
+            "id": "lifecycle_wiring",
+            "label": "Lifecycle Wiring",
+            "current_level": "L3",
+            "current_level_label": "Complete",
+            "current_summary": "Lifecycle wiring is clean.",
+            "clean": true,
+            "priority_rank": 3,
+            "priority_reason": "lowest current level"
+          },
+          {
+            "id": "production_serving",
+            "label": "Production Serving",
+            "current_level": "L3",
+            "current_level_label": "Complete",
+            "current_summary": "Production-serving posture is clean.",
+            "clean": true,
+            "priority_rank": 4,
+            "priority_reason": "lowest current level"
+          },
+          {
+            "id": "profile_conformance",
+            "label": "Profile Conformance",
+            "current_level": "L3",
+            "current_level_label": "Complete",
+            "current_summary": "Profile conformance is clean.",
+            "clean": true,
+            "priority_rank": 5,
+            "priority_reason": "lowest current level"
+          },
+          {
+            "id": "identity_contract",
+            "label": "Identity Contract",
+            "current_level": "L2",
+            "current_level_label": "Complete",
+            "current_summary": "Scenario identity is clean.",
+            "clean": true,
+            "priority_rank": 6,
+            "priority_reason": "lowest current level"
+          }
+        ]
+      },
+      "findingsSummary": {}
+    }
+  ],
+  "terminalSnapshotSchemaVersion": 1
+}

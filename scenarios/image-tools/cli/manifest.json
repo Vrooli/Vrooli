@@ -1,0 +1,1226 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "image-tools",
+  "description": "Image Tools CLI surface. Single source of truth for the jobs and models domains: schema-validated against cli-manifest/v1 and cross-validated against the JobsService / ModelsService proto descriptors at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "groups": [
+    {
+      "name": "jobs",
+      "description": "Inspect and control durable async jobs",
+      "commands": [
+        {
+          "name": "get",
+          "description": "Get a durable job by id",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Job id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "JobsService",
+            "method": "GetJob"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "wait",
+          "description": "Block once until a job is terminal, then print it (no polling)",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Job id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "JobsService",
+            "method": "WaitJob"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "list",
+          "description": "List recent jobs, newest first",
+          "flags": [
+            {
+              "name": "limit",
+              "description": "Maximum jobs to return (0 = server default)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "JobsService",
+            "method": "ListJobs"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "cancel",
+          "description": "Cancel a running or queued job",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Job id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "JobsService",
+            "method": "CancelJob"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "models",
+      "description": "Inspect the model registry and toggle models",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List model registry entries (--operation OP to filter)",
+          "flags": [
+            {
+              "name": "operation",
+              "description": "Filter to models serving this operation"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ModelsService",
+            "method": "ListModels"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get a model registry entry by id",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Model id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ModelsService",
+            "method": "GetModel"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "operations",
+          "description": "List the registry operation vocabulary",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ModelsService",
+            "method": "ListOperations"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "select",
+          "description": "Preview which model would run for an operation on this host (--override ID)",
+          "positionals": [
+            {
+              "name": "operation",
+              "required": true,
+              "description": "Operation to select a model for"
+            }
+          ],
+          "flags": [
+            {
+              "name": "override",
+              "description": "Force a specific model id",
+              "bind": {
+                "field": "override_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ModelsService",
+            "method": "SelectModel"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "explain",
+          "description": "Explain which model/technique would run for an operation on this host, native-vs-derived, without executing (--model ID, --byok)",
+          "positionals": [
+            {
+              "name": "operation",
+              "required": true,
+              "description": "Operation to resolve"
+            }
+          ],
+          "flags": [
+            {
+              "name": "model",
+              "description": "Force a specific model id",
+              "bind": {
+                "field": "model_id"
+              }
+            },
+            {
+              "name": "byok",
+              "bool": true,
+              "description": "Allow a paid BYOK cloud tier when no local backend is available",
+              "bind": {
+                "field": "allow_byok"
+              }
+            },
+            {
+              "name": "quality-policy",
+              "description": "Candidate ordering policy: fast, balanced, or quality"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ModelsService",
+            "method": "ExplainResolution"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "enable",
+          "description": "Enable or disable a model (--disable to turn off); persisted overlay over the seed catalog",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Model id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "disable",
+              "bool": true,
+              "description": "Disable the model instead of enabling it",
+              "bind": {
+                "field": "enabled"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ModelsService",
+            "method": "SetModelEnabled"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "blocklist",
+          "description": "List license-encumbered models excluded from the catalog",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ModelsService",
+            "method": "ListBlocklist"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "doctor",
+          "description": "Diagnose model catalog installability and policy integrity",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ModelsService",
+            "method": "DoctorCatalog"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "install",
+          "description": "Install (download) a model's weights as a durable job (--wait to block once on completion)",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Model id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "wait",
+              "bool": true,
+              "description": "Block once until the download job is terminal (no polling)",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ModelsService",
+            "method": "InstallModel"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "remove",
+          "description": "Remove a model's downloaded weights and clear its install record",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Model id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ModelsService",
+            "method": "RemoveModel"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "add-custom",
+          "description": "Register a custom/local model (repeat --operation per served op; --local-path or --download-url for weights)",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Model id (must not collide with a seed model)"
+            }
+          ],
+          "flags": [
+            {
+              "name": "operation",
+              "description": "An operation this model serves (repeat for several)",
+              "local_only": true
+            },
+            {
+              "name": "backend",
+              "description": "Inference backend (e.g. onnxruntime, diffusers)"
+            },
+            {
+              "name": "name",
+              "description": "Human-readable display name"
+            },
+            {
+              "name": "local-path",
+              "description": "Absolute path to local weights (installed by reference; no download)"
+            },
+            {
+              "name": "download-url",
+              "description": "Remote download URL (used when --local-path is empty)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ModelsService",
+            "method": "AddCustomModel"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "inspect",
+          "description": "Dry-run a guided import: detect layout, infer architecture, and read license/NSFW for a HF repo id, URL, or local path (installs nothing)",
+          "positionals": [
+            {
+              "name": "source",
+              "required": true,
+              "description": "HuggingFace repo id (org/name), direct weight URL, or local path"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ModelsService",
+            "method": "InspectModelSource"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "import",
+          "description": "Import a model by source: inspect, confirm architecture/ops, register (add-only, local tier), and install",
+          "positionals": [
+            {
+              "name": "source",
+              "required": true,
+              "description": "HuggingFace repo id (org/name), direct weight URL, or local path"
+            }
+          ],
+          "flags": [
+            {
+              "name": "id",
+              "description": "New entry id (must not collide with a seed model; defaults to one derived from the source)"
+            },
+            {
+              "name": "name",
+              "description": "Human-readable display name"
+            },
+            {
+              "name": "architecture",
+              "description": "Confirmed architecture (sd15|sdxl|flux|\u2026); required when inference is none, overrides otherwise"
+            },
+            {
+              "name": "operation",
+              "description": "An operation the model serves (repeat; defaults to the architecture's base ops)",
+              "bind": {
+                "field": "operations"
+              }
+            },
+            {
+              "name": "attest-commercial-rights",
+              "description": "Attest you hold commercial rights, allowing public/BYOK serving (decision D4)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ModelsService",
+            "method": "ImportModel"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:external"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "adapters",
+      "description": "Inspect the conditioning-adapter catalog (LoRA/ControlNet/IP-Adapter), toggle, install, and import adapters",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List adapter catalog entries (--kind and/or --architecture to filter)",
+          "flags": [
+            {
+              "name": "kind",
+              "description": "Filter to a kind (lora|controlnet|ip-adapter)"
+            },
+            {
+              "name": "architecture",
+              "description": "Filter to a compatible architecture (e.g. sd15, sdxl)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AdaptersService",
+            "method": "ListAdapters"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get an adapter catalog entry by id",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Adapter id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AdaptersService",
+            "method": "GetAdapter"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "compatible",
+          "description": "List adapters compatible with a base model (--model ID or --architecture ARCH)",
+          "flags": [
+            {
+              "name": "model",
+              "description": "Resolve compatibility from this model id",
+              "bind": {
+                "field": "model_id"
+              }
+            },
+            {
+              "name": "architecture",
+              "description": "Architecture to match (alternative to --model)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AdaptersService",
+            "method": "ListCompatibleAdapters"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "enable",
+          "description": "Enable or disable an adapter (--disable to turn off); persisted overlay over the seed catalog",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Adapter id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "disable",
+              "description": "Disable the adapter instead of enabling it",
+              "bool": true,
+              "bind": {
+                "field": "enabled"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AdaptersService",
+            "method": "SetAdapterEnabled"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "doctor",
+          "description": "Diagnose adapter catalog installability and policy integrity",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AdaptersService",
+            "method": "DoctorCatalog"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "install",
+          "description": "Install (download) an adapter's weights as a durable job (--wait to block once on completion)",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Adapter id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "wait",
+              "description": "Block once until the download job is terminal (no polling)",
+              "bool": true,
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AdaptersService",
+            "method": "InstallAdapter"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "remove",
+          "description": "Remove an adapter's downloaded weights and clear its install record",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Adapter id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AdaptersService",
+            "method": "RemoveAdapter"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "inspect",
+          "description": "Dry-run a guided import: infer kind + architecture and read license/NSFW for a HF repo id, URL, or local path (installs nothing)",
+          "positionals": [
+            {
+              "name": "source",
+              "required": true,
+              "description": "HuggingFace repo id (org/name), direct weight URL, or local path"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AdaptersService",
+            "method": "InspectAdapterSource"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "import",
+          "description": "Import an adapter by source: inspect, confirm kind/architecture, register (add-only, local tier), and install",
+          "positionals": [
+            {
+              "name": "source",
+              "required": true,
+              "description": "HuggingFace repo id (org/name), direct weight URL, or local path"
+            }
+          ],
+          "flags": [
+            {
+              "name": "id",
+              "description": "New entry id (must not collide with a seed adapter; defaults to one derived from the source)"
+            },
+            {
+              "name": "name",
+              "description": "Human-readable display name"
+            },
+            {
+              "name": "kind",
+              "description": "Confirmed kind (lora|controlnet|ip-adapter); required when inference is ambiguous, overrides otherwise"
+            },
+            {
+              "name": "architecture",
+              "description": "Confirmed compatible architecture (sd15|sdxl|flux|\u2026); required when inference is none, overrides otherwise"
+            },
+            {
+              "name": "preprocessor",
+              "description": "ControlNet preprocessor (canny|depth|pose|segment|none); ignored for other kinds"
+            },
+            {
+              "name": "attest-commercial-rights",
+              "description": "Attest you hold commercial rights, allowing public/BYOK serving (decision D4)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AdaptersService",
+            "method": "ImportAdapter"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:external"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "backends",
+      "description": "Inspect inference backend software availability",
+      "commands": [
+        {
+          "name": "doctor",
+          "description": "Diagnose host software availability for inference backends",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ModelsService",
+            "method": "DoctorBackends"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "ensure",
+          "description": "Install a missing host-tool backend on demand as a durable job (--dry-run to preview). Manual/capability-gated tools return guidance with no job.",
+          "positionals": [
+            {
+              "name": "tool",
+              "required": true,
+              "description": "Host tool name (e.g. realesrgan-ncnn-vulkan), or pass a backend's host tool"
+            }
+          ],
+          "flags": [
+            {
+              "name": "dry-run",
+              "bool": true,
+              "description": "Report what would be fetched without downloading"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ModelsService",
+            "method": "EnsureBackend"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "ops",
+      "description": "Run deterministic image operations (resize, crop, convert, \u2026)",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List deterministic operations and supported formats",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "OpsService",
+            "method": "ListOperations"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "ai",
+      "description": "Run model-backed AI generation & enhancement operations (async jobs)",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List AI generation & enhancement operations",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AIService",
+            "method": "ListAIOperations"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "analyze",
+      "description": "Run image\u2192data analysis operations (ocr, nsfw, probe)",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List image\u2192data analysis operations",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AnalysisService",
+            "method": "ListAnalysisOperations"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "settings",
+      "description": "Inspect and pin per-operation default models",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List the effective default model per operation (seed vs operator override)",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ModelsService",
+            "method": "ListDefaults"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "set-default",
+          "description": "Pin the default model for an operation",
+          "positionals": [
+            {
+              "name": "operation",
+              "required": true,
+              "description": "Operation to pin a default for"
+            },
+            {
+              "name": "id",
+              "required": true,
+              "description": "Model id to pin",
+              "bind": {
+                "field": "model_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ModelsService",
+            "method": "SetDefaultModel"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "looks",
+      "description": "Browse and manage the Look/Style library (reusable transformation recipes)",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List Looks (--kind to filter: style|film|camera|enhance|custom)",
+          "flags": [
+            {
+              "name": "kind",
+              "description": "Filter by kind: style|film|camera|enhance|custom"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LooksService",
+            "method": "ListLooks"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get a Look by id",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Look id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LooksService",
+            "method": "GetLook"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "create",
+          "description": "Create a custom Look from a protojson file (--file look.json)",
+          "flags": [
+            {
+              "name": "file",
+              "description": "Path to a JSON file describing the Look (name + steps)",
+              "bind": {
+                "field": "look",
+                "kind": "json_file"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LooksService",
+            "method": "CreateLook"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "update",
+          "description": "Update a custom Look from a protojson file (--file look.json with id)",
+          "flags": [
+            {
+              "name": "file",
+              "description": "Path to a JSON file describing the Look (id + name + steps)",
+              "bind": {
+                "field": "look",
+                "kind": "json_file"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LooksService",
+            "method": "UpdateLook"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete a custom Look (built-ins cannot be deleted)",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Custom Look id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LooksService",
+            "method": "DeleteLook"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "compile",
+          "description": "Resolve a Look + subject into the concrete op/AI request shapes (executes nothing)",
+          "positionals": [
+            {
+              "name": "look_id",
+              "required": true,
+              "description": "Look id to compile"
+            }
+          ],
+          "flags": [
+            {
+              "name": "subject",
+              "description": "Subject text substituted into the prompt template"
+            },
+            {
+              "name": "prompt",
+              "description": "Free-form prompt addition"
+            },
+            {
+              "name": "has-input",
+              "bool": true,
+              "description": "Declare that an input image is available"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LooksService",
+            "method": "CompileLook"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "render-preview",
+          "description": "Render a Look's preview thumbnail (deterministic steps; AI steps deferred)",
+          "positionals": [
+            {
+              "name": "look_id",
+              "required": true,
+              "description": "Look id to preview"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LooksService",
+            "method": "RenderPreview"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "select",
+      "description": "Smart-select a region, classify it, and get its contextual edit menu",
+      "commands": [
+        {
+          "name": "classes",
+          "description": "List region classes + their contextual edit menus",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SelectionService",
+            "method": "ListRegionClasses"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "suggest",
+          "description": "Show the contextual edit menu for a region class",
+          "positionals": [
+            {
+              "name": "class",
+              "required": false,
+              "description": "Region class: person|sky|foliage|background|object (empty = object)",
+              "bind": {
+                "field": "region_class"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SelectionService",
+            "method": "SuggestEdits"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "diff",
+      "description": "Compare two images (pixel + perceptual diff)",
+      "commands": [
+        {
+          "name": "modes",
+          "description": "List image-comparison modes",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DiffService",
+            "method": "ListDiffModes"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "safety",
+      "description": "Inspect the Responsible-Use deployment policy",
+      "commands": [
+        {
+          "name": "policy",
+          "description": "Show the resolved Responsible-Use deployment policy + per-op consent weights",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SafetyService",
+            "method": "GetPolicy"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "omitted": [
+    {
+      "service": "JobsService",
+      "method": "WatchJob",
+      "reason": "Server-streaming progress RPC. Exposed via the hand-appended `jobs watch` command (register.go) because cli-manifest/v1 bindings model unary connect-rpc calls only."
+    },
+    {
+      "service": "AIService",
+      "method": "Submit",
+      "reason": "AI op submission rides the REST multipart edge (POST /api/v1/ai/{operation}); image/mask bytes can't ride a Connect call, so the per-op submit commands (generate, img2img, \u2026) are hand-appended in cli/domains/ai/register.go."
+    },
+    {
+      "service": "AnalysisService",
+      "method": "Analyze",
+      "reason": "Analysis execution rides the REST multipart edge (POST /api/v1/analysis/{operation}); image bytes can't ride a Connect call, so the per-op commands (probe, ocr, nsfw) are hand-appended in cli/domains/analyze/register.go."
+    },
+    {
+      "service": "SelectionService",
+      "method": "Segment",
+      "reason": "Smart-select execution rides the REST multipart edge (POST /api/v1/selection/segment); image bytes can't ride a Connect call, so the segment command is hand-appended in cli/domains/selection/register.go."
+    },
+    {
+      "service": "ModelsService",
+      "method": "ListOperationModels",
+      "reason": "Host-aware candidate menu for the in-product model picker (a UI affordance). The same facts are available on the CLI in composable pieces: `models list --operation <op>` (catalog), `models select <op>` (the chosen model + gpu_viable), and `backends doctor` (host-tool readiness)."
+    },
+    {
+      "service": "ModelsService",
+      "method": "GetHostSummary",
+      "reason": "Hardware snapshot for the model-catalog UI's host-aware fit chips (a UI affordance). The CLI already exposes host hardware via the root `vrooli host inventory --json`."
+    }
+  ]
+}

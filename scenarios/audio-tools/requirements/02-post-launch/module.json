@@ -1,0 +1,72 @@
+{
+  "_metadata": {
+    "description": "Provider evidence, recovery UX, adapter maintainability, and capability expansion obligations.",
+    "module": "P1-targets",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P1",
+      "description": "When operators compare experiments, Dictation Studio should expose persisted provider-neutral metrics and promotion verdicts by provider, strategy, policy, fault, and replay cell.",
+      "id": "ATD-P1-001",
+      "prd_ref": "OT-P1-001",
+      "status": "in_progress",
+      "title": "Provider-neutral evidence",
+      "validation": [
+        {
+          "notes": "[REQ:ATD-P1-001] Provider-neutral recipe cells, reports, lifecycle RPCs, and experiment events are mapped by the Dictation Studio client.",
+          "ref": "ui/src/services/experiment.test.ts",
+          "status": "implemented",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "When a mobile turn is degraded or interrupted, users should be able to inspect coverage, recover retained audio, and export metadata-only diagnostics without developer tools.",
+      "id": "ATD-P1-002",
+      "prd_ref": "OT-P1-002",
+      "status": "in_progress",
+      "title": "Mobile recovery and diagnostics",
+      "validation": [
+        {
+          "notes": "[REQ:ATD-P1-002] Responsive Turn details shows coverage, durability, and terminal outcome; export is a bounded metadata-only record without transcript or audio. Physical-device qualification remains a separate P2 gate.",
+          "ref": "ui/src/features/dictation-studio/DictationRecorder.test.tsx::shows coverage and exports a metadata-only turn diagnostic",
+          "status": "implemented",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "id": "ATD-P1-003",
+      "prd_ref": "OT-P1-003",
+      "title": "Replaceable adapter conformance",
+      "description": "When a provider or host adapter is added or replaced, maintainers should reuse versioned capability, session and recovery contracts with shared conformance tests and thin consumer integration, retaining compatibility or an explicit migration.",
+      "criticality": "P1",
+      "status": "planned",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Validation design, not executed evidence: ARCHITECTURE.md extension boundaries and SEAMS.md production/fake pairs: substitute a native-streaming and a batch adapter, reject unsupported combinations, qualify consumers, and prove no duplicated billing/recovery owner. Implement tagged owner tests or log a real manual qualification receipt before promotion; this documentation update earns no passing status."
+        }
+      ]
+    },
+    {
+      "id": "ATD-P1-004",
+      "prd_ref": "OT-P1-004",
+      "title": "Operation-specific shared voice routing",
+      "description": "When TTS or summarization is offered, its consumer should expose actual local/BYOK/owned route, data and spend policy, cancellation and usage status under shared owners, without treating STT qualification or its duration meter as proof for that operation.",
+      "criticality": "P1",
+      "status": "planned",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Validation design, not executed evidence: MONETIZATION.md operation-specific meter review plus existing TTS/summarization regression surfaces; add route/cancellation/usage tests and separately qualify delivery before sale. STT-first does not remove current TTS playback guarantees. Implement tagged owner tests or log a real manual qualification receipt before promotion; this documentation update earns no passing status."
+        }
+      ]
+    }
+  ]
+}

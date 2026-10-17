@@ -33,9 +33,9 @@ function parseHash(hash: string): RouterState {
   if (!cleanHash) return DEFAULT_STATE;
 
   // Split off query string for view detection
-  const [pathPart] = cleanHash.split("?");
+  const [pathPart = ""] = cleanHash.split("?");
   const parts = pathPart.split("/");
-  const firstPart = parts[0];
+  const firstPart = parts[0] ?? "";
 
   // Check if first part is a valid view
   if (["dashboard", "wizard", "deployments", "docs"].includes(firstPart)) {
