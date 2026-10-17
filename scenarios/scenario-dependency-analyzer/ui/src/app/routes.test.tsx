@@ -142,7 +142,9 @@ describe("App routes", () => {
   it("renders a deep-linked graph route", async () => {
     renderWithProviders(<TestAppRouter initialEntries={["/graph?layout=grid&graph_type=scenario"]} />, { withoutRouter: true });
 
-    await waitFor(() => expect(screen.getByText("System Telemetry")).toBeInTheDocument());
+    // Keep the real lazy route import. Coverage instrumentation can make the
+    // first cold transform exceed Testing Library's default one-second wait.
+    expect(await screen.findByText("System Telemetry", {}, { timeout: 5000 })).toBeInTheDocument();
     expect(screen.getAllByTestId("sda-nav-graph").some((item) => item.getAttribute("aria-current") === "page")).toBe(true);
   });
 
@@ -253,7 +255,7 @@ describe("App routes", () => {
     fireEvent.click(scanButton);
 
     await waitFor(() => {
-      expect(screen.getByText(/Scan failed\. Ensure the API is running/)).toBeInTheDocument();
+      expect(screen.getByText(/Scan failed\. Check the API connection and retry the scan/)).toBeInTheDocument();
     });
   });
 });

@@ -46,3 +46,11 @@ func TestApplyReplayConfigMutatesGeneratedReplaySpec(t *testing.T) {
 		t.Fatalf("outro settings not mapped: %v", spec.GetOutroCard())
 	}
 }
+
+func TestReplayConfigKeepsDeviceAndExplicitHiddenChrome(t *testing.T) {
+	spec := &exportsv1.ReplaySpec{}
+	applyReplayConfigToSpec(spec, map[string]any{"style": map[string]any{"deviceFrameTheme": "slim", "browserScale": .8, "presentation": map[string]any{"showDesktop": true, "showBrowserFrame": false, "showDeviceFrame": true}}})
+	if spec.Decor.ShowBrowserFrame == nil || spec.Decor.GetShowBrowserFrame() || !spec.Decor.GetShowDeviceFrame() || spec.Decor.GetDeviceFrameTheme() != "slim" || spec.Decor.GetBrowserScale() != .8 {
+		t.Fatalf("lost explicit presentation choices: %v", spec.Decor)
+	}
+}

@@ -1,7 +1,22 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "storage": {"entries":{"data":{"rung":"owned","path":"data","kind":"dir","class":"data","regenerable":false,"rationale":"Scenario-owned durable data observed in the canonical data directory."}},"rationale":"Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."},
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
   "service": {
     "parent": "vrooli",
     "name": "scenario-authenticator",
@@ -98,107 +113,6 @@
         }
       ],
       "startup_grace_period": 15000
-    },
-    "setup": {
-      "description": "Build API and UI assets declared by the manifest-driven lifecycle contract",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/scenario-authenticator-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "scenario-authenticator"
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "build-api",
-          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o scenario-authenticator-api .",
-          "description": "Build Go API server"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm --ignore-workspace run build || pnpm --ignore-workspace run build); else echo 'ui/ not present yet'; fi",
-          "description": "Build production UI bundle"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Launch API and Vite dev server",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./scenario-authenticator-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/scenario-authenticator-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "description": "Serve production UI bundle",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        }
-      ]
-    },
-    "build": {},
-    "deploy": {},
-    "clean": {},
-    "test": {
-      "description": "Execute phased test suite via test-genie",
-      "steps": [
-        {
-          "name": "check-temporal-models",
-          "run": "flow-verifier verify check --root .",
-          "description": "Verify formal flow artifacts via the flow-verifier scenario CLI"
-        },
-        {
-          "name": "run-tests",
-          "run": "test-genie execute scenario-authenticator --preset comprehensive",
-          "description": "Run all test phases via test-genie"
-        }
-      ]
-    },
-    "backup": {},
-    "restore": {},
-    "production": {},
-    "stop": {
-      "description": "Stop background processes",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f 'scenario-authenticator-api' || true",
-          "description": "Stop Go API"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f 'node server.js' || true",
-          "description": "Stop UI server"
-        }
-      ]
     }
   },
   "dependencies": {
@@ -206,10 +120,79 @@
       "redis": {
         "type": "redis",
         "enabled": true,
-        "required": true,
-        "purpose": "Hot state: server-tracked sessions, token-family revocation, OAuth CSRF state, and distributed rate limiting across replicas. Persistence is SQLite via the api-core/storage seam (no shared Postgres)."
+        "required": false,
+        "purpose": "Hot state: server-tracked sessions, token-family revocation, OAuth CSRF state, and distributed rate limiting. Optional at tier-1-local, where the durable local store behind the same Store seam keeps this state across restart. Required above one replica, because a revocation blacklist that is not shared does not revoke; that per-tier answer is recorded in tier_feasibility. Account persistence is SQLite via the api-core/storage seam (no shared Postgres).",
+        "startup_policy": "try_start"
       }
     }
   },
-  "environment": {}
+  "environment": {
+    "VROOLI_AUTH_RESOURCE_AUDIENCES": "device-sync-hub=scenario-authenticator:device-sync-hub"
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "tier_feasibility": {
+    "metadata_version": 1,
+    "dependencies": {
+      "resources": {
+        "redis": {
+          "resource_type": "hot-state-store",
+          "platform_support": {
+            "tier-1-local": {
+              "supported": true,
+              "notes": "The durable local store is the single-node default; Redis is an opt-in accelerator. The in-memory fake is a test double only, because dropping the revocation blacklist on restart re-admits a revoked token."
+            },
+            "tier-2-desktop": {
+              "supported": false,
+              "reason": "No vendorable cross-platform RESP server exists",
+              "alternatives": [
+                "durable-local"
+              ],
+              "notes": "Redis upstream publishes no native macOS or Windows build, Valkey ships source only, and Garnet's archives are framework-dependent rather than self-contained."
+            },
+            "tier-4-saas": {
+              "supported": true,
+              "notes": "Redis is required above one replica. The revocation blacklist and the rate-limit counters must be shared across replicas: a blacklist that is not shared does not revoke."
+            }
+          },
+          "swappable_with": [
+            {
+              "id": "durable-local",
+              "relationship": "single-node-equivalent",
+              "notes": "A durable local store behind the same Store seam preserves the durability property across restart, but not cross-replica sharing. A deployment running more than one replica still needs a real Redis."
+            }
+          ]
+        }
+      }
+    }
+  }
 }

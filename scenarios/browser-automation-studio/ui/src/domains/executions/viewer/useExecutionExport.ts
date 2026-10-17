@@ -173,7 +173,7 @@ export const useExecutionExport = ({
   });
 
   // Export progress tracking via WebSocket
-  const { progress: exportProgress, reset: resetExportProgress } = useExportProgress({
+  const { progress: exportProgress, reset: resetExportProgress, statusError: exportStatusError } = useExportProgress({
     exportId: activeExportId,
     executionId: activeExportId ? undefined : execution.id,
     onComplete: (progress) => {
@@ -188,6 +188,10 @@ export const useExecutionExport = ({
       setIsExporting(false);
     },
   });
+
+  useEffect(() => {
+    if (exportStatusError) toast.error(`Unable to recover export status: ${exportStatusError}`);
+  }, [exportStatusError]);
 
   // Stylization state - defaults to "stylized" to match current behavior
   const [stylization, setStylization] = useState<ExportStylization>("stylized");
@@ -618,6 +622,7 @@ export const useExecutionExport = ({
         format: exportFormat,
         fileName: finalFileName,
         renderSource: replayRenderSource,
+        stylization: isStylized ? "stylized" : "raw",
         movieSpec: exportSpec,
         overrides,
         outputDir: outputDir.trim(),

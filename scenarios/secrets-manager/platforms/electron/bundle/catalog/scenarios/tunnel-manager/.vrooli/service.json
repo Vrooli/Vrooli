@@ -5,11 +5,14 @@
     "entries": {
       "data": {
         "rung": "owned",
-        "path": "data",
         "kind": "dir",
         "class": "data",
         "regenerable": false,
-        "rationale": "Scenario-owned durable data observed in the canonical data directory."
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
       }
     },
     "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
@@ -78,46 +81,6 @@
       "port": 21240
     }
   },
-  "deployment": {
-    "tiers": {
-      "tier-1-local": {
-        "status": "ready",
-        "secrets": [
-          {
-            "secret_id": "CLOUDFLARE_API_TOKEN",
-            "logical_id": "vrooli/tunnel-manager",
-            "field": "cloudflare-api-token",
-            "env": "CLOUDFLARE_API_TOKEN",
-            "classification": "service",
-            "label": "Cloudflare API Token",
-            "description": "API token used for remote Cloudflare tunnel operations.",
-            "required": false,
-            "obtain_url": "https://dash.cloudflare.com/profile/api-tokens"
-          },
-          {
-            "secret_id": "CLOUDFLARE_ACCOUNT_ID",
-            "logical_id": "vrooli/tunnel-manager",
-            "field": "cloudflare-account-id",
-            "env": "CLOUDFLARE_ACCOUNT_ID",
-            "classification": "service",
-            "label": "Cloudflare Account ID",
-            "description": "Cloudflare account identifier for remote tunnel operations.",
-            "required": false
-          },
-          {
-            "secret_id": "CLOUDFLARE_TUNNEL_ID",
-            "logical_id": "vrooli/tunnel-manager",
-            "field": "cloudflare-tunnel-id",
-            "env": "CLOUDFLARE_TUNNEL_ID",
-            "classification": "service",
-            "label": "Cloudflare Tunnel ID",
-            "description": "Managed tunnel identifier for remote operations.",
-            "required": false
-          }
-        ]
-      }
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -144,131 +107,16 @@
         }
       ],
       "startup_grace_period": 15000
-    },
-    "setup": {
-      "description": "Build API and UI assets declared by the manifest-driven lifecycle contract",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/tunnel-manager-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "tunnel-manager"
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "build-api",
-          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o tunnel-manager-api .",
-          "description": "Build Go API server"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm --ignore-workspace run build || pnpm --ignore-workspace run build); else echo 'ui/ not present yet'; fi",
-          "description": "Build production UI bundle"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Launch API and Vite dev server",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./tunnel-manager-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/tunnel-manager-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "description": "Serve production UI bundle",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        }
-      ]
-    },
-    "build": {},
-    "deploy": {},
-    "clean": {},
-    "test": {
-      "description": "Execute phased test suite via test-genie",
-      "steps": [
-        {
-          "name": "check-temporal-models",
-          "run": "flow-verifier verify check --root .",
-          "description": "Verify formal flow artifacts via the flow-verifier scenario CLI"
-        },
-        {
-          "name": "run-tests",
-          "run": "test-genie execute tunnel-manager --preset comprehensive",
-          "description": "Run all test phases via test-genie"
-        }
-      ]
-    },
-    "backup": {},
-    "restore": {},
-    "production": {},
-    "stop": {
-      "description": "Stop background processes",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f 'tunnel-manager-api' || true",
-          "description": "Stop Go API"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f 'node server.js' || true",
-          "description": "Stop UI server"
-        }
-      ]
     }
   },
-  "hostTools": [
-    {
-      "name": "cloudflared",
-      "required": true,
-      "reason": "Core tunnel client managed by this scenario for all Cloudflare tunnel operations (health, recovery, ingress).",
-      "when": [
-        "develop"
-      ],
-      "platforms": [
-        "linux",
-        "macos",
-        "windows"
-      ]
-    }
-  ],
   "dependencies": {
     "resources": {
-      "redis": {
-        "type": "redis",
-        "enabled": false,
-        "required": false,
-        "description": "Optional pub/sub for real-time UI updates; falls back to HTTP polling when absent."
+      "cloudflared": {
+        "type": "cloudflared",
+        "enabled": true,
+        "required": true,
+        "description": "Vrooli-managed tunnel connector and its exported readiness/metrics endpoint.",
+        "startup_policy": "must_start"
       }
     },
     "scenarios": {
@@ -276,11 +124,15 @@
         "type": "scenario",
         "enabled": true,
         "required": false,
-        "description": "Assigns a free in-band fixed UI port (range→fixed) so a ranged scenario can be exposed as a scenario route, and releases it on revoke. Best-effort: already-fixed scenarios expose without it."
+        "description": "Assigns a free in-band fixed UI port (range→fixed) so a ranged scenario can be exposed as a scenario route, and releases it on revoke. Best-effort: already-fixed scenarios expose without it.",
+        "startup_policy": "try_start"
       }
     }
   },
-  "environment": {},
+  "environment": {
+    "TUNNEL_METRICS_URL": "${CLOUDFLARED_METRICS_URL}",
+    "TUNNEL_READY_URL": "${CLOUDFLARED_METRICS_URL}/ready"
+  },
   "credentials": {
     "descriptors": [
       {
@@ -289,6 +141,8 @@
         "label": "Cloudflare Account ID",
         "description": "Identifies the Cloudflare account that owns the tunnel. Resolved directly by this scenario through credential-authority-go, so it is never injected into the process environment.",
         "required": true,
+        "provisioning": "derived",
+        "derived_from": "cloudflare-api-token",
         "obtain_url": "https://dash.cloudflare.com/"
       },
       {
@@ -297,6 +151,8 @@
         "label": "Cloudflare Tunnel ID",
         "description": "Identifies the named tunnel this scenario manages.",
         "required": true,
+        "provisioning": "derived",
+        "derived_from": "cloudflare-api-token",
         "obtain_url": "https://one.dash.cloudflare.com/"
       },
       {
@@ -305,8 +161,83 @@
         "label": "Cloudflare API Token",
         "description": "Authorizes tunnel and DNS changes. Re-resolved per operation so a rotated token takes effect without restarting the scenario.",
         "required": true,
+        "provisioning": "operator",
         "obtain_url": "https://dash.cloudflare.com/profile/api-tokens"
+      },
+    {
+      "logical_id": "vrooli/tunnel-manager",
+      "field": "cloudflare-connector-token",
+        "label": "Cloudflare Connector Token",
+        "description": "Derived token used by the managed cloudflared connector; never requested from the operator.",
+        "required": true,
+      "provisioning": "derived",
+      "derived_from": "cloudflare-api-token"
+      }
+    ],
+    "consumers": [
+      {
+        "logical_id": "vrooli/tunnel-manager",
+        "field": "cloudflare-api-token",
+        "kind": "authority",
+        "consumer": "Cloudflare tunnel configuration store",
+        "source_ref": "api/internal/config/service.go:279",
+        "required": true
+      },
+      {
+        "logical_id": "vrooli/tunnel-manager",
+        "field": "cloudflare-account-id",
+        "kind": "dynamic",
+        "consumer": "Cloudflare tunnel configuration store",
+        "source_ref": "api/internal/config/service.go:283",
+        "required": true
+      },
+      {
+        "logical_id": "vrooli/tunnel-manager",
+        "field": "cloudflare-tunnel-id",
+        "kind": "dynamic",
+        "consumer": "Cloudflare tunnel configuration store",
+        "source_ref": "api/internal/config/service.go:284",
+        "required": true
+      },
+      {
+        "logical_id": "vrooli/tunnel-manager",
+        "field": "cloudflare-connector-token",
+        "kind": "dynamic",
+        "consumer": "managed cloudflared connector",
+        "source_ref": "api/internal/config/service.go:285",
+        "required": true
       }
     ]
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
   }
 }

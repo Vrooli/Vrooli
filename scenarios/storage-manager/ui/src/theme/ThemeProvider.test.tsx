@@ -75,4 +75,24 @@ describe("ThemeProvider", () => {
 
     matchMediaSpy.mockRestore();
   });
+
+  it("updates system theme when the OS preference changes and removes its listener", () => {
+    let listener: (()=>void)|undefined;
+    const media={matches:false,media:"(prefers-color-scheme: dark)",onchange:null,
+      addEventListener:vi.fn((_event:string, callback:()=>void)=>{listener=callback;}),
+      removeEventListener:vi.fn(),addListener:vi.fn(),removeListener:vi.fn(),dispatchEvent:vi.fn()};
+    const spy=vi.spyOn(window,"matchMedia").mockReturnValue(media as unknown as MediaQueryList);
+    try {
+      const {result,unmount}=renderHook(()=>useTheme(),{wrapper:wrapper("system")});
+      expect(result.current.resolved).toBe("light");
+      expect(listener).toBeDefined();
+      act(()=>{media.matches=true;listener?.();});
+      expect(result.current.resolved).toBe("dark");
+      expect(document.documentElement.dataset.resolvedTheme).toBe("dark");
+      act(()=>{media.matches=false;listener?.();});
+      expect(result.current.resolved).toBe("light");
+      unmount();
+      expect(media.removeEventListener).toHaveBeenCalledWith("change",listener);
+    } finally {spy.mockRestore();}
+  });
 });

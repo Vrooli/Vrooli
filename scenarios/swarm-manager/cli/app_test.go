@@ -2,12 +2,14 @@ package main
 
 import (
 	"encoding/json"
+	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api/apiconnect"
 	"io"
 	"mime"
 	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -507,26 +509,24 @@ func TestCmdBacklogUpdateValidation(t *testing.T) {
 
 func TestCmdBacklogUpdateSendsPatchPayload(t *testing.T) {
 	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPatch {
+		if r.Method != http.MethodPost {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
-		if r.URL.Path != "/api/v1/backlog/idea/my-idea" {
+		if r.URL.Path != apiconnect.BacklogServiceUpdateItemProcedure {
 			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
 
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			t.Fatalf("read request body: %v", err)
-		}
+		body := readUpdateRPCJSON(t, r)
 		var payload map[string]any
 		if err := json.Unmarshal(body, &payload); err != nil {
 			t.Fatalf("decode request: %v", err)
 		}
-		if len(payload) != 1 || payload["status"] != "ready" {
+		patch, _ := payload["patch"].(map[string]any)
+		if len(patch) != 1 || patch["status"] != "ready" || payload["kind"] != "idea" || payload["name"] != "my-idea" || !reflect.DeepEqual(payload["fields"], []any{"status"}) {
 			t.Fatalf("expected sparse patch payload, got %v", payload)
 		}
 
-		_, _ = w.Write([]byte(`{"item":{"name":"my-idea","title":"My Idea","description":"","status":"ready","priority":5,"tags":[],"created":"2026-01-28T00:00:00Z","updated":"2026-01-28T01:00:00Z","kind":"idea"}}`))
+		writeUpdateRPCResponse(t, w, `{"item":{"name":"my-idea","title":"My Idea","description":"","status":"ready","priority":5,"tags":[],"created":"2026-01-28T00:00:00Z","updated":"2026-01-28T01:00:00Z","kind":"idea"}}`)
 	}))
 
 	app, err := NewApp()
@@ -540,26 +540,24 @@ func TestCmdBacklogUpdateSendsPatchPayload(t *testing.T) {
 
 func TestCmdBacklogUpdatePreservesEmptyArrayClears(t *testing.T) {
 	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPatch {
+		if r.Method != http.MethodPost {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			t.Fatalf("read request body: %v", err)
-		}
+		body := readUpdateRPCJSON(t, r)
 		var payload map[string]any
 		if err := json.Unmarshal(body, &payload); err != nil {
 			t.Fatalf("decode request: %v", err)
 		}
-		tags, ok := payload["tags"].([]any)
-		if !ok {
-			t.Fatalf("expected tags array, got %T", payload["tags"])
+		patch, _ := payload["patch"].(map[string]any)
+		tags, ok := patch["tags"].([]any)
+		if !ok && !reflect.DeepEqual(payload["fields"], []any{"tags"}) {
+			t.Fatalf("explicit empty tags field lost: %v", payload)
 		}
 		if len(tags) != 0 {
 			t.Fatalf("expected empty tags array, got %v", tags)
 		}
 
-		_, _ = w.Write([]byte(`{"item":{"name":"my-idea","title":"My Idea","description":"","status":"backlog","priority":5,"tags":[],"created":"2026-01-28T00:00:00Z","updated":"2026-01-28T01:00:00Z","kind":"idea"}}`))
+		writeUpdateRPCResponse(t, w, `{"item":{"name":"my-idea","title":"My Idea","description":"","status":"backlog","priority":5,"tags":[],"created":"2026-01-28T00:00:00Z","updated":"2026-01-28T01:00:00Z","kind":"idea"}}`)
 	}))
 
 	app, err := NewApp()

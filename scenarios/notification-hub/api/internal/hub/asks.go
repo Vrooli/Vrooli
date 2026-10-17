@@ -123,8 +123,16 @@ type AskRecord struct {
 func (r AskRecord) Open() bool { return r.State == AskPending || r.State == AskEscalated }
 
 // AnswerInput records an operator answer. Note is stored verbatim.
+//
+// Actor is the subject the recipient-only authorization check compares against
+// (it must equal the ask's recipient). AnsweredBy is the ACTUAL verified human
+// recorded as answered_by on the resolution; when empty it falls back to Actor,
+// so a caller that has no per-human identity (bearer/cookie path) keeps the
+// prior behavior. Splitting them lets a multi-human household answer a shared
+// recipient's ask while recording who really answered.
 type AnswerInput struct {
 	AskID, Answer, Actor, Note string
+	AnsweredBy                 string
 }
 
 // ResolutionPublisher is the Vrooli Events publisher seam
@@ -471,7 +479,13 @@ func (s *Service) AnswerAsk(ctx context.Context, in AnswerInput) (AskRecord, err
 	if changed, _ := result.RowsAffected(); changed != 1 {
 		return AskRecord{}, fmt.Errorf("%w: ask changed while answering", ErrAskResolved)
 	}
-	if _, err := tx.ExecContext(ctx, `INSERT INTO answers (id, ask_id, answer, answered_by, answered_at, note, late) VALUES (?, ?, ?, ?, ?, ?, ?)`, uuid.NewString(), record.ID, answer, in.Actor, now, in.Note, boolInt(late)); err != nil {
+	// answered_by records the ACTUAL verified human; it falls back to the
+	// recipient-check actor when the request carried no per-human identity.
+	answeredBy := strings.TrimSpace(in.AnsweredBy)
+	if answeredBy == "" {
+		answeredBy = in.Actor
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO answers (id, ask_id, answer, answered_by, answered_at, note, late) VALUES (?, ?, ?, ?, ?, ?, ?)`, uuid.NewString(), record.ID, answer, answeredBy, now, in.Note, boolInt(late)); err != nil {
 		return AskRecord{}, fmt.Errorf("%w: ask already has an answer", ErrAskResolved)
 	}
 	if err := tx.Commit(); err != nil {

@@ -14,6 +14,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/eventbus"
+	"github.com/vrooli/api-core/operatordecision"
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -30,8 +31,9 @@ const (
 	DecisionViaDesktop = effortdecision.ViaDesktop
 	DecisionViaDefault = effortdecision.ViaDefault
 
-	// AskResolvedEventType is notification-hub's resolution event.
-	AskResolvedEventType = "notification_hub.ask.resolved.v1"
+	// AskResolvedEventType is notification-hub's resolution event. It re-exports
+	// the shared substrate constant so every resolver agrees on the one value.
+	AskResolvedEventType = operatordecision.AskResolvedEventType
 )
 
 var (
@@ -46,31 +48,18 @@ var (
 )
 
 // DecisionPublisher publishes the decision_requested event
-// (api-core eventbus.Client in production).
-type DecisionPublisher interface {
-	PublishDomainEvent(context.Context, eventbus.DomainEvent) error
-}
+// (api-core eventbus.Client in production). It is an alias for the shared
+// operatordecision.Publisher.
+type DecisionPublisher = operatordecision.Publisher
 
 // SetDecisionPublisher wires the Vrooli Events publisher. Without one,
 // decisions are stored and stay unpublished until a publisher is set.
 func (s *EffortService) SetDecisionPublisher(p DecisionPublisher) { s.decisionPublisher = p }
 
-// DecisionResolution is notification-hub's ask.resolved payload.
-type DecisionResolution struct {
-	AskID           string            `json:"ask_id"`
-	State           string            `json:"state"`
-	Answer          string            `json:"answer"`
-	AnswerLabel     string            `json:"answer_label"`
-	Note            string            `json:"note"`
-	AnsweredBy      string            `json:"answered_by"`
-	AnsweredAt      string            `json:"answered_at"`
-	ByDefault       bool              `json:"by_default"`
-	Late            bool              `json:"late"`
-	Reason          string            `json:"reason"`
-	SourceEventType string            `json:"source_event_type"`
-	RequesterRef    string            `json:"requester_ref"`
-	Correlation     map[string]string `json:"correlation"`
-}
+// DecisionResolution is notification-hub's ask.resolved payload. It is an alias
+// for the shared operatordecision.DecisionResolution, so the webhook decodes
+// once into the substrate type and every resolver reads the same struct.
+type DecisionResolution = operatordecision.DecisionResolution
 
 // --- storage ---------------------------------------------------------------
 

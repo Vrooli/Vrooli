@@ -31,6 +31,7 @@ package hostpaths
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -54,11 +55,19 @@ type Roots struct {
 // down. Unresolvable roots are simply absent.
 func Resolve() Roots {
 	return Roots{
-		Tmp:             existing(os.TempDir(), goWorkRoot()),
+		Tmp:             existing(os.TempDir(), hostTemporaryRoot(), goWorkRoot()),
 		Trash:           existing(trashRoots()...),
 		GoBuildCache:    existing(goBuildCacheRoot()),
 		PlaywrightCache: existing(playwrightCacheRoot()),
 	}
+}
+
+// Relocating a process's TMPDIR does not replace the host's temporary namespace.
+func hostTemporaryRoot() string {
+	if runtime.GOOS == "linux" {
+		return "/tmp"
+	}
+	return ""
 }
 
 func goWorkRoot() string {

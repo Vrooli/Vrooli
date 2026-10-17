@@ -500,6 +500,28 @@ func TestStructuredStdoutCaptureIsSeparateFromDisplayTail(t *testing.T) {
 	}
 }
 
+func TestStdoutObserverReceivesOutputIndependentlyOfDisplayTail(t *testing.T) {
+	cmd := helperCommand("structured-output")
+	var observed strings.Builder
+	cmd.StdoutObserver = &observed
+	result := (Bounded{}).Run(context.Background(), cmd)
+	want := strings.Repeat("{\"Action\":\"output\"}\n", 1024)
+	if result.Status != StatusPassed || observed.String() != want || !strings.Contains(result.Stdout, "[truncated]") || result.StdoutEvidence != nil {
+		t.Fatalf("observer changed normal output/capture semantics: status=%s observed=%d tail=%d", result.Status, observed.Len(), len(result.Stdout))
+	}
+}
+
+func TestStdoutObserverContinuesAfterStructuredCaptureOverflow(t *testing.T) {
+	cmd := helperCommand("structured-overflow")
+	var observed strings.Builder
+	cmd.CaptureStdout = true
+	cmd.StdoutObserver = &observed
+	result := (Bounded{}).Run(context.Background(), cmd)
+	if result.Status != StatusFailed || result.StdoutEvidenceComplete || result.StdoutEvidence != nil || !strings.HasPrefix(observed.String(), "early failure\n") || observed.Len() <= 8<<20 || strings.Contains(result.Stdout, "early failure") {
+		t.Fatalf("overflow interrupted observer or retained false proof: status=%s complete=%t observed=%d tail=%d", result.Status, result.StdoutEvidenceComplete, observed.Len(), len(result.Stdout))
+	}
+}
+
 func TestStructuredStdoutCaptureRejectsOverflowWithoutPartialEvidence(t *testing.T) {
 	w := &boundedCapture{max: 4}
 	if n, err := w.Write([]byte("1234")); n != 4 || err != nil {
@@ -542,6 +564,13 @@ func TestExecutorHelperProcess(t *testing.T) {
 		fmt.Fprint(os.Stdout, "hello")
 	case "structured-output":
 		fmt.Fprint(os.Stdout, strings.Repeat("{\"Action\":\"output\"}\n", 1024))
+	case "structured-overflow":
+		fmt.Fprint(os.Stdout, "early failure\n")
+		chunk := strings.Repeat("later passing output\n", 1024)
+		for n := 0; n <= 9<<20; n += len(chunk) {
+			fmt.Fprint(os.Stdout, chunk)
+		}
+		os.Exit(1)
 	case "fail":
 		fmt.Fprint(os.Stderr, "boom")
 		os.Exit(3)

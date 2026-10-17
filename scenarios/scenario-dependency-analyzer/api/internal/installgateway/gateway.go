@@ -18,12 +18,16 @@ import (
 	"unicode"
 
 	"github.com/vrooli/envkit-go"
+	"github.com/vrooli/vrooli/internal/tools/hyperframes"
 	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/gomodreconcile"
 )
 
 // Resolution is the resolved install plan for a request: where it runs, which
 // manager, the manifest it mutates, and the exact argv.
 type Resolution struct {
+	HostTool              bool
+	HostToolRefresh       bool
+	HostToolTargetVersion string
 	RepositoryRoot        string
 	SurfaceRoot           string
 	PackageManager        string
@@ -34,6 +38,7 @@ type Resolution struct {
 	GeneratedManifestPath string
 	PythonLockfiles       []string
 	PythonIndexSets       map[string]pythonIndexSet
+	PythonBootstrap       *PythonBootstrap
 	Argv                  []string
 	Profile               InstallProfile
 }
@@ -69,6 +74,9 @@ func ValidateProtectedBuildException(exception ProtectedBuildException) error {
 // always uses Argv with exec.CommandContext; callers must never feed this
 // string to a shell.
 func (r Resolution) Command() string {
+	if r.PythonBootstrap != nil {
+		return "uv pip compile --only-binary :all: --no-build --generate-hashes " + filepath.Base(r.PythonBootstrap.InputPath) + " into " + strings.Join(baseNames(r.PythonLockfiles), ", ")
+	}
 	if r.TemplateVersion != "" {
 		qualifier := ""
 		if r.ExactVersion {
@@ -99,6 +107,12 @@ type ExecInstaller struct{}
 func (ExecInstaller) Install(ctx context.Context, r Resolution) (string, error) {
 	if err := validateResolution(r); err != nil {
 		return "", err
+	}
+	if r.HostToolRefresh {
+		return refreshHostToolSource(ctx, r)
+	}
+	if r.HostTool {
+		return provisionHostTool(ctx, r)
 	}
 	if r.TemplateVersion != "" {
 		return installTemplate(ctx, r, ExecInstaller{})
@@ -158,6 +172,9 @@ var allowedSurfaces = map[string]struct{}{"ui": {}, "api": {}, "cli": {}, "agent
 // It validates the surface exists and that the ecosystem
 // matches the surface's detected package manager, and builds the install argv.
 func Resolve(repoRoot, scenario, surface, ecosystem, packageName, version string) (Resolution, error) {
+	if surface == "host-tool" {
+		return resolveHostTool(repoRoot, scenario, ecosystem, packageName, version)
+	}
 	if err := validateScenarioName(scenario); err != nil {
 		return Resolution{}, err
 	}
@@ -195,7 +212,7 @@ func Resolve(repoRoot, scenario, surface, ecosystem, packageName, version string
 	if templateVersion != "" && scenario == "scenario-to-desktop" && surface == "template/vanilla" && (packageName == "electron" || packageName == "electron-mksnapshot") {
 		generatedManifestPath = filepath.Join(surfaceRoot, "package.json.template")
 	}
-	return Resolution{
+	resolution := Resolution{
 		TemplateVersion:       templateVersion,
 		GeneratedManifestPath: generatedManifestPath,
 		PythonLockfiles:       pythonLockfilesFor(surfaceRoot, manager),
@@ -207,7 +224,20 @@ func Resolve(repoRoot, scenario, surface, ecosystem, packageName, version string
 		PackageName:           packageName,
 		Argv:                  argv,
 		Profile:               SafeProfileFor(manager, argv),
-	}, nil
+	}
+	if manager == "uv-lock" && !fileExists(filepath.Join(surfaceRoot, "requirements.lock")) {
+		bootstrap, err := resolvePythonBootstrap(surfaceRoot, packageName, version)
+		if err != nil {
+			return Resolution{}, err
+		}
+		resolution.PythonBootstrap = bootstrap
+		resolution.PythonIndexSets = map[string]pythonIndexSet{"requirements.lock": bootstrap.Indexes}
+		resolution.PythonLockfiles = []string{filepath.Join(surfaceRoot, "requirements.lock")}
+		resolution.Profile.FrozenLockfile = false // Resolves a new lock; does not reproduce an existing frozen closure.
+		resolution.Profile.ScriptsDisabled = true
+		resolution.Profile.LifecycleMode = "wheel-only-lock-resolution"
+	}
+	return resolution, nil
 }
 
 // ApplyExactVersion adds the package manager's exact-save option to a resolved
@@ -220,6 +250,20 @@ func ApplyExactVersion(r *Resolution, version string) error {
 	version = strings.TrimSpace(version)
 	if !exactNpmVersion.MatchString(version) {
 		return fmt.Errorf("exact version requires a concrete semantic version")
+	}
+	if r.HostToolRefresh {
+		if version != r.HostToolTargetVersion {
+			return fmt.Errorf("host-tool source refresh target changed")
+		}
+		r.ExactVersion = true
+		return nil
+	}
+	if r.HostTool {
+		if version != hyperframes.Version {
+			return fmt.Errorf("host tool version must match the committed closure")
+		}
+		r.ExactVersion = true
+		return nil
 	}
 	var flag string
 	switch r.PackageManager {
@@ -234,6 +278,34 @@ func ApplyExactVersion(r *Resolution, version string) error {
 	}
 	r.Argv = append(r.Argv, flag)
 	r.ExactVersion = true
+	return nil
+}
+
+// ApplyDevelopmentDependency expresses an explicit JS development placement.
+// Omitting it preserves Resolve's existing dependency classification. Flags
+// remain typed argv and never become a direct package.json edit.
+func ApplyDevelopmentDependency(r *Resolution) error {
+	if r == nil || r.HostTool || r.HostToolRefresh || len(r.Argv) < 2 {
+		return fmt.Errorf("development placement requires a mutating JavaScript surface")
+	}
+	var flag string
+	switch r.PackageManager {
+	case "npm":
+		flag = "--save-dev"
+	case "pnpm":
+		flag = "-D"
+	case "yarn":
+		flag = "--dev"
+	default:
+		return fmt.Errorf("development placement is unsupported for %s", r.PackageManager)
+	}
+	for _, arg := range r.Argv {
+		if arg == flag {
+			return nil
+		}
+	}
+	r.Argv = append(r.Argv, flag)
+	r.Profile = SafeProfileFor(r.PackageManager, r.Argv)
 	return nil
 }
 
@@ -505,7 +577,7 @@ func planForEcosystem(surfaceRoot, ecosystem, packageName, version string) (mana
 			manager = "pip"
 			manifest = filepath.Join(surfaceRoot, "requirements.txt")
 			argv = []string{"pip", "install", spec}
-		} else if fileExists(filepath.Join(surfaceRoot, "requirements.lock")) {
+		} else if fileExists(filepath.Join(surfaceRoot, "requirements.lock")) || fileExists(filepath.Join(surfaceRoot, "requirements.in")) {
 			manager = "uv-lock"
 			manifest = filepath.Join(surfaceRoot, "requirements.lock")
 			if strings.TrimSpace(version) == "" {

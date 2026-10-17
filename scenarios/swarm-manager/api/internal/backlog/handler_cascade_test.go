@@ -105,7 +105,7 @@ func TestPatch_MoveMilestone_SyncsBothSides(t *testing.T) {
 	req := httptest.NewRequest("PATCH", "/api/v1/backlog/idea/the-item", body)
 	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "the-item"})
 	w := httptest.NewRecorder()
-	h.Update(w, req)
+	h.Update(w, req.WithContext(bookkeepingOwnerOn(req.Context())))
 	apihttptest.AssertStatus(t, w.Result(), http.StatusOK)
 
 	if got := ia.snapshots["old-init"].Items; len(got) != 0 {
@@ -137,7 +137,7 @@ func TestPatch_MoveMilestone_UnknownTarget_Rejected(t *testing.T) {
 	req := httptest.NewRequest("PATCH", "/api/v1/backlog/idea/the-item", body)
 	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "the-item"})
 	w := httptest.NewRecorder()
-	h.Update(w, req)
+	h.Update(w, req.WithContext(bookkeepingOwnerOn(req.Context())))
 	apihttptest.AssertStatus(t, w.Result(), http.StatusBadRequest)
 
 	if got := ia.snapshots["old-init"].Items; len(got) != 1 || got[0] != "idea/the-item" {
@@ -166,7 +166,7 @@ func TestPatch_ClearMilestone_RemovesFromOldItems(t *testing.T) {
 	req := httptest.NewRequest("PATCH", "/api/v1/backlog/idea/the-item", body)
 	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "the-item"})
 	w := httptest.NewRecorder()
-	h.Update(w, req)
+	h.Update(w, req.WithContext(bookkeepingOwnerOn(req.Context())))
 	apihttptest.AssertStatus(t, w.Result(), http.StatusOK)
 
 	if got := ia.snapshots["old-init"].Items; len(got) != 0 {

@@ -605,6 +605,12 @@ func newCapabilityCheckers(ollamaURL, openrouterKey, bridgeURL, bridgeOwnerToken
 			Client:     &http.Client{Timeout: 3 * time.Second}, Probe: true,
 		},
 		"integration-hub": &capabilities.ScenarioChecker{Slug: "integration-hub"},
+		// notification-hub owns the operator's notification preferences and the
+		// approvals inbox the shared operator-decision rail surfaces. The approvals
+		// inbox makes it a hard runtime dependency, so it needs a live reachability
+		// checker like any other declared scenario — discovery-probed, same as
+		// integration-hub.
+		"notification-hub": &capabilities.ScenarioChecker{Slug: "notification-hub"},
 	}
 	for _, definition := range capabilityprobe.AITools {
 		checkers[definition.ID] = capabilities.HostCapabilityChecker{Definition: definition}

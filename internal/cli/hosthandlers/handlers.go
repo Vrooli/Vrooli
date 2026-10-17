@@ -19,6 +19,7 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/operatorstate"
 	hostruntime "github.com/vrooli/vrooli/internal/runtime"
+	"github.com/vrooli/vrooli/internal/tools/hyperframes"
 	"github.com/vrooli/vrooli/internal/volumeremediation"
 	"github.com/vrooli/vrooli/internal/workloadowner"
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
@@ -30,7 +31,7 @@ type hostService struct {
 
 const hostMemoryBytesPerMegabyte = 1024
 
-var hostCommandNames = []string{"cron", "inventory", "desktop-session", "install", "safeguard", "reboot", "volume", "storage"}
+var hostCommandNames = []string{"cron", "inventory", "desktop-session", "install", "safeguard", "reboot", "volume", "storage", "hyperframes"}
 
 // RegisteredCommandPaths returns the child paths bound by the host handler.
 func RegisteredCommandPaths() []string {
@@ -125,6 +126,8 @@ func hostBindings(ctx *rootcli.CommandContext, names []string) map[string]func(c
 					return runHostInventory(runCtx, ctx)
 				case "desktop-session":
 					return runDesktopSession(runCtx, ctx)
+				case "hyperframes":
+					return runHyperframes(runCtx, ctx)
 				case "install":
 					return runHostInstall(runCtx, ctx)
 				case "safeguard":
@@ -487,5 +490,21 @@ func runDesktopSession(runCtx cliapp.RunContext, parent *rootcli.CommandContext)
 		return cliout.WriteProtoJSON(runCtx.Stdout(), &cliv1.CliDesktopSessionFacts{SessionId: facts.SessionID, Uid: facts.UID, PeerPid: int64(facts.PeerPID), PeerUid: facts.PeerUID, Type: facts.Type, Active: facts.Active, Locked: facts.Locked, Remote: facts.Remote, Matched: facts.Matched, Reason: facts.Reason, ObservedAt: facts.ObservedAt.UTC().Format(time.RFC3339Nano)})
 	}
 	_, err = fmt.Fprintf(runCtx.Stdout(), "Session %s: %s\n", facts.SessionID, facts.Reason)
+	return err
+}
+
+func runHyperframes(runCtx cliapp.RunContext, parent *rootcli.CommandContext) error {
+	request, out := strings.TrimSpace(runCtx.Flag("request")), strings.TrimSpace(runCtx.Flag("out"))
+	if request == "" || out == "" {
+		return rootcli.UsageErrorf("host hyperframes", "--request and --out are required")
+	}
+	receipt, err := hyperframes.Execute(parent.OperationContext(), request, out)
+	if parent.Globals.JSON || runCtx.JSON() {
+		if e := cliout.WriteJSONValue(runCtx.Stdout(), receipt); e != nil {
+			return e
+		}
+	} else if err == nil {
+		_, _ = fmt.Fprintf(runCtx.Stdout(), "HyperFrames: %s (reused=%t)\n", out, receipt.Reused)
+	}
 	return err
 }

@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tuning"
@@ -98,15 +99,18 @@ type StatusReport struct {
 }
 
 type Service struct {
-	DiscoverFn           func() ([]catalog.Resource, error)
-	DiscoverReportFn     func() (scenario.Report[catalog.Resource], error)
-	DiscoverOneFn        func(name string) (*catalog.Resource, error)
-	IsDeprecatedFn       func(name string) (bool, error)
-	IsBlueprintArchFn    func(name string) (bool, error)
-	LoadManifestFn       func(path string) (manifestpkg.ResourceManifest, error)
-	DriverStatusFn       func(ctx context.Context, item catalog.Resource, manifest manifestpkg.ResourceManifest, fast bool) (Status, error)
+	DiscoverFn        func() ([]catalog.Resource, error)
+	DiscoverReportFn  func() (scenario.Report[catalog.Resource], error)
+	DiscoverOneFn     func(name string) (*catalog.Resource, error)
+	IsDeprecatedFn    func(name string) (bool, error)
+	IsBlueprintArchFn func(name string) (bool, error)
+	LoadManifestFn    func(path string) (manifestpkg.ResourceManifest, error)
+	DriverStatusFn    func(ctx context.Context, item catalog.Resource, manifest manifestpkg.ResourceManifest, fast bool) (Status, error)
+	// StartupTimeoutFn supplies the managed driver's effective health budget,
+	// including observed manifest-owned budgets. It excludes operation overhead.
+	StartupTimeoutFn     func(manifest manifestpkg.ResourceManifest) time.Duration
 	DriverRunFn          func(ctx context.Context, item catalog.Resource, manifest manifestpkg.ResourceManifest, operation string, args []string, stdout, stderr io.Writer) error
-	RunResourceCommandFn func(name, operation string, args []string, stdout, stderr io.Writer) error
+	RunResourceCommandFn func(ctx context.Context, name, operation string, args []string, stdout, stderr io.Writer) error
 	CommandForResourceFn func(name string, args ...string) (*exec.Cmd, error)
 	RunCommandFn         func(ctx context.Context, cmd *exec.Cmd) CommandResult
 }
@@ -199,7 +203,15 @@ func (s *Service) Status(name string, fast bool) (Status, error) {
 	return s.StatusForResource(*item, fast)
 }
 
+// Run preserves contextless compatibility; operation-owned callers use RunContext.
 func (s *Service) Run(name string, args []string, stdout, stderr io.Writer) error {
+	return s.RunContext(context.Background(), name, args, stdout, stderr)
+}
+
+func (s *Service) RunContext(ctx context.Context, name string, args []string, stdout, stderr io.Writer) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if err := s.validateActiveResource(name, false); err != nil {
 		return err
 	}
@@ -212,9 +224,9 @@ func (s *Service) Run(name string, args []string, stdout, stderr io.Writer) erro
 		return err
 	}
 	if s.useManifestNativeControl(item) {
-		return s.runNativeResourceCommand(*item, operation, args[1:], stdout, stderr)
+		return s.runNativeResourceCommand(ctx, *item, operation, args[1:], stdout, stderr)
 	}
-	return s.runResourceCommand(name, operation, args[1:], stdout, stderr)
+	return s.runResourceCommand(ctx, name, operation, args[1:], stdout, stderr)
 }
 
 func (s *Service) validateActiveResource(name string, forStatus bool) error {
@@ -255,22 +267,44 @@ func (s *Service) useManifestNativeControl(item *catalog.Resource) bool {
 	return item != nil && item.ManifestPath != "" && item.ControlMode == "manifest-native"
 }
 
-func (s *Service) runNativeResourceCommand(item catalog.Resource, operation string, args []string, stdout, stderr io.Writer) error {
+func (s *Service) runNativeResourceCommand(parent context.Context, item catalog.Resource, operation string, args []string, stdout, stderr io.Writer) error {
 	manifest, err := s.LoadManifestFn(item.ManifestPath)
 	if err != nil {
 		return err
 	}
-	// Managed-service installs may include large, checksum-verified model data
-	// artifacts in addition to the launch binary. Lifecycle operations remain
-	// short-bounded, while an explicit install gets enough time for a cold
-	// model acquisition on a constrained connection.
+	// Startup must accommodate the driver's health wait after bounded artifact
+	// verification/bootstrap overhead; its parent must not silently truncate
+	// an authored model-load budget. Other operations retain their old bounds.
 	timeout := tuning.ResourceControlExtendedTimeout()
 	if operation == "install" {
 		timeout = tuning.RepairDeadline()
+	} else if manifest.Driver == "managed-service" && (operation == "start" || operation == "restart") {
+		seconds := manifest.Lifecycle.StartTimeoutSeconds
+		if seconds <= 0 {
+			seconds = 60
+		}
+		if uint64(seconds) > uint64((1<<63-1)/time.Second) {
+			return fmt.Errorf("invalid managed-service startup operation budget")
+		}
+		startup := tuning.ManagedServiceConfiguredTimeout(time.Duration(seconds) * time.Second)
+		if s.StartupTimeoutFn != nil {
+			startup = s.StartupTimeoutFn(manifest)
+		}
+		if startup <= 0 || timeout > time.Duration(1<<63-1)-startup {
+			return fmt.Errorf("invalid managed-service startup operation budget")
+		}
+		timeout += startup
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), tuning.ResourceOperationTimeout(timeout))
+	ctx, cancel := context.WithTimeout(parent, tuning.ResourceOperationTimeout(timeout))
 	defer cancel()
-	if err := s.DriverRunFn(ctx, item, manifest, operation, args, stdout, stderr); err != nil {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	runErr := s.DriverRunFn(ctx, item, manifest, operation, args, stdout, stderr)
+	if ctx.Err() != nil {
+		runErr = errors.Join(ctx.Err(), runErr)
+	}
+	if err := runErr; err != nil {
 		var resourceErr *vroolierr.Error
 		if errors.As(err, &resourceErr) {
 			return err
@@ -286,8 +320,15 @@ func (s *Service) runNativeResourceCommand(item catalog.Resource, operation stri
 	return nil
 }
 
-func (s *Service) runResourceCommand(name, operation string, args []string, stdout, stderr io.Writer) error {
-	return s.RunResourceCommandFn(name, operation, args, stdout, stderr)
+func (s *Service) runResourceCommand(ctx context.Context, name, operation string, args []string, stdout, stderr io.Writer) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	err := s.RunResourceCommandFn(ctx, name, operation, args, stdout, stderr)
+	if ctx.Err() != nil {
+		return errors.Join(ctx.Err(), err)
+	}
+	return err
 }
 
 func (s *Service) StartAll(stdout, stderr io.Writer) (batchcontrol.StartReport, error) {

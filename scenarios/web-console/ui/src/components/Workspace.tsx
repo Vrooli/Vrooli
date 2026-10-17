@@ -2,7 +2,7 @@
 // DOC: docs/internal/SEAMS.md#1-entry-presentation
 import { lazy, Profiler, useState, useCallback, useEffect, useMemo, useRef } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { CircleUserRound, Menu, MessageSquareText, MonitorSmartphone, Plus, Settings, TerminalSquare } from "lucide-react";
+import { CircleUserRound, Menu, MessageSquareText, MonitorSmartphone, Plus, Settings, ShieldCheck, TerminalSquare } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
@@ -55,6 +55,7 @@ import { useWindowKeyDown } from "../hooks/useKeyboardListeners";
 import BannerRegion from "./banners/BannerRegion";
 import type { MaybeBanner } from "./banners/types";
 import {
+  approvalsBanner,
   closeErrorBanner,
   createErrorBanner,
   enableAudioBanner,
@@ -67,6 +68,8 @@ import {
   voiceStaleMicBanner,
   voiceTranscribingBanner,
 } from "./banners/descriptors";
+import { useApprovalsBadgePoll } from "../hooks/useApprovals";
+import { useApprovalsStore } from "../stores/useApprovalsStore";
 import {
   useCrashRecoveryBanner,
   useSessionRecoveryBanner,
@@ -108,6 +111,7 @@ const FleetDrawer = lazy(() => import("./fleet/FleetDrawer"));
 const SettingsModal = lazy(() => import("./SettingsModal"));
 const AppearanceModal = lazy(() => import("./AppearanceModal"));
 const ArchiveDrawer = lazy(() => import("./ArchiveDrawer"));
+const ApprovalsDrawer = lazy(() => import("./approvals/ApprovalsDrawer"));
 
 type ActiveResize = {
   axis: "column" | "row";
@@ -371,6 +375,18 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     setArchivePreferOrphans(false);
     setArchiveInitialSessionId(null);
   }, []);
+  // Approvals inbox. A light always-on poll keeps the pending count (the badge
+  // and mobile banner source) honest even while the drawer is closed. A deep
+  // link recorded at boot opens the drawer and selects its decision.
+  const [approvalsOpen, setApprovalsOpen] = useState(false);
+  useApprovalsBadgePoll(true);
+  const approvalsPendingCount = useApprovalsStore((state) => state.pendingCount);
+  const approvalsShouldOpen = useApprovalsStore((state) => state.shouldOpenDrawer);
+  const openApprovals = useCallback(() => { setApprovalsOpen(true); }, []);
+  const closeApprovals = useCallback(() => { setApprovalsOpen(false); }, []);
+  // Honor a deep-link intent: open the drawer (the drawer itself selects the
+  // decision and clears the intent — the deferred-intent discipline).
+  useEffect(() => { if (approvalsShouldOpen) setApprovalsOpen(true); }, [approvalsShouldOpen]);
   const openComposer = useCallback(() => { setComposerOpen(true); }, []);
   const closeComposer = useCallback(() => { setComposerOpen(false); }, []);
   // Desktop keyboard shortcut (Ctrl/Cmd+Shift+K) opens the composer.
@@ -1798,6 +1814,12 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     ...appBanners,
     sessionRecoveryNotice,
     crashRecoveryNotice,
+    // Mobile primary entrance to the approvals inbox: shown ONLY when something
+    // is pending. On desktop the FloatingToolbar carries the persistent badged
+    // entry, but the banner is medium-agnostic and harmless there — it is the
+    // one top-chrome owner and arbitrated by priority like every other notice.
+    approvalsPendingCount > 0 &&
+      approvalsBanner(t, approvalsPendingCount, openApprovals),
     voiceInput.fallbackNotice &&
       voiceFallbackBanner(t, voiceInput.fallbackNotice, voiceInput.dismissFallbackNotice),
     voiceInput.rejectedAudio &&
@@ -1922,6 +1944,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
           onReopened={handleArchiveReopened}
           preferOrphans={archivePreferOrphans}
         /></DeferredSurface>
+        <DeferredSurface active={approvalsOpen}><ApprovalsDrawer open={approvalsOpen} onClose={closeApprovals} /></DeferredSurface>
       </div>
     );
   }
@@ -2053,6 +2076,8 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         onOpenSettings={() => { workspace.setSettingsModalOpen(true); }}
         onOpenAccount={() => { openSettingsTab("account"); }}
         onOpenMachines={openMachines}
+        onOpenApprovals={openApprovals}
+        approvalsPendingCount={approvalsPendingCount}
         onOpenAi={() => { workspace.setAiModalOpen(true); }}
         onNewTerminal={handleNewTerminal}
         onOpenLauncher={openLauncher}
@@ -2203,6 +2228,30 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
             >
               <Settings className="h-4 w-4" />
             </Button>
+            {/* Persistent mobile access to the approvals inbox. The banner is
+                the primary entrance and appears ONLY when something is pending;
+                this badged button is the always-available route in the existing
+                overflow cluster, so there is no new always-on top-bar icon
+                beyond this one shared affordance. */}
+            <div className="relative inline-flex">
+              <Button
+                data-testid="workspace-approvals"
+                variant="ghost"
+                size="icon"
+                shape="square"
+                className="h-8 w-8"
+                onClick={openApprovals}
+                aria-label={approvalsPendingCount > 0 ? t(strings.approvals.badgeAria, { count: approvalsPendingCount }) : t(strings.approvals.toolbarTitle)}
+                title={t(strings.approvals.toolbarTitle)}
+              >
+                <ShieldCheck className="h-4 w-4" />
+              </Button>
+              {approvalsPendingCount > 0 && (
+                <span data-testid="workspace-approvals-badge" className="pointer-events-none absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-wc-accent px-1 text-[10px] font-semibold text-wc-accent-fg">
+                  {approvalsPendingCount > 99 ? "99+" : approvalsPendingCount}
+                </span>
+              )}
+            </div>
             <Button
               data-testid="workspace-sidebar-account"
               variant="ghost"
@@ -2670,6 +2719,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         onReopened={handleArchiveReopened}
         preferOrphans={archivePreferOrphans}
       /></DeferredSurface>
+      <DeferredSurface active={approvalsOpen}><ApprovalsDrawer open={approvalsOpen} onClose={closeApprovals} /></DeferredSurface>
 
       {/* AI Modal */}
       <AiInput onExecute={(cmd) => { handleSendToTerminal(cmd, "bulk_text"); }} />

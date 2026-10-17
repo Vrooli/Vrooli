@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	sharedidentity "github.com/vrooli/api-core/identity"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
 
@@ -17,6 +18,9 @@ import (
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	kind, name, ok := h.parseKindAndName(w, r, "update")
 	if !ok {
+		return
+	}
+	if !h.requireBookkeeping(w, r, kind, name) {
 		return
 	}
 	updated, apiErr := h.doUpdate(r.Context(), kind, name, r)
@@ -60,6 +64,9 @@ func (h *Handler) doUpdatePatch(ctx context.Context, kind BacklogKind, name stri
 		return BacklogItem{}, apierr.BadRequest("%s", validationErr)
 	}
 
+	if principal, ok := sharedidentity.PrincipalFromContext(ctx); ok && principal.Kind == sharedidentity.ActorAgent && fields.Has(updateFieldStatus) && BacklogStatus(update.GetStatus()) == StatusCompleted && (existing.Status == StatusFailed || existing.Status == StatusInReview || existing.Status == StatusInProgress) {
+		return BacklogItem{}, apierr.BadRequest("worker execution acceptance requires the human review decision")
+	}
 	oldStatus := existing.Status
 	oldPriority := existing.Priority
 	oldEffort := existing.Effort
@@ -155,6 +162,9 @@ func (h *Handler) logAndEmitUpdate(
 		return
 	}
 	entityID := string(kind) + "/" + name
+	if emitter, ok := h.eventLogger.(interface{ EmitBookkeepingChanged(context.Context, string) }); ok {
+		emitter.EmitBookkeepingChanged(ctx, entityID)
+	}
 	if oldStatus != newStatus {
 		h.eventLogger.EmitBacklogStatusChanged(ctx, entityID, string(oldStatus), string(newStatus))
 	}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ReactFlowInstance } from "reactflow";
 import { logger } from "@utils/logger";
 
@@ -44,14 +44,19 @@ export function useReactFlowReady({
   nodeCount,
   workflowId,
 }: UseReactFlowReadyOptions): boolean {
-  const [isReady, setIsReady] = useState(false);
+  // Key the result as well as the check, so batched ready→ready workflow changes
+  // cannot retain the previous workflow result.
+  const [readiness, setReadiness] = useState({ workflowId, ready: false });
+  const previousWorkflowId = useRef(workflowId);
 
   useEffect(() => {
+    const workflowChanged = previousWorkflowId.current !== workflowId;
+    previousWorkflowId.current = workflowId;
+    // One effect owns reset, readiness checks and their cleanup. A changed
+    // workflow gets a fresh settling interval even if the old viewport remains.
+    setReadiness({ workflowId, ready: false });
     // Only check readiness in visual mode
-    if (viewMode !== "visual") {
-      setIsReady(false);
-      return;
-    }
+    if (viewMode !== "visual") return;
 
     const hasNodes = nodeCount > 0;
 
@@ -62,7 +67,7 @@ export function useReactFlowReady({
         nodeCount,
         workflowId,
       });
-      setIsReady(true);
+      setReadiness({ workflowId, ready: true });
       return;
     }
 
@@ -72,6 +77,11 @@ export function useReactFlowReady({
       workflowId,
     });
 
+    let timers: ReturnType<typeof setTimeout>[] = [];
+    const markReady = () => {
+      setReadiness({ workflowId, ready: true });
+      timers.forEach(clearTimeout);
+    };
     const checkReadiness = (): boolean => {
       try {
         // 1. Instance must exist
@@ -99,32 +109,27 @@ export function useReactFlowReady({
       }
     };
 
-    // Don't re-run if already ready
-    if (isReady) {
-      return;
-    }
-
     // Check immediately
-    if (checkReadiness()) {
-      setIsReady(true);
+    if (!workflowChanged && checkReadiness()) {
+      markReady();
       return;
     }
 
     // React Flow initializes asynchronously - check at progressive intervals
     // Non-empty workflows need longer for fitView animation to complete
-    const timers = [
+    timers = [
       setTimeout(() => {
-        if (checkReadiness()) setIsReady(true);
+        if (checkReadiness()) markReady();
       }, 100),
       setTimeout(() => {
-        if (checkReadiness()) setIsReady(true);
+        if (checkReadiness()) markReady();
       }, 300),
       setTimeout(() => {
-        if (checkReadiness()) setIsReady(true);
+        if (checkReadiness()) markReady();
       }, 600),
       setTimeout(() => {
         // Final check - after fitView animation should complete
-        if (checkReadiness()) setIsReady(true);
+        if (checkReadiness()) markReady();
       }, 1200),
       // Fallback: Force ready after 2s if still not ready
       setTimeout(() => {
@@ -135,7 +140,7 @@ export function useReactFlowReady({
             hasViewport: !!reactFlowInstance?.getViewport(),
             workflowId,
           });
-          setIsReady(true);
+          markReady();
         }
       }, 2000),
       // Emergency fallback: Force ready after 4s regardless (for tests)
@@ -146,19 +151,14 @@ export function useReactFlowReady({
           hasInstance: !!reactFlowInstance,
           workflowId,
         });
-        setIsReady(true);
+        markReady();
       }, 4000),
     ];
 
     return () => timers.forEach(clearTimeout);
-  }, [reactFlowInstance, viewMode, nodeCount, workflowId, isReady]);
+  }, [reactFlowInstance, viewMode, nodeCount, workflowId]);
 
-  // Reset ready state when workflow changes
-  useEffect(() => {
-    setIsReady(false);
-  }, [workflowId]);
-
-  return isReady;
+  return readiness.workflowId === workflowId && readiness.ready;
 }
 
 export default useReactFlowReady;

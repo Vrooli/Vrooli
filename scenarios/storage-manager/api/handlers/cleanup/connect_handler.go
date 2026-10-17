@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	cleanupcore "storage-manager/internal/cleanup"
 	"storage-manager/internal/orchestrator"
@@ -65,6 +66,24 @@ func (h *connectHandler) SetPolicyProfile(ctx context.Context, req *connect.Requ
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	return connect.NewResponse(&cleanupv1.SetPolicyProfileResponse{Policy: policyToProto(pol)}), nil
+}
+
+func (h *connectHandler) ConfigureTemporaryRetention(ctx context.Context, req *connect.Request[cleanupv1.ConfigureTemporaryRetentionRequest]) (*connect.Response[cleanupv1.ConfigureTemporaryRetentionResponse], error) {
+	svc, ok := h.service.(interface {
+		ConfigureTemporaryRetention(context.Context, bool, time.Duration) (orchestrator.Policy, error)
+	})
+	if !ok {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("temporary retention configuration is unavailable"))
+	}
+	seconds := req.Msg.GetMinAgeSeconds()
+	if seconds < 0 || seconds > int64((365*24*time.Hour)/time.Second) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("retention age must be between zero and 365 days"))
+	}
+	pol, err := svc.ConfigureTemporaryRetention(ctx, req.Msg.GetAutomatic(), time.Duration(seconds)*time.Second)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	return connect.NewResponse(&cleanupv1.ConfigureTemporaryRetentionResponse{Policy: policyToProto(pol)}), nil
 }
 
 func (h *connectHandler) CreatePlan(ctx context.Context, _ *connect.Request[cleanupv1.CreatePlanRequest]) (*connect.Response[cleanupv1.CreatePlanResponse], error) {

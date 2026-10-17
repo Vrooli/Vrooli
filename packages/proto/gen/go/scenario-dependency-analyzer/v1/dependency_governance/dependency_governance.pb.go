@@ -36,7 +36,15 @@ type InstallDependencyRequest struct {
 	Apply bool `protobuf:"varint,6,opt,name=apply,proto3" json:"apply,omitempty"`
 	// exact_version asks the governed JavaScript surface to persist the requested
 	// version without a caret/range. It requires a concrete version.
-	ExactVersion  bool `protobuf:"varint,7,opt,name=exact_version,json=exactVersion,proto3" json:"exact_version,omitempty"`
+	ExactVersion bool `protobuf:"varint,7,opt,name=exact_version,json=exactVersion,proto3" json:"exact_version,omitempty"`
+	// True explicitly saves a JavaScript dependency as development-only. False
+	// preserves existing classification; a new dependency defaults to runtime.
+	// Unsupported for non-JavaScript, overrides, and frozen host-tool installs.
+	Development bool `protobuf:"varint,8,opt,name=development,proto3" json:"development,omitempty"`
+	// Refresh only the committed dependency inputs for the closed host-tool
+	// owner. Requires an explicit exact version and development=false. The
+	// default remains frozen reproduction; this does not install a runtime.
+	RefreshLock   bool `protobuf:"varint,9,opt,name=refresh_lock,json=refreshLock,proto3" json:"refresh_lock,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -120,6 +128,20 @@ func (x *InstallDependencyRequest) GetExactVersion() bool {
 	return false
 }
 
+func (x *InstallDependencyRequest) GetDevelopment() bool {
+	if x != nil {
+		return x.Development
+	}
+	return false
+}
+
+func (x *InstallDependencyRequest) GetRefreshLock() bool {
+	if x != nil {
+		return x.RefreshLock
+	}
+	return false
+}
+
 type InstallDependencyResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// installed is true only when apply was set and the install succeeded.
@@ -142,6 +164,9 @@ type InstallDependencyResponse struct {
 	// vulnerability scan summary for the package.
 	SecurityNotes []string `protobuf:"bytes,10,rep,name=security_notes,json=securityNotes,proto3" json:"security_notes,omitempty"`
 	Guidance      string   `protobuf:"bytes,11,opt,name=guidance,proto3" json:"guidance,omitempty"`
+	// True only when an applied host-tool source refresh succeeded. This does
+	// not imply a managed runtime was installed; installed remains false.
+	SourceUpdated bool `protobuf:"varint,12,opt,name=source_updated,json=sourceUpdated,proto3" json:"source_updated,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -251,6 +276,13 @@ func (x *InstallDependencyResponse) GetGuidance() string {
 		return x.Guidance
 	}
 	return ""
+}
+
+func (x *InstallDependencyResponse) GetSourceUpdated() bool {
+	if x != nil {
+		return x.SourceUpdated
+	}
+	return false
 }
 
 type ListApprovedDependenciesRequest struct {
@@ -3899,7 +3931,7 @@ var File_scenario_dependency_analyzer_v1_dependency_governance_dependency_govern
 
 const file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDesc = "" +
 	"\n" +
-	"Qscenario-dependency-analyzer/v1/dependency_governance/dependency_governance.proto\x12<vrooli.scenario_dependency_analyzer.v1.dependency_governance\"\xe6\x01\n" +
+	"Qscenario-dependency-analyzer/v1/dependency_governance/dependency_governance.proto\x12<vrooli.scenario_dependency_analyzer.v1.dependency_governance\"\xab\x02\n" +
 	"\x18InstallDependencyRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x18\n" +
 	"\asurface\x18\x02 \x01(\tR\asurface\x12\x1c\n" +
@@ -3907,7 +3939,9 @@ const file_scenario_dependency_analyzer_v1_dependency_governance_dependency_gove
 	"\fpackage_name\x18\x04 \x01(\tR\vpackageName\x12\x18\n" +
 	"\aversion\x18\x05 \x01(\tR\aversion\x12\x14\n" +
 	"\x05apply\x18\x06 \x01(\bR\x05apply\x12#\n" +
-	"\rexact_version\x18\a \x01(\bR\fexactVersion\"\xea\x02\n" +
+	"\rexact_version\x18\a \x01(\bR\fexactVersion\x12 \n" +
+	"\vdevelopment\x18\b \x01(\bR\vdevelopment\x12!\n" +
+	"\frefresh_lock\x18\t \x01(\bR\vrefreshLock\"\x91\x03\n" +
 	"\x19InstallDependencyResponse\x12\x1c\n" +
 	"\tinstalled\x18\x01 \x01(\bR\tinstalled\x12\x17\n" +
 	"\adry_run\x18\x02 \x01(\bR\x06dryRun\x12\x18\n" +
@@ -3921,7 +3955,8 @@ const file_scenario_dependency_analyzer_v1_dependency_governance_dependency_gove
 	"next_steps\x18\t \x03(\tR\tnextSteps\x12%\n" +
 	"\x0esecurity_notes\x18\n" +
 	" \x03(\tR\rsecurityNotes\x12\x1a\n" +
-	"\bguidance\x18\v \x01(\tR\bguidance\"\x8a\x01\n" +
+	"\bguidance\x18\v \x01(\tR\bguidance\x12%\n" +
+	"\x0esource_updated\x18\f \x01(\bR\rsourceUpdated\"\x8a\x01\n" +
 	"\x1fListApprovedDependenciesRequest\x12\x1c\n" +
 	"\tecosystem\x18\x01 \x01(\tR\tecosystem\x12\x14\n" +
 	"\x05state\x18\x02 \x01(\tR\x05state\x12\x18\n" +

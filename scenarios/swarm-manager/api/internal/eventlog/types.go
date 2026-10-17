@@ -484,10 +484,12 @@ type ReviewFailedPayload struct {
 
 // ArchivePayload records an archive event with context about what was archived.
 type ArchivePayload struct {
-	PreviousStatus string   `json:"previous_status"`
-	ArchivedAt     string   `json:"archived_at"`
-	Actor          string   `json:"actor,omitempty"`
-	DroppedItems   []string `json:"dropped_items,omitempty"`
+	AuthorizationID string   `json:"authorization_id,omitempty"`
+	Approver        string   `json:"approver,omitempty"`
+	PreviousStatus  string   `json:"previous_status"`
+	ArchivedAt      string   `json:"archived_at"`
+	Actor           string   `json:"actor,omitempty"`
+	DroppedItems    []string `json:"dropped_items,omitempty"`
 }
 
 // UnarchivePayload records an unarchive event.

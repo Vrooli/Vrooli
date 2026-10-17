@@ -11,11 +11,12 @@ import {
   type SignInContext,
   type SignInPreview,
 } from '../../../shared/api';
+import { useUserAuth } from '../../../app/providers/useUserAuth';
 import { useSiteIdentity } from '../../public-landing/site/useSiteIdentity';
 import { SignInAside } from '../components/SignInAside';
 import { AccountChooser } from '../components/AccountChooser';
 import { getBrowserBinding } from '../lib/browserBinding';
-import { contextProblem } from '../lib/signInContext';
+import { contextProblem, safeNextPath } from '../lib/signInContext';
 import { continueDesktopLink, finishDesktopLink, redirectBrowser, type Redirect } from '../lib/completeSignIn';
 
 export { isAllowedCallbackUrl } from '../lib/signInContext';
@@ -28,7 +29,7 @@ type ViewState =
   | { status: 'working'; preview: SignInPreview }
   | { status: 'choose-account'; context: SignInContext; accounts: BusinessAccount[] }
   | { status: 'done'; returning: boolean }
-  | { status: 'error'; failure: Failure; message: string; retry?: () => void };
+  | { status: 'error'; failure: Failure; message: string; retry?: () => void; accountHref?: string };
 
 function classify(err: unknown): { failure: Failure; message: string } {
   if (isApiError(err)) {
@@ -62,6 +63,8 @@ export function VerifyMagicLink({ redirectTo = redirectBrowser }: { redirectTo?:
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const identity = useSiteIdentity();
+  const { refreshSession, user } = useUserAuth();
+  const nextPath = safeNextPath(searchParams.get('next'));
   const token = searchParams.get('token')?.trim() ?? '';
   const siteName = identity.brandName || 'your account';
   const [state, setState] = useState<ViewState>({ status: 'loading' });
@@ -90,6 +93,30 @@ export function VerifyMagicLink({ redirectTo = redirectBrowser }: { redirectTo?:
   const appContext = state.status === 'confirm' || state.status === 'working' ? state.preview.context : undefined;
   const appName = appContext?.app || siteName;
 
+  const completeBrowserSignIn = useCallback(async (preview: SignInPreview, verificationUncertain = false, expectedEmail?: string) => {
+    setState({ status: 'working', preview });
+    try {
+      await refreshSession({ requireAuthenticated: true, ...(expectedEmail ? { expectedEmail } : {}) });
+      if (verificationUncertain) {
+        // A masked preview cannot bind an existing cookie to this link.
+        // Let the person explicitly inspect their current account instead.
+        setState({ status: 'error', failure: 'unknown', message: 'The sign-in response was interrupted. A browser session is available, but we can’t confirm that this link signed you in.', accountHref: nextPath });
+        return;
+      }
+      setState({ status: 'done', returning: false });
+      window.setTimeout(() => { navigate(nextPath, { replace: true }); }, 900);
+    } catch {
+      setState({
+        status: 'error',
+        failure: 'unknown',
+        message: verificationUncertain
+          ? 'We couldn’t confirm whether sign-in finished. Try again to check your session.'
+          : 'Your sign-in was accepted, but we couldn’t load your session. Try again to finish signing in.',
+        retry: () => { void completeBrowserSignIn(preview, verificationUncertain, expectedEmail); },
+      });
+    }
+  }, [navigate, nextPath, refreshSession]);
+
   const confirm = useCallback(async (preview: SignInPreview, websiteOnly: boolean) => {
     setState({ status: 'working', preview });
     const binding = getBrowserBinding();
@@ -105,7 +132,7 @@ export function VerifyMagicLink({ redirectTo = redirectBrowser }: { redirectTo?:
         redirectTo(target);
         return;
       }
-      await verifyMagicLink(token, binding);
+      const verified = await verifyMagicLink(token, binding);
       if (context && preview.flow === 'desktop_link') {
         try {
           const outcome = await continueDesktopLink(context, redirectTo);
@@ -129,13 +156,18 @@ export function VerifyMagicLink({ redirectTo = redirectBrowser }: { redirectTo?:
         }
         return;
       }
-      setState({ status: 'done', returning: false });
-      window.setTimeout(() => { navigate('/', { replace: true }); }, 900);
+      await completeBrowserSignIn(preview, false, verified.user.email);
     } catch (err) {
       const { failure, message } = classify(err);
-      setState({ status: 'error', failure, message, retry: failure === 'network' ? () => { void confirm(preview, websiteOnly); } : undefined });
+      if (failure === 'network' && !context) {
+        // A lost verification response may already have consumed the link.
+        // Read the cookie-backed session before considering a new sign-in.
+        await completeBrowserSignIn(preview, true);
+        return;
+      }
+      setState({ status: 'error', failure, message });
     }
-  }, [navigate, redirectTo, token]);
+  }, [completeBrowserSignIn, redirectTo, token]);
 
   const chooseAccount = async (context: SignInContext, accountId: string) => {
     setChoosingId(accountId);
@@ -248,7 +280,9 @@ export function VerifyMagicLink({ redirectTo = redirectBrowser }: { redirectTo?:
         </span>
         <h1>{FAILURE_TITLES[state.failure]}</h1>
         <p>{state.message}</p>
+        {state.accountHref && user && <p>Current browser account: <strong>{user.email}</strong></p>}
         <div className="auth-status-actions">
+          {state.accountHref && <Link className="button button-primary" to={state.accountHref}>Check your current account<ArrowRight aria-hidden="true" /></Link>}
           {state.retry && (
             <button type="button" className="button button-primary" onClick={state.retry}>
               <RefreshCw aria-hidden="true" />Try again

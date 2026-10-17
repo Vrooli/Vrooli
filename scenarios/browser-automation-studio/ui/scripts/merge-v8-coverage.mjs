@@ -1,35 +1,61 @@
 import { readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { fileFingerprint, sourceFingerprint } from './coverage-inputs.mjs';
 
-const rawRoot = path.resolve('coverage/raw');
-const outputRoot = path.resolve('coverage');
-const floor = 85;
-const reports = [];
-for (const entry of await readdir(rawRoot, { withFileTypes: true })) {
-  if (entry.isDirectory()) reports.push(JSON.parse(await readFile(path.join(rawRoot, entry.name, 'coverage-final.json'), 'utf8')));
+// The library reconciles counters by source location, as Vitest itself does.
+// Numeric IDs are local to each transformed map and cannot be added directly.
+export async function mergeCoverageRun(runRoot, uiRoot) {
+  const manifest = JSON.parse(await readFile(path.join(runRoot, 'manifest.json'), 'utf8'));
+  if (manifest.version !== 1 || !Array.isArray(manifest.projects) || manifest.projects.length === 0 ||
+      new Set(manifest.projects).size !== manifest.projects.length ||
+      manifest.projects.some(name => typeof name !== 'string' || !/^[a-z][a-z0-9-]*$/.test(name))) {
+    throw new Error('Incomplete coverage: invalid expected-project manifest.');
+  }
+  if (manifest.sourceFingerprint !== sourceFingerprint(uiRoot)) throw new Error('Incomplete coverage: source inputs changed during the run.');
+  const rawRoot = path.join(runRoot, 'raw');
+  const actual = (await readdir(rawRoot, { withFileTypes: true })).filter(entry => entry.isDirectory()).map(entry => entry.name).sort();
+  if (JSON.stringify(actual) !== JSON.stringify([...manifest.projects].sort())) throw new Error('Incomplete coverage: missing or unexpected project shards.');
+  const { default: libCoverage } = await import('istanbul-lib-coverage');
+  const merged = libCoverage.createCoverageMap({});
+  for (const name of manifest.projects) {
+    const reportPath = path.join(rawRoot, name, 'coverage-final.json');
+    const receipt = manifest.completed?.[name];
+    if (!receipt || receipt.sourceFingerprint !== manifest.sourceFingerprint || receipt.reportFingerprint !== fileFingerprint(reportPath)) {
+      throw new Error(`Incomplete coverage: missing or stale receipt for ${name}.`);
+    }
+    merged.merge(JSON.parse(await readFile(reportPath, 'utf8')));
+  }
+  if (!manifest.projects.includes(manifest.sourceClosureProject) || !manifest.completed[manifest.sourceClosureProject]?.sourceClosure) {
+    throw new Error('Incomplete coverage: no complete-source instrumentation shard.');
+  }
+  if (merged.files().length === 0) throw new Error('Incomplete coverage: no executable source coverage was produced.');
+  const total = libCoverage.createCoverageSummary();
+  const summary = {};
+  for (const file of merged.files().sort()) {
+    const fileSummary = merged.fileCoverageFor(file).toSummary();
+    summary[file] = fileSummary.toJSON();
+    total.merge(fileSummary);
+  }
+  summary.total = total.toJSON();
+  await writeFile(path.join(runRoot, 'coverage-final.json'), `${JSON.stringify(merged.toJSON())}\n`);
+  await writeFile(path.join(runRoot, 'coverage-summary.json'), `${JSON.stringify(summary, null, 2)}\n`);
+  // One explicit scenario-wide contract, unchanged from vite.config.ts.
+  const { coverage: { thresholds } } = JSON.parse(await readFile(new URL('../vitest.projects.json', import.meta.url), 'utf8'));
+  const floor = thresholds.lines;
+  const failed = Object.entries(summary.total).filter(([name, value]) => value.pct < thresholds[name]);
+  return { status: failed.length ? 'below-floor' : 'passed', floor, failed: failed.map(([name, value]) => `${name} ${value.pct}%`), summary: summary.total };
 }
-if (reports.length === 0) throw new Error('No raw V8 coverage reports were produced.');
 
-const merged = {};
-for (const report of reports) for (const [file, coverage] of Object.entries(report)) {
-  if (!merged[file]) { merged[file] = structuredClone(coverage); continue; }
-  const destination = merged[file];
-  for (const key of ['s', 'f']) for (const [id, count] of Object.entries(coverage[key])) destination[key][id] = (destination[key][id] ?? 0) + count;
-  for (const [id, counts] of Object.entries(coverage.b)) destination.b[id] = (destination.b[id] ?? counts.map(() => 0)).map((count, index) => count + counts[index]);
+if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+  try {
+    const result = await mergeCoverageRun(path.resolve(process.argv[2] ?? 'coverage'), path.resolve(process.argv[3] ?? '.'));
+    if (result.status === 'below-floor') {
+      console.error(`Merged UI coverage is below the ${result.floor}% floor: ${result.failed.join(', ')}.`);
+      process.exitCode = 1;
+    }
+  } catch (error) {
+    console.error(`UI coverage merge error: ${error.message}`);
+    process.exitCode = 2;
+  }
 }
-
-const metric = (total, covered) => ({ total, covered, skipped: 0, pct: total === 0 ? 100 : Number(((covered / total) * 100).toFixed(2)) });
-const summary = { total: {} };
-const totals = { statements: [0, 0], functions: [0, 0], branches: [0, 0], lines: [0, 0] };
-for (const [file, coverage] of Object.entries(merged)) {
-  const lineCounts = new Map();
-  for (const [id, count] of Object.entries(coverage.s)) { const line = coverage.statementMap[id].start.line; lineCounts.set(line, (lineCounts.get(line) ?? 0) + count); }
-  const values = { statements: Object.values(coverage.s), functions: Object.values(coverage.f), branches: Object.values(coverage.b).flat(), lines: [...lineCounts.values()] };
-  summary[file] = {};
-  for (const [name, counts] of Object.entries(values)) { const value = metric(counts.length, counts.filter((count) => count > 0).length); summary[file][name] = value; totals[name][0] += value.total; totals[name][1] += value.covered; }
-}
-for (const [name, [total, covered]] of Object.entries(totals)) summary.total[name] = metric(total, covered);
-await writeFile(path.join(outputRoot, 'coverage-final.json'), `${JSON.stringify(merged)}\n`);
-await writeFile(path.join(outputRoot, 'coverage-summary.json'), `${JSON.stringify(summary, null, 2)}\n`);
-const failed = Object.entries(summary.total).filter(([, value]) => value.pct < floor);
-if (failed.length) throw new Error(`Merged UI coverage is below the ${floor}% floor: ${failed.map(([name, value]) => `${name} ${value.pct}%`).join(', ')}.`);

@@ -92,6 +92,28 @@ func (HostFactSource) Snapshot(ctx context.Context) (hostinventory.Snapshot, err
 	return hostinventory.CollectGPUFacts(ctx)
 }
 
+// PlacementSnapshot refreshes only dynamic NVIDIA process rows; cached GPU
+// topology remains suitable for static admission/readiness checks.
+func (HostFactSource) PlacementSnapshot(ctx context.Context) (hostinventory.Snapshot, error) {
+	snapshot, err := hostinventory.CollectGPUFacts(ctx)
+	if err != nil {
+		return hostinventory.Snapshot{}, err
+	}
+	return hostinventory.SystemCollector().RefreshNvidiaGPUProcesses(ctx, snapshot)
+}
+
+// SnapshotForPlacement uses a provider's current-process capability when present.
+// Static/simulated providers continue to supply their deliberate snapshot and
+// never trigger a host probe. This keeps all placement evidence at its owner.
+func SnapshotForPlacement(ctx context.Context, source FactSource) (hostinventory.Snapshot, error) {
+	if current, ok := source.(interface {
+		PlacementSnapshot(context.Context) (hostinventory.Snapshot, error)
+	}); ok {
+		return current.PlacementSnapshot(ctx)
+	}
+	return source.Snapshot(ctx)
+}
+
 // StaticFactSource returns a fixed snapshot. Tests and callers that already
 // hold a snapshot use it.
 type StaticFactSource struct {

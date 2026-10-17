@@ -242,3 +242,56 @@ func TestExtensionForContentType(t *testing.T) {
 		}
 	}
 }
+
+func TestRecordingSourceRejectsStaleIdentityAndCancellation(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "source.webm")
+	if err := os.WriteFile(path, []byte("actual bytes"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	artifacts := []executionwriter.ArtifactData{{ArtifactType: "video", SHA256: "stale", Payload: map[string]any{"path": path}}}
+	if _, err := ResolveVideoSourceContext(t.Context(), artifacts, nil); err == nil {
+		t.Fatal("trusted stale declared hash")
+	}
+	artifacts[0].SHA256 = ""
+	size := int64(1)
+	artifacts[0].SizeBytes = &size
+	if _, err := ResolveVideoSourceContext(t.Context(), artifacts, nil); err == nil {
+		t.Fatal("trusted stale declared size")
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	if _, err := ResolveVideoSourceContext(ctx, artifacts, nil); !errors.Is(err, context.Canceled) {
+		t.Fatal("lost cancellation", err)
+	}
+}
+
+func TestFreezeRecordingRendersStableVerifiedBytes(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "original.webm")
+	if err := os.WriteFile(path, []byte("original"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	original, err := ResolveVideoSourceContext(t.Context(), []executionwriter.ArtifactData{{ArtifactType: "video", Payload: map[string]any{"path": path}}}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assets := t.TempDir()
+	frozen, err := FreezeVideoSource(t.Context(), original, assets)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = os.WriteFile(path, []byte("changed"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	bytes, err := os.ReadFile(frozen.Path)
+	if err != nil || string(bytes) != "original" || frozen.SHA256 != original.SHA256 {
+		t.Fatal("render input not stable", err)
+	}
+	frozen.Cleanup()
+	entries, err := os.ReadDir(assets)
+	if err != nil || len(entries) != 0 {
+		t.Fatal("owned frozen source leaked", err)
+	}
+	if _, err = FreezeVideoSource(t.Context(), original, assets); err == nil {
+		t.Fatal("froze bytes different from recorded identity")
+	}
+}

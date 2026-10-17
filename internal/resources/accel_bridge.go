@@ -181,7 +181,7 @@ func observePlacement(ctx context.Context, controller *Controller, manifest Reso
 	}
 
 	verifier := accelVerifierWithFacts()
-	snapshot, err := verifier.Facts.Snapshot(ctx)
+	snapshot, err := accel.SnapshotForPlacement(ctx, verifier.Facts)
 	if err != nil {
 		return nil, fmt.Errorf("verify accelerator placement for %s: %w", manifest.Name, err)
 	}

@@ -1,8 +1,9 @@
 # Choose the job before the aspect ratio
 
 Record the placement, viewer question, proof moment and next action in the brief.
-Keep one claim ledger across edits. Retain preview, availability and data labels
-in every variant. This reference covers launch-film variants; tutorials and
+Keep one claim ledger across edits. Preserve truthful availability qualifications
+and fictional-data provenance in the public viewing context. Do not impose
+persistent production labels. This reference covers launch-film variants; tutorials and
 founder-led explainers require their own brief.
 
 | Placement | Starting experiment | Editorial decision |

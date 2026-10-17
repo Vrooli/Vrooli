@@ -238,7 +238,7 @@
       "commands": [
         {
           "name": "list",
-          "description": "List backlog items [--kind KIND]",
+          "description": "List backlog items [--kind KIND] [--tag TAG[,TAG]] [--limit N] [--actor-id PROFILE]",
           "binding": {
             "kind": "connect-rpc",
             "service": "BacklogService",
@@ -325,7 +325,9 @@
           "name": "update",
           "description": "Update a backlog item (--kind KIND --name NAME --data JSON)",
           "binding": {
-            "kind": "local"
+            "kind": "connect-rpc",
+            "service": "BacklogService",
+            "method": "UpdateItem"
           },
           "governance": {
             "effect": "write",
@@ -351,6 +353,26 @@
             "run_eligible": true,
             "permissions": [
               "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "archive-terminal",
+          "description": "Preview or archive up to 50 reviewed completed/dropped items (--items JSON [--execute])",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BacklogService",
+            "method": "ArchiveTerminalItems"
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
             ]
           }
         },
@@ -1602,7 +1624,7 @@
           },
           "governance": {
             "effect": "write",
-            "run_eligible": true,
+            "run_eligible": false,
             "permissions": [
               "network:internal"
             ]

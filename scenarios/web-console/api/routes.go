@@ -150,6 +150,21 @@ func (s *Server) setupRoutes() {
 	s.router.PathPrefix("/api/v1/notifications/").Handler(newNotificationsProxy(func(ctx context.Context) (string, error) {
 		return discovery.ResolveScenarioURLDefault(ctx, "notification-hub")
 	}))
+	// Same-origin facade for the Approvals inbox. notification-hub's
+	// ConversationsService is Connect-RPC only, so these REST routes are
+	// translated to Connect server-side by approvalsFacade (resolving the hub
+	// via the same discovery as the notifications prefix). Centralizing the hub
+	// call here is what lets the facade inject the operator Bearer AND the
+	// Cloudflare Access assertion onto the OUTBOUND call so answers attribute to
+	// the signed-in human (Phase 7). The inbox lists open asks and answers them
+	// through this one hub surface — it never reaches agent-manager or any
+	// producer directly (the decoupling the approvals inbox was built to keep).
+	approvals := newApprovalsFacade(func(ctx context.Context) (string, error) {
+		return discovery.ResolveScenarioURLDefault(ctx, "notification-hub")
+	})
+	s.router.HandleFunc("/api/v1/approvals", approvals.handleList).Methods(http.MethodGet)
+	s.router.HandleFunc("/api/v1/approvals/answer", approvals.handleAnswer).Methods(http.MethodPost)
+	s.router.HandleFunc("/api/v1/approvals/{id}", approvals.handleGet).Methods(http.MethodGet)
 	// Resolve a person-openable link to another scenario's interface, relative
 	// to the origin this browser used (tunnel subdomain when present, localhost
 	// otherwise). The Notifications tab uses it to link to Notification Hub.

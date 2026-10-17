@@ -1,7 +1,34 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "storage": {"entries":{"data":{"rung":"owned","path":"data","kind":"dir","class":"data","regenerable":false,"rationale":"Scenario-owned durable data observed in the canonical data directory."}},"rationale":"Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."},
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      },
+      "retention": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "state",
+        "regenerable": true,
+        "rationale": "Shared storage retention enforcement writes receipts under the scenario state retention directory.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "rationale": "Bounded regenerable enforcement bookkeeping."
+        },
+        "subpath": "retention"
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
   "service": {
     "parent": "vrooli",
     "name": "web-search",
@@ -92,107 +119,6 @@
         }
       ],
       "startup_grace_period": 15000
-    },
-    "setup": {
-      "description": "Build API and UI assets declared by the manifest-driven lifecycle contract",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/web-search-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "web-search"
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "build-api",
-          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o web-search-api .",
-          "description": "Build Go API server"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm --ignore-workspace run build || pnpm --ignore-workspace run build); else echo 'ui/ not present yet'; fi",
-          "description": "Build production UI bundle"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Launch API and Vite dev server",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./web-search-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/web-search-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "description": "Serve production UI bundle",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        }
-      ]
-    },
-    "build": {},
-    "deploy": {},
-    "clean": {},
-    "test": {
-      "description": "Execute phased test suite via test-genie",
-      "steps": [
-        {
-          "name": "check-temporal-models",
-          "run": "flow-verifier verify check --root .",
-          "description": "Verify formal flow artifacts via the flow-verifier scenario CLI"
-        },
-        {
-          "name": "run-tests",
-          "run": "test-genie execute web-search --preset comprehensive",
-          "description": "Run all test phases via test-genie"
-        }
-      ]
-    },
-    "backup": {},
-    "restore": {},
-    "production": {},
-    "stop": {
-      "description": "Stop background processes",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f 'web-search-api' || true",
-          "description": "Stop Go API"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f 'node server.js' || true",
-          "description": "Stop UI server"
-        }
-      ]
     }
   },
   "dependencies": {
@@ -253,10 +179,87 @@
         "enabled": true,
         "required": false,
         "startup_policy": "try_start",
-        "description": "Agentic run lifecycle for L3 iterative research (OT-P1-002): web-search spawns an agent-manager run that uses L2 endpoints and web-search CLI commands as tools to plan, loop, verify, and emit a cited brief. The L3 RPC starts the run and returns a handle the caller polls via GetResearchStatus.",
-        "degraded_behavior": "Without agent-manager, only L0/L1/L2 (single-pass) research is available; L3 iterative research-and-reconcile is unavailable."
+        "description": "Declared workflow owner for L3 research. web-search starts web-search/research idempotently and returns a durable execution handle for one bounded WaitResearch attachment or a status read; Agent Manager owns execution budgets and results.",
+        "degraded_behavior": "Without agent-manager, only L0/L1/L2 (single-pass) research is available; L3 iterative research-and-reconcile is unavailable.",
+        "config": {
+          "declarations": {
+            "reconcile": true,
+            "sources": [
+              ".vrooli/agent-manager/research.json"
+            ]
+          }
+        }
+      },
+      "vrooli-memory": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "purpose": "Attempt capture for record-attempt and learning-read.",
+        "degraded_behavior": "Programs run without advice; captures queue in program-runtime's outbox until memory returns.",
+        "bundle_policy": "either"
       }
     }
   },
-  "environment": {}
+  "environment": {},
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "skills": {
+    "usage": {
+      "source": "skills/web-search/SKILL.md",
+      "programs": [
+        "web-search.research",
+        "web-search.compare-sources",
+        "web-search.record-attempt",
+        "web-search.research-l3"
+      ]
+    },
+    "improve": {
+      "source": "skills/web-search-improve/SKILL.md",
+      "programs": [
+        "web-search.setpoint-read",
+        "web-search.findings-curate",
+        "web-search.learning-read"
+      ]
+    },
+    "feature": [
+      {
+        "source": "skills/web-search-investigate/SKILL.md",
+        "programs": [
+          "web-search.research-l3"
+        ]
+      }
+    ],
+    "learning": {
+      "scope": "web-search-usage"
+    }
+  }
 }

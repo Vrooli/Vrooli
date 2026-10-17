@@ -113,6 +113,9 @@ func (s *ConnectService) UpdateItem(ctx context.Context, req *connect.Request[ap
 	if name == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("name is required"))
 	}
+	if err := s.h.authorizeBookkeeping(ctx, kind, name); err != nil {
+		return nil, mapDecisionConnectError(err)
+	}
 	fields := make(backlogUpdateFieldSet, len(req.Msg.GetFields()))
 	aliases := getUpdateFieldAliases()
 	for _, field := range req.Msg.GetFields() {
@@ -133,6 +136,83 @@ func (s *ConnectService) UpdateItem(ctx context.Context, req *connect.Request[ap
 	}
 	s.h.invalidateAllGraphLenses()
 	return connect.NewResponse(&apipb.BacklogItemResponse{Item: backlogToProto(updated)}), nil
+}
+
+// ArchiveTerminalItems applies only reviewed terminal snapshots. Each item
+// retains its own authorization, activity checks and result; no hidden retry.
+func (s *ConnectService) ArchiveTerminalItems(ctx context.Context, req *connect.Request[apipb.ArchiveTerminalItemsRequest]) (*connect.Response[apipb.ArchiveTerminalItemsResponse], error) {
+	if req.Msg == nil || len(req.Msg.Items) == 0 || len(req.Msg.Items) > 50 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("one to 50 reviewed terminal items are required"))
+	}
+	seen := map[string]bool{}
+	for _, target := range req.Msg.Items {
+		if target == nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("item is required"))
+		}
+		if _, err := ParseBacklogKind(target.Kind); err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		}
+		ref := target.Kind + "/" + target.Name
+		if target.Name == "" || sanitizeName(target.Name) != target.Name || target.ExpectedUpdated == "" || (target.ExpectedStatus != string(StatusCompleted) && target.ExpectedStatus != string(StatusDropped)) || seen[ref] {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("unique canonical items with reviewed completed/dropped status and update timestamp are required"))
+		}
+		seen[ref] = true
+	}
+	out := &apipb.ArchiveTerminalItemsResponse{Executed: req.Msg.Execute}
+	for _, target := range req.Msg.Items {
+		kind := BacklogKind(target.Kind)
+		result := &apipb.TerminalArchiveResult{Ref: target.Kind + "/" + target.Name}
+		out.Results = append(out.Results, result)
+		if err := s.h.authorizeBookkeeping(ctx, kind, target.Name); err != nil {
+			result.Code, result.Reason = "refused", err.Message
+			out.SkippedCount++
+			continue
+		}
+		item, err := s.h.store.LoadItem(kind, target.Name)
+		if err != nil {
+			result.Code, result.Reason = "unavailable", "current record is unavailable"
+			if errors.Is(err, ErrNotFound) {
+				result.Code, result.Reason = "missing", "item does not exist"
+			}
+			out.SkippedCount++
+			continue
+		}
+		if item.ArchivedAt != nil {
+			result.Code, result.ArchivedAt = "already_archived", *item.ArchivedAt
+			out.SkippedCount++
+			continue
+		}
+		if string(item.Status) != target.ExpectedStatus || item.Updated != target.ExpectedUpdated {
+			result.Code, result.Reason = "changed", "item changed since the reviewed snapshot"
+			out.SkippedCount++
+			continue
+		}
+		result.Code = "eligible"
+		if !req.Msg.Execute {
+			out.EligibleCount++
+			continue
+		}
+		// Activity may have changed during the record read; check again before
+		// the domain write rather than treating preview as authorization.
+		if err := s.h.authorizeBookkeeping(ctx, kind, target.Name); err != nil {
+			result.Code, result.Reason = "refused", err.Message
+			out.SkippedCount++
+			continue
+		}
+		archived, apiErr := s.h.archiveLoadedItem(ctx, item, target)
+		if apiErr != nil {
+			result.Code, result.Reason = "unavailable", apiErr.Message
+			if apiErr.Status == http.StatusConflict {
+				result.Code = "changed"
+			}
+			out.SkippedCount++
+			continue
+		}
+		result.Code, result.ArchivedAt = "archived", *archived.ArchivedAt
+		out.EligibleCount++
+		out.ArchivedCount++
+	}
+	return connect.NewResponse(out), nil
 }
 
 // DecideAttempt is the common typed decision envelope. Review is the first
@@ -265,6 +345,10 @@ func mapDecisionConnectError(err error) error {
 		return connect.NewError(connect.CodeInternal, err)
 	}
 	switch domainErr.Status {
+	case http.StatusUnauthorized:
+		return connect.NewError(connect.CodeUnauthenticated, domainErr)
+	case http.StatusForbidden:
+		return connect.NewError(connect.CodePermissionDenied, domainErr)
 	case http.StatusBadRequest:
 		return connect.NewError(connect.CodeInvalidArgument, domainErr)
 	case http.StatusNotFound:
@@ -303,6 +387,15 @@ func listFiltersFromProto(in *apipb.ListBacklogItemsRequest) (ListFilters, error
 	}
 	filters.HasPlanRef = in.HasPlanRef
 	filters.Stale = in.Stale
+	for _, tag := range in.GetTags() {
+		if tag = strings.TrimSpace(tag); tag != "" {
+			filters.Tags = append(filters.Tags, tag)
+		}
+	}
+	if in.GetLimit() < 0 {
+		return ListFilters{}, errors.New("limit must be non-negative")
+	}
+	filters.Limit = int(in.GetLimit())
 	return filters, nil
 }
 

@@ -257,7 +257,7 @@ func (s *Service) ReportPressure(ctx context.Context, signal PressureSignal) (Pr
 		if startErr != nil {
 			return PressureOutcome{}, startErr
 		}
-		outcome.Action = ActionApplied
+		outcome.Action = ActionObserved
 		outcome.RunID = run.ID
 		outcome.Reason = "recovery run started; wait for terminal result"
 		return outcome, nil

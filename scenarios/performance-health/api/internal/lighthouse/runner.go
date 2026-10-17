@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -43,7 +44,7 @@ type CLIRunner struct {
 
 	// RunAudit runs one Lighthouse audit for url and returns 0..1 category
 	// scores keyed by category id; nil uses the real CLI.
-	RunAudit func(ctx context.Context, lighthouse, url string, categories []string) (map[string]float64, error)
+	RunAudit func(ctx context.Context, lighthouse, url string, options AuditOptions) (map[string]float64, error)
 }
 
 var _ Runner = (*CLIRunner)(nil)
@@ -80,7 +81,8 @@ func (r *CLIRunner) Run(ctx context.Context, scenario, path string) (Result, err
 	var pages []PageScore
 	for _, page := range cfg.Pages {
 		url := joinURL(baseURL, page.Path)
-		scores, aerr := r.runAudit(ctx, lh, url, categories)
+		options := cfg.auditOptions(page, categories)
+		scores, aerr := r.runAudit(ctx, lh, url, options)
 		if aerr != nil {
 			return Result{Scenario: scenario, Outcome: OutcomeUnavailable, Pages: pages, Reason: fmt.Sprintf("lighthouse audit unavailable for %s: %v", url, aerr)}, nil
 		}
@@ -141,14 +143,29 @@ func (r *CLIRunner) lookLighthouse(ctx context.Context) (string, error) {
 	return defaultLookLighthouse(ctx)
 }
 
-func (r *CLIRunner) runAudit(ctx context.Context, lh, url string, categories []string) (map[string]float64, error) {
+func (r *CLIRunner) runAudit(ctx context.Context, lh, url string, options AuditOptions) (map[string]float64, error) {
 	if r.RunAudit != nil {
-		return r.RunAudit(ctx, lh, url, categories)
+		return r.RunAudit(ctx, lh, url, options)
 	}
-	return defaultRunAudit(ctx, lh, url, categories)
+	return defaultRunAudit(ctx, lh, url, options)
 }
 
 // --- config (migrated shape from test-genie's .vrooli/lighthouse.json) ---
+
+// AuditOptions carries the effective per-page settings to the CLI boundary.
+// A page viewport overrides the global form factor. Lighthouse owns device
+// defaults through --preset=desktop; explicit screen/throttling settings override
+// those defaults instead of copying Lighthouse's evolving presets into Go.
+type AuditOptions struct {
+	Categories       []string
+	SkipAudits       []string
+	FormFactor       string
+	ThrottlingMethod string
+	ScreenEmulation  map[string]any
+	Throttling       map[string]any
+	ChromeFlags      []string
+	Timeout          time.Duration
+}
 
 type config struct {
 	Enabled       bool         `json:"enabled"`
@@ -156,16 +173,54 @@ type config struct {
 	GlobalOptions *struct {
 		Lighthouse *struct {
 			Settings *struct {
-				OnlyCategories []string `json:"onlyCategories"`
+				SkipAudits       []string       `json:"skipAudits"`
+				OnlyCategories   []string       `json:"onlyCategories"`
+				FormFactor       string         `json:"formFactor"`
+				ThrottlingMethod string         `json:"throttlingMethod"`
+				ScreenEmulation  map[string]any `json:"screenEmulation"`
+				Throttling       map[string]any `json:"throttling"`
 			} `json:"settings"`
 		} `json:"lighthouse"`
+		ChromeFlags []string `json:"chrome_flags"`
+		TimeoutMS   int      `json:"timeout_ms"`
 	} `json:"global_options"`
 }
 
 type pageConfig struct {
 	ID         string               `json:"id"`
 	Path       string               `json:"path"`
+	Viewport   string               `json:"viewport"`
 	Thresholds map[string]threshold `json:"thresholds"`
+}
+
+func (c config) auditOptions(page pageConfig, categories []string) AuditOptions {
+	o := AuditOptions{Categories: categories, Timeout: 120 * time.Second,
+		ChromeFlags: []string{"--headless", "--no-sandbox", "--disable-gpu"}}
+	if g := c.GlobalOptions; g != nil {
+		if len(g.ChromeFlags) > 0 {
+			o.ChromeFlags = g.ChromeFlags
+		}
+		if g.TimeoutMS > 0 {
+			o.Timeout = time.Duration(g.TimeoutMS) * time.Millisecond
+		}
+		if g.Lighthouse != nil && g.Lighthouse.Settings != nil {
+			s := g.Lighthouse.Settings
+			o.FormFactor, o.ThrottlingMethod = s.FormFactor, s.ThrottlingMethod
+			o.ScreenEmulation, o.Throttling = s.ScreenEmulation, s.Throttling
+			o.SkipAudits = s.SkipAudits
+		}
+	}
+	if page.Viewport != "" && page.Viewport != o.FormFactor {
+		previous := o.FormFactor
+		// Screen emulation belongs to the global device. A page selecting another
+		// device must get that device's defaults, not a desktop screen on mobile.
+		o.FormFactor = page.Viewport
+		if previous != "" {
+			o.ScreenEmulation = nil
+			o.Throttling = nil
+		}
+	}
+	return o
 }
 
 type threshold struct {
@@ -181,6 +236,13 @@ func (c config) validateAccessibilityContract() error {
 		return errors.New("lighthouse pages are required for a browser UI")
 	}
 	for _, page := range c.Pages {
+		o := c.auditOptions(page, c.categories())
+		if o.FormFactor != "" && o.FormFactor != "desktop" && o.FormFactor != "mobile" {
+			return fmt.Errorf("page %q has unsupported form factor %q", page.ID, o.FormFactor)
+		}
+		if o.ThrottlingMethod != "" && o.ThrottlingMethod != "simulate" && o.ThrottlingMethod != "devtools" && o.ThrottlingMethod != "provided" {
+			return fmt.Errorf("page %q has unsupported throttling method %q", page.ID, o.ThrottlingMethod)
+		}
 		threshold, ok := page.Thresholds["accessibility"]
 		if !ok || threshold.Error <= 0 || threshold.Warn <= 0 {
 			return fmt.Errorf("page %q requires accessibility error and warn thresholds", page.ID)
@@ -243,7 +305,7 @@ func defaultLookLighthouse(ctx context.Context) (string, error) {
 }
 
 // defaultRunAudit shells the Lighthouse CLI once and returns 0..1 category scores.
-func defaultRunAudit(ctx context.Context, lh, url string, categories []string) (map[string]float64, error) {
+func defaultRunAudit(ctx context.Context, lh, url string, options AuditOptions) (map[string]float64, error) {
 	tmp, err := os.MkdirTemp("", "perf-health-lh-*")
 	if err != nil {
 		return nil, err
@@ -255,11 +317,38 @@ func defaultRunAudit(ctx context.Context, lh, url string, categories []string) (
 		url,
 		"--output=json",
 		"--output-path=" + out,
-		"--chrome-flags=--headless --no-sandbox --disable-gpu",
-		"--only-categories=" + strings.Join(categories, ","),
+		"--chrome-flags=" + strings.Join(options.ChromeFlags, " "),
+		"--only-categories=" + strings.Join(options.Categories, ","),
 	}
 
-	runCtx, cancel := context.WithTimeout(ctx, 120*time.Second)
+	if len(options.SkipAudits) > 0 {
+		args = append(args, "--skip-audits="+strings.Join(options.SkipAudits, ","))
+	}
+	if options.FormFactor == "desktop" {
+		args = append(args, "--preset=desktop")
+	} else if options.FormFactor == "mobile" {
+		args = append(args, "--form-factor=mobile")
+	}
+	if options.ThrottlingMethod != "" {
+		args = append(args, "--throttling-method="+options.ThrottlingMethod)
+	}
+	for _, group := range []struct {
+		name   string
+		values map[string]any
+	}{
+		{"screenEmulation", options.ScreenEmulation}, {"throttling", options.Throttling},
+	} {
+		keys := make([]string, 0, len(group.values))
+		for key := range group.values {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		for _, key := range keys {
+			value := fmt.Sprint(group.values[key])
+			args = append(args, "--"+group.name+"."+key+"="+value)
+		}
+	}
+	runCtx, cancel := context.WithTimeout(ctx, options.Timeout)
 	defer cancel()
 	var cmd *exec.Cmd
 	if lh == "npx" {
@@ -267,13 +356,26 @@ func defaultRunAudit(ctx context.Context, lh, url string, categories []string) (
 	} else {
 		cmd = exec.CommandContext(runCtx, lh, args...)
 	}
-	if err := cmd.Run(); err != nil {
-		return nil, err
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return nil, fmt.Errorf("lighthouse CLI: %w: %s", err, strings.TrimSpace(string(output)))
 	}
 
 	raw, err := os.ReadFile(out)
 	if err != nil {
 		return nil, fmt.Errorf("read lighthouse output: %w", err)
+	}
+	if options.FormFactor != "" {
+		var report struct {
+			ConfigSettings struct {
+				FormFactor string `json:"formFactor"`
+			} `json:"configSettings"`
+		}
+		if err := json.Unmarshal(raw, &report); err != nil {
+			return nil, fmt.Errorf("parse lighthouse settings: %w", err)
+		}
+		if report.ConfigSettings.FormFactor != options.FormFactor {
+			return nil, fmt.Errorf("lighthouse measured %q instead of declared %q", report.ConfigSettings.FormFactor, options.FormFactor)
+		}
 	}
 	return parseScores(raw)
 }

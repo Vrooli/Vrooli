@@ -32,6 +32,7 @@ func TestScopeOccupancyReadsCeilingAndUse(t *testing.T) {
 	ref := fixtureCgroup(t, "user.slice/vrooli-agents.slice", map[string]string{
 		"pids.current":   "4059\n",
 		"pids.max":       "4096\n",
+		"pids.events":    "max 3\n",
 		"memory.current": "23077347328\n",
 		"memory.high":    "32716079104\n",
 		"memory.max":     "39259295744\n",
@@ -46,6 +47,9 @@ func TestScopeOccupancyReadsCeilingAndUse(t *testing.T) {
 	}
 	if got.MemoryHighEvents != 4747008 {
 		t.Fatalf("memory high events: got %d, want 4747008", got.MemoryHighEvents)
+	}
+	if got.TasksMaxEvents != 3 {
+		t.Fatalf("task denial events: got %d, want 3", got.TasksMaxEvents)
 	}
 	if saturation := got.TaskSaturation(); saturation < 0.99 {
 		t.Fatalf("task saturation: got %f, want the near-full reading the 2026-09-04 outage had", saturation)
@@ -84,8 +88,23 @@ func TestOccupancyMissingFileIsUnknownNotZero(t *testing.T) {
 	if got.Tasks != Unknown {
 		t.Fatalf("tasks: got %d, want Unknown", got.Tasks)
 	}
+	if got.TasksMaxEvents != Unknown {
+		t.Fatalf("missing task denial counter: got %d, want Unknown", got.TasksMaxEvents)
+	}
 	if got.TaskSaturation() != SaturationUnknown {
 		t.Fatalf("saturation: got %f, want SaturationUnknown", got.TaskSaturation())
+	}
+}
+
+func TestTaskDenialCounterRejectsInvalidValues(t *testing.T) {
+	for _, body := range []string{"max invalid\n", "max -1\n", "max\n", "other 3\n"} {
+		t.Run(body, func(t *testing.T) {
+			ref := fixtureCgroup(t, "user.slice/invalid.scope", map[string]string{"pids.events": body})
+			got, err := ScopeOccupancy(ref)
+			if err != nil || got.TasksMaxEvents != Unknown {
+				t.Fatalf("invalid task denial counter became a reading: %+v %v", got, err)
+			}
+		})
 	}
 }
 

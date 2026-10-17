@@ -810,6 +810,16 @@
     "titleJump": "メッセージナビゲーター"
   },
   "messagesFileViewer": {
+    "htmlControls": "HTML 表示コントロール",
+    "htmlViewport": "プレビューのビューポート",
+    "htmlViewportResponsive": "レスポンシブ",
+    "htmlViewportPhone": "スマートフォン",
+    "htmlViewportTablet": "タブレット",
+    "htmlViewportDesktop": "デスクトップ",
+    "htmlZoom": "プレビューのズーム",
+    "htmlZoomFit": "幅に合わせる",
+    "htmlZoomOut": "縮小",
+    "htmlZoomIn": "拡大",
     "htmlPreview": "HTML プレビュー: {{name}}",
     "htmlRendered": "プレビュー",
     "htmlSource": "ソース",

@@ -3,10 +3,24 @@
 package hostfs
 
 import (
+	"fmt"
 	"io/fs"
 	"os"
 	"syscall"
 )
+
+func fileIdentity(info fs.FileInfo) string {
+	if s, ok := info.Sys().(*syscall.Stat_t); ok {
+		return fmt.Sprintf("%d:%d", s.Dev, s.Ino)
+	}
+	return ""
+}
+
+func sameDevice(root, entry fs.FileInfo) bool {
+	a, okA := root.Sys().(*syscall.Stat_t)
+	b, okB := entry.Sys().(*syscall.Stat_t)
+	return okA && okB && a.Dev == b.Dev
+}
 
 // currentUID is resolved once. os.Getuid is a cheap syscall, but the ownership
 // check runs for every entry in a walk that can exceed twenty thousand of them,

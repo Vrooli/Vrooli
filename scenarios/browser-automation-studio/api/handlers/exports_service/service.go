@@ -24,7 +24,7 @@ import (
 )
 
 var (
-	validFormats  = map[string]struct{}{"mp4": {}, "gif": {}, "json": {}, "html": {}}
+	validFormats  = map[string]struct{}{"mp4": {}, "gif": {}, "webm": {}, "json": {}, "html": {}}
 	validStatuses = map[string]struct{}{"pending": {}, "processing": {}, "completed": {}, "failed": {}}
 )
 
@@ -306,6 +306,9 @@ func (s *service) DeleteExport(
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
+	if s.deps.CancelExport != nil {
+		s.deps.CancelExport(exportID)
+	}
 	if err := s.deps.Repo.DeleteExport(ctx, exportID); err != nil {
 		if errors.Is(err, database.ErrNotFound) {
 			return nil, connect.NewError(connect.CodeNotFound, errExportNotFound)
@@ -676,4 +679,28 @@ func structToMap(s *structpb.Struct) map[string]any {
 		return nil
 	}
 	return s.AsMap()
+}
+
+// CancelExport acknowledges an owned cancellation request. Persisted status remains
+// authoritative, and a finished/foreign-process job is not silently claimed cancelled.
+func (s *service) CancelExport(ctx context.Context, req *connect.Request[exportsv1.CancelExportRequest]) (*connect.Response[exportsv1.CancelExportResponse], error) {
+	ctx, cancel := context.WithTimeout(ctx, constants.DefaultRequestTimeout)
+	defer cancel()
+	id, err := uuid.Parse(strings.TrimSpace(req.Msg.GetId()))
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errInvalidExportID)
+	}
+	if err = ctx.Err(); err != nil {
+		return nil, connect.NewError(connect.CodeCanceled, err)
+	}
+	if s.deps.CancelExport == nil {
+		return nil, connect.NewError(connect.CodeUnavailable, errors.New("export cancellation owner unavailable"))
+	}
+	if _, err = s.deps.Repo.GetExport(ctx, id); err != nil {
+		if errors.Is(err, database.ErrNotFound) {
+			return nil, connect.NewError(connect.CodeNotFound, errExportNotFound)
+		}
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(&exportsv1.CancelExportResponse{CancellationRequested: s.deps.CancelExport(id)}), nil
 }

@@ -86,7 +86,10 @@ func ConservativeBuiltIns(deps BuiltInDeps) ([]cleanup.Provider, error) {
 			// individually would reclaim the bytes but leave the directory
 			// behind, and would age each file separately — which can strand a
 			// half-deleted fragment of an otherwise coherent directory.
-			TopLevelEntries: true,
+			TopLevelEntries:  true,
+			ProtectActive:    true,
+			LeaseCheck:       "temporary",
+			ActivityObserver: deps.TemporaryActivity,
 		}),
 		NewScratchProvider(deps.FileSystem, deps.Clock, FileProviderConfig{
 			ID:          "agent-scratch",
@@ -109,7 +112,7 @@ func ConservativeBuiltIns(deps BuiltInDeps) ([]cleanup.Provider, error) {
 			SafetyTier:         cleanup.SafetyTierConditional,
 			DefaultMode:        cleanup.ProviderModeDisabled,
 			DefaultApproval:    cleanup.ApprovalModeOperator,
-			RequiredPrivileges: []string{"sudo"},
+			RequiredPrivileges: []string{"privilege-broker"},
 			TestSubstitute:     "fake-process-runner",
 			EstimateCommand:    cleanup.ProcessCommand{Name: "apt-cache", Args: []string{"stats"}},
 			PreviewAction:      "apt-metadata-clean",
@@ -166,6 +169,7 @@ func OwnerScenarioProviders(configs []OwnerProviderConfig, client cleanup.Scenar
 }
 
 type BuiltInDeps struct {
+	TemporaryActivity        cleanup.TemporaryActivityObserver
 	FileSystem               cleanup.FileSystem
 	ProcessLiveness          cleanup.ProcessLiveness
 	ProcessRunner            cleanup.ProcessRunner

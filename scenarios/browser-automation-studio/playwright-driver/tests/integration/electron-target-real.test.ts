@@ -17,7 +17,9 @@ type DiscoveredRenderer = {
 
 const HELLO_DESKTOP_RENDERER_PREFIX = 'http://127.0.0.1';
 const integrationArtifact = process.env.VROOLI_ELECTRON_INTEGRATION_APP;
-const runRealElectronIntegration = Boolean(integrationArtifact && process.env.DISPLAY);
+if (!integrationArtifact || !process.env.DISPLAY) {
+  throw new Error('Native Electron qualification requires VROOLI_ELECTRON_INTEGRATION_APP and DISPLAY');
+}
 
 async function allocateLoopbackPort(): Promise<number> {
   const server = createServer();
@@ -104,9 +106,7 @@ async function waitForPortRelease(port: number, timeoutMs = 3000): Promise<boole
 }
 
 describe('Electron target attachment (real AppImage)', () => {
-  const describeIfEnabled = runRealElectronIntegration ? describe : describe.skip;
-
-  describeIfEnabled('through the BAS CDP seam', () => {
+  describe('through the BAS CDP seam', () => {
     let browser: Awaited<ReturnType<typeof playwrightProvider.chromium.connectOverCDP>> | undefined;
     let child: ChildProcess | undefined;
     let profileDir: string | undefined;

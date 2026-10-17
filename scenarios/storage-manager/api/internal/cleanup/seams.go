@@ -12,6 +12,25 @@ type FileInfo struct {
 	Mode    fs.FileMode
 	ModTime time.Time
 	IsDir   bool
+	// Identity binds a measured entry to its native filesystem object.
+	Identity string
+}
+
+// FileWalk retains traversal position between bounded observations. EOF means
+// every descendant was visited; cancellation of Next does not discard position.
+type FileWalk interface {
+	Next(context.Context) (FileInfo, error)
+	Close() error
+}
+
+type ResumableFileSystem interface {
+	OpenWalk(context.Context, string) (FileWalk, error)
+}
+
+// TemporaryActivityObserver delegates privileged host metadata observation to
+// the control-plane observer. It has no filesystem mutation authority.
+type TemporaryActivityObserver interface {
+	ObserveTemporary(context.Context, string) (map[string]struct{}, error)
 }
 
 // FileSystem is the only seam allowed to mutate filesystem cleanup targets.

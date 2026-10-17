@@ -117,6 +117,44 @@ func TestAnalyzeArchitectureAllowsGeneratedTemporalReplayBridge(t *testing.T) {
 	}
 }
 
+func TestAnalyzeArchitectureHelperDependencies(t *testing.T) {
+	tests := []struct {
+		name, source, imported string
+		violation              bool
+	}{
+		{"nested helper imports parent", "internal/testutil/fakedriver/session.go", "demo/internal/testutil", false},
+		{"helper imports runtime", "internal/testkit/client.go", "demo/internal/service", false},
+		{"runtime imports nested testutils", "internal/service/service.go", "demo/internal/testutils/fake", true},
+		{"runtime imports nested mocks", "internal/service/service.go", "demo/internal/mocks/http", true},
+		{"runtime imports fixture", "service.go", "demo/internal/fixtures", true},
+		{"module prefix lookalike", "service.go", "demo-extra/internal/fixtures", false},
+		{"directory substring lookalike", "internal/testutility/service.go", "demo/internal/testutil", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			root := t.TempDir()
+			writeFile(t, filepath.Join(root, "go.mod"), "module demo\n\ngo 1.25\n")
+			writeFile(t, filepath.Join(root, tt.source), "package fixture\n\nimport _ \""+tt.imported+"\"\n")
+			findings := analyzeArchitecture("demo", []Workspace{{ID: "api", Language: "go", RootPath: root}}, fixedNowStr)
+			_, violation := findingByCode(findings, codeTestHelperFromProd)
+			if violation != tt.violation {
+				t.Fatalf("helper boundary violation = %t, want %t; findings: %+v", violation, tt.violation, findings)
+			}
+		})
+	}
+}
+
+func TestAnalyzeArchitectureHelperAmbientCallsAreNotRuntimeBypasses(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "go.mod"), "module demo\n\ngo 1.25\n")
+	writeFile(t, filepath.Join(root, "internal", "testutil", "fakedriver", "session.go"), "package fakedriver\nimport \"time\"\nfunc Now() { _ = time.Now() }\n")
+	writeFile(t, filepath.Join(root, "service_test.go"), "package demo\nimport \"testing\"\nfunc TestService(t *testing.T) {}\n")
+	findings := analyzeArchitecture("demo", []Workspace{{ID: "api", Language: "go", RootPath: root}}, fixedNowStr)
+	if _, found := findingByCode(findings, codeMissingInjectableSeam); found {
+		t.Fatalf("helper implementation leaked into runtime seam findings: %+v", findings)
+	}
+}
+
 func TestAnalyzeArchitectureMissingSeam(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "go.mod"), "module demo\n\ngo 1.25\n")

@@ -10,8 +10,20 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	integration "github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/integrations/vrooli"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
+
+// cleanupHostOrphansFn delegates leaked-process cleanup to the control plane
+// (`vrooli cleanup orphans`). It is a package var so the reap action can be
+// exercised without a live control plane in tests. Zombies left by a
+// scenario-to-desktop bundle are children of a leaked bundle process that was
+// reparented to init; SIGCHLD to init is a no-op, so the only remediation is to
+// SIGTERM the leaked parent — which host remediation owns, in the control plane.
+var cleanupHostOrphansFn = func(ctx context.Context, executor checks.CommandExecutor) (integration.CleanupReport, error) {
+	report, _, err := integration.NewClient(executor).CleanupOrphans(ctx)
+	return report, err
+}
 
 // ZombieCheck detects zombie (defunct) processes that indicate resource leaks.
 type ZombieCheck struct {
@@ -248,14 +260,10 @@ func (c *ZombieCheck) executeReap(ctx context.Context, start time.Time) checks.A
 		return result
 	}
 
-	if len(parentPIDs) == 0 {
-		result.Success = true
-		result.Message = "No zombie parent processes to signal"
-		result.Duration = time.Since(start)
-		return result
-	}
-
-	// Send SIGCHLD to each parent (except init)
+	// Send SIGCHLD to each live parent (except init). A zombie whose parent is
+	// init has no live parent to signal — that is the leaked-bundle class, which
+	// the control-plane orphan cleanup below is responsible for; it is not a
+	// reason to stop early.
 	var signaled []int
 	var failed []int
 	for _, ppid := range parentPIDs {
@@ -269,15 +277,39 @@ func (c *ZombieCheck) executeReap(ctx context.Context, start time.Time) checks.A
 		}
 	}
 
-	// Wait briefly for parents to reap
-	time.Sleep(2 * time.Second)
+	// Wait briefly for parents to reap (skip the wait when nothing was signaled).
+	if len(signaled) > 0 {
+		time.Sleep(2 * time.Second)
+	}
 
 	// Check remaining zombies
 	remainingCount, _, _ := c.countZombies()
 
+	// Zombies that persist after signaling their live parents are typically
+	// children of a process that has itself been reparented to init — the
+	// scenario-to-desktop leak class. SIGCHLD to init does nothing, so delegate
+	// to the control-plane orphan cleanup, which SIGTERMs the leaked parent and
+	// lets init reap its zombie children. Host remediation stays in the control
+	// plane; this check only observes and delegates.
+	orphanNote := ""
+	if remainingCount > 0 {
+		report, err := cleanupHostOrphansFn(ctx, c.executor)
+		switch {
+		case err != nil:
+			orphanNote = fmt.Sprintf("\nControl-plane orphan cleanup failed: %v", err)
+		case len(report.Stopped) > 0:
+			orphanNote = "\nControl-plane orphan cleanup: " + report.Message
+			// Give init a moment to reap the now-parentless zombies.
+			time.Sleep(2 * time.Second)
+			remainingCount, _, _ = c.countZombies()
+		default:
+			orphanNote = "\nControl-plane orphan cleanup: no leaked processes found"
+		}
+	}
+
 	result.Duration = time.Since(start)
-	result.Output = fmt.Sprintf("Signaled %d parent processes, %d failed\nRemaining zombies: %d",
-		len(signaled), len(failed), remainingCount)
+	result.Output = fmt.Sprintf("Signaled %d parent processes, %d failed\nRemaining zombies: %d%s",
+		len(signaled), len(failed), remainingCount, orphanNote)
 
 	if remainingCount < c.criticalThreshold {
 		result.Success = true

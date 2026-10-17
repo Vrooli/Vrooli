@@ -33,7 +33,11 @@ func TestDefaultPolicyNeverResolvesToTheDeviceRoot(t *testing.T) {
 			t.Fatalf("default root %q is neither the repository nor under the runtime home %q", root, home)
 		}
 	}
-	if !containsRoot(resolved.roots, repo) {
+	coveredRepo := false
+	for _, root := range resolved.roots {
+		coveredRepo = coveredRepo || isWithin(repo, root)
+	}
+	if !coveredRepo {
 		t.Fatalf("default roots %v do not include the repository root %q", resolved.roots, repo)
 	}
 	optional := 0

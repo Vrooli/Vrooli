@@ -1,6 +1,7 @@
 package backlog
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -93,6 +94,9 @@ func (h *Handler) Archive(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if !h.requireBookkeeping(w, r, kind, name) {
+		return
+	}
 
 	item, err := h.store.LoadItem(kind, name)
 	if err != nil {
@@ -111,6 +115,24 @@ func (h *Handler) Archive(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+	item, apiErr := h.archiveLoadedItem(r.Context(), item, nil)
+	if apiErr != nil {
+		apierr.MapError(w, "[backlog] archive", apiErr)
+		return
+	}
+	resp := &apipb.BacklogItemResponse{Item: backlogToProto(item)}
+	if err := httputil.ProtoJSON(w, resp); err != nil {
+		apierr.MapError(w, "[backlog] archive", apierr.Internal("failed to encode response"))
+	}
+}
+
+// archiveLoadedItem is the domain mutation shared by REST and typed archival.
+// Callers establish object authority and any snapshot preconditions first.
+func (h *Handler) archiveLoadedItem(ctx context.Context, item BacklogItem, expected *apipb.TerminalArchiveTarget) (BacklogItem, *apierr.DomainError) {
+	if item.ArchivedAt != nil {
+		return item, nil
+	}
+	kind, name := item.Kind, item.Name
 
 	now := time.Now().UTC().Format(time.RFC3339)
 	priorStatus := item.Status
@@ -122,33 +144,53 @@ func (h *Handler) Archive(w http.ResponseWriter, r *http.Request) {
 	item.ArchivedAt = &now
 	item.Updated = now
 
-	if err := h.store.SaveItem(item); err != nil {
-		apierr.MapError(w, "[backlog] archive", apierr.Internal("failed to save item"))
-		return
+	if expected != nil {
+		writer, ok := h.store.(interface {
+			ArchiveTerminalSnapshot(BacklogKind, string, string, string, string) (BacklogItem, error)
+		})
+		if !ok {
+			return BacklogItem{}, apierr.Unavailable("conditional archive storage is unavailable")
+		}
+		stored, err := writer.ArchiveTerminalSnapshot(kind, name, expected.ExpectedStatus, expected.ExpectedUpdated, now)
+		if errors.Is(err, ErrArchiveSnapshotChanged) {
+			return BacklogItem{}, &apierr.DomainError{Status: http.StatusConflict, Message: "item changed before archival"}
+		}
+		if err != nil {
+			return BacklogItem{}, apierr.Internal("conditional archive failed")
+		}
+		item = stored
+	} else if err := h.store.SaveItem(item); err != nil {
+		return BacklogItem{}, apierr.Internal("failed to save item")
 	}
 
 	entityID := string(kind) + "/" + name
 	if h.eventLogger != nil {
 		if statusChanged {
-			h.eventLogger.EmitBacklogStatusChanged(r.Context(), entityID, string(priorStatus), string(item.Status))
+			h.eventLogger.EmitBacklogStatusChanged(ctx, entityID, string(priorStatus), string(item.Status))
 		}
-		h.eventLogger.EmitBacklogArchived(entityID, string(item.Status), now)
+		if emitter, ok := h.eventLogger.(interface {
+			EmitBacklogArchivedFromContext(context.Context, string, string, string)
+		}); ok {
+			emitter.EmitBacklogArchivedFromContext(ctx, entityID, string(priorStatus), now)
+		} else {
+			h.eventLogger.EmitBacklogArchived(entityID, string(priorStatus), now)
+		}
 	}
 	if statusChanged && h.itemTerminalHandler != nil {
-		h.itemTerminalHandler(r.Context(), string(kind), name, item.Status)
+		h.itemTerminalHandler(ctx, string(kind), name, item.Status)
 	}
 	h.invalidateAllGraphLenses()
 
-	resp := &apipb.BacklogItemResponse{Item: backlogToProto(item)}
-	if err := httputil.ProtoJSON(w, resp); err != nil {
-		apierr.MapError(w, "[backlog] archive", apierr.Internal("failed to encode response"))
-	}
+	return item, nil
 }
 
 // Unarchive clears archived_at on a backlog item.
 func (h *Handler) Unarchive(w http.ResponseWriter, r *http.Request) {
 	kind, name, ok := h.parseKindAndName(w, r, "unarchive")
 	if !ok {
+		return
+	}
+	if !h.requireBookkeeping(w, r, kind, name) {
 		return
 	}
 
@@ -180,7 +222,13 @@ func (h *Handler) Unarchive(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if h.eventLogger != nil {
-		h.eventLogger.EmitBacklogUnarchived(string(kind)+"/"+name, prevArchivedAt)
+		if emitter, ok := h.eventLogger.(interface {
+			EmitBacklogUnarchivedFromContext(context.Context, string, string)
+		}); ok {
+			emitter.EmitBacklogUnarchivedFromContext(r.Context(), string(kind)+"/"+name, prevArchivedAt)
+		} else {
+			h.eventLogger.EmitBacklogUnarchived(string(kind)+"/"+name, prevArchivedAt)
+		}
 	}
 	h.invalidateAllGraphLenses()
 

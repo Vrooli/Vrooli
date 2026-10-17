@@ -1,6 +1,7 @@
 package binaryfetch
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -167,5 +168,52 @@ func TestAcquisitionSchemaDriftDetectsChangedFragment(t *testing.T) {
 	}
 	if err := ValidateAcquisitionSchema(root); err == nil || !strings.Contains(err.Error(), "acquisition schema is stale") {
 		t.Fatalf("ValidateAcquisitionSchema after tamper = %v, want stale-schema error", err)
+	}
+}
+
+// Auth is declarative identity only; transport secrets never enter this shape.
+func TestAcquisitionRejectsUnsafeAuthentication(t *testing.T) {
+	for _, input := range []string{
+		`{"url":"http://example.test/model","auth":{"scheme":"bearer","logical_id":"vrooli/model","field":"token"}}`,
+		`{"url":"https://user:secret@example.test/model","auth":{"scheme":"bearer","logical_id":"vrooli/model","field":"token"}}`,
+		`{"url":"https://example.test/model","auth":{"scheme":"basic","logical_id":"vrooli/model","field":"token"}}`,
+		`{"url":"https://example.test/model","auth":{"scheme":"bearer","logical_id":"","field":"token"}}`,
+		`{"url":"https://example.test/model","auth":{"scheme":"bearer","logical_id":"vrooli/model","field":""}}`,
+	} {
+		var target AcquisitionTarget
+		if err := json.Unmarshal([]byte(input), &target); err != nil {
+			t.Fatal(err)
+		}
+		target.SHA256 = strings.Repeat("a", 64)
+		if err := (Acquisition{Kind: "url", Targets: []AcquisitionTarget{target}}).Validate(); err == nil {
+			t.Errorf("unsafe auth accepted: %s", input)
+		}
+	}
+}
+
+func TestAcquisitionAuthenticationRejectsPlaintextFields(t *testing.T) {
+	var declaration Acquisition
+	err := json.Unmarshal([]byte(`{"kind":"url","targets":[{"url":"https://example.test/model","auth":{"scheme":"bearer","logical_id":"vrooli/model","field":"token","token":"must-not-be-accepted"}}]}`), &declaration)
+	if err == nil {
+		t.Fatal("plaintext auth field silently ignored")
+	}
+}
+
+func TestComposeCandidateValidatesAllInputsWithoutOutputPin(t *testing.T) {
+	declaration := Acquisition{Kind: "composed", Targets: []AcquisitionTarget{{Layout: "dir", Compose: []ComposeStep{{Role: "local", Kind: "local", Source: "server.py", Dest: "source/server.py"}}}}}
+	if err := declaration.Validate(); err == nil {
+		t.Fatal("normal acquisition accepted missing output pin")
+	}
+	if err := declaration.ValidateForComposeCandidate(); err != nil {
+		t.Fatal("candidate should validate inputs before output is known:", err)
+	}
+	declaration.Targets[0].ArtifactSHA256 = "invalid"
+	if err := declaration.ValidateForComposeCandidate(); err == nil {
+		t.Fatal("malformed nonempty output accepted")
+	}
+	declaration.Targets[0].ArtifactSHA256 = ""
+	declaration.Targets[0].Compose[0] = ComposeStep{Role: "archive", Kind: "url", URL: "https://example.test/archive", Dest: "runtime", Archive: "tar.gz"}
+	if err := declaration.ValidateForComposeCandidate(); err == nil {
+		t.Fatal("missing input digest accepted")
 	}
 }

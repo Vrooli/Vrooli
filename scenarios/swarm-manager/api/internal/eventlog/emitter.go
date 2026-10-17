@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/provenance"
 )
 
@@ -488,6 +489,8 @@ func (e *Emitter) emitWithActorContext(ctx context.Context, entityType EntityTyp
 	sessionID, sessionKind := prov.ObservationFields()
 	if prov.IsVerifiedAgent() {
 		actorType, actorID = verifiedActorType, verifiedActorID
+	} else if principal, ok := identity.PrincipalFromContext(ctx); ok && principal.IsHuman() {
+		actorType, actorID, status = "user", principal.Subject, provenance.VerificationVerified
 	}
 	var metadata json.RawMessage
 	if payload != nil {
@@ -497,6 +500,18 @@ func (e *Emitter) emitWithActorContext(ctx context.Context, entityType EntityTyp
 			return
 		}
 		metadata = data
+	}
+	if prov.IsVerifiedAgent() && prov.Grant != nil {
+		fields := map[string]json.RawMessage{}
+		if len(metadata) != 0 {
+			if err := json.Unmarshal(metadata, &fields); err != nil {
+				slog.Error("failed to attribute grant metadata", "event_type", eventType, "error", err)
+				return
+			}
+		}
+		fields["authorization_id"], _ = json.Marshal(prov.Grant.ID)
+		fields["approver"], _ = json.Marshal(prov.Grant.Approver)
+		metadata, _ = json.Marshal(fields)
 	}
 
 	event := Event{
@@ -524,4 +539,39 @@ func (e *Emitter) emitWithActorContext(ctx context.Context, entityType EntityTyp
 	if _, err := e.repo.Append(context.Background(), event); err != nil {
 		slog.Error("failed to append event", "event_type", eventType, "entity_type", entityType, "entity_id", entityID, "error", err)
 	}
+}
+
+// Bookkeeping changes preserve actor attribution and the independent approver.
+func (e *Emitter) EmitBookkeepingChanged(ctx context.Context, entityID string) {
+	p := provenance.FromContext(ctx)
+	payload := map[string]string{}
+	if p.Grant != nil {
+		payload["authorization_id"] = p.Grant.ID
+		payload["approver"] = p.Grant.Approver
+	}
+	e.emitContext(ctx, EntityBacklogItem, entityID, EventType("backlog.bookkeeping_changed"), payload)
+}
+
+func (e *Emitter) EmitBacklogArchivedFromContext(ctx context.Context, entityID, status, archivedAt string) {
+	p := provenance.FromContext(ctx)
+	payload := ArchivePayload{PreviousStatus: status, ArchivedAt: archivedAt}
+	if p.Grant != nil {
+		payload.AuthorizationID = p.Grant.ID
+		payload.Approver = p.Grant.Approver
+	}
+	e.emitContext(ctx, EntityBacklogItem, entityID, EventBacklogArchived, payload)
+}
+
+func (e *Emitter) EmitBacklogUnarchivedFromContext(ctx context.Context, entityID, archivedAt string) {
+	e.emitContext(ctx, EntityBacklogItem, entityID, EventBacklogUnarchived, UnarchivePayload{ArchivedAt: archivedAt})
+}
+
+func (e *Emitter) EmitGoalBookkeepingChanged(ctx context.Context, entityID string) {
+	p := provenance.FromContext(ctx)
+	payload := map[string]string{}
+	if p.Grant != nil {
+		payload["authorization_id"] = p.Grant.ID
+		payload["approver"] = p.Grant.Approver
+	}
+	e.emitContext(ctx, EntityGoal, entityID, EventType("goal.bookkeeping_changed"), payload)
 }

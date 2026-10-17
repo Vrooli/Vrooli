@@ -83,11 +83,13 @@ func (e *FFmpegEncoder) assembleVideo(ctx context.Context, pattern string, fps i
 
 	args := []string{
 		"-y",
+		"-threads", "2", "-filter_threads", "2",
 		"-framerate", strconv.Itoa(fps),
 		"-start_number", "0",
 		"-i", pattern,
 		"-vf", vf,
 		"-c:v", "libx264",
+		"-threads", "2",
 		"-profile:v", "high",
 		"-level", "4.1",
 		"-crf", "21",
@@ -290,6 +292,7 @@ func (e *FFmpegEncoder) ConvertToGIF(ctx context.Context, inputPath, outputPath 
 	}
 	args := []string{
 		"-y",
+		"-threads", "2", "-filter_threads", "2",
 		"-i", inputPath,
 		"-vf", fmt.Sprintf("fps=%d,scale=%d:-1:flags=lanczos", fps, targetWidth),
 		outputPath,
@@ -317,9 +320,11 @@ func (e *FFmpegEncoder) ConvertToMP4(ctx context.Context, inputPath, outputPath 
 		"format=yuv420p"
 	args := []string{
 		"-y",
+		"-threads", "2", "-filter_threads", "2",
 		"-i", inputPath,
 		"-vf", vf,
 		"-c:v", "libx264",
+		"-threads", "2",
 		"-profile:v", "high",
 		"-level", "4.1",
 		"-crf", "21",

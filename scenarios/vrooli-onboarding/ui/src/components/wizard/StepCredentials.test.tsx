@@ -25,7 +25,7 @@ describe("StepCredentials", () => {
       status: "ready",
       scenarios: [],
       resources: [],
-      credentials: [{ logical_id: "mail", field: "api_key", label: "Mail API key", description: "Sends sign-in mail", obtain_url: "https://provider.example/keys", required: true, status: "configured" }],
+      credentials: [{ logical_id: "mail", field: "api_key", label: "Mail API key", description: "Sends sign-in mail", obtain_url: "https://provider.example/keys", required: true, status: "configured", owner: "mail-service", source_ref: "scenarios/mail/.vrooli/service.json", kind: "environment", provenance: [{ owner: "mail-service", source_ref: "scenarios/mail/.vrooli/service.json", kind: "environment", env: "MAIL_API_KEY", consumers: [{ consumer: "Mail sender", source_ref: "scenarios/mail/api/send.go:42", kind: "environment", required: true }] }] }],
       hosts: [],
       integrations: [],
       checked_at: "now",
@@ -43,6 +43,9 @@ describe("StepCredentials", () => {
     expect(screen.getByRole("searchbox", { name: "Search credential inputs" })).toBeInTheDocument();
     expect(screen.getByTestId("credential-filter")).toBeInTheDocument();
     expect(screen.getByTestId("credential-sort")).toBeInTheDocument();
+    expect(screen.getByTestId("credential-declarations")).toHaveTextContent("scenarios/mail/.vrooli/service.json");
+    fireEvent.click(screen.getByTestId("credential-declarations").querySelector("summary")!);
+    expect(screen.getByTestId("credential-declarations")).toHaveTextContent("scenarios/mail/api/send.go:42");
 
   });
 

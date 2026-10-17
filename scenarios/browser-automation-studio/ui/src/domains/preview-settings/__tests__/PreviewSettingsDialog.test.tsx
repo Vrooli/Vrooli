@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@/test-utils';
 import userEvent from '@testing-library/user-event';
 import { PreviewSettingsDialog } from '../PreviewSettingsDialog';
+import { PreviewSettingsPanel } from '../PreviewSettingsPanel';
 
 // Mock the settings store
 vi.mock('@stores/settingsStore', () => ({
@@ -71,22 +72,23 @@ describe('PreviewSettingsDialog', () => {
     it('renders when isOpen is true', () => {
       render(<PreviewSettingsDialog {...defaultProps} />);
 
-      expect(screen.getByText('Preview Settings')).toBeInTheDocument();
+      expect(screen.getByRole('dialog', { name: 'Preview settings' })).toBeInTheDocument();
     });
 
     it('does not render when isOpen is false', () => {
       render(<PreviewSettingsDialog {...defaultProps} isOpen={false} />);
 
-      expect(screen.queryByText('Preview Settings')).not.toBeInTheDocument();
+      expect(screen.queryByRole('dialog', { name: 'Preview settings' })).not.toBeInTheDocument();
     });
   });
 
   describe('Header', () => {
-    it('renders header with title and description', () => {
+    it('exposes a named settings dialog and its header controls', () => {
       render(<PreviewSettingsDialog {...defaultProps} />);
 
-      expect(screen.getByText('Preview Settings')).toBeInTheDocument();
-      expect(screen.getByText('Configure stream quality and replay styling')).toBeInTheDocument();
+      expect(screen.getByRole('dialog', { name: 'Preview settings' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Close settings' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Presets' })).toBeInTheDocument();
     });
 
     it('renders presets dropdown button', () => {
@@ -114,8 +116,8 @@ describe('PreviewSettingsDialog', () => {
       render(<PreviewSettingsDialog {...defaultProps} />);
 
       // Stream section should be highlighted
-      const qualityButton = screen.getByRole('button', { name: /Quality/i });
-      expect(qualityButton).toHaveClass('bg-blue-100');
+      const qualityButton = screen.getByRole('tab', { name: 'Quality' });
+      expect(qualityButton).toHaveAttribute('aria-selected', 'true');
     });
 
     it('switches section when sidebar item is clicked', async () => {
@@ -123,15 +125,15 @@ describe('PreviewSettingsDialog', () => {
       render(<PreviewSettingsDialog {...defaultProps} />);
 
       // Click on Visual section
-      await user.click(screen.getByRole('button', { name: /Visual/i }));
+      await user.click(screen.getByRole('tab', { name: 'Visual' }));
 
       // Visual should now be highlighted
-      const visualButton = screen.getByRole('button', { name: /Visual/i });
-      expect(visualButton).toHaveClass('bg-blue-100');
+      const visualButton = screen.getByRole('tab', { name: 'Visual' });
+      expect(visualButton).toHaveAttribute('aria-selected', 'true');
 
       // Stream should no longer be highlighted
-      const qualityButton = screen.getByRole('button', { name: /Quality/i });
-      expect(qualityButton).not.toHaveClass('bg-blue-100');
+      const qualityButton = screen.getByRole('tab', { name: 'Quality' });
+      expect(qualityButton).toHaveAttribute('aria-selected', 'false');
     });
   });
 
@@ -149,9 +151,13 @@ describe('PreviewSettingsDialog', () => {
       const user = userEvent.setup();
       render(<PreviewSettingsDialog {...defaultProps} />);
 
-      await user.click(screen.getByRole('button', { name: /Visual/i }));
+      await user.click(screen.getByRole('tab', { name: 'Visual' }));
 
-      // Visual section shows presentation settings
+      // The active tab controls its accessible content panel.
+      const visualTab = screen.getByRole('tab', { name: 'Visual' });
+      const panel = screen.getByRole('tabpanel', { name: 'Visual' });
+      expect(visualTab).toHaveAttribute('aria-controls', panel.id);
+      expect(panel).toHaveAttribute('aria-labelledby', visualTab.id);
       expect(screen.getByText('Presentation Mode')).toBeInTheDocument();
     });
   });
@@ -161,16 +167,21 @@ describe('PreviewSettingsDialog', () => {
       const user = userEvent.setup();
       render(<PreviewSettingsDialog {...defaultProps} />);
 
-      // Find and click the close button (X icon)
-      const closeButtons = screen.getAllByRole('button');
-      const closeButton = closeButtons.find(btn =>
-        btn.querySelector('svg') && !btn.textContent
-      );
-
-      if (closeButton) {
-        await user.click(closeButton);
-        expect(defaultProps.onClose).toHaveBeenCalled();
-      }
+      await user.click(screen.getByRole('button', { name: 'Close settings' }));
+      expect(defaultProps.onClose).toHaveBeenCalledOnce();
     });
   });
+
+  it('connects the inline settings panel active tab to its named content', async () => {
+    const user = userEvent.setup();
+    render(<PreviewSettingsPanel {...defaultProps} />);
+    const quality = screen.getByRole('tab', { name: 'Quality' });
+    expect(quality).toHaveAttribute('aria-controls', screen.getByRole('tabpanel', { name: 'Quality' }).id);
+    await user.click(screen.getByRole('tab', { name: 'Visual' }));
+    const visual = screen.getByRole('tab', { name: 'Visual' });
+    expect(visual).toHaveAttribute('aria-selected', 'true');
+    expect(visual).toHaveAttribute('aria-controls', screen.getByRole('tabpanel', { name: 'Visual' }).id);
+    expect(quality).toHaveAttribute('aria-selected', 'false');
+  });
+
 });

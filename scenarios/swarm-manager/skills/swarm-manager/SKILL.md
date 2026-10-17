@@ -48,6 +48,7 @@ Read the rows in order. Each leaf is one bounded step.
 |---|---|
 | Need current backlog state | Run `swarm-manager backlog get --kind <kind> --name <name>`. **[S1]** |
 | Need the actionable backlog inventory | Run `swarm-manager backlog list --json`, then use the server's status and next-action fields. **[S1]** |
+| Need reversible archival of already completed/dropped records | Run `swarm-manager.archive-terminal` through Program Runtime with at most 50 explicit current snapshots and `execute=false` first. Supply its exact destructive binding grant only for already authorized work; `execute=true` rechecks state, object authority and activity. Keep partial receipts and existing terminal verdicts. **[S3]** |
 | Need goal standing or next work | Run `swarm-manager goals get --name <goal>` or `swarm-manager goals list --json`. **[S1]** |
 | Need to understand why a next action is offered | Read the item detail and its plan, dependency, evidence and execution status before acting. The server-owned next-action projection is authoritative. **[S0]** |
 | Need to create or refine work | Use `swarm-manager backlog create`, `backlog update`, or the Plan Workshop route after reading the current item. Preserve the existing work identity. **[S1]** |

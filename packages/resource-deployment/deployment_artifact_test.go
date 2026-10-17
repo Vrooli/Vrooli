@@ -1,7 +1,9 @@
 package resourcedeployment
 
 import (
+	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -98,5 +100,46 @@ func TestServiceArtifactVerifiesDirectoryTreeAndResolvesEntry(t *testing.T) {
 	}
 	if want := filepath.Join(root, "bin", "service"); launch != want {
 		t.Fatalf("LaunchPath() = %q, want %q", launch, want)
+	}
+}
+
+func TestServiceArtifactContextRetainsTypedMismatchAndCancellation(t *testing.T) {
+	for _, layout := range []string{"file", "dir"} {
+		t.Run(layout, func(t *testing.T) {
+			root := t.TempDir()
+			file := filepath.Join(root, "service")
+			body := []byte("original")
+			if err := os.WriteFile(file, body, 0o700); err != nil {
+				t.Fatal(err)
+			}
+			path := file
+			digest := fmt.Sprintf("%x", sha256.Sum256(body))
+			artifact := ServiceArtifact{Path: "service", Version: "1.0.0", Layout: layout, SHA256: digest}
+			if layout == "dir" {
+				path = root
+				var err error
+				digest, err = binaryfetch.TreeDigest(root)
+				if err != nil {
+					t.Fatal(err)
+				}
+				artifact.EntryPath = "service"
+				artifact.SHA256 = digest
+			}
+			if err := artifact.VerifyFileContext(context.Background(), path); err != nil {
+				t.Fatal(err)
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			cancel()
+			if err := artifact.VerifyFileContext(ctx, path); !errors.Is(err, context.Canceled) {
+				t.Fatalf("lost cancellation: %v", err)
+			}
+			if err := os.WriteFile(file, []byte("corrupt"), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			var mismatch *ArtifactChecksumMismatchError
+			if err := artifact.VerifyFileContext(context.Background(), path); !errors.As(err, &mismatch) || mismatch.Want != digest || mismatch.Got == digest {
+				t.Fatalf("lost typed checksum witness: %+v %v", mismatch, err)
+			}
+		})
 	}
 }

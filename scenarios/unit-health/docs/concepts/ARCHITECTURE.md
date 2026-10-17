@@ -263,6 +263,16 @@ and visible progress to the existing no-output watchdog. Instrumentation must
 preserve the selected executable, coverage arguments, and package selection;
 unsupported commands remain explicitly unsupported.
 
+Go failure diagnostics use a separate, command-local stdout observer. It retains
+exact observed `fail` package/test identities before the display tail, even when
+later output exceeds the 8MiB complete-proof capture. It does not establish test
+execution proof or infer passing tests from absent events. Retention is bounded
+to a 64KiB JSON-line carry, 32 failure events and a 16KiB rendered witness, with
+2048-byte identity limits. Malformed, oversized or unterminated lines and omitted
+failure events are explicit; parsing resumes after an oversized line's newline.
+The existing finding `command.output` evidence carries the witness through the
+API and Test Genie. Full command output remains ephemeral and is not archived.
+
 ### Scoped validation and discovery policy
 
 Workspace selectors bound command planning, source analysis, evidence caching,

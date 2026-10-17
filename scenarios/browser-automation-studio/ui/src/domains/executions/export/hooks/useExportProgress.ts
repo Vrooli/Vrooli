@@ -1,165 +1,110 @@
-/**
- * Hook for subscribing to export progress updates via WebSocket.
- *
- * This hook manages the WebSocket subscription for export progress
- * and provides real-time updates during export rendering.
- */
-
+/** WebSocket progress with persisted reconnect recovery and export identity fencing. */
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useWebSocket, useWebSocketMessage } from "@/contexts/WebSocketContext";
 import type { ExportProgress } from "../api/executeExport";
 import { getExportStatus } from "../api/executeExport";
 
 export interface UseExportProgressOptions {
-  /** Export ID to subscribe to progress updates for */
   exportId: string | null;
-  /** Execution ID - can subscribe by either export or execution ID */
   executionId?: string;
-  /** Called when export completes successfully */
   onComplete?: (progress: ExportProgress) => void;
-  /** Called when export fails */
   onError?: (error: string) => void;
 }
-
 export interface UseExportProgressResult {
-  /** Current progress state (null if not started or complete) */
   progress: ExportProgress | null;
-  /** Whether we're currently subscribed and listening */
   isSubscribed: boolean;
-  /** Reset progress state (e.g., to start a new export) */
+  statusError: string | null;
   reset: () => void;
-  /** Manually check export status (useful after reconnection) */
   checkStatus: () => Promise<void>;
 }
 
-/**
- * Subscribe to export progress updates via WebSocket.
- */
-export function useExportProgress(
-  options: UseExportProgressOptions
-): UseExportProgressResult {
+export function useExportProgress(options: UseExportProgressOptions): UseExportProgressResult {
   const { exportId, executionId, onComplete, onError } = options;
   const { send, isConnected } = useWebSocket();
-
   const [progress, setProgress] = useState<ExportProgress | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
   const [isSubscribed, setIsSubscribed] = useState(false);
-
-  // Track callbacks in refs to avoid effect dependency changes
-  const onCompleteRef = useRef(onComplete);
-  const onErrorRef = useRef(onError);
-  onCompleteRef.current = onComplete;
-  onErrorRef.current = onError;
-
-  // Subscribe when exportId or executionId changes
-  useEffect(() => {
-    const subId = exportId ?? executionId;
-    if (!subId || !isConnected) {
-      setIsSubscribed(false);
-      return;
+  const callbacks = useRef({ onComplete, onError });
+  callbacks.current = { onComplete, onError };
+  const identity = `${exportId ?? ""}/${executionId ?? ""}`;
+  const fence = useRef({ identity, generation: 0, revision: 0, terminal: new Map<string, ExportProgress>() });
+  if (fence.current.identity !== identity) {
+    fence.current = { identity, generation: fence.current.generation + 1, revision: 0, terminal: fence.current.terminal };
+  }
+  const accept = useCallback((update: ExportProgress) => {
+    const key = update.export_id;
+    const terminal = fence.current.terminal.get(key);
+    fence.current.revision += 1;
+    setProgress(terminal ?? update);
+    setStatusError(null);
+    // Rehydration is required after reset/navigation, while callbacks remain
+    // once per terminal export and late processing cannot regress that value.
+    if (terminal) return;
+    if (update.status === "completed" || update.status === "failed") {
+      fence.current.terminal.set(key, update);
+      if (fence.current.terminal.size > 128) {
+        const oldest = fence.current.terminal.keys().next().value;
+        if (oldest !== undefined) fence.current.terminal.delete(oldest);
+      }
+      if (update.status === "completed") callbacks.current.onComplete?.(update);
+      else callbacks.current.onError?.(update.error ?? "Export failed");
     }
-
-    // Send subscription message
-    send({
-      type: "subscribe_export",
-      export_id: exportId ?? undefined,
-      execution_id: executionId ?? undefined,
-    });
-    setIsSubscribed(true);
-
-    // Unsubscribe on cleanup
-    return () => {
-      send({ type: "unsubscribe_export" });
-      setIsSubscribed(false);
-    };
-  }, [exportId, executionId, isConnected, send]);
-
-  // Handle incoming messages
-  useWebSocketMessage((lastMessage) => {
-    if (lastMessage.type !== "export_progress") {
-      return;
-    }
-
-    const msg = lastMessage as unknown as ExportProgress & { type: string };
-
-    // Check if this message is for our export
-    if (exportId && msg.export_id !== exportId) {
-      return;
-    }
-    if (!exportId && executionId && msg.execution_id !== executionId) {
-      return;
-    }
-
-    const progressUpdate: ExportProgress = {
-      export_id: msg.export_id,
-      execution_id: msg.execution_id,
-      stage: msg.stage,
-      progress_percent: msg.progress_percent,
-      status: msg.status,
-      storage_url: msg.storage_url,
-      file_size_bytes: msg.file_size_bytes,
-      error: msg.error,
-      timestamp: msg.timestamp,
-    };
-
-    setProgress(progressUpdate);
-
-    // Call callbacks on completion/error
-    if (progressUpdate.status === "completed") {
-      onCompleteRef.current?.(progressUpdate);
-    } else if (progressUpdate.status === "failed") {
-      onErrorRef.current?.(progressUpdate.error ?? "Export failed");
-    }
-  });
-
-  const reset = useCallback(() => {
-    setProgress(null);
   }, []);
 
   const checkStatus = useCallback(async () => {
     if (!exportId) return;
-
+    const { generation, revision } = fence.current;
     try {
       const status = await getExportStatus(exportId);
-      setProgress({
+      if (generation !== fence.current.generation || revision !== fence.current.revision) return;
+      accept({
         export_id: status.export_id,
         execution_id: status.execution_id,
-        stage:
-          status.status === "completed"
-            ? "completed"
-            : status.status === "failed"
-              ? "failed"
-              : "preparing",
+        stage: status.status === "completed" ? "completed" : status.status === "failed" ? "failed" : "preparing",
         progress_percent: status.status === "completed" ? 100 : 0,
         status: status.status as ExportProgress["status"],
         storage_url: status.storage_url,
         file_size_bytes: status.file_size_bytes,
         error: status.error,
       });
-
-      if (status.status === "completed") {
-        onCompleteRef.current?.({
-          export_id: status.export_id,
-          execution_id: status.execution_id,
-          stage: "completed",
-          progress_percent: 100,
-          status: "completed",
-          storage_url: status.storage_url,
-          file_size_bytes: status.file_size_bytes,
-        });
-      } else if (status.status === "failed") {
-        onErrorRef.current?.(status.error ?? "Export failed");
+    } catch (error) {
+      if (generation === fence.current.generation && revision === fence.current.revision) {
+        setStatusError(error instanceof Error ? error.message : "Unable to recover export status");
       }
-    } catch (err) {
-      console.error("Failed to check export status:", err);
     }
-  }, [exportId]);
+  }, [exportId, accept]);
 
-  return {
-    progress,
-    isSubscribed,
-    reset,
-    checkStatus,
-  };
+  useEffect(() => {
+    setProgress(null);
+    setStatusError(null);
+  }, [identity]);
+
+  useEffect(() => {
+    if ((!exportId && !executionId) || !isConnected) {
+      setIsSubscribed(false);
+      return;
+    }
+    send({ type: "subscribe_export", export_id: exportId ?? undefined, execution_id: executionId ?? undefined });
+    setIsSubscribed(true);
+    void checkStatus();
+    return () => { send({ type: "unsubscribe_export" }); setIsSubscribed(false); };
+  }, [exportId, executionId, isConnected, send, checkStatus]);
+
+  useEffect(() => () => { fence.current.generation += 1; }, []);
+
+  useWebSocketMessage((message) => {
+    if (message.type !== "export_progress" || (!exportId && !executionId)) return;
+    const update = message as unknown as ExportProgress;
+    if (exportId ? update.export_id !== exportId : update.execution_id !== executionId) return;
+    accept(update);
+  });
+
+  const reset = useCallback(() => {
+    fence.current.generation += 1;
+    fence.current.revision += 1;
+    setProgress(null);
+    setStatusError(null);
+  }, []);
+  return { progress, statusError, isSubscribed, reset, checkStatus };
 }
-
 export default useExportProgress;

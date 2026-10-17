@@ -15,6 +15,10 @@ import (
 	"unit-health/internal/testquality"
 )
 
+// nativeEvent is shared by complete execution proof and bounded diagnostics;
+// only the complete-proof path validates native run/terminal state ordering.
+type nativeEvent struct{ Action, Package, Test, Time string }
+
 func (Analyzer) PrepareExecutionEvidence(executable string, args []string) ([]string, bool) {
 	name := filepath.Base(executable)
 	if (name != "go" && name != "go.exe") || len(args) == 0 || args[0] != "test" {
@@ -71,7 +75,6 @@ func ObserveExecution(module, runID string, data []byte, complete bool, declarat
 	if len(data) > 8<<20 {
 		return nil, testquality.ResolutionLimit
 	}
-	type event struct{ Action, Package, Test, Time string }
 	type state struct {
 		started  bool
 		terminal testquality.ExecutionState
@@ -83,7 +86,7 @@ func ObserveExecution(module, runID string, data []byte, complete bool, declarat
 		if count > 100000 {
 			return nil, testquality.ResolutionLimit
 		}
-		var e event
+		var e nativeEvent
 		if err := decoder.Decode(&e); err == io.EOF {
 			break
 		} else if err != nil {

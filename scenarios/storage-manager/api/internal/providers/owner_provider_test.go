@@ -8,6 +8,18 @@ import (
 	cleanupfakes "storage-manager/internal/testutil/cleanup"
 )
 
+func TestOwnerBudgetUsesDeclaredOwnerAuthority(t *testing.T) {
+	client := &cleanupfakes.ScenarioProviderClient{ApplyResult: cleanup.ApplyResult{Applied: true, ReclaimedBytes: 100}}
+	provider := NewOwnerScenarioProvider(OwnerProviderConfig{ID: "outputs", OwnerScenario: "image-tools", SafetyTier: cleanup.SafetyTierSafeWithOwner, OwnerBudget: true}, client)
+	result, err := provider.Apply(context.Background(), cleanup.ApplyRequest{ProviderVersion: "v1", ApprovalMode: cleanup.ApprovalModeNone, IdempotencyKey: "owner-budget", Preview: cleanup.Preview{Items: []cleanup.PreviewItem{{ID: "expired", Bytes: 100}}}})
+	if err != nil || !result.Applied || len(client.Applies) != 1 {
+		t.Fatalf("declared owner-budget delegation failed: %#v %v", result, err)
+	}
+	if client.Applies[0].ApprovalMode != cleanup.ApprovalModeOwner {
+		t.Fatalf("owner-budget authority = %q; owner handlers reject none", client.Applies[0].ApprovalMode)
+	}
+}
+
 func TestOwnerScenarioProviderDelegatesOnlyAfterRequiredApproval(t *testing.T) {
 	t.Parallel()
 

@@ -164,3 +164,17 @@ the doc viewer) — keep them in sync with the code they describe.
 - [`cli-commands.md`](cli-commands.md) — CLI command reference
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — fixes for env/port/lifecycle issues
 - [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md) — why these surfaces exist
+
+
+### Lighthouse device settings
+
+The native runner reads each page's `viewport` (`desktop` or `mobile`) before
+`global_options.lighthouse.settings.formFactor`. Desktop uses Lighthouse's own
+`--preset=desktop`, including its screen, user agent and throttling defaults.
+Global `screenEmulation` and `throttling` fields override that preset; a page
+switching device gets that device's defaults instead of the global device's
+screen/throttle overrides. The runner also forwards `onlyCategories`,
+`skipAudits`, `throttlingMethod`, `global_options.chrome_flags` and `timeout_ms`.
+It rejects unknown device/throttling values and refuses to score a report whose
+recorded `configSettings.formFactor` differs from the declared device. Thresholds
+are unchanged. This fixes report `knw-1792123967704779496`.

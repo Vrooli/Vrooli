@@ -583,3 +583,11 @@ scenarios/**/signing/*.key
 # under the scenario's docs/reports directory.
 scenarios/react-component-library/tmp/
 scenarios/react-component-library/ui/.catalog-conformance-*/
+
+# Local delivery captures and rendered design exports. Keep delivery Markdown,
+# authored prototypes, verification scripts, and operational instructions visible.
+/docs/internal/delivery-operations/*/.monitor.lock
+/docs/internal/delivery-operations/*/assets/
+/docs/internal/delivery-operations/*/sources/execution-evidence/
+/docs/internal/external-knowledge-delivery/email-design-v1.1/visual-originals/renders/
+/docs/internal/external-knowledge-delivery/email-design-v1.1/visual-originals/boards/

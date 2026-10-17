@@ -53,3 +53,8 @@ which was used. Use a composition wrapper only for an observed owner limitation;
 retain the raw capture and transformation, and retire the workaround after the
 native path is verified. Do not widen a timeout or truncate the timeline to make
 an export look successful.
+
+For seek-heavy captured video, inspect the actual keyframe spacing before a full
+render. When a short-GOP derivative is useful, retain its original input hash,
+exact encoder arguments, decoded duration and measured keyframe gaps; re-encoding
+is a documented edit, not a substitute for repairing owner resource failures.

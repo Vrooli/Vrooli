@@ -1,6 +1,7 @@
 package binaryfetch
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -17,7 +18,13 @@ import (
 // of `symlink NUL link-target`. Directory metadata is intentionally excluded
 // because it is recreated by extraction. No repository metadata or git command
 // is consulted.
-func TreeDigest(root string) (string, error) {
+func TreeDigest(root string) (string, error) { return TreeDigestContext(context.Background(), root) }
+
+// TreeDigestContext preserves TreeDigest's exact ordering and symlink format.
+func TreeDigestContext(ctx context.Context, root string) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
 	type entry struct {
 		path string
 		sum  string
@@ -30,6 +37,9 @@ func TreeDigest(root string) (string, error) {
 		return "", fmt.Errorf("binaryfetch: tree root %q is not a directory", root)
 	}
 	err := filepath.WalkDir(root, func(path string, dirEntry os.DirEntry, walkErr error) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		if walkErr != nil {
 			return walkErr
 		}
@@ -63,7 +73,7 @@ func TreeDigest(root string) (string, error) {
 		if !dirEntry.Type().IsRegular() {
 			return fmt.Errorf("binaryfetch: tree contains non-regular file %q", path)
 		}
-		sum, err := fileDigest(path)
+		sum, err := FileDigestContext(ctx, path)
 		if err != nil {
 			return err
 		}
@@ -80,23 +90,13 @@ func TreeDigest(root string) (string, error) {
 	sort.Slice(entries, func(i, j int) bool { return entries[i].path < entries[j].path })
 	hash := sha256.New()
 	for _, item := range entries {
+		if err := ctx.Err(); err != nil {
+			return "", err
+		}
 		_, _ = io.WriteString(hash, item.path)
 		_, _ = hash.Write([]byte{0})
 		_, _ = io.WriteString(hash, item.sum)
 		_, _ = io.WriteString(hash, "\n")
-	}
-	return hex.EncodeToString(hash.Sum(nil)), nil
-}
-
-func fileDigest(path string) (string, error) {
-	file, err := os.Open(path) //nolint:gosec // path comes from a walked tree root
-	if err != nil {
-		return "", fmt.Errorf("binaryfetch: open tree file %q: %w", path, err)
-	}
-	defer file.Close()
-	hash := sha256.New()
-	if _, err := io.Copy(hash, file); err != nil {
-		return "", fmt.Errorf("binaryfetch: hash tree file %q: %w", path, err)
 	}
 	return hex.EncodeToString(hash.Sum(nil)), nil
 }

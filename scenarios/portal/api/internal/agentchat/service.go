@@ -80,6 +80,9 @@ func (s *Service) Stream(ctx context.Context, input StreamInput, emit func(agent
 	if s == nil || s.chat == nil || s.agent == nil || s.runs == nil {
 		return StreamResult{}, agentmanager.ErrUnavailable
 	}
+	if err := agentmanager.RequireCreateCaller(ctx); err != nil {
+		return StreamResult{}, err
+	}
 	chat, err := s.chat.GetChat(ctx, input.ChatID)
 	if err != nil {
 		return StreamResult{}, err

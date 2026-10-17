@@ -5,13 +5,13 @@ import { create } from "@bufbuild/protobuf";
 
 import { buildTypedInvestigationRequest } from "../lib/typedInvestigation";
 
-import type { ApproveFormData, ApproveResult, InvestigationFindings, RejectFormData, Run, RunDiff, RunEvent, RunFormData, TypedInvestigation } from "../types";
+import type { ApproveResult, InvestigationFindings, Run, RunDiff, RunEvent, RunFormData, TypedInvestigation } from "../types";
 
 import { StructuredResultStatus } from "../types";
 
 import { RunConfigOverridesSchema } from "@vrooli/proto-types/agent-manager/v1/domain/profile_pb";
 
-import { ApproveRunRequestSchema, ApproveRunResponseSchema, CreateRunRequestSchema, CreateRunResponseSchema, GetRunDiffResponseSchema, GetRunEventsResponseSchema, GetRunResponseSchema, ListRunsResponseSchema, PartialApproveRunRequestSchema, PartialApproveRunResponseSchema, RejectRunRequestSchema } from "@vrooli/proto-types/agent-manager/v1/api/service_pb";
+import { CreateRunRequestSchema, CreateRunResponseSchema, GetRunDiffResponseSchema, GetRunEventsResponseSchema, GetRunResponseSchema, ListRunsResponseSchema, PartialApproveRunRequestSchema, PartialApproveRunResponseSchema } from "@vrooli/proto-types/agent-manager/v1/api/service_pb";
 
 import { ExtraFlagListSchema, FeatureFlagsSchema, SandboxConfigSchema } from "@vrooli/proto-types/agent-manager/v1/domain/types_pb";
 
@@ -374,44 +374,11 @@ export function useRuns(options?: { enabled?: boolean; limit?: number }) {
     return message.diff as RunDiff;
   }, []);
 
-  const approveRun = useCallback(
-    async (id: string, req: ApproveFormData): Promise<ApproveResult> => {
-      const actor = req.actor?.trim();
-      const payload = create(ApproveRunRequestSchema, {
-        runId: id,
-        actor: actor || undefined,
-        commitMsg: req.commitMsg,
-        force: req.force ?? false,
-      });
-      const data = await apiRequest<unknown>("/runs/" + id + "/approve", {
-        method: "POST",
-        body: JSON.stringify(toProtoJson(ApproveRunRequestSchema, payload)),
-      });
-      const message = parseProto(ApproveRunResponseSchema, data);
-      const result = message.result as ApproveResult;
-      await fetchRuns();
-      return result;
-    },
-    [fetchRuns]
-  );
-
-  const rejectRun = useCallback(
-    async (id: string, req: RejectFormData): Promise<void> => {
-      const actor = req.actor?.trim();
-      const payload = create(RejectRunRequestSchema, {
-        runId: id,
-        actor: actor || undefined,
-        reason: req.reason,
-      });
-      await apiRequest<void>("/runs/" + id + "/reject", {
-        method: "POST",
-        body: JSON.stringify(toProtoJson(RejectRunRequestSchema, payload)),
-      });
-      await fetchRuns();
-    },
-    [fetchRuns]
-  );
-
+  // Full-run approve/reject were retired from the agent-manager UI — a human does
+  // those only in the Web Console approvals inbox (the single operator surface).
+  // The backend /runs/{id}/approve|reject endpoints remain, driven by the inbox's
+  // resolution webhook (ResolveRunApprovalFromHub). Partial approve
+  // (file-selective) is NOT offered by the inbox, so it is kept here.
   const partialApproveRun = useCallback(
     async (id: string, fileIds: string[], actor?: string, commitMsg?: string): Promise<ApproveResult> => {
       const payload = create(PartialApproveRunRequestSchema, {
@@ -481,8 +448,6 @@ export function useRuns(options?: { enabled?: boolean; limit?: number }) {
     deleteRun,
     getRunEvents,
     getRunDiff,
-    approveRun,
-    rejectRun,
     partialApproveRun,
     continueRun,
     deleteRunMessage,

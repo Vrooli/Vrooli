@@ -1,7 +1,9 @@
 import { handleRecordStart, handleRecordStop } from '../../src/routes/record-mode/recording-lifecycle';
 import { handleStreamSettings } from '../../src/routes/record-mode/recording-stream-settings-route';
-import { appendFile, mkdir } from 'node:fs/promises';
-import { dirname } from 'node:path';
+import { appendFile, mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { handleSessionClose } from '../../src/routes/session-close';
+import { dirname, join } from 'node:path';
 /**
  * Pipeline E2E Tests
  *
@@ -12,7 +14,7 @@ import { dirname } from 'node:path';
  * - Exercises the recording pipeline directly through the driver integration harness
  *
  * These tests ensure the recording pipeline works correctly and can be
- * run as part of `pnpm test` in CI environments.
+ * run explicitly through `pnpm run test:e2e:pipeline` after native admission.
  */
 
 import { setupPageLifecycleListeners } from '../../src/routes/record-mode/page-events';
@@ -1385,4 +1387,39 @@ describe('native stream controls [REQ:BAS-RH-J23]', () => {
     }
     });
   });
+});
+
+
+// Moved from the unit route file: actual encoded media requires native admission.
+describe('native session capture finalization', () => {
+  it('closes real Chromium and returns readable video, trace and HAR bytes', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'bas-close-captures-'));
+    const sessionManager = new SessionManager(createTestConfig({ telemetry: { har: { enabled: true } } }));
+    try {
+      const { sessionId, leaseId } = await sessionManager.startSession({
+        execution_id: 'actual-capture-close', workflow_id: 'local-fixture',
+        viewport: { width: 640, height: 480 }, reuse_mode: 'fresh',
+        required_capabilities: { video: true, tracing: true, har: true },
+        artifact_paths: { root },
+      });
+      await sessionManager.getSession(sessionId).page.goto('data:text/html,<title>Capture fixture</title><h1>Retained evidence</h1>');
+      await sessionManager.getSession(sessionId).page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      const res = createMockHttpResponse();
+      await handleSessionClose(createMockHttpRequest({ body: { execution_id: 'actual-capture-close', lease_id: leaseId } }), res, sessionId, sessionManager);
+      expect(res.getJSON()).not.toHaveProperty('error');
+      expect(res.statusCode).toBe(200);
+      const result = res.getJSON() as { success: boolean; video_paths: string[]; trace_path: string; har_path: string };
+      expect(result.success).toBe(true);
+      expect(result.video_paths).toHaveLength(1);
+      const video = await readFile(result.video_paths[0]!);
+      const trace = await readFile(result.trace_path);
+      const har = JSON.parse(await readFile(result.har_path, 'utf8'));
+      expect(video.subarray(0, 4)).toEqual(Buffer.from([0x1a, 0x45, 0xdf, 0xa3]));
+      expect(trace.subarray(0, 2).toString()).toBe('PK');
+      expect(har.log.version).toBe('1.2');
+      expect(sessionManager.getSessionCount()).toBe(0);
+    } finally {
+      try { await sessionManager.shutdown(); } finally { await rm(root, { recursive: true, force: true }); }
+    }
+  }, 30000);
 });

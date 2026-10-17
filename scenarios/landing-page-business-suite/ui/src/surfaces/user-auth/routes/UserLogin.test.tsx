@@ -1,14 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { UserAuthProvider } from '../../../app/providers/UserAuthProvider';
+import { useUserAuth } from '../../../app/providers/useUserAuth';
 import { renderWithProviders } from '@vrooli/api-base/testing';
 import { isValidEmail, UserLogin } from './UserLogin';
+import * as webauthn from '../lib/webauthn';
 import * as api from '../../../shared/api';
 
 vi.mock('../../../shared/api', async () => {
   const actual = await vi.importActual<typeof import('../../../shared/api')>('../../../shared/api');
   return {
     ...actual,
+    getUserMe: vi.fn(),
+    refreshSessionOnce: vi.fn(),
     requestMagicLink: vi.fn(),
     verifySignInCode: vi.fn(),
     authorizeNativeApp: vi.fn(),
@@ -18,6 +23,7 @@ vi.mock('../../../shared/api', async () => {
   };
 });
 
+const getUserMe = vi.mocked(api.getUserMe);
 const requestMagicLink = vi.mocked(api.requestMagicLink);
 const verifySignInCode = vi.mocked(api.verifySignInCode);
 const authorizeNativeApp = vi.mocked(api.authorizeNativeApp);
@@ -31,7 +37,7 @@ const signedIn: api.SignInResult = {
 };
 
 function renderLogin(route = '/auth/login', redirectTo = vi.fn()) {
-  renderWithProviders(<MemoryRouter initialEntries={[route]}><UserLogin redirectTo={redirectTo} /></MemoryRouter>);
+  renderWithProviders(<MemoryRouter initialEntries={[route]}><UserAuthProvider><UserLogin redirectTo={redirectTo} /></UserAuthProvider></MemoryRouter>);
   return redirectTo;
 }
 
@@ -43,8 +49,10 @@ async function submitEmail(address = 'buyer@example.com') {
 
 describe('UserLogin', () => {
   beforeEach(() => {
+    vi.restoreAllMocks();
     vi.clearAllMocks();
     localStorage.clear();
+    getUserMe.mockResolvedValue({ user: signedIn.user });
     requestMagicLink.mockResolvedValue({ message: 'sent', expires_at: '2030-01-01T00:15:00Z' });
     getSignInDeliveryStatus.mockResolvedValue({ status: 'pending', reasonClass: '', expiresAt: undefined } as any);
   });
@@ -87,6 +95,94 @@ describe('UserLogin', () => {
 
     await waitFor(() => { expect(verifySignInCode).toHaveBeenCalledWith('buyer@example.com', '123456', expect.any(String)); });
     expect(await screen.findByRole('heading', { name: 'You’re signed in' })).toBeInTheDocument();
+  });
+
+  it('updates shared session state before entering the requested protected page', async () => {
+    verifySignInCode.mockResolvedValue(signedIn);
+    function ProtectedDestination() {
+      const auth = useUserAuth();
+      return auth.isAuthenticated
+        ? <h1>Buyer security for {auth.user?.email}</h1>
+        : <Navigate to="/auth/login" replace />;
+    }
+    renderWithProviders(<MemoryRouter initialEntries={['/auth/login?next=%2Faccount%2Fsecurity']}>
+      <UserAuthProvider><Routes>
+        <Route path="/auth/login" element={<UserLogin />} />
+        <Route path="/account/security" element={<ProtectedDestination />} />
+      </Routes></UserAuthProvider>
+    </MemoryRouter>);
+    await submitEmail();
+    fireEvent.change(screen.getByTestId('code-input'), { target: { value: '123456' } });
+    expect(await screen.findByRole('heading', { name: 'Buyer security for buyer@example.com' }, { timeout: 2500 })).toBeInTheDocument();
+    expect(getUserMe).toHaveBeenCalledTimes(1);
+    expect(verifySignInCode).toHaveBeenCalledTimes(1);
+    expect(requestMagicLink).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId('email-input')).not.toBeInTheDocument();
+  });
+
+  it('holds success until the authoritative session read completes', async () => {
+    let resolveSession!: (value: { user: api.UserAuthUser }) => void;
+    getUserMe.mockReturnValueOnce(new Promise((resolve) => { resolveSession = resolve; }));
+    verifySignInCode.mockResolvedValue(signedIn);
+    renderLogin();
+    await submitEmail();
+    fireEvent.change(screen.getByTestId('code-input'), { target: { value: '123456' } });
+    await waitFor(() => { expect(getUserMe).toHaveBeenCalledTimes(1); });
+    expect(screen.queryByRole('heading', { name: 'You’re signed in' })).not.toBeInTheDocument();
+    await act(async () => { resolveSession({ user: signedIn.user }); await Promise.resolve(); });
+    expect(await screen.findByRole('heading', { name: 'You’re signed in' })).toBeInTheDocument();
+  });
+
+  it('retries the existing session after a consumed code without a second verification or email', async () => {
+    verifySignInCode.mockResolvedValue(signedIn);
+    getUserMe.mockRejectedValueOnce(new Error('session read interrupted')).mockResolvedValueOnce({ user: signedIn.user });
+    renderLogin();
+    await submitEmail();
+    fireEvent.change(screen.getByTestId('code-input'), { target: { value: '123456' } });
+    expect(await screen.findByRole('heading', { name: 'Finish signing in' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'You’re signed in' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(await screen.findByRole('heading', { name: 'You’re signed in' })).toBeInTheDocument();
+    expect(getUserMe).toHaveBeenCalledTimes(2);
+    expect(verifySignInCode).toHaveBeenCalledTimes(1);
+    expect(requestMagicLink).toHaveBeenCalledTimes(1);
+  });
+
+  it('checks the session instead of repeating verification after a lost verification response', async () => {
+    verifySignInCode.mockRejectedValueOnce(new api.ApiError('response lost', 'network'));
+    renderLogin();
+    await submitEmail();
+    fireEvent.change(screen.getByTestId('code-input'), { target: { value: '123456' } });
+    expect(await screen.findByRole('heading', { name: 'You’re signed in' })).toBeInTheDocument();
+    expect(getUserMe).toHaveBeenCalledTimes(1);
+    expect(verifySignInCode).toHaveBeenCalledTimes(1);
+    expect(requestMagicLink).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not hand off a lost code response to a different existing account', async () => {
+    verifySignInCode.mockRejectedValueOnce(new api.ApiError('response lost', 'network'));
+    getUserMe.mockResolvedValueOnce({ user: { ...signedIn.user, id: 'other-user', email: 'other@example.com' } });
+    renderLogin('/auth/login?next=%2Faccount%2Fsecurity');
+    await submitEmail();
+    fireEvent.change(screen.getByTestId('code-input'), { target: { value: '123456' } });
+    expect(await screen.findByRole('heading', { name: 'Finish signing in' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'You’re signed in' })).not.toBeInTheDocument();
+    expect(verifySignInCode).toHaveBeenCalledTimes(1);
+    expect(getUserMe).toHaveBeenCalledTimes(1);
+  });
+
+  it('lets a signed-in buyer dismiss the optional passkey prompt without enrollment', async () => {
+    vi.spyOn(webauthn, 'isPasskeySupported').mockReturnValue(true);
+    vi.spyOn(webauthn, 'isConditionalAvailable').mockResolvedValue(false);
+    const register = vi.spyOn(api, 'beginPasskeyRegistration');
+    verifySignInCode.mockResolvedValue(signedIn);
+    renderLogin('/auth/login?next=%2Faccount%2Fsecurity');
+    await submitEmail();
+    fireEvent.change(screen.getByTestId('code-input'), { target: { value: '123456' } });
+    fireEvent.click(await screen.findByRole('button', { name: 'Not now' }));
+    expect(localStorage.getItem('lpbs.passkey.not-now-at')).toBeTruthy();
+    expect(register).not.toHaveBeenCalled();
+    expect(getUserMe).toHaveBeenCalledTimes(1);
   });
 
   it('shows provider delivery feedback in the code step and polls with the browser binding', async () => {
@@ -197,5 +293,18 @@ describe('UserLogin', () => {
     await submitEmail();
     fireEvent.click(screen.getByRole('button', { name: /use a different email/i }));
     expect(await screen.findByTestId('email-input')).toHaveValue('buyer@example.com');
+  });
+
+  it('keeps the email choice after a delayed consumed code resolves', async () => {
+    let resolveProof!: (value: api.SignInResult) => void;
+    verifySignInCode.mockReturnValueOnce(new Promise((resolve) => { resolveProof = resolve; }));
+    renderLogin();await submitEmail();
+    fireEvent.change(screen.getByTestId('code-input'), { target: { value: '123456' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Use a different email' }));
+    await act(async () => { resolveProof(signedIn); await Promise.resolve(); });
+    expect(screen.getByTestId('email-input')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'You’re signed in' })).not.toBeInTheDocument();
+    expect(verifySignInCode).toHaveBeenCalledTimes(1);
+    expect(requestMagicLink).toHaveBeenCalledTimes(1);
   });
 });

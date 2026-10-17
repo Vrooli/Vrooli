@@ -21,6 +21,7 @@ import (
 	"sync"
 	"time"
 
+	"unit-health/internal/adapters"
 	"unit-health/internal/discovery"
 	"unit-health/internal/envx"
 	"unit-health/internal/evidence"
@@ -260,6 +261,7 @@ type ExecutionPlan struct {
 
 // PlannedCommand is a single command in the execution plan.
 type PlannedCommand struct {
+	ExecutionDiagnostics   adapters.ExecutionDiagnostics `json:"-"`
 	CaptureStdout          bool
 	WorkspaceID            string
 	Name                   string
@@ -962,7 +964,11 @@ func (s *Service) execute(ctx context.Context, scenario string, plan ExecutionPl
 	}
 	for i, r := range testResults {
 		out = append(out, toCommandResult(r, plan.Commands[i]))
-		if f, ok := executionFinding(scenario, r, now); ok {
+		diagnostic := ""
+		if observer := plan.Commands[i].ExecutionDiagnostics; observer != nil {
+			diagnostic = observer.Summary()
+		}
+		if f, ok := executionFinding(scenario, r, now, diagnostic); ok {
 			findings = append(findings, f)
 		}
 	}
@@ -973,6 +979,7 @@ func buildExecCommands(planned []PlannedCommand) []executor.Command {
 	cmds := make([]executor.Command, 0, len(planned))
 	for _, pc := range planned {
 		cmds = append(cmds, executor.Command{
+			StdoutObserver:  pc.ExecutionDiagnostics,
 			CaptureStdout:   pc.CaptureStdout,
 			WorkspaceID:     pc.WorkspaceID,
 			Name:            pc.Name,
@@ -1019,7 +1026,7 @@ func toCommandResult(r executor.Result, pc PlannedCommand) CommandResult {
 }
 
 // executionFinding maps a non-passing command result onto a maturity finding.
-func executionFinding(scenario string, r executor.Result, now string) (Finding, bool) {
+func executionFinding(scenario string, r executor.Result, now, diagnostic string) (Finding, bool) {
 	if r.Status == executor.StatusPassed {
 		return Finding{}, false
 	}
@@ -1037,10 +1044,13 @@ func executionFinding(scenario string, r executor.Result, now string) (Finding, 
 		code, category = codeTestExecutionFailure, "execution"
 	}
 	evidence := r.FailureReason
+	if diagnostic != "" {
+		evidence += "\n" + diagnostic
+	}
 	if tail := strings.TrimSpace(r.Stderr); tail != "" {
-		evidence = r.FailureReason + "\n--- stderr tail ---\n" + tail
+		evidence += "\n--- stderr tail ---\n" + tail
 	} else if tail := strings.TrimSpace(r.Stdout); tail != "" {
-		evidence = r.FailureReason + "\n--- stdout tail ---\n" + tail
+		evidence += "\n--- stdout tail ---\n" + tail
 	}
 	return Finding{
 		ID:            code + "-" + r.WorkspaceID,

@@ -64,6 +64,12 @@ service ExportsService {
   // scenarios (status, format, name, storage_url, file_size_bytes, error).
   rpc GetExportStatus(GetExportStatusRequest) returns (GetExportStatusResponse);
 
+  // CancelExport requests cancellation of an active export owned by this
+  // service. The response acknowledges the request, not terminal cleanup.
+  // Read GetExportStatus for the persisted result. Cancellation uses the
+  // existing failed status with an explicit reason; no new status is implied.
+  rpc CancelExport(CancelExportRequest) returns (CancelExportResponse);
+
   // GenerateExportCaption asks the configured AI provider for a short
   // social/share caption for the export. Persists the generated caption
   // and returns it together with the updated export.
@@ -102,6 +108,16 @@ message ReplaySpec {
   repeated ReplayFrame frames = 13;
   repeated ReplayAsset assets = 14;
   ReplaySummary summary = 15;
+  ReplayRecordedVideo recorded_video = 16;
+}
+
+// Continuous source for the same presentation renderer used by screenshot
+// replays. Source must be the execution-owned recording asset URL. Cursor pixels
+// baked into a recording cannot be restyled by replay overlays.
+message ReplayRecordedVideo {
+  string source = 1;
+  int32 duration_ms = 2;
+  int32 trim_start_ms = 3;
 }
 
 message ReplayExecutionMetadata {
@@ -150,6 +166,13 @@ message ReplayDecor {
   string cursor_initial_position = 5;
   string cursor_click_animation = 6;
   double cursor_scale = 7;
+  // Full presentation state preserves preview/export parity. Absence uses
+  // legacy defaults; optional booleans preserve explicit false values.
+  string device_frame_theme = 8;
+  optional bool show_desktop = 9;
+  optional bool show_browser_frame = 10;
+  optional bool show_device_frame = 11;
+  optional double browser_scale = 12;
 }
 
 message ReplayWatermark {
@@ -439,6 +462,20 @@ message GetExportStatusResponse {
   string storage_url = 6;
   optional int64 file_size_bytes = 7;
   string error = 8;
+}
+
+// =============================================================================
+// CancelExport
+// =============================================================================
+
+message CancelExportRequest {
+  string id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message CancelExportResponse {
+  // False for an export that is no longer active in this service. This does
+  // not establish a terminal outcome; consult the persisted status.
+  bool cancellation_requested = 1;
 }
 
 // =============================================================================

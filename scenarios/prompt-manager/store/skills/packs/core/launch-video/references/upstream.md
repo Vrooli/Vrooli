@@ -17,7 +17,12 @@ audio, or generated assets are imported by this skill change. Retain license not
 
 ## Service and dependency decisions
 
-HyperFrames is retained, with the existing local 0.8.44 toolchain recorded for the experiment. Research used the newer pinned upstream sources; runtime flags are verified against the installed CLI. No package install, cloud render, or platform rebuild is required.
+HyperFrames is retained at 0.8.44. The original research used an existing local
+installation and newer pinned upstream guidance; it did not qualify that scratch
+installation as the reusable production entrypoint. Fresh production uses the
+managed host-tool contract in `internal/tools/hyperframes/README.md`, including
+SDA-governed provisioning when absent. Runtime flags are checked against the
+managed version. No cloud rendering or unrelated platform rebuild is required.
 
 Remotion’s [engine license](https://github.com/remotion-dev/remotion/blob/main/LICENSE.md) allows individuals, organizations with up to three employees, nonprofits, and noncommercial evaluation under its free tier. Other use requires a company license. At research time, [company pricing](https://www.remotion.pro/license) lists $25/seat/month for creators and $0.01/render with a $100/month minimum for automation. Eligibility and the engine version must be checked before adoption; the skill repository and engine are separate licensing questions.
 

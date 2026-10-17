@@ -381,28 +381,51 @@ func DefaultPath(root, name string) string {
 	return repocontractmeta.ResourceManifestPath(root, name)
 }
 
-func Load(path string) (ResourceManifest, error) {
+func readManifest(path string) (ResourceManifest, error) {
+	m, _, err := readManifestSnapshot(path)
+	return m, err
+}
+func readManifestSnapshot(path string) (ResourceManifest, []byte, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return ResourceManifest{}, fmt.Errorf("read resource manifest %s: %w", path, err)
+		return ResourceManifest{}, nil, fmt.Errorf("read resource manifest %s: %w", path, err)
 	}
 	if err := repocontract.ValidateCredentialDescriptorUniqueness(data, path); err != nil {
-		return ResourceManifest{}, fmt.Errorf("validate credentials in %s: %w", path, err)
+		return ResourceManifest{}, nil, fmt.Errorf("validate credentials in %s: %w", path, err)
 	}
 	var manifest ResourceManifest
 	if err := json.Unmarshal(data, &manifest); err != nil {
-		return ResourceManifest{}, fmt.Errorf("parse resource manifest %s: %w", path, err)
+		return ResourceManifest{}, nil, fmt.Errorf("parse resource manifest %s: %w", path, err)
 	}
-	if err := Validate(manifest); err != nil {
-		return ResourceManifest{}, fmt.Errorf("validate resource manifest %s: %w", path, err)
-	}
-	if err := validateMaterializedPolicySteps(path, manifest); err != nil {
-		return ResourceManifest{}, fmt.Errorf("validate resource manifest %s: %w", path, err)
-	}
-	return manifest, nil
+	return manifest, data, nil
 }
 
-func Validate(manifest ResourceManifest) error {
+func Load(path string) (ResourceManifest, error) { return loadValidated(path, false) }
+
+// LoadForComposeCandidate permits only missing composed output digests; every
+// normal contract/input check remains active. This is never an install loader.
+func LoadForComposeCandidate(path string) (ResourceManifest, error) { return loadValidated(path, true) }
+
+func loadValidated(path string, candidate bool) (ResourceManifest, error) {
+	m, _, err := loadValidatedSnapshot(path, candidate)
+	return m, err
+}
+func loadValidatedSnapshot(path string, candidate bool) (ResourceManifest, []byte, error) {
+	manifest, data, err := readManifestSnapshot(path)
+	if err != nil {
+		return ResourceManifest{}, nil, err
+	}
+	if err := validateManifest(manifest, candidate); err != nil {
+		return ResourceManifest{}, nil, fmt.Errorf("validate resource manifest %s: %w", path, err)
+	}
+	if err := validateMaterializedPolicySteps(path, manifest); err != nil {
+		return ResourceManifest{}, nil, fmt.Errorf("validate resource manifest %s: %w", path, err)
+	}
+	return manifest, data, nil
+}
+
+func Validate(manifest ResourceManifest) error { return validateManifest(manifest, false) }
+func validateManifest(manifest ResourceManifest, candidate bool) error {
 	if err := validateManifestContract(manifest); err != nil {
 		return err
 	}
@@ -412,7 +435,7 @@ func Validate(manifest ResourceManifest) error {
 	if err := validateProviderPolicy(manifest); err != nil {
 		return err
 	}
-	return validateDriverConfiguration(manifest)
+	return validateDriverConfigurationForCandidate(manifest, candidate)
 }
 
 func validateManifestContract(manifest ResourceManifest) error {
@@ -521,6 +544,15 @@ func validateProviderPolicy(manifest ResourceManifest) error {
 }
 
 func validateDriverConfiguration(manifest ResourceManifest) error {
+	return validateDriverConfigurationForCandidate(manifest, false)
+}
+func validateDriverConfigurationForCandidate(manifest ResourceManifest, candidate bool) error {
+	if candidate && manifest.Driver != manifestManagedService {
+		return fmt.Errorf("compose candidate requires managed-service resource")
+	}
+	if err := validateAcquisitionAuthReferences(manifest); err != nil {
+		return err
+	}
 	switch manifest.Driver {
 	case manifestExternalCli, manifestNativeCli:
 		if strings.TrimSpace(manifest.Binary) == "" {
@@ -531,7 +563,7 @@ func validateDriverConfiguration(manifest ResourceManifest) error {
 			return fmt.Errorf("endpoint is required for cloud-api resources")
 		}
 	case manifestManagedService:
-		return validateManagedService(manifest.ManagedService)
+		return validateManagedServiceForCandidate(manifest.ManagedService, candidate)
 	}
 	if manifest.Acquisition != nil {
 		if err := manifest.Acquisition.Validate(); err != nil {
@@ -542,6 +574,9 @@ func validateDriverConfiguration(manifest ResourceManifest) error {
 }
 
 func validateManagedService(service *ResourceManagedService) error {
+	return validateManagedServiceForCandidate(service, false)
+}
+func validateManagedServiceForCandidate(service *ResourceManagedService, candidate bool) error {
 	if service == nil {
 		return fmt.Errorf("managed_service is required for managed-service resources")
 	}
@@ -553,12 +588,23 @@ func validateManagedService(service *ResourceManagedService) error {
 			return err
 		}
 	}
-	if err := service.Artifact.Validate(); err != nil {
-		return fmt.Errorf("managed_service.artifact: %w", err)
+	artifactErr := service.Artifact.Validate()
+	if candidate {
+		artifactErr = service.Artifact.ValidateForComposeCandidate()
+	}
+	if artifactErr != nil {
+		return fmt.Errorf("managed_service.artifact: %w", artifactErr)
+	}
+	if candidate && service.Acquisition == nil {
+		return fmt.Errorf("compose candidate requires acquisition")
 	}
 	if service.Acquisition != nil {
-		if err := service.Acquisition.Validate(); err != nil {
-			return fmt.Errorf("managed_service.acquisition: %w", err)
+		acquisitionErr := service.Acquisition.Validate()
+		if candidate {
+			acquisitionErr = service.Acquisition.ValidateForComposeCandidate()
+		}
+		if acquisitionErr != nil {
+			return fmt.Errorf("managed_service.acquisition: %w", acquisitionErr)
 		}
 	}
 	if err := service.ValidateDataArtifacts(); err != nil {

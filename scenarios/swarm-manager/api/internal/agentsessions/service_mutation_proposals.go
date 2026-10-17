@@ -51,6 +51,63 @@ func (s *Service) ingestMutationProposal(ctx context.Context, session Session, a
 	return err
 }
 
+// proposalIsReady re-reads a mutation-list proposal and reports whether it is
+// still eligible for a terminal apply/reject decision RIGHT NOW. It is the
+// resolution-time readiness re-check the decision webhook runs before routing an
+// operator answer to the authority: a proposal that is already applied/rejected,
+// superseded (revised), failed, or gone is not ready, so the answer is a no-op. A
+// not-found proposal is reported not-ready (false, nil), never an error, so a
+// resolution for a vanished proposal is acknowledged rather than retried forever.
+func (s *Service) proposalIsReady(ctx context.Context, sessionID, proposalID string) (bool, error) {
+	store, err := s.storeFor(ctx)
+	if err != nil {
+		return false, err
+	}
+	session, err := store.LoadSession(strings.TrimSpace(sessionID))
+	if err != nil {
+		return false, nil
+	}
+	proposal, ok := findProposal(session, strings.TrimSpace(proposalID))
+	if !ok || proposal.Kind != ProposalMutationList {
+		return false, nil
+	}
+	return proposal.Status == ProposalStatusReady && !proposal.NeedsRevision, nil
+}
+
+// proposalCandidateMutationIDs returns every mutation id declared in a ready
+// proposal's envelope. An "approve" answer with no explicit subset means "apply
+// the whole proposal", which the authority expresses as the full candidate id set
+// (an EMPTY accepted set is a rejection, so approve must never pass empty).
+func (s *Service) proposalCandidateMutationIDs(ctx context.Context, sessionID, proposalID string) ([]string, error) {
+	store, err := s.storeFor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	session, err := store.LoadSession(strings.TrimSpace(sessionID))
+	if err != nil {
+		return nil, mapStoreError(err)
+	}
+	proposal, ok := findProposal(session, strings.TrimSpace(proposalID))
+	if !ok {
+		return nil, apierr.NotFound("session mutation proposal not found")
+	}
+	var payload struct {
+		Mutations []struct {
+			ID string `json:"id"`
+		} `json:"mutations"`
+	}
+	if err := json.Unmarshal([]byte(proposal.PayloadJSON), &payload); err != nil {
+		return nil, apierr.BadRequest("mutation proposal payload is invalid JSON: %v", err)
+	}
+	ids := make([]string, 0, len(payload.Mutations))
+	for _, m := range payload.Mutations {
+		if id := strings.TrimSpace(m.ID); id != "" {
+			ids = append(ids, id)
+		}
+	}
+	return ids, nil
+}
+
 func mutationProposalSummary(target *ProposalTarget, needsRevision bool) string {
 	if target == nil {
 		return "Session mutation proposal"

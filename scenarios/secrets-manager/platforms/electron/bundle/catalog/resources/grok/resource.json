@@ -1,11 +1,50 @@
 {
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "grok",
-  "storage": {"entries": {
-    "home": {"rung": "owned", "path": "$USER_HOME/.grok", "kind": "dir", "class": "data", "regenerable": false, "sensitive": true, "rationale": "The managed Grok CLI sets GROK_DATA_DIR to ~/.grok for sessions, memory, configuration, and authentication."}
-  }},
+  "storage": {
+    "entries": {
+      "home": {
+        "rung": "owned",
+        "path": "$USER_HOME/.grok",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "sensitive": true,
+        "rationale": "The managed Grok CLI sets GROK_DATA_DIR to ~/.grok for sessions, memory, configuration, and authentication.",
+        "budget": {
+          "max_bytes": "20GiB",
+          "rationale": "Durable data storage ceiling is derived from the expected working set and raises an alarm before host capacity is threatened."
+        }
+      },
+      "skills": {
+        "rung": "relocatable",
+        "path": "$USER_HOME/.grok/skills",
+        "kind": "dir",
+        "class": "config",
+        "regenerable": true,
+        "projection": {
+          "environment": "GROK_DATA_DIR",
+          "project_scope": false
+        },
+        "rationale": "Native skill discovery directory declared for data-driven Vrooli projection."
+      }
+    }
+  },
   "display_name": "Grok Build CLI",
   "description": "xAI Grok Build coding CLI resource: a thin Go entrypoint wiring lifecycle and an upstream update-check; agent-manager (when later wired) invokes the raw grok binary directly.",
+  "execution": {
+    "runner_type": "grok",
+    "codec": "grok",
+    "detection_signal": "GROK_AGENT=1",
+    "hook_surface": "native-permissions"
+  },
+  "agent_hooks": {
+    "document_scopes": ["user", "admin"],
+    "events": [
+      {"name": "PreToolUse", "supported": true, "can_inject_context": false, "reason": "Only the brokered tool hook is observed; no prompt-time injection canary exists."},
+      {"name": "UserPromptSubmit", "supported": false, "can_inject_context": false, "reason": "Grok's native hook surface has no verified prompt-time event."}
+    ]
+  },
   "cli": {
     "enabled": true,
     "command": "resource-grok",
@@ -36,15 +75,24 @@
         "model-policy.json",
         "docs/**",
         "README.md",
-        "resource.json"
+        "resource.json",
+        "../../packages/agentharness"
       ]
     },
     "source_build": {
       "kind": "go_module"
     }
   },
-  "template": "external-cli",
   "driver": "external-cli",
+  "acquisition": {
+    "kind": "npm",
+    "targets": [
+      {"when": {"os": "linux", "arch": "amd64"}, "package": "@xai-official/grok", "version": "0.2.72", "sha256": "3bac888845583db07fb2817a3a2a9b7b406bb5a22dc16bac49613076bbbd6309"},
+      {"when": {"os": "linux", "arch": "arm64"}, "package": "@xai-official/grok", "version": "0.2.72", "sha256": "3bac888845583db07fb2817a3a2a9b7b406bb5a22dc16bac49613076bbbd6309"},
+      {"when": {"os": "darwin", "arch": "amd64"}, "package": "@xai-official/grok", "version": "0.2.72", "sha256": "3bac888845583db07fb2817a3a2a9b7b406bb5a22dc16bac49613076bbbd6309"},
+      {"when": {"os": "darwin", "arch": "arm64"}, "package": "@xai-official/grok", "version": "0.2.72", "sha256": "3bac888845583db07fb2817a3a2a9b7b406bb5a22dc16bac49613076bbbd6309"}
+    ]
+  },
   "deployment": {
     "profiles": {
       "desktop": {
@@ -54,9 +102,6 @@
           "architectures": [
             "amd64",
             "arm64"
-          ],
-          "requires": [
-            "grok"
           ],
           "limitations": [
             "The upstream executable, licensing, authentication, and version policy are host-managed."
@@ -73,9 +118,6 @@
             "amd64",
             "arm64"
           ],
-          "requires": [
-            "grok"
-          ],
           "limitations": [
             "The upstream executable, licensing, authentication, and version policy are host-managed."
           ],
@@ -90,9 +132,6 @@
           "architectures": [
             "amd64",
             "arm64"
-          ],
-          "requires": [
-            "grok"
           ],
           "limitations": [
             "The upstream executable, licensing, authentication, and version policy are host-managed."
@@ -109,16 +148,27 @@
   "version_args": [
     "--version"
   ],
-  "portability_tier": "partial",
   "category": "developer-tooling",
+  "requirements": {
+    "ram_mb": 1024,
+    "disk_mb": 2048,
+    "cpu_cores": 1,
+    "network": "required",
+    "bucket": "medium",
+    "source": "estimated",
+    "confidence": "low",
+    "class": "developer-tooling",
+    "weight": 2
+  },
   "platforms": {
     "linux": "supported",
-    "macos": "supported",
-    "windows": "partial"
+    "macos": "build-verified",
+    "windows": "build-verified"
   },
   "health_checks": [
     {
       "type": "command",
+      "kind": "liveness",
       "command": [
         "grok",
         "--version"
@@ -142,14 +192,12 @@
   "install": {
     "platforms": {
       "linux": [
-        "bash",
-        "-lc",
-        "source resources/grok/lib/install.sh && grok::install::execute"
+        "resource-grok",
+        "install-direct"
       ],
       "macos": [
-        "bash",
-        "-lc",
-        "source resources/grok/lib/install.sh && grok::install::execute"
+        "resource-grok",
+        "install-direct"
       ]
     }
   },
@@ -184,7 +232,8 @@
     }
   },
   "capabilities": {
-    "supports_logs": false
+    "supports_logs": false,
+    "supports_ensure": true
   },
   "upstream_cli": {
     "version_command": [
@@ -198,5 +247,14 @@
   },
   "template_version": "2",
   "privilege": "user",
-  "bundling": "host-required"
+  "bundling": "host-required",
+  "vrooli_memory_targets": [
+    {
+      "runtime": "grok",
+      "path": "$USER_HOME/.grok/memory/MEMORY.md",
+      "section": "",
+      "byte_cap": 32768,
+      "line_cap": 200
+    }
+  ]
 }

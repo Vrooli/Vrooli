@@ -37,6 +37,7 @@ func AcquisitionSchema() map[string]any {
 							"additionalProperties": map[string]any{"type": "string"},
 							"propertyNames":        map[string]any{"enum": knownFactNames()},
 						},
+						"auth":            map[string]any{"type": "object", "additionalProperties": false, "required": []string{"scheme", "logical_id", "field"}, "properties": map[string]any{"scheme": map[string]any{"const": "bearer"}, "logical_id": map[string]any{"type": "string", "minLength": 1}, "field": map[string]any{"type": "string", "minLength": 1}}},
 						"kind":            map[string]any{"type": "string", "enum": []string{"url", "oci-image", "none", "composed", "npm"}},
 						"url":             map[string]any{"type": "string", "format": "uri"},
 						"image":           map[string]any{"type": "string"},

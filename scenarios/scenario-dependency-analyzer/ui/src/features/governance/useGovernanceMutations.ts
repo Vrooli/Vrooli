@@ -6,14 +6,12 @@ import {
   upsertApprovedDependency,
   type ApprovedDependencyRecord
 } from "../../api/governance";
+import { governanceQueryKeys } from "./useGovernanceData";
 
 export function useGovernanceMutations() {
   const queryClient = useQueryClient();
   const refreshGovernance = async () => {
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["governance-fleet"] }),
-      queryClient.invalidateQueries({ queryKey: ["governance-records"] })
-    ]);
+    await Promise.all(Object.values(governanceQueryKeys).map((queryKey) => queryClient.invalidateQueries({ queryKey })));
   };
 
   const previewDecision = useMutation({

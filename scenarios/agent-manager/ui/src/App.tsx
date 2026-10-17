@@ -426,8 +426,6 @@ export function App() {
                         onGetEvents={runs.getRunEvents}
                         onGetDiff={runs.getRunDiff}
                         onGetTask={tasks.getTask}
-                        onApproveRun={runs.approveRun}
-                        onRejectRun={runs.rejectRun}
                         onPartialApproveRun={runs.partialApproveRun}
                         onStartInvestigation={runs.startTypedInvestigation}
                         onApplyInvestigation={runs.applyInvestigation}

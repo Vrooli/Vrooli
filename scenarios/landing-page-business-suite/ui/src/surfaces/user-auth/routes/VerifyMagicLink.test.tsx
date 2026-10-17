@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { UserAuthProvider } from '../../../app/providers/UserAuthProvider';
+import { useUserAuth } from '../../../app/providers/useUserAuth';
 import { renderWithProviders } from '@vrooli/api-base/testing';
 import { VerifyMagicLink } from './VerifyMagicLink';
 import * as api from '../../../shared/api';
@@ -9,6 +11,7 @@ vi.mock('../../../shared/api', async () => {
   const actual = await vi.importActual<typeof import('../../../shared/api')>('../../../shared/api');
   return {
     ...actual,
+    getUserMe: vi.fn(),
     previewSignIn: vi.fn(),
     verifyMagicLink: vi.fn(),
     authorizeNativeApp: vi.fn(),
@@ -17,6 +20,7 @@ vi.mock('../../../shared/api', async () => {
   };
 });
 
+const getUserMe = vi.mocked(api.getUserMe);
 const previewSignIn = vi.mocked(api.previewSignIn);
 const verifyMagicLink = vi.mocked(api.verifyMagicLink);
 const authorizeNativeApp = vi.mocked(api.authorizeNativeApp);
@@ -35,8 +39,13 @@ const desktopContext: api.SignInContext = {
   redirect_uri: 'http://127.0.0.1:43111/cb', code_challenge: 'abc', code_challenge_method: 'S256', state: 's1',
 };
 
+function SessionWitness() {
+  const auth = useUserAuth();
+  return <output aria-label="Shared buyer session">{auth.isAuthenticated ? auth.user?.email : 'signed out'}</output>;
+}
+
 function renderVerify(token = 'valid-token', redirectTo = vi.fn()) {
-  renderWithProviders(<MemoryRouter initialEntries={[`/auth/verify?token=${token}`]}><VerifyMagicLink redirectTo={redirectTo} /></MemoryRouter>);
+  renderWithProviders(<MemoryRouter initialEntries={[`/auth/verify?token=${token}`]}><UserAuthProvider><VerifyMagicLink redirectTo={redirectTo} /><SessionWitness /></UserAuthProvider></MemoryRouter>);
   return redirectTo;
 }
 
@@ -44,6 +53,7 @@ describe('VerifyMagicLink', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    getUserMe.mockResolvedValue({ user: signedIn.user });
   });
 
   it('rejects an absent token before any network access', async () => {
@@ -64,6 +74,82 @@ describe('VerifyMagicLink', () => {
     fireEvent.click(screen.getByTestId('confirm-sign-in'));
     await waitFor(() => { expect(verifyMagicLink).toHaveBeenCalledWith('valid-token', expect.any(String)); });
     expect(await screen.findByRole('heading', { name: 'You’re signed in' })).toBeInTheDocument();
+  });
+
+  it('synchronizes the shared browser session after confirming a magic link', async () => {
+    previewSignIn.mockResolvedValue(browserPreview);
+    verifyMagicLink.mockResolvedValue(signedIn);
+    renderVerify();
+    expect(screen.getByLabelText('Shared buyer session')).toHaveTextContent('signed out');
+    fireEvent.click(await screen.findByTestId('confirm-sign-in'));
+    await waitFor(() => { expect(screen.getByLabelText('Shared buyer session')).toHaveTextContent('buyer@example.com'); });
+    expect(getUserMe).toHaveBeenCalledTimes(1);
+    expect(verifyMagicLink).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries only the existing session when a consumed magic link cannot load it', async () => {
+    previewSignIn.mockResolvedValue(browserPreview);
+    verifyMagicLink.mockResolvedValue(signedIn);
+    getUserMe.mockRejectedValueOnce(new Error('session read interrupted')).mockResolvedValueOnce({ user: signedIn.user });
+    renderVerify();
+    fireEvent.click(await screen.findByTestId('confirm-sign-in'));
+    expect(await screen.findByRole('heading', { name: 'Sign-in didn’t finish' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Shared buyer session')).toHaveTextContent('signed out');
+    expect(screen.queryByRole('heading', { name: 'You’re signed in' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    await waitFor(() => { expect(screen.getByLabelText('Shared buyer session')).toHaveTextContent('buyer@example.com'); });
+    expect(getUserMe).toHaveBeenCalledTimes(2);
+    expect(verifyMagicLink).toHaveBeenCalledTimes(1);
+    expect(previewSignIn).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects a different session after successful link verification and preserves the verified email on session-only retries', async () => {
+    previewSignIn.mockResolvedValue(browserPreview);
+    verifyMagicLink.mockResolvedValue(signedIn);
+    const otherUser = { ...signedIn.user, id: 'other-user', email: 'other@example.com' };
+    getUserMe.mockResolvedValueOnce({ user: otherUser }).mockResolvedValueOnce({ user: otherUser }).mockResolvedValueOnce({ user: signedIn.user });
+    renderVerify();
+    fireEvent.click(await screen.findByTestId('confirm-sign-in'));
+    expect(await screen.findByRole('heading', { name: 'Sign-in didn’t finish' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Shared buyer session')).toHaveTextContent('signed out');
+    expect(screen.queryByRole('heading', { name: 'You’re signed in' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(await screen.findByRole('heading', { name: 'Sign-in didn’t finish' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Shared buyer session')).toHaveTextContent('signed out');
+    expect(getUserMe).toHaveBeenCalledTimes(2);
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(await screen.findByRole('heading', { name: 'You’re signed in' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Shared buyer session')).toHaveTextContent('buyer@example.com');
+    expect(getUserMe).toHaveBeenCalledTimes(3);
+    expect(verifyMagicLink).toHaveBeenCalledTimes(1);
+  });
+
+  it('offers an explicit current-account check after a lost link response without claiming link success', async () => {
+    previewSignIn.mockResolvedValue(browserPreview);
+    verifyMagicLink.mockRejectedValueOnce(new api.ApiError('response lost', 'network'));
+    getUserMe.mockResolvedValueOnce({ user: { ...signedIn.user, id: 'other-user', email: 'other@example.com' } });
+    renderVerify();
+    fireEvent.click(await screen.findByTestId('confirm-sign-in'));
+    expect(await screen.findByRole('link', { name: 'Check your current account' })).toHaveAttribute('href', '/account');
+    expect(screen.queryByRole('heading', { name: 'You’re signed in' })).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Shared buyer session')).toHaveTextContent('other@example.com');
+    expect(verifyMagicLink).toHaveBeenCalledTimes(1);
+    expect(getUserMe).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['/account/security', 'https://other.example/'])('honors a safe magic-link destination and rejects an external one: %s', async (next) => {
+    previewSignIn.mockResolvedValue(browserPreview);
+    verifyMagicLink.mockResolvedValue(signedIn);
+    renderWithProviders(<MemoryRouter initialEntries={[`/auth/verify?token=valid-token&next=${encodeURIComponent(next)}`]}>
+      <UserAuthProvider><Routes>
+        <Route path="/auth/verify" element={<VerifyMagicLink />} />
+        <Route path="/account/security" element={<h1>Requested security</h1>} />
+        <Route path="/account" element={<h1>Default account</h1>} />
+      </Routes></UserAuthProvider>
+    </MemoryRouter>);
+    fireEvent.click(await screen.findByTestId('confirm-sign-in'));
+    expect(await screen.findByRole('heading', { name: next.startsWith('/') ? 'Requested security' : 'Default account' }, { timeout: 2500 })).toBeInTheDocument();
+    expect(verifyMagicLink).toHaveBeenCalledTimes(1);
   });
 
   it('resumes a native app from server-held context and sends only a one-use code to the callback', async () => {
@@ -135,5 +221,25 @@ describe('VerifyMagicLink', () => {
     expect(await screen.findByRole('heading', { name: heading })).toBeInTheDocument();
     expect(screen.queryByText(/secret-detail|valid-token/)).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: /get a new code/i })).toBeInTheDocument();
+  });
+
+  it('does not navigate back after a pending confirmation is abandoned', async () => {
+    previewSignIn.mockResolvedValue(browserPreview);
+    let resolveProof!: (value: api.SignInResult) => void;
+    verifyMagicLink.mockReturnValueOnce(new Promise((resolve) => { resolveProof = resolve; }));
+    renderWithProviders(<MemoryRouter initialEntries={['/auth/verify?token=valid-token&next=%2Faccount%2Fsecurity']}>
+      <UserAuthProvider><Routes>
+        <Route path="/auth/verify" element={<VerifyMagicLink />} />
+        <Route path="/auth/login" element={<h1>Chosen email sign-in</h1>} />
+        <Route path="/account/security" element={<h1>Unwanted delayed destination</h1>} />
+      </Routes></UserAuthProvider>
+    </MemoryRouter>);
+    fireEvent.click(await screen.findByTestId('confirm-sign-in'));
+    fireEvent.click(screen.getByRole('link', { name: 'Use a different email' }));
+    await act(async () => { resolveProof(signedIn); await Promise.resolve(); });
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 1000)); });
+    expect(screen.getByRole('heading', { name: 'Chosen email sign-in' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Unwanted delayed destination' })).not.toBeInTheDocument();
+    expect(verifyMagicLink).toHaveBeenCalledTimes(1);
   });
 });

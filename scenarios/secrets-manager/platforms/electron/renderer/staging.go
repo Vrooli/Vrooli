@@ -7,6 +7,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/vrooli/envkit-go"
 )
 
 // defaultCLIStager is the default implementation of CLIStager.
@@ -18,7 +20,7 @@ type defaultCLIStager struct {
 // Stage copies CLI binaries into bundle/bin and writes a thin vrooli shim.
 func (s *defaultCLIStager) Stage(bundleRoot, platform string) error {
 	binDir := filepath.Join(bundleRoot, "bin")
-	if err := os.MkdirAll(binDir, 0o755); err != nil { //nolint:mnd // executable bundle directory mode
+	if err := os.MkdirAll(binDir, 0o755); err != nil {
 		return err
 	}
 
@@ -32,7 +34,7 @@ func (s *defaultCLIStager) Stage(bundleRoot, platform string) error {
 			if err := s.fileOps.CopyPath(path, dst); err != nil {
 				return err
 			}
-			return os.Chmod(dst, 0o755) //nolint:mnd // executable shim mode
+			return os.Chmod(dst, 0o755)
 		}); err != nil {
 			return err
 		}
@@ -55,12 +57,27 @@ func (s *defaultCLIStager) Stage(bundleRoot, platform string) error {
 		shimName += ".exe"
 	}
 	shim := filepath.Join(binDir, shimName)
-	cmd := exec.Command("go", "build", "-o", shim, "./cmd/vrooli-shim")
+	// Build away from the final path: the copied CLI may already occupy
+	// bin/vrooli, and `go build -o` rejects an existing non-object file.
+	tmp, err := os.CreateTemp(binDir, ".vrooli-shim-*")
+	if err != nil {
+		return fmt.Errorf("create temporary vrooli shim output: %w", err)
+	}
+	tmpPath := tmp.Name()
+	if err := tmp.Close(); err != nil {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("close temporary vrooli shim output: %w", err)
+	}
+	defer os.Remove(tmpPath)
+	cmd := exec.Command("go", "build", "-o", tmpPath, "./cmd/vrooli-shim")
 	cmd.Dir = runtimeDir
-	cmd.Env = append(os.Environ(), "CGO_ENABLED=0", "GOOS="+goos, "GOARCH="+goarch)
+	cmd.Env = envkit.Toolchain(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{"CGO_ENABLED=0", "GOOS=" + goos, "GOARCH=" + goarch}), envkit.ToolchainOptions{})
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("build vrooli shim: %w: %s", err, strings.TrimSpace(string(output)))
 	}
-	return os.Chmod(shim, 0o755) //nolint:mnd // executable shim mode
+	if err := os.Rename(tmpPath, shim); err != nil {
+		return fmt.Errorf("publish vrooli shim: %w", err)
+	}
+	return os.Chmod(shim, 0o755)
 }

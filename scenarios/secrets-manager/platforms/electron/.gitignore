@@ -30,3 +30,7 @@ dev-app-update.yml
 # Temporary files
 *.tmp
 *.temp
+
+# Rebuilt deployment payload: copied control-plane catalog/resources and UI.
+# Keep the Electron/native-host source outside this directory visible to Git.
+/bundle/

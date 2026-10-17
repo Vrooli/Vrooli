@@ -192,14 +192,14 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed architecture docum
 ## Testing
 
 ```bash
-# Run all tests
-npm test
+# Run mocked unit contracts (no native browser qualification)
+pnpm test
 
 # Watch mode
 npm run test:watch
 
-# Coverage report
-npm run test:coverage
+# Mocked unit coverage (unchanged floors and full source denominator)
+pnpm run test:coverage
 
 # Type checking
 npm run typecheck
@@ -270,3 +270,84 @@ MIT
 **Status**: ✅ Production Ready
 **Feature Completeness**: 28/28 (100%)
 **Build Status**: ✅ Passing
+
+### Managed motion qualification
+
+`pnpm run test:motion` explicitly runs the five-minute managed motion/slow-reader
+qualification. Set `BAS_REHAB_LIVE_API_BASE`, `BAS_REHAB_LIVE_UI_BASE` and
+`BAS_MOTION_OBSERVATION_PATH` through the admitted qualification owner. It fails
+when inputs are missing. Ordinary `test:coverage` does not implicitly run this
+live workload; its unit floors remain unchanged. Preservation journeys still use
+`test:journeys` and their maintained shadow ownership.
+
+
+### Driver test boundaries
+
+Default `test`, `test:unit`, `test:watch` and `test:coverage` select mocked contracts
+under `tests/unit` and `tests/recording`. Browser launch in a unit contract must use
+the existing `playwrightProvider` spy seam and shared Page/Context/Browser fixtures.
+The unit setup refuses unmocked native launch/attach before browser work; mocked
+fixtures can explicitly override that guard. Local HTTP contract fixtures remain
+subject to their declared workspace network policy; this is not full hermeticity.
+A directory name alone does not prove that its collaborators are mocked.
+
+Explicit admitted commands from this directory:
+
+- `pnpm run test:selection` lists each maintained Jest selection, verifies every
+  ordinary test file is assigned exactly once, and prints file identities. No test
+  body or browser runs. Motion and journeys are checked as separate preserved sets.
+- `pnpm run test:integration` runs local Chromium/Electron/media contracts through
+  `jest.integration.config.js`, one Jest worker at a time. Selecting the Electron
+  file explicitly requires `VROOLI_ELECTRON_INTEGRATION_APP` and `DISPLAY`; missing
+  prerequisites fail rather than skip. Other selected native files do not require
+  those Electron inputs.
+- `pnpm run test:e2e:pipeline` runs only the local native pipeline file, including
+  its 10,000-action cohorts. `pnpm run test:recording` explicitly runs the unit
+  recording subset followed by its native recording subset and needs native admission.
+- `pnpm run test:managed` runs saved-workflow fresh-context/live journal cases through
+  `jest.managed.config.js`; `BAS_REHAB_LIVE_API_BASE` must be an explicit HTTP(S) URL. This entrypoint
+  also owns the whole input-feedback file, including its local diagnostics and
+  live cohort; that file additionally requires `BAS_REHAB_LIVE_UI_BASE`. The local
+  diagnostics remain accessible through this managed command, without duplicating
+  shared probes or implicitly enabling a live cohort in local-native qualification.
+  Missing input fails instead of silently skipping. The operator owns an admitted
+  existing BAS runtime and routed SQL/file test leases; this command does not start
+  or restart a scenario.
+- `pnpm run test:motion` and `pnpm run test:journeys` retain their separate managed
+  qualification contracts described above and their maintained fixture owners.
+
+Unit, local-native and managed saved-workflow use the same production source
+coverage denominator and numeric floors (branches10/functions15/lines30/statements30),
+with separate `coverage`, `coverage/native` and `coverage/managed` outputs. Moving
+native cases out of unit can expose a coverage failure; keep it visible. Each
+command retains only its own evidence. No combined coverage or full qualification
+is claimed without a supported merger that rejects missing shards. Existing motion
+and journey qualification deliberately do not collect coverage.
+
+Root must admit native/browser/media work separately from production capture. For
+bounded qualification, select an exact file, for example
+`pnpm run test:integration --runTestsByPath tests/integration/session-admission-capacity.test.ts`.
+Native and managed reporters identify the active suite/case and print a bounded
+15-second activity heartbeat, leaving the declared per-case/hook deadlines intact.
+The local pipeline has 120-second cases; the managed journal has a 600-second case.
+Choose an admitted command budget including setup/cleanup and coverage, rather than
+raising the ordinary unit silence budget. These package scripts and retained owner
+receipts are the qualification handoff; no Test Genie phase binding is invented.
+
+
+### Explicit host-audio qualification
+
+`pnpm run test:audio-device` selects only
+`tests/integration/audio-device-evidence.test.ts` through
+`jest.audio-device.config.js`. It requires `VROOLI_DEVICE_EVIDENCE=1` and explicit
+host-audio admission because it temporarily changes PipeWire/PulseAudio topology.
+Missing opt-in fails before host device work; ordinary unit and local-native configs
+do not select this case, even when the variable is inherited. The original unit
+file retains only the mocked navigation/retry contract. The tautological opt-in
+notice was retired. Source case allocation is recorded in the selection receipt;
+this additional native file increases total file count by one.
+
+The host case preserves its three actual device assertions, optional retained WAV
+playback and device cleanup. Its output belongs to `coverage/audio-device`, using
+the unchanged source denominator/floors; it is not combined coverage. No real device
+qualification is implied by an ordinary unit pass or by file discovery.

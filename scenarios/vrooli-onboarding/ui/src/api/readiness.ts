@@ -22,6 +22,29 @@ export interface ReadinessItem {
   required?: boolean;
 }
 
+export interface CredentialConsumerProvenance {
+  logical_id?: string;
+  address_pattern?: string;
+  field?: string;
+  kind?: string;
+  consumer?: string;
+  source_ref?: string;
+  required?: boolean;
+  reason?: string;
+  tiers?: string[];
+}
+
+export interface CredentialProvenance {
+  owner?: string;
+  source_ref?: string;
+  kind?: string;
+  env?: string;
+  label?: string;
+  provisioning?: string;
+  required?: boolean;
+  consumers?: CredentialConsumerProvenance[];
+}
+
 const client = createClient(ReadinessService, onboardingTransport());
 
 export interface ReadinessResponse {
@@ -48,6 +71,10 @@ export interface ReadinessResponse {
     evidence_credential_version?: string;
     provider_state?: string;
     provider_detail?: string;
+    owner?: string;
+    source_ref?: string;
+    kind?: string;
+    provenance?: CredentialProvenance[];
   }>;
   hosts: ReadinessItem[];
   integrations: ReadinessItem[];
@@ -95,6 +122,16 @@ function toReadinessResponse(response: GetReadinessResponse): ReadinessResponse 
       status: item.legacyStatus || stateName(item.status), detail: item.detail,
       evidence_status: evidence.evidenceStatus, evidence_detail: evidence.evidenceDetail, evidence_next_action: evidence.evidenceNextAction, evidence_credential_version: evidence.evidenceCredentialVersion,
       provider_state: evidence.providerState, provider_detail: evidence.providerDetail,
+      owner: item.owner, source_ref: item.sourceRef, kind: item.kind,
+      provenance: item.provenance?.map((entry) => ({
+        owner: entry.owner, source_ref: entry.sourceRef, kind: entry.kind, env: entry.env,
+        label: entry.label, provisioning: entry.provisioning, required: entry.required,
+        consumers: entry.consumers?.map((consumer) => ({
+          logical_id: consumer.logicalId, address_pattern: consumer.addressPattern, field: consumer.field,
+          kind: consumer.kind, consumer: consumer.consumer, source_ref: consumer.sourceRef,
+          required: consumer.required, reason: consumer.reason, tiers: consumer.tiers,
+        })),
+      })),
       };
     }),
     hosts: response.hosts.map((host) => itemFromProto(host.item, host.kind, host.required)),

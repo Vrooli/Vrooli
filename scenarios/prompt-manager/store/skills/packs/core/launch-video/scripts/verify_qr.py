@@ -15,8 +15,8 @@ def verify(video, url, times, widths, output):
     parsed = urlparse(url)
     if parsed.scheme != 'https' or not parsed.hostname or '.' not in parsed.hostname:
         raise ValueError('expected URL must be a complete public HTTPS URL')
-    if not 2 <= len(times) <= 8 or not 2 <= len(widths) <= 8:
-        raise ValueError('provide 2–8 times and 2–8 playback widths')
+    if not 2 <= len(times) <= 8 or not 2 <= len(widths) <= 8 or len(set(times)) < 2 or len(set(widths)) < 2:
+        raise ValueError('provide 2–8 times and 2–8 playback widths with at least two distinct values each')
     duration = float(probe(video)['format']['duration'])
     if any(not 0 <= t < duration for t in times) or any(not 160 <= w <= 4096 for w in widths):
         raise ValueError('times must be inside the video; widths must be 160–4096')

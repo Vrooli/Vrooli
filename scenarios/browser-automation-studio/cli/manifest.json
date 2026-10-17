@@ -2806,12 +2806,18 @@
             },
             {
               "name": "postconditions",
-              "bind": {"field": "postconditions", "kind": "json_inline"},
+              "bind": {
+                "field": "postconditions",
+                "kind": "json_inline"
+              },
               "description": "Bounded independent final-page postconditions"
             },
             {
               "name": "extraction",
-              "bind": {"field": "extraction", "kind": "json_inline"},
+              "bind": {
+                "field": "extraction",
+                "kind": "json_inline"
+              },
               "description": "Named final-page DOM extractions, without replay"
             }
           ],
@@ -3444,6 +3450,29 @@
           },
           "governance": {
             "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "cancel",
+          "description": "Request cancellation of an active export. Read exports status for its authoritative terminal result.",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Export UUID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExportsService",
+            "method": "CancelExport"
+          },
+          "governance": {
+            "effect": "write",
             "run_eligible": true,
             "permissions": [
               "network:internal"

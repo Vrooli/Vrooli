@@ -1,7 +1,12 @@
 package validation
 
 import (
+	"bytes"
 	"context"
+	"go/ast"
+	"go/format"
+	"go/parser"
+	"go/token"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -444,7 +449,114 @@ func schemaApplicationCallPresent(src string) bool {
 	if strings.Contains(src, "EnsureSchemas(") {
 		return true
 	}
-	return strings.Contains(src, ".ApplySchema(")
+	if strings.Contains(src, ".ApplySchema(") {
+		return true
+	}
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "schema.go", src, parser.SkipObjectResolution)
+	if err != nil {
+		return false
+	}
+	aliases := map[string]string{}
+	for _, imp := range file.Imports {
+		path, err := strconv.Unquote(imp.Path.Value)
+		if err == nil {
+			aliases[importLocalName(imp, path)] = path
+		}
+	}
+	return schemaSplitBootstrapPresent(fset, file, aliases)
+}
+
+// A split bootstrap must apply and then reconcile or verify the same pool and
+// providers in one function. Recognize only direct statements and if initializers;
+// separate conditional branches or lookalike imports do not establish this seam.
+func schemaSplitBootstrapPresent(fset *token.FileSet, file *ast.File, aliases map[string]string) bool {
+	for _, decl := range file.Decls {
+		fn, ok := decl.(*ast.FuncDecl)
+		if !ok || fn.Body == nil {
+			continue
+		}
+		applied := ""
+		inputs := map[string]bool{}
+		for _, stmt := range fn.Body.List {
+			if _, returned := stmt.(*ast.ReturnStmt); returned {
+				break
+			}
+			if schemaBootstrapRebinds(stmt, inputs) {
+				applied = ""
+			}
+			call := schemaBootstrapStatementCall(stmt)
+			if call == nil || len(call.Args) < 3 {
+				continue
+			}
+			sel, ok := call.Fun.(*ast.SelectorExpr)
+			if !ok {
+				continue
+			}
+			pkg, ok := sel.X.(*ast.Ident)
+			if !ok || aliases[pkg.Name] != "github.com/vrooli/api-core/database" {
+				continue
+			}
+			var args bytes.Buffer
+			normalized := *call
+			normalized.Fun = ast.NewIdent("schema")
+			if err := format.Node(&args, fset, &normalized); err != nil {
+				continue
+			}
+			switch sel.Sel.Name {
+			case "ApplySchemas":
+				applied = args.String()
+				inputs = map[string]bool{}
+				for _, arg := range call.Args {
+					ast.Inspect(arg, func(node ast.Node) bool {
+						if ident, ok := node.(*ast.Ident); ok {
+							inputs[ident.Name] = true
+						}
+						return true
+					})
+				}
+			case "ReconcileDeclaredColumns", "VerifyDeclaredColumns":
+				if applied != "" && applied == args.String() {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+func schemaBootstrapRebinds(stmt ast.Stmt, inputs map[string]bool) bool {
+	if conditional, ok := stmt.(*ast.IfStmt); ok {
+		stmt = conditional.Init
+	}
+	assignment, ok := stmt.(*ast.AssignStmt)
+	if !ok {
+		return false
+	}
+	for _, lhs := range assignment.Lhs {
+		if ident, ok := lhs.(*ast.Ident); ok && inputs[ident.Name] {
+			return true
+		}
+	}
+	return false
+}
+
+func schemaBootstrapStatementCall(stmt ast.Stmt) *ast.CallExpr {
+	switch s := stmt.(type) {
+	case *ast.IfStmt:
+		if s.Init != nil {
+			return schemaBootstrapStatementCall(s.Init)
+		}
+	case *ast.AssignStmt:
+		if len(s.Rhs) == 1 {
+			call, _ := s.Rhs[0].(*ast.CallExpr)
+			return call
+		}
+	case *ast.ExprStmt:
+		call, _ := s.X.(*ast.CallExpr)
+		return call
+	}
+	return nil
 }
 
 // schemaGoEmbedsSQL reports whether a Go source contains a //go:embed directive

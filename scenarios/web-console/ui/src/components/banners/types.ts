@@ -30,6 +30,12 @@ export type {
  */
 export const BANNER_PRIORITY = {
   connectionLost: 90,
+  // Approvals waiting on a human are actionable and about work outside this
+  // tab (a release, a run, a remediation). They sit just under a lost
+  // connection — the app still works, but something elsewhere is blocked on
+  // the operator — and above crash recovery, which is about this app's own
+  // sessions. Raised only when pendingCount > 0.
+  approvalsPending: 70,
   crashRecovery: 65,
   voiceRejection: 60,
   createError: 55,

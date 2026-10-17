@@ -101,7 +101,17 @@ func (h *handler) Answer(ctx context.Context, req *connect.Request[v1.AnswerRequ
 	if err != nil {
 		return nil, err
 	}
-	ask, err := h.service.AnswerAsk(ctx, hub.AnswerInput{AskID: req.Msg.GetAskId(), Answer: req.Msg.GetAnswer(), Actor: actor, Note: req.Msg.GetNote()})
+	// Attribute the answer to the ACTUAL verified human (the Cloudflare Access
+	// subject/email) while keeping the recipient-only authorization check keyed on
+	// the recipient subject (actor). AnsweredBy is "" on the bearer/cookie path,
+	// where AnswerAsk falls back to actor — preserving prior behavior.
+	ask, err := h.service.AnswerAsk(ctx, hub.AnswerInput{
+		AskID:      req.Msg.GetAskId(),
+		Answer:     req.Msg.GetAnswer(),
+		Actor:      actor,
+		AnsweredBy: identity.AnsweredBy(ctx),
+		Note:       req.Msg.GetNote(),
+	})
 	if err != nil {
 		return nil, connectError(err)
 	}

@@ -39,7 +39,14 @@ type ownerContextKey struct{}
 
 type ownerContext struct {
 	identity owneridentity.Identity
-	refused  bool
+	// actor is the ACTUAL verified human behind this request — the Cloudflare
+	// Access subject (or email when the subject is absent). It is distinct from
+	// identity.Subject, which is the single configured owner/recipient subject the
+	// recipient-only authorization check keys on. Attribution (answered_by) uses
+	// actor so a multi-human household records who really answered, while the
+	// authorization check keeps using the recipient subject.
+	actor   string
+	refused bool
 }
 
 // OwnerAuthenticator verifies the request-bound owner providers once per
@@ -79,9 +86,17 @@ func (a OwnerAuthenticator) authenticate(r *http.Request) context.Context {
 	if subject == "" {
 		return ctx
 	}
-	return context.WithValue(ctx, ownerContextKey{}, ownerContext{identity: owneridentity.Identity{
-		Subject: subject, Email: principal.Email, ExpiresAt: principal.ExpiresAt,
-	}})
+	// The verified human's own identity: prefer the Access subject, fall back to
+	// the email. This becomes answered_by; subject (OwnerSubject) stays the
+	// recipient the authorization check compares against.
+	actor := strings.TrimSpace(principal.Subject)
+	if actor == "" {
+		actor = strings.TrimSpace(principal.Email)
+	}
+	return context.WithValue(ctx, ownerContextKey{}, ownerContext{
+		identity: owneridentity.Identity{Subject: subject, Email: principal.Email, ExpiresAt: principal.ExpiresAt},
+		actor:    actor,
+	})
 }
 
 func ownerFromContext(ctx context.Context) (ownerContext, bool) {

@@ -143,14 +143,16 @@ function ShortcutEditor({
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const dragFrom = useRef<number | null>(null);
 
-  // A saved profile arriving from the server replaces the draft. Keeping local
-  // edits over a server round-trip is how two tabs silently overwrite each
-  // other; the save bar makes the discard visible instead.
-  useEffect(() => {
+  // Reset on a new server snapshot before committing the input tree. An
+  // effect also ran on first mount, replacing row identities after they were
+  // visible and allowing a fast edit to race with that redundant draft reset.
+  const [savedProfile, setSavedProfile] = useState(profile);
+  if (savedProfile !== profile) {
+    setSavedProfile(profile);
     setEntries(toDraft());
     setName(profile.name);
     setDirtyCount(0);
-  }, [profile.name, profile.updatedAt, toDraft]);
+  }
 
   const markDirty = useCallback(() => { setDirtyCount((count) => count + 1); }, []);
 

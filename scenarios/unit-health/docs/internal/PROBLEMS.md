@@ -49,6 +49,23 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
+### 2026-10-16 — Helper dependency classification repaired in source
+
+Scoped W3 defect: nested helper implementation files were classified as runtime
+code. BAS's `internal/testutil/fakedriver/session.go` consequently produced a
+false production-import finding. The same classifier missed nested `testutils`
+and `mocks` imports, accepted module-prefix lookalikes, and included helper
+ambient calls in runtime seam findings.
+
+One complete-segment classifier now identifies both helper source and imported
+packages. Runtime-to-helper edges remain errors; helper-to-helper and
+helper-to-runtime edges are permitted. Desired-behavior regressions reproduced
+the failures before repair. Focused architecture tests and the full validation
+package pass. Evidence: video-toolchain-reliability-2026-10-16/qa/
+`unit-health-architecture.log` and `unit-health-validation.log` in plan artifacts.
+This is source evidence; current live-provider activation and scenario-wide
+qualification remain separate. No suppression or coverage floor was changed.
+
 ### 2026-09-09 — Maturity quality codes reconciled
 
 **Symptom:** The maturity spec contained scenario-level quality codes that were not all observable.

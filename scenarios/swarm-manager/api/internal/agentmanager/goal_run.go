@@ -3,9 +3,10 @@ package agentmanager
 import (
 	"context"
 	"fmt"
-	"github.com/vrooli/api-core/owneridentity"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/owneridentity"
 
 	"swarm-manager/internal/workflowcontract"
 
@@ -98,7 +99,7 @@ func goalRunUsage(accounting *apipb.RunAccounting) *workflowcontract.Usage {
 // runner. Idempotency is enforced by the caller's key, so a re-queue reuses the
 // same run.
 func (s *AgentService) CreateGoalRun(ctx context.Context, req GoalRunRequest) (GoalRunResult, error) {
-	if err := owneridentity.RequireCreateRunCaller(ctx, time.Now()); err != nil {
+	if err := owneridentity.RequireCreateRunCaller(ctx, time.Now(), true); err != nil {
 		return GoalRunResult{}, err
 	}
 	if !s.enabled {

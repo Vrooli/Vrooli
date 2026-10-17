@@ -43,6 +43,18 @@ describe("AppShell structure (cimode)", () => {
       expect(screen.getByTestId(`${selectors.layout.navLink({ key })}-tab`)).toBeInTheDocument();
     }
   });
+
+  it("keeps settings and header theme controls synchronized and persists the choice", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<TestAppRouter initialEntries={["/settings"]} />, { withoutRouter: true });
+    await user.click(screen.getByTestId(selectors.settingsPage.themeOption({ choice: "dark" })));
+    expect(document.documentElement.dataset.resolvedTheme).toBe("dark");
+    expect(window.localStorage.getItem("vrooli.theme")).toBe("dark");
+    expect(screen.getByTestId(selectors.theme.select)).toHaveValue("dark");
+    await user.selectOptions(screen.getByTestId(selectors.theme.select), "light");
+    expect(screen.getByTestId(selectors.settingsPage.themeOption({ choice: "light" }))).toHaveAttribute("aria-checked", "true");
+    expect(window.localStorage.getItem("vrooli.theme")).toBe("light");
+  });
 });
 
 describe("Locale switching through the shell (real locales)", () => {

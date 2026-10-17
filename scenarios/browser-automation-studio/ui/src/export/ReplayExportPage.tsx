@@ -14,6 +14,8 @@ import ReplayPlayer, {
 } from "@/domains/exports/replay/ReplayPlayer";
 import { MAX_BROWSER_SCALE, MIN_BROWSER_SCALE, resolveReplayStyleFromSpec } from "@/domains/replay-style";
 // toNumber is imported and used by the extracted frameMapping.ts module
+import { ReplaySpecSchema } from "@vrooli/generated-proto/browser-automation-studio/v1/exports/exports_pb";
+import { parseProtoStrict } from "@/utils/proto";
 import type { ReplayAsset as ReplayMovieAsset, ReplaySpec as ReplayMovieSpec } from "@vrooli/generated-proto/browser-automation-studio/v1/exports/exports_pb";
 import { logger } from "../utils/logger";
 import "../index.css";
@@ -73,7 +75,7 @@ const asCursorSpeedProfile = (
   }
   const lowered = value.trim().toLowerCase();
   const match = CURSOR_SPEED_PROFILES.find(
-    (candidate) => candidate === lowered,
+    (candidate) => candidate.toLowerCase() === lowered,
   );
   return match;
 };
@@ -89,7 +91,7 @@ const asCursorPathStyle = (
   if (lowered === "bezier") {
     return "cubic";
   }
-  const match = CURSOR_PATH_STYLES.find((candidate) => candidate === lowered);
+  const match = CURSOR_PATH_STYLES.find((candidate) => candidate.toLowerCase() === lowered);
   return match;
 };
 
@@ -111,7 +113,7 @@ const ReplayExportPage = () => {
   const [isAwaitingSpec, setIsAwaitingSpec] = useState(false);
   const presentationBoundsRef = useRef<HTMLDivElement | null>(null);
   const [presentationBounds, setPresentationBounds] = useState<PresentationBounds | null>(null);
-  const fetchingRef = useRef(false);
+  const requestRef = useRef<{ generation: number; controller: AbortController | null }>({ generation: 0, controller: null });
   const pendingRetryRef = useRef<number | null>(null);
   const executionSourceRef = useRef<string | null>(null);
 
@@ -122,9 +124,17 @@ const ReplayExportPage = () => {
     }
   }, []);
 
+  // Inline specs, newer fetches and unmount all retire the same request owner.
+  // Abort is advisory; the generation also fences transports that resolve late.
+  const cancelSpecRequest = useCallback(() => {
+    requestRef.current.controller?.abort();
+    requestRef.current = { generation: requestRef.current.generation + 1, controller: null };
+    clearPendingRetry();
+  }, [clearPendingRetry]);
+
   const reportStatus = useCallback(
     (status: string, message?: string | null) => {
-      clearPendingRetry();
+      cancelSpecRequest();
       const normalized = normalizeStatus(status) || "unavailable";
       const trimmedMessage =
         typeof message === "string" && message.trim().length > 0
@@ -135,17 +145,22 @@ const ReplayExportPage = () => {
       setIsAwaitingSpec(false);
       setMovieSpec(null);
     },
-    [clearPendingRetry],
+    [cancelSpecRequest],
   );
 
   const fetchMovieSpec = useCallback(
     async (executionId: string) => {
       const normalizedId = executionId.trim();
-      if (!normalizedId || fetchingRef.current) {
+      if (!normalizedId) {
         return;
       }
-      fetchingRef.current = true;
-      clearPendingRetry();
+      cancelSpecRequest();
+      const controller = new AbortController();
+      const generation = requestRef.current.generation;
+      requestRef.current.controller = controller;
+      const isCurrent = () => requestRef.current.generation === generation && !controller.signal.aborted;
+      executionSourceRef.current = normalizedId;
+      setMovieSpec(null);
       setIsAwaitingSpec(true);
       setLoadError(null);
       setStatusPayload(null);
@@ -164,7 +179,9 @@ const ReplayExportPage = () => {
             Accept: "application/json",
           },
           body: JSON.stringify({ format: "json" }),
+          signal: controller.signal,
         });
+        if (!isCurrent()) return;
         if (!response.ok) {
           const text = await response.text();
           throw new Error(
@@ -172,6 +189,7 @@ const ReplayExportPage = () => {
           );
         }
         const preview = (await response.json()) as ExportPreviewPayload;
+        if (!isCurrent()) return;
         const status = normalizeStatus(preview.status);
         const messageText =
           typeof preview.message === "string" ? preview.message.trim() : "";
@@ -188,6 +206,7 @@ const ReplayExportPage = () => {
           setIsAwaitingSpec(true);
           if (pendingRetryRef.current == null) {
             pendingRetryRef.current = window.setTimeout(() => {
+              if (!isCurrent()) return;
               pendingRetryRef.current = null;
               void fetchMovieSpec(normalizedId);
             }, SPEC_POLL_INTERVAL_MS);
@@ -203,13 +222,15 @@ const ReplayExportPage = () => {
           throw new Error("Replay movie spec missing from export response");
         }
         clearPendingRetry();
-        setMovieSpec(preview.package);
+        const parsedSpec = parseProtoStrict<ReplayMovieSpec>(ReplaySpecSchema, preview.package);
+        setMovieSpec(parsedSpec);
         setStatusPayload(null);
         setLoadError(null);
         executionSourceRef.current =
-          preview.package.execution?.executionId ?? normalizedId;
+          parsedSpec.execution?.executionId ?? normalizedId;
         setIsAwaitingSpec(false);
       } catch (error) {
+        if (!isCurrent()) return;
         const message =
           error instanceof Error
             ? error.message
@@ -222,10 +243,10 @@ const ReplayExportPage = () => {
           error,
         );
       } finally {
-        fetchingRef.current = false;
+        if (isCurrent()) requestRef.current.controller = null;
       }
     },
-    [clearPendingRetry, reportStatus],
+    [cancelSpecRequest, clearPendingRetry, reportStatus],
   );
 
   useEffect(() => {
@@ -388,9 +409,9 @@ const ReplayExportPage = () => {
 
   useEffect(() => {
     return () => {
-      clearPendingRetry();
+      cancelSpecRequest();
     };
-  }, [clearPendingRetry]);
+  }, [cancelSpecRequest]);
 
   const effectiveCanvasWidth = useMemo(() => {
     const canvasWidth = movieSpec?.presentation?.canvas?.width;
@@ -426,7 +447,7 @@ const ReplayExportPage = () => {
     mode, statusPayload, loadError, movieSpec, replayFrames,
     effectiveCanvasWidth, effectiveCanvasHeight, currentFrameIndex, currentProgress,
     isAwaitingSpec, assetCount, totalDurationMs, timeline, executionSourceRef,
-    fetchMovieSpec, clearPendingRetry, reportStatus, setMovieSpec, setLoadError,
+    fetchMovieSpec, cancelSpecRequest, reportStatus, setMovieSpec, setLoadError,
     setStatusPayload, setIsAwaitingSpec,
   });
 

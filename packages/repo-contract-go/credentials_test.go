@@ -77,3 +77,23 @@ func TestFindCredentialDescriptorDuplicatesMatchesTunnelManagerShape(t *testing.
 		t.Fatalf("tunnel-manager consumer registrations were treated as declarations: %+v", duplicates)
 	}
 }
+
+func TestCredentialUniquenessDistinguishesAcquisitionReferences(t *testing.T) {
+	for _, fixture := range []struct {
+		name, body string
+		want       int
+	}{
+		{"one declaration and repeated targets", `{"credentials":{"descriptors":[{"logical_id":"vrooli/model","field":"token"}]},"managed_service":{"data_artifacts":[{"acquisition":{"targets":[{"auth":{"scheme":"bearer","logical_id":"vrooli/model","field":"token"}},{"auth":{"scheme":"bearer","logical_id":"vrooli/model","field":"token"}}]}}]}}`, 0},
+		{"two real declarations and reference", `{"credentials":{"descriptors":[{"logical_id":"vrooli/model","field":"token"},{"logical_id":"vrooli/model","field":"token"}]},"acquisition":{"targets":[{"auth":{"scheme":"bearer","logical_id":"vrooli/model","field":"token"}}]}}`, 1},
+		{"lookalike targets collection", `{"credentials":{"descriptors":[{"logical_id":"vrooli/model"}]},"acquisition":{"targets-extra":[{"auth":{"logical_id":"vrooli/model"}}]}}`, 1},
+		{"nested auth descriptor", `{"credentials":{"descriptors":[{"logical_id":"vrooli/model"}]},"acquisition":{"targets":[{"auth":{"nested":{"logical_id":"vrooli/model"}}}]}}`, 1},
+		{"non-index target", `{"credentials":{"descriptors":[{"logical_id":"vrooli/model"}]},"acquisition":{"targets":{"named":{"auth":{"logical_id":"vrooli/model"}}}}}`, 1},
+	} {
+		t.Run(fixture.name, func(t *testing.T) {
+			duplicates, err := FindCredentialDescriptorDuplicates([]byte(fixture.body))
+			if err != nil || len(duplicates) != fixture.want {
+				t.Fatalf("duplicates %+v err%v want%d", duplicates, err, fixture.want)
+			}
+		})
+	}
+}

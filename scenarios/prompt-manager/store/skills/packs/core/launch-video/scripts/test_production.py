@@ -115,10 +115,19 @@ class ProductionTests(unittest.TestCase):
         self.plan['claims'][0]['scope']='backend'
         self.assertIn('scene proof: fixture capture cannot prove backend claim c1',self.errors())
 
-    def test_requested_music_variety_is_not_three_seeds_of_one_style(self):
+    def test_requested_music_variety_needs_an_account_beyond_seed_or_genre_count(self):
+        self.current_plan()
         self.plan['audio'].update(mode='music',source_kind='licensed-reuse',variety_requested=True,
-                                  candidate_styles=['trap','trap','trap'])
-        self.assertIn('requested music variety needs distinct styles',self.errors())
+                                  candidate_styles=['drum and bass','hardgroove'],source_id='test-source')
+        self.assertIn('requested music variety needs an evidence-based rationale', self.errors())
+
+    def test_same_family_variety_does_not_force_a_lower_energy_genre(self):
+        self.current_plan()
+        self.plan['audio'].update(mode='music',source_kind='licensed-reuse',variety_requested=True,
+                                  candidate_styles=['drum and bass','drum and bass'],
+                                  source_id='test-source', variety_rationale='Two retained takes and different arrangements; '
+                                  'rhythm/timbre contrast is still unreviewed pending actual audition.')
+        self.assertEqual([], self.errors())
 
     def test_current_review_and_complete_teaser_can_pass_delivery(self):
         for name in ['video.mp4','poster.jpg']:
@@ -148,6 +157,79 @@ class ProductionTests(unittest.TestCase):
     def test_unknown_audio_stream_duration_cannot_pass(self):
         self.assertFalse(p.audio_covers_video({'streams': [
             {'codec_type': 'video', 'duration': '33'}, {'codec_type': 'audio'}]}))
+
+    def probe_packets(self, packets, duration='1', ending=None, format_start='0'):
+        from types import SimpleNamespace
+        meta = {'format': {'duration': duration, 'start_time': format_start}, 'streams': [
+            {'index': 0, 'codec_type': 'video', 'tags': {'DURATION': '00:01:39'}},
+            {'index': 1, 'codec_type': 'audio', 'sample_rate': '48000', 'tags': {'DURATION': '00:01:39'}}]}
+        with patch.object(p, 'run', side_effect=[SimpleNamespace(stdout=json.dumps(meta)),
+                                               SimpleNamespace(stdout=json.dumps({'packets': packets})),
+                                               SimpleNamespace(stdout=json.dumps({'packets': packets if ending is None else ending}))]):
+            return p.probe(self.root/'fallback.webm')
+
+    def test_webm_missing_stream_duration_uses_observed_packet_boundaries(self):
+        meta = self.probe_packets([
+            {'stream_index': 0, 'pts_time': '0', 'duration_time': '0.04'},
+            {'stream_index': 0, 'pts_time': '.96', 'duration_time': '.04'},
+            {'stream_index': 1, 'pts_time': '-.007', 'duration_time': '.02'},
+            {'stream_index': 1, 'pts_time': '.994', 'duration_time': '.02',
+             'side_data_list': [{'discard_padding': 136}]}])
+        self.assertTrue(p.audio_covers_video(meta))
+        self.assertAlmostEqual(p.stream_span(meta['streams'][1])[1], 1.014-136/48000)
+
+    def test_packet_coverage_refuses_short_audio_despite_duration_tags(self):
+        meta = self.probe_packets([
+            {'stream_index': 0, 'pts_time': '0', 'duration_time': '1'},
+            {'stream_index': 1, 'pts_time': '0', 'duration_time': '.5'}])
+        self.assertFalse(p.audio_covers_video(meta))
+
+    def test_packet_coverage_accounts_for_audio_skip_and_discard(self):
+        for field, samples in [('skip_samples', 6000), ('discard_padding', 6000)]:
+            with self.subTest(field=field):
+                meta = self.probe_packets([
+                    {'stream_index': 0, 'pts_time': '0', 'duration_time': '1'},
+                    {'stream_index': 1, 'pts_time': '0', 'duration_time': '1',
+                     'side_data_list': [{field: samples}]}])
+                self.assertFalse(p.audio_covers_video(meta))
+
+    def test_packet_coverage_keeps_missing_or_nonfinite_observations_unknown(self):
+        for packet in [{}, {'stream_index': 1, 'pts_time': 'NaN', 'duration_time': '1'},
+                       {'stream_index': 1, 'pts_time': '0'},
+                       {'stream_index': 1, 'pts_time': '0', 'duration_time': '-1'}]:
+            with self.subTest(packet=packet):
+                meta = self.probe_packets([{'stream_index': 0, 'pts_time': '0', 'duration_time': '1'}, packet])
+                self.assertFalse(p.audio_covers_video(meta))
+
+    def test_packet_coverage_refuses_missing_eof_witness_for_both_streams(self):
+        packets = [{'stream_index': 0, 'pts_time': '0', 'duration_time': '1'},
+                   {'stream_index': 1, 'pts_time': '0', 'duration_time': '1'}]
+        for ending in [[], packets]:
+            with self.subTest(ending=ending):
+                meta = self.probe_packets(packets, duration='36', ending=ending)
+                self.assertFalse(p.audio_covers_video(meta))
+
+    def test_rejected_continuation_sources_stay_rejected_after_arrangement(self):
+        self.current_plan()
+        for source in ['efc8c831-527d-4398-80c6-6065dc79c719-take-02',
+                       'efc8c831-527d-4398-80c6-6065dc79c719-take-01',
+                       '4d0f02e4-2305-46f7-8f2d-6bc430549052-take-01',
+                       'd09c9c44-cc3a-484a-b948-d55f665f4af2-take-01',
+                       '8bb80015-1891-4f39-8342-50f27dca1f1e-take-01',
+                       'ec08ddd9-857e-4d1b-861f-ef04db66dcbc-take-01',
+                       '2448720b-acc3-4a40-826b-0432b96c4062-take-01']:
+            with self.subTest(source=source):
+                self.plan['audio'].update(mode='music', source_kind='governed-generation',
+                                          source_id=source+';arranged-sha256:fixture')
+                self.assertIn('selected audio source was explicitly rejected', self.errors())
+
+    def test_packet_coverage_refuses_nonfinite_container_timeline(self):
+        packets = [{'stream_index': 0, 'pts_time': '0', 'duration_time': '1'},
+                   {'stream_index': 1, 'pts_time': '0', 'duration_time': '1'}]
+        for start in ['NaN', 'Inf', '-Inf']:
+            with self.subTest(start=start):
+                meta = self.probe_packets(packets, duration='36', format_start=start)
+                self.assertFalse(p.audio_covers_video(meta))
 
     def current_plan(self):
         self.plan.update(version=2, review_status='draft', cta={
@@ -187,6 +269,78 @@ class ProductionTests(unittest.TestCase):
         self.plan['story']['viewing_context']=''
         self.assertIn('story.setup required', self.errors())
         self.assertIn('story.viewing_context required', self.errors())
+
+    def delivery_fixture(self):
+        self.current_plan()
+        for name in ('video.mp4', 'poster.jpg', 'page.html'):
+            (self.root/name).write_text('unit fixture only; not production evidence')
+        current = p.digest(self.root/'video.mp4')
+        self.review = {'sha256': current, 'reviewer': 'unit fixture', 'method': 'fixture',
+            'visual_observations': 'fixture', 'audio_observations': 'silent fixture',
+            'audio_status': 'not-applicable', 'verdict': 'pass', 'defects': [],
+            'review_kind': 'self-review', 'opening_comprehension': 'fixture setup',
+            'campaign_variety': 'fixture direction comparison',
+            'viewer_comprehension': {'verdict': 'pass', 'method': 'fixture',
+                'scenes': [{'id': 'proof', 'observation': 'fixture meaning finding', 'verdict': 'pass'}]},
+            'craft': {'verdict': 'pass', 'method': 'fixture',
+                'scenes': [{'id': 'proof', 'observation': 'fixture craft finding', 'verdict': 'pass'}]}}
+        (self.root/'review.json').write_text(json.dumps(self.review))
+        (self.root/'technical.json').write_text(json.dumps({'sha256': current, 'decode_ok': True, 'inputs_stable': True}))
+        (self.root/'destination.json').write_text(json.dumps({'url': self.plan['cta']['url'],
+            'rendered_product_match': True, 'checked_at': '2026-10-16',
+            'observation': 'fixture product identity', 'evidence': 'page.html'}))
+        self.plan['cta']['destination_report'] = 'destination.json'
+        self.plan.update(video='video.mp4', poster='poster.jpg', technical_report='technical.json', review='review.json')
+        self.meta = {'streams': [{'codec_type': 'video', 'width': 1920, 'height': 1080,
+            'avg_frame_rate': '30/1', 'duration': '4'}], 'format': {'duration': '4'}}
+
+    def test_current_delivery_requires_scene_meaning_and_craft_findings(self):
+        self.delivery_fixture()
+        with patch.object(p, 'probe', return_value=self.meta):
+            self.assertEqual([], self.errors('deliver'))
+            self.review['viewer_comprehension']['scenes'] = []
+            (self.root/'review.json').write_text(json.dumps(self.review))
+            self.assertTrue(any('requires findings for every scene' in e for e in self.errors('deliver')))
+
+    def test_source_only_or_partial_qr_receipt_does_not_approve_final_video(self):
+        self.delivery_fixture()
+        self.plan['cta'].update(qr=True, qr_report='qr.json')
+        receipt = {'sha256': p.digest(self.root/'video.mp4'), 'url': self.plan['cta']['url'],
+            'status': 'pass', 'inputs_stable': True, 'times': [2, 3], 'widths': [1920, 390],
+            'checks': [{'time': 2, 'width': 1920, 'passed': True, 'decoded': self.plan['cta']['url']}]}
+        (self.root/'qr.json').write_text(json.dumps(receipt))
+        with patch.object(p, 'probe', return_value=self.meta):
+            self.assertTrue(any('missing, failed or mismatched' in e for e in self.errors('deliver')))
+
+    def test_example_retrieval_does_not_match_research_directory_as_search_intent(self):
+        rows = [{'id': 'metrics', 'evidence': '/product-video-research/metrics.json'},
+                {'id': 'message-search', 'purpose': ['search'], 'evidence': '/product-video-research/search.json'}]
+        self.assertEqual(['message-search'], [r['id'] for r in p.retrieve(rows, 'search', 4)])
+
+    def test_duplicate_qr_samples_do_not_establish_multiple_playback_sizes(self):
+        self.delivery_fixture()
+        self.plan['cta'].update(qr=True, qr_report='qr.json')
+        receipt = {'sha256': p.digest(self.root/'video.mp4'), 'url': self.plan['cta']['url'],
+            'status': 'pass', 'inputs_stable': True, 'times': [2, 2], 'widths': [390, 390],
+            'checks': [{'time': 2, 'width': 390, 'passed': True, 'decoded': self.plan['cta']['url']}]}
+        (self.root/'qr.json').write_text(json.dumps(receipt))
+        with patch.object(p, 'probe', return_value=self.meta):
+            self.assertTrue(any('multiple times and sizes' in e for e in self.errors('deliver')))
+
+    def test_rejected_audio_take_cannot_silently_return(self):
+        self.current_plan()
+        self.plan['audio'].update(mode='music', source_kind='governed-generation', source_id='25d4cdfc-08aa-447b-a081-baf110c4c0fd-take-02')
+        self.assertIn('selected audio source was explicitly rejected', self.errors())
+
+    def test_faithful_image_hold_passes_polish_without_a_video_duration(self):
+        self.current_plan()
+        (self.root/'still.png').write_text('image fixture')
+        self.plan['scenes'][0].update(media='still.png', source_sha256=p.digest(self.root/'still.png'))
+        meta = {'streams': [{'codec_type': 'video', 'codec_name': 'png', 'width': 1920, 'height': 1080}], 'format': {'format_name': 'png_pipe'}}
+        with patch.object(p, 'probe', return_value=meta):
+            self.assertEqual([], self.errors('polish'))
+            self.plan['scenes'][0].update(proof_kind='interaction', product_motion=True)
+            self.assertTrue(any('still image cannot prove an interaction' in e for e in self.errors('polish')))
 
 
 if __name__=='__main__':unittest.main()

@@ -11,8 +11,13 @@
         {
           "name": "space",
           "description": "Emit this scenario's coverage-space denominator as JSON.",
-          "binding": { "kind": "local" },
-          "governance": { "effect": "read", "run_eligible": true }
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true
+          }
         }
       ]
     },
@@ -406,6 +411,37 @@
           }
         },
         {
+          "name": "configure-temporary-retention",
+          "description": "Grant or revoke automatic cleanup authority for aged temporary entries only",
+          "flags": [
+            {
+              "name": "automatic",
+              "bool": true,
+              "description": "Enable recurring safe temporary cleanup; omit to revoke automatic authority"
+            },
+            {
+              "name": "min-age-seconds",
+              "description": "Retention age, at least 86400 seconds when enabling",
+              "default": "259200"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CleanupService",
+            "method": "ConfigureTemporaryRetention"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
           "name": "plan",
           "description": "Create a cleanup preview plan without mutating host state",
           "binding": {
@@ -538,47 +574,128 @@
         {
           "name": "tiers",
           "description": "List recovery safety tiers and autonomous proof requirements",
-          "binding": { "kind": "local" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": [] },
-          "architecture": { "primitive": "action" }
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": []
+          },
+          "architecture": {
+            "primitive": "action"
+          }
         },
         {
           "name": "roots",
           "description": "List declarative governed storage roots and resolved paths",
-          "binding": { "kind": "local" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": [] },
-          "architecture": { "primitive": "action" }
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": []
+          },
+          "architecture": {
+            "primitive": "action"
+          }
         },
         {
           "name": "run",
           "description": "Start a server-owned recovery run",
           "flags": [
-            { "name": "trigger", "required": true, "description": "Trigger: band, floor, rate, or manual" },
-            { "name": "partition", "required": true, "description": "Filesystem under pressure" },
-            { "name": "used-percent", "description": "Current df-style usage percentage" },
-            { "name": "available-bytes", "description": "Current unprivileged available bytes" },
-            { "name": "target-percent", "description": "Requested free-space percentage (default 15)" },
-            { "name": "dry-run", "description": "Preview recovery without deleting" }
+            {
+              "name": "trigger",
+              "required": true,
+              "description": "Trigger: band, floor, rate, or manual"
+            },
+            {
+              "name": "partition",
+              "required": true,
+              "description": "Filesystem under pressure"
+            },
+            {
+              "name": "used-percent",
+              "description": "Current df-style usage percentage"
+            },
+            {
+              "name": "available-bytes",
+              "description": "Current unprivileged available bytes"
+            },
+            {
+              "name": "target-percent",
+              "description": "Requested free-space percentage (default 15)"
+            },
+            {
+              "name": "dry-run",
+              "description": "Preview recovery without deleting"
+            }
           ],
-          "binding": { "kind": "local", "handler": "run" },
-          "governance": { "effect": "destructive", "run_eligible": false, "requires_confirmation": true, "permissions": ["network:internal"] },
-          "architecture": { "primitive": "proto_mutation" }
+          "binding": {
+            "kind": "local",
+            "handler": "run"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "requires_confirmation": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
         },
         {
           "name": "wait",
           "description": "Wait for a server-owned recovery run",
-          "flags": [{ "name": "run-id", "required": true, "description": "Recovery run id" }],
-          "binding": { "kind": "local", "handler": "wait" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
-          "architecture": { "primitive": "operational" }
+          "flags": [
+            {
+              "name": "run-id",
+              "required": true,
+              "description": "Recovery run id"
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "wait"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
         },
         {
           "name": "history",
           "description": "List server-owned recovery runs",
-          "flags": [{ "name": "limit", "description": "Maximum number of runs" }],
-          "binding": { "kind": "local", "handler": "history" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
-          "architecture": { "primitive": "proto_list" }
+          "flags": [
+            {
+              "name": "limit",
+              "description": "Maximum number of runs"
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "history"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
         }
       ]
     },
@@ -590,44 +707,134 @@
           "name": "run",
           "description": "Start a server-owned recovery run",
           "flags": [
-            { "name": "trigger", "required": true, "description": "Trigger: band, floor, rate, or manual" },
-            { "name": "partition", "required": true, "description": "Filesystem under pressure" },
-            { "name": "used-percent", "description": "Current df-style usage percentage" },
-            { "name": "available-bytes", "description": "Current unprivileged available bytes" },
-            { "name": "target-percent", "description": "Requested free-space percentage (default 15)" },
-            { "name": "dry-run", "description": "Preview recovery without deleting" }
+            {
+              "name": "trigger",
+              "required": true,
+              "description": "Trigger: band, floor, rate, or manual"
+            },
+            {
+              "name": "partition",
+              "required": true,
+              "description": "Filesystem under pressure"
+            },
+            {
+              "name": "used-percent",
+              "description": "Current df-style usage percentage"
+            },
+            {
+              "name": "available-bytes",
+              "description": "Current unprivileged available bytes"
+            },
+            {
+              "name": "target-percent",
+              "description": "Requested free-space percentage (default 15)"
+            },
+            {
+              "name": "dry-run",
+              "description": "Preview recovery without deleting"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "CleanupService", "method": "StartRecovery" },
-          "governance": { "effect": "destructive", "run_eligible": false, "requires_confirmation": true, "permissions": ["network:internal"] },
-          "architecture": { "primitive": "proto_mutation" }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CleanupService",
+            "method": "StartRecovery"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "requires_confirmation": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
         },
         {
           "name": "wait",
           "description": "Wait for a server-owned recovery run",
-          "flags": [{ "name": "run-id", "required": true, "description": "Recovery run id" }],
-          "binding": { "kind": "connect-rpc", "service": "CleanupService", "method": "WaitRecovery" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
-          "architecture": { "primitive": "operational" }
+          "flags": [
+            {
+              "name": "run-id",
+              "required": true,
+              "description": "Recovery run id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CleanupService",
+            "method": "WaitRecovery"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
         },
         {
           "name": "history",
           "description": "List server-owned recovery runs",
-          "flags": [{ "name": "limit", "description": "Maximum number of runs" }],
-          "binding": { "kind": "connect-rpc", "service": "CleanupService", "method": "ListRecovery" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
-          "architecture": { "primitive": "proto_list" }
+          "flags": [
+            {
+              "name": "limit",
+              "description": "Maximum number of runs"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CleanupService",
+            "method": "ListRecovery"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
         },
         {
           "name": "chaos",
           "description": "Write a bounded governed-root workload and exercise rate recovery",
           "flags": [
-            { "name": "root", "required": true, "description": "Existing governed temporary root under $VROOLI_HOME/tmp/go-work" },
-            { "name": "rate", "required": true, "description": "Write rate, for example 20GiB/h" },
-            { "name": "duration", "description": "Writer duration, default 8m, maximum 10m" }
+            {
+              "name": "root",
+              "required": true,
+              "description": "Existing governed temporary root under $VROOLI_HOME/tmp/go-work"
+            },
+            {
+              "name": "rate",
+              "required": true,
+              "description": "Write rate, for example 20GiB/h"
+            },
+            {
+              "name": "duration",
+              "description": "Writer duration, default 8m, maximum 10m"
+            }
           ],
-          "binding": { "kind": "local" },
-          "governance": { "effect": "destructive", "run_eligible": false, "requires_confirmation": true, "permissions": ["network:internal"] },
-          "architecture": { "primitive": "action" }
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "requires_confirmation": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
         }
       ]
     },
@@ -680,11 +887,15 @@
         {
           "name": "growth",
           "description": "Rank per-owner storage velocity and ceiling projections",
-          "binding": { "kind": "local" },
+          "binding": {
+            "kind": "local"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         },
         {
@@ -774,21 +985,29 @@
         {
           "name": "writers",
           "description": "Rank persisted governed-root writer rates",
-          "binding": { "kind": "local" },
+          "binding": {
+            "kind": "local"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         },
         {
           "name": "qdrant",
           "description": "Show owner-managed Qdrant generation accounting",
-          "binding": { "kind": "local" },
+          "binding": {
+            "kind": "local"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         }
       ]

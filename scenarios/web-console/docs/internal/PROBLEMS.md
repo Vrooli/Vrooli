@@ -1,5 +1,148 @@
 # Web Console — Known Problems and Risks
 
+## 2026-10-16 — Replace fragile HTML body pinch scaling (W3)
+
+**Implementation replaced; native iPhone Safari qualification remains open.**
+Operator feedback: "very laggy and glitchy and easy easily breaks".
+Screenshot `IMG_1682.png` shows large white gutters above/beside the report.
+This evidence supersedes the native-quality implication of the earlier pinch
+completion and work record `25616e66-b6b7-4ee8-887c-074c1ecbe313`.
+The prior Chromium checks measured successful magnification, not Safari quality.
+
+Bounded task: replace the document-mutating gesture path; verify stable focal
+zoom, bounded panning, repeated pinch-out, unchanged authored styles, and existing
+controls using focused regressions and browser fixtures. Do not relax the sandbox.
+Hypotheses: body scaling/read/write/scroll work causes expensive updates and
+exposes the iframe canvas; alternatively app-wide visual viewport changes cause
+chrome/layout movement. Source and screenshot support the first mechanism;
+app-wide zoom was unchanged in browser observations. Native Safari was not
+available to reproduce its exact white-gutter behavior.
+
+Measured the old live bundle over 240 touch moves: **248 body style mutations,
+488 body measurements, 240 scroll calls**, and **24px accumulated scroll drift**
+after four in/out cycles. The replacement transports gestures from the opaque
+iframe and applies one clipped iframe transform per animation frame in the host.
+It never transforms/measures the authored body during a gesture. Screen-space
+contacts remain independent of iframe transforms. Offsets clamp at every edge;
+residual panning continues through the document only after reaching an edge.
+Frame identity and numeric payload checks restrict the message channel to that
+preview's inspection/scrolling. No host operation or same-origin privilege is added.
+
+Evidence: **36 focused tests PASS** across compositor/transport, renderers and
+workspace wrapper. TypeScript, standalone-runtime strict JS checking, scoped
+TypeScript lint, whitespace checks, production/profile builds PASS. Browser
+fixtures in both bundles exercise eight pinch strokes (240 moves), pan through
+1,298px of document scroll, pinch-out, source switching, and viewport/zoom controls.
+During pinch: **0 body mutations, 0 body measurements, 0 scroll calls, 0 scroll
+drift**. Coverage checks find no exposed edge beyond subpixel rounding (0.002px).
+Authored body scale remains unset; the document viewport and opaque origin remain.
+
+These browser fixtures construct explicit touch coordinates: Chromium's
+[documented CDP coordinate defect](https://issues.chromium.org/issues/40280325)
+returns identical screen coordinates for different contacts. This limitation was
+confirmed locally. An attempted client-coordinate fallback fed back through the
+changing iframe transform and was removed; no such workaround ships. Fixtures
+exercise the DOM/rendering/message path but do not certify physical Safari input
+or device frame rate. Local iOS simulator tooling is unsupported on Linux; the
+bridge inventory probe is unauthenticated, so no device-disconnection claim is
+made. Native iPhone Safari remains unverified.
+
+Evidence: `/tmp/wc-html-pinch-old-probe.json`,
+`/tmp/wc-pinch-compositor-{unit.log,browser-proof.json,profile-proof.json,
+types.log,runtime-types.log,build.log}`, and
+`/tmp/wc-pinch-compositor-{magnified,panned}.png`.
+Scoped Test Genie unit run **20261016-151253-40c6b1f2 FAIL** reports only the API
+Go command failure (existing **knw-1792160172206667201**), with no UI command
+failure. Source changed during validation; final focused/browser checks cover
+the final transport and compositor, without claiming an exact-version full-suite
+certificate. The final production bundle is served by the existing UI runtime.
+
+## 2026-10-16 — Independent HTML preview pinch magnification (W3)
+
+**Scoped repair complete.** Follow-up to toolbar work record
+`1e62ba1b-0321-424e-836c-e55629ec3356`. The operator requested browser-like pinch
+magnification independent of rendering zoom. Bounded task goal: work until
+preview-local pinch, focal anchoring, panning and pinch-out hold without changing
+the toolbar zoom, CSS viewport/media queries, app chrome or sandbox authority;
+prove with focused tests, browser touch input, type/lint/build and scoped unit phase.
+
+Root-cause hypotheses: (1) app viewport directives intentionally disable native
+browser zoom; (2) the iframe has no local gesture handler and its touch events do
+not bubble into the parent; (3) sandbox policy prevents gesture scripting.
+Source inspection supported (1)/(2); real-touch browser checks reject (3) because
+the handler runs under the existing script-only opaque-origin sandbox. Related
+Messages/terminal pinch hooks change typography and do not supply this separate
+inspection behavior. The regression first failed because the HTML document had
+no installed pinch handler. With the handler removed from the same production
+srcdoc, real pinch leaves painting at 1×; restoring it produces 2× magnification.
+
+Implemented a self-contained inline module inside srcdoc: distance-based 1–5×
+paint scaling around the moving finger midpoint; one-finger panning when
+magnified, including continuation after lifting one finger; pinch-out restores
+author styles. Single-finger scrolling/taps at 1× and ordinary wheel scrolling
+remain native; Ctrl+wheel supports trackpad pinch. Cancelled/degenerate gestures
+are bounded. The runtime is embedded from a raw JavaScript asset rather than
+serializing a bundled function, avoiding missing helper references in profiling
+builds. It needs no parent bridge, external dependency, or sandbox relaxation.
+
+Evidence: **44 focused tests PASS** across pinch, renderers, workspace wrapper and
+locale catalogs. TypeScript, strict checking of the standalone JS runtime,
+scoped TypeScript lint, production build and profiling build PASS. Chromium real
+touch dispatch verifies 1440px layout/desktop media queries remain constant while
+paint width doubles to 2880px, one-finger panning moves both axes, pinch-out
+returns to 1440px, toolbar remains Fit and outer visualViewport.scale stays 1.
+Actual browser checks also verify restoration of authored !important scale/origin
+styles, which the jsdom iframe style implementation cannot represent faithfully.
+Both production and profiling bundles pass. Native iPhone Safari remains
+unverified. Evidence: `/tmp/wc-html-pinch-{focused-final.log,typecheck.log,build-final.log,
+runtime-typecheck.log,browser-proof.json,profile-browser-proof.json}` and
+`/tmp/wc-html-pinch-{magnified,restored}.png`.
+
+Scoped Test Genie unit run **20261016-142915-1ef25621 FAIL**, with one execution
+error: the API Go command. No UI command failure is reported. This remains the
+recorded API issue **knw-1792160172206667201**; no duplicate report was filed.
+The shared worktree changed during the run, so it is not an exact-version
+certificate for the final module extraction; final focused and browser checks
+above explicitly cover that extraction. No W0–W2 or full-suite pass is claimed.
+
+## 2026-10-16 — HTML drawer viewport and zoom controls (W3)
+
+**Scoped repair complete.** Work shape: bounded task. The operator screenshot and
+`TextRenderers.tsx` identified W3: a dark Preview/Source button row and a frame
+fixed to drawer width. Target and composition: [Architecture](../concepts/ARCHITECTURE.md)
+and [desktop/mobile mockup](../mockups/html-preview-toolbar.svg).
+
+Bounded handoff goal: Work until the documented HTML toolbar behavior holds,
+proven by focused renderer/locale tests, type-check/lint/build, and desktop/mobile
+browser assertions. Keep adjacent failures outside the UI repair boundary.
+
+Implemented: shared morphing ghost icon toggle, transparent toolbar, Responsive/
+Phone (390px)/Tablet (768px)/Desktop (1440px), Fit and 10–200% zoom. Presets fit
+immediately; manual zoom preserves CSS viewport width and permits horizontal
+panning. Resize observation updates Fit; source switches preserve choices and a
+new preview resets them. English/Arabic/Japanese labels are aligned. The existing
+sandbox, asset restrictions, and source-first line/truncation behavior remain.
+
+Evidence: **35 focused tests PASS** (renderer, workspace wrapper, locale parity).
+Scoped ESLint, TypeScript, production build, and whitespace checks PASS. Chromium
+at desktop and 390px/320px touch widths verifies native iframe width=1440,
+desktop media-query matching while scaled to the available width, horizontal
+panning at 100%, source/zoom preservation, no toolbar overflow, and 44px touch
+targets. Native Safari is unverified. Evidence: `/tmp/wc-html-preview-focused-final.log`,
+`/tmp/wc-html-preview-typecheck.log`, `/tmp/wc-html-preview-build-final.log`,
+`/tmp/wc-html-preview-browser-extra-proof.json`, and
+`/tmp/wc-html-preview-{mobile,mobile-narrow,desktop}.png`.
+
+Scoped Test Genie unit run **20261016-140952-25784903 FAIL**: API Go command
+failure and initial missing locale keys. The locale omission is repaired and
+all seven catalog checks pass in the final focused cohort. The API root cause
+is unknown: retained evidence contains a truncated passing-test tail plus package
+FAIL. Reported as **knw-1792160172206667201**. The actual HTML report also depends
+on unavailable external Mermaid code (**knw-1792159967422613968**). This is not
+a scenario-wide unit certificate or W0–W2 audit. The final build is served by
+the existing UI runtime. Documentation append through Knowledge Observatory
+returned HTTP 400, so this record was added directly to the existing file.
+
 ## 2026-10-16 — Large video blocked inside HTML previews (W3)
 
 **RESOLVED (bounded implementation repair):** The operator could see the new
@@ -1213,11 +1356,15 @@ real-session mutation permissions changed. The original audit's retained-debt
 paragraph is historical; current evidence and remaining limits are in the
 [follow-up audit](../perf/2026-10-15-long-session-performance.md#authorized-follow-up-implementation--2026-10-16).
 
-Evidence so far: the original implementation fails regressions for background
-Workspace renders and duplicate/unbounded startup loads; 119 focused tests now
-pass; full type-check and touched-production lint pass. Guarded deployed baseline
-observed 31 concurrent history requests, 32 requests for 31 sessions. Unit phases
-`20261016-131742-facec4ac` (Web Console) and `20261016-131741-30ff3215`
-(Performance Health) are owned by Test Genie; final deployed evidence follows in
-the audit. Physical iPhone validation has no verified authorized device route:
-bridge inventory returned unauthenticated. Browser emulation is not physical proof.
+Final validation: all 2,862 UI tests pass with every configured coverage floor
+met; full type-check and touched-file lint pass. Original-code regressions establish
+the root-render, hydration and reorder-lifecycle defects. Production startup
+JavaScript is 15.95% smaller; peak history requests fall from 31 to 3 while total
+startup reads remain 32. Live rendering traces are mixed and do not establish a
+rendering-speed improvement. Performance Health unit run `20261016-131741-30ff3215`
+and final deployed Web Console performance run `20261016-134657-6b914169` pass.
+The broader Web Console unit run has an API failure of unverified cause, filed as
+`knw-1792157470039179090`; no whole-scenario certification is claimed. Final Console
+and API health checks pass. Physical iPhone behavior remains unverified; the user
+accepted available browser checks after bridge inventory could not authenticate.
+Full artifacts and limitations are retained in the audit.

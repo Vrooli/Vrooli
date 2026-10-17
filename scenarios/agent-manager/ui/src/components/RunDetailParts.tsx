@@ -39,9 +39,7 @@ import { useCollapsiblePanel } from "../hooks/useCollapsiblePanel";
 import { useResizablePanel } from "../hooks/useResizablePanel";
 import { useViewportSize } from "../hooks/useViewportSize";
 import type {
-  ApproveFormData,
   ContextAttachmentData,
-  RejectFormData,
   Run,
   RunDiff,
   RunEvent,

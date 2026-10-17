@@ -3,6 +3,7 @@ package providers
 import (
 	"context"
 	"fmt"
+	"io"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -11,6 +12,127 @@ import (
 	"storage-manager/internal/cleanup"
 	cleanupfakes "storage-manager/internal/testutil/cleanup"
 )
+
+func TestTemporaryApplyRejectsLegacyPreviewVersion(t *testing.T) {
+	provider, fsys := newTmpProvider(t, dir(filepath.Join(tmpRoot, "old"), at(20, 0)))
+	_, err := provider.Apply(context.Background(), cleanup.ApplyRequest{ProviderVersion: "v1", IdempotencyKey: "legacy", Preview: cleanup.Preview{Items: []cleanup.PreviewItem{{Path: filepath.Join(tmpRoot, "old")}}}})
+	if err == nil || len(fsys.Removed) != 0 {
+		t.Fatalf("legacy preview reached cleanup: err=%v removed=%v", err, fsys.Removed)
+	}
+}
+
+func TestTemporaryRecoveryResumesLargeEntryWithoutOfferingPartialTree(t *testing.T) {
+	staging := filepath.Join(tmpRoot, "old-large-fixture")
+	fsys := &resumableTestFS{FileSystem: &cleanupfakes.FileSystem{Root: tmpRoot, Files: map[string]cleanup.FileInfo{
+		staging: dir(staging, at(20, 0)),
+	}}, items: []cleanup.FileInfo{dir(staging, at(20, 0)), file(staging+"/old", 3<<30, at(20, 0)), file(staging+"/new", 100, at(31, 11))}}
+	provider := NewTmpProvider(fsys, cleanupfakes.Clock{Time: now}, FileProviderConfig{ID: "tmp", Roots: []string{tmpRoot}, TopLevelEntries: true})
+	for i := 0; i < 4; i++ {
+		ctx, cancel := context.WithCancel(context.Background())
+		fsys.cancel = cancel
+		preview, err := provider.Preview(ctx, cleanup.PreviewRequest{Scope: cleanup.ObservationScope{Now: now, Recovery: true}, Policy: cleanup.ProviderPolicy{Enabled: true, MinAge: 7 * 24 * time.Hour}})
+		cancel()
+		if err != nil {
+			t.Fatalf("bounded observation %d discarded progress: %v", i, err)
+		}
+		if len(preview.Items) != 0 {
+			t.Fatalf("offered a partial or recently modified tree: %#v", preview.Items)
+		}
+		if i == 3 && preview.BlockedReason != "" {
+			t.Fatalf("complete active tree remains pending: %#v", preview)
+		}
+	}
+	if fsys.opens != 1 {
+		t.Fatalf("reopened large tree %d times; want one resumable walk", fsys.opens)
+	}
+}
+
+func TestTemporaryApplyRechecksDescendantsAndRootProtection(t *testing.T) {
+	staging := filepath.Join(tmpRoot, "old-apply-fixture")
+	provider, fsys := newTmpProvider(t, dir(staging, at(20, 0)), file(staging+"/payload", 100, at(20, 0)))
+	preview := previewWithMinAge(t, provider, 7*24*time.Hour)
+	fsys.Files[staging+"/fresh"] = file(staging+"/fresh", 1, now)
+	req := cleanup.ApplyRequest{ProviderVersion: provider.Metadata().Version, IdempotencyKey: "fresh-after-preview", Preview: preview}
+	result, err := provider.Apply(context.Background(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Applied || len(fsys.Removed) != 0 || len(result.SkippedItems) != 1 {
+		t.Fatalf("removed newly active temporary tree: %#v %v", result, fsys.Removed)
+	}
+	req.Preview = cleanup.Preview{Items: []cleanup.PreviewItem{{ID: "root", Path: tmpRoot, Bytes: 100}}}
+	result, err = provider.Apply(context.Background(), req)
+	if err != nil || result.Applied || len(fsys.Removed) != 0 {
+		t.Fatalf("configured temporary root was removable: %#v %v", result, err)
+	}
+}
+
+func TestTemporaryRecoveryAllowsOneFullyMeasuredOversizedEntry(t *testing.T) {
+	staging := filepath.Join(tmpRoot, "old-large-fixture")
+	fsys := &resumableTestFS{FileSystem: &cleanupfakes.FileSystem{Root: tmpRoot, Files: map[string]cleanup.FileInfo{staging: dir(staging, at(20, 0))}}, items: []cleanup.FileInfo{dir(staging, at(20, 0)), file(staging+"/payload", 3<<30, at(20, 0))}}
+	provider := NewTmpProvider(fsys, cleanupfakes.Clock{Time: now}, FileProviderConfig{ID: "tmp", Roots: []string{tmpRoot}, TopLevelEntries: true})
+	preview, err := provider.Preview(context.Background(), cleanup.PreviewRequest{Scope: cleanup.ObservationScope{Now: now, Recovery: true}, Policy: cleanup.ProviderPolicy{Enabled: true, MinAge: 7 * 24 * time.Hour}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(preview.Items) != 1 || !preview.AllowSingleOvershoot {
+		t.Fatalf("large expired temporary entry is unreachable: %#v", preview)
+	}
+}
+
+func TestTemporaryRecoveryAllowsExpiredHiddenPayloadButProtectsLeaseMarkers(t *testing.T) {
+	for _, lease := range []bool{false, true} {
+		t.Run(fmt.Sprintf("lease=%t", lease), func(t *testing.T) {
+			staging := filepath.Join(tmpRoot, "expired-home")
+			entries := []cleanup.FileInfo{dir(staging, at(20, 0)), dir(staging+"/.cache", at(20, 0)), file(staging+"/.cache/payload", 3<<30, at(20, 0))}
+			if lease {
+				entries = append(entries, file(staging+"/.lease", 0, at(20, 0)))
+			}
+			fsys := &resumableTestFS{FileSystem: &cleanupfakes.FileSystem{Root: tmpRoot, Files: map[string]cleanup.FileInfo{staging: entries[0]}}, items: entries}
+			provider := NewTmpProvider(fsys, cleanupfakes.Clock{Time: now}, FileProviderConfig{ID: "tmp", Roots: []string{tmpRoot}, TopLevelEntries: true})
+			preview, err := provider.Preview(context.Background(), cleanup.PreviewRequest{Scope: cleanup.ObservationScope{Now: now, Recovery: true}, Policy: cleanup.ProviderPolicy{Enabled: true, MinAge: 72 * time.Hour}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if (!lease && len(preview.Items) != 1) || (lease && len(preview.Items) != 0) {
+				t.Fatalf("hidden/lease classification: %#v", preview)
+			}
+		})
+	}
+}
+
+type resumableTestFS struct {
+	*cleanupfakes.FileSystem
+	items  []cleanup.FileInfo
+	cancel context.CancelFunc
+	opens  int
+}
+
+func (f *resumableTestFS) OpenWalk(context.Context, string) (cleanup.FileWalk, error) {
+	f.opens++
+	return &resumableTestWalk{fsys: f}, nil
+}
+
+type resumableTestWalk struct {
+	fsys  *resumableTestFS
+	index int
+}
+
+func (w *resumableTestWalk) Next(ctx context.Context) (cleanup.FileInfo, error) {
+	if err := ctx.Err(); err != nil {
+		return cleanup.FileInfo{}, err
+	}
+	if w.index == len(w.fsys.items) {
+		return cleanup.FileInfo{}, io.EOF
+	}
+	item := w.fsys.items[w.index]
+	w.index++
+	if w.fsys.cancel != nil {
+		w.fsys.cancel()
+	}
+	return item, nil
+}
+func (*resumableTestWalk) Close() error { return nil }
 
 const tmpRoot = "/tmp"
 

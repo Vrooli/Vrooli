@@ -8,21 +8,6 @@ import (
 	bundlemanifest "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
 
-const (
-	platformWin        = "win"
-	platformMac        = "mac"
-	platformDarwin     = "darwin"
-	platformLinux      = "linux"
-	platformWindows    = "windows"
-	platformAMD64      = "amd64"
-	platformArm64      = "arm64"
-	platformWinX64     = "win-x64"
-	platformRuntime    = "runtime"
-	platformRuntimeCtl = "runtimectl"
-	platformExe        = ".exe"
-	platformWarning    = "warning"
-)
-
 // defaultPlatformResolver is the default implementation of PlatformResolver.
 type defaultPlatformResolver struct{}
 
@@ -39,26 +24,26 @@ func (p *defaultPlatformResolver) ParseKey(key string) (string, string, error) {
 		return "", "", fmt.Errorf("invalid platform key %q", key)
 	}
 
-	if len(parts) != 2 { //nolint:mnd // platform identifier has OS and architecture parts
+	if len(parts) != 2 {
 		return "", "", fmt.Errorf("invalid platform key %q", key)
 	}
 	goos := parts[0]
 	switch goos {
-	case platformWin:
-		goos = platformWindows
-	case platformMac:
-		goos = platformDarwin
-	case platformDarwin, platformLinux, platformWindows:
+	case "win":
+		goos = "windows"
+	case "mac", "macos":
+		goos = "darwin"
+	case "darwin", "linux", "windows":
 	default:
 		return "", "", fmt.Errorf("unsupported platform os %q", goos)
 	}
 
 	goarch := parts[1]
 	switch goarch {
-	case "x64", platformAMD64:
-		goarch = platformAMD64
-	case platformArm64, "aarch64":
-		goarch = platformArm64
+	case "x64", "amd64":
+		goarch = "amd64"
+	case "arm64", "aarch64":
+		goarch = "arm64"
 	default:
 		return "", "", fmt.Errorf("unsupported arch %q", goarch)
 	}
@@ -69,16 +54,16 @@ func (p *defaultPlatformResolver) ParseKey(key string) (string, string, error) {
 // NormalizeRuntime normalizes a platform key for runtime staging.
 func (p *defaultPlatformResolver) NormalizeRuntime(platform string) string {
 	switch platform {
-	case platformLinux, "linux-amd64", "linux-x64":
+	case "linux", "linux-amd64", "linux-x64":
 		return "linux-x64"
 	case "linux-arm64", "linux-aarch64":
 		return "linux-arm64"
-	case platformMac, platformDarwin, "mac-x64", "darwin-amd64", "darwin-x64":
+	case "mac", "macos", "darwin", "mac-x64", "macos-x64", "macos-amd64", "darwin-amd64", "darwin-x64":
 		return "darwin-x64"
-	case "mac-arm64", "darwin-arm64":
+	case "mac-arm64", "macos-arm64", "darwin-arm64":
 		return "darwin-arm64"
-	case platformWin, platformWindows, platformWinX64, "windows-amd64", "windows-x64":
-		return platformWinX64
+	case "win", "windows", "win-x64", "windows-amd64", "windows-x64":
+		return "win-x64"
 	case "win-arm64", "windows-arm64":
 		return "win-arm64"
 	default:
@@ -88,18 +73,18 @@ func (p *defaultPlatformResolver) NormalizeRuntime(platform string) string {
 
 // RuntimeBinaryName returns the runtime binary name for a GOOS.
 func (p *defaultPlatformResolver) RuntimeBinaryName(goos string) string {
-	if goos == platformWindows {
+	if goos == "windows" {
 		return "runtime.exe"
 	}
-	return platformRuntime
+	return "runtime"
 }
 
 // RuntimeCtlBinaryName returns the runtimectl binary name for a GOOS.
 func (p *defaultPlatformResolver) RuntimeCtlBinaryName(goos string) string {
-	if goos == platformWindows {
+	if goos == "windows" {
 		return "runtimectl.exe"
 	}
-	return platformRuntimeCtl
+	return "runtimectl"
 }
 
 // ResolveBinaryForPlatform resolves the binary entry for a service on a platform.
@@ -135,39 +120,39 @@ func (p *defaultPlatformResolver) ResolveBinaryForPlatform(svc bundlemanifest.Se
 func expandShorthandToHostArch(platform string) (string, string) {
 	goarch := runtime.GOARCH
 	switch goarch {
-	case platformAMD64:
-		goarch = platformAMD64
-	case platformArm64:
-		goarch = platformArm64
+	case "amd64":
+		goarch = "amd64"
+	case "arm64":
+		goarch = "arm64"
 	default:
-		goarch = platformAMD64 // default fallback
+		goarch = "amd64" // default fallback
 	}
 
 	switch platform {
-	case platformLinux:
-		return platformLinux, goarch
-	case platformWin, platformWindows:
-		return platformWindows, goarch
-	case platformMac, platformDarwin:
-		return platformDarwin, goarch
+	case "linux":
+		return "linux", goarch
+	case "win", "windows":
+		return "windows", goarch
+	case "mac", "macos", "darwin":
+		return "darwin", goarch
 	}
 	return "", ""
 }
 
 func expandShorthandPlatform(platform string) []string {
-	archs := []string{"x64", platformArm64, platformAMD64, "aarch64"}
+	archs := []string{"x64", "arm64", "amd64", "aarch64"}
 	var keys []string
 
 	switch platform {
-	case platformWin, platformWindows:
+	case "win", "windows":
 		for _, arch := range archs {
 			keys = append(keys, "win-"+arch, "windows-"+arch)
 		}
-	case platformMac, platformDarwin:
+	case "mac", "macos", "darwin":
 		for _, arch := range archs {
-			keys = append(keys, "darwin-"+arch, "mac-"+arch)
+			keys = append(keys, "darwin-"+arch, "mac-"+arch, "macos-"+arch)
 		}
-	case platformLinux:
+	case "linux":
 		for _, arch := range archs {
 			keys = append(keys, "linux-"+arch)
 		}
@@ -184,6 +169,9 @@ func aliasPlatformKey(key string) string {
 	}
 	if strings.HasPrefix(key, "darwin-") {
 		return "mac-" + strings.TrimPrefix(key, "darwin-")
+	}
+	if strings.HasPrefix(key, "macos-") {
+		return "darwin-" + strings.TrimPrefix(key, "macos-")
 	}
 	if strings.HasPrefix(key, "mac-") {
 		return "darwin-" + strings.TrimPrefix(key, "mac-")

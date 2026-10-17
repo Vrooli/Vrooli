@@ -768,6 +768,46 @@ those modules; root `go.mod` and `go.sum` changes fan out to all Go surfaces.
 
 ---
 
+### Resource Python first-lock bootstrap
+
+The existing install gateway can create a resource's first `requirements.lock`
+from authored `requirements.in`. The resource must declare that exact lockfile
+in a `python-wheels` acquisition step, with HTTPS primary/extra index URLs.
+No placeholder lock, private environment or raw package-manager command is needed.
+
+```bash
+scenario-dependency-analyzer deps install pip/torch@2.7.1+cu126 --scenario stable-audio-3 --surface resource --json
+# After reviewing all direct-package approvals and the preview:
+scenario-dependency-analyzer deps install pip/torch@2.7.1+cu126 --scenario stable-audio-3 --surface resource --apply --json
+```
+
+The trigger must match an authored exact direct pin. Every direct requirement
+passes the existing approval, scope and version checks; approving the trigger
+alone does not approve its peers. Input supports exact `name==version` lines and
+named direct HTTPS wheels with an exact `#sha256=<64 lowercase hex>` fragment.
+Includes, ranges, source archives, local files, URL credentials/query strings and
+input-level index options refuse. Index policy comes from the resource manifest.
+
+Apply runs a wheel-only, no-build, hash-generating resolver for Python3.12/Linux
+x86_64 with a three-minute owner deadline and bounded diagnostics. Authored bytes
+and index metadata are checked against the approved resolution. Publication
+requires hashed entries, retained direct wheel identity/hash and all authored
+pins, and refuses an existing output. This updates dependency source only:
+`source_updated=true`, `installed=false`; normal resource acquisition and runtime
+qualification remain separate. The CLI allows the owner deadline plus15seconds
+for delivery. Dry-run does not run the resolver.
+
+Python range evaluation supports a bounded stable-release subset: one to three
+numeric public-version components; `>=`, `>`, `<=`, `<`, `==`; and comma AND.
+Observed local builds such as `+cu126` are ignored for public-version constraints.
+An exact full literal approval also supports versions such as the FlashAttention
+post/local wheel tag. Prerelease/dev/post comparisons, partial wildcards, OR and
+ordered local-version constraints are not approximated; unsupported syntax
+refuses as `range_unparseable`. Existing explicit `*` approvals keep their meaning.
+This is not a full PEP440 implementation. Registry keys still distinguish
+pip/pypi and package punctuation; review explicit canonical-key proposals rather
+than assuming an alias approval exists.
+
 ### deps approved
 
 Inspect approved third-party dependency governance records. Approved records are

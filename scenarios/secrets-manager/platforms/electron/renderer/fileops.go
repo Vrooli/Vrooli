@@ -51,7 +51,7 @@ func (f *defaultFileOperations) CopyFile(src, dst string) error {
 		return nil
 	}
 
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil { //nolint:mnd // executable renderer output mode
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return err
 	}
 	info, err := os.Stat(src)
@@ -114,7 +114,7 @@ func (f *defaultFileOperations) copyDir(src, dst string, mode fs.FileMode) error
 			if err != nil {
 				return err
 			}
-			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil { //nolint:mnd // executable renderer output mode
+			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 				return err
 			}
 			// Remove existing file/symlink if it exists

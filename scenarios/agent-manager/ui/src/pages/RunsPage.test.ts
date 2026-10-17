@@ -15,17 +15,15 @@ const state = vi.hoisted(() => ({
 
 vi.mock("../hooks/useRunsPageState.js", () => ({ useRunsPageState: state.useRunsPageState }));
 vi.mock("../hooks/useSelectedRunController.js", () => ({ useSelectedRunController: state.useSelectedRunController }));
-vi.mock("../components/RunDetail.js", () => ({ RunDetail: ({ taskTitle, run, onApplyInvestigation, onInvestigate, onRetry, onApprove, onReject, onPartialApprove, onContinue, onDeleteMessage, onStop, onDelete }: {
+vi.mock("../components/RunDetail.js", () => ({ RunDetail: ({ taskTitle, run, onApplyInvestigation, onInvestigate, onRetry, onPartialApprove, onContinue, onDeleteMessage, onStop, onDelete }: {
   taskTitle: string; run: { id: string }; onApplyInvestigation: (id: string) => void; onInvestigate: (id: string) => void;
-  onRetry: (run: { id: string }) => Promise<unknown>; onApprove: (request: unknown) => Promise<unknown>; onReject: (request: unknown) => Promise<unknown>;
+  onRetry: (run: { id: string }) => Promise<unknown>;
   onPartialApprove: (fileIds: string[], actor?: string, message?: string) => Promise<unknown>; onContinue: (message: string, attachmentIds?: string[]) => Promise<unknown>;
   onDeleteMessage: (eventId: string) => Promise<unknown>; onStop: (run: { id: string }) => Promise<unknown>; onDelete: (run: { id: string }) => void;
 }) => createElement("div", { "data-testid": "run-detail" }, taskTitle,
   createElement("button", { onClick: () => onApplyInvestigation(run.id) }, "Apply from detail"),
   createElement("button", { onClick: () => onInvestigate(run.id) }, "Investigate from detail"),
   createElement("button", { onClick: () => onRetry(run) }, "Retry from detail"),
-  createElement("button", { onClick: () => onApprove({ actor: "reviewer" }) }, "Approve from detail"),
-  createElement("button", { onClick: () => onReject({ reason: "needs work" }) }, "Reject from detail"),
   createElement("button", { onClick: () => onPartialApprove(["file-1"], "reviewer", "keep this") }, "Partial approve from detail"),
   createElement("button", { onClick: () => onContinue("continue carefully", ["attachment-1"]) }, "Continue from detail"),
   createElement("button", { onClick: () => onDeleteMessage("message-1") }, "Delete message from detail"),
@@ -60,7 +58,7 @@ test("RunsPage exposes its empty, API-error, refresh, and no-selection states", 
   renderWithProviders(createElement(RunsPage, {
     runs: [], tasks: [], profiles: [], loading: false, error: "Runs API unavailable", onRefresh: refresh,
     onStopRun: vi.fn(), onDeleteRun: vi.fn(), onRetryRun: vi.fn(), onGetRun: vi.fn(), onGetEvents: vi.fn(), onGetDiff: vi.fn(), onGetTask: vi.fn(),
-    onApproveRun: vi.fn(), onRejectRun: vi.fn(), onPartialApproveRun: vi.fn(), onStartInvestigation: vi.fn(), onApplyInvestigation: vi.fn(),
+    onPartialApproveRun: vi.fn(), onStartInvestigation: vi.fn(), onApplyInvestigation: vi.fn(),
     onResumeFromFailedRun: vi.fn(), onContinueRun: vi.fn(), onDeleteRunMessage: vi.fn(),
     runEventStore: runEventStore as never, wsSubscribe: noop, wsUnsubscribe: noop,
   }));
@@ -84,7 +82,7 @@ test("RunsPage wires a selected review run into its detail surface", () => {
   renderWithProviders(createElement(RunsPage, {
     runs: [selected], tasks: [], profiles: [], loading: false, error: null, onRefresh: noop,
     onStopRun: vi.fn(), onDeleteRun: vi.fn(), onRetryRun: vi.fn(), onGetRun: vi.fn(), onGetEvents: vi.fn(), onGetDiff: vi.fn(), onGetTask: vi.fn(),
-    onApproveRun: vi.fn(), onRejectRun: vi.fn(), onPartialApproveRun: vi.fn(), onStartInvestigation: vi.fn(), onApplyInvestigation: vi.fn(),
+    onPartialApproveRun: vi.fn(), onStartInvestigation: vi.fn(), onApplyInvestigation: vi.fn(),
     onResumeFromFailedRun: vi.fn(), onContinueRun: vi.fn(), onDeleteRunMessage: vi.fn(),
     runEventStore: runEventStore as never, wsSubscribe: noop, wsUnsubscribe: noop,
   }), { initialEntries: ["/runs/review-run?tab=diff"] });
@@ -123,7 +121,7 @@ test("RunsPage performs list lifecycle actions and preserves the deliberate dele
   renderWithProviders(createElement(RunsPage, {
     runs: [run], tasks: [], profiles: [], loading: false, error: null, onRefresh: refresh,
     onStopRun: stopped, onDeleteRun: deleted, onRetryRun: vi.fn(), onGetRun: vi.fn(), onGetEvents: vi.fn(), onGetDiff: vi.fn(), onGetTask: vi.fn(),
-    onApproveRun: vi.fn(), onRejectRun: vi.fn(), onPartialApproveRun: vi.fn(), onStartInvestigation: vi.fn(), onApplyInvestigation: vi.fn(),
+    onPartialApproveRun: vi.fn(), onStartInvestigation: vi.fn(), onApplyInvestigation: vi.fn(),
     onResumeFromFailedRun: vi.fn(), onContinueRun: vi.fn(), onDeleteRunMessage: vi.fn(),
     runEventStore: runEventStore as never, wsSubscribe: noop, wsUnsubscribe: noop,
   }), { initialEntries: ["/runs"] });
@@ -152,7 +150,7 @@ test("RunsPage launches a batch investigation from explicit selected source runs
   const investigate = vi.fn(async () => created);
   renderWithProviders(createElement(RunsPage, {
     runs: [source], tasks: [], profiles: [], loading: false, error: null, onRefresh: noop,
-    onStopRun: vi.fn(), onDeleteRun: vi.fn(), onRetryRun: vi.fn(), onGetRun: vi.fn(), onGetEvents: vi.fn(), onGetDiff: vi.fn(), onGetTask: vi.fn(), onApproveRun: vi.fn(), onRejectRun: vi.fn(), onPartialApproveRun: vi.fn(),
+    onStopRun: vi.fn(), onDeleteRun: vi.fn(), onRetryRun: vi.fn(), onGetRun: vi.fn(), onGetEvents: vi.fn(), onGetDiff: vi.fn(), onGetTask: vi.fn(), onPartialApproveRun: vi.fn(),
     onStartInvestigation: investigate, onApplyInvestigation: vi.fn(), onResumeFromFailedRun: vi.fn(), onContinueRun: vi.fn(), onDeleteRunMessage: vi.fn(),
     runEventStore: { state: { runsById: {}, lastSequenceByRunId: {} }, actions: { subscribeRun: noop, unsubscribeRun: noop, runSnapshotLoaded: snapshot, eventsGapFilled: noop } } as never, wsSubscribe: noop, wsUnsubscribe: noop,
   }), { initialEntries: ["/runs"] });
@@ -180,7 +178,7 @@ test("RunsPage keeps an investigation modal open and explains a create failure",
   const investigate = vi.fn(async () => { throw new Error("investigation runner unavailable"); });
   renderWithProviders(createElement(RunsPage, {
     runs: [source], tasks: [], profiles: [], loading: false, error: null, onRefresh: noop,
-    onStopRun: vi.fn(), onDeleteRun: vi.fn(), onRetryRun: vi.fn(), onGetRun: vi.fn(), onGetEvents: vi.fn(), onGetDiff: vi.fn(), onGetTask: vi.fn(), onApproveRun: vi.fn(), onRejectRun: vi.fn(), onPartialApproveRun: vi.fn(),
+    onStopRun: vi.fn(), onDeleteRun: vi.fn(), onRetryRun: vi.fn(), onGetRun: vi.fn(), onGetEvents: vi.fn(), onGetDiff: vi.fn(), onGetTask: vi.fn(), onPartialApproveRun: vi.fn(),
     onStartInvestigation: investigate, onApplyInvestigation: vi.fn(), onResumeFromFailedRun: vi.fn(), onContinueRun: vi.fn(), onDeleteRunMessage: vi.fn(),
     runEventStore: { state: { runsById: {}, lastSequenceByRunId: {} }, actions: { subscribeRun: noop, unsubscribeRun: noop, runSnapshotLoaded: noop, eventsGapFilled: noop } } as never, wsSubscribe: noop, wsUnsubscribe: noop,
   }), { initialEntries: ["/runs"] });
@@ -198,7 +196,7 @@ test("RunsPage resumes a failed run with explicit operator guidance and updates 
   const resume = vi.fn(async () => resumed);
   renderWithProviders(createElement(RunsPage, {
     runs: [failed], tasks: [], profiles: [], loading: false, error: null, onRefresh: refresh,
-    onStopRun: vi.fn(), onDeleteRun: vi.fn(), onRetryRun: vi.fn(), onGetRun: vi.fn(), onGetEvents: vi.fn(), onGetDiff: vi.fn(), onGetTask: vi.fn(), onApproveRun: vi.fn(), onRejectRun: vi.fn(), onPartialApproveRun: vi.fn(), onStartInvestigation: vi.fn(), onApplyInvestigation: vi.fn(),
+    onStopRun: vi.fn(), onDeleteRun: vi.fn(), onRetryRun: vi.fn(), onGetRun: vi.fn(), onGetEvents: vi.fn(), onGetDiff: vi.fn(), onGetTask: vi.fn(), onPartialApproveRun: vi.fn(), onStartInvestigation: vi.fn(), onApplyInvestigation: vi.fn(),
     onResumeFromFailedRun: resume, onContinueRun: vi.fn(), onDeleteRunMessage: vi.fn(),
     runEventStore: { state: { runsById: {}, lastSequenceByRunId: {} }, actions: { subscribeRun: noop, unsubscribeRun: noop, runSnapshotLoaded: snapshot, eventsGapFilled: noop } } as never, wsSubscribe: noop, wsUnsubscribe: noop,
   }), { initialEntries: ["/runs"] });
@@ -218,7 +216,7 @@ test("RunsPage opens detail-originated apply investigation and hands off the cre
   const apply = vi.fn(async () => created);
   renderWithProviders(createElement(RunsPage, {
     runs: [investigation], tasks: [], profiles: [], loading: false, error: null, onRefresh: noop,
-    onStopRun: vi.fn(), onDeleteRun: vi.fn(), onRetryRun: vi.fn(), onGetRun: vi.fn(), onGetEvents: vi.fn(), onGetDiff: vi.fn(), onGetTask: vi.fn(), onApproveRun: vi.fn(), onRejectRun: vi.fn(), onPartialApproveRun: vi.fn(), onStartInvestigation: vi.fn(), onApplyInvestigation: apply,
+    onStopRun: vi.fn(), onDeleteRun: vi.fn(), onRetryRun: vi.fn(), onGetRun: vi.fn(), onGetEvents: vi.fn(), onGetDiff: vi.fn(), onGetTask: vi.fn(), onPartialApproveRun: vi.fn(), onStartInvestigation: vi.fn(), onApplyInvestigation: apply,
     onResumeFromFailedRun: vi.fn(), onContinueRun: vi.fn(), onDeleteRunMessage: vi.fn(),
     runEventStore: { state: { runsById: {}, lastSequenceByRunId: {} }, actions: { subscribeRun: noop, unsubscribeRun: noop, runSnapshotLoaded: snapshot, eventsGapFilled: noop } } as never, wsSubscribe: noop, wsUnsubscribe: noop,
   }), { initialEntries: ["/runs/investigation-run"] });
@@ -242,7 +240,7 @@ test("RunsPage presents distinct status indicators, including rejected approval"
   state.useSelectedRunController.mockReturnValue({ selectedRun: null, setSelectedRun: noop, selectedRunId: null, diff: null, events: [], eventsLoading: false, diffLoading: false, resolvedRuns: runs, getTaskById: () => undefined, getTaskTitle: (id: string) => id, loadRunDetails: noop });
   renderWithProviders(createElement(RunsPage, {
     runs, tasks: [], profiles: [], loading: false, error: null, onRefresh: noop,
-    onStopRun: vi.fn(), onDeleteRun: vi.fn(), onRetryRun: vi.fn(), onGetRun: vi.fn(), onGetEvents: vi.fn(), onGetDiff: vi.fn(), onGetTask: vi.fn(), onApproveRun: vi.fn(), onRejectRun: vi.fn(), onPartialApproveRun: vi.fn(), onStartInvestigation: vi.fn(), onApplyInvestigation: vi.fn(), onResumeFromFailedRun: vi.fn(), onContinueRun: vi.fn(), onDeleteRunMessage: vi.fn(),
+    onStopRun: vi.fn(), onDeleteRun: vi.fn(), onRetryRun: vi.fn(), onGetRun: vi.fn(), onGetEvents: vi.fn(), onGetDiff: vi.fn(), onGetTask: vi.fn(), onPartialApproveRun: vi.fn(), onStartInvestigation: vi.fn(), onApplyInvestigation: vi.fn(), onResumeFromFailedRun: vi.fn(), onContinueRun: vi.fn(), onDeleteRunMessage: vi.fn(),
     runEventStore: { state: { runsById: {}, lastSequenceByRunId: {} }, actions: { subscribeRun: noop, unsubscribeRun: noop, runSnapshotLoaded: noop, eventsGapFilled: noop } } as never, wsSubscribe: noop, wsUnsubscribe: noop,
   }), { initialEntries: ["/runs"] });
   for (const title of ["Complete", "Failed", "Running", "Needs Review", "Rejected"]) {
@@ -256,7 +254,7 @@ test("RunsPage retains the delete dialog and reports an API failure", async () =
   state.useSelectedRunController.mockReturnValue({ selectedRun: null, setSelectedRun: noop, selectedRunId: null, diff: null, events: [], eventsLoading: false, diffLoading: false, resolvedRuns: [run], getTaskById: () => undefined, getTaskTitle: () => "Undeletable task", loadRunDetails: noop });
   renderWithProviders(createElement(RunsPage, {
     runs: [run], tasks: [], profiles: [], loading: false, error: null, onRefresh: noop,
-    onStopRun: vi.fn(), onDeleteRun: vi.fn(async () => { throw new Error("run history is retained"); }), onRetryRun: vi.fn(), onGetRun: vi.fn(), onGetEvents: vi.fn(), onGetDiff: vi.fn(), onGetTask: vi.fn(), onApproveRun: vi.fn(), onRejectRun: vi.fn(), onPartialApproveRun: vi.fn(), onStartInvestigation: vi.fn(), onApplyInvestigation: vi.fn(), onResumeFromFailedRun: vi.fn(), onContinueRun: vi.fn(), onDeleteRunMessage: vi.fn(),
+    onStopRun: vi.fn(), onDeleteRun: vi.fn(async () => { throw new Error("run history is retained"); }), onRetryRun: vi.fn(), onGetRun: vi.fn(), onGetEvents: vi.fn(), onGetDiff: vi.fn(), onGetTask: vi.fn(), onPartialApproveRun: vi.fn(), onStartInvestigation: vi.fn(), onApplyInvestigation: vi.fn(), onResumeFromFailedRun: vi.fn(), onContinueRun: vi.fn(), onDeleteRunMessage: vi.fn(),
     runEventStore: { state: { runsById: {}, lastSequenceByRunId: {} }, actions: { subscribeRun: noop, unsubscribeRun: noop, runSnapshotLoaded: noop, eventsGapFilled: noop } } as never, wsSubscribe: noop, wsUnsubscribe: noop,
   }), { initialEntries: ["/runs"] });
   fireEvent.click(screen.getByRole("button", { name: "Delete run Undeletable task" }));
@@ -275,8 +273,6 @@ test("RunsPage propagates detail actions and refreshes its event snapshot after 
   const snapshot = vi.fn();
   const eventsGapFilled = vi.fn();
   const getEvents = vi.fn(async () => []);
-  const approve = vi.fn(async () => ({ remaining: 0 }));
-  const reject = vi.fn(async () => undefined);
   const partialApprove = vi.fn(async () => ({ remaining: 0 }));
   const retry = vi.fn(async () => retryCreated);
   const continueRun = vi.fn(async () => continued);
@@ -291,7 +287,7 @@ test("RunsPage propagates detail actions and refreshes its event snapshot after 
   renderWithProviders(createElement(RunsPage, {
     runs: [run], tasks: [], profiles: [], loading: false, error: null, onRefresh: refresh,
     onStopRun: stop, onDeleteRun: vi.fn(), onRetryRun: retry, onGetRun: vi.fn(), onGetEvents: getEvents, onGetDiff: vi.fn(), onGetTask: vi.fn(),
-    onApproveRun: approve, onRejectRun: reject, onPartialApproveRun: partialApprove, onStartInvestigation: vi.fn(), onApplyInvestigation: vi.fn(),
+    onPartialApproveRun: partialApprove, onStartInvestigation: vi.fn(), onApplyInvestigation: vi.fn(),
     onResumeFromFailedRun: vi.fn(), onContinueRun: continueRun, onDeleteRunMessage: deleteMessage,
     runEventStore: { state: { runsById: {}, lastSequenceByRunId: { [run.id]: 7n } }, actions: { subscribeRun: noop, unsubscribeRun: noop, runSnapshotLoaded: snapshot, eventsGapFilled } } as never,
     wsSubscribe: noop, wsUnsubscribe: noop,
@@ -302,14 +298,10 @@ test("RunsPage propagates detail actions and refreshes its event snapshot after 
   assert.deepEqual(snapshot.mock.calls[0], [retryCreated]);
   assert.deepEqual(loadRunDetails.mock.calls, [[retryCreated]]);
 
-  fireEvent.click(screen.getByRole("button", { name: "Approve from detail" }));
-  fireEvent.click(screen.getByRole("button", { name: "Reject from detail" }));
   fireEvent.click(screen.getByRole("button", { name: "Partial approve from detail" }));
-  await vi.waitFor(() => assert.deepEqual(approve.mock.calls, [[run.id, { actor: "reviewer" }]]));
-  assert.deepEqual(reject.mock.calls, [[run.id, { reason: "needs work" }]]);
-  assert.deepEqual(partialApprove.mock.calls, [[run.id, ["file-1"], "reviewer", "keep this"]]);
-  assert.ok(setSelectedRun.mock.calls.filter(([value]) => value === null).length >= 3);
-  assert.equal(refresh.mock.calls.length, 3);
+  await vi.waitFor(() => assert.deepEqual(partialApprove.mock.calls, [[run.id, ["file-1"], "reviewer", "keep this"]]));
+  assert.ok(setSelectedRun.mock.calls.filter(([value]) => value === null).length >= 1);
+  assert.equal(refresh.mock.calls.length, 1);
 
   fireEvent.click(screen.getByRole("button", { name: "Continue from detail" }));
   fireEvent.click(screen.getByRole("button", { name: "Delete message from detail" }));
@@ -325,7 +317,7 @@ test("RunsPage propagates detail actions and refreshes its event snapshot after 
 
   fireEvent.click(screen.getByRole("button", { name: "Stop from detail" }));
   await vi.waitFor(() => assert.deepEqual(stop.mock.calls, [[run.id]]));
-  assert.equal(refresh.mock.calls.length, 4);
+  assert.equal(refresh.mock.calls.length, 2);
   fireEvent.click(screen.getByRole("button", { name: "Delete from detail" }));
   assert.ok(screen.getByRole("heading", { name: "Delete Run" }));
 });
@@ -357,7 +349,7 @@ test("RunsPage filters status and forwards row selection using the visible run o
   renderWithProviders(createElement(RunsPage, {
     runs: [newest, excluded, oldest], tasks: [], profiles: [], loading: false, error: null, onRefresh: noop,
     onStopRun: vi.fn(), onDeleteRun: vi.fn(), onRetryRun: vi.fn(), onGetRun: vi.fn(), onGetEvents: vi.fn(), onGetDiff: vi.fn(), onGetTask: vi.fn(),
-    onApproveRun: vi.fn(), onRejectRun: vi.fn(), onPartialApproveRun: vi.fn(), onStartInvestigation: vi.fn(), onApplyInvestigation: vi.fn(),
+    onPartialApproveRun: vi.fn(), onStartInvestigation: vi.fn(), onApplyInvestigation: vi.fn(),
     onResumeFromFailedRun: vi.fn(), onContinueRun: vi.fn(), onDeleteRunMessage: vi.fn(),
     runEventStore: { state: { runsById: {}, lastSequenceByRunId: {} }, actions: { subscribeRun: noop, unsubscribeRun: noop, runSnapshotLoaded: noop, eventsGapFilled: noop } } as never,
     wsSubscribe: noop, wsUnsubscribe: noop,
@@ -386,7 +378,7 @@ test("RunsPage keeps the destructive confirmation open and reports a delete fail
   renderWithProviders(createElement(RunsPage, {
     runs: [run], tasks: [], profiles: [], loading: false, error: null, onRefresh: noop,
     onStopRun: vi.fn(), onDeleteRun: remove, onRetryRun: vi.fn(), onGetRun: vi.fn(), onGetEvents: vi.fn(), onGetDiff: vi.fn(), onGetTask: vi.fn(),
-    onApproveRun: vi.fn(), onRejectRun: vi.fn(), onPartialApproveRun: vi.fn(), onStartInvestigation: vi.fn(), onApplyInvestigation: vi.fn(),
+    onPartialApproveRun: vi.fn(), onStartInvestigation: vi.fn(), onApplyInvestigation: vi.fn(),
     onResumeFromFailedRun: vi.fn(), onContinueRun: vi.fn(), onDeleteRunMessage: vi.fn(),
     runEventStore: { state: { runsById: {}, lastSequenceByRunId: {} }, actions: { subscribeRun: noop, unsubscribeRun: noop, runSnapshotLoaded: noop, eventsGapFilled: noop } } as never,
     wsSubscribe: noop, wsUnsubscribe: noop,
@@ -412,7 +404,7 @@ test("RunsPage retains apply and resume workflows when their creation requests f
   renderWithProviders(createElement(RunsPage, {
     runs: [investigation, failed], tasks: [], profiles: [], loading: false, error: null, onRefresh: noop,
     onStopRun: vi.fn(), onDeleteRun: vi.fn(), onRetryRun: vi.fn(), onGetRun: vi.fn(), onGetEvents: vi.fn(), onGetDiff: vi.fn(), onGetTask: vi.fn(),
-    onApproveRun: vi.fn(), onRejectRun: vi.fn(), onPartialApproveRun: vi.fn(), onStartInvestigation: vi.fn(), onApplyInvestigation: apply,
+    onPartialApproveRun: vi.fn(), onStartInvestigation: vi.fn(), onApplyInvestigation: apply,
     onResumeFromFailedRun: resume, onContinueRun: vi.fn(), onDeleteRunMessage: vi.fn(),
     runEventStore: { state: { runsById: {}, lastSequenceByRunId: {} }, actions: { subscribeRun: noop, unsubscribeRun: noop, runSnapshotLoaded: noop, eventsGapFilled: noop } } as never,
     wsSubscribe: noop, wsUnsubscribe: noop,
@@ -439,8 +431,6 @@ test("RunsPage forwards detail review, retry, and transcript actions into the du
   const snapshot = vi.fn();
   const gapFilled = vi.fn();
   const refresh = vi.fn();
-  const approve = vi.fn().mockResolvedValue({});
-  const reject = vi.fn().mockResolvedValue(undefined);
   const partial = vi.fn().mockResolvedValue({ remaining: 0 });
   const retry = vi.fn().mockResolvedValue(retried);
   const continueRun = vi.fn().mockResolvedValue(continued);
@@ -455,7 +445,7 @@ test("RunsPage forwards detail review, retry, and transcript actions into the du
   renderWithProviders(createElement(RunsPage, {
     runs: [run], tasks: [], profiles: [], loading: false, error: null, onRefresh: refresh,
     onStopRun: vi.fn(), onDeleteRun: vi.fn(), onRetryRun: retry, onGetRun: vi.fn(), onGetEvents: vi.fn().mockResolvedValue(events), onGetDiff: vi.fn(), onGetTask: vi.fn(),
-    onApproveRun: approve, onRejectRun: reject, onPartialApproveRun: partial, onStartInvestigation: vi.fn(), onApplyInvestigation: vi.fn(),
+    onPartialApproveRun: partial, onStartInvestigation: vi.fn(), onApplyInvestigation: vi.fn(),
     onResumeFromFailedRun: vi.fn(), onContinueRun: continueRun, onDeleteRunMessage: deleteMessage,
     runEventStore: { state: { runsById: {}, lastSequenceByRunId: { [run.id]: 4n } }, actions: { subscribeRun: noop, unsubscribeRun: noop, runSnapshotLoaded: snapshot, eventsGapFilled: gapFilled } } as never,
     wsSubscribe: noop, wsUnsubscribe: noop,
@@ -466,14 +456,10 @@ test("RunsPage forwards detail review, retry, and transcript actions into the du
   assert.deepEqual(snapshot.mock.calls.at(-1), [retried]);
   assert.deepEqual(loadRunDetails.mock.calls.at(-1), [retried]);
 
-  fireEvent.click(screen.getByRole("button", { name: "Approve from detail" }));
-  fireEvent.click(screen.getByRole("button", { name: "Reject from detail" }));
   fireEvent.click(screen.getByRole("button", { name: "Partial approve from detail" }));
-  await vi.waitFor(() => assert.equal(refresh.mock.calls.length, 3));
-  assert.deepEqual(approve.mock.calls, [[run.id, { actor: "reviewer" }]]);
-  assert.deepEqual(reject.mock.calls, [[run.id, { reason: "needs work" }]]);
+  await vi.waitFor(() => assert.equal(refresh.mock.calls.length, 1));
   assert.deepEqual(partial.mock.calls, [[run.id, ["file-1"], "reviewer", "keep this"]]);
-  assert.equal(setSelectedRun.mock.calls.filter(([value]) => value === null).length, 3);
+  assert.equal(setSelectedRun.mock.calls.filter(([value]) => value === null).length, 1);
 
   fireEvent.click(screen.getByRole("button", { name: "Continue from detail" }));
   fireEvent.click(screen.getByRole("button", { name: "Delete message from detail" }));
@@ -496,7 +482,7 @@ test("RunsPage makes stop cancellation and stop failures non-destructive", async
   renderWithProviders(createElement(RunsPage, {
     runs: [run], tasks: [], profiles: [], loading: false, error: null, onRefresh: refresh,
     onStopRun: stop, onDeleteRun: vi.fn(), onRetryRun: vi.fn(), onGetRun: vi.fn(), onGetEvents: vi.fn(), onGetDiff: vi.fn(), onGetTask: vi.fn(),
-    onApproveRun: vi.fn(), onRejectRun: vi.fn(), onPartialApproveRun: vi.fn(), onStartInvestigation: vi.fn(), onApplyInvestigation: vi.fn(),
+    onPartialApproveRun: vi.fn(), onStartInvestigation: vi.fn(), onApplyInvestigation: vi.fn(),
     onResumeFromFailedRun: vi.fn(), onContinueRun: vi.fn(), onDeleteRunMessage: vi.fn(),
     runEventStore: { state: { runsById: {}, lastSequenceByRunId: {} }, actions: { subscribeRun: noop, unsubscribeRun: noop, runSnapshotLoaded: noop, eventsGapFilled: noop } } as never,
     wsSubscribe: noop, wsUnsubscribe: noop,
@@ -529,7 +515,7 @@ test("RunsPage keeps typed investigation context bounded and clears transient mo
   renderWithProviders(createElement(RunsPage, {
     runs: [source], tasks: [{ id: source.taskId, projectRoot: "/workspace/agent-manager", scopePath: "api:ui:docs" }] as never[], profiles: [], loading: false, error: null, onRefresh: noop,
     onStopRun: vi.fn(), onDeleteRun: vi.fn(), onRetryRun: vi.fn(), onGetRun: vi.fn(), onGetEvents: vi.fn(), onGetDiff: vi.fn(), onGetTask: vi.fn(),
-    onApproveRun: vi.fn(), onRejectRun: vi.fn(), onPartialApproveRun: vi.fn(), onStartInvestigation: vi.fn(), onApplyInvestigation: vi.fn(),
+    onPartialApproveRun: vi.fn(), onStartInvestigation: vi.fn(), onApplyInvestigation: vi.fn(),
     onResumeFromFailedRun: vi.fn(), onContinueRun: vi.fn(), onDeleteRunMessage: vi.fn(),
     runEventStore: { state: { runsById: {}, lastSequenceByRunId: {} }, actions: { subscribeRun: noop, unsubscribeRun: noop, runSnapshotLoaded: noop, eventsGapFilled: noop } } as never,
     wsSubscribe: noop, wsUnsubscribe: noop,
@@ -557,7 +543,7 @@ test("RunsPage communicates pending, starting, and cancelled statuses plus profi
   renderWithProviders(createElement(RunsPage, {
     runs, tasks: [], profiles: [{ id: "known", name: "Reliable profile" }] as never[], loading: false, error: null, onRefresh: noop,
     onStopRun: vi.fn(), onDeleteRun: vi.fn(), onRetryRun: vi.fn(), onGetRun: vi.fn(), onGetEvents: vi.fn(), onGetDiff: vi.fn(), onGetTask: vi.fn(),
-    onApproveRun: vi.fn(), onRejectRun: vi.fn(), onPartialApproveRun: vi.fn(), onStartInvestigation: vi.fn(), onApplyInvestigation: vi.fn(),
+    onPartialApproveRun: vi.fn(), onStartInvestigation: vi.fn(), onApplyInvestigation: vi.fn(),
     onResumeFromFailedRun: vi.fn(), onContinueRun: vi.fn(), onDeleteRunMessage: vi.fn(),
     runEventStore: { state: { runsById: {}, lastSequenceByRunId: {} }, actions: { subscribeRun: noop, unsubscribeRun: noop, runSnapshotLoaded: noop, eventsGapFilled: noop } } as never,
     wsSubscribe: noop, wsUnsubscribe: noop,
@@ -585,7 +571,7 @@ test.each([
   renderWithProviders(createElement(RunsPage, {
     runs, tasks: [], profiles: [], loading: false, error: null, onRefresh: noop,
     onStopRun: vi.fn(), onDeleteRun: vi.fn(), onRetryRun: vi.fn(), onGetRun: vi.fn(), onGetEvents: vi.fn(), onGetDiff: vi.fn(), onGetTask: vi.fn(),
-    onApproveRun: vi.fn(), onRejectRun: vi.fn(), onPartialApproveRun: vi.fn(), onStartInvestigation: vi.fn(), onApplyInvestigation: vi.fn(),
+    onPartialApproveRun: vi.fn(), onStartInvestigation: vi.fn(), onApplyInvestigation: vi.fn(),
     onResumeFromFailedRun: vi.fn(), onContinueRun: vi.fn(), onDeleteRunMessage: vi.fn(), runEventStore: runEventStore as never, wsSubscribe: noop, wsUnsubscribe: noop,
   }), { initialEntries: [`/runs?${query}`] });
   assert.ok(screen.getByText("Matching history"));

@@ -2,6 +2,8 @@ package adapters
 
 import (
 	"context"
+	"io"
+
 	"unit-health/internal/testquality"
 )
 
@@ -29,6 +31,17 @@ type ExecutionEvidenceInput struct {
 type ExecutionEvidenceAdapter interface {
 	PrepareExecutionEvidence(string, []string) ([]string, bool)
 	ObserveExecutionEvidence(ExecutionEvidenceInput) ([]testquality.TestLinks, testquality.Reason)
+}
+
+// ExecutionDiagnostics is a bounded command-local observation, separate from
+// complete execution proof. Summary is called only after the runner finishes.
+type ExecutionDiagnostics interface {
+	io.Writer
+	Summary() string
+}
+
+type ExecutionDiagnosticsAdapter interface {
+	NewExecutionDiagnostics() ExecutionDiagnostics
 }
 
 // QualityCollector is an optional adapter capability. The kernel supplies a

@@ -3,8 +3,10 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -37,6 +39,7 @@ import (
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/repo-contract-go/cliinvoke"
 	"github.com/vrooli/vrooli/internal/recovery"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	apiHandlers "github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/handlers"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/incidents"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/middleware"
@@ -484,7 +487,152 @@ func setupRouter(h *apiHandlers.Handlers, ch *apiHandlers.ConfigHandlers) *mux.R
 	router.HandleFunc("/api/v1/config/monitoring/resources", ch.AddResource).Methods("POST")
 	router.HandleFunc("/api/v1/config/monitoring/resources/{name}", ch.RemoveResource).Methods("DELETE")
 
+	// Operator-decision resolution webhook. notification-hub delivers an operator's
+	// answer to a remediation approval here (through signed vrooli-events); the
+	// shared operatordecision.Webhook verifies the HMAC signature and the autoheal
+	// decision effect reconstructs the apply call server-side. The secret is the
+	// fleet-shared VROOLI_EVENTS_WEBHOOK_SECRET; without it the webhook is simply
+	// not mounted and the manual /approve REST route remains the only apply path
+	// (no regression).
+	mountDecisionResolutionWebhook(router, h)
+
 	return router
+}
+
+const (
+	eventsWebhookIdentity = "vrooli/vrooli-events"
+	// eventsWebhookField is the SAME field agent-manager mints and vrooli-events
+	// signs its webhook bodies with. Autoheal resolves (never re-mints a rival)
+	// this value so its signature verification matches the sender, with no env
+	// provisioning. See scenarios/agent-manager/api/internal/wiring/events_secret.go.
+	eventsWebhookField = "agent-manager-webhook-secret"
+)
+
+// resolveEventsWebhookSecret returns the shared vrooli-events webhook signing
+// secret: the VROOLI_EVENTS_WEBHOOK_SECRET env override first (deployments that
+// inject it explicitly), otherwise the credential-authority value vrooli-events
+// itself uses. ResolveOrMint returns the existing secret when it exists and mints
+// one only on first use, so producer and consumer converge on one value.
+func resolveEventsWebhookSecret() (string, error) {
+	if secret := strings.TrimSpace(os.Getenv("VROOLI_EVENTS_WEBHOOK_SECRET")); secret != "" {
+		return secret, nil
+	}
+	identity, err := credentialauthority.ParseIdentity(eventsWebhookIdentity)
+	if err != nil {
+		return "", fmt.Errorf("parse events webhook credential identity: %w", err)
+	}
+	authority, err := credentialauthority.Default()
+	if err != nil {
+		return "", fmt.Errorf("credential authority unavailable: %w", err)
+	}
+	return authority.ResolveOrMint(identity, eventsWebhookField, nil, func() (string, error) {
+		return credentialauthority.RandomBase64(32)
+	})
+}
+
+// mountDecisionResolutionWebhook mounts the ask-resolution webhook and reconciles
+// the vrooli-events subscription that delivers to it. Both are best-effort: a
+// missing secret or an unreachable vrooli-events leaves the manual apply route
+// intact.
+func mountDecisionResolutionWebhook(router *mux.Router, h *apiHandlers.Handlers) {
+	secret, err := resolveEventsWebhookSecret()
+	if err != nil || secret == "" {
+		// The webhook is best-effort: without a signing secret it cannot verify an
+		// inbound resolution, so it is not mounted and the manual /approve route
+		// remains the only apply path (no regression). This is reached only when
+		// the credential authority itself is unavailable, not by default config.
+		log.Printf("warning: events webhook secret unavailable (%v); remediation decision webhook not mounted (manual /approve still works)", err)
+		return
+	}
+	router.Handle(apiHandlers.DecisionEventWebhookPath, apiHandlers.DecisionResolvedWebhook(h, secret)).Methods(http.MethodPost)
+	if port := strings.TrimSpace(os.Getenv("API_PORT")); port != "" {
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancel()
+			if err := reconcileDecisionEventSubscription(ctx, "http://127.0.0.1:"+port+apiHandlers.DecisionEventWebhookPath); err != nil {
+				log.Printf("warning: remediation decision event subscription reconciliation failed: %v", err)
+			}
+		}()
+	}
+}
+
+// reconcileDecisionEventSubscription keeps one enabled vrooli-events subscription
+// that delivers notification_hub.ask.resolved.v1 to the autoheal decision
+// webhook. vrooli-events owns the durable row; this only ensures it exists and
+// points at the live target.
+func reconcileDecisionEventSubscription(ctx context.Context, target string) error {
+	base, err := discovery.ResolveScenarioURLDefault(ctx, "vrooli-events")
+	if err != nil {
+		return err
+	}
+	base = strings.TrimRight(base, "/")
+	client := &http.Client{Timeout: 10 * time.Second}
+	var existing []struct {
+		ID             int64  `json:"id"`
+		EventPattern   string `json:"event_pattern"`
+		DeliveryTarget string `json:"delivery_target"`
+		Enabled        bool   `json:"enabled"`
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/api/v1/subscriptions?owner=vrooli-autoheal", nil)
+	if err != nil {
+		return err
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		return fmt.Errorf("list event subscriptions returned %s", resp.Status)
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&existing); err != nil {
+		return err
+	}
+	const pattern = "notification_hub.ask.resolved.v1"
+	payload := map[string]any{"name": "vrooli-autoheal-decision-answers", "owner_scenario": "vrooli-autoheal", "event_pattern": pattern, "delivery_type": "webhook", "delivery_target": target, "enabled": true}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	for _, item := range existing {
+		if item.Enabled && item.DeliveryTarget == target && item.EventPattern == pattern {
+			return nil
+		}
+		if item.Enabled && item.DeliveryTarget == target {
+			return putDecisionSubscription(ctx, client, base, item.ID, body)
+		}
+	}
+	req, err = http.NewRequestWithContext(ctx, http.MethodPost, base+"/api/v1/subscriptions", bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err = client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		return fmt.Errorf("create event subscription returned %s", resp.Status)
+	}
+	return nil
+}
+
+func putDecisionSubscription(ctx context.Context, client *http.Client, base string, id int64, body []byte) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, fmt.Sprintf("%s/api/v1/subscriptions/%d", base, id), bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		return fmt.Errorf("update event subscription returned %s", resp.Status)
+	}
+	return nil
 }
 
 // loggingMiddleware prints simple request logs

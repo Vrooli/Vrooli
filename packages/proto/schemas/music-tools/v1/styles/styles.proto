@@ -23,6 +23,7 @@ message Style {
   double guidance_scale = 9;
   string variant = 10;
   bool builtin = 11;
+  string lyrics = 12;
 }
 
 message CompiledStyle { Style style = 1; string caption_as_sent = 2; }

@@ -3,12 +3,13 @@ package execution
 import (
 	"context"
 	"errors"
-	"github.com/vrooli/api-core/owneridentity"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/owneridentity"
 
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
@@ -51,12 +52,12 @@ func (s *Service) startLocked(ctx context.Context, executionID string) (Record, 
 			PrepareCreateRunCaller(context.Context) (context.Context, error)
 		}); ok {
 			original := s.goalQueueCallers[record.ExecutionID]
-			if original == nil || owneridentity.RequireCreateRunCaller(original, time.Now()) != nil {
+			if original == nil || owneridentity.RequireCreateRunCaller(original, time.Now(), true) != nil {
 				delete(s.goalQueueCallers, record.ExecutionID)
 				return Record{}, apierr.Wrap(owneridentity.ErrCreateRunCaller, 401, "goal queue caller expired or unavailable; submit a new authorized queue intent")
 			}
 			var callerErr error
-			ctx, callerErr = owneridentity.CarryCreateRunCaller(original, ctx, time.Now())
+			ctx, callerErr = owneridentity.CarryCreateRunCaller(original, ctx, time.Now(), true)
 			if callerErr != nil {
 				return Record{}, apierr.Wrap(callerErr, 401, "goal queue caller required")
 			}

@@ -74,6 +74,7 @@ only the resulting proof statuses and evidence.
 |---|---|---|---|
 | `api/handlers/facts/` | Transport edge | generated proto, Connect, domain contracts, module/httpx substrate | architecture tests and endpoint coverage |
 | `api/handlers/health/` | Transport edge | health contract and substrate | architecture tests and endpoint coverage |
+| `api/handlers/validation/` | Shared validation provider | scenario-validation contract and validation policy | provider contract and endpoint coverage |
 | `api/internal/targets/` | Domain core | standard library only | transport, sibling-domain, and ambient-dependency gate |
 | `api/internal/catalog/` | Domain core and persistence contract | standard library and `database/sql` only in adapter files | transport, sibling-domain, and ambient-dependency gate |
 | `api/internal/analysis/` | Domain core | standard library only | transport, sibling-domain, and ambient-dependency gate |
@@ -87,7 +88,6 @@ only the resulting proof statuses and evidence.
 | `api/internal/logging/` | Cross-cutting substrate | standard library only | compile-time interface use |
 | `api/internal/httpc/` | Cross-cutting substrate | `net/http` | package tests |
 | `api/internal/httpx/` | Cross-cutting substrate | `net/http` | package tests |
-| `api/internal/middleware/` | Cross-cutting substrate | HTTP and logging | package tests |
 | `api/internal/module/` | Transport substrate | Gorilla mux and endpoint descriptors | module tests |
 | `api/internal/modules/` | Composition registry | handler modules | registry tests |
 | `api/internal/registration/` | Search Hub integration adapter | HTTP, Connect, generated registry client | integration tests |

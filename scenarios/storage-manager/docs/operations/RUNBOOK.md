@@ -126,6 +126,103 @@ run for product acceptance and live API truthfulness.
 
 ## Disk is filling
 
+### Cleanup reliability acceptance
+
+Temporary recovery must retain traversal progress across bounded observations.
+An expired tree must not become permanently unreachable because measuring it
+takes longer than one observation. A partially measured tree is not eligible.
+Fully measured temporary entries remain indivisible; recovery may process one
+validated entry larger than its usual byte batch, with context and run limits.
+Apply must recheck identity, descendant age, activity, and configured protection.
+Changed, unreadable, foreign-owned, and active entries remain protected.
+
+Owner-budget recovery must use the owner's declared approval contract. An
+HTTP authorization refusal must be reported as authorization failure, not
+as an unreachable owner. Admission returns a recovery run identity; it does
+not claim that bytes have already been reclaimed. Operators must be able to
+distinguish pending measurement, partial progress, and verified reclaim.
+
+The 2026-10-08 repair is a scoped W3 reliability task against the existing
+provider safety, replay-safe apply, and adjacent-scenario handoff targets.
+Focused fake-filesystem and HTTP contract regressions precede relevant Test
+Genie unit/contracts phases. Live activation must preserve the Go build-cache
+prohibition and protected owner storage. The operator's separate script remains
+a one-time cleanup; it is not the retention service.
+
+### Recurring temporary retention
+
+The cleanup domain schedules one temporary-only recovery cycle every 15 minutes,
+starting after the first interval. It uses the recovery lock, bounded traversal,
+policy age, process/lease checks, protected roots and durable recovery receipts.
+Only fully measured trees qualify. One indivisible tree may exceed the normal
+2 GiB batch; its apply receives a separate five-minute revalidation window.
+Traversal progress is process-local acceleration and is lost on restart.
+
+The balanced profile runs guarded safe temporary cleanup automatically. Existing
+persisted operator approval choices remain intact when providers are reconciled.
+The temporary policy can be enabled or adjusted independently:
+
+```bash
+storage-manager cleanup configure-temporary-retention --automatic --min-age-seconds 259200 --json
+```
+
+This grants authority only to temporary entries older than three days, including
+their descendants. The endpoint rejects automatic ages below one day. To revoke
+scheduled authority without changing other providers:
+
+```bash
+storage-manager cleanup configure-temporary-retention --min-age-seconds 0 --json
+```
+
+The global autonomous-apply kill switch and disabled policy stop admission.
+Linux is the qualified platform. Unreadable ownership, changed identity,
+mount crossings, live process references, lease markers, sockets, pipes and
+device nodes prevent whole-tree deletion. A process snapshot is an observation;
+it is not a future writer lease. Writers must retain lease markers for long-lived
+temporary work that may resume after the snapshot.
+
+Complete host inspection includes files held by root and foreign processes.
+Storage Manager requests `storage.temporary-activity.observe` from the setup-managed privilege
+broker over its local Unix socket. The broker binds observation to the caller's
+kernel peer UID; it accepts no path, target UID, executable or command arguments.
+The response declares which temporary namespaces were inspected. Unobserved
+custom roots, incomplete snapshots and mismatched receipts block deletion.
+Relocating a process's `TMPDIR` preserves host `/tmp` coverage.
+
+Project setup is the only permission provisioning flow:
+
+```bash
+vrooli setup --sudo-mode=ask
+vrooli setup status --json
+```
+
+Ordinary `vrooli setup` remains non-interactive and successful when this optional
+host capability is unavailable. With elevation consent, setup installs/upgrades
+the existing root-owned broker and its service. The parent setup process stays
+in the operator's session. The service sees host temporary directories read-only.
+No standalone observer, scenario sudo call or extra sudoers rule is needed.
+Setup status includes the broker's live capability registry, so an old broker
+cannot masquerade as a qualified observer. Permission provisioning does not
+enable automatic cleanup; its separate policy grant above remains required.
+
+Inspect scheduled results with `storage-manager cleanup history --json` and
+`storage-manager cleanup audit --json`. For a manual read-only recovery probe:
+
+```bash
+storage-manager cleanup run --trigger manual --partition / --dry-run true --json
+storage-manager cleanup wait --run-id <returned-run-id> --json
+```
+
+Core supervision is independent of cleanup policy. Add both disk safeguards
+from a verified onboarding operator session:
+
+```bash
+vrooli-onboarding wizard core-set --add storage-manager,system-monitor --json
+```
+
+An unauthenticated rejection does not change core membership. Do not bypass it
+by editing operator state.
+
 1. Run `storage-manager storage growth --window 24h`.
 2. Inspect the fastest positive-slope owner and its ceiling status.
 3. Run `storage-manager cleanup plan --json`.

@@ -39,6 +39,7 @@ export interface BuildExportRequestOptions {
   format: ExportFormat;
   fileName: string;
   renderSource: RenderSource;
+  stylization?: "raw" | "stylized";
   movieSpec: ReplayMovieSpec | null;
   overrides?: ExportOverrides;
   outputDir: string;
@@ -48,6 +49,7 @@ export interface ExportRequestPayload {
   format: ExportFormat;
   file_name: string;
   render_source: RenderSource;
+  stylization?: "raw" | "stylized";
   output_dir: string;
   movie_spec?: ReplayMovieSpec;
   overrides?: ExportOverrides;
@@ -105,6 +107,7 @@ export function buildExportRequest(options: BuildExportRequestOptions): ExportRe
     file_name: fileName,
     render_source: renderSource,
     output_dir: outputDir,
+    ...(options.stylization ? { stylization: options.stylization } : {}),
   };
 
   if (hasExportFrames && movieSpec) {

@@ -40,7 +40,7 @@ export function DeploymentReadinessIntro({
           <div className={`rounded border p-3 text-xs ${statusTone("danger").panel}`}>
             <p className="font-medium">API unreachable</p>
             <p className="mt-1">
-              {apiError} Start the scenario via <code>vrooli scenario run scenario-dependency-analyzer</code>. If you use a custom port,
+              {apiError} Start the scenario via <code>vrooli scenario start scenario-dependency-analyzer</code>. If you use a custom port,
               set <code>VITE_API_PORT</code> before running <code>npm run dev</code>, or configure proxy metadata to point the UI at the right base.
             </p>
           </div>

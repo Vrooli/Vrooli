@@ -1,50 +1,8 @@
+// Ordinary unit coverage owns mocked contracts only. Native/live checks are explicit.
+const common = require('./jest.common.config');
 module.exports = {
-  preset: 'ts-jest',
-  testEnvironment: 'node',
-  maxWorkers: 1,
-  roots: ['<rootDir>/tests'],
+  ...common,
+  setupFilesAfterEnv: [...common.setupFilesAfterEnv, '<rootDir>/tests/setup/unit-no-browser.cjs'],
+  roots: ['<rootDir>/tests/unit', '<rootDir>/tests/recording'],
   testMatch: ['**/*.test.ts'],
-  // Journeys need a running shadow BAS; they run only through jest.journeys.config.js.
-  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/tests/journeys/'],
-  setupFilesAfterEnv: ['<rootDir>/tests/setup/silent-logger.ts'],
-  collectCoverage: true,
-  // Browser-bound evaluate callbacks must remain free of Node-only counters.
-  coverageProvider: 'v8',
-  coverageDirectory: 'coverage',
-  coverageReporters: ['text', 'json-summary', 'lcov'],
-  collectCoverageFrom: [
-    'src/**/*.ts',
-    '!src/**/*.d.ts',
-    '!src/types/**',
-    '!src/server.ts',
-  ],
-  coverageThreshold: {
-    global: {
-      branches: 10,
-      functions: 15,
-      lines: 30,
-      statements: 30,
-    },
-  },
-  moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/src/$1',
-  },
-  // Transform ESM packages that Jest can't parse by default
-  // @vrooli/proto-types and @bufbuild/protobuf use ESM syntax
-  transformIgnorePatterns: [
-    'node_modules/(?!((?:\\.pnpm/@vrooli\\+proto-types@[^/]+/node_modules/)?@vrooli/proto-types|@bufbuild)/)',
-  ],
-  // Configure ts-jest to transform TypeScript files in node_modules
-  transform: {
-    '^.+\\.tsx?$': [
-      'ts-jest',
-      {
-        // Allow ts-jest to process node_modules packages
-        tsconfig: {
-          allowJs: true,
-          esModuleInterop: true,
-        },
-      },
-    ],
-  },
 };

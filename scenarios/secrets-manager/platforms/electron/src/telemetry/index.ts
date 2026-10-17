@@ -36,3 +36,12 @@ export {
     createNodePathUtils,
     type TelemetryUploaderConfig,
 } from "./uploader";
+
+export {
+    createPackagedLaunchRecorder,
+    PACKAGED_LAUNCH_SCHEMA_VERSION,
+    type PackagedLaunchRecorder,
+    type LaunchEventName,
+} from "./packaged-launch";
+
+export { createLaunchProfiler, type LaunchProfiler, type ProfileArtifact, type ProfileMode } from "./profiling";

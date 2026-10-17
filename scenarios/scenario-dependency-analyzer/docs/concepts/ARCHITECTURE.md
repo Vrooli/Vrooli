@@ -1,5 +1,29 @@
 # Scenario Dependency Analyzer Architecture
 
+## Frozen control-plane tool provisioning
+
+The explicit `host-tool` dependency surface addresses `internal/tools/<name>`;
+the existing `tools/<package>` spelling continues to address shared packages.
+Host-tool requests require the declared exact npm package/version and committed
+integrity lock. Governance is evaluated before provisioning. Provisioning uses
+`npm ci --ignore-scripts --no-audit --no-fund` in a private candidate and records
+the frozen closure before atomic selection. It never modifies a scenario UI,
+downloads a browser, or replaces the current tool after a failed candidate.
+The control-plane tool owner owns candidate validation and selection; SDA owns
+dependency approval and the only package-manager execution seam.
+
+An explicit `development` install option saves JavaScript dependencies as dev
+dependencies; its default preserves existing classification. Non-JavaScript,
+override and frozen host-tool operations reject that option before effects.
+An explicit `refresh_lock` host-tool operation generates only the exact declared
+package's source manifest/lock in a private validated candidate. It is governed
+against the target version, keeps lifecycle scripts disabled and does not replace
+an installed runtime. Source publication is hash-fenced with rollback for ordinary
+errors; a crash between the two file replacements fails the exact-closure check
+and requires recovery. `source_updated` and `installed` are distinct outcomes.
+Root reviews the source diff and owner version metadata before separately
+admitting frozen provisioning of the new closure.
+
 SDA is evolving from a declared-dependency reporter into Vrooli's actual cross-scenario interface graph authority.
 
 ## Role

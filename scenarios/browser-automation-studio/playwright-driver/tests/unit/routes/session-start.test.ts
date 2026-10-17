@@ -1,35 +1,16 @@
+import { playwrightProvider } from '../../../src/playwright';
 import { interactiveProfileDefault } from '../../../src/routes/session-start';
 import { handleSessionStart } from '../../../src/routes/session-start';
 import * as frameStreaming from '../../../src/frame-streaming';
 import { SessionManager } from '../../../src/session/manager';
-import { createMockHttpRequest, createMockHttpResponse, createTestConfig } from '../../helpers';
+import { createMockHttpRequest, createMockHttpResponse, createTestConfig, createMockBrowser } from '../../helpers';
 
-// Mock playwright - must be inline to avoid hoisting issues
-jest.mock('playwright', () => ({
-  chromium: {
-    launch: jest.fn().mockResolvedValue({
-      newContext: jest.fn().mockResolvedValue({
-        newPage: jest.fn().mockResolvedValue({
-          on: jest.fn(),
-          goto: jest.fn().mockResolvedValue(null),
-          close: jest.fn().mockResolvedValue(undefined),
-          evaluate: jest.fn().mockResolvedValue(undefined),
-          viewportSize: jest.fn().mockReturnValue({ width: 1280, height: 720 }),
-        }),
-        clearCookies: jest.fn().mockResolvedValue(undefined),
-        clearPermissions: jest.fn().mockResolvedValue(undefined),
-        close: jest.fn().mockResolvedValue(undefined),
-        tracing: {
-          start: jest.fn().mockResolvedValue(undefined),
-          stop: jest.fn().mockResolvedValue(undefined),
-        },
-      }),
-      close: jest.fn().mockResolvedValue(undefined),
-      isConnected: jest.fn().mockReturnValue(true),
-      version: jest.fn().mockReturnValue('mock-version'),
-    }),
-  },
-}));
+// Exercise the actual configured provider through the existing fixture seam.
+let launchSpy: jest.SpiedFunction<typeof playwrightProvider.chromium.launch>;
+beforeEach(() => {
+  launchSpy = jest.spyOn(playwrightProvider.chromium, 'launch').mockResolvedValue(createMockBrowser());
+});
+afterEach(() => launchSpy.mockRestore());
 
 describe('Session Start Route', () => {
   let sessionManager: SessionManager;

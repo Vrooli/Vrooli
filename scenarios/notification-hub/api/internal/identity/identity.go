@@ -61,6 +61,19 @@ func Owner(ctx context.Context, headers http.Header, verifier Verifier) (ownerid
 	return identity, nil
 }
 
+// AnsweredBy returns the ACTUAL verified human behind the request — the
+// Cloudflare Access subject (or email) captured by OwnerAuthenticator — to
+// attribute an answer to the person who really gave it. It returns "" when no
+// per-human identity was verified on this request (bearer/cookie/legacy owner
+// paths), so the caller falls back to the recipient subject. It never affects
+// the recipient-only authorization check, which keeps using the owner subject.
+func AnsweredBy(ctx context.Context) string {
+	if owner, ok := ownerFromContext(ctx); ok && !owner.refused {
+		return strings.TrimSpace(owner.actor)
+	}
+	return ""
+}
+
 // Token returns the bearer token, or the owner cookie when no bearer is sent.
 func Token(headers http.Header) string {
 	if token := strings.TrimSpace(strings.TrimPrefix(headers.Get("Authorization"), "Bearer ")); token != "" {

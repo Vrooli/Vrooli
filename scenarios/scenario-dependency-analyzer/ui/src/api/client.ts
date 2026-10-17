@@ -87,10 +87,11 @@ export async function optimizeScenario(name: string, options?: OptimizeOptions):
   });
 }
 
-export async function fetchDeploymentReport(scenarioName: string): Promise<DeploymentAnalysisReport | null> {
+export async function fetchDeploymentReport(scenarioName: string, signal?: AbortSignal): Promise<DeploymentAnalysisReport | null> {
   try {
-    return await requestJson<DeploymentAnalysisReport>(`/scenarios/${scenarioName}/deployment`);
+    return await requestJson<DeploymentAnalysisReport>(`/scenarios/${scenarioName}/deployment`, { signal });
   } catch (error) {
+    if (signal?.aborted) return null;
     console.error(`Failed to fetch deployment report for ${scenarioName}:`, error);
     return null;
   }

@@ -146,6 +146,17 @@ The API validates the profile and regenerates a policy version.
 storage-manager cleanup set-profile --profile conservative
 ```
 
+#### `storage-manager cleanup configure-temporary-retention`
+
+Grant recurring cleanup authority for temporary entries only, retaining all
+other provider policies. The default age is three days; automatic cleanup
+rejects ages below one day. Omitting `--automatic` revokes scheduled authority.
+
+```bash
+storage-manager cleanup configure-temporary-retention --automatic --min-age-seconds 259200 --json
+storage-manager cleanup configure-temporary-retention --min-age-seconds 0 --json
+```
+
 #### `storage-manager cleanup plan`
 
 Run provider estimates/previews and create a stable plan id without

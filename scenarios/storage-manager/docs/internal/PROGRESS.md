@@ -20,6 +20,19 @@ work lands, not while work is still speculative.
 | 2026-07-08 | codex | partial | Phase 6 system-monitor handoff slice: implemented system-monitor's read-only `MetricsService.GetDiskDetail` path and added storage-manager remediation notes when disk pressure is high, keeping system-monitor observational while storage-manager owns cleanup policy/apply/audit. Validation: `go test ./...` passes in `scenarios/system-monitor/api`; `vrooli scenario test storage-manager` passed as `20260708-184901-fd1a5be4`. |
 | 2026-07-08 | codex | partial | Phase 7 hardening slice: cleared storage-manager's unit-health advisory debt by removing the skipped API e2e runtime branch and adding observable assertions to type-alias/a11y tests; cleared ui-health component-standard warnings by moving `HealthCard` into the standard component inventory and using adopted `Input`, `Select`, and `EmptyState` primitives in the cleanup dashboard. Validation: `go test ./...` passes in `scenarios/storage-manager/api`; `pnpm test:coverage` and `pnpm build` pass in `scenarios/storage-manager/ui`; `unit-health validate scenario storage-manager` reports no findings; `ui-health validate scenario storage-manager` reports only live-runtime unavailable info when the UI is not running; `vrooli scenario test storage-manager --json` passed as `20260708-185734-d2c7a514`. Scenario-auditor current equivalent checks: `scenario-auditor scenarios health storage-manager` reported health score 100.0; `scenario-auditor standards scan storage-manager --wait` completed as `standards-78e77968-6194-4e4b-bbc2-42b015886aaf` with overbroad/stale standards findings filed to scenario-qa as `knw-1783537291399114281`. |
 
+| 2026-10-08 | codex | done | Repaired temporary scan starvation with resumable strict directory cursors, indivisible oversized entries, identity/age/activity rechecks and v2 preview rejection; added explicitly granted temporary-only scheduled recovery and its typed CLI configuration; aligned owner-budget approval and classified HTTP failures; exposed incomplete/no-progress retention; bounded fleet acceptance fixtures and repaired census nesting and dashboard controls. A read-only control-plane process observer was prepared; its original installer was superseded by the setup-managed broker integration below. Evidence: `~/.vrooli/plan-artifacts/disk-investigation-20261008/`. |
+| 2026-10-08 | codex | done | Moved temporary observation into the existing setup-managed privilege broker; removed the standalone helper/installer and scenario sudo execution. Setup now honors elevation consent while preserving the owner's parent session, and status reports the live capability registry. Broker transport verifies the root peer, bounds waiting and payloads, and matches receipts. Retained host /tmp when TMPDIR is relocated, required whole-host activity proof with explicit root coverage, and repaired dropped managed-log subjects. Root/platform and affected storage packages pass race tests; live setup dry run succeeds. Host broker upgrade remains the normal project setup operation. |
+
+2026-10-08 — Automatic safe temporary cleanup enabled after the operator
+clarified the expected behavior. Guarded whole-tree temporary cleanup defaults
+to automatic authority in the balanced profile; conservative mode remains
+disabled, and explicitly persisted operator choices are preserved. The live
+temporary policy uses three-day retention and its fifteen-minute schedule.
+The first scheduled run completed as
+`recovery-3099782-1791483003371684670-70`, reporting 2,462,419,240 bytes
+reclaimed and `target_met`. Focused provider/policy/orchestrator
+race tests and Test Genie `20261008-200928-b2515a6e` contracts/unit pass.
+
 ## Entry Template
 
 Use this table shape when appending entries.

@@ -51,6 +51,9 @@ const (
 	// ExportsServiceGetExportStatusProcedure is the fully-qualified name of the ExportsService's
 	// GetExportStatus RPC.
 	ExportsServiceGetExportStatusProcedure = "/browser_automation_studio.v1.exports.ExportsService/GetExportStatus"
+	// ExportsServiceCancelExportProcedure is the fully-qualified name of the ExportsService's
+	// CancelExport RPC.
+	ExportsServiceCancelExportProcedure = "/browser_automation_studio.v1.exports.ExportsService/CancelExport"
 	// ExportsServiceGenerateExportCaptionProcedure is the fully-qualified name of the ExportsService's
 	// GenerateExportCaption RPC.
 	ExportsServiceGenerateExportCaptionProcedure = "/browser_automation_studio.v1.exports.ExportsService/GenerateExportCaption"
@@ -86,6 +89,11 @@ type ExportsServiceClient interface {
 	// GetExportStatus returns a compact status snapshot for reconnection
 	// scenarios (status, format, name, storage_url, file_size_bytes, error).
 	GetExportStatus(context.Context, *connect.Request[exports.GetExportStatusRequest]) (*connect.Response[exports.GetExportStatusResponse], error)
+	// CancelExport requests cancellation of an active export owned by this
+	// service. The response acknowledges the request, not terminal cleanup.
+	// Read GetExportStatus for the persisted result. Cancellation uses the
+	// existing failed status with an explicit reason; no new status is implied.
+	CancelExport(context.Context, *connect.Request[exports.CancelExportRequest]) (*connect.Response[exports.CancelExportResponse], error)
 	// GenerateExportCaption asks the configured AI provider for a short
 	// social/share caption for the export. Persists the generated caption
 	// and returns it together with the updated export.
@@ -147,6 +155,12 @@ func NewExportsServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(exportsServiceMethods.ByName("GetExportStatus")),
 			connect.WithClientOptions(opts...),
 		),
+		cancelExport: connect.NewClient[exports.CancelExportRequest, exports.CancelExportResponse](
+			httpClient,
+			baseURL+ExportsServiceCancelExportProcedure,
+			connect.WithSchema(exportsServiceMethods.ByName("CancelExport")),
+			connect.WithClientOptions(opts...),
+		),
 		generateExportCaption: connect.NewClient[exports.GenerateExportCaptionRequest, exports.GenerateExportCaptionResponse](
 			httpClient,
 			baseURL+ExportsServiceGenerateExportCaptionProcedure,
@@ -176,6 +190,7 @@ type exportsServiceClient struct {
 	updateExport          *connect.Client[exports.UpdateExportRequest, exports.UpdateExportResponse]
 	deleteExport          *connect.Client[exports.DeleteExportRequest, exports.DeleteExportResponse]
 	getExportStatus       *connect.Client[exports.GetExportStatusRequest, exports.GetExportStatusResponse]
+	cancelExport          *connect.Client[exports.CancelExportRequest, exports.CancelExportResponse]
 	generateExportCaption *connect.Client[exports.GenerateExportCaptionRequest, exports.GenerateExportCaptionResponse]
 	revealExport          *connect.Client[exports.RevealExportRequest, exports.RevealExportResponse]
 	openExportFolder      *connect.Client[exports.OpenExportFolderRequest, exports.OpenExportFolderResponse]
@@ -209,6 +224,11 @@ func (c *exportsServiceClient) DeleteExport(ctx context.Context, req *connect.Re
 // GetExportStatus calls browser_automation_studio.v1.exports.ExportsService.GetExportStatus.
 func (c *exportsServiceClient) GetExportStatus(ctx context.Context, req *connect.Request[exports.GetExportStatusRequest]) (*connect.Response[exports.GetExportStatusResponse], error) {
 	return c.getExportStatus.CallUnary(ctx, req)
+}
+
+// CancelExport calls browser_automation_studio.v1.exports.ExportsService.CancelExport.
+func (c *exportsServiceClient) CancelExport(ctx context.Context, req *connect.Request[exports.CancelExportRequest]) (*connect.Response[exports.CancelExportResponse], error) {
+	return c.cancelExport.CallUnary(ctx, req)
 }
 
 // GenerateExportCaption calls
@@ -251,6 +271,11 @@ type ExportsServiceHandler interface {
 	// GetExportStatus returns a compact status snapshot for reconnection
 	// scenarios (status, format, name, storage_url, file_size_bytes, error).
 	GetExportStatus(context.Context, *connect.Request[exports.GetExportStatusRequest]) (*connect.Response[exports.GetExportStatusResponse], error)
+	// CancelExport requests cancellation of an active export owned by this
+	// service. The response acknowledges the request, not terminal cleanup.
+	// Read GetExportStatus for the persisted result. Cancellation uses the
+	// existing failed status with an explicit reason; no new status is implied.
+	CancelExport(context.Context, *connect.Request[exports.CancelExportRequest]) (*connect.Response[exports.CancelExportResponse], error)
 	// GenerateExportCaption asks the configured AI provider for a short
 	// social/share caption for the export. Persists the generated caption
 	// and returns it together with the updated export.
@@ -307,6 +332,12 @@ func NewExportsServiceHandler(svc ExportsServiceHandler, opts ...connect.Handler
 		connect.WithSchema(exportsServiceMethods.ByName("GetExportStatus")),
 		connect.WithHandlerOptions(opts...),
 	)
+	exportsServiceCancelExportHandler := connect.NewUnaryHandler(
+		ExportsServiceCancelExportProcedure,
+		svc.CancelExport,
+		connect.WithSchema(exportsServiceMethods.ByName("CancelExport")),
+		connect.WithHandlerOptions(opts...),
+	)
 	exportsServiceGenerateExportCaptionHandler := connect.NewUnaryHandler(
 		ExportsServiceGenerateExportCaptionProcedure,
 		svc.GenerateExportCaption,
@@ -339,6 +370,8 @@ func NewExportsServiceHandler(svc ExportsServiceHandler, opts ...connect.Handler
 			exportsServiceDeleteExportHandler.ServeHTTP(w, r)
 		case ExportsServiceGetExportStatusProcedure:
 			exportsServiceGetExportStatusHandler.ServeHTTP(w, r)
+		case ExportsServiceCancelExportProcedure:
+			exportsServiceCancelExportHandler.ServeHTTP(w, r)
 		case ExportsServiceGenerateExportCaptionProcedure:
 			exportsServiceGenerateExportCaptionHandler.ServeHTTP(w, r)
 		case ExportsServiceRevealExportProcedure:
@@ -376,6 +409,10 @@ func (UnimplementedExportsServiceHandler) DeleteExport(context.Context, *connect
 
 func (UnimplementedExportsServiceHandler) GetExportStatus(context.Context, *connect.Request[exports.GetExportStatusRequest]) (*connect.Response[exports.GetExportStatusResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.exports.ExportsService.GetExportStatus is not implemented"))
+}
+
+func (UnimplementedExportsServiceHandler) CancelExport(context.Context, *connect.Request[exports.CancelExportRequest]) (*connect.Response[exports.CancelExportResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.exports.ExportsService.CancelExport is not implemented"))
 }
 
 func (UnimplementedExportsServiceHandler) GenerateExportCaption(context.Context, *connect.Request[exports.GenerateExportCaptionRequest]) (*connect.Response[exports.GenerateExportCaptionResponse], error) {

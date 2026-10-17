@@ -352,3 +352,24 @@ func TestOpenExportFolder_Happy(t *testing.T) {
 	require.Equal(t, "opened", resp.Msg.GetStatus())
 	require.True(t, h.opener.openCalled)
 }
+
+func TestCancelExportAcknowledgesOnlyOwnedJob(t *testing.T) {
+	repo := newFakeRepo()
+	id := uuid.New()
+	row := &database.ExportIndex{ID: id, ExecutionID: uuid.New(), Status: "processing", Name: "film", Format: "mp4"}
+	require.NoError(t, repo.CreateExport(t.Context(), row))
+	called := false
+	svc := &service{deps: Deps{Repo: repo, CancelExport: func(got uuid.UUID) bool { called = true; return got == id }}}
+	response, err := svc.CancelExport(t.Context(), connect.NewRequest(&exportsv1.CancelExportRequest{Id: id.String()}))
+	require.NoError(t, err)
+	require.True(t, response.Msg.GetCancellationRequested())
+	require.True(t, called)
+	persisted, err := repo.GetExport(t.Context(), id)
+	require.NoError(t, err)
+	require.Equal(t, "processing", persisted.Status, "acknowledgement cannot invent a terminal result")
+	_, err = svc.CancelExport(t.Context(), connect.NewRequest(&exportsv1.CancelExportRequest{Id: "invalid"}))
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+	svc.deps.CancelExport = nil
+	_, err = svc.CancelExport(t.Context(), connect.NewRequest(&exportsv1.CancelExportRequest{Id: id.String()}))
+	require.Equal(t, connect.CodeUnavailable, connect.CodeOf(err))
+}

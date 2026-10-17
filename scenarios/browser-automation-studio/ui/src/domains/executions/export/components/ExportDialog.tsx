@@ -643,6 +643,7 @@ interface ExportDialogProps {
 export function ExportDialog({ isOpen }: ExportDialogProps) {
   const { titleId, descriptionId, isEditMode } = useExportDialogContext();
   const { formats, isBinaryExport } = useExportFormatState();
+  const { source, recordedVideoAvailable } = useExportRenderSourceState();
   const { isStylized } = useExportStylizationState();
   const { isExporting, isPreviewLoading } = useExportProgressState();
   const { replayFramesLength } = useExportMetricsState();
@@ -696,7 +697,7 @@ export function ExportDialog({ isOpen }: ExportDialogProps) {
       {/* Content with optional sidebar */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left Sidebar - shown when stylization is enabled */}
-        {showSidebar && <ExportStylizationSidebar stylizationApplies={stylizationApplies} />}
+        {showSidebar && <ExportStylizationSidebar stylizationApplies={stylizationApplies} recordedVideo={source === "recorded_video" || (source === "auto" && recordedVideoAvailable)} />}
 
         {/* Main Content */}
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6" aria-describedby={descriptionId}>

@@ -456,3 +456,69 @@ func TestVerifyPlacementMatchesAChildProcessInsideTheArtifactTree(t *testing.T) 
 		t.Fatalf("state = %q, want drift; another process holding the device is not this resource", drifted.State)
 	}
 }
+
+func TestCUDAPlacementDoesNotInventCPUFromFailedOrIncompleteProcessProbe(t *testing.T) {
+	for _, state := range []string{"failed", "incomplete"} {
+		for _, matched := range []bool{false, true} {
+			t.Run(state+"/"+map[bool]string{true: "old-matched", false: "absent"}[matched], func(t *testing.T) {
+				snapshot := hostRunningOnCUDA(9999)
+				if matched {
+					snapshot.GPUProcesses[0].PID = 4242
+				}
+				snapshot.ProbeStatuses["nvidia_gpu_processes"] = state
+				snapshot.Warnings = []string{"current process query could not be completed"}
+				placement, err := verifierFor(snapshot, nil).VerifyPlacement(context.Background(), "ace-step", accel.HostProcess{PID: 4242, Serving: true}, accel.BackendCUDA)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if placement.State != accel.StateUndetermined || placement.Observed != "" || !strings.Contains(placement.Reason, state) {
+					t.Fatalf("probe failure invented placement: %+v", placement)
+				}
+			})
+		}
+	}
+}
+
+type currentPlacementSource struct {
+	cached, current           hostinventory.Snapshot
+	staticCalls, currentCalls int
+}
+
+func (s *currentPlacementSource) Snapshot(context.Context) (hostinventory.Snapshot, error) {
+	s.staticCalls++
+	return s.cached, nil
+}
+func (s *currentPlacementSource) PlacementSnapshot(context.Context) (hostinventory.Snapshot, error) {
+	s.currentCalls++
+	return s.current, nil
+}
+func TestPlacementUsesCurrentProcessObservationInsteadOfPreSpawnCachedRows(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		current  hostinventory.Snapshot
+		state    accel.State
+		observed accel.Backend
+	}{
+		{name: "new-gpu-process", current: hostRunningOnCUDA(4242), state: accel.StateOK, observed: accel.BackendCUDA},
+		{name: "current-other-process", current: hostRunningOnCUDA(9999), state: accel.StateDrift, observed: accel.BackendCPU},
+		{name: "current-empty", current: hostWithCUDA(), state: accel.StateDrift, observed: accel.BackendCPU},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			source := &currentPlacementSource{cached: hostRunningOnCUDA(10), current: test.current}
+			verifier := accel.Verifier{Facts: source, Attempts: 1, Sleep: noSleep}
+			got, err := verifier.VerifyPlacement(context.Background(), "ace-step", accel.HostProcess{PID: 4242, Serving: true}, accel.BackendCUDA)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.State != test.state || got.Observed != test.observed || source.staticCalls != 0 || source.currentCalls != 1 {
+				t.Fatalf("stale process facts won: %+v calls=%d/%d", got, source.staticCalls, source.currentCalls)
+			}
+		})
+	}
+	// Deliberate static providers are still pure and do not acquire a host probe.
+	supplied := hostRunningOnCUDA(4242)
+	got, err := accel.SnapshotForPlacement(context.Background(), accel.StaticFactSource{Inventory: supplied})
+	if err != nil || len(got.GPUProcesses) != 1 || got.GPUProcesses[0].PID != 4242 {
+		t.Fatalf("static simulation contract changed: %+v %v", got, err)
+	}
+}

@@ -72,26 +72,46 @@ function useRecordingTransport({
 
   // AbortController for request cancellation
   const abortControllerRef = useRef<AbortController | null>(null);
+  const mountedRef = useRef(false);
+  const ownerRef = useRef({ sessionId, generation: 0, adoptingSessionId: null as string | null });
+  if (ownerRef.current.sessionId !== sessionId) {
+    const adopting = ownerRef.current.sessionId === null && ownerRef.current.adoptingSessionId === sessionId;
+    ownerRef.current = { sessionId, generation: ownerRef.current.generation + (adopting ? 0 : 1), adoptingSessionId: null };
+  }
+  const controllerGenerationRef = useRef(-1);
+  const captureOwner = useCallback(() => {
+    const generation = ownerRef.current.generation;
+    const signal = abortControllerRef.current?.signal;
+    return { signal, isCurrent: () => mountedRef.current && generation === ownerRef.current.generation && !signal?.aborted };
+  }, []);
 
   // Clean up abort controller on unmount
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
+      mountedRef.current = false;
+      ownerRef.current = { ...ownerRef.current, generation: ownerRef.current.generation + 1, adoptingSessionId: null };
       abortControllerRef.current?.abort();
     };
   }, []);
 
-  // Reset state when session changes
+  // Reset only when the session lifetime changes. Adopting the explicitly
+  // created session keeps its recording, whether start completed before or after.
   useEffect(() => {
-    // Abort any pending requests when session changes
-    abortControllerRef.current?.abort();
-    abortControllerRef.current = new AbortController();
-
-    setRecordingId(null);
-    setIsRecording(false);
-    setError(null);
+    if (controllerGenerationRef.current !== ownerRef.current.generation) {
+      abortControllerRef.current?.abort();
+      abortControllerRef.current = new AbortController();
+      controllerGenerationRef.current = ownerRef.current.generation;
+      setIsLoading(false);
+      setIsReplaying(false);
+      setRecordingId(null);
+      setIsRecording(false);
+      setError(null);
+    }
   }, [sessionId]);
 
   const startRecording = useCallback(async (sessionIdOverride?: string) => {
+    if (!mountedRef.current) return;
     const currentSessionId = sessionIdOverride ?? sessionIdRef.current;
     if (!currentSessionId?.trim()) {
       setError('No session ID provided');
@@ -100,10 +120,14 @@ function useRecordingTransport({
 
     setIsLoading(true);
     setError(null);
+    if (sessionIdOverride && sessionIdRef.current === null) ownerRef.current.adoptingSessionId = currentSessionId;
+    const owner = captureOwner();
 
     const result = await recordingApi.startRecording(currentSessionId, {
-      signal: abortControllerRef.current?.signal,
+      signal: owner.signal,
     });
+
+    if (!owner.isCurrent()) return;
 
     setIsLoading(false);
 
@@ -121,9 +145,10 @@ function useRecordingTransport({
     } else {
       toast.success('Reconnected to existing session', { duration: 2000 });
     }
-  }, [isRecording]);
+  }, [isRecording, captureOwner]);
 
   const stopRecording = useCallback(async () => {
+    if (!mountedRef.current) return;
     const currentSessionId = sessionIdRef.current;
     if (!currentSessionId) {
       setError('No session ID provided');
@@ -132,10 +157,13 @@ function useRecordingTransport({
 
     setIsLoading(true);
     setError(null);
+    const owner = captureOwner();
 
     const result = await recordingApi.stopRecording(currentSessionId, {
-      signal: abortControllerRef.current?.signal,
+      signal: owner.signal,
     });
+
+    if (!owner.isCurrent()) return;
 
     setIsLoading(false);
 
@@ -146,10 +174,11 @@ function useRecordingTransport({
 
     setIsRecording(false);
     console.log('Recording stopped:', result.data);
-  }, []);
+  }, [captureOwner]);
 
   const generateWorkflow = useCallback(
     async (name: string, projectId?: string, actionsOverride?: RecordedAction[], settings?: WorkflowSettingsTyped): Promise<GenerateWorkflowResponse> => {
+      if (!mountedRef.current) throw new DOMException('Recording session retired', 'AbortError');
       const currentSessionId = sessionIdRef.current;
       if (!currentSessionId) {
         const error = 'No session ID provided';
@@ -166,12 +195,15 @@ function useRecordingTransport({
 
       setIsLoading(true);
       setError(null);
+      const owner = captureOwner();
 
       const result = await recordingApi.generateWorkflow(
         currentSessionId,
         { name, projectId, actions: actionsToSend, settings },
-        { signal: abortControllerRef.current?.signal }
+        { signal: owner.signal }
       );
+
+      if (!owner.isCurrent()) throw new DOMException('Recording session retired', 'AbortError');
 
       setIsLoading(false);
 
@@ -182,7 +214,7 @@ function useRecordingTransport({
 
       return result.data;
     },
-    []
+    [captureOwner]
   );
 
   const validateSelector = useCallback(
@@ -207,6 +239,7 @@ function useRecordingTransport({
 
   const replayPreview = useCallback(
     async (options?: { limit?: number; stopOnFailure?: boolean }, actionsOverride?: RecordedAction[]): Promise<ReplayPreviewResponse> => {
+      if (!mountedRef.current) throw new DOMException('Recording session retired', 'AbortError');
       const currentSessionId = sessionIdRef.current;
       if (!currentSessionId) {
         const error = 'No session ID provided';
@@ -223,6 +256,7 @@ function useRecordingTransport({
 
       setIsReplaying(true);
       setError(null);
+      const owner = captureOwner();
 
       const result = await recordingApi.replayPreview(
         currentSessionId,
@@ -231,8 +265,10 @@ function useRecordingTransport({
           limit: options?.limit,
           stopOnFailure: options?.stopOnFailure,
         },
-        { signal: abortControllerRef.current?.signal }
+        { signal: owner.signal }
       );
+
+      if (!owner.isCurrent()) throw new DOMException('Recording session retired', 'AbortError');
 
       setIsReplaying(false);
 
@@ -243,7 +279,7 @@ function useRecordingTransport({
 
       return result.data;
     },
-    []
+    [captureOwner]
   );
 
   return {

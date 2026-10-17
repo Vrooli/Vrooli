@@ -40,43 +40,49 @@ export function DeploymentDashboard({ scenarios, loading, onRefresh, onScanScena
   const [statuses, setStatuses] = useState<Map<string, ScenarioDeploymentStatus>>(new Map());
   const [loadingReports, setLoadingReports] = useState(false);
   const [showDagHelp, setShowDagHelp] = useState(false);
-  const [selectedScenario, setSelectedScenario] = useState<ScenarioDeploymentStatus | null>(null);
+  const [selectedScenarioName, setSelectedScenarioName] = useState<string | null>(null);
   const [targetTier, setTargetTier] = useState<string>("desktop");
   const [search, setSearch] = useState<string>("");
   const [apiError, setApiError] = useState<string | null>(null);
   const apiBase = useMemo(() => getApiBaseUrl(), []);
   const statusRef = useRef<HTMLDivElement | null>(null);
+  const selectedScenario = selectedScenarioName ? statuses.get(selectedScenarioName) ?? null : null;
 
   useEffect(() => {
-    if (scenarios.length === 0) return;
+    const controller = new AbortController();
+    const { signal } = controller;
+    setStatuses(new Map());
+    setApiError(null);
+    setLoadingReports(scenarios.length > 0);
+    if (scenarios.length === 0) return () => controller.abort();
 
     const loadReports = async () => {
-      setLoadingReports(true);
       const newStatuses = new Map<string, ScenarioDeploymentStatus>();
       const batchSize = 5;
+      let missingReport = false;
 
       for (let i = 0; i < scenarios.length; i += batchSize) {
         const batch = scenarios.slice(i, i + batchSize);
         const reports = await Promise.all(
           batch.map(async (scenario) => {
-            const report = await fetchDeploymentReport(scenario.name);
-            if (!report) {
-              setApiError(`API is unreachable. Is scenario-dependency-analyzer running? UI base: ${apiBase || "unknown"}`);
-            }
-            return report;
+            return fetchDeploymentReport(scenario.name, signal);
           })
         );
+        if (signal.aborted) return;
 
         batch.forEach((scenario, idx) => {
+          missingReport ||= !reports[idx];
           newStatuses.set(scenario.name, buildDeploymentStatus(scenario, reports[idx] ?? null));
         });
       }
 
       setStatuses(newStatuses);
+      setApiError(missingReport ? `API is unreachable. Is scenario-dependency-analyzer running? UI base: ${apiBase || "unknown"}` : null);
       setLoadingReports(false);
     };
 
     void loadReports();
+    return () => controller.abort();
   }, [apiBase, scenarios]);
 
   const statusArray = useMemo(() => Array.from(statuses.values()), [statuses]);
@@ -118,7 +124,7 @@ export function DeploymentDashboard({ scenarios, loading, onRefresh, onScanScena
 
   const handleSelectScenario = useCallback(
     (status: ScenarioDeploymentStatus) => {
-      setSelectedScenario(status);
+      setSelectedScenarioName(status.scenario.name);
       onSelectScenario(status.scenario.name);
     },
     [onSelectScenario]
@@ -153,7 +159,7 @@ export function DeploymentDashboard({ scenarios, loading, onRefresh, onScanScena
         });
       } catch (error) {
         console.error("Scan failed", error);
-        setApiError("Scan failed. Ensure the API is running (vrooli scenario run scenario-dependency-analyzer) and the UI points to the correct port.");
+        setApiError("Scan failed. Check the API connection and retry the scan.");
         setStatuses((prev) => {
           const next = new Map(prev);
           const entry = next.get(scenarioName);

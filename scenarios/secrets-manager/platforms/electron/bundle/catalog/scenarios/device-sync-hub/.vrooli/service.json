@@ -1,7 +1,40 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "storage": {"entries":{"data":{"rung":"owned","path":"data","kind":"dir","class":"data","regenerable":false,"rationale":"Scenario-owned durable data observed in the canonical data directory."}},"rationale":"Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."},
+  "authentication": {
+    "version": 1,
+    "profile": "scenario_authenticator",
+    "default_mode": "local_multi_user",
+    "supported_modes": ["local_multi_user", "remote_vrooli"],
+    "human_sign_in": "required",
+    "provider": "scenario-authenticator",
+    "resource": "device-sync-hub",
+    "audience": "scenario-authenticator:device-sync-hub",
+    "offline": false,
+    "protected_routes": ["/api"],
+    "capabilities": [
+      {"id": "device-sync-hub:read", "effect": "read", "agent_eligible": true},
+      {"id": "device-sync-hub:write", "effect": "write", "agent_eligible": false},
+      {"id": "device-sync-hub:destructive", "effect": "destructive", "agent_eligible": false}
+    ],
+    "requires_authenticator": true
+  },
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
   "service": {
     "parent": "vrooli",
     "name": "device-sync-hub",
@@ -92,107 +125,6 @@
         }
       ],
       "startup_grace_period": 15000
-    },
-    "setup": {
-      "description": "Build API and UI assets declared by the manifest-driven lifecycle contract",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/device-sync-hub-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "device-sync-hub"
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "build-api",
-          "run": "cd api \u0026\u0026 GOWORK=off go mod download \u0026\u0026 GOWORK=off go build -o device-sync-hub-api .",
-          "description": "Build Go API server"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui \u0026\u0026 (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui \u0026\u0026 (corepack pnpm --ignore-workspace run build || pnpm --ignore-workspace run build); else echo 'ui/ not present yet'; fi",
-          "description": "Build production UI bundle"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Launch API and Vite dev server",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api \u0026\u0026 ./device-sync-hub-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/device-sync-hub-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui \u0026\u0026 node server.js",
-          "description": "Serve production UI bundle",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        }
-      ]
-    },
-    "build": {},
-    "deploy": {},
-    "clean": {},
-    "test": {
-      "description": "Execute phased test suite via test-genie",
-      "steps": [
-        {
-          "name": "check-temporal-models",
-          "run": "flow-verifier verify check --root .",
-          "description": "Verify formal flow artifacts via the flow-verifier scenario CLI"
-        },
-        {
-          "name": "run-tests",
-          "run": "test-genie execute device-sync-hub --preset comprehensive",
-          "description": "Run all test phases via test-genie"
-        }
-      ]
-    },
-    "backup": {},
-    "restore": {},
-    "production": {},
-    "stop": {
-      "description": "Stop background processes",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f 'device-sync-hub-api' || true",
-          "description": "Stop Go API"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f 'node server.js' || true",
-          "description": "Stop UI server"
-        }
-      ]
     }
   },
   "dependencies": {
@@ -203,7 +135,8 @@
         "required": true,
         "startup_policy": "try_start",
         "degraded_behavior": "If scenario-authenticator is unavailable, device-sync-hub fails closed in production: no pairing, no token validation, no access to items. Its own test lifecycle is not gated on the sibling's health.",
-        "description": "Owner identity, JWT (access + refresh), token validation, session list, and immediate revocation. Consumed over HTTP; device-sync-hub owns the device/pairing/trust/presence/per-item-ACL layer on top of it and does not extend the authenticator."
+        "description": "Owner identity, JWT (access + refresh), token validation, session list, and immediate revocation. Consumed over HTTP; device-sync-hub owns the device/pairing/trust/presence/per-item-ACL layer on top of it and does not extend the authenticator.",
+        "supervision_precedence": "required"
       }
     },
     "resources": {
@@ -216,5 +149,67 @@
       }
     }
   },
-  "environment": {}
+  "environment": {},
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "tier_feasibility": {
+    "metadata_version": 1,
+    "dependencies": {
+      "resources": {
+        "redis": {
+          "resource_type": "hot-state-store",
+          "platform_support": {
+            "tier-1-local": {
+              "supported": true,
+              "notes": "Optional accelerator that no Go code in this scenario currently opens. The declaration records intended caching, not a runtime requirement."
+            },
+            "tier-2-desktop": {
+              "supported": false,
+              "reason": "No vendorable cross-platform RESP server exists",
+              "alternatives": [
+                "durable-local"
+              ],
+              "notes": "The scenario does not require Redis, so the desktop tier simply runs without it rather than shipping a server."
+            }
+          },
+          "swappable_with": [
+            {
+              "id": "durable-local",
+              "relationship": "single-node-equivalent",
+              "notes": "A durable local store behind the same Store seam preserves the durability property across restart, but not cross-replica sharing. A deployment running more than one replica still needs a real Redis."
+            }
+          ]
+        }
+      }
+    }
+  }
 }

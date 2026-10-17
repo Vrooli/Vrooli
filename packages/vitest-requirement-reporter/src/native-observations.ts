@@ -40,6 +40,51 @@ export interface NativeObservationReport {
   tests: NativeObservation[];
 }
 
+/** Merge observed shards; callers still own the expected cohort and completeness. */
+export function mergeNativeObservationReports(reports: readonly NativeObservationReport[]): NativeObservationReport {
+  if (!reports.length) throw new Error('Native observation merge requires at least one report');
+  const first = reports[0];
+  const keys = ['run_id', 'schema_version', 'runner_version', 'support_profile'] as const;
+  const identities = new Set<string>();
+  const limitations = new Set<string>();
+  const tests: NativeObservation[] = [];
+  const errors: string[] = [];
+  for (const report of reports) {
+    for (const key of keys) {
+      if (typeof report?.[key] !== 'string' || !report[key].trim() || report[key] !== first[key]) {
+        throw new Error(`Native observation merge has missing or conflicting ${key}`);
+      }
+    }
+    if (report.schema_version !== 'vitest-native/v1') throw new Error('Unsupported schema_version');
+    for (const key of ['limitations', 'unhandled_errors', 'tests'] as const) {
+      if (!Array.isArray(report[key])) throw new Error(`Native observation ${key} must be an array`);
+    }
+    for (const value of [...report.limitations, ...report.unhandled_errors]) {
+      if (typeof value !== 'string') throw new Error('Native observation messages must be strings');
+    }
+    report.limitations.forEach(value => limitations.add(value));
+    errors.push(...report.unhandled_errors);
+    for (const test of report.tests) {
+      if (!test || typeof test.project !== 'string' || !test.file || !test.test_id ||
+          typeof test.file !== 'string' || typeof test.test_id !== 'string' ||
+          !Array.isArray(test.errors)) throw new Error('Invalid native test identity or errors');
+      if (test.errors.some(value => typeof value !== 'string') ||
+          (test.requirement_ids !== undefined && (!Array.isArray(test.requirement_ids) ||
+            test.requirement_ids.some(value => typeof value !== 'string')))) {
+        throw new Error('Native test errors and requirement_ids must be a string array');
+      }
+      const identity = JSON.stringify([test.project, test.file, test.test_id]);
+      if (identities.has(identity)) throw new Error(`Native observation duplicate test identity: ${identity}`);
+      identities.add(identity);
+      tests.push({ ...test, errors: [...test.errors],
+        requirement_ids: test.requirement_ids === undefined ? undefined : [...test.requirement_ids] });
+    }
+  }
+  return { run_id: first.run_id, schema_version: first.schema_version,
+    runner_version: first.runner_version, support_profile: first.support_profile,
+    limitations: [...limitations], unhandled_errors: errors, tests };
+}
+
 export function nativeObservations(
   files: File[], version: string,
   requireAssertions: (project: string) => boolean,

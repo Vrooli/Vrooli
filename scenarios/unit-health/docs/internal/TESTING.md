@@ -1,5 +1,15 @@
 # Testing — Unit Health
 
+## Go helper dependency classification
+
+The architecture analyzer classifies helper packages by complete directory
+segments: testutil, testutils, testkit, testhelpers, mocks, and fixtures.
+Helper packages may import other helpers and production packages. Runtime
+packages must not import a helper, including a nested helper package. Module
+prefix lookalikes and helper-like substrings are not helper imports. Helper
+implementation files do not contribute runtime ambient-dependency findings.
+The production import-ban projection remains required for shared test utilities.
+
 ## Shared guidance
 
 - [Test authoring standard](/docs/testing/UNIT-TEST-AUTHORING.md): boundaries,

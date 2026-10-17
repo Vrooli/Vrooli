@@ -23,53 +23,15 @@ func TestElectronShellMatchesProcessedCanonicalTemplate(t *testing.T) {
 	}
 	root := filepath.Dir(apiDir)
 	repoRoot := filepath.Dir(filepath.Dir(root))
-	templateGenerator := filepath.Join(root, "..", "scenario-to-desktop", "templates", "build-tools", "dist", "template-generator.js")
-	if _, err := os.Stat(templateGenerator); err != nil {
-		t.Fatalf("scenario-to-desktop owner generator is unavailable: %v", err)
+	ownerBuildTools := filepath.Join(root, "..", "scenario-to-desktop", "templates", "build-tools")
+	freshness := exec.Command("node", filepath.Join(ownerBuildTools, "write-build-stamp.js"), "--check")
+	if outputBytes, err := freshness.CombinedOutput(); err != nil {
+		t.Fatalf("scenario-to-desktop owner generator is not fresh: %v\n%s", err, outputBytes)
 	}
+	templateGenerator := filepath.Join(ownerBuildTools, "dist", "template-generator.js")
 
 	output := filepath.Join(t.TempDir(), "electron")
-	config := map[string]any{
-		"app_name":           "browser-automation-studio",
-		"app_display_name":   "Vrooli Ascension",
-		"app_description":    "Visual browser automation studio with AI-powered workflow builder and real-time debugging",
-		"version":            "1.0.0",
-		"author":             "Vrooli Team",
-		"author_email":       "noreply@vrooli.com",
-		"homepage":           "https://vrooli.com",
-		"icon":               filepath.Join(root, "platforms", "electron", "assets", "icon.png"),
-		"license":            "MIT",
-		"app_id":             "com.vrooli.browser-automation-studio",
-		"app_url":            "",
-		"server_type":        "external",
-		"server_port":        20000,
-		"server_path":        "http://localhost:20000",
-		"api_endpoint":       "http://localhost:15000",
-		"scenario_dist_path": filepath.Join(root, "ui", "dist"),
-		"deployment_mode":    "proxy",
-		"scenario_name":      "browser-automation-studio",
-		"auto_manage_vrooli": false,
-		"vrooli_binary_path": "vrooli",
-		"framework":          "electron",
-		"strategy_id":        "electron-sidecar",
-		"template_type":      "basic",
-		"features": map[string]any{
-			"splash": true, "systemTray": false, "autoUpdater": true,
-			"singleInstance": true, "devTools": true, "menu": true,
-		},
-		"window": map[string]any{
-			"width": 1200, "height": 800, "background": "#f5f5f5", "title": "Vrooli Ascension",
-		},
-		"platforms": []string{"linux"},
-		"ports": map[string]any{
-			"api":                       map[string]any{"env_var": "API_PORT", "port": 15000},
-			"ui":                        map[string]any{"env_var": "UI_PORT", "port": 20000},
-			"playwright_driver":         map[string]any{"env_var": "PLAYWRIGHT_DRIVER_PORT", "port": 24400},
-			"playwright_driver_frames":  map[string]any{"env_var": "PLAYWRIGHT_DRIVER_FRAMES_PORT", "port": 24400},
-			"playwright_driver_metrics": map[string]any{"env_var": "PLAYWRIGHT_DRIVER_METRICS_PORT", "port": 24400},
-		},
-		"output_path": output,
-	}
+	config := electronShellGenerationConfig(t, root, output)
 	configBytes, err := json.Marshal(config)
 	if err != nil {
 		t.Fatal(err)
@@ -184,4 +146,48 @@ func sourceFiles(t *testing.T, root string) []string {
 	}
 	sort.Strings(files)
 	return files
+}
+
+// Generation and comparison consume the same reviewed source-proxy input. The
+// saved bundled desktop-config.json is a distinct deployment profile.
+func electronShellGenerationConfig(t *testing.T, root, output string) map[string]any {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(root, ".vrooli", "electron-shell-config.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var config map[string]any
+	if err := json.Unmarshal(data, &config); err != nil {
+		t.Fatal(err)
+	}
+	config["output_path"] = output
+	return config
+}
+
+func TestElectronShellGenerationInputKeepsPolicyInSharedConfig(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".vrooli"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	configPath := filepath.Join(root, ".vrooli", "electron-shell-config.json")
+	// The only supported override is the temporary comparison destination;
+	// policy changes in the shared input must flow through without defaults.
+	before := []byte(`{"deployment_mode":"proxy","window":{"width":1437},"features":{"systemTray":true},"output_path":"platforms/electron"}`)
+	if err := os.WriteFile(configPath, before, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	config := electronShellGenerationConfig(t, root, "temporary-output")
+	if config["output_path"] != "temporary-output" {
+		t.Fatal("comparison did not isolate output")
+	}
+	if config["deployment_mode"] != "proxy" || config["window"].(map[string]any)["width"] != float64(1437) || config["features"].(map[string]any)["systemTray"] != true {
+		t.Fatal("comparison reconstructed policy instead of reading the shared input")
+	}
+	after, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(before, after) {
+		t.Fatal("comparison mutated authoritative input")
+	}
 }

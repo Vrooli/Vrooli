@@ -5,10 +5,11 @@ import (
 	"errors"
 	"strings"
 
-	"swarm-manager/internal/eta"
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
+	"github.com/vrooli/api-core/identity"
+	"swarm-manager/internal/eta"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api/apiconnect"
@@ -80,12 +81,16 @@ func (s *ConnectService) CreateGoal(_ context.Context, req *connect.Request[apip
 	return connect.NewResponse(goalResponse(goal)), nil
 }
 
-func (s *ConnectService) UpdateGoal(_ context.Context, req *connect.Request[apipb.UpdateGoalRequest]) (*connect.Response[apipb.GoalResponse], error) {
+func (s *ConnectService) UpdateGoal(ctx context.Context, req *connect.Request[apipb.UpdateGoalRequest]) (*connect.Response[apipb.GoalResponse], error) {
+	if err := authorizeBookkeeping(ctx, req.Msg.GetName()); err != nil {
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	}
 	in := req.Msg
 	goal, err := s.service.Update(in.Name, UpdateRequest{Title: in.Title, Description: in.Description, Priority: int32Ptr(in.Priority), ServesDeliverable: in.ServesDeliverable})
 	if err != nil {
 		return nil, goalError(err)
 	}
+	s.service.auditBookkeeping(ctx, req.Msg.GetName())
 	return connect.NewResponse(goalResponse(goal)), nil
 }
 
@@ -96,73 +101,116 @@ func (s *ConnectService) DeleteGoal(_ context.Context, req *connect.Request[apip
 	return connect.NewResponse(&apipb.EmptyGoalResponse{}), nil
 }
 
-func (s *ConnectService) ArchiveGoal(_ context.Context, req *connect.Request[apipb.ArchiveGoalRequest]) (*connect.Response[apipb.GoalResponse], error) {
-	if _, err := s.service.archiveWithOptions(req.Msg.GetName(), req.Msg.GetForce(), req.Msg.GetActor()); err != nil {
+func (s *ConnectService) ArchiveGoal(ctx context.Context, req *connect.Request[apipb.ArchiveGoalRequest]) (*connect.Response[apipb.GoalResponse], error) {
+	if err := authorizeBookkeeping(ctx, req.Msg.GetName()); err != nil {
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	}
+	actor := ""
+	if p, ok := identity.PrincipalFromContext(ctx); ok {
+		actor = p.Subject
+		if p.Kind == identity.ActorAgent && req.Msg.GetForce() {
+			return nil, connect.NewError(connect.CodePermissionDenied, errors.New("archive targeted items through their bookkeeping owner before archiving the goal"))
+		}
+	}
+	if _, err := s.service.archiveWithOptions(req.Msg.GetName(), req.Msg.GetForce(), actor); err != nil {
 		return nil, goalError(err)
 	}
+	s.service.auditBookkeeping(ctx, req.Msg.GetName())
 	return s.GetGoal(context.Background(), connect.NewRequest(&apipb.GetGoalRequest{Name: req.Msg.GetName()}))
 }
 
-func (s *ConnectService) UnarchiveGoal(_ context.Context, req *connect.Request[apipb.UnarchiveGoalRequest]) (*connect.Response[apipb.GoalResponse], error) {
+func (s *ConnectService) UnarchiveGoal(ctx context.Context, req *connect.Request[apipb.UnarchiveGoalRequest]) (*connect.Response[apipb.GoalResponse], error) {
+	if err := authorizeBookkeeping(ctx, req.Msg.GetName()); err != nil {
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	}
 	if _, err := s.service.Unarchive(req.Msg.GetName()); err != nil {
 		return nil, goalError(err)
 	}
+	s.service.auditBookkeeping(ctx, req.Msg.GetName())
 	return s.GetGoal(context.Background(), connect.NewRequest(&apipb.GetGoalRequest{Name: req.Msg.GetName()}))
 }
 
-func (s *ConnectService) AddTargets(_ context.Context, req *connect.Request[apipb.UpdateGoalTargetsRequest]) (*connect.Response[apipb.GoalResponse], error) {
+func (s *ConnectService) AddTargets(ctx context.Context, req *connect.Request[apipb.UpdateGoalTargetsRequest]) (*connect.Response[apipb.GoalResponse], error) {
+	if err := authorizeBookkeeping(ctx, req.Msg.GetName()); err != nil {
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	}
 	goal, err := s.service.AddTargets(req.Msg.Name, req.Msg.Targets)
 	if err != nil {
 		return nil, goalError(err)
 	}
+	s.service.auditBookkeeping(ctx, req.Msg.GetName())
 	return connect.NewResponse(goalResponse(goal)), nil
 }
 
-func (s *ConnectService) RemoveTargets(_ context.Context, req *connect.Request[apipb.UpdateGoalTargetsRequest]) (*connect.Response[apipb.GoalResponse], error) {
+func (s *ConnectService) RemoveTargets(ctx context.Context, req *connect.Request[apipb.UpdateGoalTargetsRequest]) (*connect.Response[apipb.GoalResponse], error) {
+	if err := authorizeBookkeeping(ctx, req.Msg.GetName()); err != nil {
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	}
 	goal, err := s.service.RemoveTargets(req.Msg.Name, req.Msg.Targets)
 	if err != nil {
 		return nil, goalError(err)
 	}
+	s.service.auditBookkeeping(ctx, req.Msg.GetName())
 	return connect.NewResponse(goalResponse(goal)), nil
 }
 
-func (s *ConnectService) CreateMilestone(_ context.Context, req *connect.Request[apipb.CreateMilestoneRequest]) (*connect.Response[apipb.GoalResponse], error) {
+func (s *ConnectService) CreateMilestone(ctx context.Context, req *connect.Request[apipb.CreateMilestoneRequest]) (*connect.Response[apipb.GoalResponse], error) {
+	if err := authorizeBookkeeping(ctx, req.Msg.GetGoalName()); err != nil {
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	}
 	goal, err := s.service.CreateMilestone(req.Msg.GoalName, milestoneFromProto(req.Msg.Milestone))
 	if err != nil {
 		return nil, goalError(err)
 	}
+	s.service.auditBookkeeping(ctx, req.Msg.GetGoalName())
 	return connect.NewResponse(goalResponse(goal)), nil
 }
 
-func (s *ConnectService) UpdateMilestone(_ context.Context, req *connect.Request[apipb.UpdateMilestoneRequest]) (*connect.Response[apipb.GoalResponse], error) {
+func (s *ConnectService) UpdateMilestone(ctx context.Context, req *connect.Request[apipb.UpdateMilestoneRequest]) (*connect.Response[apipb.GoalResponse], error) {
+	if err := authorizeBookkeeping(ctx, req.Msg.GetGoalName()); err != nil {
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	}
 	goal, err := s.service.UpdateMilestone(req.Msg.GoalName, milestoneFromProto(req.Msg.Milestone))
 	if err != nil {
 		return nil, goalError(err)
 	}
+	s.service.auditBookkeeping(ctx, req.Msg.GetGoalName())
 	return connect.NewResponse(goalResponse(goal)), nil
 }
 
-func (s *ConnectService) ArchiveMilestone(_ context.Context, req *connect.Request[apipb.ArchiveMilestoneRequest]) (*connect.Response[apipb.GoalResponse], error) {
+func (s *ConnectService) ArchiveMilestone(ctx context.Context, req *connect.Request[apipb.ArchiveMilestoneRequest]) (*connect.Response[apipb.GoalResponse], error) {
+	if err := authorizeBookkeeping(ctx, req.Msg.GetGoalName()); err != nil {
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	}
 	goal, err := s.service.ArchiveMilestone(req.Msg.GoalName, req.Msg.MilestoneName)
 	if err != nil {
 		return nil, goalError(err)
 	}
+	s.service.auditBookkeeping(ctx, req.Msg.GetGoalName())
 	return connect.NewResponse(goalResponse(goal)), nil
 }
 
-func (s *ConnectService) AssignMilestoneItems(_ context.Context, req *connect.Request[apipb.UpdateMilestoneItemsRequest]) (*connect.Response[apipb.GoalResponse], error) {
+func (s *ConnectService) AssignMilestoneItems(ctx context.Context, req *connect.Request[apipb.UpdateMilestoneItemsRequest]) (*connect.Response[apipb.GoalResponse], error) {
+	if err := authorizeBookkeeping(ctx, req.Msg.GetGoalName()); err != nil {
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	}
 	goal, err := s.service.AssignMilestoneItems(req.Msg.GoalName, req.Msg.MilestoneName, req.Msg.Items)
 	if err != nil {
 		return nil, goalError(err)
 	}
+	s.service.auditBookkeeping(ctx, req.Msg.GetGoalName())
 	return connect.NewResponse(goalResponse(goal)), nil
 }
 
-func (s *ConnectService) UnassignMilestoneItems(_ context.Context, req *connect.Request[apipb.UpdateMilestoneItemsRequest]) (*connect.Response[apipb.GoalResponse], error) {
+func (s *ConnectService) UnassignMilestoneItems(ctx context.Context, req *connect.Request[apipb.UpdateMilestoneItemsRequest]) (*connect.Response[apipb.GoalResponse], error) {
+	if err := authorizeBookkeeping(ctx, req.Msg.GetGoalName()); err != nil {
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	}
 	goal, err := s.service.UnassignMilestoneItems(req.Msg.GoalName, req.Msg.MilestoneName, req.Msg.Items)
 	if err != nil {
 		return nil, goalError(err)
 	}
+	s.service.auditBookkeeping(ctx, req.Msg.GetGoalName())
 	return connect.NewResponse(goalResponse(goal)), nil
 }
 
@@ -177,7 +225,10 @@ func (s *ConnectService) GetScope(_ context.Context, req *connect.Request[apipb.
 // CloseOutGoal asserts the delivered goal outcome. Service validation rejects
 // incomplete or unverified milestones, so the gate is identical on every
 // surface that reaches it.
-func (s *ConnectService) CloseOutGoal(_ context.Context, req *connect.Request[apipb.CloseOutGoalRequest]) (*connect.Response[apipb.GoalResponse], error) {
+func (s *ConnectService) CloseOutGoal(ctx context.Context, req *connect.Request[apipb.CloseOutGoalRequest]) (*connect.Response[apipb.GoalResponse], error) {
+	if err := requireGoalAcceptance(ctx); err != nil {
+		return nil, err
+	}
 	if _, err := s.service.CloseOut(req.Msg.GetName()); err != nil {
 		return nil, goalError(err)
 	}

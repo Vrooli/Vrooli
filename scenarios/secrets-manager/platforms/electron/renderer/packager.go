@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	bundlemanifest "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
@@ -174,7 +175,7 @@ func (p *DefaultPackager) stageAllServices(m *bundlemanifest.Manifest, platforms
 		}
 		copied = append(copied, binCopied...)
 
-		assetCopied, err := p.stageServiceAssets(svc, bundleDir, manifestRoot)
+		assetCopied, err := p.stageServiceAssets(svc, bundleDir, manifestRoot, appAbs)
 		if err != nil {
 			return nil, err
 		}
@@ -211,7 +212,7 @@ func (p *DefaultPackager) Package(appPath, manifestPath, framework string, reque
 	}
 
 	bundleDir := filepath.Join(paths.outputRootAbs, "platforms", framework, "bundle")
-	if err := os.MkdirAll(bundleDir, 0o755); err != nil { //nolint:mnd // executable bundle directory mode
+	if err := os.MkdirAll(bundleDir, 0o755); err != nil {
 		return nil, fmt.Errorf("create bundle dir: %w", err)
 	}
 
@@ -233,7 +234,7 @@ func (p *DefaultPackager) Package(appPath, manifestPath, framework string, reque
 	// narrow, read-only manifest catalog so manifest-driven applications (such
 	// as Vrooli Onboarding) remain functional without copying a working tree or
 	// any operator configuration into the artifact.
-	catalogCopied, err := p.stageManifestCatalog(paths.appAbs, bundleDir)
+	catalogCopied, err := p.stageManifestCatalogForRequirements(paths.appAbs, bundleDir, m.CatalogRequirements)
 	if err != nil {
 		return nil, err
 	}
@@ -275,12 +276,22 @@ func (p *DefaultPackager) Package(appPath, manifestPath, framework string, reque
 	}, nil
 }
 
-// stageManifestCatalog copies only declarative service and resource manifests
-// from a repository-shaped scenario path. It intentionally excludes every
-// config directory, generated file, and secret-bearing operator state.
+// stageManifestCatalog copies only declarative manifests from a repository-
+// shaped scenario path. It intentionally excludes every config directory,
+// generated file, executable, and secret-bearing operator state. The internal
+// tool and safeguard catalogs are included because onboarding resolves host
+// requirements from those declarations while running without VROOLI_ROOT.
 // Synthetic and standalone scenarios have no repository catalog and simply
 // receive no catalog.
 func (p *DefaultPackager) stageManifestCatalog(appPath, bundleDir string) ([]string, error) {
+	return p.stageManifestCatalogForRequirements(appPath, bundleDir, nil)
+}
+
+// stageManifestCatalogForRequirements stages either the complete declarative
+// catalog (legacy callers pass no requirements) or the exact union selected by
+// the bundle manifest. A category root such as catalog/scenarios permits all
+// entries in that category; catalog/scenarios/foo permits only foo.
+func (p *DefaultPackager) stageManifestCatalogForRequirements(appPath, bundleDir string, requirements []string) ([]string, error) {
 	scenariosRoot := filepath.Dir(appPath)
 	if filepath.Base(scenariosRoot) != "scenarios" {
 		return nil, nil
@@ -295,10 +306,23 @@ func (p *DefaultPackager) stageManifestCatalog(appPath, bundleDir string) ([]str
 	for _, root := range []struct {
 		source string
 		file   string
+		dest   string
 	}{
-		{source: scenariosRoot, file: filepath.Join(".vrooli", "service.json")},
-		{source: resourcesRoot, file: "resource.json"},
+		{source: scenariosRoot, file: filepath.Join(".vrooli", "service.json"), dest: "scenarios"},
+		{source: resourcesRoot, file: "resource.json", dest: "resources"},
+		{source: filepath.Join(repoRoot, "internal", "tools"), file: "tool.json", dest: filepath.Join("internal", "tools")},
+		{source: filepath.Join(repoRoot, "internal", "safeguards"), file: "safeguard.json", dest: filepath.Join("internal", "safeguards")},
 	} {
+		allowed, unrestricted := catalogRequirementFilter(requirements, root.dest)
+		if len(requirements) > 0 && !unrestricted && len(allowed) == 0 {
+			continue
+		}
+		if info, err := os.Stat(root.source); err != nil || !info.IsDir() {
+			if err != nil && !os.IsNotExist(err) {
+				return nil, fmt.Errorf("stat manifest catalog %s: %w", root.source, err)
+			}
+			continue
+		}
 		entries, err := os.ReadDir(root.source)
 		if err != nil {
 			return nil, fmt.Errorf("read manifest catalog %s: %w", root.source, err)
@@ -307,20 +331,66 @@ func (p *DefaultPackager) stageManifestCatalog(appPath, bundleDir string) ([]str
 			if !entry.IsDir() {
 				continue
 			}
+			if !unrestricted && !allowed[entry.Name()] {
+				continue
+			}
 			src := filepath.Join(root.source, entry.Name(), root.file)
 			if _, err := os.Stat(src); os.IsNotExist(err) {
 				continue
 			} else if err != nil {
 				return nil, fmt.Errorf("stat manifest catalog entry %s: %w", src, err)
 			}
-			dst := filepath.Join(bundleDir, "catalog", filepath.Base(root.source), entry.Name(), root.file)
+			dst := filepath.Join(bundleDir, "catalog", root.dest, entry.Name(), root.file)
 			if err := p.fileOps.CopyFile(src, dst); err != nil {
 				return nil, fmt.Errorf("copy manifest catalog entry %s: %w", src, err)
 			}
 			copied = append(copied, dst)
+			if root.dest == "scenarios" && entry.Name() == "vrooli-onboarding" {
+				profileDir := filepath.Join(root.source, entry.Name(), "profiles")
+				profileEntries, profileErr := os.ReadDir(profileDir)
+				if os.IsNotExist(profileErr) {
+					continue
+				}
+				if profileErr != nil {
+					return nil, fmt.Errorf("read onboarding profile catalog %s: %w", profileDir, profileErr)
+				}
+				for _, profile := range profileEntries {
+					if profile.IsDir() || filepath.Ext(profile.Name()) != ".json" {
+						continue
+					}
+					profileSrc := filepath.Join(profileDir, profile.Name())
+					profileDst := filepath.Join(bundleDir, "catalog", "scenarios", entry.Name(), "profiles", profile.Name())
+					if err := p.fileOps.CopyFile(profileSrc, profileDst); err != nil {
+						return nil, fmt.Errorf("copy onboarding profile %s: %w", profileSrc, err)
+					}
+					copied = append(copied, profileDst)
+				}
+			}
 		}
 	}
 	return copied, nil
+}
+
+func catalogRequirementFilter(requirements []string, category string) (map[string]bool, bool) {
+	if len(requirements) == 0 {
+		return nil, true
+	}
+	root := filepath.Join("catalog", filepath.FromSlash(category))
+	allowed := map[string]bool{}
+	for _, raw := range requirements {
+		requirement := filepath.Clean(filepath.FromSlash(raw))
+		if requirement == root {
+			return nil, true
+		}
+		prefix := root + string(filepath.Separator)
+		if strings.HasPrefix(requirement, prefix) {
+			name := strings.TrimPrefix(requirement, prefix)
+			if name != "" && !strings.ContainsRune(name, filepath.Separator) {
+				allowed[name] = true
+			}
+		}
+	}
+	return allowed, false
 }
 
 // stageServiceBinaries resolves or compiles binaries for a single service across all requested platforms,
@@ -358,9 +428,25 @@ func (p *DefaultPackager) stageServiceBinaries(svc bundlemanifest.Service, platf
 				return nil, fmt.Errorf("compile binary for %s (%s): %w", svc.ID, platform, err)
 			}
 			src = compiledPath
+			// Node bundles are assembled as a directory so their launcher,
+			// dist/, and production dependencies travel together. The runtime
+			// manifest must point at the executable launcher inside that
+			// directory, never at the directory itself.
+			if info, statErr := os.Stat(compiledPath); statErr == nil && info.IsDir() {
+				launcher := filepath.Join(compiledPath, "run.sh")
+				if platformHasWindowsSuffix(platform) {
+					launcher = filepath.Join(compiledPath, "run.cmd")
+				}
+				if _, launcherErr := os.Stat(launcher); launcherErr != nil {
+					return nil, fmt.Errorf("service %s compiled directory has no launcher: %w", svc.ID, launcherErr)
+				}
+				src = launcher
+				compiledPath = launcher
+			}
 
-			// Update manifest binary path for this platform if not set
-			if !ok {
+			// Update the manifest path whenever compilation supplied the binary.
+			// This also repairs stale directory-shaped paths from older manifests.
+			if !ok || filepath.Ext(compiledPath) == ".sh" || filepath.Ext(compiledPath) == ".cmd" {
 				if svc.Binaries == nil {
 					svc.Binaries = make(map[string]bundlemanifest.Binary)
 				}
@@ -384,13 +470,30 @@ func (p *DefaultPackager) stageServiceBinaries(svc bundlemanifest.Service, platf
 	return copied, nil
 }
 
+func platformHasWindowsSuffix(platform string) bool {
+	return strings.HasPrefix(strings.ToLower(strings.TrimSpace(platform)), "win")
+}
+
 // stageServiceAssets copies all declared assets for a single service into the bundle directory.
-func (p *DefaultPackager) stageServiceAssets(svc bundlemanifest.Service, bundleDir, manifestRoot string) ([]string, error) {
+func (p *DefaultPackager) stageServiceAssets(svc bundlemanifest.Service, bundleDir, manifestRoot string, appRoots ...string) ([]string, error) {
 	var copied []string
 	for _, asset := range svc.Assets {
 		src, err := resolveManifestPath(p.fileOps, manifestRoot, asset.Path)
-		if err != nil {
-			return nil, fmt.Errorf("resolve asset %s: %w", asset.Path, err)
+		if err != nil || !pathExists(src) {
+			for _, appRoot := range appRoots {
+				candidate := filepath.Join(appRoot, asset.Path)
+				if pathExists(candidate) {
+					src = candidate
+					err = nil
+					break
+				}
+			}
+			if err != nil || !pathExists(src) {
+				if err == nil {
+					err = os.ErrNotExist
+				}
+				return nil, fmt.Errorf("resolve asset %s: %w", asset.Path, err)
+			}
 		}
 		assetDstPath := p.fileOps.NormalizeBundlePath(asset.Path)
 		dst, err := resolveBundlePath(p.fileOps, bundleDir, assetDstPath)
@@ -402,7 +505,40 @@ func (p *DefaultPackager) stageServiceAssets(svc bundlemanifest.Service, bundleD
 		}
 		copied = append(copied, dst)
 	}
+	for _, assetDir := range svc.AssetDirs {
+		src, err := resolveManifestPath(p.fileOps, manifestRoot, assetDir)
+		if err != nil || !pathExists(src) {
+			for _, appRoot := range appRoots {
+				candidate := filepath.Join(appRoot, assetDir)
+				if pathExists(candidate) {
+					src = candidate
+					err = nil
+					break
+				}
+			}
+			if err != nil || !pathExists(src) {
+				if err == nil {
+					err = os.ErrNotExist
+				}
+				return nil, fmt.Errorf("resolve asset directory %s: %w", assetDir, err)
+			}
+		}
+		dstPath := p.fileOps.NormalizeBundlePath(assetDir)
+		dst, err := resolveBundlePath(p.fileOps, bundleDir, dstPath)
+		if err != nil {
+			return nil, fmt.Errorf("stage asset directory %s: %w", assetDir, err)
+		}
+		if err := p.fileOps.CopyPath(src, dst); err != nil {
+			return nil, fmt.Errorf("copy asset directory %s: %w", assetDir, err)
+		}
+		copied = append(copied, dst)
+	}
 	return copied, nil
+}
+
+func pathExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 // stageCLIHelpers stages CLI helper binaries for each requested platform.
@@ -433,7 +569,7 @@ func (p *DefaultPackager) buildRuntimes(platforms []string, bundleDir string) (m
 			return nil, nil, err
 		}
 		outDir := filepath.Join(bundleDir, "runtime", runtimePlatform)
-		if err := os.MkdirAll(outDir, 0o755); err != nil { //nolint:mnd // executable bundle directory mode
+		if err := os.MkdirAll(outDir, 0o755); err != nil {
 			return nil, nil, fmt.Errorf("create runtime dir: %w", err)
 		}
 
@@ -594,7 +730,7 @@ func resolveBundlePath(fileOps FileOperations, root, rel string) (string, error)
 	if !fileOps.WithinBase(root, clean) {
 		return "", fmt.Errorf("path escapes bundle root: %s", rel)
 	}
-	if err := os.MkdirAll(filepath.Dir(clean), 0o755); err != nil { //nolint:mnd // executable bundle directory mode
+	if err := os.MkdirAll(filepath.Dir(clean), 0o755); err != nil {
 		return "", err
 	}
 	return clean, nil
@@ -643,7 +779,7 @@ func ensureBundleExtraResources(outputRoot, framework string) error {
 		return fmt.Errorf("marshal package.json: %w", err)
 	}
 	updated = append(updated, '\n')
-	return os.WriteFile(pkgPath, updated, 0o644) //nolint:mnd // packaged metadata mode
+	return os.WriteFile(pkgPath, updated, 0o644)
 }
 
 func bundleExtraExists(entries []interface{}) bool {

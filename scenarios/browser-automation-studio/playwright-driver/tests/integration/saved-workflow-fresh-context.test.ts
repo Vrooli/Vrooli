@@ -29,9 +29,13 @@ function writeJson(response: ServerResponse, status: number, value: unknown): vo
 
 describe('saved recording workflow replay in a fresh context', () => {
   const apiBase = process.env.BAS_REHAB_LIVE_API_BASE;
-  const liveTest = apiBase ? it : it.skip;
+  if (!apiBase) throw new Error('Managed BAS qualification requires BAS_REHAB_LIVE_API_BASE');
+  const parsedBase = new URL(apiBase);
+  if (!['http:', 'https:'].includes(parsedBase.protocol)) {
+    throw new Error('BAS_REHAB_LIVE_API_BASE must be an HTTP(S) URL');
+  }
 
-  liveTest(
+  it(
     'saves the generated alternating-tab workflow and replays its same-selector actions',
     async () => {
       const events: string[] = [];
@@ -324,7 +328,7 @@ describe('saved recording workflow replay in a fresh context', () => {
     120000
   );
 
-  liveTest(
+  it(
     'persists 10000 native fixture clicks through the managed API journal',
     async () => {
       const fixtureEffects: number[] = [];

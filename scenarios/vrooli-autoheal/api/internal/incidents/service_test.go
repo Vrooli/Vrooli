@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/api-core/eventbus"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 )
 
@@ -426,5 +427,66 @@ func TestPanicEvidenceCoverageGapIsAWarning(t *testing.T) {
 	}
 	if rule.incidentType != TypeAutohealFailure {
 		t.Errorf("type = %v, want autoheal_failure", rule.incidentType)
+	}
+}
+
+// decisionRecordingPublisher captures the full DomainEvent so the test can
+// assert the event type and the correlation keys the resolution must hand back.
+type decisionRecordingPublisher struct {
+	event eventbus.DomainEvent
+	count int
+}
+
+func (p *decisionRecordingPublisher) Publish(context.Context, string, map[string]any) error {
+	return nil
+}
+
+func (p *decisionRecordingPublisher) PublishDomainEvent(_ context.Context, event eventbus.DomainEvent) error {
+	p.event = event
+	p.count++
+	return nil
+}
+
+// A critical incident with an applicable candidate raises the remediation
+// approval on the operator-decision substrate: the composed event type and the
+// four correlation keys the webhook re-verifies against.
+func TestCriticalIncidentRaisesRemediationDecisionOnTheSubstrate(t *testing.T) {
+	store := &memoryStore{}
+	publisher := &decisionRecordingPublisher{}
+	service := NewService(store)
+	service.SetEventPublisher(publisher)
+
+	incident := &Incident{
+		ID:          "inc-42",
+		Fingerprint: "fp-42",
+		Title:       "NVIDIA module missing",
+		Severity:    SeverityCritical,
+		Status:      StatusOpen,
+	}
+	candidate := RemediationCandidate{ID: "candidate-x", Title: "Install module", RiskLevel: "moderate"}
+	service.publishApprovalRequest(context.Background(), incident, candidate)
+
+	if publisher.count != 1 {
+		t.Fatalf("expected one decision event, got %d", publisher.count)
+	}
+	if publisher.event.EventType != "vrooli-autoheal.remediation.decision_requested.v1" {
+		t.Fatalf("event type = %q", publisher.event.EventType)
+	}
+	if publisher.event.Source != "vrooli-autoheal" {
+		t.Fatalf("event source = %q", publisher.event.Source)
+	}
+	correlation, _ := publisher.event.Payload["correlation"].(map[string]any)
+	if correlation == nil {
+		t.Fatalf("payload carries no correlation: %#v", publisher.event.Payload)
+	}
+	for key, want := range map[string]string{
+		"incident_id":          "inc-42",
+		"incident_fingerprint": "fp-42",
+		"candidate_id":         "candidate-x",
+		"candidate_risk_level": "moderate",
+	} {
+		if got, _ := correlation[key].(string); got != want {
+			t.Fatalf("correlation[%q] = %q, want %q", key, got, want)
+		}
 	}
 }

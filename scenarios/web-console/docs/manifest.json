@@ -1204,6 +1204,16 @@
           "requiredBy": [],
           "completion": "optional",
           "internal": true
+        },
+        {
+          "path": "mockups/approvals/README.md",
+          "docType": "design-mockups",
+          "title": "Approvals inbox mockups",
+          "description": "Ratified mockup set and content model for the shared human-approvals inbox (operatordecision substrate)",
+          "audience": ["developers", "agents"],
+          "maturity": "active",
+          "completion": "optional",
+          "internal": true
         }
       ]
     }

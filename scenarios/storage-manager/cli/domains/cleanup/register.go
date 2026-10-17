@@ -34,18 +34,19 @@ func RegisterRecovery(core *cliapp.ScenarioApp, manifest []byte) (cliapp.Subcomm
 func register(core *cliapp.ScenarioApp, manifest []byte, groupName string) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]cliapp.PrimitiveHandler{
-		"CleanupService.ListProviders":    cliapp.ProtoList(h.listProvidersCall, h.listProvidersReport),
-		"CleanupService.GetPolicy":        cliapp.ProtoList(h.getPolicyCall, h.getPolicyReport),
-		"CleanupService.SetPolicyProfile": cliapp.ProtoMutation(h.setPolicyProfileCall, h.setPolicyProfileReport),
-		"CleanupService.CreatePlan":       cliapp.ProtoOperational(h.createPlanCall, h.createPlanReport),
-		"CleanupService.ApplyPlan":        cliapp.ProtoMutation(h.applyPlanCall, h.applyPlanReport),
-		"CleanupService.ReportPressure":   cliapp.ProtoMutation(h.reportPressureCall, h.reportPressureReport),
-		"CleanupService.StartRecovery":    cliapp.ProtoMutation(h.startRecoveryCall, h.recoveryReport),
-		"CleanupService.WaitRecovery":     cliapp.ProtoOperational(h.waitRecoveryCall, h.recoveryRunReport),
-		"CleanupService.ListRecovery":     cliapp.ProtoList(h.listRecoveryCall, h.listRecoveryReport),
-		"CleanupService.ListAudit":        cliapp.ProtoList(h.listAuditCall, h.listAuditReport),
-		"tiers":                           cliapp.Action(h.tiersCall, tiersReport),
-		"roots":                           cliapp.Action(h.rootsCall, rootsReport),
+		"CleanupService.ListProviders":               cliapp.ProtoList(h.listProvidersCall, h.listProvidersReport),
+		"CleanupService.GetPolicy":                   cliapp.ProtoList(h.getPolicyCall, h.getPolicyReport),
+		"CleanupService.SetPolicyProfile":            cliapp.ProtoMutation(h.setPolicyProfileCall, h.setPolicyProfileReport),
+		"CleanupService.ConfigureTemporaryRetention": cliapp.ProtoMutation(h.configureTemporaryRetentionCall, h.configureTemporaryRetentionReport),
+		"CleanupService.CreatePlan":                  cliapp.ProtoOperational(h.createPlanCall, h.createPlanReport),
+		"CleanupService.ApplyPlan":                   cliapp.ProtoMutation(h.applyPlanCall, h.applyPlanReport),
+		"CleanupService.ReportPressure":              cliapp.ProtoMutation(h.reportPressureCall, h.reportPressureReport),
+		"CleanupService.StartRecovery":               cliapp.ProtoMutation(h.startRecoveryCall, h.recoveryReport),
+		"CleanupService.WaitRecovery":                cliapp.ProtoOperational(h.waitRecoveryCall, h.recoveryRunReport),
+		"CleanupService.ListRecovery":                cliapp.ProtoList(h.listRecoveryCall, h.listRecoveryReport),
+		"CleanupService.ListAudit":                   cliapp.ProtoList(h.listAuditCall, h.listAuditReport),
+		"tiers":                                      cliapp.Action(h.tiersCall, tiersReport),
+		"roots":                                      cliapp.Action(h.rootsCall, rootsReport),
 	}
 	if groupName == "recovery" {
 		bindings["chaos"] = cliapp.Action(h.chaosCall, chaosReport)

@@ -28,6 +28,7 @@ import (
 	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
 	"github.com/vrooli/browser-automation-studio/services/credits"
 	"github.com/vrooli/browser-automation-studio/services/entitlement"
+	exportservices "github.com/vrooli/browser-automation-studio/services/export"
 	"github.com/vrooli/browser-automation-studio/services/export/render"
 	livecapture "github.com/vrooli/browser-automation-studio/services/live-capture"
 	"github.com/vrooli/browser-automation-studio/services/readiness"
@@ -108,6 +109,7 @@ type Handler struct {
 	recordingService      archiveingestion.IngestionServiceInterface
 	recordModeService     RecordModeService // Live recording session management (interface for testability)
 	recordingsRoot        string
+	exportJobs            *exportservices.JobRunner
 	replayRenderer        replayRenderer
 	sessionProfileService *sessionprofile.Service
 	log                   *logrus.Logger
@@ -361,6 +363,7 @@ func NewHandlerWithDeps(repo database.Repository, wsHub wsHub.HubInterface, log 
 		recordModeService:     deps.RecordModeService,
 		recordingsRoot:        deps.RecordingsRoot,
 		replayRenderer:        deps.ReplayRenderer,
+		exportJobs:            exportservices.NewJobRunner(2, 15*time.Minute),
 		sessionProfileService: deps.SessionProfileService,
 		log:                   log,
 		wsAllowedOrigins:      allowedCopy,

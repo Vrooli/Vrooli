@@ -1,7 +1,10 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "storage": {"entries":{},"rationale":"No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."},
+  "storage": {
+    "entries": {},
+    "rationale": "No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."
+  },
   "service": {
     "parent": "vrooli",
     "name": "tidiness-manager",
@@ -72,116 +75,6 @@
           "critical": false
         }
       ]
-    },
-    "setup": {
-      "description": "Build API & UI, install CLI",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/tidiness-manager-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "tidiness-manager"
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o tidiness-manager-api .",
-          "description": "Build Go API binary (tidiness-manager-api) in api/ directory for reuse by start-api step"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui && pnpm install --ignore-workspace; else echo 'ui/ not present yet'; fi",
-          "description": "Install UI dependencies"
-        },
-        {
-          "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; else echo 'ui/ not present yet'; fi",
-          "description": "Build production UI bundle"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Launch API and production UI bundle",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./tidiness-manager-api",
-          "background": true,
-          "condition": {
-            "file_exists": "api/tidiness-manager-api"
-          },
-          "description": "Start Go API server"
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node --preserve-symlinks server.js",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          },
-          "description": "Serve production UI bundle"
-        }
-      ]
-    },
-    "production": {
-      "description": "Production deployment configuration",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./tidiness-manager-api",
-          "background": true,
-          "condition": {
-            "file_exists": "api/tidiness-manager-api"
-          },
-          "description": "Start Go API server in production mode"
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node --preserve-symlinks server.js",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          },
-          "description": "Serve production UI bundle"
-        }
-      ]
-    },
-    "test": {
-      "description": "Execute phased test suite",
-      "steps": [
-        {
-          "name": "run-tests",
-          "run": "test-genie execute tidiness-manager --preset comprehensive",
-          "description": "Run structure/unit/integration/business/performance phases"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop background processes",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f 'tidiness-manager-api' || true",
-          "description": "Stop Go API"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f 'node server.js' || true",
-          "description": "Stop UI server"
-        }
-      ]
     }
   },
   "dependencies": {
@@ -191,26 +84,29 @@
         "enabled": true,
         "required": true,
         "description": "Primary relational data store for issue tracking, campaign state, and scan history",
-        "schema": "tidiness-manager"
-      },
-      "redis": {
-        "type": "redis",
-        "enabled": false,
-        "required": false,
-        "description": "Optional caching layer for expensive operations (AI analysis results, file metrics)"
+        "schema": "tidiness-manager",
+        "startup_policy": "must_start"
       },
       "claude-code": {
         "type": "ai",
         "enabled": false,
         "required": false,
-        "description": "AI-powered code analysis for smart scanning (deep pattern detection, refactoring suggestions)"
+        "description": "AI-powered code analysis for smart scanning (deep pattern detection, refactoring suggestions)",
+        "startup_policy": "try_start"
       }
     },
     "scenarios": {
       "visited-tracker": {
         "enabled": false,
         "required": false,
-        "description": "Campaign-based file tracking to ensure progressive coverage without redundancy"
+        "description": "Campaign-based file tracking to ensure progressive coverage without redundancy",
+        "startup_policy": "try_start"
+      },
+      "code-facts": {
+        "enabled": true,
+        "required": true,
+        "description": "Required symbol-resolved fact provider for canonical seam enforcement",
+        "startup_policy": "must_start"
       }
     }
   },
@@ -233,6 +129,43 @@
     },
     "source_build": {
       "kind": "go_module"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "--preserve-symlinks",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
     }
   }
 }

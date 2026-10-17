@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -9,10 +10,14 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
+	"connectrpc.com/connect"
+	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
+	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api/apiconnect"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -338,7 +343,17 @@ func (a *App) cmdBacklogUpdate(args []string) error {
 		return fmt.Errorf("at least one field must be provided")
 	}
 
-	body, err := a.core.Request("PATCH", "/backlog/"+kind+"/"+name, nil, json.RawMessage(payload))
+	fieldNames := make([]string, 0, len(fields))
+	for field := range fields {
+		fieldNames = append(fieldNames, field)
+	}
+	sort.Strings(fieldNames)
+	h, base := cliapp.NewConnectHTTPClient(a.core)
+	result, err := apiconnect.NewBacklogServiceClient(h, base).UpdateItem(context.Background(), connect.NewRequest(&apipb.UpdateItemRequest{Kind: kind, Name: name, Patch: &update, Fields: fieldNames}))
+	if err != nil {
+		return err
+	}
+	body, err := (protojson.MarshalOptions{UseProtoNames: true}).Marshal(result.Msg)
 	if err != nil {
 		return err
 	}

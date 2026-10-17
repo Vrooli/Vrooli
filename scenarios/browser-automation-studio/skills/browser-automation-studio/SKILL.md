@@ -9,9 +9,9 @@ metadata:
   tags: ["automation", "workflow", "learning"]
   icon: "play"
   status: "active"
-  revision: 54
+  revision: 55
   createdAt: "2026-09-04T00:00:00Z"
-  updatedAt: "2026-09-09T00:00:00Z"
+  updatedAt: "2026-10-16T00:00:00Z"
   requires:
     scenarios: ["browser-automation-studio", "program-runtime", "vrooli-memory"]
     commands: ["browser-automation-studio", "program-runtime", "vrooli-memory"]
@@ -94,6 +94,19 @@ Check that explicit assertions cover the user's actual request; a completed
 workflow proves only its asserted behavior. Unknown or stale evidence is not success.
 Keep browser sessions and service lifecycle under their owning CLI operations.
 Single commands remain CLI leaves because wrapping them adds no useful composition.
+
+### Producing video evidence
+
+Read `path:scenarios/browser-automation-studio/api/services/export/README.md`
+§"Continuous recordings and presentation" before a styled recording export.
+Choose viewport, frame and cursor before capture. A continuous source and a
+screenshot replay have different timing and pointer evidence. Preserve an explicit
+raw/stylized choice; saved settings alone do not prove styling was applied.
+Inspect the actual export's raster, first/action/result/end frames and audio.
+A failed frame budget is a request to reduce FPS or shorten the section, not to
+truncate its ending. Keep pointer pixels from recordings; do not invent a second
+trajectory. Use `launch-video` for audience, story, source/proof scope, cut craft,
+final-file review and delivery. These are distinct from a completed BAS execution.
 
 ### Learning and program use
 

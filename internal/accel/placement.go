@@ -308,7 +308,7 @@ func (v Verifier) observeHostProcess(ctx context.Context, process HostProcess, d
 	if process.PID <= 0 {
 		return "", AccessUnknown, "no pid was supplied for the host process", nil
 	}
-	snapshot, err := v.Facts.Snapshot(ctx)
+	snapshot, err := SnapshotForPlacement(ctx, v.Facts)
 	if err != nil {
 		return "", AccessUnknown, "", fmt.Errorf("read host accelerator facts: %w", err)
 	}
@@ -332,8 +332,19 @@ func observeCUDAProcess(snapshot hostinventory.Snapshot, process HostProcess) (B
 	if snapshot.ProbeStatuses["nvidia_gpu"] == "not_present" {
 		return BackendCPU, AccessUnknown, hostinventory.ToolNvidiaSMI + " is not installed, so no process can be on a CUDA device", nil
 	}
+	processState := snapshot.ProbeStatuses["nvidia_gpu_processes"]
+	if processState != "" && processState != "ok" {
+		reason := fmt.Sprintf("%s process observation is %s; placement of pid %d is unknown", hostinventory.ToolNvidiaSMI, processState, process.PID)
+		if len(snapshot.Warnings) > 0 {
+			reason += ": " + strings.Join(snapshot.Warnings, "; ")
+		}
+		return "", AccessUnknown, reason, nil
+	}
 	if row, ok := matchComputeProcess(snapshot, process); ok {
 		return BackendCUDA, AccessOK, fmt.Sprintf("%s reports %s holding %d bytes on GPU %d", hostinventory.ToolNvidiaSMI, describeComputeRow(row), row.UsedBytes, row.GPUIndex), nil
+	}
+	if processState != "ok" {
+		return "", AccessUnknown, fmt.Sprintf("%s process observation is unavailable; placement of pid %d is unknown", hostinventory.ToolNvidiaSMI, process.PID), nil
 	}
 	if len(snapshot.GPUs) == 0 {
 		return BackendCPU, AccessUnknown, "the host reports no CUDA device", nil

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"image"
@@ -27,23 +28,13 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-// viewportStabilizationScript is injected before capture begins to prevent
-// layout shifts that cause bottom-of-frame flickering in assembled videos.
-//
-// The root cause: when page content changes during playback, a vertical
-// scrollbar can appear or disappear, changing the viewport width by ~17px.
-// Each screenshot captures the page at its current width, so frames alternate
-// between two widths. The FFmpeg filter chain normalizes DIMENSIONS via scale,
-// but the page CONTENT was already rendered at different widths — elements
-// shift horizontally, and the bottom ~50px (where content reflow accumulates)
-// flickers visibly. No post-processing filter can fix content that was
-// captured in different positions.
-//
-// The fix: force a permanent scrollbar so the viewport width never changes.
+// The export page is a fixed canvas. Hide root overflow so scrollbar
+// appearance cannot change layout or leave a scrollbar in the delivered film.
+// Scrolling inside recorded product content remains part of the source pixels.
 const viewportStabilizationScript = `(function(){` +
 	`var s=document.createElement('style');` +
 	`s.id='bas-viewport-stabilize';` +
-	`s.textContent='html{overflow-y:scroll!important}body{overflow-x:hidden!important}';` +
+	`s.textContent='html,body{overflow:hidden!important;margin:0!important}';` +
 	`document.head.appendChild(s);` +
 	`})();`
 
@@ -120,6 +111,9 @@ func (c *playwrightCaptureClient) Capture(ctx context.Context, spec *ReplayMovie
 	}
 	if viewportHeight <= 0 {
 		viewportHeight = 1080
+	}
+	if viewportWidth > 4096 || viewportHeight > 4096 || viewportWidth*viewportHeight > 4096*2160 {
+		return nil, fmt.Errorf("replay canvas %dx%d exceeds the 4K pixel budget; choose a smaller output", viewportWidth, viewportHeight)
 	}
 	plan := autocontracts.ExecutionPlan{
 		SchemaVersion:  autocontracts.ExecutionPlanSchemaVersion,
@@ -215,20 +209,35 @@ func buildPlaywrightCaptureInstructions(exportPageURL string, spec *ReplayMovieS
 	if err != nil {
 		return nil, fmt.Errorf("serialize replay spec: %w", err)
 	}
+	requestJSON, err := json.Marshal(map[string]string{
+		"specId":       spec.GetExecution().GetExecutionId(),
+		"requestToken": uuid.NewString(),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("serialize replay request identity: %w", err)
+	}
 	// Use the export page's public message/controller contract. The retired
 	// bas:render event has no listener and used to capture the error screen.
 	script := fmt.Sprintf(`(async()=>{
       const deadline=Date.now()+15000;
+      const request=%s;
       while(!window.basExport || window.basExport.error==='initializing'){if(Date.now()>deadline)throw Error('Replay composer unavailable');await new Promise(r=>setTimeout(r,25));}
-      window.postMessage({type:'bas:spec:set',spec:%s},window.location.origin);
-      while(!window.basExport.ready){
-        const error=window.basExport.error;
-        if(error && error!=='initializing' && error!=='Missing replay payload')throw Error(error);
+      window.postMessage({type:'bas:spec:set',spec:%s,requestToken:request.requestToken},window.location.origin);
+      const adopted=()=>{
+        if(!window.basExport || !window.basExport.ready)return false;
+        const metadata=window.basExport.getMetadata();
+        return metadata.requestToken===request.requestToken && (!request.specId || metadata.specId===request.specId);
+      };
+      while(!adopted()){
+        const metadata=window.basExport?.getMetadata();
+        if(metadata?.requestError?.requestToken===request.requestToken)throw Error(metadata.requestError.message);
+        const error=window.basExport?.error;
+        if(metadata?.requestToken===request.requestToken && error && error!=='initializing')throw Error(error);
         if(Date.now()>deadline)throw Error('Replay composer did not become ready');
         await new Promise(r=>setTimeout(r,25));
       }
       window.basExport.pause();await window.basExport.seekTo(0);await document.fonts.ready;return {ready:true};
-    })()`, string(specJSON))
+    })()`, string(requestJSON), string(specJSON))
 
 	// Helper to build action with error handling
 	buildAction := func(stepType string, params map[string]any) (*basactions.ActionDefinition, error) {
@@ -258,13 +267,8 @@ func buildPlaywrightCaptureInstructions(exportPageURL string, spec *ReplayMovieS
 		return nil, err
 	}
 
-	// Stabilize the viewport layout before any screenshots. Force a permanent
-	// scrollbar and hide horizontal overflow so that scrollbar appearance/
-	// disappearance during playback cannot change the viewport width. Without
-	// this, frames alternate between two widths (~17px scrollbar difference),
-	// and even though the assembly filter chain normalizes dimensions, the
-	// page CONTENT itself shifts horizontally — causing visible flickering
-	// that no post-processing filter can repair.
+	// Fix root canvas geometry before capture; do not paint scrollbars.
+
 	stabilizeAction, err := buildAction("evaluate", map[string]any{
 		"expression": viewportStabilizationScript,
 	})
@@ -308,7 +312,7 @@ func buildPlaywrightCaptureInstructions(exportPageURL string, spec *ReplayMovieS
 			"expression": fmt.Sprintf(`(async()=>{if(!window.basExport.ready)throw Error(window.basExport.error||'Replay composer unavailable');await window.basExport.seekTo(%d);await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
             for(const video of document.querySelectorAll('video[data-bas-source-video]')){
                 const deadline=Date.now()+10000;
-                while(video.readyState<2||video.seeking){if(video.error)throw Error('Recorded video decode failed');if(Date.now()>deadline)throw Error('Recorded video frame did not settle');await new Promise(r=>setTimeout(r,10));}
+                while(video.readyState<2||video.seeking){if(video.error)throw Error('Recorded video decode failed: '+video.error.code+' '+video.error.message);if(Date.now()>deadline)throw Error('Recorded video frame did not settle');await new Promise(r=>setTimeout(r,10));}
             }
             await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return {ready:true};})()`, targetMs),
 		})
@@ -342,11 +346,18 @@ func buildPlaywrightCaptureInstructions(exportPageURL string, spec *ReplayMovieS
 
 // inMemoryCaptureRecorder captures outcomes without touching the database.
 type inMemoryCaptureRecorder struct {
-	outcomes  []autocontracts.StepOutcome
-	telemetry []autocontracts.StepTelemetry
+	outcomes      []autocontracts.StepOutcome
+	capturedBytes int
+	telemetry     []autocontracts.StepTelemetry
 }
 
 func (r *inMemoryCaptureRecorder) RecordStepOutcome(_ context.Context, _ autocontracts.ExecutionPlan, outcome autocontracts.StepOutcome) (executionwriter.RecordResult, error) {
+	if outcome.Screenshot != nil {
+		r.capturedBytes += len(outcome.Screenshot.Data)
+		if r.capturedBytes > 128*1024*1024 {
+			return executionwriter.RecordResult{}, fmt.Errorf("replay screenshots exceed 128 MiB budget; use shorter sections or lower FPS")
+		}
+	}
 	r.outcomes = append(r.outcomes, outcome)
 	return executionwriter.RecordResult{}, nil
 }

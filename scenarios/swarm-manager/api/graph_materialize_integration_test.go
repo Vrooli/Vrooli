@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/api-core/identity"
+
 	"swarm-manager/internal/graph"
 	"swarm-manager/internal/testutil"
 )
@@ -157,7 +159,7 @@ func mustPost(t *testing.T, h http.Handler, path string, body any) {
 	req := httptest.NewRequest(http.MethodPost, path, bytes.NewReader(b))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, req)
+	h.ServeHTTP(rec, graphOwnerRequest(req))
 	if rec.Code >= 300 {
 		t.Fatalf("POST %s: status=%d body=%s", path, rec.Code, rec.Body.String())
 	}
@@ -169,7 +171,7 @@ func mustPatch(t *testing.T, h http.Handler, path string, body any) {
 	req := httptest.NewRequest(http.MethodPatch, path, bytes.NewReader(b))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, req)
+	h.ServeHTTP(rec, graphOwnerRequest(req))
 	if rec.Code >= 300 {
 		t.Fatalf("PATCH %s: status=%d body=%s", path, rec.Code, rec.Body.String())
 	}
@@ -179,7 +181,7 @@ func mustDelete(t *testing.T, h http.Handler, path string) {
 	t.Helper()
 	req := httptest.NewRequest(http.MethodDelete, path, nil)
 	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, req)
+	h.ServeHTTP(rec, graphOwnerRequest(req))
 	if rec.Code >= 300 {
 		t.Fatalf("DELETE %s: status=%d body=%s", path, rec.Code, rec.Body.String())
 	}
@@ -275,7 +277,7 @@ func mustDeleteBody(t *testing.T, h http.Handler, path string, body any) {
 	req := httptest.NewRequest(http.MethodDelete, path, bytes.NewReader(b))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, req)
+	h.ServeHTTP(rec, graphOwnerRequest(req))
 	if rec.Code >= 300 {
 		t.Fatalf("DELETE %s: status=%d body=%s", path, rec.Code, rec.Body.String())
 	}
@@ -329,4 +331,8 @@ func TestGraphMaterialization_ExecutionStatusInvalidates(t *testing.T) {
 	waitForGraph(t, graphPath, func(g graph.MaterializedGraph) bool {
 		return len(g.Nodes) == 1
 	}, "graph re-materialized after topology invalidation")
+}
+
+func graphOwnerRequest(req *http.Request) *http.Request {
+	return req.WithContext(identity.WithPrincipal(req.Context(), identity.Principal{Kind: identity.ActorHuman, Subject: "operator:graph-fixture", Verified: true, Scopes: []string{"swarm-manager:write"}}))
 }

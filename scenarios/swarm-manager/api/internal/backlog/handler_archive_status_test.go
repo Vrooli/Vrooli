@@ -1,12 +1,34 @@
 package backlog
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/gorilla/mux"
 )
+
+type archiveAuditRecorder struct {
+	EventLogger
+	previousStatus string
+}
+
+func (r *archiveAuditRecorder) EmitBacklogStatusChanged(context.Context, string, string, string) {}
+func (r *archiveAuditRecorder) EmitBacklogArchived(_ string, previousStatus, _ string) {
+	r.previousStatus = previousStatus
+}
+
+func TestArchiveAuditPreservesTheOriginalStatus(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+	recorder := &archiveAuditRecorder{}
+	h.eventLogger = recorder
+	createTestItem(t, rootDir, KindExecute, BacklogItem{Name: "obsolete", Kind: KindExecute, Title: "Obsolete", Status: StatusBacklog})
+	archiveItem(t, h, rootDir, KindExecute, "obsolete")
+	if recorder.previousStatus != string(StatusBacklog) {
+		t.Fatalf("archive previous status = %q, want backlog", recorder.previousStatus)
+	}
+}
 
 // archiveItem drives the Archive handler for one item and returns the reloaded
 // item so the persisted status can be asserted.
@@ -15,7 +37,7 @@ func archiveItem(t *testing.T, h *Handler, rootDir string, kind BacklogKind, nam
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/backlog/"+string(kind)+"/"+name+"/archive", nil)
 	req = mux.SetURLVars(req, map[string]string{"kind": string(kind), "name": name})
 	rec := httptest.NewRecorder()
-	h.Archive(rec, req)
+	h.Archive(rec, req.WithContext(bookkeepingOwnerOn(req.Context())))
 	if rec.Code != http.StatusOK && rec.Code != http.StatusNoContent {
 		t.Fatalf("archive %s/%s: expected 2xx, got %d: %s", kind, name, rec.Code, rec.Body.String())
 	}

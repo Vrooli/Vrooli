@@ -7,7 +7,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class Style(_message.Message):
-    __slots__ = ("id", "name", "description", "caption", "bpm", "keyscale", "duration", "inference_steps", "guidance_scale", "variant", "builtin")
+    __slots__ = ("id", "name", "description", "caption", "bpm", "keyscale", "duration", "inference_steps", "guidance_scale", "variant", "builtin", "lyrics")
     ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
@@ -19,6 +19,7 @@ class Style(_message.Message):
     GUIDANCE_SCALE_FIELD_NUMBER: _ClassVar[int]
     VARIANT_FIELD_NUMBER: _ClassVar[int]
     BUILTIN_FIELD_NUMBER: _ClassVar[int]
+    LYRICS_FIELD_NUMBER: _ClassVar[int]
     id: str
     name: str
     description: str
@@ -30,7 +31,8 @@ class Style(_message.Message):
     guidance_scale: float
     variant: str
     builtin: bool
-    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., caption: _Optional[str] = ..., bpm: _Optional[int] = ..., keyscale: _Optional[str] = ..., duration: _Optional[int] = ..., inference_steps: _Optional[int] = ..., guidance_scale: _Optional[float] = ..., variant: _Optional[str] = ..., builtin: _Optional[bool] = ...) -> None: ...
+    lyrics: str
+    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., caption: _Optional[str] = ..., bpm: _Optional[int] = ..., keyscale: _Optional[str] = ..., duration: _Optional[int] = ..., inference_steps: _Optional[int] = ..., guidance_scale: _Optional[float] = ..., variant: _Optional[str] = ..., builtin: _Optional[bool] = ..., lyrics: _Optional[str] = ...) -> None: ...
 
 class CompiledStyle(_message.Message):
     __slots__ = ("style", "caption_as_sent")

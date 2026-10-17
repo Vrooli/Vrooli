@@ -98,10 +98,11 @@ func (s *Service) ReconcileInterruptedRecoveryRuns(ctx context.Context) error {
 }
 
 const (
-	RecoveryRunning  = "running"
-	RecoveryComplete = "complete"
-	RecoveryFailed   = "failed"
-	recoveryBatchCap = int64(2 * 1024 * 1024 * 1024)
+	temporaryRetentionTrigger = "storage-manager.temporary-retention"
+	RecoveryRunning           = "running"
+	RecoveryComplete          = "complete"
+	RecoveryFailed            = "failed"
+	recoveryBatchCap          = int64(2 * 1024 * 1024 * 1024)
 	// Owner providers return bounded previews. The owner-side recovery path uses
 	// an oldest-first bounded SQL query and exact-ID apply, so 200 items keeps
 	// progress practical for large stale indexes without reopening a full scan.
@@ -261,6 +262,9 @@ func (s *Service) StartRecovery(ctx context.Context, trigger, partition string, 
 }
 
 func recoveryTargetForRun(trigger, partition string, usedPercent float64, availableBytes int64, requestedFreePercent float64) int64 {
+	if trigger == temporaryRetentionTrigger {
+		return availableBytes + recoveryBatchCap
+	}
 	target := recoveryTargetBytes(usedPercent, availableBytes, requestedFreePercent)
 	// RATE identifies a specific hot governed root. It must be serviced even
 	// when the device has ample free space for the ordinary pressure target;
@@ -303,7 +307,7 @@ func (s *Service) executeRecovery(ctx context.Context, runID, trigger, partition
 	if err != nil {
 		return PressureOutcome{}, err
 	}
-	action := ActionApplied
+	action := ActionObserved
 	if dryRun {
 		action = ActionPreviewed
 	}
@@ -334,6 +338,9 @@ func (s *Service) executeRecovery(ctx context.Context, runID, trigger, partition
 providerLoop:
 	for _, meta := range metas {
 		providerPolicy := pol.Providers[meta.ID]
+		if trigger == temporaryRetentionTrigger && (meta.ID != "tmp" || !providerPolicy.Enabled || providerPolicy.MinAge <= 0 || providerPolicy.ApprovalMode != cleanup.ApprovalModeNone) {
+			continue
+		}
 		s.audit(ctx, AuditEvent{Type: "recovery.provider_considered", PlanID: out.PlanID, ProviderID: meta.ID, Message: fmt.Sprintf("tier=%s owner_budget=%t enabled=%t approval=%s", meta.SafetyTier, meta.OwnerBudget, providerPolicy.Enabled, providerPolicy.ApprovalMode)})
 		autonomous := autonomousTierAllowed(meta.SafetyTier)
 		standingApproval := s.hasCurrentHostStandingApproval(meta.ID, meta.SafetyTier, pol)
@@ -388,7 +395,8 @@ providerLoop:
 				break
 			}
 			providerCtx, providerCancel := context.WithTimeout(ctx, recoveryProviderBudget)
-			estimate, estimateErr := provider.Estimate(providerCtx, cleanup.EstimateRequest{Scope: cleanup.ObservationScope{RootPaths: []string{partition}, Now: s.now(), Recovery: true}, Policy: providerPolicy})
+			scope := cleanup.ObservationScope{RootPaths: []string{partition}, Now: s.now(), Recovery: true}
+			estimate, estimateErr := provider.Estimate(providerCtx, cleanup.EstimateRequest{Scope: scope, Policy: providerPolicy})
 			if estimateErr != nil {
 				message := "estimate failed: " + cleanup.Redact(estimateErr.Error())
 				if providerCtx.Err() != nil {
@@ -399,14 +407,27 @@ providerLoop:
 				break
 			}
 			if estimate.EstimatedBytes <= 0 {
-				s.audit(ctx, AuditEvent{Type: "recovery.provider_skipped", PlanID: out.PlanID, ProviderID: meta.ID, Message: "estimate reported no eligible bytes"})
+				message := estimate.BlockedReason
+				if message == "" {
+					message = "estimate reported no eligible bytes"
+				}
+				if strings.Contains(message, "measurement pending") {
+					out.Reason = "measurement_pending"
+					out.ProvidersWithheld = appendUnique(out.ProvidersWithheld, meta.ID+" (measurement pending)")
+				} else if estimate.BlockedReason != "" {
+					out.ProvidersWithheld = appendUnique(out.ProvidersWithheld, meta.ID+" ("+cleanup.Redact(message)+")")
+					if out.Reason == "" {
+						out.Reason = "providers_blocked"
+					}
+				}
+				s.audit(ctx, AuditEvent{Type: "recovery.provider_skipped", PlanID: out.PlanID, ProviderID: meta.ID, Message: message})
 				providerCancel()
 				break
 			}
 			if out.PlanID == "" {
 				out.PlanID = runID + "-plan"
 			}
-			preview, previewErr := provider.Preview(providerCtx, cleanup.PreviewRequest{Scope: cleanup.ObservationScope{RootPaths: []string{partition}, Now: s.now(), Recovery: true}, Policy: providerPolicy, Estimate: estimate})
+			preview, previewErr := provider.Preview(providerCtx, cleanup.PreviewRequest{Scope: scope, Policy: providerPolicy, Estimate: estimate})
 			if previewErr != nil {
 				message := "preview failed: " + cleanup.Redact(previewErr.Error())
 				if providerCtx.Err() != nil {
@@ -424,6 +445,7 @@ providerLoop:
 			}
 			batch := boundedRecoveryPreview(preview, recoveryBatchCap)
 			if len(batch.Items) == 0 {
+				s.audit(ctx, AuditEvent{Type: "recovery.provider_skipped", PlanID: out.PlanID, ProviderID: meta.ID, Message: "all preview entries exceed the bounded batch; provider has no indivisible-entry authority"})
 				providerCancel()
 				break
 			}
@@ -435,6 +457,12 @@ providerLoop:
 				break
 			}
 			plan := Plan{ID: out.PlanID, PolicyVersion: pol.Version, Providers: []ProviderPlan{{ProviderID: meta.ID, ProviderVersion: meta.Version, Estimate: estimate, Preview: batch, Policy: providerPolicy}}}
+			if batch.AllowSingleOvershoot && sumRecoveryPreviewBytes(batch.Items) > recoveryBatchCap {
+				// A completed temporary tree needs an independent revalidation and
+				// deletion window. Measuring it has not used up that effect budget.
+				providerCancel()
+				providerCtx, providerCancel = context.WithTimeout(ctx, 5*time.Minute)
+			}
 			applyStarted := time.Now()
 			result, applied, applyErr := s.applyProvider(providerCtx, plan, plan.Providers[0], ApplyInput{PlanID: plan.ID, PolicyVersion: pol.Version, ApprovalMode: cleanup.ApprovalModeNone, IdempotencyKey: fmt.Sprintf("%s|%s|%d", runID, meta.ID, batchIndex)})
 			if applyErr != nil {
@@ -453,7 +481,10 @@ providerLoop:
 				break
 			}
 			batches++
-			out.ProvidersApplied = appendUnique(out.ProvidersApplied, meta.ID)
+			if result.Applied || len(result.AppliedItems) > 0 || result.ReclaimedBytes > 0 {
+				out.Action = ActionApplied
+				out.ProvidersApplied = appendUnique(out.ProvidersApplied, meta.ID)
+			}
 			out.ReclaimedBytes += result.ReclaimedBytes
 			freeBefore := free
 			free += result.ReclaimedBytes

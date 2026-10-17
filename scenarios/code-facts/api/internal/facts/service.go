@@ -130,6 +130,9 @@ func (s *Service) Describe(ctx context.Context, req *factsv1.DescribeCodeFactsRe
 	if hasFamily(include, factsv1.FactFamily_FACT_FAMILY_SURFACES) {
 		report.Surfaces = discoverSurfaces(target)
 	}
+	if hasFamily(include, factsv1.FactFamily_FACT_FAMILY_STACK) {
+		report.Facts = append(report.Facts, describeStackFacts(target.GetRootPath())...)
+	}
 	if hasFamily(include, factsv1.FactFamily_FACT_FAMILY_PARSE_UNITS) {
 		report.ParseUnits = parseUnits
 	}
@@ -694,7 +697,8 @@ func isImplementedFamily(family factsv1.FactFamily) bool {
 		factsv1.FactFamily_FACT_FAMILY_CALLS,
 		factsv1.FactFamily_FACT_FAMILY_PROTO_ADOPTION,
 		factsv1.FactFamily_FACT_FAMILY_ENDPOINT_PROOFS,
-		factsv1.FactFamily_FACT_FAMILY_FILE_DOMAIN:
+		factsv1.FactFamily_FACT_FAMILY_FILE_DOMAIN,
+		factsv1.FactFamily_FACT_FAMILY_STACK:
 		return true
 	default:
 		return false
@@ -798,6 +802,7 @@ func normalizeFamilies(in []factsv1.FactFamily) []factsv1.FactFamily {
 			factsv1.FactFamily_FACT_FAMILY_CLI_PROOFS,
 			factsv1.FactFamily_FACT_FAMILY_UI_WIDGET_PROOFS,
 			factsv1.FactFamily_FACT_FAMILY_FILE_DOMAIN,
+			factsv1.FactFamily_FACT_FAMILY_STACK,
 		}
 	}
 	out := make([]factsv1.FactFamily, 0, len(seen))
@@ -813,6 +818,7 @@ func normalizeFamilies(in []factsv1.FactFamily) []factsv1.FactFamily {
 		factsv1.FactFamily_FACT_FAMILY_CLI_PROOFS,
 		factsv1.FactFamily_FACT_FAMILY_UI_WIDGET_PROOFS,
 		factsv1.FactFamily_FACT_FAMILY_FILE_DOMAIN,
+		factsv1.FactFamily_FACT_FAMILY_STACK,
 	}
 	for _, f := range order {
 		if seen[f] {

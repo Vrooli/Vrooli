@@ -123,18 +123,20 @@ func (s *Service) listSnapshot(filters ListFilters) ([]Record, error) {
 // HasActiveAgent checks whether a backlog item has an active agent
 // (pending, starting, running, or needs_review). Used by non-spawn guards
 // like WorkshopDeleteRound and WorkshopReset to prevent mutations while
-// an agent is working. Returns false on store errors (safe-side: allow
-// operations to proceed if the store is broken).
+// an agent is working. Unavailable activity evidence blocks mutations.
 func (s *Service) HasActiveAgent(ctx context.Context, ownerKind, ownerName string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	records, err := s.store.Load()
 	if err != nil {
-		return false
+		return true
 	}
 	_ = s.refreshActiveForOwnerLocked(ctx, records, ownerKind, ownerName)
-	records, _ = s.store.Load()
+	records, err = s.store.Load()
+	if err != nil {
+		return true
+	}
 
 	for _, rec := range records {
 		if rec.OwnerType != OwnerBacklog || rec.OwnerKind != ownerKind || rec.OwnerName != ownerName {

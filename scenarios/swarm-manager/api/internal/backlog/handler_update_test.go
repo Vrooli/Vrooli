@@ -23,7 +23,7 @@ func doUpdate(t *testing.T, h *Handler, kind, name string, payload map[string]an
 	req.Header.Set("Content-Type", "application/json")
 	req = mux.SetURLVars(req, map[string]string{"kind": kind, "name": name})
 	w := httptest.NewRecorder()
-	h.Update(w, req)
+	h.Update(w, req.WithContext(bookkeepingOwnerOn(req.Context())))
 	return w
 }
 
@@ -34,7 +34,7 @@ func doUpdateRaw(t *testing.T, h *Handler, kind, name, body string) *httptest.Re
 	req.Header.Set("Content-Type", "application/json")
 	req = mux.SetURLVars(req, map[string]string{"kind": kind, "name": name})
 	w := httptest.NewRecorder()
-	h.Update(w, req)
+	h.Update(w, req.WithContext(bookkeepingOwnerOn(req.Context())))
 	return w
 }
 

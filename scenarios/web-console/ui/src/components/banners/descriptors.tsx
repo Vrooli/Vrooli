@@ -1,4 +1,4 @@
-import { History, Loader2, Mic, RefreshCw, RotateCcw, Volume2, VolumeX } from "lucide-react";
+import { History, Loader2, Mic, RefreshCw, RotateCcw, ShieldCheck, Volume2, VolumeX } from "lucide-react";
 import type { TFunction } from "i18next";
 import type { VoiceRejection } from "../../audio-integration";
 import type { ErrorInfo } from "../../lib/errors";
@@ -501,6 +501,36 @@ export function crashRecoveryBanner(
         id: "view-archive",
         label: t(strings.recoverableSessions.viewArchive),
         onSelect: onOpenArchive,
+        primary: true,
+      },
+    ],
+  };
+}
+
+/**
+ * The mobile primary entrance to the approvals inbox. It lives in the existing
+ * BannerRegion (the one top-chrome owner), is raised ONLY when `count > 0`
+ * (the caller passes a falsy descriptor otherwise), and its action opens the
+ * inbox drawer. No new always-on top-bar icon — that was the ratified
+ * per-medium entry model, because the mobile top bar is already crowded.
+ */
+export function approvalsBanner(
+  t: TFunction,
+  count: number,
+  onOpenApprovals: () => void,
+): BannerDescriptor {
+  return {
+    id: "approvals-pending",
+    testId: "approvals-banner",
+    tone: "warning",
+    priority: BANNER_PRIORITY.approvalsPending,
+    icon: ShieldCheck,
+    title: t(strings.approvals.bannerTitle, { count }),
+    actions: [
+      {
+        id: "review",
+        label: t(strings.approvals.bannerAction),
+        onSelect: onOpenApprovals,
         primary: true,
       },
     ],

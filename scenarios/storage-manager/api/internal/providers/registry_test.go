@@ -6,8 +6,28 @@ import (
 	"time"
 
 	"storage-manager/internal/cleanup"
+	"storage-manager/internal/policy"
 	cleanupfakes "storage-manager/internal/testutil/cleanup"
 )
+
+func TestGuardedTemporaryCleanupIsAutomaticInBalancedProfile(t *testing.T) {
+	provider := NewTmpProvider(&cleanupfakes.FileSystem{Root: "/fake", Files: map[string]cleanup.FileInfo{}}, cleanupfakes.Clock{}, FileProviderConfig{ID: "tmp", Name: "Temporary files", Roots: []string{"/fake/tmp"}, LeaseCheck: "temporary", ProtectActive: true, TopLevelEntries: true})
+	balanced, err := policy.BuildProfile(policy.ProfileBalanced, []cleanup.ProviderMetadata{provider.Metadata()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := balanced.Defaults["tmp"]
+	if !got.Enabled || got.ApprovalMode != cleanup.ApprovalModeNone || got.MinAge != 72*time.Hour {
+		t.Fatalf("safe guarded temporary cleanup still requires manual approval: %+v", got)
+	}
+	conservative, err := policy.BuildProfile(policy.ProfileConservative, []cleanup.ProviderMetadata{provider.Metadata()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if conservative.Defaults["tmp"].Enabled {
+		t.Fatal("conservative profile unexpectedly enabled temporary deletion")
+	}
+}
 
 func TestRegistryRejectsDuplicateProviders(t *testing.T) {
 	t.Parallel()
@@ -186,7 +206,7 @@ func TestFileProviderEstimatePreviewAndApplyUseFakeRootOnly(t *testing.T) {
 	}
 	result, err := provider.Apply(context.Background(), cleanup.ApplyRequest{
 		PlanID:          "plan-1",
-		ProviderVersion: "v1",
+		ProviderVersion: provider.Metadata().Version,
 		ApprovalMode:    cleanup.ApprovalModeOperator,
 		IdempotencyKey:  "apply-1",
 		Preview:         preview,

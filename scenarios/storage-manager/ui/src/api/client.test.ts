@@ -1,8 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError, decodeApiError, uploadFile } from "./client";
+import { ApiError, decodeApiError, makeApiError, uploadFile } from "./client";
 
 describe("api/client REST helpers", () => {
+  it("preserves code and HTTP status when the caller constructs an operational error", () => {
+    const err=makeApiError("permission_denied","Owner approval is required",403);
+    expect(err).toBeInstanceOf(ApiError);
+    expect(err.code).toBe("permission_denied");
+    expect(err.status).toBe(403);
+    expect(err.message).toContain("Owner approval is required");
+    expect(makeApiError("internal","unexpected failure").status).toBe(500);
+  });
   let fetchSpy: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {

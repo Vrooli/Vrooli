@@ -265,6 +265,8 @@ type PreviewItem struct {
 	Bytes       int64
 	Action      string
 	SafetyTier  SafetyTier
+	Identity    string
+	ModTime     time.Time
 }
 
 type Preview struct {

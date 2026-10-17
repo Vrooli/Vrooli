@@ -56,6 +56,14 @@ message InstallDependencyRequest {
   // exact_version asks the governed JavaScript surface to persist the requested
   // version without a caret/range. It requires a concrete version.
   bool exact_version = 7;
+  // True explicitly saves a JavaScript dependency as development-only. False
+  // preserves existing classification; a new dependency defaults to runtime.
+  // Unsupported for non-JavaScript, overrides, and frozen host-tool installs.
+  bool development = 8;
+  // Refresh only the committed dependency inputs for the closed host-tool
+  // owner. Requires an explicit exact version and development=false. The
+  // default remains frozen reproduction; this does not install a runtime.
+  bool refresh_lock = 9;
 }
 
 message InstallDependencyResponse {
@@ -79,6 +87,9 @@ message InstallDependencyResponse {
   // vulnerability scan summary for the package.
   repeated string security_notes = 10;
   string guidance = 11;
+  // True only when an applied host-tool source refresh succeeded. This does
+  // not imply a managed runtime was installed; installed remains false.
+  bool source_updated = 12;
 }
 
 message ListApprovedDependenciesRequest {

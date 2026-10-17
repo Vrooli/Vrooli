@@ -2,7 +2,13 @@
 
 package hostfs
 
-import "io/fs"
+import (
+	"fmt"
+	"io/fs"
+)
+
+func fileIdentity(info fs.FileInfo) string     { return fmt.Sprintf("%#v", info.Sys()) }
+func sameDevice(fs.FileInfo, fs.FileInfo) bool { return true }
 
 // ownedByCurrentUser always reports true on Windows.
 //

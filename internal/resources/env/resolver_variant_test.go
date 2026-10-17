@@ -103,3 +103,52 @@ func TestApplyDependencyOverridesVariantDatabaseName(t *testing.T) {
 		})
 	}
 }
+
+func TestLoadResourcePortsReservesAllDraftRuntimePorts(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "resources", "draft")
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	// Runtime is deliberately not installable; an already running process may
+	// still own these declarations after its source manifest becomes invalid.
+	body := `{"name":"draft","driver":"managed-service","managed_service":{"artifact":{"sha256":""}},"ports":[{"name":"http","host":19876},{"name":"upstream","host":19877},{"name":"fallback","container":19878}]}`
+	if err := os.WriteFile(filepath.Join(dir, "resource.json"), []byte(body), 0600); err != nil {
+		t.Fatal(err)
+	}
+	ports, err := LoadResourcePorts(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, want := range map[string]int{"draft": 19876, "draft/upstream": 19877, "draft/fallback": 19878} {
+		if ports[name] != want {
+			t.Errorf("reservation%s=%d want%d", name, ports[name], want)
+		}
+	}
+}
+
+func TestLoadResourcePortsRefusesInvalidProjectionInsteadOfHidingPorts(t *testing.T) {
+	for _, body := range []string{
+		`{"name":"other","ports":[{"name":"http","host":19876}]}`,
+		`{"name":"draft","ports":[{"name":"http","host":65536}]}`,
+		`{"name":"draft","ports":[{"name":"http","host":-1}]}`,
+		`{"name":"draft","ports":[{"name":"http","host":"19876"}]}`,
+		`{"name":"draft","ports":[{"name":"","host":19876}]}`,
+		`{"name":"draft","ports":[{"name":"http","host":19876},{"name":"http","host":19877}]}`,
+		`{"name":"draft","ports":[`,
+	} {
+		t.Run(body, func(t *testing.T) {
+			root := t.TempDir()
+			dir := filepath.Join(root, "resources", "draft")
+			if err := os.MkdirAll(dir, 0700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(dir, "resource.json"), []byte(body), 0600); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := LoadResourcePorts(root); err == nil {
+				t.Fatal("invalid projection silently omitted")
+			}
+		})
+	}
+}

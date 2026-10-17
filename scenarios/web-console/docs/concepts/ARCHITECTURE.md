@@ -218,6 +218,32 @@ Flow: message link/chip → `openPreview(path)` → `Resolve` issues a session-b
 
 HTML previews load relative presentation assets through `GET|HEAD /api/v1/sessions/{id}/file-previews/{previewId}/runtime/{resource}`. The route confines resources to the HTML document's directory, rejects escaping symlinks, and preserves the script-only iframe sandbox. Allowed audio/video resources stream directly from disk without a total-file-size cap; other presentation assets retain a 16 MiB bound. Both byte routes support native HEAD, suffix ranges, 64-bit offsets, and 206/416 responses. Preview writes renew the server's 150-second write deadline per chunk, allowing active transfers to outlast the ordinary response budget while bounding stalled writes. This does not change the preview ID's 30-minute lifetime; reopening an expired preview obtains a fresh ID.
 
+HTML viewing controls follow the drawer header surface: one shared `IconButton`
+swaps Preview/Source using the existing icon morph animation. A single compact
+row also provides Responsive, Phone (390px), Tablet (768px), and Desktop (1440px)
+viewport widths, zoom steps, and Fit. Preset selection fits immediately; manual
+zoom preserves the chosen CSS viewport and permits horizontal panning. Frame
+height tracks available space at the current scale. Resize observation keeps Fit
+current through drawer resizing and phone rotation. Viewport/zoom choices survive
+source switches but reset for a different preview. Source line links and truncated
+files still open as source. This is a bounded W3 interaction improvement to the
+single-task artifact drawer, using existing tokens and primitives. The desktop
+and mobile composition is recorded in [the toolbar mockup](../mockups/html-preview-toolbar.svg). Target validation: focused renderer regressions, scoped
+Test Genie unit phase, and desktop/mobile browser inspection.
+
+HTML previews support independent 1–5× inspection magnification. The host applies
+one clipped compositor transform to the iframe per animation frame. The authored
+body is never scaled or measured during a gesture. An isolated bootstrap forwards
+screen-coordinate gestures through a message channel bound to that exact iframe;
+coordinates stay stable when the iframe itself scales. Pan offsets clamp to the
+viewport so the canvas cannot expose white gutters. Panning beyond the viewport
+continues through the document via bounded scroll messages. Pinch keeps document
+scroll offsets, viewport width/media queries, toolbar zoom and chrome stable.
+Normal single-finger scrolling remains native at 1×. Pinching out restores 1×;
+resize and toolbar changes reset inspection. Trackpad pinch is also supported.
+The bootstrap is embedded as a raw inline module for production/profile parity;
+its messages grant only inspection and scrolling, with no host operations.
+
 ### Error Handling
 
 All API errors return structured JSON with `code`, `category`, `recovery`, and `retry` fields. See [Error Semantics](../internal/ERROR_SEMANTICS.md) for the full contract.

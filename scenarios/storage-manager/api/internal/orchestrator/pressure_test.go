@@ -562,6 +562,9 @@ func TestReportPressureWithTriggerReturnsRecoveryRunIDBeforeApply(t *testing.T) 
 	if outcome.ReclaimedBytes != 0 {
 		t.Fatalf("pressure response reclaimed bytes = %d before wait", outcome.ReclaimedBytes)
 	}
+	if outcome.Action != ActionObserved {
+		t.Fatalf("admission falsely claimed an effect: %#v", outcome)
+	}
 	run, err := svc.WaitRecovery(context.Background(), outcome.RunID)
 	if err != nil {
 		t.Fatalf("WaitRecovery: %v", err)
@@ -653,8 +656,8 @@ func TestReportPressure_CriticalAppliesSafeTier(t *testing.T) {
 	}
 	run := waitPressureRun(t, svc, outcome)
 
-	if outcome.Action != ActionApplied {
-		t.Errorf("action = %s, want applied", outcome.Action)
+	if outcome.Action != ActionObserved {
+		t.Errorf("admission action = %s, want observed", outcome.Action)
 	}
 	if !safe.didApply() {
 		t.Error("a safe-tier provider did not run at the critical band; detection still does not reach action")
@@ -797,8 +800,8 @@ func TestReportPressure_HighAppliesSafeTier(t *testing.T) {
 	}
 	run := waitPressureRun(t, svc, outcome)
 
-	if outcome.Action != ActionApplied {
-		t.Errorf("action = %s, want applied", outcome.Action)
+	if outcome.Action != ActionObserved {
+		t.Errorf("admission action = %s, want observed", outcome.Action)
 	}
 	if !safe.didApply() {
 		t.Error("the high band did not apply safe-tier cleanup")
@@ -855,8 +858,8 @@ func TestReportPressure_WarningRateTriggerStartsRecovery(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReportPressure: %v", err)
 	}
-	if outcome.Action != ActionApplied || outcome.RunID == "" {
-		t.Fatalf("rate warning outcome = %#v, want an applied recovery run", outcome)
+	if outcome.Action != ActionObserved || outcome.RunID == "" {
+		t.Fatalf("rate warning outcome = %#v, want an admitted recovery run", outcome)
 	}
 	if got := svc.ListRecovery(1)[0].Partition; got != governedRoot {
 		t.Fatalf("rate recovery partition = %q, want named hot root", got)

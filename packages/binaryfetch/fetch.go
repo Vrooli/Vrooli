@@ -17,6 +17,8 @@ import (
 // data-declared tool.json source target, decoupled from the platform structs so
 // this package stays standard-library-only.
 type Target struct {
+	// Authorization is resolved by the trusted owner immediately before download.
+	Authorization *BearerAuthorization `json:"-"`
 	// Name is the installed binary's final filename (the command name).
 	Name string
 	// URL is the download location of the binary or archive.
@@ -57,11 +59,11 @@ func FetchTree(ctx context.Context, spec Target, destDir string, onProgress Prog
 	}
 	defer os.RemoveAll(tmpDir)
 	downloadPath := filepath.Join(tmpDir, "download")
-	if err := download(ctx, spec.URL, downloadPath, onProgress); err != nil {
+	if err := downloadAuthorized(ctx, spec.URL, downloadPath, onProgress, spec.Authorization); err != nil {
 		return err
 	}
 	onProgress.emit(Progress{Stage: StageVerifying})
-	if err := verifyChecksum(downloadPath, spec.SHA256); err != nil {
+	if err := verifyChecksum(ctx, downloadPath, spec.SHA256); err != nil {
 		return err
 	}
 	onProgress.emit(Progress{Stage: StageExtracting})
@@ -150,6 +152,17 @@ func VerifyURL(ctx context.Context, url, expectedSHA256 string) error {
 // pages and truncated downloads, extracts archives, and atomically places the
 // executable. destDir is created if absent.
 func Fetch(ctx context.Context, spec Target, destDir string, onProgress ProgressFunc) (string, error) {
+	return fetchFile(ctx, spec, destDir, onProgress, false)
+}
+
+// FetchData stages checksum-pinned non-executable data. Tiny JSON/tokenizer files
+// are legitimate; the binary/weight executable guard remains unchanged in Fetch.
+func FetchData(ctx context.Context, spec Target, destDir string, onProgress ProgressFunc) (string, error) {
+	spec.Mode = "0644"
+	return fetchFile(ctx, spec, destDir, onProgress, true)
+}
+
+func fetchFile(ctx context.Context, spec Target, destDir string, onProgress ProgressFunc, data bool) (string, error) {
 	if strings.TrimSpace(spec.URL) == "" {
 		return "", fmt.Errorf("binaryfetch: target URL is required")
 	}
@@ -171,12 +184,12 @@ func Fetch(ctx context.Context, spec Target, destDir string, onProgress Progress
 	defer os.RemoveAll(tmpDir)
 
 	downloadPath := filepath.Join(tmpDir, "download")
-	if err := download(ctx, spec.URL, downloadPath, onProgress); err != nil {
+	if err := downloadAuthorized(ctx, spec.URL, downloadPath, onProgress, spec.Authorization); err != nil {
 		return "", err
 	}
 
 	onProgress.emit(Progress{Stage: StageVerifying})
-	if err := verifyChecksum(downloadPath, spec.SHA256); err != nil {
+	if err := verifyChecksum(ctx, downloadPath, spec.SHA256); err != nil {
 		return "", err
 	}
 
@@ -186,7 +199,7 @@ func Fetch(ctx context.Context, spec Target, destDir string, onProgress Progress
 	format := normalizeArchive(spec.Archive)
 	if format == "" {
 		// Raw binary: the download IS the binary. Guard it before placing.
-		if err := ValidateNotHTMLAndSized(downloadPath, binName, 0); err != nil {
+		if err := validateFetchedFile(downloadPath, binName, data); err != nil {
 			return "", err
 		}
 		staged = downloadPath
@@ -195,7 +208,7 @@ func Fetch(ctx context.Context, spec Target, destDir string, onProgress Progress
 		if err := extractBinary(downloadPath, format, spec.BinPath, staged); err != nil {
 			return "", err
 		}
-		if err := ValidateNotHTMLAndSized(staged, binName, 0); err != nil {
+		if err := validateFetchedFile(staged, binName, data); err != nil {
 			return "", err
 		}
 	}
@@ -251,12 +264,12 @@ func FetchDir(ctx context.Context, spec Target, optDir string, onProgress Progre
 	defer os.RemoveAll(tmpDir)
 
 	downloadPath := filepath.Join(tmpDir, "download")
-	if err := download(ctx, spec.URL, downloadPath, onProgress); err != nil {
+	if err := downloadAuthorized(ctx, spec.URL, downloadPath, onProgress, spec.Authorization); err != nil {
 		return "", err
 	}
 
 	onProgress.emit(Progress{Stage: StageVerifying})
-	if err := verifyChecksum(downloadPath, spec.SHA256); err != nil {
+	if err := verifyChecksum(ctx, downloadPath, spec.SHA256); err != nil {
 		return "", err
 	}
 
@@ -295,17 +308,17 @@ func FetchDir(ctx context.Context, spec Target, optDir string, onProgress Progre
 }
 
 func download(ctx context.Context, url, destPath string, onProgress ProgressFunc) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	return downloadAuthorized(ctx, url, destPath, onProgress, nil)
+}
+
+func downloadAuthorized(ctx context.Context, url, destPath string, onProgress ProgressFunc, auth *BearerAuthorization) error {
+	resp, err := downloadResponse(ctx, url, auth)
 	if err != nil {
-		return fmt.Errorf("binaryfetch: build request: %w", err)
-	}
-	resp, err := HTTPClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("binaryfetch: download %s: %w", url, err)
+		return safeDownloadError(auth, fmt.Errorf("binaryfetch: download %s: %w", url, err))
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("binaryfetch: download %s: unexpected status %s", url, resp.Status)
+		return fmt.Errorf("binaryfetch: download refused with HTTP %d", resp.StatusCode)
 	}
 
 	out, err := os.Create(destPath) //nolint:gosec // destPath is under a controlled temp dir
@@ -318,7 +331,7 @@ func download(ctx context.Context, url, destPath string, onProgress ProgressFunc
 	onProgress.emit(Progress{Stage: StageDownloading, BytesTotal: max64(total, 0)})
 	pw := &progressWriter{onProgress: onProgress, total: total}
 	if _, err := io.Copy(out, io.TeeReader(resp.Body, pw)); err != nil {
-		return fmt.Errorf("binaryfetch: stream download: %w", err)
+		return safeDownloadError(auth, fmt.Errorf("binaryfetch: stream download: %w", err))
 	}
 	return nil
 }
@@ -336,17 +349,11 @@ func (w *progressWriter) Write(p []byte) (int, error) {
 	return n, nil
 }
 
-func verifyChecksum(path, want string) error {
-	f, err := os.Open(path) //nolint:gosec // path is under a controlled temp dir
+func verifyChecksum(ctx context.Context, path, want string) error {
+	got, err := FileDigestContext(ctx, path)
 	if err != nil {
-		return err
-	}
-	defer f.Close()
-	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil {
 		return fmt.Errorf("binaryfetch: hash download: %w", err)
 	}
-	got := hex.EncodeToString(h.Sum(nil))
 	if !strings.EqualFold(got, strings.TrimSpace(want)) {
 		return fmt.Errorf("%w: got %s, want %s", ErrChecksumMismatch, got, strings.ToLower(strings.TrimSpace(want)))
 	}
@@ -405,4 +412,25 @@ func max64(a, b int64) int64 {
 		return a
 	}
 	return b
+}
+
+func validateFetchedFile(path, name string, data bool) error {
+	if !data {
+		return ValidateNotHTMLAndSized(path, name, 0)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+	if info.Size() == 0 {
+		return fmt.Errorf("%w: data is empty", ErrTooSmall)
+	}
+	head, err := ReadHead(path, SniffLen)
+	if err != nil {
+		return err
+	}
+	if _, html := IsHTML(head); html {
+		return ErrLooksLikeHTML
+	}
+	return nil
 }

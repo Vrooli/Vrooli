@@ -1,21 +1,28 @@
 {
   "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "storage": {"entries":{},"rationale":"No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."},
+  "storage": {
+    "entries": {},
+    "rationale": "No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."
+  },
   "service": {
     "parent": "vrooli",
     "name": "command-center",
     "displayName": "Command Center",
-    "description": "Read-only aggregator that composes kiosk-style dashboard payloads from Swarm Manager, Vrooli Core, and LPBS upstream sources.",
+    "description": "Director Swarm's instrument: reads the objective set and every team's declared instrument, joins the authored outcome space against what resolves, qualifies each reading on three independent axes, and renders one ranked answer to which sensor is worth building next. Surfaces and ranks; never actuates.",
     "version": "0.0.1",
     "type": "business-application",
     "category": "business-application",
     "tags": [
+      "instrument",
+      "board",
+      "director-swarm",
+      "outcomes",
+      "observability",
+      "ambient-display",
+      "read-only",
       "react-ui",
-      "go-api",
-      "dashboard",
-      "monitoring",
-      "kiosk"
+      "go-api"
     ],
     "maintainers": [
       {
@@ -96,92 +103,6 @@
           "critical": false
         }
       ]
-    },
-    "setup": {
-      "description": "Build API and UI assets",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/command-center-api"
-            ]
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "build-api",
-          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o command-center-api .",
-          "description": "Build Go API server"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm --ignore-workspace run build || pnpm --ignore-workspace run build); else echo 'ui/ not present yet'; fi",
-          "description": "Build production UI bundle"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Launch API and UI production server",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./command-center-api",
-          "background": true,
-          "description": "Start Go API server in background",
-          "condition": {
-            "file_exists": "api/command-center-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "background": true,
-          "description": "Serve production UI bundle",
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        }
-      ]
-    },
-    "test": {
-      "description": "Execute phased test suite via test-genie",
-      "steps": [
-        {
-          "name": "run-tests",
-          "run": "test-genie execute command-center --preset comprehensive",
-          "description": "Run all test phases via test-genie"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop background processes",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f 'command-center-api' || true",
-          "description": "Stop Go API"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f 'node server.js' || true",
-          "description": "Stop UI server"
-        }
-      ]
     }
   },
   "dependencies": {
@@ -198,7 +119,100 @@
         "required": false,
         "startup_policy": "try_start",
         "description": "Source for subscription, revenue, and web analytics metrics (Ledger, Broadcast)"
+      },
+      "prompt-manager": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Typed objective and team-instrument transmitter"
+      },
+      "offer-desk": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+    "description": "Read-only source for the Offer Desk release ladder and monetization posture board; unavailable posture is surfaced without blocking the rest of Command Center."
+      },
+      "deployment-manager": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Source for deployment readiness state"
+      },
+      "source-ledger": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Durable owned morning walk briefings and conditional checkpoint append; unavailable ledger fails explicit walk writes."
       }
     }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
+    }
+  },
+  "skills": {
+    "usage": {
+      "source": "skills/command-center/SKILL.md",
+      "programs": []
+    },
+    "improve": {
+      "source": "skills/command-center-improve/SKILL.md",
+      "programs": [
+        "command-center.setpoint-read",
+        "command-center.learning-read"
+      ]
+    },
+    "feature": [
+      {
+        "source": "skills/command-center-vision-walk-prep/SKILL.md",
+        "programs": [
+          "command-center.vision-walk-prep"
+        ]
+      },
+      {
+        "source": "skills/morning-vision-walk/SKILL.md",
+        "programs": []
+      },
+      {
+        "source": "skills/command-center-customize/SKILL.md",
+        "programs": []
+      }
+    ],
+    "learning": {
+      "scope": "command-center-usage"
+    },
+    "waivers": {}
   }
 }

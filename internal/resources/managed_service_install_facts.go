@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -13,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/artifactlock"
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	"github.com/vrooli/binaryfetch"
@@ -218,7 +220,7 @@ func checkFactDrift(artifactPath, resource string, current binaryfetch.Facts, re
 // host changed, and there is a command that fixes it.
 const StatusCodeNeedsReacquire = resourcecontrol.StatusCodeNeedsReacquire
 
-// DiscardStagedArtifact removes the staged artifact and its install-facts
+// DiscardStagedArtifact removes the stopped resource's staged artifact and its install-facts
 // record for one resource, so the next install re-resolves the target under the
 // host's current facts and downloads it again.
 //
@@ -243,6 +245,31 @@ func (c *Controller) DiscardStagedArtifact(name string, progress io.Writer) erro
 	}
 	if !strings.HasPrefix(filepath.Clean(path), filepath.Clean(root)+string(filepath.Separator)) {
 		return fmt.Errorf("refusing to discard %s: it is not inside the per-user artifact store %s", path, root)
+	}
+	// Serialize with start/restart/stop: a check outside this lock could see a
+	// stopped service and then remove its artifact after another caller starts it.
+	release, err := acquireManagedServiceLifecycleLock(context.Background(), name)
+	if err != nil {
+		return err
+	}
+	defer release()
+	// Match lifecycle's lock ordering and exclude a concurrent install from
+	// rebuilding the same tree while it is being discarded.
+	releaseArtifact, err := artifactlock.Acquire("resource:" + manifest.Name)
+	if err != nil {
+		return err
+	}
+	defer releaseArtifact()
+	supervisor, _, err := managedServiceSupervisorFor(name)
+	if err != nil {
+		return fmt.Errorf("refusing to discard %s artifact: resolve managed-service state: %w", name, err)
+	}
+	_, running, err := supervisor.Status()
+	if err != nil {
+		return fmt.Errorf("refusing to discard %s artifact: inspect managed-service state: %w", name, err)
+	}
+	if running {
+		return fmt.Errorf("refusing to discard %s artifact while its managed service is running; stop it with `vrooli resource stop %s` before re-acquiring", name, name)
 	}
 	if progress != nil {
 		fmt.Fprintf(progress, "discarding staged artifact for %s: %s\n", name, path)

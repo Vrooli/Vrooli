@@ -1,7 +1,8 @@
-import { cleanup, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders as render } from "@vrooli/api-base/testing";
+import { MemoryRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { UserAuthProvider } from './UserAuthProvider';
 import { useUserAuth } from './useUserAuth';
 
@@ -45,7 +46,7 @@ const user = {
 
 describe('UserAuthProvider', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     mockGetUserMe.mockResolvedValue({ user });
     mockIsApiError.mockReturnValue(false);
     mockRefreshSessionOnce.mockResolvedValue(undefined);
@@ -84,6 +85,26 @@ describe('UserAuthProvider', () => {
     });
 
     expect(screen.getByTestId('email')).toHaveTextContent(user.email);
+    expect(mockGetUserMe).toHaveBeenCalledTimes(1);
+  });
+
+  it('holds a reopened protected route until its hinted session is checked', async () => {
+    vi.spyOn(document, 'cookie', 'get').mockReturnValue('__Host-lpbs_session_hint=1');
+    let resolveSession!: (value: { user: typeof user }) => void;
+    mockGetUserMe.mockReturnValue(new Promise((resolve) => { resolveSession = resolve; }));
+    function ProtectedPage() {
+      const auth = useUserAuth();
+      if (auth.isSessionLoading) return <p>Checking reopened session</p>;
+      return auth.isAuthenticated ? <h1>Security for {auth.user?.email}</h1> : <Navigate to="/auth/login" replace />;
+    }
+    render(<MemoryRouter initialEntries={['/account/security']}><UserAuthProvider><Routes>
+      <Route path="/account/security" element={<ProtectedPage />} />
+      <Route path="/auth/login" element={<h1>Sign in again</h1>} />
+    </Routes></UserAuthProvider></MemoryRouter>);
+    expect(screen.getByText('Checking reopened session')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Sign in again' })).not.toBeInTheDocument();
+    resolveSession({ user });
+    expect(await screen.findByRole('heading', { name: `Security for ${user.email}` })).toBeInTheDocument();
     expect(mockGetUserMe).toHaveBeenCalledTimes(1);
   });
 
@@ -151,5 +172,79 @@ describe('UserAuthProvider', () => {
     });
     expect(screen.getByTestId('email')).toHaveTextContent('none');
     expect(mockUserLogout).toHaveBeenCalledTimes(1);
+  });
+
+  it('never restores a late session read after local logout', async () => {
+    let resolveSession!: (value: { user: typeof user }) => void;
+    mockGetUserMe.mockReturnValueOnce(new Promise((resolve) => { resolveSession = resolve; }));
+    renderProvider();
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Log out' }));
+    await waitFor(() => { expect(mockUserLogout).toHaveBeenCalledTimes(1); });
+    await act(async () => { resolveSession({ user }); await Promise.resolve(); });
+    expect(screen.getByTestId('authenticated')).toHaveTextContent('false');
+    expect(screen.getByTestId('email')).toHaveTextContent('none');
+    expect(screen.getByTestId('loading')).toHaveTextContent('false');
+  });
+
+  it('clears mounted private state on another tab sign-out without trusting the event as a session', async () => {
+    vi.spyOn(document, 'cookie', 'get').mockReturnValue('lpbs_session_hint=1');
+    renderProvider();
+    await waitFor(() => { expect(screen.getByTestId('email')).toHaveTextContent(user.email); });
+    await act(() => window.dispatchEvent(new StorageEvent('storage', {
+      key: 'lpbs.auth.session-event', newValue: JSON.stringify({ kind: 'signed-out', nonce: 'synthetic-event' }),
+    })));
+    expect(screen.getByTestId('authenticated')).toHaveTextContent('false');
+    expect(screen.getByTestId('email')).toHaveTextContent('none');
+    expect(mockGetUserMe).toHaveBeenCalledTimes(1);
+  });
+
+  it('checks session authority on focus and hides a denied expired session', async () => {
+    vi.spyOn(document, 'cookie', 'get').mockReturnValue('lpbs_session_hint=1');
+    renderProvider();
+    await waitFor(() => { expect(screen.getByTestId('email')).toHaveTextContent(user.email); });
+    mockGetUserMe.mockRejectedValueOnce(new Error('session expired'));
+    mockIsApiError.mockReturnValue(true);
+    mockRefreshSessionOnce.mockRejectedValueOnce(new Error('refresh session expired'));
+    await act(() => window.dispatchEvent(new Event('focus')));
+    await waitFor(() => { expect(screen.getByTestId('authenticated')).toHaveTextContent('false'); });
+    expect(screen.getByTestId('email')).toHaveTextContent('none');
+    expect(mockGetUserMe).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not restore a locally signed-out account on passive focus after failed remote logout', async () => {
+    vi.spyOn(document, 'cookie', 'get').mockReturnValue('lpbs_session_hint=1');
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    renderProvider();
+    await waitFor(() => { expect(screen.getByTestId('email')).toHaveTextContent(user.email); });
+    mockUserLogout.mockRejectedValueOnce(new Error('response unavailable'));
+    fireEvent.click(screen.getByRole('button', { name: 'Log out' }));
+    await waitFor(() => { expect(screen.getByTestId('email')).toHaveTextContent('none'); });
+    await act(() => window.dispatchEvent(new Event('focus')));
+    expect(screen.getByTestId('authenticated')).toHaveTextContent('false');
+    expect(mockGetUserMe).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects a superseded required read instead of completing the older account handoff', async () => {
+    let resolveOld!: (value: { user: typeof user }) => void;
+    let resolveNew!: (value: { user: typeof user }) => void;
+    const other = { ...user, id: 'new-user', email: 'new@example.com' };
+    mockGetUserMe.mockReturnValueOnce(new Promise((resolve) => { resolveOld = resolve; }))
+      .mockReturnValueOnce(new Promise((resolve) => { resolveNew = resolve; }));
+    const outcome = vi.fn();
+    function RequiredReader() {
+      const auth = useUserAuth();
+      return <><output>{auth.user?.email ?? 'none'}</output>
+        <button onClick={() => void auth.refreshSession({ requireAuthenticated: true, expectedEmail: user.email }).then(() => { outcome('old-success'); }, () => { outcome('old-rejected'); })}>Old read</button>
+        <button onClick={() => void auth.refreshSession({ requireAuthenticated: true, expectedEmail: other.email }).then(() => { outcome('new-success'); }, () => { outcome('new-rejected'); })}>New read</button></>;
+    }
+    render(<UserAuthProvider><RequiredReader /></UserAuthProvider>);
+    fireEvent.click(screen.getByText('Old read'));fireEvent.click(screen.getByText('New read'));
+    await act(async () => { resolveNew({ user: other }); await Promise.resolve(); });
+    await act(async () => { resolveOld({ user }); await Promise.resolve(); });
+    expect(screen.getByRole('status')).toHaveTextContent(other.email);
+    expect(outcome).toHaveBeenCalledWith('new-success');
+    expect(outcome).toHaveBeenCalledWith('old-rejected');
+    expect(outcome).not.toHaveBeenCalledWith('old-success');
   });
 });

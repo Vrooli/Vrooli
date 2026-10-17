@@ -1,8 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { nativeObservations, nativeAssertionOptions } from '../dist/native-observations.js';
-import RequirementReporter from '../dist/reporter.js';
-import { readFileSync } from 'node:fs';
+import RequirementReporter, { mergeNativeObservationReports } from '../dist/reporter.js';
+import { readFileSync, mkdtempSync, mkdirSync, readdirSync, rmSync, existsSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, relative } from 'node:path';
 
 test('default reporter tag grammar matches shared Go consumer cases', () => {
   const cases = JSON.parse(readFileSync(new URL('./tag-grammar.json', import.meta.url), 'utf8'));
@@ -17,6 +19,63 @@ function observe(tasks, version = '2.1.9', enabled = true, errors = []) {
   return nativeObservations([{ filepath: '/project/example.test.ts', projectName: 'ui', tasks }], version, () => enabled, errors);
 }
 const task = (state, extra = {}) => ({ type: 'test', id: 'native-id', name: 'same display name', mode: 'run', result: { state, ...extra } });
+
+function shard(project, version = '3.2.4') {
+  return nativeObservations([{ filepath: '/project/example.test.ts', projectName: project,
+    tasks: [task('pass')] }], version, () => true, [], 'one-command');
+}
+
+test('command merge retains distinct project identities and unsupported assertion evidence', () => {
+  const a = shard('first'); const b = shard('second');
+  b.tests[0].state = 'fail'; b.tests[0].errors = ['matcher failed'];
+  b.unhandled_errors = ['second project import failed'];
+  b.limitations = [...b.limitations, 'partial cohort'];
+  const before = JSON.stringify([a, b]);
+  const result = mergeNativeObservationReports([a, b]);
+  assert.deepEqual(result.tests.map(t => [t.project, t.state, t.assertion_status, t.reason]),
+    [['first', 'pass', 'unknown', 'unsupported-version'], ['second', 'fail', 'unknown', 'unsupported-version']]);
+  assert.equal(result.support_profile, 'unsupported');
+  assert.deepEqual(result.unhandled_errors, ['second project import failed']);
+  assert.equal(result.limitations.filter(x => x === a.limitations[0]).length, 1);
+  assert.ok(result.limitations.includes('partial cohort'));
+  assert.equal(JSON.stringify([a, b]), before);
+  result.tests[0].errors.push('consumer edit');
+  assert.deepEqual(a.tests[0].errors, []);
+});
+
+test('command merge refuses conflicting provenance and duplicate test identities', () => {
+  for (const [field, value] of [['schema_version', 'future/v2'], ['run_id', 'other-command'],
+    ['runner_version', '2.1.9'], ['support_profile', 'react-vitest-v2']]) {
+    const a = shard('first'); const b = { ...shard('second'), [field]: value };
+    assert.throws(() => mergeNativeObservationReports([a, b]), new RegExp(field));
+  }
+  assert.throws(() => mergeNativeObservationReports([shard('same'), shard('same')]), /duplicate/);
+  assert.throws(() => mergeNativeObservationReports([]), /at least one/);
+  assert.throws(() => mergeNativeObservationReports([{ ...shard('first'), run_id: '' }]), /run_id/);
+  assert.throws(() => mergeNativeObservationReports([{ ...shard('first'), tests: null }]), /tests/);
+});
+
+test('command merge rejects malformed JSON message and requirement arrays', () => {
+  for (const [field, value] of [['errors', [42]], ['requirement_ids', 'REQ-ONE'],
+    ['requirement_ids', [42]], ['requirement_ids', null]]) {
+    const report = shard('json');
+    report.tests[0][field] = value;
+    assert.throws(() => mergeNativeObservationReports([report]), /string array/);
+  }
+  const report = shard('json');
+  report.tests[0].requirement_ids = ['REQ-ONE'];
+  const result = mergeNativeObservationReports([report]);
+  result.tests[0].requirement_ids.push('REQ-TWO');
+  assert.deepEqual(report.tests[0].requirement_ids, ['REQ-ONE']);
+});
+
+test('command merge preserves failed and empty project evidence without claiming completeness', () => {
+  const empty = nativeObservations([], '3.2.4', () => false, ['missing project: viewer'], 'one-command');
+  const result = mergeNativeObservationReports([shard('first'), empty]);
+  assert.equal(result.tests.length, 1);
+  assert.deepEqual(result.unhandled_errors, ['missing project: viewer']);
+  assert.equal(result.support_profile, 'unsupported');
+});
 
 test('native links reuse reporter grammar with inheritance and separate parameterized and skipped identities', () => {
   const reporter = new RequirementReporter({ verbose: false });
@@ -87,4 +146,55 @@ test('nested identical names retain native IDs and global errors', () => {
   const report = observe([{ type: 'suite', tasks: [first, second] }], '2.1.9', true, [new Error('unhandled rejection')]);
   assert.deepEqual(report.tests.map(test => test.test_id), ['native-id', 'second-id']);
   assert.deepEqual(report.unhandled_errors, ['unhandled rejection']);
+});
+
+
+test('failure artifacts retain distinct long, punctuation and cross-file identities', async (t) => {
+  const root = mkdtempSync(join(tmpdir(), 'vitest-artifact-identities-'));
+  const previous = process.cwd();
+  const ui = join(root, 'scenario', 'ui');
+  mkdirSync(ui, { recursive: true });
+  process.chdir(ui);
+  t.after(() => { process.chdir(previous); rmSync(root, { recursive: true, force: true }); });
+  const logs = [];
+  t.mock.method(console, 'log', (...parts) => logs.push(parts.join(' ')));
+  const cases = [
+    ['first.test.ts', 'same long name '.repeat(12) + 'true'],
+    ['first.test.ts', 'same long name '.repeat(12) + 'false'],
+    ['first.test.ts', 'punctuation/a'], ['first.test.ts', 'punctuation?a'],
+    ['first.test.ts', 'shared name'], ['second.test.ts', 'shared name'],
+    ['first.test.ts', 'repeated row'], ['first.test.ts', 'repeated row'],
+    ['first.test.ts', '[REQ:CASE-ONE] same tagged row'], ['first.test.ts', '[REQ:CASE-TWO] same tagged row'],
+  ];
+  const expected = new Map();
+  const files = cases.map(([file, name], index) => {
+    const filepath = join(root, file);
+    const message = `distinct failure ${index}`;
+    expected.set(`case-${index}`, message);
+    return { filepath, projectName: 'ui', tasks: [{type: 'test', id: `case-${index}`, name,
+      result: {state: 'fail', errors: [{message}], duration: 1}}] };
+  });
+  const reports = [];
+  for (const run of ['one', 'two']) {
+    const artifactsDir = run === 'one' ? join(root, run) : relative(process.cwd(), join(root, run));
+    const reporter = new RequirementReporter({outputFile: join(root, `${run}.json`),
+      artifactsDir, scenario: 'fixture', conciseMode: true, emitStdout: false, autoClear: false});
+    // Avoid unrelated host/git discovery; artifact publication is exercised through onFinished.
+    t.mock.method(reporter, 'getGitContext', () => ({recentChanges: [], deletedFiles: []}));
+    reporter.onInit();
+    await reporter.onFinished(files, []);
+    const dirs = readdirSync(join(artifactsDir, 'ui')).sort();
+    assert.equal(dirs.length, cases.length, 'no failure may overwrite another diagnostic');
+    for (const dir of dirs) {
+      assert.ok(dir.length <= 100, 'diagnostic leaf remains bounded');
+      const base = join(artifactsDir, 'ui', dir);
+      const context = JSON.parse(readFileSync(join(base, 'test-context.json'), 'utf8'));
+      assert.equal(readFileSync(join(base, 'error.txt'), 'utf8'), expected.get(context.taskId));
+    }
+    reports.push(dirs);
+  }
+  assert.deepEqual(reports[0], reports[1], 'the same identities keep stable artifact paths');
+  const links = logs.filter(line => line.includes('↳ Read ')).map(line => line.split('↳ Read ')[1]);
+  assert.equal(links.length, cases.length * 2);
+  assert.ok(links.every(path => existsSync(path)), 'every emitted diagnostic link resolves');
 });

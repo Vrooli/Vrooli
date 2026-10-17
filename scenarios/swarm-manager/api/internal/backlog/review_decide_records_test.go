@@ -48,7 +48,7 @@ func TestReviewDecide_RecordCaptured_OnAccept(t *testing.T) {
 	c := creator.calls[0]
 	// The hook must hand the records seam the full item context (so the record
 	// is born filled with the lesson, not an empty stub).
-	if c.Kind != "fix" || c.Name != "rec-cap-accept" || c.Status != StatusCompleted || c.DecidedBy != "agent-x" {
+	if c.Kind != "fix" || c.Name != "rec-cap-accept" || c.Status != StatusCompleted || c.DecidedBy != "operator:test" {
 		t.Errorf("capture request core = %+v", c)
 	}
 	if c.Title != "Fix the silence race" || c.Description != "Debounce VAD stop events." {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -13,6 +14,50 @@ import (
 
 	governancev1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/dependency_governance"
 )
+
+func TestPythonBootstrapGovernsEveryAuthoredDirectRequirement(t *testing.T) {
+	const wheelVersion = "2.8.3.post2+cu12torch2.7cxx11abiTRUE"
+	for _, tc := range []struct {
+		name, record, verdict string
+		blocked               bool
+	}{
+		{"unrecorded", "", "unrecorded", true},
+		{"denied", `,{"ecosystem":"pip","package_name":"flash-attn","version_range":"*","state":"denied"}`, "denied", true},
+		{"wrong version", `,{"ecosystem":"pip","package_name":"flash-attn","version_range":"2.8.3.post2","state":"approved"}`, "range_unparseable", true},
+		{"wrong surface", `,{"ecosystem":"pip","package_name":"flash-attn","version_range":"*","state":"approved","allowed_surfaces":["api"]}`, "surface_not_allowed", true},
+		{"exact wheel approved", `,{"ecosystem":"pip","package_name":"flash-attn","version_range":"` + wheelVersion + `","state":"approved","allowed_surfaces":["resource"]}`, "approved", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := t.TempDir()
+			fixture := `{"records":[{"ecosystem":"pip","package_name":"torch","version_range":"2.7.1+cu126","state":"approved","allowed_surfaces":["resource"]}` + tc.record + `]}`
+			writeRegistry(t, repo, strings.ReplaceAll(fixture, `"state":`, `"rationale":"Isolated reviewed fixture","state":`))
+			root := filepath.Join(repo, "resources", "demo")
+			if err := os.MkdirAll(root, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			for name, data := range map[string]string{
+				"requirements.in": "torch==2.7.1+cu126\nflash-attn @ https://example.com/flash_attn-" + wheelVersion + "-cp312-cp312-linux_x86_64.whl#sha256=" + strings.Repeat("a", 64),
+				"resource.json":   `{"compose":[{"kind":"python-wheels","lockfile":"requirements.lock","index_url":"https://pypi.org/simple"}]}`,
+			} {
+				if err := os.WriteFile(filepath.Join(root, name), []byte(data), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			installer := &recordingInstaller{}
+			h := &connectHandler{scenariosDir: func() string { return filepath.Join(repo, "scenarios") }, installer: installer}
+			resp, err := h.InstallDependency(context.Background(), connect.NewRequest(&governancev1.InstallDependencyRequest{Scenario: "demo", Surface: "resource", Ecosystem: "pip", PackageName: "torch", Version: "2.7.1+cu126", Apply: true}))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if resp.Msg.Blocked != tc.blocked || resp.Msg.Verdict != tc.verdict || installer.called == tc.blocked {
+				t.Fatalf("verdict=%s blocked=%t installer=%t", resp.Msg.Verdict, resp.Msg.Blocked, installer.called)
+			}
+			if !tc.blocked && (!resp.Msg.SourceUpdated || resp.Msg.Installed) {
+				t.Fatal("lock bootstrap claimed runtime installation")
+			}
+		})
+	}
+}
 
 func TestGovernInstallVerdicts(t *testing.T) {
 	repoRoot := t.TempDir()

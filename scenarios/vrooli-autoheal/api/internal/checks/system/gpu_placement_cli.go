@@ -49,32 +49,64 @@ func (r CLIPlacementReporter) DriftedResources(ctx context.Context) ([]DriftedRe
 	if len(names) == 0 {
 		names = acceleratorDeclaringResources(reporoot.ResolveFromOS())
 	}
-	var drifted []DriftedResource
-	var failures []string
+	// The per-resource reads run concurrently: one deep status was measured
+	// at 1-16s, and a serialized sweep across the accelerator set exceeded
+	// the whole check budget, so the check timed out before reporting
+	// anything. Concurrency bounds the sweep by the slowest single resource.
+	type outcome struct {
+		name    string
+		drifted *DriftedResource
+		failed  bool
+	}
+	// The bound covers the whole accelerator-declaring set (8 today) in one
+	// wave: two waves of 10-16s statuses would sit right at the check budget.
+	sem := make(chan struct{}, 8)
+	outcomes := make(chan outcome)
+	launched := 0
 	for _, name := range names {
 		name = strings.TrimSpace(name)
 		if name == "" {
 			continue
 		}
-		output, err := executor.CombinedOutput(ctx, "vrooli", "resource", "status", name, "--no-fast", "--json")
-		if err != nil {
-			failures = append(failures, name)
-			continue
-		}
-		var status resourceStatus
-		if err := json.Unmarshal(output, &status); err != nil {
-			failures = append(failures, name)
-			continue
-		}
-		if !status.Resource.Running || !(status.ModeDrift || status.Resource.ModeDrift) {
-			continue
-		}
-		drifted = append(drifted, DriftedResource{
-			Name:     name,
-			Declared: status.Resource.DeclaredMode,
-			Observed: status.Resource.ObservedMode,
-		})
+		launched++
+		go func(name string) {
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			output, err := executor.CombinedOutput(ctx, "vrooli", "resource", "status", name, "--no-fast", "--json")
+			if err != nil {
+				outcomes <- outcome{name: name, failed: true}
+				return
+			}
+			var status resourceStatus
+			if err := json.Unmarshal(output, &status); err != nil {
+				outcomes <- outcome{name: name, failed: true}
+				return
+			}
+			if !status.Resource.Running || !(status.ModeDrift || status.Resource.ModeDrift) {
+				outcomes <- outcome{name: name}
+				return
+			}
+			outcomes <- outcome{name: name, drifted: &DriftedResource{
+				Name:     name,
+				Declared: status.Resource.DeclaredMode,
+				Observed: status.Resource.ObservedMode,
+			}}
+		}(name)
 	}
+	var drifted []DriftedResource
+	var failures []string
+	for i := 0; i < launched; i++ {
+		result := <-outcomes
+		if result.failed {
+			failures = append(failures, result.name)
+			continue
+		}
+		if result.drifted != nil {
+			drifted = append(drifted, *result.drifted)
+		}
+	}
+	sort.Slice(drifted, func(i, j int) bool { return drifted[i].Name < drifted[j].Name })
+	sort.Strings(failures)
 	if len(failures) > 0 && len(drifted) == 0 {
 		// Every read failed and none succeeded: reporting "nothing drifted"
 		// would be a claim this reporter cannot support.

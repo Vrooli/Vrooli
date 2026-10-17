@@ -56,6 +56,10 @@ export function DependencyDecisionDrawer({
       replacement
     });
   }, [approvedBy, group, rationale, replacement, state, versionRange]);
+  const previewRecord = preview?.record;
+  const previewMatches = !!record && !!previewRecord &&
+    (["ecosystem", "packageName", "state", "versionRange", "rationale", "approvedBy", "replacement"] as const)
+      .every((field) => record[field].trim() === previewRecord[field].trim());
 
   if (!open || !group) return null;
 
@@ -114,7 +118,7 @@ export function DependencyDecisionDrawer({
             </div>
             <div className="flex flex-wrap gap-2">
               <Button disabled={busy || !rationale.trim()} type="submit">Dry-run preview</Button>
-              <Button disabled={busy || !preview?.record || !rationale.trim()} onClick={() => record && onApply(record)} type="button" variant="secondary">
+              <Button disabled={busy || !previewMatches || !rationale.trim()} onClick={() => record && previewMatches && onApply(record)} type="button" variant="secondary">
                 Apply decision
               </Button>
             </div>
@@ -153,8 +157,12 @@ export function VulnerabilityRemediationDrawer({
   const [vulnerabilityId, setVulnerabilityId] = useState("");
   const [rationale, setRationale] = useState("");
   const [approvedBy, setApprovedBy] = useState("operator");
-  const affectedRange = preview?.suggestedRecord?.versionRange || preview?.vulnerability?.affectedRanges[0]?.range || preview?.vulnerability?.affectedRanges[0]?.fixed || "";
+  const affectedRange = preview?.suggestedRecord?.versionRange || preview?.vulnerability?.affectedRanges[0]?.range || "";
   const fixedRange = preview?.vulnerability?.fixedRanges[0]?.range || preview?.vulnerability?.fixedRanges[0]?.fixed || "";
+  const evidence = preview?.vulnerability;
+  const previewMatches = !!group && preview?.found && !!evidence && !!affectedRange.trim() &&
+    evidence.ecosystem === group.ecosystem && evidence.packageName === group.packageName &&
+    [evidence.vulnerabilityId, ...evidence.aliases].includes(vulnerabilityId.trim());
 
   useEffect(() => {
     setVulnerabilityId(initialVulnerabilityId ?? "");
@@ -190,8 +198,8 @@ export function VulnerabilityRemediationDrawer({
             <div className="flex flex-wrap gap-2">
               <Button disabled={busy || !vulnerabilityId.trim()} type="submit">Preview remediation</Button>
               <Button
-                disabled={busy || !preview?.found || !rationale.trim()}
-                onClick={() => onApply({ vulnerabilityId, affectedRange, fixedRange, rationale, approvedBy })}
+                disabled={busy || !previewMatches || !rationale.trim()}
+                onClick={() => previewMatches && onApply({ vulnerabilityId, affectedRange, fixedRange, rationale, approvedBy })}
                 type="button"
                 variant="secondary"
               >

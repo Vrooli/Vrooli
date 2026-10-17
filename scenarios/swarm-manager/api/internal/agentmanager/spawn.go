@@ -3,9 +3,10 @@ package agentmanager
 import (
 	"context"
 	"fmt"
-	"github.com/vrooli/api-core/owneridentity"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/owneridentity"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
@@ -38,7 +39,7 @@ type RunResult struct {
 // SpawnSession creates a general Swarm Manager session task/run in
 // agent-manager.
 func (s *AgentService) SpawnSession(ctx context.Context, req SessionSpawnRequest) (RunResult, error) {
-	if err := owneridentity.RequireCreateRunCaller(ctx, time.Now()); err != nil {
+	if err := owneridentity.RequireCreateRunCaller(ctx, time.Now(), true); err != nil {
 		return RunResult{}, err
 	}
 	if !s.enabled {

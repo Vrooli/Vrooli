@@ -53,7 +53,7 @@ func (c *defaultSizeCalculator) Calculate(bundleDir string) (int64, []LargeFileI
 	})
 
 	// Keep only top 10 largest files
-	if len(largeFiles) > 10 { //nolint:mnd // report threshold is intentionally fixed
+	if len(largeFiles) > 10 {
 		largeFiles = largeFiles[:10]
 	}
 
@@ -72,7 +72,7 @@ func (c *defaultSizeCalculator) CheckWarning(totalSize int64, largeFiles []Large
 		message = fmt.Sprintf("Bundle size (%s) exceeds 1GB. This will result in very large installers and slow downloads. Consider removing large assets or using delta updates.",
 			HumanReadableSize(totalSize))
 	} else {
-		level = platformWarning
+		level = "warning"
 		message = fmt.Sprintf("Bundle size (%s) exceeds 500MB. Consider optimizing assets to reduce download size.",
 			HumanReadableSize(totalSize))
 	}

@@ -56,6 +56,39 @@ func TestNotificationsProxyForwardsPUTBodyAndAuthorization(t *testing.T) {
 	}
 }
 
+func TestNotificationsProxyForwardsCloudflareAccessAssertion(t *testing.T) {
+	var sawAccess, sawAccessWhenAbsent string
+	present := true
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if present {
+			sawAccess = r.Header.Get("Cf-Access-Jwt-Assertion")
+		} else {
+			sawAccessWhenAbsent = r.Header.Get("Cf-Access-Jwt-Assertion")
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"ok":true}`)
+	}))
+	defer upstream.Close()
+	proxy := newNotificationsProxy(func(context.Context) (string, error) { return upstream.URL, nil })
+
+	// With the assertion present, it is forwarded so the hub's human-proof path
+	// attributes the answer to the actual signed-in human.
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/notifications/answer", strings.NewReader(`{}`))
+	req.Header.Set("Cf-Access-Jwt-Assertion", "eyJhbGciOiJSUzI1NiJ9.payload.sig")
+	proxy.ServeHTTP(httptest.NewRecorder(), req)
+	if sawAccess != "eyJhbGciOiJSUzI1NiJ9.payload.sig" {
+		t.Fatalf("Cf-Access-Jwt-Assertion was not forwarded: %q", sawAccess)
+	}
+
+	// Without it (bearer/cookie path), the header is simply omitted.
+	present = false
+	req2 := httptest.NewRequest(http.MethodPost, "/api/v1/notifications/answer", strings.NewReader(`{}`))
+	proxy.ServeHTTP(httptest.NewRecorder(), req2)
+	if sawAccessWhenAbsent != "" {
+		t.Fatalf("Cf-Access-Jwt-Assertion must be omitted when absent, got %q", sawAccessWhenAbsent)
+	}
+}
+
 func TestNotificationsProxyUpstreamDownReturns503(t *testing.T) {
 	proxy := newNotificationsProxy(func(context.Context) (string, error) {
 		return "", errors.New("notification-hub not discovered")

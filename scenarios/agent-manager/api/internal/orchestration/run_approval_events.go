@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+	"time"
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration/obs"
@@ -20,6 +21,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/eventbus"
+	"github.com/vrooli/api-core/operatordecision"
 )
 
 // RunApprovalDecisionEventType is the decision event a run raises when it needs
@@ -33,10 +35,10 @@ const runApprovalSource = "agent-manager"
 
 // ApprovalEventPublisher publishes a decision event onto Vrooli Events. The
 // api-core eventbus.Client satisfies it in production. Nil leaves runs in
-// needs_review silently (no regression from today's behavior).
-type ApprovalEventPublisher interface {
-	PublishDomainEvent(context.Context, eventbus.DomainEvent) error
-}
+// needs_review silently (no regression from today's behavior). It is an alias
+// for the shared operatordecision.Publisher so every raise path and the
+// substrate speak one interface.
+type ApprovalEventPublisher = operatordecision.Publisher
 
 // WithApprovalEventPublisher wires the Vrooli Events publisher used to raise a
 // run's approval decision event. Without one, runs still reach needs_review;
@@ -61,43 +63,47 @@ func (o *Orchestrator) NotifyRunNeedsReview(ctx context.Context, run *domain.Run
 }
 
 // runApprovalEvent builds the decision_requested event for a run awaiting
-// review. The payload is the facts-only producer contract notification-hub
-// parses (see scenarios/notification-hub/.../decision_events.go: decisionFacts).
+// review via the shared operatordecision substrate. The facts are the facts-only
+// producer contract notification-hub parses (see
+// scenarios/notification-hub/.../decision_events.go: decisionFacts). It emits the
+// established RunApprovalDecisionEventType (underscore source token) through
+// BuildEventTyped so the Source stays "agent-manager" (hyphen) and the bytes are
+// unchanged from the pre-substrate hand-built payload.
 func (o *Orchestrator) runApprovalEvent(ctx context.Context, run *domain.Run) eventbus.DomainEvent {
-	question := fmt.Sprintf("Apply the changes from this run? %s changed.", pluralizeFiles(run.ChangedFiles))
-
-	payload := map[string]any{
-		"subject":  "Run " + shortRunID(run.ID.String()) + " needs review",
-		"question": question,
-		"options": []any{
-			map[string]any{"key": "approve", "label": "Approve & apply"},
-			map[string]any{"key": "reject", "label": "Reject & discard"},
+	facts := operatordecision.Facts{
+		Subject:  "Run " + shortRunID(run.ID.String()) + " needs review",
+		Question: fmt.Sprintf("Apply the changes from this run? %s changed.", pluralizeFiles(run.ChangedFiles)),
+		Options: []operatordecision.Option{
+			{Key: "approve", Label: "Approve & apply"},
+			{Key: "reject", Label: "Reject & discard"},
 		},
-		"recommended": "approve",
-		// reversible=true: a reviewed run can be re-run; no silent default is set
-		// so nothing is ever applied without an explicit operator answer.
-		"reversible":  true,
-		"urgency":     "normal",
-		"correlation": map[string]any{"run_id": run.ID.String()},
-	}
-	if link := reviewURLForBase(o.resolveWebConsoleNoticeBase(ctx), run); link != "" {
-		payload["context_url"] = link
+		Recommended: "approve",
+		// reversible=true: a reviewed run can be re-run; no silent default is set so
+		// nothing is ever applied without an explicit operator answer.
+		Reversible:  true,
+		Urgency:     "normal",
+		ContextURL:  reviewURLForBase(o.resolveWebConsoleNoticeBase(ctx), run),
+		Correlation: map[string]string{"run_id": run.ID.String()},
 	}
 
 	// A stable occurrence time keeps the event id (SHA-256 of the event)
-	// deterministic for the common single-finalization path, so a redelivery
-	// returns the same ask instead of a duplicate notification.
-	occurred := o.now().UTC()
-	if run.ApprovedAt != nil {
+	// deterministic so a redelivery (or a re-raise) returns the SAME ask instead
+	// of a duplicate operator notification. A needs_review run has no ApprovedAt
+	// yet, so prefer EndedAt — the terminal transition time set at the run-end
+	// seam that raised this notification (phases.ApplyAtRunEnd). Fall back to
+	// ApprovedAt (re-notify after approval), then to now() bucketed to the ask
+	// window, matching the authorization path's deterministic truncation.
+	var occurred time.Time
+	switch {
+	case run.EndedAt != nil:
+		occurred = run.EndedAt.UTC()
+	case run.ApprovedAt != nil:
 		occurred = run.ApprovedAt.UTC()
+	default:
+		occurred = o.now().UTC().Truncate(pendingAuthorizationWindow)
 	}
 
-	return eventbus.DomainEvent{
-		Source:    runApprovalSource,
-		EventType: RunApprovalDecisionEventType,
-		Occurred:  occurred,
-		Payload:   payload,
-	}
+	return operatordecision.BuildEventTyped(runApprovalSource, RunApprovalDecisionEventType, occurred, facts)
 }
 
 // reviewURLForBase builds a browser link to the run's review page in

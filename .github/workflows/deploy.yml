@@ -1,0 +1,65 @@
+name: Branch deployment
+
+concurrency:
+  group: deploy-${{ github.ref_name }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches: [dev, master]
+  pull_request:
+    branches: [dev, master]
+  workflow_dispatch:
+    inputs:
+      run_lint:
+        description: Run linting
+        required: false
+        type: boolean
+        default: false
+      run_test:
+        description: Run tests
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'master' && 'production' || 'staging' }}
+    env:
+      SECRETS_SOURCE: file
+      ENVIRONMENT: ${{ github.ref_name == 'master' && 'production' || 'development' }}
+      RUN_LINT: ${{ github.event.inputs.run_lint != 'false' }}
+      RUN_TEST: ${{ github.event.inputs.run_test != 'false' }}
+      SSH_KEY_PATH: ~/.ssh/deploy_key
+      VPS_DEPLOY_USER: ${{ secrets.VPS_DEPLOY_USER }}
+      VPS_DEPLOY_HOST: ${{ secrets.VPS_DEPLOY_HOST }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Create environment files
+        shell: bash
+        run: |
+          suffix="$([[ "$ENVIRONMENT" == production ]] && echo prod || echo dev)"
+          printf '%s\n' '${{ secrets.ENV_FILE_CONTENT }}' > ".env-$suffix"
+          printf '%s\n' '${{ secrets.JWT_PRIV_PEM }}' > "jwt_priv_${ENVIRONMENT}.pem"
+          printf '%s\n' '${{ secrets.JWT_PUB_PEM }}' > "jwt_pub_${ENVIRONMENT}.pem"
+      - name: Configure SSH
+        shell: bash
+        run: |
+          mkdir -p ~/.ssh
+          printf 'Host *\n\tStrictHostKeyChecking no\n' > ~/.ssh/config
+          chmod 600 ~/.ssh/config
+          printf '%s\n' '${{ secrets.VPS_SSH_PRIVATE_KEY }}' > "$SSH_KEY_PATH"
+          chmod 600 "$SSH_KEY_PATH"
+      - name: Verify SSH connection
+        run: ssh -i "$SSH_KEY_PATH" -o BatchMode=yes "$VPS_DEPLOY_USER@$VPS_DEPLOY_HOST" 'echo SSH OK'
+      - name: Build and deploy
+        run: vrooli build
+      # `vrooli deploy` is not a control-plane command any more (the invoker
+      # registry test in internal/cli/rootcli/invokers rejects it). Remote
+      # deployment is owned by scenario-to-cloud; until this workflow is
+      # rewired onto it, the remote command is supplied by the repository
+      # variable VPS_DEPLOY_COMMAND and the step is skipped when it is unset.
+      - name: Deploy
+        if: ${{ vars.VPS_DEPLOY_COMMAND != '' }}
+        run: ssh -i "$SSH_KEY_PATH" -o StrictHostKeyChecking=no "$VPS_DEPLOY_USER@$VPS_DEPLOY_HOST" "cd \${VROOLI_ROOT:-~/Vrooli} && ${{ vars.VPS_DEPLOY_COMMAND }}"

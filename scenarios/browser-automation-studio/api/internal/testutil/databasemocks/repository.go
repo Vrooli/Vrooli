@@ -793,7 +793,7 @@ func (r *MockRepository) UpdateExportStatus(_ context.Context, id uuid.UUID, sta
 	defer r.mu.Unlock()
 
 	export, ok := r.exports[id]
-	if !ok {
+	if !ok || export.Status != "processing" && export.Status != "pending" {
 		return database.ErrNotFound
 	}
 	export.Status = status
@@ -804,15 +804,16 @@ func (r *MockRepository) UpdateExportStatus(_ context.Context, id uuid.UUID, sta
 	return nil
 }
 
-func (r *MockRepository) UpdateExportComplete(_ context.Context, id uuid.UUID, storageURL string, fileSizeBytes int64) error {
+func (r *MockRepository) UpdateExportComplete(_ context.Context, id uuid.UUID, storageURL string, fileSizeBytes int64, settings database.JSONMap) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	export, ok := r.exports[id]
-	if !ok {
+	if !ok || export.Status != "processing" {
 		return database.ErrNotFound
 	}
 	export.Status = "completed"
+	export.Settings = settings
 	export.StorageURL = storageURL
 	export.FileSizeBytes = &fileSizeBytes
 	export.UpdatedAt = time.Now()
@@ -1014,4 +1015,19 @@ func (r *MockRepository) Reset() {
 	r.exports = make(map[uuid.UUID]*database.ExportIndex)
 	r.settings = make(map[string]string)
 	r.assets = make(map[uuid.UUID]*database.AssetIndex)
+}
+
+func (r *MockRepository) UpdateExportSettings(_ context.Context, id uuid.UUID, settings database.JSONMap) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	row, ok := r.exports[id]
+	if !ok || row.Status != "processing" {
+		return database.ErrNotFound
+	}
+	copied := make(database.JSONMap, len(settings))
+	for key, value := range settings {
+		copied[key] = value
+	}
+	row.Settings = copied
+	return nil
 }

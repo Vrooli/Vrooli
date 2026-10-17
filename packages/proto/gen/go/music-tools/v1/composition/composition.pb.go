@@ -223,11 +223,14 @@ func (x *Take) GetReservedAt() *timestamppb.Timestamp {
 }
 
 type SubmitRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	StyleId       string                 `protobuf:"bytes,1,opt,name=style_id,json=styleId,proto3" json:"style_id,omitempty"`
-	Takes         int32                  `protobuf:"varint,2,opt,name=takes,proto3" json:"takes,omitempty"`
-	Duration      int32                  `protobuf:"varint,3,opt,name=duration,proto3" json:"duration,omitempty"`
-	Seed          int64                  `protobuf:"varint,4,opt,name=seed,proto3" json:"seed,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	StyleId  string                 `protobuf:"bytes,1,opt,name=style_id,json=styleId,proto3" json:"style_id,omitempty"`
+	Takes    int32                  `protobuf:"varint,2,opt,name=takes,proto3" json:"takes,omitempty"`
+	Duration int32                  `protobuf:"varint,3,opt,name=duration,proto3" json:"duration,omitempty"`
+	// Omitted chooses a fresh base once at admission; explicit zero is repeatable.
+	Seed *int64 `protobuf:"varint,4,opt,name=seed,proto3,oneof" json:"seed,omitempty"`
+	// Optional ACE sampling shift; omission preserves the loaded profile default.
+	Shift         *float64 `protobuf:"fixed64,5,opt,name=shift,proto3,oneof" json:"shift,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -284,8 +287,15 @@ func (x *SubmitRequest) GetDuration() int32 {
 }
 
 func (x *SubmitRequest) GetSeed() int64 {
-	if x != nil {
-		return x.Seed
+	if x != nil && x.Seed != nil {
+		return *x.Seed
+	}
+	return 0
+}
+
+func (x *SubmitRequest) GetShift() float64 {
+	if x != nil && x.Shift != nil {
+		return *x.Shift
 	}
 	return 0
 }
@@ -460,12 +470,15 @@ const file_music_tools_v1_composition_composition_proto_rawDesc = "" +
 	"created_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12;\n" +
 	"\vreserved_at\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"reservedAt\"p\n" +
+	"reservedAt\"\xa3\x01\n" +
 	"\rSubmitRequest\x12\x19\n" +
 	"\bstyle_id\x18\x01 \x01(\tR\astyleId\x12\x14\n" +
 	"\x05takes\x18\x02 \x01(\x05R\x05takes\x12\x1a\n" +
-	"\bduration\x18\x03 \x01(\x05R\bduration\x12\x12\n" +
-	"\x04seed\x18\x04 \x01(\x03R\x04seed\"'\n" +
+	"\bduration\x18\x03 \x01(\x05R\bduration\x12\x17\n" +
+	"\x04seed\x18\x04 \x01(\x03H\x00R\x04seed\x88\x01\x01\x12\x19\n" +
+	"\x05shift\x18\x05 \x01(\x01H\x01R\x05shift\x88\x01\x01B\a\n" +
+	"\x05_seedB\b\n" +
+	"\x06_shift\"'\n" +
 	"\x0eSubmitResponse\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\"D\n" +
 	"\x10ListTakesRequest\x12\x19\n" +
@@ -520,6 +533,7 @@ func file_music_tools_v1_composition_composition_proto_init() {
 	if File_music_tools_v1_composition_composition_proto != nil {
 		return
 	}
+	file_music_tools_v1_composition_composition_proto_msgTypes[2].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

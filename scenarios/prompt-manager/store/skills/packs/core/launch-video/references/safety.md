@@ -48,8 +48,12 @@ Keep PID and start-time identities for local tools. Keep the owner job handle fo
 governed services. Record the tool path/version, purpose, output directory and
 cleanup action. A pre-existing process is not owned by this production.
 
-Start local rendering with one worker and an explicit CPU budget. Record sampled
-process-tree peak RSS and elapsed time. State the sampling method and its limits.
+Start local rendering with the owner's bounded profile and one capture worker.
+Record the actual memory/task limits, deadline and CPU policy; relative CPU weight
+is priority, not a quota, and capture-worker count does not bound native decoder
+threads. Record sampled task pressure, process-tree peak RSS and elapsed time.
+State the sampling method and unknown observations. Use the owner's cancellation
+and diagnostics when pressure or stalls occur; do not keep raising ceilings.
 Crop oversized source media before composition when the crop preserves the shot.
 Disable persistent frame caches for one-off renders, or record their size and owner.
 
@@ -80,5 +84,7 @@ copying private daemon management into each production.
 
 This third path must not weaken normal product proof: no fabricated investigation
 results, implied backend execution, or synthetic hardware presented as observed.
-Keep Demo data visible during such shots. Reuse installed toolchains and write
+Record fictional-data provenance in the report and share context. Respect the
+operator's rejection of persistent demo/mock badges. Narrow or omit a claim
+whose meaning would otherwise mislead. Reuse installed toolchains and write
 static build outputs only into the copied tree; no shared package provisioning.

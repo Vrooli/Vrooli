@@ -34,6 +34,7 @@ type Style struct {
 	GuidanceScale  float64                `protobuf:"fixed64,9,opt,name=guidance_scale,json=guidanceScale,proto3" json:"guidance_scale,omitempty"`
 	Variant        string                 `protobuf:"bytes,10,opt,name=variant,proto3" json:"variant,omitempty"`
 	Builtin        bool                   `protobuf:"varint,11,opt,name=builtin,proto3" json:"builtin,omitempty"`
+	Lyrics         string                 `protobuf:"bytes,12,opt,name=lyrics,proto3" json:"lyrics,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -143,6 +144,13 @@ func (x *Style) GetBuiltin() bool {
 		return x.Builtin
 	}
 	return false
+}
+
+func (x *Style) GetLyrics() string {
+	if x != nil {
+		return x.Lyrics
+	}
+	return ""
 }
 
 type CompiledStyle struct {
@@ -413,7 +421,7 @@ var File_music_tools_v1_styles_styles_proto protoreflect.FileDescriptor
 
 const file_music_tools_v1_styles_styles_proto_rawDesc = "" +
 	"\n" +
-	"\"music-tools/v1/styles/styles.proto\x12\x1cvrooli.music_tools.v1.styles\"\xb5\x02\n" +
+	"\"music-tools/v1/styles/styles.proto\x12\x1cvrooli.music_tools.v1.styles\"\xcd\x02\n" +
 	"\x05Style\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
@@ -426,7 +434,8 @@ const file_music_tools_v1_styles_styles_proto_rawDesc = "" +
 	"\x0eguidance_scale\x18\t \x01(\x01R\rguidanceScale\x12\x18\n" +
 	"\avariant\x18\n" +
 	" \x01(\tR\avariant\x12\x18\n" +
-	"\abuiltin\x18\v \x01(\bR\abuiltin\"r\n" +
+	"\abuiltin\x18\v \x01(\bR\abuiltin\x12\x16\n" +
+	"\x06lyrics\x18\f \x01(\tR\x06lyrics\"r\n" +
 	"\rCompiledStyle\x129\n" +
 	"\x05style\x18\x01 \x01(\v2#.vrooli.music_tools.v1.styles.StyleR\x05style\x12&\n" +
 	"\x0fcaption_as_sent\x18\x02 \x01(\tR\rcaptionAsSent\"O\n" +

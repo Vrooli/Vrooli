@@ -202,6 +202,9 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
+	if !requireBookkeeping(w, r, nameVar(r)) {
+		return
+	}
 	var req UpdateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		apierr.MapError(w, "[goals] update", apierr.BadRequest("invalid request body"))
@@ -212,6 +215,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		mapServiceError(w, "[goals] update", err)
 		return
 	}
+	h.service.auditBookkeeping(r.Context(), nameVar(r))
 	writeJSON(w, "[goals] update", result)
 }
 
@@ -224,17 +228,25 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Archive(w http.ResponseWriter, r *http.Request) {
+	if !requireBookkeeping(w, r, nameVar(r)) {
+		return
+	}
 	g, err := h.service.Archive(nameVar(r))
 	if err != nil {
 		mapServiceError(w, "[goals] archive", err)
 		return
 	}
+	h.service.auditBookkeeping(r.Context(), nameVar(r))
 	writeJSON(w, "[goals] archive", g)
 }
 
 // CloseOut is the operator-only endpoint for asserting the delivered goal
 // outcome. Service validation rejects incomplete or unverified milestones.
 func (h *Handler) CloseOut(w http.ResponseWriter, r *http.Request) {
+	if err := requireGoalAcceptance(r.Context()); err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
 	goal, err := h.service.CloseOut(nameVar(r))
 	if err != nil {
 		mapServiceError(w, "[goals] close-out", err)
@@ -251,6 +263,9 @@ type targetsRequest struct {
 }
 
 func (h *Handler) AddTargets(w http.ResponseWriter, r *http.Request) {
+	if !requireBookkeeping(w, r, nameVar(r)) {
+		return
+	}
 	var req targetsRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		apierr.MapError(w, "[goals] add-targets", apierr.BadRequest("invalid request body"))
@@ -261,10 +276,14 @@ func (h *Handler) AddTargets(w http.ResponseWriter, r *http.Request) {
 		mapServiceError(w, "[goals] add-targets", err)
 		return
 	}
+	h.service.auditBookkeeping(r.Context(), nameVar(r))
 	writeJSON(w, "[goals] add-targets", result)
 }
 
 func (h *Handler) RemoveTargets(w http.ResponseWriter, r *http.Request) {
+	if !requireBookkeeping(w, r, nameVar(r)) {
+		return
+	}
 	var req targetsRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		apierr.MapError(w, "[goals] remove-targets", apierr.BadRequest("invalid request body"))
@@ -275,10 +294,14 @@ func (h *Handler) RemoveTargets(w http.ResponseWriter, r *http.Request) {
 		mapServiceError(w, "[goals] remove-targets", err)
 		return
 	}
+	h.service.auditBookkeeping(r.Context(), nameVar(r))
 	writeJSON(w, "[goals] remove-targets", result)
 }
 
 func (h *Handler) CreateMilestone(w http.ResponseWriter, r *http.Request) {
+	if !requireBookkeeping(w, r, nameVar(r)) {
+		return
+	}
 	var milestone Milestone
 	if err := json.NewDecoder(r.Body).Decode(&milestone); err != nil {
 		apierr.MapError(w, "[goals] create-milestone", apierr.BadRequest("invalid request body"))
@@ -289,10 +312,14 @@ func (h *Handler) CreateMilestone(w http.ResponseWriter, r *http.Request) {
 		mapServiceError(w, "[goals] create-milestone", err)
 		return
 	}
+	h.service.auditBookkeeping(r.Context(), nameVar(r))
 	writeJSON(w, "[goals] create-milestone", result)
 }
 
 func (h *Handler) UpdateMilestone(w http.ResponseWriter, r *http.Request) {
+	if !requireBookkeeping(w, r, nameVar(r)) {
+		return
+	}
 	var milestone Milestone
 	if err := json.NewDecoder(r.Body).Decode(&milestone); err != nil {
 		apierr.MapError(w, "[goals] update-milestone", apierr.BadRequest("invalid request body"))
@@ -304,15 +331,20 @@ func (h *Handler) UpdateMilestone(w http.ResponseWriter, r *http.Request) {
 		mapServiceError(w, "[goals] update-milestone", err)
 		return
 	}
+	h.service.auditBookkeeping(r.Context(), nameVar(r))
 	writeJSON(w, "[goals] update-milestone", result)
 }
 
 func (h *Handler) ArchiveMilestone(w http.ResponseWriter, r *http.Request) {
+	if !requireBookkeeping(w, r, nameVar(r)) {
+		return
+	}
 	result, err := h.service.ArchiveMilestone(nameVar(r), strings.TrimSpace(mux.Vars(r)["milestone"]))
 	if err != nil {
 		mapServiceError(w, "[goals] archive-milestone", err)
 		return
 	}
+	h.service.auditBookkeeping(r.Context(), nameVar(r))
 	writeJSON(w, "[goals] archive-milestone", result)
 }
 
@@ -325,6 +357,9 @@ func (h *Handler) UnassignMilestoneItems(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *Handler) updateMilestoneItems(w http.ResponseWriter, r *http.Request, assign bool) {
+	if !requireBookkeeping(w, r, nameVar(r)) {
+		return
+	}
 	var req targetsRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		apierr.MapError(w, "[goals] milestone-items", apierr.BadRequest("invalid request body"))
@@ -342,6 +377,7 @@ func (h *Handler) updateMilestoneItems(w http.ResponseWriter, r *http.Request, a
 		mapServiceError(w, "[goals] milestone-items", err)
 		return
 	}
+	h.service.auditBookkeeping(r.Context(), nameVar(r))
 	writeJSON(w, "[goals] milestone-items", result)
 }
 

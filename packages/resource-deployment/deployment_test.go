@@ -183,3 +183,25 @@ func TestServiceShutdownValidatesPlatformNeutralSignals(t *testing.T) {
 		}
 	}
 }
+
+func TestComposeCandidateArtifactDoesNotAdmitUnpinnedRuntime(t *testing.T) {
+	artifact := ServiceArtifact{Path: "server/fixture", Version: "1", Layout: "dir", EntryPath: "runtime/bin/python", SHA256ByPlatform: map[string]string{"linux-amd64": ""}}
+	if err := artifact.Validate(); err == nil {
+		t.Fatal("normal runtime accepted missing digest")
+	}
+	if _, err := artifact.ForPlatform("linux", "amd64"); err == nil {
+		t.Fatal("platform resolution accepted missing digest")
+	}
+	if err := artifact.ValidateForComposeCandidate(); err != nil {
+		t.Fatal("initial candidate requires structural validation without fake digest:", err)
+	}
+	artifact.SHA256ByPlatform["linux-amd64"] = "invalid"
+	if err := artifact.ValidateForComposeCandidate(); err == nil {
+		t.Fatal("malformed nonempty digest accepted")
+	}
+	artifact.SHA256ByPlatform = nil
+	artifact.Verification = "host-tool"
+	if err := artifact.ValidateForComposeCandidate(); err == nil {
+		t.Fatal("candidate accepted host-tool authority")
+	}
+}

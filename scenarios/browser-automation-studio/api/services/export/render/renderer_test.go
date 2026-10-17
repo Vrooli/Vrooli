@@ -13,47 +13,10 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/sirupsen/logrus"
 	exportsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/exports"
 )
-
-func TestEstimateReplayRenderTimeoutBounds(t *testing.T) {
-	smallSpec := &ReplayMovieSpec{
-		Playback: &exportsv1.ReplayPlayback{
-			FrameIntervalMs: 40,
-			TotalFrames:     5,
-		},
-		Summary: &exportsv1.ReplaySummary{TotalDurationMs: 200},
-		Frames:  []*exportsv1.ReplayFrame{{Index: 0, DurationMs: 200}},
-	}
-
-	duration := EstimateReplayRenderTimeout(smallSpec)
-	if duration < 3*time.Minute {
-		t.Fatalf("expected minimum timeout of 3 minutes, got %s", duration)
-	}
-	if duration > 15*time.Minute {
-		t.Fatalf("expected timeout to remain within 15 minutes, got %s", duration)
-	}
-
-	hugeSpec := &ReplayMovieSpec{
-		Playback: &exportsv1.ReplayPlayback{
-			FrameIntervalMs: 20,
-			TotalFrames:     120000,
-		},
-		Summary: &exportsv1.ReplaySummary{TotalDurationMs: 2400000},
-		Frames:  make([]*exportsv1.ReplayFrame, 0),
-	}
-
-	bigDuration := EstimateReplayRenderTimeout(hugeSpec)
-	if bigDuration > 15*time.Minute {
-		t.Fatalf("expected timeout capped at 15 minutes, got %s", bigDuration)
-	}
-	if bigDuration < 3*time.Minute {
-		t.Fatalf("expected timeout to exceed minimum for large specs, got %s", bigDuration)
-	}
-}
 
 // ---------------------------------------------------------------------------
 // Render validation tests

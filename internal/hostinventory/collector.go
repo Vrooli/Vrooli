@@ -457,11 +457,14 @@ func linuxNvidiaDeviceNodes() []string {
 }
 
 func (c Collector) collectNvidiaGPUProcesses(ctx context.Context, snap *Snapshot, observedAt time.Time) {
+	snap.GPUProcesses = nil
+	delete(snap.FieldProvenance, "gpu_processes")
+	snap.ProbeStatuses["nvidia_gpu_processes"] = "failed"
 	out, err := c.Commands.Run(ctx, "nvidia-smi", "--query-compute-apps=pid,process_name,used_memory,gpu_uuid", "--format=csv,noheader,nounits")
+	if err != nil && strings.Contains(string(out), "No running processes found") {
+		out, err = nil, nil
+	}
 	if err != nil {
-		if strings.Contains(string(out), "No running processes found") {
-			return
-		}
 		snap.Warnings = append(snap.Warnings, fmt.Sprintf("nvidia-smi query compute apps: %v", err))
 		snap.ProbeStatuses["nvidia_gpu_processes"] = scenarioruntime.StatusFailed
 		return
@@ -486,6 +489,9 @@ func (c Collector) collectNvidiaGPUProcesses(ctx context.Context, snap *Snapshot
 	snap.GPUProcesses = append(snap.GPUProcesses, processes...)
 	snap.Warnings = append(snap.Warnings, warnings...)
 	snap.ProbeStatuses["nvidia_gpu_processes"] = "ok"
+	if len(warnings) > 0 {
+		snap.ProbeStatuses["nvidia_gpu_processes"] = "incomplete"
+	}
 	snap.FieldProvenance["gpu_processes"] = Provenance{
 		SourceKind: SourceKindCommand,
 		Source:     "nvidia-smi",

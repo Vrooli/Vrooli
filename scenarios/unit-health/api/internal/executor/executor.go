@@ -55,8 +55,12 @@ type Command struct {
 	// CaptureStdout retains up to 8 MiB of exact structured output separately
 	// from display excerpts. Overflow returns no partial evidence payload.
 	CaptureStdout bool
-	WorkspaceID   string
-	Name          string
+	// StdoutObserver receives the same stream independently of display/capture
+	// budgets. Callers own bounded, nonblocking observers that never return an
+	// error; interpretation remains with the framework adapter.
+	StdoutObserver io.Writer
+	WorkspaceID    string
+	Name           string
 	// Executable is an absolute or PATH-resolved executable name. Args are
 	// passed directly to os/exec; callers must never provide a shell command
 	// string here.
@@ -351,6 +355,9 @@ func (b Bounded) Run(ctx context.Context, cmd Command) Result {
 	if cmd.CaptureStdout {
 		captured = &boundedCapture{max: 8 << 20}
 		c.Stdout = io.MultiWriter(stdout, captured)
+	}
+	if cmd.StdoutObserver != nil {
+		c.Stdout = io.MultiWriter(c.Stdout, cmd.StdoutObserver)
 	}
 
 	start := time.Now()

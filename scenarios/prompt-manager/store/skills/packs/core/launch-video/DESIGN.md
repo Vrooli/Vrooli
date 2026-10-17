@@ -1,18 +1,11 @@
 # Launch-video production contract
 
-## Current standing, 2026-09-22
+## Current standing, 2026-10-16
 
-The operator accepted the Vega landing-style draft: “I like this a lot” and
-“pretty good for now.” The bounded quality-upgrade and corrective rendering work
-is complete for this accepted draft. This document is a maintained design contract,
-not an instruction to rerun that effort. Revision 15 records the accepted reference,
-clarifies visual-source roles, and aligns source and generated revision metadata.
-
-Accepted evidence:
-`~/.vrooli/evidence/vega-launch-video-retry-2026-09-22/video-evaluation/landing-style/`.
-The exact asset, review, composition and lessons are indexed in
-`references/production.md` under Accepted reference. Draft acceptance does not
-publish the asset or substitute for an undocumented listening/technical check.
+The operator rated R5 Aquila 8/10 and Vega 7/10 after a progression from roughly
+2/10. Revision 17 consolidates that feedback into guidance, rated references and
+deterministic failure checks. `references/examples.json` binds references to exact
+exports. Repeatability and conversion remain unmeasured; more feedback is pending.
 
 ## Destination
 
@@ -23,14 +16,15 @@ claim fidelity from literal page copy/order. Every assertion keeps a source and
 its qualifications; actual behavior requires actual product evidence.
 
 Use Brand Manager for identity assets and explicit mandatory restrictions. Use the
-current official landing page for the surrounding presentation treatment by default.
+current official landing page as a visual reference for a brief-specific campaign treatment.
 Inspect the rendered page and record palette roles, type, surfaces, light, motifs,
 framing and motion in composition/DESIGN.md. Compare video styleframes with those
 references. Record conflicts without changing either source. Film order remains
 independent of page order; illustrative landing-page UI is not product evidence.
 
 Combine meaningful real captures with custom typography, framing and brand motion.
-Real UI occupies at least half the launch film and supplies the decisive proof.
+Choose the footage balance from the story. Genuine readable product evidence supplies
+the decisive proof; there is no universal percentage or moving-every-shot quota.
 Retain the requested music character and distinct candidate styles. Do not replace
 these with product-free studies or an unrequested synthesized score.
 
@@ -54,7 +48,8 @@ A refusal never grants permission to restart a protected live service.
 
 For authorized mocked-data work, an isolated copy of the actual frontend can
 supply UI-only evidence through schema-validated authored responses and blocked
-unhandled network requests. Label demo data; retain source/bundle hashes and audits.
+unhandled network requests. Retain fictional-data provenance in report/share context,
+source/bundle hashes and audits. Respect the rejection of persistent production labels.
 It does not prove collection, persistence, investigation, remediation or speed.
 Normal safely isolated scenario captures remain preferred. Reassess live topology
 before each production; this effort's runtime observations are not timeless facts.
@@ -67,15 +62,16 @@ Taste, factual entailment, privacy and visual continuity remain reviewer judgmen
 Technical decode and loudness checks do not establish a listening audition.
 Keep operator acceptance separate from the agent's measured/observed checks.
 
-Focused validation covers 19 production regressions and 3 fixture tests. The
+Validation receipts belong to each implementation/delivery record. Historical test
+counts are not a current certification. The
 accepted export has technical inspection, retained critique, page-reference
 comparison and exact audio identity evidence. This is one accepted product example,
 not a cross-product unattended reliability benchmark.
 
-Rendering/composition recipes remain per-production artifacts. Portable governed
-render orchestration and safer full-backend presentation startup are future work;
-neither is required to reuse the current agent-led workflow. Do not make those
-infrastructure changes as an implicit cleanup or risk live control surfaces.
+Rendering recipes remain production artifacts. Discover current governed media
+owners before adding orchestration. Unbound local rendering is not a runtime
+binding. Keep file checks bounded, inputs stable, receipts versioned and cleanup
+explicit. Do not build a private daemon or risk live control surfaces.
 
 ## Retained investigation
 

@@ -54,7 +54,7 @@ func fetchOCIForPlatform(ctx context.Context, target AcquisitionTarget, optDir, 
 		if err := download(ctx, legacyURL, legacy, onProgress); err != nil {
 			return "", fmt.Errorf("binaryfetch: resolve OCI image manifest: %w", err)
 		}
-		if err := verifyChecksum(legacy, digest); err != nil {
+		if err := verifyChecksum(ctx, legacy, digest); err != nil {
 			return "", fmt.Errorf("binaryfetch: verify OCI blob: %w", err)
 		}
 		if err := extractTarLayer(legacy, optDir); err != nil {
@@ -291,7 +291,7 @@ func downloadOCI(ctx context.Context, endpoint, repository, digest, destination 
 	if err := output.Close(); err != nil {
 		return err
 	}
-	if err := verifyChecksum(destination, strings.TrimPrefix(digest, "sha256:")); err != nil {
+	if err := verifyChecksum(ctx, destination, strings.TrimPrefix(digest, "sha256:")); err != nil {
 		return fmt.Errorf("binaryfetch: verify OCI layer: %w", err)
 	}
 	return nil

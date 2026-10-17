@@ -3,11 +3,29 @@ package cleanup
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 )
+
+func TestOwnerHTTPFailuresRemainActionable(t *testing.T) {
+	for _, tc := range []struct {
+		status int
+		reason string
+	}{{403, "owner cleanup authorization refused"}, {409, "owner cleanup preview conflict"}, {429, "owner cleanup rate limited"}, {503, "owner cleanup service unavailable"}} {
+		t.Run(fmt.Sprint(tc.status), func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(tc.status) }))
+			defer server.Close()
+			client := &HTTPScenarioProviderClient{ResolveURL: func(context.Context, string) (string, error) { return server.URL, nil }}
+			estimate, err := client.Estimate(context.Background(), "owner", ProviderPolicy{Enabled: true})
+			if err != nil || estimate.BlockedReason != tc.reason {
+				t.Fatalf("HTTP %d classified as %#v, %v; want %q", tc.status, estimate, err, tc.reason)
+			}
+		})
+	}
+}
 
 func TestHTTPScenarioProviderClientDistinguishesOwnerStatesAndPreservesProtectedItems(t *testing.T) {
 	var applied OwnerApplyRequest
@@ -62,7 +80,7 @@ func TestHTTPScenarioProviderClientReturnsContractBlockedReasons(t *testing.T) {
 	}
 	client.ResolveURL = func(context.Context, string) (string, error) { return "", context.DeadlineExceeded }
 	estimate, err = client.Estimate(context.Background(), "owner", ProviderPolicy{Enabled: true})
-	if err != nil || estimate.BlockedReason != "owner scenario unreachable" {
+	if err != nil || estimate.BlockedReason != "owner cleanup timed out" {
 		t.Fatalf("unreachable estimate=%#v err=%v", estimate, err)
 	}
 	var nilClient *HTTPScenarioProviderClient

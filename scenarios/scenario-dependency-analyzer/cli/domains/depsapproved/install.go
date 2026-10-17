@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 
@@ -33,19 +34,21 @@ func RegisterInstall(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 func runInstall(core *cliapp.ScenarioApp, args []string) error {
 	fs := support.NewFlagSet("deps install")
 	var scenario, surface, version string
-	var apply, jsonOutput, exactVersion bool
+	var apply, jsonOutput, exactVersion, development, refreshLock bool
 	fs.StringVar(&scenario, "scenario", "", "Target scenario")
-	fs.StringVar(&surface, "surface", "", "Target surface: ui, api, cli, agent, playwright-driver, resource, tools/<package>, platforms/<package>, or template/<id>")
+	fs.StringVar(&surface, "surface", "", "Target surface: ui, api, cli, agent, playwright-driver, resource, host-tool, tools/<package>, platforms/<package>, or template/<id>")
 	fs.StringVar(&version, "version", "", "Optional explicit version/range")
 	fs.BoolVar(&apply, "apply", false, "Perform the install (default is a dry run)")
 	fs.BoolVar(&exactVersion, "exact", false, "Persist an exact package version (requires an explicit version)")
+	fs.BoolVar(&development, "dev", false, "Save a JavaScript dependency as development-only")
+	fs.BoolVar(&refreshLock, "refresh-lock", false, "Refresh only the closed host-tool source dependency inputs; does not install a runtime")
 	fs.BoolVar(&jsonOutput, "json", false, "Output raw JSON")
 	if err := support.ParseFlags(fs, args); err != nil {
 		return err
 	}
 	positionals := fs.Args()
 	if len(positionals) != 1 {
-		return fmt.Errorf("usage: %s deps install <ecosystem>/<package>[@version] --scenario <name> --surface <ui|api|cli|agent|playwright-driver|resource|tools/<package>|platforms/<package>|template/<id>> [--exact] [--apply] [--json]", support.AppName)
+		return fmt.Errorf("usage: %s deps install <ecosystem>/<package>[@version] --scenario <name> --surface <ui|api|cli|agent|playwright-driver|resource|host-tool|tools/<package>|platforms/<package>|template/<id>> [--exact] [--dev] [--refresh-lock] [--apply] [--json]", support.AppName)
 	}
 	ecosystem, packageName, version, err := parseInstallDependencySpec(positionals[0], version)
 	if err != nil {
@@ -55,7 +58,15 @@ func runInstall(core *cliapp.ScenarioApp, args []string) error {
 		return fmt.Errorf("--scenario and --surface are required")
 	}
 
-	resp, err := governanceClient(core).InstallDependency(context.Background(), connect.NewRequest(&governancev1.InstallDependencyRequest{
+	timeout := 45 * time.Second
+	if surface == "host-tool" || surface == "resource" {
+		// Closed host operations and resource Python locks have a three-minute owner budget. Leave a
+		// bounded allowance for governance/resolution and response delivery.
+		timeout = 3*time.Minute + 15*time.Second
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	resp, err := governanceClientWithTimeout(core, timeout).InstallDependency(ctx, connect.NewRequest(&governancev1.InstallDependencyRequest{
 		Scenario:     scenario,
 		Surface:      surface,
 		Ecosystem:    ecosystem,
@@ -63,12 +74,17 @@ func runInstall(core *cliapp.ScenarioApp, args []string) error {
 		Version:      version,
 		Apply:        apply,
 		ExactVersion: exactVersion,
+		Development:  development,
+		RefreshLock:  refreshLock,
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("install dependency", err, nil)
 	}
 	if jsonOutput {
-		return printProto(resp.Msg)
+		if err := printProto(resp.Msg); err != nil {
+			return err
+		}
+		return installOutcome(resp.Msg)
 	}
 	return printInstallResult(resp.Msg)
 }
@@ -115,6 +131,17 @@ func printInstallResult(msg *governancev1.InstallDependencyResponse) error {
 		Results:        msg.GetNextSteps(),
 		RetrievalHints: []string{msg.GetGuidance()},
 	}
-	// A blocked install is a non-zero outcome the caller should notice.
-	return support.PrintList(!msg.GetBlocked(), report, nil)
+	// A refusal or failed applied install must be a non-zero outcome. A
+	// non-blocked transport response does not establish installation success.
+	if err := support.PrintList(false, report, nil); err != nil {
+		return err
+	}
+	return installOutcome(msg)
+}
+
+func installOutcome(msg *governancev1.InstallDependencyResponse) error {
+	if !msg.GetBlocked() && (msg.GetDryRun() || msg.GetInstalled() || msg.GetSourceUpdated()) {
+		return nil
+	}
+	return fmt.Errorf("dependency installation did not succeed (verdict=%s, blocked=%t, installed=%t)", msg.GetVerdict(), msg.GetBlocked(), msg.GetInstalled())
 }

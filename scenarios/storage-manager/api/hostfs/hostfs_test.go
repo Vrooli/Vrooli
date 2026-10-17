@@ -7,11 +7,70 @@ import (
 	"runtime"
 	"sort"
 	"testing"
+	"time"
 
 	"storage-manager/internal/cleanup"
+	"storage-manager/internal/providers"
 
+	"github.com/vrooli/api-core/schedule"
 	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
+
+func TestNativeTemporaryRecoveryPreservesFreshDescendantAndRemovesExpiredFixture(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("Linux native temporary qualification")
+	}
+	root := t.TempDir()
+	expired := filepath.Join(root, "expired")
+	fresh := filepath.Join(root, "fresh")
+	now := time.Now()
+	old := now.Add(-10 * 24 * time.Hour)
+	for _, dir := range []string{expired, fresh} {
+		write(t, filepath.Join(dir, "payload"), "test-only fixture")
+		if err := os.Chtimes(filepath.Join(dir, "payload"), old, old); err != nil {
+			t.Fatal(err)
+		}
+		write(t, filepath.Join(expired, ".cache", "hidden-payload"), "test-only hidden payload")
+		for _, path := range []string{filepath.Join(expired, ".cache", "hidden-payload"), filepath.Join(expired, ".cache"), expired} {
+			if err := os.Chtimes(path, old, old); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if err := os.Chtimes(dir, old, old); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Chtimes(filepath.Join(fresh, "payload"), now, now); err != nil {
+		t.Fatal(err)
+	}
+	// Native filesystem effects are exercised against private fixtures. Process
+	// activity comes from an explicit verified fixture observation; privileged
+	// host observation is separately checked in the control-plane package.
+	provider := providers.NewTmpProvider(New(Options{}), schedule.System(), providers.FileProviderConfig{ID: "tmp", Roots: []string{root}, TopLevelEntries: true, ProtectActive: true, LeaseCheck: "temporary", ActivityObserver: fixtureActivity{}})
+	preview, err := provider.Preview(context.Background(), cleanup.PreviewRequest{Scope: cleanup.ObservationScope{Now: now, Recovery: true}, Policy: cleanup.ProviderPolicy{Enabled: true, MinAge: 72 * time.Hour}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(preview.Items) != 1 || preview.Items[0].Path != expired {
+		t.Fatalf("native temporary preview=%#v", preview)
+	}
+	result, err := provider.Apply(context.Background(), cleanup.ApplyRequest{ProviderVersion: provider.Metadata().Version, IdempotencyKey: "fixture-only", Preview: preview})
+	if err != nil || !result.Applied || len(result.AppliedItems) != 1 {
+		t.Fatalf("apply=%#v err=%v", result, err)
+	}
+	if _, err := os.Stat(expired); !os.IsNotExist(err) {
+		t.Fatalf("expired fixture remains: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(fresh, "payload")); err != nil {
+		t.Fatalf("fresh payload was removed: %v", err)
+	}
+}
+
+type fixtureActivity struct{}
+
+func (fixtureActivity) ObserveTemporary(context.Context, string) (map[string]struct{}, error) {
+	return map[string]struct{}{}, nil
+}
 
 func write(t *testing.T, path string, contents string) {
 	t.Helper()

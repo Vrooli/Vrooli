@@ -62,8 +62,11 @@ describe('replay style spec adapter', () => {
     expect(updated.decor?.background).toMatchObject({ type: 'theme', id: 'nebula' });
     expect(updated.decor?.cursorTheme).toBe('aura');
     expect(updated.cursor?.scale).toBe(1.2);
-    expect(updated.presentation?.browserFrame?.width).toBe(500);
-    expect(updated.presentation?.browserFrame?.height).toBe(400);
+    // A 0.5 request clamps to the supported 0.6 minimum. The frame also
+    // contains browser chrome; its height cannot equal the image alone.
+    expect(updated.decor?.browserScale).toBe(0.6);
+    expect(updated.presentation?.browserFrame?.width).toBe(600);
+    expect(updated.presentation?.browserFrame?.height).toBeGreaterThan(480);
   });
   it('preserves explicit disabled chrome and device framing through export spec', () => {
     const updated = applyReplayStyleToSpec({ presentation: { canvas: { width: 1080, height: 1920 }, viewport: { width: 430, height: 880 } } } as ReplayMovieSpec, {

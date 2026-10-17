@@ -824,7 +824,16 @@ func (c *Controller) stillVrooliOrphan(pid int) bool {
 	if !ok {
 		return false
 	}
-	return looksLikeVrooliProcessFn(c.Root, c.Home, entry) && !insideAgentSessionScope(entry)
+	if !looksLikeVrooliProcessFn(c.Root, c.Home, entry) || insideAgentSessionScope(entry) {
+		return false
+	}
+	// A leaked desktop-bundle process is only eligible while it is still an
+	// init orphan (ppid==1). If it was re-adopted by a live parent between the
+	// snapshot and the signal, it is no longer a leak and must not be killed.
+	if isLeakedDesktopBundleProcess(entry) && entry.PPID != 1 {
+		return false
+	}
+	return true
 }
 
 func (c *Controller) DiagnosePort(port int, scenarioName string) (PortDiagnostic, error) {
@@ -1057,6 +1066,58 @@ func isControlPlaneAPIExecutable(entry processTableEntry) bool {
 	return false
 }
 
+// leakedDesktopBundleMarker is the path fragment unique to a scenario-to-desktop
+// AppImage whose squashfs was extracted to /tmp. When the bundled UI exits, its
+// private runtime (the bundled api process and its opencode children) can be
+// left reparented to init instead of being reaped. The extracted-root prefix
+// (/tmp/appimage_extracted_) plus this bundle fragment is specific enough that
+// no live, registry-managed scenario ever matches it.
+const (
+	leakedDesktopExtractedPrefix = "/tmp/appimage_extracted_"
+	leakedDesktopBundleMarker    = "/resources/bundle/"
+)
+
+// matchesLeakedDesktopBundlePath reports whether a resolved path (executable or
+// the first argv token) points inside an extracted AppImage's private bundle
+// runtime. Both the extracted-root prefix and the bundle marker must be present
+// so an unrelated /tmp path can never match.
+func matchesLeakedDesktopBundlePath(path string) bool {
+	path = strings.TrimSpace(path)
+	path = strings.TrimSuffix(path, " (deleted)")
+	if path == "" {
+		return false
+	}
+	return strings.HasPrefix(path, leakedDesktopExtractedPrefix) && strings.Contains(path, leakedDesktopBundleMarker)
+}
+
+// isLeakedDesktopBundleProcess recognizes a process left behind by a
+// scenario-to-desktop bundle: its executable (or argv[0]) lives in an extracted
+// AppImage's /resources/bundle tree. The ppid==1 (reparented-to-init) and
+// not-registry-claimed guards are applied by the caller (collectOrphans); this
+// predicate only identifies the executable class, so it can also be reused by
+// looksLikeVrooliProcess for the kill-time re-validation.
+func isLeakedDesktopBundleProcess(entry processTableEntry) bool {
+	if matchesLeakedDesktopBundlePath(entry.Executable) {
+		return true
+	}
+	if base, ok := commandExecutablePath(entry.Command); ok && matchesLeakedDesktopBundlePath(base) {
+		return true
+	}
+	return false
+}
+
+// commandExecutablePath returns the first whitespace-separated token of a
+// command line (argv[0]), which on Linux ps and /proc/<pid>/cmdline is the
+// executable path. It differs from commandExecutableBase, which returns only
+// the basename; the leaked-bundle match needs the full path to test the prefix.
+func commandExecutablePath(command string) (string, bool) {
+	fields := strings.Fields(strings.TrimSpace(command))
+	if len(fields) == 0 {
+		return "", false
+	}
+	return fields[0], true
+}
+
 func isBridgeAgentExecutable(entry processTableEntry) bool {
 	for _, candidate := range []string{entry.Executable, entry.Command} {
 		if base, ok := commandExecutableBase(candidate); ok {
@@ -1101,6 +1162,14 @@ func looksLikeVrooliProcess(root, home string, entry processTableEntry) bool {
 	}
 	if isBridgeAgentExecutable(entry) {
 		return false
+	}
+
+	// A process left behind by a scenario-to-desktop bundle lives under
+	// /tmp/appimage_extracted_*/resources/bundle, which is outside every
+	// Vrooli-owned prefix below. Recognize it explicitly so the kill-time
+	// re-validation agrees with collectOrphans that it is a reapable leak.
+	if isLeakedDesktopBundleProcess(entry) {
+		return true
 	}
 
 	vrooliOwnedPrefixes := vrooliOwnedPrefixes(root, home)

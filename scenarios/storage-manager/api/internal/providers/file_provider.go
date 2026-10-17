@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -60,6 +61,7 @@ type FileProviderConfig struct {
 	LeaseCheck        string
 	RepairClass       string
 	OwnershipRepairer cleanup.OwnershipRepairer
+	ActivityObserver  cleanup.TemporaryActivityObserver
 }
 
 // defaultMeasureBudget bounds measurement of a single root.
@@ -89,11 +91,14 @@ type FileProvider struct {
 	leaseCheck        string
 	repairClass       string
 	repairer          cleanup.OwnershipRepairer
+	activityObserver  cleanup.TemporaryActivityObserver
 
 	// memo holds the most recent measurement so a single plan does not walk
 	// the same trees twice. See previewMemo.
-	memoMu sync.Mutex
-	memo   *previewMemo
+	memoMu        sync.Mutex
+	memo          *previewMemo
+	recoveryMu    sync.Mutex
+	recoveryWalks map[string]*recoveryWalkState
 }
 
 // previewMemo caches one measurement result.
@@ -142,7 +147,20 @@ func NewTrashProvider(files cleanup.FileSystem, clock cleanup.Clock, cfg FilePro
 }
 
 func NewTmpProvider(files cleanup.FileSystem, clock cleanup.Clock, cfg FileProviderConfig) *FileProvider {
-	return newFileProvider(files, clock, cfg, cleanup.SafetyTierSafe, cleanup.ProviderModeDisabled, cleanup.ApprovalModeOperator, "tmp-remove", desktopPlatforms)
+	provider := newFileProvider(files, clock, cfg, cleanup.SafetyTierSafe, cleanup.ProviderModeDisabled, cleanup.ApprovalModeOperator, "tmp-remove", desktopPlatforms)
+	// Legacy previews did not retain descendant-age and identity evidence.
+	// They must be regenerated rather than replayed under the stricter contract.
+	provider.meta.Version = "v2"
+	if cfg.LeaseCheck == "temporary" {
+		provider.meta.SupportedPlatforms = []string{"linux"}
+		provider.meta.RequiredPrivileges = []string{"privilege-broker"}
+		if cfg.TopLevelEntries && cfg.ProtectActive {
+			// The balanced profile may automatically reclaim these guarded,
+			// aged whole trees. Missing activity proof still blocks every effect.
+			provider.meta.DefaultApproval = cleanup.ApprovalModeNone
+		}
+	}
+	return provider
 }
 
 // NewScratchProvider reaps the repository's agent-scratch directory.
@@ -220,6 +238,7 @@ func newFileProvider(files cleanup.FileSystem, clock cleanup.Clock, cfg FileProv
 		protectActive:     cfg.ProtectActive,
 		repairClass:       cfg.RepairClass,
 		repairer:          cfg.OwnershipRepairer,
+		activityObserver:  cfg.ActivityObserver,
 	}
 }
 
@@ -242,6 +261,18 @@ func (p *FileProvider) Estimate(ctx context.Context, req cleanup.EstimateRequest
 }
 
 func (p *FileProvider) Preview(ctx context.Context, req cleanup.PreviewRequest) (cleanup.Preview, error) {
+	// Estimate and Preview are one observation, even when traversal is paused.
+	// Independent bounded observations must advance rather than reuse an empty
+	// partial memo indefinitely.
+	if req.Scope.Recovery && req.Estimate.ProviderID == p.meta.ID {
+		p.memoMu.Lock()
+		if p.memo != nil && p.memo.key == memoKey(req.Scope, req.Policy) {
+			out, err := p.memo.preview.Clone(), p.memo.previewer
+			p.memoMu.Unlock()
+			return out, err
+		}
+		p.memoMu.Unlock()
+	}
 	return p.preview(ctx, req.Scope, req.Policy)
 }
 
@@ -274,12 +305,18 @@ func (p *FileProvider) Apply(ctx context.Context, req cleanup.ApplyRequest) (cle
 			skipped = append(skipped, item.ID)
 			continue
 		}
+		if p.isConfiguredRoot(item.Path) {
+			skipped = append(skipped, item.ID)
+			warnings = append(warnings, fmt.Sprintf("%s: configured root %s is protected", item.ID, cleanup.Redact(item.Path)))
+			continue
+		}
 		if p.isProtectedPath(item.Path) {
 			skipped = append(skipped, item.ID)
 			warnings = append(warnings, fmt.Sprintf("%s: protected path", item.ID))
 			continue
 		}
-		if _, err := p.files.Stat(ctx, item.Path); err != nil {
+		info, err := p.files.Stat(ctx, item.Path)
+		if err != nil {
 			if isFileMissing(err) {
 				// A prior apply or an operator may have removed the item after
 				// preview. Do not count planned bytes for an entry that is already
@@ -289,6 +326,27 @@ func (p *FileProvider) Apply(ctx context.Context, req cleanup.ApplyRequest) (cle
 			skipped = append(skipped, item.ID)
 			warnings = append(warnings, fmt.Sprintf("%s: %s", item.ID, cleanup.Redact(err.Error())))
 			continue
+		}
+		if item.Identity != "" && info.Identity != item.Identity {
+			skipped = append(skipped, item.ID)
+			warnings = append(warnings, fmt.Sprintf("%s: entry identity changed", item.ID))
+			continue
+		}
+		if p.topLevelEntries && p.meta.SafetyTier == cleanup.SafetyTierSafe {
+			// Invalidate acceleration after every apply attempt, including a
+			// safety refusal, so one changed entry cannot starve later entries.
+			p.forgetRecoveryCandidate(item.Path)
+			if err := p.validateTemporaryApply(ctx, item, req.Preview.MinAge); err != nil {
+				skipped = append(skipped, item.ID)
+				warnings = append(warnings, fmt.Sprintf("%s: %s", item.ID, cleanup.Redact(err.Error())))
+				continue
+			}
+			current, statErr := p.files.Stat(ctx, item.Path)
+			if statErr != nil || (info.Identity != "" && current.Identity != info.Identity) || !current.ModTime.Equal(info.ModTime) {
+				skipped = append(skipped, item.ID)
+				warnings = append(warnings, fmt.Sprintf("%s: temporary entry changed during revalidation", item.ID))
+				continue
+			}
 		}
 		if err := p.files.RemoveAll(ctx, item.Path); err != nil {
 			if !repairAttempted && p.repairer != nil && p.repairClass != "" && isPermissionError(err) {
@@ -331,6 +389,7 @@ func (p *FileProvider) Apply(ctx context.Context, req cleanup.ApplyRequest) (cle
 			continue
 		}
 		reclaimed += item.Bytes
+		appliedItems = append(appliedItems, item.ID)
 	}
 	return cleanup.ApplyResult{
 		ProviderID:     p.meta.ID,
@@ -358,7 +417,7 @@ func (p *FileProvider) preview(ctx context.Context, scope cleanup.ObservationSco
 	key := memoKey(scope, policy)
 
 	p.memoMu.Lock()
-	if p.memo != nil && p.memo.key == key && p.observedNow(scope.Now).Sub(p.memo.computed) < memoTTL {
+	if !scope.Recovery && p.memo != nil && p.memo.key == key && p.observedNow(scope.Now).Sub(p.memo.computed) < memoTTL {
 		cached := p.memo
 		p.memoMu.Unlock()
 		return cached.preview.Clone(), cached.previewer
@@ -404,6 +463,11 @@ func (p *FileProvider) measure(ctx context.Context, scope cleanup.ObservationSco
 		out.BlockedReason = "filesystem seam unavailable"
 		return out, nil
 	}
+	if p.topLevelEntries && p.meta.SafetyTier == cleanup.SafetyTierSafe && !scope.CompleteCensus {
+		if resumable, ok := p.files.(cleanup.ResumableFileSystem); ok {
+			return p.measureTemporaryRecovery(ctx, resumable, scope, policy)
+		}
+	}
 
 	roots := p.roots
 	if len(scope.RootPaths) > 0 {
@@ -436,7 +500,85 @@ func (p *FileProvider) measure(ctx context.Context, scope cleanup.ObservationSco
 		}
 	}
 	sort.Slice(out.Items, func(i, j int) bool { return out.Items[i].Path < out.Items[j].Path })
+	out.MinAge = policy.MinAge
 	return out, nil
+}
+
+func (p *FileProvider) isConfiguredRoot(path string) bool {
+	for _, root := range p.roots {
+		if filepath.Clean(path) == root {
+			return true
+		}
+	}
+	return false
+}
+
+func (p *FileProvider) validateTemporaryApply(ctx context.Context, item cleanup.PreviewItem, minAge time.Duration) error {
+	root := ""
+	for _, configured := range p.roots {
+		if pathContains(configured, item.Path) {
+			root = configured
+			break
+		}
+	}
+	var active func(string) bool
+	if p.leaseCheck == "temporary" {
+		verified, err := p.temporaryActivityFilter(ctx, root)
+		if err != nil {
+			return err
+		}
+		active = verified
+	} else {
+		active = p.activePredicate(root)
+	}
+	if active(item.Path) {
+		return fmt.Errorf("temporary entry is active")
+	}
+	cutoff := p.observedNow(time.Time{}).Add(-minAge)
+	check := func(info cleanup.FileInfo) error {
+		if info.Mode&(fs.ModeSocket|fs.ModeNamedPipe|fs.ModeDevice|fs.ModeCharDevice) != 0 {
+			return fmt.Errorf("temporary entry contains a protected special file")
+		}
+		// The enclosing entry's process snapshot protects every held descendant.
+		// Walking already visits every lease marker; probing ancestor markers for
+		// each file would turn a large tree into millions of redundant stat calls.
+		if info.Path != item.Path && (p.temporaryDescendantActive(info.Path) || p.isProtectedPath(info.Path)) {
+			return fmt.Errorf("temporary descendant is active or protected")
+		}
+		if minAge > 0 && info.ModTime.After(cutoff) {
+			return fmt.Errorf("temporary descendant is newer than retention")
+		}
+		return nil
+	}
+	if resumable, ok := p.files.(cleanup.ResumableFileSystem); ok {
+		walk, err := resumable.OpenWalk(ctx, item.Path)
+		if err != nil {
+			return err
+		}
+		defer walk.Close()
+		for {
+			info, err := walk.Next(ctx)
+			if errors.Is(err, io.EOF) {
+				if p.leaseCheck == "temporary" {
+					current, observeErr := p.temporaryActivityFilter(ctx, root)
+					if observeErr != nil {
+						return observeErr
+					}
+					if current(item.Path) {
+						return fmt.Errorf("temporary entry became active during revalidation")
+					}
+				}
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+			if err := check(info); err != nil {
+				return err
+			}
+		}
+	}
+	return p.files.Walk(ctx, item.Path, check)
 }
 
 // collectFiles adds one candidate per individual file beneath root.
@@ -537,6 +679,15 @@ type entryAggregate struct {
 // strength of whichever files the walk happened to reach first.
 func (p *FileProvider) collectTopLevelEntries(ctx context.Context, root string, now time.Time, deadline time.Time, policy cleanup.ProviderPolicy, out *cleanup.Preview) error {
 	isActive := p.activePredicate(root)
+	if p.leaseCheck == "temporary" {
+		verified, err := p.temporaryActivityFilter(ctx, root)
+		if err != nil {
+			out.BlockedReason = cleanup.Redact(err.Error())
+			out.Warnings = append(out.Warnings, out.BlockedReason)
+			return nil
+		}
+		isActive = verified
+	}
 	entries, err := p.files.ReadDir(ctx, root)
 	if err != nil {
 		return err
@@ -598,7 +749,9 @@ func (p *FileProvider) collectTopLevelEntries(ctx context.Context, root string, 
 			out.Warnings = append(out.Warnings, "max reclaim limit reached")
 			continue
 		}
-		out.Items = append(out.Items, p.previewItem(entry.Path, agg.bytes))
+		item := p.previewItem(entry.Path, agg.bytes)
+		item.Identity, item.ModTime = entry.Identity, entry.ModTime
+		out.Items = append(out.Items, item)
 	}
 
 	if unmeasured > 0 {
@@ -714,6 +867,18 @@ func (p *FileProvider) isActivePath(path string) bool {
 	return activePath(path) || (p.protectActive && activeLeasePath(path))
 }
 
+// Hidden payloads (.cache, .git, etc.) inside an expired temporary unit are
+// ordinary contents. Explicit live/pin markers remain protection signals.
+func (p *FileProvider) temporaryDescendantActive(path string) bool {
+	name := strings.ToLower(filepath.Base(path))
+	switch name {
+	case ".building", ".lease", ".active", ".running", ".in-progress", ".keep", ".pin":
+		return true
+	}
+	return strings.HasSuffix(name, ".lock") || strings.HasSuffix(name, ".sock") ||
+		strings.HasPrefix(name, "systemd-private-") || (p.protectActive && activeLeasePath(path))
+}
+
 // activePredicate builds the lease-aware safety filter once per measured root.
 // In particular, open-handle discovery must not scan /proc once per file in a
 // large cache. Unsupported lease mechanisms fail closed: the provider reports
@@ -725,29 +890,51 @@ func (p *FileProvider) activePredicate(root string) func(string) bool {
 		return func(path string) bool {
 			return base(path) || hasLeaseFile(path, root)
 		}
-	case "open_handle":
-		handles, verified := openHandlePaths(root)
-		if !verified {
-			return func(string) bool { return true }
-		}
-		return func(path string) bool {
-			if base(path) {
-				return true
-			}
-			clean := filepath.Clean(path)
-			for held := range handles {
-				if clean == held || pathContains(held, clean) {
-					return true
-				}
-			}
-			return false
-		}
 	case "model_pin":
-		// Pin indexes are owner-specific. Until the owner lease feed is
-		// available, protecting the complete root is the only safe answer.
 		return func(string) bool { return true }
+	case "open_handle", "temporary":
+		if p.leaseCheck == "temporary" {
+			predicate, err := p.temporaryActivityFilter(context.Background(), root)
+			if err != nil {
+				return func(string) bool { return true }
+			}
+			return predicate
+		}
+		handles, verified := openHandlePaths(root)
+		return p.handlePredicate(root, handles, verified)
 	default:
 		return base
+	}
+}
+
+func (p *FileProvider) temporaryActivityFilter(ctx context.Context, root string) (func(string) bool, error) {
+	// Same-user inspection cannot exclude files held by a root or foreign
+	// process. The setup-owned observer is authoritative for the host scope.
+	if p.activityObserver == nil {
+		return nil, fmt.Errorf("temporary process activity is unverifiable; run vrooli setup --sudo-mode=ask to provision the privilege broker")
+	}
+	handles, err := p.activityObserver.ObserveTemporary(ctx, root)
+	if err != nil {
+		return nil, err
+	}
+	return p.handlePredicate(root, handles, true), nil
+}
+
+func (p *FileProvider) handlePredicate(root string, handles map[string]struct{}, verified bool) func(string) bool {
+	if !verified {
+		return func(string) bool { return true }
+	}
+	return func(path string) bool {
+		if p.isActivePath(path) || (p.leaseCheck == "temporary" && hasLeaseFile(path, root)) {
+			return true
+		}
+		clean := filepath.Clean(path)
+		for held := range handles {
+			if pathContains(held, clean) || pathContains(clean, held) {
+				return true
+			}
+		}
+		return false
 	}
 }
 

@@ -83,7 +83,14 @@ func (p *OwnerScenarioProvider) Apply(ctx context.Context, req cleanup.ApplyRequ
 	if p.client == nil {
 		return cleanup.ApplyResult{ProviderID: p.cfg.ID, SkippedItems: previewItemIDs(req.Preview.Items), Warnings: []string{"owner scenario client unavailable"}}, nil
 	}
-	result, err := p.client.Apply(ctx, cleanup.ScenarioCleanupRequest{ScenarioID: p.cfg.OwnerScenario, ProviderID: p.cfg.ID, IdempotencyKey: req.IdempotencyKey, ApprovalMode: req.ApprovalMode, Preview: req.Preview})
+	approval := req.ApprovalMode
+	if p.cfg.OwnerBudget && p.cfg.SafetyTier == cleanup.SafetyTierSafeWithOwner && approval == cleanup.ApprovalModeNone {
+		// The canonical owner declaration already grants bounded retention.
+		// Preserve that owner authority on the wire; "none" means no authority
+		// to the private-data handler, not an automatic operator approval.
+		approval = cleanup.ApprovalModeOwner
+	}
+	result, err := p.client.Apply(ctx, cleanup.ScenarioCleanupRequest{ScenarioID: p.cfg.OwnerScenario, ProviderID: p.cfg.ID, IdempotencyKey: req.IdempotencyKey, ApprovalMode: approval, Preview: req.Preview})
 	if err != nil {
 		result.ProviderID = p.cfg.ID
 		result.SkippedItems = previewItemIDs(req.Preview.Items)

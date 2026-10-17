@@ -910,8 +910,6 @@ func (service *EffortControlService) Amend(control identity.EffortControl) (iden
 		return identity.EffortControl{}, err
 	}
 	control.Completion = current.Completion
-	control.FiniteCommission = current.FiniteCommission
-	control.Development = current.Development
 	amended, err := control.Amend(current)
 	if err != nil {
 		return identity.EffortControl{}, err

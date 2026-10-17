@@ -33,9 +33,22 @@ func (h *connectHandler) InstallDependency(ctx context.Context, req *connect.Req
 
 	overrideVersion := strings.TrimPrefix(strings.TrimSpace(msg.GetVersion()), "override:")
 	isNpmOverride := strings.HasPrefix(strings.TrimSpace(msg.GetVersion()), "override:")
+	jsEcosystem := false
+	switch strings.ToLower(strings.TrimSpace(msg.GetEcosystem())) {
+	case "npm", "node", "js", "ts", "typescript":
+		jsEcosystem = true
+	}
+	if msg.GetDevelopment() && (!jsEcosystem || isNpmOverride || msg.GetSurface() == "host-tool" || msg.GetRefreshLock()) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("development placement requires a mutating JavaScript surface and cannot be combined with overrides or host-tool operations"))
+	}
+	if msg.GetRefreshLock() && (msg.GetSurface() != "host-tool" || msg.GetEcosystem() != "npm" || msg.GetPackageName() != "hyperframes" || !msg.GetExactVersion() || msg.GetDevelopment() || isNpmOverride) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("refresh_lock requires npm/hyperframes on host-tool with an explicit exact version and development=false"))
+	}
 	var resolution installgateway.Resolution
 	var err error
-	if isNpmOverride {
+	if msg.GetRefreshLock() {
+		resolution, err = installgateway.ResolveHostToolRefresh(repoRoot, msg.GetScenario(), msg.GetEcosystem(), msg.GetPackageName(), msg.GetVersion())
+	} else if isNpmOverride {
 		if strings.ToLower(strings.TrimSpace(msg.GetEcosystem())) != "npm" || strings.TrimSpace(overrideVersion) == "" {
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("override: requires npm and a version"))
 		}
@@ -45,6 +58,11 @@ func (h *connectHandler) InstallDependency(ctx context.Context, req *connect.Req
 	}
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	if msg.GetDevelopment() {
+		if err := installgateway.ApplyDevelopmentDependency(&resolution); err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		}
 	}
 	if msg.GetExactVersion() {
 		if err := installgateway.ApplyExactVersion(&resolution, msg.GetVersion()); err != nil {
@@ -69,14 +87,25 @@ func (h *connectHandler) InstallDependency(ctx context.Context, req *connect.Req
 		SecurityNotes:  secNotes,
 		Guidance:       Guidance,
 	}
+	target := fmt.Sprintf("scenarios/%s/%s", msg.GetScenario(), msg.GetSurface())
+	if resolution.HostTool || resolution.HostToolRefresh {
+		target = "managed host tool " + msg.GetScenario() + " (private frozen candidate)"
+		if resolution.HostToolRefresh {
+			target = "host-tool dependency source " + msg.GetScenario() + " (private lock-refresh candidate; no runtime installation)"
+		}
+	}
 
 	switch {
 	case blocked:
-		resp.Message = fmt.Sprintf("Blocked (%s): %s/%s is not installable into scenarios/%s/%s. The install was NOT run.",
-			verdict, msg.GetEcosystem(), msg.GetPackageName(), msg.GetScenario(), msg.GetSurface())
+		resp.Message = fmt.Sprintf("Blocked (%s): %s/%s is not installable into %s. The install was NOT run.",
+			verdict, msg.GetEcosystem(), msg.GetPackageName(), target)
 	case !msg.GetApply():
-		resp.Message = fmt.Sprintf("Dry run (%s): would run `%s` in scenarios/%s/%s. Re-run with --apply to install.",
-			verdict, resolution.Command(), msg.GetScenario(), msg.GetSurface())
+		action := "install"
+		if resolution.HostToolRefresh {
+			action = "refresh source dependency inputs only; no runtime will be installed"
+		}
+		resp.Message = fmt.Sprintf("Dry run (%s): would run `%s` in %s. Re-run with --apply to %s.",
+			verdict, resolution.Command(), target, action)
 	default:
 		if isNpmOverride {
 			if err := installgateway.SetNpmOverride(resolution.ManifestPath, msg.GetPackageName(), overrideVersion); err != nil {
@@ -93,6 +122,18 @@ func (h *connectHandler) InstallDependency(ctx context.Context, req *connect.Req
 			resp.NextSteps = append(resp.NextSteps, "Fix the error above and re-run, or run the dry-run first to inspect the command.")
 			return connect.NewResponse(resp), nil
 		}
+		if resolution.HostToolRefresh {
+			resp.SourceUpdated = true
+			resp.Message = "Updated host-tool dependency source inputs; no managed runtime was installed.\n" + strings.TrimSpace(output)
+			resp.NextSteps = append(resp.NextSteps, "Review the generated manifest/lock diff and align the owner version metadata before separately admitting frozen provisioning. Preserve the previous immutable installation.")
+			return connect.NewResponse(resp), nil
+		}
+		if resolution.PythonBootstrap != nil {
+			resp.SourceUpdated = true
+			resp.Message = "Bootstrapped the hashed resource Python lock; no runtime was installed.\n" + strings.TrimSpace(output)
+			resp.NextSteps = append(resp.NextSteps, "Review the generated complete lock and source hashes before separately admitting normal resource acquisition and runtime qualification.")
+			return connect.NewResponse(resp), nil
+		}
 		resp.Installed = true
 		verb := "Installed"
 		if resolution.TemplateVersion != "" {
@@ -101,8 +142,12 @@ func (h *connectHandler) InstallDependency(ctx context.Context, req *connect.Req
 		if isNpmOverride {
 			verb = "Applied governed npm override"
 		}
-		resp.Message = fmt.Sprintf("%s (%s): %s/%s into scenarios/%s/%s via %s.", verb,
-			verdict, msg.GetEcosystem(), msg.GetPackageName(), msg.GetScenario(), msg.GetSurface(), resolution.PackageManager)
+		resp.Message = fmt.Sprintf("%s (%s): %s/%s into %s via %s.", verb,
+			verdict, msg.GetEcosystem(), msg.GetPackageName(), target, resolution.PackageManager)
+		if resolution.HostTool {
+			resp.NextSteps = append(resp.NextSteps, "Verify managed bytes: vrooli host install hyperframes --dry-run", "Qualify one bounded local composition before fresh-film production; no browser was downloaded.")
+			return connect.NewResponse(resp), nil
+		}
 		resp.NextSteps = append(resp.NextSteps,
 			fmt.Sprintf("Re-validate governance: %s deps approved validate %s", scenarioCLIName(), msg.GetScenario()),
 			"Confirm no new vulnerabilities: security-health deps status --json")
@@ -114,7 +159,17 @@ func (h *connectHandler) InstallDependency(ctx context.Context, req *connect.Req
 // governInstall applies the governance decision for an install request against
 // the resolved surface. It returns the verdict, whether the install is blocked
 // (fail-closed), agent-facing next steps, and any recorded security notes.
-func (r *Registry) governInstall(msg *governancev1.InstallDependencyRequest, _ installgateway.Resolution) (verdict string, blocked bool, nextSteps, secNotes []string) {
+func (r *Registry) governInstall(msg *governancev1.InstallDependencyRequest, resolution installgateway.Resolution) (verdict string, blocked bool, nextSteps, secNotes []string) {
+	if resolution.PythonBootstrap != nil {
+		for _, requirement := range resolution.PythonBootstrap.Requirements {
+			peer := &governancev1.InstallDependencyRequest{Scenario: msg.GetScenario(), Surface: msg.GetSurface(), Ecosystem: "pip", PackageName: requirement.Name, Version: requirement.Version}
+			peerVerdict, peerBlocked, steps, notes := r.governInstall(peer, installgateway.Resolution{})
+			secNotes = append(secNotes, notes...)
+			if peerBlocked {
+				return peerVerdict, true, append([]string{fmt.Sprintf("Python bootstrap direct requirement %s@%s is not approved", requirement.Name, requirement.Version)}, steps...), secNotes
+			}
+		}
+	}
 	ecosystem := strings.TrimSpace(msg.GetEcosystem())
 	pkg := strings.TrimSpace(msg.GetPackageName())
 	version := strings.TrimSpace(msg.GetVersion())
@@ -167,6 +222,9 @@ func (r *Registry) governInstall(msg *governancev1.InstallDependencyRequest, _ i
 	}
 	if v := version; v != "" {
 		if decision := evaluateVersionPolicy(ecosystem, v, record.GetVersionRange(), record.GetRangePolicy()); !decision.Allowed {
+			if decision.FindingClass == "VERSION_RANGE_UNPARSEABLE" {
+				return "range_unparseable", true, []string{decision.Description, decision.Remediation}, secNotes
+			}
 			return "out_of_range", true, []string{
 				fmt.Sprintf("Version %s is outside the approved range %s. Use a version in range, or widen it: %s deps approved widen-range %s/%s --to-major-line --apply", v, record.GetVersionRange(), scenarioCLIName(), ecosystem, pkg),
 			}, secNotes

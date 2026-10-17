@@ -97,6 +97,21 @@ with the owning plan.
   revive them. Resolution now: the canary makes them VISIBLE (agent-manager degraded), and clearing
   them still needs the operator `watch cancel` (human-gated) OR a follow-up scheduler investigation.
   Once cleared, the canary returns agent-manager to healthy.
+- A1 ROOT CAUSE (corrected 2026-10-14) + FIX: the scheduler IS re-evaluating the 4 zombies — hourly,
+  failures=842 over 35 days, last_failed_at today. The real defect: a contract rejection is
+  classified PERMANENT (`isContractRejection`, "none of them clears by retrying") yet
+  `parkedDecision` reschedules it hourly FOREVER — no dead-letter — so a misconfigured watch becomes
+  an eternal zombie no scheduler pass can resolve. (The live reason is
+  `program_contract_rejected:...watch_id must have type string`; `recordEvaluationFailure` rewrites
+  the reason every failure, so it's current, not stale — current-source `programInput` never emits
+  `watch_id`, so the rejection comes from the probe watches themselves, which are simply permanently
+  misconfigured.) FIX: `program_evaluator.go` now dead-letters to TERMINAL after
+  `contractRejectionDeadLetterThreshold` (24 ≈ a day, ruling out a deploy-window blip) consecutive
+  contract rejections, with classification `program_contract_rejected_dead_letter`. Unit test +
+  full supervision suite green; agent-manager redeployed. EXPECTED: the 4 zombies (streak 842 ≫ 24)
+  self-terminate to TERMINAL on their next scheduled wake (~05:29 UTC 2026-10-14) with NO operator
+  cancel, and the WS-F canary then returns agent-manager to healthy. (Can't force the wake — it's
+  management-gated; verify after 05:29 UTC.)
 - Still staged: WS-C `dry-run`, WS-E output_schema, WS-B#2 `--explain` binding-arg validation.
 - Operator-gated fallback (likely unnecessary after A1): `watch cancel` on the 4 zombies requires
   a verified operator (`agent-manager:write`); reused the existing watches as the A1 verification

@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Approvals — Mobile badged menu entry (empty / persistent)</title>
+<style>
+:root{
+  --wc-surface-base:2 6 23; --wc-surface-raised:15 23 42; --wc-surface-input:30 41 59; --wc-card:23 32 51;
+  --wc-text-primary:248 250 252; --wc-text-muted:148 163 184; --wc-text-faint:100 116 139;
+  --wc-border-default:255 255 255; --wc-accent:34 211 238; --wc-accent-fg:15 23 42; --wc-success:74 222 128;
+  --font-sans:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --r-ctrl:.375rem;--r-pill:9999px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans);background:#0a0f1e;min-height:100vh;display:flex;flex-direction:column;align-items:center;gap:12px;padding:24px;color:rgb(var(--wc-text-faint))}
+.caption{font-size:12px;text-align:center;max-width:390px}
+.phone{width:390px;height:780px;background:rgb(var(--wc-surface-base));border-radius:34px;border:1px solid rgb(var(--wc-border-default)/.12);overflow:hidden;position:relative;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+.notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:150px;height:26px;background:#000;border-radius:0 0 16px 16px;z-index:40}
+/* dimmed workspace */
+.dim{position:absolute;inset:0;background:rgb(0 0 0/.55)}
+.topbar{height:52px;padding:8px 10px 0 14px;display:flex;align-items:center;gap:6px;background:rgb(var(--wc-surface-raised));border-bottom:1px solid rgb(var(--wc-border-default)/.1)}
+.title{font-size:15px;font-weight:600;color:rgb(var(--wc-text-primary))}
+.tb-sp{flex:1}
+.tb-ic{width:34px;height:34px;border-radius:var(--r-ctrl);display:flex;align-items:center;justify-content:center;color:rgb(var(--wc-text-muted));font-size:15px;position:relative}
+.tb-ic.open{background:rgb(var(--wc-accent)/.16);color:rgb(var(--wc-accent))}
+/* account/overflow menu as a bottom sheet (thumb zone) */
+.sheet{position:absolute;left:0;right:0;bottom:0;background:rgb(var(--wc-surface-raised));border-top:1px solid rgb(var(--wc-border-default)/.12);border-radius:18px 18px 0 0;padding:10px 0 26px;box-shadow:0 -16px 48px rgba(0,0,0,.5)}
+.grabber{width:40px;height:4px;border-radius:2px;background:rgb(var(--wc-border-default)/.2);margin:4px auto 10px}
+.mi{display:flex;align-items:center;gap:14px;padding:14px 20px;color:rgb(var(--wc-text-secondary));font-size:15px}
+.mi .mic{width:28px;text-align:center;font-size:17px;color:rgb(var(--wc-text-muted))}
+.mi .badge{margin-left:auto;background:rgb(var(--wc-accent));color:rgb(var(--wc-accent-fg));border-radius:var(--r-pill);font-size:11px;font-weight:700;padding:1px 8px}
+.mi .zero{margin-left:auto;color:rgb(var(--wc-text-faint));font-size:12px}
+.mi.approvals{color:rgb(var(--wc-text-primary));font-weight:600}
+.mi.approvals .mic{color:rgb(var(--wc-accent))}
+.sep{height:1px;background:rgb(var(--wc-border-default)/.08);margin:6px 20px}
+.note{font-size:11px;color:rgb(var(--wc-accent));text-align:center;max-width:390px}
+</style>
+</head>
+<body>
+<div class="caption">Mobile · persistent access when there is nothing pending: a badged "Approvals" item inside the existing account / overflow menu (bottom sheet). NO new always-on top-bar button. Badge shows 0 / count; here the inbox is empty so the row reads "All clear".</div>
+<div class="phone">
+  <div class="notch"></div>
+  <div class="topbar"><span class="title">web-console</span><span class="tb-sp"></span><span class="tb-ic">＋</span><span class="tb-ic">🖥</span><span class="tb-ic">⚙</span><span class="tb-ic open">◯</span></div>
+  <div class="dim"></div>
+  <div class="sheet">
+    <div class="grabber"></div>
+    <div class="mi approvals"><span class="mic">✓</span>Approvals<span class="zero">All clear</span></div>
+    <div class="sep"></div>
+    <div class="mi"><span class="mic">◯</span>Account</div>
+    <div class="mi"><span class="mic">🖥</span>Devices &amp; machines</div>
+    <div class="mi"><span class="mic">🗄</span>Archive</div>
+    <div class="mi"><span class="mic">⚙</span>Settings</div>
+  </div>
+</div>
+<div class="note">(When pending&gt;0, the same row shows a cyan count badge AND the BannerRegion banner appears — see mobile-a-banner.html)</div>
+</body>
+</html>

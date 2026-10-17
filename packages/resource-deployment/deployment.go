@@ -3,10 +3,10 @@
 package resourcedeployment
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"io"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -420,7 +420,18 @@ type ServiceArtifact struct {
 
 // Validate checks that an artifact declaration is safe to resolve beneath its
 // owning resource root and that it pins a complete SHA-256 digest.
-func (a ServiceArtifact) Validate() error {
+func (a ServiceArtifact) Validate() error { return a.validate(false) }
+
+// ValidateForComposeCandidate validates a composed directory's structure before
+// its output digest exists. It never grants install, platform or launch authority.
+func (a ServiceArtifact) ValidateForComposeCandidate() error {
+	if a.Layout != "dir" || (a.Verification != "" && a.Verification != "checksum") {
+		return fmt.Errorf("compose candidate requires a checksum directory artifact")
+	}
+	return a.validate(true)
+}
+
+func (a ServiceArtifact) validate(candidate bool) error {
 	path := strings.TrimSpace(a.Path)
 	if path == "" || filepath.IsAbs(path) || filepath.Clean(path) == "." {
 		return fmt.Errorf("artifact path must be a non-empty relative path")
@@ -471,11 +482,14 @@ func (a ServiceArtifact) Validate() error {
 		if _, err := ParsePlatform(platform); err != nil {
 			return fmt.Errorf("artifact sha256_by_platform key %q: %w", platform, err)
 		}
+		if candidate && sum == "" {
+			continue
+		}
 		if err := validateSHA256("artifact sha256_by_platform "+platform, sum); err != nil {
 			return err
 		}
 	}
-	if verification != deploymentVerificationHostTool && strings.TrimSpace(a.SHA256) == "" && len(a.SHA256ByPlatform) == 0 {
+	if !candidate && verification != deploymentVerificationHostTool && strings.TrimSpace(a.SHA256) == "" && len(a.SHA256ByPlatform) == 0 {
 		return fmt.Errorf("artifact sha256 or sha256_by_platform is required")
 	}
 	return nil
@@ -555,6 +569,14 @@ func (e *ArtifactChecksumMismatchError) Error() string {
 // authority. Signature verification belongs to the release/staging boundary;
 // this second checksum check protects the local hand-off to the supervisor.
 func (a ServiceArtifact) VerifyFile(path string) error {
+	return a.VerifyFileContext(context.Background(), path)
+}
+
+// VerifyFileContext retains typed checksum mismatch errors and exact digests.
+func (a ServiceArtifact) VerifyFileContext(ctx context.Context, path string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if err := a.Validate(); err != nil {
 		return err
 	}
@@ -569,7 +591,7 @@ func (a ServiceArtifact) VerifyFile(path string) error {
 		return nil
 	}
 	if strings.EqualFold(strings.TrimSpace(a.Layout), deploymentLayoutDir) {
-		got, err := binaryfetch.TreeDigest(path)
+		got, err := binaryfetch.TreeDigestContext(ctx, path)
 		if err != nil {
 			return fmt.Errorf("hash managed-service artifact tree: %w", err)
 		}
@@ -581,20 +603,12 @@ func (a ServiceArtifact) VerifyFile(path string) error {
 		}
 		return nil
 	}
-	file, err := os.Open(path)
+	got, err := binaryfetch.FileDigestContext(ctx, path)
 	if err != nil {
-		return fmt.Errorf("read managed-service artifact: %w", err)
-	}
-	defer file.Close()
-	hash := sha256.New()
-	if _, err := io.Copy(hash, file); err != nil {
 		return fmt.Errorf("hash managed-service artifact: %w", err)
 	}
-	if got := hex.EncodeToString(hash.Sum(nil)); got != strings.ToLower(strings.TrimSpace(a.SHA256)) {
-		return &ArtifactChecksumMismatchError{
-			Path: path, Layout: deploymentLayoutFile,
-			Want: strings.ToLower(strings.TrimSpace(a.SHA256)), Got: got,
-		}
+	if got != strings.ToLower(strings.TrimSpace(a.SHA256)) {
+		return &ArtifactChecksumMismatchError{Path: path, Layout: deploymentLayoutFile, Want: strings.ToLower(strings.TrimSpace(a.SHA256)), Got: got}
 	}
 	return nil
 }

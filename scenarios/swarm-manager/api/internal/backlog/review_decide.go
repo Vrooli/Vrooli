@@ -15,10 +15,13 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/authn"
 
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
@@ -108,6 +111,14 @@ func decisionToStatus(d ReviewDecision) (BacklogStatus, error) {
 // mutation. Both Connect and the retiring REST route call this one boundary so
 // an audit record, terminal hook, and actor rule can never drift by transport.
 func (h *Handler) DecideReview(ctx context.Context, kind BacklogKind, name string, req ReviewDecideRequest) (*ReviewDecideResponse, error) {
+	principal, authErr := authn.RequireIndependentHuman(ctx)
+	if authErr != nil {
+		return nil, &apierr.DomainError{Status: http.StatusForbidden, Message: authErr.Error()}
+	}
+	if _, authErr := authn.RequireCapability(ctx, "swarm-manager:write"); authErr != nil {
+		return nil, &apierr.DomainError{Status: http.StatusForbidden, Message: authErr.Error()}
+	}
+	req.DecidedBy = principal.Subject
 	req.Decision = ReviewDecision(strings.ToLower(strings.TrimSpace(string(req.Decision))))
 	req.Rationale = strings.TrimSpace(req.Rationale)
 	req.DecidedBy = strings.TrimSpace(req.DecidedBy)

@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/vrooli/vrooli/internal/artifactlock"
@@ -12,20 +13,23 @@ import (
 // acquisition may run while a service is stopped, whereas migration,
 // start/restart, stop, and uninstall must form one exclusive control-plane
 // lifecycle transaction.
-func withManagedServiceLifecycleLock(resource string, fn func() error) error {
+func withManagedServiceLifecycleLock(ctx context.Context, resource string, fn func() error) error {
 	if fn == nil {
 		return fmt.Errorf("managed-service lifecycle callback is required")
 	}
-	release, err := acquireManagedServiceLifecycleLock(resource)
+	release, err := acquireManagedServiceLifecycleLock(ctx, resource)
 	if err != nil {
 		return fmt.Errorf("acquire managed-service lifecycle lock for %s: %w", resource, err)
 	}
 	defer release()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return fn()
 }
 
-func acquireManagedServiceLifecycleLock(resource string) (func(), error) {
-	return artifactlock.Acquire("resource-lifecycle:" + resource)
+func acquireManagedServiceLifecycleLock(ctx context.Context, resource string) (func(), error) {
+	return artifactlock.AcquireContext(ctx, "resource-lifecycle:"+resource)
 }
 
 func managedServiceLifecycleAction(action string) bool {

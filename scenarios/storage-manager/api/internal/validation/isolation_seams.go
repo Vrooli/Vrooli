@@ -163,6 +163,9 @@ func isoCollectSeams(absPath string, present map[string]bool) {
 		}
 		return true
 	})
+	if schemaSplitBootstrapPresent(fset, file, aliasToPath) {
+		present["database.EnsureSchemas"] = true
+	}
 }
 
 // importLocalName returns the identifier a Go file uses to reference an import:

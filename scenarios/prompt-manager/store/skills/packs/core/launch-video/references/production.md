@@ -46,6 +46,26 @@ not universal definitions of premium. Look for a distinctive opening silhouette,
 sharp editorial contrast, one memorable interaction, motivated spatial continuity,
 and a concise ending. Do not equate added diagrams or more transitions with craft.
 
+For a craft-regression brief, write a compact preference card from current
+operator feedback. Name the reference exports/hashes and the traits to preserve:
+sound energy, material/light quality, motion character and meaningful proof.
+Record why a previously successful medium is retained, replaced or omitted.
+Generated/spatial inserts are a choice, not a quota. When used, give each insert
+a story job and compare its actual material/light/silhouette with the reference.
+Use the available imagegen skill for raster plates; retain prompts, dimensions,
+hashes and unexposed model/seed/cost as unknown. Camera/light motion over a still
+is not true object animation. Discover a governed geometry/video tool only when
+the shot needs that capability; do not invent a new service for a plate.
+
+Before full production, render an audio-led representative sequence containing
+the proposed insert, actual product proof and a transition/hold. Compare its
+motion range, pace and soundtrack excerpt with the named reference. A set of
+static styleframes cannot establish pace or sound fit. Prefer a decisive mask,
+match cut or acceleration/brake when it serves the brief; repeated slow upward
+heading entrances are not the only motion language. Let clear proof settle
+between faster editorial accents. Record listening separately and keep its gate
+open when unavailable.
+
 ## Landing-page visual continuity
 
 Inspect the actual published product route after fonts and assets load. Save
@@ -132,6 +152,17 @@ The animatic uses the actual intended shot durations and reading holds. Review
 hook, sequence, proof, redundancies, and ending on mute. Use temporary audio only
 with its provenance and replacement status recorded. Do not add polish to rescue
 an unproven story.
+
+Reduced-size animatics must preserve authored scene geometry. Verify the actual
+rendered output dimensions and timed samples: an outer output root with an inner
+scaled authored stage may be needed when the renderer resets the root geometry.
+Keep full-resolution styleframes and final encoded legibility/QR checks separate.
+
+Before report playback checks, probe the actual browser's codec support and bound
+playback promises. Verify advancing media time, selected source, and exclusive
+playback in the delivered report. A valid MP4 may need a VP9/Opus WebM preview
+fallback for the available browser. Preserve the full-resolution primary, label
+preview dimensions, and retain conversion hashes and decode/QR evidence.
 
 ## Production record
 

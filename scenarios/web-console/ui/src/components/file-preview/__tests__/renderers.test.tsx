@@ -1,6 +1,6 @@
 import { renderWithProviders as render } from "../../../test-utils";
-import { describe, expect, it, vi } from "vitest";
-import { fireEvent, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, screen } from "@testing-library/react";
 
 import { strings } from "../../../consts/strings";
 import { renderers, rendererForKind } from "../renderers";
@@ -94,14 +94,18 @@ describe("media load failures", () => {
   it("shows a codec hint when audio fails to load", () => {
     const Renderer = renderers.audio;
     const { container } = render(<Renderer model={model({ kind: "audio", mimeType: "audio/mpeg" })} text={null} onError={() => {}} {...navProps} />);
-    fireEvent.error(container.querySelector("audio")!);
+    const audio = container.querySelector("audio");
+    if (!audio) throw new Error("Expected an audio preview");
+    fireEvent.error(audio);
     expect(screen.getByText(strings.messagesFileViewer.codecHint)).toBeInTheDocument();
   });
 
   it("shows a codec hint when video fails to load", () => {
     const Renderer = renderers.video;
     const { container } = render(<Renderer model={model({ kind: "video", mimeType: "video/mp4" })} text={null} onError={() => {}} {...navProps} />);
-    fireEvent.error(container.querySelector("video")!);
+    const video = container.querySelector("video");
+    if (!video) throw new Error("Expected a video preview");
+    fireEvent.error(video);
     expect(screen.getByText(strings.messagesFileViewer.codecHint)).toBeInTheDocument();
   });
 });
@@ -192,6 +196,73 @@ describe("unsupported renderer", () => {
 
 
 describe("HTML text preview", () => {
+  let resizeStage: (width: number, height: number) => void;
+  const disconnect = vi.fn();
+  beforeEach(() => {
+    vi.stubGlobal("ResizeObserver", class {
+      constructor(callback: ResizeObserverCallback) {
+        resizeStage = (width, height) => { act(() => { callback([{ contentRect: { width, height } } as ResizeObserverEntry], this as unknown as ResizeObserver); }); };
+      }
+      observe = vi.fn();
+      disconnect = disconnect;
+    });
+  });
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it("fits a desktop viewport on a phone and resizes without changing its CSS width", () => {
+    const Renderer = renderers.code;
+    const { unmount } = render(<Renderer model={model({ kind: "code", resolvedPath: "/tmp/a.html" })} text={text("<h1>Hello</h1>", "code")} onError={() => {}} {...navProps} />);
+    resizeStage(360, 600);
+    const frame = screen.getByTitle(strings.messagesFileViewer.htmlPreview);
+    fireEvent.change(screen.getByRole("combobox", { name: strings.messagesFileViewer.htmlViewport }), { target: { value: "desktop" } });
+    expect(frame).toHaveStyle({ width: "1440px", height: "2400px", transform: "scale(0.25)" });
+    resizeStage(720, 600);
+    expect(frame).toHaveStyle({ width: "1440px", height: "1200px", transform: "scale(0.5)" });
+    fireEvent.change(screen.getByRole("combobox", { name: strings.messagesFileViewer.htmlViewport }), { target: { value: "phone" } });
+    expect(frame).toHaveStyle({ width: "390px", transform: "scale(1)" });
+    unmount();
+    expect(disconnect).toHaveBeenCalled();
+  });
+
+  it("zooms independently of viewport width, clamps steps, and can return to Fit", () => {
+    const Renderer = renderers.code;
+    render(<Renderer model={model({ kind: "code", resolvedPath: "/tmp/a.html" })} text={text("<h1>Hello</h1>", "code")} onError={() => {}} {...navProps} />);
+    resizeStage(360, 600);
+    fireEvent.change(screen.getByRole("combobox", { name: strings.messagesFileViewer.htmlViewport }), { target: { value: "tablet" } });
+    const zoom = screen.getByRole("combobox", { name: strings.messagesFileViewer.htmlZoom });
+    const frame = screen.getByTitle(strings.messagesFileViewer.htmlPreview);
+    fireEvent.change(zoom, { target: { value: "1" } });
+    expect(frame).toHaveStyle({ width: "768px", height: "600px", transform: "scale(1)" });
+    fireEvent.click(screen.getByRole("button", { name: strings.messagesFileViewer.htmlZoomIn }));
+    expect(frame).toHaveStyle({ transform: "scale(1.25)" });
+    fireEvent.click(screen.getByRole("button", { name: strings.messagesFileViewer.htmlZoomOut }));
+    expect(frame).toHaveStyle({ transform: "scale(1)" });
+    fireEvent.change(zoom, { target: { value: "2" } });
+    expect(screen.getByRole("button", { name: strings.messagesFileViewer.htmlZoomIn })).toBeDisabled();
+    fireEvent.change(zoom, { target: { value: "0.1" } });
+    expect(screen.getByRole("button", { name: strings.messagesFileViewer.htmlZoomOut })).toBeDisabled();
+    fireEvent.change(zoom, { target: { value: "fit" } });
+    expect(frame).toHaveStyle({ transform: "scale(0.46875)" });
+  });
+
+  it("preserves zoom and viewport across source switches and resets them for another file", () => {
+    const Renderer = renderers.code;
+    const props = { model: model({ kind: "code", resolvedPath: "/tmp/a.html" }), text: text("<h1>Hello</h1>", "code"), onError: () => {}, ...navProps };
+    const { rerender } = render(<Renderer {...props} />);
+    resizeStage(360, 600);
+    fireEvent.change(screen.getByRole("combobox", { name: strings.messagesFileViewer.htmlViewport }), { target: { value: "desktop" } });
+    fireEvent.change(screen.getByRole("combobox", { name: strings.messagesFileViewer.htmlZoom }), { target: { value: "0.5" } });
+    fireEvent.click(screen.getByRole("button", { name: strings.messagesFileViewer.htmlSource }));
+    expect(screen.getByRole("combobox", { name: strings.messagesFileViewer.htmlZoom })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: strings.messagesFileViewer.htmlRendered }));
+    resizeStage(360, 600);
+    expect(screen.getByRole("combobox", { name: strings.messagesFileViewer.htmlViewport })).toHaveValue("desktop");
+    expect(screen.getByTitle(strings.messagesFileViewer.htmlPreview)).toHaveStyle({ width: "1440px", transform: "scale(0.5)" });
+    rerender(<Renderer {...props} model={{ ...props.model, previewId: "pv-2", resolvedPath: "/tmp/b.html" }} />);
+    expect(screen.getByRole("combobox", { name: strings.messagesFileViewer.htmlViewport })).toHaveValue("responsive");
+    expect(screen.getByRole("combobox", { name: strings.messagesFileViewer.htmlZoom })).toHaveValue("fit");
+  });
+
   it.each(["report.html", "REPORT.HTM"])("renders %s in an isolated frame and lets users inspect source", (basename) => {
     const Renderer = renderers.code;
     const content = "<!doctype html><style>h1 { color: red }</style><h1>Report</h1><script>document.title = 'Report'</script>";
@@ -207,6 +278,14 @@ describe("HTML text preview", () => {
     expect(screen.queryByTitle(strings.messagesFileViewer.htmlPreview)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: strings.messagesFileViewer.htmlRendered }));
     expect(screen.getByTitle(strings.messagesFileViewer.htmlPreview)).toBeInTheDocument();
+  });
+
+  it("installs local pinch handling inside the isolated HTML document", () => {
+    const Renderer = renderers.code;
+    render(<Renderer model={model({ kind: "code", resolvedPath: "/tmp/a.html" })} text={text("<h1>Hello</h1>", "code")} onError={() => {}} {...navProps} />);
+    const document = new DOMParser().parseFromString(screen.getByTitle(strings.messagesFileViewer.htmlPreview).getAttribute("srcdoc") ?? "", "text/html");
+    expect(document.querySelector("script[data-wc-html-pinch]")).not.toBeNull();
+    expect(screen.getByRole("combobox", { name: strings.messagesFileViewer.htmlZoom })).toHaveValue("fit");
   });
 
   it("keeps line-linked and truncated HTML in source view initially", () => {

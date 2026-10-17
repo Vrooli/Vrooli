@@ -1,7 +1,10 @@
 {
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "openrouter",
-  "storage": {"entries": {}, "rationale": "No additional host storage is owned by this resource on the supported lifecycle path; the explicit empty declaration prevents an implicit-storage assumption."},
+  "storage": {
+    "entries": {},
+    "rationale": "No additional host storage is owned by this resource on the supported lifecycle path; the explicit empty declaration prevents an implicit-storage assumption."
+  },
   "display_name": "OpenRouter API",
   "description": "Hosted OpenRouter API gateway for access to multiple model providers.",
   "cli": {
@@ -40,7 +43,6 @@
       "kind": "go_module"
     }
   },
-  "template": "cloud-api",
   "driver": "cloud-api",
   "deployment": {
     "profiles": {
@@ -103,10 +105,22 @@
         "logical_id": "vrooli/openrouter",
         "field": "api-key",
         "env": "OPENROUTER_API_KEY",
-        "label": "OpenRouter API Key",
-        "description": "OpenRouter unified API gateway across LLM providers. Required for scenarios that route LLM calls through OpenRouter rather than calling providers directly.",
+      "label": "OpenRouter API Key",
+      "provisioning": "operator",
+      "description": "OpenRouter unified API gateway across LLM providers. Required for scenarios that route LLM calls through OpenRouter rather than calling providers directly.",
+      "placeholder": "sk-or-v1-a1b2c3d4e5f6...",
         "required": true,
         "obtain_url": "https://openrouter.ai/keys"
+      }
+    ],
+    "consumers": [
+      {
+        "logical_id": "vrooli/openrouter",
+        "field": "api-key",
+        "kind": "environment",
+        "consumer": "OpenRouter CLI credential resolver",
+        "source_ref": "cli/internal/auth/auth.go:70",
+        "required": true
       }
     ]
   },
@@ -132,28 +146,40 @@
       }
     }
   },
-  "portability_tier": "full",
   "category": "hosted-service",
+  "requirements": {
+    "ram_mb": 128,
+    "disk_mb": 128,
+    "cpu_cores": 0.25,
+    "network": "required",
+    "bucket": "small",
+    "source": "estimated",
+    "confidence": "low",
+    "class": "hosted-service",
+    "weight": 1
+  },
   "platforms": {
     "linux": "supported",
-    "macos": "supported",
-    "windows": "supported"
+    "macos": "build-verified",
+    "windows": "build-verified"
   },
   "health_checks": [
     {
       "type": "http",
-      "target": "https://openrouter.ai/api/v1/models",
+      "kind": "readiness",
+      "target": "https://openrouter.ai/api/v1/key",
+      "headers": {
+        "Authorization": "Bearer ${OPENROUTER_API_KEY}"
+      },
       "expected_status": [
-        200,
-        400,
-        401,
-        403
+        200
       ],
       "timeout_seconds": 15
     }
   ],
   "capabilities": {
     "supports_logs": false,
+    "supports_content_ops": true,
     "supports_ensure": true
   },
   "dependency_schema": {

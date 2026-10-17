@@ -71,6 +71,7 @@ type Result struct {
 	UsedBytes   int64  `json:"used_bytes"`
 	OverBytes   int64  `json:"over_bytes,omitempty"`
 	BudgetBytes int64  `json:"budget_bytes,omitempty"`
+	Incomplete  bool   `json:"incomplete,omitempty"`
 	// Locations lists every place the entry's bytes were measured.
 	Locations []LocationMeasurement `json:"locations,omitempty"`
 	// OwnerReclaim is set when this cycle asked the owner to reclaim.
@@ -204,8 +205,17 @@ func (e Enforcer) Enforce(ctx context.Context, inventory coreStorage.OwnerInvent
 				continue
 			}
 			over := budget.MaxBytes > 0 && out.After.Bytes > budget.MaxBytes
-			e.recordBudgetBreach(ctx, owner.ID, entry.Name, out.After.Bytes, budget.MaxBytes, over, entry.Regenerable)
-			addResult(results, owner.ID, Result{Owner: owner.ID, Entry: entry.Name, Deleted: int(out.Deleted), Freed: out.FreedBytes})
+			cycles := e.recordBudgetBreach(ctx, owner.ID, entry.Name, out.After.Bytes, budget.MaxBytes, over, entry.Regenerable)
+			result := Result{Owner: owner.ID, Entry: entry.Name, Deleted: int(out.Deleted), Freed: out.FreedBytes,
+				UsedBytes: out.After.Bytes, BudgetBytes: budget.MaxBytes, OverBytes: overBytes(out.After.Bytes, budget.MaxBytes), Incomplete: out.Incomplete}
+			if out.Incomplete {
+				result.Reason = "retention incomplete; protected entries or traversal/deletion budget may prevent reconciliation"
+			}
+			if over && cycles >= 2 && out.FreedBytes == 0 {
+				result.Escalated = true
+				result.Reason = "retention made no progress while the declared byte budget remains exceeded"
+			}
+			addResult(results, owner.ID, result)
 		}
 		// An owner-wide receipt must be written by the custom owner, not by a partial generic sweep.
 		if hasCustom {
@@ -214,6 +224,8 @@ func (e Enforcer) Enforce(ctx context.Context, inventory coreStorage.OwnerInvent
 		var ownerErr error
 		if result, ok := results[owner.ID]; ok && result.Error != "" {
 			ownerErr = errors.New(result.Error)
+		} else if ok && result.Incomplete {
+			ownerErr = errors.New("retention reconciliation incomplete")
 		}
 		if err := coreRetention.RecordEnforcementReceipt(owner.ID, time.Now().UTC(), ownerErr); err != nil {
 			results[owner.ID] = Result{Owner: owner.ID, Error: fmt.Errorf("record enforcement receipt: %w", err).Error()}
@@ -395,6 +407,7 @@ func addResult(results map[string]Result, ownerID string, entryResult Result) {
 	rollup.OverBytes += entryResult.OverBytes
 	rollup.Refused = rollup.Refused || entryResult.Refused
 	rollup.Escalated = rollup.Escalated || entryResult.Escalated
+	rollup.Incomplete = rollup.Incomplete || entryResult.Incomplete
 	// A refusal that reaches the owner level with no reason is the shape this
 	// package exists to avoid: an operator sees "refused" and cannot act on it.
 	// First reason wins; the per-entry detail stays in EntryResults.

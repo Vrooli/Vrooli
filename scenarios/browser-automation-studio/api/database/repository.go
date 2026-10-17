@@ -77,8 +77,9 @@ type Repository interface {
 	CreateExport(ctx context.Context, export *ExportIndex) error
 	GetExport(ctx context.Context, id uuid.UUID) (*ExportIndex, error)
 	UpdateExport(ctx context.Context, export *ExportIndex) error
+	UpdateExportSettings(ctx context.Context, id uuid.UUID, settings JSONMap) error
 	UpdateExportStatus(ctx context.Context, id uuid.UUID, status string, errorMessage string) error
-	UpdateExportComplete(ctx context.Context, id uuid.UUID, storageURL string, fileSizeBytes int64) error
+	UpdateExportComplete(ctx context.Context, id uuid.UUID, storageURL string, fileSizeBytes int64, settings JSONMap) error
 	DeleteExport(ctx context.Context, id uuid.UUID) error
 	ListExports(ctx context.Context, limit, offset int) ([]*ExportIndex, error)
 	ListExportsByExecution(ctx context.Context, executionID uuid.UUID) ([]*ExportIndex, error)
@@ -831,35 +832,34 @@ func (r *repository) UpdateExport(ctx context.Context, export *ExportIndex) erro
 		status = :status,
 		error = :error
 		WHERE id = :id`
-	_, err := r.db.NamedExecContext(ctx, query, export)
+	res, err := r.db.NamedExecContext(ctx, query, export)
 	if err != nil {
 		return fmt.Errorf("failed to update export: %w", err)
+	}
+	if count, err := res.RowsAffected(); err != nil {
+		return err
+	} else if count == 0 {
+		return ErrNotFound
 	}
 	return nil
 }
 
 func (r *repository) UpdateExportStatus(ctx context.Context, id uuid.UUID, status string, errorMessage string) error {
-	query := r.db.Rebind("UPDATE exports SET status = ?, error = ? WHERE id = ?")
+	query := r.db.Rebind("UPDATE exports SET status = ?, error = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status IN ('pending', 'processing')")
 	res, err := r.db.ExecContext(ctx, query, status, errorMessage, id)
 	if err != nil {
 		return fmt.Errorf("failed to update export status: %w", err)
 	}
-	if rows, rowsErr := res.RowsAffected(); rowsErr == nil && rows == 0 {
-		return ErrNotFound
-	}
-	return nil
+	return requireExportTransition(res)
 }
 
-func (r *repository) UpdateExportComplete(ctx context.Context, id uuid.UUID, storageURL string, fileSizeBytes int64) error {
-	query := r.db.Rebind("UPDATE exports SET status = 'completed', storage_url = ?, file_size_bytes = ? WHERE id = ?")
-	res, err := r.db.ExecContext(ctx, query, storageURL, fileSizeBytes, id)
+func (r *repository) UpdateExportComplete(ctx context.Context, id uuid.UUID, storageURL string, fileSizeBytes int64, settings JSONMap) error {
+	query := r.db.Rebind("UPDATE exports SET status = 'completed', error = '', storage_url = ?, file_size_bytes = ?, settings = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'processing'")
+	res, err := r.db.ExecContext(ctx, query, storageURL, fileSizeBytes, settings, id)
 	if err != nil {
 		return fmt.Errorf("failed to update export completion: %w", err)
 	}
-	if rows, rowsErr := res.RowsAffected(); rowsErr == nil && rows == 0 {
-		return ErrNotFound
-	}
-	return nil
+	return requireExportTransition(res)
 }
 
 func (r *repository) DeleteExport(ctx context.Context, id uuid.UUID) error {
@@ -1054,4 +1054,35 @@ func (r *repository) ListAssetsByProject(ctx context.Context, projectID uuid.UUI
 		return nil, fmt.Errorf("failed to list assets by project: %w", err)
 	}
 	return assets, nil
+}
+
+// UpdateExportSettings cannot reset a terminal outcome or overwrite library fields.
+func (r *repository) UpdateExportSettings(ctx context.Context, id uuid.UUID, settings JSONMap) error {
+	result, err := r.db.ExecContext(ctx, r.db.Rebind("UPDATE exports SET settings = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'processing'"), settings, id)
+	if err != nil {
+		return err
+	}
+	count, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if count == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// A terminal transition is verified only when the driver confirms exactly one row.
+func requireExportTransition(result sql.Result) error {
+	count, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("verify export transition affected rows: %w", err)
+	}
+	if count == 0 {
+		return ErrNotFound
+	}
+	if count != 1 {
+		return fmt.Errorf("export transition affected %d rows; expected one", count)
+	}
+	return nil
 }

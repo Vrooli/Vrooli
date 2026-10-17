@@ -24,6 +24,23 @@ func TestResolve_FindsTheTempRoot(t *testing.T) {
 	}
 }
 
+func TestResolveKeepsHostTmpWhenProcessTmpdirIsRelocated(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("Linux host temporary namespace")
+	}
+	relocated := t.TempDir()
+	t.Setenv("TMPDIR", relocated)
+	got := Resolve().Tmp
+	foundHost, foundOverride := false, false
+	for _, root := range got {
+		foundHost = foundHost || root == "/tmp"
+		foundOverride = foundOverride || root == relocated
+	}
+	if !foundHost || !foundOverride {
+		t.Fatalf("temporary roots=%v; both /tmp and the override must remain observable", got)
+	}
+}
+
 // TestGoBuildCacheRoot_HonoursGOCACHE asserts an operator who relocated their
 // build cache gets that location cleaned rather than silently skipped.
 func TestGoBuildCacheRoot_HonoursGOCACHE(t *testing.T) {

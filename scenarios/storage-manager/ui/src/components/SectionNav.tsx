@@ -21,6 +21,7 @@ export function SectionNav({ activeId, items, onSelect }: SectionNavProps) {
           <a
             key={item.id}
             role="tab"
+            aria-label={item.label}
             aria-selected={activeId === item.id}
             href={`#storage-${item.id}`}
             className={`inline-flex min-h-11 items-center gap-2 rounded-control px-3 py-2 text-sm font-medium ${activeId === item.id ? "bg-app-primary text-app-primary-foreground" : "text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground"}`}

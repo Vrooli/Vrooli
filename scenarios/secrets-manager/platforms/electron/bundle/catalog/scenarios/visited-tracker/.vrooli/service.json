@@ -1,7 +1,22 @@
 {
   "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "storage": {"entries":{"data":{"rung":"owned","path":"data","kind":"dir","class":"data","regenerable":false,"rationale":"Scenario-owned durable data observed in the canonical data directory."}},"rationale":"Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."},
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
   "service": {
     "name": "visited-tracker",
     "displayName": "Visited Tracker",
@@ -82,101 +97,6 @@
           "critical": false
         }
       ]
-    },
-    "setup": {
-      "description": "Build API & UI, install CLI",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/visited-tracker-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "visited-tracker",
-            "targets": [
-              "visited-tracker"
-            ]
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "create-data-dir",
-          "run": "mkdir -p data/campaigns",
-          "description": "Create data directory for JSON file storage"
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o visited-tracker-api .",
-          "description": "Build the Go API binary (visited-tracker-api) for lifecycle orchestration"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "cd ui && if [ -f package.json ]; then pnpm install --ignore-workspace; else echo 'No package.json found, skipping pnpm install'; fi",
-          "description": "Install UI dependencies"
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && pnpm run build",
-          "description": "Build production UI bundle"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Launch API and UI production server",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./visited-tracker-api",
-          "background": true,
-          "description": "Start Go API server",
-          "condition": {
-            "file_exists": "api/visited-tracker-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "background": true,
-          "description": "Serve production UI bundle",
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        }
-      ]
-    },
-    "test": {
-      "description": "Comprehensive phased testing for visited-tracker",
-      "steps": [
-        {
-          "name": "run-phased-tests",
-          "run": "test-genie execute visited-tracker --preset comprehensive",
-          "description": "Execute phased scenario test suite"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop background processes",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f 'visited-tracker-api' || true",
-          "description": "Stop Go API"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f 'scenarios/visited-tracker.*server\\.js' || true",
-          "description": "Stop UI server"
-        }
-      ]
     }
   },
   "dependencies": {
@@ -196,11 +116,70 @@
     "freshness": {
       "inputs": [
         "cli/**",
-        ".vrooli/service.json"
+        ".vrooli/service.json",
+        "../../packages/proto/gen/go/visited-tracker"
       ]
     },
     "source_build": {
       "kind": "go_module"
     }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "data_dirs": [
+          "data/campaigns"
+        ],
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
+    }
+  },
+  "skills": {
+    "usage": {
+      "source": "skills/visited-tracker/SKILL.md",
+      "programs": [
+        "visited-tracker.attention-select"
+      ]
+    },
+    "improve": {
+      "source": "skills/visited-tracker-improve/SKILL.md",
+      "programs": [
+        "visited-tracker.setpoint-read"
+      ]
+    },
+    "feature": [],
+    "learning": {
+      "scope": "visited-tracker-usage"
+    },
+    "waivers": {}
   }
 }

@@ -50,16 +50,18 @@ class Take(_message.Message):
     def __init__(self, id: _Optional[str] = ..., job_id: _Optional[str] = ..., style_id: _Optional[str] = ..., pool_state: _Optional[str] = ..., blob_ref: _Optional[str] = ..., provenance: _Optional[_Union[Provenance, _Mapping]] = ..., times_offered: _Optional[int] = ..., reserved_by: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., reserved_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class SubmitRequest(_message.Message):
-    __slots__ = ("style_id", "takes", "duration", "seed")
+    __slots__ = ("style_id", "takes", "duration", "seed", "shift")
     STYLE_ID_FIELD_NUMBER: _ClassVar[int]
     TAKES_FIELD_NUMBER: _ClassVar[int]
     DURATION_FIELD_NUMBER: _ClassVar[int]
     SEED_FIELD_NUMBER: _ClassVar[int]
+    SHIFT_FIELD_NUMBER: _ClassVar[int]
     style_id: str
     takes: int
     duration: int
     seed: int
-    def __init__(self, style_id: _Optional[str] = ..., takes: _Optional[int] = ..., duration: _Optional[int] = ..., seed: _Optional[int] = ...) -> None: ...
+    shift: float
+    def __init__(self, style_id: _Optional[str] = ..., takes: _Optional[int] = ..., duration: _Optional[int] = ..., seed: _Optional[int] = ..., shift: _Optional[float] = ...) -> None: ...
 
 class SubmitResponse(_message.Message):
     __slots__ = ("job_id",)

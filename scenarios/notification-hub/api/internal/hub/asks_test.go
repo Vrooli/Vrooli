@@ -293,3 +293,49 @@ func TestAsks_OnlyTheRecipientSeesAndAnswersThem(t *testing.T) {
 	require.Len(t, open, 1)
 	require.Equal(t, ask.ID, open[0].ID)
 }
+
+// [REQ:NOTIFICA-P1-009] An answer submitted by the recipient records the ACTUAL
+// verified human (AnsweredBy) as answered_by — distinct from the recipient
+// subject the authorization check uses — and that real subject rides
+// ask.resolved.v1 downstream. The recipient-only check still refuses a
+// non-recipient regardless of AnsweredBy.
+func TestAnswerAsk_RecordsTheVerifiedHumanAsAnsweredBy(t *testing.T) {
+	service, _ := testService(t)
+	publisher := &recordingPublisher{}
+	service.SetResolutionPublisher(publisher)
+	now := time.Date(2026, time.October, 16, 12, 0, 0, 0, time.UTC)
+	service.SetClockForTest(fixedClock{now: now})
+	ask, _, err := service.AskWithSpec(context.Background(), decisionSpec(now, "evt-attribution"))
+	require.NoError(t, err)
+
+	// Recipient "alice" answers; the verified human behind this request is a
+	// distinct per-human subject (a second household member on the shared inbox).
+	answered, err := service.AnswerAsk(context.Background(), hub.AnswerInput{
+		AskID: ask.ID, Answer: "close", Actor: "alice", AnsweredBy: "access:bob@example.test",
+	})
+	require.NoError(t, err)
+	require.Equal(t, hub.AskAnswered, answered.State)
+	require.Equal(t, "access:bob@example.test", answered.AnsweredBy, "answered_by must be the verified human, not the recipient subject")
+
+	require.NoError(t, service.PublishPendingResolutions(context.Background()))
+	require.Eventually(t, func() bool { return len(publisher.snapshot()) == 1 }, time.Second, 10*time.Millisecond)
+	require.Equal(t, "access:bob@example.test", publisher.snapshot()[0].Payload["answered_by"], "ask.resolved.v1 must carry the real verified human")
+
+	// A non-recipient is refused by the recipient-only check even when it presents
+	// a plausible AnsweredBy — authorization is keyed on the recipient, not on
+	// who claims to have answered.
+	second, _, err := service.AskWithSpec(context.Background(), decisionSpec(now, "evt-attribution-2"))
+	require.NoError(t, err)
+	_, err = service.AnswerAsk(context.Background(), hub.AnswerInput{
+		AskID: second.ID, Answer: "close", Actor: "mallory", AnsweredBy: "access:mallory@example.test",
+	})
+	require.ErrorIs(t, err, hub.ErrNotFound)
+
+	// With no AnsweredBy supplied (bearer/cookie path), answered_by falls back to
+	// the recipient-check actor — preserving prior behavior.
+	third, _, err := service.AskWithSpec(context.Background(), decisionSpec(now, "evt-attribution-3"))
+	require.NoError(t, err)
+	fell, err := service.AnswerAsk(context.Background(), hub.AnswerInput{AskID: third.ID, Answer: "close", Actor: "alice"})
+	require.NoError(t, err)
+	require.Equal(t, "alice", fell.AnsweredBy, "answered_by falls back to the actor when no verified human is supplied")
+}

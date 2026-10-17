@@ -8,8 +8,31 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/eventbus"
+	"github.com/vrooli/api-core/operatordecision"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 )
+
+// RemediationDecisionSource and RemediationDecisionKind compose the decision
+// event type this scenario raises:
+// vrooli-autoheal.remediation.decision_requested.v1. The resolution webhook and
+// its DomainEffect gate on the same pair, so producer and consumer never drift.
+const (
+	RemediationDecisionSource = "vrooli-autoheal"
+	RemediationDecisionKind   = "remediation"
+)
+
+// RemediationDecisionEventType is the full producer event type the approval
+// request is published under.
+var RemediationDecisionEventType = operatordecision.DecisionRequestedEventType(RemediationDecisionSource, RemediationDecisionKind)
+
+// RemediationCorrelationID is the stable idempotency key for a remediation
+// approval ask. It is derived from the four correlation keys the resolution
+// carries back (incident id, fingerprint, candidate id) so a re-raise inside the
+// window maps to the same ask rather than a duplicate operator notification.
+func RemediationCorrelationID(incidentID, fingerprint, candidateID string) string {
+	return operatordecision.CorrelationID("autoheal-remediation", incidentID, fingerprint, candidateID)
+}
 
 type Store interface {
 	UpsertIncident(ctx context.Context, input UpsertInput) (*Incident, error)
@@ -21,6 +44,17 @@ type Store interface {
 
 type EventPublisher interface {
 	Publish(context.Context, string, map[string]any) error
+}
+
+// DecisionPublisher is the operatordecision.Publisher shape (PublishDomainEvent).
+// The remediation approval request rides the shared operator-decision substrate
+// rather than a bespoke event type, so notification-hub renders it as an Ask with
+// no autoheal-specific code. An EventPublisher that also satisfies this (the
+// production EventBusPublisher does) lets publishApprovalRequest emit a
+// decision_requested event; a publisher that does not falls back to the legacy
+// facts event so a test double stays simple.
+type DecisionPublisher interface {
+	PublishDomainEvent(context.Context, eventbus.DomainEvent) error
 }
 
 type Service struct {
@@ -310,17 +344,71 @@ func (s *Service) publish(ctx context.Context, eventType string, incident *Incid
 	}
 }
 
+// publishApprovalRequest raises the remediation approval on the shared operator-
+// decision substrate. notification-hub (which wildcard-subscribes
+// **.decision_requested.v1) renders the Facts as an operator Ask; the operator's
+// answer returns on notification_hub.ask.resolved.v1 and the autoheal decision
+// webhook reconstructs the apply call server-side.
+//
+// The Correlation map carries the four keys the resolution must hand back so the
+// webhook can re-verify and re-match: the incident id, the incident fingerprint,
+// the candidate id, and the candidate risk level the auto-apply gate reads. The
+// deterministic occurred time (truncated to the window) keeps the EventID stable
+// across retries so a redelivery maps to the same ask.
 func (s *Service) publishApprovalRequest(ctx context.Context, incident *Incident, candidate RemediationCandidate) {
 	if s == nil || s.publisher == nil || incident == nil {
 		return
 	}
-	facts := incidentEventFacts(incident)
-	facts["candidate_id"] = candidate.ID
-	facts["candidate_title"] = candidate.Title
-	facts["candidate_risk_level"] = candidate.RiskLevel
-	if err := s.publisher.Publish(ctx, "incident.remediation_approval_requested.v1", facts); err != nil {
+	facts := operatordecision.Facts{
+		Subject:  fmt.Sprintf("Approve remediation for incident %s", incident.Title),
+		Question: fmt.Sprintf("Autoheal detected %q and proposes remediation %q (risk: %s). Approve applying it?", incident.Title, candidate.Title, remediationRiskLabel(candidate.RiskLevel)),
+		Options: []operatordecision.Option{
+			{Key: "approve", Label: "Approve remediation"},
+			{Key: "reject", Label: "Do not remediate"},
+		},
+		Recommended:          "reject",
+		RecommendationReason: "A remediation runs a generated host script; review it before approving.",
+		// Acting on a host remediation is NOT trivially reversible, so no silent
+		// default answer is offered: the hub must wait for an explicit operator
+		// answer rather than apply one at a deadline.
+		Reversible: false,
+		Urgency:    "high",
+		Note:       candidate.DecisionPrompt,
+		Correlation: map[string]string{
+			"incident_id":          incident.ID,
+			"incident_fingerprint": incident.Fingerprint,
+			"candidate_id":         candidate.ID,
+			"candidate_risk_level": candidate.RiskLevel,
+		},
+	}
+
+	// Prefer the decision substrate when the publisher supports PublishDomainEvent
+	// (the production event-bus publisher does). A deterministic occurred time
+	// truncated to the default window keeps the EventID stable on retry.
+	if decisionPublisher, ok := s.publisher.(DecisionPublisher); ok {
+		occurred := s.now().UTC().Truncate(operatordecision.DefaultWindow)
+		event := operatordecision.BuildEvent(RemediationDecisionSource, RemediationDecisionKind, occurred, facts)
+		if err := decisionPublisher.PublishDomainEvent(ctx, event); err != nil {
+			log.Printf("vrooli-autoheal remediation decision event publish failed: incident=%s candidate=%s error=%v", incident.ID, candidate.ID, err)
+		}
+		return
+	}
+
+	// Fallback for a publisher that only exposes the legacy facts Publish (keeps a
+	// minimal test double working): emit the decision payload under the same event
+	// type without the domain-event envelope.
+	if err := s.publisher.Publish(ctx, RemediationDecisionEventType, facts.Payload()); err != nil {
 		log.Printf("vrooli-autoheal remediation approval event publish failed: incident=%s candidate=%s error=%v", incident.ID, candidate.ID, err)
 	}
+}
+
+// remediationRiskLabel renders an empty/unknown risk level as "unknown" so the
+// operator prompt never silently implies a low-risk action.
+func remediationRiskLabel(level string) string {
+	if strings.TrimSpace(level) == "" {
+		return "unknown"
+	}
+	return level
 }
 
 func incidentEventFacts(incident *Incident) map[string]any {

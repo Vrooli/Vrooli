@@ -7,7 +7,9 @@ import "context"
 func (s *Service) HasActiveForBacklog(ctx context.Context, kind, name string) bool {
 	records, err := s.ListSnapshot(ctx, ListFilters{})
 	if err != nil {
-		return false
+		// Unavailable activity evidence cannot establish that bookkeeping is
+		// independent of a running worker or acceptance decision.
+		return true
 	}
 	for _, record := range records {
 		if record.BacklogKind != kind || record.BacklogName != name {

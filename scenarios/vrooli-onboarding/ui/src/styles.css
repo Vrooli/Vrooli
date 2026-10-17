@@ -308,6 +308,21 @@ h1[tabindex="-1"]:focus { outline: none; }
 .credential-list__save-icon { inline-size: 1rem; block-size: 1rem; }
 .credential-list__save-icon--loading { animation: credential-save-spin .8s linear infinite; }
 @keyframes credential-save-spin { to { transform: rotate(360deg); } }
+.credential-declarations { margin-block-start: .75rem; border: 1px solid var(--color-border-muted); border-radius: 10px; background: var(--color-surface-muted); }
+.credential-declarations summary { display: flex; min-block-size: 2.4rem; align-items: center; justify-content: space-between; gap: .75rem; padding: .65rem .75rem; color: var(--color-foreground-strong); cursor: pointer; font-size: .78rem; font-weight: 700; list-style-position: inside; }
+.credential-declarations summary span { margin-inline-start: auto; color: var(--color-muted); font-size: .7rem; font-variant-numeric: tabular-nums; }
+.credential-declarations__body { display: grid; gap: .7rem; padding: 0 .75rem .75rem; }
+.credential-declarations__list, .credential-declarations__consumers ul { display: grid; gap: .55rem; margin: 0; padding: 0; list-style: none; }
+.credential-declarations__item { display: grid; gap: .65rem; padding: .7rem; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface-elevated); }
+.credential-declarations__facts { display: grid; gap: .4rem; margin: 0; }
+.credential-declarations__facts div { display: grid; grid-template-columns: minmax(6.5rem, 8rem) minmax(0, 1fr); gap: .6rem; min-inline-size: 0; }
+.credential-declarations__facts dt, .credential-declarations__consumers h4 { color: var(--color-muted); font-size: .68rem; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; }
+.credential-declarations__facts dd { min-inline-size: 0; margin: 0; color: var(--color-foreground); font-size: .75rem; overflow-wrap: anywhere; }
+.credential-declarations code { color: var(--color-foreground); font: .72rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+.credential-declarations__consumers { display: grid; gap: .4rem; padding-block-start: .6rem; border-block-start: 1px solid var(--color-border-muted); }
+.credential-declarations__consumers h4 { margin: 0; }
+.credential-declarations__consumers li { display: grid; gap: .15rem; min-inline-size: 0; }
+.credential-declarations__consumers strong { color: var(--color-foreground-strong); font-size: .75rem; }
 .credential-recovery__form { display: grid; gap: .9rem; }
 .credential-recovery__field { display: grid; gap: .4rem; color: var(--color-foreground); font-size: .8125rem; font-weight: 650; }
 .credential-recovery__hint { margin: 0; color: var(--color-muted); font-size: .8125rem; line-height: 1.5; }

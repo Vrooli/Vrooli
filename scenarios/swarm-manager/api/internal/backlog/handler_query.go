@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -39,6 +40,15 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		SpawnedFrom: strings.TrimSpace(r.URL.Query().Get("spawned_from")),
 		PlanRef:     strings.TrimSpace(r.URL.Query().Get("plan_ref")),
 		ActorID:     strings.TrimSpace(r.URL.Query().Get("actor_id")),
+		Tags:        splitQueryCSV(r.URL.Query().Get("tag")),
+	}
+	if raw := strings.TrimSpace(r.URL.Query().Get("limit")); raw != "" {
+		limit, err := strconv.Atoi(raw)
+		if err != nil || limit < 0 {
+			apierr.MapError(w, "[backlog] list", apierr.BadRequest("limit must be a non-negative integer"))
+			return
+		}
+		filters.Limit = limit
 	}
 	if filters.PlanRef == "" {
 		filters.PlanRef = strings.TrimSpace(r.URL.Query().Get("plan_ref_slug"))
@@ -73,6 +83,12 @@ type ListFilters struct {
 	PlanRef     string
 	Stale       *bool
 	ActorID     string
+	// Tags is a match-any filter: an item matches when it carries at least
+	// one of these tags exactly.
+	Tags []string
+	// Limit caps the returned items after sorting; zero means unlimited.
+	// The response total still reports every match.
+	Limit int
 }
 
 func (h *Handler) listItems(filters ListFilters) (*apipb.ListBacklogItemsResponse, error) {
@@ -102,6 +118,7 @@ func (h *Handler) listItems(filters ListFilters) (*apipb.ListBacklogItemsRespons
 		items = filtered
 	}
 	items = filterByPlanRefValues(items, filters.HasPlanRef, filters.PlanRef)
+	items = filterByAnyTag(items, filters.Tags)
 	if filters.Stale != nil {
 		filtered := items[:0]
 		for _, item := range items {
@@ -120,18 +137,29 @@ func (h *Handler) listItems(filters ListFilters) (*apipb.ListBacklogItemsRespons
 		return items[i].Updated > items[j].Updated
 	})
 
+	total := len(items)
+	// Blocking is computed over every match so a limited page reports the
+	// same blocked state as the full list.
+	blockingMap := ComputeListBlockingInfo(items)
+	if filters.Limit > 0 && len(items) > filters.Limit {
+		items = items[:filters.Limit]
+	}
+
 	protoItems := make([]*domainpb.BacklogItem, 0, len(items))
+	returned := make(map[string]bool, len(items))
 	for _, item := range items {
+		returned[string(item.Kind)+"/"+item.Name] = true
 		proto := backlogToProto(item)
 		stale := IsStale(item, h.repoRoot, time.Now().UTC())
 		proto.Stale = &stale
 		protoItems = append(protoItems, proto)
 	}
 
-	// Compute per-item blocking info from the full item set.
-	blockingMap := ComputeListBlockingInfo(items)
 	protoBlocking := make(map[string]*apipb.ItemBlockingInfo, len(blockingMap))
 	for key, info := range blockingMap {
+		if !returned[key] {
+			continue
+		}
 		protoBlocking[key] = &apipb.ItemBlockingInfo{
 			Blocked:         info.Blocked,
 			BlockingDepKeys: info.BlockingDepKeys,
@@ -139,7 +167,40 @@ func (h *Handler) listItems(filters ListFilters) (*apipb.ListBacklogItemsRespons
 		}
 	}
 
-	return &apipb.ListBacklogItemsResponse{Items: protoItems, Blocking: protoBlocking}, nil
+	return &apipb.ListBacklogItemsResponse{Items: protoItems, Blocking: protoBlocking, Total: int32(total)}, nil
+}
+
+// filterByAnyTag keeps items carrying at least one of the requested tags.
+func filterByAnyTag(items []BacklogItem, tags []string) []BacklogItem {
+	wanted := make(map[string]bool, len(tags))
+	for _, tag := range tags {
+		if tag = strings.TrimSpace(tag); tag != "" {
+			wanted[tag] = true
+		}
+	}
+	if len(wanted) == 0 {
+		return items
+	}
+	filtered := items[:0]
+	for _, item := range items {
+		for _, tag := range item.Tags {
+			if wanted[tag] {
+				filtered = append(filtered, item)
+				break
+			}
+		}
+	}
+	return filtered
+}
+
+func splitQueryCSV(raw string) []string {
+	var out []string
+	for _, part := range strings.Split(raw, ",") {
+		if part = strings.TrimSpace(part); part != "" {
+			out = append(out, part)
+		}
+	}
+	return out
 }
 
 func filterByPlanRefValues(items []BacklogItem, hasPlanRef *bool, planRef string) []BacklogItem {

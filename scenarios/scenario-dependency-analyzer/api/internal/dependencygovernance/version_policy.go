@@ -1,6 +1,7 @@
 package dependencygovernance
 
 import (
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -26,6 +27,16 @@ func evaluateVersionPolicy(ecosystem, observed, approvedRange, rangePolicy strin
 	}
 	if !supportedRangePolicy(policy) {
 		return unparseableVersionDecision(observed, approvedRange, "unsupported range policy "+policy)
+	}
+	if normalize(ecosystem) == "pip" || normalize(ecosystem) == "pypi" || normalize(ecosystem) == "python" {
+		allowed, ok := pythonNumericRangeAllows(observed, approvedRange)
+		if !ok {
+			return unparseableVersionDecision(observed, approvedRange, "supported Python subset is stable numeric releases (one to three components), public-version comparisons >= > <= < ==, and comma AND; other PEP440 patterns require exact literal approval")
+		}
+		if allowed {
+			return versionPolicyDecision{Allowed: true}
+		}
+		return outOfRangeDecision(approvedRange)
 	}
 	switch normalize(ecosystem) {
 	case "npm", "go":
@@ -54,6 +65,67 @@ func evaluateVersionPolicy(ecosystem, observed, approvedRange, rangePolicy strin
 		return versionPolicyDecision{Allowed: true}
 	}
 	return outOfRangeDecision(approvedRange)
+}
+
+var pythonPublicRelease = regexp.MustCompile(`^[0-9]+(?:\.[0-9]+){0,2}$`)
+var pythonLocalRelease = regexp.MustCompile(`^[A-Za-z0-9]+(?:[._-][A-Za-z0-9]+)*$`)
+
+// This is deliberately a stable numeric subset, not a PEP440 implementation.
+// Public-version constraints ignore an observed local build (e.g. +cu126), as
+// Python public-version matching requires. Ordered local constraints refuse.
+func pythonNumericRangeAllows(observed, approved string) (bool, bool) {
+	parse := func(raw string, allowLocal bool) (semanticVersion, bool) {
+		public, local, hasLocal := strings.Cut(strings.TrimSpace(raw), "+")
+		if !pythonPublicRelease.MatchString(public) || (hasLocal && (!allowLocal || !pythonLocalRelease.MatchString(local))) {
+			return semanticVersion{}, false
+		}
+		parts := strings.Split(public, ".")
+		values := []int{0, 0, 0}
+		for i, part := range parts {
+			n, err := strconv.ParseInt(part, 10, 32)
+			if err != nil {
+				return semanticVersion{}, false
+			}
+			values[i] = int(n)
+		}
+		return semanticVersion{Major: values[0], Minor: values[1], Patch: values[2]}, true
+	}
+	actual, ok := parse(observed, true)
+	if !ok {
+		return false, false
+	}
+	allowed := true
+	for _, clause := range strings.Split(approved, ",") {
+		clause = strings.TrimSpace(clause)
+		op := "=="
+		for _, candidate := range []string{">=", "<=", "==", ">", "<"} {
+			if strings.HasPrefix(clause, candidate) {
+				op = candidate
+				clause = strings.TrimSpace(strings.TrimPrefix(clause, candidate))
+				break
+			}
+		}
+		// Exact post/dev/local strings are handled only by the preexisting exact
+		// literal equality fast path, never approximated by numeric comparison.
+		want, ok := parse(clause, false)
+		if !ok {
+			return false, false
+		}
+		cmp := compareVersion(actual, want)
+		switch op {
+		case ">=":
+			allowed = allowed && cmp >= 0
+		case ">":
+			allowed = allowed && cmp > 0
+		case "<=":
+			allowed = allowed && cmp <= 0
+		case "<":
+			allowed = allowed && cmp < 0
+		case "==":
+			allowed = allowed && cmp == 0
+		}
+	}
+	return allowed, true
 }
 
 func defaultRangePolicy(approvedRange string) string {

@@ -182,6 +182,27 @@ func (h *handlers) setPolicyProfileReport(_ cliapp.OperationContext, msg *cleanu
 	}
 }
 
+func (h *handlers) configureTemporaryRetentionCall(ctx cliapp.OperationContext) (*cleanupv1.ConfigureTemporaryRetentionResponse, error) {
+	age, err := parseOptionalInt(ctx.Flag("min-age-seconds"), "min-age-seconds")
+	if err != nil {
+		return nil, err
+	}
+	resp, err := h.client.ConfigureTemporaryRetention(context.Background(), connect.NewRequest(&cleanupv1.ConfigureTemporaryRetentionRequest{Automatic: ctx.BoolFlag("automatic"), MinAgeSeconds: age}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("configure temporary retention", err, nil)
+	}
+	return resp.Msg, nil
+}
+func (h *handlers) configureTemporaryRetentionReport(_ cliapp.OperationContext, msg *cleanupv1.ConfigureTemporaryRetentionResponse) cliapp.MutationReport {
+	changes := []string{}
+	for _, p := range msg.GetPolicy().GetProviders() {
+		if p.GetProviderId() == "tmp" {
+			changes = append(changes, fmt.Sprintf("tmp enabled=%t approval=%s min_age=%ds", p.GetEnabled(), p.GetApprovalMode(), p.GetMinAgeSeconds()))
+		}
+	}
+	return cliapp.MutationReport{Result: []string{"Temporary retention policy saved."}, Changes: changes, NextCommand: []string{"storage-manager cleanup policy --json", "storage-manager cleanup history --json"}}
+}
+
 func (h *handlers) createPlanCall(cliapp.OperationContext) (*cleanupv1.CreatePlanResponse, error) {
 	resp, err := h.client.CreatePlan(context.Background(), connect.NewRequest(&cleanupv1.CreatePlanRequest{}))
 	if err != nil {

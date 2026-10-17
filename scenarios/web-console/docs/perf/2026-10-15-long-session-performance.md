@@ -3,9 +3,8 @@
 The real heartbeat investigation is lighter to navigate after bounded collapsed
 previews, asynchronous virtual-row measurement, and less repeated search/action
 work. Desktop MessagesPane commits averaged **3.1 → 2.4ms**. Mobile long tasks
-fell from **1,186ms to 581ms and 612ms** in two final captures. The separate
-cold-load Lighthouse gate remains red; this is not a claim of complete performance
-certification.
+fell from **1,186ms to 581ms and 612ms** in two final captures. The first pass left the separate cold-load Lighthouse gate red. The authorized
+follow-up below records its subsequent validation and remaining limits.
 
 ## Scope and method
 
@@ -235,3 +234,129 @@ Operator clarified: “nah don't worry about that just do your best with what's 
 Physical-device execution is therefore outside this follow-up acceptance boundary. Chromium
 mobile browser verification cannot certify the native iOS keyboard, momentum
 scrolling or installed-PWA system canvas.
+
+
+### Final deployed evidence (follow-up)
+
+Guarded native-pointer functional journey:
+`/tmp/wc-followup-browser-final.json`. Both desktop and mobile completed real
+history scrolling, the long reader, find/search, unsent draft restoration and
+ordinary view-toggle clicks. Desktop also exercised widths 1440, 1000 and 800,
+and first-use deferred Settings. Both contexts recorded zero blocked/prohibited
+attempts and zero page errors. The floating toolbar remained below the view
+control row; screenshot `/tmp/wc-followup-final-desktop.png`.
+
+Startup-only production capture: `/tmp/wc-followup-browser-startup.json`.
+Downloaded JavaScript fell **3,002,534 → 2,523,768 bytes (15.95%)** on both
+viewports. Peak history requests fell **31 → 3 (90.32%)**: two background
+workers plus a foreground refresh. Startup still made 32 history reads; no
+reduction in total reads or eventual history completeness is claimed. The
+broader functional run downloads additional reader/highlighter/settings code,
+so its total script bytes must not be compared with startup-only bytes.
+
+The real transcript grew naturally from 574 to **588** events during the audit.
+The final profile is a successful real-data capture, but is not a controlled
+comparison of identical message content. Trace:
+`/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio_shadow/captures/093fb811-764a-4fb4-95f6-19eb19b4b87f/6e83b5cb-5961-451f-adcd-d22c398ea48d/performance/performance.json`.
+Analysis: `/tmp/wc-followup-startup-final-analysis.json`. LCP was 2,988 → 2,508ms,
+while long-task time was 2,332 → 3,880ms and Workspace average subtree commit
+5.0 → 5.8ms. These mixed results, changed live content and host swap-pressure
+observations do **not** establish a rendering-speed improvement for this pass.
+Local mobile readiness also varied; the structural request/bundle reductions
+and functional regressions are the verified gains.
+
+Scoped Test Genie **Performance PASS**, run **20261016-133033-3318d06c**,
+43 seconds, no performance findings, unchanged thresholds. Performance Health
+**unit PASS**, run **20261016-131741-30ff3215**. Web Console's broader unit run
+**20261016-131742-facec4ac FAIL** caught an existing hydration timing test that
+needed to advance the new 50ms background scheduler; it is repaired and passes.
+The existing MarkdownRenderer test now uses the canonical provider wrapper.
+Those two focused files pass **4/4**. The run also reports an API root-package
+failure; its retained tail omits the failing test, so cause is unverified and
+outside this UI repair. Filed through `report-bug` as
+**knw-1792157470039179090**, with the owner artifact and an explicit minimal-context
+flag. No backend test or production API behavior was changed to obtain a pass.
+
+
+### Lifecycle follow-through from broad UI validation
+
+The full UI run exposed an intermittent shortcut-description save assertion and
+an unhandled pane-order debounce after Manage Groups unmounted. Related prior
+recall: `search-hub query "web-console shortcut editor resets draft reorder debounce
+unmount" --type record,doc --limit 2`; no specific prior fix was returned, while
+record providers were degraded. Existing provider-fixture work in PROBLEMS.md
+remains related context, not proof of the same cause.
+
+Hypotheses tested: (1) the reorder timer survives its hook's owner and writes after
+teardown; (2) the API rejects a properly awaited flush; (3) the shortcut editor's
+redundant first-mount effect replaces stable row IDs and can reset a fast draft;
+(4) shortcut changes fail to reach the save payload independently of that reset.
+The original sync hook passes ordinary debounce but fails both unmount-flush and
+failed-flush handling tests (`/tmp/wc-followup-sync-before-corrected.log`: 1 pass,
+2 failures). The repaired hook passes all three and cancels the delayed callback
+while persisting the final order on unmount. It logs an actual rejected save;
+it does not hide backend failures or drop the user's reorder.
+
+Shortcut drafts now reset synchronously only when a new server profile snapshot
+arrives, removing the redundant first-mount row replacement. Existing edit/save,
+discard, keyboard reorder and group lifecycle tests pass (38 across four files).
+The original description failure was intermittent; one focused pass alone is not
+claimed as statistical proof of flake elimination. Final full UI evidence follows.
+
+The mobile overlay proof initially read the body during its background-color
+transition (rgb(22,31,50) versus the settled rgb(23,32,51)). It now waits for the
+actual computed colors to agree, within a five-second bound. Settled search and
+account drawer colors agree across html/body/panel. Proof:
+`/tmp/wc-followup-overlay-browser-proof.json`; full reader **23,998 characters**,
+restored unsent draft, zero prohibited operations and zero page errors. Initial
+transition snapshots are retained in `/tmp/wc-followup-mobile-overlays-debug.log`.
+
+
+Final canonical UI coverage command `pnpm run test:coverage` is **PASS**:
+**298 files, 2,862 tests**, zero failed tests and zero unhandled errors;
+statements/lines **90.24%**, branches **85.85%**, functions **85.13%**. All
+configured 85% floors are unchanged. Evidence:
+`/tmp/wc-followup-ui-coverage-delivery.log`. Full TypeScript and lint for all
+touched production files plus the new tests pass (`/tmp/wc-followup-types-delivery.log`,
+`/tmp/wc-followup-lint-delivery.log`).
+
+Two source/behavior review passes checked selected-session playback and fresh
+cross-session queues, unread/paging metadata, hydration retry/cancellation,
+sidebar summaries, persistent draft/exit animation behavior, viewport/dock bounds,
+real-text retention, source identity and measurement attribution. Findings
+(callback ordering, handoff close animation, height-only docking, initial shortcut
+row replacement and pending reorder lifecycle) were repaired and validated.
+No material issue remains in the repaired boundary; the separately filed API
+suite failure and unverified physical iPhone behavior remain explicitly outside
+this acceptance boundary. No whole-scenario certification is claimed.
+
+
+Shared-worktree applicability: HEAD advanced during the work (observed
+`b5f11172788`, `scenario self-improvement p36`), including earlier UI changes.
+The final runtime and package checks use the current files; trace comparisons
+refer to their retained artifacts, not a claim that one immutable Git commit
+produced every observation. Unrelated work was preserved.
+
+
+### Final production acceptance
+
+After deploying the final lifecycle repairs through `vrooli scenario restart`,
+the current-source scoped performance phase **PASS** is
+**20261016-134657-6b914169**, 83 seconds, zero findings. Receipt:
+`/tmp/wc-followup-delivery-performance-result.json`. Thresholds remain unchanged.
+The prior full UI result remains 2,862 passing tests; no production source changed
+between that validation and this deployment.
+
+At 2026-10-16T13:49Z, scenario status reported **running / healthy**; API status
+reported **healthy / ready**, database connected. UI served HTTP 200 on port
+21233 and API on 16382. Served entry and all production JavaScript assets were
+checked for profiling instrumentation markers; none were present. Receipt:
+`/tmp/wc-followup-production-health.json`. The stale local CLI API configuration
+was bypassed with an explicit runtime URL; user configuration was preserved.
+
+The user accepted available browser validation in place of physical iPhone
+execution. Physical-device behavior remains unverified. All real-data journeys
+retained the prohibition on session creation, input/message sending, archive and
+delete, with zero prohibited attempts. Unsent drafts were restored.
+
+Completed work record: `b973e3d9-2b26-4521-88cb-41cbb9710fc6` (`vrooli-memory`, work-record).

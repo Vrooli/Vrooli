@@ -41,6 +41,9 @@ func prepareExecutionEvidence(plan *ExecutionPlan, workspaces []Workspace, runID
 				continue
 			}
 			command.Args, command.CaptureStdout = args, true
+			if diagnostics, ok := owner.(adapters.ExecutionDiagnosticsAdapter); ok {
+				command.ExecutionDiagnostics = diagnostics.NewExecutionDiagnostics()
+			}
 			command.Command = command.Executable + " " + strings.Join(args, " ")
 			collections = append(collections, executionEvidenceCollection{index: i, workspace: ws.ID, root: ws.RootPath, runID: fmt.Sprintf("%s:command:%d", runID, i), adapter: adapter})
 			break

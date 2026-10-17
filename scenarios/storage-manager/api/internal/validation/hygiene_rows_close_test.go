@@ -2,6 +2,26 @@ package validation
 
 import "testing"
 
+func TestHygieneRowsClose_CloseInIfInitializer(t *testing.T) {
+	for _, tc := range []struct {
+		name, cleanup string
+		wantFinding   bool
+	}{
+		{"checked-close", "if err := rows.Close(); err != nil { return err }", false},
+		{"assigned-close", "err = rows.Close(); if err != nil { return err }", false},
+		{"conditional-close", "if enabled { if err := rows.Close(); err != nil { return err } }", true},
+		{"different-cursor", "if err := other.Close(); err != nil { return err }", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			src := "package main\nfunc read(db *sql.DB, enabled bool, other *sql.Rows) error { rows, err := db.QueryContext(ctx, query); if err != nil { return err }; for rows.Next() { if err := rows.Scan(&value); err != nil { rows.Close(); return err } }; " + tc.cleanup + "; return nil }"
+			got := (hygieneRowsClose{}).analyzeSource(src, "api/internal/profile/sqlite.go")
+			if (len(got) != 0) != tc.wantFinding {
+				t.Fatalf("cursor cleanup finding=%v, want %v: %+v", len(got) != 0, tc.wantFinding, got)
+			}
+		})
+	}
+}
+
 // Parity tests for hygiene-rows-close vs the original scenario-auditor rule
 // db_rows_close (scenarios/scenario-auditor/api/rules/api/db_rows_close.go,
 // CheckDBRowsClose). Each case is one of that rule's <test-case> blocks: the

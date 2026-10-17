@@ -31,9 +31,7 @@ import {
 import { formatStandardRelativeTime } from "../lib/dateTime";
 import type {
   AgentProfile,
-  ApproveFormData,
   ApproveResult,
-  RejectFormData,
   Run,
   RunDiff,
   RunEvent,
@@ -73,8 +71,6 @@ interface RunsPageProps {
   onGetEvents: (id: string, options?: { afterSequence?: bigint }) => Promise<RunEvent[]>;
   onGetDiff: (id: string) => Promise<RunDiff>;
   onGetTask: (id: string) => Promise<Task>;
-  onApproveRun: (id: string, req: ApproveFormData) => Promise<ApproveResult>;
-  onRejectRun: (id: string, req: RejectFormData) => Promise<void>;
   onPartialApproveRun: (id: string, fileIds: string[], actor?: string, commitMsg?: string) => Promise<ApproveResult>;
   onStartInvestigation: (
     runIds: string[],
@@ -247,8 +243,6 @@ export function RunsPage({
   onGetEvents,
   onGetDiff,
   onGetTask,
-  onApproveRun,
-  onRejectRun,
   onPartialApproveRun,
   onStartInvestigation,
   onApplyInvestigation,
@@ -412,18 +406,6 @@ export function RunsPage({
     } finally {
       setDeleteLoading(false);
     }
-  };
-
-  const handleApprove = async (id: string, req: ApproveFormData) => {
-    await onApproveRun(id, req);
-    setSelectedRun(null);
-    onRefresh();
-  };
-
-  const handleReject = async (id: string, req: RejectFormData) => {
-    await onRejectRun(id, req);
-    setSelectedRun(null);
-    onRefresh();
   };
 
   const handlePartialApprove = async (id: string, fileIds: string[], actor?: string, commitMsg?: string) => {
@@ -807,8 +789,6 @@ export function RunsPage({
             task={getTaskById(selectedRun.taskId)}
             taskTitle={getTaskTitle(selectedRun.taskId)}
             profileName={getProfileName(selectedRun.agentProfileId)}
-            onApprove={(req) => handleApprove(selectedRun.id, req)}
-            onReject={(req) => handleReject(selectedRun.id, req)}
             onPartialApprove={(fileIds, actor, commitMsg) => handlePartialApprove(selectedRun.id, fileIds, actor, commitMsg)}
             onRetry={handleRetry}
             onResumeFromFailure={handleResumeRequest}

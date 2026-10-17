@@ -9,6 +9,28 @@
     "version": "0.0.1",
     "type": "business-application",
     "category": "ai_tools",
+    "capabilities": [
+      "workload-disposal"
+    ],
+    "platform_capabilities": {
+      "workload-disposal": {
+        "linux": {
+          "status": "build-verified",
+          "mechanism": "conditional-storage-manager-cleanup-provider",
+          "evidence": "provider preview, approval, disposal, and verification tests"
+        },
+        "macos": {
+          "status": "experimental",
+          "mechanism": "typed-cleanup-provider-with-platform-census-boundary",
+          "evidence": "cross-platform build and provider contract tests"
+        },
+        "windows": {
+          "status": "experimental",
+          "mechanism": "typed-cleanup-provider-with-platform-census-boundary",
+          "evidence": "cross-platform build and provider contract tests"
+        }
+      }
+    },
     "tags": [
       "react-ui",
       "go-api"
@@ -18,29 +40,93 @@
     "entries": {
       "database": {
         "rung": "owned",
-        "path": "data/storage-manager.db",
         "kind": "file",
         "class": "data",
+        "regenerable": false,
         "format": "sqlite",
         "sensitive": false,
-        "budget": { "max_bytes": "2GiB", "max_age": "30d", "rationale": "Durable storage-manager audit and census history." },
-        "rationale": "The manager's own control-plane database."
+        "budget": {
+          "max_bytes": "2GiB",
+          "max_age": "30d",
+          "rationale": "Durable storage-manager audit and census history."
+        },
+        "rationale": "The manager's own control-plane database.",
+        "subpath": "storage-manager.db"
       },
       "database_wal": {
         "rung": "owned",
-        "path": "data/storage-manager.db-wal",
         "kind": "file",
-        "class": "state",
+        "class": "data",
         "regenerable": true,
-        "rationale": "SQLite WAL sidecar for the manager database; it is recreated by SQLite and must be counted while live."
+        "rationale": "SQLite WAL sidecar for the manager database; it is recreated by SQLite and must be counted while live.",
+        "subpath": "storage-manager.db-wal",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage is retained for 30 days and reclaimed by age; the window is the workload retention requirement."
+        }
       },
       "database_shm": {
         "rung": "owned",
-        "path": "data/storage-manager.db-shm",
         "kind": "file",
-        "class": "state",
+        "class": "data",
         "regenerable": true,
-        "rationale": "SQLite shared-memory sidecar for the manager database; it is recreated by SQLite and must be counted while live."
+        "rationale": "SQLite shared-memory sidecar for the manager database; it is recreated by SQLite and must be counted while live.",
+        "subpath": "storage-manager.db-shm",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage is retained for 30 days and reclaimed by age; the window is the workload retention requirement."
+        }
+      },
+      "cleanup_database": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "format": "sqlite",
+        "regenerable": false,
+        "budget": {
+          "max_bytes": "2GiB",
+          "max_age": "30d",
+          "rationale": "Durable cleanup policy and audit storage."
+        },
+        "rationale": "The cleanup domain's legacy SQLite database remains a declared control-plane surface.",
+        "subpath": "cleanup-manager.db"
+      },
+      "cleanup_database_wal": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "regenerable": true,
+        "rationale": "SQLite WAL sidecar for cleanup-manager.db; it is recreated by SQLite and counted while live.",
+        "subpath": "cleanup-manager.db-wal",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable SQLite sidecar budgeted by age."
+        }
+      },
+      "cleanup_database_shm": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "regenerable": true,
+        "rationale": "SQLite shared-memory sidecar for cleanup-manager.db; it is recreated by SQLite and counted while live.",
+        "subpath": "cleanup-manager.db-shm",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable SQLite sidecar budgeted by age."
+        }
+      },
+      "deployment_report": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "format": "json",
+        "regenerable": true,
+        "subpath": "deployment/deployment-report.json",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable deployment status report budgeted by age."
+        },
+        "rationale": "The lifecycle deployment report is written under the scenario data root."
       }
     }
   },
@@ -120,111 +206,19 @@
           "interval": 30000
         }
       ],
-      "startup_grace_period": 15000
-    },
-    "setup": {
-      "description": "Build API and UI assets declared by the manifest-driven lifecycle contract",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/storage-manager-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "storage-manager"
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "build-api",
-          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o storage-manager-api .",
-          "description": "Build Go API server"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm --ignore-workspace run build || pnpm --ignore-workspace run build); else echo 'ui/ not present yet'; fi",
-          "description": "Build production UI bundle"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Launch API and Vite dev server",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./storage-manager-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/storage-manager-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "description": "Serve production UI bundle",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        }
-      ]
-    },
-    "build": {},
-    "deploy": {},
-    "clean": {},
-    "test": {
-      "description": "Execute phased test suite via test-genie",
-      "steps": [
-        {
-          "name": "check-temporal-models",
-          "run": "flow-verifier verify check --root .",
-          "description": "Verify formal flow artifacts via the flow-verifier scenario CLI"
-        },
-        {
-          "name": "run-tests",
-          "run": "test-genie execute storage-manager --preset comprehensive",
-          "description": "Run all test phases via test-genie"
-        }
-      ]
-    },
-    "backup": {},
-    "restore": {},
-    "production": {},
-    "stop": {
-      "description": "Stop background processes",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f 'storage-manager-api' || true",
-          "description": "Stop Go API"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f 'node server.js' || true",
-          "description": "Stop UI server"
-        }
-      ]
+      "startup_grace_period": 60000
     }
   },
   "dependencies": {
+    "resources": {
+      "ollama": {
+        "type": "ollama",
+        "enabled": false,
+        "required": false,
+        "purpose": "Optional local model inventory and cleanup provider",
+        "startup_policy": "try_start"
+      }
+    },
     "scenarios": {
       "code-facts": {
         "type": "scenario",
@@ -237,6 +231,37 @@
     }
   },
   "environment": {
-    "STORAGE_CENSUS_INTERVAL": "30m"
+    "STORAGE_CENSUS_INTERVAL": "6h"
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
   }
 }

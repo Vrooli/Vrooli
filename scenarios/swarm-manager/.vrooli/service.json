@@ -14,15 +14,15 @@
     "protected_routes": ["/api"],
     "capabilities": [
       {"id": "swarm-manager:read", "effect": "read", "agent_eligible": true},
-      {"id": "swarm-manager:write", "effect": "write", "agent_eligible": false},
-      {"id": "swarm-manager:destructive", "effect": "destructive", "agent_eligible": false}
+      {"id": "swarm-manager:write", "effect": "write", "agent_eligible": true},
+      {"id": "swarm-manager:destructive", "effect": "destructive", "agent_eligible": true}
     ],
     "requires_authenticator": true
   },
   "skills": {
     "usage": {
       "source": "skills/swarm-manager/SKILL.md",
-      "programs": []
+      "programs": ["archive-terminal"]
     },
     "improve": {
       "source": "skills/swarm-manager-improve/SKILL.md",

@@ -187,6 +187,13 @@ func main() {
 		}).Info("✅ Interrupted execution recovery completed")
 	}
 
+	exportRecoverCtx, exportRecoverCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	_, exportRecoverErr := database.RecoverInterruptedExports(exportRecoverCtx, db)
+	exportRecoverCancel()
+	if exportRecoverErr != nil {
+		log.WithError(exportRecoverErr).Fatal("Interrupted export recovery failed; refusing to start")
+	}
+
 	// Initialize import usecase handlers
 	fsScanner := shared.NewFilesystemScanner(log)
 	projectAdapter := adapters.NewProjectAdapter(repo)
@@ -516,6 +523,7 @@ func main() {
 			Logger:        log,
 		}),
 		exportsserviceconnect.Module(exportsserviceconnect.Deps{
+			CancelExport:    handler.CancelExport,
 			Repo:            repo,
 			Executor:        deps.ExecutionService,
 			Catalog:         deps.CatalogService,
@@ -1149,6 +1157,9 @@ func main() {
 		ShutdownTimeout: managedShutdownTimeout,
 		CleanupTimeout:  managedCleanupTimeout,
 		Cleanup: func(ctx context.Context) error {
+			if err := handler.DrainExports(ctx); err != nil {
+				log.WithError(err).Error("Export shutdown exceeded its deadline")
+			}
 			cancelCheckpoints()
 			select {
 			case <-checkpointsDone:

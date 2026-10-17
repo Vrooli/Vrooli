@@ -42,3 +42,19 @@ use `describe` or `discover` when you already have a binding id.
 `recall("intent", depth="deep")` widens the result set. Inference and delegation
 both draw on the session's spend ceilings, so a long fan-out can be stopped by
 `inference_spend_exceeded` rather than running unbounded.
+
+## Read a program before you run one
+
+Discovery, `recall`, and `search-hub` can surface an existing *program* — not just
+a binding — that looks like a fit for your intent. Before you run a program you did
+not author, read it first: the contract is the caller boundary. `program-runtime
+library get <scenario>.<program> --json` returns the program's contract and source.
+Confirm its `purpose` matches what you actually want, its `bindings`/`verbs` and
+effects are what you expect (a read-only `gather` program never mutates; a program
+that writes says so), its `inputs` are the ones you mean to pass, and its
+`outputs`/`output_schema` give a signal shape you can consume. A program whose
+purpose or effects do not match your intent is the wrong tool even if its name looks
+right — stop and pick another, the same way a null discovery verdict means stop
+rather than guess. This is the program-level form of the binding rule in
+[`namespace-and-contracts.md`](namespace-and-contracts.md): read the contract before
+you call something unfamiliar.

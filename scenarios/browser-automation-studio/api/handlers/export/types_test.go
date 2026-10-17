@@ -31,3 +31,17 @@ func TestRequestUnmarshalRejectsUnknownReplaySpecField(t *testing.T) {
 		t.Fatal("expected generated ReplaySpec validation to reject unknown fields")
 	}
 }
+
+func TestExplicitRawRecordingDoesNotAccidentallyComposePreviewSpec(t *testing.T) {
+	var request Request
+	if err := json.Unmarshal([]byte(`{"stylization":"raw","movie_spec":{"decor":{"chromeTheme":"chromium"}}}`), &request); err != nil {
+		t.Fatal(err)
+	}
+	if request.AppliesStylesToRecording() {
+		t.Fatal("raw source choice ignored because preview spec was supplied")
+	}
+	request.Stylization = "stylized"
+	if !request.AppliesStylesToRecording() {
+		t.Fatal("styled recording request ignored")
+	}
+}

@@ -577,18 +577,24 @@ func LoadResourcePorts(root string) (map[string]int, error) {
 		} else if err != nil {
 			return nil, fmt.Errorf("inspect resource %s manifest for port allocation: %w", entry.Name(), err)
 		}
-		manifest, err := manifestpkg.Load(manifestPath)
+		manifest, err := manifestpkg.LoadPortProjection(manifestPath, entry.Name())
 		if err != nil {
-			return nil, fmt.Errorf("load resource %s for port allocation: %w", entry.Name(), err)
+			return nil, fmt.Errorf("load resource %s port reservation: %w", entry.Name(), err)
 		}
+		primary := false
+
 		for _, port := range manifest.Ports {
 			hostPort := port.Host
 			if hostPort <= 0 {
 				hostPort = port.Container
 			}
 			if hostPort > 0 {
-				ports[manifest.Name] = hostPort
-				break
+				key := manifest.Name + "/" + port.Name
+				if !primary {
+					key = manifest.Name
+					primary = true
+				}
+				ports[key] = hostPort
 			}
 		}
 	}

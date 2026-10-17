@@ -3,6 +3,7 @@ package cleanup
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,6 +12,12 @@ import (
 	"strings"
 	"time"
 )
+
+type ownerHTTPError struct{ status int }
+
+func (e *ownerHTTPError) Error() string {
+	return fmt.Sprintf("owner cleanup returned HTTP %d", e.status)
+}
 
 // OwnerEstimateRequest is the wire request served by an owner scenario.
 type OwnerEstimateRequest struct {
@@ -130,11 +137,11 @@ func (c *HTTPScenarioProviderClient) requestWithHeaders(ctx context.Context, met
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
-		return resp.StatusCode, fmt.Errorf("owner cleanup returned HTTP %d", resp.StatusCode)
+		return resp.StatusCode, &ownerHTTPError{status: resp.StatusCode}
 	}
 	if out != nil && resp.StatusCode != http.StatusNoContent {
 		if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
-			return resp.StatusCode, err
+			return resp.StatusCode, fmt.Errorf("owner cleanup returned invalid payload: %w", err)
 		}
 	}
 	return resp.StatusCode, nil
@@ -210,7 +217,34 @@ func (c *HTTPScenarioProviderClient) Apply(ctx context.Context, req ScenarioClea
 }
 
 func blockedReason(err error) string {
+	var httpErr *ownerHTTPError
+	if errors.As(err, &httpErr) {
+		switch httpErr.status {
+		case http.StatusUnauthorized, http.StatusForbidden:
+			return "owner cleanup authorization refused"
+		case http.StatusNotFound:
+			return "owner scenario does not implement cleanup"
+		case http.StatusConflict, http.StatusPreconditionFailed:
+			return "owner cleanup preview conflict"
+		case http.StatusTooManyRequests:
+			return "owner cleanup rate limited"
+		default:
+			if httpErr.status >= 500 {
+				return "owner cleanup service unavailable"
+			}
+			return "owner cleanup request rejected"
+		}
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return "owner cleanup timed out"
+	}
+	if errors.Is(err, context.Canceled) {
+		return "owner cleanup canceled"
+	}
 	message := err.Error()
+	if strings.Contains(message, "invalid payload") {
+		return "owner cleanup returned invalid payload"
+	}
 	if strings.Contains(message, "client unavailable") {
 		return "owner scenario client unavailable"
 	}

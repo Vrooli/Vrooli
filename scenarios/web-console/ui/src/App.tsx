@@ -16,10 +16,29 @@ import { useCapabilities } from "./hooks/useCapabilities";
 import { onProfilerRender } from "./lib/profiler";
 import { useAppViewport } from "./hooks/useAppViewport";
 import LaunchScreen from "./components/LaunchScreen";
+import { parseApprovalsDeepLink, useApprovalsStore } from "./stores/useApprovalsStore";
 
 const Workspace = lazy(() => import("./components/Workspace"));
 
 export default function App() {
+  // Approvals deep link: web-console has NO router, so a push/chat link that
+  // should land on one decision is parsed from the boot URL into the store once.
+  // Workspace consumes the intent (open the inbox + select the decision) with
+  // the same deferred-intent discipline it uses for a reopened session. We strip
+  // the query afterward so a refresh does not reopen the inbox.
+  const requestApprovalsOpen = useApprovalsStore((state) => state.requestOpen);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const link = parseApprovalsDeepLink(window.location.search);
+    if (!link.open) return;
+    requestApprovalsOpen(link.decisionId);
+    try {
+      const url = new URL(window.location.href);
+      for (const key of ["approval", "decision", "authorization", "run", "approvals"]) url.searchParams.delete(key);
+      window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+    } catch { /* non-fatal: the intent is already recorded */ }
+  }, [requestApprovalsOpen]);
+
   // Size the canvas during health/chunk loading too. Workspace hydration and
   // terminal followers consume this same keyboard state after they mount.
   const setKeyboardOpen = useWorkspaceStore((state) => state.setKeyboardOpen);

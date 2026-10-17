@@ -9,6 +9,7 @@ import (
 	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/operatordecision"
 )
 
 // TestRunApprovalEventShape pins the emitted event to notification-hub's
@@ -89,5 +90,28 @@ func TestRunApprovalEventOmitsLinkWithoutUIBase(t *testing.T) {
 	}
 	if q, _ := ev.Payload["question"].(string); !strings.Contains(q, "1 file") || strings.Contains(q, "1 files") {
 		t.Fatalf("singular file count wrong: %q", q)
+	}
+}
+
+// TestRunApprovalEventOccurredIsDeterministicForNeedsReview pins that a
+// needs_review run (no ApprovedAt yet) derives Occurred from the stable EndedAt
+// transition time, so two builds across a redelivery produce the SAME EventID —
+// what makes the hub deduplicate instead of raising a duplicate ask. It also
+// pins that a moving wall clock does NOT change the EventID.
+func TestRunApprovalEventOccurredIsDeterministicForNeedsReview(t *testing.T) {
+	runID := uuid.MustParse("22222222-3333-4444-5555-666666666666")
+	ended := time.Date(2026, 10, 16, 8, 0, 0, 0, time.UTC)
+	run := &domain.Run{ID: runID, ChangedFiles: 2, EndedAt: &ended}
+
+	// Two Orchestrators with DIFFERENT wall clocks — EventID must be identical.
+	o1 := &Orchestrator{webConsoleUIBase: "http://localhost:21238/", clock: func() time.Time { return time.Unix(1000, 0).UTC() }}
+	o2 := &Orchestrator{webConsoleUIBase: "http://localhost:21238/", clock: func() time.Time { return time.Unix(9999, 0).UTC() }}
+	ev1 := o1.runApprovalEvent(context.Background(), run)
+	ev2 := o2.runApprovalEvent(context.Background(), run)
+	if !ev1.Occurred.Equal(ended) {
+		t.Fatalf("Occurred must be the stable EndedAt, got %v want %v", ev1.Occurred, ended)
+	}
+	if operatordecision.EventID(ev1) != operatordecision.EventID(ev2) {
+		t.Fatalf("EventID must be deterministic across wall clocks for a needs_review run: %s != %s", operatordecision.EventID(ev1), operatordecision.EventID(ev2))
 	}
 }

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { fetchAnalysisHealth, fetchDependencyGraph } from "./client";
+import { fetchAnalysisHealth, fetchDependencyGraph, fetchDeploymentReport } from "./client";
 
 function jsonResponse(payload: unknown, status = 200): Response {
   return new Response(JSON.stringify(payload), {
@@ -36,5 +36,24 @@ describe("API client", () => {
     vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({ error: "down" }, 503));
 
     await expect(fetchAnalysisHealth()).rejects.toThrow("Scenario API request failed (503)");
+  });
+
+  it("forwards deployment cancellation and does not report a deliberate abort as an API outage", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    vi.mocked(fetch).mockRejectedValueOnce(new DOMException("cancelled", "AbortError"));
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    await expect(fetchDeploymentReport("alpha", controller.signal)).resolves.toBeNull();
+    expect(fetch).toHaveBeenCalledWith(expect.stringContaining("/scenarios/alpha/deployment"), { signal: controller.signal });
+    expect(errors).not.toHaveBeenCalled();
+    errors.mockRestore();
+  });
+
+  it("retains diagnostics and the unavailable-report result for an actual deployment failure", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({ error: "down" }, 503));
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    await expect(fetchDeploymentReport("alpha")).resolves.toBeNull();
+    expect(errors).toHaveBeenCalledWith(expect.stringContaining("alpha"), expect.objectContaining({ message: "Scenario API request failed (503)" }));
+    errors.mockRestore();
   });
 });

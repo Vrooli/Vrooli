@@ -28,7 +28,7 @@ interface ReplayExportBridgeOptions {
   timeline: FrameTimeline[];
   executionSourceRef: MutableRefObject<string | null>;
   fetchMovieSpec: (executionId: string) => Promise<void>;
-  clearPendingRetry: () => void;
+  cancelSpecRequest: () => void;
   reportStatus: (status: string, message?: string | null) => void;
   setMovieSpec: Dispatch<SetStateAction<ReplaySpec | null>>;
   setLoadError: Dispatch<SetStateAction<string | null>>;
@@ -60,13 +60,19 @@ export function useReplayExportBridge({
   mode, statusPayload, loadError, movieSpec, replayFrames,
   effectiveCanvasWidth, effectiveCanvasHeight, currentFrameIndex, currentProgress,
   isAwaitingSpec, assetCount, totalDurationMs, timeline, executionSourceRef,
-  fetchMovieSpec, clearPendingRetry, reportStatus, setMovieSpec, setLoadError,
+  fetchMovieSpec, cancelSpecRequest, reportStatus, setMovieSpec, setLoadError,
   setStatusPayload, setIsAwaitingSpec,
 }: ReplayExportBridgeOptions) {
   const [controllerSignal, setControllerSignal] = useState(0);
   const parentOriginRef = useRef<string | null>(null);
   const readySignalRef = useRef<string | null>(null);
   const controllerRef = useRef<ReplayPlayerController | null>(null);
+  // One optional caller token, bound to the parsed object actually adopted by
+  // React. Receiving a message alone must never acknowledge its replacement.
+  const adoptionRef = useRef<{ spec: ReplaySpec; token: string } | null>(null);
+  // Publish attempted failures through React, never tag an old API.error with
+  // a newly received token before that attempt's state has been committed.
+  const [requestError, setRequestError] = useState<ExportMetadata["requestError"]>();
   type Waiter = FrameWaiter;
   const waitersRef = useRef<Waiter[]>([]);
   const timelineRef = useRef<FrameTimeline[]>([]);
@@ -79,7 +85,8 @@ export function useReplayExportBridge({
 
   const registerWaiter = useCallback(
     (targetIndex: number, targetProgress: number) => {
-      return new Promise<void>((resolve, reject) => {
+      let cancel = (_error: Error) => {};
+      const promise = new Promise<void>((resolve, reject) => {
         const clampedProgress = clampProgress(targetProgress);
         const cleanup = (waiter: Waiter) => {
           waitersRef.current = waitersRef.current.filter(
@@ -105,11 +112,45 @@ export function useReplayExportBridge({
           },
           timeoutId,
         };
+        cancel = waiter.reject;
         waitersRef.current.push(waiter);
       });
+      return { promise, cancel };
     },
     [],
   );
+
+  const cancelWaiters = useCallback((message: string) => {
+    const pending = waitersRef.current;
+    waitersRef.current = [];
+    pending.forEach(waiter => waiter.reject(new Error(message)));
+  }, []);
+
+  useEffect(() => {
+    cancelWaiters("Replay spec replaced or retired");
+  }, [movieSpec, isAwaitingSpec, cancelWaiters]);
+
+  useEffect(() => {
+    if (!controllerRef.current) cancelWaiters("Replay controller retired");
+  }, [controllerSignal, cancelWaiters]);
+
+  useEffect(() => () => {
+    cancelWaiters("Replay bridge unmounted");
+    controllerRef.current = null;
+    adoptionRef.current = null;
+  }, [cancelWaiters]);
+
+  const requestFrame = useCallback(async (frameIndex: number, progress: number) => {
+    const controller = controllerRef.current;
+    if (!controller) throw new Error("Replay controller not ready");
+    const waiter = registerWaiter(frameIndex, progress);
+    try {
+      controller.seek({ frameIndex, progress });
+    } catch (error) {
+      waiter.cancel(error instanceof Error ? error : new Error(String(error)));
+    }
+    await waiter.promise;
+  }, [registerWaiter]);
 
   const seekToTime = useCallback(
     async (ms: number) => {
@@ -130,11 +171,9 @@ export function useReplayExportBridge({
       ) {
         return;
       }
-      const waiterPromise = registerWaiter(target.index, target.progress);
-      controller.seek({ frameIndex: target.index, progress: target.progress });
-      await waiterPromise;
+      await requestFrame(target.index, target.progress);
     },
-    [currentFrameIndex, currentProgress, registerWaiter],
+    [currentFrameIndex, currentProgress, requestFrame],
   );
 
   const postToParent = useCallback(
@@ -256,8 +295,12 @@ export function useReplayExportBridge({
         case "bas:spec:set": {
           const incoming = payload.spec;
           const parsedSpec = parseReplaySpec(incoming);
+          const token = payload.requestToken;
+          const requestToken = typeof token === "string" && token.length > 0 && token.length <= 128 ? token : undefined;
+          setRequestError(undefined);
           if (parsedSpec) {
-            clearPendingRetry();
+            adoptionRef.current = requestToken ? { spec: parsedSpec, token: requestToken } : null;
+            cancelSpecRequest();
             setMovieSpec(parsedSpec);
             setLoadError(null);
             setStatusPayload(null);
@@ -276,16 +319,21 @@ export function useReplayExportBridge({
             } else if (typeof payload.executionId === "string") {
               executionSourceRef.current = payload.executionId.trim() || null;
             }
-          } else if (isRecord(incoming)) {
+          } else if (isRecord(incoming) || requestToken) {
+            adoptionRef.current = null;
+            if (requestToken) setRequestError({ requestToken, message: "Invalid replay spec" });
             reportStatus("error", "Invalid replay spec");
           }
           break;
         }
         case "bas:spec:set-encoded": {
           if (typeof payload.payload === "string") {
+            setRequestError(undefined);
+            adoptionRef.current = null;
             const decoded = decodeExportPayload(payload.payload);
             if (decoded) {
-              clearPendingRetry();
+              adoptionRef.current = null;
+              cancelSpecRequest();
               setMovieSpec(decoded);
               setLoadError(null);
               setStatusPayload(null);
@@ -306,6 +354,8 @@ export function useReplayExportBridge({
         }
         case "bas:spec:fetch": {
           if (typeof payload.executionId === "string") {
+            setRequestError(undefined);
+            adoptionRef.current = null;
             void fetchMovieSpec(payload.executionId);
           }
           break;
@@ -313,7 +363,9 @@ export function useReplayExportBridge({
         case "bas:control:seek": {
           const timeMs = readFiniteNumber(payload.timeMs);
           if (timeMs != null) {
-            void seekToTime(timeMs);
+            void seekToTime(timeMs).catch((error) => {
+              logger.warn("Failed to satisfy time seek request", { component: "ReplayExportPage", timeMs }, error);
+            });
           }
           break;
         }
@@ -328,18 +380,9 @@ export function useReplayExportBridge({
         case "bas:control:frame": {
           const frameIndex = readFiniteNumber(payload.frameIndex);
           const progress = readFiniteNumber(payload.progress);
-          if (frameIndex != null && controllerRef.current) {
-            const waiterPromise = registerWaiter(frameIndex, progress ?? 0);
-            controllerRef.current.seek({
-              frameIndex,
-              progress: progress ?? undefined,
-            });
-            void waiterPromise.catch((error) => {
-              logger.warn(
-                "Failed to satisfy frame seek request",
-                { component: "ReplayExportPage", frameIndex },
-                error,
-              );
+          if (frameIndex != null) {
+            void requestFrame(frameIndex, progress ?? 0).catch((error) => {
+              logger.warn("Failed to satisfy frame seek request", { component: "ReplayExportPage", frameIndex }, error);
             });
           }
           break;
@@ -353,9 +396,9 @@ export function useReplayExportBridge({
       window.removeEventListener("message", handleMessage);
     };
   }, [
-    clearPendingRetry,
+    cancelSpecRequest,
     fetchMovieSpec,
-    registerWaiter,
+    requestFrame,
     reportStatus,
     seekToTime,
   ]);
@@ -367,8 +410,7 @@ export function useReplayExportBridge({
     waitersRef.current = waitersRef.current.filter((waiter) => {
       const matchesIndex = waiter.index === currentFrameIndex;
       const matchesProgress =
-        Math.abs(waiter.progress - currentProgress) <= PROGRESS_EPSILON ||
-        (waiter.progress >= 0.98 && currentProgress >= 0.98);
+        Math.abs(waiter.progress - currentProgress) <= PROGRESS_EPSILON;
       if (matchesIndex && matchesProgress) {
         waiter.resolve();
         return false;
@@ -386,11 +428,11 @@ export function useReplayExportBridge({
   );
 
   useEffect(() => {
-    window.basExport = {
+    const api: NonNullable<Window["basExport"]> = {
       ready: Boolean(
-        !loadError && controllerRef.current && replayFrames.length > 0,
+        !isAwaitingSpec && !loadError && movieSpec && controllerRef.current && replayFrames.length > 0,
       ),
-      error: loadError,
+      error: isAwaitingSpec ? "initializing" : loadError,
       seekTo: seekToTime,
       play: () => {
         controllerRef.current?.play();
@@ -502,6 +544,8 @@ export function useReplayExportBridge({
           browserFrame,
           assetCount,
           specId,
+          requestToken: adoptionRef.current?.spec === movieSpec ? adoptionRef.current.token : undefined,
+          requestError: requestError ? { ...requestError } : undefined,
           deviceScaleFactor: deviceScale ?? 1,
         };
       },
@@ -510,11 +554,20 @@ export function useReplayExportBridge({
         progress: currentProgress,
       }),
     };
+    window.basExport = api;
     return () => {
-      ensureBasExportBootstrap();
+      api.ready = false;
+      // An older mount must never retire a successor's public API.
+      if (window.basExport === api) {
+        delete window.basExport;
+        ensureBasExportBootstrap();
+      }
     };
   }, [
     controllerSignal,
+    requestError,
+    isAwaitingSpec,
+    movieSpec,
     currentFrameIndex,
     currentProgress,
     effectiveCanvasHeight,
@@ -535,7 +588,8 @@ export function useReplayExportBridge({
     }
 
     const pending = isAwaitingSpec || replayFrames.length === 0;
-    const signalToken = `${pending ? "pending" : "ready"}:${replayFrames.length}`;
+    const specId = movieSpec?.execution?.executionId ?? executionSourceRef.current;
+    const signalToken = JSON.stringify([pending, specId, replayFrames.length]);
 
     if (readySignalRef.current === signalToken) {
       return;

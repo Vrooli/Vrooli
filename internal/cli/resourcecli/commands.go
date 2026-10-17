@@ -47,8 +47,9 @@ const (
 )
 
 const (
-	AcquisitionCommandExplain AcquisitionCommandID = "explain"
-	AcquisitionCommandPrune   AcquisitionCommandID = "prune"
+	AcquisitionCommandExplain     AcquisitionCommandID = "explain"
+	AcquisitionCommandInspectData AcquisitionCommandID = "inspect-data"
+	AcquisitionCommandPrune       AcquisitionCommandID = "prune"
 )
 
 // AccelerationCommandID names a subcommand of `vrooli resource acceleration`.
@@ -154,6 +155,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 
 func AcquisitionCommandSpecs() []commandtree.Spec[AcquisitionCommandID] {
 	return []commandtree.Spec[AcquisitionCommandID]{
+		{Name: string(AcquisitionCommandInspectData), Summary: "Verify bounded pinned upstream metadata and report its SHA-256 (never admit execution)", Args: AcquisitionInspectDataArgs(), Handler: AcquisitionCommandInspectData},
 		{Name: string(AcquisitionCommandExplain), Summary: "Explain host-fact acquisition target selection", Args: nameArgSchema("name"), Handler: AcquisitionCommandExplain},
 		{Name: string(AcquisitionCommandPrune), Summary: "Remove superseded managed-resource artifact versions", Args: commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "name"}}}, Handler: AcquisitionCommandPrune},
 	}
@@ -259,4 +261,16 @@ func AcquisitionCommandHelpText(id AcquisitionCommandID) string {
 		}
 	}
 	panic("unknown resource acquisition command spec: " + string(id))
+}
+
+// AcquisitionInspectDataArgs is shared by actual dispatch and maintained help.
+func AcquisitionInspectDataArgs() commandtree.ArgSchema {
+	return commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "name", Required: true}}, Options: []commandtree.OptionArg{
+		{Name: "--url", ValueName: "https-url", Description: "Pinned upstream metadata URL"},
+		{Name: "--git-blob-sha1", ValueName: "40hex", Description: "Expected Git object identity"},
+		{Name: "--max-bytes", ValueName: "bytes", Description: "Explicit positive bound, at most1048576"},
+		{Name: "--out", ValueName: "new-file", Description: "New non-executable file; never overwrite"},
+		{Name: "--logical-id", ValueName: "identity", Description: "Resource-declared credential identity"},
+		{Name: "--field", ValueName: "field", Description: "Resource-declared credential field"},
+	}}
 }

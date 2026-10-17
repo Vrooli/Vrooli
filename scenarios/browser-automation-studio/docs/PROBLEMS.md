@@ -1,7 +1,7 @@
 # BAS defect register
 
 This is the sole BAS-RF register. It lists open items only.
-To update: edit an entry in place. Add a new BAS-RF id only for a distinct defect; the next free id is BAS-RF-153. When an item closes with evidence, delete its row and note the closure in the epoch slice log.
+To update: edit an entry in place. Add a new BAS-RF id only for a distinct defect; the next free id is BAS-RF-154. When an item closes with evidence, delete its row and note the closure in the epoch slice log.
 The full pre-2026-09-29 register, including resolved entries and evidence, is archived in `~/.vrooli/plan-artifacts/epoch-based-delivery-orchestration-and-bas-rehabilitation/evidence/archive/bas-rehabilitation/retired-docs-2026-09-29.tar.gz` (member `docs/PROBLEMS.md`). Retrieve it with `tar -xzOf <archive> docs/PROBLEMS.md`.
 Qualification status comes from the 24 preservation journeys in `requirements/08-rehabilitation` and the daily qualification program, not from this file.
 
@@ -88,15 +88,16 @@ Qualification status comes from the 24 preservation journeys in `requirements/08
 
 | ID | Area/owner | Open problem | Close when |
 | --- | --- | --- | --- |
-| BAS-RF-151 | Replay/recorded-video export | Recorded-video export stores requested chrome/cursor overrides but copies/transcodes the raw video before applying them. Device-frame preview styling is absent from the replay export contract. QA knw-1792095684801274070. | Supported styles appear in actual continuous exports, and unsupported styles are explicitly refused with truthful receipts. |
-| BAS-RF-152 | Replay renderer budget/telemetry | PNG normalization and the current composer protocol/capture mode/canvas are repaired; a short native framed MP4 decodes. The8.446s high-resolution probe exceeds its226s deadline: incidental screenshots and large DPR frames dominate cost. Screenshot replay still lacks timed cursor/edit-map parity. Evidence: product-video-research-2026-10-15/revision-04/bas. | A bounded full replay fits measured cost, preserves timeline duration and cursor provenance, and returns a truthful native result. |
+| BAS-RF-151 | Replay/recorded-video export | Source repair 2026-10-16: styled recordings use the shared UI renderer; device/chrome settings survive the wire; raw intent remains explicit. Visual inspection found and repaired a bezel around the canvas instead of the product window. Continuous cursor pixels remain source-owned; intro/outro cards are explicitly refused. Focused/native evidence: product-video-research-2026-10-15/process-updates. Not activated on the protected live BAS runtime. QA knw-1792095684801274070. | Supported styles appear in actual continuous exports, and unsupported styles are explicitly refused with truthful receipts. |
+| BAS-RF-152 | Replay renderer budget/telemetry | R4 history: the 8.446s high-resolution probe exceeded 226s. Source repair 2026-10-16 disables incidental screenshots, uses DPR 1, preserves the timeline beyond 120 frames, bounds raster/memory and refuses oversized jobs. A 640×480, 8.4s/25fps native source produces all 211 samples in about 41s; final MP4 video/audio both cover 8.4s. Full-resolution cost and timed cursor/edit-map parity remain unqualified. Evidence: product-video-research-2026-10-15/process-updates and retained revision-04/bas. | A bounded full replay fits measured cost, preserves timeline duration and cursor provenance, and returns a truthful native result. |
+| BAS-RF-153 | Export job lifecycle/delivery | Source repair 2026-10-16 consolidates preparation and terminal delivery, bounds two active jobs/15-minute lifetime, adds maintained Connect cancellation and process-boundary recovery/drain, atomically publishes without replacement, retains persistence-failure receipts, and fences reconnect responses. Focused regressions cover database faults, terminal fencing, cancellation/admission and output collisions. Runtime shutdown/restart, actual encoder cancellation and full-resolution resource qualification remain unmeasured; see video-toolchain-reliability-2026-10-16 implementation/bas.md. | Admitted native/lifecycle checks preserve source/output, agree with persisted state and clean owned resources within measured budgets. |
 
 ## Tooling, docs and structural debt
 
 | ID | Area/owner | Open problem | Close when |
 | --- | --- | --- | --- |
 | BAS-RF-001 | BAS product/docs | The browser-first target (OT-P0-005, 24 journeys) is explicit. Formal acceptance of the platform/preservation matrix and scoping of stale "refactor complete" claims in other docs are not recorded. | The PRD/requirement mapping is accepted, and historical claims are scoped everywhere. |
-| BAS-RF-014 | UI unit coverage | Merged UI coverage is about 31% against the unchanged 85% floor (79 LOW_COVERAGE files). | Coverage meets the floor through behavior tests. |
+| BAS-RF-014 | UI behavior coverage | Qualified complete-source UI baseline (2026-10-16, run0e787692-9d8f-493e-a322-4b903f4481ea): lines/statements23,653/74,446=31.77%, functions830/2065=40.19%, branches4081/6032=67.65%; all15 projects completed. Reporting/selection correctness repaired; all four unchanged85% floors legitimately fail. Historical36.81% used an invalid merger/incomplete denominator and is not comparable. | Meaningful behavior regressions meet all unchanged85% floors; preserve complete source closure and diagnostics. |
 | BAS-RF-015 | Module structure | Local hotspots are reduced (for example Capture 69→6), but domain-wide complexity, duplication, long files and coupling remain high; the tidiness ratchet was re-baselined on 2026-09-29 (DECISIONS.md) and only ratchets down from there. The E01 navigation/cleanup owners still carry command/runtime cohesion hotspots. | Domain-wide findings fall measurably below the 2026-09-29 baseline with behavior preserved. |
 | BAS-RF-048 | cli-core proto binding + BAS CLI | The documented require-assertion flag fails before the RPC, and explicit `true` is rejected. Reported as knw-1790042809480136792. | The shared binding encodes boolean presence, and positive/negative CLI tests pass. |
 | BAS-RF-050 | BAS docs | Docs validation still reports 4 errors (placement, plans metadata, PRD external link) plus stale command/code/doc references. | Actual stale references are fixed without suppressing findings. |
@@ -136,3 +137,15 @@ viewport artifacts explicitly remain distinct from physical-screen capture;
 UI Health can fail a native-screen requirement instead of silently accepting
 emulation. GCT's automatic UI Health reports now provide live client geometry
 without screenshot uploads.
+
+### 2026-10-16 launch-video implementation validation
+
+Scoped W3 repair evidence is retained under
+`~/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/process-updates/IMPLEMENTATION.md`.
+No full W0–W2 or scenario certification is claimed. Test Genie unit run
+`20261016-134642-0edc3a2c` remains non-green: API execution failures, the existing
+production/test-helper boundary finding, UI coverage 36.64% against 85%, and a
+driver run that includes a motion qualification requiring unavailable environment
+inputs before timing out. Retained findings include command tails. These are
+observations, not attribution to this patch. Existing QA unit finding
+`knw-1792096033017403914` remains relevant; no duplicate root-cause report was filed.

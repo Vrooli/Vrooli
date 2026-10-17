@@ -71,6 +71,15 @@ function percentile(values: number[], quantile: number): number {
   return sorted[Math.ceil(quantile * sorted.length) - 1] ?? 0;
 }
 
+// This file includes a live BAS cohort: its whole suite is explicitly managed.
+for (const name of ['BAS_REHAB_LIVE_API_BASE', 'BAS_REHAB_LIVE_UI_BASE']) {
+  const value = process.env[name];
+  if (!value) throw new Error(`Managed feedback qualification requires ${name}`);
+  if (!['http:', 'https:'].includes(new URL(value).protocol)) {
+    throw new Error(`${name} must be an HTTP(S) URL`);
+  }
+}
+
 describe('interactive input feedback diagnostic (real Chromium)', () => {
   const browserOwner = ownBrowser({ headless: true });
   it('correlates 1000 driver inputs with the fixture’s affected paint marker', async () => {
@@ -358,10 +367,7 @@ describe('interactive input feedback diagnostic (real Chromium)', () => {
     }
   }, 120000);
 
-  const runAgainstLiveBAS = process.env.BAS_REHAB_LIVE_API_BASE && process.env.BAS_REHAB_LIVE_UI_BASE;
-  const liveFeedbackTest = runAgainstLiveBAS ? it : it.skip;
-
-  liveFeedbackTest('correlates live UI inputs with applied receipts and viewer-canvas pixels', async () => {
+  it('correlates live UI inputs with applied receipts and viewer-canvas pixels', async () => {
     const apiBase = process.env.BAS_REHAB_LIVE_API_BASE as string;
     const uiBase = process.env.BAS_REHAB_LIVE_UI_BASE as string;
     const networkProfile = process.env.BAS_REHAB_NETWORK_PROFILE ?? 'local';

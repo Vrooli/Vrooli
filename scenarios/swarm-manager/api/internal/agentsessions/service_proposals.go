@@ -27,6 +27,12 @@ func (s *Service) RecordProposal(ctx context.Context, sessionID string, proposal
 		return Proposal{}, err
 	}
 	s.emitProposalCreated(sessionID, proposal)
+	// A ready mutation-list proposal is an operator decision: raise it on the
+	// shared operatordecision rail (notification-hub turns it into an Ask). The
+	// emitter guards kind/status itself, so every path that records a ready
+	// mutation-list proposal — agent ingestion and the workflow projection —
+	// raises exactly one decision. Best-effort: it never blocks the record.
+	s.emitProposalDecisionRequested(ctx, sessionID, proposal)
 	return proposal, nil
 }
 

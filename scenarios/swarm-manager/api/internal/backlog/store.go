@@ -14,8 +14,17 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
+
+	"github.com/vrooli/api-core/storage"
 )
+
+// The canonical API is the filesystem writer. Serialize its read-modify-write
+// seams so conditional archival cannot overwrite an intervening mutation.
+var fileMutationMu sync.Mutex
+
+var ErrArchiveSnapshotChanged = errors.New("terminal archive snapshot changed")
 
 // Store abstracts persistence for backlog items. The primary implementation
 // is FileStore (filesystem-backed); tests may inject alternatives for fault
@@ -196,6 +205,31 @@ func (s *FileStore) LoadItemFromPath(kind BacklogKind, specPath string) (Backlog
 // read-modify-write to preserve unknown fields (such as archive metadata)
 // that are not part of the BacklogItem struct.
 func (s *FileStore) SaveItem(item BacklogItem) error {
+	fileMutationMu.Lock()
+	defer fileMutationMu.Unlock()
+	return s.saveItem(item)
+}
+
+// ArchiveTerminalSnapshot compares and writes under the same owner lock. It
+// loads the latest full record so non-archive metadata is preserved.
+func (s *FileStore) ArchiveTerminalSnapshot(kind BacklogKind, name, status, updated, archivedAt string) (BacklogItem, error) {
+	fileMutationMu.Lock()
+	defer fileMutationMu.Unlock()
+	item, err := s.LoadItem(kind, name)
+	if err != nil {
+		return BacklogItem{}, err
+	}
+	if item.ArchivedAt != nil || string(item.Status) != status || item.Updated != updated || (item.Status != StatusCompleted && item.Status != StatusDropped) {
+		return BacklogItem{}, ErrArchiveSnapshotChanged
+	}
+	item.ArchivedAt, item.Updated = &archivedAt, archivedAt
+	if err := s.saveItem(item); err != nil {
+		return BacklogItem{}, err
+	}
+	return item, nil
+}
+
+func (s *FileStore) saveItem(item BacklogItem) error {
 	if item.Kind == "" {
 		return fmt.Errorf("backlog kind is required")
 	}
@@ -327,7 +361,7 @@ func (s *FileStore) SaveItem(item BacklogItem) error {
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(specPath, data, 0o600); err != nil {
+	if err := storage.WriteFileAtomic(specPath, data, 0o600); err != nil {
 		return err
 	}
 
@@ -338,6 +372,8 @@ func (s *FileStore) SaveItem(item BacklogItem) error {
 // DeleteItem removes a backlog item's on-disk folder and notifies the AI
 // indexer. Returns nil if the item does not exist (idempotent).
 func (s *FileStore) DeleteItem(kind BacklogKind, name string) error {
+	fileMutationMu.Lock()
+	defer fileMutationMu.Unlock()
 	itemDir := s.ItemDir(kind, name)
 	if _, err := os.Stat(itemDir); err != nil {
 		if os.IsNotExist(err) {

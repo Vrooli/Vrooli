@@ -2,6 +2,7 @@ package incidents
 
 import (
 	"context"
+
 	"github.com/vrooli/api-core/eventbus"
 )
 
@@ -15,4 +16,14 @@ func NewEventBusPublisher(baseURL string) EventPublisher {
 
 func (p EventBusPublisher) Publish(ctx context.Context, eventType string, payload map[string]any) error {
 	return p.Client.PublishDomainEvent(ctx, eventbus.DomainEvent{Source: "vrooli-autoheal", EventType: eventType, Payload: payload})
+}
+
+// PublishDomainEvent satisfies incidents.DecisionPublisher (and
+// operatordecision.Publisher) so a producer that builds a full decision
+// DomainEvent — Source/EventType/Occurred/Payload set by operatordecision.
+// BuildEvent — publishes it verbatim rather than through the legacy
+// eventType+payload path. The deterministic Occurred time is preserved so the
+// event id is stable across retries.
+func (p EventBusPublisher) PublishDomainEvent(ctx context.Context, event eventbus.DomainEvent) error {
+	return p.Client.PublishDomainEvent(ctx, event)
 }

@@ -6,18 +6,15 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
-	"sort"
-	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
-	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/constants"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/handlers/export"
@@ -35,7 +32,7 @@ import (
 // PostExecutionExport handles POST /api/v1/executions/{id}/export
 // For binary formats (mp4/gif) with output_dir: returns immediately with export ID, renders in background
 // For json format: returns export spec synchronously
-// For html format with output_dir: saves to disk asynchronously
+// For html format: streams a synchronous interactive bundle
 func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
 	executionID, ok := h.parseUUIDParam(w, r, "id", ErrInvalidExecutionID)
 	if !ok {
@@ -58,6 +55,19 @@ func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
 		format = "json"
 	}
 
+	if format != "json" && format != "html" && format != "folder" && format != "mp4" && format != "gif" && format != "webm" {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "unsupported export format"}))
+		return
+	}
+
+	if body.Stylization != "" && body.Stylization != "raw" && body.Stylization != "stylized" {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "stylization must be raw or stylized"}))
+		return
+	}
+	if format == "webm" && body.AppliesStylesToRecording() {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "styled recordings support MP4/GIF; select raw for WebM"}))
+		return
+	}
 	renderSource, ok := source.NormalizeRenderSource(body.RenderSource)
 	if !ok {
 		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "unsupported render_source"}))
@@ -113,86 +123,7 @@ func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// From here on: json/html format (synchronous) or recorded video fallback
-
-	if format != "json" && format != "html" && renderSource != source.RenderSourceReplayFrames {
-		videoCtx, cancelVideo := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
-		defer cancelVideo()
-
-		recordedVideo, videoErr := h.loadRecordedVideo(videoCtx, executionID)
-		if videoErr == nil && recordedVideo != nil {
-			if body.MovieSpec != nil || body.Overrides != nil {
-				spec, err := h.prepareStyledRecordedVideo(r.Context(), executionID, recordedVideo, body)
-				if err != nil {
-					h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": err.Error()}))
-					return
-				}
-				renderCtx, cancel := context.WithTimeout(r.Context(), render.EstimateReplayRenderTimeout(spec))
-				defer cancel()
-				media, err := h.replayRenderer.Render(renderCtx, spec, render.RenderFormat(format), body.FileName)
-				if err != nil {
-					h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"error": err.Error()}))
-					return
-				}
-				defer media.Cleanup()
-				if err := render.FinishRecordedVideo(renderCtx, media, recordedVideo.Path, spec.GetSummary().GetTotalDurationMs(), format); err != nil {
-					h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"error": err.Error()}))
-					return
-				}
-				w.Header().Set("Content-Type", media.ContentType)
-				w.Header().Set("X-BAS-Cursor-Mode", "source-pixels; replay-overlay-disabled")
-				setExportReceiptHeaders(w, spec, source.RenderSourceRecordedVideo)
-				http.ServeFile(w, r, media.Path)
-				return
-			}
-			// For recorded video with output_dir, save to disk instead of streaming
-			if outputDir != "" {
-				h.handleAsyncRecordedVideoExport(w, executionID, recordedVideo, format, body.FileName, outputDir)
-				return
-			}
-			// Legacy: stream directly to response (for backwards compatibility)
-			if err := h.serveRecordedVideo(w, r, recordedVideo, format, body.FileName); err != nil {
-				h.log.WithError(err).WithField("execution_id", executionID).Error("Failed to serve recorded video export")
-				h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "recorded_video_export", "error": err.Error()}))
-			}
-			return
-		}
-		if renderSource == source.RenderSourceAuto && format == "webm" {
-			if errors.Is(videoErr, database.ErrNotFound) {
-				h.respondError(w, ErrExecutionNotFound.WithDetails(map[string]string{"execution_id": executionID.String()}))
-				return
-			}
-			if errors.Is(videoErr, source.ErrVideoNotFound) {
-				h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "recorded video unavailable for webm export"}))
-				return
-			}
-			if videoErr != nil {
-				h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "recorded_video_export", "error": videoErr.Error()}))
-				return
-			}
-			h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "recorded video unavailable for webm export"}))
-			return
-		}
-		if renderSource == source.RenderSourceRecordedVideo {
-			if errors.Is(videoErr, database.ErrNotFound) {
-				h.respondError(w, ErrExecutionNotFound.WithDetails(map[string]string{"execution_id": executionID.String()}))
-				return
-			}
-			if errors.Is(videoErr, source.ErrVideoNotFound) {
-				h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "recorded video unavailable for execution"}))
-				return
-			}
-			if videoErr != nil {
-				h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "recorded_video_export", "error": videoErr.Error()}))
-				return
-			}
-			h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "recorded video unavailable for execution"}))
-			return
-		}
-		if videoErr != nil && !errors.Is(videoErr, source.ErrVideoNotFound) {
-			h.log.WithError(videoErr).WithField("execution_id", executionID).Warn("Failed to load recorded video; falling back to replay render")
-		}
-	}
+	// JSON and HTML consume the same resolved presentation as binary replay.
 
 	previewCtx, cancelPreview := context.WithTimeout(r.Context(), constants.ExtendedRequestTimeout)
 	defer cancelPreview()
@@ -213,11 +144,6 @@ func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	replayConfig, configErr := h.loadReplayConfig(previewCtx)
-	if configErr != nil && h.log != nil {
-		h.log.WithError(configErr).Warn("Failed to load replay config for export")
-	}
-	replayOverrides := replayConfigToOverrides(replayConfig)
 	generatedSpec, specErr := exportservices.BuildReplaySpec(preview.Package, body.MovieSpec, executionID)
 	if specErr != nil {
 		if errors.Is(specErr, exportservices.ErrMovieSpecUnavailable) {
@@ -237,30 +163,11 @@ func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
 		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": specErr.Error()}))
 		return
 	}
-	applyReplayConfigToSpec(generatedSpec, replayConfig)
-	exportservices.Apply(generatedSpec, replayOverrides)
-	exportservices.Apply(generatedSpec, body.Overrides)
-
-	// Enforce watermark requirements from the signed lease feature set. The
-	// local tier name is display data and is not an authorization ladder.
-	if h.entitlementService != nil {
-		ent := entitlement.FromContext(r.Context())
-		requiresWatermark := false
-		if ent != nil {
-			requiresWatermark = !ent.HasFeature(entitlement.FeatureWatermarkFree)
-		} else {
-			// No entitlement in context - check via service (uses default tier)
-			userIdentity := entitlement.UserIdentityFromContext(r.Context())
-			requiresWatermark = h.entitlementService.RequiresWatermark(previewCtx, userIdentity)
-		}
-		if result := exportservices.EnforceWatermarkRequirements(generatedSpec, requiresWatermark); result.WasEnforced {
-			h.log.WithFields(logrus.Fields{
-				"execution_id":     executionID,
-				"original_enabled": result.OriginalEnabled,
-				"original_asset":   result.OriginalAssetID,
-			}).Debug("Watermark requirements enforced for export")
-		}
+	if err := h.resolveExportPresentation(previewCtx, generatedSpec, body); err != nil {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "prepare_export", "error": err.Error()}))
+		return
 	}
+
 	if format == "json" {
 		setExportReceiptHeaders(w, generatedSpec, source.RenderSourceReplayFrames)
 		preview.Package = generatedSpec
@@ -287,54 +194,6 @@ func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Legacy fallback: sync render and stream to response
-	setExportReceiptHeaders(w, generatedSpec, source.RenderSourceReplayFrames)
-	renderTimeout := render.EstimateReplayRenderTimeout(generatedSpec)
-	renderCtx, cancelRender := context.WithTimeout(r.Context(), renderTimeout)
-	defer cancelRender()
-
-	media, renderErr := h.replayRenderer.Render(renderCtx, generatedSpec, render.RenderFormat(format), body.FileName)
-	if renderErr != nil {
-		errMsg := strings.TrimSpace(renderErr.Error())
-		if len(errMsg) > 0 && len(errMsg) > 512 {
-			errMsg = errMsg[:512]
-		}
-		fields := logrus.Fields{"execution_id": executionID}
-		if errMsg != "" {
-			fields["renderer_error"] = errMsg
-		}
-		h.log.WithError(renderErr).WithFields(fields).Error("Failed to render replay export")
-		details := map[string]string{"operation": "render_export"}
-		if errMsg != "" {
-			details["error"] = errMsg
-		}
-		h.respondError(w, ErrInternalServer.WithDetails(details))
-		return
-	}
-	defer media.Cleanup()
-
-	file, err := os.Open(media.Path)
-	if err != nil {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "open_export"}))
-		return
-	}
-	defer file.Close()
-
-	info, err := file.Stat()
-	if err != nil {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "stat_export"}))
-		return
-	}
-
-	w.Header().Set("Content-Type", media.ContentType)
-	if info.Size() > 0 {
-		w.Header().Set("Content-Length", strconv.FormatInt(info.Size(), 10))
-	}
-	if strings.TrimSpace(media.Filename) != "" {
-		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", media.Filename))
-	}
-
-	http.ServeContent(w, r, media.Filename, info.ModTime(), file)
 }
 
 func setExportReceiptHeaders(w http.ResponseWriter, spec *exportsv1.ReplaySpec, selectedSource string) {
@@ -367,6 +226,10 @@ func (h *Handler) handleAsyncBinaryExport(w http.ResponseWriter, r *http.Request
 	}
 	// Remove extension if present
 	exportName = strings.TrimSuffix(exportName, "."+format)
+	if err := exportservices.ValidateFilename(exportName); err != nil {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": err.Error()}))
+		return
+	}
 
 	// Create export record in "processing" state
 	exportRecord := &database.ExportIndex{
@@ -379,23 +242,23 @@ func (h *Handler) handleAsyncBinaryExport(w http.ResponseWriter, r *http.Request
 		Settings:    buildExportReceiptSettings(body, renderSource),
 	}
 
-	if err := h.repo.CreateExport(ctx, exportRecord); err != nil {
+	if err := h.exportJobs.Start(ctx, exportRecord.ID,
+		func(ctx context.Context) error { return h.repo.CreateExport(ctx, exportRecord) },
+		func(ctx context.Context) {
+			h.renderExportInBackground(ctx, exportRecord, executionID, format, body, outputDir, renderSource)
+		},
+	); err != nil {
 		h.log.WithError(err).WithField("execution_id", executionID).Error("Failed to create export record")
+		if errors.Is(err, exportservices.ErrExportCapacity) {
+			h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{"error": err.Error()}))
+			return
+		}
 		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "create_export"}))
 		return
 	}
 
 	exportID := exportRecord.ID.String()
 	execIDStr := executionID.String()
-
-	// Broadcast initial progress
-	h.wsHub.BroadcastExportProgress(&wsHub.ExportProgress{
-		ExportID:        exportID,
-		ExecutionID:     execIDStr,
-		Stage:           "preparing",
-		ProgressPercent: 0,
-		Status:          "processing",
-	})
 
 	// Return immediately with export ID
 	h.respondSuccess(w, http.StatusAccepted, map[string]any{
@@ -405,177 +268,128 @@ func (h *Handler) handleAsyncBinaryExport(w http.ResponseWriter, r *http.Request
 		"message":      "Export started. Subscribe to WebSocket for progress updates.",
 	})
 
-	// Start background rendering
-	go h.renderExportInBackground(context.WithoutCancel(r.Context()), exportRecord, executionID, format, body, outputDir, renderSource)
 }
 
-// renderExportInBackground performs the actual export rendering and broadcasts progress via WebSocket.
-func (h *Handler) renderExportInBackground(ctx context.Context, exportRecord *database.ExportIndex, executionID uuid.UUID, format string, body export.Request, outputDir string, renderSource string) {
-	exportID := exportRecord.ID.String()
-	execIDStr := executionID.String()
-
-	broadcastProgress := func(stage string, percent float64, status string) {
-		h.wsHub.BroadcastExportProgress(&wsHub.ExportProgress{
-			ExportID:        exportID,
-			ExecutionID:     execIDStr,
-			Stage:           stage,
-			ProgressPercent: percent,
-			Status:          status,
-		})
+// renderExportInBackground has one source-selection and finalization path.
+func (h *Handler) renderExportInBackground(ctx context.Context, row *database.ExportIndex, executionID uuid.UUID, format string, body export.Request, outputDir, requestedSource string) {
+	progress := func(stage string, percent float64) {
+		h.wsHub.BroadcastExportProgress(&wsHub.ExportProgress{ExportID: row.ID.String(), ExecutionID: executionID.String(), Stage: stage, ProgressPercent: percent, Status: "processing"})
 	}
-
-	broadcastError := func(errMsg string) {
-		_ = h.repo.UpdateExportStatus(ctx, exportRecord.ID, "failed", errMsg)
-		h.wsHub.BroadcastExportProgress(&wsHub.ExportProgress{
-			ExportID:        exportID,
-			ExecutionID:     execIDStr,
-			Stage:           "failed",
-			ProgressPercent: 0,
-			Status:          "failed",
-			Error:           errMsg,
-		})
-	}
-
-	// Try to use recorded video first if not explicitly using replay frames
-	if renderSource != source.RenderSourceReplayFrames {
-		recordedVideo, videoErr := h.loadRecordedVideo(ctx, executionID)
-		if videoErr == nil && recordedVideo != nil {
-			if err := setExportSelectedSource(ctx, h.repo, exportRecord, source.RenderSourceRecordedVideo, recordedVideo); err != nil {
-				h.log.WithError(err).WithField("export_id", exportID).Warn("Failed to persist export source receipt")
-			}
-
-			if body.MovieSpec != nil || body.Overrides != nil {
-				spec, err := h.prepareStyledRecordedVideo(ctx, executionID, recordedVideo, body)
-				if err != nil {
-					broadcastError(err.Error())
-					return
-				}
-				for key, value := range buildRenderedSpecReceipt(spec) {
-					exportRecord.Settings[key] = value
-				}
-				exportRecord.Settings["cursor_application"] = "source-pixels; replay-overlay-disabled"
-				if err := h.repo.UpdateExport(ctx, exportRecord); err != nil {
-					broadcastError(err.Error())
-					return
-				}
-				renderCtx, cancel := context.WithTimeout(ctx, render.EstimateReplayRenderTimeout(spec))
-				defer cancel()
-				media, err := h.replayRenderer.Render(renderCtx, spec, render.RenderFormat(format), body.FileName)
-				if err != nil {
-					broadcastError(fmt.Sprintf("Styled continuous-video render failed: %v", err))
-					return
-				}
-				defer media.Cleanup()
-				if err := render.FinishRecordedVideo(renderCtx, media, recordedVideo.Path, spec.GetSummary().GetTotalDurationMs(), format); err != nil {
-					broadcastError(err.Error())
-					return
-				}
-				styledSource := &source.VideoSource{Path: media.Path, ContentType: media.ContentType}
-				h.renderRecordedVideoToFile(ctx, exportRecord, styledSource, format, outputDir, broadcastProgress, broadcastError)
-				return
-			}
-			h.renderRecordedVideoToFile(ctx, exportRecord, recordedVideo, format, outputDir, broadcastProgress, broadcastError)
+	// Failure persistence must survive cancellation, while retaining routing values.
+	fail := func(err error) {
+		statusCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer cancel()
+		if persistErr := h.repo.UpdateExportStatus(statusCtx, row.ID, "failed", err.Error()); persistErr != nil {
+			h.log.WithError(persistErr).WithField("export_id", row.ID).Error("Export failed; terminal state could not be persisted: " + err.Error())
 			return
 		}
+		h.wsHub.BroadcastExportProgress(&wsHub.ExportProgress{ExportID: row.ID.String(), ExecutionID: executionID.String(), Stage: "failed", Status: "failed", Error: err.Error()})
 	}
-	if err := setExportSelectedSource(ctx, h.repo, exportRecord, source.RenderSourceReplayFrames, nil); err != nil {
-		h.log.WithError(err).WithField("export_id", exportID).Warn("Failed to persist export source receipt")
-	}
-
-	// Fall back to replay rendering
-	broadcastProgress("preparing", 10, "processing")
-
-	preview, svcErr := h.executionService.DescribeExecutionExport(ctx, executionID)
-	if svcErr != nil {
-		broadcastError(fmt.Sprintf("Failed to describe export: %v", svcErr))
-		return
-	}
-
-	replayConfig, _ := h.loadReplayConfig(ctx)
-	replayOverrides := replayConfigToOverrides(replayConfig)
-	generatedSpec, specErr := exportservices.BuildReplaySpec(preview.Package, body.MovieSpec, executionID)
-	if specErr != nil {
-		broadcastError(fmt.Sprintf("Failed to build export spec: %v", specErr))
-		return
-	}
-	applyReplayConfigToSpec(generatedSpec, replayConfig)
-	exportservices.Apply(generatedSpec, replayOverrides)
-	exportservices.Apply(generatedSpec, body.Overrides)
-	if generatedSpec.GetCursor() != nil {
-		exportRecord.Settings["cursor_style"] = generatedSpec.GetCursor().GetStyle()
-	}
-	for key, value := range buildRenderedSpecReceipt(generatedSpec) {
-		exportRecord.Settings[key] = value
-	}
-	if err := h.repo.UpdateExport(ctx, exportRecord); err != nil {
-		h.log.WithError(err).WithField("export_id", exportID).Warn("Failed to persist final export spec receipt")
-	}
-	broadcastProgress("capturing", 30, "processing")
-
-	// Render to temp file
-	renderTimeout := render.EstimateReplayRenderTimeout(generatedSpec)
-	renderCtx, cancelRender := context.WithTimeout(ctx, renderTimeout)
-	defer cancelRender()
-
-	media, renderErr := h.replayRenderer.Render(renderCtx, generatedSpec, render.RenderFormat(format), body.FileName)
-	if renderErr != nil {
-		broadcastError(fmt.Sprintf("Render failed: %v", renderErr))
+	// An unexpected worker panic must not strand an admitted row or the process.
+	defer func() {
+		if value := recover(); value != nil {
+			fail(fmt.Errorf("export worker panic: %v", value))
+		}
+	}()
+	progress("preparing", 10)
+	media, selected, err := h.prepareExportMedia(ctx, executionID, format, body, requestedSource, row)
+	if err != nil {
+		fail(err)
 		return
 	}
 	defer media.Cleanup()
-
-	broadcastProgress("encoding", 70, "processing")
-
-	// Ensure output directory exists
-	if err := os.MkdirAll(outputDir, 0o755); err != nil {
-		broadcastError(fmt.Sprintf("Failed to create output directory: %v", err))
+	row.Settings["selected_source"] = selected
+	row.Settings["rendered_content_type"] = media.ContentType
+	if err = h.repo.UpdateExportSettings(ctx, row.ID, row.Settings); err != nil {
+		fail(fmt.Errorf("persist export source receipt: %w", err))
 		return
 	}
-
-	// Copy to output directory
-	finalPath := filepath.Join(outputDir, media.Filename)
-	if err := copyFile(media.Path, finalPath); err != nil {
-		broadcastError(fmt.Sprintf("Failed to save file: %v", err))
-		return
-	}
-
-	broadcastProgress("finalizing", 90, "processing")
-
-	// Get file size
-	info, err := os.Stat(finalPath)
+	progress("finalizing", 90)
+	published, err := exportservices.PublishFile(ctx, outputDir, normalizeExportFilename(row.Name, "export-"+row.ID.String(), "."+format), func(path string) error { return exportservices.CopyMedia(ctx, media.Path, path) })
 	if err != nil {
-		broadcastError(fmt.Sprintf("Failed to stat output file: %v", err))
+		fail(err)
 		return
 	}
-
-	// Update export record
-	if err := h.repo.UpdateExportComplete(ctx, exportRecord.ID, finalPath, info.Size()); err != nil {
-		h.log.WithError(err).WithField("export_id", exportID).Error("Failed to update export record")
+	if err = exportservices.CommitExport(ctx, h.repo, row, published); err != nil {
+		fail(err)
+		return
 	}
+	h.wsHub.BroadcastExportProgress(&wsHub.ExportProgress{ExportID: row.ID.String(), ExecutionID: executionID.String(), Stage: "completed", ProgressPercent: 100, Status: "completed", StorageURL: published.Path, FileSizeBytes: published.Size})
+}
 
-	// Broadcast completion
-	h.wsHub.BroadcastExportProgress(&wsHub.ExportProgress{
-		ExportID:        exportID,
-		ExecutionID:     execIDStr,
-		Stage:           "completed",
-		ProgressPercent: 100,
-		Status:          "completed",
-		StorageURL:      finalPath,
-		FileSizeBytes:   info.Size(),
-	})
+// prepareExportMedia preserves source cleanup until the resulting media is consumed.
+func (h *Handler) prepareExportMedia(ctx context.Context, executionID uuid.UUID, format string, body export.Request, requested string, row *database.ExportIndex) (*render.RenderedMedia, string, error) {
+	if requested != source.RenderSourceReplayFrames {
+		video, err := h.loadRecordedVideo(ctx, executionID)
+		if err == nil {
+			if video.Cleanup != nil {
+				defer video.Cleanup()
+			}
+			video, err = source.FreezeVideoSource(ctx, video, filepath.Join(h.recordingsRoot, executionID.String(), "artifacts", "export-sources"))
+			if err != nil {
+				return nil, "", err
+			}
+			defer video.Cleanup()
 
-	h.log.WithFields(logrus.Fields{
-		"export_id":    exportID,
-		"execution_id": execIDStr,
-		"output_path":  finalPath,
-		"file_size":    info.Size(),
-	}).Info("Export completed successfully")
+			if err = setExportSelectedSource(ctx, h.repo, row, source.RenderSourceRecordedVideo, video); err != nil {
+				return nil, "", err
+			}
+			if body.AppliesStylesToRecording() {
+				spec, cleanup, err := h.prepareStyledRecordedVideo(ctx, executionID, video, body)
+				if err != nil {
+					return nil, "", err
+				}
+				defer cleanup()
+				for key, value := range buildRenderedSpecReceipt(spec) {
+					row.Settings[key] = value
+				}
+				row.Settings["cursor_application"] = "source-pixels; replay-overlay-disabled"
+				media, err := h.replayRenderer.Render(ctx, spec, render.RenderFormat(format), body.FileName)
+				if err != nil {
+					return nil, "", err
+				}
+				if err = render.FinishRecordedVideo(ctx, media, video.Path, spec.GetSummary().GetTotalDurationMs(), format); err != nil {
+					media.Cleanup()
+					return nil, "", err
+				}
+				return media, source.RenderSourceRecordedVideo, nil
+			}
+			media, err := render.ConvertRecordedMedia(ctx, video.Path, format)
+			return media, source.RenderSourceRecordedVideo, err
+		}
+		if requested == source.RenderSourceRecordedVideo || format == "webm" || !errors.Is(err, source.ErrVideoNotFound) {
+			return nil, "", fmt.Errorf("recorded source unavailable: %w", err)
+		}
+	}
+	preview, err := h.executionService.DescribeExecutionExport(ctx, executionID)
+	if err != nil {
+		return nil, "", err
+	}
+	if preview == nil {
+		return nil, "", errors.New("empty export preview")
+	}
+	spec, err := exportservices.BuildReplaySpec(preview.Package, body.MovieSpec, executionID)
+	if err != nil {
+		return nil, "", err
+	}
+	if err = h.resolveExportPresentation(ctx, spec, body); err != nil {
+		return nil, "", err
+	}
+	for key, value := range buildRenderedSpecReceipt(spec) {
+		row.Settings[key] = value
+	}
+	if spec.GetCursor() != nil {
+		row.Settings["cursor_style"] = spec.GetCursor().GetStyle()
+	}
+	media, err := h.replayRenderer.Render(ctx, spec, render.RenderFormat(format), body.FileName)
+	return media, source.RenderSourceReplayFrames, err
 }
 
 func buildExportReceiptSettings(body export.Request, requestedSource string) database.JSONMap {
 	receipt := database.JSONMap{
 		"requested_source": requestedSource,
 		"selected_source":  "pending",
+		"stylization":      body.Stylization,
 		"edit_map_status":  "not_represented_by_export_contract",
 	}
 	if body.MovieSpec != nil {
@@ -647,362 +461,58 @@ func setExportSelectedSource(ctx context.Context, repo database.Repository, reco
 			record.Settings["source_size_bytes"] = *video.SizeBytes
 		}
 	}
-	return repo.UpdateExport(ctx, record)
+	return repo.UpdateExportSettings(ctx, record.ID, record.Settings)
 }
 
-// renderRecordedVideoToFile converts and saves a recorded video to the output directory.
-func (h *Handler) renderRecordedVideoToFile(ctx context.Context, exportRecord *database.ExportIndex, videoSource *source.VideoSource, format, outputDir string, broadcastProgress func(string, float64, string), broadcastError func(string)) {
-	exportID := exportRecord.ID.String()
-	execIDStr := exportRecord.ExecutionID.String()
-
-	broadcastProgress("preparing", 20, "processing")
-
-	inputPath := videoSource.Path
-	inputExt := strings.ToLower(filepath.Ext(inputPath))
-	outputExt := "." + format
-
-	// Generate output filename
-	filename := exportRecord.Name + outputExt
-
-	broadcastProgress("encoding", 50, "processing")
-
-	// Ensure output directory exists
-	if err := os.MkdirAll(outputDir, 0o755); err != nil {
-		broadcastError(fmt.Sprintf("Failed to create output directory: %v", err))
-		return
-	}
-
-	finalPath := filepath.Join(outputDir, filename)
-
-	// Convert or copy depending on format
-	switch format {
-	case "webm":
-		if inputExt != ".webm" {
-			broadcastError("Source video is not webm format")
-			return
-		}
-		if err := copyFile(inputPath, finalPath); err != nil {
-			broadcastError(fmt.Sprintf("Failed to copy video: %v", err))
-			return
-		}
-	case "mp4":
-		if inputExt == ".mp4" {
-			if err := copyFile(inputPath, finalPath); err != nil {
-				broadcastError(fmt.Sprintf("Failed to copy video: %v", err))
-				return
-			}
-		} else {
-			encoder := render.NewFFmpegEncoder(render.DetectFFmpegBinary())
-			if err := encoder.ConvertToMP4(ctx, inputPath, finalPath); err != nil {
-				broadcastError(fmt.Sprintf("Failed to convert to MP4: %v", err))
-				return
-			}
-		}
-	case "gif":
-		encoder := render.NewFFmpegEncoder(render.DetectFFmpegBinary())
-		if err := encoder.ConvertToGIF(ctx, inputPath, finalPath, 0, 0); err != nil {
-			broadcastError(fmt.Sprintf("Failed to convert to GIF: %v", err))
-			return
-		}
-	default:
-		broadcastError(fmt.Sprintf("Unsupported format: %s", format))
-		return
-	}
-
-	broadcastProgress("finalizing", 90, "processing")
-
-	// Get file size
-	info, err := os.Stat(finalPath)
-	if err != nil {
-		broadcastError(fmt.Sprintf("Failed to stat output file: %v", err))
-		return
-	}
-
-	// Update export record
-	if err := h.repo.UpdateExportComplete(ctx, exportRecord.ID, finalPath, info.Size()); err != nil {
-		h.log.WithError(err).WithField("export_id", exportID).Error("Failed to update export record")
-	}
-
-	// Broadcast completion
-	h.wsHub.BroadcastExportProgress(&wsHub.ExportProgress{
-		ExportID:        exportID,
-		ExecutionID:     execIDStr,
-		Stage:           "completed",
-		ProgressPercent: 100,
-		Status:          "completed",
-		StorageURL:      finalPath,
-		FileSizeBytes:   info.Size(),
-	})
-
-	h.log.WithFields(logrus.Fields{
-		"export_id":    exportID,
-		"execution_id": execIDStr,
-		"output_path":  finalPath,
-		"file_size":    info.Size(),
-	}).Info("Recorded video export completed successfully")
-}
-
-// handleAsyncRecordedVideoExport handles recorded video exports with output_dir.
-func (h *Handler) handleAsyncRecordedVideoExport(w http.ResponseWriter, executionID uuid.UUID, videoSource *source.VideoSource, format, fileName, outputDir string) {
-	ctx := context.Background()
-
-	// Get execution to get workflow ID
-	execution, err := h.executionService.GetExecution(ctx, executionID)
-	if err != nil {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "get_execution"}))
-		return
-	}
-
-	// Generate export name
-	exportName := strings.TrimSpace(fileName)
-	if exportName == "" {
-		exportName = fmt.Sprintf("recording-%s", executionID.String()[:8])
-	}
-	exportName = strings.TrimSuffix(exportName, "."+format)
-
-	// Create export record
-	exportRecord := &database.ExportIndex{
-		ID:          uuid.New(),
-		ExecutionID: executionID,
-		WorkflowID:  &execution.WorkflowID,
-		Name:        exportName,
-		Format:      format,
-		Status:      "processing",
-		Settings:    buildExportReceiptSettings(export.Request{}, source.RenderSourceRecordedVideo),
-	}
-	exportRecord.Settings["selected_source"] = source.RenderSourceRecordedVideo
-	if videoSource.ArtifactID != "" {
-		exportRecord.Settings["source_artifact_id"] = videoSource.ArtifactID
-	}
-	if videoSource.SHA256 != "" {
-		exportRecord.Settings["source_sha256"] = videoSource.SHA256
-	}
-	if videoSource.ContentType != "" {
-		exportRecord.Settings["source_content_type"] = videoSource.ContentType
-	}
-	if videoSource.SizeBytes != nil {
-		exportRecord.Settings["source_size_bytes"] = *videoSource.SizeBytes
-	}
-
-	if err := h.repo.CreateExport(ctx, exportRecord); err != nil {
-		h.log.WithError(err).WithField("execution_id", executionID).Error("Failed to create export record")
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "create_export"}))
-		return
-	}
-
-	exportID := exportRecord.ID.String()
-	execIDStr := executionID.String()
-
-	// Broadcast initial progress
-	h.wsHub.BroadcastExportProgress(&wsHub.ExportProgress{
-		ExportID:        exportID,
-		ExecutionID:     execIDStr,
-		Stage:           "preparing",
-		ProgressPercent: 0,
-		Status:          "processing",
-	})
-
-	// Return immediately
-	h.respondSuccess(w, http.StatusAccepted, map[string]any{
-		"export_id":    exportID,
-		"execution_id": execIDStr,
-		"status":       "processing",
-		"message":      "Export started. Subscribe to WebSocket for progress updates.",
-	})
-
-	// Start background conversion
-	go func() {
-		broadcastProgress := func(stage string, percent float64, status string) {
-			h.wsHub.BroadcastExportProgress(&wsHub.ExportProgress{
-				ExportID:        exportID,
-				ExecutionID:     execIDStr,
-				Stage:           stage,
-				ProgressPercent: percent,
-				Status:          status,
-			})
-		}
-		broadcastError := func(errMsg string) {
-			_ = h.repo.UpdateExportStatus(context.Background(), exportRecord.ID, "failed", errMsg)
-			h.wsHub.BroadcastExportProgress(&wsHub.ExportProgress{
-				ExportID:        exportID,
-				ExecutionID:     execIDStr,
-				Stage:           "failed",
-				ProgressPercent: 0,
-				Status:          "failed",
-				Error:           errMsg,
-			})
-		}
-		h.renderRecordedVideoToFile(context.Background(), exportRecord, videoSource, format, outputDir, broadcastProgress, broadcastError)
-	}()
-}
-
-// copyFile copies a file from src to dst.
-func copyFile(src, dst string) error {
-	srcFile, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer srcFile.Close()
-
-	dstFile, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer dstFile.Close()
-
-	_, err = io.Copy(dstFile, srcFile)
-	return err
-}
-
-func (h *Handler) loadRecordedVideo(ctx context.Context, executionID uuid.UUID) (*source.VideoSource, error) {
+func (h *Handler) loadRecordedVideo(ctx context.Context, id uuid.UUID) (*source.VideoSource, error) {
 	if h.repo == nil {
 		return nil, source.ErrVideoNotFound
 	}
-	execution, err := h.repo.GetExecution(ctx, executionID)
-	if err != nil {
-		return nil, err
-	}
-	if strings.TrimSpace(h.recordingsRoot) == "" || strings.TrimSpace(execution.ResultPath) == "" {
-		return nil, source.ErrVideoNotFound
-	}
-	videoDir := filepath.Join(h.recordingsRoot, executionID.String(), "artifacts", "videos")
-	entries, err := os.ReadDir(videoDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, source.ErrVideoNotFound
-		}
-		return nil, err
-	}
-
-	files := make([]string, 0, len(entries))
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-		files = append(files, entry.Name())
-	}
-	if len(files) == 0 {
-		return nil, source.ErrVideoNotFound
-	}
-	sort.Strings(files)
-	path := filepath.Join(videoDir, files[0])
-	return &source.VideoSource{
-		Path:        path,
-		ContentType: source.DetectVideoContentType(path),
-	}, nil
-}
-
-func (h *Handler) serveRecordedVideo(w http.ResponseWriter, r *http.Request, videoSource *source.VideoSource, format, fileName string) error {
-	if videoSource == nil {
-		return errors.New("recorded video source missing")
-	}
-	if cleanup := videoSource.Cleanup; cleanup != nil {
-		defer cleanup()
-	}
-
-	inputPath := videoSource.Path
-	inputExt := strings.ToLower(filepath.Ext(inputPath))
-	outputPath := inputPath
-	var outputType string
-	var outputExt string
-	var outputCleanup func()
-
-	defer func() {
-		if outputCleanup != nil {
-			outputCleanup()
-		}
-	}()
-
-	switch format {
-	case "webm":
-		if inputExt != ".webm" {
-			return fmt.Errorf("recorded video is not webm")
-		}
-		outputType = "video/webm"
-		outputExt = ".webm"
-	case "mp4":
-		outputType = "video/mp4"
-		outputExt = ".mp4"
-		if inputExt != ".mp4" {
-			tmp, err := os.CreateTemp("", "bas-recorded-video-*.mp4")
-			if err != nil {
-				return err
-			}
-			_ = tmp.Close()
-			outputPath = tmp.Name()
-			outputCleanup = func() { _ = os.Remove(outputPath) }
-			encoder := render.NewFFmpegEncoder(render.DetectFFmpegBinary())
-			ctx, cancel := context.WithTimeout(r.Context(), constants.ExtendedRequestTimeout)
-			defer cancel()
-			if err := encoder.ConvertToMP4(ctx, inputPath, outputPath); err != nil {
-				return err
-			}
-		}
-	case "gif":
-		outputType = "image/gif"
-		outputExt = ".gif"
-		tmp, err := os.CreateTemp("", "bas-recorded-video-*.gif")
-		if err != nil {
-			return err
-		}
-		_ = tmp.Close()
-		outputPath = tmp.Name()
-		outputCleanup = func() { _ = os.Remove(outputPath) }
-		encoder := render.NewFFmpegEncoder(render.DetectFFmpegBinary())
-		ctx, cancel := context.WithTimeout(r.Context(), constants.ExtendedRequestTimeout)
-		defer cancel()
-		if err := encoder.ConvertToGIF(ctx, inputPath, outputPath, 0, 0); err != nil {
-			return err
-		}
-	default:
-		return fmt.Errorf("unsupported export format %q", format)
-	}
-
-	if strings.TrimSpace(outputType) == "" {
-		outputType = videoSource.ContentType
-		if strings.TrimSpace(outputType) == "" {
-			outputType = source.DetectVideoContentType(outputPath)
-		}
-	}
-	if outputExt == "" {
-		outputExt = inputExt
-	}
-	filename := normalizeExportFilename(fileName, "recorded-video", outputExt)
-
-	file, err := os.Open(outputPath)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	info, err := file.Stat()
-	if err != nil {
-		return err
-	}
-
-	w.Header().Set("Content-Type", outputType)
-	if info.Size() > 0 {
-		w.Header().Set("Content-Length", strconv.FormatInt(info.Size(), 10))
-	}
-	if strings.TrimSpace(filename) != "" {
-		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
-	}
-
-	http.ServeContent(w, r, filename, info.ModTime(), file)
-	return nil
+	return exportservices.ResolveExecutionRecording(ctx, h.repo, h.recordingsRoot, id, h.storage)
 }
 
 // prepareStyledRecordedVideo binds a measured continuous source to the same
 // canonical presentation renderer used by preview and replay export.
-func (h *Handler) prepareStyledRecordedVideo(ctx context.Context, executionID uuid.UUID, video *source.VideoSource, body export.Request) (*exportsv1.ReplaySpec, error) {
+func (h *Handler) prepareStyledRecordedVideo(ctx context.Context, executionID uuid.UUID, video *source.VideoSource, body export.Request) (*exportsv1.ReplaySpec, func(), error) {
 	base := strings.TrimRight(requestAPIBaseURL(), "/")
-	sourceURL := base + "/api/v1/recordings/assets/" + executionID.String() + "/artifacts/videos/" + url.PathEscape(filepath.Base(video.Path))
-	incoming := body.MovieSpec
-	if incoming == nil {
-		incoming = &exportsv1.ReplaySpec{}
+	sourcePath, cleanup, err := render.BrowserCompatibleRecording(ctx, video.Path, filepath.Join(h.recordingsRoot, executionID.String(), "artifacts", "export-sources"))
+	if err != nil {
+		return nil, func() {}, err
 	}
-	spec := proto.Clone(incoming).(*exportsv1.ReplaySpec)
-	config, _ := h.loadReplayConfig(ctx)
+	relative, err := filepath.Rel(filepath.Join(h.recordingsRoot, executionID.String()), sourcePath)
+	if err != nil || strings.HasPrefix(relative, "..") {
+		cleanup()
+		return nil, func() {}, fmt.Errorf("recorded source outside execution storage")
+	}
+	parts := strings.Split(filepath.ToSlash(relative), "/")
+	for i := range parts {
+		parts[i] = url.PathEscape(parts[i])
+	}
+	sourceURL := base + "/api/v1/recordings/assets/" + executionID.String() + "/" + strings.Join(parts, "/")
+	spec := &exportsv1.ReplaySpec{}
+	if body.MovieSpec != nil {
+		spec = proto.Clone(body.MovieSpec).(*exportsv1.ReplaySpec)
+	}
+	if err := h.resolveExportPresentation(ctx, spec, body); err != nil {
+		cleanup()
+		return nil, func() {}, err
+	}
+
+	prepared, err := render.PrepareRecordedVideoSpec(ctx, spec, sourcePath, sourceURL)
+	if err != nil {
+		cleanup()
+		return nil, func() {}, err
+	}
+	return prepared, cleanup, nil
+}
+
+// resolveExportPresentation adapts saved preferences once, then uses the service's
+// canonical override/policy operations for JSON, HTML, replay and recorded video.
+func (h *Handler) resolveExportPresentation(ctx context.Context, spec *exportsv1.ReplaySpec, body export.Request) error {
+	config, err := h.loadReplayConfig(ctx)
+	if err != nil {
+		return fmt.Errorf("load export presentation: %w", err)
+	}
 	applyReplayConfigToSpec(spec, config)
 	exportservices.Apply(spec, replayConfigToOverrides(config))
 	if body.MovieSpec != nil {
@@ -1014,7 +524,16 @@ func (h *Handler) prepareStyledRecordedVideo(ctx context.Context, executionID uu
 		}
 	}
 	exportservices.Apply(spec, body.Overrides)
-	return render.PrepareRecordedVideoSpec(ctx, spec, video.Path, sourceURL)
+	if h.entitlementService != nil {
+		required := false
+		if ent := entitlement.FromContext(ctx); ent != nil {
+			required = !ent.HasFeature(entitlement.FeatureWatermarkFree)
+		} else {
+			required = h.entitlementService.RequiresWatermark(ctx, entitlement.UserIdentityFromContext(ctx))
+		}
+		exportservices.EnforceWatermarkRequirements(spec, required)
+	}
+	return nil
 }
 
 func requestAPIBaseURL() string {

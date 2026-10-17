@@ -35,8 +35,7 @@ test("run controls encode inspection, investigation, review, continuation, and l
     await runs.result.current.deleteRun("run-a");
     await runs.result.current.getRunEvents("run-a", { afterSequence: 3n });
     await runs.result.current.getRunDiff("run-a");
-    await runs.result.current.approveRun("run-a", { actor: " operator ", commitMsg: "approve", force: true });
-    await runs.result.current.rejectRun("run-a", { actor: "operator", reason: "needs work" });
+    // Full approve/reject were retired from the UI (inbox-only); partial approve is preserved.
     await runs.result.current.partialApproveRun("run-a", ["file-a"], "operator", "partial");
     await runs.result.current.continueRun("run-a", "follow up", ["attachment-a"]);
     await runs.result.current.deleteRunMessage("run-a", "event-a");

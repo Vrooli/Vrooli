@@ -173,6 +173,9 @@ importers:
       eslint-plugin-react-refresh:
         specifier: ^0.4.20
         version: 0.4.26(eslint@9.39.4(jiti@1.21.7))
+      istanbul-lib-coverage:
+        specifier: 3.2.2
+        version: 3.2.2
       jsdom:
         specifier: ^27.1.0
         version: 27.4.0

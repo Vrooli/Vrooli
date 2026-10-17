@@ -64,10 +64,11 @@ func analyzeGoArchitectureWithClosure(scenario string, ws Workspace, now string,
 	scan := goWorkspaceScan{seamBypass: map[string]bool{}, seamDeclared: map[string]bool{}, rogueTestDirs: map[string]bool{}, testImports: map[string]bool{}}
 
 	walkSourceFiles(ws.RootPath, func(path string) {
+		helperPackage := hasTestHelperSegment(relTo(ws.RootPath, filepath.Dir(path)))
 		// A seam-implementation package (clock/httpc/envx/logx) legitimately
 		// calls the ambient primitives it wraps; its presence is evidence a
 		// seam exists, and it must never count as a production bypass.
-		if cat := seamDirCategory(path); cat != "" {
+		if cat := seamDirCategory(path); cat != "" && !helperPackage {
 			scan.seamDeclared[cat] = true
 		}
 		switch {
@@ -90,6 +91,9 @@ func analyzeGoArchitectureWithClosure(scenario string, ws Workspace, now string,
 			base := filepath.Base(rel)
 			if base == "testutil" || base == "testutils" || base == "testkit" || base == "testhelpers" {
 				scan.hasTestUtilPkg = true
+			}
+			if helperPackage {
+				return
 			}
 			imports := goImports(path)
 			for _, imp := range imports {
@@ -136,10 +140,10 @@ func analyzeGoArchitectureWithClosure(scenario string, ws Workspace, now string,
 		findings = append(findings, mk(codeTestHelperFromProd, scan.prodHelperUses[0].file,
 			"Production code imports a test-helper package.",
 			strings.Join(ex, "; "),
-			"Test helpers (testutil/mocks/fixtures) are imported only from _test.go files.",
+			"Test helpers are imported only from test files or other helper packages.",
 			fmt.Sprintf("%d production file(s) import test helpers", len(scan.prodHelperUses)),
 			"Importing test helpers from production ships test-only code in the binary and inverts the dependency direction.",
-			"Move the shared logic into a production package, or restrict the helper import to _test.go files (see the no_prod_import_test convention).",
+			"Move runtime logic into a production package, or restrict helper imports to test files and helper packages (see the no_prod_import_test convention).",
 		))
 	}
 
@@ -353,18 +357,20 @@ func bypassedSeams(bypass, declared map[string]bool) []string {
 // test-helper package (testutil/mocks/fixtures), which production code must not
 // import.
 func isTestHelperImport(importPath, modulePath string) bool {
-	if modulePath == "" || !strings.HasPrefix(importPath, modulePath) {
+	if modulePath == "" || !strings.HasPrefix(importPath, modulePath+"/") {
 		return false
 	}
-	last := importPath
-	if i := strings.LastIndex(importPath, "/"); i >= 0 {
-		last = importPath[i+1:]
+	return hasTestHelperSegment(strings.TrimPrefix(importPath, modulePath+"/"))
+}
+
+func hasTestHelperSegment(path string) bool {
+	for _, segment := range strings.Split(filepath.ToSlash(path), "/") {
+		switch segment {
+		case "testutil", "testutils", "testkit", "testhelpers", "mocks", "fixtures":
+			return true
+		}
 	}
-	switch last {
-	case "testutil", "testutils", "testkit", "testhelpers", "mocks", "fixtures":
-		return true
-	}
-	return strings.Contains(importPath, "/testutil/")
+	return false
 }
 
 // goImports returns the import paths of a Go file, best-effort.

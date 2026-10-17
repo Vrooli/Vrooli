@@ -7,6 +7,8 @@ export interface ReplayLayoutInput {
   canvas: ReplaySize;
   viewport: ReplaySize;
   browserScale: number;
+  /** Reserved space around the product window for device hardware. */
+  frameInset?: ReplayInset;
   chromeHeaderHeight?: number;
   contentInset?: ReplayInset;
   container?: ReplaySize;

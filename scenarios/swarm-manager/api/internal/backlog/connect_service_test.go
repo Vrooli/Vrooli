@@ -94,7 +94,7 @@ func TestConnectUpdateItem_ReplacesCriteriaWithExplicitFieldPresence(t *testing.
 	h, _ := setupTestHandler(t)
 	svc := NewConnectService(h)
 	createViaConnect(t, svc, &apipb.CreateBacklogItemRequest{Name: "criteria-update", Title: "Criteria update", Kind: "fix", AcceptanceCriteria: []*sharedpb.BacklogCriterion{{Gherkin: "Given the item exists When it is reviewed Then the initial criterion is retained."}}})
-	updated, err := svc.UpdateItem(context.Background(), connect.NewRequest(&apipb.UpdateItemRequest{
+	updated, err := svc.UpdateItem(bookkeepingOwnerContext(), connect.NewRequest(&apipb.UpdateItemRequest{
 		Kind: "fix", Name: "criteria-update", Fields: []string{"acceptance_criteria"},
 		Patch: &apipb.UpdateBacklogItemRequest{AcceptanceCriteria: []*sharedpb.BacklogCriterion{{Gherkin: "Given the item changes When it is reviewed Then the replacement criterion has a new id."}}},
 	}))
@@ -195,12 +195,12 @@ func TestConnectDecideAttemptRequiresActorAndWritesTerminalDecision(t *testing.T
 	}
 	svc := NewConnectService(h)
 
-	_, err := svc.DecideAttempt(context.Background(), connect.NewRequest(&apipb.DecideAttemptRequest{SubjectKind: "backlog-item", SubjectRef: "execute/reviewed", RoundNum: 1, Decision: "accept"}))
-	if err == nil || connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("missing actor error = %v, want invalid argument", err)
+	_, err := svc.DecideAttempt(context.Background(), connect.NewRequest(&apipb.DecideAttemptRequest{SubjectKind: "backlog-item", SubjectRef: "execute/reviewed", RoundNum: 1, Decision: "accept", Actor: "operator:test"}))
+	if err == nil {
+		t.Fatal("caller-supplied actor substituted for verified human identity")
 	}
 
-	resp, err := svc.DecideAttempt(context.Background(), connect.NewRequest(&apipb.DecideAttemptRequest{SubjectKind: "backlog-item", SubjectRef: "execute/reviewed", RoundNum: 1, Decision: "accept", Actor: "operator@example.test", Rationale: "Criterion evidence is sufficient."}))
+	resp, err := svc.DecideAttempt(bookkeepingOwnerContext(), connect.NewRequest(&apipb.DecideAttemptRequest{SubjectKind: "backlog-item", SubjectRef: "execute/reviewed", RoundNum: 1, Decision: "accept", Actor: "operator@example.test", Rationale: "Criterion evidence is sufficient."}))
 	if err != nil {
 		t.Fatalf("DecideAttempt: %v", err)
 	}
@@ -242,11 +242,11 @@ func TestConnectDecideAttemptRequiresExistingAddressedRound(t *testing.T) {
 		t.Fatalf("save round: %v", err)
 	}
 	svc := NewConnectService(h)
-	_, err := svc.DecideAttempt(context.Background(), connect.NewRequest(&apipb.DecideAttemptRequest{SubjectKind: "backlog-item", SubjectRef: "execute/attempt-reviewed", RoundNum: 1, Decision: "accept", Actor: "operator@example.test"}))
+	_, err := svc.DecideAttempt(bookkeepingOwnerContext(), connect.NewRequest(&apipb.DecideAttemptRequest{SubjectKind: "backlog-item", SubjectRef: "execute/attempt-reviewed", RoundNum: 1, Decision: "accept", Actor: "operator@example.test"}))
 	if err == nil || connect.CodeOf(err) != connect.CodeNotFound {
 		t.Fatalf("missing round error = %v, want not found", err)
 	}
-	resp, err := svc.DecideAttempt(context.Background(), connect.NewRequest(&apipb.DecideAttemptRequest{SubjectKind: "backlog-item", SubjectRef: "execute/attempt-reviewed", RoundNum: 2, Decision: "accept", Actor: "operator@example.test", Rationale: "Evidence reviewed."}))
+	resp, err := svc.DecideAttempt(bookkeepingOwnerContext(), connect.NewRequest(&apipb.DecideAttemptRequest{SubjectKind: "backlog-item", SubjectRef: "execute/attempt-reviewed", RoundNum: 2, Decision: "accept", Actor: "operator@example.test", Rationale: "Evidence reviewed."}))
 	if err != nil {
 		t.Fatalf("DecideAttempt: %v", err)
 	}

@@ -50,6 +50,7 @@ import (
 	"github.com/vrooli/vrooli/internal/tools"
 	"github.com/vrooli/vrooli/internal/tools/cloudflared"
 	"github.com/vrooli/vrooli/internal/tools/docker"
+	"github.com/vrooli/vrooli/internal/tools/hyperframes"
 	kdumptools "github.com/vrooli/vrooli/internal/tools/kdump-tools"
 	"github.com/vrooli/vrooli/internal/tools/mcelog"
 	"github.com/vrooli/vrooli/internal/tools/protoc"
@@ -81,6 +82,7 @@ var customToolHandlers = map[string]func(hostreqkit.ToolManifest) hostreqkit.Han
 	"protoc_gen_es":         protocgenes.NewHandler,
 	"protoc_gen_go":         protocgengo.NewHandler,
 	"quint":                 quint.NewHandler,
+	"hyperframes":           hyperframes.NewHandler,
 	"rasdaemon":             rasdaemon.NewHandler,
 	"stripe":                stripe.NewHandler,
 	"vault":                 vault.NewHandler,

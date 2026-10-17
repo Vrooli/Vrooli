@@ -1,4 +1,5 @@
 import react from '@vitejs/plugin-react';
+import { readFileSync } from 'node:fs';
 import RequirementReporter from '@vrooli/vitest-requirement-reporter';
 import http from 'http';
 import path from 'path';
@@ -22,18 +23,14 @@ const UI_VERSION = process.env.npm_package_version || '1.0.0';
 const MAX_VITEST_THREADS = Math.max(1, Number(process.env.VITEST_MAX_THREADS ?? '2'));
 const MIN_VITEST_THREADS = Math.max(1, Math.min(MAX_VITEST_THREADS, Number(process.env.VITEST_MIN_THREADS ?? '1')));
 const COLLECTING_RAW_COVERAGE = process.env.BAS_COLLECT_RAW_COVERAGE === '1';
+const { projects: PROJECTS, coverage: COVERAGE } = JSON.parse(readFileSync(new URL('./vitest.projects.json', import.meta.url), 'utf8')) as {
+  projects: Array<{ name: string; include: string[]; exclude?: string[]; pool: 'threads' | 'forks' }>;
+  coverage: { include: string[]; exclude: string[]; thresholds: { lines: number; functions: number; branches: number; statements: number } };
+};
 const PROJECT_BASE_TEST_CONFIG = {
   environment: 'jsdom',
   setupFiles: ['./src/test-setup.ts'],
   globals: true,
-  // The scenario runner merges raw maps from every focused project, then
-  // enforces the configured 85% floor once over the complete suite.
-  coverage: COLLECTING_RAW_COVERAGE
-    ? {
-      all: false,
-      thresholds: { lines: 0, functions: 0, branches: 0, statements: 0 },
-    }
-    : undefined,
 };
 
 const THREADS_TWO = {
@@ -248,11 +245,11 @@ export default defineConfig(({ mode }): UserConfig => {
       // Note: 'default' reporter removed when using conciseMode to eliminate verbose output
       // Our custom reporter provides all necessary output in a concise format
       new RequirementReporter({
-        outputFile: 'coverage/vitest-requirements.json',
+        outputFile: process.env.BAS_REQUIREMENTS_OUTPUT_FILE ?? 'coverage/vitest-requirements.json',
         emitStdout: true,  // CRITICAL: Required for existing shell parsers
         verbose: true,
         conciseMode: true,  // Enable concise output with failure artifacts
-        artifactsDir: 'coverage/unit',
+        artifactsDir: process.env.BAS_REQUIREMENTS_ARTIFACTS_DIR ?? 'coverage/unit',
         autoClear: true,
       }),
     ],
@@ -269,218 +266,28 @@ export default defineConfig(({ mode }): UserConfig => {
       all: !COLLECTING_RAW_COVERAGE,
       reporter: ['text', 'json', 'html', 'json-summary'],
       reportsDirectory: './coverage',
-      include: ['src/**/*.{ts,tsx}'],
-      exclude: [
-        'src/**/*.test.{ts,tsx}',
-        'src/**/*.test.{ts,tsx,mjs}',
-        'src/**/*.spec.{ts,tsx}',
-        'src/**/*.spec.{ts,tsx,mjs}',
-        'src/**/*.d.ts',
-        'src/main.tsx',
-        'src/bootstrap.tsx',
-        'src/test-setup.ts',
-        'src/test-utils/**',
-        'src/consts/strings.generated.ts',
-        'src/i18n/locales/**',
-        'src/**/generated/**',
-      ],
+      include: COVERAGE.include,
+      exclude: COVERAGE.exclude,
       reportOnFailure: true,
-      thresholds: {
-        lines: 85,
-        functions: 85,
-        branches: 85,
-        statements: 85,
-      },
+      thresholds: COVERAGE.thresholds,
     },
     environmentOptions: {
       jsdom: {
         url: 'http://localhost:3000/',
       },
     },
-    projects: [
-      defineProject({
-        resolve: { alias: ALIASES },
-        test: {
-          ...PROJECT_BASE_TEST_CONFIG,
-          name: 'boundaries',
-          include: ['vitest/boundaries/**/*.test.ts'],
-          pool: 'threads',
-          poolOptions: THREADS_TWO,
-          coverage: {
-            enabled: false,
-          },
-        },
-      }),
-      defineProject({
-        resolve: { alias: ALIASES },
-        test: {
-          ...PROJECT_BASE_TEST_CONFIG,
-          name: 'stores',
-          include: [
-            'src/stores/**/*.test.{ts,tsx}',
-            'src/stores/**/*.spec.{ts,tsx}',
-            'src/hooks/useWorkflowVariables.test.ts',
-          ],
-          pool: 'threads',
-          poolOptions: THREADS_TWO,
-        },
-      }),
-      defineProject({
-        resolve: { alias: ALIASES },
-        test: {
-          ...PROJECT_BASE_TEST_CONFIG,
-          name: 'features-core',
-          include: [
-            'src/domains/projects/ProjectModal.test.tsx',
-            'src/domains/projects/ProjectDetail.test.tsx',
-            'src/domains/ai/AIPromptModal.test.tsx',
-            'src/domains/workflows/WorkflowCreationDialog.test.tsx',
-            'src/shared/layout/ResponsiveDialog.test.tsx',
-            'src/domains/workflows/components/VariableSuggestionList.test.tsx',
-            'src/domains/executions/viewer/ExecutionViewer.test.tsx',
-            'src/domains/workflows/builder/WorkflowToolbar.test.tsx',
-          ],
-          pool: 'threads',
-          poolOptions: THREADS_TWO,
-        },
-      }),
-      defineProject({
-        resolve: { alias: ALIASES },
-        test: {
-          ...PROJECT_BASE_TEST_CONFIG,
-          name: 'workflow-palette',
-          include: ['src/domains/workflows/builder/NodePalette.test.tsx'],
-          pool: 'forks',
-          poolOptions: FORKS_ONE,
-          reuseWorkers: false,
-        },
-      }),
-      defineProject({
-        resolve: { alias: ALIASES },
-        test: {
-          ...PROJECT_BASE_TEST_CONFIG,
-          name: 'workflow-builder',
-          include: [
-            'src/domains/workflows/builder/WorkflowBuilder.test.tsx',
-            'src/domains/workflows/nodes/ActionNode.test.tsx',
-          ],
-          pool: 'forks',
-          poolOptions: FORKS_ONE,
-          reuseWorkers: false,
-        },
-      }),
-      defineProject({
-        resolve: { alias: ALIASES },
-        test: {
-          ...PROJECT_BASE_TEST_CONFIG,
-          name: 'utils',
-          include: ['src/utils/**/*.test.{ts,tsx}'],
-          pool: 'threads',
-          poolOptions: THREADS_TWO,
-        },
-      }),
-      defineProject({
-        resolve: { alias: ALIASES },
-        test: {
-          ...PROJECT_BASE_TEST_CONFIG,
-          name: 'api-clients',
-          include: ['src/api/**/*.test.{ts,tsx}'],
-          pool: 'threads',
-          poolOptions: THREADS_TWO,
-        },
-      }),
-      defineProject({
-        resolve: { alias: ALIASES },
-        test: {
-          ...PROJECT_BASE_TEST_CONFIG,
-          name: 'record-mode',
-          include: ['src/domains/recording/**/*.test.{ts,tsx}', 'src/views/RecordModeView/**/*.test.{ts,tsx}'],
-          pool: 'threads',
-          poolOptions: THREADS_TWO,
-        },
-      }),
-      defineProject({
-        resolve: { alias: ALIASES },
-        test: {
-          ...PROJECT_BASE_TEST_CONFIG,
-          name: 'session-manager',
-          include: ['src/views/SettingsView/sections/sessions/SessionManager/**/*.test.{ts,tsx}'],
-          pool: 'threads',
-          poolOptions: THREADS_TWO,
-        },
-      }),
-      defineProject({
-        resolve: { alias: ALIASES },
-        test: {
-          ...PROJECT_BASE_TEST_CONFIG,
-          name: 'subscription',
-          include: ['src/views/SettingsView/sections/subscription/**/*.test.{ts,tsx}'],
-          pool: 'threads',
-          poolOptions: THREADS_TWO,
-        },
-      }),
-      defineProject({
-        resolve: { alias: ALIASES },
-        test: {
-          ...PROJECT_BASE_TEST_CONFIG,
-          name: 'components',
-          include: ['src/components/**/*.test.{ts,tsx}'],
-          pool: 'threads',
-          poolOptions: THREADS_TWO,
-        },
-      }),
-      defineProject({
-        resolve: { alias: ALIASES },
-        test: {
-          ...PROJECT_BASE_TEST_CONFIG,
-          name: 'export-domain',
-          include: ['src/domains/executions/export/**/*.test.{ts,tsx}'],
-          pool: 'threads',
-          poolOptions: THREADS_TWO,
-        },
-      }),
-      defineProject({
-        resolve: { alias: ALIASES },
-        test: {
-          ...PROJECT_BASE_TEST_CONFIG,
-          name: 'execution-viewer',
-          include: [
-            'src/domains/executions/InlineExecution*.test.{ts,tsx}',
-            'src/domains/executions/history/**/*.test.{ts,tsx}',
-            'src/domains/executions/hooks/useExecutionEvents.test.{ts,tsx}',
-            'src/domains/executions/viewer/useExecutionHeartbeat.test.{ts,tsx}',
-            'src/domains/executions/viewer/useExecutionExport.test.{ts,tsx}',
-          ],
-          pool: 'threads',
-          poolOptions: THREADS_TWO,
-        },
-      }),
-      defineProject({
-        resolve: { alias: ALIASES },
-        test: {
-          ...PROJECT_BASE_TEST_CONFIG,
-          name: 'exports-domain',
-          include: ['src/domains/exports/**/*.test.{ts,tsx}'],
-          pool: 'threads',
-          poolOptions: THREADS_TWO,
-        },
-      }),
-      defineProject({
-        resolve: { alias: ALIASES },
-        test: {
-          ...PROJECT_BASE_TEST_CONFIG,
-          name: 'shared',
-          include: [
-            'src/shared/**/*.test.{ts,tsx}',
-            'src/domains/executions/utils/protoEnumName.test.ts',
-            'src/domains/**/services/**/*.test.{ts,tsx}',
-            'src/views/**/controllers/**/*.test.{ts,tsx}',
-          ],
-          pool: 'threads',
-          poolOptions: THREADS_TWO,
-        },
-      }),
-    ],
+    projects: PROJECTS.map((project) => defineProject({
+      resolve: { alias: ALIASES },
+      test: {
+        ...PROJECT_BASE_TEST_CONFIG,
+        name: project.name,
+        include: project.include,
+        exclude: project.exclude,
+        pool: project.pool,
+        poolOptions: project.pool === 'forks' ? FORKS_ONE : THREADS_TWO,
+        ...(project.pool === 'forks' ? { reuseWorkers: false } : {}),
+      },
+    })),
   },
   server: {
     port: parseInt(UI_PORT),

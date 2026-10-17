@@ -74,6 +74,15 @@ func (p *notificationsProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if dev := r.Header.Get("X-Vrooli-Device-Id"); dev != "" {
 		request.Header.Set("X-Vrooli-Device-Id", dev)
 	}
+	// Forward the Cloudflare Access assertion so the hub's human-proof path runs
+	// on answers submitted through the inbox: the hub verifies it and attributes
+	// the answer to the ACTUAL signed-in human (answered_by), not the single
+	// configured operator subject. Cloudflare sets this header on every request
+	// that passed Access; a request without Access simply omits it and the hub
+	// falls back to the bearer/cookie owner identity.
+	if access := r.Header.Get("Cf-Access-Jwt-Assertion"); access != "" {
+		request.Header.Set("Cf-Access-Jwt-Assertion", access)
+	}
 	response, err := p.client.Do(request)
 	if err != nil {
 		notificationsUnavailable(w)

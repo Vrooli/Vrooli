@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import math
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -28,8 +29,38 @@ def run(args):
 
 
 def probe(path):
-    return json.loads(run(['ffprobe', '-v', 'error', '-show_streams', '-show_format',
+    meta = json.loads(run(['ffprobe', '-v', 'error', '-show_streams', '-show_format',
                            '-of', 'json', str(path)]).stdout)
+    missing = []
+    for stream in meta.get('streams', []):
+        if stream.get('codec_type') in ('video', 'audio'):
+            try:
+                stream_span(stream)
+            except (ValueError, TypeError, KeyError, ZeroDivisionError):
+                missing.append(stream)
+    if missing:
+        duration = float(meta.get('format', {}).get('duration', 0))
+        format_start = float(meta.get('format', {}).get('start_time', 0))
+        if math.isfinite(duration) and 0 < duration <= 600 and math.isfinite(format_start):
+            # Read the beginning and actual EOF, rather than trusting WebM's
+            # optional DURATION tags or inventing audio length from the container.
+            observations = []
+            for interval in ('%+1', f'{max(0, duration - 1)}%'):
+                observations.append(json.loads(run(['ffprobe', '-v', 'error', '-read_intervals', interval,
+                    '-show_packets', '-show_entries',
+                    'packet=stream_index,pts_time,duration_time:packet_side_data=side_data_type,skip_samples,discard_padding',
+                    '-of', 'json', str(path)]).stdout).get('packets', []))
+            for stream in missing:
+                span = observed_packet_span(stream, *observations)
+                # A missing/overshot EOF seek must not shrink both tracks to the
+                # opening and then declare them mutually complete. This checks
+                # timing consistency; it never supplies a missing audio length.
+                expected_end = format_start + duration
+                if span is not None and stream.get('codec_type') == 'video' and abs(span['end'] - expected_end) > .08:
+                    span = None
+                if span is not None:
+                    stream['observed_packet_span'] = span
+    return meta
 
 
 def number(value, minimum=0):
@@ -192,7 +223,11 @@ def validate(plan, root, stage='plan'):
                     video = next(v for v in media['streams'] if v['codec_type'] == 'video')
                     need(dims_ok and crop[0]+crop[2] <= video['width'] and crop[1]+crop[3] <= video['height'],
                          f'{label}: crop outside encoded source')
-                    need(float(media['format']['duration'])+.04 >= length, f'{label}: clip shorter than scene; declare a separate hold')
+                    still = p.suffix.lower() in ('.png', '.jpg', '.jpeg', '.webp') and video.get('codec_name') in ('png', 'mjpeg', 'webp')
+                    if still:
+                        need(s.get('proof_kind', 'state') == 'state', f'{label}: still image cannot prove an interaction')
+                    else:
+                        need(float(media['format']['duration'])+.04 >= length, f'{label}: clip shorter than scene; declare a separate hold')
                 except (ValueError, KeyError, StopIteration) as e:
                     errors.append(f'{label}: media probe failed: {e}')
             evidence.append(s['id'])
@@ -214,10 +249,15 @@ def validate(plan, root, stage='plan'):
         if audio.get('source_kind') == 'original-score':
             need(audio.get('original_score_requested') is True and text(audio.get('request_source')),
                  'original score requires an explicit operator request')
-        if audio.get('variety_requested'):
-            styles = audio.get('candidate_styles', [])
-            need(isinstance(styles, list) and len({s for s in styles if text(s)}) >= 2,
-                 'requested music variety needs distinct styles')
+        if current and audio.get('variety_requested'):
+            need(text(audio.get('variety_rationale')),
+                 'requested music variety needs an evidence-based rationale')
+    if current and audio.get('mode') != 'silent':
+        source_id = audio.get('source_id', '')
+        need(text(source_id), 'audio.source_id must identify the actual selected take/source')
+        catalog = json.loads((SKILL/'references/examples.json').read_text())
+        excluded = catalog.get('excluded_audio_source_ids', []) + audio.get('excluded_source_ids', [])
+        need(not any(value and value in source_id for value in excluded), 'selected audio source was explicitly rejected')
     if profile == 'flagship':
         directions = plan.get('directions', [])
         need(len(directions) >= 3, 'flagship requires three creative directions')
@@ -228,6 +268,15 @@ def validate(plan, root, stage='plan'):
                 need(text(d.get(key)), f'direction {d.get("id")}: {key} required')
         need(plan.get('chosen_direction') in [d.get('id') for d in directions], 'chosen direction missing')
         if stage != 'plan':
+            if current:
+                for direction in directions:
+                    rough = file(direction.get('rough'), 'direction timed rough')
+                    need(text(direction.get('rough_observations')), 'direction timed comparison observations required')
+                    if rough:
+                        try:
+                            need(float(probe(rough)['format']['duration']) > 0, 'direction rough must have measured timing')
+                        except (ValueError, KeyError) as error:
+                            errors.append(f'direction rough timing unavailable: {error}')
             frames = plan.get('styleframes', [])
             need({f.get('role') for f in frames} >= {'opening','hero','detail','ending'}, 'four styleframe roles required')
             for f in frames:
@@ -259,8 +308,13 @@ def validate(plan, root, stage='plan'):
                 if qr and asset_path.is_file():
                     report = json.loads(qr.read_text())
                     need(report.get('sha256') == digest(asset_path) and report.get('url') == cta.get('url')
-                         and report.get('status') == 'pass' and len(report.get('times', [])) >= 2
-                         and len(report.get('widths', [])) >= 2, 'QR report must cover final video at multiple times and sizes')
+                         and report.get('status') == 'pass' and len(set(report.get('times', []))) >= 2
+                         and len(set(report.get('widths', []))) >= 2, 'QR report must cover final video at multiple times and sizes')
+                    pairs = {(c.get('time'), c.get('width')) for c in report.get('checks', [])
+                             if c.get('passed') is True and c.get('decoded') == cta.get('url')}
+                    required = {(t, w) for t in report.get('times', []) for w in report.get('widths', [])}
+                    need(report.get('inputs_stable') is True and bool(required) and pairs >= required,
+                         'QR report contains missing, failed or mismatched final-frame decodes')
     if stage == 'deliver':
         need(plan.get('kind') == 'launch', 'study is not a completed launch demonstration')
         need(story.get('proof_scene') in evidence, 'missing real product proof')
@@ -285,6 +339,16 @@ def validate(plan, root, stage='plan'):
                     need(report.get('sha256') == digest(asset) and report.get('decode_ok') is True, 'technical inspection is stale or decode failed')
                     if current:
                         need(report.get('inputs_stable') is True, 'technical inspection inputs changed during verification')
+                        if audio.get('mode') != 'silent':
+                            metrics = report.get('audio_metrics', {})
+                            lufs, peak = metrics.get('lufs'), metrics.get('true_peak_dbtp')
+                            target = audio.get('target_lufs', -16)
+                            valid_target = isinstance(target, (float, int)) and not isinstance(target, bool) and math.isfinite(target)
+                            need(valid_target, 'invalid loudness target')
+                            need(isinstance(lufs, (float, int)) and math.isfinite(lufs) and valid_target and abs(lufs-target) <= 2,
+                                 'final audio loudness outside target ±2 LUFS')
+                            need(isinstance(peak, (float, int)) and math.isfinite(peak) and peak <= -1,
+                                 'final audio true peak exceeds -1 dBTP or is unavailable')
             except (ValueError, KeyError, StopIteration, ZeroDivisionError) as e:
                 errors.append(f'export verification failed: {e}')
         if profile == 'flagship':
@@ -302,8 +366,54 @@ def validate(plan, root, stage='plan'):
     return errors
 
 
+def observed_packet_span(stream, beginning, ending):
+    """Observed edge timing, including codec sample trimming; not a gap/silence verdict."""
+    groups = []
+    for packets in (beginning, ending):
+        edges = []
+        for packet in packets:
+            if packet.get('stream_index') != stream.get('index'):
+                continue
+            try:
+                edges.append(packet_edge(stream, packet))
+            except (KeyError, TypeError, ValueError, ZeroDivisionError, AttributeError):
+                return None
+        if not edges:
+            return None
+        groups.append(edges)
+    return {'start': min(x[0] for x in groups[0]), 'end': max(x[1] for x in groups[1]),
+            'method': 'ffprobe-beginning-and-eof-packets',
+            'sampled_packets': sum(len(x) for x in groups),
+            'beginning_packets': len(groups[0]), 'ending_packets': len(groups[1])}
+
+
+def packet_edge(stream, packet):
+    """Return finite packet timing after any explicit codec sample trimming."""
+    start = float(packet['pts_time'])
+    length = float(packet['duration_time'])
+    end = start + length
+    for side in packet.get('side_data_list', []):
+        skip = float(side.get('skip_samples', 0))
+        discard = float(side.get('discard_padding', 0))
+        if skip or discard:
+            rate = float(stream['sample_rate'])
+            if not math.isfinite(rate) or rate <= 0 or skip < 0 or discard < 0:
+                raise ValueError('invalid packet sample trimming')
+            start += skip / rate
+            end -= discard / rate
+    if not all(math.isfinite(v) for v in (start, length, end)) or length <= 0 or end <= start:
+        raise ValueError('invalid packet timing')
+    return start, end
+
+
 def stream_span(stream):
     """Use stream timing, never container duration as proof of audio coverage."""
+    if 'observed_packet_span' in stream:
+        span = stream['observed_packet_span']
+        start, end = float(span['start']), float(span['end'])
+        if not math.isfinite(start) or not math.isfinite(end) or end <= start:
+            raise ValueError('invalid observed packet timing')
+        return start, end
     start = float(stream.get('start_time', 0))
     if 'duration' in stream:
         length = float(stream['duration'])
@@ -323,7 +433,7 @@ def audio_covers_video(meta, tolerance=.08):
         audio = [stream_span(s) for s in meta['streams'] if s['codec_type'] == 'audio']
         return bool(videos and any(a[0] <= min(v[0] for v in videos) + tolerance and
                                   a[1] >= max(v[1] for v in videos) - tolerance for a in audio))
-    except (ValueError, KeyError, ZeroDivisionError):
+    except (ValueError, TypeError, KeyError, ZeroDivisionError):
         return False
 
 
@@ -359,6 +469,13 @@ def inspect(video, output, times, cuts=""):
         filters += ['-af', 'silencedetect=n=-50dB:d=0.3,loudnorm=I=-16:TP=-1:LRA=11:print_format=json']
     analysis = run(['ffmpeg', '-hide_banner', '-threads', '2', '-i', str(video), *filters, '-f', 'null', '-'])
     (output/'signal-analysis.log').write_text(analysis.stderr)
+    matches = re.findall(r'\{\s*"input_i".*?\}', analysis.stderr, flags=re.S)
+    if matches:
+        measured = json.loads(matches[-1])
+        report['audio_metrics'] = {key: float(measured[field]) if math.isfinite(float(measured[field])) else None
+                                   for key, field in [('lufs', 'input_i'), ('true_peak_dbtp', 'input_tp')]}
+        report['silence_starts'] = [float(t) for t in re.findall(r'silence_start: ([0-9.]+)', analysis.stderr)]
+        report['silence_ends'] = [float(t) for t in re.findall(r'silence_end: ([0-9.]+)', analysis.stderr)]
     for i,t in enumerate(requested):
         name=f'frame-{i:02d}-{t:06.2f}.jpg'
         run(['ffmpeg','-v','error','-threads','2','-ss',str(t),'-i',str(video),'-frames:v','1','-q:v','2',str(output/name)])
@@ -367,6 +484,19 @@ def inspect(video, output, times, cuts=""):
     report['inputs_stable'] = digest(video) == original
     (output/'inspection.json').write_text(json.dumps(report,indent=2)+'\n')
     return report
+
+
+def retrieve(rows, intent, limit):
+    # Search semantic metadata, not shared paths such as product-video-research.
+    keys = ('id', 'intent', 'purpose', 'product', 'viewport', 'date', 'build', 'proof_scope', 'lesson', 'notes', 'media')
+    query = set(re.findall(r'[a-z0-9]+', intent.casefold()))
+    ranked = []
+    for row in rows:
+        words = set(re.findall(r'[a-z0-9]+', json.dumps([row.get(k) for k in keys]).casefold()))
+        score = len(query & words)
+        if score:
+            ranked.append((score, row))
+    return [dict(row) for _, row in sorted(ranked, key=lambda pair: -pair[0])[:limit]]
 
 
 def main():
@@ -392,9 +522,13 @@ def main():
         if args.command in ('shots', 'examples'):
             if not 1 <= args.limit <= 12: raise ValueError('limit must be 1–12')
             catalog=json.loads((SKILL/'references'/('shots.json' if args.command == 'shots' else 'examples.json')).read_text())
-            query=args.intent.lower().split()
-            ranked=sorted(((sum(w in json.dumps(r).lower() for w in query),r) for r in catalog[args.command]),key=lambda x:-x[0])
-            print(json.dumps([r for score,r in ranked if score][:args.limit],indent=2))
+            rows = retrieve(catalog[args.command], args.intent, args.limit)
+            if args.command == 'examples':
+                for row in rows:
+                    path = Path(row.get('video') or row.get('asset') or row.get('evidence', '')).expanduser()
+                    row['reference_status'] = 'missing' if not path.is_file() else (
+                        'hash-mismatch' if row.get('sha256') and digest(path) != row['sha256'] else 'available')
+            print(json.dumps(rows,indent=2))
         else:
             r=inspect(args.video,args.out,args.at,args.cuts)
             print(json.dumps({'sha256':r['sha256'],'decode_ok':r['decode_ok'],'samples':len(r['samples']),

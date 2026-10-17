@@ -178,8 +178,7 @@ test("run controls preserve investigation context, review attribution, continuat
     await runs.result.current.applyInvestigation("investigation-1", ["recommendation-1"], "apply safely", ["attachment-2"], { roleRef: "implementer" });
     await runs.result.current.resumeFromFailedRun("failed-1", "finish safely", ["attachment-3"]);
     await runs.result.current.getRun("run-1"); await runs.result.current.getRunEvents("run-1", { afterSequence: 9n }); await runs.result.current.getRunDiff("run-1");
-    await runs.result.current.approveRun("run-1", { actor: "  operator ", commitMsg: "reviewed", force: true });
-    await runs.result.current.rejectRun("run-1", { actor: "  operator ", reason: "insufficient evidence" });
+    // Full approve/reject were retired from the UI (inbox-only); partial approve is preserved.
     await runs.result.current.partialApproveRun("run-1", ["file-1"], "  operator ", "partial");
     await runs.result.current.continueRun("run-1", "continue after report", ["attachment-4"]);
     await runs.result.current.stopRun("run-1"); await runs.result.current.deleteRunMessage("run-1", "event-1"); await runs.result.current.deleteRun("run-1");
@@ -187,7 +186,7 @@ test("run controls preserve investigation context, review attribution, continuat
   const bodyFor = (needle: string) => String(fetch.mock.calls.find(([url]) => String(url).includes(needle))?.[1]?.body);
   assert.match(bodyFor("/investigations"), /"maxTurns":16/); assert.match(bodyFor("/investigations"), /"allowSubjectMutation":false/);
   assert.match(bodyFor("investigation-apply"), /"roleRef":"implementer"/); assert.match(bodyFor("/continue"), /"attachment_ids"/);
-  assert.match(bodyFor("/approve"), /"actor":"operator"/); assert.match(bodyFor("/reject"), /"reason":"insufficient evidence"/);
+  assert.match(bodyFor("/partial-approve"), /"actor":"operator"/);
   assert.equal(fetch.mock.calls.some(([url]) => String(url).includes("after_sequence=9")), true);
 });
 
@@ -228,8 +227,7 @@ test("run read and review controls keep optional request fields absent when oper
 
   await act(async () => {
     assert.deepEqual(await runs.result.current.getRunEvents("run-1"), []);
-    await runs.result.current.approveRun("run-1", { actor: "   " });
-    await runs.result.current.rejectRun("run-1", { actor: "   ", reason: "not ready" });
+    // Full approve/reject were retired from the UI; partial approve is preserved.
     await runs.result.current.partialApproveRun("run-1", [], "   ", "");
   });
 

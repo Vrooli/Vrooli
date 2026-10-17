@@ -106,9 +106,10 @@ interface SessionActions {
     actualViewport?: ActualViewport | null;
   }) => void;
   /** Validate that a session exists on the server before subscribing */
-  validateSession: (sessionId: string) => Promise<boolean>;
+  validateSession: (sessionId: string, options?: { profileId?: string | null; signal?: AbortSignal }) => Promise<boolean>;
   clearSession: () => void;
-  setIsCreating: (isCreating: boolean) => void;
+  /** An opaque owner can retire its own loading flag without clearing a successor's. */
+  setIsCreating: (isCreating: boolean, owner?: object) => void;
   setIsValidating: (isValidating: boolean) => void;
   setError: (error: string | null) => void;
   setRetryState: (retryState: Partial<RetryState>) => void;
@@ -196,7 +197,16 @@ const initialState: SessionState = {
 // ============================================================================
 
 export const useSessionStore = create<SessionStore>()(
-  subscribeWithSelector((set, get) => ({
+  subscribeWithSelector((set, get) => {
+    let validationGeneration = 0;
+    let validationController: AbortController | null = null;
+    let creationOwner: object | undefined;
+    const retireValidation = () => {
+      validationGeneration += 1;
+      validationController?.abort();
+      validationController = null;
+    };
+    return {
     ...initialState,
 
     // ========================================================================
@@ -204,6 +214,8 @@ export const useSessionStore = create<SessionStore>()(
     // ========================================================================
 
     setSession: (data) => {
+      retireValidation();
+      creationOwner = undefined;
       console.log('[sessionStore] setSession called:', {
         sessionId: data.sessionId,
         profileId: data.profileId ?? null,
@@ -220,7 +232,8 @@ export const useSessionStore = create<SessionStore>()(
       });
     },
 
-    validateSession: async (sessionId: string) => {
+    validateSession: async (sessionId: string, options?: { profileId?: string | null; signal?: AbortSignal }) => {
+      if (options?.signal?.aborted) return false;
       const state = get();
 
       console.log('[sessionStore] validateSession called:', {
@@ -231,15 +244,30 @@ export const useSessionStore = create<SessionStore>()(
 
       // Already validated this session
       if (state.sessionId === sessionId && state.isValidated) {
+        retireValidation();
+        set({ isValidating: false });
         console.log('[sessionStore] Session already validated, skipping');
         return true;
       }
+
+      retireValidation();
+      const generation = validationGeneration;
+      const controller = new AbortController();
+      validationController = controller;
+      const isCurrent = () => generation === validationGeneration && !controller.signal.aborted;
+      const retireFromCaller = () => {
+        if (!isCurrent()) return;
+        retireValidation();
+        set({ isValidating: false });
+      };
+      options?.signal?.addEventListener('abort', retireFromCaller, { once: true });
 
       set({ isValidating: true, error: null });
 
       try {
         const apiUrl = getApiBase();
-        const res = await fetch(`${apiUrl}/recordings/live/${sessionId}/pages`);
+        const res = await fetch(`${apiUrl}/recordings/live/${sessionId}/pages`, { signal: controller.signal });
+        if (!isCurrent()) return false;
         const isValid = res.ok;
 
         console.log('[sessionStore] Validation result:', { sessionId, isValid, status: res.status });
@@ -247,6 +275,7 @@ export const useSessionStore = create<SessionStore>()(
         if (isValid) {
           set({
             sessionId,
+            ...(options?.profileId !== undefined ? { profileId: options.profileId } : {}),
             isValidated: true,
             isValidating: false,
             error: null,
@@ -261,21 +290,31 @@ export const useSessionStore = create<SessionStore>()(
 
         return isValid;
       } catch (err) {
+        if (!isCurrent()) return false;
         console.error('[sessionStore] Session validation failed:', err);
         set({
           isValidated: false,
           isValidating: false,
         });
         return false;
+      } finally {
+        options?.signal?.removeEventListener('abort', retireFromCaller);
+        if (isCurrent()) validationController = null;
       }
     },
 
     clearSession: () => {
+      retireValidation();
+      creationOwner = undefined;
       console.log('[sessionStore] clearSession called - resetting to initial state');
       return set(initialState);
     },
 
-    setIsCreating: (isCreating) => set({ isCreating }),
+    setIsCreating: (isCreating, owner) => {
+      if (!isCreating && owner !== undefined && creationOwner !== owner) return;
+      creationOwner = isCreating ? owner : undefined;
+      set({ isCreating });
+    },
 
     setIsValidating: (isValidating) => set({ isValidating }),
 
@@ -286,13 +325,19 @@ export const useSessionStore = create<SessionStore>()(
         retryState: { ...s.retryState, ...retryState },
       })),
 
-    setSessionId: (sessionId) =>
+    setSessionId: (sessionId) => {
+      retireValidation();
       set({
         sessionId,
         isValidated: false, // Need to validate when setting from URL
-      }),
+        isValidating: false,
+      });
+    },
 
-    markValidated: () => set({ isValidated: true }),
+    markValidated: () => {
+      retireValidation();
+      set({ isValidated: true, isValidating: false });
+    },
 
     // ========================================================================
     // Pages/Tabs Actions
@@ -420,7 +465,8 @@ export const useSessionStore = create<SessionStore>()(
         recordingFrameStats: null,
         connectionStatus: null,
       }),
-  }))
+    };
+  })
 );
 
 // ============================================================================

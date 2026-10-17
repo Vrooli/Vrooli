@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
-import { Settings, Sparkles, Plus, ChevronLeft, ChevronRight, Maximize2, MonitorSmartphone, CircleUserRound } from "lucide-react";
+import { Settings, Sparkles, Plus, ChevronLeft, ChevronRight, Maximize2, MonitorSmartphone, CircleUserRound, ShieldCheck } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useDraggablePosition } from "../hooks/useDraggablePosition";
 import type { DragEndInfo } from "../hooks/useDraggablePosition";
@@ -52,6 +52,10 @@ interface FloatingToolbarProps {
   onOpenAccount: () => void;
   /** Opens the machines surface, which owns linking a computer and its permissions. */
   onOpenMachines: () => void;
+  /** Opens the approvals inbox (the desktop persistent entry). */
+  onOpenApprovals?: () => void;
+  /** Count of pending approvals; drives the inbox button's badge. 0 hides it. */
+  approvalsPendingCount?: number;
   onOpenAi: () => void;
   onNewTerminal: () => void;
   onOpenLauncher: () => void;
@@ -100,6 +104,8 @@ export default function FloatingToolbar({
   onOpenSettings,
   onOpenAccount,
   onOpenMachines,
+  onOpenApprovals,
+  approvalsPendingCount = 0,
   onOpenAi,
   onNewTerminal,
   onOpenLauncher,
@@ -316,6 +322,35 @@ export default function FloatingToolbar({
       >
         <MonitorSmartphone className="h-4 w-4" />
       </Button>
+      {/* Approvals inbox — the desktop persistent entry. It is the one toolbar
+          control that stays keyboard-reachable even while the bar is docked
+          (no tabIndex=-1 gating): an approvals affordance the operator cannot
+          reach when the bar tucks to an edge would silently strand pending
+          decisions. The badge is driven by the pending count (TabUnreadBadge
+          pattern). Rendered only when the host wires onOpenApprovals. */}
+      {onOpenApprovals && (
+        <div className="relative inline-flex">
+          <Button
+            data-testid="toolbar-approvals"
+            variant="ghost"
+            size="icon"
+            className="h-11 w-11 md:h-8 md:w-8"
+            onClick={onOpenApprovals}
+            aria-label={approvalsPendingCount > 0 ? t(strings.approvals.badgeAria, { count: approvalsPendingCount }) : t(strings.approvals.toolbarTitle)}
+            title={t(strings.approvals.toolbarTitle)}
+          >
+            <ShieldCheck className="h-4 w-4" />
+          </Button>
+          {approvalsPendingCount > 0 && (
+            <span
+              data-testid="toolbar-approvals-badge"
+              className="pointer-events-none absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-wc-accent px-1 text-[10px] font-semibold text-wc-accent-fg"
+            >
+              {approvalsPendingCount > 99 ? "99+" : approvalsPendingCount}
+            </span>
+          )}
+        </div>
+      )}
       {/* AI and mic buttons stay out of the narrow toolbar breakpoint because
        * the bottom touch toolbar already provides both there. Wider touch
        * viewports may show both surfaces so keyboardless devices retain the

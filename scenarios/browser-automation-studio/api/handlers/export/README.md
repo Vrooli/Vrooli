@@ -18,11 +18,9 @@ Per the architectural boundary enforcement principles, handlers should only hand
 
 ### Files
 
-| File | Purpose |
-|------|---------|
-| `types.go` | HTTP request type + type aliases for backward compatibility |
-| `builder.go` | Thin wrappers delegating to theme and cursor preset helpers |
-| `overrides.go` | Thin wrapper delegating to `services/export.Apply` |
+`types.go` decodes requests and preserves generated `ReplaySpec` input. The
+binary REST handler is `handlers/execution_export.go`; it submits bounded jobs
+and delegates media publication/finalization to the export service.
 
 ### Business Logic (in `services/export`)
 
@@ -49,4 +47,4 @@ For new code, prefer importing directly from `services/export` to access the can
 - `handlers/executions.go` - HTTP handlers that use this package
 - `handlers/execution_export_helpers.go` - Compatibility shim with local type aliases
 - `services/export/` - **Canonical business logic location**
-- `services/replay_renderer.go` - Consumes the built movie specs for rendering
+- `services/export/render/` - Consumes generated movie specs and owns encoder/capture cleanup

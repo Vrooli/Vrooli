@@ -2,14 +2,15 @@ package agentmanager
 
 import (
 	"context"
-	"github.com/vrooli/api-core/owneridentity"
-	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/vrooli/api-core/owneridentity"
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 )
 
 type auth01FixtureVerifier struct{}
@@ -17,9 +18,10 @@ type auth01FixtureVerifier struct{}
 func (auth01FixtureVerifier) Validate(_ context.Context, _ string) (owneridentity.Identity, error) {
 	return owneridentity.Identity{Subject: "fixture", Scopes: []string{"agent-manager:write"}, ExpiresAt: time.Now().Add(time.Hour)}, nil
 }
+
 func auth01FixtureCaller(t *testing.T, ctx context.Context) context.Context {
 	t.Helper()
-	out, err := owneridentity.AuthorizeCreateRunCaller(ctx, http.Header{"Authorization": []string{"Bearer fixture-owner"}}, auth01FixtureVerifier{}, time.Now())
+	out, err := owneridentity.AuthorizeCreateRunCaller(ctx, http.Header{"Authorization": []string{"Bearer fixture-owner"}}, auth01FixtureVerifier{}, time.Now(), true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,6 +50,7 @@ func TestAuth01CallerTransportPositiveAndZeroEffect(t *testing.T) {
 		t.Fatalf("positive %v calls%d", err, calls)
 	}
 }
+
 func TestAuth01CallerRefusalAndRedirectDoNotRetryOrLeak(t *testing.T) {
 	for _, code := range []int{403, 307} {
 		calls := 0

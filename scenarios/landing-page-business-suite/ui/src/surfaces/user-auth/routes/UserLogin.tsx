@@ -14,6 +14,7 @@ import {
   finishPasskeyRegistration,
   type BusinessAccount,
 } from '../../../shared/api';
+import { useUserAuth } from '../../../app/providers/useUserAuth';
 import { useSiteIdentity } from '../../public-landing/site/useSiteIdentity';
 import { CodeInput } from '../components/CodeInput';
 import { SignInAside } from '../components/SignInAside';
@@ -43,7 +44,7 @@ function describeRequestError(err: unknown): string {
 }
 
 
-type Step = 'email' | 'code' | 'choose-account' | 'link-retry' | 'done';
+type Step = 'email' | 'code' | 'choose-account' | 'link-retry' | 'session-retry' | 'done';
 
 function formatCountdown(seconds: number): string {
   return `${String(Math.floor(seconds / 60))}:${String(seconds % 60).padStart(2, '0')}`;
@@ -53,6 +54,7 @@ export function UserLogin({ redirectTo = redirectBrowser }: { redirectTo?: Redir
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const identity = useSiteIdentity();
+  const { refreshSession } = useUserAuth();
   const context = useMemo(() => signInContextFromSearch(searchParams), [searchParams]);
   const flow = flowForContext(context);
   const problem = context ? contextProblem(context) : null;
@@ -67,6 +69,7 @@ export function UserLogin({ redirectTo = redirectBrowser }: { redirectTo?: Redir
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [passkeyBusy, setPasskeyBusy] = useState(false);
+  const [sessionRetry, setSessionRetry] = useState({ offerPasskey: true, verificationUncertain: false });
   const [savePasskeyPrompt, setSavePasskeyPrompt] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
@@ -86,11 +89,26 @@ export function UserLogin({ redirectTo = redirectBrowser }: { redirectTo?: Redir
     } catch { return false; }
   }, [flow]);
 
-  const continueAfterEmailSignIn = useCallback(() => {
-    setStep('done');
-    if (offerSavePrompt()) { setSavePasskeyPrompt(true); return; }
-    window.setTimeout(() => { navigate(nextPath, { replace: true }); }, 900);
-  }, [navigate, nextPath, offerSavePrompt]);
+  // Verification has already issued the cookie. A failed session read must
+  // retry that read, never consume the proof again or request another email.
+  const completeBrowserSignIn = useCallback(async (offerPasskey: boolean, verificationUncertain = false) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await refreshSession({ requireAuthenticated: true, expectedEmail: offerPasskey ? email : undefined });
+      setStep('done');
+      if (offerPasskey && offerSavePrompt()) { setSavePasskeyPrompt(true); return; }
+      window.setTimeout(() => { navigate(nextPath, { replace: true }); }, offerPasskey ? 900 : 500);
+    } catch {
+      setSessionRetry({ offerPasskey, verificationUncertain });
+      setStep('session-retry');
+      setError(verificationUncertain
+        ? 'We couldn’t confirm whether sign-in finished. Try again to check your session.'
+        : 'Your sign-in was accepted, but we couldn’t load your session. Try again to finish signing in.');
+    } finally {
+      setBusy(false);
+    }
+  }, [email, navigate, nextPath, offerSavePrompt, refreshSession]);
 
   const signInWithPasskey = useCallback(async () => {
     if (!isPasskeySupported()) {
@@ -115,8 +133,7 @@ export function UserLogin({ redirectTo = redirectBrowser }: { redirectTo?: Redir
         await connectDesktop();
         return;
       }
-      setStep('done');
-      window.setTimeout(() => { navigate(nextPath, { replace: true }); }, 500);
+      await completeBrowserSignIn(false);
     } catch (err) {
       if (err instanceof DOMException && err.name === 'NotAllowedError') {
         setError('Passkey sign-in was cancelled. You can continue with email.');
@@ -128,7 +145,8 @@ export function UserLogin({ redirectTo = redirectBrowser }: { redirectTo?: Redir
     } finally {
       setPasskeyBusy(false);
     }
-  }, [context, navigate, nextPath]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- connectDesktop reads the same context and redirect.
+  }, [context, flow, completeBrowserSignIn, redirectTo]);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -190,14 +208,14 @@ export function UserLogin({ redirectTo = redirectBrowser }: { redirectTo?: Redir
         if (!finished.authenticated || stopped) return;
         if (flow === 'native_app' && finished.redirectUrl) { setStep('done'); redirectTo(finished.redirectUrl); return; }
         if (flow === 'desktop_link' && context) { await connectDesktop(); return; }
-        setStep('done');
-        navigate(nextPath, { replace: true });
+        await completeBrowserSignIn(false);
       } catch (err) {
         if (!(err instanceof DOMException && (err.name === 'AbortError' || err.name === 'NotAllowedError'))) setError('Passkey sign-in was not accepted. Continue with email.');
       }
     });
     return () => { stopped = true; controller.abort(); if (conditionalAbort.current === controller) conditionalAbort.current = null; };
-  }, [context, flow, navigate, nextPath, redirectTo, step]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- connectDesktop reads the same context and redirect.
+  }, [context, flow, completeBrowserSignIn, redirectTo, step]);
 
   const handleEmailSubmit = (event: FormEvent) => {
     event.preventDefault();
@@ -237,13 +255,15 @@ export function UserLogin({ redirectTo = redirectBrowser }: { redirectTo?: Redir
         await connectDesktop();
         return;
       }
-      continueAfterEmailSignIn();
+      await completeBrowserSignIn(true);
     } catch (err) {
       setCode('');
       if (isApiError(err) && err.reason === 'code_invalid') {
         setError('That code isn’t right or has expired. Check your latest email and try again.');
       } else if (isApiError(err, 'rate_limited')) {
         setError('Too many incorrect codes. Request a new code in a few minutes.');
+      } else if ((isApiError(err, 'network') || isApiError(err, 'timeout')) && flow === 'browser') {
+        await completeBrowserSignIn(true, true);
       } else if (isApiError(err, 'network') || isApiError(err, 'timeout')) {
         setError('We couldn’t reach the server. Check your connection and try again.');
       } else if (err instanceof Error && !isApiError(err)) {
@@ -256,7 +276,7 @@ export function UserLogin({ redirectTo = redirectBrowser }: { redirectTo?: Redir
       setBusy(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- connectDesktop reads the same context and redirect.
-  }, [context, email, flow, continueAfterEmailSignIn, redirectTo]);
+  }, [context, email, flow, completeBrowserSignIn, redirectTo]);
 
   // Runs after the browser is signed in; a failure here is retried without a
   // new code because the code has already been used.
@@ -344,6 +364,22 @@ export function UserLogin({ redirectTo = redirectBrowser }: { redirectTo?: Redir
             <button type="button" className="button button-quiet" onClick={dismissSavePasskey} disabled={passkeyBusy}>Not now</button>
           </> : <p>{flow === 'browser' ? 'Taking you there now…' : `Returning you to ${appName}. You can close this tab once it opens.`}</p>}
           {error && <p className="auth-alert" role="alert"><AlertCircle aria-hidden="true" />{error}</p>}
+        </div>
+      </AuthPageLayout>
+    );
+  }
+
+  if (step === 'session-retry') {
+    return (
+      <AuthPageLayout pageTitle="Finish signing in" aside={aside} stepKey="session-retry">
+        <div className="auth-step auth-status" role="alert">
+          <span className="auth-status-mark auth-status-warning" aria-hidden="true"><AlertCircle /></span>
+          <h1>Finish signing in</h1>
+          <p>{error}</p>
+          <button type="button" className="button button-primary" disabled={busy} onClick={() => { void completeBrowserSignIn(sessionRetry.offerPasskey, sessionRetry.verificationUncertain); }}>
+            <RotateCw aria-hidden="true" />{busy ? 'Checking your session…' : 'Try again'}
+          </button>
+          <Link className="button button-secondary" to="/auth/login" reloadDocument>Start a new sign-in</Link>
         </div>
       </AuthPageLayout>
     );

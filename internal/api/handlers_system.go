@@ -54,18 +54,23 @@ func (a *App) ProcessMetricsHandler(w http.ResponseWriter, r *http.Request) {
 func (a *App) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	healthSnapshot := a.collectProcessHealthSnapshot()
 	overallStatus := scenarioruntime.HealthStatusHealthy
+	// A warning-level condition (elevated zombie/orphan counts) is advisory: the
+	// control plane answered this request and is serving normally. Returning it
+	// as 503 makes the shared CLI client treat the whole control plane as
+	// unreachable, taking down every tool over a process-hygiene advisory. So a
+	// warning maps to HTTP 200 with status:"degraded" in the body (the advice
+	// stays visible), and 503 is reserved for genuinely critical/unhealthy state
+	// where the API cannot be trusted to serve correctly.
+	status := http.StatusOK
 	switch healthSnapshot.OverallStatus {
 	case "critical":
 		overallStatus = "unhealthy"
+		status = http.StatusServiceUnavailable
 	case handlersSystemWarning, "unknown":
 		overallStatus = "degraded"
 	}
-	status := http.StatusOK
 	if overallStatus != scenarioruntime.HealthStatusHealthy {
-		status = http.StatusServiceUnavailable
-	}
-	if overallStatus != scenarioruntime.HealthStatusHealthy {
-		a.logWarn("Health check degraded", logx.AttrStatus, overallStatus)
+		a.logWarn("Health check degraded", logx.AttrStatus, overallStatus, "http_status", status)
 	}
 	respondJSON(w, status, map[string]interface{}{
 		"status":      overallStatus,

@@ -1,11 +1,50 @@
 {
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "codex",
-  "storage": {"entries": {
-    "home": {"rung": "owned", "path": "$USER_HOME/.codex", "kind": "dir", "class": "data", "regenerable": false, "sensitive": true, "rationale": "Codex CLI state, sessions, configuration, memories, and authentication are rooted at CODEX_HOME, defaulting to ~/.codex."}
-  }},
+  "storage": {
+    "entries": {
+      "home": {
+        "rung": "owned",
+        "path": "$USER_HOME/.codex",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "sensitive": true,
+        "rationale": "Codex CLI state, sessions, configuration, memories, and authentication are rooted at CODEX_HOME, defaulting to ~/.codex.",
+        "budget": {
+          "max_bytes": "50GiB",
+          "rationale": "Durable data storage ceiling is derived from the expected working set and raises an alarm before host capacity is threatened."
+        }
+      },
+      "skills": {
+        "rung": "relocatable",
+        "path": "$USER_HOME/.codex/skills",
+        "kind": "dir",
+        "class": "config",
+        "regenerable": true,
+        "projection": {
+          "environment": "CODEX_HOME",
+          "project_scope": true
+        },
+        "rationale": "Native skill discovery directory declared for data-driven Vrooli projection."
+      }
+    }
+  },
   "display_name": "OpenAI Codex CLI",
   "description": "OpenAI Codex CLI for local code generation and agentic engineering workflows.",
+  "execution": {
+    "runner_type": "codex",
+    "codec": "codex",
+    "detection_signal": "CODEX_CI=1 AND CODEX_THREAD_ID non-empty",
+    "hook_surface": "native-permissions"
+  },
+  "agent_hooks": {
+    "document_scopes": ["user", "project"],
+    "events": [
+      {"name": "PreToolUse", "supported": true, "can_inject_context": false, "reason": "Only the brokered tool hook is observed; no prompt-time injection canary exists."},
+      {"name": "UserPromptSubmit", "supported": false, "can_inject_context": false, "reason": "The installed Codex hook surface has no verified prompt-time event."}
+    ]
+  },
   "cli": {
     "enabled": true,
     "command": "resource-codex",
@@ -36,7 +75,8 @@
         "model-policy.json",
         "docs/**",
         "README.md",
-        "resource.json"
+        "resource.json",
+        "../../packages/agentharness"
       ]
     },
     "source_build": {
@@ -45,12 +85,38 @@
   },
   "credentials": {
     "descriptors": [
-      {"logical_id":"vrooli/openai","field":"api-key","env":"OPENAI_API_KEY","label":"OpenAI API key","description":"Optional API-key authentication for Codex workflows; a signed-in Codex CLI session is also supported.","required":false,"obtain_url":"https://platform.openai.com/api-keys"},
-      {"logical_id":"vrooli/openai","field":"organization-id","env":"OPENAI_ORG_ID","label":"OpenAI organization ID","description":"Optional organization identifier used with the OpenAI API.","required":false}
+      {
+        "logical_id": "vrooli/openai",
+        "field": "api-key",
+        "env": "OPENAI_API_KEY",
+        "label": "OpenAI API key",
+        "provisioning": "operator",
+        "description": "Optional API-key authentication for Codex workflows; a signed-in Codex CLI session is also supported.",
+        "required": false,
+        "obtain_url": "https://platform.openai.com/api-keys"
+      },
+      {
+        "logical_id": "vrooli/openai",
+        "field": "organization-id",
+        "env": "OPENAI_ORG_ID",
+        "label": "OpenAI organization ID",
+        "provisioning": "operator",
+        "description": "Optional organization identifier used with the OpenAI API.",
+        "required": false,
+        "obtain_url": "https://platform.openai.com/settings/organization/general"
+      }
     ]
   },
-  "template": "external-cli",
   "driver": "external-cli",
+  "acquisition": {
+    "kind": "npm",
+    "targets": [
+      {"when": {"os": "linux", "arch": "amd64"}, "package": "@openai/codex", "version": "0.141.0", "sha256": "9ad570849477d217386d740e2e342de38f6d64ef0bcab98911b1437c30fc09cf"},
+      {"when": {"os": "linux", "arch": "arm64"}, "package": "@openai/codex", "version": "0.141.0", "sha256": "9ad570849477d217386d740e2e342de38f6d64ef0bcab98911b1437c30fc09cf"},
+      {"when": {"os": "darwin", "arch": "amd64"}, "package": "@openai/codex", "version": "0.141.0", "sha256": "9ad570849477d217386d740e2e342de38f6d64ef0bcab98911b1437c30fc09cf"},
+      {"when": {"os": "darwin", "arch": "arm64"}, "package": "@openai/codex", "version": "0.141.0", "sha256": "9ad570849477d217386d740e2e342de38f6d64ef0bcab98911b1437c30fc09cf"}
+    ]
+  },
   "provider_policy": {
     "default_mode": "managed-discovered",
     "allowed_modes": [
@@ -68,9 +134,6 @@
             "amd64",
             "arm64"
           ],
-          "requires": [
-            "codex"
-          ],
           "limitations": [
             "The upstream executable, licensing, authentication, and version policy are host-managed."
           ],
@@ -85,9 +148,6 @@
           "architectures": [
             "amd64",
             "arm64"
-          ],
-          "requires": [
-            "codex"
           ],
           "limitations": [
             "The upstream executable, licensing, authentication, and version policy are host-managed."
@@ -104,9 +164,6 @@
             "amd64",
             "arm64"
           ],
-          "requires": [
-            "codex"
-          ],
           "limitations": [
             "The upstream executable, licensing, authentication, and version policy are host-managed."
           ],
@@ -122,13 +179,31 @@
   "version_args": [
     "--version"
   ],
-  "portability_tier": "partial",
   "category": "developer-tooling",
+  "requirements": {
+    "ram_mb": 1024,
+    "disk_mb": 2048,
+    "cpu_cores": 1,
+    "network": "required",
+    "bucket": "medium",
+    "source": "estimated",
+    "confidence": "low",
+    "class": "developer-tooling",
+    "weight": 2
+  },
   "platforms": {
     "linux": "supported",
-    "macos": "supported",
-    "windows": "partial"
+    "macos": "build-verified",
+    "windows": "build-verified"
   },
+  "hostSafeguards": [
+    {
+      "name": "bubblewrap_userns",
+      "required": true,
+      "when": ["setup", "develop"],
+      "reason": "Native Linux sandbox launches need working bubblewrap user and network namespaces; do not disable AppArmor globally."
+    }
+  ],
   "hostTools": [
     {
       "name": "yq",
@@ -144,6 +219,7 @@
   "health_checks": [
     {
       "type": "command",
+      "kind": "liveness",
       "command": [
         "codex",
         "--version"
@@ -194,14 +270,12 @@
   "install": {
     "platforms": {
       "linux": [
-        "bash",
-        "-lc",
-        "source resources/codex/lib/install.sh && codex::install::execute"
+        "resource-codex",
+        "install-direct"
       ],
       "macos": [
-        "bash",
-        "-lc",
-        "source resources/codex/lib/install.sh && codex::install::execute"
+        "resource-codex",
+        "install-direct"
       ]
     }
   },
@@ -249,7 +323,8 @@
     }
   },
   "capabilities": {
-    "supports_logs": false
+    "supports_logs": false,
+    "supports_ensure": true
   },
   "upstream_cli": {
     "version_command": [
@@ -264,5 +339,14 @@
   },
   "template_version": "2",
   "privilege": "user",
-  "bundling": "host-required"
+  "bundling": "host-required",
+  "vrooli_memory_targets": [
+    {
+      "runtime": "codex",
+      "path": "$USER_HOME/.codex/memories/vrooli-memory.md",
+      "section": "",
+      "byte_cap": 32768,
+      "line_cap": 200
+    }
+  ]
 }

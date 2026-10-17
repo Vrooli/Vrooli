@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -280,6 +281,10 @@ func TestManagedServiceStartTimeoutDerivesQdrantCollectionBudget(t *testing.T) {
 	got := managedServiceStartTimeoutSeconds(NewController(root, filepath.Join(root, "home")), manifest)
 	if got != 110 {
 		t.Fatalf("derived timeout = %d, want 110 seconds for 40 collections", got)
+	}
+	parent := NewController(root, filepath.Join(root, "home")).resourceControl()
+	if parent.StartupTimeoutFn == nil || parent.StartupTimeoutFn(manifest) != 110*time.Second {
+		t.Fatal("control operation parent does not use the driver's observed startup budget")
 	}
 }
 
@@ -697,5 +702,74 @@ func managedServiceTestManifest(checksum string) ResourceManifest {
 			Artifact:  resourcedeployment.ServiceArtifact{Path: "bin/service", Version: "1.0.0", SHA256: checksum},
 			Arguments: []string{"-test.run=TestManagedServiceFixtureProcess", "--"},
 		},
+	}
+}
+
+func TestManagedReadinessCancellationKeepsCauseAndDiagnostic(t *testing.T) {
+	for _, deadline := range []bool{false, true} {
+		t.Run(fmt.Sprint(deadline), func(t *testing.T) {
+			observed := make(chan struct{}, 1)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				select {
+				case observed <- struct{}{}:
+				default:
+				}
+				w.WriteHeader(http.StatusServiceUnavailable)
+			}))
+			defer server.Close()
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			var parent context.Context = ctx
+			if deadline {
+				var end context.CancelFunc
+				parent, end = context.WithTimeout(ctx, 30*time.Millisecond)
+				defer end()
+			}
+			manifest := ResourceManifest{Name: "readiness-cancel-fixture", Lifecycle: ResourceLifecycle{StartTimeoutSeconds: 600}, HealthChecks: []ResourceHealthCheck{{Type: "http", Target: server.URL, ExpectedStatus: []int{200}}}}
+			done := make(chan error, 1)
+			go func() { done <- waitForManagedServiceHealth(parent, NewController(t.TempDir(), t.TempDir()), manifest) }()
+			<-observed
+			if !deadline {
+				cancel()
+			}
+			select {
+			case err := <-done:
+				want := context.Canceled
+				if deadline {
+					want = context.DeadlineExceeded
+				}
+				if !errors.Is(err, want) || !(strings.Contains(err.Error(), "503") || strings.Contains(err.Error(), "http check failed")) {
+					t.Fatalf("cause/diagnostic lost: %v", err)
+				}
+			case <-time.After(time.Second):
+				t.Fatal("readiness did not honor parent cancellation")
+			}
+		})
+	}
+}
+
+func TestManagedLifecyclePrecancelDoesNotPrepareOrBootstrap(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	driver := managedServiceDriver{}
+	checks := []func() error{
+		func() error {
+			return driver.Run(ctx, nil, Resource{}, ResourceManifest{}, "restart", nil, io.Discard, io.Discard)
+		},
+		func() error {
+			return driver.runPrivate(ctx, nil, Resource{}, ResourceManifest{}, "restart", io.Discard)
+		},
+		func() error {
+			return driver.runUserHosted(ctx, nil, Resource{}, ResourceManifest{}, "restart", io.Discard)
+		},
+		func() error { return driver.startPrivate(ctx, nil, ResourceManifest{}, nil) },
+		func() error { return driver.startPrivateAt(ctx, nil, ResourceManifest{}, nil, "") },
+		func() error { return driver.bootstrapPrivate(ctx, ResourceManifest{}, nil) },
+		func() error { return ensureManagedServiceRunAsUser(ctx, ResourceManifest{}, nil, "") },
+	}
+	for i, run := range checks {
+		if err := run(); !errors.Is(err, context.Canceled) {
+			t.Fatalf("cancelled step%d continued: %v", i, err)
+		}
 	}
 }

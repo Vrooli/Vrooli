@@ -68,3 +68,15 @@ a migration handoff with a planned retirement path back into
 - [`SEAMS.md`](SEAMS.md) — boundary registry (load-bearing for tests)
 - [`TESTING.md`](TESTING.md) — test patterns
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — generic-template issues
+
+
+## 2026-10-16 — Lighthouse declared device ignored (W3 repair)
+
+Report `knw-1792123967704779496` reproduced a declared desktop Web Console audit
+measured with mobile defaults. CLIRunner now carries per-page effective settings
+through the CLI boundary, uses Lighthouse's desktop preset, forwards explicit
+screen/throttle/category/Chrome/timeout settings, and verifies the returned form
+factor. Tests cover overrides, CLI arguments, unsupported devices and wrong-device
+reports. Thresholds are unchanged. See `docs/reference/configuration.md` and
+`scenarios/web-console/docs/perf/2026-10-15-long-session-performance.md` for runtime
+validation. Unit validation run: `20261016-131741-30ff3215`.

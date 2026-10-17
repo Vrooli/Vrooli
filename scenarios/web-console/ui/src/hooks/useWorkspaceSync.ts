@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import {
   saveWorkspaceLayout,
   updateWorkspacePane,
@@ -21,17 +21,32 @@ const REORDER_DEBOUNCE_MS = 300;
  */
 export function useWorkspaceSync() {
   const reorderTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingOrder = useRef<{ active_pane: string | null; pane_order: string[] } | null>(null);
+  const flushPaneOrder = useCallback(() => {
+    const pending = pendingOrder.current;
+    pendingOrder.current = null;
+    if (!pending) return;
+    void saveWorkspaceLayout(pending).catch((error: unknown) => {
+      console.error("Failed to sync pane order:", error);
+    });
+  }, []);
+  useEffect(() => () => {
+    if (reorderTimer.current) clearTimeout(reorderTimer.current);
+    reorderTimer.current = null;
+    // Persist the user's last reorder even when changing the navigation
+    // surface unmounts its owner before the debounce interval expires.
+    flushPaneOrder();
+  }, [flushPaneOrder]);
 
   /** Debounced save of pane order + active pane to backend. */
   const syncPaneOrder = useCallback((paneOrder: string[], activePane: string | null) => {
     if (reorderTimer.current) clearTimeout(reorderTimer.current);
+    pendingOrder.current = { active_pane: activePane, pane_order: paneOrder };
     reorderTimer.current = setTimeout(() => {
       reorderTimer.current = null;
-      saveWorkspaceLayout({ active_pane: activePane, pane_order: paneOrder }).catch((err) =>
-        console.error("Failed to sync pane order:", err),
-      );
+      flushPaneOrder();
     }, REORDER_DEBOUNCE_MS);
-  }, []);
+  }, [flushPaneOrder]);
 
   /**
    * Persist the outcome of a pane move: the new order, plus the moved pane's
@@ -52,14 +67,14 @@ export function useWorkspaceSync() {
     updateWorkspacePane(sessionId, {
       group_id: moved.groupId,
       header_color: moved.headerColor,
-    }).catch((err) => console.error("Failed to sync pane move:", err));
+    }).catch((err: unknown) => { console.error("Failed to sync pane move:", err); });
   }, [syncPaneOrder]);
 
   /** Immediate save of a single pane's metadata. */
   const syncPaneUpdate = useCallback(
     (sessionId: string, update: Partial<Omit<WorkspacePaneDTO, "session_id">>) => {
-      updateWorkspacePane(sessionId, update).catch((err) =>
-        console.error("Failed to sync pane update:", err),
+      updateWorkspacePane(sessionId, update).catch((err: unknown) =>
+        { console.error("Failed to sync pane update:", err); },
       );
     },
     [],
@@ -91,8 +106,8 @@ export function useWorkspaceSync() {
 
   /** Immediate save of active pane change. */
   const syncActivePane = useCallback((paneOrder: string[], activePane: string | null) => {
-    saveWorkspaceLayout({ active_pane: activePane, pane_order: paneOrder }).catch((err) =>
-      console.error("Failed to sync active pane:", err),
+    saveWorkspaceLayout({ active_pane: activePane, pane_order: paneOrder }).catch((err: unknown) =>
+      { console.error("Failed to sync active pane:", err); },
     );
   }, []);
 
@@ -107,8 +122,8 @@ export function useWorkspaceSync() {
   /** Update a group on the backend. */
   const syncUpdateGroup = useCallback(
     (id: string, update: Partial<Omit<TabGroupDTO, "id">>) => {
-      updateTabGroup(id, update).catch((err) =>
-        console.error("Failed to sync group update:", err),
+      updateTabGroup(id, update).catch((err: unknown) =>
+        { console.error("Failed to sync group update:", err); },
       );
     },
     [],
@@ -116,8 +131,8 @@ export function useWorkspaceSync() {
 
   /** Delete a group on the backend. */
   const syncDeleteGroup = useCallback((id: string) => {
-    deleteTabGroup(id).catch((err) =>
-      console.error("Failed to sync group delete:", err),
+    deleteTabGroup(id).catch((err: unknown) =>
+      { console.error("Failed to sync group delete:", err); },
     );
   }, []);
 

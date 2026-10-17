@@ -3,11 +3,14 @@ package bundle
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 
+	"github.com/vrooli/envkit-go"
 	bundlemanifest "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
 
@@ -18,9 +21,9 @@ type defaultRuntimeBuilder struct{}
 func (b *defaultRuntimeBuilder) Build(srcDir, outPath, goos, goarch, target string) error {
 	args := []string{"build", "-o", outPath}
 	switch target {
-	case platformRuntime:
+	case "runtime":
 		args = append(args, "./cmd/runtime")
-	case platformRuntimeCtl:
+	case "runtimectl":
 		args = append(args, "./cmd/runtimectl")
 	default:
 		return fmt.Errorf("unknown runtime target %q", target)
@@ -28,11 +31,11 @@ func (b *defaultRuntimeBuilder) Build(srcDir, outPath, goos, goarch, target stri
 
 	cmd := exec.Command("go", args...)
 	cmd.Dir = srcDir
-	cmd.Env = append(os.Environ(),
+	cmd.Env = envkit.Toolchain(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{
 		"CGO_ENABLED=0",
-		"GOOS="+goos,
-		"GOARCH="+goarch,
-	)
+		"GOOS=" + goos,
+		"GOARCH=" + goarch,
+	}), envkit.ToolchainOptions{})
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("go build failed: %w: %s", err, strings.TrimSpace(string(output)))
@@ -67,8 +70,8 @@ func (c *defaultServiceCompiler) Compile(svc bundlemanifest.Service, platform, s
 
 	// Determine output path
 	ext := ""
-	if goos == platformWindows {
-		ext = platformExe
+	if goos == "windows" {
+		ext = ".exe"
 	}
 
 	outputPath := build.OutputPattern
@@ -82,7 +85,7 @@ func (c *defaultServiceCompiler) Compile(svc bundlemanifest.Service, platform, s
 	}
 
 	absOutput := filepath.Join(srcDir, outputPath)
-	if err := os.MkdirAll(filepath.Dir(absOutput), 0o755); err != nil { //nolint:mnd // executable renderer output mode
+	if err := os.MkdirAll(filepath.Dir(absOutput), 0o755); err != nil {
 		return "", fmt.Errorf("create output directory: %w", err)
 	}
 
@@ -101,9 +104,9 @@ func (c *defaultServiceCompiler) Compile(svc bundlemanifest.Service, platform, s
 	}
 }
 
-// compileGoBinary compiles a Go binary for the specified platform.
+// compileGoBinary builds a platform binary without requiring VCS metadata in exported source trees.
 func compileGoBinary(srcDir, outPath, goos, goarch string, build *bundlemanifest.BuildConfig) error {
-	args := []string{"build", "-o", outPath}
+	args := []string{"build", "-buildvcs=false", "-o", outPath}
 
 	// Add any custom build args
 	if len(build.Args) > 0 {
@@ -117,18 +120,10 @@ func compileGoBinary(srcDir, outPath, goos, goarch string, build *bundlemanifest
 	}
 	args = append(args, entryPoint)
 
+	overlay := append(envkit.Env{"CGO_ENABLED=0", "GOOS=" + goos, "GOARCH=" + goarch}, buildOverlay(build.Env)...)
 	cmd := exec.Command("go", args...)
 	cmd.Dir = srcDir
-	cmd.Env = append(os.Environ(),
-		"CGO_ENABLED=0",
-		"GOOS="+goos,
-		"GOARCH="+goarch,
-	)
-
-	// Add custom environment variables
-	for k, v := range build.Env {
-		cmd.Env = append(cmd.Env, k+"="+v)
-	}
+	cmd.Env = envkit.Toolchain(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, overlay), envkit.ToolchainOptions{})
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -154,11 +149,7 @@ func compileRustBinary(srcDir, outPath, goos, goarch string, build *bundlemanife
 
 	cmd := exec.Command("cargo", args...)
 	cmd.Dir = srcDir
-
-	// Add custom environment variables
-	for k, v := range build.Env {
-		cmd.Env = append(cmd.Env, k+"="+v)
-	}
+	cmd.Env = envkit.Toolchain(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, buildOverlay(build.Env)), envkit.ToolchainOptions{})
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -170,8 +161,8 @@ func compileRustBinary(srcDir, outPath, goos, goarch string, build *bundlemanife
 	if build.EntryPoint != "" {
 		binaryName = filepath.Base(build.EntryPoint)
 	}
-	if goos == platformWindows {
-		binaryName += platformExe
+	if goos == "windows" {
+		binaryName += ".exe"
 	}
 
 	cargoOutput := filepath.Join(srcDir, "target", target, "release", binaryName)
@@ -184,17 +175,17 @@ func compileRustBinary(srcDir, outPath, goos, goarch string, build *bundlemanife
 // rustTarget returns the Rust target triple for the given OS/arch.
 func rustTarget(goos, goarch string) (string, error) {
 	targets := map[string]map[string]string{
-		platformLinux: {
-			platformAMD64: "x86_64-unknown-linux-gnu",
-			platformArm64: "aarch64-unknown-linux-gnu",
+		"linux": {
+			"amd64": "x86_64-unknown-linux-gnu",
+			"arm64": "aarch64-unknown-linux-gnu",
 		},
-		platformDarwin: {
-			platformAMD64: "x86_64-apple-darwin",
-			platformArm64: "aarch64-apple-darwin",
+		"darwin": {
+			"amd64": "x86_64-apple-darwin",
+			"arm64": "aarch64-apple-darwin",
 		},
-		platformWindows: {
-			platformAMD64: "x86_64-pc-windows-msvc",
-			platformArm64: "aarch64-pc-windows-msvc",
+		"windows": {
+			"amd64": "x86_64-pc-windows-msvc",
+			"arm64": "aarch64-pc-windows-msvc",
 		},
 	}
 
@@ -233,10 +224,21 @@ func compileNpmBinary(srcDir, outPath, goos, goarch string, build *bundlemanifes
 	return assembleNpmOutput(srcDir, outPath, distDir, entryPoint, goos)
 }
 
+// buildOverlay renders a manifest's custom build environment as overlay
+// entries in key order, so a bundle's env is deterministic.
+func buildOverlay(env map[string]string) envkit.Env {
+	overlay := make(envkit.Env, 0, len(env))
+	for _, key := range slices.Sorted(maps.Keys(env)) {
+		overlay = append(overlay, key+"="+env[key])
+	}
+	return overlay
+}
+
 // npmInstallAll installs all dependencies (including devDependencies for build).
 func npmInstallAll(srcDir string) error {
 	cmd := exec.Command("npm", "install")
 	cmd.Dir = srcDir
+	cmd.Env = envkit.Toolchain(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, nil), envkit.ToolchainOptions{})
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("npm install failed: %w: %s", err, strings.TrimSpace(string(output)))
 	}
@@ -252,11 +254,7 @@ func npmBuild(srcDir, goos, goarch string, build *bundlemanifest.BuildConfig) er
 
 	cmd := exec.Command("npm", buildArgs...)
 	cmd.Dir = srcDir
-	cmd.Env = os.Environ()
-	for k, v := range build.Env {
-		cmd.Env = append(cmd.Env, k+"="+v)
-	}
-	cmd.Env = append(cmd.Env, "TARGET_OS="+goos, "TARGET_ARCH="+goarch)
+	cmd.Env = envkit.Toolchain(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, append(buildOverlay(build.Env), "TARGET_OS="+goos, "TARGET_ARCH="+goarch)), envkit.ToolchainOptions{})
 
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("npm build failed: %w: %s", err, strings.TrimSpace(string(output)))
@@ -282,6 +280,7 @@ func findNpmEntryPoint(distDir string) (string, error) {
 func npmInstallProd(srcDir string) error {
 	cmd := exec.Command("npm", "install", "--omit=dev")
 	cmd.Dir = srcDir
+	cmd.Env = envkit.Toolchain(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, nil), envkit.ToolchainOptions{})
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("npm install --omit=dev failed: %w: %s", err, strings.TrimSpace(string(output)))
 	}
@@ -290,7 +289,7 @@ func npmInstallProd(srcDir string) error {
 
 // assembleNpmOutput copies dist/, node_modules/, package.json and creates run scripts.
 func assembleNpmOutput(srcDir, outPath, distDir, entryPoint, goos string) error {
-	if err := os.MkdirAll(outPath, 0o755); err != nil { //nolint:mnd // executable renderer output mode
+	if err := os.MkdirAll(outPath, 0o755); err != nil {
 		return fmt.Errorf("create output directory: %w", err)
 	}
 
@@ -319,14 +318,14 @@ func assembleNpmOutput(srcDir, outPath, distDir, entryPoint, goos string) error 
 func writeNpmRunScripts(outPath, entryPoint, goos string) error {
 	runScript := filepath.Join(outPath, "run.sh")
 	scriptContent := fmt.Sprintf("#!/bin/sh\ncd \"$(dirname \"$0\")\"\nexec node dist/%s \"$@\"\n", entryPoint)
-	if err := os.WriteFile(runScript, []byte(scriptContent), 0o755); err != nil { //nolint:mnd // executable script mode
+	if err := os.WriteFile(runScript, []byte(scriptContent), 0o755); err != nil {
 		return fmt.Errorf("write run script: %w", err)
 	}
 
-	if goos == platformWindows {
+	if goos == "windows" {
 		runCmd := filepath.Join(outPath, "run.cmd")
 		cmdContent := fmt.Sprintf("@echo off\ncd /d \"%%~dp0\"\nnode dist\\%s %%*\n", entryPoint)
-		if err := os.WriteFile(runCmd, []byte(cmdContent), 0o755); err != nil { //nolint:mnd // executable script mode
+		if err := os.WriteFile(runCmd, []byte(cmdContent), 0o755); err != nil {
 			return fmt.Errorf("write run.cmd: %w", err)
 		}
 	}
@@ -356,7 +355,7 @@ func copyDir(src, dst string) error {
 				return err
 			}
 			// Ensure parent directory exists
-			if err := os.MkdirAll(filepath.Dir(dstPath), 0o755); err != nil { //nolint:mnd // executable renderer output mode
+			if err := os.MkdirAll(filepath.Dir(dstPath), 0o755); err != nil {
 				return err
 			}
 			// Remove existing file/symlink if it exists
@@ -381,7 +380,7 @@ func copyFile(src, dst string) error {
 	}
 	defer srcFile.Close()
 
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil { //nolint:mnd // executable renderer output mode
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return err
 	}
 
@@ -420,8 +419,8 @@ func compileCustomBinary(srcDir, outPath, goos, goarch string, build *bundlemani
 		arg = strings.ReplaceAll(arg, "{{goarch}}", goarch)
 		arg = strings.ReplaceAll(arg, "{{output}}", outPath)
 		ext := ""
-		if goos == platformWindows {
-			ext = platformExe
+		if goos == "windows" {
+			ext = ".exe"
 		}
 		arg = strings.ReplaceAll(arg, "{{ext}}", ext)
 		cmdArgs[i] = arg
@@ -429,11 +428,11 @@ func compileCustomBinary(srcDir, outPath, goos, goarch string, build *bundlemani
 
 	cmd := exec.Command(cmdName, cmdArgs...)
 	cmd.Dir = srcDir
-	cmd.Env = append(os.Environ(),
-		"GOOS="+goos,
-		"GOARCH="+goarch,
-		"OUTPUT_PATH="+outPath,
-	)
+	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{
+		"GOOS=" + goos,
+		"GOARCH=" + goarch,
+		"OUTPUT_PATH=" + outPath,
+	})
 
 	// Add custom environment variables
 	for k, v := range build.Env {

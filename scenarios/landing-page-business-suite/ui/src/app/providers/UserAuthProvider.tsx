@@ -2,10 +2,17 @@ import { useState, useEffect, useCallback, ReactNode } from 'react';
 import { getUserMe, userLogout, refreshSessionOnce, isApiError, type UserAuthUser } from '../../shared/api';
 import { UserAuthContext } from './UserAuthContext';
 
+function hasSessionHint(): boolean {
+  return document.cookie.split(';').some((cookie) => {
+    const name = cookie.trim().split('=', 1)[0];
+    return name === 'lpbs_session_hint' || name === '__Host-lpbs_session_hint';
+  });
+}
+
 export function UserAuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<UserAuthUser | null>(null);
-  const [isSessionLoading, setIsSessionLoading] = useState(false);
+  const [isSessionLoading, setIsSessionLoading] = useState(hasSessionHint);
 
   // Check for existing session
   const checkSession = useCallback(async () => {
@@ -14,6 +21,7 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
       const response = await getUserMe();
       setIsAuthenticated(true);
       setUser(response.user);
+      return response.user;
     } catch (err) {
       // Not authenticated or error
       if (isApiError(err, 'unauthorized')) {
@@ -23,13 +31,14 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
           const retryResponse = await getUserMe();
           setIsAuthenticated(true);
           setUser(retryResponse.user);
-          return;
+          return retryResponse.user;
         } catch {
           // Refresh failed
         }
       }
       setIsAuthenticated(false);
       setUser(null);
+      return null;
     } finally {
       setIsSessionLoading(false);
     }
@@ -40,11 +49,7 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Only check session if the non-authoritative presence hint exists.
     // This avoids unnecessary 401 errors on initial page load
-	const hasSessionHint = document.cookie.split(';').some((cookie) => {
-		const name = cookie.trim().split('=', 1)[0];
-		return name === 'lpbs_session_hint' || name === '__Host-lpbs_session_hint';
-	});
-	if (hasSessionHint) {
+    if (hasSessionHint()) {
       void checkSession();
     }
   }, [checkSession]);
@@ -59,8 +64,16 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
-  const refreshSession = useCallback(async () => {
-    await checkSession();
+  const refreshSession = useCallback(async (options?: { requireAuthenticated?: boolean; expectedEmail?: string }) => {
+    const authenticated = await checkSession();
+    const wrongAccount = authenticated && options?.expectedEmail && authenticated.email.toLowerCase() !== options.expectedEmail.toLowerCase();
+    if (wrongAccount) {
+      setIsAuthenticated(false);
+      setUser(null);
+    }
+    if (options?.requireAuthenticated && (!authenticated || wrongAccount)) {
+      throw new Error('We couldn’t confirm your signed-in session. Please try again.');
+    }
   }, [checkSession]);
 
   return (

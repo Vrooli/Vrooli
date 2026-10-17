@@ -1227,7 +1227,11 @@ func governanceRecordCount(summary *governancev1.DependencyGovernanceSummary) in
 }
 
 func governanceClient(core *cliapp.ScenarioApp) governanceconnect.DependencyGovernanceServiceClient {
-	httpClient, baseURL := cliapp.NewConnectHTTPClientWithTimeout(core, 45*time.Second)
+	return governanceClientWithTimeout(core, 45*time.Second)
+}
+
+func governanceClientWithTimeout(core *cliapp.ScenarioApp, timeout time.Duration) governanceconnect.DependencyGovernanceServiceClient {
+	httpClient, baseURL := cliapp.NewConnectHTTPClientWithTimeout(core, timeout)
 	return governanceconnect.NewDependencyGovernanceServiceClient(httpClient, baseURL)
 }
 

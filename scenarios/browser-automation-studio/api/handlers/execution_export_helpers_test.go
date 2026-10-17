@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"mime"
 	"net/http/httptest"
 	"os"
@@ -128,7 +130,7 @@ func TestResolveRecordedVideoSource_Path(t *testing.T) {
 
 	artifact := executionwriter.ArtifactData{
 		ArtifactID:   "video-artifact-1",
-		SHA256:       "recorded-video-sha256",
+		SHA256:       fmt.Sprintf("%x", sha256.Sum256([]byte("fake-video"))),
 		ArtifactType: "video_meta",
 		ContentType:  "video/webm",
 		Payload: map[string]any{
@@ -146,7 +148,7 @@ func TestResolveRecordedVideoSource_Path(t *testing.T) {
 	if videoSource.ContentType != "video/webm" {
 		t.Fatalf("expected content type video/webm, got %q", videoSource.ContentType)
 	}
-	if videoSource.ArtifactID != "video-artifact-1" || videoSource.SHA256 != "recorded-video-sha256" {
+	if videoSource.ArtifactID != "video-artifact-1" || videoSource.SHA256 != fmt.Sprintf("%x", sha256.Sum256([]byte("fake-video"))) {
 		t.Fatalf("video source identity was not preserved: %#v", videoSource)
 	}
 }

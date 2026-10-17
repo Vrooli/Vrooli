@@ -3,10 +3,43 @@
 package platform
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
+
+func TestStopScopeContextBoundsManagerAndUsesGuardedFallback(t *testing.T) {
+	ref := fixtureCgroup(t, "user.slice/vrooli-test.slice/vrooli-test-render.scope", map[string]string{"cgroup.procs": "42\n"})
+	old := stopScopeManager
+	t.Cleanup(func() { stopScopeManager = old })
+	stopScopeManager = func(ctx context.Context, unit string) ([]byte, error) { <-ctx.Done(); return nil, ctx.Err() }
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+	started := time.Now()
+	if err := StopScopeContext(ctx, ref); err != nil {
+		t.Fatal(err)
+	}
+	if time.Since(started) > time.Second {
+		t.Fatal("manager wait was not bounded")
+	}
+	b, err := os.ReadFile(filepath.Join(cgroupMount, ref.Path, "cgroup.kill"))
+	if err != nil || string(b) != "1" {
+		t.Fatalf("guarded fallback missing %q %v", b, err)
+	}
+}
+
+func TestStopScopeContextRefusesUnownedScopeBeforeManager(t *testing.T) {
+	ref := fixtureCgroup(t, "user.slice/app.slice/desktop.scope", map[string]string{"cgroup.procs": "42\n"})
+	old := stopScopeManager
+	t.Cleanup(func() { stopScopeManager = old })
+	called := false
+	stopScopeManager = func(context.Context, string) ([]byte, error) { called = true; return nil, nil }
+	if err := StopScopeContext(context.Background(), ref); err == nil || called {
+		t.Fatal("unowned scope reached manager")
+	}
+}
 
 // A scope outside the agent and test slices is a supervisor, a resource or
 // the operator's desktop: StopScope must refuse it before touching anything.

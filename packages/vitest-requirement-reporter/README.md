@@ -81,3 +81,33 @@ Unit Health supplies `VROOLI_TEST_RUN_ID` and `VROOLI_TEST_QUALITY_OUTPUT` for
 its command-scoped handoff. The reporter writes a separate native record at
 that path; its embedded run identity must match the collector's expected
 identity. Normal requirement output and append history remain independent.
+
+### Multi-project command observations
+
+The public `mergeNativeObservationReports` export joins one command's native
+observations without changing runner support or assertion status. It requires
+consistent nonempty run IDs, schema, runner version and support profile. It
+rejects duplicate `(project, file, test_id)` identities and preserves failures,
+unhandled errors and limitations. It does not establish that every expected
+project ran. The command runner must compare its expected cohort, retain raw
+shards and add missing-project errors. Use `nativeObservations` for a scoped
+empty/unknown report when no shard completed; do not reuse a prior run's file.
+
+Vitest versions outside the retained native conformance profile remain
+unsupported after merging. A successful test or merge does not establish
+behavioral adequacy or upgrade the assertion-support profile.
+
+Failure artifact directories use an at-most80-character readable prefix plus a
+16-hex SHA256 suffix of the JSON-encoded pair `[fullTestPath, nativeTaskId]`.
+The full path includes file/suite/test identity; the native Vitest task ID also
+distinguishes repeated rows or requirement-tagged cases whose readable paths
+match. Legacy records without a task ID use null in that pair; identical full
+paths without distinct native IDs cannot be distinguished by this fallback.
+Both publication and printed README links resolve `artifactsDir` from the actual
+working directory, including absolute paths; no scenario-parent rewrite applies.
+The maintained10-case regression exercises actual `onFinished` publication:
+long names, punctuation, separate files, repeated rows and requirement-tagged
+cases retain10 distinct payload directories per run. Absolute/relative paths
+from a UI working directory produce stable leaves and20 resolving printed links
+across the two runs. This qualifies diagnostic identity and paths, not test
+adequacy or assertion-profile support.

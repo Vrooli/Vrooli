@@ -1,6 +1,6 @@
 import type { Edge, Node } from 'reactflow';
 import { describe, expect, it } from 'vitest';
-import { autoLayoutNodes } from './workflowNormalizers';
+import { autoLayoutNodes } from './normalizers';
 
 describe('autoLayoutNodes', () => {
     const createNode = (id: string, x = 0, y = 0): Node => ({

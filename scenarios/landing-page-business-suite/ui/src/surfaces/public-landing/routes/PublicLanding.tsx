@@ -130,7 +130,7 @@ function ReadyPresentation({ diagnostics: d, canonicalBaseUrl, ...props }: Prese
         // FontFaceSet.ready fulfills even when individual faces failed to load.
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Test DOMs may omit the Font Loading API.
         if (fonts && requiredFontFailed()) throw new Error('Presentation font failed');
-        if (live && !failed.current) { element.dataset.experienceState = 'ready'; element.dataset.captureReady = 'true'; setPixels('ready'); }
+        if (live && !failed.current) { element.dataset.experienceState = 'ready'; element.dataset.captureReady = 'true'; performance.mark('app-interactive'); setPixels('ready'); }
       } catch { unavailable(); }
       finally { clearTimeout(timeout); cleanups.forEach(cleanup => { cleanup(); }); }
     };

@@ -1,6 +1,8 @@
 package resources
 
 import (
+	"bytes"
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -9,8 +11,148 @@ import (
 	"time"
 
 	"github.com/vrooli/binaryfetch"
+	testresource "github.com/vrooli/vrooli/internal/resources/resourcestest"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
+
+func TestDiscardStagedArtifactPreservesActiveOrUncertainResource(t *testing.T) {
+	for _, test := range []struct {
+		name           string
+		state          string
+		ownershipError bool
+		want           string
+	}{
+		{"active selected version", "live", false, "vrooli resource stop fixture"},
+		{"active older version", "older", false, "vrooli resource stop fixture"},
+		{"unreadable ownership", "live", true, "ownership"},
+		{"malformed state", "malformed", false, "state"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			controller, path, supervisor := discardArtifactFixture(t)
+			withOwnershipFacts(t, func(int) (map[string]string, error) {
+				if test.ownershipError {
+					return nil, errors.New("ownership inspection denied")
+				}
+				return map[string]string{managedServiceOwnershipTokenEnv: "owned"}, nil
+			}, executableAt("/unrelated"))
+			state := ManagedServiceState{InstanceID: "owned-fixture", PID: os.Getpid(), ArtifactPath: path, ArtifactVersion: "1.0.0", ArtifactSHA256: strings.Repeat("a", 64), OwnershipTokenHash: managedServiceTokenHash("owned")}
+			if test.state == "older" {
+				state.ArtifactPath = filepath.Join(filepath.Dir(path), "old-version", "server")
+				state.ArtifactVersion = "0.9.0"
+			}
+			if err := supervisor.writeState(state); err != nil {
+				t.Fatal(err)
+			}
+			if test.state == "malformed" {
+				if err := os.WriteFile(supervisor.statePath, []byte("{broken"), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			var progress bytes.Buffer
+			err := controller.DiscardStagedArtifact("fixture", &progress)
+			if err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Errorf("DiscardStagedArtifact() = %v, want refusal containing %q", err, test.want)
+			}
+			if progress.Len() != 0 {
+				t.Errorf("destructive progress before refusal: %q", progress.String())
+			}
+			for _, file := range []string{path, installFactsPath(path)} {
+				body, err := os.ReadFile(file)
+				if err != nil || string(body) != "keep" {
+					t.Errorf("artifact evidence changed: %s = %q, %v", file, body, err)
+				}
+			}
+		})
+	}
+}
+
+func TestDiscardStagedArtifactAllowsStoppedOrAbsentResource(t *testing.T) {
+	for _, recorded := range []bool{false, true} {
+		t.Run(map[bool]string{false: "absent", true: "stopped"}[recorded], func(t *testing.T) {
+			controller, path, supervisor := discardArtifactFixture(t)
+			if recorded {
+				if err := supervisor.writeState(ManagedServiceState{InstanceID: "stopped-fixture", PID: 0, ArtifactPath: path, ArtifactSHA256: strings.Repeat("a", 64), OwnershipTokenHash: managedServiceTokenHash("owned"), ArtifactVersion: "0.9.0"}); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := controller.DiscardStagedArtifact("fixture", nil); err != nil {
+				t.Fatal(err)
+			}
+			for _, file := range []string{path, installFactsPath(path)} {
+				if _, err := os.Stat(file); !os.IsNotExist(err) {
+					t.Errorf("stopped artifact not removed: %s: %v", file, err)
+				}
+			}
+		})
+	}
+}
+
+func discardArtifactFixture(t *testing.T) (*Controller, string, *ManagedServiceSupervisor) {
+	t.Helper()
+	root, home := t.TempDir(), t.TempDir()
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	t.Setenv("VROOLI_RESOURCE_ARTIFACT_DIR", t.TempDir())
+	manifest := testresource.ResourceManifest("fixture", testresource.WithResourceDriver("managed-service"))
+	manifest.ManagedService.Acquisition = &binaryfetch.Acquisition{Kind: "url", Targets: []binaryfetch.AcquisitionTarget{{URL: "https://example.invalid/server", SHA256: strings.Repeat("a", 64)}}}
+	testresource.WriteResourceManifest(t, root, "fixture", manifest)
+	controller := NewController(root, home)
+	loaded, err := controller.ResourceManifest("fixture")
+	if err != nil {
+		t.Fatal(err)
+	}
+	path, err := managedServiceArtifactPath(controller, loaded)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	for _, file := range []string{path, installFactsPath(path)} {
+		if err := os.WriteFile(file, []byte("keep"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	supervisor, _, err := managedServiceSupervisorFor("fixture")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return controller, path, supervisor
+}
+
+func TestDiscardStagedArtifactRechecksAfterConcurrentLifecycle(t *testing.T) {
+	controller, path, supervisor := discardArtifactFixture(t)
+	withOwnershipFacts(t, func(int) (map[string]string, error) {
+		return map[string]string{managedServiceOwnershipTokenEnv: "owned"}, nil
+	}, executableAt("/unrelated"))
+	release, err := acquireManagedServiceLifecycleLock(context.Background(), "fixture")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer release()
+	done := make(chan error, 1)
+	go func() { done <- controller.DiscardStagedArtifact("fixture", nil) }()
+	select {
+	case err := <-done:
+		t.Fatalf("discard escaped an active lifecycle transaction: %v", err)
+	case <-time.After(100 * time.Millisecond):
+	}
+	if err := supervisor.writeState(ManagedServiceState{InstanceID: "owned-fixture", PID: os.Getpid(), ArtifactPath: path, ArtifactVersion: "1.0.0", ArtifactSHA256: strings.Repeat("a", 64), OwnershipTokenHash: managedServiceTokenHash("owned")}); err != nil {
+		t.Fatal(err)
+	}
+	release()
+	select {
+	case err := <-done:
+		if err == nil || !strings.Contains(err.Error(), "vrooli resource stop fixture") {
+			t.Fatalf("discard failed to recheck newly active service: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("discard did not return after lifecycle release")
+	}
+	if body, err := os.ReadFile(path); err != nil || string(body) != "keep" {
+		t.Fatalf("newly active artifact changed: %q, %v", body, err)
+	}
+}
 
 // Feature: a changed host is diagnosed as a changed host
 //

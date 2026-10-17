@@ -43,7 +43,7 @@ func decideReviewMutation(t *testing.T, h *Handler, recorder *httptest.ResponseR
 	if input.DecidedBy == "" {
 		input.DecidedBy = "operator:test"
 	}
-	result, err := h.DecideReview(request.Context(), kind, vars["name"], input)
+	result, err := h.DecideReview(bookkeepingOwnerContext(), kind, vars["name"], input)
 	if err != nil {
 		http.Error(recorder, err.Error(), http.StatusBadRequest)
 		return
@@ -64,7 +64,7 @@ func TestDecideReview_RecordsVerifiedAtAccept(t *testing.T) {
 	}}); err != nil {
 		t.Fatalf("save review round: %v", err)
 	}
-	if _, err := h.DecideReview(context.Background(), KindExecute, item.Name, ReviewDecideRequest{Decision: ReviewDecisionAccept, DecidedBy: "operator:test", Rationale: "Reviewed the available proof."}); err != nil {
+	if _, err := h.DecideReview(bookkeepingOwnerContext(), KindExecute, item.Name, ReviewDecideRequest{Decision: ReviewDecisionAccept, DecidedBy: "operator:test", Rationale: "Reviewed the available proof."}); err != nil {
 		t.Fatalf("DecideReview: %v", err)
 	}
 	decisionsDir := filepath.Join(itemDir, "review", "decisions")

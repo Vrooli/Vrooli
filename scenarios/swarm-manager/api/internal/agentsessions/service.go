@@ -136,6 +136,7 @@ type Service struct {
 	sourceLedger              SourceLedger
 	relatedWork               RelatedWorkSearcher
 	promptClient              promptmanager.Client
+	decisionPublisher         DecisionEventPublisher
 	runningSessionTTL         time.Duration
 	skillCacheMu              sync.Mutex
 	skillCache                map[string]cachedSkillText

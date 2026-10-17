@@ -5,7 +5,44 @@ import (
 	"testing"
 
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	integration "github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/integrations/vrooli"
 )
+
+// TestZombieReapDelegatesToControlPlaneOrphanCleanup pins the scenario-to-desktop
+// leak remediation: zombies that persist after signaling their live parents are
+// children of a leaked process reparented to init, so the reap action must
+// delegate to the control-plane orphan cleanup (which SIGTERMs the leaked
+// parent) rather than silently give up.
+func TestZombieReapDelegatesToControlPlaneOrphanCleanup(t *testing.T) {
+	// Zombies whose parent is init (ppid 1): SIGCHLD cannot reach a live parent,
+	// so the only remediation is reaping the leaked grandparent via the control
+	// plane.
+	processes := make([]checks.ProcessInfo, 18)
+	for i := range processes {
+		processes[i] = checks.ProcessInfo{PID: 2000 + i, PPid: 1, Comm: "opencode <defunct>", State: "Z"}
+	}
+	reader := &mockProcReader{processes: processes}
+	c := NewZombieCheck(WithZombieProcReader(reader), WithZombieThresholds(5, 20))
+
+	orig := cleanupHostOrphansFn
+	t.Cleanup(func() { cleanupHostOrphansFn = orig })
+	called := false
+	cleanupHostOrphansFn = func(ctx context.Context, executor checks.CommandExecutor) (integration.CleanupReport, error) {
+		called = true
+		return integration.CleanupReport{
+			Stopped: []integration.StopReportItem{{Name: "5001", Message: "SIGTERM leaked desktop-bundle api"}},
+			Message: "Stopped 1 orphaned process",
+		}, nil
+	}
+
+	result := c.ExecuteAction(context.Background(), "reap")
+	if !called {
+		t.Fatalf("expected reap to delegate to control-plane orphan cleanup when zombies persist")
+	}
+	if result.Output == "" {
+		t.Fatalf("expected reap output to describe the control-plane cleanup")
+	}
+}
 
 func TestInodeCheck_WithMockReader(t *testing.T) {
 	t.Run("healthy inode usage", func(t *testing.T) {

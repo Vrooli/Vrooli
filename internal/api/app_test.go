@@ -349,6 +349,69 @@ func TestGetEnhancedProcessMetricsUsesMaintenanceSnapshot(t *testing.T) {
 	}
 }
 
+// TestHealthCheckWarningStaysReachable pins the health-semantics contract: a
+// warning-level condition (elevated zombie/orphan counts) is advisory, so the
+// endpoint answers HTTP 200 with status:"degraded" in the body — never 503,
+// which the shared CLI client reads as an unreachable control plane. Only a
+// critical condition returns 503/"unhealthy".
+func TestHealthCheckWarningStaysReachable(t *testing.T) {
+	cases := []struct {
+		name        string
+		snapshot    maintenance.ProcessSnapshot
+		wantHTTP    int
+		wantStatus  string
+		wantZombies int
+	}{
+		{
+			name:        "warning zombies return 200 degraded",
+			snapshot:    maintenance.ProcessSnapshot{ZombieProcesses: 18},
+			wantHTTP:    http.StatusOK,
+			wantStatus:  "degraded",
+			wantZombies: 18,
+		},
+		{
+			name:        "healthy returns 200 healthy",
+			snapshot:    maintenance.ProcessSnapshot{},
+			wantHTTP:    http.StatusOK,
+			wantStatus:  "healthy",
+			wantZombies: 0,
+		},
+		{
+			name:        "critical zombies return 503 unhealthy",
+			snapshot:    maintenance.ProcessSnapshot{ZombieProcesses: 50},
+			wantHTTP:    http.StatusServiceUnavailable,
+			wantStatus:  "unhealthy",
+			wantZombies: 50,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			app := New(t.TempDir(), t.TempDir())
+			snap := tc.snapshot
+			app.ProcessSnapshotFn = func() (maintenance.ProcessSnapshot, error) {
+				return snap, nil
+			}
+			rec := httptest.NewRecorder()
+			app.HealthCheck(rec, httptest.NewRequest(http.MethodGet, "/health", nil))
+
+			if rec.Code != tc.wantHTTP {
+				t.Fatalf("HTTP status = %d, want %d (body=%s)", rec.Code, tc.wantHTTP, rec.Body.String())
+			}
+			payload := decodeJSONMap(t, rec)
+			if payload["status"] != tc.wantStatus {
+				t.Fatalf("status = %v, want %q", payload["status"], tc.wantStatus)
+			}
+			system, ok := payload["system"].(map[string]any)
+			if !ok {
+				t.Fatalf("system block missing or wrong shape: %v", payload["system"])
+			}
+			if got := int(system["zombie_processes"].(float64)); got != tc.wantZombies {
+				t.Fatalf("zombie_processes = %d, want %d", got, tc.wantZombies)
+			}
+		})
+	}
+}
+
 func decodeJSONMap(t *testing.T, rec *httptest.ResponseRecorder) map[string]any {
 	t.Helper()
 	var payload map[string]any

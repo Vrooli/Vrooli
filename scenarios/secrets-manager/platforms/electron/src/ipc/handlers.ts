@@ -259,6 +259,12 @@ export function registerAuthHandlers(
     });
     channels.push(AUTH_CHANNELS.SIGN_IN);
 
+    // auth:connect-desktop - Link the authenticated LPBS account to a local identity.
+    ipcMain.handle(AUTH_CHANNELS.CONNECT_DESKTOP, async (_event, options) => {
+        await authManager.connectDesktop(options);
+    });
+    channels.push(AUTH_CHANNELS.CONNECT_DESKTOP);
+
     // auth:sign-out - Sign out
     ipcMain.handle(AUTH_CHANNELS.SIGN_OUT, async () => {
         await authManager.signOut();
@@ -270,6 +276,23 @@ export function registerAuthHandlers(
         return authManager.getAccessToken();
     });
     channels.push(AUTH_CHANNELS.GET_ACCESS_TOKEN);
+
+    // The runtime-owned local session is available only to the trusted local
+    // renderer. A remote page must not be able to turn the Electron bridge into
+    // a bearer-token oracle.
+    if (deps.getLocalSessionToken) {
+        ipcMain.handle(AUTH_CHANNELS.GET_LOCAL_SESSION_TOKEN, async (event) => {
+            const rawURL = event.senderFrame?.url ?? event.sender.getURL();
+            if (!isTrustedLocalRendererURL(rawURL)) return null;
+            return deps.getLocalSessionToken?.() ?? null;
+        });
+        channels.push(AUTH_CHANNELS.GET_LOCAL_SESSION_TOKEN);
+    }
+
+    ipcMain.handle(AUTH_CHANNELS.GET_ENTITLEMENT_LEASE, async () => {
+        return authManager.getEntitlementLease();
+    });
+    channels.push(AUTH_CHANNELS.GET_ENTITLEMENT_LEASE);
 
     // auth:get-user - Get user info
     ipcMain.handle(AUTH_CHANNELS.GET_USER, async () => {
@@ -293,6 +316,17 @@ export function registerAuthHandlers(
         unregister: () => channels.forEach(ch => ipcMain.removeHandler(ch)),
         channels,
     };
+}
+
+function isTrustedLocalRendererURL(rawURL: string): boolean {
+    try {
+        const url = new URL(rawURL);
+        if (url.protocol === "file:") return true;
+        if (url.protocol !== "http:" && url.protocol !== "https:") return false;
+        return url.hostname === "127.0.0.1" || url.hostname === "localhost" || url.hostname === "[::1]" || url.hostname === "::1";
+    } catch {
+        return false;
+    }
 }
 
 /**

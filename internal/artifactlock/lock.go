@@ -4,6 +4,7 @@
 package artifactlock
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,15 +12,15 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/vrooli/vrooli/internal/tuning"
-
 	platform "github.com/vrooli/platform-go"
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 )
 
-var mutexes sync.Map
+var gates sync.Map
+
+const artifactLockMode = 0o600
 
 var unsafeName = regexp.MustCompile(`[^A-Za-z0-9_.-]+`)
 
@@ -45,40 +46,56 @@ func Acquire(key string) (func(), error) {
 // callback is still responsible for selecting a user-owned location; this
 // package owns directory creation, file locking, and release ordering.
 func AcquireWithPath(key string, pathFn func(string) (string, error)) (func(), error) {
+	return AcquireWithPathContext(context.Background(), key, pathFn)
+}
+
+// AcquireContext preserves artifact identity and ownership while allowing a
+// queued caller to leave without stranding a mutex or native-lock goroutine.
+func AcquireContext(ctx context.Context, key string) (func(), error) {
+	return AcquireWithPathContext(ctx, key, LockPath)
+}
+
+// AcquireWithPathContext is the injectable context-aware owner boundary.
+func AcquireWithPathContext(ctx context.Context, key string, pathFn func(string) (string, error)) (func(), error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	key = strings.TrimSpace(key)
 	if key == "" {
 		return nil, fmt.Errorf("artifact lock key is required")
 	}
-	mutexValue, _ := mutexes.LoadOrStore(key, &sync.Mutex{})
-	mutex := mutexValue.(*sync.Mutex)
-	mutex.Lock()
+	gateValue, _ := gates.LoadOrStore(key, make(chan struct{}, 1))
+	gate := gateValue.(chan struct{})
+	select {
+	case gate <- struct{}{}:
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+	unlock := func() { <-gate }
 	path, err := pathFn(key)
 	if err != nil {
-		mutex.Unlock()
+		unlock()
 		return nil, err
 	}
 	if _, err := config.EnsureOwnedDir(filepath.Dir(path)); err != nil {
-		mutex.Unlock()
+		unlock()
 		return nil, fmt.Errorf("create artifact lock directory: %w", err)
 	}
-	file, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, tuning.PermLock)
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, artifactLockMode)
 	if err != nil {
-		mutex.Unlock()
+		unlock()
 		return nil, fmt.Errorf("open artifact lock %q: %w", path, err)
 	}
-	_ = os.Chmod(path, tuning.PermLock)
+	_ = os.Chmod(path, artifactLockMode)
 	_ = config.ChownToInvokingUser(path)
-	releaseFile, err := platform.LockFile(file, false)
+	_ = file.Close()
+	releaseFile, err := platform.AcquireFileLockContext(ctx, path)
 	if err != nil {
-		_ = file.Close()
-		mutex.Unlock()
+		unlock()
 		return nil, fmt.Errorf("lock artifact %q: %w", key, err)
 	}
-	return func() {
-		releaseFile()
-		_ = file.Close()
-		mutex.Unlock()
-	}, nil
+	var once sync.Once
+	return func() { once.Do(func() { releaseFile(); unlock() }) }, nil
 }
 
 func safeName(key string) string {

@@ -309,12 +309,13 @@ vrooli scenario test browser-automation-studio
 
 # Run unit tests
 cd api && go test ./...
-cd ../ui && pnpm test        # runs sharded Vitest suites (stores + component smoke tests)
+cd ../ui && pnpm test        # serial smoke projects, including WorkflowBuilder
+pnpm test:full               # all declared UI projects
+pnpm test:coverage-contract  # deterministic runner/provider/selection regressions
+pnpm test:coverage           # complete-source merge, unchanged 85% floors
 
-# Optional: heavyweight WorkflowBuilder Vitest suite (requires lots of RAM)
-pnpm test:workflow-builder   # still memory hungry; pair with Playwright-driver workflow smoke checks for end-to-end coverage
-
-> Note: The WorkflowBuilder Vitest suite currently requires >10GB of heap because of React Flow + Monaco mocks. The default `pnpm test` command runs the lighter shards and skips the builder suite to keep CI stable.
+# Full UI/driver/native boundaries and retained-evidence semantics:
+# docs/internal/TESTING.md
 
 # Run replay renderer automation
 testing::playbooks::bas::run_workflow --file bas/cases/05-replay/01-automation/render-check.json --folder /regression
@@ -388,3 +389,32 @@ This scenario is a core Vrooli capability. Improvements here benefit all UI-base
 ---
 
 **Part of the Vrooli Ecosystem** - Every workflow created becomes permanent intelligence the system uses forever.
+
+
+## Committed Electron shell profile
+
+The source shell's authoritative generator input is
+[.vrooli/electron-shell-config.json](.vrooli/electron-shell-config.json), explicitly
+proxy/basic. It preserves the reviewed1400×900 dark presentation, enabled tray,
+existing Linux signing hook and `bundle` extra resource. The public GPG key ID is
+an existing signing identity reference, not a private key. `scenario_dist_path`
+remains `bundle` to preserve the existing package resource; proxy mode continues
+using its configured external UI/API. This is source-generation intent and does
+not prove bundled/offline operation or a release.
+
+The older [.vrooli/desktop-config.json](.vrooli/desktop-config.json) is a saved
+bundled deployment profile. Select it only through its deployment workflow; it
+is not the source-shell comparison input. From the BAS scenario directory, the
+supported source-only owner route is:
+
+```bash
+node ../scenario-to-desktop/templates/build-tools/write-build-stamp.js --check
+SKIP_DESKTOP_DEPENDENCY_INSTALL=1 node ../scenario-to-desktop/templates/build-tools/dist/template-generator.js .vrooli/electron-shell-config.json
+```
+
+The comparator reads that same committed input and changes only its temporary
+output destination; it verifies owner freshness first and retains all generated
+file/security assertions. Freshen/build through scenario-to-desktop's governed
+owner route when the check refuses. Actual regeneration, packaging and native
+qualification require their normal owner admission; no private generator patch,
+raw package-manager install or manual generated-file edit is a repair.

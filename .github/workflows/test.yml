@@ -1,6 +1,8 @@
 name: Tests
 
 on:
+  schedule:
+    - cron: '17 3 * * *'
   push:
     branches: [master]
   pull_request:
@@ -10,6 +12,12 @@ on:
 # Limit permissions to only what's needed
 permissions:
   contents: read
+
+# Toolchain floor: every Go build and test in CI runs at the same bounded
+# width the control plane applies on a host (internal/tuning BuildWidth).
+env:
+  GOFLAGS: -p=4
+  GOMAXPROCS: "8"
 
 jobs:
   clean-shared-package-provisioning:
@@ -49,14 +57,37 @@ jobs:
           make setup SETUP_ARGS="--environment development --resources none --scenarios none --yes"
 
       - name: Build test-genie from a clean shared-package state
-        run: go run ./cmd/vrooli --no-stale-check scenario setup test-genie
+        run: go run ./cmd/vrooli scenario setup test-genie
+
+      - name: Verify React Component Library artifact isolation
+        working-directory: packages/react-component-library
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm test:artifact
+          artifact_root=$(mktemp -d)
+          VROOLI_RCL_ARTIFACT_ROOT="$artifact_root" pnpm build --runtime
+          current_before=$(sha256sum "$artifact_root/current.json" | awk '{print $1}')
+          RCL_BUILD_FAIL_STAGE=compile VROOLI_RCL_ARTIFACT_ROOT="$artifact_root" pnpm build --runtime 2>"$artifact_root/degraded.log"
+          current_after=$(sha256sum "$artifact_root/current.json" | awk '{print $1}')
+          test "$current_before" = "$current_after"
+          jq -e '.status == "degraded" and .selectedArtifact != null and .candidateIdentity != null' "$artifact_root/runtime-status.json"
+          grep -F '"status":"degraded"' "$artifact_root/degraded.log"
+
+          empty_root=$(mktemp -d)
+          set +e
+          RCL_BUILD_FAIL_STAGE=compile VROOLI_RCL_ARTIFACT_ROOT="$empty_root" pnpm build --runtime >"$empty_root/failure.log" 2>&1
+          failure_status=$?
+          set -e
+          test "$failure_status" -ne 0
+          jq -e '.status == "failed" and .compatibility == "missing" and .selectedArtifact == null' "$empty_root/runtime-status.json"
 
       - name: Prove disabled provisioning fails with an actionable package error
         shell: bash
         run: |
           set +e
           VROOLI_DISABLE_SHARED_PACKAGE_PROVISIONING=1 \
-            go run ./cmd/vrooli --no-stale-check scenario setup test-genie 2>&1 | tee /tmp/shared-package-provisioning-disabled.log
+            go run ./cmd/vrooli scenario setup test-genie 2>&1 | tee /tmp/shared-package-provisioning-disabled.log
           status=${PIPESTATUS[0]}
           set -e
           test "$status" -ne 0
@@ -67,7 +98,33 @@ jobs:
             exit 1
           fi
 
+  supervisory:
+    name: Boot-recovery consumer compile gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Go
+        id: go-version
+        shell: bash
+        run: echo "value=$(jq -r '.version' internal/tools/go/tool.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Install pinned Go toolchain
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version: ${{ steps.go-version.outputs.value }}
+
+      # Every module on the boot-recovery path (tools/supervisory-modules.txt)
+      # must build, vet, test and cross-compile before anything installs a CLI.
+      # The 2026-09-02 outage installed a CLI that its own supervisors could no
+      # longer call; this job is the gate that would have refused it.
+      - name: Verify supervisory modules
+        run: make verify-supervisory
+
   test:
+    needs: supervisory
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -98,11 +155,37 @@ jobs:
         run: make verify-committed-gen
         working-directory: packages/proto
 
-      - name: Cross-compile OS-evidence packages (darwin/windows)
-        run: make cross-compile
+      - name: Install pinned gofumpt
+        run: go install mvdan.cc/gofumpt@v0.5.0
+
+      - name: Lint control plane
+        uses: golangci/golangci-lint-action@4afd733a84b1f43292c63897423277bb7f4310ed # v6.1.0
+        with:
+          version: v1.64.8
+          args: ./cmd/... ./internal/...
+
+      - name: Check formatting
+        run: test -z "$(gofumpt -l ./cmd ./internal)"
+
+      - name: Check CLI manifest drift
+        run: go run ./cmd/vrooli-manifest-check
+
+      - name: Check generated tuning documentation drift
+        run: make verify-tuning-docs
+
+      - name: Gate new complexity
+        uses: golangci/golangci-lint-action@4afd733a84b1f43292c63897423277bb7f4310ed # v6.1.0
+        with:
+          version: v1.64.8
+          # Compare against the immutable plan baseline. origin/master predates
+          # unrelated branch work that already contains accepted complexity.
+          args: --new-from-rev=b6640b68ad46c4b463b43288f7edfc09dc0cd043 --enable-only=gocyclo ./cmd/... ./internal/...
 
       - name: Enforce declared platform conformance
         run: go run ./cmd/vrooli capability conformance
+
+      - name: Run portability runtime lint
+        run: make lint-portability
 
       - name: Verify capability schema artifacts are generated from the vocabulary
         run: go run ./internal/deployability/cmd/capability-vocabulary --root . --check
@@ -182,6 +265,69 @@ jobs:
 
       - name: Enforce the repository structure contract
         run: go run ./cmd/vrooli hygiene --contract-only --fail-on error --json
+
+  tidiness-control-plane:
+    name: Control-plane tidiness budget gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        id: go-version
+        shell: bash
+        run: echo "value=$(jq -r '.version' internal/tools/go/tool.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Install pinned Go toolchain
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version: ${{ steps.go-version.outputs.value }}
+
+      - name: Start tidiness-manager through the control plane
+        run: go run ./cmd/vrooli scenario start tidiness-manager --timeout 120
+
+      - name: Enforce the control-plane tidiness budget
+        run: go run ./cmd/vrooli hygiene --tidiness-only --fail-on error --json
+
+      - name: Audit declared tidiness budgets
+        run: tidiness-manager scan internal --budget-audit --timeout 600 --json
+
+  security-health-control-plane:
+    name: Control-plane security gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        id: go-version
+        shell: bash
+        run: echo "value=$(jq -r '.version' internal/tools/go/tool.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Install pinned Go toolchain
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version: ${{ steps.go-version.outputs.value }}
+
+      - name: Start Security Health and Test Genie through the control plane
+        run: |
+          go run ./cmd/vrooli scenario start security-health --timeout 120
+          go run ./cmd/vrooli scenario start test-genie --timeout 120
+
+      - name: Enforce the control-plane security phase
+        run: |
+          client="$HOME/.vrooli/bin/test-genie"
+          start_output=$(env PATH=/nonexistent "$client" execute control-plane:internal security 2>&1)
+          printf '%s\n' "$start_output"
+          run_id=$(printf '%s\n' "$start_output" | sed -n 's/^.*run \([^ ]*\) started.*$/\1/p' | head -n 1)
+          test -n "$run_id"
+          env PATH=/nonexistent "$client" runs wait --json --timeout=876 control-plane:internal "$run_id"
 
   resource-contract:
     name: Resource fleet contract gate
@@ -277,7 +423,7 @@ jobs:
 
       - name: Run lifecycle contract suite
         shell: bash
-        run: go test -count=1 ./internal/lifecycle/... ./internal/process/... ./internal/cli/scenariocli/...
+        run: go test -count=1 ./internal/lifecycle/... ./internal/process/... ./internal/resources/... ./internal/cli/scenariocli/...
 
       - name: Run a complete scenario lifecycle through the control plane
         shell: bash
@@ -349,7 +495,7 @@ jobs:
         shell: bash
         env:
           CGO_ENABLED: 1
-        run: go test -count=1 ./internal/resources/securestore/... ./internal/secrets/...
+        run: go test -count=1 ./internal/securestore/... ./internal/credentialauthority/...
 
       # The recovery drill is the reason this whole seam exists, so it gets the
       # same treatment as the conformance suite: prove it ran rather than
@@ -360,9 +506,9 @@ jobs:
           CGO_ENABLED: 1
         run: |
           go test -count=1 -v -run 'TestRecoveryDrillSurvivesTotalStoreLoss|TestRecoveryExportRefusesWhileTheProviderIsUnavailable|TestRecoveryExportFailsRatherThanSkippingAnUnsetEntry' \
-            ./internal/secrets/ | tee drill.log
+            ./internal/credentialauthority/ | tee drill.log
           go test -count=1 -v -run 'TestStoredFormIsIdenticalAcrossBackends|TestEncryptedStoreValuesSurviveANewHandle|TestEncryptedStoreFileNeverContainsAPlaintextValue' \
-            ./internal/resources/securestore/ | tee -a drill.log
+            ./internal/securestore/ | tee -a drill.log
           # The Vault chain spans three packages, and the failure that matters is
           # a break between them: a key stored under one address and enumerated
           # under another passes every unit test and still loses the instance.
@@ -383,7 +529,7 @@ jobs:
         env:
           CGO_ENABLED: 1
         run: |
-          go test -count=1 -v -run TestPlatformAdapterConformance ./internal/resources/securestore/ | tee conformance.log
+          go test -count=1 -v -run TestPlatformAdapterConformance ./internal/securestore/ | tee conformance.log
           if grep -q -- "--- SKIP: TestPlatformAdapterConformance" conformance.log; then
             echo "::error::Adapter conformance skipped on ${{ matrix.os }}; the platform backend was not reachable."
             exit 1
@@ -398,7 +544,7 @@ jobs:
 
       - name: Assert shared conformance suite is unchanged
         shell: bash
-        run: git diff --exit-code "${{ github.event.pull_request.base.sha || github.event.before }}" -- internal/resources/securestore/conformance_test.go
+        run: git diff --exit-code "${{ github.event.pull_request.base.sha || github.event.before }}" -- internal/securestore/conformance_test.go
 
   credentials-encrypted-override:
     name: Credential store encrypted override (${{ matrix.os }})
@@ -436,14 +582,14 @@ jobs:
         env:
           VROOLI_CREDENTIAL_BACKEND: encrypted-file
         run: |
-          go test -count=1 -v -run TestPlatformAdapterConformance ./internal/resources/securestore/ | tee conformance.log
+          go test -count=1 -v -run TestPlatformAdapterConformance ./internal/securestore/ | tee conformance.log
           ! grep -q -- "--- SKIP: TestPlatformAdapterConformance" conformance.log
           grep -q -- "--- PASS: TestPlatformAdapterConformance" conformance.log
           go run ./cmd/vrooli credentials doctor --format json | jq -e '.provider.backend == "encrypted-file"'
 
       - name: Assert shared conformance suite is unchanged
         shell: bash
-        run: git diff --exit-code "${{ github.event.pull_request.base.sha || github.event.before }}" -- internal/resources/securestore/conformance_test.go
+        run: git diff --exit-code "${{ github.event.pull_request.base.sha || github.event.before }}" -- internal/securestore/conformance_test.go
 
   credentials-libsecret:
     name: Credential store (Linux libsecret)
@@ -478,7 +624,7 @@ jobs:
             mkdir -p "$XDG_RUNTIME_DIR"
             chmod 700 "$XDG_RUNTIME_DIR"
             eval "$(printf "%s\n" ci-conformance-passphrase | gnome-keyring-daemon --start --components=secrets --unlock)"
-            go test -count=1 -v -run TestPlatformAdapterConformance ./internal/resources/securestore/ | tee conformance.log
+            go test -count=1 -v -run TestPlatformAdapterConformance ./internal/securestore/ | tee conformance.log
             if grep -q -- "--- SKIP: TestPlatformAdapterConformance" conformance.log; then
               echo "::error::Native libsecret conformance skipped"
               exit 1
@@ -539,6 +685,29 @@ jobs:
         working-directory: packages/platform-go
         run: go test -count=1 ./...
 
+      # platform-go owns every OS-specific body in the fleet — containment,
+      # identity, process, locks — and it is a separate module, so the
+      # repo-root cross-build of ./internal/... ./cmd/... never reaches it.
+      # Native `go test ./...` above compiles only the host's build tags, so a
+      # darwin or windows body could break and no gate would notice.
+      #
+      # freebsd is here on purpose and is not a deployment target: it is the
+      # only target that selects the `!linux && !darwin && !windows` bodies,
+      # so without it containment_other.go is compiled nowhere.
+      - name: Cross-build the platform substrate for every tag-selected target
+        id: platform_go_cross
+        shell: bash
+        working-directory: packages/platform-go
+        run: |
+          set -euo pipefail
+          for target in linux/amd64 linux/arm64 darwin/arm64 darwin/amd64 windows/amd64 freebsd/amd64; do
+            os=${target%/*}
+            arch=${target#*/}
+            echo "::group::$os/$arch"
+            GOOS="$os" GOARCH="$arch" GOWORK=off go build ./...
+            echo "::endgroup::"
+          done
+
       - name: Boot and terminate the native Unit Health API
         id: api_e2e
         shell: bash
@@ -591,3 +760,53 @@ jobs:
           path: ${{ runner.temp }}/unit-health-native-evidence
           if-no-files-found: error
           retention-days: 14
+
+  platforms:
+    name: Scheduled platform gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Decide whether platform gate is due
+        id: due
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == schedule || "$EVENT_NAME" == workflow_dispatch ]]; then
+            echo 'run=true' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ "$EVENT_NAME" == pull_request ]]; then
+            changed=$(git diff --name-only "origin/$BASE_REF...HEAD")
+          else
+            changed=$(git diff --name-only "$BEFORE_SHA" HEAD)
+          fi
+          if printf '%s\n' "$changed" | grep -Eq '(^|/)(go\.mod|go\.sum)$|^\.vrooli/repo-contract\.json$|^internal/|^packages/|^scenarios/'; then
+            echo 'run=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'run=false' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Go
+        if: steps.due.outputs.run == 'true'
+        id: go-version
+        shell: bash
+        run: echo "value=$(jq -r '.version' internal/tools/go/tool.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Install pinned Go toolchain
+        if: steps.due.outputs.run == 'true'
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version: ${{ steps.go-version.outputs.value }}
+
+      - name: Run scheduled platform gate
+        if: steps.due.outputs.run == 'true'
+        run: make check-platforms

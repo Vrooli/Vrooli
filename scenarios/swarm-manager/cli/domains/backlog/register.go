@@ -9,6 +9,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
+	"google.golang.org/protobuf/encoding/protojson"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api/apiconnect"
@@ -28,6 +29,7 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 			support.APICommand("create", "Create a backlog item (--data JSON)", deps.BacklogCreate),
 			support.APICommand("update", "Update a backlog item (--kind KIND --name NAME --data JSON)", deps.BacklogUpdate),
 			deleteCommand(),
+			archiveTerminalCommand(),
 			dismissCommand(),
 			support.APICommand("plan-workshop", "Open the Plan Workshop for a backlog item (--kind KIND --name NAME [--start-review])", deps.BacklogPlanWorkshop),
 			support.APICommand("recreate", "Archive and clone a backlog item with lineage (--kind KIND --name NAME) [--json]", deps.BacklogRecreate),
@@ -49,6 +51,30 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 			support.APICommand("search-ai", "Semantic search over backlog items (<query> [--limit N] [--kind K,...] [--status S,...] [--milestone N] [--include-archived] [--json])", deps.BacklogSearchAI),
 		},
 	}
+}
+
+func archiveTerminalCommand() cliapp.Command {
+	cmd := cliapp.Command{Name: "archive-terminal", NeedsAPI: true, Description: "Preview or archive up to 50 reviewed completed/dropped items (--items JSON [--execute])", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{
+		{Name: "items", Required: true, Description: "JSON array of kind, name, expected_status, expected_updated"},
+		{Name: "execute", Bool: true, Description: "Apply archival; omission previews only"},
+	}}}
+	return cmd.WithPrimitive(cliapp.ProtoMutation(
+		func(op cliapp.OperationContext) (*apipb.ArchiveTerminalItemsResponse, error) {
+			request := &apipb.ArchiveTerminalItemsRequest{}
+			if err := protojson.Unmarshal([]byte(`{"items":`+op.Flag("items")+`}`), request); err != nil {
+				return nil, fmt.Errorf("--items must be a JSON array of reviewed terminal snapshots: %w", err)
+			}
+			request.Execute = op.BoolFlag("execute")
+			response, err := backlogClient(op).ArchiveTerminalItems(context.Background(), connect.NewRequest(request))
+			if err != nil {
+				return nil, err
+			}
+			return response.Msg, nil
+		},
+		func(_ cliapp.OperationContext, response *apipb.ArchiveTerminalItemsResponse) cliapp.MutationReport {
+			return cliapp.MutationReport{Result: []string{fmt.Sprintf("Eligible: %d; archived: %d; skipped: %d; executed: %t", response.EligibleCount, response.ArchivedCount, response.SkippedCount, response.Executed)}}
+		},
+	))
 }
 
 func reviewDecideCommand() cliapp.Command {
@@ -112,13 +138,15 @@ func listCommand() cliapp.Command {
 	cmd := cliapp.Command{
 		Name:        "list",
 		NeedsAPI:    true,
-		Description: "List backlog items [--kind KIND] [--actor-id PROFILE]",
+		Description: "List backlog items [--kind KIND] [--tag TAG[,TAG]] [--limit N] [--actor-id PROFILE]",
 		Args: cliapp.ArgSchema{Flags: []cliapp.Flag{
 			{Name: "kind", Description: "Comma-separated backlog kinds"},
 			{Name: "status", Description: "Comma-separated backlog statuses"},
 			{Name: "archived", Description: "Show archived items: true, false, or all", Values: []string{"true", "false", "all"}},
 			{Name: "scenario", Description: "Comma-separated scenario names"},
 			{Name: "actor-id", Description: "Verified team-member/profile identity"},
+			{Name: "tag", Description: "Comma-separated tags; items carrying any of them match"},
+			{Name: "limit", Description: "Maximum items to return after sorting (0 = all)"},
 		}},
 	}
 	return cmd.WithPrimitive(cliapp.ProtoList(
@@ -128,6 +156,15 @@ func listCommand() cliapp.Command {
 				Statuses:  splitCSV(op.Flag("status")),
 				Scenarios: splitCSV(op.Flag("scenario")),
 				ActorId:   optionalString(op.Flag("actor-id")),
+				Tags:      splitCSV(op.Flag("tag")),
+			}
+			if raw := strings.TrimSpace(op.Flag("limit")); raw != "" {
+				limit, err := strconv.Atoi(raw)
+				if err != nil || limit < 0 {
+					return nil, fmt.Errorf("--limit must be a non-negative integer")
+				}
+				value := int32(limit)
+				req.Limit = &value
 			}
 			switch strings.TrimSpace(op.Flag("archived")) {
 			case "", "false":
@@ -150,7 +187,11 @@ func listCommand() cliapp.Command {
 			for _, item := range response.GetItems() {
 				rows = append(rows, fmt.Sprintf("[%s] %s — %s (priority: %d, status: %s)", item.GetKind(), item.GetName(), item.GetTitle(), item.GetPriority(), item.GetStatus()))
 			}
-			return cliapp.ListReport{Summary: []string{fmt.Sprintf("Backlog items: %d", len(rows))}, ResultsHeading: "Results", Results: rows}
+			summary := fmt.Sprintf("Backlog items: %d", len(rows))
+			if total := int(response.GetTotal()); total > len(rows) {
+				summary = fmt.Sprintf("Backlog items: %d of %d", len(rows), total)
+			}
+			return cliapp.ListReport{Summary: []string{summary}, ResultsHeading: "Results", Results: rows}
 		},
 	))
 }

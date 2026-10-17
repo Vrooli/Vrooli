@@ -1,11 +1,56 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "storage": {"entries":{"data":{"rung":"owned","path":"data","kind":"dir","class":"data","regenerable":false,"rationale":"Scenario-owned durable data observed in the canonical data directory."}},"rationale":"Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."},
+  "branding": {
+    "brand": "pan",
+    "targets": [
+      "web-public-v1"
+    ]
+  },
+  "skills": {
+    "usage": {
+      "source": "skills/audio-tools/SKILL.md",
+      "programs": ["audio-tools.setpoint-read"]
+    },
+    "improve": {
+      "source": "skills/audio-tools-improve/SKILL.md",
+      "programs": ["audio-tools.setpoint-read"]
+    },
+    "feature": [],
+    "waivers": {}
+  },
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      },
+      "soak_evidence": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "subpath": "soak-evidence",
+        "regenerable": false,
+        "rationale": "Soak and reliability measurements are historical evidence, not reproducible outputs; 1090744 bytes were measured on 2026-08-27.",
+        "budget": {
+          "max_bytes": "256MiB",
+          "rationale": "The dated evidence cohort measured 1090744 bytes on 2026-08-27; 256 MiB is an alarm-only ceiling for durable measurements."
+        }
+      }
+    },
+    "rationale": "Storage surfaces include durable scenario data and separately named long-form qualification evidence."
+  },
   "service": {
     "parent": "vrooli",
     "name": "audio-tools",
-    "displayName": "Audio Tools",
+    "displayName": "Pan",
     "description": "Shared audio capabilities: STT, TTS, summarization, audio processing, provider routing (BYOK/LPBS/Local)",
     "version": "0.0.1",
     "type": "business-application",
@@ -63,7 +108,7 @@
     "ui": {
       "env_var": "UI_PORT",
       "description": "React UI",
-      "port": 20004
+      "range": "20000-24999"
     }
   },
   "hostTools": [
@@ -107,135 +152,100 @@
     },
     "setup": {
       "description": "Build API and UI assets declared by the manifest-driven lifecycle contract",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/audio-tools-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "audio-tools"
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          }
-        ]
-      },
       "steps": [
         {
           "name": "build-api",
-        "run": "go -C api mod download && go -C api build -o audio-tools-api .",
+          "exec": [
+            "go",
+            "-C",
+            "api",
+            "run",
+            "./cmd/build"
+          ],
           "description": "Build Go API server"
-        },
-        {
-          "name": "install-ui-deps",
-        "run": "corepack pnpm --dir ui install --ignore-workspace",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-        "run": "corepack pnpm --dir ui --ignore-workspace run build",
-          "description": "Build production UI bundle"
         }
       ]
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "cwd": "api",
+        "port": "api"
+      }
     },
-    "develop": {
-      "description": "Launch API and Vite dev server",
-      "steps": [
-        {
-          "name": "start-api",
-        "run": "go -C api run .",
-          "description": "Start Go API through the managed Go module lifecycle",
-          "background": true,
-          "condition": {
-            "file_exists": "api/go.mod"
-          }
-        },
-        {
-          "name": "start-ui",
-        "run": "node ui/server.js",
-          "description": "Serve production UI bundle",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        }
-      ]
-    },
-    "build": {},
-    "deploy": {},
-    "clean": {},
-    "test": {
-      "description": "Execute phased test suite via test-genie",
-      "steps": [
-        {
-          "name": "check-temporal-models",
-          "run": "flow-verifier verify check --root .",
-          "description": "Verify formal flow artifacts via the flow-verifier scenario CLI"
-        },
-        {
-          "name": "run-tests",
-          "run": "test-genie execute audio-tools --preset comprehensive",
-          "description": "Run all test phases via test-genie"
-        }
-      ]
-    },
-    "backup": {},
-    "restore": {},
-    "production": {},
-    "stop": {
-      "description": "Lifecycle manager stops registered background processes",
-      "steps": []
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
     }
   },
   "dependencies": {
     "resources": {
       "whisper": {
         "required": false,
-        "notes": "Local STT tier (faster-whisper engine)"
+        "description": "Local STT tier (faster-whisper engine)",
+        "startup_policy": "try_start"
       },
       "kyutai-stt": {
         "required": false,
-        "notes": "Local streaming STT engine (Kyutai); selectable alongside whisper"
+        "description": "Optional Linux/CUDA streaming STT accelerator",
+        "startup_policy": "try_start"
       },
       "kokoro": {
         "required": false,
-        "notes": "Local TTS tier"
+        "description": "Local TTS tier",
+        "startup_policy": "try_start"
       },
-      "speaker-verification": {
+      "sherpa-onnx": {
         "required": false,
-        "notes": "Speaker enrollment + verification gate for the streaming STT path"
+        "description": "Native local TTS, streaming STT, speaker enrollment/verification, and source separation",
+        "startup_policy": "try_start"
       },
       "ollama": {
         "required": false,
-        "notes": "Local summarize tier"
+        "description": "Local summarize tier",
+        "startup_policy": "try_start"
       },
       "openrouter": {
         "type": "openrouter",
         "required": false,
-        "notes": "Cloud summarize tier (BYOK); model resolved via OpenRouter policy role",
         "model_roles": [
           "summarize.default"
-        ]
+        ],
+        "description": "Cloud summarize tier (BYOK); model resolved via OpenRouter policy role",
+        "startup_policy": "try_start"
       },
       "postgres": {
         "required": false,
-        "notes": "Optional usage history backend; sqlite is default"
+        "description": "Optional usage history backend; sqlite is default",
+        "startup_policy": "try_start"
       }
     },
     "scenarios": {
       "landing-page-business-suite": {
         "required": false,
         "startup_policy": "try_start",
-        "degraded_behavior": "LPBS-backed audio routing remains unavailable while landing-page-business-suite is stopped; local and BYOK providers continue to serve supported requests."
+        "degraded_behavior": "LPBS-backed audio routing remains unavailable while landing-page-business-suite is stopped; local and BYOK providers continue to serve supported requests.",
+        "bundle_policy": "discover"
       }
     }
   },
@@ -243,15 +253,42 @@
     "GOWORK": "off",
     "AUDIO_WHISPER_URL": "http://localhost:8090",
     "AUDIO_KYUTAI_URL": "http://localhost:8094",
-    "AUDIO_SPEAKER_URL": "http://localhost:11452",
-    "AUDIO_KOKORO_URL": "http://localhost:8880",
+    "AUDIO_SHERPA_URL": "http://localhost:8880",
     "AUDIO_OLLAMA_URL": "http://localhost:11434",
-    "AUDIO_LPBS_BASE_URL": "",
     "AUDIO_AI_ENABLE_BYOK": "true",
     "AUDIO_AI_ENABLE_VROOLI": "false",
     "AUDIO_AI_ENABLE_LOCAL": "true",
     "AUDIO_TOOLS_ENABLE_STREAM_TEST_FAULTS": "false",
     "AUDIO_AVAIL_TTL_BYOK": "5m",
     "AUDIO_AVAIL_TTL_VROOLI": "30s"
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "ui/server.js"
+        ],
+        "port": "ui"
+      }
+    }
   }
 }

@@ -114,6 +114,9 @@ export default function App() {
     retryProfileSessionSave,
     acceptRecommendation,
   } = useWizardState(target);
+  useEffect(() => {
+    if (!stepsLoading && !stepsError && !performance.getEntriesByName("app-interactive").length) performance.mark("app-interactive");
+  }, [stepsLoading, stepsError]);
 
   // WAI-ARIA tablist keyboard navigation: Left/Right arrows, Home/End
   const handleTabKeyDown = useCallback(

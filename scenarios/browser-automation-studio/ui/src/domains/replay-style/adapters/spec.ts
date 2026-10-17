@@ -18,7 +18,7 @@ import {
   REPLAY_STYLE_DEFAULTS,
   resolveReplayPresentationStyle,
 } from '../model';
-import { buildChromeDecor } from '../catalog';
+import { buildChromeDecor, buildDeviceFrameDecor } from '../catalog';
 
 const backgroundToJson = (background: ReplayBackgroundSource): JsonObject => {
   switch (background.type) {
@@ -170,6 +170,7 @@ export const applyReplayStyleToSpec = (
         },
         browserScale: presentationStyle.browserScale,
         chromeHeaderHeight: chromeDecor.headerHeight,
+        frameInset: style.presentation.showDesktop && style.presentation.showDeviceFrame ? buildDeviceFrameDecor(style.deviceFrameTheme).frameInset : undefined,
         fit: 'none',
       })
     : null;

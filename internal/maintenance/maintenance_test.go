@@ -159,6 +159,74 @@ func TestLooksLikeVrooliProcessMatchesVrooliBinary(t *testing.T) {
 	}
 }
 
+func TestLooksLikeVrooliProcessMatchesLeakedDesktopBundle(t *testing.T) {
+	root := "/home/alice/Vrooli"
+	home := "/home/alice"
+
+	// A scenario-to-desktop AppImage extracts its squashfs under /tmp and runs
+	// a private bundled api process. When the UI exits that api can be left
+	// reparented to init. Its path is outside every Vrooli-owned prefix, so it
+	// must be recognized explicitly for orphan reaping.
+	entry := processTableEntry{
+		PID:        5001,
+		PPID:       1,
+		Executable: "/tmp/appimage_extracted_9f3c/resources/bundle/bin/api/linux-x64/api",
+		Command:    "/tmp/appimage_extracted_9f3c/resources/bundle/bin/api/linux-x64/api",
+	}
+	if !looksLikeVrooliProcess(root, home, entry) {
+		t.Fatalf("expected leaked desktop-bundle process to be recognized")
+	}
+
+	// Command-only form (executable symlink unreadable) must match on argv[0].
+	cmdOnly := processTableEntry{
+		PID:     5002,
+		PPID:    1,
+		Command: "/tmp/appimage_extracted_9f3c/resources/bundle/bin/api/linux-x64/api --serve",
+	}
+	if !looksLikeVrooliProcess(root, home, cmdOnly) {
+		t.Fatalf("expected leaked desktop-bundle process (command-only) to be recognized")
+	}
+}
+
+func TestIsLeakedDesktopBundleProcessRejectsUnrelatedTmp(t *testing.T) {
+	// A /tmp path lacking the bundle marker must never match, so an unrelated
+	// temp process is never swept.
+	cases := []processTableEntry{
+		{Executable: "/tmp/appimage_extracted_9f3c/AppRun"},
+		{Executable: "/tmp/go-build123/exe/app"},
+		{Command: "/tmp/something/resources/bundle/bin/api"}, // missing extracted prefix
+		{Executable: "/home/alice/Vrooli/scenarios/beta/api/beta-api"},
+	}
+	for _, entry := range cases {
+		if isLeakedDesktopBundleProcess(entry) {
+			t.Fatalf("unrelated process must not match leaked-bundle pattern: %+v", entry)
+		}
+	}
+}
+
+func TestCollectOrphansLeakedBundleRequiresInitParent(t *testing.T) {
+	root := "/home/alice/Vrooli"
+	home := "/home/alice"
+	tracked := map[int]struct{}{}
+	trackedSIDs := map[int]struct{}{}
+
+	bundleBase := "/tmp/appimage_extracted_9f3c/resources/bundle/bin/api/linux-x64/api"
+	table := map[int]processTableEntry{
+		// Leaked: reparented to init -> an orphan to reap.
+		5001: {PID: 5001, PPID: 1, Executable: bundleBase, Command: bundleBase},
+		// Still attached to a live parent -> managed, must NOT be swept.
+		5002: {PID: 5002, PPID: 4000, Executable: bundleBase, Command: bundleBase},
+	}
+
+	orphans := collectOrphans(root, home, table, tracked, trackedSIDs)
+	if len(orphans) != 1 {
+		t.Fatalf("expected exactly one leaked-bundle orphan, got %d: %+v", len(orphans), orphans)
+	}
+	if orphans[0].PID != 5001 {
+		t.Fatalf("expected the init-reparented bundle (pid 5001) to be the orphan, got pid %d", orphans[0].PID)
+	}
+}
+
 func TestLooksLikeVrooliProcessMatchesInterpreterInScenarioCwd(t *testing.T) {
 	root := "/home/alice/Vrooli"
 	home := "/home/alice"

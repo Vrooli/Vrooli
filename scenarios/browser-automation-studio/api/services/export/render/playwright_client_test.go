@@ -1,8 +1,15 @@
 package render
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"os/exec"
 	"strings"
 	"testing"
+	"time"
+
+	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 
@@ -240,14 +247,10 @@ func TestBuildPlaywrightCaptureInstructions_ViewportStabilization(t *testing.T) 
 
 		script := params.GetExpression()
 
-		// Must force permanent vertical scrollbar
-		if !strings.Contains(script, "overflow-y:scroll") {
-			t.Fatalf("stabilization script must force overflow-y:scroll, got: %s", script)
-		}
-
-		// Must hide horizontal overflow to prevent horizontal layout shifts
-		if !strings.Contains(script, "overflow-x:hidden") {
-			t.Fatalf("stabilization script must hide overflow-x, got: %s", script)
+		// The export is a fixed canvas: neither scrollbar painting nor root
+		// reflow belongs in the encoded result.
+		if !strings.Contains(script, "html,body{overflow:hidden") || strings.Contains(script, "overflow-y:scroll") {
+			t.Fatalf("fixed export canvas must hide root overflow: %s", script)
 		}
 
 		break
@@ -312,3 +315,137 @@ func TestBuildPlaywrightCaptureInstructions_ComposerProtocol(t *testing.T) {
 		}
 	}
 }
+
+func TestCaptureRecorderRefusesMemoryOverflowBeforeRetainingFrame(t *testing.T) {
+	recorder := &inMemoryCaptureRecorder{capturedBytes: 128 * 1024 * 1024}
+	_, err := recorder.RecordStepOutcome(context.Background(), autocontracts.ExecutionPlan{}, autocontracts.StepOutcome{Screenshot: &autocontracts.Screenshot{Data: []byte{1}}})
+	if err == nil || len(recorder.outcomes) != 0 {
+		t.Fatal("over-budget frame retained")
+	}
+}
+
+// Execute the emitted browser script against a deterministic public-API fake.
+// This validates message-delivery ordering without starting a browser or renderer.
+func TestCaptureComposerWaitsForRequestedReplayIdentity(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("Node is required to evaluate the emitted JavaScript contract")
+	}
+	spec := &ReplayMovieSpec{
+		Execution: &exportsv1.ReplayExecutionMetadata{ExecutionId: "requested-execution"},
+		Summary:   &exportsv1.ReplaySummary{TotalDurationMs: 200},
+		Frames:    []*exportsv1.ReplayFrame{{DurationMs: 200}},
+	}
+	instructions, err := buildPlaywrightCaptureInstructions("http://example.test/export", spec, 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expression := instructions[2].Action.GetEvaluate().GetExpression()
+	nextInstructions, err := buildPlaywrightCaptureInstructions("http://example.test/export", spec, 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	nextExpression := nextInstructions[2].Action.GetEvaluate().GetExpression()
+	for _, test := range []struct {
+		name, wantError string
+		minimumTicks    int
+	}{
+		{name: "old-ready", minimumTicks: 1},
+		{name: "same-execution", minimumTicks: 1},
+		{name: "consecutive-same-execution", minimumTicks: 2},
+		{name: "stale-token", minimumTicks: 2},
+		{name: "wrong-token", wantError: "Replay composer did not become ready", minimumTicks: 15},
+		{name: "matching-but-not-ready", minimumTicks: 2},
+		{name: "wrong-identity", wantError: "Replay composer did not become ready", minimumTicks: 15},
+		{name: "current-error", wantError: "current composer failure", minimumTicks: 1},
+		{name: "old-error", minimumTicks: 1},
+		{name: "stale-request-error", minimumTicks: 2},
+		{name: "current-request-error", wantError: "Invalid replay spec", minimumTicks: 1},
+		{name: "unavailable", wantError: "Replay composer unavailable", minimumTicks: 15},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			input, err := json.Marshal(map[string]string{"expression": expression, "nextExpression": nextExpression, "mode": test.name})
+			if err != nil {
+				t.Fatal(err)
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+			command := exec.CommandContext(ctx, node, "-e", composerIdentityHarness)
+			command.Stdin = bytes.NewReader(input)
+			output, err := command.CombinedOutput()
+			if err != nil {
+				t.Fatalf("JavaScript harness: %v: %s", err, output)
+			}
+			var got struct {
+				Error  string `json:"error"`
+				Ticks  int    `json:"ticks"`
+				Pauses int    `json:"pauses"`
+				Seeks  int    `json:"seeks"`
+				Ready  bool   `json:"ready"`
+			}
+			if err := json.Unmarshal(output, &got); err != nil {
+				t.Fatalf("harness witness: %v: %s", err, output)
+			}
+			if got.Error != test.wantError || got.Ticks < test.minimumTicks {
+				t.Fatalf("captured stale/unready replay or lost bounded failure: %+v", got)
+			}
+			if test.wantError == "" {
+				expectedCalls := 1
+				if test.name == "consecutive-same-execution" {
+					expectedCalls = 2
+				}
+				if !got.Ready || got.Pauses != expectedCalls || got.Seeks != expectedCalls {
+					t.Fatalf("matching ready replay was not initialized: %+v", got)
+				}
+			} else if got.Ready || got.Pauses != 0 || got.Seeks != 0 {
+				t.Fatalf("failed composer was captured: %+v", got)
+			}
+		})
+	}
+}
+
+const composerIdentityHarness = `
+const { expression, nextExpression, mode } = JSON.parse(require('node:fs').readFileSync(0, 'utf8'));
+let now = 0, ticks = 0, pauses = 0, seeks = 0, posts = 0, posted;
+const state = { id: mode === 'same-execution' ? 'requested-execution' : 'old-execution', token: 'previous-token', applied: 0, ready: true, error: null };
+if (mode === 'old-error' || mode === 'stale-request-error') { state.ready = false; state.error = 'previous composer failure'; }
+if (mode === 'stale-request-error') state.requestError = { requestToken: 'previous-token', message: 'previous composer failure' };
+Date.now = () => now;
+const assertCurrent = () => {
+  if (!posted || state.applied !== posts || state.id !== posted.spec.execution.executionId || !posted.requestToken || state.token !== posted.requestToken || !state.ready) throw Error('captured stale replay');
+};
+global.window = {
+  location: { origin: 'http://example.test' },
+  basExport: {
+    get ready() { return state.ready; },
+    get error() { return state.error; },
+    getMetadata: () => ({ specId: state.id, requestToken: state.token, requestError: state.requestError }),
+    pause: () => { assertCurrent(); pauses++; },
+    seekTo: async () => { assertCurrent(); seeks++; },
+  },
+  postMessage: message => { posted = message; posts++; },
+};
+if (mode === 'unavailable') window.basExport = undefined;
+global.document = { fonts: { ready: Promise.resolve() } };
+global.setTimeout = callback => {
+  ticks++; now += 1000;
+  if (posted) {
+    state.applied = posts;
+    if (mode === 'current-error') { state.error = 'current composer failure'; state.token = posted.requestToken; state.ready = false; }
+    else if (mode === 'current-request-error') { state.error = 'Invalid replay spec'; state.requestError = { requestToken: posted.requestToken, message: state.error }; state.ready = false; }
+    else if (mode === 'stale-request-error' && ticks < 2) { /* prior error is not a failure of the new request */ }
+    else {
+      state.error = null;
+      state.requestError = undefined;
+      state.id = mode === 'wrong-identity' ? 'old-execution' : posted.spec.execution.executionId;
+      state.token = mode === 'wrong-token' || (mode === 'stale-token' && ticks < 2) ? 'stale-token' : posted.requestToken;
+      state.ready = mode !== 'matching-but-not-ready' || ticks >= 2;
+    }
+  }
+  callback();
+};
+(async () => {
+  try { let result = await eval(expression); if (mode === 'consecutive-same-execution') result = await eval(nextExpression); console.log(JSON.stringify({ ready: result.ready, ticks, pauses, seeks, error: '' })); }
+  catch (error) { console.log(JSON.stringify({ ready: false, ticks, pauses, seeks, error: error.message })); }
+})();
+`

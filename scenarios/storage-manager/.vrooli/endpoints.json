@@ -45,6 +45,27 @@
       }
     },
     {
+      "id": "cleanup_temporary_retention_configure",
+      "path": "/vrooli.cleanup_manager.v1.cleanup.CleanupService/ConfigureTemporaryRetention",
+      "method": "POST",
+      "summary": "Configure automatic temporary retention",
+      "description": "Grants or revokes recurring cleanup authority for aged temporary entries only.",
+      "category": "cleanup",
+      "request": {
+        "type": "object",
+        "properties": {
+          "automatic": "boolean",
+          "min_age_seconds": "int64"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "policy": "Policy"
+        }
+      }
+    },
+    {
       "id": "cleanup_provider_list",
       "path": "/vrooli.cleanup_manager.v1.cleanup.CleanupService/ListProviders",
       "method": "POST",
@@ -626,6 +647,17 @@
       "method": "GET",
       "summary": "Rank storage growth",
       "description": "Fits per-owner growth over persisted census samples and projects declared ceilings.",
+      "category": "",
+      "rest_exception": {
+        "reason": "ops_probe"
+      }
+    },
+    {
+      "id": "storage_retention_budget_status",
+      "path": "/api/v1/retention/budget-status",
+      "method": "GET",
+      "summary": "Read the latest budget enforcement outcome",
+      "description": "Per-entry usage across every location, over-budget entries, owner reclaim receipts, and escalations from the latest retention cycle.",
       "category": "",
       "rest_exception": {
         "reason": "ops_probe"

@@ -15,8 +15,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/vrooli/api-core/authn"
-	"github.com/vrooli/api-core/effortauthority"
 	"log"
 	"log/slog"
 	"net/http"
@@ -27,6 +25,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/authn"
 
 	"swarm-manager/handlers/audio_admin"
 	"swarm-manager/handlers/audio_runtime"
@@ -94,7 +94,6 @@ import (
 )
 
 type Server struct {
-	developmentOwner    *backlog.DevelopmentOwner
 	router              *mux.Router
 	agentSvc            *agentmanager.AgentService
 	agentActivitySvc    *agentactivity.Service
@@ -321,15 +320,7 @@ func NewServerWithRoot(scenarioRoot string) *Server {
 	return newServerWithRoot(scenarioRoot, nil)
 }
 
-// NewServerWithDevelopmentOwner is a typed protected setup seam. Default startup
-// leaves it nil; this source change does not install a target or authority.
-func NewServerWithDevelopmentOwner(scenarioRoot string, owner *backlog.DevelopmentOwner) *Server {
-	return newServerWithRootAndDevelopment(scenarioRoot, nil, owner)
-}
 func newServerWithRoot(scenarioRoot string, promptClient promptmanager.Client) *Server {
-	return newServerWithRootAndDevelopment(scenarioRoot, promptClient, nil)
-}
-func newServerWithRootAndDevelopment(scenarioRoot string, promptClient promptmanager.Client, owner *backlog.DevelopmentOwner) *Server {
 	dataRoot, err := runtimepaths.DataPath("")
 	if err != nil {
 		log.Fatalf("resolve runtime data root: %v", err)
@@ -373,7 +364,6 @@ func newServerWithRootAndDevelopment(scenarioRoot string, promptClient promptman
 	})
 
 	srv := &Server{
-		developmentOwner:    owner,
 		router:              mux.NewRouter(),
 		agentSvc:            agentSvc,
 		executionStopChan:   make(chan struct{}),
@@ -434,10 +424,10 @@ func (s *Server) setupRoutes() {
 	if authErr != nil {
 		panic(fmt.Errorf("configure shared request identity: %w", authErr))
 	}
-	s.router.Use(authn.Middleware(authConfig))
-	backlog.RegisterDevelopmentRoutes(s.router, s.developmentOwner)
+	authConfig = authConfig.WithScenarioAuthenticator("swarm-manager")
 	s.router.Use(provenance.Middleware(provenance.CLIUtilVerifier{}))
-	s.router.Use(backlog.DevelopmentCallerMiddleware(os.Getenv("VROOLI_AUTH_SCENARIO_COOKIE")))
+	s.router.Use(authn.Middleware(authConfig.WithManagedCloudflare("swarm-manager")))
+	s.router.Use(backlog.InteractiveGrantMiddleware)
 	scenarioRoot := s.scenarioRoot
 	scenariosDir := filepath.Dir(scenarioRoot)
 	s.transitionRegistry = loadTransitionRegistry(scenarioRoot)
@@ -473,6 +463,10 @@ func (s *Server) setupRoutes() {
 	}
 	backlogHandler.SetAttemptDecisionRouter(attemptDecisions)
 	s.attemptDecisions = attemptDecisions
+	// Seat agent-session proposal decisions on the shared operatordecision rail:
+	// a ready mutation-list proposal raises a decision_requested event, and the
+	// operator's answer returns through this same attempt router.
+	s.wireProposalDecisionRail()
 	feed := nextActionFeed{backlog: backlogHandler, goals: goalService, decisions: decisionProvider}
 	// One projection serves both the inbox feed and the Plan board. It is
 	// registered on the server so plan routes and graph invalidation can reach
@@ -519,7 +513,7 @@ func (s *Server) setupRoutes() {
 			evidence = s.statsEngine.GetStats().Agent.RecommendationAcceptanceByGate
 		}
 		return modes, evidence
-	}, (&backlog.DevelopmentService{Owner: s.developmentOwner}).PreviewDevelopment, s)
+	}, nil, s)
 	s.registerWorkFeedRoutes()
 	s.registerQueueRoutes(scenarioRoot)
 
@@ -1226,18 +1220,7 @@ func loggingMiddleware(next http.Handler) http.Handler {
 }
 
 func main() {
-	owner, err := loadProtectedFiniteReadPublication()
-	if err != nil {
-		log.Fatalf("protected acceptance startup refused: %v", err)
-	}
-	if owner != nil && owner.CheckStartup() != nil {
-		log.Fatal("protected acceptance startup expired")
-	}
-	runMainWithFiniteReadPublication(owner)
-}
-
-func runMainWithFiniteReadPublication(owner *backlog.FiniteReadPublication) {
-	// Preflight follows protected role validation and precedes graph initialization
+	// Preflight precedes graph initialization
 	if preflight.Run(preflight.Config{
 		ScenarioName: "swarm-manager",
 	}) {
@@ -1246,23 +1229,8 @@ func runMainWithFiniteReadPublication(owner *backlog.FiniteReadPublication) {
 
 	slog.Info("running in filesystem-only mode")
 
-	srv := NewServer()
-	var privatePublication *effortauthority.ProtectedPublication
-	var err error
-	if owner != nil {
-		privatePublication, err = owner.Publish(context.Background(), srv.backlogHandler)
-		if err != nil {
-			log.Fatalf("protected acceptance publication refused: %v", err)
-		}
-		defer func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			_ = privatePublication.Close(ctx)
-		}()
-	}
-	if owner == nil {
-		srv.runMigrationsOnce()
-	}
+	srv := newServerWithRoot(pathutil.ResolveScenarioRoot("swarm-manager"), nil)
+	srv.runMigrationsOnce()
 
 	// Stats is the operator-facing analytical projection. It is rebuilt from
 	// the append-only event log, then incrementally refreshed by the handler.
@@ -1292,45 +1260,43 @@ func runMainWithFiniteReadPublication(owner *backlog.FiniteReadPublication) {
 		}
 	}
 
-	if owner == nil {
-		if srv.executionHandler != nil {
-			go srv.executionHandler.StartBackgroundWorker(srv.executionStopChan)
-		}
-
-		if srv.autoFilerSweeper != nil {
-			go func() {
-				ctx, cancel := context.WithCancel(context.Background())
-				defer cancel()
-				go func() {
-					<-srv.autoFilerStopChan
-					cancel()
-				}()
-				srv.autoFilerSweeper.Start(ctx)
-			}()
-		}
-
-		if srv.transitionSweeper != nil {
-			go func() {
-				ctx, cancel := context.WithCancel(context.Background())
-				defer cancel()
-				go func() {
-					<-srv.transitionSweepStop
-					cancel()
-				}()
-				// The durable journal survives restarts, so recover completed work
-				// immediately before settling into periodic reconciliation.
-				srv.transitionSweeper.RunOnceLogged(ctx)
-				srv.transitionSweeper.Start(ctx)
-			}()
-		}
-
-		if srv.agentSvc != nil && srv.agentSvc.IsEnabled() {
-			go initializeAgentManagerProfiles(srv.agentSvc)
-		}
-
-		srv.startAISearchBackground()
-		srv.startSearchRegistration()
+	if srv.executionHandler != nil {
+		go srv.executionHandler.StartBackgroundWorker(srv.executionStopChan)
 	}
+
+	if srv.autoFilerSweeper != nil {
+		go func() {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			go func() {
+				<-srv.autoFilerStopChan
+				cancel()
+			}()
+			srv.autoFilerSweeper.Start(ctx)
+		}()
+	}
+
+	if srv.transitionSweeper != nil {
+		go func() {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			go func() {
+				<-srv.transitionSweepStop
+				cancel()
+			}()
+			// The durable journal survives restarts, so recover completed work
+			// immediately before settling into periodic reconciliation.
+			srv.transitionSweeper.RunOnceLogged(ctx)
+			srv.transitionSweeper.Start(ctx)
+		}()
+	}
+
+	if srv.agentSvc != nil && srv.agentSvc.IsEnabled() {
+		go initializeAgentManagerProfiles(srv.agentSvc)
+	}
+
+	srv.startAISearchBackground()
+	srv.startSearchRegistration()
 
 	// Top-level mux mounts the API handler plus, in development mode, the
 	// dev-only RoutingService test-genie calls to install a runtime test DB pool
@@ -1349,11 +1315,7 @@ func runMainWithFiniteReadPublication(owner *backlog.FiniteReadPublication) {
 	// pool. Self-disables in production mode.
 	handler := apihttp.TestModeMiddleware(rootMux)
 
-	runPublic := server.Run
-	if privatePublication != nil {
-		runPublic = privatePublication.RunPublic
-	}
-	if err := runPublic(server.Config{
+	if err := server.Run(server.Config{
 		Handler:      handler,
 		WriteTimeout: 180 * time.Second,
 	}); err != nil {

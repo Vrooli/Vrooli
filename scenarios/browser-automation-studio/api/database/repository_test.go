@@ -741,3 +741,53 @@ func TestExportWithoutWorkflowReadsBack(t *testing.T) {
 		t.Fatalf("DeleteExport with nil workflow: %v", err)
 	}
 }
+
+func TestExportTerminalTransitionAndRestartRecovery(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repo := NewRepository(db, logrus.New())
+	ctx := t.Context()
+	workflowID := uuid.New()
+	if err := repo.CreateWorkflow(ctx, &WorkflowIndex{ID: workflowID, Name: "ExportRecovery", FolderPath: "/export-recovery", Version: 1}); err != nil {
+		t.Fatal(err)
+	}
+	execution := &ExecutionIndex{ID: uuid.New(), WorkflowID: workflowID, Status: ExecutionStatusCompleted, StartedAt: time.Now()}
+	if err := repo.CreateExecution(ctx, execution); err != nil {
+		t.Fatal(err)
+	}
+	completed := &ExportIndex{ID: uuid.New(), ExecutionID: execution.ID, Name: "complete", Format: "mp4", Status: "processing"}
+	interrupted := &ExportIndex{ID: uuid.New(), ExecutionID: execution.ID, Name: "interrupted", Format: "mp4", Status: "processing"}
+	for _, row := range []*ExportIndex{completed, interrupted} {
+		if err := repo.CreateExport(ctx, row); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := repo.UpdateExportComplete(ctx, completed.ID, "complete.mp4", 3, JSONMap{"output_sha256": "hash"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.UpdateExportStatus(ctx, completed.ID, "failed", "late cancellation"); err == nil {
+		t.Fatal("late failure overwrote completed row")
+	}
+	if err := repo.UpdateExportSettings(ctx, completed.ID, JSONMap{"late": "receipt"}); err == nil {
+		t.Fatal("late receipt overwrote terminal settings")
+	}
+	count, err := RecoverInterruptedExports(ctx, db)
+	if err != nil || count != 1 {
+		t.Fatalf("recovery %d %v", count, err)
+	}
+	if err = repo.UpdateExportComplete(ctx, interrupted.ID, "late.mp4", 2, nil); err == nil {
+		t.Fatal("late completion resurrected interrupted row")
+	}
+	row, err := repo.GetExport(ctx, completed.ID)
+	if err != nil || row.Status != "completed" || row.StorageURL != "complete.mp4" {
+		t.Fatalf("lost terminal result %+v %v", row, err)
+	}
+	row, err = repo.GetExport(ctx, interrupted.ID)
+	if err != nil || row.Status != "failed" || !strings.Contains(row.Error, "interrupted") {
+		t.Fatalf("missing interrupted outcome %+v %v", row, err)
+	}
+	count, err = RecoverInterruptedExports(ctx, db)
+	if err != nil || count != 0 {
+		t.Fatalf("recovery not idempotent: %d %v", count, err)
+	}
+}

@@ -9,7 +9,7 @@ metadata:
   tags: ["marketing", "video", "launch"]
   icon: "video"
   status: "active"
-  revision: 17
+  revision: 27
   createdAt: "2026-09-17T00:00:00Z"
   updatedAt: "2026-10-16T00:00:00Z"
   requires:
@@ -30,7 +30,8 @@ Direct the audience's understanding before polishing scenes. Establish the probl
 product category and promise, show decisive genuine product proof, then give a
 usable next action. Choose the balance of product captures, typography, conceptual
 inserts and holds from that story. Preserve requested music character and genuine
-proof. There is no universal footage percentage or required movement in every shot.
+proof. Record the current sound/energy brief and compare the chosen excerpt and
+short motion sequence with the strongest relevant operator-rated reference. There is no universal footage percentage or required movement in every shot.
 A blocked launch remains incomplete; an unsolicited concept study cannot replace it.
 
 | Profile | Production path | Cost boundary |
@@ -49,7 +50,8 @@ Read `references/audio-review.md` when choosing audio or reviewing an export.
 Read `references/review.md` before reviewing meaning, craft and the ending.
 Read `references/channel-variants.md` when comparing landing-page and social edits.
 Use `scripts/production.py --help` for file-only plan checks, targeted shot retrieval,
-and delivered-media inspection. Read `references/plan-format.md` when writing the plan.
+and delivered-media inspection. Use `scripts/workflow.py` to freeze declared render
+inputs and join final verification. Read `references/plan-format.md` for version 2.
 Resolve these paths relative to this skill's canonical directory.
 
 Required source doctrine: `path:docs/marketing/catalogs/post-types/video/demo-recording.md`.
@@ -313,13 +315,14 @@ Empty `alternates/` subfolders are a finding, not a tidy result: either you gene
 
 ### 8. Tools and guardrails
 
-- Node.js, the pinned HyperFrames CLI, ffmpeg, and headless Chrome are external tools. Reuse a verified installed toolchain first. Route any install through `scenario-dependency-analyzer` under `path:docs/package-governance.md`, including scratch installations. Never invoke a raw package-manager install or implicit `npx` download. Record versions and tool paths. Do not rebuild the platform to obtain a renderer.
+- HyperFrames is a managed control-plane host tool, with canonical installation, containment and render contracts in `internal/tools/hyperframes/README.md`. Use `vrooli host hyperframes` with complete declared local inputs and explicit Node/browser/FFmpeg/FFprobe identities. Route provisioning through SDA's `host-tool` surface under `path:docs/package-governance.md`; never use raw package-manager installs, implicit `npx` downloads or historical scratch launchers. Qualify a tiny native render/reuse/cancel, then a representative multi-video trial with the intended source dimensions before full films. Record sampled task pressure and unknown observations; a text-only smoke does not qualify video extraction. Record source-CLI use distinctly from installed runtime activation. Review local-only composition dependencies: a render receipt does not establish browser network isolation. Join the managed receipt and frozen snapshot using `references/plan-format.md`.
 - Set `HYPERFRAMES_NO_TELEMETRY=1` for every HyperFrames command.
 - Record owned processes, render memory and cleanup under `references/safety.md`.
 - Use brag's bundled SFX, and its music only as a fallback when generation is unavailable. Their licence status is a **blocker to resolve, not a label to apply**: brag's own `assets/music/README.md` says the exact terms must be verified before publication, and the skill's MIT licence covers its code, not the bundled audio. Check the track's source terms, record what you find in `sources.md`, and if they are unresolved say so to the operator as an open decision with the source named — do not write "not verified" and treat the matter as closed.
 - **Route model-generated music through the governed capability.** Read `music-tools styles list` and the current compose contract. Reuse suitable provenance-complete takes when available. Otherwise begin with the profile’s bounded candidate count, structured duration/tempo/key, and capacity admission; wait through `music-tools jobs wait <job-id>` and retrieve with `music-tools takes list --job <job-id>`. Compare the actual audio before selecting; see `references/audio-review.md`. The retired `music-generation` skill is only a pointer; never build a virtualenv or download weights from a skill. A bundled or library track whose terms are unresolved is a blocker to publication; the governed ACE-Step resource records model and licence provenance. Search prior delivery folders and the governed take pool before declaring audio unavailable. Preserve the operator's previous style family and variety, not just the most recent agent's selection. If generation cannot safely run, use licensed reuse or a silent timing rough; a rough is not the soundtrack deliverable. Do not replace requested music with oscillator/noise synthesis unless the operator explicitly requested an original score. See `references/audio-review.md`; report unreviewed audio. Select one take for the cut and deliver **all** candidates in `alternates/music/` with `PROVENANCE.md` (§7).
 - **When a generator disappoints, find out what it actually received before blaming it.** Music and image models are commonly fronted by a planner or prompt-rewriter that restates the brief before the generating model sees it, and a small planner restates everything toward the bland middle: a brief asking for "144 BPM, cold, detuned, menacing" came back as 65 BPM "shimmering, melancholic, ethereal". Read the log for the prompt that reached the model, and turn the rewrite off when the brief is authored rather than sketched. Pass structured values — tempo, key, duration — in their own fields; a rewriter discards free text first.
 - **Describe the sound, not the category.** "Modern tech product launch, polished, uplifting, confident" is the definition of stock music and will generate exactly that. Name the rhythm, the bass character, and the instruments: pattern and timbre, not mood and market. If the operator supplies reference tracks, mine them for tags rather than adjectives — a stock library's own genre/mood/movement labels are a better prompt vocabulary than anything invented from scratch.
+- **Keep the delivery brief separate from general music capability.** If a launch score must be instrumental, explicitly request instrumental audio and review for sung words, spoken phrases and vocal chops. Do not disable lyric-bearing songs globally. Translate artist references into original rhythm, bass, hook, texture and arrangement hypotheses; raising BPM or choosing a more extreme genre does not establish the requested energy. Keep sources, inference and actual listening distinct. See `references/audio-review.md`.
 - Do not render with HyperFrames cloud, Lambda, or Cloud Run. Render locally.
 - Do not commit or publish production output unless the operator requests it. Read-only provenance inspection is allowed.
 

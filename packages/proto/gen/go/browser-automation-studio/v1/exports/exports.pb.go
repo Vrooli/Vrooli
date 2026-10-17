@@ -48,6 +48,7 @@ type ReplaySpec struct {
 	Frames        []*ReplayFrame           `protobuf:"bytes,13,rep,name=frames,proto3" json:"frames,omitempty"`
 	Assets        []*ReplayAsset           `protobuf:"bytes,14,rep,name=assets,proto3" json:"assets,omitempty"`
 	Summary       *ReplaySummary           `protobuf:"bytes,15,opt,name=summary,proto3" json:"summary,omitempty"`
+	RecordedVideo *ReplayRecordedVideo     `protobuf:"bytes,16,opt,name=recorded_video,json=recordedVideo,proto3" json:"recorded_video,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -187,6 +188,76 @@ func (x *ReplaySpec) GetSummary() *ReplaySummary {
 	return nil
 }
 
+func (x *ReplaySpec) GetRecordedVideo() *ReplayRecordedVideo {
+	if x != nil {
+		return x.RecordedVideo
+	}
+	return nil
+}
+
+// Continuous source for the same presentation renderer used by screenshot
+// replays. Source must be the execution-owned recording asset URL. Cursor pixels
+// baked into a recording cannot be restyled by replay overlays.
+type ReplayRecordedVideo struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Source        string                 `protobuf:"bytes,1,opt,name=source,proto3" json:"source,omitempty"`
+	DurationMs    int32                  `protobuf:"varint,2,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
+	TrimStartMs   int32                  `protobuf:"varint,3,opt,name=trim_start_ms,json=trimStartMs,proto3" json:"trim_start_ms,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReplayRecordedVideo) Reset() {
+	*x = ReplayRecordedVideo{}
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReplayRecordedVideo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReplayRecordedVideo) ProtoMessage() {}
+
+func (x *ReplayRecordedVideo) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReplayRecordedVideo.ProtoReflect.Descriptor instead.
+func (*ReplayRecordedVideo) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *ReplayRecordedVideo) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *ReplayRecordedVideo) GetDurationMs() int32 {
+	if x != nil {
+		return x.DurationMs
+	}
+	return 0
+}
+
+func (x *ReplayRecordedVideo) GetTrimStartMs() int32 {
+	if x != nil {
+		return x.TrimStartMs
+	}
+	return 0
+}
+
 type ReplayExecutionMetadata struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	ExecutionId     string                 `protobuf:"bytes,1,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
@@ -203,7 +274,7 @@ type ReplayExecutionMetadata struct {
 
 func (x *ReplayExecutionMetadata) Reset() {
 	*x = ReplayExecutionMetadata{}
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[1]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -215,7 +286,7 @@ func (x *ReplayExecutionMetadata) String() string {
 func (*ReplayExecutionMetadata) ProtoMessage() {}
 
 func (x *ReplayExecutionMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[1]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -228,7 +299,7 @@ func (x *ReplayExecutionMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplayExecutionMetadata.ProtoReflect.Descriptor instead.
 func (*ReplayExecutionMetadata) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{1}
+	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *ReplayExecutionMetadata) GetExecutionId() string {
@@ -301,7 +372,7 @@ type ReplayTheme struct {
 
 func (x *ReplayTheme) Reset() {
 	*x = ReplayTheme{}
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[2]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -313,7 +384,7 @@ func (x *ReplayTheme) String() string {
 func (*ReplayTheme) ProtoMessage() {}
 
 func (x *ReplayTheme) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[2]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -326,7 +397,7 @@ func (x *ReplayTheme) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplayTheme.ProtoReflect.Descriptor instead.
 func (*ReplayTheme) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{2}
+	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ReplayTheme) GetBackgroundGradient() []string {
@@ -384,7 +455,7 @@ type ReplayBrowserChrome struct {
 
 func (x *ReplayBrowserChrome) Reset() {
 	*x = ReplayBrowserChrome{}
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[3]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -396,7 +467,7 @@ func (x *ReplayBrowserChrome) String() string {
 func (*ReplayBrowserChrome) ProtoMessage() {}
 
 func (x *ReplayBrowserChrome) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[3]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -409,7 +480,7 @@ func (x *ReplayBrowserChrome) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplayBrowserChrome.ProtoReflect.Descriptor instead.
 func (*ReplayBrowserChrome) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{3}
+	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ReplayBrowserChrome) GetVisible() bool {
@@ -462,7 +533,7 @@ type ReplayCursor struct {
 
 func (x *ReplayCursor) Reset() {
 	*x = ReplayCursor{}
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[4]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -474,7 +545,7 @@ func (x *ReplayCursor) String() string {
 func (*ReplayCursor) ProtoMessage() {}
 
 func (x *ReplayCursor) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[4]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -487,7 +558,7 @@ func (x *ReplayCursor) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplayCursor.ProtoReflect.Descriptor instead.
 func (*ReplayCursor) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{4}
+	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ReplayCursor) GetStyle() string {
@@ -548,13 +619,20 @@ type ReplayDecor struct {
 	CursorInitialPosition string                 `protobuf:"bytes,5,opt,name=cursor_initial_position,json=cursorInitialPosition,proto3" json:"cursor_initial_position,omitempty"`
 	CursorClickAnimation  string                 `protobuf:"bytes,6,opt,name=cursor_click_animation,json=cursorClickAnimation,proto3" json:"cursor_click_animation,omitempty"`
 	CursorScale           float64                `protobuf:"fixed64,7,opt,name=cursor_scale,json=cursorScale,proto3" json:"cursor_scale,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	// Full presentation state preserves preview/export parity. Absence uses
+	// legacy defaults; optional booleans preserve explicit false values.
+	DeviceFrameTheme string   `protobuf:"bytes,8,opt,name=device_frame_theme,json=deviceFrameTheme,proto3" json:"device_frame_theme,omitempty"`
+	ShowDesktop      *bool    `protobuf:"varint,9,opt,name=show_desktop,json=showDesktop,proto3,oneof" json:"show_desktop,omitempty"`
+	ShowBrowserFrame *bool    `protobuf:"varint,10,opt,name=show_browser_frame,json=showBrowserFrame,proto3,oneof" json:"show_browser_frame,omitempty"`
+	ShowDeviceFrame  *bool    `protobuf:"varint,11,opt,name=show_device_frame,json=showDeviceFrame,proto3,oneof" json:"show_device_frame,omitempty"`
+	BrowserScale     *float64 `protobuf:"fixed64,12,opt,name=browser_scale,json=browserScale,proto3,oneof" json:"browser_scale,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *ReplayDecor) Reset() {
 	*x = ReplayDecor{}
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[5]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -566,7 +644,7 @@ func (x *ReplayDecor) String() string {
 func (*ReplayDecor) ProtoMessage() {}
 
 func (x *ReplayDecor) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[5]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -579,7 +657,7 @@ func (x *ReplayDecor) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplayDecor.ProtoReflect.Descriptor instead.
 func (*ReplayDecor) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{5}
+	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ReplayDecor) GetChromeTheme() string {
@@ -631,6 +709,41 @@ func (x *ReplayDecor) GetCursorScale() float64 {
 	return 0
 }
 
+func (x *ReplayDecor) GetDeviceFrameTheme() string {
+	if x != nil {
+		return x.DeviceFrameTheme
+	}
+	return ""
+}
+
+func (x *ReplayDecor) GetShowDesktop() bool {
+	if x != nil && x.ShowDesktop != nil {
+		return *x.ShowDesktop
+	}
+	return false
+}
+
+func (x *ReplayDecor) GetShowBrowserFrame() bool {
+	if x != nil && x.ShowBrowserFrame != nil {
+		return *x.ShowBrowserFrame
+	}
+	return false
+}
+
+func (x *ReplayDecor) GetShowDeviceFrame() bool {
+	if x != nil && x.ShowDeviceFrame != nil {
+		return *x.ShowDeviceFrame
+	}
+	return false
+}
+
+func (x *ReplayDecor) GetBrowserScale() float64 {
+	if x != nil && x.BrowserScale != nil {
+		return *x.BrowserScale
+	}
+	return 0
+}
+
 type ReplayWatermark struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Enabled       bool                   `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
@@ -645,7 +758,7 @@ type ReplayWatermark struct {
 
 func (x *ReplayWatermark) Reset() {
 	*x = ReplayWatermark{}
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[6]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -657,7 +770,7 @@ func (x *ReplayWatermark) String() string {
 func (*ReplayWatermark) ProtoMessage() {}
 
 func (x *ReplayWatermark) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[6]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -670,7 +783,7 @@ func (x *ReplayWatermark) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplayWatermark.ProtoReflect.Descriptor instead.
 func (*ReplayWatermark) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{6}
+	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ReplayWatermark) GetEnabled() bool {
@@ -731,7 +844,7 @@ type ReplayIntroCard struct {
 
 func (x *ReplayIntroCard) Reset() {
 	*x = ReplayIntroCard{}
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[7]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -743,7 +856,7 @@ func (x *ReplayIntroCard) String() string {
 func (*ReplayIntroCard) ProtoMessage() {}
 
 func (x *ReplayIntroCard) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[7]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -756,7 +869,7 @@ func (x *ReplayIntroCard) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplayIntroCard.ProtoReflect.Descriptor instead.
 func (*ReplayIntroCard) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{7}
+	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ReplayIntroCard) GetEnabled() bool {
@@ -832,7 +945,7 @@ type ReplayOutroCard struct {
 
 func (x *ReplayOutroCard) Reset() {
 	*x = ReplayOutroCard{}
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[8]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -844,7 +957,7 @@ func (x *ReplayOutroCard) String() string {
 func (*ReplayOutroCard) ProtoMessage() {}
 
 func (x *ReplayOutroCard) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[8]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -857,7 +970,7 @@ func (x *ReplayOutroCard) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplayOutroCard.ProtoReflect.Descriptor instead.
 func (*ReplayOutroCard) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{8}
+	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ReplayOutroCard) GetEnabled() bool {
@@ -935,7 +1048,7 @@ type ReplayPlayback struct {
 
 func (x *ReplayPlayback) Reset() {
 	*x = ReplayPlayback{}
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[9]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -947,7 +1060,7 @@ func (x *ReplayPlayback) String() string {
 func (*ReplayPlayback) ProtoMessage() {}
 
 func (x *ReplayPlayback) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[9]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -960,7 +1073,7 @@ func (x *ReplayPlayback) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplayPlayback.ProtoReflect.Descriptor instead.
 func (*ReplayPlayback) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{9}
+	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ReplayPlayback) GetFps() int32 {
@@ -1001,7 +1114,7 @@ type ReplayDimensions struct {
 
 func (x *ReplayDimensions) Reset() {
 	*x = ReplayDimensions{}
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[10]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1013,7 +1126,7 @@ func (x *ReplayDimensions) String() string {
 func (*ReplayDimensions) ProtoMessage() {}
 
 func (x *ReplayDimensions) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[10]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1026,7 +1139,7 @@ func (x *ReplayDimensions) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplayDimensions.ProtoReflect.Descriptor instead.
 func (*ReplayDimensions) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{10}
+	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ReplayDimensions) GetWidth() int32 {
@@ -1056,7 +1169,7 @@ type ReplayFrameRect struct {
 
 func (x *ReplayFrameRect) Reset() {
 	*x = ReplayFrameRect{}
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[11]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1068,7 +1181,7 @@ func (x *ReplayFrameRect) String() string {
 func (*ReplayFrameRect) ProtoMessage() {}
 
 func (x *ReplayFrameRect) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[11]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1081,7 +1194,7 @@ func (x *ReplayFrameRect) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplayFrameRect.ProtoReflect.Descriptor instead.
 func (*ReplayFrameRect) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{11}
+	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ReplayFrameRect) GetX() int32 {
@@ -1131,7 +1244,7 @@ type ReplayPresentation struct {
 
 func (x *ReplayPresentation) Reset() {
 	*x = ReplayPresentation{}
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[12]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1143,7 +1256,7 @@ func (x *ReplayPresentation) String() string {
 func (*ReplayPresentation) ProtoMessage() {}
 
 func (x *ReplayPresentation) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[12]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1156,7 +1269,7 @@ func (x *ReplayPresentation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplayPresentation.ProtoReflect.Descriptor instead.
 func (*ReplayPresentation) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{12}
+	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ReplayPresentation) GetCanvas() *ReplayDimensions {
@@ -1200,7 +1313,7 @@ type ReplayCursorMotion struct {
 
 func (x *ReplayCursorMotion) Reset() {
 	*x = ReplayCursorMotion{}
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[13]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1212,7 +1325,7 @@ func (x *ReplayCursorMotion) String() string {
 func (*ReplayCursorMotion) ProtoMessage() {}
 
 func (x *ReplayCursorMotion) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[13]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1225,7 +1338,7 @@ func (x *ReplayCursorMotion) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplayCursorMotion.ProtoReflect.Descriptor instead.
 func (*ReplayCursorMotion) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{13}
+	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ReplayCursorMotion) GetSpeedProfile() string {
@@ -1275,7 +1388,7 @@ type ReplayCursorTrail struct {
 
 func (x *ReplayCursorTrail) Reset() {
 	*x = ReplayCursorTrail{}
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[14]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1287,7 +1400,7 @@ func (x *ReplayCursorTrail) String() string {
 func (*ReplayCursorTrail) ProtoMessage() {}
 
 func (x *ReplayCursorTrail) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[14]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1300,7 +1413,7 @@ func (x *ReplayCursorTrail) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplayCursorTrail.ProtoReflect.Descriptor instead.
 func (*ReplayCursorTrail) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{14}
+	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ReplayCursorTrail) GetEnabled() bool {
@@ -1343,7 +1456,7 @@ type ReplayClickPulse struct {
 
 func (x *ReplayClickPulse) Reset() {
 	*x = ReplayClickPulse{}
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[15]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1355,7 +1468,7 @@ func (x *ReplayClickPulse) String() string {
 func (*ReplayClickPulse) ProtoMessage() {}
 
 func (x *ReplayClickPulse) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[15]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1368,7 +1481,7 @@ func (x *ReplayClickPulse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplayClickPulse.ProtoReflect.Descriptor instead.
 func (*ReplayClickPulse) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{15}
+	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ReplayClickPulse) GetEnabled() bool {
@@ -1437,7 +1550,7 @@ type ReplayFrame struct {
 
 func (x *ReplayFrame) Reset() {
 	*x = ReplayFrame{}
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[16]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1449,7 +1562,7 @@ func (x *ReplayFrame) String() string {
 func (*ReplayFrame) ProtoMessage() {}
 
 func (x *ReplayFrame) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[16]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1462,7 +1575,7 @@ func (x *ReplayFrame) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplayFrame.ProtoReflect.Descriptor instead.
 func (*ReplayFrame) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{16}
+	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ReplayFrame) GetIndex() int32 {
@@ -1689,7 +1802,7 @@ type ReplayResilience struct {
 
 func (x *ReplayResilience) Reset() {
 	*x = ReplayResilience{}
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[17]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1701,7 +1814,7 @@ func (x *ReplayResilience) String() string {
 func (*ReplayResilience) ProtoMessage() {}
 
 func (x *ReplayResilience) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[17]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1714,7 +1827,7 @@ func (x *ReplayResilience) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplayResilience.ProtoReflect.Descriptor instead.
 func (*ReplayResilience) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{17}
+	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ReplayResilience) GetAttempt() int32 {
@@ -1772,7 +1885,7 @@ type RetryHistoryEntry struct {
 
 func (x *RetryHistoryEntry) Reset() {
 	*x = RetryHistoryEntry{}
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[18]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1784,7 +1897,7 @@ func (x *RetryHistoryEntry) String() string {
 func (*RetryHistoryEntry) ProtoMessage() {}
 
 func (x *RetryHistoryEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[18]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1797,7 +1910,7 @@ func (x *RetryHistoryEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RetryHistoryEntry.ProtoReflect.Descriptor instead.
 func (*RetryHistoryEntry) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{18}
+	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *RetryHistoryEntry) GetAttempt() int32 {
@@ -1851,7 +1964,7 @@ type ReplayAssertionOutcome struct {
 
 func (x *ReplayAssertionOutcome) Reset() {
 	*x = ReplayAssertionOutcome{}
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[19]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1863,7 +1976,7 @@ func (x *ReplayAssertionOutcome) String() string {
 func (*ReplayAssertionOutcome) ProtoMessage() {}
 
 func (x *ReplayAssertionOutcome) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[19]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1876,7 +1989,7 @@ func (x *ReplayAssertionOutcome) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplayAssertionOutcome.ProtoReflect.Descriptor instead.
 func (*ReplayAssertionOutcome) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{19}
+	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ReplayAssertionOutcome) GetMode() string {
@@ -1946,7 +2059,7 @@ type ReplayTransition struct {
 
 func (x *ReplayTransition) Reset() {
 	*x = ReplayTransition{}
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[20]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1958,7 +2071,7 @@ func (x *ReplayTransition) String() string {
 func (*ReplayTransition) ProtoMessage() {}
 
 func (x *ReplayTransition) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[20]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1971,7 +2084,7 @@ func (x *ReplayTransition) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplayTransition.ProtoReflect.Descriptor instead.
 func (*ReplayTransition) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{20}
+	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ReplayTransition) GetType() string {
@@ -2010,7 +2123,7 @@ type ReplayAsset struct {
 
 func (x *ReplayAsset) Reset() {
 	*x = ReplayAsset{}
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[21]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2022,7 +2135,7 @@ func (x *ReplayAsset) String() string {
 func (*ReplayAsset) ProtoMessage() {}
 
 func (x *ReplayAsset) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[21]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2035,7 +2148,7 @@ func (x *ReplayAsset) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplayAsset.ProtoReflect.Descriptor instead.
 func (*ReplayAsset) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{21}
+	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *ReplayAsset) GetId() string {
@@ -2099,7 +2212,7 @@ type ReplaySummary struct {
 
 func (x *ReplaySummary) Reset() {
 	*x = ReplaySummary{}
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[22]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2111,7 +2224,7 @@ func (x *ReplaySummary) String() string {
 func (*ReplaySummary) ProtoMessage() {}
 
 func (x *ReplaySummary) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[22]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2124,7 +2237,7 @@ func (x *ReplaySummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplaySummary.ProtoReflect.Descriptor instead.
 func (*ReplaySummary) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{22}
+	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *ReplaySummary) GetFrameCount() int32 {
@@ -2165,7 +2278,7 @@ type ReplayNormalizedPoint struct {
 
 func (x *ReplayNormalizedPoint) Reset() {
 	*x = ReplayNormalizedPoint{}
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[23]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2177,7 +2290,7 @@ func (x *ReplayNormalizedPoint) String() string {
 func (*ReplayNormalizedPoint) ProtoMessage() {}
 
 func (x *ReplayNormalizedPoint) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[23]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2190,7 +2303,7 @@ func (x *ReplayNormalizedPoint) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplayNormalizedPoint.ProtoReflect.Descriptor instead.
 func (*ReplayNormalizedPoint) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{23}
+	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *ReplayNormalizedPoint) GetX() float64 {
@@ -2219,7 +2332,7 @@ type ReplayNormalizedRect struct {
 
 func (x *ReplayNormalizedRect) Reset() {
 	*x = ReplayNormalizedRect{}
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[24]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2231,7 +2344,7 @@ func (x *ReplayNormalizedRect) String() string {
 func (*ReplayNormalizedRect) ProtoMessage() {}
 
 func (x *ReplayNormalizedRect) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[24]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2244,7 +2357,7 @@ func (x *ReplayNormalizedRect) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplayNormalizedRect.ProtoReflect.Descriptor instead.
 func (*ReplayNormalizedRect) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{24}
+	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *ReplayNormalizedRect) GetX() float64 {
@@ -2309,7 +2422,7 @@ type Export struct {
 
 func (x *Export) Reset() {
 	*x = Export{}
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[25]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2321,7 +2434,7 @@ func (x *Export) String() string {
 func (*Export) ProtoMessage() {}
 
 func (x *Export) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[25]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2334,7 +2447,7 @@ func (x *Export) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Export.ProtoReflect.Descriptor instead.
 func (*Export) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{25}
+	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *Export) GetId() string {
@@ -2486,7 +2599,7 @@ type ListExportsRequest struct {
 
 func (x *ListExportsRequest) Reset() {
 	*x = ListExportsRequest{}
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[26]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2498,7 +2611,7 @@ func (x *ListExportsRequest) String() string {
 func (*ListExportsRequest) ProtoMessage() {}
 
 func (x *ListExportsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[26]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2511,7 +2624,7 @@ func (x *ListExportsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListExportsRequest.ProtoReflect.Descriptor instead.
 func (*ListExportsRequest) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{26}
+	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *ListExportsRequest) GetExecutionId() string {
@@ -2552,7 +2665,7 @@ type ListExportsResponse struct {
 
 func (x *ListExportsResponse) Reset() {
 	*x = ListExportsResponse{}
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[27]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2564,7 +2677,7 @@ func (x *ListExportsResponse) String() string {
 func (*ListExportsResponse) ProtoMessage() {}
 
 func (x *ListExportsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[27]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2577,7 +2690,7 @@ func (x *ListExportsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListExportsResponse.ProtoReflect.Descriptor instead.
 func (*ListExportsResponse) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{27}
+	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *ListExportsResponse) GetExports() []*Export {
@@ -2619,7 +2732,7 @@ type CreateExportRequest struct {
 
 func (x *CreateExportRequest) Reset() {
 	*x = CreateExportRequest{}
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[28]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2631,7 +2744,7 @@ func (x *CreateExportRequest) String() string {
 func (*CreateExportRequest) ProtoMessage() {}
 
 func (x *CreateExportRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[28]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2644,7 +2757,7 @@ func (x *CreateExportRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateExportRequest.ProtoReflect.Descriptor instead.
 func (*CreateExportRequest) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{28}
+	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *CreateExportRequest) GetExecutionId() string {
@@ -2736,7 +2849,7 @@ type CreateExportResponse struct {
 
 func (x *CreateExportResponse) Reset() {
 	*x = CreateExportResponse{}
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[29]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2748,7 +2861,7 @@ func (x *CreateExportResponse) String() string {
 func (*CreateExportResponse) ProtoMessage() {}
 
 func (x *CreateExportResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[29]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2761,7 +2874,7 @@ func (x *CreateExportResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateExportResponse.ProtoReflect.Descriptor instead.
 func (*CreateExportResponse) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{29}
+	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *CreateExportResponse) GetExportId() string {
@@ -2794,7 +2907,7 @@ type GetExportRequest struct {
 
 func (x *GetExportRequest) Reset() {
 	*x = GetExportRequest{}
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[30]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2806,7 +2919,7 @@ func (x *GetExportRequest) String() string {
 func (*GetExportRequest) ProtoMessage() {}
 
 func (x *GetExportRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[30]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2819,7 +2932,7 @@ func (x *GetExportRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetExportRequest.ProtoReflect.Descriptor instead.
 func (*GetExportRequest) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{30}
+	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *GetExportRequest) GetId() string {
@@ -2838,7 +2951,7 @@ type GetExportResponse struct {
 
 func (x *GetExportResponse) Reset() {
 	*x = GetExportResponse{}
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[31]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2850,7 +2963,7 @@ func (x *GetExportResponse) String() string {
 func (*GetExportResponse) ProtoMessage() {}
 
 func (x *GetExportResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[31]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2863,7 +2976,7 @@ func (x *GetExportResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetExportResponse.ProtoReflect.Descriptor instead.
 func (*GetExportResponse) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{31}
+	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *GetExportResponse) GetExport() *Export {
@@ -2892,7 +3005,7 @@ type UpdateExportRequest struct {
 
 func (x *UpdateExportRequest) Reset() {
 	*x = UpdateExportRequest{}
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[32]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2904,7 +3017,7 @@ func (x *UpdateExportRequest) String() string {
 func (*UpdateExportRequest) ProtoMessage() {}
 
 func (x *UpdateExportRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[32]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2917,7 +3030,7 @@ func (x *UpdateExportRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateExportRequest.ProtoReflect.Descriptor instead.
 func (*UpdateExportRequest) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{32}
+	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *UpdateExportRequest) GetId() string {
@@ -3009,7 +3122,7 @@ type UpdateExportResponse struct {
 
 func (x *UpdateExportResponse) Reset() {
 	*x = UpdateExportResponse{}
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[33]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3021,7 +3134,7 @@ func (x *UpdateExportResponse) String() string {
 func (*UpdateExportResponse) ProtoMessage() {}
 
 func (x *UpdateExportResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[33]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3034,7 +3147,7 @@ func (x *UpdateExportResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateExportResponse.ProtoReflect.Descriptor instead.
 func (*UpdateExportResponse) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{33}
+	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *UpdateExportResponse) GetExportId() string {
@@ -3067,7 +3180,7 @@ type DeleteExportRequest struct {
 
 func (x *DeleteExportRequest) Reset() {
 	*x = DeleteExportRequest{}
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[34]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3079,7 +3192,7 @@ func (x *DeleteExportRequest) String() string {
 func (*DeleteExportRequest) ProtoMessage() {}
 
 func (x *DeleteExportRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[34]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3092,7 +3205,7 @@ func (x *DeleteExportRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteExportRequest.ProtoReflect.Descriptor instead.
 func (*DeleteExportRequest) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{34}
+	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *DeleteExportRequest) GetId() string {
@@ -3113,7 +3226,7 @@ type DeleteExportResponse struct {
 
 func (x *DeleteExportResponse) Reset() {
 	*x = DeleteExportResponse{}
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[35]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3125,7 +3238,7 @@ func (x *DeleteExportResponse) String() string {
 func (*DeleteExportResponse) ProtoMessage() {}
 
 func (x *DeleteExportResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[35]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3138,7 +3251,7 @@ func (x *DeleteExportResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteExportResponse.ProtoReflect.Descriptor instead.
 func (*DeleteExportResponse) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{35}
+	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *DeleteExportResponse) GetExportId() string {
@@ -3164,7 +3277,7 @@ type GetExportStatusRequest struct {
 
 func (x *GetExportStatusRequest) Reset() {
 	*x = GetExportStatusRequest{}
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[36]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3176,7 +3289,7 @@ func (x *GetExportStatusRequest) String() string {
 func (*GetExportStatusRequest) ProtoMessage() {}
 
 func (x *GetExportStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[36]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3189,7 +3302,7 @@ func (x *GetExportStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetExportStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetExportStatusRequest) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{36}
+	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *GetExportStatusRequest) GetId() string {
@@ -3216,7 +3329,7 @@ type GetExportStatusResponse struct {
 
 func (x *GetExportStatusResponse) Reset() {
 	*x = GetExportStatusResponse{}
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[37]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3228,7 +3341,7 @@ func (x *GetExportStatusResponse) String() string {
 func (*GetExportStatusResponse) ProtoMessage() {}
 
 func (x *GetExportStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[37]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3241,7 +3354,7 @@ func (x *GetExportStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetExportStatusResponse.ProtoReflect.Descriptor instead.
 func (*GetExportStatusResponse) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{37}
+	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *GetExportStatusResponse) GetExportId() string {
@@ -3300,6 +3413,96 @@ func (x *GetExportStatusResponse) GetError() string {
 	return ""
 }
 
+type CancelExportRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CancelExportRequest) Reset() {
+	*x = CancelExportRequest{}
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CancelExportRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CancelExportRequest) ProtoMessage() {}
+
+func (x *CancelExportRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CancelExportRequest.ProtoReflect.Descriptor instead.
+func (*CancelExportRequest) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *CancelExportRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type CancelExportResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// False for an export that is no longer active in this service. This does
+	// not establish a terminal outcome; consult the persisted status.
+	CancellationRequested bool `protobuf:"varint,1,opt,name=cancellation_requested,json=cancellationRequested,proto3" json:"cancellation_requested,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *CancelExportResponse) Reset() {
+	*x = CancelExportResponse{}
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[40]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CancelExportResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CancelExportResponse) ProtoMessage() {}
+
+func (x *CancelExportResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[40]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CancelExportResponse.ProtoReflect.Descriptor instead.
+func (*CancelExportResponse) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{40}
+}
+
+func (x *CancelExportResponse) GetCancellationRequested() bool {
+	if x != nil {
+		return x.CancellationRequested
+	}
+	return false
+}
+
 type GenerateExportCaptionRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -3309,7 +3512,7 @@ type GenerateExportCaptionRequest struct {
 
 func (x *GenerateExportCaptionRequest) Reset() {
 	*x = GenerateExportCaptionRequest{}
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[38]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3321,7 +3524,7 @@ func (x *GenerateExportCaptionRequest) String() string {
 func (*GenerateExportCaptionRequest) ProtoMessage() {}
 
 func (x *GenerateExportCaptionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[38]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3334,7 +3537,7 @@ func (x *GenerateExportCaptionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GenerateExportCaptionRequest.ProtoReflect.Descriptor instead.
 func (*GenerateExportCaptionRequest) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{38}
+	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *GenerateExportCaptionRequest) GetId() string {
@@ -3355,7 +3558,7 @@ type GenerateExportCaptionResponse struct {
 
 func (x *GenerateExportCaptionResponse) Reset() {
 	*x = GenerateExportCaptionResponse{}
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[39]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3367,7 +3570,7 @@ func (x *GenerateExportCaptionResponse) String() string {
 func (*GenerateExportCaptionResponse) ProtoMessage() {}
 
 func (x *GenerateExportCaptionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[39]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3380,7 +3583,7 @@ func (x *GenerateExportCaptionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GenerateExportCaptionResponse.ProtoReflect.Descriptor instead.
 func (*GenerateExportCaptionResponse) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{39}
+	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *GenerateExportCaptionResponse) GetExportId() string {
@@ -3413,7 +3616,7 @@ type RevealExportRequest struct {
 
 func (x *RevealExportRequest) Reset() {
 	*x = RevealExportRequest{}
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[40]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3425,7 +3628,7 @@ func (x *RevealExportRequest) String() string {
 func (*RevealExportRequest) ProtoMessage() {}
 
 func (x *RevealExportRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[40]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3438,7 +3641,7 @@ func (x *RevealExportRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevealExportRequest.ProtoReflect.Descriptor instead.
 func (*RevealExportRequest) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{40}
+	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *RevealExportRequest) GetId() string {
@@ -3460,7 +3663,7 @@ type RevealExportResponse struct {
 
 func (x *RevealExportResponse) Reset() {
 	*x = RevealExportResponse{}
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[41]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3472,7 +3675,7 @@ func (x *RevealExportResponse) String() string {
 func (*RevealExportResponse) ProtoMessage() {}
 
 func (x *RevealExportResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[41]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3485,7 +3688,7 @@ func (x *RevealExportResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevealExportResponse.ProtoReflect.Descriptor instead.
 func (*RevealExportResponse) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{41}
+	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *RevealExportResponse) GetExportId() string {
@@ -3518,7 +3721,7 @@ type OpenExportFolderRequest struct {
 
 func (x *OpenExportFolderRequest) Reset() {
 	*x = OpenExportFolderRequest{}
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[42]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3530,7 +3733,7 @@ func (x *OpenExportFolderRequest) String() string {
 func (*OpenExportFolderRequest) ProtoMessage() {}
 
 func (x *OpenExportFolderRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[42]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3543,7 +3746,7 @@ func (x *OpenExportFolderRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpenExportFolderRequest.ProtoReflect.Descriptor instead.
 func (*OpenExportFolderRequest) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{42}
+	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *OpenExportFolderRequest) GetId() string {
@@ -3565,7 +3768,7 @@ type OpenExportFolderResponse struct {
 
 func (x *OpenExportFolderResponse) Reset() {
 	*x = OpenExportFolderResponse{}
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[43]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3577,7 +3780,7 @@ func (x *OpenExportFolderResponse) String() string {
 func (*OpenExportFolderResponse) ProtoMessage() {}
 
 func (x *OpenExportFolderResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[43]
+	mi := &file_browser_automation_studio_v1_exports_exports_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3590,7 +3793,7 @@ func (x *OpenExportFolderResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpenExportFolderResponse.ProtoReflect.Descriptor instead.
 func (*OpenExportFolderResponse) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{43}
+	return file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *OpenExportFolderResponse) GetExportId() string {
@@ -3618,7 +3821,7 @@ var File_browser_automation_studio_v1_exports_exports_proto protoreflect.FileDes
 
 const file_browser_automation_studio_v1_exports_exports_proto_rawDesc = "" +
 	"\n" +
-	"2browser-automation-studio/v1/exports/exports.proto\x12$browser_automation_studio.v1.exports\x1a\x1bbuf/validate/validate.proto\x1a0browser-automation-studio/v1/base/geometry.proto\x1a3browser-automation-studio/v1/domain/selectors.proto\x1a1browser-automation-studio/v1/timeline/entry.proto\x1a\x15common/v1/types.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x95\t\n" +
+	"2browser-automation-studio/v1/exports/exports.proto\x12$browser_automation_studio.v1.exports\x1a\x1bbuf/validate/validate.proto\x1a0browser-automation-studio/v1/base/geometry.proto\x1a3browser-automation-studio/v1/domain/selectors.proto\x1a1browser-automation-studio/v1/timeline/entry.proto\x1a\x15common/v1/types.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf7\t\n" +
 	"\n" +
 	"ReplaySpec\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\tR\aversion\x12=\n" +
@@ -3638,7 +3841,13 @@ const file_browser_automation_studio_v1_exports_exports_proto_rawDesc = "" +
 	"\rcursor_motion\x18\f \x01(\v28.browser_automation_studio.v1.exports.ReplayCursorMotionR\fcursorMotion\x12I\n" +
 	"\x06frames\x18\r \x03(\v21.browser_automation_studio.v1.exports.ReplayFrameR\x06frames\x12I\n" +
 	"\x06assets\x18\x0e \x03(\v21.browser_automation_studio.v1.exports.ReplayAssetR\x06assets\x12M\n" +
-	"\asummary\x18\x0f \x01(\v23.browser_automation_studio.v1.exports.ReplaySummaryR\asummary\"\xdc\x02\n" +
+	"\asummary\x18\x0f \x01(\v23.browser_automation_studio.v1.exports.ReplaySummaryR\asummary\x12`\n" +
+	"\x0erecorded_video\x18\x10 \x01(\v29.browser_automation_studio.v1.exports.ReplayRecordedVideoR\rrecordedVideo\"r\n" +
+	"\x13ReplayRecordedVideo\x12\x16\n" +
+	"\x06source\x18\x01 \x01(\tR\x06source\x12\x1f\n" +
+	"\vduration_ms\x18\x02 \x01(\x05R\n" +
+	"durationMs\x12\"\n" +
+	"\rtrim_start_ms\x18\x03 \x01(\x05R\vtrimStartMs\"\xdc\x02\n" +
 	"\x17ReplayExecutionMetadata\x12!\n" +
 	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\x12\x1f\n" +
 	"\vworkflow_id\x18\x02 \x01(\tR\n" +
@@ -3671,7 +3880,7 @@ const file_browser_automation_studio_v1_exports_exports_proto_rawDesc = "" +
 	"clickPulse\x12\x14\n" +
 	"\x05scale\x18\x05 \x01(\x01R\x05scale\x12)\n" +
 	"\x10initial_position\x18\x06 \x01(\tR\x0finitialPosition\x12'\n" +
-	"\x0fclick_animation\x18\a \x01(\tR\x0eclickAnimation\"\xc8\x02\n" +
+	"\x0fclick_animation\x18\a \x01(\tR\x0eclickAnimation\"\xfc\x04\n" +
 	"\vReplayDecor\x12!\n" +
 	"\fchrome_theme\x18\x01 \x01(\tR\vchromeTheme\x12)\n" +
 	"\x10background_theme\x18\x02 \x01(\tR\x0fbackgroundTheme\x127\n" +
@@ -3681,7 +3890,17 @@ const file_browser_automation_studio_v1_exports_exports_proto_rawDesc = "" +
 	"\fcursor_theme\x18\x04 \x01(\tR\vcursorTheme\x126\n" +
 	"\x17cursor_initial_position\x18\x05 \x01(\tR\x15cursorInitialPosition\x124\n" +
 	"\x16cursor_click_animation\x18\x06 \x01(\tR\x14cursorClickAnimation\x12!\n" +
-	"\fcursor_scale\x18\a \x01(\x01R\vcursorScale\"\xa8\x01\n" +
+	"\fcursor_scale\x18\a \x01(\x01R\vcursorScale\x12,\n" +
+	"\x12device_frame_theme\x18\b \x01(\tR\x10deviceFrameTheme\x12&\n" +
+	"\fshow_desktop\x18\t \x01(\bH\x00R\vshowDesktop\x88\x01\x01\x121\n" +
+	"\x12show_browser_frame\x18\n" +
+	" \x01(\bH\x01R\x10showBrowserFrame\x88\x01\x01\x12/\n" +
+	"\x11show_device_frame\x18\v \x01(\bH\x02R\x0fshowDeviceFrame\x88\x01\x01\x12(\n" +
+	"\rbrowser_scale\x18\f \x01(\x01H\x03R\fbrowserScale\x88\x01\x01B\x0f\n" +
+	"\r_show_desktopB\x15\n" +
+	"\x13_show_browser_frameB\x14\n" +
+	"\x12_show_device_frameB\x10\n" +
+	"\x0e_browser_scale\"\xa8\x01\n" +
 	"\x0fReplayWatermark\x12\x18\n" +
 	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\x19\n" +
 	"\basset_id\x18\x02 \x01(\tR\aassetId\x12\x1a\n" +
@@ -3952,7 +4171,11 @@ const file_browser_automation_studio_v1_exports_exports_proto_rawDesc = "" +
 	"storageUrl\x12+\n" +
 	"\x0ffile_size_bytes\x18\a \x01(\x03H\x00R\rfileSizeBytes\x88\x01\x01\x12\x14\n" +
 	"\x05error\x18\b \x01(\tR\x05errorB\x12\n" +
-	"\x10_file_size_bytes\"8\n" +
+	"\x10_file_size_bytes\"/\n" +
+	"\x13CancelExportRequest\x12\x18\n" +
+	"\x02id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x02id\"M\n" +
+	"\x14CancelExportResponse\x125\n" +
+	"\x16cancellation_requested\x18\x01 \x01(\bR\x15cancellationRequested\"8\n" +
 	"\x1cGenerateExportCaptionRequest\x12\x18\n" +
 	"\x02id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x02id\"\x9c\x01\n" +
 	"\x1dGenerateExportCaptionResponse\x12\x1b\n" +
@@ -3970,14 +4193,15 @@ const file_browser_automation_studio_v1_exports_exports_proto_rawDesc = "" +
 	"\x18OpenExportFolderResponse\x12\x1b\n" +
 	"\texport_id\x18\x01 \x01(\tR\bexportId\x12\x16\n" +
 	"\x06folder\x18\x02 \x01(\tR\x06folder\x12\x16\n" +
-	"\x06status\x18\x03 \x01(\tR\x06status2\xfb\t\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status2\x83\v\n" +
 	"\x0eExportsService\x12\x82\x01\n" +
 	"\vListExports\x128.browser_automation_studio.v1.exports.ListExportsRequest\x1a9.browser_automation_studio.v1.exports.ListExportsResponse\x12\x85\x01\n" +
 	"\fCreateExport\x129.browser_automation_studio.v1.exports.CreateExportRequest\x1a:.browser_automation_studio.v1.exports.CreateExportResponse\x12|\n" +
 	"\tGetExport\x126.browser_automation_studio.v1.exports.GetExportRequest\x1a7.browser_automation_studio.v1.exports.GetExportResponse\x12\x85\x01\n" +
 	"\fUpdateExport\x129.browser_automation_studio.v1.exports.UpdateExportRequest\x1a:.browser_automation_studio.v1.exports.UpdateExportResponse\x12\x85\x01\n" +
 	"\fDeleteExport\x129.browser_automation_studio.v1.exports.DeleteExportRequest\x1a:.browser_automation_studio.v1.exports.DeleteExportResponse\x12\x8e\x01\n" +
-	"\x0fGetExportStatus\x12<.browser_automation_studio.v1.exports.GetExportStatusRequest\x1a=.browser_automation_studio.v1.exports.GetExportStatusResponse\x12\xa0\x01\n" +
+	"\x0fGetExportStatus\x12<.browser_automation_studio.v1.exports.GetExportStatusRequest\x1a=.browser_automation_studio.v1.exports.GetExportStatusResponse\x12\x85\x01\n" +
+	"\fCancelExport\x129.browser_automation_studio.v1.exports.CancelExportRequest\x1a:.browser_automation_studio.v1.exports.CancelExportResponse\x12\xa0\x01\n" +
 	"\x15GenerateExportCaption\x12B.browser_automation_studio.v1.exports.GenerateExportCaptionRequest\x1aC.browser_automation_studio.v1.exports.GenerateExportCaptionResponse\x12\x85\x01\n" +
 	"\fRevealExport\x129.browser_automation_studio.v1.exports.RevealExportRequest\x1a:.browser_automation_studio.v1.exports.RevealExportResponse\x12\x91\x01\n" +
 	"\x10OpenExportFolder\x12=.browser_automation_studio.v1.exports.OpenExportFolderRequest\x1a>.browser_automation_studio.v1.exports.OpenExportFolderResponseB]Z[github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/exports;exportsb\x06proto3"
@@ -3994,138 +4218,144 @@ func file_browser_automation_studio_v1_exports_exports_proto_rawDescGZIP() []byt
 	return file_browser_automation_studio_v1_exports_exports_proto_rawDescData
 }
 
-var file_browser_automation_studio_v1_exports_exports_proto_msgTypes = make([]protoimpl.MessageInfo, 44)
+var file_browser_automation_studio_v1_exports_exports_proto_msgTypes = make([]protoimpl.MessageInfo, 47)
 var file_browser_automation_studio_v1_exports_exports_proto_goTypes = []any{
 	(*ReplaySpec)(nil),                    // 0: browser_automation_studio.v1.exports.ReplaySpec
-	(*ReplayExecutionMetadata)(nil),       // 1: browser_automation_studio.v1.exports.ReplayExecutionMetadata
-	(*ReplayTheme)(nil),                   // 2: browser_automation_studio.v1.exports.ReplayTheme
-	(*ReplayBrowserChrome)(nil),           // 3: browser_automation_studio.v1.exports.ReplayBrowserChrome
-	(*ReplayCursor)(nil),                  // 4: browser_automation_studio.v1.exports.ReplayCursor
-	(*ReplayDecor)(nil),                   // 5: browser_automation_studio.v1.exports.ReplayDecor
-	(*ReplayWatermark)(nil),               // 6: browser_automation_studio.v1.exports.ReplayWatermark
-	(*ReplayIntroCard)(nil),               // 7: browser_automation_studio.v1.exports.ReplayIntroCard
-	(*ReplayOutroCard)(nil),               // 8: browser_automation_studio.v1.exports.ReplayOutroCard
-	(*ReplayPlayback)(nil),                // 9: browser_automation_studio.v1.exports.ReplayPlayback
-	(*ReplayDimensions)(nil),              // 10: browser_automation_studio.v1.exports.ReplayDimensions
-	(*ReplayFrameRect)(nil),               // 11: browser_automation_studio.v1.exports.ReplayFrameRect
-	(*ReplayPresentation)(nil),            // 12: browser_automation_studio.v1.exports.ReplayPresentation
-	(*ReplayCursorMotion)(nil),            // 13: browser_automation_studio.v1.exports.ReplayCursorMotion
-	(*ReplayCursorTrail)(nil),             // 14: browser_automation_studio.v1.exports.ReplayCursorTrail
-	(*ReplayClickPulse)(nil),              // 15: browser_automation_studio.v1.exports.ReplayClickPulse
-	(*ReplayFrame)(nil),                   // 16: browser_automation_studio.v1.exports.ReplayFrame
-	(*ReplayResilience)(nil),              // 17: browser_automation_studio.v1.exports.ReplayResilience
-	(*RetryHistoryEntry)(nil),             // 18: browser_automation_studio.v1.exports.RetryHistoryEntry
-	(*ReplayAssertionOutcome)(nil),        // 19: browser_automation_studio.v1.exports.ReplayAssertionOutcome
-	(*ReplayTransition)(nil),              // 20: browser_automation_studio.v1.exports.ReplayTransition
-	(*ReplayAsset)(nil),                   // 21: browser_automation_studio.v1.exports.ReplayAsset
-	(*ReplaySummary)(nil),                 // 22: browser_automation_studio.v1.exports.ReplaySummary
-	(*ReplayNormalizedPoint)(nil),         // 23: browser_automation_studio.v1.exports.ReplayNormalizedPoint
-	(*ReplayNormalizedRect)(nil),          // 24: browser_automation_studio.v1.exports.ReplayNormalizedRect
-	(*Export)(nil),                        // 25: browser_automation_studio.v1.exports.Export
-	(*ListExportsRequest)(nil),            // 26: browser_automation_studio.v1.exports.ListExportsRequest
-	(*ListExportsResponse)(nil),           // 27: browser_automation_studio.v1.exports.ListExportsResponse
-	(*CreateExportRequest)(nil),           // 28: browser_automation_studio.v1.exports.CreateExportRequest
-	(*CreateExportResponse)(nil),          // 29: browser_automation_studio.v1.exports.CreateExportResponse
-	(*GetExportRequest)(nil),              // 30: browser_automation_studio.v1.exports.GetExportRequest
-	(*GetExportResponse)(nil),             // 31: browser_automation_studio.v1.exports.GetExportResponse
-	(*UpdateExportRequest)(nil),           // 32: browser_automation_studio.v1.exports.UpdateExportRequest
-	(*UpdateExportResponse)(nil),          // 33: browser_automation_studio.v1.exports.UpdateExportResponse
-	(*DeleteExportRequest)(nil),           // 34: browser_automation_studio.v1.exports.DeleteExportRequest
-	(*DeleteExportResponse)(nil),          // 35: browser_automation_studio.v1.exports.DeleteExportResponse
-	(*GetExportStatusRequest)(nil),        // 36: browser_automation_studio.v1.exports.GetExportStatusRequest
-	(*GetExportStatusResponse)(nil),       // 37: browser_automation_studio.v1.exports.GetExportStatusResponse
-	(*GenerateExportCaptionRequest)(nil),  // 38: browser_automation_studio.v1.exports.GenerateExportCaptionRequest
-	(*GenerateExportCaptionResponse)(nil), // 39: browser_automation_studio.v1.exports.GenerateExportCaptionResponse
-	(*RevealExportRequest)(nil),           // 40: browser_automation_studio.v1.exports.RevealExportRequest
-	(*RevealExportResponse)(nil),          // 41: browser_automation_studio.v1.exports.RevealExportResponse
-	(*OpenExportFolderRequest)(nil),       // 42: browser_automation_studio.v1.exports.OpenExportFolderRequest
-	(*OpenExportFolderResponse)(nil),      // 43: browser_automation_studio.v1.exports.OpenExportFolderResponse
-	(*timestamppb.Timestamp)(nil),         // 44: google.protobuf.Timestamp
-	(*structpb.Struct)(nil),               // 45: google.protobuf.Struct
-	(*domain.HighlightRegion)(nil),        // 46: browser_automation_studio.v1.HighlightRegion
-	(*domain.MaskRegion)(nil),             // 47: browser_automation_studio.v1.MaskRegion
-	(*timeline.ElementFocus)(nil),         // 48: browser_automation_studio.v1.ElementFocus
-	(*base.BoundingBox)(nil),              // 49: browser_automation_studio.v1.BoundingBox
-	(*base.Point)(nil),                    // 50: browser_automation_studio.v1.Point
-	(*v1.JsonValue)(nil),                  // 51: common.v1.JsonValue
+	(*ReplayRecordedVideo)(nil),           // 1: browser_automation_studio.v1.exports.ReplayRecordedVideo
+	(*ReplayExecutionMetadata)(nil),       // 2: browser_automation_studio.v1.exports.ReplayExecutionMetadata
+	(*ReplayTheme)(nil),                   // 3: browser_automation_studio.v1.exports.ReplayTheme
+	(*ReplayBrowserChrome)(nil),           // 4: browser_automation_studio.v1.exports.ReplayBrowserChrome
+	(*ReplayCursor)(nil),                  // 5: browser_automation_studio.v1.exports.ReplayCursor
+	(*ReplayDecor)(nil),                   // 6: browser_automation_studio.v1.exports.ReplayDecor
+	(*ReplayWatermark)(nil),               // 7: browser_automation_studio.v1.exports.ReplayWatermark
+	(*ReplayIntroCard)(nil),               // 8: browser_automation_studio.v1.exports.ReplayIntroCard
+	(*ReplayOutroCard)(nil),               // 9: browser_automation_studio.v1.exports.ReplayOutroCard
+	(*ReplayPlayback)(nil),                // 10: browser_automation_studio.v1.exports.ReplayPlayback
+	(*ReplayDimensions)(nil),              // 11: browser_automation_studio.v1.exports.ReplayDimensions
+	(*ReplayFrameRect)(nil),               // 12: browser_automation_studio.v1.exports.ReplayFrameRect
+	(*ReplayPresentation)(nil),            // 13: browser_automation_studio.v1.exports.ReplayPresentation
+	(*ReplayCursorMotion)(nil),            // 14: browser_automation_studio.v1.exports.ReplayCursorMotion
+	(*ReplayCursorTrail)(nil),             // 15: browser_automation_studio.v1.exports.ReplayCursorTrail
+	(*ReplayClickPulse)(nil),              // 16: browser_automation_studio.v1.exports.ReplayClickPulse
+	(*ReplayFrame)(nil),                   // 17: browser_automation_studio.v1.exports.ReplayFrame
+	(*ReplayResilience)(nil),              // 18: browser_automation_studio.v1.exports.ReplayResilience
+	(*RetryHistoryEntry)(nil),             // 19: browser_automation_studio.v1.exports.RetryHistoryEntry
+	(*ReplayAssertionOutcome)(nil),        // 20: browser_automation_studio.v1.exports.ReplayAssertionOutcome
+	(*ReplayTransition)(nil),              // 21: browser_automation_studio.v1.exports.ReplayTransition
+	(*ReplayAsset)(nil),                   // 22: browser_automation_studio.v1.exports.ReplayAsset
+	(*ReplaySummary)(nil),                 // 23: browser_automation_studio.v1.exports.ReplaySummary
+	(*ReplayNormalizedPoint)(nil),         // 24: browser_automation_studio.v1.exports.ReplayNormalizedPoint
+	(*ReplayNormalizedRect)(nil),          // 25: browser_automation_studio.v1.exports.ReplayNormalizedRect
+	(*Export)(nil),                        // 26: browser_automation_studio.v1.exports.Export
+	(*ListExportsRequest)(nil),            // 27: browser_automation_studio.v1.exports.ListExportsRequest
+	(*ListExportsResponse)(nil),           // 28: browser_automation_studio.v1.exports.ListExportsResponse
+	(*CreateExportRequest)(nil),           // 29: browser_automation_studio.v1.exports.CreateExportRequest
+	(*CreateExportResponse)(nil),          // 30: browser_automation_studio.v1.exports.CreateExportResponse
+	(*GetExportRequest)(nil),              // 31: browser_automation_studio.v1.exports.GetExportRequest
+	(*GetExportResponse)(nil),             // 32: browser_automation_studio.v1.exports.GetExportResponse
+	(*UpdateExportRequest)(nil),           // 33: browser_automation_studio.v1.exports.UpdateExportRequest
+	(*UpdateExportResponse)(nil),          // 34: browser_automation_studio.v1.exports.UpdateExportResponse
+	(*DeleteExportRequest)(nil),           // 35: browser_automation_studio.v1.exports.DeleteExportRequest
+	(*DeleteExportResponse)(nil),          // 36: browser_automation_studio.v1.exports.DeleteExportResponse
+	(*GetExportStatusRequest)(nil),        // 37: browser_automation_studio.v1.exports.GetExportStatusRequest
+	(*GetExportStatusResponse)(nil),       // 38: browser_automation_studio.v1.exports.GetExportStatusResponse
+	(*CancelExportRequest)(nil),           // 39: browser_automation_studio.v1.exports.CancelExportRequest
+	(*CancelExportResponse)(nil),          // 40: browser_automation_studio.v1.exports.CancelExportResponse
+	(*GenerateExportCaptionRequest)(nil),  // 41: browser_automation_studio.v1.exports.GenerateExportCaptionRequest
+	(*GenerateExportCaptionResponse)(nil), // 42: browser_automation_studio.v1.exports.GenerateExportCaptionResponse
+	(*RevealExportRequest)(nil),           // 43: browser_automation_studio.v1.exports.RevealExportRequest
+	(*RevealExportResponse)(nil),          // 44: browser_automation_studio.v1.exports.RevealExportResponse
+	(*OpenExportFolderRequest)(nil),       // 45: browser_automation_studio.v1.exports.OpenExportFolderRequest
+	(*OpenExportFolderResponse)(nil),      // 46: browser_automation_studio.v1.exports.OpenExportFolderResponse
+	(*timestamppb.Timestamp)(nil),         // 47: google.protobuf.Timestamp
+	(*structpb.Struct)(nil),               // 48: google.protobuf.Struct
+	(*domain.HighlightRegion)(nil),        // 49: browser_automation_studio.v1.HighlightRegion
+	(*domain.MaskRegion)(nil),             // 50: browser_automation_studio.v1.MaskRegion
+	(*timeline.ElementFocus)(nil),         // 51: browser_automation_studio.v1.ElementFocus
+	(*base.BoundingBox)(nil),              // 52: browser_automation_studio.v1.BoundingBox
+	(*base.Point)(nil),                    // 53: browser_automation_studio.v1.Point
+	(*v1.JsonValue)(nil),                  // 54: common.v1.JsonValue
 }
 var file_browser_automation_studio_v1_exports_exports_proto_depIdxs = []int32{
-	44, // 0: browser_automation_studio.v1.exports.ReplaySpec.generated_at:type_name -> google.protobuf.Timestamp
-	1,  // 1: browser_automation_studio.v1.exports.ReplaySpec.execution:type_name -> browser_automation_studio.v1.exports.ReplayExecutionMetadata
-	2,  // 2: browser_automation_studio.v1.exports.ReplaySpec.theme:type_name -> browser_automation_studio.v1.exports.ReplayTheme
-	4,  // 3: browser_automation_studio.v1.exports.ReplaySpec.cursor:type_name -> browser_automation_studio.v1.exports.ReplayCursor
-	5,  // 4: browser_automation_studio.v1.exports.ReplaySpec.decor:type_name -> browser_automation_studio.v1.exports.ReplayDecor
-	6,  // 5: browser_automation_studio.v1.exports.ReplaySpec.watermark:type_name -> browser_automation_studio.v1.exports.ReplayWatermark
-	7,  // 6: browser_automation_studio.v1.exports.ReplaySpec.intro_card:type_name -> browser_automation_studio.v1.exports.ReplayIntroCard
-	8,  // 7: browser_automation_studio.v1.exports.ReplaySpec.outro_card:type_name -> browser_automation_studio.v1.exports.ReplayOutroCard
-	9,  // 8: browser_automation_studio.v1.exports.ReplaySpec.playback:type_name -> browser_automation_studio.v1.exports.ReplayPlayback
-	12, // 9: browser_automation_studio.v1.exports.ReplaySpec.presentation:type_name -> browser_automation_studio.v1.exports.ReplayPresentation
-	13, // 10: browser_automation_studio.v1.exports.ReplaySpec.cursor_motion:type_name -> browser_automation_studio.v1.exports.ReplayCursorMotion
-	16, // 11: browser_automation_studio.v1.exports.ReplaySpec.frames:type_name -> browser_automation_studio.v1.exports.ReplayFrame
-	21, // 12: browser_automation_studio.v1.exports.ReplaySpec.assets:type_name -> browser_automation_studio.v1.exports.ReplayAsset
-	22, // 13: browser_automation_studio.v1.exports.ReplaySpec.summary:type_name -> browser_automation_studio.v1.exports.ReplaySummary
-	44, // 14: browser_automation_studio.v1.exports.ReplayExecutionMetadata.started_at:type_name -> google.protobuf.Timestamp
-	44, // 15: browser_automation_studio.v1.exports.ReplayExecutionMetadata.completed_at:type_name -> google.protobuf.Timestamp
-	3,  // 16: browser_automation_studio.v1.exports.ReplayTheme.browser_chrome:type_name -> browser_automation_studio.v1.exports.ReplayBrowserChrome
-	14, // 17: browser_automation_studio.v1.exports.ReplayCursor.trail:type_name -> browser_automation_studio.v1.exports.ReplayCursorTrail
-	15, // 18: browser_automation_studio.v1.exports.ReplayCursor.click_pulse:type_name -> browser_automation_studio.v1.exports.ReplayClickPulse
-	45, // 19: browser_automation_studio.v1.exports.ReplayDecor.background:type_name -> google.protobuf.Struct
-	10, // 20: browser_automation_studio.v1.exports.ReplayPresentation.canvas:type_name -> browser_automation_studio.v1.exports.ReplayDimensions
-	10, // 21: browser_automation_studio.v1.exports.ReplayPresentation.viewport:type_name -> browser_automation_studio.v1.exports.ReplayDimensions
-	11, // 22: browser_automation_studio.v1.exports.ReplayPresentation.browser_frame:type_name -> browser_automation_studio.v1.exports.ReplayFrameRect
-	20, // 23: browser_automation_studio.v1.exports.ReplayFrame.enter:type_name -> browser_automation_studio.v1.exports.ReplayTransition
-	20, // 24: browser_automation_studio.v1.exports.ReplayFrame.exit:type_name -> browser_automation_studio.v1.exports.ReplayTransition
-	10, // 25: browser_automation_studio.v1.exports.ReplayFrame.viewport:type_name -> browser_automation_studio.v1.exports.ReplayDimensions
-	46, // 26: browser_automation_studio.v1.exports.ReplayFrame.highlight_regions:type_name -> browser_automation_studio.v1.HighlightRegion
-	47, // 27: browser_automation_studio.v1.exports.ReplayFrame.mask_regions:type_name -> browser_automation_studio.v1.MaskRegion
-	48, // 28: browser_automation_studio.v1.exports.ReplayFrame.focused_element:type_name -> browser_automation_studio.v1.ElementFocus
-	49, // 29: browser_automation_studio.v1.exports.ReplayFrame.element_bounding_box:type_name -> browser_automation_studio.v1.BoundingBox
-	24, // 30: browser_automation_studio.v1.exports.ReplayFrame.normalized_focus_bounds:type_name -> browser_automation_studio.v1.exports.ReplayNormalizedRect
-	24, // 31: browser_automation_studio.v1.exports.ReplayFrame.normalized_element_bounds:type_name -> browser_automation_studio.v1.exports.ReplayNormalizedRect
-	50, // 32: browser_automation_studio.v1.exports.ReplayFrame.click_position:type_name -> browser_automation_studio.v1.Point
-	23, // 33: browser_automation_studio.v1.exports.ReplayFrame.normalized_click_position:type_name -> browser_automation_studio.v1.exports.ReplayNormalizedPoint
-	50, // 34: browser_automation_studio.v1.exports.ReplayFrame.cursor_trail:type_name -> browser_automation_studio.v1.Point
-	23, // 35: browser_automation_studio.v1.exports.ReplayFrame.normalized_cursor_trail:type_name -> browser_automation_studio.v1.exports.ReplayNormalizedPoint
-	19, // 36: browser_automation_studio.v1.exports.ReplayFrame.assertion:type_name -> browser_automation_studio.v1.exports.ReplayAssertionOutcome
-	17, // 37: browser_automation_studio.v1.exports.ReplayFrame.resilience:type_name -> browser_automation_studio.v1.exports.ReplayResilience
-	18, // 38: browser_automation_studio.v1.exports.ReplayResilience.history:type_name -> browser_automation_studio.v1.exports.RetryHistoryEntry
-	51, // 39: browser_automation_studio.v1.exports.ReplayAssertionOutcome.expected:type_name -> common.v1.JsonValue
-	51, // 40: browser_automation_studio.v1.exports.ReplayAssertionOutcome.actual:type_name -> common.v1.JsonValue
-	45, // 41: browser_automation_studio.v1.exports.Export.settings:type_name -> google.protobuf.Struct
-	44, // 42: browser_automation_studio.v1.exports.Export.ai_caption_generated_at:type_name -> google.protobuf.Timestamp
-	44, // 43: browser_automation_studio.v1.exports.Export.created_at:type_name -> google.protobuf.Timestamp
-	44, // 44: browser_automation_studio.v1.exports.Export.updated_at:type_name -> google.protobuf.Timestamp
-	44, // 45: browser_automation_studio.v1.exports.Export.execution_date:type_name -> google.protobuf.Timestamp
-	25, // 46: browser_automation_studio.v1.exports.ListExportsResponse.exports:type_name -> browser_automation_studio.v1.exports.Export
-	45, // 47: browser_automation_studio.v1.exports.CreateExportRequest.settings:type_name -> google.protobuf.Struct
-	25, // 48: browser_automation_studio.v1.exports.CreateExportResponse.export:type_name -> browser_automation_studio.v1.exports.Export
-	25, // 49: browser_automation_studio.v1.exports.GetExportResponse.export:type_name -> browser_automation_studio.v1.exports.Export
-	45, // 50: browser_automation_studio.v1.exports.UpdateExportRequest.settings:type_name -> google.protobuf.Struct
-	25, // 51: browser_automation_studio.v1.exports.UpdateExportResponse.export:type_name -> browser_automation_studio.v1.exports.Export
-	25, // 52: browser_automation_studio.v1.exports.GenerateExportCaptionResponse.export:type_name -> browser_automation_studio.v1.exports.Export
-	26, // 53: browser_automation_studio.v1.exports.ExportsService.ListExports:input_type -> browser_automation_studio.v1.exports.ListExportsRequest
-	28, // 54: browser_automation_studio.v1.exports.ExportsService.CreateExport:input_type -> browser_automation_studio.v1.exports.CreateExportRequest
-	30, // 55: browser_automation_studio.v1.exports.ExportsService.GetExport:input_type -> browser_automation_studio.v1.exports.GetExportRequest
-	32, // 56: browser_automation_studio.v1.exports.ExportsService.UpdateExport:input_type -> browser_automation_studio.v1.exports.UpdateExportRequest
-	34, // 57: browser_automation_studio.v1.exports.ExportsService.DeleteExport:input_type -> browser_automation_studio.v1.exports.DeleteExportRequest
-	36, // 58: browser_automation_studio.v1.exports.ExportsService.GetExportStatus:input_type -> browser_automation_studio.v1.exports.GetExportStatusRequest
-	38, // 59: browser_automation_studio.v1.exports.ExportsService.GenerateExportCaption:input_type -> browser_automation_studio.v1.exports.GenerateExportCaptionRequest
-	40, // 60: browser_automation_studio.v1.exports.ExportsService.RevealExport:input_type -> browser_automation_studio.v1.exports.RevealExportRequest
-	42, // 61: browser_automation_studio.v1.exports.ExportsService.OpenExportFolder:input_type -> browser_automation_studio.v1.exports.OpenExportFolderRequest
-	27, // 62: browser_automation_studio.v1.exports.ExportsService.ListExports:output_type -> browser_automation_studio.v1.exports.ListExportsResponse
-	29, // 63: browser_automation_studio.v1.exports.ExportsService.CreateExport:output_type -> browser_automation_studio.v1.exports.CreateExportResponse
-	31, // 64: browser_automation_studio.v1.exports.ExportsService.GetExport:output_type -> browser_automation_studio.v1.exports.GetExportResponse
-	33, // 65: browser_automation_studio.v1.exports.ExportsService.UpdateExport:output_type -> browser_automation_studio.v1.exports.UpdateExportResponse
-	35, // 66: browser_automation_studio.v1.exports.ExportsService.DeleteExport:output_type -> browser_automation_studio.v1.exports.DeleteExportResponse
-	37, // 67: browser_automation_studio.v1.exports.ExportsService.GetExportStatus:output_type -> browser_automation_studio.v1.exports.GetExportStatusResponse
-	39, // 68: browser_automation_studio.v1.exports.ExportsService.GenerateExportCaption:output_type -> browser_automation_studio.v1.exports.GenerateExportCaptionResponse
-	41, // 69: browser_automation_studio.v1.exports.ExportsService.RevealExport:output_type -> browser_automation_studio.v1.exports.RevealExportResponse
-	43, // 70: browser_automation_studio.v1.exports.ExportsService.OpenExportFolder:output_type -> browser_automation_studio.v1.exports.OpenExportFolderResponse
-	62, // [62:71] is the sub-list for method output_type
-	53, // [53:62] is the sub-list for method input_type
-	53, // [53:53] is the sub-list for extension type_name
-	53, // [53:53] is the sub-list for extension extendee
-	0,  // [0:53] is the sub-list for field type_name
+	47, // 0: browser_automation_studio.v1.exports.ReplaySpec.generated_at:type_name -> google.protobuf.Timestamp
+	2,  // 1: browser_automation_studio.v1.exports.ReplaySpec.execution:type_name -> browser_automation_studio.v1.exports.ReplayExecutionMetadata
+	3,  // 2: browser_automation_studio.v1.exports.ReplaySpec.theme:type_name -> browser_automation_studio.v1.exports.ReplayTheme
+	5,  // 3: browser_automation_studio.v1.exports.ReplaySpec.cursor:type_name -> browser_automation_studio.v1.exports.ReplayCursor
+	6,  // 4: browser_automation_studio.v1.exports.ReplaySpec.decor:type_name -> browser_automation_studio.v1.exports.ReplayDecor
+	7,  // 5: browser_automation_studio.v1.exports.ReplaySpec.watermark:type_name -> browser_automation_studio.v1.exports.ReplayWatermark
+	8,  // 6: browser_automation_studio.v1.exports.ReplaySpec.intro_card:type_name -> browser_automation_studio.v1.exports.ReplayIntroCard
+	9,  // 7: browser_automation_studio.v1.exports.ReplaySpec.outro_card:type_name -> browser_automation_studio.v1.exports.ReplayOutroCard
+	10, // 8: browser_automation_studio.v1.exports.ReplaySpec.playback:type_name -> browser_automation_studio.v1.exports.ReplayPlayback
+	13, // 9: browser_automation_studio.v1.exports.ReplaySpec.presentation:type_name -> browser_automation_studio.v1.exports.ReplayPresentation
+	14, // 10: browser_automation_studio.v1.exports.ReplaySpec.cursor_motion:type_name -> browser_automation_studio.v1.exports.ReplayCursorMotion
+	17, // 11: browser_automation_studio.v1.exports.ReplaySpec.frames:type_name -> browser_automation_studio.v1.exports.ReplayFrame
+	22, // 12: browser_automation_studio.v1.exports.ReplaySpec.assets:type_name -> browser_automation_studio.v1.exports.ReplayAsset
+	23, // 13: browser_automation_studio.v1.exports.ReplaySpec.summary:type_name -> browser_automation_studio.v1.exports.ReplaySummary
+	1,  // 14: browser_automation_studio.v1.exports.ReplaySpec.recorded_video:type_name -> browser_automation_studio.v1.exports.ReplayRecordedVideo
+	47, // 15: browser_automation_studio.v1.exports.ReplayExecutionMetadata.started_at:type_name -> google.protobuf.Timestamp
+	47, // 16: browser_automation_studio.v1.exports.ReplayExecutionMetadata.completed_at:type_name -> google.protobuf.Timestamp
+	4,  // 17: browser_automation_studio.v1.exports.ReplayTheme.browser_chrome:type_name -> browser_automation_studio.v1.exports.ReplayBrowserChrome
+	15, // 18: browser_automation_studio.v1.exports.ReplayCursor.trail:type_name -> browser_automation_studio.v1.exports.ReplayCursorTrail
+	16, // 19: browser_automation_studio.v1.exports.ReplayCursor.click_pulse:type_name -> browser_automation_studio.v1.exports.ReplayClickPulse
+	48, // 20: browser_automation_studio.v1.exports.ReplayDecor.background:type_name -> google.protobuf.Struct
+	11, // 21: browser_automation_studio.v1.exports.ReplayPresentation.canvas:type_name -> browser_automation_studio.v1.exports.ReplayDimensions
+	11, // 22: browser_automation_studio.v1.exports.ReplayPresentation.viewport:type_name -> browser_automation_studio.v1.exports.ReplayDimensions
+	12, // 23: browser_automation_studio.v1.exports.ReplayPresentation.browser_frame:type_name -> browser_automation_studio.v1.exports.ReplayFrameRect
+	21, // 24: browser_automation_studio.v1.exports.ReplayFrame.enter:type_name -> browser_automation_studio.v1.exports.ReplayTransition
+	21, // 25: browser_automation_studio.v1.exports.ReplayFrame.exit:type_name -> browser_automation_studio.v1.exports.ReplayTransition
+	11, // 26: browser_automation_studio.v1.exports.ReplayFrame.viewport:type_name -> browser_automation_studio.v1.exports.ReplayDimensions
+	49, // 27: browser_automation_studio.v1.exports.ReplayFrame.highlight_regions:type_name -> browser_automation_studio.v1.HighlightRegion
+	50, // 28: browser_automation_studio.v1.exports.ReplayFrame.mask_regions:type_name -> browser_automation_studio.v1.MaskRegion
+	51, // 29: browser_automation_studio.v1.exports.ReplayFrame.focused_element:type_name -> browser_automation_studio.v1.ElementFocus
+	52, // 30: browser_automation_studio.v1.exports.ReplayFrame.element_bounding_box:type_name -> browser_automation_studio.v1.BoundingBox
+	25, // 31: browser_automation_studio.v1.exports.ReplayFrame.normalized_focus_bounds:type_name -> browser_automation_studio.v1.exports.ReplayNormalizedRect
+	25, // 32: browser_automation_studio.v1.exports.ReplayFrame.normalized_element_bounds:type_name -> browser_automation_studio.v1.exports.ReplayNormalizedRect
+	53, // 33: browser_automation_studio.v1.exports.ReplayFrame.click_position:type_name -> browser_automation_studio.v1.Point
+	24, // 34: browser_automation_studio.v1.exports.ReplayFrame.normalized_click_position:type_name -> browser_automation_studio.v1.exports.ReplayNormalizedPoint
+	53, // 35: browser_automation_studio.v1.exports.ReplayFrame.cursor_trail:type_name -> browser_automation_studio.v1.Point
+	24, // 36: browser_automation_studio.v1.exports.ReplayFrame.normalized_cursor_trail:type_name -> browser_automation_studio.v1.exports.ReplayNormalizedPoint
+	20, // 37: browser_automation_studio.v1.exports.ReplayFrame.assertion:type_name -> browser_automation_studio.v1.exports.ReplayAssertionOutcome
+	18, // 38: browser_automation_studio.v1.exports.ReplayFrame.resilience:type_name -> browser_automation_studio.v1.exports.ReplayResilience
+	19, // 39: browser_automation_studio.v1.exports.ReplayResilience.history:type_name -> browser_automation_studio.v1.exports.RetryHistoryEntry
+	54, // 40: browser_automation_studio.v1.exports.ReplayAssertionOutcome.expected:type_name -> common.v1.JsonValue
+	54, // 41: browser_automation_studio.v1.exports.ReplayAssertionOutcome.actual:type_name -> common.v1.JsonValue
+	48, // 42: browser_automation_studio.v1.exports.Export.settings:type_name -> google.protobuf.Struct
+	47, // 43: browser_automation_studio.v1.exports.Export.ai_caption_generated_at:type_name -> google.protobuf.Timestamp
+	47, // 44: browser_automation_studio.v1.exports.Export.created_at:type_name -> google.protobuf.Timestamp
+	47, // 45: browser_automation_studio.v1.exports.Export.updated_at:type_name -> google.protobuf.Timestamp
+	47, // 46: browser_automation_studio.v1.exports.Export.execution_date:type_name -> google.protobuf.Timestamp
+	26, // 47: browser_automation_studio.v1.exports.ListExportsResponse.exports:type_name -> browser_automation_studio.v1.exports.Export
+	48, // 48: browser_automation_studio.v1.exports.CreateExportRequest.settings:type_name -> google.protobuf.Struct
+	26, // 49: browser_automation_studio.v1.exports.CreateExportResponse.export:type_name -> browser_automation_studio.v1.exports.Export
+	26, // 50: browser_automation_studio.v1.exports.GetExportResponse.export:type_name -> browser_automation_studio.v1.exports.Export
+	48, // 51: browser_automation_studio.v1.exports.UpdateExportRequest.settings:type_name -> google.protobuf.Struct
+	26, // 52: browser_automation_studio.v1.exports.UpdateExportResponse.export:type_name -> browser_automation_studio.v1.exports.Export
+	26, // 53: browser_automation_studio.v1.exports.GenerateExportCaptionResponse.export:type_name -> browser_automation_studio.v1.exports.Export
+	27, // 54: browser_automation_studio.v1.exports.ExportsService.ListExports:input_type -> browser_automation_studio.v1.exports.ListExportsRequest
+	29, // 55: browser_automation_studio.v1.exports.ExportsService.CreateExport:input_type -> browser_automation_studio.v1.exports.CreateExportRequest
+	31, // 56: browser_automation_studio.v1.exports.ExportsService.GetExport:input_type -> browser_automation_studio.v1.exports.GetExportRequest
+	33, // 57: browser_automation_studio.v1.exports.ExportsService.UpdateExport:input_type -> browser_automation_studio.v1.exports.UpdateExportRequest
+	35, // 58: browser_automation_studio.v1.exports.ExportsService.DeleteExport:input_type -> browser_automation_studio.v1.exports.DeleteExportRequest
+	37, // 59: browser_automation_studio.v1.exports.ExportsService.GetExportStatus:input_type -> browser_automation_studio.v1.exports.GetExportStatusRequest
+	39, // 60: browser_automation_studio.v1.exports.ExportsService.CancelExport:input_type -> browser_automation_studio.v1.exports.CancelExportRequest
+	41, // 61: browser_automation_studio.v1.exports.ExportsService.GenerateExportCaption:input_type -> browser_automation_studio.v1.exports.GenerateExportCaptionRequest
+	43, // 62: browser_automation_studio.v1.exports.ExportsService.RevealExport:input_type -> browser_automation_studio.v1.exports.RevealExportRequest
+	45, // 63: browser_automation_studio.v1.exports.ExportsService.OpenExportFolder:input_type -> browser_automation_studio.v1.exports.OpenExportFolderRequest
+	28, // 64: browser_automation_studio.v1.exports.ExportsService.ListExports:output_type -> browser_automation_studio.v1.exports.ListExportsResponse
+	30, // 65: browser_automation_studio.v1.exports.ExportsService.CreateExport:output_type -> browser_automation_studio.v1.exports.CreateExportResponse
+	32, // 66: browser_automation_studio.v1.exports.ExportsService.GetExport:output_type -> browser_automation_studio.v1.exports.GetExportResponse
+	34, // 67: browser_automation_studio.v1.exports.ExportsService.UpdateExport:output_type -> browser_automation_studio.v1.exports.UpdateExportResponse
+	36, // 68: browser_automation_studio.v1.exports.ExportsService.DeleteExport:output_type -> browser_automation_studio.v1.exports.DeleteExportResponse
+	38, // 69: browser_automation_studio.v1.exports.ExportsService.GetExportStatus:output_type -> browser_automation_studio.v1.exports.GetExportStatusResponse
+	40, // 70: browser_automation_studio.v1.exports.ExportsService.CancelExport:output_type -> browser_automation_studio.v1.exports.CancelExportResponse
+	42, // 71: browser_automation_studio.v1.exports.ExportsService.GenerateExportCaption:output_type -> browser_automation_studio.v1.exports.GenerateExportCaptionResponse
+	44, // 72: browser_automation_studio.v1.exports.ExportsService.RevealExport:output_type -> browser_automation_studio.v1.exports.RevealExportResponse
+	46, // 73: browser_automation_studio.v1.exports.ExportsService.OpenExportFolder:output_type -> browser_automation_studio.v1.exports.OpenExportFolderResponse
+	64, // [64:74] is the sub-list for method output_type
+	54, // [54:64] is the sub-list for method input_type
+	54, // [54:54] is the sub-list for extension type_name
+	54, // [54:54] is the sub-list for extension extendee
+	0,  // [0:54] is the sub-list for field type_name
 }
 
 func init() { file_browser_automation_studio_v1_exports_exports_proto_init() }
@@ -4133,19 +4363,20 @@ func file_browser_automation_studio_v1_exports_exports_proto_init() {
 	if File_browser_automation_studio_v1_exports_exports_proto != nil {
 		return
 	}
-	file_browser_automation_studio_v1_exports_exports_proto_msgTypes[19].OneofWrappers = []any{}
-	file_browser_automation_studio_v1_exports_exports_proto_msgTypes[21].OneofWrappers = []any{}
-	file_browser_automation_studio_v1_exports_exports_proto_msgTypes[25].OneofWrappers = []any{}
-	file_browser_automation_studio_v1_exports_exports_proto_msgTypes[28].OneofWrappers = []any{}
-	file_browser_automation_studio_v1_exports_exports_proto_msgTypes[32].OneofWrappers = []any{}
-	file_browser_automation_studio_v1_exports_exports_proto_msgTypes[37].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_exports_exports_proto_msgTypes[6].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_exports_exports_proto_msgTypes[20].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_exports_exports_proto_msgTypes[22].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_exports_exports_proto_msgTypes[26].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_exports_exports_proto_msgTypes[29].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_exports_exports_proto_msgTypes[33].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_exports_exports_proto_msgTypes[38].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_browser_automation_studio_v1_exports_exports_proto_rawDesc), len(file_browser_automation_studio_v1_exports_exports_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   44,
+			NumMessages:   47,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

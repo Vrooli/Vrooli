@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 
 import { DashboardPage } from "./DashboardPage";
 import { selectors } from "../consts/selectors";
@@ -37,6 +37,49 @@ describe("DashboardPage", () => {
   });
 
   afterEach(() => vi.unstubAllGlobals());
+
+  it("lets operators filter and search the measured owner ledger and refresh observations", async () => {
+    vi.mocked(fetch).mockImplementation(async (input: RequestInfo | URL) => {
+      const url=String(input);
+      const data=url.includes("/storage/inventory") ? {
+        repo_root:"/repo",
+        owners:[
+          {kind:"scenario",id:"scenario-a",manifest_path:"/repo/scenarios/scenario-a/.vrooli/service.json",storage_entries:[{name:"data",kind:"directory"}]},
+          {kind:"resource",id:"resource-b",manifest_path:"/repo/resources/resource-b/resource.json",storage_entries:[]},
+          {kind:"scenario",id:"no-local-storage",manifest_path:"/repo/scenarios/no-local-storage/.vrooli/service.json",storage_declared:true,storage_entries:[]},
+          {kind:"scenario",id:"unadopted-owner",manifest_path:"/repo/scenarios/unadopted-owner/.vrooli/service.json"},
+        ],
+        findings:[{code:"missing_budget",severity:"warning",owner_id:"resource-b",message:"Budget needs review"}],
+      } : url.includes("/census/history") ? [{...snapshot, entries:[...snapshot.entries,{owner:"unadopted-owner",kind:"scenario",name:"unknown",path:"/fixture/unadopted",bytes:128,declared:false}]}] : responseFor(url);
+      if(url.includes("/infra-health/storage")) {
+        (data as {latest_snapshot:typeof snapshot}).latest_snapshot={...snapshot,entries:[...snapshot.entries,{owner:"unadopted-owner",kind:"scenario",name:"unknown",path:"/fixture/unadopted",bytes:128,declared:false}]};
+      }
+      return new Response(JSON.stringify(data),{status:200});
+    });
+    renderWithProviders(<DashboardPage />);
+    await waitFor(()=>expect(screen.getByText("resource-b")).toBeInTheDocument());
+    expect(screen.getByText("No local surface")).toBeInTheDocument();
+    expect(screen.getByText("Adoption gap")).toBeInTheDocument();
+    const ledger=within(screen.getByTestId(selectors.console.ownerLedger));
+    fireEvent.click(ledger.getByRole("button",{name:"Scenarios"}));
+    expect(ledger.queryByText("resource-b")).not.toBeInTheDocument();
+    expect(ledger.getByText("scenario-a")).toBeInTheDocument();
+    fireEvent.click(ledger.getByRole("button",{name:"Resources"}));
+    expect(ledger.queryByText("scenario-a")).not.toBeInTheDocument();
+    expect(ledger.getByText("resource-b")).toBeInTheDocument();
+    fireEvent.click(ledger.getByRole("button",{name:"Needs review"}));
+    expect(ledger.getByText("resource-b")).toBeInTheDocument();
+    fireEvent.click(ledger.getByRole("button",{name:"All"}));
+    const search=ledger.getByPlaceholderText("Search owners, kinds, or manifest paths");
+    fireEvent.change(search,{target:{value:"scenario-a"}});
+    expect(ledger.queryByText("resource-b")).not.toBeInTheDocument();
+    expect(ledger.getByText("scenario-a")).toBeInTheDocument();
+    fireEvent.change(search,{target:{value:"absent-owner"}});
+    expect(ledger.getAllByText("No owners match this search or filter.").length).toBeGreaterThan(0);
+    const calls=vi.mocked(fetch).mock.calls.length;
+    fireEvent.click(screen.getByTestId(selectors.console.refresh));
+    await waitFor(()=>expect(vi.mocked(fetch).mock.calls.length).toBeGreaterThan(calls));
+  });
 
   it("renders API-backed accounting and owner data", async () => {
     renderWithProviders(<DashboardPage />);

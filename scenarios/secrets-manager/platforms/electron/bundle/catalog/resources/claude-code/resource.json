@@ -1,11 +1,70 @@
 {
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "claude-code",
-  "storage": {"entries": {
-    "home": {"rung": "owned", "path": "$USER_HOME/.claude", "kind": "dir", "class": "data", "regenerable": false, "sensitive": true, "rationale": "Claude Code documents ~/.claude as the cross-project user scope; this resource retains transcripts, settings, plans, and credentials there."}
-  }},
+  "storage": {
+    "entries": {
+      "home": {
+        "rung": "owned",
+        "path": "$USER_HOME/.claude",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "sensitive": true,
+        "rationale": "Claude Code documents ~/.claude as the cross-project user scope; this resource retains transcripts, settings, plans, and credentials there.",
+        "budget": {
+          "max_bytes": "50GiB",
+          "rationale": "Durable data storage ceiling is derived from the expected working set and raises an alarm before host capacity is threatened."
+        }
+      },
+      "projects": {
+        "rung": "owned",
+        "path": "$USER_HOME/.claude/projects",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "sensitive": true,
+        "agent_removal": "ask",
+        "rationale": "Per-project transcripts and agent memory. Agents curate their own memory files, so deletion here is the operator's confirmation rather than a flat refusal; the rest of ~/.claude stays denied."
+      },
+      "memory": {
+        "rung": "owned",
+        "path": "$USER_HOME/.claude/projects/*/memory",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "sensitive": true,
+        "agent_removal": "allow",
+        "rationale": "Claude Code's per-project auto-memory, one directory per project. Its own instructions have agents delete memories that turn out to be wrong, so agents may delete here without confirmation; the pattern is expanded to existing directories when storage-manager publishes agent-policy path rules. No budget: the bytes are measured under the projects entry."
+      },
+      "skills": {
+        "rung": "relocatable",
+        "path": "$USER_HOME/.claude/skills",
+        "kind": "dir",
+        "class": "config",
+        "regenerable": true,
+        "projection": {
+          "environment": "CLAUDE_CONFIG_DIR",
+          "project_scope": true
+        },
+        "rationale": "Native skill discovery directory declared for data-driven Vrooli projection."
+      }
+    }
+  },
   "display_name": "Claude Code CLI",
   "description": "Anthropic's Claude Code CLI for interactive and scripted development workflows.",
+  "execution": {
+    "runner_type": "claude-code",
+    "codec": "claude",
+    "detection_signal": "CLAUDECODE=1",
+    "hook_surface": "native-permissions"
+  },
+  "agent_hooks": {
+    "document_scopes": ["user", "project"],
+    "events": [
+      {"name": "PreToolUse", "supported": true, "can_inject_context": false, "reason": "Observed broker hook surface; it is not a prompt-time injection channel."},
+      {"name": "UserPromptSubmit", "supported": true, "can_inject_context": true, "verified_by": "canary", "verified_at": "2026-09-07T19:30:22.333Z", "reason": "Live interactive Claude Code canary round-tripped VROOLI-CANARY-7f3a91c2 through hookSpecificOutput.additionalContext."}
+    ]
+  },
   "cli": {
     "enabled": true,
     "command": "resource-claude-code",
@@ -36,7 +95,8 @@
         "model-policy.json",
         "docs/**",
         "README.md",
-        "resource.json"
+        "resource.json",
+        "../../packages/agentharness"
       ]
     },
     "source_build": {
@@ -45,14 +105,58 @@
   },
   "credentials": {
     "descriptors": [
-      {"logical_id":"vrooli/openrouter","field":"api-key","env":"OPENROUTER_API_KEY","label":"OpenRouter API key","description":"Optional gateway credential shared with the OpenRouter resource.","required":false,"obtain_url":"https://openrouter.ai/keys"},
-      {"logical_id":"vrooli/claude-code","field":"anthropic-api-key","env":"ANTHROPIC_API_KEY","label":"Anthropic API key","description":"Optional credential for Claude models.","required":false,"obtain_url":"https://console.anthropic.com/settings/keys"},
-      {"logical_id":"vrooli/openai","field":"api-key","env":"OPENAI_API_KEY","label":"OpenAI API key","description":"Optional credential for OpenAI models.","required":false,"obtain_url":"https://platform.openai.com/api-keys"},
-      {"logical_id":"vrooli/gemini","field":"api-key","env":"GEMINI_API_KEY","label":"Gemini API key","description":"Optional credential shared with the Gemini resource.","required":false,"obtain_url":"https://aistudio.google.com/app/apikey"}
+      {
+        "logical_id": "vrooli/openrouter",
+        "field": "api-key",
+        "env": "OPENROUTER_API_KEY",
+        "label": "OpenRouter API key",
+        "provisioning": "operator",
+        "description": "Optional gateway credential shared with the OpenRouter resource.",
+        "required": false,
+        "obtain_url": "https://openrouter.ai/keys"
+      },
+      {
+        "logical_id": "vrooli/claude-code",
+        "field": "anthropic-api-key",
+        "env": "ANTHROPIC_API_KEY",
+        "label": "Anthropic API key",
+        "provisioning": "operator",
+        "description": "Optional credential for Claude models.",
+        "required": false,
+        "obtain_url": "https://console.anthropic.com/settings/keys"
+      },
+      {
+        "logical_id": "vrooli/openai",
+        "field": "api-key",
+        "env": "OPENAI_API_KEY",
+        "label": "OpenAI API key",
+        "provisioning": "operator",
+        "description": "Optional credential for OpenAI models.",
+        "required": false,
+        "obtain_url": "https://platform.openai.com/api-keys"
+      },
+      {
+        "logical_id": "vrooli/gemini",
+        "field": "api-key",
+        "env": "GEMINI_API_KEY",
+        "label": "Gemini API key",
+        "provisioning": "operator",
+        "description": "Optional credential shared with the Gemini resource.",
+        "required": false,
+        "obtain_url": "https://aistudio.google.com/app/apikey"
+      }
     ]
   },
-  "template": "external-cli",
   "driver": "external-cli",
+  "acquisition": {
+    "kind": "npm",
+    "targets": [
+      {"when": {"os": "linux", "arch": "amd64"}, "package": "@anthropic-ai/claude-code", "version": "2.1.185", "sha256": "760bfd4b79b04eef2db3297eccf018c4c27e109e398eeb0013499512c66584c9"},
+      {"when": {"os": "linux", "arch": "arm64"}, "package": "@anthropic-ai/claude-code", "version": "2.1.185", "sha256": "760bfd4b79b04eef2db3297eccf018c4c27e109e398eeb0013499512c66584c9"},
+      {"when": {"os": "darwin", "arch": "amd64"}, "package": "@anthropic-ai/claude-code", "version": "2.1.185", "sha256": "760bfd4b79b04eef2db3297eccf018c4c27e109e398eeb0013499512c66584c9"},
+      {"when": {"os": "darwin", "arch": "arm64"}, "package": "@anthropic-ai/claude-code", "version": "2.1.185", "sha256": "760bfd4b79b04eef2db3297eccf018c4c27e109e398eeb0013499512c66584c9"}
+    ]
+  },
   "deployment": {
     "profiles": {
       "desktop": {
@@ -62,9 +166,6 @@
           "architectures": [
             "amd64",
             "arm64"
-          ],
-          "requires": [
-            "claude"
           ],
           "limitations": [
             "The upstream executable, licensing, authentication, and version policy are host-managed."
@@ -81,9 +182,6 @@
             "amd64",
             "arm64"
           ],
-          "requires": [
-            "claude"
-          ],
           "limitations": [
             "The upstream executable, licensing, authentication, and version policy are host-managed."
           ],
@@ -98,9 +196,6 @@
           "architectures": [
             "amd64",
             "arm64"
-          ],
-          "requires": [
-            "claude"
           ],
           "limitations": [
             "The upstream executable, licensing, authentication, and version policy are host-managed."
@@ -117,16 +212,27 @@
   "version_args": [
     "--version"
   ],
-  "portability_tier": "partial",
   "category": "developer-tooling",
+  "requirements": {
+    "ram_mb": 1024,
+    "disk_mb": 2048,
+    "cpu_cores": 1,
+    "network": "required",
+    "bucket": "medium",
+    "source": "estimated",
+    "confidence": "low",
+    "class": "developer-tooling",
+    "weight": 2
+  },
   "platforms": {
     "linux": "supported",
-    "macos": "supported",
-    "windows": "partial"
+    "macos": "build-verified",
+    "windows": "build-verified"
   },
   "health_checks": [
     {
       "type": "command",
+      "kind": "liveness",
       "command": [
         "claude",
         "--version"
@@ -151,14 +257,12 @@
   "install": {
     "platforms": {
       "linux": [
-        "bash",
-        "-lc",
-        "source resources/claude-code/lib/install.sh && claude_code::install::execute"
+        "resource-claude-code",
+        "install-direct"
       ],
       "macos": [
-        "bash",
-        "-lc",
-        "source resources/claude-code/lib/install.sh && claude_code::install::execute"
+        "resource-claude-code",
+        "install-direct"
       ]
     }
   },
@@ -199,7 +303,8 @@
     }
   },
   "capabilities": {
-    "supports_logs": false
+    "supports_logs": false,
+    "supports_ensure": true
   },
   "upstream_cli": {
     "version_command": [
@@ -214,5 +319,14 @@
   },
   "template_version": "2",
   "privilege": "user",
-  "bundling": "host-required"
+  "bundling": "host-required",
+  "vrooli_memory_targets": [
+    {
+      "runtime": "claude-code",
+      "path": "$USER_HOME/.claude/projects/$WORKSPACE_KEY/memory/MEMORY.md",
+      "section": "",
+      "byte_cap": 32768,
+      "line_cap": 200
+    }
+  ]
 }

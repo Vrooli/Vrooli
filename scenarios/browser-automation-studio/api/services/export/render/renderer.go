@@ -2,12 +2,12 @@
 //
 // The ReplayRenderer orchestrates video and GIF generation from replay movie specifications.
 // It delegates to specialized modules for capture (Playwright), media processing (FFmpeg),
-// and utility operations (filename generation, timeout estimation).
+// and utility operations (filename generation).
 //
 // Module Organization:
 //   - renderer.go (this file): Core types, orchestration, and main Render method
-//   - ffmpeg.go: FFmpeg video assembly and GIF conversion
-//   - utils.go: Filename sanitization and timeout estimation
+//   - video_encoder.go: FFmpeg video assembly and GIF conversion
+//   - utils.go: Filename sanitization
 //   - config.go: Configuration and constructor
 //   - playwright_client.go: Playwright capture client (desktop engine)
 package render

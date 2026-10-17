@@ -2,13 +2,14 @@ package agentsessions
 
 import (
 	"encoding/json"
-	"github.com/vrooli/api-core/discovery"
-	"github.com/vrooli/api-core/owneridentity"
 	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/owneridentity"
 
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
@@ -23,7 +24,7 @@ type Handler struct {
 }
 
 func NewHandler(service *Service) *Handler {
-	return &Handler{service: service, runCallerValidator: owneridentity.NewClient(owneridentity.Config{Resolver: discovery.NewResolver(discovery.ResolverConfig{})})}
+	return &Handler{service: service, runCallerValidator: owneridentity.NewClient(owneridentity.Config{Resolver: discovery.NewResolver(discovery.ResolverConfig{}), Audience: "scenario-authenticator:swarm-manager"})}
 }
 
 func (h *Handler) RegisterRoutes(r *mux.Router) {
@@ -318,9 +319,9 @@ func (h *Handler) AttachContext(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
 	verifier := h.runCallerValidator
 	if verifier == nil {
-		verifier = owneridentity.NewClient(owneridentity.Config{Resolver: discovery.NewResolver(discovery.ResolverConfig{})})
+		verifier = owneridentity.NewClient(owneridentity.Config{Resolver: discovery.NewResolver(discovery.ResolverConfig{}), Audience: "scenario-authenticator:swarm-manager"})
 	}
-	ctx, authErr := owneridentity.AuthorizeCreateRunCaller(r.Context(), r.Header, verifier, time.Now())
+	ctx, authErr := owneridentity.AuthorizeCreateRunCaller(r.Context(), r.Header, verifier, time.Now(), true)
 	if authErr != nil {
 		http.Error(w, "verified agent-manager caller required", http.StatusUnauthorized)
 		return

@@ -12,7 +12,9 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/maturity-go/assessment"
+	"google.golang.org/protobuf/encoding/protojson"
 
+	"unit-health/internal/adapters/gotest"
 	"unit-health/internal/discovery"
 	internalvalidation "unit-health/internal/validation"
 
@@ -85,6 +87,29 @@ func TestResponseToProtoSanitizesDiagnosticEvidenceForProtoTransport(t *testing.
 	got := out.GetAssessment().GetFindings()[0].GetEvidence()[0].GetSummary()
 	if !utf8.ValidString(got) || !strings.Contains(got, "�") {
 		t.Fatalf("diagnostic evidence was not safely normalized: %q", got)
+	}
+}
+
+func TestGoFailureWitnessSurvivesSharedAssessmentTransport(t *testing.T) {
+	diagnostics := (gotest.Analyzer{}).NewExecutionDiagnostics()
+	diagnostics.Write([]byte("{\"Action\":\"fail\",\"Package\":\"example/api\",\"Test\":\"TestEarly/subtest\"}\n"))
+	fixture := protoMappingFixture()
+	fixture.Findings[0].Evidence = "exit status 1\n" + diagnostics.Summary() + "\n--- stdout tail ---\nlater passing output"
+	out, err := responseToProto(fixture, testSpec(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := protojson.Marshal(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var retained validationv1.ValidateScenarioResponse
+	if err := protojson.Unmarshal(data, &retained); err != nil {
+		t.Fatal(err)
+	}
+	evidence := retained.GetAssessment().GetFindings()[0].GetEvidence()[0]
+	if evidence.GetKind() != "command.output" || evidence.GetLocator() != "go test ./..." || evidence.GetSummary() != fixture.Findings[0].Evidence || !strings.Contains(evidence.GetSummary(), `package="example/api" test="TestEarly/subtest"`) {
+		t.Fatalf("bounded witness dropped in shared assessment: %v", evidence)
 	}
 }
 

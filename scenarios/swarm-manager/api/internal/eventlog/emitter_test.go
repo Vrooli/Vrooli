@@ -6,6 +6,9 @@ import (
 	"encoding/json"
 	"reflect"
 	"testing"
+	"time"
+
+	"github.com/vrooli/api-core/identity"
 
 	"swarm-manager/internal/eventlog"
 
@@ -335,5 +338,28 @@ func TestEmitter_AutonomyGateModeChangeIsAttributed(t *testing.T) {
 	}
 	if payload.GateID != "slice-approval" || payload.From != "manual" || payload.To != "auto" {
 		t.Fatalf("mode change payload = %#v", payload)
+	}
+}
+
+func TestBookkeepingAuditKeepsTheAgentAndHumanApproverSeparate(t *testing.T) {
+	emitter, repo := setupEmitter(t)
+	grant := &identity.OperationGrant{ID: "consent", Approver: "human-owner", ExpiresAt: time.Now().Add(time.Hour)}
+	ctx := provenance.NewContext(context.Background(), provenance.Provenance{Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "agent-run", Subject: grant.Approver, ProfileKey: "agent-profile", Grant: grant})
+	emitter.EmitGoalBookkeepingChanged(ctx, "goal")
+	event := lastEvent(t, repo)
+	var metadata map[string]string
+	if err := json.Unmarshal(event.Metadata, &metadata); err != nil {
+		t.Fatal(err)
+	}
+	if event.ActorType != "agent" || event.RunID != "agent-run" || event.ActorID != "agent-run" || metadata["approver"] != grant.Approver || metadata["authorization_id"] != grant.ID {
+		t.Fatalf("actor/approver attribution lost: %+v %v", event, metadata)
+	}
+	emitter.EmitBacklogStatusChanged(ctx, "execute/item", "backlog", "dropped")
+	event = lastEvent(t, repo)
+	if err := json.Unmarshal(event.Metadata, &metadata); err != nil {
+		t.Fatal(err)
+	}
+	if event.ActorID != "agent-run" || metadata["from"] != "backlog" || metadata["authorization_id"] != grant.ID || metadata["approver"] != grant.Approver {
+		t.Fatalf("status transition lost grant or original status: %+v %v", event, metadata)
 	}
 }

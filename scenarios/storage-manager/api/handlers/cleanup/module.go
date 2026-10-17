@@ -72,6 +72,12 @@ func ModuleWithContext(serviceContext context.Context, logger *log.Logger, db *d
 		store = orchestrator.NewSQLiteStore(db)
 	}
 	service := orchestrator.NewServiceWithContext(serviceContext, registry, store, nil)
+	for _, meta := range registry.List() {
+		provider, _ := registry.Get(meta.ID)
+		if paused, ok := provider.(interface{ CloseRecoveryWalks() }); ok {
+			context.AfterFunc(serviceContext, paused.CloseRecoveryWalks)
+		}
+	}
 	// Provider-local file checks protect contract entries they own. Install the
 	// same contract-derived roots at the orchestration boundary as well, since
 	// owner providers return preview paths over HTTP and pressure recovery may
@@ -106,6 +112,24 @@ func ModuleWithContext(serviceContext context.Context, logger *log.Logger, db *d
 	// first live event is emitted and degrades cleanly if events are unavailable.
 	service.SetEventPublisher(eventbus.NewDiscoveredClient(context.Background()))
 	wireWarningPressure(service, db)
+	if db != nil {
+		// Delay the first cycle until after readiness. Disabled policy and the
+		// global kill switch are checked by the controller on every cycle.
+		managerRetention.NewScheduler(15*time.Minute, func(ctx context.Context) error {
+			run, err := service.StartTemporaryRetention(ctx)
+			if err != nil || run.ID == "" {
+				return err
+			}
+			receipt, err := service.WaitRecovery(ctx, run.ID)
+			if err != nil {
+				return err
+			}
+			if receipt.Status == orchestrator.RecoveryFailed {
+				return fmt.Errorf("temporary retention %s: %s", receipt.ID, receipt.Reason)
+			}
+			return nil
+		}).Start(serviceContext)
+	}
 	return ModuleWithService(service)
 }
 
@@ -316,6 +340,7 @@ func defaultRegistry(fileRoots *filerouting.RoutedRoots) (*providers.Registry, e
 	}
 	builtIns, err := providers.ConservativeBuiltIns(providers.BuiltInDeps{
 		FileSystem:        files,
+		TemporaryActivity: hostfs.NewTemporaryActivityObserver(),
 		ProcessLiveness:   hostfs.NewProcessLiveness(),
 		ProcessRunner:     hostfs.NewProcessRunner(),
 		Clock:             schedule.System(),
@@ -791,6 +816,10 @@ func resolveOllamaBaseURL() string {
 }
 
 var Endpoints = []module.EndpointDescriptor{
+	{ID: "cleanup_temporary_retention_configure", Path: cleanupconnect.CleanupServiceConfigureTemporaryRetentionProcedure, Method: "POST",
+		Summary: "Configure automatic temporary retention", Description: "Grants or revokes recurring cleanup authority for aged temporary entries only.", Category: "cleanup",
+		Request:  &module.Schema{Type: "object", Properties: map[string]string{"automatic": "boolean", "min_age_seconds": "int64"}},
+		Response: &module.Schema{Type: "object", Properties: map[string]string{"policy": "Policy"}}},
 	{
 		ID:          "cleanup_provider_list",
 		Path:        cleanupconnect.CleanupServiceListProvidersProcedure,

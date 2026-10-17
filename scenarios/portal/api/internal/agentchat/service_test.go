@@ -11,6 +11,7 @@ import (
 	agentbrief "github.com/vrooli/agentbrief-go"
 	apidb "github.com/vrooli/api-core/database"
 
+	"github.com/vrooli/api-core/identity"
 	"portal/internal/agentchat"
 	internalbrief "portal/internal/brief"
 	internalchat "portal/internal/chat"
@@ -134,7 +135,7 @@ func TestStreamStartsAgentRunAndPersistsAgentMessage(t *testing.T) {
 	svc := agentchat.NewService(agentchat.Config{Chat: chatSvc, AgentManager: fake, Runs: agentchat.NewSQLiteRepository(d)})
 	var streamed []agentmanager.ActivityEvent
 
-	result, err := svc.Stream(ctx, agentchat.StreamInput{
+	result, err := svc.Stream(auth01PortalCaller(ctx), agentchat.StreamInput{
 		ChatID:        chat.ID,
 		FromMessageID: user.ID,
 	}, func(ev agentmanager.ActivityEvent) error {
@@ -174,7 +175,7 @@ func TestStreamBuildsAgentBriefFromTheSelectedUserMessage(t *testing.T) {
 	briefs := &fakeBriefProvider{record: internalbrief.Record{ID: "agent-brief-1", Rendered: "<vrooli-context-brief>agent data</vrooli-context-brief>"}}
 	svc := agentchat.NewService(agentchat.Config{Chat: chatSvc, AgentManager: fakeAgent, Runs: agentchat.NewSQLiteRepository(d), Briefs: briefs})
 
-	result, err := svc.Stream(ctx, agentchat.StreamInput{ChatID: chat.ID, FromMessageID: user.ID}, func(agentmanager.ActivityEvent) error { return nil })
+	result, err := svc.Stream(auth01PortalCaller(ctx), agentchat.StreamInput{ChatID: chat.ID, FromMessageID: user.ID}, func(agentmanager.ActivityEvent) error { return nil })
 
 	require.NoError(t, err)
 	require.Equal(t, "agent-brief-1", result.BriefID)
@@ -209,7 +210,7 @@ func TestStreamRecordsAgentBriefReferenceOnlyForExactPath(t *testing.T) {
 	briefs := &fakeBriefProvider{record: internalbrief.Record{ID: "agent-reference", Items: []agentbrief.Item{{Title: "Runbook", Path: "docs/portal/runbook.md"}}}}
 	fake := &fakeAgentManager{events: []agentmanager.ActivityEvent{{Kind: agentmanager.EventKindDone, Text: "See docs/portal/runbook.md", Done: true}}}
 	svc := agentchat.NewService(agentchat.Config{Chat: chatSvc, AgentManager: fake, Runs: agentchat.NewSQLiteRepository(d), Briefs: briefs, BriefStore: briefs})
-	_, err = svc.Stream(ctx, agentchat.StreamInput{ChatID: chat.ID, FromMessageID: user.ID}, func(agentmanager.ActivityEvent) error { return nil })
+	_, err = svc.Stream(auth01PortalCaller(ctx), agentchat.StreamInput{ChatID: chat.ID, FromMessageID: user.ID}, func(agentmanager.ActivityEvent) error { return nil })
 	require.NoError(t, err)
 	require.Equal(t, []internalbrief.UseInput{{BriefID: "agent-reference", ItemIndex: 0, Kind: "REFERENCED"}}, briefs.uses)
 }
@@ -229,7 +230,7 @@ func TestStreamUploadsOwnedRenderedImagesBeforeAgentStart(t *testing.T) {
 	require.NoError(t, err)
 	fake := &fakeAgentManager{events: []agentmanager.ActivityEvent{{Kind: agentmanager.EventKindDone, Text: "done"}}}
 	svc := agentchat.NewService(agentchat.Config{Chat: chatSvc, AgentManager: fake, Runs: agentchat.NewSQLiteRepository(d), Images: fakeImages{pixels: [][]byte{[]byte("png")}}})
-	_, err = svc.Stream(ctx, agentchat.StreamInput{ChatID: chat.ID, FromMessageID: message.ID}, func(agentmanager.ActivityEvent) error { return nil })
+	_, err = svc.Stream(auth01PortalCaller(ctx), agentchat.StreamInput{ChatID: chat.ID, FromMessageID: message.ID}, func(agentmanager.ActivityEvent) error { return nil })
 	require.NoError(t, err)
 	require.Equal(t, []string{"agent-attachment-1"}, fake.startInput.AttachmentIDs)
 	require.Equal(t, [][]byte{[]byte("png")}, fake.uploaded)
@@ -247,7 +248,7 @@ func TestAdmissionSurvivesCancelledRendererAndRejectsDuplicateLaunch(t *testing.
 	fake := &fakeAgentManager{startHook: cancel}
 	repo := agentchat.NewSQLiteRepository(d)
 	svc := agentchat.NewService(agentchat.Config{Chat: chatSvc, AgentManager: fake, Runs: repo})
-	_, err = svc.Stream(streamCtx, agentchat.StreamInput{ChatID: chat.ID, FromMessageID: message.ID}, func(agentmanager.ActivityEvent) error { return errors.New("renderer disconnected") })
+	_, err = svc.Stream(auth01PortalCaller(streamCtx), agentchat.StreamInput{ChatID: chat.ID, FromMessageID: message.ID}, func(agentmanager.ActivityEvent) error { return errors.New("renderer disconnected") })
 	require.Error(t, err)
 	// Reconstruct repositories and services: identities live in SQL, not a process map.
 	recovered := agentchat.NewSQLiteRepository(d)
@@ -256,7 +257,7 @@ func TestAdmissionSurvivesCancelledRendererAndRejectsDuplicateLaunch(t *testing.
 	require.Equal(t, "run-1", binding.RunID)
 	require.Equal(t, "task-1", binding.TaskID)
 	second := agentchat.NewService(agentchat.Config{Chat: chatSvc, AgentManager: fake, Runs: recovered})
-	_, err = second.Stream(ctx, agentchat.StreamInput{ChatID: chat.ID, FromMessageID: message.ID}, func(agentmanager.ActivityEvent) error { return nil })
+	_, err = second.Stream(auth01PortalCaller(ctx), agentchat.StreamInput{ChatID: chat.ID, FromMessageID: message.ID}, func(agentmanager.ActivityEvent) error { return nil })
 	require.ErrorIs(t, err, agentchat.ErrAlreadyAdmitted)
 	require.Equal(t, 1, fake.startCalls)
 	require.NoError(t, recovered.Bind(ctx, binding.ID, agentmanager.Session{RunID: "run-1", TaskID: "task-1"}))
@@ -409,4 +410,18 @@ func TestAdmissionOwnerFailureRollsBackReservation(t *testing.T) {
 	var count int
 	require.NoError(t, d.QueryRow("SELECT COUNT(*) FROM agent_chat_runs").Scan(&count))
 	require.Zero(t, count)
+}
+
+// Explicit test-only verified human proof; no production/default credential.
+func auth01PortalCaller(ctx context.Context) context.Context {
+	return agentmanager.WithVerifiedCreateCaller(ctx, "fixture", identity.Principal{Kind: identity.ActorHuman, Subject: "fixture", Verified: true, Scopes: []string{"agent-manager:write"}, ExpiresAt: time.Now().Add(time.Hour)}, false)
+}
+
+func TestAuth01PortalStreamRejectsBeforeAdmissionOrUpload(t *testing.T) {
+	svc := agentchat.NewService(agentchat.Config{Chat: &internalchat.Service{}, AgentManager: &fakeAgentManager{}, Runs: agentchat.NewSQLiteRepository(nil)})
+	contexts := []context.Context{context.Background(), agentmanager.WithVerifiedCreateCaller(context.Background(), "fixture", identity.Principal{Kind: identity.ActorHuman, Verified: true, Subject: "fixture", ExpiresAt: time.Now().Add(time.Hour)}, false)}
+	for _, ctx := range contexts {
+		_, err := svc.Stream(ctx, agentchat.StreamInput{ChatID: "fixture"}, func(agentmanager.ActivityEvent) error { t.Fatal("emitted before authentication"); return nil })
+		require.ErrorIs(t, err, agentmanager.ErrCreateCaller)
+	}
 }

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -215,6 +216,14 @@ func defaultTargets(ctx context.Context) ([]Target, error) {
 	if err != nil {
 		return nil, err
 	}
+	// One container listing answers "running" for every target. A full
+	// controller.Status per resource was measured at 1-16s each (health
+	// probes this check does not need); the sum blew the check's entire
+	// budget before a single device probe ran.
+	running, err := runningContainerNames(ctx)
+	if err != nil {
+		return nil, err
+	}
 	out := make([]Target, 0)
 	for _, item := range items {
 		manifestPath := item.ManifestPath
@@ -233,17 +242,29 @@ func defaultTargets(ctx context.Context) ([]Target, error) {
 		if probe == "" {
 			continue
 		}
-		status, err := controller.Status(item.Name, true)
-		if err != nil {
-			continue
-		}
 		container := strings.TrimSpace(manifest.Runtime.ContainerName)
 		if container == "" {
 			container = "vrooli-" + manifest.Name
 		}
-		out = append(out, Target{Name: manifest.Name, Container: container, Probe: probe, Running: status.Running})
+		out = append(out, Target{Name: manifest.Name, Container: container, Probe: probe, Running: running[container]})
 	}
 	return out, nil
+}
+
+// runningContainerNames lists live container names in one engine call. The
+// device probe only makes sense against a live container, and docker itself
+// is the authority on liveness — resource health is a different fact this
+// check must not wait on.
+func runningContainerNames(ctx context.Context) (map[string]bool, error) {
+	out, err := exec.CommandContext(ctx, "docker", "ps", "--format", "{{.Names}}").Output()
+	if err != nil {
+		return nil, fmt.Errorf("list running containers: %w", err)
+	}
+	names := map[string]bool{}
+	for _, name := range strings.Fields(string(out)) {
+		names[name] = true
+	}
+	return names, nil
 }
 
 func defaultRestart(ctx context.Context, name string) error {

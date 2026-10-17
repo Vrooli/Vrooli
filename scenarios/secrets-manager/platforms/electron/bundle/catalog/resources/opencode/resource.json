@@ -1,12 +1,58 @@
 {
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "opencode",
-  "storage": {"entries": {
-    "config": {"rung": "owned", "path": "$USER_HOME/.config/opencode", "kind": "dir", "class": "config", "regenerable": false, "sensitive": true, "rationale": "OpenCode uses the XDG config directory for operator configuration and permissions."},
-    "storage": {"rung": "owned", "path": "$USER_HOME/.local/share/opencode/storage", "kind": "dir", "class": "data", "regenerable": false, "rationale": "OpenCode stores sessions and messages in its XDG data storage directory."}
-  }},
+  "storage": {
+    "entries": {
+      "config": {
+        "rung": "owned",
+        "path": "$USER_HOME/.config/opencode",
+        "kind": "dir",
+        "class": "config",
+        "regenerable": false,
+        "sensitive": true,
+        "rationale": "OpenCode uses the XDG config directory for operator configuration and permissions."
+      },
+      "storage": {
+        "rung": "owned",
+        "path": "$USER_HOME/.local/share/opencode/storage",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "OpenCode stores sessions and messages in its XDG data storage directory.",
+        "budget": {
+          "max_bytes": "50GiB",
+          "rationale": "Durable data storage ceiling is derived from the expected working set and raises an alarm before host capacity is threatened."
+        }
+      },
+      "skills": {
+        "rung": "relocatable",
+        "path": "$USER_HOME/.config/opencode/skills",
+        "kind": "dir",
+        "class": "config",
+        "regenerable": true,
+        "projection": {
+          "environment": "OPENCODE_CONFIG_DIR",
+          "project_scope": false
+        },
+        "rationale": "Native skill discovery directory declared for data-driven Vrooli projection."
+      }
+    }
+  },
   "display_name": "OpenCode",
   "description": "OpenCode CLI resource: a thin Go entrypoint wiring lifecycle, governed permissions, and an upstream update-check; agent-manager invokes the raw opencode binary directly.",
+  "execution": {
+    "runner_type": "opencode",
+    "codec": "opencode",
+    "detection_signal": "OPENCODE_PID matches a calling-process ancestor",
+    "hook_surface": "native-permissions"
+  },
+  "agent_hooks": {
+    "document_scopes": ["user", "project"],
+    "events": [
+      {"name": "PreToolUse", "supported": true, "can_inject_context": false, "reason": "Only the brokered tool hook is observed; no prompt-time injection canary exists."},
+      {"name": "UserPromptSubmit", "supported": false, "can_inject_context": false, "reason": "OpenCode's native hook surface has no verified prompt-time event."}
+    ]
+  },
   "cli": {
     "enabled": true,
     "command": "resource-opencode",
@@ -37,7 +83,8 @@
         "model-policy.json",
         "docs/**",
         "README.md",
-        "resource.json"
+        "resource.json",
+        "../../packages/agentharness"
       ]
     },
     "source_build": {
@@ -46,14 +93,86 @@
   },
   "credentials": {
     "descriptors": [
-      {"logical_id":"vrooli/openrouter","field":"api-key","env":"OPENROUTER_API_KEY","label":"OpenRouter API key","description":"Optional gateway credential shared with the OpenRouter resource.","required":false,"obtain_url":"https://openrouter.ai/keys"},
-      {"logical_id":"vrooli/opencode","field":"cloudflare-api-token","env":"CLOUDFLARE_API_TOKEN","label":"Cloudflare AI Gateway token","description":"Optional token for Cloudflare AI Gateway.","required":false},
-      {"logical_id":"vrooli/opencode","field":"cloudflare-account-id","env":"CLOUDFLARE_ACCOUNT_ID","label":"Cloudflare account ID","description":"Optional Cloudflare account identifier for an AI Gateway.","required":false},
-      {"logical_id":"vrooli/opencode","field":"cloudflare-gateway-slug","env":"CLOUDFLARE_AI_GATEWAY_SLUG","label":"Cloudflare AI Gateway slug","description":"Optional AI Gateway slug.","required":false}
+      {
+        "logical_id": "vrooli/openrouter",
+        "field": "api-key",
+        "env": "OPENROUTER_API_KEY",
+        "label": "OpenRouter API key",
+        "provisioning": "operator",
+        "description": "Optional gateway credential shared with the OpenRouter resource.",
+        "required": false,
+        "obtain_url": "https://openrouter.ai/keys"
+      },
+      {
+        "logical_id": "vrooli/opencode",
+        "field": "cloudflare-api-token",
+        "env": "CLOUDFLARE_API_TOKEN",
+        "label": "Cloudflare AI Gateway token",
+        "provisioning": "operator",
+        "description": "Optional token for Cloudflare AI Gateway.",
+        "required": false,
+        "obtain_url": "https://dash.cloudflare.com/profile/api-tokens"
+      },
+      {
+        "logical_id": "vrooli/opencode",
+        "field": "cloudflare-account-id",
+        "env": "CLOUDFLARE_ACCOUNT_ID",
+        "label": "Cloudflare account ID",
+        "provisioning": "operator",
+        "description": "Optional Cloudflare account identifier for an AI Gateway.",
+        "required": false,
+        "obtain_url": "https://dash.cloudflare.com/"
+      },
+      {
+        "logical_id": "vrooli/opencode",
+        "field": "cloudflare-gateway-slug",
+        "env": "CLOUDFLARE_AI_GATEWAY_SLUG",
+        "label": "Cloudflare AI Gateway slug",
+        "provisioning": "operator",
+        "description": "Optional AI Gateway slug.",
+        "required": false,
+        "obtain_url": "https://developers.cloudflare.com/ai-gateway/"
+      },
+      {
+        "logical_id": "vrooli/opencode-go",
+        "field": "api-key",
+        "env": "OPENCODE_GO_KEY",
+        "label": "OpenCode Go API key",
+        "provisioning": "operator",
+        "description": "Subscription key for the OpenCode Go model plan (opencode.ai/go).",
+        "required": false,
+        "obtain_url": "https://opencode.ai/auth"
+      }
+    ],
+    "consumers": [
+      {
+        "logical_id": "vrooli/openrouter",
+        "field": "api-key",
+        "kind": "environment",
+        "consumer": "OpenCode OpenRouter resolver",
+        "source_ref": "cli/internal/secrets/secrets.go:59",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/opencode-go",
+        "field": "api-key",
+        "kind": "environment",
+        "consumer": "OpenCode Go key resolver",
+        "source_ref": "cli/internal/secrets/secrets.go:68",
+        "required": false
+      }
     ]
   },
-  "template": "external-cli",
   "driver": "external-cli",
+  "acquisition": {
+    "kind": "npm",
+    "targets": [
+      {"when": {"os": "linux", "arch": "amd64"}, "package": "opencode-ai", "version": "1.18.30", "sha256": "3a97a99230d07fcbe6fd1ea2a001556297225d57f55d7880d3c9e6e29960ae90"},
+      {"when": {"os": "linux", "arch": "arm64"}, "package": "opencode-ai", "version": "1.18.30", "sha256": "3a97a99230d07fcbe6fd1ea2a001556297225d57f55d7880d3c9e6e29960ae90"},
+      {"when": {"os": "darwin", "arch": "amd64"}, "package": "opencode-ai", "version": "1.18.30", "sha256": "3a97a99230d07fcbe6fd1ea2a001556297225d57f55d7880d3c9e6e29960ae90"},
+      {"when": {"os": "darwin", "arch": "arm64"}, "package": "opencode-ai", "version": "1.18.30", "sha256": "3a97a99230d07fcbe6fd1ea2a001556297225d57f55d7880d3c9e6e29960ae90"}
+    ]
+  },
   "deployment": {
     "profiles": {
       "desktop": {
@@ -63,9 +182,6 @@
           "architectures": [
             "amd64",
             "arm64"
-          ],
-          "requires": [
-            "opencode"
           ],
           "limitations": [
             "The upstream executable, licensing, authentication, and version policy are host-managed."
@@ -82,9 +198,6 @@
             "amd64",
             "arm64"
           ],
-          "requires": [
-            "opencode"
-          ],
           "limitations": [
             "The upstream executable, licensing, authentication, and version policy are host-managed."
           ],
@@ -99,9 +212,6 @@
           "architectures": [
             "amd64",
             "arm64"
-          ],
-          "requires": [
-            "opencode"
           ],
           "limitations": [
             "The upstream executable, licensing, authentication, and version policy are host-managed."
@@ -118,16 +228,27 @@
   "version_args": [
     "--version"
   ],
-  "portability_tier": "partial",
   "category": "development",
+  "requirements": {
+    "ram_mb": 1024,
+    "disk_mb": 2048,
+    "cpu_cores": 1,
+    "network": "required",
+    "bucket": "medium",
+    "source": "estimated",
+    "confidence": "low",
+    "class": "development",
+    "weight": 2
+  },
   "platforms": {
     "linux": "supported",
-    "macos": "supported",
-    "windows": "partial"
+    "macos": "build-verified",
+    "windows": "build-verified"
   },
   "health_checks": [
     {
       "type": "command",
+      "kind": "liveness",
       "command": [
         "opencode",
         "--version"
@@ -174,14 +295,12 @@
   "install": {
     "platforms": {
       "linux": [
-        "bash",
-        "-lc",
-        "source resources/opencode/lib/install.sh && opencode::install::execute"
+        "resource-opencode",
+        "install-direct"
       ],
       "macos": [
-        "bash",
-        "-lc",
-        "source resources/opencode/lib/install.sh && opencode::install::execute"
+        "resource-opencode",
+        "install-direct"
       ]
     }
   },
@@ -204,14 +323,14 @@
   },
   "capabilities": {
     "supports_logs": false,
-    "supports_content_ops": true
+    "supports_ensure": true
   },
   "upstream_cli": {
     "version_command": [
       "opencode",
       "--version"
     ],
-    "version_pinned": "1.17.9",
+    "version_pinned": "1.18.30",
     "upstream_release_source": "https://api.github.com/repos/sst/opencode/releases/latest",
     "docs_source": "https://opencode.ai/docs/permissions/",
     "docs_pinned_at": "2026-06-22",

@@ -32,7 +32,8 @@
   "devDependencies": {
     "@types/node": "^20.0.0",
     "concurrently": "^8.0.0",
-    "electron": "^33.0.0",
+    "electron": "44.7.2",
+    
     "electron-builder": "^26.0.12",
     "rimraf": "^5.0.0",
     "typescript": "^5.0.0",
@@ -46,25 +47,30 @@
     "productName": "Secrets Manager",
     "copyright": "Copyright © 2026 Vrooli Team",
     "afterPack": "scripts/post-build-windows.js",
+    "afterAllArtifactBuild": "scripts/sign-linux-artifacts.js",
     "directories": {
       "output": "dist-electron",
       "buildResources": "assets"
     },
     "files": [
       "dist/**/*",
+      "native-extension.json",
       "assets/**/*",
       "src/splash.html",
       "!**/*.ts",
       "!**/tsconfig.json",
       "!**/*.map"
     ],
+    "beforePack": null,
     "extraResources": [
-      {
-        "from": "bundle",
-        "to": "bundle",
-        "filter": ["**/*"]
-      }
-    ],
+  {
+    "from": "bundle",
+    "to": "bundle",
+    "filter": [
+      "**/*"
+    ]
+  }
+],
     "mac": {
       "category": "public.app-category.productivity",
       "icon": "assets/icon.png",
@@ -130,7 +136,8 @@
     "appImage": {
       "license": null
     },
-    "publish": null
+    "publish": null,
+    "electronFuses": null
   },
   "engines": {
     "node": ">=18.0.0"

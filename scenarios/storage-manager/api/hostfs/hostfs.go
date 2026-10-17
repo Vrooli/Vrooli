@@ -51,6 +51,44 @@ func New(opts Options) *FS {
 	return &FS{restrictToOwner: !opts.AllowForeignOwnership}
 }
 
+// OpenWalk exposes the shared cursor with strict ownership and device checks.
+// An unverifiable descendant invalidates the whole temporary cleanup unit.
+func (f *FS) OpenWalk(ctx context.Context, path string) (cleanup.FileWalk, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	info, err := os.Lstat(path)
+	if err != nil {
+		return nil, err
+	}
+	if f.restrictToOwner && !ownedByCurrentUser(info) {
+		return nil, fs.ErrPermission
+	}
+	cursor, err := coreRetention.OpenDirectoryWalk(path)
+	if err != nil {
+		return nil, err
+	}
+	return &fileWalk{cursor: cursor, restrictToOwner: f.restrictToOwner, rootInfo: info}, nil
+}
+
+type fileWalk struct {
+	cursor          *coreRetention.DirectoryWalkCursor
+	restrictToOwner bool
+	rootInfo        fs.FileInfo
+}
+
+func (w *fileWalk) Next(ctx context.Context) (cleanup.FileInfo, error) {
+	path, info, err := w.cursor.Next(ctx)
+	if err != nil {
+		return cleanup.FileInfo{}, err
+	}
+	if (w.restrictToOwner && !ownedByCurrentUser(info)) || !sameDevice(w.rootInfo, info) {
+		return cleanup.FileInfo{}, fs.ErrPermission
+	}
+	return toFileInfo(path, info), nil
+}
+func (w *fileWalk) Close() error { return w.cursor.Close() }
+
 // Compile-time guarantee that FS satisfies the seam.
 var _ cleanup.FileSystem = (*FS)(nil)
 
@@ -236,11 +274,12 @@ func (f *FS) Rename(ctx context.Context, oldPath, newPath string) error {
 // toFileInfo converts a stdlib FileInfo into the seam's transport type.
 func toFileInfo(path string, info fs.FileInfo) cleanup.FileInfo {
 	return cleanup.FileInfo{
-		Path:    path,
-		Size:    info.Size(),
-		Mode:    info.Mode(),
-		ModTime: info.ModTime(),
-		IsDir:   info.IsDir(),
+		Path:     path,
+		Size:     info.Size(),
+		Mode:     info.Mode(),
+		ModTime:  info.ModTime(),
+		IsDir:    info.IsDir(),
+		Identity: fileIdentity(info),
 	}
 }
 

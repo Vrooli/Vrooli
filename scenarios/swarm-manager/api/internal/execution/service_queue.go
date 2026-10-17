@@ -3,11 +3,12 @@ package execution
 import (
 	"context"
 	"errors"
-	"github.com/vrooli/api-core/owneridentity"
 	"log/slog"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/owneridentity"
 
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/identity"
@@ -89,7 +90,7 @@ func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, 
 			if err != nil {
 				return Record{}, apierr.Wrap(err, 401, "verified goal queue caller required")
 			}
-			goalCaller, err = owneridentity.CarryCreateRunCaller(qualified, context.Background(), time.Now())
+			goalCaller, err = owneridentity.CarryCreateRunCaller(qualified, context.Background(), time.Now(), true)
 			if err != nil {
 				return Record{}, apierr.Wrap(err, 401, "verified goal queue caller required")
 			}
@@ -136,7 +137,7 @@ func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, 
 
 	for id := range s.goalQueueCallers {
 		keep := false
-		if owneridentity.RequireCreateRunCaller(s.goalQueueCallers[id], time.Now()) != nil {
+		if owneridentity.RequireCreateRunCaller(s.goalQueueCallers[id], time.Now(), true) != nil {
 			delete(s.goalQueueCallers, id)
 			continue
 		}

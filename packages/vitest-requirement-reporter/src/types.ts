@@ -91,6 +91,8 @@ export interface RequirementReporterOptions {
  * Test failure information for artifact generation
  */
 export interface TestFailure {
+  /** Native task identity distinguishes repeated display names in one file. */
+  taskId?: string;
   /** Project name (e.g., components-palette) */
   projectName: string;
 

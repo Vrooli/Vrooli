@@ -841,6 +841,9 @@ func (s *Service) CreateMilestone(goalName string, milestone Milestone) (*GoalWi
 		return nil, err
 	}
 	milestone = normalizeMilestone(milestone)
+	// Delivery evidence is written only by the independent review owner.
+	milestone.VerifiedDeliveredAt = nil
+	milestone.CriterionVerdicts = nil
 	g.Milestones = append(g.Milestones, milestone)
 	g.Updated = nowRFC3339()
 	if err := s.store.Save(g); err != nil {
@@ -1003,8 +1006,10 @@ func carryServerOwnedMilestoneFields(previous, next Milestone) Milestone {
 	next.ArchivedAt = previous.ArchivedAt
 	if sameCriteria(previous.AcceptanceCriteria, next.AcceptanceCriteria) {
 		next.VerifiedDeliveredAt = previous.VerifiedDeliveredAt
+		next.CriterionVerdicts = append([]CriterionVerdict(nil), previous.CriterionVerdicts...)
 	} else {
 		next.VerifiedDeliveredAt = nil
+		next.CriterionVerdicts = nil
 	}
 	return next
 }

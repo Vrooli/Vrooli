@@ -129,7 +129,7 @@ func (p *JournalProvider) Metadata() cleanup.ProviderMetadata {
 		DefaultMode:         cleanup.ProviderModeDisabled,
 		DefaultApproval:     cleanup.ApprovalModeOperator,
 		SupportedPlatforms:  []string{"linux"},
-		RequiredPrivileges:  []string{"sudo", "systemd-journald"},
+		RequiredPrivileges:  []string{"privilege-broker", "systemd-journald"},
 		IrreversibleEffects: []string{"journal entries older than policy retention may be vacuumed"},
 		TestSubstitute:      "fake-journal",
 	}
@@ -163,7 +163,7 @@ func (p *JournalProvider) Preview(_ context.Context, req cleanup.PreviewRequest)
 		return out, nil
 	}
 	out.Items = append(out.Items, cleanup.PreviewItem{ID: "journald:vacuum", Description: "systemd journal vacuum by age", Bytes: req.Estimate.EstimatedBytes, Action: "journal-vacuum", SafetyTier: cleanup.SafetyTierConditional})
-	out.Warnings = append(out.Warnings, "requires privileges: sudo,systemd-journald")
+	out.Warnings = append(out.Warnings, "requires setup-managed privileges: privilege-broker,systemd-journald")
 	return out, nil
 }
 

@@ -64,6 +64,7 @@ type SystemOpener interface {
 
 // Deps wires the ExportsService handler.
 type Deps struct {
+	CancelExport    func(uuid.UUID) bool // optional owned job cancellation; no new wire status
 	Repo            Repo
 	Executor        ExecutionLookup
 	Catalog         CatalogLookup

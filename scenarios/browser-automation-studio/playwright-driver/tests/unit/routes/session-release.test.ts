@@ -1,21 +1,14 @@
+import { playwrightProvider } from '../../../src/playwright';
 import { handleSessionRelease } from '../../../src/routes/session-release';
 import { SessionManager } from '../../../src/session/manager';
-import { createMockHttpRequest, createMockHttpResponse, createTestConfig } from '../../helpers';
+import { createMockHttpRequest, createMockHttpResponse, createTestConfig, createMockBrowser } from '../../helpers';
 
-jest.mock('playwright', () => ({
-  chromium: {
-    launch: jest.fn().mockResolvedValue({
-      newContext: jest.fn().mockResolvedValue({
-        newPage: jest.fn().mockResolvedValue({ on: jest.fn(), goto: jest.fn().mockResolvedValue(null), viewportSize: jest.fn().mockReturnValue({ width: 1280, height: 720 }) }),
-        clearCookies: jest.fn().mockResolvedValue(undefined),
-        clearPermissions: jest.fn().mockResolvedValue(undefined),
-        close: jest.fn().mockResolvedValue(undefined),
-      }),
-      close: jest.fn().mockResolvedValue(undefined),
-      isConnected: jest.fn().mockReturnValue(true),
-    }),
-  },
-}));
+// Exercise the actual configured provider through the existing fixture seam.
+let launchSpy: jest.SpiedFunction<typeof playwrightProvider.chromium.launch>;
+beforeEach(() => {
+  launchSpy = jest.spyOn(playwrightProvider.chromium, 'launch').mockResolvedValue(createMockBrowser());
+});
+afterEach(() => launchSpy.mockRestore());
 
 describe('Session Release Route', () => {
   let sessionManager: SessionManager;

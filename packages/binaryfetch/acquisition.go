@@ -1,7 +1,9 @@
 package binaryfetch
 
 import (
+	"bytes"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
@@ -70,11 +72,41 @@ type ComposeStep struct {
 	AllowSDists    bool     `json:"allow_sdists,omitempty"`
 }
 
-// AcquisitionTarget is one ordered candidate source. The first target whose
-// predicate matches wins. An unsupported target is useful as a terminal,
-// explicit declaration for a platform the item does not serve.
+// AcquisitionAuth names an existing credential. Values and arbitrary headers are never declared.
+type AcquisitionAuth struct {
+	Scheme    string `json:"scheme"`
+	LogicalID string `json:"logical_id"`
+	Field     string `json:"field"`
+}
+
+// UnmarshalJSON refuses plaintext/header fields instead of silently discarding them.
+func (a *AcquisitionAuth) UnmarshalJSON(data []byte) error {
+	type declaration AcquisitionAuth
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	return decoder.Decode((*declaration)(a))
+}
+
+// ValidateURL refuses credentials on transports without exact-origin HTTPS protection.
+func (a AcquisitionAuth) ValidateURL(rawURL string) error {
+	parsed, err := url.Parse(rawURL)
+	if err != nil || parsed.Scheme != "https" || parsed.Host == "" || parsed.User != nil || parsed.Fragment != "" {
+		return errors.New("authenticated acquisition requires an HTTPS URL without userinfo or fragment")
+	}
+	if a.Scheme != "bearer" {
+		return errors.New("acquisition auth scheme must be bearer")
+	}
+	if strings.TrimSpace(a.LogicalID) == "" || strings.TrimSpace(a.Field) == "" || strings.ContainsAny(a.LogicalID+a.Field, "\r\n\t ") {
+		return errors.New("acquisition auth requires logical_id and field without whitespace")
+	}
+	return nil
+}
+
+// AcquisitionTarget is one ordered candidate source. The first predicate match
+// wins. An unsupported target explicitly refuses the remaining platforms.
 type AcquisitionTarget struct {
 	When map[string]string `json:"when,omitempty"`
+	Auth *AcquisitionAuth  `json:"auth,omitempty"`
 	// Kind overrides the acquisition-wide kind for this target alone. One item
 	// can genuinely need different sources per platform: PostgreSQL stages a
 	// digest-pinned OCI filesystem tree on Linux, where the official image
@@ -136,7 +168,23 @@ func validAcquisitionKind(kind string) bool {
 	return false
 }
 
-func (a Acquisition) Validate() error {
+func (a Acquisition) Validate() error { return a.validate(false) }
+
+// ValidateForComposeCandidate checks complete composed input declarations while
+// permitting an absent output pin. Normal Validate remains the admission gate.
+func (a Acquisition) ValidateForComposeCandidate() error {
+	if a.Kind != "composed" {
+		return errors.New("compose candidate requires composed acquisition")
+	}
+	for _, target := range a.Targets {
+		if target.Unsupported == "" && a.EffectiveKind(target) != "composed" {
+			return errors.New("compose candidate permits only composed targets")
+		}
+	}
+	return a.validate(true)
+}
+
+func (a Acquisition) validate(candidate bool) error {
 	if !validAcquisitionKind(strings.ToLower(strings.TrimSpace(a.Kind))) {
 		return fmt.Errorf("acquisition kind %q is invalid", a.Kind)
 	}
@@ -149,7 +197,7 @@ func (a Acquisition) Validate() error {
 		}
 		unsupported := strings.TrimSpace(target.Unsupported)
 		if unsupported != "" {
-			if target.URL != "" || target.Image != "" || target.Package != "" || target.Version != "" || target.SHA256 != "" || target.ArtifactSHA256 != "" || target.Archive != "" || target.Layout != "" || target.BinPath != "" || target.Executable != "" || len(target.RuntimeEnv) != 0 || len(target.Compose) != 0 {
+			if target.URL != "" || target.Image != "" || target.Package != "" || target.Version != "" || target.SHA256 != "" || target.ArtifactSHA256 != "" || target.Archive != "" || target.Layout != "" || target.BinPath != "" || target.Executable != "" || len(target.RuntimeEnv) != 0 || len(target.Compose) != 0 || target.Auth != nil {
 				return fmt.Errorf("acquisition target %d: unsupported target cannot also declare an artifact", index)
 			}
 			continue
@@ -157,6 +205,14 @@ func (a Acquisition) Validate() error {
 		kind := a.EffectiveKind(target)
 		if !validAcquisitionKind(kind) {
 			return fmt.Errorf("acquisition target %d: kind %q is invalid", index, target.Kind)
+		}
+		if target.Auth != nil {
+			if kind != "url" {
+				return fmt.Errorf("acquisition target %d: auth is supported only for URL acquisition", index)
+			}
+			if err := target.Auth.ValidateURL(target.URL); err != nil {
+				return fmt.Errorf("acquisition target %d: %w", index, err)
+			}
 		}
 		switch kind {
 		case "url":
@@ -192,7 +248,7 @@ func (a Acquisition) Validate() error {
 			if target.Layout != "dir" {
 				return fmt.Errorf("acquisition target %d: composed acquisition requires layout dir", index)
 			}
-			if !isDigest(target.ArtifactSHA256) {
+			if !isDigest(target.ArtifactSHA256) && !(candidate && target.ArtifactSHA256 == "") {
 				return fmt.Errorf("acquisition target %d: composed acquisition requires artifact_sha256", index)
 			}
 			if len(target.Compose) == 0 {

@@ -10,13 +10,15 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 )
 
 var pinnedRequirement = regexp.MustCompile(`^\s*([A-Za-z0-9][A-Za-z0-9_.-]*)==([^\\\s]+)(?:\s*\\)?\s*$`)
 
 type pythonIndexSet struct {
-	Primary string
-	Extras  []string
+	Lockfile string
+	Primary  string
+	Extras   []string
 }
 
 func pythonLockfilesFor(surfaceRoot, manager string) []string {
@@ -36,6 +38,10 @@ func pythonIndexSetsFor(surfaceRoot, manager string) map[string]pythonIndexSet {
 	if err != nil {
 		return nil
 	}
+	return pythonIndexSetsFromJSON(data)
+}
+
+func pythonIndexSetsFromJSON(data []byte) map[string]pythonIndexSet {
 	var raw any
 	if json.Unmarshal(data, &raw) != nil {
 		return nil
@@ -48,6 +54,7 @@ func pythonIndexSetsFor(surfaceRoot, manager string) map[string]pythonIndexSet {
 			if kind, _ := typed["kind"].(string); kind == "python-wheels" {
 				lockfile, _ := typed["lockfile"].(string)
 				indexSet := pythonIndexSet{}
+				indexSet.Lockfile = lockfile
 				indexSet.Primary, _ = typed["index_url"].(string)
 				if extra, ok := typed["extra_index_url"].([]any); ok {
 					for _, item := range extra {
@@ -74,6 +81,11 @@ func pythonIndexSetsFor(surfaceRoot, manager string) map[string]pythonIndexSet {
 }
 
 func updatePythonLocks(ctx context.Context, resolution Resolution) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
+	defer cancel()
+	if resolution.PythonBootstrap != nil {
+		return bootstrapPythonLock(ctx, resolution)
+	}
 	if len(resolution.PythonLockfiles) == 0 {
 		return "", fmt.Errorf("resource Python lock update has no requirements lockfiles")
 	}
@@ -115,17 +127,7 @@ func updatePythonLocks(ctx context.Context, resolution Resolution) (string, erro
 		if strings.TrimSpace(indexSet.Primary) == "" {
 			indexSet.Primary = "https://pypi.org/simple"
 		}
-		args := []string{"pip", "compile", "--generate-hashes", "--only-binary", ":all:", "--python-version", "3.12", "--python-platform", "x86_64-unknown-linux-gnu", "--index-url", indexSet.Primary}
-		for _, indexURL := range indexSet.Extras {
-			args = append(args, "--extra-index-url", indexURL)
-		}
-		if len(indexSet.Extras) > 0 {
-			args = append(args, "--index-strategy", "unsafe-best-match")
-		}
-		args = append(args, "--output-file", outputPath, inputPath)
-		command := exec.CommandContext(ctx, "uv", args...)
-		command.Dir = resolution.SurfaceRoot
-		output, err := command.CombinedOutput()
+		output, err := compilePythonLock(ctx, resolution.SurfaceRoot, inputPath, outputPath, indexSet)
 		if err != nil {
 			return string(output), fmt.Errorf("uv wheel-only lock resolution failed for %s: %w", filepath.Base(lockPath), err)
 		}
@@ -149,6 +151,24 @@ func updatePythonLocks(ctx context.Context, resolution Resolution) (string, erro
 		}
 	}
 	return "wheel-only Python locks updated through Scenario Dependency Analyzer", nil
+}
+
+func compilePythonLock(ctx context.Context, root, input, output string, indexes pythonIndexSet) (string, error) {
+	args := []string{"pip", "compile", "--generate-hashes", "--only-binary", ":all:", "--no-build", "--no-config", "--python-version", "3.12", "--python-platform", "x86_64-unknown-linux-gnu", "--index-url", indexes.Primary}
+	for _, index := range indexes.Extras {
+		args = append(args, "--extra-index-url", index)
+	}
+	if len(indexes.Extras) > 0 {
+		args = append(args, "--index-strategy", "unsafe-best-match")
+	}
+	args = append(args, "--output-file", output, input)
+	command := exec.CommandContext(ctx, "uv", args...)
+	command.Dir = root
+	command.WaitDelay = 5 * time.Second
+	var diagnostic hostToolOutput
+	command.Stdout, command.Stderr = &diagnostic, &diagnostic
+	err := command.Run()
+	return diagnostic.String(), err
 }
 
 func canonicalizePythonLockOutput(generated []byte, inputPath, relativeLock string) string {

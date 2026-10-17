@@ -14,6 +14,7 @@ import (
 	"github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/schedule"
 	"portal/internal/chat"
+	"portal/internal/integrations/agentmanager"
 )
 
 type interceptor struct {
@@ -60,6 +61,7 @@ func (i *interceptor) authorize(ctx context.Context, header http.Header) (contex
 	if err != nil {
 		return nil, noop, denied
 	}
+	owned = agentmanager.WithVerifiedCreateCaller(owned, token, principal, len(header.Values("X-Agent-Identity-Token")) != 0)
 	owned, cancel := context.WithDeadline(owned, principal.ExpiresAt)
 	return owned, cancel, nil
 }

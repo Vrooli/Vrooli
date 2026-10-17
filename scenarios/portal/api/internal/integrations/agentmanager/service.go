@@ -120,7 +120,7 @@ func ResolveBaseURL(ctx context.Context) (string, error) {
 	defer cancel()
 	baseURL, err := discovery.ResolveScenarioURL(portCtx, defaultScenario, defaultPortKey)
 	if err != nil {
-		return "", fmt.Errorf("%w: %v", ErrUnavailable, err)
+		return "", fmt.Errorf("%w: %s", ErrUnavailable, redactCreateCaller(ctx, err.Error()))
 	}
 	return strings.TrimRight(baseURL, "/"), nil
 }
@@ -211,6 +211,9 @@ func NewHTTPClient(baseURL string, client *http.Client) *HTTPClient {
 }
 
 func (c *HTTPClient) Start(ctx context.Context, input StartInput) (Session, error) {
+	if err := RequireCreateCaller(ctx); err != nil {
+		return Session{}, err
+	}
 	if _, err := admissionTag(input.AdmissionID); err != nil {
 		return Session{}, err
 	}
@@ -411,14 +414,24 @@ func (c *HTTPClient) request(ctx context.Context, method, path string, payload a
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	resp, err := c.client.Do(req)
+	client := *c.client
+	if _, offered := ctx.Value(createCallerKey{}).(createCaller); offered {
+		client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	}
+	if method == http.MethodPost && path == "/api/v1/runs" {
+		if err := RequireCreateCaller(ctx); err != nil {
+			return err
+		}
+		req.Header.Set("Authorization", createCallerAuthorization(ctx))
+	}
+	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("%w: %v", ErrUnavailable, err)
+		return fmt.Errorf("%w: %s", ErrUnavailable, redactCreateCaller(ctx, err.Error()))
 	}
 	defer resp.Body.Close()
 	respBody, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(respBody)))
+		return fmt.Errorf("HTTP %d: %s", resp.StatusCode, redactCreateCaller(ctx, strings.TrimSpace(string(respBody))))
 	}
 	if out == nil {
 		return nil

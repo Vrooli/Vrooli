@@ -37,7 +37,10 @@ message SubmitRequest {
   string style_id = 1;
   int32 takes = 2;
   int32 duration = 3;
-  int64 seed = 4;
+  // Omitted chooses a fresh base once at admission; explicit zero is repeatable.
+  optional int64 seed = 4;
+  // Optional ACE sampling shift; omission preserves the loaded profile default.
+  optional double shift = 5;
 }
 
 message SubmitResponse { string job_id = 1; }

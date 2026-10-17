@@ -63,7 +63,7 @@ func (l ManagedServiceOwnerLifecycle) Manage(ctx context.Context, instance Manag
 	switch action {
 	case brokerTransportStart, brokerTransportRestart:
 		var result any
-		err := withManagedServiceLifecycleLock(l.Manifest.Name, func() error {
+		err := withManagedServiceLifecycleLock(ctx, l.Manifest.Name, func() error {
 			if err := driver.runUserHosted(ctx, l.Controller, item, l.Manifest, action, io.Discard); err != nil {
 				return err
 			}
@@ -74,7 +74,7 @@ func (l ManagedServiceOwnerLifecycle) Manage(ctx context.Context, instance Manag
 		return result, err
 	case brokerTransportStop:
 		var result any
-		err := withManagedServiceLifecycleLock(l.Manifest.Name, func() error {
+		err := withManagedServiceLifecycleLock(ctx, l.Manifest.Name, func() error {
 			if err := driver.runPrivate(ctx, l.Controller, item, l.Manifest, action, io.Discard); err != nil {
 				return err
 			}
@@ -139,7 +139,7 @@ func (d managedServiceDriver) Status(ctx context.Context, controller *Controller
 		status.ProbeError = err.Error()
 		return status, nil
 	}
-	if err := artifact.VerifyFile(artifactPath); err != nil {
+	if err := artifact.VerifyFileContext(ctx, artifactPath); err != nil {
 		// A digest mismatch is not the same event as a missing or unreadable
 		// artifact, and reporting both as "unavailable" is what let a staged,
 		// running, GPU-resident resource read as not installed with no cure
@@ -252,6 +252,9 @@ func (d managedServiceDriver) withCompanionStatus(status Status, manifest Resour
 
 //nolint:gocyclo // managed-service execution handles provider, process, health, and diagnostic action branches.
 func (d managedServiceDriver) Run(ctx context.Context, controller *Controller, item Resource, manifest ResourceManifest, action string, args []string, stdout, stderr io.Writer) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if err := ensureSupportedPlatform(manifest); err != nil {
 		return managedServiceDriverError(item.Name, action, "Platform", err)
 	}
@@ -284,7 +287,7 @@ func (d managedServiceDriver) Run(ctx context.Context, controller *Controller, i
 			return managedServiceDriverError(item.Name, action, "Provider", err)
 		}
 		if managedServiceLifecycleAction(action) {
-			release, err := acquireManagedServiceLifecycleLock(manifest.Name)
+			release, err := acquireManagedServiceLifecycleLock(ctx, manifest.Name)
 			if err != nil {
 				return managedServiceDriverError(item.Name, action, "Lifecycle", err)
 			}
@@ -318,6 +321,9 @@ func (d managedServiceDriver) Run(ctx context.Context, controller *Controller, i
 // runUserHosted owns shared lifecycle mechanics while a resource registration
 // owns its bootstrap protocol and management material.
 func (d managedServiceDriver) runUserHosted(ctx context.Context, controller *Controller, item Resource, manifest ResourceManifest, action string, stdout io.Writer) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	bootstrap, ok := managedSharedBootstrapperFor(manifest.Name)
 	if !ok {
 		return fmt.Errorf("user-hosted bootstrap adapter is not registered for %s", manifest.Name)
@@ -463,6 +469,9 @@ func managedServiceEndpointArg(args []string) (string, error) {
 }
 
 func (d managedServiceDriver) runPrivate(ctx context.Context, controller *Controller, item Resource, manifest ResourceManifest, action string, stdout io.Writer) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	supervisor, _, err := managedServiceSupervisorFor(manifest.Name)
 	if err != nil {
 		return err
@@ -480,6 +489,9 @@ func (d managedServiceDriver) runPrivate(ctx context.Context, controller *Contro
 		// can create/heartbeat the resource claim while the managed service is
 		// coming up. Waiting first deadlocks resources whose status is unhealthy
 		// while their required companion is down.
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		startCompanions(manifest.Name, manifest.Companions, manifest.Orchestration.RecoveryAttempts, os.Stderr, managedServiceParentPID(supervisor))
 		if err := waitForManagedServiceHealth(ctx, controller, manifest); err != nil {
 			return err
@@ -498,6 +510,9 @@ func (d managedServiceDriver) runPrivate(ctx context.Context, controller *Contro
 		if err := gateAcceleratorReadiness(ctx, manifest, os.Stderr); err != nil {
 			return err
 		}
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		stopCompanions(manifest.Name, manifest.Companions, os.Stderr)
 		stopCtx, cancel := managedServiceStopContext(ctx, manifest)
 		err := stopManagedService(stopCtx, manifest, supervisor)
@@ -509,6 +524,9 @@ func (d managedServiceDriver) runPrivate(ctx context.Context, controller *Contro
 			return err
 		}
 		if err := d.bootstrapPrivate(ctx, manifest, supervisor); err != nil {
+			return err
+		}
+		if err := ctx.Err(); err != nil {
 			return err
 		}
 		startCompanions(manifest.Name, manifest.Companions, manifest.Orchestration.RecoveryAttempts, os.Stderr, managedServiceParentPID(supervisor))
@@ -526,6 +544,9 @@ func (d managedServiceDriver) runPrivate(ctx context.Context, controller *Contro
 		}
 		return nil
 	case brokerTransportStop, "uninstall":
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		stopCompanions(manifest.Name, manifest.Companions, os.Stderr)
 		stopCtx, cancel := managedServiceStopContext(ctx, manifest)
 		defer cancel()
@@ -538,6 +559,9 @@ func (d managedServiceDriver) runPrivate(ctx context.Context, controller *Contro
 }
 
 func (d managedServiceDriver) bootstrapPrivate(ctx context.Context, manifest ResourceManifest, supervisor *ManagedServiceSupervisor) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	bootstrap, ok := managedPrivateBootstrapperFor(manifest.Name)
 	if !ok {
 		return nil
@@ -568,6 +592,9 @@ func managedServiceParentPID(supervisor *ManagedServiceSupervisor) int {
 }
 
 func (d managedServiceDriver) startPrivate(ctx context.Context, controller *Controller, manifest ResourceManifest, supervisor *ManagedServiceSupervisor) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	// Reconcile ownership before any port preflight. A service already running
 	// under this supervisor is an idempotent successful start; probing its port
 	// first incorrectly rejects that healthy owned process as a conflict.
@@ -590,6 +617,9 @@ func (d managedServiceDriver) startPrivate(ctx context.Context, controller *Cont
 }
 
 func (d managedServiceDriver) startPrivateAt(ctx context.Context, controller *Controller, manifest ResourceManifest, supervisor *ManagedServiceSupervisor, path string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if err := d.verifyArtifactAt(ctx, manifest, path); err != nil {
 		return err
 	}
@@ -598,7 +628,7 @@ func (d managedServiceDriver) startPrivateAt(ctx context.Context, controller *Co
 		return err
 	}
 	env := resourceEnvForResource(controller.Root, controller.Home, manifest.Name)
-	if err := ensureManagedServiceRunAsUser(manifest, env, path); err != nil {
+	if err := ensureManagedServiceRunAsUser(ctx, manifest, env, path); err != nil {
 		return err
 	}
 	if manifest.ManagedService != nil && strings.TrimSpace(manifest.ManagedService.RunAsUser) != "" {
@@ -656,7 +686,7 @@ func (d managedServiceDriver) startPrivateAt(ctx context.Context, controller *Co
 		return err
 	}
 	arguments := renderManagedServiceValues(manifest.ManagedService.ArgumentsFor(runtime.GOOS, runtime.GOARCH), env)
-	_, err = supervisor.Start(path, artifact, arguments, env, filepath.Dir(path), manifest.ManagedService.ProcessLimits)
+	_, err = supervisor.StartContext(ctx, path, artifact, arguments, env, filepath.Dir(path), manifest.ManagedService.ProcessLimits)
 	if err != nil {
 		cleanupCredentials()
 	}
@@ -783,7 +813,7 @@ func (d managedServiceDriver) verifyArtifactAt(ctx context.Context, manifest Res
 	if err != nil {
 		return err
 	}
-	return artifact.VerifyFile(path)
+	return artifact.VerifyFileContext(ctx, path)
 }
 
 // runDiscovered accepts only an explicit executable candidate, verifies it
@@ -1061,7 +1091,10 @@ func runManagedServiceBootstrap(ctx context.Context, manifest ResourceManifest, 
 	return nil
 }
 
-func ensureManagedServiceRunAsUser(manifest ResourceManifest, env []string, artifactPath string) error {
+func ensureManagedServiceRunAsUser(ctx context.Context, manifest ResourceManifest, env []string, artifactPath string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if manifest.ManagedService == nil || os.Geteuid() != 0 {
 		return nil
 	}
@@ -1073,7 +1106,7 @@ func ensureManagedServiceRunAsUser(manifest ResourceManifest, env []string, arti
 		if _, unknown := err.(user.UnknownUserError); !unknown {
 			return fmt.Errorf("look up managed-service user %q: %w", name, err)
 		}
-		cmd := shell.NewCommand("useradd", "--system", "--home-dir", "/nonexistent", "--shell", "/usr/sbin/nologin", name)
+		cmd := shell.NewCommandContext(ctx, "useradd", "--system", "--home-dir", "/nonexistent", "--shell", "/usr/sbin/nologin", name)
 		if output, runErr := cmd.CombinedOutput(); runErr != nil {
 			return fmt.Errorf("create managed-service user %q: %w: %s", name, runErr, strings.TrimSpace(string(output)))
 		}
@@ -1125,8 +1158,8 @@ func ensureManagedServiceTraversal(path string) error {
 			}
 			return err
 		}
-		if info.IsDir() && info.Mode().Perm()&0001 == 0 {
-			if err := os.Chmod(current, info.Mode().Perm()|0001); err != nil {
+		if info.IsDir() && info.Mode().Perm()&0o001 == 0 {
+			if err := os.Chmod(current, info.Mode().Perm()|0o001); err != nil {
 				return err
 			}
 		}
@@ -1220,6 +1253,9 @@ func managedServiceProvider(manifest ResourceManifest, args []string) (resourced
 }
 
 func waitForManagedServiceHealth(parent context.Context, controller *Controller, manifest ResourceManifest) error {
+	if err := parent.Err(); err != nil {
+		return fmt.Errorf("managed-service readiness interrupted: %w", err)
+	}
 	if len(manifest.HealthChecks) == 0 {
 		return nil
 	}
@@ -1230,16 +1266,23 @@ func waitForManagedServiceHealth(parent context.Context, controller *Controller,
 	ctx, cancel := context.WithTimeout(parent, tuning.ManagedServiceConfiguredTimeout(time.Duration(seconds)*time.Second))
 	defer cancel()
 	for {
-		health, err := controller.runResourceHealthChecks(ctx, manifest)
-		if err == nil && health.Healthy {
+		health, probeErr := controller.runResourceHealthChecks(ctx, manifest)
+		interrupted := func() error {
+			diagnostic := health.Message
+			if probeErr != nil {
+				diagnostic = probeErr.Error()
+			}
+			return fmt.Errorf("managed-service readiness interrupted: %w (last health check: %s)", ctx.Err(), diagnostic)
+		}
+		if ctx.Err() != nil {
+			return interrupted()
+		}
+		if probeErr == nil && health.Healthy {
 			return nil
 		}
 		select {
 		case <-ctx.Done():
-			if err != nil {
-				return fmt.Errorf("managed-service health check did not pass: %w", err)
-			}
-			return fmt.Errorf("managed-service health check did not pass before startup timeout")
+			return interrupted()
 		case <-time.After(tuning.LifecyclePollInterval()):
 		}
 	}

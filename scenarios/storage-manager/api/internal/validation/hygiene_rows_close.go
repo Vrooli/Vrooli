@@ -360,10 +360,21 @@ func hygieneStmtProvidesCleanup(ctx *hygieneRowsCtx, stmt ast.Stmt, rowsName str
 		if call, ok := s.X.(*ast.CallExpr); ok {
 			return hygieneCallClosesRows(ctx, call, rowsName)
 		}
+	case *ast.AssignStmt:
+		for _, rhs := range s.Rhs {
+			if call, ok := rhs.(*ast.CallExpr); ok && hygieneCallClosesRows(ctx, call, rowsName) {
+				return true
+			}
+		}
 	case *ast.BlockStmt:
 		handled, _ := hygieneScanStmts(ctx, s.List, rowsName)
 		return handled
 	case *ast.IfStmt:
+		// The initializer executes regardless of which branch is taken.
+		// Checking Close's error must not hide the unconditional cleanup.
+		if s.Init != nil && hygieneStmtProvidesCleanup(ctx, s.Init, rowsName) {
+			return true
+		}
 		bodyUses := hygieneBlockUsesRows(s.Body, rowsName)
 		elseUses := hygieneClauseUsesRows(s.Else, rowsName)
 

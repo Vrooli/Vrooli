@@ -11,7 +11,7 @@ import { loginAuthenticator } from "../../api/auth";
 import { pollApplyRun } from "../../lib/applyRun";
 import { ApplyRunState, ApplyStepState } from "@vrooli/proto-types/vrooli-onboarding/v1/apply/apply_pb";
 import type { GetApplyRunResponse } from "@vrooli/proto-types/vrooli-onboarding/v1/apply/apply_pb";
-import type { CompletionBlocker, ReadinessItem, ReadinessResponse } from "../../api/readiness";
+import type { CompletionBlocker, CredentialProvenance, ReadinessItem, ReadinessResponse } from "../../api/readiness";
 import { create } from "@bufbuild/protobuf";
 import { OperatorInputKind, type OperatorInputRequest } from "@vrooli/proto-types/setup/v1/operator_input_pb";
 import { AnswerSchema, type Answer } from "@vrooli/proto-types/vrooli-onboarding/v1/operatorinputs/operatorinputs_pb";
@@ -383,7 +383,7 @@ export function ReadinessSurface({ title, target = "local" }: ReadinessSurfacePr
   const readinessCredentials = new Map((data?.credentials ?? []).map((credential) => [`${credential.logical_id}/${credential.field}`, credential]));
   const credentials = (credentialInventory?.credentials ?? data?.credentials ?? []).map((credential) => {
     const readinessCredential = readinessCredentials.get(`${credential.logical_id}/${credential.field}`);
-    return readinessCredential ? { ...credential, status: readinessCredential.status, detail: readinessCredential.detail, consumer_scope: readinessCredential.consumer_scope, evidence_status: readinessCredential.evidence_status, evidence_detail: readinessCredential.evidence_detail, evidence_next_action: readinessCredential.evidence_next_action, evidence_credential_version: readinessCredential.evidence_credential_version, provider_state: readinessCredential.provider_state, provider_detail: readinessCredential.provider_detail } : credential;
+    return readinessCredential ? { ...credential, status: readinessCredential.status, detail: readinessCredential.detail, consumer_scope: readinessCredential.consumer_scope, evidence_status: readinessCredential.evidence_status, evidence_detail: readinessCredential.evidence_detail, evidence_next_action: readinessCredential.evidence_next_action, evidence_credential_version: readinessCredential.evidence_credential_version, provider_state: readinessCredential.provider_state, provider_detail: readinessCredential.provider_detail, owner: readinessCredential.owner, source_ref: readinessCredential.source_ref, kind: readinessCredential.kind, provenance: readinessCredential.provenance } : credential;
   });
   const credentialCount = credentials.length;
   const outstandingCredentialCount = credentials.filter(credentialNeedsAttention).length;
@@ -528,7 +528,7 @@ export function ReadinessSurface({ title, target = "local" }: ReadinessSurfacePr
   </div>;
 }
 
-type Credential = CredentialListItem & { consumer_scope?: string; evidence_status?: string; evidence_detail?: string; evidence_next_action?: string; evidence_credential_version?: string; provider_state?: string; provider_detail?: string };
+type Credential = CredentialListItem & { consumer_scope?: string; evidence_status?: string; evidence_detail?: string; evidence_next_action?: string; evidence_credential_version?: string; provider_state?: string; provider_detail?: string; owner?: string; source_ref?: string; kind?: string; provenance?: CredentialProvenance[] };
 
 function credentialNeedsAttention(credential: Credential) {
   if (!credential.required || credential.status !== "configured") return credential.required && credential.status !== "configured";
@@ -539,6 +539,40 @@ function formatCredentialCondition(condition?: string) {
   const value = condition?.trim().replace(/[_-]+/g, " ");
   if (!value) return i18n.t("onboarding.readiness.loading");
   return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function CredentialDeclarationDetails({ credential }: { credential: Credential }) {
+  const declarations = credential.provenance?.length
+    ? credential.provenance
+    : credential.source_ref || credential.owner
+      ? [{ owner: credential.owner, source_ref: credential.source_ref, kind: credential.kind }]
+      : [];
+  if (declarations.length === 0) return null;
+  return <details className="credential-declarations" data-testid="credential-declarations">
+    <summary>{i18n.t("onboarding.readiness.credentialDeclarations")} <span>{declarations.length}</span></summary>
+    <div className="credential-declarations__body">
+      <p className="credential-list__item-copy">{i18n.t("onboarding.readiness.credentialDeclarationsDescription")}</p>
+      <ul className="credential-declarations__list">
+        {declarations.map((declaration, index) => <li key={`${declaration.source_ref || declaration.owner || "declaration"}-${index}`} className="credential-declarations__item">
+          <dl className="credential-declarations__facts">
+            {declaration.owner && <div><dt>{i18n.t("onboarding.readiness.credentialDeclarationOwner")}</dt><dd>{declaration.owner}</dd></div>}
+            {declaration.source_ref && <div><dt>{i18n.t("onboarding.readiness.credentialDeclarationSource")}</dt><dd><code>{declaration.source_ref}</code></dd></div>}
+            {declaration.kind && <div><dt>{i18n.t("onboarding.readiness.credentialDeclarationKind")}</dt><dd>{declaration.kind}</dd></div>}
+            {declaration.env && <div><dt>{i18n.t("onboarding.readiness.credentialDeclarationEnvironment")}</dt><dd><code>{declaration.env}</code></dd></div>}
+          </dl>
+          {(declaration.consumers ?? []).length > 0 && <div className="credential-declarations__consumers">
+            <h4>{i18n.t("onboarding.readiness.credentialDeclarationConsumers")}</h4>
+            <ul>
+              {declaration.consumers?.map((consumer, consumerIndex) => <li key={`${consumer.source_ref || consumer.consumer || "consumer"}-${consumerIndex}`}>
+                <strong>{consumer.consumer || consumer.logical_id || consumer.field || i18n.t("onboarding.readiness.credentialDeclarationConsumers")}</strong>
+                {consumer.source_ref && <code>{consumer.source_ref}</code>}
+              </li>)}
+            </ul>
+          </div>}
+        </li>)}
+      </ul>
+    </div>
+  </details>;
 }
 
 function CredentialList({
@@ -592,7 +626,7 @@ function CredentialList({
         || (filter === "optional" && !credential.required);
       if (!matchesFilter) return false;
       if (!query) return true;
-      return [credential.label, credential.logical_id, credential.field, credential.resource, credential.description, credential.detail]
+      return [credential.label, credential.logical_id, credential.field, credential.resource, credential.description, credential.detail, credential.owner, credential.source_ref, ...(credential.provenance ?? []).flatMap((entry) => [entry.owner, entry.source_ref, entry.kind, entry.env, ...(entry.consumers ?? []).flatMap((consumer) => [consumer.consumer, consumer.source_ref, consumer.logical_id, consumer.field])])]
         .filter(Boolean)
         .some((value) => value?.toLowerCase().includes(query));
     });
@@ -700,6 +734,7 @@ function CredentialList({
             ) : undefined}
           >
             {credential.description && <p className="credential-list__item-copy" data-testid="credential-purpose">{credential.description}</p>}
+            <CredentialDeclarationDetails credential={credential} />
             {justSaved && <p className="mt-3 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-sm text-primary" data-testid="credential-save-success" role="status">{i18n.t("onboarding.readiness.credentialSaved", { label: credential.label || credential.field })}</p>}
             {credential.provisioning === "derived" && <p className="credential-list__item-copy">{i18n.t("onboarding.readiness.derived", { source: credential.derived_from || "the owning component" })}</p>}
             {credential.provisioning === "generated" && <p className="credential-list__item-copy">{i18n.t("onboarding.readiness.generated")}</p>}

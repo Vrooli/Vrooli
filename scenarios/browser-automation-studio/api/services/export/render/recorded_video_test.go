@@ -1,9 +1,16 @@
 package render
 
 import (
+	"context"
+	"encoding/json"
+	"math"
+	"os/exec"
+	"path/filepath"
+	"strconv"
+	"testing"
+
 	exportsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/exports"
 	"google.golang.org/protobuf/proto"
-	"testing"
 )
 
 func TestRecordedVideoKeepsPresentationAndFullSourceTimeline(t *testing.T) {
@@ -29,5 +36,53 @@ func TestRecordedVideoDoesNotSilentlyIgnoreCards(t *testing.T) {
 	_, err := recordedVideoSpec(&ReplayMovieSpec{IntroCard: &exportsv1.ReplayIntroCard{Enabled: true}}, "http://localhost/source", 1000, 400, 300)
 	if err == nil {
 		t.Fatal("unsupported cards silently ignored")
+	}
+}
+
+func TestRecordedMasterPreservesAudioAndRemovesExtraCaptureHold(t *testing.T) {
+	if _, err := exec.LookPath("ffmpeg"); err != nil {
+		t.Skip("FFmpeg required")
+	}
+	dir := t.TempDir()
+	source := filepath.Join(dir, "source.mp4")
+	rendered := filepath.Join(dir, "rendered.mp4")
+	for _, item := range []struct {
+		path     string
+		duration string
+		audio    bool
+	}{{source, "1", true}, {rendered, "1.04", false}} {
+		args := []string{"-v", "error", "-f", "lavfi", "-i", "color=red:s=160x120:r=25:d=" + item.duration}
+		if item.audio {
+			args = append(args, "-f", "lavfi", "-i", "sine=frequency=440:duration=1", "-c:a", "aac")
+		}
+		args = append(args, "-c:v", "libx264", "-threads", "2", "-pix_fmt", "yuv420p", item.path)
+		if raw, err := exec.Command("ffmpeg", args...).CombinedOutput(); err != nil {
+			t.Fatalf("fixture %v: %s", err, raw)
+		}
+	}
+	if err := FinishRecordedVideo(context.Background(), &RenderedMedia{Path: rendered}, source, 1000, "mp4"); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := exec.Command("ffprobe", "-v", "error", "-show_entries", "stream=codec_type,duration", "-of", "json", rendered).Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var meta struct {
+		Streams []struct {
+			Type     string `json:"codec_type"`
+			Duration string `json:"duration"`
+		} `json:"streams"`
+	}
+	if err := json.Unmarshal(raw, &meta); err != nil {
+		t.Fatal(err)
+	}
+	if len(meta.Streams) != 2 {
+		t.Fatalf("lost audio: %s", raw)
+	}
+	for _, s := range meta.Streams {
+		duration, err := strconv.ParseFloat(s.Duration, 64)
+		if err != nil || math.Abs(duration-1) > .025 {
+			t.Fatalf("wrong final %s duration: %s", s.Type, raw)
+		}
 	}
 }

@@ -16,7 +16,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class ReplaySpec(_message.Message):
-    __slots__ = ("version", "generated_at", "execution", "theme", "cursor", "decor", "watermark", "intro_card", "outro_card", "playback", "presentation", "cursor_motion", "frames", "assets", "summary")
+    __slots__ = ("version", "generated_at", "execution", "theme", "cursor", "decor", "watermark", "intro_card", "outro_card", "playback", "presentation", "cursor_motion", "frames", "assets", "summary", "recorded_video")
     VERSION_FIELD_NUMBER: _ClassVar[int]
     GENERATED_AT_FIELD_NUMBER: _ClassVar[int]
     EXECUTION_FIELD_NUMBER: _ClassVar[int]
@@ -32,6 +32,7 @@ class ReplaySpec(_message.Message):
     FRAMES_FIELD_NUMBER: _ClassVar[int]
     ASSETS_FIELD_NUMBER: _ClassVar[int]
     SUMMARY_FIELD_NUMBER: _ClassVar[int]
+    RECORDED_VIDEO_FIELD_NUMBER: _ClassVar[int]
     version: str
     generated_at: _timestamp_pb2.Timestamp
     execution: ReplayExecutionMetadata
@@ -47,7 +48,18 @@ class ReplaySpec(_message.Message):
     frames: _containers.RepeatedCompositeFieldContainer[ReplayFrame]
     assets: _containers.RepeatedCompositeFieldContainer[ReplayAsset]
     summary: ReplaySummary
-    def __init__(self, version: _Optional[str] = ..., generated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., execution: _Optional[_Union[ReplayExecutionMetadata, _Mapping]] = ..., theme: _Optional[_Union[ReplayTheme, _Mapping]] = ..., cursor: _Optional[_Union[ReplayCursor, _Mapping]] = ..., decor: _Optional[_Union[ReplayDecor, _Mapping]] = ..., watermark: _Optional[_Union[ReplayWatermark, _Mapping]] = ..., intro_card: _Optional[_Union[ReplayIntroCard, _Mapping]] = ..., outro_card: _Optional[_Union[ReplayOutroCard, _Mapping]] = ..., playback: _Optional[_Union[ReplayPlayback, _Mapping]] = ..., presentation: _Optional[_Union[ReplayPresentation, _Mapping]] = ..., cursor_motion: _Optional[_Union[ReplayCursorMotion, _Mapping]] = ..., frames: _Optional[_Iterable[_Union[ReplayFrame, _Mapping]]] = ..., assets: _Optional[_Iterable[_Union[ReplayAsset, _Mapping]]] = ..., summary: _Optional[_Union[ReplaySummary, _Mapping]] = ...) -> None: ...
+    recorded_video: ReplayRecordedVideo
+    def __init__(self, version: _Optional[str] = ..., generated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., execution: _Optional[_Union[ReplayExecutionMetadata, _Mapping]] = ..., theme: _Optional[_Union[ReplayTheme, _Mapping]] = ..., cursor: _Optional[_Union[ReplayCursor, _Mapping]] = ..., decor: _Optional[_Union[ReplayDecor, _Mapping]] = ..., watermark: _Optional[_Union[ReplayWatermark, _Mapping]] = ..., intro_card: _Optional[_Union[ReplayIntroCard, _Mapping]] = ..., outro_card: _Optional[_Union[ReplayOutroCard, _Mapping]] = ..., playback: _Optional[_Union[ReplayPlayback, _Mapping]] = ..., presentation: _Optional[_Union[ReplayPresentation, _Mapping]] = ..., cursor_motion: _Optional[_Union[ReplayCursorMotion, _Mapping]] = ..., frames: _Optional[_Iterable[_Union[ReplayFrame, _Mapping]]] = ..., assets: _Optional[_Iterable[_Union[ReplayAsset, _Mapping]]] = ..., summary: _Optional[_Union[ReplaySummary, _Mapping]] = ..., recorded_video: _Optional[_Union[ReplayRecordedVideo, _Mapping]] = ...) -> None: ...
+
+class ReplayRecordedVideo(_message.Message):
+    __slots__ = ("source", "duration_ms", "trim_start_ms")
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    DURATION_MS_FIELD_NUMBER: _ClassVar[int]
+    TRIM_START_MS_FIELD_NUMBER: _ClassVar[int]
+    source: str
+    duration_ms: int
+    trim_start_ms: int
+    def __init__(self, source: _Optional[str] = ..., duration_ms: _Optional[int] = ..., trim_start_ms: _Optional[int] = ...) -> None: ...
 
 class ReplayExecutionMetadata(_message.Message):
     __slots__ = ("execution_id", "workflow_id", "workflow_name", "status", "started_at", "completed_at", "progress", "total_duration_ms")
@@ -118,7 +130,7 @@ class ReplayCursor(_message.Message):
     def __init__(self, style: _Optional[str] = ..., accent_color: _Optional[str] = ..., trail: _Optional[_Union[ReplayCursorTrail, _Mapping]] = ..., click_pulse: _Optional[_Union[ReplayClickPulse, _Mapping]] = ..., scale: _Optional[float] = ..., initial_position: _Optional[str] = ..., click_animation: _Optional[str] = ...) -> None: ...
 
 class ReplayDecor(_message.Message):
-    __slots__ = ("chrome_theme", "background_theme", "background", "cursor_theme", "cursor_initial_position", "cursor_click_animation", "cursor_scale")
+    __slots__ = ("chrome_theme", "background_theme", "background", "cursor_theme", "cursor_initial_position", "cursor_click_animation", "cursor_scale", "device_frame_theme", "show_desktop", "show_browser_frame", "show_device_frame", "browser_scale")
     CHROME_THEME_FIELD_NUMBER: _ClassVar[int]
     BACKGROUND_THEME_FIELD_NUMBER: _ClassVar[int]
     BACKGROUND_FIELD_NUMBER: _ClassVar[int]
@@ -126,6 +138,11 @@ class ReplayDecor(_message.Message):
     CURSOR_INITIAL_POSITION_FIELD_NUMBER: _ClassVar[int]
     CURSOR_CLICK_ANIMATION_FIELD_NUMBER: _ClassVar[int]
     CURSOR_SCALE_FIELD_NUMBER: _ClassVar[int]
+    DEVICE_FRAME_THEME_FIELD_NUMBER: _ClassVar[int]
+    SHOW_DESKTOP_FIELD_NUMBER: _ClassVar[int]
+    SHOW_BROWSER_FRAME_FIELD_NUMBER: _ClassVar[int]
+    SHOW_DEVICE_FRAME_FIELD_NUMBER: _ClassVar[int]
+    BROWSER_SCALE_FIELD_NUMBER: _ClassVar[int]
     chrome_theme: str
     background_theme: str
     background: _struct_pb2.Struct
@@ -133,7 +150,12 @@ class ReplayDecor(_message.Message):
     cursor_initial_position: str
     cursor_click_animation: str
     cursor_scale: float
-    def __init__(self, chrome_theme: _Optional[str] = ..., background_theme: _Optional[str] = ..., background: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., cursor_theme: _Optional[str] = ..., cursor_initial_position: _Optional[str] = ..., cursor_click_animation: _Optional[str] = ..., cursor_scale: _Optional[float] = ...) -> None: ...
+    device_frame_theme: str
+    show_desktop: bool
+    show_browser_frame: bool
+    show_device_frame: bool
+    browser_scale: float
+    def __init__(self, chrome_theme: _Optional[str] = ..., background_theme: _Optional[str] = ..., background: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., cursor_theme: _Optional[str] = ..., cursor_initial_position: _Optional[str] = ..., cursor_click_animation: _Optional[str] = ..., cursor_scale: _Optional[float] = ..., device_frame_theme: _Optional[str] = ..., show_desktop: _Optional[bool] = ..., show_browser_frame: _Optional[bool] = ..., show_device_frame: _Optional[bool] = ..., browser_scale: _Optional[float] = ...) -> None: ...
 
 class ReplayWatermark(_message.Message):
     __slots__ = ("enabled", "asset_id", "position", "size", "opacity", "margin")
@@ -636,6 +658,18 @@ class GetExportStatusResponse(_message.Message):
     file_size_bytes: int
     error: str
     def __init__(self, export_id: _Optional[str] = ..., execution_id: _Optional[str] = ..., status: _Optional[str] = ..., format: _Optional[str] = ..., name: _Optional[str] = ..., storage_url: _Optional[str] = ..., file_size_bytes: _Optional[int] = ..., error: _Optional[str] = ...) -> None: ...
+
+class CancelExportRequest(_message.Message):
+    __slots__ = ("id",)
+    ID_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    def __init__(self, id: _Optional[str] = ...) -> None: ...
+
+class CancelExportResponse(_message.Message):
+    __slots__ = ("cancellation_requested",)
+    CANCELLATION_REQUESTED_FIELD_NUMBER: _ClassVar[int]
+    cancellation_requested: bool
+    def __init__(self, cancellation_requested: _Optional[bool] = ...) -> None: ...
 
 class GenerateExportCaptionRequest(_message.Message):
     __slots__ = ("id",)

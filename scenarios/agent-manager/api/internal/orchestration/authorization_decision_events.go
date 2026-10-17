@@ -25,6 +25,7 @@ import (
 
 	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/eventbus"
+	"github.com/vrooli/api-core/operatordecision"
 )
 
 // AuthorizationDecisionEventType is the decision event raised when a verified
@@ -202,19 +203,25 @@ func (o *Orchestrator) authorizationDecisionEvent(ctx context.Context, p *domain
 			humanizeGrantTTL(p.GrantTTL), p.Subject, bound)
 	}
 
-	payload := map[string]any{
-		"subject":  subjectLine,
-		"question": question,
-		"options": []any{
-			map[string]any{"key": "approve", "label": "Approve grant"},
-			map[string]any{"key": "reject", "label": "Reject"},
+	contextURL := ""
+	if base := strings.TrimRight(o.resolveWebConsoleNoticeBase(ctx), "/"); base != "" {
+		contextURL = base + "/?authorization=" + p.ID
+	}
+
+	facts := operatordecision.Facts{
+		Subject:  subjectLine,
+		Question: question,
+		Options: []operatordecision.Option{
+			{Key: "approve", Label: "Approve grant"},
+			{Key: "reject", Label: "Reject"},
 		},
-		"recommended": "reject",
+		Recommended: "reject",
 		// Issuing a grant is reversible: it is bounded, revocable, and expires. No
 		// silent default is set, so nothing is granted without an explicit answer.
-		"reversible": true,
-		"urgency":    "normal",
-		"correlation": map[string]any{
+		Reversible: true,
+		Urgency:    "normal",
+		ContextURL: contextURL,
+		Correlation: map[string]string{
 			"authorization_request_id": p.ID,
 			"subject":                  p.Subject,
 			"operation":                p.Operation,
@@ -222,19 +229,13 @@ func (o *Orchestrator) authorizationDecisionEvent(ctx context.Context, p *domain
 			"kind":                     p.Kind,
 		},
 	}
-	if base := strings.TrimRight(o.resolveWebConsoleNoticeBase(ctx), "/"); base != "" {
-		payload["context_url"] = base + "/?authorization=" + p.ID
-	}
 
-	return eventbus.DomainEvent{
-		Source:    runApprovalSource,
-		EventType: AuthorizationDecisionEventType,
-		// Deterministic occurrence keeps the event id stable for the pending
-		// window, so a redelivery (or a re-raise inside the window) maps to the
-		// same ask instead of a duplicate notification.
-		Occurred: p.RaisedAt.UTC().Truncate(pendingAuthorizationWindow),
-		Payload:  payload,
-	}
+	// Deterministic occurrence keeps the event id stable for the pending window,
+	// so a redelivery (or a re-raise inside the window) maps to the same ask
+	// instead of a duplicate notification. Emitted through BuildEventTyped so the
+	// established underscore event type and the hyphen Source are both preserved.
+	return operatordecision.BuildEventTyped(runApprovalSource, AuthorizationDecisionEventType,
+		p.RaisedAt.UTC().Truncate(pendingAuthorizationWindow), facts)
 }
 
 // NotifyAuthorizationRequested raises the operator decision event for an

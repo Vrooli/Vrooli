@@ -8,27 +8,36 @@ import {
   type GovernancePolicyMode
 } from "../../api/governance";
 
+// Prefixes identify every view derived from governance decisions. Mutations
+// invalidate these same prefixes, including every cached policy-mode variant.
+export const governanceQueryKeys = {
+  fleet: ["governance-fleet"],
+  records: ["governance-records"],
+  triage: ["governance-triage"],
+  securityGaps: ["governance-security-gaps"]
+} as const;
+
 export function useGovernanceData(policyMode: GovernancePolicyMode) {
   const fleetQuery = useQuery({
-    queryKey: ["governance-fleet", policyMode],
+    queryKey: [...governanceQueryKeys.fleet, policyMode],
     queryFn: () => validateFleetApprovedDependencies(policyMode),
     refetchOnWindowFocus: false
   });
 
   const recordsQuery = useQuery({
-    queryKey: ["governance-records"],
+    queryKey: governanceQueryKeys.records,
     queryFn: listApprovedDependencies,
     refetchOnWindowFocus: false
   });
 
   const triageQuery = useQuery({
-    queryKey: ["governance-triage", policyMode],
+    queryKey: [...governanceQueryKeys.triage, policyMode],
     queryFn: () => getApprovedDependencyTriage({ policyMode, limit: 8 }),
     refetchOnWindowFocus: false
   });
 
   const securityGapsQuery = useQuery({
-    queryKey: ["governance-security-gaps"],
+    queryKey: governanceQueryKeys.securityGaps,
     queryFn: () => listSecurityGovernanceGaps({ limit: 8 }),
     refetchOnWindowFocus: false
   });

@@ -28,9 +28,9 @@ npm run dist:all
 ## 📦 Generated Application Details
 
 - **Framework**: electron
-- **Template**: basic
+- **Template**: advanced
 - **Server Type**: external
-- **Target Platforms**: linux-amd64
+- **Target Platforms**: linux
 
 ## 🛠️ Development
 

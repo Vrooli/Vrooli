@@ -1,7 +1,22 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "storage": {"entries":{"data":{"rung":"owned","path":"data","kind":"dir","class":"data","regenerable":false,"rationale":"Scenario-owned durable data observed in the canonical data directory."}},"rationale":"Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."},
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
   "service": {
     "parent": "vrooli",
     "name": "typescript-code-graph",
@@ -63,6 +78,7 @@
     {
       "name": "node",
       "required": true,
+      "min_version": "20.0.0",
       "reason": "Node sidecar runtime (>=20) — runs the bundled ts-morph parser child process. The supervisor execs `node sidecar/dist/index.js` on API start; without Node, the API returns Unavailable on every Extract/RewriteApply call.",
       "when": [
         "setup",
@@ -74,6 +90,7 @@
     {
       "name": "pnpm",
       "required": true,
+      "min_version": "10.14.0",
       "reason": "Sidecar dependency installer; used only for the sidecar's own deps (ts-morph + devDeps). Never invoked against consumer projects.",
       "when": [
         "setup"
@@ -119,135 +136,57 @@
         }
       ],
       "startup_grace_period": 15000
-    },
-    "setup": {
-      "description": "Build API, sidecar bundle, and UI assets declared by the manifest-driven lifecycle contract",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/typescript-code-graph-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "typescript-code-graph"
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          },
-          {
-            "type": "files",
-            "paths": [
-              "sidecar/dist/index.js"
-            ]
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "check-node",
-          "run": "command -v node >/dev/null 2>&1 || { echo 'ERROR: node is required (>=20). Install Node.js 20+ before running setup; the API supervisor will spawn `node sidecar/dist/index.js`.' >&2; exit 1; }; NODE_MAJOR=$(node -e 'console.log(process.versions.node.split(\".\")[0])'); if [ \"$NODE_MAJOR\" -lt 20 ]; then echo \"ERROR: node $NODE_MAJOR detected; sidecar requires node >=20.\" >&2; exit 1; fi",
-          "description": "Verify Node.js >=20 is on PATH (required by the sidecar runtime)"
-        },
-        {
-          "name": "check-pnpm",
-          "run": "command -v pnpm >/dev/null 2>&1 || command -v corepack >/dev/null 2>&1 || { echo 'ERROR: pnpm (or corepack) is required to install sidecar deps. Install pnpm or enable corepack before running setup.' >&2; exit 1; }",
-          "description": "Verify pnpm/corepack is available for the sidecar build"
-        },
-        {
-          "name": "install-sidecar-deps",
-          "run": "cd sidecar && (corepack pnpm install --frozen-lockfile --ignore-workspace || pnpm install --frozen-lockfile --ignore-workspace)",
-          "description": "Install Node sidecar dependencies (ts-morph + devDeps) reproducibly via pnpm-lock.yaml. --ignore-workspace isolates from the repo-root pnpm workspace (mirrors the install-ui-deps step) so the per-project lockfile is honoured instead of resolving to an absent root lockfile."
-        },
-        {
-          "name": "build-sidecar",
-          "run": "cd sidecar && (corepack pnpm run build || pnpm run build)",
-          "description": "Bundle sidecar runtime to sidecar/dist/index.js"
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o typescript-code-graph-api .",
-          "description": "Build Go API server"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm --ignore-workspace run build || pnpm --ignore-workspace run build); else echo 'ui/ not present yet'; fi",
-          "description": "Build production UI bundle"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Launch API and Vite dev server",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./typescript-code-graph-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/typescript-code-graph-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "description": "Serve production UI bundle",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        }
-      ]
-    },
-    "build": {},
-    "deploy": {},
-    "clean": {},
-    "test": {
-      "description": "Execute phased test suite via test-genie",
-      "steps": [
-        {
-          "name": "check-temporal-models",
-          "run": "flow-verifier verify check --root .",
-          "description": "Verify formal flow artifacts via the flow-verifier scenario CLI"
-        },
-        {
-          "name": "run-tests",
-          "run": "test-genie execute typescript-code-graph --preset comprehensive",
-          "description": "Run all test phases via test-genie"
-        }
-      ]
-    },
-    "backup": {},
-    "restore": {},
-    "production": {},
-    "stop": {
-      "description": "Stop background processes",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f 'typescript-code-graph-api' || true",
-          "description": "Stop Go API"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f 'node server.js' || true",
-          "description": "Stop UI server"
-        }
-      ]
     }
   },
-  "dependencies": {},
-  "environment": {}
+  "dependencies": {
+    "resources": {}
+  },
+  "environment": {},
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    },
+    "sidecar": {
+      "role": "sidecar",
+      "build": {
+        "kind": "node_bundle",
+        "dir": "sidecar",
+        "output": "sidecar/dist/index.js"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "dist/index.js"
+        ],
+        "cwd": "sidecar",
+        "supervised_by": "api"
+      }
+    }
+  }
 }

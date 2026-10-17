@@ -54,6 +54,9 @@ func TestEnforceDirectoryBudgetUsesBuiltinProvider(t *testing.T) {
 	if result.Deleted != 1 || result.Freed != 4 {
 		t.Fatalf("result = %+v, want one 4-byte deletion", result)
 	}
+	if result.UsedBytes != 4 || result.OverBytes != 0 || len(result.EntryResults) != 1 || result.EntryResults[0].BudgetBytes != 4 || result.Incomplete {
+		t.Fatalf("retention discarded reconciliation measurements: %+v", result)
+	}
 	entries, err := os.ReadDir(budgeted)
 	if err != nil {
 		t.Fatal(err)

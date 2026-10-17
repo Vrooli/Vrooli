@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "swarm-manager",
   "generator": "v1.0.0",
-  "manifest_hash": "4e04b13ef046ea886fdaa02a3f0373b45ecc8d4bca0439ae6fccbd9d1972b7bd",
+  "manifest_hash": "ec2b60355007042337b8f46e0a99e27a91b9baa1200e983c51af344f3ed82dca",
   "commands": [
     {
       "path": "agent-manager metrics-sandbox-adoption",
@@ -43,6 +43,13 @@
       "command": "status",
       "binding": "AutoFilerService.GetStatus",
       "observed_primitive": "operational"
+    },
+    {
+      "path": "backlog archive-terminal",
+      "group": "backlog",
+      "command": "archive-terminal",
+      "binding": "BacklogService.ArchiveTerminalItems",
+      "observed_primitive": "proto_mutation"
     },
     {
       "path": "backlog batch-create",
@@ -204,7 +211,7 @@
       "path": "backlog update",
       "group": "backlog",
       "command": "update",
-      "binding": "."
+      "binding": "BacklogService.UpdateItem"
     },
     {
       "path": "captures classify",

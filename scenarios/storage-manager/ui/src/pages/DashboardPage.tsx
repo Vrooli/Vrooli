@@ -172,7 +172,6 @@ export function DashboardPage() {
                 searchPlaceholder="Search owners, kinds, or manifest paths"
                 emptyMessage="No owners match this search or filter."
                 filters={[
-                  { id: "all", label: "All", predicate: () => true },
                   { id: "scenario", label: "Scenarios", predicate: (row) => row.owner.kind === "scenario" },
                   { id: "resource", label: "Resources", predicate: (row) => row.owner.kind === "resource" },
                   { id: "attention", label: "Needs review", predicate: (row) => row.status.tone === "warning" },

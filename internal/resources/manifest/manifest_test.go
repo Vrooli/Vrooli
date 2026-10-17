@@ -2,6 +2,7 @@ package manifest
 
 import (
 	"encoding/json"
+	"github.com/vrooli/binaryfetch"
 	"os"
 	"path/filepath"
 	"strings"
@@ -386,5 +387,33 @@ func TestValidateRejectsUnsupportedCLIAdapter(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("Validate() accepted unsupported CLI adapter")
+	}
+}
+
+func TestAcquisitionAuthReferencesMustBelongToResource(t *testing.T) {
+	manifest := ResourceManifest{Driver: "managed-service", Credentials: ResourceCredentials{Descriptors: []CredentialDescriptor{{LogicalID: "vrooli/model", Field: "token"}}}}
+	auth := binaryfetch.AcquisitionAuth{Scheme: "bearer", LogicalID: "vrooli/model", Field: "token"}
+	if err := ValidateAcquisitionAuthReference(manifest, auth); err != nil {
+		t.Fatal(err)
+	}
+	for _, kind := range []string{"other-identity", "other-field", "unsupported-driver"} {
+		t.Run(kind, func(t *testing.T) {
+			m, a := manifest, auth
+			switch kind {
+			case "other-identity":
+				a.LogicalID = "vrooli/other"
+			case "other-field":
+				a.Field = "other"
+			case "unsupported-driver":
+				m.Driver = "external-cli"
+			}
+			if err := ValidateAcquisitionAuthReference(m, a); err == nil {
+				t.Fatal("unowned reference accepted")
+			}
+		})
+	}
+	manifest.ManagedService = &resourcedeployment.ManagedService{DataArtifacts: []resourcedeployment.ManagedServiceDataArtifact{{Acquisition: &binaryfetch.Acquisition{Kind: "url", Targets: []binaryfetch.AcquisitionTarget{{Auth: &binaryfetch.AcquisitionAuth{Scheme: "bearer", LogicalID: "vrooli/other", Field: "token"}}}}}}}
+	if err := validateDriverConfiguration(manifest); err == nil || !strings.Contains(err.Error(), "declared resource credential") {
+		t.Fatalf("data auth bypassed owning manifest validation: %v", err)
 	}
 }

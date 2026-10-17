@@ -19,6 +19,7 @@ import (
 	"strings"
 	"time"
 
+	coreRetention "github.com/vrooli/api-core/retention"
 	corestorage "github.com/vrooli/api-core/storage"
 	repocontract "github.com/vrooli/repo-contract-go"
 	"storage-manager/internal/cleanup"
@@ -304,7 +305,7 @@ func (s RunnerSink) PublishProviderSnapshot(ctx context.Context, data []byte) er
 	if err != nil {
 		return fmt.Errorf("stage snapshot: %w", err)
 	}
-	defer os.Remove(file.Name())
+	defer coreRetention.RemovePath(context.Background(), file.Name())
 	if _, err := file.Write(data); err != nil {
 		file.Close()
 		return fmt.Errorf("stage snapshot: %w", err)

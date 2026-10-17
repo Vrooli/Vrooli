@@ -51,6 +51,10 @@ export interface ExportMetadata {
   deviceScaleFactor?: number;
   assetCount: number;
   specId?: string | null;
+  /** Optional native caller token, acknowledged only after this spec is adopted. */
+  requestToken?: string;
+  /** Failure of one attempted token; it does not acknowledge spec adoption. */
+  requestError?: { requestToken: string; message: string };
 }
 
 /**

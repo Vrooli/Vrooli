@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strconv"
 	"testing"
@@ -141,11 +140,22 @@ func readFixture(t *testing.T, name string, target any) {
 
 func repositoryRoot(t testing.TB) string {
 	t.Helper()
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime caller unavailable")
+	workingDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working directory: %v", err)
 	}
-	return filepath.Clean(filepath.Join(filepath.Dir(filename), "..", "..", "..", "..", ".."))
+	for current := filepath.Clean(workingDir); ; current = filepath.Dir(current) {
+		marker := filepath.Join(current, "scenarios", "code-facts", "api", "internal", "facts", "service.go")
+		if _, err := os.Stat(marker); err == nil {
+			return current
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			break
+		}
+	}
+	t.Fatalf("repository root not found from %q", workingDir)
+	return ""
 }
 
 func equalStrings(a, b []string) bool {

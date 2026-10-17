@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "key": "8f923b0b4f8bc9cef2c8ecb8d489f48a9d3ca06dadfe814698c9d8db7ff73758",
+  "key": "397e4a694031ea5fe4e607f831647fd842c692daaa2608b101cf286361c7166e",
   "inputs": [
     "go.mod",
     "go.sum",
@@ -141,6 +141,9 @@
     "packages/proto/gen/go/landing-page-business-suite/v1",
     "packages/proto/gen/go/landing-page-business-suite/v1/landing_page_business_suite_v1connect",
     "packages/proto/gen/go/landing-page-business-suite/v1/shared",
+    "packages/proto/gen/go/notification-hub/v1/conversations",
+    "packages/proto/gen/go/notification-hub/v1/conversations/conversations_v1connect",
+    "packages/proto/gen/go/notification-hub/v1/shared",
     "packages/proto/gen/go/scenario-authenticator/v1/accounts",
     "packages/proto/gen/go/scenario-authenticator/v1/accounts/accounts_v1connect",
     "packages/proto/gen/go/setup/v1",

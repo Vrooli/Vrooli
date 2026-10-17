@@ -542,6 +542,7 @@ func orUnknown(value string) string {
 
 func buildResourceAcquisitionCommandTable[C any](deps rootcli.HandlerDeps[C]) []commandtree.Spec[rootcli.ResourceHandler[C]] {
 	return []commandtree.Spec[rootcli.ResourceHandler[C]]{
+		{Name: string(resourcecli.AcquisitionCommandInspectData), Summary: "Inspect bounded upstream data with pinned Git identity", Args: resourcecli.AcquisitionInspectDataArgs(), Handler: resourceInspectDataHandler(deps)},
 		{
 			Name:    string(resourcecli.AcquisitionCommandExplain),
 			Summary: "Explain host-fact acquisition target selection",
@@ -766,18 +767,28 @@ func singleResourceControlHandler[C any](deps rootcli.HandlerDeps[C], action str
 		if len(args) != 1 {
 			return rootcli.UsageErrorf("resource "+action, "resource %s requires exactly one resource name", action)
 		}
+		operationCtx := rootcli.ResolveOperationContext(deps, ctx)
+		if err := operationCtx.Err(); err != nil {
+			return err
+		}
 		if err := ensureNamedResourceCLI(deps, ctx, args[0]); err != nil {
 			return err
 		}
+		if err := operationCtx.Err(); err != nil {
+			return err
+		}
 		if err := enforceResourceHostRequirements(ctx, deps, controller, args[0], action); err != nil {
+			return err
+		}
+		if err := operationCtx.Err(); err != nil {
 			return err
 		}
 		// Admit before launching the resource so a declared companion can find
 		// the manifest-derived claim on its first heartbeat. Admission is
 		// advisory and non-blocking; controller.Run remains the authority for
 		// the actual lifecycle action.
-		admitResourceCapacityCLI(rootcli.ResolveOperationContext(deps, ctx), controller.Root, args[0], action, deps.Stderr(ctx))
-		if err := controller.Run(args[0], []string{action}, deps.Stdout(ctx), deps.Stderr(ctx)); err != nil {
+		admitResourceCapacityCLI(operationCtx, controller.Root, args[0], action, deps.Stderr(ctx))
+		if err := controller.RunContext(operationCtx, args[0], []string{action}, deps.Stdout(ctx), deps.Stderr(ctx)); err != nil {
 			return err
 		}
 		return nil

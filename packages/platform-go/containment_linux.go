@@ -4,6 +4,7 @@ package platform
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -54,7 +55,7 @@ func containedCommand(spec ContainedSpec) (*Contained, error) {
 		// with su carries another uid's XDG_RUNTIME_DIR and would fail
 		// silently. The child inherits the corrected bus, which is its own.
 		cmd.Env = userManagerEnv(cmd.Env)
-		return &Contained{Cmd: cmd, Method: MethodSystemdRun, after: resolveSystemdScope}, nil
+		return &Contained{Cmd: cmd, Method: MethodSystemdRun, after: resolveSystemdScope, afterContext: resolveSystemdScopeContext}, nil
 	}
 	dir, err := fallbackCgroupDir(spec.Containment.Slice, spec.Scope)
 	if err != nil {
@@ -111,10 +112,18 @@ func systemdProperties(c Containment) []string {
 // its own /proc entry is authoritative once it exists, and the manager's
 // answer is the fallback while it is still being placed.
 func resolveSystemdScope(c *Contained) error {
+	return resolveSystemdScopeContext(context.Background(), c)
+}
+
+func resolveSystemdScopeContext(ctx context.Context, c *Contained) error {
 	scope := scopeNameFromArgs(c.Cmd.Args)
-	deadline := time.Now().Add(scopeResolveBudget)
+	ctx, cancel := context.WithTimeout(ctx, scopeResolveBudget)
+	defer cancel()
 	for {
-		if path := systemdScopeCgroup(scope); path != "" {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if path := systemdScopeCgroupContext(ctx, scope); path != "" {
 			c.Scope = ScopeRef{Name: scope, Kind: ScopeKindCgroup, Path: path}
 			return nil
 		}
@@ -122,7 +131,7 @@ func resolveSystemdScope(c *Contained) error {
 			// A short-lived child finished before the manager answered; the
 			// scope was created and is gone. Its path is still determined by
 			// the manager's root and the slice, so the ref is exact.
-			root := userManagerRoot()
+			root := userManagerRootContext(ctx)
 			if root == "" {
 				return fmt.Errorf("platform: systemd-run exited before the user manager reported a cgroup for %s%s", scope, scopeSuffix)
 			}
@@ -130,10 +139,13 @@ func resolveSystemdScope(c *Contained) error {
 			c.Scope = ScopeRef{Name: scope, Kind: ScopeKindCgroup, Path: root + "/" + slice + "/" + scope + scopeSuffix}
 			return nil
 		}
-		if time.Now().After(deadline) {
-			return fmt.Errorf("platform: user manager never reported a cgroup for %s%s", scope, scopeSuffix)
+		timer := time.NewTimer(scopeResolvePoll)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return ctx.Err()
+		case <-timer.C:
 		}
-		time.Sleep(scopeResolvePoll)
 	}
 }
 
@@ -151,7 +163,12 @@ func scopeSliceFromArgs(args []string) string {
 // userManagerRoot is the cgroup of the calling uid's user manager, the
 // parent of every slice and scope it creates.
 func userManagerRoot() string {
-	cmd := exec.Command("systemctl", "--user", "show", "-p", "ControlGroup", "--value", "--", "-.slice")
+	return userManagerRootContext(context.Background())
+}
+
+func userManagerRootContext(ctx context.Context) string {
+	cmd := exec.CommandContext(ctx, "systemctl", "--user", "show", "-p", "ControlGroup", "--value", "--", "-.slice")
+	cmd.WaitDelay = time.Second
 	cmd.Env = userManagerEnv(nil)
 	output, err := cmd.Output()
 	if err != nil {
@@ -186,7 +203,12 @@ func sliceCgroup(slice string) string {
 }
 
 func systemdScopeCgroup(scope string) string {
-	cmd := exec.Command("systemctl", "--user", "show", "-p", "ControlGroup", "--value", scope+scopeSuffix)
+	return systemdScopeCgroupContext(context.Background(), scope)
+}
+
+func systemdScopeCgroupContext(ctx context.Context, scope string) string {
+	cmd := exec.CommandContext(ctx, "systemctl", "--user", "show", "-p", "ControlGroup", "--value", scope+scopeSuffix)
+	cmd.WaitDelay = time.Second
 	cmd.Env = userManagerEnv(nil)
 	output, err := cmd.Output()
 	if err != nil {
@@ -455,6 +477,17 @@ func writeFreeze(ref ScopeRef, value string) error {
 // kernel applies to every member at once. Both paths pass the same guard as
 // freezing: only an agent or test slice is ever touched.
 func stopScope(ref ScopeRef) error {
+	return stopScopeContext(context.Background(), ref)
+}
+
+var stopScopeManager = func(ctx context.Context, unit string) ([]byte, error) {
+	cmd := exec.CommandContext(ctx, "systemctl", "--user", "stop", "--", unit)
+	cmd.Env = userManagerEnv(nil)
+	cmd.WaitDelay = 2 * time.Second
+	return cmd.CombinedOutput()
+}
+
+func stopScopeContext(ctx context.Context, ref ScopeRef) error {
 	path, err := freezableCgroup(ref)
 	if err != nil {
 		return err
@@ -469,9 +502,7 @@ func stopScope(ref ScopeRef) error {
 	}
 	unit := filepath.Base(dir)
 	if strings.HasSuffix(unit, scopeSuffix) {
-		cmd := exec.Command("systemctl", "--user", "stop", "--", unit)
-		cmd.Env = userManagerEnv(nil)
-		output, runErr := cmd.CombinedOutput()
+		output, runErr := stopScopeManager(ctx, unit)
 		if runErr == nil {
 			return nil
 		}
@@ -563,11 +594,15 @@ func scopeOccupancy(ref ScopeRef) (Occupancy, error) {
 		Path:             filepath.Clean("/" + strings.TrimPrefix(filepath.Clean(ref.Path), "/")),
 		Tasks:            cgroupNumber(dir, "pids.current"),
 		TasksMax:         cgroupNumber(dir, "pids.max"),
+		TasksMaxEvents:   cgroupEvent(dir, "pids.events", "max"),
 		MemoryBytes:      cgroupNumber(dir, "memory.current"),
 		MemoryHighBytes:  cgroupNumber(dir, "memory.high"),
 		MemoryMaxBytes:   cgroupNumber(dir, "memory.max"),
 		MemoryHighEvents: cgroupEvent(dir, "memory.events", "high"),
 		SwapBytes:        cgroupNumber(dir, "memory.swap.current"),
+	}
+	if out.TasksMaxEvents < 0 {
+		out.TasksMaxEvents = Unknown
 	}
 	return out, nil
 }

@@ -11,6 +11,7 @@ import (
 // Request represents the JSON payload for execution export endpoints.
 // This is HTTP-layer only; it wraps the service-layer types for JSON binding.
 type Request struct {
+	Stylization  string                `json:"stylization,omitempty"`
 	Format       string                `json:"format,omitempty"`
 	FileName     string                `json:"file_name,omitempty"`
 	OutputDir    string                `json:"output_dir,omitempty"`
@@ -22,6 +23,7 @@ type Request struct {
 // UnmarshalJSON validates movie_spec against the generated API contract.
 func (request *Request) UnmarshalJSON(data []byte) error {
 	type requestFields struct {
+		Stylization  string          `json:"stylization,omitempty"`
 		Format       string          `json:"format,omitempty"`
 		FileName     string          `json:"file_name,omitempty"`
 		OutputDir    string          `json:"output_dir,omitempty"`
@@ -33,6 +35,7 @@ func (request *Request) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &fields); err != nil {
 		return err
 	}
+	request.Stylization = fields.Stylization
 	request.Format = fields.Format
 	request.FileName = fields.FileName
 	request.OutputDir = fields.OutputDir
@@ -62,3 +65,13 @@ type (
 	// CursorPreset specifies which cursor preset theme to apply and additional options.
 	CursorPreset = basexport.CursorPreset
 )
+
+// AppliesStylesToRecording preserves an explicit raw choice even when clients
+// carry a movie spec for dimensions or preview. Omitted intent keeps legacy
+// spec/override clients working, now with their requested styles applied.
+func (request Request) AppliesStylesToRecording() bool {
+	if request.Stylization == "raw" {
+		return false
+	}
+	return request.Stylization == "stylized" || request.MovieSpec != nil || request.Overrides != nil
+}

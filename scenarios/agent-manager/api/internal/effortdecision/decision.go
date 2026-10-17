@@ -5,9 +5,6 @@
 package effortdecision
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"path"
 	"path/filepath"
@@ -16,6 +13,7 @@ import (
 	"agent-manager/internal/goalhome"
 
 	"github.com/vrooli/api-core/eventbus"
+	"github.com/vrooli/api-core/operatordecision"
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
@@ -92,9 +90,8 @@ func RequestedEvent(d *pb.EffortDecision) eventbus.DomainEvent {
 }
 
 // EventID is the id eventbus.Client assigns to the event: the SHA-256 of its
-// JSON encoding.
+// JSON encoding. It delegates to the shared operatordecision substrate, which
+// computes the identical hash, so the stored EventId is unchanged.
 func EventID(event eventbus.DomainEvent) string {
-	seed, _ := json.Marshal(event)
-	sum := sha256.Sum256(seed)
-	return hex.EncodeToString(sum[:])
+	return operatordecision.EventID(event)
 }

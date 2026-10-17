@@ -107,22 +107,71 @@ func main() {
 	dr.Register(mux, h)
 	_ = httpx.TestModeMiddleware(mux)
 }
-
-func TestRoutedSeams_CombinedFileRegistrationSatisfiesDatabaseSeam(t *testing.T) {
-	combined := strings.Replace(isoWiredMain, "dr.Register(mux, h)", "dr.RegisterWithFileRoots(mux, h, roots)", 1)
-	combined = strings.Replace(combined, "devrouting.Register(mux, db)", "devrouting.RegisterWithFileRoots(mux, db, roots)", 1)
-	ac := isoCtx(t, combined, []Engine{EngineSQLite}, "go")
-	got, _ := (isoRoutedSeams{}).Analyze(context.Background(), ac)
-	if len(got) != 0 {
-		t.Fatalf("combined devrouting registration should satisfy DB seam, got %+v", got)
-	}
-}
 `
 	ac := isoCtx(t, aliased, []Engine{EngineSQLite}, "go")
 	got, _ := (isoRoutedSeams{}).Analyze(context.Background(), ac)
 	if len(got) != 0 {
 		t.Fatalf("aliased imports of all 4 seams should be clean, got %+v", got)
 	}
+}
+
+func TestRoutedSeams_CombinedFileRegistrationSatisfiesDatabaseSeam(t *testing.T) {
+	combined := strings.Replace(isoWiredMain, "devrouting.Register(mux, db)", "devrouting.RegisterWithFileRoots(mux, db, roots)", 1)
+	ac := isoCtx(t, combined, []Engine{EngineSQLite}, "go")
+	got, _ := (isoRoutedSeams{}).Analyze(context.Background(), ac)
+	if len(got) != 0 {
+		t.Fatalf("combined devrouting registration should satisfy DB seam, got %+v", got)
+	}
+}
+
+func TestRoutedSeams_SplitBootstrap(t *testing.T) {
+	base := strings.Replace(isoWiredMain, "database.EnsureSchemas(nil, db.Primary())", "initialize(nil, db.Primary())", 1)
+	apply := "if err := database.ApplySchemas(ctx, db, schemas()...); err != nil { return err }; "
+	reconcile := "if err := database.ReconcileDeclaredColumns(ctx, db, schemas()...); err != nil { return err }; "
+	for _, tc := range []struct {
+		name, body string
+		clean      bool
+	}{
+		{"reconciled", apply + reconcile, true},
+		{"read-only-verified", apply + strings.Replace(reconcile, "ReconcileDeclaredColumns", "VerifyDeclaredColumns", 1), true},
+		{"application-only", apply, false},
+		{"reconciliation-only", reconcile, false},
+		{"reversed", reconcile + apply, false},
+		{"different-pool", apply + strings.Replace(reconcile, "ctx, db,", "ctx, other,", 1), false},
+		{"different-providers", apply + strings.Replace(reconcile, "schemas()", "otherSchemas()", 1), false},
+		{"conditional-application", "if enabled { " + apply + " }; " + reconcile, false},
+		{"returned-before-reconciliation", apply + "return nil; " + reconcile, false},
+		{"rebound-pool", apply + "db = other; " + reconcile, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			src := base + "\nfunc initialize(ctx Context, db DB) error { " + tc.body + "return nil }"
+			ac := isoCtx(t, src, []Engine{EngineSQLite}, "go")
+			got, _ := (isoRoutedSeams{}).Analyze(context.Background(), ac)
+			if (len(got) == 0) != tc.clean {
+				t.Fatalf("split bootstrap clean=%v, want %v: %+v", len(got) == 0, tc.clean, got)
+			}
+			if schemaApplicationCallPresent(src) != tc.clean {
+				t.Fatalf("schema application disagrees with routed seam, want clean=%v", tc.clean)
+			}
+		})
+	}
+	t.Run("aliased-import", func(t *testing.T) {
+		src := base + "\nfunc initialize(ctx Context, db DB) error { " + apply + reconcile + "return nil }"
+		src = strings.ReplaceAll(src, "database.", "apidb.")
+		src = strings.Replace(src, `"github.com/vrooli/api-core/database"`, `apidb "github.com/vrooli/api-core/database"`, 1)
+		got, _ := (isoRoutedSeams{}).Analyze(context.Background(), isoCtx(t, src, []Engine{EngineSQLite}, "go"))
+		if len(got) != 0 || !schemaApplicationCallPresent(src) {
+			t.Fatalf("qualified alias bootstrap must be recognized: %+v", got)
+		}
+	})
+	t.Run("unrelated-import", func(t *testing.T) {
+		src := base + "\nfunc initialize(ctx Context, db DB) error { " + apply + reconcile + "return nil }"
+		src = strings.Replace(src, `"github.com/vrooli/api-core/database"`, `"example.com/database"`, 1)
+		got, _ := (isoRoutedSeams{}).Analyze(context.Background(), isoCtx(t, src, []Engine{EngineSQLite}, "go"))
+		if len(got) == 0 || schemaApplicationCallPresent(src) {
+			t.Fatal("lookalike API from another import must fail closed")
+		}
+	})
 }
 
 func TestRoutedSeams_NonRelationalDoesNotApply(t *testing.T) {

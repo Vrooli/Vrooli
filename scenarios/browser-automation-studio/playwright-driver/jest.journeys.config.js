@@ -1,10 +1,11 @@
 // Preservation journeys against the goal's shadow BAS and the local fixture site.
 // `pnpm test:journeys` prints each [REQ:BAS-RH-Jxx] result; add `--json --outputFile=<path>` for a machine-readable report.
-const base = require('./jest.config');
+const base = require('./jest.common.config');
 
 module.exports = {
   ...base,
   roots: ['<rootDir>/tests/journeys'],
+  testMatch: ['**/*.test.ts'],
   testPathIgnorePatterns: ['/node_modules/'],
   collectCoverage: false,
   coverageThreshold: undefined,

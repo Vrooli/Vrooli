@@ -32,7 +32,6 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { Textarea } from "./ui/textarea";
 import { formatUsdFixed } from "../lib/currency";
 import { cn, formatDuration, runnerTypeLabel } from "../lib/utils";
 import { useCollapsiblePanel } from "../hooks/useCollapsiblePanel";
@@ -41,9 +40,7 @@ import { useRunReport } from "../hooks/useApi";
 import { useResizablePanel } from "../hooks/useResizablePanel";
 import { useViewportSize } from "../hooks/useViewportSize";
 import type {
-  ApproveFormData,
   ContextAttachmentData,
-  RejectFormData,
   Run,
   RunDiff,
   RunEvent,
@@ -91,8 +88,10 @@ interface RunDetailProps {
   task?: Task | null;
   taskTitle: string;
   profileName: string;
-  onApprove: (req: ApproveFormData) => Promise<void>;
-  onReject: (req: RejectFormData) => Promise<void>;
+  // Partial-approve (select specific diff files) is the one agent-manager-native
+  // review action the Web Console inbox does NOT offer (the inbox is binary
+  // approve/reject), so it is preserved here. Plain full-run approve/reject was
+  // retired from this UI — a human does those only in the inbox.
   onPartialApprove?: (fileIds: string[], actor?: string, commitMsg?: string) => Promise<unknown>;
   onRetry: (run: Run) => Promise<Run>;
   onResumeFromFailure: (run: Run) => void;
@@ -119,8 +118,6 @@ export function RunDetail({
   task,
   taskTitle,
   profileName,
-  onApprove,
-  onReject,
   onPartialApprove,
   onRetry,
   onResumeFromFailure,
@@ -149,22 +146,6 @@ export function RunDetail({
   const actionsMenuRef = useRef<HTMLDivElement>(null);
   const { isDesktop } = useViewportSize();
 
-  // Inline review state
-  const [inlineAction, setInlineAction] = useState<"none" | "approve" | "reject" | "partial">("none");
-  const [inlineApprovalForm, setInlineApprovalForm] = useState({ actor: "", commitMsg: "" });
-  const [inlineRejectForm, setInlineRejectForm] = useState({ actor: "", reason: "" });
-  const [inlineSubmitting, setInlineSubmitting] = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
-
-  // Reset inline review state when run changes
-  useEffect(() => {
-    setInlineAction("none");
-    setInlineApprovalForm({ actor: "", commitMsg: "" });
-    setInlineRejectForm({ actor: "", reason: "" });
-    setInlineSubmitting(false);
-    setSelectedFiles(new Set());
-  }, [run.id]);
-
   // Resolve workspace-sandbox URL via embedded proxy (standard cross-scenario pattern)
   const [sandboxUrl, setSandboxUrl] = useState<string | null>(null);
   useEffect(() => {
@@ -184,41 +165,45 @@ export function RunDetail({
     window.open(url, "_blank", "noopener,noreferrer");
   }, [run.sandboxId, sandboxUrl]);
 
-  const handleInlineConfirm = useCallback(async () => {
-    setInlineSubmitting(true);
+  // Partial-approve state (the preserved agent-manager-native action). Plain
+  // full-run approve/reject is intentionally NOT here — it is handled in the
+  // Web Console approvals inbox.
+  const [partialActive, setPartialActive] = useState(false);
+  const [partialForm, setPartialForm] = useState({ actor: "", commitMsg: "" });
+  const [partialSubmitting, setPartialSubmitting] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
+
+  // Reset partial-approve state when the run changes.
+  useEffect(() => {
+    setPartialActive(false);
+    setPartialForm({ actor: "", commitMsg: "" });
+    setPartialSubmitting(false);
+    setSelectedFiles(new Set());
+  }, [run.id]);
+
+  const handlePartialConfirm = useCallback(async () => {
+    if (!onPartialApprove) return;
+    setPartialSubmitting(true);
     try {
-      if (inlineAction === "approve") {
-        await onApprove({
-          actor: inlineApprovalForm.actor.trim() || undefined,
-          commitMsg: inlineApprovalForm.commitMsg || undefined,
-        });
-      } else if (inlineAction === "reject") {
-        await onReject({
-          actor: inlineRejectForm.actor.trim() || undefined,
-          reason: inlineRejectForm.reason || undefined,
-        });
-      } else if (inlineAction === "partial" && onPartialApprove) {
-        // Collect file IDs from selected files
-        const files = diff?.files ?? [];
-        const fileIds = files
-          .filter((f) => selectedFiles.has(f.path) && f.id)
-          .map((f) => f.id);
-        if (fileIds.length > 0) {
-          await onPartialApprove(
-            fileIds,
-            inlineApprovalForm.actor.trim() || undefined,
-            inlineApprovalForm.commitMsg || undefined,
-          );
-          setSelectedFiles(new Set());
-        }
+      const files = diff?.files ?? [];
+      const fileIds = files
+        .filter((f) => selectedFiles.has(f.path) && f.id)
+        .map((f) => f.id);
+      if (fileIds.length > 0) {
+        await onPartialApprove(
+          fileIds,
+          partialForm.actor.trim() || undefined,
+          partialForm.commitMsg || undefined,
+        );
+        setSelectedFiles(new Set());
+        setPartialActive(false);
       }
-      setInlineAction("none");
     } catch (err) {
-      console.error(`Failed to ${inlineAction} run:`, err);
+      console.error("Failed to partially approve run:", err);
     } finally {
-      setInlineSubmitting(false);
+      setPartialSubmitting(false);
     }
-  }, [inlineAction, inlineApprovalForm, inlineRejectForm, onApprove, onReject, onPartialApprove, diff, selectedFiles]);
+  }, [onPartialApprove, diff, selectedFiles, partialForm]);
 
   const { isCollapsed: isDetailsCollapsed, toggle: toggleDetailsCollapsed } = useCollapsiblePanel({
     storageKey: "run.details",
@@ -704,7 +689,7 @@ export function RunDetail({
                 ) : (
                   <DiffViewer
                     diff={diff}
-                    selectable={inlineAction === "partial"}
+                    selectable={partialActive}
                     selectedFiles={selectedFiles}
                     onFileSelectionChange={(path, selected) => {
                       setSelectedFiles((prev) => {
@@ -717,7 +702,9 @@ export function RunDetail({
                   />
                 )}
 
-                {/* Inline review controls */}
+                {/* Review pointer — approving/rejecting a run is a human action
+                    handled only in the Web Console approvals inbox (the single
+                    operator surface), never from this read-only page. */}
                 {(actions?.canApprove || actions?.canReject) && (
                   <div className="border-t border-border pt-4 space-y-3">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -728,17 +715,20 @@ export function RunDetail({
                         </Button>
                       )}
                       <div className="flex-1" />
+                      {/* Partial approve is the one review action the inbox cannot do
+                          (file-selective). It is preserved here; full approve/reject
+                          are handled only in the inbox. */}
                       {actions?.canApprove && onPartialApprove && diff && (diff.files?.length ?? 0) > 1 && (
                         <Button
-                          variant={inlineAction === "partial" ? "secondary" : "outline"}
+                          variant={partialActive ? "secondary" : "outline"}
                           size="sm"
                           className="gap-1.5"
                           onClick={() => {
-                            if (inlineAction === "partial") {
-                              setInlineAction("none");
+                            if (partialActive) {
+                              setPartialActive(false);
                               setSelectedFiles(new Set());
                             } else {
-                              setInlineAction("partial");
+                              setPartialActive(true);
                             }
                           }}
                         >
@@ -746,98 +736,9 @@ export function RunDetail({
                           Partial Approve
                         </Button>
                       )}
-                      {actions?.canApprove && (
-                        <Button
-                          variant={inlineAction === "approve" ? "success" : "outline"}
-                          size="sm"
-                          className="gap-1.5"
-                          onClick={() => setInlineAction(inlineAction === "approve" ? "none" : "approve")}
-                        >
-                          <Check className="h-3.5 w-3.5" />
-                          Approve All
-                        </Button>
-                      )}
-                      {actions?.canReject && (
-                        <Button
-                          variant={inlineAction === "reject" ? "destructive" : "outline"}
-                          size="sm"
-                          className="gap-1.5"
-                          onClick={() => setInlineAction(inlineAction === "reject" ? "none" : "reject")}
-                        >
-                          <X className="h-3.5 w-3.5" />
-                          Reject
-                        </Button>
-                      )}
                     </div>
 
-                    {inlineAction === "approve" && (
-                      <div className="space-y-3 rounded-lg border border-success/30 bg-success/5 p-3">
-                        <div className="space-y-2">
-                          <Label htmlFor="inline-approve-actor">Your Name (optional)</Label>
-                          <Input
-                            id="inline-approve-actor"
-                            value={inlineApprovalForm.actor}
-                            onChange={(e) => setInlineApprovalForm({ ...inlineApprovalForm, actor: e.target.value })}
-                            placeholder="Leave blank to approve anonymously"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="inline-approve-msg">Commit Message (optional)</Label>
-                          <Input
-                            id="inline-approve-msg"
-                            value={inlineApprovalForm.commitMsg}
-                            onChange={(e) => setInlineApprovalForm({ ...inlineApprovalForm, commitMsg: e.target.value })}
-                            placeholder="Custom commit message"
-                          />
-                        </div>
-                        <Button
-                          variant="success"
-                          size="sm"
-                          onClick={handleInlineConfirm}
-                          disabled={inlineSubmitting}
-                          className="gap-2"
-                        >
-                          <Check className="h-4 w-4" />
-                          {inlineSubmitting ? "Approving..." : "Confirm Approval"}
-                        </Button>
-                      </div>
-                    )}
-
-                    {inlineAction === "reject" && (
-                      <div className="space-y-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
-                        <div className="space-y-2">
-                          <Label htmlFor="inline-reject-actor">Your Name (optional)</Label>
-                          <Input
-                            id="inline-reject-actor"
-                            value={inlineRejectForm.actor}
-                            onChange={(e) => setInlineRejectForm({ ...inlineRejectForm, actor: e.target.value })}
-                            placeholder="Leave blank for anonymous"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="inline-reject-reason">Rejection Reason</Label>
-                          <Textarea
-                            id="inline-reject-reason"
-                            value={inlineRejectForm.reason}
-                            onChange={(e) => setInlineRejectForm({ ...inlineRejectForm, reason: e.target.value })}
-                            placeholder="Why are you rejecting these changes?"
-                            rows={3}
-                          />
-                        </div>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={handleInlineConfirm}
-                          disabled={inlineSubmitting}
-                          className="gap-2"
-                        >
-                          <X className="h-4 w-4" />
-                          {inlineSubmitting ? "Rejecting..." : "Confirm Rejection"}
-                        </Button>
-                      </div>
-                    )}
-
-                    {inlineAction === "partial" && (
+                    {partialActive && (
                       <div className="space-y-3 rounded-lg border border-warning/30 bg-warning/5 p-3">
                         <p className="text-sm text-muted-foreground">
                           Select files above, then approve the selected subset.
@@ -846,8 +747,8 @@ export function RunDetail({
                           <Label htmlFor="partial-approve-actor">Your Name (optional)</Label>
                           <Input
                             id="partial-approve-actor"
-                            value={inlineApprovalForm.actor}
-                            onChange={(e) => setInlineApprovalForm({ ...inlineApprovalForm, actor: e.target.value })}
+                            value={partialForm.actor}
+                            onChange={(e) => setPartialForm({ ...partialForm, actor: e.target.value })}
                             placeholder="Leave blank to approve anonymously"
                           />
                         </div>
@@ -855,25 +756,31 @@ export function RunDetail({
                           <Label htmlFor="partial-approve-msg">Commit Message (optional)</Label>
                           <Input
                             id="partial-approve-msg"
-                            value={inlineApprovalForm.commitMsg}
-                            onChange={(e) => setInlineApprovalForm({ ...inlineApprovalForm, commitMsg: e.target.value })}
+                            value={partialForm.commitMsg}
+                            onChange={(e) => setPartialForm({ ...partialForm, commitMsg: e.target.value })}
                             placeholder="Custom commit message"
                           />
                         </div>
                         <Button
                           variant="success"
                           size="sm"
-                          onClick={handleInlineConfirm}
-                          disabled={inlineSubmitting || selectedFiles.size === 0}
+                          onClick={handlePartialConfirm}
+                          disabled={partialSubmitting || selectedFiles.size === 0}
                           className="gap-2"
                         >
                           <Check className="h-4 w-4" />
-                          {inlineSubmitting
+                          {partialSubmitting
                             ? "Approving..."
                             : `Approve Selected (${selectedFiles.size} file${selectedFiles.size !== 1 ? "s" : ""})`}
                         </Button>
                       </div>
                     )}
+
+                    <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
+                      Approve or reject the full run from the{" "}
+                      <span className="font-medium text-foreground">Web Console approvals inbox</span> — the single
+                      place operator decisions are answered.
+                    </div>
                   </div>
                 )}
               </div>
@@ -968,8 +875,6 @@ export function RunDetail({
         run={run}
         diff={diff}
         diffLoading={diffLoading}
-        onApprove={onApprove}
-        onReject={onReject}
         onOpenSandbox={run.sandboxId && sandboxUrl ? openSandboxReview : undefined}
       />
     </div>

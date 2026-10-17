@@ -56,7 +56,7 @@ func FindCredentialDescriptorDuplicates(data []byte) ([]CredentialDescriptorDupl
 			// Match the complete JSON-pointer segment so only registrations under
 			// the manifest's credentials.consumers collection are excluded.
 			isConsumerRegistration := strings.Contains(path, "/credentials/consumers/")
-			if !isConsumerRegistration {
+			if !isConsumerRegistration && !isAcquisitionAuthReference(path) {
 				if logicalID, ok := typed["logical_id"].(string); ok && strings.TrimSpace(logicalID) != "" {
 					field := DefaultCredentialField
 					if rawField, present := typed["field"]; present {
@@ -126,4 +126,23 @@ func ValidateCredentialDescriptorUniqueness(data []byte, owner string) error {
 func escapeJSONPointer(value string) string {
 	value = strings.ReplaceAll(value, "~", "~0")
 	return strings.ReplaceAll(value, "/", "~1")
+}
+
+// Only the exact target auth object is a reference. Descendants and lookalike
+// collection names still participate in duplicate declaration detection.
+func isAcquisitionAuthReference(path string) bool {
+	parts := strings.Split(path, "/")
+	if len(parts) < 5 {
+		return false
+	}
+	tail := parts[len(parts)-4:]
+	if tail[0] != "acquisition" || tail[1] != "targets" || tail[3] != "auth" || tail[2] == "" {
+		return false
+	}
+	for _, digit := range tail[2] {
+		if digit < '0' || digit > '9' {
+			return false
+		}
+	}
+	return true
 }

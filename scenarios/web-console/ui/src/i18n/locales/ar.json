@@ -819,6 +819,16 @@
     "titleJump": "متصفح الرسائل"
   },
   "messagesFileViewer": {
+    "htmlControls": "عناصر التحكم في عرض HTML",
+    "htmlViewport": "منفذ عرض المعاينة",
+    "htmlViewportResponsive": "متجاوب",
+    "htmlViewportPhone": "هاتف",
+    "htmlViewportTablet": "جهاز لوحي",
+    "htmlViewportDesktop": "سطح المكتب",
+    "htmlZoom": "تكبير المعاينة",
+    "htmlZoomFit": "ملاءمة",
+    "htmlZoomOut": "تصغير",
+    "htmlZoomIn": "تكبير",
     "htmlPreview": "معاينة HTML: {{name}}",
     "htmlRendered": "معاينة",
     "htmlSource": "المصدر",

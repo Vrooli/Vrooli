@@ -1,13 +1,16 @@
 package platform
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"math"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Session containment: every coding-agent session is born inside a ceiling.
@@ -105,11 +108,12 @@ type ContainedSpec struct {
 
 // Contained is a command wrapped in its platform's containment primitive.
 type Contained struct {
-	Cmd     *exec.Cmd
-	Method  string
-	Scope   ScopeRef
-	cleanup func()
-	after   func(*Contained) error
+	Cmd          *exec.Cmd
+	Method       string
+	Scope        ScopeRef
+	cleanup      func()
+	after        func(*Contained) error
+	afterContext func(context.Context, *Contained) error
 }
 
 // ContainedCommand builds the command for spec on this platform. Start it
@@ -141,6 +145,72 @@ func (c *Contained) Start() error {
 		return c.after(c)
 	}
 	return nil
+}
+
+// ErrContainmentCleanupUnverified means the owned root was reaped but a usable
+// scope identity was not acquired or its descendant exit could not be proved.
+var ErrContainmentCleanupUnverified = errors.New("contained process descendant cleanup is unverified")
+
+// StartContext gives context-aware platform adapters a bounded acquisition
+// path. On post-spawn failure, cleanup remains at this shared owner boundary.
+func (c *Contained) StartContext(ctx context.Context) error {
+	if c == nil || c.Cmd == nil {
+		return errors.New("platform: nil contained command")
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if err := c.Cmd.Start(); err != nil {
+		return err
+	}
+	var err error
+	if c.afterContext != nil {
+		err = c.afterContext(ctx, c)
+	} else if err = ctx.Err(); err == nil && c.after != nil {
+		err = c.after(c)
+	}
+	if err == nil {
+		return nil
+	}
+	return errors.Join(err, cleanupFailedContainmentStart(c))
+}
+
+func cleanupFailedContainmentStart(c *Contained) error {
+	cleanup, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	var scopeErr error
+	if c.Scope.Kind == "" || c.Scope.Kind == ScopeKindNone {
+		scopeErr = ErrContainmentCleanupUnverified
+	} else {
+		scopeErr = StopScopeContext(cleanup, c.Scope)
+		if scopeErr == nil {
+			pids, e := ScopeProcessesContext(cleanup, c.Scope)
+			if e != nil {
+				scopeErr = e
+			} else if len(pids) > 0 {
+				scopeErr = fmt.Errorf("scope still contains %d processes", len(pids))
+			}
+		}
+		if scopeErr != nil {
+			scopeErr = errors.Join(ErrContainmentCleanupUnverified, scopeErr)
+		}
+	}
+	// This is the exact root handle created above. Never choose a process by
+	// executable name or infer a descendant scope from the caller's cgroup.
+	if e := c.Cmd.Process.Kill(); e != nil && !errors.Is(e, os.ErrProcessDone) {
+		scopeErr = errors.Join(scopeErr, e)
+	}
+	if c.Cmd.WaitDelay == 0 {
+		c.Cmd.WaitDelay = 2 * time.Second
+	}
+	done := make(chan error, 1)
+	go func() { done <- c.Cmd.Wait() }()
+	select {
+	case <-done:
+	case <-cleanup.Done():
+		scopeErr = errors.Join(scopeErr, ErrContainmentCleanupUnverified, cleanup.Err())
+	}
+	return scopeErr
 }
 
 // Release frees what containment allocated: an empty fallback cgroup, a Job
@@ -207,6 +277,14 @@ func ScopeFrozen(ref ScopeRef) (bool, error) { return scopeFrozen(ref) }
 // signals the group (macOS) or terminates the Job (Windows) behind this same
 // call.
 func StopScope(ref ScopeRef) error { return stopScope(ref) }
+
+// StopScopeContext preserves StopScope's ownership guards and bounds the
+// Linux user-manager command by ctx. A timed-out manager request still attempts
+// the guarded cgroup.kill fallback. It never targets a scope by process name.
+// The compatibility StopScope entrypoint retains its existing behavior.
+func StopScopeContext(ctx context.Context, ref ScopeRef) error {
+	return stopScopeContext(ctx, ref)
+}
 
 // sizeSuffixes are systemd's binary size suffixes.
 var sizeSuffixes = map[string]int64{"K": kibibyte, "M": kibibyte * kibibyte, "G": kibibyte * kibibyte * kibibyte, "T": kibibyte * kibibyte * kibibyte * kibibyte}
@@ -343,6 +421,9 @@ type Occupancy struct {
 	// Tasks and TasksMax are the pids controller's current and maximum.
 	Tasks    int64
 	TasksMax int64
+	// TasksMaxEvents counts task-creation denials in this tree (pids.events/max
+	// on Linux), or Unknown when the counter is unavailable.
+	TasksMaxEvents int64
 	// Memory readings are bytes.
 	MemoryBytes     int64
 	MemoryHighBytes int64
@@ -393,6 +474,13 @@ func ScopeOccupancy(ref ScopeRef) (Occupancy, error) { return scopeOccupancy(ref
 // the tree's own answer: a caller must never find a session's processes by
 // matching a command line.
 func ScopeProcesses(ref ScopeRef) ([]int, error) { return scopeProcesses(ref) }
+
+// ScopeProcessesContext additionally verifies the gone state of a collected
+// Linux test/agent scope: both its cgroup directory and active unit must be gone.
+// Missing membership files alone are never interpreted as empty membership.
+func ScopeProcessesContext(ctx context.Context, ref ScopeRef) ([]int, error) {
+	return scopeProcessesContext(ctx, ref)
+}
 
 // ScopeChildren lists the contained trees nested directly inside one. On
 // Linux these are the child cgroups: the session scopes a slice holds.

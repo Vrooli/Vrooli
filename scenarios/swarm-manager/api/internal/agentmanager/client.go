@@ -11,12 +11,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/vrooli/api-core/owneridentity"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/owneridentity"
 
 	"github.com/vrooli/api-core/discovery"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
@@ -186,7 +187,7 @@ func (c *HTTPClient) CreateTask(ctx context.Context, task *domainpb.Task) (*doma
 
 // CreateRun creates a new run using proto JSON payloads.
 func (c *HTTPClient) CreateRun(ctx context.Context, req *apipb.CreateRunRequest) (*domainpb.Run, error) {
-	if err := owneridentity.RequireCreateRunCaller(ctx, time.Now()); err != nil {
+	if err := owneridentity.RequireCreateRunCaller(ctx, time.Now(), true); err != nil {
 		return nil, err
 	}
 	body, err := protoJSONMarshal.Marshal(req)
@@ -430,11 +431,13 @@ func (c *HTTPClient) doRequest(ctx context.Context, method, path string, body []
 
 	doer := c.httpClient
 	if method == http.MethodPost && path == "/api/v1/runs" {
-		auth, err := owneridentity.CreateRunAuthorization(ctx, time.Now())
+		proof, err := owneridentity.CreateRunRequestHeaders(ctx, time.Now())
 		if err != nil {
 			return nil, err
 		}
-		request.Header.Set("Authorization", auth)
+		for name, values := range proof {
+			request.Header[name] = append([]string(nil), values...)
+		}
 		// Production uses *http.Client; injected non-client transports are fixture seams.
 		if client, ok := doer.(*http.Client); ok {
 			copy := *client
