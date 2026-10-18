@@ -8,7 +8,7 @@
     "routes": [
       "/kitchen"
     ],
-    "purpose": "Keep what the person has and how they cook in one place: optional dated inventory grouped by storage, equipment chosen through tiles and a kitchen scene, and the preferences planning relies on.",
+    "purpose": "Keep optional dated inventory, saved capability selections, separately recorded physical device details, and planning preferences together.",
     "prd_refs": [
       "OT-P0-020",
       "OT-P0-002",
@@ -29,7 +29,7 @@
       "statement": "Use soon items lead to meals that use them without claiming there is enough."
     },
     {
-      "statement": "Equipment tiles are the complete way to choose appliances, cookware, and tools; the kitchen scene reflects the selection and never decides it."
+      "statement": "Equipment category selections stay separate from physical devices; a device records its stable identity, type, count, capacity, and only its enabled functions."
     },
     {
       "statement": "Selecting equipment is immediate and free, and removing it previews affected future meals."
@@ -189,7 +189,7 @@
     },
     {
       "id": "equipment-details",
-      "description": "An appliance's details: count, functions, capacity, and notes.",
+      "description": "Edit a physical device while retaining its stable identity, type, count, capacity, and enabled functions. A range can enable cooktop and oven; a multicooker can enable pressure cooking alone.",
       "setup": {
         "route": "/kitchen",
         "query": {

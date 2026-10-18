@@ -24,6 +24,9 @@ type sqliteRepository struct{ db SQLExecutor }
 func NewSQLiteRepository(db SQLExecutor) Repository { return &sqliteRepository{db: db} }
 
 func (r *sqliteRepository) Append(ctx context.Context, workspaceID string, event Event) error {
+	if err := r.ensureEvidenceColumns(ctx); err != nil {
+		return err
+	}
 	if workspaceID == "" {
 		return errors.New("workspace_id is required")
 	}
@@ -33,25 +36,29 @@ func (r *sqliteRepository) Append(ctx context.Context, workspaceID string, event
 	if err := validateEvent(event); err != nil {
 		return err
 	}
-	_, err := r.db.ExecContext(ctx, `INSERT INTO inventory_events(workspace_id,event_id,kind,item_id,batch_id,amount,unit,recipe_id,created_at) VALUES(?,?,?,?,?,?,?,?,?)`, workspaceID, event.ID, event.Kind, event.ItemID, event.BatchID, event.Amount.String(), event.Unit, event.RecipeID, event.CreatedAt.UTC().Format(time.RFC3339Nano))
+	_, err := r.db.ExecContext(ctx, `INSERT INTO inventory_events(workspace_id,event_id,kind,item_id,batch_id,amount,amount_mode,expression,storage,best_before_date,use_soon,lot_id,unit,recipe_id,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, workspaceID, event.ID, event.Kind, event.ItemID, event.BatchID, event.Amount.String(), modeOrExact(event.AmountMode), event.Expression, event.Storage, event.BestBeforeDate, event.UseSoon, event.LotID, event.Unit, event.RecipeID, event.CreatedAt.UTC().Format(time.RFC3339Nano))
 	if err == nil {
 		return nil
 	}
 	var existing Event
-	row := r.db.QueryRowContext(ctx, `SELECT kind,item_id,batch_id,amount,unit,recipe_id,created_at FROM inventory_events WHERE workspace_id=? AND event_id=?`, workspaceID, event.ID)
-	var existingAmount, created string
-	if scanErr := row.Scan(&existing.Kind, &existing.ItemID, &existing.BatchID, &existingAmount, &existing.Unit, &existing.RecipeID, &created); scanErr != nil {
+	row := r.db.QueryRowContext(ctx, `SELECT kind,item_id,batch_id,amount,amount_mode,expression,storage,best_before_date,use_soon,lot_id,unit,recipe_id,created_at FROM inventory_events WHERE workspace_id=? AND event_id=?`, workspaceID, event.ID)
+	var existingAmount, existingMode, created string
+	if scanErr := row.Scan(&existing.Kind, &existing.ItemID, &existing.BatchID, &existingAmount, &existingMode, &existing.Expression, &existing.Storage, &existing.BestBeforeDate, &existing.UseSoon, &existing.LotID, &existing.Unit, &existing.RecipeID, &created); scanErr != nil {
 		return fmt.Errorf("append inventory event: %w", err)
 	}
 	existing.Amount, _ = decimalx.Parse(existingAmount)
-	if existing.Kind != event.Kind || existing.ItemID != event.ItemID || existing.BatchID != event.BatchID || existing.Amount.String() != event.Amount.String() || existing.Unit != event.Unit || existing.RecipeID != event.RecipeID {
+	existing.AmountMode = AmountMode(existingMode)
+	if existing.Kind != event.Kind || existing.ItemID != event.ItemID || existing.BatchID != event.BatchID || existing.Amount.String() != event.Amount.String() || modeOrExact(existing.AmountMode) != modeOrExact(event.AmountMode) || existing.Expression != event.Expression || existing.Storage != event.Storage || existing.BestBeforeDate != event.BestBeforeDate || existing.UseSoon != event.UseSoon || existing.LotID != event.LotID || existing.Unit != event.Unit || existing.RecipeID != event.RecipeID {
 		return fmt.Errorf("idempotency key %q reused with different payload", event.ID)
 	}
 	return nil
 }
 
 func (r *sqliteRepository) List(ctx context.Context, workspaceID string) ([]Event, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT event_id,kind,item_id,batch_id,amount,unit,recipe_id,created_at FROM inventory_events WHERE workspace_id=? ORDER BY created_at,event_id`, workspaceID)
+	if err := r.ensureEvidenceColumns(ctx); err != nil {
+		return nil, err
+	}
+	rows, err := r.db.QueryContext(ctx, `SELECT event_id,kind,item_id,batch_id,amount,amount_mode,expression,storage,best_before_date,use_soon,lot_id,unit,recipe_id,created_at FROM inventory_events WHERE workspace_id=? ORDER BY created_at,event_id`, workspaceID)
 	if err != nil {
 		return nil, err
 	}
@@ -59,12 +66,13 @@ func (r *sqliteRepository) List(ctx context.Context, workspaceID string) ([]Even
 	var out []Event
 	for rows.Next() {
 		var event Event
-		var amount, created string
-		if err := rows.Scan(&event.ID, &event.Kind, &event.ItemID, &event.BatchID, &amount, &event.Unit, &event.RecipeID, &created); err != nil {
+		var amount, mode, created string
+		if err := rows.Scan(&event.ID, &event.Kind, &event.ItemID, &event.BatchID, &amount, &mode, &event.Expression, &event.Storage, &event.BestBeforeDate, &event.UseSoon, &event.LotID, &event.Unit, &event.RecipeID, &created); err != nil {
 			return nil, err
 		}
 		var parseErr error
 		event.Amount, parseErr = parseAmount(amount)
+		event.AmountMode = AmountMode(mode)
 		if parseErr != nil {
 			return nil, parseErr
 		}
@@ -75,6 +83,49 @@ func (r *sqliteRepository) List(ctx context.Context, workspaceID string) ([]Even
 		out = append(out, event)
 	}
 	return out, rows.Err()
+}
+
+// ensureEvidenceColumns upgrades databases created before amount mode evidence
+// was added. Legacy numeric rows retain the exact default and empty expression.
+func (r *sqliteRepository) ensureEvidenceColumns(ctx context.Context) error {
+	rows, err := r.db.QueryContext(ctx, `PRAGMA table_info(inventory_events)`)
+	if err != nil {
+		return err
+	}
+	columns := map[string]bool{}
+	for rows.Next() {
+		var cid, notnull, pk int
+		var name, kind string
+		var defaultValue any
+		if err := rows.Scan(&cid, &name, &kind, &notnull, &defaultValue, &pk); err != nil {
+			rows.Close()
+			return err
+		}
+		columns[name] = true
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return err
+	}
+	rows.Close()
+	if !columns["amount_mode"] {
+		if _, err := r.db.ExecContext(ctx, `ALTER TABLE inventory_events ADD COLUMN amount_mode TEXT NOT NULL DEFAULT 'exact'`); err != nil {
+			return err
+		}
+	}
+	if !columns["expression"] {
+		if _, err := r.db.ExecContext(ctx, `ALTER TABLE inventory_events ADD COLUMN expression TEXT NOT NULL DEFAULT ''`); err != nil {
+			return err
+		}
+	}
+	for name, definition := range map[string]string{"storage": "TEXT NOT NULL DEFAULT ''", "best_before_date": "TEXT NOT NULL DEFAULT ''", "use_soon": "INTEGER NOT NULL DEFAULT 0", "lot_id": "TEXT NOT NULL DEFAULT ''"} {
+		if !columns[name] {
+			if _, err := r.db.ExecContext(ctx, `ALTER TABLE inventory_events ADD COLUMN `+name+` `+definition); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (r *sqliteRepository) PrepareBatch(ctx context.Context, workspaceID, eventID, batchID, recipeID string, recipeRevision int64, yield decimalx.Decimal, unit string, requirements []Event) (Batch, error) {
@@ -223,13 +274,14 @@ func (r *sqliteRepository) batch(ctx context.Context, workspaceID, batchID strin
 
 func (r *sqliteRepository) findEvent(ctx context.Context, workspaceID, eventID string) (Event, error) {
 	var event Event
-	var amount, created string
-	err := r.db.QueryRowContext(ctx, `SELECT kind,item_id,batch_id,amount,unit,recipe_id,created_at FROM inventory_events WHERE workspace_id=? AND event_id=?`, workspaceID, eventID).Scan(&event.Kind, &event.ItemID, &event.BatchID, &amount, &event.Unit, &event.RecipeID, &created)
+	var amount, mode, created string
+	err := r.db.QueryRowContext(ctx, `SELECT kind,item_id,batch_id,amount,amount_mode,expression,storage,best_before_date,use_soon,lot_id,unit,recipe_id,created_at FROM inventory_events WHERE workspace_id=? AND event_id=?`, workspaceID, eventID).Scan(&event.Kind, &event.ItemID, &event.BatchID, &amount, &mode, &event.Expression, &event.Storage, &event.BestBeforeDate, &event.UseSoon, &event.LotID, &event.Unit, &event.RecipeID, &created)
 	if err != nil {
 		return Event{}, err
 	}
 	event.ID = eventID
 	event.Amount, err = decimalx.Parse(amount)
+	event.AmountMode = AmountMode(mode)
 	if err != nil {
 		return Event{}, err
 	}
@@ -238,7 +290,31 @@ func (r *sqliteRepository) findEvent(ctx context.Context, workspaceID, eventID s
 }
 
 func validateEvent(event Event) error {
-	if event.ID == "" || event.Amount.IsUnknown() || event.Amount.IsZero() || event.Unit == "" {
+	if event.Storage != "" && event.Storage != "fridge" && event.Storage != "freezer" && event.Storage != "pantry" {
+		return errors.New("unsupported inventory storage")
+	}
+	if event.BestBeforeDate != "" {
+		parsed, err := time.Parse("2006-01-02", event.BestBeforeDate)
+		if err != nil || parsed.Format("2006-01-02") != event.BestBeforeDate {
+			return errors.New("best-before date must be YYYY-MM-DD")
+		}
+	}
+	if event.AmountMode == "" {
+		event.AmountMode = AmountExact
+	}
+	if event.ID == "" {
+		return errors.New("event requires id")
+	}
+	if event.AmountMode == AmountQualitative || event.AmountMode == AmountOut || event.AmountMode == AmountUnknown {
+		if event.Kind != Assertion || event.ItemID == "" || !event.Amount.IsUnknown() || (event.AmountMode == AmountQualitative && strings.TrimSpace(event.Expression) == "") {
+			return errors.New("non-numeric stock assertion requires an item, original expression when qualitative, and no numeric amount")
+		}
+		return nil
+	}
+	if event.AmountMode != AmountExact && event.AmountMode != AmountEstimated {
+		return errors.New("unsupported inventory amount mode")
+	}
+	if event.Amount.IsUnknown() || event.Amount.IsZero() || event.Unit == "" {
 		return errors.New("event requires id, known non-zero amount, and unit")
 	}
 	return nil
@@ -350,4 +426,11 @@ func normalizeReceiptLine(proposal ReceiptProposal) string {
 func receiptProposalID(sourceID, transactionID, lineKey string) string {
 	h := sha256.Sum256([]byte(strings.Join([]string{sourceID, transactionID, lineKey}, "|")))
 	return hex.EncodeToString(h[:])
+}
+
+func modeOrExact(mode AmountMode) AmountMode {
+	if mode == "" {
+		return AmountExact
+	}
+	return mode
 }

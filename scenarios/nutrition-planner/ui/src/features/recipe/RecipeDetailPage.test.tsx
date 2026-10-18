@@ -20,6 +20,8 @@ describe("RecipeDetailPage", () => {
   it("loads the requested immutable revision and scales only displayed ingredients", async () => {
     const user = userEvent.setup();
     const recipe = create(RecipeSchema, { id: "r1", revision: 1n, name: "Original soup", canonicalYield: "3", servingUnit: "bowls", originalText: "Original instructions", requiredAppliances: ["oven", "stove"], ingredients: [{ id: "lentils", name: "Lentils", amount: "1", unit: "cup", discrete: true }, { id: "onion", name: "Onion", amount: "1", unit: "each" }, { id: "salt", amount: "as needed", unit: "pinch" }], methods: [{ id: "stovetop", name: "Stovetop", steps: [{ id: "chop", instruction: "Chop onion", inputs: ["onion"], outputs: ["prepared_onion"], equipment: ["chef's knife", "cutting board"] }, { id: "simmer", instruction: "Simmer gently", dependsOn: ["chop"], inputs: ["lentils", "prepared_onion"], outputs: ["soup"], equipment: ["saucepan"], settings: ["low heat", "20 minutes"] }] }, { id: "oven", name: "Oven", steps: [{ id: "bake", instruction: "Bake until browned" }] }] });
+    Object.assign(recipe.methods[0]!, { preparationMode: "cooking", requiredAppliances: ["stove"], requiredCookware: ["saucepan"], requiredTools: ["chef_knife"], requiredDeviceFunctions: ["cooktop"] });
+    Object.assign(recipe.methods[1]!, { preparationMode: "cooking", requiredAppliances: ["oven"], requiredDeviceFunctions: ["oven"] });
     getRecipeRevision.mockResolvedValue(recipe);
     renderWithProviders(<TestAppRouter initialEntries={["/recipes/r1/revisions/1"]} />, { withoutRouter: true });
     await waitFor(() => expect(screen.getByRole("heading", { name: "Original soup" })).toBeInTheDocument());
@@ -43,9 +45,13 @@ describe("RecipeDetailPage", () => {
     expect(methodSteps[1]).toHaveTextContent("Equipmentsaucepan");
     expect(methodSteps[1]).toHaveTextContent("Settingslow heat, 20 minutes");
     expect(methodSteps[1]).not.toHaveTextContent("chef's knife");
+    expect(screen.getByText("Preparation type").parentElement).toHaveTextContent("cooking");
+    expect(screen.getByText("Required appliances").parentElement).toHaveTextContent("stove");
+    expect(screen.getByText("Required device functions").parentElement).toHaveTextContent("cooktop");
     expect(screen.queryByText("oven, stove")).not.toBeInTheDocument();
     await user.selectOptions(screen.getByLabelText("Preparation method"), "oven");
     expect(screen.getAllByText("Bake until browned")).toHaveLength(2);
+    expect(screen.getByText("Required appliances").parentElement).toHaveTextContent("oven");
     await user.click(screen.getByRole("tab", { name: "Read original" }));
     expect(screen.getByText("Original instructions")).toBeInTheDocument();
   });

@@ -460,15 +460,15 @@ func TestNoochAuthenticatedRouteVerifiesManifestAudienceAndIssuer(t *testing.T) 
 		t.Fatal(err)
 	}
 	recipes := recipe.NewService(recipe.NewSQLiteRepository(db, clock))
-	original, err := recipes.Create(ctx, recipe.CreateInput{WorkspaceID: ownerWorkspace.ID, Name: "Beans", CanonicalYield: "2", ServingUnit: "servings", Ingredients: []recipe.Ingredient{{ID: "beans", Name: "Beans", Amount: "200", Unit: "g"}}, Methods: []recipe.Method{{ID: "cook", Steps: []recipe.MethodStep{{ID: "step", Instruction: "Cook beans", Inputs: []string{"beans"}}}}}})
+	original, err := recipes.Create(ctx, recipe.CreateInput{WorkspaceID: ownerWorkspace.ID, Name: "Beans", CanonicalYield: "2", ServingUnit: "servings", Ingredients: []recipe.Ingredient{{ID: "beans", Name: "Beans", Amount: "200", Unit: "g"}}, Methods: []recipe.Method{{ID: "cook", PreparationMode: "ready_to_eat", Steps: []recipe.MethodStep{{ID: "step", Instruction: "Serve beans", Inputs: []string{"beans"}}}}}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	replacement, err := recipes.Create(ctx, recipe.CreateInput{WorkspaceID: ownerWorkspace.ID, Name: "Rice", CanonicalYield: "2", ServingUnit: "servings", Ingredients: []recipe.Ingredient{{ID: "rice", Name: "Rice", Amount: "300", Unit: "g"}}, Methods: []recipe.Method{{ID: "cook", Steps: []recipe.MethodStep{{ID: "step", Instruction: "Cook rice", Inputs: []string{"rice"}}}}}})
+	replacement, err := recipes.Create(ctx, recipe.CreateInput{WorkspaceID: ownerWorkspace.ID, Name: "Rice", CanonicalYield: "2", ServingUnit: "servings", Ingredients: []recipe.Ingredient{{ID: "rice", Name: "Rice", Amount: "300", Unit: "g"}}, Methods: []recipe.Method{{ID: "cook", PreparationMode: "ready_to_eat", Steps: []recipe.MethodStep{{ID: "step", Instruction: "Serve rice", Inputs: []string{"rice"}}}}}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	anchor, err := recipes.Create(ctx, recipe.CreateInput{WorkspaceID: ownerWorkspace.ID, Name: "Oats", CanonicalYield: "2", ServingUnit: "servings", Ingredients: []recipe.Ingredient{{ID: "oats", Name: "Oats", Amount: "100", Unit: "g"}}, Methods: []recipe.Method{{ID: "cook", Steps: []recipe.MethodStep{{ID: "step", Instruction: "Cook oats", Inputs: []string{"oats"}}}}}})
+	anchor, err := recipes.Create(ctx, recipe.CreateInput{WorkspaceID: ownerWorkspace.ID, Name: "Oats", CanonicalYield: "2", ServingUnit: "servings", Ingredients: []recipe.Ingredient{{ID: "oats", Name: "Oats", Amount: "100", Unit: "g"}}, Methods: []recipe.Method{{ID: "cook", PreparationMode: "ready_to_eat", Steps: []recipe.MethodStep{{ID: "step", Instruction: "Serve oats", Inputs: []string{"oats"}}}}}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -918,7 +918,7 @@ func TestExploreRecipesUsesSharedEligibilityAndReturnsOnlyEligibleWorkspaceRecip
 		t.Fatal(err)
 	}
 	recipes := recipe.NewService(recipe.NewSQLiteRepository(db, clock))
-	allowed, err := recipes.Create(ctx, recipe.CreateInput{WorkspaceID: ownerWorkspace.ID, Name: "Bean soup", Notes: "A saved recipe", Groups: []string{"beans"}, AllergenEvidence: map[string]string{"peanut": "declared-absent-within-scope"}})
+	allowed, err := recipes.Create(ctx, recipe.CreateInput{WorkspaceID: ownerWorkspace.ID, Name: "Bean soup", Notes: "A saved recipe", Groups: []string{"beans"}, AllergenEvidence: map[string]string{"peanut": "declared-absent-within-scope"}, Methods: []recipe.Method{{ID: "assemble", Name: "Assemble", PreparationMode: "assembly"}}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -945,21 +945,21 @@ func TestExploreRecipesUsesSharedEligibilityAndReturnsOnlyEligibleWorkspaceRecip
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !response.Msg.ProfileConfigured || response.Msg.ProfileRevision == 0 || response.Msg.PlanRevision != 0 || response.Msg.SavedRecipeCount != 3 || len(response.Msg.Candidates) != 1 || len(response.Msg.BlockingReasons) != 2 {
+	if !response.Msg.ProfileConfigured || response.Msg.ProfileRevision == 0 || response.Msg.PlanRevision != 0 || response.Msg.SavedRecipeCount != 3 || len(response.Msg.Candidates) != 1 || len(response.Msg.BlockingReasons) != 3 {
 		t.Fatalf("response=%+v", response.Msg)
 	}
 	got := response.Msg.Candidates[0]
-	if got.RecipeId != allowed.ID || got.RecipeRevision != allowed.Revision || got.Summary != "A saved recipe" || len(got.FitReasons) != 2 {
+	if got.RecipeId != allowed.ID || got.RecipeRevision != allowed.Revision || got.Summary != "A saved recipe" || len(got.FitReasons) != 3 || len(got.MethodAssessments) != 1 || got.MethodAssessments[0].MethodId != "assemble" || got.MethodAssessments[0].Status != "eligible" {
 		t.Fatalf("candidate=%+v", got)
 	}
-	if got.FitReasons[0].Code != "excluded_groups_clear" || got.FitReasons[1].Code != "allergen_declared_absent" || got.FitReasons[1].Reference != "recipe.allergens.peanut" {
+	if got.FitReasons[0].Code != "excluded_groups_clear" || got.FitReasons[1].Code != "allergen_declared_absent" || got.FitReasons[1].Reference != "recipe.allergens.peanut" || got.FitReasons[2].Code != "method_viable" || got.FitReasons[2].MethodId != "assemble" {
 		t.Fatalf("fit reasons are not grounded in the evaluated profile and recipe facts: %+v", got.FitReasons)
 	}
 	blocking := map[string]bool{}
 	for _, reason := range response.Msg.BlockingReasons {
 		blocking[reason.Code] = true
 	}
-	if !blocking["excluded_group"] || !blocking["allergen_evidence_unknown"] {
+	if !blocking["excluded_group"] || !blocking["allergen_evidence_unknown"] || !blocking["method_missing"] {
 		t.Fatalf("blocking reasons=%+v", response.Msg.BlockingReasons)
 	}
 	if got.Name == "Excluded meal" {

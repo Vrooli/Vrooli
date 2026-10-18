@@ -15,8 +15,9 @@ import { listInventoryEvents, listInventoryBatches, correctInventoryBatchYield, 
 describe("inventory API", () => {
   beforeEach(() => vi.clearAllMocks());
   it("maps persisted events", async () => {
-    listEvents.mockResolvedValue({ events: [{ id: "p1", workspaceId: "w1", kind: "purchase", itemId: "rice", batchId: "", amount: "500", unit: "g", recipeId: "", createdAt: "2026-09-18T00:00:00Z" }] });
+    listEvents.mockResolvedValue({ events: [{ id: "p1", workspaceId: "w1", kind: "purchase", itemId: "rice", batchId: "", amount: "500", amountMode: "estimated", expression: "about a bag", unit: "g", recipeId: "", createdAt: "2026-09-18T00:00:00Z" }] });
     await expect(listInventoryEvents("w1")).resolves.toEqual([expect.objectContaining({ id: "p1", amount: "500" })]);
+    await expect(listInventoryEvents("w1")).resolves.toEqual([expect.objectContaining({ amountMode: "estimated", expression: "about a bag" })]);
     expect(listEvents).toHaveBeenCalledWith({ workspaceId: "w1" });
   });
   it("lists prepared yield and remaining portions", async () => {
@@ -35,6 +36,16 @@ describe("inventory API", () => {
     recordEvent.mockResolvedValue({ event: { id: "p1", workspaceId: "w1", kind: "purchase", itemId: "rice", batchId: "", amount: "500", unit: "g", recipeId: "", createdAt: "2026-09-18T00:00:00Z" } });
     await expect(recordInventoryEvent({ workspaceId: "w1", id: "p1", kind: "purchase", itemId: "rice", amount: "500", unit: "g" })).resolves.toMatchObject({ itemId: "rice" });
     expect(recordEvent).toHaveBeenCalledWith(expect.objectContaining({ workspaceId: "w1", id: "p1", kind: "purchase", amount: "500", unit: "g" }));
+  });
+  it("round-trips the selected mode and original expression", async () => {
+    recordEvent.mockResolvedValue({ event: { id: "a1", workspaceId: "w1", kind: "assertion", itemId: "rice", batchId: "", amount: "unknown", amountMode: "qualitative", expression: "Some left", unit: "", recipeId: "", createdAt: "2026-09-18T00:00:00Z" } });
+    await expect(recordInventoryEvent({ workspaceId: "w1", id: "a1", kind: "assertion", itemId: "rice", amount: "unknown", amountMode: "qualitative", expression: "Some left", unit: "" })).resolves.toMatchObject({ amountMode: "qualitative", expression: "Some left" });
+    expect(recordEvent).toHaveBeenCalledWith(expect.objectContaining({ amountMode: "qualitative", expression: "Some left", amount: "unknown" }));
+  });
+  it("round-trips storage and recorded freshness fields", async () => {
+    recordEvent.mockResolvedValue({ event: { id: "a2", workspaceId: "w1", kind: "assertion", itemId: "spinach", amount: "unknown", amountMode: "unknown", expression: "", storage: "fridge", bestBeforeDate: "2026-10-11", useSoon: true, unit: "", recipeId: "", createdAt: "2026-10-09T12:00:00Z" } });
+    await expect(recordInventoryEvent({ workspaceId: "w1", id: "a2", kind: "assertion", itemId: "spinach", amount: "unknown", amountMode: "unknown", storage: "fridge", bestBeforeDate: "2026-10-11", useSoon: true, unit: "" })).resolves.toMatchObject({ storage: "fridge", bestBeforeDate: "2026-10-11", useSoon: true });
+    expect(recordEvent).toHaveBeenCalledWith(expect.objectContaining({ storage: "fridge", bestBeforeDate: "2026-10-11", useSoon: true }));
   });
   it("rejects a response without an event", async () => {
     recordEvent.mockResolvedValue({});

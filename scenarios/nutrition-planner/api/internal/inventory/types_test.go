@@ -72,3 +72,41 @@ func TestUndoPortionRestoresBatchExactlyOnce(t *testing.T) {
 		t.Fatalf("undo state=%#v err=%v", state, err)
 	}
 }
+
+func TestQualitativeAssertionsPreserveEvidenceWithoutNumericStockEffects(t *testing.T) {
+	state := NewState()
+	expression := "About half a bag"
+	updated, err := Apply(state, Event{ID: "qual-1", Kind: Assertion, ItemID: "rice", Amount: decimalx.Unknown, AmountMode: AmountQualitative, Expression: expression})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := updated.OnHand["rice"]; ok {
+		t.Fatalf("qualitative evidence created numeric stock: %#v", updated.OnHand)
+	}
+	if len(updated.Events) != 1 || updated.Events[0].Expression != expression || updated.Events[0].AmountMode != AmountQualitative {
+		t.Fatalf("evidence not retained: %#v", updated.Events)
+	}
+	for _, mode := range []AmountMode{AmountOut, AmountUnknown} {
+		updated, err = Apply(updated, Event{ID: string(mode), Kind: Assertion, ItemID: "rice", Amount: decimalx.Unknown, AmountMode: mode})
+		if err != nil {
+			t.Fatalf("%s assertion: %v", mode, err)
+		}
+	}
+	if _, ok := updated.OnHand["rice"]; ok {
+		t.Fatalf("non-numeric evidence changed stock: %#v", updated.OnHand)
+	}
+	if _, err := Apply(updated, Event{ID: "bad-consumption", Kind: Preparation, ItemID: "rice", Amount: decimalx.Unknown, AmountMode: AmountQualitative, Expression: expression}); err == nil {
+		t.Fatal("qualitative evidence was accepted as consumption")
+	}
+}
+
+func TestEstimatedAssertionsKeepNumericArithmetic(t *testing.T) {
+	amount, _ := decimalx.Parse("2")
+	state, err := Apply(NewState(), Event{ID: "est-1", Kind: Assertion, ItemID: "beans", Amount: amount, AmountMode: AmountEstimated, Unit: "cans"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := state.OnHand["beans"].String(); got != "2" {
+		t.Fatalf("estimated stock=%s, want 2", got)
+	}
+}

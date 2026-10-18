@@ -92,11 +92,15 @@ CREATE TABLE recipe_revisions (recipe_id TEXT NOT NULL, revision INTEGER NOT NUL
 CREATE TABLE plans (workspace_id TEXT PRIMARY KEY, revision INTEGER NOT NULL, plan_json TEXT NOT NULL, updated_at TEXT NOT NULL);
 CREATE TABLE shopping_checks (workspace_id TEXT NOT NULL, line_key TEXT NOT NULL, checked INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL, PRIMARY KEY(workspace_id,line_key));
 CREATE TABLE inventory_batches (workspace_id TEXT NOT NULL, batch_id TEXT NOT NULL, recipe_id TEXT NOT NULL DEFAULT '', recipe_revision INTEGER NOT NULL DEFAULT 0, yield_amount TEXT NOT NULL, available_amount TEXT NOT NULL, unit TEXT NOT NULL, PRIMARY KEY(workspace_id,batch_id));
+CREATE TABLE inventory_events (workspace_id TEXT NOT NULL, event_id TEXT NOT NULL, kind TEXT NOT NULL, item_id TEXT NOT NULL DEFAULT '', batch_id TEXT NOT NULL DEFAULT '', amount TEXT NOT NULL, unit TEXT NOT NULL, recipe_id TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, PRIMARY KEY(workspace_id,event_id));
+CREATE TABLE profiles (workspace_id TEXT PRIMARY KEY, revision INTEGER NOT NULL, preset TEXT NOT NULL, preset_version INTEGER NOT NULL, active_rules_json TEXT NOT NULL, excluded_groups_json TEXT NOT NULL, allergies_json TEXT NOT NULL, appliances_json TEXT NOT NULL, cost_weight TEXT NOT NULL, effort_weight TEXT NOT NULL, variety_weight TEXT NOT NULL, draft_json TEXT NOT NULL, updated_at TEXT NOT NULL);
 INSERT INTO workspaces VALUES ('w1','Home','subject-1',3,'2026-10-01T00:00:00Z','2026-10-02T00:00:00Z');
 INSERT INTO recipes VALUES ('r1','w1',2,'2026-10-01T00:00:00Z','2026-10-02T00:00:00Z');
 INSERT INTO recipe_revisions(recipe_id,revision,workspace_id,name,status,created_at) VALUES ('r1',1,'w1','Soup old','active','2026-10-01T00:00:00Z'),('r1',2,'w1','Soup current','active','2026-10-02T00:00:00Z');
 INSERT INTO shopping_checks VALUES ('w1','ingredient:rice',1,'checked-at');
 INSERT INTO inventory_batches VALUES ('w1','batch-1','r1',1,'unknown','unknown','serving');
+INSERT INTO inventory_events VALUES ('w1','event-1','purchase','rice','','2.5','kg','','2026-10-01T00:00:00Z');
+INSERT INTO profiles VALUES ('w1',4,'everything',1,'[]','[]','[]','["oven"]','0.34','0.33','0.33','{"saved":true}','profile-updated');
 `)
 	require.NoError(t, err)
 	legacyPlan := `{"occurrences":[{"date":"2026-10-03","slotName":"dinner","mode":"fixed","quantity":"unknown","recipeId":"r1","recipeRevision":1,"recipeName":"Soup old","reason":"historical","locked":true}],"unresolved":[{"date":"2026-10-04","code":"missing_amount","message":"amount remains unknown"}],"inputReferences":["recipe:r1:1","recipe:r1:2","catalog:future:value"],"runId":"legacy-run","seed":41}`
@@ -128,6 +132,25 @@ INSERT INTO inventory_batches VALUES ('w1','batch-1','r1',1,'unknown','unknown',
 	var available string
 	require.NoError(t, db.QueryRowContext(ctx, `SELECT available_amount FROM inventory_batches WHERE workspace_id='w1' AND batch_id='batch-1'`).Scan(&available))
 	require.Equal(t, "unknown", available)
+	var amount, mode, expression, storage, bestBefore, lot string
+	var useSoon int
+	require.NoError(t, db.QueryRowContext(ctx, `SELECT amount,amount_mode,expression,storage,best_before_date,use_soon,lot_id FROM inventory_events WHERE workspace_id='w1' AND event_id='event-1'`).Scan(&amount, &mode, &expression, &storage, &bestBefore, &useSoon, &lot))
+	require.Equal(t, "2.5", amount)
+	require.Equal(t, "exact", mode)
+	require.Empty(t, expression)
+	require.Empty(t, storage)
+	require.Empty(t, bestBefore)
+	require.Zero(t, useSoon)
+	require.Empty(t, lot)
+	var profileRevision int64
+	var appliances, cookware, tools, devices, profileDraft string
+	require.NoError(t, db.QueryRowContext(ctx, `SELECT revision,appliances_json,cookware_json,tools_json,kitchen_devices_json,draft_json FROM profiles WHERE workspace_id='w1'`).Scan(&profileRevision, &appliances, &cookware, &tools, &devices, &profileDraft))
+	require.EqualValues(t, 4, profileRevision)
+	require.Equal(t, `["oven"]`, appliances)
+	require.Equal(t, "null", cookware)
+	require.Equal(t, "null", tools)
+	require.Equal(t, "null", devices)
+	require.Equal(t, `{"saved":true}`, profileDraft)
 	var archived string
 	require.NoError(t, db.QueryRowContext(ctx, `SELECT plan_json FROM plans WHERE workspace_id='w1'`).Scan(&archived))
 	require.Equal(t, legacyPlan, archived)

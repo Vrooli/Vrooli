@@ -24,7 +24,7 @@ describe("recipe API", () => {
   it("sends the expected revision for an edit", async () => { const recipe = create(RecipeSchema, { id: "r1", revision: 2n, name: "Soup revised" }); updateRecipe.mockResolvedValue({ recipe }); await expect(editRecipe({ workspaceId: "w1", id: "r1", expectedRevision: 1n, name: "Soup revised", notes: "updated" })).resolves.toBe(recipe); expect(updateRecipe).toHaveBeenCalledWith(expect.objectContaining({ workspaceId: "w1", id: "r1", expectedRevision: 1n, name: "Soup revised", notes: "updated", idempotencyKey: expect.any(String) })); });
   it("forwards structured recipe and source fields and reads them from the next revision", async () => {
     const preserved = {
-      methods: [create(RecipeMethodSchema, { id: "method-1", name: "Stovetop", steps: [] })],
+      methods: [create(RecipeMethodSchema, { id: "method-1", name: "Stovetop", preparationMode: "cooking", requiredAppliances: ["stove"], requiredCookware: ["saucepan"], requiredTools: ["chef_knife"], requiredDeviceFunctions: ["cooktop"], steps: [] })],
       groups: ["Dinner", "Freezer"],
       requiredAppliances: ["Dutch oven"],
       allergenEvidence: { dairy: "contains", peanuts: "unknown" },

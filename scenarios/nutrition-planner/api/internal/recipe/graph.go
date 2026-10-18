@@ -4,8 +4,10 @@ import "fmt"
 
 type (
 	Method struct {
-		ID, Name string
-		Steps    []MethodStep
+		ID, Name, PreparationMode              string
+		RequiredAppliances, RequiredCookware   []string
+		RequiredTools, RequiredDeviceFunctions []string
+		Steps                                  []MethodStep
 	}
 	MethodStep struct {
 		ID, Instruction            string
@@ -23,6 +25,26 @@ func (e GraphError) Error() string { return e.Path + ": " + e.Reason }
 // Inputs may refer to the canonical ingredient/component namespace supplied by the
 // caller; outputs must be unique within a method and dependencies must point back.
 func ValidateMethod(m Method, available map[string]bool) error {
+	if m.PreparationMode != "" && m.PreparationMode != "cooking" && m.PreparationMode != "assembly" && m.PreparationMode != "ready_to_eat" {
+		return GraphError{"preparation_mode", "must be cooking, assembly, or ready_to_eat"}
+	}
+	for path, values := range map[string][]string{
+		"required_appliances":       m.RequiredAppliances,
+		"required_cookware":         m.RequiredCookware,
+		"required_tools":            m.RequiredTools,
+		"required_device_functions": m.RequiredDeviceFunctions,
+	} {
+		seenRequirements := map[string]bool{}
+		for _, value := range values {
+			if value == "" {
+				return GraphError{path, "must contain explicit non-empty IDs"}
+			}
+			if seenRequirements[value] {
+				return GraphError{path, "contains a duplicate ID"}
+			}
+			seenRequirements[value] = true
+		}
+	}
 	seen := map[string]bool{}
 	produced := map[string]bool{}
 	for i, step := range m.Steps {

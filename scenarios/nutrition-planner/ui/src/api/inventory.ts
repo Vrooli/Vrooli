@@ -4,11 +4,12 @@ import { transport } from "./client";
 
 const client = createClient(InventoryService, transport);
 
-export type InventoryEvent = { id: string; workspaceId: string; kind: string; itemId: string; batchId: string; amount: string; unit: string; recipeId: string; createdAt: string };
+export type InventoryAmountMode = "exact" | "estimated" | "qualitative" | "out" | "unknown";
+export type InventoryEvent = { id: string; lotId: string; workspaceId: string; kind: string; itemId: string; batchId: string; amount: string; amountMode: InventoryAmountMode; expression: string; storage: string; bestBeforeDate: string; useSoon: boolean; unit: string; recipeId: string; createdAt: string };
 export type InventoryBatch = { id: string; recipeId: string; recipeRevision: bigint; yieldAmount: string; availableAmount: string; unit: string };
 
-function mapEvent(event: { id: string; workspaceId: string; kind: string; itemId: string; batchId: string; amount: string; unit: string; recipeId: string; createdAt: string }): InventoryEvent {
-  return { id: event.id, workspaceId: event.workspaceId, kind: event.kind, itemId: event.itemId, batchId: event.batchId, amount: event.amount, unit: event.unit, recipeId: event.recipeId, createdAt: event.createdAt };
+function mapEvent(event: { id: string; lotId?: string; workspaceId: string; kind: string; itemId: string; batchId: string; amount: string; amountMode?: string; expression?: string; storage?: string; bestBeforeDate?: string; useSoon?: boolean; unit: string; recipeId: string; createdAt: string }): InventoryEvent {
+  return { id: event.id, lotId: event.lotId || event.id, workspaceId: event.workspaceId, kind: event.kind, itemId: event.itemId, batchId: event.batchId, amount: event.amount, amountMode: (event.amountMode || "exact") as InventoryAmountMode, expression: event.expression || "", storage: event.storage || "", bestBeforeDate: event.bestBeforeDate || "", useSoon: event.useSoon ?? false, unit: event.unit, recipeId: event.recipeId, createdAt: event.createdAt };
 }
 
 export async function listInventoryEvents(workspaceId: string): Promise<InventoryEvent[]> {
@@ -27,8 +28,8 @@ export async function correctInventoryBatchYield(input: { workspaceId: string; e
   return { id: response.batch.id, recipeId: response.batch.recipeId, recipeRevision: response.batch.recipeRevision, yieldAmount: response.batch.yieldAmount, availableAmount: response.batch.availableAmount, unit: response.batch.unit };
 }
 
-export async function recordInventoryEvent(input: { workspaceId: string; id: string; kind: string; itemId: string; amount: string; unit: string }): Promise<InventoryEvent> {
-  const response = await client.recordEvent({ ...input, batchId: "", recipeId: "", createdAt: new Date().toISOString() });
+export async function recordInventoryEvent(input: { workspaceId: string; id: string; lotId?: string; kind: string; itemId: string; amount: string; amountMode?: InventoryAmountMode; expression?: string; storage?: string; bestBeforeDate?: string; useSoon?: boolean; unit: string }): Promise<InventoryEvent> {
+  const response = await client.recordEvent({ ...input, lotId: input.lotId ?? input.id, amountMode: input.amountMode ?? "exact", expression: input.expression ?? "", storage: input.storage ?? "pantry", bestBeforeDate: input.bestBeforeDate ?? "", useSoon: input.useSoon ?? false, batchId: "", recipeId: "", createdAt: new Date().toISOString() });
   if (!response.event) throw new Error("The API returned no inventory event.");
   return mapEvent(response.event);
 }

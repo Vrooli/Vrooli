@@ -24,15 +24,32 @@ const (
 )
 
 type Event struct {
-	ID        string
-	Kind      EventKind
-	ItemID    string
-	BatchID   string
-	Amount    decimalx.Decimal
-	Unit      string
-	RecipeID  string
-	CreatedAt time.Time
+	ID             string
+	LotID          string
+	Kind           EventKind
+	ItemID         string
+	BatchID        string
+	Amount         decimalx.Decimal
+	AmountMode     AmountMode
+	Expression     string
+	Storage        string
+	BestBeforeDate string
+	UseSoon        bool
+	Unit           string
+	RecipeID       string
+	CreatedAt      time.Time
 }
+
+// AmountMode preserves whether recorded stock is numeric or qualitative.
+type AmountMode string
+
+const (
+	AmountExact       AmountMode = "exact"
+	AmountEstimated   AmountMode = "estimated"
+	AmountQualitative AmountMode = "qualitative"
+	AmountOut         AmountMode = "out"
+	AmountUnknown     AmountMode = "unknown"
+)
 
 type ReceiptProposalStatus string
 
@@ -100,12 +117,47 @@ func NewState() State {
 // Apply is idempotent by event ID. Reusing an ID with different content is a
 // conflict, because silently applying the second payload would corrupt stock.
 func Apply(state State, event Event) (State, error) {
-	if event.ID == "" || event.Amount.IsUnknown() || event.Amount.IsZero() || event.Unit == "" {
+	if event.Storage != "" && event.Storage != "fridge" && event.Storage != "freezer" && event.Storage != "pantry" {
+		return state, errors.New("unsupported inventory storage")
+	}
+	if event.BestBeforeDate != "" {
+		parsed, err := time.Parse("2006-01-02", event.BestBeforeDate)
+		if err != nil || parsed.Format("2006-01-02") != event.BestBeforeDate {
+			return state, errors.New("best-before date must be YYYY-MM-DD")
+		}
+	}
+	if event.AmountMode == "" {
+		event.AmountMode = AmountExact
+	}
+	if event.ID == "" {
+		return state, errors.New("inventory event requires id")
+	}
+	if event.AmountMode == AmountQualitative || event.AmountMode == AmountOut || event.AmountMode == AmountUnknown {
+		if event.Kind != Assertion {
+			return state, errors.New("non-numeric amount modes are only valid for stock assertions")
+		}
+		if event.ItemID == "" {
+			return state, errors.New("stock assertion requires item")
+		}
+		if event.AmountMode == AmountQualitative && event.Expression == "" {
+			return state, errors.New("qualitative amount requires its original expression")
+		}
+		if !event.Amount.IsUnknown() {
+			return state, errors.New("non-numeric amount cannot carry a numeric quantity")
+		}
+		next := clone(state)
+		next.Events = append(next.Events, event)
+		return next, nil
+	}
+	if event.Amount.IsUnknown() || event.Amount.IsZero() || event.Unit == "" {
 		return state, errors.New("inventory event requires id, known non-zero amount, and unit")
+	}
+	if event.AmountMode != AmountExact && event.AmountMode != AmountEstimated {
+		return state, fmt.Errorf("unsupported inventory amount mode %q", event.AmountMode)
 	}
 	for _, existing := range state.Events {
 		if existing.ID == event.ID {
-			if existing.Kind != event.Kind || existing.ItemID != event.ItemID || existing.BatchID != event.BatchID || existing.Amount.String() != event.Amount.String() || existing.Unit != event.Unit {
+			if existing.Kind != event.Kind || existing.ItemID != event.ItemID || existing.BatchID != event.BatchID || existing.Amount.String() != event.Amount.String() || modeOrExact(existing.AmountMode) != modeOrExact(event.AmountMode) || existing.Expression != event.Expression || existing.Storage != event.Storage || existing.BestBeforeDate != event.BestBeforeDate || existing.UseSoon != event.UseSoon || existing.LotID != event.LotID || existing.Unit != event.Unit {
 				return state, fmt.Errorf("idempotency key %q reused with different payload", event.ID)
 			}
 			return state, nil

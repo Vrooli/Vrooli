@@ -18,7 +18,7 @@ describe("ExplorePage", () => {
     vi.clearAllMocks();
     Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
     ensureWorkspace.mockResolvedValue({ id: "w1" });
-    exploreRecipes.mockResolvedValue({ planRevision: 4n, profileRevision: 2n, profileConfigured: true, candidates: [{ recipeId: "r1", name: "Lentil soup", recipeRevision: 3n, fitReasons: [{ code: "eligible", rule: "allergies", reference: "recipe.allergens.peanut", message: "Meets your saved food rules and kitchen requirements." }], summary: "Warm and simple." }] });
+    exploreRecipes.mockResolvedValue({ planRevision: 4n, profileRevision: 2n, profileConfigured: true, candidates: [{ recipeId: "r1", name: "Lentil soup", recipeRevision: 3n, fitReasons: [{ code: "method_viable", rule: "Assemble", reference: "recipe.methods.assemble", message: "Meets your saved food rules and kitchen requirements.", methodId: "assemble" }], methodAssessments: [{ methodId: "assemble", methodName: "Assemble", status: "eligible", reasons: [] }], summary: "Warm and simple." }] });
     getPlan.mockResolvedValue({ hasPlan: false, draft: { occurrences: [], unresolved: [], inputReferences: ["workspace:w1", "profile:2"], runId: "existing", seed: 0, currentRevision: 4n } });
     applyPlan.mockResolvedValue({ revision: 5n });
   });
@@ -29,11 +29,20 @@ describe("ExplorePage", () => {
     expect(screen.getByRole("img", { name: "Recipe photo unavailable" })).toBeInTheDocument();
     expect(screen.getByText("Planning Thursday dinner")).toBeInTheDocument();
     expect(screen.getByText("Meets your saved food rules and kitchen requirements.")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Preparation methods for Lentil soup" })).toHaveTextContent("Assemble: Viable");
     expect(screen.getByRole("link", { name: "Open recipe" })).toHaveAttribute("href", expect.stringContaining("return=%2Fmeals%2Fexplore%3Fdate%3D2026-10-08%26slot%3Ddinner"));
   });
 
+  it("retains use-soon ingredient and active food-rule context from Kitchen", async () => {
+    renderWithProviders(<ExplorePage />, { routerEntries: ["/meals/explore?ingredients=spinach%2Crice&rules=vegan%2Cpeanut-free"] });
+    expect(await screen.findByRole("heading", { name: "Lentil soup" })).toBeInTheDocument();
+    expect(screen.getByText((_, element) => element?.tagName === "P" && element.textContent === "Use soon ingredients: spinach, rice")).toBeInTheDocument();
+    expect(screen.getByText((_, element) => element?.tagName === "P" && element.textContent === "Active food rules: vegan, peanut-free")).toBeInTheDocument();
+    expect(screen.getByText(/Ingredient context is a reminder; stock amounts and meal matches are not inferred/)).toBeInTheDocument();
+  });
+
   it("does not claim fit when setup has not been applied", async () => {
-    exploreRecipes.mockResolvedValue({ planRevision: 0n, profileRevision: 0n, profileConfigured: false, candidates: [{ recipeId: "r1", name: "Saved soup", recipeRevision: 1n, fitReasons: [{ code: "setup_unconfigured", rule: "setup", reference: "workspace.profile", message: "No setup rules are saved yet; this result is checked only against declared recipe evidence." }], summary: "" }] });
+    exploreRecipes.mockResolvedValue({ planRevision: 0n, profileRevision: 0n, profileConfigured: false, candidates: [{ recipeId: "r1", name: "Saved soup", recipeRevision: 1n, fitReasons: [{ code: "setup_unconfigured", rule: "setup", reference: "workspace.profile", message: "No setup rules are saved yet; this result is checked only against declared recipe evidence.", methodId: "" }], methodAssessments: [{ methodId: "ready", methodName: "Ready to eat", status: "eligible", reasons: [] }], summary: "" }] });
     renderWithProviders(<ExplorePage />);
     expect(await screen.findByText(/Setup is not applied yet/)).toBeInTheDocument();
     expect(screen.getByText(/checked only against declared recipe evidence/)).toBeInTheDocument();

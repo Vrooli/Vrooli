@@ -49,10 +49,25 @@ func (h *connectHandler) Evaluate(ctx context.Context, req *connect.Request[v1.E
 	for key, value := range req.Msg.AllergenEvidence {
 		evidence[key] = internal.EvidenceState(value)
 	}
-	decision := internal.Evaluate(internal.Profile{Revision: req.Msg.ProfileRevision, ExcludedGroups: req.Msg.ExcludedGroups, Allergies: req.Msg.Allergies, Appliances: req.Msg.Appliances}, internal.Candidate{Revision: req.Msg.RecipeRevision, Groups: req.Msg.RecipeGroups, RequiredAppliances: req.Msg.RequiredAppliances, AllergenEvidence: evidence, MethodIDs: req.Msg.MethodIds})
+	methods := make([]internal.Method, 0, len(req.Msg.Methods))
+	for _, method := range req.Msg.Methods {
+		if method == nil {
+			continue
+		}
+		methods = append(methods, internal.Method{ID: method.Id, Name: method.Name, PreparationMode: method.PreparationMode, RequiredAppliances: method.RequiredAppliances, RequiredCookware: method.RequiredCookware, RequiredTools: method.RequiredTools, RequiredDeviceFunctions: method.RequiredDeviceFunctions})
+	}
+	decision := internal.Evaluate(internal.Profile{Revision: req.Msg.ProfileRevision, ExcludedGroups: req.Msg.ExcludedGroups, Allergies: req.Msg.Allergies, Appliances: req.Msg.Appliances, Cookware: req.Msg.Cookware, Tools: req.Msg.Tools, DeviceFunctions: req.Msg.DeviceFunctions}, internal.Candidate{Revision: req.Msg.RecipeRevision, Groups: req.Msg.RecipeGroups, AllergenEvidence: evidence, Methods: methods})
 	reasons := make([]*v1.EligibilityReason, 0, len(decision.Reasons))
 	for _, reason := range decision.Reasons {
-		reasons = append(reasons, &v1.EligibilityReason{Code: reason.Code, Rule: reason.Rule, Reference: reason.Reference, Message: reason.Message, ViableMethodIds: reason.ViableMethodIDs})
+		reasons = append(reasons, &v1.EligibilityReason{Code: reason.Code, Rule: reason.Rule, Reference: reason.Reference, Message: reason.Message, ViableMethodIds: reason.ViableMethodIDs, MethodId: reason.MethodID})
 	}
-	return connect.NewResponse(&v1.EvaluateResponse{Status: string(decision.Status), Reasons: reasons, ProfileRevision: decision.ProfileRevision, RecipeRevision: decision.RecipeRevision, EvaluatorVersion: decision.EvaluatorVersion}), nil
+	assessments := make([]*v1.EligibilityMethodAssessment, 0, len(decision.Methods))
+	for _, method := range decision.Methods {
+		methodReasons := make([]*v1.EligibilityReason, 0, len(method.Reasons))
+		for _, reason := range method.Reasons {
+			methodReasons = append(methodReasons, &v1.EligibilityReason{Code: reason.Code, Rule: reason.Rule, Reference: reason.Reference, Message: reason.Message, MethodId: reason.MethodID})
+		}
+		assessments = append(assessments, &v1.EligibilityMethodAssessment{MethodId: method.MethodID, MethodName: method.MethodName, Status: string(method.Status), Reasons: methodReasons})
+	}
+	return connect.NewResponse(&v1.EvaluateResponse{Status: string(decision.Status), Reasons: reasons, ProfileRevision: decision.ProfileRevision, RecipeRevision: decision.RecipeRevision, EvaluatorVersion: decision.EvaluatorVersion, MethodAssessments: assessments, ViableMethodIds: decision.ViableMethodIDs}), nil
 }

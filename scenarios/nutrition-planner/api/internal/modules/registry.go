@@ -73,7 +73,7 @@ const NativeSchemaVersion = 1
 
 // InitializeDatabase is the single native bootstrap path used by API startup
 // and populated-predecessor tests. The version receipt is committed only
-// after every schema, data migration and declared-column check succeeds.
+// after every schema, data migration and declared-column reconciliation succeeds.
 func InitializeDatabase(ctx context.Context, db *sql.DB) error {
 	if err := apidb.ApplySchemas(ctx, db, AllSchemas()...); err != nil {
 		return fmt.Errorf("apply native schemas: %w", err)
@@ -81,8 +81,8 @@ func InitializeDatabase(ctx context.Context, db *sql.DB) error {
 	if err := internalPlanning.MigrateLegacyPlans(ctx, db); err != nil {
 		return fmt.Errorf("migrate legacy plans: %w", err)
 	}
-	if err := apidb.VerifyDeclaredColumns(ctx, db, AllSchemas()...); err != nil {
-		return fmt.Errorf("verify native schemas: %w", err)
+	if err := apidb.ReconcileDeclaredColumns(ctx, db, AllSchemas()...); err != nil {
+		return fmt.Errorf("reconcile native schemas: %w", err)
 	}
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {

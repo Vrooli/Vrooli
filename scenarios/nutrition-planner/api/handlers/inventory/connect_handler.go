@@ -112,18 +112,31 @@ func (h *connectHandler) RecordEvent(ctx context.Context, req *connect.Request[v
 	if err := h.scope(ctx, req.Msg.WorkspaceId); err != nil {
 		return nil, err
 	}
-	amount, err := decimalx.Parse(req.Msg.Amount)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	mode := internal.AmountMode(req.Msg.AmountMode)
+	if mode == "" {
+		mode = internal.AmountExact
+	}
+	amount := decimalx.Unknown
+	if mode == internal.AmountExact || mode == internal.AmountEstimated {
+		var err error
+		amount, err = decimalx.Parse(req.Msg.Amount)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		}
 	}
 	created := time.Now().UTC()
 	if req.Msg.CreatedAt != "" {
-		created, err = time.Parse(time.RFC3339Nano, req.Msg.CreatedAt)
+		parsed, err := time.Parse(time.RFC3339Nano, req.Msg.CreatedAt)
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("created_at must be RFC3339"))
 		}
+		created = parsed
 	}
-	event := internal.Event{ID: req.Msg.Id, Kind: internal.EventKind(req.Msg.Kind), ItemID: req.Msg.ItemId, BatchID: req.Msg.BatchId, Amount: amount, Unit: req.Msg.Unit, RecipeID: req.Msg.RecipeId, CreatedAt: created}
+	lotID := req.Msg.LotId
+	if lotID == "" && req.Msg.Kind == string(internal.Assertion) {
+		lotID = req.Msg.Id
+	}
+	event := internal.Event{ID: req.Msg.Id, LotID: lotID, Kind: internal.EventKind(req.Msg.Kind), ItemID: req.Msg.ItemId, BatchID: req.Msg.BatchId, Amount: amount, AmountMode: mode, Expression: req.Msg.Expression, Storage: req.Msg.Storage, BestBeforeDate: req.Msg.BestBeforeDate, UseSoon: req.Msg.UseSoon, Unit: req.Msg.Unit, RecipeID: req.Msg.RecipeId, CreatedAt: created}
 	if err := h.repo.Append(ctx, req.Msg.WorkspaceId, event); err != nil {
 		return nil, connect.NewError(connect.CodeAborted, err)
 	}
@@ -242,7 +255,11 @@ func batchProto(batch internal.Batch) *v1.Batch {
 }
 
 func toProto(workspaceID string, v internal.Event) *v1.InventoryEvent {
-	return &v1.InventoryEvent{Id: v.ID, WorkspaceId: workspaceID, Kind: string(v.Kind), ItemId: v.ItemID, BatchId: v.BatchID, Amount: v.Amount.String(), Unit: v.Unit, RecipeId: v.RecipeID, CreatedAt: v.CreatedAt.UTC().Format(time.RFC3339Nano)}
+	mode := v.AmountMode
+	if mode == "" {
+		mode = internal.AmountExact
+	}
+	return &v1.InventoryEvent{Id: v.ID, WorkspaceId: workspaceID, Kind: string(v.Kind), ItemId: v.ItemID, BatchId: v.BatchID, Amount: v.Amount.String(), Unit: v.Unit, RecipeId: v.RecipeID, CreatedAt: v.CreatedAt.UTC().Format(time.RFC3339Nano), AmountMode: string(mode), Expression: v.Expression, Storage: v.Storage, BestBeforeDate: v.BestBeforeDate, UseSoon: v.UseSoon, LotId: v.LotID}
 }
 
 func receiptProposalProto(workspaceID string, v internal.ReceiptProposal) *v1.ReceiptProposal {

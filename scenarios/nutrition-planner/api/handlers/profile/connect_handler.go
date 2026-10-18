@@ -83,7 +83,17 @@ func (h *connectHandler) ApplyProfile(ctx context.Context, q *connect.Request[v1
 	if e != nil {
 		return nil, e
 	}
-	p, e := h.s.Apply(ctx, internal.ApplyInput{WorkspaceID: id, Preset: q.Msg.Preset, ExcludedGroups: q.Msg.ExcludedGroups, Allergies: q.Msg.Allergies, Appliances: q.Msg.Appliances, CostWeight: q.Msg.CostWeight, EffortWeight: q.Msg.EffortWeight, VarietyWeight: q.Msg.VarietyWeight})
+	devices := []internal.KitchenDevice(nil)
+	if q.Msg.ReplaceKitchenDevices {
+		devices = make([]internal.KitchenDevice, 0, len(q.Msg.KitchenDevices))
+		for _, device := range q.Msg.KitchenDevices {
+			if device == nil || device.Id == "" || device.Type == "" || device.Count < 1 || device.Capacity == "" {
+				return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("each kitchen device needs an identity, type, positive count, and capacity"))
+			}
+			devices = append(devices, internal.KitchenDevice{ID: device.Id, Type: device.Type, Count: device.Count, Capacity: device.Capacity, Capabilities: device.Capabilities})
+		}
+	}
+	p, e := h.s.Apply(ctx, internal.ApplyInput{WorkspaceID: id, Preset: q.Msg.Preset, ExcludedGroups: q.Msg.ExcludedGroups, Allergies: q.Msg.Allergies, Appliances: q.Msg.Appliances, Cookware: q.Msg.Cookware, Tools: q.Msg.Tools, KitchenDevices: devices, CostWeight: q.Msg.CostWeight, EffortWeight: q.Msg.EffortWeight, VarietyWeight: q.Msg.VarietyWeight})
 	if e != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, e)
 	}
@@ -96,7 +106,7 @@ func (h *connectHandler) ApplyProfile(ctx context.Context, q *connect.Request[v1
 			return nil, connect.NewError(connect.CodeInternal, listErr)
 		}
 		for _, item := range items {
-			decision := eligibility.Evaluate(eligibility.Profile{Revision: p.Revision, ExcludedGroups: append(append([]string(nil), p.ActiveRules...), p.ExcludedGroups...), Allergies: p.Allergies, Appliances: p.Appliances}, eligibility.Candidate{Revision: item.Revision, Groups: item.Groups, RequiredAppliances: item.RequiredAppliances, AllergenEvidence: mapEvidence(item.AllergenEvidence), MethodIDs: methodIDs(item.Methods)})
+			decision := eligibility.Evaluate(eligibilityProfile(p), eligibility.Candidate{Revision: item.Revision, Groups: item.Groups, AllergenEvidence: mapEvidence(item.AllergenEvidence), Methods: eligibilityMethods(item.Methods)})
 			switch decision.Status {
 			case eligibility.Eligible:
 				matching++
@@ -110,10 +120,18 @@ func (h *connectHandler) ApplyProfile(ctx context.Context, q *connect.Request[v1
 	return connect.NewResponse(&v1.ApplyProfileResponse{Profile: toProto(p), MatchingMeals: matching, NeedsReviewMeals: needsReview, ExcludedMeals: excluded}), nil
 }
 
-func methodIDs(methods []recipe.Method) []string {
-	out := make([]string, 0, len(methods))
+func eligibilityProfile(p internal.Profile) eligibility.Profile {
+	functions := make([]string, 0)
+	for _, device := range p.KitchenDevices {
+		functions = append(functions, device.Capabilities...)
+	}
+	return eligibility.Profile{Revision: p.Revision, ExcludedGroups: append(append([]string(nil), p.ActiveRules...), p.ExcludedGroups...), Allergies: p.Allergies, Appliances: p.Appliances, Cookware: p.Cookware, Tools: p.Tools, DeviceFunctions: functions}
+}
+
+func eligibilityMethods(methods []recipe.Method) []eligibility.Method {
+	out := make([]eligibility.Method, 0, len(methods))
 	for _, method := range methods {
-		out = append(out, method.ID)
+		out = append(out, eligibility.Method{ID: method.ID, Name: method.Name, PreparationMode: method.PreparationMode, RequiredAppliances: method.RequiredAppliances, RequiredCookware: method.RequiredCookware, RequiredTools: method.RequiredTools, RequiredDeviceFunctions: method.RequiredDeviceFunctions})
 	}
 	return out
 }
@@ -127,5 +145,9 @@ func mapEvidence(in map[string]string) map[string]eligibility.EvidenceState {
 }
 
 func toProto(p internal.Profile) *v1.Profile {
-	return &v1.Profile{WorkspaceId: p.WorkspaceID, Revision: p.Revision, Preset: p.Preset, PresetVersion: p.PresetVersion, ActiveRules: p.ActiveRules, ExcludedGroups: p.ExcludedGroups, Allergies: p.Allergies, Appliances: p.Appliances, CostWeight: p.CostWeight, EffortWeight: p.EffortWeight, VarietyWeight: p.VarietyWeight, DraftJson: p.DraftJSON}
+	devices := make([]*v1.KitchenDevice, 0, len(p.KitchenDevices))
+	for _, device := range p.KitchenDevices {
+		devices = append(devices, &v1.KitchenDevice{Id: device.ID, Type: device.Type, Count: device.Count, Capacity: device.Capacity, Capabilities: device.Capabilities})
+	}
+	return &v1.Profile{WorkspaceId: p.WorkspaceID, Revision: p.Revision, Preset: p.Preset, PresetVersion: p.PresetVersion, ActiveRules: p.ActiveRules, ExcludedGroups: p.ExcludedGroups, Allergies: p.Allergies, Appliances: p.Appliances, Cookware: p.Cookware, Tools: p.Tools, KitchenDevices: devices, CostWeight: p.CostWeight, EffortWeight: p.EffortWeight, VarietyWeight: p.VarietyWeight, DraftJson: p.DraftJSON}
 }

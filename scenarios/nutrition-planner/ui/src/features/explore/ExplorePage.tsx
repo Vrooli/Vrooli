@@ -38,6 +38,8 @@ export function ExplorePage() {
   const replacing = searchParams.has("occurrenceId") || Boolean(searchParams.get("replace"));
   const hasExpectedTarget = searchParams.has("expectedRecipeId");
   const expectedRecipeId = searchParams.get("expectedRecipeId") ?? "";
+  const ingredientContext = (searchParams.get("ingredients") ?? "").split(",").map((value) => value.trim()).filter(Boolean);
+  const activeRuleContext = (searchParams.get("rules") ?? "").split(",").map((value) => value.trim()).filter(Boolean);
   const returnTo = `/meals/explore${location.search}`;
   const dayLabel = date ? new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { weekday: "long" }) : "";
   const slotLabel = date && slot ? `${dayLabel} ${slot}` : slot;
@@ -154,8 +156,12 @@ export function ExplorePage() {
     <nav className="explore-tabs" aria-label="Meals sections"><Link to="/meals">Your meals</Link><span aria-current="page">Explore</span></nav>
     <section aria-label="Planning context" className="explore-context">
       <p><span aria-hidden="true">ⓘ</span><strong>{contextLabel}</strong></p>
+      {ingredientContext.length > 0 && <p><strong>Use soon ingredients:</strong> {ingredientContext.join(", ")}</p>}
+      {activeRuleContext.length > 0 && <p><strong>Active food rules:</strong> {activeRuleContext.join(", ")}</p>}
+      {ingredientContext.length > 0 && <span>Saved meals are still checked against your active food rules. Ingredient context is a reminder; stock amounts and meal matches are not inferred.</span>}
       {date && slot && <span>{replacing ? "Choose a meal to review as a replacement. Your plan will not change until you preview and confirm." : "Choose a saved meal for this open slot. The plan is checked again before anything is added."}</span>}
       {(date || slot) && <Link to="/meals/explore">Browse without this slot context</Link>}
+      {ingredientContext.length > 0 && <Link to="/meals/explore">Browse without ingredient context</Link>}
     </section>
     {state === "loading" && <div role="status" className="explore-loading"><span>Checking saved meals against your setup…</span><div aria-hidden="true"><i /><i /><i /></div></div>}
     {(state === "error" || state === "offline") && <div className={`explore-state ${state === "offline" ? "is-warning" : "is-error"}`}><p role="alert">{error}</p><button type="button" onClick={() => window.location.reload()}>Try again</button></div>}
@@ -174,7 +180,7 @@ export function ExplorePage() {
         : filtered.length === 0 ? <div role="status" className="explore-state"><p>No eligible saved meals match “{query}”.</p><button type="button" onClick={() => setQuery("")}>Clear search</button></div>
           : <ul className="explore-grid">{filtered.map((recipe) => <li key={`${recipe.recipeId}:${recipe.recipeRevision}`} className="explore-card">
             <MealMediaFrame className="explore-card-art" recipeId={recipe.recipeId} recipeRevision={Number(recipe.recipeRevision)} appearance={resolved === "dark" ? "evening" : "light"} label={recipe.name} fallbackText="Recipe photo unavailable" detail={`Saved recipe · revision ${recipe.recipeRevision.toString()}`} />
-            <div className="explore-card-copy"><p className="explore-card-eyebrow">Saved to Your meals · private revision {recipe.recipeRevision.toString()}</p><h2>{recipe.name}</h2><p className="explore-card-summary">{recipe.summary || "No recipe notes saved."}</p><ul aria-label={`Why ${recipe.name} fits`}>{recipe.fitReasons.map((reason) => <li key={`${reason.code}:${reason.rule}:${reason.reference}`}>{reason.message}</li>)}</ul></div>
+            <div className="explore-card-copy"><p className="explore-card-eyebrow">Saved to Your meals · private revision {recipe.recipeRevision.toString()}</p><h2>{recipe.name}</h2><p className="explore-card-summary">{recipe.summary || "No recipe notes saved."}</p><ul aria-label={`Why ${recipe.name} fits`}>{recipe.fitReasons.map((reason) => <li key={`${reason.code}:${reason.rule}:${reason.reference}:${reason.methodId}`}>{reason.message}</li>)}</ul><section aria-label={`Preparation methods for ${recipe.name}`}><h3>Preparation methods</h3><ul>{recipe.methodAssessments.map((method) => <li key={method.methodId}><strong>{method.methodName || method.methodId}</strong>: {method.status === "eligible" ? "Viable" : method.status === "needs_information" ? "Needs information" : "Not viable"}{method.reasons.length > 0 && <ul>{method.reasons.map((reason, index) => <li key={`${reason.code}:${reason.reference}:${index}`}>{reason.message}</li>)}</ul>}</li>)}</ul></section></div>
             {date && slot && !replacing ? <button type="button" className="explore-primary-action" disabled={Boolean(savingRecipe) || Boolean(swapReview) || Boolean(staleContext)} onClick={() => void addToOpenSlot(recipe)}>{savingRecipe === recipe.recipeId ? "Adding…" : `＋ Add to ${slotLabel}`}</button>
               : date && slot ? <button type="button" className="explore-primary-action" disabled={Boolean(savingRecipe) || Boolean(swapReview) || Boolean(staleContext)} onClick={() => void prepareReplacement(recipe)}>{savingRecipe === recipe.recipeId ? "Preparing preview…" : `Preview replacing ${slotLabel}`}</button>
                 : <Link className="explore-primary-action" to={`/recipes/${encodeURIComponent(recipe.recipeId)}/revisions/${recipe.recipeRevision.toString()}?return=${encodeURIComponent(returnTo)}`}>Open recipe</Link>}

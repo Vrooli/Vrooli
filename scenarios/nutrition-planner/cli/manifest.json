@@ -11,7 +11,7 @@
           "name": "list",
           "description": "List workspaces owned by the authenticated actor.",
           "binding": {"kind": "connect-rpc", "service": "WorkspaceService", "method": "ListWorkspaces"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["nutrition:read"]}
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
         }
       ]
     },
@@ -24,7 +24,7 @@
           "description": "List recipes in a workspace.",
           "flags": [{"name": "workspace-id", "required": true, "description": "Workspace id"}],
           "binding": {"kind": "connect-rpc", "service": "RecipeService", "method": "ListRecipes"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["nutrition:read"]},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
           "architecture": {"primitive": "proto_list"}
         },
         {
@@ -37,7 +37,7 @@
             {"name": "source-url", "description": "Optional source URL"}
           ],
           "binding": {"kind": "connect-rpc", "service": "RecipeService", "method": "CreateRecipe"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["nutrition:write"]},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]},
           "architecture": {"primitive": "proto_mutation"}
         }
       ]

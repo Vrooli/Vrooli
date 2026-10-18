@@ -432,6 +432,18 @@ h1, h2, h3 { font-family:var(--font-display); font-weight:500; letter-spacing:-.
 .kitchen-equipment-icon { position:absolute; top:10px; right:12px; color:var(--color-primary); font-size:19px; }
 .kitchen-equipment-tiles strong { padding-right:20px; font-size:15px; }
 .kitchen-equipment-tiles small { color:var(--color-muted-foreground); font-size:11px; }
+.kitchen-device-details { margin-top:24px; padding-top:20px; border-top:1px solid var(--color-border); }
+.kitchen-device-list { display:grid; gap:10px; padding:0; list-style:none; }
+.kitchen-device-list li { display:flex; justify-content:space-between; gap:16px; padding:14px; border:1px solid var(--color-border); border-radius:10px; background:var(--color-surface-raised); }
+.kitchen-device-list li > div:first-child { display:grid; gap:4px; }
+.kitchen-device-list span { color:var(--color-muted-foreground); font-size:13px; }
+.kitchen-device-list li > div:last-child { display:flex; align-items:start; gap:8px; }
+.kitchen-device-form { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:16px; }
+.kitchen-device-form > label { display:grid; gap:6px; }
+.kitchen-device-form input:not([type="checkbox"]),.kitchen-device-form select { width:100%; min-height:40px; padding:8px 10px; border:1px solid var(--color-border); border-radius:8px; background:var(--color-surface); color:var(--color-foreground); }
+.kitchen-device-form fieldset { grid-column:1/-1; display:flex; flex-wrap:wrap; gap:12px; border:1px solid var(--color-border); border-radius:8px; }
+.kitchen-device-form fieldset label { display:flex; align-items:center; gap:6px; }
+.kitchen-device-form button { justify-self:start; }
 .kitchen-category-empty { padding:24px 0; }
 .kitchen-category-empty h3 { margin:0; font:500 22px/1.15 var(--font-display); }
 .kitchen-category-empty a { display:inline-block; margin-top:10px; }
@@ -478,6 +490,8 @@ h1, h2, h3 { font-family:var(--font-display); font-weight:500; letter-spacing:-.
   .kitchen-heading > a { align-self:end; font-size:14px; }
   .kitchen-layout { grid-template-columns:minmax(0,1fr); gap:12px; }
   .kitchen-equipment-layout { grid-template-columns:minmax(0,1fr); gap:12px; }
+  .kitchen-device-form { grid-template-columns:minmax(0,1fr); }
+  .kitchen-device-list li { flex-direction:column; }
   .kitchen-scene-fallback { min-height:190px; }
   .kitchen-preference-groups { grid-template-columns:minmax(0,1fr); }
   .kitchen-card { padding:18px; }

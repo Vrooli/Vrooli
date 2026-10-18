@@ -174,7 +174,7 @@ func fromProtoMethods(methods []*v1.RecipeMethod) []internal.Method {
 		if method == nil {
 			continue
 		}
-		m := internal.Method{ID: method.Id, Name: method.Name, Steps: make([]internal.MethodStep, 0, len(method.Steps))}
+		m := internal.Method{ID: method.Id, Name: method.Name, PreparationMode: method.PreparationMode, RequiredAppliances: method.RequiredAppliances, RequiredCookware: method.RequiredCookware, RequiredTools: method.RequiredTools, RequiredDeviceFunctions: method.RequiredDeviceFunctions, Steps: make([]internal.MethodStep, 0, len(method.Steps))}
 		for _, step := range method.Steps {
 			if step != nil {
 				m.Steps = append(m.Steps, internal.MethodStep{ID: step.Id, Instruction: step.Instruction, DependsOn: step.DependsOn, Inputs: step.Inputs, Outputs: step.Outputs, Equipment: step.Equipment, Settings: step.Settings})
@@ -188,7 +188,7 @@ func fromProtoMethods(methods []*v1.RecipeMethod) []internal.Method {
 func toProtoMethods(methods []internal.Method) []*v1.RecipeMethod {
 	out := make([]*v1.RecipeMethod, 0, len(methods))
 	for _, method := range methods {
-		m := &v1.RecipeMethod{Id: method.ID, Name: method.Name, Steps: make([]*v1.RecipeStep, 0, len(method.Steps))}
+		m := &v1.RecipeMethod{Id: method.ID, Name: method.Name, PreparationMode: method.PreparationMode, RequiredAppliances: method.RequiredAppliances, RequiredCookware: method.RequiredCookware, RequiredTools: method.RequiredTools, RequiredDeviceFunctions: method.RequiredDeviceFunctions, Steps: make([]*v1.RecipeStep, 0, len(method.Steps))}
 		for _, step := range method.Steps {
 			m.Steps = append(m.Steps, &v1.RecipeStep{Id: step.ID, Instruction: step.Instruction, DependsOn: step.DependsOn, Inputs: step.Inputs, Outputs: step.Outputs, Equipment: step.Equipment, Settings: step.Settings})
 		}

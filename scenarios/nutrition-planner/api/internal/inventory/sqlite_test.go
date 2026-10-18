@@ -42,6 +42,35 @@ func TestSQLiteInventoryEventsAreWorkspaceScopedAndIdempotent(t *testing.T) {
 	}
 }
 
+func TestSQLiteInventoryPersistsStorageAndFreshnessEvidencePerWorkspace(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err = db.Exec(Schema()); err != nil {
+		t.Fatal(err)
+	}
+	repo := NewSQLiteRepository(db)
+	event := Event{ID: "assert-1", LotID: "lot-spinach", Kind: Assertion, ItemID: "spinach", Amount: decimalx.Unknown, AmountMode: AmountUnknown, Storage: "fridge", BestBeforeDate: "2026-10-11", UseSoon: true, CreatedAt: time.Date(2026, 10, 9, 12, 0, 0, 0, time.UTC)}
+	if err := repo.Append(context.Background(), "w1", event); err != nil {
+		t.Fatal(err)
+	}
+	got, err := repo.List(context.Background(), "w1")
+	if err != nil || len(got) != 1 || got[0].Storage != "fridge" || got[0].BestBeforeDate != "2026-10-11" || !got[0].UseSoon || got[0].LotID != "lot-spinach" {
+		t.Fatalf("workspace evidence=%#v err=%v", got, err)
+	}
+	other, err := repo.List(context.Background(), "w2")
+	if err != nil || len(other) != 0 {
+		t.Fatalf("cross-workspace evidence=%#v err=%v", other, err)
+	}
+	changed := event
+	changed.Storage = "pantry"
+	if err := repo.Append(context.Background(), "w1", changed); err == nil {
+		t.Fatal("expected storage idempotency conflict")
+	}
+}
+
 func TestSQLiteBatchPreparationConsumesRawOnceAndUndoIsIdempotent(t *testing.T) {
 	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
@@ -214,5 +243,62 @@ func TestSQLiteReceiptProposalSeparatesTransactionsAndLines(t *testing.T) {
 	}
 	if a.ID == bp.ID || a.ID == cp.ID || bp.ID == cp.ID {
 		t.Fatalf("expected distinct proposal IDs: %q %q %q", a.ID, bp.ID, cp.ID)
+	}
+}
+
+func TestSQLiteInventoryAssertionRoundTripsModeAndExpression(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err = db.Exec(Schema()); err != nil {
+		t.Fatal(err)
+	}
+	repo := NewSQLiteRepository(db)
+	event := Event{ID: "qual-1", Kind: Assertion, ItemID: "rice", Amount: decimalx.Unknown, AmountMode: AmountQualitative, Expression: "Some left", CreatedAt: time.Now().UTC()}
+	if err := repo.Append(context.Background(), "w1", event); err != nil {
+		t.Fatal(err)
+	}
+	items, err := repo.List(context.Background(), "w1")
+	if err != nil || len(items) != 1 {
+		t.Fatalf("items=%#v err=%v", items, err)
+	}
+	if items[0].AmountMode != AmountQualitative || items[0].Expression != "Some left" || !items[0].Amount.IsUnknown() {
+		t.Fatalf("round trip=%#v", items[0])
+	}
+	changed := event
+	changed.Expression = "A little left"
+	if err := repo.Append(context.Background(), "w1", changed); err == nil {
+		t.Fatal("expected expression idempotency conflict")
+	}
+}
+
+func TestSQLiteInventoryEvidenceColumnsUpgradeLegacyEvents(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	_, err = db.Exec(`CREATE TABLE inventory_events (workspace_id TEXT NOT NULL,event_id TEXT NOT NULL,kind TEXT NOT NULL,item_id TEXT NOT NULL DEFAULT '',batch_id TEXT NOT NULL DEFAULT '',amount TEXT NOT NULL,unit TEXT NOT NULL,recipe_id TEXT NOT NULL DEFAULT '',created_at TEXT NOT NULL,PRIMARY KEY(workspace_id,event_id))`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO inventory_events(workspace_id,event_id,kind,item_id,amount,unit,created_at) VALUES('w1','old-row','purchase','rice','3','bags','2026-10-08T12:00:00Z')`); err != nil {
+		t.Fatal(err)
+	}
+	repo := NewSQLiteRepository(db)
+	if err := repo.Append(context.Background(), "w1", Event{ID: "legacy-safe", LotID: "lot-rice", Kind: Assertion, ItemID: "rice", Amount: decimalx.Unknown, AmountMode: AmountUnknown, Storage: "pantry", BestBeforeDate: "2026-10-11", UseSoon: true, CreatedAt: time.Now().UTC()}); err != nil {
+		t.Fatal(err)
+	}
+	items, err := repo.List(context.Background(), "w1")
+	if err != nil || len(items) != 2 {
+		t.Fatalf("legacy rows=%#v err=%v", items, err)
+	}
+	if items[0].ID != "old-row" || items[0].AmountMode != AmountExact || items[0].Storage != "" || items[0].BestBeforeDate != "" || items[0].UseSoon || items[0].LotID != "" {
+		t.Fatalf("legacy evidence defaults changed: %#v", items[0])
+	}
+	if items[1].ID != "legacy-safe" || items[1].Storage != "pantry" || items[1].BestBeforeDate != "2026-10-11" || !items[1].UseSoon || items[1].LotID != "lot-rice" {
+		t.Fatalf("new evidence after migration=%#v", items[1])
 	}
 }

@@ -75,7 +75,7 @@ func (h *connectHandler) GeneratePlan(ctx context.Context, req *connect.Request[
 	profileRevision := int64(0)
 	if h.profiles != nil {
 		if saved, profileErr := h.profiles.Get(ctx, req.Msg.WorkspaceId); profileErr == nil {
-			active = eligibility.Profile{Revision: saved.Revision, ExcludedGroups: append(append([]string(nil), saved.ActiveRules...), saved.ExcludedGroups...), Allergies: saved.Allergies, Appliances: saved.Appliances}
+			active = eligibilityProfile(saved)
 			profileRevision = saved.Revision
 		} else {
 			var notFound profile.ErrNotFound
@@ -88,7 +88,7 @@ func (h *connectHandler) GeneratePlan(ctx context.Context, req *connect.Request[
 	recipeRevisions := make(map[string]int64, len(items))
 	for _, item := range items {
 		recipeRevisions[item.ID] = item.Revision
-		decision := eligibility.Evaluate(active, eligibility.Candidate{Revision: item.Revision, Groups: item.Groups, RequiredAppliances: item.RequiredAppliances, AllergenEvidence: mapEvidence(item.AllergenEvidence), MethodIDs: methodIDs(item.Methods)})
+		decision := eligibility.Evaluate(active, eligibility.Candidate{Revision: item.Revision, Groups: item.Groups, AllergenEvidence: mapEvidence(item.AllergenEvidence), Methods: eligibilityMethods(item.Methods)})
 		candidates = append(candidates, internal.Candidate{ID: item.ID, Name: item.Name, Eligible: decision.Status == eligibility.Eligible, InputRevision: fmt.Sprint(item.Revision), Cost: 0, Effort: float64(len(item.Methods))})
 	}
 	currentRevision, currentPlan, revisionErr := h.plans.Get(ctx, req.Msg.WorkspaceId)
@@ -170,7 +170,7 @@ func (h *connectHandler) ExploreRecipes(ctx context.Context, req *connect.Reques
 		if saved, profileErr := h.profiles.Get(ctx, req.Msg.WorkspaceId); profileErr == nil {
 			profileConfigured = true
 			profileRevision = saved.Revision
-			profileState = eligibility.Profile{Revision: saved.Revision, ExcludedGroups: append(append([]string(nil), saved.ActiveRules...), saved.ExcludedGroups...), Allergies: saved.Allergies, Appliances: saved.Appliances}
+			profileState = eligibilityProfile(saved)
 		} else {
 			var notFound profile.ErrNotFound
 			if !errors.As(profileErr, &notFound) {
@@ -185,16 +185,16 @@ func (h *connectHandler) ExploreRecipes(ctx context.Context, req *connect.Reques
 	response := &v1.ExploreRecipesResponse{PlanRevision: planRevision, ProfileRevision: profileRevision, ProfileConfigured: profileConfigured, Candidates: make([]*v1.ExploreRecipeCandidate, 0, len(items)), BlockingReasons: make([]*v1.ExploreFitReason, 0), SavedRecipeCount: int32(len(items))}
 	blockingReasonSet := make(map[string]bool)
 	for _, item := range items {
-		candidate := eligibility.Candidate{Revision: item.Revision, Groups: item.Groups, RequiredAppliances: item.RequiredAppliances, AllergenEvidence: mapEvidence(item.AllergenEvidence), MethodIDs: methodIDs(item.Methods)}
+		candidate := eligibility.Candidate{Revision: item.Revision, Groups: item.Groups, AllergenEvidence: mapEvidence(item.AllergenEvidence), Methods: eligibilityMethods(item.Methods)}
 		decision := eligibility.Evaluate(profileState, candidate)
 		if decision.Status != eligibility.Eligible {
 			for _, reason := range decision.Reasons {
-				key := string(reason.Code) + "\x00" + reason.Rule + "\x00" + reason.Reference
+				key := string(reason.Code) + "\x00" + reason.Rule + "\x00" + reason.Reference + "\x00" + reason.MethodID
 				if blockingReasonSet[key] {
 					continue
 				}
 				blockingReasonSet[key] = true
-				response.BlockingReasons = append(response.BlockingReasons, &v1.ExploreFitReason{Code: string(reason.Code), Rule: reason.Rule, Reference: reason.Reference, Message: reason.Message})
+				response.BlockingReasons = append(response.BlockingReasons, &v1.ExploreFitReason{Code: string(reason.Code), Rule: reason.Rule, Reference: reason.Reference, Message: reason.Message, MethodId: reason.MethodID})
 			}
 			continue
 		}
@@ -202,12 +202,12 @@ func (h *connectHandler) ExploreRecipes(ctx context.Context, req *connect.Reques
 		if summary == "" {
 			summary = strings.TrimSpace(item.OriginalText)
 		}
-		response.Candidates = append(response.Candidates, &v1.ExploreRecipeCandidate{RecipeId: item.ID, Name: item.Name, RecipeRevision: item.Revision, FitReasons: exploreFitReasons(profileState, candidate, profileConfigured), Summary: summary})
+		response.Candidates = append(response.Candidates, &v1.ExploreRecipeCandidate{RecipeId: item.ID, Name: item.Name, RecipeRevision: item.Revision, FitReasons: exploreFitReasons(profileState, candidate, profileConfigured, decision), Summary: summary, MethodAssessments: exploreMethodAssessments(decision)})
 	}
 	return connect.NewResponse(response), nil
 }
 
-func exploreFitReasons(profileState eligibility.Profile, candidate eligibility.Candidate, configured bool) []*v1.ExploreFitReason {
+func exploreFitReasons(profileState eligibility.Profile, candidate eligibility.Candidate, configured bool, decision eligibility.Decision) []*v1.ExploreFitReason {
 	if !configured {
 		return []*v1.ExploreFitReason{{Code: "setup_unconfigured", Rule: "setup", Reference: "workspace.profile", Message: "No setup rules are saved yet; this result is checked only against declared recipe evidence."}}
 	}
@@ -220,9 +220,16 @@ func exploreFitReasons(profileState eligibility.Profile, candidate eligibility.C
 			reasons = append(reasons, &v1.ExploreFitReason{Code: "allergen_declared_absent", Rule: allergen, Reference: "recipe.allergens." + allergen, Message: "Recipe evidence declares this allergen absent within its stated scope."})
 		}
 	}
-	for _, appliance := range candidate.RequiredAppliances {
-		if containsString(profileState.Appliances, appliance) {
-			reasons = append(reasons, &v1.ExploreFitReason{Code: "required_appliance_available", Rule: appliance, Reference: "recipe.method.appliances", Message: "Your saved kitchen includes a required appliance."})
+	for _, methodID := range decision.ViableMethodIDs {
+		for _, method := range candidate.Methods {
+			if method.ID == methodID {
+				name := method.Name
+				if name == "" {
+					name = method.ID
+				}
+				reasons = append(reasons, &v1.ExploreFitReason{Code: "method_viable", Rule: name, Reference: "recipe.methods." + method.ID, Message: "This complete preparation method meets the recipe rules and your saved kitchen requirements.", MethodId: method.ID})
+				break
+			}
 		}
 	}
 	if len(reasons) == 0 {
@@ -231,13 +238,39 @@ func exploreFitReasons(profileState eligibility.Profile, candidate eligibility.C
 	return reasons
 }
 
-func containsString(values []string, value string) bool {
-	for _, item := range values {
-		if item == value {
-			return true
+func exploreMethodAssessments(decision eligibility.Decision) []*v1.ExploreMethodAssessment {
+	out := make([]*v1.ExploreMethodAssessment, 0, len(decision.Methods))
+	for _, method := range decision.Methods {
+		reasons := make([]*v1.ExploreFitReason, 0, len(method.Reasons)+1)
+		for _, reason := range method.Reasons {
+			reasons = append(reasons, &v1.ExploreFitReason{Code: reason.Code, Rule: reason.Rule, Reference: reason.Reference, Message: reason.Message, MethodId: method.MethodID})
 		}
+		if method.Status == eligibility.Eligible {
+			name := method.MethodName
+			if name == "" {
+				name = method.MethodID
+			}
+			reasons = append(reasons, &v1.ExploreFitReason{Code: "method_viable", Rule: name, Reference: "recipe.methods." + method.MethodID, Message: "All explicit requirements for this method are available.", MethodId: method.MethodID})
+		}
+		out = append(out, &v1.ExploreMethodAssessment{MethodId: method.MethodID, MethodName: method.MethodName, Status: string(method.Status), Reasons: reasons})
 	}
-	return false
+	return out
+}
+
+func eligibilityProfile(saved profile.Profile) eligibility.Profile {
+	functions := make([]string, 0)
+	for _, device := range saved.KitchenDevices {
+		functions = append(functions, device.Capabilities...)
+	}
+	return eligibility.Profile{Revision: saved.Revision, ExcludedGroups: append(append([]string(nil), saved.ActiveRules...), saved.ExcludedGroups...), Allergies: saved.Allergies, Appliances: saved.Appliances, Cookware: saved.Cookware, Tools: saved.Tools, DeviceFunctions: functions}
+}
+
+func eligibilityMethods(methods []recipe.Method) []eligibility.Method {
+	out := make([]eligibility.Method, 0, len(methods))
+	for _, method := range methods {
+		out = append(out, eligibility.Method{ID: method.ID, Name: method.Name, PreparationMode: method.PreparationMode, RequiredAppliances: method.RequiredAppliances, RequiredCookware: method.RequiredCookware, RequiredTools: method.RequiredTools, RequiredDeviceFunctions: method.RequiredDeviceFunctions})
+	}
+	return out
 }
 
 func (h *connectHandler) GetPlan(ctx context.Context, req *connect.Request[v1.GetPlanRequest]) (*connect.Response[v1.GetPlanResponse], error) {
@@ -303,14 +336,6 @@ func containsDate(dates []string, target string) bool {
 		}
 	}
 	return false
-}
-
-func methodIDs(methods []recipe.Method) []string {
-	out := make([]string, 0, len(methods))
-	for _, method := range methods {
-		out = append(out, method.ID)
-	}
-	return out
 }
 
 func mapEvidence(in map[string]string) map[string]eligibility.EvidenceState {
@@ -411,7 +436,7 @@ func (h *connectHandler) PreviewSwap(ctx context.Context, req *connect.Request[v
 	}
 	if h.profiles != nil {
 		if saved, profileErr := h.profiles.Get(ctx, req.Msg.WorkspaceId); profileErr == nil {
-			decision := eligibility.Evaluate(eligibility.Profile{Revision: saved.Revision, ExcludedGroups: append(append([]string(nil), saved.ActiveRules...), saved.ExcludedGroups...), Allergies: saved.Allergies, Appliances: saved.Appliances}, eligibility.Candidate{Revision: replacement.Revision, Groups: replacement.Groups, RequiredAppliances: replacement.RequiredAppliances, AllergenEvidence: mapEvidence(replacement.AllergenEvidence), MethodIDs: methodIDs(replacement.Methods)})
+			decision := eligibility.Evaluate(eligibilityProfile(saved), eligibility.Candidate{Revision: replacement.Revision, Groups: replacement.Groups, AllergenEvidence: mapEvidence(replacement.AllergenEvidence), Methods: eligibilityMethods(replacement.Methods)})
 			if decision.Status != eligibility.Eligible {
 				return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("replacement recipe does not satisfy active rules"))
 			}

@@ -3,12 +3,13 @@ import { PlanningService } from "@vrooli/proto-types/nutrition-planner/v1/planni
 import { transport } from "./client";
 
 const client = createClient(PlanningService, transport);
-export type ExploreFitReason = { code: string; rule: string; reference: string; message: string };
-export type ExploreRecipe = { recipeId: string; name: string; recipeRevision: bigint; fitReasons: ExploreFitReason[]; summary: string };
+export type ExploreFitReason = { code: string; rule: string; reference: string; message: string; methodId: string };
+export type ExploreMethodAssessment = { methodId: string; methodName: string; status: string; reasons: ExploreFitReason[] };
+export type ExploreRecipe = { recipeId: string; name: string; recipeRevision: bigint; fitReasons: ExploreFitReason[]; methodAssessments: ExploreMethodAssessment[]; summary: string };
 export async function exploreRecipes(workspaceId: string): Promise<{ planRevision: bigint; profileRevision: bigint; profileConfigured: boolean; candidates: ExploreRecipe[]; blockingReasons: ExploreFitReason[]; savedRecipeCount: number }> {
   const response = await client.exploreRecipes({ workspaceId });
-  const mapReason = (reason: ExploreFitReason) => ({ code: reason.code, rule: reason.rule, reference: reason.reference, message: reason.message });
-  return { planRevision: response.planRevision, profileRevision: response.profileRevision, profileConfigured: response.profileConfigured, candidates: response.candidates.map((item) => ({ recipeId: item.recipeId, name: item.name, recipeRevision: item.recipeRevision, fitReasons: item.fitReasons.map(mapReason), summary: item.summary })), blockingReasons: response.blockingReasons.map(mapReason), savedRecipeCount: response.savedRecipeCount };
+  const mapReason = (reason: ExploreFitReason) => ({ code: reason.code, rule: reason.rule, reference: reason.reference, message: reason.message, methodId: reason.methodId });
+  return { planRevision: response.planRevision, profileRevision: response.profileRevision, profileConfigured: response.profileConfigured, candidates: response.candidates.map((item) => ({ recipeId: item.recipeId, name: item.name, recipeRevision: item.recipeRevision, fitReasons: item.fitReasons.map(mapReason), methodAssessments: item.methodAssessments.map((method) => ({ methodId: method.methodId, methodName: method.methodName, status: method.status, reasons: method.reasons.map(mapReason) })), summary: item.summary })), blockingReasons: response.blockingReasons.map(mapReason), savedRecipeCount: response.savedRecipeCount };
 }
 export type PlanOccurrence = { date: string; slotName?: string; mode?: string; quantity?: string; recipeId: string; recipeRevision?: number; recipeName: string; reason: string; locked: boolean };
 export type PlanDraft = { occurrences: PlanOccurrence[]; unresolved: { date: string; code: string; message: string }[]; inputReferences: string[]; runId: string; seed: number; currentRevision: bigint };

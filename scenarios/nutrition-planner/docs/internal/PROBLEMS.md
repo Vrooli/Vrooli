@@ -219,3 +219,24 @@ a migration handoff with a planned retirement path back into
 - [`TESTING.md`](TESTING.md) — test patterns
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — generic-template issues
 - [`../reference/product-specification.md`](../reference/product-specification.md) — canonical product/implementation specification
+
+
+## Work ladder — 2026-10-13 startup reconciliation
+
+- Rung: W3, localized startup defect with established expected behavior. Existing populated databases must reach declared additive schema without data loss before API startup records its native schema version.
+- Evidence: extended `TestInitializeDatabaseUpgradesPopulatedPredecessorAndReopensIdempotently` reproduced startup refusal for six inventory evidence columns and three profile equipment columns on a populated predecessor. The failure was in `internal/modules/registry.go`'s read-only `VerifyDeclaredColumns`, before repository-local repairs could run; the earlier Claude report's `database/system.go` path was imprecise.
+- Repair: native bootstrap now calls the existing shared `api-core/database.ReconcileDeclaredColumns` after native plan migration and before recording `PRAGMA user_version`. Domain schema declarations remain the authority; no new migration engine or domain-column list was added. The shared substrate refuses unsafe additions and preserves its read-only verification API.
+- Verified: Proto `make verify-committed-gen` passed. Both native initialization regressions passed; the predecessor test verifies inventory amount, profile revision/appliances/draft, plan and recipe history, declared defaults, repeat initialization and on-disk reopening. Shared additive repair, read-only verification, unaddable-column refusal and constraint-string tests passed (four selected tests plus subcases).
+- Scenario phases: run `20261013-182448-2ab26407` completed at 2026-10-13T18:26:31Z, unit PASS / storage FAIL. Nine storage errors and three warnings remain; full evidence is in `docs/internal/delivery-operations/2026-10-12/sources/execution-evidence/2026-10-13/nooch-unit-storage-findings.json`. No certification or destructive browser workflow is authorized by this failed gate.
+- Remaining: storage qualification, qualified serving adoption, existing-owner acknowledgment and original-consumer startup recovery. Product E30, connected identity, exact-build selected-design/visual and backup–upgrade–restore acceptance remain separate.
+- Tracking: scenario-qa `knw-1791815963552476308`; owner feedback `SUP-FOLLOWUP-20261013`. This is source/test qualification, not whole-product acceptance.
+- Guidance discrepancy: storage-steer §5 still describes EnsureSchemas as incapable of additive column repair; the current shared owner implementation explicitly provides additive reconciliation. This repair reuses that substrate and introduces no schema changes, credentials, destructive operations or one-off product-data migration.
+
+- Storage-validator tracking: `knw-1791916274834471865` (qualified split-bootstrap recognition); original startup defect `knw-1791815963552476308` has source/test repair but no serving closure.
+
+
+### 2026-10-13T23:21:28.406231+00:00 — startup/storage repair qualification update
+
+The earlier unit PASS/storage FAIL is preserved as historical evidence. Shared analyzer defects have now been repaired without modifying the Nooch query code or suppressing safety gates: checked Close initializers and the qualified split bootstrap are recognized. Source package regressions and storage-manager unit run `20261013-231238-5ce819c4` pass; the supported detector restart is healthy; live validation reports zero errors and two startup raw-handle warnings. Nooch storage run `20261013-231714-b3c867ad` passes. Remaining: acknowledge and qualify Nooch's repaired API build through the existing owner, then finish E30/connected/exact-build visual/restore acceptance. Product acceptance and native team continuation are not inferred from this repair.
+
+Final adversarial tightening: return-before-reconciliation and pool rebinding regressions also pass; final storage-manager unit run `20261013-232826-4ca9559f` PASS, final deployed detector build `c878fd39…` healthy and live Nooch validation still has zero errors/two warnings. Summary: `docs/internal/delivery-operations/2026-10-12/sources/execution-evidence/2026-10-13/storage-repair-final-summary.json`.
