@@ -9,6 +9,30 @@ import { createSelectorRegistry, defineDynamicSelector, type LiteralSelectorTree
 export { defineDynamicSelector } from "@vrooli/ui-selectors";
 
 const literalSelectors = {
+  readerPreview: {
+    searchToggle: 'reader-search-toggle',
+    outline: 'reader-outline',
+    readingPane: 'reader-reading-pane',
+    structureTree: 'reader-structure-tree',
+    structureDetail: 'reader-structure-detail',
+  },
+  artifactPreview: {
+    imageStage: 'artifact-image-stage',
+    pdfPages: 'artifact-pdf-pages',
+    videoSeek: 'artifact-video-seek',
+    videoPlay: 'artifact-video-play',
+    tableGrid: 'artifact-table-grid',
+    tableRecords: 'artifact-table-records',
+    tableRecord: 'artifact-table-record',
+  },
+  audioPreview: {
+    player: 'audio-preview-player',
+    waveform: 'audio-preview-waveform',
+    seek: 'audio-preview-seek',
+    play: 'audio-preview-play',
+    repeat: 'audio-preview-repeat',
+    tools: 'audio-preview-tools',
+  },
   workspace: {
     settings: 'toolbar-settings',
     paneGrid: 'pane-grid',

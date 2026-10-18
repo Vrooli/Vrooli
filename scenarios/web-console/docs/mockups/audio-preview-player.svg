@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="680" viewBox="0 0 1100 680">
+<style>text{font-family:system-ui;fill:#cbd5e1;font-size:14px}.title{font-size:19px;fill:#f1f5f9;font-weight:600}.muted{fill:#94a3b8;font-size:12px}.accent{fill:#67e8f9}.line{stroke:#334155;fill:none}.wave{stroke:#67e8f9;stroke-width:3;stroke-linecap:round}</style>
+<rect width="1100" height="680" fill="#0f172a"/>
+<text x="28" y="32" class="title">Audio preview · focused listening, optional inspection</text>
+<g transform="translate(28 58)">
+<rect width="650" height="590" rx="16" fill="#172033"/><text x="24" y="38" class="title">D-full.m4a</text><text x="24" y="64" class="muted">/workspace/music/D-full.m4a</text><path d="M0 86H650" class="line"/>
+<rect x="26" y="112" width="598" height="360" rx="20" fill="#0f172a" stroke="#334155"/>
+<rect x="50" y="136" width="64" height="64" rx="14" fill="#203448"/><text x="72" y="178" class="title">♪</text><text x="132" y="160" class="muted">AUDIO PREVIEW</text><text x="132" y="184" class="title">D-full.m4a</text><text x="132" y="207" class="muted">1:59 · M4A · 2.9 MB</text>
+<path d="M54 261v10m10-17v24m10-34v44m10-52v60m10-44v28m10-42v56m10-72v90m10-66v42m10-51v60m10-38v16m10-26v34m10-58v78m10-51v24m10-12v8m10-35v60m10-72v90m10-58v28m10-21v15m10-46v70m10-88v100m10-66v32m10-38v45m10-54v60m10-39v20m10-32v46m10-58v70m10-48v24m10-18v12m10-42v60m10-80v100m10-62v24m10-18v14m10-35v50m10-60v70m10-46v22m10-20v18m10-42v70m10-58v40m10-29v18m10-25v32m10-42v56m10-33v14m10-18v22m10-28v34m10-40v44m10-27v10m10-18v20m10-23v26m10-29v30m10-20v10m10-12v12m10-14v14m10-12v10" class="wave"/>
+<text x="50" y="335" class="muted">0:42</text><text x="565" y="335" class="muted">1:59</text>
+<text x="74" y="389">↺</text><text x="235" y="389">−10</text><circle cx="325" cy="382" r="28" fill="#67e8f9"/><path d="M320 372l15 10-15 10" fill="#0f172a"/><text x="390" y="389">+10</text><text x="550" y="389">1×</text>
+<path d="M50 429H600" class="line"/><text x="50" y="453" class="muted">Waveform &amp; loop tools  ▾</text>
+<text x="43" y="509">↓ Download</text><text x="474" y="509" class="muted">More actions ▾</text>
+<text x="27" y="551" class="muted">Expanded tools: zoom · time window · set A / set B · loop selection</text>
+</g>
+<g transform="translate(710 58)">
+<rect width="362" height="590" rx="16" fill="#172033"/><text x="16" y="38" class="title">D-full.m4a</text><text x="16" y="64" class="muted">/workspace/music/D-full.m4a</text><path d="M0 86H362" class="line"/>
+<rect x="12" y="102" width="338" height="350" rx="20" fill="#0f172a" stroke="#334155"/>
+<rect x="28" y="120" width="52" height="52" rx="12" fill="#203448"/><text x="44" y="154" class="title">♪</text><text x="94" y="132" class="muted">AUDIO PREVIEW</text><text x="94" y="155" class="title">D-full.m4a</text><text x="94" y="178" class="muted">1:59 · M4A · 2.9 MB</text>
+<path d="M30 233v10m10-25v40m10-56v70m10-48v24m10-34v46m10-58v70m10-46v22m10-38v54m10-72v90m10-54v20m10-24v30m10-36v40m10-26v12m10-26v40m10-58v76m10-50v24m10-30v36m10-54v70m10-46v20m10-14v10m10-32v50m10-66v80m10-46v14m10-20v26m10-34v42m10-25v8m10-16v24m10-28v32m10-24v14m10-12v10m10-10v8" class="wave"/>
+<text x="28" y="298" class="muted">0:42</text><text x="302" y="298" class="muted">1:59</text><text x="36" y="352">↺</text><text x="91" y="352">−10</text><circle cx="181" cy="345" r="28" fill="#67e8f9"/><path d="M176 335l15 10-15 10" fill="#0f172a"/><text x="233" y="352">+10</text><text x="302" y="352">1×</text>
+<path d="M28 398H334" class="line"/><text x="28" y="429" class="muted">Waveform &amp; loop tools  ▾</text><text x="20" y="490">↓ Download</text><text x="213" y="490" class="muted">More actions ▾</text><text x="16" y="545" class="muted">Top aligned · 44px targets · tools on demand</text>
+</g></svg>

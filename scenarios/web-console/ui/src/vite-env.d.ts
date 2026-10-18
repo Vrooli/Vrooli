@@ -3,6 +3,10 @@
 export {};
 
 declare global {
+  interface HTMLVideoElement {
+    /** Native inline-video fullscreen on iPhone Safari. */
+    webkitEnterFullscreen?: () => void;
+  }
   interface Window {
     desktop?: {
       auth?: {

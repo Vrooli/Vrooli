@@ -123,8 +123,9 @@ func (r *Resolver) Resolve(sessionCwd string, cwdErr error, rawPath string) (*Ta
 	}
 
 	type candidate struct {
-		path  string
-		basis string
+		path    string
+		basis   string
+		warning string
 	}
 	candidates := make([]candidate, 0, 3)
 	if filepath.IsAbs(inputPath) {
@@ -134,6 +135,15 @@ func (r *Resolver) Resolve(sessionCwd string, cwdErr error, rawPath string) (*Ta
 			candidates = append(candidates, candidate{path: filepath.Join(sessionCwd, inputPath), basis: "session_cwd"})
 		}
 		candidates = append(candidates, candidate{path: filepath.Join(projectRoot, inputPath), basis: "project_root"})
+	}
+	// Some authored Markdown links substitute full-width slashes throughout an
+	// absolute path. Try recovery only after literal candidates, preserving real
+	// Unicode filenames. Mixed paths and other Unicode characters stay untouched.
+	if strings.HasPrefix(inputPath, "／") && !strings.Contains(inputPath, "/") {
+		candidates = append(candidates, candidate{
+			path: strings.ReplaceAll(inputPath, "／", "/"), basis: "absolute",
+			warning: "Recovered an absolute path whose separators were full-width slashes.",
+		})
 	}
 
 	for _, c := range candidates {
@@ -159,6 +169,10 @@ func (r *Resolver) Resolve(sessionCwd string, cwdErr error, rawPath string) (*Ta
 		// directory read on every resolve. The count arrives with the first
 		// listing page instead, keeping resolve one syscall for every kind.
 		if info.IsDir() {
+			var warnings []string
+			if c.warning != "" {
+				warnings = append(warnings, c.warning)
+			}
 			return &Target{
 				InputPath:        rawPath,
 				ResolvedPath:     resolvedPath,
@@ -172,6 +186,7 @@ func (r *Resolver) Resolve(sessionCwd string, cwdErr error, rawPath string) (*Ta
 				CanDownload:      false, // No archive stream in this version.
 				SupportsRange:    false,
 				ListingAvailable: true,
+				Warnings:         warnings,
 				// A :line suffix on a directory is meaningless; drop it rather
 				// than failing a reference an agent wrote loosely.
 			}, nil
@@ -201,6 +216,9 @@ func (r *Resolver) Resolve(sessionCwd string, cwdErr error, rawPath string) (*Ta
 			CanDownload:          true,
 			SupportsRange:        cl.kind.UsesBlob(),
 			TextContentAvailable: cl.kind.TextContentAvailable(),
+		}
+		if c.warning != "" {
+			target.Warnings = append(target.Warnings, c.warning)
 		}
 		if line != nil {
 			target.Line = *line

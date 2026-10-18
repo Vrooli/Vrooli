@@ -63,6 +63,13 @@ interface MessageRowProps {
   onMermaidOpen: (code: string) => void;
 }
 
+// A row owns its body gestures; nested controls keep native activation, link
+// previews, selection and context menus, including presses on their SVG/text.
+function isRowControl(target: EventTarget | null): boolean {
+  return target instanceof Element
+    && target.closest("a, button, input, textarea, select, summary, [role='button'], [contenteditable='true']") !== null;
+}
+
 function MessageRowImpl({
   actionContext,
   fontSize,
@@ -149,11 +156,17 @@ function MessageRowImpl({
       onBlur={coarsePointer ? undefined : (focusEvent) => {
         if (!focusEvent.currentTarget.contains(focusEvent.relatedTarget as Node | null)) setRevealed(false);
       }}
-      onContextMenu={press?.onContextMenu ?? ((menuEvent) => {
-        menuEvent.preventDefault();
-        onOpenActions(event.id, { x: menuEvent.clientX, y: menuEvent.clientY });
-      })}
-      onPointerDown={press?.onPointerDown}
+      onContextMenu={(menuEvent) => {
+        if (isRowControl(menuEvent.target)) return;
+        if (press) press.onContextMenu(menuEvent);
+        else {
+          menuEvent.preventDefault();
+          onOpenActions(event.id, { x: menuEvent.clientX, y: menuEvent.clientY });
+        }
+      }}
+      onPointerDown={press ? (pointerEvent) => {
+        if (!isRowControl(pointerEvent.target)) press.onPointerDown(pointerEvent);
+      } : undefined}
       onPointerCancel={press?.onPointerCancel}
     >
       {/* The header line is a fixed height, so revealing the actions in it

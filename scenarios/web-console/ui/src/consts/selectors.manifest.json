@@ -1,6 +1,78 @@
 {
   "schemaVersion": 1,
   "selectors": {
+    "readerPreview.searchToggle": {
+      "testId": "reader-search-toggle",
+      "selector": "[data-testid=\"reader-search-toggle\"]"
+    },
+    "readerPreview.outline": {
+      "testId": "reader-outline",
+      "selector": "[data-testid=\"reader-outline\"]"
+    },
+    "readerPreview.readingPane": {
+      "testId": "reader-reading-pane",
+      "selector": "[data-testid=\"reader-reading-pane\"]"
+    },
+    "readerPreview.structureTree": {
+      "testId": "reader-structure-tree",
+      "selector": "[data-testid=\"reader-structure-tree\"]"
+    },
+    "readerPreview.structureDetail": {
+      "testId": "reader-structure-detail",
+      "selector": "[data-testid=\"reader-structure-detail\"]"
+    },
+    "artifactPreview.imageStage": {
+      "testId": "artifact-image-stage",
+      "selector": "[data-testid=\"artifact-image-stage\"]"
+    },
+    "artifactPreview.pdfPages": {
+      "testId": "artifact-pdf-pages",
+      "selector": "[data-testid=\"artifact-pdf-pages\"]"
+    },
+    "artifactPreview.videoSeek": {
+      "testId": "artifact-video-seek",
+      "selector": "[data-testid=\"artifact-video-seek\"]"
+    },
+    "artifactPreview.videoPlay": {
+      "testId": "artifact-video-play",
+      "selector": "[data-testid=\"artifact-video-play\"]"
+    },
+    "artifactPreview.tableGrid": {
+      "testId": "artifact-table-grid",
+      "selector": "[data-testid=\"artifact-table-grid\"]"
+    },
+    "artifactPreview.tableRecords": {
+      "testId": "artifact-table-records",
+      "selector": "[data-testid=\"artifact-table-records\"]"
+    },
+    "artifactPreview.tableRecord": {
+      "testId": "artifact-table-record",
+      "selector": "[data-testid=\"artifact-table-record\"]"
+    },
+    "audioPreview.player": {
+      "testId": "audio-preview-player",
+      "selector": "[data-testid=\"audio-preview-player\"]"
+    },
+    "audioPreview.waveform": {
+      "testId": "audio-preview-waveform",
+      "selector": "[data-testid=\"audio-preview-waveform\"]"
+    },
+    "audioPreview.seek": {
+      "testId": "audio-preview-seek",
+      "selector": "[data-testid=\"audio-preview-seek\"]"
+    },
+    "audioPreview.play": {
+      "testId": "audio-preview-play",
+      "selector": "[data-testid=\"audio-preview-play\"]"
+    },
+    "audioPreview.repeat": {
+      "testId": "audio-preview-repeat",
+      "selector": "[data-testid=\"audio-preview-repeat\"]"
+    },
+    "audioPreview.tools": {
+      "testId": "audio-preview-tools",
+      "selector": "[data-testid=\"audio-preview-tools\"]"
+    },
     "workspace.settings": {
       "testId": "toolbar-settings",
       "selector": "[data-testid=\"toolbar-settings\"]"
@@ -1708,6 +1780,6 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "61be4676c32200d51cb58a9654d88b471198336d28cb047c764fab598636a4d4",
-    "ui/src/consts/selectors.ts": "f943abf1967fd2ac8424e7cf76265041cabe094361ebb6bdefbfbe13a67eb137"
+    "ui/src/consts/selectors.ts": "90606c1be06d4f4f45e40478a6796a3d8be433bd55500de6fbff4380f78f31ae"
   }
 }

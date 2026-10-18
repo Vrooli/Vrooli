@@ -195,6 +195,38 @@ describe("message row", () => {
     expect(screen.queryByTestId("msg-actions-inline")).toBeNull();
   });
 
+  it("lets a held link activate without opening the row's action sheet", () => {
+    setPointer(true);
+    vi.useFakeTimers();
+    render(<MessagesPane {...props} />);
+    const row = screen.getByTestId("msg-card-a2");
+    const link = document.createElement("a");
+    link.href = "/docs/README.md";
+    link.innerHTML = "<strong>Open document</strong>";
+    row.append(link);
+    const activate = vi.fn((event: Event) => event.preventDefault());
+    link.addEventListener("click", activate);
+    fireEvent.pointerDown(link.firstElementChild!, { pointerType: "touch", pointerId: 21, button: 0, clientX: 10, clientY: 10 });
+    act(() => { vi.advanceTimersByTime(550); });
+    act(() => { window.dispatchEvent(new PointerEvent("pointerup", { pointerId: 21, clientX: 10, clientY: 10 })); });
+    expect(screen.queryByTestId("msg-action-sheet")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("msg-actions-inline")).not.toBeInTheDocument();
+    fireEvent.click(link);
+    expect(activate).toHaveBeenCalledOnce();
+  });
+
+  it.each([true, false])("preserves a link's native context menu (touch=%s)", (coarse) => {
+    setPointer(coarse);
+    render(<MessagesPane {...props} />);
+    const link = document.createElement("a");
+    link.href = "/docs/README.md";
+    link.innerHTML = "<code>README.md</code>";
+    screen.getByTestId("msg-card-a2").append(link);
+    expect(fireEvent.contextMenu(link.firstElementChild!)).toBe(true);
+    expect(screen.queryByTestId("msg-action-sheet")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("msg-actions-menu-a2")).not.toBeInTheDocument();
+  });
+
   it("[REQ:P0-017h] Read from here starts playback from that row", () => {
     setPointer(false);
     const onPlayFromHere = vi.fn();

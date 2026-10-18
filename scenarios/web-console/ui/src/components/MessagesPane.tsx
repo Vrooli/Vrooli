@@ -30,7 +30,7 @@ import MessagesPaneState from "./MessagesPaneState";
 import MessagesPaneStatusLine from "./MessagesPaneStatusLine";
 import { resolveMessagesPaneStatus } from "../lib/messagesPaneStatus";
 import { SnippetSaveSheet } from "./snippets/SnippetSaveSheet";
-import { MessageRow, type PressHandlers } from "./messages/MessageRow";
+import { MessageRow } from "./messages/MessageRow";
 import { MessagesReader } from "./messages/MessagesReader";
 import type { MessageActionContext } from "./messages/messageActions";
 import { holdKeyboardForNextField } from "../lib/keyboardFocus";
@@ -720,23 +720,10 @@ export default function MessagesPane({
   // control's, not a reveal. Long-press opens the full sheet; movement past
   // the gesture threshold cancels both, so scrolling never does either.
   const [tapRevealedId, setTapRevealedId] = useState<string | null>(null);
-  const tapOnControlRef = useRef(false);
   const toggleTapReveal = useCallback((eventId: string) => {
-    if (tapOnControlRef.current) return;
     setTapRevealedId((current) => (current === eventId ? null : eventId));
   }, []);
-  const { getGestureHandlers } = usePressGesture<string>({ onTap: toggleTapReveal, onLongPress: openActions });
-  const getPressHandlers = useCallback((eventId: string): PressHandlers => {
-    const handlers = getGestureHandlers(eventId);
-    return {
-      ...handlers,
-      onPointerDown: (pointerEvent) => {
-        tapOnControlRef.current = pointerEvent.target instanceof Element
-          && pointerEvent.target.closest("a, button, input, textarea, select, summary, [role='button']") !== null;
-        handlers.onPointerDown(pointerEvent);
-      },
-    };
-  }, [getGestureHandlers]);
+  const { getGestureHandlers: getPressHandlers } = usePressGesture<string>({ onTap: toggleTapReveal, onLongPress: openActions });
 
   // Keyboard: j/k move between messages, Enter opens the focused message's
   // actions, Escape closes them. Typing in a field inside the pane is left alone.

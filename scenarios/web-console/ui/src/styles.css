@@ -285,7 +285,9 @@ html[data-wc-adaptive-chrome="true"] .wc-ios-tint-edge {
  * --wc-* RGB triples. Keep the adapter at the app boundary so the library
  * stays host-agnostic and every adopted control (including arrows and voice)
  * follows the same terminal-derived theme. */
-[data-testid="mobile-toolbar"] {
+[data-testid="mobile-toolbar"],
+[data-testid="audio-preview-player"],
+.wc-artifact-preview {
   --color-background: rgb(var(--wc-surface-base));
   --color-foreground: rgb(var(--wc-text-secondary));
   --color-primary: rgb(var(--wc-accent));
@@ -460,3 +462,20 @@ html[data-wc-adaptive-chrome="true"] .wc-ios-tint-edge {
     scroll-behavior: auto !important;
   }
 }
+
+/* Artifact inspection backgrounds are content surfaces, separate from chrome. */
+.wc-image-checkerboard {
+  background-color: rgb(var(--wc-surface-base));
+  background-image: linear-gradient(45deg, rgb(var(--wc-text-muted) / .12) 25%, transparent 25%, transparent 75%, rgb(var(--wc-text-muted) / .12) 75%), linear-gradient(45deg, rgb(var(--wc-text-muted) / .12) 25%, transparent 25%, transparent 75%, rgb(var(--wc-text-muted) / .12) 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 10px 10px;
+}
+.wc-artifact-preview:fullscreen { width: 100vw; height: 100dvh; }
+.wc-pdf-scroll { --viewer-container-height: 100%; }
+.wc-pdf-scroll .pdfViewer { padding: 12px 0; }
+.wc-pdf-scroll .pdfViewer .page { margin-bottom: 12px; }
+.wc-markdown-reader h1 { font-size: 1.75em; }
+.wc-markdown-reader h2 { font-size: 1.45em; }
+.wc-markdown-reader h3 { font-size: 1.2em; }
+.wc-markdown-reader h4, .wc-markdown-reader h5, .wc-markdown-reader h6 { font-size: 1em; }
+.wc-markdown-reader :is(h1,h2,h3,h4,h5,h6) { scroll-margin-top: 1rem; }

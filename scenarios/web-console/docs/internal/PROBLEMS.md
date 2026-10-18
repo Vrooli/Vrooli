@@ -1,5 +1,237 @@
 # Web Console — Known Problems and Risks
 
+## 2026-10-17 — Markdown and JSON/YAML readers (W3)
+
+Bounded task: work until the approved Markdown/configuration reader contract in
+ARCHITECTURE.md is implemented and verified. Existing renderer inspection names
+W3: Markdown has rendered content without reading/search/outline/source controls;
+JSON/YAML are highlighted source without structure or value inspection.
+Scope: file-preview UI/helpers, localized strings/selectors, governed parser and
+existing docs. Reuse the existing Markdown renderer and artifact chrome. Proof:
+focused behavioral/parser/lifecycle regressions, strict lint/type/build, scoped
+Test Genie unit phase, served desktop/mobile captures and accessibility checks.
+Two fresh review passes must find no material issue in the assigned boundary;
+retain each finding and resolution here. Keep going through friction; when
+progress stalls, step back and record why before switching or shrinking.
+Blocked means a decision, credential, or approval you lack. Name it. No unrelated
+readiness certification, source editing, private APIs or weakened tests. Existing
+preview-family limitations remain evidence, not claims this task will repair them.
+**Scoped implementation complete and served.** Markdown now has Read/Source,
+rendered-heading contents, literal search across inline formatting with match
+navigation, text sizes, safe document-relative file navigation and source copying.
+Wide drawers compose an outline beside the reading column; narrow drawers open
+contents on demand and restore focus to the selected heading. Search uses DOM
+ranges and the browser Highlight API without rewriting React-owned content;
+unsupported highlight APIs retain match counts and navigation. Search ignores
+hidden/interactive chrome and releases ranges, observers and scheduled work.
+
+JSON/YAML now has a local worker-backed Structure/Source inspector, nested
+collections, filtering across collapsed descendants, stable property paths,
+full-value inspection and original-value/path/source copying. Wide drawers keep
+details beside the tree; phones drill into details with a focused Back control.
+YAML streams expose document selection; aliases remain references. Unsupported
+tags, complex/colliding keys and unrepresentable scalars use source fallback.
+JSON formatting re-indents tokens without rounding large integers or decimals.
+Sources are never edited. Oversized, deep, invalid or truncated input retains
+source/download access. Parsing is capped at 300,000 characters, 5,000 nodes,
+60 levels and four seconds; termination releases stale workers. Limited source
+uses one keyboard-focusable text region rather than per-line syntax rendering.
+The parser is governed **yaml 2.9.1**; scoped dependency validation passes.
+
+Final verification: **159 PASS** across 22 focused preview/drawer test files,
+including existing HTML/audio/image/PDF/video/table cases. **27 PASS** new reader,
+parser and worker cases also pass the unchanged scoped coverage thresholds:
+**100% lines/statements, 88.23% functions, 89.89% branches**. Strict scoped lint,
+TypeScript/string freshness, selector freshness, reader locale key/token parity,
+production build and whitespace checks pass. Served Chrome checks cover 320×740,
+390×844 and 1440×1000, Japanese/Arabic at 320px, and real README/service JSON/CI
+YAML plus invalid and 300,005-character source fallback. All **20 browser cases**
+have zero preview WCAG A/AA automated violations and zero page exceptions; narrow
+panels contain variable-length text. Exact clipboard spelling, Markdown search
+across emphasis, heading focus, local-file navigation, formatting, YAML selection,
+and reader/inspector composition were exercised. The final lifecycle restart
+reported healthy on API 16382/UI 21233 at **23:00:53**.
+
+Convergence review findings and resolutions:
+- Review 1: source-mode highlights retained DOM ranges; source switching now
+  clears them. Numeric spelling, YAML scalar/tag fidelity, and empty key/string
+  visibility were checked and covered. Implicit-null source copies preserve the
+  actual empty bytes. Copy feedback is announced and phone detail focus restores.
+- Review 2: mobile contents/search competed for space; contents now dismisses
+  mobile search. Large fallback could invoke expensive per-line syntax rendering;
+  it now uses one text node. The real large-file accessibility check then found
+  a missing keyboard scroll target; the source region now has a name and tab stop.
+- Fresh review 3 after fixes: scoped code/correctness/lifecycle and input-integrity
+  checks found no material issue. Worker and Highlight API ownership have explicit
+  cleanup; unsupported shapes have truthful source access. Scoped tests pass.
+- Fresh review 4 after fixes: served captures against the reader mockup, desktop
+  and phone interactions, localized composition, real files and negative inputs
+  found no remaining material issue within this boundary. These are self-reviews,
+  not independent acceptance or physical-device certification.
+
+Test Genie unit run **20261018-024908-9f1a8b9c FAIL** is retained as observed.
+API `TestDocsNoOrphans` reports the existing unmanifested
+`perf/2026-10-15-long-session-performance.md` (known report
+`knw-1792160172206667201`). The UI snapshot contains seven failing assertions,
+including a reader test/markup mismatch captured while files changed and
+subsequently covered by the settled focused pass, and aggregate function
+coverage **84.07%** against the 85% floor. The native snapshot is not rewritten
+into a passing verdict; neither whole-UI coverage nor exact-input/full-scenario
+certification is claimed. Native evidence was fetched through the run's opaque
+artifact catalog and retained at `/tmp/wc-reader-native-findings.json`.
+Physical iPhone Safari gesture/keyboard behavior is unmeasured. Existing API text
+bounds still apply; search is capped at 500 rendered matches. No editor, new API
+kind or authorization change was added.
+
+Evidence: `/tmp/wc-reader-{final-regressions,coverage,final-types,final-lint,
+locales,dependency-validation,build,runtime-final}.log`,
+`/tmp/wc-reader-coverage/coverage-summary.json`,
+`/tmp/wc-reader-{browser,localized,corpus}-proof.json`,
+`/tmp/wc-reader-testgenie-result.json`, and
+`/tmp/wc-reader-{320,390,1440,ja,ar,real}-{markdown,json,yaml,invalid,large}.png`.
+Temporary browser fixture files are removed after verification; evidence captures
+remain. Work record: `e6592e44-4ae3-494f-95aa-1cc985974e2e`.
+Prior unrelated problem entries remain historical evidence.
+
+## 2026-10-17 — Image/PDF/video/table preview family (W3)
+
+Work shape: bounded task. Work until all four operator-approved preview upgrades
+in ARCHITECTURE.md's focused artifact inspection contract are implemented and
+verified. Proof: focused Vitest regressions for controls, parsing, math and
+teardown; strict scoped lint/type/build; relevant Test Genie unit phase; served
+mobile/desktop browser interactions and accessibility captures. Read the existing
+renderers, audio transport and docs/mockups/artifact-preview-family.svg first.
+Boundary: Web Console file-preview UI/helpers, locale/selector owners, PDF viewer
+dependency/build assets and existing documentation. Validation posture is scoped;
+fix understood blocking issues, retain unrelated failures without weakening tests.
+Blocked means a decision, credential, or approval you lack. Name it. Checkpoint
+changes, verified outcomes and remaining/unverified behavior here if interrupted.
+Do not turn previews into editors, change authorization, or claim physical Safari
+qualification from desktop browser fixtures.
+
+**Scoped implementation complete and served.** Images/SVGs now have Fit/100%,
+focal wheel/pinch zoom, bounded drag/keyboard panning, rotation, three backgrounds
+and intrinsic dimensions. PDFs now use locally bundled PDF.js 6.4.299 with a
+version-matched worker, fonts, CMaps, color profiles and WASM, with page navigation,
+fit/zoom, selectable/searchable text, password retry and recovery actions. Video
+shares the audio transport, adds a dedicated stage, custom seek/skip/rate/repeat,
+volume/mute and fullscreen with native controls available on demand. CSV/TSV now
+has stable numeric-aware sorting, filtering, bounded pagination, keyboard/pointer
+column resizing, original-value copy, header/source options and mobile record
+list/detail composition. Ragged fields stay visible; malformed or overly wide
+input shows source rather than silently dropping values. New controls use shared
+library components, semantic tokens, 44px primary controls and all three locale catalogs.
+
+Final focused preview regressions: **128 PASS** across 17 files, including existing
+HTML/audio coverage and stale asynchronous PDF-session disposal. Artifact-copy
+locale/key/token parity passes. Strict scoped lint, TypeScript/string freshness,
+selector freshness, production build and whitespace checks pass. PDF.js was
+installed/approved through Scenario Dependency Analyzer; scoped governance passes.
+
+Served Chrome checks at **320×740, 390×844 and 1440×1000** cover all four previews,
+full-width desktop layouts, native pointer pinch (2× without scaling app chrome),
+PDF search/navigation and selectable text layers, actual MP4 playback/fullscreen,
+numeric table sort, keyboard resizing, mobile details and exact clipboard values.
+All **12 English browser checks** and **8 Japanese/Arabic 320px checks** have zero
+preview WCAG A/AA automated violations, zero page exceptions and no panel overflow.
+The real tagged PDF exposed broken annotation ownership in PDF.js 5.6; upgrading
+to 6.4 resolved it without changing vendor output or removing document semantics.
+Actual encrypted-PDF retry/cleared-password/unlock and malformed-PDF recovery also
+pass. Public document reset cancels pending render/search work before worker
+teardown. Temporary encryption/error fixtures were removed after verification.
+
+Evidence: `/tmp/wc-artifacts-final-{focused,types,lint}.log`,
+`/tmp/wc-artifacts-{lint,locales,dependency,build,runtime}.log`,
+`/tmp/wc-artifacts-browser-final-proof.json`,
+`/tmp/wc-artifacts-localized-proof.json`,
+`/tmp/wc-artifacts-pdf-recovery-final.log` and
+`/tmp/wc-artifacts-{320,390,1440,ar,ja}-{image,pdf,video,table}.png`.
+The final lifecycle restart reported healthy on **16382/21233** at 11:31:04.
+Physical iPhone Safari gesture/fullscreen quality remains unmeasured; its native
+fullscreen fallback is covered by a typed interface fixture, not a device claim.
+Test Genie unit run **20261017-152805-a3a5ece0 FAIL** is retained as observed:
+API `TestDocsNoOrphans`; UI approvals keyboard-avoidance contract, workspace voice
+status-bar color, approvals REST allowlist and approvals locale parity (five UI
+assertions). The snapshot also reports aggregate function coverage **83.57%**
+against 85%. After that snapshot, 11 focused helper regressions added real
+cancellation, stale clipboard ordering, pinch/pan/focal-wheel and PDF adapter
+lifecycle/search/password coverage. Their scoped coverage run passes the unchanged
+thresholds: **98% lines/statements, 96.15% functions, 86.9% branches** across the
+three helpers. This does not establish a passing whole-UI coverage floor. No
+full-suite or exact-input certificate is claimed in this concurrently edited tree.
+Known docs/REST/locale reports remain `knw-1792160172206667201`,
+`knw-1792243709042628594`, and `knw-1792243443164563388`. New unrelated failures
+were captured through [report-bug](/home/matthalloran8/.codex/skills/report-bug/SKILL.md):
+keyboard contract **knw-1792251518018795539**; voice status fill
+**knw-1792251519359547967**. Record recall was degraded; prompt-manager discovery
+was used once as its fallback. Native Test Genie evidence was retrieved through
+the run's opaque artifact catalog, retained in `/tmp/wc-artifacts-owner-findings.json`.
+Additional evidence: `/tmp/wc-artifacts-helper-{coverage.log,lint.log,types.log}`,
+`/tmp/wc-artifacts-helper-coverage/coverage-summary.json` and
+`/tmp/wc-artifacts-testgenie-{result.json,findings.json}`. The required
+completed-work journal append was attempted with trigger/approach/evidence/outcome,
+but Vrooli Memory returned `append memory: unavailable: unexpected EOF` without
+an entry ID. Commitment is unknown; no duplicate append was attempted. This entry
+retains the work record and validation evidence independently of that outage,
+reported as **knw-1792251659715601635**.
+
+## 2026-10-17 — Audio preview player (W3)
+
+Work shape: bounded task, authorized by the operator's approved audio-player
+proposal. Work until the audio drawer presents track identity and real waveform
+seeking, transport, repeat/speed/volume, waveform zoom, A/B looping and tidy file
+actions across narrow/wide drawers; optional analysis must not block streaming.
+Sources: ARCHITECTURE.md's audio preview contract and audio-preview-player.svg.
+Boundary: audio renderer/helpers, locale/selector owners, dependency governance,
+focused tests and existing tracking docs. Validate focused Vitest regressions,
+type/lint/build, scoped Test Genie unit phase, and browser captures/interactions.
+Fix understood blocking defects; retain unrelated failures with their evidence.
+Blocked means a decision, credential, or approval you lack. Name it. Checkpoint
+partial work here after an interruption; report changes, verified and unverified
+behavior. Do not broaden this into a media editor or claim native Safari proof
+from Chromium.
+
+**Scoped implementation complete.** The player now presents embedded raster
+artwork/title/artist when available, a real seekable waveform, play/pause, ±10s,
+whole-track repeat, speed, volume/mute, 1/2/4/8× waveform inspection and movable
+time windows. A/B markers show tenths of a second, loop a selected passage, and
+clear without modifying the file. Seeking outside a passage exits its loop;
+whole-track and passage repeat are exclusive. The header retains Copy path;
+Download remains visible and secondary actions disclose native system controls.
+Native streaming is independent of bounded optional analysis. Teardown stops
+playback, aborts fetches and revokes artwork URLs; StrictMode setup restores the
+source after cleanup replay. Changing VBR duration estimates do not trigger
+repeated decodes. The installed music-metadata dependency is pinned at 11.12.3
+through Scenario Dependency Analyzer; its scoped governance validation passes.
+
+Final focused Vitest evidence: **49 PASS** across renderer, transport, analysis,
+resource lifecycle, zoom/loop, cancellation and fallback cases; the new audio-copy
+locale parity check also passes. Type-check (including generated string freshness),
+scoped strict ESLint, production build and whitespace checks pass. Browser checks
+against the lifecycle-served production bundle exercise real M4A/AAC streaming,
+embedded artwork, pointer/keyboard seeking, playback/pause, zoom and A/B repeat at
+320×740, 390×844 and 1440×1000. Every viewport has zero player WCAG A/AA automated
+accessibility violations, zero page errors and no horizontal card overflow. MP3
+also played in bundled Chromium; that Chromium's missing AAC codec produced the
+expected M4A fallback, while installed Chrome decoded it. A light-token fixture
+checks palette adaptation; it is not a separate product theme claim.
+
+Test Genie unit run **20261017-131904-025ae858 FAIL** is retained as observed:
+API TestDocsNoOrphans and UI checks failed. The UI snapshot includes two new audio
+test-spy assertions fixed afterward (covered by the final focused pass), unrelated
+approvals REST-exception and locale failures, and concurrently changing inputs.
+No passing full-suite or exact-input certificate is claimed. Locale drift was
+filed as **knw-1792243443164563388**; approvals transport registry drift as
+**knw-1792243709042628594**. The docs-orphan failure is already known under
+**knw-1792160172206667201**. Physical iPhone Safari, system routing destinations
+and background A/B timing have not been measured; A/B repeat is a listening tool,
+not a sample-accurate audio editor.
+
+Evidence: `/tmp/wc-audio-{focused.log,locales.log,lint.log,final-typecheck.log,
+build.log,browser-proof.json,browser.log,testgenie.json,unit-findings.json}` and
+`/tmp/wc-audio-{320,390,1440}{,-tools}.png`. The final lifecycle restart completed
+healthy on 16382/21233; a subsequent status read confirmed both serving processes.
+
 ## 2026-10-16 — Replace fragile HTML body pinch scaling (W3)
 
 **Implementation replaced; native iPhone Safari qualification remains open.**
@@ -1368,3 +1600,256 @@ The broader Web Console unit run has an API failure of unverified cause, filed a
 and API health checks pass. Physical iPhone behavior remains unverified; the user
 accepted available browser checks after bridge inventory could not authenticate.
 Full artifacts and limitations are retained in the audit.
+
+## 2026-10-16 — Missed first presses and interrupted drawer swipes (W3)
+
+Rung: **W3**, scoped implementation repair; work shape: bounded task.
+Recorded harness acceptance goal: Work until deliberate presses reach their
+controls after overlay dismissal and drawer swipes survive ordinary content
+updates, proven by the focused library Vitest cohort exiting 0 and the served
+native-input browser assertions exiting 0, with outputs retained. Read the RCL
+gesture contract and `docs/TESTING.md`; limit implementation to shared overlay
+assets and their tests, docs, and consumer lifecycle. File adjacent defects.
+Run scoped unit phases and retain their actual verdicts; no broad certification
+is implied. Checkpoint changed, verified, remaining and unverified here. No
+missing decision, credential or approval prevents this bounded repair.
+
+The shared RCL investigation and hypotheses are
+recorded in [RCL's problems document](../../../react-component-library/docs/internal/PROBLEMS.md#2026-10-16--missed-presses-and-cancelled-drawer-gestures-w3).
+Original native touch events demonstrate that a closed Machines drawer still
+receives the first press intended for the view toggle during its exit. A second
+press reaches the toggle. The shared swipe cancellation effect also depended on
+a freshly allocated style object, so ordinary rendering aborted the gesture;
+a cancelled drag could additionally leave suppression armed for the next tap.
+
+Governed releases: `useOverlaySurface` 1.4.6/1.4.7, Dialog 1.3.9, AlertDialog
+2.0.11 and CommandPalette 1.1.11. Closed roots relinquish input immediately while
+retaining exit painting. Content rerenders preserve swipe ownership; geometry
+changes and closure cancel safely; suppression stays with the originating drag.
+Web Console's installed dependency was initially stale despite rebuilding the
+package. The scenario lifecycle refreshed the installed copy, rebuilt and
+restarted Web Console; it reported healthy on ports 16382/21233.
+
+Final served browser evidence: **ten immediate view-toggle activations pass**,
+five at 390px touch and five at 1440px desktop; navigation reopens the drawer on
+its first press during exit. A native touch swipe remains at `translateY(50px)`
+through a fleet refresh, closes only after release, restores position on cancel,
+and permits the next deliberate grabber tap. No page errors. Physical iPhone
+Safari has not been measured. Browser evidence:
+`/tmp/wc-interaction-final-proof.json`, `/tmp/wc-interaction-final-browser.log`,
+`/tmp/wc-interaction-{mobile,desktop}.png`. Original miss:
+`/tmp/wc-dismiss-click-red.json`.
+
+Final focused library cohort: **18 PASS**. Consumer cohort: **119 PASS, 1 FAIL**;
+the remaining failure is ApprovalsDrawer's missing explicit virtual-keyboard
+policy, in a concurrently changing feature outside this repair. Filed as
+`knw-1792204786873961363`. Type-check and production build pass. Shared package
+and declarations verify artifact
+`sha256:2a3754fa7c334becf715138158914f592be91eb855afffd818d41818ea3d6d65`.
+Library story captures retain unrelated placeholder/review-sheet failures
+(`knw-1792204422313129557`); Dialog and CommandPalette story contracts pass.
+Scoped unit receipts are terminal and **not passing**. Web Console run
+`20261017-023854-61a3e4d0` ended `provider_unavailable` after 120 seconds waiting
+for Unit Health ownership; it measured no assertions. RCL run
+`20261017-023847-37d16d18` failed after 184 seconds: API Go tests, CLI Go tests,
+UI coverage, UI type-check, and the render-helper policy. The returned unit log
+contains findings without command diagnostic excerpts, so attribution of those
+broad command failures remains unverified. Opaque artifact
+`artifact_201495a033faabad007c4af9cd6c1721` and its retained bytes
+`/tmp/wc-rcl-unit.log` preserve this limitation. Aggregate wait receipt:
+`/tmp/wc-interaction-unit-verdicts.json`. Shared generated-owner preflight
+confirmed the proto artifact fresh before these runs. No scenario-wide or native-
+iPhone certificate is claimed.
+
+Unit ownership timeout filed as `knw-1792205023824743132`; broad RCL unit
+failures filed as `knw-1792205024296433128`. The scoped implementation behavior
+is repaired and verified by the focused fixtures and served browser checks above.
+
+Work record: `48bdf6ca-8689-4f37-9bf8-39dc965bb64a`.
+
+## 2026-10-17 — Remaining intermittent taps: sidebar, markdown, view toggle (W3)
+
+Follow-up bounded investigation: the operator still sees missed sidebar backdrop,
+markdown-link, and terminal/messages-toggle presses on iPhone. Previous overlay
+exit and swipe regressions remain relevant prior art, not proof that every missed
+press has that cause. Source-ledger recall timed out; the earlier section and its
+retained evidence are reused. Acceptance: preserve the actual press target across
+ordinary content/callback updates; verify native touch delivery for all three
+surfaces and retain any conditions that cannot yet be reproduced.
+
+Hypotheses under test:
+
+- An overlay intercepts the press: trace native hit targets, default prevention,
+  capture, and cancellation before/after dismissal. Clean native touch sequences
+  currently pass eight view toggles and eight sidebar backdrop dismissals.
+- Content updates replace the pressed DOM node: hold a link during a callback or
+  message update and assert that its identity, focus, and activation survive.
+  Markdown currently creates new React component types when callbacks change.
+- Native panning/focus changes cancel a touch: compare stationary and moving
+  presses and keyboard/focus transitions. The sidebar uses a separate dismissal
+  implementation from `useOverlaySurface`; this needs independent evidence.
+
+Initial event trace: `/tmp/wc-remaining-trace.json`. Physical Safari is not yet
+measured; clean Chromium taps alone do not certify this intermittent report.
+
+Confirmed follow-up defects and repair:
+
+- Markdown renderer callbacks recreated React component types and replaced
+  links during a press. Stable module-level renderers plus callback context
+  preserve DOM identity and focus while using current callbacks. Callback and
+  streamed-content regressions pass.
+- Message-row recognizers still owned long presses and native context menus
+  beginning on nested links. The row now declines those controls before gesture
+  recognition. Three new regressions failed before repair; all twelve row tests
+  now pass.
+- SidebarShell waited for a compatibility click. A primary press now dismisses
+  immediately, matching the shared overlay policy, while keyboard clicks remain
+  available and secondary pointer presses are ignored.
+- Shared Presence only disabled pointer events on its wrapper; explicitly
+  interactive descendants could still intercept the first press behind an exit.
+  It now marks logically absent content inert. Exit-completion callback identity
+  no longer restarts the animation's lifetime. Native input hit the old retained
+  surface and produced zero activations before this fix; it now hits and
+  activates the underlying control while exit content is still mounted.
+
+These are distinct causes with similar symptoms. A repeatable clean-state toggle
+miss has not been demonstrated beyond the earlier closed-overlay interception.
+The toggle remains in the served-browser regression cohort; native iPhone and
+keyboard-dependent recurrence are not certified by these local runs.
+
+Additional operator requirement: opening the mobile sidebar must release the
+current editable field so the virtual keyboard closes. SidebarShell previously
+never took focus, and mobile button activation alone does not establish that
+focus transition. The shared component now focuses its non-editable dialog once
+when opening, including edge-swipe opening. It leaves persistent navigation and
+subsequent focus inside the drawer alone. The focused regression failed with the
+original component and passes with this change. Actual OS keyboard animation
+still requires physical-device confirmation.
+
+The served-app check exposed a further opening-frame gap: the sidebar had
+`tabindex=-1`, but calling focus while its closed visibility transition was
+starting left focus on the trigger. Manual focus after the opening frame worked.
+SidebarShell 2.7.5 waits for that frame and cancels deferred focus on close.
+
+The shared focus-return hook also focused explicit return targets on initially
+closed mounts and reran on return-ref identity changes. A closed popover can thus
+steal focus without ever opening. useFocusReturn 1.1.2 captures the opener once
+and restores only after a real close, with preventScroll. Three regression cases
+fail against 1.1.1 and pass against 1.1.2. A native Chromium fixture confirms the
+old closed popover steals focus from a text field; the repaired one preserves it.
+
+An intermediate shared build used SidebarShell 2.7.5 alongside Presence 1.0.6
+and useFocusReturn 1.1.2; the final artifact and SidebarShell 2.7.6 receipts
+are recorded below. The control plane detected each shared-package change and
+rebuilt the consumer.
+
+Final refinements: SidebarShell 2.7.6 waits until computed visibility is visible
+(the first RAF can still be hidden), and closed sliding panels become inert
+immediately. Responsive desktop panels retain input and complementary semantics.
+Native hit testing against 2.7.5 showed the departing sidebar intercepted the
+menu trigger's position. The final focused RCL cohort is 28/28; Web Console's
+workspace, pane-shell, row, and markdown cohort is 97/97.
+
+Scoped unit receipts are terminal FAIL: RCL `20261017-132539-b05b24db`
+(224.3 seconds: API, CLI, UI coverage/type-check, render-helper policy) and
+Web Console `20261017-132752-eec15c57` (472.5 seconds: API and UI coverage).
+They preceded the last focus/exit refinements and do not certify the final
+artifact. Returned logs expose findings without command diagnostic excerpts;
+attribution remains unverified. Receipts: `/tmp/wc-followup-unit-verdicts.json`,
+`/tmp/wc-followup-{rcl,wc}-unit.log`. The new Web Console observation is filed as
+`knw-1792244510179589499`; prior RCL command/policy and capture reports are reused.
+
+Story evidence remains non-passing where pinned captures or the review sheet
+time out waiting for the passed readiness marker. Sidebar live cases pass;
+useFocusReturn's story report `ctr_3665e38b537bc30f` passes. Relevant retained
+failed reports include Presence `ctr_a940d1a0332a66ca` and Sidebar
+`ctr_2e041cf5c048cee7`; these are not waived or counted as successful checks.
+
+Native browser fixtures also demonstrate both markdown press loss and unsolicited
+focus movement in Chromium and WebKitGTK. The old markdown link disconnects
+during a held mouse press and receives zero activations; the fixed link remains
+connected and receives one. A mounted closed popover previously focused its
+trigger; the repaired hook leaves the current field focused. Retained evidence:
+`/tmp/wc-markdown-{native,webkit}-proof.json`,
+`/tmp/wc-focus-{native,webkit}-proof.json`,
+`/tmp/wc-presence-{native,webkit}-proof.json`. WebKitGTK input is mouse input,
+not iPhone touch certification.
+
+Final served verification: `/tmp/wc-followup-served-proof.json` records eleven
+first-press view toggles (eight after sidebar dismissal, three during another
+overlay exit), primary-press backdrop dismissal, focus release after button and
+edge-swipe opening, no editable-field refocus on release, and zero page errors.
+`/tmp/wc-sidebar-exit-hit-proof.json` controls only the closed panel's inertness
+within the same native frame: the old policy hits the departing panel, while the
+new policy hits the underlying menu and permits its first native tap. This
+controlled comparison removes the ambiguity of a nested `button-label` test ID.
+
+Final artifact: `sha256:f691c4a0afd09bdbbdb8764161880a20c337dbbbddfec27494e8212994c0df73`.
+Installed Web Console root/major exports resolve SidebarShell 2.7.6, Presence
+1.0.6 and useFocusReturn 1.1.2. Governed restart finished healthy on ports
+16382/21233. Final installed-consumer cohort: 97 passing tests; final shared
+cohort: 28 passing tests. Consumer type-check and lifecycle production build
+pass. Current SidebarShell story report `ctr_e9e9687a4d7f6875` passes its live
+cases but retains the failed review-sheet readiness capture. The capture failure
+is not waived; the broader failed unit receipts above are not recast as passes.
+
+Native iPhone keyboard animation and the operator's precise intermittent state
+remain unmeasured. The repaired application focus, hit-testing and activation
+contracts are verified locally; no blanket native-device certification is claimed.
+
+Follow-up work record: `7484dde7-c00d-4054-af17-819e82ea70de`.
+
+### 2026-10-17 — listening-page link and embedded AAC audio
+
+Bounded repair target: opening the supplied listening-page reference must show
+the existing voice A/B and serve its local audio after a healthy lifecycle restart.
+The screenshots showed percent-encoded U+FF0F full-width slashes in an agent's
+Markdown href. The missing-artifact hypothesis was falsified: the ASCII path
+resolved successfully and the HTML remained on disk. The malformed-reference
+hypothesis reproduced `not_found` against the same session. Independently,
+the HTML runtime returned 403 for a real A/B `.m4a` file: its separate media
+allowlist omitted formats already supported by standalone previews.
+
+The resolver now tries one full-width absolute-path recovery after literal
+candidates fail, returning a warning and preserving genuine Unicode filenames.
+The HTML runtime reuses the preview package's media extension registry. Existing
+directory confinement, symlink rejection, session-bound IDs, non-media size
+limits, streaming deadlines and range semantics remain covered by regressions.
+New regressions failed before these repairs; the complete filepreview package
+and focused `TestFilePreview` API cohort pass afterward.
+
+Governed restart `startop-86c23d58929f4b43e818d2a5278537c0` completed healthy.
+API and UI health endpoints returned 200 with readiness=true and build identity
+`sha256:069a092fdf23d1f6a967d35658fe38ca22521e2560155ea268b8977cb2e21fe3`.
+The exact encoded malformed path resolved after restart; the served HTML matched
+the original and all 17 in-directory audio sources returned matching 206 byte
+ranges with audio MIME types, including all five voice-conversion players.
+The historical rejected control outside the HTML directory was excluded from
+this runtime check; its reference does not widen the preview capability.
+Evidence: effort `video-toolchain-reliability-2026-10-16`,
+`qa/web-console-link-preview-v1/served-verification.json`.
+The BAS browser reports no AAC support (`canPlayType` empty,
+`DEMUXER_ERROR_NO_SUPPORTED_STREAMS`), while WAV decodes and advances normally.
+The existing listening page now offers its existing matched WAV files as
+fallback `<source>` elements after AAC; no audio was regenerated or changed.
+Final HTML and all 34 AAC/WAV sources pass byte-range/content checks in
+`served-with-fallback-verification.json`. BAS execution
+`cf2ed099-c46b-448d-987a-721f1d56eee8` independently verifies that all five voice
+players decode, report their expected 16.4/102.56-second durations, and advance
+playback without media errors. Evidence is retained in
+`browser-playback-proof.json`; initial failed codec execution and the diagnostic
+probe remain available beside it. This does not certify native iPhone playback.
+Scoped unit run `20261017-182249-ec2937f2` finished FAIL after 336 seconds:
+`TestDocsNoOrphans` identifies `perf/2026-10-15-long-session-performance.md`;
+UI REST policy and locale key/token checks also fail, and function coverage is
+83.99% against 85%. These are separate from the passing focused preview
+regressions and served checks; no broad certification or baseline attribution
+is claimed. The immutable snapshot is retained in `unit-run-snapshot.json`.
+Out-of-scope findings were published through the report-bug workflow as
+`knw-1792261760670502021`.
+
+Discovery limitation: prompt-manager was unavailable during this repair;
+`skill read` and the required `discover --type all` fallback both failed.
+Available local debugging/work-ladder guidance and BAS's canonical skill were
+read directly. Program preparation `prog_2681b156-6c22-433c-997d-25050b071cac`
+exhausted its 15-second budget; the BAS skill's direct capture leaf was used.

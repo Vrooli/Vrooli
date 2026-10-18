@@ -59,21 +59,31 @@ func TestCreateMintsDelegationBeforeBuildingEnv(t *testing.T) {
 	// pre-id invocation would fail loudly.
 	var mintedFor string
 	var mintedCred string
+	var attemptedCredentials []string
 	adapter := &Adapter{
 		Manager: mgr,
 		Store:   store,
 		Events:  events.NewLogger(20),
 		Metrics: metrics.New(),
-		DelegationMinter: func(_ context.Context, sessionID, rawCredential string) {
+		DelegationMinter: func(_ context.Context, sessionID, rawCredential string) bool {
 			if sessionID == "" {
 				t.Error("delegation minter invoked with an empty session id")
-				return
+				return false
+			}
+			mu.Lock()
+			attemptedCredentials = append(attemptedCredentials, rawCredential)
+			mu.Unlock()
+			// The account bearer is rejected as non-human; the Cloudflare
+			// assertion is the first accepted candidate.
+			if rawCredential != "cf-access-human-assertion" {
+				return false
 			}
 			mu.Lock()
 			mintedFor = sessionID
 			mintedCred = rawCredential
 			holder[sessionID] = "minted-" + sessionID
 			mu.Unlock()
+			return true
 		},
 	}
 
@@ -94,14 +104,59 @@ func TestCreateMintsDelegationBeforeBuildingEnv(t *testing.T) {
 	if mintedFor != sess.ID {
 		t.Fatalf("delegation minted for session %q, want the created session %q", mintedFor, sess.ID)
 	}
-	// Both candidate credentials are attempted; the loop runs them in order, so
-	// the last recorded is the Cf-Access assertion.
+	// The account bearer was refused, then the Cloudflare assertion succeeded.
 	if mintedCred != "cf-access-human-assertion" {
-		t.Fatalf("last minted credential = %q, want the Cf-Access assertion", mintedCred)
+		t.Fatalf("accepted credential = %q, want the Cf-Access assertion", mintedCred)
+	}
+	if len(attemptedCredentials) != 2 || attemptedCredentials[0] != "Bearer service-token" || attemptedCredentials[1] != "cf-access-human-assertion" {
+		t.Fatalf("credential attempts = %v, want rejected bearer followed by accepted Cloudflare assertion", attemptedCredentials)
 	}
 	if got := capturedEnv["WC_HUMAN_OWNER_DELEGATION"]; got != "minted-"+sess.ID {
 		t.Fatalf("delegation env var = %q at PTY-spawn time, want %q — the mint did not run before the env was built",
 			got, "minted-"+sess.ID)
+	}
+}
+
+func TestCreateStopsAfterFirstAcceptedCredential(t *testing.T) {
+	t.Setenv("WC_SESSION_STATE_ROOT", t.TempDir())
+
+	mgr := session.NewManagerWithFactory(ptyfake.NewFactory())
+	store := sessionstore.NewInMemory()
+	mgr.SetStore(store)
+	var attempts []string
+	var holderMu sync.Mutex
+	holder := map[string]string{}
+	mgr.SetEnvForSessionFunc(func(sessionID string) map[string]string {
+		holderMu.Lock()
+		defer holderMu.Unlock()
+		if token := holder[sessionID]; token != "" {
+			return map[string]string{"WC_HUMAN_OWNER_DELEGATION": token}
+		}
+		return nil
+	})
+	adapter := &Adapter{
+		Manager: mgr, Store: store, Events: events.NewLogger(5), Metrics: metrics.New(),
+		DelegationMinter: func(_ context.Context, sessionID, credential string) bool {
+			attempts = append(attempts, credential)
+			if credential != "account-token" {
+				return false
+			}
+			holderMu.Lock()
+			holder[sessionID] = "delegated-for-" + sessionID
+			holderMu.Unlock()
+			return true
+		},
+	}
+	sess, err := adapter.Create(context.Background(), CreateInput{
+		Origin: "ui", Shell: "/bin/sh", Backend: "persistent",
+		HumanOwnerCredentials: []string{"account-token", "cloudflare-fallback"},
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	t.Cleanup(func() { _ = adapter.Delete(context.Background(), sess.ID) })
+	if len(attempts) != 1 || attempts[0] != "account-token" {
+		t.Fatalf("credential attempts = %v, want only the first successful account token", attempts)
 	}
 }
 
@@ -127,8 +182,9 @@ func TestCreateWithoutCredentialsMintsNothing(t *testing.T) {
 		Store:   store,
 		Events:  events.NewLogger(20),
 		Metrics: metrics.New(),
-		DelegationMinter: func(context.Context, string, string) {
+		DelegationMinter: func(context.Context, string, string) bool {
 			minted = true
+			return true
 		},
 	}
 

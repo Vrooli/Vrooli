@@ -29,9 +29,9 @@ const sessionDelegationResource = ""
 // and returns without affecting the already-created session. Web Console never
 // calls agent-manager here — the delegation is verified by agent-manager later,
 // off the session-launch path, so a down agent-manager never blocks a launch.
-func mintSessionDelegation(ctx context.Context, sessionID, rawCredential string) {
+func mintSessionDelegation(ctx context.Context, sessionID, rawCredential string) bool {
 	if sessionID == "" || rawCredential == "" {
-		return
+		return false
 	}
 	// Bound the mint so a slow/absent authenticator cannot delay session launch.
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
@@ -40,7 +40,7 @@ func mintSessionDelegation(ctx context.Context, sessionID, rawCredential string)
 	base, err := discovery.ResolveScenarioURLDefault(ctx, "scenario-authenticator")
 	if err != nil || base == "" {
 		log.Printf("session-delegation: scenario-authenticator unresolved; session %s attaches unattributed: %v", sessionID, err)
-		return
+		return false
 	}
 	client := accountsconnect.NewAccountsServiceClient(&http.Client{Timeout: 5 * time.Second}, base)
 	resp, err := client.MintSessionDelegation(ctx, connect.NewRequest(&accountsv1.MintSessionDelegationRequest{
@@ -54,7 +54,7 @@ func mintSessionDelegation(ctx context.Context, sessionID, rawCredential string)
 		// A refusal (non-human caller, unverifiable credential) is expected and
 		// benign: the session simply attaches unattributed.
 		log.Printf("session-delegation: mint declined for session %s (attaches unattributed)", sessionID)
-		return
+		return false
 	}
 	token := ""
 	var expires time.Time
@@ -64,10 +64,11 @@ func mintSessionDelegation(ctx context.Context, sessionID, rawCredential string)
 			expires = ts.AsTime()
 		}
 	}
-	if token == "" {
-		return
+	if token == "" || expires.IsZero() || !time.Now().Before(expires) {
+		return false
 	}
 	activeSessionDelegations.Put(sessionID, token, expires)
+	return true
 }
 
 // bearerTokenValue strips a leading "Bearer " so the authenticator receives the

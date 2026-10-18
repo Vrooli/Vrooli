@@ -37,7 +37,8 @@ func (h *fakeHub) ListAsks(_ context.Context, req *connect.Request[conv.ListAsks
 	return connect.NewResponse(&conv.ListAsksResponse{Asks: []*conv.Ask{{
 		Id: "ask-1", Question: "Promote release?", Source: "deployment-manager",
 		SourceEventType: "deployment-manager.release.decision_requested.v1",
-		Reversible:      false, State: "pending", Recommended: "promote",
+		BigPicture:      "Purpose and outcome", TechnicalDetails: "Evidence and limits",
+		Reversible: false, State: "pending", Recommended: "promote",
 		Options: []*conv.AskOption{{Key: "promote", Label: "Promote"}, {Key: "reject", Label: "Reject"}},
 	}}}), nil
 }
@@ -45,6 +46,7 @@ func (h *fakeHub) ListAsks(_ context.Context, req *connect.Request[conv.ListAsks
 func (h *fakeHub) GetAsk(_ context.Context, req *connect.Request[conv.GetAskRequest]) (*connect.Response[conv.GetAskResponse], error) {
 	return connect.NewResponse(&conv.GetAskResponse{Ask: &conv.Ask{
 		Id: req.Msg.GetAskId(), Question: "Grant scope?", Source: "agent-manager",
+		BigPicture: "Why this run needs scope", TechnicalDetails: "The exact operation and target",
 		SourceEventType: "agent-manager.authorization.decision_requested.v1", State: "answered", Answer: "deny",
 	}}), nil
 }
@@ -88,6 +90,9 @@ func TestApprovalsFacadeListTranslatesConnect(t *testing.T) {
 	}
 	if len(body.Approvals) != 1 || body.Approvals[0].ID != "ask-1" || body.Approvals[0].Source != "deployment-manager" {
 		t.Fatalf("unexpected approvals: %+v", body.Approvals)
+	}
+	if body.Approvals[0].BigPicture != "Purpose and outcome" || body.Approvals[0].TechnicalDetails != "Evidence and limits" {
+		t.Fatalf("decision context was not projected: %+v", body.Approvals[0])
 	}
 }
 
@@ -143,6 +148,9 @@ func TestApprovalsFacadeGetByID(t *testing.T) {
 	}
 	if body.Approval.ID != "ask-9" || body.Approval.Source != "agent-manager" {
 		t.Fatalf("unexpected approval: %+v", body.Approval)
+	}
+	if body.Approval.BigPicture != "Why this run needs scope" || body.Approval.TechnicalDetails != "The exact operation and target" {
+		t.Fatalf("decision context was not projected: %+v", body.Approval)
 	}
 }
 

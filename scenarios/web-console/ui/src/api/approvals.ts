@@ -70,6 +70,10 @@ export interface ApprovalDecision {
   urgency: string;
   /** Read-only deep link to the producer's own review surface (never an inline producer call). */
   contextUrl: string;
+  /** Optional requester-authored purpose, stakes, and practical outcome. */
+  bigPicture: string;
+  /** Optional requester-authored mechanism, evidence, and limitations. */
+  technicalDetails: string;
   /** RFC3339; empty when the ask never had a deadline. */
   deadline: string;
   state: ApprovalState;
@@ -103,6 +107,8 @@ interface ApprovalRowJSON {
   reversible?: boolean;
   urgency?: string;
   context_url?: string;
+  big_picture?: string;
+  technical_details?: string;
   deadline?: string;
   state?: string;
   answer?: string;
@@ -174,6 +180,8 @@ function toDecision(row: ApprovalRowJSON): ApprovalDecision {
     reversible: Boolean(row.reversible),
     urgency: row.urgency ?? "",
     contextUrl: row.context_url ?? "",
+    bigPicture: row.big_picture ?? "",
+    technicalDetails: row.technical_details ?? "",
     deadline: row.deadline ?? "",
     state: deriveState(row),
     answer: row.answer ?? "",

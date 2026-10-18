@@ -52,6 +52,11 @@ type Service interface {
 	UpdatePolicy(ctx context.Context, id string, policy Policy) (PolicyView, error)
 }
 
+// DelegationMinter mints and stores a short-lived, session-scoped human-owner
+// delegation. It returns true only when a usable token was stored, allowing
+// callers to try the next credential source only after refusal.
+type DelegationMinter func(ctx context.Context, sessionID, rawCredential string) bool
+
 // RemoteService is the server-side federation seam. It returns the same
 // transport-neutral session shape as local creation so the generated
 // SessionsService remains the single control surface for UI and CLI callers.
@@ -220,14 +225,11 @@ type CreateInput struct {
 	// session's stable-create owner so a tunnel-UI spawn is attributed to the
 	// operator, not the service principal. Empty leaves the prior behaviour.
 	HumanOwnerSubject string
-	// HumanOwnerCredentials are the operator's inbound verified-human candidate
-	// credentials (the Authorization bearer and/or the Cloudflare Access
-	// assertion) carried ONLY to authenticate a best-effort human-owner
-	// delegation mint during create, before the session's PTY environment is
-	// built. They are never persisted, logged, or placed in the agent env — only
-	// the derived minted token reaches the env, via the delegation holder. Empty
-	// leaves behaviour unchanged (no mint). scenario-authenticator refuses any
-	// non-human credential, so trying both candidates is safe.
+	// HumanOwnerCredentials are request-local credential candidates carried only
+	// for a best-effort delegation mint before a new PTY environment is built.
+	// They are never persisted, logged, or placed in the agent env; only the
+	// derived token reaches the env through the delegation holder. Empty leaves
+	// behavior unchanged (no mint).
 	HumanOwnerCredentials []string
 }
 
@@ -235,6 +237,10 @@ type CreateInput struct {
 type RecoverInput struct {
 	ID             string
 	IdempotencyKey string
+	// HumanOwnerCredentials are request-local candidates for a fresh, scoped
+	// delegation during recovery. They are used only when the verified human
+	// principal matches the persisted source-session owner, and are never stored.
+	HumanOwnerCredentials []string
 }
 
 // RecoverResult is the result returned by Recover.
@@ -290,10 +296,10 @@ type PolicyView struct {
 
 // Module wires the sessions domain into the API server. delegationMinter is
 // optional (nil disables human-owner delegation minting). The mint runs inside
-// the Adapter through a create-scoped pre-spawn hook so the delegation is stored
-// BEFORE the session's PTY environment is built; Module installs it on an
-// *Adapter svc here rather than on the handler, which no longer mints.
-func Module(svc Service, logger *log.Logger, delegationMinter func(ctx context.Context, sessionID, rawCredential string)) module.Module {
+// the Adapter through a pre-spawn hook so the delegation is stored BEFORE the
+// session's PTY environment is built; Module installs it on an *Adapter svc
+// rather than on the handler, which no longer mints.
+func Module(svc Service, logger *log.Logger, delegationMinter DelegationMinter) module.Module {
 	if logger == nil {
 		logger = log.Default()
 	}

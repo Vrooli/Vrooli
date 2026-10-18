@@ -7,6 +7,8 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -18,6 +20,17 @@ import (
 
 	"web-console/cli/internal/testutil"
 )
+
+func isolateWebConsoleCLIConfig(t *testing.T) string {
+	t.Helper()
+	configDir := t.TempDir()
+	// NewStandardScenarioApp recognizes the scenario-specific override and the
+	// shared Vrooli override. CLI_CONFIG_DIR_OVERRIDE is not part of its
+	// contract and must not be used by these tests.
+	t.Setenv("WEB_CONSOLE_CONFIG_DIR", configDir)
+	t.Setenv("VROOLI_CLI_CONFIG_DIR", "")
+	return configDir
+}
 
 func TestSessionGetRoutesEmbeddedManifest(t *testing.T) {
 	const sessionID = "11111111-2222-4333-8444-555555555555"
@@ -54,7 +67,7 @@ func TestSessionGetRoutesEmbeddedManifest(t *testing.T) {
 			))
 			server := httptest.NewServer(mux)
 			defer server.Close()
-			t.Setenv("CLI_CONFIG_DIR_OVERRIDE", t.TempDir())
+			isolateWebConsoleCLIConfig(t)
 			t.Setenv("WEB_CONSOLE_API_URL", server.URL)
 			t.Setenv("VROOLI_AGENT_IDENTITY_TOKEN", "")
 			app, err := NewApp()
@@ -160,7 +173,22 @@ func TestStandardScenarioPaths(t *testing.T) {
 }
 
 func TestBuiltInStatusCommandRegistered(t *testing.T) {
-	t.Setenv("CLI_CONFIG_DIR_OVERRIDE", t.TempDir())
+	outerConfigHome := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", outerConfigHome)
+	fixtureConfigDir := isolateWebConsoleCLIConfig(t)
+	// Keep the former, unrecognized override pointed only inside this disposable
+	// XDG tree. If the fixture regresses to that variable, the write stays safe
+	// and the preservation assertion below exposes the mistake.
+	t.Setenv("CLI_CONFIG_DIR_OVERRIDE", filepath.Join(outerConfigHome, "wrong-override"))
+
+	defaultConfig := filepath.Join(outerConfigHome, "vrooli", "web-console", "config.json")
+	if err := os.MkdirAll(filepath.Dir(defaultConfig), 0o700); err != nil {
+		t.Fatalf("create outer XDG config fixture: %v", err)
+	}
+	const hostConfigBaseline = `{"api_base":"http://preserved.example"}`
+	if err := os.WriteFile(defaultConfig, []byte(hostConfigBaseline), 0o600); err != nil {
+		t.Fatalf("seed outer XDG config fixture: %v", err)
+	}
 
 	app, err := NewApp()
 	if err != nil {
@@ -169,6 +197,27 @@ func TestBuiltInStatusCommandRegistered(t *testing.T) {
 
 	if err := app.Run([]string{"configure", "api_base", "http://127.0.0.1:1"}); err != nil {
 		t.Fatalf("configure failed: %v", err)
+	}
+
+	defaultData, err := os.ReadFile(defaultConfig)
+	if err != nil {
+		t.Fatalf("read outer XDG config fixture: %v", err)
+	}
+	if string(defaultData) != hostConfigBaseline {
+		t.Fatalf("outer XDG config was modified: got %s, want preserved bytes %s", defaultData, hostConfigBaseline)
+	}
+	fixtureData, err := os.ReadFile(filepath.Join(fixtureConfigDir, "config.json"))
+	if err != nil {
+		t.Fatalf("read isolated CLI config: %v", err)
+	}
+	var fixtureConfig struct {
+		APIBase string `json:"api_base"`
+	}
+	if err := json.Unmarshal(fixtureData, &fixtureConfig); err != nil {
+		t.Fatalf("decode isolated CLI config: %v", err)
+	}
+	if fixtureConfig.APIBase != "http://127.0.0.1:1" {
+		t.Fatalf("fixture api_base = %q, want configured test endpoint", fixtureConfig.APIBase)
 	}
 
 	// The built-in status command probes /health; without a reachable API it

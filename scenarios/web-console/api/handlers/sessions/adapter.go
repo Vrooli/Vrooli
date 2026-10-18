@@ -97,14 +97,13 @@ type Adapter struct {
 	Now                 func() time.Time
 	Remote              RemoteService
 	// DelegationMinter, when set, mints and stores a short-lived, session-scoped
-	// human-owner delegation for a verified-human create. The adapter invokes it
-	// through a create-scoped pre-spawn hook at the moment the session id is
-	// known and BEFORE the PTY environment is built, so the env builder sees the
-	// delegation for the fresh session. rawCredential authenticates the mint at
-	// scenario-authenticator and is never persisted here. Best-effort: it must
-	// never fail or block a create. A nil minter leaves behaviour unchanged.
-	DelegationMinter func(ctx context.Context, sessionID, rawCredential string)
-	LifecycleLedger  continuity.Ledger
+	// human-owner delegation for a verified-human create or owner-matched
+	// recovery. The adapter invokes it through a pre-spawn hook after the fresh
+	// session id is known and before the PTY environment is built. rawCredential
+	// is request-local and never persisted here. Best-effort: it must never fail
+	// or block session creation. A nil minter leaves behavior unchanged.
+	DelegationMinter  DelegationMinter
+	LifecycleLedger   continuity.Ledger
 	ContinuityCatalog interface {
 		EnqueueTombstone(context.Context, string) error
 		List(context.Context, string, int) ([]continuity.CatalogRecord, bool, error)
@@ -131,6 +130,37 @@ func (a *Adapter) updateCatalogLifecycle(ctx context.Context, sessionID string, 
 		return fmt.Errorf("update continuity catalog for %s: %w", sanitizeID(sessionID), err)
 	}
 	return nil
+}
+
+func sameVerifiedHumanOwner(ctx context.Context, owner string) bool {
+	principal, ok := identity.PrincipalFromContext(ctx)
+	if !ok || !principal.IsHuman() || principal.ExpiresAt.IsZero() || !time.Now().Before(principal.ExpiresAt) {
+		return false
+	}
+	owner = strings.TrimSpace(owner)
+	return owner != "" && principal.OwnerSubject() == owner
+}
+
+func withDelegationPreSpawn(ctx context.Context, minter DelegationMinter, credentials []string) context.Context {
+	if minter == nil || len(credentials) == 0 {
+		return ctx
+	}
+	// Copy the request-local candidates so the hook cannot observe later caller
+	// mutation. These values are never stored in session metadata or a durable
+	// receipt.
+	credentials = append([]string(nil), credentials...)
+	return session.WithPreSpawnHook(ctx, func(sessionID string) {
+		if sessionID == "" {
+			return
+		}
+		for _, credential := range credentials {
+			if credential = strings.TrimSpace(credential); credential != "" && minter(ctx, sessionID, credential) {
+				// Prefer the first accepted credential (account bearer before the
+				// Cloudflare fallback); a later candidate must not replace it.
+				return
+			}
+		}
+	})
 }
 
 func (a *Adapter) beginLifecycleReceipt(ctx context.Context, command, sessionID string, from, to continuity.State) (continuity.Receipt, bool, error) {
@@ -444,24 +474,8 @@ func (a *Adapter) Create(ctx context.Context, in CreateInput) (Session, error) {
 	// talks to scenario-authenticator (never agent-manager) and can never fail
 	// the create. The reserved-creation path (RequestedSessionID) is excluded: it
 	// rejects ExecuteLaunchCommand and is not the human-spawn launcher path.
-	if a.DelegationMinter != nil && in.RequestedSessionID == "" && len(in.HumanOwnerCredentials) > 0 {
-		creds := in.HumanOwnerCredentials
-		minter := a.DelegationMinter
-		ctx = session.WithPreSpawnHook(ctx, func(sessionID string) {
-			if sessionID == "" {
-				return
-			}
-			// The authority check lives at scenario-authenticator, which mints ONLY
-			// for a verified human and refuses everything else — so we attempt every
-			// candidate credential and let the authenticator decide. The tunnel
-			// operator's human proof is the Cf-Access assertion; the Authorization
-			// bearer may be a non-human service token, so both are tried.
-			for _, cred := range creds {
-				if strings.TrimSpace(cred) != "" {
-					minter(ctx, sessionID, cred)
-				}
-			}
-		})
+	if in.RequestedSessionID == "" {
+		ctx = withDelegationPreSpawn(ctx, a.DelegationMinter, in.HumanOwnerCredentials)
 	}
 
 	var sess *session.Session
@@ -1408,6 +1422,15 @@ func (a *Adapter) Recover(ctx context.Context, in RecoverInput) (res RecoverResu
 		rows = 36
 	}
 	pol := old.Policy
+	// A replacement session may inherit owner attribution only from the same
+	// currently verified human that owns the persisted source session. The
+	// owner label is not authority by itself; it is compared with the verified
+	// request principal before any credential is sent to scenario-authenticator.
+	// Install this only after replay and recoverability checks, immediately
+	// before the replacement session is created.
+	if sameVerifiedHumanOwner(ctx, old.Owner) {
+		ctx = withDelegationPreSpawn(ctx, a.DelegationMinter, in.HumanOwnerCredentials)
+	}
 	newSess, err := a.Manager.CreateWithWorkingDir(ctx, old.Shell, cols, rows, backend.Persistent, &pol, old.CWD)
 	if err != nil {
 		a.logger().Printf("recover[%s]: create new session: %v", oldID, err)

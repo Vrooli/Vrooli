@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"strings"
 	"time"
 
@@ -92,6 +93,17 @@ const idempotencyHeader = "X-Idempotency-Key"
 // Must match agent-manager's webconsole.HumanOwnerSubjectHeader.
 const humanOwnerSubjectHeader = "X-Human-Owner-Subject"
 
+func humanOwnerCredentialCandidates(headers http.Header) []string {
+	var credentials []string
+	if authz := strings.TrimSpace(headers.Get("Authorization")); authz != "" {
+		credentials = append(credentials, authz)
+	}
+	if cfAccess := strings.TrimSpace(headers.Get("Cf-Access-Jwt-Assertion")); cfAccess != "" {
+		credentials = append(credentials, cfAccess)
+	}
+	return credentials
+}
+
 func (h *connectHandler) Create(ctx context.Context, req *connect.Request[sessionsv1.CreateRequest]) (*connect.Response[sessionsv1.CreateResponse], error) {
 	raw, err := proto.MarshalOptions{Deterministic: true}.Marshal(req.Msg)
 	if err != nil {
@@ -127,12 +139,7 @@ func (h *connectHandler) Create(ctx context.Context, req *connect.Request[sessio
 	// assertion because for the tunnel operator the Cf-Access one is the human
 	// proof while the bearer may be a non-human service token; the authenticator
 	// refuses any non-human credential, so trying both is safe.
-	if authz := strings.TrimSpace(req.Header().Get("Authorization")); authz != "" {
-		in.HumanOwnerCredentials = append(in.HumanOwnerCredentials, authz)
-	}
-	if cfAccess := strings.TrimSpace(req.Header().Get("Cf-Access-Jwt-Assertion")); cfAccess != "" {
-		in.HumanOwnerCredentials = append(in.HumanOwnerCredentials, cfAccess)
-	}
+	in.HumanOwnerCredentials = humanOwnerCredentialCandidates(req.Header())
 	if req.Msg.GetHasPolicy() && req.Msg.GetPolicy() != nil {
 		in.HasPolicy = true
 		in.Policy = Policy{
@@ -285,8 +292,9 @@ func (h *connectHandler) Recover(ctx context.Context, req *connect.Request[sessi
 	}
 	ctx = WithOperationID(ctx, req.Header().Get(idempotencyHeader))
 	res, err := h.deps.Service.Recover(ctx, RecoverInput{
-		ID:             id,
-		IdempotencyKey: req.Header().Get(idempotencyHeader),
+		ID:                    id,
+		IdempotencyKey:        req.Header().Get(idempotencyHeader),
+		HumanOwnerCredentials: humanOwnerCredentialCandidates(req.Header()),
 	})
 	if err != nil {
 		return nil, h.classify(err, "sessions.Recover")
@@ -307,8 +315,9 @@ func (h *connectHandler) Reopen(ctx context.Context, req *connect.Request[sessio
 	}
 	ctx = WithOperationID(ctx, req.Header().Get(idempotencyHeader))
 	res, err := h.deps.Service.Recover(ctx, RecoverInput{
-		ID:             id,
-		IdempotencyKey: req.Header().Get(idempotencyHeader),
+		ID:                    id,
+		IdempotencyKey:        req.Header().Get(idempotencyHeader),
+		HumanOwnerCredentials: humanOwnerCredentialCandidates(req.Header()),
 	})
 	if err != nil {
 		return nil, h.classify(err, "sessions.Reopen")

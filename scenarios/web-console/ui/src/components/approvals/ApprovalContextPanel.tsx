@@ -12,14 +12,11 @@ import { safeContextUrl, sourceLabel } from "./approvalsFormat";
  * domain-neutral Ask) plus a read-only `context_url` deep link to the producer's
  * own review surface — it NEVER calls a producer directly, so the inbox's
  * decoupling from agent-manager (and every other source) holds. When a source
- * has no bespoke panel the generic panel renders the event type and the context
- * link, which is always enough to act or to go read more.
+ * has no bespoke panel the generic panel renders the event type, any ask-level
+ * explanation, and the context link.
  *
- * The hub's Ask does not carry an arbitrary per-source facts map, so the rich
- * per-source fields the mockups show (artifact digest, diff, scope) live behind
- * the context link in the producer's UI; the panel surfaces what the ask
- * carries and routes the operator there. If the substrate later adds a facts
- * map, this is the one place that grows a richer body per source.
+ * The hub's Ask carries two optional, source-neutral explanations. They are
+ * shown independently so either can be omitted without hiding the other.
  */
 export default function ApprovalContextPanel({
   decision,
@@ -64,6 +61,26 @@ export default function ApprovalContextPanel({
           </div>
         ))}
       </dl>
+      {decision.bigPicture && (
+        <details className="mt-3 rounded-md border border-wc-default p-3">
+          <summary className="cursor-pointer text-[13px] font-semibold text-wc-text-primary">
+            {t(strings.approvals.bigPicture)}
+          </summary>
+          <p className="mt-2 whitespace-pre-wrap break-words text-[13px] text-wc-text-secondary">
+            {decision.bigPicture}
+          </p>
+        </details>
+      )}
+      {decision.technicalDetails && (
+        <details className="mt-3 rounded-md border border-wc-default p-3">
+          <summary className="cursor-pointer text-[13px] font-semibold text-wc-text-primary">
+            {t(strings.approvals.technicalDetails)}
+          </summary>
+          <p className="mt-2 whitespace-pre-wrap break-words text-[13px] text-wc-text-secondary">
+            {decision.technicalDetails}
+          </p>
+        </details>
+      )}
       {linkHref ? (
         <a
           data-testid="approval-context-link"

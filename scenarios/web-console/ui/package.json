@@ -23,6 +23,8 @@
     "i18next": "^23.16.4",
     "lucide-react": "^0.424.0",
     "mermaid": "^11.4.1",
+    "music-metadata": "11.12.3",
+    "pdfjs-dist": "6.4.299",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-i18next": "^15.1.1",
@@ -31,6 +33,7 @@
     "remark-gfm": "^4.0.0",
     "shiki": "^1.24.0",
     "tailwind-merge": "^2.3.0",
+    "yaml": "2.9.1",
     "zustand": "^5.0.11"
   },
   "description": "React + Vite front-end for Aquila",

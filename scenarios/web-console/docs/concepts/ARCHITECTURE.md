@@ -216,6 +216,8 @@ Resolution + classification + the preview-id store live in the transport-neutral
 
 Flow: message link/chip → `openPreview(path)` → `Resolve` issues a session-bound `preview_id` → text kinds fetch `GetTextContent`; blob kinds load lazily via `blob_href` in the renderer. The blob handler re-stats the file on every request and returns 409 if size/mtime changed since resolve, 404 for unknown/expired/session-mismatched ids.
 
+Resolution preserves literal Unicode filenames. After literal candidates are absent, a path beginning with a full-width slash and containing no ASCII slashes gets one absolute-path fallback with full-width separators replaced; successful recovery returns a warning. This also covers percent-encoded Markdown hrefs without applying general Unicode normalization. HTML runtime audio/video admission uses the same extension registry as standalone previews, including `.m4a`, rather than a separate subset.
+
 HTML previews load relative presentation assets through `GET|HEAD /api/v1/sessions/{id}/file-previews/{previewId}/runtime/{resource}`. The route confines resources to the HTML document's directory, rejects escaping symlinks, and preserves the script-only iframe sandbox. Allowed audio/video resources stream directly from disk without a total-file-size cap; other presentation assets retain a 16 MiB bound. Both byte routes support native HEAD, suffix ranges, 64-bit offsets, and 206/416 responses. Preview writes renew the server's 150-second write deadline per chunk, allowing active transfers to outlast the ordinary response budget while bounding stalled writes. This does not change the preview ID's 30-minute lifetime; reopening an expired preview obtains a fresh ID.
 
 HTML viewing controls follow the drawer header surface: one shared `IconButton`
@@ -243,6 +245,96 @@ Normal single-finger scrolling remains native at 1×. Pinching out restores 1×;
 resize and toolbar changes reset inspection. Trackpad pinch is also supported.
 The bootstrap is embedded as a raw inline module for production/profile parity;
 its messages grant only inspection and scrolling, with no host operations.
+
+#### Audio preview player
+
+Audio previews use a focused listening card within the existing artifact drawer.
+The shared content model is track identity/artwork, duration/format/size, seekable
+waveform, transport, repeat/speed/volume, inspection tools, and file actions.
+This is an immersive single-task sub-surface. On phones the compact identity,
+waveform and large transport targets come first; inspection and secondary file
+actions expand on demand. Wider drawers retain that hierarchy with more breathing
+room. The [audio composition mockup](../mockups/audio-preview-player.svg) extends
+the operator-approved concept. Existing semantic tokens and library primitives
+own appearance; this does not change the app theme or audio-provider boundary.
+
+The native HTML audio element owns streaming and playback. Controls reflect media
+events, handle rejected play requests and buffering, and stop/release the element
+when navigating or closing. Seeking is keyboard/touch accessible. Waveform zoom
+exposes a movable time window; A/B markers define a reversible playback-only loop,
+without editing the file. Whole-track repeat and segment repeat are exclusive.
+System playback routing remains available through native controls on demand.
+
+Optional analysis fetches at most 24 MiB after finite metadata reports at most
+10 minutes, with cancellation and a timeout. An offline 8 kHz decode supplies real
+waveform peaks; it never connects playback to a Web Audio graph. Embedded track
+tags/artwork use the lazy-loaded governed music-metadata parser. Missing artwork,
+unsupported decoding, excessive size/duration, or failed analysis degrade to a
+music glyph and ordinary seek bar; playback and download remain independent.
+Artwork uses bounded raster blobs whose URLs are revoked on cleanup. Validation
+covers transport, resource cleanup, fallback/error cases, loops and zoom, locale
+parity, scoped Test Genie unit checks, and mobile/desktop browser inspection.
+
+#### Image, PDF, video and table previews
+
+These four sub-surfaces share the audio player's **focused artifact inspection**
+concept: compact controls, a content-first stage, quiet metadata and file actions,
+semantic colors and shared library controls. The approved scope is the operator's
+request to implement all four preview recommendations. Composition is recorded in
+[the desktop/mobile family mockup](../mockups/artifact-preview-family.svg).
+
+Content/action model, independent of viewport:
+
+- Image/SVG: original dimensions/format/size, Fit/100%/zoom, focal pinch/wheel
+  magnification, bounded panning, rotation and transparency/light/dark backgrounds.
+  SVG remains an inert image resource. Resizing refits automatically in Fit mode.
+- PDF: page/count/navigation, Fit width/Fit page/zoom, searchable selectable text,
+  loading/password/error states and independent download/open actions. PDF.js and
+  its worker, CMaps, fonts and WASM are bundled locally. PDF scripting and form
+  editing are disabled. Visible-page rendering and bounded canvases control memory;
+  closing the drawer destroys the document, render tasks and worker transport.
+- Video: native inline streaming with event-driven playback, seek/skip, speed,
+  whole-video repeat, volume/mute, fullscreen and on-demand system controls. It
+  shares the tested media transport with audio and stops/releases on navigation.
+- CSV/TSV: original values, explicit loaded-row/column counts, global filtering,
+  stable numeric-aware sorting, adjustable columns, cell copy, pagination and
+  source access. Existing text/row bounds remain explicit; sorting/filtering apply
+  only to loaded rows. Ragged rows retain extra fields. Narrow drawers compose
+  a record list/detail view from the same data model rather than shrinking a wide
+  table. Users can switch between record and table views at any width.
+
+Images, PDFs and video are immersive single-task sub-surfaces: controls stay
+reachable above/below the stage, independent of drawer width. The table archetype
+uses conditional composition measured from the drawer, not the browser viewport.
+Unsupported codecs, PDF failures and oversized table shapes preserve download
+and source access. Source changes reset inspection state. Validation covers
+interaction math, real media/document behavior, parsing/data integrity, teardown,
+keyboard/touch access, locale parity, and narrow/wide browser inspection.
+
+#### Markdown and configuration readers
+
+Extend focused artifact inspection to Markdown and JSON/YAML. The operator
+approved starting with these two recommendations. These are read-only immersive
+sub-surfaces, using existing ArtifactChrome, semantic tokens and shared controls.
+Markdown supplies rendered/source modes, literal in-document search with match
+navigation, text-size controls and an outline derived from rendered headings.
+A wide drawer can retain an outline beside the reading column; a narrow drawer
+opens the outline on demand and returns to the selected section. Preserve the
+existing Markdown renderer, safe links, diagrams and local-file navigation.
+Reader controls never mutate source or intercept external navigation.
+
+JSON/YAML supply Structure/Source modes, key/value/path filtering, collapsed
+collections and an inspector with full original values and copy value/path/source
+actions. On wide drawers the selected value sits beside the tree; narrow drawers
+use a dedicated detail view with Back. Search includes collapsed descendants.
+Retain original scalar spellings (including large numbers), explicit document
+selection for YAML streams, empty/null distinctions, and source fallback for
+invalid, truncated, overly deep/large or unsupported shapes. Parsing runs in a
+terminable local worker with character/node/depth limits. Aliases remain references,
+custom tags/complex keys use explicit source fallback; no YAML object construction,
+implicit code execution or alias expansion. Structured viewing does not add an
+editor or change file resolution, API kinds, authorization or source downloads.
+See [reader composition](../mockups/artifact-reader-previews.svg).
 
 ### Error Handling
 

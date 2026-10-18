@@ -135,13 +135,13 @@ describe("video renderer", () => {
 });
 
 describe("pdf renderer", () => {
-  it("renders an iframe pointed at the blob href", () => {
+  it("provides reading controls and a same-origin download fallback", () => {
     const Renderer = renderers.pdf;
-    const { container } = render(
+    render(
       <Renderer model={model({ kind: "pdf", mimeType: "application/pdf" })} text={null} onError={() => {}} {...navProps} />,
     );
-    const iframe = container.querySelector("iframe");
-    expect(iframe).toHaveAttribute("src", "/api/v1/sessions/s/file-previews/pv-1/blob");
+    expect(screen.getByRole("button", { name: strings.artifactPreview.nextPage })).toBeDisabled();
+    expect(screen.getByTestId("file-preview-download")).toHaveAttribute("href", "/api/v1/sessions/s/file-previews/pv-1/blob");
   });
 });
 

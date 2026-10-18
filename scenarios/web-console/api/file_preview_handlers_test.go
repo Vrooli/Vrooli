@@ -178,7 +178,7 @@ func TestFilePreview_LargeMediaStreamsThroughRuntimeAndBlob(t *testing.T) {
 	const size int64 = (5 << 30) + 123
 	payload := "media bytes beyond 4 GiB"
 	offset := size - int64(len(payload))
-	for _, name := range []string{"film.mp4", "film.webm", "sound.mp3", "sound.wav", "sound.ogg"} {
+	for _, name := range []string{"film.mp4", "film.webm", "film.ogv", "film.mov", "film.m4v", "sound.mp3", "sound.wav", "sound.ogg", "sound.oga", "sound.m4a", "sound.M4A", "sound.aac", "sound.flac", "sound.opus"} {
 		t.Run(name, func(t *testing.T) {
 			file, err := os.Create(filepath.Join(root, name))
 			if err != nil {

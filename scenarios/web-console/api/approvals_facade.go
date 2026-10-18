@@ -107,6 +107,8 @@ type approvalView struct {
 	Reversible           bool                 `json:"reversible"`
 	Urgency              string               `json:"urgency"`
 	ContextURL           string               `json:"context_url"`
+	BigPicture           string               `json:"big_picture"`
+	TechnicalDetails     string               `json:"technical_details"`
 	Deadline             string               `json:"deadline"`
 	State                string               `json:"state"`
 	Answer               string               `json:"answer"`
@@ -139,6 +141,7 @@ func askToView(ask *conv.Ask) approvalView {
 		Recommended: ask.GetRecommended(), RecommendationReason: ask.GetRecommendationReason(),
 		DefaultAnswer: ask.GetDefaultAnswer(), Reversible: ask.GetReversible(), Urgency: ask.GetUrgency(),
 		ContextURL: ask.GetContextUrl(), Deadline: ask.GetDeadline(), State: ask.GetState(),
+		BigPicture: ask.GetBigPicture(), TechnicalDetails: ask.GetTechnicalDetails(),
 		Answer: ask.GetAnswer(), AnswerLabel: ask.GetAnswerLabel(), Note: ask.GetNote(),
 		AnsweredBy: ask.GetAnsweredBy(), AnsweredAt: ask.GetAnsweredAt(), Late: ask.GetLate(),
 		DefaultAppliedAt: ask.GetDefaultAppliedAt(), ResolvedAt: ask.GetResolvedAt(),

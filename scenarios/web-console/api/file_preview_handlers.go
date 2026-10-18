@@ -395,12 +395,7 @@ func previewRuntimeResourceAllowed(name string) bool {
 }
 
 func previewRuntimeMedia(name string) bool {
-	switch strings.ToLower(filepath.Ext(name)) {
-	case ".mp4", ".webm", ".mp3", ".wav", ".ogg":
-		return true
-	default:
-		return false
-	}
+	return filepreview.IsMediaFilename(name)
 }
 
 func previewRuntimeHTML(name string) bool {

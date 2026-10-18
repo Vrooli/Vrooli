@@ -3,7 +3,8 @@ import { Code2, Eye, Minus, Plus, WrapText } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { IconButton } from "@vrooli/react-component-library/IconButton";
 
-import { MarkdownRenderer } from "../../markdown";
+import { StructuredPreview } from "./StructuredPreview";
+import { isStructuredPath } from "../structuredData";
 import { strings } from "../../../consts/strings";
 import { cn } from "../../../lib/classnames";
 import {
@@ -16,24 +17,7 @@ import { PreviewNotice } from "./shared";
 import { attachHtmlPreviewInspection, htmlPreviewPinchScript } from "../htmlPreviewPinch";
 import type { PreviewRendererProps } from "../types";
 
-// MarkdownPreview renders text-kind markdown via the shared MarkdownRenderer.
-export function MarkdownPreview({ text }: PreviewRendererProps) {
-  const { t } = useTranslation();
-  const content = text?.content ?? "";
-  if (content.trim() === "") {
-    return <EmptyText />;
-  }
-  return (
-    <div className="h-full overflow-auto px-4 py-4" data-testid="file-preview-markdown">
-      {text?.truncated && (
-        <div className="mb-3">
-          <PreviewNotice message={t(strings.messagesFileViewer.truncatedNotice)} tone="info" />
-        </div>
-      )}
-      <MarkdownRenderer content={content} className="text-sm" />
-    </div>
-  );
-}
+export { MarkdownPreview } from "./MarkdownPreview";
 
 // CodePreview renders code/text/diff fallback content with line numbers,
 // syntax highlighting, font sizing, wrap toggle, and target-line scroll.
@@ -44,6 +28,7 @@ export function CodePreview(props: PreviewRendererProps) {
   if (/\.html?$/i.test(model.resolvedPath) || model.mimeType.split(";")[0]?.trim().toLowerCase() === "text/html") {
     return <HtmlPreview key={model.previewId} {...props} />;
   }
+  if (isStructuredPath(model.resolvedPath)) return <StructuredPreview {...props} />;
   return <SourcePreview {...props} />;
 }
 

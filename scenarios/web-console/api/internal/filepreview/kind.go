@@ -165,6 +165,13 @@ func classifyByExtension(name string) (Kind, bool) {
 	return k, ok
 }
 
+// IsMediaFilename reports whether the filename has a supported audio or video
+// extension. HTML runtime resources share this registry with standalone previews.
+func IsMediaFilename(name string) bool {
+	k, ok := classifyByExtension(name)
+	return ok && (k == KindAudio || k == KindVideo)
+}
+
 // mimeForKind resolves the Content-Type for a kind+extension. Kinds with a
 // canonical override use it; otherwise the registered extension MIME wins, with
 // an octet-stream fallback for blob kinds and text/plain for text kinds.

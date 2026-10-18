@@ -2,6 +2,7 @@ package filepreview
 
 import (
 	"errors"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -166,6 +167,44 @@ func TestResolveAbsolute(t *testing.T) {
 	}
 	if target.ResolutionBasis != "absolute" || target.Kind != KindCode {
 		t.Fatalf("basis=%q kind=%q", target.ResolutionBasis, target.Kind)
+	}
+}
+
+func TestResolveFullWidthAbsoluteLink(t *testing.T) {
+	root := t.TempDir()
+	fp := filepath.Join(root, "listening.html")
+	mustWrite(t, fp, "<audio controls></audio>")
+	malformed := strings.ReplaceAll(fp, "/", "／")
+	for _, raw := range []string{malformed, url.PathEscape(malformed), malformed + ":12"} {
+		t.Run(raw, func(t *testing.T) {
+			target, err := newResolver(root).Resolve("", errors.New("cwd unavailable"), raw)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if target.ResolvedPath != fp || target.ResolutionBasis != "absolute" || target.InputPath != raw || len(target.Warnings) != 1 {
+				t.Fatalf("unexpected recovery: %+v", target)
+			}
+			if strings.HasSuffix(raw, ":12") && (!target.HasLine || target.Line != 12) {
+				t.Fatalf("lost line suffix: %+v", target)
+			}
+		})
+	}
+}
+
+func TestResolvePreservesLiteralUnicodePaths(t *testing.T) {
+	root := t.TempDir()
+	for _, name := range []string{"／literal／file.txt", "folder／name.txt", "café.txt"} {
+		fp := filepath.Join(root, name)
+		mustWrite(t, fp, "literal filename")
+		target, err := newResolver(root).Resolve("", nil, name)
+		if err != nil || target.ResolvedPath != fp || len(target.Warnings) != 0 {
+			t.Fatalf("literal %q changed: target=%+v err=%v", name, target, err)
+		}
+	}
+	// An ASCII absolute path can contain a real full-width slash in its basename.
+	fp := filepath.Join(root, "folder／name.txt")
+	if target, err := newResolver(root).Resolve("", nil, fp); err != nil || target.ResolvedPath != fp {
+		t.Fatalf("absolute Unicode filename changed: target=%+v err=%v", target, err)
 	}
 }
 
