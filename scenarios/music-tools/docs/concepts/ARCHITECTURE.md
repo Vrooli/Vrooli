@@ -276,3 +276,49 @@ New admissions also freeze the selected exact variant, including an implicit lyr
 model preference. A differently loaded runtime is refused through the existing
 expected-variant/returned-variant contract; Music never switches a resident model.
 Previously queued snapshots with blank variant retain their historical semantics.
+
+## Accepted song-model integration target — 2026-10-17
+
+The operator selected ACE take 2 for the intended KiiiKiii-like energy and
+MiniMax quantized seed 170104 for realism, while finding that MiniMax take's
+genre and voice mismatched. These are separate quality dimensions; neither
+result establishes an artist-identity guarantee or replaces the approved
+Stable Audio instrumental default.
+
+MiniMax Music3 (the tested NF4 semantic/output-head recipe) and HeartMuLa use
+one managed `songgen` resource. Each model has its own pinned source, weights,
+wheel closure, capabilities and sampling profile. The resource shares the
+HTTP/job/receipt/cache machinery; isolated child processes load one profile
+per generation and release GPU and CPU allocations on exit. Model assumptions
+belong in profile data and the corresponding backend adapter. Music's durable
+job/pool/blob pipeline publishes their verified takes. No hosted API, silent
+model fallback or audible artist-identity guarantee is part of this target.
+
+Resource lifecycle declares a common exclusive group for music generators.
+The control plane serializes lifecycle mutations for the group and refuses
+starting a second member while another owned member runs. It must not kill an
+active generation to switch models. Explicit normal stop/start is the
+activation route; unrelated coding agents and GPU tenants are outside the group.
+
+Disk retention is distinct from GPU eviction. Keep downloaded weights across
+requests and restarts; default eligibility is 30 days since recorded use,
+with pinning and explicit preview/apply. Unknown usage, active work, installation,
+missing identity or changed previews prevent deletion. Delete whole declared
+model bundles, never individual shards or operator exports. Acquisition and
+generation/cleanup share the control plane's resource-data lock. Consumers express reuse intent through use and pins. The resource catalog
+supplies the shared cache defaults and owns model-cache mutation.
+Ordinary filesystem-age retention must not prune these bundles directly.
+Weights for optional profiles are acquired by explicit declared group through
+the control plane. Routine resource installation/start must not fetch a missing
+on-demand group. This prevents an unused profile removed by retention from
+being downloaded again when another profile is selected. Group acquisition
+uses the same pinned data declarations, authorization and resource-data fence.
+
+
+Acceptance requires focused provider/receipt, worker cancellation, exclusive
+lifecycle and retention race regressions; normal managed activation; a fresh
+bounded generation per new backend through Music; verified receipts/audio;
+no overlapping music model residency; and no unused experimental models or
+workers remaining. Source tests alone do not establish live adoption or sound
+quality. After checks pass, run two fresh adversarial reviews and resolve
+material correctness, maintainability and lifecycle findings.

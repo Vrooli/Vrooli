@@ -504,8 +504,21 @@ const artifactCaptureTemplate = `(() => {
       bottom: parseFloat(style.paddingBottom) || 0,
       left: parseFloat(style.paddingLeft) || 0
     };
+    // Preserve hardware env() separately: a host viewport can stop above the
+    // physical bottom, where the library correctly resolves no internal inset.
+    out.raw = { top: out.top, right: out.right, bottom: out.bottom, left: out.left };
+    probe.style.paddingBottom = 'var(--rcl-safe-bottom, env(safe-area-inset-bottom, 0px))';
+    out.bottom = parseFloat(win.getComputedStyle(probe).paddingBottom) || 0;
     probe.remove();
     return out;
+  }
+
+  function opaqueBackground(el, win) {
+    if (!el) { return ''; }
+    var color = win.getComputedStyle(el).backgroundColor;
+    var rgb = color.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)$/);
+    if (!rgb || (rgb[4] !== undefined && Number(rgb[4]) !== 1)) { return ''; }
+    return '#' + [rgb[1], rgb[2], rgb[3]].map(function (n) { return Number(n).toString(16).padStart(2, '0'); }).join('');
   }
 
   function declaredChrome(doc) {
@@ -513,7 +526,13 @@ const artifactCaptureTemplate = `(() => {
     var statusStyle = metaContent(doc, 'apple-mobile-web-app-status-bar-style');
     var statusBarColor = themeColor;
     if (statusStyle === 'black') { statusBarColor = '#000000'; }
+    // Top chrome and bottom navigation can legitimately be different colors.
+    // Compare pixels to the semantic edge owner, not to pixels sampled from
+    // that same strip. Drawer/sheet ownership takes precedence over navigation.
+    var bottomOwner = doc.querySelector('[data-rcl-full-page-drawer][data-state="open"] .rcl-full-page-drawer__panel, [data-rcl-bottom-sheet][data-state="open"] .rcl-bottom-sheet__panel, [data-rcl-responsive-dialog][data-state="open"] .rcl-responsive-dialog__panel') || doc.querySelector('[data-rcl-bottom-nav]');
+    var bottomColor = opaqueBackground(bottomOwner, doc.defaultView || window);
     return {
+      safeAreaColors: bottomColor ? { bottom: bottomColor } : {},
       themeColor: themeColor,
       statusBarColor: statusBarColor,
       safeAreaColor: themeColor,
@@ -542,6 +561,7 @@ const artifactCaptureTemplate = `(() => {
     visualViewportScale: window.visualViewport ? window.visualViewport.scale : 0
   };
   var layout = {
+    capture: { kind: "browser_viewport", nativeScreen: false },
     viewport: viewport,
     document: {
       scrollWidth: Math.max(root.scrollWidth || 0, body.scrollWidth || 0),
@@ -570,6 +590,7 @@ const artifactCaptureTemplate = `(() => {
   return {
     domHtml: root ? root.outerHTML : '',
     layout: layout,
+    capture: { kind: "browser_viewport", nativeScreen: false },
     viewport: viewport,
     network: network
   };

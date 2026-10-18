@@ -734,16 +734,17 @@ func (b *admissionBroker) Claim(context.Context, string, uint64, uint64) (capaci
 	if rung == "" {
 		rung = "offload-dit"
 	}
-	return capacity.Verdict{Granted: true, ClaimID: "lease", AppliedRung: rung}, nil
+	return capacity.Verdict{Granted: true, ClaimID: "lease", Generation: 11, AppliedRung: rung}, nil
 }
-func (b *admissionBroker) Release(context.Context, string) error {
+
+func (b *admissionBroker) Release(context.Context, capacity.ClaimRef) error {
 	b.releases.Add(1)
 	if b.released != nil {
 		b.released <- struct{}{}
 	}
 	return nil
 }
-func (b *admissionBroker) Heartbeat(context.Context, string) error { return nil }
+func (b *admissionBroker) Heartbeat(context.Context, capacity.ClaimRef) error { return nil }
 
 func waitForAdmissionRelease(t *testing.T, broker *admissionBroker) {
 	t.Helper()
@@ -756,6 +757,7 @@ func waitForAdmissionRelease(t *testing.T, broker *admissionBroker) {
 		t.Fatalf("claim release count=%d", got)
 	}
 }
+
 func TestRestartRequiredDegradationRefusesBeforeGeneration(t *testing.T) {
 	db := testdb.NewSQLite(t)
 	for _, schema := range []string{jobdomain.Schema(), stylesdomain.Schema(), core.Schema()} {

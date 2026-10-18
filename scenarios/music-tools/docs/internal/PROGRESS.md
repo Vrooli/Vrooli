@@ -24,6 +24,49 @@ with the owning plan.
 | 2026-09-19 | agent | partial | Measured ten SFT jobs through the shipped pipeline with preserved briefs/seeds and valid WAV receipts; turbo remains default because no grounded quality advantage was established. Reconciled capacity with ACE-Step claimed and healthy. Business and broad Test Genie validation were rerun, but the provider was unavailable for business and the broad suite retained pre-existing UI/proto/quality/provider findings; these remain explicit audit limitations. |
 | 2026-09-19 | agent | done | Closed the composition-slice intent spine: shipped requirement references now resolve to real tests with valid registry statuses, explicitly deferred domains use roadmap/manual validations, and P2 targets have coverage. Business phase passed with zero ERROR/BLOCKER findings. The broad collection passed 16/27 phases; remaining failures are logged as unrelated scaffold/provider debt. |
 
+## 2026-10-17 — Managed MiniMax Music3 and HeartMuLa
+
+Integrated explicit `minimax-music3-nf4` and `heartmula-3b` variants into the
+existing style → durable job → take → owned blob route. One Songgen resource
+shares transport, fencing, receipts and retention while keeping the pinned
+inference dependencies isolated. New jobs freeze exact provider/runtime/style
+identity and refuse receipt or actual sampling mismatches. Defaults remain
+SA3 for instrumentals and ACE for implicit lyric requests. Updated canonical
+music-generation skill revision 8 preserves the listener's separate realism
+and style judgments and does not claim reference-voice support.
+
+Both native 35-second verification jobs succeeded with matching exported WAV
+hashes. HeartMuLa peak Torch allocation was 8,577,632,256 bytes; MiniMax NF4 was
+7,403,018,240 bytes. Workers exited between jobs and no Songgen GPU process
+remained afterward. The final retention/recovery patches have focused reacquisition
+regressions and recorded unchanged inference-input hashes; it does not rerender
+the already-qualified inference code. Exact jobs, takes, receipts, source/preview
+audio and the artifact delta are retained in the protected effort directory
+`production/continuation/music/song-model-integration-v1`.
+
+Control-plane work adds music lifecycle exclusivity, refuses shared-broker
+bypasses, protects running runtime artifacts from pruning, and gives ACE/SA3
+last-use cache ownership. Corrected proxy stop/port-release ordering, explicit
+idle placement, and serving CPU-rung startup without hiding drift or failed
+liveness probes. Cache cleanup preserves pins, new downloads, unexpected files,
+operator exports and concurrent acquisitions; interrupted deletion remains
+retryable. Explicit data-group acquisition prevents ordinary setup from
+redownloading a profile retired by the unused-model policy. Startup checks
+complete group presence and expected sizes before process launch. Superseded
+local candidate runtime trees are removed, with their
+receipts and source snapshots retained.
+
+Focused Go/resource/storage checks passed. Music Test Genie
+`20261017-225733-5e968194` passed unit and API phases. The final scoped
+control-plane run passed 39 regression cases, and Songgen passed 20 Python
+regressions plus its Go CLI tests. Streaming atomic publication avoids reading
+entire vendored weight files into RAM. Earlier broad baseline
+findings and advisory-capacity limits are explicitly retained in PROBLEMS.md;
+this work does not claim whole-repository certification or listener approval of
+new tracks. All music resources are stopped after verification; selected weights
+remain cached and Ollama's normal configuration is restored. The final evidence
+manifest records managed adoption, cleanup, and two explicit self-review passes.
+
 ## Entry Template
 
 Use this table shape when appending entries.

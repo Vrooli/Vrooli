@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"runtime"
 	"slices"
 	"sort"
@@ -31,25 +32,51 @@ type Capability struct {
 }
 
 type Model struct {
-	Engine                string      `json:"engine"`
-	CompositionPreference int         `json:"composition_preference"`
-	SungLyrics            Capability  `json:"sung_lyrics"`
-	ID                    string      `json:"id"`
-	DisplayName           string      `json:"display_name"`
-	Variant               string      `json:"variant"`
-	Revision              string      `json:"revision"`
-	Licence               LicenceLane `json:"licence"`
-	Installed             bool        `json:"installed"`
-	Bytes                 uint64      `json:"bytes"`
-	Operations            []string    `json:"operations"`
-	Hardware              Hardware    `json:"hardware"`
-	License               string      `json:"license"`
-	CommercialUse         string      `json:"commercial_use"`
-	CommercialUseNotes    string      `json:"commercial_use_notes"`
-	BaseModelLineage      string      `json:"base_model_lineage"`
-	KnownRisks            string      `json:"known_risks"`
-	Checksum              string      `json:"checksum"`
-	DiskFloorBytes        uint64      `json:"disk_floor_bytes"`
+	Runtime               *CompositionRuntime `json:"runtime,omitempty"`
+	Engine                string              `json:"engine"`
+	CompositionPreference int                 `json:"composition_preference"`
+	SungLyrics            Capability          `json:"sung_lyrics"`
+	VoiceReference        Capability          `json:"voice_reference"`
+	ID                    string              `json:"id"`
+	DisplayName           string              `json:"display_name"`
+	Variant               string              `json:"variant"`
+	Revision              string              `json:"revision"`
+	Licence               LicenceLane         `json:"licence"`
+	Installed             bool                `json:"installed"`
+	Bytes                 uint64              `json:"bytes"`
+	Operations            []string            `json:"operations"`
+	Hardware              Hardware            `json:"hardware"`
+	License               string              `json:"license"`
+	CommercialUse         string              `json:"commercial_use"`
+	CommercialUseNotes    string              `json:"commercial_use_notes"`
+	BaseModelLineage      string              `json:"base_model_lineage"`
+	KnownRisks            string              `json:"known_risks"`
+	Checksum              string              `json:"checksum"`
+	DiskFloorBytes        uint64              `json:"disk_floor_bytes"`
+}
+
+// CompositionRuntime describes the local song protocol, independently of a
+// model name. Controls and identity are declarations, not provider-name guesses.
+type CompositionRuntime struct {
+	Protocol        string            `json:"protocol"`
+	Resource        string            `json:"resource"`
+	Profile         string            `json:"profile"`
+	URLVariable     string            `json:"url_variable"`
+	DefaultURL      string            `json:"default_url"`
+	CatalogSHA256   string            `json:"catalog_sha256"`
+	ArtifactSHA256  string            `json:"artifact_sha256"`
+	SourceRevision  string            `json:"source_revision"`
+	WeightFiles     int               `json:"weight_files"`
+	Versions        map[string]string `json:"versions"`
+	MinDuration     float64           `json:"min_duration"`
+	MaxDuration     float64           `json:"max_duration"`
+	DefaultSteps    int               `json:"default_steps"`
+	MinSteps        int               `json:"min_steps"`
+	MaxSteps        int               `json:"max_steps"`
+	DefaultGuidance float64           `json:"default_guidance"`
+	MinGuidance     float64           `json:"min_guidance"`
+	MaxGuidance     float64           `json:"max_guidance"`
+	TimeoutSeconds  int               `json:"timeout_seconds"`
 }
 
 type Hardware struct {
@@ -201,6 +228,20 @@ func (r *Registry) Validate() error {
 		}
 		if model.License == "" || model.CommercialUse == "" || model.BaseModelLineage == "" || model.KnownRisks == "" {
 			return fmt.Errorf("models: %s is missing capability labels", model.ID)
+		}
+		if runtime := model.Runtime; runtime != nil {
+			if runtime.Protocol != "song-v1" || runtime.Resource == "" || runtime.Profile == "" || runtime.URLVariable == "" || runtime.DefaultURL == "" || runtime.SourceRevision == "" || runtime.WeightFiles <= 0 || len(runtime.Versions) == 0 {
+				return fmt.Errorf("models: %s has an incomplete local song runtime", model.ID)
+			}
+			for _, digest := range []string{runtime.CatalogSHA256, runtime.ArtifactSHA256} {
+				if decoded, err := hex.DecodeString(digest); err != nil || len(decoded) != sha256.Size { return fmt.Errorf("models: %s has an invalid runtime digest", model.ID) }
+			}
+			for _, value := range []float64{runtime.MinDuration,runtime.MaxDuration,runtime.DefaultGuidance,runtime.MinGuidance,runtime.MaxGuidance} {
+				if math.IsNaN(value) || math.IsInf(value,0) { return fmt.Errorf("models: %s has a nonfinite runtime control",model.ID) }
+			}
+			if runtime.MinDuration < 1 || runtime.MaxDuration < runtime.MinDuration || runtime.MaxDuration > 240 || runtime.MinSteps < 0 || runtime.DefaultSteps < runtime.MinSteps || runtime.DefaultSteps > runtime.MaxSteps || runtime.MaxSteps > 100 || runtime.DefaultGuidance < runtime.MinGuidance || runtime.DefaultGuidance > runtime.MaxGuidance || runtime.MinGuidance <= 0 || runtime.MaxGuidance > 20 || runtime.TimeoutSeconds < 1 || runtime.TimeoutSeconds > 86400 {
+				return fmt.Errorf("models: %s has inconsistent runtime controls",model.ID)
+			}
 		}
 	}
 	return nil

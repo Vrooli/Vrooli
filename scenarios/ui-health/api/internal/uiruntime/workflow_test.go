@@ -83,3 +83,12 @@ func TestHandshakeWorkflowBindsBridgeReadinessToChildOriginAndNonce(t *testing.T
 		}
 	}
 }
+
+func TestArtifactCaptureKeepsEffectiveAndRawInsetsAndSeparateBottomOwner(t *testing.T) {
+	script := artifactCaptureScript()
+	for _, fragment := range []string{"out.raw =", "out.bottom = parseFloat", "var(--rcl-safe-bottom", "safeAreaColors: bottomColor", "[data-rcl-bottom-nav]", "[data-state=\"open\"]"} {
+		if !strings.Contains(script, fragment) {
+			t.Fatalf("capture is missing safe-area evidence %q", fragment)
+		}
+	}
+}

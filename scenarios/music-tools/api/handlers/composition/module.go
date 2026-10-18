@@ -32,6 +32,7 @@ import (
 	core "music-tools/internal/composition"
 	"music-tools/internal/jobs"
 	"music-tools/internal/measures"
+	"music-tools/internal/models"
 	"music-tools/internal/module"
 	musicstorage "music-tools/internal/storage"
 	"music-tools/internal/styles"
@@ -82,6 +83,9 @@ func NewStateWithCapacityAndStorage(db jobs.SQLExecutor, broker capacity.Broker,
 		}
 		if provider == providerSA3 {
 			return state.sa3Admission(ctx)
+		}
+		if input.ModelSnapshot != nil {
+			return state.songAdmission(ctx, input)
 		}
 		release, meta, err := capacity.Admit(ctx, cancel, broker, job.ID, 7516192768, 6442450944)
 		if err != nil || meta["capacity_degrade"] == "" {
@@ -163,7 +167,7 @@ func NewStateWithCapacityAndStorage(db jobs.SQLExecutor, broker capacity.Broker,
 			state.Pool.ReplenishmentFinished(styleID)
 			return
 		}
-		payload, marshalErr := json.Marshal(composeJobPayload{composeRequest: request, ResolvedLyrics: &compiled.Lyrics, SeedSource: "fresh-at-admission", Provider: provider, ResolvedStyle: snapshotStyle(provider, compiled)})
+		payload, marshalErr := json.Marshal(composeJobPayload{composeRequest: request, ResolvedLyrics: &compiled.Lyrics, SeedSource: "fresh-at-admission", Provider: provider, ResolvedStyle: snapshotStyle(provider, compiled), ModelSnapshot: snapshotModel(selected)})
 		if marshalErr != nil {
 			state.Pool.ReplenishmentFinished(styleID)
 			return
@@ -381,6 +385,7 @@ func freshBaseSeed() (*int64, error) {
 // ResolvedLyrics is server-owned durable input, never a per-compose override.
 // A missing snapshot belongs to the old always-instrumental request contract.
 type composeJobPayload struct {
+	ModelSnapshot *models.Model `json:"model_snapshot,omitempty"`
 	composeRequest
 	ResolvedLyrics *string          `json:"resolved_lyrics,omitempty"`
 	SeedSource     string           `json:"seed_source,omitempty"`
@@ -459,7 +464,7 @@ func (s *ModuleState) compose(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	payload, _ := json.Marshal(composeJobPayload{composeRequest: request, ResolvedLyrics: &compiled.Lyrics, SeedSource: seedSource, Provider: provider, ResolvedStyle: snapshotStyle(provider, compiled)})
+	payload, _ := json.Marshal(composeJobPayload{composeRequest: request, ResolvedLyrics: &compiled.Lyrics, SeedSource: seedSource, Provider: provider, ResolvedStyle: snapshotStyle(provider, compiled), ModelSnapshot: snapshotModel(selected)})
 	created, err := s.JobManager.Submit(r.Context(), jobs.Spec{Operation: "compose", Lane: jobs.LaneGPU, Payload: payload, EstimatedSeconds: request.Duration * request.Takes})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
@@ -481,7 +486,7 @@ func (s *ModuleState) runDurableJob(ctx context.Context, queued jobs.Job, emit f
 	if err != nil {
 		return jobs.Result{}, err
 	}
-	if provider == providerSA3 {
+	if provider != providerACE {
 		if err := validateProviderInput(provider, compiled, request.composeRequest, s.PermissiveOnly); err != nil {
 			return jobs.Result{}, err
 		}
@@ -507,7 +512,7 @@ func (s *ModuleState) runDurableJob(ctx context.Context, queued jobs.Job, emit f
 		encoded, _ := json.Marshal(profiles)
 		encodedIDs, _ := json.Marshal(ids)
 		meta := map[string]string{"composition_provider": provider, "generation_profiles": string(encoded), "generation_profile_scope": "completed-takes", "completed_take_ids": string(encodedIDs), "seed_receipt": "verified-uint32"}
-		if provider == providerACE {
+		if provider == providerACE || request.ModelSnapshot != nil {
 			meta["lyrics_sent_sha256"] = lyricsHash(compiled.Lyrics)
 		} else {
 			meta["lyrics_sent"] = "false"
@@ -530,6 +535,8 @@ func (s *ModuleState) runDurableJob(ctx context.Context, queued jobs.Job, emit f
 		var profile any
 		if provider == providerSA3 {
 			profile, err = s.generateSA3Take(ctx, &planned[i], request.composeRequest, compiled)
+		} else if request.ModelSnapshot != nil {
+			profile, err = s.generateSongTake(ctx, &planned[i], request.composeRequest, compiled, *request.ModelSnapshot)
 		} else {
 			profile, err = s.generateTake(ctx, &planned[i], request.composeRequest, compiled, queued.Meta["capacity_admitted_rung"])
 		}

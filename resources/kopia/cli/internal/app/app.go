@@ -193,7 +193,11 @@ func checkStale(app *cliapp.ResourceApp) error {
 		return nil
 	}
 	app.StaleChecker.ReexecArgs = append([]string(nil), os.Args[1:]...)
-	if restarted := app.StaleChecker.CheckAndMaybeRebuild(); restarted {
+	restarted, err := app.StaleChecker.CheckAndMaybeRebuild()
+	if err != nil {
+		return err
+	}
+	if restarted {
 		return errReexeced
 	}
 	return nil

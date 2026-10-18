@@ -142,12 +142,16 @@ func TestCanonicalPresentationUsesItsOwnWireField(t *testing.T) {
 }
 
 func (f *rpcFakeExecutor) ExecuteWithEvents(ctx context.Context, input execution.SuiteExecutionInput, emit orchestrator.ExecutionEventCallback) (*orchestrator.SuiteExecutionResult, error) {
+	scenarioDir := f.scenarioDir
+	if strings.TrimSpace(input.ArtifactRoot) != "" {
+		scenarioDir = input.ArtifactRoot
+	}
 	descriptorSnapshot, _ := sharedruns.NewDescriptorSnapshot([]sharedruns.PhaseDescriptorSnapshot{{
 		Phase: "architecture", DisplayName: "Architecture", Provider: "architecture-health",
 		Applicability: sharedruns.ApplicabilityDecisionSnapshot{Status: "applies", Planned: true},
 	}})
-	_ = sharedruns.WriteDescriptorSnapshot(f.scenarioDir, input.Request.RunID, descriptorSnapshot)
-	_ = sharedruns.NewIndex(f.scenarioDir).Append(sharedruns.RunRecord{
+	_ = sharedruns.WriteDescriptorSnapshot(scenarioDir, input.Request.RunID, descriptorSnapshot)
+	_ = sharedruns.NewIndex(scenarioDir).Append(sharedruns.RunRecord{
 		RunID: input.Request.RunID, Scenario: input.Request.ScenarioName, StartedAt: time.Now().UTC(), Status: sharedruns.StatusInProgress,
 		DescriptorSnapshotSchemaVersion: descriptorSnapshot.SchemaVersion, DescriptorSnapshotDigest: descriptorSnapshot.Digest,
 	})
@@ -157,12 +161,93 @@ func (f *rpcFakeExecutor) ExecuteWithEvents(ctx context.Context, input execution
 	} else {
 		<-f.release
 	}
-	_ = sharedruns.NewIndex(f.scenarioDir).Update(input.Request.RunID, func(r *sharedruns.RunRecord) error {
+	_ = sharedruns.NewIndex(scenarioDir).Update(input.Request.RunID, func(r *sharedruns.RunRecord) error {
 		r.Status = sharedruns.StatusPassed
 		r.CompletedAt = time.Now().UTC()
 		return nil
 	})
 	return f.result, nil
+}
+
+func TestLifecycleRPC_ResolverFailureAtAdmissionRefusesWithoutHandle(t *testing.T) {
+	root := newFleetRoot(t)
+	artifactRoot := filepath.Join(t.TempDir(), "governed")
+	fake := newRPCFake(filepath.Join(root, "demo"))
+	var mu sync.Mutex
+	resolverCalls := 0
+	resolver := func(string) (string, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		resolverCalls++
+		if resolverCalls == 1 {
+			return "", errors.New("injected artifact root failure")
+		}
+		return artifactRoot, nil
+	}
+	manager := runmanager.New(fake, root).WithArtifactRootResolver(resolver)
+	defer manager.Shutdown()
+	defer close(fake.release)
+	planner := &countingRPCPlanner{preview: &execution.ExecutionPlanPreview{ScenarioName: "demo"}}
+	svc := NewService(root, manager, planner, nil).SetArtifactRootResolver(resolver)
+
+	_, err := svc.StartRun(context.Background(), connect.NewRequest(&runspb.StartRunRequest{Target: "demo"}))
+	if err == nil {
+		t.Fatal("StartRun returned a handle after the artifact root failed during admission")
+	}
+	select {
+	case <-fake.started:
+		t.Fatal("executor started after admission root resolution failed")
+	default:
+	}
+	if got, err := sharedruns.NewIndex(artifactRoot).List(); err != nil || len(got) != 0 {
+		t.Fatalf("governed admission index = %v, %v; want no admitted run", got, err)
+	}
+	if got, err := sharedruns.NewIndex(filepath.Join(root, "demo")).List(); err != nil || len(got) != 0 {
+		t.Fatalf("source fallback index = %v, %v; want no hidden admitted run", got, err)
+	}
+}
+
+func TestLifecycleRPC_StableArtifactRootPersistsWaitShowAndCatalog(t *testing.T) {
+	root := newFleetRoot(t)
+	artifactRoot := filepath.Join(t.TempDir(), "governed")
+	fake := newRPCFake(filepath.Join(root, "demo"))
+	resolver := func(string) (string, error) { return artifactRoot, nil }
+	manager := runmanager.New(fake, root).WithArtifactRootResolver(resolver)
+	defer manager.Shutdown()
+	planner := &countingRPCPlanner{preview: &execution.ExecutionPlanPreview{ScenarioName: "demo"}}
+	svc := NewService(root, manager, planner, nil).SetArtifactRootResolver(resolver)
+
+	start, err := svc.StartRun(context.Background(), connect.NewRequest(&runspb.StartRunRequest{Target: "demo"}))
+	if err != nil {
+		t.Fatalf("StartRun: %v", err)
+	}
+	runID := start.Msg.GetRunId()
+	if runID == "" {
+		t.Fatal("StartRun returned an empty run id")
+	}
+	<-fake.started
+	close(fake.release)
+	wait, err := svc.WaitRun(context.Background(), connect.NewRequest(&runspb.WaitRunRequest{Target: "demo", RunId: runID}))
+	if err != nil {
+		t.Fatalf("WaitRun: %v", err)
+	}
+	if wait.Msg.GetStatus().GetStatus() != sharedruns.StatusPassed || len(wait.Msg.GetDegradedReasons()) != 0 {
+		t.Fatalf("terminal wait = status %q degraded %v; want durable PASS", wait.Msg.GetStatus().GetStatus(), wait.Msg.GetDegradedReasons())
+	}
+	show, err := svc.GetRun(context.Background(), connect.NewRequest(&runspb.GetRunRequest{Target: "demo", RunId: runID}))
+	if err != nil {
+		t.Fatalf("GetRun: %v", err)
+	}
+	if show.Msg.GetRun().GetStatus() != sharedruns.StatusPassed {
+		t.Fatalf("GetRun status = %q, want passed", show.Msg.GetRun().GetStatus())
+	}
+	catalog, err := svc.ListRunArtifacts(context.Background(), connect.NewRequest(&runspb.ListRunArtifactsRequest{Target: "demo", RunId: runID}))
+	if err != nil {
+		t.Fatalf("ListRunArtifacts: %v", err)
+	}
+	if catalog.Msg.GetDigest() == "" {
+		t.Fatalf("artifact catalog has no digest: %+v", catalog.Msg)
+	}
 }
 
 func TestLifecycleRPC_StartWaitStatus(t *testing.T) { // [REQ:TESTGENIE-RUN-SNAPSHOT-P0]

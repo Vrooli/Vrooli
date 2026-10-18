@@ -309,7 +309,7 @@ func (s *ModuleState) generateSA3Take(ctx context.Context, take *core.Take, requ
 
 func (s *ModuleState) receiptTake(w http.ResponseWriter, r *http.Request) {
 	take, ok := s.Pool.Get(mux.Vars(r)["id"])
-	if !ok || take.Provenance.ModelID != sa3Model || s.Blobs == nil {
+	if !ok || s.Blobs == nil {
 		http.NotFound(w, r)
 		return
 	}

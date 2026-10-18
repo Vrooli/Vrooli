@@ -206,7 +206,7 @@ Released [Stable Audio 3](https://github.com/Stability-AI/stable-audio-3) and [H
 
 The dated investigation and primary-source comparison are retained at `/home/matthalloran8/.vrooli/plan-artifacts/efforts/video-toolchain-reliability-2026-10-16/research/music-model-alternatives.md`, with local and hosted companion reports. Its supported/unverified distinctions supersede unmeasured universal quality rankings in the historical rejection rationale. Actual output listening and broker-admitted host benchmarks decide advancement.
 
-## Rejected
+## Historical exclusions (superseded for the two qualified song profiles)
 
 | Model | Reason |
 |---|---|
@@ -262,3 +262,21 @@ SFT is a distinct declaration, variant `acestep-v15-sft`, weight revision
 Its aggregate bytes remain0 (unknown/unmeasured) and installed=false declaration
 projects runtime_unverified. It must not inherit Turbo's closure size or imply a
 loaded planner. The resource remains the authority for actual variant/planner identity.
+
+## Managed song profiles — 2026-10-17
+
+The operator authorized permanent integration after listening to the retained
+trials. MiniMax Music3 output-head NF4 led on perceived song realism; ACE take 2
+led on the intended pop style. HeartMuLa is retained as an explicit alternate.
+Earlier categorical hardware exclusions above do not apply to these pinned,
+qualified worker recipes. They remain historical context for unqualified builds.
+
+`resources/songgen/server/profiles.json` owns exact model, source and file hashes,
+independent wheel closures, controls, GPU bounds and 30-day retention policies.
+`api/internal/models/registry.seed.json` declares the corresponding Music variants
+and immutable runtime identities. MiniMax remains restricted; HeartMuLa is in
+the permissive lane. Neither new profile accepts a reference voice.
+
+Native receipts, not registry presence, establish an actual run. Default
+instrumentals remain SA3 and implicit lyric requests remain ACE. Model selection
+does not infer a new taste preference or accepted quality for future songs.

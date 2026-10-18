@@ -58,20 +58,26 @@
       "models": {
         "rung": "pinned",
         "kind": "dir",
-        "class": "cache",
-        "regenerable": true,
-        "rationale": "Exact gated Medium model and support files; acquisition requires accepted terms and credential.",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Pinned reacquirable weights require owner-fenced retention using confirmed lifecycle quiescence and pins; generic filesystem-age deletion is unsafe.",
         "budget": {
           "max_age": "30d",
           "rationale": "May be reacquired only while authorized."
+        },
+        "subpath": "models",
+        "reclaim": {
+          "pruner": "custom",
+          "command": "vrooli resource acquisition model-cache stable-audio-3"
         }
       },
       "outputs": {
-        "rung": "ephemeral",
+        "rung": "owned",
         "kind": "dir",
-        "class": "cache",
+        "class": "data",
         "regenerable": true,
-        "rationale": "Per-operation audio and receipt retained for caller export; operator-owned bundles outlive transient resource outputs."
+        "rationale": "Per-operation audio and receipt retained for caller export; operator-owned bundles outlive transient resource outputs.",
+        "subpath": "outputs"
       }
     }
   },
@@ -565,6 +571,7 @@
     }
   ],
   "lifecycle": {
+    "exclusive_group": "music-generation",
     "start_timeout_seconds": 600,
     "stop_timeout_seconds": 30
   },
@@ -637,5 +644,52 @@
       ],
       "reason": "The admitted pilot requires CUDA; no CPU fallback is qualified."
     }
-  ]
+  ],
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "conditional",
+          "mode": "manual",
+          "architectures": [
+            "amd64"
+          ],
+          "requires": [],
+          "limitations": [
+            "Requires a qualified NVIDIA CUDA host, available capacity, pinned artifacts and separate model weights."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "artifact-checksum"
+          ]
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "architectures": [
+            "amd64"
+          ],
+          "requires": [],
+          "limitations": [
+            "No qualified native macos runtime is published."
+          ],
+          "evidence": [],
+          "reason": "The pinned runtime is qualified only on Linux amd64."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "architectures": [
+            "amd64"
+          ],
+          "requires": [],
+          "limitations": [
+            "No qualified native windows runtime is published."
+          ],
+          "evidence": [],
+          "reason": "The pinned runtime is qualified only on Linux amd64."
+        }
+      }
+    }
+  }
 }

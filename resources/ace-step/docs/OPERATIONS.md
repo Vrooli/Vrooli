@@ -132,3 +132,13 @@ chat template offline with local_files_only=True, without constructing models.
 The larger planner uses its own2048-wide model configuration, whereas0.6B is
 1024-wide. Actual model readiness and capacity still require a separately
 admitted normal activation. No weight or package upgrade is implied.
+
+## Model disk retention
+
+The control-plane model-cache owner retains checkpoints for 30 days after a
+confirmed stopped lifetime and preserves explicit pins. Preview with
+`vrooli resource acquisition model-cache ace-step`. Its exact generated-files
+declaration covers the source-derived checkpoint Python and small runtime
+support files; these are not new HF code acquisitions. An unexpected file still
+protects the bundle. Normal start/stop/install updates retention history.
+The owner never removes exported Music takes or their receipts.

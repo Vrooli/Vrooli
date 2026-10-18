@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 
@@ -31,11 +32,35 @@ func TestOwnerCleanupRequiresIdempotencyAndRecordsDeletion(t *testing.T) {
 		t.Fatal(err)
 	}
 	runID := "old-run"
-	if err := sharedruns.NewIndex(artifactRoot).Append(sharedruns.RunRecord{
-		RunID: runID, Scenario: "demo", StartedAt: time.Now().UTC().Add(-48 * time.Hour),
-		CompletedAt: time.Now().UTC().Add(-47 * time.Hour), Status: sharedruns.StatusPassed,
-	}); err != nil {
-		t.Fatal(err)
+	now := time.Now().UTC()
+	index := sharedruns.NewIndex(artifactRoot)
+	runs := []struct {
+		id  string
+		age time.Duration
+	}{
+		{id: "recent-run", age: 29 * 24 * time.Hour},
+		{id: "kept-1", age: 31 * 24 * time.Hour},
+		{id: "kept-2", age: 32 * 24 * time.Hour},
+		{id: "kept-3", age: 33 * 24 * time.Hour},
+		{id: "kept-4", age: 34 * 24 * time.Hour},
+		{id: "kept-5", age: 35 * 24 * time.Hour},
+		{id: "kept-6", age: 36 * 24 * time.Hour},
+		{id: "kept-7", age: 37 * 24 * time.Hour},
+		{id: "kept-8", age: 38 * 24 * time.Hour},
+		{id: "kept-9", age: 39 * 24 * time.Hour},
+		{id: runID, age: 40 * 24 * time.Hour},
+	}
+	for _, run := range runs {
+		startedAt := now.Add(-run.age)
+		if err := index.Append(sharedruns.RunRecord{
+			RunID: run.id, Scenario: "demo", StartedAt: startedAt,
+			CompletedAt: startedAt.Add(time.Hour), Status: sharedruns.StatusPassed,
+		}); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.MkdirAll(artifactpaths.RunDir(artifactRoot, run.id), 0o755); err != nil {
+			t.Fatal(err)
+		}
 	}
 	runPath := artifactpaths.RunDir(artifactRoot, runID)
 	if err := os.MkdirAll(runPath, 0o755); err != nil {
@@ -55,7 +80,8 @@ func TestOwnerCleanupRequiresIdempotencyAndRecordsDeletion(t *testing.T) {
 	}
 
 	estimateRecorder := httptest.NewRecorder()
-	server.handleCleanupEstimate(estimateRecorder, httptest.NewRequest(http.MethodGet, "/api/v1/cleanup/estimate?min_age_seconds=3600&keep_count=0", nil))
+	weakMaxBytes := strconv.FormatInt(defaultCleanupMaxBytes*2, 10)
+	server.handleCleanupEstimate(estimateRecorder, httptest.NewRequest(http.MethodGet, "/api/v1/cleanup/estimate?min_age_seconds=3600&keep_count=0&max_bytes="+weakMaxBytes, nil))
 	if estimateRecorder.Code != http.StatusOK {
 		t.Fatalf("estimate status = %d body=%s", estimateRecorder.Code, estimateRecorder.Body.String())
 	}
@@ -64,9 +90,17 @@ func TestOwnerCleanupRequiresIdempotencyAndRecordsDeletion(t *testing.T) {
 		t.Fatal(err)
 	}
 	if estimate.ItemCount != 1 || estimate.EstimatedBytes != 32 {
-		t.Fatalf("estimate = %#v, want one 32-byte run", estimate)
+		t.Fatalf("bounded estimate = %#v, want only the 32-byte old run", estimate)
+	}
+	if estimate.MinAgeSeconds != defaultCleanupMinAgeSeconds || estimate.KeepCount != defaultCleanupKeepCount || estimate.MaxBytes != defaultCleanupMaxBytes {
+		t.Fatalf("estimate policy = %#v, want declared 30d/10/20GiB bounds", estimate)
 	}
 
+	// Treat estimate terms as caller-controlled input at the preview boundary.
+	// Zero means omitted/weak, not permission to disable the owner bounds.
+	estimate.MinAgeSeconds = 0
+	estimate.KeepCount = 0
+	estimate.MaxBytes = 0
 	previewRecorder := httptest.NewRecorder()
 	server.handleCleanupPreview(previewRecorder, cleanupJSONRequest(t, "/api/v1/cleanup/preview", ownerCleanupPreviewRequest{Estimate: estimate}))
 	if previewRecorder.Code != http.StatusOK {
@@ -79,6 +113,9 @@ func TestOwnerCleanupRequiresIdempotencyAndRecordsDeletion(t *testing.T) {
 	if len(preview.Items) != 1 || preview.Items[0].ID != "demo/old-run" {
 		t.Fatalf("preview = %#v", preview)
 	}
+	if preview.MinAgeSeconds != defaultCleanupMinAgeSeconds || preview.KeepCount != defaultCleanupKeepCount || preview.MaxBytes != defaultCleanupMaxBytes {
+		t.Fatalf("preview policy = %#v, want declared 30d/10/20GiB bounds", preview)
+	}
 
 	missingKey := httptest.NewRecorder()
 	server.handleCleanupApply(missingKey, cleanupJSONRequest(t, "/api/v1/cleanup/apply", ownerCleanupApplyRequest{ProviderID: testGenieCleanupProviderID, Preview: preview, ApprovalMode: "owner"}))
@@ -86,6 +123,16 @@ func TestOwnerCleanupRequiresIdempotencyAndRecordsDeletion(t *testing.T) {
 		t.Fatalf("missing-key status = %d, want 400", missingKey.Code)
 	}
 
+	// A forged apply may replace the policy with zero/unbounded values and add
+	// IDs from recent or keep-count-protected runs. Apply must normalize the
+	// owner bounds again and only delete IDs that remain eligible under them.
+	preview.MinAgeSeconds = 0
+	preview.KeepCount = 0
+	preview.MaxBytes = 0
+	preview.Items = append(preview.Items,
+		ownerCleanupItem{ID: "demo/recent-run", Path: artifactpaths.RunDir(artifactRoot, "recent-run")},
+		ownerCleanupItem{ID: "demo/kept-1", Path: artifactpaths.RunDir(artifactRoot, "kept-1")},
+	)
 	applyRequest := ownerCleanupApplyRequest{ProviderID: testGenieCleanupProviderID, Preview: preview, IdempotencyKey: "cleanup-once", ApprovalMode: "owner"}
 	firstRecorder := httptest.NewRecorder()
 	server.handleCleanupApply(firstRecorder, cleanupJSONRequest(t, "/api/v1/cleanup/apply", applyRequest))
@@ -96,14 +143,31 @@ func TestOwnerCleanupRequiresIdempotencyAndRecordsDeletion(t *testing.T) {
 	if err := json.NewDecoder(firstRecorder.Body).Decode(&first); err != nil {
 		t.Fatal(err)
 	}
-	if first.ReclaimedBytes != 32 || len(first.RemovedItemIDs) != 1 {
+	if first.ReclaimedBytes != 32 || len(first.RemovedItemIDs) != 1 || first.RemovedItemIDs[0] != "demo/old-run" {
 		t.Fatalf("apply = %#v", first)
+	}
+	if len(first.SkippedItemIDs) != 2 || first.SkippedItemIDs[0] != "demo/recent-run" || first.SkippedItemIDs[1] != "demo/kept-1" {
+		t.Fatalf("forged ineligible IDs were not skipped: %#v", first.SkippedItemIDs)
+	}
+	if _, err := os.Stat(artifactpaths.RunDir(artifactRoot, "recent-run")); err != nil {
+		t.Fatalf("recent run was removed by forged weaker terms: %v", err)
+	}
+	if _, err := os.Stat(artifactpaths.RunDir(artifactRoot, "kept-1")); err != nil {
+		t.Fatalf("keep-count run was removed by forged weaker terms: %v", err)
 	}
 	if _, err := os.Stat(runPath); !os.IsNotExist(err) {
 		t.Fatalf("run path remains after owner cleanup: %v", err)
 	}
 
 	secondRecorder := httptest.NewRecorder()
+	invalidReplay := applyRequest
+	invalidReplay.Preview.MinAgeSeconds = -1
+	invalidRecorder := httptest.NewRecorder()
+	server.handleCleanupApply(invalidRecorder, cleanupJSONRequest(t, "/api/v1/cleanup/apply", invalidReplay))
+	if invalidRecorder.Code != http.StatusBadRequest {
+		t.Fatalf("negative-bound idempotent replay status = %d body=%s, want 400", invalidRecorder.Code, invalidRecorder.Body.String())
+	}
+
 	server.handleCleanupApply(secondRecorder, cleanupJSONRequest(t, "/api/v1/cleanup/apply", applyRequest))
 	var second ownerCleanupApplyResponse
 	if err := json.NewDecoder(secondRecorder.Body).Decode(&second); err != nil {
@@ -175,6 +239,56 @@ func TestCleanupPolicyDefaultsMatchOwnerRetentionDeclaration(t *testing.T) {
 	}
 	if policy.MinAgeSeconds != int64((30*24*time.Hour)/time.Second) || policy.KeepCount != 10 || policy.MaxBytes != int64(20<<30) {
 		t.Fatalf("default cleanup policy = %#v", policy)
+	}
+}
+
+func TestBoundedCleanupPolicyRejectsNegativeBounds(t *testing.T) {
+	cases := []cleanupPolicy{
+		{MinAgeSeconds: -1, KeepCount: defaultCleanupKeepCount, MaxBytes: defaultCleanupMaxBytes},
+		{MinAgeSeconds: defaultCleanupMinAgeSeconds, KeepCount: -1, MaxBytes: defaultCleanupMaxBytes},
+		{MinAgeSeconds: defaultCleanupMinAgeSeconds, KeepCount: defaultCleanupKeepCount, MaxBytes: -1},
+	}
+	for _, policy := range cases {
+		if _, err := boundedCleanupPolicy(policy); err == nil {
+			t.Fatalf("boundedCleanupPolicy(%#v) error=nil, want refusal", policy)
+		}
+	}
+}
+
+func TestCleanupHTTPHandlersRejectNegativeBounds(t *testing.T) {
+	server := &Server{cleanupResults: make(map[string]ownerCleanupApplyResponse)}
+
+	estimate := httptest.NewRecorder()
+	server.handleCleanupEstimate(estimate, httptest.NewRequest(http.MethodGet, "/api/v1/cleanup/estimate?min_age_seconds=-1", nil))
+	if estimate.Code != http.StatusBadRequest {
+		t.Fatalf("negative estimate status = %d body=%s, want 400", estimate.Code, estimate.Body.String())
+	}
+
+	preview := httptest.NewRecorder()
+	server.handleCleanupPreview(preview, cleanupJSONRequest(t, "/api/v1/cleanup/preview", ownerCleanupPreviewRequest{
+		Estimate: ownerCleanupEstimate{MinAgeSeconds: -1, KeepCount: defaultCleanupKeepCount, MaxBytes: defaultCleanupMaxBytes},
+	}))
+	if preview.Code != http.StatusBadRequest {
+		t.Fatalf("negative preview status = %d body=%s, want 400", preview.Code, preview.Body.String())
+	}
+
+	apply := httptest.NewRecorder()
+	server.handleCleanupApply(apply, cleanupJSONRequest(t, "/api/v1/cleanup/apply", ownerCleanupApplyRequest{
+		ProviderID: testGenieCleanupProviderID, IdempotencyKey: "negative-bounds", ApprovalMode: "owner",
+		Preview: ownerCleanupPreview{MinAgeSeconds: defaultCleanupMinAgeSeconds, KeepCount: -1, MaxBytes: defaultCleanupMaxBytes},
+	}))
+	if apply.Code != http.StatusBadRequest {
+		t.Fatalf("negative apply status = %d body=%s, want 400", apply.Code, apply.Body.String())
+	}
+}
+
+func TestBoundedCleanupPolicyKeepsTighterPositiveByteCeiling(t *testing.T) {
+	policy, err := boundedCleanupPolicy(cleanupPolicy{MinAgeSeconds: defaultCleanupMinAgeSeconds, KeepCount: defaultCleanupKeepCount, MaxBytes: 1024})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if policy.MaxBytes != 1024 {
+		t.Fatalf("tighter max-bytes policy = %#v, want 1024-byte ceiling", policy)
 	}
 }
 

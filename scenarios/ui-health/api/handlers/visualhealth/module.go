@@ -1,6 +1,7 @@
 package visualhealth
 
 import (
+	"database/sql"
 	"log"
 
 	"ui-health/internal/module"
@@ -14,9 +15,13 @@ import (
 
 var ProtoFile = visualpb.File_ui_health_v1_visualhealth_visualhealth_proto
 
-func Module(logger *log.Logger) module.Module {
+func Module(logger *log.Logger, databases ...*sql.DB) module.Module {
 	_ = logger
-	connectPath, connectHandler := visualconnect.NewVisualHealthServiceHandler(NewConnectHandler(vhdomain.DefaultAnalyzer()))
+	handler := NewConnectHandler(vhdomain.DefaultAnalyzer())
+	if len(databases) > 0 && databases[0] != nil {
+		handler.observations = vhdomain.NewSQLObservations(databases[0])
+	}
+	connectPath, connectHandler := visualconnect.NewVisualHealthServiceHandler(handler)
 	return module.Module{
 		Name: "visualhealth",
 		Mount: func(r *mux.Router) {
@@ -27,6 +32,8 @@ func Module(logger *log.Logger) module.Module {
 }
 
 var Endpoints = []module.EndpointDescriptor{
+	{ID: "visualhealth_record_browser_observation", Path: visualconnect.VisualHealthServiceRecordBrowserObservationProcedure, Method: "POST", Summary: "Retain bounded browser layout measurements", Category: "visualhealth"},
+	{ID: "visualhealth_list_browser_observations", Path: visualconnect.VisualHealthServiceListBrowserObservationsProcedure, Method: "POST", Summary: "Read recent browser layout measurements", Category: "visualhealth"},
 	{
 		ID:          "visualhealth_analyze_artifacts",
 		Path:        visualconnect.VisualHealthServiceAnalyzeArtifactsProcedure,

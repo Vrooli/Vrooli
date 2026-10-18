@@ -8,11 +8,21 @@ import (
 	"fmt"
 	"log"
 	"os/exec"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
 
+type ClaimRef struct {
+	ClaimID    string
+	Generation int64
+}
+
+func (r ClaimRef) valid() bool { return strings.TrimSpace(r.ClaimID) != "" && r.Generation > 0 }
+
 type Verdict struct {
+	Generation   int64
 	ClaimID      string
 	Granted      bool
 	GrantedBytes uint64
@@ -23,20 +33,16 @@ type Verdict struct {
 }
 type Broker interface {
 	Claim(context.Context, string, uint64, uint64) (Verdict, error)
-	Release(context.Context, string) error
-	Heartbeat(context.Context, string) error
+	Release(context.Context, ClaimRef) error
+	Heartbeat(context.Context, ClaimRef) error
 }
 type CLICapacityBroker struct{ Command string }
 
 func (b CLICapacityBroker) Claim(ctx context.Context, ownerID string, preferred, floor uint64) (Verdict, error) {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	command := b.Command
-	if command == "" {
-		command = "vrooli"
-	}
 	profile := fmt.Sprintf(`{"steps":[{"label":"full","amount_bytes":%d},{"label":"offload-dit","amount_bytes":%d}],"apply":{"verb":"capacity","argv":["degrade","--to","{label}"]},"upshift":false}`, preferred, floor)
-	out, err := exec.CommandContext(ctx, command, "capacity", "claim", "--owner-kind", "op", "--owner-id", "music-tools:"+ownerID, "--resource-kind", "vram", "--preferred", fmt.Sprint(preferred), "--floor", fmt.Sprint(floor), "--priority", "batch", "--ttl", "10m", "--profile", profile, "--json").Output()
+	out, err := b.output(ctx, "claim", "--owner-kind", "op", "--owner-id", "music-tools:"+ownerID, "--resource-kind", "vram", "--preferred", fmt.Sprint(preferred), "--floor", fmt.Sprint(floor), "--priority", "batch", "--ttl", "10m", "--profile", profile, "--json")
 	if err != nil {
 		return Verdict{}, err
 	}
@@ -50,7 +56,8 @@ func (b CLICapacityBroker) Claim(ctx context.Context, ownerID string, preferred,
 			Reason       string   `json:"reason"`
 		} `json:"verdict"`
 		Claim struct {
-			ClaimID string `json:"claim_id"`
+			ClaimID    string `json:"claim_id"`
+			Generation int64  `json:"generation"`
 		} `json:"claim"`
 		Enforce string `json:"enforce"`
 	}
@@ -63,15 +70,58 @@ func (b CLICapacityBroker) Claim(ctx context.Context, ownerID string, preferred,
 	}
 	// A reduced profile rung is an admission too; queue and deny are not.
 	granted := response.Verdict.Kind == "grant" || response.Verdict.Kind == "degrade"
-	return Verdict{ClaimID: response.Claim.ClaimID, Granted: granted, GrantedBytes: response.Verdict.GrantedBytes, AppliedRung: response.Verdict.Step, ReclaimBytes: response.Verdict.ReclaimBytes, Enforce: response.Enforce, Reason: reason}, nil
+	return Verdict{ClaimID: response.Claim.ClaimID, Generation: response.Claim.Generation, Granted: granted, GrantedBytes: response.Verdict.GrantedBytes, AppliedRung: response.Verdict.Step, ReclaimBytes: response.Verdict.ReclaimBytes, Enforce: response.Enforce, Reason: reason}, nil
 }
 
-func (b CLICapacityBroker) Release(ctx context.Context, id string) error {
+// Release retains the acquired reference, but the canonical owner protocol is
+// deliberately ID-only: its CLI has no generation flag and its store does not
+// guard release by generation. Never resolve another/current claim to release.
+func (b CLICapacityBroker) Release(ctx context.Context, ref ClaimRef) error {
+	if !ref.valid() {
+		return fmt.Errorf("capacity release requires captured claim ID and positive generation")
+	}
+	_, err := b.output(ctx, "release", "--claim-id", ref.ClaimID)
+	return err
+}
+
+// Keep diagnostics independently bounded; exec.Output otherwise hides stderr
+// behind exit status. This does not alter the CLI's output/ownership protocol.
+type boundedStderr struct {
+	data      []byte
+	truncated bool
+}
+
+func (w *boundedStderr) Write(p []byte) (int, error) {
+	n := len(p)
+	remaining := 4096 - len(w.data)
+	if n > remaining {
+		w.truncated = true
+		p = p[:remaining]
+	}
+	w.data = append(w.data, p...)
+	return n, nil
+}
+
+func (b CLICapacityBroker) output(ctx context.Context, verb string, args ...string) ([]byte, error) {
 	command := b.Command
 	if command == "" {
 		command = "vrooli"
 	}
-	return exec.CommandContext(ctx, command, "capacity", "release", "--claim-id", id).Run()
+	cmd := exec.CommandContext(ctx, command, append([]string{"capacity", verb}, args...)...)
+	var stderr boundedStderr
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
+	if err != nil {
+		diagnostic := strings.TrimSpace(string(stderr.data))
+		if stderr.truncated {
+			diagnostic += " [stderr truncated]"
+		}
+		if diagnostic != "" {
+			return nil, fmt.Errorf("capacity %s: %w; stderr: %s", verb, err, diagnostic)
+		}
+		return nil, fmt.Errorf("capacity %s: %w", verb, err)
+	}
+	return out, nil
 }
 
 func ShouldDegrade(v Verdict) bool {
@@ -95,9 +145,13 @@ func Admit(ctx context.Context, cancel context.CancelCauseFunc, broker Broker, j
 	if err != nil {
 		return nil, nil, fmt.Errorf("capacity claim: %w", err)
 	}
+	ref := ClaimRef{ClaimID: verdict.ClaimID, Generation: verdict.Generation}
+	if verdict.ClaimID != "" && !ref.valid() {
+		return nil, nil, fmt.Errorf("capacity admission omitted valid claim generation")
+	}
 	if !verdict.Granted {
 		if verdict.ClaimID != "" {
-			releaseClaim(broker, verdict.ClaimID)
+			releaseClaim(broker, ref)
 		}
 		return nil, nil, fmt.Errorf("capacity claim denied: %s", verdict.Reason)
 	}
@@ -105,11 +159,11 @@ func Admit(ctx context.Context, cancel context.CancelCauseFunc, broker Broker, j
 		return nil, nil, fmt.Errorf("capacity admission omitted claim identity")
 	}
 	if verdict.AppliedRung != "full" && verdict.AppliedRung != "offload-dit" {
-		releaseClaim(broker, verdict.ClaimID)
+		releaseClaim(broker, ref)
 		return nil, nil, fmt.Errorf("capacity admission returned unsupported rung %q", verdict.AppliedRung)
 	}
-	release := maintain(ctx, cancel, broker, verdict.ClaimID, 2*time.Minute)
-	meta := map[string]string{"capacity_claim_id": verdict.ClaimID, "capacity_admitted_rung": verdict.AppliedRung}
+	release := maintain(ctx, cancel, broker, ref, 2*time.Minute)
+	meta := map[string]string{"capacity_claim_id": verdict.ClaimID, "capacity_claim_generation": strconv.FormatInt(verdict.Generation, 10), "capacity_admitted_rung": verdict.AppliedRung}
 	if ShouldDegrade(verdict) {
 		meta["capacity_degrade"] = "offload-dit"
 		meta["capacity_admitted_rung"] = "offload-dit"
@@ -117,24 +171,24 @@ func Admit(ctx context.Context, cancel context.CancelCauseFunc, broker Broker, j
 	return release, meta, nil
 }
 
-func (b CLICapacityBroker) Heartbeat(ctx context.Context, id string) error {
-	command := b.Command
-	if command == "" {
-		command = "vrooli"
+func (b CLICapacityBroker) Heartbeat(ctx context.Context, ref ClaimRef) error {
+	if !ref.valid() {
+		return fmt.Errorf("capacity heartbeat requires captured claim ID and positive generation")
 	}
-	return exec.CommandContext(ctx, command, "capacity", "heartbeat", "--claim-id", id, "--ttl", "10m", "--json").Run()
+	_, err := b.output(ctx, "heartbeat", "--claim-id", ref.ClaimID, "--generation", strconv.FormatInt(ref.Generation, 10), "--ttl", "10m", "--json")
+	return err
 }
 
-func releaseClaim(broker Broker, id string) {
+func releaseClaim(broker Broker, ref ClaimRef) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	if err := broker.Release(ctx, id); err != nil {
-		log.Printf("music capacity release %s failed: %v", id, err)
+	if err := broker.Release(ctx, ref); err != nil {
+		log.Printf("music capacity release %s generation %d failed: %v", ref.ClaimID, ref.Generation, err)
 	}
 }
 
-func maintain(ctx context.Context, cancel context.CancelCauseFunc, broker Broker, id string, interval time.Duration) func() {
-	if id == "" {
+func maintain(ctx context.Context, cancel context.CancelCauseFunc, broker Broker, ref ClaimRef, interval time.Duration) func() {
+	if !ref.valid() {
 		return func() {}
 	}
 	leaseCtx, stop := context.WithCancel(ctx)
@@ -150,7 +204,7 @@ func maintain(ctx context.Context, cancel context.CancelCauseFunc, broker Broker
 				return
 			case <-ticker.C:
 				request, end := context.WithTimeout(leaseCtx, 5*time.Second)
-				err := broker.Heartbeat(request, id)
+				err := broker.Heartbeat(request, ref)
 				end()
 				if err != nil {
 					if leaseCtx.Err() == nil {
@@ -161,5 +215,5 @@ func maintain(ctx context.Context, cancel context.CancelCauseFunc, broker Broker
 			}
 		}
 	}()
-	return func() { once.Do(func() { stop(); <-done; releaseClaim(broker, id) }) }
+	return func() { once.Do(func() { stop(); <-done; releaseClaim(broker, ref) }) }
 }

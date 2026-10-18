@@ -1,5 +1,89 @@
 # Problems — Music Tools
 
+## Completed song-model integration and retained limits — 2026-10-17
+
+Work shape: bounded convergence task. W0 target extension is authorized by the
+operator's acceptance of MiniMax and HeartMuLa; older categorical rejections in
+the model registry and decision log are historical, not current prohibitions.
+Implementation (W3) must meet the new target in
+`../concepts/ARCHITECTURE.md#accepted-song-model-integration-target--2026-10-17`.
+
+Harness handoff: work until both selected models run through the durable music
+pipeline and the lifecycle/retention acceptance criteria in that target are
+proven by focused resource/provider/control-plane tests and fresh managed
+generation receipts. Continue through diagnosable friction. Track findings here;
+run two fresh adversarial reviews after checks pass. Do not widen into UI
+redesign or unrelated host services; never stop coding agents. No native harness
+goal or separate plan is required for this bounded assignment.
+
+Operator feedback (verbatim):
+
+> ACE take2 wins. It's not quite the  quality I'm hoping for. It still sounds like AI and isn't as good as a real KiiiKiii song. But it does have the same vibe as that artist and sounds sorta like them. The "MiniMax quantized output-head trial — seed170104" one may win in terms of song quality. It sounds the least like AI and might even fool most people. But it doesn't sound like the type of song we are going for, nor does the voice match. Not sure if that's how you created it or some limitation with minimax. But based on these results, I think it would he worth properly adding minimax to vrooli the same way we did with ace and that other music model we added. Not sure about the other models, but maybe? We should definitely make sure that our music code properly handles cleaning them up and stuff so that ideally only one runs at a time. And in general the code should probably be more mature and professional and reliable and all that so that we can use these models in a consistent, powerful way to get high quality music.
+>
+> We can add HeartMuLa too if you want. Might as well, as long as we do in fact clean it up properly. Probably need a better way to decide when to do a disk cleanup of these models. I think our resource capacity stuff can turn off heavy things like ai models when other code needs the gpu and such, but it's largely the responsibility of scenarios to decide how to manage their resources' disk usage. We don't want to have to download these models often, but at the same time we should probably remove them when not in use after a while.
+>
+> And if you have more ideas for making the music generation code more professional and clean and reliable and powerful and all that, go right ahead
+
+Implemented and proven: pinned managed acquisition; isolated MiniMax/HeartMuLa
+adapters; declared `song-v1` provider dispatch; immutable queued model snapshots;
+actual sampler/seed/version/audio receipt validation; control-plane exclusive
+music groups; owner-fenced last-use retention and pins; cancellation/reaping;
+and fresh native Music jobs for both profiles. Twenty resource regressions
+include partial deletion followed by reacquisition. The final cleanup/recovery patches
+keep the qualified inference inputs unchanged; the artifact delta is recorded.
+
+Native proof: HeartMuLa job `6e823005-56fb-4d00-8927-746831dd834e` and MiniMax job
+`4d6c302e-eb38-4f48-b149-402d4bcf193d` produced verified 35-second takes. Music
+Test Genie `20261017-225733-5e968194` passed unit and API phases. The earlier
+proto run `20261017-220838-76c3abbe` retains four unrelated capabilities/cleanup
+payload declaration errors; the touched model declarations were repaired.
+QA record: `knw-1792274731037093159`. Broader resource baseline archive-fixture
+and Kokoro parity failures are recorded as `knw-1792275244610914537`.
+
+Operational limits: the host capacity policy is advisory. Ollama's model API
+understates observed CUDA overhead (`knw-1792275243130357759`); a music worker
+refuses insufficient free VRAM without publishing a take. The qualification
+used a temporary Ollama CPU rung and restored its normal configuration. A
+lightweight Songgen supervisor retains a logical resource reservation until
+normal stop, although each worker releases physical model allocations on exit.
+Stop the session's resource when finished. Model verification and cold loading
+can take minutes; these are bounded quality-oriented recipes, not a throughput
+claim. Neither new profile accepts a native reference voice.
+
+Retention is eligibility, not a background timer: a new Songgen job sweeps
+expired peer profiles, another music-member activation sweeps eligible legacy
+bundles, and owner previews/pins remain explicit. Generated ACE support files
+are declared separately from acquired weights. Unknown files and unknown
+lifetimes remain protected. Scratch storage points to its actual data directory
+and uses a one-day age floor above the maximum worker lifetime; active stages
+are not exposed to a byte-pressure deletion policy.
+On-demand data groups prevent ordinary restart from undoing model eviction.
+`vrooli resource acquisition data songgen --group PROFILE` is the sole explicit
+weight acquisition route; it verifies only the declared group under lifecycle
+and data fences. Startup requires one complete group and fails promptly with
+that recovery command when none is available. The regression removes a tiny
+fixture bundle and verifies that routine setup does not download it again.
+Vendored weight files publish through the shared atomic ownership helper after
+a streamed copy and flush; they are not read back wholesale into RAM.
+The final scoped control-plane run passed 39 regression cases; Songgen passed
+20 Python regressions and its CLI checks. The passing Music unit phase still
+reports an injectable-seam warning and coverage advisories, so passing phases
+do not establish debt-free testing. All music resources are stopped at handoff,
+with no music capacity claims or music GPU processes remaining.
+
+
+Action-promotion follow-up: the cache-preview Action was not registered because
+Prompt Manager returned unvalidated root-command governance despite the declared
+leaf (`knw-1792276423714974589`). A Swarm capture attempt returned 401 verified
+agent caller required; the durable work record is
+`9cf51466-9753-422d-8293-7a6f7c9e9294`, and canonical skill revision 8 is synced.
+Existing scenario edits from other work are preserved. Human listening feedback
+does not imply a calibrated quality or identity score.
+
+Final activation/cache preview, restoration and review evidence:
+`/home/matthalloran8/.vrooli/plan-artifacts/efforts/video-toolchain-reliability-2026-10-16/production/continuation/music/song-model-integration-v1/verification.json`.
+
+
 Persistent register of known issues, tech debt, and deferred work
 specific to **this** scenario. Future agents read this file to avoid
 re-discovering the same constraint.

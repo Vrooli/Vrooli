@@ -225,7 +225,11 @@ func shellEjectionFiles(root, archetype string) (map[string]string, error) {
 func analyzeShellOwnership(ctx uiinterop.CheckContext, shell shellDeclaration) (shellAnalysis, error) {
 	var result shellAnalysis
 	repo := findRepoRoot(ctx.ScenarioRoot)
-	if repo == "" {
+	// A target fixture can live beneath a different Git repository (including
+	// the operator's home dotfiles). The parser belongs to the running UI Health
+	// workspace; a Git marker alone does not establish that tooling boundary.
+	_, parserErr := os.Stat(filepath.Join(repo, "scenarios/ui-health/ui/node_modules/typescript/package.json"))
+	if repo == "" || parserErr != nil {
 		if cwd, err := os.Getwd(); err == nil {
 			repo = findRepoRoot(cwd)
 		}

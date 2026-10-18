@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"slices"
 	"strings"
 	"unicode/utf8"
 
@@ -26,6 +27,9 @@ func (p composeJobPayload) provider() (string, error) {
 	case providerSA3:
 		return providerSA3, nil
 	default:
+		if p.ModelSnapshot != nil && p.ModelSnapshot.Engine == p.Provider && p.ModelSnapshot.Runtime != nil && p.ModelSnapshot.Runtime.Protocol == "song-v1" {
+			return p.Provider, nil
+		}
 		return "", fmt.Errorf("unsupported recorded provider %q", p.Provider)
 	}
 }
@@ -74,7 +78,45 @@ func validateProviderInput(provider string, c styles.Compiled, r composeRequest,
 			return fmt.Errorf("ACE requires positive structured bpm")
 		}
 	} else {
-		return fmt.Errorf("unsupported provider %q", provider)
+		model, err := declaredCompositionModel(provider, c.Params.Variant)
+		if err != nil {
+			return err
+		}
+		if model.Runtime == nil || model.Runtime.Protocol != "song-v1" {
+			return fmt.Errorf("unsupported provider protocol for %q", provider)
+		}
+		if permissive && model.Licence != models.LicencePermissive {
+			return fmt.Errorf("selected model %s requires the restricted licence lane; no fallback", model.ID)
+		}
+		runtime := model.Runtime
+		if float64(r.Duration) < runtime.MinDuration || float64(r.Duration) > runtime.MaxDuration {
+			return fmt.Errorf("duration outside declared model limits")
+		}
+		if r.Shift != nil || c.Params.BPM != 0 || strings.TrimSpace(c.Params.KeyScale) != "" {
+			return fmt.Errorf("selected song model uses caption tempo/key and does not support ACE shift")
+		}
+		if strings.TrimSpace(c.Caption) == "" || utf8.RuneCountInString(c.Caption) > 12000 {
+			return fmt.Errorf("song prompt must be nonblank and at most 12000 characters")
+		}
+		if utf8.RuneCountInString(styles.ResolveLyrics(c.Lyrics)) > 16000 {
+			return fmt.Errorf("song lyrics exceed 16000 characters")
+		}
+		steps := c.Params.Steps
+		if steps == 0 {
+			steps = runtime.DefaultSteps
+		}
+		if steps < runtime.MinSteps || steps > runtime.MaxSteps {
+			return fmt.Errorf("steps outside supported model controls")
+		}
+		guidance := c.Params.Guidance
+		if guidance == 0 {
+			guidance = runtime.DefaultGuidance
+		}
+		if math.IsNaN(guidance) || math.IsInf(guidance, 0) || guidance < runtime.MinGuidance || guidance > runtime.MaxGuidance {
+			return fmt.Errorf("guidance outside supported model controls")
+		}
+		encoded, err := json.Marshal(songRequestFor(model, c, r, math.MaxUint32))
+		if err != nil || len(encoded) > 65536 { return fmt.Errorf("song request exceeds bounded 64KiB JSON") }
 	}
 	return nil
 }
@@ -91,7 +133,7 @@ func (s *ModuleState) resolvedInput(p composeJobPayload) (styles.Compiled, error
 		return styles.Compiled{}, e
 	}
 	if provider != providerACE {
-		return styles.Compiled{}, fmt.Errorf("SA3 job lacks immutable admission input")
+		return styles.Compiled{}, fmt.Errorf("resource job lacks immutable admission input")
 	}
 	c, e := s.Styles.Compile(p.StyleID)
 	c.Lyrics = p.lyrics()
@@ -119,5 +161,33 @@ func snapshotStyle(provider string, c styles.Compiled) *styles.Compiled {
 			c.Params.Guidance = 1
 		}
 	}
+	if model, err := declaredCompositionModel(provider, c.Params.Variant); err == nil && model.Runtime != nil {
+		if c.Params.Steps == 0 {
+			c.Params.Steps = model.Runtime.DefaultSteps
+		}
+		if c.Params.Guidance == 0 {
+			c.Params.Guidance = model.Runtime.DefaultGuidance
+		}
+	}
 	return &c
+}
+
+func declaredCompositionModel(engine, variant string) (models.Model, error) {
+	registry, err := models.LoadSeed(false)
+	if err != nil {
+		return models.Model{}, err
+	}
+	for _, model := range registry.List() {
+		if model.Engine == engine && model.Variant == variant && slices.Contains(model.Operations, "compose") {
+			return model, nil
+		}
+	}
+	return models.Model{}, fmt.Errorf("no declared composition model for engine %q and variant %q", engine, variant)
+}
+
+func snapshotModel(model models.Model) *models.Model {
+	if model.Runtime == nil {
+		return nil
+	}
+	return &model
 }

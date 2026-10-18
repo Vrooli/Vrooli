@@ -465,3 +465,73 @@ func TestChromeMetadataDoesNotTurnPageContentIntoAStatusBar(t *testing.T) {
 		t.Fatal("a real mismatched safe area must remain a failure")
 	}
 }
+
+func TestChromeColorsAllowDifferentTopAndBottomOwners(t *testing.T) {
+	top := color.RGBA{R: 15, G: 23, B: 42, A: 255}
+	bottom := color.RGBA{R: 2, G: 6, B: 23, A: 255}
+	step := &visualpb.VisualStepArtifact{
+		ScreenshotPng: testChromePNG(t, top, bottom, top, top),
+		LayoutJson:    `{"chrome":{"themeColor":"#0f172a","safeAreaColor":"#0f172a","safeAreaColors":{"bottom":"#020617"}},"safeArea":{"top":12,"bottom":10}}`,
+	}
+	if got := chromeColorFindings(step, step.ScreenshotPng); len(got) != 0 {
+		t.Fatalf("independent top/bottom owners must pass: %+v", got)
+	}
+	step.LayoutJson = `{"chrome":{"themeColor":"#0f172a","safeAreaColor":"#0f172a","safeAreaColors":{"bottom":"#ff0000"}},"safeArea":{"top":12,"bottom":10}}`
+	if got := chromeColorFindings(step, step.ScreenshotPng); len(got) == 0 {
+		t.Fatal("incorrect bottom owner color must fail")
+	}
+}
+
+func TestChromeColorSamplingScalesCSSInsetsToScreenshotPixels(t *testing.T) {
+	img := image.NewRGBA(image.Rect(0, 0, 200, 200))
+	for y := 0; y < 200; y++ {
+		for x := 0; x < 200; x++ {
+			shade := color.RGBA{A: 255}
+			if y >= 180 && y < 190 {
+				shade = color.RGBA{R: 255, A: 255}
+			}
+			img.SetRGBA(x, y, shade)
+		}
+	}
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, img); err != nil {
+		t.Fatal(err)
+	}
+	step := &visualpb.VisualStepArtifact{ScreenshotPng: buf.Bytes(), LayoutJson: `{"viewport":{"width":100,"height":100},"chrome":{"safeAreaColor":"#000000"},"safeArea":{"bottom":10}}`}
+	if got := chromeColorFindings(step, step.ScreenshotPng); len(got) == 0 {
+		t.Fatal("must examine the whole 20-device-pixel bottom inset, not only its last 10 pixels")
+	}
+}
+
+func TestMobileZeroInsetsReportSafeAreaUnexercised(t *testing.T) {
+	step := &visualpb.VisualStepArtifact{LayoutJson: `{"viewport":{"width":390,"height":844},"chrome":{"themeColor":"#020617"},"safeArea":{"top":0,"bottom":0}}`}
+	findings, _ := analyzeLayout(step)
+	found := false
+	for _, f := range findings {
+		if f.Code == "visual_safe_area_not_exercised" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("zero-inset mobile evidence must identify safe-area coverage as unexercised")
+	}
+	if hasError(findings) {
+		t.Fatal("a zero-inset browser is valid; missing notch coverage alone is not a layout failure")
+	}
+}
+
+func TestInstalledChromeRequirementRejectsEmulatedAndUnknownCapture(t *testing.T) {
+	for _, capture := range []string{`{"kind":"browser_viewport"}`, `{"kind":"unknown"}`, `{"kind":"browser_geometry","standalone":true}`} {
+		step := &visualpb.VisualStepArtifact{StepId: "installed", LayoutJson: `{"viewport":{"width":393,"height":852},"safeArea":{"top":59,"bottom":34},"chrome":{"themeColor":"#020617","requireNativeScreen":true},"capture":` + capture + `,"elements":[]}`}
+		findings, _ := analyzeLayout(step)
+		matched := false
+		for _, f := range findings {
+			if f.Code == "visual_native_screen_unverified" && f.Severity == severityError {
+				matched = true
+			}
+		}
+		if !matched {
+			t.Fatalf("installed app qualification accepted %s without physical screen evidence: %+v", capture, findings)
+		}
+	}
+}

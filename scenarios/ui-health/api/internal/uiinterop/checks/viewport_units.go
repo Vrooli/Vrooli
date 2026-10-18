@@ -9,14 +9,22 @@ Description: Flag viewport-relative full-size utilities (Tailwind h-screen /
 Why: When the scenario UI is embedded, vh/vw refer to the outer viewport, not
   the iframe's content box. An h-screen root makes the app taller than its
   frame, producing double scrollbars or clipped content. h-full (100% of the
-  parent) sizes correctly in both standalone and embedded contexts.
+  parent) sizes correctly in both standalone and embedded contexts — EXCEPT for
+  the full-viewport app-shell ROOT, where even height:100% chains to the large
+  iOS viewport on first paint (see standard_shell_measured_height). The shell
+  root must instead derive its height from a JS-measured viewport variable; this
+  check's "use 100%" advice applies only to inner/non-root elements filling an
+  already-measured parent.
 Category: interop
 Severity: medium
 Slot: [D]
 SlotFile: ui/src
 TechStack: React
-Recommendation: Replace h-screen with h-full (and min-h-screen with min-h-full,
-  w-screen with w-full); replace raw 100vh/100vw with 100%.
+Recommendation: For inner elements, replace h-screen with h-full (and
+  min-h-screen with min-h-full, w-screen with w-full) and raw 100vh/100vw with
+  100%. For the full-viewport app-shell root, do NOT use 100%/h-full — size it
+  from a JS-measured viewport variable (height: var(--app-height, 100dvh)) per
+  standard_shell_measured_height.
 Standard: ui-health-v1
 
 GoodExample:

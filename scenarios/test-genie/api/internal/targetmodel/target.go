@@ -48,6 +48,30 @@ func ArtifactRoot(repoRoot string, target Target) (string, error) {
 	return filepath.Join(state.AbsPath, "test-genie", "targets", kind, target.ID), nil
 }
 
+// Enumerate returns concrete supported repository targets through the same
+// contract-backed discovery used by target resolution and the target browser.
+// Unknown future target kinds remain outside this target model rather than
+// acquiring an invented artifact namespace.
+func Enumerate(repoRoot string) ([]Target, error) {
+	contract, err := repocontract.LoadDefault(repoRoot)
+	if err != nil {
+		return nil, fmt.Errorf("load repository contract: %w", err)
+	}
+	concrete, err := contract.EnumerateTargets(repoRoot)
+	if err != nil {
+		return nil, fmt.Errorf("enumerate repository targets: %w", err)
+	}
+	targets := make([]Target, 0, len(concrete))
+	for _, target := range concrete {
+		mapped := fromContractTarget(repoRoot, contract, target)
+		if mapped.Kind == commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_UNSPECIFIED {
+			continue
+		}
+		targets = append(targets, mapped)
+	}
+	return targets, nil
+}
+
 // PhaseCacheRoot resolves a target-keyed namespace beneath test-genie's cache
 // class. The cache is owned and reclaimed by test-genie, never by the target
 // whose inputs produced an entry.

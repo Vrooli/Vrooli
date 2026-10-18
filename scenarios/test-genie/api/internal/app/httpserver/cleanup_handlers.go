@@ -116,7 +116,11 @@ func (s *Server) handleCleanupPreview(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusBadRequest, "valid cleanup estimate is required")
 		return
 	}
-	policy := cleanupPolicy{MinAgeSeconds: request.Estimate.MinAgeSeconds, KeepCount: request.Estimate.KeepCount, MaxBytes: request.Estimate.MaxBytes}
+	policy, err := boundedCleanupPolicy(cleanupPolicy{MinAgeSeconds: request.Estimate.MinAgeSeconds, KeepCount: request.Estimate.KeepCount, MaxBytes: request.Estimate.MaxBytes})
+	if err != nil {
+		s.writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	candidates, err := s.cleanupCandidates(r.Context(), policy)
 	if err != nil {
 		s.writeError(w, http.StatusServiceUnavailable, err.Error())
@@ -143,6 +147,11 @@ func (s *Server) handleCleanupApply(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusForbidden, "owner or operator approval is required")
 		return
 	}
+	policy, err := boundedCleanupPolicy(cleanupPolicy{MinAgeSeconds: request.Preview.MinAgeSeconds, KeepCount: request.Preview.KeepCount, MaxBytes: request.Preview.MaxBytes})
+	if err != nil {
+		s.writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 
 	s.cleanupMu.Lock()
 	defer s.cleanupMu.Unlock()
@@ -153,7 +162,6 @@ func (s *Server) handleCleanupApply(w http.ResponseWriter, r *http.Request) {
 		s.writeJSON(w, http.StatusOK, result)
 		return
 	}
-	policy := cleanupPolicy{MinAgeSeconds: request.Preview.MinAgeSeconds, KeepCount: request.Preview.KeepCount, MaxBytes: request.Preview.MaxBytes}
 	current, err := s.cleanupCandidates(r.Context(), policy)
 	if err != nil {
 		s.writeError(w, http.StatusServiceUnavailable, err.Error())
@@ -201,8 +209,8 @@ func (s *Server) handleCleanupApply(w http.ResponseWriter, r *http.Request) {
 
 func cleanupPolicyFromQuery(r *http.Request) (cleanupPolicy, error) {
 	// These are the owner declaration's retention defaults. Storage Manager may
-	// tighten an explicitly supplied bound, but an omitted query parameter must
-	// never silently weaken the owner policy to zero.
+	// request tighter bounds, but a request can never weaken an owner floor or
+	// remove the byte ceiling by supplying zero.
 	policy := cleanupPolicy{MinAgeSeconds: defaultCleanupMinAgeSeconds, KeepCount: defaultCleanupKeepCount, MaxBytes: defaultCleanupMaxBytes}
 	var err error
 	if raw := strings.TrimSpace(r.URL.Query().Get("min_age_seconds")); raw != "" {
@@ -222,6 +230,26 @@ func cleanupPolicyFromQuery(r *http.Request) (cleanupPolicy, error) {
 		if err != nil || policy.MaxBytes < 0 {
 			return cleanupPolicy{}, fmt.Errorf("max_bytes must be a non-negative integer")
 		}
+	}
+	return boundedCleanupPolicy(policy)
+}
+
+// boundedCleanupPolicy applies the immutable owner contract to caller-supplied
+// estimates and previews. Larger age/keep floors and smaller byte ceilings are
+// allowed; weaker or zero values resolve to the declared 30d/10/20GiB policy.
+// Negative values are malformed and fail closed.
+func boundedCleanupPolicy(policy cleanupPolicy) (cleanupPolicy, error) {
+	if policy.MinAgeSeconds < 0 || policy.KeepCount < 0 || policy.MaxBytes < 0 {
+		return cleanupPolicy{}, fmt.Errorf("cleanup bounds must be non-negative")
+	}
+	if policy.MinAgeSeconds < defaultCleanupMinAgeSeconds {
+		policy.MinAgeSeconds = defaultCleanupMinAgeSeconds
+	}
+	if policy.KeepCount < defaultCleanupKeepCount {
+		policy.KeepCount = defaultCleanupKeepCount
+	}
+	if policy.MaxBytes <= 0 || policy.MaxBytes > defaultCleanupMaxBytes {
+		policy.MaxBytes = defaultCleanupMaxBytes
 	}
 	return policy, nil
 }

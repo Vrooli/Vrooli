@@ -25,13 +25,16 @@ type layoutSnapshot struct {
 	Tokens         []string
 	Chrome         chromeIntent
 	SafeAreaInsets safeAreaInsets
+	CaptureKind    string
 }
 
 type chromeIntent struct {
-	ThemeColor     string
-	StatusBarColor string
-	SafeAreaColor  string
-	StatusBarStyle string
+	ThemeColor          string
+	StatusBarColor      string
+	SafeAreaColor       string
+	SafeAreaColors      map[string]string
+	StatusBarStyle      string
+	RequireNativeScreen bool
 }
 
 type safeAreaInsets struct {
@@ -44,7 +47,7 @@ type safeAreaInsets struct {
 func (c chromeIntent) empty() bool {
 	return strings.TrimSpace(c.ThemeColor) == "" &&
 		strings.TrimSpace(c.StatusBarColor) == "" &&
-		strings.TrimSpace(c.SafeAreaColor) == ""
+		strings.TrimSpace(c.SafeAreaColor) == "" && len(c.SafeAreaColors) == 0 && !c.RequireNativeScreen
 }
 
 type layoutElement struct {
@@ -103,6 +106,31 @@ func analyzeLayout(step *visualpb.VisualStepArtifact) ([]*visualpb.VisualFinding
 
 	var findings []*visualpb.VisualFinding
 	var metrics []*visualpb.VisualMetric
+	if snap.mobileLike() && !snap.Chrome.empty() && (snap.CaptureKind != "physical_screen" || len(step.GetScreenshotPng()) == 0 && step.GetScreenshotRef() == nil) {
+		severity := visualpb.VisualSeverity_VISUAL_SEVERITY_INFO
+		if snap.Chrome.RequireNativeScreen {
+			severity = severityError
+		}
+		findings = append(findings, &visualpb.VisualFinding{
+			Code: "visual_native_screen_unverified", Severity: severity, Category: categoryLayout,
+			Message:  "capture does not establish installed-app status-bar or home-indicator pixels",
+			Location: locationFor(step), Evidence: "capture kind: " + firstNonEmpty(snap.CaptureKind, "unspecified"),
+			Remediation: "Retain a physical-screen screenshot from a device transport with its capture provenance. CSS insets, a standalone flag and browser geometry are insufficient.", StepId: step.GetStepId(),
+		})
+	}
+	if snap.mobileLike() && !snap.Chrome.empty() && !snap.SafeAreaInsets.any() {
+		findings = append(findings, &visualpb.VisualFinding{
+			Code:        "visual_safe_area_not_exercised",
+			Severity:    visualpb.VisualSeverity_VISUAL_SEVERITY_INFO,
+			Category:    categoryLayout,
+			Message:     "mobile capture has no nonzero safe-area insets; notch and home-indicator behavior was not exercised",
+			Location:    locationFor(step),
+			Evidence:    "all measured safe-area insets are 0 CSS px",
+			Remediation: "Use an explicitly qualified nonzero-inset profile for safe-area validation; retain physical-device evidence for installed app chrome.",
+			StepId:      step.GetStepId(),
+		})
+	}
+
 	if snap.ViewportWidth > 0 && snap.DocumentWidth > 0 {
 		overflow := math.Max(0, snap.DocumentWidth-snap.ViewportWidth)
 		metrics = append(metrics, metric("visual_horizontal_overflow_px", overflow))
@@ -240,6 +268,7 @@ func parseLayoutSnapshot(step *visualpb.VisualStepArtifact) (layoutSnapshot, err
 	if snap.DocumentHeight == 0 {
 		snap.DocumentHeight = firstNumber(raw, "scrollHeight", "documentHeight")
 	}
+	snap.CaptureKind = firstString(firstMap(raw, "capture"), "kind")
 	snap.Chrome = parseChromeIntent(raw)
 	snap.SafeAreaInsets = parseSafeAreaInsets(raw)
 	snap.Tokens = stringArray(raw, "tokens", "tokenSet", "token_set")
@@ -313,11 +342,21 @@ func parseChromeIntent(raw map[string]any) chromeIntent {
 		chrome = raw
 	}
 	out := chromeIntent{
-		ThemeColor:     firstString(chrome, "themeColor", "theme_color", "declaredThemeColor"),
-		StatusBarColor: firstString(chrome, "statusBarColor", "status_bar_color", "declaredStatusBarColor"),
-		SafeAreaColor:  firstString(chrome, "safeAreaColor", "safe_area_color", "declaredSafeAreaColor"),
-		StatusBarStyle: firstString(chrome, "statusBarStyle", "status_bar_style", "appleMobileWebAppStatusBarStyle"),
+		ThemeColor:          firstString(chrome, "themeColor", "theme_color", "declaredThemeColor"),
+		StatusBarColor:      firstString(chrome, "statusBarColor", "status_bar_color", "declaredStatusBarColor"),
+		SafeAreaColor:       firstString(chrome, "safeAreaColor", "safe_area_color", "declaredSafeAreaColor"),
+		RequireNativeScreen: boolValue(chrome, "requireNativeScreen"),
+		StatusBarStyle:      firstString(chrome, "statusBarStyle", "status_bar_style", "appleMobileWebAppStatusBarStyle"),
 	}
+	if edges := firstMap(chrome, "safeAreaColors"); edges != nil {
+		out.SafeAreaColors = make(map[string]string)
+		for _, edge := range []string{"top", "right", "bottom", "left"} {
+			if value := firstString(edges, edge); value != "" {
+				out.SafeAreaColors[edge] = value
+			}
+		}
+	}
+
 	if safe != nil && out.SafeAreaColor == "" {
 		out.SafeAreaColor = firstString(safe, "color", "safeAreaColor", "backgroundColor", "background")
 	}

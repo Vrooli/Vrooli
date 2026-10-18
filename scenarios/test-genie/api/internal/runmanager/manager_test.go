@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -18,6 +19,7 @@ import (
 	"test-genie/internal/orchestrator"
 	sharedartifacts "test-genie/internal/shared/artifacts"
 	sharedruns "test-genie/internal/shared/runs"
+	"test-genie/internal/targetmodel"
 
 	"github.com/vrooli/freshness-go/treedigest"
 	sharedcapacity "github.com/vrooli/vrooli/packages/capacity"
@@ -208,7 +210,7 @@ func TestEvidenceProducerUsesDurableRunAdmissionWithoutSuitePlanning(t *testing.
 	if got := exec.driveCount(); got != 1 {
 		t.Fatalf("executor calls=%d, want one durable command branch", got)
 	}
-	record, err := sharedruns.NewIndex(m.scenarioDir("provider")).Find(started.RunID)
+	record, err := sharedruns.NewIndex(filepath.Join(root, "provider")).Find(started.RunID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -226,7 +228,7 @@ func TestEvidenceProducerAbortFencePreventsLateStartAndRestartReplay(t *testing.
 	if err != nil || status.Status != sharedruns.StatusAborted {
 		t.Fatalf("prelaunch abort=%+v err=%v", status, err)
 	}
-	record, err := sharedruns.NewIndex(first.scenarioDir("provider")).Find(input.Request.RunID)
+	record, err := sharedruns.NewIndex(filepath.Join(root, "provider")).Find(input.Request.RunID)
 	if err != nil || record.Status != sharedruns.StatusAborted || record.AdmissionIntentDigest == "" {
 		t.Fatalf("abort fence=%+v err=%v", record, err)
 	}
@@ -259,6 +261,165 @@ func TestEvidenceProducerAbortFencePreventsLateStartAndRestartReplay(t *testing.
 	changed.EvidenceProducer = &execution.EvidenceProducerCommand{Provider: "provider", Name: "refresh", Argv: []string{"/bin/false"}, WorkingDirectory: "/tmp", OutputRoot: "/tmp/output", Timeout: time.Second, MaximumOutputBytes: 64, DescriptorDigest: "sha256:descriptor", SourceIdentity: "source"}
 	if _, err := restarted.Start(StartOptions{Input: changed}); err == nil {
 		t.Fatal("abort fence accepted changed pinned input")
+	}
+}
+
+func TestTypedScenarioAdmissionUsesCanonicalScenarioID(t *testing.T) {
+	_, sourceFile, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("resolve test source path")
+	}
+	sourceRepoRoot := filepath.Clean(filepath.Join(filepath.Dir(sourceFile), "../../../../.."))
+	contract, err := os.ReadFile(filepath.Join(sourceRepoRoot, ".vrooli", "repo-contract.json"))
+	if err != nil {
+		t.Fatalf("read source repository contract: %v", err)
+	}
+	repoRoot := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(repoRoot, ".vrooli"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(repoRoot, ".vrooli", "repo-contract.json"), contract, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, dir := range []string{"templates", "scenarios", "resources", "packages", "cmd", "internal"} {
+		if err := os.MkdirAll(filepath.Join(repoRoot, dir), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.MkdirAll(filepath.Join(repoRoot, "packages", "fixture"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(repoRoot, "go.mod"), []byte("module fixture\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	scenariosRoot := filepath.Join(repoRoot, "scenarios")
+	manifestDir := filepath.Join(scenariosRoot, "demo", ".vrooli")
+	if err := os.MkdirAll(manifestDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(manifestDir, "service.json"), []byte("{}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	artifactRoot := filepath.Join(t.TempDir(), "governed", "demo")
+	qualifiedRoot := filepath.Join(t.TempDir(), "misrouted", "scenario-demo")
+	var resolvedID string
+	resolver := func(id string) (string, error) {
+		resolvedID = id
+		if id == "scenario:demo" {
+			return qualifiedRoot, nil
+		}
+		return artifactRoot, nil
+	}
+	exec := newFakeExecutor("")
+	m := New(exec, scenariosRoot).WithArtifactRootResolver(resolver)
+	defer func() {
+		close(exec.release)
+		m.Shutdown()
+	}()
+
+	started, err := m.Start(StartOptions{Input: execution.SuiteExecutionInput{
+		Request: orchestrator.SuiteExecutionRequest{ScenarioName: "scenario:demo", RunID: "typed-scenario-run"},
+	}})
+	if err != nil {
+		t.Fatalf("typed scenario admission: %v", err)
+	}
+	if started.RunID == "" {
+		t.Fatal("typed scenario admission returned an empty run ID")
+	}
+	if _, err := sharedruns.NewIndex(artifactRoot).Find(started.RunID); err != nil {
+		t.Fatalf("canonical scenario owner cannot find admitted run: %v", err)
+	}
+	if resolvedID != "demo" {
+		t.Fatalf("artifact root resolver received %q, want canonical scenario ID demo", resolvedID)
+	}
+	standaloneTarget, err := targetmodel.Resolve(repoRoot, "package:fixture")
+	if err != nil {
+		t.Fatalf("resolve standalone target fixture: %v", err)
+	}
+	standaloneOwner, err := targetmodel.ArtifactRoot(repoRoot, standaloneTarget)
+	if err != nil {
+		t.Fatalf("resolve standalone target owner: %v", err)
+	}
+	resolvedStandaloneOwner, err := m.resolveArtifactRoot("package:fixture")
+	if err != nil || resolvedStandaloneOwner != standaloneOwner {
+		t.Fatalf("standalone artifact owner = %q, err %v; want targetmodel owner %q", resolvedStandaloneOwner, err, standaloneOwner)
+	}
+	if resolvedID != "demo" {
+		t.Fatalf("standalone target unexpectedly used scenario resolver with %q", resolvedID)
+	}
+}
+
+func TestEvidenceProducerAbortFenceUsesPinnedRootAcrossResolverTransition(t *testing.T) {
+	sourceRoot := t.TempDir()
+	artifactRoot := filepath.Join(t.TempDir(), "governed", "provider")
+	var calls atomic.Int32
+	var failSecond atomic.Bool
+	failSecond.Store(true)
+	resolver := func(string) (string, error) {
+		call := calls.Add(1)
+		if call == 2 && failSecond.Load() {
+			return "", errors.New("injected transient root failure")
+		}
+		return artifactRoot, nil
+	}
+	input := execution.SuiteExecutionInput{Request: orchestrator.SuiteExecutionRequest{
+		ScenarioName: "provider", RunID: "resolver-transition-fence", ValidationRun: true, RetainForEvidence: true,
+	}, EvidenceProducer: &execution.EvidenceProducerCommand{
+		Provider: "provider", Name: "refresh", Argv: []string{"/bin/true"}, WorkingDirectory: "/tmp",
+		OutputRoot: "/tmp/output", Timeout: time.Second, MaximumOutputBytes: 64,
+		DescriptorDigest: "sha256:descriptor", SourceIdentity: "source",
+	}}
+	exec := newFakeExecutor("")
+	exec.blockOnCtx = true
+	m := New(exec, sourceRoot).WithArtifactRootResolver(resolver)
+	defer func() {
+		close(exec.release)
+		m.Shutdown()
+	}()
+
+	status, err := m.AbortEvidenceProducer(StartOptions{Input: input})
+	if err != nil || status.Status != sharedruns.StatusAborted {
+		t.Fatalf("prelaunch abort=%+v err=%v", status, err)
+	}
+	fenced, err := sharedruns.NewIndex(artifactRoot).Find(input.Request.RunID)
+	if err != nil || fenced.Status != sharedruns.StatusAborted {
+		t.Fatalf("pinned owner abort fence=%+v err=%v", fenced, err)
+	}
+	if _, err := sharedruns.NewIndex(filepath.Join(sourceRoot, "provider")).Find(input.Request.RunID); !errors.Is(err, sharedruns.ErrRunNotFound) {
+		t.Fatalf("source fallback unexpectedly contains abort fence: %v", err)
+	}
+	if got := calls.Load(); got != 1 {
+		t.Fatalf("abort resolved artifact owner %d times; want one pinned resolution", got)
+	}
+
+	failSecond.Store(false)
+	late, err := m.Start(StartOptions{Input: input})
+	if err != nil {
+		t.Fatalf("late same-input Start: %v", err)
+	}
+	if !late.Coalesced {
+		t.Fatal("late Start did not coalesce with the abort fence")
+	}
+	m.Shutdown()
+	if got := exec.driveCount(); got != 0 {
+		t.Fatalf("late Start executed %d times", got)
+	}
+}
+
+func TestRetiredRunReadReportsArtifactRootFailureInsteadOfSourceFallback(t *testing.T) {
+	root := t.TempDir()
+	index := sharedruns.NewIndex(filepath.Join(root, "demo"))
+	if err := index.Append(sharedruns.RunRecord{
+		RunID: "retired-source-only", Scenario: "demo", Status: sharedruns.StatusPassed,
+		StartedAt: time.Now().UTC(), CompletedAt: time.Now().UTC(),
+	}); err != nil {
+		t.Fatalf("seed source-only record: %v", err)
+	}
+	manager := New(nil, root).WithArtifactRootResolver(func(string) (string, error) {
+		return "", errors.New("injected artifact root unavailable")
+	})
+	if status, err := manager.Status("demo", "retired-source-only"); err == nil {
+		t.Fatalf("retired run status=%+v; source fallback must not claim owner availability", status)
 	}
 }
 
@@ -792,9 +953,9 @@ func TestAbortTransitionsToAborted(t *testing.T) {
 // TestSweepDowngradesOrphansOnce verifies the startup sweep marks an orphaned
 // in_progress record aborted exactly once (idempotent).
 func TestSweepDowngradesOrphansOnce(t *testing.T) {
-	root := t.TempDir()
+	_, root := sweepRepositoryFixture(t)
 	scenario := "demo"
-	dir := root + "/" + scenario
+	dir := filepath.Join(root, scenario)
 	if err := sharedruns.NewIndex(dir).Append(sharedruns.RunRecord{
 		RunID:     "20260101-000000-deadbeef",
 		Scenario:  scenario,
@@ -827,6 +988,137 @@ func TestSweepDowngradesOrphansOnce(t *testing.T) {
 	if n2 != 0 {
 		t.Fatalf("second sweep count = %d, want 0 (idempotent)", n2)
 	}
+}
+
+func TestSweepRecoversNonRuntimeTargetsAndPreservesLiveScenarioRun(t *testing.T) {
+	repoRoot, scenariosRoot := sweepRepositoryFixture(t)
+	target, err := targetmodel.Resolve(repoRoot, "package:fixture")
+	if err != nil {
+		t.Fatal(err)
+	}
+	packageRoot, err := targetmodel.ArtifactRoot(repoRoot, target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	scenarioRoot := filepath.Join(t.TempDir(), "scenario-artifacts")
+	seed := func(dir, runID, scenario string, status string) {
+		t.Helper()
+		if err := sharedruns.NewIndex(dir).Append(sharedruns.RunRecord{RunID: runID, Scenario: scenario, StartedAt: time.Now().UTC(), Status: status}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	seed(scenarioRoot, "scenario-orphan", "scenario:demo", sharedruns.StatusInProgress)
+	seed(packageRoot, "package-orphan", "package:fixture", sharedruns.StatusQueued)
+
+	exec := newFakeExecutor(scenarioRoot)
+	manager := New(exec, scenariosRoot).WithArtifactRootResolver(func(string) (string, error) { return scenarioRoot, nil })
+	defer func() {
+		close(exec.release)
+		manager.Shutdown()
+	}()
+	started, err := manager.Start(StartOptions{Input: execution.SuiteExecutionInput{Request: orchestrator.SuiteExecutionRequest{ScenarioName: "scenario:demo", RunID: "scenario-live"}}})
+	if err != nil {
+		t.Fatalf("start live typed scenario run: %v", err)
+	}
+	<-exec.started
+
+	swept, err := manager.Sweep()
+	if err != nil || swept != 2 {
+		t.Fatalf("sweep count=%d err=%v, want two orphan records and no sweep error", swept, err)
+	}
+	for _, check := range []struct {
+		dir, runID string
+		want       string
+	}{
+		{scenarioRoot, "scenario-orphan", sharedruns.StatusAborted},
+		{packageRoot, "package-orphan", sharedruns.StatusAborted},
+		{scenarioRoot, started.RunID, sharedruns.StatusInProgress},
+	} {
+		record, findErr := sharedruns.NewIndex(check.dir).Find(check.runID)
+		if findErr != nil || record.Status != check.want {
+			t.Fatalf("run %s status=%q err=%v, want %q", check.runID, record.Status, findErr, check.want)
+		}
+	}
+}
+
+func TestSweepReturnsScenarioResolverFailureWhileRecoveringOtherOwners(t *testing.T) {
+	repoRoot, scenariosRoot := sweepRepositoryFixture(t)
+	target, err := targetmodel.Resolve(repoRoot, "package:fixture")
+	if err != nil {
+		t.Fatal(err)
+	}
+	packageRoot, err := targetmodel.ArtifactRoot(repoRoot, target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	scenarioSourceRoot := filepath.Join(scenariosRoot, "demo")
+	if err := sharedruns.NewIndex(scenarioSourceRoot).Append(sharedruns.RunRecord{RunID: "scenario-unresolved", Scenario: "demo", StartedAt: time.Now().UTC(), Status: sharedruns.StatusInProgress}); err != nil {
+		t.Fatal(err)
+	}
+	if err := sharedruns.NewIndex(packageRoot).Append(sharedruns.RunRecord{RunID: "package-recoverable", Scenario: "package:fixture", StartedAt: time.Now().UTC(), Status: sharedruns.StatusInProgress}); err != nil {
+		t.Fatal(err)
+	}
+	manager := New(nil, scenariosRoot).WithArtifactRootResolver(func(string) (string, error) { return "", errors.New("injected scenario owner unavailable") })
+	swept, err := manager.Sweep()
+	if err == nil || !strings.Contains(err.Error(), "injected scenario owner unavailable") || swept != 1 {
+		t.Fatalf("sweep count=%d err=%v; want package recovery plus surfaced scenario resolver error", swept, err)
+	}
+	scenarioRecord, err := sharedruns.NewIndex(scenarioSourceRoot).Find("scenario-unresolved")
+	if err != nil || scenarioRecord.Status != sharedruns.StatusInProgress {
+		t.Fatalf("unresolved scenario owner was modified: record=%+v err=%v", scenarioRecord, err)
+	}
+	packageRecord, err := sharedruns.NewIndex(packageRoot).Find("package-recoverable")
+	if err != nil || packageRecord.Status != sharedruns.StatusAborted {
+		t.Fatalf("available package owner was not recovered: record=%+v err=%v", packageRecord, err)
+	}
+}
+
+func sweepRepositoryFixture(t *testing.T) (repoRoot, scenariosRoot string) {
+	t.Helper()
+	_, sourceFile, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("resolve test source path")
+	}
+	sourceRepoRoot := filepath.Clean(filepath.Join(filepath.Dir(sourceFile), "../../../../.."))
+	contract, err := os.ReadFile(filepath.Join(sourceRepoRoot, ".vrooli", "repo-contract.json"))
+	if err != nil {
+		t.Fatalf("read source repository contract: %v", err)
+	}
+	repoRoot = t.TempDir()
+	if err := os.MkdirAll(filepath.Join(repoRoot, ".vrooli"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(repoRoot, ".vrooli", "repo-contract.json"), contract, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	scenariosRoot = filepath.Join(repoRoot, "scenarios")
+	if err := os.MkdirAll(filepath.Join(scenariosRoot, "demo", ".vrooli"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(scenariosRoot, "demo", ".vrooli", "service.json"), []byte("{}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(repoRoot, "packages", "fixture"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HOME", filepath.Join(repoRoot, "test-home"))
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatalf("resolve temporary HOME: %v", err)
+	}
+	packageTarget, err := targetmodel.Resolve(repoRoot, "package:fixture")
+	if err != nil {
+		t.Fatalf("resolve temporary package target: %v", err)
+	}
+	packageRoot, err := targetmodel.ArtifactRoot(repoRoot, packageTarget)
+	if err != nil {
+		t.Fatalf("resolve temporary package artifact root: %v", err)
+	}
+	packageRelative, err := filepath.Rel(home, packageRoot)
+	if err != nil || packageRelative == "." || packageRelative == ".." || strings.HasPrefix(packageRelative, ".."+string(filepath.Separator)) {
+		t.Fatalf("package artifact root %q is not beneath temporary HOME %q (relative=%q err=%v)", packageRoot, home, packageRelative, err)
+	}
+	return repoRoot, scenariosRoot
 }
 
 // inputWith builds a run input with a preset/phases so admission-key divergence
@@ -1999,10 +2291,11 @@ func TestArtifactRootResolverOwnsLifecycleIndexPath(t *testing.T) {
 		}
 		return artifactRoot, nil
 	})
-	if got := m.scenarioDir("demo"); got != artifactRoot {
-		t.Fatalf("scenarioDir = %q, want %q", got, artifactRoot)
+	resolvedRoot, err := m.resolveArtifactRoot("demo")
+	if err != nil || resolvedRoot != artifactRoot {
+		t.Fatalf("resolved artifact root = %q, err %v; want %q", resolvedRoot, err, artifactRoot)
 	}
-	if got := sharedruns.NewIndex(m.scenarioDir("demo")).Path(); got != sharedruns.NewIndex(artifactRoot).Path() {
+	if got := sharedruns.NewIndex(resolvedRoot).Path(); got != sharedruns.NewIndex(artifactRoot).Path() {
 		t.Fatalf("lifecycle index = %q, want governed root index", got)
 	}
 	if _, err := os.Stat(filepath.Join(sourceRoot, "demo", "coverage")); !os.IsNotExist(err) {

@@ -11,9 +11,10 @@ const GroupName = "visual"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
-		"VisualHealthService.AnalyzeArtifacts": h.analyzeArtifacts,
-		"VisualHealthService.CompareArtifacts": h.compareArtifacts,
-		"VisualHealthService.ListRules":        h.rules,
+		"VisualHealthService.AnalyzeArtifacts":        h.analyzeArtifacts,
+		"VisualHealthService.CompareArtifacts":        h.compareArtifacts,
+		"VisualHealthService.ListRules":               h.rules,
+		"VisualHealthService.ListBrowserObservations": h.observations,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

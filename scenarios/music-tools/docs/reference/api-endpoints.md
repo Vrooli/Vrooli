@@ -250,3 +250,16 @@ New admissions also freeze the selected exact variant, including an implicit lyr
 model preference. A differently loaded runtime is refused through the existing
 expected-variant/returned-variant contract; Music never switches a resident model.
 Previously queued snapshots with blank variant retain their historical semantics.
+
+### ACE job capacity lease identity
+
+Admission metadata retains `capacity_claim_id` and `capacity_claim_generation` from
+the same acquired claim. Job heartbeats send that exact positive generation; a
+stale generation fails/cancels owned work rather than looking up a current claim
+or assuming generation1. Heartbeats do not change generation in the canonical
+protocol. Terminal cleanup joins renewal and releases the captured claim once.
+Canonical release is intentionally ID-only (no generation guard/CLI flag); Music
+retains the reference but does not invent a guarded-release guarantee. Missing
+identity/generation refuses admission. CLI failure errors include at most4KiB of
+stderr plus a truncation marker. These facts concern ACE job claims; SA3 continues
+to use resource-owned residency without a second Music lease.

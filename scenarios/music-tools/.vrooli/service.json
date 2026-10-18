@@ -225,7 +225,13 @@
         "description": "Default instrumental composition; gated Community/Gemma eligibility, resource-owned resident capacity",
         "enabled": true,
         "required": false,
-        "startup_policy": "try_start"
+        "startup_policy": "ignore"
+      },
+      "songgen": {
+        "description": "Explicitly selected MiniMax and HeartMuLa song profiles; one isolated worker and owned model cache",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore"
       }
     }
   },

@@ -290,8 +290,14 @@ func (b *forbiddenACEBroker) Claim(context.Context, string, uint64, uint64) (cap
 	b.calls.Add(1)
 	return capacity.Verdict{}, errors.New("ACE admission must not run for SA3")
 }
-func (b *forbiddenACEBroker) Release(context.Context, string) error   { b.calls.Add(1); return nil }
-func (b *forbiddenACEBroker) Heartbeat(context.Context, string) error { b.calls.Add(1); return nil }
+func (b *forbiddenACEBroker) Release(context.Context, capacity.ClaimRef) error {
+	b.calls.Add(1)
+	return nil
+}
+func (b *forbiddenACEBroker) Heartbeat(context.Context, capacity.ClaimRef) error {
+	b.calls.Add(1)
+	return nil
+}
 
 func TestSA3RealJobAdmissionBypassesACEClaimsAndRetainsDurableProvenance(t *testing.T) {
 	broker := &forbiddenACEBroker{}

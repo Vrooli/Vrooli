@@ -16,6 +16,7 @@ import (
 	validationH "ui-health/handlers/validation"
 	visualhealthH "ui-health/handlers/visualhealth"
 	localdb "ui-health/internal/database"
+	"ui-health/internal/visualhealth"
 
 	reindexv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/reindex"
 	searchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/search"
@@ -57,5 +58,6 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
+		apidb.SchemaProviderFunc(visualhealth.ObservationSchema),
 	}
 }

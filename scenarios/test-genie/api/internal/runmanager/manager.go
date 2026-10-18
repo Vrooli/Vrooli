@@ -173,9 +173,10 @@ type Manager struct {
 
 // activeRun is the in-memory state for a run currently tracked by the manager.
 type activeRun struct {
-	runID    string
-	scenario string
-	preset   string
+	runID        string
+	scenario     string
+	preset       string
+	artifactRoot string
 	// admissionKey is the deterministic coalescing identity for this run (see
 	// admissionKey). Immutable after construction, so it is safe to read under
 	// the manager lock during admission.
@@ -668,8 +669,8 @@ func (m *Manager) recordShadowDecision(runID string, req orchestrator.SuiteExecu
 }
 
 func (m *Manager) appendShadowRecord(record shadowDecision) {
-	root := m.scenarioDir("test-genie")
-	if root == "" {
+	root, err := m.resolveArtifactRoot("test-genie")
+	if err != nil {
 		return
 	}
 	if err := os.MkdirAll(root, 0o755); err != nil {
@@ -809,6 +810,11 @@ func (m *Manager) Start(opts StartOptions) (result StartResult, err error) {
 	if scenario == "" {
 		return StartResult{}, fmt.Errorf("scenarioName is required")
 	}
+	artifactRoot, err := m.pinArtifactRoot(scenario)
+	if err != nil {
+		return StartResult{}, fmt.Errorf("resolve artifact root for admission %s: %w", scenario, err)
+	}
+	opts.Input.ArtifactRoot = artifactRoot
 	runID := strings.TrimSpace(opts.Input.Request.RunID)
 	explicitRunID := runID != ""
 	if runID == "" {
@@ -830,6 +836,7 @@ func (m *Manager) Start(opts StartOptions) (result StartResult, err error) {
 	ar := &activeRun{
 		runID:                  runID,
 		scenario:               scenario,
+		artifactRoot:           artifactRoot,
 		preset:                 preset,
 		admissionKey:           key,
 		caller:                 caller,
@@ -860,7 +867,7 @@ func (m *Manager) Start(opts StartOptions) (result StartResult, err error) {
 
 	m.mu.Lock()
 	if explicitRunID {
-		prior, findErr := sharedruns.NewIndex(m.scenarioDir(scenario)).Find(runID)
+		prior, findErr := sharedruns.NewIndex(artifactRoot).Find(runID)
 		if findErr == nil {
 			if prior.AdmissionIntentDigest == "" || prior.AdmissionIntentDigest != intentDigest {
 				m.mu.Unlock()
@@ -954,7 +961,7 @@ func (m *Manager) Start(opts StartOptions) (result StartResult, err error) {
 		if reason == "" {
 			reason = "server-owned calibration/evidence run"
 		}
-		if _, err := sharedruns.NewPinLeaseStore(m.scenarioDir(scenario)).Grant(
+		if _, err := sharedruns.NewPinLeaseStore(artifactRoot).Grant(
 			runID, retentionLeaseOwner, reason, sharedruns.DefaultPinLeaseTTL, now,
 		); err != nil {
 			lease := ar.suiteLease
@@ -1003,7 +1010,7 @@ func (m *Manager) Start(opts StartOptions) (result StartResult, err error) {
 		DescriptorSnapshotDigest: strings.TrimSpace(ar.input.Request.AdmissionDescriptorDigest),
 		TreeDigest:               strings.TrimSpace(ar.input.Request.AdmissionTreeDigest),
 	}
-	index := sharedruns.NewIndex(m.scenarioDir(scenario))
+	index := sharedruns.NewIndex(artifactRoot)
 	var persistErr error
 	if explicitRunID {
 		prior, created, err := index.AdmitExplicit(record)
@@ -1027,7 +1034,7 @@ func (m *Manager) Start(opts StartOptions) (result StartResult, err error) {
 	}
 	if persistErr != nil {
 		if retentionLeaseOwner != "" {
-			_ = sharedruns.NewPinLeaseStore(m.scenarioDir(scenario)).Revoke(runID, retentionLeaseOwner)
+			_ = sharedruns.NewPinLeaseStore(artifactRoot).Revoke(runID, retentionLeaseOwner)
 		}
 		delete(m.runs, runKey(scenario, runID))
 		lease := ar.suiteLease
@@ -1064,7 +1071,13 @@ func (m *Manager) prepareEvidenceProducerInput(input *execution.SuiteExecutionIn
 	pinBytes, _ := json.Marshal(input.EvidenceProducer)
 	pinDigest := sha256.Sum256(pinBytes)
 	input.Request.EvidenceProductionIntentDigest = fmt.Sprintf("sha256:%x", pinDigest)
-	input.ArtifactRoot = m.scenarioDir(scenario)
+	if strings.TrimSpace(input.ArtifactRoot) == "" {
+		root, err := m.resolveArtifactRoot(scenario)
+		if err != nil {
+			return fmt.Errorf("resolve evidence producer artifact root: %w", err)
+		}
+		input.ArtifactRoot = root
+	}
 	return nil
 }
 
@@ -1081,12 +1094,25 @@ func (m *Manager) AbortEvidenceProducer(opts StartOptions) (LiveStatus, error) {
 	if opts.Input.EvidenceProducer == nil {
 		return LiveStatus{}, errors.New("evidence producer abort requires pinned input")
 	}
+	key := runKey(scenario, runID)
+	artifactRoot := ""
+	m.mu.Lock()
+	if active := m.runs[key]; active != nil && strings.TrimSpace(active.artifactRoot) != "" {
+		artifactRoot = active.artifactRoot
+	}
+	m.mu.Unlock()
+	if strings.TrimSpace(artifactRoot) == "" {
+		var err error
+		artifactRoot, err = m.pinArtifactRoot(scenario)
+		if err != nil {
+			return LiveStatus{}, fmt.Errorf("resolve artifact root for evidence producer abort: %w", err)
+		}
+	}
+	opts.Input.ArtifactRoot = artifactRoot
 	if err := m.prepareEvidenceProducerInput(&opts.Input, scenario); err != nil {
 		return LiveStatus{}, err
 	}
 	digest := suiteIntentDigest(opts.Input.Request)
-	key := runKey(scenario, runID)
-
 	m.mu.Lock()
 	if active := m.runs[key]; active != nil {
 		if suiteIntentDigest(active.input.Request) != digest {
@@ -1097,7 +1123,7 @@ func (m *Manager) AbortEvidenceProducer(opts StartOptions) (LiveStatus, error) {
 		return m.Abort(scenario, runID)
 	}
 	now := time.Now().UTC()
-	fenced, err := sharedruns.NewIndex(m.scenarioDir(scenario)).FenceExplicitAbort(sharedruns.RunRecord{
+	fenced, err := sharedruns.NewIndex(artifactRoot).FenceExplicitAbort(sharedruns.RunRecord{
 		RunID: runID, Scenario: scenario, AdmissionIntentDigest: digest,
 		StartedAt: now, CompletedAt: now, Status: sharedruns.StatusAborted,
 		Preset:                   strings.TrimSpace(opts.Input.Request.Preset),
@@ -1555,7 +1581,14 @@ func (m *Manager) attachStablePreflightSourceEvidence(result *orchestrator.Suite
 	if result == nil || ar == nil || result.SourceStable {
 		return
 	}
-	scenarioDir := m.scenarioDir(ar.scenario)
+	scenarioDir := ar.artifactRoot
+	if strings.TrimSpace(scenarioDir) == "" {
+		var err error
+		scenarioDir, err = m.resolveArtifactRoot(ar.scenario)
+		if err != nil {
+			return
+		}
+	}
 	if custom := strings.TrimSpace(ar.input.Request.ScenarioPath); custom != "" {
 		scenarioDir = custom
 	}
@@ -1714,7 +1747,11 @@ func (m *Manager) FollowAfter(ctx context.Context, scenario, runID string, after
 // terminalReplay synthesizes a closed event stream for a run that is no longer
 // tracked in memory, from its durable index record.
 func (m *Manager) terminalReplay(scenario, runID string) ([]Event, <-chan Event, error) {
-	rec, err := sharedruns.NewIndex(m.scenarioDir(scenario)).Find(runID)
+	dir, err := m.resolveArtifactRoot(scenario)
+	if err != nil {
+		return nil, nil, fmt.Errorf("resolve run artifact root: %w", err)
+	}
+	rec, err := sharedruns.NewIndex(dir).Find(runID)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1751,7 +1788,9 @@ func (m *Manager) Wait(ctx context.Context, scenario, runID string) (LiveStatus,
 			// immediately using the same crash-recovery transition as Abort and
 			// startup Sweep. Returning it as a successful Wait response would
 			// violate the wait contract and strand parent operations indefinitely.
-			m.downgradeOrphanIndex(scenario, runID)
+			if recoverErr := m.downgradeOrphanIndex(scenario, runID); recoverErr != nil {
+				return LiveStatus{}, fmt.Errorf("recover orphan run %s/%s: %w", scenario, runID, recoverErr)
+			}
 			return m.statusFromIndex(scenario, runID)
 		}
 		return ls, err
@@ -1781,7 +1820,9 @@ func (m *Manager) Status(scenario, runID string) (LiveStatus, error) {
 		// A durable non-terminal record without a live manager-owned executor is
 		// an orphan. Status is a recovery boundary too: returning "running" here
 		// would make callers poll a state that cannot ever progress.
-		m.downgradeOrphanIndex(scenario, runID)
+		if recoverErr := m.downgradeOrphanIndex(scenario, runID); recoverErr != nil {
+			return LiveStatus{}, fmt.Errorf("recover orphan run %s/%s: %w", scenario, runID, recoverErr)
+		}
 		return m.statusFromIndex(scenario, runID)
 	}
 	return status, err
@@ -1803,7 +1844,9 @@ func (m *Manager) Abort(scenario, runID string) (LiveStatus, error) {
 		// downgrade it to aborted here rather than reading back a stale
 		// in_progress forever (the startup Sweep only runs at boot). Without this,
 		// an orphaned run is unabortable until the next server restart.
-		m.downgradeOrphanIndex(scenario, runID)
+		if recoverErr := m.downgradeOrphanIndex(scenario, runID); recoverErr != nil {
+			return LiveStatus{}, fmt.Errorf("recover orphan run %s/%s: %w", scenario, runID, recoverErr)
+		}
 		return m.statusFromIndex(scenario, runID)
 	}
 	if ar.currentStatus() == sharedruns.StatusQueued {
@@ -1852,8 +1895,12 @@ func (m *Manager) terminalStatusFromIndexOrLive(ar *activeRun) LiveStatus {
 // transition the startup Sweep applies, exposed so Abort can recover an orphan
 // without waiting for a restart. No-op if the record is missing or already
 // terminal.
-func (m *Manager) downgradeOrphanIndex(scenario, runID string) {
-	err := sharedruns.NewIndex(m.scenarioDir(scenario)).Update(runID, func(r *sharedruns.RunRecord) error {
+func (m *Manager) downgradeOrphanIndex(scenario, runID string) error {
+	dir, resolveErr := m.resolveArtifactRoot(scenario)
+	if resolveErr != nil {
+		return fmt.Errorf("resolve artifact root: %w", resolveErr)
+	}
+	err := sharedruns.NewIndex(dir).Update(runID, func(r *sharedruns.RunRecord) error {
 		if isTerminal(r.Status) {
 			return nil
 		}
@@ -1863,9 +1910,13 @@ func (m *Manager) downgradeOrphanIndex(scenario, runID string) {
 		}
 		return nil
 	})
-	if err != nil && err != sharedruns.ErrRunNotFound {
-		log.Printf("[runmanager] downgrade orphan %s/%s: %v", scenario, runID, err)
+	if errors.Is(err, sharedruns.ErrRunNotFound) {
+		return nil
 	}
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // Sweep marks every non-terminal index entry (in_progress or queued) that has no
@@ -1879,33 +1930,34 @@ func (m *Manager) Sweep() (int, error) {
 	}
 	entries, err := os.ReadDir(m.scenariosRoot)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return 0, nil
+		if !os.IsNotExist(err) {
+			return 0, err
 		}
-		return 0, err
+		entries = nil
 	}
 	swept := 0
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-		scenario := entry.Name()
-		dir := m.scenarioDir(scenario)
+	var sweepErrors []error
+	sweepOwner := func(owner, dir string) {
 		idx := sharedruns.NewIndex(dir)
-		records, err := idx.List()
-		if err != nil {
-			log.Printf("[runmanager] sweep: list %s: %v", scenario, err)
-			continue
+		records, listErr := idx.List()
+		if listErr != nil {
+			log.Printf("[runmanager] sweep: list %s: %v", owner, listErr)
+			sweepErrors = append(sweepErrors, fmt.Errorf("list runs for %s: %w", owner, listErr))
+			return
 		}
 		for _, rec := range records {
 			if isTerminal(rec.Status) {
 				continue
 			}
-			if m.lookup(scenario, rec.RunID) != nil {
-				continue // genuinely active in this process
+			activeOwner := strings.TrimSpace(rec.Scenario)
+			if activeOwner == "" {
+				activeOwner = owner
+			}
+			if m.lookup(activeOwner, rec.RunID) != nil {
+				continue // genuinely active in this process, including typed-target aliases
 			}
 			runID := rec.RunID
-			if err := idx.Update(runID, func(r *sharedruns.RunRecord) error {
+			if updateErr := idx.Update(runID, func(r *sharedruns.RunRecord) error {
 				if isTerminal(r.Status) {
 					return nil
 				}
@@ -1914,14 +1966,76 @@ func (m *Manager) Sweep() (int, error) {
 					r.CompletedAt = time.Now().UTC()
 				}
 				return nil
-			}); err != nil {
-				log.Printf("[runmanager] sweep: mark aborted %s/%s: %v", scenario, runID, err)
+			}); updateErr != nil {
+				log.Printf("[runmanager] sweep: mark aborted %s/%s: %v", owner, runID, updateErr)
+				sweepErrors = append(sweepErrors, fmt.Errorf("mark orphan %s/%s aborted: %w", owner, runID, updateErr))
 				continue
 			}
 			swept++
 		}
 	}
-	return swept, nil
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		scenario := entry.Name()
+		dir, resolveErr := m.resolveArtifactRoot(scenario)
+		if resolveErr != nil {
+			sweepErrors = append(sweepErrors, fmt.Errorf("resolve artifact root for %s: %w", scenario, resolveErr))
+			continue
+		}
+		sweepOwner(scenario, dir)
+	}
+
+	// The scenario directory walk above preserves the legacy source-root and
+	// resolver behavior. Enumerate the same contract-backed target inventory as
+	// target resolution for every non-runtime target, whose run index lives under
+	// targetmodel's separate runtime-state owner.
+	repoRoot := filepath.Dir(m.scenariosRoot)
+	targets, targetErr := targetmodel.Enumerate(repoRoot)
+	if targetErr != nil {
+		log.Printf("[runmanager] sweep: enumerate repository targets: %v", targetErr)
+		sweepErrors = append(sweepErrors, fmt.Errorf("enumerate targets for startup sweep: %w", targetErr))
+	} else {
+		for _, target := range targets {
+			if target.HasRuntime() {
+				continue // already walked through the scenario resolver above
+			}
+			dir, rootErr := targetmodel.ArtifactRoot(repoRoot, target)
+			if rootErr != nil {
+				owner := fmt.Sprintf("%s:%s", targetKindName(target.Kind), target.ID)
+				log.Printf("[runmanager] sweep: resolve artifact root for %s: %v", owner, rootErr)
+				sweepErrors = append(sweepErrors, fmt.Errorf("resolve artifact root for %s: %w", owner, rootErr))
+				continue
+			}
+			owner := fmt.Sprintf("%s:%s", targetKindName(target.Kind), target.ID)
+			sweepOwner(owner, dir)
+		}
+	}
+	return swept, errors.Join(sweepErrors...)
+}
+
+func targetKindName(kind commonv1.ValidationTargetKind) string {
+	switch kind {
+	case commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_RESOURCE:
+		return "resource"
+	case commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_TOOL:
+		return "tool"
+	case commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SAFEGUARD:
+		return "safeguard"
+	case commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_TEAM:
+		return "team"
+	case commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_PACKAGE:
+		return "package"
+	case commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_CONTROL_PLANE:
+		return "control-plane"
+	case commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_DOCS:
+		return "docs"
+	case commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_PROJECT:
+		return "project"
+	default:
+		return "unknown"
+	}
 }
 
 // Shutdown cancels every active run and the manager base context, then waits for
@@ -1942,7 +2056,12 @@ func (m *Manager) Shutdown() {
 }
 
 func (m *Manager) markIndexAborted(scenario, runID string, result *orchestrator.SuiteExecutionResult) {
-	idx := sharedruns.NewIndex(m.scenarioDir(scenario))
+	dir, rootErr := m.scenarioDirForRun(scenario, runID)
+	if rootErr != nil {
+		log.Printf("[runmanager] resolve abort artifact root %s/%s: %v", scenario, runID, rootErr)
+		return
+	}
+	idx := sharedruns.NewIndex(dir)
 	rec, err := idx.Find(runID)
 	if err != nil {
 		if err != sharedruns.ErrRunNotFound {
@@ -1968,7 +2087,7 @@ func (m *Manager) markIndexAborted(scenario, runID string, result *orchestrator.
 			result.CompletedAt = completedAt
 		}
 	}
-	if err := ensureArtifactCatalog(m.scenarioDir(scenario), runID, result.CompletedAt); err != nil {
+	if err := ensureArtifactCatalog(dir, runID, result.CompletedAt); err != nil {
 		result.Warnings = append(result.Warnings, "artifact catalog unavailable: "+err.Error())
 	}
 	err = idx.Finalize(runID, orchestrator.CompactTerminalSnapshot(result), func(r *sharedruns.RunRecord) error {
@@ -1996,7 +2115,12 @@ func (m *Manager) reconcileDurableTerminal(scenario, runID, status string, resul
 	if !isTerminal(status) {
 		return
 	}
-	idx := sharedruns.NewIndex(m.scenarioDir(scenario))
+	dir, rootErr := m.scenarioDirForRun(scenario, runID)
+	if rootErr != nil {
+		log.Printf("[runmanager] resolve terminal artifact root %s/%s: %v", scenario, runID, rootErr)
+		return
+	}
+	idx := sharedruns.NewIndex(dir)
 	rec, findErr := idx.Find(runID)
 	if findErr != nil {
 		if findErr != sharedruns.ErrRunNotFound {
@@ -2036,7 +2160,7 @@ func (m *Manager) reconcileDurableTerminal(scenario, runID, status string, resul
 			result.Verdict = "FAIL"
 		}
 	}
-	if err := ensureArtifactCatalog(m.scenarioDir(scenario), runID, result.CompletedAt); err != nil {
+	if err := ensureArtifactCatalog(dir, runID, result.CompletedAt); err != nil {
 		result.Warnings = append(result.Warnings, "artifact catalog unavailable: "+err.Error())
 	}
 	err := idx.Finalize(runID, orchestrator.CompactTerminalSnapshot(result), func(r *sharedruns.RunRecord) error {
@@ -2091,22 +2215,68 @@ func compactPhaseRecords(results []orchestrator.PhaseExecutionResult) []sharedru
 	return records
 }
 
-func (m *Manager) scenarioDir(scenario string) string {
+// scenarioDirForRun keeps lifecycle reads and writes on the root selected at
+// admission while the run is active. Retired-run reads use the same strict
+// canonical owner resolution and surface resolver failures.
+func (m *Manager) scenarioDirForRun(scenario, runID string) (string, error) {
+	if m != nil {
+		m.mu.Lock()
+		ar := m.runs[runKey(scenario, runID)]
+		m.mu.Unlock()
+		if ar != nil && strings.TrimSpace(ar.artifactRoot) != "" {
+			return ar.artifactRoot, nil
+		}
+	}
+	return m.resolveArtifactRoot(scenario)
+}
+
+// resolveArtifactRoot selects the canonical evidence owner. Typed runtime
+// targets use their canonical ID through the injected scenario resolver;
+// standalone targets use targetmodel's owner path. Bare scenario slugs retain
+// the configured resolver and the manager's source-shaped legacy default.
+// Configured resolver or target-resolution errors never fall back to source.
+func (m *Manager) resolveArtifactRoot(scenario string) (string, error) {
+	if m == nil {
+		return "", errors.New("run manager is not configured")
+	}
 	value := strings.TrimSpace(scenario)
+	if value == "" {
+		return "", errors.New("scenario or target is required")
+	}
+	var root string
 	if strings.Contains(value, ":") {
 		repoRoot := filepath.Dir(m.scenariosRoot)
-		if target, err := targetmodel.Resolve(repoRoot, value); err == nil && !target.HasRuntime() {
-			if artifactRoot, artifactErr := targetmodel.ArtifactRoot(repoRoot, target); artifactErr == nil {
-				return artifactRoot
-			}
+		target, err := targetmodel.Resolve(repoRoot, value)
+		if err != nil {
+			return "", fmt.Errorf("resolve target %q: %w", value, err)
 		}
-	}
-	if m.artifactRoot != nil {
-		if artifactRoot, err := m.artifactRoot(value); err == nil {
-			return artifactRoot
+		if target.HasRuntime() && m.artifactRoot != nil {
+			root, err = m.artifactRoot(target.ID)
+		} else {
+			root, err = targetmodel.ArtifactRoot(repoRoot, target)
 		}
+		if err != nil {
+			return "", fmt.Errorf("resolve canonical artifact owner for %v:%s: %w", target.Kind, target.ID, err)
+		}
+	} else if m.artifactRoot != nil {
+		var err error
+		root, err = m.artifactRoot(value)
+		if err != nil {
+			return "", fmt.Errorf("resolve artifact owner for %s: %w", value, err)
+		}
+	} else {
+		root = filepath.Join(m.scenariosRoot, value)
 	}
-	return filepath.Join(m.scenariosRoot, value)
+	root = strings.TrimSpace(root)
+	if root == "" {
+		return "", errors.New("artifact root resolver returned an empty path")
+	}
+	return root, nil
+}
+
+// pinArtifactRoot resolves an owner's durable root once before run admission.
+func (m *Manager) pinArtifactRoot(scenario string) (string, error) {
+	return m.resolveArtifactRoot(scenario)
 }
 
 // RetainedEvidenceSet publishes owner-computed byte checksums for files in the
@@ -2116,7 +2286,11 @@ func (m *Manager) RetainedEvidenceSet(scenario, runID, receiptID, producer, cand
 	if m == nil || strings.TrimSpace(receiptID) == "" || strings.TrimSpace(producer) == "" || strings.TrimSpace(candidateIdentity) == "" {
 		return nil, errors.New("retained evidence identity is incomplete")
 	}
-	catalog, err := sharedartifacts.ReadArtifactCatalog(m.scenarioDir(scenario), runID)
+	dir, err := m.scenarioDirForRun(scenario, runID)
+	if err != nil {
+		return nil, fmt.Errorf("resolve retained evidence owner: %w", err)
+	}
+	catalog, err := sharedartifacts.ReadArtifactCatalog(dir, runID)
 	if err != nil {
 		return nil, fmt.Errorf("read persisted producer catalog: %w", err)
 	}
@@ -2135,7 +2309,7 @@ func (m *Manager) RetainedEvidenceSet(scenario, runID, receiptID, producer, cand
 		if len(set.Artifacts) >= 32 {
 			return nil, errors.New("producer output exceeds retained evidence artifact limit")
 		}
-		ref, path, resolveErr := sharedartifacts.ResolveCatalogArtifact(m.scenarioDir(scenario), runID, artifact.ID, nil)
+		ref, path, resolveErr := sharedartifacts.ResolveCatalogArtifact(dir, runID, artifact.ID, nil)
 		if resolveErr != nil {
 			return nil, fmt.Errorf("resolve producer output %s: %w", artifact.ID, resolveErr)
 		}
@@ -2262,7 +2436,11 @@ func terminalMaturity(result *orchestrator.SuiteExecutionResult) ([]*commonv1.Ph
 }
 
 func (m *Manager) statusFromIndex(scenario, runID string) (LiveStatus, error) {
-	idx := sharedruns.NewIndex(m.scenarioDir(scenario))
+	dir, err := m.scenarioDirForRun(scenario, runID)
+	if err != nil {
+		return LiveStatus{}, fmt.Errorf("resolve run artifact owner: %w", err)
+	}
+	idx := sharedruns.NewIndex(dir)
 	rec, err := idx.Find(runID)
 	if err != nil {
 		return LiveStatus{}, err
@@ -2282,7 +2460,7 @@ func (m *Manager) statusFromIndex(scenario, runID string) (LiveStatus, error) {
 		RecommendedNextCheckSeconds: recommendedNextCheck(rec.Status, 0, false),
 		Active:                      false,
 	}
-	descriptorSnapshot, descriptorErr := sharedruns.ReadDescriptorSnapshot(m.scenarioDir(scenario), runID)
+	descriptorSnapshot, descriptorErr := sharedruns.ReadDescriptorSnapshot(dir, runID)
 	if descriptorErr == nil {
 		ls.DescriptorSnapshot = &descriptorSnapshot
 		if rec.DescriptorSnapshotSchemaVersion != 0 && rec.DescriptorSnapshotSchemaVersion != descriptorSnapshot.SchemaVersion {

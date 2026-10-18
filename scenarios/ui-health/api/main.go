@@ -105,7 +105,7 @@ func main() {
 		server.Deps{Clock: schedule.System(), Logger: logger},
 		healthH.Module(db, "ui-health-api", "1.0.0"),
 		validationH.Module(logger, repoRoot),
-		visualhealthH.Module(logger),
+		visualhealthH.Module(logger, db),
 		searchH.Module(logger, aiService),
 		reindexH.Module(logger, reindexH.ServiceAdapter{Service: aiService}),
 	)

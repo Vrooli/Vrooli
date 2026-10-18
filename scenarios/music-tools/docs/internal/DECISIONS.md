@@ -120,3 +120,21 @@ New admissions also freeze the selected exact variant, including an implicit lyr
 model preference. A differently loaded runtime is refused through the existing
 expected-variant/returned-variant contract; Music never switches a resident model.
 Previously queued snapshots with blank variant retain their historical semantics.
+
+## Explicit MiniMax and HeartMuLa song profiles — 2026-10-17
+
+The operator's new listening evidence and integration request supersede the
+August categorical exclusions for these two bounded recipes. Keep SA3 as the
+instrumental default and ACE as the implicit lyric default. Expose MiniMax NF4
+and HeartMuLa through one managed Songgen resource with isolated dependency
+closures and one short-lived worker per job. Keep capabilities and runtime
+identity in the model registry/catalog; no engine-specific lyric workflow.
+
+Control-plane lifecycle groups prevent concurrent ACE/SA3/Songgen activation.
+Songgen uses profile-specific recorded use and a 30-day disk window; new work
+sweeps expired peers and explicit previews/pins remain available. ACE/SA3 model
+cache retention uses the control-plane owner with confirmed stopped lifetime.
+Generic shard-age deletion is disabled for all three resources. Model weights
+are downloads, not durable takes: retained Music audio and evidence stay outside
+these cache boundaries. This trades cold model load latency for reliable GPU
+release and avoids downloading recent weights repeatedly.

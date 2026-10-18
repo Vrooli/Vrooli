@@ -167,7 +167,25 @@ func Rules() []*visualpb.VisualRule {
 			Category:          visualpb.VisualCategory_VISUAL_CATEGORY_PIXEL,
 			Severity:          visualpb.VisualSeverity_VISUAL_SEVERITY_ERROR,
 			RequiredArtifacts: []string{"screenshot_png", "layout_json"},
-			Remediation:       "Color every safe-area edge with the declared safe-area/status chrome color.",
+			Remediation:       "Color each safe-area edge with the surface that owns it.",
+		},
+		{Id: "visual_drawable_canvas_unused", Category: visualpb.VisualCategory_VISUAL_CATEGORY_LAYOUT, Severity: visualpb.VisualSeverity_VISUAL_SEVERITY_ERROR, RequiredArtifacts: []string{"browser_observation"}, Remediation: "Fill the measured drawable canvas instead of a shortened browser report."},
+		{Id: "visual_mobile_toolbar_oversized", Category: visualpb.VisualCategory_VISUAL_CATEGORY_LAYOUT, Severity: visualpb.VisualSeverity_VISUAL_SEVERITY_ERROR, RequiredArtifacts: []string{"browser_observation"}, Remediation: "Keep toolbar height within its declared limit while retaining touch targets."},
+		{Id: "visual_nav_control_unreachable", Category: visualpb.VisualCategory_VISUAL_CATEGORY_LAYOUT, Severity: visualpb.VisualSeverity_VISUAL_SEVERITY_ERROR, RequiredArtifacts: []string{"browser_observation"}, Remediation: "Keep the complete navigation control inside the client hit-testable frame."},
+		{Id: "visual_overlay_canvas_color_mismatch", Category: visualpb.VisualCategory_VISUAL_CATEGORY_LAYOUT, Severity: visualpb.VisualSeverity_VISUAL_SEVERITY_ERROR, RequiredArtifacts: []string{"browser_observation"}, Remediation: "Use the shared overlay panel and page canvas surface together."},
+		{
+			Id:                "visual_native_screen_unverified",
+			Category:          visualpb.VisualCategory_VISUAL_CATEGORY_LAYOUT,
+			Severity:          visualpb.VisualSeverity_VISUAL_SEVERITY_INFO,
+			RequiredArtifacts: []string{"layout_json", "screenshot_png"},
+			Remediation:       "Native screen requirements fail without physical-screen capture provenance; emulation does not qualify installed app chrome.",
+		},
+		{
+			Id:                "visual_safe_area_not_exercised",
+			Category:          visualpb.VisualCategory_VISUAL_CATEGORY_LAYOUT,
+			Severity:          visualpb.VisualSeverity_VISUAL_SEVERITY_INFO,
+			RequiredArtifacts: []string{"layout_json", "viewport"},
+			Remediation:       "Use a qualified nonzero-inset capture for safe-area coverage; installed OS chrome still needs device evidence.",
 		},
 		{
 			Id:                "visual_unsafe_edge_tap_zone",
@@ -296,11 +314,20 @@ func chromeColorFindings(step *visualpb.VisualStepArtifact, pngBytes []byte) []*
 	statusWant, hasStatus := parseHexColor(firstNonEmpty(snap.Chrome.StatusBarColor, snap.Chrome.ThemeColor))
 	safeWant, hasSafe := parseHexColor(firstNonEmpty(snap.Chrome.SafeAreaColor, snap.Chrome.StatusBarColor, snap.Chrome.ThemeColor))
 	bounds := img.Bounds()
+	// Layout insets use CSS pixels; screenshots may use device pixels.
+	insets := snap.SafeAreaInsets
+	if snap.hasViewport() {
+		sx, sy := float64(bounds.Dx())/snap.ViewportWidth, float64(bounds.Dy())/snap.ViewportHeight
+		insets.Top *= sy
+		insets.Bottom *= sy
+		insets.Left *= sx
+		insets.Right *= sx
+	}
 	var findings []*visualpb.VisualFinding
 	// A viewport with no top safe area contains page content from y=0.
 	// Mobile metadata alone does not make its first 24 pixels a status bar.
 	if hasStatus && snap.SafeAreaInsets.Top > 0 {
-		topHeight := int(math.Round(snap.SafeAreaInsets.Top))
+		topHeight := int(math.Round(insets.Top))
 		got := averageColor(img, image.Rect(bounds.Min.X, bounds.Min.Y, bounds.Max.X, bounds.Min.Y+clampInt(topHeight, 1, bounds.Dy())))
 		if colorDistance(got, statusWant) > chromeColorDistanceThreshold {
 			findings = append(findings, &visualpb.VisualFinding{
@@ -318,10 +345,17 @@ func chromeColorFindings(step *visualpb.VisualStepArtifact, pngBytes []byte) []*
 			})
 		}
 	}
-	if hasSafe {
-		for _, region := range safeAreaRegions(bounds, snap.SafeAreaInsets) {
+	if hasSafe || len(snap.Chrome.SafeAreaColors) > 0 {
+		for _, region := range safeAreaRegions(bounds, insets) {
+			want, known := safeWant, hasSafe
+			if declared := snap.Chrome.SafeAreaColors[region.edge]; declared != "" {
+				want, known = parseHexColor(declared)
+			}
+			if !known {
+				continue
+			}
 			got := averageColor(img, region.rect)
-			if colorDistance(got, safeWant) <= chromeColorDistanceThreshold {
+			if colorDistance(got, want) <= chromeColorDistanceThreshold {
 				continue
 			}
 			findings = append(findings, &visualpb.VisualFinding{
@@ -330,11 +364,11 @@ func chromeColorFindings(step *visualpb.VisualStepArtifact, pngBytes []byte) []*
 				Category:    visualpb.VisualCategory_VISUAL_CATEGORY_PIXEL,
 				Message:     "rendered safe-area edge does not match declared chrome color",
 				Location:    locationFor(step),
-				Evidence:    fmt.Sprintf("%s edge declared %s, captured %s", region.edge, colorHex(safeWant), colorHex(got)),
-				Remediation: "Color every safe-area edge with the declared safe-area/status chrome color.",
+				Evidence:    fmt.Sprintf("%s edge declared %s, captured %s", region.edge, colorHex(want), colorHex(got)),
+				Remediation: "Color this safe-area edge with the surface that owns it.",
 				StepId:      step.GetStepId(),
 				Metrics: []*visualpb.VisualMetric{
-					metric("color_distance", colorDistance(got, safeWant)),
+					metric("color_distance", colorDistance(got, want)),
 				},
 			})
 		}

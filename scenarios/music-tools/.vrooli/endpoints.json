@@ -76,24 +76,56 @@
       "id": "models_list",
       "path": "/api/v1/models",
       "method": "GET",
-      "summary": "List available music models and licence lanes.",
+      "summary": "List declared music models, capabilities and licence lanes.",
       "description": "",
       "category": "models",
       "rest_exception": {
         "reason": "ops_probe",
-        "note": "REST projection of the model registry."
+        "note": "REST projection of the model registry; canonical namespaced IDs are accepted.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.music_tools.v1.models.ListModelsResponse",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.music_tools.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
       }
     },
     {
       "id": "models_get",
       "path": "/api/v1/models/{id}",
       "method": "GET",
-      "summary": "Get one music model.",
+      "summary": "Get one namespaced music model.",
       "description": "",
       "category": "models",
       "rest_exception": {
         "reason": "ops_probe",
-        "note": "REST projection of the model registry."
+        "note": "REST projection of the model registry; canonical namespaced IDs are accepted.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.music_tools.v1.models.Model",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.music_tools.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
       }
     },
     {

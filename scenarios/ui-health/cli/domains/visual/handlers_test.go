@@ -19,6 +19,7 @@ import (
 )
 
 type fakeVisualHealthService struct {
+	visualconnect.UnimplementedVisualHealthServiceHandler
 	analyzeReqs []*visualpb.AnalyzeArtifactsRequest
 	compareReqs []*visualpb.CompareArtifactsRequest
 }

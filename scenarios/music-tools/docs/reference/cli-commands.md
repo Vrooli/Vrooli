@@ -432,3 +432,31 @@ New admissions also freeze the selected exact variant, including an implicit lyr
 model preference. A differently loaded runtime is refused through the existing
 expected-variant/returned-variant contract; Music never switches a resident model.
 Previously queued snapshots with blank variant retain their historical semantics.
+
+## Explicit managed song profiles
+
+Import a flat Style with `variant: "minimax-music3-nf4"` (steps 30, guidance 1.7)
+or `variant: "heartmula-3b"` (steps 0, guidance 1.5). Both accept authored lyrics.
+Use BPM 0 and blank key; describe tempo/key in the caption. Duration 1–150 seconds
+is an upper bound, with actual duration retained in the native receipt.
+
+Activate the Songgen resource after finishing/stopping another music-group member.
+Run `vrooli resource install songgen` for the runtime. Acquire the selected
+weights with `vrooli resource acquisition data songgen --group PROFILE`, then
+run `vrooli resource start songgen`. Ordinary setup does not download a missing
+on-demand profile. At least one complete group is required before launch.
+Compile the imported style, submit `music-tools compose --style STYLE --takes 1`,
+attach with `music-tools jobs wait JOB`, and export take audio/receipt normally.
+There is no silent provider fallback or native reference-voice argument.
+
+Preview Songgen weights with `resource-songgen model-cache preview`.
+Save JSON only when applying an exact preview with `model-cache apply --preview FILE`.
+Pin a profile with `model-cache pin --profile PROFILE`; use `--pinned=false` to undo.
+Recent downloads and uses receive 30 days; new jobs sweep expired peer profiles.
+The owner refuses active acquisition/generation, stale previews and unknown files.
+
+For legacy ACE/SA3 bundles, use
+`vrooli resource acquisition model-cache RESOURCE` to preview,
+`--pin true|false` to pin, and `--apply-preview FILE` with saved owner output to
+apply. A confirmed stopped/installed lifetime is required. These commands do
+not stop a resource or remove exported Music takes.

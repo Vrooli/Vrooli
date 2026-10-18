@@ -4,8 +4,8 @@ import (
 	"net/http"
 
 	modelspb "github.com/vrooli/vrooli/packages/proto/gen/go/music-tools/v1/models"
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+	"music-tools/internal/httpx"
 
 	modeldomain "music-tools/internal/models"
 	"music-tools/internal/module"
@@ -22,10 +22,10 @@ func Module(registry *modeldomain.Registry) module.Module {
 			}
 			write(w, http.StatusOK, response)
 		}).Methods(http.MethodGet)
-		r.HandleFunc("/api/v1/models/{id}", func(w http.ResponseWriter, req *http.Request) {
+		r.HandleFunc("/api/v1/models/{id:.+}", func(w http.ResponseWriter, req *http.Request) {
 			model, err := registry.Resolve(mux.Vars(req)["id"])
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusNotFound)
+				httpx.WriteError(w, http.StatusNotFound, httpx.CodeNotFound, err.Error())
 				return
 			}
 			write(w, http.StatusOK, wire(model))
@@ -38,16 +38,17 @@ func wire(model modeldomain.Model) *modelspb.Model {
 	if !model.Installed {
 		status = "runtime_unverified"
 	}
-	return &modelspb.Model{Id: model.ID, DisplayName: model.DisplayName, Variant: model.Variant, LicenseLane: string(model.Licence), Status: status, Revision: model.Revision, Bytes: model.Bytes}
+	out := &modelspb.Model{Id: model.ID, DisplayName: model.DisplayName, Variant: model.Variant, LicenseLane: string(model.Licence), Status: status, Revision: model.Revision, Bytes: model.Bytes, Engine: model.Engine,
+		SungLyrics:     &modelspb.ModelCapability{Supported: model.SungLyrics.Supported, Reason: model.SungLyrics.Reason, Source: model.SungLyrics.Source},
+		VoiceReference: &modelspb.ModelCapability{Supported: model.VoiceReference.Supported, Reason: model.VoiceReference.Reason, Source: model.VoiceReference.Source}}
+	if runtime := model.Runtime; runtime != nil {
+		out.CompositionControls = &modelspb.CompositionControls{MinDurationSeconds: runtime.MinDuration, MaxDurationSeconds: runtime.MaxDuration,
+			DefaultSteps: int32(runtime.DefaultSteps), MinSteps: int32(runtime.MinSteps), MaxSteps: int32(runtime.MaxSteps),
+			DefaultGuidance: runtime.DefaultGuidance, MinGuidance: runtime.MinGuidance, MaxGuidance: runtime.MaxGuidance, DurationControl: "upper_bound"}
+	}
+	return out
 }
 
 func write(w http.ResponseWriter, status int, value proto.Message) {
-	body, err := protojson.MarshalOptions{UseProtoNames: true}.Marshal(value)
-	if err != nil {
-		http.Error(w, "model response encoding failed", http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_, _ = w.Write(body)
+	httpx.WriteProto(w, status, value)
 }

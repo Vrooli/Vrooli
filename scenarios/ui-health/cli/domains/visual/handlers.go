@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -95,4 +96,20 @@ func findingLines(findings []*visualpb.VisualFinding) []string {
 		lines = append(lines, fmt.Sprintf("%s %s %s", f.GetCode(), f.GetSeverity(), f.GetMessage()))
 	}
 	return lines
+}
+
+func (h *handlers) observations(ctx cliapp.RunContext) error {
+	limit, _ := strconv.Atoi(ctx.Flag("limit"))
+	resp, err := h.client.ListBrowserObservations(context.Background(), connect.NewRequest(&visualpb.ListBrowserObservationsRequest{Scenario: ctx.Flag("scenario"), ClientId: ctx.Flag("client-id"), Limit: int32(limit)}))
+	if err != nil {
+		return cliapp.WrapAPIError("visual observations", err, nil)
+	}
+	lines := make([]string, 0, len(resp.Msg.GetObservations()))
+	for _, row := range resp.Msg.GetObservations() {
+		lines = append(lines, fmt.Sprintf("%s client=%s standalone=%t build=%s capture=%s", row.GetReceivedAt(), row.GetClientId(), row.GetStandalone(), row.GetBuildId(), row.GetCaptureKind()))
+		for _, finding := range row.GetFindings() {
+			lines = append(lines, fmt.Sprintf("  %s: %s (%s)", finding.GetCode(), finding.GetMessage(), finding.GetEvidence()))
+		}
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("%d retained browser geometry report(s); no native screen pixels.", len(lines))}, ResultsHeading: "Observations", Results: lines})
 }
