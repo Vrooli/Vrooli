@@ -2,12 +2,7 @@ package planning
 
 import (
 	"context"
-	"crypto"
-	"crypto/rand"
-	"crypto/rsa"
-	"crypto/sha256"
 	"database/sql"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -18,23 +13,9 @@ import (
 	"testing"
 	"time"
 
-	"connectrpc.com/connect"
-	"github.com/gorilla/mux"
-	"github.com/vrooli/api-core/authn"
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/filerouting"
-	"github.com/vrooli/api-core/identity"
-	"github.com/vrooli/api-core/schedule"
-	"github.com/vrooli/api-core/storage"
-	nutritionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/nutrition"
-	nutritionconnect "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/nutrition/nutrition_v1connect"
-	planningv1 "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/planning"
-	planningconnect "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/planning/planning_v1connect"
-	supplementv1 "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/supplement"
-	supplementconnect "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/supplement/supplement_v1connect"
-	_ "modernc.org/sqlite"
 	nutritionhandler "nutrition-planner/handlers/nutrition"
 	supplementhandler "nutrition-planner/handlers/supplement"
+	workspacehandler "nutrition-planner/handlers/workspace"
 	"nutrition-planner/internal/cost"
 	"nutrition-planner/internal/decimalx"
 	"nutrition-planner/internal/feedback"
@@ -47,9 +28,26 @@ import (
 	"nutrition-planner/internal/shopping"
 	internalsupplement "nutrition-planner/internal/supplement"
 	"nutrition-planner/internal/workspace"
+
+	"connectrpc.com/connect"
+	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/filerouting"
+	"github.com/vrooli/api-core/identity"
+	"github.com/vrooli/api-core/schedule"
+	"github.com/vrooli/api-core/storage"
+	nutritionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/nutrition"
+	nutritionconnect "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/nutrition/nutrition_v1connect"
+	planningv1 "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/planning"
+	planningconnect "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/planning/planning_v1connect"
+	supplementv1 "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/supplement"
+	supplementconnect "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/supplement/supplement_v1connect"
+	workspacev1 "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/workspace"
+	workspaceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/workspace/workspace_v1connect"
+	_ "modernc.org/sqlite"
 )
 
-func TestGetPlanReadsPersistedDateRangeForWorkspaceOwnerOnly(t *testing.T) {
+func TestGetPlanReadsLocalWorkspaceWithoutIdentity(t *testing.T) {
 	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
 		t.Fatal(err)
@@ -63,7 +61,7 @@ func TestGetPlanReadsPersistedDateRangeForWorkspaceOwnerOnly(t *testing.T) {
 	}
 	clock := schedule.System()
 	workspaces := workspace.NewService(workspace.NewSQLiteRepository(db, clock))
-	ownerWorkspace, err := workspaces.Create(context.Background(), workspace.CreateInput{Name: "Personal", OwnerSubject: "owner"})
+	ownerWorkspace, err := workspaces.Create(context.Background(), workspace.CreateInput{Name: "Personal", OwnerSubject: workspace.LocalOwnerSubject})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,11 +76,7 @@ func TestGetPlanReadsPersistedDateRangeForWorkspaceOwnerOnly(t *testing.T) {
 	}
 	handler := NewConnectHandler(workspaces, recipe.NewService(recipe.NewSQLiteRepository(db, clock)), nil, repository, nil, nil, nil)
 	request := connect.NewRequest(&planningv1.GetPlanRequest{WorkspaceId: ownerWorkspace.ID, FromDate: "2026-10-03", ToDate: "2026-10-03"})
-	if _, err := handler.GetPlan(context.Background(), request); connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("unauthenticated read error=%v", err)
-	}
-	ctx := identity.WithPrincipal(context.Background(), identity.Principal{Kind: identity.ActorHuman, Subject: "owner", Verified: true})
-	response, err := handler.GetPlan(ctx, request)
+	response, err := handler.GetPlan(context.Background(), request)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,17 +87,9 @@ func TestGetPlanReadsPersistedDateRangeForWorkspaceOwnerOnly(t *testing.T) {
 	if !response.Msg.HasPlan || response.Msg.CurrentRevision != 1 || len(got.Occurrences) != 1 || got.Occurrences[0].Date != "2026-10-03" || got.Occurrences[0].RecipeRevision != 3 {
 		t.Fatalf("response=%+v draft=%+v", response.Msg, got)
 	}
-	other := identity.WithPrincipal(context.Background(), identity.Principal{Kind: identity.ActorHuman, Subject: "other", Verified: true})
-	if _, err := handler.GetPlan(other, request); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("cross-actor read error=%v", err)
-	}
-	delegated := identity.Principal{Kind: identity.ActorAgent, Subject: "run", Owner: "owner", Verified: true, Scopes: []string{"nutrition-planner:read"}}
-	if _, err := handler.GetPlan(identity.WithPrincipal(context.Background(), delegated), request); err != nil {
-		t.Fatalf("authorized owner agent cannot read its plan: %v", err)
-	}
-	delegated.Owner = "other"
-	if _, err := handler.GetPlan(identity.WithPrincipal(context.Background(), delegated), request); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatal("agent crossed account ownership boundary")
+	other := identity.WithPrincipal(context.Background(), identity.Principal{Kind: identity.ActorHuman, Subject: "unrelated-caller", Verified: true})
+	if _, err := handler.GetPlan(other, request); err != nil {
+		t.Fatalf("caller identity must not select or gate the local workspace: %v", err)
 	}
 }
 
@@ -122,7 +108,7 @@ func TestPreviewSwapChangesOnlyRequestedPersistedSlotAndRejectsStaleRevision(t *
 	ctx := context.Background()
 	clock := schedule.System()
 	workspaces := workspace.NewService(workspace.NewSQLiteRepository(db, clock))
-	ownerWorkspace, err := workspaces.Create(ctx, workspace.CreateInput{Name: "Personal", OwnerSubject: "owner"})
+	ownerWorkspace, err := workspaces.Create(ctx, workspace.CreateInput{Name: "Personal", OwnerSubject: workspace.LocalOwnerSubject})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -178,7 +164,7 @@ func TestPreviewSwapRejectsChangedCapturedRecipeInputs(t *testing.T) {
 	ctx := context.Background()
 	clock := schedule.System()
 	workspaces := workspace.NewService(workspace.NewSQLiteRepository(db, clock))
-	ownerWorkspace, err := workspaces.Create(ctx, workspace.CreateInput{Name: "Personal", OwnerSubject: "owner"})
+	ownerWorkspace, err := workspaces.Create(ctx, workspace.CreateInput{Name: "Personal", OwnerSubject: workspace.LocalOwnerSubject})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -223,7 +209,7 @@ func TestPreviewSwapPinsReplacementRecipeThroughApply(t *testing.T) {
 	ctx := context.Background()
 	clock := schedule.System()
 	workspaces := workspace.NewService(workspace.NewSQLiteRepository(db, clock))
-	ownerWorkspace, err := workspaces.Create(ctx, workspace.CreateInput{Name: "Personal", OwnerSubject: "owner"})
+	ownerWorkspace, err := workspaces.Create(ctx, workspace.CreateInput{Name: "Personal", OwnerSubject: workspace.LocalOwnerSubject})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -297,7 +283,7 @@ func TestPreviewSwapReportsPreparedBatchAvailabilityWithoutConsumingPortions(t *
 	ctx := context.Background()
 	clock := schedule.System()
 	workspaces := workspace.NewService(workspace.NewSQLiteRepository(db, clock))
-	owner, err := workspaces.Create(ctx, workspace.CreateInput{Name: "Personal", OwnerSubject: "owner"})
+	owner, err := workspaces.Create(ctx, workspace.CreateInput{Name: "Personal", OwnerSubject: workspace.LocalOwnerSubject})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -384,7 +370,7 @@ func TestApplyPlanRequiresLockedSlotsAndHonorsExplicitUnlock(t *testing.T) {
 	ctx := context.Background()
 	clock := schedule.System()
 	workspaces := workspace.NewService(workspace.NewSQLiteRepository(db, clock))
-	ownerWorkspace, err := workspaces.Create(ctx, workspace.CreateInput{Name: "Personal", OwnerSubject: "owner"})
+	ownerWorkspace, err := workspaces.Create(ctx, workspace.CreateInput{Name: "Personal", OwnerSubject: workspace.LocalOwnerSubject})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -434,7 +420,7 @@ func TestApplyPlanRequiresLockedSlotsAndHonorsExplicitUnlock(t *testing.T) {
 	}
 }
 
-func TestNoochAuthenticatedRouteVerifiesManifestAudienceAndIssuer(t *testing.T) {
+func TestNoochConnectRoutesWorkWithoutIdentity(t *testing.T) {
 	db, err := database.Open(context.Background(), database.Config{Driver: database.DriverSQLite, TestDriver: database.DriverSQLite, DSN: filepath.Join(t.TempDir(), "nooch-primary.db"), MaxOpenConns: 1, MaxIdleConns: 1})
 	if err != nil {
 		t.Fatal(err)
@@ -455,7 +441,7 @@ func TestNoochAuthenticatedRouteVerifiesManifestAudienceAndIssuer(t *testing.T) 
 	clock := schedule.System()
 	now := time.Now().UTC()
 	workspaces := workspace.NewService(workspace.NewSQLiteRepository(db, clock))
-	ownerWorkspace, err := workspaces.Create(ctx, workspace.CreateInput{Name: "Personal", OwnerSubject: "signed-in-owner"})
+	ownerWorkspace, err := workspaces.Create(ctx, workspace.CreateInput{Name: "Personal", OwnerSubject: workspace.LocalOwnerSubject})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -499,6 +485,7 @@ func TestNoochAuthenticatedRouteVerifiesManifestAudienceAndIssuer(t *testing.T) 
 	servicePath, serviceHandler := planningconnect.NewPlanningServiceHandler(NewConnectHandler(workspaces, recipes, nil, repository, shoppingRepository, feedbackRepository, nil, shopping.Evidence{Inventory: inventoryRepository, Costs: costRepository, Now: func() time.Time { return now }}))
 	supplementPath, supplementServiceHandler := supplementconnect.NewSupplementServiceHandler(supplementhandler.NewConnectHandler(internalsupplement.NewSQLiteRepository(db, clock), workspaces, nil))
 	nutritionPath, nutritionServiceHandler := nutritionconnect.NewNutritionServiceHandler(nutritionhandler.NewConnectHandler(internalnutrition.NewSQLiteTargetRepository(db, clock), internalnutrition.NewSQLiteIntakeRepository(db, clock), workspaces, nil))
+	workspacePath, workspaceServiceHandler := workspaceconnect.NewWorkspaceServiceHandler(workspacehandler.NewConnectHandler(workspaces, nil))
 	routes := mux.NewRouter()
 	routes.Handle(servicePath, serviceHandler)
 	routes.PathPrefix(servicePath).Handler(serviceHandler)
@@ -506,6 +493,8 @@ func TestNoochAuthenticatedRouteVerifiesManifestAudienceAndIssuer(t *testing.T) 
 	routes.PathPrefix(supplementPath).Handler(supplementServiceHandler)
 	routes.Handle(nutritionPath, nutritionServiceHandler)
 	routes.PathPrefix(nutritionPath).Handler(nutritionServiceHandler)
+	routes.Handle(workspacePath, workspaceServiceHandler)
+	routes.PathPrefix(workspacePath).Handler(workspaceServiceHandler)
 	primaryData := filepath.Join(t.TempDir(), "primary-data")
 	testData := filepath.Join(t.TempDir(), "test-data")
 	if err := os.MkdirAll(primaryData, 0o700); err != nil {
@@ -515,79 +504,58 @@ func TestNoochAuthenticatedRouteVerifiesManifestAudienceAndIssuer(t *testing.T) 
 		t.Fatal(err)
 	}
 	fileRoots := filerouting.New(storage.Paths{DataDir: primaryData})
-	if err := fileRoots.InstallTestRoots(storage.Paths{DataDir: testData}, "nooch-auth-fixture", time.Minute); err != nil {
+	if err := fileRoots.InstallTestRoots(storage.Paths{DataDir: testData}, "nooch-anonymous-fixture", time.Minute); err != nil {
 		t.Fatal(err)
 	}
 	routes.HandleFunc("/__fixture/nooch-data", func(w http.ResponseWriter, r *http.Request) {
-		principal, err := authn.RequireHuman(r.Context())
-		if err != nil {
-			http.Error(w, "unauthenticated", http.StatusUnauthorized)
-			return
-		}
 		root, err := fileRoots.Pick(r.Context(), storage.ClassData)
 		if err != nil {
 			http.Error(w, "file root unavailable", http.StatusInternalServerError)
 			return
 		}
-		if err := os.WriteFile(filepath.Join(root, "authenticated-fixture.txt"), []byte(principal.Subject), 0o600); err != nil {
+		if err := os.WriteFile(filepath.Join(root, "anonymous-fixture.txt"), []byte("local-fixture"), 0o600); err != nil {
 			http.Error(w, "write failed", http.StatusInternalServerError)
 			return
 		}
 		fileRoots.RecordWrite(r.Context())
 		w.WriteHeader(http.StatusNoContent)
 	})
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		t.Fatal(err)
-	}
-	issuer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = fmt.Fprintf(w, `{"keys":[{"kid":"nooch-fixture","kty":"RSA","alg":"RS256","n":%q,"e":%q}]}`,
-			base64.RawURLEncoding.EncodeToString(key.N.Bytes()), base64.RawURLEncoding.EncodeToString([]byte{1, 0, 1}))
-	}))
-	defer issuer.Close()
-	provider := authn.NewScenarioAuthenticatorProvider(authn.JWTConfig{
-		Issuer: "scenario-authenticator", Audience: "scenario-authenticator:nutrition-planner", JWKSURL: issuer.URL,
-		CookieName: "vrooli_access_token",
-	})
-	authenticated := authn.Middleware(authn.Config{Providers: []authn.Provider{provider}})(routes)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		authenticated.ServeHTTP(w, r.WithContext(database.WithTestMode(r.Context())))
+		routes.ServeHTTP(w, r.WithContext(database.WithTestMode(r.Context())))
 	}))
 	defer server.Close()
-	valid := signNoochFixtureJWT(t, key, "scenario-authenticator", "scenario-authenticator:nutrition-planner", "signed-in-owner", now.Add(time.Hour))
-	read := func(token string) (*connect.Response[planningv1.GetPlanResponse], error) {
+	read := func() (*connect.Response[planningv1.GetPlanResponse], error) {
 		client := planningconnect.NewPlanningServiceClient(server.Client(), server.URL)
 		req := connect.NewRequest(&planningv1.GetPlanRequest{WorkspaceId: ownerWorkspace.ID, FromDate: "2026-10-03", ToDate: "2026-10-03"})
-		req.Header().Set("Cookie", "vrooli_access_token="+token)
 		return client.GetPlan(ctx, req)
 	}
-	got, err := read(valid)
+	got, err := read()
 	if err != nil || !got.Msg.GetHasPlan() || got.Msg.GetCurrentRevision() != 1 {
-		t.Fatalf("verified owner route: response=%v err=%v", got, err)
+		t.Fatalf("anonymous owner-workspace route: response=%v err=%v", got, err)
+	}
+	workspaceClient := workspaceconnect.NewWorkspaceServiceClient(server.Client(), server.URL)
+	workspaceList, err := workspaceClient.ListWorkspaces(ctx, connect.NewRequest(&workspacev1.ListWorkspacesRequest{}))
+	if err != nil || len(workspaceList.Msg.GetWorkspaces()) != 1 || workspaceList.Msg.GetWorkspaces()[0].GetOwnerSubject() != workspace.LocalOwnerSubject {
+		t.Fatalf("anonymous workspace Connect ingress response=%v err=%v", workspaceList, err)
 	}
 	client := planningconnect.NewPlanningServiceClient(server.Client(), server.URL)
 	supplementClient := supplementconnect.NewSupplementServiceClient(server.Client(), server.URL)
 	nutritionClient := nutritionconnect.NewNutritionServiceClient(server.Client(), server.URL)
 	scheduleCreate := connect.NewRequest(&supplementv1.CreateScheduleRequest{WorkspaceId: ownerWorkspace.ID, ProductRevisionId: "vitamin-d@revision-2", Dose: "1000", DoseUnit: "IU", Weekdays: []int32{1, 3, 5}, StartDate: "2026-10-01", EndDate: "2026-12-31", Confirmed: true})
-	scheduleCreate.Header().Set("Cookie", "vrooli_access_token="+valid)
 	createdSchedule, err := supplementClient.CreateSchedule(ctx, scheduleCreate)
 	if err != nil {
-		t.Fatalf("authenticated fixed schedule creation: %v", err)
+		t.Fatalf("anonymous fixed schedule creation: %v", err)
 	}
 	targetRequest := connect.NewRequest(&nutritionv1.CreateTargetRequest{WorkspaceId: ownerWorkspace.ID, NutrientId: "energy_kcal", Lower: "0", Upper: "2500", Period: "local_day", Scope: "expected_day", Enforcement: "informational", Provenance: "test fixture with explicit known and unknown contributions", EffectiveFrom: now.Format(time.RFC3339Nano), Active: true})
-	targetRequest.Header().Set("Cookie", "vrooli_access_token="+valid)
 	target, err := nutritionClient.CreateTarget(ctx, targetRequest)
 	if err != nil {
-		t.Fatalf("authenticated nutrition target creation: %v", err)
+		t.Fatalf("anonymous nutrition target creation: %v", err)
 	}
 	intakeRequest := connect.NewRequest(&nutritionv1.RecordIntakeRequest{WorkspaceId: ownerWorkspace.ID, Id: "intake-dinner-energy", Date: "2026-10-03", RecipeId: original.ID, RecipeRevision: original.Revision, NutrientId: "energy_kcal", Amount: "220", Unit: "kcal", Reason: "recorded dinner"})
-	intakeRequest.Header().Set("Cookie", "vrooli_access_token="+valid)
 	if recorded, err := nutritionClient.RecordIntake(ctx, intakeRequest); err != nil || recorded.Msg.GetEvent().GetAmount() != "220" {
-		t.Fatalf("authenticated intake record: response=%v err=%v", recorded, err)
+		t.Fatalf("anonymous intake record: response=%v err=%v", recorded, err)
 	}
 	intakesRequest := connect.NewRequest(&nutritionv1.ListIntakesRequest{WorkspaceId: ownerWorkspace.ID})
-	intakesRequest.Header().Set("Cookie", "vrooli_access_token="+valid)
 	intakeLog, err := nutritionClient.ListIntakes(ctx, intakesRequest)
 	if err != nil || len(intakeLog.Msg.GetEvents()) != 1 || intakeLog.Msg.GetEvents()[0].GetId() != "intake-dinner-energy" {
 		t.Fatalf("persisted intake log: response=%v err=%v", intakeLog, err)
@@ -595,10 +563,9 @@ func TestNoochAuthenticatedRouteVerifiesManifestAudienceAndIssuer(t *testing.T) 
 	evaluate := func(scope string, values []*nutritionv1.Intake) *nutritionv1.EvaluateScopeResponse {
 		t.Helper()
 		request := connect.NewRequest(&nutritionv1.EvaluateScopeRequest{WorkspaceId: ownerWorkspace.ID, TargetId: target.Msg.GetTarget().GetId(), TargetRevision: target.Msg.GetTarget().GetRevision(), NutrientId: "energy_kcal", Scope: scope, Intakes: values})
-		request.Header().Set("Cookie", "vrooli_access_token="+valid)
 		response, evalErr := nutritionClient.EvaluateScope(ctx, request)
 		if evalErr != nil {
-			t.Fatalf("authenticated %s nutrition evaluation: %v", scope, evalErr)
+			t.Fatalf("anonymous %s nutrition evaluation: %v", scope, evalErr)
 		}
 		return response.Msg
 	}
@@ -620,10 +587,9 @@ func TestNoochAuthenticatedRouteVerifiesManifestAudienceAndIssuer(t *testing.T) 
 		{Date: "2026-10-03", SlotName: "dinner", Mode: "flexible", Quantity: "1"},
 		{Date: "2026-10-03", SlotName: "snack", Mode: "open", Quantity: "1"},
 	}})
-	generatedRequest.Header().Set("Cookie", "vrooli_access_token="+valid)
 	generated, err := client.GeneratePlan(ctx, generatedRequest)
 	if err != nil {
-		t.Fatalf("authenticated plan draft: %v", err)
+		t.Fatalf("anonymous plan draft: %v", err)
 	}
 	var generatedDraft internal.Draft
 	if err := json.Unmarshal([]byte(generated.Msg.GetDraftJson()), &generatedDraft); err != nil {
@@ -632,19 +598,17 @@ func TestNoochAuthenticatedRouteVerifiesManifestAudienceAndIssuer(t *testing.T) 
 	if len(generatedDraft.Occurrences) != 3 || !generatedDraft.Occurrences[0].Locked || generatedDraft.Occurrences[0].RecipeID != anchor.ID || generatedDraft.Occurrences[2].Mode != "open" || generatedDraft.Occurrences[2].RecipeID != "" {
 		t.Fatalf("generated draft lost lock/open slot identity: %+v", generatedDraft.Occurrences)
 	}
-	if stillSaved, err := read(valid); err != nil || stillSaved.Msg.GetCurrentRevision() != 1 {
+	if stillSaved, err := read(); err != nil || stillSaved.Msg.GetCurrentRevision() != 1 {
 		t.Fatalf("draft generation must leave the saved revision unchanged: response=%v err=%v", stillSaved, err)
 	}
 	feedbackRequest := connect.NewRequest(&planningv1.RecordFeedbackRequest{WorkspaceId: ownerWorkspace.ID, ExpectedRevision: 1, Date: "2026-10-03", RecipeId: original.ID, Portion: "one serving", Minutes: 28})
-	feedbackRequest.Header().Set("Cookie", "vrooli_access_token="+valid)
 	if recorded, err := client.RecordFeedback(ctx, feedbackRequest); err != nil || recorded.Msg.GetRecipeId() != original.ID {
-		t.Fatalf("authenticated feedback record: response=%v err=%v", recorded, err)
+		t.Fatalf("anonymous feedback record: response=%v err=%v", recorded, err)
 	}
 	for attempt := 0; attempt < 2; attempt++ {
 		request := connect.NewRequest(&planningv1.SetShoppingCheckedRequest{WorkspaceId: ownerWorkspace.ID, LineKey: "ingredient:beans", Checked: true})
-		request.Header().Set("Cookie", "vrooli_access_token="+valid)
 		if response, err := client.SetShoppingChecked(ctx, request); err != nil || !response.Msg.GetChecked() {
-			t.Fatalf("authenticated checklist retry %d: response=%v err=%v", attempt+1, response, err)
+			t.Fatalf("anonymous checklist retry %d: response=%v err=%v", attempt+1, response, err)
 		}
 	}
 	checked, err := shoppingRepository.Checked(ctx, ownerWorkspace.ID)
@@ -658,14 +622,12 @@ func TestNoochAuthenticatedRouteVerifiesManifestAudienceAndIssuer(t *testing.T) 
 		t.Fatalf("checking a shopping row must leave the routed inventory ledger unchanged: events=%+v err=%v", shoppingEventsAfterCheck, err)
 	}
 	haveRequest := connect.NewRequest(&planningv1.SetShoppingHaveThisRequest{WorkspaceId: ownerWorkspace.ID, LineKey: "ingredient:beans", HaveThis: true})
-	haveRequest.Header().Set("Cookie", "vrooli_access_token="+valid)
 	if have, err := client.SetShoppingHaveThis(ctx, haveRequest); err != nil || !have.Msg.GetHaveThis() {
 		t.Fatalf("qualitative Have-this assertion: response=%v err=%v", have, err)
 	}
 	actual, _ := decimalx.Parse("25")
 	for attempt := 0; attempt < 2; attempt++ {
 		confirmRequest := connect.NewRequest(&planningv1.ConfirmShoppingPurchasesRequest{WorkspaceId: ownerWorkspace.ID, ReviewId: "trip-review-1", Lines: []*planningv1.ShoppingPurchaseActual{{LineKey: "ingredient:rice", ItemId: "rice", Amount: "25", Unit: "g", Price: "0.75"}, {LineKey: "ingredient:beans", ItemId: "beans", Unit: "g", Omitted: true}}})
-		confirmRequest.Header().Set("Cookie", "vrooli_access_token="+valid)
 		if confirmed, err := client.ConfirmShoppingPurchases(ctx, confirmRequest); err != nil || !confirmed.Msg.GetConfirmed() {
 			t.Fatalf("actual purchase retry %d: response=%v err=%v", attempt+1, confirmed, err)
 		}
@@ -674,10 +636,9 @@ func TestNoochAuthenticatedRouteVerifiesManifestAudienceAndIssuer(t *testing.T) 
 		t.Fatalf("confirmed partial purchase must append once: events=%+v err=%v", events, err)
 	}
 	checkedPreviewRequest := connect.NewRequest(&planningv1.GetShoppingPreviewRequest{WorkspaceId: ownerWorkspace.ID, ExpectedRevision: 1})
-	checkedPreviewRequest.Header().Set("Cookie", "vrooli_access_token="+valid)
 	checkedPreview, err := client.GetShoppingPreview(ctx, checkedPreviewRequest)
 	if err != nil {
-		t.Fatalf("authenticated shopping reload after picked-up check: %v", err)
+		t.Fatalf("anonymous shopping reload after picked-up check: %v", err)
 	}
 	foundChecked := false
 	for _, line := range checkedPreview.Msg.GetLines() {
@@ -692,10 +653,9 @@ func TestNoochAuthenticatedRouteVerifiesManifestAudienceAndIssuer(t *testing.T) 
 		t.Fatalf("picked-up check must persist without inventing stock or reducing remaining need: %+v", checkedPreview.Msg.GetLines())
 	}
 	swapRequest := connect.NewRequest(&planningv1.PreviewSwapRequest{WorkspaceId: ownerWorkspace.ID, ExpectedRevision: 1, Date: "2026-10-03", SlotName: "dinner", ReplacementRecipeId: replacement.ID})
-	swapRequest.Header().Set("Cookie", "vrooli_access_token="+valid)
 	swap, err := client.PreviewSwap(ctx, swapRequest)
 	if err != nil {
-		t.Fatalf("authenticated connected swap preview: %v", err)
+		t.Fatalf("anonymous connected swap preview: %v", err)
 	}
 	var swapPreview struct {
 		ShoppingChanges []shopping.Change
@@ -708,7 +668,7 @@ func TestNoochAuthenticatedRouteVerifiesManifestAudienceAndIssuer(t *testing.T) 
 	}
 	riceImpact := swapPreview.ShoppingChanges[1].After
 	if swapPreview.ShoppingChanges[1].Before.Need != "150 g" || riceImpact.Need != "300 g" || riceImpact.Stock != "75 g" || riceImpact.Missing != "225 g" || riceImpact.PackageCount != "2" || riceImpact.Price != "4.00 USD / 200 g" || riceImpact.PortionCost != "6 USD" || riceImpact.CheckoutTotal != "8 USD" || riceImpact.ActualSpend != "unknown" {
-		t.Fatalf("authenticated swap must expose package-aware stock and price impacts without claiming spend: %+v", riceImpact)
+		t.Fatalf("anonymous swap must expose package-aware stock and price impacts without claiming spend: %+v", riceImpact)
 	}
 	encodedRiceImpact, err := json.Marshal(riceImpact)
 	if err != nil {
@@ -719,14 +679,13 @@ func TestNoochAuthenticatedRouteVerifiesManifestAudienceAndIssuer(t *testing.T) 
 		t.Fatal(err)
 	}
 	if riceImpactJSON["label"] != "rice" || riceImpactJSON["need"] != "300 g" || riceImpactJSON["stock"] != "75 g" || riceImpactJSON["missing"] != "225 g" || riceImpactJSON["packageCount"] != "2" || riceImpactJSON["price"] != "4.00 USD / 200 g" || riceImpactJSON["portionCost"] != "6 USD" || riceImpactJSON["checkoutTotal"] != "8 USD" || riceImpactJSON["actualSpend"] != "unknown" {
-		t.Fatalf("authenticated shopping impact JSON must use the UI's camelCase fields: %s", encodedRiceImpact)
+		t.Fatalf("anonymous shopping impact JSON must use the UI's camelCase fields: %s", encodedRiceImpact)
 	}
 	var envelope map[string]json.RawMessage
 	if err := json.Unmarshal([]byte(swap.Msg.GetPreviewJson()), &envelope); err != nil {
 		t.Fatal(err)
 	}
 	applyRequest := connect.NewRequest(&planningv1.ApplyPlanRequest{WorkspaceId: ownerWorkspace.ID, ExpectedRevision: 1, DraftJson: string(envelope["draft"])})
-	applyRequest.Header().Set("Cookie", "vrooli_access_token="+valid)
 	stockIncrease, _ := decimalx.Parse("10")
 	if err := inventoryRepository.Append(ctx, ownerWorkspace.ID, inventory.Event{ID: "rice-stock-added-after-review", Kind: inventory.Correction, ItemID: "rice", Amount: stockIncrease, Unit: "g"}); err != nil {
 		t.Fatal(err)
@@ -753,7 +712,6 @@ func TestNoochAuthenticatedRouteVerifiesManifestAudienceAndIssuer(t *testing.T) 
 		t.Fatalf("stale shopping review must not apply a plan mutation: revision=%d plan=%+v err=%v", unchangedRevision, unchanged, err)
 	}
 	swapRequest = connect.NewRequest(&planningv1.PreviewSwapRequest{WorkspaceId: ownerWorkspace.ID, ExpectedRevision: 1, Date: "2026-10-03", SlotName: "dinner", ReplacementRecipeId: replacement.ID})
-	swapRequest.Header().Set("Cookie", "vrooli_access_token="+valid)
 	swap, err = client.PreviewSwap(ctx, swapRequest)
 	if err != nil {
 		t.Fatalf("refresh current shopping preview: %v", err)
@@ -769,24 +727,20 @@ func TestNoochAuthenticatedRouteVerifiesManifestAudienceAndIssuer(t *testing.T) 
 		t.Fatal(err)
 	}
 	applyRequest = connect.NewRequest(&planningv1.ApplyPlanRequest{WorkspaceId: ownerWorkspace.ID, ExpectedRevision: 1, DraftJson: string(envelope["draft"])})
-	applyRequest.Header().Set("Cookie", "vrooli_access_token="+valid)
 	applied, err := client.ApplyPlan(ctx, applyRequest)
 	if err != nil || applied.Msg.GetRevision() != 2 {
-		t.Fatalf("authenticated apply of reviewed swap: response=%v err=%v", applied, err)
+		t.Fatalf("anonymous apply of reviewed swap: response=%v err=%v", applied, err)
 	}
 	schedulesRequest := connect.NewRequest(&supplementv1.ListSchedulesRequest{WorkspaceId: ownerWorkspace.ID})
-	schedulesRequest.Header().Set("Cookie", "vrooli_access_token="+valid)
 	schedules, err := supplementClient.ListSchedules(ctx, schedulesRequest)
 	if err != nil || len(schedules.Msg.GetSchedules()) != 1 || schedules.Msg.GetSchedules()[0].GetDose() != createdSchedule.Msg.GetSchedule().GetDose() || schedules.Msg.GetSchedules()[0].GetRevision() != createdSchedule.Msg.GetSchedule().GetRevision() {
 		t.Fatalf("plan change must not adjust fixed supplement schedule: schedules=%v err=%v", schedules, err)
 	}
 	staleApply := connect.NewRequest(&planningv1.ApplyPlanRequest{WorkspaceId: ownerWorkspace.ID, ExpectedRevision: 1, DraftJson: string(raw)})
-	staleApply.Header().Set("Cookie", "vrooli_access_token="+valid)
 	if _, err := client.ApplyPlan(ctx, staleApply); connect.CodeOf(err) != connect.CodeAborted {
-		t.Fatalf("authenticated stale plan write error=%v, want aborted", err)
+		t.Fatalf("anonymous stale plan write error=%v, want aborted", err)
 	}
 	reloadRequest := connect.NewRequest(&planningv1.GetPlanRequest{WorkspaceId: ownerWorkspace.ID, FromDate: "2026-10-03", ToDate: "2026-10-03"})
-	reloadRequest.Header().Set("Cookie", "vrooli_access_token="+valid)
 	reloaded, err := client.GetPlan(ctx, reloadRequest)
 	if err != nil {
 		t.Fatal(err)
@@ -810,7 +764,6 @@ func TestNoochAuthenticatedRouteVerifiesManifestAudienceAndIssuer(t *testing.T) 
 		t.Fatalf("swap lost locked anchor or open slot: %+v", persisted.Occurrences)
 	}
 	weekRequest := connect.NewRequest(&planningv1.GetPlanRequest{WorkspaceId: ownerWorkspace.ID, FromDate: "2026-10-03", ToDate: "2026-10-09"})
-	weekRequest.Header().Set("Cookie", "vrooli_access_token="+valid)
 	weekPlan, err := client.GetPlan(ctx, weekRequest)
 	if err != nil {
 		t.Fatal(err)
@@ -823,7 +776,6 @@ func TestNoochAuthenticatedRouteVerifiesManifestAudienceAndIssuer(t *testing.T) 
 		t.Fatalf("Today and Week range reads diverged: today=%+v week=%+v", persisted.Occurrences, weekDraft.Occurrences)
 	}
 	shoppingRequest := connect.NewRequest(&planningv1.GetShoppingPreviewRequest{WorkspaceId: ownerWorkspace.ID, ExpectedRevision: 2})
-	shoppingRequest.Header().Set("Cookie", "vrooli_access_token="+valid)
 	shoppingPreview, err := client.GetShoppingPreview(ctx, shoppingRequest)
 	if err != nil {
 		t.Fatal(err)
@@ -839,42 +791,9 @@ func TestNoochAuthenticatedRouteVerifiesManifestAudienceAndIssuer(t *testing.T) 
 	if err != nil || len(stockAfterPlan) != 3 || stockTotal.String() != "85" {
 		t.Fatalf("planned future and current portions must not reserve or consume stock: events=%+v err=%v", stockAfterPlan, err)
 	}
-	wrongAudience := signNoochFixtureJWT(t, key, "scenario-authenticator", "scenario-authenticator:other", "signed-in-owner", now.Add(time.Hour))
-	if _, err := read(wrongAudience); connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("wrong audience error=%v", err)
-	}
-	wrongIssuer := signNoochFixtureJWT(t, key, "untrusted-issuer", "scenario-authenticator:nutrition-planner", "signed-in-owner", now.Add(time.Hour))
-	if _, err := read(wrongIssuer); connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("wrong issuer error=%v", err)
-	}
-	foreignOwner := signNoochFixtureJWT(t, key, "scenario-authenticator", "scenario-authenticator:nutrition-planner", "different-owner", now.Add(time.Hour))
-	if _, err := read(foreignOwner); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("foreign owner error=%v", err)
-	}
-	writeReq, _ := http.NewRequest(http.MethodPost, server.URL+"/__fixture/nooch-data", nil)
-	writeReq.AddCookie(&http.Cookie{Name: "vrooli_access_token", Value: valid})
-	writeResp, err := server.Client().Do(writeReq)
-	if err != nil {
-		t.Fatal(err)
-	}
-	writeResp.Body.Close()
-	if writeResp.StatusCode != http.StatusNoContent {
-		t.Fatalf("authenticated routed file write status=%d", writeResp.StatusCode)
-	}
-	if _, err := os.Stat(filepath.Join(primaryData, "authenticated-fixture.txt")); !os.IsNotExist(err) {
-		t.Fatalf("authenticated test write leaked into primary file root: err=%v", err)
-	}
-	contents, err := os.ReadFile(filepath.Join(testData, "authenticated-fixture.txt"))
-	if err != nil || string(contents) != "signed-in-owner" {
-		t.Fatalf("test-root file contents=%q err=%v", contents, err)
-	}
-	fileStats := fileRoots.LeaseStats()
-	if fileStats.TestRootWrites != 1 || fileStats.PrimaryWritesDuringTestMode != 0 {
-		t.Fatalf("routed file stats=%+v", fileStats)
-	}
 	stats := db.LeaseStats()
 	if stats.TestPoolRequests == 0 || stats.PrimaryDuringTestModeRequests != 0 {
-		t.Fatalf("routed storage stats=%+v; authenticated route should use only the isolated test SQL pool", stats)
+		t.Fatalf("routed storage stats=%+v; anonymous route should use only the isolated test SQL pool", stats)
 	}
 	var primaryPlanTable int
 	if err := db.Primary().QueryRow(`SELECT count(*) FROM sqlite_master WHERE type='table' AND name='plan_snapshots'`).Scan(&primaryPlanTable); err != nil {
@@ -883,19 +802,25 @@ func TestNoochAuthenticatedRouteVerifiesManifestAudienceAndIssuer(t *testing.T) 
 	if primaryPlanTable != 0 {
 		t.Fatalf("test schema leaked into primary database: found %d plan tables", primaryPlanTable)
 	}
-}
-
-func signNoochFixtureJWT(t *testing.T, key *rsa.PrivateKey, issuer, audience, subject string, expiry time.Time) string {
-	t.Helper()
-	header, _ := json.Marshal(map[string]string{"alg": "RS256", "kid": "nooch-fixture", "typ": "JWT"})
-	claims, _ := json.Marshal(map[string]any{"sub": subject, "iss": issuer, "aud": audience, "exp": expiry.Unix()})
-	input := base64.RawURLEncoding.EncodeToString(header) + "." + base64.RawURLEncoding.EncodeToString(claims)
-	digest := sha256.Sum256([]byte(input))
-	signature, err := rsa.SignPKCS1v15(rand.Reader, key, crypto.SHA256, digest[:])
+	writeResp, err := server.Client().Post(server.URL+"/__fixture/nooch-data", "text/plain", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return input + "." + base64.RawURLEncoding.EncodeToString(signature)
+	writeResp.Body.Close()
+	if writeResp.StatusCode != http.StatusNoContent {
+		t.Fatalf("anonymous routed file write status=%d", writeResp.StatusCode)
+	}
+	if _, err := os.Stat(filepath.Join(primaryData, "anonymous-fixture.txt")); !os.IsNotExist(err) {
+		t.Fatalf("anonymous fixture write leaked into primary file root: err=%v", err)
+	}
+	contents, err := os.ReadFile(filepath.Join(testData, "anonymous-fixture.txt"))
+	if err != nil || string(contents) != "local-fixture" {
+		t.Fatalf("test-root file contents=%q err=%v", contents, err)
+	}
+	fileStats := fileRoots.LeaseStats()
+	if fileStats.TestRootWrites != 1 || fileStats.PrimaryWritesDuringTestMode != 0 {
+		t.Fatalf("anonymous routed file stats=%+v", fileStats)
+	}
 }
 
 func TestExploreRecipesUsesSharedEligibilityAndReturnsOnlyEligibleWorkspaceRecipes(t *testing.T) {
@@ -913,7 +838,7 @@ func TestExploreRecipesUsesSharedEligibilityAndReturnsOnlyEligibleWorkspaceRecip
 	ctx := context.Background()
 	clock := schedule.System()
 	workspaces := workspace.NewService(workspace.NewSQLiteRepository(db, clock))
-	ownerWorkspace, err := workspaces.Create(ctx, workspace.CreateInput{Name: "Personal", OwnerSubject: "owner"})
+	ownerWorkspace, err := workspaces.Create(ctx, workspace.CreateInput{Name: "Personal", OwnerSubject: workspace.LocalOwnerSubject})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -937,10 +862,6 @@ func TestExploreRecipesUsesSharedEligibilityAndReturnsOnlyEligibleWorkspaceRecip
 	plans := internal.NewSQLiteRepository(db, clock)
 	handler := NewConnectHandler(workspaces, recipes, profiles, plans, nil, nil, nil)
 	request := connect.NewRequest(&planningv1.ExploreRecipesRequest{WorkspaceId: ownerWorkspace.ID})
-	if _, err := handler.ExploreRecipes(ctx, request); connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("unauthenticated error=%v", err)
-	}
-	ctx = identity.WithPrincipal(ctx, identity.Principal{Kind: identity.ActorHuman, Subject: "owner", Verified: true})
 	response, err := handler.ExploreRecipes(ctx, request)
 	if err != nil {
 		t.Fatal(err)

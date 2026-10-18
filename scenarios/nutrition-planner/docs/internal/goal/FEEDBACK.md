@@ -1,3 +1,58 @@
+### RELIABILITY-A198-NOOCH-AUTH-ADOPTED-20261018 — receiving repair and next coherent work
+
+Nooch-only authentication removal is published in37 tested files and normally
+adopted (healthy API19752/UI20002 at04:20:45Z). Anonymous local API and UI proxy
+ListWorkspaces now return200 with no identity/header/cookie. Served JS/CSS match
+current dist and no longer contain the sign-in message. Scoped native API suite
+20261018-042354-1355cbf6 PASS; final changed-package gate83 passes/zero skips,
+combined with unchanged-package prior-run evidence. No full-v5-suite claim.
+The exact hostname Access exception was applied without changing other hosts;
+normal browser-UA public root is200. Default Python-UA gets Cloudflare1010
+(browser-signature check), not an Access-login requirement. Public API/bundle
+and isolated visual fixture are still being independently verified. No production
+workspace was created for testing; the live database had zero workspaces before
+publication. See dossier A198/A200 reports and native receipts.
+
+Reconcile and acknowledge these actual changed inputs in the original parent.
+The old authentication dependency and "PM prompt-projection repair" heavy-hold
+reason are superseded. E30 remains unaccepted, with its existing product gates
+and recorded growth discrepancy; no cap waiver or retrospective acceptance.
+Your next coherent bounded work is to reconcile current E30 measurements and
+identify/implement a genuinely maintainable reduction or hand off one precise
+feasibility result, retaining prior evidence instead of repeating orientation.
+Use implementation plus self-validation together when feasible, retain context
+for pending checks. Root still owns the single infrastructure heavy lane through
+A203/A201 validation; source-only work is available now. Before heavy work needs
+that lane, return a concrete prepared change/check and request lane release;
+do not start concurrent builds/tests/lifecycle. Preserve exact task/lineage,
+uncertain effects and original gates. No invented maintenance permission.
+
+### NOOCH-AUTH-REMOVAL-20261017 — current explicit operator direction — OPEN
+
+> “Nooch requires NO authentication and it must be FULLY removed.”
+
+This direction supersedes the earlier AF-002 connected-authentication work,
+authentication clauses in the frozen product baseline, and any instruction to
+retain Scenario Authenticator for Nooch. It applies only to
+`scenarios/nutrition-planner`; do not change authentication for other apps, the
+platform, or the operator's account. Remove authentication from every Nooch
+entry point, including the service manifest/public `/api` boundary, API
+middleware and handlers, UI flow, the registered
+`nutrition-planner.itsagitime.com` Cloudflare Access/Tunnel policy, and
+generated/installed serving configuration. Remove the edge gate only for
+Nooch's own hostname. Do not replace it with another sign-in, a fabricated principal
+or token, hidden header, agent grant, or development-only bypass.
+
+The data model must retain existing Nooch workspaces and records without
+caller-supplied owner identity. Do not merge existing owner/workspace data or
+silently switch to a new empty anonymous workspace. Anyone who can reach the
+intentionally unauthenticated Nooch URL can access the Nooch data that the app
+serves; do not describe it as multi-user-isolated or authenticated. This does
+not waive any product, safety, budget, connected-journey, visual, or acceptance
+gate. First reconcile the current owner/workspace mapping, then remove the
+Nooch-only enforcement through its owning files and verify the exact serving
+build without a sign-in prompt or authentication error.
+
 ### RELIABILITY-NOOCH-RETURN-20261017 — reliability coordinator — OPEN
 
 The shared native AM interactive route now accepts the existing approved authority: on-demand supervisorafe095ec received its prompt and durably completed its assessment, and original BAS E46 childd2e88109 has native_verified goal delivery. Native A99 management repair adopted19:52:30; the exact previously refused RCLwake now succeeds without new permission. This qualifies shared infrastructure, not an unattempted E30 child or product gate.
@@ -20,8 +75,8 @@ Receiver qualification: Nooch now serves build `sha256:7f48d443cc5f74ddac4c41985
 ## Open
 
 - **NC-REC-001:** Exact-build visual/connected capture still needs a supported capture route and authorized existing fixture/session. Original reference hashes and E3 boundary are preserved.
-- **AF-002:** Connected authentication belongs to this commission. Isolated fixture qualification and current manifest/security guidance are recorded. This does not prove existing-account browser sign-in or complete E1/E2/E3 connected/visual acceptance. No human-only dependency is inferred; no credential or account changes.
-- **AF-001:** Preserve qualified identity boundary and no-credential/no-grant/no-bypass constraints.
+- **AF-002 (superseded for Nooch by `NOOCH-AUTH-REMOVAL-20261017`):** The isolated connected-auth fixture remains historical evidence only. It does not prove that Nooch authentication has been removed. Other E1/E2/E3 journeys and visual acceptance remain open.
+- **AF-001 (superseded for Nooch only):** The former authenticated identity boundary is no longer a Nooch requirement. This does not alter identity boundaries for other applications or platform services.
 - **VF-001:** Exact-build matched visual comparisons and justified adaptations remain open.
 - **OC-001 / E3:** Await owner occurrence/allocation and revision-safe undo contract plus supported capture route.
 - **OF-003:** Curated assets and app-owned generation remain subject to ND-024 and current budget/activation gates.

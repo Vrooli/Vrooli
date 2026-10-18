@@ -7,7 +7,6 @@ import (
 
 	"connectrpc.com/connect"
 
-	"github.com/vrooli/api-core/identity"
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/recipe"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -29,11 +28,8 @@ func NewConnectHandler(s internal.Service, ws workspace.Service, l *log.Logger) 
 }
 
 func actor(ctx context.Context) (string, error) {
-	p, ok := identity.PrincipalFromContext(ctx)
-	if !ok {
-		return "", connect.NewError(connect.CodeUnauthenticated, errors.New("verified actor required"))
-	}
-	return p.OwnerSubject(), nil
+	ownerSubject := workspace.LocalOwnerSubject
+	return ownerSubject, nil
 }
 
 func (h *connectHandler) scope(ctx context.Context, workspaceID string) (string, error) {

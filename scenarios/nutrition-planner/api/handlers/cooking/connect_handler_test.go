@@ -6,13 +6,14 @@ import (
 	"testing"
 	"time"
 
+	internal "nutrition-planner/internal/cooking"
+	"nutrition-planner/internal/recipe"
+	"nutrition-planner/internal/workspace"
+
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/identity"
 	cookingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/cooking"
 	_ "modernc.org/sqlite"
-	internal "nutrition-planner/internal/cooking"
-	"nutrition-planner/internal/recipe"
-	"nutrition-planner/internal/workspace"
 )
 
 type testWorkspaceService struct{ workspace.Service }
@@ -21,10 +22,10 @@ func (testWorkspaceService) Get(_ context.Context, id, owner string) (workspace.
 	if id != "w1" {
 		return workspace.Workspace{}, workspace.ErrNotFound{ID: id}
 	}
-	if owner != "owner" {
+	if owner != workspace.LocalOwnerSubject {
 		return workspace.Workspace{}, workspace.ErrForbidden{ID: id}
 	}
-	return workspace.Workspace{ID: "w1", OwnerSubject: "owner"}, nil
+	return workspace.Workspace{ID: "w1", OwnerSubject: workspace.LocalOwnerSubject}, nil
 }
 
 type testRecipeService struct{ revision recipe.Recipe }
@@ -71,8 +72,8 @@ func TestCookingConnectHandlerPinsWorkspaceRevisionAndRetriesFinish(t *testing.T
 		t.Fatal("started a method absent from the pinned revision")
 	}
 	actor := identity.WithPrincipal(context.Background(), identity.Principal{Subject: "other", Verified: true})
-	if _, err = h.GetSession(actor, connect.NewRequest(&cookingv1.GetSessionRequest{WorkspaceId: "w1", SessionId: "s1"})); err == nil {
-		t.Fatal("another actor read the cooking session")
+	if got, err := h.GetSession(actor, connect.NewRequest(&cookingv1.GetSessionRequest{WorkspaceId: "w1", SessionId: "s1"})); err != nil || got.Msg.Session.Id != "s1" {
+		t.Fatalf("local cooking session should be readable without identity: response=%v err=%v", got, err)
 	}
 	timer := &cookingv1.Timer{Id: "timer-1", StepId: "simmer", DurationSeconds: 600, StartedAt: time.Now().UTC().Format(time.RFC3339Nano)}
 	progressReq := &cookingv1.SaveSessionRequest{WorkspaceId: "w1", SessionId: "s1", EventId: "progress-1", ExpectedVersion: 1, CurrentStepIndex: 1, CompletedSteps: []string{"prep"}, Timers: []*cookingv1.Timer{timer}}

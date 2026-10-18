@@ -2,9 +2,24 @@
 
 PREPARED. Orchestrator qualifies actual availability at admission.
 
-- Local routed API/SQLite + web desktop/phone: proposed required; establish authenticated actor and isolated storage first.
+- Local routed API/SQLite + web desktop/phone: proposed required; establish the intentionally unauthenticated Nooch route and isolated test storage first.
 - Light/Evening, widths and zoom: final contract supplies required capture matrix.
 - Optional external providers/calendar: qualify, otherwise honest fallback/unavailable; never claim tested.
 - Other native/deployment platforms: only required when final contract says so and target availability is established.
 
-Authentication qualification is part of the accepted Nooch commission; it is not a separate pre-admission gate, and no human-only dependency is inferred. Qualification may use either the actual same-origin Scenario Authenticator relying-party path with an existing authorized account, or an isolated connected fixture exercising Nooch's real audience/signature/issuer verification and routed SQL/file identity/session isolation. The isolated Nooch fixture has qualified those checks; it does not establish existing-account browser sign-in or the registered E1/E2/E3 journeys. Authenticator handler tests establish harness mechanics only, not Nooch connected coverage. Current source review confirms Nooch's declared `scenario_authenticator` / `local_multi_user` profile and `scenario-authenticator:nutrition-planner` audience. `docs/internal/SECURITY.md` now records the fixture qualification and supersedes the stale D-032 `personal_local` premise. This reconciliation changes no auth mode and relaxes no gate. Do not retrieve credentials, create persistent access/grants, use unidentified profiles, bypass auth, or restart live BAS mid-run. If actual owner login/setup is necessary after qualification, return its exact secure target/environment/action handoff for approval. Full final certification: vrooli scenario test nutrition-planner, then one test-genie runs wait --json nutrition-planner <run-id>. Scoped iteration follows docs/TESTING.md. Missing/shared-tool findings go in WORKAROUNDS and native supervisor path.
+## Current Nooch authentication target — 2026-10-18
+
+`RELIABILITY-A198-NOOCH-AUTH-ADOPTED-20261018` qualifies removal as published
+and nativehealthy, with anonymous local API/UI-proxy `ListWorkspaces` returning
+200 without identity, header, or cookie. The serving change is adopted; do not
+reintroduce Nooch authentication or change authentication for other scenarios
+or the platform. Anyone who can reach Nooch can access the data it serves; do
+not describe the deployment as multi-user-isolated. Preserve existing workspace
+and data mappings.
+
+Public API/bundle verification and the isolated visual fixture remain
+independently pending. The scoped native API suite passed, but this is not a
+full-v5-suite claim or completion of E1/E2 visual/connected acceptance. Final
+certification remains `vrooli scenario test nutrition-planner`, followed by one
+`test-genie runs wait --json nutrition-planner <run-id>`; use scoped iteration
+per `docs/TESTING.md`.

@@ -3,6 +3,7 @@ package profile
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"testing"
 
 	"github.com/vrooli/api-core/schedule"
@@ -62,6 +63,37 @@ func TestDraftIsSeparateUntilApply(t *testing.T) {
 	p, err = s.Apply(ctx, ApplyInput{WorkspaceID: "w1", Preset: p.Preset, Appliances: p.Appliances, Cookware: []string{}, Tools: []string{}})
 	if err != nil || len(p.Cookware) != 0 || len(p.Tools) != 0 {
 		t.Fatalf("empty equipment selections should save: %#v, %v", p, err)
+	}
+}
+
+func TestGetMissingProfileReturnsDomainErrorAndApplyCreatesFirstProfile(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err = db.Exec(Schema()); err != nil {
+		t.Fatal(err)
+	}
+	repo := NewSQLiteRepository(db, schedule.System())
+	ctx := context.Background()
+
+	if _, err := repo.Get(ctx, "empty-workspace"); err == nil {
+		t.Fatal("Get should report an absent profile")
+	} else {
+		var missing ErrNotFound
+		if !errors.As(err, &missing) || missing.WorkspaceID != "empty-workspace" {
+			t.Fatalf("Get error = %T %v, want profile.ErrNotFound for workspace", err, err)
+		}
+	}
+
+	created, err := repo.Apply(ctx, ApplyInput{WorkspaceID: "empty-workspace", Preset: "everything", CostWeight: .34, EffortWeight: .33, VarietyWeight: .33})
+	if err != nil {
+		t.Fatalf("Apply should initialize the first profile after domain not-found: %v", err)
+	}
+	loaded, err := repo.Get(ctx, "empty-workspace")
+	if err != nil || loaded.Revision != created.Revision || loaded.Preset != "everything" {
+		t.Fatalf("first profile did not round-trip: created=%#v loaded=%#v err=%v", created, loaded, err)
 	}
 }
 

@@ -9,7 +9,6 @@ import (
 	"log"
 
 	"connectrpc.com/connect"
-	"github.com/vrooli/api-core/identity"
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/jobs"
 	"nutrition-planner/internal/entitlements"
 	internalJobs "nutrition-planner/internal/jobs"
@@ -108,14 +107,11 @@ func (h *connectHandler) CancelJob(ctx context.Context, req *connect.Request[v1.
 }
 
 func (h *connectHandler) authorize(ctx context.Context, workspaceID string) (string, error) {
-	principal, ok := identity.PrincipalFromContext(ctx)
-	if !ok {
-		return "", connect.NewError(connect.CodeUnauthenticated, errors.New("verified actor required"))
-	}
+	ownerSubject := internalWorkspace.LocalOwnerSubject
 	if workspaceID == "" {
 		return "", connect.NewError(connect.CodeInvalidArgument, errors.New("workspace_id is required"))
 	}
-	if _, err := h.workspaces.Get(ctx, workspaceID, principal.OwnerSubject()); err != nil {
+	if _, err := h.workspaces.Get(ctx, workspaceID, ownerSubject); err != nil {
 		var nf internalWorkspace.ErrNotFound
 		if errors.As(err, &nf) {
 			return "", connect.NewError(connect.CodeNotFound, err)
@@ -126,7 +122,7 @@ func (h *connectHandler) authorize(ctx context.Context, workspaceID string) (str
 		}
 		return "", connect.NewError(connect.CodeInternal, err)
 	}
-	return principal.OwnerSubject(), nil
+	return ownerSubject, nil
 }
 
 func toProto(item internalJobs.Job) *v1.Job {

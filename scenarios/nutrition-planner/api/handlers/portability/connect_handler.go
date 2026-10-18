@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
-	"github.com/vrooli/api-core/identity"
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/portability"
 	internalNutrition "nutrition-planner/internal/nutrition"
 	internalPlanning "nutrition-planner/internal/planning"
@@ -62,14 +61,11 @@ func NewConnectHandlerWithSchedules(recipes internalRecipe.Service, workspaces i
 }
 
 func (h *connectHandler) ExportGroceriesCSV(ctx context.Context, req *connect.Request[v1.ExportGroceriesCSVRequest]) (*connect.Response[v1.ExportGroceriesCSVResponse], error) {
-	principal, ok := identity.PrincipalFromContext(ctx)
-	if !ok {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("verified actor required"))
-	}
+	ownerSubject := internalWorkspace.LocalOwnerSubject
 	if req.Msg.WorkspaceId == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workspace_id is required"))
 	}
-	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, principal.OwnerSubject()); err != nil {
+	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, ownerSubject); err != nil {
 		var nf internalWorkspace.ErrNotFound
 		if errors.As(err, &nf) {
 			return nil, connect.NewError(connect.CodeNotFound, err)
@@ -112,14 +108,11 @@ func (h *connectHandler) ExportGroceriesCSV(ctx context.Context, req *connect.Re
 }
 
 func (h *connectHandler) ExportRecipes(ctx context.Context, req *connect.Request[v1.ExportRecipesRequest]) (*connect.Response[v1.ExportRecipesResponse], error) {
-	principal, ok := identity.PrincipalFromContext(ctx)
-	if !ok {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("verified actor required"))
-	}
+	ownerSubject := internalWorkspace.LocalOwnerSubject
 	if req.Msg.WorkspaceId == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workspace_id is required"))
 	}
-	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, principal.OwnerSubject()); err != nil {
+	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, ownerSubject); err != nil {
 		var nf internalWorkspace.ErrNotFound
 		if errors.As(err, &nf) {
 			return nil, connect.NewError(connect.CodeNotFound, err)
@@ -147,14 +140,11 @@ func (h *connectHandler) ExportRecipes(ctx context.Context, req *connect.Request
 }
 
 func (h *connectHandler) ExportWorkspace(ctx context.Context, req *connect.Request[v1.ExportWorkspaceRequest]) (*connect.Response[v1.ExportWorkspaceResponse], error) {
-	principal, ok := identity.PrincipalFromContext(ctx)
-	if !ok {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("verified actor required"))
-	}
+	ownerSubject := internalWorkspace.LocalOwnerSubject
 	if req.Msg.WorkspaceId == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workspace_id is required"))
 	}
-	owned, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, principal.OwnerSubject())
+	owned, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, ownerSubject)
 	if err != nil {
 		return nil, workspaceError(err)
 	}
@@ -235,14 +225,11 @@ func (h *connectHandler) ExportWorkspace(ctx context.Context, req *connect.Reque
 }
 
 func (h *connectHandler) PreviewWorkspaceImport(ctx context.Context, req *connect.Request[v1.PreviewWorkspaceImportRequest]) (*connect.Response[v1.PreviewWorkspaceImportResponse], error) {
-	principal, ok := identity.PrincipalFromContext(ctx)
-	if !ok {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("verified actor required"))
-	}
+	ownerSubject := internalWorkspace.LocalOwnerSubject
 	if req.Msg.WorkspaceId == "" || req.Msg.ContentJson == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workspace_id and content_json are required"))
 	}
-	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, principal.OwnerSubject()); err != nil {
+	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, ownerSubject); err != nil {
 		return nil, workspaceError(err)
 	}
 	envelope, err := internalPortability.ImportWorkspace([]byte(req.Msg.ContentJson))
@@ -262,17 +249,14 @@ func (h *connectHandler) PreviewWorkspaceImport(ctx context.Context, req *connec
 }
 
 func (h *connectHandler) ApplyWorkspaceImport(ctx context.Context, req *connect.Request[v1.ApplyWorkspaceImportRequest]) (*connect.Response[v1.ApplyWorkspaceImportResponse], error) {
-	principal, ok := identity.PrincipalFromContext(ctx)
-	if !ok {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("verified actor required"))
-	}
+	ownerSubject := internalWorkspace.LocalOwnerSubject
 	if req.Msg.WorkspaceId == "" || req.Msg.ContentJson == "" || req.Msg.IdempotencyKey == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workspace_id, content_json, and idempotency_key are required"))
 	}
 	if h.restorer == nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("workspace restore is not configured"))
 	}
-	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, principal.OwnerSubject()); err != nil {
+	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, ownerSubject); err != nil {
 		return nil, workspaceError(err)
 	}
 	envelope, err := internalPortability.ImportWorkspace([]byte(req.Msg.ContentJson))
@@ -291,17 +275,14 @@ func (h *connectHandler) ApplyWorkspaceImport(ctx context.Context, req *connect.
 }
 
 func (h *connectHandler) GetRestoreCheckpoint(ctx context.Context, req *connect.Request[v1.GetRestoreCheckpointRequest]) (*connect.Response[v1.GetRestoreCheckpointResponse], error) {
-	principal, ok := identity.PrincipalFromContext(ctx)
-	if !ok {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("verified actor required"))
-	}
+	ownerSubject := internalWorkspace.LocalOwnerSubject
 	if req.Msg.WorkspaceId == "" || req.Msg.CheckpointId == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workspace_id and checkpoint_id are required"))
 	}
 	if h.restorer == nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("workspace recovery is not configured"))
 	}
-	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, principal.OwnerSubject()); err != nil {
+	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, ownerSubject); err != nil {
 		return nil, workspaceError(err)
 	}
 	checkpoint, err := h.restorer.GetRestoreCheckpoint(ctx, req.Msg.WorkspaceId, req.Msg.CheckpointId)
@@ -316,17 +297,14 @@ func (h *connectHandler) GetRestoreCheckpoint(ctx context.Context, req *connect.
 }
 
 func (h *connectHandler) RecoverRestoreCheckpoint(ctx context.Context, req *connect.Request[v1.RecoverRestoreCheckpointRequest]) (*connect.Response[v1.RecoverRestoreCheckpointResponse], error) {
-	principal, ok := identity.PrincipalFromContext(ctx)
-	if !ok {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("verified actor required"))
-	}
+	ownerSubject := internalWorkspace.LocalOwnerSubject
 	if req.Msg.WorkspaceId == "" || req.Msg.CheckpointId == "" || req.Msg.IdempotencyKey == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workspace_id, checkpoint_id, and idempotency_key are required"))
 	}
 	if h.restorer == nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("workspace recovery is not configured"))
 	}
-	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, principal.OwnerSubject()); err != nil {
+	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, ownerSubject); err != nil {
 		return nil, workspaceError(err)
 	}
 	result, err := h.restorer.RecoverRestoreCheckpoint(ctx, req.Msg.WorkspaceId, req.Msg.CheckpointId, req.Msg.ExpectedWorkspaceRevision, req.Msg.IdempotencyKey)
@@ -348,17 +326,14 @@ func (h *connectHandler) RecoverRestoreCheckpoint(ctx context.Context, req *conn
 }
 
 func (h *connectHandler) PreviewRecipesImport(ctx context.Context, req *connect.Request[v1.PreviewRecipesImportRequest]) (*connect.Response[v1.PreviewRecipesImportResponse], error) {
-	principal, ok := identity.PrincipalFromContext(ctx)
-	if !ok {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("verified actor required"))
-	}
+	ownerSubject := internalWorkspace.LocalOwnerSubject
 	if req.Msg.WorkspaceId == "" || req.Msg.ContentJson == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workspace_id and content_json are required"))
 	}
 	if h.restorer == nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("recipe import is not configured"))
 	}
-	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, principal.OwnerSubject()); err != nil {
+	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, ownerSubject); err != nil {
 		return nil, workspaceError(err)
 	}
 	envelope, err := internalPortability.ImportRecipes([]byte(req.Msg.ContentJson))
@@ -373,17 +348,14 @@ func (h *connectHandler) PreviewRecipesImport(ctx context.Context, req *connect.
 }
 
 func (h *connectHandler) ApplyRecipesImport(ctx context.Context, req *connect.Request[v1.ApplyRecipesImportRequest]) (*connect.Response[v1.ApplyRecipesImportResponse], error) {
-	principal, ok := identity.PrincipalFromContext(ctx)
-	if !ok {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("verified actor required"))
-	}
+	ownerSubject := internalWorkspace.LocalOwnerSubject
 	if req.Msg.WorkspaceId == "" || req.Msg.ContentJson == "" || req.Msg.IdempotencyKey == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workspace_id, content_json, and idempotency_key are required"))
 	}
 	if h.restorer == nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("recipe import is not configured"))
 	}
-	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, principal.OwnerSubject()); err != nil {
+	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, ownerSubject); err != nil {
 		return nil, workspaceError(err)
 	}
 	envelope, err := internalPortability.ImportRecipes([]byte(req.Msg.ContentJson))
@@ -402,14 +374,11 @@ func (h *connectHandler) ApplyRecipesImport(ctx context.Context, req *connect.Re
 }
 
 func (h *connectHandler) ExportRecipePDF(ctx context.Context, req *connect.Request[v1.ExportRecipePDFRequest]) (*connect.Response[v1.ExportPDFResponse], error) {
-	principal, ok := identity.PrincipalFromContext(ctx)
-	if !ok {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("verified actor required"))
-	}
+	ownerSubject := internalWorkspace.LocalOwnerSubject
 	if req.Msg.WorkspaceId == "" || req.Msg.RecipeId == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workspace_id and recipe_id are required"))
 	}
-	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, principal.OwnerSubject()); err != nil {
+	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, ownerSubject); err != nil {
 		return nil, workspaceError(err)
 	}
 	item, err := h.recipes.Get(ctx, req.Msg.WorkspaceId, req.Msg.RecipeId)
@@ -424,14 +393,11 @@ func (h *connectHandler) ExportRecipePDF(ctx context.Context, req *connect.Reque
 }
 
 func (h *connectHandler) ExportWeeklyPDF(ctx context.Context, req *connect.Request[v1.ExportWeeklyPDFRequest]) (*connect.Response[v1.ExportPDFResponse], error) {
-	principal, ok := identity.PrincipalFromContext(ctx)
-	if !ok {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("verified actor required"))
-	}
+	ownerSubject := internalWorkspace.LocalOwnerSubject
 	if req.Msg.WorkspaceId == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workspace_id is required"))
 	}
-	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, principal.OwnerSubject()); err != nil {
+	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, ownerSubject); err != nil {
 		return nil, workspaceError(err)
 	}
 	revision, raw, err := h.plans.Get(ctx, req.Msg.WorkspaceId)

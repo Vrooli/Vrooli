@@ -8,7 +8,6 @@ import (
 	internal "nutrition-planner/internal/workspace"
 
 	"connectrpc.com/connect"
-	"github.com/vrooli/api-core/identity"
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/workspace"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -25,12 +24,9 @@ func NewConnectHandler(service internal.Service, logger *log.Logger) *connectHan
 	return &connectHandler{service, logger}
 }
 
-func owner(ctx context.Context) (string, error) {
-	p, ok := identity.PrincipalFromContext(ctx)
-	if !ok {
-		return "", connect.NewError(connect.CodeUnauthenticated, errors.New("verified actor required"))
-	}
-	return p.OwnerSubject(), nil
+func owner(context.Context) (string, error) {
+	ownerSubject := internal.LocalOwnerSubject
+	return ownerSubject, nil
 }
 
 func (h *connectHandler) ListWorkspaces(ctx context.Context, _ *connect.Request[v1.ListWorkspacesRequest]) (*connect.Response[v1.ListWorkspacesResponse], error) {

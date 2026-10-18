@@ -10,7 +10,6 @@ import (
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/discovery"
-	"github.com/vrooli/api-core/identity"
 	modelsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/models"
 	modelsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/models/models_v1connect"
 	internal "nutrition-planner/internal/diagnostics"
@@ -31,17 +30,13 @@ func Module(db internal.SQLExecutor, workspaces workspace.Service) module.Module
 }
 
 func (h *moduleHandler) handle(w http.ResponseWriter, req *http.Request) {
-	principal, ok := identity.PrincipalFromContext(req.Context())
-	if !ok {
-		http.Error(w, "verified actor required", http.StatusUnauthorized)
-		return
-	}
+	ownerSubject := workspace.LocalOwnerSubject
 	workspaceID := req.URL.Query().Get("workspace_id")
 	if workspaceID == "" {
 		http.Error(w, "workspace_id is required", http.StatusBadRequest)
 		return
 	}
-	if _, err := h.workspaces.Get(req.Context(), workspaceID, principal.Subject); err != nil {
+	if _, err := h.workspaces.Get(req.Context(), workspaceID, ownerSubject); err != nil {
 		if _, forbidden := err.(workspace.ErrForbidden); forbidden {
 			http.Error(w, err.Error(), http.StatusForbidden)
 			return

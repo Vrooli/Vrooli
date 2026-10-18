@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -69,13 +70,18 @@ func (r *sqliteRepository) Get(ctx context.Context, id string) (Profile, error) 
 		return Profile{}, r.initErr
 	}
 	row := r.db.QueryRowContext(ctx, `SELECT workspace_id,revision,preset,preset_version,active_rules_json,excluded_groups_json,allergies_json,appliances_json,cookware_json,tools_json,kitchen_devices_json,cost_weight,effort_weight,variety_weight,draft_json FROM profiles WHERE workspace_id=?`, id)
-	return scan(row)
+	profile, err := scan(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Profile{}, ErrNotFound{WorkspaceID: id}
+	}
+	return profile, err
 }
 
 func (r *sqliteRepository) SaveDraft(ctx context.Context, id, draft string) (Profile, error) {
 	cur, err := r.Get(ctx, id)
 	if err != nil {
-		if err != sql.ErrNoRows {
+		var missing ErrNotFound
+		if !errors.As(err, &missing) {
 			return Profile{}, err
 		}
 		cur = Profile{WorkspaceID: id, Revision: 0, Preset: "everything", PresetVersion: CurrentPresetVersion, CostWeight: .34, EffortWeight: .33, VarietyWeight: .33}
@@ -90,8 +96,11 @@ func (r *sqliteRepository) SaveDraft(ctx context.Context, id, draft string) (Pro
 
 func (r *sqliteRepository) Apply(ctx context.Context, in ApplyInput) (Profile, error) {
 	cur, err := r.Get(ctx, in.WorkspaceID)
-	if err != nil && err != sql.ErrNoRows {
-		return Profile{}, err
+	if err != nil {
+		var missing ErrNotFound
+		if !errors.As(err, &missing) {
+			return Profile{}, err
+		}
 	}
 	cur.WorkspaceID = in.WorkspaceID
 	cur.Revision++

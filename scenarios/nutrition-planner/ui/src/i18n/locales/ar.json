@@ -69,7 +69,7 @@
     "internal": "Something went wrong. Please try again.",
     "unavailable": "Service temporarily unavailable.",
     "data_loss": "Data loss detected.",
-    "unauthenticated": "Please sign in to continue."
+    "unauthenticated": "تعذر إكمال الطلب."
   },
   "locale": {
     "switcherLabel": "اللغة"

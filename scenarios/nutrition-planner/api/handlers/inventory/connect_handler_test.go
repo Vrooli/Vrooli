@@ -31,7 +31,7 @@ func TestRecordEventRoundTripsQualitativeAssertion(t *testing.T) {
 	}
 	workspaces := workspace.NewService(workspace.NewSQLiteRepository(db, schedule.System()))
 	ctx := identity.WithPrincipal(context.Background(), identity.Principal{Kind: identity.ActorHuman, Subject: "owner-1", Verified: true})
-	savedWorkspace, err := workspaces.Create(ctx, workspace.CreateInput{Name: "Home", OwnerSubject: "owner-1"})
+	savedWorkspace, err := workspaces.Create(ctx, workspace.CreateInput{Name: "Home", OwnerSubject: workspace.LocalOwnerSubject})
 	if err != nil {
 		t.Fatal(err)
 	}

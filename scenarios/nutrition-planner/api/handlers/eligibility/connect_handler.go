@@ -7,7 +7,6 @@ import (
 
 	"connectrpc.com/connect"
 
-	"github.com/vrooli/api-core/identity"
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/eligibility"
 
 	internal "nutrition-planner/internal/eligibility"
@@ -27,14 +26,11 @@ func NewConnectHandler(workspaces workspace.Service, logger *log.Logger) *connec
 }
 
 func (h *connectHandler) Evaluate(ctx context.Context, req *connect.Request[v1.EvaluateRequest]) (*connect.Response[v1.EvaluateResponse], error) {
-	principal, ok := identity.PrincipalFromContext(ctx)
-	if !ok {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("verified actor required"))
-	}
+	ownerSubject := workspace.LocalOwnerSubject
 	if req.Msg.WorkspaceId == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workspace_id is required"))
 	}
-	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, principal.OwnerSubject()); err != nil {
+	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, ownerSubject); err != nil {
 		var nf workspace.ErrNotFound
 		if errors.As(err, &nf) {
 			return nil, connect.NewError(connect.CodeNotFound, err)

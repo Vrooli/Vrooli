@@ -7,6 +7,10 @@ import (
 	"time"
 )
 
+// LocalOwnerSubject is the single server-derived data owner for this local app.
+// No request identity or owner header participates in Nooch workspace selection.
+const LocalOwnerSubject = "nutrition-planner:local"
+
 type Workspace struct {
 	ID, Name, OwnerSubject string
 	Revision               int64

@@ -24,7 +24,7 @@ func TestEvaluateReportsViableMethodsWithoutAccumulatingRecipeWideAppliances(t *
 		t.Fatal(err)
 	}
 	workspaces := workspace.NewService(workspace.NewSQLiteRepository(db, schedule.System()))
-	ws, err := workspaces.Create(context.Background(), workspace.CreateInput{Name: "Personal", OwnerSubject: "owner"})
+	ws, err := workspaces.Create(context.Background(), workspace.CreateInput{Name: "Personal", OwnerSubject: workspace.LocalOwnerSubject})
 	if err != nil {
 		t.Fatal(err)
 	}

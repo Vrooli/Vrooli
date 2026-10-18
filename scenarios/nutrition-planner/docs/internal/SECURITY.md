@@ -15,9 +15,9 @@ Use this document to answer:
 - Where do secrets come from?
 - Which threats are known and how are they mitigated?
 
-**Status: partly built; connected authentication is qualified by an isolated
-Nooch fixture, while a live-account browser journey and the remaining product
-surfaces are not verified.** The 2026-09-22 audit
+**Status: partly built; current operator direction requires authentication to
+be fully removed from Nooch. The source still requires it, so the requested
+behavior is not yet delivered.** The 2026-09-22 audit
 ([`REDESIGN_PLAN.md`](REDESIGN_PLAN.md) §3) predates the current
 `.vrooli/service.json` authentication declaration and must not be used as
 evidence that the local runtime has no principal. `api/main.go` installs the
@@ -29,18 +29,17 @@ requires its own passing `AT-*`/`ACT-*`, handler, or schema evidence. The v2.0
 redesign adds media, generation, offline, and calendar surfaces whose rows are
 marked **(redesign)**.
 
-**The one-paragraph summary.** This scenario holds private personal data: what a person eats, the dietary
-rules and allergies they must not violate, body-related targets, supplement
-schedules, receipts, and prices. The dataset is **non-regenerable** — it
-cannot be recomputed from any other source. Three properties carry the
-posture: the runtime is self-hosted so data never leaves the user's box by
-default, every user-owned aggregate is scoped to a **server-derived**
-workspace so one account can never read another's data, and external
-content (URLs, labels, model output) is treated as untrusted input that
-must pass the same domain validation as manual edits. **Integrity of the
+**The one-paragraph summary.** This scenario holds sensitive personal data:
+what a person eats, dietary rules and allergies, body-related targets,
+supplement schedules, receipts, and prices. The dataset is
+**non-regenerable**. Under the current no-auth direction, the self-hosted
+Nooch instance is intentionally accessible to anyone who can reach its URL;
+it does not provide account isolation. Keep server-side workspace selection,
+integrity checks, and untrusted-content validation, but do not claim those are
+authentication or cross-account confidentiality controls. **Integrity of the
 user's rules matters as much as confidentiality**: a nutrition suggestion
-that silently violates an exclusion is a safety-relevant failure, not just
-a bug.
+that silently violates an exclusion is a safety-relevant failure, not just a
+bug.
 
 ## Data Sensitivity
 
@@ -67,7 +66,27 @@ a bug.
 
 ## Auth And Authorization
 
-Nooch declares the `scenario_authenticator` profile with `local_multi_user` as
+**Current operator direction (2026-10-17): Nooch must not require
+authentication.** This supersedes the historical posture below for Nooch
+only. The intended product serves existing Nooch data without login, session,
+bearer token, authenticator proxy, agent grant, or caller-controlled owner
+identity. Workspace ownership must remain server-derived, and existing
+workspace/data mappings must be preserved rather than merged or replaced by
+an empty anonymous namespace. Anyone who can reach the Nooch URL can access
+the data that the app serves; this is not a multi-user-isolated deployment.
+Authentication for other scenarios and the platform remains unchanged.
+
+The implementation target removes the Nooch `authentication` declaration,
+`api-core/authn` server configuration, handler-level verified-actor
+requirements, and the Cloudflare Access/Tunnel gate for Nooch's registered
+public hostname only. Do not call this complete until the exact public serving
+build works without a sign-in prompt or authentication error. The current
+Cloudflare 403 is a separate edge response and does not prove that the API
+change alone will restore external access.
+
+Historical posture (superseded):
+
+Nooch declared the `scenario_authenticator` profile with `local_multi_user` as
 its default mode and required human sign-in. The same-origin relying-party
 middleware validates the session before workspace handlers derive ownership;
 **ownership remains a server-side property** (`SYS-03`, `OT-P0-001`). An

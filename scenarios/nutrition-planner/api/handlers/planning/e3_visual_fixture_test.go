@@ -2,13 +2,9 @@ package planning
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/rsa"
 	"database/sql"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -19,17 +15,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gorilla/mux"
-	"github.com/vrooli/api-core/authn"
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/schedule"
-	catalogconnect "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/catalog/catalog_v1connect"
-	nutritionconnect "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/nutrition/nutrition_v1connect"
-	planningconnect "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/planning/planning_v1connect"
-	recipeconnect "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/recipe/recipe_v1connect"
-	supplementconnect "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/supplement/supplement_v1connect"
-	wspaceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/workspace/workspace_v1connect"
-	_ "modernc.org/sqlite"
 	cataloghandler "nutrition-planner/handlers/catalog"
 	nutritionhandler "nutrition-planner/handlers/nutrition"
 	recipehandler "nutrition-planner/handlers/recipe"
@@ -47,13 +32,22 @@ import (
 	"nutrition-planner/internal/shopping"
 	internalsupplement "nutrition-planner/internal/supplement"
 	"nutrition-planner/internal/workspace"
+
+	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/schedule"
+	catalogconnect "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/catalog/catalog_v1connect"
+	nutritionconnect "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/nutrition/nutrition_v1connect"
+	planningconnect "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/planning/planning_v1connect"
+	recipeconnect "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/recipe/recipe_v1connect"
+	supplementconnect "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/supplement/supplement_v1connect"
+	wspaceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/workspace/workspace_v1connect"
+	_ "modernc.org/sqlite"
 )
 
-const e3VisualSubject = "e3-isolated-visual-fixture"
-
 // TestRunE3VisualFixture runs only on explicit request. It serves the production
-// UI build while every API request uses Nooch's actual Authenticator verifier
-// and an isolated RoutedDB test pool. The temporary signer is fixture-only.
+// UI build and serves the configured local workspace through the same anonymous
+// API contract as the application, backed by an isolated RoutedDB test pool.
 func TestRunE3VisualFixture(t *testing.T) {
 	if os.Getenv("E3_VISUAL_FIXTURE") != "1" {
 		t.Skip("set E3_VISUAL_FIXTURE=1 to serve the isolated visual fixture")
@@ -64,7 +58,15 @@ func TestRunE3VisualFixture(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer server.Close()
-	fmt.Printf("E3_VISUAL_FIXTURE_URL=%s/__fixture/login?next=/today\n", server.URL)
+	resp, err := server.Client().Get(server.URL + "/today")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("anonymous UI route status=%d", resp.StatusCode)
+	}
+	fmt.Printf("E3_VISUAL_FIXTURE_URL=%s/today\n", server.URL)
 	signal.Notify(stop, os.Interrupt)
 	defer signal.Stop(stop)
 	<-stop
@@ -93,7 +95,7 @@ func newE3VisualFixture(t *testing.T, stop chan<- os.Signal) (*httptest.Server, 
 	}
 	dataCtx := database.WithTestMode(ctx)
 	workspaces := workspace.NewService(workspace.NewSQLiteRepository(db, clock))
-	owner, err := workspaces.Create(dataCtx, workspace.CreateInput{Name: "Nooch visual review", OwnerSubject: e3VisualSubject})
+	owner, err := workspaces.Create(dataCtx, workspace.CreateInput{Name: "Nooch visual review", OwnerSubject: workspace.LocalOwnerSubject})
 	if err != nil {
 		return nil, err
 	}
@@ -197,36 +199,10 @@ func newE3VisualFixture(t *testing.T, stop chan<- os.Signal) (*httptest.Server, 
 		api.Handle(route.path, route.handler)
 		api.PathPrefix(route.path).Handler(route.handler)
 	}
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return nil, err
-	}
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		return nil, err
-	}
-	baseURL := "http://" + listener.Addr().String()
-	issuer := "scenario-authenticator"
-	audience := "scenario-authenticator:nutrition-planner"
-	token := signNoochFixtureJWT(t, key, issuer, audience, e3VisualSubject, time.Now().Add(12*time.Hour))
-	provider := authn.NewScenarioAuthenticatorProvider(authn.JWTConfig{Issuer: issuer, Audience: audience, JWKSURL: baseURL + "/__fixture/jwks", CookieName: "vrooli_access_token"})
-	apiWithAuth := authn.Middleware(authn.Config{Providers: []authn.Provider{provider}})(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	apiHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		api.ServeHTTP(w, r.WithContext(database.WithTestMode(r.Context())))
-	}))
+	})
 	root := http.NewServeMux()
-	root.HandleFunc("/__fixture/jwks", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = fmt.Fprintf(w, `{"keys":[{"kid":"nooch-fixture","kty":"RSA","alg":"RS256","n":%q,"e":%q}]}`,
-			base64.RawURLEncoding.EncodeToString(key.N.Bytes()), base64.RawURLEncoding.EncodeToString([]byte{1, 0, 1}))
-	})
-	root.HandleFunc("/__fixture/login", func(w http.ResponseWriter, r *http.Request) {
-		next := r.URL.Query().Get("next")
-		if !strings.HasPrefix(next, "/") || strings.HasPrefix(next, "//") {
-			next = "/today"
-		}
-		http.SetCookie(w, &http.Cookie{Name: "vrooli_access_token", Value: token, Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode, Expires: time.Now().Add(12 * time.Hour)})
-		http.Redirect(w, r, next, http.StatusSeeOther)
-	})
 	root.HandleFunc("/__fixture/shutdown", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 		stop <- os.Interrupt
@@ -247,18 +223,17 @@ func newE3VisualFixture(t *testing.T, stop chan<- os.Signal) (*httptest.Server, 
 		}
 		w.WriteHeader(http.StatusNoContent)
 	})
-	root.Handle("/api/v1/", http.StripPrefix("/api/v1", apiWithAuth))
+	root.Handle("/api/v1/", http.StripPrefix("/api/v1", apiHandler))
 	for _, route := range []struct {
 		path string
 	}{
 		{workspacePath}, {recipePath}, {planningPath}, {nutritionPath}, {supplementPath}, {catalogPath},
 	} {
-		root.Handle(route.path, apiWithAuth)
+		root.Handle(route.path, apiHandler)
 	}
 	_, source, _, _ := runtime.Caller(0)
 	uiRoot := filepath.Clean(filepath.Join(filepath.Dir(source), "..", "..", "..", "ui", "dist"))
 	if info, err := os.Stat(filepath.Join(uiRoot, "index.html")); err != nil || info.IsDir() {
-		_ = listener.Close()
 		return nil, fmt.Errorf("production UI build not found at %s; build the UI before launching the fixture", uiRoot)
 	}
 	files := http.FileServer(http.Dir(uiRoot))
@@ -270,10 +245,7 @@ func newE3VisualFixture(t *testing.T, stop chan<- os.Signal) (*httptest.Server, 
 		}
 		http.ServeFile(w, r, filepath.Join(uiRoot, "index.html"))
 	})
-	server := httptest.NewUnstartedServer(root)
-	server.Listener = listener
-	server.Config.ReadHeaderTimeout = 5 * time.Second
-	server.Start()
+	server := httptest.NewServer(root)
 	t.Cleanup(server.Close)
 	return server, nil
 }

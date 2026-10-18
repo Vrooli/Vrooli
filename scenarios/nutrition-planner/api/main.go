@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 
 	"nutrition-planner/internal/capabilities"
 	"nutrition-planner/internal/modules"
@@ -14,7 +13,6 @@ import (
 	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
-	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/filerouting"
@@ -128,11 +126,6 @@ func main() {
 	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
 
 	rootMux.Handle("/", srv.Handler())
-	authConfig, err := authn.FromEnvironment(os.Getenv)
-	if err != nil {
-		log.Fatalf("authentication configuration failed: %v", err)
-	}
-	sharedAuth := &authConfig
 
 	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
 	// request context so *database.RoutedDB routes the call to the
@@ -140,9 +133,8 @@ func main() {
 	handler := apihttp.TestModeMiddleware(rootMux)
 
 	if err := apiserver.Run(apiserver.Config{
-		Handler:        handler,
-		Authentication: sharedAuth,
-		Cleanup:        func(ctx context.Context) error { return db.Close() },
+		Handler: handler,
+		Cleanup: func(ctx context.Context) error { return db.Close() },
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}

@@ -328,8 +328,11 @@ func TestWorkspaceProfileLegacyOmissionPreservesAndDeclaredEmptyClears(t *testin
 				if err != nil || !reflect.DeepEqual(got, before) {
 					t.Fatalf("legacy profile changed: %#v err=%v", got, err)
 				}
-			} else if !errors.Is(err, sql.ErrNoRows) {
-				t.Fatalf("declared empty profile was not cleared: %#v err=%v", got, err)
+			} else {
+				var missing profile.ErrNotFound
+				if !errors.As(err, &missing) || missing.WorkspaceID != "w1" {
+					t.Fatalf("declared empty profile was not cleared with a profile-domain not-found: %#v err=%v", got, err)
+				}
 			}
 		})
 	}

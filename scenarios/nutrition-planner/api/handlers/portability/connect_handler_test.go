@@ -5,17 +5,14 @@ import (
 	"database/sql"
 	"encoding/json"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"sort"
 	"strings"
 	"testing"
 	"time"
 
-	"connectrpc.com/connect"
-	"github.com/vrooli/api-core/identity"
-	"github.com/vrooli/api-core/schedule"
-	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/portability"
-	_ "modernc.org/sqlite"
 	"nutrition-planner/internal/decimalx"
 	"nutrition-planner/internal/nutrition"
 	"nutrition-planner/internal/planning"
@@ -25,6 +22,13 @@ import (
 	"nutrition-planner/internal/shopping"
 	"nutrition-planner/internal/supplement"
 	"nutrition-planner/internal/workspace"
+
+	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/identity"
+	"github.com/vrooli/api-core/schedule"
+	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/portability"
+	portabilityconnect "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/portability/portability_v1connect"
+	_ "modernc.org/sqlite"
 )
 
 type checkpointWorkspaceService struct{}
@@ -39,7 +43,7 @@ func (checkpointWorkspaceService) Get(_ context.Context, id, owner string) (work
 	if id != "w1" {
 		return workspace.Workspace{}, workspace.ErrNotFound{ID: id}
 	}
-	if owner != "owner" {
+	if owner != workspace.LocalOwnerSubject {
 		return workspace.Workspace{}, workspace.ErrForbidden{ID: id}
 	}
 	return workspace.Workspace{ID: id, Name: "Daily", OwnerSubject: owner, Revision: 2}, nil
@@ -57,11 +61,25 @@ func checkpointHandler(t *testing.T) *connectHandler {
 			t.Fatal(err)
 		}
 	}
-	if _, err := db.Exec(`INSERT INTO workspaces(id,name,owner_subject,revision,created_at,updated_at) VALUES('w1','Daily','owner',2,'now','now')`); err != nil {
+	if _, err := db.Exec(`INSERT INTO workspaces(id,name,owner_subject,revision,created_at,updated_at) VALUES('w1','Daily','nutrition-planner:local',2,'now','now')`); err != nil {
 		t.Fatal(err)
 	}
 	clock := schedule.System()
 	return NewConnectHandlerWithSchedules(recipe.NewService(recipe.NewSQLiteRepository(db, clock)), checkpointWorkspaceService{}, planning.NewSQLiteRepository(db, clock), nil, nutrition.NewSQLiteTargetRepository(db, clock), internalProfile.NewService(internalProfile.NewSQLiteRepository(db, clock)), nutrition.NewSQLiteIntakeRepository(db), supplement.NewSQLiteRepository(db, clock), internalPortability.NewSQLiteRestorer(db, clock), log.Default())
+}
+
+func TestAnonymousPortabilityConnectIngressReadsLocalWorkspace(t *testing.T) {
+	h := checkpointHandler(t)
+	path, handler := portabilityconnect.NewPortabilityServiceHandler(h)
+	mux := http.NewServeMux()
+	mux.Handle(path, handler)
+	server := httptest.NewServer(mux)
+	defer server.Close()
+	client := portabilityconnect.NewPortabilityServiceClient(server.Client(), server.URL)
+	response, err := client.ExportWorkspace(context.Background(), connect.NewRequest(&v1.ExportWorkspaceRequest{WorkspaceId: "w1"}))
+	if err != nil || response.Msg.GetContentJson() == "" {
+		t.Fatalf("anonymous portability Connect read response=%v err=%v", response, err)
+	}
 }
 
 func TestWorkspaceExportIncludesIntakeEventProvenance(t *testing.T) {
@@ -151,12 +169,10 @@ func TestWorkspaceExportIncludesSupplementScheduleHistoryAndOpaqueProductRevisio
 	}
 }
 
-func TestWorkspaceIntakeApplyRequiresDestinationAuthority(t *testing.T) {
+func TestWorkspaceIntakeApplyWorksWithoutIdentityAndIsIdempotent(t *testing.T) {
 	h := checkpointHandler(t)
-	owner := identity.WithPrincipal(context.Background(), identity.Principal{Subject: "owner", Verified: true})
-	outsider := identity.WithPrincipal(context.Background(), identity.Principal{Subject: "intruder", Verified: true})
 	amount, _ := decimalx.Parse("5.75")
-	if err := h.intakes.Append(owner, "w1", nutrition.IntakeEvent{ID: "destination", Date: "2026-10-06", NutrientID: "protein", Amount: amount, Unit: "g"}); err != nil {
+	if err := h.intakes.Append(context.Background(), "w1", nutrition.IntakeEvent{ID: "destination", Date: "2026-10-06", NutrientID: "protein", Amount: amount, Unit: "g"}); err != nil {
 		t.Fatal(err)
 	}
 	sourceAmount, _ := decimalx.Parse("9.125")
@@ -164,22 +180,15 @@ func TestWorkspaceIntakeApplyRequiresDestinationAuthority(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	request := func(key string) *connect.Request[v1.ApplyWorkspaceImportRequest] {
-		return connect.NewRequest(&v1.ApplyWorkspaceImportRequest{WorkspaceId: "w1", ContentJson: string(content), ExpectedWorkspaceRevision: 2, IdempotencyKey: key})
+	request := connect.NewRequest(&v1.ApplyWorkspaceImportRequest{WorkspaceId: "w1", ContentJson: string(content), ExpectedWorkspaceRevision: 2, IdempotencyKey: "anonymous-intake"})
+	for attempt := 0; attempt < 2; attempt++ {
+		if _, err := h.ApplyWorkspaceImport(context.Background(), request); err != nil {
+			t.Fatalf("anonymous import attempt %d: %v", attempt+1, err)
+		}
 	}
-	if _, err := h.ApplyWorkspaceImport(outsider, request("denied-intake")); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("unauthorized apply err=%v", err)
-	}
-	prior, err := h.intakes.List(owner, "w1")
-	if err != nil || len(prior) != 1 || prior[0].ID != "destination" {
-		t.Fatalf("unauthorized apply mutated intake: %+v err=%v", prior, err)
-	}
-	if _, err := h.ApplyWorkspaceImport(owner, request("authorized-intake")); err != nil {
-		t.Fatal(err)
-	}
-	got, err := h.intakes.List(owner, "w1")
+	got, err := h.intakes.List(context.Background(), "w1")
 	if err != nil || len(got) != 1 || got[0].ID != "incoming" || got[0].Amount.String() != "9.125" {
-		t.Fatalf("authorized apply intake=%+v err=%v", got, err)
+		t.Fatalf("anonymous import intake=%+v err=%v", got, err)
 	}
 }
 
@@ -221,36 +230,23 @@ func TestWorkspaceExportIncludesOwnedProfilePreferences(t *testing.T) {
 	}
 }
 
-func TestWorkspaceProfileApplyRequiresDestinationAuthorityAndRemapsIdentity(t *testing.T) {
+func TestWorkspaceProfileApplyWorksWithoutIdentityAndRemapsWorkspace(t *testing.T) {
 	h := checkpointHandler(t)
-	ctx := identity.WithPrincipal(context.Background(), identity.Principal{Subject: "owner", Verified: true})
-	prior, err := h.profiles.Apply(ctx, internalProfile.ApplyInput{WorkspaceID: "w1", Preset: "vegetarian", Allergies: []string{"peanut"}, CostWeight: .2, EffortWeight: .3, VarietyWeight: .5})
-	if err != nil {
-		t.Fatal(err)
-	}
+	ctx := context.Background()
 	source := internalProfile.Profile{WorkspaceID: "source", Revision: 8, Preset: "vegan", PresetVersion: internalProfile.CurrentPresetVersion, ActiveRules: internalProfile.ExpandPreset("vegan"), ExcludedGroups: []string{"nightshades"}, Allergies: []string{"sesame"}, Appliances: []string{"oven"}, CostWeight: .25, EffortWeight: .25, VarietyWeight: .5, DraftJSON: `{"servings":2}`}
 	content, err := internalPortability.Workspace(internalPortability.WorkspaceSnapshot{ID: "source", Profile: &source})
 	if err != nil {
 		t.Fatal(err)
 	}
-	unauthorized := identity.WithPrincipal(context.Background(), identity.Principal{Subject: "intruder", Verified: true})
-	_, err = h.ApplyWorkspaceImport(unauthorized, connect.NewRequest(&v1.ApplyWorkspaceImportRequest{WorkspaceId: "w1", ContentJson: string(content), ExpectedWorkspaceRevision: 2, IdempotencyKey: "denied-profile"}))
-	if connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("unauthorized apply error=%v", err)
-	}
-	unchanged, err := h.profiles.Get(ctx, "w1")
-	if err != nil || !reflect.DeepEqual(unchanged, prior) {
-		t.Fatalf("unauthorized apply changed profile: %#v err=%v", unchanged, err)
-	}
-	if _, err := h.ApplyWorkspaceImport(ctx, connect.NewRequest(&v1.ApplyWorkspaceImportRequest{WorkspaceId: "w1", ContentJson: string(content), ExpectedWorkspaceRevision: 2, IdempotencyKey: "authorized-profile"})); err != nil {
-		t.Fatal(err)
+	if _, err := h.ApplyWorkspaceImport(ctx, connect.NewRequest(&v1.ApplyWorkspaceImportRequest{WorkspaceId: "w1", ContentJson: string(content), ExpectedWorkspaceRevision: 2, IdempotencyKey: "anonymous-profile"})); err != nil {
+		t.Fatalf("anonymous profile import: %v", err)
 	}
 	got, err := h.profiles.Get(ctx, "w1")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if got.WorkspaceID != "w1" || got.Revision != source.Revision || got.Preset != source.Preset || got.DraftJSON != source.DraftJSON || !reflect.DeepEqual(got.Allergies, source.Allergies) {
-		t.Fatalf("authorized apply did not remap profile: %#v", got)
+		t.Fatalf("anonymous import did not remap profile: %#v", got)
 	}
 }
 
@@ -282,30 +278,22 @@ func TestWorkspaceTargetPreviewValidatesWithoutMutation(t *testing.T) {
 	}
 }
 
-func TestCheckpointEndpointsRequireAuthorizedWorkspace(t *testing.T) {
+func TestCheckpointEndpointsValidateWorkspaceWithoutIdentity(t *testing.T) {
 	h := checkpointHandler(t)
 	get := func(ctx context.Context, id string) error {
 		_, err := h.GetRestoreCheckpoint(ctx, connect.NewRequest(&v1.GetRestoreCheckpointRequest{WorkspaceId: "w1", CheckpointId: id}))
 		return err
 	}
-	if err := get(context.Background(), "cp1"); connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("anonymous checkpoint read code=%v err=%v", connect.CodeOf(err), err)
+	if err := get(context.Background(), "cp1"); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("anonymous missing checkpoint code=%v err=%v", connect.CodeOf(err), err)
 	}
-	other := identity.WithPrincipal(context.Background(), identity.Principal{Subject: "other", Verified: true})
-	if err := get(other, "cp1"); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("foreign workspace checkpoint read code=%v err=%v", connect.CodeOf(err), err)
+	other := identity.WithPrincipal(context.Background(), identity.Principal{Subject: "unrelated-caller", Verified: true})
+	if err := get(other, "cp1"); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("caller identity changed checkpoint result: code=%v err=%v", connect.CodeOf(err), err)
 	}
-	owner := identity.WithPrincipal(context.Background(), identity.Principal{Subject: "owner", Verified: true})
-	if err := get(owner, "cp1"); connect.CodeOf(err) != connect.CodeNotFound {
-		t.Fatalf("missing checkpoint code=%v err=%v", connect.CodeOf(err), err)
-	}
-	_, err := h.RecoverRestoreCheckpoint(owner, connect.NewRequest(&v1.RecoverRestoreCheckpointRequest{WorkspaceId: "w1", CheckpointId: "cp1", ExpectedWorkspaceRevision: 2, IdempotencyKey: "key"}))
+	_, err := h.RecoverRestoreCheckpoint(context.Background(), connect.NewRequest(&v1.RecoverRestoreCheckpointRequest{WorkspaceId: "w1", CheckpointId: "cp1", ExpectedWorkspaceRevision: 2, IdempotencyKey: "key"}))
 	if connect.CodeOf(err) != connect.CodeNotFound {
-		t.Fatalf("missing checkpoint recovery code=%v err=%v", connect.CodeOf(err), err)
-	}
-	_, err = h.RecoverRestoreCheckpoint(context.Background(), connect.NewRequest(&v1.RecoverRestoreCheckpointRequest{WorkspaceId: "w1", CheckpointId: "cp1", ExpectedWorkspaceRevision: 2, IdempotencyKey: "key"}))
-	if connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("anonymous recovery code=%v err=%v", connect.CodeOf(err), err)
+		t.Fatalf("anonymous missing checkpoint recovery code=%v err=%v", connect.CodeOf(err), err)
 	}
 }
 
@@ -322,7 +310,7 @@ func TestRecipeAndWorkspaceExportsReadEveryStoredRevision(t *testing.T) {
 	}
 	clock := schedule.System()
 	workspaces := workspace.NewService(workspace.NewSQLiteRepository(db, clock))
-	owned, err := workspaces.Create(context.Background(), workspace.CreateInput{Name: "Daily", OwnerSubject: "owner"})
+	owned, err := workspaces.Create(context.Background(), workspace.CreateInput{Name: "Daily", OwnerSubject: workspace.LocalOwnerSubject})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -418,7 +406,7 @@ func TestWorkspaceExportIncludesAllPersistedShoppingRows(t *testing.T) {
 	}
 	clock := schedule.System()
 	workspaces := workspace.NewService(workspace.NewSQLiteRepository(db, clock))
-	owned, err := workspaces.Create(context.Background(), workspace.CreateInput{Name: "Daily", OwnerSubject: "owner"})
+	owned, err := workspaces.Create(context.Background(), workspace.CreateInput{Name: "Daily", OwnerSubject: workspace.LocalOwnerSubject})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -474,7 +462,7 @@ func TestWorkspaceExportIncludesAllPersistedShoppingRows(t *testing.T) {
 	}
 }
 
-func TestPopulatedWorkspaceTransferReExportAndCheckpointRecovery(t *testing.T) {
+func TestAnonymousWorkspaceTransferReExportAndCheckpointRecovery(t *testing.T) {
 	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
 		t.Fatal(err)
@@ -488,11 +476,11 @@ func TestPopulatedWorkspaceTransferReExportAndCheckpointRecovery(t *testing.T) {
 	}
 	clock := schedule.System()
 	workspaces := workspace.NewService(workspace.NewSQLiteRepository(db, clock))
-	sourceWorkspace, err := workspaces.Create(context.Background(), workspace.CreateInput{Name: "Source", OwnerSubject: "source-owner"})
+	sourceWorkspace, err := workspaces.Create(context.Background(), workspace.CreateInput{Name: "Source", OwnerSubject: workspace.LocalOwnerSubject})
 	if err != nil {
 		t.Fatal(err)
 	}
-	destinationWorkspace, err := workspaces.Create(context.Background(), workspace.CreateInput{Name: "Destination", OwnerSubject: "destination-owner"})
+	destinationWorkspace, err := workspaces.Create(context.Background(), workspace.CreateInput{Name: "Destination", OwnerSubject: workspace.LocalOwnerSubject})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -504,9 +492,7 @@ func TestPopulatedWorkspaceTransferReExportAndCheckpointRecovery(t *testing.T) {
 	supplements := supplement.NewSQLiteRepository(db, clock)
 	restore := internalPortability.NewSQLiteRestorer(db, clock)
 	h := NewConnectHandlerWithSchedules(recipes, workspaces, plans, shopping.NewSQLiteRepository(db, clock), targets, profiles, intakes, supplements, restore, log.Default())
-	owner := func(subject string) context.Context {
-		return identity.WithPrincipal(context.Background(), identity.Principal{Subject: subject, Verified: true})
-	}
+	owner := func(string) context.Context { return context.Background() }
 	seed := func(id, subject, prefix string) {
 		t.Helper()
 		ctx := owner(subject)
@@ -653,8 +639,8 @@ func TestPopulatedWorkspaceTransferReExportAndCheckpointRecovery(t *testing.T) {
 	if got, want := portableRecords(recovered, destinationWorkspace.ID, destinationWorkspace.ID, "", ""), portableRecords(destinationBefore, destinationWorkspace.ID, destinationWorkspace.ID, "", ""); !reflect.DeepEqual(got, want) {
 		t.Fatalf("checkpoint recovery lost prior portable state\nwant=%s\ngot=%s", mustJSON(t, want), mustJSON(t, got))
 	}
-	if _, err := h.ExportWorkspace(owner("source-owner"), connect.NewRequest(&v1.ExportWorkspaceRequest{WorkspaceId: destinationWorkspace.ID})); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("source identity gained destination authority: %v", err)
+	if _, err := h.ExportWorkspace(context.Background(), connect.NewRequest(&v1.ExportWorkspaceRequest{WorkspaceId: destinationWorkspace.ID})); err != nil {
+		t.Fatalf("anonymous caller could not export the shared local workspace: %v", err)
 	}
 	if got, want := portableRecords(export(sourceWorkspace.ID, "source-owner"), sourceWorkspace.ID, sourceWorkspace.ID, "", ""), portableRecords(source, sourceWorkspace.ID, sourceWorkspace.ID, "", ""); !reflect.DeepEqual(got, want) {
 		t.Fatal("destination transfer or recovery changed the isolated source workspace")

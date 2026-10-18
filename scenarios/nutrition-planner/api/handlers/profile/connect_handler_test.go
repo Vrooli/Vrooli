@@ -30,7 +30,7 @@ func TestApplyProfileCountsRecipesByOneCompleteMethodAndStoredDeviceFunctions(t 
 	ctx := context.Background()
 	clock := schedule.System()
 	workspaces := workspace.NewService(workspace.NewSQLiteRepository(db, clock))
-	ws, err := workspaces.Create(ctx, workspace.CreateInput{Name: "Personal", OwnerSubject: "owner"})
+	ws, err := workspaces.Create(ctx, workspace.CreateInput{Name: "Personal", OwnerSubject: workspace.LocalOwnerSubject})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -660,7 +660,8 @@ func replaceIntakeEvents(ctx context.Context, tx *sql.Tx, workspaceID string, en
 
 func snapshotProfile(ctx context.Context, tx *sql.Tx, workspaceID string, clock schedule.Clock) (*profile.Profile, error) {
 	item, err := profile.NewSQLiteRepository(tx, clock).Get(ctx, workspaceID)
-	if errors.Is(err, sql.ErrNoRows) {
+	var missing profile.ErrNotFound
+	if errors.As(err, &missing) {
 		return nil, nil
 	}
 	if err != nil {
