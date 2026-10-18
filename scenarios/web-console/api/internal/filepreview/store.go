@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"os"
 	"sync"
 	"time"
 )
@@ -22,6 +23,7 @@ var ErrPreviewNotFound = errors.New("preview not found")
 // pin the file metadata captured at resolve time; the blob handler re-stats and
 // rejects on mismatch so a swapped file is never served under a stale id.
 type Entry struct {
+	SourceInfo           os.FileInfo
 	ID                   string
 	SessionID            string
 	ResolvedPath         string
@@ -35,17 +37,28 @@ type Entry struct {
 	TextContentAvailable bool
 	ListingAvailable     bool
 	ExpiresAt            time.Time
+	// Data is immutable, bounded virtual member content. RootID ties its
+	// session, lifetime, freshness and shared work budget to the original file.
+	Data          []byte
+	RootID        string
+	Depth         int
+	Sequence      uint64
+	Budget        *archiveBudget
+	activeReaders int // guarded by Store.mu
 }
 
 // Store is an in-memory, session-bound, expiring preview-id store. It is safe
 // for concurrent use. Lookups are constant-time map hits; expired entries are
 // reaped lazily on access and by an optional background sweep.
 type Store struct {
-	mu   sync.Mutex
-	byID map[string]*Entry
-	ttl  time.Duration
-	now  func() time.Time
-	rand func([]byte) (int, error)
+	virtualBytes int64
+	sequence     uint64
+	archiveJobs  chan struct{}
+	mu           sync.Mutex
+	byID         map[string]*Entry
+	ttl          time.Duration
+	now          func() time.Time
+	rand         func([]byte) (int, error)
 }
 
 // NewStore constructs a Store with the given TTL (<=0 → DefaultTTL).
@@ -54,10 +67,11 @@ func NewStore(ttl time.Duration) *Store {
 		ttl = DefaultTTL
 	}
 	return &Store{
-		byID: make(map[string]*Entry),
-		ttl:  ttl,
-		now:  time.Now,
-		rand: rand.Read,
+		byID:        make(map[string]*Entry),
+		archiveJobs: make(chan struct{}, 2),
+		ttl:         ttl,
+		now:         time.Now,
+		rand:        rand.Read,
 	}
 }
 
@@ -71,9 +85,13 @@ func (s *Store) Issue(sessionID string, t *Target) (string, time.Time, error) {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.sequence++
 	expiry := s.now().Add(s.ttl)
 	s.byID[id] = &Entry{
 		ID:                   id,
+		SourceInfo:           t.SourceInfo,
+		Sequence:             s.sequence,
+		Budget:               &archiveBudget{remaining: ArchiveWorkLimit},
 		SessionID:            sessionID,
 		ResolvedPath:         t.ResolvedPath,
 		Basename:             t.Basename,
@@ -100,7 +118,7 @@ func (s *Store) Lookup(sessionID, id string) (*Entry, error) {
 		return nil, ErrPreviewNotFound
 	}
 	if !s.now().Before(e.ExpiresAt) {
-		delete(s.byID, id)
+		s.deleteLocked(id)
 		return nil, ErrPreviewNotFound
 	}
 	if e.SessionID != sessionID {
@@ -116,7 +134,7 @@ func (s *Store) Sweep() {
 	now := s.now()
 	for id, e := range s.byID {
 		if !now.Before(e.ExpiresAt) {
-			delete(s.byID, id)
+			s.deleteLocked(id)
 		}
 	}
 }
@@ -127,4 +145,33 @@ func (s *Store) newID() (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(buf), nil
+}
+
+// AcquireBlob pins virtual bytes while HTTP serves them. Active responses remain
+// charged to the global quota, including after logical expiry, until released.
+func (s *Store) AcquireBlob(sessionID, id string) (*Entry, func(), error) {
+	s.mu.Lock()
+	e := s.byID[id]
+	if e == nil || e.SessionID != sessionID || !s.now().Before(e.ExpiresAt) {
+		s.mu.Unlock()
+		return nil, nil, ErrPreviewNotFound
+	}
+	if e.RootID == "" {
+		s.mu.Unlock()
+		return e, func() {}, nil
+	}
+	e.activeReaders++
+	s.mu.Unlock()
+	var once sync.Once
+	release := func() {
+		once.Do(func() {
+			s.mu.Lock()
+			defer s.mu.Unlock()
+			e.activeReaders--
+			if e.activeReaders == 0 && !s.now().Before(e.ExpiresAt) {
+				s.deleteLocked(id)
+			}
+		})
+	}
+	return e, release, nil
 }

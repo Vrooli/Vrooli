@@ -26,6 +26,7 @@ import (
 	audioAdminH "web-console/handlers/audio_admin"
 	audioRuntimeH "web-console/handlers/audio_runtime"
 	capabilitiesH "web-console/handlers/capabilities"
+	continuityH "web-console/handlers/continuity"
 	conversationH "web-console/handlers/conversation"
 	devicesH "web-console/handlers/devices"
 	eventsH "web-console/handlers/events"
@@ -57,6 +58,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, audioRuntimeH.Endpoints...)
 	out = append(out, capabilitiesH.Endpoints...)
 	out = append(out, conversationH.Endpoints...)
+	out = append(out, continuityH.Endpoints...)
 	out = append(out, devicesH.Endpoints...)
 	out = append(out, eventsH.Endpoints...)
 	out = append(out, filePreviewH.Endpoints...)

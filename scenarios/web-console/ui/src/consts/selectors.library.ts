@@ -41,10 +41,6 @@ export const librarySelectors = {
     "root": "forms.textarea"
   },
   "overlays.full-page-drawer": {
-    "close": "overlays.full-page-drawer.close",
-    "grabber": "overlays.full-page-drawer.grabber",
-    "subheader": "overlays.full-page-drawer.subheader",
-    "root": "overlays.full-page-drawer"
   },
   "overlays.responsive-dialog": {
     "subheader": "overlays.responsive-dialog.subheader",
@@ -73,6 +69,8 @@ export const librarySelectors = {
     "credentialBlastRadiusFace": "patterns.swipe-actions.credential-blast-radius.face",
     "hostCleanupSweepActionClose": "patterns.swipe-actions.host-cleanup-sweep.action.close",
     "lastAction": "patterns.swipe-actions.last-action"
-  }
+  },
+  "react-component-library:useOverlaySurface": {
+  },
 } as const;
 // vrooli:library-selectors end

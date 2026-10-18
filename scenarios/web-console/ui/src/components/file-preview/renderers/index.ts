@@ -2,7 +2,10 @@ import type { PreviewKind, PreviewRenderer } from "../types";
 import { CodePreview, MarkdownPreview } from "./TextRenderers";
 import { AudioPreview, ImagePreview, PdfPreview, VideoPreview } from "./MediaRenderers";
 import { CsvPreview, DiffPreview } from "./DataRenderers";
+import { ArchivePreview } from "./ArchivePreview";
 import { DirectoryPreview } from "./DirectoryPreview";
+import { SpreadsheetPreview } from "./SpreadsheetPreview";
+import { DocumentPreview } from "./DocumentPreview";
 import { UnsupportedPreview } from "./UnsupportedPreview";
 
 // renderers maps every PreviewKind to its dedicated renderer. The viewer routes
@@ -19,11 +22,14 @@ export const renderers: Record<PreviewKind, PreviewRenderer> = {
   audio: AudioPreview,
   video: VideoPreview,
   csv: CsvPreview,
+  spreadsheet: SpreadsheetPreview,
+  document: DocumentPreview,
   diff: DiffPreview,
   directory: DirectoryPreview,
+ archive: ArchivePreview,
   unsupported: UnsupportedPreview,
 };
 
 export function rendererForKind(kind: PreviewKind): PreviewRenderer {
-  return renderers[kind] ?? UnsupportedPreview;
+  return Object.prototype.hasOwnProperty.call(renderers, kind) ? renderers[kind] : UnsupportedPreview;
 }

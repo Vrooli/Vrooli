@@ -53,6 +53,7 @@ func newError(code Code, message string) *Error { return &Error{Code: code, Mess
 // shape the Connect resolve response, the preview-id store, and the UI model
 // are all projected from.
 type Target struct {
+	SourceInfo           os.FileInfo
 	InputPath            string
 	ResolvedPath         string
 	Basename             string
@@ -210,6 +211,7 @@ func (r *Resolver) Resolve(sessionCwd string, cwdErr error, rawPath string) (*Ta
 			ResolutionBasis:      c.basis,
 			Kind:                 cl.kind,
 			MIMEType:             cl.mimeType,
+			SourceInfo:           info,
 			SizeBytes:            info.Size(),
 			ModTimeUnixNano:      info.ModTime().UnixNano(),
 			CanPreview:           cl.kind.CanPreview(),

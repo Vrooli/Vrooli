@@ -3,78 +3,6 @@
   "version": "1.0.0",
   "endpoints": [
     {
-      "id": "ai_generate_rest",
-      "path": "/api/v1/ai/generate",
-      "method": "POST",
-      "summary": "Generate a shell command with payment-required semantics",
-      "description": "Browser REST exception that preserves typed 402 credits refusals and resolves the upgrade destination at runtime.",
-      "category": "ai",
-      "rest_exception": {"reason": "payment_required_semantics", "note": "Connect transport maps resource exhaustion to 429; this browser endpoint preserves the paid-surface 402 contract."}
-    },
-    {
-      "id": "subscription_session_provision",
-      "path": "/api/v1/auth/subscription/session",
-      "method": "POST",
-      "summary": "Store a subscription refresh token",
-      "description": "Stores the device-scoped refresh token in the credential authority and returns metadata only.",
-      "category": "auth",
-      "rest_exception": {"reason": "browser_secret_input", "note": "Carries a browser-supplied refresh token and cannot use generated Connect clients."}
-    },
-    {
-      "id": "subscription_session_status",
-      "path": "/api/v1/auth/subscription/session",
-      "method": "GET",
-      "summary": "Read subscription session status",
-      "description": "Returns whether the subscription refresh token is configured, never the token.",
-      "category": "auth",
-      "rest_exception": {"reason": "browser_secret_input", "note": "Metadata-only REST exception paired with the browser subscription surface."}
-    },
-    {
-      "id": "subscription_session_delete",
-      "path": "/api/v1/auth/subscription/session",
-      "method": "DELETE",
-      "summary": "Remove the subscription session",
-      "description": "Deletes the device-scoped refresh token and clears the in-process access token.",
-      "category": "auth",
-      "rest_exception": {"reason": "browser_secret_input", "note": "Credential deletion is a browser REST exception."}
-    },
-    {
-      "id": "subscription_summary",
-      "path": "/api/v1/auth/subscription/summary",
-      "method": "GET",
-      "summary": "Read the paid account summary",
-      "description": "Returns metadata-only account, plan, credit, and synchronization status after authenticating the shared subscription lease.",
-      "category": "auth",
-      "rest_exception": {"reason": "browser_surface", "note": "Metadata-only browser REST endpoint for the account surface."}
-    },
-    {
-      "id": "credential_provision",
-      "path": "/api/v1/credentials/provision",
-      "method": "POST",
-      "summary": "Store a declared user credential",
-      "description": "Provisions a declared credential and returns metadata only; credential values never leave the authority.",
-      "category": "auth",
-      "rest_exception": {"reason": "browser_secret_input", "note": "Carries a browser-supplied secret and cannot use a generated Connect client."}
-    },
-    {
-      "id": "credential_delete",
-      "path": "/api/v1/credentials/provision",
-      "method": "DELETE",
-      "summary": "Remove a declared user credential",
-      "description": "Deletes a credential by identity and field without accepting or returning its value.",
-      "category": "auth",
-      "rest_exception": {"reason": "browser_secret_input", "note": "Credential deletion is a browser REST exception."}
-    },
-    {
-      "id": "credential_test",
-      "path": "/api/v1/credentials/test",
-      "method": "POST",
-      "summary": "Test the declared OpenRouter credential",
-      "description": "Performs a minimal provider authentication check and returns validity metadata without returning the key.",
-      "category": "auth",
-      "rest_exception": {"reason": "browser_secret_input", "note": "Provider credential verification is a browser REST exception."}
-    },
-    {
       "id": "health",
       "path": "/health",
       "method": "GET",
@@ -98,6 +26,63 @@
       "rest_exception": {
         "reason": "ops_probe",
         "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client."
+      }
+    },
+    {
+      "id": "ai_generate_rest",
+      "path": "/api/v1/ai/generate",
+      "method": "POST",
+      "summary": "Generate a shell command with payment-required semantics",
+      "description": "Browser REST exception that preserves typed 402 credits refusals and resolves the upgrade destination at runtime.",
+      "category": "ai",
+      "request": {
+        "type": "object",
+        "properties": {
+          "context": "string",
+          "prompt": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "command": "string",
+          "provider": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Prompt missing"
+        },
+        {
+          "status": 402,
+          "code": "credits_required",
+          "description": "Routed inference requires credits"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "All AI providers failed"
+        }
+      ],
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "Connect transport maps resource exhaustion to 429; this browser endpoint preserves the paid-surface 402 contract.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
       }
     },
     {
@@ -559,6 +544,86 @@
       ]
     },
     {
+      "id": "continuity_integrity",
+      "path": "/vrooli.web_console.v1.continuity.ContinuityService/Integrity",
+      "method": "POST",
+      "summary": "Audit conversation continuity",
+      "description": "Read-only counts and a deterministic generation for local session, transcript, checkpoint, and workspace evidence.",
+      "category": "continuity"
+    },
+    {
+      "id": "continuity_reconcile",
+      "path": "/vrooli.web_console.v1.continuity.ContinuityService/Reconcile",
+      "method": "POST",
+      "summary": "Plan or apply catalog reconciliation",
+      "description": "Dry-run by default; apply=true writes only the Web Console catalog projection.",
+      "category": "continuity"
+    },
+    {
+      "id": "continuity_catalog_list",
+      "path": "/vrooli.web_console.v1.continuity.ContinuityService/ListCatalog",
+      "method": "POST",
+      "summary": "List canonical conversation records",
+      "description": "Exports stable Web Console source identities and aliases for local recovery and Agent Manager import.",
+      "category": "continuity"
+    },
+    {
+      "id": "continuity_search",
+      "path": "/vrooli.web_console.v1.continuity.ContinuityService/Search",
+      "method": "POST",
+      "summary": "Search all local conversation states",
+      "description": "Deterministic exact-text search across live, archived, recoverable, and orphaned retained events.",
+      "category": "continuity"
+    },
+    {
+      "id": "continuity_receipt_get",
+      "path": "/vrooli.web_console.v1.continuity.ContinuityService/GetReceipt",
+      "method": "POST",
+      "summary": "Inspect a lifecycle receipt",
+      "description": "Returns durable status for a lifecycle or reconciliation operation.",
+      "category": "continuity"
+    },
+    {
+      "id": "continuity_rollback",
+      "path": "/vrooli.web_console.v1.continuity.ContinuityService/Rollback",
+      "method": "POST",
+      "summary": "Rollback a catalog reconciliation",
+      "description": "Restores the catalog projection preimage captured by a manifest; durable conversation evidence is untouched.",
+      "category": "continuity"
+    },
+    {
+      "id": "continuity_publish",
+      "path": "/vrooli.web_console.v1.continuity.ContinuityService/Publish",
+      "method": "POST",
+      "summary": "Publish queued continuity records",
+      "description": "Drains a bounded retry-safe publication queue to Agent Manager; local recovery is independent of downstream availability.",
+      "category": "continuity"
+    },
+    {
+      "id": "devices_list",
+      "path": "/vrooli.web_console.v1.devices.DeviceService/List",
+      "method": "POST",
+      "summary": "List connected devices",
+      "description": "Returns the live browser devices and the sessions they are viewing.",
+      "category": "devices"
+    },
+    {
+      "id": "devices_disconnect",
+      "path": "/vrooli.web_console.v1.devices.DeviceService/Disconnect",
+      "method": "POST",
+      "summary": "Disconnect a device connection",
+      "description": "Closes one named connection owned by another device.",
+      "category": "devices"
+    },
+    {
+      "id": "devices_give_control",
+      "path": "/vrooli.web_console.v1.devices.DeviceService/GiveControl",
+      "method": "POST",
+      "summary": "Give terminal control to a device",
+      "description": "Transfers terminal-size and input authority to a live device connection.",
+      "category": "devices"
+    },
+    {
       "id": "events_list",
       "path": "/vrooli.web_console.v1.events.EventsService/List",
       "method": "POST",
@@ -572,6 +637,22 @@
           "total": "int32"
         }
       }
+    },
+    {
+      "id": "file_preview_archive_list",
+      "path": "/vrooli.web_console.v1.file_preview.FilePreviewService/ListArchive",
+      "method": "POST",
+      "summary": "Inspect bounded archive metadata",
+      "description": "",
+      "category": "file_preview"
+    },
+    {
+      "id": "file_preview_archive_open",
+      "path": "/vrooli.web_console.v1.file_preview.FilePreviewService/OpenArchiveEntry",
+      "method": "POST",
+      "summary": "Open a bounded virtual archive member",
+      "description": "",
+      "category": "file_preview"
     },
     {
       "id": "file_preview_resolve",
@@ -746,6 +827,54 @@
       }
     },
     {
+      "id": "file_preview_runtime",
+      "path": "/api/v1/sessions/{id}/file-previews/{previewId}/runtime/{resource}",
+      "method": "GET",
+      "summary": "Serve an isolated HTML preview and local presentation resources",
+      "description": "Serves the resolved HTML document at the runtime root and a bounded allowlist of CSS, JavaScript, image, font, audio, and video resources below that document's directory. The opaque preview id is session-bound; traversal and symlink escapes are rejected; responses are no-store and CSP-protected.",
+      "category": "file_preview",
+      "errors": [
+        {
+          "status": 400,
+          "code": "bad_request",
+          "description": "Malformed or traversal resource path"
+        },
+        {
+          "status": 403,
+          "code": "forbidden",
+          "description": "Resource escapes the HTML directory or has a disallowed type"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Unknown/expired preview id or missing resource"
+        },
+        {
+          "status": 413,
+          "code": "content_too_large",
+          "description": "Runtime resource exceeds the bounded size limit"
+        }
+      ],
+      "rest_exception": {
+        "reason": "stream_upgrade",
+        "note": "Browser-native document and subresource loading requires ordinary HTTP URLs and relative URL resolution; Connect cannot express this resource graph.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "error": {
+            "transport": "none",
+            "conformance": "none"
+          }
+        }
+      }
+    },
+    {
       "id": "grouptemplates_list_templates",
       "path": "/vrooli.web_console.v1.grouptemplates.GroupTemplatesService/ListTemplates",
       "method": "POST",
@@ -863,6 +992,32 @@
       "method": "POST",
       "summary": "Claude Code UserPromptSubmit hook receiver",
       "description": "Inbound webhook from the Claude Code CLI fired when the user submits a prompt. Appends the prompt to the conversation store so the UI sees user turns even when typed through the agent CLI rather than the web console. Authenticated by the X-Hook-Token header.",
+      "category": "hooks",
+      "rest_exception": {
+        "reason": "webhook_receiver",
+        "note": "Called by the Claude Code CLI, which we do not control. Request shape is dictated by Claude Code and cannot be wrapped in a Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "hooks_notification",
+      "path": "/api/v1/hooks/notification",
+      "method": "POST",
+      "summary": "Claude Code Notification hook receiver",
+      "description": "Inbound webhook from the Claude Code CLI fired when Claude raises a notification: a permission or question dialog (the session is waiting on the user) or the idle prompt (the turn is over). Feeds the session's activity detector, which publishes session_activity on the conversation hub. Authenticated by the X-Hook-Token header.",
       "category": "hooks",
       "rest_exception": {
         "reason": "webhook_receiver",
@@ -1051,6 +1206,14 @@
           "voice_skip_verification_total": "int64"
         }
       }
+    },
+    {
+      "id": "sessions_reopen",
+      "path": "/vrooli.web_console.v1.sessions.SessionsService/Reopen",
+      "method": "POST",
+      "summary": "Reopen a retained conversation",
+      "description": "Restores a retained conversation using the existing session lifecycle policy.",
+      "category": "sessions"
     },
     {
       "id": "sessions_create",

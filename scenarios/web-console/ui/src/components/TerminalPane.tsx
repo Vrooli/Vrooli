@@ -18,6 +18,8 @@ import { useEffectiveFontSize, useWorkspaceStore, type TerminalPaneStatus } from
 import { TERMINAL_THEMES, DEFAULT_THEME_ID } from "../consts/config";
 import { useTerminalVoiceShortcut } from "../hooks/useKeyboardListeners";
 import { PaneSelectionLayer } from "./PaneSelectionLayer";
+import { ScrollHistoryHint } from "./ScrollHistoryHint";
+import { useMessagesViewStore } from "../stores/useMessagesViewStore";
 import type { ConversationEvent } from "../api/conversation";
 import { usePaneSpeech, type PaneSpeechPlaybackHandle } from "../hooks/terminal/usePaneSpeech";
 import { usePaneSelection } from "../hooks/terminal/usePaneSelection";
@@ -51,6 +53,9 @@ interface TerminalPaneProps {
   onNeedsUnlock?: (payload: { sessionId: string; enable: () => Promise<boolean> } | null) => void;
 	onOpenFilePreview?: (path: string, source: PreviewSourceContext) => void;
 	viewMode?: "terminal" | "messages";
+	/** Whether this pane has a Messages view holding the agent transcript. Gates
+	 *  the "View in Messages" shortcut on the no-scrollback hint. */
+	supportsMessagesView?: boolean;
 }
 
 // [REQ:P0-007b] Terminal Key/Chord Mapping - expose grouped pane operations.
@@ -81,7 +86,7 @@ export interface TerminalPaneHandle {
 
 // [REQ:P0-002d] xterm.js Terminal Rendering
 const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
-	function TerminalPane({ sessionId, onExit, onVoiceStart, onVoiceStop, onTtsSpeakingChange, onTtsBackendReasonChange, onSpeakingEventChange, onNeedsUnlock, onConversationEventReceived, onOpenFilePreview, viewMode = "terminal" }, ref) {
+	function TerminalPane({ sessionId, onExit, onVoiceStart, onVoiceStop, onTtsSpeakingChange, onTtsBackendReasonChange, onSpeakingEventChange, onNeedsUnlock, onConversationEventReceived, onOpenFilePreview, viewMode = "terminal", supportsMessagesView = false }, ref) {
     const { t } = useTranslation();
     const paneStatus = useWorkspaceStore((state) => state.paneStatuses?.[sessionId] ?? null);
     const updatePaneStatus = useWorkspaceStore((state) => state.setPaneStatus);
@@ -94,6 +99,35 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
     const [pinchPreviewFontSize, setPinchPreviewFontSize] = useState<number | null>(null);
     const commitPinchFontSize = useCallback((size: number) => {
       useWorkspaceStore.getState().setDeviceFontSize(sessionId, size);
+    }, [sessionId]);
+
+    // Transient hint shown when a scroll-up gesture lands on a full-screen app
+    // that keeps no terminal scrollback (a Codex pane). The gesture otherwise
+    // dies silently and reads as a bug; the hint explains it and, when the pane
+    // has a Messages view, points at the transcript that does hold the history.
+    const [scrollHintVisible, setScrollHintVisible] = useState(false);
+    const scrollHintTimerRef = useRef<number | null>(null);
+    // Full-screen agent panes now actually scroll (the gesture is forwarded to
+    // the program), so the hint is no longer a "that didn't work" message — it
+    // is a one-time pointer to the fuller transcript in Messages. Showing it on
+    // every gesture would nag, so it fires at most once per pane mount.
+    const scrollHintShownRef = useRef(false);
+    const showScrollHint = useCallback(() => {
+      if (scrollHintShownRef.current) return;
+      scrollHintShownRef.current = true;
+      setScrollHintVisible(true);
+      if (scrollHintTimerRef.current !== null) window.clearTimeout(scrollHintTimerRef.current);
+      scrollHintTimerRef.current = window.setTimeout(() => {
+        setScrollHintVisible(false);
+        scrollHintTimerRef.current = null;
+      }, 4000);
+    }, []);
+    useEffect(() => () => {
+      if (scrollHintTimerRef.current !== null) window.clearTimeout(scrollHintTimerRef.current);
+    }, []);
+    const handleViewMessagesFromHint = useCallback(() => {
+      useMessagesViewStore.getState().setViewMode(sessionId, "messages");
+      setScrollHintVisible(false);
     }, [sessionId]);
 
     // Per-pane selectors with fallbacks for old persisted data
@@ -149,6 +183,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       predictionContainer: containerRef.current,
       onStatus: setPaneStatus,
       onFollowerModeChange: setFollowerMode,
+      onScrollNoHistory: showScrollHint,
       onExit,
       onReady: () => {
         // After socket connects and snapshot replay completes, re-fit to
@@ -350,6 +385,11 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
           onClose={selection.closeContextMenu}
         >
           {pinchPreviewFontSize !== null && <div data-testid="pinch-font-preview" role="status" className="absolute top-2 right-2 z-wc-chrome-raised rounded bg-slate-900/90 px-2 py-1 text-xs text-slate-100 shadow-lg">{pinchPreviewFontSize}px</div>}
+          <ScrollHistoryHint
+            visible={scrollHintVisible && viewMode === "terminal"}
+            canViewMessages={supportsMessagesView}
+            onViewMessages={handleViewMessagesFromHint}
+          />
           {appliedFrame && <DeviceFrame
             archetype={appliedFrame.archetype}
             chromeTier={appliedFrame.tier}

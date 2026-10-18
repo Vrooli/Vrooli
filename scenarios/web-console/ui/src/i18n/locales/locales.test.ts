@@ -101,11 +101,11 @@ const tokensPerBase = (catalog: Catalog): Map<string, Set<string>> => {
 };
 
 describe("locale catalogs", () => {
-  it("document readers have matching localized keys and interpolation tokens", () => {
-    const reference = catalogs.en?.readerPreview;
+  it.each(["readerPreview", "documentPreview"])("%s has matching localized keys and interpolation tokens", (section) => {
+    const reference = catalogs.en?.[section];
     if (!reference || !isCatalogObject(reference)) throw new Error("Missing reader preview copy");
     for (const [locale, catalog] of Object.entries(catalogs)) {
-      const copy = catalog.readerPreview;
+      const copy = catalog[section];
       if (!copy || !isCatalogObject(copy)) throw new Error(`Missing ${locale} reader preview copy`);
       expect(logicalKeys(copy)).toEqual(logicalKeys(reference));
       expect(tokensPerBase(copy)).toEqual(tokensPerBase(reference));
@@ -154,6 +154,18 @@ describe("locale catalogs", () => {
   if (!reference) {
     throw new Error("en.json must exist as the canonical reference catalog");
   }
+
+  it("inspection preview copy retains all locale keys and interpolation tokens", () => {
+    const referenceCopy = reference.inspectionPreview;
+    if (!isCatalogObject(referenceCopy)) throw new Error("Missing inspection copy");
+    const keys = logicalKeys(referenceCopy), tokens = tokensPerBase(referenceCopy);
+    for (const catalog of Object.values(catalogs)) {
+      const copy = catalog.inspectionPreview;
+      if (!isCatalogObject(copy)) throw new Error("Missing localized inspection copy");
+      expect(logicalKeys(copy)).toEqual(keys);
+      expect(tokensPerBase(copy)).toEqual(tokens);
+    }
+  });
 
   it("LOCALE_CODES matches the locale JSON files on disk", () => {
     // Catches the "added a code to LOCALE_CODES, forgot the JSON" failure mode

@@ -225,6 +225,7 @@ function WorkspacePaneShell({
             onNeedsUnlock={onNeedsUnlock}
 			onOpenFilePreview={(path, source) => { onOpenFilePreview?.(sessionId, path, source); }}
 			viewMode={viewMode}
+			supportsMessagesView={supportsMessagesView}
             ref={(handle) => {
               terminalHandleRef.current = handle;
               onTerminalRef(sessionId, handle);

@@ -1,3 +1,4 @@
+import type { PreviewArchive, ArchiveView, ArchiveSource } from "../../api/filePreview";
 import type {
   DirectoryEntry,
   DirectorySort,
@@ -34,6 +35,9 @@ export type PreviewStatus =
 // loaded state, so stepping back is instant while the preview id is still
 // live and falls back to a re-resolve once it has expired.
 export interface PreviewFrame {
+  archive?: PreviewArchive | null;
+  archiveView?: ArchiveView;
+  archiveSource?: ArchiveSource;
   requestedPath: string;
   model: PreviewModel;
   text: PreviewTextContent | null;
@@ -41,6 +45,9 @@ export interface PreviewFrame {
 }
 
 export interface PreviewState {
+  archive?: PreviewArchive | null;
+  archiveView?: ArchiveView;
+  archiveSource?: ArchiveSource;
   status: PreviewStatus;
   open: boolean;
   requestedPath: string | null;
@@ -70,18 +77,27 @@ export const IDLE_PREVIEW_STATE: PreviewState = {
 // is non-null only for text-kind previews, `listing` only for directories;
 // blob kinds read model.blobHref.
 export interface PreviewRendererProps {
+  archive?: PreviewArchive | null;
+  archiveView?: ArchiveView;
+  onArchiveFolder?: (folder: string) => void;
+  onArchiveEntry?: (entry: { id: string; name: string; }) => void;
+  onArchiveViewChange?: (view: Partial<ArchiveView>) => void;
   model: PreviewModel;
   text: PreviewTextContent | null;
   listing: PreviewListing | null;
   /** Renderers call this when native media/blob loading fails. */
   onError: (message: string) => void;
+  /** Resolve again to renew an expired or changed blob handle. */
+  onReopen?: () => void;
   /** Open another path in this viewer, pushing the current one onto history. */
   onNavigate: (path: string) => void;
   /** Append the next page of a directory listing. */
   onLoadMore: () => void;
   /** Re-list the current directory with a new ordering or hidden filter. */
-  onListOptionsChange: (options: { sort?: DirectorySort; showHidden?: boolean }) => void;
+  onListOptionsChange: (options: { sort?: DirectorySort; showHidden?: boolean; }) => void;
   loadingMore: boolean;
+  /** Retain the folder and its options while refreshing the current listing. */
+  listingRefreshing?: boolean;
 }
 
 export type PreviewRenderer = (props: PreviewRendererProps) => JSX.Element;

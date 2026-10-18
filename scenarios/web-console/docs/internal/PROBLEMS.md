@@ -1,5 +1,552 @@
 # Web Console — Known Problems and Risks
 
+
+## 2026-10-18 — Plain-text reader finish (W3, implementation complete)
+
+Operator feedback: “Looks great mostly! The txt files have an unnecessary container though and look a bit sloppy”
+Screenshot: uploads/c0823e24-7efe-47bb-8fdb-1288000e3f46/IMG_1713.png.
+Bounded polish task: remove the source reader's inset rounded frame; use compact,
+wrapped plain-text rows; suppress the duplicate idle line-count footer. Preserve
+source bytes, keyboard selection, search, copy, paging and existing inspector controls.
+The shared source surface stays edge-to-edge on desktop and phones. Validate the
+reader regressions, scoped checks and served archive-member/native text views.
+
+Removed the shared source surface's outer margin, rounded border and inset framing.
+Plain text uses 14px type, wrapping and 28px default rows; source code retains its
+existing density and wrap defaults. Gutters span wrapped paragraphs continuously.
+The lower status row is present only for selection, copy feedback or pagination.
+
+Validation: 242 preview/API tests pass across 38 files; all seven focused reader
+regressions pass after the final gutter alignment. TypeScript, scoped ESLint and
+whitespace checks pass. Served 320px/390px phone and 1440px desktop cases cover
+both archived README.txt and a local long-paragraph TXT file: zero frame border,
+radius or outer margin, full width, no horizontal overflow by default, 28px rows,
+exact copied content, wrap override, archive Back and zero scoped WCAG A/AA
+violations. Pointer/code and touch/code density defaults remain intact.
+
+Fresh finish reviews checked screenshot parity, wrapped gutter alignment, idle
+chrome, logical line/whitespace preservation, conditional status feedback, search,
+keyboard range selection, paging and original downloads. No further text-reader
+finding remained. The managed restart is healthy. Browser evidence:
+/tmp/wc-text-browser-proof.json and /tmp/wc-text-{320,390,1440}-{archive,local}.png.
+Checks: /tmp/wc-text-{preview-regressions,reader-final-tests,typecheck,lint,restart}.log.
+Scoped Test Genie unit run **20261018-144202-56595bde FAIL** (337 seconds).
+Retained evidence names the previously observed perf-doc orphan, approvals
+keyboard/REST/locale checks, existing image-provider policy finding and global
+function coverage 84.49% against 85%. No text-reader failure appears in the retained
+diagnostics. Final focused checks and served cases pass. Receipt and findings:
+/tmp/wc-text-testgenie-{result,findings}.json. Existing QA reports cover these suite
+issues; no duplicate defect or unrelated repair was added.
+
+
+
+## 2026-10-18 — Portable, bounded archive preview (W3, implementation complete)
+
+Operator instruction: “Sounds great. Please fully and properly implement this”
+following the accepted ZIP/TAR/TAR.GZ portability, read-only browsing and archive
+bomb protection design. Work shape: bounded convergence task. Deliver the archive
+contract in ARCHITECTURE.md, focused parser/store/transport/history regressions,
+preview regression checks, scoped Test Genie unit phase and served desktop/phone
+inspection. Preserve established Word/folder controls and UI. Stop only after
+implementation and evidence review; report any native-platform qualification gap
+precisely. Checkpoint here; no separate plan or Swarm goal is needed.
+
+Do not reuse File Tools extraction: its out-of-scope unsafe-path/unbounded-copy
+finding was already filed as knw-1792319454404803274. Archive preview uses no
+filesystem writes. Cross-compilation is portability evidence, not native OS QA.
+
+
+Implemented the Go standard-library archive inspector and typed ListArchive /
+OpenArchiveEntry RPCs with CLI parity. ZIP preflight bounds real central records
+before allocation; TAR/gzip scans charge skipped bodies, padding and trailer reads.
+Virtual member handles share their root's expansion budget, lifetime and pinned
+source identity. Immutable capabilities publish atomically. A bounded retained-byte
+store pins active blob responses so slow downloads cannot escape the eviction quota.
+No extraction, shell tools, nested auto-expansion, internal link following, host
+execution, or virtual-path resolution occurs. HTML/Markdown member source stays inert.
+
+The full-width browser uses existing inspection controls. Desktop has aligned
+columns; phones have sequential secondary facts. Folder/filter/sort/hidden/page
+state participates in drawer Back history, cancellation aborts archive RPC work,
+and stale/late results cannot replace the restored view. Current breadcrumbs share the drawer Back band and reveal
+the active folder, avoiding a duplicate navigation row. Returning to the root
+restores keyboard focus to that band. Unsupported/corrupt/encrypted/over-budget states preserve an
+original download, including transport errors after resolution.
+
+Fresh review 1 examined hostile ZIP/TAR structure, sparse/link handling, ordinal
+identity, UTF-8 serialization, portable path rules, actual decompression accounting,
+source replacement and root provenance. It found and corrected ambiguous ZIP end
+records and invalid UTF-8 names. Fresh review 2 examined publication/eviction,
+active-reader lifetime, nested budgets, cancellation/history, inert runtime routes
+and phone composition. It corrected active HTTP byte retention and intermediate
+capability publication. The resulting focused regressions pass. Closing reviews after green confirmed
+the virtual-only route boundary, active-reader quota accounting, shared nested
+budget and history/focus behavior. Unregistered archive MIME types use a binary
+fallback on every OS, covered by a focused regression. No further archive finding
+remained in those reviews.
+
+Validation: **241 PASS / 38 preview/API/drawer UI test files**, clean scoped ESLint,
+TypeScript and diff whitespace checks; Go archive/store/transport/adapter race tests
+and archive CLI tests pass. Proto owner generation and freshness verification pass;
+artifact 5d5504b038b7f116141282b7305ed9d7ab7086195786aadf1f8a5799030bedbe.
+Endpoint generation exposed missing registrations for existing continuity RPCs and
+Sessions.Reopen; their descriptors were restored, then the owner generator passed.
+
+Served Chrome proof covers 1440px desktop, 390px phone and 320px Arabic/Japanese:
+ZIP/TAR/TAR.GZ, virtual Word/Excel/HTML members, nested archives, filter/options,
+Back restoration, containment and scoped WCAG A/AA (zero violations). Six served
+edge cases cover corrupt/unsupported recovery, encryption, empty archives, traversal
+and member-size blocks, duplicate body identity, and bounded rows/full-index search.
+These browser checks are Chrome emulation, not real Safari/OS keyboard qualification.
+
+Cross-compilation succeeds for Windows amd64 and macOS amd64/arm64. Bridge inventory
+shows native minimouse/macOS online and swarminator/Linux online; no Windows node
+was listed. The discovered fleet gate validates pinned Git revisions, not this dirty
+workspace patch. No native macOS/Windows archive execution is claimed or host sync
+performed. Local Linux race tests are native execution evidence.
+
+Scoped Test Genie unit run **20261018-105511-83a4f066 FAIL** (369 seconds): retained
+command evidence names the existing perf/2026-10-15-long-session-performance.md doc
+orphan; approvals keyboard/REST/locale checks; existing useImageInspection provider
+policy; and global UI function coverage 84.38% against 85%. No archive failure appears
+in the retained diagnostics; no baseline attribution beyond these observed identities
+is claimed. The archive-focused final checks pass. Prior Word-task QA entries already
+cover those unrelated suite defects; no duplicate bug report was filed.
+
+A separate served desktop finding: the approvals notice can cover the dock's title /
+focus control. Pointer click is intercepted; keyboard Enter works. Filed through
+report-bug as **knw-1792320905192230758**; archive content remains usable. No approval
+was answered. See /tmp/wc-archive-initial-desktop.png.
+
+Evidence: /tmp/wc-archive-{go-final,cli-tests,ui-regression,typecheck,lint,proto-verify,
+endpoints,restart-final}.log; /tmp/wc-archive-browser-proof.json,
+/tmp/wc-archive-edge-proof.json; Test Genie artifact catalog and retained findings in
+/tmp/wc-archive-testgenie-{result,findings}.json. Desktop/phone captures:
+/tmp/wc-archive-{en,ar,ja}-{1440,390,320}-{root,folder,options}.png (actual combinations
+are listed by the proof). Openable examples live in fixtures/file-preview as
+release-package.zip, release-package.tar and release-package.tar.gz.
+
+
+## 2026-10-18 — Word reader and folder navigation (W3, scoped implementation complete)
+
+Operator feedback: “Let's do word docs! Also we currently have a way to view folders, but it doesn't look great and navigating back is bugged and closes the drawer. So do that too please”
+
+Operator clarification: “Arrow inside the preview”
+
+Bounded convergence task: implement the Word/folder contract in ARCHITECTURE.md,
+using the paired mockup and existing artifact chrome. Scope: preview transport,
+additive generated kind, governed parser/sanitizer dependencies, reader, folder
+composition and navigation, localized copy, focused tests and docs. No native goal.
+Existing operator-approved artifact direction applies; the explicit request
+provides authority to implement both surfaces without another design checkpoint.
+Keep going through friction; when progress stalls, step back — write why, then
+park, switch or shrink — instead of stopping or adding more of the same.
+
+Recall: existing artifact work is relevant; no folder-Back repair retrieved.
+Memory/scopes providers timed out, so prior-art completeness is unverified.
+W3 evidence: .docx has no classification/reader; directory is a dense row list
+with a horizontally overflowing filter/sort toolbar. Controller has cached Back
+history; the dismissal boundary needs served reproduction and a red/green test.
+Hypotheses: header Back overlaps the mobile dismiss grabber (test hit targets);
+Back remount/focus restoration triggers overlay dismissal (trace click/close);
+controller history loses open state (test restored state independently).
+
+Implementation findings: simple phone folder-to-folder Back initially stayed
+open. The old header removed/repositioned Back when returning to the root; the
+new navigation keeps a separate, stable Back control, disables it at the root,
+and restores focus to the navigation landmark. The red regression fails before
+this change because the stable root control is absent. Cached/controller state
+preserved open=true, rejecting history-state loss for the reproduced paths.
+The original dismissal's exact trigger was not independently isolated; verify
+its intended outcome in served folder/file, pending-load and failed-load paths.
+
+First browser review found sort refresh unmounted the folder/options through the
+shared loading branch. Keep the cached renderer mounted, mark it busy and update
+its listing in place. A second check found native disabling drops focused settings
+and allows Escape to reach underlying listeners. Use aria-disabled with guarded
+handlers during refresh so the dialog retains focus, and keep row navigation
+blocked until ready. Browser accessibility then found a non-focusable reading
+scroller; make document and table regions keyboard-focusable and labeled.
+Visual review also corrected mixed-direction metadata with bidi isolation, moved
+breadcrumb scrolling into the portal-mounted child, and removed an alpha suffix
+from the already-alpha border token (which had produced bright row rules).
+Other review fixes: bound HTML element count, retain paging under filters, safely
+format unknown dates, show current breadcrumb, move copying to the existing
+footer menu, and renew a stale blob capability through the controller on retry.
+Reuse the existing reading-range/outline hook and shared Office byte/ZIP bounds.
+
+Validation: **231 PASS / 37 preview/API/drawer files**, including real Word
+conversion, image handling/external-resource rejection, sanitizer attacks, worker
+bounds/timeout/cleanup, reading interactions, cached/pending/failed Back and sort
+refresh. Three scoped reader/inspection locale checks pass. Strict scoped lint,
+TypeScript/string and selector freshness pass; generated protobuf verification
+exits zero and production/lifecycle builds succeed. The final empty-folder touch
+refinement also passes all 14 folder tests. The runtime restarted healthy.
+
+Five served cases pass: 390/1440/320px English and 320px Japanese/Arabic. They
+cover folder filtering, sort/hidden refresh, nested folder/file Back, root
+retention and focus, stable hit-target geometry, current breadcrumb visibility,
+Word outline/search/font options, containment and scoped WCAG A/AA. Computed row
+borders match the shared token; the active theme uses a 26% alpha token, so a
+fixed 10% test expectation would misstate the theme contract. Six additional
+served edge cases cover hidden-only empty folders, filtered pagination and
+invalid/encrypted/oversized/empty Word documents with recovery/download.
+Chrome emulations do not certify native Safari or a real virtual keyboard.
+
+Fresh review 1: after the functional/visual fixes, reviewed conversion and
+sanitization boundaries, byte/element/image budgets, worker cancellation,
+capability renewal and controller request guards. Existing Office helpers and
+reader ranges are reused; no material correctness or maintainability finding.
+Fresh review 2: reviewed desktop, phone and RTL captures against the paired
+mockup, including options and scrolling. Current breadcrumb and isolated metadata
+are readable; borders follow theme tokens, navigation stays separate from
+dismissal, content has no decorative card, and empty actions use 44px targets.
+No remaining material finding in the assigned scope. Assigned Back behavior is
+verified; the original specific dismissal trigger remains unisolated as noted.
+Human design ratification and broad scenario certification are not claimed.
+
+Evidence: /tmp/wc-word-regressions-final.log, /tmp/wc-word-{go,lint,types,selectors}.log,
+/tmp/wc-word-proto-verify.log, /tmp/wc-word-runtime-final.log,
+/tmp/wc-word-folder-browser-{final.log,proof.json} and
+/tmp/wc-word-folder-edge-{browser.log,proof.json}. Captures:
+/tmp/wc-word-folder-{locale}-{width}-{folder,word,folder-options,word-options}.png.
+The openable fixtures are fixtures/file-preview/operations-brief.docx and fixtures/.
+Dependencies were approved/installed through SDA (Mammoth 1.13.0, DOMPurify 3.4.17);
+scenario dependency validation passes with existing governance warnings.
+
+Test Genie unit run **20261018-045829-e674a661 FAIL** (365s): known docs orphan
+perf/2026-10-15-long-session-performance.md; approvals keyboard/REST/locale assertions;
+untouched useImageInspection provider-policy finding; function coverage 84.51%
+against 85%. Findings and bounded command output were inspected through the
+opaque artifact catalog (/tmp/wc-word-{artifacts,findings}.json and unit.log).
+These match existing recorded categories; no baseline attribution or complete
+failure inventory is claimed. Existing report ids remain applicable; no duplicate
+reports or unrelated fixes were made. Work journal receipt: cffa4bcb-e64b-49e4-bade-8f67e9fd64b9.
+
+## 2026-10-18 — Diff content regression (W3, scoped repair complete)
+
+Operator feedback: “Thanks! That looks better. I think the diff view content has regressed though from before you did anything to it. The controls bar is definitely great, but the actual diff content doesn't look as nice and is missing the coloring for the removed lines and just in general looks sloppy”
+
+Follow-up operator feedback: “Looks nice but it doesn’t need to be in a container. That’s unnecessary clutter /home/matthalloran8/.vrooli/cache/vrooli/web-console/uploads/c0823e24-7efe-47bb-8fdb-1288000e3f46/IMG_1706.png”
+
+Bounded visual refinement: remove the diff canvas's outer margin, border and
+corner radius. Content should span the drawer immediately below file navigation.
+Keep the functional scroll region, accepted controls, coloring and line gutters.
+Validate with existing focused reader regressions and served phone/desktop bounds;
+this reversible spacing-only change does not require another broad certification
+run or a new test that merely snapshots class names.
+
+Verified: eight focused diff/parser regressions and scoped lint pass. The console
+restarted healthy at 00:34:44. Four served cases (390/1440px, unified/split) verify
+zero outer margin/border/radius, matching drawer left/right edges, direct placement
+below file navigation, preserved red/green colors and no scoped WCAG A/AA issues.
+Phone capture visually reviewed: /tmp/wc-diff-edgeless-en-390-real-unified.png.
+Evidence: /tmp/wc-diff-edgeless-{tests,browser,runtime}.log and
+/tmp/wc-diff-edgeless-browser-proof.json. Follow-up refinement is complete.
+
+
+
+Bounded repair: restore readable, compact red/green diff content in unified and
+split views while preserving the accepted controls. Reuse the source/change
+contract and paired mockup below. Finish with meaningful rendering/layout
+regressions, scoped lint/types, served phone/desktop color/scroll/alignment checks,
+and the relevant Test Genie phase. Preserve unrelated changes. No native goal.
+
+Prior art: recalled current toolbar work and inspected the HEAD diff reader.
+HEAD used defined red/emerald palette classes and compact ~21px lines. Current
+reader uses undefined bg-wc-danger, text-wc-danger-text and text-wc-success-text;
+Tailwind has error-text/error-detail and success instead. Recall providers for
+agent memory/scopes were unavailable; no prior fix for this symptom was retrieved.
+
+Hypotheses: (1) missing theme classes erase removal styling (confirm by generated
+CSS and served computed colors); (2) parser misclassification drops removed rows
+(reject if parsed kind/old coordinates remain correct); (3) excessive padding,
+per-line overflow and split sizing explain the visual regression (confirm by
+served line heights/scroll containers). Unit/parser evidence and computed browser
+styles, not class-name snapshots alone, must protect the repair.
+
+Content target: dense monospace rows; unmistakable muted red/green backgrounds,
+readable change text and matching number gutters; quiet context; aligned split
+pairs and a single horizontal canvas scrollbar when wrapping is disabled.
+Retain exact original copying, coordinates, navigation, paging and source fallback.
+
+Confirmed root cause: the generated-CSS regression fails against the prior reader
+because its removed row has no background-color declaration. It passes after
+using defined error-text/success utilities. Existing parser tests retain removed
+kinds and coordinates, rejecting parser loss. Served computed rows now read
+red rgb(252,165,165) / green rgb(74,222,128) with distinct 10% backgrounds.
+The first browser pass also confirms the previous 37px/padded-row shape is now
+24px for a short line and no code line has its own scroll container.
+
+Focused proof: **201 PASS / 31 preview/API/drawer files**, including the failing-
+before/passing-after CSS generation regression. Strict scoped lint and TypeScript/
+string freshness pass. Browser proof covers representative long/asymmetric and
+real repository patches, unified/split modes and wrapping on/off at 390/1440px,
+plus Arabic at 320px. Check computed colors, viewport containment, equal paired
+row geometry, one canvas scroller, absent split partners and exact patch copying.
+Two additional unwrapped-canvas checks scroll to the rightmost edge and confirm
+code remains within its own split cell (/tmp/wc-diff-scroll-proof.json). Final
+browser verification additionally checks that the short Go InstallName field
+stays on one physical line in the 320px unified view after gutter refinement.
+All **24 final served cases pass**, with zero scoped WCAG A/AA violations/page
+errors. The focused eight diff/parser cases, strict lint and types passed again
+after that final adjustment. The final console restart was healthy at 00:23:51.
+Work record: 4e6671c3-fa48-4150-90c1-f5a1e3f98ed2.
+Evidence: /tmp/wc-diff-{color-red,focused,regressions,lint,types,browser}.log,
+/tmp/wc-diff-browser-proof.json and desktop/phone captures. Native iPhone Safari
+is not certified. Relevant Test Genie unit run 20261018-041846-e2cec0b2 finished FAIL: the same
+previously recorded docs orphan, approvals keyboard/REST/locale assertions,
+useImageInspection provider policy and aggregate function floor (84.56% vs 85%).
+Durable findings were inspected through the opaque artifact catalog; local copy:
+/tmp/wc-diff-findings.json. No broad certification is claimed.
+
+Fresh review 1: the shared split grid aligns wrapped heights and column widths;
+number gutters use original coordinates with enough digits, missing partners are
+quiet hatched blanks, and pre elements inherit monospace styling without private
+scrollbars. Unwrapped long lines expand the common canvas in either mode.
+Fresh review 2: inspected representative desktop split and actual phone unified
+captures against the updated paired mockup. Red/green changes remain readable,
+context is neutral, heavy row rules and excessive padding are gone, and accepted
+controls retain their composition. Reviewing the actual Go patch at 320px then
+revealed avoidable wrapping from three-digit minimum gutters and generous insets.
+Reduce the minimum to two digits and narrow gutter/code insets; retain dynamic
+width for larger original coordinates. The final served 320px capture verifies that refinement.
+Analogous undefined text classes in the separate source/workbook error messages
+and structured-value renderer were filed as knw-1792297202457523817.
+
+
+
+## 2026-10-17 — Source, diffs, and Excel previews (W3, toolbar refinement complete)
+
+Latest operator feedback (implemented and scoped verification complete; human acceptance not claimed): “Why did you only link excel? You were working on 3 different file types. And I highlighted the part that looks amateur. Its amateur for the other 2 file tyoes you did recently as well /home/matthalloran8/.vrooli/cache/vrooli/web-console/uploads/c0823e24-7efe-47bb-8fdb-1288000e3f46/IMG_1705.jpeg”
+
+Toolbar-specific refinement: the marked phone controls mix a truncated worksheet
+picker with an in-flow form. Prior closed-menu captures did not prove the open
+controls. Keep the toolbar a stable identity/action row, give the worksheet its
+own full-width navigation row, and present settings in the existing responsive
+dialog with labeled sections, explicit view choices and a composed jump field.
+Use the close affordance (no grabber), support Escape/backdrop/return focus, and
+keep navigation focused at its destination. Verify open settings at 320/390px,
+forced phone table view, desktop and Arabic/Japanese. Link actual code/log, patch
+and workbook examples in the delivery. Do not claim real Safari verification.
+
+Boundary extension from open-settings interaction proof: nested ResponsiveDialog
+Escape can cascade to FullPageDrawer window listeners when dismissing the top
+surface exposes the next layer during the same event. Repair useOverlaySurface
+through its governed 1.4.8 draft: the focused top surface consumes Escape before
+window listeners. Keep inner controls' prevented Escape behavior. Add owner
+regressions before publishing; no preview-local global listener workaround.
+
+Package publication boundary: catalog export generation rejects 17 existing
+Command Center imports of evicted ProvenanceInk 0.1.2 and selects the previous
+verified artifact. To ship the overlay fix, migrate only those stale imports to
+released 0.1.3 through the normal adoption contract; retain all other content.
+The overlay draft explicitly pins current useFocusReturn 1.1.2 because its copied
+lock referenced the retired 1.1.1. Do not count a degraded fallback as the new fix.
+
+Toolbar validation (2026-10-18): **200 PASS / 31 preview/API/drawer files**;
+scoped strict lint, TypeScript/string and selector freshness pass. The owner
+Escape regression fails against 1.4.7 and passes against published 1.4.8;
+**14 PASS** overlay gesture/exit tests. Command Center type-check and **27 PASS**
+scene/shell tests validate the stale import migration. Catalog generation now
+reports zero broken consumer imports and the owner package selects the new
+verified artifact f55c7ff77448f7890b1cdb5c255059cc41ee27c8b47452773612668d24d4c9e2.
+The console restarted healthy at 00:05:52.
+
+**24 PASS** served cases cover source, logs, changes and workbook at 320/390/1440px,
+Japanese and Arabic at 320px, plus a 390x480 short viewport. All open options stay
+within the viewport with no scoped WCAG A/AA violations or page errors. Checks
+include native view selection, forced phone table, Shift-Tab containment, invalid
+and valid jumps, destination focus, Escape/backdrop dismissal, parent retention,
+trigger focus and a stable toolbar. **8 additional PASS** desktop/phone captures
+wait for selection transitions before visual review. These are Chrome emulations,
+not native iPhone Safari or virtual-keyboard certification. Temporary proof:
+/tmp/wc-toolbar-browser-proof.json, /tmp/wc-toolbar-capture-proof.json and captures
+/tmp/wc-toolbar-{locale}-{width}x{height}-{kind}-{open,closed}.png.
+
+Fresh review 1: confirmed bounded parsing/copying behavior remains covered; native
+radio groups preserve keyboard semantics; settings use the existing overlay
+owner and font inputs retain 16px mobile type. This review caught the Escape
+cascade and led to the owner regression/fix above.
+Fresh review 2: reviewed open and closed desktop/phone settings, table selection,
+Japanese/RTL and short surfaces. Forced phone table no longer pre-opens an
+inspector; explicit inspection has a back action and restores cell focus. A
+capture timing issue showed the previous radio highlight during its transition;
+settled captures and checked-state assertions confirm the selected mode.
+
+Broader receipts: Web Console unit run 20261018-035744-88297c90 fails the known
+docs orphan, approvals keyboard/REST and locale assertions, plus function coverage
+84.55% against 85%. A separate direct-render policy finding identifies the
+untouched useImageInspection.test.tsx (filed as knw-1792296322249006933).
+Command Center unit run 20261018-040612-8f8640fc fails the UI branch floor
+83.66% against 85%; no baseline attribution is claimed. Component contract
+ctr_c7de7039a8830918_09a1adc97fa9c48dfbdfcbc9 passes closure, source, contract and
+default/swipe stories; loading/error/review captures fail in BAS CaptureService
+(HTTP 500/readiness timeout), matching the earlier reported capture limitation.
+React Component Library unit run 20261018-040613-eb7683e4 also fails outside the
+focused overlay regressions: API design-style fixture paths and missing catalog
+fixtures, stale CLI primitive evidence, 22 UI assertions (including the ThemeSwitcher
+registry fixture), UI function/branch floors 82.78%/80.04% against 85%, and catalog
+conformance lint. Bounded evidence is retained in /tmp/wc-toolbar-rcl-findings.json;
+no complete failure inventory or baseline attribution is claimed. Command Center
+coverage finding: knw-1792296578219810150. No broad certification or human acceptance
+is claimed. RCL phase findings were filed as knw-1792296640374306042. Final work
+journal receipt: 33a2498d-2287-406a-b25e-b804fa11d48d; final lifecycle status is healthy.
+
+Operator feedback: “Let's do all 3! Make sure they're really well-done and professional . Especially excel since we currently can't view that at all”
+
+Bounded convergence task: work until the source/change/workbook contract in
+ARCHITECTURE.md is implemented and proven by focused UI/parser/worker/API tests,
+strict lint/types/generated freshness, build, scoped Test Genie unit phase and
+served desktop/phone interaction/accessibility checks. W3 evidence: CodeLinePreview
+has basic highlighting/wrap/font controls; DiffPreview has only colored patch
+lines; Excel has no kind or renderer. Scope is file-preview UI/API transport,
+additive proto enum through owner generation, localized copy/selectors, governed
+parser dependency and existing docs. Follow the paired desktop/phone mockup and
+existing artifact chrome. No editor, formula engine, macro execution or unrelated
+readiness certification. Preserve concurrent workspace changes.
+
+Review twice freshly after passing scoped checks, addressing correctness, input
+fidelity, lifecycle, maintainability and visual polish; retain findings here.
+Keep going through friction; when progress stalls, step back — write why, then
+park, switch or shrink — instead of stopping or adding more of the same.
+Blocked means a decision, credential, or approval you lack. Name it. Handoff
+changed, verified, remaining and unverified evidence here; never weaken checks.
+No native goal created; no separate plan. Prior limitations remain as recorded.
+
+
+Operator feedback (implemented and verified; human acceptance not claimed): “Continue please. But I'm looking at them right now. They could look better. You didn't make them as clean and polished as the others yet”
+
+Visual refinement: the first implementation has functional controls but lacks the
+finished hierarchy of the approved media/readers. Replace full-width gray form
+chrome with composed tool headers, clear artifact identity and compact options;
+frame the reading surface, refine source density and diff typography, add desktop
+worksheet tabs, and redesign cell details around the formatted value. Preserve
+phone row/cell flow and accessible labels. Judge served captures against this
+brief, not feature counts. Do not mark this feedback resolved until the visual
+pass and desktop/phone evidence are complete.
+
+Convergence findings resolved before final review:
+- Omitted long values were indistinguishable from blank cells; the workbook model
+  now records omission explicitly, disables copying unavailable values, and labels
+  partial previews. Merged blank cells retain their merged range. Sheet parsing
+  uses the first 30 metadata-selected sheets rather than parsing every sheet.
+- Search now reveals the first matching source page. Severity recognizes explicit
+  labels rather than incidental message words. Large diff hunks page at 400 rows.
+- Navigation closes its options and focuses the destination. Desktop source uses
+  denser rows while pointer-coarse selection targets remain 44px.
+- A second review found CRLF range copies could end in a lone separator CR, and
+  resizing a phone row inspector into a desktop grid could hide pagination. Both
+  now have focused regressions. Runtime registry fallbacks reject inherited keys
+  while retaining exhaustive enum mappings. Existing touched-file lint findings
+  were cleaned without weakening unknown-kind guards or protective tests.
+
+
+Boundary extension from served RTL evidence: FullPageDrawer 1.4.5 centers its
+grabber using logical inset-inline-start and physical negative translation. In RTL
+the handle sits at x=-128 on a 320px viewport, creating a 448px scrollable panel;
+focus/copy then shifts its content right by 12px. Fix the owner through the
+FullPageDrawer 1.4.6-draft.1 workflow, pairing physical left centering with physical
+translation. No released source is edited, and no consumer CSS workaround is used.
+Evidence: /tmp/wc-inspection-ar-probe.log and Arabic failure capture.
+
+
+**Earlier implementation proof, served at 23:44:17; superseded by the toolbar feedback and refinement above.**
+Code/logs now have literal search with match navigation, original-line navigation,
+exact selected-line copying, wrapping/font controls and explicit severity filters.
+Source highlighting is bounded at 150,000 characters/3,000 lines/10,000 characters
+per line; larger sources retain plain reading and 400-line paging. Literal search
+covers loaded text and the chosen severity, capped at 500 matches. A roving gutter
+supports arrow/Home/End navigation and Shift range selection. Search opens with
+focus and Escape closes it without dismissing the file drawer.
+
+Changes now have file/hunk navigation, complete loaded-file addition/deletion
+counts, correct old/new coordinates, unified and wide split views, wrapping,
+400-row hunk paging and source fallback for malformed/combined/oversized patches.
+Original copying and download retain the patch bytes. The parser accepts at most
+12,000 loaded patch lines. The visual pass adds composed identity headers, compact
+settings disclosures, restrained canvases and comparison labels.
+
+Excel (.xlsx/.xls/.xlsm/.xlsb) is a dedicated blob-backed proto/API/UI kind. The
+local SheetJS CE 0.20.3 worker preserves formatted values, raw values, formula
+text, original coordinates, blanks/false/zero, sheet order/visibility and merged
+ranges. Formulas/macros/links/HTML are never executed; saved results are not
+recalculated. Limits: 15 MiB compressed/input bytes, 64 MiB per ZIP entry and
+128 MiB declared ZIP expansion, ten seconds, 30 sheets, 2,000 physical rows,
+100 columns, 50,000 cell positions and four million displayed/raw/formula
+characters. Over-budget values are explicit omissions, not blank data. Fetches
+are streamed/bounded; stale workers terminate. Desktop has sticky grids, sheet
+tabs and a value-first cell inspector; phones drill from rows to cells with focus
+restoration. Search covers loaded cells/formulas; address navigation, paging,
+copying and explanatory error/download recovery remain available.
+Demo: fixtures/file-preview/operations-workbook.xlsx (three sheets).
+
+### UX Issues — resolved within this boundary
+
+The operator's visual feedback led to a second composition pass rather than a
+feature-only handoff: quiet icon/metadata headers, search on demand, contained
+settings, dense pointer source rows with full touch targets, borderless file/sheet
+selectors, framed reading surfaces, desktop sheet tabs, and formatted-value-first
+cell details with compact copy actions. Sheet/page/filter changes reset scroll;
+returning to a row reveals its restored focus. A phone inspector resized into a
+desktop grid retains pagination. The RTL grabber fix was published as the governed
+FullPageDrawer 1.4.6 release and linked through the owning adoption workflow; the
+selected runtime package was rebuilt with the control-plane package owner.
+
+Final proof: **205 PASS / 31 focused preview/drawer/API files**, including the
+existing preview families and ten client-wrapper compatibility cases. **36 PASS**
+new reader/parser/worker cases meet unchanged scoped coverage floors across ten
+modules: **99.17% lines/statements, 98% functions, 87.22% branches**. Scoped strict
+lint, TypeScript/string freshness, selector freshness, locale key/token parity,
+Go file-preview/handler tests, proto owner verification, dependency governance,
+production build and whitespace checks pass. Dependency governance retains its
+existing unrelated warnings. The final lifecycle restart is healthy at API 16382,
+UI 21233. All **28 served Chromium cases** pass with zero preview WCAG A/AA
+violations and zero page exceptions: twelve English cases at 1440/390/320px,
+eight Japanese/Arabic cases at 320px, and eight real/negative corpus cases.
+Corpus includes source, logs, a repository patch, original XLSX, XLS, XLSB,
+damaged-file recovery and byte-limit recovery. Arabic checks also assert a
+centered grabber and contained panel after copying. Captures were visually read.
+
+Two fresh final self-reviews after corrections found no material in-scope issue:
+1. Correctness, bounds, transport compatibility, stale work, input fidelity,
+   keyboard navigation and cleanup reviewed against passing focused evidence.
+2. Served desktop/phone/localized compositions compared with the refined brief;
+   long content, cell details, sheet changes, search, copying and accessibility
+   rechecked. Operator feedback is implemented; these reviews do not substitute
+   for independent acceptance or physical-device testing.
+
+Broader evidence remains red: Test Genie unit **20261018-032512-5801db51 FAIL**
+(about 338 seconds). API reports the known unmanifested perf documentation
+(TestDocsNoOrphans; knw-1792160172206667201). The UI snapshot has seven assertions:
+three intermediate preview/decoder mismatches (CRLF source selection and default
+warnings) were corrected and pass the settled scoped tests; the other failures
+are the existing approvals keyboard contract, REST allowlist and locale parity.
+Aggregate function coverage was **84.47%** against the unchanged 85% floor. This
+mutable snapshot is retained, not rewritten as a whole-scenario passing verdict.
+No full scenario certification is claimed.
+
+The FullPageDrawer component-owner test report
+ctr_700380e95fda57ca_09a1adc97fa9c48dfbdfcbc9 passes closure/source/story-contract
+checks but fails BAS screenshot/readiness capture stages. Direct served Chromium
+coverage is separate evidence, not a replacement passing component verdict.
+Reported capture failures: knw-1792294952927270620. Adoption also inserted a duplicate
+selector import and generated an empty drawer selector map; the editable registry
+import was corrected after the selector owner check, while the generated map was
+left owner-produced. Report: knw-1792294952078088054. No protective checks or tests
+were weakened. These owner-workflow defects remain outside this preview task.
+
+Evidence: /tmp/wc-inspection-{final-regressions,coverage,final-lint,final-types,
+final-go,locales,selector,dependency-validation,build,final-runtime}.log;
+/tmp/wc-inspection-{browser,localized,corpus}-proof.json;
+/tmp/wc-inspection-{320,390,1440,ja,ar,real}-*.png;
+/tmp/wc-inspection-{testgenie-result,native-findings,drawer-test,drawer-publish}.json.
+Temporary browser inputs are removed after verification; the workbook demo and
+proof captures remain. Work record: 9d039464-2b10-44ce-b57e-0013b295a252. Physical iPhone Safari and virtual-keyboard geometry on
+real devices are unmeasured. ZIP bounds use declared central-directory sizes;
+worker time/input/output limits do not claim a browser-process memory sandbox.
+
+
 ## 2026-10-17 — Markdown and JSON/YAML readers (W3)
 
 Bounded task: work until the approved Markdown/configuration reader contract in

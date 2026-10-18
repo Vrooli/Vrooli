@@ -68,6 +68,9 @@ export default function WorkspaceFilePreview({
 
   const viewerProps = {
     state: controller.state,
+ onArchiveFolder: controller.navigateArchiveFolder,
+ onArchiveEntry: controller.navigateArchiveEntry,
+ onArchiveViewChange: controller.setArchiveView,
     onHandoff: onHandoff ? (path: string) => { onHandoff(request.sessionId, path); } : undefined,
     onRun: onRun ? (path: string, text: string) => { onRun(request.sessionId, path, text); } : undefined,
     onClose,

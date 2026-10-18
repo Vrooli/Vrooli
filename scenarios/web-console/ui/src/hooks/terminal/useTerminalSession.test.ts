@@ -154,6 +154,43 @@ describe("reconnect presentation", () => {
   });
 });
 
+describe("scroll no-history hint", () => {
+  it("fires onScrollNoHistory for an empty scroll but not for an unsupported one", () => {
+    const socket = new SessionSocket();
+    const terminal = createTerminalStub();
+    const onScrollNoHistory = vi.fn();
+    const { unmount } = renderHook(() => useTerminalSession({
+      sessionId: "scroll-hint-session",
+      terminal: terminal as never,
+      createSocket: () => socket as unknown as WebSocket,
+      onScrollNoHistory,
+    }));
+
+    act(() => {
+      socket.readyState = SessionSocket.OPEN;
+      socket.onopen?.();
+    });
+    const message = (payload: Record<string, unknown>) => act(() => {
+      socket.onmessage?.({ data: JSON.stringify(payload) } as MessageEvent<string>);
+    });
+
+    // A backend-failure "unsupported" latches scroll off silently — no hint.
+    message({ type: "scroll", data: "unsupported" });
+    expect(onScrollNoHistory).not.toHaveBeenCalled();
+
+    // An "empty" scroll (fresh shell, no history) surfaces the hint.
+    message({ type: "scroll", data: "empty" });
+    expect(onScrollNoHistory).toHaveBeenCalledTimes(1);
+
+    // A "forwarded" scroll (full-screen agent — the gesture was forwarded to
+    // the program, which scrolled) also surfaces the one-time Messages pointer.
+    message({ type: "scroll", data: "forwarded" });
+    expect(onScrollNoHistory).toHaveBeenCalledTimes(2);
+
+    unmount();
+  });
+});
+
 describe("terminal debug output probe", () => {
 	it("marks the native application title when the rendered terminal receives the fixture output", () => {
 		document.title = "Web Console";

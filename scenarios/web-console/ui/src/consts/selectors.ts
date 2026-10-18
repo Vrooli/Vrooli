@@ -9,6 +9,24 @@ import { createSelectorRegistry, defineDynamicSelector, type LiteralSelectorTree
 export { defineDynamicSelector } from "@vrooli/ui-selectors";
 
 const literalSelectors = {
+  documentPreview: {
+    root: "file-preview-document",
+    article: "document-preview-article",
+    pane: "document-preview-pane",
+    search: "document-preview-search",
+    outline: "document-preview-outline",
+  },
+  inspectionPreview: {
+    navigation: 'file-preview-navigation',
+    sourceLines: 'inspection-source-lines',
+    sourceSearch: 'inspection-source-search',
+    sourceSearchToggle: 'inspection-source-search-toggle',
+    diffBody: 'inspection-diff-body',
+    workbook: 'inspection-workbook',
+    workbookGrid: 'inspection-workbook-grid',
+    workbookRows: 'inspection-workbook-rows',
+    workbookDetail: 'inspection-workbook-detail',
+  },
   readerPreview: {
     searchToggle: 'reader-search-toggle',
     outline: 'reader-outline',

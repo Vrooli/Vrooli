@@ -161,8 +161,23 @@ func (s *Server) dispatchInputMessage(
 			break
 		}
 		if err := sess.Scroll(msg.Lines); err != nil {
+			// "empty" means the pane simply had nothing above the viewport (a
+			// full-screen app with no tmux history); it is not a backend
+			// failure, so the client surfaces a hint without the permanent
+			// "unsupported" latch and re-enables scroll when the pane returns
+			// to a shell with real history.
+			data := "unsupported"
+			if errors.Is(err, errScrollNoHistory) {
+				data = "empty"
+			} else if errors.Is(err, errScrollForwardedToApp) {
+				// The terminal did scroll (the gesture was forwarded to the
+				// full-screen program). Tell the client so it releases the
+				// acknowledgement gate and points once at the full transcript in
+				// Messages — not a failure.
+				data = "forwarded"
+			}
 			_ = writeTerminalJSON(conn, writeMu, TerminalMessage{
-				Type: wireproto.MsgTypeScroll, Data: "unsupported", Reason: err.Error(),
+				Type: wireproto.MsgTypeScroll, Data: data, Reason: err.Error(),
 			})
 			break
 		}

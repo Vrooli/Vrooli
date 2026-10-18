@@ -67,27 +67,7 @@ func (h *connectHandler) Resolve(ctx context.Context, req *connect.Request[filep
 	if err != nil {
 		return nil, h.classify(err, "file_preview.Resolve")
 	}
-	return connect.NewResponse(&filepreviewv1.ResolveResponse{
-		PreviewId:            res.PreviewID,
-		InputPath:            res.InputPath,
-		ResolvedPath:         res.ResolvedPath,
-		Basename:             res.Basename,
-		Line:                 int32(res.Line),
-		HasLine:              res.HasLine,
-		ResolutionBasis:      res.ResolutionBasis,
-		PreviewKind:          kindToProto(res.Kind),
-		MimeType:             res.MIMEType,
-		SizeBytes:            res.SizeBytes,
-		MtimeUnixNano:        res.ModTimeUnixNano,
-		CanPreview:           res.CanPreview,
-		CanDownload:          res.CanDownload,
-		SupportsRange:        res.SupportsRange,
-		TextContentAvailable: res.TextContentAvailable,
-		ListingAvailable:     res.ListingAvailable,
-		BlobUrl:              res.BlobURL,
-		ExpiresUnixNano:      res.ExpiresUnixNano,
-		Warnings:             append([]string(nil), res.Warnings...),
-	}), nil
+	return connect.NewResponse(resolveToProto(res)), nil
 }
 
 func (h *connectHandler) GetTextContent(ctx context.Context, req *connect.Request[filepreviewv1.GetTextContentRequest]) (*connect.Response[filepreviewv1.GetTextContentResponse], error) {
@@ -202,6 +182,12 @@ func kindToProto(kind string) filepreviewv1.PreviewKind {
 		return filepreviewv1.PreviewKind_PREVIEW_KIND_AUDIO
 	case "video":
 		return filepreviewv1.PreviewKind_PREVIEW_KIND_VIDEO
+	case "archive":
+		return filepreviewv1.PreviewKind_PREVIEW_KIND_ARCHIVE
+	case "document":
+		return filepreviewv1.PreviewKind_PREVIEW_KIND_DOCUMENT
+	case "spreadsheet":
+		return filepreviewv1.PreviewKind_PREVIEW_KIND_SPREADSHEET
 	case "csv":
 		return filepreviewv1.PreviewKind_PREVIEW_KIND_CSV
 	case "diff":
@@ -285,4 +271,60 @@ func sourceContextToString(sc filepreviewv1.SourceContext) string {
 	default:
 		return ""
 	}
+}
+
+func resolveToProto(res ResolveResult) *filepreviewv1.ResolveResponse {
+	return &filepreviewv1.ResolveResponse{
+		ArchiveMember:        res.ArchiveMember,
+		PreviewId:            res.PreviewID,
+		InputPath:            res.InputPath,
+		ResolvedPath:         res.ResolvedPath,
+		Basename:             res.Basename,
+		Line:                 int32(res.Line),
+		HasLine:              res.HasLine,
+		ResolutionBasis:      res.ResolutionBasis,
+		PreviewKind:          kindToProto(res.Kind),
+		MimeType:             res.MIMEType,
+		SizeBytes:            res.SizeBytes,
+		MtimeUnixNano:        res.ModTimeUnixNano,
+		CanPreview:           res.CanPreview,
+		CanDownload:          res.CanDownload,
+		SupportsRange:        res.SupportsRange,
+		TextContentAvailable: res.TextContentAvailable,
+		ListingAvailable:     res.ListingAvailable,
+		BlobUrl:              res.BlobURL,
+		ExpiresUnixNano:      res.ExpiresUnixNano,
+		Warnings:             append([]string(nil), res.Warnings...),
+	}
+}
+
+func (h *connectHandler) ListArchive(ctx context.Context, req *connect.Request[filepreviewv1.ListArchiveRequest]) (*connect.Response[filepreviewv1.ListArchiveResponse], error) {
+	sessionID, id := strings.TrimSpace(req.Msg.SessionId), strings.TrimSpace(req.Msg.PreviewId)
+	if sessionID == "" || id == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("session_id and preview_id are required"))
+	}
+	res, err := h.deps.Service.ListArchive(ctx, sessionID, id)
+	if err != nil {
+		return nil, h.classify(err, "file_preview.ListArchive")
+	}
+	entries := make([]*filepreviewv1.ArchiveEntry, 0, len(res.Entries))
+	for _, e := range res.Entries {
+		entries = append(entries, &filepreviewv1.ArchiveEntry{EntryId: e.ID, Name: e.Name, Status: e.Status, SizeBytes: e.SizeBytes})
+	}
+	return connect.NewResponse(&filepreviewv1.ListArchiveResponse{Format: res.Format, Status: res.Status, Entries: entries}), nil
+}
+func (h *connectHandler) OpenArchiveEntry(ctx context.Context, req *connect.Request[filepreviewv1.OpenArchiveEntryRequest]) (*connect.Response[filepreviewv1.OpenArchiveEntryResponse], error) {
+	sessionID, id, entryID := strings.TrimSpace(req.Msg.SessionId), strings.TrimSpace(req.Msg.PreviewId), strings.TrimSpace(req.Msg.EntryId)
+	if sessionID == "" || id == "" || entryID == "" || len(entryID) > 8 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("session_id, preview_id and entry_id are required"))
+	}
+	res, err := h.deps.Service.OpenArchiveEntry(ctx, sessionID, id, entryID)
+	if err != nil {
+		return nil, h.classify(err, "file_preview.OpenArchiveEntry")
+	}
+	out := &filepreviewv1.OpenArchiveEntryResponse{Status: res.Status}
+	if res.Target != nil {
+		out.Target = resolveToProto(*res.Target)
+	}
+	return connect.NewResponse(out), nil
 }

@@ -1,18 +1,24 @@
-import { useMemo, useState } from "react";
+import type { ArchiveView, ArchiveEntry } from "../api/filePreview";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, ArrowLeft, Loader2, Maximize2, Minimize2, RotateCw, Send } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { strings } from "../consts/strings";
-import { basename as pathBasename, pathCrumbs } from "../lib/paths";
+import { selectors } from "../consts/selectors";
+import { basename as pathBasename, pathCrumbs, type PathCrumb } from "../lib/paths";
 import { IconButton } from "@vrooli/react-component-library/IconButton";
 import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1";
 import { FilePath } from "@vrooli/react-component-library/FilePath/1";
+import { ArchiveBreadcrumbs } from "./file-preview/renderers/ArchivePreview";
 import { rendererForKind } from "./file-preview/renderers";
 import type { DirectorySort, PreviewState } from "./file-preview/types";
 import { scriptRunPlan } from "../lib/fileExecution";
 
 interface MessagesFileViewerProps {
   state: PreviewState;
+ onArchiveFolder?: (folder:string)=>void;
+ onArchiveEntry?: (entry:Pick<ArchiveEntry,"id"|"name">)=>void;
+ onArchiveViewChange?: (view:Partial<ArchiveView>)=>void;
   /**
    * Hand this file to another session in the group.
    *
@@ -37,7 +43,7 @@ interface MessagesFileViewerProps {
 }
 
 export default function MessagesFileViewer({
-  state,
+  state, onArchiveFolder, onArchiveEntry, onArchiveViewChange,
   onHandoff,
   onRun,
   onClose,
@@ -72,15 +78,16 @@ export default function MessagesFileViewer({
     [model?.kind, model?.resolvedPath],
   );
 
-  const isLoading = status === "resolving" || status === "loadingText" || status === "loadingListing";
+  const listingRefreshing = status === "loadingListing" && Boolean(listing);
+  const isLoading = status === "resolving" || status === "loadingText" || (status === "loadingListing" && !listingRefreshing);
   const Renderer = model ? rendererForKind(model.kind) : null;
   const canGoBack = stack.length > 0;
 
   // The handoff sits beside Back, and only for a file with a resolved path:
   // there is nothing to hand over while the preview is still resolving, and a
   // directory listing is not a payload the operator meant to send.
-  const canHandoff = Boolean(onHandoff && displayPath && model?.kind !== "directory");
-  const canRun = Boolean(onRun && model?.kind === "code" && scriptRunPlan(displayPath, text?.content ?? ""));
+  const canHandoff = Boolean(onHandoff && !model?.archiveMember && displayPath && model?.kind !== "directory");
+  const canRun = Boolean(onRun && !model?.archiveMember && model?.kind === "code" && scriptRunPlan(displayPath, text?.content ?? ""));
 
   const titleEl = (
     <span
@@ -99,20 +106,8 @@ export default function MessagesFileViewer({
     </span>
   );
 
-  const headerActions = (canGoBack || canHandoff || canRun) ? (
+  const headerActions = (canHandoff || canRun) ? (
     <div className="flex shrink-0 items-center gap-1.5">
-      {canGoBack && (
-        <IconButton
-          onClick={onNavigateBack}
-          data-testid="file-preview-back"
-          aria-label={t(strings.messagesFileViewer.directoryBack)}
-          surface="soft"
-          shape="rounded"
-          className="shrink-0"
-        >
-          <ArrowLeft />
-        </IconButton>
-      )}
       {canHandoff && (
         <button
           type="button"
@@ -130,55 +125,23 @@ export default function MessagesFileViewer({
     </div>
   ) : null;
 
-  const headerExtra = (
-    <>
-      {crumbs.length > 0 ? (
-        // Scrolls horizontally rather than wrapping so a deep path never
-        // consumes the sheet's vertical space on a phone.
-        <nav
-          data-testid="file-preview-breadcrumbs"
-          aria-label={t(strings.messagesFileViewer.directoryPreview)}
-          className="mt-1 flex items-center gap-0.5 overflow-x-auto whitespace-nowrap text-xs text-wc-text-muted"
-        >
-          {crumbs.map((crumb, i) => {
-            const isLast = i === crumbs.length - 1;
-            return (
-              <span key={crumb.path} className="flex shrink-0 items-center gap-0.5">
-                {i > 0 && <span className="text-wc-text-faint">/</span>}
-                {isLast ? (
-                  <span className="px-1 font-medium text-wc-text-primary">{crumb.label}</span>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => { onNavigate(crumb.path); }}
-                    className="rounded px-1 py-0.5 transition hover:bg-wc-surface-input hover:text-wc-text-primary"
-                  >
-                    {crumb.label}
-                  </button>
-                )}
-              </span>
-            );
-          })}
-        </nav>
-      ) : (
-        <div className="mt-1 w-full min-w-0">
-          {displayPath ? (
-            <FilePath
-              path={displayPath}
-              showCopyButton
-              copyLabel={t(strings.messagesFileViewer.copyPath)}
-              copiedLabel={t(strings.messagesFileViewer.copied)}
-              testId="file-preview-path"
-              className="w-full text-xs text-wc-text-muted"
-            />
-          ) : (
-            <p className="min-w-0 truncate text-xs text-wc-text-muted">
-              {t(strings.messagesFileViewer.loadingFile)}
-            </p>
-          )}
-        </div>
-      )}
-    </>
+  const navigationRef = useRef<HTMLElement>(null), backFocusPending = useRef(false);
+  useEffect(() => {
+    if (!backFocusPending.current || isLoading) return;
+    backFocusPending.current = false;
+    const back = navigationRef.current?.querySelector<HTMLButtonElement>("[data-testid=file-preview-back]");
+    if (back && !back.disabled) back.focus(); else navigationRef.current?.focus();
+  }, [displayPath, isLoading, state.archiveView?.folder]);
+  const navigation = (model?.kind === "directory" || model?.kind === "archive" || canGoBack || (isLoading && backFocusPending.current)) ? (
+    <nav ref={navigationRef} tabIndex={-1} aria-label={t(strings.documentPreview.navigation)} data-testid={selectors.inspectionPreview.navigation}
+      className="flex min-w-0 shrink-0 items-center gap-1 border-b border-wc-default bg-wc-surface-raised px-2 py-1 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-wc-accent">
+      <IconButton type="button" onClick={() => { backFocusPending.current = true; onNavigateBack(); }} disabled={!canGoBack} data-testid="file-preview-back" aria-label={t(strings.documentPreview.back)} title={t(strings.documentPreview.back)} surface="ghost" shape="rounded" className="shrink-0"><ArrowLeft className="rtl:rotate-180" /></IconButton>
+      {model?.kind === "archive" ? <ArchiveBreadcrumbs folder={state.archiveView?.folder ?? ""} onNavigate={onArchiveFolder} /> : crumbs.length > 0 ? <PreviewBreadcrumbs crumbs={crumbs} onNavigate={onNavigate} /> : <span className="min-w-0 truncate px-2 text-xs text-wc-text-muted">{stack.at(-1)?.model.basename ?? basename}</span>}
+    </nav>
+  ) : null;
+  const headerExtra = model?.kind === "directory" ? null : (
+    <div className="mt-1 w-full min-w-0">{displayPath ? <FilePath path={displayPath} showCopyButton copyLabel={t(strings.messagesFileViewer.copyPath)} copiedLabel={t(strings.messagesFileViewer.copied)} testId="file-preview-path" className="w-full text-xs text-wc-text-muted" /> :
+      <p className="min-w-0 truncate text-xs text-wc-text-muted">{t(strings.messagesFileViewer.loadingFile)}</p>}</div>
   );
 
   const content = (
@@ -198,14 +161,15 @@ export default function MessagesFileViewer({
             {requestedPath && <p className="mt-2 break-all text-xs text-red-200/80">{t(strings.messagesFileViewer.requestedPrefix, { path: requestedPath })}</p>}
             <div className="mt-3 flex flex-wrap gap-2">
               {requestedPath && <button type="button" onClick={onReopen} data-testid="file-preview-reopen" className="inline-flex items-center gap-1.5 rounded-lg border border-red-400/40 bg-red-500/10 px-2.5 py-1.5 text-xs font-medium text-red-200 transition hover:bg-red-500/20"><RotateCw className="h-3.5 w-3.5" />{t(strings.messagesFileViewer.reopen)}</button>}
+              {model?.canDownload && model.blobHref && <a href={model.blobHref} download={model.basename} data-testid="file-preview-error-download" className="inline-flex min-h-11 items-center rounded-lg border border-red-400/40 px-3 text-xs font-medium text-red-200">{t(strings.messagesFileViewer.download)}</a>}
               {canGoBack && <button type="button" onClick={onNavigateBack} data-testid="file-preview-error-back" className="inline-flex items-center gap-1.5 rounded-lg border border-red-400/40 bg-red-500/10 px-2.5 py-1.5 text-xs font-medium text-red-200 transition hover:bg-red-500/20"><ArrowLeft className="h-3.5 w-3.5" />{t(strings.messagesFileViewer.directoryBack)}</button>}
             </div>
           </div>
         </div>
       )}
 
-      {!isLoading && (status === "ready" || status === "unsupported") && model && Renderer && (
-        <Renderer model={model} text={text} listing={listing} onError={onRendererError} onNavigate={onNavigate} onLoadMore={onLoadMore} onListOptionsChange={onListOptionsChange} loadingMore={loadingMore} />
+      {!isLoading && (status === "ready" || status === "unsupported" || listingRefreshing) && model && Renderer && (
+        <Renderer archive={state.archive} archiveView={state.archiveView} onArchiveFolder={onArchiveFolder} onArchiveEntry={onArchiveEntry} onArchiveViewChange={onArchiveViewChange} model={model} text={text} listing={listing} listingRefreshing={listingRefreshing} onReopen={onReopen} onError={onRendererError} onNavigate={onNavigate} onLoadMore={onLoadMore} onListOptionsChange={onListOptionsChange} loadingMore={loadingMore} />
       )}
     </>
   );
@@ -224,6 +188,7 @@ export default function MessagesFileViewer({
               </div>
             </div>
           </div>
+          {navigation}
           <div className="min-h-0 flex-1 overflow-hidden">{content}</div>
         </div>
       </aside>
@@ -241,9 +206,25 @@ export default function MessagesFileViewer({
       title={titleEl}
       headerActions={headerActions}
       headerExtra={headerExtra}
+      subheader={navigation}
       testId="messages-file-viewer-panel"
     >
       {content}
     </FullPageDrawer>
   );
+}
+
+
+function PreviewBreadcrumbs({ crumbs, onNavigate }: { crumbs: PathCrumb[]; onNavigate: (path: string) => void }) {
+  const current = useRef<HTMLSpanElement>(null), path = crumbs.at(-1)?.path;
+  // This component mounts with the actual portal content, after the drawer is
+  // present. A parent effect can run before the portal attaches its children.
+  useEffect(() => { current.current?.scrollIntoView({ block: "nearest", inline: "end" }); }, [path]);
+  return <div data-testid="file-preview-breadcrumbs" className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto whitespace-nowrap text-xs text-wc-text-muted [scrollbar-width:thin]">
+    {crumbs.map((crumb, index) => <span key={crumb.path} className="flex shrink-0 items-center gap-0.5">
+      {index > 0 && <span aria-hidden="true" className="text-wc-text-faint">/</span>}
+      {index === crumbs.length - 1 ? <span ref={current} aria-current="location" className="px-2 font-medium text-wc-text-primary" dir="auto">{crumb.label}</span> :
+        <button type="button" onClick={() => { onNavigate(crumb.path); }} className="min-h-11 rounded px-2 outline-none hover:bg-wc-surface-input hover:text-wc-text-primary focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-wc-accent"><bdi>{crumb.label}</bdi></button>}
+    </span>)}
+  </div>;
 }

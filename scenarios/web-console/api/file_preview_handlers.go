@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/gorilla/mux"
 
@@ -86,6 +88,24 @@ func (a *filePreviewAdapter) GetTextContent(_ context.Context, sessionID, previe
 	}
 	if !entry.TextContentAvailable {
 		return filePreviewH.TextResult{}, fmt.Errorf("preview kind has no inline text content: %w", filePreviewH.ErrPreviewUnavailable)
+	}
+	if entry.RootID != "" {
+		if err := a.srv.filePreviews.Fresh(entry); err != nil {
+			return filePreviewH.TextResult{}, mapFilePreviewError(err)
+		}
+		data := entry.Data
+		if !utf8.Valid(data) {
+			return filePreviewH.TextResult{}, filePreviewH.ErrPreviewUnavailable
+		}
+		truncated := int64(len(data)) > filepreview.DefaultMaxTextBytes
+		if truncated {
+			data = data[:filepreview.DefaultMaxTextBytes]
+			for !utf8.Valid(data) {
+				data = data[:len(data)-1]
+			}
+		}
+
+		return filePreviewH.TextResult{ResolvedPath: entry.ResolvedPath, Kind: string(entry.Kind), MIMEType: entry.MIMEType, Content: string(data), Truncated: truncated}, nil
 	}
 	content, truncated, readErr := a.srv.filePreviewResolver.ReadText(&filepreview.Target{
 		ResolvedPath:         entry.ResolvedPath,
@@ -168,10 +188,27 @@ func (s *Server) handleFilePreviewBlob(w http.ResponseWriter, r *http.Request) {
 	sessionID := vars["id"]
 	previewID := vars["previewId"]
 
-	entry, err := s.filePreviews.Lookup(sessionID, previewID)
+	entry, release, err := s.filePreviews.AcquireBlob(sessionID, previewID)
 	if err != nil {
 		// Unknown, expired, or session-mismatched id — never disclose which.
 		http.Error(w, "preview not found", http.StatusNotFound)
+		return
+	}
+
+	defer release()
+
+	if entry.RootID != "" {
+		if err := s.filePreviews.Fresh(entry); err != nil {
+			http.Error(w, "archive preview expired or changed; reopen the original archive", http.StatusConflict)
+			return
+		}
+		h := w.Header()
+		h.Set("Content-Type", entry.MIMEType)
+		h.Set("X-Content-Type-Options", "nosniff")
+		h.Set("Cache-Control", "no-store")
+		h.Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox")
+		h.Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": sanitizeContentDispositionFilename(entry.Basename)}))
+		servePreviewContent(w, r, entry.Basename, time.Time{}, bytes.NewReader(entry.Data))
 		return
 	}
 
@@ -234,7 +271,7 @@ func (s *Server) handleFilePreviewRuntime(w http.ResponseWriter, r *http.Request
 	resource := vars["resource"]
 
 	entry, err := s.filePreviews.Lookup(sessionID, previewID)
-	if err != nil || !isHTMLPreviewEntry(entry) {
+	if err != nil || entry.RootID != "" || !isHTMLPreviewEntry(entry) {
 		http.NotFound(w, r)
 		return
 	}
@@ -430,6 +467,9 @@ func sanitizeContentDispositionFilename(name string) string {
 // mapFilePreviewError translates filepreview.Error codes into the file_preview
 // handler sentinels so the Connect handler picks the right code.
 func mapFilePreviewError(err error) error {
+	if errors.Is(err, filepreview.ErrPreviewNotFound) {
+		return filePreviewH.ErrNotFound
+	}
 	var fe *filepreview.Error
 	if !errors.As(err, &fe) {
 		return err
@@ -448,4 +488,22 @@ func mapFilePreviewError(err error) error {
 	default:
 		return fmt.Errorf("%s", fe.Message)
 	}
+}
+
+func (a *filePreviewAdapter) ListArchive(ctx context.Context, sessionID, previewID string) (filePreviewH.ArchiveResult, error) {
+	res := a.srv.filePreviews.ListArchive(ctx, sessionID, previewID)
+	out := filePreviewH.ArchiveResult{Format: res.Format, Status: res.Status}
+	for _, e := range res.Entries {
+		out.Entries = append(out.Entries, filePreviewH.ArchiveEntry{ID: e.ID, Name: e.Name, Status: e.Status, SizeBytes: e.SizeBytes})
+	}
+	return out, nil
+}
+func (a *filePreviewAdapter) OpenArchiveEntry(ctx context.Context, sessionID, previewID, entryID string) (filePreviewH.ArchiveOpenResult, error) {
+	e, status := a.srv.filePreviews.OpenArchiveEntry(ctx, sessionID, previewID, entryID)
+	out := filePreviewH.ArchiveOpenResult{Status: status}
+	if e == nil {
+		return out, nil
+	}
+	out.Target = &filePreviewH.ResolveResult{PreviewID: e.ID, InputPath: e.ResolvedPath, ResolvedPath: e.ResolvedPath, Basename: e.Basename, ResolutionBasis: "archive", Kind: string(e.Kind), MIMEType: e.MIMEType, SizeBytes: e.SizeBytes, CanPreview: e.CanPreview, CanDownload: e.CanDownload, SupportsRange: true, TextContentAvailable: e.TextContentAvailable, BlobURL: filePreviewBlobURL(sessionID, e.ID), ExpiresUnixNano: e.ExpiresAt.UnixNano(), ArchiveMember: true}
+	return out, nil
 }

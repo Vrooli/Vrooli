@@ -1,6 +1,7 @@
-import type { ReactNode, Ref } from "react";
+import { useId, useRef, useState, type ReactNode, type Ref } from "react";
 import { IconButton } from "@vrooli/react-component-library/IconButton";
-import { ChevronDown, Download, ExternalLink, Loader2 } from "lucide-react";
+import { ResponsiveDialog } from "@vrooli/react-component-library/ResponsiveDialog/1";
+import { ArrowRight, ChevronDown, Download, ExternalLink, Loader2, Settings2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { strings } from "../../../consts/strings";
 import { cn } from "../../../lib/classnames";
@@ -50,4 +51,54 @@ export function ArtifactFooter({ model, metadata, children }: { model: PreviewMo
       </div>
     </div>
   </div>;
+}
+
+// Composed identity and tools for document inspectors. Media playback keeps its
+// transport chrome; readers need a quieter header above their working surface.
+export function InspectionHeader({ icon, title, description, children }: { icon: ReactNode; title: string; description: ReactNode; children: ReactNode }) {
+  return <div className="flex shrink-0 items-center gap-3 border-b border-wc-default bg-wc-surface-raised px-3 py-3 sm:px-4">
+    <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-wc-accent/15 bg-wc-accent/10 text-wc-accent [&>svg]:h-5 [&>svg]:w-5">{icon}</span>
+    <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold tracking-tight text-wc-text-primary">{title}</p><div className="mt-0.5 truncate text-[11px] text-wc-text-muted">{description}</div></div>
+    <div className="flex shrink-0 items-center gap-1">{children}</div>
+  </div>;
+}
+
+// Settings are portaled through the existing overlay owner. They cannot stretch
+// the toolbar, be clipped by its canvas, or leave controls behind the keyboard.
+export function InspectionOptions({ label, children }: { label: string; children: (close: () => void) => ReactNode }) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false), trigger = useRef<HTMLButtonElement>(null);
+  return <>
+    <IconButton ref={trigger} type="button" surface="ghost" size="md" aria-label={label} title={label} aria-haspopup="dialog" aria-expanded={open}
+      onClick={() => { setOpen(true); }} style={{ inlineSize: "2.75rem", blockSize: "2.75rem" }}><Settings2 aria-hidden="true" className="h-4 w-4" /></IconButton>
+    <ResponsiveDialog open={open} onClose={() => { setOpen(false); }} returnFocusRef={trigger} avoidKeyboard dismissAffordance="close" size="sm"
+      title={<span className="text-base font-semibold tracking-tight">{label}</span>} ariaLabel={label} closeLabel={t(strings.inspectionPreview.closeOptions)} testId="inspection-options">
+      <div className="wc-inspection-settings space-y-6 p-5">{children(() => { setOpen(false); })}</div>
+    </ResponsiveDialog>
+  </>;
+}
+
+export function InspectionSetting({ label, children }: { label: string; children: ReactNode }) {
+  return <div className="space-y-2.5"><p className="text-xs font-medium text-wc-text-muted">{label}</p>{children}</div>;
+}
+
+export function InspectionChoices({ label, value, options, onChange }: { label: string; value: string; options: { value: string; label: string }[]; onChange: (value: string) => void }) {
+  const name = useId();
+  return <fieldset className="wc-inspection-choices"><legend className="sr-only">{label}</legend>
+    {options.map((option) => <label key={option.value} className="min-w-0 flex-1">
+      <input type="radio" name={name} value={option.value} checked={value === option.value} onChange={() => { onChange(option.value); }} className="peer sr-only" />
+      <span className="flex min-h-11 items-center justify-center rounded-lg px-2 py-2 text-center text-xs font-medium text-wc-text-muted transition peer-checked:bg-wc-surface-raised peer-checked:text-wc-text-primary peer-checked:shadow-sm peer-focus-visible:ring-2 peer-focus-visible:ring-wc-accent">{option.label}</span>
+    </label>)}
+  </fieldset>;
+}
+
+export function InspectionJump({ label, value, invalid, placeholder, numeric, onChange, onGo }: { label: string; value: string; invalid: boolean; placeholder: string; numeric?: boolean; onChange: (value: string) => void; onGo: () => void }) {
+  const { t } = useTranslation(), id = useId();
+  return <form onSubmit={(event) => { event.preventDefault(); onGo(); }} className="space-y-2.5">
+    <label htmlFor={id} className="block text-xs font-medium text-wc-text-muted">{label}</label>
+    <div className="wc-inspection-jump flex min-w-0 items-center rounded-xl border border-wc-default bg-wc-surface-base p-1 focus-within:border-wc-accent focus-within:ring-1 focus-within:ring-wc-accent">
+      <input id={id} type="text" inputMode={numeric ? "numeric" : "text"} autoCapitalize="characters" autoComplete="off" spellCheck={false} aria-invalid={invalid} value={value} onChange={(event) => { onChange(event.target.value); }} placeholder={placeholder} dir="ltr" className="h-11 min-w-0 flex-1 border-0 bg-transparent px-3 font-mono text-base text-wc-text-primary outline-none" />
+      <button type="submit" className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-wc-accent px-4 text-sm font-semibold text-wc-accent-fg outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-wc-accent focus-visible:ring-offset-2">{t(strings.inspectionPreview.go)}<ArrowRight aria-hidden="true" className="h-4 w-4 rtl:rotate-180" /></button>
+    </div>
+  </form>;
 }

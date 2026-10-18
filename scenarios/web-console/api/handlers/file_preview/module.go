@@ -25,6 +25,8 @@ type Service interface {
 	Resolve(ctx context.Context, in ResolveInput) (ResolveResult, error)
 	GetTextContent(ctx context.Context, sessionID, previewID string) (TextResult, error)
 	ListDirectory(ctx context.Context, in ListInput) (ListResult, error)
+	ListArchive(ctx context.Context, sessionID, previewID string) (ArchiveResult, error)
+	OpenArchiveEntry(ctx context.Context, sessionID, previewID, entryID string) (ArchiveOpenResult, error)
 }
 
 // ResolveInput carries a resolve request.
@@ -37,6 +39,7 @@ type ResolveInput struct {
 // ResolveResult is the transport-neutral resolve result. Kind is the string
 // form of filepreview.Kind; the Connect handler maps it onto the proto enum.
 type ResolveResult struct {
+	ArchiveMember        bool
 	PreviewID            string
 	InputPath            string
 	ResolvedPath         string
@@ -127,4 +130,18 @@ func Module(svc Service, logger *log.Logger) module.Module {
 		},
 		Endpoints: Endpoints,
 	}
+}
+
+// ArchiveResult contains a bounded metadata index and a stable, localizable status.
+type ArchiveResult struct {
+	Format, Status string
+	Entries        []ArchiveEntry
+}
+type ArchiveEntry struct {
+	ID, Name, Status string
+	SizeBytes        int64
+}
+type ArchiveOpenResult struct {
+	Status string
+	Target *ResolveResult
 }

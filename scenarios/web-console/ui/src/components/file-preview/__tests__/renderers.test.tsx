@@ -21,6 +21,7 @@ const ALL_KINDS: PreviewKind[] = [
   "audio",
   "video",
   "csv",
+  "spreadsheet",
   "diff",
   "directory",
   "unsupported",
@@ -355,6 +356,7 @@ describe("code line preview font controls", () => {
   it("increases and decreases the font size within bounds", () => {
     const Renderer = renderers.code;
     render(<Renderer model={model({ kind: "code", resolvedPath: "/tmp/a.ts" })} text={text("line one\nline two", "code")} onError={() => {}} {...navProps} />);
+    fireEvent.click(screen.getByRole('button', { name: strings.inspectionPreview.options }));
     expect(screen.getByText("13px")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: strings.messagesFileViewer.increaseFontSize }));
     expect(screen.getByText("14px")).toBeInTheDocument();
@@ -366,6 +368,7 @@ describe("code line preview font controls", () => {
   it("toggles word wrap on the code viewer", () => {
     const Renderer = renderers.code;
     render(<Renderer model={model({ kind: "code", resolvedPath: "/tmp/a.ts" })} text={text("a very long line", "code")} onError={() => {}} {...navProps} />);
+    fireEvent.click(screen.getByRole('button', { name: strings.inspectionPreview.options }));
     const wrapButton = screen.getByRole("button", { name: strings.messagesFileViewer.enableWordWrap });
     expect(wrapButton).toHaveAttribute("aria-pressed", "false");
     fireEvent.click(wrapButton);

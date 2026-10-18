@@ -19,9 +19,11 @@
     "@xterm/xterm": "^6.0.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
+    "dompurify": "3.4.17",
     "express": "^4.18.2",
     "i18next": "^23.16.4",
     "lucide-react": "^0.424.0",
+    "mammoth": "1.13.0",
     "mermaid": "^11.4.1",
     "music-metadata": "11.12.3",
     "pdfjs-dist": "6.4.299",
@@ -33,6 +35,7 @@
     "remark-gfm": "^4.0.0",
     "shiki": "^1.24.0",
     "tailwind-merge": "^2.3.0",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "yaml": "2.9.1",
     "zustand": "^5.0.11"
   },
@@ -78,13 +81,13 @@
     "prebuild": "pnpm run selector:manifest",
     "pretest": "pnpm run selector:manifest && pnpm run strings:gen",
     "preview": "vite preview",
+    "selector:check": "node scripts/generate-selector-manifest.mjs --check",
     "selector:manifest": "node scripts/generate-selector-manifest.mjs",
     "strings:check": "node scripts/gen-strings.mjs --check",
     "strings:gen": "node scripts/gen-strings.mjs",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "type-check": "pnpm run strings:check && tsc --noEmit",
-    "selector:check": "node scripts/generate-selector-manifest.mjs --check"
+    "type-check": "pnpm run strings:check && tsc --noEmit"
   },
   "type": "module",
   "version": "1.0.0"

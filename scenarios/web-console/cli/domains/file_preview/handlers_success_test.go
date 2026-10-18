@@ -41,3 +41,21 @@ func TestHandlersRenderSuccessfulResponses(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func (filePreviewTestClient) ListArchive(context.Context, *connect.Request[filepreviewv1.ListArchiveRequest]) (*connect.Response[filepreviewv1.ListArchiveResponse], error) {
+	return connect.NewResponse(&filepreviewv1.ListArchiveResponse{Status: "ready", Format: "ZIP", Entries: []*filepreviewv1.ArchiveEntry{{EntryId: "0", Name: "safe.txt", Status: "ready"}}}), nil
+}
+func (filePreviewTestClient) OpenArchiveEntry(context.Context, *connect.Request[filepreviewv1.OpenArchiveEntryRequest]) (*connect.Response[filepreviewv1.OpenArchiveEntryResponse], error) {
+	return connect.NewResponse(&filepreviewv1.OpenArchiveEntryResponse{Status: "ready", Target: &filepreviewv1.ResolveResponse{PreviewId: "member", ArchiveMember: true}}), nil
+}
+func TestArchiveCommands(t *testing.T) {
+	h := &handlers{client: filePreviewTestClient{}}
+	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "session"}, {Name: "preview-id"}, {Name: "entry-id"}}}
+	ctx := cliapp.NewTestRunContext(cliapp.TestRunContextOptions{Schema: schema, Flags: map[string]string{"session": "s", "preview-id": "p", "entry-id": "0"}, JSON: true})
+	if err := h.archiveList(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := h.archiveOpen(ctx); err != nil {
+		t.Fatal(err)
+	}
+}

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -497,6 +498,87 @@ func TestTmuxPTY_Scroll_MovesPaneHistory(t *testing.T) {
 	}
 	if got := tmuxPaneField(t, sessionName, "#{scroll_position}"); got != "7" {
 		t.Fatalf("scroll_position after Scroll(3) = %q, want 7", got)
+	}
+}
+
+// TestTmuxPTY_Scroll_BackOnEmptyHistoryStaysLive is the other half of the
+// "wheel does nothing on a Codex pane" fix. A full-screen program on the
+// alternate screen keeps zero tmux history, so a back-scroll can reveal
+// nothing. Entering copy-mode anyway would strand the pane in a mode the user
+// never asked for and swallow their next keystroke. The server reports the
+// empty history (errScrollNoHistory) and leaves the pane live instead.
+func TestTmuxPTY_Scroll_BackOnEmptyHistoryStaysLive(t *testing.T) {
+	requireTmux(t)
+	script := writeTmuxPaneScript(t, "sleep 300\n")
+	p, err := tmuxPTYFactory(pty.LaunchSpec{SessionID: "test-scroll-empty", Shell: script, Cols: 80, Rows: 10})
+	if err != nil {
+		t.Fatalf("tmuxPTYFactory failed: %v", err)
+	}
+	sessionName := tmuxSessionPrefix + "test-scroll-empty"
+	t.Cleanup(func() {
+		_ = p.Kill()
+		p.Close()
+		_ = tmuxCmd("kill-session", "-t", sessionName).Run()
+	})
+	scroller := requireScroller(t, p)
+
+	if got := tmuxPaneField(t, sessionName, "#{history_size}"); got != "0" {
+		t.Fatalf("precondition: pane already has history: %q", got)
+	}
+
+	if err := scroller.Scroll(-5); !errors.Is(err, errScrollNoHistory) {
+		t.Fatalf("Scroll(-5) on an empty pane = %v, want errScrollNoHistory", err)
+	}
+	if got := tmuxPaneField(t, sessionName, "#{pane_in_mode}"); got != "0" {
+		t.Fatalf("pane_in_mode after empty back-scroll = %q, want 0 (must not enter copy-mode)", got)
+	}
+}
+
+// TestTmuxPTY_Scroll_BackOnAltScreenForwardsToApp covers a full-screen app on
+// the alternate screen with a non-zero #{history_size} left over from the shell
+// lines that existed before it launched. A size-only check would wrongly treat
+// that remnant as scrollable and strand the pane in copy-mode; #{alternate_on}
+// is the real signal that the pane owns the viewport and holds no tmux
+// transcript. The back-scroll must be forwarded to the program (reported as
+// errScrollForwardedToApp) and must NOT enter copy-mode. The idle `sleep` here
+// ignores the forwarded wheel input, which is fine: the contract under test is
+// the routing decision and the no-copy-mode guarantee, not the app's reaction.
+func TestTmuxPTY_Scroll_BackOnAltScreenForwardsToApp(t *testing.T) {
+	requireTmux(t)
+	// Emit real scrollback, then switch to the alternate screen (as a
+	// Codex/vim TUI does) and idle.
+	script := writeTmuxPaneScript(t, "i=1\nwhile [ $i -le 50 ]; do echo \"pre-$i\"; i=$((i+1)); done\nprintf '\\033[?1049h'\nsleep 300\n")
+	p, err := tmuxPTYFactory(pty.LaunchSpec{SessionID: "test-scroll-alt", Shell: script, Cols: 80, Rows: 10})
+	if err != nil {
+		t.Fatalf("tmuxPTYFactory failed: %v", err)
+	}
+	sessionName := tmuxSessionPrefix + "test-scroll-alt"
+	t.Cleanup(func() {
+		_ = p.Kill()
+		p.Close()
+		_ = tmuxCmd("kill-session", "-t", sessionName).Run()
+	})
+	scroller := requireScroller(t, p)
+
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		if tmuxPaneField(t, sessionName, "#{alternate_on}") == "1" {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	if got := tmuxPaneField(t, sessionName, "#{alternate_on}"); got != "1" {
+		t.Fatalf("precondition: pane not on the alternate screen: %q", got)
+	}
+	if got := tmuxPaneField(t, sessionName, "#{history_size}"); got == "0" {
+		t.Fatal("precondition: expected non-zero pre-launch history to prove the size-only check is insufficient")
+	}
+
+	if err := scroller.Scroll(-5); !errors.Is(err, errScrollForwardedToApp) {
+		t.Fatalf("Scroll(-5) on an alt-screen pane = %v, want errScrollForwardedToApp", err)
+	}
+	if got := tmuxPaneField(t, sessionName, "#{pane_in_mode}"); got != "0" {
+		t.Fatalf("pane_in_mode after alt-screen back-scroll = %q, want 0 (must not enter copy-mode)", got)
 	}
 }
 

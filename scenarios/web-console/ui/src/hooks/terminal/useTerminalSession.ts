@@ -86,6 +86,13 @@ export interface UseTerminalSessionOptions {
   predictionContainer?: HTMLElement | null;
   createSocket?: SocketFactory;
 	onFollowerModeChange?: (mode: FollowerMode) => void;
+	/**
+	 * Called when a back-scroll reached a backend that has no history to reveal
+	 * (a full-screen app like a Codex pane, which keeps no tmux scrollback).
+	 * The gesture did nothing, so the pane surfaces a hint instead of failing
+	 * silently. Not latched: a later scroll over real history still works.
+	 */
+	onScrollNoHistory?: () => void;
 }
 
 export type { TerminalPaneStatus } from "../../stores/useWorkspaceStore";
@@ -165,6 +172,7 @@ export function useTerminalSession({
   predictionContainer,
   createSocket,
 	onFollowerModeChange,
+	onScrollNoHistory,
 }: UseTerminalSessionOptions): UseTerminalSessionResult {
   const sessionReadyRef = useRef(false);
   const wsGenAtReadyRef = useRef(0);
@@ -200,8 +208,10 @@ export function useTerminalSession({
 
   const onExitRef = useRef(onExit);
   const onReadyRef = useRef(onReady);
+  const onScrollNoHistoryRef = useRef(onScrollNoHistory);
   onExitRef.current = onExit;
   onReadyRef.current = onReady;
+  onScrollNoHistoryRef.current = onScrollNoHistory;
 
   const wsUrl = buildSessionWsUrl(sessionId, typeof window === "undefined" ? undefined : identity);
 
@@ -508,6 +518,21 @@ export function useTerminalSession({
 			if (msg.data === "unsupported") {
 				serverScrollUnsupportedRef.current = true;
 				scrollController.notifyScroll();
+			} else if (msg.data === "empty") {
+				// The pane had no history above the viewport (a fresh shell).
+				// The gesture did nothing, so surface a hint — but do not latch:
+				// a shell with real history still scrolls. Release the
+				// acknowledgement gate either way.
+				scrollController.notifyScroll();
+				onScrollNoHistoryRef.current?.();
+			} else if (msg.data === "forwarded") {
+				// The pane is a full-screen agent (a Codex/Claude/OpenCode TUI):
+				// tmux holds no transcript, so the gesture was forwarded to the
+				// program, which scrolled its own view. The terminal did move —
+				// release the gate and point once at the full transcript in
+				// Messages, where the complete history lives.
+				scrollController.notifyScroll();
+				onScrollNoHistoryRef.current?.();
 			} else if (msg.ok === true) scrollController.notifyScroll();
 			break;
 		}

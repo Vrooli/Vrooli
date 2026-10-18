@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
+  listArchive, openArchiveEntry, DEFAULT_ARCHIVE_VIEW,
+  type ArchiveSource, type ArchiveView,
   getFilePreviewText,
   listDirectory,
   resolveFilePreview,
@@ -10,6 +12,7 @@ import {
   type PreviewModel,
   type PreviewSourceContext,
 } from "../../api/filePreview";
+import { archiveStatusKey } from "./archiveData";
 import { APIError } from "../../lib/errors";
 import { strings } from "../../consts/strings";
 import { IDLE_PREVIEW_STATE, type PreviewFrame, type PreviewState } from "./types";
@@ -32,15 +35,20 @@ export function useFilePreviewController(sessionId: string) {
   const { t } = useTranslation();
   const [state, setState] = useState<PreviewState>(IDLE_PREVIEW_STATE);
   const reqIdRef = useRef(0);
+  const requestAbortRef = useRef<AbortController | null>(null);
+
+  const cancelRequest = useCallback(() => { requestAbortRef.current?.abort(); reqIdRef.current++; }, []);
 
   // A workspace can keep the viewer mounted while the operator changes panes.
   // Reset the state when that viewer is repinned to another session so a
   // previous session's preview can never flash in the new session.
   useEffect(() => {
+    requestAbortRef.current?.abort();
     reqIdRef.current++;
     stateRef.current = IDLE_PREVIEW_STATE;
     setState(IDLE_PREVIEW_STATE);
-  }, [sessionId]);
+    return cancelRequest;
+  }, [sessionId, cancelRequest]);
 
   // stateRef mirrors the latest state so event handlers can read it without
   // doing work inside a setState updater — updaters must stay pure, since
@@ -70,21 +78,35 @@ export function useFilePreviewController(sessionId: string) {
       path: string,
       stack: PreviewFrame[],
       source?: PreviewSourceContext,
-      listOptions?: { sort: DirectorySort; showHidden: boolean },
+      listOptions?: { sort: DirectorySort; showHidden: boolean; },
+      archiveSource?: ArchiveSource,
+      archiveView?: ArchiveView,
     ) => {
+      requestAbortRef.current?.abort();
+      const request = new AbortController();
+      requestAbortRef.current = request;
       const reqId = ++reqIdRef.current;
       apply({
         ...IDLE_PREVIEW_STATE,
         status: "resolving",
         open: true,
         requestedPath: path,
-        stack,
+        stack, archiveSource, archiveView,
       });
 
       try {
-        const model = await resolveFilePreview(sessionId, path, source);
+        const opened = archiveSource ? await openArchiveEntry(sessionId, archiveSource, request.signal) : null;
+        if (opened && !opened.target) throw new Error(t(archiveStatusKey(opened.status)));
+        const model = opened?.target ?? await resolveFilePreview(sessionId, path, source);
         if (reqId !== reqIdRef.current) return;
 
+        if (model.kind === "archive") {
+          apply(s => ({ ...s, status: "loadingListing", model }));
+          const archive = await listArchive(sessionId, model.previewId, request.signal);
+          if (reqId !== reqIdRef.current) return;
+          apply(s => ({ ...s, status: "ready", model, archive, archiveView: archiveView ?? { ...DEFAULT_ARCHIVE_VIEW } }));
+          return;
+        }
         if (model.listingAvailable) {
           apply((s) => ({ ...s, status: "loadingListing", model }));
           const sort = listOptions?.sort ?? DEFAULT_SORT;
@@ -122,7 +144,7 @@ export function useFilePreviewController(sessionId: string) {
         apply((s) => ({ ...s, status: "error", error: messageFromError(err) }));
       }
     },
-    [apply, messageFromError, sessionId],
+    [apply, messageFromError, sessionId, t],
   );
 
   // openPreview starts a fresh viewing session from a message link or chip.
@@ -154,10 +176,11 @@ export function useFilePreviewController(sessionId: string) {
     const stack = current.stack.slice(0, -1);
 
     if (isExpired(previous.model)) {
-      void load(previous.requestedPath, stack, undefined, listOptionsOf(previous.listing));
+      void load(previous.requestedPath, stack, undefined, listOptionsOf(previous.listing), previous.archiveSource, previous.archiveView);
       return;
     }
 
+    requestAbortRef.current?.abort();
     // Invalidate anything still in flight so it cannot land on the frame we
     // are restoring.
     reqIdRef.current++;
@@ -168,6 +191,7 @@ export function useFilePreviewController(sessionId: string) {
       model: previous.model,
       text: previous.text,
       listing: previous.listing,
+      archive: previous.archive, archiveView: previous.archiveView, archiveSource: previous.archiveSource,
       error: null,
       loadingMore: false,
       stack,
@@ -198,10 +222,10 @@ export function useFilePreviewController(sessionId: string) {
         apply((s) =>
           s.listing
             ? {
-                ...s,
-                loadingMore: false,
-                listing: { ...page, entries: [...s.listing.entries, ...page.entries] },
-              }
+              ...s,
+              loadingMore: false,
+              listing: { ...page, entries: [...s.listing.entries, ...page.entries] },
+            }
             : { ...s, loadingMore: false },
         );
       } catch (err) {
@@ -215,7 +239,7 @@ export function useFilePreviewController(sessionId: string) {
   // changes cannot be applied to an in-progress paged read — the server binds
   // both into its continuation token — so this always restarts the listing.
   const setListOptions = useCallback(
-    (options: { sort?: DirectorySort; showHidden?: boolean }) => {
+    (options: { sort?: DirectorySort; showHidden?: boolean; }) => {
       const current = stateRef.current;
       if (!current.model || !current.listing) return;
 
@@ -248,8 +272,24 @@ export function useFilePreviewController(sessionId: string) {
   const reopen = useCallback(() => {
     const current = stateRef.current;
     if (!current.requestedPath) return;
-    void load(current.requestedPath, current.stack, undefined, listOptionsOf(current.listing));
+    void load(current.requestedPath, current.stack, undefined, listOptionsOf(current.listing), current.archiveSource, current.archiveView);
   }, [load]);
+
+
+  const navigateArchiveFolder = useCallback((folder: string) => {
+    const current = stateRef.current, frame = frameFrom(current);
+    if (!frame || !current.archive || !current.archiveView || current.archiveView.folder === folder) return;
+    reqIdRef.current++;
+    apply({ ...current, archiveView: { ...current.archiveView, folder, query: "", page: 1 }, stack: [...current.stack, frame].slice(-MAX_STACK_DEPTH) });
+  }, [apply]);
+  const navigateArchiveEntry = useCallback((entry: { id: string; name: string; }) => {
+    const current = stateRef.current, frame = frameFrom(current);
+    if (!frame || !current.model || !current.archive) return;
+    void load(`${current.model.resolvedPath}!/${entry.name}`, [...current.stack, frame].slice(-MAX_STACK_DEPTH), undefined, undefined, { previewId: current.model.previewId, entryId: entry.id });
+  }, [load]);
+  const setArchiveView = useCallback((view: Partial<ArchiveView>) => {
+    apply(current => current.archiveView ? { ...current, archiveView: { ...current.archiveView, ...view } } : current);
+  }, [apply]);
 
   const reportError = useCallback(
     (message: string) => {
@@ -259,6 +299,7 @@ export function useFilePreviewController(sessionId: string) {
   );
 
   const close = useCallback(() => {
+    requestAbortRef.current?.abort();
     reqIdRef.current++;
     apply(IDLE_PREVIEW_STATE);
   }, [apply]);
@@ -266,6 +307,7 @@ export function useFilePreviewController(sessionId: string) {
   return {
     state,
     openPreview,
+    navigateArchiveFolder, navigateArchiveEntry, setArchiveView,
     navigateTo,
     navigateBack,
     loadMore,
@@ -280,12 +322,13 @@ export function useFilePreviewController(sessionId: string) {
 // there is nothing worth returning to (an unresolved or errored view).
 function frameFrom(state: PreviewState): PreviewFrame | null {
   if (!state.model || !state.requestedPath) return null;
-  if (state.status !== "ready" && state.status !== "unsupported") return null;
+  if (state.status !== "ready" && state.status !== "unsupported" && !(state.status === "loadingListing" && state.listing)) return null;
   return {
     requestedPath: state.requestedPath,
     model: state.model,
     text: state.text,
     listing: state.listing,
+    archive: state.archive, archiveView: state.archiveView, archiveSource: state.archiveSource,
   };
 }
 
@@ -293,7 +336,7 @@ function frameFrom(state: PreviewState): PreviewFrame | null {
 // does not silently reset the view the operator chose.
 function listOptionsOf(
   listing: PreviewListing | null,
-): { sort: DirectorySort; showHidden: boolean } | undefined {
+): { sort: DirectorySort; showHidden: boolean; } | undefined {
   return listing ? { sort: listing.sort, showHidden: listing.showHidden } : undefined;
 }
 

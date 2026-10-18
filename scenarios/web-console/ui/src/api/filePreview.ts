@@ -5,6 +5,7 @@ import {
   FilePreviewService,
   PreviewKind as ProtoPreviewKind,
   SourceContext as ProtoSourceContext,
+  type ResolveResponse,
 } from "@vrooli/proto-types/web-console/v1/file_preview/file_preview_pb";
 
 import { transport, API_BASE } from "./client";
@@ -25,6 +26,9 @@ export type PreviewKind =
   | "pdf"
   | "audio"
   | "video"
+  | "archive"
+  | "document"
+  | "spreadsheet"
   | "csv"
   | "diff"
   | "directory"
@@ -41,13 +45,16 @@ const PREVIEW_KIND_BY_PROTO: Record<ProtoPreviewKind, PreviewKind> = {
   [ProtoPreviewKind.AUDIO]: "audio",
   [ProtoPreviewKind.VIDEO]: "video",
   [ProtoPreviewKind.CSV]: "csv",
+  [ProtoPreviewKind.DOCUMENT]: "document",
+  [ProtoPreviewKind.ARCHIVE]: "archive",
+  [ProtoPreviewKind.SPREADSHEET]: "spreadsheet",
   [ProtoPreviewKind.DIFF]: "diff",
   [ProtoPreviewKind.DIRECTORY]: "directory",
   [ProtoPreviewKind.UNSUPPORTED]: "unsupported",
 };
 
 function decodeKind(k: ProtoPreviewKind): PreviewKind {
-  return PREVIEW_KIND_BY_PROTO[k] ?? "unsupported";
+  return Object.prototype.hasOwnProperty.call(PREVIEW_KIND_BY_PROTO, k) ? PREVIEW_KIND_BY_PROTO[k] : "unsupported";
 }
 
 // decodeEntryKind is decodeKind for listing entries, which may legitimately
@@ -104,6 +111,7 @@ function encodeSourceContext(src?: PreviewSourceContext): ProtoSourceContext {
 // It is the single shape every renderer reads from — never the raw proto.
 export interface PreviewModel {
   previewId: string;
+  archiveMember?: boolean;
   inputPath: string;
   resolvedPath: string;
   basename: string;
@@ -196,7 +204,12 @@ export async function resolveFilePreview(
     path,
     sourceContext: encodeSourceContext(sourceContext),
   });
+  return decodeTarget(resp);
+}
+
+function decodeTarget(resp: ResolveResponse): PreviewModel {
   return {
+    archiveMember: resp.archiveMember,
     previewId: resp.previewId,
     inputPath: resp.inputPath,
     resolvedPath: resp.resolvedPath,
@@ -215,7 +228,7 @@ export async function resolveFilePreview(
     blobHref: previewBlobHref(resp.blobUrl),
     runtimeHref: previewRuntimeHref(resp.blobUrl),
     expiresMs: Number(resp.expiresUnixNano / 1_000_000n),
-    warnings: resp.warnings ?? [],
+    warnings: Array.isArray(resp.warnings) ? resp.warnings : [],
   };
 }
 
@@ -224,7 +237,7 @@ export async function resolveFilePreview(
 export async function listDirectory(
   sessionId: string,
   previewId: string,
-  options: { sort: DirectorySort; showHidden: boolean; pageToken?: string },
+  options: { sort: DirectorySort; showHidden: boolean; pageToken?: string; },
 ): Promise<PreviewListing> {
   const resp = await filePreviewClient.listDirectory({
     sessionId,
@@ -236,9 +249,9 @@ export async function listDirectory(
   return {
     resolvedPath: resp.resolvedPath,
     parentPath: resp.parentPath,
-    entries: (resp.entries ?? []).map((e) => ({
+    entries: (Array.isArray(resp.entries) ? resp.entries : []).map((e) => ({
       name: e.name,
-      entryType: ENTRY_TYPE_BY_PROTO[e.entryType] ?? "other",
+      entryType: Object.prototype.hasOwnProperty.call(ENTRY_TYPE_BY_PROTO, e.entryType) ? ENTRY_TYPE_BY_PROTO[e.entryType] : "other",
       kind: decodeEntryKind(e.previewKind),
       sizeBytes: Number(e.sizeBytes),
       mtimeMs: Number(e.mtimeUnixNano / 1_000_000n),
@@ -251,10 +264,10 @@ export async function listDirectory(
     totalEntries: resp.totalEntries,
     truncated: resp.truncated,
     nextPageToken: resp.nextPageToken,
-    effectiveSort: SORT_BY_PROTO[resp.effectiveSort] ?? "dirs_first_name",
+    effectiveSort: Object.prototype.hasOwnProperty.call(SORT_BY_PROTO, resp.effectiveSort) ? SORT_BY_PROTO[resp.effectiveSort] : "dirs_first_name",
     sort: options.sort,
     showHidden: options.showHidden,
-    warnings: resp.warnings ?? [],
+    warnings: Array.isArray(resp.warnings) ? resp.warnings : [],
   };
 }
 
@@ -271,4 +284,19 @@ export async function getFilePreviewText(
     truncated: resp.truncated,
     line: resp.hasLine ? resp.line : undefined,
   };
+}
+
+
+export interface ArchiveEntry { id: string; name: string; sizeBytes: number; status: string; }
+export interface PreviewArchive { format: string; status: string; entries: ArchiveEntry[]; }
+export interface ArchiveView { folder: string; query: string; sort: "name" | "size"; showHidden: boolean; page: number; }
+export const DEFAULT_ARCHIVE_VIEW: ArchiveView = { folder: "", query: "", sort: "name", showHidden: false, page: 1 };
+export interface ArchiveSource { previewId: string; entryId: string; }
+export async function listArchive(sessionId: string, previewId: string, signal?: AbortSignal): Promise<PreviewArchive> {
+  const resp = await filePreviewClient.listArchive({ sessionId, previewId }, { signal });
+  return { format: resp.format, status: resp.status, entries: resp.entries.map(e => ({ id: e.entryId, name: e.name, sizeBytes: Number(e.sizeBytes), status: e.status })) };
+}
+export async function openArchiveEntry(sessionId: string, source: ArchiveSource, signal?: AbortSignal): Promise<{ status: string; target: PreviewModel | null; }> {
+  const resp = await filePreviewClient.openArchiveEntry({ sessionId, previewId: source.previewId, entryId: source.entryId }, { signal });
+  return { status: resp.status, target: resp.target ? decodeTarget(resp.target) : null };
 }

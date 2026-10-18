@@ -34,6 +34,9 @@ const (
 	KindAudio       Kind = "audio"
 	KindVideo       Kind = "video"
 	KindCSV         Kind = "csv"
+	KindSpreadsheet Kind = "spreadsheet"
+	KindDocument    Kind = "document"
+	KindArchive     Kind = "archive"
 	KindDiff        Kind = "diff"
 	KindDirectory   Kind = "directory"
 	KindUnsupported Kind = "unsupported"
@@ -56,17 +59,18 @@ var textKinds = map[Kind]bool{
 // SVG is served as a blob (image/svg+xml) and rendered via a blob URL rather
 // than injected into the DOM, keeping it XSS-safe.
 var blobKinds = map[Kind]bool{
-	KindSVG:   true,
-	KindImage: true,
-	KindPDF:   true,
-	KindAudio: true,
-	KindVideo: true,
+	KindSVG:         true,
+	KindImage:       true,
+	KindPDF:         true,
+	KindSpreadsheet: true,
+	KindDocument:    true,
+	KindAudio:       true,
+	KindVideo:       true,
 }
 
 // listingKinds render from a bounded, paginated Connect listing rather than
-// from inline text or a byte stream. This is the third and last transport
-// class; a kind belongs to exactly one of the three (or to none, when it is
-// KindUnsupported).
+// from inline text or a byte stream. Archives use their own bounded virtual
+// index operation; ListingAvailable specifically describes ListDirectory.
 var listingKinds = map[Kind]bool{
 	KindDirectory: true,
 }
@@ -98,6 +102,9 @@ var extKind = map[string]Kind{
 	".mp3": KindAudio, ".wav": KindAudio, ".ogg": KindAudio, ".oga": KindAudio,
 	".m4a": KindAudio, ".aac": KindAudio, ".flac": KindAudio, ".opus": KindAudio,
 	".csv": KindCSV, ".tsv": KindCSV,
+	".docx": KindDocument,
+	".zip":  KindArchive, ".tar": KindArchive, ".tgz": KindArchive, ".gz": KindArchive, ".7z": KindArchive, ".rar": KindArchive, ".xz": KindArchive, ".zst": KindArchive,
+	".xlsx": KindSpreadsheet, ".xls": KindSpreadsheet, ".xlsm": KindSpreadsheet, ".xlsb": KindSpreadsheet,
 	".diff": KindDiff, ".patch": KindDiff,
 	".go": KindCode, ".ts": KindCode, ".tsx": KindCode, ".js": KindCode, ".jsx": KindCode,
 	".json": KindCode, ".yml": KindCode, ".yaml": KindCode, ".sh": KindCode, ".bash": KindCode,
@@ -117,6 +124,7 @@ var mimeByKind = map[Kind]string{
 	KindCSV:      "text/csv; charset=utf-8",
 	KindDiff:     "text/x-diff; charset=utf-8",
 	KindSVG:      "image/svg+xml",
+	KindDocument: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 }
 
 // classification is the result of inspecting a file's extension and (for
@@ -182,7 +190,7 @@ func mimeForKind(k Kind, ext string) string {
 	if m := mime.TypeByExtension(ext); m != "" {
 		return m
 	}
-	if k.UsesBlob() {
+	if k.UsesBlob() || k == KindArchive {
 		return "application/octet-stream"
 	}
 	return "text/plain; charset=utf-8"

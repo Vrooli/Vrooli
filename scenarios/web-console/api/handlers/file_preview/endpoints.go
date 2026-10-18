@@ -6,14 +6,16 @@ import (
 	filepreviewconnect "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/file_preview/file_preview_v1connect"
 )
 
-// Endpoints describes the file-preview module's public surface: three Connect
-// RPCs (resolve + bounded text content + directory listing) plus the opaque-id
+// Endpoints describes the file-preview module's public surface: typed resolve,
+// text, directory and archive inspection RPCs plus the opaque-id
 // blob/range and HTML runtime routes.
 // The blob route is a sanctioned REST exception (reason ops_probe): a byte-
 // range stream consumed directly by native <img>/<video>/<audio>/<iframe>
 // elements is browser-native and cannot be a Connect call — the same category
 // as terminal_ws. Bytes never travel through Connect.
 var Endpoints = []module.EndpointDescriptor{
+	{ID: "file_preview_archive_list", Path: filepreviewconnect.FilePreviewServiceListArchiveProcedure, Method: "POST", Summary: "Inspect bounded archive metadata", Category: "file_preview"},
+	{ID: "file_preview_archive_open", Path: filepreviewconnect.FilePreviewServiceOpenArchiveEntryProcedure, Method: "POST", Summary: "Open a bounded virtual archive member", Category: "file_preview"},
 	{
 		ID:          "file_preview_resolve",
 		Path:        filepreviewconnect.FilePreviewServiceResolveProcedure,

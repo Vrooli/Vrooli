@@ -19,9 +19,11 @@ const GroupName = "file-preview"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
-		"FilePreviewService.Resolve":        h.resolve,
-		"FilePreviewService.GetTextContent": h.text,
-		"FilePreviewService.ListDirectory":  h.list,
+		"FilePreviewService.Resolve":          h.resolve,
+		"FilePreviewService.GetTextContent":   h.text,
+		"FilePreviewService.ListDirectory":    h.list,
+		"FilePreviewService.ListArchive":      h.archiveList,
+		"FilePreviewService.OpenArchiveEntry": h.archiveOpen,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

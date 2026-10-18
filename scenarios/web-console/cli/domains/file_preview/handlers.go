@@ -240,3 +240,40 @@ func kindLabel(k filepreviewv1.PreviewKind) string {
 func sortLabel(s filepreviewv1.DirectorySort) string {
 	return strings.ToLower(strings.TrimPrefix(s.String(), "DIRECTORY_SORT_"))
 }
+
+func (h *handlers) archiveList(ctx cliapp.RunContext) error {
+	if ctx.Flag("session") == "" || ctx.Flag("preview-id") == "" {
+		return fmt.Errorf("--session and --preview-id are required")
+	}
+	resp, err := h.client.ListArchive(context.Background(), connect.NewRequest(&filepreviewv1.ListArchiveRequest{SessionId: ctx.Flag("session"), PreviewId: ctx.Flag("preview-id")}))
+	if err != nil {
+		return cliapp.WrapAPIError("file-preview archive-list", err, nil)
+	}
+	rows := []string{}
+	for _, e := range resp.Msg.Entries {
+		rows = append(rows, fmt.Sprintf("%s  %10d  %-12s  %q", e.EntryId, e.SizeBytes, e.Status, e.Name))
+	}
+	report := cliapp.ListReport{Summary: []string{resp.Msg.Format + ": " + resp.Msg.Status}, ResultsHeading: "Archive entries", Results: rows}
+	if ctx.JSON() {
+		return cliapp.PrintReportJSON(ctx.Stdout(), report)
+	}
+	return cliapp.RenderListReport(ctx.Stdout(), report)
+}
+func (h *handlers) archiveOpen(ctx cliapp.RunContext) error {
+	if ctx.Flag("session") == "" || ctx.Flag("preview-id") == "" || ctx.Flag("entry-id") == "" {
+		return fmt.Errorf("--session, --preview-id and --entry-id are required")
+	}
+	resp, err := h.client.OpenArchiveEntry(context.Background(), connect.NewRequest(&filepreviewv1.OpenArchiveEntryRequest{SessionId: ctx.Flag("session"), PreviewId: ctx.Flag("preview-id"), EntryId: ctx.Flag("entry-id")}))
+	if err != nil {
+		return cliapp.WrapAPIError("file-preview archive-open", err, nil)
+	}
+	rows := []string{}
+	if m := resp.Msg.Target; m != nil {
+		rows = append(rows, "preview_id: "+m.PreviewId, "blob_url: "+m.BlobUrl)
+	}
+	report := cliapp.ListReport{Summary: []string{resp.Msg.Status}, ResultsHeading: "Virtual preview", Results: rows}
+	if ctx.JSON() {
+		return cliapp.PrintReportJSON(ctx.Stdout(), report)
+	}
+	return cliapp.RenderListReport(ctx.Stdout(), report)
+}

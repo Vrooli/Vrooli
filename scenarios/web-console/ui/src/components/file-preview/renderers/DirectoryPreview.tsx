@@ -1,9 +1,11 @@
 import { useMemo, useState } from "react";
+import { useResizeObserver } from "@vrooli/react-component-library/useResizeObserver";
+import { ArtifactFrame, InspectionHeader, InspectionOptions, InspectionSetting, PreviewButton, PreviewLoading, previewSelectClass, previewTextButtonClass } from "./ArtifactChrome";
 import {
   AlertTriangle,
+  ArrowUp,
   ChevronRight,
   Eye,
-  EyeOff,
   File as FileIcon,
   FileCode,
   FileImage,
@@ -43,157 +45,49 @@ const SORT_OPTIONS = [
 // row calls the same onNavigate — files and directories alike — so the row has
 // no branch: the controller resolves the path and the resulting kind decides
 // which renderer appears next.
-export function DirectoryPreview({
-  model,
-  listing,
-  onNavigate,
-  onLoadMore,
-  onListOptionsChange,
-  loadingMore,
-}: PreviewRendererProps) {
-  const { t } = useTranslation();
+export function DirectoryPreview(props: PreviewRendererProps) { return <FolderBrowser key={props.model.previewId} {...props} />; }
+function FolderBrowser({ model, listing, onNavigate, onLoadMore, onListOptionsChange, loadingMore, listingRefreshing = false }: PreviewRendererProps) {
+  const { t, i18n } = useTranslation(), c = strings.documentPreview;
   const [query, setQuery] = useState("");
-
-  // Depend on listing?.entries rather than a defaulted local: `?? []` builds a
-  // fresh array each render, which would make the memo recompute every time.
+  const { ref, rect } = useResizeObserver<HTMLDivElement>(), wide = (rect?.width ?? 0) >= 640;
   const entries = useMemo(() => listing?.entries ?? [], [listing?.entries]);
   const filtered = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    if (!needle) return entries;
-    return entries.filter((e) => e.name.toLowerCase().includes(needle));
+    const needle = query.trim().toLocaleLowerCase();
+    return needle ? entries.filter(entry => entry.name.toLocaleLowerCase().includes(needle)) : entries;
   }, [entries, query]);
-
-  if (!listing) {
-    return (
-      <div className="flex h-full items-center justify-center gap-2 text-wc-text-muted">
-        <Loader2 className="h-4 w-4 animate-spin" />
-        <span>{t(strings.messagesFileViewer.loadingPreview)}</span>
-      </div>
-    );
-  }
-
+  if (!listing) return <PreviewLoading label={t(strings.messagesFileViewer.loadingPreview)} />;
   const sortDowngraded = listing.effectiveSort !== listing.sort;
-
-  return (
-    <div className="flex h-full flex-col" data-testid="file-preview-directory">
-      {/* Toolbar. Scrolls horizontally rather than wrapping, so a narrow
-          phone viewport never pushes the list below the fold. */}
-      <div className="shrink-0 border-b border-wc-default px-3 py-2">
-        <div className="flex items-center gap-2 overflow-x-auto pb-0.5">
-          <label className="relative flex min-w-[9rem] flex-1 items-center">
-            <Search className="pointer-events-none absolute left-2 h-3.5 w-3.5 text-wc-text-faint" />
-            <input
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={t(strings.messagesFileViewer.directoryFilter)}
-              data-testid="directory-filter"
-              className="w-full rounded-lg border border-wc-default bg-wc-surface-input py-1.5 pl-7 pr-2 text-xs text-wc-text-primary placeholder:text-wc-text-faint focus:border-wc-accent focus:outline-none"
-            />
-          </label>
-
-          <select
-            value={listing.sort}
-            onChange={(e) => onListOptionsChange({ sort: e.target.value as DirectorySort })}
-            aria-label={t(strings.messagesFileViewer.directorySortLabel)}
-            data-testid="directory-sort"
-            className="shrink-0 rounded-lg border border-wc-default bg-wc-surface-input px-2 py-1.5 text-xs text-wc-text-secondary focus:border-wc-accent focus:outline-none"
-          >
-            {SORT_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {t(o.label)}
-              </option>
-            ))}
-          </select>
-
-          <button
-            type="button"
-            onClick={() => onListOptionsChange({ showHidden: !listing.showHidden })}
-            aria-pressed={listing.showHidden}
-            data-testid="directory-toggle-hidden"
-            title={t(
-              listing.showHidden
-                ? strings.messagesFileViewer.directoryHideHidden
-                : strings.messagesFileViewer.directoryShowHidden,
-            )}
-            className={cn(
-              "inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-2 py-1.5 text-xs font-medium transition",
-              listing.showHidden
-                ? "border-wc-accent bg-wc-accent/10 text-wc-text-primary"
-                : "border-wc-default bg-wc-surface-input text-wc-text-secondary hover:text-wc-text-primary",
-            )}
-          >
-            {listing.showHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-          </button>
-        </div>
-
-        <div className="mt-1.5 flex items-center gap-2 text-[11px] text-wc-text-faint">
-          <span data-testid="directory-count" className="tabular-nums">
-            {t(strings.messagesFileViewer.directoryEntryCount, {
-              loaded: entries.length,
-              total: listing.totalEntries,
-            })}
-          </span>
-        </div>
-      </div>
-
-      {sortDowngraded && (
-        <div className="px-3 pt-2">
-          <PreviewNotice message={t(strings.messagesFileViewer.directorySortDowngraded)} tone="info" />
-        </div>
-      )}
-      {listing.truncated && (
-        <div className="px-3 pt-2">
-          <PreviewNotice message={t(strings.messagesFileViewer.directoryTruncated)} tone="info" />
-        </div>
-      )}
-
-      <div className="min-h-0 flex-1 overflow-auto">
-        {entries.length === 0 ? (
-          <EmptyState
-            showHidden={listing.showHidden}
-            onShowHidden={() => onListOptionsChange({ showHidden: true })}
-          />
-        ) : filtered.length === 0 ? (
-          <p className="px-4 py-8 text-center text-sm text-wc-text-muted" data-testid="directory-filter-empty">
-            {t(strings.messagesFileViewer.directoryFilterEmpty, { query: query.trim() })}
-          </p>
-        ) : (
-          <ul className="divide-y divide-wc-default/60">
-            {filtered.map((entry) => (
-              <EntryRow
-                key={entry.name}
-                entry={entry}
-                // Join from the path the server actually listed, not the
-                // model's, so a row can never address a different directory
-                // than the one whose entries are on screen.
-                onOpen={() => onNavigate(joinPath(listing.resolvedPath || model.resolvedPath, entry.name))}
-              />
-            ))}
-          </ul>
-        )}
-
-        {listing.nextPageToken && !query.trim() && (
-          <div className="px-3 py-3">
-            <button
-              type="button"
-              onClick={onLoadMore}
-              disabled={loadingMore}
-              data-testid="directory-load-more"
-              className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-wc-default bg-wc-surface-input px-3 py-2 text-xs font-medium text-wc-text-secondary transition hover:text-wc-text-primary disabled:opacity-60"
-            >
-              {loadingMore && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-              {t(
-                loadingMore
-                  ? strings.messagesFileViewer.directoryLoadingMore
-                  : strings.messagesFileViewer.directoryLoadMore,
-              )}
-            </button>
-          </div>
-        )}
-      </div>
+  const modified = (value: number) => value > 0 && Number.isFinite(new Date(value).getTime()) ? new Intl.DateTimeFormat(i18n.resolvedLanguage === "cimode" ? "en" : i18n.resolvedLanguage, { dateStyle: "medium" }).format(value) : "—";
+  return <ArtifactFrame testId="file-preview-directory" frameRef={ref}>
+    <InspectionHeader icon={<Folder />} title={t(c.folderTitle)} description={<span data-testid="directory-count">{t(strings.messagesFileViewer.directoryEntryCount, { loaded: entries.length, total: listing.totalEntries })}</span>}>
+      <PreviewButton label={t(c.up)} disabled={!listing.parentPath || listing.parentPath === listing.resolvedPath} onClick={() => { if (listing.parentPath) onNavigate(listing.parentPath); }}><ArrowUp className="h-4 w-4" /></PreviewButton>
+      <InspectionOptions label={t(c.folderOptions)}>{() => <>
+        <InspectionSetting label={t(strings.messagesFileViewer.directorySortLabel)}><select aria-disabled={listingRefreshing} value={listing.sort} onChange={event => { if (!listingRefreshing) onListOptionsChange({ sort: event.target.value as DirectorySort }); }} aria-label={t(strings.messagesFileViewer.directorySortLabel)} data-testid="directory-sort" className={`${previewSelectClass} w-full text-base`}>
+          {SORT_OPTIONS.map(option => <option key={option.value} value={option.value}>{t(option.label)}</option>)}
+        </select></InspectionSetting>
+        <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border border-wc-default px-3 py-2 text-sm"><Eye aria-hidden="true" className="h-4 w-4 text-wc-text-muted" /><span className="flex-1">{t(c.showHidden)}</span><input type="checkbox" aria-disabled={listingRefreshing} checked={listing.showHidden} onChange={() => { if (!listingRefreshing) onListOptionsChange({ showHidden: !listing.showHidden }); }} data-testid="directory-toggle-hidden" className="peer sr-only" /><span aria-hidden="true" className={cn("wc-inspection-toggle peer-focus-visible:ring-2 peer-focus-visible:ring-wc-accent", listing.showHidden && "wc-inspection-toggle-on")} /></label>
+      </>}</InspectionOptions>
+    </InspectionHeader>
+    <div className="shrink-0 border-b border-wc-default px-3 py-2 sm:px-4">
+      <label className="relative flex min-w-0 items-center"><Search aria-hidden="true" className="pointer-events-none absolute start-3 h-4 w-4 text-wc-text-muted" />
+        <input type="search" value={query} onChange={event => { setQuery(event.target.value); }} aria-label={t(strings.messagesFileViewer.directoryFilter)} placeholder={t(strings.messagesFileViewer.directoryFilter)} data-testid="directory-filter"
+          className="h-11 w-full min-w-0 rounded-lg border border-wc-default bg-wc-surface-input pe-3 ps-10 text-base text-wc-text-primary placeholder:text-wc-text-faint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wc-accent" />
+      </label>
+      {query.trim() && <p role="status" className="mt-2 text-xs text-wc-text-muted">{t(c.results, { count: filtered.length })}</p>}
+      {listing.nextPageToken && <p className="mt-2 text-xs leading-relaxed text-wc-text-muted">{t(c.loadedOnly, { count: entries.length })}</p>}
     </div>
-  );
+    {sortDowngraded && <PreviewNotice message={t(strings.messagesFileViewer.directorySortDowngraded)} tone="info" />}
+    {listing.truncated && <PreviewNotice message={t(strings.messagesFileViewer.directoryTruncated)} tone="info" />}
+    {wide && entries.length > 0 && <div aria-hidden="true" className="wc-folder-columns shrink-0 border-b border-wc-default bg-wc-surface-raised px-5 py-2 text-[11px] font-medium text-wc-text-muted"><span>{t(c.name)}</span><span className="text-end">{t(c.size)}</span><span className="text-end">{t(c.modified)}</span><span /></div>}
+    <div className="min-h-0 flex-1 overflow-auto overscroll-contain" aria-busy={listingRefreshing}>
+      {entries.length === 0 ? <EmptyState showHidden={listing.showHidden} onShowHidden={() => { onListOptionsChange({ showHidden: true }); }} /> : filtered.length === 0 ?
+        <div className="flex flex-col items-center gap-3 px-5 py-12 text-center"><Search aria-hidden="true" className="h-7 w-7 text-wc-text-faint" /><p className="max-w-sm break-all text-sm text-wc-text-muted" data-testid="directory-filter-empty">{t(strings.messagesFileViewer.directoryFilterEmpty, { query: query.trim() })}</p></div> :
+        <ul>{filtered.map(entry => <EntryRow key={entry.name} entry={entry} disabled={listingRefreshing} wide={wide} modified={modified(entry.mtimeMs)} onOpen={() => { onNavigate(joinPath(listing.resolvedPath || model.resolvedPath, entry.name)); }} />)}</ul>}
+      {listing.nextPageToken && <div className="px-4 py-4"><button type="button" onClick={onLoadMore} disabled={loadingMore || listingRefreshing} data-testid="directory-load-more" className={`${previewTextButtonClass} w-full`}>
+        {loadingMore && <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />}{t(loadingMore ? strings.messagesFileViewer.directoryLoadingMore : strings.messagesFileViewer.directoryLoadMore)}
+      </button></div>}
+    </div>
+  </ArtifactFrame>;
 }
 
 // EmptyState distinguishes a genuinely empty directory from one that only
@@ -211,7 +105,7 @@ function EmptyState({ showHidden, onShowHidden }: { showHidden: boolean; onShowH
           type="button"
           onClick={onShowHidden}
           data-testid="directory-empty-show-hidden"
-          className="inline-flex items-center gap-1.5 rounded-lg border border-wc-default bg-wc-surface-input px-2.5 py-1.5 text-xs font-medium text-wc-text-secondary transition hover:text-wc-text-primary"
+          className={previewTextButtonClass}
         >
           <Eye className="h-3.5 w-3.5" />
           {t(strings.messagesFileViewer.directoryShowHidden)}
@@ -221,62 +115,24 @@ function EmptyState({ showHidden, onShowHidden }: { showHidden: boolean; onShowH
   );
 }
 
-function EntryRow({ entry, onOpen }: { entry: DirectoryEntry; onOpen: () => void }) {
+function EntryRow({ entry, onOpen, wide, modified, disabled }: { entry: DirectoryEntry; onOpen: () => void; wide: boolean; modified: string; disabled: boolean }) {
   const { t } = useTranslation();
   const isDir = entry.entryType === "directory" || entry.kind === "directory";
-  const described = entryDetail(entry);
-  const detail = "literal" in described ? described.literal : t(described.key, described.params ?? {});
-
-  const body = (
-    <>
-      <EntryGlyph entry={entry} />
-      <span className="min-w-0 flex-1">
-        <span
-          className={cn(
-            "block truncate font-mono text-[13px]",
-            isDir && "font-semibold text-wc-accent",
-            entry.entryType === "symlink" && !entry.symlinkBroken && "text-wc-text-secondary",
-            entry.symlinkBroken && "text-amber-400 line-through decoration-amber-400/60",
-            !entry.canPreview && !entry.symlinkBroken && "text-wc-text-faint",
-          )}
-        >
-          {entry.name}
-          {isDir && "/"}
-        </span>
-        {entry.entryType === "symlink" && entry.symlinkTarget && (
-          <span className="block truncate font-mono text-[11px] text-wc-text-faint">
-            → {entry.symlinkTarget}
-          </span>
-        )}
-      </span>
-      <span className="shrink-0 text-right font-mono text-[11px] tabular-nums text-wc-text-faint">
-        {detail}
-      </span>
-      {entry.canPreview && <ChevronRight className="h-3.5 w-3.5 shrink-0 text-wc-text-faint" />}
-    </>
-  );
-
-  // Rows are at least 44px tall so they stay a comfortable touch target on a
-  // phone, where this drawer is a bottom sheet.
-  const rowClass = "flex w-full items-center gap-3 px-3 py-2.5 text-left min-h-[44px]";
-
-  if (!entry.canPreview) {
-    return (
-      <li>
-        <div className={cn(rowClass, "cursor-default opacity-70")} title={detail} data-testid="directory-entry">
-          {body}
-        </div>
-      </li>
-    );
-  }
-
-  return (
-    <li>
-      <button type="button" onClick={onOpen} data-testid="directory-entry" className={cn(rowClass, "transition hover:bg-wc-surface-raised")}>
-        {body}
-      </button>
-    </li>
-  );
+  const described = entryDetail(entry), detail = "literal" in described ? described.literal : t(described.key, described.params ?? {});
+  const type = isDir ? t(strings.documentPreview.folder) : entry.name.includes(".") ? entry.name.split(".").at(-1)?.toUpperCase() : t(strings.documentPreview.file);
+  const identity = <><span aria-hidden="true" className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg", isDir ? "bg-wc-accent/10 text-wc-accent" : "bg-wc-surface-raised text-wc-text-muted")}><EntryGlyph entry={entry} /></span>
+    <span className="min-w-0 flex-1"><span className={cn("block truncate text-sm font-medium text-wc-text-primary", entry.symlinkBroken && "text-wc-error-text line-through")} dir="auto" title={entry.name}>{entry.name}</span>
+      {entry.entryType === "symlink" && entry.symlinkTarget ? <span className="block truncate text-xs text-wc-text-muted" dir="auto">→ {entry.symlinkTarget}</span> :
+        !wide && <span className="mt-0.5 block truncate text-xs text-wc-text-muted">{[type, detail, modified !== "—" ? modified : ""].filter(Boolean).map((value, index) => <span key={index}>{index > 0 && <span aria-hidden="true"> · </span>}<bdi>{value}</bdi></span>)}</span>}
+      {!wide && entry.entryType === "symlink" && <span className="block truncate text-xs text-wc-text-muted"><bdi>{detail}</bdi></span>}
+    </span></>;
+  const body = <>
+    {wide ? <><span className="flex min-w-0 items-center gap-3">{identity}</span><span className="text-end text-xs tabular-nums text-wc-text-muted"><bdi>{detail}</bdi></span><span className="text-end text-xs tabular-nums text-wc-text-muted"><bdi>{modified}</bdi></span></> : identity}
+    <ChevronRight aria-hidden="true" className={cn("h-4 w-4 shrink-0 text-wc-text-faint rtl:rotate-180", !entry.canPreview && "invisible")} />
+  </>;
+  const rowClass = cn("min-h-16 w-full gap-3 border-b border-wc-default px-4 py-3 text-start sm:px-5", wide ? "wc-folder-columns" : "flex items-center");
+  return <li>{entry.canPreview ? <button type="button" disabled={disabled} onClick={onOpen} data-testid="directory-entry" className={cn(rowClass, "outline-none transition hover:bg-wc-surface-raised focus-visible:bg-wc-surface-input focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-wc-accent")}>{body}</button> :
+    <div data-testid="directory-entry" title={detail} className={cn(rowClass, "opacity-70")}>{body}</div>}</li>;
 }
 
 // EntryDetail describes the right-hand column: the fact that matters most for
@@ -320,11 +176,13 @@ function EntryGlyph({ entry }: { entry: DirectoryEntry }) {
 // "determined on open" case and gets the neutral file glyph.
 function KindGlyph({ kind, className }: { kind: PreviewKind | null; className: string }) {
   switch (kind) {
+    case "document":
     case "markdown":
     case "text":
       return <FileText className={className} />;
     case "code":
       return <FileCode className={className} />;
+    case "spreadsheet":
     case "csv":
       return <Table className={className} />;
     case "diff":

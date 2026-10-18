@@ -212,7 +212,7 @@ Two transports, by intent:
 1. **Metadata + bounded text — Connect-RPC** `FilePreviewService` ([CODE: api/handlers/file_preview]). `Resolve(path)` returns a `PreviewModel`: canonical path, basename, `:line`, classification (`PreviewKind`), MIME type, size, capability flags (`can_preview`/`can_download`/`supports_range`/`text_content_available`), an opaque short-lived `preview_id`, a same-origin `blob_url`, and warnings. `GetTextContent(preview_id)` returns ≤1 MiB UTF-8 for text kinds (markdown/code/text/csv/diff).
 2. **Bytes — REST blob/range** `GET|HEAD /api/v1/sessions/{id}/file-previews/{previewId}/blob` ([CODE: api/file_preview_handlers.go]). A sanctioned REST exception (reason `stream_upgrade`) because byte-range streaming consumed directly by native `<img>/<video>/<audio>/<iframe>` is browser-native and cannot be a Connect call. Binary/media bytes never travel through Connect.
 
-Resolution + classification + the preview-id store live in the transport-neutral [CODE: api/internal/filepreview] package (independently unit-tested, reusable). The UI side is registry-based: a viewer state machine ([CODE: ui/src/components/file-preview/useFilePreviewController.ts]) feeds a normalized `PreviewModel` to [CODE: ui/src/components/MessagesFileViewer.tsx], which routes on `kind` through the renderer registry ([CODE: ui/src/components/file-preview/renderers/index.ts]) — one dedicated renderer per kind (markdown, code/text, image/svg, pdf, audio, video, csv, diff, unsupported).
+Resolution + classification + the preview-id store live in the transport-neutral [CODE: api/internal/filepreview] package (independently unit-tested, reusable). The UI side is registry-based: a viewer state machine ([CODE: ui/src/components/file-preview/useFilePreviewController.ts]) feeds a normalized `PreviewModel` to [CODE: ui/src/components/MessagesFileViewer.tsx], which routes on `kind` through the renderer registry ([CODE: ui/src/components/file-preview/renderers/index.ts]) — one dedicated renderer per kind (markdown, code/text, image/svg, pdf, audio, video, csv, spreadsheet, document, diff, directory, unsupported).
 
 Flow: message link/chip → `openPreview(path)` → `Resolve` issues a session-bound `preview_id` → text kinds fetch `GetTextContent`; blob kinds load lazily via `blob_href` in the renderer. The blob handler re-stats the file on every request and returns 409 if size/mtime changed since resolve, 404 for unknown/expired/session-mismatched ids.
 
@@ -580,3 +580,181 @@ epoch are present. Controller input is translated into bounded typed pointer,
 wheel, and key actions against the selected display; clipboard sends enforce the
 64 KiB UTF-8 bound before transport. It does not construct node URLs or retain
 desktop credentials.
+
+## Source, change, and workbook inspection
+
+The approved artifact-inspection concept extends to code/logs, patches, and Excel.
+Reuse semantic artifact chrome and RCL controls; do not introduce a separate palette.
+The surfaces are read-only, with original download/copy preserved.
+
+- Source: literal in-file search with next/previous matches; go to an original line;
+  click/Shift-click line selection and exact selected-line copying; wrap/text size.
+  Logs expose optional severity filtering while retaining original line numbers.
+  Bound syntax highlighting and rendered rows; disclose partial text and search scope.
+- Changes: parse unified patches into files/hunks and old/new line numbers. Show
+  additions/deletions, file/hunk navigation, wrap and unified/split modes. Wide drawers
+  compare old/new columns; phones default to unified changes. Unsupported patch
+  syntax retains the original source and download rather than inventing a diff.
+- Workbooks: classify .xlsx/.xls/.xlsm/.xlsb as a blob-backed spreadsheet kind.
+  Parse locally in a terminating worker, with bounded fetch, time, sheet, row,
+  column and cell budgets. Never execute macros, formulas, HTML or hyperlinks.
+  Surface saved values and formula text separately; cached values may be absent
+  or stale. Display sheet visibility, merged ranges and explicit bounded-preview
+  notices. Preserve original coordinates, blank/false/zero values, numeric/date
+  formatting, sheet order and source download. No recalculation or editing.
+  Desktop uses a sticky-header grid and cell inspector; narrow drawers show row
+  summaries leading to row/cell details with focus restoration. Provide search of
+  loaded cells, sheet selection, paging, address navigation and cell copying.
+  Corrupt/encrypted/unsupported workbooks retain explanatory recovery/download.
+
+Dependency choice: SheetJS CE 0.20.3 from its pinned official distribution
+(https://docs.sheetjs.com/docs/getting-started/installation/nodejs/), governed by
+Scenario Dependency Analyzer. The stale npm xlsx release is excluded. ExcelJS
+was considered but lacks legacy XLS reading. Code loads only in the workbook
+worker, which is destroyed on close/source change/timeout.
+
+Mockup: docs/mockups/source-diff-workbook-previews.svg. Established preview concept
+and the operator's explicit “all 3” authorization govern this scoped continuation.
+
+Visual refinement after operator review: source, changes and workbooks use a
+composed artifact header with an icon tile, descriptive metadata and compact
+tools. Options are contained disclosures, search opens on demand, and reading
+canvases have a restrained border/radius with intentional spacing. Change review
+uses explicit comparison headers and colored counts. Workbooks add desktop sheet
+tabs and a value-first cell inspector with icon copy actions. Phone toolbar
+controls retain sheet context without a second permanent header.
+
+Workbook preview budgets are 15 MiB input, 64 MiB per ZIP entry/128 MiB declared
+ZIP expansion, ten seconds, 30 sheets, 2,000 rows, 100 columns, 50,000 positions,
+and four million serialized value/formula characters. Omitted values are explicit.
+Source and patch views page at 400 rows; patch parsing is capped at 12,000 lines.
+The FullPageDrawer 1.4.6 owner fix pairs physical centering/translation so RTL does
+not create horizontal scrolling. Scoped qualification and broader limitations
+are retained in docs/internal/PROBLEMS.md.
+
+Toolbar refinement (2026-10-18): source, changes and workbook tools keep a stable
+identity row. Workbook sheet navigation gets its own full-width row on phones.
+Reading controls use the existing ResponsiveDialog with explicit close affordance,
+labeled settings sections, segmented view choices and aligned jump fields; opening
+settings cannot stretch or clip the preview toolbar. Escape/backdrop returns focus
+to its trigger; a successful jump closes settings and focuses its destination.
+Inputs use 16px type to avoid automatic zoom in mobile Safari.
+
+Diff content regression repair (2026-10-18): changed rows derive colors from
+existing --wc-error-text/--wc-error-detail and --wc-success semantic tokens.
+Unified/split reading uses compact 24px minimum rows, shared number widths,
+aligned paired rows and canvas-level horizontal scrolling. Context stays neutral;
+missing split partners have a distinct blank surface. Controls retain the accepted
+responsive options design. Browser checks must verify computed colors and row
+geometry in addition to parser/component tests.
+
+Diff surface refinement (2026-10-18): the scrolling diff canvas is edge-to-edge
+beneath file navigation, with no inset card margin, outer border or rounded
+corners. Internal line gutters and comparison dividers retain their meaning.
+
+
+#### Word documents and folder browsing
+
+Extend the existing focused artifact inspection concept. Word is an immersive
+reading sub-surface; folders are a list/browser sub-surface. Reuse semantic tokens,
+InspectionHeader, responsive settings and library buttons. Keep content edge to
+edge rather than adding decorative cards inside the drawer.
+
+Word (.docx): render semantic headings, paragraphs, lists, tables, embedded raster
+images and footnotes as a reflowing document. A comfortable reading measure and
+clear type hierarchy replace authored page geometry. Desktop offers an optional
+outline alongside the document; phone outline replaces the reading pane and
+returns to the selected heading. Search highlights and navigates literal matches;
+text sizing lives in the established responsive settings dialog. Copy text and
+download remain available. Explain once in settings that pagination and complex
+Word layout may differ. Do not imply exact printed-page fidelity or support for
+legacy .doc. Parse only in a bounded, disposable worker; validate ZIP bounds,
+disable external resources and embedded styles, sanitize all converter HTML,
+and prevent scripts/forms/SVG or unsolicited resource requests. Invalid,
+encrypted and oversized inputs have a useful retry/download state.
+
+Folders: compact folder identity/actions, a full-width labeled search field,
+on-demand sort/hidden options, quiet count and a single list scroller. Desktop
+adds aligned size/date metadata; phones place file type/size/date beneath the
+name. Use restrained file icons, neutral readable names, deliberate touch targets,
+and explicit empty/no-match/loading/limited-list feedback. Filtering says that it
+covers loaded items when more pages exist, and paging stays reachable. Parent
+navigation is distinct from history Back. Back restores a cached location and
+keeps the drawer open, including after file previews and failed navigation.
+Breadcrumbs stay usable without competing with dismiss controls; keyboard focus
+returns to a stable navigation target. Preserve server sort, paging, symlink and
+permission semantics. See ../mockups/word-folder-previews.svg.
+
+
+Word conversion uses governed Mammoth 1.13.0 in its own worker; DOMPurify 3.4.17
+sanitizes the resulting semantic HTML before insertion. This follows the
+[Mammoth security guidance](https://github.com/mwilliamson/mammoth.js#security)
+and [DOMPurify allowlist contract](https://github.com/cure53/DOMPurify).
+The reader admits at most 15 MiB input, 64 MiB declared ZIP expansion, 20,000
+HTML elements, 2 MiB non-image HTML and 8 MiB encoded raster images (3 MiB each).
+A ten-second worker deadline and termination on close/source change bound work.
+Shared Office helpers own streamed byte bounds and ZIP preflight; Excel retains
+its prior bounds. Embedded style maps and external file access stay disabled.
+Only embedded PNG/JPEG/GIF/WebP images survive the rendering allowlist; links
+stay inert until activation, external links open with noopener/noreferrer, and
+local notes scroll inside the reader. Empty/error states retain download;
+fetch retry re-resolves the target to renew stale handles. Word reader controls
+and folder settings use the existing responsive options owner.
+
+Folder navigation is rendered in a dedicated band, separately from dismissal.
+Back retains its hit target across folder/file transitions, disables at the
+starting folder and restores focus to the navigation region. Current breadcrumbs
+reveal themselves when the portal-mounted content appears. Sorting retains the
+cached folder and options during refresh; settings keep focus and use guarded
+aria-disabled state while listing changes are pending. File metadata uses bidi
+isolation, and row rules use the already-alpha border token directly.
+
+
+### Read-only archive previews
+
+ZIP, TAR, and gzip-compressed TAR (`.tar.gz`, `.tgz`) use Go's standard archive
+readers in `api/internal/filepreview`, on every supported host OS. No shell
+commands or extraction endpoint participate. Other archive formats show a clear
+unsupported message and retain the original download. Listing is metadata only;
+opening a regular member explicitly creates a bounded, session-bound virtual
+preview. Nested archives require another explicit open and share their root's
+work budget. Member identifiers are physical ordinals, preserving duplicates.
+
+Limits: 128 MiB input; 128 MiB actual expanded stream work per root capability;
+16 MiB per opened member; 5,000 visible members; 4 MiB retained metadata; 1 MiB
+per TAR extended header (the standard reader's enforced bound); 4,096-byte names;
+32 path components; three archive levels including the root; two concurrent
+archive jobs; a cooperative ten-second deadline per job; 64 MiB / 256 virtual
+previews retained globally. Active HTTP responses remain charged to that quota
+until released, including after logical expiry. Admission covers parsing through
+atomic capability publication. Transient parser buffers are bounded by job count.
+ZIP central directories are bounded and counted before standard reader allocation.
+ZIP64 directory records and multipart archives degrade to download. TAR scans include skipped file
+bodies, metadata, padding, and gzip trailer validation in actual byte accounting.
+Sparse files, links, devices, encrypted entries and unsupported ZIP methods are
+never opened. Cancellation and byte limits apply to reads, not header claims.
+
+Virtual names use portable slash semantics and never reach a host path resolver.
+Absolute paths, traversal, drive/UNC paths, backslashes, control characters and
+ambiguous Windows components are blocked. Unsafe names remain visible at the
+archive root as inert metadata. HTML and Markdown members use source inspection;
+member runtime resources and host execution/handoff are unavailable. Blob responses
+apply a restrictive CSP and never render active content in the application origin.
+Every virtual handle expires with its root, and checks root file freshness.
+
+The viewer uses the established inspection toolbar, with a concise archive summary,
+filter, folder breadcrumbs, sort/hidden options, and a full-width file list without
+an inner card. Desktop rows align size and status; phone rows put secondary facts
+under the name. Back restores the exact archive folder/filter/options, and never
+closes the drawer. Failed inspection retains the original download and recovery.
+Desktop/phone composition: `docs/mockups/archive-previews.svg`.
+
+
+### Plain-text inspection surface
+
+Source inspection uses a full-width, unframed reading surface below its controls.
+Plain text defaults to wrapping and compact 28px rows at the default font size;
+code retains its existing spacing and wrapping default. The idle line count appears
+in the header once. The lower source status row appears only for selection/copy
+feedback or pagination. Logical line numbers and copied bytes remain unchanged.
+Archive members and local files share this presentation.

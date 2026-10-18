@@ -1,6 +1,62 @@
 {
   "schemaVersion": 1,
   "selectors": {
+    "documentPreview.root": {
+      "testId": "file-preview-document",
+      "selector": "[data-testid=\"file-preview-document\"]"
+    },
+    "documentPreview.article": {
+      "testId": "document-preview-article",
+      "selector": "[data-testid=\"document-preview-article\"]"
+    },
+    "documentPreview.pane": {
+      "testId": "document-preview-pane",
+      "selector": "[data-testid=\"document-preview-pane\"]"
+    },
+    "documentPreview.search": {
+      "testId": "document-preview-search",
+      "selector": "[data-testid=\"document-preview-search\"]"
+    },
+    "documentPreview.outline": {
+      "testId": "document-preview-outline",
+      "selector": "[data-testid=\"document-preview-outline\"]"
+    },
+    "inspectionPreview.navigation": {
+      "testId": "file-preview-navigation",
+      "selector": "[data-testid=\"file-preview-navigation\"]"
+    },
+    "inspectionPreview.sourceLines": {
+      "testId": "inspection-source-lines",
+      "selector": "[data-testid=\"inspection-source-lines\"]"
+    },
+    "inspectionPreview.sourceSearch": {
+      "testId": "inspection-source-search",
+      "selector": "[data-testid=\"inspection-source-search\"]"
+    },
+    "inspectionPreview.sourceSearchToggle": {
+      "testId": "inspection-source-search-toggle",
+      "selector": "[data-testid=\"inspection-source-search-toggle\"]"
+    },
+    "inspectionPreview.diffBody": {
+      "testId": "inspection-diff-body",
+      "selector": "[data-testid=\"inspection-diff-body\"]"
+    },
+    "inspectionPreview.workbook": {
+      "testId": "inspection-workbook",
+      "selector": "[data-testid=\"inspection-workbook\"]"
+    },
+    "inspectionPreview.workbookGrid": {
+      "testId": "inspection-workbook-grid",
+      "selector": "[data-testid=\"inspection-workbook-grid\"]"
+    },
+    "inspectionPreview.workbookRows": {
+      "testId": "inspection-workbook-rows",
+      "selector": "[data-testid=\"inspection-workbook-rows\"]"
+    },
+    "inspectionPreview.workbookDetail": {
+      "testId": "inspection-workbook-detail",
+      "selector": "[data-testid=\"inspection-workbook-detail\"]"
+    },
     "readerPreview.searchToggle": {
       "testId": "reader-search-toggle",
       "selector": "[data-testid=\"reader-search-toggle\"]"
@@ -993,22 +1049,6 @@
       "testId": "forms.textarea",
       "selector": "[data-testid=\"forms.textarea\"]"
     },
-    "library.overlays.full-page-drawer.close": {
-      "testId": "overlays.full-page-drawer.close",
-      "selector": "[data-testid=\"overlays.full-page-drawer.close\"]"
-    },
-    "library.overlays.full-page-drawer.grabber": {
-      "testId": "overlays.full-page-drawer.grabber",
-      "selector": "[data-testid=\"overlays.full-page-drawer.grabber\"]"
-    },
-    "library.overlays.full-page-drawer.subheader": {
-      "testId": "overlays.full-page-drawer.subheader",
-      "selector": "[data-testid=\"overlays.full-page-drawer.subheader\"]"
-    },
-    "library.overlays.full-page-drawer.root": {
-      "testId": "overlays.full-page-drawer",
-      "selector": "[data-testid=\"overlays.full-page-drawer\"]"
-    },
     "library.overlays.responsive-dialog.subheader": {
       "testId": "overlays.responsive-dialog.subheader",
       "selector": "[data-testid=\"overlays.responsive-dialog.subheader\"]"
@@ -1779,7 +1819,7 @@
     }
   },
   "sources": {
-    "ui/src/consts/selectors.library.ts": "61be4676c32200d51cb58a9654d88b471198336d28cb047c764fab598636a4d4",
-    "ui/src/consts/selectors.ts": "90606c1be06d4f4f45e40478a6796a3d8be433bd55500de6fbff4380f78f31ae"
+    "ui/src/consts/selectors.library.ts": "783bebc443f6ed1e61b95336ffbcebf17c314ab77920d83e535e87e09340ce15",
+    "ui/src/consts/selectors.ts": "70495a288738d6fbe12f380ca01917de1146c0a832c8dcb4f6207c579c6c41e8"
   }
 }

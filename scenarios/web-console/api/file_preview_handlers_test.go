@@ -1,6 +1,8 @@
 package main
 
 import (
+	"archive/zip"
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -593,5 +595,62 @@ func pngBytes() []byte {
 		0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
 		0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
 		0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4,
+	}
+}
+
+func TestFilePreviewArchiveVirtualTransportIsolation(t *testing.T) {
+	root := t.TempDir()
+	var b bytes.Buffer
+	z := zip.NewWriter(&b)
+	f, err := z.Create("docs/demo.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = f.Write([]byte("<h1>Hello archive</h1>"))
+	if err = z.Close(); err != nil {
+		t.Fatal(err)
+	}
+	p := filepath.Join(root, "sample.zip")
+	if err = os.WriteFile(p, b.Bytes(), 0600); err != nil {
+		t.Fatal(err)
+	}
+	srv := newFilePreviewTestServer(t, root)
+	sid := newPreviewSession(t, srv)
+	resolved := resolvePreview(t, srv, sid, p)
+	if resolved.Kind != "archive" {
+		t.Fatal(resolved)
+	}
+	a := newFilePreviewAdapter(srv)
+	list, err := a.ListArchive(context.Background(), sid, resolved.PreviewID)
+	if err != nil || list.Status != "ready" || len(list.Entries) != 1 {
+		t.Fatal(list, err)
+	}
+	opened, err := a.OpenArchiveEntry(context.Background(), sid, resolved.PreviewID, "0")
+	if err != nil || opened.Target == nil || !opened.Target.ArchiveMember {
+		t.Fatal(opened, err)
+	}
+	id := opened.Target.PreviewID
+	text, err := a.GetTextContent(context.Background(), sid, id)
+	if err != nil || text.Content != "<h1>Hello archive</h1>" {
+		t.Fatal(text, err)
+	}
+	rec := blobRequest(t, srv, "GET", sid, id, "bytes=0-3")
+	if rec.Code != http.StatusPartialContent || rec.Body.String() != "<h1>" || !strings.Contains(rec.Header().Get("Content-Security-Policy"), "sandbox") || !strings.HasPrefix(rec.Header().Get("Content-Disposition"), "attachment") {
+		t.Fatal(rec.Code, rec.Body.String(), rec.Header())
+	}
+	if got := blobRequest(t, srv, "GET", "other", id, ""); got.Code != http.StatusNotFound {
+		t.Fatal(got.Code)
+	}
+	req := mux.SetURLVars(httptest.NewRequest("GET", "/runtime/", nil), map[string]string{"id": sid, "previewId": id})
+	runtime := httptest.NewRecorder()
+	srv.handleFilePreviewRuntime(runtime, req)
+	if runtime.Code != http.StatusNotFound {
+		t.Fatal(runtime.Code)
+	}
+	if err = os.WriteFile(p, []byte("changed"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if got := blobRequest(t, srv, "GET", sid, id, ""); got.Code != http.StatusConflict {
+		t.Fatal(got.Code)
 	}
 }

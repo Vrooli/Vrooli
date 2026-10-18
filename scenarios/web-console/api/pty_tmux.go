@@ -5,6 +5,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -32,6 +33,23 @@ import (
 
 // errPTYClosed is returned when I/O is attempted on a closed tmuxPTY.
 var errPTYClosed = session.ErrPTYClosed
+
+// errScrollNoHistory reports that a back-scroll had nothing to reveal: a
+// normal-screen pane that holds zero lines above its viewport (a freshly
+// spawned shell). It is distinct from a genuine backend failure so the client
+// can show a "no scrollback" hint without latching scroll off for the whole
+// session — scroll re-enables the moment the pane accumulates real history.
+var errScrollNoHistory = errors.New("scroll: pane has no history to reveal")
+
+// errScrollForwardedToApp reports that a back-scroll could not use tmux history
+// because the pane runs a full-screen program on the alternate screen (every
+// agent TUI we host), but the gesture was instead forwarded to that program as
+// wheel input so it scrolls its own transcript. The pane did move; the client
+// surfaces a one-time pointer to the Messages view, which holds the complete
+// transcript the in-program scrollback may not. It is distinct from
+// errScrollNoHistory so the client does not claim "nothing happened" when the
+// terminal actually scrolled.
+var errScrollForwardedToApp = errors.New("scroll: forwarded to full-screen program")
 
 var systemdRunProbe = struct {
 	sync.Once
@@ -760,6 +778,85 @@ func (p *tmuxPTY) paneInMode(ctx context.Context, sessionName string) (bool, err
 	return strings.TrimSpace(out) == "1", nil
 }
 
+// paneScrollState reports, in one round-trip, whether the pane is on the
+// alternate screen and how many lines of tmux history sit above its viewport.
+//
+// These are the two facts that decide how a back-scroll is served:
+//
+//   - alternate screen (alternate_on == 1): a full-screen program owns the
+//     whole viewport and keeps no tmux scrollback; the only tmux history is a
+//     handful of pre-launch shell lines, which is noise, not the transcript the
+//     user wants. tmux often reports a non-zero history_size here (that
+//     remnant), so a size check alone is not enough — alternate_on is the real
+//     signal. These panes are scrolled by forwarding wheel input to the program.
+//   - history_size: for a normal-screen pane this is the real scrollback; zero
+//     means a fresh pane with nothing to reveal.
+func (p *tmuxPTY) paneScrollState(ctx context.Context, sessionName string) (altOn bool, histSize int, err error) {
+	out, err := p.tmuxOutput(ctx, "display-message", "-t", sessionName, "-p", "#{alternate_on} #{history_size}")
+	if err != nil {
+		return false, 0, fmt.Errorf("tmux display-message alternate_on/history_size: %w", err)
+	}
+	fields := strings.Fields(strings.TrimSpace(out))
+	if len(fields) != 2 {
+		return false, 0, fmt.Errorf("tmux alternate_on/history_size %q: unexpected format", strings.TrimSpace(out))
+	}
+	histSize, convErr := strconv.Atoi(fields[1])
+	if convErr != nil {
+		return false, 0, fmt.Errorf("tmux history_size %q: %w", fields[1], convErr)
+	}
+	return fields[0] == "1", histSize, nil
+}
+
+// appWheelLinesPerNotch approximates how many transcript lines one forwarded
+// wheel notch moves in the full-screen agents we host (measured against Codex,
+// which advances ~3 lines per notch). It only affects scroll feel, not
+// correctness.
+const appWheelLinesPerNotch = 3
+
+// forwardWheelToApp sends mouse-wheel input straight to the program running in
+// the pane, so a full-screen agent that keeps no tmux scrollback scrolls its
+// own transcript. Negative lines scroll back (wheel up), positive scroll
+// forward (wheel down), matching the Scroll sign convention.
+//
+// send-keys -H injects the raw bytes as program input, bypassing tmux's own
+// mouse handling, so this works whether or not tmux mouse mode is on and whether
+// or not the program advertised mouse tracking: Codex ignores mouse reporting
+// yet still scrolls on these sequences, and Claude/OpenCode capture the mouse
+// and scroll too.
+func (p *tmuxPTY) forwardWheelToApp(ctx context.Context, sessionName string, lines int) error {
+	if lines == 0 {
+		return nil
+	}
+	magnitude := lines
+	if magnitude < 0 {
+		magnitude = -magnitude
+	}
+	notches := (magnitude + appWheelLinesPerNotch - 1) / appWheelLinesPerNotch
+	// SGR 1006 wheel event at a fixed in-pane coordinate (col/row = 10): the
+	// button code is 64 for wheel-up (scroll back) and 65 for wheel-down.
+	button := "64"
+	if lines > 0 {
+		button = "65"
+	}
+	args := append([]string{"send-keys", "-t", sessionName, "-H"}, hexArgs("\x1b[<"+button+";10;10M")...)
+	for i := 0; i < notches; i++ {
+		if _, err := p.tmuxOutput(ctx, args...); err != nil {
+			return fmt.Errorf("tmux send-keys wheel: %w", err)
+		}
+	}
+	return nil
+}
+
+// hexArgs renders each byte of s as a two-digit hex string, the form tmux
+// `send-keys -H` expects (one hex byte per argument).
+func hexArgs(s string) []string {
+	out := make([]string, len(s))
+	for i := 0; i < len(s); i++ {
+		out[i] = fmt.Sprintf("%02x", s[i])
+	}
+	return out
+}
+
 // Scroll moves the pane's copy-mode view through its own history.
 //
 // Negative lines scroll back toward older output, positive scroll forward
@@ -785,6 +882,28 @@ func (p *tmuxPTY) Scroll(lines int) error {
 	defer cancel()
 
 	if lines < 0 {
+		altOn, histSize, err := p.paneScrollState(ctx, sessionName)
+		if err != nil {
+			return err
+		}
+		if altOn {
+			// Full-screen program: tmux holds no transcript, but the program
+			// scrolls its own on wheel input. Forward the gesture to it rather
+			// than entering copy-mode (which would reveal only pre-launch noise
+			// and strand the pane in a mode the user never asked for). Report
+			// the forward so the client can point once at the full transcript in
+			// Messages.
+			if err := p.forwardWheelToApp(ctx, sessionName, lines); err != nil {
+				return err
+			}
+			return errScrollForwardedToApp
+		}
+		if histSize == 0 {
+			// A fresh normal-screen pane with nothing above the viewport.
+			// Entering copy-mode would reveal nothing and only strand the pane
+			// in a mode the user never asked for.
+			return errScrollNoHistory
+		}
 		// Entering copy-mode when the pane is already in it is a no-op that
 		// preserves the current scroll position, so this needs no probe.
 		if _, err := p.tmuxOutput(ctx, "copy-mode", "-t", sessionName); err != nil {
@@ -797,9 +916,19 @@ func (p *tmuxPTY) Scroll(lines int) error {
 		return nil
 	}
 
-	// Forward scrolling only means something while scrolled back. Entering
-	// copy-mode to scroll down would strand the pane in a mode it was never
-	// in, and would swallow the next keystroke to cancel it.
+	// Forward scrolling. A full-screen program scrolls its own transcript back
+	// toward live on forwarded wheel-down input, mirroring the back-scroll path.
+	altOn, _, err := p.paneScrollState(ctx, sessionName)
+	if err != nil {
+		return err
+	}
+	if altOn {
+		return p.forwardWheelToApp(ctx, sessionName, lines)
+	}
+
+	// On a normal-screen pane, forward scrolling only means something while
+	// scrolled back. Entering copy-mode to scroll down would strand the pane in
+	// a mode it was never in, and would swallow the next keystroke to cancel it.
 	inMode, err := p.paneInMode(ctx, sessionName)
 	if err != nil {
 		return err

@@ -10,6 +10,7 @@ import (
 // method paths reference generated *Procedure constants so adding or
 // renaming an RPC in sessions.proto breaks this file at compile time.
 var Endpoints = []module.EndpointDescriptor{
+	{ID: "sessions_reopen", Path: sessionsconnect.SessionsServiceReopenProcedure, Method: "POST", Summary: "Reopen a retained conversation", Description: "Restores a retained conversation using the existing session lifecycle policy.", Category: "sessions"},
 	{
 		ID:          "sessions_create",
 		Path:        sessionsconnect.SessionsServiceCreateProcedure,

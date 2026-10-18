@@ -86,8 +86,8 @@ var defaultShortcuts = []ShortcutEntry{
 	},
 	{
 		Label:       "Codex",
-		Command:     "codex --yolo",
-		Description: "OpenAI Codex CLI in auto-approve mode",
+		Command:     "codex --yolo --no-alt-screen",
+		Description: "OpenAI Codex CLI in auto-approve mode (inline so the terminal keeps scrollback)",
 		AgentID:     "codex",
 	},
 	{
@@ -112,6 +112,30 @@ var defaultShortcuts = []ShortcutEntry{
 // Append a snapshot here whenever defaultShortcuts changes, so the prior shape
 // stays recognizable as "untouched seed".
 var legacyDefaultShortcutSets = [][]ShortcutEntry{
+	// Pre-`--no-alt-screen` defaults: an unmodified seed matching this exact
+	// shape is upgraded to the inline-Codex default above.
+	{
+		{
+			Label:       "Claude Code",
+			Command:     "vrooli agent launch --runner claude --arg=--dangerously-skip-permissions",
+			Description: "AI coding assistant with full permissions",
+		},
+		{
+			Label:       "Codex",
+			Command:     "codex --yolo",
+			Description: "OpenAI Codex CLI in auto-approve mode",
+		},
+		{
+			Label:       "OpenCode",
+			Command:     "opencode",
+			Description: "OpenCode TUI — conversation captured via its local server API",
+		},
+		{
+			Label:       "Grok",
+			Command:     "grok",
+			Description: "xAI Grok CLI — conversation captured from its session transcript",
+		},
+	},
 	{
 		{
 			Label:       "Claude Code",

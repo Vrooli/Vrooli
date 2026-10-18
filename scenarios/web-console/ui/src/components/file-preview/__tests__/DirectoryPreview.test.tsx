@@ -94,10 +94,10 @@ describe("DirectoryPreview", () => {
 
     const rows = screen.getAllByTestId("directory-entry");
     expect(rows).toHaveLength(3);
-    expect(within(rows[0] as HTMLElement).getByText("renders/")).toBeInTheDocument();
+    expect(within(rows[0] as HTMLElement).getByText("renders")).toBeInTheDocument();
     // Byte sizes are formatted, not translated, so this one is real copy.
-    expect(screen.getByText("18 KB")).toBeInTheDocument();
-    expect(screen.getByText("1.1 MB")).toBeInTheDocument();
+    expect(screen.getByText(/18 KB/)).toBeInTheDocument();
+    expect(screen.getByText(/1\.1 MB/)).toBeInTheDocument();
   });
 
   it("opens an entry by its full path, so files and directories take one code path", async () => {
@@ -121,7 +121,7 @@ describe("DirectoryPreview", () => {
         entries: [entry({ name: "sub", entryType: "directory", kind: "directory", childCount: 6 })],
       }),
     });
-    expect(screen.getByText(strings.messagesFileViewer.directoryChildCount)).toBeInTheDocument();
+    expect(screen.getByText(strings.messagesFileViewer.directoryChildCount, { exact: false })).toBeInTheDocument();
   });
 
   it("labels a broken symlink and refuses to open it", async () => {
@@ -230,6 +230,7 @@ describe("DirectoryPreview", () => {
       listing: listing({ totalEntries: 1, entries: [entry({ name: "a" })] }),
     });
 
+    await userEvent.click(screen.getByRole("button", { name: strings.documentPreview.folderOptions }));
     await userEvent.selectOptions(screen.getByTestId("directory-sort"), "name");
     expect(onListOptionsChange).toHaveBeenCalledWith({ sort: "name" });
 
@@ -240,5 +241,19 @@ describe("DirectoryPreview", () => {
   it("shows a spinner until the first page arrives", () => {
     renderDirectory({ listing: null });
     expect(screen.queryByTestId("directory-entry")).not.toBeInTheDocument();
+  });
+});
+
+describe('folder inspection controls', () => {
+  it('keeps paging reachable during filtering so users can include unloaded matches', async () => {
+    const onLoadMore = vi.fn();
+    renderDirectory({ onLoadMore, listing: listing({ totalEntries: 100, entries: [entry({ name: 'alpha.md' })], nextPageToken: 'more' }) });
+    await userEvent.type(screen.getByTestId('directory-filter'), 'beta'); expect(screen.getByTestId('directory-filter-empty')).toBeInTheDocument();
+    await userEvent.click(screen.getByTestId('directory-load-more')); expect(onLoadMore).toHaveBeenCalledOnce();
+  });
+  it('provides a separate parent action and contains uncertain dates without crashing', async () => {
+    const onNavigate = vi.fn(); renderDirectory({ onNavigate, listing: listing({ entries: [entry({ name: 'timeless.txt', mtimeMs: Number.MAX_VALUE })], totalEntries: 1 }) });
+    expect(screen.getByText('timeless.txt')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: strings.documentPreview.up })); expect(onNavigate).toHaveBeenCalledWith('/tmp');
   });
 });

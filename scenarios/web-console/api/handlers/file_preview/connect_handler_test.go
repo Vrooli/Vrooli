@@ -87,3 +87,53 @@ func TestConnectHandlerPreviewValidationAndErrorMapping(t *testing.T) {
 		_ = sourceContextToString(sc)
 	}
 }
+
+func TestSpreadsheetPreviewKindMapping(t *testing.T) {
+	if got := kindToProto("spreadsheet"); got != filepreviewv1.PreviewKind_PREVIEW_KIND_SPREADSHEET {
+		t.Fatalf("spreadsheet resolve kind = %v", got)
+	}
+	if got := entryKindToProto("spreadsheet"); got != filepreviewv1.PreviewKind_PREVIEW_KIND_SPREADSHEET {
+		t.Fatalf("spreadsheet listing kind = %v", got)
+	}
+}
+
+func TestDocumentPreviewKindMapping(t *testing.T) {
+	if got := kindToProto("document"); got != filepreviewv1.PreviewKind_PREVIEW_KIND_DOCUMENT {
+		t.Fatalf("document kind = %v", got)
+	}
+	if got := entryKindToProto("document"); got != filepreviewv1.PreviewKind_PREVIEW_KIND_DOCUMENT {
+		t.Fatalf("document entry = %v", got)
+	}
+}
+
+func (f fakePreviewService) ListArchive(context.Context, string, string) (ArchiveResult, error) {
+	return ArchiveResult{Status: "ready"}, f.err
+}
+func (f fakePreviewService) OpenArchiveEntry(context.Context, string, string, string) (ArchiveOpenResult, error) {
+	return ArchiveOpenResult{Status: "ready"}, f.err
+}
+
+func TestConnectHandlerArchiveValidationAndProjection(t *testing.T) {
+	h := NewConnectHandler(Deps{Service: fakePreviewService{}})
+	ctx := context.Background()
+	list, err := h.ListArchive(ctx, connect.NewRequest(&filepreviewv1.ListArchiveRequest{SessionId: "s", PreviewId: "p"}))
+	if err != nil || list.Msg.Status != "ready" {
+		t.Fatal(list, err)
+	}
+	opened, err := h.OpenArchiveEntry(ctx, connect.NewRequest(&filepreviewv1.OpenArchiveEntryRequest{SessionId: "s", PreviewId: "p", EntryId: "0"}))
+	if err != nil || opened.Msg.Status != "ready" {
+		t.Fatal(opened, err)
+	}
+	_, err = h.ListArchive(ctx, connect.NewRequest(&filepreviewv1.ListArchiveRequest{PreviewId: "p"}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatal(err)
+	}
+	_, err = h.OpenArchiveEntry(ctx, connect.NewRequest(&filepreviewv1.OpenArchiveEntryRequest{SessionId: "s", PreviewId: "p"}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatal(err)
+	}
+	target := resolveToProto(ResolveResult{ArchiveMember: true, Kind: "archive"})
+	if !target.ArchiveMember || target.PreviewKind != filepreviewv1.PreviewKind_PREVIEW_KIND_ARCHIVE {
+		t.Fatal(target)
+	}
+}

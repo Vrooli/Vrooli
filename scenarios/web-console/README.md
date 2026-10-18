@@ -1,6 +1,8 @@
 # Aquila (web-console scenario)
 
-Aquila delivers a full-fidelity terminal experience in the browser with pane-based workflows, durable sessions, and AI-assisted input generation for authenticated parent scenarios. The technical scenario key remains `web-console` for API and lifecycle compatibility.
+Aquila is a workspace for working with coding agents: see which conversations need attention, read structured answers, inspect their files, and carry useful context into the next conversation. Its pane-based terminal remains available alongside message views. The technical scenario key remains `web-console` for API and lifecycle compatibility.
+
+For customer value, current desktop positioning, proof sources and setup boundaries, see [Go to market](docs/business/GO-TO-MARKET.md). The target rewrite goals below are not a release-availability checklist.
 
 ## Platform support
 
@@ -38,6 +40,39 @@ Web Console is designed for personal server use — a single operator running th
 - Desktop: two-column pane layout by default.
 - Mobile: single-column stacked pane layout.
 - Layout should preserve active session continuity while resizing.
+
+### File inspection
+
+The file drawer supports HTML, audio, images, PDF, video, Markdown, JSON/YAML,
+CSV/TSV, code/logs, unified patches, Excel workbooks, Word documents, and folders. Source readers provide
+literal search, original-line navigation, range copying, and log severity filters.
+Change review includes file/hunk navigation, old/new line numbers, and wide
+comparison views. Excel (.xlsx, .xls, .xlsm, .xlsb) provides worksheet selection,
+formatted values, cell/formula inspection, loaded-cell search, address navigation,
+and pagination. Phones use row and cell drill-in views. Workbooks are read-only;
+formulas display saved results without recalculation. Preview limits and errors
+retain access to the original download.
+
+Open `fixtures/file-preview/operations-workbook.xlsx` for a multi-sheet example
+with currency, percentages, dates, booleans, and saved formulas.
+Source, change review and workbook settings share a responsive options sheet;
+phones keep worksheet selection in a separate full-width row. Explicit phone
+table view opens cell details on selection and supports returning to the table.
+Other examples are `ui/src/components/file-preview/sourceData.ts` and
+`../../docs/internal/delivery-reliability-research/sources/A134logs/11-toolchain-floor-candidate-v8.patch`.
+
+Word (.docx) provides a reflowing reader with headings, an outline, literal search,
+text sizing, tables, embedded raster images and text copying. Pagination and complex
+page layouts may differ from Word. Parsing happens locally in a bounded worker;
+external resources and embedded styles stay disabled. Try
+`fixtures/file-preview/operations-brief.docx`.
+
+Folder previews use a full-width filter and responsive options for sorting and
+hidden files. Wide drawers show aligned size/date columns; phones keep those facts
+beneath each filename. History Back stays in a dedicated navigation row, restores
+the previous location, and disables at the starting folder. Parent-folder and
+breadcrumb navigation are separate actions. Open `fixtures/` to explore both
+sample documents through the folder reader.
 
 ### Terminal Fidelity
 - PTY-backed stream handling with binary-safe input/output.

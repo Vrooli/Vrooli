@@ -38,9 +38,10 @@ func TestShortcutProfileStore_DefaultProfile(t *testing.T) {
 		t.Errorf("default Claude shortcut = %q, want governed project invocation", got)
 	}
 	// Codex runs as the bare binary; the PATH shim supplies attribution, so a
-	// shortcut must never hand-roll a launcher preflight of its own.
-	if got := profiles[0].Shortcuts[1].Command; got != "codex --yolo" {
-		t.Errorf("default Codex shortcut = %q, want the plain agent command", got)
+	// shortcut must never hand-roll a launcher preflight of its own. It carries
+	// --no-alt-screen so Codex renders inline and the terminal keeps scrollback.
+	if got := profiles[0].Shortcuts[1].Command; got != "codex --yolo --no-alt-screen" {
+		t.Errorf("default Codex shortcut = %q, want the inline agent command", got)
 	}
 	for _, shortcut := range profiles[0].Shortcuts {
 		if strings.Contains(shortcut.Command, "vrooli-agent-launcher") {

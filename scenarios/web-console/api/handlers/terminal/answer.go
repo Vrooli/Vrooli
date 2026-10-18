@@ -50,8 +50,10 @@ type answerTarget interface {
 
 // answerSettle bounds how long an answer watches the prompt after typing an
 // option's key. Claude Code moves the selection on a digit and confirms on
-// Enter; a box that already resolved on the digit must not get the Enter, which
-// would land in whatever the agent shows next.
+// Enter; resumable interruptions use the same bound but tolerate transient
+// output-clock unknown while their screen-level state settles. A box that
+// already resolved on the key must not get Enter in whatever the agent shows
+// next.
 type answerSettle struct {
 	Poll  time.Duration
 	Max   time.Duration
@@ -102,17 +104,24 @@ func answerPrompt(ctx context.Context, sessionID string, target answerTarget, re
 		}
 		return PromptAnswerResult{Delivery: DeliveryHarnessAPI, Answer: chosen.Label}, nil
 	}
+	if err := target.TypeText(chosen.Key); err != nil {
+		return PromptAnswerResult{}, err
+	}
 	if prompt.Kind == "resumable_interruption" {
-		if err := target.TypeText(chosen.Key); err != nil {
+		submit, err := settleResumableInterruption(ctx, target, answer.PromptHash, settle)
+		if err != nil {
+			return PromptAnswerResult{}, err
+		}
+		if !submit {
+			return PromptAnswerResult{Delivery: DeliveryKeystrokes, Answer: chosen.Label}, nil
+		}
+		if err := ctx.Err(); err != nil {
 			return PromptAnswerResult{}, err
 		}
 		if err := target.PressKey("Enter"); err != nil {
 			return PromptAnswerResult{}, err
 		}
 		return PromptAnswerResult{Delivery: DeliveryKeystrokes, Answer: chosen.Label}, nil
-	}
-	if err := target.TypeText(chosen.Key); err != nil {
-		return PromptAnswerResult{}, err
 	}
 	for waited := time.Duration(0); waited < settle.Max; waited += settle.Poll {
 		settle.Sleep(settle.Poll)
@@ -125,6 +134,47 @@ func answerPrompt(ctx context.Context, sessionID string, target answerTarget, re
 		return PromptAnswerResult{}, err
 	}
 	return PromptAnswerResult{Delivery: DeliveryKeystrokes, Answer: chosen.Label}, nil
+}
+
+// settleResumableInterruption waits through transient low-confidence activity
+// readings before submitting a typed resume command. Only affirmative progress
+// evidence ends the wait without Enter; unknown activity is not enough to
+// conclude that the terminal accepted the command.
+func settleResumableInterruption(ctx context.Context, target answerTarget, promptHash string, settle answerSettle) (bool, error) {
+	for waited := time.Duration(0); waited < settle.Max; waited += settle.Poll {
+		if err := ctx.Err(); err != nil {
+			return false, err
+		}
+		settle.Sleep(settle.Poll)
+		if err := ctx.Err(); err != nil {
+			return false, err
+		}
+		activity, ok := target.Activity()
+		if !ok {
+			return false, nil
+		}
+		if resumableProgressObserved(activity, promptHash) {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+func resumableProgressObserved(activity session.Activity, promptHash string) bool {
+	if activity.State == session.ActivityWaiting {
+		return activity.Prompt == nil || backend.PromptHash(activity.Prompt) != promptHash
+	}
+	if activity.State != session.ActivityWorking {
+		return false
+	}
+	// Screen repaint activity can look WORKING while a typed resume command is
+	// still unsubmitted; only stronger session signals or a changed prompt end the wait.
+	switch activity.Source {
+	case session.SourceHook, session.SourceHarnessEvent:
+		return true
+	default:
+		return false
+	}
 }
 
 // sessionAnswerTarget answers through a live session's activity and input lane.
