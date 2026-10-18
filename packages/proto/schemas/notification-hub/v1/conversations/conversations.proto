@@ -42,6 +42,10 @@ message AskRequest {
   // low, normal, high (default), or critical.
   string urgency = 11;
   string context_url = 12;
+  // Optional plain-text purpose and impact explanation for a cold reader.
+  string big_picture = 29;
+  // Optional plain-text mechanism, evidence, risks, and limitations.
+  string technical_details = 30;
 }
 message AskResponse { string ask_id = 1; shared.Notification notification = 2; }
 
@@ -97,6 +101,8 @@ message Ask {
   string resolved_at = 26;
   string created_at = 27;
   string updated_at = 28;
+  string big_picture = 29;
+  string technical_details = 30;
 }
 message GetAskRequest { string ask_id = 1; }
 message GetAskResponse { Ask ask = 1; }

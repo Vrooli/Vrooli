@@ -64,7 +64,7 @@ function TimelineCard() {
     <Card className="lg:col-span-2">
       <CardHeader><CardTitle className="text-sm uppercase text-app-muted-foreground">Delivery timeline</CardTitle></CardHeader>
       <CardContent>
-        {timeline.isError && <p className="text-sm text-red-400">Timeline unavailable — check the API identity and scenario health.</p>}
+        {timeline.isError && <p className="text-sm text-red-400">Timeline unavailable — check the configured recipient and scenario health.</p>}
         {!timeline.isError && notifications.length === 0 && <p className="text-sm text-app-muted-foreground">No notifications yet. Register this device, then send one from the CLI.</p>}
         <ul className="space-y-2" aria-label="Notification delivery timeline">
           {notifications.map((item) => <li key={item.id} className="flex items-center justify-between rounded border border-app-border px-3 py-2 text-sm"><span className="truncate">{item.title || item.body}</span><span className="ml-3 shrink-0 text-app-muted-foreground">{item.state.toString().replace("NOTIFICATION_STATE_", "").toLowerCase()}</span></li>)}

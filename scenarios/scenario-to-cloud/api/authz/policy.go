@@ -126,7 +126,7 @@ func (p *Policy) Revoked(principal identity.Principal) (bool, error) {
 		return true, err
 	}
 	for _, subject := range doc.Revoked {
-		if strings.EqualFold(strings.TrimSpace(subject), strings.TrimSpace(principal.Subject)) {
+		if strings.EqualFold(strings.TrimSpace(subject), strings.TrimSpace(principal.Subject)) || (principal.Grant != nil && strings.TrimSpace(subject) == principal.Grant.Approver) {
 			return true, nil
 		}
 	}
@@ -141,7 +141,11 @@ func (p *Policy) grantFor(principal identity.Principal) (Grant, bool, error) {
 	if err != nil {
 		return Grant{}, false, err
 	}
-	if grant, ok := doc.Principals[strings.TrimSpace(principal.Subject)]; ok {
+	subject := strings.TrimSpace(principal.Subject)
+	if principal.Kind == identity.ActorAgent && principal.Grant != nil && principal.Owner == principal.Grant.Approver && time.Now().Before(principal.Grant.ExpiresAt) {
+		subject = principal.Grant.Approver
+	}
+	if grant, ok := doc.Principals[subject]; ok {
 		return grant, grant.unrestricted(), nil
 	}
 	if principal.Source == identity.SourcePersonalLocal {

@@ -167,6 +167,22 @@
         }
       ],
       "startup_grace_period": 15000
+    },
+    "setup": {
+      "description": "Check durable Ask requester identities before replacing the serving Hub",
+      "steps": [
+        {
+          "name": "preflight-ask-requester-identities",
+          "exec": [
+            "go",
+            "run",
+            "./cmd/schema-preflight"
+          ],
+          "cwd": "api",
+          "timeout": 120,
+          "description": "Read the configured Hub database through its owner resolver; refuse setup when duplicate Ask identities or an unavailable check would make unique-index adoption unsafe."
+        }
+      ]
     }
   },
   "dependencies": {

@@ -269,7 +269,9 @@ type ResourceStopReport struct {
 	// Resources that failed to stop.
 	Failed []*ResourceControlResultItem `protobuf:"bytes,2,rep,name=failed,proto3" json:"failed,omitempty"`
 	// Human-readable summary message.
-	Message       string `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	Message string `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	// Diagnostics and recommendations that do not assert a stopped resource.
+	Observed      []*ResourceControlResultItem `protobuf:"bytes,4,rep,name=observed,proto3" json:"observed,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -323,6 +325,13 @@ func (x *ResourceStopReport) GetMessage() string {
 		return x.Message
 	}
 	return ""
+}
+
+func (x *ResourceStopReport) GetObserved() []*ResourceControlResultItem {
+	if x != nil {
+		return x.Observed
+	}
+	return nil
 }
 
 // ResourceDeprecatedResource is one deprecated-resource record
@@ -2029,11 +2038,12 @@ const file_cli_v1_resource_reports_proto_rawDesc = "" +
 	"\amessage\x18\x03 \x01(\tR\amessage\"n\n" +
 	"\x17ResourceStopAllResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x129\n" +
-	"\x06report\x18\x02 \x01(\v2!.vrooli.cli.v1.ResourceStopReportR\x06report\"\xb4\x01\n" +
+	"\x06report\x18\x02 \x01(\v2!.vrooli.cli.v1.ResourceStopReportR\x06report\"\xfa\x01\n" +
 	"\x12ResourceStopReport\x12B\n" +
 	"\astopped\x18\x01 \x03(\v2(.vrooli.cli.v1.ResourceControlResultItemR\astopped\x12@\n" +
 	"\x06failed\x18\x02 \x03(\v2(.vrooli.cli.v1.ResourceControlResultItemR\x06failed\x12\x18\n" +
-	"\amessage\x18\x03 \x01(\tR\amessage\"\xf4\x02\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\x12D\n" +
+	"\bobserved\x18\x04 \x03(\v2(.vrooli.cli.v1.ResourceControlResultItemR\bobserved\"\xf4\x02\n" +
 	"\x1aResourceDeprecatedResource\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12#\n" +
 	"\rdeprecated_at\x18\x02 \x01(\tR\fdeprecatedAt\x12\x16\n" +
@@ -2201,33 +2211,34 @@ var file_cli_v1_resource_reports_proto_depIdxs = []int32{
 	4,  // 3: vrooli.cli.v1.ResourceStopAllResponse.report:type_name -> vrooli.cli.v1.ResourceStopReport
 	0,  // 4: vrooli.cli.v1.ResourceStopReport.stopped:type_name -> vrooli.cli.v1.ResourceControlResultItem
 	0,  // 5: vrooli.cli.v1.ResourceStopReport.failed:type_name -> vrooli.cli.v1.ResourceControlResultItem
-	5,  // 6: vrooli.cli.v1.ResourceListDeprecatedResponse.resources:type_name -> vrooli.cli.v1.ResourceDeprecatedResource
-	8,  // 7: vrooli.cli.v1.ResourceDeprecationResponse.report:type_name -> vrooli.cli.v1.ResourceDeprecationReport
-	5,  // 8: vrooli.cli.v1.ResourceDeprecationReport.resource:type_name -> vrooli.cli.v1.ResourceDeprecatedResource
-	10, // 9: vrooli.cli.v1.ResourceRestoreResponse.report:type_name -> vrooli.cli.v1.ResourceRestoreReport
-	5,  // 10: vrooli.cli.v1.ResourceRestoreReport.resource:type_name -> vrooli.cli.v1.ResourceDeprecatedResource
-	11, // 11: vrooli.cli.v1.ResourceListBlueprintArchivedResponse.resources:type_name -> vrooli.cli.v1.ResourceBlueprintArchivedResource
-	14, // 12: vrooli.cli.v1.ResourceBlueprintArchiveResponse.report:type_name -> vrooli.cli.v1.ResourceBlueprintArchiveReport
-	11, // 13: vrooli.cli.v1.ResourceBlueprintArchiveReport.resource:type_name -> vrooli.cli.v1.ResourceBlueprintArchivedResource
-	16, // 14: vrooli.cli.v1.ResourceBlueprintRestoreResponse.report:type_name -> vrooli.cli.v1.ResourceBlueprintRestoreReport
-	11, // 15: vrooli.cli.v1.ResourceBlueprintRestoreReport.resource:type_name -> vrooli.cli.v1.ResourceBlueprintArchivedResource
-	19, // 16: vrooli.cli.v1.ResourceArchiveGCResponse.report:type_name -> vrooli.cli.v1.ResourceArchiveGCReport
-	17, // 17: vrooli.cli.v1.ResourceArchiveGCReport.removed:type_name -> vrooli.cli.v1.ResourceArchiveGCItem
-	17, // 18: vrooli.cli.v1.ResourceArchiveGCReport.skipped:type_name -> vrooli.cli.v1.ResourceArchiveGCItem
-	23, // 19: vrooli.cli.v1.ResourceSchemaValidationResponse.report:type_name -> vrooli.cli.v1.ResourceSchemaValidationReport
-	20, // 20: vrooli.cli.v1.ResourceSchemaValidationReport.artifact_issues:type_name -> vrooli.cli.v1.ResourceSchemaArtifactIssue
-	21, // 21: vrooli.cli.v1.ResourceSchemaValidationReport.missing_references:type_name -> vrooli.cli.v1.ResourceScenarioResourceReference
-	25, // 22: vrooli.cli.v1.ResourceSchemaSyncResponse.report:type_name -> vrooli.cli.v1.ResourceSchemaSyncReport
-	21, // 23: vrooli.cli.v1.ResourceSchemaSyncReport.missing_references:type_name -> vrooli.cli.v1.ResourceScenarioResourceReference
-	26, // 24: vrooli.cli.v1.ResourceValidationItem.issues:type_name -> vrooli.cli.v1.ResourceValidationIssue
-	27, // 25: vrooli.cli.v1.ResourceValidationReport.items:type_name -> vrooli.cli.v1.ResourceValidationItem
-	26, // 26: vrooli.cli.v1.ResourceValidationReport.issues:type_name -> vrooli.cli.v1.ResourceValidationIssue
-	28, // 27: vrooli.cli.v1.ResourceValidationResponse.report:type_name -> vrooli.cli.v1.ResourceValidationReport
-	28, // [28:28] is the sub-list for method output_type
-	28, // [28:28] is the sub-list for method input_type
-	28, // [28:28] is the sub-list for extension type_name
-	28, // [28:28] is the sub-list for extension extendee
-	0,  // [0:28] is the sub-list for field type_name
+	0,  // 6: vrooli.cli.v1.ResourceStopReport.observed:type_name -> vrooli.cli.v1.ResourceControlResultItem
+	5,  // 7: vrooli.cli.v1.ResourceListDeprecatedResponse.resources:type_name -> vrooli.cli.v1.ResourceDeprecatedResource
+	8,  // 8: vrooli.cli.v1.ResourceDeprecationResponse.report:type_name -> vrooli.cli.v1.ResourceDeprecationReport
+	5,  // 9: vrooli.cli.v1.ResourceDeprecationReport.resource:type_name -> vrooli.cli.v1.ResourceDeprecatedResource
+	10, // 10: vrooli.cli.v1.ResourceRestoreResponse.report:type_name -> vrooli.cli.v1.ResourceRestoreReport
+	5,  // 11: vrooli.cli.v1.ResourceRestoreReport.resource:type_name -> vrooli.cli.v1.ResourceDeprecatedResource
+	11, // 12: vrooli.cli.v1.ResourceListBlueprintArchivedResponse.resources:type_name -> vrooli.cli.v1.ResourceBlueprintArchivedResource
+	14, // 13: vrooli.cli.v1.ResourceBlueprintArchiveResponse.report:type_name -> vrooli.cli.v1.ResourceBlueprintArchiveReport
+	11, // 14: vrooli.cli.v1.ResourceBlueprintArchiveReport.resource:type_name -> vrooli.cli.v1.ResourceBlueprintArchivedResource
+	16, // 15: vrooli.cli.v1.ResourceBlueprintRestoreResponse.report:type_name -> vrooli.cli.v1.ResourceBlueprintRestoreReport
+	11, // 16: vrooli.cli.v1.ResourceBlueprintRestoreReport.resource:type_name -> vrooli.cli.v1.ResourceBlueprintArchivedResource
+	19, // 17: vrooli.cli.v1.ResourceArchiveGCResponse.report:type_name -> vrooli.cli.v1.ResourceArchiveGCReport
+	17, // 18: vrooli.cli.v1.ResourceArchiveGCReport.removed:type_name -> vrooli.cli.v1.ResourceArchiveGCItem
+	17, // 19: vrooli.cli.v1.ResourceArchiveGCReport.skipped:type_name -> vrooli.cli.v1.ResourceArchiveGCItem
+	23, // 20: vrooli.cli.v1.ResourceSchemaValidationResponse.report:type_name -> vrooli.cli.v1.ResourceSchemaValidationReport
+	20, // 21: vrooli.cli.v1.ResourceSchemaValidationReport.artifact_issues:type_name -> vrooli.cli.v1.ResourceSchemaArtifactIssue
+	21, // 22: vrooli.cli.v1.ResourceSchemaValidationReport.missing_references:type_name -> vrooli.cli.v1.ResourceScenarioResourceReference
+	25, // 23: vrooli.cli.v1.ResourceSchemaSyncResponse.report:type_name -> vrooli.cli.v1.ResourceSchemaSyncReport
+	21, // 24: vrooli.cli.v1.ResourceSchemaSyncReport.missing_references:type_name -> vrooli.cli.v1.ResourceScenarioResourceReference
+	26, // 25: vrooli.cli.v1.ResourceValidationItem.issues:type_name -> vrooli.cli.v1.ResourceValidationIssue
+	27, // 26: vrooli.cli.v1.ResourceValidationReport.items:type_name -> vrooli.cli.v1.ResourceValidationItem
+	26, // 27: vrooli.cli.v1.ResourceValidationReport.issues:type_name -> vrooli.cli.v1.ResourceValidationIssue
+	28, // 28: vrooli.cli.v1.ResourceValidationResponse.report:type_name -> vrooli.cli.v1.ResourceValidationReport
+	29, // [29:29] is the sub-list for method output_type
+	29, // [29:29] is the sub-list for method input_type
+	29, // [29:29] is the sub-list for extension type_name
+	29, // [29:29] is the sub-list for extension extendee
+	0,  // [0:29] is the sub-list for field type_name
 }
 
 func init() { file_cli_v1_resource_reports_proto_init() }

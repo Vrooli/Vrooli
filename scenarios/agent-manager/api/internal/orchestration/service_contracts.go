@@ -41,6 +41,23 @@ type IdentityVerifyResult struct {
 	Error     string           `json:"error,omitempty"`
 }
 
+// IdentityPairVerifyResult keeps an operation grant separate from the
+// ordinary run identity. The caller must verify Valid before using Operation.
+type IdentityPairVerifyResult struct {
+	Valid     bool                  `json:"valid"`
+	Operation *IdentityVerifyResult `json:"operation,omitempty"`
+	Error     string                `json:"error,omitempty"`
+}
+
+// AuthorizationCredentials keeps the baseline and operation proofs in
+// separate fields; LegacyToken is populated only for existing grant-only runs.
+type AuthorizationCredentials struct {
+	BaselineToken    string `json:"baseline_token,omitempty"`
+	OperationToken   string `json:"operation_token,omitempty"`
+	LegacyToken      string `json:"token,omitempty"`
+	OperationRefusal string `json:"operation_refusal,omitempty"`
+}
+
 // PurgeTarget identifies entities eligible for purge.
 type PurgeTarget int
 
@@ -73,6 +90,11 @@ type PurgeResult struct {
 
 // CreateRunRequest contains parameters for creating a new run.
 type CreateRunRequest struct {
+	// requestDigest is computed from the caller's original create intent before
+	// admission enriches the request (for example, by inheriting parent refs).
+	// It is carried only to the persisted admission snapshot and is never wire data.
+	requestDigest string
+
 	TaskID uuid.UUID `json:"taskId"`
 	// Attributable workload declarations only; never authorization claims.
 	WorkReferences []*eventpb.WorkReference `json:"workReferences,omitempty"`
@@ -195,9 +217,10 @@ type AttachRunRequest struct {
 	// launcher on the attach header). AttachRun verifies it against the shared
 	// scenario-authenticator root and attributes the run to the delegated human
 	// ONLY when it verifies AND its wc_session_id claim equals WebConsoleSessionID.
-	// A missing or unverifiable value leaves the run unattributed — never refused
-	// — so a local/agent/loopback attach cannot self-assert a human. It is a
-	// label verified at the root, never authority the caller supplies.
+	// A missing or unverifiable value leaves the run unattributed and zero-scope —
+	// never refused — so a local/agent/loopback attach cannot self-assert a human.
+	// The owner scope ceiling is read only from the verified token, never from
+	// caller-supplied request fields.
 	HumanOwnerDelegation string
 	// WebConsoleSessionID is the web-console session id the launcher forwards
 	// alongside the delegation. The delegation's wc_session_id claim is the

@@ -148,26 +148,50 @@ func (s *TeamExecutionStore) RunResetEligibility(ctx context.Context, src ResetE
 
 // SetRunningRunID routes a RunID update to the context for teamID.
 // No-op if no context exists yet for the team.
-func (s *TeamExecutionStore) SetRunningRunID(teamID, agentID, runID string) {
+func (s *TeamExecutionStore) SetRunningRunID(teamID, agentID, runID string, ownerStartedAt ...string) {
 	s.mu.RLock()
 	tec, ok := s.contexts[teamID]
 	s.mu.RUnlock()
 	if !ok {
 		return
 	}
-	tec.SetRunningRunID(agentID, runID)
+	tec.SetRunningRunID(agentID, runID, ownerStartedAt...)
 }
 
 // BeginDispatch routes a pre-request dispatch intent to the context for teamID.
-// No-op if no context exists yet for the team.
-func (s *TeamExecutionStore) BeginDispatch(teamID, agentID string, intent DispatchIntent) {
+// A missing context is an error: callers must not dispatch without proving
+// that the durable queue obligation was updated.
+func (s *TeamExecutionStore) BeginDispatch(teamID, agentID string, intent DispatchIntent) error {
 	s.mu.RLock()
 	tec, ok := s.contexts[teamID]
 	s.mu.RUnlock()
 	if !ok {
-		return
+		return ErrRunningEntryNotFound
 	}
-	tec.BeginDispatch(agentID, intent)
+	return tec.BeginDispatch(agentID, intent)
+}
+
+// ConfirmTaskDispatch persists the verified task phase before CreateRun.
+func (s *TeamExecutionStore) ConfirmTaskDispatch(teamID, agentID string) error {
+	s.mu.RLock()
+	tec, ok := s.contexts[teamID]
+	s.mu.RUnlock()
+	if !ok {
+		return ErrRunningEntryNotFound
+	}
+	return tec.ConfirmTaskDispatch(agentID)
+}
+
+// CancelUnsentTaskDispatch releases only the exact durable task intent whose
+// owner request was proven not to have been sent.
+func (s *TeamExecutionStore) CancelUnsentTaskDispatch(teamID, agentID, taskID, idempotencyKey, taskSnapshot string) error {
+	s.mu.RLock()
+	tec, ok := s.contexts[teamID]
+	s.mu.RUnlock()
+	if !ok {
+		return ErrRunningEntryNotFound
+	}
+	return tec.CancelUnsentTaskDispatch(agentID, taskID, idempotencyKey, taskSnapshot)
 }
 
 // ReconcileDispatch routes an owner-mediated replay of a retained uncertain
@@ -178,6 +202,64 @@ func (s *TeamExecutionStore) ReconcileDispatch(ctx context.Context, teamID, agen
 		return err
 	}
 	return tec.ReconcileDispatch(ctx, agentID)
+}
+
+func (s *TeamExecutionStore) MarkApprovalPending(teamID, agentID string) {
+	s.mu.RLock()
+	tec, ok := s.contexts[teamID]
+	s.mu.RUnlock()
+	if ok {
+		tec.MarkApprovalPending(agentID)
+	}
+}
+
+// MarkAdmissionDeferred retains the exact durable dispatch after a typed
+// owner capacity refusal so the existing schedule can replay it later.
+func (s *TeamExecutionStore) MarkAdmissionDeferred(teamID, agentID string) error {
+	s.mu.RLock()
+	tec, ok := s.contexts[teamID]
+	s.mu.RUnlock()
+	if !ok {
+		return ErrRunningEntryNotFound
+	}
+	return tec.MarkAdmissionDeferred(agentID)
+}
+
+// RetryApprovalPending replays an existing run-stage intent on a scheduled
+// callback. It returns retried=true even when approval remains pending so the
+// same callback cannot also admit a fresh task/run.
+func (s *TeamExecutionStore) RetryApprovalPending(ctx context.Context, teamID, agentID string) (retried bool, err error) {
+	tec, err := s.configureContext(ctx, teamID)
+	if err != nil {
+		return false, err
+	}
+	for _, pendingAgentID := range tec.Status().ApprovalPendingAgentIDs {
+		if pendingAgentID == agentID {
+			return true, tec.ReconcileDispatch(ctx, agentID)
+		}
+	}
+	return false, nil
+}
+
+// RetryAdmissionDeferred replays a single durable request only when the
+// scheduler has already established current team/member/config eligibility.
+func (s *TeamExecutionStore) RetryAdmissionDeferred(ctx context.Context, teamID, agentID string) (bool, error) {
+	tec, err := s.configureContext(ctx, teamID)
+	if err != nil {
+		return false, err
+	}
+	return tec.RetryAdmissionDeferred(ctx, agentID)
+}
+
+// RetryManualDispatch replays a same-caller retained manual intent through
+// the existing manual-trigger route, after that route checks current owner
+// eligibility and the fresh caller binding.
+func (s *TeamExecutionStore) RetryManualDispatch(ctx context.Context, teamID, agentID string) (bool, error) {
+	tec, err := s.configureContext(ctx, teamID)
+	if err != nil {
+		return false, err
+	}
+	return tec.RetryManualDispatch(ctx, agentID)
 }
 
 // MarkDispatchUncertain routes a retained uncertain obligation to the context
@@ -244,6 +326,20 @@ func (s *TeamExecutionStore) OnComplete(teamID, agentID string) {
 	tec.OnMemberComplete(agentID)
 }
 
+// MarkWatcherUnavailable retains the member slot when completion observation
+// ends without definitive terminal owner evidence.
+func (s *TeamExecutionStore) MarkWatcherUnavailable(teamID, agentID string) {
+	tec := s.GetOrCreate(teamID)
+	tec.MarkWatcherUnavailable(agentID)
+}
+
+// RetryUnavailableWatcher performs one scheduled owner reconciliation and
+// reattaches a waiter only when the existing run remains nonterminal.
+func (s *TeamExecutionStore) RetryUnavailableWatcher(ctx context.Context, teamID, agentID string) (bool, error) {
+	tec := s.GetOrCreate(teamID)
+	return tec.RetryUnavailableWatcher(ctx, agentID)
+}
+
 // Recover loads persisted queue state for all known teams from disk and
 // reconciles each running entry against agent-manager via the per-context
 // AgentClient. See TeamExecutionContext.Recover for details.
@@ -268,8 +364,10 @@ func (s *TeamExecutionStore) Recover(ctx context.Context) {
 
 		tec := newTeamExecutionContext(teamID, s.executor, s.persistDir, s.agentClient)
 		s.applyDefaults(tec)
-		tec.Recover(ctx)
+		// Publish the context before recovery attaches async terminal waiters, so
+		// an immediate owner completion can route its callback to this context.
 		s.contexts[teamID] = tec
+		tec.Recover(ctx)
 	}
 
 	if len(s.contexts) > 0 {
@@ -288,15 +386,4 @@ func (s *TeamExecutionStore) configureContext(ctx context.Context, teamID string
 	}
 	tec.Configure(team.Execution.QueuePolicy, team.Execution.MaxConcurrentRuns)
 	return tec, nil
-}
-
-// BeginDispatchDurable is required by finite effort execution before native dispatch.
-func (s *TeamExecutionStore) BeginDispatchDurable(teamID, agentID string, intent DispatchIntent) error {
-	s.mu.RLock()
-	tec, ok := s.contexts[teamID]
-	s.mu.RUnlock()
-	if !ok {
-		return ErrRunningEntryNotFound
-	}
-	return tec.BeginDispatchDurable(agentID, intent)
 }

@@ -1256,8 +1256,11 @@ type ApplyPlanRequest struct {
 	ApprovalMode   string                 `protobuf:"bytes,3,opt,name=approval_mode,json=approvalMode,proto3" json:"approval_mode,omitempty"`
 	ApprovalToken  string                 `protobuf:"bytes,4,opt,name=approval_token,json=approvalToken,proto3" json:"approval_token,omitempty"`
 	IdempotencyKey string                 `protobuf:"bytes,5,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Optional exact preview item IDs. Empty preserves whole-plan behavior.
+	// Unknown IDs reject the request before any effect. Selection is replay-bound.
+	ItemIds       []string `protobuf:"bytes,6,rep,name=item_ids,json=itemIds,proto3" json:"item_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ApplyPlanRequest) Reset() {
@@ -1323,6 +1326,13 @@ func (x *ApplyPlanRequest) GetIdempotencyKey() string {
 		return x.IdempotencyKey
 	}
 	return ""
+}
+
+func (x *ApplyPlanRequest) GetItemIds() []string {
+	if x != nil {
+		return x.ItemIds
+	}
+	return nil
 }
 
 type ApplyPlanResponse struct {
@@ -2408,13 +2418,14 @@ const file_storage_manager_v1_cleanup_cleanup_proto_rawDesc = "" +
 	"\x05bytes\x18\x04 \x01(\x03R\x05bytes\x12\x16\n" +
 	"\x06action\x18\x05 \x01(\tR\x06action\x12\x1f\n" +
 	"\vsafety_tier\x18\x06 \x01(\tR\n" +
-	"safetyTier\"\xc7\x01\n" +
+	"safetyTier\"\xe2\x01\n" +
 	"\x10ApplyPlanRequest\x12\x17\n" +
 	"\aplan_id\x18\x01 \x01(\tR\x06planId\x12%\n" +
 	"\x0epolicy_version\x18\x02 \x01(\tR\rpolicyVersion\x12#\n" +
 	"\rapproval_mode\x18\x03 \x01(\tR\fapprovalMode\x12%\n" +
 	"\x0eapproval_token\x18\x04 \x01(\tR\rapprovalToken\x12'\n" +
-	"\x0fidempotency_key\x18\x05 \x01(\tR\x0eidempotencyKey\"\xf1\x01\n" +
+	"\x0fidempotency_key\x18\x05 \x01(\tR\x0eidempotencyKey\x12\x19\n" +
+	"\bitem_ids\x18\x06 \x03(\tR\aitemIds\"\xf1\x01\n" +
 	"\x11ApplyPlanResponse\x12\x17\n" +
 	"\aplan_id\x18\x01 \x01(\tR\x06planId\x12'\n" +
 	"\x0fidempotency_key\x18\x02 \x01(\tR\x0eidempotencyKey\x12'\n" +

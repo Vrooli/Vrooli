@@ -39,10 +39,17 @@ locally against `scenario-authenticator`'s published JWKS through
 `api-core/owneridentity`, with no per-request callback. A recipient row is
 a projection of a verified external identity.
 
-Authenticated surfaces fail closed. When the authenticator is unreachable,
-the API rejects requests it cannot attribute to a verified identity.
+Authenticated mutations fail closed. When the authenticator is unreachable,
+the API rejects mutations it cannot attribute to a verified identity.
 Already-accepted notifications continue to drain, because their recipient
-was resolved at acceptance time.
+was resolved at acceptance time. Ordinary ask, notification, delivery, routing,
+recipient/device metadata, and preference reads do not require an interactive
+login. Recipient data uses the Hub's configured recipient, and catalog reads
+return only source/category metadata. Recipient lookup does not create a row;
+routing status retains its current status-snapshot refresh, with cache keys limited to configured target IDs or `local`. Notification detail receipts omit push provider IDs for every caller on this public configured-recipient projection. Reading an ask does not authorize
+answering it. Ask answers, subscription/credential operations, and the
+recipient/device/preferences writes covered here retain their existing checks.
+Other endpoints are unchanged by this read rule.
 
 **Trust posture selects the recipient model.** `trust_posture` in
 `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json` is `personal`, `shared`, or `hosted`.

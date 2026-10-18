@@ -80,6 +80,7 @@ var resourceSpecs = map[string]resourceSpec{
 	"kyutai-stt":           {listen: "127.0.0.1:8094", upstream: "127.0.0.1:18094", methods: []string{http.MethodGet}, paths: []string{"/v1/stream"}},
 	"ace-step":             {listen: "127.0.0.1:8895", upstream: "127.0.0.1:18895", methods: []string{http.MethodPost}, paths: []string{"/v1/compose", "/v1/capacity/degrade"}},
 	"stable-audio-3":       {listen: "127.0.0.1:8896", upstream: "127.0.0.1:18896", methods: []string{http.MethodPost}, paths: []string{"/v1/compose"}},
+	"songgen":              {listen: "127.0.0.1:8897", upstream: "127.0.0.1:18897", methods: []string{http.MethodPost}, paths: []string{"/v1/compose"}},
 	"speaker-verification": {listen: "127.0.0.1:11452", upstream: "127.0.0.1:21452", methods: []string{http.MethodPost}, paths: []string{"/v1/profiles", "/v1/verify", "/v1/extract"}},
 	"ollama":               {listen: "127.0.0.1:11434", upstream: "127.0.0.1:21434", methods: []string{http.MethodPost}, paths: []string{"/api/generate", "/api/chat", "/api/embed", "/api/embeddings"}},
 	"reranker":             {listen: "127.0.0.1:11453", upstream: "127.0.0.1:21453", methods: []string{http.MethodPost}, paths: []string{"/rerank", "/v1/rerank"}},

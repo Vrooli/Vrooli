@@ -75,7 +75,7 @@ func ValidateProtectedBuildException(exception ProtectedBuildException) error {
 // string to a shell.
 func (r Resolution) Command() string {
 	if r.PythonBootstrap != nil {
-		return "uv pip compile --only-binary :all: --no-build --generate-hashes " + filepath.Base(r.PythonBootstrap.InputPath) + " into " + strings.Join(baseNames(r.PythonLockfiles), ", ")
+		return "uv pip compile --only-binary :all: --generate-hashes " + filepath.Base(r.PythonBootstrap.InputPath) + " into " + strings.Join(baseNames(r.PythonLockfiles), ", ")
 	}
 	if r.TemplateVersion != "" {
 		qualifier := ""

@@ -24,8 +24,14 @@ func TestStaleCheckerRebuildInheritsFloor(t *testing.T) {
 		CommandRunner: func(cmd *exec.Cmd) error { captured = cmd.Env; return nil },
 		Logger:        func(string, ...interface{}) {},
 		Reexec:        func(string, []string) error { return nil },
+		InstallKind:   "scenario",
+		InstallName:   "x",
 	}
-	if !checker.autoRebuild(FreshnessSpec{SourceRoot: filepath.Join(root, "scenarios", "x", "cli"), ContextRoot: root}, "fp") {
+	restarted, err := checker.autoRebuild(FreshnessSpec{SourceRoot: filepath.Join(root, "scenarios", "x", "cli"), ContextRoot: root}, "fp")
+	if err != nil {
+		t.Fatalf("autoRebuild returned error: %v", err)
+	}
+	if !restarted {
 		t.Fatal("autoRebuild returned false")
 	}
 	goflags := environmentValue(captured, "GOFLAGS")

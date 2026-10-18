@@ -3,6 +3,8 @@ package owneridentity
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"net/http"
 	"os"
@@ -124,6 +126,22 @@ func RequireCreateRunCaller(ctx context.Context, now time.Time, enforced bool) e
 		return ErrCreateRunCaller
 	}
 	return nil
+}
+
+// CreateRunCallerBinding returns a stable, non-secret fingerprint of the
+// verified human subject attached to this request. It deliberately excludes
+// credentials, email, expiry, and mutable request metadata so a caller can be
+// reverified after restart without allowing a different human to take over an
+// uncertain owner operation.
+func CreateRunCallerBinding(ctx context.Context) (string, error) {
+	p, ok := ctx.Value(createRunCallerKey{}).(createRunCaller)
+	if !ok || strings.TrimSpace(p.identity.Subject) == "" || p.token == "" && len(p.headers) == 0 {
+		return "", ErrCreateRunCaller
+	}
+	// Both supported verification paths admit only human callers. Keep the
+	// actor kind in the digest domain so future identity kinds cannot collide.
+	sum := sha256.Sum256([]byte("human\x00" + strings.TrimSpace(p.identity.Subject)))
+	return "v1:" + hex.EncodeToString(sum[:]), nil
 }
 
 // CreateRunAuthorization is usable only for the exact owner creation endpoint.

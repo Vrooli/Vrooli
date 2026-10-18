@@ -1,10 +1,11 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { renderWithProviders } from "../test-utils";
 import { SettingsPage } from "./SettingsPage";
 import { fetchNotificationCatalog, updateNotificationPreference, type NotificationPreference } from "../api/preferences";
+import { identityClient, recipientsClient } from "../api/notifications";
 
 /** The PreferenceRow container holding the label, enable checkbox, and urgency select. */
 function preferenceRowFor(label: RegExp): HTMLElement {
@@ -75,6 +76,15 @@ const catalogWithOneSource = {
 };
 
 describe("SettingsPage notification preferences", () => {
+  beforeEach(() => {
+    vi.mocked(identityClient.getSession).mockResolvedValue({
+      signedIn: true,
+      subject: "owner-1",
+      email: "owner@example.test",
+    } as never);
+    vi.mocked(recipientsClient.listDevices).mockResolvedValue({ devices: [] } as never);
+  });
+
   afterEach(() => {
     vi.clearAllMocks();
   });
@@ -96,6 +106,25 @@ describe("SettingsPage notification preferences", () => {
     expect(select).toBeInTheDocument();
     // The urgency ladder is rendered as options.
     expect(screen.getAllByRole("option", { name: "critical" }).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("shows recipient preferences and device metadata while signed out but disables writes", async () => {
+    vi.mocked(identityClient.getSession).mockResolvedValue({ signedIn: false } as never);
+    vi.mocked(recipientsClient.listDevices).mockResolvedValue({
+      devices: [{ id: "device-1", name: "Phone", machineId: "local", channels: ["web_push"] }],
+      vapidPublicKey: "public-key",
+    } as never);
+    fetchCatalog.mockResolvedValue(catalogWithOneSource);
+
+    renderWithProviders(<SettingsPage />);
+
+    expect(await screen.findByRole("heading", { name: "Git Control Tower" })).toBeInTheDocument();
+    expect(screen.getAllByText("Phone").length).toBeGreaterThan(0);
+    const row = preferenceRowFor(/Review requests/);
+    expect(within(row).getByRole("checkbox")).toBeDisabled();
+    expect(within(row).getByRole("combobox")).toBeDisabled();
+    expect(updatePref).not.toHaveBeenCalled();
+    expect(await screen.findByText(/Sign in to change notification preferences/)).toBeInTheDocument();
   });
 
   it("PUTs a preference when the enable checkbox is toggled", async () => {

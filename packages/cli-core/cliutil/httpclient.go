@@ -116,12 +116,15 @@ func ParseAPIError(statusCode int, data []byte) *APIError {
 // HTTPClient wraps an http.Client with base URL resolution, token injection,
 // and JSON request helpers.
 type agentCredentialPin struct {
-	token   string
-	resolve func(context.Context) (string, error)
+	token          string
+	operationToken string
+	resolve        func(context.Context) (string, error)
+	resolvePair    func(context.Context) (AgentCredentials, error)
 }
 type (
-	agentCredentialPinKey struct{}
-	HTTPClient            struct {
+	agentCredentialPinKey      struct{}
+	identityInjectionBypassKey struct{}
+	HTTPClient                 struct {
 		// Enabled only on an explicitly protected request-local copy.
 		rejectRedirectResponses bool
 		identityPin             *agentCredentialPin
@@ -190,15 +193,22 @@ func (t identityForwardingTransport) RoundTrip(req *http.Request) (*http.Respons
 // as a WebSocket upgrade. It also strips inherited identity on remote hops.
 func ApplyAgentIdentity(req *http.Request) error {
 	if req != nil {
+		if bypass, _ := req.Context().Value(identityInjectionBypassKey{}).(bool); bypass {
+			req.Header.Del(HeaderAgentIdentityToken)
+			req.Header.Del(HeaderAgentOperationToken)
+			return nil
+		}
+	}
+	if req != nil {
 		if pin, ok := req.Context().Value(agentCredentialPinKey{}).(*agentCredentialPin); ok {
 			if !TrustedIdentityDestination(req) {
 				return errors.New("pinned native credential requires trusted destination")
 			}
-			current, err := pin.resolve(req.Context())
+			current, err := pin.resolveCredentials(req.Context())
 			if err != nil {
 				return err
 			}
-			if current != pin.token || req.Header.Get(HeaderAgentIdentityToken) != pin.token {
+			if current.BaselineToken != pin.token || current.OperationToken != pin.operationToken || req.Header.Get(HeaderAgentIdentityToken) != pin.token || req.Header.Get(HeaderAgentOperationToken) != pin.operationToken {
 				return errors.New("native credential changed during exact request")
 			}
 			return nil
@@ -207,25 +217,47 @@ func ApplyAgentIdentity(req *http.Request) error {
 	if !TrustedIdentityDestination(req) {
 		if req != nil {
 			req.Header.Del(HeaderAgentIdentityToken)
+			req.Header.Del(HeaderAgentOperationToken)
 		}
 		return nil
 	}
 	if supplied := strings.TrimSpace(req.Header.Get(HeaderAgentIdentityToken)); supplied != "" && supplied != strings.TrimSpace(os.Getenv(EnvIdentityToken)) {
+		req.Header.Del(HeaderAgentOperationToken)
 		return nil
 	}
-	token, err := ResolveAgentCredential(req.Context())
+	credentials, err := ResolveAgentCredentials(req.Context())
 	if err != nil {
 		return err
 	}
 	if req.Header == nil {
 		req.Header = make(http.Header)
 	}
+	token := credentials.BaselineToken
+	if token == "" {
+		token = credentials.LegacyToken
+	}
 	if token == "" {
 		req.Header.Del(HeaderAgentIdentityToken)
 	} else {
 		req.Header.Set(HeaderAgentIdentityToken, token)
 	}
+	if credentials.OperationToken == "" {
+		req.Header.Del(HeaderAgentOperationToken)
+	} else {
+		req.Header.Set(HeaderAgentOperationToken, credentials.OperationToken)
+	}
 	return nil
+}
+
+func (pin *agentCredentialPin) resolveCredentials(ctx context.Context) (AgentCredentials, error) {
+	if pin.resolvePair != nil {
+		return pin.resolvePair(ctx)
+	}
+	if pin.resolve == nil {
+		return AgentCredentials{}, errors.New("pinned native credential resolver unavailable")
+	}
+	token, err := pin.resolve(ctx)
+	return AgentCredentials{BaselineToken: token}, err
 }
 
 func (t identityForwardingTransport) roundTripper() http.RoundTripper {
@@ -371,6 +403,11 @@ func (h *HTTPClient) DoWithContext(ctx context.Context, method, path string, que
 		req = req.WithContext(context.WithValue(req.Context(), agentCredentialPinKey{}, h.identityPin))
 		req.Header.Del("Authorization")
 		req.Header.Set(HeaderAgentIdentityToken, h.identityPin.token)
+		if h.identityPin.operationToken == "" {
+			req.Header.Del(HeaderAgentOperationToken)
+		} else {
+			req.Header.Set(HeaderAgentOperationToken, h.identityPin.operationToken)
+		}
 		if err := ApplyAgentIdentity(req); err != nil {
 			return nil, err
 		}

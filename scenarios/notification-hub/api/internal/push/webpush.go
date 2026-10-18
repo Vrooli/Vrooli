@@ -56,6 +56,12 @@ type Sender struct {
 	Now        func() time.Time
 }
 
+const (
+	webPushMaxBodyBytes = 4096
+	webPushHeaderBytes  = 16 + 4 + 1 + 65
+	webPushRecordSize   = 4096
+)
+
 func NewFromEnvironment(getenv func(string) string) (*Sender, error) {
 	if getenv == nil {
 		return nil, errors.New("environment reader is required")
@@ -343,14 +349,17 @@ func encrypt(plaintext, clientKey, auth []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(plaintext)+1+gcm.Overhead() > 4096 {
+	// RFC 8291 permits push services to cap the complete request body at
+	// 4096 octets. The aes128gcm header is 86 octets, in addition to the
+	// plaintext, final-record delimiter, and GCM tag.
+	if webPushHeaderBytes+len(plaintext)+1+gcm.Overhead() > webPushMaxBodyBytes {
 		return nil, errors.New("web push payload exceeds record size")
 	}
 	padded := append(append([]byte{}, plaintext...), 2)
 	ciphertext := gcm.Seal(nil, nonce, padded, nil)
 	out := append([]byte{}, salt...)
 	recordSize := make([]byte, 4)
-	binary.BigEndian.PutUint32(recordSize, 4096)
+	binary.BigEndian.PutUint32(recordSize, webPushRecordSize)
 	out = append(out, recordSize...)
 	out = append(out, byte(len(ephemeral.PublicKey().Bytes())))
 	out = append(out, ephemeral.PublicKey().Bytes()...)

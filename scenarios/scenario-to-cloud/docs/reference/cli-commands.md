@@ -55,10 +55,10 @@ Release bundles (local store and target)
 | `bundle build` | write | true | local | Build the mini-Vrooli bundle for a manifest |
 | `bundle list` | read | true | local | List local bundles |
 | `bundle stats` | read | true | local | Local bundle store statistics |
-| `bundle delete` | destructive | false | local | Delete one local bundle |
-| `bundle cleanup` | destructive | false | local | Prune local bundles per scenario |
+| `bundle delete` | destructive | true | local | Delete one local bundle |
+| `bundle cleanup` | destructive | true | local | Prune local bundles per scenario |
 | `bundle vps-list` | read | true | local | List bundles retained on the deployment's target (GET /deployments/{id}/bundles/vps) (--deployment <id> \| <id> \| --scenario <id> --environment <env> \| --scenario <id> --domain <domain> \| --scenario <id> --host <host>) |
-| `bundle vps-gc` | destructive | false | local | Garbage-collect target bundles keeping the newest (--deployment <id> \| <id> \| --scenario <id> --environment <env> \| --scenario <id> --domain <domain> \| --scenario <id> --host <host>) |
+| `bundle vps-gc` | destructive | true | local | Garbage-collect target bundles keeping the newest (--deployment <id> \| <id> \| --scenario <id> --environment <env> \| --scenario <id> --domain <domain> \| --scenario <id> --host <host>) |
 
 Examples:
 
@@ -82,12 +82,12 @@ Deployment lifecycle over identities, executable plans and durable operations
 | `deployment resolve` | read | true | DeploymentsService.ResolveDeployment | Resolve a selector to its stable identity (the facets fill the nested selector message); ambiguity is refused (exit 2) with candidates (--deployment <id> \| <id> \| --scenario <id> --environment <env> \| --scenario <id> --domain <domain> \| --scenario <id> --host <host>) |
 | `deployment list` | read | true | DeploymentsService.ListDeployments | List deployments (proto JSON with --json) |
 | `deployment get` | read | true | DeploymentsService.GetDeployment | Read a deployment record (--deployment <id> \| <id> \| --scenario <id> --environment <env> \| --scenario <id> --domain <domain> \| --scenario <id> --host <host>) |
-| `deployment delete` | destructive | false | local | Delete a deployment record (--deployment <id> \| <id> \| --scenario <id> --environment <env> \| --scenario <id> --domain <domain> \| --scenario <id> --host <host>) |
+| `deployment delete` | destructive | true | local | Delete a deployment record (--deployment <id> \| <id> \| --scenario <id> --environment <env> \| --scenario <id> --domain <domain> \| --scenario <id> --host <host>) |
 | `deployment plan` | read | true | PlansService.CompilePlan | Preview the executable plan: digest, changes, data effects, downtime, recovery strategy, handoff (--deployment <id> \| <id> \| --scenario <id> --environment <env> \| --scenario <id> --domain <domain> \| --scenario <id> --host <host>) |
 | `deployment apply` | destructive | true | PlansService.ApplyPlan | Admit a reviewed plan digest as a durable operation and wait once (run-eligible under a scenario-to-cloud:destructive session grant; confirmation required) (--deployment <id> \| <id> \| --scenario <id> --environment <env> \| --scenario <id> --domain <domain> \| --scenario <id> --host <host>) |
-| `deployment execute` | destructive | false | local | Plan, print the review (unless --yes), apply the exact digest shown and wait once (CompilePlan then ApplyPlan) (--deployment <id> \| <id> \| --scenario <id> --environment <env> \| --scenario <id> --domain <domain> \| --scenario <id> --host <host>) |
-| `deployment start` | destructive | false | local | Plan and apply the start scope (CompilePlan then ApplyPlan with scope start) (--deployment <id> \| <id> \| --scenario <id> --environment <env> \| --scenario <id> --domain <domain> \| --scenario <id> --host <host>) |
-| `deployment stop` | destructive | false | local | Stop the workload on the target (--deployment <id> \| <id> \| --scenario <id> --environment <env> \| --scenario <id> --domain <domain> \| --scenario <id> --host <host>) |
+| `deployment execute` | destructive | true | local | Plan, print the review (unless --yes), apply the exact digest shown and wait once (CompilePlan then ApplyPlan) (--deployment <id> \| <id> \| --scenario <id> --environment <env> \| --scenario <id> --domain <domain> \| --scenario <id> --host <host>) |
+| `deployment start` | destructive | true | local | Plan and apply the start scope (CompilePlan then ApplyPlan with scope start) (--deployment <id> \| <id> \| --scenario <id> --environment <env> \| --scenario <id> --domain <domain> \| --scenario <id> --host <host>) |
+| `deployment stop` | destructive | true | local | Stop the workload on the target (--deployment <id> \| <id> \| --scenario <id> --environment <env> \| --scenario <id> --domain <domain> \| --scenario <id> --host <host>) |
 | `deployment history` | read | true | local | Deployment history events (--deployment <id> \| <id> \| --scenario <id> --environment <env> \| --scenario <id> --domain <domain> \| --scenario <id> --host <host>) |
 | `deployment health` | read | true | HealthService.GetHealthObservation | Typed health observation: status, freshness, checks, next actions (unknown is never healthy) (--deployment <id> \| <id> \| --scenario <id> --environment <env> \| --scenario <id> --domain <domain> \| --scenario <id> --host <host>) |
 | `deployment rollback` | destructive | true | local | Governed rollback to the published predecessor: --dry-run issues a preview reference, --confirm executes it (run-eligible under a scenario-to-cloud:destructive session grant; confirmation required) (--deployment <id> \| <id> \| --scenario <id> --environment <env> \| --scenario <id> --domain <domain> \| --scenario <id> --host <host>) |
@@ -117,7 +117,7 @@ Consistent recovery points and restore
 | Command | Effect | Agent-runnable | Binding | Description |
 |---|---|---|---|---|
 | `deployment recovery-points list` | read | true | local | Recovery points of the deployment (--deployment <id> \| <id> \| --scenario <id> --environment <env> \| --scenario <id> --domain <domain> \| --scenario <id> --host <host>) |
-| `deployment recovery-points capture` | write | false | local | Capture a consistent recovery point (--deployment <id> \| <id> \| --scenario <id> --environment <env> \| --scenario <id> --domain <domain> \| --scenario <id> --host <host>) |
+| `deployment recovery-points capture` | write | true | local | Capture a consistent recovery point (--deployment <id> \| <id> \| --scenario <id> --environment <env> \| --scenario <id> --domain <domain> \| --scenario <id> --host <host>) |
 | `deployment recovery-points verify` | read | true | local | Verify a recovery point (--open also proves the recovery key resolves) (--deployment <id> \| <id> \| --scenario <id> --environment <env> \| --scenario <id> --domain <domain> \| --scenario <id> --host <host>) |
 | `deployment recovery-points restore` | destructive | true | local | Restore a recovery point onto a replacement target; --dry-run verifies and calls no restore (run-eligible under a scenario-to-cloud:destructive session grant; confirmation required) (--deployment <id> \| <id> \| --scenario <id> --environment <env> \| --scenario <id> --domain <domain> \| --scenario <id> --host <host>) |
 
@@ -136,8 +136,8 @@ Governed publication bound to an approved review
 
 | Command | Effect | Agent-runnable | Binding | Description |
 |---|---|---|---|---|
-| `publication request` | write | false | EvidenceService.RequestPublication | Open a publication and prepare its review (--deployment <id> \| <id> \| --scenario <id> --environment <env> \| --scenario <id> --domain <domain> \| --scenario <id> --host <host>) |
-| `publication apply` | destructive | false | EvidenceService.ApplyPublication | Activate the approved publication by its reviewed digest (approval re-checked server-side) (--deployment <id> \| <id> \| --scenario <id> --environment <env> \| --scenario <id> --domain <domain> \| --scenario <id> --host <host>) |
+| `publication request` | write | true | EvidenceService.RequestPublication | Open a publication and prepare its review (--deployment <id> \| <id> \| --scenario <id> --environment <env> \| --scenario <id> --domain <domain> \| --scenario <id> --host <host>) |
+| `publication apply` | destructive | true | EvidenceService.ApplyPublication | Activate the approved publication by its reviewed digest (approval re-checked server-side) (--deployment <id> \| <id> \| --scenario <id> --environment <env> \| --scenario <id> --domain <domain> \| --scenario <id> --host <host>) |
 | `publication status` | read | true | EvidenceService.GetPublication | Publication standing (--deployment <id> \| <id> \| --scenario <id> --environment <env> \| --scenario <id> --domain <domain> \| --scenario <id> --host <host>) |
 
 Examples:
@@ -154,7 +154,7 @@ Manifest-first convenience wrapper
 
 | Command | Effect | Agent-runnable | Binding | Description |
 |---|---|---|---|---|
-| `redeploy` | destructive | false | local | Create or update the record from a manifest, then plan, review, apply and wait once (same path as deployment execute) |
+| `redeploy` | destructive | true | local | Create or update the record from a manifest, then plan, review, apply and wait once (same path as deployment execute) |
 
 Examples:
 
@@ -170,8 +170,8 @@ Target readiness checks and host fixes
 |---|---|---|---|---|
 | `preflight run` | read | true | local | Run preflight checks for a manifest. Human report by default, --json for the raw body. Exits non-zero on a failing check; warnings print and never fail. |
 | `preflight requirements` | read | true | local | Print the canonical VPS requirement policy |
-| `preflight fix-firewall` | destructive | false | local | Open the required inbound ports on the target (--deployment <id> \| <id> \| --scenario <id> --environment <env> \| --scenario <id> --domain <domain> \| --scenario <id> --host <host>) |
-| `preflight fix-processes` | destructive | false | local | Stop stale scenario processes on the target (--deployment <id> \| <id> \| --scenario <id> --environment <env> \| --scenario <id> --domain <domain> \| --scenario <id> --host <host>) |
+| `preflight fix-firewall` | destructive | true | local | Open the required inbound ports on the target (--deployment <id> \| <id> \| --scenario <id> --environment <env> \| --scenario <id> --domain <domain> \| --scenario <id> --host <host>) |
+| `preflight fix-processes` | destructive | true | local | Stop stale scenario processes on the target (--deployment <id> \| <id> \| --scenario <id> --environment <env> \| --scenario <id> --domain <domain> \| --scenario <id> --host <host>) |
 
 Examples:
 
@@ -193,7 +193,7 @@ Host setup plan
 | Command | Effect | Agent-runnable | Binding | Description |
 |---|---|---|---|---|
 | `vps setup plan` | read | true | local | Compile the setup plan |
-| `vps setup apply` | destructive | false | local | Apply the setup plan by its reviewed digest (compiles first when no digest is given) |
+| `vps setup apply` | destructive | true | local | Apply the setup plan by its reviewed digest (compiles first when no digest is given) |
 
 Examples:
 
@@ -209,7 +209,7 @@ Runtime deploy plan
 | Command | Effect | Agent-runnable | Binding | Description |
 |---|---|---|---|---|
 | `vps deploy plan` | read | true | local | Compile the deploy plan |
-| `vps deploy apply` | destructive | false | local | Apply the deploy plan by its reviewed digest (compiles first when no digest is given) |
+| `vps deploy apply` | destructive | true | local | Apply the deploy plan by its reviewed digest (compiles first when no digest is given) |
 
 Examples:
 
@@ -225,13 +225,13 @@ Disposable local QEMU instances
 | Command | Effect | Agent-runnable | Binding | Description |
 |---|---|---|---|---|
 | `vps instance plan` | read | true | local | Validate the local QEMU lane |
-| `vps instance create` | write | false | local | Register a disposable VM |
-| `vps instance start` | write | false | local | Start a registered VM |
-| `vps instance stop` | write | false | local | Stop a registered VM |
+| `vps instance create` | write | true | local | Register a disposable VM |
+| `vps instance start` | write | true | local | Start a registered VM |
+| `vps instance stop` | write | true | local | Stop a registered VM |
 | `vps instance wait-for-ssh` | read | true | local | Wait until the VM accepts SSH |
-| `vps instance snapshot` | write | false | local | Snapshot a VM |
-| `vps instance reset` | destructive | false | local | Reset a VM to a snapshot |
-| `vps instance destroy` | destructive | false | local | Destroy a VM |
+| `vps instance snapshot` | write | true | local | Snapshot a VM |
+| `vps instance reset` | destructive | true | local | Reset a VM to a snapshot |
+| `vps instance destroy` | destructive | true | local | Destroy a VM |
 
 Examples:
 
@@ -278,10 +278,10 @@ Remote process control
 
 | Command | Effect | Agent-runnable | Binding | Description |
 |---|---|---|---|---|
-| `process kill` | destructive | false | local | Kill a remote process |
-| `process restart` | destructive | false | local | Restart a remote scenario process |
-| `process control` | destructive | false | local | Scenario control action on the target |
-| `process vps-action` | destructive | false | local | Host-level action on the target |
+| `process kill` | destructive | true | local | Kill a remote process |
+| `process restart` | destructive | true | local | Restart a remote scenario process |
+| `process control` | destructive | true | local | Scenario control action on the target |
+| `process vps-action` | destructive | true | local | Host-level action on the target |
 
 Examples:
 
@@ -301,9 +301,9 @@ Edge routing, DNS and TLS
 | `edge status` | read | true | EdgeService.GetEdgeObservation | Typed edge observation: routes, private listeners, DNS, TLS, readiness (--deployment <id> \| <id> \| --scenario <id> --environment <env> \| --scenario <id> --domain <domain> \| --scenario <id> --host <host>) |
 | `edge dns-check` | read | true | local | Check DNS configuration |
 | `edge dns-records` | read | true | local | List DNS records |
-| `edge caddy` | destructive | false | local | Caddy control (reload, restart, status, validate) |
+| `edge caddy` | destructive | true | local | Caddy control (reload, restart, status, validate) |
 | `edge tls` | read | true | local | TLS certificate information |
-| `edge tls-renew` | destructive | false | local | Renew TLS certificates |
+| `edge tls-renew` | destructive | true | local | Renew TLS certificates |
 
 Examples:
 
@@ -387,7 +387,7 @@ Durable cloud operations: attach by id across disconnects and owner restarts
 | `operation get` | read | true | OperationsService.GetOperation | Typed standing of one operation (exit 3 while non-terminal; proto JSON with --json) |
 | `operation wait` | read | true | OperationsService.WaitOperation | Block once server-side until terminal; exit 124 when the observer bound elapses (operation unchanged) |
 | `operation resume` | read | true | local | Attach to an operation started elsewhere (API, UI) after a disconnect; same contract as wait (WaitOperation) |
-| `operation cancel` | write | false | OperationsService.CancelOperation | Record a cancellation intent, honoured at the next declared cancel point |
+| `operation cancel` | write | true | OperationsService.CancelOperation | Record a cancellation intent, honoured at the next declared cancel point |
 | `operation list` | read | true | OperationsService.ListDeploymentOperations | Operations admitted against a deployment (--deployment <id> \| <id> \| --scenario <id> --environment <env> \| --scenario <id> --domain <domain> \| --scenario <id> --host <host>) |
 
 Examples:

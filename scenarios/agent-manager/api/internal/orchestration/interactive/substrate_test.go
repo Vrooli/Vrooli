@@ -30,10 +30,11 @@ type fakeSessions struct {
 	// sendPromptErr fails every SendPrompt call. onSendPrompt (if set) fires with
 	// the 1-based send count before the error check, letting a test create the
 	// transcript on a specific attempt (e.g. only on the resend).
-	sendPromptErr error
-	onSendPrompt  func(callN int)
-	sendPrompts   int
-	goalSendTexts int
+	sendPromptErr    error
+	sendCommandErr   error
+	onSendPrompt     func(callN int)
+	sendPrompts      int
+	goalSendCommands int
 
 	calls   []string
 	screens []string
@@ -81,11 +82,8 @@ func (f *fakeSessions) ArchiveSession(_ context.Context, id string) error {
 	return nil
 }
 
-func (f *fakeSessions) SendText(_ context.Context, _, text, _ string) error {
+func (f *fakeSessions) SendText(_ context.Context, _, _ string, _ string) error {
 	f.calls = append(f.calls, "sendtext")
-	if strings.HasPrefix(text, "/goal ") {
-		f.goalSendTexts++
-	}
 	return nil
 }
 
@@ -96,6 +94,12 @@ func (f *fakeSessions) SendPrompt(_ context.Context, _, _, _ string) (webconsole
 		f.onSendPrompt(f.sendPrompts)
 	}
 	return webconsole.PromptSubmission{Verified: true, EnterPresses: 1}, f.sendPromptErr
+}
+
+func (f *fakeSessions) SendCommand(_ context.Context, _, _, _ string) (webconsole.PromptSubmission, error) {
+	f.calls = append(f.calls, "sendcommand")
+	f.goalSendCommands++
+	return webconsole.PromptSubmission{Verified: true, EnterPresses: 1}, f.sendCommandErr
 }
 
 func (f *fakeSessions) Interrupt(_ context.Context, _, _ string) error {
@@ -242,30 +246,30 @@ func TestSubstrateLaunch_Codex_HappyPath(t *testing.T) {
 
 func TestSubstrateLaunch_RecordsGoalDelivery(t *testing.T) {
 	cases := []struct {
-		name           string
-		native         string
-		config         *domain.RunConfig
-		wantDelivery   string
-		wantGoalSendTx int
+		name                string
+		native              string
+		config              *domain.RunConfig
+		wantDelivery        string
+		wantGoalSendCommand int
 	}{
 		{
-			name:           "native objective sent but unverified",
-			native:         "stop when the plan is complete",
-			config:         &domain.RunConfig{Until: "stop when the plan is complete"},
-			wantDelivery:   GoalDeliveryNativeUnverified,
-			wantGoalSendTx: 1,
+			name:                "native objective sent but unverified",
+			native:              "stop when the plan is complete",
+			config:              &domain.RunConfig{Until: "stop when the plan is complete"},
+			wantDelivery:        GoalDeliveryNativeUnverified,
+			wantGoalSendCommand: 1,
 		},
 		{
-			name:           "no native support carries the finish line in the prompt",
-			config:         &domain.RunConfig{Until: "stop when the plan is complete"},
-			wantDelivery:   GoalDeliveryPromptCarried,
-			wantGoalSendTx: 0,
+			name:                "no native support carries the finish line in the prompt",
+			config:              &domain.RunConfig{Until: "stop when the plan is complete"},
+			wantDelivery:        GoalDeliveryPromptCarried,
+			wantGoalSendCommand: 0,
 		},
 		{
-			name:           "no completion objective records nothing",
-			config:         &domain.RunConfig{},
-			wantDelivery:   "",
-			wantGoalSendTx: 0,
+			name:                "no completion objective records nothing",
+			config:              &domain.RunConfig{},
+			wantDelivery:        "",
+			wantGoalSendCommand: 0,
 		},
 	}
 	for _, tc := range cases {
@@ -273,11 +277,20 @@ func TestSubstrateLaunch_RecordsGoalDelivery(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			runDir := t.TempDir()
 			rollout := filepath.Join(runDir, "codex", "sessions", "2026", "07", "13", "rollout-goal.jsonl")
-			writeFile(t, rollout)
-			fs := newFakeSessions("sess-goal")
-			sub := NewSubstrate(fs, fakeResolver(fakeLaunchInfo{
-				rt: domain.RunnerTypeCodex, tagKey: "CODEX_AGENT_TAG", binary: "/usr/bin/codex",
-			}), WithDiscoveryTimeout(2*time.Second), WithPollInterval(10*time.Millisecond), WithPromptBootDelay(0))
+			if tc.native != "" {
+				goalInstallTranscript(t, rollout, "native-thread-goal", singleLine(tc.native), runner.GoalStatusActive, "native-thread-goal")
+			} else {
+				writeFile(t, rollout)
+			}
+			baseSessions := newFakeSessions("sess-goal")
+			fs := &goalInstallSessions{fakeSessions: baseSessions}
+			launchInfo := fakeLaunchInfo{rt: domain.RunnerTypeCodex, tagKey: "CODEX_AGENT_TAG", binary: "/usr/bin/codex"}
+			var resolved runner.AgentLaunchInfo = launchInfo
+			if tc.native != "" {
+				resolved = codexGoalLaunchInfo{launchInfo}
+				fs.onGoal = func() { appendGoalInstallMarker(t, rollout, "native-thread-goal", singleLine(tc.native)) }
+			}
+			sub := NewSubstrate(fs, fakeResolver(resolved), WithDiscoveryTimeout(2*time.Second), WithPollInterval(10*time.Millisecond), WithPromptBootDelay(0))
 			res, err := sub.Launch(context.Background(), LaunchParams{
 				RunID:           uuid.New(),
 				RunnerType:      domain.RunnerTypeCodex,
@@ -294,8 +307,8 @@ func TestSubstrateLaunch_RecordsGoalDelivery(t *testing.T) {
 			if res.GoalDelivery != tc.wantDelivery {
 				t.Fatalf("goal delivery = %q, want %q", res.GoalDelivery, tc.wantDelivery)
 			}
-			if got := fs.goalSendTexts; got != tc.wantGoalSendTx {
-				t.Fatalf("goal sendtext calls = %d, want %d", got, tc.wantGoalSendTx)
+			if got := fs.goalSendCommands; got != tc.wantGoalSendCommand {
+				t.Fatalf("goal SendCommand calls = %d, want %d", got, tc.wantGoalSendCommand)
 			}
 			run := &domain.Run{}
 			ApplyToRun(run, res)

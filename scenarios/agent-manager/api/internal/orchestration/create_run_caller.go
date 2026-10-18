@@ -4,14 +4,17 @@ package orchestration
 import (
 	"context"
 	"encoding/json"
+	"slices"
 	"strings"
 	"time"
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/identity"
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/authn"
 	coreidentity "github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/owneridentity"
+	"github.com/vrooli/api-core/provenance"
 	"github.com/vrooli/api-core/scopecatalog"
 )
 
@@ -45,6 +48,16 @@ func (o *Orchestrator) authenticateCreateRunCaller(ctx context.Context, req *Cre
 		// the grant was revoked between the gate and admission: refuse, never fall
 		// back to the anonymous path on the strength of a service bearer.
 		return refuse("service caller has no standing grant for run creation")
+	}
+	// A top-level run-creation grant is a separate proof from the baseline run
+	// identity. Attribute the new run to the grant's verified approver and use
+	// only the approved run-creation scopes as its ceiling; never promote or union
+	// baseline scopes. Exact-parent child creation keeps its separate path below.
+	if !serviceCaller && req.OwnerToken == "" && req.ParentRunID == nil {
+		handled, err := o.authenticateGrantedRunCreate(ctx, req)
+		if handled || err != nil {
+			return err
+		}
 	}
 	ownerOffered := req.OwnerToken != "" || (hasVerifiedOwner && verifiedOwner.IsHuman())
 	runOffered := req.RunIdentityToken != ""
@@ -112,6 +125,104 @@ func (o *Orchestrator) authenticateCreateRunCaller(ctx context.Context, req *Cre
 	}
 	req.RequestedScopes, req.ExpectedOwnerSubject = narrowing, expected
 	return narrowCreateRunScopes(req)
+}
+
+// authenticateGrantedRunCreate recognizes a top-level run.create authorization
+// carried by a verified legacy grant token or a verified baseline/operation
+// pair. It relies on the canonical operation evaluator for rule/target matching
+// and derives the new run's ceiling only from the reviewed run-creation scopes.
+func (o *Orchestrator) authenticateGrantedRunCreate(ctx context.Context, req *CreateRunRequest) (bool, error) {
+	principal, ok := coreidentity.PrincipalFromContext(ctx)
+	if !ok || principal.Kind != coreidentity.ActorAgent || !principal.IsVerified() || strings.TrimSpace(req.RunIdentityToken) == "" {
+		return false, nil
+	}
+	if provenance.ForwardedIdentityToken(ctx) != strings.TrimSpace(req.RunIdentityToken) {
+		return false, nil
+	}
+	if _, err := authn.RequireOperation(ctx, "agent-manager:write", "run.create", standingGrantRunCreateTarget); err != nil {
+		return false, nil
+	}
+
+	var grant *coreidentity.OperationGrant
+	var grantRunID uuid.UUID
+	var grantScopes []string
+	var grantExpires time.Time
+	proof, proofErr := provenance.ReverifyOperationProof(ctx)
+	if proofErr != nil {
+		return true, domain.NewValidationErrorWithCode("authorization", "run-creation grant is unavailable", domain.ErrCodePolicyScope)
+	}
+	if proof != nil {
+		grant = proof.Grant
+		grantRunID, _ = uuid.Parse(strings.TrimSpace(proof.RunID))
+		grantScopes = slices.Clone(proof.Scopes)
+		grantExpires = proof.ExpiresAt
+		if proof.GrantID == "" || grant == nil || proof.GrantID != grant.ID {
+			return true, domain.NewValidationErrorWithCode("authorization", "run-creation grant is invalid", domain.ErrCodePolicyScope)
+		}
+	} else {
+		// Grant-only identities retain their existing route. Reverify the exact
+		// offered token here and during caller revalidation so revocation or
+		// replacement cannot survive between admission and dispatch.
+		verified, err := o.VerifyIdentityToken(ctx, strings.TrimSpace(req.RunIdentityToken))
+		if err != nil || verified == nil || !verified.Valid || verified.Claims == nil {
+			return true, domain.NewValidationErrorWithCode("authorization", "run-creation identity is invalid or unavailable", domain.ErrCodePolicyScope)
+		}
+		grantRunID = verified.Claims.RunID
+		grant = provenance.OperationGrantFromMeta(verified.Claims.Meta)
+		grantScopes = slices.Clone(verified.Claims.Scopes)
+		grantExpires = time.Unix(verified.Claims.ExpiresAt, 0).UTC()
+		if verified.Claims.Meta["authorization_id"] == "" || principal.Grant == nil || grant == nil || principal.Grant.ID != grant.ID {
+			return true, domain.NewValidationErrorWithCode("authorization", "run-creation grant is invalid", domain.ErrCodePolicyScope)
+		}
+	}
+	if grantRunID == uuid.Nil || principal.Owner == "" || principal.Owner != grant.Approver ||
+		!grant.Allows("run.create", standingGrantRunCreateTarget, o.now()) {
+		return true, domain.NewValidationErrorWithCode("authorization", "run.create grant does not match the approved operation", domain.ErrCodePolicyScope)
+	}
+	runCreateScopes, ok := approvedRunCreationScopes(grantScopes)
+	if !ok {
+		return true, domain.NewValidationErrorWithCode("authorization", "run.create grant has no scoped run-creation ceiling", domain.ErrCodePolicyScope)
+	}
+	if o.runs == nil {
+		return true, domain.NewConfigMissingError("runs", "repository unavailable", nil)
+	}
+	grantRun, err := o.runs.Get(ctx, grantRunID)
+	if err != nil {
+		return true, err
+	}
+	if grantRun == nil || grantRun.Status.IsTerminal() || grantRun.IdentityTokenRevokedAt != nil ||
+		(grantRun.OwnerSubject != "" && grantRun.OwnerSubject != grant.Approver) {
+		return true, domain.NewValidationErrorWithCode("authorization", "run-creation owner record is unavailable", domain.ErrCodePolicyScope)
+	}
+	if !grantExpires.After(o.now()) {
+		return true, domain.NewValidationErrorWithCode("authorization", "run-creation grant expired", domain.ErrCodePolicyScope)
+	}
+	if grantRun.OwnerExpiresAt != nil {
+		if !grantRun.OwnerExpiresAt.After(o.now()) {
+			return true, domain.NewValidationErrorWithCode("authorization", "run-creation owner authority expired", domain.ErrCodePolicyScope)
+		}
+		if grantRun.OwnerExpiresAt.Before(grantExpires) {
+			grantExpires = *grantRun.OwnerExpiresAt
+		}
+	}
+	req.OwnerSubject = grant.Approver
+	// Multi-policy grant scopes are not unioned into the new identity.
+	req.OwnerScopes = runCreateScopes
+	req.OwnerExpiresAt = &grantExpires
+	req.caller = &domain.CreateRunCaller{Kind: "operation-grant", Subject: grant.Approver, RunID: grantRunID, GrantID: grant.ID}
+	return true, narrowCreateRunScopes(req)
+}
+
+// approvedRunCreationScopes constrains the new run to the reviewed capability
+// ceiling for run creation. RequireOperation already evaluated the exact
+// operation/target rule; this never unions unrelated token scopes into the run.
+func approvedRunCreationScopes(tokenScopes []string) ([]string, bool) {
+	policy, ok := authn.InteractivePolicy("run-creation")
+	if !ok {
+		return nil, false
+	}
+	scopes := identity.IntersectScopes(tokenScopes, policy.Scopes, nil)
+	return scopes, scopecatalog.Resolve(scopes, "agent-manager:write")
 }
 
 // revalidateCreateRunCaller closes validation-time credential changes before

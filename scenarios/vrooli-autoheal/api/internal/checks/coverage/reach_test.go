@@ -78,9 +78,13 @@ func TestReachReadsRealDeliveryProjection(t *testing.T) {
 		if r.URL.Path != "/api/v1/integrations/deliveries" || r.URL.Query().Get("prefix") != "incident." {
 			t.Errorf("unexpected request %s", r.URL.String())
 		}
-		_, _ = w.Write([]byte(`{"notifications":[
+		requested := r.URL.Query()["incident_id"]
+		if fmt.Sprint(requested) != "[inc-1 inc-2]" {
+			t.Errorf("incident_id query = %v, want exact current incident sample", requested)
+		}
+		_, _ = w.Write([]byte(`{"truncated":false,"notifications":[
 		 {"notification_id":"n1","dedupe_key":"incident.opened.v1:inc-1","attempts":[{"channel":"none","outcome":"unroutable"}]},
-		 {"notification_id":"n2","dedupe_key":"incident.opened.v1:inc-2","attempts":[{"channel":"linux_notification","outcome":"delivered"}]},
+		 {"notification_id":"n2","dedupe_key":"","autoheal_incident_id":"inc-2","attempts":[{"channel":"linux_notification","outcome":"delivered"}]},
 		 {"notification_id":"n3","dedupe_key":"other","attempts":[{"channel":"email","outcome":"delivered"}]}]}`))
 	}))
 	defer server.Close()
@@ -90,7 +94,7 @@ func TestReachReadsRealDeliveryProjection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(snapshot.Incidents) != 2 || len(snapshot.Attempts) != 2 {
+	if len(snapshot.Incidents) != 2 || len(snapshot.Attempts) != 2 || snapshot.Incomplete {
 		t.Fatalf("snapshot = %+v", snapshot)
 	}
 	result := EvaluateDeliveryReach(snapshot)
@@ -103,6 +107,105 @@ func TestReachReadsRealDeliveryProjection(t *testing.T) {
 	}
 	if id := IncidentIDFromDedupeKey("incident.opened.v1:inc-9"); id != "inc-9" {
 		t.Fatalf("IncidentIDFromDedupeKey = %q", id)
+	}
+}
+
+func TestEvaluateDeliveryReachPreservesKnownMissesWhenCoverageIsIncomplete(t *testing.T) {
+	result := EvaluateDeliveryReach(DeliverySnapshot{
+		Incidents: []CriticalFinding{{ID: "known-miss"}, {ID: "delivered"}, {ID: "unknown-in-partial-sample"}},
+		Attempts: []DeliveryAttempt{
+			{IncidentID: "known-miss", Outcome: "failed", Channel: "push"},
+			{IncidentID: "delivered", Outcome: OutcomeDelivered, Channel: "push"},
+		},
+		Incomplete:        true,
+		IncompleteReasons: []string{"notification-hub projection was truncated"},
+	})
+	if result.Status != checks.StatusCritical {
+		t.Fatalf("status = %s, want critical for the observed undelivered incident", result.Status)
+	}
+	if got := fmt.Sprint(result.Details["missingIncidentIds"]); got != "[known-miss]" {
+		t.Fatalf("missing incidents = %s, want known-miss retained", got)
+	}
+	if got := result.Details["undeliveredOutcomes"].(map[string]string)["known-miss"]; got != "failed" {
+		t.Fatalf("known miss outcome = %q, want failed", got)
+	}
+	if result.Details["coverageComplete"] != false {
+		t.Fatalf("coverageComplete = %v, want false", result.Details["coverageComplete"])
+	}
+	if got := fmt.Sprint(result.Details["unconfirmedIncidentIds"]); got != "[unknown-in-partial-sample]" {
+		t.Fatalf("unconfirmed incidents = %s", got)
+	}
+}
+
+func TestEvaluateDeliveryReachIsUndeterminedWhenIncompleteSampleHasNoMiss(t *testing.T) {
+	result := EvaluateDeliveryReach(DeliverySnapshot{
+		Incidents:  []CriticalFinding{{ID: "incident-1"}},
+		Attempts:   []DeliveryAttempt{{IncidentID: "incident-1", Outcome: OutcomeDelivered, Channel: "push"}},
+		Incomplete: true,
+	})
+	if result.Status != checks.StatusUndetermined {
+		t.Fatalf("status = %s, want undetermined rather than all-clear", result.Status)
+	}
+}
+
+func TestDeliveryReaderMarksIncidentSampleAtLimitIncomplete(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"truncated":false,"notifications":[]}`))
+	}))
+	defer server.Close()
+	items := make([]incidents.Incident, deliveryProjectionLimit)
+	for i := range items {
+		items[i].ID = fmt.Sprintf("incident-%03d", i)
+	}
+	reader := NotificationHubDeliveryReader(fakeIncidentLister{incidents: items}, func(context.Context) (string, error) {
+		return server.URL, nil
+	}, server.Client())
+	snapshot, err := reader(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !snapshot.Incomplete || len(snapshot.IncompleteReasons) == 0 {
+		t.Fatalf("saturated incident sample was not marked incomplete: %+v", snapshot)
+	}
+}
+
+func TestDeliveryReaderMarksTruncatedHubProjectionIncomplete(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"truncated":true,"notifications":[{"autoheal_incident_id":"inc-1","attempts":[{"channel":"push","outcome":"delivered"}]}]}`))
+	}))
+	defer server.Close()
+	reader := NotificationHubDeliveryReader(fakeIncidentLister{incidents: []incidents.Incident{{ID: "inc-1"}}}, func(context.Context) (string, error) {
+		return server.URL, nil
+	}, server.Client())
+	snapshot, err := reader(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !snapshot.Incomplete || len(snapshot.Attempts) != 1 {
+		t.Fatalf("snapshot = %+v, want delivered evidence with truncation marked", snapshot)
+	}
+	if result := EvaluateDeliveryReach(snapshot); result.Status != checks.StatusUndetermined {
+		t.Fatalf("status = %s, want undetermined with truncated projection", result.Status)
+	}
+}
+
+func TestDeliveryReaderTreatsLegacyProjectionWithoutCompletenessAsIncomplete(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"notifications":[{"dedupe_key":"incident.opened.v1:inc-1","attempts":[{"channel":"push","outcome":"delivered"}]}]}`))
+	}))
+	defer server.Close()
+	reader := NotificationHubDeliveryReader(fakeIncidentLister{incidents: []incidents.Incident{{ID: "inc-1"}}}, func(context.Context) (string, error) {
+		return server.URL, nil
+	}, server.Client())
+	snapshot, err := reader(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !snapshot.Incomplete {
+		t.Fatalf("legacy projection without truncation metadata was treated as complete: %+v", snapshot)
+	}
+	if result := EvaluateDeliveryReach(snapshot); result.Status != checks.StatusUndetermined {
+		t.Fatalf("status = %s, want undetermined rather than a false all-clear", result.Status)
 	}
 }
 

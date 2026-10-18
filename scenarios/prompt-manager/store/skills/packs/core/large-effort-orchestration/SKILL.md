@@ -9,9 +9,9 @@ metadata:
   tags: [orchestration, multi-agent, effort, epochs, continuity, recovery]
   icon: network
   status: active
-  revision: 29
+  revision: 30
   createdAt: "2026-09-10T00:00:00Z"
-  updatedAt: "2026-10-12T00:26:09Z"
+  updatedAt: "2026-10-16T00:00:00Z"
   requires:
     scenarios: [prompt-manager, agent-manager]
     commands: [prompt-manager skill read, agent-manager]
@@ -26,8 +26,12 @@ work, each executed by one long goal run and steered by an orchestrator that kee
 its context for hours. This skill is the only home of the epoch standard. Phased
 plans, bounded tasks and direct requests do not use epochs.
 
-Delivery teams never use Swarm Manager; they dispatch through Agent Manager and
-record state in the goal home.
+Delivery teams use Agent Manager for execution and record state in the goal home.
+Repairs inside the approved effort destination stay in that effort; a second
+proposal is not required. Work outside its approved scope or a new operator
+disposition follows the existing Swarm route in
+`path:docs/agent-system/SWARM_MANAGER_WORK.md`. This distinction does not change
+the orchestrator's Agent Manager execution or acceptance authority.
 
 Supporting files (repository paths; native projection does not install them):
 - Worker card — the only protocol an epoch worker loads:

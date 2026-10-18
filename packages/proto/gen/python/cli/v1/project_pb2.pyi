@@ -143,14 +143,16 @@ class ProjectStopResponse(_message.Message):
     def __init__(self, success: _Optional[bool] = ..., data: _Optional[_Union[ProjectStopReport, _Mapping]] = ...) -> None: ...
 
 class ProjectStopReport(_message.Message):
-    __slots__ = ("stopped", "failed", "message")
+    __slots__ = ("stopped", "failed", "message", "observed")
     STOPPED_FIELD_NUMBER: _ClassVar[int]
     FAILED_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_FIELD_NUMBER: _ClassVar[int]
     stopped: _containers.RepeatedCompositeFieldContainer[ProjectStopItem]
     failed: _containers.RepeatedCompositeFieldContainer[ProjectStopItem]
     message: str
-    def __init__(self, stopped: _Optional[_Iterable[_Union[ProjectStopItem, _Mapping]]] = ..., failed: _Optional[_Iterable[_Union[ProjectStopItem, _Mapping]]] = ..., message: _Optional[str] = ...) -> None: ...
+    observed: _containers.RepeatedCompositeFieldContainer[ProjectStopItem]
+    def __init__(self, stopped: _Optional[_Iterable[_Union[ProjectStopItem, _Mapping]]] = ..., failed: _Optional[_Iterable[_Union[ProjectStopItem, _Mapping]]] = ..., message: _Optional[str] = ..., observed: _Optional[_Iterable[_Union[ProjectStopItem, _Mapping]]] = ...) -> None: ...
 
 class ProjectStopItem(_message.Message):
     __slots__ = ("name", "message", "error")

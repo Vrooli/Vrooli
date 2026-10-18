@@ -79,6 +79,23 @@ func TestAuth01QueueMissingExpiredRecoveryHasNoDispatch(t *testing.T) {
 	}
 }
 
+func TestRecoveredServiceModeRequiresRealAgentManagerClient(t *testing.T) {
+	q := newTeamExecutionContext("fixture", &captureExecutor{}, t.TempDir(), &mockAgentClient{})
+	q.queue = []queuedExecution{{
+		AgentID:             "service-entry",
+		ManualAdmission:     true,
+		CreateRunCallerMode: createRunCallerOriginService,
+		caller:              withCreateRunCallerOrigin(context.Background(), "", "", createRunCallerOriginService),
+	}}
+	q.queued["service-entry"] = true
+	if got := q.dispatchAvailableLocked(); len(got) != 0 || len(q.running) != 0 || len(q.queue) != 1 {
+		t.Fatal("service-origin work must not dispatch through a non-Agent-Manager client")
+	}
+	if q.queue[0].State != "caller_required" {
+		t.Fatalf("unavailable service owner should remain held, state=%q", q.queue[0].State)
+	}
+}
+
 type auth01QueueExpiredVerifier struct{}
 
 func (auth01QueueExpiredVerifier) Validate(context.Context, string) (owneridentity.Identity, error) {

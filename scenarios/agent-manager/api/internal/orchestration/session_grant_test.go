@@ -54,6 +54,16 @@ func (m *memStandingGrants) List(_ context.Context, _ int) ([]*domain.StandingGr
 	return out, nil
 }
 
+func (m *memStandingGrants) ListForApprover(_ context.Context, approver string, _ int) ([]*domain.StandingGrant, error) {
+	var out []*domain.StandingGrant
+	for _, grant := range m.grants {
+		if grant != nil && grant.ApprovedBy == approver && grant.Grant != nil && grant.Grant.Approver == approver {
+			out = append(out, grant)
+		}
+	}
+	return out, nil
+}
+
 // A human-session grant is minted keyed to (human subject, session id), bounded,
 // attributed to the human, and authorizes run.create for that human.
 func TestCreateSessionGrantMintsBoundedHumanGrant(t *testing.T) {

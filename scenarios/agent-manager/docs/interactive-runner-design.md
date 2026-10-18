@@ -617,6 +617,15 @@ The coordinator maps transcript evidence to one terminal class. Verdicts are
 agent-decided and final. Interruptions are involuntary and leave no terminal
 result; Swarm decides whether to resume them.
 
+For a continued interactive run, native goal evidence belongs to the current
+invocation, not merely to the retained session. A `complete`, `blocked`, or
+limit marker may terminalize the run only when its objective matches the
+resolved `Until`, its transcript session matches the retained session, and its
+timestamp is at or after `InteractiveInvocationStartedAt`. Historical goal
+status remains useful for diagnostics but cannot end a later continuation.
+Ordinary assistant prose, provider turn completion, and a still-open
+Web Console session do not substitute for a matching native terminal marker.
+
 | Class | Family | Evidence |
 |---|---|---|
 | `complete` | verdict | goal marker `complete`; or a validated structured result that satisfies the `ResultSpec` |

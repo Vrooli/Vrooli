@@ -104,13 +104,14 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 	authConfig = authConfig.WithCreateRunCallerAudience("swarm-manager")
 	authConfig = authConfig.WithManagedCloudflare("agent-manager")
 	router.Use(authn.Middleware(authConfig))
+	var standingAuthority *handlers.StandingGrantAuthority
 	// A verified service principal's only costly-write authority is an
 	// operator-approved standing grant. This installs that authority into the
 	// request context (for service callers only) before AgentOperationMiddleware
 	// and the handlers decide, so one RequestOperationAuthority seam serves both.
 	if deps.DB != nil && deps.Orchestrator != nil {
 		standingGrants := database.NewStandingGrantRepository(deps.DB)
-		standingAuthority := handlers.NewStandingGrantAuthority(standingGrants, standingGrantUsageReader{orch: deps.Orchestrator}, nil)
+		standingAuthority = handlers.NewStandingGrantAuthority(standingGrants, standingGrantUsageReader{orch: deps.Orchestrator}, nil)
 		// The orchestrator is the approval raiser: on a needs-approval outcome the
 		// middleware asks it to raise the operator decision (idempotent, capped).
 		router.Use(handlers.StandingGrantMiddleware(standingAuthority, deps.Orchestrator))
@@ -120,6 +121,7 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 		handlers.RegisterAuthorizations(router, deps.Orchestrator)
 		handlers.RegisterStandingGrants(router, deps.Orchestrator)
 	}
+	handlers.RegisterPromptManagerAdmissionDiagnostic(router, standingAuthority)
 	if deps.LifecycleService != nil {
 		path, handler := commonconnect.NewLifecycleMaintenanceServiceHandler(deps.LifecycleService)
 		connectx.RegisterServices(router, connectx.ServiceMount{Path: path, Handler: lifecycle.LoopbackOnly(handler)})

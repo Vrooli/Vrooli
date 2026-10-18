@@ -1302,6 +1302,11 @@ func (db *DB) migrateRunColumns(ctx context.Context) error {
 	if _, err := db.ExecContext(ctx, `CREATE UNIQUE INDEX IF NOT EXISTS idx_runs_import_provenance ON runs(import_source_harness, import_source_session_id) WHERE import_source_harness <> '' AND import_source_session_id <> ''`); err != nil {
 		return err
 	}
+	// Authorization peer binding scans only nonterminal runs; keep that owner
+	// lookup from traversing the retained terminal history.
+	if _, err := db.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS idx_runs_status_created_at_id ON runs(status, created_at DESC, id DESC)`); err != nil {
+		return err
+	}
 	// The reconciler resolves web-console sessions back to their runs.
 	_, err := db.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS idx_runs_web_console_session ON runs(web_console_session_id) WHERE web_console_session_id <> ''`)
 	return err

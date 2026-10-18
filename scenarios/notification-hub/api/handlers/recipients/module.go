@@ -50,12 +50,12 @@ func (h *handler) RegisterPushSubscription(ctx context.Context, req *connect.Req
 }
 
 func (h *handler) GetRecipient(ctx context.Context, req *connect.Request[v1.GetRecipientRequest]) (*connect.Response[v1.Recipient], error) {
-	s, err := subject(ctx, req.Header(), h.verifier)
+	s := h.service.ResolveRecipient(ctx)
+	recipient, err := h.service.GetRecipientReadOnly(ctx, s)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, err)
-	}
-	recipient, err := h.service.GetRecipient(ctx, s)
-	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) || s == "" {
+			return nil, connect.NewError(connect.CodeNotFound, hub.ErrNotFound)
+		}
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return connect.NewResponse(&v1.Recipient{Id: recipient.ID, Subject: recipient.Subject, TrustPosture: recipient.TrustPosture, CreatedAt: recipient.CreatedAt, UpdatedAt: recipient.UpdatedAt}), nil
@@ -73,10 +73,7 @@ func (h *handler) RemovePushSubscription(ctx context.Context, req *connect.Reque
 }
 
 func (h *handler) ListDevices(ctx context.Context, req *connect.Request[v1.ListDevicesRequest]) (*connect.Response[v1.ListDevicesResponse], error) {
-	s, err := subject(ctx, req.Header(), h.verifier)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, err)
-	}
+	s := h.service.ResolveRecipient(ctx)
 	devices, err := h.service.ListDevices(ctx, s)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -153,10 +150,7 @@ func (h *handler) RemoveChannelAddress(ctx context.Context, req *connect.Request
 }
 
 func (h *handler) ListQuietWindows(ctx context.Context, req *connect.Request[v1.ListQuietWindowsRequest]) (*connect.Response[v1.ListQuietWindowsResponse], error) {
-	s, err := subject(ctx, req.Header(), h.verifier)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, err)
-	}
+	s := h.service.ResolveRecipient(ctx)
 	windows, err := h.service.ListQuietWindows(ctx, s)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -195,11 +189,8 @@ func (h *handler) SetEscalationChain(ctx context.Context, req *connect.Request[v
 }
 
 func (h *handler) GetEscalationChain(ctx context.Context, req *connect.Request[v1.GetEscalationChainRequest]) (*connect.Response[v1.EscalationChain], error) {
-	s, err := subject(ctx, req.Header(), h.verifier)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, err)
-	}
-	chain, err := h.service.GetEscalationChain(ctx, s)
+	s := h.service.ResolveRecipient(ctx)
+	chain, err := h.service.GetEscalationChainReadOnly(ctx, s)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -227,7 +218,7 @@ func escalationProto(chain hub.EscalationChain) *v1.EscalationChain {
 }
 
 var Endpoints = []module.EndpointDescriptor{
-	{ID: "recipients_get", Path: connectv1.RecipientsServiceGetRecipientProcedure, Method: http.MethodPost, Summary: "Read the authenticated recipient projection", Category: "recipients"},
+	{ID: "recipients_get", Path: connectv1.RecipientsServiceGetRecipientProcedure, Method: http.MethodPost, Summary: "Read the configured recipient projection", Category: "recipients"},
 	{ID: "recipients_push_subscribe", Path: connectv1.RecipientsServiceRegisterPushSubscriptionProcedure, Method: http.MethodPost, Summary: "Register a browser push subscription", Category: "recipients"},
 	{ID: "recipients_push_remove", Path: connectv1.RecipientsServiceRemovePushSubscriptionProcedure, Method: http.MethodPost, Summary: "Remove a dead browser push subscription", Category: "recipients"},
 	{ID: "recipients_devices_list", Path: connectv1.RecipientsServiceListDevicesProcedure, Method: http.MethodPost, Summary: "List recipient devices", Category: "recipients"},

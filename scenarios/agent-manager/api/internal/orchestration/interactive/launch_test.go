@@ -225,9 +225,45 @@ func TestBuildLaunchCommand_Codex_RelocatesHome(t *testing.T) {
 	}
 	// The launch command relocates CODEX_HOME; directory trust and auth are seeded
 	// into that home (see seedRelocatedHome), not passed on the command line.
-	want := "cd '/work/dir' && CODEX_AGENT_TAG='run-7' CODEX_HOME='/data/runs/run-7/codex' '/usr/bin/codex'"
+	want := "cd '/work/dir' && CODEX_AGENT_TAG='run-7' CODEX_HOME='/data/runs/run-7/codex' '/usr/bin/codex' -c 'tui.disable_paste_burst=true'"
 	if cmd != want {
 		t.Fatalf("codex command:\n got: %s\nwant: %s", cmd, want)
+	}
+}
+
+func TestBuildLaunchCommand_DisablesPasteBurstOnlyForInteractiveCodex(t *testing.T) {
+	tests := []struct {
+		runner domain.RunnerType
+		bin    string
+		tagKey string
+		tag    string
+		runDir string
+	}{
+		{runner: domain.RunnerTypeCodex, bin: "/usr/bin/codex", tagKey: "CODEX_AGENT_TAG", tag: "run-codex", runDir: "/runs/run-codex"},
+		{runner: domain.RunnerTypeClaudeCode, bin: "/usr/bin/claude", tagKey: "CLAUDE_CODE_AGENT_TAG", tag: "run-claude"},
+		{runner: domain.RunnerTypeGrok, bin: "/usr/bin/grok", tagKey: "GROK_AGENT_TAG", tag: "run-grok", runDir: "/runs/run-grok"},
+		{runner: domain.RunnerTypeOpenCode, bin: "/usr/bin/opencode", tagKey: "OPENCODE_AGENT_TAG", tag: "run-opencode"},
+		{runner: domain.RunnerTypeAntigravity, bin: "/usr/bin/antigravity", tagKey: "ANTIGRAVITY_AGENT_TAG", tag: "run-antigravity"},
+	}
+	for _, tt := range tests {
+		t.Run(string(tt.runner), func(t *testing.T) {
+			cmd, err := BuildLaunchCommand(LaunchCommandParams{
+				RunnerType: tt.runner,
+				BinaryPath: tt.bin,
+				TagEnvKey:  tt.tagKey,
+				Tag:        tt.tag,
+				WorkingDir: "/work/dir",
+				RunDir:     tt.runDir,
+			})
+			if err != nil {
+				t.Fatalf("BuildLaunchCommand: %v", err)
+			}
+			got := strings.Contains(cmd, "tui.disable_paste_burst=true")
+			want := tt.runner == domain.RunnerTypeCodex
+			if got != want {
+				t.Fatalf("paste-burst override present=%t, want %t; command: %s", got, want, cmd)
+			}
+		})
 	}
 }
 

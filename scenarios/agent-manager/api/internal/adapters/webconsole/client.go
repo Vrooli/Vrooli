@@ -118,6 +118,11 @@ type SessionController interface {
 	// after bounded Enter retries, and a zero-Verified PromptSubmission when the
 	// TUI's composer cannot be observed.
 	SendPrompt(ctx context.Context, sessionID, prompt, source string) (PromptSubmission, error)
+	// SendCommand types one literal, single-line command without bracketed paste,
+	// then submits it through the same bounded composer-ingest and named-Enter
+	// verification used by SendPrompt. It is intended for native TUI commands
+	// whose parser distinguishes literal keystrokes from pasted text.
+	SendCommand(ctx context.Context, sessionID, command, source string) (PromptSubmission, error)
 	// Interrupt sends the graceful interrupt key sequence (Escape then
 	// Ctrl+C) used to stop an in-flight agent turn.
 	Interrupt(ctx context.Context, sessionID, source string) error

@@ -33,7 +33,7 @@
       {
         "id": "scenario-to-cloud:write",
         "effect": "write",
-        "agent_eligible": false
+        "agent_eligible": true
       },
       {
         "id": "scenario-to-cloud:destructive",
@@ -388,7 +388,7 @@
           },
           "governance": {
             "effect": "destructive",
-            "run_eligible": false,
+            "run_eligible": true,
             "permissions": [
               "network:internal",
               "network:external"
@@ -416,7 +416,7 @@
           },
           "governance": {
             "effect": "destructive",
-            "run_eligible": false,
+            "run_eligible": true,
             "permissions": [
               "network:internal",
               "network:external"
@@ -519,7 +519,7 @@
           },
           "governance": {
             "effect": "destructive",
-            "run_eligible": false,
+            "run_eligible": true,
             "permissions": [
               "network:internal",
               "network:external"
@@ -767,7 +767,7 @@
           },
           "governance": {
             "effect": "destructive",
-            "run_eligible": false,
+            "run_eligible": true,
             "permissions": [
               "network:internal",
               "network:external"
@@ -1015,7 +1015,7 @@
           },
           "governance": {
             "effect": "destructive",
-            "run_eligible": false,
+            "run_eligible": true,
             "permissions": [
               "network:internal",
               "network:external"
@@ -1094,7 +1094,7 @@
           },
           "governance": {
             "effect": "destructive",
-            "run_eligible": false,
+            "run_eligible": true,
             "permissions": [
               "network:internal",
               "network:external"
@@ -1142,7 +1142,7 @@
           },
           "governance": {
             "effect": "destructive",
-            "run_eligible": false,
+            "run_eligible": true,
             "permissions": [
               "network:internal",
               "network:external"
@@ -1432,7 +1432,7 @@
               },
               "governance": {
                 "effect": "write",
-                "run_eligible": false,
+                "run_eligible": true,
                 "permissions": [
                   "network:internal",
                   "network:external"
@@ -1639,7 +1639,7 @@
           },
           "governance": {
             "effect": "write",
-            "run_eligible": false,
+            "run_eligible": true,
             "permissions": [
               "network:internal",
               "network:external"
@@ -1707,7 +1707,7 @@
           },
           "governance": {
             "effect": "destructive",
-            "run_eligible": false,
+            "run_eligible": true,
             "permissions": [
               "network:internal",
               "network:external"
@@ -1830,7 +1830,7 @@
           },
           "governance": {
             "effect": "destructive",
-            "run_eligible": false,
+            "run_eligible": true,
             "permissions": [
               "network:internal",
               "network:external"
@@ -1944,7 +1944,7 @@
           },
           "governance": {
             "effect": "destructive",
-            "run_eligible": false,
+            "run_eligible": true,
             "permissions": [
               "network:internal",
               "network:external"
@@ -2007,7 +2007,7 @@
           },
           "governance": {
             "effect": "destructive",
-            "run_eligible": false,
+            "run_eligible": true,
             "permissions": [
               "network:internal",
               "network:external"
@@ -2071,7 +2071,7 @@
               },
               "governance": {
                 "effect": "destructive",
-                "run_eligible": false,
+                "run_eligible": true,
                 "permissions": [
                   "network:internal",
                   "network:external"
@@ -2123,7 +2123,7 @@
               },
               "governance": {
                 "effect": "destructive",
-                "run_eligible": false,
+                "run_eligible": true,
                 "permissions": [
                   "network:internal",
                   "network:external"
@@ -2198,7 +2198,7 @@
               },
               "governance": {
                 "effect": "write",
-                "run_eligible": false,
+                "run_eligible": true,
                 "permissions": [
                   "network:internal",
                   "network:external"
@@ -2219,7 +2219,7 @@
               },
               "governance": {
                 "effect": "write",
-                "run_eligible": false,
+                "run_eligible": true,
                 "permissions": [
                   "network:internal",
                   "network:external"
@@ -2240,7 +2240,7 @@
               },
               "governance": {
                 "effect": "write",
-                "run_eligible": false,
+                "run_eligible": true,
                 "permissions": [
                   "network:internal",
                   "network:external"
@@ -2284,7 +2284,7 @@
               },
               "governance": {
                 "effect": "write",
-                "run_eligible": false,
+                "run_eligible": true,
                 "permissions": [
                   "network:internal",
                   "network:external"
@@ -2308,7 +2308,7 @@
               },
               "governance": {
                 "effect": "destructive",
-                "run_eligible": false,
+                "run_eligible": true,
                 "permissions": [
                   "network:internal",
                   "network:external"
@@ -2329,7 +2329,7 @@
               },
               "governance": {
                 "effect": "destructive",
-                "run_eligible": false,
+                "run_eligible": true,
                 "permissions": [
                   "network:internal",
                   "network:external"
@@ -2591,7 +2591,7 @@
           },
           "governance": {
             "effect": "destructive",
-            "run_eligible": false,
+            "run_eligible": true,
             "permissions": [
               "network:internal",
               "network:external"
@@ -2619,7 +2619,7 @@
           },
           "governance": {
             "effect": "destructive",
-            "run_eligible": false,
+            "run_eligible": true,
             "permissions": [
               "network:internal",
               "network:external"
@@ -2651,7 +2651,7 @@
           },
           "governance": {
             "effect": "destructive",
-            "run_eligible": false,
+            "run_eligible": true,
             "permissions": [
               "network:internal",
               "network:external"
@@ -2683,7 +2683,7 @@
           },
           "governance": {
             "effect": "destructive",
-            "run_eligible": false,
+            "run_eligible": true,
             "permissions": [
               "network:internal",
               "network:external"
@@ -2830,7 +2830,7 @@
           },
           "governance": {
             "effect": "destructive",
-            "run_eligible": false,
+            "run_eligible": true,
             "permissions": [
               "network:internal",
               "network:external"
@@ -2892,7 +2892,7 @@
           },
           "governance": {
             "effect": "destructive",
-            "run_eligible": false,
+            "run_eligible": true,
             "permissions": [
               "network:internal",
               "network:external"
@@ -3525,7 +3525,7 @@
           },
           "governance": {
             "effect": "write",
-            "run_eligible": false,
+            "run_eligible": true,
             "permissions": [
               "network:internal",
               "network:external"

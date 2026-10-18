@@ -216,6 +216,11 @@ func main() {
 	} else {
 		slog.Info("vrooli-events notification subscription reconciled", "pattern", integrations.NotificationRequestPattern)
 	}
+	if err := integrations.EnsureHeartbeatAttemptSubscription(context.Background(), eventConfig.Get().EventsAPIBase, eventConfig.Get().WebhookURL); err != nil {
+		slog.Error("vrooli-events prompt-manager heartbeat subscription reconciliation failed", "error", err)
+	} else {
+		slog.Info("vrooli-events prompt-manager heartbeat subscription reconciled", "pattern", integrations.HeartbeatAttemptEventPattern)
+	}
 	// The webhook verifies with the publisher's own signing secret: the
 	// environment override, then the credential authority. The value is
 	// never logged.
@@ -234,7 +239,7 @@ func main() {
 		capsH.Module(capabilities.NewRegistry()),
 		notificationH.ModuleWithVerifier(service, ownerVerifier),
 		recipientsH.ModuleWithVerifier(service, ownerVerifier),
-		preferencesH.ModuleWithVerifier(preferenceStore, ownerVerifier),
+		preferencesH.ModuleWithRecipientResolver(preferenceStore, service.ResolveRecipient, ownerVerifier),
 		routingH.ModuleWithVerifier(service, ownerVerifier),
 		deliveryH.ModuleWithVerifier(service, ownerVerifier),
 		conversationH.ModuleWithVerifier(service, ownerVerifier),

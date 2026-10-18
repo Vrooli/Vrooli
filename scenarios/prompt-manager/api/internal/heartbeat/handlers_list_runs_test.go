@@ -18,6 +18,44 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
+func TestListRunningKeepsRetainedOwnerStateAndOmitsUnknownStart(t *testing.T) {
+	registry := NewRunRegistry(t.TempDir())
+	registry.RegisterRecovered("team-a", "agent-a", "run-a", time.Time{}, ObligationNeedsReview, nil)
+	knownStart := time.Date(2026, 10, 14, 12, 30, 0, 0, time.UTC)
+	registry.RegisterRecovered("team-a", "agent-b", "run-b", knownStart, ObligationRunning, nil)
+	h := &Handlers{runRegistry: registry}
+	w := httptest.NewRecorder()
+	h.ListRunning(w, httptest.NewRequest(http.MethodGet, "/heartbeats/running", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", w.Code, w.Body.String())
+	}
+	var response RunningAgentsResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	if response.Count != 2 || len(response.Agents) != 2 {
+		t.Fatalf("unexpected running response: %+v", response)
+	}
+	entries := make(map[string]RunningAgentEntry, len(response.Agents))
+	for _, entry := range response.Agents {
+		entries[entry.RunID] = entry
+	}
+	unknown := entries["run-a"]
+	if unknown.State != ObligationNeedsReview {
+		t.Fatalf("owner state = %q, want %q", unknown.State, ObligationNeedsReview)
+	}
+	if unknown.StartedAt != "" || unknown.Duration != "" {
+		t.Fatalf("unknown owner start was fabricated: %+v", unknown)
+	}
+	known := entries["run-b"]
+	if known.StartedAt != knownStart.Format(time.RFC3339) || known.Duration == "" || known.State != ObligationRunning {
+		t.Fatalf("known owner projection was lost: %+v", known)
+	}
+	if strings.Contains(w.Body.String(), "0001-01-01") {
+		t.Fatalf("response contains zero-time placeholder: %s", w.Body.String())
+	}
+}
+
 func TestTeamRunAccountingJoinsRecordedIDsAndDeduplicatesResumes(t *testing.T) {
 	h, teams, _, _, _ := setupTeamLogsTestHandlers(t)
 	ctx := context.Background()

@@ -2,12 +2,67 @@ package heartbeat
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 )
+
+func TestFormatExecutionFailureIncludesOnlyAllowlistedAdmissionReason(t *testing.T) {
+	t.Run("known reason is a separate log field", func(t *testing.T) {
+		ownerErr := &AgentManagerHTTPError{
+			StatusCode:      403,
+			Message:         "service authority does not include this operation",
+			AdmissionReason: "grant_limit_reached",
+		}
+		err := fmt.Errorf("creating task: %w", NewDispatchRejectedError(ownerErr))
+		got := formatExecutionFailure("team-1", "agent-1", err)
+		if !strings.Contains(got, "admission_reason=grant_limit_reached") {
+			t.Fatalf("failure log = %q; missing safe admission category", got)
+		}
+		if !strings.Contains(got, "agent-manager error: status 403: service authority does not include this operation") {
+			t.Fatalf("failure log changed the owner error text: %q", got)
+		}
+	})
+
+	t.Run("unknown reason is omitted", func(t *testing.T) {
+		ownerErr := &AgentManagerHTTPError{
+			StatusCode:      403,
+			Message:         "refused",
+			AdmissionReason: "internal-secret-detail",
+		}
+		got := formatExecutionFailure("team-1", "agent-1", ownerErr)
+		if strings.Contains(got, "admission_reason=") || strings.Contains(got, "internal-secret-detail") {
+			t.Fatalf("failure log exposed unrecognized admission data: %q", got)
+		}
+	})
+
+	t.Run("allowlisted text on non-admission status is omitted", func(t *testing.T) {
+		ownerErr := &AgentManagerHTTPError{
+			StatusCode:      500,
+			Message:         "temporary server failure",
+			AdmissionReason: "grant_limit_reached",
+		}
+		got := formatExecutionFailure("team-1", "agent-1", ownerErr)
+		if strings.Contains(got, "admission_reason=") {
+			t.Fatalf("non-admission status emitted an admission category: %q", got)
+		}
+		if !strings.Contains(got, "agent-manager error: status 500: temporary server failure") {
+			t.Fatalf("failure log changed existing owner error text: %q", got)
+		}
+	})
+
+	t.Run("ordinary failure keeps existing format", func(t *testing.T) {
+		got := formatExecutionFailure("team-1", "agent-1", fmt.Errorf("local failure"))
+		want := "team_execution: execution failed for team-1/agent-1: local failure"
+		if got != want {
+			t.Fatalf("failure log = %q, want %q", got, want)
+		}
+	})
+}
 
 func TestEnqueueWhenIdle_StartsImmediately(t *testing.T) {
 	exec := &captureExecutor{}

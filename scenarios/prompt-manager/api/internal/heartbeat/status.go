@@ -1,5 +1,15 @@
 package heartbeat
 
+func ownerRunObligationState(status string) string {
+	if IsNeedsReviewStatus(status) {
+		return ObligationNeedsReview
+	}
+	if IsParkedStatus(status) {
+		return ObligationPaused
+	}
+	return ObligationRunning
+}
+
 // Terminal run statuses returned by agent-manager.
 //
 // agent-manager serializes via protojson with UseProtoNames=true, so
@@ -41,3 +51,9 @@ var parkedStatuses = map[string]bool{
 
 // IsParkedStatus reports whether s represents a suspended (nonterminal) run.
 func IsParkedStatus(s string) bool { return parkedStatuses[s] }
+
+// IsNeedsReviewStatus reports a run that stopped executing and is waiting on
+// an explicit operator decision. It remains nonterminal retained ownership.
+func IsNeedsReviewStatus(s string) bool {
+	return s == "RUN_STATUS_NEEDS_REVIEW" || s == "needs_review"
+}

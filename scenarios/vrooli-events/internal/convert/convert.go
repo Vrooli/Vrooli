@@ -36,6 +36,9 @@ func EnvelopeToEvent(env *domain.EventEnvelope) (store.Event, error) {
 	}
 	if env.Correlation != nil {
 		correlation = env.Correlation.AgentRunId
+		if correlation == "" {
+			correlation = env.Correlation.RequestId
+		}
 	}
 	return store.Event{EventID: env.EventId, SourceScenario: source, TargetScenario: target,
 		EventType: env.EventType, CorrelationID: correlation, Payload: payload,

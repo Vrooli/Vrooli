@@ -42,10 +42,10 @@ func (a *App) effortExactReconcile(args []string) error {
 	if err = protojson.Unmarshal(raw, req); err != nil {
 		return err
 	}
-	return a.exactReconcile(req, *grant, os.Stdin, os.Stdout, cliutil.ResolveAgentCredential)
+	return a.exactReconcile(req, *grant, os.Stdin, os.Stdout, cliutil.ResolveAgentCredentials)
 }
 
-func (a *App) exactReconcile(req *pb.ReconcileEffortMetadataRequest, grant string, input io.Reader, output io.Writer, resolve func(context.Context) (string, error)) error {
+func (a *App) exactReconcile(req *pb.ReconcileEffortMetadataRequest, grant string, input io.Reader, output io.Writer, resolve func(context.Context) (cliutil.AgentCredentials, error)) error {
 	payload, err := marshalProtoRequest(req)
 	if err != nil {
 		return err
@@ -87,10 +87,10 @@ func (a *App) effortExactReceipt(args []string) error {
 	if d.Decode(&req) != nil || d.Decode(&struct{}{}) != io.EOF {
 		return fmt.Errorf("typed receipt request required")
 	}
-	return a.exactReceipt(req, *grant, os.Stdin, os.Stdout, cliutil.ResolveAgentCredential)
+	return a.exactReceipt(req, *grant, os.Stdin, os.Stdout, cliutil.ResolveAgentCredentials)
 }
 
-func (a *App) exactReceipt(req exactReceiptRequest, grant string, input io.Reader, output io.Writer, resolve func(context.Context) (string, error)) error {
+func (a *App) exactReceipt(req exactReceiptRequest, grant string, input io.Reader, output io.Writer, resolve func(context.Context) (cliutil.AgentCredentials, error)) error {
 	payload, err := json.Marshal(req)
 	if err != nil {
 		return err
@@ -100,15 +100,39 @@ func (a *App) exactReceipt(req exactReceiptRequest, grant string, input io.Reade
 	})
 }
 
-func protectedExact(apiBase *cliutil.APIClient, protocol, challengePath, grant string, payload json.RawMessage, input io.Reader, output io.Writer, resolve func(context.Context) (string, error), submit func(*cliutil.APIClient) ([]byte, error)) error {
-	token, err := resolve(context.Background())
+func protectedExact(apiBase *cliutil.APIClient, protocol, challengePath, grant string, payload json.RawMessage, input io.Reader, output io.Writer, resolve func(context.Context) (cliutil.AgentCredentials, error), submit func(*cliutil.APIClient) ([]byte, error)) error {
+	credentials, err := resolve(context.Background())
 	if err != nil {
 		return err
+	}
+	token := credentials.BaselineToken
+	if token == "" {
+		token = credentials.LegacyToken
 	}
 	if token == "" {
 		return fmt.Errorf("existing verified native credential required")
 	}
-	api := apiBase.WithPinnedAgentCredential(token, resolve)
+	var api *cliutil.APIClient
+	if credentials.BaselineToken != "" && credentials.OperationToken != "" {
+		api = apiBase.WithPinnedAgentCredentials(credentials, resolve)
+	} else {
+		// Keep the pre-pair exact flow for legacy grant-only credentials. A
+		// later credential-mode or operation change is refused by the resolver.
+		resolveLegacy := func(ctx context.Context) (string, error) {
+			current, resolveErr := resolve(ctx)
+			if resolveErr != nil {
+				return "", resolveErr
+			}
+			if !sameExactCredentialMode(credentials, current) {
+				return "", fmt.Errorf("native credential changed during exact request")
+			}
+			if current.BaselineToken != "" {
+				return current.BaselineToken, nil
+			}
+			return current.LegacyToken, nil
+		}
+		api = apiBase.WithPinnedAgentCredential(token, resolveLegacy)
+	}
 	challenge, err := api.Request("POST", challengePath, url.Values{"grant": {grant}}, payload)
 	if err != nil {
 		return fmt.Errorf("exact challenge refused")
@@ -150,7 +174,7 @@ func protectedExact(apiBase *cliutil.APIClient, protocol, challengePath, grant s
 	if err != nil {
 		return err
 	}
-	if current != token {
+	if !sameExactCredentialMode(credentials, current) {
 		return fmt.Errorf("native credential changed during signing; submission refused")
 	}
 	api = api.WithHeaders(map[string]string{"X-Keyring-Exact-Proof": proof.Bytes, "X-Keyring-Exact-Signature": proof.Signature})
@@ -164,6 +188,12 @@ func protectedExact(apiBase *cliutil.APIClient, protocol, challengePath, grant s
 	}
 	_, err = fmt.Fprintln(output, string(body))
 	return err
+}
+
+func sameExactCredentialMode(left, right cliutil.AgentCredentials) bool {
+	return left.BaselineToken == right.BaselineToken &&
+		left.OperationToken == right.OperationToken &&
+		left.LegacyToken == right.LegacyToken
 }
 
 // These value-only wire types mirror supervision.ExactSetupRequest/ExactPolicy.

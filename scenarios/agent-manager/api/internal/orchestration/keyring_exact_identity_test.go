@@ -6,7 +6,9 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -15,10 +17,12 @@ import (
 	"agent-manager/internal/domain"
 	"agent-manager/internal/modules"
 	"agent-manager/internal/supervision"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	coredb "github.com/vrooli/api-core/database"
 	coreidentity "github.com/vrooli/api-core/identity"
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	_ "modernc.org/sqlite"
@@ -42,7 +46,7 @@ func TestKeyringExactOneApprovalActualParentChildLifecycle(t *testing.T) {
 		request runner.ExecuteRequest
 		token   string
 	}
-	starts := make(chan launched, 3)
+	starts := make(chan launched, 8)
 	release := make(chan struct{})
 	var released sync.Once
 	finish := func() { released.Do(func() { close(release) }) }
@@ -91,24 +95,98 @@ func TestKeyringExactOneApprovalActualParentChildLifecycle(t *testing.T) {
 			return launched{}
 		}
 	}
-	parent, err := o.CreateRun(ownerCtx, CreateRunRequest{TaskID: task.ID, AgentProfileID: &profile.ID, PreferredRunner: "claude-code", OwnerToken: "disposable-native-owner-fixture", IdempotencyKey: "keyring-real-parent"})
+	parentEffort := &eventpb.WorkReference{
+		Kind: "effort", Id: "effort:actual-parent", Revision: "goal-rev-7", Relationship: "orchestrator",
+		SourceEventId: "source-event-7", EvidenceDigest: "sha256:fixture-evidence",
+		Verified: true, Visibility: eventpb.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PUBLIC,
+		State: eventpb.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE,
+	}
+	parentReferenceControls := []*eventpb.WorkReference{
+		{Kind: "effort", Id: "effort:private", Relationship: "orchestrator", Verified: true, Visibility: eventpb.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PRIVATE, State: eventpb.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE},
+		{Kind: "effort", Id: "effort:unverified", Relationship: "orchestrator", Visibility: eventpb.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PUBLIC, State: eventpb.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE},
+		{Kind: "effort", Id: "effort:expired", Relationship: "orchestrator", Verified: true, Visibility: eventpb.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PUBLIC, State: eventpb.WorkReferenceState_WORK_REFERENCE_STATE_EXPIRED},
+		{Kind: "effort", Id: "effort:unavailable", Relationship: "orchestrator", Verified: true, Visibility: eventpb.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PUBLIC, State: eventpb.WorkReferenceState_WORK_REFERENCE_STATE_UNAVAILABLE},
+		{Kind: "effort", Id: "effort:worker", Relationship: "worker", Verified: true, Visibility: eventpb.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PUBLIC, State: eventpb.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE},
+	}
+	parent, err := o.CreateRun(ownerCtx, CreateRunRequest{
+		TaskID: task.ID, AgentProfileID: &profile.ID, PreferredRunner: "claude-code", OwnerToken: "disposable-native-owner-fixture",
+		IdempotencyKey: "keyring-real-parent", WorkReferences: append([]*eventpb.WorkReference{parentEffort}, parentReferenceControls...),
+	})
 	if err != nil {
 		t.Fatal("parent admission", err)
+	}
+	if len(parent.WorkReferences) != 6 || parent.WorkReferences[0].GetRelationship() != "orchestrator" ||
+		parent.WorkReferences[0].GetRevision() != parentEffort.Revision || !parent.WorkReferences[0].GetVerified() {
+		t.Fatalf("root orchestrator attribution was changed during admission: %+v", parent.WorkReferences)
 	}
 	parentLaunch := wait()
 	parentVerified, err := o.VerifyIdentityToken(ctx, parentLaunch.token)
 	if err != nil || !parentVerified.Valid || parentVerified.Claims.RunID != parent.ID || parentVerified.RunStatus != domain.RunStatusRunning {
 		t.Fatal("actual parent custody/lifecycle", err)
 	}
-	child, err := o.CreateRun(ctx, CreateRunRequest{TaskID: task.ID, AgentProfileID: &profile.ID, PreferredRunner: "claude-code", ParentRunID: &parent.ID, RunIdentityToken: parentLaunch.token, RequestedScopes: []string{"agent-manager:read"}, IdempotencyKey: "keyring-real-child"})
+	child, err := o.CreateRun(ctx, CreateRunRequest{
+		TaskID: task.ID, AgentProfileID: &profile.ID, PreferredRunner: "claude-code", ParentRunID: &parent.ID,
+		RunIdentityToken: parentLaunch.token, RequestedScopes: []string{"agent-manager:read"}, IdempotencyKey: "keyring-real-child",
+		WorkReferences: []*eventpb.WorkReference{
+			{Kind: "effort", Id: parentEffort.Id, Relationship: "worker"},
+			{Kind: "issue", Id: "ISSUE-7", Relationship: "tracks"},
+		},
+	})
 	if err != nil {
 		t.Fatal("genuine child admission", err)
+	}
+	var inherited *eventpb.WorkReference
+	var retainedIssue *eventpb.WorkReference
+	inheritedEffortCount := 0
+	for _, ref := range child.WorkReferences {
+		if ref.GetKind() == "effort" {
+			inheritedEffortCount++
+		}
+		if ref.GetKind() == "effort" && ref.GetId() == parentEffort.Id {
+			if inherited != nil {
+				t.Fatal("inherited effort reference was duplicated")
+			}
+			inherited = ref
+		}
+		if ref.GetKind() == "issue" && ref.GetId() == "ISSUE-7" {
+			retainedIssue = ref
+		}
+	}
+	if inheritedEffortCount != 1 || inherited == nil || inherited.GetRelationship() != "worker" || !inherited.GetVerified() ||
+		inherited.GetVisibility() != eventpb.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PUBLIC ||
+		inherited.GetState() != eventpb.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE ||
+		inherited.GetRevision() != parentEffort.Revision || inherited.GetSourceEventId() != parentEffort.SourceEventId ||
+		inherited.GetEvidenceDigest() != parentEffort.EvidenceDigest {
+		t.Fatalf("child did not inherit the parent's canonical worker reference: %+v", child.WorkReferences)
+	}
+	if retainedIssue == nil || retainedIssue.GetRelationship() != "tracks" {
+		t.Fatalf("explicit generic child reference was not preserved: %+v", child.WorkReferences)
 	}
 	childLaunch := wait()
 	childVerified, err := o.VerifyIdentityToken(ctx, childLaunch.token)
 	if err != nil || !childVerified.Valid || childVerified.Claims.RunID != child.ID || child.ParentRunID == nil || *child.ParentRunID != parent.ID || childVerified.RunStatus != domain.RunStatusRunning {
 		t.Fatal("actual child custody/lifecycle", err)
 	}
+
+	// Validate the merged persisted contract, not only the caller's input bound:
+	// one inherited parent effort plus 100 explicit declarations exceeds the
+	// existing maximum and must fail before a run or idempotency record is kept.
+	tooManyRefs := make([]*eventpb.WorkReference, maxWorkReferenceDeclarations)
+	for i := range tooManyRefs {
+		tooManyRefs[i] = &eventpb.WorkReference{Kind: "issue", Id: fmt.Sprintf("ISSUE-OVERFLOW-%d", i), Relationship: "tracks"}
+	}
+	overflowKey := "keyring-merged-reference-overflow"
+	if _, err := o.CreateRun(ctx, CreateRunRequest{
+		TaskID: task.ID, AgentProfileID: &profile.ID, PreferredRunner: "claude-code", ParentRunID: &parent.ID,
+		RunIdentityToken: parentLaunch.token, RequestedScopes: []string{"agent-manager:read"}, IdempotencyKey: overflowKey,
+		WorkReferences: tooManyRefs,
+	}); err == nil || !strings.Contains(err.Error(), "at most 100 declarations") {
+		t.Fatalf("merged work-reference limit was not enforced: err=%v", err)
+	}
+	if saved, getErr := o.runs.GetByIdempotencyKey(ctx, overflowKey); getErr != nil || saved != nil {
+		t.Fatalf("overflow child was persisted: run=%+v err=%v", saved, getErr)
+	}
+
 	delegated, err := o.MintDelegatedIdentity(ctx, MintDelegatedIdentityRequest{ParentToken: parentLaunch.token, ChildRunID: child.ID, RequestedScopes: []string{"agent-manager:read"}})
 	if err != nil {
 		t.Fatal("genuine admitted child attenuation", err)
@@ -119,6 +197,61 @@ func TestKeyringExactOneApprovalActualParentChildLifecycle(t *testing.T) {
 	}
 	if old, err := o.VerifyIdentityToken(ctx, childLaunch.token); err != nil || old.Valid {
 		t.Fatal("old child generation retained", err)
+	}
+
+	// Redundant same-ID declarations may omit canonical fields, but cannot
+	// contradict the parent-derived worker role or retained source terms.
+	for _, ref := range []*eventpb.WorkReference{
+		{Kind: "effort", Id: parentEffort.Id, Relationship: "orchestrator"},
+		{Kind: "effort", Id: parentEffort.Id, Relationship: "worker", Revision: "stale-revision"},
+	} {
+		key := "keyring-conflicting-child-" + uuid.NewString()
+		_, err := o.CreateRun(ctx, CreateRunRequest{
+			TaskID: task.ID, AgentProfileID: &profile.ID, PreferredRunner: "claude-code", ParentRunID: &parent.ID,
+			RunIdentityToken: parentLaunch.token, RequestedScopes: []string{"agent-manager:read"}, IdempotencyKey: key,
+			WorkReferences: []*eventpb.WorkReference{ref},
+		})
+		if err == nil || !strings.Contains(err.Error(), "parent's worker attribution") {
+			t.Fatalf("contradictory child effort reference accepted: ref=%+v err=%v", ref, err)
+		}
+		if saved, getErr := o.runs.GetByIdempotencyKey(ctx, key); getErr != nil || saved != nil {
+			t.Fatalf("conflicting child was persisted: run=%+v err=%v", saved, getErr)
+		}
+	}
+
+	// Parentless effort attribution is not invented for a parent with no
+	// eligible effort declaration; explicit generic references remain intact.
+	noEffortParent, err := o.CreateRun(ownerCtx, CreateRunRequest{
+		TaskID: task.ID, AgentProfileID: &profile.ID, PreferredRunner: "claude-code", OwnerToken: "disposable-native-owner-fixture",
+		IdempotencyKey: "keyring-no-effort-parent",
+	})
+	if err != nil {
+		t.Fatal("no-effort parent admission", err)
+	}
+	noEffortParentLaunch := wait()
+	noEffortChild, err := o.CreateRun(ctx, CreateRunRequest{
+		TaskID: task.ID, AgentProfileID: &profile.ID, PreferredRunner: "claude-code", ParentRunID: &noEffortParent.ID,
+		RunIdentityToken: noEffortParentLaunch.token, RequestedScopes: []string{"agent-manager:read"},
+		IdempotencyKey: "keyring-no-effort-child", WorkReferences: []*eventpb.WorkReference{{Kind: "issue", Id: "ISSUE-8", Relationship: "tracks"}},
+	})
+	if err != nil {
+		t.Fatal("no-effort child admission", err)
+	}
+	wait()
+	if len(noEffortChild.WorkReferences) != 1 || noEffortChild.WorkReferences[0].GetKind() != "issue" || noEffortChild.WorkReferences[0].GetId() != "ISSUE-8" {
+		t.Fatalf("child without parent effort gained or lost references: %+v", noEffortChild.WorkReferences)
+	}
+
+	foreignParentID := uuid.New()
+	foreignKey := "keyring-foreign-parent-" + uuid.NewString()
+	if _, err = o.CreateRun(ctx, CreateRunRequest{
+		TaskID: task.ID, AgentProfileID: &profile.ID, PreferredRunner: "claude-code", ParentRunID: &foreignParentID,
+		RunIdentityToken: parentLaunch.token, RequestedScopes: []string{"agent-manager:read"}, IdempotencyKey: foreignKey,
+	}); err == nil {
+		t.Fatal("child request with a foreign parent identity was accepted")
+	}
+	if saved, getErr := o.runs.GetByIdempotencyKey(ctx, foreignKey); getErr != nil || saved != nil {
+		t.Fatalf("foreign-parent child was persisted: run=%+v err=%v", saved, getErr)
 	}
 	db, err := sqlx.Connect("sqlite", filepath.Join(t.TempDir(), "keyring-exact.db"))
 	if err != nil {

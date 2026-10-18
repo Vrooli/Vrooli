@@ -5,6 +5,9 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode/utf8"
+
+	"github.com/vrooli/api-core/operatordecision"
 )
 
 // Operator decisions (DL-5). `agent-manager effort decision raise` renders a
@@ -54,6 +57,8 @@ type Decision struct {
 	Reversible           bool             `json:"reversible,omitempty"`
 	Urgency              string           `json:"urgency,omitempty"`
 	Note                 string           `json:"note,omitempty"`
+	BigPicture           string           `json:"big_picture,omitempty"`
+	TechnicalDetails     string           `json:"technical_details,omitempty"`
 	ContextURL           string           `json:"context_url,omitempty"`
 	Deadline             time.Time        `json:"deadline,omitempty"`
 	RaisedAt             time.Time        `json:"raised_at,omitempty"`
@@ -80,6 +85,10 @@ func (d Decision) Validate() error {
 		return fmt.Errorf("a decision needs 2-%d options", MaxDecisionOptions)
 	case len(d.RecommendationReason) > MaxDecisionReason:
 		return fmt.Errorf("the recommendation reason is at most %d bytes", MaxDecisionReason)
+	case !utf8.ValidString(d.BigPicture) || utf8.RuneCountInString(d.BigPicture) > operatordecision.MaxBigPictureCodePoints:
+		return fmt.Errorf("big_picture must be valid UTF-8 and at most %d Unicode code points", operatordecision.MaxBigPictureCodePoints)
+	case !utf8.ValidString(d.TechnicalDetails) || utf8.RuneCountInString(d.TechnicalDetails) > operatordecision.MaxTechnicalDetailsCodePoints:
+		return fmt.Errorf("technical_details must be valid UTF-8 and at most %d Unicode code points", operatordecision.MaxTechnicalDetailsCodePoints)
 	case !decisionUrgency[d.Urgency]:
 		return fmt.Errorf("urgency must be low, normal, high or critical")
 	}
@@ -138,6 +147,12 @@ func (d Decision) RequestPayload(subject string, correlation map[string]string) 
 		"reversible":            d.Reversible,
 		"urgency":               d.Urgency,
 		"context_url":           d.ContextURL,
+	}
+	if d.BigPicture != "" {
+		payload["big_picture"] = d.BigPicture
+	}
+	if d.TechnicalDetails != "" {
+		payload["technical_details"] = d.TechnicalDetails
 	}
 	if !d.Deadline.IsZero() {
 		payload["deadline"] = d.Deadline.UTC().Format(time.RFC3339)

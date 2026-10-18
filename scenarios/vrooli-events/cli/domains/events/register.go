@@ -17,6 +17,10 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 	domain "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 	domainconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain/domainconnect"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const cliName = "vrooli-events"
@@ -112,16 +116,15 @@ func runIngest(core *cliapp.ScenarioApp, args []string) error {
 		return fmt.Errorf("usage: ingest --event-id ID --type TYPE --source SOURCE [--target TARGET] [--correlation-id CID] [--payload JSON] [--json]")
 	}
 
-	envelope := map[string]any{
-		"eventId":        *eventID,
-		"eventType":      *eventType,
-		"sourceScenario": *source,
+	envelope := &domain.EventEnvelope{
+		EventId: *eventID, EventType: *eventType, OccurredAt: timestamppb.Now(),
+		Source: &domain.EventSource{Scenario: *source, ActorKind: "system"},
 	}
 	if *target != "" {
-		envelope["targetScenario"] = *target
+		envelope.Target = &domain.EventTarget{Scenario: *target}
 	}
 	if *corrID != "" {
-		envelope["correlationId"] = *corrID
+		envelope.Correlation = &domain.EventCorrelation{RequestId: *corrID}
 	}
 	if *payload != "" {
 		payloadString := *payload
@@ -136,10 +139,25 @@ func runIngest(core *cliapp.ScenarioApp, args []string) error {
 		if err := json.Unmarshal([]byte(payloadString), &parsed); err != nil {
 			return fmt.Errorf("invalid payload JSON: %w", err)
 		}
-		envelope["payload"] = payloadString
+		fields, ok := parsed.(map[string]any)
+		if !ok {
+			return fmt.Errorf("payload JSON must be an object")
+		}
+		payloadStruct, err := structpb.NewStruct(fields)
+		if err != nil {
+			return fmt.Errorf("invalid payload object: %w", err)
+		}
+		envelope.Data, err = anypb.New(payloadStruct)
+		if err != nil {
+			return fmt.Errorf("pack payload object: %w", err)
+		}
 	}
 
-	body, err := core.Request("POST", "/events", nil, envelope)
+	body, err := protojson.Marshal(envelope)
+	if err != nil {
+		return fmt.Errorf("marshal event envelope: %w", err)
+	}
+	responseBody, err := core.Request("POST", "/events", nil, json.RawMessage(body))
 	if err != nil {
 		return err
 	}
@@ -149,7 +167,7 @@ func runIngest(core *cliapp.ScenarioApp, args []string) error {
 		DryRun  bool `json:"dry_run"`
 		EventID any  `json:"eventId"`
 	}
-	if err := json.Unmarshal(body, &response); err != nil {
+	if err := json.Unmarshal(responseBody, &response); err != nil {
 		return fmt.Errorf("parse response: %w", err)
 	}
 
@@ -215,9 +233,17 @@ func runQuery(core *cliapp.ScenarioApp, args []string) error {
 		return err
 	}
 
-	var events []map[string]any
-	if err := json.Unmarshal(body, &events); err != nil {
+	var rawEvents []json.RawMessage
+	if err := json.Unmarshal(body, &rawEvents); err != nil {
 		return fmt.Errorf("parse response: %w", err)
+	}
+	events := make([]*domain.EventEnvelope, 0, len(rawEvents))
+	for i, rawEvent := range rawEvents {
+		event := &domain.EventEnvelope{}
+		if err := protojson.Unmarshal(rawEvent, event); err != nil {
+			return fmt.Errorf("parse event envelope %d: %w", i, err)
+		}
+		events = append(events, event)
 	}
 
 	summary := []string{fmt.Sprintf("Events returned: %d", len(events))}
@@ -312,25 +338,28 @@ func runSubscribe(core *cliapp.ScenarioApp, args []string) error {
 	return scanner.Err()
 }
 
-func renderEventRows(events []map[string]any) []string {
+func renderEventRows(events []*domain.EventEnvelope) []string {
 	lines := make([]string, 0, len(events))
 	for _, event := range events {
 		lines = append(lines, fmt.Sprintf("%v  %v  %v -> %v  corr=%v",
-			value(event, "eventId"),
-			value(event, "eventType"),
-			value(event, "sourceScenario"),
-			value(event, "targetScenario"),
-			value(event, "correlationId"),
+			event.GetEventId(),
+			event.GetEventType(),
+			event.GetSource().GetScenario(),
+			event.GetTarget().GetScenario(),
+			queryCorrelationID(event.GetCorrelation()),
 		))
 	}
 	return lines
 }
 
-func value(m map[string]any, key string) any {
-	if value, ok := m[key]; ok {
-		return value
+func queryCorrelationID(correlation *domain.EventCorrelation) string {
+	if correlation == nil {
+		return ""
 	}
-	return ""
+	if correlation.GetAgentRunId() != "" {
+		return correlation.GetAgentRunId()
+	}
+	return correlation.GetRequestId()
 }
 
 func defaultHint(value string, fallback string) string {

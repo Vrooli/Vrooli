@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/eventbus"
@@ -39,16 +40,19 @@ const (
 	// DefaultAnsweredBy marks an answer the sweep applied.
 	DefaultAnsweredBy = "default"
 
-	maxAskOptions        = 8
-	maxAskOptionLabel    = 200
-	maxAskCorrelationLen = 1024
-	operatorNotReached   = "operator not reached: no delivered receipt yet; default withheld"
+	maxAskOptions                 = 8
+	maxAskOptionLabel             = 200
+	maxAskCorrelationLen          = 1024
+	maxBigPictureCodePoints       = 4_000
+	maxTechnicalDetailsCodePoints = 12_000
+	operatorNotReached            = "operator not reached: no delivered receipt yet; default withheld"
 )
 
 var (
-	ErrAskResolved   = errors.New("ask is already resolved")
-	askOptionKeyRule = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$`)
-	validUrgencies   = map[string]bool{"low": true, "normal": true, "high": true, "critical": true}
+	ErrAskResolved         = errors.New("ask is already resolved")
+	ErrAskIdentityConflict = errors.New("ask identity is already bound to different immutable terms")
+	askOptionKeyRule       = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$`)
+	validUrgencies         = map[string]bool{"low": true, "normal": true, "high": true, "critical": true}
 )
 
 // AskOption is one structured answer. Key is what the requester receives;
@@ -73,7 +77,10 @@ type AskSpec struct {
 	Reversible           bool
 	Urgency              string
 	ContextURL           string
+	BigPicture           string
+	TechnicalDetails     string
 	Deadline             time.Time
+	DeadlineSpecified    bool
 	SensitivityLabel     string
 	IdempotencyKey       string
 	// Source names the requester (event source scenario, or the owner
@@ -99,6 +106,8 @@ type AskRecord struct {
 	Reversible           bool
 	Urgency              string
 	ContextURL           string
+	BigPicture           string
+	TechnicalDetails     string
 	Deadline             string
 	State                string
 	Reason               string
@@ -186,6 +195,14 @@ func normalizeAskSpec(spec AskSpec) (AskSpec, error) {
 	spec.Recommended = strings.TrimSpace(spec.Recommended)
 	spec.DefaultAnswer = strings.TrimSpace(spec.DefaultAnswer)
 	spec.Urgency = strings.ToLower(strings.TrimSpace(spec.Urgency))
+	spec.BigPicture = normalizeExplanation(spec.BigPicture)
+	spec.TechnicalDetails = normalizeExplanation(spec.TechnicalDetails)
+	if !utf8.ValidString(spec.BigPicture) || utf8.RuneCountInString(spec.BigPicture) > maxBigPictureCodePoints {
+		return spec, fmt.Errorf("%w: big_picture must be valid UTF-8 and at most %d Unicode code points", ErrInvalidArgument, maxBigPictureCodePoints)
+	}
+	if !utf8.ValidString(spec.TechnicalDetails) || utf8.RuneCountInString(spec.TechnicalDetails) > maxTechnicalDetailsCodePoints {
+		return spec, fmt.Errorf("%w: technical_details must be valid UTF-8 and at most %d Unicode code points", ErrInvalidArgument, maxTechnicalDetailsCodePoints)
+	}
 	if spec.Deadline.IsZero() || len(spec.Options) == 0 || spec.Question == "" {
 		return spec, fmt.Errorf("%w: question, deadline, and allowed answers are required", ErrInvalidArgument)
 	}
@@ -242,6 +259,10 @@ func normalizeAskSpec(spec AskSpec) (AskSpec, error) {
 	return spec, nil
 }
 
+func normalizeExplanation(value string) string {
+	return strings.TrimSpace(strings.ReplaceAll(value, "\r\n", "\n"))
+}
+
 // renderAskBody is the hub-owned copy for a structured ask: the question,
 // then the recommendation and the default, so the push alone is enough to
 // decide.
@@ -278,16 +299,36 @@ func (s *Service) AskWithSpec(ctx context.Context, spec AskSpec) (AskRecord, Not
 	}
 	if existing, err := s.askByRequester(ctx, spec.Source, spec.IdempotencyKey); err == nil {
 		n, _, getErr := s.Get(ctx, existing.NotificationID)
+		if getErr != nil {
+			return AskRecord{}, Notification{}, getErr
+		}
+		if !sameAskTerms(existing, n, spec) {
+			return AskRecord{}, Notification{}, ErrAskIdentityConflict
+		}
 		return existing, n, getErr
 	} else if !errors.Is(err, ErrNotFound) {
 		return AskRecord{}, Notification{}, err
 	}
-	n, created, err := s.persistNotification(ctx, SendInput{RequestedBy: spec.Recipient, Title: spec.Title, Body: spec.Body, Urgency: spec.Urgency, SensitivityLabel: spec.SensitivityLabel, IdempotencyKey: spec.IdempotencyKey})
+	// Keep the notification and Ask in one transaction. The notification
+	// recovery sweep processes every pending row, so a losing identity race
+	// must roll its notification back before it can become deliverable.
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return AskRecord{}, Notification{}, err
+	}
+	defer tx.Rollback()
+	n, created, err := s.persistNotificationUsing(ctx, tx, SendInput{RequestedBy: spec.Recipient, Title: spec.Title, Body: spec.Body, Urgency: spec.Urgency, SensitivityLabel: spec.SensitivityLabel, IdempotencyKey: spec.IdempotencyKey})
 	if err != nil {
 		return AskRecord{}, Notification{}, err
 	}
 	if !created {
-		if existing, lookupErr := s.askByNotification(ctx, n.ID); lookupErr == nil {
+		if existing, lookupErr := askByNotificationTx(ctx, tx, n.ID); lookupErr == nil {
+			if !sameAskTerms(existing, n, spec) {
+				return AskRecord{}, Notification{}, ErrAskIdentityConflict
+			}
+			if err := tx.Commit(); err != nil {
+				return AskRecord{}, Notification{}, err
+			}
 			return existing, n, nil
 		}
 	}
@@ -307,23 +348,119 @@ func (s *Service) AskWithSpec(ctx context.Context, spec AskSpec) (AskRecord, Not
 	}
 	id := uuid.NewString()
 	now := s.clock.Now().UTC().Format(time.RFC3339Nano)
-	if _, err := s.db.ExecContext(ctx, `INSERT INTO asks (id, notification_id, question, allowed_answers, deadline, state, reason, created_at, updated_at, options_json, recommended, recommendation_reason, default_answer, reversible, urgency, context_url, source, source_event_type, requester_ref, correlation_json) VALUES (?, ?, ?, ?, ?, 'pending', '', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		id, n.ID, spec.Question, string(allowedJSON), spec.Deadline.UTC().Format(time.RFC3339Nano), now, now, string(optionsJSON), spec.Recommended, strings.TrimSpace(spec.RecommendationReason), spec.DefaultAnswer, boolInt(spec.Reversible), spec.Urgency, strings.TrimSpace(spec.ContextURL), spec.Source, strings.TrimSpace(spec.SourceEventType), spec.IdempotencyKey, correlationJSON); err != nil {
-		if existing, lookupErr := s.askByNotification(ctx, n.ID); lookupErr == nil {
+	if _, err := tx.ExecContext(ctx, `INSERT INTO asks (id, notification_id, question, allowed_answers, deadline, state, reason, created_at, updated_at, options_json, recommended, recommendation_reason, default_answer, reversible, urgency, context_url, big_picture, technical_details, source, source_event_type, requester_ref, correlation_json) VALUES (?, ?, ?, ?, ?, 'pending', '', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		id, n.ID, spec.Question, string(allowedJSON), spec.Deadline.UTC().Format(time.RFC3339Nano), now, now, string(optionsJSON), spec.Recommended, strings.TrimSpace(spec.RecommendationReason), spec.DefaultAnswer, boolInt(spec.Reversible), spec.Urgency, strings.TrimSpace(spec.ContextURL), spec.BigPicture, spec.TechnicalDetails, spec.Source, strings.TrimSpace(spec.SourceEventType), spec.IdempotencyKey, correlationJSON); err != nil {
+		// Either notification idempotency or the durable requester identity
+		// constraint may have selected a concurrent winner. Re-read by the
+		// immutable identity first so a different recipient cannot split one
+		// source event into two answerable asks.
+		if existing, lookupErr := askByRequesterTx(ctx, tx, spec.Source, spec.IdempotencyKey); lookupErr == nil {
+			existingNotification, getErr := notificationByIDTx(ctx, tx, existing.NotificationID)
+			if getErr != nil {
+				return AskRecord{}, Notification{}, getErr
+			}
+			if !sameAskTerms(existing, existingNotification, spec) {
+				return AskRecord{}, Notification{}, ErrAskIdentityConflict
+			}
+			if err := tx.Commit(); err != nil {
+				return AskRecord{}, Notification{}, err
+			}
+			return existing, existingNotification, nil
+		}
+		if existing, lookupErr := askByNotificationTx(ctx, tx, n.ID); lookupErr == nil {
+			if !sameAskTerms(existing, n, spec) {
+				return AskRecord{}, Notification{}, ErrAskIdentityConflict
+			}
+			if err := tx.Commit(); err != nil {
+				return AskRecord{}, Notification{}, err
+			}
 			return existing, n, nil
 		}
 		return AskRecord{}, Notification{}, fmt.Errorf("persist ask: %w", err)
 	}
+	if err := tx.Commit(); err != nil {
+		return AskRecord{}, Notification{}, err
+	}
+	if created {
+		s.observeCatalog(ctx, n, now)
+	}
 	// The ask row exists before routing starts, so the push can deep-link to
 	// the ask page.
-	if created {
-		s.dispatch(n.ID)
-	}
+	// The successful Ask insert owns routing. Under concurrent same-terms
+	// retries, the notification creator can lose the Ask insert race; dispatch
+	// based on `created` would then leave the winning durable Ask unrouted.
+	s.dispatch(n.ID)
 	record, err := s.GetAsk(ctx, id)
 	return record, n, err
 }
 
-const askSelect = `SELECT a.id, a.notification_id, a.question, a.allowed_answers, a.options_json, a.recommended, a.recommendation_reason, a.default_answer, a.reversible, a.urgency, a.context_url, a.source, a.source_event_type, a.requester_ref, a.correlation_json, a.deadline, a.state, a.reason, a.default_applied_at, a.resolved_at, a.created_at, a.updated_at,
+func askByRequesterTx(ctx context.Context, tx dbTx, source, ref string) (AskRecord, error) {
+	if ref == "" {
+		return AskRecord{}, ErrNotFound
+	}
+	return scanAsk(tx.QueryRowContext(ctx, askSelect+` WHERE a.source = ? AND a.requester_ref = ? ORDER BY a.created_at ASC LIMIT 1`, source, ref))
+}
+
+func askByNotificationTx(ctx context.Context, tx dbTx, notificationID string) (AskRecord, error) {
+	return scanAsk(tx.QueryRowContext(ctx, askSelect+` WHERE a.notification_id = ?`, notificationID))
+}
+
+func notificationByIDTx(ctx context.Context, tx dbTx, id string) (Notification, error) {
+	var n Notification
+	err := tx.QueryRowContext(ctx, `SELECT id, requested_by, title, body, urgency, sensitivity_label, idempotency_key, dedupe_key, scheduled_at, digest_key, digest_window_seconds, source_scenario, category, context_url, scope_key, created_at, updated_at FROM notifications WHERE id = ?`, id).Scan(&n.ID, &n.RequestedBy, &n.Title, &n.Body, &n.Urgency, &n.SensitivityLabel, &n.IdempotencyKey, &n.DedupeKey, &n.ScheduledAt, &n.DigestKey, &n.DigestWindowSeconds, &n.SourceScenario, &n.Category, &n.ContextURL, &n.ScopeKey, &n.CreatedAt, &n.UpdatedAt)
+	return n, err
+}
+
+func sameAskTerms(existing AskRecord, notification Notification, spec AskSpec) bool {
+	if existing.Source != spec.Source || existing.RequesterRef != spec.IdempotencyKey ||
+		existing.Recipient != spec.Recipient || notification.Title != spec.Title ||
+		notification.Urgency != spec.Urgency || notification.SensitivityLabel != spec.SensitivityLabel ||
+		existing.Question != spec.Question ||
+		existing.Recommended != spec.Recommended || existing.RecommendationReason != spec.RecommendationReason ||
+		existing.DefaultAnswer != spec.DefaultAnswer || existing.Reversible != spec.Reversible ||
+		existing.Urgency != spec.Urgency || existing.ContextURL != spec.ContextURL ||
+		existing.BigPicture != spec.BigPicture || existing.TechnicalDetails != spec.TechnicalDetails ||
+		existing.SourceEventType != spec.SourceEventType || len(existing.Options) != len(spec.Options) ||
+		!sameCorrelation(existing.Correlation, spec.Correlation) {
+		return false
+	}
+	for index := range existing.Options {
+		if existing.Options[index] != spec.Options[index] {
+			return false
+		}
+	}
+	if spec.DeadlineSpecified && existing.Deadline != spec.Deadline.UTC().Format(time.RFC3339Nano) {
+		return false
+	}
+	if spec.Body != renderAskBody(spec) {
+		return notification.Body == spec.Body
+	}
+	// The generated push body includes its deadline when a default answer is
+	// present. For implicit deadlines, compare against the original deadline so
+	// a same-content retry remains stable while the notification body stays
+	// identity-bound.
+	originalDeadline, err := time.Parse(time.RFC3339Nano, existing.Deadline)
+	if err != nil {
+		return false
+	}
+	stable := spec
+	stable.Deadline = originalDeadline
+	return notification.Body == renderAskBody(stable)
+}
+
+func sameCorrelation(a, b map[string]string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for key, value := range a {
+		if b[key] != value {
+			return false
+		}
+	}
+	return true
+}
+
+const askSelect = `SELECT a.id, a.notification_id, a.question, a.allowed_answers, a.options_json, a.recommended, a.recommendation_reason, a.default_answer, a.reversible, a.urgency, a.context_url, a.big_picture, a.technical_details, a.source, a.source_event_type, a.requester_ref, a.correlation_json, a.deadline, a.state, a.reason, a.default_applied_at, a.resolved_at, a.created_at, a.updated_at,
   COALESCE(ans.answer, ''), COALESCE(ans.answered_by, ''), COALESCE(ans.answered_at, ''), COALESCE(ans.note, ''), COALESCE(ans.late, 0),
   COALESCE((SELECT MIN(r.delivered_at) FROM receipts r WHERE r.notification_id = a.notification_id), ''),
   COALESCE((SELECT n.requested_by FROM notifications n WHERE n.id = a.notification_id), '')
@@ -333,7 +470,7 @@ func scanAsk(row rowScanner) (AskRecord, error) {
 	var record AskRecord
 	var allowedJSON, optionsJSON, correlationJSON string
 	var reversible, late int
-	err := row.Scan(&record.ID, &record.NotificationID, &record.Question, &allowedJSON, &optionsJSON, &record.Recommended, &record.RecommendationReason, &record.DefaultAnswer, &reversible, &record.Urgency, &record.ContextURL, &record.Source, &record.SourceEventType, &record.RequesterRef, &correlationJSON, &record.Deadline, &record.State, &record.Reason, &record.DefaultAppliedAt, &record.ResolvedAt, &record.CreatedAt, &record.UpdatedAt,
+	err := row.Scan(&record.ID, &record.NotificationID, &record.Question, &allowedJSON, &optionsJSON, &record.Recommended, &record.RecommendationReason, &record.DefaultAnswer, &reversible, &record.Urgency, &record.ContextURL, &record.BigPicture, &record.TechnicalDetails, &record.Source, &record.SourceEventType, &record.RequesterRef, &correlationJSON, &record.Deadline, &record.State, &record.Reason, &record.DefaultAppliedAt, &record.ResolvedAt, &record.CreatedAt, &record.UpdatedAt,
 		&record.Answer, &record.AnsweredBy, &record.AnsweredAt, &record.Note, &late, &record.FirstDeliveredAt, &record.Recipient)
 	if errors.Is(err, sql.ErrNoRows) {
 		return AskRecord{}, ErrNotFound
@@ -372,6 +509,16 @@ func scanAsk(row rowScanner) (AskRecord, error) {
 // reported as it is stored, and only the background sweep changes state.
 func (s *Service) GetAsk(ctx context.Context, id string) (AskRecord, error) {
 	return scanAsk(s.db.QueryRowContext(ctx, askSelect+` WHERE a.id = ?`, strings.TrimSpace(id)))
+}
+
+// GetAskForRecipient performs the recipient check in the read query itself so
+// callers cannot use ask IDs to inspect another configured recipient's data.
+func (s *Service) GetAskForRecipient(ctx context.Context, id, recipient string) (AskRecord, error) {
+	recipient = strings.TrimSpace(recipient)
+	if recipient == "" {
+		return AskRecord{}, ErrNotFound
+	}
+	return scanAsk(s.db.QueryRowContext(ctx, askSelect+` WHERE a.id = ? AND a.notification_id IN (SELECT id FROM notifications WHERE requested_by = ?)`, strings.TrimSpace(id), recipient))
 }
 
 // ListAsks returns the recipient's asks newest first. openOnly limits the

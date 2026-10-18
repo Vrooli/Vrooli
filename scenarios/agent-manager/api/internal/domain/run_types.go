@@ -666,9 +666,14 @@ type CreateRunCaller struct {
 	EffortDigest string    `json:"effortDigest,omitempty"`
 	Subject      string    `json:"subject,omitempty"`
 	RunID        uuid.UUID `json:"runId,omitempty"`
+	GrantID      string    `json:"grantId,omitempty"`
 }
 
 type RunAdmission struct {
+	// CreateRequestDigest binds an idempotency key to the exact caller request
+	// that created this run. Empty on historical rows predating exact replay.
+	CreateRequestDigest string `json:"createRequestDigest,omitempty"`
+
 	// FrozenIdentityScopes is the original owner/profile/request intersection.
 	// A nil pointer means historical admission has no provable grant ceiling.
 	FrozenIdentityScopes *[]string `json:"frozenIdentityScopes,omitempty"`

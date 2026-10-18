@@ -14,6 +14,10 @@ func NewEventBusPublisher(baseURL string) EventPublisher {
 	return EventBusPublisher{Client: eventbus.Client{BaseURL: baseURL}}
 }
 
+// Enabled reports whether Events is configured. Pending lifecycle publications
+// must remain queued when the shared event client is intentionally disabled.
+func (p EventBusPublisher) Enabled() bool { return p.Client.Enabled() }
+
 func (p EventBusPublisher) Publish(ctx context.Context, eventType string, payload map[string]any) error {
 	return p.Client.PublishDomainEvent(ctx, eventbus.DomainEvent{Source: "vrooli-autoheal", EventType: eventType, Payload: payload})
 }

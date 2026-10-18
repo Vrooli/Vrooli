@@ -15,10 +15,16 @@ import (
 )
 
 // ErrPromptNotSubmitted means the prompt was pasted and Enter was pressed
-// (with bounded retries), but the TUI's composer still visibly holds it: the
-// directive sits composed-but-unsent. It is distinct from a transport error,
-// whose outcome is unknown.
+// (with bounded retries), but the TUI's composer still visibly holds it.
+// It is distinct from a transport error, whose outcome is unknown.
 var ErrPromptNotSubmitted = errors.New("prompt pasted but not submitted: the composer still holds it")
+
+// ErrCommandNotSubmitted means literal command text was typed and Enter was
+// pressed with bounded retries, but the TUI's composer still visibly holds it.
+var ErrCommandNotSubmitted = errors.New("command typed but not submitted: the composer still holds it")
+
+// ErrCommandMustBeSingleLine is returned when a command contains CR or LF.
+var ErrCommandMustBeSingleLine = errors.New("command must be a single line")
 
 // PromptSubmission reports what SendPrompt could confirm about a submit.
 type PromptSubmission struct {
@@ -73,17 +79,35 @@ var pastePlaceholder = regexp.MustCompile(`\[Pasted[^\[\]]*\]$`)
 // runner-specific glyphs. When that cannot be observed the result is reported
 // unverified, never as success.
 func (c *Client) SendPrompt(ctx context.Context, sessionID, prompt, source string) (PromptSubmission, error) {
+	return c.submitComposerText(ctx, sessionID, prompt, source, true, "paste prompt", ErrPromptNotSubmitted)
+}
+
+// SendCommand types a literal, single-line command rather than bracketed paste.
+// Some native TUI command parsers only recognize slash commands delivered as
+// ordinary keystrokes. It shares SendPrompt's bounded ingest wait, named Enter,
+// and screen-based submission verification.
+func (c *Client) SendCommand(ctx context.Context, sessionID, command, source string) (PromptSubmission, error) {
+	if strings.ContainsAny(command, "\r\n") {
+		return PromptSubmission{}, ErrCommandMustBeSingleLine
+	}
+	if strings.TrimSpace(command) == "" {
+		return PromptSubmission{}, ErrCommandMustBeSingleLine
+	}
+	return c.submitComposerText(ctx, sessionID, command, source, false, "type command", ErrCommandNotSubmitted)
+}
+
+func (c *Client) submitComposerText(ctx context.Context, sessionID, text, source string, isPaste bool, inputAction string, notSubmitted error) (PromptSubmission, error) {
 	var out PromptSubmission
 	if _, err := c.terminal.SendInput(ctx, connect.NewRequest(&terminalv1.SendInputRequest{
 		SessionId: sessionID,
-		Body:      &terminalv1.SendInputRequest_Text{Text: prompt},
+		Body:      &terminalv1.SendInputRequest_Text{Text: text},
 		Source:    source,
-		IsPaste:   true,
+		IsPaste:   isPaste,
 	})); err != nil {
-		return out, fmt.Errorf("web-console paste prompt: %w", err)
+		return out, fmt.Errorf("web-console %s: %w", inputAction, err)
 	}
 
-	tail := promptTail(prompt)
+	tail := promptTail(text)
 	seen := false
 	if tail != "" {
 		for range pollCount(promptIngestBudget) {
@@ -109,7 +133,7 @@ func (c *Client) SendPrompt(ctx context.Context, sessionID, prompt, source strin
 			}},
 			Source: source,
 		})); err != nil {
-			return out, fmt.Errorf("web-console submit prompt: %w", err)
+			return out, fmt.Errorf("web-console submit %s: %w", inputAction, err)
 		}
 		out.EnterPresses++
 		if tail == "" {
@@ -133,12 +157,11 @@ func (c *Client) SendPrompt(ctx context.Context, sessionID, prompt, source strin
 			}
 		}
 		if !seen {
-			// The composer never showed the prompt: nothing to confirm against.
+			// The composer never showed the text: nothing to confirm against.
 			return out, nil
 		}
-		// Still composed at the end of the window: Enter was swallowed.
 	}
-	return out, ErrPromptNotSubmitted
+	return out, notSubmitted
 }
 
 // composerHolds reports whether the composer (the rows ending at the cursor)

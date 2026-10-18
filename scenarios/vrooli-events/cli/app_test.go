@@ -5,8 +5,13 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
+
+	domain "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 func mustNewApp(t *testing.T) *App {
@@ -70,7 +75,7 @@ func TestRunRegistersCommands(t *testing.T) {
 }
 
 func TestIngestAndQueryCommands(t *testing.T) {
-	var receivedBody map[string]any
+	var receivedBody []byte
 	var receivedQuery string
 	mux := http.NewServeMux()
 	// NeedsAPI commands preflight-probe /health via ensureAPIReachable; without this
@@ -83,16 +88,14 @@ func TestIngestAndQueryCommands(t *testing.T) {
 		switch r.Method {
 		case http.MethodPost:
 			raw, _ := io.ReadAll(r.Body)
-			_ = json.Unmarshal(raw, &receivedBody)
+			receivedBody = append([]byte(nil), raw...)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusAccepted)
 			_ = json.NewEncoder(w).Encode(map[string]any{"id": 1, "eventId": "evt-1"})
 		case http.MethodGet:
 			receivedQuery = r.URL.RawQuery
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode([]map[string]string{
-				{"eventId": "evt-1", "eventType": "test.v1", "sourceScenario": "src"},
-			})
+			_, _ = w.Write([]byte(`[{"eventId":"evt-1","eventType":"test.v1","source":{"scenario":"src"},"target":{"scenario":"dst"},"correlation":{"requestId":"corr-123"}},{"eventId":"evt-2","eventType":"test.empty.v1"},{"eventId":"evt-3","eventType":"test.agent-run.v1","correlation":{"agentRunId":"run-123","requestId":"corr-ignored"}}]`))
 		default:
 			t.Fatalf("unexpected method %s", r.Method)
 		}
@@ -110,19 +113,94 @@ func TestIngestAndQueryCommands(t *testing.T) {
 		"--source", "test-scenario",
 		"--target", "other-scenario",
 		"--correlation-id", "corr-123",
+		"--payload", `{"kind":"heartbeat","sequence":7}`,
 	}); err != nil {
 		t.Fatalf("ingest: %v", err)
 	}
 
-	if receivedBody["eventId"] != "evt-1" {
-		t.Fatalf("expected eventId evt-1, got %v", receivedBody["eventId"])
+	var envelope domain.EventEnvelope
+	if err := protojson.Unmarshal(receivedBody, &envelope); err != nil {
+		t.Fatalf("decode posted EventEnvelope: %v; body=%s", err, receivedBody)
+	}
+	if envelope.GetEventId() != "evt-1" || envelope.GetEventType() != "app.user.created.v1" {
+		t.Fatalf("event identity was not preserved: event_id=%q type=%q", envelope.GetEventId(), envelope.GetEventType())
+	}
+	if envelope.GetSource().GetScenario() != "test-scenario" || envelope.GetTarget().GetScenario() != "other-scenario" {
+		t.Fatalf("source/target were not preserved: source=%+v target=%+v", envelope.GetSource(), envelope.GetTarget())
+	}
+	if envelope.GetCorrelation().GetRequestId() != "corr-123" {
+		t.Fatalf("correlation was not preserved: %+v", envelope.GetCorrelation())
+	}
+	if envelope.GetData() == nil {
+		t.Fatal("payload was not encoded as EventEnvelope.data")
+	}
+	var payload structpb.Struct
+	if err := envelope.GetData().UnmarshalTo(&payload); err != nil {
+		t.Fatalf("decode EventEnvelope.data Struct: %v", err)
+	}
+	if payload.GetFields()["kind"].GetStringValue() != "heartbeat" || payload.GetFields()["sequence"].GetNumberValue() != 7 {
+		t.Fatalf("payload was not preserved: %s", payload.String())
 	}
 
-	if err := app.Run([]string{"query", "--type", "test.*", "--source", "mysrc", "--limit", "10"}); err != nil {
-		t.Fatalf("query: %v", err)
+	oldStdout := os.Stdout
+	readOutput, writeOutput, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("create stdout capture: %v", err)
+	}
+	os.Stdout = writeOutput
+	queryErr := app.Run([]string{"query", "--type", "test.*", "--source", "mysrc", "--limit", "10", "--json"})
+	_ = writeOutput.Close()
+	os.Stdout = oldStdout
+	queryOutput, readErr := io.ReadAll(readOutput)
+	_ = readOutput.Close()
+	if readErr != nil {
+		t.Fatalf("read query output: %v", readErr)
+	}
+	if queryErr != nil {
+		t.Fatalf("query: %v", queryErr)
+	}
+	var queryReport struct {
+		Results []string `json:"results"`
+	}
+	if err := json.Unmarshal(queryOutput, &queryReport); err != nil {
+		t.Fatalf("decode query report: %v; output=%s", err, queryOutput)
+	}
+	wantRows := []string{
+		"evt-1  test.v1  src -> dst  corr=corr-123",
+		"evt-2  test.empty.v1   ->   corr=",
+		"evt-3  test.agent-run.v1   ->   corr=run-123",
+	}
+	if len(queryReport.Results) != len(wantRows) {
+		t.Fatalf("query results = %#v, want %#v", queryReport.Results, wantRows)
+	}
+	for i, want := range wantRows {
+		if queryReport.Results[i] != want {
+			t.Errorf("query result[%d] = %q, want %q", i, queryReport.Results[i], want)
+		}
 	}
 	if receivedQuery == "" || !strings.Contains(receivedQuery, "limit=10") {
 		t.Fatalf("expected query params, got %q", receivedQuery)
+	}
+}
+
+func TestQueryRejectsMalformedEventEnvelope(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{"status": "healthy"})
+	})
+	mux.HandleFunc("/api/v1/events", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Fatalf("unexpected method %s", r.Method)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`[{"eventId":"evt-legacy","sourceScenario":"src"}]`))
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	t.Setenv("VROOLI_EVENTS_API_BASE", srv.URL)
+	app := mustNewApp(t)
+	if err := app.Run([]string{"query", "--json"}); err == nil || !strings.Contains(err.Error(), "parse event envelope 0") {
+		t.Fatalf("expected indexed malformed-envelope error, got %v", err)
 	}
 }
 

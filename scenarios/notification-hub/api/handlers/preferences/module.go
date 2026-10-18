@@ -4,13 +4,14 @@
 // REST style (see internal/integrations.Handler) rather than Connect-RPC, so
 // there are no proto changes and no generated-client dependency.
 //
-// All routes resolve the recipient key from the verified owner identity
-// (identity.Subject) — the same SUBJECT string recipients and quiet-windows
-// key on. The module mounts on the server router, which main.go wraps with the
-// owner-auth middleware, so every route here is owner-authenticated.
+// Read-only catalog and preference views use the installation's configured
+// recipient. Preference writes still resolve a verified owner identity. The
+// module mounts behind optional owner-context middleware, which does not itself
+// reject unauthenticated reads.
 package preferences
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -24,8 +25,9 @@ import (
 )
 
 type handler struct {
-	store    *preferences.Storage
-	verifier identity.Verifier
+	store     *preferences.Storage
+	verifier  identity.Verifier
+	recipient func(context.Context) string
 }
 
 // Module wires the preferences REST surface with no identity verifier; useful
@@ -34,10 +36,18 @@ func Module(store *preferences.Storage) module.Module {
 	return ModuleWithVerifier(store, nil)
 }
 
-// ModuleWithVerifier wires the preferences REST surface against the shared
-// owner-identity verifier used by every other owner-authenticated module.
+// ModuleWithVerifier wires the preferences REST surface with owner verification
+// for writes. Read-only preference views have no configured recipient unless
+// ModuleWithRecipientResolver is used.
 func ModuleWithVerifier(store *preferences.Storage, verifier identity.Verifier) module.Module {
-	h := &handler{store: store, verifier: verifier}
+	return ModuleWithRecipientResolver(store, nil, verifier)
+}
+
+// ModuleWithRecipientResolver scopes read-only preference views to the
+// installation's configured recipient while writes continue to use verified
+// identity.Subject.
+func ModuleWithRecipientResolver(store *preferences.Storage, recipient func(context.Context) string, verifier identity.Verifier) module.Module {
+	h := &handler{store: store, verifier: verifier, recipient: recipient}
 	return module.Module{Name: "preferences", Mount: func(r *mux.Router) {
 		r.HandleFunc("/api/v1/notifications/catalog", h.getCatalog).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/notifications/preferences", h.getPreferences).Methods(http.MethodGet)
@@ -47,6 +57,13 @@ func ModuleWithVerifier(store *preferences.Storage, verifier identity.Verifier) 
 
 func (h *handler) subject(r *http.Request) (string, error) {
 	return identity.Subject(r.Context(), r.Header, h.verifier)
+}
+
+func (h *handler) configuredRecipient(ctx context.Context) string {
+	if h.recipient == nil {
+		return ""
+	}
+	return strings.TrimSpace(h.recipient(ctx))
 }
 
 // categoryView is one category under a source in the catalog response.
@@ -99,17 +116,13 @@ type putPreferenceRequest struct {
 }
 
 func (h *handler) getCatalog(w http.ResponseWriter, r *http.Request) {
-	subject, err := h.subject(r)
-	if err != nil {
-		http.Error(w, "unauthenticated", http.StatusUnauthorized)
-		return
-	}
+	recipient := h.configuredRecipient(r.Context())
 	sources, err := h.store.ListCatalog(r.Context())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	prefs, err := h.store.ListPreferences(r.Context(), subject)
+	prefs, err := h.store.ListPreferences(r.Context(), recipient)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -118,12 +131,8 @@ func (h *handler) getCatalog(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) getPreferences(w http.ResponseWriter, r *http.Request) {
-	subject, err := h.subject(r)
-	if err != nil {
-		http.Error(w, "unauthenticated", http.StatusUnauthorized)
-		return
-	}
-	prefs, err := h.store.ListPreferences(r.Context(), subject)
+	recipient := h.configuredRecipient(r.Context())
+	prefs, err := h.store.ListPreferences(r.Context(), recipient)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

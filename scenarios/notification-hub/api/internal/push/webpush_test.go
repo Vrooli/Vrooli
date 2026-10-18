@@ -2,11 +2,17 @@ package push
 
 import (
 	"context"
+	"crypto/aes"
+	"crypto/cipher"
 	"crypto/ecdh"
 	"crypto/ecdsa"
 	"crypto/elliptic"
+	"crypto/hmac"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/binary"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -43,6 +49,116 @@ func TestSender_EncryptsPayloadAndUsesWebPushHeaders(t *testing.T) {
 	provider, err := sender.Send(context.Background(), Subscription{Endpoint: server.URL, P256DH: base64.RawURLEncoding.EncodeToString(clientKey.PublicKey().Bytes()), Auth: base64.RawURLEncoding.EncodeToString(auth)}, "title", "private body")
 	require.NoError(t, err)
 	require.Equal(t, "provider-receipt", provider)
+}
+
+func TestEncryptRespectsWebPushBodyLimitAndDecryptsAtMaximum(t *testing.T) {
+	clientKey, err := ecdh.P256().GenerateKey(rand.Reader)
+	require.NoError(t, err)
+	auth := make([]byte, 16)
+	_, err = rand.Read(auth)
+	require.NoError(t, err)
+
+	maximum := make([]byte, 3993)
+	for i := range maximum {
+		maximum[i] = byte(i % 251)
+	}
+	ciphertext, err := encrypt(maximum, clientKey.PublicKey().Bytes(), auth)
+	require.NoError(t, err)
+	require.Len(t, ciphertext, 4096)
+	decrypted, err := decryptWebPushForTest(ciphertext, clientKey, auth)
+	require.NoError(t, err)
+	require.Equal(t, append(append([]byte(nil), maximum...), 0x02), decrypted)
+
+	tooLarge := make([]byte, 3994)
+	require.Len(t, tooLarge, 3994)
+	ciphertext, err = encrypt(tooLarge, clientKey.PublicKey().Bytes(), auth)
+	require.Nil(t, ciphertext)
+	require.EqualError(t, err, "web push payload exceeds record size")
+}
+
+func TestRFC8291PublishedEncryptionVectorDecrypts(t *testing.T) {
+	// RFC 8291 section 5's complete aes128gcm body, with the Appendix A
+	// receiver private key and auth secret. This independently exercises the
+	// key derivation and record parsing against the published wire vector.
+	body := decodeRawURLTest(t, "DGv6ra1nlYgDCS1FRnbzlwAAEABBBP4z9KsN6nGRTbVYI_c7VJSPQTBtkgcy27ml"+
+		"mlMoZIIgDll6e3vCYLocInmYWAmS6TlzAC8wEqKK6PBru3jl7A_yl95bQpu6cVPT"+
+		"pK4Mqgkf1CXztLVBSt2Ks3oZwbuwXPXLWyouBWLVWGNWQexSgSxsj_Qulcy4a-fN")
+	userAgentPrivate := decodeRawURLTest(t, "q1dXpw3UpT5VOmu_cf_v6ih07Aems3njxI-JWgLcM94")
+	receiverKey, err := ecdh.P256().NewPrivateKey(userAgentPrivate)
+	require.NoError(t, err)
+	auth := decodeRawURLTest(t, "BTBZMqHH6r4Tts7J_aSIgg")
+
+	plaintext, err := decryptWebPushForTest(body, receiverKey, auth)
+	require.NoError(t, err)
+	require.Equal(t, []byte("When I grow up, I want to be a watermelon\x02"), plaintext)
+}
+
+func decryptWebPushForTest(body []byte, receiver *ecdh.PrivateKey, auth []byte) ([]byte, error) {
+	if len(body) < 86+17 {
+		return nil, errors.New("encrypted body is shorter than the Web Push header and record minimum")
+	}
+	if len(body) > 4096 {
+		return nil, errors.New("encrypted body exceeds the RFC 8291 maximum")
+	}
+	if binary.BigEndian.Uint32(body[16:20]) != 4096 {
+		return nil, errors.New("unexpected Web Push record size")
+	}
+	idLen := int(body[20])
+	if idLen != 65 || 21+idLen != 86 || 21+idLen > len(body) {
+		return nil, errors.New("invalid Web Push key identifier")
+	}
+	salt := body[:16]
+	serverKey, err := ecdh.P256().NewPublicKey(body[21 : 21+idLen])
+	if err != nil {
+		return nil, err
+	}
+	shared, err := receiver.ECDH(serverKey)
+	if err != nil {
+		return nil, err
+	}
+	userAgentPublic := receiver.PublicKey().Bytes()
+	serverPublic := serverKey.Bytes()
+	prkKey := hkdfExtractTest(auth, shared)
+	keyInfo := append(append([]byte("WebPush: info\x00"), userAgentPublic...), serverPublic...)
+	ikm := hkdfExpandTest(prkKey, keyInfo, 32)
+	prk := hkdfExtractTest(salt, ikm)
+	cek := hkdfExpandTest(prk, []byte("Content-Encoding: aes128gcm\x00"), 16)
+	nonce := hkdfExpandTest(prk, []byte("Content-Encoding: nonce\x00"), 12)
+	block, err := aes.NewCipher(cek)
+	if err != nil {
+		return nil, err
+	}
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, err
+	}
+	return gcm.Open(nil, nonce, body[21+idLen:], nil)
+}
+
+func hkdfExtractTest(salt, input []byte) []byte {
+	mac := hmac.New(sha256.New, salt)
+	_, _ = mac.Write(input)
+	return mac.Sum(nil)
+}
+
+func hkdfExpandTest(prk, info []byte, length int) []byte {
+	var result, previous []byte
+	for counter := byte(1); len(result) < length; counter++ {
+		mac := hmac.New(sha256.New, prk)
+		_, _ = mac.Write(previous)
+		_, _ = mac.Write(info)
+		_, _ = mac.Write([]byte{counter})
+		previous = mac.Sum(nil)
+		result = append(result, previous...)
+	}
+	return result[:length]
+}
+
+func decodeRawURLTest(t *testing.T, encoded string) []byte {
+	t.Helper()
+	decoded, err := base64.RawURLEncoding.DecodeString(encoded)
+	require.NoError(t, err)
+	return decoded
 }
 
 func TestLoadOrCreatePrivateKeyIsStableAndPrivate(t *testing.T) {

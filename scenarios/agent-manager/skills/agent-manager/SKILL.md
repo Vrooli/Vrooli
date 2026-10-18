@@ -293,6 +293,17 @@ replay/promotion process and never come directly from remembered prose.
 
 ### Joined supervision reads
 
+For delivery-goal supervision, first run
+`program-runtime library run agent-manager.supervision-observation-read --input page_size=8`.
+It reads one bounded Agent Manager board page and selects retained unfinished
+orchestrator/worker obligations independent of runtime liveness. Preserve
+unknown, review-required, blocked, stale and unavailable facts; continue only
+with the returned page token. Withdrawn rows are retired. Rows without retained
+orchestrator/worker assignments remain visible as admission/completion unknown.
+Goal-home contents such as `activeEpoch`, open feedback or queue findings do not
+establish native admission or retained ownership; `authorized_by` alone never
+establishes admission.
+
 Run `program-runtime library run agent-manager.supervision-case-read --input watch_id=<id>`
 to join the latest decision, pending evidence, accepted/applied actions and assessment gaps.
 Run `program-runtime library run agent-manager.supervision-experiment-read --input policy_version=<version>`

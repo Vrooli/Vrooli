@@ -19,7 +19,8 @@ type ActiveRun struct {
 	CancelFn  context.CancelFunc `json:"-"`
 	// State carries a durable obligation classification across restart. Empty
 	// for ordinary live runs; see the Obligation* constants.
-	State string `json:"state,omitempty"`
+	State               string `json:"state,omitempty"`
+	ownerStartedAtKnown bool
 }
 
 // RunObserver receives run lifecycle notifications from the registry. The
@@ -61,19 +62,44 @@ func registryKey(teamID, agentID string) string {
 
 // Register adds an active run to the registry.
 func (r *RunRegistry) Register(teamID, agentID, runID string, startedAt time.Time, cancel context.CancelFunc) {
+	r.register(teamID, agentID, runID, startedAt, "", cancel, true, false)
+}
+
+// RegisterOwnerRun registers a new run using its owner-reported original start
+// time. A missing start remains unknown instead of falling back to the local
+// request or waiter start time.
+func (r *RunRegistry) RegisterOwnerRun(teamID, agentID, runID string, startedAt time.Time, cancel context.CancelFunc, ownerState ...string) {
+	state := ""
+	if len(ownerState) > 0 {
+		state = ownerState[0]
+	}
+	r.register(teamID, agentID, runID, startedAt, state, cancel, true, !startedAt.IsZero())
+}
+
+// RegisterRecovered records an existing owner run while reattaching its local
+// waiter. startedAt must be the owner's original start time; a zero value
+// means that historical time is unavailable. It does not publish RunStarted
+// because recovery did not create a new execution.
+func (r *RunRegistry) RegisterRecovered(teamID, agentID, runID string, startedAt time.Time, state string, cancel context.CancelFunc) {
+	r.register(teamID, agentID, runID, startedAt, state, cancel, false, !startedAt.IsZero())
+}
+
+func (r *RunRegistry) register(teamID, agentID, runID string, startedAt time.Time, state string, cancel context.CancelFunc, notifyStarted, ownerStartedAtKnown bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	run := &ActiveRun{
-		TeamID:    teamID,
-		AgentID:   agentID,
-		RunID:     runID,
-		StartedAt: startedAt,
-		CancelFn:  cancel,
+		TeamID:              teamID,
+		AgentID:             agentID,
+		RunID:               runID,
+		StartedAt:           startedAt,
+		CancelFn:            cancel,
+		State:               state,
+		ownerStartedAtKnown: ownerStartedAtKnown,
 	}
 	r.active[registryKey(teamID, agentID)] = run
 	r.persistLocked()
-	if r.observer != nil {
+	if notifyStarted && r.observer != nil {
 		r.observer.RunStarted(*run)
 	}
 }
@@ -96,6 +122,22 @@ func (r *RunRegistry) Complete(teamID, agentID string, failed bool, message stri
 	if ok && r.observer != nil {
 		r.observer.RunEnded(*run, time.Now().UTC(), failed, message)
 	}
+}
+
+// MarkObserverUnavailable records that the local waiter ended without
+// terminal owner evidence. It deliberately keeps the run registered and clears
+// the stale cancellation function so a later scheduled reconciliation can
+// safely reattach observation.
+func (r *RunRegistry) MarkObserverUnavailable(teamID, agentID string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	run, ok := r.active[registryKey(teamID, agentID)]
+	if !ok {
+		return
+	}
+	run.State = ObligationWatcherUnavailable
+	run.CancelFn = nil
+	r.persistLocked()
 }
 
 // ListActive returns a snapshot of all active runs.
@@ -132,11 +174,12 @@ func (r *RunRegistry) Count() int {
 
 // persistedRun is the on-disk representation (no CancelFn).
 type persistedRun struct {
-	TeamID    string    `json:"teamId"`
-	AgentID   string    `json:"agentId"`
-	RunID     string    `json:"runId"`
-	StartedAt time.Time `json:"startedAt"`
-	State     string    `json:"state,omitempty"`
+	TeamID              string    `json:"teamId"`
+	AgentID             string    `json:"agentId"`
+	RunID               string    `json:"runId"`
+	StartedAt           time.Time `json:"startedAt"`
+	OwnerStartedAtKnown bool      `json:"ownerStartedAtKnown,omitempty"`
+	State               string    `json:"state,omitempty"`
 }
 
 // persistLocked writes the current active map to disk. Caller must hold mu.
@@ -144,11 +187,12 @@ func (r *RunRegistry) persistLocked() {
 	runs := make([]persistedRun, 0, len(r.active))
 	for _, run := range r.active {
 		runs = append(runs, persistedRun{
-			TeamID:    run.TeamID,
-			AgentID:   run.AgentID,
-			RunID:     run.RunID,
-			StartedAt: run.StartedAt,
-			State:     run.State,
+			TeamID:              run.TeamID,
+			AgentID:             run.AgentID,
+			RunID:               run.RunID,
+			StartedAt:           run.StartedAt,
+			OwnerStartedAtKnown: run.ownerStartedAtKnown,
+			State:               run.State,
 		})
 	}
 
@@ -196,15 +240,19 @@ func (r *RunRegistry) Recover(ctx context.Context, client AgentClient) {
 
 	for _, pr := range runs {
 		base := ActiveRun{
-			TeamID:    pr.TeamID,
-			AgentID:   pr.AgentID,
-			RunID:     pr.RunID,
-			StartedAt: pr.StartedAt,
+			TeamID:  pr.TeamID,
+			AgentID: pr.AgentID,
+			RunID:   pr.RunID,
+			State:   pr.State,
+		}
+		if pr.OwnerStartedAtKnown {
+			base.StartedAt = pr.StartedAt
+			base.ownerStartedAtKnown = true
 		}
 
 		// A prior recovery already recorded a non-resolvable obligation.
 		// Preserve it without re-probing the owner.
-		if pr.State != ObligationRunning {
+		if pr.State != ObligationRunning && pr.State != ObligationWatcherUnavailable {
 			base.State = pr.State
 			r.active[registryKey(pr.TeamID, pr.AgentID)] = &base
 			continue
@@ -226,8 +274,17 @@ func (r *RunRegistry) Recover(ctx context.Context, client AgentClient) {
 		if IsTerminalStatus(run.Status) {
 			continue
 		}
+		if ownerStartedAt, ok := parseOwnerRunStartedAt(run.StartedAt); ok {
+			base.StartedAt = ownerStartedAt
+			base.ownerStartedAtKnown = true
+		} else if !pr.OwnerStartedAtKnown {
+			base.StartedAt = time.Time{}
+			base.ownerStartedAtKnown = false
+		}
 		if IsParkedStatus(run.Status) {
 			base.State = ObligationPaused
+		} else if IsNeedsReviewStatus(run.Status) {
+			base.State = ObligationNeedsReview
 		}
 		r.active[registryKey(pr.TeamID, pr.AgentID)] = &base
 	}

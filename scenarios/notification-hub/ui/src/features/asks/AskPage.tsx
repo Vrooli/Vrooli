@@ -28,9 +28,7 @@ export function AskPage() {
       data-testid={selectors.pages.ask}
       className="mx-auto flex w-full max-w-xl flex-col gap-4"
     >
-      <SessionGate>
-        <AskDetail />
-      </SessionGate>
+      <AskDetail />
     </section>
   );
 }
@@ -93,8 +91,29 @@ function AskBody({ ask }: { ask: Ask }) {
           {t(strings.asks.detail.more)}
         </a>
       )}
+      {ask.bigPicture && (
+        <details className="rounded-panel border border-app-border p-3">
+          <summary className="cursor-pointer font-medium">
+            {t(strings.asks.detail.bigPicture)}
+          </summary>
+          <p className="mt-2 whitespace-pre-wrap break-words text-sm text-app-muted-foreground">
+            {ask.bigPicture}
+          </p>
+        </details>
+      )}
+      {ask.technicalDetails && (
+        <details className="rounded-panel border border-app-border p-3">
+          <summary className="cursor-pointer font-medium">
+            {t(strings.asks.detail.technicalDetails)}
+          </summary>
+          <p className="mt-2 whitespace-pre-wrap break-words text-sm text-app-muted-foreground">
+            {ask.technicalDetails}
+          </p>
+        </details>
+      )}
       <AskStatus ask={ask} now={now} />
       {canAnswer && (
+        <SessionGate>
         <div className="flex flex-col gap-3">
           {orderedOptions(ask).map((option) => {
             const recommended = option.key === ask.recommended;
@@ -150,6 +169,7 @@ function AskBody({ ask }: { ask: Ask }) {
             </p>
           )}
         </div>
+        </SessionGate>
       )}
     </>
   );

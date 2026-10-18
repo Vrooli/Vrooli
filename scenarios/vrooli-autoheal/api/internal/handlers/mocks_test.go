@@ -218,6 +218,14 @@ func (m *mockStore) UpdateIncidentStatus(ctx context.Context, incidentID string,
 	return &incidents.Incident{ID: incidentID, Status: status}, nil
 }
 
+func (m *mockStore) ListPendingOpeningPublications(context.Context, int) ([]incidents.OpeningPublication, error) {
+	return nil, nil
+}
+
+func (m *mockStore) AcknowledgeOpeningPublication(context.Context, string, int) error {
+	return nil
+}
+
 func (m *mockStore) RecordIncidentRemediationArtifact(ctx context.Context, incidentID string, artifact incidents.RemediationArtifact) (*incidents.Incident, error) {
 	m.recordedArtifact = &artifact
 	if m.incident == nil {

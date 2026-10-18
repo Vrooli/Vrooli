@@ -60,6 +60,13 @@ type Provenance struct {
 	Source              string                   `json:"source,omitempty"`
 	Invocation          Invocation               `json:"invocation,omitempty"`
 	Grant               *identity.OperationGrant `json:"grant,omitempty"`
+	// OperationGrant and its claims stay separate from the ordinary principal.
+	// Only authn.RequireOperation may consume this independently verified proof.
+	OperationGrant     *identity.OperationGrant `json:"-"`
+	OperationScopes    []string                 `json:"-"`
+	OperationExpiresAt time.Time                `json:"-"`
+	OperationRunID     string                   `json:"-"`
+	OperationGrantID   string                   `json:"-"`
 }
 
 // OperationGrantFromMeta interprets signed metadata only after the authority
@@ -167,8 +174,10 @@ func (p Provenance) FormatStartedBy() string {
 type contextKey struct{}
 
 type requestIdentity struct {
-	provenance Provenance
-	token      string
+	provenance        Provenance
+	token             string
+	operationToken    string
+	operationVerifier PairVerifier
 }
 
 // ForwardingTransport copies a verified inbound Agent Manager identity to an
@@ -186,19 +195,34 @@ func (t ForwardingTransport) RoundTrip(request *http.Request) (*http.Response, e
 	if request == nil {
 		return base.RoundTrip(request)
 	}
-	if !cliutil.TrustedIdentityDestination(request) && request.Header.Get(cliutil.HeaderAgentIdentityToken) != "" {
+	if !cliutil.TrustedIdentityDestination(request) && (request.Header.Get(cliutil.HeaderAgentIdentityToken) != "" || request.Header.Get(cliutil.HeaderAgentOperationToken) != "") {
 		clone := request.Clone(request.Context())
 		clone.Header = request.Header.Clone()
 		clone.Header.Del(cliutil.HeaderAgentIdentityToken)
+		clone.Header.Del(cliutil.HeaderAgentOperationToken)
 		return base.RoundTrip(clone)
 	}
 	token := ForwardedIdentityToken(request.Context())
-	if token == "" || !cliutil.TrustedIdentityDestination(request) {
+	if !cliutil.TrustedIdentityDestination(request) {
 		return base.RoundTrip(request)
+	}
+	if token == "" {
+		if request.Header.Get(cliutil.HeaderAgentOperationToken) == "" {
+			return base.RoundTrip(request)
+		}
+		clone := request.Clone(request.Context())
+		clone.Header = request.Header.Clone()
+		clone.Header.Del(cliutil.HeaderAgentOperationToken)
+		return base.RoundTrip(clone)
 	}
 	clone := request.Clone(request.Context())
 	clone.Header = request.Header.Clone()
 	clone.Header.Set(cliutil.HeaderAgentIdentityToken, token)
+	if operationToken := ForwardedOperationToken(request.Context()); operationToken != "" {
+		clone.Header.Set(cliutil.HeaderAgentOperationToken, operationToken)
+	} else {
+		clone.Header.Del(cliutil.HeaderAgentOperationToken)
+	}
 	return base.RoundTrip(clone)
 }
 
@@ -249,10 +273,29 @@ func ForwardedIdentityToken(ctx context.Context) string {
 	return identity.token
 }
 
+// ForwardedOperationToken returns the supplemental proof only after the pair
+// was verified for this active baseline identity.
+func ForwardedOperationToken(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
+	identity, ok := ctx.Value(contextKey{}).(requestIdentity)
+	if !ok || !identity.provenance.IsVerifiedAgent() || identity.provenance.OperationGrant == nil {
+		return ""
+	}
+	return identity.operationToken
+}
+
 // Verifier is the narrow Agent Manager verification seam. It keeps Agent
 // Manager as token authority and makes all server behavior testable.
 type Verifier interface {
 	Verify(token string) (*cliutil.VerifyResult, error)
+}
+
+// PairVerifier verifies an operation token against one already verified
+// baseline token. It deliberately returns only the supplemental proof.
+type PairVerifier interface {
+	VerifyPair(context.Context, string, string) (*cliutil.VerifyPairResult, error)
 }
 
 type VerifierFunc func(token string) (*cliutil.VerifyResult, error)
@@ -264,6 +307,48 @@ type CLIUtilVerifier struct{}
 
 func (CLIUtilVerifier) Verify(token string) (*cliutil.VerifyResult, error) {
 	return (cliutil.IdentityEnv{Token: token}).VerifyIdentity()
+}
+
+func (CLIUtilVerifier) VerifyPair(ctx context.Context, baselineToken, operationToken string) (*cliutil.VerifyPairResult, error) {
+	return (cliutil.IdentityEnv{Token: baselineToken}).VerifyIdentityPair(ctx, operationToken)
+}
+
+// OperationProof is a freshly owner-verified supplemental grant. It remains
+// outside Provenance.Scopes and the ordinary identity.Principal.
+type OperationProof struct {
+	Grant     *identity.OperationGrant
+	Scopes    []string
+	ExpiresAt time.Time
+	RunID     string
+	GrantID   string
+}
+
+// ReverifyOperationProof checks the exact current pair again at the protected
+// effect boundary. Unavailable or changed grants fail closed for that effect.
+func ReverifyOperationProof(ctx context.Context) (*OperationProof, error) {
+	if ctx == nil {
+		return nil, nil
+	}
+	request, ok := ctx.Value(contextKey{}).(requestIdentity)
+	if !ok || request.operationToken == "" || request.operationVerifier == nil || !request.provenance.IsVerifiedAgent() {
+		return nil, nil
+	}
+	result, err := request.operationVerifier.VerifyPair(ctx, request.token, request.operationToken)
+	if err != nil {
+		return nil, err
+	}
+	if result == nil || !result.Valid || result.Operation == nil || !result.Operation.Valid || result.Operation.Claims == nil {
+		return nil, nil
+	}
+	claims := result.Operation.Claims
+	grant := OperationGrantFromMeta(claims.Meta)
+	if grant == nil {
+		return nil, nil
+	}
+	return &OperationProof{
+		Grant: grant, Scopes: append([]string(nil), claims.Scopes...),
+		ExpiresAt: time.Unix(claims.ExpiresAt, 0).UTC(), RunID: strings.TrimSpace(claims.RunID), GrantID: grant.ID,
+	}, nil
 }
 
 // VerifyPath is the Agent Manager endpoint that answers token verification.
@@ -300,6 +385,7 @@ func Middleware(verifier Verifier) func(http.Handler) http.Handler {
 				},
 			}
 			token := strings.TrimSpace(r.Header.Get(cliutil.HeaderAgentIdentityToken))
+			operationToken := strings.TrimSpace(r.Header.Get(cliutil.HeaderAgentOperationToken))
 			// The verification endpoint verifies its own caller in the handler.
 			// Verifying it here would re-enter this same endpoint without bound.
 			if token == "" || isVerificationEndpoint(r.URL.Path) {
@@ -342,7 +428,28 @@ func Middleware(verifier Verifier) func(http.Handler) http.Handler {
 					provenance.Attempt = uint32(attempt)
 				}
 			}
-			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), contextKey{}, requestIdentity{provenance: provenance, token: token})))
+			request := requestIdentity{provenance: provenance, token: token}
+			if operationToken != "" {
+				if pairVerifier, ok := verifier.(PairVerifier); ok {
+					pair, pairErr := pairVerifier.VerifyPair(r.Context(), token, operationToken)
+					if pairErr != nil {
+						slog.Warn("agent operation credential verification unavailable", "error", pairErr)
+					} else if pair != nil && pair.Valid && pair.Operation != nil && pair.Operation.Valid && pair.Operation.Claims != nil {
+						operationClaims := pair.Operation.Claims
+						provenance.OperationGrant = OperationGrantFromMeta(operationClaims.Meta)
+						if provenance.OperationGrant != nil {
+							provenance.OperationScopes = append([]string(nil), operationClaims.Scopes...)
+							provenance.OperationExpiresAt = time.Unix(operationClaims.ExpiresAt, 0).UTC()
+							provenance.OperationRunID = strings.TrimSpace(operationClaims.RunID)
+							provenance.OperationGrantID = provenance.OperationGrant.ID
+							request.operationToken = operationToken
+							request.operationVerifier = pairVerifier
+						}
+					}
+				}
+			}
+			request.provenance = provenance
+			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), contextKey{}, request)))
 		})
 	}
 }

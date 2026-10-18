@@ -2,9 +2,13 @@
 
 ## Select sound deliberately
 
-Use music-tools for generation. Inspect the style and current compose parameters;
-record structured BPM, key, duration, model/variant, seed, and the caption that
-actually reached the generator. Verify whether rewrite/planning is enabled. Do
+Choose the governed generator from current listening evidence and the brief.
+Use Music Tools for durable composition jobs, takes and delivery. Its default
+`launch-club` style uses Stable Audio 3 Medium; explicit ACE styles and lyrical
+songs remain available. Inspect the compiled style and current compose parameters;
+record duration, model/variant, seed and the exact caption sent. Stable Audio uses
+tempo/key intentions in the caption, with structured BPM 0 and key empty; ACE
+supports structured controls. Do not imply unsupported controls were applied. Verify whether rewrite/planning is enabled. Do
 not trust a requested BPM as measured tempo. Governed provenance does not prove
 musical fit or establish rights for unrelated stock assets.
 
@@ -22,7 +26,10 @@ that weakens the requested energy. Do not replace fast, hard electronic music
 with slower corporate/launch music merely to make two films different. Keep
 useful older candidates even when new ones are generated.
 
-Reuse suitable provenance-complete audio first. Start with two takes for teaser
+Reuse suitable provenance-complete audio when the brief allows reuse. An explicit
+request for fresh scores requires distinct new product briefs and new candidates;
+the approved source is an anchor or a disclosed fallback, not that deliverable.
+Start with two takes for teaser
 or three for flagship; expand only when audition findings justify the cost.
 Retain every candidate. Record requested versus perceived/measured tempo, density,
 strong cues, direction fit, chosen/rejected reason, and the audition method in
@@ -97,6 +104,11 @@ Measured loudness and technical decode cannot satisfy listening review.
 
 ## Listening is a capability, not a phrase in a report
 
+Historical Aquila/Vega DnB comparisons below retain their original context. Their
+later matched anchor previews were rejected for the current harder music brief;
+they are counterexamples, not reusable approved tracks. The current listening
+anchor is `stable-audio-3-harder-instrumental`, including its approved full B source.
+
 When the agent cannot hear audio, it must not claim an audition or emotional-fit
 verdict. Reuse operator-preferred material when possible, identify any provisional
 choice, and supply a compact local player with the actual candidates. Technical
@@ -158,3 +170,72 @@ For this instrumental brief, explicitly request no singing, speech or vocal chop
 If several actual takes fail the listener’s brief, pause more prompt variations and audit the real model integration. Confirm the loaded checkpoint and planner, effective sampling settings, semantic-code generation and actual conditioning input. Separate correctness defects, supported tuning choices and an unproven model-quality ceiling. The October16 audit found that the wrapper’s default upstream random-seed mode ignored recorded requested seeds; large seeds also passed through a lossy float conversion. Historical requested seeds are not actual sampler provenance. A controlled comparison needs safe effective seeds and returned resolved evidence, with all other factors recorded. A resolved audio seed does not prove that the musical planner applied it. Trace the actual RNG consumer for each stochastic stage. Require matching returned semantic-code witnesses before attributing a same-brief sampler comparison to one changed parameter; differing witnesses make it confounded. The pinned single-item PyTorch planner ignored passed seeds even after the audio-seed flag was corrected, which the first live comparison exposed.
 
 Eight steps and guidance1 are expected for the inspected turbo model. Disabling caption rewriting does not disable its semantic-code planner. The supported timestep-shift default and a larger-model preset need real controlled comparison and listening; neither is an automatic quality pass. Count actual assembled tokenizer input before blaming truncation. Avoid new batch production until the next experiment tests a falsifiable cause. Root audit and pinned primary links: `path:/home/matthalloran8/.vrooli/plan-artifacts/efforts/video-toolchain-reliability-2026-10-16/research/music-ai-quality-audit.md`.
+
+
+## Preferred local instrumental direction: Stable Audio 3
+
+The October 17 local pilot produced two complete 48-second sources using pinned
+Stable Audio 3 Medium. The operator rated their matched 12-second excerpt pair
+8.5/10, preferred harder B, then explicitly approved the full 48-second B source.
+Use B as the current launch-score listening anchor. The numeric score applies to
+the original excerpt pair; the later full-source approval supplied no new score.
+Neither approval establishes future track quality or final-film fit.
+Retrieve the `stable-audio-3-harder-instrumental` example for exact source hashes,
+requests, technical receipts and feedback.
+
+Use the normal Music Tools route, not a production-specific model loader:
+
+```sh
+music-tools compose --style launch-club --takes 2
+music-tools jobs wait JOB_ID
+music-tools takes list --job JOB_ID
+music-tools takes receipt TAKE_ID --out NEW_RECEIPT.json
+music-tools takes audio TAKE_ID --out NEW_SOURCE.wav
+```
+
+For a fresh product-specific score, import a distinct instrumental style using
+`variant: "stable-audio-3-medium"` and an original caption that preserves the
+approved energy and production detail. Start from 48 seconds, 8 steps and CFG 1;
+put tempo/key intentions in that caption and leave structured BPM/key unset.
+Read `path:scenarios/music-tools/docs/reference/cli-commands.md` for style JSON.
+Retain both Music job/take identities and the exact resource receipt; use
+`music-tools delivery arrange` for trimming, matching and edits. Model setup,
+terms and GPU lifecycle belong to the managed resource. Missing readiness or
+unsupported controls are explicit failures, without engine fallback. Direct
+resource exports remain valid lower-level sources but are not retroactive Music
+jobs; never invent job IDs for the retained pilot files.
+
+B's successful production hypothesis was an immediate synth hook, distorted rolling
+bass, tight pounding kick, sharp claps, busy syncopated percussion, stacked bright
+synths, short builds and explosive drops. The prompt requested 172 BPM and no vocals;
+that is authored intent, not measured tempo or verified vocal absence. The actual
+pilot used seed 7303252, 48 seconds, 8 steps, CFG 1, chunked decode and no compile. A used
+the earlier caption/seed for context; different engines are not equivalent RNG or
+planner controls. B changed prompt and seed together. Preserve the harder energy
+while varying original hooks and arrangements within each film's story; do not
+reuse one soundtrack for every product or assume a new take inherits 8.5/10.
+
+The comparison used identical 8..20-second source intervals, Music's 576,000-frame
+48kHz arrangements, uniform 60 ms edge fades and encoded levels near −17 LUFS with no
+tempo or EQ embellishment. Listening feedback applies to those exact encoded
+files. General vocal-song requests use the same Style lyrics input and a model whose
+declared capability supports authored singing. Prefer the selected model whenever
+it can fulfill that request. The pinned Stable Audio 3 guide explicitly excludes
+intelligible vocals, so current lyric songs need a capable alternative; this is
+an actual model limitation rather than an artificial instrumental-only workflow.
+An instrumental launch preference never disables ordinary song generation.
+
+
+For each new soundtrack, record in `audio-selection.md` the anchor file/hash and
+interval, candidate take/receipt/hash, comparison interval, level matching,
+listener and method, and concrete findings on hook, rhythmic energy, bass,
+production detail, vocal content and suitability for the planned edit. The brief
+should request an immediate useful hook and a deliberate ending. Compare energy
+at matched loudness; loud mastering, a high requested BPM or a successful model
+response cannot substitute for a listen. Check the full selected source for weak
+sections, glitches or unwanted voice, then review the actual film mix separately.
+Keep unreviewed new candidates provisional when listening is unavailable. Reusing
+the approved source within an appropriate brief is preferable to silently choosing
+an unreviewed replacement. Distinct product tracks remain the goal when new music
+is requested; the anchor preserves the quality direction rather than requiring
+one song everywhere.

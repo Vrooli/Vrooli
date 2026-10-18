@@ -351,6 +351,10 @@ message EffortDecision {
   // Set by effort decision sync after it writes FEEDBACK.md; cleared when a
   // later answer supersedes the recorded one.
   google.protobuf.Timestamp recorded_at = 28;
+  // Purpose and consequences of the decision, shown separately from evidence.
+  string big_picture = 29;
+  // Mechanism, evidence, risks, limits and remaining uncertainty.
+  string technical_details = 30;
 }
 
 message RaiseEffortDecisionRequest {

@@ -7,6 +7,7 @@ import (
 
 	"github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/provenance"
+	"github.com/vrooli/api-core/scopecatalog"
 )
 
 // OwnerBinding assigns operator policy to an exact verified provider subject.
@@ -40,18 +41,37 @@ func RequireOperation(ctx context.Context, capability, operation, target string)
 		}
 		return p, nil
 	}
-	p, err := RequireCapability(ctx, capability)
-	if err != nil {
-		return identity.Principal{}, err
+	p, present := identity.PrincipalFromContext(ctx)
+	if !present || !p.IsVerified() {
+		return identity.Principal{}, ErrCapability
 	}
 	if !p.ExpiresAt.IsZero() && !time.Now().Before(p.ExpiresAt) {
 		return identity.Principal{}, identity.NewFailure(identity.FailureExpired, p.Source)
 	}
 	if p.IsHuman() {
+		if !scopecatalog.Resolve(p.Scopes, capability) {
+			return identity.Principal{}, ErrCapability
+		}
 		return p, nil
 	}
-	if p.Kind == identity.ActorAgent && p.Grant.Allows(operation, target, time.Now()) {
-		return p, nil
+	if p.Kind == identity.ActorAgent {
+		// A paired operation proof remains distinct from the ordinary principal.
+		// It can satisfy only this exact operation check; its scopes are never
+		// copied into p.Scopes or used by the bounded-route classifier.
+		verified, verifyErr := provenance.ReverifyOperationProof(ctx)
+		if verifyErr == nil && verified != nil && time.Now().Before(verified.ExpiresAt) &&
+			scopecatalog.Resolve(verified.Scopes, capability) && verified.Grant.Allows(operation, target, time.Now()) {
+			return p, nil
+		}
+		// Preserve the existing grant-only credential contract. Its token scopes
+		// and grant remain one bounded principal as before.
+		if scopecatalog.Resolve(p.Scopes, capability) && p.Grant.Allows(operation, target, time.Now()) {
+			return p, nil
+		}
+		return identity.Principal{}, ErrOperation
+	}
+	if !scopecatalog.Resolve(p.Scopes, capability) {
+		return identity.Principal{}, ErrCapability
 	}
 	return identity.Principal{}, ErrOperation
 }

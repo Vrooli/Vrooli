@@ -3,7 +3,9 @@ package handlers
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"agent-manager/internal/domain"
@@ -17,6 +19,11 @@ import (
 // cover. Create-run names no specific run id, so the target is the domain-wide
 // agent-manager object; a grant's Targets of "agent-manager:*" matches it.
 const RunCreationTarget = "agent-manager:*"
+
+// errStandingGrantStateUnavailable marks a grant or owner-usage lookup that
+// could not establish authority. HTTP handlers map it to a generic refusal;
+// callers can still inspect the wrapped cause internally.
+var errStandingGrantStateUnavailable = errors.New("standing grant state unavailable")
 
 // StandingGrantUsageReader reports the live, owner-attributed usage a standing
 // grant is measured against. It is a seam over existing run reads — never new
@@ -62,42 +69,121 @@ func (a *StandingGrantAuthority) AuthorizeOperation(ctx context.Context, p ident
 	if a == nil || a.grants == nil || p.Kind != identity.ActorService || !p.IsVerified() {
 		return authn.ErrOperation
 	}
-	now := a.now()
-	candidates, err := a.grants.ActiveForSubject(ctx, p.Subject, now)
+	diagnostic, err := a.diagnoseOperation(ctx, p.Subject, operation, target)
 	if err != nil {
 		return err
 	}
-	// The first grant that covers the operation decides the request. Limits are
-	// measured against the grant's accountable owner, not the service subject, so
-	// concurrency/budget bound the operator's attributed runs. We distinguish "a
-	// grant covered it but a limit was hit" (hard refuse) from "no grant covered
-	// it" (needs approval): only the latter is an "ask, don't block".
-	limited := false
-	for _, g := range candidates {
-		if g.Grant == nil {
+	switch diagnostic.Outcome {
+	case ServiceAdmissionWouldAdmit:
+		return nil
+	case ServiceAdmissionWouldRefuseLimit:
+		return authn.ErrStandingGrantLimit
+	case ServiceAdmissionWouldRequireApproval:
+		return authn.ErrNeedsApproval
+	default:
+		return errStandingGrantStateUnavailable
+	}
+}
+
+const (
+	ServiceAdmissionWouldAdmit           = "would_admit"
+	ServiceAdmissionWouldRequireApproval = "would_require_approval"
+	ServiceAdmissionWouldRefuseLimit     = "would_refuse_limit"
+	ServiceAdmissionUnavailable          = "unavailable"
+)
+
+// ServiceAdmissionLimit exposes an aggregate usage and its bound without grant
+// records or owner identity. Current and Bound represent either a run count or
+// a USD amount, as named by Dimension.
+type ServiceAdmissionLimit struct {
+	Dimension string  `json:"dimension"`
+	Current   float64 `json:"current"`
+	Bound     float64 `json:"bound"`
+}
+
+// ServiceAdmissionDiagnostic is a redacted, read-only projection of the fixed
+// Prompt Manager run.create decision. It contains no grant, approver, or owner
+// records and never implies that an approval request was raised.
+type ServiceAdmissionDiagnostic struct {
+	Outcome         string                  `json:"outcome"`
+	Reason          string                  `json:"reason"`
+	ObservedAt      time.Time               `json:"observed_at"`
+	Limits          []ServiceAdmissionLimit `json:"limits,omitempty"`
+	LimitsTruncated bool                    `json:"limits_truncated,omitempty"`
+}
+
+const serviceAdmissionLimitResultCap = 8
+
+type serviceAdmissionLimitKey struct {
+	dimension string
+	current   float64
+	bound     float64
+}
+
+// diagnoseOperation evaluates current active grants and current usage using
+// the same pure evaluator as normal service admission. It has no principal
+// fabrication, approval-raiser call, or store write.
+func (a *StandingGrantAuthority) diagnoseOperation(ctx context.Context, subject, operation, target string) (ServiceAdmissionDiagnostic, error) {
+	if a == nil || a.grants == nil || strings.TrimSpace(subject) == "" {
+		return ServiceAdmissionDiagnostic{Outcome: ServiceAdmissionUnavailable, Reason: "authority_state_unavailable"}, fmt.Errorf("%w: grant authority is unavailable", errStandingGrantStateUnavailable)
+	}
+	now := a.now()
+	candidates, err := a.grants.ActiveForSubject(ctx, subject, now)
+	if err != nil {
+		return ServiceAdmissionDiagnostic{Outcome: ServiceAdmissionUnavailable, Reason: "authority_state_unavailable", ObservedAt: now.UTC()}, fmt.Errorf("%w: %w", errStandingGrantStateUnavailable, err)
+	}
+	diagnostic := ServiceAdmissionDiagnostic{Outcome: ServiceAdmissionWouldRequireApproval, Reason: "no_covering_grant", ObservedAt: now.UTC()}
+	covered := false
+	seenLimits := make(map[serviceAdmissionLimitKey]struct{})
+	for _, candidate := range candidates {
+		if candidate == nil || candidate.Grant == nil {
 			continue
 		}
 		var usage authn.StandingGrantUsage
 		if a.usage != nil {
-			usage, err = a.usage.StandingGrantUsage(ctx, g.Grant.Approver)
+			usage, err = a.usage.StandingGrantUsage(ctx, candidate.Grant.Approver)
 			if err != nil {
-				return err
+				return ServiceAdmissionDiagnostic{Outcome: ServiceAdmissionUnavailable, Reason: "authority_state_unavailable", ObservedAt: now.UTC()}, fmt.Errorf("%w: %w", errStandingGrantStateUnavailable, err)
 			}
 		}
-		switch decideErr := authn.AuthorizeStandingGrant(g.Grant, g.Limits, usage, operation, target, now); {
-		case decideErr == nil:
-			return nil
-		case errors.Is(decideErr, authn.ErrStandingGrantLimit):
-			limited = true
+		evaluation := authn.EvaluateStandingGrant(candidate.Grant, candidate.Limits, usage, operation, target, now)
+		if !evaluation.Covered {
+			continue
+		}
+		covered = true
+		if evaluation.Admitted {
+			return ServiceAdmissionDiagnostic{Outcome: ServiceAdmissionWouldAdmit, Reason: "grant_covers_operation", ObservedAt: now.UTC()}, nil
+		}
+		diagnostic.Outcome = ServiceAdmissionWouldRefuseLimit
+		diagnostic.Reason = "grant_limit_reached"
+		for _, exceeded := range evaluation.Exceeded {
+			limit := ServiceAdmissionLimit{Dimension: string(exceeded.Dimension)}
+			switch exceeded.Dimension {
+			case authn.StandingGrantConcurrentRunsLimit:
+				limit.Current = float64(exceeded.CurrentRuns)
+				limit.Bound = float64(exceeded.BoundRuns)
+			case authn.StandingGrantBudgetLimit:
+				limit.Current = exceeded.CurrentBudgetUSD
+				limit.Bound = exceeded.BoundBudgetUSD
+			default:
+				continue
+			}
+			key := serviceAdmissionLimitKey{dimension: limit.Dimension, current: limit.Current, bound: limit.Bound}
+			if _, exists := seenLimits[key]; exists {
+				continue
+			}
+			seenLimits[key] = struct{}{}
+			if len(diagnostic.Limits) < serviceAdmissionLimitResultCap {
+				diagnostic.Limits = append(diagnostic.Limits, limit)
+			} else {
+				diagnostic.LimitsTruncated = true
+			}
 		}
 	}
-	if limited {
-		// A grant covers this operation but the caller is over a declared bound.
-		// Approval cannot fix a limit; this is a hard refuse, not an ask.
-		return authn.ErrStandingGrantLimit
+	if covered && diagnostic.Outcome == ServiceAdmissionWouldRequireApproval {
+		return ServiceAdmissionDiagnostic{Outcome: ServiceAdmissionUnavailable, Reason: "authority_state_unavailable", ObservedAt: now.UTC()}, fmt.Errorf("%w: covered grant evaluation returned no decision", errStandingGrantStateUnavailable)
 	}
-	// A verified known caller with no covering grant: ask, don't block.
-	return authn.ErrNeedsApproval
+	return diagnostic, nil
 }
 
 // ApprovalRaiser records (idempotently) an operator approval request for a

@@ -44,3 +44,22 @@ forces a lower-energy family or treats seed/genre counts as audible quality.
 Short-study image samples are also time-rounded by FFmpeg seeking. At scene cuts,
 inspect exact decoded frame indices with their PTS before diagnosing an early cut;
 retain sampled review limits instead of claiming continuous playback.
+
+
+The October 17 local Stable Audio 3 pilot is the first stronger music result after
+the repeated ACE rejections: the operator rated the matched excerpt pair 8.5/10 and
+preferred harder B. Preserve that exact preference, model/brief and excerpt hashes
+without transferring it to unseen full-film edits. Model choice can dominate more
+prompt polishing; retain the working production hypothesis and use bounded new
+originals rather than resetting to the durable job provider's default. Owner
+resource exports and Music delivery form a governed route without inventing a
+Music job. Runtime success also exposed a separate 30-second startup-claim expiry;
+record and repair capacity liveness independently of musical approval.
+
+
+The operator subsequently approved the full 48-second harder B source. Preserve
+that later acceptance beside the earlier excerpt rating. A documented preferred
+model is insufficient when the normal job route still defaults to an older
+engine: capture the policy in the maintained owner and align CLI/UI defaults,
+examples and skills. Keep objective route/provenance tests separate from actual
+listening; a new default cannot guarantee every stochastic take's quality.

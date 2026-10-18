@@ -89,6 +89,33 @@ func (r *standingGrantRepository) List(ctx context.Context, limit int) ([]*domai
 	return grants, nil
 }
 
+func (r *standingGrantRepository) ListForApprover(ctx context.Context, approver string, limit int) ([]*domain.StandingGrant, error) {
+	if approver == "" {
+		return nil, nil
+	}
+	if limit <= 0 || limit > 256 {
+		limit = 64
+	}
+	var bodies []string
+	// Filter both persisted approver representations before LIMIT. The column is
+	// the indexed/listing attribution; the JSON predicate keeps inconsistent rows
+	// from occupying the owner's bounded page and hiding valid records behind it.
+	if err := r.db.SelectContext(ctx, &bodies, `SELECT body FROM standing_grants
+		WHERE approved_by = ? AND json_extract(body, '$.grant.approver') = ?
+		ORDER BY approved_at DESC LIMIT ?`, approver, approver, limit); err != nil {
+		return nil, err
+	}
+	grants := make([]*domain.StandingGrant, 0, len(bodies))
+	for _, body := range bodies {
+		var g domain.StandingGrant
+		if err := json.Unmarshal([]byte(body), &g); err != nil {
+			return nil, err
+		}
+		grants = append(grants, &g)
+	}
+	return grants, nil
+}
+
 func (r *standingGrantRepository) Revoke(ctx context.Context, id string, now time.Time) (bool, error) {
 	if id == "" {
 		return false, nil

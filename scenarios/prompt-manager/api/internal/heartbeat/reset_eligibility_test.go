@@ -141,6 +141,52 @@ func TestTeamExecutionConsumeResetEligibility_KnownResetResumesOnce(t *testing.T
 	}
 }
 
+func TestTeamExecutionConsumeResetEligibilityResumesWatcherUnavailableRun(t *testing.T) {
+	dir := t.TempDir()
+	tec := seedPausedObligation(t, dir, "team-1", "agent-1", "run-parked")
+	exec := &watcherExecutor{}
+	tec.executor = exec
+	tec.mu.Lock()
+	entry := tec.running["agent-1"]
+	entry.State = ObligationWatcherUnavailable
+	tec.running["agent-1"] = entry
+	_ = tec.persistLocked()
+	tec.mu.Unlock()
+	// A scheduled owner read must establish that the unavailable observer's
+	// run is parked before reset eligibility can wake it.
+	if handled, err := tec.RetryUnavailableWatcher(context.Background(), "agent-1"); err != nil || !handled {
+		t.Fatalf("scheduled owner read should handle retained watcher: handled=%v err=%v", handled, err)
+	}
+	if status := tec.Status(); len(status.PausedAgentIDs) != 1 {
+		t.Fatalf("parked owner evidence should restore paused state before reset: %+v", status)
+	}
+	resumer := &recordingResumer{}
+	tec.SetPausedRunResumer(resumer)
+	clock := time.Date(2026, 9, 13, 12, 0, 0, 0, time.UTC)
+	tec.SetClock(func() time.Time { return clock })
+	ev := ResetEligibility{
+		EventID:   "reset-after-observer-error",
+		TeamID:    "team-1",
+		AgentID:   "agent-1",
+		RunID:     "run-parked",
+		Known:     true,
+		ResumesAt: clock,
+	}
+	if got, err := tec.ConsumeResetEligibility(context.Background(), ev); err != nil || got != ResetConsumeResumed {
+		t.Fatalf("known reset should resume retained observer-unavailable run: got %q, err %v", got, err)
+	}
+	if resumer.count() != 1 {
+		t.Fatalf("expected one owner wake, got %d", resumer.count())
+	}
+	if len(exec.watched) != 1 {
+		t.Fatalf("successful wake should attach one completion watcher, got %+v", exec.watched)
+	}
+	status := tec.Status()
+	if len(status.RunningAgentIDs) != 1 || len(status.WatcherUnavailableAgentIDs) != 0 {
+		t.Fatalf("successful wake should return to running ownership: %+v", status)
+	}
+}
+
 func TestTeamExecutionConsumeResetEligibility_UnknownResetIsNeverConsumed(t *testing.T) {
 	dir := t.TempDir()
 	tec := seedPausedObligation(t, dir, "team-1", "agent-1", "run-parked")

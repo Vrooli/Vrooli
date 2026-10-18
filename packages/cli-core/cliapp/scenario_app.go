@@ -194,6 +194,8 @@ func NewScenarioApp(opts ScenarioOptions) (*ScenarioApp, error) {
 		StaleChecker: cliutil.NewStaleChecker(opts.Name, opts.BuildFingerprint, opts.BuildTimestamp, opts.BuildSourceRoot, opts.SourceRootEnvVars...),
 		options:      opts,
 	}
+	app.StaleChecker.InstallKind = "scenario"
+	app.StaleChecker.InstallName = opts.Name
 	app.StaleChecker.SourceContextPath = opts.SourceContextPath
 	app.StaleChecker.ManifestSourcePath = opts.ManifestSourcePath
 	app.StaleChecker.FreshnessInputs = resolveFreshnessInputs(opts.FreshnessInputs, nil)
@@ -636,12 +638,26 @@ func (a *ScenarioApp) ensureAPIReachable(cmd Command, autoStart bool) error {
 	}
 	if probeErr == nil {
 		return nil
-	} else if autoStart {
+	}
+	// A health response with a non-2xx status (e.g. 503 "degraded") means the
+	// control plane ANSWERED the request — it is reachable, not down. Only a
+	// transport failure (connection refused, no listener, timeout) proves the
+	// API cannot be reached. Treating a degraded-but-responding API as
+	// unreachable would abort every command and make a whole healthy fleet
+	// look dead over a single advisory warning. So when the server responded,
+	// proceed with an advisory on stderr instead of the recovery error.
+	if a.proceedOnReachableDegraded(probeErr) {
+		return nil
+	}
+	if autoStart {
 		if startErr := a.tryAutoStart(); startErr != nil {
 			return fmt.Errorf("failed to auto-start %s: %w", a.options.Name, startErr)
 		}
 		probeErr = a.probeAPIHealth()
 		if probeErr == nil {
+			return nil
+		}
+		if a.proceedOnReachableDegraded(probeErr) {
 			return nil
 		}
 		return a.apiRecoveryError(cmd.Name, apiRecoveryContext{
@@ -663,6 +679,45 @@ func (a *ScenarioApp) ensureAPIReachable(cmd Command, autoStart bool) error {
 func (a *ScenarioApp) probeAPIHealth() error {
 	_, err := a.fetchHealth()
 	return err
+}
+
+// proceedOnReachableDegraded decides whether a failed health probe should still
+// let the command run. A health probe that received an HTTP status back (any
+// *cliutil.APIError) came from a control plane that answered the request: it is
+// reachable. A degraded/503 health is advisory, so the invocation proceeds with
+// a stderr warning rather than aborting as if the API were down. A transport
+// failure (no *APIError) is a genuine unreachable condition and returns false so
+// the caller surfaces the recovery report. Returns true when it emitted the
+// advisory and the command should continue.
+func (a *ScenarioApp) proceedOnReachableDegraded(probeErr error) bool {
+	if probeErr == nil {
+		return true
+	}
+	var httpErr *cliutil.APIError
+	if !errors.As(probeErr, &httpErr) {
+		return false
+	}
+	fmt.Fprintf(os.Stderr, "Warning: %s health reports %s (HTTP %d); the API is reachable, continuing.\n", a.options.Name, degradedHealthSummary(httpErr), httpErr.StatusCode)
+	return true
+}
+
+// degradedHealthSummary extracts a short, human-readable health status from a
+// non-2xx health response so the reachable-but-degraded advisory names the
+// actual condition (e.g. "degraded") instead of a bare status code.
+func degradedHealthSummary(httpErr *cliutil.APIError) string {
+	if httpErr == nil {
+		return "a degraded status"
+	}
+	var parsed struct {
+		Status string `json:"status"`
+	}
+	if err := json.Unmarshal(httpErr.RawResponse, &parsed); err == nil && strings.TrimSpace(parsed.Status) != "" {
+		return "status " + strings.TrimSpace(parsed.Status)
+	}
+	if msg := strings.TrimSpace(httpErr.Message); msg != "" {
+		return msg
+	}
+	return "a degraded status"
 }
 
 func (a *ScenarioApp) detectedAPIBase() string {

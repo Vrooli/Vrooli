@@ -93,6 +93,10 @@ func (r *Reconciler) recoverRun(ctx context.Context, run *domain.Run, allowTail 
 		}
 	}()
 	if !run.Status.LivenessPolicy().ExpectsProcess {
+		if run.Status == domain.RunStatusComplete && run.ExecutionMode.Normalized() == domain.ExecutionModeInteractive &&
+			run.Result != nil && run.Result.Success && run.Result.TerminalReason == "goal_complete" {
+			return r.reconcileCompletedInteractiveGoal(ctx, run)
+		}
 		if run.RunnerPID > 0 || run.RunnerPGID > 0 {
 			// Terminal rows may retain historical process identity from a crash
 			// that happened after finalization. Do not let that stale identity

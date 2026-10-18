@@ -3,6 +3,7 @@ package runner
 import (
 	"bufio"
 	"io"
+	"os"
 	"os/exec"
 	"strings"
 	"testing"
@@ -185,6 +186,76 @@ func TestManagedProcess_NoTimeout(t *testing.T) {
 	}
 	if err := mp.Wait(); err != nil {
 		t.Fatalf("unexpected wait error: %v", err)
+	}
+}
+
+func TestManagedProcessWithFiles_OutputGrowthResetsIdleTimeout(t *testing.T) {
+	dir := t.TempDir()
+	stdout, err := os.Create(dir + "/stdout.log")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stdout.Close()
+	stderr, err := os.Create(dir + "/stderr.log")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stderr.Close()
+	cmd := exec.Command("sh", "-c", "printf 'one\\n'; sleep 0.14; printf 'two\\n'; sleep 0.14; printf 'three\\n'; sleep 0.14")
+	cmd.SysProcAttr = managedProcessSysProcAttr()
+	cmd.Stdout, cmd.Stderr = stdout, stderr
+	mp, err := startManagedProcessWithFiles(cmd, 300*time.Millisecond, stdout)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := mp.Wait(); err != nil {
+		t.Fatalf("command failed despite continued output: %v", err)
+	}
+	if mp.TimedOut() {
+		t.Fatal("continued durable output did not reset idle timeout")
+	}
+	content, err := os.ReadFile(stdout.Name())
+	if err != nil || string(content) != "one\ntwo\nthree\n" {
+		t.Fatalf("durable output=%q err=%v", content, err)
+	}
+}
+
+func TestObserveFileActivityGrowthAtDeadlineResetsBeforeTimeout(t *testing.T) {
+	lastActivity := time.Unix(100, 0)
+	timeout := 200 * time.Millisecond
+	deadline := lastActivity.Add(timeout)
+	lastSize, nextActivity, expired := observeFileActivity(11, 10, deadline, lastActivity, timeout)
+	if expired || lastSize != 11 || !nextActivity.Equal(deadline) {
+		t.Fatalf("fresh boundary write was treated as expired: size=%d activity=%s expired=%v", lastSize, nextActivity, expired)
+	}
+	_, _, expired = observeFileActivity(11, 11, deadline.Add(timeout), nextActivity, timeout)
+	if !expired {
+		t.Fatal("unchanged output at the next full deadline was not expired")
+	}
+}
+
+func TestManagedProcessWithFiles_SilentOutputTimesOut(t *testing.T) {
+	dir := t.TempDir()
+	stdout, err := os.Create(dir + "/stdout.log")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stdout.Close()
+	stderr, err := os.Create(dir + "/stderr.log")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stderr.Close()
+	cmd := exec.Command("sh", "-c", "sleep 5")
+	cmd.SysProcAttr = managedProcessSysProcAttr()
+	cmd.Stdout, cmd.Stderr = stdout, stderr
+	mp, err := startManagedProcessWithFiles(cmd, 100*time.Millisecond, stdout)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = mp.Wait()
+	if !mp.TimedOut() {
+		t.Fatal("silent process did not fire configured idle timeout")
 	}
 }
 

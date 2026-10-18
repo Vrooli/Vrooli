@@ -32,6 +32,9 @@ func newTestExecutor(
 ) *Executor {
 	t.Helper()
 	executor := NewExecutor(teamStore, agentStore, agentClient, vrooliRoot, runRegistry, handoffExtractor)
+	// Direct executor unit tests still exercise the pre-request intent seam;
+	// tests of durable queue behavior replace this registrar with a real store.
+	executor.SetTeamExecStore(&fakeTeamExecStoreRegistrar{})
 	t.Cleanup(executor.Shutdown)
 	return executor
 }

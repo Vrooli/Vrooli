@@ -34,6 +34,15 @@ const (
 	StatusIgnored      Status = "ignored"
 )
 
+// OpeningPublication is one immutable incident-open snapshot. Generation is
+// the persisted EventCount value for that opening lifecycle.
+type OpeningPublication struct {
+	IncidentID string
+	Generation int
+	EventType  string
+	Payload    map[string]any
+}
+
 type Incident struct {
 	ID                    string                 `json:"id"`
 	Fingerprint           string                 `json:"fingerprint"`

@@ -20,6 +20,7 @@ package runner
 import (
 	"context"
 	"io"
+	"os"
 	"time"
 
 	"github.com/google/uuid"
@@ -50,6 +51,15 @@ type SandboxLauncherFactory interface {
 //   - Be safe for concurrent Wait/Kill/Signal calls (idempotent).
 type Launcher interface {
 	Launch(ctx context.Context, req LaunchRequest) (LaunchedProcess, error)
+}
+
+// DurableOutputLauncher is an optional host capability for runs whose
+// transcript files must remain writable if the API owner exits. It writes the
+// child streams directly to the supplied append-only files; callers continue
+// to tail the transcript path for live events. The original files remain
+// owned by the caller and must stay open through Wait.
+type DurableOutputLauncher interface {
+	LaunchDurable(ctx context.Context, req LaunchRequest, stdout, stderr *os.File) (LaunchedProcess, error)
 }
 
 // PolicyFile is an owner-created file that must be mounted read-only at both

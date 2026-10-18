@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode"
 )
 
 // Epoch is the parsed brief, exit gate, directives and slice log of one
@@ -69,6 +70,7 @@ var (
 	directiveID      = regexp.MustCompile(`\bD\d+\b`)
 	gateID           = regexp.MustCompile(`\bG\d+\b`)
 	gateCellKey      = regexp.MustCompile(`^(?i)(?:gate\s+)?(G\d+)$`)
+	workerRunID      = regexp.MustCompile(`(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 )
 
 // ParseEpoch reads an epoch file. Unknown sections are ignored; a slice-log
@@ -270,19 +272,54 @@ func (e *Epoch) Yield() (*Quantity, string) {
 	return nil, ""
 }
 
-// WorkerRunIDs reads an epoch's Workers field: run IDs separated by commas or
-// spaces, optionally followed by parenthesized notes.
+// WorkerRunIDs reads an epoch's Workers field only when its full value is an
+// explicit UUID list. Commas, spaces and semicolons separate IDs; balanced
+// parenthesized notes are allowed after a listed ID. Any prose or malformed
+// token makes the whole field unknown, so words are never promoted to run IDs.
 func WorkerRunIDs(raw string) []string {
 	var ids []string
 	depth := 0
-	for _, token := range strings.FieldsFunc(raw, func(r rune) bool { return r == ',' || r == ' ' || r == ';' }) {
-		if depth == 0 && !strings.HasPrefix(token, "(") {
-			ids = append(ids, token)
+	for _, token := range strings.FieldsFunc(raw, func(r rune) bool { return r == ',' || r == ';' || unicode.IsSpace(r) }) {
+		if depth == 0 {
+			if workerRunID.MatchString(token) {
+				ids = append(ids, token)
+				continue
+			} else {
+				if len(ids) == 0 {
+					return nil
+				}
+			}
 		}
-		depth += strings.Count(token, "(") - strings.Count(token, ")")
-		if depth < 0 {
-			depth = 0
+		var valid bool
+		depth, valid = advanceWorkerNote(token, depth)
+		if !valid {
+			return nil
 		}
 	}
+	if depth != 0 || len(ids) == 0 {
+		return nil
+	}
 	return ids
+}
+
+// advanceWorkerNote accepts tokens wholly inside a parenthesized note, or a
+// token consisting only of one or more balanced parenthesized notes. It rejects
+// suffix text after a note closes, such as "(note)junk".
+func advanceWorkerNote(token string, depth int) (int, bool) {
+	for _, r := range token {
+		if depth == 0 {
+			if r != '(' {
+				return depth, false
+			}
+			depth = 1
+			continue
+		}
+		switch r {
+		case '(':
+			depth++
+		case ')':
+			depth--
+		}
+	}
+	return depth, true
 }

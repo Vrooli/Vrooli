@@ -53,6 +53,6 @@ describe("DashboardPage delivery surfaces", () => {
     renderWithProviders(<DashboardPage />);
 
     expect(await screen.findByText("Delivery summary unavailable.")).toBeInTheDocument();
-    expect(screen.getByText("Timeline unavailable — check the API identity and scenario health.")).toBeInTheDocument();
+    expect(screen.getByText("Timeline unavailable — check the configured recipient and scenario health.")).toBeInTheDocument();
   });
 });

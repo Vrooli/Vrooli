@@ -312,7 +312,7 @@ func TestCoordinatorSessionGoneWindowAllowsPersistentRecovery(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	gone := coord.watchSession(ctx, cancel, run)
+	gone := coord.watchSession(ctx, ctx, cancel, run)
 	time.Sleep(15 * time.Millisecond)
 	sess.mu.Lock()
 	sess.deleted["sess-recovering"] = false

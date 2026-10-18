@@ -15,7 +15,9 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/identity"
+	"github.com/vrooli/api-core/provenance"
 	"github.com/vrooli/api-core/scopecatalog"
+	"github.com/vrooli/cli-core/cliutil"
 	sessioncore "github.com/vrooli/vrooli/packages/session-core"
 )
 
@@ -215,11 +217,21 @@ func (e *Enforcer) unauthenticated(cause error) *apierrors.Error {
 }
 
 func (e *Enforcer) admit(r *http.Request, route Route, principal identity.Principal) *apierrors.Error {
-	delegatedAgent := e.agentDelegationAllows(principal, route)
+	if route.Effect == EffectSecret && (provenance.FromContext(r.Context()).IsAgent() || r.Header.Get(cliutil.HeaderAgentIdentityToken) != "") {
+		return apierrors.New(apierrors.CodeForbiddenScope, "Credential authority requires an independent human operator")
+	}
+	delegatedAgent := false
+	if principal.Kind == identity.ActorAgent && principal.Grant != nil {
+		target := "scenario-to-cloud:*"
+		if id := mux.Vars(r)["id"]; id != "" {
+			target = "scenario-to-cloud:deployment/" + id
+		}
+		delegatedAgent = route.Effect != EffectSecret && principal.Grant.Allows("deployment.manage", target, e.cfg.now()) && scopecatalog.Resolve(principal.Scopes, route.Scope)
+	}
 	if principal.Kind != identity.ActorHuman && !route.ServiceAllowed && !delegatedAgent {
 		return apierrors.New(apierrors.CodeForbiddenScope, "This operation requires a human operator session").WithDetail("actor_kind", string(principal.Kind)).WithDetail("required_scope", route.Scope).WithDetail("agent_eligible", false).WithNextAction(apierrors.NextAction{Owner: "operator", Kind: "approval", Reference: "docs/reference/configuration.md#authentication", Label: "Run this deployment change from an authenticated human operator session"})
 	}
-	if !scopecatalog.Resolve(principal.Scopes, route.Scope) && !delegatedAgent {
+	if !scopecatalog.Resolve(principal.Scopes, route.Scope) {
 		message := "This human operator session lacks the required capability"
 		label := "Rerun this deployment command from your local Vrooli terminal; operator access is automatic"
 		kind := "grant_scope"
@@ -246,27 +258,6 @@ func (e *Enforcer) admit(r *http.Request, route Route, principal identity.Princi
 		}
 	}
 	return nil
-}
-
-// agentDelegationAllows is an explicit, operator-configured validation
-// window. It is deliberately narrower than ordinary human authorization:
-// only agent principals may use it, only deployment write/destructive scopes
-// are eligible, and credentials and interactive terminals remain human-only.
-// Target binding and RequireEffect still run after this admission check.
-func (e *Enforcer) agentDelegationAllows(principal identity.Principal, route Route) bool {
-	if principal.Kind != identity.ActorAgent || e == nil {
-		return false
-	}
-	if e.cfg.AgentDelegationUntil.IsZero() || !e.cfg.now().Before(e.cfg.AgentDelegationUntil) {
-		return false
-	}
-	if strings.TrimSpace(e.cfg.AgentDelegationReason) == "" {
-		return false
-	}
-	if route.Effect == EffectSecret || route.Effect == EffectInteractive {
-		return false
-	}
-	return route.Scope == ScopeWrite || route.Scope == ScopeDestructive
 }
 
 // bindTarget resolves the deployment named by {id} and checks the
@@ -414,8 +405,31 @@ func (e *Enforcer) Recheck(ctx context.Context, principal identity.Principal) *a
 		return apierrors.New(apierrors.CodeForbiddenRevoked, "Principal does not match the admitted request")
 	}
 	fresh, err := e.cfg.Authn.Authenticate(ctx, decision.request)
+	if principal.Source == identity.SourceAgentProvenance {
+		verifier := e.cfg.AgentVerifier
+		if verifier == nil {
+			verifier = provenance.CLIUtilVerifier{}
+		}
+		result, verifyErr := verifier.Verify(decision.request.Header.Get(cliutil.HeaderAgentIdentityToken))
+		err = verifyErr
+		if err == nil && result != nil && result.Valid && result.Claims != nil {
+			fresh = identity.Principal{Kind: identity.ActorAgent, Subject: result.Claims.RunID, Owner: result.Claims.Subject, Source: identity.SourceAgentProvenance, Verified: true, Scopes: append([]string(nil), result.Claims.Scopes...), ExpiresAt: time.Unix(result.Claims.ExpiresAt, 0), Grant: provenance.OperationGrantFromMeta(result.Claims.Meta)}
+		} else {
+			return apierrors.New(apierrors.CodeForbiddenRevoked, "Agent credential or grant no longer verifies")
+		}
+	}
+
 	if err != nil || fresh.Subject != principal.Subject || fresh.Source != principal.Source {
 		return apierrors.New(apierrors.CodeForbiddenRevoked, "Principal credential no longer verifies")
+	}
+	if fresh.Kind == identity.ActorAgent && decision.Route.Effectful() {
+		target := "scenario-to-cloud:*"
+		if decision.Target != nil {
+			target = "scenario-to-cloud:deployment/" + decision.Target.DeploymentID
+		}
+		if !fresh.Grant.Allows("deployment.manage", target, e.cfg.now()) || !scopecatalog.Resolve(fresh.Scopes, decision.Route.Scope) {
+			return apierrors.New(apierrors.CodeForbiddenRevoked, "Agent operation grant no longer permits this effect")
+		}
 	}
 	if e.expired(fresh) {
 		return apierrors.New(apierrors.CodeForbiddenRevoked, "Principal credential has expired")
@@ -509,10 +523,11 @@ func (e *Enforcer) audit(msg string, route Route, principal identity.Principal, 
 		"route":   route.Key(),
 		"outcome": outcome,
 	}
-	if principal.Kind == identity.ActorAgent && e.agentDelegationAllows(principal, route) {
-		fields["agent_delegation_until"] = e.cfg.AgentDelegationUntil.UTC().Format(time.RFC3339)
-		fields["agent_delegation_reason"] = e.cfg.AgentDelegationReason
+	if principal.Kind == identity.ActorAgent && principal.Grant != nil {
+		fields["authorization_id"] = principal.Grant.ID
+		fields["authorization_approver"] = principal.Grant.Approver
 	}
+
 	if code != "" {
 		fields["code"] = code
 	}

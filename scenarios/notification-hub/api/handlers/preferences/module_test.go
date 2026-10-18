@@ -18,9 +18,8 @@ import (
 
 const testSubject = "operator-subject"
 
-// newServer wires the preferences module (verifier=nil, so the legacy
-// X-Vrooli-Identity-Subject header resolves the recipient key) on a bare mux
-// router, mirroring how server.New mounts it in production.
+// newServer wires the preferences module with a configured recipient and no
+// verified owner identity, mirroring production read scoping on a bare mux.
 func newServer(t *testing.T) (*mux.Router, *preferences.Storage) {
 	t.Helper()
 	db := databasetest.NewSQLite(t)
@@ -28,8 +27,26 @@ func newServer(t *testing.T) (*mux.Router, *preferences.Storage) {
 	require.NoError(t, err)
 	store := preferences.New(db)
 	r := mux.NewRouter()
-	preferencesH.Module(store).Mount(r)
+	preferencesH.ModuleWithRecipientResolver(store, func(context.Context) string { return testSubject }, nil).Mount(r)
 	return r, store
+}
+
+func doBodyWithoutIdentity(t *testing.T, r http.Handler, method, path string, body any) *httptest.ResponseRecorder {
+	t.Helper()
+	payload, err := json.Marshal(body)
+	require.NoError(t, err)
+	req := httptest.NewRequest(method, path, bytes.NewBuffer(payload))
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	return rec
+}
+
+func doWithoutIdentity(t *testing.T, r http.Handler, method, path string) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest(method, path, nil)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	return rec
 }
 
 func do(t *testing.T, r http.Handler, method, path string, body any) *httptest.ResponseRecorder {
@@ -65,7 +82,7 @@ func TestCatalog_EmptyThenAfterSet(t *testing.T) {
 	r, _ := newServer(t)
 
 	// Empty: no sources, no preferences for this recipient.
-	rec := do(t, r, http.MethodGet, "/api/v1/notifications/catalog", nil)
+	rec := doWithoutIdentity(t, r, http.MethodGet, "/api/v1/notifications/catalog")
 	require.Equal(t, http.StatusOK, rec.Code)
 	var empty catalogResponse
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &empty))
@@ -81,7 +98,7 @@ func TestCatalog_EmptyThenAfterSet(t *testing.T) {
 	})
 	require.Equal(t, http.StatusOK, put.Code)
 
-	rec = do(t, r, http.MethodGet, "/api/v1/notifications/catalog", nil)
+	rec = doWithoutIdentity(t, r, http.MethodGet, "/api/v1/notifications/catalog")
 	require.Equal(t, http.StatusOK, rec.Code)
 	var after catalogResponse
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &after))
@@ -90,6 +107,15 @@ func TestCatalog_EmptyThenAfterSet(t *testing.T) {
 	require.Equal(t, "incident", after.Preferences[0].Category)
 	require.False(t, after.Preferences[0].Enabled)
 	require.Equal(t, "high", after.Preferences[0].MinUrgency)
+}
+
+func TestPreferenceWriteStillRequiresIdentity(t *testing.T) {
+	r, _ := newServer(t)
+	rec := doBodyWithoutIdentity(t, r, http.MethodPut, "/api/v1/notifications/preferences", map[string]any{
+		"source_scenario": "marketing",
+		"enabled":         true,
+	})
+	require.Equal(t, http.StatusUnauthorized, rec.Code)
 }
 
 func TestPutPreference_HappyPath(t *testing.T) {
@@ -113,7 +139,7 @@ func TestPutPreference_HappyPath(t *testing.T) {
 	require.True(t, row.Enabled)
 
 	// A source-wide ("") preference is listed back for the recipient.
-	list := do(t, r, http.MethodGet, "/api/v1/notifications/preferences", nil)
+	list := doWithoutIdentity(t, r, http.MethodGet, "/api/v1/notifications/preferences")
 	require.Equal(t, http.StatusOK, list.Code)
 	var listed struct {
 		Preferences []struct {

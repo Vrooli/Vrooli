@@ -1112,7 +1112,8 @@ func (h *Handler) ValidatePath(w http.ResponseWriter, r *http.Request) {
 // VerifyIdentityToken handles POST /api/v1/identity/verify.
 func (h *Handler) VerifyIdentityToken(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Token string `json:"token"`
+		Token          string `json:"token"`
+		OperationToken string `json:"operation_token,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeSimpleError(w, r, "body", "invalid JSON body")
@@ -1120,6 +1121,26 @@ func (h *Handler) VerifyIdentityToken(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.Token == "" {
 		writeSimpleError(w, r, "token", "token is required")
+		return
+	}
+	if strings.TrimSpace(req.OperationToken) != "" {
+		pairService, ok := h.svc.IdentityService.(interface {
+			VerifyIdentityPair(context.Context, string, string) (*orchestration.IdentityPairVerifyResult, error)
+		})
+		if !ok {
+			writeSimpleError(w, r, "unavailable", "identity pair verification is unavailable")
+			return
+		}
+		result, err := pairService.VerifyIdentityPair(r.Context(), req.Token, req.OperationToken)
+		if err != nil {
+			writeError(w, r, err)
+			return
+		}
+		if result == nil || !result.Valid || result.Operation == nil || !result.Operation.Valid || result.Operation.Claims == nil {
+			writeJSON(w, http.StatusUnauthorized, map[string]any{"valid": false, "error": "invalid_pair"})
+			return
+		}
+		writeJSON(w, http.StatusOK, result)
 		return
 	}
 

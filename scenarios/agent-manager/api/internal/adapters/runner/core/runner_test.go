@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 
@@ -968,6 +970,280 @@ func TestExecute_DurableTranscriptReportsCursorPersistenceFailure(t *testing.T) 
 	if !cursorFailure {
 		t.Fatalf("cursor persistence failure was not emitted: %+v", sink.snapshot())
 	}
+}
+
+// TestDurableOutputSurvivesOwnerExit exercises the actual core → HostLauncher
+// path in a subprocess. Killing the owner while the agent is alive reproduces
+// the pipe-lifetime failure that ordinary launcher unit tests cannot observe.
+func TestDurableOutputSurvivesOwnerExit(t *testing.T) {
+	if os.Getenv("A80_OWNER_HELPER") == "1" {
+		runA80OwnerHelper(t)
+		return
+	}
+
+	dir := t.TempDir()
+	transcriptPath := filepath.Join(dir, "transcript.ndjson")
+	stderrPath := filepath.Join(dir, "stderr.log")
+	readyPath := filepath.Join(dir, "owner-ready")
+	releasePath := filepath.Join(dir, "release-agent")
+	donePath := filepath.Join(dir, "agent-done")
+	if err := os.WriteFile(transcriptPath, []byte("{\"type\":\"message\",\"content\":\"prior-continuation\"}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(stderrPath, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	helper := exec.Command(os.Args[0], "-test.run=^TestDurableOutputSurvivesOwnerExit$")
+	helper.Env = append(os.Environ(),
+		"A80_OWNER_HELPER=1",
+		"A80_TRANSCRIPT="+transcriptPath,
+		"A80_STDERR="+stderrPath,
+		"A80_READY="+readyPath,
+		"A80_RELEASE="+releasePath,
+		"A80_DONE="+donePath,
+	)
+	if err := helper.Start(); err != nil {
+		t.Fatal(err)
+	}
+	var ownerPID, ownerPGID int
+	completed := false
+	helperWaited := false
+	t.Cleanup(func() {
+		_ = os.WriteFile(releasePath, []byte("release\n"), 0o600)
+		if helper.Process != nil && !helperWaited {
+			_ = helper.Process.Kill()
+			_ = helper.Wait()
+		}
+		if !completed && ownerPGID > 1 {
+			_ = syscall.Kill(-ownerPGID, syscall.SIGKILL)
+		}
+	})
+
+	waitFor := func(label string, condition func() bool) {
+		t.Helper()
+		deadline := time.Now().Add(5 * time.Second)
+		for time.Now().Before(deadline) {
+			if condition() {
+				return
+			}
+			time.Sleep(20 * time.Millisecond)
+		}
+		t.Fatalf("timed out waiting for %s", label)
+	}
+	waitFor("host child launch identity", func() bool {
+		data, err := os.ReadFile(readyPath)
+		if err != nil {
+			return false
+		}
+		_, err = fmt.Sscanf(string(data), "%d %d", &ownerPID, &ownerPGID)
+		return err == nil && ownerPID > 1 && ownerPGID > 1
+	})
+	if ownerPID != ownerPGID {
+		t.Fatalf("detached host process identity pid=%d pgid=%d, want matching group", ownerPID, ownerPGID)
+	}
+	actualPGID, err := syscall.Getpgid(ownerPID)
+	if err != nil || actualPGID != ownerPGID {
+		t.Fatalf("host child process group=%d reported=%d err=%v", actualPGID, ownerPGID, err)
+	}
+	if err := helper.Process.Kill(); err != nil {
+		t.Fatalf("kill API-owner helper: %v", err)
+	}
+	if err := helper.Wait(); err == nil {
+		t.Fatal("owner helper exited without the expected forced termination")
+	}
+	helperWaited = true
+
+	if content, err := os.ReadFile(transcriptPath); err != nil || strings.Contains(string(content), "owner-independent-") {
+		t.Fatalf("agent wrote before release: bytes=%q err=%v", content, err)
+	}
+	if err := os.WriteFile(releasePath, []byte("release\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	waitFor("agent output after owner exit", func() bool {
+		data, err := os.ReadFile(transcriptPath)
+		return err == nil && strings.Contains(string(data), "owner-independent-progress") && strings.Contains(string(data), "owner-independent-terminal")
+	})
+	waitFor("agent completion marker", func() bool {
+		_, err := os.Stat(donePath)
+		return err == nil
+	})
+	stderr, err := os.ReadFile(stderrPath)
+	if err != nil || !strings.Contains(string(stderr), "owner-independent-stderr") {
+		t.Fatalf("stderr was not retained after owner exit: content=%q err=%v", stderr, err)
+	}
+	completed = true
+
+	transcript, err := os.ReadFile(transcriptPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(transcript)), "\n")
+	if len(lines) != 3 || !strings.Contains(lines[0], "prior-continuation") {
+		t.Fatalf("durable transcript did not append to the prior boundary: records=%d content=%q", len(lines), transcript)
+	}
+	runID := uuid.New()
+	parsedEvents := 0
+	var terminal *runner.TranscriptTerminal
+	_, terminal, err = runner.Consume(context.Background(), runner.ConsumeArgs{
+		RunID:      runID,
+		Transcript: transcriptPath,
+		ParseFn: func(id uuid.UUID, line string) runner.TranscriptParseResult {
+			if strings.Contains(line, "prior-continuation") {
+				parsedEvents++
+				return runner.TranscriptParseResult{Events: []*domain.RunEvent{domain.NewMessageEvent(id, "assistant", "prior-continuation")}}
+			}
+			if strings.Contains(line, "owner-independent-progress") {
+				parsedEvents++
+				return runner.TranscriptParseResult{Events: []*domain.RunEvent{domain.NewMessageEvent(id, "assistant", "owner-independent-progress")}}
+			}
+			if strings.Contains(line, "owner-independent-terminal") {
+				parsedEvents++
+				return runner.TranscriptParseResult{Terminal: &runner.TranscriptTerminal{Success: true}}
+			}
+			return runner.TranscriptParseResult{}
+		},
+	})
+	if err != nil || parsedEvents != 3 || terminal == nil || !terminal.Success {
+		t.Fatalf("fresh recovery parse events=%d terminal=%+v err=%v", parsedEvents, terminal, err)
+	}
+}
+
+func TestDurableHostOutputStillFeedsLiveTranscriptConsumer(t *testing.T) {
+	dir := t.TempDir()
+	transcriptPath := filepath.Join(dir, "transcript.ndjson")
+	stderrPath := filepath.Join(dir, "stderr.log")
+	stdout, err := os.Create(transcriptPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stdout.Close()
+	stderr, err := os.Create(stderrPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stderr.Close()
+	codec := &ownerExitCodec{fakeCodec: newFakeCodec(), script: `printf '%s\n' '{"type":"message","content":"live-direct-output"}'; printf '%s\n' '{"type":"terminal","content":"done"}'`}
+	sink := &recordingSink{}
+	req := newExecuteRequest(uuid.New(), "fixture", sink)
+	req.Transcript = &runner.TranscriptConfig{TranscriptPath: transcriptPath, StdoutFile: stdout, StderrFile: stderr}
+	r := newRunnerForTest(t, codec, runner.NewHostLauncher())
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	result, err := r.Execute(ctx, req)
+	if err != nil || result == nil || !result.Success {
+		t.Fatalf("result=%+v err=%v", result, err)
+	}
+	for _, event := range sink.snapshot() {
+		if data, ok := event.Data.(*domain.MessageEventData); ok && data.Content == "live-direct-output" {
+			return
+		}
+	}
+	transcript, readErr := os.ReadFile(transcriptPath)
+	var messageContents []string
+	for _, event := range sink.snapshot() {
+		if data, ok := event.Data.(*domain.MessageEventData); ok {
+			messageContents = append(messageContents, data.Content)
+		}
+	}
+	t.Fatalf("direct durable output was not delivered through live consumer: messages=%q transcript=%q readErr=%v", messageContents, transcript, readErr)
+}
+
+func TestDurableHostOutputKeepsLegacyPathWithoutStderrFile(t *testing.T) {
+	transcriptPath := filepath.Join(t.TempDir(), "transcript.ndjson")
+	stdout, err := os.Create(transcriptPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stdout.Close()
+	codec := &ownerExitCodec{fakeCodec: newFakeCodec(), script: `printf '%s\n' '{"type":"message","content":"legacy-stream-output"}'`}
+	sink := &recordingSink{}
+	req := newExecuteRequest(uuid.New(), "fixture", sink)
+	req.Transcript = &runner.TranscriptConfig{TranscriptPath: transcriptPath, StdoutFile: stdout}
+	r := newRunnerForTest(t, codec, runner.NewHostLauncher())
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	result, err := r.Execute(ctx, req)
+	if err != nil || result == nil || !result.Success {
+		t.Fatalf("result=%+v err=%v", result, err)
+	}
+	for _, event := range sink.snapshot() {
+		if data, ok := event.Data.(*domain.MessageEventData); ok && data.Content == "legacy-stream-output" {
+			return
+		}
+	}
+	t.Fatalf("legacy stream path without stderr file lost output: %+v", sink.snapshot())
+}
+
+func runA80OwnerHelper(t *testing.T) {
+	t.Helper()
+	transcriptPath := os.Getenv("A80_TRANSCRIPT")
+	stderrPath := os.Getenv("A80_STDERR")
+	readyPath := os.Getenv("A80_READY")
+	releasePath := os.Getenv("A80_RELEASE")
+	donePath := os.Getenv("A80_DONE")
+	for name, value := range map[string]string{"transcript": transcriptPath, "stderr": stderrPath, "ready": readyPath, "release": releasePath, "done": donePath} {
+		if value == "" {
+			t.Fatalf("missing helper %s path", name)
+		}
+	}
+	codec := &ownerExitCodec{fakeCodec: newFakeCodec(), script: `while [ ! -e "$A80_RELEASE" ]; do sleep 0.02; done; printf '%s\n' '{"type":"message","content":"owner-independent-progress"}'; printf '%s\n' '{"type":"terminal","content":"owner-independent-terminal"}'; printf '%s\n' 'owner-independent-stderr' >&2; : > "$A80_DONE"`}
+	launcher := runner.NewHostLauncher()
+	coreRunner := newRunnerForTest(t, codec, launcher)
+	stdout, err := os.OpenFile(transcriptPath, os.O_WRONLY|os.O_APPEND, 0o600)
+	if err != nil {
+		t.Fatalf("open transcript: %v", err)
+	}
+	defer stdout.Close()
+	stderr, err := os.OpenFile(stderrPath, os.O_WRONLY|os.O_APPEND, 0o600)
+	if err != nil {
+		t.Fatalf("open stderr: %v", err)
+	}
+	defer stderr.Close()
+	req := newExecuteRequest(uuid.New(), "fixture", &recordingSink{})
+	req.Environment = map[string]string{"A80_RELEASE": releasePath, "A80_DONE": donePath}
+	req.Transcript = &runner.TranscriptConfig{
+		TranscriptPath: transcriptPath,
+		StderrPath:     stderrPath,
+		StdoutFile:     stdout,
+		StderrFile:     stderr,
+		OnProcessStart: func(pid, pgid int) error {
+			return os.WriteFile(readyPath, []byte(fmt.Sprintf("%d %d", pid, pgid)), 0o600)
+		},
+	}
+	if _, err := coreRunner.Execute(context.Background(), req); err != nil {
+		t.Fatalf("durable execution: %v", err)
+	}
+	t.Fatalf("helper unexpectedly outlived its host child")
+}
+
+type ownerExitCodec struct {
+	*fakeCodec
+	script string
+}
+
+func (c *ownerExitCodec) BinaryPath() string { return "sh" }
+func (c *ownerExitCodec) BuildArgs(codecs.State, runner.ExecuteRequest) []string {
+	return []string{"-c", c.script}
+}
+func (c *ownerExitCodec) NewTranscriptParser() runner.TranscriptParser {
+	return ownerExitParser{}
+}
+
+type ownerExitParser struct{}
+
+func (ownerExitParser) ParseTranscriptLine(id uuid.UUID, line string) runner.TranscriptParseResult {
+	var event fakeStreamEvent
+	if err := json.Unmarshal([]byte(line), &event); err != nil {
+		return runner.TranscriptParseResult{Err: err}
+	}
+	if event.Type == "message" {
+		return runner.TranscriptParseResult{Events: []*domain.RunEvent{domain.NewMessageEvent(id, "assistant", event.Content)}}
+	}
+	if event.Type == "terminal" {
+		return runner.TranscriptParseResult{Terminal: &runner.TranscriptTerminal{Success: true}}
+	}
+	return runner.TranscriptParseResult{}
 }
 
 // =============================================================================

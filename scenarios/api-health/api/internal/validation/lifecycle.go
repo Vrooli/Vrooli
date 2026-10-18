@@ -97,37 +97,18 @@ func validatePreflight(target *Target, file *ast.File, fset *token.FileSet, main
 		return lifecycleFinding(CodePreflightMissingLate, "API preflight missing", mainPath, 1, "api/main.go has no inspectable main function", "call preflight.Run or preflight.MustRun before API initialization")
 	}
 
-	aliases := importAliases(file, "github.com/vrooli/api-core/preflight")
-	info := preflightInfo{}
-	firstBusinessLogic := -1
-	for i, stmt := range mainFunc.Body.List {
-		if ifStmt, ok := stmt.(*ast.IfStmt); ok {
-			if call := preflightRunCall(ifStmt.Cond, aliases); call != nil {
-				info = preflightInfo{
-					found:        true,
-					position:     i,
-					hasIfWrapper: true,
-					hasReturn:    blockHasReturn(ifStmt.Body),
-					scenarioName: scenarioNameFromPreflight(call),
-					line:         fset.Position(ifStmt.Pos()).Line,
-				}
-				break
+	imports := importAliases(file, "github.com/vrooli/api-core/preflight")
+	values := packageFunctionValues(file)
+	info, firstBusinessLogic := inspectPreflightBody(mainFunc, imports, values, fset)
+	if !info.found {
+		// Some APIs keep main deliberately small and put startup in one same-file
+		// helper. Follow only the first non-harmless call from main; this is a
+		// structural startup check, not a general call-graph analysis.
+		if firstBusinessLogic >= 0 {
+			helper := initialLocalHelper(mainFunc.Body.List[firstBusinessLogic], values)
+			if helper != nil && helper.Body != nil {
+				info, firstBusinessLogic = inspectPreflightBody(helper, imports, values, fset)
 			}
-		}
-		if exprStmt, ok := stmt.(*ast.ExprStmt); ok {
-			if call, isMustRun := preflightCall(exprStmt.X, aliases); call != nil {
-				info = preflightInfo{
-					found:        true,
-					position:     i,
-					isMustRun:    isMustRun,
-					scenarioName: scenarioNameFromPreflight(call),
-					line:         fset.Position(exprStmt.Pos()).Line,
-				}
-				break
-			}
-		}
-		if firstBusinessLogic == -1 && !harmlessStartupStatement(stmt) {
-			firstBusinessLogic = i
 		}
 	}
 
@@ -153,6 +134,45 @@ func validatePreflight(target *Target, file *ast.File, fset *token.FileSet, main
 	return nil
 }
 
+func inspectPreflightBody(fn *ast.FuncDecl, imports map[string]bool, values map[string]packageFunctionValue, fset *token.FileSet) (preflightInfo, int) {
+	var info preflightInfo
+	firstBusinessLogic := -1
+	if fn == nil || fn.Body == nil {
+		return info, firstBusinessLogic
+	}
+	for i, stmt := range fn.Body.List {
+		if ifStmt, ok := stmt.(*ast.IfStmt); ok {
+			if call := preflightRunCall(ifStmt.Cond, imports, values); call != nil {
+				info = preflightInfo{
+					found:        true,
+					position:     i,
+					hasIfWrapper: true,
+					hasReturn:    blockHasReturn(ifStmt.Body),
+					scenarioName: scenarioNameFromPreflight(call),
+					line:         fset.Position(ifStmt.Pos()).Line,
+				}
+				break
+			}
+		}
+		if exprStmt, ok := stmt.(*ast.ExprStmt); ok {
+			if call, isMustRun := preflightCall(exprStmt.X, imports, values); call != nil {
+				info = preflightInfo{
+					found:        true,
+					position:     i,
+					isMustRun:    isMustRun,
+					scenarioName: scenarioNameFromPreflight(call),
+					line:         fset.Position(exprStmt.Pos()).Line,
+				}
+				break
+			}
+		}
+		if firstBusinessLogic == -1 && !harmlessStartupStatement(stmt) {
+			firstBusinessLogic = i
+		}
+	}
+	return info, firstBusinessLogic
+}
+
 type preflightInfo struct {
 	found        bool
 	position     int
@@ -164,30 +184,37 @@ type preflightInfo struct {
 }
 
 func validateServerRunner(_ *Target, file *ast.File, fset *token.FileSet, mainPath string) *Finding {
-	serverAliases := importAliases(file, "github.com/vrooli/api-core/server")
+	serverImports := importAliases(file, "github.com/vrooli/api-core/server")
+	values := packageFunctionValues(file)
 	usesServerRun := false
 	var directLine int
-	ast.Inspect(file, func(n ast.Node) bool {
-		call, ok := n.(*ast.CallExpr)
-		if !ok {
+	for _, decl := range file.Decls {
+		fn, ok := decl.(*ast.FuncDecl)
+		if !ok || fn.Body == nil {
+			continue
+		}
+		ast.Inspect(fn.Body, func(n ast.Node) bool {
+			call, ok := n.(*ast.CallExpr)
+			if !ok {
+				return true
+			}
+			if resolvesImportedFunction(call.Fun, serverImports, "Run", values) {
+				usesServerRun = true
+				return true
+			}
+			if isListenAndServeCall(call) && directLine == 0 {
+				directLine = fset.Position(call.Pos()).Line
+			}
 			return true
-		}
-		if selectorUsesAlias(call.Fun, serverAliases, "Run") {
-			usesServerRun = true
-			return true
-		}
-		if isListenAndServeCall(call) && directLine == 0 {
-			directLine = fset.Position(call.Pos()).Line
-		}
-		return true
-	})
+		})
+	}
 	// StartServer is the sanctioned api-core extension point. A callback may
 	// legitimately call ListenAndServe (for example to configure h2c), so the
 	// intent to use server.Run must win over an implementation detail inside it.
 	if !usesServerRun && directLine != 0 {
 		return lifecycleFinding(CodeServerRunnerMissing, "Direct ListenAndServe bypasses api-core server", mainPath, directLine, "API entrypoint starts an HTTP server directly instead of using api-core/server.Run", "use github.com/vrooli/api-core/server.Run so shutdown, signals, and cleanup are consistent")
 	}
-	if len(serverAliases) > 0 && !usesServerRun {
+	if len(serverImports) > 0 && !usesServerRun {
 		return lifecycleFinding(CodeServerRunnerMissing, "api-core server runner not called", mainPath, 1, "api-core/server is imported but server.Run is not called", "call server.Run with the API handler")
 	}
 	return nil
@@ -219,26 +246,149 @@ func importAliases(file *ast.File, importPath string) map[string]bool {
 	return aliases
 }
 
-func preflightRunCall(expr ast.Expr, aliases map[string]bool) *ast.CallExpr {
+func preflightRunCall(expr ast.Expr, imports map[string]bool, values map[string]packageFunctionValue) *ast.CallExpr {
 	call, ok := expr.(*ast.CallExpr)
-	if !ok || !selectorUsesAlias(call.Fun, aliases, "Run") {
+	if !ok || !resolvesImportedFunction(call.Fun, imports, "Run", values) {
 		return nil
 	}
 	return call
 }
 
-func preflightCall(expr ast.Expr, aliases map[string]bool) (*ast.CallExpr, bool) {
+func preflightCall(expr ast.Expr, imports map[string]bool, values map[string]packageFunctionValue) (*ast.CallExpr, bool) {
 	call, ok := expr.(*ast.CallExpr)
 	if !ok {
 		return nil, false
 	}
-	if selectorUsesAlias(call.Fun, aliases, "MustRun") {
+	if resolvesImportedFunction(call.Fun, imports, "MustRun", values) {
 		return call, true
 	}
-	if selectorUsesAlias(call.Fun, aliases, "Run") {
+	if resolvesImportedFunction(call.Fun, imports, "Run", values) {
 		return call, false
 	}
 	return nil, false
+}
+
+// packageFunctionValues resolves only immutable-looking package-level function
+// values declared directly from an identifier or imported function selector.
+// Package aliases assigned elsewhere in this file are excluded so a mutable
+// alias cannot satisfy the lifecycle contract by name alone.
+type packageFunctionValue struct {
+	expr        ast.Expr
+	declaration *ast.ValueSpec
+}
+
+func packageFunctionValues(file *ast.File) map[string]packageFunctionValue {
+	values := map[string]packageFunctionValue{}
+	for _, decl := range file.Decls {
+		gen, ok := decl.(*ast.GenDecl)
+		if !ok || gen.Tok != token.VAR {
+			continue
+		}
+		for _, spec := range gen.Specs {
+			valueSpec, ok := spec.(*ast.ValueSpec)
+			if !ok || len(valueSpec.Names) != 1 || len(valueSpec.Values) != 1 {
+				continue
+			}
+			name := valueSpec.Names[0].Name
+			if name == "_" {
+				continue
+			}
+			values[name] = packageFunctionValue{expr: valueSpec.Values[0], declaration: valueSpec}
+		}
+	}
+	assigned := map[string]bool{}
+	ast.Inspect(file, func(n ast.Node) bool {
+		switch stmt := n.(type) {
+		case *ast.AssignStmt:
+			if stmt.Tok == token.DEFINE {
+				return true
+			}
+			for _, lhs := range stmt.Lhs {
+				if ident, ok := lhs.(*ast.Ident); ok {
+					if value, exists := values[ident.Name]; exists && ident.Obj != nil && ident.Obj.Decl == value.declaration {
+						assigned[ident.Name] = true
+					}
+				}
+			}
+		case *ast.IncDecStmt:
+			if ident, ok := stmt.X.(*ast.Ident); ok {
+				if value, exists := values[ident.Name]; exists && ident.Obj != nil && ident.Obj.Decl == value.declaration {
+					assigned[ident.Name] = true
+				}
+			}
+		}
+		return true
+	})
+	for name := range assigned {
+		delete(values, name)
+	}
+	return values
+}
+
+func resolvesImportedFunction(expr ast.Expr, imports map[string]bool, method string, values map[string]packageFunctionValue) bool {
+	if selector, ok := expr.(*ast.SelectorExpr); ok {
+		base, ok := selector.X.(*ast.Ident)
+		// The parser leaves imported package names unresolved, while local
+		// shadowing receives an Obj binding. Require the former.
+		return ok && base.Obj == nil && selector.Sel.Name == method && imports[base.Name]
+	}
+	ident, ok := expr.(*ast.Ident)
+	if !ok || ident.Obj == nil {
+		return false
+	}
+	value, ok := values[ident.Name]
+	if !ok || ident.Obj.Decl != value.declaration {
+		return false
+	}
+	return selectorUsesAlias(value.expr, imports, method)
+}
+
+func initialLocalHelper(stmt ast.Stmt, values map[string]packageFunctionValue) *ast.FuncDecl {
+	var call *ast.CallExpr
+	switch statement := stmt.(type) {
+	case *ast.ExprStmt:
+		call, _ = statement.X.(*ast.CallExpr)
+	case *ast.AssignStmt:
+		if len(statement.Rhs) == 1 {
+			call, _ = statement.Rhs[0].(*ast.CallExpr)
+		}
+	case *ast.IfStmt:
+		if assignment, ok := statement.Init.(*ast.AssignStmt); ok && len(assignment.Rhs) == 1 {
+			call, _ = assignment.Rhs[0].(*ast.CallExpr)
+		}
+	}
+	if call == nil || len(call.Args) != 0 {
+		return nil
+	}
+	name, ok := call.Fun.(*ast.Ident)
+	if !ok {
+		return nil
+	}
+	return resolveLocalFunction(name, values, map[string]bool{})
+}
+
+func resolveLocalFunction(identifier *ast.Ident, values map[string]packageFunctionValue, seen map[string]bool) *ast.FuncDecl {
+	if identifier == nil || identifier.Obj == nil || seen[identifier.Name] {
+		return nil
+	}
+	seen[identifier.Name] = true
+	switch decl := identifier.Obj.Decl.(type) {
+	case *ast.FuncDecl:
+		if decl.Recv == nil {
+			return decl
+		}
+	case *ast.ValueSpec:
+		value, ok := values[identifier.Name]
+		if !ok || value.declaration != decl {
+			return nil
+		}
+		target, ok := value.expr.(*ast.Ident)
+		if !ok {
+			return nil
+		}
+		return resolveLocalFunction(target, values, seen)
+	}
+	return nil
 }
 
 func selectorUsesAlias(expr ast.Expr, aliases map[string]bool, method string) bool {

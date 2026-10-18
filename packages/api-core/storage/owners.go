@@ -102,8 +102,11 @@ type RelocationDeclaration struct {
 }
 
 type ReclaimDeclaration struct {
-	Command string `json:"command,omitempty"`
-	Pruner  string `json:"pruner,omitempty"`
+	// GeneratedFiles names exact files, relative to the owned storage entry,
+	// reconstructed by the custom owner beside acquired data. No globs.
+	GeneratedFiles []string `json:"generated_files,omitempty"`
+	Command        string   `json:"command,omitempty"`
+	Pruner         string   `json:"pruner,omitempty"`
 	// Operation is an owner API path (for example "/api/v1/storage/reclaim")
 	// that storage-manager POSTs {"dry_run":false} to when a non-regenerable
 	// entry stays over budget. Storage-manager never deletes such data itself;

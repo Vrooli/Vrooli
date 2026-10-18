@@ -166,14 +166,22 @@ func ParseManifest(data []byte) ([]Spec, error) {
 	}
 
 	names := make([]string, 0, legacyCount+storageCount)
+	seenNames := make(map[string]struct{}, legacyCount+storageCount)
+	addName := func(name string) {
+		if _, exists := seenNames[name]; exists {
+			return
+		}
+		seenNames[name] = struct{}{}
+		names = append(names, name)
+	}
 	if raw.Retention != nil {
 		for name := range raw.Retention.Budgets {
-			names = append(names, name)
+			addName(name)
 		}
 	}
 	if raw.Storage != nil {
 		for name := range raw.Storage.Entries {
-			names = append(names, name)
+			addName(name)
 		}
 	}
 	sort.Strings(names)
@@ -181,20 +189,7 @@ func ParseManifest(data []byte) ([]Spec, error) {
 	specs := make([]Spec, 0, len(names))
 	paths := make(map[string]string, len(names))
 	for _, name := range names {
-		var spec Spec
-		var err error
-		if raw.Storage != nil {
-			if entry, ok := raw.Storage.Entries[name]; ok {
-				if entry.Budget == nil || entry.Kind != "dir" {
-					continue
-				}
-				spec, err = parseStorageEntry(name, entry)
-			} else {
-				spec, err = parseBudget(name, raw.Retention.Budgets[name])
-			}
-		} else {
-			spec, err = parseBudget(name, raw.Retention.Budgets[name])
-		}
+		spec, err := parseManifestBudget(name, raw)
 		if err != nil {
 			return nil, err
 		}
@@ -212,6 +207,103 @@ func ParseManifest(data []byte) ([]Spec, error) {
 		specs = append(specs, spec)
 	}
 	return specs, nil
+}
+
+func parseManifestBudget(name string, raw rawManifest) (Spec, error) {
+	var entrySpec *Spec
+	if raw.Storage != nil {
+		if entry, ok := raw.Storage.Entries[name]; ok {
+			if storage.Class(strings.TrimSpace(entry.Class)) == storage.ClassTestRuns {
+				hasLegacy := false
+				if raw.Retention != nil {
+					_, hasLegacy = raw.Retention.Budgets[name]
+				}
+				if err := validateCustomTestRunsEntry(name, entry, hasLegacy); err != nil {
+					return Spec{}, err
+				}
+				// test_runs is a shared runtime-home namespace. Its run owner
+				// applies lifecycle-aware retention; the generic class-root
+				// manager must never turn this declaration into a directory
+				// pruner over scenario-owned run trees.
+				return Spec{}, nil
+			}
+			if entry.Budget == nil || entry.Kind != "dir" {
+				if raw.Retention != nil {
+					if _, hasLegacy := raw.Retention.Budgets[name]; hasLegacy {
+						return Spec{}, fmt.Errorf("storage declaration %q conflicts with retention budget %q: storage entry is not a budgeted directory", name, name)
+					}
+				}
+				return Spec{}, nil
+			}
+			parsed, err := parseStorageEntry(name, entry)
+			if err != nil {
+				return Spec{}, err
+			}
+			entrySpec = &parsed
+		}
+	}
+	var legacySpec *Spec
+	if raw.Retention != nil {
+		if legacy, ok := raw.Retention.Budgets[name]; ok {
+			parsed, err := parseBudget(name, legacy)
+			if err != nil {
+				return Spec{}, err
+			}
+			legacySpec = &parsed
+		}
+	}
+	if entrySpec == nil {
+		if legacySpec != nil {
+			return *legacySpec, nil
+		}
+		return Spec{}, nil
+	}
+	if legacySpec == nil {
+		return *entrySpec, nil
+	}
+	if entrySpec.Target != legacySpec.Target {
+		return Spec{}, fmt.Errorf("storage declaration %q conflicts with retention budget %q: targets differ (%s:%q and %s:%q)",
+			name, name, entrySpec.Target.Class, entrySpec.Target.RelPath(), legacySpec.Target.Class, legacySpec.Target.RelPath())
+	}
+	if entrySpec.Budget.MaxAge != legacySpec.Budget.MaxAge || entrySpec.Budget.MaxBytes != legacySpec.Budget.MaxBytes {
+		return Spec{}, fmt.Errorf("storage declaration %q conflicts with retention budget %q: bounds differ", name, name)
+	}
+	if entrySpec.Mode != legacySpec.Mode {
+		return Spec{}, fmt.Errorf("storage declaration %q conflicts with retention budget %q: pruner modes differ", name, name)
+	}
+	if entrySpec.Rationale == "" {
+		entrySpec.Rationale = legacySpec.Rationale
+	}
+	return *entrySpec, nil
+}
+
+func validateCustomTestRunsEntry(name string, entry rawStorageEntry, hasLegacy bool) error {
+	if entry.Reclaim == nil || strings.TrimSpace(entry.Reclaim.Pruner) != string(PrunerCustom) {
+		return fmt.Errorf("storage entry %q: builtin retention for class %q is unsupported; use an owner cleanup provider with reclaim.pruner=custom", name, storage.ClassTestRuns)
+	}
+	if entry.Kind != "dir" || entry.Budget == nil {
+		return fmt.Errorf("storage entry %q: custom %q retention requires a budgeted directory", name, storage.ClassTestRuns)
+	}
+	if len(entry.Path) > 0 && string(entry.Path) != "null" || strings.TrimSpace(entry.Subpath) != "" {
+		return fmt.Errorf("storage entry %q: custom %q retention must cover the owner root", name, storage.ClassTestRuns)
+	}
+	if hasLegacy {
+		return fmt.Errorf("storage entry %q: owner-custom %q retention cannot also declare a generic retention budget", name, storage.ClassTestRuns)
+	}
+	if entry.Budget.MaxAge != "" {
+		if _, err := ParseAge(entry.Budget.MaxAge); err != nil {
+			return fmt.Errorf("storage entry %q budget max_age: %w", name, err)
+		}
+	}
+	if entry.Budget.MaxBytes != "" {
+		if _, err := ParseBytes(entry.Budget.MaxBytes); err != nil {
+			return fmt.Errorf("storage entry %q budget max_bytes: %w", name, err)
+		}
+	}
+	if strings.TrimSpace(entry.Budget.MaxAge) == "" && strings.TrimSpace(entry.Budget.MaxBytes) == "" {
+		return fmt.Errorf("storage entry %q: %w", name, ErrNoBound)
+	}
+	return nil
 }
 
 func targetConflictKey(target Target) string {
@@ -342,6 +434,8 @@ func parseStorageClass(s string) (storage.Class, error) {
 		return storage.ClassLogs, nil
 	case storage.ClassState:
 		return storage.ClassState, nil
+	case storage.ClassTestRuns:
+		return "", fmt.Errorf("%w: builtin retention for storage class %q is unsupported; use an owner cleanup provider", ErrInvalidTarget, s)
 	default:
 		return "", fmt.Errorf("%w: unknown storage class %q", ErrInvalidTarget, s)
 	}

@@ -76,4 +76,7 @@ type StandingGrantRepository interface {
 	// includes revoked and expired records (each carries its own state/expiry) so
 	// the operator can see the full standing-grant history, bounded by limit.
 	List(ctx context.Context, limit int) ([]*StandingGrant, error)
+	// ListForApprover returns recorded grants attributed to one verified approver,
+	// newest first. The owner predicate is applied before the bounded limit.
+	ListForApprover(ctx context.Context, approver string, limit int) ([]*StandingGrant, error)
 }

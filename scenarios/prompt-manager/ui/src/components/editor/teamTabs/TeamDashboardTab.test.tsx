@@ -29,6 +29,7 @@ vi.mock('@/services/heartbeatService', async () => {
     ...actual,
     listHeartbeats: vi.fn(),
     listTeamLogs: vi.fn(),
+    getTeamExecutionStatus: vi.fn(),
     getTeamRunAccounting: vi.fn(),
   }
 })
@@ -64,6 +65,11 @@ describe('TeamDashboardTab', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ items: [] }), { status: 200 })))
     vi.mocked(heartbeatService.listHeartbeats).mockReturnValue(pendingBackgroundRequest)
     vi.mocked(heartbeatService.listTeamLogs).mockReturnValue(pendingBackgroundRequest)
+    vi.mocked(heartbeatService.getTeamExecutionStatus).mockResolvedValue({
+      teamId: baseTeam.id, state: 'idle', runningAgentIds: [], queue: [],
+      uncertainAgentIds: [], unreachableAgentIds: [], pausedAgentIds: [],
+      approvalPendingAgentIds: [], needsReviewAgentIds: [], watcherUnavailableAgentIds: [],
+    })
     vi.mocked(heartbeatService.getTeamRunAccounting).mockReturnValue(pendingBackgroundRequest)
   })
 
@@ -151,7 +157,123 @@ describe('TeamDashboardTab', () => {
     await waitFor(() => expect(screen.getAllByText('Needs attention').length).toBeGreaterThan(0))
     expect(screen.getByTestId('team-dashboard')).toHaveAttribute('data-dashboard-status', 'attention')
     expect(screen.getAllByText(/Recent owner evidence includes a failed execution/).length).toBeGreaterThan(0)
-    expect(screen.getByText(/Review the next open work item and its evidence/)).toBeInTheDocument()
+    expect(screen.getByText(/Review retained owner state and its evidence/)).toBeInTheDocument()
+  })
+
+  it.each([
+    ['approval pending', { effectiveState: 'scheduled', lifecycleState: 'approval_pending' }],
+    ['needs review', { effectiveState: 'scheduled', lifecycleState: 'needs_review' }],
+    ['observer unavailable', { effectiveState: 'unavailable', lifecycleState: 'observer_unavailable' }],
+    ['unavailable effective owner', { effectiveState: 'unavailable' }],
+  ])('does not report an older completed execution as healthy with %s owner state', async (_label, ownerEvidence) => {
+    vi.mocked(heartbeatService.listHeartbeats).mockResolvedValue([{
+      teamId: baseTeam.id, agentId: 'lead', enabled: true, schedule: '*/5 * * * *',
+      createdAt: baseTeam.createdAt, updatedAt: baseTeam.updatedAt,
+      ...ownerEvidence,
+      lastExecution: { status: 'completed', runId: 'older-success', startedAt: '2026-09-12T10:00:00Z' },
+    }])
+    const onHealthChange = vi.fn()
+
+    render(<TeamDashboardTab team={baseTeam} onUpdate={vi.fn()} onHealthChange={onHealthChange} />)
+
+    await waitFor(() => expect(screen.getByTestId('team-dashboard')).toHaveAttribute('data-dashboard-status', 'attention'))
+    expect(onHealthChange).not.toHaveBeenCalledWith('green')
+  })
+
+  it('projects a retained watcher failure from the team execution API over older success', async () => {
+    const actual = await vi.importActual<typeof import('@/services/heartbeatService')>('@/services/heartbeatService')
+    vi.mocked(heartbeatService.listHeartbeats).mockResolvedValue([{
+      teamId: baseTeam.id, agentId: 'lead', enabled: true, schedule: '*/5 * * * *',
+      createdAt: baseTeam.createdAt, updatedAt: baseTeam.updatedAt,
+      lastExecution: { status: 'completed', runId: 'older-success', startedAt: '2026-09-12T10:00:00Z' },
+    }])
+    vi.mocked(heartbeatService.getTeamExecutionStatus).mockImplementation(actual.getTeamExecutionStatus)
+    const onHealthChange = vi.fn()
+    vi.stubGlobal('fetch', vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const url = input instanceof Request ? input.url : String(input)
+      if (url.endsWith('.HeartbeatService/GetTeamExecutionStatus')) {
+        return Promise.resolve(new Response(JSON.stringify({ data: {
+          teamId: baseTeam.id, state: 'active', runningAgentIds: ['lead'], queue: [],
+          uncertainAgentIds: [], unreachableAgentIds: [], pausedAgentIds: [],
+          approvalPendingAgentIds: [], needsReviewAgentIds: [], watcherUnavailableAgentIds: ['lead'],
+        } }), { status: 200, headers: { 'content-type': 'application/json' } }))
+      }
+      if (url.includes('/backlog?')) return Promise.resolve(new Response(JSON.stringify({ items: [] }), { status: 200 }))
+      throw new Error(`Unexpected request: ${url}`)
+    }))
+
+    render(<TeamDashboardTab team={baseTeam} onUpdate={vi.fn()} onHealthChange={onHealthChange} />)
+
+    await waitFor(() => expect(screen.getByTestId('team-dashboard')).toHaveAttribute('data-dashboard-status', 'attention'))
+    expect(screen.getAllByText('Needs attention').length).toBeGreaterThan(0)
+    expect(onHealthChange).toHaveBeenLastCalledWith('yellow')
+    expect(onHealthChange).not.toHaveBeenCalledWith('green')
+  })
+
+  it('shows a capacity-deferred owner as waiting for automatic retry, not human attention or healthy', async () => {
+    const actual = await vi.importActual<typeof import('@/services/heartbeatService')>('@/services/heartbeatService')
+    vi.mocked(heartbeatService.listHeartbeats).mockResolvedValue([{
+      teamId: baseTeam.id, agentId: 'lead', enabled: true, schedule: '*/5 * * * *',
+      createdAt: baseTeam.createdAt, updatedAt: baseTeam.updatedAt,
+      lastExecution: { status: 'completed', runId: 'older-success', startedAt: '2026-09-12T10:00:00Z' },
+    }])
+    vi.mocked(heartbeatService.getTeamExecutionStatus).mockImplementation(actual.getTeamExecutionStatus)
+    const onHealthChange = vi.fn()
+    vi.stubGlobal('fetch', vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const url = input instanceof Request ? input.url : String(input)
+      if (url.endsWith('.HeartbeatService/GetTeamExecutionStatus')) {
+        return Promise.resolve(new Response(JSON.stringify({ data: {
+          teamId: baseTeam.id, state: 'active', runningAgentIds: [], queue: [],
+          uncertainAgentIds: [], unreachableAgentIds: [], pausedAgentIds: [],
+          approvalPendingAgentIds: [], needsReviewAgentIds: [], watcherUnavailableAgentIds: [],
+          preparationInterruptedAgentIds: [], admissionDeferredAgentIds: ['lead'],
+        } }), { status: 200, headers: { 'content-type': 'application/json' } }))
+      }
+      if (url.includes('/backlog?')) return Promise.resolve(new Response(JSON.stringify({ items: [] }), { status: 200 }))
+      throw new Error(`Unexpected request: ${url}`)
+    }))
+
+    render(<TeamDashboardTab team={baseTeam} onUpdate={vi.fn()} onHealthChange={onHealthChange} />)
+
+    await waitFor(() => expect(screen.getByTestId('team-dashboard')).toHaveAttribute('data-dashboard-status', 'waiting'))
+    expect(screen.getAllByText('Waiting for capacity').length).toBeGreaterThan(0)
+    expect(screen.getByText(/scheduler will retry this retained request/i)).toBeInTheDocument()
+    expect(onHealthChange).toHaveBeenLastCalledWith('gray')
+    expect(onHealthChange).not.toHaveBeenCalledWith('yellow')
+    expect(onHealthChange).not.toHaveBeenCalledWith('green')
+  })
+
+  it('keeps health unknown when the current queue-owner read is unavailable', async () => {
+    vi.mocked(heartbeatService.listHeartbeats).mockResolvedValue([{
+      teamId: baseTeam.id, agentId: 'lead', enabled: true, schedule: '*/5 * * * *',
+      createdAt: baseTeam.createdAt, updatedAt: baseTeam.updatedAt,
+      lastExecution: { status: 'completed', runId: 'older-success', startedAt: '2026-09-12T10:00:00Z' },
+    }])
+    vi.mocked(heartbeatService.getTeamExecutionStatus).mockRejectedValue(new Error('queue owner unavailable'))
+    const onHealthChange = vi.fn()
+
+    render(<TeamDashboardTab team={baseTeam} onUpdate={vi.fn()} onHealthChange={onHealthChange} />)
+
+    await waitFor(() => expect(screen.getByTestId('team-dashboard')).toHaveAttribute('data-dashboard-status', 'unknown'))
+    expect(onHealthChange).toHaveBeenLastCalledWith('gray')
+    expect(onHealthChange).not.toHaveBeenCalledWith('green')
+  })
+
+  it.each([
+    ['completed', 'healthy', 'green'],
+    ['running', 'running', 'running'],
+  ])('keeps ordinary %s owner state distinct from retained owner failures', async (executionStatus, dashboardStatus, callbackHealth) => {
+    vi.mocked(heartbeatService.listHeartbeats).mockResolvedValue([{
+      teamId: baseTeam.id, agentId: 'lead', enabled: true, schedule: '*/5 * * * *',
+      createdAt: baseTeam.createdAt, updatedAt: baseTeam.updatedAt,
+      lastExecution: { status: executionStatus, runId: 'owner-run', startedAt: '2026-09-12T10:00:00Z' },
+    }])
+    const onHealthChange = vi.fn()
+
+    render(<TeamDashboardTab team={baseTeam} onUpdate={vi.fn()} onHealthChange={onHealthChange} />)
+
+    await waitFor(() => expect(screen.getByTestId('team-dashboard')).toHaveAttribute('data-dashboard-status', dashboardStatus))
+    expect(onHealthChange).toHaveBeenLastCalledWith(callbackHealth)
   })
 
   it('passes an active finite binding separately from scheduling eligibility', async () => {

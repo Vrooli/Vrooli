@@ -40,6 +40,8 @@ type Store interface {
 	GetIncident(ctx context.Context, id string) (*Incident, error)
 	ListIncidentObservations(ctx context.Context, incidentID string, limit int) ([]Observation, error)
 	UpdateIncidentStatus(ctx context.Context, incidentID string, status Status, note string) (*Incident, error)
+	ListPendingOpeningPublications(ctx context.Context, limit int) ([]OpeningPublication, error)
+	AcknowledgeOpeningPublication(ctx context.Context, incidentID string, generation int) error
 }
 
 type EventPublisher interface {
@@ -92,15 +94,35 @@ func (s *Service) UpdateIncidentStatus(ctx context.Context, incidentID string, s
 }
 
 func (s *Service) UpsertFromCheckResult(ctx context.Context, result checks.Result) (*Incident, bool, error) {
+	incident, created, approval, err := s.upsertFromCheckResult(ctx, result)
+	s.finishCheckResultUpsert(ctx, []pendingApprovalRequest{approval})
+	return incident, created, err
+}
+
+type pendingApprovalRequest struct {
+	incident  *Incident
+	candidate RemediationCandidate
+}
+
+func (s *Service) finishCheckResultUpsert(ctx context.Context, approvals []pendingApprovalRequest) {
+	s.publishPendingOpeningPublications(ctx)
+	for _, approval := range approvals {
+		if approval.incident != nil {
+			s.publishApprovalRequest(ctx, approval.incident, approval.candidate)
+		}
+	}
+}
+
+func (s *Service) upsertFromCheckResult(ctx context.Context, result checks.Result) (*Incident, bool, pendingApprovalRequest, error) {
 	if result.Status == checks.StatusOK {
-		return nil, false, s.resolveRecoveredForCheck(ctx, result)
+		return nil, false, pendingApprovalRequest{}, s.resolveRecoveredForCheck(ctx, result)
 	}
 	if result.Status == checks.StatusNotApplicable {
-		return nil, false, nil
+		return nil, false, pendingApprovalRequest{}, nil
 	}
 	rule, ok := classifyResult(result)
 	if !ok {
-		return nil, false, nil
+		return nil, false, pendingApprovalRequest{}, nil
 	}
 	observedAt := result.Timestamp
 	if observedAt.IsZero() {
@@ -121,23 +143,22 @@ func (s *Service) UpsertFromCheckResult(ctx context.Context, result checks.Resul
 	previousSeverity, hadOpen := s.openIncidentSeverity(ctx, input.Fingerprint)
 	enrichInputFromResult(&input, result)
 	if err := s.supersedePriorIncidents(ctx, result.CheckID, input.Fingerprint, stringDetail(result.Details, "findingKey")); err != nil {
-		return nil, false, err
+		return nil, false, pendingApprovalRequest{}, err
 	}
 	incident, err := s.store.UpsertIncident(ctx, input)
 	if err != nil {
-		return nil, true, err
+		return nil, true, pendingApprovalRequest{}, err
 	}
-	if incident != nil && incident.EventCount == 1 {
-		s.publish(ctx, "incident.opened.v1", incident)
-		if incident.Severity == SeverityCritical {
-			if candidate, ok := firstApplicableCandidate(*incident); ok {
-				s.publishApprovalRequest(ctx, incident, candidate)
-			}
-		}
-	} else if incident != nil && hadOpen && previousSeverity != incident.Severity {
+	if incident != nil && hadOpen && previousSeverity != incident.Severity {
 		s.publish(ctx, "incident.severity_changed.v1", incident)
 	}
-	return incident, true, nil
+	approval := pendingApprovalRequest{}
+	if incident != nil && incident.EventCount == 1 && incident.Severity == SeverityCritical {
+		if candidate, ok := firstApplicableCandidate(*incident); ok {
+			approval = pendingApprovalRequest{incident: incident, candidate: candidate}
+		}
+	}
+	return incident, true, approval, nil
 }
 
 func (s *Service) openIncidentSeverity(ctx context.Context, fingerprint string) (Severity, bool) {
@@ -183,14 +204,19 @@ func (s *Service) supersedePriorIncidents(ctx context.Context, checkID, fingerpr
 
 func (s *Service) UpsertFromCheckResults(ctx context.Context, results []checks.Result) (int, error) {
 	count := 0
+	var returnErr error
+	var approvals []pendingApprovalRequest
 	for _, result := range results {
-		created, err := s.UpsertAllFromCheckResult(ctx, result)
+		created, pending, err := s.upsertAllFromCheckResult(ctx, result)
 		count += created
+		approvals = append(approvals, pending...)
 		if err != nil {
-			return count, err
+			returnErr = err
+			break
 		}
 	}
-	return count, nil
+	s.finishCheckResultUpsert(ctx, approvals)
+	return count, returnErr
 }
 
 // UpsertAllFromCheckResult opens one incident per finding when a result
@@ -199,25 +225,35 @@ func (s *Service) UpsertFromCheckResults(ctx context.Context, results []checks.R
 // CPU-pressure finding and a fork-rate finding from the same tick are two
 // incidents, not one record whose evidence flips between them.
 func (s *Service) UpsertAllFromCheckResult(ctx context.Context, result checks.Result) (int, error) {
+	count, approvals, err := s.upsertAllFromCheckResult(ctx, result)
+	s.finishCheckResultUpsert(ctx, approvals)
+	return count, err
+}
+
+func (s *Service) upsertAllFromCheckResult(ctx context.Context, result checks.Result) (int, []pendingApprovalRequest, error) {
 	findings := findingList(result.Details)
 	if len(findings) == 0 || result.Status == checks.StatusOK {
-		_, created, err := s.UpsertFromCheckResult(ctx, result)
+		_, created, approval, err := s.upsertFromCheckResult(ctx, result)
 		if created {
-			return 1, err
+			return 1, []pendingApprovalRequest{approval}, err
 		}
-		return 0, err
+		return 0, nil, err
 	}
 	count := 0
+	var approvals []pendingApprovalRequest
 	for _, finding := range findings {
-		_, created, err := s.UpsertFromCheckResult(ctx, withFinding(result, finding))
+		_, created, approval, err := s.upsertFromCheckResult(ctx, withFinding(result, finding))
 		if created {
 			count++
+			if approval.incident != nil {
+				approvals = append(approvals, approval)
+			}
 		}
 		if err != nil {
-			return count, err
+			return count, approvals, err
 		}
 	}
-	return count, nil
+	return count, approvals, nil
 }
 
 // findingList reads Details["findings"] in either shape a check may emit.
@@ -271,8 +307,7 @@ func withFinding(result checks.Result, finding map[string]any) checks.Result {
 // into one incident while preserving the latest error in its evidence.
 func (s *Service) OpenHealIncident(ctx context.Context, checkID, actionID, lastError string, consecutiveFailures int) error {
 	observedAt := s.now().UTC()
-	returnErr := error(nil)
-	_, returnErr = s.store.UpsertIncident(ctx, UpsertInput{
+	_, returnErr := s.store.UpsertIncident(ctx, UpsertInput{
 		Fingerprint:   Fingerprint(string(TypeAutohealFailure), "heal", checkID, actionID),
 		Type:          TypeAutohealFailure,
 		Severity:      SeverityCritical,
@@ -288,6 +323,7 @@ func (s *Service) OpenHealIncident(ctx context.Context, checkID, actionID, lastE
 		},
 		Recommendations: []string{"Inspect the recorded auto-heal error and restore the check's dependency before retrying."},
 	})
+	s.publishPendingOpeningPublications(ctx)
 	return returnErr
 }
 
@@ -331,6 +367,32 @@ func (s *Service) resolveRecoveredForCheck(ctx context.Context, result checks.Re
 		s.publish(ctx, "incident.resolved.v1", updated)
 	}
 	return nil
+}
+
+const pendingOpeningPublicationBatch = 100
+
+func (s *Service) publishPendingOpeningPublications(ctx context.Context) {
+	if s == nil || s.store == nil || s.publisher == nil {
+		return
+	}
+	if readiness, ok := s.publisher.(interface{ Enabled() bool }); ok && !readiness.Enabled() {
+		return
+	}
+	pending, err := s.store.ListPendingOpeningPublications(ctx, pendingOpeningPublicationBatch)
+	if err != nil {
+		log.Printf("vrooli-autoheal pending incident-open read failed: %v", err)
+		return
+	}
+	for _, event := range pending {
+		if err := s.publisher.Publish(ctx, event.EventType, event.Payload); err != nil {
+			log.Printf("vrooli-autoheal incident event publish failed: type=%s incident=%s generation=%d error=%v", event.EventType, event.IncidentID, event.Generation, err)
+			return // Preserve ordering; the next scheduled tick retries this exact snapshot.
+		}
+		if err := s.store.AcknowledgeOpeningPublication(ctx, event.IncidentID, event.Generation); err != nil {
+			log.Printf("vrooli-autoheal incident publication acknowledgement failed: incident=%s generation=%d error=%v", event.IncidentID, event.Generation, err)
+			return // A duplicate publish is safe: the event ID is stable for this snapshot.
+		}
+	}
 }
 
 func (s *Service) publish(ctx context.Context, eventType string, incident *Incident) {
@@ -409,6 +471,16 @@ func remediationRiskLabel(level string) string {
 		return "unknown"
 	}
 	return level
+}
+
+// OpeningEventFacts freezes the event facts for one incident lifecycle. The
+// generation discriminator prevents an identical recurrence from deduping
+// against a prior resolved lifecycle.
+func OpeningEventFacts(incident *Incident) map[string]any {
+	facts := incidentEventFacts(incident)
+	facts["event_count"] = incident.EventCount
+	facts["opened_at"] = incident.LastSeenAt.UTC().Format(time.RFC3339Nano)
+	return facts
 }
 
 func incidentEventFacts(incident *Incident) map[string]any {

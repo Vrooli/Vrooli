@@ -160,6 +160,7 @@ type idempotencyRepository struct {
 }
 
 var _ repository.IdempotencyRepository = (*idempotencyRepository)(nil)
+var _ repository.ContinuationIdempotencyRepository = (*idempotencyRepository)(nil)
 
 // idempotencyRow is the database row representation for idempotency_records.
 type idempotencyRow struct {
@@ -202,6 +203,112 @@ func (r *idempotencyRepository) Check(ctx context.Context, key string) (*domain.
 	return row.toDomain(), nil
 }
 
+// CheckContinuation deliberately ignores expires_at. Continuation requests
+// may have reached a runner before their caller lost the response, so timeout
+// is not proof that it is safe to submit the same input again.
+func (r *idempotencyRepository) CheckContinuation(ctx context.Context, key string) (*domain.IdempotencyRecord, error) {
+	query := fmt.Sprintf("SELECT %s FROM idempotency_records WHERE key = ?", idempotencyColumns)
+	var row idempotencyRow
+	if err := r.db.GetContext(ctx, &row, query, key); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, wrapDBError("check_continuation_idempotency", "IdempotencyRecord", key, err)
+	}
+	return row.toDomain(), nil
+}
+
+func (r *idempotencyRepository) ReserveContinuation(ctx context.Context, key string, runID uuid.UUID, requestHash []byte, ttl time.Duration) (*domain.IdempotencyRecord, bool, error) {
+	now := time.Now().UTC()
+	row := struct {
+		Key        string     `db:"key"`
+		Status     string     `db:"status"`
+		EntityID   uuid.UUID  `db:"entity_id"`
+		EntityType string     `db:"entity_type"`
+		CreatedAt  SQLiteTime `db:"created_at"`
+		ExpiresAt  SQLiteTime `db:"expires_at"`
+		Response   []byte     `db:"response"`
+	}{key, string(domain.IdempotencyStatusPending), runID, "Continuation", SQLiteTime(now), SQLiteTime(now.Add(ttl)), requestHash}
+	query := `INSERT INTO idempotency_records (key, status, entity_id, entity_type, created_at, expires_at, response)
+		VALUES (:key, :status, :entity_id, :entity_type, :created_at, :expires_at, :response)
+		ON CONFLICT(key) DO NOTHING`
+	result, err := r.db.NamedExecContext(ctx, query, row)
+	if err != nil {
+		return nil, false, wrapDBError("reserve_continuation_idempotency", "IdempotencyRecord", key, err)
+	}
+	if affected, rowsErr := result.RowsAffected(); rowsErr != nil {
+		return nil, false, fmt.Errorf("reserve_continuation_idempotency: inspect reservation result for %q: %w", key, rowsErr)
+	} else if affected == 1 {
+		return (&idempotencyRow{Key: key, Status: string(domain.IdempotencyStatusPending), EntityID: NewNullableUUID(&runID), EntityType: sql.NullString{String: "Continuation", Valid: true}, CreatedAt: SQLiteTime(now), ExpiresAt: SQLiteTime(now.Add(ttl)), Response: requestHash}).toDomain(), true, nil
+	}
+
+	existing, err := r.CheckContinuation(ctx, key)
+	if err != nil {
+		return nil, false, err
+	}
+	if existing == nil {
+		return nil, false, fmt.Errorf("reserve_continuation_idempotency: key %q changed during reservation", key)
+	}
+	if existing.EntityType != "Continuation" || existing.EntityID == nil || *existing.EntityID != runID || string(existing.Response) != string(requestHash) {
+		return existing, false, fmt.Errorf("reserve_continuation_idempotency: key %q belongs to a different or ambiguous operation", key)
+	}
+	if existing.Status != domain.IdempotencyStatusFailed {
+		return existing, false, nil
+	}
+	update := `UPDATE idempotency_records SET status = ?, created_at = ?, expires_at = ?
+		WHERE key = ? AND status = ? AND entity_type = ? AND entity_id = ? AND response = ?`
+	updated, err := r.db.ExecContext(ctx, update, string(domain.IdempotencyStatusPending), SQLiteTime(now), SQLiteTime(now.Add(ttl)), key, string(domain.IdempotencyStatusFailed), "Continuation", runID, requestHash)
+	if err != nil {
+		return nil, false, wrapDBError("reserve_continuation_idempotency", "IdempotencyRecord", key, err)
+	}
+	if affected, rowsErr := updated.RowsAffected(); rowsErr != nil {
+		return nil, false, fmt.Errorf("reserve_continuation_idempotency: inspect retry result for %q: %w", key, rowsErr)
+	} else if affected == 1 {
+		existing.Status = domain.IdempotencyStatusPending
+		existing.CreatedAt = now
+		existing.ExpiresAt = now.Add(ttl)
+		return existing, true, nil
+	}
+	existing, err = r.CheckContinuation(ctx, key)
+	if err != nil {
+		return nil, false, err
+	}
+	return existing, false, fmt.Errorf("reserve_continuation_idempotency: key %q was concurrently claimed", key)
+}
+
+func (r *idempotencyRepository) CompleteContinuation(ctx context.Context, key string, runID uuid.UUID, requestHash []byte) error {
+	query := `UPDATE idempotency_records SET status = ?
+		WHERE key = ? AND status = ? AND entity_type = ? AND entity_id = ? AND response = ?`
+	result, err := r.db.ExecContext(ctx, query, string(domain.IdempotencyStatusComplete), key, string(domain.IdempotencyStatusPending), "Continuation", runID, requestHash)
+	if err != nil {
+		return wrapDBError("complete_continuation_idempotency", "IdempotencyRecord", key, err)
+	}
+	if affected, rowsErr := result.RowsAffected(); rowsErr == nil && affected == 1 {
+		return nil
+	}
+	existing, err := r.CheckContinuation(ctx, key)
+	if err != nil {
+		return err
+	}
+	if existing != nil && existing.Status == domain.IdempotencyStatusComplete && existing.EntityType == "Continuation" && existing.EntityID != nil && *existing.EntityID == runID && string(existing.Response) == string(requestHash) {
+		return nil // Idempotent completion after a lost acknowledgement.
+	}
+	return fmt.Errorf("complete_continuation_idempotency: receipt %q is missing or no longer matches the continuation", key)
+}
+
+func (r *idempotencyRepository) FailContinuation(ctx context.Context, key string, runID uuid.UUID, requestHash []byte) error {
+	query := `UPDATE idempotency_records SET status = ?
+		WHERE key = ? AND status = ? AND entity_type = ? AND entity_id = ? AND response = ?`
+	result, err := r.db.ExecContext(ctx, query, string(domain.IdempotencyStatusFailed), key, string(domain.IdempotencyStatusPending), "Continuation", runID, requestHash)
+	if err != nil {
+		return wrapDBError("fail_continuation_idempotency", "IdempotencyRecord", key, err)
+	}
+	if affected, rowsErr := result.RowsAffected(); rowsErr == nil && affected == 1 {
+		return nil
+	}
+	return fmt.Errorf("fail_continuation_idempotency: receipt %q is missing or no longer matches the continuation", key)
+}
+
 func (r *idempotencyRepository) Reserve(ctx context.Context, key string, ttl time.Duration) (*domain.IdempotencyRecord, error) {
 	now := time.Now()
 	record := &domain.IdempotencyRecord{
@@ -225,8 +332,9 @@ func (r *idempotencyRepository) Reserve(ctx context.Context, key string, ttl tim
 			entity_id = NULL,
 			entity_type = NULL,
 			response = NULL
-		WHERE idempotency_records.expires_at <= excluded.created_at
-		   OR idempotency_records.status = 'failed'`
+		WHERE (idempotency_records.expires_at <= excluded.created_at
+		   OR idempotency_records.status = 'failed')
+		  AND COALESCE(idempotency_records.entity_type, '') != 'Continuation'`
 
 	row := struct {
 		Key       string     `db:"key"`
@@ -251,16 +359,21 @@ func (r *idempotencyRepository) Reserve(ctx context.Context, key string, ttl tim
 }
 
 func (r *idempotencyRepository) Complete(ctx context.Context, key string, entityID uuid.UUID, entityType string, response []byte) error {
-	query := `UPDATE idempotency_records SET status = ?, entity_id = ?, entity_type = ?, response = ? WHERE key = ?`
-	_, err := r.db.ExecContext(ctx, query, string(domain.IdempotencyStatusComplete), entityID, entityType, response, key)
+	query := `UPDATE idempotency_records SET status = ?, entity_id = ?, entity_type = ?, response = ? WHERE key = ? AND COALESCE(entity_type, '') != 'Continuation'`
+	result, err := r.db.ExecContext(ctx, query, string(domain.IdempotencyStatusComplete), entityID, entityType, response, key)
 	if err != nil {
 		return wrapDBError("complete_idempotency", "IdempotencyRecord", key, err)
+	}
+	if affected, rowsErr := result.RowsAffected(); rowsErr != nil {
+		return fmt.Errorf("complete_idempotency: inspect receipt update for %q: %w", key, rowsErr)
+	} else if affected == 0 {
+		return fmt.Errorf("complete_idempotency: receipt %q is missing or owned by another operation", key)
 	}
 	return nil
 }
 
 func (r *idempotencyRepository) Fail(ctx context.Context, key string) error {
-	query := `UPDATE idempotency_records SET status = ? WHERE key = ?`
+	query := `UPDATE idempotency_records SET status = ? WHERE key = ? AND COALESCE(entity_type, '') != 'Continuation'`
 	_, err := r.db.ExecContext(ctx, query, string(domain.IdempotencyStatusFailed), key)
 	if err != nil {
 		return wrapDBError("fail_idempotency", "IdempotencyRecord", key, err)
@@ -269,7 +382,8 @@ func (r *idempotencyRepository) Fail(ctx context.Context, key string) error {
 }
 
 func (r *idempotencyRepository) CleanupExpired(ctx context.Context) (int, error) {
-	query := `DELETE FROM idempotency_records WHERE expires_at < ?`
+	query := `DELETE FROM idempotency_records WHERE expires_at < ?
+		AND COALESCE(entity_type, '') != 'Continuation'`
 	result, err := r.db.ExecContext(ctx, query, SQLiteTime(time.Now().UTC()))
 	if err != nil {
 		return 0, wrapDBError("cleanup_idempotency", "IdempotencyRecord", "", err)

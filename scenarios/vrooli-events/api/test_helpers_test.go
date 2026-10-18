@@ -43,6 +43,7 @@ func newTestServer(t *testing.T) (*Server, *httptest.Server) {
 
 	srv := &Server{
 		store:             eventStore,
+		db:                eventStore.DB(),
 		broker:            eventBroker,
 		policyStore:       polStore,
 		policyEval:        policy.NewEvaluator(polStore),

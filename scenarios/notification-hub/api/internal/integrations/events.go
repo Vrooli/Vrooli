@@ -29,6 +29,126 @@ type eventPayload struct {
 	Payload          json.RawMessage `json:"payload"`
 }
 
+type heartbeatAttemptNotification struct {
+	TeamID              string `json:"teamId"`
+	AgentID             string `json:"agentId"`
+	RunID               string `json:"runId"`
+	OwnerObligationID   string `json:"ownerObligationId"`
+	RetainedOwnerState  string `json:"retainedOwnerState"`
+	ObservedAt          string `json:"observedAt"`
+	Status              string `json:"status"`
+	ConsecutiveFailures int    `json:"consecutiveFailures"`
+	FailureEpisodeID    string `json:"failureEpisodeId"`
+	RecoveryOutcome     string `json:"recoveryOutcome"`
+	RecoveryRequestID   string `json:"recoveryRequestId"`
+	ReviewURL           string `json:"reviewUrl"`
+	AttentionEligible   bool   `json:"attentionEligible"`
+}
+
+// heartbeatAttemptFYI maps a definitive threshold-or-later failed attempt or
+// a retained owner-state fact to one scoped operator FYI. Later events can
+// recover a missed webhook while the stable identity prevents repeats.
+func heartbeatAttemptFYI(eventType, sourceScenario, eventID string, raw json.RawMessage) (hub.SendInput, bool, error) {
+	if sourceScenario != "prompt-manager" {
+		return hub.SendInput{}, false, nil
+	}
+	var attempt heartbeatAttemptNotification
+	if err := json.Unmarshal(raw, &attempt); err != nil {
+		return hub.SendInput{}, false, fmt.Errorf("decode prompt-manager heartbeat attempt: %w", err)
+	}
+	if eventType == HeartbeatOwnerStateEventType {
+		return heartbeatRetainedOwnerStateFYI(sourceScenario, eventID, attempt)
+	}
+	if eventType != HeartbeatAttemptEventType {
+		return hub.SendInput{}, false, nil
+	}
+	if attempt.Status != "failed" || !attempt.AttentionEligible || attempt.ConsecutiveFailures < 3 {
+		return hub.SendInput{}, false, nil
+	}
+	teamID := strings.TrimSpace(attempt.TeamID)
+	agentID := strings.TrimSpace(attempt.AgentID)
+	episodeID := strings.TrimSpace(attempt.FailureEpisodeID)
+	if eventID == "" || teamID == "" || agentID == "" || episodeID == "" {
+		return hub.SendInput{}, false, errors.New("threshold heartbeat attempt requires event, team, agent, and failure episode identity")
+	}
+	body := fmt.Sprintf("Prompt Manager recorded %d consecutive failed heartbeats for team %s and agent %s (the attention threshold is three). ", attempt.ConsecutiveFailures, teamID, agentID)
+	switch attempt.RecoveryOutcome {
+	case "request_submitted":
+		if strings.TrimSpace(attempt.RecoveryRequestID) == "" {
+			return hub.SendInput{}, false, errors.New("submitted heartbeat recovery request has no request id")
+		}
+		body += fmt.Sprintf("A recovery request (%s) was submitted. This does not mean it was approved or completed.", strings.TrimSpace(attempt.RecoveryRequestID))
+	case "request_unconfirmed":
+		body += "The recovery request outcome could not be confirmed; this does not establish whether it was created."
+	case "request_suppressed":
+		body += "No new recovery request was sent because an earlier request remains latched."
+	case "requester_unavailable":
+		body += "No recovery request was submitted because the recovery requester was unavailable."
+	case "not_requested", "below_threshold":
+		body += "No recovery request was submitted for this failure."
+	default:
+		return hub.SendInput{}, false, fmt.Errorf("unsupported heartbeat recovery outcome %q", attempt.RecoveryOutcome)
+	}
+	return hub.SendInput{
+		RequestedBy:      sourceScenario,
+		Title:            "Prompt Manager heartbeat needs review",
+		Body:             body,
+		Urgency:          "normal",
+		SensitivityLabel: "private",
+		IdempotencyKey:   episodeID,
+		DedupeKey:        HeartbeatAttemptEventType + ":" + episodeID,
+		SourceScenario:   sourceScenario,
+		Category:         "prompt_manager_heartbeat",
+		ContextURL:       strings.TrimSpace(attempt.ReviewURL),
+		ScopeKey:         "prompt-manager:" + teamID + ":" + agentID,
+	}, true, nil
+}
+
+func heartbeatRetainedOwnerStateFYI(sourceScenario, eventID string, fact heartbeatAttemptNotification) (hub.SendInput, bool, error) {
+	teamID := strings.TrimSpace(fact.TeamID)
+	agentID := strings.TrimSpace(fact.AgentID)
+	ownerID := strings.TrimSpace(fact.OwnerObligationID)
+	state := strings.TrimSpace(fact.RetainedOwnerState)
+	if eventID == "" || teamID == "" || agentID == "" || ownerID == "" {
+		return hub.SendInput{}, false, errors.New("retained heartbeat owner state requires event, team, agent, and obligation identity")
+	}
+	if state == "preparation_interrupted" && strings.TrimSpace(fact.RunID) != "" {
+		return hub.SendInput{}, false, errors.New("preparation-interrupted heartbeat owner state cannot include a run id")
+	}
+	var stateDescription string
+	switch state {
+	case "preparation_interrupted":
+		stateDescription = "Prompt Manager was interrupted before sending the first Agent Manager task or run request for this accepted heartbeat obligation. The obligation remains retained. This does not establish that a task or run exists. It needs a later ordinary enabled scheduled admission or a fresh authorized manual admission."
+	case "dispatch_uncertain":
+		stateDescription = "Prompt Manager retained this heartbeat's run-start obligation because Agent Manager's response did not establish whether it accepted the run. Review the current team and member state; PM has not released ownership or started a replacement heartbeat."
+	case "owner_unreachable":
+		stateDescription = "Prompt Manager could not confirm the owner run state and retained the execution slot. Review the owner status; the missing observation does not prove that the run is absent."
+	case "needs_review":
+		stateDescription = "Agent Manager reports that this heartbeat's run needs review. Prompt Manager retained the execution slot pending owner-reported terminal state."
+	case "watcher_unavailable":
+		stateDescription = "Prompt Manager's local completion observer is unavailable. The owner run has not been proven terminal, so the execution slot remains retained for reconciliation."
+	default:
+		return hub.SendInput{}, false, fmt.Errorf("unsupported retained heartbeat owner state %q", state)
+	}
+	if runID := strings.TrimSpace(fact.RunID); runID != "" {
+		stateDescription += fmt.Sprintf(" Owner run: %s.", runID)
+	}
+	obligationKey := "prompt-manager:" + teamID + ":" + agentID + ":" + ownerID + ":" + state
+	return hub.SendInput{
+		RequestedBy:      sourceScenario,
+		Title:            "Prompt Manager heartbeat owner state needs review",
+		Body:             fmt.Sprintf("Team %s, agent %s: %s", teamID, agentID, stateDescription),
+		Urgency:          "normal",
+		SensitivityLabel: "private",
+		IdempotencyKey:   obligationKey,
+		DedupeKey:        HeartbeatAttemptEventType + ":owner-state:" + obligationKey,
+		SourceScenario:   sourceScenario,
+		Category:         "prompt_manager_heartbeat",
+		ContextURL:       strings.TrimSpace(fact.ReviewURL),
+		ScopeKey:         "prompt-manager:" + teamID + ":" + agentID,
+	}, true, nil
+}
+
 var (
 	ErrEventIntegrationUnconfigured = errors.New("event integration is not configured")
 	ErrProducerOwnedCopy            = errors.New("event renderer owns notification copy")
@@ -120,6 +240,8 @@ func EventWebhookFromSecretSourceWithDecisionDefaults(service *hub.Service, secr
 			status := http.StatusInternalServerError
 			if errors.Is(specErr, hub.ErrInvalidArgument) {
 				status = http.StatusBadRequest
+			} else if errors.Is(specErr, hub.ErrAskIdentityConflict) {
+				status = http.StatusConflict
 			}
 			writeJSONError(w, status, specErr.Error())
 			return
@@ -131,6 +253,29 @@ func EventWebhookFromSecretSourceWithDecisionDefaults(service *hub.Service, secr
 		recipient := service.ResolveRecipient(r.Context())
 		if recipient == "" {
 			recipient = payload.SourceScenario
+		}
+		if payload.EventType == HeartbeatAttemptEventType || payload.EventType == HeartbeatOwnerStateEventType {
+			input, notify, mapErr := heartbeatAttemptFYI(payload.EventType, payload.SourceScenario, eventID, payload.Payload)
+			if mapErr != nil {
+				writeJSONError(w, http.StatusBadRequest, mapErr.Error())
+				return
+			}
+			if !notify {
+				writeJSON(w, http.StatusAccepted, map[string]string{"event_id": eventID, "ignored": "not a threshold-or-later failed heartbeat"})
+				return
+			}
+			input.RequestedBy = recipient
+			notification, sendErr := service.Send(r.Context(), input)
+			if sendErr != nil {
+				status := http.StatusInternalServerError
+				if errors.Is(sendErr, hub.ErrInvalidArgument) {
+					status = http.StatusBadRequest
+				}
+				writeJSONError(w, status, sendErr.Error())
+				return
+			}
+			writeJSON(w, http.StatusAccepted, map[string]string{"notification_id": notification.ID, "event_id": eventID})
+			return
 		}
 		// Primary path: a domain-neutral FYI notification. It fires when the
 		// event type carries the notification suffix OR the payload parses into
@@ -324,9 +469,15 @@ func nonEmpty(value, fallback string) string {
 // Subscription names owned by the hub. The operator configures the pattern
 // of the first; the decision subscription is part of the ask contract.
 const (
-	eventSubscriptionName        = "notification-hub-events"
-	decisionSubscriptionName     = "notification-hub-decisions"
-	notificationSubscriptionName = "notification-hub-notifications"
+	eventSubscriptionName               = "notification-hub-events"
+	decisionSubscriptionName            = "notification-hub-decisions"
+	notificationSubscriptionName        = "notification-hub-notifications"
+	heartbeatAttemptSubscriptionName    = "notification-hub-prompt-manager-heartbeat-attempts"
+	heartbeatOwnerStateSubscriptionName = "notification-hub-prompt-manager-heartbeat-owner-states"
+	HeartbeatAttemptEventType           = "prompt-manager.heartbeat.attempt.v1"
+	HeartbeatAttemptEventPattern        = "prompt-manager.heartbeat.attempt.v1"
+	HeartbeatOwnerStateEventType        = "prompt-manager.heartbeat.owner-state.v1"
+	HeartbeatOwnerStateEventPattern     = "prompt-manager.heartbeat.owner-state.v1"
 )
 
 // SubscriptionSpec is one named vrooli-events subscription delivered to the
@@ -354,6 +505,16 @@ func EnsureDecisionSubscription(ctx context.Context, baseURL, target string) err
 // *.notification.v1 event into a domain-neutral FYI notification.
 func EnsureNotificationSubscription(ctx context.Context, baseURL, target string) error {
 	return EnsureEventSubscriptions(ctx, baseURL, target, []SubscriptionSpec{{Name: notificationSubscriptionName, Pattern: NotificationRequestPattern}})
+}
+
+// EnsureHeartbeatAttemptSubscription reconciles exact, separate subscriptions
+// for immutable PM attempt and retained-owner-state facts. Both use the same
+// signed Events webhook; owner-state facts never enter the bounded attempt feed.
+func EnsureHeartbeatAttemptSubscription(ctx context.Context, baseURL, target string) error {
+	return EnsureEventSubscriptions(ctx, baseURL, target, []SubscriptionSpec{
+		{Name: heartbeatAttemptSubscriptionName, Pattern: HeartbeatAttemptEventPattern},
+		{Name: heartbeatOwnerStateSubscriptionName, Pattern: HeartbeatOwnerStateEventPattern},
+	})
 }
 
 // EnsureEventSubscriptions reconciles each named subscription to the hub's

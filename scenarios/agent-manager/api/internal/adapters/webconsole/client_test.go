@@ -105,8 +105,8 @@ type terminalTestServer struct {
 	terminalv1connect.UnimplementedTerminalServiceHandler
 	mu     sync.Mutex
 	inputs []*terminalv1.SendInputRequest
-	// composer, when set, renders GetScreen as an agent TUI reacting to the
-	// paste and Enter inputs received so far.
+	// composer, when set, renders GetScreen as an agent TUI reacting to text
+	// input and Enter requests received so far.
 	composer *scriptedComposer
 	// enterErr fails every Enter key after the paste.
 	enterErr error
@@ -120,7 +120,7 @@ func (s *terminalTestServer) SendInput(_ context.Context, req *connect.Request[t
 		return nil, s.enterErr
 	}
 	if c := s.composer; c != nil {
-		if req.Msg.GetIsPaste() {
+		if req.Msg.GetText() != "" {
 			c.prompt = req.Msg.GetText()
 		} else if req.Msg.GetKeys() != nil {
 			c.enterAfterPolls = append(c.enterAfterPolls, c.screenReads)
@@ -138,8 +138,8 @@ func (s *terminalTestServer) GetScreen(_ context.Context, req *connect.Request[t
 	return connect.NewResponse(s.composer.render()), nil
 }
 
-// scriptedComposer models an agent TUI's input box on a 40-column screen: a
-// paste becomes visible only after ingestReads screen reads, the first
+// scriptedComposer models an agent TUI's input box on a 40-column screen: text
+// becomes visible only after ingestReads screen reads, the first
 // swallowEnters Enter presses become newlines inside the composer, and later
 // presses submit (unless neverSubmit). A submitted prompt is echoed into the
 // history above a working line and an empty composer.
@@ -278,6 +278,81 @@ func TestSendPromptWaitsForSlowIngestBeforeEnter(t *testing.T) {
 	first := terminal.inputs[0]
 	if first.GetText() != longDirective || !first.GetIsPaste() || terminal.inputs[1].GetKeys().GetKeys()[0].GetName() != "enter" {
 		t.Fatalf("prompt was not pasted then submitted with a named Enter: %+v", terminal.inputs)
+	}
+}
+
+func TestSendCommandSubmitsNativeGoalAsLiteralTextThenNamedEnter(t *testing.T) {
+	const goalCommand = "/goal finish the verified task"
+	composer := &scriptedComposer{ingestReads: 4}
+	terminal := &terminalTestServer{composer: composer}
+	client := newPromptTestClient(t, terminal)
+
+	got, err := client.SendCommand(context.Background(), "session-1", goalCommand, "agent-manager:run-goal")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.Verified || got.EnterPresses != 1 {
+		t.Fatalf("goal submission = %+v, want one verified Enter", got)
+	}
+	if len(terminal.inputs) != 2 {
+		t.Fatalf("SendInput calls = %d, want literal text followed by Enter", len(terminal.inputs))
+	}
+	command := terminal.inputs[0]
+	if command.GetText() != goalCommand || strings.ContainsAny(command.GetText(), "\r\n") || command.GetIsPaste() || command.GetKeys() != nil {
+		t.Fatalf("goal command payload = %+v; want exact single-line non-paste slash command", command)
+	}
+	if command.GetSource() != "agent-manager:run-goal" {
+		t.Fatalf("goal command source = %q, want agent-manager:run-goal", command.GetSource())
+	}
+	enter := terminal.inputs[1]
+	if enter.GetIsPaste() || enter.GetText() != "" || enter.GetKeys() == nil || len(enter.GetKeys().GetKeys()) != 1 || enter.GetKeys().GetKeys()[0].GetName() != "enter" {
+		t.Fatalf("goal submit input = %+v; want separate named Enter", enter)
+	}
+	if len(composer.enterAfterPolls) != 1 || composer.enterAfterPolls[0] <= composer.ingestReads {
+		t.Fatalf("goal Enter was sent before slow text ingest completed: reads=%v ingest=%d", composer.enterAfterPolls, composer.ingestReads)
+	}
+}
+
+func TestSendCommandRejectsEmbeddedNewlineBeforeTransport(t *testing.T) {
+	terminal := &terminalTestServer{composer: &scriptedComposer{}}
+	client := newPromptTestClient(t, terminal)
+	for _, command := range []string{"/goal first\nsecond", "/goal first\rsecond", "\n"} {
+		if _, err := client.SendCommand(context.Background(), "session-1", command, "agent-manager:run-goal"); !errors.Is(err, ErrCommandMustBeSingleLine) {
+			t.Fatalf("SendCommand(%q) err=%v, want ErrCommandMustBeSingleLine", command, err)
+		}
+	}
+	if len(terminal.inputs) != 0 {
+		t.Fatalf("invalid command reached transport: %+v", terminal.inputs)
+	}
+}
+
+func TestSendCommandRetriesEnterSwallowedAsNewline(t *testing.T) {
+	composer := &scriptedComposer{swallowEnters: 1}
+	terminal := &terminalTestServer{composer: composer}
+	client := newPromptTestClient(t, terminal)
+	got, err := client.SendCommand(context.Background(), "session-1", "/goal finish the verified task", "agent-manager:run-goal")
+	if err != nil || !got.Verified || got.EnterPresses != 2 {
+		t.Fatalf("submission = %+v err=%v, want verified after second named Enter", got, err)
+	}
+	if len(terminal.inputs) != 3 || terminal.inputs[0].GetIsPaste() {
+		t.Fatalf("command transport = %+v, want one literal command then two Enter keys", terminal.inputs)
+	}
+}
+
+func TestSendCommandWithoutComposerSubmissionReturnsNotSubmitted(t *testing.T) {
+	composer := &scriptedComposer{neverSubmit: true}
+	terminal := &terminalTestServer{composer: composer}
+	client := newPromptTestClient(t, terminal)
+
+	got, err := client.SendCommand(context.Background(), "session-1", "/goal finish the verified task", "agent-manager:run-goal")
+	if !errors.Is(err, ErrCommandNotSubmitted) {
+		t.Fatalf("err = %v, want ErrCommandNotSubmitted when slash command remains in composer", err)
+	}
+	if got.Verified || got.EnterPresses != len(promptEnterWindows) {
+		t.Fatalf("goal submission = %+v, want bounded unverified attempts", got)
+	}
+	if len(terminal.inputs) != 1+len(promptEnterWindows) || terminal.inputs[0].GetIsPaste() {
+		t.Fatalf("goal transport inputs = %d, want one literal command plus bounded Enter attempts", len(terminal.inputs))
 	}
 }
 

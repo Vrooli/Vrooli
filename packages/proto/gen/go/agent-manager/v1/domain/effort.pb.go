@@ -2383,9 +2383,13 @@ type EffortDecision struct {
 	PublishError  string                 `protobuf:"bytes,27,opt,name=publish_error,json=publishError,proto3" json:"publish_error,omitempty"`
 	// Set by effort decision sync after it writes FEEDBACK.md; cleared when a
 	// later answer supersedes the recorded one.
-	RecordedAt    *timestamppb.Timestamp `protobuf:"bytes,28,opt,name=recorded_at,json=recordedAt,proto3" json:"recorded_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	RecordedAt *timestamppb.Timestamp `protobuf:"bytes,28,opt,name=recorded_at,json=recordedAt,proto3" json:"recorded_at,omitempty"`
+	// Purpose and consequences of the decision, shown separately from evidence.
+	BigPicture string `protobuf:"bytes,29,opt,name=big_picture,json=bigPicture,proto3" json:"big_picture,omitempty"`
+	// Mechanism, evidence, risks, limits and remaining uncertainty.
+	TechnicalDetails string `protobuf:"bytes,30,opt,name=technical_details,json=technicalDetails,proto3" json:"technical_details,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *EffortDecision) Reset() {
@@ -2612,6 +2616,20 @@ func (x *EffortDecision) GetRecordedAt() *timestamppb.Timestamp {
 		return x.RecordedAt
 	}
 	return nil
+}
+
+func (x *EffortDecision) GetBigPicture() string {
+	if x != nil {
+		return x.BigPicture
+	}
+	return ""
+}
+
+func (x *EffortDecision) GetTechnicalDetails() string {
+	if x != nil {
+		return x.TechnicalDetails
+	}
+	return ""
 }
 
 type RaiseEffortDecisionRequest struct {
@@ -3221,7 +3239,7 @@ const file_agent_manager_v1_domain_effort_proto_rawDesc = "" +
 	"dedupe_key\x18\x05 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tdedupeKey\">\n" +
 	"\x14EffortDecisionOption\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05label\x18\x02 \x01(\tR\x05label\"\xba\b\n" +
+	"\x05label\x18\x02 \x01(\tR\x05label\"\x88\t\n" +
 	"\x0eEffortDecision\x12\x1d\n" +
 	"\n" +
 	"effort_ref\x18\x01 \x01(\tR\teffortRef\x12\x1b\n" +
@@ -3260,7 +3278,10 @@ const file_agent_manager_v1_domain_effort_proto_rawDesc = "" +
 	"\fpublished_at\x18\x1a \x01(\v2\x1a.google.protobuf.TimestampR\vpublishedAt\x12#\n" +
 	"\rpublish_error\x18\x1b \x01(\tR\fpublishError\x12;\n" +
 	"\vrecorded_at\x18\x1c \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"recordedAt\"Z\n" +
+	"recordedAt\x12\x1f\n" +
+	"\vbig_picture\x18\x1d \x01(\tR\n" +
+	"bigPicture\x12+\n" +
+	"\x11technical_details\x18\x1e \x01(\tR\x10technicalDetails\"Z\n" +
 	"\x1aRaiseEffortDecisionRequest\x12<\n" +
 	"\bdecision\x18\x01 \x01(\v2 .agent_manager.v1.EffortDecisionR\bdecision\"\x93\x01\n" +
 	"\x1bRaiseEffortDecisionResponse\x12<\n" +

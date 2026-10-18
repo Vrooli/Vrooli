@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file music-tools/v1/models/models.proto.
  */
 export const file_music_tools_v1_models_models: GenFile = /*@__PURE__*/
-  fileDesc("CiJtdXNpYy10b29scy92MS9tb2RlbHMvbW9kZWxzLnByb3RvEhx2cm9vbGkubXVzaWNfdG9vbHMudjEubW9kZWxzIoEBCgVNb2RlbBIKCgJpZBgBIAEoCRIUCgxkaXNwbGF5X25hbWUYAiABKAkSDwoHdmFyaWFudBgDIAEoCRIUCgxsaWNlbnNlX2xhbmUYBCABKAkSDgoGc3RhdHVzGAUgASgJEhAKCHJldmlzaW9uGAYgASgJEg0KBWJ5dGVzGAcgASgEIiQKEUxpc3RNb2RlbHNSZXF1ZXN0Eg8KB3ZhcmlhbnQYASABKAkiSQoSTGlzdE1vZGVsc1Jlc3BvbnNlEjMKBm1vZGVscxgBIAMoCzIjLnZyb29saS5tdXNpY190b29scy52MS5tb2RlbHMuTW9kZWwiHQoPR2V0TW9kZWxSZXF1ZXN0EgoKAmlkGAEgASgJMtUBCg1Nb2RlbHNTZXJ2aWNlEmkKBExpc3QSLy52cm9vbGkubXVzaWNfdG9vbHMudjEubW9kZWxzLkxpc3RNb2RlbHNSZXF1ZXN0GjAudnJvb2xpLm11c2ljX3Rvb2xzLnYxLm1vZGVscy5MaXN0TW9kZWxzUmVzcG9uc2USWQoDR2V0Ei0udnJvb2xpLm11c2ljX3Rvb2xzLnYxLm1vZGVscy5HZXRNb2RlbFJlcXVlc3QaIy52cm9vbGkubXVzaWNfdG9vbHMudjEubW9kZWxzLk1vZGVsQlBaTmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vbXVzaWMtdG9vbHMvdjEvbW9kZWxzO21vZGVsc192MWIGcHJvdG8z");
+  fileDesc("CiJtdXNpYy10b29scy92MS9tb2RlbHMvbW9kZWxzLnByb3RvEhx2cm9vbGkubXVzaWNfdG9vbHMudjEubW9kZWxzIu4CCgVNb2RlbBIKCgJpZBgBIAEoCRIUCgxkaXNwbGF5X25hbWUYAiABKAkSDwoHdmFyaWFudBgDIAEoCRIUCgxsaWNlbnNlX2xhbmUYBCABKAkSDgoGc3RhdHVzGAUgASgJEhAKCHJldmlzaW9uGAYgASgJEg0KBWJ5dGVzGAcgASgEEg4KBmVuZ2luZRgIIAEoCRJCCgtzdW5nX2x5cmljcxgJIAEoCzItLnZyb29saS5tdXNpY190b29scy52MS5tb2RlbHMuTW9kZWxDYXBhYmlsaXR5EkYKD3ZvaWNlX3JlZmVyZW5jZRgKIAEoCzItLnZyb29saS5tdXNpY190b29scy52MS5tb2RlbHMuTW9kZWxDYXBhYmlsaXR5Ek8KFGNvbXBvc2l0aW9uX2NvbnRyb2xzGAsgASgLMjEudnJvb2xpLm11c2ljX3Rvb2xzLnYxLm1vZGVscy5Db21wb3NpdGlvbkNvbnRyb2xzIkQKD01vZGVsQ2FwYWJpbGl0eRIRCglzdXBwb3J0ZWQYASABKAgSDgoGcmVhc29uGAIgASgJEg4KBnNvdXJjZRgDIAEoCSLuAQoTQ29tcG9zaXRpb25Db250cm9scxIcChRtaW5fZHVyYXRpb25fc2Vjb25kcxgBIAEoARIcChRtYXhfZHVyYXRpb25fc2Vjb25kcxgCIAEoARIVCg1kZWZhdWx0X3N0ZXBzGAMgASgFEhEKCW1pbl9zdGVwcxgEIAEoBRIRCgltYXhfc3RlcHMYBSABKAUSGAoQZGVmYXVsdF9ndWlkYW5jZRgGIAEoARIUCgxtaW5fZ3VpZGFuY2UYByABKAESFAoMbWF4X2d1aWRhbmNlGAggASgBEhgKEGR1cmF0aW9uX2NvbnRyb2wYCSABKAkiJAoRTGlzdE1vZGVsc1JlcXVlc3QSDwoHdmFyaWFudBgBIAEoCSJJChJMaXN0TW9kZWxzUmVzcG9uc2USMwoGbW9kZWxzGAEgAygLMiMudnJvb2xpLm11c2ljX3Rvb2xzLnYxLm1vZGVscy5Nb2RlbCIdCg9HZXRNb2RlbFJlcXVlc3QSCgoCaWQYASABKAky1QEKDU1vZGVsc1NlcnZpY2USaQoETGlzdBIvLnZyb29saS5tdXNpY190b29scy52MS5tb2RlbHMuTGlzdE1vZGVsc1JlcXVlc3QaMC52cm9vbGkubXVzaWNfdG9vbHMudjEubW9kZWxzLkxpc3RNb2RlbHNSZXNwb25zZRJZCgNHZXQSLS52cm9vbGkubXVzaWNfdG9vbHMudjEubW9kZWxzLkdldE1vZGVsUmVxdWVzdBojLnZyb29saS5tdXNpY190b29scy52MS5tb2RlbHMuTW9kZWxCUFpOZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9tdXNpYy10b29scy92MS9tb2RlbHM7bW9kZWxzX3YxYgZwcm90bzM");
 
 /**
  * @generated from message vrooli.music_tools.v1.models.Model
@@ -50,6 +50,26 @@ export type Model = Message<"vrooli.music_tools.v1.models.Model"> & {
    * @generated from field: uint64 bytes = 7;
    */
   bytes: bigint;
+
+  /**
+   * @generated from field: string engine = 8;
+   */
+  engine: string;
+
+  /**
+   * @generated from field: vrooli.music_tools.v1.models.ModelCapability sung_lyrics = 9;
+   */
+  sungLyrics?: ModelCapability | undefined;
+
+  /**
+   * @generated from field: vrooli.music_tools.v1.models.ModelCapability voice_reference = 10;
+   */
+  voiceReference?: ModelCapability | undefined;
+
+  /**
+   * @generated from field: vrooli.music_tools.v1.models.CompositionControls composition_controls = 11;
+   */
+  compositionControls?: CompositionControls | undefined;
 };
 
 /**
@@ -58,6 +78,90 @@ export type Model = Message<"vrooli.music_tools.v1.models.Model"> & {
  */
 export const ModelSchema: GenMessage<Model> = /*@__PURE__*/
   messageDesc(file_music_tools_v1_models_models, 0);
+
+/**
+ * @generated from message vrooli.music_tools.v1.models.ModelCapability
+ */
+export type ModelCapability = Message<"vrooli.music_tools.v1.models.ModelCapability"> & {
+  /**
+   * @generated from field: bool supported = 1;
+   */
+  supported: boolean;
+
+  /**
+   * @generated from field: string reason = 2;
+   */
+  reason: string;
+
+  /**
+   * @generated from field: string source = 3;
+   */
+  source: string;
+};
+
+/**
+ * Describes the message vrooli.music_tools.v1.models.ModelCapability.
+ * Use `create(ModelCapabilitySchema)` to create a new message.
+ */
+export const ModelCapabilitySchema: GenMessage<ModelCapability> = /*@__PURE__*/
+  messageDesc(file_music_tools_v1_models_models, 1);
+
+/**
+ * @generated from message vrooli.music_tools.v1.models.CompositionControls
+ */
+export type CompositionControls = Message<"vrooli.music_tools.v1.models.CompositionControls"> & {
+  /**
+   * @generated from field: double min_duration_seconds = 1;
+   */
+  minDurationSeconds: number;
+
+  /**
+   * @generated from field: double max_duration_seconds = 2;
+   */
+  maxDurationSeconds: number;
+
+  /**
+   * @generated from field: int32 default_steps = 3;
+   */
+  defaultSteps: number;
+
+  /**
+   * @generated from field: int32 min_steps = 4;
+   */
+  minSteps: number;
+
+  /**
+   * @generated from field: int32 max_steps = 5;
+   */
+  maxSteps: number;
+
+  /**
+   * @generated from field: double default_guidance = 6;
+   */
+  defaultGuidance: number;
+
+  /**
+   * @generated from field: double min_guidance = 7;
+   */
+  minGuidance: number;
+
+  /**
+   * @generated from field: double max_guidance = 8;
+   */
+  maxGuidance: number;
+
+  /**
+   * @generated from field: string duration_control = 9;
+   */
+  durationControl: string;
+};
+
+/**
+ * Describes the message vrooli.music_tools.v1.models.CompositionControls.
+ * Use `create(CompositionControlsSchema)` to create a new message.
+ */
+export const CompositionControlsSchema: GenMessage<CompositionControls> = /*@__PURE__*/
+  messageDesc(file_music_tools_v1_models_models, 2);
 
 /**
  * @generated from message vrooli.music_tools.v1.models.ListModelsRequest
@@ -74,7 +178,7 @@ export type ListModelsRequest = Message<"vrooli.music_tools.v1.models.ListModels
  * Use `create(ListModelsRequestSchema)` to create a new message.
  */
 export const ListModelsRequestSchema: GenMessage<ListModelsRequest> = /*@__PURE__*/
-  messageDesc(file_music_tools_v1_models_models, 1);
+  messageDesc(file_music_tools_v1_models_models, 3);
 
 /**
  * @generated from message vrooli.music_tools.v1.models.ListModelsResponse
@@ -91,7 +195,7 @@ export type ListModelsResponse = Message<"vrooli.music_tools.v1.models.ListModel
  * Use `create(ListModelsResponseSchema)` to create a new message.
  */
 export const ListModelsResponseSchema: GenMessage<ListModelsResponse> = /*@__PURE__*/
-  messageDesc(file_music_tools_v1_models_models, 2);
+  messageDesc(file_music_tools_v1_models_models, 4);
 
 /**
  * @generated from message vrooli.music_tools.v1.models.GetModelRequest
@@ -108,7 +212,7 @@ export type GetModelRequest = Message<"vrooli.music_tools.v1.models.GetModelRequ
  * Use `create(GetModelRequestSchema)` to create a new message.
  */
 export const GetModelRequestSchema: GenMessage<GetModelRequest> = /*@__PURE__*/
-  messageDesc(file_music_tools_v1_models_models, 3);
+  messageDesc(file_music_tools_v1_models_models, 5);
 
 /**
  * @generated from service vrooli.music_tools.v1.models.ModelsService

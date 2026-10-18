@@ -38,12 +38,13 @@ type HeartbeatConfigResponse struct {
 
 // HeartbeatExecResultDTO represents execution result in API responses
 type HeartbeatExecResultDTO struct {
-	StartedAt string `json:"startedAt"`
-	EndedAt   string `json:"endedAt,omitempty"`
-	Status    string `json:"status"`
-	RunID     string `json:"runId,omitempty"`
-	LogPath   string `json:"logPath,omitempty"`
-	Error     string `json:"error,omitempty"`
+	StartedAt       string `json:"startedAt"`
+	EndedAt         string `json:"endedAt,omitempty"`
+	Status          string `json:"status"`
+	RunID           string `json:"runId,omitempty"`
+	LogPath         string `json:"logPath,omitempty"`
+	Error           string `json:"error,omitempty"`
+	AdmissionReason string `json:"admissionReason,omitempty"`
 }
 
 // CreateHeartbeatRequest is the request body for creating a heartbeat config
@@ -145,10 +146,10 @@ type RunningAgentEntry struct {
 	AgentName string `json:"agentName"`
 	TeamName  string `json:"teamName"`
 	RunID     string `json:"runId"`
-	StartedAt string `json:"startedAt"`
-	Duration  string `json:"duration"`
-	// State is empty for an ordinary live run; otherwise it names the unresolved
-	// obligation (dispatch_uncertain, owner_unreachable, paused).
+	StartedAt string `json:"startedAt,omitempty"`
+	Duration  string `json:"duration,omitempty"`
+	// State is empty for an ordinary live run; otherwise it names the retained
+	// owner obligation or status (for example needs_review or paused).
 	State string `json:"state,omitempty"`
 }
 

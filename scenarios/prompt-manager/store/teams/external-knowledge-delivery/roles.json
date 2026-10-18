@@ -2,5 +2,11 @@
   "kind": "team-roles",
   "schemaVersion": 1,
   "teamId": "external-knowledge-delivery",
-  "roles": []
+  "roles": [
+    {
+      "id": "external-knowledge-orchestrator",
+      "name": "External Knowledge Orchestrator",
+      "description": "Lead external-knowledge-delivery through native epochs; own the goal home and independent acceptance, preserve Drive-first priority, coordinate existing domain owners, and never implement product code. Remain undispatched during preparation."
+    }
+  ]
 }

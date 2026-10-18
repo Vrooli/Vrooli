@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"log"
@@ -26,6 +27,47 @@ func (s *Server) enqueueSubscriptions(ctx context.Context, event store.Event) er
 	if err != nil {
 		return err
 	}
+	payload, err := webhookPayload(event)
+	if err != nil {
+		return err
+	}
+	for _, sub := range subs {
+		if !matchesWebhook(sub, event) {
+			continue
+		}
+		if err := queue.Enqueue(ctx, sub.ID, event.EventID, payload); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func enqueueSubscriptionsTx(ctx context.Context, tx *sql.Tx, queue subscription.AtomicQueueStore, event store.Event) error {
+	subs, err := queue.ListTx(ctx, tx, subscription.ListFilters{Enabled: boolPtr(true)})
+	if err != nil {
+		return err
+	}
+	payload, err := webhookPayload(event)
+	if err != nil {
+		return err
+	}
+	for _, sub := range subs {
+		if !matchesWebhook(sub, event) {
+			continue
+		}
+		if err := queue.EnqueueTx(ctx, tx, sub.ID, event.EventID, payload); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func matchesWebhook(sub subscription.Subscription, event store.Event) bool {
+	return sub.DeliveryType == subscription.DeliveryWebhook && match.Glob(sub.EventPattern, event.EventType) &&
+		(sub.SourceFilter == "" || match.Glob(sub.SourceFilter, event.SourceScenario))
+}
+
+func webhookPayload(event store.Event) (string, error) {
 	var payloadValue any
 	if env, err := convert.EventToEnvelope(event); err == nil && env.Data != nil {
 		if message, unmarshalErr := anypb.UnmarshalNew(env.Data, proto.UnmarshalOptions{}); unmarshalErr == nil {
@@ -56,20 +98,9 @@ func (s *Server) enqueueSubscriptions(ctx context.Context, event store.Event) er
 	}
 	encoded, err := json.Marshal(payload)
 	if err != nil {
-		return err
+		return "", err
 	}
-	for _, sub := range subs {
-		if sub.DeliveryType != subscription.DeliveryWebhook || !match.Glob(sub.EventPattern, event.EventType) {
-			continue
-		}
-		if sub.SourceFilter != "" && !match.Glob(sub.SourceFilter, event.SourceScenario) {
-			continue
-		}
-		if err := queue.Enqueue(ctx, sub.ID, event.EventID, string(encoded)); err != nil {
-			return err
-		}
-	}
-	return nil
+	return string(encoded), nil
 }
 
 func boolPtr(value bool) *bool { return &value }

@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/authn"
 	requestidentity "github.com/vrooli/api-core/identity"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
@@ -22,9 +23,17 @@ import (
 
 // CreateTask creates a new task.
 func (h *Handler) CreateTask(w http.ResponseWriter, r *http.Request) {
-	if p, ok := requestidentity.PrincipalFromContext(r.Context()); ok && p.Kind == requestidentity.ActorAgent && !h.orchestratorTaskCreateAllowed(r) {
-		writeJSON(w, http.StatusForbidden, map[string]string{"error": "task creation from a run requires a running run whose profile declares " + OrchestrateScope})
-		return
+	if p, ok := requestidentity.PrincipalFromContext(r.Context()); ok && p.Kind == requestidentity.ActorAgent {
+		// The task is an inert precursor to the child run, so a covering run.create
+		// grant admits both parts of the same operation. A live profile
+		// orchestrator keeps its existing intrinsic task-creation path even when
+		// it also carries an unrelated operation grant.
+		if !h.orchestratorTaskCreateAllowed(r) {
+			if _, err := authn.RequireOperation(r.Context(), "agent-manager:write", "run.create", RunCreationTarget); err != nil {
+				writeJSON(w, http.StatusForbidden, map[string]string{"error": "task creation requires a live orchestrator or run.create authority"})
+				return
+			}
+		}
 	}
 	body, err := io.ReadAll(r.Body)
 	if err != nil {

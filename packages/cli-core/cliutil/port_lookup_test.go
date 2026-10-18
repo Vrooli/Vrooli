@@ -39,6 +39,105 @@ func TestLookupPeerRecordAcceptsEnvironmentPortSpelling(t *testing.T) {
 	}
 }
 
+func TestLookupPeerRecordSeparatesLiveAndShadowInstances(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	peers := filepath.Join(home, ".vrooli", "peers")
+	if err := os.MkdirAll(peers, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		target   string
+		instance string
+		port     int
+	}{{"browser-automation-studio", "live", 17116}, {"browser-automation-studio@shadow", "shadow", 15372}} {
+		payload, err := json.Marshal(map[string]any{
+			"schema_version": 1,
+			"scenario":       "browser-automation-studio",
+			"instance":       tc.instance,
+			"owner_pid":      os.Getpid(),
+			"ports":          map[string]int{"api": tc.port},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(peers, tc.target+".json"), payload, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, tc := range []struct {
+		target string
+		port   string
+	}{{"browser-automation-studio", "17116"}, {"browser-automation-studio@live", "17116"}, {"browser-automation-studio@shadow", "15372"}} {
+		out := lookupPeerRecord(tc.target, "API_PORT")
+		if !out.Resolved() || out.Port != tc.port {
+			t.Errorf("lookupPeerRecord(%q) = %#v, want port %s", tc.target, out, tc.port)
+		}
+	}
+}
+
+func TestMisfiledShadowPeerFallsThroughToLiveRegistry(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	peers := filepath.Join(home, ".vrooli", "peers")
+	if err := os.MkdirAll(peers, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	misfiled, err := json.Marshal(map[string]any{
+		"schema_version": 1,
+		"scenario":       "misfiled-peer",
+		"instance":       "shadow",
+		"owner_pid":      os.Getpid(),
+		"ports":          map[string]int{"api": 15372},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(peers, "misfiled-peer.json"), misfiled, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	oldPeer, oldRegistry := peerRecordLookupFn, runtimeRegistryLookupFn
+	peerRecordLookupFn = lookupPeerRecord
+	registryCalls := 0
+	runtimeRegistryLookupFn = func(_ context.Context, target, _ string) ScenarioPortOutcome {
+		registryCalls++
+		if target != "misfiled-peer" {
+			t.Fatalf("registry target = %q, want bare live target", target)
+		}
+		return ScenarioPortOutcome{Port: "17116"}
+	}
+	defer func() {
+		peerRecordLookupFn, runtimeRegistryLookupFn = oldPeer, oldRegistry
+		resetPortDetectorCache()
+	}()
+	defer SetPortLookupRunner(func(context.Context, string, string) ScenarioPortOutcome {
+		t.Fatal("CLI fallback should not run after the live registry resolves")
+		return ScenarioPortOutcome{}
+	})()
+
+	resetPortDetectorCache()
+	out := LookupScenarioPort(context.Background(), "misfiled-peer", "API_PORT", PortCachePolicy{})
+	if !out.Resolved() || out.Port != "17116" {
+		t.Fatalf("live lookup = %#v, want registry port 17116", out)
+	}
+	if registryCalls != 1 {
+		t.Fatalf("registry calls = %d, want 1 after rejecting the misfiled shadow peer", registryCalls)
+	}
+}
+
+func TestLookupPeerRecordRejectsCrossPlatformPathSeparators(t *testing.T) {
+	for _, target := range []string{`demo\..\outside`, `demo@..\..\outside`} {
+		out := lookupPeerRecord(target, "API_PORT")
+		if out.Resolved() {
+			t.Errorf("lookupPeerRecord(%q) resolved unsafe target to port %s", target, out.Port)
+		}
+		if out.Err == nil || out.Err.Error() != "invalid peer record target" {
+			t.Errorf("lookupPeerRecord(%q) error = %v, want early invalid-target rejection", target, out.Err)
+		}
+	}
+}
+
 func TestLookupRuntimeRegistryAcceptsEnvironmentPortSpelling(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)

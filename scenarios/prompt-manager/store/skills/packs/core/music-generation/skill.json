@@ -1,6 +1,6 @@
 {
   "createdAt": "2026-09-18T20:00:00Z",
-  "description": "Pointer to the governed music-tools composition capability.",
+  "description": "Choose a governed local music model for the sound brief, preserve generation provenance, and compare actual audio before selection. Covers instrumental launch scores and ordinary songs with explicit lyrics.",
   "entry": "SKILL.md",
   "icon": "music",
   "id": "music-generation",
@@ -24,14 +24,14 @@
       "prompt-manager"
     ]
   },
-  "revision": 3,
+  "revision": 8,
   "schemaVersion": 1,
-  "status": "retired",
+  "status": "active",
   "tags": [
     "marketing",
     "audio",
     "music",
     "video"
   ],
-  "updatedAt": "2026-09-19T00:00:00Z"
+  "updatedAt": "2026-10-17T00:00:00Z"
 }

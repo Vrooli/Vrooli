@@ -32,7 +32,7 @@ const defaultAskedStandingGrantConcurrency = 3
 func serviceNeedsApproval(w http.ResponseWriter, r *http.Request, subject string) {
 	raiser, ok := ApprovalRaiserFromContext(r.Context())
 	if !ok {
-		http.Error(w, "service authority does not include this operation", http.StatusForbidden)
+		writeServiceAdmissionRefusal(w, http.StatusForbidden, "approval_raiser_unavailable")
 		return
 	}
 	raised, err := raiser.RaiseAuthorizationApproval(r.Context(), orchestration.AuthorizationApprovalRequest{
@@ -45,18 +45,35 @@ func serviceNeedsApproval(w http.ResponseWriter, r *http.Request, subject string
 	if errors.Is(err, orchestration.ErrAuthorizationFlood) {
 		// Over the per-subject outstanding-ask cap: refuse WITHOUT raising another
 		// operator notification, so a buggy or hostile caller cannot flood.
-		http.Error(w, "too many outstanding authorization requests for this subject", http.StatusTooManyRequests)
+		writeServiceAdmissionRefusal(w, http.StatusTooManyRequests, "approval_raise_limited")
 		return
 	}
 	if err != nil || !raised {
 		// A raise failure (or no raiser) is a refusal, not an accidental allow.
-		http.Error(w, "service authority does not include this operation", http.StatusForbidden)
+		writeServiceAdmissionRefusal(w, http.StatusForbidden, "approval_raise_failed")
 		return
 	}
 	writeJSON(w, http.StatusAccepted, map[string]string{
 		"status":  "approval_pending",
 		"subject": subject,
 		"detail":  "operator approval requested; the operation proceeds once approved",
+	})
+}
+
+// writeServiceAdmissionRefusal adds only a stable category to the existing
+// task/run refusal response. Keep this allowlist local and messages generic:
+// the response must never expose grant, usage, or wrapped store details.
+func writeServiceAdmissionRefusal(w http.ResponseWriter, status int, reason string) {
+	switch reason {
+	case "grant_limit_reached", "authority_state_unavailable", "authority_unavailable",
+		"approval_raiser_unavailable", "approval_raise_failed", "approval_raise_limited",
+		"operation_not_admitted":
+	default:
+		reason = "operation_not_admitted"
+	}
+	writeJSON(w, status, map[string]string{
+		"error":            "service authority does not include this operation",
+		"admission_reason": reason,
 	})
 }
 
@@ -108,6 +125,14 @@ func AgentOperationMiddleware(next http.Handler) http.Handler {
 			return
 		}
 		p, ok := identity.PrincipalFromContext(r.Context())
+		// The declarations plan handler always forces DryRun, regardless of the
+		// request body. Permit a verified agent to use this exact read/validation
+		// route without opening the mutating reconciliation endpoint or global
+		// management. Other principals retain their existing admission path.
+		if r.Method == http.MethodPost && r.URL.Path == "/api/v1/declarations/plan" && ok && p.Kind == identity.ActorAgent && p.IsVerified() {
+			next.ServeHTTP(w, r)
+			return
+		}
 		if r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodOptions || r.URL.Path == "/api/v1/identity/verify" || (r.Method == http.MethodPost && agentReadRPC[r.URL.Path]) {
 			next.ServeHTTP(w, r)
 			return
@@ -130,12 +155,28 @@ func AgentOperationMiddleware(next http.Handler) http.Handler {
 				case err == nil:
 					next.ServeHTTP(w, r)
 					return
+				case errors.Is(err, errStandingGrantStateUnavailable):
+					writeServiceAdmissionRefusal(w, http.StatusForbidden, "authority_state_unavailable")
+					return
 				case errors.Is(err, authn.ErrNeedsApproval):
 					// Ask, don't block: a verified known caller with no covering grant.
 					// Raise an operator decision (idempotent; capped per subject) and
 					// return a typed "approval pending" (202), never a hard block. The
 					// caller's next attempt proceeds once the operator approves.
 					serviceNeedsApproval(w, r, p.Subject)
+					return
+				case errors.Is(err, authn.ErrStandingGrantLimit):
+					writeServiceAdmissionRefusal(w, http.StatusForbidden, "grant_limit_reached")
+					return
+				case errors.Is(err, authn.ErrOperation):
+					if _, present := authn.RequestOperationAuthorityFromContext(r.Context()); !present {
+						writeServiceAdmissionRefusal(w, http.StatusForbidden, "authority_unavailable")
+						return
+					}
+					writeServiceAdmissionRefusal(w, http.StatusForbidden, "operation_not_admitted")
+					return
+				default:
+					writeServiceAdmissionRefusal(w, http.StatusForbidden, "operation_not_admitted")
 					return
 				}
 			}
@@ -212,10 +253,11 @@ func agentOperationRoute(r *http.Request, interactive bool) bool {
 		// parked run on the key (a worker waking its orchestrator).
 		return true
 	case "/api/v1/tasks":
-		// An orchestrator creates each epoch's task before its child run.
-		// The handler admits only a live run whose profile declares
-		// agent-manager:orchestrate (orchestratorTaskCreateAllowed).
-		return !interactive
+		// Task creation is the inert first leg of the run.create unit. The
+		// handler decides whether the caller is a live profile orchestrator or
+		// has the exact canonical run.create authority. Do not classify a
+		// principal's mere possession of an unrelated grant as a refusal here.
+		return true
 	case apiconnect.AgentManagerServiceStartInvestigationProcedure, apiconnect.AgentManagerServiceCancelInvestigationProcedure,
 		apiconnect.AgentManagerServiceGetInvestigationProcedure, apiconnect.AgentManagerServiceListInvestigationsProcedure,
 		apiconnect.AgentManagerServiceWaitInvestigationProcedure, apiconnect.AgentManagerServiceListRunsProcedure,

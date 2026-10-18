@@ -154,7 +154,9 @@ func updatePythonLocks(ctx context.Context, resolution Resolution) (string, erro
 }
 
 func compilePythonLock(ctx context.Context, root, input, output string, indexes pythonIndexSet) (string, error) {
-	args := []string{"pip", "compile", "--generate-hashes", "--only-binary", ":all:", "--no-build", "--no-config", "--python-version", "3.12", "--python-platform", "x86_64-unknown-linux-gnu", "--index-url", indexes.Primary}
+	// --only-binary :all: already forbids source builds. uv rejects combining
+	// it with the synonymous --no-build option (verified with its real parser).
+	args := []string{"pip", "compile", "--generate-hashes", "--only-binary", ":all:", "--no-config", "--python-version", "3.12", "--python-platform", "x86_64-unknown-linux-gnu", "--index-url", indexes.Primary}
 	for _, index := range indexes.Extras {
 		args = append(args, "--extra-index-url", index)
 	}

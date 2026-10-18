@@ -11,7 +11,51 @@ import (
 	"prompt-manager/internal/store"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/authn"
+	"github.com/vrooli/api-core/identity"
 )
+
+type heartbeatManagementAuthority struct {
+	capability string
+	operation  string
+	target     string
+}
+
+func (a heartbeatManagementAuthority) AuthorizeOperation(_ context.Context, _ identity.Principal, capability, operation, target string) error {
+	if capability != a.capability || operation != a.operation || target != a.target {
+		return authn.ErrOperation
+	}
+	return nil
+}
+
+func TestRequireBoundedHeartbeatManagementUsesExactTeamManage(t *testing.T) {
+	requestAuthority := func(operation, target string) context.Context {
+		ctx := identity.WithPrincipal(context.Background(), identity.Principal{
+			Kind: identity.ActorAgent, Subject: "verified-run", Verified: true,
+			Scopes: []string{"prompt-manager:write"},
+		})
+		return authn.WithRequestOperationAuthority(ctx, heartbeatManagementAuthority{
+			capability: "prompt-manager:write", operation: operation, target: target,
+		})
+	}
+	for _, tc := range []struct {
+		name string
+		ctx  context.Context
+		want bool
+	}{
+		{name: "exact team.manage target", ctx: requestAuthority("team.manage", "prompt-manager:team/team-1"), want: true},
+		{name: "wrong team target", ctx: requestAuthority("team.manage", "prompt-manager:team/other")},
+		{name: "team.prepare is not team.manage", ctx: requestAuthority("team.prepare", "prompt-manager:team/team-1")},
+		{name: "ordinary legacy caller", ctx: context.Background(), want: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := requireBoundedHeartbeatManagement(tc.ctx, "team-1")
+			if (err == nil) != tc.want {
+				t.Fatalf("requireBoundedHeartbeatManagement error=%v, want allowed=%v", err, tc.want)
+			}
+		})
+	}
+}
 
 func TestGetMemberContext_Success(t *testing.T) {
 	roots := paths.RootsForTest(t)

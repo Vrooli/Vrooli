@@ -981,6 +981,7 @@ func cmdUpdate(ctx appctx.Context, args []string) error {
 	metadata := registerTeamMetadataFlags(fs)
 	name := fs.String("name", "", "New display name")
 	mission := fs.String("mission", "", "New mission statement")
+	operatingContractFile := fs.String("operating-contract-file", "", "Replace the operating contract from a JSON file")
 	enabled := fs.String("enabled", "", "Set team enabled state (true|false)")
 	archived := fs.String("archived", "", "Set team archived state (true|false); archived teams cannot execute")
 	configFlags := registerTeamConfigFlags(fs, false)
@@ -990,7 +991,7 @@ func cmdUpdate(ctx appctx.Context, args []string) error {
 	}
 
 	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: team update <id> [--purpose=...] [--lifetime=...] [--effort-refs=...] [--name=...] [--mission=...] [--enabled=true|false] [--archived=true|false] [--runtime-mode=...] [--coordination-pattern=...]")
+		return fmt.Errorf("usage: team update <id> [--purpose=...] [--lifetime=...] [--effort-refs=...] [--name=...] [--mission=...] [--operating-contract-file=path.json] [--enabled=true|false] [--archived=true|false] [--runtime-mode=...] [--coordination-pattern=...]")
 	}
 	teamID := fs.Arg(0)
 
@@ -998,6 +999,13 @@ func cmdUpdate(ctx appctx.Context, args []string) error {
 		return err
 	}
 	req := UpdateTeamRequest{}
+	if strings.TrimSpace(*operatingContractFile) != "" {
+		contract, err := readOperatingContractFile(*operatingContractFile)
+		if err != nil {
+			return fmt.Errorf("load operating contract: %w", err)
+		}
+		req.OperatingContract = contract
+	}
 	fs.Visit(func(f *flag.Flag) {
 		switch f.Name {
 		case "purpose":
@@ -1069,6 +1077,32 @@ func cmdUpdate(ctx appctx.Context, args []string) error {
 
 	fmt.Printf("Updated team: %s [%s]\n", team.DisplayName, team.ID)
 	return nil
+}
+
+func readOperatingContractFile(path string) (*teamcontract.OperatingContract, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read %q: %w", path, err)
+	}
+	trimmed := strings.TrimSpace(string(raw))
+	if trimmed == "" || trimmed[0] != '{' {
+		return nil, fmt.Errorf("%q must contain an operating-contract JSON object", path)
+	}
+
+	decoder := json.NewDecoder(strings.NewReader(trimmed))
+	decoder.DisallowUnknownFields()
+	var contract teamcontract.OperatingContract
+	if err := decoder.Decode(&contract); err != nil {
+		return nil, fmt.Errorf("decode %q: %w", path, err)
+	}
+	var trailing any
+	if err := decoder.Decode(&trailing); err != io.EOF {
+		if err == nil {
+			return nil, fmt.Errorf("%q contains more than one JSON value", path)
+		}
+		return nil, fmt.Errorf("decode trailing data in %q: %w", path, err)
+	}
+	return &contract, nil
 }
 
 func cmdOperatingContract(ctx appctx.Context, args []string) error {
@@ -1589,12 +1623,13 @@ type HeartbeatFleetHealth struct {
 
 // HeartbeatExecResult represents execution result
 type HeartbeatExecResult struct {
-	StartedAt string `json:"startedAt"`
-	EndedAt   string `json:"endedAt,omitempty"`
-	Status    string `json:"status"`
-	RunID     string `json:"runId,omitempty"`
-	LogPath   string `json:"logPath,omitempty"`
-	Error     string `json:"error,omitempty"`
+	StartedAt       string `json:"startedAt"`
+	EndedAt         string `json:"endedAt,omitempty"`
+	Status          string `json:"status"`
+	RunID           string `json:"runId,omitempty"`
+	LogPath         string `json:"logPath,omitempty"`
+	Error           string `json:"error,omitempty"`
+	AdmissionReason string `json:"admissionReason,omitempty"`
 }
 
 // CreateHeartbeatRequest is the request for creating a heartbeat
@@ -2420,12 +2455,20 @@ func cmdHeartbeatLogs(ctx appctx.Context, args []string) error {
 // teamQueueStatus mirrors the heartbeat.TeamExecutionStatus shape returned
 // by GET /teams/{id}/execution-status and DELETE /teams/{id}/queue/running/{agentId}.
 type teamQueueStatus struct {
-	TeamID            string   `json:"teamId"`
-	State             string   `json:"state"`
-	RunningAgentIDs   []string `json:"runningAgentIds"`
-	Queue             []string `json:"queue"`
-	QueuePolicy       string   `json:"queuePolicy"`
-	MaxConcurrentRuns int      `json:"maxConcurrentRuns"`
+	TeamID                         string   `json:"teamId"`
+	State                          string   `json:"state"`
+	RunningAgentIDs                []string `json:"runningAgentIds"`
+	Queue                          []string `json:"queue"`
+	QueuePolicy                    string   `json:"queuePolicy"`
+	MaxConcurrentRuns              int      `json:"maxConcurrentRuns"`
+	UncertainAgentIDs              []string `json:"uncertainAgentIds"`
+	UnreachableAgentIDs            []string `json:"unreachableAgentIds"`
+	PausedAgentIDs                 []string `json:"pausedAgentIds"`
+	ApprovalPendingAgentIDs        []string `json:"approvalPendingAgentIds"`
+	NeedsReviewAgentIDs            []string `json:"needsReviewAgentIds"`
+	WatcherUnavailableAgentIDs     []string `json:"watcherUnavailableAgentIds"`
+	PreparationInterruptedAgentIDs []string `json:"preparationInterruptedAgentIds"`
+	AdmissionDeferredAgentIDs      []string `json:"admissionDeferredAgentIds"`
 }
 
 func cmdQueueClear(ctx appctx.Context, args []string) error {
@@ -2471,6 +2514,23 @@ func cmdQueueClear(ctx appctx.Context, args []string) error {
 	}
 	if len(resp.Queue) > 0 {
 		fmt.Printf("Queue: %v\n", resp.Queue)
+	}
+	for _, item := range []struct {
+		label string
+		ids   []string
+	}{
+		{"Uncertain ownership", resp.UncertainAgentIDs},
+		{"Unreachable owner", resp.UnreachableAgentIDs},
+		{"Paused owner", resp.PausedAgentIDs},
+		{"Approval pending", resp.ApprovalPendingAgentIDs},
+		{"Needs review", resp.NeedsReviewAgentIDs},
+		{"Watcher unavailable", resp.WatcherUnavailableAgentIDs},
+		{"Preparation interrupted (awaiting fresh admission)", resp.PreparationInterruptedAgentIDs},
+		{"Admission deferred (awaiting scheduled capacity retry)", resp.AdmissionDeferredAgentIDs},
+	} {
+		if len(item.ids) > 0 {
+			fmt.Printf("%s: %v\n", item.label, item.ids)
+		}
 	}
 	return nil
 }

@@ -505,6 +505,13 @@ func (p *codexTranscriptParser) SetTranscriptBilling(billing domain.BillingSnaps
 	p.state.billing = billing
 }
 
+// SetGoalContext pins native goal reads to the current run's session and goal.
+// Interactive tails begin at a persisted cursor, so their parser does not
+// necessarily see the session/objective prefix from the original invocation.
+func (p *codexTranscriptParser) SetGoalContext(runID uuid.UUID, sessionID, objective string) {
+	p.state.goal = codexGoalContext{runID: runID, threadID: strings.TrimSpace(sessionID), expectedThreadID: strings.TrimSpace(sessionID), expectedObjective: strings.TrimSpace(objective)}
+}
+
 type codexTranscriptParser struct {
 	codec *Codex
 	state *codexState
@@ -703,6 +710,7 @@ func (p *codexTranscriptParser) parseRolloutLine(runID uuid.UUID, line string) (
 
 	case "turn_context":
 		p.state.turn++
+		result.ProviderTurnStarted = true
 		return result, true
 
 	case "response_item":

@@ -36,6 +36,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -1043,9 +1044,25 @@ func (r *Runner) reportTranscriptError(runID uuid.UUID, sink runner.EventSink, o
 	}
 }
 
+func readFileRange(path string, start int64) (string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+	if _, err := file.Seek(start, io.SeekStart); err != nil {
+		return "", err
+	}
+	var output strings.Builder
+	if _, err := io.Copy(&output, file); err != nil {
+		return "", err
+	}
+	return output.String(), nil
+}
+
 // runDurable runs a launched agent through the durable-transcript path:
-// stdout is tee'd to the on-disk transcript while a background
-// [runner.Consume] tail parses it back into events for the live sink.
+// host launchers write stdout/stderr directly to the run's durable files,
+// while a background [runner.Consume] tail parses stdout for the live sink.
 // After the process exits, a final [runner.Consume] drain catches any
 // trailing transcript bytes the live tail might have raced past.
 //
@@ -1070,6 +1087,18 @@ func (r *Runner) runDurable(ctx context.Context, in durableInputs) (*runner.Exec
 		return nil, fmt.Errorf("inspect invocation transcript boundary: %w", err)
 	}
 	transcriptStart := info.Size()
+	stderrStart := int64(0)
+	stderrPath := in.transcript.StderrPath
+	if in.transcript.StderrFile != nil {
+		if stderrPath == "" {
+			stderrPath = in.transcript.StderrFile.Name()
+		}
+		stderrInfo, err := in.transcript.StderrFile.Stat()
+		if err != nil {
+			return nil, fmt.Errorf("inspect invocation stderr boundary: %w", err)
+		}
+		stderrStart = stderrInfo.Size()
+	}
 	if transcriptStart > 0 && in.transcript.OnAdvance != nil {
 		if err := in.transcript.OnAdvance(transcriptStart, 0); err != nil {
 			return nil, fmt.Errorf("persist invocation transcript boundary: %w", err)
@@ -1091,7 +1120,14 @@ func (r *Runner) runDurable(ctx context.Context, in durableInputs) (*runner.Exec
 		"transcript", in.transcript.TranscriptPath,
 	)
 
-	proc, err := in.launcher.Launch(ctx, in.request)
+	var proc runner.LaunchedProcess
+	directOutput := false
+	if durableLauncher, ok := in.launcher.(runner.DurableOutputLauncher); ok && in.transcript.StderrFile != nil && stderrPath != "" {
+		proc, err = durableLauncher.LaunchDurable(ctx, in.request, in.transcript.StdoutFile, in.transcript.StderrFile)
+		directOutput = true
+	} else {
+		proc, err = in.launcher.Launch(ctx, in.request)
+	}
 	if err != nil {
 		r.runnerLog().Error("agent launch failed (durable)",
 			obs.KeyRunID, in.runID.String(),
@@ -1174,37 +1210,39 @@ func (r *Runner) runDurable(ctx context.Context, in durableInputs) (*runner.Exec
 		return nil
 	}
 
-	// Tee stdout to the transcript file. The launcher's stdout reader
-	// closes on process exit, so this goroutine drains and returns.
-	stdoutDone := make(chan struct{})
-	go func() {
-		defer close(stdoutDone)
-		defer obs.RecoverToFailure("stdout transcript tee", nil)
-		if _, err := io.Copy(in.transcript.StdoutFile, proc.Stdout()); err != nil {
-			r.reportTranscriptError(in.runID, in.sink, "stdout transcript tee", err)
-		}
-	}()
+	var stdoutDone, stderrDone chan struct{}
+	if !directOutput {
+		// Non-host launchers retain the stream-to-file path. Host durable output
+		// bypasses these API-owned pipes and is parsed from the same transcript.
+		stdoutDone = make(chan struct{})
+		go func() {
+			defer close(stdoutDone)
+			defer obs.RecoverToFailure("stdout transcript tee", nil)
+			if _, err := io.Copy(in.transcript.StdoutFile, proc.Stdout()); err != nil {
+				r.reportTranscriptError(in.runID, in.sink, "stdout transcript tee", err)
+			}
+		}()
 
-	// Stderr drainer mirrors into transcript.StderrFile when present.
-	stderrDone := make(chan struct{})
-	go func() {
-		defer close(stderrDone)
-		defer obs.RecoverToFailure("stderr transcript drainer", nil)
-		scanner := bufio.NewScanner(proc.Stderr())
-		for scanner.Scan() {
-			line := scanner.Text()
-			errorOutput.WriteString(line)
-			errorOutput.WriteString("\n")
-			if in.transcript.StderrFile != nil {
-				if _, err := io.WriteString(in.transcript.StderrFile, line+"\n"); err != nil {
-					r.reportTranscriptError(in.runID, in.sink, "stderr transcript tee", err)
+		stderrDone = make(chan struct{})
+		go func() {
+			defer close(stderrDone)
+			defer obs.RecoverToFailure("stderr transcript drainer", nil)
+			scanner := bufio.NewScanner(proc.Stderr())
+			for scanner.Scan() {
+				line := scanner.Text()
+				errorOutput.WriteString(line)
+				errorOutput.WriteString("\n")
+				if in.transcript.StderrFile != nil {
+					if _, err := io.WriteString(in.transcript.StderrFile, line+"\n"); err != nil {
+						r.reportTranscriptError(in.runID, in.sink, "stderr transcript tee", err)
+					}
 				}
 			}
-		}
-		if err := scanner.Err(); err != nil {
-			r.reportTranscriptError(in.runID, in.sink, "stderr transcript scan", err)
-		}
-	}()
+			if err := scanner.Err(); err != nil {
+				r.reportTranscriptError(in.runID, in.sink, "stderr transcript scan", err)
+			}
+		}()
+	}
 
 	// Live tail: parses the transcript as it grows, dispatching events.
 	consumeCtx, cancelConsume := context.WithCancel(context.Background())
@@ -1250,11 +1288,19 @@ func (r *Runner) runDurable(ctx context.Context, in durableInputs) (*runner.Exec
 		}
 	}()
 
-	<-stdoutDone
-	<-stderrDone
-	// Both stream drainers must finish before Wait. HostLauncher deliberately
-	// owns these pipes so cmd.Wait cannot truncate a concurrent transcript tee.
+	if !directOutput {
+		<-stdoutDone
+		<-stderrDone
+	}
 	waitErr := proc.Wait()
+	if directOutput {
+		output, err := readFileRange(stderrPath, stderrStart)
+		if err != nil {
+			r.reportTranscriptError(in.runID, in.sink, "stderr transcript read", err)
+		} else {
+			errorOutput.WriteString(output)
+		}
+	}
 	cancelConsume()
 	<-liveDone
 	select {

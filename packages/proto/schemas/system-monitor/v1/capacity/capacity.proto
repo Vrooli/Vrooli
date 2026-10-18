@@ -127,7 +127,7 @@ message CapacityFinding {
   // GPU index the consumer occupies.
   optional int32 gpu_index = 5;
 
-  // Observed process id.
+  // Observed process id only when the finding represents one worker; zero for aggregates.
   int32 pid = 6;
 
   // Observed process name.
@@ -147,6 +147,9 @@ message CapacityFinding {
 
   // Human-readable finding message.
   string message = 12;
+
+  // Observed worker process ids, including every worker represented by an aggregate.
+  repeated int32 pids = 13;
 }
 
 // PolicyLever is one tunable capacity policy key/value.

@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\"music-tools/v1/models/models.proto\x12\x1cvrooli.music_tools.v1.models\"\xc1\x01\n\x05Model\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12!\n\x0c\x64isplay_name\x18\x02 \x01(\tR\x0b\x64isplayName\x12\x18\n\x07variant\x18\x03 \x01(\tR\x07variant\x12!\n\x0clicense_lane\x18\x04 \x01(\tR\x0blicenseLane\x12\x16\n\x06status\x18\x05 \x01(\tR\x06status\x12\x1a\n\x08revision\x18\x06 \x01(\tR\x08revision\x12\x14\n\x05\x62ytes\x18\x07 \x01(\x04R\x05\x62ytes\"-\n\x11ListModelsRequest\x12\x18\n\x07variant\x18\x01 \x01(\tR\x07variant\"Q\n\x12ListModelsResponse\x12;\n\x06models\x18\x01 \x03(\x0b\x32#.vrooli.music_tools.v1.models.ModelR\x06models\"!\n\x0fGetModelRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id2\xd5\x01\n\rModelsService\x12i\n\x04List\x12/.vrooli.music_tools.v1.models.ListModelsRequest\x1a\x30.vrooli.music_tools.v1.models.ListModelsResponse\x12Y\n\x03Get\x12-.vrooli.music_tools.v1.models.GetModelRequest\x1a#.vrooli.music_tools.v1.models.ModelBPZNgithub.com/vrooli/vrooli/packages/proto/gen/go/music-tools/v1/models;models_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\"music-tools/v1/models/models.proto\x12\x1cvrooli.music_tools.v1.models\"\xe7\x03\n\x05Model\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12!\n\x0c\x64isplay_name\x18\x02 \x01(\tR\x0b\x64isplayName\x12\x18\n\x07variant\x18\x03 \x01(\tR\x07variant\x12!\n\x0clicense_lane\x18\x04 \x01(\tR\x0blicenseLane\x12\x16\n\x06status\x18\x05 \x01(\tR\x06status\x12\x1a\n\x08revision\x18\x06 \x01(\tR\x08revision\x12\x14\n\x05\x62ytes\x18\x07 \x01(\x04R\x05\x62ytes\x12\x16\n\x06\x65ngine\x18\x08 \x01(\tR\x06\x65ngine\x12N\n\x0bsung_lyrics\x18\t \x01(\x0b\x32-.vrooli.music_tools.v1.models.ModelCapabilityR\nsungLyrics\x12V\n\x0fvoice_reference\x18\n \x01(\x0b\x32-.vrooli.music_tools.v1.models.ModelCapabilityR\x0evoiceReference\x12\x64\n\x14\x63omposition_controls\x18\x0b \x01(\x0b\x32\x31.vrooli.music_tools.v1.models.CompositionControlsR\x13\x63ompositionControls\"_\n\x0fModelCapability\x12\x1c\n\tsupported\x18\x01 \x01(\x08R\tsupported\x12\x16\n\x06reason\x18\x02 \x01(\tR\x06reason\x12\x16\n\x06source\x18\x03 \x01(\tR\x06source\"\xf4\x02\n\x13\x43ompositionControls\x12\x30\n\x14min_duration_seconds\x18\x01 \x01(\x01R\x12minDurationSeconds\x12\x30\n\x14max_duration_seconds\x18\x02 \x01(\x01R\x12maxDurationSeconds\x12#\n\rdefault_steps\x18\x03 \x01(\x05R\x0c\x64\x65\x66\x61ultSteps\x12\x1b\n\tmin_steps\x18\x04 \x01(\x05R\x08minSteps\x12\x1b\n\tmax_steps\x18\x05 \x01(\x05R\x08maxSteps\x12)\n\x10\x64\x65\x66\x61ult_guidance\x18\x06 \x01(\x01R\x0f\x64\x65\x66\x61ultGuidance\x12!\n\x0cmin_guidance\x18\x07 \x01(\x01R\x0bminGuidance\x12!\n\x0cmax_guidance\x18\x08 \x01(\x01R\x0bmaxGuidance\x12)\n\x10\x64uration_control\x18\t \x01(\tR\x0f\x64urationControl\"-\n\x11ListModelsRequest\x12\x18\n\x07variant\x18\x01 \x01(\tR\x07variant\"Q\n\x12ListModelsResponse\x12;\n\x06models\x18\x01 \x03(\x0b\x32#.vrooli.music_tools.v1.models.ModelR\x06models\"!\n\x0fGetModelRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id2\xd5\x01\n\rModelsService\x12i\n\x04List\x12/.vrooli.music_tools.v1.models.ListModelsRequest\x1a\x30.vrooli.music_tools.v1.models.ListModelsResponse\x12Y\n\x03Get\x12-.vrooli.music_tools.v1.models.GetModelRequest\x1a#.vrooli.music_tools.v1.models.ModelBPZNgithub.com/vrooli/vrooli/packages/proto/gen/go/music-tools/v1/models;models_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,13 +33,17 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZNgithub.com/vrooli/vrooli/packages/proto/gen/go/music-tools/v1/models;models_v1'
   _globals['_MODEL']._serialized_start=69
-  _globals['_MODEL']._serialized_end=262
-  _globals['_LISTMODELSREQUEST']._serialized_start=264
-  _globals['_LISTMODELSREQUEST']._serialized_end=309
-  _globals['_LISTMODELSRESPONSE']._serialized_start=311
-  _globals['_LISTMODELSRESPONSE']._serialized_end=392
-  _globals['_GETMODELREQUEST']._serialized_start=394
-  _globals['_GETMODELREQUEST']._serialized_end=427
-  _globals['_MODELSSERVICE']._serialized_start=430
-  _globals['_MODELSSERVICE']._serialized_end=643
+  _globals['_MODEL']._serialized_end=556
+  _globals['_MODELCAPABILITY']._serialized_start=558
+  _globals['_MODELCAPABILITY']._serialized_end=653
+  _globals['_COMPOSITIONCONTROLS']._serialized_start=656
+  _globals['_COMPOSITIONCONTROLS']._serialized_end=1028
+  _globals['_LISTMODELSREQUEST']._serialized_start=1030
+  _globals['_LISTMODELSREQUEST']._serialized_end=1075
+  _globals['_LISTMODELSRESPONSE']._serialized_start=1077
+  _globals['_LISTMODELSRESPONSE']._serialized_end=1158
+  _globals['_GETMODELREQUEST']._serialized_start=1160
+  _globals['_GETMODELREQUEST']._serialized_end=1193
+  _globals['_MODELSSERVICE']._serialized_start=1196
+  _globals['_MODELSSERVICE']._serialized_end=1409
 # @@protoc_insertion_point(module_scope)

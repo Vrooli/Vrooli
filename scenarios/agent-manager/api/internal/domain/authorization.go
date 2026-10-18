@@ -37,6 +37,23 @@ type AuthorizationGrant struct {
 	SupersededBy           *uuid.UUID                      `json:"superseded_by,omitempty"`
 	ClaimsJSON             string                          `json:"-"`
 	TokenHash              string                          `json:"-"`
+	// NotificationSnapshot freezes the operator FYI event for this pending
+	// generation. It is persisted in the repository wrapper but omitted from
+	// public grant receipts.
+	NotificationSnapshot    *AuthorizationNotificationSnapshot `json:"-"`
+	NotificationPublishedAt *time.Time                         `json:"-"`
+	NotificationUnreached   string                             `json:"-"`
+}
+
+// AuthorizationNotificationSnapshot is the immutable event payload and
+// identity prepared for one pending consent request. It is delivery metadata,
+// not authority; publication can only point a human at the native consent page.
+type AuthorizationNotificationSnapshot struct {
+	Source    string         `json:"source"`
+	EventType string         `json:"event_type"`
+	EventID   string         `json:"event_id"`
+	Occurred  time.Time      `json:"occurred"`
+	Payload   map[string]any `json:"payload"`
 }
 
 // AuthorizationRule is one reviewed policy and the targets it may reach.
@@ -82,6 +99,7 @@ type AuthorizationRepository interface {
 	Get(context.Context, uuid.UUID) (*AuthorizationGrant, error)
 	List(context.Context, int) ([]*AuthorizationGrant, error)
 	Replace(context.Context, *AuthorizationGrant, string) (bool, error)
+	UpdateNotification(context.Context, *AuthorizationGrant, *AuthorizationGrant) (bool, error)
 }
 
 // AuthorizationError carries bounded recovery metadata without credentials.

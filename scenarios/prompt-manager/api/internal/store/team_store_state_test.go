@@ -104,6 +104,16 @@ func TestHeartbeatHealthLifecycleAndFailureStreak(t *testing.T) {
 	if cfg.LastSuccessfulExecution == nil || cfg.LastSuccessfulExecution.RunID != "new-success" {
 		t.Fatalf("running attempt erased last successful execution: %+v", cfg.LastSuccessfulExecution)
 	}
+	cfg.LastExecution = &HeartbeatExecResult{Status: HeartbeatStatusApprovalPending}
+	cfg.RefreshHealth()
+	if cfg.LifecycleState != HeartbeatLifecycleApprovalPending || cfg.ConsecutiveFailures != 0 {
+		t.Fatalf("typed approval pending lifecycle = %s/%d", cfg.LifecycleState, cfg.ConsecutiveFailures)
+	}
+	cfg.LastExecution = &HeartbeatExecResult{Status: HeartbeatStatusNeedsReview}
+	cfg.RefreshHealth()
+	if cfg.LifecycleState != HeartbeatLifecycleNeedsReview || cfg.ConsecutiveFailures != 0 {
+		t.Fatalf("owner review lifecycle = %s/%d", cfg.LifecycleState, cfg.ConsecutiveFailures)
+	}
 	cfg.Enabled = false
 	cfg.RefreshHealth()
 	if cfg.LifecycleState != HeartbeatLifecycleDisabled {

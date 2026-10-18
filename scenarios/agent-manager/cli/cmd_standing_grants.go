@@ -26,23 +26,65 @@ import (
 
 func (a *App) cmdStandingGrants(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: agent-manager standing-grants create|list|revoke ...")
+		return fmt.Errorf("usage: agent-manager standing-grants create|list|diagnose-prompt-manager|revoke ...")
 	}
 	switch args[0] {
 	case "create":
 		return a.standingGrantsCreate(args[1:])
 	case "list":
 		return a.standingGrantsList(args[1:])
+	case "diagnose-prompt-manager":
+		return a.standingGrantsDiagnosePromptManager(args[1:])
 	case "revoke":
 		return a.standingGrantsRevoke(args[1:])
 	case "help", "-h", "--help":
 		fmt.Println("agent-manager standing-grants create --subject <name> --max-concurrent-runs N --ttl 30d [--local-owner] [--json]")
 		fmt.Println("agent-manager standing-grants list [--local-owner] [--json]")
+		fmt.Println("agent-manager standing-grants diagnose-prompt-manager [--json] (requires agent.investigate authority)")
 		fmt.Println("agent-manager standing-grants revoke <id> [--local-owner] [--json]")
 		return nil
 	default:
 		return fmt.Errorf("unknown standing-grants subcommand: %s", args[0])
 	}
+}
+
+func (a *App) standingGrantsDiagnosePromptManager(args []string) error {
+	fs := flag.NewFlagSet("standing-grants diagnose-prompt-manager", flag.ContinueOnError)
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	body, err := a.services.Maintenance.api.Request("GET", "/api/v1/standing-grants/diagnose/prompt-manager-run-create", nil, nil)
+	if err != nil {
+		return apiError(body, err)
+	}
+	if *jsonOut {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+	var result struct {
+		Outcome    string `json:"outcome"`
+		Reason     string `json:"reason"`
+		ObservedAt string `json:"observed_at"`
+		Limits     []struct {
+			Dimension string  `json:"dimension"`
+			Current   float64 `json:"current"`
+			Bound     float64 `json:"bound"`
+		} `json:"limits"`
+		LimitsTruncated bool `json:"limits_truncated"`
+	}
+	if err := json.Unmarshal(body, &result); err != nil {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+	fmt.Printf("Prompt Manager run.create: %s (%s; observed %s)\n", result.Outcome, result.Reason, result.ObservedAt)
+	for _, limit := range result.Limits {
+		fmt.Printf("  %s: %.2f / %.2f\n", limit.Dimension, limit.Current, limit.Bound)
+	}
+	if result.LimitsTruncated {
+		fmt.Println("  Additional exceeded bounds are omitted.")
+	}
+	return nil
 }
 
 // standingGrantResource is the audience the operator's local-owner token must
@@ -162,7 +204,8 @@ func (a *App) standingGrantsList(args []string) error {
 		return nil
 	}
 	var resp struct {
-		Grants []struct {
+		HasMore bool `json:"has_more"`
+		Grants  []struct {
 			ID                string `json:"id"`
 			Subject           string `json:"subject"`
 			State             string `json:"state"`
@@ -182,6 +225,9 @@ func (a *App) standingGrantsList(args []string) error {
 	for _, g := range resp.Grants {
 		fmt.Printf("%s  subject=%s  state=%s  max_concurrent_runs=%d  expires=%s\n",
 			g.ID, g.Subject, g.State, g.MaxConcurrentRuns, g.ExpiresAt)
+	}
+	if resp.HasMore {
+		fmt.Println("More standing grants exist; only the first 64 are shown.")
 	}
 	return nil
 }

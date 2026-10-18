@@ -15,7 +15,11 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
+	"net"
+	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -23,6 +27,7 @@ import (
 	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/supervision"
 
+	"github.com/google/uuid"
 	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/eventbus"
 	"github.com/vrooli/api-core/operatordecision"
@@ -34,24 +39,10 @@ import (
 // already subscribes to, so no hub change is needed.
 const AuthorizationDecisionEventType = "agent_manager.authorization.decision_requested.v1"
 
-// InteractiveAuthorizationDecisionEventType is the decision event raised when an
-// in-session (interactive) authorization REQUEST is prepared by an agent and is
-// awaiting the operator's in-UI approval. Closing gap G3: the interactive path
-// (RequestAuthorization) previously persisted a pending request but never
-// notified the operator, so a request could sit indefinitely until the operator
-// happened to open the UI.
-//
-// It is DELIBERATELY a distinct event type from
-// AuthorizationDecisionEventType. The interactive grant is approved ONLY through
-// ApproveAuthorization, which requires a live, independently-verified human AND
-// a matching live process binding — properties a notification-hub resolution
-// cannot carry. So this event is a PUSH-ONLY notification: it brings the
-// operator to the review UI; it must never be wired to a hub resolver that would
-// mint the grant, which would bypass the independent-human + process-binding
-// gates. No hub resolver subscribes to this type (ResolveAuthorizationFromHub
-// matches only AuthorizationDecisionEventType), so a resolution for it falls
-// through as a benign no-op.
-const InteractiveAuthorizationDecisionEventType = "agent_manager.interactive_authorization.decision_requested.v1"
+// InteractiveAuthorizationNotificationEventType is a neutral FYI push to the
+// native consent page. Notification Hub answers are never connected to the
+// interactive authorization authority path.
+const InteractiveAuthorizationNotificationEventType = "agent_manager.authorization_requested.notification.v1"
 
 // MaxOutstandingAuthorizationRequestsPerSubject caps how many distinct
 // un-decided asks a single subject may have outstanding at once. It bounds the
@@ -126,8 +117,13 @@ func (o *Orchestrator) RaiseAuthorizationApproval(ctx context.Context, req Autho
 		return false, err
 	}
 	if existing != nil && existing.Outstanding(now) {
-		// Idempotent: the same ask is already outstanding. Do NOT re-emit a
-		// notification or re-count it against the cap; just report it pending.
+		// Idempotent: a successful publication is not repeated, but a durable
+		// pending row whose first publication failed remains retryable.
+		if existing.PublishedAt == nil {
+			if err := o.publishAuthorizationDecision(ctx, existing); err != nil {
+				approvalLog().Warn("authorization decision event publish failed", "subject", subject, obs.KeyError, err.Error())
+			}
+		}
 		return true, nil
 	}
 
@@ -162,21 +158,32 @@ func (o *Orchestrator) RaiseAuthorizationApproval(ctx context.Context, req Autho
 		RaisedAt:          now.UTC(),
 		ExpiresAt:         now.Add(pendingAuthorizationWindow).UTC(),
 	}
+	pending.EventID = operatordecision.EventID(o.authorizationDecisionEvent(ctx, pending))
 	if err := o.pendingAuthorizations.Put(ctx, pending); err != nil {
 		return false, err
 	}
-
-	if o.approvalPublisher != nil {
-		event := o.authorizationDecisionEvent(ctx, pending)
-		if err := o.approvalPublisher.PublishDomainEvent(ctx, event); err != nil {
-			// Best-effort notify, like run approval: the durable pending record
-			// already stands, so the operator can still approve from the UI, and a
-			// later raise re-attempts the notification.
-			approvalLog().Warn("authorization decision event publish failed",
-				"subject", subject, obs.KeyError, err.Error())
-		}
+	if err := o.publishAuthorizationDecision(ctx, pending); err != nil {
+		// The pending obligation stands; a later identical raise retries the event.
+		approvalLog().Warn("authorization decision event publish failed", "subject", subject, obs.KeyError, err.Error())
 	}
 	return true, nil
+}
+
+func (o *Orchestrator) publishAuthorizationDecision(ctx context.Context, pending *domain.PendingAuthorizationRequest) error {
+	if o.approvalPublisher == nil || pending == nil {
+		return nil
+	}
+	event := o.authorizationDecisionEvent(ctx, pending)
+	if pending.EventID != "" && operatordecision.EventID(event) != pending.EventID {
+		return fmt.Errorf("authorization decision event changed within pending generation %s", pending.ID)
+	}
+	if err := o.approvalPublisher.PublishDomainEvent(ctx, event); err != nil {
+		return err
+	}
+	publishedAt := o.now().UTC()
+	pending.EventID = operatordecision.EventID(event)
+	pending.PublishedAt = &publishedAt
+	return o.pendingAuthorizations.Put(ctx, pending)
 }
 
 // ErrAuthorizationFlood is returned when a subject already has the maximum
@@ -238,70 +245,194 @@ func (o *Orchestrator) authorizationDecisionEvent(ctx context.Context, p *domain
 		p.RaisedAt.UTC().Truncate(pendingAuthorizationWindow), facts)
 }
 
-// NotifyAuthorizationRequested raises the operator decision event for an
-// in-session (interactive) authorization request the moment it is persisted, so
-// the operator is pushed to the review UI instead of discovering a pending
-// request only by chance. Delivery is best-effort, exactly like the run-approval
-// and standing-grant notifications: a publish failure is logged and never fails
-// the request — the durable pending record already stands and the operator can
-// still approve from the UI. A nil publisher is a silent no-op (no regression).
-//
-// This NEVER issues authority: the interactive grant is minted only by
-// ApproveAuthorization under a live independent-human proof and matching process
-// binding. The event carries no path to the grant.
+// NotifyAuthorizationRequested sends a durable FYI event for a pending
+// interactive request. The event links to native consent; Notification Hub
+// answers are never connected to interactive authority issuance.
 func (o *Orchestrator) NotifyAuthorizationRequested(ctx context.Context, g *domain.AuthorizationGrant) {
-	if o == nil || o.approvalPublisher == nil || g == nil {
+	if o == nil || o.authorizations == nil || g == nil || g.ID == uuid.Nil {
 		return
 	}
-	event := o.interactiveAuthorizationEvent(ctx, g)
+	current, err := o.authorizations.Get(ctx, g.ID)
+	if err != nil {
+		o.logAuthorizationNotificationError(g.ID, err)
+		return
+	}
+	if current == nil || current.State != domain.AuthorizationPending || current.NotificationPublishedAt != nil {
+		return
+	}
+	if current.NotificationSnapshot == nil {
+		snapshot, buildErr := o.authorizationNotificationSnapshot(ctx, current)
+		next := cloneAuthorizationGrant(current)
+		if buildErr != nil {
+			next.NotificationUnreached = buildErr.Error()
+		} else {
+			next.NotificationSnapshot = snapshot
+			next.NotificationUnreached = ""
+		}
+		stored, storeErr := o.authorizations.UpdateNotification(ctx, current, next)
+		if storeErr != nil {
+			o.logAuthorizationNotificationError(g.ID, storeErr)
+			return
+		}
+		if stored {
+			current = next
+		} else {
+			current, err = o.authorizations.Get(ctx, g.ID)
+			if err != nil {
+				o.logAuthorizationNotificationError(g.ID, err)
+				return
+			}
+		}
+		if current == nil || current.State != domain.AuthorizationPending {
+			return
+		}
+		// A lost CAS may mean another publisher stored this generation first.
+		// Re-read and use that exact snapshot; never rebuild a changed link.
+		if current.NotificationSnapshot == nil {
+			if buildErr != nil {
+				o.logAuthorizationNotificationError(g.ID, buildErr)
+			}
+			return
+		}
+	}
+	if current.NotificationPublishedAt != nil || current.NotificationSnapshot == nil {
+		return
+	}
+	if o.approvalPublisher == nil {
+		o.markAuthorizationNotificationUnreached(ctx, current, "event publisher unavailable")
+		return
+	}
+	event := eventFromAuthorizationNotification(current.NotificationSnapshot)
+	if operatordecision.EventID(event) != current.NotificationSnapshot.EventID {
+		o.logAuthorizationNotificationError(g.ID, errors.New("stored authorization notification snapshot identity is invalid"))
+		return
+	}
 	if err := o.approvalPublisher.PublishDomainEvent(ctx, event); err != nil {
-		approvalLog().Warn("interactive authorization decision event publish failed",
-			"authorization_id", g.ID.String(), obs.KeyError, err.Error())
+		o.logAuthorizationNotificationError(g.ID, err)
+		return
+	}
+	// Record the receipt only against the exact still-pending body and snapshot.
+	// If a human decision or a replacement request won while publishing, the CAS
+	// fails harmlessly and never writes the stale pending body over that state.
+	fresh, err := o.authorizations.Get(ctx, g.ID)
+	if err != nil {
+		o.logAuthorizationNotificationError(g.ID, err)
+		return
+	}
+	if fresh == nil || fresh.State != domain.AuthorizationPending || fresh.NotificationPublishedAt != nil || !sameAuthorizationNotification(fresh.NotificationSnapshot, current.NotificationSnapshot) {
+		return
+	}
+	next := cloneAuthorizationGrant(fresh)
+	publishedAt := o.now().UTC()
+	next.NotificationPublishedAt = &publishedAt
+	next.NotificationUnreached = ""
+	if _, err := o.authorizations.UpdateNotification(ctx, fresh, next); err != nil {
+		o.logAuthorizationNotificationError(g.ID, err)
 	}
 }
 
-// interactiveAuthorizationEvent builds the operator Ask for a pending interactive
-// authorization request. The question states exactly what is being asked for —
-// the reviewed policy name, the targets, the session, and the requested lifetime
-// — so the operator knows what they are approving before they open the UI. The
-// options point the operator at the in-UI review (there is no one-tap approve:
-// interactive consent requires the operator's live verified login at the UI).
-func (o *Orchestrator) interactiveAuthorizationEvent(ctx context.Context, g *domain.AuthorizationGrant) eventbus.DomainEvent {
-	targets := strings.Join(g.Targets, ", ")
-	question := fmt.Sprintf("An agent session (%s) is requesting authority %q for %s, for up to %s. Review and approve it in the web console with your verified login.",
-		strings.TrimSpace(g.HarnessKind), g.Policy, targets, humanizeDurationSeconds(g.DurationSeconds))
-
+func (o *Orchestrator) authorizationNotificationSnapshot(ctx context.Context, g *domain.AuthorizationGrant) (*domain.AuthorizationNotificationSnapshot, error) {
+	base, err := authorizationPublicBase(ctx)
+	if err != nil {
+		return nil, err
+	}
+	consentURL, err := authorizationConsentURL(base, g.ID)
+	if err != nil {
+		return nil, fmt.Errorf("native authorization link unavailable: %w", err)
+	}
 	payload := map[string]any{
-		"subject":  fmt.Sprintf("Authorization requested: %s", g.Policy),
-		"question": question,
-		"options": []any{
-			map[string]any{"key": "review", "label": "Review in web console"},
-		},
-		// No recommended default and no reversible-grant claim: nothing is granted
-		// by answering this notification — approval happens only at the UI under a
-		// live verified login. This is a push to the operator, not a decision.
-		"urgency": "normal",
-		"correlation": map[string]any{
-			"authorization_id": g.ID.String(),
-			"run_id":           g.RunID.String(),
-			"harness_kind":     g.HarnessKind,
-			"harness_session":  g.HarnessSession,
-			"policy":           g.Policy,
-		},
+		"title":       "Authorization requested: " + g.Policy,
+		"body":        fmt.Sprintf("%s requests %s for %s. The %s permission lifetime starts only after you approve on the authenticated Agent Manager page; this notification grants no authority.", strings.TrimSpace(g.HarnessKind), g.Policy, strings.Join(g.Targets, ", "), humanizeDurationSeconds(g.DurationSeconds)),
+		"category":    "authorization-requested",
+		"urgency":     "normal",
+		"sensitivity": "private",
+		"context_url": consentURL,
+		"dedupe_key":  g.ID.String(),
+		"correlation": map[string]string{"authorization_id": g.ID.String(), "run_id": g.RunID.String(), "policy": g.Policy},
 	}
-	if base := strings.TrimRight(o.resolveWebConsoleNoticeBase(ctx), "/"); base != "" {
-		payload["context_url"] = base + "/?authorization=" + g.ID.String()
-	}
+	event := eventbus.DomainEvent{Source: runApprovalSource, EventType: InteractiveAuthorizationNotificationEventType, Occurred: g.CreatedAt.UTC(), Payload: payload}
+	return &domain.AuthorizationNotificationSnapshot{Source: event.Source, EventType: event.EventType, EventID: operatordecision.EventID(event), Occurred: event.Occurred, Payload: payload}, nil
+}
 
-	return eventbus.DomainEvent{
-		Source:    runApprovalSource,
-		EventType: InteractiveAuthorizationDecisionEventType,
-		// A stable occurrence (the request's creation time) keeps the event id
-		// deterministic, so a redelivery maps to the same ask rather than a
-		// duplicate notification.
-		Occurred: g.CreatedAt.UTC(),
-		Payload:  payload,
+func eventFromAuthorizationNotification(snapshot *domain.AuthorizationNotificationSnapshot) eventbus.DomainEvent {
+	return eventbus.DomainEvent{Source: snapshot.Source, EventType: snapshot.EventType, Occurred: snapshot.Occurred, Payload: snapshot.Payload}
+}
+
+func sameAuthorizationNotification(a, b *domain.AuthorizationNotificationSnapshot) bool {
+	return a != nil && b != nil && a.EventID == b.EventID && a.EventType == b.EventType && a.Source == b.Source && a.Occurred.Equal(b.Occurred)
+}
+
+func authorizationPublicBase(ctx context.Context) (string, error) {
+	configured := strings.TrimSpace(os.Getenv("AGENT_MANAGER_AUTHORIZATION_URL"))
+	if configured == "" {
+		var err error
+		configured, err = resolveExternalURLForNotice(ctx, "agent-manager")
+		if err != nil {
+			return "", fmt.Errorf("canonical Agent Manager public origin unresolved: %w", err)
+		}
 	}
+	u, err := url.Parse(configured)
+	if err != nil || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || (u.Path != "" && u.Path != "/") {
+		return "", errors.New("canonical Agent Manager public origin is invalid")
+	}
+	if u.Scheme != "https" && u.Scheme != "http" {
+		return "", errors.New("canonical Agent Manager public origin must use HTTP or HTTPS")
+	}
+	if u.Scheme == "http" && !isLoopbackHost(u.Hostname()) {
+		return "", errors.New("non-loopback Agent Manager public origin must use HTTPS")
+	}
+	return strings.TrimRight(u.String(), "/"), nil
+}
+
+func isLoopbackHost(host string) bool {
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
+}
+
+func authorizationConsentURL(base string, id uuid.UUID) (string, error) {
+	if id == uuid.Nil {
+		return "", errors.New("authorization identifier is missing")
+	}
+	u, err := url.Parse(base)
+	if err != nil || u.Host == "" {
+		return "", errors.New("canonical Agent Manager origin is invalid")
+	}
+	u.Path = strings.TrimRight(u.Path, "/") + "/api/v1/authorizations/" + id.String() + "/approve"
+	return u.String(), nil
+}
+
+func cloneAuthorizationGrant(g *domain.AuthorizationGrant) *domain.AuthorizationGrant {
+	cp := *g
+	if g.NotificationPublishedAt != nil {
+		published := *g.NotificationPublishedAt
+		cp.NotificationPublishedAt = &published
+	}
+	if g.NotificationSnapshot != nil {
+		snapshot := *g.NotificationSnapshot
+		payload := make(map[string]any, len(g.NotificationSnapshot.Payload))
+		for key, value := range g.NotificationSnapshot.Payload {
+			payload[key] = value
+		}
+		snapshot.Payload = payload
+		cp.NotificationSnapshot = &snapshot
+	}
+	return &cp
+}
+
+func (o *Orchestrator) markAuthorizationNotificationUnreached(ctx context.Context, current *domain.AuthorizationGrant, reason string) {
+	next := cloneAuthorizationGrant(current)
+	next.NotificationUnreached = reason
+	if _, err := o.authorizations.UpdateNotification(ctx, current, next); err != nil {
+		o.logAuthorizationNotificationError(current.ID, err)
+	}
+}
+
+func (o *Orchestrator) logAuthorizationNotificationError(id uuid.UUID, err error) {
+	approvalLog().Warn("interactive authorization notification unreached",
+		"authorization_id", id.String(), obs.KeyError, err.Error())
 }
 
 // humanizeDurationSeconds renders a grant lifetime for the operator notification.
@@ -355,6 +486,11 @@ func (o *Orchestrator) ResolveAuthorizationFromHub(ctx context.Context, res supe
 		// Unknown ask (never raised, or pruned): acknowledge and drop so
 		// vrooli-events does not retry a poison message forever.
 		approvalLog().Info("authorization resolution references an unknown ask; ignoring", "ask_id", res.AskID, "authorization_request_id", id)
+		return true, nil
+	}
+	if res.RequesterRef == "" || pending.EventID == "" || res.RequesterRef != pending.EventID {
+		approvalLog().Info("authorization resolution belongs to a different request generation; ignoring",
+			"authorization_request_id", id, "requester_ref", res.RequesterRef, "event_id", pending.EventID)
 		return true, nil
 	}
 	if pending.State != domain.PendingAuthorizationPending {

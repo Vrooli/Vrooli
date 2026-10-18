@@ -14,8 +14,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -65,7 +65,6 @@ import (
 	"github.com/vrooli/api-core/receiptsigning"
 	"github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
-	"github.com/vrooli/envkit-go"
 	measurelib "github.com/vrooli/measures-go"
 	searchregister "github.com/vrooli/searchregister-go"
 	credentialauthoritysigning "github.com/vrooli/vrooli/packages/credential-authority-go/receiptsigning"
@@ -542,6 +541,10 @@ func main() {
 	fileStore.SetSourceLedger(ledger)
 	fileStore.SetEventsEndpoint(eventsBase)
 	fileStore.SetExperimentStoreDatabase(db)
+	heartbeatAttemptPublisher := store.NewHeartbeatAttemptPublisher(db, func(ctx context.Context) (string, error) {
+		return discovery.ResolveScenarioURLDefault(ctx, "vrooli-events")
+	})
+	fileStore.Teams().(*store.FileTeamStore).SetHeartbeatAttemptPublisher(heartbeatAttemptPublisher)
 
 	// Initialize domain components (seams for testing)
 	// Use the store adapter to bridge new storage to existing handlers
@@ -1043,19 +1046,12 @@ func main() {
 		runRegistry,
 		nil, // uses default SentinelExtractor
 	)
-	heartbeatExecutor.SetRecoveryRequester(func(ctx context.Context, scenario, reason string) (string, error) {
-		childEnv := []string(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.ForeignScenario, nil))
-		cmd := exec.CommandContext(ctx, "vrooli", "agent", "recover", "--scenario", scenario, "--reason", reason, "--requester", "prompt-manager")
-		cmd.Env = childEnv
-		output, err := cmd.CombinedOutput()
-		fields := strings.Fields(string(output))
-		if err != nil {
-			return "", fmt.Errorf("agent recovery: %w: %s", err, strings.TrimSpace(string(output)))
+	heartbeatExecutor.SetTeamReviewURL(func(ctx context.Context, teamID string) string {
+		base, err := discovery.ResolveExternalURLForNotice(ctx, "prompt-manager")
+		if err != nil || strings.TrimSpace(base) == "" {
+			return ""
 		}
-		if len(fields) < 3 {
-			return "", fmt.Errorf("agent recovery returned no request id")
-		}
-		return fields[2], nil
+		return strings.TrimRight(base, "/") + "/teams/" + url.PathEscape(teamID)
 	})
 	// Routes each member's own open declaration findings into its heartbeat
 	// prompt. Wired on the executor because that builder serves both the real
@@ -1121,8 +1117,20 @@ func main() {
 	teamHandlers.SetHeartbeatScheduler(heartbeatScheduler)
 
 	// Recover any active runs from a previous process
-	runRegistry.Recover(context.Background(), agentManagerClient)
-	teamExecStore.Recover(context.Background())
+	// Bound owner reconciliation before bind with one shared budget. Recovery
+	// keeps unresolved obligations when an owner read times out; it must not
+	// turn an unavailable owner into evidence that a run is absent.
+	startupRecoveryCtx, cancelStartupRecovery := context.WithTimeout(context.Background(), 5*time.Second)
+	stageStarted := time.Now()
+	runRegistry.Recover(startupRecoveryCtx, agentManagerClient)
+	log.Printf("startup recovery stage=run_registry duration=%s context_error=%v", time.Since(stageStarted), startupRecoveryCtx.Err())
+	stageStarted = time.Now()
+	teamExecStore.Recover(startupRecoveryCtx)
+	log.Printf("startup recovery stage=team_execution duration=%s context_error=%v", time.Since(stageStarted), startupRecoveryCtx.Err())
+	cancelStartupRecovery()
+	if err := heartbeatAttemptPublisher.Start(context.Background()); err != nil {
+		log.Fatalf("start heartbeat attempt publisher: %v", err)
+	}
 
 	// Start scheduler. Heartbeats run only when explicitly enabled.
 	go func() {
@@ -1170,10 +1178,21 @@ func main() {
 		Handler:        handler,
 		Authentication: &authentication,
 		Cleanup: func(ctx context.Context) error {
-			if db != nil {
-				return db.Close()
+			var cleanupErr error
+			if heartbeatAttemptPublisher != nil {
+				if err := heartbeatAttemptPublisher.Shutdown(ctx); err != nil {
+					cleanupErr = fmt.Errorf("shutdown heartbeat attempt publisher: %w", err)
+				}
 			}
-			return nil
+			if db != nil {
+				if err := db.Close(); err != nil {
+					if cleanupErr != nil {
+						return fmt.Errorf("%v; close database: %w", cleanupErr, err)
+					}
+					return err
+				}
+			}
+			return cleanupErr
 		},
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)

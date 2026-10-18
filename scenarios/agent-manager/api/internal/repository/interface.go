@@ -28,6 +28,10 @@ type ListFilter struct {
 // RunListFilter extends ListFilter with run-specific filters.
 type RunListFilter struct {
 	ListFilter
+	// NonTerminalOnly narrows lifecycle-owner lookups to statuses that can
+	// still own a live executor. It is used by security-sensitive peer/run
+	// binding and avoids paging historical terminal runs.
+	NonTerminalOnly           bool
 	TaskID                    *uuid.UUID
 	AgentProfileID            *uuid.UUID
 	Status                    *domain.RunStatus
@@ -377,6 +381,30 @@ type IdempotencyRepository interface {
 
 	// CleanupExpired removes expired idempotency records.
 	CleanupExpired(ctx context.Context) (int, error)
+}
+
+// ContinuationIdempotencyRepository provides the stronger receipt semantics
+// required by run continuation, whose input may have reached an external
+// runner before the caller receives a response. Implementations must retain
+// typed continuation records past expiry and must never reclaim a pending
+// continuation by timeout alone.
+type ContinuationIdempotencyRepository interface {
+	// CheckContinuation reads a receipt regardless of its expiry. A legacy
+	// untyped pending row is returned so the owner can fail closed on ambiguity.
+	CheckContinuation(ctx context.Context, key string) (*domain.IdempotencyRecord, error)
+
+	// ReserveContinuation atomically binds a fresh/pre-effect-failed key to the
+	// exact run and request hash before effects. acquired is true only when this
+	// call acquired the key; otherwise record describes the existing owner.
+	ReserveContinuation(ctx context.Context, key string, runID uuid.UUID, requestHash []byte, ttl time.Duration) (record *domain.IdempotencyRecord, acquired bool, err error)
+
+	// CompleteContinuation records confirmed completion only if the pending
+	// receipt still has the exact run and request identity supplied here.
+	CompleteContinuation(ctx context.Context, key string, runID uuid.UUID, requestHash []byte) error
+
+	// FailContinuation makes a receipt reusable only after the caller proves
+	// that no continuation effect occurred.
+	FailContinuation(ctx context.Context, key string, runID uuid.UUID, requestHash []byte) error
 }
 
 // -----------------------------------------------------------------------------

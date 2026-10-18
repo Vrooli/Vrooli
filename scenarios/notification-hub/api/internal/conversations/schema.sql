@@ -17,6 +17,8 @@ CREATE TABLE IF NOT EXISTS asks (
   reversible INTEGER NOT NULL DEFAULT 0,
   urgency TEXT NOT NULL DEFAULT '',
   context_url TEXT NOT NULL DEFAULT '',
+  big_picture TEXT NOT NULL DEFAULT '',
+  technical_details TEXT NOT NULL DEFAULT '',
   -- source + requester_ref identify the requester (event source scenario and
   -- event id, or the owner subject and idempotency key); one ask per pair.
   source TEXT NOT NULL DEFAULT '',
@@ -30,6 +32,11 @@ CREATE TABLE IF NOT EXISTS asks (
   resolution_published_at TEXT NOT NULL DEFAULT ''
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_asks_notification ON asks(notification_id);
+-- Empty requester_ref values predate event identity and remain outside this
+-- constraint. Nonempty identities must be owned by exactly one Ask, even when
+-- concurrent producers choose different notification recipients/keys.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_asks_requester_identity
+  ON asks(source, requester_ref) WHERE requester_ref <> '';
 CREATE TABLE IF NOT EXISTS answers (
   id TEXT PRIMARY KEY,
   ask_id TEXT NOT NULL UNIQUE REFERENCES asks(id) ON DELETE CASCADE,

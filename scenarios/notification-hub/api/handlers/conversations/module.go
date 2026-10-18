@@ -71,7 +71,10 @@ func (h *handler) Ask(ctx context.Context, req *connect.Request[v1.AskRequest]) 
 		Reversible:           req.Msg.GetReversible(),
 		Urgency:              req.Msg.GetUrgency(),
 		ContextURL:           req.Msg.GetContextUrl(),
+		BigPicture:           req.Msg.GetBigPicture(),
+		TechnicalDetails:     req.Msg.GetTechnicalDetails(),
 		Deadline:             deadline,
+		DeadlineSpecified:    true,
 		SensitivityLabel:     req.Msg.GetSensitivityLabel(),
 		IdempotencyKey:       req.Msg.GetIdempotencyKey(),
 	})
@@ -133,26 +136,20 @@ func (h *handler) Wait(ctx context.Context, req *connect.Request[v1.WaitRequest]
 }
 
 func (h *handler) GetAsk(ctx context.Context, req *connect.Request[v1.GetAskRequest]) (*connect.Response[v1.GetAskResponse], error) {
-	subject, err := h.owner(ctx, req.Header())
-	if err != nil {
-		return nil, err
-	}
-	ask, err := h.service.GetAsk(ctx, req.Msg.GetAskId())
+	recipient := h.service.ResolveRecipient(ctx)
+	ask, err := h.service.GetAskForRecipient(ctx, req.Msg.GetAskId(), recipient)
 	if err != nil {
 		return nil, connectError(err)
-	}
-	if ask.Recipient != subject {
-		return nil, connect.NewError(connect.CodeNotFound, hub.ErrNotFound)
 	}
 	return connect.NewResponse(&v1.GetAskResponse{Ask: h.toProto(ask)}), nil
 }
 
 func (h *handler) ListAsks(ctx context.Context, req *connect.Request[v1.ListAsksRequest]) (*connect.Response[v1.ListAsksResponse], error) {
-	subject, err := h.owner(ctx, req.Header())
-	if err != nil {
-		return nil, err
+	recipient := h.service.ResolveRecipient(ctx)
+	if recipient == "" {
+		return connect.NewResponse(&v1.ListAsksResponse{Asks: []*v1.Ask{}}), nil
 	}
-	asks, err := h.service.ListAsks(ctx, subject, req.Msg.GetOpenOnly(), int(req.Msg.GetLimit()))
+	asks, err := h.service.ListAsks(ctx, recipient, req.Msg.GetOpenOnly(), int(req.Msg.GetLimit()))
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -171,7 +168,8 @@ func (h *handler) toProto(ask hub.AskRecord) *v1.Ask {
 	return &v1.Ask{
 		Id: ask.ID, NotificationId: ask.NotificationID, Question: ask.Question, Options: options,
 		Recommended: ask.Recommended, RecommendationReason: ask.RecommendationReason, DefaultAnswer: ask.DefaultAnswer,
-		Reversible: ask.Reversible, Urgency: ask.Urgency, ContextUrl: ask.ContextURL, Deadline: ask.Deadline,
+		Reversible: ask.Reversible, Urgency: ask.Urgency, ContextUrl: ask.ContextURL,
+		BigPicture: ask.BigPicture, TechnicalDetails: ask.TechnicalDetails, Deadline: ask.Deadline,
 		State: ask.State, Reason: ask.Reason, Answer: ask.Answer, AnswerLabel: ask.AnswerLabel, Note: ask.Note,
 		AnsweredBy: ask.AnsweredBy, AnsweredAt: ask.AnsweredAt, Late: ask.Late, DefaultAppliedAt: ask.DefaultAppliedAt,
 		FirstDeliveredAt: ask.FirstDeliveredAt, DefaultEligibleAt: h.service.DefaultEligibleAt(ask),
@@ -186,6 +184,8 @@ func connectError(err error) error {
 		return connect.NewError(connect.CodeNotFound, err)
 	case errors.Is(err, hub.ErrAskResolved):
 		return connect.NewError(connect.CodeFailedPrecondition, err)
+	case errors.Is(err, hub.ErrAskIdentityConflict):
+		return connect.NewError(connect.CodeAlreadyExists, err)
 	case errors.Is(err, hub.ErrInvalidArgument):
 		return connect.NewError(connect.CodeInvalidArgument, err)
 	default:

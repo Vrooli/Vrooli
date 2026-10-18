@@ -2,8 +2,10 @@ package hub_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -280,6 +282,140 @@ func TestProcess_SaturationGuardRecordsDroppedNotification(t *testing.T) {
 	require.Equal(t, "incident.opened.v1:incident-1", recorded)
 }
 
+func TestListDeliveryProjectionIncludesOnlyRequestedAutohealAskIdentity(t *testing.T) {
+	service, db := testService(t)
+	ctx := context.Background()
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	legacyID := uuid.NewString()
+	autohealAskID := uuid.NewString()
+	otherSourceAskID := uuid.NewString()
+	otherIncidentAskID := uuid.NewString()
+
+	insertProjectionNotification(t, db, legacyID, "incident.opened.v1:inc-1", now)
+	insertProjectionAttempt(t, db, legacyID, now)
+	insertProjectionNotification(t, db, autohealAskID, "", now)
+	insertProjectionAsk(t, db, autohealAskID, "vrooli-autoheal", `{"incident_id":"inc-1","incident_fingerprint":"sensitive-fingerprint","candidate_id":"sensitive-candidate","candidate_risk_level":"hostile-risk"}`, now)
+	insertProjectionAttempt(t, db, autohealAskID, now)
+	insertProjectionNotification(t, db, otherSourceAskID, "", now)
+	insertProjectionAsk(t, db, otherSourceAskID, "another-producer", `{"incident_id":"inc-1"}`, now)
+	insertProjectionAttempt(t, db, otherSourceAskID, now)
+	insertProjectionNotification(t, db, otherIncidentAskID, "", now)
+	insertProjectionAsk(t, db, otherIncidentAskID, "vrooli-autoheal", `{"incident_id":"inc-2"}`, now)
+	insertProjectionAttempt(t, db, otherIncidentAskID, now)
+
+	items, truncated, err := service.ListDeliveryProjection(ctx, "incident.", []string{"inc-1"}, 20)
+	require.NoError(t, err)
+	require.False(t, truncated)
+	require.Len(t, items, 2)
+	byNotification := make(map[string]hub.DeliveryProjection, len(items))
+	for _, item := range items {
+		byNotification[item.NotificationID] = item
+		require.Len(t, item.Attempts, 1)
+	}
+	require.Equal(t, "incident.opened.v1:inc-1", byNotification[legacyID].DedupeKey)
+	require.Empty(t, byNotification[legacyID].AutohealIncidentID)
+	require.Equal(t, "inc-1", byNotification[autohealAskID].AutohealIncidentID)
+	require.NotContains(t, byNotification, otherSourceAskID)
+	require.NotContains(t, byNotification, otherIncidentAskID)
+	encoded, err := json.Marshal(items)
+	require.NoError(t, err)
+	for _, secret := range []string{"private ask content", "private ask question", "sensitive-fingerprint", "sensitive-candidate", "hostile-risk"} {
+		require.NotContains(t, string(encoded), secret)
+	}
+}
+
+func TestListDeliveryProjectionReportsTruncation(t *testing.T) {
+	service, db := testService(t)
+	now := time.Now().UTC()
+	for i := 0; i < 3; i++ {
+		created := now.Add(time.Duration(i) * time.Second).Format(time.RFC3339Nano)
+		insertProjectionNotification(t, db, uuid.NewString(), fmt.Sprintf("incident.opened.v1:inc-%d", i), created)
+	}
+
+	items, truncated, err := service.ListDeliveryProjection(context.Background(), "incident.", nil, 2)
+	require.NoError(t, err)
+	require.Len(t, items, 2)
+	require.True(t, truncated)
+}
+
+func TestListDeliveryProjectionBoundsAttemptsPerNotification(t *testing.T) {
+	service, db := testService(t)
+	notificationID := uuid.NewString()
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	insertProjectionNotification(t, db, notificationID, "incident.opened.v1:inc-many", now)
+	for attempt := 1; attempt <= 101; attempt++ {
+		insertProjectionAttemptNumber(t, db, notificationID, attempt, now)
+	}
+
+	items, truncated, err := service.ListDeliveryProjection(context.Background(), "incident.", nil, 10)
+	require.NoError(t, err)
+	require.True(t, truncated, "omitted attempt history must make the projection incomplete")
+	require.Len(t, items, 1)
+	require.Len(t, items[0].Attempts, 100, "per-notification attempt history must be capped")
+}
+
+func TestListDeliveryProjectionBoundsTotalAttempts(t *testing.T) {
+	service, db := testService(t)
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	for notification := 0; notification < 11; notification++ {
+		id := uuid.NewString()
+		insertProjectionNotification(t, db, id, fmt.Sprintf("incident.opened.v1:inc-%d", notification), now)
+		for attempt := 1; attempt <= 100; attempt++ {
+			insertProjectionAttemptNumber(t, db, id, attempt, now)
+		}
+	}
+
+	items, truncated, err := service.ListDeliveryProjection(context.Background(), "incident.", nil, 20)
+	require.NoError(t, err)
+	require.True(t, truncated, "omitted attempt history after the total cap must be reported")
+	totalAttempts := 0
+	for _, item := range items {
+		require.LessOrEqual(t, len(item.Attempts), 100, "one notification must never exceed its attempt cap")
+		totalAttempts += len(item.Attempts)
+	}
+	require.Equal(t, 1000, totalAttempts, "attempt rows returned across the response must respect the total cap")
+}
+
+func TestListDeliveryProjectionUsesOrderedAttemptIndex(t *testing.T) {
+	_, db := testService(t)
+	rows, err := db.QueryContext(context.Background(), `EXPLAIN QUERY PLAN SELECT channel, machine_id, attempt_number, outcome, reason, created_at FROM delivery_attempts WHERE notification_id=? ORDER BY created_at, attempt_number, id LIMIT ?`, "notification-id", 101)
+	require.NoError(t, err)
+	defer rows.Close()
+
+	var details []string
+	for rows.Next() {
+		var id, parent, notused int
+		var detail string
+		require.NoError(t, rows.Scan(&id, &parent, &notused, &detail))
+		details = append(details, detail)
+	}
+	require.NoError(t, rows.Err())
+	require.Contains(t, strings.Join(details, "\n"), "idx_delivery_attempts_projection")
+	require.NotContains(t, strings.Join(details, "\n"), "USE TEMP B-TREE")
+}
+
+func insertProjectionNotification(t *testing.T, db *database.RoutedDB, id, dedupeKey, createdAt string) {
+	t.Helper()
+	_, err := db.ExecContext(context.Background(), `INSERT INTO notifications (id, requested_by, title, body, urgency, sensitivity_label, idempotency_key, dedupe_key, created_at, updated_at) VALUES (?, 'alice', 'Test', 'private ask content', 'high', 'private', ?, ?, ?, ?)`, id, uuid.NewString(), dedupeKey, createdAt, createdAt)
+	require.NoError(t, err)
+}
+
+func insertProjectionAsk(t *testing.T, db *database.RoutedDB, notificationID, source, correlation, createdAt string) {
+	t.Helper()
+	_, err := db.ExecContext(context.Background(), `INSERT INTO asks (id, notification_id, question, allowed_answers, deadline, state, created_at, updated_at, source, requester_ref, correlation_json) VALUES (?, ?, 'private ask question', '["approve","reject"]', ?, 'pending', ?, ?, ?, ?, ?)`, uuid.NewString(), notificationID, time.Now().Add(time.Hour).UTC().Format(time.RFC3339Nano), createdAt, createdAt, source, uuid.NewString(), correlation)
+	require.NoError(t, err)
+}
+
+func insertProjectionAttempt(t *testing.T, db *database.RoutedDB, notificationID, createdAt string) {
+	insertProjectionAttemptNumber(t, db, notificationID, 1, createdAt)
+}
+
+func insertProjectionAttemptNumber(t *testing.T, db *database.RoutedDB, notificationID string, number int, createdAt string) {
+	t.Helper()
+	_, err := db.ExecContext(context.Background(), `INSERT INTO delivery_attempts (notification_id, channel, attempt_number, outcome, reason, created_at) VALUES (?, 'push', ?, 'delivered', '', ?)`, notificationID, number, createdAt)
+	require.NoError(t, err)
+}
+
 // [REQ:NOTIFICA-P0-013]
 func TestRetain_DeletesExpiredNotificationHistory(t *testing.T) {
 	service, db := testService(t)
@@ -482,4 +618,39 @@ func TestAsk_AnswerIsValidatedAndWaitReturnsChosenAction(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "answered", state)
 	require.Equal(t, "yes", answer)
+}
+
+func TestRecipientReadViewsDoNotCrossRecipients(t *testing.T) {
+	service, db := testService(t)
+	ctx := context.Background()
+	aliceID := insertPending(t, db, "alice", "alice body", "public")
+	bobID := insertPending(t, db, "bob", "bob body", "public")
+	createdAt := time.Now().UTC().Format(time.RFC3339Nano)
+	insertProjectionAttempt(t, db, aliceID, createdAt)
+	insertProjectionAttempt(t, db, bobID, createdAt)
+
+	items, err := service.ListForRecipient(ctx, "alice", 50)
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+	require.Equal(t, aliceID, items[0].ID)
+
+	items, err = service.ListForRecipient(ctx, "", 50)
+	require.NoError(t, err)
+	require.Empty(t, items, "an unset recipient must not become an unscoped list")
+
+	_, _, err = service.GetForRecipient(ctx, bobID, "alice")
+	require.ErrorIs(t, err, hub.ErrNotFound)
+	_, _, err = service.GetForRecipient(ctx, aliceID, "")
+	require.ErrorIs(t, err, hub.ErrNotFound)
+
+	analytics, err := service.AnalyticsForRecipient(ctx, "", "", "alice")
+	require.NoError(t, err)
+	require.EqualValues(t, 1, analytics.TotalNotifications)
+	require.Len(t, analytics.Channels, 1)
+	require.EqualValues(t, 1, analytics.Channels[0].Attempts)
+
+	analytics, err = service.AnalyticsForRecipient(ctx, "", "", "")
+	require.NoError(t, err)
+	require.Zero(t, analytics.TotalNotifications)
+	require.Empty(t, analytics.Channels)
 }

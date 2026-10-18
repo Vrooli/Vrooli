@@ -19,6 +19,7 @@ import (
 	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/orchestration/phases"
 	"agent-manager/internal/promptmanager"
+	"agent-manager/internal/repository"
 	"agent-manager/internal/runstate"
 
 	"github.com/google/uuid"
@@ -38,19 +39,30 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 		}
 	}()
 	if req.IdempotencyKey != "" && o.idempotency != nil {
+		receipts, ok := o.idempotency.(repository.ContinuationIdempotencyRepository)
+		if !ok {
+			return nil, fmt.Errorf("continuation idempotency is unavailable: configured repository does not support durable continuation receipts")
+		}
 		effectsPossible = true // An unreadable or pending receipt may belong to accepted dispatch.
-		existing, err := o.idempotency.Check(ctx, req.IdempotencyKey)
+		existing, err := receipts.CheckContinuation(ctx, req.IdempotencyKey)
 		if err != nil {
 			return nil, err
 		}
-		if existing != nil && existing.Status == domain.IdempotencyStatusComplete && existing.EntityID != nil {
-			if existing.EntityType != "Continuation" || *existing.EntityID != req.RunID || string(existing.Response) != string(continuationRequestHash(req)) {
+		if existing != nil {
+			if existing.EntityType != "Continuation" || existing.EntityID == nil || *existing.EntityID != req.RunID || string(existing.Response) != string(continuationRequestHash(req)) {
 				return nil, domain.RefuseBeforeEffects(domain.NewValidationErrorWithCode("idempotencyKey", "key belongs to a different operation or continuation request", domain.ErrCodeValidationConflict))
 			}
-			return o.GetRun(ctx, *existing.EntityID)
-		}
-		if existing != nil && existing.Status == domain.IdempotencyStatusPending {
-			return nil, domain.NewStateError("Run", "continuing", "continue", "a continuation with this idempotency key is already in progress")
+			switch existing.Status {
+			case domain.IdempotencyStatusComplete:
+				return o.GetRun(ctx, *existing.EntityID)
+			case domain.IdempotencyStatusPending:
+				return nil, domain.NewStateError("Run", "continuing", "continue", "a continuation with this idempotency key is already in progress or requires owner reconciliation")
+			case domain.IdempotencyStatusFailed:
+				// Only typed failed receipts are reusable. Their writer marks
+				// failure exclusively after proving that no effect occurred.
+			default:
+				return nil, fmt.Errorf("continuation idempotency receipt %q has an unknown status and requires owner reconciliation", req.IdempotencyKey)
+			}
 		}
 		effectsPossible = false
 	}
@@ -105,7 +117,8 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 		return nil, err
 	}
 	if req.IdempotencyKey != "" && o.idempotency != nil {
-		if _, err := o.idempotency.Reserve(ctx, req.IdempotencyKey, time.Hour); err != nil {
+		_, acquired, err := o.reserveContinuationReceipt(ctx, req)
+		if err != nil || !acquired {
 			effectsPossible = true // Another caller won; its outcome is not a refusal.
 			return nil, domain.NewStateError("Run", "continuing", "continue", "a continuation with this idempotency key is already in progress")
 		}
@@ -116,12 +129,19 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 	// drive the new turn to completion — see continueInteractiveRun.
 	if run.ExecutionMode.Normalized() == domain.ExecutionModeInteractive {
 		if req.MaxTurns != nil || req.MaxToolCalls != nil || req.Timeout != nil || req.ResultSpec != nil {
-			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+			o.markContinuationIdempotencyFailed(ctx, req)
 			return nil, domain.NewValidationError("continuationOverrides", "interactive continuation does not support per-turn workflow overrides")
 		}
 		effectsPossible = true
 		continued, err := o.continueInteractiveRun(ctx, run, req.Message, req.AttachmentIDs, req.ReinstallGoal)
 		if err != nil {
+			if domain.IsPreEffectRefusal(err) {
+				// The interactive continuation verified its session boundary but
+				// refused before any prompt or goal could reach it. Release only
+				// this exact receipt for a same-request retry.
+				o.markContinuationIdempotencyFailed(ctx, req)
+				effectsPossible = false
+			}
 			return nil, err
 		}
 		if err := o.completeContinuationReceipt(ctx, req); err != nil {
@@ -133,7 +153,7 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 	continued, err := o.resumeConversation(ctx, run, req.Message, req.AttachmentIDs, "Continuation requested", continuationOverrides{MaxTurns: req.MaxTurns, MaxToolCalls: req.MaxToolCalls, Timeout: req.Timeout, ResultSpec: req.ResultSpec})
 	if err != nil {
 		if domain.IsPreEffectRefusal(err) {
-			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+			o.markContinuationIdempotencyFailed(ctx, req)
 		}
 		return nil, err
 	}
@@ -183,18 +203,19 @@ func observedGoalMatchesRun(run *domain.Run, objective string) bool {
 	if run == nil || run.ResolvedConfig == nil || strings.TrimSpace(run.ResolvedConfig.Until) == "" {
 		return true
 	}
-	want := strings.TrimSpace(run.ResolvedConfig.Until)
-	// Interactive launch may append a pasted-text attachment path after the
-	// installed objective. A different prefix belongs to another objective.
-	return objective == want || strings.HasPrefix(objective, want+"\n")
+	// Interactive launch replaces only line breaks in the configured objective;
+	// preserve the same exact/newline-suffix correlation used by the codec.
+	return runner.NativeGoalObjectiveMatches(objective, run.ResolvedConfig.Until)
 }
 
 // typeIntoRunningSession delivers a continuation to a running interactive
 // session as its next user message; the harness queues it behind the current
 // turn. It reports false for every other run, which continues between turns,
 // and true whenever input was sent to the session, including when the submit
-// failed or could not be confirmed. A delivered directive is recorded as a
-// user message event so mid-turn continuations stay auditable.
+// failed or could not be confirmed. It also reports true for a same-key
+// reservation conflict because another caller may already have sent input.
+// A delivered directive is recorded as a user message event so mid-turn
+// continuations stay auditable.
 func (o *Orchestrator) typeIntoRunningSession(ctx context.Context, run *domain.Run, req ContinueRunRequest) (bool, error) {
 	if run.Status != domain.RunStatusRunning || run.ExecutionMode.Normalized() != domain.ExecutionModeInteractive || run.WebConsoleSessionID == "" || o.interactiveSessions == nil {
 		return false, nil
@@ -203,8 +224,9 @@ func (o *Orchestrator) typeIntoRunningSession(ctx context.Context, run *domain.R
 		return false, domain.NewValidationError("continuationOverrides", "a running session accepts message text only")
 	}
 	if req.IdempotencyKey != "" && o.idempotency != nil {
-		if _, err := o.idempotency.Reserve(ctx, req.IdempotencyKey, time.Hour); err != nil {
-			return false, domain.NewStateError("Run", "continuing", "continue", "a continuation with this idempotency key is already in progress")
+		_, acquired, err := o.reserveContinuationReceipt(ctx, req)
+		if err != nil || !acquired {
+			return true, domain.NewStateError("Run", "continuing", "continue", "a continuation with this idempotency key is already in progress")
 		}
 	}
 	text := strings.TrimSpace(strings.ReplaceAll(strings.ReplaceAll(req.Message, "\r\n", " "), "\n", " "))
@@ -248,7 +270,33 @@ func (o *Orchestrator) completeContinuationReceipt(ctx context.Context, req Cont
 	if req.IdempotencyKey == "" || o.idempotency == nil {
 		return nil
 	}
-	return o.idempotency.Complete(context.WithoutCancel(ctx), req.IdempotencyKey, req.RunID, "Continuation", continuationRequestHash(req))
+	receipts, ok := o.idempotency.(repository.ContinuationIdempotencyRepository)
+	if !ok {
+		return fmt.Errorf("continuation idempotency is unavailable: configured repository does not support durable continuation receipts")
+	}
+	return receipts.CompleteContinuation(context.WithoutCancel(ctx), req.IdempotencyKey, req.RunID, continuationRequestHash(req))
+}
+
+func (o *Orchestrator) reserveContinuationReceipt(ctx context.Context, req ContinueRunRequest) (*domain.IdempotencyRecord, bool, error) {
+	receipts, ok := o.idempotency.(repository.ContinuationIdempotencyRepository)
+	if !ok {
+		return nil, false, fmt.Errorf("continuation idempotency is unavailable: configured repository does not support durable continuation receipts")
+	}
+	return receipts.ReserveContinuation(ctx, req.IdempotencyKey, req.RunID, continuationRequestHash(req), time.Hour)
+}
+
+func (o *Orchestrator) markContinuationIdempotencyFailed(ctx context.Context, req ContinueRunRequest) {
+	if req.IdempotencyKey == "" || o.idempotency == nil {
+		return
+	}
+	receipts, ok := o.idempotency.(repository.ContinuationIdempotencyRepository)
+	if !ok {
+		obs.Component("orchestrator").Warn("continuation receipt repository unavailable while recording pre-effect failure", "idempotencyKey", req.IdempotencyKey)
+		return
+	}
+	if err := receipts.FailContinuation(ctx, req.IdempotencyKey, req.RunID, continuationRequestHash(req)); err != nil {
+		obs.Component("orchestrator").Warn("failed to mark continuation receipt failed", "idempotencyKey", req.IdempotencyKey, obs.KeyError, err.Error())
+	}
 }
 
 // resumeConversation drives a single session-resume turn shared by both

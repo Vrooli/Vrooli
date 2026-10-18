@@ -528,6 +528,21 @@ func (s *Service) Send(ctx context.Context, in SendInput) (Notification, error) 
 // created is false when the idempotency key already names a notification,
 // which is then returned unchanged.
 func (s *Service) persistNotification(ctx context.Context, in SendInput) (Notification, bool, error) {
+	n, created, err := s.persistNotificationUsing(ctx, s.db, in)
+	if err == nil && created {
+		// Observe the source/category catalog best-effort: a catalog failure must
+		// never fail an otherwise-durable Send.
+		s.observeCatalog(ctx, n, n.CreatedAt)
+	}
+	return n, created, err
+}
+
+type dbTx interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
+
+func (s *Service) persistNotificationUsing(ctx context.Context, q dbTx, in SendInput) (Notification, bool, error) {
 	if strings.TrimSpace(in.RequestedBy) == "" || strings.TrimSpace(in.Body) == "" || strings.TrimSpace(in.SensitivityLabel) == "" || strings.TrimSpace(in.IdempotencyKey) == "" {
 		return Notification{}, false, fmt.Errorf("%w: requested_by, body, sensitivity_label, and idempotency_key are required", ErrInvalidArgument)
 	}
@@ -537,7 +552,7 @@ func (s *Service) persistNotification(ctx context.Context, in SendInput) (Notifi
 	if in.DedupeWindow <= 0 {
 		in.DedupeWindow = DefaultDedupeWind
 	}
-	if err := s.EnsureRecipient(ctx, in.RequestedBy); err != nil {
+	if err := s.ensureRecipientUsing(ctx, q, in.RequestedBy); err != nil {
 		return Notification{}, false, err
 	}
 	now := s.clock.Now().UTC().Format(time.RFC3339Nano)
@@ -553,19 +568,16 @@ func (s *Service) persistNotification(ctx context.Context, in SendInput) (Notifi
 		digestKey = in.DedupeKey
 	}
 	n := Notification{ID: uuid.NewString(), RequestedBy: in.RequestedBy, Title: in.Title, Body: in.Body, Urgency: in.Urgency, SensitivityLabel: in.SensitivityLabel, IdempotencyKey: in.IdempotencyKey, DedupeKey: in.DedupeKey, SourceScenario: in.SourceScenario, Category: in.Category, ContextURL: in.ContextURL, ScopeKey: in.ScopeKey, ScheduledAt: scheduledAt, DigestKey: digestKey, DigestWindowSeconds: int(in.DigestWindow.Seconds()), State: "pending", CreatedAt: now, UpdatedAt: now}
-	_, err := s.db.ExecContext(ctx, `INSERT INTO notifications (id, requested_by, title, body, urgency, sensitivity_label, idempotency_key, dedupe_key, dedupe_window_seconds, scheduled_at, digest_key, digest_window_seconds, source_scenario, category, context_url, scope_key, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, n.ID, n.RequestedBy, n.Title, n.Body, n.Urgency, n.SensitivityLabel, n.IdempotencyKey, n.DedupeKey, int(in.DedupeWindow.Seconds()), n.ScheduledAt, n.DigestKey, n.DigestWindowSeconds, n.SourceScenario, n.Category, n.ContextURL, n.ScopeKey, now, now)
+	_, err := q.ExecContext(ctx, `INSERT INTO notifications (id, requested_by, title, body, urgency, sensitivity_label, idempotency_key, dedupe_key, dedupe_window_seconds, scheduled_at, digest_key, digest_window_seconds, source_scenario, category, context_url, scope_key, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, n.ID, n.RequestedBy, n.Title, n.Body, n.Urgency, n.SensitivityLabel, n.IdempotencyKey, n.DedupeKey, int(in.DedupeWindow.Seconds()), n.ScheduledAt, n.DigestKey, n.DigestWindowSeconds, n.SourceScenario, in.Category, n.ContextURL, n.ScopeKey, now, now)
 	if err != nil {
-		if existing, lookupErr := s.findByIdempotency(ctx, in.RequestedBy, in.IdempotencyKey); lookupErr == nil {
+		if existing, lookupErr := s.findByIdempotencyUsing(ctx, q, in.RequestedBy, in.IdempotencyKey); lookupErr == nil {
 			return existing, false, nil
 		}
 		return Notification{}, false, fmt.Errorf("persist notification: %w", err)
 	}
-	if err := s.appendEvent(ctx, n.ID, "pending", "accepted before routing", now); err != nil {
+	if err := appendEventUsing(ctx, q, n.ID, "pending", "accepted before routing", now); err != nil {
 		return Notification{}, false, err
 	}
-	// Observe the source/category catalog best-effort: a catalog failure must
-	// never fail an otherwise-durable Send.
-	s.observeCatalog(ctx, n, now)
 	return n, true, nil
 }
 
@@ -581,7 +593,11 @@ func (s *Service) dispatch(id string) {
 }
 
 func (s *Service) findByIdempotency(ctx context.Context, requestedBy, key string) (Notification, error) {
-	return s.scanNotification(s.db.QueryRowContext(ctx, `SELECT id, requested_by, title, body, urgency, sensitivity_label, idempotency_key, dedupe_key, scheduled_at, digest_key, digest_window_seconds, source_scenario, category, context_url, scope_key, created_at, updated_at FROM notifications WHERE requested_by = ? AND idempotency_key = ?`, requestedBy, key))
+	return s.findByIdempotencyUsing(ctx, s.db, requestedBy, key)
+}
+
+func (s *Service) findByIdempotencyUsing(ctx context.Context, q dbTx, requestedBy, key string) (Notification, error) {
+	return s.scanNotification(q.QueryRowContext(ctx, `SELECT id, requested_by, title, body, urgency, sensitivity_label, idempotency_key, dedupe_key, scheduled_at, digest_key, digest_window_seconds, source_scenario, category, context_url, scope_key, created_at, updated_at FROM notifications WHERE requested_by = ? AND idempotency_key = ?`, requestedBy, key))
 }
 
 func (s *Service) Get(ctx context.Context, id string) (Notification, []Receipt, error) {
@@ -602,27 +618,81 @@ func (s *Service) Get(ctx context.Context, id string) (Notification, []Receipt, 
 }
 
 func (s *Service) List(ctx context.Context, limit int) ([]Notification, error) {
+	return s.listNotifications(ctx, "", false, limit)
+}
+
+// GetForRecipient exposes one notification only when it belongs to the
+// installation's configured recipient. Empty recipient configuration fails
+// closed as NotFound.
+func (s *Service) GetForRecipient(ctx context.Context, id, recipient string) (Notification, []Receipt, error) {
+	recipient = strings.TrimSpace(recipient)
+	if recipient == "" {
+		return Notification{}, nil, ErrNotFound
+	}
+	n, err := s.scanNotification(s.db.QueryRowContext(ctx, `SELECT id, requested_by, title, body, urgency, sensitivity_label, idempotency_key, dedupe_key, scheduled_at, digest_key, digest_window_seconds, source_scenario, category, context_url, scope_key, created_at, updated_at FROM notifications WHERE id = ? AND requested_by = ?`, id, recipient))
+	if errors.Is(err, sql.ErrNoRows) {
+		return Notification{}, nil, ErrNotFound
+	}
+	if err != nil {
+		return Notification{}, nil, err
+	}
+	state, reason, err := s.currentState(ctx, id)
+	if err != nil {
+		return Notification{}, nil, err
+	}
+	n.State, n.Reason = state, reason
+	receipts, err := s.listReceipts(ctx, id)
+	return n, receipts, err
+}
+
+// ListForRecipient returns a bounded timeline for one configured recipient.
+// An empty recipient is deliberately an empty view, never an unscoped query.
+func (s *Service) ListForRecipient(ctx context.Context, recipient string, limit int) ([]Notification, error) {
+	recipient = strings.TrimSpace(recipient)
+	if recipient == "" {
+		return []Notification{}, nil
+	}
+	return s.listNotifications(ctx, recipient, true, limit)
+}
+
+func (s *Service) listNotifications(ctx context.Context, recipient string, scoped bool, limit int) ([]Notification, error) {
 	if limit <= 0 || limit > 200 {
 		limit = 50
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT id, requested_by, title, body, urgency, sensitivity_label, idempotency_key, dedupe_key, scheduled_at, digest_key, digest_window_seconds, source_scenario, category, context_url, scope_key, created_at, updated_at FROM notifications ORDER BY created_at DESC LIMIT ?`, limit)
+	query := `SELECT id, requested_by, title, body, urgency, sensitivity_label, idempotency_key, dedupe_key, scheduled_at, digest_key, digest_window_seconds, source_scenario, category, context_url, scope_key, created_at, updated_at FROM notifications ORDER BY created_at DESC LIMIT ?`
+	args := []any{limit}
+	if scoped {
+		query = `SELECT id, requested_by, title, body, urgency, sensitivity_label, idempotency_key, dedupe_key, scheduled_at, digest_key, digest_window_seconds, source_scenario, category, context_url, scope_key, created_at, updated_at FROM notifications WHERE requested_by = ? ORDER BY created_at DESC LIMIT ?`
+		args = []any{recipient, limit}
+	}
+	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 	var out []Notification
 	for rows.Next() {
 		n, scanErr := s.scanNotification(rows)
 		if scanErr != nil {
-			return nil, scanErr
-		}
-		n.State, n.Reason, scanErr = s.currentState(ctx, n.ID)
-		if scanErr != nil {
+			_ = rows.Close()
 			return nil, scanErr
 		}
 		out = append(out, n)
 	}
-	return out, rows.Err()
+	rowsErr := rows.Err()
+	closeErr := rows.Close()
+	if rowsErr != nil {
+		return nil, rowsErr
+	}
+	if closeErr != nil {
+		return nil, closeErr
+	}
+	for i := range out {
+		out[i].State, out[i].Reason, err = s.currentState(ctx, out[i].ID)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
 }
 
 func (s *Service) runWorker() {
@@ -1144,15 +1214,16 @@ func (s *Service) RemovePushSubscription(ctx context.Context, recipient, endpoin
 	return err
 }
 
-func (s *Service) ChannelsStatus(ctx context.Context, recipient, machine string) ([]ChannelStatus, error) {
+// ChannelsStatus probes the configured recipient's channel targets and refreshes
+// their status snapshots. The request machine selector is retained at the RPC
+// boundary for compatibility, but never chooses a cache key: configured target
+// machine IDs are authoritative and an unassigned target uses the fixed local ID.
+func (s *Service) ChannelsStatus(ctx context.Context, recipient, _ string) ([]ChannelStatus, error) {
 	targets, err := s.channelTargets(ctx, recipient)
 	if err != nil {
 		return nil, err
 	}
 	now := s.clock.Now().UTC().Format(time.RFC3339Nano)
-	if machine == "" {
-		machine = "local"
-	}
 	s.mu.RLock()
 	email, desktop, remote := s.email, s.desktop, s.remote
 	s.mu.RUnlock()
@@ -1171,7 +1242,7 @@ func (s *Service) ChannelsStatus(ctx context.Context, recipient, machine string)
 	for _, target := range targets {
 		machineID := target.MachineID
 		if machineID == "" {
-			machineID = machine
+			machineID = "local"
 		}
 		if machineID != "local" {
 			if remote == nil {
@@ -1204,7 +1275,7 @@ func (s *Service) ChannelsStatus(ctx context.Context, recipient, machine string)
 		}
 	}
 	if len(status) == 0 {
-		add("web_push", machine, "not_configured", "recipient has no registered channel address")
+		add("web_push", "local", "not_configured", "recipient has no registered channel address")
 	}
 	return status, nil
 }
@@ -1235,7 +1306,11 @@ func (s *Service) Retain(ctx context.Context, before time.Time) (int64, error) {
 }
 
 func (s *Service) appendEvent(ctx context.Context, notificationID, state, reason, at string) error {
-	_, err := s.db.ExecContext(ctx, `INSERT INTO notification_events (notification_id, state, reason, created_at) VALUES (?, ?, ?, ?)`, notificationID, state, safeReasonString(reason), at)
+	return appendEventUsing(ctx, s.db, notificationID, state, reason, at)
+}
+
+func appendEventUsing(ctx context.Context, q dbTx, notificationID, state, reason, at string) error {
+	_, err := q.ExecContext(ctx, `INSERT INTO notification_events (notification_id, state, reason, created_at) VALUES (?, ?, ?, ?)`, notificationID, state, safeReasonString(reason), at)
 	return err
 }
 
@@ -1293,12 +1368,13 @@ func safeReasonString(value string) string {
 // coverage checks of other scenarios read it. DedupeKey carries the producer's
 // join key ("<event type>:<incident id>" for autoheal incidents).
 type DeliveryProjection struct {
-	NotificationID string                  `json:"notification_id"`
-	RequestedBy    string                  `json:"requested_by"`
-	DedupeKey      string                  `json:"dedupe_key"`
-	IdempotencyKey string                  `json:"idempotency_key"`
-	CreatedAt      string                  `json:"created_at"`
-	Attempts       []DeliveryAttemptRecord `json:"attempts"`
+	NotificationID     string                  `json:"notification_id"`
+	RequestedBy        string                  `json:"requested_by"`
+	DedupeKey          string                  `json:"dedupe_key"`
+	IdempotencyKey     string                  `json:"idempotency_key"`
+	CreatedAt          string                  `json:"created_at"`
+	AutohealIncidentID string                  `json:"autoheal_incident_id,omitempty"`
+	Attempts           []DeliveryAttemptRecord `json:"attempts"`
 }
 
 // DeliveryAttemptRecord is one durable delivery attempt.
@@ -1311,48 +1387,139 @@ type DeliveryAttemptRecord struct {
 	CreatedAt string `json:"created_at"`
 }
 
-// ListDeliveryProjection returns the newest notifications whose dedupe key
-// starts with prefix, each with every delivery attempt recorded for it. An
-// unroutable notification appears with its single 'unroutable' attempt, so a
-// reader can tell "never reached anyone" from "never entered delivery".
-func (s *Service) ListDeliveryProjection(ctx context.Context, prefix string, limit int) ([]DeliveryProjection, error) {
+// ListDeliveryProjection returns the newest legacy-prefix notifications and
+// exact Autoheal Ask notifications for the requested incident IDs, with a
+// bounded sample of delivery attempts. The Ask projection exposes only its
+// incident ID; question and correlation contents stay in the Ask owner. The
+// truncation flag covers both notification and attempt caps.
+func (s *Service) ListDeliveryProjection(ctx context.Context, prefix string, incidentIDs []string, limit int) ([]DeliveryProjection, bool, error) {
 	if limit <= 0 || limit > maxDeliveryProjection {
 		limit = maxDeliveryProjection
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT id, requested_by, dedupe_key, idempotency_key, created_at FROM notifications WHERE dedupe_key LIKE ? ORDER BY created_at DESC LIMIT ?`, prefix+"%", limit)
+	requested := make([]string, 0, len(incidentIDs))
+	requestedSet := make(map[string]struct{}, len(incidentIDs))
+	for _, id := range incidentIDs {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
+		if _, ok := requestedSet[id]; ok {
+			continue
+		}
+		requestedSet[id] = struct{}{}
+		requested = append(requested, id)
+		if len(requested) == maxDeliveryProjection {
+			break
+		}
+	}
+
+	autohealIncidentIDExpression := `''`
+	where := `n.dedupe_key LIKE ?`
+	args := make([]any, 0, 2*len(requested)+2)
+	if len(requested) > 0 {
+		placeholders := strings.TrimRight(strings.Repeat("?,", len(requested)), ",")
+		askIncidentID := `CASE WHEN json_valid(a.correlation_json) THEN COALESCE(json_extract(a.correlation_json, '$.incident_id'), '') ELSE '' END`
+		autohealIncidentIDExpression = `CASE WHEN a.source = 'vrooli-autoheal' AND ` + askIncidentID + ` IN (` + placeholders + `) THEN ` + askIncidentID + ` ELSE '' END`
+		where = `n.dedupe_key LIKE ? OR (a.source = 'vrooli-autoheal' AND ` + askIncidentID + ` IN (` + placeholders + `))`
+		for _, id := range requested {
+			args = append(args, id)
+		}
+	}
+	args = append(args, prefix+"%")
+	if len(requested) > 0 {
+		for _, id := range requested {
+			args = append(args, id)
+		}
+	}
+	args = append(args, limit+1)
+	query := `SELECT n.id, n.requested_by, n.dedupe_key, n.idempotency_key, n.created_at, ` + autohealIncidentIDExpression + `
+		FROM notifications n LEFT JOIN asks a ON a.notification_id = n.id
+		WHERE ` + where + ` ORDER BY n.created_at DESC LIMIT ?`
+	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	var out []DeliveryProjection
-	for rows.Next() {
+	err = eachDeliveryProjectionRow(rows, func() error {
 		var item DeliveryProjection
-		if err := rows.Scan(&item.NotificationID, &item.RequestedBy, &item.DedupeKey, &item.IdempotencyKey, &item.CreatedAt); err != nil {
-			rows.Close()
-			return nil, err
+		if err := rows.Scan(&item.NotificationID, &item.RequestedBy, &item.DedupeKey, &item.IdempotencyKey, &item.CreatedAt, &item.AutohealIncidentID); err != nil {
+			return err
 		}
 		out = append(out, item)
+		return nil
+	})
+	if err != nil {
+		return nil, false, err
 	}
-	if err := rows.Close(); err != nil {
-		return nil, err
+	truncated := len(out) > limit
+	if truncated {
+		out = out[:limit]
 	}
+	totalAttempts := 0
 	for i := range out {
-		attempts, err := s.db.QueryContext(ctx, `SELECT channel, machine_id, attempt_number, outcome, reason, created_at FROM delivery_attempts WHERE notification_id=? ORDER BY created_at, attempt_number`, out[i].NotificationID)
-		if err != nil {
-			return nil, err
+		remaining := maxDeliveryProjectionAttempts - totalAttempts
+		perNotificationLimit := maxDeliveryProjectionAttemptsPerNotification
+		if remaining < perNotificationLimit {
+			perNotificationLimit = remaining
 		}
-		for attempts.Next() {
+		// Read one row beyond the remaining allowance to detect truncation.
+		// Once the global cap is reached, a one-row probe for each remaining
+		// notification still detects whether any history was omitted.
+		attempts, err := s.db.QueryContext(ctx, `SELECT channel, machine_id, attempt_number, outcome, reason, created_at FROM delivery_attempts WHERE notification_id=? ORDER BY created_at, attempt_number, id LIMIT ?`, out[i].NotificationID, perNotificationLimit+1)
+		if err != nil {
+			return nil, false, err
+		}
+		seen := 0
+		err = eachDeliveryProjectionRow(attempts, func() error {
+			seen++
+			if seen > perNotificationLimit {
+				truncated = true
+				return nil
+			}
 			var record DeliveryAttemptRecord
 			if err := attempts.Scan(&record.Channel, &record.MachineID, &record.Attempt, &record.Outcome, &record.Reason, &record.CreatedAt); err != nil {
-				attempts.Close()
-				return nil, err
+				return err
 			}
 			out[i].Attempts = append(out[i].Attempts, record)
-		}
-		if err := attempts.Close(); err != nil {
-			return nil, err
+			totalAttempts++
+			return nil
+		})
+		if err != nil {
+			return nil, false, err
 		}
 	}
-	return out, nil
+	return out, truncated, nil
 }
 
 const maxDeliveryProjection = 200
+
+// Attempt history is bounded independently from notification count: one old
+// notification can accumulate repeated delivery attempts, and the endpoint is
+// a read-only coverage projection rather than an unbounded audit export.
+const (
+	maxDeliveryProjectionAttemptsPerNotification = 100
+	maxDeliveryProjectionAttempts                = 1000
+)
+
+type deliveryProjectionRows interface {
+	Next() bool
+	Scan(...any) error
+	Err() error
+	Close() error
+}
+
+// eachDeliveryProjectionRow returns iteration errors as well as scan/close
+// errors. A partial row stream is not a complete delivery projection.
+func eachDeliveryProjectionRow(rows deliveryProjectionRows, visit func() error) error {
+	for rows.Next() {
+		if err := visit(); err != nil {
+			rows.Close()
+			return err
+		}
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return err
+	}
+	return rows.Close()
+}

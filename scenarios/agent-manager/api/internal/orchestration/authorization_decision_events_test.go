@@ -2,15 +2,19 @@ package orchestration
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
 
+	"agent-manager/internal/adapters/database"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration/testutil"
 	"agent-manager/internal/supervision"
 
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/eventbus"
+	"github.com/vrooli/api-core/operatordecision"
 )
 
 // capturingPending is an in-memory PendingAuthorizationRepository that records
@@ -67,10 +71,20 @@ func (c *capturingStandingGrants) List(context.Context, int) ([]*domain.Standing
 	return nil, nil
 }
 
+func (c *capturingStandingGrants) ListForApprover(context.Context, string, int) ([]*domain.StandingGrant, error) {
+	return nil, nil
+}
+
 // capturingAuthPublisher records raised decision events.
-type capturingAuthPublisher struct{ events []eventbus.DomainEvent }
+type capturingAuthPublisher struct {
+	events []eventbus.DomainEvent
+	err    error
+}
 
 func (c *capturingAuthPublisher) PublishDomainEvent(_ context.Context, e eventbus.DomainEvent) error {
+	if c.err != nil {
+		return c.err
+	}
 	c.events = append(c.events, e)
 	return nil
 }
@@ -113,6 +127,32 @@ func TestRaiseAuthorizationApprovalIsIdempotent(t *testing.T) {
 	}
 	if len(pending.byID) != 1 {
 		t.Fatalf("expected one pending row for a repeated ask, got %d", len(pending.byID))
+	}
+}
+
+func TestRaiseAuthorizationApprovalRetriesFailedPublication(t *testing.T) {
+	now := time.Now().UTC()
+	pending := newCapturingPending()
+	pub := &capturingAuthPublisher{err: errors.New("events unavailable")}
+	o := phase4Orchestrator(pending, &capturingStandingGrants{}, pub, now)
+	req := standingAskRequest()
+	if raised, err := o.RaiseAuthorizationApproval(context.Background(), req); err != nil || !raised {
+		t.Fatalf("pending ask must survive a publication error: raised=%v err=%v", raised, err)
+	}
+	id := authorizationCorrelationID(req.Subject, req.Operation, req.Target)
+	firstID := pending.byID[id].EventID
+	if firstID == "" || pending.byID[id].PublishedAt != nil {
+		t.Fatalf("failed publication receipt state: %+v", pending.byID[id])
+	}
+	pub.err = nil
+	if raised, err := o.RaiseAuthorizationApproval(context.Background(), req); err != nil || !raised {
+		t.Fatalf("retry: raised=%v err=%v", raised, err)
+	}
+	if len(pub.events) != 1 || operatordecision.EventID(pub.events[0]) != firstID || pending.byID[id].PublishedAt == nil {
+		t.Fatalf("retry did not publish the same event and persist receipt: events=%d row=%+v", len(pub.events), pending.byID[id])
+	}
+	if _, err := o.RaiseAuthorizationApproval(context.Background(), req); err != nil || len(pub.events) != 1 {
+		t.Fatalf("successful publication must suppress repeat: events=%d err=%v", len(pub.events), err)
 	}
 }
 
@@ -165,57 +205,110 @@ func TestRaiseAuthorizationApprovalAntiFloodCap(t *testing.T) {
 	}
 }
 
-// G3 positive: NotifyAuthorizationRequested publishes one decision event for an
-// interactive (in-session) authorization request, carrying the distinct
-// interactive event type and the correlation an operator needs to find it.
-func TestNotifyAuthorizationRequestedPublishesInteractiveDecisionEvent(t *testing.T) {
-	now := time.Now()
+// Interactive consent is a generic FYI that opens the native authenticated
+// consent page. Its durable snapshot drives retries; Hub answers cannot issue
+// the interactive grant.
+func TestNotifyAuthorizationRequestedPersistsAndPublishesFYI(t *testing.T) {
+	db, cleanup := testutil.SetupTestDB(t)
+	t.Cleanup(cleanup)
+	t.Setenv("AGENT_MANAGER_AUTHORIZATION_URL", "https://agent-manager.example.test")
+	repo := database.NewAuthorizationRepository(db)
+	now := time.Date(2026, 10, 16, 12, 0, 0, 0, time.UTC)
 	pub := &capturingAuthPublisher{}
-	o := phase4Orchestrator(newCapturingPending(), &capturingStandingGrants{}, pub, now)
-
-	g := &domain.AuthorizationGrant{
-		ID:              uuid.New(),
-		RunID:           uuid.New(),
-		State:           domain.AuthorizationPending,
-		Policy:          "swarm-bookkeeping",
-		Targets:         []string{"swarm-manager:backlog/execute/obsolete"},
-		DurationSeconds: 3600,
-		HarnessKind:     "codex",
-		HarnessSession:  "fixture",
-		CreatedAt:       now.UTC(),
+	o := &Orchestrator{authorizations: repo, approvalPublisher: pub, clock: func() time.Time { return now }}
+	g := &domain.AuthorizationGrant{ID: uuid.New(), RunID: uuid.New(), State: domain.AuthorizationPending, Policy: "swarm-bookkeeping", Targets: []string{"swarm-manager:backlog/execute/obsolete"}, DurationSeconds: 16 * 60 * 60, HarnessKind: "codex", HarnessSession: "fixture", CreatedAt: now, RequestExpiresAt: now.Add(24 * time.Hour)}
+	if err := repo.Create(context.Background(), g); err != nil {
+		t.Fatal(err)
 	}
 	o.NotifyAuthorizationRequested(context.Background(), g)
-
+	o.NotifyAuthorizationRequested(context.Background(), g)
 	if len(pub.events) != 1 {
-		t.Fatalf("expected exactly one interactive authorization notification, got %d", len(pub.events))
+		t.Fatalf("successful notification receipt must suppress duplicate publication, got %d events", len(pub.events))
 	}
 	ev := pub.events[0]
-	if ev.EventType != InteractiveAuthorizationDecisionEventType {
-		t.Fatalf("event has wrong type %q; interactive requests must use their own type", ev.EventType)
+	if ev.EventType != InteractiveAuthorizationNotificationEventType || ev.EventType == AuthorizationDecisionEventType {
+		t.Fatalf("interactive push must use generic FYI contract, got %q", ev.EventType)
 	}
-	// It must NOT masquerade as the standing-grant ask type a hub resolver mints.
-	if ev.EventType == AuthorizationDecisionEventType {
-		t.Fatal("interactive request reused the standing-grant ask type; a hub resolver could mint it")
+	link, _ := ev.Payload["context_url"].(string)
+	if want := "https://agent-manager.example.test/api/v1/authorizations/" + g.ID.String() + "/approve"; link != want {
+		t.Fatalf("consent link = %q, want %q", link, want)
 	}
-	corr, _ := ev.Payload["correlation"].(map[string]any)
-	if corr == nil || corr["authorization_id"] != g.ID.String() {
-		t.Fatalf("event lost the authorization_id correlation: %#v", ev.Payload["correlation"])
+	body, _ := ev.Payload["body"].(string)
+	for _, must := range []string{"codex", "swarm-bookkeeping", "swarm-manager:backlog/execute/obsolete", "16-hour", "starts only after you approve", "grants no authority"} {
+		if !strings.Contains(body, must) {
+			t.Fatalf("FYI body does not state %q: %s", must, body)
+		}
 	}
-	q, _ := ev.Payload["question"].(string)
-	for _, must := range []string{"codex", "swarm-bookkeeping", "swarm-manager:backlog/execute/obsolete"} {
-		if !strings.Contains(q, must) {
-			t.Fatalf("interactive ask question does not state %q: %s", must, q)
+	if ev.Payload["options"] != nil || ev.Payload["question"] != nil {
+		t.Fatalf("FYI notification must not expose Hub decision choices: %#v", ev.Payload)
+	}
+	stored, err := repo.Get(context.Background(), g.ID)
+	if err != nil || stored.NotificationSnapshot == nil || stored.NotificationPublishedAt == nil || stored.NotificationSnapshot.EventID != operatordecision.EventID(ev) {
+		t.Fatalf("notification snapshot/receipt not durable: %+v err=%v", stored, err)
+	}
+}
+
+func TestNotifyAuthorizationRequestedRetriesSameSnapshotAfterFailure(t *testing.T) {
+	db, cleanup := testutil.SetupTestDB(t)
+	t.Cleanup(cleanup)
+	t.Setenv("AGENT_MANAGER_AUTHORIZATION_URL", "https://agent-manager.example.test")
+	repo := database.NewAuthorizationRepository(db)
+	now := time.Now().UTC()
+	pub := &capturingAuthPublisher{err: errors.New("events unavailable")}
+	o := &Orchestrator{authorizations: repo, approvalPublisher: pub, clock: func() time.Time { return now }}
+	g := &domain.AuthorizationGrant{ID: uuid.New(), RunID: uuid.New(), State: domain.AuthorizationPending, Policy: "swarm-bookkeeping", Targets: []string{"swarm-manager:backlog/execute/obsolete"}, DurationSeconds: 57600, HarnessKind: "codex", CreatedAt: now, RequestExpiresAt: now.Add(24 * time.Hour)}
+	if err := repo.Create(context.Background(), g); err != nil {
+		t.Fatal(err)
+	}
+	o.NotifyAuthorizationRequested(context.Background(), g)
+	failed, err := repo.Get(context.Background(), g.ID)
+	if err != nil || failed.NotificationSnapshot == nil || failed.NotificationPublishedAt != nil {
+		t.Fatalf("failed publication lost its immutable retry snapshot: %+v err=%v", failed, err)
+	}
+	firstID := failed.NotificationSnapshot.EventID
+	firstLink := failed.NotificationSnapshot.Payload["context_url"]
+	t.Setenv("AGENT_MANAGER_AUTHORIZATION_URL", "https://changed-origin.example.test")
+	pub.err = nil
+	o.NotifyAuthorizationRequested(context.Background(), g)
+	success, err := repo.Get(context.Background(), g.ID)
+	if err != nil || success.NotificationPublishedAt == nil || len(pub.events) != 1 || operatordecision.EventID(pub.events[0]) != firstID || pub.events[0].Payload["context_url"] != firstLink {
+		t.Fatalf("retry did not publish the same event and record success: %+v events=%d err=%v", success, len(pub.events), err)
+	}
+	o.NotifyAuthorizationRequested(context.Background(), g)
+	if len(pub.events) != 1 {
+		t.Fatalf("success receipt did not suppress retry, got %d events", len(pub.events))
+	}
+}
+
+func TestAuthorizationPublicBaseRejectsUntrustedOrigins(t *testing.T) {
+	for _, origin := range []string{"https://user@agent-manager.example.test", "https://agent-manager.example.test/?redirect=https://attacker.test", "http://agent-manager.example.test", "javascript:alert(1)"} {
+		t.Setenv("AGENT_MANAGER_AUTHORIZATION_URL", origin)
+		if base, err := authorizationPublicBase(context.Background()); err == nil {
+			t.Errorf("origin %q unexpectedly accepted as %q", origin, base)
 		}
 	}
 }
 
-// G3 negative: a nil publisher is a silent no-op — the request still succeeds,
-// nothing is published, and no authority is issued.
-func TestNotifyAuthorizationRequestedNilPublisherIsNoOp(t *testing.T) {
-	now := time.Now()
-	o := phase4Orchestrator(newCapturingPending(), &capturingStandingGrants{}, nil, now)
-	// Must not panic and must not touch any store.
-	o.NotifyAuthorizationRequested(context.Background(), &domain.AuthorizationGrant{ID: uuid.New(), CreatedAt: now})
+func TestNotifyAuthorizationRequestedMissingOriginIsUnreached(t *testing.T) {
+	db, cleanup := testutil.SetupTestDB(t)
+	t.Cleanup(cleanup)
+	t.Setenv("AGENT_MANAGER_AUTHORIZATION_URL", "")
+	oldResolver := resolveExternalURLForNotice
+	resolveExternalURLForNotice = func(context.Context, string) (string, error) { return "", errors.New("no public route") }
+	t.Cleanup(func() { resolveExternalURLForNotice = oldResolver })
+	repo := database.NewAuthorizationRepository(db)
+	pub := &capturingAuthPublisher{}
+	now := time.Now().UTC()
+	o := &Orchestrator{authorizations: repo, approvalPublisher: pub, clock: func() time.Time { return now }}
+	g := &domain.AuthorizationGrant{ID: uuid.New(), State: domain.AuthorizationPending, Policy: "swarm-bookkeeping", Targets: []string{"swarm-manager:backlog/execute/obsolete"}, DurationSeconds: 3600, CreatedAt: now, RequestExpiresAt: now.Add(time.Hour)}
+	if err := repo.Create(context.Background(), g); err != nil {
+		t.Fatal(err)
+	}
+	o.NotifyAuthorizationRequested(context.Background(), g)
+	stored, err := repo.Get(context.Background(), g.ID)
+	if err != nil || stored.NotificationUnreached == "" || stored.NotificationSnapshot != nil || stored.NotificationPublishedAt != nil || len(pub.events) != 0 {
+		t.Fatalf("missing origin must remain explicitly unreached without a broken-link publish: %+v events=%d err=%v", stored, len(pub.events), err)
+	}
 }
 
 // G3 negative: the interactive decision event is PUSH-ONLY. A hub resolution
@@ -228,7 +321,7 @@ func TestInteractiveAuthorizationEventIsNotHubResolvable(t *testing.T) {
 	o := phase4Orchestrator(newCapturingPending(), grants, &capturingAuthPublisher{}, now)
 
 	res := askResolution("some-authorization-id", "approve", "operator-human")
-	res.SourceEventType = InteractiveAuthorizationDecisionEventType
+	res.SourceEventType = InteractiveAuthorizationNotificationEventType
 	handled, err := o.ResolveAuthorizationFromHub(context.Background(), res)
 	if handled || err != nil {
 		t.Fatalf("interactive event must fall through unhandled (handled=%v err=%v)", handled, err)
@@ -249,6 +342,12 @@ func askResolution(id, answer, answeredBy string) supervision.DecisionResolution
 	}
 }
 
+func generationResolution(id, eventID, answer, answeredBy string) supervision.DecisionResolution {
+	res := askResolution(id, answer, answeredBy)
+	res.RequesterRef = eventID
+	return res
+}
+
 // Approve → a bounded grant is issued, attributed to the approving human, and
 // the pending request is marked approved.
 func TestResolveAuthorizationApproveIssuesBoundedGrant(t *testing.T) {
@@ -265,7 +364,7 @@ func TestResolveAuthorizationApproveIssuesBoundedGrant(t *testing.T) {
 		id = k
 	}
 
-	handled, err := o.ResolveAuthorizationFromHub(context.Background(), askResolution(id, "approve", "operator-human"))
+	handled, err := o.ResolveAuthorizationFromHub(context.Background(), generationResolution(id, pending.byID[id].EventID, "approve", "operator-human"))
 	if !handled || err != nil {
 		t.Fatalf("approve resolution: handled=%v err=%v", handled, err)
 	}
@@ -300,7 +399,7 @@ func TestResolveAuthorizationApproveRequiresApprover(t *testing.T) {
 	for k := range pending.byID {
 		id = k
 	}
-	if handled, err := o.ResolveAuthorizationFromHub(context.Background(), askResolution(id, "approve", "")); !handled || err == nil {
+	if handled, err := o.ResolveAuthorizationFromHub(context.Background(), generationResolution(id, pending.byID[id].EventID, "approve", "")); !handled || err == nil {
 		t.Fatalf("approve without approver must error (handled=%v err=%v)", handled, err)
 	}
 	if len(grants.put) != 0 {
@@ -321,7 +420,7 @@ func TestResolveAuthorizationRejectIssuesNothing(t *testing.T) {
 	for k := range pending.byID {
 		id = k
 	}
-	handled, err := o.ResolveAuthorizationFromHub(context.Background(), askResolution(id, "reject", "operator-human"))
+	handled, err := o.ResolveAuthorizationFromHub(context.Background(), generationResolution(id, pending.byID[id].EventID, "reject", "operator-human"))
 	if !handled || err != nil {
 		t.Fatalf("reject resolution: handled=%v err=%v", handled, err)
 	}
@@ -330,6 +429,39 @@ func TestResolveAuthorizationRejectIssuesNothing(t *testing.T) {
 	}
 	if pending.byID[id].State != domain.PendingAuthorizationRejected {
 		t.Fatalf("pending not marked rejected: %s", pending.byID[id].State)
+	}
+}
+
+func TestResolveAuthorizationRefusesStaleGeneration(t *testing.T) {
+	firstAt := time.Date(2026, 10, 16, 12, 0, 0, 0, time.UTC)
+	clock := firstAt
+	pending := newCapturingPending()
+	grants := &capturingStandingGrants{}
+	pub := &capturingAuthPublisher{}
+	o := phase4Orchestrator(pending, grants, pub, clock)
+	o.clock = func() time.Time { return clock }
+	req := standingAskRequest()
+	if _, err := o.RaiseAuthorizationApproval(context.Background(), req); err != nil {
+		t.Fatal(err)
+	}
+	id := authorizationCorrelationID(req.Subject, req.Operation, req.Target)
+	oldEventID := pending.byID[id].EventID
+	clock = firstAt.Add(pendingAuthorizationWindow + time.Hour)
+	if _, err := o.RaiseAuthorizationApproval(context.Background(), req); err != nil {
+		t.Fatal(err)
+	}
+	newEventID := pending.byID[id].EventID
+	if oldEventID == newEventID {
+		t.Fatalf("replacement request must have a different event identity: %q", oldEventID)
+	}
+	if handled, err := o.ResolveAuthorizationFromHub(context.Background(), generationResolution(id, oldEventID, "approve", "operator-human")); !handled || err != nil {
+		t.Fatalf("stale answer should be acknowledged without effect: handled=%v err=%v", handled, err)
+	}
+	if len(grants.put) != 0 || pending.byID[id].State != domain.PendingAuthorizationPending {
+		t.Fatalf("stale answer changed current generation: grants=%d pending=%+v", len(grants.put), pending.byID[id])
+	}
+	if handled, err := o.ResolveAuthorizationFromHub(context.Background(), generationResolution(id, newEventID, "approve", "operator-human")); !handled || err != nil || len(grants.put) != 1 {
+		t.Fatalf("current-generation control failed: handled=%v err=%v grants=%d", handled, err, len(grants.put))
 	}
 }
 

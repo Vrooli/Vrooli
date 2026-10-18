@@ -5,6 +5,7 @@ package cliutil
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,6 +20,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func TestDynamicCredentialAdoptionAndRefusalDoNotChangeEnvironment(t *testing.T) {
@@ -28,6 +30,7 @@ func TestDynamicCredentialAdoptionAndRefusalDoNotChangeEnvironment(t *testing.T)
 	}
 	t.Cleanup(func() { os.RemoveAll(directory) })
 	path := filepath.Join(directory, "broker.sock")
+	inherited := credentialRoleTestToken(nil)
 	listener, err := net.Listen("unix", path)
 	if err != nil {
 		t.Fatal(err)
@@ -43,15 +46,15 @@ func TestDynamicCredentialAdoptionAndRefusalDoNotChangeEnvironment(t *testing.T)
 	})}
 	go server.Serve(listener)
 	t.Cleanup(func() { server.Close() })
-	if token, err := resolveAgentCredential(context.Background(), path, "inherited"); err != nil || token != "inherited" {
+	if token, err := resolveAgentCredential(context.Background(), path, inherited); err != nil || token != inherited {
 		t.Fatal("unbound process lost inherited identity")
 	}
 	state.Store(http.StatusOK)
-	if token, err := resolveAgentCredential(context.Background(), path, "inherited"); err != nil || token != "approved-current" {
+	if token, err := resolveAgentCredential(context.Background(), path, inherited); err != nil || token != "approved-current" {
 		t.Fatal("existing process failed to adopt current consent")
 	}
 	state.Store(http.StatusForbidden)
-	token, err := resolveAgentCredential(context.Background(), path, "inherited")
+	token, err := resolveAgentCredential(context.Background(), path, inherited)
 	if err == nil || token != "" {
 		t.Fatal("revocation fell back to older authority")
 	}
@@ -60,9 +63,31 @@ func TestDynamicCredentialAdoptionAndRefusalDoNotChangeEnvironment(t *testing.T)
 		t.Fatalf("refusal is not reported as an authorization problem: %v", err)
 	}
 	server.Close()
-	if _, err := resolveAgentCredential(context.Background(), path, "inherited"); err == nil {
-		t.Fatal("a broken authority silently downgraded to inherited authority")
+	credentials, err := resolveAgentCredentials(context.Background(), path, inherited)
+	if err != nil || credentials.BaselineToken != inherited || credentials.LegacyToken != "" || credentials.OperationToken != "" || credentials.OperationRefusal != "authority_unavailable" {
+		t.Fatalf("unavailable broker blocked ordinary baseline or returned a grant: %+v err=%v", credentials, err)
 	}
+	oldGrant := credentialRoleTestToken(map[string]string{"authorization_id": "old-grant"})
+	if credentials, err := resolveAgentCredentials(context.Background(), path, oldGrant); err == nil || credentials.LegacyToken != "" || credentials.BaselineToken != "" {
+		t.Fatalf("unavailable broker reused an inherited grant: %+v err=%v", credentials, err)
+	}
+	if err := os.RemoveAll(directory); err != nil {
+		t.Fatal(err)
+	}
+	if credentials, err := resolveAgentCredentials(context.Background(), path, inherited); err != nil || credentials.BaselineToken != inherited || credentials.OperationRefusal != "authority_unavailable" {
+		t.Fatalf("missing broker did not preserve independently verifiable baseline: %+v err=%v", credentials, err)
+	}
+	if credentials, err := resolveAgentCredentials(context.Background(), path, oldGrant); err == nil || credentials.LegacyToken != "" || credentials.BaselineToken != "" {
+		t.Fatalf("missing broker reused an inherited grant: %+v err=%v", credentials, err)
+	}
+}
+
+func credentialRoleTestToken(meta map[string]string) string {
+	claims, _ := json.Marshal(map[string]any{
+		"run_id": "a7b11e9a-3263-4c93-9e87-3d462d1963b3", "iat": time.Now().Unix(),
+		"exp": time.Now().Add(time.Hour).Unix(), "meta": meta,
+	})
+	return base64.RawURLEncoding.EncodeToString(claims) + "." + base64.RawURLEncoding.EncodeToString(make([]byte, 32))
 }
 
 func TestProcessBindingRefusesPIDReuseAndAnotherSession(t *testing.T) {

@@ -154,6 +154,75 @@ func TestTriggerHeartbeat_MemberAlreadyQueued(t *testing.T) {
 	}
 }
 
+func TestTriggerHeartbeatReplacesRecoveredInterruptedPreparation(t *testing.T) {
+	roots := paths.RootsForTest(t)
+	fileStore := newFileStore(t, roots)
+	teamStore := fileStore.Teams().(*store.FileTeamStore)
+	agentStore := fileStore.Agents().(*store.FileAgentStore)
+	relationStore := fileStore.Relations()
+	ctx := context.Background()
+	if err := teamStore.Create(ctx, newIndependentTestTeam("team-1", "Team")); err != nil {
+		t.Fatal(err)
+	}
+	if err := agentStore.Create(ctx, &store.Agent{ID: "agent-1", DisplayName: "Agent"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := relationStore.SetTeamMember(ctx, &store.TeamMemberRelation{TeamID: "team-1", AgentID: "agent-1", Status: store.MemberStatusActive}); err != nil {
+		t.Fatal(err)
+	}
+	// The manual endpoint has historically remained available when a member's
+	// scheduled heartbeat is disabled. Recovery must preserve that route's
+	// existing admission contract; scheduler-only enabled checks stay separate.
+	if err := teamStore.SetHeartbeatConfig(ctx, "team-1", "agent-1", &store.HeartbeatConfig{TeamID: "team-1", AgentID: "agent-1", Enabled: false}); err != nil {
+		t.Fatal(err)
+	}
+	executor := &blockingPreparationExecutor{started: make(chan string, 1), release: make(chan struct{})}
+	teamExecStore := NewTeamExecutionStore(teamStore, executor, t.TempDir(), nil)
+	queue := teamExecStore.GetOrCreate("team-1")
+	defer func() {
+		close(executor.release)
+		queue.executionWG.Wait()
+	}()
+	queue.running["agent-1"] = runningEntry{DispatchStage: DispatchStagePreparing, ProfileKey: "old-profile"}
+	if err := queue.persistLocked(); err != nil {
+		t.Fatal(err)
+	}
+	queue.Recover(ctx)
+
+	handlers := NewHandlers(HandlersDeps{
+		TeamStore: teamStore, AgentStore: agentStore, RelationStore: relationStore,
+		Executor: newTestExecutor(t, teamStore, agentStore, nil, "", nil, nil), TeamExecStore: teamExecStore,
+	})
+	req := httptest.NewRequest(http.MethodPost, "/teams/team-1/heartbeats/agent-1/trigger", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "team-1", "agentId": "agent-1"})
+	req.Header.Set("Authorization", "Bearer fixture-owner")
+	w := httptest.NewRecorder()
+	handlers.runCallerValidator = auth01ConversationVerifier{}
+	handlers.TriggerHeartbeat(w, req)
+	if w.Code != http.StatusAccepted {
+		t.Fatalf("manual trigger did not replace interrupted preparation: status=%d body=%s", w.Code, w.Body.String())
+	}
+	select {
+	case agentID := <-executor.started:
+		if agentID != "agent-1" {
+			t.Fatalf("started agent %q, want agent-1", agentID)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("manual trigger did not start after replacing interrupted preparation")
+	}
+	status := teamExecStore.Status("team-1")
+	if len(status.PreparationInterruptedAgentIDs) != 0 || len(status.RunningAgentIDs) != 1 || status.RunningAgentIDs[0] != "agent-1" {
+		t.Fatalf("execution status does not reflect fresh manual admission: %#v", status)
+	}
+	manualConfig, err := teamStore.GetHeartbeatConfig(ctx, "team-1", "agent-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if manualConfig.Enabled || manualConfig.LastManualTriggerAt == "" {
+		t.Fatalf("manual replacement changed disabled schedule policy or failed to record trigger: %+v", manualConfig)
+	}
+}
+
 func TestTriggerHeartbeat_DeduplicatesCompletedManualTriggerWithinScheduleWindow(t *testing.T) {
 	roots := paths.RootsForTest(t)
 	fileStore := newFileStore(t, roots)

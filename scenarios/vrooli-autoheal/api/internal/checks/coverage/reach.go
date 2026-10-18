@@ -29,8 +29,10 @@ type DeliveryAttempt struct {
 }
 
 type DeliverySnapshot struct {
-	Incidents []CriticalFinding
-	Attempts  []DeliveryAttempt
+	Incidents         []CriticalFinding
+	Attempts          []DeliveryAttempt
+	Incomplete        bool
+	IncompleteReasons []string
 }
 
 type DeliveryReader func(context.Context) (DeliverySnapshot, error)
@@ -146,6 +148,8 @@ func EvaluateDeliveryReach(snapshot DeliverySnapshot) checks.Result {
 		}
 	}
 	missing := make([]string, 0)
+	knownMissing := make([]string, 0)
+	unconfirmed := make([]string, 0)
 	undelivered := map[string]string{}
 	for _, incident := range snapshot.Incidents {
 		if delivered[incident.ID] {
@@ -153,18 +157,46 @@ func EvaluateDeliveryReach(snapshot DeliverySnapshot) checks.Result {
 		}
 		missing = append(missing, incident.ID)
 		if outcome, ok := lastOutcome[incident.ID]; ok {
+			knownMissing = append(knownMissing, incident.ID)
 			undelivered[incident.ID] = outcome
 		} else {
-			undelivered[incident.ID] = "no attempt"
+			unconfirmed = append(unconfirmed, incident.ID)
+			if snapshot.Incomplete {
+				undelivered[incident.ID] = "no attempt in returned sample"
+			} else {
+				undelivered[incident.ID] = "no attempt"
+			}
 		}
+	}
+	reportedMissing := missing
+	if snapshot.Incomplete {
+		// A capped projection can retain only observed failed/unroutable rows as
+		// known misses; an incident absent from that partial result is unknown.
+		reportedMissing = knownMissing
 	}
 	result.Details["criticalIncidents"] = len(snapshot.Incidents)
 	result.Details["deliveredIncidents"] = len(snapshot.Incidents) - len(missing)
-	result.Details["missingIncidentIds"] = missing
+	result.Details["missingIncidentIds"] = reportedMissing
+	if snapshot.Incomplete {
+		result.Details["unconfirmedIncidentIds"] = unconfirmed
+	}
 	result.Details["undeliveredOutcomes"] = undelivered
-	if len(missing) > 0 {
+	result.Details["coverageComplete"] = !snapshot.Incomplete
+	if snapshot.Incomplete {
+		result.Details["incompleteReasons"] = snapshot.IncompleteReasons
+	}
+	if len(reportedMissing) > 0 {
 		result.Status = checks.StatusCritical
-		result.Message = fmt.Sprintf("%d of %d critical incidents were not delivered to a person", len(missing), len(snapshot.Incidents))
+		if snapshot.Incomplete {
+			result.Message = fmt.Sprintf("%d of %d sampled critical incidents have observed non-delivered attempts and no observed delivered receipt; coverage is incomplete", len(reportedMissing), len(snapshot.Incidents))
+		} else {
+			result.Message = fmt.Sprintf("%d of %d critical incidents were not delivered to a person", len(missing), len(snapshot.Incidents))
+		}
+		return result
+	}
+	if snapshot.Incomplete {
+		result.Status = checks.StatusUndetermined
+		result.Message = "delivery coverage is incomplete; no all-clear can be established"
 		return result
 	}
 	result.Status = checks.StatusOK

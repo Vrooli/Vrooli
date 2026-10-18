@@ -86,6 +86,134 @@ func TestBuildOutputsAreExcludedFromInputs(t *testing.T) {
 	}
 }
 
+func TestCoverageOutputRootsDoNotHideNestedGoSource(t *testing.T) {
+	root := t.TempDir()
+	writeOutputTestFile(t, filepath.Join(root, ".vrooli", "repo-contract.json"), "{}\n")
+	writeOutputTestFile(t, filepath.Join(root, ".gitignore"), "/coverage/\npackages/*/coverage/\nscenarios/*/ui/coverage/\ntemplates/scenarios/*/ui/coverage/\n")
+	writeOutputTestFile(t, filepath.Join(root, "api", "internal", "checks", "coverage", "check.go"), "package coverage\nconst Value = 1\n")
+	writeOutputTestFile(t, filepath.Join(root, "api", "internal", "ui", "coverage", "check.go"), "package coverage\nconst UIValue = 1\n")
+	writeOutputTestFile(t, filepath.Join(root, "coverage", "index.html"), "old root report")
+	writeOutputTestFile(t, filepath.Join(root, "scenarios", "demo", "ui", "coverage", "index.html"), "old scenario ui report")
+	spec := FreshnessSpec{SourceRoot: root, ContextRoot: root, Inputs: []string{"."}}
+	manifest, err := ComputeFreshnessManifest(spec, "binaries", nil, time.Now().UnixNano())
+	if err != nil {
+		t.Fatalf("compute: %v", err)
+	}
+	foundSource := false
+	foundNestedUISource := false
+	for _, file := range manifest.Files {
+		if file.Rel == "api/internal/checks/coverage/check.go" {
+			foundSource = true
+		}
+		if file.Rel == "api/internal/ui/coverage/check.go" {
+			foundNestedUISource = true
+		}
+		if file.Rel == "coverage/index.html" || file.Rel == "scenarios/demo/ui/coverage/index.html" {
+			t.Errorf("generated coverage output was recorded as input: %s", file.Rel)
+		}
+	}
+	if !foundSource {
+		t.Fatal("nested Go source under a coverage package was omitted from the freshness manifest")
+	}
+	if !foundNestedUISource {
+		t.Fatal("nested Go source under an internal ui/coverage package was omitted from the freshness manifest")
+	}
+
+	writeOutputTestFile(t, filepath.Join(root, "coverage", "index.html"), "new root report")
+	writeOutputTestFile(t, filepath.Join(root, "scenarios", "demo", "ui", "coverage", "index.html"), "new scenario ui report")
+	verdict, err := EvaluateFreshness(spec, manifest, nil)
+	if err != nil {
+		t.Fatalf("evaluate after output churn: %v", err)
+	}
+	if verdict.Stale {
+		t.Fatalf("coverage output churn made inputs stale (%s: %s)", verdict.Reason, verdict.File)
+	}
+
+	writeOutputTestFile(t, filepath.Join(root, "api", "internal", "checks", "coverage", "check.go"), "package coverage\nconst Value = 2\n")
+	verdict, err = EvaluateFreshness(spec, manifest, nil)
+	if err != nil {
+		t.Fatalf("evaluate after source edit: %v", err)
+	}
+	if !verdict.Stale || verdict.File != "api/internal/checks/coverage/check.go" {
+		t.Fatalf("nested Go source edit was not reported stale: %+v", verdict)
+	}
+}
+
+func TestCoverageOutputDirClassificationIsPathSpecific(t *testing.T) {
+	root := t.TempDir()
+	writeOutputTestFile(t, filepath.Join(root, ".vrooli", "repo-contract.json"), "{}\n")
+	writeOutputTestFile(t, filepath.Join(root, ".gitignore"), "/coverage/\npackages/*/coverage/\nscenarios/*/ui/coverage/\ntemplates/scenarios/*/ui/coverage/\n")
+	for _, path := range []string{"coverage", "packages/demo/coverage", "scenarios/demo/ui/coverage", "templates/scenarios/demo/ui/coverage"} {
+		if !isCoverageOutputDir(root, path) {
+			t.Errorf("expected generated coverage output path %q to match", path)
+		}
+	}
+	for _, path := range []string{"ui/coverage", "api/internal/coverage", "api/internal/checks/coverage", "api/internal/ui/coverage", "scenarios/demo/coverage", "scenarios/demo/api/internal/coverage", "scenarios/demo/api/internal/ui/coverage"} {
+		if isCoverageOutputDir(root, path) {
+			t.Errorf("authored source path %q was classified as coverage output", path)
+		}
+	}
+}
+
+func TestNoGitFallbackKeepsNestedCoverageSourceAndSkipsDeclaredReportRoots(t *testing.T) {
+	root := t.TempDir()
+	writeOutputTestFile(t, filepath.Join(root, ".vrooli", "repo-contract.json"), "{}\n")
+	writeOutputTestFile(t, filepath.Join(root, ".gitignore"), "/coverage/\npackages/*/coverage/\nscenarios/*/ui/coverage/\ntemplates/scenarios/*/ui/coverage/\n")
+	writeOutputTestFile(t, filepath.Join(root, "api", "internal", "checks", "coverage", "check.go"), "package coverage\nconst Value = 1\n")
+	writeOutputTestFile(t, filepath.Join(root, "api", "internal", "ui", "coverage", "check.go"), "package coverage\nconst UIValue = 1\n")
+	writeOutputTestFile(t, filepath.Join(root, "coverage", "index.html"), "root report")
+	writeOutputTestFile(t, filepath.Join(root, "scenarios", "demo", "ui", "coverage", "index.html"), "scenario UI report")
+	writeOutputTestFile(t, filepath.Join(root, "scenarios", "demo", "coverage", "authored.go"), "package coverage\n")
+
+	files, source, err := EnumerateInputs(root, []string{"."}, EnumerateDeps{
+		Command: func(string, ...string) ([]byte, error) { return nil, os.ErrNotExist },
+	})
+	if err != nil {
+		t.Fatalf("EnumerateInputs fallback: %v", err)
+	}
+	if source != EnumerationWalk {
+		t.Fatalf("enumeration source = %q, want walk fallback", source)
+	}
+	want := map[string]bool{
+		"api/internal/checks/coverage/check.go": true,
+		"api/internal/ui/coverage/check.go":     true,
+		"scenarios/demo/coverage/authored.go":   true,
+	}
+	for _, file := range files {
+		if file == "coverage/index.html" || file == "scenarios/demo/ui/coverage/index.html" {
+			t.Errorf("fallback included declared report root %q", file)
+		}
+		delete(want, file)
+	}
+	if len(want) != 0 {
+		t.Fatalf("fallback omitted authored coverage paths: %v; got %v", want, files)
+	}
+
+	spec := FreshnessSpec{SourceRoot: root}
+	manifest, err := ComputeFreshnessManifest(spec, "binaries", nil, time.Now().UnixNano())
+	if err != nil {
+		t.Fatalf("compute manifest through empty-input fallback: %v", err)
+	}
+	manifestFiles := make(map[string]bool, len(manifest.Files))
+	for _, file := range manifest.Files {
+		manifestFiles[file.Rel] = true
+	}
+	if !manifestFiles["api/internal/checks/coverage/check.go"] || !manifestFiles["api/internal/ui/coverage/check.go"] || !manifestFiles["scenarios/demo/coverage/authored.go"] {
+		t.Fatalf("empty-input fallback manifest omitted authored coverage paths: %v", manifestFiles)
+	}
+	if manifestFiles["coverage/index.html"] || manifestFiles["scenarios/demo/ui/coverage/index.html"] {
+		t.Fatalf("empty-input fallback manifest included a declared report root: %v", manifestFiles)
+	}
+	writeOutputTestFile(t, filepath.Join(root, "api", "internal", "checks", "coverage", "check.go"), "package coverage\nconst Value = 2\n")
+	verdict, err := EvaluateFreshness(spec, manifest, nil)
+	if err != nil {
+		t.Fatalf("evaluate empty-input fallback after source edit: %v", err)
+	}
+	if !verdict.Stale || verdict.File != "api/internal/checks/coverage/check.go" {
+		t.Fatalf("empty-input fallback did not detect nested source edit: %+v", verdict)
+	}
+}
+
 // Source trees can contain links used by fixtures or development tooling. A
 // broken link is not a source file and must not make a successful build
 // impossible to stamp.

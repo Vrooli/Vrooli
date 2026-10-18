@@ -7,6 +7,7 @@ package subscription
 
 import (
 	"context"
+	"database/sql"
 	"time"
 )
 
@@ -79,4 +80,13 @@ type QueueStore interface {
 	Due(ctx context.Context, limit int) ([]QueuedDelivery, error)
 	MarkDelivered(ctx context.Context, deliveryID, subscriptionID int64, at time.Time) error
 	MarkFailed(ctx context.Context, deliveryID, subscriptionID int64, reason string, next time.Time, deadLetter bool) error
+}
+
+// AtomicQueueStore exposes transaction-aware subscription matching and queue
+// insertion for event admission. The caller owns tx and commits or rolls back
+// the event and all matching delivery rows together.
+type AtomicQueueStore interface {
+	QueueStore
+	ListTx(ctx context.Context, tx *sql.Tx, f ListFilters) ([]Subscription, error)
+	EnqueueTx(ctx context.Context, tx *sql.Tx, subscriptionID int64, eventID, payload string) error
 }

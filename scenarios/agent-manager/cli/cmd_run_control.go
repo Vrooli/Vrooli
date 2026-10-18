@@ -423,7 +423,11 @@ func (a *App) runContinue(args []string) error {
 	}
 
 	if run.Status == domainpb.RunStatus_RUN_STATUS_RUNNING {
-		fmt.Printf("Transport accepted into running session: %s (provider consumption unknown; inspect later provider events)\n", run.Id)
+		if run.ExecutionMode == domainpb.ExecutionMode_EXECUTION_MODE_INTERACTIVE {
+			fmt.Printf("Transport accepted into running interactive session: %s (provider consumption unknown; inspect later provider events)\n", run.Id)
+			return nil
+		}
+		fmt.Printf("Continuation started for run: %s (status: running; provider consumption unknown)\n", run.Id)
 		return nil
 	}
 	fmt.Printf("Continued run: %s (status: %s)\n", run.Id, formatEnumValue(run.Status, "RUN_STATUS_", "_"))

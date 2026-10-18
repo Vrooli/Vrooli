@@ -144,6 +144,21 @@ CREATE TABLE IF NOT EXISTS incidents (
     operator_notes TEXT NOT NULL DEFAULT ''
 );
 
+-- One immutable incident-open event snapshot per persisted lifecycle.
+-- Pending rows are immutable retry snapshots. The accepted acknowledgement
+-- deletes the row; the incident's EventCount remains the durable generation.
+CREATE TABLE IF NOT EXISTS incident_open_publications (
+    incident_id TEXT NOT NULL,
+    generation INTEGER NOT NULL,
+    event_type TEXT NOT NULL,
+    payload_json TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    PRIMARY KEY (incident_id, generation)
+);
+
+CREATE INDEX IF NOT EXISTS idx_incident_open_publications_pending
+    ON incident_open_publications (created_at, incident_id, generation);
+
 CREATE INDEX IF NOT EXISTS idx_incidents_status_updated
     ON incidents (status, updated_at DESC);
 

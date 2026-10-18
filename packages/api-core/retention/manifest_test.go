@@ -188,6 +188,68 @@ func TestParseManifestStorageEntryDesugarsAndRejectsConflicts(t *testing.T) {
 	}
 }
 
+func TestParseManifestCoalescesCompatibleSameNameDeclarations(t *testing.T) {
+	manifest := `{"storage":{"entries":{"phase_cache":{"rung":"owned","kind":"dir","class":"cache","budget":{"max_age":"7d","max_bytes":"2GiB","rationale":"Canonical owner budget."}}}},"retention":{"budgets":{"phase_cache":{"target":{"kind":"directory","class":"cache","path":"."},"max_age":"7d","max_bytes":"2GiB","pruner":"builtin","rationale":"Compatible legacy declaration."}}}}`
+	specs, err := ParseManifest([]byte(manifest))
+	if err != nil {
+		t.Fatalf("ParseManifest: %v", err)
+	}
+	if len(specs) != 1 {
+		t.Fatalf("got %d specs, want one coalesced phase_cache budget: %+v", len(specs), specs)
+	}
+	spec := specs[0]
+	if spec.Budget.Name != "phase_cache" || spec.Target.Kind != TargetDirectory || spec.Target.Class != storage.ClassCache || spec.Target.Path != "." {
+		t.Fatalf("coalesced target = %+v / %+v", spec.Budget, spec.Target)
+	}
+	if spec.Budget.MaxAge != 7*24*time.Hour || spec.Budget.MaxBytes != 2*1024*1024*1024 || spec.Mode != PrunerBuiltin {
+		t.Fatalf("coalesced policy = %+v mode=%q", spec.Budget, spec.Mode)
+	}
+	if spec.Rationale != "Canonical owner budget." {
+		t.Fatalf("rationale = %q, want storage entry's owner rationale", spec.Rationale)
+	}
+}
+
+func TestParseManifestRejectsDisagreeingSameNameDeclarations(t *testing.T) {
+	base := `{"storage":{"entries":{"phase_cache":{"kind":"dir","class":"cache","budget":{"max_age":"7d","max_bytes":"2GiB"}}}},"retention":{"budgets":{"phase_cache":{"target":{"kind":"directory","class":"cache","path":"."},"max_age":"7d","max_bytes":"2GiB"}}}}`
+	cases := []struct {
+		name     string
+		manifest string
+		want     string
+	}{
+		{
+			name:     "target mismatch",
+			manifest: strings.Replace(base, `"class":"cache","path":"."`, `"class":"data","path":"."`, 1),
+			want:     "targets differ",
+		},
+		{
+			name: "bounds mismatch",
+			manifest: strings.Replace(base,
+				`"target":{"kind":"directory","class":"cache","path":"."},"max_age":"7d","max_bytes":"2GiB"`,
+				`"target":{"kind":"directory","class":"cache","path":"."},"max_age":"7d","max_bytes":"3GiB"`, 1),
+			want: "bounds differ",
+		},
+		{
+			name: "pruner mismatch",
+			manifest: strings.Replace(base,
+				`"target":{"kind":"directory","class":"cache","path":"."},"max_age":"7d","max_bytes":"2GiB"`,
+				`"target":{"kind":"directory","class":"cache","path":"."},"max_age":"7d","max_bytes":"2GiB","pruner":"custom"`, 1),
+			want: "pruner modes differ",
+		},
+		{
+			name:     "unsupported storage declaration",
+			manifest: strings.Replace(base, `"kind":"dir","class":"cache"`, `"kind":"file","class":"cache"`, 1),
+			want:     "not a budgeted directory",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := ParseManifest([]byte(tc.manifest)); err == nil || !strings.Contains(err.Error(), "phase_cache") || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("ParseManifest error = %v, want phase_cache %s conflict", err, tc.want)
+			}
+		})
+	}
+}
+
 func TestTargetResolveUsesStorageClassRoots(t *testing.T) {
 	resolver, err := storage.NewResolver(storage.ResolverConfig{})
 	if err != nil {
@@ -241,6 +303,35 @@ func TestParseManifestPreservesCustomStoragePruner(t *testing.T) {
 	specs, err := ParseManifest([]byte(`{"storage":{"entries":{"staging":{"kind":"dir","class":"cache","subpath":"staging","reclaim":{"pruner":"custom"},"budget":{"max_age":"7d","max_bytes":"20GiB"}}}}}`))
 	if err != nil || len(specs) != 1 || specs[0].Mode != PrunerCustom {
 		t.Fatalf("specs=%+v err=%v", specs, err)
+	}
+}
+
+func TestParseManifestDelegatesCustomTestRunsWithoutBuiltinSpec(t *testing.T) {
+	manifest := `{"storage":{"entries":{"run_artifacts":{"kind":"dir","class":"test_runs","regenerable":true,"reclaim":{"pruner":"custom"},"budget":{"max_age":"30d","max_bytes":"20GiB"}}}}}`
+	specs, err := ParseManifest([]byte(manifest))
+	if err != nil {
+		t.Fatalf("ParseManifest custom test_runs: %v", err)
+	}
+	if len(specs) != 0 {
+		t.Fatalf("ParseManifest returned generic specs for owner-retained run evidence: %#v", specs)
+	}
+}
+
+func TestParseManifestRefusesBuiltinTestRunsRetention(t *testing.T) {
+	for _, manifest := range []string{
+		`{"storage":{"entries":{"run_artifacts":{"kind":"dir","class":"test_runs","regenerable":true,"budget":{"max_age":"30d"}}}}}`,
+		`{"retention":{"budgets":{"run_artifacts":{"target":{"kind":"directory","class":"test_runs","path":"."},"max_age":"30d"}}}}`,
+	} {
+		if _, err := ParseManifest([]byte(manifest)); err == nil || !strings.Contains(err.Error(), "builtin retention") {
+			t.Fatalf("ParseManifest(%s) error=%v, want explicit builtin test_runs refusal", manifest, err)
+		}
+	}
+}
+
+func TestParseManifestRejectsGenericDuplicateForCustomTestRuns(t *testing.T) {
+	manifest := `{"storage":{"entries":{"run_artifacts":{"kind":"dir","class":"test_runs","regenerable":true,"reclaim":{"pruner":"custom"},"budget":{"max_age":"30d","max_bytes":"20GiB"}}}},"retention":{"budgets":{"run_artifacts":{"target":{"kind":"directory","class":"test_runs","path":"."},"max_age":"30d"}}}}`
+	if _, err := ParseManifest([]byte(manifest)); err == nil || !strings.Contains(err.Error(), "cannot also declare a generic retention budget") {
+		t.Fatalf("ParseManifest custom+generic test_runs error=%v", err)
 	}
 }
 

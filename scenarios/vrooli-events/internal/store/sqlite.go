@@ -169,16 +169,29 @@ func (s *SQLiteStore) reconcileMeta(ctx context.Context) error {
 }
 
 func (s *SQLiteStore) Insert(ctx context.Context, e Event) (int64, error) {
-	metadataJSON, err := json.Marshal(e.Metadata)
-	if err != nil {
-		return 0, fmt.Errorf("marshal metadata: %w", err)
-	}
-
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, fmt.Errorf("begin tx: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
+	id, err := s.InsertTx(ctx, tx, e)
+	if err != nil {
+		return 0, err
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit: %w", err)
+	}
+	return id, nil
+}
+
+// InsertTx inserts an event and updates payload accounting inside tx without
+// committing it. Callers may use it to atomically admit an event with other
+// records owned by this same database transaction.
+func (s *SQLiteStore) InsertTx(ctx context.Context, tx *sql.Tx, e Event) (int64, error) {
+	metadataJSON, err := json.Marshal(e.Metadata)
+	if err != nil {
+		return 0, fmt.Errorf("marshal metadata: %w", err)
+	}
 	var res sql.Result
 	if e.CreatedAt.IsZero() {
 		res, err = tx.ExecContext(ctx,
@@ -202,10 +215,6 @@ func (s *SQLiteStore) Insert(ctx context.Context, e Event) (int64, error) {
 	if _, err := tx.ExecContext(ctx,
 		`UPDATE store_meta SET value = value + ? WHERE key = 'total_payload_bytes'`, payloadLen); err != nil {
 		return 0, fmt.Errorf("update meta: %w", err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return 0, fmt.Errorf("commit: %w", err)
 	}
 
 	id, _ := res.LastInsertId()

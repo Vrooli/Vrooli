@@ -19,6 +19,7 @@ import (
 	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
+	coreidentity "github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
@@ -52,33 +53,59 @@ type breakGlassProvisioner struct {
 }
 
 // cloudflareHumanAssertion adapts the shared managed-Cloudflare provider to the
-// accounts.HumanAssertionVerifier seam so MintSessionDelegation can accept a
-// tunnel operator's Cloudflare Access assertion as human proof. It verifies via
-// the SAME path the request middleware uses — resolving the web-console Access
-// binding and checking signature, audience, expiry and the non-empty user — then
-// returns the verified subject only for a genuine human. No new trust surface:
-// the assertion is already trusted by web-console and agent-manager.
+// accounts.HumanAssertionVerifier seam. Its authn.Config contains only this
+// provider plus the shared owner bindings selected for agent-manager, so the
+// browser assertion cannot acquire identity from other providers or ambient
+// request context.
 type cloudflareHumanAssertion struct {
-	provider *authn.ManagedCloudflareProvider
+	config authn.Config
 }
 
-func (c cloudflareHumanAssertion) VerifyHuman(ctx context.Context, rawAssertion string) (string, string, bool) {
-	if c.provider == nil || strings.TrimSpace(rawAssertion) == "" {
-		return "", "", false
+func (c cloudflareHumanAssertion) VerifyHuman(ctx context.Context, rawAssertion string) (coreidentity.Principal, bool) {
+	if strings.TrimSpace(rawAssertion) == "" {
+		return coreidentity.Principal{}, false
 	}
 	// The managed provider verifies from a request header, so present the
 	// assertion the same way Cloudflare delivers it. The request is synthetic and
 	// carries only the assertion; no ambient identity leaks in.
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://local/mint", nil)
 	if err != nil {
-		return "", "", false
+		return coreidentity.Principal{}, false
 	}
 	req.Header.Set("Cf-Access-Jwt-Assertion", strings.TrimSpace(rawAssertion))
-	principal, err := c.provider.VerifyRequest(ctx, req)
-	if err != nil || !principal.IsHuman() {
-		return "", "", false
+	principal, err := c.config.Authenticate(ctx, req)
+	if err != nil || !principal.IsHuman() || !principal.IsVerified() {
+		return coreidentity.Principal{}, false
 	}
-	return principal.Subject, principal.Email, true
+	return principal, true
+}
+
+// cloudflareOwnerAuthConfig reuses api-core's OwnerBinding parser and matcher
+// while selecting bindings for the relying scenario (agent-manager), not this
+// issuer process. Provider loading is disabled during parsing; the returned
+// verifier config contains only the existing managed Web Console Cloudflare
+// provider, preventing unrelated environment providers from joining identity.
+func cloudflareOwnerAuthConfig(provider authn.Provider, getenv func(string) string) (authn.Config, error) {
+	if getenv == nil {
+		getenv = os.Getenv
+	}
+	bindingsConfig, err := authn.FromEnvironment(func(key string) string {
+		switch key {
+		case "VROOLI_AUTH_PROVIDERS":
+			return ""
+		case "VROOLI_SCENARIO", "SCENARIO_NAME":
+			return "agent-manager"
+		default:
+			return getenv(key)
+		}
+	})
+	if err != nil {
+		return authn.Config{}, err
+	}
+	if provider == nil || provider.Source() != coreidentity.SourceCloudflareAccess {
+		return authn.Config{}, fmt.Errorf("Cloudflare owner verifier requires the managed Cloudflare provider")
+	}
+	return authn.Config{Providers: []authn.Provider{provider}, OwnerBindings: bindingsConfig.OwnerBindings}, nil
 }
 
 func (p breakGlassProvisioner) Provision(_ context.Context, accountID, realmID string, scopes []string, linkedAt time.Time) error {
@@ -232,6 +259,10 @@ func main() {
 		log.Printf("cloudflare access binding self-check passed; web-console human-login binding is reachable")
 	}
 	cancelCheck()
+	cloudflareOwnerConfig, err := cloudflareOwnerAuthConfig(cloudflareHumanProvider, os.Getenv)
+	if err != nil {
+		log.Fatalf("cloudflare owner binding configuration is invalid: %v", err)
+	}
 
 	authService := accounts.NewService(accounts.ServiceConfig{
 		Repo:              repo,
@@ -248,12 +279,9 @@ func main() {
 		ServicePrincipals: servicePrincipals,
 		ServiceCustody:    authorityServiceCustodian{authority: credentialAuthority},
 		// A tunnel operator authenticates via Cloudflare Access, not an account
-		// bearer. Accept that same assertion — verified against the WEB-CONSOLE
-		// Access binding (the audience the operator's token is for) — as human
-		// proof for a session-delegation mint. This introduces no new trust: the
-		// assertion is already trusted by web-console and agent-manager, and the
-		// mint yields only a no-capability owner label.
-		HumanAssertion: cloudflareHumanAssertion{provider: cloudflareHumanProvider},
+		// bearer. Verify through the existing Web Console binding and shared
+		// agent-manager OwnerBindings; an absent binding supplies no scopes.
+		HumanAssertion: cloudflareHumanAssertion{config: cloudflareOwnerConfig},
 	})
 	_, localHandler := accountsconnect.NewAccountsServiceHandler(authH.NewConnectHandler(authH.Deps{Service: authService, Logger: log.Default()}))
 	exchangeLimiter := localexchange.NewRateLimiter(20, time.Minute)

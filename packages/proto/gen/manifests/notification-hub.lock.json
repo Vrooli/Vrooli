@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "notification-hub",
-  "input_digest": "sha256:960cd5c3ed42adb95e56159125c43e89f74d44216c0100bab7d5a9fdd617d62b",
+  "input_digest": "sha256:ce59aec0930270b857c064bd44b2c67ecaecda6638d385ac9f022cb055700f2a",
   "input_files": [
     "schemas/notification-hub/v1/conversations/conversations.proto",
     "schemas/notification-hub/v1/delivery/delivery.proto",
@@ -24,7 +24,7 @@
     }
   },
   "outputs": {
-    "gen/go/notification-hub/v1/conversations/conversations.pb.go": "sha256:c219ce2813e40b4e5e372aea48176143279f084788d691fd2ff5a18eda88e409",
+    "gen/go/notification-hub/v1/conversations/conversations.pb.go": "sha256:6083325eae985705503252fa822714c8612418229cd58844a9ecd7d2a8ccd469",
     "gen/go/notification-hub/v1/conversations/conversations_v1connect/conversations.connect.go": "sha256:44b786d9f84669f1ddd1893d3f4c5c4436d36205c90f4d574026b12f4a184afd",
     "gen/go/notification-hub/v1/delivery/delivery.pb.go": "sha256:8aabe842f720dc8d2a2f7020409f3fd45ed0c46a2818699eaca235f85b239569",
     "gen/go/notification-hub/v1/delivery/delivery_v1connect/delivery.connect.go": "sha256:16182a82e29027360862e7e7376d36d31433f24706a8290cb4ca96b65a4fc584",
@@ -40,8 +40,8 @@
     "gen/go/notification-hub/v1/shared/health.pb.go": "sha256:e8ffa676a226dd08ab45f62e7cb627e4579eb26d9b964f0983ce5712466c6f98",
     "gen/go/notification-hub/v1/shared/types.pb.go": "sha256:5c3d95341d24f46d4778378b4eaba1636c863999d7f9650621c2351de652877d",
     "gen/python/notification_hub/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/notification_hub/v1/conversations/conversations_pb2.py": "sha256:6baeb835d369c06a79ac94253d17676fc9985d44b23fd9c4f561c6ddf8b0eb0a",
-    "gen/python/notification_hub/v1/conversations/conversations_pb2.pyi": "sha256:224978b73aae7563b8138b66cacfbd2a4d92fd80201f9e9625cb77eb09ab782c",
+    "gen/python/notification_hub/v1/conversations/conversations_pb2.py": "sha256:fe0f41485857bf9cdc41494d05ba7a08701c758615d6fdcb8e63fdc6e556385c",
+    "gen/python/notification_hub/v1/conversations/conversations_pb2.pyi": "sha256:e396400db97495f4b69b09b54d857380f39f64bd194c8f3f753a06a6ac57ae8e",
     "gen/python/notification_hub/v1/conversations/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/notification_hub/v1/delivery/delivery_pb2.py": "sha256:03d77f4a9f64124badc49e4e5dd2a49f4a9d66cbaa226dbdbc620dffa4e24f41",
     "gen/python/notification_hub/v1/delivery/delivery_pb2.pyi": "sha256:e525df276e6f329fcde81cb24d9385cba147d04350b7ce31429bb1e6d6304a87",
@@ -66,7 +66,7 @@
     "gen/python/notification_hub/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/notification_hub/v1/shared/types_pb2.py": "sha256:e12e0a5fc0eae5a61c2269b95982b0bab202ca15af785c4683bd53af30b96935",
     "gen/python/notification_hub/v1/shared/types_pb2.pyi": "sha256:75da3c76c48a26c3cfa64cfbe8c9973bbeaee3b9cfebf54402fe9b6effc47af2",
-    "gen/typescript/notification-hub/v1/conversations/conversations_pb.ts": "sha256:ab41f184399f852bff3d77a43721b89fe5e191896f8a5b25a1d3d88ca838f0f9",
+    "gen/typescript/notification-hub/v1/conversations/conversations_pb.ts": "sha256:438b17cf3f907320a909f073f058ffe7addd8a6a2e19802a129cfea48246df23",
     "gen/typescript/notification-hub/v1/delivery/delivery_pb.ts": "sha256:d2f6157b800452a9730591b61e829037c18f845282c81269c62ac57af6a014e4",
     "gen/typescript/notification-hub/v1/identity/identity_pb.ts": "sha256:a8f459c38c32c33b42fa6b38153fc7151c09d5a7662b73851af3752ddfe32ac9",
     "gen/typescript/notification-hub/v1/notifications/notifications_pb.ts": "sha256:952b01dd9f7690c6711171c7406d7d32dab6ae060c0dadef32a7ad8c43fe2826",

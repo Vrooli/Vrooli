@@ -83,3 +83,19 @@ The capture/music corrective retry is under
 was then revised to match the actual Vega landing page. Retain these alternatives
 and their provenance. The final accepted example, not an earlier study, calibrates
 future production judgment.
+
+
+## Default instrumental generation, 2026-10-17
+
+The operator approved the full harder Stable Audio 3 B source after rating the
+matched excerpt pair 8.5/10. Music Tools now owns the normal durable route for
+this engine, including its exact generator receipt and source hash. `launch-club`
+is the default starting style; product-specific styles preserve the approved
+production character while creating distinct hooks and arrangements. Explicit
+ACE styles and normal lyrical songs remain supported. Use the existing resource
+and job owners for lifecycle/capacity rather than a private skill workflow.
+
+The retained full source and excerpt are listening references, not automatic
+quality scores. Every new soundtrack needs actual comparison and full-source
+review, followed by review of the final film mix. File checks establish media
+integrity; they cannot certify musical sophistication, energy or vocal absence.

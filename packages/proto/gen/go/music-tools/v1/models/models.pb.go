@@ -22,16 +22,20 @@ const (
 )
 
 type Model struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	DisplayName   string                 `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
-	Variant       string                 `protobuf:"bytes,3,opt,name=variant,proto3" json:"variant,omitempty"`
-	LicenseLane   string                 `protobuf:"bytes,4,opt,name=license_lane,json=licenseLane,proto3" json:"license_lane,omitempty"`
-	Status        string                 `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`
-	Revision      string                 `protobuf:"bytes,6,opt,name=revision,proto3" json:"revision,omitempty"`
-	Bytes         uint64                 `protobuf:"varint,7,opt,name=bytes,proto3" json:"bytes,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	Id                  string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	DisplayName         string                 `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	Variant             string                 `protobuf:"bytes,3,opt,name=variant,proto3" json:"variant,omitempty"`
+	LicenseLane         string                 `protobuf:"bytes,4,opt,name=license_lane,json=licenseLane,proto3" json:"license_lane,omitempty"`
+	Status              string                 `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`
+	Revision            string                 `protobuf:"bytes,6,opt,name=revision,proto3" json:"revision,omitempty"`
+	Bytes               uint64                 `protobuf:"varint,7,opt,name=bytes,proto3" json:"bytes,omitempty"`
+	Engine              string                 `protobuf:"bytes,8,opt,name=engine,proto3" json:"engine,omitempty"`
+	SungLyrics          *ModelCapability       `protobuf:"bytes,9,opt,name=sung_lyrics,json=sungLyrics,proto3" json:"sung_lyrics,omitempty"`
+	VoiceReference      *ModelCapability       `protobuf:"bytes,10,opt,name=voice_reference,json=voiceReference,proto3" json:"voice_reference,omitempty"`
+	CompositionControls *CompositionControls   `protobuf:"bytes,11,opt,name=composition_controls,json=compositionControls,proto3" json:"composition_controls,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *Model) Reset() {
@@ -113,6 +117,202 @@ func (x *Model) GetBytes() uint64 {
 	return 0
 }
 
+func (x *Model) GetEngine() string {
+	if x != nil {
+		return x.Engine
+	}
+	return ""
+}
+
+func (x *Model) GetSungLyrics() *ModelCapability {
+	if x != nil {
+		return x.SungLyrics
+	}
+	return nil
+}
+
+func (x *Model) GetVoiceReference() *ModelCapability {
+	if x != nil {
+		return x.VoiceReference
+	}
+	return nil
+}
+
+func (x *Model) GetCompositionControls() *CompositionControls {
+	if x != nil {
+		return x.CompositionControls
+	}
+	return nil
+}
+
+type ModelCapability struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Supported     bool                   `protobuf:"varint,1,opt,name=supported,proto3" json:"supported,omitempty"`
+	Reason        string                 `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
+	Source        string                 `protobuf:"bytes,3,opt,name=source,proto3" json:"source,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ModelCapability) Reset() {
+	*x = ModelCapability{}
+	mi := &file_music_tools_v1_models_models_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ModelCapability) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ModelCapability) ProtoMessage() {}
+
+func (x *ModelCapability) ProtoReflect() protoreflect.Message {
+	mi := &file_music_tools_v1_models_models_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ModelCapability.ProtoReflect.Descriptor instead.
+func (*ModelCapability) Descriptor() ([]byte, []int) {
+	return file_music_tools_v1_models_models_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *ModelCapability) GetSupported() bool {
+	if x != nil {
+		return x.Supported
+	}
+	return false
+}
+
+func (x *ModelCapability) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *ModelCapability) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+type CompositionControls struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	MinDurationSeconds float64                `protobuf:"fixed64,1,opt,name=min_duration_seconds,json=minDurationSeconds,proto3" json:"min_duration_seconds,omitempty"`
+	MaxDurationSeconds float64                `protobuf:"fixed64,2,opt,name=max_duration_seconds,json=maxDurationSeconds,proto3" json:"max_duration_seconds,omitempty"`
+	DefaultSteps       int32                  `protobuf:"varint,3,opt,name=default_steps,json=defaultSteps,proto3" json:"default_steps,omitempty"`
+	MinSteps           int32                  `protobuf:"varint,4,opt,name=min_steps,json=minSteps,proto3" json:"min_steps,omitempty"`
+	MaxSteps           int32                  `protobuf:"varint,5,opt,name=max_steps,json=maxSteps,proto3" json:"max_steps,omitempty"`
+	DefaultGuidance    float64                `protobuf:"fixed64,6,opt,name=default_guidance,json=defaultGuidance,proto3" json:"default_guidance,omitempty"`
+	MinGuidance        float64                `protobuf:"fixed64,7,opt,name=min_guidance,json=minGuidance,proto3" json:"min_guidance,omitempty"`
+	MaxGuidance        float64                `protobuf:"fixed64,8,opt,name=max_guidance,json=maxGuidance,proto3" json:"max_guidance,omitempty"`
+	DurationControl    string                 `protobuf:"bytes,9,opt,name=duration_control,json=durationControl,proto3" json:"duration_control,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *CompositionControls) Reset() {
+	*x = CompositionControls{}
+	mi := &file_music_tools_v1_models_models_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CompositionControls) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CompositionControls) ProtoMessage() {}
+
+func (x *CompositionControls) ProtoReflect() protoreflect.Message {
+	mi := &file_music_tools_v1_models_models_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CompositionControls.ProtoReflect.Descriptor instead.
+func (*CompositionControls) Descriptor() ([]byte, []int) {
+	return file_music_tools_v1_models_models_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *CompositionControls) GetMinDurationSeconds() float64 {
+	if x != nil {
+		return x.MinDurationSeconds
+	}
+	return 0
+}
+
+func (x *CompositionControls) GetMaxDurationSeconds() float64 {
+	if x != nil {
+		return x.MaxDurationSeconds
+	}
+	return 0
+}
+
+func (x *CompositionControls) GetDefaultSteps() int32 {
+	if x != nil {
+		return x.DefaultSteps
+	}
+	return 0
+}
+
+func (x *CompositionControls) GetMinSteps() int32 {
+	if x != nil {
+		return x.MinSteps
+	}
+	return 0
+}
+
+func (x *CompositionControls) GetMaxSteps() int32 {
+	if x != nil {
+		return x.MaxSteps
+	}
+	return 0
+}
+
+func (x *CompositionControls) GetDefaultGuidance() float64 {
+	if x != nil {
+		return x.DefaultGuidance
+	}
+	return 0
+}
+
+func (x *CompositionControls) GetMinGuidance() float64 {
+	if x != nil {
+		return x.MinGuidance
+	}
+	return 0
+}
+
+func (x *CompositionControls) GetMaxGuidance() float64 {
+	if x != nil {
+		return x.MaxGuidance
+	}
+	return 0
+}
+
+func (x *CompositionControls) GetDurationControl() string {
+	if x != nil {
+		return x.DurationControl
+	}
+	return ""
+}
+
 type ListModelsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Variant       string                 `protobuf:"bytes,1,opt,name=variant,proto3" json:"variant,omitempty"`
@@ -122,7 +322,7 @@ type ListModelsRequest struct {
 
 func (x *ListModelsRequest) Reset() {
 	*x = ListModelsRequest{}
-	mi := &file_music_tools_v1_models_models_proto_msgTypes[1]
+	mi := &file_music_tools_v1_models_models_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -134,7 +334,7 @@ func (x *ListModelsRequest) String() string {
 func (*ListModelsRequest) ProtoMessage() {}
 
 func (x *ListModelsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_music_tools_v1_models_models_proto_msgTypes[1]
+	mi := &file_music_tools_v1_models_models_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -147,7 +347,7 @@ func (x *ListModelsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListModelsRequest.ProtoReflect.Descriptor instead.
 func (*ListModelsRequest) Descriptor() ([]byte, []int) {
-	return file_music_tools_v1_models_models_proto_rawDescGZIP(), []int{1}
+	return file_music_tools_v1_models_models_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ListModelsRequest) GetVariant() string {
@@ -166,7 +366,7 @@ type ListModelsResponse struct {
 
 func (x *ListModelsResponse) Reset() {
 	*x = ListModelsResponse{}
-	mi := &file_music_tools_v1_models_models_proto_msgTypes[2]
+	mi := &file_music_tools_v1_models_models_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -178,7 +378,7 @@ func (x *ListModelsResponse) String() string {
 func (*ListModelsResponse) ProtoMessage() {}
 
 func (x *ListModelsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_music_tools_v1_models_models_proto_msgTypes[2]
+	mi := &file_music_tools_v1_models_models_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -191,7 +391,7 @@ func (x *ListModelsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListModelsResponse.ProtoReflect.Descriptor instead.
 func (*ListModelsResponse) Descriptor() ([]byte, []int) {
-	return file_music_tools_v1_models_models_proto_rawDescGZIP(), []int{2}
+	return file_music_tools_v1_models_models_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ListModelsResponse) GetModels() []*Model {
@@ -210,7 +410,7 @@ type GetModelRequest struct {
 
 func (x *GetModelRequest) Reset() {
 	*x = GetModelRequest{}
-	mi := &file_music_tools_v1_models_models_proto_msgTypes[3]
+	mi := &file_music_tools_v1_models_models_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -222,7 +422,7 @@ func (x *GetModelRequest) String() string {
 func (*GetModelRequest) ProtoMessage() {}
 
 func (x *GetModelRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_music_tools_v1_models_models_proto_msgTypes[3]
+	mi := &file_music_tools_v1_models_models_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -235,7 +435,7 @@ func (x *GetModelRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetModelRequest.ProtoReflect.Descriptor instead.
 func (*GetModelRequest) Descriptor() ([]byte, []int) {
-	return file_music_tools_v1_models_models_proto_rawDescGZIP(), []int{3}
+	return file_music_tools_v1_models_models_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *GetModelRequest) GetId() string {
@@ -249,7 +449,7 @@ var File_music_tools_v1_models_models_proto protoreflect.FileDescriptor
 
 const file_music_tools_v1_models_models_proto_rawDesc = "" +
 	"\n" +
-	"\"music-tools/v1/models/models.proto\x12\x1cvrooli.music_tools.v1.models\"\xc1\x01\n" +
+	"\"music-tools/v1/models/models.proto\x12\x1cvrooli.music_tools.v1.models\"\xe7\x03\n" +
 	"\x05Model\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12\x18\n" +
@@ -257,7 +457,27 @@ const file_music_tools_v1_models_models_proto_rawDesc = "" +
 	"\flicense_lane\x18\x04 \x01(\tR\vlicenseLane\x12\x16\n" +
 	"\x06status\x18\x05 \x01(\tR\x06status\x12\x1a\n" +
 	"\brevision\x18\x06 \x01(\tR\brevision\x12\x14\n" +
-	"\x05bytes\x18\a \x01(\x04R\x05bytes\"-\n" +
+	"\x05bytes\x18\a \x01(\x04R\x05bytes\x12\x16\n" +
+	"\x06engine\x18\b \x01(\tR\x06engine\x12N\n" +
+	"\vsung_lyrics\x18\t \x01(\v2-.vrooli.music_tools.v1.models.ModelCapabilityR\n" +
+	"sungLyrics\x12V\n" +
+	"\x0fvoice_reference\x18\n" +
+	" \x01(\v2-.vrooli.music_tools.v1.models.ModelCapabilityR\x0evoiceReference\x12d\n" +
+	"\x14composition_controls\x18\v \x01(\v21.vrooli.music_tools.v1.models.CompositionControlsR\x13compositionControls\"_\n" +
+	"\x0fModelCapability\x12\x1c\n" +
+	"\tsupported\x18\x01 \x01(\bR\tsupported\x12\x16\n" +
+	"\x06reason\x18\x02 \x01(\tR\x06reason\x12\x16\n" +
+	"\x06source\x18\x03 \x01(\tR\x06source\"\xf4\x02\n" +
+	"\x13CompositionControls\x120\n" +
+	"\x14min_duration_seconds\x18\x01 \x01(\x01R\x12minDurationSeconds\x120\n" +
+	"\x14max_duration_seconds\x18\x02 \x01(\x01R\x12maxDurationSeconds\x12#\n" +
+	"\rdefault_steps\x18\x03 \x01(\x05R\fdefaultSteps\x12\x1b\n" +
+	"\tmin_steps\x18\x04 \x01(\x05R\bminSteps\x12\x1b\n" +
+	"\tmax_steps\x18\x05 \x01(\x05R\bmaxSteps\x12)\n" +
+	"\x10default_guidance\x18\x06 \x01(\x01R\x0fdefaultGuidance\x12!\n" +
+	"\fmin_guidance\x18\a \x01(\x01R\vminGuidance\x12!\n" +
+	"\fmax_guidance\x18\b \x01(\x01R\vmaxGuidance\x12)\n" +
+	"\x10duration_control\x18\t \x01(\tR\x0fdurationControl\"-\n" +
 	"\x11ListModelsRequest\x12\x18\n" +
 	"\avariant\x18\x01 \x01(\tR\avariant\"Q\n" +
 	"\x12ListModelsResponse\x12;\n" +
@@ -280,24 +500,29 @@ func file_music_tools_v1_models_models_proto_rawDescGZIP() []byte {
 	return file_music_tools_v1_models_models_proto_rawDescData
 }
 
-var file_music_tools_v1_models_models_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_music_tools_v1_models_models_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_music_tools_v1_models_models_proto_goTypes = []any{
-	(*Model)(nil),              // 0: vrooli.music_tools.v1.models.Model
-	(*ListModelsRequest)(nil),  // 1: vrooli.music_tools.v1.models.ListModelsRequest
-	(*ListModelsResponse)(nil), // 2: vrooli.music_tools.v1.models.ListModelsResponse
-	(*GetModelRequest)(nil),    // 3: vrooli.music_tools.v1.models.GetModelRequest
+	(*Model)(nil),               // 0: vrooli.music_tools.v1.models.Model
+	(*ModelCapability)(nil),     // 1: vrooli.music_tools.v1.models.ModelCapability
+	(*CompositionControls)(nil), // 2: vrooli.music_tools.v1.models.CompositionControls
+	(*ListModelsRequest)(nil),   // 3: vrooli.music_tools.v1.models.ListModelsRequest
+	(*ListModelsResponse)(nil),  // 4: vrooli.music_tools.v1.models.ListModelsResponse
+	(*GetModelRequest)(nil),     // 5: vrooli.music_tools.v1.models.GetModelRequest
 }
 var file_music_tools_v1_models_models_proto_depIdxs = []int32{
-	0, // 0: vrooli.music_tools.v1.models.ListModelsResponse.models:type_name -> vrooli.music_tools.v1.models.Model
-	1, // 1: vrooli.music_tools.v1.models.ModelsService.List:input_type -> vrooli.music_tools.v1.models.ListModelsRequest
-	3, // 2: vrooli.music_tools.v1.models.ModelsService.Get:input_type -> vrooli.music_tools.v1.models.GetModelRequest
-	2, // 3: vrooli.music_tools.v1.models.ModelsService.List:output_type -> vrooli.music_tools.v1.models.ListModelsResponse
-	0, // 4: vrooli.music_tools.v1.models.ModelsService.Get:output_type -> vrooli.music_tools.v1.models.Model
-	3, // [3:5] is the sub-list for method output_type
-	1, // [1:3] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	1, // 0: vrooli.music_tools.v1.models.Model.sung_lyrics:type_name -> vrooli.music_tools.v1.models.ModelCapability
+	1, // 1: vrooli.music_tools.v1.models.Model.voice_reference:type_name -> vrooli.music_tools.v1.models.ModelCapability
+	2, // 2: vrooli.music_tools.v1.models.Model.composition_controls:type_name -> vrooli.music_tools.v1.models.CompositionControls
+	0, // 3: vrooli.music_tools.v1.models.ListModelsResponse.models:type_name -> vrooli.music_tools.v1.models.Model
+	3, // 4: vrooli.music_tools.v1.models.ModelsService.List:input_type -> vrooli.music_tools.v1.models.ListModelsRequest
+	5, // 5: vrooli.music_tools.v1.models.ModelsService.Get:input_type -> vrooli.music_tools.v1.models.GetModelRequest
+	4, // 6: vrooli.music_tools.v1.models.ModelsService.List:output_type -> vrooli.music_tools.v1.models.ListModelsResponse
+	0, // 7: vrooli.music_tools.v1.models.ModelsService.Get:output_type -> vrooli.music_tools.v1.models.Model
+	6, // [6:8] is the sub-list for method output_type
+	4, // [4:6] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_music_tools_v1_models_models_proto_init() }
@@ -311,7 +536,7 @@ func file_music_tools_v1_models_models_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_music_tools_v1_models_models_proto_rawDesc), len(file_music_tools_v1_models_models_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

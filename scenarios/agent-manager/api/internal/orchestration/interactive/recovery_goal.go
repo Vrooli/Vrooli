@@ -13,10 +13,19 @@ import (
 	"github.com/google/uuid"
 )
 
+// RetainedGoalEvidence couples the accepted native goal verdict with the exact
+// marker that justified it. Recovery can persist the same observation without
+// replaying transcript messages or tool effects.
+type RetainedGoalEvidence struct {
+	Terminal *runner.TranscriptTerminal
+	Marker   runner.GoalMarker
+	At       time.Time
+}
+
 // InspectRetainedGoal repairs the cursor-before-finalization crash gap without
 // replaying events, costs, messages or tool effects. It uses the canonical codec,
 // not a second parser or a textual completion heuristic. Unknown is not failure.
-func (c *Coordinator) InspectRetainedGoal(ctx context.Context, run *domain.Run) (*runner.TranscriptTerminal, error) {
+func (c *Coordinator) InspectRetainedGoal(ctx context.Context, run *domain.Run) (*RetainedGoalEvidence, error) {
 	if run == nil || run.ResolvedConfig == nil || strings.TrimSpace(run.ResolvedConfig.Until) == "" || run.SessionID == "" || run.TranscriptPath == "" || run.StartedAt == nil || c.deps.Tailer == nil {
 		return nil, nil
 	}
@@ -32,6 +41,14 @@ func (c *Coordinator) InspectRetainedGoal(ctx context.Context, run *domain.Run) 
 	parser, err := c.deps.Tailer.resolveParser(run.ResolvedConfig.RunnerType)
 	if err != nil {
 		return nil, err
+	}
+	// Retained replay starts after the live tailer's original parser context was
+	// discarded. Seed the same run/session/objective pins before consuming so a
+	// correlated get_goal read is validated against this run, not an empty parser.
+	if setter, ok := parser.(interface {
+		SetGoalContext(uuid.UUID, string, string)
+	}); ok {
+		setter.SetGoalContext(run.ID, run.SessionID, run.ResolvedConfig.Until)
 	}
 	// Turn-boundary metadata works with the parser's default privacy policy.
 	// No user message retention is needed for this read-only goal inspection.
@@ -81,8 +98,8 @@ func (c *Coordinator) InspectRetainedGoal(ctx context.Context, run *domain.Run) 
 	if !os.SameFile(before, after) || before.Size() != after.Size() || !before.ModTime().Equal(after.ModTime()) || cursor != before.Size() {
 		return nil, fmt.Errorf("retained goal transcript changed or has an incomplete tail; no finalization")
 	}
-	if !sessionMatched || lastGoal == nil || terminal == nil || !strings.HasPrefix(terminal.TerminalReason, "goal_") || goalTime.IsZero() || goalTime.Before(*attemptStart) || strings.TrimSpace(lastGoal.Objective) != strings.TrimSpace(run.ResolvedConfig.Until) {
+	if !sessionMatched || lastGoal == nil || terminal == nil || !strings.HasPrefix(terminal.TerminalReason, "goal_") || terminal.TerminalReason != "goal_"+string(lastGoal.Status) || goalTime.IsZero() || goalTime.Before(*attemptStart) || !runner.NativeGoalObjectiveMatches(lastGoal.Objective, run.ResolvedConfig.Until) {
 		return nil, nil
 	}
-	return terminal, nil
+	return &RetainedGoalEvidence{Terminal: terminal, Marker: *lastGoal, At: goalTime}, nil
 }

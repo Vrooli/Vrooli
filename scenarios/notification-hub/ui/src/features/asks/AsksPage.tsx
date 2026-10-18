@@ -5,7 +5,6 @@ import { conversationsClient } from "../../api/notifications";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
-import { SessionGate } from "../session/SessionGate";
 import { optionLabel } from "./askView";
 
 /** Every open decision at once, newest first, each linking to its page. */
@@ -20,9 +19,7 @@ export function AsksPage() {
       <h2 id="asks-heading" className="text-2xl font-semibold">
         {t(strings.asks.list.title)}
       </h2>
-      <SessionGate>
-        <OpenAsks />
-      </SessionGate>
+      <OpenAsks />
     </section>
   );
 }

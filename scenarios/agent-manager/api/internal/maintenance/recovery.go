@@ -30,12 +30,22 @@ type RecoveryState struct {
 
 // Recovery owns only startup sequencing and its observable readiness. Historical
 // accounting stays with its existing owner and is never deleted or zero-filled.
+type recoveryStepResult struct {
+	name        string
+	nonCritical bool
+	failure     string
+}
+
 type Recovery struct {
-	mu     sync.RWMutex
-	state  RecoveryState
-	once   sync.Once
-	cancel context.CancelFunc
-	done   chan struct{}
+	mu              sync.RWMutex
+	state           RecoveryState
+	once            sync.Once
+	cancel          context.CancelFunc
+	ctx             context.Context
+	done            chan struct{}
+	steps           []recoveryStepResult
+	startupFinished bool
+	stopped         bool
 }
 
 func NewRecovery() *Recovery {
@@ -54,14 +64,26 @@ func (r *Recovery) Done() <-chan struct{} { return r.done }
 
 func (r *Recovery) Start(parent context.Context, steps []RecoveryStep) {
 	r.once.Do(func() {
-		ctx, cancel := context.WithCancel(parent)
 		r.mu.Lock()
+		if r.stopped {
+			r.mu.Unlock()
+			close(r.done)
+			return
+		}
+		// Install cancellation state before releasing the lock. Stop either
+		// marks the recovery stopped first, or sees this cancel function and
+		// joins the worker after cancelling it.
+		ctx, cancel := context.WithCancel(parent)
 		r.cancel = cancel
+		r.ctx = ctx
+		r.steps = make([]recoveryStepResult, len(steps))
+		for i, step := range steps {
+			r.steps[i] = recoveryStepResult{name: step.Name, nonCritical: step.NonCritical}
+		}
 		r.mu.Unlock()
 		go func() {
 			defer close(r.done)
-			criticalFailure := false
-			for _, step := range steps {
+			for i, step := range steps {
 				if ctx.Err() != nil {
 					break
 				}
@@ -78,29 +100,86 @@ func (r *Recovery) Start(parent context.Context, steps []RecoveryStep) {
 					err = stepCtx.Err()
 				}
 				stepCancel()
+				r.mu.Lock()
 				if err != nil {
-					criticalFailure = criticalFailure || !step.NonCritical
-					r.mu.Lock()
-					r.state.Failures = append(r.state.Failures, step.Name+": "+err.Error())
-					r.mu.Unlock()
+					r.steps[i].failure = err.Error()
 				}
+				r.mu.Unlock()
 			}
 			r.mu.Lock()
 			defer r.mu.Unlock()
 			r.state.Phase = ""
-			switch {
-			case ctx.Err() != nil:
+			if r.stopped || ctx.Err() != nil {
+				r.stopped = true
 				r.state.Status = "stopping"
 				r.state.Readiness = false
-			case len(r.state.Failures) > 0:
-				r.state.Status = "degraded"
-				r.state.Readiness = !criticalFailure
-			default:
-				r.state.Status = "ready"
-				r.state.Readiness = true
+				return
 			}
+			r.startupFinished = true
+			r.refreshStateLocked()
 		}()
 	})
+}
+
+// ReconcileDeclarationStep clears a retained startup failure after its
+// declaration retry owner succeeds. Retry errors are logged by that owner and
+// do not add to or rewrite startup recovery state. Only these two steps have
+// deferred retry owners; updates are ignored during startup and after shutdown.
+func (r *Recovery) ReconcileDeclarationStep(name string, err error) bool {
+	if name != "self_declarations" && name != "scenario_declarations" {
+		return false
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if !r.startupFinished || r.stopped {
+		return false
+	}
+	if r.ctx != nil && r.ctx.Err() != nil {
+		r.stopped = true
+		r.state.Status = "stopping"
+		r.state.Readiness = false
+		return false
+	}
+	matched := -1
+	for i := range r.steps {
+		if r.steps[i].name != name {
+			continue
+		}
+		if matched >= 0 {
+			return false // An ambiguous step name must not clear multiple results.
+		}
+		matched = i
+	}
+	if matched < 0 {
+		return false
+	}
+	if err != nil || r.steps[matched].failure == "" {
+		return true
+	}
+	r.steps[matched].failure = ""
+	r.refreshStateLocked()
+	return true
+}
+
+// refreshStateLocked derives the public state from per-step outcomes while
+// preserving each step's original criticality and failure identity.
+func (r *Recovery) refreshStateLocked() {
+	r.state.Failures = r.state.Failures[:0]
+	criticalFailure := false
+	for _, step := range r.steps {
+		if step.failure == "" {
+			continue
+		}
+		r.state.Failures = append(r.state.Failures, step.name+": "+step.failure)
+		criticalFailure = criticalFailure || !step.nonCritical
+	}
+	if len(r.state.Failures) > 0 {
+		r.state.Status = "degraded"
+		r.state.Readiness = !criticalFailure
+		return
+	}
+	r.state.Status = "ready"
+	r.state.Readiness = true
 }
 
 // Stop cancels and joins startup before its storage is closed. Long-lived workers
@@ -108,6 +187,7 @@ func (r *Recovery) Start(parent context.Context, steps []RecoveryStep) {
 func (r *Recovery) Stop() {
 	r.mu.Lock()
 	cancel := r.cancel
+	r.stopped = true
 	r.state.Status = "stopping"
 	r.state.Readiness = false
 	r.mu.Unlock()

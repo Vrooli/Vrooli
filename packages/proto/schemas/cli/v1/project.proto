@@ -199,6 +199,8 @@ message ProjectStopReport {
 
   // Summary message; empty if unset.
   string message = 3;
+  // Diagnostics and recommendations that do not assert a stopped resource.
+  repeated ProjectStopItem observed = 4;
 }
 
 // ProjectStopItem is one stop/clean result row (control.ResultItem).

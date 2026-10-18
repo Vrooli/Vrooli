@@ -67,6 +67,10 @@ func (f *inventorySessions) SendText(context.Context, string, string, string) er
 	return errors.New("retention sweep must not type into sessions")
 }
 
+func (f *inventorySessions) SendCommand(context.Context, string, string, string) (webconsole.PromptSubmission, error) {
+	return webconsole.PromptSubmission{}, errors.New("retention sweep must not type commands into sessions")
+}
+
 func (f *inventorySessions) SendPrompt(context.Context, string, string, string) (webconsole.PromptSubmission, error) {
 	return webconsole.PromptSubmission{}, errors.New("retention sweep must not type into sessions")
 }

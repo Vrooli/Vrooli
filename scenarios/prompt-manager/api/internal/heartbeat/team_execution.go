@@ -3,6 +3,7 @@ package heartbeat
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -40,9 +41,14 @@ type TeamExecutionStatus struct {
 	MaxConcurrentRuns int      `json:"maxConcurrentRuns"`
 	// Unresolved ownership classes. Each listed member still holds its slot, so
 	// no duplicate heartbeat can be admitted until it is reconciled or cleared.
-	UncertainAgentIDs   []string `json:"uncertainAgentIds"`
-	UnreachableAgentIDs []string `json:"unreachableAgentIds"`
-	PausedAgentIDs      []string `json:"pausedAgentIds"`
+	UncertainAgentIDs              []string `json:"uncertainAgentIds"`
+	UnreachableAgentIDs            []string `json:"unreachableAgentIds"`
+	PausedAgentIDs                 []string `json:"pausedAgentIds"`
+	ApprovalPendingAgentIDs        []string `json:"approvalPendingAgentIds"`
+	NeedsReviewAgentIDs            []string `json:"needsReviewAgentIds"`
+	WatcherUnavailableAgentIDs     []string `json:"watcherUnavailableAgentIds"`
+	PreparationInterruptedAgentIDs []string `json:"preparationInterruptedAgentIds"`
+	AdmissionDeferredAgentIDs      []string `json:"admissionDeferredAgentIds"`
 }
 
 // MemberAlreadyQueuedError is returned when a member is already queued or running.
@@ -91,22 +97,61 @@ func IsRunningStillActive(err error) bool {
 // admitted while ownership is unresolved. They are released only on definitive
 // terminal owner evidence or an explicit operator recovery action.
 const (
+	AdmissionOriginUnknown   = ""
+	AdmissionOriginScheduled = "scheduled"
+	AdmissionOriginManual    = "manual"
+
+	// DispatchStagePreparing is durably written before a newly admitted worker
+	// starts. It proves that no Agent Manager task or run POST has been issued.
+	DispatchStagePreparing = "preparing"
+	// DispatchStageIntent is written atomically with the frozen task/run request
+	// snapshots before the first owner POST.
+	DispatchStageIntent = "task_intent"
+
 	// ObligationRunning is a normal live run (or a run reconciled as active).
 	ObligationRunning = ""
 	// ObligationDispatchUncertain means a dispatch intent was persisted (or a
 	// start response was lost) but the run identity cannot be confirmed. The
 	// slot is retained and the obligation is surfaced for owner reconciliation.
 	ObligationDispatchUncertain = "dispatch_uncertain"
+	// ObligationDispatchCanceled is a durable no-replay tombstone for an
+	// unconfirmed task request proven not to have been sent. The current worker
+	// still owns the in-memory slot until its normal completion callback.
+	ObligationDispatchCanceled = "dispatch_canceled_before_send"
 	// ObligationOwnerUnreachable means reconciliation could not reach the
 	// owner. Absence of evidence is not terminal evidence; the slot is retained.
 	ObligationOwnerUnreachable = "owner_unreachable"
 	// ObligationPaused means the owner reports the run as suspended (parked or
 	// quota-paused). It is nonterminal retained ownership, not a missing run.
 	ObligationPaused = "paused"
+	// ObligationApprovalPending retains a run-stage request and its exact
+	// idempotent dispatch intent while operator approval is pending.
+	ObligationApprovalPending = "approval_pending"
+	// ObligationAdmissionDeferred retains an exact dispatch intent after
+	// Agent Manager definitively refused it only because its current grant
+	// capacity is full. The scheduled callback may replay it once; admission
+	// is re-evaluated by Agent Manager on every request.
+	ObligationAdmissionDeferred = "admission_deferred"
+	// ObligationNeedsReview is a stopped owner run awaiting operator review.
+	// It remains retained ownership and must not cause duplicate dispatch.
+	ObligationNeedsReview = "needs_review"
+	// ObligationWatcherUnavailable means a local completion observer ended
+	// without terminal owner evidence. The slot remains held until a scheduled
+	// reconciliation can reattach it or prove the owner run is terminal.
+	ObligationWatcherUnavailable = "watcher_unavailable"
+	// ObligationPreparationInterrupted is an accepted admission recovered from
+	// a pre-owner-effect preparation record. It holds the slot until a fresh
+	// normally-gated admission replaces it.
+	ObligationPreparationInterrupted = "preparation_interrupted"
 )
 
 type queuedExecution struct {
 	ManualAdmission bool `json:"manual_admission,omitempty"`
+	// AdmissionOrigin is independent of the authenticated owner caller mode.
+	// It records whether an accepted intent came from cron or an explicit
+	// operator trigger so recovery does not infer fresh-work authority.
+	AdmissionOrigin string `json:"admission_origin,omitempty"`
+	DispatchStage   string `json:"DispatchStage,omitempty"`
 	// Only in-memory caller proof. Recovery requires fresh authorized admission.
 	caller     context.Context `json:"-"`
 	AgentID    string          `json:"AgentID"`
@@ -127,6 +172,16 @@ type queuedExecution struct {
 	// the intent so an uncertain dispatch can be replayed against the owner
 	// without rebuilding the prompt or creating a second task.
 	TaskID string `json:"TaskID,omitempty"`
+	// TaskRequestSnapshot freezes the caller-authored task before its first
+	// POST. TaskConfirmed is persisted only after the exact task is found or
+	// created and its immutable terms are checked.
+	TaskRequestSnapshot string `json:"TaskRequestSnapshot,omitempty"`
+	TaskConfirmed       bool   `json:"TaskConfirmed,omitempty"`
+	// CreateRunRequestSnapshot freezes the exact serialized owner request before
+	// its first send so recovery does not reconstruct terms from mutable state.
+	CreateRunRequestSnapshot string `json:"CreateRunRequestSnapshot,omitempty"`
+	CreateRunCallerMode      string `json:"CreateRunCallerMode,omitempty"`
+	CreateRunCallerBinding   string `json:"CreateRunCallerBinding,omitempty"`
 	// RunTag is the owner-visible run tag recorded with the intent. It is
 	// preserved so a replayed run keeps the same attribution label.
 	RunTag string `json:"RunTag,omitempty"`
@@ -139,20 +194,45 @@ type queuedExecution struct {
 	// ResetConsumedEventID marks the runtime-owner reset-eligibility event that
 	// already resumed this paused obligation. It makes consumption idempotent
 	// so a replayed owner event cannot wake the same run twice.
-	ResetConsumedEventID string `json:"ResetConsumedEventID,omitempty"`
+	ResetConsumedEventID string                                `json:"ResetConsumedEventID,omitempty"`
+	OwnerObligationID    string                                `json:"OwnerObligationID,omitempty"`
+	OwnerStartedAt       string                                `json:"OwnerStartedAt,omitempty"`
+	OwnerStateSnapshots  map[string]retainedOwnerStateSnapshot `json:"OwnerStateSnapshots,omitempty"`
 }
 
 type runningEntry struct {
-	ProfileKey           string
-	RunID                string
-	State                string
-	IdempotencyKey       string
-	TaskID               string
-	RunTag               string
-	WorkloadKind         string
-	WorkloadKey          string
-	WorkloadInstance     string
-	ResetConsumedEventID string
+	DispatchStage            string
+	AdmissionOrigin          string
+	ProfileKey               string
+	RunID                    string
+	State                    string
+	IdempotencyKey           string
+	TaskID                   string
+	TaskRequestSnapshot      string
+	TaskConfirmed            bool
+	CreateRunRequestSnapshot string
+	CreateRunCallerMode      string
+	CreateRunCallerBinding   string
+	RunTag                   string
+	WorkloadKind             string
+	WorkloadKey              string
+	WorkloadInstance         string
+	ResetConsumedEventID     string
+	OwnerObligationID        string
+	OwnerStartedAt           string
+	OwnerStateSnapshots      map[string]retainedOwnerStateSnapshot
+}
+
+// retainedOwnerStateSnapshot freezes one observed state per obligation so
+// later startup reconciliation can replay identical immutable event terms.
+type retainedOwnerStateSnapshot struct {
+	OwnerObligationID string `json:"ownerObligationId"`
+	State             string `json:"state"`
+	StartedAt         string `json:"startedAt,omitempty"`
+	ObservedAt        string `json:"observedAt"`
+	TaskID            string `json:"taskId,omitempty"`
+	RunID             string `json:"runId,omitempty"`
+	ReviewURL         string `json:"reviewUrl,omitempty"`
 }
 
 // DispatchIntent is the durable record of a heartbeat's owner start request,
@@ -160,12 +240,18 @@ type runningEntry struct {
 // retained uncertain obligation be replayed with the same owner request (and
 // the same idempotency key) after a crash or lost response.
 type DispatchIntent struct {
-	IdempotencyKey   string
-	TaskID           string
-	RunTag           string
-	WorkloadKind     string
-	WorkloadKey      string
-	WorkloadInstance string
+	AdmissionOrigin          string
+	IdempotencyKey           string
+	TaskID                   string
+	TaskRequestSnapshot      string
+	TaskConfirmed            bool
+	RunTag                   string
+	WorkloadKind             string
+	WorkloadKey              string
+	WorkloadInstance         string
+	CreateRunRequestSnapshot string
+	CreateRunCallerMode      string
+	CreateRunCallerBinding   string
 }
 
 // TeamExecutionContext manages execution for a single team according to queue policy.
@@ -236,7 +322,15 @@ func (c *TeamExecutionContext) Configure(queuePolicy string, maxConcurrentRuns i
 // execution starts immediately. Otherwise, the member is queued.
 func (c *TeamExecutionContext) Enqueue(ctx context.Context, agentID, profileKey string) (*EnqueueResult, error) {
 	worker := context.Background()
+	origin := heartbeatAdmissionOrigin(ctx)
+	if origin == AdmissionOriginUnknown {
+		// Direct Enqueue callers are explicit operator/service API requests unless
+		// the cron scheduler marks its origin before entering this owner.
+		origin = AdmissionOriginManual
+	}
 	manualAdmission := false
+	callerMode := createRunCallerOriginUnqualified
+	callerBinding := ""
 	if client, ok := c.agentClient.(*AgentManagerClient); ok {
 		manualAdmission = true
 		qualified, err := client.prepareCreateRunCaller(ctx)
@@ -247,11 +341,28 @@ func (c *TeamExecutionContext) Enqueue(ctx context.Context, agentID, profileKey 
 		if err != nil {
 			return nil, NewDispatchRejectedError(err)
 		}
-		proof := createRunCaller(ctx)
-		worker = withCreateRunCaller(carried, proof.authorization, proof.runIdentity)
+		proof := createRunCaller(qualified)
+		callerMode = proof.origin
+		if !validCreateRunCallerMode(callerMode) {
+			callerMode = createRunCallerOriginUnqualified
+			if proof.authorization != "" || proof.runIdentity != "" {
+				callerMode = createRunCallerOriginCaller
+			}
+		}
+		callerBinding = proof.binding
+		if proof.origin == createRunCallerOriginService {
+			// Queue service mode, but not the minted bearer. Executor refreshes a
+			// request-local service token before each owner interaction.
+			worker = withCreateRunCallerOrigin(carried, "", "", proof.origin)
+		} else {
+			worker = withCreateRunCallerOrigin(carried, proof.authorization, proof.runIdentity, proof.origin)
+			worker = withCreateRunCallerBinding(worker, proof.binding)
+		}
 	}
+	worker = withHeartbeatAdmissionOrigin(worker, origin)
 	c.mu.Lock()
-	if _, ok := c.running[agentID]; ok {
+	previous, hasRunning := c.running[agentID]
+	if hasRunning && !isReplaceableInterruptedPreparation(previous) {
 		c.mu.Unlock()
 		return nil, &MemberAlreadyQueuedError{TeamID: c.teamID, AgentID: agentID}
 	}
@@ -267,9 +378,21 @@ func (c *TeamExecutionContext) Enqueue(ctx context.Context, agentID, profileKey 
 		Position: len(c.queue) + 1,
 	}
 
-	if len(c.running) < c.maxConcurrentRuns {
-		c.running[agentID] = runningEntry{ProfileKey: profileKey}
-		_ = c.persistLocked()
+	if hasRunning || len(c.running) < c.maxConcurrentRuns {
+		c.running[agentID] = runningEntry{
+			DispatchStage:   DispatchStagePreparing,
+			AdmissionOrigin: origin,
+			ProfileKey:      profileKey,
+		}
+		if err := c.persistLocked(); err != nil {
+			if hasRunning {
+				c.running[agentID] = previous
+			} else {
+				delete(c.running, agentID)
+			}
+			c.mu.Unlock()
+			return nil, fmt.Errorf("persisting execution preparation: %w", err)
+		}
 		c.mu.Unlock()
 		c.startExecution(agentID, profileKey, worker)
 		result.Status = "started"
@@ -277,11 +400,50 @@ func (c *TeamExecutionContext) Enqueue(ctx context.Context, agentID, profileKey 
 		return result, nil
 	}
 
-	c.queue = append(c.queue, queuedExecution{AgentID: agentID, ProfileKey: profileKey, caller: worker, ManualAdmission: manualAdmission})
+	queued := queuedExecution{
+		AgentID:                agentID,
+		ProfileKey:             profileKey,
+		AdmissionOrigin:        origin,
+		caller:                 worker,
+		ManualAdmission:        manualAdmission,
+		CreateRunCallerMode:    callerMode,
+		CreateRunCallerBinding: callerBinding,
+	}
+	c.queue = append(c.queue, queued)
 	c.queued[agentID] = true
-	_ = c.persistLocked()
+	if err := c.persistLocked(); err != nil {
+		c.queue = c.queue[:len(c.queue)-1]
+		delete(c.queued, agentID)
+		c.mu.Unlock()
+		return nil, fmt.Errorf("persisting queued execution: %w", err)
+	}
 	c.mu.Unlock()
 	return result, nil
+}
+
+func isReplaceableInterruptedPreparation(entry runningEntry) bool {
+	if entry.State != ObligationPreparationInterrupted || entry.DispatchStage != DispatchStagePreparing ||
+		entry.RunID != "" || entry.IdempotencyKey != "" || entry.TaskID != "" || entry.TaskRequestSnapshot != "" || entry.TaskConfirmed ||
+		entry.CreateRunRequestSnapshot != "" || entry.CreateRunCallerMode != "" || entry.CreateRunCallerBinding != "" ||
+		entry.RunTag != "" || entry.WorkloadKind != "" || entry.WorkloadKey != "" || entry.WorkloadInstance != "" ||
+		entry.ResetConsumedEventID != "" || entry.OwnerStartedAt != "" {
+		return false
+	}
+	if entry.OwnerObligationID == "" {
+		return len(entry.OwnerStateSnapshots) == 0
+	}
+	if len(entry.OwnerStateSnapshots) != 1 {
+		return false
+	}
+	snapshot, ok := entry.OwnerStateSnapshots[ObligationPreparationInterrupted]
+	return ok && validInterruptedPreparationSnapshot(snapshot, entry.OwnerObligationID)
+}
+
+func validInterruptedPreparationSnapshot(snapshot retainedOwnerStateSnapshot, ownerID string) bool {
+	_, observedAtErr := time.Parse(time.RFC3339Nano, snapshot.ObservedAt)
+	return observedAtErr == nil && snapshot.State == ObligationPreparationInterrupted &&
+		snapshot.OwnerObligationID == ownerID && snapshot.StartedAt == "" &&
+		snapshot.ObservedAt != "" && snapshot.TaskID == "" && snapshot.RunID == ""
 }
 
 // OnMemberComplete is called when an execution finishes. It frees a slot and
@@ -309,11 +471,22 @@ func (c *TeamExecutionContext) Status() TeamExecutionStatus {
 	}
 
 	running := make([]string, 0, len(c.running))
+	preparationInterrupted := make([]string, 0)
 	uncertain := make([]string, 0)
 	unreachable := make([]string, 0)
 	paused := make([]string, 0)
+	approvalPending := make([]string, 0)
+	needsReview := make([]string, 0)
+	watcherUnavailable := make([]string, 0)
+	admissionDeferred := make([]string, 0)
 	for agentID, entry := range c.running {
-		running = append(running, agentID)
+		if entry.State == ObligationPreparationInterrupted {
+			preparationInterrupted = append(preparationInterrupted, agentID)
+		} else if entry.State == ObligationAdmissionDeferred {
+			admissionDeferred = append(admissionDeferred, agentID)
+		} else {
+			running = append(running, agentID)
+		}
 		switch entry.State {
 		case ObligationDispatchUncertain:
 			uncertain = append(uncertain, agentID)
@@ -321,12 +494,27 @@ func (c *TeamExecutionContext) Status() TeamExecutionStatus {
 			unreachable = append(unreachable, agentID)
 		case ObligationPaused:
 			paused = append(paused, agentID)
+		case ObligationApprovalPending:
+			approvalPending = append(approvalPending, agentID)
+		case ObligationNeedsReview:
+			needsReview = append(needsReview, agentID)
+		case ObligationWatcherUnavailable:
+			watcherUnavailable = append(watcherUnavailable, agentID)
+		case ObligationAdmissionDeferred:
+			// This is a retained, definite no-admission result. It owns a slot
+			// for exact retry but is not a running model execution or unknown
+			// dispatch outcome.
 		}
 	}
 	sort.Strings(running)
 	sort.Strings(uncertain)
 	sort.Strings(unreachable)
 	sort.Strings(paused)
+	sort.Strings(approvalPending)
+	sort.Strings(needsReview)
+	sort.Strings(watcherUnavailable)
+	sort.Strings(preparationInterrupted)
+	sort.Strings(admissionDeferred)
 
 	queue := make([]string, 0, len(c.queue))
 	for _, item := range c.queue {
@@ -334,15 +522,20 @@ func (c *TeamExecutionContext) Status() TeamExecutionStatus {
 	}
 
 	return TeamExecutionStatus{
-		TeamID:              c.teamID,
-		State:               state,
-		RunningAgentIDs:     running,
-		Queue:               queue,
-		QueuePolicy:         c.queuePolicy,
-		MaxConcurrentRuns:   c.maxConcurrentRuns,
-		UncertainAgentIDs:   uncertain,
-		UnreachableAgentIDs: unreachable,
-		PausedAgentIDs:      paused,
+		TeamID:                         c.teamID,
+		State:                          state,
+		RunningAgentIDs:                running,
+		Queue:                          queue,
+		QueuePolicy:                    c.queuePolicy,
+		MaxConcurrentRuns:              c.maxConcurrentRuns,
+		UncertainAgentIDs:              uncertain,
+		UnreachableAgentIDs:            unreachable,
+		PausedAgentIDs:                 paused,
+		ApprovalPendingAgentIDs:        approvalPending,
+		NeedsReviewAgentIDs:            needsReview,
+		WatcherUnavailableAgentIDs:     watcherUnavailable,
+		PreparationInterruptedAgentIDs: preparationInterrupted,
+		AdmissionDeferredAgentIDs:      admissionDeferred,
 	}
 }
 
@@ -355,6 +548,15 @@ type persistedTeamQueue struct {
 }
 
 func (c *TeamExecutionContext) dispatchAvailableLocked() []queuedExecution {
+	previousRunning := make(map[string]runningEntry, len(c.running))
+	for agentID, entry := range c.running {
+		previousRunning[agentID] = entry
+	}
+	previousQueue := append([]queuedExecution(nil), c.queue...)
+	previousQueued := make(map[string]bool, len(c.queued))
+	for agentID, queued := range c.queued {
+		previousQueued[agentID] = queued
+	}
 	var dispatches []queuedExecution
 	// A bounded scan keeps expired/recovered entries held without blocking other
 	// callers. Their proof is never renewed from a different queued request.
@@ -363,18 +565,32 @@ func (c *TeamExecutionContext) dispatchAvailableLocked() []queuedExecution {
 		scans--
 		next := c.queue[0]
 		c.queue = c.queue[1:]
-		if _, real := c.agentClient.(*AgentManagerClient); real {
-			if next.caller == nil || requireQualifiedCaller(next.caller) != nil {
-				next.State = "caller_required"
-				c.queue = append(c.queue, next)
-				continue
-			}
+		realClient, real := c.agentClient.(*AgentManagerClient)
+		serviceMode := next.CreateRunCallerMode == createRunCallerOriginService
+		blocked := serviceMode && (!real || realClient == nil)
+		if real && (next.caller == nil || requireQualifiedCaller(next.caller) != nil) {
+			blocked = true
+		}
+		if blocked {
+			next.State = "caller_required"
+			c.queue = append(c.queue, next)
+			continue
 		}
 		delete(c.queued, next.AgentID)
-		c.running[next.AgentID] = runningEntry{ProfileKey: next.ProfileKey}
+		c.running[next.AgentID] = runningEntry{
+			DispatchStage:   DispatchStagePreparing,
+			AdmissionOrigin: next.AdmissionOrigin,
+			ProfileKey:      next.ProfileKey,
+		}
 		dispatches = append(dispatches, next)
 	}
-	_ = c.persistLocked()
+	if err := c.persistLocked(); err != nil {
+		c.running = previousRunning
+		c.queue = previousQueue
+		c.queued = previousQueued
+		log.Printf("team_execution: queue promotion held because preparation save failed for %s: %v", c.teamID, err)
+		return nil
+	}
 	return dispatches
 }
 
@@ -394,6 +610,14 @@ func (c *TeamExecutionContext) startExecution(agentID, profileKey string, caller
 		}
 		result, err := c.executor.Execute(ctx, c.teamID, agentID, profileKey)
 		if err != nil {
+			if IsApprovalPending(err) {
+				if approvalPendingStage(err) == "creating_task" {
+					// The owner guarantees a typed task-stage 202 created neither
+					// task nor run, so a later schedule can safely retry admission.
+					c.OnMemberComplete(agentID)
+				}
+				return
+			}
 			if IsDispatchUncertain(err) {
 				// The owner may have accepted the run. Retain the slot as an
 				// uncertain obligation instead of freeing it for a duplicate.
@@ -401,7 +625,11 @@ func (c *TeamExecutionContext) startExecution(agentID, profileKey string, caller
 				c.MarkDispatchUncertain(agentID, err.Error())
 				return
 			}
-			log.Printf("team_execution: execution failed for %s/%s: %v", c.teamID, agentID, err)
+			if c.isAdmissionDeferred(agentID) {
+				log.Printf("team_execution: retaining capacity-deferred dispatch for %s/%s: %v", c.teamID, agentID, err)
+				return
+			}
+			log.Print(formatExecutionFailure(c.teamID, agentID, err))
 			c.OnMemberComplete(agentID)
 			return
 		}
@@ -409,20 +637,45 @@ func (c *TeamExecutionContext) startExecution(agentID, profileKey string, caller
 	}()
 }
 
+func formatExecutionFailure(teamID, agentID string, err error) string {
+	message := fmt.Sprintf("team_execution: execution failed for %s/%s", teamID, agentID)
+	if reason := admissionReasonFromError(err); reason != "" {
+		message += " admission_reason=" + reason
+	}
+	return fmt.Sprintf("%s: %v", message, err)
+}
+
 // Shutdown waits for dispatch goroutines to finish their durable state update.
 func (c *TeamExecutionContext) Shutdown() {
 	c.executionWG.Wait()
 }
 
-// BeginDispatch records the durable dispatch intent (including the owner
-// idempotency key and the owner request essentials) for a member before the
-// start request leaves the process. A crash between here and the response
-// recovers as a visible, replayable obligation.
-func (c *TeamExecutionContext) BeginDispatch(agentID string, intent DispatchIntent) {
-	_ = c.BeginDispatchDurable(agentID, intent)
-}
-
-func (c *TeamExecutionContext) BeginDispatchDurable(agentID string, intent DispatchIntent) error {
+// BeginDispatch records the immutable task and run requests before the first
+// owner POST. A crash at either phase resumes from the saved task identity and
+// then the saved idempotent run request.
+func (c *TeamExecutionContext) BeginDispatch(agentID string, intent DispatchIntent) error {
+	request, err := createRunRequestFromSnapshot(intent.CreateRunRequestSnapshot, intent.IdempotencyKey, intent.TaskID)
+	if err != nil {
+		return fmt.Errorf("cannot persist run dispatch intent: %w", err)
+	}
+	if intent.TaskConfirmed && intent.TaskRequestSnapshot == "" {
+		return fmt.Errorf("cannot persist task confirmation without a frozen task request")
+	}
+	if intent.TaskRequestSnapshot != "" {
+		task, taskErr := parseTaskDispatchRequest(intent.TaskRequestSnapshot)
+		if taskErr != nil {
+			return fmt.Errorf("cannot persist task dispatch intent: %w", taskErr)
+		}
+		if task.ID != intent.TaskID || request.TaskID != task.ID {
+			return fmt.Errorf("cannot persist dispatch intent: task and run request identities differ")
+		}
+	}
+	if !validCreateRunCallerMode(intent.CreateRunCallerMode) {
+		return fmt.Errorf("cannot persist run dispatch intent: caller mode is missing or invalid")
+	}
+	if intent.CreateRunCallerMode == createRunCallerOriginCaller && intent.CreateRunCallerBinding == "" {
+		return fmt.Errorf("cannot persist run dispatch intent: verified caller binding is missing")
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -430,19 +683,183 @@ func (c *TeamExecutionContext) BeginDispatchDurable(agentID string, intent Dispa
 	if !ok {
 		return ErrRunningEntryNotFound
 	}
+	if intent.AdmissionOrigin != AdmissionOriginUnknown {
+		if intent.AdmissionOrigin != AdmissionOriginScheduled && intent.AdmissionOrigin != AdmissionOriginManual {
+			return fmt.Errorf("cannot persist dispatch intent: admission origin is invalid")
+		}
+		if entry.AdmissionOrigin != AdmissionOriginUnknown && entry.AdmissionOrigin != intent.AdmissionOrigin {
+			return fmt.Errorf("cannot persist dispatch intent: admission origin changed")
+		}
+		entry.AdmissionOrigin = intent.AdmissionOrigin
+	}
+	previous := entry
 	entry.State = ObligationDispatchUncertain
+	entry.DispatchStage = DispatchStageIntent
 	entry.IdempotencyKey = intent.IdempotencyKey
 	entry.TaskID = intent.TaskID
+	entry.TaskRequestSnapshot = intent.TaskRequestSnapshot
+	entry.TaskConfirmed = intent.TaskConfirmed
+	entry.CreateRunRequestSnapshot = intent.CreateRunRequestSnapshot
+	entry.CreateRunCallerMode = intent.CreateRunCallerMode
+	entry.CreateRunCallerBinding = intent.CreateRunCallerBinding
+	entry.ProfileKey = request.ProfileRef.ProfileKey
 	entry.RunTag = intent.RunTag
 	entry.WorkloadKind = intent.WorkloadKind
 	entry.WorkloadKey = intent.WorkloadKey
 	entry.WorkloadInstance = intent.WorkloadInstance
+	entry.OwnerObligationID = heartbeatOwnerObligationID(c.teamID, agentID, intent.IdempotencyKey, "", "")
+	entry.OwnerStartedAt = ""
+	entry.OwnerStateSnapshots = nil
 	c.running[agentID] = entry
-	return c.persistLocked()
+	if err := c.persistLocked(); err != nil {
+		// The owner start request is still gated on this save. Restore the
+		// in-memory entry so it does not claim a durable uncertain intent that
+		// was never committed.
+		c.running[agentID] = previous
+		return err
+	}
+	return nil
 }
 
-// ReconcileDispatch resolves a retained dispatch_uncertain obligation by
-// replaying the recorded owner start request with its idempotency key. The
+// ConfirmTaskDispatch durably advances a task-stage obligation after the
+// exact owner task and its immutable caller-authored terms have been verified.
+// CreateRun must remain gated on this save.
+func (c *TeamExecutionContext) ConfirmTaskDispatch(agentID string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	entry, ok := c.running[agentID]
+	if !ok {
+		return ErrRunningEntryNotFound
+	}
+	if entry.TaskRequestSnapshot == "" {
+		return errors.New("cannot confirm task dispatch without a frozen task request")
+	}
+	if entry.TaskConfirmed {
+		return nil
+	}
+	previous := entry
+	entry.TaskConfirmed = true
+	c.running[agentID] = entry
+	if err := c.persistLocked(); err != nil {
+		c.running[agentID] = previous
+		return err
+	}
+	return nil
+}
+
+// CancelUnsentTaskDispatch durably marks only the exact unconfirmed task intent
+// whose pre-send cancellation has been proven. The worker keeps its slot until
+// its normal completion callback, preventing that callback from releasing a
+// later attempt for the same member.
+func (c *TeamExecutionContext) CancelUnsentTaskDispatch(agentID, taskID, idempotencyKey, taskSnapshot string) error {
+	c.mu.Lock()
+	entry, ok := c.running[agentID]
+	if !ok {
+		c.mu.Unlock()
+		return ErrRunningEntryNotFound
+	}
+	if entry.TaskConfirmed || entry.TaskRequestSnapshot == "" || entry.TaskRequestSnapshot != taskSnapshot || entry.RunID != "" || entry.TaskID != taskID || entry.IdempotencyKey != idempotencyKey {
+		c.mu.Unlock()
+		return fmt.Errorf("refusing to cancel a task dispatch that no longer matches the proven unsent intent")
+	}
+	previous := entry
+	entry.State = ObligationDispatchCanceled
+	c.running[agentID] = entry
+	if err := c.persistLocked(); err != nil {
+		c.running[agentID] = previous
+		c.mu.Unlock()
+		return fmt.Errorf("persist canceled task dispatch: %w", err)
+	}
+	c.mu.Unlock()
+	return nil
+}
+
+func createRunRequestFromSnapshot(snapshot, expectedKey, expectedTaskID string) (*CreateRunRequest, error) {
+	if snapshot == "" {
+		return nil, fmt.Errorf("complete original CreateRun request snapshot is unavailable")
+	}
+	var request CreateRunRequest
+	if err := json.Unmarshal([]byte(snapshot), &request); err != nil {
+		return nil, fmt.Errorf("original CreateRun request snapshot is invalid: %w", err)
+	}
+	if request.IdempotencyKey == "" || request.IdempotencyKey != expectedKey || request.TaskID == "" || request.TaskID != expectedTaskID {
+		return nil, fmt.Errorf("original CreateRun request snapshot does not match the retained task and idempotency key")
+	}
+	if request.ProfileRef == nil || request.ProfileRef.ProfileKey == "" {
+		return nil, fmt.Errorf("original CreateRun request snapshot has no resolved profile key")
+	}
+	return &request, nil
+}
+
+func validCreateRunCallerMode(mode string) bool {
+	switch mode {
+	case createRunCallerOriginUnqualified, createRunCallerOriginCaller, createRunCallerOriginService:
+		return true
+	default:
+		return false
+	}
+}
+
+func prepareReplayCaller(ctx context.Context, agentClient AgentClient, mode, binding string) (context.Context, error) {
+	switch mode {
+	case createRunCallerOriginService:
+		client, ok := agentClient.(*AgentManagerClient)
+		if !ok || client == nil {
+			return nil, fmt.Errorf("original service caller cannot be reauthorized by the configured owner client")
+		}
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		// A new request/human proof must not replace the original service
+		// identity. The existing client mints a fresh service credential here.
+		// Clear the request-local proof while preserving caller cancellation and
+		// deadline for both token exchange and the owner request.
+		serviceCtx := context.WithValue(ctx, createRunCallerKey{}, createRunCallerProof{})
+		qualified, err := client.prepareCreateRunCaller(serviceCtx)
+		if err != nil {
+			return nil, err
+		}
+		proof := createRunCaller(qualified)
+		if proof.origin != createRunCallerOriginService || proof.authorization == "" {
+			return nil, fmt.Errorf("fresh service caller proof is unavailable")
+		}
+		return qualified, nil
+	case createRunCallerOriginCaller:
+		if binding == "" {
+			return nil, fmt.Errorf("original verified caller binding is unavailable")
+		}
+		proof := createRunCaller(ctx)
+		if proof.origin != "" && proof.origin != createRunCallerOriginCaller {
+			return nil, fmt.Errorf("current proof origin does not match the original caller mode")
+		}
+		if proof.authorization == "" && proof.runIdentity == "" {
+			return nil, fmt.Errorf("original caller proof is unavailable; it is not persisted with the queue")
+		}
+		if client, ok := agentClient.(*AgentManagerClient); ok && client != nil {
+			qualified, err := client.prepareCreateRunCaller(ctx)
+			if err != nil {
+				return nil, err
+			}
+			qualifiedProof := createRunCaller(qualified)
+			if qualifiedProof.origin != createRunCallerOriginCaller || qualifiedProof.binding == "" || qualifiedProof.binding != binding {
+				return nil, fmt.Errorf("current proof does not match the original caller mode")
+			}
+			return qualified, nil
+		}
+		return nil, fmt.Errorf("original caller cannot be freshly verified by the configured owner client")
+	case createRunCallerOriginUnqualified:
+		if owneridentity.CreateRunCallerEnforced() {
+			return nil, fmt.Errorf("original request had no caller proof and current owner policy requires one")
+		}
+		return ctx, nil
+	default:
+		return nil, fmt.Errorf("original caller mode is unavailable")
+	}
+}
+
+// ReconcileDispatch resolves a retained uncertain or approval-pending run
+// obligation by replaying the recorded owner start request with its idempotency key. The
 // owner deduplicates on that key, so a lost start response converges on the
 // one run it accepted; if the request never reached the owner, the replay
 // creates the intended run for the already-created task.
@@ -450,10 +867,10 @@ func (c *TeamExecutionContext) BeginDispatchDurable(agentID string, intent Dispa
 // The outcome is owner-mediated and therefore definite for reconciliation:
 //   - success            -> bind the confirmed run and re-attach a completion waiter
 //   - uncertain error    -> retain the obligation (owner still unreachable)
-//   - definitive refusal -> no run will ever exist for this intent; release the slot
+//   - replay rejection    -> retain the obligation unless the owner proves no run exists
 //
 // It returns ErrRunningEntryNotFound when no entry exists and nil when the
-// entry is not an uncertain dispatch (nothing to reconcile).
+// entry is not an uncertain or approval-pending dispatch (nothing to reconcile).
 func (c *TeamExecutionContext) ReconcileDispatch(ctx context.Context, agentID string) error {
 	c.mu.Lock()
 	entry, ok := c.running[agentID]
@@ -461,49 +878,62 @@ func (c *TeamExecutionContext) ReconcileDispatch(ctx context.Context, agentID st
 		c.mu.Unlock()
 		return ErrRunningEntryNotFound
 	}
-	if entry.State != ObligationDispatchUncertain {
+	if entry.State != ObligationDispatchUncertain && entry.State != ObligationApprovalPending && entry.State != ObligationAdmissionDeferred {
 		c.mu.Unlock()
 		return nil
 	}
-	if entry.IdempotencyKey == "" || entry.TaskID == "" {
+	if entry.TaskRequestSnapshot != "" && !entry.TaskConfirmed {
 		c.mu.Unlock()
-		return fmt.Errorf("cannot replay %s/%s dispatch: recorded intent is incomplete", c.teamID, agentID)
+		return c.ReconcileTaskDispatch(ctx, agentID)
+	}
+	request, snapshotErr := createRunRequestFromSnapshot(entry.CreateRunRequestSnapshot, entry.IdempotencyKey, entry.TaskID)
+	if snapshotErr != nil {
+		c.mu.Unlock()
+		return fmt.Errorf("cannot replay %s/%s dispatch: %w", c.teamID, agentID, snapshotErr)
+	}
+	if !validCreateRunCallerMode(entry.CreateRunCallerMode) {
+		c.mu.Unlock()
+		return fmt.Errorf("cannot replay %s/%s dispatch: original caller mode is unavailable", c.teamID, agentID)
 	}
 	if c.agentClient == nil {
 		c.mu.Unlock()
 		return fmt.Errorf("cannot replay %s/%s dispatch: agent client is not configured", c.teamID, agentID)
 	}
-	profileKey := entry.ProfileKey
-	intent := DispatchIntent{
-		IdempotencyKey:   entry.IdempotencyKey,
-		TaskID:           entry.TaskID,
-		RunTag:           entry.RunTag,
-		WorkloadKind:     entry.WorkloadKind,
-		WorkloadKey:      entry.WorkloadKey,
-		WorkloadInstance: entry.WorkloadInstance,
+	profileKey := ""
+	if request.ProfileRef != nil {
+		profileKey = request.ProfileRef.ProfileKey
 	}
+	callerMode := entry.CreateRunCallerMode
 	c.mu.Unlock()
 
-	attribKey, attribValue := buildHeartbeatAttributionEnv(c.teamID, agentID)
-	environment := map[string]string{attribKey: attribValue}
-	addWorkloadEnvironment(environment, intent.WorkloadKind, intent.WorkloadKey, intent.WorkloadInstance)
-	req := &CreateRunRequest{
-		TaskID:         intent.TaskID,
-		ProfileRef:     &ProfileRef{ProfileKey: profileKey},
-		Tag:            &intent.RunTag,
-		IdempotencyKey: intent.IdempotencyKey,
-		Environment:    environment,
+	callerBinding := entry.CreateRunCallerBinding
+	replayCtx, authErr := prepareReplayCaller(ctx, c.agentClient, callerMode, callerBinding)
+	if authErr != nil {
+		return fmt.Errorf("cannot replay %s/%s dispatch: %w", c.teamID, agentID, authErr)
 	}
 
-	run, err := c.agentClient.CreateRun(ctx, req)
+	run, err := c.agentClient.CreateRun(replayCtx, request)
 	if err != nil {
+		if IsApprovalPending(err) {
+			c.MarkApprovalPending(agentID)
+			return err
+		}
 		if IsDispatchUncertain(err) {
 			c.MarkDispatchUncertain(agentID, err.Error())
 			return err
 		}
-		// Definitive owner refusal: the intent can never become a run.
-		log.Printf("team_execution: releasing dispatch obligation for %s/%s after definitive replay refusal: %v", c.teamID, agentID, err)
-		c.releaseObligation(agentID)
+		if admissionReasonFromError(err) == "grant_limit_reached" {
+			if markErr := c.MarkAdmissionDeferred(agentID); markErr != nil {
+				c.MarkDispatchUncertain(agentID, markErr.Error())
+				return fmt.Errorf("retaining capacity-deferred dispatch: %w", errors.Join(err, markErr))
+			}
+			return err
+		}
+		// A replay-time rejection is not proof that the key has no accepted run:
+		// the owner can reject changed request terms before resolving the key.
+		// Keep the slot held for explicit owner reconciliation.
+		log.Printf("team_execution: retaining dispatch obligation for %s/%s after replay refusal: %v", c.teamID, agentID, err)
+		c.MarkDispatchUncertain(agentID, err.Error())
 		return err
 	}
 	if run == nil || run.ID == "" {
@@ -512,10 +942,67 @@ func (c *TeamExecutionContext) ReconcileDispatch(ctx context.Context, agentID st
 		return fmt.Errorf("%s/%s: %s", c.teamID, agentID, reason)
 	}
 
-	c.SetRunningRunID(agentID, run.ID)
-	c.watchRetainedRun(agentID, run.ID, profileKey, intent.TaskID, intent.RunTag)
-	log.Printf("team_execution: resolved uncertain dispatch for %s/%s to run %s", c.teamID, agentID, run.ID)
+	c.SetRunningRunID(agentID, run.ID, run.Status, run.StartedAt)
+	runTag := ""
+	if request.Tag != nil {
+		runTag = *request.Tag
+	}
+	if !c.watchRetainedRun(agentID, run.ID, profileKey, request.TaskID, runTag, run.Status, run.StartedAt) {
+		c.MarkWatcherUnavailable(agentID)
+	}
+	log.Printf("team_execution: resolved retained dispatch for %s/%s to run %s", c.teamID, agentID, run.ID)
 	return nil
+}
+
+// ReconcileTaskDispatch resolves only the persisted, unconfirmed task stage.
+// Once confirmation is durable, run recovery bypasses this phase and replays
+// the frozen CreateRun request even if the task has since moved to running.
+func (c *TeamExecutionContext) ReconcileTaskDispatch(ctx context.Context, agentID string) error {
+	c.mu.Lock()
+	entry, ok := c.running[agentID]
+	if !ok {
+		c.mu.Unlock()
+		return ErrRunningEntryNotFound
+	}
+	if entry.TaskRequestSnapshot == "" || entry.TaskConfirmed {
+		c.mu.Unlock()
+		return nil
+	}
+	if c.agentClient == nil {
+		c.mu.Unlock()
+		return errors.New("cannot reconcile task dispatch: agent client is not configured")
+	}
+	snapshot := entry.TaskRequestSnapshot
+	callerMode := entry.CreateRunCallerMode
+	callerBinding := entry.CreateRunCallerBinding
+	client := c.agentClient
+	c.mu.Unlock()
+
+	replayCtx, authErr := prepareReplayCaller(ctx, client, callerMode, callerBinding)
+	if authErr != nil {
+		c.MarkDispatchUncertain(agentID, authErr.Error())
+		return fmt.Errorf("reauthorize retained task dispatch: %w", authErr)
+	}
+	if _, err := resolveTaskDispatch(replayCtx, client, snapshot); err != nil {
+		if IsApprovalPending(err) {
+			c.MarkApprovalPending(agentID)
+			return err
+		}
+		if admissionReasonFromError(err) == "grant_limit_reached" {
+			if markErr := c.MarkAdmissionDeferred(agentID); markErr != nil {
+				c.MarkDispatchUncertain(agentID, markErr.Error())
+				return fmt.Errorf("retaining capacity-deferred task dispatch: %w", errors.Join(err, markErr))
+			}
+			return err
+		}
+		c.MarkDispatchUncertain(agentID, err.Error())
+		return err
+	}
+	if err := c.ConfirmTaskDispatch(agentID); err != nil {
+		c.MarkDispatchUncertain(agentID, err.Error())
+		return fmt.Errorf("confirm recovered task dispatch: %w", err)
+	}
+	return c.ReconcileDispatch(ctx, agentID)
 }
 
 // releaseObligation drops a member's retained slot and admits any member that
@@ -538,15 +1025,15 @@ func (c *TeamExecutionContext) releaseObligation(agentID string) {
 // obligation bound during Recover otherwise has no goroutine to release its
 // slot when the owner reports terminal state.
 type retainedRunWatcher interface {
-	WatchRecoveredRun(teamID, agentID, runID, profileKey, taskID, runTag string)
+	WatchRecoveredRun(teamID, agentID, runID, profileKey, taskID, runTag, ownerStatus, ownerStartedAt string) bool
 }
 
-func (c *TeamExecutionContext) watchRetainedRun(agentID, runID, profileKey, taskID, runTag string) {
+func (c *TeamExecutionContext) watchRetainedRun(agentID, runID, profileKey, taskID, runTag, ownerStatus, ownerStartedAt string) bool {
 	watcher, ok := c.executor.(retainedRunWatcher)
 	if !ok || watcher == nil {
-		return
+		return false
 	}
-	watcher.WatchRecoveredRun(c.teamID, agentID, runID, profileKey, taskID, runTag)
+	return watcher.WatchRecoveredRun(c.teamID, agentID, runID, profileKey, taskID, runTag, ownerStatus, ownerStartedAt)
 }
 
 // MarkDispatchUncertain retains a member's slot after a dispatch whose outcome
@@ -565,12 +1052,183 @@ func (c *TeamExecutionContext) MarkDispatchUncertain(agentID, reason string) {
 	c.persistLocked()
 }
 
+// MarkApprovalPending retains a run-stage request and its exact idempotent
+// dispatch intent for a later scheduled retry after the operator answers.
+func (c *TeamExecutionContext) MarkApprovalPending(agentID string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	entry, ok := c.running[agentID]
+	if !ok {
+		return
+	}
+	entry.State = ObligationApprovalPending
+	c.running[agentID] = entry
+	_ = c.persistLocked()
+}
+
+// MarkAdmissionDeferred retains the immutable dispatch after the owner proves
+// that only current grant capacity prevented admission. It is deliberately a
+// separate state from approval_pending and dispatch_uncertain.
+func (c *TeamExecutionContext) MarkAdmissionDeferred(agentID string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	entry, ok := c.running[agentID]
+	if !ok {
+		return ErrRunningEntryNotFound
+	}
+	task, taskErr := parseTaskDispatchRequest(entry.TaskRequestSnapshot)
+	run, runErr := createRunRequestFromSnapshot(entry.CreateRunRequestSnapshot, entry.IdempotencyKey, entry.TaskID)
+	if entry.DispatchStage != DispatchStageIntent || entry.RunID != "" || entry.IdempotencyKey == "" || entry.TaskID == "" ||
+		taskErr != nil || task.ID != entry.TaskID || runErr != nil || run.TaskID != entry.TaskID ||
+		!validCreateRunCallerMode(entry.CreateRunCallerMode) ||
+		(entry.CreateRunCallerMode == createRunCallerOriginCaller && entry.CreateRunCallerBinding == "") ||
+		(entry.State != ObligationDispatchUncertain && entry.State != ObligationAdmissionDeferred) {
+		return errors.New("cannot defer admission without a complete immutable dispatch intent")
+	}
+	previous := entry
+	entry.State = ObligationAdmissionDeferred
+	c.running[agentID] = entry
+	if err := c.persistLocked(); err != nil {
+		c.running[agentID] = previous
+		return fmt.Errorf("persisting deferred admission: %w", err)
+	}
+	return nil
+}
+
+func (c *TeamExecutionContext) isAdmissionDeferred(agentID string) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	entry, ok := c.running[agentID]
+	return ok && entry.State == ObligationAdmissionDeferred
+}
+
+// RetryAdmissionDeferred is called only by an otherwise-eligible scheduled
+// callback. It replays the exact retained request only when its persisted
+// trigger origin is known to be scheduled; legacy origin is never inferred.
+func (c *TeamExecutionContext) RetryAdmissionDeferred(ctx context.Context, agentID string) (bool, error) {
+	c.mu.Lock()
+	entry, ok := c.running[agentID]
+	c.mu.Unlock()
+	if !ok || entry.AdmissionOrigin != AdmissionOriginScheduled || entry.RunID != "" ||
+		(entry.State != ObligationAdmissionDeferred && entry.State != ObligationDispatchUncertain) {
+		return false, nil
+	}
+	return true, c.ReconcileDispatch(ctx, agentID)
+}
+
+// RetryManualDispatch is called by the existing explicit manual-trigger route
+// after its normal team/member/pause checks. It retries only the exact retained
+// manual intent and requires the same freshly verified caller binding.
+func (c *TeamExecutionContext) RetryManualDispatch(ctx context.Context, agentID string) (bool, error) {
+	c.mu.Lock()
+	entry, ok := c.running[agentID]
+	c.mu.Unlock()
+	if !ok || entry.AdmissionOrigin != AdmissionOriginManual || entry.RunID != "" ||
+		(entry.State != ObligationAdmissionDeferred && entry.State != ObligationDispatchUncertain) {
+		return false, nil
+	}
+	proof := createRunCaller(ctx)
+	if entry.CreateRunCallerMode != createRunCallerOriginCaller || proof.origin != createRunCallerOriginCaller ||
+		entry.CreateRunCallerBinding == "" || proof.binding == "" || proof.binding != entry.CreateRunCallerBinding {
+		return false, nil
+	}
+	return true, c.ReconcileDispatch(ctx, agentID)
+}
+
+// MarkWatcherUnavailable keeps the run obligation after a local waiter fails
+// without terminal evidence. A later scheduled callback may probe the owner
+// and attach one replacement waiter; this does not release queue capacity.
+func (c *TeamExecutionContext) MarkWatcherUnavailable(agentID string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	entry, ok := c.running[agentID]
+	if !ok || entry.RunID == "" {
+		return
+	}
+	entry.State = ObligationWatcherUnavailable
+	c.running[agentID] = entry
+	_ = c.persistLocked()
+}
+
+// RetryUnavailableWatcher is called only by the ordinary schedule. It makes
+// one owner status read, then either retains the slot, releases on definitive
+// terminal evidence, or attaches a replacement waiter for a nonterminal run.
+// There is no timer loop or background retry.
+func (c *TeamExecutionContext) RetryUnavailableWatcher(ctx context.Context, agentID string) (bool, error) {
+	c.mu.Lock()
+	entry, ok := c.running[agentID]
+	if !ok || (entry.State != ObligationWatcherUnavailable && entry.State != ObligationOwnerUnreachable) {
+		c.mu.Unlock()
+		return false, nil
+	}
+	c.mu.Unlock()
+	if entry.RunID == "" || c.agentClient == nil {
+		return true, nil
+	}
+	run, err := c.agentClient.GetRun(ctx, entry.RunID)
+	if err != nil {
+		return true, err
+	}
+	if run == nil {
+		return true, fmt.Errorf("run %s was not found by agent-manager", entry.RunID)
+	}
+	ownerStartedAt := resolvedOwnerStartedAt(run.StartedAt, entry.OwnerStartedAt)
+	if IsTerminalStatus(run.Status) {
+		// Let the executor's established terminal path update heartbeat
+		// health and the run registry before releasing queue ownership.
+		c.watchRetainedRun(agentID, entry.RunID, entry.ProfileKey, entry.TaskID, entry.RunTag, run.Status, ownerStartedAt)
+		return true, nil
+	}
+	c.mu.Lock()
+	current, stillOwned := c.running[agentID]
+	if !stillOwned || current.RunID != entry.RunID || (current.State != ObligationWatcherUnavailable && current.State != ObligationOwnerUnreachable) {
+		c.mu.Unlock()
+		return true, nil
+	}
+	switch {
+	case IsParkedStatus(run.Status):
+		current.State = ObligationPaused
+	case IsNeedsReviewStatus(run.Status):
+		current.State = ObligationNeedsReview
+	default:
+		current.State = ObligationRunning
+	}
+	if ownerStarted, ok := parseOwnerRunStartedAt(run.StartedAt); ok {
+		current.OwnerStartedAt = ownerStarted.Format(time.RFC3339Nano)
+	}
+	c.running[agentID] = current
+	_ = c.persistLocked()
+	c.mu.Unlock()
+	if !IsParkedStatus(run.Status) {
+		if !c.watchRetainedRun(agentID, run.ID, entry.ProfileKey, entry.TaskID, entry.RunTag, run.Status, ownerStartedAt) {
+			c.mu.Lock()
+			if current, ok := c.running[agentID]; ok && current.RunID == entry.RunID {
+				current.State = ObligationWatcherUnavailable
+				c.running[agentID] = current
+				_ = c.persistLocked()
+			}
+			c.mu.Unlock()
+		}
+	}
+	return true, nil
+}
+
+func resolvedOwnerStartedAt(ownerValue, retainedValue string) string {
+	if startedAt, ok := parseOwnerRunStartedAt(ownerValue); ok {
+		return startedAt.Format(time.RFC3339Nano)
+	}
+	if startedAt, ok := parseOwnerRunStartedAt(retainedValue); ok {
+		return startedAt.Format(time.RFC3339Nano)
+	}
+	return ""
+}
+
 // SetRunningRunID records the agent-manager run ID for an in-flight running
 // entry. Called by Executor.Execute immediately after CreateRun returns so
 // that subsequent Recover() calls can reconcile the entry against
 // agent-manager. No-op (with a debug log) if the agent is not currently
 // recorded as running — bookkeeping must not affect run progress.
-func (c *TeamExecutionContext) SetRunningRunID(agentID, runID string) {
+func (c *TeamExecutionContext) SetRunningRunID(agentID, runID string, ownerStartedAt ...string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -579,9 +1237,26 @@ func (c *TeamExecutionContext) SetRunningRunID(agentID, runID string) {
 		log.Printf("team_execution: SetRunningRunID called for %s/%s not in running map", c.teamID, agentID)
 		return
 	}
+	if entry.RunID != runID {
+		entry.OwnerStartedAt = ""
+	}
 	entry.RunID = runID
-	// Binding a confirmed run identity resolves any prior uncertainty.
-	entry.State = ObligationRunning
+	if len(ownerStartedAt) > 1 {
+		entry.State = ownerRunObligationState(ownerStartedAt[0])
+	} else {
+		entry.State = ObligationRunning
+	}
+	startedAtValue := ""
+	if len(ownerStartedAt) > 1 {
+		startedAtValue = ownerStartedAt[1]
+	} else if len(ownerStartedAt) > 0 {
+		startedAtValue = ownerStartedAt[0]
+	}
+	if startedAt, ok := parseOwnerRunStartedAt(startedAtValue); ok {
+		entry.OwnerStartedAt = startedAt.Format(time.RFC3339Nano)
+	}
+	// Binding a confirmed run identity resolves dispatch uncertainty while
+	// preserving owner-reported paused/review states.
 	c.running[agentID] = entry
 	c.persistLocked()
 }
@@ -594,6 +1269,8 @@ func (c *TeamExecutionContext) SetRunningRunID(agentID, runID string) {
 //   - terminal run                 -> release the slot
 //   - active run                   -> retain as running
 //   - parked/paused run            -> retain as paused (nonterminal)
+//   - needs_review run             -> retain as review-required ownership
+//   - approval_pending run intent  -> retain the exact intent for scheduled replay
 //   - empty RunID                  -> retain as dispatch_uncertain
 //   - GetRun error (owner down)    -> retain as owner_unreachable
 //   - run not found by owner       -> retain as dispatch_uncertain
@@ -634,20 +1311,48 @@ func (c *TeamExecutionContext) Recover(ctx context.Context) {
 	}
 
 	c.running = make(map[string]runningEntry, len(persisted.Running))
-	var replayable []string
 	for _, item := range persisted.Running {
+		if item.DispatchStage == DispatchStagePreparing && isProvenPreDispatchPreparation(item) {
+			// Keep the accepted obligation visible, but do not replay stale
+			// scheduler eligibility or caller context after restart. A fresh,
+			// normally-gated Enqueue must replace it before any owner request.
+			c.running[item.AgentID] = runningEntry{
+				DispatchStage: DispatchStagePreparing,
+				ProfileKey:    item.ProfileKey,
+				State:         ObligationPreparationInterrupted,
+			}
+			log.Printf("team_execution: retaining pre-dispatch preparation for %s/%s; fresh admission is required", c.teamID, item.AgentID)
+			continue
+		}
+		if isProvenInterruptedPreparation(item) {
+			c.running[item.AgentID] = runningEntry{
+				DispatchStage:       DispatchStagePreparing,
+				ProfileKey:          item.ProfileKey,
+				State:               ObligationPreparationInterrupted,
+				OwnerObligationID:   item.OwnerObligationID,
+				OwnerStartedAt:      item.OwnerStartedAt,
+				OwnerStateSnapshots: cloneRetainedOwnerStateSnapshots(item.OwnerStateSnapshots),
+			}
+			continue
+		}
 		entry, keep := c.reconcileRunningEntry(ctx, item)
 		if !keep {
 			continue
 		}
-		c.running[item.AgentID] = entry
-		// A recorded uncertain dispatch with a complete owner intent can be
-		// resolved by replaying the idempotent start request. Doing so here
-		// (after the lock is released) converges a lost response on the one
-		// run the owner accepted instead of waiting for an operator.
-		if entry.State == ObligationDispatchUncertain && entry.IdempotencyKey != "" && entry.TaskID != "" {
-			replayable = append(replayable, item.AgentID)
+		if ownerStartedAt, ok := parseOwnerRunStartedAt(entry.OwnerStartedAt); ok {
+			entry.OwnerStartedAt = ownerStartedAt.Format(time.RFC3339Nano)
+		} else {
+			entry.OwnerStartedAt = ""
 		}
+		entry.OwnerObligationID = item.OwnerObligationID
+		entry.OwnerStateSnapshots = cloneRetainedOwnerStateSnapshots(item.OwnerStateSnapshots)
+		if entry.OwnerObligationID == "" {
+			entry.OwnerObligationID = heartbeatOwnerObligationID(c.teamID, item.AgentID, entry.IdempotencyKey, entry.RunID, entry.OwnerStartedAt)
+		}
+		c.running[item.AgentID] = entry
+		// Fresh POST retries are owned by a currently eligible explicit trigger.
+		// Startup may reconcile a known RunID with GET/watch above, but must not
+		// infer a missing trigger origin or replay a no-RunID intent here.
 	}
 
 	c.queue = make([]queuedExecution, 0)
@@ -656,6 +1361,22 @@ func (c *TeamExecutionContext) Recover(ctx context.Context) {
 		if !item.ManualAdmission {
 			continue
 		} // stale scheduled ticks remain discarded
+		if item.CreateRunCallerMode == createRunCallerOriginService {
+			// Only a service mode explicitly captured on the original queued
+			// admission survives restart. Restore no credential; the worker will
+			// mint a fresh service token before it can produce owner effects.
+			if _, ok := c.agentClient.(*AgentManagerClient); ok {
+				item.caller = withCreateRunCallerOrigin(context.Background(), "", "", createRunCallerOriginService)
+				item.caller = withHeartbeatAdmissionOrigin(item.caller, item.AdmissionOrigin)
+				item.State = ""
+			} else {
+				item.caller = nil
+				item.State = "caller_required"
+			}
+			c.queue = append(c.queue, item)
+			c.queued[item.AgentID] = true
+			continue
+		}
 		// With AUTH-01 off (P-18) an ordinary manual intent is a stale tick as
 		// before AUTH-01: the schedule, not a held intent, restarts the member.
 		if !owneridentity.CreateRunCallerEnforced() {
@@ -667,40 +1388,139 @@ func (c *TeamExecutionContext) Recover(ctx context.Context) {
 		c.queued[item.AgentID] = true
 	}
 
-	// Write cleaned/reconciled state back to disk before any replay.
+	// Write cleaned/reconciled state back to disk before attaching watchers.
 	saveErr := c.persistLocked()
+	watchers := make([]queuedExecution, 0, len(c.running))
+	for agentID, entry := range c.running {
+		if entry.RunID != "" && entry.State != ObligationDispatchUncertain && entry.State != ObligationOwnerUnreachable && entry.State != ObligationPaused && entry.State != ObligationApprovalPending {
+			ownerStatus := "RUN_STATUS_RUNNING"
+			if entry.State == ObligationNeedsReview {
+				ownerStatus = "RUN_STATUS_NEEDS_REVIEW"
+			}
+			watchers = append(watchers, queuedExecution{AgentID: agentID, ProfileKey: entry.ProfileKey, RunID: entry.RunID, TaskID: entry.TaskID, RunTag: entry.RunTag, State: ownerStatus, OwnerStartedAt: entry.OwnerStartedAt})
+		}
+	}
 	c.mu.Unlock()
 	if saveErr != nil {
 		log.Printf("team_execution: recovery held because queue save failed: %v", saveErr)
 		return
 	}
-
-	for _, agentID := range replayable {
-		if err := c.ReconcileDispatch(ctx, agentID); err != nil {
-			// Retained uncertainty is not a recovery failure: the obligation
-			// stays visible and the owner will be reconciled next time.
-			log.Printf("team_execution: uncertain dispatch for %s/%s not resolved on recovery: %v", c.teamID, agentID, err)
+	for _, retained := range watchers {
+		if !c.watchRetainedRun(retained.AgentID, retained.RunID, retained.ProfileKey, retained.TaskID, retained.RunTag, retained.State, retained.OwnerStartedAt) {
+			c.MarkWatcherUnavailable(retained.AgentID)
 		}
 	}
+
+	c.publishRetainedOwnerStateFacts(ctx)
 }
 
 // reconcileRunningEntry decides the durable obligation for one persisted
 // running entry. keep is false only on definitive terminal owner evidence.
+func isProvenPreDispatchPreparation(item queuedExecution) bool {
+	return item.DispatchStage == DispatchStagePreparing &&
+		item.RunID == "" &&
+		item.State == "" &&
+		item.IdempotencyKey == "" &&
+		item.TaskID == "" &&
+		item.TaskRequestSnapshot == "" &&
+		!item.TaskConfirmed &&
+		item.CreateRunRequestSnapshot == "" &&
+		item.CreateRunCallerMode == "" &&
+		item.CreateRunCallerBinding == "" &&
+		item.RunTag == "" &&
+		item.WorkloadKind == "" &&
+		item.WorkloadKey == "" &&
+		item.WorkloadInstance == "" &&
+		item.ResetConsumedEventID == "" &&
+		item.OwnerObligationID == "" &&
+		item.OwnerStartedAt == "" &&
+		len(item.OwnerStateSnapshots) == 0
+}
+
+func isProvenInterruptedPreparation(item queuedExecution) bool {
+	if item.State != ObligationPreparationInterrupted || item.DispatchStage != DispatchStagePreparing {
+		return false
+	}
+	base := item
+	base.State = ""
+	base.OwnerObligationID = ""
+	base.OwnerStartedAt = ""
+	base.OwnerStateSnapshots = nil
+	if !isProvenPreDispatchPreparation(base) || item.OwnerStartedAt != "" {
+		return false
+	}
+	if item.OwnerObligationID == "" {
+		return len(item.OwnerStateSnapshots) == 0
+	}
+	if len(item.OwnerStateSnapshots) != 1 {
+		return false
+	}
+	snapshot, ok := item.OwnerStateSnapshots[ObligationPreparationInterrupted]
+	return ok && validInterruptedPreparationSnapshot(snapshot, item.OwnerObligationID)
+}
+
+func isProvenCanceledTaskDispatch(teamID string, item queuedExecution) bool {
+	if item.DispatchStage != DispatchStageIntent || item.TaskConfirmed || item.RunID != "" || item.TaskID == "" || item.IdempotencyKey == "" {
+		return false
+	}
+	task, err := parseTaskDispatchRequest(item.TaskRequestSnapshot)
+	if err != nil || task.ID != item.TaskID {
+		return false
+	}
+	if _, err := createRunRequestFromSnapshot(item.CreateRunRequestSnapshot, item.IdempotencyKey, item.TaskID); err != nil {
+		return false
+	}
+	if !validCreateRunCallerMode(item.CreateRunCallerMode) {
+		return false
+	}
+	switch item.CreateRunCallerMode {
+	case createRunCallerOriginService, createRunCallerOriginUnqualified:
+		if item.CreateRunCallerBinding != "" {
+			return false
+		}
+	case createRunCallerOriginCaller:
+		if item.CreateRunCallerBinding == "" {
+			return false
+		}
+	}
+	if item.ResetConsumedEventID != "" || item.OwnerObligationID != heartbeatOwnerObligationID(teamID, item.AgentID, item.IdempotencyKey, "", "") || item.OwnerStartedAt != "" || len(item.OwnerStateSnapshots) != 0 {
+		return false
+	}
+	return true
+}
+
 func (c *TeamExecutionContext) reconcileRunningEntry(ctx context.Context, item queuedExecution) (runningEntry, bool) {
+	if item.State == ObligationDispatchCanceled && isProvenCanceledTaskDispatch(c.teamID, item) {
+		// Execute persisted this no-replay tombstone after a typed pre-send
+		// cancellation, with the complete exact intent, but crashed before its
+		// worker completion callback.
+		return runningEntry{}, false
+	}
 	base := runningEntry{
-		ProfileKey:           item.ProfileKey,
-		RunID:                item.RunID,
-		IdempotencyKey:       item.IdempotencyKey,
-		TaskID:               item.TaskID,
-		RunTag:               item.RunTag,
-		WorkloadKind:         item.WorkloadKind,
-		WorkloadKey:          item.WorkloadKey,
-		WorkloadInstance:     item.WorkloadInstance,
-		ResetConsumedEventID: item.ResetConsumedEventID,
+		DispatchStage:            item.DispatchStage,
+		AdmissionOrigin:          item.AdmissionOrigin,
+		ProfileKey:               item.ProfileKey,
+		RunID:                    item.RunID,
+		IdempotencyKey:           item.IdempotencyKey,
+		TaskID:                   item.TaskID,
+		TaskRequestSnapshot:      item.TaskRequestSnapshot,
+		TaskConfirmed:            item.TaskConfirmed,
+		CreateRunRequestSnapshot: item.CreateRunRequestSnapshot,
+		CreateRunCallerMode:      item.CreateRunCallerMode,
+		CreateRunCallerBinding:   item.CreateRunCallerBinding,
+		RunTag:                   item.RunTag,
+		WorkloadKind:             item.WorkloadKind,
+		WorkloadKey:              item.WorkloadKey,
+		WorkloadInstance:         item.WorkloadInstance,
+		ResetConsumedEventID:     item.ResetConsumedEventID,
+		OwnerObligationID:        item.OwnerObligationID,
+		OwnerStartedAt:           item.OwnerStartedAt,
+		OwnerStateSnapshots:      cloneRetainedOwnerStateSnapshots(item.OwnerStateSnapshots),
 	}
 	// A prior recovery already recorded a non-resolvable obligation. Preserve it
 	// without re-probing the owner: unknown reset waits must not poll.
-	if item.State != ObligationRunning {
+	needsOwnerRead := item.State == ObligationRunning || item.State == ObligationWatcherUnavailable || (item.State == ObligationDispatchUncertain && item.RunID != "")
+	if !needsOwnerRead {
 		base.State = item.State
 		return base, true
 	}
@@ -731,6 +1551,11 @@ func (c *TeamExecutionContext) reconcileRunningEntry(ctx context.Context, item q
 	}
 	if IsParkedStatus(run.Status) {
 		base.State = ObligationPaused
+	} else if IsNeedsReviewStatus(run.Status) {
+		base.State = ObligationNeedsReview
+	}
+	if ownerStartedAt, ok := parseOwnerRunStartedAt(run.StartedAt); ok {
+		base.OwnerStartedAt = ownerStartedAt.Format(time.RFC3339Nano)
 	}
 	return base, true
 }
@@ -769,17 +1594,27 @@ func (c *TeamExecutionContext) persistLocked() error {
 	running := make([]queuedExecution, 0, len(c.running))
 	for agentID, entry := range c.running {
 		running = append(running, queuedExecution{
-			AgentID:              agentID,
-			ProfileKey:           entry.ProfileKey,
-			RunID:                entry.RunID,
-			State:                entry.State,
-			IdempotencyKey:       entry.IdempotencyKey,
-			TaskID:               entry.TaskID,
-			RunTag:               entry.RunTag,
-			WorkloadKind:         entry.WorkloadKind,
-			WorkloadKey:          entry.WorkloadKey,
-			WorkloadInstance:     entry.WorkloadInstance,
-			ResetConsumedEventID: entry.ResetConsumedEventID,
+			AgentID:                  agentID,
+			DispatchStage:            entry.DispatchStage,
+			AdmissionOrigin:          entry.AdmissionOrigin,
+			ProfileKey:               entry.ProfileKey,
+			RunID:                    entry.RunID,
+			State:                    entry.State,
+			IdempotencyKey:           entry.IdempotencyKey,
+			TaskID:                   entry.TaskID,
+			TaskRequestSnapshot:      entry.TaskRequestSnapshot,
+			TaskConfirmed:            entry.TaskConfirmed,
+			CreateRunRequestSnapshot: entry.CreateRunRequestSnapshot,
+			CreateRunCallerMode:      entry.CreateRunCallerMode,
+			CreateRunCallerBinding:   entry.CreateRunCallerBinding,
+			RunTag:                   entry.RunTag,
+			WorkloadKind:             entry.WorkloadKind,
+			WorkloadKey:              entry.WorkloadKey,
+			WorkloadInstance:         entry.WorkloadInstance,
+			ResetConsumedEventID:     entry.ResetConsumedEventID,
+			OwnerObligationID:        entry.OwnerObligationID,
+			OwnerStartedAt:           entry.OwnerStartedAt,
+			OwnerStateSnapshots:      cloneRetainedOwnerStateSnapshots(entry.OwnerStateSnapshots),
 		})
 	}
 	sort.Slice(running, func(i, j int) bool {

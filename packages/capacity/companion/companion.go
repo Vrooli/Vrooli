@@ -12,8 +12,9 @@
 // Two properties are load-bearing and are enforced by this package rather than
 // left to each caller:
 //
-//   - Fail open. Any ledger error leaves the ledger unchanged and the loop
-//     running. A broker outage must never stop inference or transcription.
+//   - Fail open. Ledger errors stop dependent mutations while the resource
+//     keeps running. Completed mutations are not rolled back; an outage must
+//     never stop inference or transcription.
 //   - One claim per resource lifetime. A changed footprint resizes the existing
 //     claim; it does not release and re-claim. Release-and-reclaim adds a
 //     ledger row per change and discards the observed-usage history the
@@ -188,8 +189,8 @@ func (r *Runner) parentGone() bool {
 	return !platform.IsPIDRunning(r.cfg.ParentPID)
 }
 
-// SyncOnce reconciles the ledger against one observation. Every step fails
-// open: an error leaves the ledger as it was.
+// SyncOnce reconciles the ledger against one observation. Errors skip dependent
+// ledger actions while resource work continues.
 func (r *Runner) SyncOnce(ctx context.Context) {
 	footprint, err := r.cfg.Observer.Observe(ctx)
 	if err != nil {
@@ -199,20 +200,24 @@ func (r *Runner) SyncOnce(ctx context.Context) {
 		return
 	}
 
-	active := r.activeClaim(ctx)
-	switch {
-	case footprint.Bytes <= 0 && active == nil:
+	active, err := r.activeClaim(ctx)
+	if err != nil {
+		r.logf("ledger unavailable, skipping mutations: %v", err)
 		return
-	case footprint.Bytes <= 0 && active != nil:
-		r.release(ctx, active.ClaimID)
-	case footprint.Bytes > 0 && active == nil:
-		r.claim(ctx, footprint.Bytes)
-	default:
-		if abs64(active.AmountBytes-footprint.Bytes) > r.cfg.resizeThreshold() {
-			r.resize(ctx, active.ClaimID, active.Generation, footprint.Bytes)
-		} else {
-			r.heartbeat(ctx, active.ClaimID, active.Generation)
+	}
+	if footprint.Bytes <= 0 {
+		if active != nil {
+			r.release(ctx, active.ClaimID)
 		}
+		return
+	}
+	switch {
+	case active == nil:
+		active = r.claim(ctx, footprint.Bytes)
+	case abs64(active.AmountBytes-footprint.Bytes) > r.cfg.resizeThreshold():
+		active = r.resize(ctx, active.ClaimID, active.Generation, footprint.Bytes)
+	default:
+		active = r.heartbeat(ctx, active.ClaimID, active.Generation)
 	}
 	if footprint.Activity != "" && active != nil {
 		r.activity(ctx, active.ClaimID, active.Generation, footprint.Activity)
@@ -221,53 +226,86 @@ func (r *Runner) SyncOnce(ctx context.Context) {
 
 // LedgerClaim is the slice of `vrooli capacity list --json` the loop reads.
 type LedgerClaim struct {
-	ClaimID     string `json:"claim_id"`
-	OwnerID     string `json:"owner_id"`
-	OwnerKind   string `json:"owner_kind"`
-	AmountBytes int64  `json:"amount_bytes"`
-	Generation  int64  `json:"generation"`
-	Status      string `json:"status"`
+	ClaimID      string `json:"claim_id"`
+	OwnerID      string `json:"owner_id"`
+	OwnerKind    string `json:"owner_kind"`
+	ResourceKind string `json:"resource_kind"`
+	GPUIndex     *int   `json:"gpu_index"`
+	AmountBytes  int64  `json:"amount_bytes"`
+	Generation   int64  `json:"generation"`
+	Status       string `json:"status"`
 }
 
-// activeClaim returns this resource's current active claim, or nil. Any error
-// yields nil: the loop then claims, which the broker treats idempotently.
-func (r *Runner) activeClaim(ctx context.Context) *LedgerClaim {
+// activeClaim distinguishes confirmed absence from an unavailable ledger.
+// Only successful, well-formed, unambiguous results are cached.
+func (r *Runner) activeClaim(ctx context.Context) (*LedgerClaim, error) {
 	ttl := r.cfg.LedgerCacheTTL
 	if ttl <= 0 {
 		ttl = defaultLedgerCacheTTL
 	}
-	if r.activeFetchedAt.After(time.Now().Add(-ttl)) {
+	age := time.Since(r.activeFetchedAt)
+	if !r.activeFetchedAt.IsZero() && age >= 0 && age < ttl {
 		if r.active == nil {
-			return nil
+			return nil, nil
 		}
 		copy := *r.active
-		return &copy
+		return &copy, nil
 	}
 	out, err := r.cfg.Exec(ctx, "vrooli", "capacity", "list", "--owner", r.cfg.Resource, "--active", "--json")
 	if err != nil {
-		r.active = nil
-		r.activeFetchedAt = time.Now()
-		return nil
+		r.invalidateActiveClaim()
+		return nil, err
 	}
+	claim, err := selectActiveClaim(out, r.cfg.Resource, r.cfg.GPUIndex)
+	if err != nil {
+		r.invalidateActiveClaim()
+		return nil, err
+	}
+	r.active = claim
+	r.activeFetchedAt = time.Now()
+	if claim == nil {
+		return nil, nil
+	}
+	copy := *claim
+	return &copy, nil
+}
+
+func activeStatus(status string) bool {
+	return status == "granted" || status == "reserved" || status == "degraded"
+}
+
+func validClaim(c LedgerClaim) bool {
+	return c.ClaimID != "" && c.OwnerID != "" && (c.OwnerKind == "resource" || c.OwnerKind == "scenario" || c.OwnerKind == "op") &&
+		(c.ResourceKind == "vram" || c.ResourceKind == "ram" || c.ResourceKind == "cpu") && c.Generation > 0 &&
+		(activeStatus(c.Status) || c.Status == "released" || c.Status == "expired" || c.Status == "preempted") && (c.ResourceKind != "vram" || c.GPUIndex != nil)
+}
+func exactResourceClaim(c LedgerClaim, resource string, gpu int) bool {
+	return validClaim(c) && c.OwnerID == resource && c.OwnerKind == "resource" && c.ResourceKind == "vram" && c.GPUIndex != nil && *c.GPUIndex == gpu && activeStatus(c.Status)
+}
+func selectActiveClaim(out []byte, resource string, gpu int) (*LedgerClaim, error) {
 	var payload struct {
-		Claims []LedgerClaim `json:"claims"`
+		Claims *[]LedgerClaim `json:"claims"`
 	}
-	if json.Unmarshal(out, &payload) != nil {
-		r.active = nil
-		r.activeFetchedAt = time.Now()
-		return nil
+	if err := json.Unmarshal(out, &payload); err != nil {
+		return nil, fmt.Errorf("invalid capacity list: %w", err)
 	}
-	for i := range payload.Claims {
-		if payload.Claims[i].OwnerID == r.cfg.Resource && payload.Claims[i].ClaimID != "" {
-			r.active = &payload.Claims[i]
-			r.activeFetchedAt = time.Now()
-			copy := *r.active
-			return &copy
+	if payload.Claims == nil {
+		return nil, fmt.Errorf("capacity list lacks claims array")
+	}
+	var found *LedgerClaim
+	for _, claim := range *payload.Claims {
+		if !validClaim(claim) {
+			return nil, fmt.Errorf("capacity list contains incomplete claim identity")
+		}
+		if exactResourceClaim(claim, resource, gpu) {
+			if found != nil {
+				return nil, fmt.Errorf("capacity list contains ambiguous resource/GPU claims")
+			}
+			copy := claim
+			found = &copy
 		}
 	}
-	r.active = nil
-	r.activeFetchedAt = time.Now()
-	return nil
+	return found, nil
 }
 
 func (r *Runner) invalidateActiveClaim() {
@@ -275,7 +313,7 @@ func (r *Runner) invalidateActiveClaim() {
 	r.activeFetchedAt = time.Time{}
 }
 
-func (r *Runner) claim(ctx context.Context, amount int64) {
+func (r *Runner) claim(ctx context.Context, amount int64) *LedgerClaim {
 	preferred := r.cfg.PreferredBytes
 	if preferred <= 0 {
 		preferred = amount
@@ -305,29 +343,26 @@ func (r *Runner) claim(ctx context.Context, amount int64) {
 		args = append(args, "--profile", profile)
 	}
 	args = append(args, "--json")
-	r.run(ctx, "claim", args...)
-	r.invalidateActiveClaim()
+	return r.mutateClaim(ctx, "claim", "", 0, args...)
 }
 
-func (r *Runner) resize(ctx context.Context, claimID string, generation, amount int64) {
+func (r *Runner) resize(ctx context.Context, claimID string, generation, amount int64) *LedgerClaim {
 	if strings.TrimSpace(claimID) == "" || amount <= 0 {
-		return
+		return nil
 	}
-	r.run(ctx, "resize", "capacity", "resize",
+	return r.mutateClaim(ctx, "resize", claimID, generation, "capacity", "resize",
 		"--claim-id", claimID,
 		"--generation", strconv.FormatInt(generation, 10),
 		"--amount", strconv.FormatInt(amount, 10), "--json")
-	r.invalidateActiveClaim()
 }
 
-func (r *Runner) heartbeat(ctx context.Context, claimID string, generation int64) {
+func (r *Runner) heartbeat(ctx context.Context, claimID string, generation int64) *LedgerClaim {
 	if strings.TrimSpace(claimID) == "" {
-		return
+		return nil
 	}
-	r.run(ctx, "heartbeat", "capacity", "heartbeat",
+	return r.mutateClaim(ctx, "heartbeat", claimID, generation, "capacity", "heartbeat",
 		"--claim-id", claimID,
 		"--generation", strconv.FormatInt(generation, 10), "--json")
-	r.invalidateActiveClaim()
 }
 
 func (r *Runner) release(ctx context.Context, claimID string) {
@@ -349,12 +384,38 @@ func (r *Runner) activity(ctx context.Context, claimID string, generation int64,
 	r.invalidateActiveClaim()
 }
 
-// run executes one ledger action and swallows its error. This is the fail-open
-// rule: the companion reports, it never gates.
-func (r *Runner) run(ctx context.Context, action string, args ...string) {
-	if _, err := r.cfg.Exec(ctx, "vrooli", args...); err != nil {
-		r.logf("%s failed, leaving the ledger unchanged: %v", action, err)
+// mutateClaim consumes the real JSON response so subsequent activity uses the
+// current identity/generation. Unknown mutation outcomes never authorize another.
+func (r *Runner) mutateClaim(ctx context.Context, action, claimID string, generation int64, args ...string) *LedgerClaim {
+	defer r.invalidateActiveClaim()
+	out, err := r.run(ctx, action, args...)
+	if err != nil {
+		return nil
 	}
+	var claim LedgerClaim
+	if action == "claim" {
+		var payload struct {
+			Claim LedgerClaim `json:"claim"`
+		}
+		err = json.Unmarshal(out, &payload)
+		claim = payload.Claim
+	} else {
+		err = json.Unmarshal(out, &claim)
+	}
+	if err != nil || !exactResourceClaim(claim, r.cfg.Resource, r.cfg.GPUIndex) || (claimID != "" && claim.ClaimID != claimID) || (action == "resize" && claim.Generation <= generation) || (action == "heartbeat" && claim.Generation != generation) {
+		r.logf("%s response has no validated current claim; skipping activity", action)
+		return nil
+	}
+	return &claim
+}
+
+// run fails open for resource work, while stopping dependent ledger actions.
+func (r *Runner) run(ctx context.Context, action string, args ...string) ([]byte, error) {
+	out, err := r.cfg.Exec(ctx, "vrooli", args...)
+	if err != nil {
+		r.logf("%s failed; skipping subsequent ledger actions: %v", action, err)
+	}
+	return out, err
 }
 
 func (r *Runner) logf(format string, args ...any) {
@@ -379,6 +440,8 @@ func abs64(v int64) int64 {
 // observation — find this resource's active claim, then act on it — and that
 // half is here rather than copied into the proxy.
 type Reporter struct {
+	// GPUIndex selects the exact device; zero is GPU0.
+	GPUIndex int
 	// Resource is the capacity owner id.
 	Resource string
 	// Exec runs the vrooli CLI.
@@ -410,18 +473,11 @@ func (r Reporter) ActiveClaim(ctx context.Context) (LedgerClaim, bool) {
 	if err != nil {
 		return LedgerClaim{}, false
 	}
-	var payload struct {
-		Claims []LedgerClaim `json:"claims"`
-	}
-	if json.Unmarshal(out, &payload) != nil {
+	claim, err := selectActiveClaim(out, r.Resource, r.GPUIndex)
+	if err != nil || claim == nil {
 		return LedgerClaim{}, false
 	}
-	for _, claim := range payload.Claims {
-		if claim.OwnerID == r.Resource && claim.ClaimID != "" {
-			return claim, true
-		}
-	}
-	return LedgerClaim{}, false
+	return *claim, true
 }
 
 // Heartbeat renews only an existing resource-owned admission. It never creates,

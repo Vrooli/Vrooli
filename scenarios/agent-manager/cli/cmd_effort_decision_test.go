@@ -63,11 +63,13 @@ func TestDecisionRaiseDryRunContactsNoServerAndWritesNothing(t *testing.T) {
 	services, server := decisionServer(t)
 	output, code := runEffort(t, &App{services: services}, "decision", "raise", home, "--home-ref", basGoalHomeRef, "--id", "BAS-D-070",
 		"--question", "Close the BAS goal or re-aim at quality?", "--option", "re-aim=Re-aim at quality", "--option", "close=Close the goal",
-		"--recommend", "re-aim", "--default", "re-aim", "--reversible", "--deadline", "24h", "--dry-run")
+		"--recommend", "re-aim", "--default", "re-aim", "--reversible", "--deadline", "24h",
+		"--big-picture", "This changes whether the original quality goal is acceptable.",
+		"--technical-details", "The baseline artifact is absent and cannot be reconstructed.", "--dry-run")
 	if code != 0 {
 		t.Fatalf("dry run failed (exit %d):\n%s", code, output)
 	}
-	for _, want := range []string{"DRY RUN", goalhome.DecisionRequestedEventType, `"recommended": "re-aim"`, "[decision BAS-D-070] Close the BAS goal or re-aim at quality?", "`re-aim` Re-aim at quality (recommended)"} {
+	for _, want := range []string{"DRY RUN", goalhome.DecisionRequestedEventType, `"recommended": "re-aim"`, `"big_picture": "This changes whether the original quality goal is acceptable."`, `"technical_details": "The baseline artifact is absent and cannot be reconstructed."`, "[decision BAS-D-070] Close the BAS goal or re-aim at quality?", "`re-aim` Re-aim at quality (recommended)"} {
 		if !strings.Contains(output, want) {
 			t.Fatalf("dry run omitted %q:\n%s", want, output)
 		}

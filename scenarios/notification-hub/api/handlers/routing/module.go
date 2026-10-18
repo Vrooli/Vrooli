@@ -2,7 +2,6 @@ package routing
 
 import (
 	"context"
-	"errors"
 	"net/http"
 
 	"connectrpc.com/connect"
@@ -35,11 +34,8 @@ func ModuleWithVerifier(service *hub.Service, verifier identity.Verifier) module
 }
 
 func (h *handler) ChannelsStatus(ctx context.Context, req *connect.Request[v1.ChannelsStatusRequest]) (*connect.Response[v1.ChannelsStatusResponse], error) {
-	subject, err := identity.Subject(ctx, req.Header(), h.verifier)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("verified owner identity is required"))
-	}
-	items, err := h.service.ChannelsStatus(ctx, subject, req.Msg.GetMachineId())
+	recipient := h.service.ResolveRecipient(ctx)
+	items, err := h.service.ChannelsStatus(ctx, recipient, req.Msg.GetMachineId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}

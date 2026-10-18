@@ -4,6 +4,7 @@ package subscription
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
 	"time"
@@ -99,6 +100,19 @@ func (s *SQLiteStore) Get(ctx context.Context, id int64) (Subscription, error) {
 }
 
 func (s *SQLiteStore) List(ctx context.Context, f ListFilters) ([]Subscription, error) {
+	return s.list(ctx, s.db, f)
+}
+
+// ListTx reads the subscription snapshot through the caller's transaction.
+func (s *SQLiteStore) ListTx(ctx context.Context, tx *sql.Tx, f ListFilters) ([]Subscription, error) {
+	return s.list(ctx, tx, f)
+}
+
+type subscriptionQueryer interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+}
+
+func (s *SQLiteStore) list(ctx context.Context, q subscriptionQueryer, f ListFilters) ([]Subscription, error) {
 	var clauses []string
 	var args []any
 
@@ -121,7 +135,7 @@ func (s *SQLiteStore) List(ctx context.Context, f ListFilters) ([]Subscription, 
 	}
 	query += " ORDER BY id ASC"
 
-	rows, err := s.db.QueryContext(ctx, query, args...)
+	rows, err := q.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list subscriptions: %w", err)
 	}
@@ -175,6 +189,12 @@ func (s *SQLiteStore) GetHealth(ctx context.Context, id int64) (Health, error) {
 
 func (s *SQLiteStore) Enqueue(ctx context.Context, subscriptionID int64, eventID, payload string) error {
 	_, err := s.db.ExecContext(ctx, `INSERT INTO subscription_deliveries (subscription_id, event_id, payload_json) VALUES (?, ?, ?) ON CONFLICT(subscription_id, event_id) DO NOTHING`, subscriptionID, eventID, payload)
+	return err
+}
+
+// EnqueueTx adds a delivery row inside the caller's admission transaction.
+func (s *SQLiteStore) EnqueueTx(ctx context.Context, tx *sql.Tx, subscriptionID int64, eventID, payload string) error {
+	_, err := tx.ExecContext(ctx, `INSERT INTO subscription_deliveries (subscription_id, event_id, payload_json) VALUES (?, ?, ?) ON CONFLICT(subscription_id, event_id) DO NOTHING`, subscriptionID, eventID, payload)
 	return err
 }
 

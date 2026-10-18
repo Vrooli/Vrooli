@@ -7,11 +7,14 @@ import (
 	"flag"
 	"io"
 	"os"
+	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	"prompt-manager/internal/teamconfig"
+	"prompt-manager/internal/teamcontract"
 )
 
 type fleetHealthContext struct {
@@ -287,6 +290,71 @@ func TestCmdHeartbeatFleetHealthBlocksCompletionWithoutDurableWrite(t *testing.T
 	}
 }
 
+func TestCmdQueueClearJSONRetainsUnresolvedOwnerFields(t *testing.T) {
+	ctx := &fakeContext{response: map[string]interface{}{
+		"teamId": "delivery", "state": "active", "runningAgentIds": []string{"reviewer"},
+		"queue": []string{}, "queuePolicy": "serialized", "maxConcurrentRuns": 1,
+		"uncertainAgentIds": []string{"uncertain"}, "unreachableAgentIds": []string{"unreachable"},
+		"pausedAgentIds": []string{"paused"}, "approvalPendingAgentIds": []string{"approval"},
+		"needsReviewAgentIds": []string{"review"}, "watcherUnavailableAgentIds": []string{"watcher"},
+		"preparationInterruptedAgentIds": []string{"interrupted"},
+		"admissionDeferredAgentIds":      []string{"deferred"},
+	}}
+	out, err := captureTeamStdout(t, func() error {
+		return cmdQueueClear(ctx, []string{"delivery", "reviewer", "--json"})
+	})
+	if err != nil {
+		t.Fatalf("cmdQueueClear: %v", err)
+	}
+	ctx.assertMethodPath(t, "DELETE", "/teams/delivery/queue/running/reviewer")
+	var got teamQueueStatus
+	if err := json.Unmarshal([]byte(out), &got); err != nil {
+		t.Fatalf("decode queue status: %v\n%s", err, out)
+	}
+	if len(got.UncertainAgentIDs) != 1 || got.UncertainAgentIDs[0] != "uncertain" ||
+		len(got.UnreachableAgentIDs) != 1 || got.UnreachableAgentIDs[0] != "unreachable" ||
+		len(got.PausedAgentIDs) != 1 || got.PausedAgentIDs[0] != "paused" ||
+		len(got.ApprovalPendingAgentIDs) != 1 || got.ApprovalPendingAgentIDs[0] != "approval" ||
+		len(got.NeedsReviewAgentIDs) != 1 || got.NeedsReviewAgentIDs[0] != "review" ||
+		len(got.WatcherUnavailableAgentIDs) != 1 || got.WatcherUnavailableAgentIDs[0] != "watcher" ||
+		len(got.PreparationInterruptedAgentIDs) != 1 || got.PreparationInterruptedAgentIDs[0] != "interrupted" ||
+		len(got.AdmissionDeferredAgentIDs) != 1 || got.AdmissionDeferredAgentIDs[0] != "deferred" {
+		t.Fatalf("queue JSON dropped unresolved owner fields: %+v", got)
+	}
+}
+
+func TestCmdQueueClearShowsAdmissionDeferredInHumanOutput(t *testing.T) {
+	ctx := &fakeContext{response: map[string]interface{}{
+		"teamId": "delivery", "state": "active", "runningAgentIds": []string{},
+		"queue": []string{}, "admissionDeferredAgentIds": []string{"reviewer"},
+	}}
+	out, err := captureTeamStdout(t, func() error {
+		return cmdQueueClear(ctx, []string{"delivery", "reviewer"})
+	})
+	if err != nil {
+		t.Fatalf("cmdQueueClear: %v", err)
+	}
+	if !strings.Contains(out, "Admission deferred (awaiting scheduled capacity retry): [reviewer]") {
+		t.Fatalf("queue-clear output hid deferred admission: %s", out)
+	}
+}
+
+func TestCmdQueueClearShowsInterruptedPreparationInHumanOutput(t *testing.T) {
+	ctx := &fakeContext{response: map[string]interface{}{
+		"teamId": "delivery", "state": "active", "runningAgentIds": []string{},
+		"queue": []string{}, "preparationInterruptedAgentIds": []string{"reviewer"},
+	}}
+	out, err := captureTeamStdout(t, func() error {
+		return cmdQueueClear(ctx, []string{"delivery", "reviewer"})
+	})
+	if err != nil {
+		t.Fatalf("cmdQueueClear: %v", err)
+	}
+	if !strings.Contains(out, "Preparation interrupted (awaiting fresh admission): [reviewer]") {
+		t.Fatalf("queue-clear output hid interrupted preparation: %s", out)
+	}
+}
+
 func TestCmdHeartbeatFleetHealthCountsSourceLedgerReceipt(t *testing.T) {
 	now := time.Now().UTC()
 	ctx := &fleetHealthContext{
@@ -439,6 +507,71 @@ func TestTeamMetadataCLIChangesAndClearsAreExplicit(t *testing.T) {
 	}
 }
 
+func TestTeamUpdateOperatingContractFileSendsOnlyRequestedContract(t *testing.T) {
+	contract := teamcontract.Minimal("effort-supervisor")
+	member := contract.Members["effort-supervisor"]
+	member.AllowedWrites = append(member.AllowedWrites, teamcontract.WriteRef{
+		Base: teamcontract.BaseRepoRoot,
+		Path: "scenarios/react-component-library/docs/internal/goal/FEEDBACK.md",
+	})
+	contract.Members["effort-supervisor"] = member
+	raw, err := json.MarshalIndent(contract, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	contractPath := filepath.Join(t.TempDir(), "operating-contract.json")
+	if err := os.WriteFile(contractPath, raw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := &fakeContext{t: t, response: TeamDetails{Team: Team{ID: "effort-supervision"}}}
+	_, err = captureTeamStdout(t, func() error {
+		return cmdUpdate(ctx, []string{"effort-supervision", "--operating-contract-file=" + contractPath})
+	})
+	if err != nil {
+		t.Fatalf("cmdUpdate: %v", err)
+	}
+	ctx.assertMethodPath(t, "PUT", "/teams/effort-supervision")
+
+	var sent UpdateTeamRequest
+	if err := json.Unmarshal(ctx.gotPayload, &sent); err != nil {
+		t.Fatalf("decode update payload: %v", err)
+	}
+	if !reflect.DeepEqual(sent.OperatingContract, contract) {
+		t.Fatalf("sent operating contract differs from file: %+v", sent.OperatingContract)
+	}
+	if sent.Enabled != nil || sent.Archived != nil || sent.Runtime != nil || sent.Coordination != nil || sent.Execution != nil {
+		t.Fatalf("contract-only update changed unrelated fields: %+v", sent)
+	}
+}
+
+func TestTeamUpdateRejectsMalformedOperatingContractBeforeRequest(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		body string
+	}{
+		{name: "malformed JSON", body: `{"schemaVersion":`},
+		{name: "null", body: `null`},
+		{name: "unknown field", body: `{"schemaVersion":1,"unexpected":true}`},
+		{name: "multiple values", body: `{} {}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			contractPath := filepath.Join(t.TempDir(), "operating-contract.json")
+			if err := os.WriteFile(contractPath, []byte(tc.body), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			ctx := &fakeContext{t: t}
+			err := cmdUpdate(ctx, []string{"effort-supervision", "--operating-contract-file=" + contractPath})
+			if err == nil {
+				t.Fatal("cmdUpdate unexpectedly accepted malformed contract JSON")
+			}
+			if ctx.gotMethod != "" {
+				t.Fatalf("malformed contract must fail before request, got %s %s", ctx.gotMethod, ctx.gotPath)
+			}
+		})
+	}
+}
+
 func TestTeamMetadataCLIListFiltersAndRetainsObjectiveRecords(t *testing.T) {
 	ctx := &fakeContext{t: t, response: []Team{
 		{ID: "marketing", Purpose: "domain-stewardship", Lifetime: "standing"},
@@ -482,6 +615,44 @@ func TestHeartbeatEnableCanReapplyDefaultScheduleOnExistingConfig(t *testing.T) 
 	if req.Schedule == nil || *req.Schedule != "0 */6 * * *" {
 		t.Fatalf("explicit default schedule was not persisted: %+v", req.Schedule)
 	}
+}
+
+func TestHeartbeatJSONPreservesAdmissionReasonFromOwnerResponse(t *testing.T) {
+	ctx := &fakeContext{getResponse: map[string]any{
+		"teamId":  "effort-supervision",
+		"agentId": "effort-supervisor",
+		"lastExecution": map[string]any{
+			"status":          "failed",
+			"admissionReason": "grant_limit_reached",
+		},
+		"lastSuccessfulExecution": map[string]any{
+			"status":          "completed",
+			"admissionReason": "authority_state_unavailable",
+		},
+	}}
+	output, err := captureTeamStdout(t, func() error {
+		return cmdHeartbeat(ctx, []string{"effort-supervision", "effort-supervisor", "--json"})
+	})
+	if err != nil {
+		t.Fatalf("cmdHeartbeat: %v", err)
+	}
+	var response map[string]any
+	if err := json.Unmarshal([]byte(output), &response); err != nil {
+		t.Fatalf("decode heartbeat JSON: %v\n%s", err, output)
+	}
+	for field, want := range map[string]string{
+		"lastExecution":           "grant_limit_reached",
+		"lastSuccessfulExecution": "authority_state_unavailable",
+	} {
+		execution, ok := response[field].(map[string]any)
+		if !ok {
+			t.Fatalf("%s = %#v, want execution object", field, response[field])
+		}
+		if got := execution["admissionReason"]; got != want {
+			t.Errorf("%s.admissionReason = %#v, want %q", field, got, want)
+		}
+	}
+	ctx.assertMethodPath(t, "GET", "/teams/effort-supervision/heartbeats/effort-supervisor")
 }
 
 func TestHeartbeatDisableCreatesExplicitOnDemandConfiguration(t *testing.T) {

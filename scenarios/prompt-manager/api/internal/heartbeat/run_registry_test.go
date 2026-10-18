@@ -25,6 +25,84 @@ func TestRunRegistry_RegisterAndListActive(t *testing.T) {
 	}
 }
 
+func TestRunRegistry_RegisterRecoveredPreservesOwnerProjection(t *testing.T) {
+	dir := t.TempDir()
+	reg := NewRunRegistry(dir)
+	ownerStarted := time.Date(2026, 10, 14, 12, 30, 0, 0, time.UTC)
+	reg.RegisterRecovered("team", "agent", "run", ownerStarted, ObligationNeedsReview, nil)
+
+	active := reg.ListActive()
+	if len(active) != 1 {
+		t.Fatalf("active count = %d, want 1", len(active))
+	}
+	if active[0].StartedAt != ownerStarted || active[0].State != ObligationNeedsReview {
+		t.Fatalf("owner projection not retained: %+v", active[0])
+	}
+
+	// An absent owner timestamp remains absent through persistence/recovery.
+	reg.RegisterRecovered("team", "agent", "run", time.Time{}, ObligationNeedsReview, nil)
+	reg2 := NewRunRegistry(dir)
+	reg2.Recover(context.Background(), &mockAgentClient{})
+	recovered, ok := reg2.GetActiveRun("team", "agent")
+	if !ok {
+		t.Fatal("run was not recovered")
+	}
+	if !recovered.StartedAt.IsZero() || recovered.State != ObligationNeedsReview {
+		t.Fatalf("unknown start or owner state was changed during recovery: %+v", recovered)
+	}
+}
+
+func TestRunRegistry_RegisterOwnerRunPreservesNeedsReviewState(t *testing.T) {
+	reg := NewRunRegistry(t.TempDir())
+	startedAt := time.Date(2026, 10, 17, 6, 0, 0, 0, time.UTC)
+	reg.RegisterOwnerRun("team", "agent", "run", startedAt, nil, ObligationNeedsReview)
+	active, ok := reg.GetActiveRun("team", "agent")
+	if !ok || active.State != ObligationNeedsReview || active.StartedAt != startedAt {
+		t.Fatalf("initial owner observation lost review state or original start: active=%+v ok=%v", active, ok)
+	}
+}
+
+type runRegistryObserverRecorder struct {
+	started int
+}
+
+func (o *runRegistryObserverRecorder) RunStarted(ActiveRun)                        { o.started++ }
+func (o *runRegistryObserverRecorder) RunEnded(ActiveRun, time.Time, bool, string) {}
+
+func TestRunRegistry_RegisterRecoveredDoesNotPublishNewStart(t *testing.T) {
+	reg := NewRunRegistry(t.TempDir())
+	observer := &runRegistryObserverRecorder{}
+	reg.SetObserver(observer)
+	reg.RegisterRecovered("team", "agent", "run", time.Time{}, ObligationNeedsReview, nil)
+	if observer.started != 0 {
+		t.Fatalf("recovery emitted %d new-start events", observer.started)
+	}
+	reg.Register("team", "agent-2", "run-2", time.Now(), nil)
+	if observer.started != 1 {
+		t.Fatalf("ordinary registration emitted %d start events, want 1", observer.started)
+	}
+}
+
+func TestRunRegistry_RecoveryDoesNotTrustLegacyLocalStartAsOwnerStart(t *testing.T) {
+	dir := t.TempDir()
+	legacyLocalStart := time.Date(2026, 10, 17, 5, 59, 50, 0, time.UTC)
+	legacy := NewRunRegistry(dir)
+	legacy.Register("team", "agent", "run", legacyLocalStart, nil)
+
+	recovered := NewRunRegistry(dir)
+	client := newMockAgentClient()
+	client.getRunErr = errors.New("owner unavailable")
+	recovered.Recover(context.Background(), client)
+
+	run, ok := recovered.GetActiveRun("team", "agent")
+	if !ok || run.State != ObligationOwnerUnreachable {
+		t.Fatalf("owner-unreachable obligation not retained: run=%+v found=%t", run, ok)
+	}
+	if !run.StartedAt.IsZero() {
+		t.Fatalf("legacy local request timestamp was presented as the owner's start: %s", run.StartedAt)
+	}
+}
+
 func TestRunRegistry_Unregister(t *testing.T) {
 	reg := NewRunRegistry(t.TempDir())
 	reg.Register("team-1", "agent-1", "run-1", time.Now(), func() {})
@@ -249,5 +327,27 @@ func TestRunRegistry_RecoverClassifiesParkedAsPaused(t *testing.T) {
 	}
 	if run.State != ObligationPaused {
 		t.Fatalf("expected paused state, got %q", run.State)
+	}
+}
+
+func TestRunRegistry_RecoverClassifiesNeedsReview(t *testing.T) {
+	dir := t.TempDir()
+	reg := NewRunRegistry(dir)
+	reg.Register("team-1", "agent-1", "run-1", time.Date(2026, 10, 17, 5, 59, 50, 0, time.UTC), func() {})
+
+	reg2 := NewRunRegistry(dir)
+	ownerStarted := time.Date(2026, 10, 14, 12, 30, 0, 0, time.UTC)
+	client := newMockAgentClient().WithGetRunResponse("run-1", &Run{ID: "run-1", Status: "RUN_STATUS_NEEDS_REVIEW", StartedAt: ownerStarted.Format(time.RFC3339)})
+	reg2.Recover(context.Background(), client)
+
+	run, ok := reg2.GetActiveRun("team-1", "agent-1")
+	if !ok {
+		t.Fatal("expected needs-review run retained")
+	}
+	if run.State != ObligationNeedsReview {
+		t.Fatalf("expected needs_review state, got %q", run.State)
+	}
+	if run.StartedAt != ownerStarted {
+		t.Fatalf("recovery start=%s, want owner start=%s", run.StartedAt, ownerStarted)
 	}
 }

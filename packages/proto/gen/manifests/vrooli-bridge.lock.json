@@ -1,8 +1,9 @@
 {
   "schema_version": 1,
   "scenario": "vrooli-bridge",
-  "input_digest": "sha256:d534a4370a1304100cb02561c3d95215f8613e51a30f92de6ac60196d0ece662",
+  "input_digest": "sha256:0202781e96dd0df184507ab1d96e392353e1c7d239fdfa0a2af0dbdc796fc660",
   "input_files": [
+    "schemas/cli/v1/runtime.proto",
     "schemas/common/v1/surface.proto",
     "schemas/device-control/v1/desktop/desktop.proto",
     "schemas/device-control/v1/shared/flow.proto",

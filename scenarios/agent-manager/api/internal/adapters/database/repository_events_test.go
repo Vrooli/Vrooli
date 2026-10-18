@@ -240,6 +240,140 @@ func TestIdempotencyExpiration(t *testing.T) {
 	}
 }
 
+func TestContinuationIdempotencySurvivesExpiryAndRejectsCollisions(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+	runID := uuid.New()
+	requestHash := []byte("exact-continuation-request-hash")
+
+	// The pending receipt is already expired by wall clock, but timeout alone
+	// must not make an effect-possible continuation reusable.
+	key := "continuation-expired-pending"
+	if _, acquired, err := repos.Idempotency.(repository.ContinuationIdempotencyRepository).ReserveContinuation(ctx, key, runID, requestHash, -time.Hour); err != nil || !acquired {
+		t.Fatalf("ReserveContinuation = acquired %v, err %v", acquired, err)
+	}
+	if got, err := repos.Idempotency.Check(ctx, key); err != nil || got != nil {
+		t.Fatalf("generic Check = %+v, %v; expired records should remain hidden to unrelated callers", got, err)
+	}
+	if _, err := repos.Idempotency.Reserve(ctx, key, time.Hour); err == nil {
+		t.Fatal("generic Reserve reclaimed a continuation-owned pending key")
+	}
+	if count, err := repos.Idempotency.CleanupExpired(ctx); err != nil || count != 0 {
+		t.Fatalf("CleanupExpired = %d, %v; effect-possible continuation should be retained", count, err)
+	}
+
+	continuations := repos.Idempotency.(repository.ContinuationIdempotencyRepository)
+	if got, err := continuations.CheckContinuation(ctx, key); err != nil || got == nil || got.Status != domain.IdempotencyStatusPending {
+		t.Fatalf("typed pending check = %+v, %v", got, err)
+	}
+	if _, acquired, err := continuations.ReserveContinuation(ctx, key, uuid.New(), requestHash, time.Hour); err == nil || acquired {
+		t.Fatal("same key was accepted for a different run")
+	}
+	if _, acquired, err := continuations.ReserveContinuation(ctx, key, runID, []byte("changed-request"), time.Hour); err == nil || acquired {
+		t.Fatal("same key was accepted for a different request hash")
+	}
+	if err := continuations.CompleteContinuation(ctx, key, runID, requestHash); err != nil {
+		t.Fatalf("CompleteContinuation after expiry: %v", err)
+	}
+	if count, err := repos.Idempotency.CleanupExpired(ctx); err != nil || count != 0 {
+		t.Fatalf("CleanupExpired removed completed continuation: %d, %v", count, err)
+	}
+	if _, err := repos.Idempotency.Reserve(ctx, key, time.Hour); err == nil {
+		t.Fatal("generic Reserve reused a completed continuation key")
+	}
+	if got, err := continuations.CheckContinuation(ctx, key); err != nil || got == nil || got.Status != domain.IdempotencyStatusComplete {
+		t.Fatalf("typed completed check = %+v, %v", got, err)
+	}
+	if err := continuations.CompleteContinuation(ctx, key, runID, requestHash); err != nil {
+		t.Fatalf("idempotent duplicate completion: %v", err)
+	}
+	if err := continuations.CompleteContinuation(ctx, key, uuid.New(), requestHash); err == nil {
+		t.Fatal("completion acknowledged a changed run identity")
+	}
+	if err := repos.Idempotency.Complete(ctx, key, runID, "other-operation", nil); err == nil {
+		t.Fatal("generic completion acknowledged a continuation-owned key")
+	}
+
+	failedKey := "continuation-proven-pre-effect-failure"
+	failedRun := uuid.New()
+	failedHash := []byte("pre-effect-request")
+	if _, acquired, err := continuations.ReserveContinuation(ctx, failedKey, failedRun, failedHash, time.Hour); err != nil || !acquired {
+		t.Fatalf("reserve failure control: acquired %v err %v", acquired, err)
+	}
+	if err := continuations.FailContinuation(ctx, failedKey, failedRun, []byte("wrong-hash")); err == nil {
+		t.Fatal("wrong request hash marked a continuation retryable")
+	}
+	if got, err := continuations.CheckContinuation(ctx, failedKey); err != nil || got == nil || got.Status != domain.IdempotencyStatusPending {
+		t.Fatalf("wrong-hash failure changed receipt: %+v, %v", got, err)
+	}
+	if err := continuations.FailContinuation(ctx, failedKey, failedRun, failedHash); err != nil {
+		t.Fatalf("mark proven pre-effect failure: %v", err)
+	}
+	if _, acquired, err := continuations.ReserveContinuation(ctx, failedKey, failedRun, failedHash, time.Hour); err != nil || !acquired {
+		t.Fatalf("exact pre-effect retry was not acquired: acquired %v err %v", acquired, err)
+	}
+
+	// Generic operation expiry remains reusable and cleanup still removes its
+	// expired records.
+	ordinary := "ordinary-expired-operation"
+	if _, err := repos.Idempotency.Reserve(ctx, ordinary, -time.Hour); err != nil {
+		t.Fatalf("Reserve ordinary expired: %v", err)
+	}
+	if _, err := repos.Idempotency.Reserve(ctx, ordinary, time.Hour); err != nil {
+		t.Fatalf("generic reserve lost ordinary expiry behavior: %v", err)
+	}
+}
+
+func TestContinuationIdempotencyFailsClosedOnLegacyPendingAndMissingComplete(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+	continuations := repos.Idempotency.(repository.ContinuationIdempotencyRepository)
+
+	legacyKey := "legacy-untyped-pending"
+	if _, err := repos.Idempotency.Reserve(ctx, legacyKey, -time.Hour); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := continuations.CheckContinuation(ctx, legacyKey); err != nil || got == nil || got.EntityType != "" {
+		t.Fatalf("legacy pending receipt = %+v, %v", got, err)
+	}
+	if _, acquired, err := continuations.ReserveContinuation(ctx, legacyKey, uuid.New(), []byte("hash"), time.Hour); err == nil || acquired {
+		t.Fatal("ambiguous legacy pending row was reclaimed")
+	}
+	legacyCompleteKey := "legacy-expired-complete"
+	legacyRun := uuid.New()
+	legacyHash := []byte("legacy-request-hash")
+	if _, err := repos.Idempotency.Reserve(ctx, legacyCompleteKey, -time.Hour); err != nil {
+		t.Fatal(err)
+	}
+	if err := repos.Idempotency.Complete(ctx, legacyCompleteKey, legacyRun, "Continuation", legacyHash); err != nil {
+		t.Fatalf("create old-format completed continuation receipt: %v", err)
+	}
+	if count, err := repos.Idempotency.CleanupExpired(ctx); err != nil || count != 1 {
+		t.Fatalf("cleanup should remove only ambiguous legacy pending row, preserving typed completion: count %d err %v", count, err)
+	}
+	if got, err := continuations.CheckContinuation(ctx, legacyCompleteKey); err != nil || got == nil || got.Status != domain.IdempotencyStatusComplete || got.EntityID == nil || *got.EntityID != legacyRun || string(got.Response) != string(legacyHash) {
+		t.Fatalf("legacy expired completion could not recover identity: %+v err %v", got, err)
+	}
+
+	missingKey := "deleted-before-completion"
+	runID := uuid.New()
+	hash := []byte("hash")
+	if _, acquired, err := continuations.ReserveContinuation(ctx, missingKey, runID, hash, time.Hour); err != nil || !acquired {
+		t.Fatalf("reserve missing-row control: acquired %v err %v", acquired, err)
+	}
+	if _, err := db.ExecContext(ctx, `DELETE FROM idempotency_records WHERE key = ?`, missingKey); err != nil {
+		t.Fatal(err)
+	}
+	if err := continuations.CompleteContinuation(ctx, missingKey, runID, hash); err == nil {
+		t.Fatal("completion silently acknowledged a missing receipt")
+	}
+}
+
 // ============================================================================
 // Policy Repository Tests
 // ============================================================================

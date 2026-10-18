@@ -13,8 +13,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	"github.com/vrooli/api-core/provenance"
-	"github.com/vrooli/api-core/scopecatalog"
+	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/cli-core/cliutil"
 	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 )
@@ -90,11 +89,19 @@ func (h *Handler) denyRunInitiatedLifecycleOperation(w http.ResponseWriter, r *h
 		})
 		return true
 	}
-
-	grant := provenance.OperationGrantFromMeta(verified.Claims.Meta)
+	if operation == "create-run" {
+		// A top-level run.create grant is distinct from agent.manage lifecycle
+		// authority. The orchestration admission path re-verifies the same proof
+		// and records grant-bounded owner attribution before effects.
+		if _, err := authn.RequireOperation(r.Context(), "agent-manager:write", "run.create", RunCreationTarget); err == nil {
+			return false
+		}
+	}
 	target := mux.Vars(r)["id"]
-	if target != "" && (operation == "stop-run" || operation == "continue-run" || operation == "wake-run" || operation == "recover-run") && scopecatalog.Resolve(verified.Claims.Scopes, "agent-manager:write") && grant.Allows("agent.manage", "agent-manager:run/"+target, time.Now()) {
-		return false
+	if target != "" && (operation == "stop-run" || operation == "continue-run" || operation == "wake-run" || operation == "recover-run") {
+		if _, err := authn.RequireOperation(r.Context(), "agent-manager:write", "agent.manage", "agent-manager:run/"+target); err == nil {
+			return false
+		}
 	}
 	recordLifecycleRefusal(operation)
 	claims := verified.Claims
@@ -112,6 +119,26 @@ func (h *Handler) denyRunInitiatedLifecycleOperation(w http.ResponseWriter, r *h
 		"token_mint_time": mintTime,
 	})
 	return true
+}
+
+// runLifecycleGrantAllowsTarget checks the caller's exact, already-resolved run
+// target. Keyed wake endpoints use this because no run ID appears in the URL.
+// Keep the run-identity verification here: a context grant must not override a
+// presented invalid run identity.
+func (h *Handler) runLifecycleGrantAllowsTarget(r *http.Request, operation string, target uuid.UUID) bool {
+	token := strings.TrimSpace(r.Header.Get(cliutil.HeaderAgentIdentityToken))
+	if token == "" || target == uuid.Nil {
+		return false
+	}
+	verified, err := h.svc.VerifyIdentityToken(r.Context(), token)
+	if err != nil || verified == nil || !verified.Valid || verified.Claims == nil {
+		return false
+	}
+	if operation != "wake-run" {
+		return false
+	}
+	_, err = authn.RequireOperation(r.Context(), "agent-manager:write", "agent.manage", "agent-manager:run/"+target.String())
+	return err == nil
 }
 
 // OrchestrateScope is the profile-declared ceiling that lets an orchestrator

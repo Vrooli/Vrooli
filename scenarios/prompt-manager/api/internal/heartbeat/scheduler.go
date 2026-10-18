@@ -38,6 +38,10 @@ type TeamStateStore interface {
 	Get(ctx context.Context, teamID string) (*store.Team, error)
 }
 
+type TeamMembershipStore interface {
+	GetMembers(ctx context.Context, teamID string) ([]store.TeamMemberRelation, error)
+}
+
 // ScheduledHeartbeat represents a scheduled heartbeat with its timer
 type ScheduledHeartbeat struct {
 	TeamID    string
@@ -328,6 +332,24 @@ func (s *Scheduler) executeHeartbeat(ctx context.Context, teamID, agentID string
 			log.Printf("Heartbeat execution skipped for %s/%s: team disabled or archived", teamID, agentID)
 			return
 		}
+		if members, ok := s.teamStore.(TeamMembershipStore); ok {
+			roster, err := members.GetMembers(ctx, teamID)
+			if err != nil {
+				log.Printf("Heartbeat execution aborted for %s/%s: roster lookup failed: %v", teamID, agentID, err)
+				return
+			}
+			found := false
+			for _, member := range roster {
+				if member.AgentID == agentID && (member.Status == "" || member.Status == store.MemberStatusActive) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				log.Printf("Heartbeat execution skipped for %s/%s: member is no longer active on the team", teamID, agentID)
+				return
+			}
+		}
 	}
 
 	if s.controlStore != nil {
@@ -367,9 +389,37 @@ func (s *Scheduler) executeHeartbeat(ctx context.Context, teamID, agentID string
 	// The ordinary wake gate wraps the admission operation, so an unchanged
 	// signal never buys an agent run while legacy and explicitly-always configs
 	// retain the historical behavior.
-	s.runOrdinaryWake(ctx, teamID, agentID, config, func() error {
+	// Persist trigger provenance separately from the owner caller mode. The
+	// executor can later honor this schedule's eligibility contract without
+	// guessing from the service credential or replaying during startup.
+	dispatchCtx := withHeartbeatAdmissionOrigin(ctx, AdmissionOriginScheduled)
+	if s.teamExecStore != nil {
+		// Scheduled retries are admission operations too. Serialize them with
+		// one another and with ordinary wake admission so concurrent cron
+		// callbacks cannot race a retained request into duplicate waiters.
+		s.admissionMu.Lock()
+		retried, retryErr := s.teamExecStore.RetryUnavailableWatcher(dispatchCtx, teamID, agentID)
+		retryKind := "owner observation"
+		if !retried {
+			retried, retryErr = s.teamExecStore.RetryApprovalPending(dispatchCtx, teamID, agentID)
+			retryKind = "approval"
+		}
+		if !retried {
+			retried, retryErr = s.teamExecStore.RetryAdmissionDeferred(dispatchCtx, teamID, agentID)
+			retryKind = "capacity admission"
+		}
+		s.admissionMu.Unlock()
+		if retryErr != nil && retried {
+			log.Printf("Heartbeat %s retry for %s/%s remains unresolved: %v", retryKind, teamID, agentID, retryErr)
+			return
+		}
+		if retried {
+			return
+		}
+	}
+	execute := func() error {
 		if s.teamExecStore != nil {
-			result, err := s.teamExecStore.Enqueue(ctx, teamID, agentID, profileKey)
+			result, err := s.teamExecStore.Enqueue(dispatchCtx, teamID, agentID, profileKey)
 			if err != nil {
 				if IsMemberAlreadyQueued(err) {
 					log.Printf("Heartbeat skipped for %s/%s: already queued or running", teamID, agentID)
@@ -385,7 +435,7 @@ func (s *Scheduler) executeHeartbeat(ctx context.Context, teamID, agentID string
 		}
 
 		// Fallback: direct execution (no team execution store)
-		result, err := s.executor.Execute(ctx, teamID, agentID, profileKey)
+		result, err := s.executor.Execute(dispatchCtx, teamID, agentID, profileKey)
 		if err != nil {
 			log.Printf("Heartbeat execution failed for %s/%s: %v", teamID, agentID, err)
 			return err
@@ -394,7 +444,14 @@ func (s *Scheduler) executeHeartbeat(ctx context.Context, teamID, agentID string
 		log.Printf("Heartbeat execution completed for %s/%s, run ID: %s, status: %s",
 			teamID, agentID, result.RunID, result.Status)
 		return nil
-	})
+	}
+	if config != nil && config.LastExecution != nil && config.LastExecution.Status == store.HeartbeatStatusApprovalPending && config.LastExecution.Phase == "creating_task" {
+		// A typed task-stage approval response proves the owner created nothing.
+		// Re-admit on the next cron tick even when ordinary wake signals are quiet.
+		_ = execute()
+		return
+	}
+	s.runOrdinaryWake(ctx, teamID, agentID, config, execute)
 }
 
 // runOrdinaryWake applies only to ordinary heartbeats. It holds a process-local

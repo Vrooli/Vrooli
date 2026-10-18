@@ -314,6 +314,12 @@ func lookupRuntimeRegistry(ctx context.Context, target, portVar string) Scenario
 // is accepted only while its owner is alive; stale files therefore cannot pin a
 // caller to a dead process or a reused port.
 func lookupPeerRecord(target, portVar string) ScenarioPortOutcome {
+	requestedScenario, requestedVariant := SplitInstance(target)
+	if requestedScenario == "" || strings.ContainsAny(requestedScenario, `/\\`) || strings.ContainsAny(requestedVariant, `/\\`) {
+		return ScenarioPortOutcome{Err: fmt.Errorf("invalid peer record target")}
+	}
+	requestedVariant = normalizeVariant(requestedVariant)
+	target = InstanceSlug(requestedScenario, requestedVariant)
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return ScenarioPortOutcome{Err: err}
@@ -329,13 +335,15 @@ func lookupPeerRecord(target, portVar string) ScenarioPortOutcome {
 	var record struct {
 		SchemaVersion int            `json:"schema_version"`
 		Scenario      string         `json:"scenario"`
+		Instance      string         `json:"instance"`
 		OwnerPID      int            `json:"owner_pid"`
 		Ports         map[string]int `json:"ports"`
 	}
 	if err := json.Unmarshal(payload, &record); err != nil {
 		return ScenarioPortOutcome{Err: err}
 	}
-	if record.SchemaVersion != 1 || record.Scenario != target || !isPIDRunning(record.OwnerPID) {
+	recordVariant := normalizeVariant(record.Instance) // Empty is the pre-variant live record shape.
+	if record.SchemaVersion != 1 || record.Scenario != requestedScenario || recordVariant != requestedVariant || !isPIDRunning(record.OwnerPID) {
 		return ScenarioPortOutcome{Err: os.ErrNotExist}
 	}
 	port, ok := record.Ports[normalizePortClaimKey(portVar)]

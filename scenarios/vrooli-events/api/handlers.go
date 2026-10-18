@@ -23,6 +23,7 @@ import (
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/broker"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/convert"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/store"
+	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/subscription"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -295,7 +296,7 @@ func (s *Server) handleIngest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id, err := s.store.Insert(r.Context(), event)
+	id, err := s.admitEvent(r.Context(), event)
 	if err != nil {
 		if errors.Is(err, store.ErrDuplicateEvent) {
 			writeError(w, http.StatusConflict, ErrCodeDuplicate, fmt.Sprintf("event_id %q already exists", env.EventId))
@@ -307,11 +308,6 @@ func (s *Server) handleIngest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	event.ID = id
-	if err := s.enqueueSubscriptions(r.Context(), event); err != nil {
-		log.Printf("subscription fan-out enqueue error: %v", err)
-		writeError(w, http.StatusInternalServerError, ErrCodeStoreWrite, "failed to enqueue subscription deliveries")
-		return
-	}
 
 	// Broadcast asynchronously so ingestion latency is not affected by slow subscribers.
 	go func() {
@@ -329,6 +325,74 @@ func (s *Server) handleIngest(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	writeJSON(w, http.StatusAccepted, map[string]any{"id": id, "eventId": env.EventId})
+}
+
+type transactionalEventStore interface {
+	InsertTx(context.Context, *sql.Tx, store.Event) (int64, error)
+}
+
+// admitEvent keeps event persistence and durable webhook fan-out in the same
+// transaction whenever the server has its shared database seam configured.
+// The no-database branch is retained for lightweight mocked handler servers;
+// production and SQLite integration servers always set db and fail closed if
+// either repository lacks the transaction-aware capability.
+func (s *Server) admitEvent(ctx context.Context, event store.Event) (id int64, retErr error) {
+	if s.db == nil {
+		id, err := s.store.Insert(ctx, event)
+		if err != nil {
+			return 0, err
+		}
+		event.ID = id
+		if err := s.enqueueSubscriptions(ctx, event); err != nil {
+			return 0, fmt.Errorf("subscription fan-out enqueue: %w", err)
+		}
+		return id, nil
+	}
+
+	eventWriter, ok := s.store.(transactionalEventStore)
+	if !ok {
+		return 0, errors.New("event store does not support atomic admission")
+	}
+	queue, ok := s.subStore.(subscription.AtomicQueueStore)
+	if !ok {
+		return 0, errors.New("subscription store does not support atomic admission")
+	}
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("begin event admission: %w", err)
+	}
+	defer func() {
+		combinedErr := joinAdmissionRollbackError(retErr, tx.Rollback())
+		if retErr == nil && combinedErr != nil {
+			id = 0
+		}
+		retErr = combinedErr
+	}()
+
+	id, err = eventWriter.InsertTx(ctx, tx, event)
+	if err != nil {
+		return 0, err
+	}
+	event.ID = id
+	if err := enqueueSubscriptionsTx(ctx, tx, queue, event); err != nil {
+		return 0, fmt.Errorf("subscription fan-out enqueue: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit event admission: %w", err)
+	}
+	return id, nil
+}
+
+func joinAdmissionRollbackError(primary, rollback error) error {
+	if rollback == nil || errors.Is(rollback, sql.ErrTxDone) {
+		return primary
+	}
+	rollback = fmt.Errorf("rollback event admission: %w", rollback)
+	if primary == nil {
+		return rollback
+	}
+	return errors.Join(primary, rollback)
 }
 
 // DOC: docs/reference/api-endpoints.md#event-query

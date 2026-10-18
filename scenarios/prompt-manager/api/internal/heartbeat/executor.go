@@ -2,6 +2,10 @@ package heartbeat
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -37,94 +41,112 @@ type TeamExecStoreRegistrar interface {
 	// key and owner request essentials) before the owner start request, so a
 	// crash mid-dispatch recovers as a visible, replayable obligation rather
 	// than a silently free slot.
-	BeginDispatch(teamID, agentID string, intent DispatchIntent)
+	BeginDispatch(teamID, agentID string, intent DispatchIntent) error
+	// ConfirmTaskDispatch persists exact task confirmation before CreateRun.
+	ConfirmTaskDispatch(teamID, agentID string) error
+	// CancelUnsentTaskDispatch durably removes only the matching unconfirmed
+	// task intent after the owner proves the request was never sent.
+	CancelUnsentTaskDispatch(teamID, agentID, taskID, idempotencyKey, taskSnapshot string) error
 	// SetRunningRunID binds a confirmed run identity, clearing uncertainty.
-	SetRunningRunID(teamID, agentID, runID string)
+	SetRunningRunID(teamID, agentID, runID string, ownerStartedAt ...string)
 	// MarkDispatchUncertain retains the slot when the owner may have accepted
 	// a run that the caller cannot confirm.
 	MarkDispatchUncertain(teamID, agentID, reason string)
+	// MarkApprovalPending retains an existing run intent while the owner waits
+	// for explicit operator approval.
+	MarkApprovalPending(teamID, agentID string)
+	// MarkAdmissionDeferred retains an exact dispatch intent after a typed
+	// definitive capacity refusal.
+	MarkAdmissionDeferred(teamID, agentID string) error
 }
 
 // Executor handles the actual execution of heartbeats
 type Executor struct {
-	teamStore         *store.FileTeamStore
-	agentStore        *store.FileAgentStore
-	agentClient       AgentClient
-	vrooliRoot        string
-	promptBuilder     *PromptBuilder
-	runRegistry       *RunRegistry
-	handoffExtractor  HandoffExtractor
-	teamExecStore     TeamExecStoreRegistrar
-	OnComplete        func(teamID, agentID string)
-	RecoveryRequester func(ctx context.Context, scenario, reason string) (requestID string, err error)
+	teamStore        *store.FileTeamStore
+	agentStore       *store.FileAgentStore
+	agentClient      AgentClient
+	vrooliRoot       string
+	promptBuilder    *PromptBuilder
+	runRegistry      *RunRegistry
+	handoffExtractor HandoffExtractor
+	teamExecStore    TeamExecStoreRegistrar
+	OnComplete       func(teamID, agentID string)
+	TeamReviewURL    func(context.Context, string) string
 
 	// Completion waiters outlive the request that started them, so they are
 	// tracked here to give the executor a point where that work is known to
 	// be finished. See Shutdown.
-	mu                 sync.Mutex
-	waiters            map[int64]context.CancelFunc
-	nextWaiterID       int64
-	stopped            bool
-	inflight           sync.WaitGroup
-	recoveryMu         sync.Mutex
-	recoveryRequested  bool
-	recoveryRequestIDs sync.Map
+	mu           sync.Mutex
+	waiters      map[int64]context.CancelFunc
+	waiterKeys   map[string]int64
+	nextWaiterID int64
+	stopped      bool
+	inflight     sync.WaitGroup
 }
 
-const heartbeatRecoveryFailureThreshold = 3
+const heartbeatAttentionFailureThreshold = 3
 
-// SetRecoveryRequester wires the single control-plane recovery seam. The
-// executor never retries the heartbeat or implements recovery itself.
-func (e *Executor) SetRecoveryRequester(requester func(context.Context, string, string) (string, error)) {
+func heartbeatFailureEpisodeID(teamID, agentID string, config *store.HeartbeatConfig) string {
+	resetAt := "before-first-success"
+	if config != nil {
+		lastSuccess := config.LastSuccessfulExecution
+		if lastSuccess == nil && config.LastExecution != nil && config.LastExecution.Status == store.HeartbeatStatusCompleted {
+			lastSuccess = config.LastExecution
+		}
+		if lastSuccess != nil {
+			resetAt = strings.TrimSpace(lastSuccess.RunID) + "\x00" + strings.TrimSpace(lastSuccess.EndedAt)
+		}
+	}
+	identity := teamID + "\x00" + agentID + "\x00" + resetAt
+	digest := sha256.Sum256([]byte(identity))
+	return "pm-heartbeat-failure-" + hex.EncodeToString(digest[:])
+}
+
+// SetTeamReviewURL wires the existing browser-facing Prompt Manager origin
+// resolver. The returned URL is captured on the immutable threshold attempt;
+// an unresolved origin yields an omitted link.
+func (e *Executor) SetTeamReviewURL(resolver func(context.Context, string) string) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	e.RecoveryRequester = requester
-}
-
-func (e *Executor) requestRecovery(ctx context.Context, scenario, reason string) string {
-	e.mu.Lock()
-	requester := e.RecoveryRequester
-	e.mu.Unlock()
-	if requester == nil {
-		return ""
-	}
-	e.recoveryMu.Lock()
-	if e.recoveryRequested {
-		e.recoveryMu.Unlock()
-		return ""
-	}
-	e.recoveryRequested = true
-	e.recoveryMu.Unlock()
-	id, err := requester(ctx, scenario, reason)
-	if err != nil {
-		log.Printf("heartbeat recovery request failed: %v", err)
-		return ""
-	}
-	return id
+	e.TeamReviewURL = resolver
 }
 
 // trackWaiter registers a completion waiter's cancel function so Shutdown can
 // reach it. It reports false once the executor has shut down, in which case
 // the caller must not start the waiter.
-func (e *Executor) trackWaiter(cancel context.CancelFunc) (int64, bool) {
+func (e *Executor) trackWaiter(key string, cancel context.CancelFunc) (int64, bool) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	if e.stopped {
 		return 0, false
 	}
+	if key != "" && e.waiterKeys != nil {
+		if _, exists := e.waiterKeys[key]; exists {
+			return 0, false
+		}
+	}
 	if e.waiters == nil {
 		e.waiters = make(map[int64]context.CancelFunc)
+	}
+	if e.waiterKeys == nil {
+		e.waiterKeys = make(map[string]int64)
 	}
 	e.nextWaiterID++
 	id := e.nextWaiterID
 	e.waiters[id] = cancel
+	if key != "" {
+		e.waiterKeys[key] = id
+	}
 	return id, true
 }
 
-func (e *Executor) releaseWaiter(id int64) {
+func (e *Executor) releaseWaiter(id int64, key string) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	delete(e.waiters, id)
+	if key != "" && e.waiterKeys[key] == id {
+		delete(e.waiterKeys, key)
+	}
 }
 
 // Shutdown cancels every in-flight completion waiter and blocks until they
@@ -139,6 +161,7 @@ func (e *Executor) Shutdown() {
 		cancels = append(cancels, cancel)
 	}
 	e.waiters = nil
+	e.waiterKeys = nil
 	e.mu.Unlock()
 
 	for _, cancel := range cancels {
@@ -302,24 +325,16 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 	if e.agentClient == nil {
 		result.Error = fmt.Errorf("agent client is not configured")
 		result.Status = store.HeartbeatStatusFailed
-		e.updateConfigFailed(ctx, teamID, agentID, config, startedAt, result.Error.Error(), attemptID, profileKey, "", "", "", "agent_client_missing")
+		e.updateConfigFailed(ctx, teamID, agentID, config, startedAt, nil, result.Error.Error(), attemptID, profileKey, "", "", "", "agent_client_missing", true, true)
 		return result, result.Error
 	}
 
-	// Create task in agent-manager
 	task := &Task{
+		ID:          uuid.NewString(),
 		Title:       fmt.Sprintf("Heartbeat: %s/%s", teamID, agentID),
 		Description: prompt,
 		ScopePath:   e.vrooliRoot,
 		ProjectRoot: e.vrooliRoot,
-	}
-
-	createdTask, err := e.agentClient.CreateTask(ctx, task)
-	if err != nil {
-		result.Error = fmt.Errorf("creating task: %w", err)
-		result.Status = store.HeartbeatStatusFailed
-		e.updateConfigFailed(ctx, teamID, agentID, config, startedAt, result.Error.Error(), attemptID, profileKey, "", "", "", "creating_task")
-		return result, result.Error
 	}
 
 	// Create a run using the reconciled, scenario-owned profile. Runtime
@@ -339,7 +354,7 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 	environment := map[string]string{attribKey: attribValue}
 	addWorkloadEnvironment(environment, workloadKind, workloadKey, workloadInstance)
 	runReq := &CreateRunRequest{
-		TaskID: createdTask.ID,
+		TaskID: task.ID,
 		ProfileRef: &ProfileRef{
 			ProfileKey: profileKey,
 		},
@@ -348,24 +363,144 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 		Environment:    environment,
 	}
 
-	// Persist the dispatch intent before the owner start request. If the
-	// process dies between here and the response, recovery sees an obligation
-	// (with the idempotency key) instead of a free slot.
-	if e.teamExecStore != nil {
-		intent := DispatchIntent{
-			IdempotencyKey:   dispatchKey,
-			TaskID:           createdTask.ID,
-			RunTag:           runTag,
-			WorkloadKind:     workloadKind,
-			WorkloadKey:      workloadKey,
-			WorkloadInstance: workloadInstance,
+	if e.teamExecStore == nil {
+		result.Error = errors.New("durable team execution store is required before heartbeat task dispatch")
+		result.Status = store.HeartbeatStatusFailed
+		e.updateConfigFailed(ctx, teamID, agentID, config, startedAt, result.Error, result.Error.Error(), attemptID, profileKey, task.ID, "", runTag, "recording_dispatch_intent", true, true)
+		return result, result.Error
+	}
+	taskSnapshot, snapshotErr := freezeTaskDispatchRequest(task)
+	if snapshotErr != nil {
+		result.Error = fmt.Errorf("snapshotting task dispatch request: %w", snapshotErr)
+		result.Status = store.HeartbeatStatusFailed
+		e.updateConfigFailed(ctx, teamID, agentID, config, startedAt, snapshotErr, result.Error.Error(), attemptID, profileKey, task.ID, "", runTag, "recording_dispatch_intent", true, true)
+		return result, result.Error
+	}
+	requestSnapshot, snapshotErr := json.Marshal(runReq)
+	if snapshotErr != nil {
+		result.Error = fmt.Errorf("snapshotting run dispatch request: %w", snapshotErr)
+		result.Status = store.HeartbeatStatusFailed
+		e.updateConfigFailed(ctx, teamID, agentID, config, startedAt, snapshotErr, result.Error.Error(), attemptID, profileKey, task.ID, "", runTag, "recording_dispatch_intent", true, true)
+		return result, result.Error
+	}
+	callerProof := createRunCaller(ctx)
+	callerMode := callerProof.origin
+	if !validCreateRunCallerMode(callerMode) {
+		callerMode = createRunCallerOriginUnqualified
+		if callerProof.authorization != "" || callerProof.runIdentity != "" {
+			callerMode = createRunCallerOriginCaller
 		}
-		e.teamExecStore.BeginDispatch(teamID, agentID, intent)
+	}
+	intent := DispatchIntent{
+		AdmissionOrigin:          heartbeatAdmissionOrigin(ctx),
+		IdempotencyKey:           dispatchKey,
+		TaskID:                   task.ID,
+		TaskRequestSnapshot:      taskSnapshot,
+		RunTag:                   runTag,
+		WorkloadKind:             workloadKind,
+		WorkloadKey:              workloadKey,
+		WorkloadInstance:         workloadInstance,
+		CreateRunRequestSnapshot: string(requestSnapshot),
+		CreateRunCallerMode:      callerMode,
+		CreateRunCallerBinding:   callerProof.binding,
+	}
+	if err := e.teamExecStore.BeginDispatch(teamID, agentID, intent); err != nil {
+		result.Error = fmt.Errorf("recording task and run dispatch intent: %w", err)
+		result.Status = store.HeartbeatStatusFailed
+		reportCtx, cancelReport := boundedHeartbeatReportContext(ctx)
+		e.updateConfigFailed(reportCtx, teamID, agentID, config, startedAt, err, result.Error.Error(), attemptID, profileKey, task.ID, "", runTag, "recording_dispatch_intent", true, true)
+		cancelReport()
+		return result, result.Error
+	}
+
+	createdTask, err := resolveTaskDispatch(ctx, e.agentClient, taskSnapshot)
+	if err != nil {
+		result.Error = fmt.Errorf("creating task: %w", err)
+		if IsApprovalPending(err) {
+			result.Status = store.HeartbeatStatusApprovalPending
+			e.updateConfigApprovalPending(ctx, teamID, agentID, config, startedAt, result.Error.Error(), attemptID, profileKey, task.ID, "", runTag, "creating_task")
+			return result, result.Error
+		}
+		if isPreSendCancellation(err) {
+			if cancelErr := e.teamExecStore.CancelUnsentTaskDispatch(teamID, agentID, task.ID, dispatchKey, taskSnapshot); cancelErr != nil {
+				retained := NewDispatchUncertainError(fmt.Errorf("canceling unsent task dispatch: %w", cancelErr))
+				result.Error = retained
+				result.Status = store.HeartbeatStatusFailed
+				e.teamExecStore.MarkDispatchUncertain(teamID, agentID, retained.Error())
+				reportCtx, cancelReport := boundedHeartbeatReportContext(ctx)
+				e.updateConfigFailed(reportCtx, teamID, agentID, config, startedAt, retained, retained.Error(), attemptID, profileKey, task.ID, "", runTag, "canceling_task_dispatch", false, false)
+				cancelReport()
+				return result, result.Error
+			}
+			result.Status = store.HeartbeatStatusCancelled
+			reportCtx, cancelReport := boundedHeartbeatReportContext(ctx)
+			e.updateConfigCancelled(reportCtx, teamID, agentID, config, startedAt, result.Error.Error(), attemptID, profileKey, task.ID, "", runTag, "creating_task")
+			cancelReport()
+			return result, result.Error
+		}
+		if admissionReasonFromError(err) == "grant_limit_reached" {
+			if deferErr := e.teamExecStore.MarkAdmissionDeferred(teamID, agentID); deferErr != nil {
+				retained := NewDispatchUncertainError(fmt.Errorf("retaining capacity-deferred task intent: %w", deferErr))
+				e.teamExecStore.MarkDispatchUncertain(teamID, agentID, retained.Error())
+				result.Error = retained
+			}
+			result.Status = store.HeartbeatStatusFailed
+			e.updateConfigFailed(ctx, teamID, agentID, config, startedAt, err, result.Error.Error(), attemptID, profileKey, task.ID, "", runTag, "creating_task", true, true)
+			return result, result.Error
+		}
+		result.Status = store.HeartbeatStatusFailed
+		attentionEligible := !IsDispatchUncertain(err)
+		e.updateConfigFailed(ctx, teamID, agentID, config, startedAt, err, result.Error.Error(), attemptID, profileKey, task.ID, "", runTag, "creating_task", attentionEligible, attentionEligible)
+		return result, result.Error
+	}
+	if err := e.teamExecStore.ConfirmTaskDispatch(teamID, agentID); err != nil {
+		uncertain := NewDispatchUncertainError(fmt.Errorf("persisting confirmed task stage: %w", err))
+		result.Error = uncertain
+		result.Status = store.HeartbeatStatusFailed
+		reportCtx, cancelReport := boundedHeartbeatReportContext(ctx)
+		e.updateConfigFailed(reportCtx, teamID, agentID, config, startedAt, uncertain, uncertain.Error(), attemptID, profileKey, createdTask.ID, "", runTag, "confirming_task", false, false)
+		cancelReport()
+		return result, result.Error
 	}
 
 	run, err := e.agentClient.CreateRun(ctx, runReq)
 	if err != nil {
-		if IsDispatchUncertain(err) {
+		if IsApprovalPending(err) {
+			if e.teamExecStore != nil {
+				e.teamExecStore.MarkApprovalPending(teamID, agentID)
+			}
+			result.Error = fmt.Errorf("creating run: %w", err)
+			result.Status = store.HeartbeatStatusApprovalPending
+			e.updateConfigApprovalPending(ctx, teamID, agentID, config, startedAt, result.Error.Error(), attemptID, profileKey, createdTask.ID, "", runTag, "creating_run")
+			return result, result.Error
+		}
+		if isPreSendCancellation(err) {
+			result.Error = fmt.Errorf("creating run: %w", err)
+			result.Status = store.HeartbeatStatusCancelled
+			if cancelErr := e.agentClient.CancelTask(ctx, createdTask.ID); cancelErr == nil {
+				if deleteErr := e.agentClient.DeleteTask(ctx, createdTask.ID); deleteErr != nil {
+					log.Printf("Warning: failed to delete cancelled heartbeat task %s: %v", createdTask.ID, deleteErr)
+				}
+			}
+			e.updateConfigCancelled(ctx, teamID, agentID, config, startedAt, result.Error.Error(), attemptID, profileKey, createdTask.ID, "", runTag, "creating_run")
+			return result, result.Error
+		}
+		if admissionReasonFromError(err) == "grant_limit_reached" {
+			// The exact owner refusal proves no run was accepted, but the confirmed
+			// task and frozen idempotency key are retained for the next scheduled
+			// admission check. Do not cancel/delete the task or rebuild the request.
+			result.Error = fmt.Errorf("creating run: %w", err)
+			if deferErr := e.teamExecStore.MarkAdmissionDeferred(teamID, agentID); deferErr != nil {
+				retained := NewDispatchUncertainError(fmt.Errorf("retaining capacity-deferred run intent: %w", deferErr))
+				e.teamExecStore.MarkDispatchUncertain(teamID, agentID, retained.Error())
+				result.Error = retained
+			}
+			result.Status = store.HeartbeatStatusFailed
+			e.updateConfigFailed(ctx, teamID, agentID, config, startedAt, err, result.Error.Error(), attemptID, profileKey, createdTask.ID, "", runTag, "creating_run", true, true)
+			return result, result.Error
+		}
+		attentionEligible := !IsDispatchUncertain(err)
+		if !attentionEligible {
 			// The owner may have accepted the run. Do not cancel the task and
 			// do not release the slot: retain a visible, recoverable obligation.
 			log.Printf("heartbeat dispatch outcome uncertain for %s/%s (task %s, key %s): %v", teamID, agentID, createdTask.ID, dispatchKey, err)
@@ -383,25 +518,15 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 		}
 		result.Error = fmt.Errorf("creating run: %w", err)
 		result.Status = store.HeartbeatStatusFailed
-		recoveryRequestID := ""
-		if config.ConsecutiveFailures+1 >= heartbeatRecoveryFailureThreshold {
-			recoveryRequestID = e.requestRecovery(ctx, "prompt-manager", result.Error.Error())
-		}
-		if recoveryRequestID != "" {
-			e.recoveryRequestIDs.Store(attemptID, recoveryRequestID)
-		}
-		e.updateConfigFailed(ctx, teamID, agentID, config, startedAt, result.Error.Error(), attemptID, profileKey, createdTask.ID, "", runTag, "creating_run")
+		e.updateConfigFailed(ctx, teamID, agentID, config, startedAt, err, result.Error.Error(), attemptID, profileKey, createdTask.ID, "", runTag, "creating_run", attentionEligible, attentionEligible)
 		return result, result.Error
 	}
 
 	result.RunID = run.ID
-	e.recoveryMu.Lock()
-	e.recoveryRequested = false
-	e.recoveryMu.Unlock()
 	config.LastExecution.RunID = run.ID
 	_ = e.teamStore.SetHeartbeatConfig(ctx, teamID, agentID, config)
 	if e.teamExecStore != nil {
-		e.teamExecStore.SetRunningRunID(teamID, agentID, run.ID)
+		e.teamExecStore.SetRunningRunID(teamID, agentID, run.ID, run.Status, run.StartedAt)
 	}
 	e.appendAttempt(context.Background(), &store.HeartbeatAttempt{
 		ID:         attemptID,
@@ -418,19 +543,21 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 
 	// Wait for completion asynchronously with cancellable context
 	waitCtx, waitCancel := context.WithCancel(context.Background())
-	if e.runRegistry != nil {
-		e.runRegistry.Register(teamID, agentID, run.ID, startedAt, waitCancel)
-	}
-	waiterID, started := e.trackWaiter(waitCancel)
+	waiterKey := heartbeatWaiterKey(teamID, agentID, run.ID)
+	waiterID, started := e.trackWaiter(waiterKey, waitCancel)
 	if !started {
 		waitCancel()
 		result.Status = store.HeartbeatStatusRunning
 		return result, nil
 	}
+	if e.runRegistry != nil {
+		ownerStartedAt, _ := parseOwnerRunStartedAt(run.StartedAt)
+		e.runRegistry.RegisterOwnerRun(teamID, agentID, run.ID, ownerStartedAt, waitCancel, ownerRunObligationState(run.Status))
+	}
 	e.inflight.Add(1)
 	go func() {
 		defer e.inflight.Done()
-		defer e.releaseWaiter(waiterID)
+		defer e.releaseWaiter(waiterID, waiterKey)
 		defer waitCancel()
 		e.waitForCompletion(waitCtx, teamID, agentID, run.ID, attemptID, profileKey, createdTask.ID, runTag, startedAt, logPath, config.EffectiveTimeout())
 	}()
@@ -446,35 +573,87 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 //
 // The waiter is the same path a live dispatch uses, so a recovered run is
 // released (via OnComplete) exactly like a run started by Execute.
-func (e *Executor) WatchRecoveredRun(teamID, agentID, runID, profileKey, taskID, runTag string) {
+func (e *Executor) WatchRecoveredRun(teamID, agentID, runID, profileKey, taskID, runTag, ownerStatus, ownerStartedAt string) bool {
 	if e.agentClient == nil || e.teamStore == nil || runID == "" {
-		return
+		return false
 	}
-	startedAt := time.Now().UTC()
+	observedAt := time.Now().UTC()
+	startedAt, hasOwnerStart := parseOwnerRunStartedAt(ownerStartedAt)
+	startedAtText := ""
+	if hasOwnerStart {
+		startedAtText = startedAt.Format(time.RFC3339)
+	}
 	attemptID := uuid.NewString()
 	cfgCtx := context.Background()
-	logPath := e.teamStore.GetMemberLogPathForContext(cfgCtx, teamID, agentID, startedAt.Format("2006-01-02T15-04-05Z"))
+	if config, err := e.teamStore.GetHeartbeatConfig(cfgCtx, teamID, agentID); err == nil && config != nil {
+		if config.LastExecution == nil {
+			config.LastExecution = &store.HeartbeatExecResult{StartedAt: startedAtText}
+		}
+		config.LastExecution.StartedAt = startedAtText
+		config.LastExecution.RunID = runID
+		config.LastExecution.EndedAt = ""
+		config.LastExecution.Phase = "recovered_run"
+		config.LastExecution.Status = store.HeartbeatStatusRunning
+		config.LastExecution.Error = ""
+		if IsNeedsReviewStatus(ownerStatus) {
+			config.LastExecution.Status = store.HeartbeatStatusNeedsReview
+			config.LastExecution.Error = "agent-manager run is waiting for operator review"
+		}
+		_ = e.teamStore.SetHeartbeatConfig(cfgCtx, teamID, agentID, config)
+	}
+	logPath := e.teamStore.GetMemberLogPathForContext(cfgCtx, teamID, agentID, observedAt.Format("2006-01-02T15-04-05Z"))
 	timeout := 30 * time.Minute
 	if cfg, err := e.teamStore.GetHeartbeatConfig(cfgCtx, teamID, agentID); err == nil && cfg != nil {
 		timeout = cfg.EffectiveTimeout()
 	}
 
 	waitCtx, waitCancel := context.WithCancel(context.Background())
-	if e.runRegistry != nil {
-		e.runRegistry.Register(teamID, agentID, runID, startedAt, waitCancel)
-	}
-	waiterID, started := e.trackWaiter(waitCancel)
+	waiterKey := heartbeatWaiterKey(teamID, agentID, runID)
+	waiterID, started := e.trackWaiter(waiterKey, waitCancel)
 	if !started {
 		waitCancel()
-		return
+		return false
+	}
+	if e.runRegistry != nil {
+		state := ""
+		if IsNeedsReviewStatus(ownerStatus) {
+			state = ObligationNeedsReview
+		} else if IsParkedStatus(ownerStatus) {
+			state = ObligationPaused
+		}
+		e.runRegistry.RegisterRecovered(teamID, agentID, runID, startedAt, state, waitCancel)
 	}
 	e.inflight.Add(1)
 	go func() {
 		defer e.inflight.Done()
-		defer e.releaseWaiter(waiterID)
+		defer e.releaseWaiter(waiterID, waiterKey)
 		defer waitCancel()
 		e.waitForCompletion(waitCtx, teamID, agentID, runID, attemptID, profileKey, taskID, runTag, startedAt, logPath, timeout)
 	}()
+	return true
+}
+
+func parseOwnerRunStartedAt(value string) (time.Time, bool) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return time.Time{}, false
+	}
+	startedAt, err := time.Parse(time.RFC3339Nano, value)
+	if err != nil || startedAt.IsZero() {
+		return time.Time{}, false
+	}
+	return startedAt.UTC(), true
+}
+
+func formatOptionalHeartbeatStartedAt(value time.Time) string {
+	if value.IsZero() {
+		return ""
+	}
+	return value.UTC().Format(time.RFC3339)
+}
+
+func heartbeatWaiterKey(teamID, agentID, runID string) string {
+	return teamID + "/" + agentID + "/" + runID
 }
 
 // BuildContext constructs team/agent context for external consumption.
@@ -509,10 +688,15 @@ func (e *Executor) BuildPromptStructured(ctx context.Context, teamID, agentID st
 
 // waitForCompletion polls for run completion and updates config
 func (e *Executor) waitForCompletion(ctx context.Context, teamID, agentID, runID, attemptID, profileKey, taskID, tag string, startedAt time.Time, logPath string, timeout time.Duration) {
+	terminalEvidence := false
 	outcomeFailed := false
 	outcomeMessage := ""
 	if e.runRegistry != nil {
-		defer func() { e.runRegistry.Complete(teamID, agentID, outcomeFailed, outcomeMessage) }()
+		defer func() {
+			if terminalEvidence {
+				e.runRegistry.Complete(teamID, agentID, outcomeFailed, outcomeMessage)
+			}
+		}()
 	}
 
 	// Create timeout context
@@ -520,8 +704,21 @@ func (e *Executor) waitForCompletion(ctx context.Context, teamID, agentID, runID
 	defer cancel()
 
 	run, err := e.agentClient.WaitForRun(timeoutCtx, runID, 5*time.Second)
+	if err == nil && (run == nil || !IsTerminalStatus(run.Status)) {
+		err = fmt.Errorf("completion observer returned without terminal owner evidence for run %s", runID)
+	}
 
 	endedAt := time.Now().UTC()
+	if err != nil {
+		if e.runRegistry != nil {
+			e.runRegistry.MarkObserverUnavailable(teamID, agentID)
+		}
+		if marker, ok := e.teamExecStore.(interface {
+			MarkWatcherUnavailable(teamID, agentID string)
+		}); ok {
+			marker.MarkWatcherUnavailable(teamID, agentID)
+		}
+	}
 
 	// Use a background context for config updates since the parent ctx may be cancelled
 	cfgCtx := context.Background()
@@ -536,22 +733,19 @@ func (e *Executor) waitForCompletion(ctx context.Context, teamID, agentID, runID
 	}
 
 	if err != nil {
-		// Check if the error is due to context cancellation (stop was requested)
-		status := store.HeartbeatStatusFailed
-		if ctx.Err() != nil {
-			status = store.HeartbeatStatusCancelled
-		}
-		outcomeFailed = status == store.HeartbeatStatusFailed
-		outcomeMessage = err.Error()
+		// A failed local observer says nothing definitive about owner-run
+		// outcome. Keep the execution and its queue slot visible until a later
+		// scheduled owner read can reattach or prove terminal state.
+		status := store.HeartbeatStatusObserverUnavailable
 		config.LastExecution = &store.HeartbeatExecResult{
-			StartedAt: startedAt.Format(time.RFC3339),
+			StartedAt: formatOptionalHeartbeatStartedAt(startedAt),
 			EndedAt:   endedAt.Format(time.RFC3339),
 			Status:    status,
 			RunID:     runID,
 			LogPath:   logPath,
 			Error:     err.Error(),
 		}
-		config.RecordHeartbeatStatus(status)
+		config.RefreshHealth()
 		category := classifyHeartbeatError(err.Error())
 		e.appendAttempt(cfgCtx, &store.HeartbeatAttempt{
 			ID:            attemptID,
@@ -563,24 +757,27 @@ func (e *Executor) waitForCompletion(ctx context.Context, teamID, agentID, runID
 			Tag:           tag,
 			Status:        status,
 			Phase:         "waiting_for_completion",
-			StartedAt:     startedAt.Format(time.RFC3339),
+			StartedAt:     formatOptionalHeartbeatStartedAt(startedAt),
 			EndedAt:       endedAt.Format(time.RFC3339),
 			ErrorCategory: category,
 			Error:         err.Error(),
-			Recovery:      recoveryForHeartbeatError(category),
+			Recovery:      "retry_owner_observation_on_next_schedule",
 		})
 	} else {
 		status := store.HeartbeatStatusCompleted
 		errMsg := ""
-		if IsFailedStatus(run.Status) {
+		if IsCancelledStatus(run.Status) {
+			status = store.HeartbeatStatusCancelled
+		} else if IsFailedStatus(run.Status) {
 			status = store.HeartbeatStatusFailed
 			errMsg = run.Error
 		}
+		terminalEvidence = true
 		outcomeFailed = status == store.HeartbeatStatusFailed
 		outcomeMessage = errMsg
 
 		config.LastExecution = &store.HeartbeatExecResult{
-			StartedAt: startedAt.Format(time.RFC3339),
+			StartedAt: formatOptionalHeartbeatStartedAt(startedAt),
 			EndedAt:   endedAt.Format(time.RFC3339),
 			Status:    status,
 			RunID:     runID,
@@ -594,7 +791,7 @@ func (e *Executor) waitForCompletion(ctx context.Context, teamID, agentID, runID
 			category = classifyHeartbeatError(errMsg)
 			recovery = recoveryForHeartbeatError(category)
 		}
-		e.appendAttempt(cfgCtx, &store.HeartbeatAttempt{
+		attempt := &store.HeartbeatAttempt{
 			ID:            attemptID,
 			TeamID:        teamID,
 			AgentID:       agentID,
@@ -604,17 +801,22 @@ func (e *Executor) waitForCompletion(ctx context.Context, teamID, agentID, runID
 			Tag:           tag,
 			Status:        status,
 			Phase:         "run_terminal",
-			StartedAt:     startedAt.Format(time.RFC3339),
+			StartedAt:     formatOptionalHeartbeatStartedAt(startedAt),
 			EndedAt:       endedAt.Format(time.RFC3339),
 			ErrorCategory: category,
 			Error:         errMsg,
 			Recovery:      recovery,
-		})
+		}
+		if status == store.HeartbeatStatusFailed {
+			e.attachFailureAttention(cfgCtx, teamID, agentID, config, attempt)
+			attempt.AttentionEligible = true
+		}
+		e.appendAttempt(cfgCtx, attempt)
 	}
 
 	// Write log file
 	logContent := fmt.Sprintf("Heartbeat execution for %s/%s\n", teamID, agentID)
-	logContent += fmt.Sprintf("Started: %s\n", startedAt.Format(time.RFC3339))
+	logContent += fmt.Sprintf("Started: %s\n", formatOptionalHeartbeatStartedAt(startedAt))
 	logContent += fmt.Sprintf("Ended: %s\n", endedAt.Format(time.RFC3339))
 	logContent += fmt.Sprintf("Run ID: %s\n", runID)
 	logContent += fmt.Sprintf("Status: %s\n", config.LastExecution.Status)
@@ -629,7 +831,11 @@ func (e *Executor) waitForCompletion(ctx context.Context, teamID, agentID, runID
 
 	_ = e.teamStore.SetHeartbeatConfig(cfgCtx, teamID, agentID, config)
 
-	if e.OnComplete != nil {
+	if terminalEvidence && e.runRegistry != nil {
+		e.runRegistry.Complete(teamID, agentID, outcomeFailed, outcomeMessage)
+		terminalEvidence = false
+	}
+	if err == nil && e.OnComplete != nil {
 		e.OnComplete(teamID, agentID)
 	}
 
@@ -637,7 +843,9 @@ func (e *Executor) waitForCompletion(ctx context.Context, teamID, agentID, runID
 	// owner as soon as terminal run state is durable, then allow shutdown to
 	// cancel the bounded best-effort resolver instead of making completion wait
 	// on a projection that may not exist.
-	e.extractAndStoreHandoff(ctx, teamID, agentID, runID, endedAt)
+	if err == nil {
+		e.extractAndStoreHandoff(ctx, teamID, agentID, runID, endedAt)
+	}
 }
 
 // extractAndStoreHandoff fetches run events and extracts/stores the handoff (best-effort).
@@ -717,38 +925,141 @@ func (e *Executor) storeHandoff(ctx context.Context, teamID, agentID, runID stri
 	}
 }
 
-// updateConfigFailed updates config with failed status
-func (e *Executor) updateConfigFailed(ctx context.Context, teamID, agentID string, config *store.HeartbeatConfig, startedAt time.Time, errMsg, attemptID, profileKey, taskID, runID, tag, phase string) {
+// updateConfigCancelled records a request proven not to have been dispatched,
+// or a terminal owner cancellation. Cancellation preserves the consecutive
+// definitive-failure count and never qualifies for recovery/attention.
+func (e *Executor) updateConfigCancelled(ctx context.Context, teamID, agentID string, config *store.HeartbeatConfig, startedAt time.Time, detail, attemptID, profileKey, taskID, runID, tag, phase string) {
 	endedAt := time.Now().UTC()
 	config.LastExecution = &store.HeartbeatExecResult{
 		StartedAt: startedAt.Format(time.RFC3339),
 		EndedAt:   endedAt.Format(time.RFC3339),
-		Status:    store.HeartbeatStatusFailed,
-		Error:     errMsg,
+		Status:    store.HeartbeatStatusCancelled,
+		Error:     detail,
 	}
-	config.RecordHeartbeatStatus(store.HeartbeatStatusFailed)
+	config.RecordHeartbeatStatus(store.HeartbeatStatusCancelled)
+	persistCtx := context.Background()
+	_ = e.teamStore.SetHeartbeatConfig(persistCtx, teamID, agentID, config)
+	e.appendAttempt(persistCtx, &store.HeartbeatAttempt{
+		ID:                  attemptID,
+		TeamID:              teamID,
+		AgentID:             agentID,
+		ProfileKey:          profileKey,
+		TaskID:              taskID,
+		RunID:               runID,
+		Tag:                 tag,
+		Status:              store.HeartbeatStatusCancelled,
+		Phase:               phase,
+		StartedAt:           startedAt.Format(time.RFC3339),
+		EndedAt:             endedAt.Format(time.RFC3339),
+		Error:               detail,
+		ConsecutiveFailures: config.ConsecutiveFailures,
+		AttentionEligible:   false,
+	})
+}
+
+func boundedHeartbeatReportContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.WithoutCancel(ctx), 2*time.Second)
+}
+
+func isPreSendCancellation(err error) bool {
+	return err != nil && IsDispatchRejected(err) && !IsDispatchUncertain(err) && errors.Is(err, context.Canceled)
+}
+
+// updateConfigFailed updates config with failed status
+func (e *Executor) updateConfigFailed(ctx context.Context, teamID, agentID string, config *store.HeartbeatConfig, startedAt time.Time, cause error, errMsg, attemptID, profileKey, taskID, runID, tag, phase string, attentionEligible, countAsFailure bool) {
+	endedAt := time.Now().UTC()
+	config.LastExecution = &store.HeartbeatExecResult{
+		StartedAt:       startedAt.Format(time.RFC3339),
+		EndedAt:         endedAt.Format(time.RFC3339),
+		Status:          store.HeartbeatStatusFailed,
+		Error:           errMsg,
+		AdmissionReason: admissionReasonFromError(cause),
+	}
+	if countAsFailure {
+		config.RecordHeartbeatStatus(store.HeartbeatStatusFailed)
+	} else {
+		config.RefreshHealth()
+	}
 	_ = e.teamStore.SetHeartbeatConfig(ctx, teamID, agentID, config)
-	category := classifyHeartbeatError(errMsg)
+	category := classifyHeartbeatFailure(cause, errMsg)
+	recoveryOutcome := store.HeartbeatRecoveryNotRequested
 	attempt := &store.HeartbeatAttempt{
-		ID:            attemptID,
-		TeamID:        teamID,
-		AgentID:       agentID,
-		ProfileKey:    profileKey,
-		TaskID:        taskID,
-		RunID:         runID,
-		Tag:           tag,
-		Status:        store.HeartbeatStatusFailed,
-		Phase:         phase,
-		StartedAt:     startedAt.Format(time.RFC3339),
-		EndedAt:       endedAt.Format(time.RFC3339),
-		ErrorCategory: category,
-		Error:         errMsg,
-		Recovery:      recoveryForHeartbeatError(category),
+		ID:                  attemptID,
+		TeamID:              teamID,
+		AgentID:             agentID,
+		ProfileKey:          profileKey,
+		TaskID:              taskID,
+		RunID:               runID,
+		Tag:                 tag,
+		Status:              store.HeartbeatStatusFailed,
+		Phase:               phase,
+		StartedAt:           startedAt.Format(time.RFC3339),
+		EndedAt:             endedAt.Format(time.RFC3339),
+		ErrorCategory:       category,
+		Error:               errMsg,
+		AdmissionReason:     admissionReasonFromError(cause),
+		Recovery:            recoveryForHeartbeatError(category),
+		ConsecutiveFailures: config.ConsecutiveFailures,
+		FailureEpisodeID:    heartbeatFailureEpisodeID(teamID, agentID, config),
+		RecoveryOutcome:     recoveryOutcome,
+		AttentionEligible:   attentionEligible,
 	}
-	if requestID, ok := e.recoveryRequestIDs.LoadAndDelete(attemptID); ok {
-		attempt.RecoveryRequestID, _ = requestID.(string)
-	}
+	e.attachFailureAttention(ctx, teamID, agentID, config, attempt)
 	e.appendAttempt(ctx, attempt)
+}
+
+func classifyHeartbeatFailure(cause error, message string) string {
+	if _, ok := AgentManagerAuthorizationStatus(cause); ok {
+		return "agent_manager_authorization"
+	}
+	return classifyHeartbeatError(message)
+}
+
+func (e *Executor) attachFailureAttention(ctx context.Context, teamID, agentID string, config *store.HeartbeatConfig, attempt *store.HeartbeatAttempt) {
+	if config == nil || attempt == nil {
+		return
+	}
+	attempt.ConsecutiveFailures = config.ConsecutiveFailures
+	attempt.FailureEpisodeID = heartbeatFailureEpisodeID(teamID, agentID, config)
+	if attempt.RecoveryOutcome == "" {
+		attempt.RecoveryOutcome = store.HeartbeatRecoveryNotRequested
+	}
+	if config.ConsecutiveFailures >= heartbeatAttentionFailureThreshold {
+		e.mu.Lock()
+		resolver := e.TeamReviewURL
+		e.mu.Unlock()
+		if resolver != nil {
+			attempt.ReviewURL = strings.TrimSpace(resolver(ctx, teamID))
+		}
+	}
+}
+
+func (e *Executor) updateConfigApprovalPending(ctx context.Context, teamID, agentID string, config *store.HeartbeatConfig, startedAt time.Time, detail, attemptID, profileKey, taskID, runID, tag, phase string) {
+	endedAt := time.Now().UTC()
+	config.LastExecution = &store.HeartbeatExecResult{
+		StartedAt: startedAt.Format(time.RFC3339),
+		EndedAt:   endedAt.Format(time.RFC3339),
+		Status:    store.HeartbeatStatusApprovalPending,
+		Phase:     phase,
+		RunID:     runID,
+		Error:     detail,
+	}
+	config.RefreshHealth()
+	_ = e.teamStore.SetHeartbeatConfig(ctx, teamID, agentID, config)
+	e.appendAttempt(ctx, &store.HeartbeatAttempt{
+		ID:         attemptID,
+		TeamID:     teamID,
+		AgentID:    agentID,
+		ProfileKey: profileKey,
+		TaskID:     taskID,
+		RunID:      runID,
+		Tag:        tag,
+		Status:     store.HeartbeatStatusApprovalPending,
+		Phase:      phase,
+		StartedAt:  startedAt.Format(time.RFC3339),
+		EndedAt:    endedAt.Format(time.RFC3339),
+		Error:      detail,
+	})
 }
 
 func (e *Executor) appendAttempt(ctx context.Context, attempt *store.HeartbeatAttempt) {
@@ -796,6 +1107,8 @@ func recoveryForHeartbeatError(category string) string {
 		return "reconcile_missing_resource"
 	case "cancelled":
 		return "operator_cancelled"
+	case "agent_manager_authorization":
+		return "review_agent_manager_authorization"
 	default:
 		return "inspect_run_or_retry"
 	}

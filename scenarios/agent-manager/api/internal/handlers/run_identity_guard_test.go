@@ -441,3 +441,136 @@ func TestOnlyARunningOrchestratorCreatesTasksFromARun(t *testing.T) {
 		}
 	}
 }
+
+type wakeByKeyTestRunService struct {
+	orchestration.RunService
+	caller *domain.Run
+	parked []*domain.Run
+	woken  []uuid.UUID
+}
+
+func (s *wakeByKeyTestRunService) GetRun(_ context.Context, id uuid.UUID) (*domain.Run, error) {
+	if s.caller != nil && s.caller.ID == id {
+		return s.caller, nil
+	}
+	for _, run := range s.parked {
+		if run.ID == id {
+			return run, nil
+		}
+	}
+	return nil, domain.NewNotFoundError("Run", id)
+}
+
+func (s *wakeByKeyTestRunService) ParkedRunsOnHandle(context.Context, string, string) ([]*domain.Run, error) {
+	return s.parked, nil
+}
+
+func (s *wakeByKeyTestRunService) WakeRun(_ context.Context, in orchestration.WakeRunInput) (*domain.Run, error) {
+	s.woken = append(s.woken, in.RunID)
+	return &domain.Run{ID: in.RunID, Status: domain.RunStatusRunning}, nil
+}
+
+func serveWakeByKeyTestRequest(t *testing.T, caller *domain.Run, parked []*domain.Run, grant *requestidentity.OperationGrant) (*httptest.ResponseRecorder, []uuid.UUID) {
+	t.Helper()
+	runs := &wakeByKeyTestRunService{caller: caller, parked: parked}
+	claims := &identity.Claims{RunID: caller.ID}
+	h := New(orchestration.HandlerServices{
+		RunService:      runs,
+		IdentityService: guardIdentityService{result: &orchestration.IdentityVerifyResult{Valid: true, Claims: claims}},
+		ProfileService:  lineageProfiles{profiles: map[uuid.UUID]*domain.AgentProfile{}},
+	})
+	body := encodeProtoJSON(t, &pb.WakeParkedRunsRequest{Producer: "children", Key: "await-key", Result: "resolved"})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs/wake-by-key", strings.NewReader(string(body)))
+	req.Header.Set(cliutil.HeaderAgentIdentityToken, "verified-run-token")
+	principal := requestidentity.Principal{
+		Kind: requestidentity.ActorAgent, Subject: caller.ID.String(), Verified: true,
+		Scopes: []string{"agent-manager:write"}, Grant: grant,
+		ExpiresAt: time.Now().Add(time.Hour),
+	}
+	req = req.WithContext(requestidentity.WithPrincipal(req.Context(), principal))
+	rr := httptest.NewRecorder()
+	h.WakeParkedRuns(rr, req)
+	return rr, runs.woken
+}
+
+func wakeByKeyTestGrant(targets ...string) *requestidentity.OperationGrant {
+	now := time.Now()
+	return &requestidentity.OperationGrant{
+		ID: "approved-55add-shaped", Policy: "agent-management+run-creation+effort-metadata+team-preparation+swarm-bookkeeping", Approver: "verified-owner",
+		Operations: []string{"agent.investigate", "agent.manage", "run.create", "effort.reconcile", "team.prepare", "swarm.bookkeeping"},
+		Targets:    []string{"agent-manager:*", "prompt-manager:*", "swarm-manager:*"},
+		Rules: []requestidentity.OperationRule{
+			{Policy: "agent-management", Operations: []string{"agent.investigate", "agent.manage"}, Targets: targets},
+			{Policy: "run-creation", Operations: []string{"run.create"}, Targets: []string{"agent-manager:*"}},
+			{Policy: "effort-metadata", Operations: []string{"effort.reconcile"}, Targets: []string{"agent-manager:*"}},
+			{Policy: "team-preparation", Operations: []string{"team.prepare"}, Targets: []string{"prompt-manager:*"}},
+			{Policy: "swarm-bookkeeping", Operations: []string{"swarm.bookkeeping"}, Targets: []string{"swarm-manager:*"}},
+		},
+		ExpiresAt: now.Add(time.Hour),
+	}
+}
+
+func TestWakeParkedRunsByKeyChecksExactManagedTargetsBeforeEffects(t *testing.T) {
+	callerID := uuid.New()
+	targetOne := &domain.Run{ID: uuid.New(), Status: domain.RunStatusParked}
+	targetTwo := &domain.Run{ID: uuid.New(), Status: domain.RunStatusParked}
+	caller := &domain.Run{ID: callerID, Status: domain.RunStatusRunning}
+
+	t.Run("approved named-run management grant covers resolved key match", func(t *testing.T) {
+		rr, woken := serveWakeByKeyTestRequest(t, caller, []*domain.Run{targetOne}, wakeByKeyTestGrant("agent-manager:*"))
+		if rr.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200: %s", rr.Code, rr.Body.String())
+		}
+		if len(woken) != 1 || woken[0] != targetOne.ID {
+			t.Fatalf("woken IDs = %v, want [%s]", woken, targetOne.ID)
+		}
+	})
+
+	t.Run("exact target grant cannot wake a different resolved run", func(t *testing.T) {
+		rr, woken := serveWakeByKeyTestRequest(t, caller, []*domain.Run{targetOne}, wakeByKeyTestGrant("agent-manager:run/"+targetTwo.ID.String()))
+		if rr.Code != http.StatusForbidden {
+			t.Fatalf("status = %d, want 403: %s", rr.Code, rr.Body.String())
+		}
+		if len(woken) != 0 {
+			t.Fatalf("unauthorized match was woken: %v", woken)
+		}
+	})
+
+	t.Run("unrelated operation cannot wake a resolved run", func(t *testing.T) {
+		now := time.Now()
+		grant := &requestidentity.OperationGrant{
+			ID: "agent-investigation-only", Policy: "agent-investigation", Approver: "verified-owner",
+			Operations: []string{"agent.investigate"}, Targets: []string{"agent-manager:*"},
+			Rules:     []requestidentity.OperationRule{{Policy: "agent-investigation", Operations: []string{"agent.investigate"}, Targets: []string{"agent-manager:*"}}},
+			ExpiresAt: now.Add(time.Hour),
+		}
+		rr, woken := serveWakeByKeyTestRequest(t, caller, []*domain.Run{targetOne}, grant)
+		if rr.Code != http.StatusForbidden {
+			t.Fatalf("status = %d, want 403: %s", rr.Code, rr.Body.String())
+		}
+		if len(woken) != 0 {
+			t.Fatalf("run was woken using an unrelated operation grant: %v", woken)
+		}
+	})
+
+	t.Run("mixed batch is fully authorized before any run wakes", func(t *testing.T) {
+		rr, woken := serveWakeByKeyTestRequest(t, caller, []*domain.Run{targetOne, targetTwo}, wakeByKeyTestGrant("agent-manager:run/"+targetOne.ID.String()))
+		if rr.Code != http.StatusForbidden {
+			t.Fatalf("status = %d, want 403: %s", rr.Code, rr.Body.String())
+		}
+		if len(woken) != 0 {
+			t.Fatalf("batch partially woke before authorization completed: %v", woken)
+		}
+	})
+
+	t.Run("existing parent-lineage wake remains allowed", func(t *testing.T) {
+		lineageCaller := &domain.Run{ID: callerID, ParentRunID: &targetOne.ID, Status: domain.RunStatusRunning}
+		rr, woken := serveWakeByKeyTestRequest(t, lineageCaller, []*domain.Run{targetOne}, nil)
+		if rr.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200: %s", rr.Code, rr.Body.String())
+		}
+		if len(woken) != 1 || woken[0] != targetOne.ID {
+			t.Fatalf("woken IDs = %v, want [%s]", woken, targetOne.ID)
+		}
+	})
+}

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -27,10 +28,8 @@ type AgentManagerClient struct {
 	testBaseURL          string // override for tests; empty in production
 	sleep                func(context.Context, time.Duration) error
 	// serviceToken mints Prompt Manager's own service-principal bearer for an
-	// unattended heartbeat that carries no human or run proof. A verified service
-	// identity lets Agent Manager admit run.create on the operator-approved
-	// standing grant. nil disables service-identity forwarding (tests, or before
-	// the credential is issued), leaving the prior unqualified behaviour.
+	// unattended heartbeat. Its authority mode may be retained in an in-memory
+	// queue, but the credential is request-local and refreshed before owner I/O.
 	serviceToken interface {
 		Token(context.Context) (string, error)
 	}
@@ -75,6 +74,7 @@ type Task struct {
 	Description        string          `json:"description"`                   // Main prompt sent to the agent
 	ScopePath          string          `json:"scope_path"`                    // Working directory (required, non-empty)
 	ProjectRoot        string          `json:"project_root,omitempty"`        // Optional project root
+	PhasePromptIDs     []string        `json:"phase_prompt_ids,omitempty"`    // Existing phase prompts are part of the owner task identity.
 	Status             string          `json:"status,omitempty"`              // Owner lifecycle status, when returned
 	ContextAttachments json.RawMessage `json:"context_attachments,omitempty"` // Retained so finite transport can refuse unsupported attached tasks.
 }
@@ -296,6 +296,12 @@ func (c *AgentManagerClient) CreateTask(ctx context.Context, task *Task) (*Task,
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		if resp.StatusCode == http.StatusAccepted {
+			if cause, ok := approvalPendingResponse(resp); ok {
+				return nil, NewApprovalPendingError("creating_task", cause)
+			}
+			return nil, NewDispatchUncertainError(fmt.Errorf("task creation returned unrecognized 202 response"))
+		}
 		cause := c.parseError(resp)
 		if resp.StatusCode >= http.StatusBadRequest && resp.StatusCode < http.StatusInternalServerError {
 			return nil, NewDispatchRejectedError(cause)
@@ -332,7 +338,10 @@ func (c *AgentManagerClient) GetTask(ctx context.Context, taskID string) (*Task,
 	}
 	var result CreateTaskResponse
 	if err := c.parseResponse(resp, &result); err != nil {
-		return nil, err
+		return nil, NewDispatchUncertainError(fmt.Errorf("read task after an ambiguous create: %w", err))
+	}
+	if result.Task == nil || strings.TrimSpace(result.Task.ID) == "" || result.Task.ID != taskID {
+		return nil, NewDispatchUncertainError(fmt.Errorf("task lookup returned missing or mismatched identity for %q", taskID))
 	}
 	return result.Task, nil
 }
@@ -376,6 +385,9 @@ func (c *AgentManagerClient) DeleteTask(ctx context.Context, taskID string) erro
 //   - marshal failure / non-2xx response -> definitive rejection (no run accepted)
 //   - transport failure or malformed 2xx body -> uncertain (run may exist)
 func (c *AgentManagerClient) CreateRun(ctx context.Context, req *CreateRunRequest) (*Run, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, NewDispatchRejectedError(err)
+	}
 	proof := createRunCaller(ctx)
 	if proof.authorization == "" && proof.runIdentity == "" && owneridentity.CreateRunCallerEnforced() {
 		return nil, NewDispatchRejectedError(fmt.Errorf("CreateRun caller proof is missing"))
@@ -394,7 +406,20 @@ func (c *AgentManagerClient) CreateRun(ctx context.Context, req *CreateRunReques
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		if resp.StatusCode == http.StatusAccepted {
+			if cause, ok := approvalPendingResponse(resp); ok {
+				return nil, NewApprovalPendingError("creating_run", redactCreateRunCallerError(cause, proof))
+			}
+			return nil, NewDispatchUncertainError(fmt.Errorf("run creation returned unrecognized 202 response"))
+		}
 		safeError := redactCreateRunCallerError(c.parseError(resp), proof)
+		var ownerError *AgentManagerHTTPError
+		if errors.As(safeError, &ownerError) && ownerError != nil && resp.StatusCode == http.StatusConflict && ownerError.Code == "STATE_IDEMPOTENCY_REPLAY_CONFLICT" {
+			// Agent Manager emits this exact response only after locating the
+			// original run for the key and finding changed replay terms. Preserve
+			// the durable obligation so an operator can reconcile the live run.
+			return nil, NewDispatchUncertainError(safeError)
+		}
 		return nil, NewDispatchRejectedError(safeError)
 	}
 
@@ -407,6 +432,27 @@ func (c *AgentManagerClient) CreateRun(ctx context.Context, req *CreateRunReques
 		return nil, NewDispatchUncertainError(fmt.Errorf("run creation returned no run identity"))
 	}
 	return result.Run, nil
+}
+
+// approvalPendingResponse recognizes the exact typed 202 contract used by
+// Agent Manager. Unknown 202 bodies are not treated as safe-to-retry because
+// their side effects are unspecified.
+func approvalPendingResponse(resp *http.Response) (error, bool) {
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("read approval response: %w", err), false
+	}
+	var result struct {
+		Status string `json:"status"`
+		Detail string `json:"detail"`
+	}
+	if json.Unmarshal(body, &result) != nil || result.Status != "approval_pending" {
+		return fmt.Errorf("unexpected 202 response: %s", strings.TrimSpace(string(body))), false
+	}
+	if result.Detail == "" {
+		result.Detail = "operator approval pending"
+	}
+	return fmt.Errorf("%s", result.Detail), true
 }
 
 // CreateRunDelegated uses explicitly provisioned authority for this request only.
@@ -823,36 +869,41 @@ func (c *AgentManagerClient) parseResponse(resp *http.Response, result interface
 func (c *AgentManagerClient) parseError(resp *http.Response) error {
 	body, _ := io.ReadAll(resp.Body)
 	var errResp struct {
-		Error   string `json:"error"`
-		Message string `json:"message"`
+		Code            string `json:"code"`
+		Error           string `json:"error"`
+		Message         string `json:"message"`
+		AdmissionReason string `json:"admission_reason"`
 	}
 	if err := json.Unmarshal(body, &errResp); err == nil {
+		admissionReason := normalizeAgentManagerAdmissionReason(resp.StatusCode, errResp.AdmissionReason)
 		if errResp.Error != "" {
-			return fmt.Errorf("agent-manager error: %s", errResp.Error)
+			return &AgentManagerHTTPError{StatusCode: resp.StatusCode, Code: errResp.Code, Message: errResp.Error, AdmissionReason: admissionReason}
 		}
 		if errResp.Message != "" {
-			return fmt.Errorf("agent-manager error: %s", errResp.Message)
+			return &AgentManagerHTTPError{StatusCode: resp.StatusCode, Code: errResp.Code, Message: errResp.Message, AdmissionReason: admissionReason}
 		}
 	}
-	return fmt.Errorf("agent-manager error: status %d, body: %s", resp.StatusCode, string(body))
+	return &AgentManagerHTTPError{StatusCode: resp.StatusCode, Code: errResp.Code, Message: fmt.Sprintf("body: %s", string(body))}
 }
 
 // prepareCreateRunCaller qualifies the two-step executor before local state or
-// task writes. While AUTH-01 is enforced, unattended contexts have no
-// anonymous fallback; with it off (P-18) they continue unqualified. Direct raw
-// proxy requests retain the owner's exact-parent verification at CreateRun.
+// task writes. An original service mode must always be freshly minted and can
+// never fall back to caller or anonymous authority, independent of AUTH-01.
+// Direct raw proxy requests retain the owner's exact-parent verification at
+// CreateRun.
 func (c *AgentManagerClient) prepareCreateRunCaller(ctx context.Context) (context.Context, error) {
 	proof := createRunCaller(ctx)
-	// An unattended heartbeat carries no human owner token and no run identity.
-	// Present Prompt Manager's own service-principal bearer so Agent Manager sees
-	// a verified service identity and can admit run.create on the operator's
-	// standing grant. A human or run proof already in context always wins and is
-	// never replaced by the service identity. If no service token can be minted
-	// (credential not yet issued), fall through to the prior unqualified path.
-	if proof.authorization == "" && proof.runIdentity == "" && c.serviceToken != nil {
-		if token, err := c.serviceToken.Token(ctx); err == nil && strings.TrimSpace(token) != "" {
-			return withCreateRunCaller(ctx, "Bearer "+token, ""), nil
+	if proof.origin == createRunCallerOriginService {
+		if proof.runIdentity != "" || proof.binding != "" {
+			return nil, fmt.Errorf("service caller mode contains caller-only proof")
 		}
+		return c.mintServiceCreateRunCaller(ctx)
+	}
+	// An unattended heartbeat carries no human owner token and no run identity.
+	// If a service source is configured, failure to mint is a hard refusal: it
+	// must not silently turn a scheduled service dispatch into anonymous work.
+	if proof.authorization == "" && proof.runIdentity == "" && c.serviceToken != nil {
+		return c.mintServiceCreateRunCaller(ctx)
 	}
 	headers := http.Header{}
 	if proof.authorization != "" {
@@ -865,5 +916,45 @@ func (c *AgentManagerClient) prepareCreateRunCaller(ctx context.Context) (contex
 	if verifier == nil {
 		verifier = owneridentity.NewClient(owneridentity.Config{Resolver: discovery.NewResolver(discovery.ResolverConfig{})})
 	}
-	return owneridentity.AuthorizeCreateRunCaller(ctx, headers, verifier, time.Now(), owneridentity.CreateRunCallerEnforced())
+	qualified, err := owneridentity.AuthorizeCreateRunCaller(ctx, headers, verifier, time.Now(), owneridentity.CreateRunCallerEnforced())
+	if err != nil {
+		return nil, err
+	}
+	qualifiedProof := createRunCaller(qualified)
+	if qualifiedProof.origin == "" {
+		origin := createRunCallerOriginUnqualified
+		if proof.authorization != "" || proof.runIdentity != "" {
+			origin = createRunCallerOriginCaller
+		}
+		qualified = withCreateRunCallerOrigin(qualified, proof.authorization, proof.runIdentity, origin)
+	}
+	if createRunCaller(qualified).origin == createRunCallerOriginCaller {
+		binding, bindingErr := owneridentity.CreateRunCallerBinding(qualified)
+		if bindingErr != nil {
+			return nil, fmt.Errorf("verified caller identity binding unavailable: %w", bindingErr)
+		}
+		qualified = withCreateRunCallerBinding(qualified, binding)
+	}
+	return qualified, nil
+}
+
+func (c *AgentManagerClient) mintServiceCreateRunCaller(ctx context.Context) (context.Context, error) {
+	if c == nil || c.serviceToken == nil {
+		return nil, fmt.Errorf("prompt-manager service credential source is unavailable")
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	token, err := c.serviceToken.Token(ctx)
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, ctxErr
+		}
+		return nil, fmt.Errorf("prompt-manager service credential could not be refreshed")
+	}
+	token = strings.TrimSpace(token)
+	if token == "" {
+		return nil, fmt.Errorf("prompt-manager service credential could not be refreshed")
+	}
+	return withCreateRunCallerOrigin(ctx, "Bearer "+token, "", createRunCallerOriginService), nil
 }

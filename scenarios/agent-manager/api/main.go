@@ -445,7 +445,7 @@ func (s *Server) recoverySteps() []maintenance.RecoveryStep {
 			s.frictionPublisher.Start(ctx)
 		}
 		if s.orchestrator != nil {
-			wiring.ScheduleDeclarationReconcile(s.orchestrator, repoRoot)
+			wiring.ScheduleDeclarationReconcile(s.orchestrator, repoRoot, s.recovery.ReconcileDeclarationStep)
 		}
 		if s.modelHealthProbe != nil {
 			s.modelHealthProbe.Start(ctx)

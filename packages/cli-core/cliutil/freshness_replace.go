@@ -307,7 +307,11 @@ func sourcePackageDirs(root string) []string {
 		}
 		if d.IsDir() {
 			name := d.Name()
-			if path != root && (strings.HasPrefix(name, ".") || name == "vendor" || name == "testdata" || buildinfoSkipDir(name)) {
+			rel, relErr := filepath.Rel(root, path)
+			if relErr != nil {
+				return nil
+			}
+			if path != root && (strings.HasPrefix(name, ".") || name == "vendor" || name == "testdata" || buildinfoSkipDir(root, filepath.ToSlash(rel))) {
 				return filepath.SkipDir
 			}
 			return nil

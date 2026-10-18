@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	_ "modernc.org/sqlite"
+	"sort"
 	"testing"
 	"time"
 )
@@ -671,6 +672,81 @@ func TestRunListFilters(t *testing.T) {
 	}
 	if len(applyRuns) != 1 {
 		t.Errorf("expected 1 apply run for source investigation run ID, got %d", len(applyRuns))
+	}
+}
+
+func TestRunListNonTerminalOnlyExcludesTerminalHistory(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+	task := &domain.Task{ID: uuid.New(), Title: "authorization lookup", ScopePath: "/test", Status: domain.TaskStatusQueued}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 250; i++ {
+		run := &domain.Run{ID: uuid.New(), TaskID: task.ID, Status: domain.RunStatusComplete, Phase: domain.RunPhaseCompleted, ApprovalState: domain.ApprovalStateNone}
+		if err := repos.Runs.Create(ctx, run); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, status := range []domain.RunStatus{domain.RunStatusFailed, domain.RunStatusCancelled, domain.RunStatusUnknown} {
+		run := &domain.Run{ID: uuid.New(), TaskID: task.ID, Status: status, Phase: domain.RunPhaseCompleted, ApprovalState: domain.ApprovalStateNone}
+		if err := repos.Runs.Create(ctx, run); err != nil {
+			t.Fatal(err)
+		}
+	}
+	want := []domain.RunStatus{domain.RunStatusPending, domain.RunStatusStarting, domain.RunStatusRunning, domain.RunStatusNeedsReview, domain.RunStatusParked}
+	var expectedIDs []string
+	for _, status := range want {
+		run := &domain.Run{ID: uuid.New(), TaskID: task.ID, Status: status, Phase: domain.RunPhaseQueued, ApprovalState: domain.ApprovalStateNone}
+		if err := repos.Runs.Create(ctx, run); err != nil {
+			t.Fatal(err)
+		}
+		expectedIDs = append(expectedIDs, run.ID.String())
+	}
+	// Force an equal timestamp across the page boundary to verify deterministic
+	// ordering does not skip or duplicate a live owner during pagination.
+	tiedCreatedAt := time.Date(2026, time.October, 17, 17, 0, 0, 0, time.UTC)
+	if _, err := db.ExecContext(ctx, `UPDATE runs SET created_at = ? WHERE task_id = ? AND status IN (?, ?, ?, ?, ?)`,
+		SQLiteTime(tiedCreatedAt), task.ID,
+		string(domain.RunStatusPending), string(domain.RunStatusStarting), string(domain.RunStatusRunning),
+		string(domain.RunStatusNeedsReview), string(domain.RunStatusParked)); err != nil {
+		t.Fatal(err)
+	}
+	sort.Sort(sort.Reverse(sort.StringSlice(expectedIDs)))
+
+	var got []*domain.Run
+	for offset := 0; ; offset += 2 {
+		page, err := repos.Runs.List(ctx, repository.RunListFilter{
+			ListFilter:      repository.ListFilter{Limit: 2, Offset: offset},
+			NonTerminalOnly: true,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		got = append(got, page...)
+		if len(page) < 2 {
+			break
+		}
+	}
+	if len(got) != len(want) {
+		t.Fatalf("nonterminal query returned %d rows; want only %d retained executor states", len(got), len(want))
+	}
+	seen := make(map[domain.RunStatus]int)
+	for _, run := range got {
+		seen[run.Status]++
+	}
+	for _, status := range want {
+		if seen[status] != 1 {
+			t.Errorf("status %q count = %d, want 1", status, seen[status])
+		}
+	}
+	for index, run := range got {
+		if run.ID.String() != expectedIDs[index] {
+			t.Fatalf("page %d returned run %s; deterministic tie-break wanted %s", index, run.ID, expectedIDs[index])
+		}
 	}
 }
 

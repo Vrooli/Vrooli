@@ -95,10 +95,21 @@ func TestProgramLibraryAndLearnUsesAreDependencies(t *testing.T) {
 }
 
 func TestValidationResponseRetainsNativeFailureEvidence(t *testing.T) {
-	h := &handler{repoRoot: t.TempDir()}
+	root, err := filepath.Abs("../../../../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := &handler{repoRoot: root}
 	response, err := h.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{Scenario: "missing"}))
 	if err != nil {
 		t.Fatal(err)
+	}
+	if response.Msg.GetStatus() != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED {
+		t.Fatalf("status = %s, want FAILED for a severe finding", response.Msg.GetStatus())
+	}
+	assessment := response.Msg.GetAssessment()
+	if assessment.GetFindingsBySeverity()["FINDING_SEVERITY_ERROR"] != 1 || len(assessment.GetFindings()) != 1 || assessment.GetFindings()[0].GetCode() != "programs.scenario_missing" {
+		t.Fatalf("handler assessment lost severe finding evidence: %+v", assessment)
 	}
 	var detail structpb.Struct
 	if err := response.Msg.GetNativeDetail().UnmarshalTo(&detail); err != nil {
@@ -107,6 +118,32 @@ func TestValidationResponseRetainsNativeFailureEvidence(t *testing.T) {
 	findings := detail.GetFields()["findings"].GetListValue().GetValues()
 	if len(findings) != 1 || findings[0].GetStringValue() != "programs.scenario_missing" {
 		t.Fatalf("failure evidence lost: %v", &detail)
+	}
+}
+
+func TestValidateScenarioProjectsFindingSeverityToAssessment(t *testing.T) {
+	root, err := filepath.Abs("../../../../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	registry, err := bindings.Load(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := &handler{repoRoot: root, registry: registry, portfolio: warningOnlyPortfolio{}}
+	response, err := h.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{Scenario: "tech-tree-designer"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	warningAssessment := response.Msg.GetAssessment()
+	if response.Msg.GetStatus() != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED {
+		t.Fatalf("warning-only handler status = %s, want PASSED", response.Msg.GetStatus())
+	}
+	if warningAssessment.GetFindingsBySeverity()["FINDING_SEVERITY_WARNING"] != 1 || len(warningAssessment.GetFindings()) != 1 || warningAssessment.GetFindings()[0].GetCode() != "programs.never_exercised" {
+		t.Fatalf("warning assessment lost normalized severity evidence: %+v", warningAssessment)
+	}
+	if warningAssessment.GetLocal().GetClean() || warningAssessment.GetLocal().GetCurrentLevel() != "L0" {
+		t.Fatalf("warning changed stricter local maturity semantics: %+v", warningAssessment.GetLocal())
 	}
 }
 
@@ -161,6 +198,12 @@ func containsString(values []string, want string) bool {
 type fixtureTestRunner struct{ calls int }
 
 type historicalBudgetPortfolio struct{}
+
+type warningOnlyPortfolio struct{}
+
+func (warningOnlyPortfolio) PortfolioStats(context.Context, *programsv1.PortfolioStatsRequest) (*programsv1.PortfolioStatsResponse, error) {
+	return &programsv1.PortfolioStatsResponse{NeverExecuted: []string{"tech-tree-designer.setpoint-read"}}, nil
+}
 
 func (historicalBudgetPortfolio) PortfolioStats(context.Context, *programsv1.PortfolioStatsRequest) (*programsv1.PortfolioStatsResponse, error) {
 	return &programsv1.PortfolioStatsResponse{Rows: []*programsv1.ProgramPortfolioRow{{Name: "tech-tree-designer.setpoint-read", P95Millis: 60004}}}, nil

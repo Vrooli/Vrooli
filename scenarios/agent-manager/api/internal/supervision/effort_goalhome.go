@@ -247,7 +247,11 @@ func (s *EffortService) goalHomeFileFacts(out *pb.EffortGoalHome, home *goalhome
 		if out.ActiveEpoch == "" && out.LastAcceptedEpoch == "" {
 			out.ActiveEpoch = fmt.Sprintf("E%d", epoch.Number)
 			out.ActiveStatus = epoch.Epoch.Fields["status"]
-			out.ActiveWorkers = goalhome.WorkerRunIDs(epoch.Epoch.Fields["workers"])
+			rawWorkers := epoch.Epoch.Fields["workers"]
+			out.ActiveWorkers = goalhome.WorkerRunIDs(rawWorkers)
+			if strings.TrimSpace(rawWorkers) != "" && len(out.ActiveWorkers) == 0 {
+				out.Limitations = append(out.Limitations, "active epoch Workers field is not a well-formed UUID list")
+			}
 		}
 	}
 	for i, item := range home.Queue.NeedsOperator {

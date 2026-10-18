@@ -13,6 +13,32 @@
           "max_bytes": "5GiB",
           "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
         }
+      },
+      "generated_cache": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "cache",
+        "regenerable": true,
+        "rationale": "Entity indexes and scenario-skill lookup caches are derived from owned source records and can be rebuilt.",
+        "budget": {
+          "max_bytes": "100MiB",
+          "max_age": "7d",
+          "rationale": "The observed derived indexes are below 1 MiB; this bound allows growth while retaining a short, regenerable cache history."
+        }
+      },
+      "retention_receipt": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "state",
+        "format": "json",
+        "subpath": "retention/enforcement-receipt.json",
+        "regenerable": true,
+        "rationale": "Shared retention enforcement replaces its compact receipt in the Prompt Manager owner namespace.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "max_age": "30d",
+          "rationale": "The last-cycle receipt is replaced by the next retention run and can be regenerated."
+        }
       }
     },
     "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."

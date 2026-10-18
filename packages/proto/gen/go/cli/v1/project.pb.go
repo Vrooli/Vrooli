@@ -741,7 +741,9 @@ type ProjectStopReport struct {
 	// Items that failed to stop/remove; empty if none.
 	Failed []*ProjectStopItem `protobuf:"bytes,2,rep,name=failed,proto3" json:"failed,omitempty"`
 	// Summary message; empty if unset.
-	Message       string `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	Message string `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	// Diagnostics and recommendations that do not assert a stopped resource.
+	Observed      []*ProjectStopItem `protobuf:"bytes,4,rep,name=observed,proto3" json:"observed,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -795,6 +797,13 @@ func (x *ProjectStopReport) GetMessage() string {
 		return x.Message
 	}
 	return ""
+}
+
+func (x *ProjectStopReport) GetObserved() []*ProjectStopItem {
+	if x != nil {
+		return x.Observed
+	}
+	return nil
 }
 
 // ProjectStopItem is one stop/clean result row (control.ResultItem).
@@ -2579,11 +2588,12 @@ const file_cli_v1_project_proto_rawDesc = "" +
 	"\amessage\x18\x03 \x01(\tR\amessage\"e\n" +
 	"\x13ProjectStopResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x124\n" +
-	"\x04data\x18\x02 \x01(\v2 .vrooli.cli.v1.ProjectStopReportR\x04data\"\x9f\x01\n" +
+	"\x04data\x18\x02 \x01(\v2 .vrooli.cli.v1.ProjectStopReportR\x04data\"\xdb\x01\n" +
 	"\x11ProjectStopReport\x128\n" +
 	"\astopped\x18\x01 \x03(\v2\x1e.vrooli.cli.v1.ProjectStopItemR\astopped\x126\n" +
 	"\x06failed\x18\x02 \x03(\v2\x1e.vrooli.cli.v1.ProjectStopItemR\x06failed\x12\x18\n" +
-	"\amessage\x18\x03 \x01(\tR\amessage\"U\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\x12:\n" +
+	"\bobserved\x18\x04 \x03(\v2\x1e.vrooli.cli.v1.ProjectStopItemR\bobserved\"U\n" +
 	"\x0fProjectStopItem\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12\x14\n" +
@@ -2805,37 +2815,38 @@ var file_cli_v1_project_proto_depIdxs = []int32{
 	9,  // 12: vrooli.cli.v1.ProjectStopResponse.data:type_name -> vrooli.cli.v1.ProjectStopReport
 	10, // 13: vrooli.cli.v1.ProjectStopReport.stopped:type_name -> vrooli.cli.v1.ProjectStopItem
 	10, // 14: vrooli.cli.v1.ProjectStopReport.failed:type_name -> vrooli.cli.v1.ProjectStopItem
-	5,  // 15: vrooli.cli.v1.ProjectOrphansResponse.orphans:type_name -> vrooli.cli.v1.ProjectSystemProcess
-	13, // 16: vrooli.cli.v1.ProjectOrphansDryRunResponse.dry_run:type_name -> vrooli.cli.v1.ProjectOrphansDryRun
-	5,  // 17: vrooli.cli.v1.ProjectOrphansDryRun.orphans:type_name -> vrooli.cli.v1.ProjectSystemProcess
-	15, // 18: vrooli.cli.v1.ProjectLocksResponse.registry_claims:type_name -> vrooli.cli.v1.ProjectRuntimeClaim
-	31, // 19: vrooli.cli.v1.ProjectRuntimeClaim.supervisor_fresh:type_name -> google.protobuf.Value
-	31, // 20: vrooli.cli.v1.ProjectRuntimeClaim.lease_fresh:type_name -> google.protobuf.Value
-	31, // 21: vrooli.cli.v1.ProjectRuntimeClaim.health_ready:type_name -> google.protobuf.Value
-	31, // 22: vrooli.cli.v1.ProjectRuntimeClaim.authoritative:type_name -> google.protobuf.Value
-	31, // 23: vrooli.cli.v1.ProjectRuntimeClaim.listener_pid:type_name -> google.protobuf.Value
-	17, // 24: vrooli.cli.v1.ProjectTemplateCleanupResponse.cleanup:type_name -> vrooli.cli.v1.ProjectTemplateCleanupResult
-	18, // 25: vrooli.cli.v1.ProjectTemplateCleanupResult.eligible:type_name -> vrooli.cli.v1.ProjectTemplateRun
-	20, // 26: vrooli.cli.v1.ProjectTemplateCleanupResult.skipped:type_name -> vrooli.cli.v1.ProjectTemplateSkippedRun
-	21, // 27: vrooli.cli.v1.ProjectTemplateCleanupResult.failures:type_name -> vrooli.cli.v1.ProjectTemplateFailedRun
-	18, // 28: vrooli.cli.v1.ProjectTemplateCleanupResult.removed:type_name -> vrooli.cli.v1.ProjectTemplateRun
-	19, // 29: vrooli.cli.v1.ProjectTemplateRun.marker:type_name -> vrooli.cli.v1.ProjectTemplateRunMarker
-	18, // 30: vrooli.cli.v1.ProjectTemplateSkippedRun.run:type_name -> vrooli.cli.v1.ProjectTemplateRun
-	18, // 31: vrooli.cli.v1.ProjectTemplateFailedRun.run:type_name -> vrooli.cli.v1.ProjectTemplateRun
-	23, // 32: vrooli.cli.v1.ProjectPortDiagnosticResponse.diagnostic:type_name -> vrooli.cli.v1.ProjectPortDiagnostic
-	24, // 33: vrooli.cli.v1.ProjectPortDiagnostic.listeners:type_name -> vrooli.cli.v1.ProjectPortListener
-	25, // 34: vrooli.cli.v1.ProjectPortDiagnostic.listener_inspection:type_name -> vrooli.cli.v1.ProjectListenerInspection
-	15, // 35: vrooli.cli.v1.ProjectPortDiagnostic.registry_claims:type_name -> vrooli.cli.v1.ProjectRuntimeClaim
-	26, // 36: vrooli.cli.v1.ProjectPortDiagnostic.registry_processes:type_name -> vrooli.cli.v1.ProjectRuntimeProcessRef
-	27, // 37: vrooli.cli.v1.ProjectPortDiagnostic.port_policy:type_name -> vrooli.cli.v1.ProjectPortPolicy
-	31, // 38: vrooli.cli.v1.ProjectRuntimeProcessRef.pid:type_name -> google.protobuf.Value
-	31, // 39: vrooli.cli.v1.ProjectRuntimeProcessRef.pgid:type_name -> google.protobuf.Value
-	31, // 40: vrooli.cli.v1.ProjectRuntimeProcessRef.pid_running:type_name -> google.protobuf.Value
-	41, // [41:41] is the sub-list for method output_type
-	41, // [41:41] is the sub-list for method input_type
-	41, // [41:41] is the sub-list for extension type_name
-	41, // [41:41] is the sub-list for extension extendee
-	0,  // [0:41] is the sub-list for field type_name
+	10, // 15: vrooli.cli.v1.ProjectStopReport.observed:type_name -> vrooli.cli.v1.ProjectStopItem
+	5,  // 16: vrooli.cli.v1.ProjectOrphansResponse.orphans:type_name -> vrooli.cli.v1.ProjectSystemProcess
+	13, // 17: vrooli.cli.v1.ProjectOrphansDryRunResponse.dry_run:type_name -> vrooli.cli.v1.ProjectOrphansDryRun
+	5,  // 18: vrooli.cli.v1.ProjectOrphansDryRun.orphans:type_name -> vrooli.cli.v1.ProjectSystemProcess
+	15, // 19: vrooli.cli.v1.ProjectLocksResponse.registry_claims:type_name -> vrooli.cli.v1.ProjectRuntimeClaim
+	31, // 20: vrooli.cli.v1.ProjectRuntimeClaim.supervisor_fresh:type_name -> google.protobuf.Value
+	31, // 21: vrooli.cli.v1.ProjectRuntimeClaim.lease_fresh:type_name -> google.protobuf.Value
+	31, // 22: vrooli.cli.v1.ProjectRuntimeClaim.health_ready:type_name -> google.protobuf.Value
+	31, // 23: vrooli.cli.v1.ProjectRuntimeClaim.authoritative:type_name -> google.protobuf.Value
+	31, // 24: vrooli.cli.v1.ProjectRuntimeClaim.listener_pid:type_name -> google.protobuf.Value
+	17, // 25: vrooli.cli.v1.ProjectTemplateCleanupResponse.cleanup:type_name -> vrooli.cli.v1.ProjectTemplateCleanupResult
+	18, // 26: vrooli.cli.v1.ProjectTemplateCleanupResult.eligible:type_name -> vrooli.cli.v1.ProjectTemplateRun
+	20, // 27: vrooli.cli.v1.ProjectTemplateCleanupResult.skipped:type_name -> vrooli.cli.v1.ProjectTemplateSkippedRun
+	21, // 28: vrooli.cli.v1.ProjectTemplateCleanupResult.failures:type_name -> vrooli.cli.v1.ProjectTemplateFailedRun
+	18, // 29: vrooli.cli.v1.ProjectTemplateCleanupResult.removed:type_name -> vrooli.cli.v1.ProjectTemplateRun
+	19, // 30: vrooli.cli.v1.ProjectTemplateRun.marker:type_name -> vrooli.cli.v1.ProjectTemplateRunMarker
+	18, // 31: vrooli.cli.v1.ProjectTemplateSkippedRun.run:type_name -> vrooli.cli.v1.ProjectTemplateRun
+	18, // 32: vrooli.cli.v1.ProjectTemplateFailedRun.run:type_name -> vrooli.cli.v1.ProjectTemplateRun
+	23, // 33: vrooli.cli.v1.ProjectPortDiagnosticResponse.diagnostic:type_name -> vrooli.cli.v1.ProjectPortDiagnostic
+	24, // 34: vrooli.cli.v1.ProjectPortDiagnostic.listeners:type_name -> vrooli.cli.v1.ProjectPortListener
+	25, // 35: vrooli.cli.v1.ProjectPortDiagnostic.listener_inspection:type_name -> vrooli.cli.v1.ProjectListenerInspection
+	15, // 36: vrooli.cli.v1.ProjectPortDiagnostic.registry_claims:type_name -> vrooli.cli.v1.ProjectRuntimeClaim
+	26, // 37: vrooli.cli.v1.ProjectPortDiagnostic.registry_processes:type_name -> vrooli.cli.v1.ProjectRuntimeProcessRef
+	27, // 38: vrooli.cli.v1.ProjectPortDiagnostic.port_policy:type_name -> vrooli.cli.v1.ProjectPortPolicy
+	31, // 39: vrooli.cli.v1.ProjectRuntimeProcessRef.pid:type_name -> google.protobuf.Value
+	31, // 40: vrooli.cli.v1.ProjectRuntimeProcessRef.pgid:type_name -> google.protobuf.Value
+	31, // 41: vrooli.cli.v1.ProjectRuntimeProcessRef.pid_running:type_name -> google.protobuf.Value
+	42, // [42:42] is the sub-list for method output_type
+	42, // [42:42] is the sub-list for method input_type
+	42, // [42:42] is the sub-list for extension type_name
+	42, // [42:42] is the sub-list for extension extendee
+	0,  // [0:42] is the sub-list for field type_name
 }
 
 func init() { file_cli_v1_project_proto_init() }

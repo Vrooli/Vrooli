@@ -146,6 +146,24 @@ func TestEffortGoalHomeProjectsRegisteredHome(t *testing.T) {
 	}
 }
 
+func TestEffortGoalHomeLeavesProseWorkersUnknown(t *testing.T) {
+	s, _, c := effortFixture(t)
+	s.config.ProjectRoot = t.TempDir()
+	goalHomeTree(t, s.config.ProjectRoot, map[string]func(string) string{
+		"epochs/E27.md": func(string) string {
+			return "# E27\n\n- Status: in-progress\n- Workers: attempt 1 task 8e9bda82-a42e-4bbe-aec8-9ac0a6957122 / run 7e762c65-72ee-413c-b051-e498d384baaa\n\n## Slice log\n"
+		},
+	})
+
+	home := goalHomeBoardRow(t, s, c).GetGoalHome()
+	if home == nil || home.ActiveEpoch != "E27" || len(home.ActiveWorkers) != 0 {
+		t.Fatalf("prose must not become active workers: %+v", home)
+	}
+	if !strings.Contains(strings.Join(home.Limitations, "; "), "Workers field is not a well-formed UUID list") {
+		t.Fatalf("malformed worker field must remain an explicit limitation: %q", home.Limitations)
+	}
+}
+
 func TestEffortGoalHomeMissingFactsReadUnknownNotZero(t *testing.T) {
 	s, _, c := effortFixture(t)
 	s.config.ProjectRoot = t.TempDir()

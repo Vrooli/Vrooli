@@ -55,7 +55,7 @@ func TestProxyForwardsTransparentlyAndBrackets(t *testing.T) {
 		Debounce: 30 * time.Millisecond,
 		Exec: func(_ context.Context, _ string, args ...string) ([]byte, error) {
 			if len(args) >= 2 && args[1] == "list" {
-				return []byte(`{"claims":[{"claim_id":"clm-w","owner_id":"whisper"}]}`), nil
+				return []byte(`{"claims":[{"claim_id":"clm-w","owner_id":"whisper","owner_kind":"resource","resource_kind":"vram","gpu_index":0,"status":"granted","generation":1}]}`), nil
 			}
 			if len(args) >= 2 && args[1] == "activity" {
 				mu.Lock()
@@ -166,7 +166,7 @@ func TestEveryAcceleratorResourceTransitionsActiveThenIdle(t *testing.T) {
 			var states []string
 			h.Exec = func(_ context.Context, _ string, args ...string) ([]byte, error) {
 				if len(args) >= 2 && args[1] == "list" {
-					return []byte(`{"claims":[{"claim_id":"clm-edge","owner_id":"` + tc.resource + `","generation":1}]}`), nil
+					return []byte(`{"claims":[{"claim_id":"clm-edge","owner_id":"` + tc.resource + `","owner_kind":"resource","resource_kind":"vram","gpu_index":0,"status":"granted","generation":1}]}`), nil
 				}
 				if len(args) >= 2 && args[1] == "activity" {
 					for i, arg := range args {
@@ -457,7 +457,7 @@ func TestIdleEdgeRenewsOwnClaimWithoutActivityOrResize(t *testing.T) {
 		calls = append(calls, strings.Join(args, " "))
 		mu.Unlock()
 		if len(args) > 1 && args[1] == "list" {
-			return []byte(`{"claims":[{"claim_id":"other","owner_id":"ollama","generation":9},{"claim_id":"owned","owner_kind":"resource","owner_id":"stable-audio-3","generation":3,"status":"granted"}]}`), nil
+			return []byte(`{"claims":[{"claim_id":"other","owner_id":"ollama","owner_kind":"resource","resource_kind":"vram","gpu_index":0,"status":"granted","generation":9},{"claim_id":"owned","owner_kind":"resource","owner_id":"stable-audio-3","resource_kind":"vram","gpu_index":0,"generation":3,"status":"granted"}]}`), nil
 		}
 		if len(args) > 1 && args[1] == "heartbeat" {
 			select {
@@ -495,7 +495,7 @@ func TestOldEdgeStopsRenewalOnParentGoneOrShutdownWithoutRelease(t *testing.T) {
 				calls = append(calls, strings.Join(args, " "))
 				callsMu.Unlock()
 				if len(args) > 1 && args[1] == "list" {
-					return []byte(`{"claims":[{"claim_id":"reused-on-restart","owner_id":"stable-audio-3","owner_kind":"resource","generation":4}]}`), nil
+					return []byte(`{"claims":[{"claim_id":"reused-on-restart","owner_id":"stable-audio-3","owner_kind":"resource","resource_kind":"vram","gpu_index":0,"status":"granted","generation":4}]}`), nil
 				}
 				if len(args) > 1 && args[1] == "heartbeat" {
 					select {

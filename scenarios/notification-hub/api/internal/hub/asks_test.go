@@ -2,6 +2,8 @@ package hub_test
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -112,6 +114,175 @@ func TestAskWithSpec_RepeatedRequestReturnsOneAskAndOneDelivery(t *testing.T) {
 	require.Len(t, sender.messages, 1)
 	require.Equal(t, "asks/"+first.ID, sender.messages[0].URL, "the push deep-links to the ask page")
 	require.Equal(t, first.NotificationID, sender.messages[0].Tag)
+}
+
+func TestAskWithSpec_PersistsContextAndRefusesChangedImmutableTerms(t *testing.T) {
+	service, _ := testService(t)
+	now := time.Date(2026, time.October, 16, 12, 0, 0, 0, time.UTC)
+	service.SetClockForTest(fixedClock{now: now})
+	spec := decisionSpec(now, "evt-context")
+	spec.BigPicture = "  Why it matters\r\nfor the goal.  "
+	spec.TechnicalDetails = " Evidence and limits. "
+
+	first, _, err := service.AskWithSpec(context.Background(), spec)
+	require.NoError(t, err)
+	require.Equal(t, "Why it matters\nfor the goal.", first.BigPicture)
+	require.Equal(t, "Evidence and limits.", first.TechnicalDetails)
+	require.Eventually(t, func() bool {
+		notification, _, getErr := service.Get(context.Background(), first.NotificationID)
+		return getErr == nil && notification.State == "unroutable"
+	}, time.Second, 10*time.Millisecond, "drain the created notification before closing the test store")
+
+	retry, _, err := service.AskWithSpec(context.Background(), spec)
+	require.NoError(t, err, "same immutable terms remain idempotent")
+	require.Equal(t, first.ID, retry.ID)
+
+	changed := spec
+	changed.BigPicture = "Different purpose"
+	_, _, err = service.AskWithSpec(context.Background(), changed)
+	require.ErrorIs(t, err, hub.ErrAskIdentityConflict)
+
+	changed = spec
+	changed.Options = append([]hub.AskOption(nil), spec.Options...)
+	changed.Options[0].Label = "Changed approval terms"
+	_, _, err = service.AskWithSpec(context.Background(), changed)
+	require.ErrorIs(t, err, hub.ErrAskIdentityConflict)
+
+	changed = spec
+	changed.Body = "A changed notification body"
+	_, _, err = service.AskWithSpec(context.Background(), changed)
+	require.ErrorIs(t, err, hub.ErrAskIdentityConflict)
+
+	changed = spec
+	changed.Source = "another-producer"
+	_, _, err = service.AskWithSpec(context.Background(), changed)
+	require.ErrorIs(t, err, hub.ErrAskIdentityConflict, "same recipient and notification key cannot alias a different ask identity")
+}
+
+func TestAskWithSpec_ConcurrentRequesterIdentityHasOneImmutableOwner(t *testing.T) {
+	now := time.Date(2026, time.October, 16, 12, 0, 0, 0, time.UTC)
+
+	t.Run("same terms return one ask and one delivery", func(t *testing.T) {
+		service, db := testService(t)
+		sender := &recordingSender{}
+		service.SetPushSender(sender)
+		registerSubscription(t, service, "alice")
+		base := decisionSpec(now, "evt-concurrent-same")
+		const callers = 12
+		start := make(chan struct{})
+		type result struct {
+			ask hub.AskRecord
+			err error
+		}
+		results := make(chan result, callers)
+		var wg sync.WaitGroup
+		for i := 0; i < callers; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				<-start
+				ask, _, err := service.AskWithSpec(context.Background(), base)
+				results <- result{ask: ask, err: err}
+			}()
+		}
+		close(start)
+		wg.Wait()
+		close(results)
+		var askID string
+		for got := range results {
+			require.NoError(t, got.err)
+			if askID == "" {
+				askID = got.ask.ID
+			}
+			require.Equal(t, askID, got.ask.ID)
+		}
+		var asks int
+		require.NoError(t, db.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM asks WHERE source=? AND requester_ref=?`, base.Source, base.IdempotencyKey).Scan(&asks))
+		require.Equal(t, 1, asks)
+		persisted, err := service.GetAsk(context.Background(), askID)
+		require.NoError(t, err)
+		require.Eventually(t, func() bool {
+			notification, _, getErr := service.Get(context.Background(), persisted.NotificationID)
+			return getErr == nil && notification.State == "delivered"
+		}, time.Second, 10*time.Millisecond)
+		require.Eventually(t, func() bool {
+			sender.mu.Lock()
+			defer sender.mu.Unlock()
+			return len(sender.messages) == 1
+		}, time.Second, 10*time.Millisecond)
+	})
+
+	t.Run("different recipients cannot split one identity", func(t *testing.T) {
+		service, db := testService(t)
+		base := decisionSpec(now, "evt-concurrent-recipients")
+		specs := []hub.AskSpec{base, base}
+		specs[1].Recipient = "bob"
+		const callers = 2
+		start := make(chan struct{})
+		type result struct {
+			ask hub.AskRecord
+			err error
+		}
+		results := make(chan result, callers)
+		var wg sync.WaitGroup
+		for _, spec := range specs {
+			wg.Add(1)
+			go func(spec hub.AskSpec) {
+				defer wg.Done()
+				<-start
+				ask, _, err := service.AskWithSpec(context.Background(), spec)
+				results <- result{ask: ask, err: err}
+			}(spec)
+		}
+		close(start)
+		wg.Wait()
+		close(results)
+		var winner hub.AskRecord
+		var success, conflicts int
+		for got := range results {
+			switch {
+			case got.err == nil:
+				success++
+				winner = got.ask
+			case errors.Is(got.err, hub.ErrAskIdentityConflict):
+				conflicts++
+			default:
+				require.NoError(t, got.err)
+			}
+		}
+		require.Equal(t, 1, success)
+		require.Equal(t, 1, conflicts)
+		var asks int
+		require.NoError(t, db.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM asks WHERE source=? AND requester_ref=?`, base.Source, base.IdempotencyKey).Scan(&asks))
+		require.Equal(t, 1, asks)
+		var notifications int
+		require.NoError(t, db.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM notifications WHERE idempotency_key=?`, base.IdempotencyKey).Scan(&notifications))
+		require.Equal(t, 1, notifications, "the rejected recipient's notification must roll back with its Ask insert")
+		persisted, err := service.GetAsk(context.Background(), winner.ID)
+		require.NoError(t, err)
+		require.Contains(t, []string{"alice", "bob"}, persisted.Recipient)
+		require.Eventually(t, func() bool {
+			notification, _, getErr := service.Get(context.Background(), persisted.NotificationID)
+			return getErr == nil && notification.State == "unroutable"
+		}, time.Second, 10*time.Millisecond, "finish the committed winner's worker delivery before closing the test store")
+	})
+}
+
+func TestAskWithSpec_RejectsInvalidOrOversizeContext(t *testing.T) {
+	service, _ := testService(t)
+	now := time.Now().UTC()
+	for name, mutate := range map[string]func(*hub.AskSpec){
+		"big picture":       func(spec *hub.AskSpec) { spec.BigPicture = strings.Repeat("😀", 4_001) },
+		"technical details": func(spec *hub.AskSpec) { spec.TechnicalDetails = strings.Repeat("🧭", 12_001) },
+		"invalid utf8":      func(spec *hub.AskSpec) { spec.TechnicalDetails = string([]byte{0xff}) },
+	} {
+		t.Run(name, func(t *testing.T) {
+			spec := decisionSpec(now, "evt-bad-context-"+strings.ReplaceAll(name, " ", "-"))
+			mutate(&spec)
+			_, _, err := service.AskWithSpec(context.Background(), spec)
+			require.ErrorIs(t, err, hub.ErrInvalidArgument)
+		})
+	}
 }
 
 // [REQ:NOTIFICA-P1-010]

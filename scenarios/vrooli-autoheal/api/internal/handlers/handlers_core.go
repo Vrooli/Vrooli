@@ -65,6 +65,8 @@ type StoreInterface interface {
 	GetIncident(ctx context.Context, id string) (*incidents.Incident, error)
 	ListIncidentObservations(ctx context.Context, incidentID string, limit int) ([]incidents.Observation, error)
 	UpdateIncidentStatus(ctx context.Context, incidentID string, status incidents.Status, note string) (*incidents.Incident, error)
+	ListPendingOpeningPublications(ctx context.Context, limit int) ([]incidents.OpeningPublication, error)
+	AcknowledgeOpeningPublication(ctx context.Context, incidentID string, generation int) error
 	RecordIncidentRemediationArtifact(ctx context.Context, incidentID string, artifact incidents.RemediationArtifact) (*incidents.Incident, error)
 	RecordIncidentRemediationOutcome(ctx context.Context, incidentID string, outcome incidents.Outcome) (*incidents.Incident, error)
 	// Action log operations [REQ:HEAL-ACTION-001]

@@ -37,7 +37,21 @@ func (s *Store) upsertIncidentSQLite(ctx context.Context, input incidents.Upsert
 	if input.Outcome != nil {
 		outcomeValue = outcomeJSON
 	}
-	_, err := s.db.ExecContext(
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin incident upsert: %w", err)
+	}
+	defer tx.Rollback()
+	var previousStatus incidents.Status
+	previousErr := tx.QueryRowContext(ctx, `SELECT status FROM incidents WHERE fingerprint = ?`, input.Fingerprint).Scan(&previousStatus)
+	newLifecycle := errors.Is(previousErr, sql.ErrNoRows)
+	if previousErr != nil && !newLifecycle {
+		return nil, fmt.Errorf("read incident lifecycle before upsert: %w", previousErr)
+	}
+	openedAgain := previousErr == nil && previousStatus == incidents.StatusResolved
+
+	_, err = tx.ExecContext(
 		ctx, `
 		INSERT INTO incidents (
 			id, fingerprint, type, severity, status, title, summary, detected_at, last_seen_at, updated_at,
@@ -103,12 +117,28 @@ func (s *Store) upsertIncidentSQLite(ctx context.Context, input incidents.Upsert
 	if err != nil {
 		return nil, fmt.Errorf("upsert incident: %w", err)
 	}
-	incident, err := s.getIncidentByFingerprintSQLite(ctx, input.Fingerprint)
+	incident, err := getIncidentByFingerprintSQLite(ctx, tx, input.Fingerprint)
 	if err != nil {
 		return nil, err
 	}
 	if incident == nil {
 		return nil, sql.ErrNoRows
+	}
+	if newLifecycle || openedAgain {
+		payloadJSON, marshalErr := json.Marshal(incidents.OpeningEventFacts(incident))
+		if marshalErr != nil {
+			return nil, fmt.Errorf("marshal incident opening snapshot: %w", marshalErr)
+		}
+		if _, err := tx.ExecContext(ctx, `
+			INSERT INTO incident_open_publications (incident_id, generation, event_type, payload_json)
+			VALUES (?, ?, 'incident.opened.v1', ?)
+			ON CONFLICT(incident_id, generation) DO NOTHING
+		`, incident.ID, incident.EventCount, string(payloadJSON)); err != nil {
+			return nil, fmt.Errorf("persist incident opening snapshot: %w", err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit incident lifecycle: %w", err)
 	}
 	obsEvidenceJSON, _ := json.Marshal(input.Evidence)
 	shouldRecord, err := s.shouldRecordIncidentObservationSQLite(ctx, incident.ID, input, obsEvidenceJSON)
@@ -135,6 +165,49 @@ func (s *Store) upsertIncidentSQLite(ctx context.Context, input incidents.Upsert
 		}
 	}
 	return incident, nil
+}
+
+func (s *Store) ListPendingOpeningPublications(ctx context.Context, limit int) ([]incidents.OpeningPublication, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 100
+	}
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT incident_id, generation, event_type, payload_json
+		FROM incident_open_publications
+		ORDER BY created_at, incident_id, generation
+		LIMIT ?
+	`, limit)
+	if err != nil {
+		return nil, fmt.Errorf("query pending incident publications: %w", err)
+	}
+	defer rows.Close()
+	out := make([]incidents.OpeningPublication, 0)
+	for rows.Next() {
+		var publication incidents.OpeningPublication
+		var payloadJSON string
+		if err := rows.Scan(&publication.IncidentID, &publication.Generation, &publication.EventType, &payloadJSON); err != nil {
+			return nil, fmt.Errorf("scan pending incident publication: %w", err)
+		}
+		if err := json.Unmarshal([]byte(payloadJSON), &publication.Payload); err != nil {
+			return nil, fmt.Errorf("decode pending incident publication: %w", err)
+		}
+		out = append(out, publication)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (s *Store) AcknowledgeOpeningPublication(ctx context.Context, incidentID string, generation int) error {
+	_, err := s.db.ExecContext(ctx, `
+		DELETE FROM incident_open_publications
+		WHERE incident_id = ? AND generation = ?
+	`, incidentID, generation)
+	if err != nil {
+		return fmt.Errorf("acknowledge incident publication: %w", err)
+	}
+	return nil
 }
 
 func (s *Store) ensureIncidentContractColumns(ctx context.Context) error {
@@ -269,8 +342,16 @@ func (s *Store) getIncidentSQLite(ctx context.Context, id string) (*incidents.In
 	return scanIncident(row)
 }
 
+type incidentRowQueryer interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
+
 func (s *Store) getIncidentByFingerprintSQLite(ctx context.Context, fingerprint string) (*incidents.Incident, error) {
-	row := s.db.QueryRowContext(ctx, `
+	return getIncidentByFingerprintSQLite(ctx, s.db, fingerprint)
+}
+
+func getIncidentByFingerprintSQLite(ctx context.Context, queryer incidentRowQueryer, fingerprint string) (*incidents.Incident, error) {
+	row := queryer.QueryRowContext(ctx, `
 		SELECT id, fingerprint, type, severity, status, title, summary, detected_at, last_seen_at, updated_at,
 			resolved_at, acknowledged_at, ignored_at, COALESCE(boot_id, ''), COALESCE(previous_boot_id, ''),
 			source_check_ids_json, source_result_ids_json, evidence_json, recommendations_json,

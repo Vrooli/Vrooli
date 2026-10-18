@@ -82,6 +82,38 @@ func SignalProcessGroup(groupID int, force bool) error {
 // containment there rather than numeric process groups.
 func ProcessGroupID(pid int) (int, error) { return processGroupID(pid) }
 
+// WaitProcessGroupContext waits until a process group has no live members.
+// Zombie members do not count as live because they no longer retain executable
+// memory or perform work. Platforms that cannot verify group membership return
+// ErrUnsupported rather than treating an unknown tree as empty.
+func WaitProcessGroupContext(ctx context.Context, groupID int, pollInterval time.Duration) error {
+	if groupID <= 0 {
+		return fmt.Errorf("platform: invalid process group id %d", groupID)
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if pollInterval <= 0 {
+		pollInterval = 25 * time.Millisecond
+	}
+	ticker := time.NewTicker(pollInterval)
+	defer ticker.Stop()
+	for {
+		live, err := processGroupHasLiveMembers(ctx, groupID)
+		if err != nil {
+			return fmt.Errorf("platform: inspect process group %d: %w", groupID, err)
+		}
+		if !live {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+		}
+	}
+}
+
 // ReraiseSignal sends signal to the current process using the native backend.
 func ReraiseSignal(signal os.Signal) error { return reraiseSignal(signal) }
 

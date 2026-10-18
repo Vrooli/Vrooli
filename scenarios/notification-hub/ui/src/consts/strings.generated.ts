@@ -116,6 +116,8 @@ export const strings = {
       sending: "asks.detail.sending",
       saveError: "asks.detail.saveError",
       more: "asks.detail.more",
+      bigPicture: "asks.detail.bigPicture",
+      technicalDetails: "asks.detail.technicalDetails",
       back: "asks.detail.back",
     },
   },

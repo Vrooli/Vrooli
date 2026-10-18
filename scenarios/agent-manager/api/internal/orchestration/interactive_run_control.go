@@ -212,27 +212,27 @@ func (o *Orchestrator) finalizeSandboxForTerminalRun(ctx context.Context, run *d
 // continued in place and an actionable error is returned.
 func (o *Orchestrator) continueInteractiveRun(ctx context.Context, run *domain.Run, message string, _ []string, reinstallGoal bool) (*domain.Run, error) {
 	if o.interactiveSessions == nil {
-		return nil, domain.NewConfigMissingError("interactiveSessions", "interactive execution mode is not configured", nil)
+		return nil, domain.RefuseBeforeEffects(domain.NewConfigMissingError("interactiveSessions", "interactive execution mode is not configured", nil))
 	}
 	if run.WebConsoleSessionID == "" {
-		return nil, domain.NewStateError("Run", string(run.Status), "continue",
-			"interactive run has no web-console session to continue")
+		return nil, domain.RefuseBeforeEffects(domain.NewStateError("Run", string(run.Status), "continue",
+			"interactive run has no web-console session to continue"))
 	}
 	// Defensive: a live driver means a turn is still in flight. CanContinueRun
 	// already rejects non-terminal runs, so this only fires on a racing
 	// double-continue.
 	if o.interactiveDrivers.has(run.ID) {
-		return nil, domain.NewStateError("Run", string(run.Status), "continue",
-			"an interactive turn is already in progress for this run")
+		return nil, domain.RefuseBeforeEffects(domain.NewStateError("Run", string(run.Status), "continue",
+			"an interactive turn is already in progress for this run"))
 	}
 	// The live session must still exist to type into.
 	if _, err := o.interactiveSessions.GetSession(ctx, run.WebConsoleSessionID); err != nil {
 		if errors.Is(err, webconsole.ErrSessionNotFound) {
-			return nil, domain.NewStateError("Run", string(run.Status), "continue",
+			return nil, domain.RefuseBeforeEffects(domain.NewStateError("Run", string(run.Status), "continue",
 				fmt.Sprintf("the live web-console session %s for this run no longer exists (ended runs keep their session only for the interactive session retention window); start a new interactive run to continue",
-					run.WebConsoleSessionID))
+					run.WebConsoleSessionID)))
 		}
-		return nil, err
+		return nil, domain.RefuseBeforeEffects(err)
 	}
 
 	// Reactivate the run (reset the heartbeat in the same transition) and record

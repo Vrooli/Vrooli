@@ -201,9 +201,31 @@ func TestFactsPayload(t *testing.T) {
 
 	// When set, they ARE carried verbatim.
 	f.RecommendationReason, f.DefaultAnswer, f.Note = "because", "a", "n"
+	f.BigPicture, f.TechnicalDetails = "purpose", "evidence"
 	p = f.Payload()
-	if p["recommendation_reason"] != "because" || p["default_answer"] != "a" || p["note"] != "n" {
+	if p["recommendation_reason"] != "because" || p["default_answer"] != "a" || p["note"] != "n" || p["big_picture"] != "purpose" || p["technical_details"] != "evidence" {
 		t.Fatalf("set reason/default/note must be carried: %#v", p)
+	}
+}
+
+func TestFactsValidateExplanationBoundsUseUnicodeCodePoints(t *testing.T) {
+	base := Facts{
+		Question: "Apply?", Options: []Option{{Key: "yes"}, {Key: "no"}},
+		Recommended: "yes", Urgency: "normal",
+	}
+	base.BigPicture = strings.Repeat("😀", MaxBigPictureCodePoints)
+	base.TechnicalDetails = strings.Repeat("🧭", MaxTechnicalDetailsCodePoints)
+	if err := base.Validate(); err != nil {
+		t.Fatalf("valid code-point limits rejected: %v", err)
+	}
+	base.BigPicture += "x"
+	if err := base.Validate(); err == nil || !strings.Contains(err.Error(), "big_picture") {
+		t.Fatalf("oversize big_picture must be rejected, got %v", err)
+	}
+	base.BigPicture = ""
+	base.TechnicalDetails += "x"
+	if err := base.Validate(); err == nil || !strings.Contains(err.Error(), "technical_details") {
+		t.Fatalf("oversize technical_details must be rejected, got %v", err)
 	}
 }
 
@@ -298,6 +320,37 @@ func TestRaiserIdempotentAndPublishes(t *testing.T) {
 	got, _ := store.Get(context.Background(), ask.ID)
 	if got.State != PendingStatePending || got.Extra["kind"] != "standing" || !got.ExpiresAt.After(got.RaisedAt) {
 		t.Fatalf("stored ask wrong: %#v", got)
+	}
+}
+
+func TestRaiserRetriesFailedPublicationWithSameEvent(t *testing.T) {
+	clock := fakeClock{t: time.Date(2026, 10, 16, 12, 0, 0, 0, time.UTC)}
+	store := newMemStore()
+	pub := &capturePublisher{err: errors.New("events unavailable")}
+	r := Raiser{Source: "agent-manager", Kind: "authorization", Store: store, Publisher: pub, Clock: clock}
+	facts := Facts{Question: "Approve?", Recommended: "reject", Options: []Option{{Key: "approve"}, {Key: "reject"}}}
+	ask := PendingAsk{ID: "auth-1", Subject: "runner"}
+	if raised, err := r.Raise(context.Background(), ask, facts); !raised || err == nil {
+		t.Fatalf("failed first publication: raised=%v err=%v", raised, err)
+	}
+	changedFacts := facts
+	changedFacts.Question = "Approve expanded access?"
+	if raised, err := r.Raise(context.Background(), ask, changedFacts); !raised || !errors.Is(err, ErrPendingFactsChanged) {
+		t.Fatalf("an unpublished generation must refuse changed terms: raised=%v err=%v", raised, err)
+	}
+	clock.t = clock.t.Add(time.Minute)
+	pub.err = nil
+	if raised, err := r.Raise(context.Background(), ask, facts); !raised || err != nil {
+		t.Fatalf("retry: raised=%v err=%v", raised, err)
+	}
+	if len(pub.events) != 2 || EventID(pub.events[0]) != EventID(pub.events[1]) {
+		t.Fatalf("retry must publish the same event identity exactly once more: %#v", pub.events)
+	}
+	if got, _ := store.Get(context.Background(), ask.ID); got == nil || !got.Published {
+		t.Fatalf("successful retry must persist publication receipt: %#v", got)
+	}
+	if _, err := r.Raise(context.Background(), ask, facts); err != nil || len(pub.events) != 2 {
+		t.Fatalf("successful publication must suppress later retries: events=%d err=%v", len(pub.events), err)
 	}
 }
 

@@ -104,6 +104,8 @@
       "sending": "Sending…",
       "saveError": "Your answer was not saved: {{message}}",
       "more": "More detail",
+      "bigPicture": "Why this matters",
+      "technicalDetails": "Technical details",
       "back": "All decisions"
     }
   },

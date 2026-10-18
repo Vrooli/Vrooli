@@ -81,6 +81,61 @@ func TestNormalizePathRejectsTraversal(t *testing.T) {
 	}
 }
 
+func TestNormalizePathRejectsEscapingOwnerRefs(t *testing.T) {
+	tests := []struct {
+		name string
+		ref  PathRef
+	}{
+		{
+			name: "member ID traversal",
+			ref:  PathRef{Base: BaseTeamMember, Path: "FEEDBACK.md", MemberID: "../../../../outside"},
+		},
+		{
+			name: "agent ID traversal",
+			ref:  PathRef{Base: BaseAgentRoot, Path: "NOTES.md", AgentID: "../../../../outside"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got, err := NormalizePath(tt.ref, ValidationInput{TeamID: "team-1"}, "active-agent"); err == nil {
+				t.Fatalf("NormalizePath = %q, want owner-base escape error", got)
+			} else if !strings.Contains(err.Error(), "must not escape its base") {
+				t.Fatalf("NormalizePath error = %v, want owner-base escape", err)
+			}
+		})
+	}
+}
+
+func TestNormalizePathPreservesLegitimateOwnerRefs(t *testing.T) {
+	tests := []struct {
+		name string
+		ref  PathRef
+		want string
+	}{
+		{
+			name: "member ID",
+			ref:  PathRef{Base: BaseTeamMember, Path: "FEEDBACK.md", MemberID: "member-1"},
+			want: "scenarios/prompt-manager/store/teams/team-1/members/member-1/FEEDBACK.md",
+		},
+		{
+			name: "agent ID",
+			ref:  PathRef{Base: BaseAgentRoot, Path: "NOTES.md", AgentID: "agent-1"},
+			want: "scenarios/prompt-manager/store/agents/agent-1/NOTES.md",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := NormalizePath(tt.ref, ValidationInput{TeamID: "team-1"}, "active-agent")
+			if err != nil {
+				t.Fatalf("NormalizePath: %v", err)
+			}
+			if got != tt.want {
+				t.Fatalf("NormalizePath = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestNormalizePathAllowsReadOnlyExternalDocument(t *testing.T) {
 	path := "/tmp/vrooli-plan/requirements.json"
 	got, err := NormalizePath(PathRef{Base: BaseExternal, Path: path}, ValidationInput{}, "")
@@ -564,4 +619,48 @@ func appendGlob(t *testing.T, files []string, pattern string) []string {
 		t.Fatalf("glob %s: %v", pattern, err)
 	}
 	return append(files, matches...)
+}
+
+func TestRenderTeamStorageProjectsExactMemberWriteRefs(t *testing.T) {
+	storeDir := filepath.Clean("../../../store")
+	repoRoot := filepath.Clean("../../../../..")
+	data, err := os.ReadFile(filepath.Join(storeDir, "teams", "effort-supervision", "team.json"))
+	if err != nil {
+		t.Fatalf("read bundled team: %v", err)
+	}
+	var team struct {
+		OperatingContract *OperatingContract `json:"operatingContract"`
+	}
+	if err := json.Unmarshal(data, &team); err != nil {
+		t.Fatalf("unmarshal bundled team: %v", err)
+	}
+	member := team.OperatingContract.Members["effort-supervisor"]
+	member.ForbiddenWrites = append(member.ForbiddenWrites, WriteRef{
+		Base: BaseRepoRoot, Path: "scenarios/example/docs/internal/goal/SECRET.md",
+	})
+	team.OperatingContract.Members["effort-supervisor"] = member
+
+	rendered, err := RenderTeamStorage(team.OperatingContract, RenderInput{
+		TeamID: "effort-supervision", MemberID: "effort-supervisor", StoreDir: storeDir, RepoRoot: repoRoot,
+	})
+	if err != nil {
+		t.Fatalf("RenderTeamStorage: %v", err)
+	}
+	for _, path := range []string{
+		"scenarios/react-component-library/docs/internal/goal/FEEDBACK.md",
+		"scenarios/browser-automation-studio/docs/internal/goal/FEEDBACK.md",
+		"scenarios/nutrition-planner/docs/internal/goal/FEEDBACK.md",
+		"scenarios/scenario-to-desktop/docs/internal/goal/FEEDBACK.md",
+		"scenarios/personal-planner/docs/internal/goal/FEEDBACK.md",
+	} {
+		if !strings.Contains(rendered, "- Allowed: `"+path+"`") {
+			t.Errorf("storage map omitted allowed exact write path %q:\n%s", path, rendered)
+		}
+	}
+	if !strings.Contains(rendered, "- Forbidden: `scenarios/example/docs/internal/goal/SECRET.md`") {
+		t.Errorf("storage map omitted forbidden exact write path:\n%s", rendered)
+	}
+	if !strings.Contains(rendered, "- knowledge: `write-allowed`") || !strings.Contains(rendered, "- task board: `review-only`") {
+		t.Errorf("kind-based primitive semantics changed:\n%s", rendered)
+	}
 }

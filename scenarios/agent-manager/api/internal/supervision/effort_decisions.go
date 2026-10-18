@@ -155,7 +155,8 @@ func decisionContentDigest(d *pb.EffortDecision) string {
 	cut := &pb.EffortDecision{
 		GoalHome: d.GoalHome, DecisionId: d.DecisionId, Question: d.Question, Options: d.Options, Recommended: d.Recommended,
 		RecommendationReason: d.RecommendationReason, DefaultAnswer: d.DefaultAnswer, Reversible: d.Reversible,
-		Urgency: d.Urgency, Note: d.Note, ContextUrl: d.ContextUrl, Deadline: d.Deadline,
+		Urgency: d.Urgency, Note: d.Note, BigPicture: d.BigPicture, TechnicalDetails: d.TechnicalDetails,
+		ContextUrl: d.ContextUrl, Deadline: d.Deadline,
 	}
 	return effortDigest(cut)
 }
@@ -204,6 +205,7 @@ func (s *EffortService) RaiseDecision(ctx context.Context, req *pb.RaiseEffortDe
 		EffortRef: strings.TrimSpace(d.EffortRef), GoalHome: d.GoalHome, DecisionId: d.DecisionId, Question: d.Question,
 		Options: d.Options, Recommended: d.Recommended, RecommendationReason: d.RecommendationReason,
 		DefaultAnswer: d.DefaultAnswer, Reversible: d.Reversible, Urgency: d.Urgency, Note: d.Note,
+		BigPicture: strings.TrimSpace(d.BigPicture), TechnicalDetails: strings.TrimSpace(d.TechnicalDetails),
 		ContextUrl: d.ContextUrl, Deadline: d.Deadline, State: DecisionPending, RaisedByRunId: raisedBy,
 		CreatedAt: timestamppb.New(now),
 	}
@@ -337,7 +339,9 @@ func (s *EffortService) answerDecision(ctx context.Context, req *pb.AnswerEffort
 	}
 	if d.State == DecisionAnswered {
 		if d.Answer == answer {
-			return d, false, nil
+			// The decision write may have succeeded before the receiver signal
+			// failed. Preserve the original answer fields and repair that effect.
+			return d, true, s.signalDecisionAnswer(ctx, d)
 		}
 		return nil, false, ErrDecisionAnswered
 	}
@@ -382,6 +386,13 @@ func (s *EffortService) resolveDecisionFromHub(ctx context.Context, resolution D
 	if err != nil {
 		return nil, false, err
 	}
+	// The correlation identifies the logical decision, while RequesterRef binds
+	// the Hub resolution to the exact immutable request event that opened it.
+	// Hub always carries this reference; a missing or stale reference must not
+	// answer the current decision generation.
+	if resolution.RequesterRef == "" || resolution.RequesterRef != d.GetEventId() {
+		return nil, false, nil
+	}
 	if resolution.AskID != "" {
 		d.AskId = resolution.AskID
 	}
@@ -390,32 +401,46 @@ func (s *EffortService) resolveDecisionFromHub(ctx context.Context, resolution D
 		answeredAt = at.UTC()
 	}
 	changed := false
+	answerSignalNeeded := false
 	switch resolution.State {
 	case "expired":
 		if d.State == DecisionPending {
 			d.State, d.ResolutionReason = DecisionExpired, resolution.Reason
+			changed = true
 		}
 	case "defaulted":
 		if d.State == DecisionPending || d.State == DecisionExpired {
 			s.setDecisionAnswer(d, DecisionDefaulted, resolution.Answer, "", DecisionViaDefault, answeredAt, resolution.Reason)
 			d.AnswerLabel = resolution.AnswerLabel
 			changed = true
+			answerSignalNeeded = true
+		} else if d.State == DecisionDefaulted && d.Answer == resolution.Answer {
+			// A previous default may be durable even though its signal append
+			// failed. Redelivery repairs the append without replacing its time.
+			answerSignalNeeded = true
 		}
 	case "answered":
 		same := d.State == DecisionAnswered && d.Answer == resolution.Answer
-		if !same && hasDecisionOption(d, resolution.Answer) {
+		if same {
+			// The decision write may have succeeded while the signal append failed.
+			// Reuse the signal's existing dedupe key to repair that partial effect.
+			answerSignalNeeded = true
+		} else if hasDecisionOption(d, resolution.Answer) {
 			d.Late = resolution.Late || d.State == DecisionDefaulted
 			s.setDecisionAnswer(d, DecisionAnswered, resolution.Answer, resolution.Note, DecisionViaPhone, answeredAt, "answered via phone by "+resolution.AnsweredBy)
 			d.AnswerLabel = resolution.AnswerLabel
 			changed = true
+			answerSignalNeeded = true
 		}
 	default:
 		return d, false, nil
 	}
-	if err := s.repo.SaveEffortDecision(ctx, d); err != nil {
-		return nil, false, err
-	}
 	if changed {
+		if err := s.repo.SaveEffortDecision(ctx, d); err != nil {
+			return nil, false, err
+		}
+	}
+	if answerSignalNeeded {
 		return d, true, s.signalDecisionAnswer(ctx, d)
 	}
 	return d, false, nil

@@ -12,6 +12,7 @@ import (
 	"scenario-authenticator/internal/realm"
 	"scenario-authenticator/internal/sessions"
 
+	coreidentity "github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/schedule"
 )
 
@@ -130,14 +131,12 @@ type Service struct {
 }
 
 // HumanAssertionVerifier verifies a non-account human proof (a Cloudflare Access
-// assertion) and returns the verified operator subject. It lets MintSessionDelegation
-// attribute a tunnel operator who authenticated via Cloudflare Access rather than an
-// account bearer — the same assertion web-console and agent-manager already trust,
-// verified here against the web-console Access binding. Verifying it introduces no
-// new trust: it mints only a no-capability, session-scoped owner label. An
+// assertion) and returns the verified principal after any explicit shared owner
+// binding is applied. It lets MintSessionDelegation attribute a tunnel operator
+// who authenticated via Cloudflare Access rather than an account bearer. An
 // implementation returns ok=false for any missing/invalid/non-human proof.
 type HumanAssertionVerifier interface {
-	VerifyHuman(ctx context.Context, rawAssertion string) (subject, email string, ok bool)
+	VerifyHuman(ctx context.Context, rawAssertion string) (coreidentity.Principal, bool)
 }
 
 // ServiceConfig configures a Service. Zero lockout fields fall back to defaults.
@@ -218,9 +217,9 @@ func (s *Service) IssueBreakGlass(ctx context.Context, accessToken string, reque
 // party uses it to confirm the delegation represents a person.
 const HumanActorKind = "human"
 
-// DefaultSessionDelegationTTL bounds a Web Console session-delegation token.
-// It is a pure attribution credential, so it is deliberately short: long enough
-// for the launched agent to self-attach, not long enough to be a standing grant.
+// DefaultSessionDelegationTTL is the additional ten-minute cap for an
+// attribution-only Web Console session delegation. All delegations remain
+// bounded by the configured signer lifetime and verified source proof.
 const DefaultSessionDelegationTTL = 10 * time.Minute
 
 // MintSessionDelegation mints a short-lived, session-scoped human-owner
@@ -231,11 +230,16 @@ const DefaultSessionDelegationTTL = 10 * time.Minute
 // agent-manager already trust). The subject is taken from the verified proof,
 // never from the request, so a caller cannot name a different operator; a
 // service/agent/anonymous caller yields no verified human and is refused. The
-// delegation carries actor_kind "human", an audience, a wc_session_id claim, a
-// tight expiry, and NO capability scopes: it attributes, it does not empower. An
-// empty resource resolves to the realm's default audience (what a relying party
-// accepts out of the box); a non-empty resource must be a registered resource
-// audience, else the mint is refused.
+// delegation carries actor_kind "human", an audience, a wc_session_id claim,
+// and a bounded expiry. A delegation with scopes lasts no longer than either
+// the verified source proof or the configured access-token lifetime. An
+// attribution-only delegation remains bounded by DefaultSessionDelegationTTL.
+// For an account bearer, scopes come from the current authorization assignments
+// intersected with that bearer’s scope ceiling. Cloudflare scopes are only those
+// supplied by an explicit shared owner binding; a provider subject alone never
+// infers account scopes, and that Agent Manager binding can only mint for the
+// default Agent Manager audience. An empty account resource resolves to the
+// realm's default audience; other registered account resources remain supported.
 func (s *Service) MintSessionDelegation(ctx context.Context, accessToken, wcSessionID, resource string, meta RequestMeta) (string, time.Time, error) {
 	wcSessionID = strings.TrimSpace(wcSessionID)
 	resource = strings.TrimSpace(resource)
@@ -245,19 +249,30 @@ func (s *Service) MintSessionDelegation(ctx context.Context, accessToken, wcSess
 
 	// Resolve the verified human from either proof. Account bearer first; then a
 	// Cloudflare Access assertion (the tunnel operator). Neither ⇒ refuse.
-	subject, email, realmID, err := s.resolveDelegationHuman(ctx, accessToken)
+	subject, email, realmID, scopes, proofExpiresAt, err := s.resolveDelegationHuman(ctx, accessToken, resource)
 	if err != nil {
 		return "", time.Time{}, err
+	}
+	now := s.clock.Now()
+	if proofExpiresAt.IsZero() || !proofExpiresAt.After(now) {
+		return "", time.Time{}, ErrInvalidCredentials
 	}
 
 	aud, err := s.resolveAudience(ctx, realmID, resource)
 	if err != nil {
 		return "", time.Time{}, err
 	}
-	ttl := DefaultSessionDelegationTTL
+	ttl := min(DefaultSessionDelegationTTL, s.signer.Expiry(), proofExpiresAt.Sub(now))
+	if len(scopes) > 0 {
+		ttl = min(s.signer.Expiry(), proofExpiresAt.Sub(now))
+	}
+	if ttl <= 0 {
+		return "", time.Time{}, ErrInvalidCredentials
+	}
 	token, err := s.signer.Sign(authcrypto.TokenInput{
 		UserID:      subject,
 		Email:       email,
+		Scopes:      scopes,
 		Audience:    aud,
 		ActorKind:   HumanActorKind,
 		WCSessionID: wcSessionID,
@@ -267,30 +282,76 @@ func (s *Service) MintSessionDelegation(ctx context.Context, accessToken, wcSess
 		s.logEvent(ctx, subject, realmID, "session_delegation.mint.refused", meta, false, map[string]any{"reason": err.Error()})
 		return "", time.Time{}, err
 	}
-	expiresAt := s.clock.Now().Add(ttl)
+	// Report the expiry actually encoded in the JWT, not a duration estimate.
+	// NumericDate is second-granularity; refusing an already-expired rounded
+	// claim avoids returning a token that cannot be used even once near expiry.
+	claims, err := s.signer.Validate(token, aud)
+	if err != nil {
+		return "", time.Time{}, ErrInvalidCredentials
+	}
+	expiresAt := claims.ExpiresAt.Time
+	if !expiresAt.After(now) || expiresAt.After(proofExpiresAt) {
+		return "", time.Time{}, ErrInvalidCredentials
+	}
 	s.logEvent(ctx, subject, realmID, "session_delegation.minted", meta, true, map[string]any{"wc_session_id": wcSessionID, "audience": aud, "expires_at": expiresAt.UTC().Format(time.RFC3339)})
 	return token, expiresAt, nil
 }
 
-// resolveDelegationHuman returns the verified operator subject/email/realm for a
-// delegation mint. It tries the account bearer first (Validate), then falls back
-// to a Cloudflare Access assertion when a human-assertion verifier is configured.
-// A Cf-Access human has no scenario-authenticator realm, so it is attributed in
-// the default realm (the delegation is a cross-scenario owner label, not an
-// account token). Any proof that is missing, invalid, or not a verified human
-// yields ErrInvalidCredentials.
-func (s *Service) resolveDelegationHuman(ctx context.Context, accessToken string) (subject, email, realmID string, err error) {
+// resolveDelegationHuman returns verified identity fields and the original proof
+// expiry. It tries the account bearer first (Validate), then falls back to a
+// Cloudflare Access assertion when a verifier is configured. Cloudflare owner
+// scopes are only those explicitly added by the shared configured OwnerBindings
+// matcher; a provider subject by itself never implies account scopes.
+func (s *Service) resolveDelegationHuman(ctx context.Context, accessToken, resource string) (subject, email, realmID string, scopes []string, proofExpiresAt time.Time, err error) {
 	if vt, ok, vErr := s.Validate(ctx, accessToken); vErr != nil {
-		return "", "", "", vErr
+		return "", "", "", nil, time.Time{}, vErr
 	} else if ok {
-		return vt.UserID, vt.Email, vt.Realm, nil
+		// Use current assignments to honor revocations, but intersect them with
+		// the verified token's ceiling so a stale bearer cannot gain scopes added
+		// after it was issued. When the optional authorization service is absent,
+		// s.scopes falls back only to scopes from that verified account token.
+		current, scopeErr := s.scopes(ctx, Account{ID: vt.UserID, Scopes: vt.Scopes})
+		if scopeErr != nil {
+			return "", "", "", nil, time.Time{}, scopeErr
+		}
+		return vt.UserID, vt.Email, vt.Realm, intersectScopes(vt.Scopes, current), vt.ExpiresAt, nil
 	}
 	if s.humanAssertion != nil {
-		if sub, mail, ok := s.humanAssertion.VerifyHuman(ctx, accessToken); ok && strings.TrimSpace(sub) != "" {
-			return strings.TrimSpace(sub), strings.TrimSpace(mail), realm.DefaultID, nil
+		// This verifier's OwnerBindings are explicitly scoped to Agent Manager.
+		// Do not let a caller relabel those scopes for another registered resource.
+		if strings.TrimSpace(resource) != "" {
+			return "", "", "", nil, time.Time{}, ErrInvalidCredentials
+		}
+		principal, ok := s.humanAssertion.VerifyHuman(ctx, accessToken)
+		if ok && principal.IsHuman() && principal.IsVerified() && strings.TrimSpace(principal.Subject) != "" {
+			return strings.TrimSpace(principal.Subject), strings.TrimSpace(principal.Email), realm.DefaultID,
+				append([]string{}, principal.Scopes...), principal.ExpiresAt, nil
 		}
 	}
-	return "", "", "", ErrInvalidCredentials
+	return "", "", "", nil, time.Time{}, ErrInvalidCredentials
+}
+
+// intersectScopes keeps a delegation within both the verified bearer ceiling
+// and the current authorization assignments. Exact strings are opaque scope
+// identifiers; neither side is normalized or widened here.
+func intersectScopes(verified, current []string) []string {
+	allowed := make(map[string]struct{}, len(verified))
+	for _, scope := range verified {
+		allowed[scope] = struct{}{}
+	}
+	result := make([]string, 0, len(current))
+	seen := make(map[string]struct{}, len(current))
+	for _, scope := range current {
+		if _, ok := allowed[scope]; !ok {
+			continue
+		}
+		if _, duplicate := seen[scope]; duplicate {
+			continue
+		}
+		seen[scope] = struct{}{}
+		result = append(result, scope)
+	}
+	return result
 }
 
 // LinkMachineAccount binds an operator-authenticated account to a local

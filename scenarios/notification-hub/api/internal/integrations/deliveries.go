@@ -3,6 +3,7 @@ package integrations
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -15,7 +16,7 @@ import (
 )
 
 // DeliveryProjectionHandler serves the durable delivery projection to the
-// coverage checks of other scenarios: GET ?prefix=<dedupe prefix>&limit=N.
+// coverage checks of other scenarios: GET ?prefix=<dedupe prefix>&incident_id=ID&limit=N.
 func DeliveryProjectionHandler(service *hub.Service) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
@@ -23,7 +24,12 @@ func DeliveryProjectionHandler(service *hub.Service) http.Handler {
 			return
 		}
 		limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
-		items, err := service.ListDeliveryProjection(r.Context(), strings.TrimSpace(r.URL.Query().Get("prefix")), limit)
+		incidentIDs, err := boundedIncidentIDs(r.URL.Query()["incident_id"])
+		if err != nil {
+			writeJSONError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		items, truncated, err := service.ListDeliveryProjection(r.Context(), strings.TrimSpace(r.URL.Query().Get("prefix")), incidentIDs, limit)
 		if err != nil {
 			writeJSONError(w, http.StatusInternalServerError, err.Error())
 			return
@@ -31,8 +37,28 @@ func DeliveryProjectionHandler(service *hub.Service) http.Handler {
 		if items == nil {
 			items = []hub.DeliveryProjection{}
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"notifications": items})
+		writeJSON(w, http.StatusOK, map[string]any{"notifications": items, "truncated": truncated})
 	})
+}
+
+func boundedIncidentIDs(values []string) ([]string, error) {
+	if len(values) > 200 {
+		return nil, fmt.Errorf("at most 200 incident_id values are allowed")
+	}
+	ids := make([]string, 0, len(values))
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		id := strings.TrimSpace(value)
+		if id == "" || len(id) > 200 {
+			return nil, fmt.Errorf("incident_id must be non-empty and at most 200 characters")
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		ids = append(ids, id)
+	}
+	return ids, nil
 }
 
 // The hub is outside the control-plane module and cannot import

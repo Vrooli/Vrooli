@@ -2,6 +2,7 @@ package heartbeat
 
 import (
 	"errors"
+	"strconv"
 	"strings"
 )
 
@@ -39,6 +40,61 @@ type DispatchUncertainError struct {
 	Cause error
 }
 
+// AgentManagerHTTPError preserves the owner's typed HTTP status for downstream
+// failure ownership decisions while retaining the response's safe message.
+type AgentManagerHTTPError struct {
+	StatusCode      int
+	Code            string
+	Message         string
+	AdmissionReason string
+}
+
+// normalizeAgentManagerAdmissionReason preserves only Agent Manager's
+// documented, allowlisted service-admission categories on refusal statuses.
+func normalizeAgentManagerAdmissionReason(statusCode int, reason string) string {
+	if statusCode != 403 && statusCode != 429 {
+		return ""
+	}
+	switch reason {
+	case "grant_limit_reached", "authority_state_unavailable", "authority_unavailable",
+		"approval_raiser_unavailable", "approval_raise_failed", "approval_raise_limited",
+		"operation_not_admitted":
+		return reason
+	default:
+		return ""
+	}
+}
+
+// admissionReasonFromError attaches only the safe owner category to retained
+// diagnostics. It does not change dispatch classification or authorize retry.
+func admissionReasonFromError(err error) string {
+	var ownerErr *AgentManagerHTTPError
+	if !errors.As(err, &ownerErr) || ownerErr == nil {
+		return ""
+	}
+	return normalizeAgentManagerAdmissionReason(ownerErr.StatusCode, ownerErr.AdmissionReason)
+}
+
+func (e *AgentManagerHTTPError) Error() string {
+	if e == nil {
+		return "agent-manager request failed"
+	}
+	if e.Message != "" {
+		return "agent-manager error: status " + strconv.Itoa(e.StatusCode) + ": " + e.Message
+	}
+	return "agent-manager error: status " + strconv.Itoa(e.StatusCode)
+}
+
+// AgentManagerAuthorizationStatus returns the exact owner authorization status
+// without inferring it from an error string.
+func AgentManagerAuthorizationStatus(err error) (int, bool) {
+	var response *AgentManagerHTTPError
+	if errors.As(err, &response) && response != nil && (response.StatusCode == 401 || response.StatusCode == 403) {
+		return response.StatusCode, true
+	}
+	return 0, false
+}
+
 func (e *DispatchUncertainError) Error() string {
 	if e == nil || e.Cause == nil {
 		return "dispatch outcome uncertain"
@@ -53,6 +109,41 @@ func NewDispatchRejectedError(cause error) error { return &DispatchRejectedError
 
 // NewDispatchUncertainError wraps a request whose acceptance cannot be proven.
 func NewDispatchUncertainError(cause error) error { return &DispatchUncertainError{Cause: cause} }
+
+// ApprovalPendingError is the exact typed owner response with no side effect at
+// the current operation: task-stage creates no task; run-stage creates no run.
+// Stage identifies whether the next scheduled attempt restarts task creation or
+// replays a persisted run intent.
+type ApprovalPendingError struct {
+	Stage string
+	Cause error
+}
+
+func (e *ApprovalPendingError) Error() string {
+	if e == nil || e.Cause == nil {
+		return "approval pending"
+	}
+	return "approval pending: " + e.Cause.Error()
+}
+
+func (e *ApprovalPendingError) Unwrap() error { return e.Cause }
+
+func NewApprovalPendingError(stage string, cause error) error {
+	return &ApprovalPendingError{Stage: stage, Cause: cause}
+}
+
+func IsApprovalPending(err error) bool {
+	var pending *ApprovalPendingError
+	return errors.As(err, &pending)
+}
+
+func approvalPendingStage(err error) string {
+	var pending *ApprovalPendingError
+	if errors.As(err, &pending) && pending != nil {
+		return pending.Stage
+	}
+	return ""
+}
 
 // IsDispatchRejected reports whether err is a definitive owner rejection.
 func IsDispatchRejected(err error) bool {
@@ -74,6 +165,9 @@ func IsDispatchUncertain(err error) bool {
 	var uncertain *DispatchUncertainError
 	if errors.As(err, &uncertain) {
 		return true
+	}
+	if IsApprovalPending(err) {
+		return false
 	}
 	if IsDispatchRejected(err) {
 		return false

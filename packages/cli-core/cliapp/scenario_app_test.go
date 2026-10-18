@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -82,6 +83,89 @@ func TestScenarioAppPreflightValidatesAPIBase(t *testing.T) {
 	}
 	if !ran {
 		t.Fatalf("expected command to execute after preflight")
+	}
+}
+
+// TestScenarioAppPreflightProceedsOnDegradedHealth pins the reachable-vs-down
+// distinction: a control plane that ANSWERS the health probe with a non-2xx
+// status (503 "degraded") is reachable, so a NeedsAPI command proceeds with an
+// advisory instead of aborting as if the API were down. An advisory process
+// warning must never take every tool offline.
+func TestScenarioAppPreflightProceedsOnDegradedHealth(t *testing.T) {
+	configDir := t.TempDir()
+	t.Setenv("CLI_CONFIG_DIR_OVERRIDE", configDir)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_, _ = w.Write([]byte(`{"status":"degraded","readiness":false}`))
+	}))
+	defer server.Close()
+
+	t.Setenv("API_BASE_ENV", server.URL)
+
+	app, err := NewScenarioApp(ScenarioOptions{
+		Name:             "demo",
+		ConfigDirEnvVars: []string{"CLI_CONFIG_DIR_OVERRIDE"},
+		APIEnvVars:       []string{"API_BASE_ENV"},
+		AllowAnonymous:   true,
+	})
+	if err != nil {
+		t.Fatalf("NewScenarioApp: %v", err)
+	}
+
+	ran := false
+	cmd := Command{Name: "run", NeedsAPI: true, Run: func(args []string) error { ran = true; return nil }}
+	app.SetCommands([]CommandGroup{{Title: "Test", Commands: []Command{cmd}}})
+
+	if err := app.CLI.Run([]string{"run"}); err != nil {
+		t.Fatalf("expected degraded-but-reachable API to let the command run, got: %v", err)
+	}
+	if !ran {
+		t.Fatalf("expected command to execute against a reachable degraded control plane")
+	}
+}
+
+// TestScenarioAppPreflightAbortsWhenUnreachable pins the other side: a genuine
+// transport failure (no listener) is unreachable, so the command aborts with
+// the recovery report rather than silently proceeding.
+func TestScenarioAppPreflightAbortsWhenUnreachable(t *testing.T) {
+	configDir := t.TempDir()
+	t.Setenv("CLI_CONFIG_DIR_OVERRIDE", configDir)
+
+	// A closed listener address: connections are refused (transport failure).
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	addr := ln.Addr().String()
+	_ = ln.Close()
+
+	t.Setenv("API_BASE_ENV", "http://"+addr)
+
+	app, err := NewScenarioApp(ScenarioOptions{
+		Name:             "demo",
+		ConfigDirEnvVars: []string{"CLI_CONFIG_DIR_OVERRIDE"},
+		APIEnvVars:       []string{"API_BASE_ENV"},
+		AllowAnonymous:   true,
+	})
+	if err != nil {
+		t.Fatalf("NewScenarioApp: %v", err)
+	}
+
+	ran := false
+	cmd := Command{Name: "run", NeedsAPI: true, Run: func(args []string) error { ran = true; return nil }}
+	app.SetCommands([]CommandGroup{{Title: "Test", Commands: []Command{cmd}}})
+
+	err = app.CLI.Run([]string{"run"})
+	if err == nil {
+		t.Fatalf("expected an unreachable API to abort the command")
+	}
+	if ran {
+		t.Fatalf("command must not run when the API is unreachable")
+	}
+	if !strings.Contains(err.Error(), "Unable to reach") {
+		t.Fatalf("expected recovery report for unreachable API, got: %v", err)
 	}
 }
 

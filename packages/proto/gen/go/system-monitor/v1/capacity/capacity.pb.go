@@ -336,7 +336,7 @@ type CapacityFinding struct {
 	ResourceKind string `protobuf:"bytes,4,opt,name=resource_kind,json=resourceKind,proto3" json:"resource_kind,omitempty"`
 	// GPU index the consumer occupies.
 	GpuIndex *int32 `protobuf:"varint,5,opt,name=gpu_index,json=gpuIndex,proto3,oneof" json:"gpu_index,omitempty"`
-	// Observed process id.
+	// Observed process id only when the finding represents one worker; zero for aggregates.
 	Pid int32 `protobuf:"varint,6,opt,name=pid,proto3" json:"pid,omitempty"`
 	// Observed process name.
 	ProcessName string `protobuf:"bytes,7,opt,name=process_name,json=processName,proto3" json:"process_name,omitempty"`
@@ -349,7 +349,9 @@ type CapacityFinding struct {
 	// Severity: "info" | "warn".
 	Severity string `protobuf:"bytes,11,opt,name=severity,proto3" json:"severity,omitempty"`
 	// Human-readable finding message.
-	Message       string `protobuf:"bytes,12,opt,name=message,proto3" json:"message,omitempty"`
+	Message string `protobuf:"bytes,12,opt,name=message,proto3" json:"message,omitempty"`
+	// Observed worker process ids, including every worker represented by an aggregate.
+	Pids          []int32 `protobuf:"varint,13,rep,packed,name=pids,proto3" json:"pids,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -466,6 +468,13 @@ func (x *CapacityFinding) GetMessage() string {
 		return x.Message
 	}
 	return ""
+}
+
+func (x *CapacityFinding) GetPids() []int32 {
+	if x != nil {
+		return x.Pids
+	}
+	return nil
 }
 
 // PolicyLever is one tunable capacity policy key/value.
@@ -1125,7 +1134,7 @@ const file_system_monitor_v1_capacity_capacity_proto_rawDesc = "" +
 	"\n" +
 	"free_bytes\x18\x05 \x01(\x03R\tfreeBytes\x12#\n" +
 	"\rclaimed_bytes\x18\x06 \x01(\x03R\fclaimedBytes\x12<\n" +
-	"\x1amemory_utilization_percent\x18\a \x01(\x01R\x18memoryUtilizationPercent\"\x88\x03\n" +
+	"\x1amemory_utilization_percent\x18\a \x01(\x01R\x18memoryUtilizationPercent\"\x9c\x03\n" +
 	"\x0fCapacityFinding\x12\x14\n" +
 	"\x05class\x18\x01 \x01(\tR\x05class\x12\x19\n" +
 	"\bowner_id\x18\x02 \x01(\tR\aownerId\x12\x1d\n" +
@@ -1140,7 +1149,8 @@ const file_system_monitor_v1_capacity_capacity_proto_rawDesc = "" +
 	"\bclaim_id\x18\n" +
 	" \x01(\tR\aclaimId\x12\x1a\n" +
 	"\bseverity\x18\v \x01(\tR\bseverity\x12\x18\n" +
-	"\amessage\x18\f \x01(\tR\amessageB\f\n" +
+	"\amessage\x18\f \x01(\tR\amessage\x12\x12\n" +
+	"\x04pids\x18\r \x03(\x05R\x04pidsB\f\n" +
 	"\n" +
 	"_gpu_index\"5\n" +
 	"\vPolicyLever\x12\x10\n" +

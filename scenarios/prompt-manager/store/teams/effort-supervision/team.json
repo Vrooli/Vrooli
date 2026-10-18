@@ -95,6 +95,26 @@
         "allowedWrites": [
           {
             "kind": "knowledge"
+          },
+          {
+            "base": "repo-root",
+            "path": "scenarios/react-component-library/docs/internal/goal/FEEDBACK.md"
+          },
+          {
+            "base": "repo-root",
+            "path": "scenarios/browser-automation-studio/docs/internal/goal/FEEDBACK.md"
+          },
+          {
+            "base": "repo-root",
+            "path": "scenarios/nutrition-planner/docs/internal/goal/FEEDBACK.md"
+          },
+          {
+            "base": "repo-root",
+            "path": "scenarios/scenario-to-desktop/docs/internal/goal/FEEDBACK.md"
+          },
+          {
+            "base": "repo-root",
+            "path": "scenarios/personal-planner/docs/internal/goal/FEEDBACK.md"
           }
         ],
         "forbiddenWrites": [],

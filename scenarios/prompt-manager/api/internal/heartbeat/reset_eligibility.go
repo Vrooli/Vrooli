@@ -159,7 +159,7 @@ func (c *TeamExecutionContext) ConsumeResetEligibility(ctx context.Context, ev R
 		// can retry, but keep the obligation paused. The hourly tick stays
 		// refused in the meantime.
 		c.mu.Lock()
-		if cur, ok := c.running[ev.AgentID]; ok && cur.State == ObligationPaused && cur.ResetConsumedEventID == key {
+		if cur, ok := c.running[ev.AgentID]; ok && (cur.State == ObligationPaused || cur.State == ObligationWatcherUnavailable) && cur.ResetConsumedEventID == key {
 			cur.ResetConsumedEventID = ""
 			c.running[ev.AgentID] = cur
 			c.persistLocked()
@@ -172,14 +172,16 @@ func (c *TeamExecutionContext) ConsumeResetEligibility(ctx context.Context, ev R
 	// running ownership and re-attach a completion waiter so terminal owner
 	// state releases it.
 	c.mu.Lock()
-	if cur, ok := c.running[ev.AgentID]; ok && cur.State == ObligationPaused {
+	if cur, ok := c.running[ev.AgentID]; ok && (cur.State == ObligationPaused || cur.State == ObligationWatcherUnavailable) {
 		cur.State = ObligationRunning
 		c.running[ev.AgentID] = cur
 		c.persistLocked()
 	}
 	c.mu.Unlock()
 
-	c.watchRetainedRun(ev.AgentID, runID, profileKey, taskID, runTag)
+	if !c.watchRetainedRun(ev.AgentID, runID, profileKey, taskID, runTag, "RUN_STATUS_RUNNING", entry.OwnerStartedAt) {
+		c.MarkWatcherUnavailable(ev.AgentID)
+	}
 	log.Printf("team_execution: resumed paused obligation for %s/%s (run %s) after owner reset eligibility", c.teamID, ev.AgentID, runID)
 	return ResetConsumeResumed, nil
 }

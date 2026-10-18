@@ -536,6 +536,60 @@ func TestSQLiteStore_IncidentUpsertCoalescesRepeatedTickObservations(t *testing.
 	}
 }
 
+func TestSQLiteStore_OpeningPublicationSnapshotsAreGenerationScoped(t *testing.T) {
+	db := openSQLiteTestDB(t)
+	store := NewStore(db)
+	ctx := context.Background()
+	input := incidents.UpsertInput{
+		Fingerprint: incidents.Fingerprint("host_integrity", "host-runtime-integrity", "boot-a"),
+		Type:        incidents.TypeHostIntegrity, Severity: incidents.SeverityCritical,
+		Title: "Host integrity issue detected", Summary: "first evidence",
+		ObservedAt: time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC), SourceCheckID: "host-runtime-integrity",
+	}
+	first, err := store.UpsertIncident(ctx, input)
+	if err != nil {
+		t.Fatalf("initial incident upsert error = %v", err)
+	}
+	pending, err := store.ListPendingOpeningPublications(ctx, 10)
+	if err != nil || len(pending) != 1 {
+		t.Fatalf("initial pending publications = %d, error %v; want one", len(pending), err)
+	}
+	if pending[0].Generation != 1 || pending[0].Payload["event_count"] != float64(1) || pending[0].Payload["incident_summary"] != "first evidence" || pending[0].Payload["opened_at"] != input.ObservedAt.Format(time.RFC3339Nano) {
+		t.Fatalf("generation-1 opening snapshot = %+v", pending[0])
+	}
+	if err := store.AcknowledgeOpeningPublication(ctx, first.ID, 1); err != nil {
+		t.Fatalf("mark generation 1 published: %v", err)
+	}
+	if _, err := store.UpdateIncidentStatus(ctx, first.ID, incidents.StatusResolved, "fixed"); err != nil {
+		t.Fatalf("resolve incident: %v", err)
+	}
+	input.Summary = "recurrence evidence"
+	input.ObservedAt = input.ObservedAt.Add(time.Hour)
+	reopened, err := store.UpsertIncident(ctx, input)
+	if err != nil {
+		t.Fatalf("reopen incident: %v", err)
+	}
+	if reopened.Status != incidents.StatusOpen || reopened.EventCount != 2 {
+		t.Fatalf("reopened lifecycle = %s/%d, want open/2", reopened.Status, reopened.EventCount)
+	}
+	pending, err = store.ListPendingOpeningPublications(ctx, 10)
+	if err != nil || len(pending) != 1 {
+		t.Fatalf("pending recurrence publications = %d, error %v; want one", len(pending), err)
+	}
+	if pending[0].Generation != 2 || pending[0].Payload["event_count"] != float64(2) || pending[0].Payload["incident_summary"] != "recurrence evidence" || pending[0].Payload["opened_at"] != input.ObservedAt.Format(time.RFC3339Nano) {
+		t.Fatalf("generation-2 opening snapshot = %+v", pending[0])
+	}
+	input.Summary = "later changed check facts"
+	input.ObservedAt = input.ObservedAt.Add(time.Minute)
+	if _, err := store.UpsertIncident(ctx, input); err != nil {
+		t.Fatalf("same-generation changed-fact upsert: %v", err)
+	}
+	pending, err = store.ListPendingOpeningPublications(ctx, 10)
+	if err != nil || len(pending) != 1 || pending[0].Payload["incident_summary"] != "recurrence evidence" {
+		t.Fatalf("pending opening snapshot changed within generation: %+v, error %v", pending, err)
+	}
+}
+
 func TestSQLiteStore_IncidentReopenRules(t *testing.T) {
 	db := openSQLiteTestDB(t)
 	store := NewStore(db)

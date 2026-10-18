@@ -3,9 +3,11 @@ package companion_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"os/exec"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -165,6 +167,18 @@ func (r *recorder) exec(_ context.Context, name string, args ...string) ([]byte,
 	if r.failOn != "" && strings.Contains(call, r.failOn) {
 		return nil, errors.New("broker unavailable")
 	}
+	if len(args) >= 2 && (args[1] == "heartbeat" || args[1] == "resize") {
+		var payload struct {
+			Claims []map[string]any `json:"claims"`
+		}
+		if json.Unmarshal([]byte(r.list), &payload) == nil && len(payload.Claims) == 1 {
+			c := payload.Claims[0]
+			if args[1] == "resize" {
+				c["generation"] = c["generation"].(float64) + 1
+			}
+			return json.Marshal(c)
+		}
+	}
 	return []byte(`{}`), nil
 }
 
@@ -195,7 +209,7 @@ func runnerFor(t *testing.T, rec *recorder, footprint companion.Footprint, obser
 const noClaims = `{"claims":[]}`
 
 func oneClaim(amount int64) string {
-	return `{"claims":[{"claim_id":"clm-o","owner_id":"ollama","amount_bytes":` + itoa(amount) + `,"generation":3,"status":"granted"}]}`
+	return `{"claims":[{"claim_id":"clm-o","owner_id":"ollama","owner_kind":"resource","resource_kind":"vram","gpu_index":0,"amount_bytes":` + itoa(amount) + `,"generation":3,"status":"granted"}]}`
 }
 
 func itoa(v int64) string {
@@ -323,7 +337,7 @@ func TestLedgerErrorsFailOpen(t *testing.T) {
 		scenario string
 		rec      *recorder
 	}{
-		{scenario: "Given the ledger listing fails, Then the loop claims and continues", rec: &recorder{listErr: errors.New("broker down")}},
+		{scenario: "Given the ledger listing fails, Then the loop skips mutations and continues", rec: &recorder{listErr: errors.New("broker down")}},
 		{scenario: "Given the claim call fails, Then the loop continues", rec: &recorder{list: noClaims, failOn: "capacity claim"}},
 		{scenario: "Given the resize call fails, Then the loop continues", rec: &recorder{list: oneClaim(1 << 30), failOn: "capacity resize"}},
 	}
@@ -349,8 +363,8 @@ func TestLedgerErrorsFailOpen(t *testing.T) {
 			runner.SyncOnce(context.Background())
 
 			// And the failure is reported rather than swallowed silently
-			if tc.rec.failOn != "" && !strings.Contains(log.String(), "leaving the ledger unchanged") {
-				t.Fatalf("log = %q, want it to say the ledger was left unchanged", log.String())
+			if tc.rec.failOn != "" && !strings.Contains(log.String(), "failed") {
+				t.Fatalf("log = %q, want a visible mutation failure", log.String())
 			}
 		})
 	}
@@ -370,7 +384,7 @@ func TestActivityIsForwardedWhenTheObserverReportsIt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
-	rec.list = `{"claims":[{"claim_id":"clm-w","owner_id":"whisper","amount_bytes":4294967296,"generation":2,"status":"granted"}]}`
+	rec.list = `{"claims":[{"claim_id":"clm-w","owner_id":"whisper","owner_kind":"resource","resource_kind":"vram","gpu_index":0,"amount_bytes":4294967296,"generation":2,"status":"granted"}]}`
 
 	// When the loop syncs
 	runner.SyncOnce(context.Background())
@@ -422,7 +436,7 @@ func TestReporterHeartbeatRejectsForeignIdentityAndPreservesCAS(t *testing.T) {
 	for _, mode := range []string{"foreign-owner", "foreign-kind", "missing-generation", "stale-generation"} {
 		t.Run(mode, func(t *testing.T) {
 			heartbeats := 0
-			payload := `{"claims":[{"claim_id":"mine","owner_id":"model","owner_kind":"resource","generation":7}]}`
+			payload := `{"claims":[{"claim_id":"mine","owner_id":"model","owner_kind":"resource","resource_kind":"vram","gpu_index":0,"status":"granted","generation":7}]}`
 			switch mode {
 			case "foreign-owner":
 				payload = strings.ReplaceAll(payload, `"model"`, `"ollama"`)
@@ -454,6 +468,172 @@ func TestReporterHeartbeatRejectsForeignIdentityAndPreservesCAS(t *testing.T) {
 			}
 			if heartbeats != want {
 				t.Fatalf("mutations=%d want%d", heartbeats, want)
+			}
+		})
+	}
+}
+
+func TestUntrustedLedgerCannotCauseMutation(t *testing.T) {
+	valid := `{"claim_id":"mine","owner_id":"ollama","owner_kind":"resource","resource_kind":"vram","gpu_index":0,"generation":3,"status":"granted","amount_bytes":4294967296}`
+	for _, mode := range []string{"error", "malformed", "missing-claims", "null-claims", "duplicate", "missing-gpu", "missing-generation", "unknown-owner-kind", "unknown-resource-kind", "unknown-status"} {
+		t.Run(mode, func(t *testing.T) {
+			payload := `{"claims":[` + valid + `]}`
+			switch mode {
+			case "malformed":
+				payload = "{"
+			case "missing-claims":
+				payload = "{}"
+			case "null-claims":
+				payload = `{"claims":null}`
+			case "duplicate":
+				payload = `{"claims":[` + valid + `,` + valid + `]}`
+			case "missing-gpu":
+				payload = strings.ReplaceAll(payload, `"gpu_index":0,`, "")
+			case "missing-generation":
+				payload = strings.ReplaceAll(payload, `"generation":3,`, "")
+			case "unknown-owner-kind":
+				payload = strings.ReplaceAll(payload, `"owner_kind":"resource"`, `"owner_kind":"resourc"`)
+			case "unknown-resource-kind":
+				payload = strings.ReplaceAll(payload, `"resource_kind":"vram"`, `"resource_kind":"vrma"`)
+			case "unknown-status":
+				payload = strings.ReplaceAll(payload, `"status":"granted"`, `"status":"grantd"`)
+			}
+			lists, mutations := 0, 0
+			runner, err := companion.New(companion.Config{Resource: "ollama", Observer: companion.ObserverFunc(func(context.Context) (companion.Footprint, error) {
+				return companion.Footprint{Bytes: 4 << 30, Activity: "active"}, nil
+			}), Exec: func(_ context.Context, _ string, args ...string) ([]byte, error) {
+				if args[1] == "list" {
+					lists++
+					if mode == "error" {
+						return nil, errors.New("list down")
+					}
+					return []byte(payload), nil
+				}
+				mutations++
+				return nil, nil
+			}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			runner.SyncOnce(context.Background())
+			runner.SyncOnce(context.Background())
+			if mutations != 0 || lists != 2 {
+				t.Fatalf("unknown list mutated or cached absence: mutations=%d lists=%d", mutations, lists)
+			}
+			reporterPayload := payload
+			if strings.HasPrefix(mode, "unknown-") {
+				reporterPayload = `{"claims":[` + strings.TrimSuffix(strings.TrimPrefix(payload, `{"claims":[`), `]}`) + `,` + valid + `]}`
+			}
+			reporter := companion.Reporter{Resource: "ollama", Exec: func(_ context.Context, _ string, args ...string) ([]byte, error) {
+				if args[1] != "list" {
+					t.Fatalf("unknown Reporter evidence caused mutation: %v", args)
+				}
+				if mode == "error" {
+					return nil, errors.New("list down")
+				}
+				return []byte(reporterPayload), nil
+			}}
+			if claim, ok := reporter.ActiveClaim(context.Background()); ok {
+				t.Fatalf("Reporter accepted untrusted list: %+v", claim)
+			}
+			reporter.ReportActivity(context.Background(), "active")
+		})
+	}
+}
+
+func TestRunnerAndReporterShareExactResourceVRAMGPUSelection(t *testing.T) {
+	payload := `{"claims":[{"claim_id":"scenario","owner_id":"ollama","owner_kind":"scenario","resource_kind":"vram","gpu_index":0,"generation":1,"status":"granted"},{"claim_id":"cpu","owner_id":"ollama","owner_kind":"resource","resource_kind":"cpu","generation":1,"status":"granted"},{"claim_id":"ram","owner_id":"ollama","owner_kind":"resource","resource_kind":"ram","generation":1,"status":"granted"},{"claim_id":"operation","owner_id":"ollama","owner_kind":"op","resource_kind":"vram","gpu_index":0,"generation":1,"status":"granted"},{"claim_id":"other-gpu","owner_id":"ollama","owner_kind":"resource","resource_kind":"vram","gpu_index":1,"generation":1,"status":"granted"},{"claim_id":"right","owner_id":"ollama","owner_kind":"resource","resource_kind":"vram","gpu_index":0,"generation":7,"status":"degraded","amount_bytes":4294967296}]}`
+	var calls []string
+	exec := func(_ context.Context, _ string, args ...string) ([]byte, error) {
+		calls = append(calls, strings.Join(args, " "))
+		if args[1] == "list" {
+			return []byte(payload), nil
+		}
+		return []byte(`{}`), nil
+	}
+	runner, err := companion.New(companion.Config{Resource: "ollama", Observer: companion.ObserverFunc(func(context.Context) (companion.Footprint, error) { return companion.Footprint{Bytes: 4 << 30}, nil }), Exec: exec})
+	if err != nil {
+		t.Fatal(err)
+	}
+	runner.SyncOnce(context.Background())
+	if len(calls) != 2 || !strings.Contains(calls[1], "heartbeat --claim-id right --generation 7") {
+		t.Fatalf("wrong selection: %v", calls)
+	}
+	r := companion.Reporter{Resource: "ollama", Exec: exec}
+	got, ok := r.ActiveClaim(context.Background())
+	if !ok || got.ClaimID != "right" {
+		t.Fatalf("reporter selection differs: %+v %v", got, ok)
+	}
+}
+
+func TestRunnerUsesCurrentMutationResponseForImmediateActivity(t *testing.T) {
+	for _, mode := range []string{"claim", "resize", "heartbeat", "resize-error", "malformed-response", "release"} {
+		t.Run(mode, func(t *testing.T) {
+			current := map[string]any{"claim_id": "mine", "owner_id": "ollama", "owner_kind": "resource", "resource_kind": "vram", "gpu_index": 0, "generation": int64(3), "status": "granted", "amount_bytes": int64(4 << 30)}
+			bytes := int64(8 << 30)
+			if mode == "heartbeat" {
+				bytes = 4 << 30
+			}
+			if mode == "release" {
+				bytes = 0
+			}
+			activities := 0
+			var actions []string
+			runner, err := companion.New(companion.Config{Resource: "ollama", Observer: companion.ObserverFunc(func(context.Context) (companion.Footprint, error) {
+				return companion.Footprint{Bytes: bytes, Activity: "active"}, nil
+			}), Exec: func(_ context.Context, _ string, args ...string) ([]byte, error) {
+				verb := args[1]
+				actions = append(actions, verb)
+				if verb == "list" {
+					if mode == "claim" {
+						return []byte(noClaims), nil
+					}
+					return json.Marshal(map[string]any{"claims": []any{current}})
+				}
+				flag := func(name string) string {
+					for i, a := range args {
+						if a == name && i+1 < len(args) {
+							return args[i+1]
+						}
+					}
+					return ""
+				}
+				if verb == "activity" {
+					activities++
+					gen, _ := strconv.ParseInt(flag("--generation"), 10, 64)
+					if gen != current["generation"].(int64) {
+						t.Fatalf("stale activity gen=%d current=%v", gen, current)
+					}
+					return json.Marshal(current)
+				}
+				if verb == "resize" {
+					if mode == "resize-error" {
+						return nil, errors.New("resize refused")
+					}
+					current["generation"] = int64(4)
+				}
+				if verb == "release" {
+					current["status"] = "released"
+				}
+				if mode == "malformed-response" {
+					return []byte(`{}`), nil
+				}
+				if verb == "claim" {
+					current["generation"] = int64(1)
+					return json.Marshal(map[string]any{"claim": current})
+				}
+				return json.Marshal(current)
+			}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			runner.SyncOnce(context.Background())
+			want := 1
+			if mode == "resize-error" || mode == "malformed-response" || mode == "release" {
+				want = 0
+			}
+			if activities != want {
+				t.Fatalf("activities=%d want=%d actions=%v", activities, want, actions)
 			}
 		})
 	}

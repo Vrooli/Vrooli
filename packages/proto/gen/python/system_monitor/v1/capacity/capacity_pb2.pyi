@@ -66,7 +66,7 @@ class GpuCapacity(_message.Message):
     def __init__(self, index: _Optional[int] = ..., name: _Optional[str] = ..., total_bytes: _Optional[int] = ..., used_bytes: _Optional[int] = ..., free_bytes: _Optional[int] = ..., claimed_bytes: _Optional[int] = ..., memory_utilization_percent: _Optional[float] = ...) -> None: ...
 
 class CapacityFinding(_message.Message):
-    __slots__ = ("owner_id", "owner_kind", "resource_kind", "gpu_index", "pid", "process_name", "observed_bytes", "claimed_bytes", "claim_id", "severity", "message")
+    __slots__ = ("owner_id", "owner_kind", "resource_kind", "gpu_index", "pid", "process_name", "observed_bytes", "claimed_bytes", "claim_id", "severity", "message", "pids")
     CLASS_FIELD_NUMBER: _ClassVar[int]
     OWNER_ID_FIELD_NUMBER: _ClassVar[int]
     OWNER_KIND_FIELD_NUMBER: _ClassVar[int]
@@ -79,6 +79,7 @@ class CapacityFinding(_message.Message):
     CLAIM_ID_FIELD_NUMBER: _ClassVar[int]
     SEVERITY_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    PIDS_FIELD_NUMBER: _ClassVar[int]
     owner_id: str
     owner_kind: str
     resource_kind: str
@@ -90,7 +91,8 @@ class CapacityFinding(_message.Message):
     claim_id: str
     severity: str
     message: str
-    def __init__(self, owner_id: _Optional[str] = ..., owner_kind: _Optional[str] = ..., resource_kind: _Optional[str] = ..., gpu_index: _Optional[int] = ..., pid: _Optional[int] = ..., process_name: _Optional[str] = ..., observed_bytes: _Optional[int] = ..., claimed_bytes: _Optional[int] = ..., claim_id: _Optional[str] = ..., severity: _Optional[str] = ..., message: _Optional[str] = ..., **kwargs) -> None: ...
+    pids: _containers.RepeatedScalarFieldContainer[int]
+    def __init__(self, owner_id: _Optional[str] = ..., owner_kind: _Optional[str] = ..., resource_kind: _Optional[str] = ..., gpu_index: _Optional[int] = ..., pid: _Optional[int] = ..., process_name: _Optional[str] = ..., observed_bytes: _Optional[int] = ..., claimed_bytes: _Optional[int] = ..., claim_id: _Optional[str] = ..., severity: _Optional[str] = ..., message: _Optional[str] = ..., pids: _Optional[_Iterable[int]] = ..., **kwargs) -> None: ...
 
 class PolicyLever(_message.Message):
     __slots__ = ("key", "value")

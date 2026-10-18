@@ -52,6 +52,10 @@ type PendingAuthorizationRequest struct {
 	// ExpiresAt bounds how long this ask stays outstanding before it ages out of
 	// the anti-flood count and can be re-raised.
 	ExpiresAt time.Time `json:"expires_at"`
+	// EventID binds a hub answer to the exact request generation that was shown.
+	EventID string `json:"event_id,omitempty"`
+	// PublishedAt is set only after the request event is accepted by the publisher.
+	PublishedAt *time.Time `json:"published_at,omitempty"`
 	// ResolvedAt / ResolvedBy / GrantID record the terminal decision.
 	ResolvedAt *time.Time `json:"resolved_at,omitempty"`
 	ResolvedBy string     `json:"resolved_by,omitempty"`

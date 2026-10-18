@@ -47,6 +47,8 @@ func NewResourceApp(opts ResourceOptions) (*ResourceApp, error) {
 		StaleChecker: cliutil.NewStaleChecker(opts.Name, opts.BuildFingerprint, opts.BuildTimestamp, opts.BuildSourceRoot, opts.SourceRootEnvVars...),
 		options:      opts,
 	}
+	app.StaleChecker.InstallKind = "resource"
+	app.StaleChecker.InstallName = opts.Name
 	if strings.TrimSpace(opts.SourceContextPath) == "" {
 		app.StaleChecker.SourceContextPath = ".."
 	} else {
@@ -136,7 +138,11 @@ func (a *ResourceApp) DelegatingCommand(name, description string, resourceArgs .
 		Run: func(args []string) error {
 			if a.StaleChecker != nil {
 				a.StaleChecker.ReexecArgs = append([]string(nil), os.Args[1:]...)
-				if restarted := a.StaleChecker.CheckAndMaybeRebuild(); restarted {
+				restarted, staleErr := a.StaleChecker.CheckAndMaybeRebuild()
+				if staleErr != nil {
+					return staleErr
+				}
+				if restarted {
 					return nil
 				}
 			}

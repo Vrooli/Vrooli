@@ -8,15 +8,18 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 	"time"
 
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
+	"agent-manager/internal/repository"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	coreidentity "github.com/vrooli/api-core/identity"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/proto"
@@ -296,6 +299,48 @@ func TestScenarioDeclarationHandlersHonorDryRunAndProjectResults(t *testing.T) {
 			}
 			test.check(t, rr.Body.Bytes())
 		})
+	}
+}
+
+func TestVerifiedAgentDeclarationsPlanForcesDryRunWithoutStoreEffects(t *testing.T) {
+	_, router, repos, _ := setupTestHandlerWithRunnerAndRepos(t, runner.NewMockRunner(domain.RunnerTypeClaudeCode))
+	ctx := context.Background()
+	profilesBefore, err := repos.Profiles.List(ctx, repository.ListFilter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	workflowsBefore, err := repos.Workflows.List(ctx, "agent-manager", "", repository.ListFilter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	requestBody := encodeProtoJSON(t, &apipb.ReconcileScenarioDeclarationsRequest{
+		Scenario: "agent-manager", DryRun: false, ValidateOnly: false,
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/declarations/plan", bytes.NewReader(requestBody))
+	req = req.WithContext(coreidentity.WithPrincipal(req.Context(), coreidentity.Principal{
+		Kind: coreidentity.ActorAgent, Subject: "verified-agent-run", Verified: true,
+		Scopes: []string{"agent-manager:write"},
+	}))
+	rr := httptest.NewRecorder()
+	AgentOperationMiddleware(router).ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String())
+	}
+	var response apipb.ReconcileScenarioDeclarationsResponse
+	decodeProtoJSON(t, rr.Body.Bytes(), &response)
+	if !response.GetDryRun() || response.GetScenario() != "agent-manager" {
+		t.Fatalf("plan response did not force dry-run: %+v", &response)
+	}
+	profilesAfter, err := repos.Profiles.List(ctx, repository.ListFilter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	workflowsAfter, err := repos.Workflows.List(ctx, "agent-manager", "", repository.ListFilter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(profilesBefore, profilesAfter) || !reflect.DeepEqual(workflowsBefore, workflowsAfter) {
+		t.Fatalf("plan changed owner stores: profiles %d→%d workflows %d→%d", len(profilesBefore), len(profilesAfter), len(workflowsBefore), len(workflowsAfter))
 	}
 }
 

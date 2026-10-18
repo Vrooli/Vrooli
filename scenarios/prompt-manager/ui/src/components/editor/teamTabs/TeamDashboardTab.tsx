@@ -29,7 +29,8 @@ import type { Agent } from '@/types/agent'
 import { cn } from '@/lib/utils'
 import { selectors } from '@/constants/selectors'
 import * as heartbeatService from '@/services/heartbeatService'
-import type { HeartbeatConfig, TeamLogEntry, TeamRunAccounting } from '@/services/heartbeatService'
+import { projectHeartbeatOwnerStatus } from '@/services/heartbeatService'
+import type { HeartbeatConfig, TeamExecutionStatus, TeamLogEntry, TeamRunAccounting } from '@/services/heartbeatService'
 import { ExpandableDescription } from '@/components/shared/ExpandableDescription'
 import { AgentColorBadge } from '@/components/shared/AgentColorBadge'
 import { TeamPurposePanel } from '@/components/team/TeamPurposePanel'
@@ -56,14 +57,14 @@ interface TeamDashboardTabProps {
   /** Called when the user clicks a member in the roster */
   onNavigateToMember?: (agentId: string) => void
   /** Report computed health to parent */
-  onHealthChange?: (health: 'green' | 'yellow' | 'red' | 'gray') => void
+  onHealthChange?: (health: 'green' | 'yellow' | 'red' | 'gray' | 'running') => void
   /** Report most-recent activity timestamp to parent */
   onLastActiveChange?: (lastActive: string | null) => void
 }
 
 const LOGS_PAGE_SIZE = 25
 
-type DashboardStatus = 'loading' | 'unknown' | 'idle' | 'healthy' | 'attention' | 'blocked' | 'paused'
+type DashboardStatus = 'loading' | 'unknown' | 'idle' | 'running' | 'healthy' | 'attention' | 'blocked' | 'paused' | 'waiting'
 
 type DashboardFixture = {
   status: Exclude<DashboardStatus, 'loading'>
@@ -82,12 +83,14 @@ const dashboardFixtures: Record<string, DashboardFixture> = {
 
 const dashboardStatusCopy: Record<DashboardStatus, { label: string; tone: string; description: string }> = {
   loading: { label: 'Loading health', tone: 'text-muted-foreground', description: 'Reading current owner evidence.' },
-  unknown: { label: 'Health unknown', tone: 'text-muted-foreground', description: 'No recent execution evidence is available.' },
+  unknown: { label: 'Health unknown', tone: 'text-muted-foreground', description: 'Current owner health evidence is unavailable.' },
   idle: { label: 'Idle', tone: 'text-muted-foreground', description: 'The team is configured, but no owner execution has started yet.' },
   healthy: { label: 'Healthy', tone: 'text-emerald-500', description: 'Recent owner evidence is current.' },
-  attention: { label: 'Needs attention', tone: 'text-amber-500', description: 'Recent owner evidence includes a failed execution.' },
+  running: { label: 'Running', tone: 'text-primary', description: 'An owner execution is currently active.' },
+  attention: { label: 'Needs attention', tone: 'text-amber-500', description: 'Recent owner evidence includes a failed execution or retained unresolved ownership.' },
+  waiting: { label: 'Waiting for capacity', tone: 'text-muted-foreground', description: 'The exact owner request is retained and will retry on an eligible scheduled check when capacity is available.' },
   blocked: { label: 'Blocked', tone: 'text-red-500', description: 'Work cannot advance until the next action is completed.' },
-  paused: { label: 'Paused', tone: 'text-amber-500', description: 'Heartbeats are disabled; current execution is unknown.' },
+  paused: { label: 'Paused', tone: 'text-amber-500', description: 'Execution is paused; current completion is not inferred.' },
 }
 
 function initials(value: string): string {
@@ -114,6 +117,9 @@ export function TeamDashboardTab({
   const [isLoadingHeartbeats, setIsLoadingHeartbeats] = useState(false)
   const [heartbeatError, setHeartbeatError] = useState<string | null>(null)
   const [heartbeatsLoaded, setHeartbeatsLoaded] = useState(false)
+  const [teamExecutionStatus, setTeamExecutionStatus] = useState<TeamExecutionStatus | null>(null)
+  const [executionStatusLoaded, setExecutionStatusLoaded] = useState(false)
+  const [executionStatusError, setExecutionStatusError] = useState(false)
 
   const leaderEffortRefs = useMemo(() => [...new Set(heartbeatConfigs.flatMap(config =>
     config.finiteLeader?.effortRef && !config.finiteLeader.retired ? [config.finiteLeader.effortRef] : [],
@@ -439,17 +445,35 @@ export function TeamDashboardTab({
     let isFirstLoad = true
     setHeartbeatsLoaded(false)
     setHeartbeatConfigs([])
+    setTeamExecutionStatus(null)
+    setExecutionStatusLoaded(false)
+    setExecutionStatusError(false)
     const loadHeartbeats = async () => {
       if (isFirstLoad) {
         setIsLoadingHeartbeats(true)
         setHeartbeatError(null)
       }
       try {
-        const configs = await heartbeatService.listHeartbeats(team.id)
+        const [configsResult, statusResult] = await Promise.allSettled([
+          heartbeatService.listHeartbeats(team.id),
+          heartbeatService.getTeamExecutionStatus(team.id),
+        ])
         if (!isActive) return
-        setHeartbeatConfigs(configs)
-        setHeartbeatError(null)
-        setHeartbeatsLoaded(true)
+        if (configsResult.status === 'fulfilled') {
+          setHeartbeatConfigs(configsResult.value)
+          setHeartbeatError(null)
+          setHeartbeatsLoaded(true)
+        } else {
+          throw configsResult.reason
+        }
+        if (statusResult.status === 'fulfilled') {
+          setTeamExecutionStatus(statusResult.value)
+          setExecutionStatusError(false)
+        } else {
+          setTeamExecutionStatus(null)
+          setExecutionStatusError(true)
+        }
+        setExecutionStatusLoaded(true)
       } catch (error) {
         if (!isActive) return
         if (isFirstLoad) console.warn('Failed to load heartbeat schedule:', error)
@@ -513,31 +537,44 @@ export function TeamDashboardTab({
 
   // --- Health computation ---
   useEffect(() => {
-    if (!team.enabled || heartbeatError || !heartbeatsLoaded) {
+    if (!team.enabled || heartbeatError || !heartbeatsLoaded || executionStatusError || !executionStatusLoaded) {
       onHealthChange?.('gray')
     } else {
-      const withExec = heartbeatConfigs.filter(
-        (c): c is HeartbeatConfig & { lastExecution: NonNullable<HeartbeatConfig['lastExecution']> } =>
-          !!c.lastExecution,
-      )
-      if (withExec.length === 0) {
-        onHealthChange?.('gray')
-      } else {
-        const failed = withExec.filter((c) => c.lastExecution.status === 'failed')
-        // Most recent execution across all configs
-        const sorted = [...withExec].sort(
-          (a, b) => new Date(b.lastExecution.startedAt).getTime() - new Date(a.lastExecution.startedAt).getTime(),
+      const ownerStates = heartbeatConfigs.map((config) => projectHeartbeatOwnerStatus(config, teamExecutionStatus, { queueReadAvailable: !executionStatusError }))
+      const hasAdmissionDeferred = ownerStates.includes('admission_deferred') || Boolean(teamExecutionStatus?.admissionDeferredAgentIds?.length)
+      const hasUnresolved = ownerStates.some((status) => [
+        'approval_pending', 'needs_review', 'observer_unavailable', 'preparation_interrupted', 'uncertain', 'unreachable', 'unavailable', 'degraded',
+      ].includes(status)) || Boolean(teamExecutionStatus?.watcherUnavailableAgentIds?.length
+        || teamExecutionStatus?.needsReviewAgentIds?.length
+        || teamExecutionStatus?.approvalPendingAgentIds?.length
+        || teamExecutionStatus?.uncertainAgentIds?.length
+        || teamExecutionStatus?.unreachableAgentIds?.length
+        || teamExecutionStatus?.preparationInterruptedAgentIds?.length
         )
-        const mostRecent = sorted[0]
-        if (mostRecent && mostRecent.lastExecution.status === 'failed') {
-          onHealthChange?.('red')
-        } else if (failed.length > 0) {
-          onHealthChange?.('yellow')
-        } else if (mostRecent?.lastExecution.status === 'completed') {
-          onHealthChange?.('green')
-        } else {
-          onHealthChange?.('gray')
-        }
+      const hasFailure = ownerStates.includes('failed') || ownerStates.includes('broken')
+      const hasRunning = ownerStates.includes('running') || Boolean(teamExecutionStatus?.runningAgentIds?.length)
+      const hasPaused = ownerStates.includes('paused') || Boolean(teamExecutionStatus?.pausedAgentIds?.length)
+      if (hasUnresolved) {
+        onHealthChange?.('yellow')
+      } else if (hasFailure) {
+        const failedConfigs = heartbeatConfigs.filter((config) =>
+          ['failed', 'broken'].includes(projectHeartbeatOwnerStatus(config, teamExecutionStatus, { queueReadAvailable: !executionStatusError })),
+        )
+        const latestFailure = [...failedConfigs].sort((a, b) =>
+          new Date(b.lastExecution?.startedAt ?? '1970-01-01T00:00:00Z').getTime() - new Date(a.lastExecution?.startedAt ?? '1970-01-01T00:00:00Z').getTime(),
+        )[0]
+        const latestExecution = [...heartbeatConfigs].sort((a, b) =>
+          new Date(b.lastExecution?.startedAt ?? '1970-01-01T00:00:00Z').getTime() - new Date(a.lastExecution?.startedAt ?? '1970-01-01T00:00:00Z').getTime(),
+        )[0]
+        onHealthChange?.(latestFailure === latestExecution ? 'red' : 'yellow')
+      } else if (hasRunning || hasPaused) {
+        onHealthChange?.(hasRunning ? 'running' : 'gray')
+      } else if (hasAdmissionDeferred) {
+        onHealthChange?.('gray')
+      } else if (ownerStates.includes('completed')) {
+        onHealthChange?.('green')
+      } else {
+        onHealthChange?.('gray')
       }
     }
 
@@ -551,7 +588,7 @@ export function TeamDashboardTab({
     } else {
       onLastActiveChange?.(null)
     }
-  }, [heartbeatConfigs, heartbeatError, heartbeatsLoaded, team.enabled, onHealthChange, onLastActiveChange])
+  }, [heartbeatConfigs, heartbeatError, heartbeatsLoaded, teamExecutionStatus, executionStatusError, executionStatusLoaded, team.enabled, onHealthChange, onLastActiveChange])
 
   // --- Load more handler ---
   const handleLoadMore = useCallback(() => {
@@ -583,17 +620,36 @@ export function TeamDashboardTab({
   // library asset to own dashboard semantics.
   const computedDashboardStatus = useMemo<DashboardStatus>(() => {
     if (!team.enabled) return 'paused'
-    if (heartbeatError) return 'unknown'
+    if (heartbeatError || executionStatusError) return 'unknown'
     if (isLoadingHeartbeats || !heartbeatsLoaded) return 'loading'
-    const executions = heartbeatConfigs.flatMap((config) => config.lastExecution ? [config.lastExecution] : [])
-    if (executions.some((execution) => execution.status === 'failed')) return 'attention'
+    if (!executionStatusLoaded) return 'loading'
+    const ownerStates = heartbeatConfigs.map((config) => projectHeartbeatOwnerStatus(config, teamExecutionStatus, { queueReadAvailable: !executionStatusError }))
+    const hasAdmissionDeferred = ownerStates.includes('admission_deferred') || Boolean(teamExecutionStatus?.admissionDeferredAgentIds?.length)
+    const retained = Boolean(teamExecutionStatus?.watcherUnavailableAgentIds?.length
+      || teamExecutionStatus?.needsReviewAgentIds?.length
+      || teamExecutionStatus?.approvalPendingAgentIds?.length
+      || teamExecutionStatus?.uncertainAgentIds?.length
+      || teamExecutionStatus?.unreachableAgentIds?.length
+      || teamExecutionStatus?.preparationInterruptedAgentIds?.length
+      )
+    if (retained || ownerStates.some((status) => [
+      'approval_pending', 'needs_review', 'observer_unavailable', 'preparation_interrupted', 'uncertain', 'unreachable', 'unavailable',
+    ].includes(status)) || ownerStates.includes('failed') || ownerStates.includes('broken')) return 'attention'
     if (accounting?.terminalReasons.blocked) return 'blocked'
-    if (executions.length === 0) return 'idle'
-    return 'healthy'
-  }, [accounting?.terminalReasons.blocked, heartbeatConfigs, heartbeatError, heartbeatsLoaded, isLoadingHeartbeats, team.enabled])
+    if (ownerStates.includes('running') || Boolean(teamExecutionStatus?.runningAgentIds?.length)) return 'running'
+    if (ownerStates.includes('paused') || Boolean(teamExecutionStatus?.pausedAgentIds?.length)) return 'paused'
+    if (hasAdmissionDeferred) return 'waiting'
+    if (ownerStates.includes('unknown')) return 'unknown'
+    if (ownerStates.includes('completed')) return 'healthy'
+    if (ownerStates.includes('team-disabled') || ownerStates.includes('paused')) return 'paused'
+    if (ownerStates.length === 0 || ownerStates.some((status) => ['idle', 'disabled', 'not-scheduled'].includes(status))) return 'idle'
+    return 'unknown'
+  }, [accounting?.terminalReasons.blocked, heartbeatConfigs, heartbeatError, heartbeatsLoaded, executionStatusError, executionStatusLoaded, teamExecutionStatus, isLoadingHeartbeats, team.enabled])
   const dashboardStatus = dashboardFixture?.status ?? computedDashboardStatus
   const dashboardCoverage = dashboardFixture?.coverage ?? (accounting?.coverage.partial ? 'partial' : 'complete')
-  const statusCopy = dashboardStatusCopy[dashboardStatus]
+  const statusCopy = dashboardStatus === 'paused' && !team.enabled
+    ? { ...dashboardStatusCopy.paused, description: 'Heartbeats are disabled; current execution is unknown.' }
+    : dashboardStatusCopy[dashboardStatus]
   const nextHeartbeat = upcoming24h[0]
   const lastActivity = heartbeatConfigs
     .map((config) => config.lastExecution?.startedAt)
@@ -606,6 +662,10 @@ export function TeamDashboardTab({
     ? <PauseCircle aria-hidden="true" className="h-4 w-4" />
     : dashboardStatus === 'blocked' || dashboardStatus === 'attention'
       ? <AlertTriangle aria-hidden="true" className="h-4 w-4" />
+      : dashboardStatus === 'waiting'
+        ? <Clock aria-hidden="true" className="h-4 w-4" />
+      : dashboardStatus === 'running'
+        ? <Activity aria-hidden="true" className="h-4 w-4" />
       : dashboardStatus === 'idle'
         ? <Clock aria-hidden="true" className="h-4 w-4" />
         : dashboardStatus === 'unknown' || dashboardStatus === 'loading'
@@ -685,7 +745,7 @@ export function TeamDashboardTab({
           {dashboardStatus !== 'paused' && <article className="rounded-xl border border-primary/30 bg-primary/5 p-4">
             <div className="flex items-start justify-between gap-3"><div><p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">Operator guidance</p><h4 className="mt-1 font-semibold text-foreground">{statusCopy.label === 'Healthy' ? 'Keep the next handoff moving' : statusCopy.label === 'Paused' ? 'Resolve the pause intentionally' : statusCopy.label}</h4></div><span className={cn('rounded-full border border-current/30 px-2 py-1 text-[11px]', statusCopy.tone)}>{statusCopy.label}</span></div>
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{statusCopy.description} {accounting?.terminalReasons.blocked ? 'A blocked owner run is present in the latest accounting read.' : 'Open the work feed for the authoritative task disposition.'}</p>
-            <p className="mt-3 text-sm text-foreground"><strong className="text-primary">Next:</strong> {statusCopy.label === 'Paused' ? 'Review retained evidence and resume only when explicitly authorized; then verify the next scheduled heartbeat.' : statusCopy.label === 'Health unknown' || statusCopy.label === 'Loading health' ? 'Wait for an authoritative owner read before making a health decision.' : statusCopy.label === 'Idle' ? 'Wait for the first scheduled owner execution, then review its outcome evidence.' : 'Review the next open work item and its evidence.'}</p>
+            <p className="mt-3 text-sm text-foreground"><strong className="text-primary">Next:</strong> {statusCopy.label === 'Paused' ? 'Review retained evidence and resume only when explicitly authorized; then verify the next scheduled heartbeat.' : statusCopy.label === 'Health unknown' || statusCopy.label === 'Loading health' ? 'Wait for an authoritative owner read before making a health decision.' : statusCopy.label === 'Idle' ? 'Wait for the first scheduled owner execution, then review its outcome evidence.' : statusCopy.label === 'Needs attention' ? 'Review retained owner state and its evidence before relying on a prior completion.' : statusCopy.label === 'Waiting for capacity' ? 'The scheduler will retry this retained request on an eligible check after capacity becomes available.' : statusCopy.label === 'Running' ? 'Wait for the active owner execution to reach a terminal state, then review its outcome evidence.' : 'Review the next open work item and its evidence.'}</p>
           </article>}
           <article className="rounded-xl border border-border bg-muted/20 p-4">
             <div className="flex items-start justify-between gap-3"><div><p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Coverage</p><h4 className="mt-1 font-semibold text-foreground">Evidence stays honest</h4></div><Activity aria-hidden="true" className="h-5 w-5 text-muted-foreground" /></div>

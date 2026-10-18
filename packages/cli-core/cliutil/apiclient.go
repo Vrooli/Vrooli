@@ -205,3 +205,35 @@ func (c *APIClient) WithPinnedAgentCredential(token string, resolve func(context
 	clone.tokenSource = func() string { return "" }
 	return &clone
 }
+
+// WithPinnedAgentCredentials pins the exact baseline/operation pair used by a
+// protected request. Both proofs are re-resolved before every wire send.
+func (c *APIClient) WithPinnedAgentCredentials(credentials AgentCredentials, resolve func(context.Context) (AgentCredentials, error)) *APIClient {
+	if c == nil || resolve == nil || credentials.BaselineToken == "" || credentials.OperationToken == "" {
+		return nil
+	}
+	clone := *c
+	base := c.client
+	if base == nil {
+		base = NewHTTPClient(HTTPClientOptions{})
+	}
+	client := *base
+	client.identityPin = &agentCredentialPin{token: credentials.BaselineToken, operationToken: credentials.OperationToken, resolvePair: resolve}
+	raw := base.client
+	if raw == nil {
+		raw = &http.Client{}
+	}
+	protected := *raw
+	protected.CheckRedirect = func(*http.Request, []*http.Request) error {
+		return errors.New("pinned exact request redirect refused")
+	}
+	next := raw.Transport
+	if next == nil {
+		next = http.DefaultTransport
+	}
+	protected.Transport = identityForwardingTransport{next: next}
+	client.client = &protected
+	clone.client = &client
+	clone.tokenSource = func() string { return "" }
+	return &clone
+}

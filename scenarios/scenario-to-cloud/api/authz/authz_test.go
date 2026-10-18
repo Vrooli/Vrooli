@@ -17,6 +17,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/identity"
+	"github.com/vrooli/api-core/provenance"
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 type fakeProvider struct {
@@ -54,6 +56,14 @@ func service(subject string, scopes ...string) identity.Principal {
 
 func agent(subject string, scopes ...string) identity.Principal {
 	return identity.Principal{Kind: identity.ActorAgent, Subject: subject, Verified: true, Source: identity.SourceAgentProvenance, Scopes: scopes}
+}
+
+func TestHumanCredentialCannotBeBorrowedForAgentSecretAccess(t *testing.T) {
+	h := newHarness(t, nil, nil)
+	h.provider.set(human("owner", ScopeRead, ScopeDestructive), nil)
+	if rec := h.do("GET", "/api/v1/deployments/dep-prod/secrets", map[string]string{cliutil.HeaderAgentIdentityToken: "agent-proof"}); rec.Code != http.StatusForbidden {
+		t.Fatalf("agent secret request borrowed human authority: %d", rec.Code)
+	}
 }
 
 type harness struct {
@@ -238,43 +248,33 @@ func TestMissingWriteScopeProvidesHumanHandoff(t *testing.T) {
 	}
 }
 
-func TestAgentDelegationWindowAllowsDeploymentMutationButNotSecrets(t *testing.T) {
-	now := time.Date(2026, 9, 16, 12, 0, 0, 0, time.UTC)
-	h := newHarness(t, NewStaticPolicy(PolicyDocument{Principals: map[string]Grant{"agent-1": {Environments: []string{"*"}}}}), func(cfg *Config) {
-		cfg.Now = func() time.Time { return now }
-		cfg.AgentDelegationUntil = now.Add(24 * time.Hour)
-		cfg.AgentDelegationReason = "LPBS deployment validation"
-	})
-	h.provider.set(agent("agent-1", ScopeRead), nil)
-	if rec := h.do("POST", "/api/v1/deployments/dep-prod/execute", nil); rec.Code != http.StatusOK {
-		t.Fatalf("delegated agent mutation: %d %s", rec.Code, rec.Body.String())
-	}
-	if rec := h.do("GET", "/api/v1/deployments/dep-prod/secrets", nil); rec.Code != http.StatusForbidden || codeOf(t, rec) != apierrors.CodeForbiddenScope {
-		t.Fatalf("delegated agent secret access: %d %s", rec.Code, rec.Body.String())
-	}
-	h.mu.Lock()
-	deployed := false
-	for _, fields := range h.logs {
-		if fields["msg"] == "authz.admit" && fields["agent_delegation_reason"] == "LPBS deployment validation" {
-			deployed = true
+func TestLiveAgentGrantAllowsBoundedDeploymentMutationButNotSecrets(t *testing.T) {
+	now := time.Now()
+	h := newHarness(t, NewStaticPolicy(PolicyDocument{Principals: map[string]Grant{"owner": {Environments: []string{"*"}}}}), nil)
+	p := agent("agent-1", ScopeRead, ScopeWrite, ScopeDestructive)
+	h.enforcer.cfg.AgentVerifier = provenance.VerifierFunc(func(token string) (*cliutil.VerifyResult, error) {
+		if token != "fixture-agent-proof" {
+			return nil, identity.NewFailure(identity.FailureInvalid, identity.SourceAgentProvenance)
 		}
-	}
-	h.mu.Unlock()
-	if !deployed {
-		t.Fatal("delegated mutation was not recorded with its reason")
-	}
-}
-
-func TestAgentDelegationWindowExpires(t *testing.T) {
-	now := time.Date(2026, 9, 16, 12, 0, 0, 0, time.UTC)
-	h := newHarness(t, NewStaticPolicy(PolicyDocument{Principals: map[string]Grant{"agent-1": {Environments: []string{"*"}}}}), func(cfg *Config) {
-		cfg.Now = func() time.Time { return now.Add(24 * time.Hour) }
-		cfg.AgentDelegationUntil = now.Add(24 * time.Hour)
-		cfg.AgentDelegationReason = "expired validation window"
+		grantJSON, _ := json.Marshal(p.Grant)
+		return &cliutil.VerifyResult{Valid: true, Claims: &cliutil.VerifiedClaims{RunID: p.Subject, Subject: p.Owner, Scopes: p.Scopes, ExpiresAt: time.Now().Add(time.Hour).Unix(), Meta: map[string]string{"operation_grant": string(grantJSON)}}}, nil
 	})
-	h.provider.set(agent("agent-1", ScopeRead), nil)
-	if rec := h.do("POST", "/api/v1/deployments/dep-prod/execute", nil); rec.Code != http.StatusForbidden || codeOf(t, rec) != apierrors.CodeForbiddenScope {
-		t.Fatalf("expired delegation: %d %s", rec.Code, rec.Body.String())
+	p.Owner = "owner"
+	p.Grant = &identity.OperationGrant{ID: "grant", Approver: "owner", Operations: []string{"deployment.manage"}, Targets: []string{"scenario-to-cloud:deployment/dep-prod"}, ExpiresAt: now.Add(time.Hour)}
+	h.provider.set(p, nil)
+	if rec := h.do("POST", "/api/v1/deployments/dep-prod/execute", map[string]string{cliutil.HeaderAgentIdentityToken: "fixture-agent-proof"}); rec.Code != http.StatusOK {
+		t.Fatalf("approved operation: %d %s", rec.Code, rec.Body.String())
+	}
+	if rec := h.do("POST", "/api/v1/deployments/dep-stage/execute", map[string]string{cliutil.HeaderAgentIdentityToken: "fixture-agent-proof"}); rec.Code != http.StatusForbidden {
+		t.Fatal("grant reached another deployment")
+	}
+	if rec := h.do("GET", "/api/v1/deployments/dep-prod/secrets", map[string]string{cliutil.HeaderAgentIdentityToken: "fixture-agent-proof"}); rec.Code != http.StatusForbidden {
+		t.Fatal("operation grant exposed credentials")
+	}
+	p.Grant.ExpiresAt = now.Add(-time.Second)
+	h.provider.set(p, nil)
+	if rec := h.do("POST", "/api/v1/deployments/dep-prod/execute", map[string]string{cliutil.HeaderAgentIdentityToken: "fixture-agent-proof"}); rec.Code != http.StatusForbidden {
+		t.Fatal("expired operation grant admitted")
 	}
 }
 
@@ -598,26 +598,15 @@ func TestFromEnvironmentNeverAnonymous(t *testing.T) {
 	}
 }
 
-func TestFromEnvironmentParsesBoundedAgentDelegation(t *testing.T) {
-	until := "2026-09-17T12:00:00Z"
-	lookup := func(values map[string]string) func(string) string {
-		return func(key string) string { return values[key] }
-	}
-	cfg, err := FromEnvironment(lookup(map[string]string{
-		EnvAgentDelegationUntil:  until,
-		EnvAgentDelegationReason: "validation window",
-	}))
-	if err != nil {
-		t.Fatalf("FromEnvironment: %v", err)
-	}
-	if got := cfg.AgentDelegationUntil.UTC().Format(time.RFC3339); got != until {
-		t.Fatalf("delegation expiry = %q, want %q", got, until)
-	}
-	if cfg.AgentDelegationReason != "validation window" {
-		t.Fatalf("delegation reason = %q", cfg.AgentDelegationReason)
-	}
-	if _, err := FromEnvironment(lookup(map[string]string{EnvAgentDelegationUntil: until})); err == nil {
-		t.Fatal("missing delegation reason was accepted")
+func TestFromEnvironmentRejectsRetiredValidationWindows(t *testing.T) {
+	_, err := FromEnvironment(func(key string) string {
+		if key == EnvAgentDelegationUntil {
+			return "2026-09-17T12:00:00Z"
+		}
+		return ""
+	})
+	if err == nil {
+		t.Fatal("retired scope-bypass window accepted")
 	}
 }
 

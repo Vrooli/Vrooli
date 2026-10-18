@@ -191,7 +191,7 @@ export function TeamEditorPanel({
   }, [onTabChange])
 
   // Dashboard health/activity state
-  const [teamHealth, setTeamHealth] = useState<'green' | 'yellow' | 'red' | 'gray'>('gray')
+  const [teamHealth, setTeamHealth] = useState<'green' | 'yellow' | 'red' | 'gray' | 'running'>('gray')
   const [lastActiveAt, setLastActiveAt] = useState<string | null>(null)
 
   const isMobile = useIsMobile()
@@ -581,9 +581,10 @@ export function TeamEditorPanel({
                   teamHealth === 'green' && 'bg-emerald-500',
                   teamHealth === 'yellow' && 'bg-amber-500',
                   teamHealth === 'red' && 'bg-red-500',
+                  teamHealth === 'running' && 'bg-sky-500',
                   teamHealth === 'gray' && 'bg-slate-500',
                 )}
-                title={teamHealth === 'green' ? 'Latest recorded heartbeat completed; outcome acceptance is separate' : teamHealth === 'yellow' ? 'Some recorded heartbeat failures' : teamHealth === 'red' ? 'Latest recorded heartbeat failed' : 'Scheduling disabled or execution evidence unavailable'}
+                title={teamHealth === 'green' ? 'Latest recorded heartbeat completed; outcome acceptance is separate' : teamHealth === 'yellow' ? 'Heartbeat attention or recorded failures need review' : teamHealth === 'red' ? 'Latest recorded heartbeat failed' : teamHealth === 'running' ? 'A heartbeat execution is currently running' : 'Scheduling disabled or execution evidence unavailable'}
               />
             </div>
 

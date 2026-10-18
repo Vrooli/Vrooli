@@ -1,43 +1,51 @@
 {
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "agent-manager.supervision-observation-read",
-  "version": "1",
+  "version": "3",
   "helpers": {"program": "1"},
-  "purpose": "Project one bounded Agent Manager owner observation into selected supervision evidence without rereading the board or transcripts.",
+  "purpose": "Read one bounded Agent Manager owner board and select retained unfinished effort obligations without inference or dispatch.",
   "inputs": {
-    "owner_observation": {
-      "type": "object",
-      "required": true,
-      "description": "One owner-produced EffortDiscovery join containing selected effort rows and references."
+    "page_size": {
+      "type": "integer",
+      "default": 8,
+      "description": "One bounded owner board page, from 1 through 8 rows. The smaller page keeps the compact projection within the 64 KiB output tier."
     },
-    "selected_effort_refs": {
-      "type": "array",
-      "required": true,
-      "description": "The exact effort references selected for this wake; at most 16."
+    "page_token": {
+      "type": "string",
+      "default": "",
+      "description": "Opaque continuation token returned by the previous owner board page."
     }
   },
   "assumptions": [
-    "Agent Manager owns the supplied observation and its detail references.",
-    "The observation contains bounded metadata and references, never transcript bodies or credentials."
+    "Agent Manager GetEffortBoard is the canonical bounded source for retained effort ownership, goal-home acceptance facts, and runtime observations.",
+    "A missing authorized_by field is not admission evidence in either direction; retained orchestrator/worker references and explicit goal-home obligations remain visible.",
+    "Goal-home contents describe work but do not prove native admission or retained ownership; only board-provided orchestrator/worker references qualify a row for supervision."
   ],
   "invariants": [
-    "Read-only finite projection; no owner calls, inference, launches, assessments or promotions.",
-    "Selection is exact and order-preserving; missing selected rows remain explicit uncertainty.",
-    "Prior assessment, changed evidence, usage, named waits and typed repair links remain joined with detail references.",
-    "The output is bounded to 16 selected rows and 32 total detail references."
+    "Exactly one bounded Agent Manager owner board call; no shell-out, second state, inference, launches, assessments or promotions.",
+    "Unknown, review-required, blocked, stale and unavailable runtime facts do not remove unfinished retained owner obligations from selection.",
+    "Withdrawn efforts are shown as retired and never selected; rows lacking native retained-owner evidence remain visible as admission/completion unknown.",
+    "Partial, stale, unavailable and paged coverage remain explicit; the output contains at most 8 rows and 8 evidence references.",
+    "Owner references are stably ordered with known unfinished or unknown states before known terminal states, then capped at 8; owner_refs_total and owner_refs_truncated preserve evidence of omitted references."
   ],
-  "verbs": ["gather"],
-  "bindings": [],
+  "verbs": [],
+  "bindings": [
+    {
+      "id": "agent-manager/effort/board",
+      "effect": "read",
+      "note": "One canonical page of the existing AM effort board; selection is deterministic and read-only."
+    }
+  ],
   "outputs": {
-    "status": {"enum": ["ok", "failed", "unavailable", "refused"]},
+    "status": {"enum": ["ok", "partial", "failed", "unavailable", "refused"]},
     "phase": {"enum": ["validate", "collect", "report"]},
-    "signals": {"summary": "Selected compact owner rows and their bounded detail references"},
-    "errors": {"classes": ["invalid_input", "identity_mismatch", "output_budget_exhausted", "kernel_runtime"]},
+    "signals": {"summary": "Selected compact owner rows, explicit eligibility reasons, page/freshness coverage, total/truncated owner-reference counts, and bounded detail references"},
+    "errors": {"classes": ["invalid_input", "owner_read_unavailable", "identity_mismatch", "output_budget_exhausted", "kernel_runtime"]},
     "evidence": "Selected owner and detail references"
   },
-  "budget": {"wall_ms": 5000, "inference_calls": 0, "delegated_runs": 0, "materialize_limit": 16},
+  "budget": {"wall_ms": 30000, "inference_calls": 0, "delegated_runs": 0, "materialize_limit": 8, "output_bytes": 65536},
   "fixtures": [
-    {"id": "missing-selection", "inputs": {"owner_observation": {}, "selected_effort_refs": []}, "expect": {"status": ["failed"]}, "requires": []}
+    {"id": "bounded-first-page", "inputs": {"page_size": 8}, "expect": {"status": ["ok", "partial"]}, "requires": ["agent-manager/effort/board"]}
   ],
   "rung": "S3",
   "owner_skill": "agent-manager"

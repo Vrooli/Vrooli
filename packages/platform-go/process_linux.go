@@ -3,6 +3,7 @@
 package platform
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -72,6 +73,57 @@ func gracefulStopProcess(process *os.Process) error {
 }
 
 func processGroupID(pid int) (int, error) { return syscall.Getpgid(pid) }
+
+func processGroupHasLiveMembers(ctx context.Context, groupID int) (bool, error) {
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
+	entries, err := os.ReadDir("/proc")
+	if err != nil {
+		return false, err
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		pid, err := strconv.Atoi(entry.Name())
+		if err != nil {
+			continue
+		}
+		data, err := os.ReadFile("/proc/" + entry.Name() + "/stat")
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) || errors.Is(err, syscall.ESRCH) {
+				continue
+			}
+			return false, fmt.Errorf("read process %d stat: %w", pid, err)
+		}
+		memberGroup, state, ok, err := parseProcessGroup(data)
+		if err != nil {
+			return false, fmt.Errorf("parse process %d stat: %w", pid, err)
+		}
+		if ok && memberGroup == groupID && state != 'Z' && state != 'X' {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func parseProcessGroup(stat []byte) (int, byte, bool, error) {
+	segment := strings.TrimSpace(string(stat))
+	closing := strings.LastIndex(segment, ")")
+	if closing < 0 || closing+1 >= len(segment) {
+		return 0, 0, false, fmt.Errorf("malformed stat record")
+	}
+	fields := strings.Fields(segment[closing+1:])
+	if len(fields) < 3 || len(fields[0]) != 1 {
+		return 0, 0, false, fmt.Errorf("stat record has no state or process group")
+	}
+	groupID, err := strconv.Atoi(fields[2])
+	if err != nil || groupID < 0 {
+		return 0, 0, false, fmt.Errorf("invalid process group %q", fields[2])
+	}
+	return groupID, fields[0][0], true, nil
+}
 
 func terminationSignals() []os.Signal { return []os.Signal{os.Interrupt, syscall.SIGTERM} }
 

@@ -24,13 +24,13 @@ export interface HeartbeatConfig {
   agentId: string
   enabled: boolean
   teamEnabled?: boolean
-  effectiveState?: 'scheduled' | 'team-disabled' | 'paused' | 'disabled' | 'not-scheduled' | 'unavailable'
+  effectiveState?: HeartbeatEffectiveState
   effectiveReason?: string
   controlState?: HeartbeatControlStatusValue
   scheduled?: boolean
   schedule: string
   profileKey?: string
-  lifecycleState?: string
+  lifecycleState?: HeartbeatLifecycleState
   wakeAdmission?: WakeAdmission
   finiteLeader?: {
     effortRef?: string
@@ -61,10 +61,121 @@ export interface WakeAdmission {
 export interface HeartbeatExecResult {
   startedAt: string
   endedAt?: string
-  status: 'running' | 'completed' | 'failed' | 'cancelled'
+  /** Open string: the API also returns persisted owner states such as needs_review. */
+  status: HeartbeatExecutionStatus
   runId?: string
   logPath?: string
   error?: string
+}
+
+export type HeartbeatEffectiveState =
+  | 'scheduled' | 'team-disabled' | 'paused' | 'disabled' | 'not-scheduled'
+  | 'unavailable' | 'scheduler-failed' | 'scheduler-stopped' | (string & {})
+
+export type HeartbeatLifecycleState =
+  | 'disabled' | 'never_fired' | 'healthy' | 'degraded' | 'broken'
+  | 'approval_pending' | 'needs_review' | 'observer_unavailable' | (string & {})
+
+export type HeartbeatExecutionStatus =
+  | 'running' | 'completed' | 'failed' | 'cancelled'
+  | 'approval_pending' | 'needs_review' | 'observer_unavailable'
+  | 'dispatch_uncertain' | 'owner_unreachable' | 'paused' | 'preparation_interrupted' | (string & {})
+
+/** Existing team execution-status owner read. Arrays may be null in JSON when empty. */
+export interface TeamExecutionStatus {
+  teamId: string
+  state: string
+  runningAgentIds?: string[] | null
+  queue?: string[] | null
+  queuePolicy?: string
+  maxConcurrentRuns?: number
+  uncertainAgentIds?: string[] | null
+  unreachableAgentIds?: string[] | null
+  pausedAgentIds?: string[] | null
+  approvalPendingAgentIds?: string[] | null
+  needsReviewAgentIds?: string[] | null
+  watcherUnavailableAgentIds?: string[] | null
+  preparationInterruptedAgentIds?: string[] | null
+  admissionDeferredAgentIds?: string[] | null
+}
+
+export type HeartbeatOwnerProjection =
+  | 'approval_pending'
+  | 'needs_review'
+  | 'observer_unavailable'
+  | 'preparation_interrupted'
+  | 'admission_deferred'
+  | 'uncertain'
+  | 'unreachable'
+  | 'degraded'
+  | 'broken'
+  | 'paused'
+  | 'running'
+  | 'failed'
+  | 'completed'
+  | 'cancelled'
+  | 'unavailable'
+  | 'disabled'
+  | 'team-disabled'
+  | 'not-scheduled'
+  | 'idle'
+  | 'unknown'
+
+/**
+ * Project the existing owner reads without inferring current health from an old
+ * successful execution. Retained queue obligations are newer than the config
+ * summary and therefore take precedence.
+ */
+export function projectHeartbeatOwnerStatus(
+  config: HeartbeatConfig | undefined,
+  teamStatus?: TeamExecutionStatus | null,
+  options: { queueReadAvailable?: boolean; configReadAvailable?: boolean; agentId?: string } = {},
+): HeartbeatOwnerProjection {
+  const agentId = config?.agentId ?? options.agentId
+  if (agentId) {
+    if (teamStatus?.admissionDeferredAgentIds?.includes(agentId)) return 'admission_deferred'
+    if (teamStatus?.preparationInterruptedAgentIds?.includes(agentId)) return 'preparation_interrupted'
+    if (teamStatus?.watcherUnavailableAgentIds?.includes(agentId)) return 'observer_unavailable'
+    if (teamStatus?.needsReviewAgentIds?.includes(agentId)) return 'needs_review'
+    if (teamStatus?.approvalPendingAgentIds?.includes(agentId)) return 'approval_pending'
+    if (teamStatus?.uncertainAgentIds?.includes(agentId)) return 'uncertain'
+    if (teamStatus?.unreachableAgentIds?.includes(agentId)) return 'unreachable'
+    if (teamStatus?.pausedAgentIds?.includes(agentId)) return 'paused'
+    if (teamStatus?.runningAgentIds?.includes(agentId)) return 'running'
+  }
+
+  if (!config) return 'unknown'
+  if (options.configReadAvailable === false) return 'unknown'
+  if (config.lifecycleState === 'approval_pending') return 'approval_pending'
+  if (config.lifecycleState === 'needs_review') return 'needs_review'
+  if (config.lifecycleState === 'observer_unavailable') return 'observer_unavailable'
+  if (config.lifecycleState === 'broken') return 'broken'
+  if (config.lifecycleState === 'degraded') return 'degraded'
+  if (config.lifecycleState === 'disabled') return 'disabled'
+  if (config.lifecycleState === 'never_fired') return 'idle'
+  if (config.effectiveState === 'unavailable' || config.effectiveState === 'scheduler-stopped') return 'unavailable'
+  if (config.effectiveState === 'scheduler-failed') return 'failed'
+  if (options.queueReadAvailable === false) return 'unknown'
+  if (config.effectiveState === 'team-disabled') return 'team-disabled'
+  if (config.effectiveState === 'paused') return 'paused'
+  if (config.effectiveState === 'disabled') return 'disabled'
+  if (config.effectiveState === 'not-scheduled') return 'not-scheduled'
+  if (config.lifecycleState && config.lifecycleState !== 'healthy') return 'unknown'
+
+  const status = config.lastExecution?.status
+  if (status === 'approval_pending') return 'approval_pending'
+  if (status === 'needs_review') return 'needs_review'
+  if (status === 'observer_unavailable' || status === 'watcher_unavailable') return 'observer_unavailable'
+  if (status === 'dispatch_uncertain' || status === 'uncertain') return 'uncertain'
+  if (status === 'owner_unreachable' || status === 'unreachable') return 'unreachable'
+  if (status === 'paused') return 'paused'
+  if (status === 'running') return 'running'
+  if (status === 'failed') return 'failed'
+  if (status === 'completed') return 'completed'
+  if (status === 'cancelled') return 'cancelled'
+  if (status) return 'unknown'
+  if (config.effectiveState === 'scheduled' || config.enabled) return 'idle'
+  return 'not-scheduled'
 }
 
 export interface CreateHeartbeatRequest {
@@ -459,6 +570,11 @@ export async function listHeartbeats(teamId: string): Promise<HeartbeatConfig[]>
 
   heartbeatListInFlight.set(teamId, request)
   return request
+}
+
+/** Read current queue ownership and retained obligations for the team. */
+export async function getTeamExecutionStatus(teamId: string): Promise<TeamExecutionStatus> {
+  return apiRequest<TeamExecutionStatus>(`/teams/${encodeURIComponent(teamId)}/execution-status`)
 }
 
 /**

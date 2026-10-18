@@ -60,6 +60,42 @@ func TestEnvelopeToEventRoundTrip(t *testing.T) {
 	}
 }
 
+func TestEnvelopeToEventCorrelationIndexFallback(t *testing.T) {
+	tests := []struct {
+		name        string
+		correlation *domain.EventCorrelation
+		want        string
+	}{
+		{
+			name:        "request ID is queryable when agent run ID is absent",
+			correlation: &domain.EventCorrelation{RequestId: "trace-abc123"},
+			want:        "trace-abc123",
+		},
+		{
+			name:        "agent run ID keeps existing index priority",
+			correlation: &domain.EventCorrelation{AgentRunId: "run-1", RequestId: "trace-abc123"},
+			want:        "run-1",
+		},
+		{
+			name: "missing correlation remains empty",
+			want: "",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			env := &domain.EventEnvelope{EventId: "evt-correlation", Correlation: tc.correlation}
+			event, err := EnvelopeToEvent(env)
+			if err != nil {
+				t.Fatalf("EnvelopeToEvent: %v", err)
+			}
+			if event.CorrelationID != tc.want {
+				t.Fatalf("CorrelationID = %q, want %q", event.CorrelationID, tc.want)
+			}
+		})
+	}
+}
+
 func TestEventToEnvelopeRejectsNonCanonicalPayload(t *testing.T) {
 	_, err := EventToEnvelope(store.Event{EventID: "legacy", Payload: []byte("not-a-canonical-envelope")})
 	if err == nil {

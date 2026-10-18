@@ -144,3 +144,32 @@ func TestRunOrdinaryWakeFailsOpenWhenEvidenceUnavailable(t *testing.T) {
 		t.Fatalf("fail-open telemetry = %+v", state)
 	}
 }
+
+func TestTaskApprovalPendingScheduledRetryBypassesUnchangedWakeSignal(t *testing.T) {
+	exec := &taskApprovalSequenceExecutor{calls: 1}
+	teamExecStore := NewTeamExecutionStore(nil, exec, t.TempDir(), nil)
+	config := &store.HeartbeatConfig{
+		TeamID:   "team-1",
+		AgentID:  "agent-1",
+		Enabled:  true,
+		Schedule: "0 * * * *",
+		WakeAdmission: &teamconfig.WakeAdmission{
+			Mode:          teamconfig.WakeAdmissionOnChange,
+			ChangeSources: []string{"team"},
+		},
+		LastExecution: &store.HeartbeatExecResult{Status: store.HeartbeatStatusApprovalPending, Phase: "creating_task"},
+	}
+	state := &fakeAdmissionState{state: &store.HeartbeatAdmissionState{Version: 1, LastSignal: "signal-a"}}
+	scheduler := NewScheduler(exec, nil, &stubConfigStore{config: config}, teamExecStore)
+	scheduler.wakeSignals = fakeWakeSignals{signal: WakeSignal{Key: "signal-a"}}
+	scheduler.admissionState = state
+
+	scheduler.executeHeartbeat(context.Background(), "team-1", "agent-1")
+	teamExecStore.Shutdown()
+	if exec.calls != 2 {
+		t.Fatalf("typed no-effect task approval must retry despite unchanged signal; Execute calls=%d", exec.calls)
+	}
+	if state.state.QuietCount != 0 {
+		t.Fatalf("approval retry consumed unchanged wake decision: %+v", state.state)
+	}
+}

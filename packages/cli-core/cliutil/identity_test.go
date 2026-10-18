@@ -2,8 +2,11 @@ package cliutil
 
 import (
 	"encoding/json"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -113,6 +116,62 @@ func TestVerifyIdentity_Success(t *testing.T) {
 	}
 	if result.Claims.Meta["key"] != "value" {
 		t.Errorf("Meta[key] = %q, want %q", result.Claims.Meta["key"], "value")
+	}
+}
+
+func TestVerifyIdentityUsesExplicitBodyCredentialWithoutAmbientBroker(t *testing.T) {
+	tmp, err := os.MkdirTemp("/tmp", "a108-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(tmp) })
+	t.Setenv("TMPDIR", tmp)
+	t.Setenv(EnvIdentityToken, "ambient-service-credential")
+	t.Setenv("AGENT_MANAGER_API_BASE", "")
+
+	socket := AgentCredentialSocket()
+	if err := os.MkdirAll(filepath.Dir(socket), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	listener, err := net.Listen("unix", socket)
+	if err != nil {
+		t.Fatal(err)
+	}
+	brokerCalls := make(chan struct{}, 1)
+	broker := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		brokerCalls <- struct{}{}
+		http.Error(w, `{"code":"authority_unavailable"}`, http.StatusForbidden)
+	})}
+	go func() { _ = broker.Serve(listener) }()
+	t.Cleanup(func() { _ = broker.Close() })
+
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/api/v1/identity/verify" {
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+		}
+		if r.Header.Get(HeaderAgentIdentityToken) != "" || r.Header.Get(HeaderAgentOperationToken) != "" {
+			t.Errorf("identity verification sent ambient proof headers: identity=%t operation=%t", r.Header.Get(HeaderAgentIdentityToken) != "", r.Header.Get(HeaderAgentOperationToken) != "")
+		}
+		var body map[string]string
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Errorf("decode request: %v", err)
+		}
+		if body["token"] != "explicit-run-token" {
+			t.Errorf("verification body token = %q, want explicit selected token", body["token"])
+		}
+		_ = json.NewEncoder(w).Encode(VerifyResult{Valid: true, Claims: &VerifiedClaims{RunID: "run-id"}})
+	}))
+	defer api.Close()
+	t.Setenv("AGENT_MANAGER_API_BASE", api.URL)
+
+	result, err := (IdentityEnv{Token: "explicit-run-token"}).VerifyIdentity()
+	if err != nil || result == nil || !result.Valid || result.Claims == nil || result.Claims.RunID != "run-id" {
+		t.Fatalf("explicit body token was not independently verified: result=%+v err=%v", result, err)
+	}
+	select {
+	case <-brokerCalls:
+		t.Fatal("identity verification consulted the ambient credential broker")
+	default:
 	}
 }
 

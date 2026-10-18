@@ -918,7 +918,10 @@ func (h *Handler) WakeParkedRuns(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	for _, run := range parked {
-		if !h.lineageLifecycleAllowed(r, run.ID, true) && h.denyRunInitiatedLifecycleOperation(w, r, "wake-run") {
+		if h.lineageLifecycleAllowed(r, run.ID, true) || h.runLifecycleGrantAllowsTarget(r, "wake-run", run.ID) {
+			continue
+		}
+		if h.denyRunInitiatedLifecycleOperation(w, r, "wake-run") {
 			return
 		}
 	}

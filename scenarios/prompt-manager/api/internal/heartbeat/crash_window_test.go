@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"sync"
 	"testing"
+
+	"github.com/google/uuid"
 )
 
 // Crash-window harness for heartbeat dispatch (runtime Phase 4, R28/R29).
@@ -46,10 +48,10 @@ func newIdempotentRunOwner() *idempotentRunOwner {
 // seedAccepted models an owner that accepted a start request before the caller
 // learned the run identity: the keyed run already exists and a replay must
 // return it rather than create another.
-func (o *idempotentRunOwner) seedAccepted(key, runID string) {
+func (o *idempotentRunOwner) seedAccepted(key, runID, taskID string) {
 	o.idemMu.Lock()
 	defer o.idemMu.Unlock()
-	o.runsByKey[key] = &Run{ID: runID, TaskID: "task-1", Status: "RUN_STATUS_RUNNING"}
+	o.runsByKey[key] = &Run{ID: runID, TaskID: taskID, Status: "RUN_STATUS_RUNNING"}
 }
 
 func (o *idempotentRunOwner) CreateRun(_ context.Context, req *CreateRunRequest) (*Run, error) {
@@ -84,43 +86,64 @@ func (o *idempotentRunOwner) newRunsCreated() int {
 // seedCrashDurableState writes the durable queue file exactly as Execute leaves
 // it when the process dies mid-dispatch: one dispatch_uncertain running entry
 // carrying the owner idempotency key, task and tag, with no RunID.
-func seedCrashDurableState(t *testing.T, dir, key string) {
+func seedCrashDurableState(t *testing.T, dir, key string) string {
 	t.Helper()
-	writeQueueFile(t, dir, "team-x", persistedTeamQueue{
-		TeamID:            "team-x",
+	taskID := uuid.NewString()
+	taskSnapshot, err := freezeTaskDispatchRequest(&Task{
+		ID: taskID, Title: "Heartbeat: team-1/agent-1", Description: "frozen heartbeat task",
+		ScopePath: "/workspace", ProjectRoot: "/workspace",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	runSnapshot := createRunSnapshotForTest(t, key, taskID, "profile-p", "heartbeat-team-1-agent-1")
+	writeQueueFile(t, dir, "team-1", persistedTeamQueue{
+		TeamID:            "team-1",
 		QueuePolicy:       "serialized",
 		MaxConcurrentRuns: 1,
 		Running: []queuedExecution{
 			{
-				AgentID:        "agent-1",
-				ProfileKey:     "profile-p",
-				State:          ObligationDispatchUncertain,
-				IdempotencyKey: key,
-				TaskID:         "task-1",
-				RunTag:         "heartbeat-team-x-agent-1",
+				AgentID:                  "agent-1",
+				ProfileKey:               "profile-p",
+				State:                    ObligationDispatchUncertain,
+				AdmissionOrigin:          AdmissionOriginScheduled,
+				IdempotencyKey:           key,
+				TaskID:                   taskID,
+				TaskRequestSnapshot:      taskSnapshot,
+				TaskConfirmed:            true,
+				CreateRunRequestSnapshot: runSnapshot,
+				CreateRunCallerMode:      createRunCallerOriginUnqualified,
+				RunTag:                   "heartbeat-team-1-agent-1",
 			},
 		},
 	})
+	return taskID
 }
 
-// TestCrashWindow_BeforeDispatchReplaysToExactlyOneObligation covers window 1:
-// the intent is durable but no request reached the owner. Recovery replays the
-// idempotent start, creates the intended run, refuses a duplicate heartbeat
-// while the obligation holds the slot, and reopens capacity once the owner
-// reports terminal state.
+// TestCrashWindow_BeforeDispatchReplaysToExactlyOneObligation covers a known
+// scheduled intent after restart. Recovery itself must not replay; the next
+// currently eligible scheduled callback replays the exact idempotent start.
 func TestCrashWindow_BeforeDispatchReplaysToExactlyOneObligation(t *testing.T) {
+	teamStore, _, _ := setupExecutorTestEnv(t)
 	dir := t.TempDir()
-	key := "prompt-manager-heartbeat:team-x:agent-1:attempt-1"
+	key := "prompt-manager-heartbeat:team-1:agent-1:attempt-1"
 	seedCrashDurableState(t, dir, key)
 
 	owner := newIdempotentRunOwner()
 	exec := &watcherExecutor{}
-	tec := newTeamExecutionContext("team-x", exec, dir, owner)
+	store := NewTeamExecutionStore(teamStore, exec, dir, owner)
+	store.Recover(context.Background())
+	tec := store.GetOrCreate("team-1")
 
-	tec.Recover(context.Background())
-
+	if got := len(owner.createRunCalls); got != 0 {
+		t.Fatalf("passive recovery must not replay before a current scheduled callback, got %d", got)
+	}
+	if got := len(tec.Status().UncertainAgentIDs); got != 1 {
+		t.Fatalf("passive recovery must retain the uncertain obligation, got %+v", tec.Status())
+	}
+	NewScheduler(exec, owner, teamStore, store).executeHeartbeat(context.Background(), "team-1", "agent-1")
 	if got := len(owner.createRunCalls); got != 1 {
-		t.Fatalf("expected exactly one recovery replay, got %d", got)
+		t.Fatalf("eligible scheduled callback should make exactly one replay, got %d", got)
 	}
 	if got := owner.createRunCalls[0].IdempotencyKey; got != key {
 		t.Fatalf("expected recorded idempotency key replayed, got %q", got)
@@ -136,7 +159,7 @@ func TestCrashWindow_BeforeDispatchReplaysToExactlyOneObligation(t *testing.T) {
 	if len(status.UncertainAgentIDs) != 0 {
 		t.Fatalf("expected uncertainty cleared after replay, got %+v", status)
 	}
-	persisted := readQueueFile(t, dir, "team-x")
+	persisted := readQueueFile(t, dir, "team-1")
 	if len(persisted.Running) != 1 || persisted.Running[0].RunID != "run-1" {
 		t.Fatalf("expected recovered RunID persisted, got %+v", persisted.Running)
 	}
@@ -164,22 +187,30 @@ func TestCrashWindow_BeforeDispatchReplaysToExactlyOneObligation(t *testing.T) {
 
 // TestCrashWindow_AfterAcceptedStartConvergesOnAcceptedRun covers window 2: the
 // owner already holds the accepted run, but the caller never recorded its ID.
-// Recovery replays the same key and must converge on the existing run rather
-// than start a second, so there is exactly one accepted live obligation.
+// The next eligible scheduled callback replays the same key and converges on
+// the existing run rather than starting a second.
 func TestCrashWindow_AfterAcceptedStartConvergesOnAcceptedRun(t *testing.T) {
+	teamStore, _, _ := setupExecutorTestEnv(t)
 	dir := t.TempDir()
-	key := "prompt-manager-heartbeat:team-x:agent-1:attempt-1"
-	seedCrashDurableState(t, dir, key)
+	key := "prompt-manager-heartbeat:team-1:agent-1:attempt-1"
+	taskID := seedCrashDurableState(t, dir, key)
 
 	owner := newIdempotentRunOwner()
-	owner.seedAccepted(key, "run-accepted")
+	owner.seedAccepted(key, "run-accepted", taskID)
 	exec := &watcherExecutor{}
-	tec := newTeamExecutionContext("team-x", exec, dir, owner)
+	store := NewTeamExecutionStore(teamStore, exec, dir, owner)
+	store.Recover(context.Background())
+	tec := store.GetOrCreate("team-1")
 
-	tec.Recover(context.Background())
-
+	if got := len(owner.createRunCalls); got != 0 {
+		t.Fatalf("passive recovery must not replay before a current scheduled callback, got %d", got)
+	}
+	if got := len(tec.Status().UncertainAgentIDs); got != 1 {
+		t.Fatalf("passive recovery must retain the uncertain obligation, got %+v", tec.Status())
+	}
+	NewScheduler(exec, owner, teamStore, store).executeHeartbeat(context.Background(), "team-1", "agent-1")
 	if got := len(owner.createRunCalls); got != 1 {
-		t.Fatalf("expected exactly one recovery replay, got %d", got)
+		t.Fatalf("eligible scheduled callback should make exactly one replay, got %d", got)
 	}
 	if got := owner.createRunCalls[0].IdempotencyKey; got != key {
 		t.Fatalf("expected recorded idempotency key replayed, got %q", got)
@@ -198,7 +229,7 @@ func TestCrashWindow_AfterAcceptedStartConvergesOnAcceptedRun(t *testing.T) {
 	if len(status.UncertainAgentIDs) != 0 {
 		t.Fatalf("expected uncertainty cleared after converging replay, got %+v", status)
 	}
-	persisted := readQueueFile(t, dir, "team-x")
+	persisted := readQueueFile(t, dir, "team-1")
 	if len(persisted.Running) != 1 || persisted.Running[0].RunID != "run-accepted" {
 		t.Fatalf("expected the accepted RunID bound, got %+v", persisted.Running)
 	}

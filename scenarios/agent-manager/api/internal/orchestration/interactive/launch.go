@@ -84,6 +84,13 @@ func BuildLaunchCommand(p LaunchCommandParams) (string, error) {
 	} else if strings.TrimSpace(cfg.Model) != "" || cfg.Effort != "" || len(cfg.AllowedTools) > 0 || len(cfg.DeniedTools) > 0 {
 		return "", fmt.Errorf("interactive launch for %s: control argument provider is required", p.RunnerType)
 	}
+	// The interactive substrate sends native slash commands as ordinary
+	// keystrokes. Codex otherwise reclassifies a long keystroke burst as pasted
+	// content, so disable only that automatic classification for managed
+	// interactive sessions. Explicit bracketed-paste task prompts remain intact.
+	if p.RunnerType == domain.RunnerTypeCodex {
+		controlArgs = append(controlArgs, "-c", "tui.disable_paste_burst=true")
+	}
 	for _, arg := range controlArgs {
 		if strings.HasPrefix(arg, "-") {
 			args = append(args, arg)

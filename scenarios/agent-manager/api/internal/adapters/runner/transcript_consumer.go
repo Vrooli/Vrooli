@@ -38,7 +38,15 @@ type ConsumeArgs struct {
 	OnGoalStatus func(marker GoalMarker) error
 	OnLabel      func(label string, source domain.RunLabelSource) error
 	OnTerminal   func(terminal *TranscriptTerminal) error
-	PollInterval time.Duration
+	// StopBeforeTranscriptResult can stop consumption before a boundary record
+	// is emitted or persisted. It is used by interactive goal draining to keep
+	// the next user turn out of the completed run's result.
+	StopBeforeTranscriptResult func(TranscriptParseResult) bool
+	// StopAfterTranscriptResult can stop consumption after the current record
+	// and cursor have been durably advanced. It is used to end a bounded drain
+	// at the provider turn boundary.
+	StopAfterTranscriptResult func(TranscriptParseResult) bool
+	PollInterval              time.Duration
 }
 
 // TranscriptCursorAdvanceError identifies a failure to persist replay
@@ -117,6 +125,9 @@ func Consume(ctx context.Context, args ConsumeArgs) (int64, *TranscriptTerminal,
 		occurrenceOffset := cursor
 		cursor += int64(len(line))
 		result := args.ParseFn(args.RunID, line)
+		if args.StopBeforeTranscriptResult != nil && args.StopBeforeTranscriptResult(result) {
+			return occurrenceOffset, terminal, nil
+		}
 		if result.ReplaySafeEvents {
 			// Occurrence identity includes the real source location; identical
 			// records at distinct offsets must remain distinct evidence.
@@ -235,6 +246,9 @@ func Consume(ctx context.Context, args ConsumeArgs) (int64, *TranscriptTerminal,
 			if err := args.OnAdvance(cursor, lastSeq); err != nil {
 				return cursor, terminal, &TranscriptCursorAdvanceError{Err: err}
 			}
+		}
+		if args.StopAfterTranscriptResult != nil && args.StopAfterTranscriptResult(result) {
+			return cursor, terminal, nil
 		}
 	}
 }

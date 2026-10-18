@@ -728,45 +728,90 @@ type HeartbeatExecResult struct {
 	StartedAt string `json:"startedAt"`
 	EndedAt   string `json:"endedAt,omitempty"`
 	Status    string `json:"status"` // running, completed, failed
+	Phase     string `json:"phase,omitempty"`
 	RunID     string `json:"runId,omitempty"`
 	LogPath   string `json:"logPath,omitempty"`
 	Error     string `json:"error,omitempty"`
+	// AdmissionReason is the bounded reason returned by Agent Manager's
+	// service-admission gate. It is an enum, never a response body or credential.
+	AdmissionReason string `json:"admissionReason,omitempty"`
 }
 
 // HeartbeatAttempt records an attempted heartbeat dispatch, including failures
 // that happen before agent-manager can create a run.
 type HeartbeatAttempt struct {
-	ID                string `json:"id"`
-	TeamID            string `json:"teamId"`
-	AgentID           string `json:"agentId"`
-	ProfileKey        string `json:"profileKey,omitempty"`
-	TaskID            string `json:"taskId,omitempty"`
-	RunID             string `json:"runId,omitempty"`
-	Tag               string `json:"tag,omitempty"`
-	Status            string `json:"status"`
-	Phase             string `json:"phase"`
-	StartedAt         string `json:"startedAt"`
-	EndedAt           string `json:"endedAt,omitempty"`
-	ErrorCategory     string `json:"errorCategory,omitempty"`
-	Error             string `json:"error,omitempty"`
+	ID      string `json:"id"`
+	TeamID  string `json:"teamId"`
+	AgentID string `json:"agentId"`
+	// OwnerObligationID and RetainedOwnerState identify an owner-state review
+	// fact emitted from the durable team queue. These facts use the heartbeat
+	// event publisher but are not dispatch attempts and are excluded from the
+	// attempt-history projection.
+	OwnerObligationID  string `json:"ownerObligationId,omitempty"`
+	RetainedOwnerState string `json:"retainedOwnerState,omitempty"`
+	ObservedAt         string `json:"observedAt,omitempty"`
+	ProfileKey         string `json:"profileKey,omitempty"`
+	TaskID             string `json:"taskId,omitempty"`
+	RunID              string `json:"runId,omitempty"`
+	Tag                string `json:"tag,omitempty"`
+	Status             string `json:"status"`
+	Phase              string `json:"phase"`
+	StartedAt          string `json:"startedAt"`
+	EndedAt            string `json:"endedAt,omitempty"`
+	ErrorCategory      string `json:"errorCategory,omitempty"`
+	Error              string `json:"error,omitempty"`
+	// AdmissionReason retains the owner's allowlisted authorization category.
+	AdmissionReason   string `json:"admissionReason,omitempty"`
 	Recovery          string `json:"recovery,omitempty"`
 	RecoveryRequestID string `json:"recoveryRequestId,omitempty"`
+	// ConsecutiveFailures, FailureEpisodeID, and RecoveryOutcome let consumers
+	// render threshold-or-later failures without inferring across attempts. The
+	// request outcome describes only the existing recovery-request seam; it is
+	// not evidence of approval or completed remediation.
+	ConsecutiveFailures int    `json:"consecutiveFailures,omitempty"`
+	FailureEpisodeID    string `json:"failureEpisodeId,omitempty"`
+	RecoveryOutcome     string `json:"recoveryOutcome,omitempty"`
+	ReviewURL           string `json:"reviewUrl,omitempty"`
+	AttentionEligible   bool   `json:"attentionEligible,omitempty"`
 }
+
+const (
+	HeartbeatRecoveryNotRequested         = "not_requested"
+	HeartbeatRecoveryBelowThreshold       = "below_threshold"
+	HeartbeatRecoveryRequestSubmitted     = "request_submitted"
+	HeartbeatRecoveryRequestUnconfirmed   = "request_unconfirmed"
+	HeartbeatRecoveryRequestSuppressed    = "request_suppressed"
+	HeartbeatRecoveryRequesterUnavailable = "requester_unavailable"
+)
+
+const (
+	HeartbeatOwnerStateDispatchUncertain      = "dispatch_uncertain"
+	HeartbeatOwnerStateOwnerUnreachable       = "owner_unreachable"
+	HeartbeatOwnerStateNeedsReview            = "needs_review"
+	HeartbeatOwnerStateWatcherUnavailable     = "watcher_unavailable"
+	HeartbeatOwnerStatePreparationInterrupted = "preparation_interrupted"
+)
 
 // Heartbeat config constants
 const (
 	KindHeartbeatConfig = "heartbeat-config"
 
-	HeartbeatStatusRunning   = "running"
-	HeartbeatStatusCompleted = "completed"
-	HeartbeatStatusFailed    = "failed"
-	HeartbeatStatusCancelled = "cancelled"
+	HeartbeatStatusRunning             = "running"
+	HeartbeatStatusCompleted           = "completed"
+	HeartbeatStatusFailed              = "failed"
+	HeartbeatStatusCancelled           = "cancelled"
+	HeartbeatStatusApprovalPending     = "approval_pending"
+	HeartbeatStatusNeedsReview         = "needs_review"
+	HeartbeatStatusObserverUnavailable = "observer_unavailable"
 
-	HeartbeatLifecycleDisabled   = "disabled"
-	HeartbeatLifecycleNeverFired = "never_fired"
-	HeartbeatLifecycleHealthy    = "healthy"
-	HeartbeatLifecycleDegraded   = "degraded"
-	HeartbeatLifecycleBroken     = "broken"
+	HeartbeatLifecycleDisabled            = "disabled"
+	HeartbeatLifecycleNeverFired          = "never_fired"
+	HeartbeatLifecycleHealthy             = "healthy"
+	HeartbeatLifecycleDegraded            = "degraded"
+	HeartbeatLifecycleBroken              = "broken"
+	HeartbeatLifecycleApprovalPending     = "approval_pending"
+	HeartbeatLifecycleNeedsReview         = "needs_review"
+	HeartbeatLifecycleObserverUnavailable = "observer_unavailable"
 
 	DefaultHeartbeatTimeoutSeconds = 2700 // 45 minutes
 	MinHeartbeatTimeoutSeconds     = 60   // 1 minute
@@ -787,6 +832,20 @@ func (c *HeartbeatConfig) RefreshHealth() {
 	}
 	if c.LastExecution == nil {
 		c.LifecycleState = HeartbeatLifecycleNeverFired
+		return
+	}
+	// These states come from explicit owner responses. Age alone never turns a
+	// running heartbeat into a crash or review finding.
+	if c.LastExecution.Status == HeartbeatStatusApprovalPending {
+		c.LifecycleState = HeartbeatLifecycleApprovalPending
+		return
+	}
+	if c.LastExecution.Status == HeartbeatStatusNeedsReview {
+		c.LifecycleState = HeartbeatLifecycleNeedsReview
+		return
+	}
+	if c.LastExecution.Status == HeartbeatStatusObserverUnavailable {
+		c.LifecycleState = HeartbeatLifecycleObserverUnavailable
 		return
 	}
 	if c.ConsecutiveFailures >= 2 {

@@ -489,7 +489,7 @@ func walkTreeInputs(root, start string, skip, skipSuffixes []string, visit func(
 		if d.Type()&os.ModeSymlink != 0 {
 			return nil
 		}
-		if buildinfoSkipDir(rel) && d.IsDir() {
+		if buildinfoSkipDir(root, rel) && d.IsDir() {
 			return filepath.SkipDir
 		}
 		if d.IsDir() || buildinfoSkipFile(rel, skip) || hasSkippedSuffix(rel, skipSuffixes) || isBuildOutput(rel) {

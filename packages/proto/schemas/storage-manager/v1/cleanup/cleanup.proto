@@ -151,6 +151,9 @@ message ApplyPlanRequest {
   string approval_mode = 3;
   string approval_token = 4;
   string idempotency_key = 5;
+  // Optional exact preview item IDs. Empty preserves whole-plan behavior.
+  // Unknown IDs reject the request before any effect. Selection is replay-bound.
+  repeated string item_ids = 6;
 }
 
 message ApplyPlanResponse {

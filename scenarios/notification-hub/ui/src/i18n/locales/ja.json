@@ -101,6 +101,8 @@
       "sending": "送信中…",
       "saveError": "回答は保存されませんでした: {{message}}",
       "more": "詳細",
+      "bigPicture": "この判断が重要な理由",
+      "technicalDetails": "技術的な詳細",
       "back": "すべての判断"
     }
   },

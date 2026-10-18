@@ -51,7 +51,8 @@ func View(d *pb.EffortDecision) goalhome.Decision {
 	view := goalhome.Decision{
 		ID: d.GetDecisionId(), Question: d.GetQuestion(), Recommended: d.GetRecommended(),
 		RecommendationReason: d.GetRecommendationReason(), DefaultAnswer: d.GetDefaultAnswer(), Reversible: d.GetReversible(),
-		Urgency: d.GetUrgency(), Note: d.GetNote(), ContextURL: d.GetContextUrl(), State: d.GetState(),
+		Urgency: d.GetUrgency(), Note: d.GetNote(), BigPicture: d.GetBigPicture(), TechnicalDetails: d.GetTechnicalDetails(),
+		ContextURL: d.GetContextUrl(), State: d.GetState(),
 		Answer: d.GetAnswer(), AnswerLabel: d.GetAnswerLabel(), AnswerNote: d.GetAnswerNote(), AnsweredVia: d.GetAnsweredVia(),
 		Late: d.GetLate(), AskID: d.GetAskId(),
 	}
@@ -81,11 +82,19 @@ func RequestedEvent(d *pb.EffortDecision) eventbus.DomainEvent {
 	if d.GetEffortRef() != "" {
 		correlation["effort_ref"] = d.GetEffortRef()
 	}
+	payload := View(d).RequestPayload(subject, correlation)
+	// Preserve the producer's existing note as the legacy technical-context
+	// fallback. Explicit technical details win. AnswerNote belongs to the reply.
+	if strings.TrimSpace(d.GetTechnicalDetails()) == "" {
+		if note := strings.TrimSpace(d.GetNote()); note != "" {
+			payload["technical_details"] = note
+		}
+	}
 	return eventbus.DomainEvent{
 		Source:    Source,
 		EventType: goalhome.DecisionRequestedEventType,
 		Occurred:  d.GetCreatedAt().AsTime().UTC(),
-		Payload:   View(d).RequestPayload(subject, correlation),
+		Payload:   payload,
 	}
 }
 

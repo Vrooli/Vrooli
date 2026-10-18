@@ -173,7 +173,7 @@ type Coordinator struct {
 	recoverableInterruption atomic.Bool
 	recoveryScheduled       atomic.Bool
 	recoveryReady           chan struct{}
-	recoverySucceeded       atomic.Bool
+	recoveryCanReattach     atomic.Bool
 }
 
 // NewCoordinator builds a Coordinator, applying defaults for any unset cadence.
@@ -426,29 +426,30 @@ func (c *Coordinator) tailLoop(ctx context.Context, run *domain.Run, tc tailCont
 		}
 
 		tctx, cancel := context.WithCancel(ctx)
-		gone := c.watchSession(tctx, cancel, run)
+		gone := c.watchSession(tctx, ctx, cancel, run)
 
 		mu.Lock()
 		startCursor := cursor
 		mu.Unlock()
 
 		term, err := c.deps.Tailer.Tail(tctx, TailParams{
-			RunID:          run.ID,
-			RunnerType:     run.ResolvedConfig.RunnerType,
-			Model:          transcriptModel(run),
-			TranscriptPath: run.TranscriptPath,
-			SessionID:      run.SessionID,
-			Until:          run.ResolvedConfig.Until,
-			MaxTurns:       run.ResolvedConfig.MaxTurns,
-			Billing:        run.Billing,
-			RunDir:         tc.RunDir,
-			WorkingDir:     tc.WorkingDir,
-			LaunchedAt:     tc.LaunchedAt,
-			StartCursor:    startCursor,
-			Sink:           sink,
-			OnAdvance:      onAdvance,
-			OnSessionID:    onSessionID,
-			OnGoalStatus:   onGoalStatus,
+			RunID:            run.ID,
+			RunnerType:       run.ResolvedConfig.RunnerType,
+			Model:            transcriptModel(run),
+			TranscriptPath:   run.TranscriptPath,
+			SessionID:        run.SessionID,
+			Until:            run.ResolvedConfig.Until,
+			MaxTurns:         run.ResolvedConfig.MaxTurns,
+			Billing:          run.Billing,
+			RunDir:           tc.RunDir,
+			WorkingDir:       tc.WorkingDir,
+			LaunchedAt:       tc.LaunchedAt,
+			StartCursor:      startCursor,
+			GoalDrainTimeout: c.debounce,
+			Sink:             sink,
+			OnAdvance:        onAdvance,
+			OnSessionID:      onSessionID,
+			OnGoalStatus:     onGoalStatus,
 			GoalMarkerObserved: func() bool {
 				return lastGoal != nil
 			},
@@ -465,12 +466,12 @@ func (c *Coordinator) tailLoop(ctx context.Context, run *domain.Run, tc tailCont
 		if err != nil {
 			if c.recoverableInterruption.Load() {
 				// The watcher cancelled the tail so the coordinator can wait for
-				// the delayed retry. Keep this coordinator attached; otherwise a
-				// successful retry would have nobody reading the next turn.
+				// the delayed retry. Keep this coordinator attached when a fresh
+				// check proves it is safe to observe the same session again.
 				select {
 				case <-c.recoveryReady:
-					if c.recoverySucceeded.Load() {
-						c.recoverableInterruption.Store(false)
+					if c.recoveryCanReattach.Load() {
+						c.resetInterruptionRecoveryCycle()
 						continue
 					}
 					return nil, ErrResumableInterruption
@@ -579,7 +580,7 @@ func (c *Coordinator) transcriptGrew(run *domain.Run, tc tailContext, boundary i
 // the tail and latches "gone". Returns a reader for the latched flag. When the
 // session controller is not configured (or the run has no session id yet), the
 // watcher is inert and gone() is always false.
-func (c *Coordinator) watchSession(ctx context.Context, cancel context.CancelFunc, run *domain.Run) func() bool {
+func (c *Coordinator) watchSession(ctx, recoveryCtx context.Context, cancel context.CancelFunc, run *domain.Run) func() bool {
 	if c.deps.Sessions == nil || run.WebConsoleSessionID == "" {
 		return func() bool { return false }
 	}
@@ -604,7 +605,7 @@ func (c *Coordinator) watchSession(ctx context.Context, cancel context.CancelFun
 						if screen, screenErr := c.deps.Sessions.Screen(ctx, run.WebConsoleSessionID, true); screenErr == nil {
 							if interruption, detected := ClassifyScreenInterruption(screen); detected {
 								c.recoverableInterruption.Store(true)
-								c.scheduleInterruptionRecovery(run, interruption)
+								c.scheduleInterruptionRecovery(recoveryCtx, run, interruption)
 								cancel()
 							}
 						}
@@ -632,40 +633,92 @@ func (c *Coordinator) watchSession(ctx context.Context, cancel context.CancelFun
 	}
 }
 
-// scheduleInterruptionRecovery keeps a capacity-affected run alive while a
-// server-owned timer waits, then sends exactly one mode-aware continuation into
-// the existing Web Console session. Cancellation of the parent run cancels the
-// timer; repeated screen polls cannot duplicate the prompt.
-func (c *Coordinator) scheduleInterruptionRecovery(run *domain.Run, interruption ResumableInterruption) {
-	if run == nil || c.deps.Sessions == nil || !c.recoveryScheduled.CompareAndSwap(false, true) {
+// resetInterruptionRecoveryCycle clears only the completed cycle after the
+// tail loop observed its closed result channel. A later distinct interruption
+// can then own a fresh timer without duplicating the completed cycle's input.
+func (c *Coordinator) resetInterruptionRecoveryCycle() {
+	c.recoverableInterruption.Store(false)
+	c.recoveryCanReattach.Store(false)
+	c.recoveryScheduled.Store(false)
+	c.recoveryReady = make(chan struct{})
+}
+
+// scheduleInterruptionRecovery keeps a run alive while a server-owned timer
+// waits, then sends exactly one mode-aware continuation into the existing Web
+// Console session if the same run is still active and the same interruption is
+// still on screen. Parent cancellation cancels the timer; repeated screen polls
+// cannot duplicate the prompt.
+func (c *Coordinator) scheduleInterruptionRecovery(parentCtx context.Context, run *domain.Run, interruption ResumableInterruption) {
+	if run == nil || run.WebConsoleSessionID == "" || c.deps.Sessions == nil || !c.recoveryScheduled.CompareAndSwap(false, true) {
 		return
 	}
+	runID := run.ID
+	sessionID := run.WebConsoleSessionID
 	go func() {
 		defer close(c.recoveryReady)
 		timer := time.NewTimer(c.recoveryDelay)
 		defer timer.Stop()
-		<-timer.C
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		select {
+		case <-parentCtx.Done():
+			return
+		case <-timer.C:
+		}
+		ctx, cancel := context.WithTimeout(parentCtx, 30*time.Second)
 		defer cancel()
-		if _, err := c.deps.Sessions.GetSession(ctx, run.WebConsoleSessionID); err != nil {
+		reader, ok := c.deps.Runs.(interface {
+			Get(context.Context, uuid.UUID) (*domain.Run, error)
+		})
+		if !ok {
+			return
+		}
+		current, err := reader.Get(ctx, runID)
+		if err != nil || current == nil || current.ID != runID || !current.Status.IsActive() ||
+			current.WebConsoleSessionID == "" || current.WebConsoleSessionID != sessionID {
+			return
+		}
+		session, err := c.deps.Sessions.GetSession(ctx, current.WebConsoleSessionID)
+		if err != nil || session.ID != current.WebConsoleSessionID {
+			return
+		}
+		screen, err := c.deps.Sessions.Screen(ctx, current.WebConsoleSessionID, true)
+		if err != nil || ctx.Err() != nil {
+			return
+		}
+		currentInterruption, detected := ClassifyScreenInterruption(screen)
+		if !detected || currentInterruption != interruption {
+			c.recoveryCanReattach.Store(true)
+			return
+		}
+		hasNativeGoal := current.ResolvedConfig != nil && strings.TrimSpace(current.ResolvedConfig.Until) != ""
+		if interruption.Kind == "goal_stalled" && !hasNativeGoal {
+			return
+		}
+		if ctx.Err() != nil {
 			return
 		}
 		if c.deps.NewSink != nil {
-			if events := c.deps.NewSink(run.ID); events != nil {
-				_ = events.Emit(domain.NewLogEvent(run.ID, "warn", fmt.Sprintf(
+			if events := c.deps.NewSink(runID); events != nil {
+				_ = events.Emit(domain.NewLogEvent(runID, "warn", fmt.Sprintf(
 					"resumable interactive interruption detected (%s: %s); attempting delayed recovery",
 					interruption.Kind, interruption.Message)))
 				_ = events.Close()
 			}
 		}
-		if run.ResolvedConfig != nil && strings.TrimSpace(run.ResolvedConfig.Until) != "" {
-			if err := c.deps.Sessions.SendText(ctx, run.WebConsoleSessionID, "/goal resume\n", interactiveSource(run)); err != nil {
-				return
-			}
-		} else if _, err := c.deps.Sessions.SendPrompt(ctx, run.WebConsoleSessionID, "continue", interactiveSource(run)); err != nil {
+		if ctx.Err() != nil {
 			return
 		}
-		c.recoverySucceeded.Store(true)
+		if hasNativeGoal {
+			submission, err := c.deps.Sessions.SendCommand(ctx, current.WebConsoleSessionID, "/goal resume", interactiveSource(current))
+			if err != nil || !submission.Verified {
+				return
+			}
+		} else {
+			submission, err := c.deps.Sessions.SendPrompt(ctx, current.WebConsoleSessionID, "continue", interactiveSource(current))
+			if err != nil || !submission.Verified {
+				return
+			}
+		}
+		c.recoveryCanReattach.Store(true)
 	}()
 }
 

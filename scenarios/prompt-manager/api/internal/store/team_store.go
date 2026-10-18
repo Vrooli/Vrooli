@@ -2,6 +2,8 @@ package store
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -48,14 +50,15 @@ import (
 // only the prefix differs. The operator-facing shared/ tree is virtually
 // merged by ListSharedFiles and single-file ops route by filename class.
 type FileTeamStore struct {
-	configRoot      string
-	runtimeDataRoot string
-	repoRoot        string
-	relationStore   RelationStore
-	routedRoots     *filerouting.RoutedRoots
-	ledger          *sourceledger.Client
-	eventsBase      string
-	corpus          *memoryCorpus
+	configRoot       string
+	runtimeDataRoot  string
+	repoRoot         string
+	relationStore    RelationStore
+	routedRoots      *filerouting.RoutedRoots
+	ledger           *sourceledger.Client
+	eventsBase       string
+	attemptPublisher *HeartbeatAttemptPublisher
+	corpus           *memoryCorpus
 }
 
 // NewFileTeamStore creates a new file-based team store rooted at the given
@@ -79,6 +82,14 @@ func NewFileTeamStore(configRoot, runtimeDataRoot string, relationStore Relation
 // SetSourceLedger attaches the shared durable corpus used by production team
 // runtime paths. Nil is retained only for isolated file-store tests.
 func (s *FileTeamStore) SetSourceLedger(client *sourceledger.Client) { s.ledger = client }
+
+// SetHeartbeatAttemptPublisher installs the durable publication owner used by
+// production attempt writes. The publisher is shared by context-routed clones.
+func (s *FileTeamStore) SetHeartbeatAttemptPublisher(publisher *HeartbeatAttemptPublisher) {
+	if s != nil {
+		s.attemptPublisher = publisher
+	}
+}
 
 // HasSourceLedger reports whether this store is wired to the production
 // Source Ledger dependency. Isolated file-store fixtures intentionally return
@@ -121,6 +132,7 @@ func (s *FileTeamStore) forContext(ctx context.Context) *FileTeamStore {
 	cloned.repoRoot = s.repoRoot
 	cloned.ledger = s.ledger
 	cloned.eventsBase = s.eventsBase
+	cloned.attemptPublisher = s.attemptPublisher
 	cloned.corpus = s.corpus
 	return cloned
 }
@@ -916,6 +928,12 @@ func (s *FileTeamStore) AppendHeartbeatAttempt(ctx context.Context, teamID strin
 	if scoped := s.forContext(ctx); scoped != s {
 		return scoped.AppendHeartbeatAttempt(ctx, teamID, entry)
 	}
+	if s.attemptPublisher != nil {
+		return s.attemptPublisher.Capture(ctx, entry)
+	}
+	if entry != nil && entry.RetainedOwnerState != "" {
+		return fmt.Errorf("retained owner-state facts require the durable heartbeat publisher")
+	}
 	if s.ledger != nil {
 		return s.appendHeartbeatAttemptEvent(ctx, entry)
 	}
@@ -926,6 +944,17 @@ func (s *FileTeamStore) AppendHeartbeatAttempt(ctx context.Context, teamID strin
 }
 
 const heartbeatAttemptEventType = "prompt-manager.heartbeat.attempt.v1"
+const heartbeatOwnerStateEventType = "prompt-manager.heartbeat.owner-state.v1"
+
+// heartbeatAttemptFactEventID gives each immutable lifecycle fact its own
+// Events identity while keeping HeartbeatAttempt.ID as the logical heartbeat
+// attempt identity carried in the payload. One heartbeat can therefore publish
+// run_created and run_terminal without the latter colliding with the former.
+func heartbeatAttemptFactEventID(attemptID, phase string) string {
+	identity := strings.TrimSpace(attemptID) + "\x00" + strings.TrimSpace(phase)
+	digest := sha256.Sum256([]byte(identity))
+	return "prompt-manager-heartbeat-fact-" + hex.EncodeToString(digest[:])
+}
 
 func (s *FileTeamStore) appendHeartbeatAttemptEvent(ctx context.Context, entry *HeartbeatAttempt) error {
 	if strings.TrimSpace(s.eventsBase) == "" {
@@ -951,7 +980,7 @@ func (s *FileTeamStore) appendHeartbeatAttemptEvent(ctx context.Context, entry *
 		return fmt.Errorf("pack heartbeat attempt payload: %w", err)
 	}
 	env := &domain.EventEnvelope{
-		EventId: entry.ID, EventType: heartbeatAttemptEventType, OccurredAt: timestamppb.Now(),
+		EventId: heartbeatAttemptFactEventID(entry.ID, entry.Phase), EventType: heartbeatAttemptEventType, OccurredAt: timestamppb.Now(),
 		Source: &domain.EventSource{Scenario: "prompt-manager", ActorKind: "system"},
 		Target: &domain.EventTarget{Scenario: "prompt-manager", Operation: "heartbeat-attempt", Protocol: "http"},
 		Data:   packed,
@@ -1115,7 +1144,12 @@ func (s *FileTeamStore) listHeartbeatAttemptEvents(ctx context.Context, teamID, 
 	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
 		return nil, fmt.Errorf("decode heartbeat attempt events: %w", err)
 	}
-	entries := make([]HeartbeatAttempt, 0, len(raw))
+	type attemptFact struct {
+		entry      HeartbeatAttempt
+		occurredAt time.Time
+	}
+	factsByAttempt := make(map[string]attemptFact, len(raw))
+	attemptOrder := make([]string, 0, len(raw))
 	for _, item := range raw {
 		env := &domain.EventEnvelope{}
 		if err := protojson.Unmarshal(item, env); err != nil || env.GetData() == nil {
@@ -1136,12 +1170,40 @@ func (s *FileTeamStore) listHeartbeatAttemptEvents(ctx context.Context, teamID, 
 		if entry.ID == "" {
 			entry.ID = env.GetEventId()
 		}
+		occurredAt := time.Time{}
+		if env.GetOccurredAt() != nil {
+			occurredAt = env.GetOccurredAt().AsTime()
+		}
+		logicalAttemptKey := entry.TeamID + "\x00" + entry.AgentID + "\x00" + entry.ID
+		previous, exists := factsByAttempt[logicalAttemptKey]
+		if !exists {
+			attemptOrder = append(attemptOrder, logicalAttemptKey)
+		}
+		if !exists || heartbeatAttemptFactLater(occurredAt, entry, previous.occurredAt, previous.entry) {
+			factsByAttempt[logicalAttemptKey] = attemptFact{entry: entry, occurredAt: occurredAt}
+		}
+	}
+	entries := make([]HeartbeatAttempt, 0, len(factsByAttempt))
+	for _, logicalAttemptKey := range attemptOrder {
+		entry := factsByAttempt[logicalAttemptKey].entry
 		if teamID != "" && entry.TeamID != teamID || agentID != "" && entry.AgentID != agentID || status != "" && entry.Status != status || profileKey != "" && entry.ProfileKey != profileKey {
 			continue
 		}
 		entries = append(entries, entry)
 	}
 	return entries, nil
+}
+
+func heartbeatAttemptFactLater(candidateAt time.Time, candidate HeartbeatAttempt, currentAt time.Time, current HeartbeatAttempt) bool {
+	if !candidateAt.Equal(currentAt) {
+		return candidateAt.After(currentAt)
+	}
+	if candidate.EndedAt != current.EndedAt {
+		return candidate.EndedAt > current.EndedAt
+	}
+	// Event timestamps normally distinguish facts. Prefer a terminal outcome
+	// on ties so a same-time running projection cannot hide it.
+	return candidate.Phase == "run_terminal" && current.Phase != "run_terminal"
 }
 
 // GetMemberLogPath returns the path for a heartbeat execution log

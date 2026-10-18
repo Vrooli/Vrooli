@@ -75,6 +75,32 @@ func TestAuthorizeStandingGrantUnboundedLimitsAllowAnyUsage(t *testing.T) {
 	}
 }
 
+func TestEvaluateStandingGrantMatchesAdmissionAndReportsReachedDimensions(t *testing.T) {
+	now := time.Now()
+	grant := runCreationGrant("operator", now.Add(time.Hour))
+	limits := StandingGrantLimits{MaxConcurrentRuns: 2, MaxRunBudgetUSD: 50}
+	usage := StandingGrantUsage{ConcurrentRuns: 2, CommittedBudgetUSD: 45, RequestBudgetUSD: 10}
+
+	evaluation := EvaluateStandingGrant(grant, limits, usage, "run.create", "agent-manager:run/new", now)
+	if !evaluation.Covered || evaluation.Admitted || len(evaluation.Exceeded) != 2 {
+		t.Fatalf("unexpected evaluation: %+v", evaluation)
+	}
+	if evaluation.Exceeded[0].Dimension != StandingGrantConcurrentRunsLimit || evaluation.Exceeded[0].CurrentRuns != 2 || evaluation.Exceeded[0].BoundRuns != 2 {
+		t.Fatalf("concurrency detail was not retained: %+v", evaluation.Exceeded[0])
+	}
+	if evaluation.Exceeded[1].Dimension != StandingGrantBudgetLimit || evaluation.Exceeded[1].CurrentBudgetUSD != 55 || evaluation.Exceeded[1].BoundBudgetUSD != 50 {
+		t.Fatalf("budget detail was not retained: %+v", evaluation.Exceeded[1])
+	}
+	if err := AuthorizeStandingGrant(grant, limits, usage, "run.create", "agent-manager:run/new", now); err != ErrStandingGrantLimit {
+		t.Fatalf("normal admission diverged from evaluator: %v", err)
+	}
+
+	uncovered := EvaluateStandingGrant(grant, limits, usage, "agent.manage", "agent-manager:run/new", now)
+	if uncovered.Covered || uncovered.Admitted || len(uncovered.Exceeded) != 0 {
+		t.Fatalf("non-covering grant reported a limit: %+v", uncovered)
+	}
+}
+
 // standingAuthority simulates the agent-manager ingress that, in Phase 2b, looks
 // up the operator-approved grant for the verified subject and evaluates it. In
 // these tests the grant is injected directly — no store or operator needed.

@@ -231,18 +231,20 @@ class PreviewItem(_message.Message):
     def __init__(self, id: _Optional[str] = ..., path: _Optional[str] = ..., description: _Optional[str] = ..., bytes: _Optional[int] = ..., action: _Optional[str] = ..., safety_tier: _Optional[str] = ...) -> None: ...
 
 class ApplyPlanRequest(_message.Message):
-    __slots__ = ("plan_id", "policy_version", "approval_mode", "approval_token", "idempotency_key")
+    __slots__ = ("plan_id", "policy_version", "approval_mode", "approval_token", "idempotency_key", "item_ids")
     PLAN_ID_FIELD_NUMBER: _ClassVar[int]
     POLICY_VERSION_FIELD_NUMBER: _ClassVar[int]
     APPROVAL_MODE_FIELD_NUMBER: _ClassVar[int]
     APPROVAL_TOKEN_FIELD_NUMBER: _ClassVar[int]
     IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
+    ITEM_IDS_FIELD_NUMBER: _ClassVar[int]
     plan_id: str
     policy_version: str
     approval_mode: str
     approval_token: str
     idempotency_key: str
-    def __init__(self, plan_id: _Optional[str] = ..., policy_version: _Optional[str] = ..., approval_mode: _Optional[str] = ..., approval_token: _Optional[str] = ..., idempotency_key: _Optional[str] = ...) -> None: ...
+    item_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, plan_id: _Optional[str] = ..., policy_version: _Optional[str] = ..., approval_mode: _Optional[str] = ..., approval_token: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., item_ids: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ApplyPlanResponse(_message.Message):
     __slots__ = ("plan_id", "idempotency_key", "already_applied", "reclaimed_bytes", "results")

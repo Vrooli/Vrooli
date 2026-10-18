@@ -3,8 +3,10 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"agent-manager/internal/domain"
@@ -12,6 +14,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/authn"
+	"github.com/vrooli/api-core/identity"
 )
 
 // StandingGrantAdmin is the operator-facing surface for standing grants:
@@ -21,6 +24,7 @@ type StandingGrantAdmin interface {
 	CreateStandingGrant(context.Context, orchestration.StandingGrantRequest) (*domain.StandingGrant, error)
 	RevokeStandingGrant(context.Context, string) (bool, error)
 	ListStandingGrants(context.Context, int) ([]*domain.StandingGrant, error)
+	ListStandingGrantsForApprover(context.Context, string, int) ([]*domain.StandingGrant, error)
 }
 
 // createStandingGrantBody is the operator's request. The approver is NOT taken
@@ -33,6 +37,15 @@ type createStandingGrantBody struct {
 	MaxRunBudgetUSD   float64 `json:"max_run_budget_usd,omitempty"`
 	TTLSeconds        int64   `json:"ttl_seconds"`
 }
+
+const standingGrantReadLimit = 64
+const standingGrantReadFetchLimit = standingGrantReadLimit + 1
+
+const (
+	promptManagerAdmissionDiagnosticSubject = "prompt-manager"
+	promptManagerAdmissionDiagnosticTarget  = "agent-manager:service/prompt-manager"
+	promptManagerAdmissionDiagnosticPath    = "/api/v1/standing-grants/diagnose/prompt-manager-run-create"
+)
 
 // RegisterStandingGrants mounts the human-only create/revoke endpoints.
 //
@@ -95,21 +108,33 @@ func RegisterStandingGrants(r *mux.Router, admin StandingGrantAdmin) {
 		writeJSON(w, http.StatusOK, map[string]any{"revoked": transitioned})
 	}).Methods(http.MethodPost)
 
-	// Listing is also human-only: the records name the accountable owner and the
-	// authority granted. A GET passes AgentOperationMiddleware's read fast-path, so
-	// the handler's own independent-human gate is the enforcement point here.
+	// Listing is read-only. Humans retain global read access; a verified agent may
+	// inspect only grants attributed to its verified owner.
 	r.HandleFunc("/api/v1/standing-grants", func(w http.ResponseWriter, r *http.Request) {
-		if _, err := requireOperatorForGrantWrite(r); err != nil {
+		principal, owner, err := requireStandingGrantRead(r)
+		if err != nil {
 			writeJSON(w, http.StatusForbidden, map[string]string{"error": err.Error()})
 			return
 		}
-		grants, err := admin.ListStandingGrants(r.Context(), 0)
+		var grants []*domain.StandingGrant
+		if principal.Kind == identity.ActorAgent {
+			grants, err = admin.ListStandingGrantsForApprover(r.Context(), owner, standingGrantReadFetchLimit)
+		} else {
+			grants, err = admin.ListStandingGrants(r.Context(), standingGrantReadFetchLimit)
+		}
 		if err != nil {
 			writeError(w, r, err)
 			return
 		}
+		hasMore := len(grants) > standingGrantReadLimit
+		if hasMore {
+			grants = grants[:standingGrantReadLimit]
+		}
 		out := make([]map[string]any, 0, len(grants))
 		for _, g := range grants {
+			if g == nil || (owner != "" && (g.ApprovedBy != owner || g.Grant == nil || g.Grant.Approver != owner)) {
+				continue
+			}
 			row := map[string]any{
 				"id": g.ID, "subject": g.Subject, "state": g.State,
 				"max_concurrent_runs": g.Limits.MaxConcurrentRuns, "max_run_budget_usd": g.Limits.MaxRunBudgetUSD,
@@ -125,8 +150,57 @@ func RegisterStandingGrants(r *mux.Router, admin StandingGrantAdmin) {
 			}
 			out = append(out, row)
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"grants": out})
+		writeJSON(w, http.StatusOK, map[string]any{"grants": out, "has_more": hasMore})
 	}).Methods(http.MethodGet)
+}
+
+// RegisterPromptManagerAdmissionDiagnostic exposes only the aggregate
+// run.create decision for the fixed Prompt Manager service subject. It is a
+// read-only agent.investigate operation and never calls the approval raiser.
+func RegisterPromptManagerAdmissionDiagnostic(r *mux.Router, authority *StandingGrantAuthority) {
+	r.HandleFunc(promptManagerAdmissionDiagnosticPath, func(w http.ResponseWriter, r *http.Request) {
+		if _, err := authn.RequireOperation(r.Context(), "agent-manager:write", "agent.investigate", promptManagerAdmissionDiagnosticTarget); err != nil {
+			writeJSON(w, http.StatusForbidden, map[string]string{"error": "authorized investigation identity required"})
+			return
+		}
+		diagnostic, err := authority.diagnoseOperation(r.Context(), promptManagerAdmissionDiagnosticSubject, "run.create", RunCreationTarget)
+		if err != nil {
+			if diagnostic.ObservedAt.IsZero() {
+				diagnostic.ObservedAt = time.Now().UTC()
+			}
+			writeJSON(w, http.StatusServiceUnavailable, diagnostic)
+			return
+		}
+		writeJSON(w, http.StatusOK, diagnostic)
+	}).Methods(http.MethodGet)
+}
+
+func requireStandingGrantRead(r *http.Request) (identity.Principal, string, error) {
+	p, ok := identity.PrincipalFromContext(r.Context())
+	if !ok || !p.IsVerified() {
+		return identity.Principal{}, "", errors.New("verified identity required")
+	}
+	switch p.Kind {
+	case identity.ActorHuman:
+		// Preserve the independent-human boundary when a request carries agent
+		// provenance alongside a human identity.
+		human, err := authn.RequireIndependentHuman(r.Context())
+		if err != nil {
+			return identity.Principal{}, "", err
+		}
+		if _, err := authn.RequireCapability(r.Context(), "agent-manager:read"); err != nil {
+			return identity.Principal{}, "", err
+		}
+		return human, "", err
+	case identity.ActorAgent:
+		owner := strings.TrimSpace(p.OwnerSubject())
+		if owner == "" {
+			return identity.Principal{}, "", errors.New("verified agent owner is required")
+		}
+		return p, owner, nil
+	default:
+		return identity.Principal{}, "", errors.New("verified human or owned agent identity required")
+	}
 }
 
 // requireOperatorForGrantWrite enforces the verified-independent-human +

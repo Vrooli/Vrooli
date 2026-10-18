@@ -27,10 +27,21 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+const maxWorkReferenceDeclarations = 100
+
 func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*domain.Run, error) {
 	// Public caller projections are not authority, including in-process callers.
 	req.caller, req.profileAdmission = nil, nil
 	req.OwnerSubject, req.OwnerScopes, req.OwnerExpiresAt = "", nil, nil
+	// Freeze the caller's exact request before authentication and parent
+	// inheritance add derived admission data. Credentials and verified identity
+	// projections are excluded by the request's JSON tags and remain checked by
+	// the separate identity replay rules.
+	digest, err := createRunRequestDigest(req)
+	if err != nil {
+		return nil, err
+	}
+	req.requestDigest = digest
 	if err := o.authenticateCreateRunCaller(ctx, &req); err != nil {
 		return nil, err
 	}
@@ -45,7 +56,14 @@ type runRecoveryContext struct {
 }
 
 func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, recovery *runRecoveryContext) (*domain.Run, error) {
-	if len(req.WorkReferences) > 100 {
+	if req.requestDigest == "" {
+		digest, err := createRunRequestDigest(req)
+		if err != nil {
+			return nil, err
+		}
+		req.requestDigest = digest
+	}
+	if len(req.WorkReferences) > maxWorkReferenceDeclarations {
 		return nil, domain.NewValidationErrorWithHint("work_references", "at most 100 declarations are allowed", "supply a bounded selected workload")
 	}
 	req.WorkReferences = append([]*eventpb.WorkReference(nil), req.WorkReferences...)
@@ -484,9 +502,21 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 	// carries a live qualification receipt whose effective identity matches this
 	// run's resolved identity exactly, and retains its execution restrictions.
 	// The qualification probe has no parent and is not subject to this gate.
-	if err := o.admitDependentDelegation(ctx, req, resolvedConfig); err != nil {
+	qualifiedParent, err := o.dependentDelegationParent(ctx, req, resolvedConfig)
+	if err != nil {
 		failCreation()
 		return nil, err
+	}
+	if qualifiedParent != nil {
+		req.WorkReferences, err = inheritParentEffortReferences(qualifiedParent, req.WorkReferences)
+		if err != nil {
+			failCreation()
+			return nil, err
+		}
+		if len(req.WorkReferences) > maxWorkReferenceDeclarations {
+			failCreation()
+			return nil, domain.NewValidationErrorWithHint("work_references", "at most 100 declarations are allowed after parent effort attribution", "reduce explicit declarations to leave room for inherited effort references")
+		}
 	}
 	if err := o.revalidateCreateRunCaller(ctx, req); err != nil {
 		return nil, err

@@ -32,7 +32,8 @@ import type { ContractorMember } from '@/services/effortService'
 import type { OrgEdge, OrgChartNode as OrgChartNodeType, OrgChartFlowEdge, OrgChartNodeData } from '@/types/orgChart'
 
 import * as heartbeatService from '@/services/heartbeatService'
-import type { HeartbeatConfig } from '@/services/heartbeatService'
+import { projectHeartbeatOwnerStatus } from '@/services/heartbeatService'
+import type { HeartbeatConfig, TeamExecutionStatus } from '@/services/heartbeatService'
 import { useRunningAgents } from '@/hooks/useRunningAgents'
 
 import '@xyflow/react/dist/style.css'
@@ -204,6 +205,9 @@ export function OrgChartPanel({
 
   // Heartbeat configs keyed by agentId
   const [heartbeatConfigs, setHeartbeatConfigs] = useState<Map<string, HeartbeatConfig>>(new Map())
+  const [heartbeatConfigReadAvailable, setHeartbeatConfigReadAvailable] = useState(false)
+  const [teamExecutionStatus, setTeamExecutionStatus] = useState<TeamExecutionStatus | null>(null)
+  const [executionStatusReadFailed, setExecutionStatusReadFailed] = useState(false)
   const { runningAgents } = useRunningAgents()
   const runningAgentMap = useMemo(
     () => new Map(runningAgents.map((entry) => [entry.agentId, entry])),
@@ -212,15 +216,35 @@ export function OrgChartPanel({
 
   useEffect(() => {
     let isActive = true
-    heartbeatService.listHeartbeats(team.id).then((configs) => {
+    // An owner snapshot belongs to one team and one read generation. Do not
+    // project the previous team's config/status while the new reads are in
+    // flight or after either read fails.
+    setHeartbeatConfigs(new Map())
+    setHeartbeatConfigReadAvailable(false)
+    setTeamExecutionStatus(null)
+    setExecutionStatusReadFailed(true)
+    void Promise.allSettled([
+      heartbeatService.listHeartbeats(team.id),
+      heartbeatService.getTeamExecutionStatus(team.id),
+    ]).then(([configsResult, statusResult]) => {
       if (!isActive) return
-      const map = new Map<string, HeartbeatConfig>()
-      for (const cfg of configs) {
-        map.set(cfg.agentId, cfg)
+      if (configsResult.status === 'fulfilled') {
+        const map = new Map<string, HeartbeatConfig>()
+        for (const cfg of configsResult.value) map.set(cfg.agentId, cfg)
+        setHeartbeatConfigs(map)
+        setHeartbeatConfigReadAvailable(true)
+      } else {
+        setHeartbeatConfigs(new Map())
+        setHeartbeatConfigReadAvailable(false)
+        console.warn('Failed to load heartbeat configs for org chart:', configsResult.reason)
       }
-      setHeartbeatConfigs(map)
-    }).catch((err: unknown) => {
-      console.warn('Failed to load heartbeat configs for org chart:', err)
+      if (statusResult.status === 'fulfilled') {
+        setTeamExecutionStatus(statusResult.value)
+        setExecutionStatusReadFailed(false)
+      } else {
+        setTeamExecutionStatus(null)
+        setExecutionStatusReadFailed(true)
+      }
     })
     return () => { isActive = false }
   }, [team.id])
@@ -281,17 +305,31 @@ export function OrgChartPanel({
     return team.members.map((member): OrgChartNodeType => {
       const managerId = managerByReport.get(member.agentId)
       const hbConfig = heartbeatConfigs.get(member.agentId)
-      const isRunning = runningAgentMap.has(member.agentId)
-
-      // Determine heartbeat status: running agent takes priority, then last execution
-      let heartbeatStatus: 'running' | 'completed' | 'failed' | 'cancelled' | null = null
-      if (hbConfig) {
-        if (isRunning) {
-          heartbeatStatus = 'running'
-        } else if (hbConfig.lastExecution) {
-          heartbeatStatus = hbConfig.lastExecution.status
-        }
-      }
+      const liveRun = runningAgentMap.has(member.agentId)
+      const hasQueueEvidence = [
+        teamExecutionStatus?.runningAgentIds,
+        teamExecutionStatus?.uncertainAgentIds,
+        teamExecutionStatus?.unreachableAgentIds,
+        teamExecutionStatus?.pausedAgentIds,
+        teamExecutionStatus?.approvalPendingAgentIds,
+        teamExecutionStatus?.needsReviewAgentIds,
+        teamExecutionStatus?.watcherUnavailableAgentIds,
+        teamExecutionStatus?.preparationInterruptedAgentIds,
+        teamExecutionStatus?.admissionDeferredAgentIds,
+      ].some((ids) => ids?.includes(member.agentId))
+      const ownerStatus = (hbConfig || hasQueueEvidence || !heartbeatConfigReadAvailable || executionStatusReadFailed)
+        ? projectHeartbeatOwnerStatus(hbConfig, teamExecutionStatus, {
+          queueReadAvailable: !executionStatusReadFailed,
+          configReadAvailable: heartbeatConfigReadAvailable,
+          agentId: member.agentId,
+        })
+        : null
+      const retainedOwnerStates = ['approval_pending', 'needs_review', 'observer_unavailable', 'preparation_interrupted', 'admission_deferred', 'uncertain', 'unreachable', 'paused']
+      const heartbeatStatus = ownerStatus && retainedOwnerStates.includes(ownerStatus)
+        ? ownerStatus
+        : liveRun
+          ? 'running'
+          : ownerStatus
 
       return {
         id: member.agentId,
@@ -319,6 +357,9 @@ export function OrgChartPanel({
     memberNames,
     reportsByManager,
     heartbeatConfigs,
+    heartbeatConfigReadAvailable,
+    teamExecutionStatus,
+    executionStatusReadFailed,
     runningAgentMap,
     onSelectMember,
   ])

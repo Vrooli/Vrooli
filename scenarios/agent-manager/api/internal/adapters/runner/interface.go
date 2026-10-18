@@ -526,6 +526,9 @@ type TranscriptParseResult struct {
 	// content retention. Consumers must discard cached terminal evidence from
 	// an earlier turn even when the parser emits no user-message event.
 	UserTurnStarted bool
+	// ProviderTurnStarted identifies a new provider execution turn when the
+	// transcript exposes that boundary separately from user input.
+	ProviderTurnStarted bool
 	// Label and LabelSource are optional transcript metadata. They are emitted
 	// by providers that carry a durable title (for example Claude's ai-title)
 	// and are consumed by import orchestration.

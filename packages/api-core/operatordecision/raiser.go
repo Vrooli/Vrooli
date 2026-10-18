@@ -5,6 +5,8 @@ import (
 	"errors"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/eventbus"
 )
 
 // Clock is the minimal time seam the Raiser needs: just a Now. It is
@@ -35,6 +37,10 @@ const DefaultWindow = 24 * time.Hour
 // un-decided asks. The caller refuses WITHOUT raising another operator
 // notification. It generalizes ErrAuthorizationFlood.
 var ErrFlood = errors.New("too many outstanding operator decisions for this subject")
+
+// ErrPendingFactsChanged refuses to publish replacement terms under an
+// outstanding correlation id whose first publication has not succeeded.
+var ErrPendingFactsChanged = errors.New("pending operator decision facts changed within the same generation")
 
 // Raiser records (idempotently) a pending ask and raises the operator decision
 // for a scenario that keeps its pending asks in a PendingStore. It is the
@@ -122,8 +128,13 @@ func (r Raiser) Raise(ctx context.Context, ask PendingAsk, facts Facts) (bool, e
 		return false, err
 	}
 	if existing != nil && existing.Outstanding(now) {
-		// Idempotent: the same ask is already outstanding. Do NOT re-emit a
-		// notification or re-count it against the cap; just report it pending.
+		// Idempotent: the same ask is already outstanding. Retry publication only
+		// while this generation has no successful publication receipt.
+		if !existing.Published {
+			if err := r.publish(ctx, existing, facts); err != nil {
+				return true, err
+			}
+		}
 		return true, nil
 	}
 
@@ -142,25 +153,40 @@ func (r Raiser) Raise(ctx context.Context, ask PendingAsk, facts Facts) (bool, e
 	ask.State = PendingStatePending
 	ask.RaisedAt = now.UTC()
 	ask.ExpiresAt = now.Add(r.window()).UTC()
+	event := r.event(&ask, facts)
+	ask.EventID = EventID(event)
 	if err := r.Store.Put(ctx, &ask); err != nil {
 		return false, err
 	}
 
-	if r.Publisher != nil {
-		// A deterministic occurrence (now truncated to the window) keeps the EventID
-		// stable for the pending window, so a redelivery (or a re-raise inside the
-		// window) maps to the same ask instead of a duplicate notification.
-		occurred := now.UTC().Truncate(r.window())
-		eventType := r.EventType
-		if eventType == "" {
-			eventType = DecisionRequestedEventType(r.Source, r.Kind)
-		}
-		event := BuildEventTyped(r.Source, eventType, occurred, facts)
-		if err := r.Publisher.PublishDomainEvent(ctx, event); err != nil {
-			// Best-effort notify: the durable record already stands, so the operator
-			// can still act from the UI and a later raise re-attempts the notification.
-			return true, err
-		}
+	if err := r.publish(ctx, &ask, facts); err != nil {
+		return true, err
 	}
 	return true, nil
+}
+
+func (r Raiser) publish(ctx context.Context, ask *PendingAsk, facts Facts) error {
+	if r.Publisher == nil || ask == nil {
+		return nil
+	}
+	event := r.event(ask, facts)
+	if ask.EventID != "" && EventID(event) != ask.EventID {
+		return ErrPendingFactsChanged
+	}
+	if err := r.Publisher.PublishDomainEvent(ctx, event); err != nil {
+		return err
+	}
+	ask.Published = true
+	return r.Store.Put(ctx, ask)
+}
+
+func (r Raiser) event(ask *PendingAsk, facts Facts) eventbus.DomainEvent {
+	// Keep occurrence attached to the stored generation so every retry publishes
+	// the same event identity, even after the clock advances.
+	occurred := ask.RaisedAt.UTC().Truncate(r.window())
+	eventType := r.EventType
+	if eventType == "" {
+		eventType = DecisionRequestedEventType(r.Source, r.Kind)
+	}
+	return BuildEventTyped(r.Source, eventType, occurred, facts)
 }

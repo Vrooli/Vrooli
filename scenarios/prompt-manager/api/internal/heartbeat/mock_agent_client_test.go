@@ -176,17 +176,27 @@ func (m *mockAgentClient) CreateTask(_ context.Context, task *Task) (*Task, erro
 	if m.createTaskErr != nil {
 		return nil, m.createTaskErr
 	}
+	created := *task
 	if m.createTaskResp != nil {
-		return m.createTaskResp, nil
+		created = *m.createTaskResp
+		// Fixtures may specify owner-returned metadata, but the owner must honor
+		// the caller's primary-key identity and authored request terms.
 	}
-	// Default: echo back with an ID
-	return &Task{
-		ID:          "task-" + task.Title,
-		Title:       task.Title,
-		Description: task.Description,
-		ScopePath:   task.ScopePath,
-		ProjectRoot: task.ProjectRoot,
-	}, nil
+	created.ID = task.ID
+	created.Title = task.Title
+	created.Description = task.Description
+	created.ScopePath = task.ScopePath
+	created.ProjectRoot = task.ProjectRoot
+	created.PhasePromptIDs = append([]string(nil), task.PhasePromptIDs...)
+	created.ContextAttachments = append(task.ContextAttachments[:0:0], task.ContextAttachments...)
+	created.Status = "queued"
+	m.mu.Lock()
+	if m.getTasks == nil {
+		m.getTasks = make(map[string]*Task)
+	}
+	m.getTasks[created.ID] = &created
+	m.mu.Unlock()
+	return &created, nil
 }
 
 func (m *mockAgentClient) DeleteTask(_ context.Context, taskID string) error {

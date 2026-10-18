@@ -20,7 +20,6 @@ var skipDirs = []string{
 	".git",
 	".vscode",
 	".idea",
-	"coverage",
 	"dist",
 	"build",
 	"tmp",
@@ -58,7 +57,7 @@ func ComputeFingerprint(root string, extraSkipFiles ...string) (string, error) {
 			return nil
 		}
 
-		if skipDir(rel) && d.IsDir() {
+		if skipDir(root, rel) && d.IsDir() {
 			return filepath.SkipDir
 		}
 
@@ -108,10 +107,76 @@ func ComputeFingerprint(root string, extraSkipFiles ...string) (string, error) {
 	return fmt.Sprintf("%x", hasher.Sum(nil)), nil
 }
 
-func skipDir(path string) bool {
+func skipDir(root, path string) bool {
 	path = strings.ReplaceAll(filepath.ToSlash(path), "\\", "/")
 	for _, skip := range skipDirs {
 		if PathHasComponent(path, skip) {
+			return true
+		}
+	}
+	return IsCoverageOutputDir(root, path)
+}
+
+// IsCoverageOutputDir identifies only the repository's declared coverage
+// report roots, relative to the input context. It intentionally does not match
+// arbitrary directories named coverage or arbitrary nested ui/coverage paths,
+// which may contain authored Go packages.
+func IsCoverageOutputDir(root, path string) bool {
+	if filepath.Base(filepath.FromSlash(path)) != "coverage" {
+		return false
+	}
+	repoRoot, ok := findRepositoryRoot(root)
+	if !ok {
+		return false
+	}
+	fullPath, err := filepath.Abs(filepath.Join(root, filepath.FromSlash(path)))
+	if err != nil {
+		return false
+	}
+	repoRelative, err := filepath.Rel(repoRoot, fullPath)
+	if err != nil || repoRelative == ".." || strings.HasPrefix(repoRelative, ".."+string(filepath.Separator)) {
+		return false
+	}
+	repoRelative = filepath.ToSlash(repoRelative)
+	parts := strings.Split(strings.Trim(filepath.ToSlash(repoRelative), "/"), "/")
+	rule := ""
+	if len(parts) == 1 && parts[0] == "coverage" {
+		rule = "/coverage/"
+	} else if len(parts) == 3 && parts[0] == "packages" && parts[2] == "coverage" {
+		rule = "packages/*/coverage/"
+	} else if len(parts) == 4 && parts[0] == "scenarios" && parts[2] == "ui" && parts[3] == "coverage" {
+		rule = "scenarios/*/ui/coverage/"
+	} else if len(parts) == 5 && parts[0] == "templates" && parts[1] == "scenarios" && parts[3] == "ui" && parts[4] == "coverage" {
+		rule = "templates/scenarios/*/ui/coverage/"
+	}
+	return rule != "" && rootIgnoreDeclares(repoRoot, rule)
+}
+
+func findRepositoryRoot(root string) (string, bool) {
+	rootAbs, err := filepath.Abs(root)
+	if err != nil {
+		return "", false
+	}
+	for current := rootAbs; ; current = filepath.Dir(current) {
+		if _, err := os.Stat(filepath.Join(current, ".vrooli", "repo-contract.json")); err == nil {
+			return current, true
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			break
+		}
+	}
+	return "", false
+}
+
+func rootIgnoreDeclares(repoRoot, want string) bool {
+	data, err := os.ReadFile(filepath.Join(repoRoot, ".gitignore"))
+	if err != nil {
+		return false
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if line == want {
 			return true
 		}
 	}

@@ -257,7 +257,9 @@ func (a *App) run(args []string) error {
 		// command gets the same self-healing path as a known API command. This
 		// only adds freshness work to the error path; known non-API commands keep
 		// their existing fast path.
-		if a.checkStaleAndMaybeRebuild(args) {
+		if restarted, staleErr := a.checkStaleAndMaybeRebuild(args); staleErr != nil {
+			return staleErr
+		} else if restarted {
 			return nil
 		}
 		return fmt.Errorf("Unknown command: %s%s%s", remaining[0], a.suggestCommand(remaining[0]), a.unknownCommandHint(remaining))
@@ -268,7 +270,9 @@ func (a *App) run(args []string) error {
 	}
 
 	if cmd.NeedsAPI {
-		if restarted := a.checkStaleAndMaybeRebuild(args); restarted {
+		if restarted, staleErr := a.checkStaleAndMaybeRebuild(args); staleErr != nil {
+			return staleErr
+		} else if restarted {
 			return nil
 		}
 	}
@@ -317,7 +321,9 @@ func (a *App) runSubcommand(group *SubcommandGroup, args []string, originalArgs 
 		if cmd == nil {
 			return fmt.Errorf("subcommand group %q declares DefaultSubcommand %q but no such subcommand exists", group.Name, group.DefaultSubcommand)
 		}
-		if restarted := a.checkStaleAndMaybeRebuild(originalArgs); restarted {
+		if restarted, staleErr := a.checkStaleAndMaybeRebuild(originalArgs); staleErr != nil {
+			return staleErr
+		} else if restarted {
 			return nil
 		}
 		return a.dispatchCommand(strings.TrimSpace(a.opts.Name+" "+group.Name), *cmd, args)
@@ -325,7 +331,9 @@ func (a *App) runSubcommand(group *SubcommandGroup, args []string, originalArgs 
 	if cmd == nil {
 		// A stale binary can know the group but not a newly added leaf. Rebuild
 		// before returning a false-negative capability result.
-		if a.checkStaleAndMaybeRebuild(originalArgs) {
+		if restarted, staleErr := a.checkStaleAndMaybeRebuild(originalArgs); staleErr != nil {
+			return staleErr
+		} else if restarted {
 			return nil
 		}
 		path := append([]string{group.Name}, args...)
@@ -341,7 +349,9 @@ func (a *App) runSubcommand(group *SubcommandGroup, args []string, originalArgs 
 	if cmd.NeedsAPIOverride != nil {
 		needsAPI = *cmd.NeedsAPIOverride
 	}
-	if restarted := a.checkStaleAndMaybeRebuild(originalArgs); restarted {
+	if restarted, staleErr := a.checkStaleAndMaybeRebuild(originalArgs); staleErr != nil {
+		return staleErr
+	} else if restarted {
 		return nil
 	}
 
@@ -357,9 +367,9 @@ func (a *App) runSubcommand(group *SubcommandGroup, args []string, originalArgs 
 	return a.dispatchCommand(strings.TrimSpace(a.opts.Name+" "+group.Name), *cmd, args[1:])
 }
 
-func (a *App) checkStaleAndMaybeRebuild(args []string) bool {
+func (a *App) checkStaleAndMaybeRebuild(args []string) (bool, error) {
 	if a.opts.StaleChecker == nil {
-		return false
+		return false, nil
 	}
 	a.opts.StaleChecker.ReexecArgs = append([]string(nil), args...)
 	return a.opts.StaleChecker.CheckAndMaybeRebuild()

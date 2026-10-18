@@ -8,6 +8,8 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+
+	"github.com/vrooli/cli-core/buildinfo"
 )
 
 // EnumerationSource identifies how build inputs were discovered.
@@ -66,8 +68,13 @@ func EnumerateInputs(repoRoot string, roots []string, deps EnumerateDeps) ([]str
 			if err != nil {
 				return err
 			}
+			rel, relErr := filepath.Rel(root, path)
+			if relErr != nil {
+				return relErr
+			}
+			rel = filepath.ToSlash(rel)
 			if entry.IsDir() {
-				if buildOutputDirectory(entry.Name()) {
+				if buildOutputDirectory(root, rel) {
 					return filepath.SkipDir
 				}
 				return nil
@@ -75,11 +82,6 @@ func EnumerateInputs(repoRoot string, roots []string, deps EnumerateDeps) ([]str
 			if !entry.Type().IsRegular() || buildOutputFile(entry.Name(), deps.ExecutableSuffix) {
 				return nil
 			}
-			rel, relErr := filepath.Rel(root, path)
-			if relErr != nil {
-				return relErr
-			}
-			rel = filepath.ToSlash(rel)
 			if _, ok := seen[rel]; !ok {
 				seen[rel] = struct{}{}
 				files = append(files, rel)
@@ -112,10 +114,13 @@ func uniqueStrings(values []string) []string {
 	return out
 }
 
-func buildOutputDirectory(name string) bool {
+func buildOutputDirectory(root, rel string) bool {
+	name := filepath.Base(filepath.FromSlash(rel))
 	switch name {
-	case ".git", ".vrooli", "node_modules", "dist", "build", "coverage", "data", "tmp":
+	case ".git", ".vrooli", "node_modules", "dist", "build", "data", "tmp":
 		return true
+	case "coverage":
+		return buildinfo.IsCoverageOutputDir(root, rel)
 	default:
 		return false
 	}

@@ -152,6 +152,36 @@ check "No active reference to skill-principles" no_active_refs_to "skill-princip
 check "No active reference to team-shared-docs-design" no_active_refs_to "team-shared-docs-design"
 
 # ---------------------------------------------------------------------------
+# 5. Large-effort supervision front door and Swarm disposition boundary
+# ---------------------------------------------------------------------------
+
+supervisor_uses_owner_observation() {
+    rg -q 'agent-manager\.supervision-observation-read' \
+      scenarios/prompt-manager/store/agents/effort-supervisor/AGENT.md \
+      && rg -q 'unknown.*needs_review|needs_review.*blocked' \
+      scenarios/prompt-manager/store/skills/packs/core/large-effort-supervision/SKILL.md \
+      && rg -q 'authorized_by' \
+      scenarios/prompt-manager/store/skills/packs/core/large-effort-supervision/SKILL.md \
+      && rg -q 'selection' \
+      scenarios/prompt-manager/store/skills/packs/core/large-effort-supervision/SKILL.md \
+      && rg -q 'activeEpoch.*do not prove native admission' \
+      scenarios/prompt-manager/store/agents/effort-supervisor/AGENT.md
+}
+
+orchestration_preserves_swarm_disposition() {
+    rg -q 'inside the approved effort destination' \
+      scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/SKILL.md \
+      && rg -q 'outside its approved scope' \
+      scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/SKILL.md \
+      && rg -q 'Swarm route' scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/SKILL.md \
+      && ! rg -q 'Delivery teams never use Swarm Manager' \
+      scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/SKILL.md
+}
+
+check "Supervisor bootstrap points to the bounded owner observation and preserves unknown work" supervisor_uses_owner_observation
+check "Orchestration distinguishes in-scope repair from new Swarm disposition" orchestration_preserves_swarm_disposition
+
+# ---------------------------------------------------------------------------
 # 5. Technique-registry pairing: doc + paired skill discipline
 # ---------------------------------------------------------------------------
 #

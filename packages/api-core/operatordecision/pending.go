@@ -37,6 +37,12 @@ type PendingAsk struct {
 	// ExpiresAt bounds how long the ask stays outstanding before it ages out of the
 	// anti-flood count and may be re-raised.
 	ExpiresAt time.Time
+	// EventID binds this row to the exact immutable decision facts for the
+	// generation, including while publication is pending.
+	EventID string
+	// Published records successful publication of the event for this pending
+	// generation. A false value leaves the durable ask eligible for retry.
+	Published bool
 	// ResolvedAt / ResolvedBy record the terminal decision; a scenario's resolver
 	// sets them when it applies a DecisionResolution.
 	ResolvedAt *time.Time
@@ -58,7 +64,9 @@ func (p *PendingAsk) Outstanding(now time.Time) bool {
 
 // PendingStore is durable storage for raised asks, keyed by correlation id. A
 // scenario implements it over its own table (the Raiser needs nothing more). It
-// generalizes domain.PendingAuthorizationRepository.
+// generalizes domain.PendingAuthorizationRepository. Implementations must round
+// trip EventID and Published so a failed publication can retry without changing
+// the generation or repeating a successful notification.
 type PendingStore interface {
 	// Get returns the ask for a correlation id, or nil when none exists.
 	Get(ctx context.Context, id string) (*PendingAsk, error)

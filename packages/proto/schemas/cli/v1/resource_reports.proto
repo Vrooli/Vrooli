@@ -76,6 +76,8 @@ message ResourceStopReport {
 
   // Human-readable summary message.
   string message = 3;
+  // Diagnostics and recommendations that do not assert a stopped resource.
+  repeated ResourceControlResultItem observed = 4;
 }
 
 // -----------------------------------------------------------------------------

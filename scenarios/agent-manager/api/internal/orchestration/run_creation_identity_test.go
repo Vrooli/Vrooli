@@ -14,6 +14,7 @@ import (
 	"agent-manager/internal/orchestration/phases"
 	"github.com/google/uuid"
 	coreidentity "github.com/vrooli/api-core/identity"
+	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 )
 
 type createOwnerVerifier func(context.Context, string) (coreidentity.Principal, error)
@@ -112,5 +113,60 @@ func TestCreateRunIdentityReplayRetainsOriginalAuthority(t *testing.T) {
 	}
 	if err := validateRunIdentityReplay(run, CreateRunRequest{OwnerSubject: run.OwnerSubject, RequestedScopes: run.RequestedScopes}); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestCreateRunReplayRequiresExactOriginalRequest(t *testing.T) {
+	profileID := uuid.New()
+	base := CreateRunRequest{
+		TaskID:         uuid.New(),
+		IdempotencyKey: "create-run:test-key",
+		AgentProfileID: &profileID,
+		Until:          "finish the retained objective",
+		Prompt:         "complete the requested work",
+		WorkReferences: []*eventpb.WorkReference{{Kind: "effort", Id: "effort-1", Revision: "target-7"}},
+		Environment:    map[string]string{"VROOLI_WORKLOAD": "epoch-3"},
+	}
+	digest, err := createRunRequestDigest(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	base.requestDigest = digest
+	run := &domain.Run{ResolvedConfig: &domain.RunConfig{Admission: &domain.RunAdmission{CreateRequestDigest: digest}}}
+	if err := validateRunIdentityReplay(run, base); err != nil {
+		t.Fatalf("identical retry was rejected: %v", err)
+	}
+
+	changed := []struct {
+		name string
+		edit func(*CreateRunRequest)
+	}{
+		{name: "until", edit: func(req *CreateRunRequest) { req.Until = "stop after a different goal" }},
+		{name: "work reference", edit: func(req *CreateRunRequest) {
+			req.WorkReferences = []*eventpb.WorkReference{{Kind: "effort", Id: "effort-2", Revision: "target-7"}}
+		}},
+		{name: "profile", edit: func(req *CreateRunRequest) { other := uuid.New(); req.AgentProfileID = &other }},
+		{name: "workload environment", edit: func(req *CreateRunRequest) { req.Environment = map[string]string{"VROOLI_WORKLOAD": "epoch-4"} }},
+		{name: "prompt override", edit: func(req *CreateRunRequest) { req.Prompt = "do different work" }},
+	}
+	for _, tc := range changed {
+		t.Run(tc.name, func(t *testing.T) {
+			req := base
+			req.requestDigest = ""
+			req.WorkReferences = append([]*eventpb.WorkReference(nil), base.WorkReferences...)
+			tc.edit(&req)
+			if err := validateRunIdentityReplay(run, req); err == nil {
+				t.Fatal("same-key replay accepted changed request terms")
+			} else if coded, ok := err.(interface{ Code() domain.ErrorCode }); !ok || coded.Code() != domain.ErrCodeStateIdempotencyReplayConflict {
+				t.Fatalf("changed same-key request code=%v; want exact owner replay-conflict code", err)
+			}
+		})
+	}
+
+	// Historical admissions have no request digest. They remain on the
+	// previously established identity-only compatibility path.
+	legacy := &domain.Run{ResolvedConfig: &domain.RunConfig{Admission: &domain.RunAdmission{}}}
+	if err := validateRunIdentityReplay(legacy, CreateRunRequest{}); err != nil {
+		t.Fatalf("historical admission lost replay compatibility: %v", err)
 	}
 }

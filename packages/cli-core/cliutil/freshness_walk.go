@@ -18,14 +18,21 @@ func hasGlobPattern(value string) bool {
 	return strings.ContainsAny(value, "*?[")
 }
 
-func buildinfoSkipDir(path string) bool {
+func buildinfoSkipDir(root, path string) bool {
 	path = strings.ReplaceAll(filepath.ToSlash(path), "\\", "/")
-	for _, skip := range []string{".git", ".vscode", ".idea", "coverage", "dist", "build", "tmp", "data", "node_modules"} {
+	for _, skip := range []string{".git", ".vscode", ".idea", "dist", "build", "tmp", "data", "node_modules"} {
 		if buildinfo.PathHasComponent(path, skip) {
 			return true
 		}
 	}
-	return false
+	return isCoverageOutputDir(root, path)
+}
+
+// isCoverageOutputDir matches the repository's scoped coverage report roots.
+// A package directory named coverage is source unless its full path is one of
+// these output locations; matching the basename alone drops real Go inputs.
+func isCoverageOutputDir(root, path string) bool {
+	return buildinfo.IsCoverageOutputDir(root, path)
 }
 
 func buildinfoSkipFile(path string, extra []string) bool {

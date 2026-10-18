@@ -28,9 +28,10 @@ import (
 )
 
 func TestExactReconcileSiteWireAndProtectedCredentialContinuity(t *testing.T) {
-	for _, mode := range []string{"same", "changed", "refused", "wrong protocol", "unavailable", "redirect307", "redirect308"} {
+	for _, mode := range []string{"same", "changed", "changed operation", "refused", "legacy same", "wrong protocol", "unavailable", "redirect307", "redirect308"} {
 		t.Run(mode, func(t *testing.T) {
 			const token = "disposable-protected-test-leaf"
+			const operationToken = "disposable-protected-operation"
 			requests := 0
 			transport := exactCLIRoundTripper(func(r *http.Request) (*http.Response, error) {
 				if err := cliutil.ApplyAgentIdentity(r); err != nil {
@@ -40,6 +41,13 @@ func TestExactReconcileSiteWireAndProtectedCredentialContinuity(t *testing.T) {
 				requests++
 				if r.Header.Get("X-Agent-Identity-Token") != token || r.Header.Get("Authorization") != "" {
 					t.Error("credential attribution changed")
+				}
+				wantOperation := operationToken
+				if mode == "legacy same" {
+					wantOperation = ""
+				}
+				if r.Header.Get(cliutil.HeaderAgentOperationToken) != wantOperation {
+					t.Errorf("operation credential changed: got %q, want %q", r.Header.Get(cliutil.HeaderAgentOperationToken), wantOperation)
 				}
 
 				if strings.Contains(r.URL.Path, "exact-challenge") {
@@ -68,16 +76,22 @@ func TestExactReconcileSiteWireAndProtectedCredentialContinuity(t *testing.T) {
 
 			a := &App{services: &Services{Watches: &WatchService{api: client}}}
 			signed := false
-			resolver := func(context.Context) (string, error) {
+			resolver := func(context.Context) (cliutil.AgentCredentials, error) {
 				if signed {
 					if mode == "changed" {
-						return "another-leaf", nil
+						return cliutil.AgentCredentials{BaselineToken: "another-leaf", OperationToken: operationToken}, nil
+					}
+					if mode == "changed operation" {
+						return cliutil.AgentCredentials{BaselineToken: token, OperationToken: "another-operation"}, nil
 					}
 					if mode == "refused" {
-						return "", fmt.Errorf("broker refused")
+						return cliutil.AgentCredentials{}, fmt.Errorf("broker refused")
 					}
 				}
-				return token, nil
+				if mode == "legacy same" {
+					return cliutil.AgentCredentials{LegacyToken: token}, nil
+				}
+				return cliutil.AgentCredentials{BaselineToken: token, OperationToken: operationToken}, nil
 			}
 			protocol := "keyring.exact-action.v1"
 			if mode == "wrong protocol" {
@@ -86,7 +100,7 @@ func TestExactReconcileSiteWireAndProtectedCredentialContinuity(t *testing.T) {
 			input := fmt.Sprintf(`{"protocol":%q,"bytes":%q,"signature":%q}`, protocol, base64.RawURLEncoding.EncodeToString([]byte(`{"v":1}`)), base64.RawURLEncoding.EncodeToString(make([]byte, 64)))
 			var output bytes.Buffer
 			err := a.exactReconcile(&pb.ReconcileEffortMetadataRequest{}, "fixture-grant", &afterChallengeReader{Reader: strings.NewReader(input), after: func() { signed = true }}, &output, resolver)
-			if mode == "same" {
+			if mode == "same" || mode == "legacy same" {
 				if err != nil || requests != 2 {
 					t.Fatal(err, requests)
 				}
@@ -357,14 +371,14 @@ func TestExactReceiptProtocolAndCustodyRefuseBeforeReadSubmission(t *testing.T) 
 				protocol = "keyring.exact-action.v1"
 			}
 			input := fmt.Sprintf(`{"protocol":%q,"bytes":%q,"signature":%q}`, protocol, base64.RawURLEncoding.EncodeToString([]byte(`{"v":1}`)), base64.RawURLEncoding.EncodeToString(make([]byte, 64)))
-			resolve := func(context.Context) (string, error) {
+			resolve := func(context.Context) (cliutil.AgentCredentials, error) {
 				if signed && mode == "changed" {
-					return "different-leaf", nil
+					return cliutil.AgentCredentials{LegacyToken: "different-leaf"}, nil
 				}
 				if signed && mode == "refused" {
-					return "", fmt.Errorf("authority refused")
+					return cliutil.AgentCredentials{}, fmt.Errorf("authority refused")
 				}
-				return token, nil
+				return cliutil.AgentCredentials{LegacyToken: token}, nil
 			}
 			var out bytes.Buffer
 			err := a.exactReceipt(exactReceiptRequest{}, "read-grant", &afterChallengeReader{Reader: strings.NewReader(input), after: func() { signed = true }}, &out, resolve)

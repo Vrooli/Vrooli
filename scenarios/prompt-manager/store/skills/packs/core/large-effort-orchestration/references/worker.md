@@ -110,6 +110,16 @@ line. Friction you can diagnose is not blocked.
 `FEEDBACK.md`, install a tool outside the project (request it in a slice-log line),
 or stop at a compaction, a green test or a status request.
 
-**Exit.** When every exit-gate command passes, log a final line with their results,
-mark your native goal complete, and end with changed, verified, remaining and
-unverified. The orchestrator decides acceptance.
+**Exit.** Follow the scope named in your admitted assignment.
+
+- **Full epoch:** Run every exit-gate command in the epoch brief. When all pass,
+  log a final line with their results, mark your native goal complete, and end
+  with changed, verified, remaining, and unverified. If any gate fails, report
+  the failing command and remaining holds; do not mark the epoch complete.
+- **Bounded task or slice:** If the orchestrator explicitly assigns a bounded
+  unit and excludes epoch gates or acceptance, do not run the full epoch exit
+  gates. When the assigned work and required handoff evidence are complete, mark
+  only the task's native goal complete. End with changed, verified, remaining,
+  and unverified, including unrun epoch gates and other unresolved holds. This
+  closes only the assigned task; it never records or implies epoch acceptance.
+  The orchestrator retains responsibility for epoch acceptance.

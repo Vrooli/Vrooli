@@ -88,23 +88,19 @@ func (h *handler) ValidateScenario(ctx context.Context, req *connect.Request[sce
 	}
 	clean := len(findings) == 0
 	level := "L1"
-	status := scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED
 	if clean && req.Msg.GetIncludeExecution() {
 		level = "L2"
 	}
 	if !clean {
 		level = "L0"
-		status = scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED
 	}
-	levels := []*commonv1.LocalMaturityLevel{{Id: "L0", Name: "Program contract unavailable", StatusLabel: "Unavailable", NextUnlock: "Readable program declarations."}, {Id: "L1", Name: "Program contract inspectable", StatusLabel: "Foundation", NextUnlock: "Clear program validation findings."}, {Id: "L2", Name: "Program contract clean", StatusLabel: "Complete", CapabilitySummary: "Declared program contracts pass the requested static or execution checks."}}
-	local := &commonv1.LocalMaturityAssessment{CurrentLevel: level, NextLevel: "L2", Clean: clean, BlockingFindingCodes: findings, Levels: levels}
-	assessmentValue := &commonv1.MaturityAssessment{Scenario: scenario, Provider: "program-runtime", Phase: "programs", Version: "1.0.0", Local: local}
-	if clean && req.Msg.GetIncludeExecution() {
-		assessmentValue.Local.NextLevel = ""
-	} else if !clean {
-		assessmentValue.Local.NextLevel = "L1"
+	assessmentValue, status, assessmentErr := validationAssessmentForFindings(h.repoRoot, scenario, findings, level, clean, req.Msg.GetIncludeExecution())
+	if assessmentErr != nil {
+		// Severity metadata is required to pass this provider phase. Preserve the
+		// raw finding codes in the local assessment, fail closed, and explain why
+		// normalized severity evidence could not be produced.
+		diagnostics = append(diagnostics, map[string]any{"kind": "assessment_unavailable", "message": "provider finding severities could not be loaded"})
 	}
-	assessmentValue.Presentation = maturityassessment.BuildPhasePresentation(assessmentValue)
 	findingValues := make([]any, len(findings))
 	for i, finding := range findings {
 		findingValues[i] = finding
@@ -112,6 +108,42 @@ func (h *handler) ValidateScenario(ctx context.Context, req *connect.Request[sce
 	detail, _ := structpb.NewStruct(map[string]any{"findings": findingValues, "diagnostics": diagnostics, "include_execution": req.Msg.GetIncludeExecution()})
 	native, _ := anypb.New(detail)
 	return connect.NewResponse(&scenariovalidationv1.ValidateScenarioResponse{Scenario: scenario, Status: status, Assessment: assessmentValue, NativeDetail: native, Metrics: executionMetrics()}), nil
+}
+
+func validationAssessmentForFindings(repoRoot, scenario string, codes []string, level string, clean, includeExecution bool) (*commonv1.MaturityAssessment, scenariovalidationv1.ValidationStatus, error) {
+	status := scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_ERROR
+	levels := []*commonv1.LocalMaturityLevel{{Id: "L0", Name: "Program contract unavailable", StatusLabel: "Unavailable", NextUnlock: "Readable program declarations."}, {Id: "L1", Name: "Program contract inspectable", StatusLabel: "Foundation", NextUnlock: "Clear program validation findings."}, {Id: "L2", Name: "Program contract clean", StatusLabel: "Complete", CapabilitySummary: "Declared program contracts pass the requested static or execution checks."}}
+	nextLevel := "L2"
+	if clean && includeExecution {
+		nextLevel = ""
+	} else if !clean {
+		nextLevel = "L1"
+	}
+	local := &commonv1.LocalMaturityAssessment{CurrentLevel: level, NextLevel: nextLevel, Clean: clean, BlockingFindingCodes: append([]string(nil), codes...), Levels: levels}
+	fallback := &commonv1.MaturityAssessment{Scenario: scenario, Provider: "program-runtime", Phase: "programs", Version: "1.0.0", Local: local}
+	spec, err := maturityassessment.LoadSpecFromScenario(filepath.Join(repoRoot, "scenarios", "program-runtime"))
+	if err != nil {
+		fallback.Presentation = maturityassessment.BuildPhasePresentation(fallback)
+		return fallback, status, err
+	}
+	assessmentFindings := make([]maturityassessment.Finding, 0, len(codes))
+	for _, code := range codes {
+		assessmentFindings = append(assessmentFindings, maturityassessment.Finding{Code: code})
+	}
+	assessmentValue, err := maturityassessment.BuildProtoAssessment(maturityassessment.BuildInput{Scenario: scenario, Spec: *spec, Findings: assessmentFindings})
+	if err != nil {
+		fallback.Presentation = maturityassessment.BuildPhasePresentation(fallback)
+		return fallback, status, err
+	}
+	// Keep provider-specific maturity semantics, while returning the same
+	// normalized assessment whose severity counts determine phase status.
+	assessmentValue.Local.CurrentLevel = local.CurrentLevel
+	assessmentValue.Local.NextLevel = local.NextLevel
+	assessmentValue.Local.Clean = local.Clean
+	assessmentValue.Local.BlockingFindingCodes = local.BlockingFindingCodes
+	assessmentValue.Local.Levels = local.Levels
+	assessmentValue.Presentation = maturityassessment.BuildPhasePresentation(assessmentValue)
+	return assessmentValue, maturityassessment.DeriveValidationStatus(assessmentValue), nil
 }
 
 func (h *handler) portfolioFindings(ctx context.Context, scenario string) []string {

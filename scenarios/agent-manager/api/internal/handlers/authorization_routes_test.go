@@ -73,6 +73,64 @@ func TestAgentRoutesRetainGlobalManagementBoundary(t *testing.T) {
 	}
 }
 
+func TestDeclarationsPlanIsVerifiedAgentReadWithoutOpeningReconcileWrites(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		path       string
+		principal  *identity.Principal
+		wantStatus int
+	}{
+		{
+			name: "verified agent may validate declarations",
+			path: "/api/v1/declarations/plan",
+			principal: &identity.Principal{
+				Kind: identity.ActorAgent, Subject: "run-1", Verified: true,
+				Scopes: []string{"agent-manager:write"},
+			},
+			wantStatus: http.StatusNoContent,
+		},
+		{
+			name: "unverified agent remains refused",
+			path: "/api/v1/declarations/plan",
+			principal: &identity.Principal{
+				Kind: identity.ActorAgent, Subject: "run-1", Scopes: []string{"agent-manager:write"},
+			},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "anonymous plan remains refused",
+			path:       "/api/v1/declarations/plan",
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name: "verified agent cannot reconcile declarations",
+			path: "/api/v1/declarations/reconcile-scenario",
+			principal: &identity.Principal{
+				Kind: identity.ActorAgent, Subject: "run-1", Verified: true,
+				Scopes: []string{"agent-manager:write"},
+			},
+			wantStatus: http.StatusForbidden,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			reached := false
+			h := AgentOperationMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				reached = true
+				w.WriteHeader(http.StatusNoContent)
+			}))
+			req := httptest.NewRequest(http.MethodPost, tc.path, nil)
+			if tc.principal != nil {
+				req = req.WithContext(identity.WithPrincipal(req.Context(), *tc.principal))
+			}
+			w := httptest.NewRecorder()
+			h.ServeHTTP(w, req)
+			if w.Code != tc.wantStatus || reached != (tc.wantStatus == http.StatusNoContent) {
+				t.Fatalf("status=%d reached=%v want status=%d", w.Code, reached, tc.wantStatus)
+			}
+		})
+	}
+}
+
 func TestAgentRoutesPreserveOwnedLocalLifecycleContract(t *testing.T) {
 	h := AgentOperationMiddleware(lifecycle.LoopbackOnly(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })))
 	for _, tc := range []struct {
@@ -199,7 +257,7 @@ func TestOrchestratorRoutesReachTheirOwnHandlerChecks(t *testing.T) {
 		want        bool
 	}{
 		{"/api/v1/tasks", false, true},
-		{"/api/v1/tasks", true, false},
+		{"/api/v1/tasks", true, true},
 		{"/api/v1/runs/wake-by-key", false, true},
 		{"/api/v1/runs/wake-by-key", true, true},
 	} {

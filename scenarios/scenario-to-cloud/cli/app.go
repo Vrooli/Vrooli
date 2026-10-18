@@ -11,6 +11,7 @@ import (
 
 	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 const (
@@ -26,6 +27,7 @@ var (
 )
 
 var exchangeLocalMachinePrincipal = authn.ExchangeLocalMachinePrincipal
+var resolveLocalAgentCredential = cliutil.ResolveAgentCredential
 
 // App is the main CLI application container.
 type App struct {
@@ -56,8 +58,8 @@ func NewApp() (*App, error) {
 // Run executes the CLI with the given arguments.
 func (a *App) Run(args []string) error {
 	// Local scenario-to-cloud management is protected even though it runs on
-	// loopback. If the operator has not supplied a token, exchange the current
-	// process identity through scenario-authenticator. The token stays in this
+	// loopback. Use the current agent grant when available; otherwise exchange
+	// the local operator through scenario-authenticator. The token stays in this
 	// process memory and is never written to shell state, config, logs, or
 	// deployment payloads. Remote/shared API bases still require their normal
 	// explicit bearer token.
@@ -74,6 +76,14 @@ func (a *App) ensureLocalOperatorToken(args []string) error {
 	base := strings.TrimSpace(a.core.APIRootBase())
 	parsed, err := url.Parse(base)
 	if err != nil || !isLoopbackHost(parsed.Hostname()) {
+		return nil
+	}
+	// The shared transport resolves this credential again on every request.
+	// Do not add an unrelated operator bearer to an approved agent request,
+	// or fall back to operator login after an authoritative broker refusal.
+	if token, err := resolveLocalAgentCredential(context.Background()); err != nil {
+		return err
+	} else if token != "" {
 		return nil
 	}
 	login, err := exchangeLocalMachinePrincipal(context.Background())

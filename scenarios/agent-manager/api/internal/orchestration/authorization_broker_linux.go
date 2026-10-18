@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -104,7 +105,8 @@ func (o *Orchestrator) startAuthorizationBrokerAt(path string) (func() error, er
 				http.Error(w, "verified local peer required", http.StatusUnauthorized)
 				return
 			}
-			token, found, err := o.ResolveAuthorizationCredential(r.Context(), peer.pid)
+			baselineToken := strings.TrimSpace(r.Header.Get(cliutil.HeaderAgentIdentityToken))
+			credentials, err := o.ResolveAuthorizationCredentials(r.Context(), peer.pid, baselineToken)
 			if err != nil {
 				code := "unavailable"
 				var refused *domain.AuthorizationError
@@ -116,12 +118,12 @@ func (o *Orchestrator) startAuthorizationBrokerAt(path string) (func() error, er
 				json.NewEncoder(w).Encode(map[string]string{"code": code, "recovery": "vrooli agent authorization <session-or-run>"})
 				return
 			}
-			if !found {
+			if credentials.BaselineToken == "" && credentials.LegacyToken == "" {
 				w.WriteHeader(http.StatusNoContent)
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]string{"token": token})
+			json.NewEncoder(w).Encode(credentials)
 		}),
 	}
 	go func() {

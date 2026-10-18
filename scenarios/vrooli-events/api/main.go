@@ -23,6 +23,7 @@ import (
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/broker"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/config"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/policy"
+	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/sqlutil"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/store"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/subscription"
 )
@@ -97,6 +98,7 @@ func main() {
 
 	srv := &Server{
 		store:             eventStore,
+		db:                db,
 		broker:            eventBroker,
 		config:            cfg,
 		policyStore:       polStore,
@@ -164,6 +166,7 @@ func securityHeaders(next http.Handler) http.Handler {
 // mocks without requiring real SQLite or goroutine-backed brokers.
 type Server struct {
 	store             store.Store
+	db                sqlutil.DB
 	broker            broker.EventBroker
 	config            config.Config
 	policyStore       policy.Store

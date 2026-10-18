@@ -14,7 +14,12 @@ import (
 
 type fakeStandingGrants struct{ grants []*domain.StandingGrant }
 
-func (f *fakeStandingGrants) Put(context.Context, *domain.StandingGrant) error { return nil }
+func (f *fakeStandingGrants) Put(_ context.Context, grant *domain.StandingGrant) error {
+	if grant != nil {
+		f.grants = append(f.grants, grant)
+	}
+	return nil
+}
 func (f *fakeStandingGrants) ActiveForSubject(_ context.Context, subject string, now time.Time) ([]*domain.StandingGrant, error) {
 	var out []*domain.StandingGrant
 	for _, g := range f.grants {
@@ -31,6 +36,16 @@ func (f *fakeStandingGrants) Revoke(context.Context, string, time.Time) (bool, e
 
 func (f *fakeStandingGrants) List(context.Context, int) ([]*domain.StandingGrant, error) {
 	return append([]*domain.StandingGrant(nil), f.grants...), nil
+}
+
+func (f *fakeStandingGrants) ListForApprover(_ context.Context, approver string, _ int) ([]*domain.StandingGrant, error) {
+	var out []*domain.StandingGrant
+	for _, grant := range f.grants {
+		if grant != nil && grant.ApprovedBy == approver && grant.Grant != nil && grant.Grant.Approver == approver {
+			out = append(out, grant)
+		}
+	}
+	return out, nil
 }
 
 // A service-standing caller re-validates idempotently: with the grant unchanged

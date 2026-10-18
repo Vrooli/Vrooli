@@ -4,13 +4,36 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 const testWheelHash = "1acb95a0758941925d91e7a6d87ad826cb8eff83458810f746497d4086139c5d"
 const testWheelURL = "https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.3.post2/flash_attn-2.8.3.post2%2Bcu12torch2.7cxx11abiTRUE-cp312-cp312-linux_x86_64.whl#sha256=" + testWheelHash
+
+func TestPythonCompileFlagsAcceptedByInstalledUVWithoutResolution(t *testing.T) {
+	if _, err := exec.LookPath("uv"); err != nil {
+		t.Skip("installed uv parser unavailable; fake-owner checks do not qualify external argv compatibility")
+	}
+	root := t.TempDir()
+	missing, output := filepath.Join(root, "absent-requirements.in"), filepath.Join(root, "requirements.lock")
+	t.Setenv("UV_OFFLINE", "1")
+	t.Setenv("UV_PYTHON_DOWNLOADS", "never")
+	t.Setenv("UV_CACHE_DIR", filepath.Join(root, "cache"))
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	diagnostic, err := compilePythonLock(ctx, root, missing, output, pythonIndexSet{Primary: "https://pypi.org/simple"})
+	if err == nil || ctx.Err() != nil || !strings.Contains(diagnostic, "absent-requirements.in") || strings.Contains(diagnostic, "cannot be used with") {
+		t.Fatalf("actual uv must accept owner argv and reach missing-input refusal without resolving dependencies: %v\n%s", err, diagnostic)
+	}
+	if _, err := os.Stat(output); !os.IsNotExist(err) {
+		t.Fatalf("parser-only refusal created an output: %v", err)
+	}
+	t.Logf("installed parser accepted wheel-only argv; no input or resolution: %s", strings.TrimSpace(diagnostic))
+}
 
 func bootstrapResource(t *testing.T, input string) (string, string) {
 	t.Helper()
@@ -201,10 +224,13 @@ func TestPythonBootstrapPublishesOnlyValidatedNewLock(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, expected := range []string{"--generate-hashes", "--only-binary", "--no-build", "--no-config", "3.12", "x86_64-unknown-linux-gnu", "https://download.pytorch.org/whl/cu126", "https://pypi.org/simple"} {
+	for _, expected := range []string{"--generate-hashes", "--only-binary", "--no-config", "3.12", "x86_64-unknown-linux-gnu", "https://download.pytorch.org/whl/cu126", "https://pypi.org/simple"} {
 		if !strings.Contains(string(actual), expected) {
 			t.Fatal(string(actual))
 		}
+	}
+	if strings.Contains(string(actual), "--no-build") {
+		t.Fatal("uv rejects redundant --no-build combined with --only-binary", string(actual))
 	}
 	if _, err := (ExecInstaller{}).Install(context.Background(), r); err == nil {
 		t.Fatal("bootstrap replaced an existing output")

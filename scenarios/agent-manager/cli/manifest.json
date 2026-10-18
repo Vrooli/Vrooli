@@ -1853,7 +1853,7 @@
     },
     {
       "name": "standing-grants",
-      "description": "Create, list, or revoke operator-approved standing grants",
+      "description": "Create, list, diagnose, or revoke operator-approved standing grants",
       "commands": [
         {
           "name": "create",
@@ -1871,7 +1871,21 @@
         },
         {
           "name": "list",
-          "description": "List recorded standing grants (human-only; use --local-owner)",
+          "description": "List recorded standing grants globally for verified humans or by owner for verified agents",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "diagnose-prompt-manager",
+          "description": "Read the bounded Prompt Manager run-admission decision (agent.investigate authority required)",
           "binding": {
             "kind": "local"
           },
@@ -4296,6 +4310,38 @@
       "name": "effort",
       "description": "Goal-home commands for orchestrated delivery efforts (epoch checks, lint, handoff, park)",
       "commands": [
+        {
+          "name": "board",
+          "description": "Read one bounded owner projection of enrolled efforts and their current goal-home/runtime evidence",
+          "flags": [
+            {
+              "name": "effort-ref",
+              "description": "Optional exact effort reference",
+              "bind": {"field": "effort_ref"}
+            },
+            {
+              "name": "page-size",
+              "description": "Maximum owner rows (1-100)",
+              "bind": {"field": "page_size"}
+            },
+            {
+              "name": "page-token",
+              "description": "Opaque continuation token from the prior board response",
+              "bind": {"field": "page_token"}
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "GetEffortBoard"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          },
+          "architecture": {"primitive": "proto_list"}
+        },
         {
           "name": "epoch-check",
           "description": "Report an epoch file's step-back triggers, typed exit gates and measured yield; exit 3 on STEP_BACK, 4 when --acceptance is refused",

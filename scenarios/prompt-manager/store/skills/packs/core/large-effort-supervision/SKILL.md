@@ -9,9 +9,9 @@ metadata:
   tags: [supervision, effort, efficiency, orchestration, evidence]
   icon: eye
   status: active
-  revision: 22
+  revision: 23
   createdAt: "2026-09-12T00:00:00Z"
-  updatedAt: "2026-10-06T18:00:00Z"
+  updatedAt: "2026-10-16T00:00:00Z"
   requires:
     scenarios: [agent-manager, prompt-manager]
     commands: [agent-manager, prompt-manager skill read]
@@ -51,7 +51,21 @@ quiet disposition and ends. With no active goal, stay idle.
 
 ### 2. Daily check
 
-For each active goal home:
+Build the goal set from one bounded Agent Manager owner observation:
+`program-runtime library run agent-manager.supervision-observation-read --input page_size=8`.
+Read `signals.coverage`, `signals.discovery`, `signals.page_has_more` and every
+row's `disposition` before steering. Continue with the returned opaque page token
+when needed. Runtime `unknown`, `needs_review`, blocked, stale or unavailable
+does not remove an unfinished retained orchestrator/worker obligation. A withdrawn
+row is retired. Goal-home contents such as `activeEpoch`, open feedback or queue
+findings do not prove native admission or retained ownership. A row without a
+retained orchestrator/worker assignment stays visible as admission/completion
+unknown and is not selected or dispatched. `authorized_by` presence alone never
+decides selection.
+If the owner read is unavailable or partial, retain that gap and its continuation;
+do not replace it with a prompt-maintained active-goal list.
+
+For each selected goal home:
 1. Read the `QUEUE.md` Forecast, `## Handoff` and `## Needs operator`, the
    active epoch's last 20 slice-log lines, new `WORKAROUNDS.md` entries and the
    latest daily qualification result. Never read full transcripts to orient,

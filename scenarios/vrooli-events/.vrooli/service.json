@@ -13,6 +13,20 @@
           "max_bytes": "2GiB",
           "rationale": "The event store pruner enforces the same 2 GiB payload ceiling before the durable data surface can grow without bound."
         }
+      },
+      "retention_receipt": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "state",
+        "format": "json",
+        "subpath": "retention/enforcement-receipt.json",
+        "regenerable": true,
+        "rationale": "Shared retention enforcement replaces its compact receipt in the Events owner namespace.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "max_age": "30d",
+          "rationale": "The last-cycle receipt is replaced by the next retention run and can be regenerated."
+        }
       }
     },
     "rationale": "The scenario owns its durable SQLite event store; no external resource database is claimed."

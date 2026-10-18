@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -87,6 +88,37 @@ func TestAuth01CreateCallerQualification(t *testing.T) {
 	}
 	if RequireCreateRunCaller(context.Background(), now, true) == nil {
 		t.Fatal("anonymous accepted")
+	}
+}
+
+func TestCreateRunCallerBindingIsStableVerifiedSubjectFingerprint(t *testing.T) {
+	now := time.Now()
+	first, err := AuthorizeCreateRunCaller(context.Background(), http.Header{"Authorization": []string{"Bearer fixture-owner"}}, &auth01Validator{result: Identity{Subject: "human-a", Scopes: []string{"agent-manager:write"}, ExpiresAt: now.Add(time.Minute)}}, now, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := AuthorizeCreateRunCaller(context.Background(), http.Header{"Authorization": []string{"Bearer fixture-owner"}}, &auth01Validator{result: Identity{Subject: "human-a", Scopes: []string{"agent-manager:*"}, ExpiresAt: now.Add(2 * time.Minute)}}, now, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	one, err := CreateRunCallerBinding(first)
+	if err != nil {
+		t.Fatal(err)
+	}
+	two, err := CreateRunCallerBinding(second)
+	if err != nil || one != two {
+		t.Fatalf("same verified human should keep a stable binding across proof and scope refresh: %q %q %v", one, two, err)
+	}
+	other, err := AuthorizeCreateRunCaller(context.Background(), http.Header{"Authorization": []string{"Bearer fixture-owner"}}, &auth01Validator{result: Identity{Subject: "human-b", Scopes: []string{"agent-manager:write"}, ExpiresAt: now.Add(time.Minute)}}, now, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	three, err := CreateRunCallerBinding(other)
+	if err != nil || one == three || strings.Contains(one, "human-a") {
+		t.Fatalf("binding must distinguish principals without storing subject text: %q %q %v", one, three, err)
+	}
+	if _, err := CreateRunCallerBinding(context.Background()); err == nil {
+		t.Fatal("binding must fail closed without verified caller proof")
 	}
 }
 

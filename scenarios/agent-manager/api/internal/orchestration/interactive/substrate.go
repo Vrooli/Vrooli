@@ -52,12 +52,10 @@ const (
 	// one lands the prompt. Kept comfortably above turn-start latency so a
 	// delivered prompt is detected before the next re-delivery.
 	defaultPromptResendAfter = 5 * time.Second
-	// defaultGoalInstallTimeout bounds the wait for the harness to process a
-	// /goal command before the task prompt is pasted. A prompt pasted while the
-	// slash command is still composing is swallowed into the goal argument; the
-	// goal command's own transcript record (claude's goal_status attachment)
-	// appearing is the readiness signal. Best-effort: on timeout the prompt is
-	// delivered anyway and transcript discovery continues normally.
+	// defaultGoalInstallTimeout bounds the wait for the native objective to
+	// appear as an active marker in the current transcript before the task prompt
+	// is pasted. A transcript file alone is not an acknowledgement: the TUI may
+	// still be composing the /goal command.
 	defaultGoalInstallTimeout = 15 * time.Second
 )
 
@@ -157,6 +155,16 @@ func WithPromptResendAfter(d time.Duration) Option {
 	return func(s *Substrate) {
 		if d > 0 {
 			s.promptResendAfter = d
+		}
+	}
+}
+
+// WithGoalInstallTimeout bounds the required native-objective installation
+// acknowledgement before the initial task prompt may be submitted.
+func WithGoalInstallTimeout(d time.Duration) Option {
+	return func(s *Substrate) {
+		if d > 0 {
+			s.goalInstallTimeout = d
 		}
 	}
 }
@@ -272,6 +280,14 @@ func (s *Substrate) Launch(ctx context.Context, p LaunchParams) (LaunchResult, e
 	if err != nil {
 		return LaunchResult{}, fmt.Errorf("resolve interactive launch info for %s: %w", p.RunnerType, err)
 	}
+	var goalParserFactory runner.TranscriptParserFactory
+	if p.NativeObjective != "" {
+		factory, ok := info.(runner.TranscriptParserFactory)
+		if !ok {
+			return LaunchResult{}, fmt.Errorf("runner %s has no transcript parser for native objective acknowledgement", p.RunnerType)
+		}
+		goalParserFactory = factory
+	}
 
 	// Pre-create the relocated session home and seed it with the shared home's
 	// credentials so the launched CLI stays authenticated (design §4) — a fresh
@@ -371,21 +387,32 @@ func (s *Substrate) Launch(ctx context.Context, p LaunchParams) (LaunchResult, e
 	var resend func() error
 	if p.Prompt != "" || p.NativeObjective != "" {
 		if p.NativeObjective != "" {
-			// The goal is typed as a single slash command; a raw multi-line
-			// objective would submit on its first newline and truncate.
-			if err := s.sessions.SendText(ctx, sessionID, "/goal "+singleLine(p.NativeObjective)+"\n", interactivePromptSource(p.RunID)); err != nil {
-				return result, fmt.Errorf("deliver native objective to %s: %w", p.RunnerType, err)
-			}
-			// Wait for the harness to consume the slash command before pasting
-			// the task prompt; otherwise the paste becomes part of the goal
-			// argument (observed in the Phase 2 smoke). Best-effort.
-			s.awaitGoalInstalled(ctx, DiscoverParams{
+			// Establish the transcript parser state and byte cursor before sending
+			// /goal. Existing active markers are only prefix context; they cannot
+			// acknowledge this request.
+			discovery := DiscoverParams{
 				RunnerType: p.RunnerType,
 				WorkingDir: p.WorkingDir,
 				RunDir:     p.RunDir,
 				LaunchedAt: launchedAt,
 				HomeDir:    s.homeDir,
-			})
+			}
+			watcher, err := s.newGoalInstallWatcher(ctx, discovery, goalParserFactory, p.RunID, singleLine(p.NativeObjective))
+			if err != nil {
+				return result, fmt.Errorf("prepare native objective acknowledgement: %w", err)
+			}
+			// Native slash commands must be typed as literal text, not bracketed
+			// paste. SendCommand still waits for composer ingest and uses a named
+			// Enter with bounded screen verification; awaitGoalInstalled below
+			// remains the authoritative acknowledgement before the task prompt.
+			if _, err := s.sessions.SendCommand(ctx, sessionID, "/goal "+singleLine(p.NativeObjective), interactivePromptSource(p.RunID)); err != nil {
+				return result, fmt.Errorf("deliver native objective to %s: %w", p.RunnerType, err)
+			}
+			// Do not submit task text until this run's transcript parser observes
+			// a fresh, exact active objective in the current native session.
+			if err := s.awaitGoalInstalled(ctx, discovery, watcher); err != nil {
+				return result, fmt.Errorf("wait for native objective acknowledgement before initial prompt: %w", err)
+			}
 		}
 		var deliver func() error
 		if p.Prompt != "" {
@@ -474,10 +501,7 @@ func interactivePromptSource(runID uuid.UUID) string {
 // single slash command. Interactive TUIs treat the first newline as the Enter
 // keypress, so a multi-line objective would be truncated at its first line.
 func singleLine(objective string) string {
-	objective = strings.ReplaceAll(objective, "\r\n", " ")
-	objective = strings.ReplaceAll(objective, "\n", " ")
-	objective = strings.ReplaceAll(objective, "\r", " ")
-	return strings.TrimSpace(objective)
+	return runner.NativeGoalObjective(objective)
 }
 
 // awaitBoot waits promptBootDelay (or returns immediately when disabled),
@@ -501,19 +525,161 @@ func (s *Substrate) awaitBoot(ctx context.Context) error {
 // that swallows a delivery (claude's first-run trust dialog). Re-delivery is
 // bounded by the discovery deadline; a resend error is non-fatal because the
 // deadline is the authoritative failure.
-// awaitGoalInstalled waits briefly for the harness to process a typed /goal
-// command before the task prompt is pasted. The goal command writes its own
-// transcript record (claude's goal_status attachment), so the transcript
-// appearing is the readiness signal. It is best-effort: on timeout the caller
-// delivers the prompt anyway and normal transcript discovery continues.
-func (s *Substrate) awaitGoalInstalled(ctx context.Context, p DiscoverParams) {
-	deadline := s.now().Add(s.goalInstallTimeout)
-	for s.now().Before(deadline) {
-		if path, err := findTranscript(p); err == nil && path != "" {
-			return
+// goalInstallWatcher keeps the selected parser state and byte offset across
+// polls. The prefix present before /goal is parsed to seed session correlation,
+// but only bytes appended afterward may acknowledge the requested objective.
+type goalInstallWatcher struct {
+	factory       runner.TranscriptParserFactory
+	parser        runner.TranscriptParser
+	runID         uuid.UUID
+	objective     string
+	path          string
+	cursor        int64
+	freshFloor    int64
+	recordIsFresh bool
+	sessionID     string
+}
+
+func (s *Substrate) newGoalInstallWatcher(ctx context.Context, p DiscoverParams, factory runner.TranscriptParserFactory, runID uuid.UUID, objective string) (*goalInstallWatcher, error) {
+	if factory == nil || strings.TrimSpace(objective) == "" {
+		return nil, fmt.Errorf("native objective acknowledgement is not configured")
+	}
+	w := &goalInstallWatcher{factory: factory, runID: runID, objective: objective}
+	if err := w.resetParser(); err != nil {
+		return nil, err
+	}
+	path, err := findTranscript(p)
+	if err != nil {
+		return nil, fmt.Errorf("discover transcript before native objective: %w", err)
+	}
+	if path == "" {
+		return w, nil
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, fmt.Errorf("inspect transcript before native objective: %w", err)
+	}
+	w.path = path
+	// Consume only the observed prefix to seed parser/session state. Goal
+	// callbacks are intentionally absent: markers in this bounded byte extent
+	// predate the /goal send that follows this snapshot. Consume returns the
+	// last complete-line boundary; retain it so a partial final record can be
+	// completed by a later append instead of starting the next read mid-JSON.
+	extent := info.Size()
+	w.freshFloor = extent
+	if extent > 0 {
+		w.cursor, _, err = runner.Consume(ctx, runner.ConsumeArgs{
+			RunID: runID, Transcript: path, EndAt: extent, ParseFn: w.parser.ParseTranscriptLine,
+			OnSessionID: func(id string) error {
+				if strings.TrimSpace(id) != "" {
+					w.sessionID = strings.TrimSpace(id)
+				}
+				return nil
+			},
+		})
+		if err != nil {
+			return nil, fmt.Errorf("read transcript prefix before native objective: %w", err)
 		}
-		if !sleepCtx(ctx, s.pollInterval) {
-			return
+	}
+	return w, nil
+}
+
+func (w *goalInstallWatcher) resetParser() error {
+	w.parser = w.factory.NewTranscriptParser()
+	if w.parser == nil {
+		return fmt.Errorf("runner returned a nil transcript parser")
+	}
+	if setter, ok := w.parser.(interface {
+		SetGoalContext(uuid.UUID, string, string)
+	}); ok {
+		setter.SetGoalContext(w.runID, "", w.objective)
+	}
+	w.cursor = 0
+	w.freshFloor = 0
+	w.recordIsFresh = false
+	w.sessionID = ""
+	return nil
+}
+
+// awaitGoalInstalled waits until the runner parser reports the exact active
+// objective in a session represented by this transcript. A pre-existing file
+// or old active marker cannot release SendPrompt. Timeout/cancellation fails
+// Launch before task submission.
+func (s *Substrate) awaitGoalInstalled(ctx context.Context, p DiscoverParams, w *goalInstallWatcher) error {
+	deadline := s.now().Add(s.goalInstallTimeout)
+	for {
+		path, err := findTranscript(p)
+		if err != nil {
+			return fmt.Errorf("discover transcript while awaiting native objective: %w", err)
+		}
+		if path != "" {
+			if w.path != "" && path != w.path {
+				return fmt.Errorf("transcript changed while awaiting native objective")
+			}
+			if w.path == "" {
+				// The first transcript appeared after the pre-send snapshot; the
+				// launched process owns this run-scoped transcript stream.
+				w.path = path
+			}
+			info, err := os.Stat(path)
+			if err != nil {
+				return fmt.Errorf("inspect transcript while awaiting native objective: %w", err)
+			} else {
+				if info.Size() < w.cursor {
+					return fmt.Errorf("transcript was truncated while awaiting native objective")
+				}
+				installed := false
+				lineStart := w.cursor
+				parseLine := func(runID uuid.UUID, line string) runner.TranscriptParseResult {
+					w.recordIsFresh = lineStart >= w.freshFloor
+					lineStart += int64(len(line))
+					return w.parser.ParseTranscriptLine(runID, line)
+				}
+				next, _, consumeErr := runner.Consume(ctx, runner.ConsumeArgs{
+					RunID: w.runID, Transcript: path, StartAt: w.cursor, ParseFn: parseLine,
+					OnSessionID: func(id string) error {
+						if strings.TrimSpace(id) != "" {
+							w.sessionID = strings.TrimSpace(id)
+						}
+						return nil
+					},
+					OnGoalStatus: func(marker runner.GoalMarker) error {
+						installed = w.recordIsFresh && w.sessionID != "" && marker.Status == runner.GoalStatusActive && marker.Objective == w.objective
+						return nil
+					},
+					StopAfterTranscriptResult: func(runner.TranscriptParseResult) bool { return installed },
+				})
+				w.cursor = next
+				if installed {
+					return nil
+				}
+				if consumeErr != nil {
+					return fmt.Errorf("parse transcript while awaiting native objective: %w", consumeErr)
+				}
+			}
+		}
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if !s.now().Before(deadline) {
+			return fmt.Errorf("native objective was not acknowledged within %s", s.goalInstallTimeout)
+		}
+		remaining := deadline.Sub(s.now())
+		wait := s.pollInterval
+		if wait > remaining {
+			wait = remaining
+		}
+		timer := time.NewTimer(wait)
+		select {
+		case <-ctx.Done():
+			if !timer.Stop() {
+				select {
+				case <-timer.C:
+				default:
+				}
+			}
+			return ctx.Err()
+		case <-timer.C:
 		}
 	}
 }

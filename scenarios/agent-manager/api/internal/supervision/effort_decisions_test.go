@@ -2,6 +2,7 @@ package supervision
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"sync"
 	"testing"
@@ -9,10 +10,12 @@ import (
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/effortdecision"
+	"agent-manager/internal/goalhome"
 
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/eventbus"
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -116,6 +119,65 @@ func TestRaiseDecisionStoresOnePerIDAndPublishesOnce(t *testing.T) {
 	}
 }
 
+func TestDecisionContentDigestPreservesPreContextTerms(t *testing.T) {
+	decision := &pb.EffortDecision{
+		GoalHome: "scenarios/demo", DecisionId: "A172-legacy", Question: "Continue?",
+		Options:     []*pb.EffortDecisionOption{{Key: "yes", Label: "Yes"}, {Key: "no", Label: "No"}},
+		Recommended: "yes", Urgency: "normal", Note: "Legacy technical details.",
+	}
+	if got := decisionContentDigest(decision); got != "dbb47e39fb9f20df4e9d58c03c309b79564399195c019a38f2cf579fbd3a5912" {
+		t.Fatalf("empty additive context fields changed the pre-A172 decision digest: %s", got)
+	}
+}
+
+func TestRaiseDecisionContextRoundTripsAndRetryKeepsEventBytes(t *testing.T) {
+	s, publisher, _, _ := decisionFixture(t)
+	ctx := context.Background()
+	request := decisionRequest()
+	request.Decision.BigPicture = "This determines whether the original quality goal can be accepted."
+	request.Decision.TechnicalDetails = "The historical baseline is missing; no replacement run can reconstruct it."
+	publisher.fail = errors.New("vrooli-events unavailable")
+	first, err := s.RaiseDecision(ctx, request, "run-context")
+	if err != nil || first.Published || first.Decision.GetPublishError() == "" {
+		t.Fatalf("failed publication should retain the exact decision for retry: %+v %v", first, err)
+	}
+	listed, err := s.ListDecisions(ctx, &pb.ListEffortDecisionsRequest{GoalHome: decisionHome})
+	if err != nil || len(listed.GetDecisions()) != 1 {
+		t.Fatalf("decision readback: %+v %v", listed, err)
+	}
+	stored := listed.GetDecisions()[0]
+	if stored.GetBigPicture() != request.Decision.GetBigPicture() || stored.GetTechnicalDetails() != request.Decision.GetTechnicalDetails() {
+		t.Fatalf("context fields did not round-trip through the durable record: %+v", stored)
+	}
+	wantEvent := decisionEvent(stored)
+	wantBytes, err := json.Marshal(wantEvent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	publisher.fail = nil
+	if err := s.publishPendingDecisions(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.publishPendingDecisions(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if publisher.count() != 1 {
+		t.Fatalf("pending retry should publish exactly once, got %d", publisher.count())
+	}
+	gotBytes, err := json.Marshal(publisher.events[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(gotBytes) != string(wantBytes) {
+		t.Fatalf("retry event changed bytes\nwant %s\n got %s", wantBytes, gotBytes)
+	}
+	changed := proto.Clone(request).(*pb.RaiseEffortDecisionRequest)
+	changed.Decision.BigPicture += " A changed purpose."
+	if _, err := s.RaiseDecision(ctx, changed, "run-context"); !errors.Is(err, ErrDecisionChanged) {
+		t.Fatalf("changed purpose under an existing decision id must be refused: %v", err)
+	}
+}
+
 func TestRaiseDecisionRetriesAnUnpublishedEventOnTick(t *testing.T) {
 	s, publisher, _, _ := decisionFixture(t)
 	ctx := context.Background()
@@ -155,7 +217,7 @@ func TestDecisionResolutionsApplyOnceAndNeverReplaceAnOperatorAnswer(t *testing.
 			t.Fatal(err)
 		}
 	}
-	late := DecisionResolution{AskID: "ask-1", State: "answered", Answer: "close", Note: "keep macOS last", AnsweredBy: "operator", AnsweredAt: "2026-09-05T13:00:00Z", Late: true, Correlation: map[string]string{"goal_home": decisionHome, "decision_id": "BAS-D-070"}}
+	late := DecisionResolution{AskID: "ask-1", State: "answered", Answer: "close", Note: "keep macOS last", AnsweredBy: "operator", AnsweredAt: "2026-09-05T13:00:00Z", Late: true, RequesterRef: out.Decision.EventId, Correlation: map[string]string{"goal_home": decisionHome, "decision_id": "BAS-D-070"}}
 	d, err := s.ResolveDecisionFromHub(ctx, late)
 	if err != nil || d.State != DecisionAnswered || d.Answer != "close" || d.AnswerNote != "keep macOS last" || !d.Late || d.AnsweredVia != DecisionViaPhone {
 		t.Fatalf("a late operator answer must supersede the default verbatim: %+v %v", d, err)
@@ -178,6 +240,210 @@ func TestDecisionResolutionsApplyOnceAndNeverReplaceAnOperatorAnswer(t *testing.
 	}
 	if unknown, err := s.ResolveDecisionFromHub(ctx, DecisionResolution{State: "answered", RequesterRef: "some-other-ask"}); err != nil || unknown != nil {
 		t.Fatalf("an ask Agent Manager did not raise must be ignored: %v %v", unknown, err)
+	}
+}
+
+func TestDecisionResolutionWithMismatchedRequesterRefIsIgnored(t *testing.T) {
+	for _, tc := range []struct {
+		name         string
+		requesterRef string
+	}{
+		{name: "missing"},
+		{name: "foreign", requesterRef: "different-request-generation"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s, _, effortRef, c := decisionFixture(t)
+			ctx := context.Background()
+			out, err := s.RaiseDecision(ctx, decisionRequest(), "run-generation-binding")
+			if err != nil {
+				t.Fatal(err)
+			}
+			effort, _, err := s.repo.GetEffort(ctx, effortRef)
+			if err != nil || len(effort.Subjects) == 0 {
+				t.Fatalf("read enrolled effort owner: %+v %v", effort, err)
+			}
+			orchestrator := c.runs[uuid.MustParse(effort.Subjects[0].RunId)]
+			if orchestrator == nil {
+				t.Fatal("the enrolled orchestrator fixture must exist")
+			}
+			orchestrator.Status = domain.RunStatusParked
+			before, _, err := s.repo.GetEffortDecision(ctx, decisionHome, out.Decision.DecisionId)
+			if err != nil {
+				t.Fatal(err)
+			}
+			signalsBefore, _, err := s.repo.ListEffortSignals(ctx, effortRef, 0, 20)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			resolution := DecisionResolution{
+				AskID: "foreign-ask", State: "answered", Answer: "close", AnsweredBy: "operator",
+				SourceEventType: goalhome.DecisionRequestedEventType, RequesterRef: tc.requesterRef,
+				Correlation: map[string]string{"goal_home": decisionHome, "decision_id": out.Decision.DecisionId},
+			}
+			got, err := s.ResolveDecisionFromHub(ctx, resolution)
+			if err != nil || got != nil {
+				t.Fatalf("a resolution with matching logical correlation but %s requester_ref must be ignored: got=%+v err=%v", tc.name, got, err)
+			}
+			after, _, err := s.repo.GetEffortDecision(ctx, decisionHome, out.Decision.DecisionId)
+			if err != nil || !proto.Equal(before, after) {
+				t.Fatalf("%s requester_ref mutated the stored decision: before=%+v after=%+v err=%v", tc.name, before, after, err)
+			}
+			signalsAfter, _, err := s.repo.ListEffortSignals(ctx, effortRef, 0, 20)
+			if err != nil || len(signalsAfter) != len(signalsBefore) {
+				t.Fatalf("%s requester_ref appended an answer signal: before=%d after=%d err=%v", tc.name, len(signalsBefore), len(signalsAfter), err)
+			}
+			if c.woken != 0 || orchestrator.Status != domain.RunStatusParked {
+				t.Fatalf("%s requester_ref woke parked orchestrator: wake count=%d status=%s", tc.name, c.woken, orchestrator.Status)
+			}
+		})
+	}
+}
+
+func TestDecisionAnswerRedeliveryRepairsFailedSignal(t *testing.T) {
+	s, _, effortRef, c := decisionFixture(t)
+	ctx := context.Background()
+	out, err := s.RaiseDecision(ctx, decisionRequest(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	effort, _, err := s.repo.GetEffort(ctx, effortRef)
+	if err != nil {
+		t.Fatal(err)
+	}
+	orchestrator := c.runs[uuid.MustParse(effort.Subjects[0].RunId)]
+	orchestrator.Status = domain.RunStatusParked
+	resolution := DecisionResolution{
+		AskID: "ask-fault", State: "answered", Answer: "re-aim", Note: "retain the same scope",
+		AnsweredBy: "operator", AnsweredAt: "2026-09-05T12:00:00Z",
+		SourceEventType: "agent_manager.effort.decision_requested.v1", RequesterRef: out.Decision.EventId,
+	}
+	repo := s.repo.(*Repository)
+	if _, err := repo.db.Exec(`CREATE TRIGGER fail_operator_answer BEFORE INSERT ON supervision_effort_signals WHEN NEW.kind='operator_answer' BEGIN SELECT RAISE(FAIL, 'injected signal fault'); END`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.ResolveDecisionFromHub(ctx, resolution); err == nil {
+		t.Fatal("first resolution must report the signal write failure")
+	}
+	d, _, err := s.repo.GetEffortDecision(ctx, decisionHome, out.Decision.DecisionId)
+	if err != nil || d.State != DecisionAnswered || d.Answer != resolution.Answer {
+		t.Fatalf("answer must remain durably recorded across signal failure: %+v %v", d, err)
+	}
+	if _, err := repo.db.Exec(`DROP TRIGGER fail_operator_answer`); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 2; i++ {
+		if _, err := s.ResolveDecisionFromHub(ctx, resolution); err != nil {
+			t.Fatalf("redelivery %d: %v", i, err)
+		}
+	}
+	signals, _, err := s.repo.ListEffortSignals(ctx, effortRef, 0, 10)
+	if err != nil || len(signals) != 1 || signals[0].Kind != SignalOperatorAnswer {
+		t.Fatalf("redelivery must repair exactly one answer signal: %+v %v", signals, err)
+	}
+	if c.woken != 1 {
+		t.Fatalf("signal repair should wake the parked owner once, got %d wakes", c.woken)
+	}
+}
+
+func TestDefaultedResolutionRedeliveryRepairsFailedSignal(t *testing.T) {
+	s, _, effortRef, c := decisionFixture(t)
+	ctx := context.Background()
+	out, err := s.RaiseDecision(ctx, decisionRequest(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	effort, _, err := s.repo.GetEffort(ctx, effortRef)
+	if err != nil {
+		t.Fatal(err)
+	}
+	orchestrator := c.runs[uuid.MustParse(effort.Subjects[0].RunId)]
+	orchestrator.Status = domain.RunStatusParked
+	resolution := DecisionResolution{
+		AskID: "ask-default-fault", State: "defaulted", Answer: "re-aim",
+		AnsweredAt: "2026-09-05T12:00:00Z", Reason: "deadline elapsed",
+		SourceEventType: "agent_manager.effort.decision_requested.v1", RequesterRef: out.Decision.EventId,
+	}
+	repo := s.repo.(*Repository)
+	if _, err := repo.db.Exec(`CREATE TRIGGER fail_operator_answer BEFORE INSERT ON supervision_effort_signals WHEN NEW.kind='operator_answer' BEGIN SELECT RAISE(FAIL, 'injected signal fault'); END`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.ResolveDecisionFromHub(ctx, resolution); err == nil {
+		t.Fatal("first default must report the signal write failure")
+	}
+	first, _, err := s.repo.GetEffortDecision(ctx, decisionHome, out.Decision.DecisionId)
+	if err != nil || first.State != DecisionDefaulted || first.AnsweredAt == nil {
+		t.Fatalf("default must remain durable across signal failure: %+v %v", first, err)
+	}
+	firstAnsweredAt := first.AnsweredAt.AsTime()
+	if _, err := repo.db.Exec(`DROP TRIGGER fail_operator_answer`); err != nil {
+		t.Fatal(err)
+	}
+	resolution.AnsweredAt = "2026-09-05T12:30:00Z"
+	resolution.Reason = "redelivered with changed transport metadata"
+	for i := 0; i < 2; i++ {
+		if _, err := s.ResolveDecisionFromHub(ctx, resolution); err != nil {
+			t.Fatalf("default redelivery %d: %v", i, err)
+		}
+	}
+	got, _, err := s.repo.GetEffortDecision(ctx, decisionHome, out.Decision.DecisionId)
+	if err != nil || got.State != DecisionDefaulted || got.Answer != resolution.Answer || !got.GetAnsweredAt().AsTime().Equal(firstAnsweredAt) || got.AnsweredVia != DecisionViaDefault {
+		t.Fatalf("redelivery must preserve the first default terms and time: %+v %v", got, err)
+	}
+	signals, _, err := s.repo.ListEffortSignals(ctx, effortRef, 0, 10)
+	if err != nil || len(signals) != 1 || signals[0].Kind != SignalOperatorAnswer {
+		t.Fatalf("redelivery must repair exactly one default signal: %+v %v", signals, err)
+	}
+	if c.woken != 1 {
+		t.Fatalf("signal repair should wake the parked owner once, got %d wakes", c.woken)
+	}
+}
+
+func TestDesktopAnswerRedeliveryRepairsFailedSignal(t *testing.T) {
+	s, _, effortRef, c := decisionFixture(t)
+	ctx := context.Background()
+	if _, err := s.RaiseDecision(ctx, decisionRequest(), ""); err != nil {
+		t.Fatal(err)
+	}
+	effort, _, err := s.repo.GetEffort(ctx, effortRef)
+	if err != nil {
+		t.Fatal(err)
+	}
+	orchestrator := c.runs[uuid.MustParse(effort.Subjects[0].RunId)]
+	orchestrator.Status = domain.RunStatusParked
+	repo := s.repo.(*Repository)
+	if _, err := repo.db.Exec(`CREATE TRIGGER fail_operator_answer BEFORE INSERT ON supervision_effort_signals WHEN NEW.kind='operator_answer' BEGIN SELECT RAISE(FAIL, 'injected signal fault'); END`); err != nil {
+		t.Fatal(err)
+	}
+	answer := &pb.AnswerEffortDecisionRequest{GoalHome: decisionHome, DecisionId: "BAS-D-070", Answer: "re-aim", Note: "preserve this note"}
+	actor := EffortActor{ID: "owner", Operator: true}
+	if _, err := s.AnswerDecision(ctx, answer, actor); err == nil {
+		t.Fatal("first desktop answer must report the signal write failure")
+	}
+	first, _, err := s.repo.GetEffortDecision(ctx, decisionHome, answer.DecisionId)
+	if err != nil || first.State != DecisionAnswered || first.AnswerNote != answer.Note || first.AnsweredAt == nil {
+		t.Fatalf("desktop answer must remain durable across signal failure: %+v %v", first, err)
+	}
+	firstAnsweredAt := first.AnsweredAt.AsTime()
+	if _, err := repo.db.Exec(`DROP TRIGGER fail_operator_answer`); err != nil {
+		t.Fatal(err)
+	}
+	answer.Note = "changed duplicate note must not replace original"
+	for i := 0; i < 2; i++ {
+		if _, err := s.AnswerDecision(ctx, answer, actor); err != nil {
+			t.Fatalf("desktop answer retry %d: %v", i, err)
+		}
+	}
+	got, _, err := s.repo.GetEffortDecision(ctx, decisionHome, answer.DecisionId)
+	if err != nil || got.AnswerNote != "preserve this note" || !got.GetAnsweredAt().AsTime().Equal(firstAnsweredAt) || got.AnsweredVia != DecisionViaDesktop {
+		t.Fatalf("duplicate desktop answer replaced original attribution or terms: %+v %v", got, err)
+	}
+	signals, _, err := s.repo.ListEffortSignals(ctx, effortRef, 0, 10)
+	if err != nil || len(signals) != 1 || signals[0].Kind != SignalOperatorAnswer {
+		t.Fatalf("desktop retry must repair exactly one answer signal: %+v %v", signals, err)
+	}
+	if c.woken != 1 {
+		t.Fatalf("signal repair should wake the parked owner once, got %d wakes", c.woken)
 	}
 }
 

@@ -376,7 +376,7 @@ func NormalizePath(ref PathRef, input ValidationInput, activeMemberID string) (s
 		return clean, nil
 	}
 	clean := filepath.ToSlash(filepath.Clean(path))
-	if clean == "." || clean == "" || clean == ".." || strings.HasPrefix(clean, "../") || strings.Contains(clean, "/../") {
+	if relativePathEscapesBase(clean) {
 		return "", fmt.Errorf("path %q must not escape its base", path)
 	}
 	memberID := ref.MemberID
@@ -398,10 +398,18 @@ func NormalizePath(ref PathRef, input ValidationInput, activeMemberID string) (s
 		if memberID == "" {
 			return "", fmt.Errorf("team-member path %q requires memberId or active member context", path)
 		}
+		memberID, err := normalizeOwnerPathID(memberID)
+		if err != nil {
+			return "", fmt.Errorf("team-member path %q: %w", path, err)
+		}
 		return filepath.ToSlash(filepath.Join("scenarios/prompt-manager/store/teams", input.TeamID, "members", memberID, clean)), nil
 	case BaseAgentRoot:
 		if agentID == "" {
 			return "", fmt.Errorf("agent-root path %q requires agentId or active member context", path)
+		}
+		agentID, err := normalizeOwnerPathID(agentID)
+		if err != nil {
+			return "", fmt.Errorf("agent-root path %q: %w", path, err)
 		}
 		return filepath.ToSlash(filepath.Join("scenarios/prompt-manager/store/agents", agentID, clean)), nil
 	case BaseExternal:
@@ -411,6 +419,24 @@ func NormalizePath(ref PathRef, input ValidationInput, activeMemberID string) (s
 	default:
 		return "", fmt.Errorf("unsupported path base %q", base)
 	}
+}
+
+func normalizeOwnerPathID(id string) (string, error) {
+	if id == "" {
+		return "", fmt.Errorf("owner ID is required")
+	}
+	if filepath.IsAbs(id) {
+		return "", fmt.Errorf("owner ID %q must not escape its base", id)
+	}
+	clean := filepath.ToSlash(filepath.Clean(id))
+	if relativePathEscapesBase(clean) {
+		return "", fmt.Errorf("owner ID %q must not escape its base", id)
+	}
+	return clean, nil
+}
+
+func relativePathEscapesBase(clean string) bool {
+	return clean == "." || clean == "" || clean == ".." || strings.HasPrefix(clean, "../") || strings.Contains(clean, "/../")
 }
 
 func validateDocuments(contract *OperatingContract, input ValidationInput) error {
@@ -698,11 +724,49 @@ func RenderTeamStorage(contract *OperatingContract, input RenderInput) (string, 
 	}
 
 	member := contract.Members[input.MemberID]
+	if err := renderMemberFileWriteSurfaces(&b, member, validationInput, input.MemberID); err != nil {
+		return "", err
+	}
 	b.WriteString("Primitive availability for this member:\n")
 	b.WriteString("- unified work filing: file findings and requests once into swarm-manager\n")
 	b.WriteString("- knowledge: " + primitiveKnowledgeAvailability(member) + "\n")
 	b.WriteString("- task board: " + primitiveTaskAvailability(member) + "\n")
 	return strings.TrimRight(b.String(), "\n") + "\n", nil
+}
+
+func renderMemberFileWriteSurfaces(b *strings.Builder, member MemberContract, input ValidationInput, activeMemberID string) error {
+	writeRefs := []struct {
+		label string
+		refs  []WriteRef
+	}{
+		{label: "Allowed", refs: member.AllowedWrites},
+		{label: "Forbidden", refs: member.ForbiddenWrites},
+	}
+
+	var rows []string
+	for _, group := range writeRefs {
+		for _, ref := range group.refs {
+			if ref.Kind != "" {
+				continue
+			}
+			path, err := NormalizePath(PathRef{
+				Base: ref.Base, Path: ref.Path, MemberID: ref.MemberID, AgentID: ref.AgentID,
+			}, input, activeMemberID)
+			if err != nil {
+				return fmt.Errorf("render %s member write path: %w", strings.ToLower(group.label), err)
+			}
+			rows = append(rows, fmt.Sprintf("- %s: `%s`", group.label, path))
+		}
+	}
+	if len(rows) == 0 {
+		return nil
+	}
+	b.WriteString("Declared file write surfaces:\n")
+	for _, row := range rows {
+		b.WriteString(row + "\n")
+	}
+	b.WriteString("\n")
+	return nil
 }
 
 func primitiveKnowledgeAvailability(member MemberContract) string {

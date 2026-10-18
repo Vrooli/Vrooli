@@ -1,8 +1,9 @@
 {
   "schema_version": 1,
   "scenario": "portal",
-  "input_digest": "sha256:ded127eef3ddb1552b2de9af62e75b9882e278c82b592a8aad948185cc117e0a",
+  "input_digest": "sha256:a24aaf205129df050c70e2f98abe412a13d4c14fbb69782175091b2c639fee8a",
   "input_files": [
+    "schemas/cli/v1/runtime.proto",
     "schemas/common/v1/surface.proto",
     "schemas/device-control/v1/desktop/desktop.proto",
     "schemas/device-control/v1/shared/flow.proto",

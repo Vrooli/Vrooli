@@ -22,6 +22,8 @@ type StaleChecker struct {
 	FreshnessInputs    []string
 	SourceRootEnvVars  []string
 	InstallerModule    string // relative path to cli-core (default: packages/cli-core)
+	InstallKind        string // scenario|resource; used only by the owner refresh command
+	InstallName        string // declared scenario/resource name, never a build path
 	ReexecArgs         []string
 
 	FingerprintFunc func(spec FreshnessSpec) (string, error)
@@ -58,16 +60,16 @@ const debugStaleEnvVar = "VROOLI_CLI_DEBUG_STALE"
 const artifactModeEnvVar = "VROOLI_CLI_ARTIFACT_MODE"
 
 // CheckAndMaybeRebuild returns true when the process was restarted after a rebuild.
-func (c *StaleChecker) CheckAndMaybeRebuild() bool {
+func (c *StaleChecker) CheckAndMaybeRebuild() (bool, error) {
 	if strings.EqualFold(strings.TrimSpace(os.Getenv(artifactModeEnvVar)), "1") || strings.EqualFold(strings.TrimSpace(os.Getenv(artifactModeEnvVar)), "true") {
-		return false
+		return false, nil
 	}
 	if c.BuildFingerprint == "" || c.BuildFingerprint == "unknown" {
-		return false
+		return false, nil
 	}
 	srcRoot := ResolveSourceRoot(c.BuildSourceRoot, c.SourceRootEnvVars...)
 	if srcRoot == "" {
-		return false
+		return false, nil
 	}
 	spec := c.freshnessSpec(srcRoot)
 
@@ -78,11 +80,11 @@ func (c *StaleChecker) CheckAndMaybeRebuild() bool {
 	fingerprint, err := c.fingerprint(spec)
 	if err != nil {
 		c.log("Warning: unable to verify CLI freshness: %v\n", err)
-		return false
+		return false, nil
 	}
 
 	if fingerprint == c.BuildFingerprint {
-		return false
+		return false, nil
 	}
 
 	// Detect infinite rebuild loops: if we already rebuilt for this fingerprint
@@ -93,76 +95,65 @@ func (c *StaleChecker) CheckAndMaybeRebuild() bool {
 		c.log("  Build fingerprint: %s, Source fingerprint: %s\n", c.BuildFingerprint, fingerprint)
 		c.log("  Set %s=1 to dump per-file fingerprint inputs and identify the divergence.\n", debugStaleEnvVar)
 		c.dumpFreshnessDebug(spec)
-		return false
+		return false, fmt.Errorf("%s CLI remains stale after a previous refresh attempt; refusing to dispatch with mismatched sources", c.appLabel())
 	}
 	c.dumpFreshnessDebug(spec)
 
-	if c.autoRebuild(spec, fingerprint) {
-		return true
+	restarted, err := c.autoRebuild(spec, fingerprint)
+	if err != nil {
+		return false, err
 	}
-
-	c.log("Warning: %s CLI binary built at %s (fingerprint %s) does not match the current sources (fingerprint %s).\n", c.appLabel(), c.BuildTimestamp, c.BuildFingerprint, fingerprint)
-	return false
+	return restarted, nil
 }
 
-func (c *StaleChecker) autoRebuild(spec FreshnessSpec, currentFingerprint string) bool {
+func (c *StaleChecker) autoRebuild(spec FreshnessSpec, currentFingerprint string) (bool, error) {
 	if _, err := c.lookPath()("go"); err != nil {
-		return false
+		return false, fmt.Errorf("%s CLI is stale and the Go toolchain is unavailable: %w", c.appLabel(), err)
 	}
 
 	repoRoot, ok := findRepositoryRoot(spec.SourceRoot, c.installerModule())
 	if !ok {
-		return false
+		return false, fmt.Errorf("%s CLI is stale but its cli-core installer source root is unavailable", c.appLabel())
 	}
 
 	executable, err := os.Executable()
 	if err != nil {
-		return false
+		return false, fmt.Errorf("resolve running %s CLI path: %w", c.appLabel(), err)
 	}
-
-	// Pass the binary name to the installer so it uses the same skip file
-	// as the stale checker when computing the fingerprint. Without this,
-	// the installer would use the module directory name (e.g., "cli") while
-	// the stale checker uses the executable name (e.g., "test-genie"),
-	// causing different fingerprints and an infinite rebuild loop.
-	binaryName := filepath.Base(executable)
-
-	// IMPORTANT: bool flags must use `--flag=value` form. Passing them as
-	// `--flag value` makes Go's flag library treat `value` as a positional
-	// argument and silently stop parsing — which historically dropped
-	// `--context-root`, `--manifest`, and `--freshness-input` and fell back
-	// to walking the entire module root. That mismatched the runtime
-	// freshness spec (which honors --context-root + --freshness-input) and
-	// fired the rebuild-loop guard on every invocation.
-	cmd := exec.Command("go", "run", "./cmd/cli-installer",
-		"--module", spec.SourceRoot,
-		"--output", executable,
-		"--name", binaryName,
-		"--force=true",
-	)
-	if manifestPath := c.manifestSourcePath(spec.ContextRoot); manifestPath != "" {
-		cmd.Args = append(cmd.Args, "--manifest", manifestPath)
+	controlPlane, err := c.controlPlaneBinary()
+	if err != nil {
+		return false, fmt.Errorf("%s CLI is stale; capacity-admitted refresh is unavailable: %w", c.appLabel(), err)
 	}
-	cmd.Args = append(cmd.Args, "--context-root", spec.ContextRoot)
-	for _, input := range spec.Inputs {
-		cmd.Args = append(cmd.Args, "--freshness-input", input)
+	if c.InstallKind != "scenario" && c.InstallKind != "resource" || strings.TrimSpace(c.InstallName) == "" {
+		return false, fmt.Errorf("%s CLI is stale but has no declared scenario/resource install identity", c.appLabel())
 	}
-	cmd.Dir = filepath.Join(repoRoot, c.installerModule())
+	cmd := exec.Command(controlPlane, "cli-refresh", c.InstallKind, c.InstallName, executable)
+	cmd.Dir = repoRoot
 	cmd.Env = envkit.Toolchain(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, nil), envkit.ToolchainOptions{})
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
 
 	if err := c.commandRunner()(cmd); err != nil {
-		c.log("Warning: CLI auto-rebuild failed: %v\n", err)
-		return false
+		return false, fmt.Errorf("%s CLI refresh was not admitted or did not complete; retry when available: %w", c.appLabel(), err)
 	}
 
 	c.log("%s CLI rebuilt from current sources (fingerprint %s); restarting command...\n", c.appLabel(), currentFingerprint)
 	if err := c.reexec()(executable, c.ReexecArgs, currentFingerprint); err != nil {
-		c.log("Warning: unable to restart CLI after rebuild: %v\n", err)
+		return false, fmt.Errorf("restart refreshed %s CLI: %w", c.appLabel(), err)
 	}
-	return true
+	return true, nil
+}
+
+func (c *StaleChecker) controlPlaneBinary() (string, error) {
+	if configured := strings.TrimSpace(os.Getenv(LaunchRuntimeBinaryEnv)); configured != "" {
+		info, err := os.Stat(configured)
+		if err != nil || info.IsDir() {
+			return "", fmt.Errorf("configured control-plane binary %q is unavailable", configured)
+		}
+		return configured, nil
+	}
+	return c.lookPath()("vrooli")
 }
 
 func findRepositoryRoot(start, installerModule string) (string, bool) {

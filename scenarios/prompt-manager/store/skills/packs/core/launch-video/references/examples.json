@@ -160,11 +160,15 @@
       "asset": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/revision-03/music/drum-bass-02.wav",
       "sha256": "f5f6beea9d4d1cffed91a6171fba67ce408c0c5a357e95cdff2e3fdb6059607b",
       "evidence": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/revision-05/music/aquila-selection.json",
-      "lesson": "Operator preferred Aquila track over Vega; compare rhythm, bass, seams and ending on the next brief. No new agent audition.",
+      "lesson": "Historical preference only. The operator later rejected the matched anchor comparisons as insufficiently fast, hard and musically convincing. Preserve this source as a counterexample; use the approved Stable Audio 3 B anchor for the current brief.",
       "limits": [
-        "No automatic reuse or taste score",
-        "Final mix requires its own listening review"
-      ]
+        "Historical evidence, not current soundtrack approval",
+        "Do not reuse this source for the current launch-music brief",
+        "Final mix and any new candidate require their own listening review"
+      ],
+      "reuse_status": "rejected-for-current-music-brief",
+      "superseded_by": "stable-audio-3-harder-instrumental",
+      "current_feedback": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/video-toolchain-reliability-2026-10-16/production/feedback.json"
     },
     {
       "id": "vega-music-candidate",
@@ -182,11 +186,15 @@
       "asset": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/revision-03/music/drum-bass-01.wav",
       "sha256": "72780b0d4ccbc6e270003b4d250a69920c26e5812d8c30adfa66f40ac12af1d8",
       "evidence": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/revision-05/music/vega-selection.json",
-      "lesson": "Operator preferred Aquila track over Vega; compare rhythm, bass, seams and ending on the next brief. No new agent audition.",
+      "lesson": "Historical preference only. The operator later rejected the matched anchor comparisons as insufficiently fast, hard and musically convincing. Preserve this source as a counterexample; use the approved Stable Audio 3 B anchor for the current brief.",
       "limits": [
-        "No automatic reuse or taste score",
-        "Final mix requires its own listening review"
-      ]
+        "Historical evidence, not current soundtrack approval",
+        "Do not reuse this source for the current launch-music brief",
+        "Final mix and any new candidate require their own listening review"
+      ],
+      "reuse_status": "rejected-for-current-music-brief",
+      "superseded_by": "stable-audio-3-harder-instrumental",
+      "current_feedback": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/video-toolchain-reliability-2026-10-16/production/feedback.json"
     },
     {
       "id": "thin-browser-and-phone",
@@ -266,6 +274,49 @@
       "evidence": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/revision-05/sources/image-prompts.json",
       "method": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/scripts/r5-compose.py",
       "lesson": "Rich raster material plates from image_gen.imagegen plus GSAP camera/light motion increased perceived quality. This was not new Blender geometry. Use the technique when it serves the story; create a distinct scene rather than copying the reference motif."
+    },
+    {
+      "id": "stable-audio-3-harder-instrumental",
+      "kind": "audio",
+      "purpose": [
+        "music",
+        "instrumental",
+        "local-model",
+        "harder-club-pop",
+        "energy",
+        "model-choice"
+      ],
+      "date": "2026-10-17",
+      "operator_rating": 8.5,
+      "rating_scale": 10,
+      "rating_scope": "matched excerpt pair A/B; B preferred, no separate individual/full-film score",
+      "audio": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/video-toolchain-reliability-2026-10-16/production/continuation/music/sa3-medium-v1/listening-comparison/B.m4a",
+      "sha256": "279533a871066f201ac5ab3829e064dbd84787d9d7dea48a930101c880efd772",
+      "source": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/video-toolchain-reliability-2026-10-16/production/continuation/music/sa3-medium-v1/B/audio.wav",
+      "source_sha256": "b8ca68b0c86b400e01a928b7d2501daf1df01f063fe42552ad5c6edae321c17c",
+      "request": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/video-toolchain-reliability-2026-10-16/production/continuation/music/sa3-medium-v1/B-request.json",
+      "generation_receipt": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/video-toolchain-reliability-2026-10-16/production/continuation/music/sa3-medium-v1/B/generation-receipt.json",
+      "feedback": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/video-toolchain-reliability-2026-10-16/production/continuation/music/sa3-medium-v1/operator-feedback.json",
+      "model": "stabilityai/stable-audio-3-medium",
+      "model_revision": "d4d3579395a8ac0df4ab13b5b1d7138ce7290f81",
+      "proof_scope": "Two real local 48-second generations; operator rated matched excerpts 8.5/10, preferred B, then explicitly approved the full 48-second B source.",
+      "lesson": "Prefer this model and harder production hypothesis for the current launch-instrumental brief; retain new distinct takes and actual receipts rather than defaulting to rejected ACE sources.",
+      "limits": [
+        "No agent hearing claimed",
+        "No final-film fit or new full-source numeric score inferred",
+        "Future tracks require their own listening review"
+      ],
+      "full_source_review": {
+        "status": "operator-approved",
+        "rating": null,
+        "feedback": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/video-toolchain-reliability-2026-10-16/production/feedback.json",
+        "sha256": "b8ca68b0c86b400e01a928b7d2501daf1df01f063fe42552ad5c6edae321c17c"
+      },
+      "asset": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/video-toolchain-reliability-2026-10-16/production/continuation/music/sa3-medium-v1/listening-comparison/B.m4a",
+      "feedback_history": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/video-toolchain-reliability-2026-10-16/production/feedback.json",
+      "request_sha256": "1e8bbd6ed39809c22d0b2df677535718cd92da6f743c92eb33b75c4b38dd1bfc",
+      "generation_receipt_sha256": "1fd0e4c0998dbb07cfe2f1f75ad3ac22b894e818aecfac2a179c97b3ba16d57e",
+      "feedback_sha256": "907daa13997e30427cacdef714cac064277c0bf5c160e2520f20b70c21a21352"
     }
   ],
   "excluded_audio_source_ids": [

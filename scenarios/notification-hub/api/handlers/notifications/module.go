@@ -93,25 +93,21 @@ func (h *handler) Relay(ctx context.Context, req *connect.Request[v1.RelayReques
 }
 
 func (h *handler) Get(ctx context.Context, req *connect.Request[v1.GetRequest]) (*connect.Response[v1.GetResponse], error) {
-	if _, err := identity.Subject(ctx, req.Header(), h.verifier); err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("verified owner identity is required"))
-	}
-	n, receipts, err := h.service.Get(ctx, req.Msg.GetId())
+	recipient := h.service.ResolveRecipient(ctx)
+	n, receipts, err := h.service.GetForRecipient(ctx, req.Msg.GetId(), recipient)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, err)
 	}
 	out := &v1.GetResponse{Notification: toProto(n)}
 	for _, receipt := range receipts {
-		out.Receipts = append(out.Receipts, receiptProto(receipt))
+		out.Receipts = append(out.Receipts, receiptProtoForRead(receipt))
 	}
 	return connect.NewResponse(out), nil
 }
 
 func (h *handler) List(ctx context.Context, req *connect.Request[v1.ListRequest]) (*connect.Response[v1.ListResponse], error) {
-	if _, err := identity.Subject(ctx, req.Header(), h.verifier); err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("verified owner identity is required"))
-	}
-	items, err := h.service.List(ctx, int(req.Msg.GetLimit()))
+	recipient := h.service.ResolveRecipient(ctx)
+	items, err := h.service.ListForRecipient(ctx, recipient, int(req.Msg.GetLimit()))
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -147,8 +143,10 @@ func StateProto(state string) shared.NotificationState {
 	}
 }
 
-func receiptProto(r hub.Receipt) *shared.DeliveryReceipt {
-	return &shared.DeliveryReceipt{Id: r.ID, NotificationId: r.NotificationID, Channel: r.Channel, MachineId: r.MachineID, ProviderId: r.ProviderID, DeliveredAt: r.DeliveredAt}
+func receiptProtoForRead(r hub.Receipt) *shared.DeliveryReceipt {
+	// Provider IDs may be web-push endpoint URLs. The configured-recipient
+	// projection never exposes them, regardless of request identity.
+	return &shared.DeliveryReceipt{Id: r.ID, NotificationId: r.NotificationID, Channel: r.Channel, MachineId: r.MachineID, DeliveredAt: r.DeliveredAt}
 }
 
 var Endpoints = []module.EndpointDescriptor{{ID: "notifications_send", Path: connectv1.NotificationsServiceSendProcedure, Method: http.MethodPost, Summary: "Accept a notification and return its durable id", Category: "notifications"}, {ID: "notifications_relay", Path: connectv1.NotificationsServiceRelayProcedure, Method: http.MethodPost, Summary: "Accept a bridge-safe base64 notification payload", Category: "notifications"}, {ID: "notifications_get", Path: connectv1.NotificationsServiceGetProcedure, Method: http.MethodPost, Summary: "Read notification state and receipts", Category: "notifications"}, {ID: "notifications_list", Path: connectv1.NotificationsServiceListProcedure, Method: http.MethodPost, Summary: "List the delivery timeline", Category: "notifications"}}

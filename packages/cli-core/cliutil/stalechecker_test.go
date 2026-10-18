@@ -11,6 +11,26 @@ import (
 	"github.com/vrooli/envkit-go"
 )
 
+func checkStaleForTest(t *testing.T, checker *StaleChecker) bool {
+	t.Helper()
+	if checker.InstallKind == "" {
+		checker.InstallKind = "scenario"
+	}
+	if checker.InstallName == "" {
+		checker.InstallName = checker.AppName
+	}
+	controlPlane := filepath.Join(t.TempDir(), "vrooli")
+	if err := os.WriteFile(controlPlane, []byte("test executable"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(LaunchRuntimeBinaryEnv, controlPlane)
+	restarted, err := checker.CheckAndMaybeRebuild()
+	if err != nil {
+		t.Fatalf("CheckAndMaybeRebuild() error = %v", err)
+	}
+	return restarted
+}
+
 func TestFindRepositoryRoot(t *testing.T) {
 	temp := t.TempDir()
 	target := filepath.Join(temp, "packages", "cli-core")
@@ -33,7 +53,7 @@ func TestStaleCheckerSkipsWhenFingerprintUnknown(t *testing.T) {
 		BuildFingerprint: "unknown",
 		BuildSourceRoot:  t.TempDir(),
 	}
-	if restarted := checker.CheckAndMaybeRebuild(); restarted {
+	if restarted := checkStaleForTest(t, checker); restarted {
 		t.Fatalf("expected no restart when fingerprint unknown")
 	}
 }
@@ -45,7 +65,7 @@ func TestStaleCheckerSkipsInArtifactMode(t *testing.T) {
 		t.Fatal("artifact mode must not inspect or rebuild from source")
 		return "", errors.New("unreachable")
 	}
-	if checker.CheckAndMaybeRebuild() {
+	if checkStaleForTest(t, checker) {
 		t.Fatal("artifact mode must not restart")
 	}
 }
@@ -84,7 +104,7 @@ func TestStaleCheckerRebuildsAndReexecs(t *testing.T) {
 		return nil
 	}
 
-	if restartedFlag := checker.CheckAndMaybeRebuild(); !restartedFlag {
+	if restartedFlag := checkStaleForTest(t, checker); !restartedFlag {
 		t.Fatalf("expected restart to be triggered")
 	}
 	if !ranCommand {
@@ -153,7 +173,7 @@ func TestStaleCheckerUsesDeclaredInputsFromSourceContext(t *testing.T) {
 
 	var gotRoot string
 	var gotInputs []string
-	checker := NewStaleChecker("demo", "old", "ts", srcRoot)
+	checker := NewStaleChecker("demo", "match", "ts", srcRoot)
 	checker.SourceContextPath = ".."
 	checker.FreshnessInputs = []string{"cli/**", "resource.json"}
 	checker.FingerprintFunc = func(spec FreshnessSpec) (string, error) {
@@ -163,7 +183,7 @@ func TestStaleCheckerUsesDeclaredInputsFromSourceContext(t *testing.T) {
 	}
 	checker.LookPathFunc = func(file string) (string, error) { return "/usr/bin/go", nil }
 
-	if restarted := checker.CheckAndMaybeRebuild(); restarted {
+	if restarted := checkStaleForTest(t, checker); restarted {
 		t.Fatalf("expected no restart when fingerprints match")
 	}
 	if gotRoot != contextRoot {
@@ -189,6 +209,8 @@ func TestStaleCheckerPassesContextRelativeManifestToInstaller(t *testing.T) {
 
 	var ranArgs []string
 	checker := NewStaleChecker("demo", "old", "ts", srcRoot)
+	checker.InstallKind = "resource"
+	checker.InstallName = "demo"
 	checker.SourceContextPath = ".."
 	checker.ManifestSourcePath = "resource.json"
 	checker.FingerprintFunc = func(spec FreshnessSpec) (string, error) { return "new", nil }
@@ -199,12 +221,14 @@ func TestStaleCheckerPassesContextRelativeManifestToInstaller(t *testing.T) {
 	}
 	checker.Reexec = func(executable string, args []string) error { return nil }
 
-	if restarted := checker.CheckAndMaybeRebuild(); !restarted {
+	if restarted := checkStaleForTest(t, checker); !restarted {
 		t.Fatalf("expected restart to be triggered")
 	}
-	args := strings.Join(ranArgs, " ")
-	if !strings.Contains(args, "--manifest") || !strings.Contains(args, filepath.Join(contextRoot, "resource.json")) {
-		t.Fatalf("installer args missing context-relative manifest path: %v", ranArgs)
+	if len(ranArgs) != 5 || ranArgs[1] != "cli-refresh" || ranArgs[2] != "resource" || ranArgs[3] != "demo" {
+		t.Fatalf("refresh command args = %v, want typed resource target", ranArgs)
+	}
+	if _, err := os.Stat(ranArgs[4]); err != nil {
+		t.Fatalf("refresh command executable target %q is unavailable: %v", ranArgs[4], err)
 	}
 }
 
@@ -232,7 +256,7 @@ func TestStaleCheckerNoRebuildWhenFingerprintMatches(t *testing.T) {
 		},
 	}
 
-	if restarted := checker.CheckAndMaybeRebuild(); restarted {
+	if restarted := checkStaleForTest(t, checker); restarted {
 		t.Fatalf("expected no restart when fingerprints match")
 	}
 }
@@ -267,7 +291,7 @@ func TestStaleCheckerRebuildsOutsideScenarioPath(t *testing.T) {
 		return nil
 	}
 
-	if restartedFlag := checker.CheckAndMaybeRebuild(); !restartedFlag {
+	if restartedFlag := checkStaleForTest(t, checker); !restartedFlag {
 		t.Fatalf("expected restart to be triggered for packages-based CLI")
 	}
 	if !ranCommand {

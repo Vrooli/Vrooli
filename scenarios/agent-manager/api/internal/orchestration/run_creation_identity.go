@@ -3,6 +3,9 @@ package orchestration
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"slices"
 	"strings"
@@ -14,7 +17,23 @@ import (
 	"github.com/google/uuid"
 	coreidentity "github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/scopecatalog"
+	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
+	"google.golang.org/protobuf/proto"
 )
+
+// createRunRequestDigest binds an idempotency key to the complete caller
+// request. CreateRunRequest's JSON representation intentionally excludes
+// credentials and verified identity projections; those are validated
+// independently during replay. The digest is captured before admission adds
+// derived values such as inherited parent work references.
+func createRunRequestDigest(req CreateRunRequest) (string, error) {
+	data, err := json.Marshal(req)
+	if err != nil {
+		return "", fmt.Errorf("encode create-run request identity: %w", err)
+	}
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:]), nil
+}
 
 // buildRunAdmission captures the immutable requested-versus-effective
 // configuration record for a newly admitted run. Requested values come from the
@@ -86,6 +105,22 @@ func validateRunIdentityReplay(run *domain.Run, req CreateRunRequest) error {
 	if run == nil {
 		return domain.NewValidationError("idempotency_key", "original run unavailable")
 	}
+	// Rows written before request digests existed retain their historical
+	// identity checks below. New rows require the same key to replay the exact
+	// original request, not merely the same caller and owner scopes.
+	if run.ResolvedConfig != nil && run.ResolvedConfig.Admission != nil && run.ResolvedConfig.Admission.CreateRequestDigest != "" {
+		digest := req.requestDigest
+		if digest == "" {
+			var err error
+			digest, err = createRunRequestDigest(req)
+			if err != nil {
+				return domain.NewIdempotencyReplayConflictError()
+			}
+		}
+		if digest != run.ResolvedConfig.Admission.CreateRequestDigest {
+			return domain.NewIdempotencyReplayConflictError()
+		}
+	}
 	if req.caller != nil {
 		if run.ResolvedConfig == nil || run.ResolvedConfig.Admission == nil || run.ResolvedConfig.Admission.CreateCaller == nil || *run.ResolvedConfig.Admission.CreateCaller != *req.caller {
 			return domain.NewValidationErrorWithCode("idempotency_key", "original admission has no matching verified caller", domain.ErrCodePolicyScope)
@@ -122,13 +157,14 @@ func buildRunAdmission(req CreateRunRequest, cfg *domain.RunConfig) *domain.RunA
 		return nil
 	}
 	admission := &domain.RunAdmission{
-		RequestedRunner:   strings.TrimSpace(req.PreferredRunner),
-		EffectiveRunner:   string(cfg.RunnerType),
-		EffectiveModel:    cfg.Model,
-		EffectiveEffort:   string(cfg.Effort),
-		EffectiveTimeout:  cfg.Timeout,
-		EffectiveMaxTurns: cfg.MaxTurns,
-		EffectiveUntil:    cfg.Until,
+		CreateRequestDigest: req.requestDigest,
+		RequestedRunner:     strings.TrimSpace(req.PreferredRunner),
+		EffectiveRunner:     string(cfg.RunnerType),
+		EffectiveModel:      cfg.Model,
+		EffectiveEffort:     string(cfg.Effort),
+		EffectiveTimeout:    cfg.Timeout,
+		EffectiveMaxTurns:   cfg.MaxTurns,
+		EffectiveUntil:      cfg.Until,
 	}
 	if req.caller != nil {
 		copy := *req.caller
@@ -167,19 +203,120 @@ func buildRunAdmission(req CreateRunRequest, cfg *domain.RunConfig) *domain.RunA
 // when its parent's observed runner/model/effort match and execution
 // restrictions are retained. A model receipt never authorizes policy changes.
 func (o *Orchestrator) admitDependentDelegation(ctx context.Context, req CreateRunRequest, cfg *domain.RunConfig) error {
+	_, err := o.dependentDelegationParent(ctx, req, cfg)
+	return err
+}
+
+// dependentDelegationParent loads the parent's retained run snapshot and applies
+// the existing dependent-execution gate. The qualified snapshot is also the
+// source for child effort attribution; caller-supplied effort fields do not
+// replace the parent's canonical reference terms.
+func (o *Orchestrator) dependentDelegationParent(ctx context.Context, req CreateRunRequest, cfg *domain.RunConfig) (*domain.Run, error) {
 	if req.ParentRunID == nil {
-		return nil
+		return nil, nil
 	}
 	if o.runs == nil {
-		return domain.NewConfigMissingError("runs", "run repository not configured", nil)
+		return nil, domain.NewConfigMissingError("runs", "run repository not configured", nil)
 	}
 	parent, err := o.runs.Get(ctx, *req.ParentRunID)
 	if err != nil {
-		return domain.NewValidationErrorWithHint("parentRunId",
+		return nil, domain.NewValidationErrorWithHint("parentRunId",
 			"parent run could not be read for dependent-delegation admission: "+err.Error(),
 			"retry after the parent run is durable")
 	}
-	return dependentDelegationAdmissionError(parent, cfg)
+	if err := dependentDelegationAdmissionError(parent, cfg); err != nil {
+		return nil, err
+	}
+	return parent, nil
+}
+
+// inheritParentEffortReferences derives a child's effort role only from the
+// exact parent snapshot that passed dependent-delegation admission. Other
+// producer-neutral work references keep their existing caller declaration.
+func inheritParentEffortReferences(parent *domain.Run, requested []*eventpb.WorkReference) ([]*eventpb.WorkReference, error) {
+	if parent == nil {
+		return requested, nil
+	}
+
+	byID := make(map[string]*eventpb.WorkReference)
+	var parentOrder []string
+	for _, ref := range parent.WorkReferences {
+		if ref == nil || ref.GetKind() != "effort" || ref.GetId() == "" || ref.GetRelationship() != "orchestrator" ||
+			!ref.GetVerified() || ref.GetVisibility() != eventpb.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PUBLIC ||
+			ref.GetState() != eventpb.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE {
+			continue
+		}
+		if existing, ok := byID[ref.GetId()]; ok {
+			if !proto.Equal(existing, ref) {
+				return nil, domain.NewValidationError("parentRunId", "parent has conflicting orchestrator effort references")
+			}
+			continue
+		}
+		byID[ref.GetId()] = proto.Clone(ref).(*eventpb.WorkReference)
+		parentOrder = append(parentOrder, ref.GetId())
+	}
+
+	result := make([]*eventpb.WorkReference, 0, len(requested)+len(byID))
+	emitted := make(map[string]bool, len(byID))
+	for _, ref := range requested {
+		if ref != nil && ref.GetKind() == "effort" {
+			if canonical, ok := byID[ref.GetId()]; ok {
+				if !compatibleChildEffortReference(ref, canonical) {
+					return nil, domain.NewValidationErrorWithHint("work_references",
+						"child effort reference conflicts with the qualified parent's worker attribution",
+						"omit the inherited effort reference or use its worker role and matching source terms")
+				}
+				if !emitted[ref.GetId()] {
+					worker := proto.Clone(canonical).(*eventpb.WorkReference)
+					worker.Relationship = "worker"
+					result = append(result, worker)
+					emitted[ref.GetId()] = true
+				}
+				continue
+			}
+		}
+		result = append(result, ref)
+	}
+	for _, id := range parentOrder {
+		if emitted[id] {
+			continue
+		}
+		worker := proto.Clone(byID[id]).(*eventpb.WorkReference)
+		worker.Relationship = "worker"
+		result = append(result, worker)
+	}
+	return result, nil
+}
+
+// A child may redundantly name an inherited effort only when it does not
+// contradict the parent-derived worker form. Empty optional strings and
+// unspecified enums are omitted terms; the persisted parent supplies them.
+func compatibleChildEffortReference(candidate, parent *eventpb.WorkReference) bool {
+	if candidate.GetRelationship() != "" && candidate.GetRelationship() != "worker" {
+		return false
+	}
+	if candidate.GetRevision() != "" && candidate.GetRevision() != parent.GetRevision() {
+		return false
+	}
+	if candidate.GetSourceEventId() != "" && candidate.GetSourceEventId() != parent.GetSourceEventId() {
+		return false
+	}
+	if candidate.GetSourceRunId() != "" && candidate.GetSourceRunId() != parent.GetSourceRunId() {
+		return false
+	}
+	if candidate.GetEvidenceDigest() != "" && candidate.GetEvidenceDigest() != parent.GetEvidenceDigest() {
+		return false
+	}
+	if candidate.GetVisibility() != eventpb.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_UNSPECIFIED && candidate.GetVisibility() != parent.GetVisibility() {
+		return false
+	}
+	if candidate.GetState() != eventpb.WorkReferenceState_WORK_REFERENCE_STATE_UNSPECIFIED && candidate.GetState() != parent.GetState() {
+		return false
+	}
+	if candidate.GetUnavailableReason() != "" && candidate.GetUnavailableReason() != parent.GetUnavailableReason() {
+		return false
+	}
+	return !candidate.GetVerified() || parent.GetVerified()
 }
 
 // dependentDelegationAdmissionError is the pure gate decision: it reads the

@@ -36,12 +36,17 @@ type recordingSessions struct {
 	promptText  []string
 	gone        map[string]bool
 	getNotFound bool
+	getErr      error
 	onCreate    func()
 	onPrompt    func()
 	promptErr   error
 	// promptResult overrides the default verified single-Enter submission.
 	promptResult *webconsole.PromptSubmission
 	shellScreen  string
+}
+
+type legacyOnlyIdempotency struct {
+	repository.IdempotencyRepository
 }
 
 func newRecordingSessions() *recordingSessions {
@@ -76,7 +81,11 @@ func (r *recordingSessions) CreateSession(_ context.Context, params webconsole.C
 func (r *recordingSessions) GetSession(_ context.Context, id string) (webconsole.SessionInfo, error) {
 	r.mu.Lock()
 	notFound := r.getNotFound || r.gone[id]
+	getErr := r.getErr
 	r.mu.Unlock()
+	if getErr != nil {
+		return webconsole.SessionInfo{}, getErr
+	}
 	if notFound {
 		return webconsole.SessionInfo{}, webconsole.ErrSessionNotFound
 	}
@@ -98,6 +107,22 @@ func (r *recordingSessions) ArchiveSession(_ context.Context, id string) error {
 func (r *recordingSessions) SendText(context.Context, string, string, string) error {
 	r.record("sendtext")
 	return nil
+}
+
+func (r *recordingSessions) SendCommand(_ context.Context, _, command, source string) (webconsole.PromptSubmission, error) {
+	if r.onPrompt != nil {
+		r.onPrompt()
+	}
+	r.record("sendcommand")
+	r.mu.Lock()
+	r.promptSrc = append(r.promptSrc, source)
+	r.promptText = append(r.promptText, command)
+	result := r.promptResult
+	r.mu.Unlock()
+	if result == nil {
+		return webconsole.PromptSubmission{Verified: true, EnterPresses: 1}, r.promptErr
+	}
+	return *result, r.promptErr
 }
 
 func (r *recordingSessions) SendPrompt(_ context.Context, _, prompt, source string) (webconsole.PromptSubmission, error) {
@@ -644,6 +669,62 @@ func TestContinueInteractiveRun_SessionGone(t *testing.T) {
 	}
 }
 
+func TestTerminalInteractiveContinuationRetriesAfterPreEffectSessionReadFailure(t *testing.T) {
+	ctx := context.Background()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	registry := runner.NewRegistry()
+	if err := registry.Register(mocks.NewTranscriptReplayRunner(domain.RunnerTypeClaudeCode)); err != nil {
+		t.Fatalf("register runner: %v", err)
+	}
+	sessions := newRecordingSessions()
+	sessions.getErr = errors.New("temporary session inventory outage")
+	svc := New(repos.Profiles, repos.Tasks, repos.Runs,
+		WithInteractiveSessions(sessions), WithEvents(eventStore), WithRunners(registry),
+		WithIdempotency(repos.Idempotency), newCurrentModelPolicyFixtureOption(t))
+	task := interactiveTestTask(t, svc)
+	transcript := filepath.Join(t.TempDir(), "session.jsonl")
+	if err := os.WriteFile(transcript, []byte("{\"type\":\"noise\"}\n"), 0o644); err != nil {
+		t.Fatalf("write transcript: %v", err)
+	}
+	run := persistInteractiveRun(t, repos.Runs, task.ID, domain.RunStatusComplete, "agent-session", "wc-retry")
+	run.TranscriptPath = transcript
+	if err := repos.Runs.Update(ctx, run); err != nil {
+		t.Fatalf("update run transcript: %v", err)
+	}
+	req := ContinueRunRequest{RunID: run.ID, Message: "retry after read outage", IdempotencyKey: "terminal-interactive-retry"}
+	if _, err := svc.ContinueRun(ctx, req); err == nil || !domain.IsPreEffectRefusal(err) {
+		t.Fatalf("session read error was not an explicit pre-effect refusal: %v", err)
+	}
+	if sawSendPrompt(sessions) {
+		t.Fatal("pre-effect session read failure reached the prompt transport")
+	}
+	gotRun, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil || gotRun.Status != domain.RunStatusComplete {
+		t.Fatalf("pre-effect refusal changed run status: %+v err=%v", gotRun, err)
+	}
+	receipts := repos.Idempotency.(repository.ContinuationIdempotencyRepository)
+	receipt, err := receipts.CheckContinuation(ctx, req.IdempotencyKey)
+	if err != nil || receipt == nil || receipt.Status != domain.IdempotencyStatusFailed {
+		t.Fatalf("pre-effect failure did not make only this receipt retryable: %+v err=%v", receipt, err)
+	}
+
+	sessions.mu.Lock()
+	sessions.getErr = nil
+	sessions.mu.Unlock()
+	t.Cleanup(func() { svc.interactiveDrivers.cancelAndWait(run.ID) })
+	if _, err := svc.ContinueRun(ctx, req); err != nil {
+		t.Fatalf("retry after session read recovered: %v", err)
+	}
+	if !sawSendPrompt(sessions) {
+		t.Fatal("same-key retry did not deliver after pre-effect read recovery")
+	}
+	receipt, err = receipts.CheckContinuation(ctx, req.IdempotencyKey)
+	if err != nil || receipt == nil || receipt.Status != domain.IdempotencyStatusComplete {
+		t.Fatalf("successful retry receipt = %+v err=%v", receipt, err)
+	}
+}
+
 func sawSendPrompt(s *recordingSessions) bool {
 	for _, c := range s.callLog() {
 		if c == "sendprompt" {
@@ -702,8 +783,9 @@ func TestContinueRunTypesIntoRunningInteractiveSession(t *testing.T) {
 
 func TestInteractivePromptTransportUnknownRetainsIdempotencyReservation(t *testing.T) {
 	ctx := context.Background()
-	repos, _, cleanup := testutil.SetupTestRepos(t)
+	db, cleanup := testutil.SetupTestDB(t)
 	t.Cleanup(cleanup)
+	repos, _, _ := testutil.SetupTestReposWithDB(t, db)
 	sessions := newRecordingSessions()
 	sessions.promptErr = errors.New("submit result lost after paste")
 	svc := New(repos.Profiles, repos.Tasks, repos.Runs, WithInteractiveSessions(sessions), WithIdempotency(repos.Idempotency))
@@ -713,18 +795,42 @@ func TestInteractivePromptTransportUnknownRetainsIdempotencyReservation(t *testi
 	if _, err := svc.ContinueRun(ctx, req); err == nil || !strings.Contains(err.Error(), "outcome unknown") || domain.IsPreEffectRefusal(err) {
 		t.Fatalf("partial transport did not surface unknown (or claimed no effects): %v", err)
 	}
+	if _, err := db.ExecContext(ctx, `UPDATE idempotency_records SET expires_at = '2000-01-01 00:00:00' WHERE key = ?`, req.IdempotencyKey); err != nil {
+		t.Fatalf("expire ambiguous receipt fixture: %v", err)
+	}
+	if removed, err := repos.Idempotency.CleanupExpired(ctx); err != nil || removed != 0 {
+		t.Fatalf("expired ambiguous receipt was cleaned up: removed %d, err %v", removed, err)
+	}
 	if _, err := svc.ContinueRun(ctx, req); err == nil {
-		t.Fatal("duplicate handoff was resent while outcome unknown")
+		t.Fatal("duplicate handoff was resent after the ambiguous receipt expired")
 	}
 	if calls := sessions.callLog(); len(calls) != 1 || calls[0] != "sendprompt" {
 		t.Fatalf("duplicate handoff effects: %v", calls)
 	}
 }
 
+func TestContinueRunRefusesConfiguredRepositoryWithoutContinuationReceipts(t *testing.T) {
+	ctx := context.Background()
+	repos, _, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	sessions := newRecordingSessions()
+	svc := New(repos.Profiles, repos.Tasks, repos.Runs, WithInteractiveSessions(sessions), WithIdempotency(legacyOnlyIdempotency{}))
+	task := interactiveTestTask(t, svc)
+	run := persistInteractiveRun(t, repos.Runs, task.ID, domain.RunStatusRunning, "provider-session", "wc-no-typed-receipt")
+	_, err := svc.ContinueRun(ctx, ContinueRunRequest{RunID: run.ID, Message: "must refuse", IdempotencyKey: "legacy-repository"})
+	if err == nil || !strings.Contains(err.Error(), "does not support durable continuation receipts") {
+		t.Fatalf("configured legacy repository was not explicitly refused: %v", err)
+	}
+	if calls := sessions.callLog(); len(calls) != 0 {
+		t.Fatalf("configured legacy repository allowed continuation effects: %v", calls)
+	}
+}
+
 func TestRunningSessionContinuationRecordsDirectiveAsUserMessage(t *testing.T) {
 	ctx := context.Background()
-	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	db, cleanup := testutil.SetupTestDB(t)
 	t.Cleanup(cleanup)
+	repos, eventStore, _ := testutil.SetupTestReposWithDB(t, db)
 	sessions := newRecordingSessions()
 	svc := New(repos.Profiles, repos.Tasks, repos.Runs, WithInteractiveSessions(sessions), WithEvents(eventStore), WithIdempotency(repos.Idempotency))
 	task := interactiveTestTask(t, svc)
@@ -751,6 +857,15 @@ func TestRunningSessionContinuationRecordsDirectiveAsUserMessage(t *testing.T) {
 	receipt, err := repos.Idempotency.Check(ctx, "handoff-d2")
 	if err != nil || receipt == nil || receipt.Status != domain.IdempotencyStatusComplete {
 		t.Fatalf("receipt = %+v err=%v, want a completed continuation receipt", receipt, err)
+	}
+	if _, err := db.ExecContext(ctx, `UPDATE idempotency_records SET expires_at = '2000-01-01 00:00:00' WHERE key = ?`, req.IdempotencyKey); err != nil {
+		t.Fatalf("expire completed receipt fixture: %v", err)
+	}
+	if _, err := svc.ContinueRun(ctx, req); err != nil {
+		t.Fatalf("replay completed continuation after expiry: %v", err)
+	}
+	if calls := sessions.callLog(); len(calls) != 1 || calls[0] != "sendprompt" {
+		t.Fatalf("expired completed receipt caused another delivery: %v", calls)
 	}
 }
 
@@ -821,5 +936,27 @@ func TestInitialPromptWithUntilDeliversEngineContract(t *testing.T) {
 	got := initialPromptWithUntil(run, "implement the plan")
 	if !strings.Contains(got, "implement the plan") || !strings.Contains(got, "all phases complete") {
 		t.Fatalf("prompt=%q; expected task and until contract", got)
+	}
+}
+
+func TestObservedGoalMatchesLaunchNormalizedUntilWithoutWhitespaceCollapse(t *testing.T) {
+	run := &domain.Run{ResolvedConfig: &domain.RunConfig{Until: "finish  every\r\nphase\tcarefully"}}
+	for _, tc := range []struct {
+		name, objective string
+		want            bool
+	}{
+		{name: "normalized launch value", objective: "finish  every phase\tcarefully", want: true},
+		{name: "raw configured value", objective: "finish  every\r\nphase\tcarefully", want: true},
+		{name: "newline suffix", objective: "finish  every phase\tcarefully\nattached prompt", want: true},
+		{name: "space collapse rejected", objective: "finish every phase\tcarefully"},
+		{name: "tab replacement rejected", objective: "finish  every phase carefully"},
+		{name: "term replacement rejected", objective: "finish  every different\tcarefully"},
+		{name: "delimiter required", objective: "finish  every phase\tcarefully-extra"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := observedGoalMatchesRun(run, tc.objective); got != tc.want {
+				t.Fatalf("observedGoalMatchesRun(%q) = %v, want %v", tc.objective, got, tc.want)
+			}
+		})
 	}
 }

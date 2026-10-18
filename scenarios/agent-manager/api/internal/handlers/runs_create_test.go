@@ -203,6 +203,68 @@ func TestCreateRun_Success(t *testing.T) {
 	}
 }
 
+func TestCreateRunReplayConflictUsesTypedOwnerStatus(t *testing.T) {
+	_, router, repos, _ := setupTestHandlerWithRunnerAndRepos(t, runner.NewMockRunner(domain.RunnerTypeClaudeCode))
+	profileBody := encodeProtoJSON(t, &apipb.CreateProfileRequest{Profile: &pb.AgentProfile{
+		Name: "replay-conflict-profile", ProfileKey: "replay-conflict-profile", RoleRef: "code.default",
+	}})
+	profileResponse := httptest.NewRecorder()
+	router.ServeHTTP(profileResponse, httptest.NewRequest(http.MethodPost, "/api/v1/profiles", bytes.NewReader(profileBody)))
+	if profileResponse.Code != http.StatusCreated {
+		t.Fatalf("create profile status=%d body=%s", profileResponse.Code, profileResponse.Body.String())
+	}
+	var profileResult apipb.CreateProfileResponse
+	decodeProtoJSON(t, profileResponse.Body.Bytes(), &profileResult)
+
+	taskBody := encodeProtoJSON(t, &apipb.CreateTaskRequest{Task: &pb.Task{Title: "replay conflict task", ScopePath: "src/"}})
+	taskResponse := httptest.NewRecorder()
+	router.ServeHTTP(taskResponse, httptest.NewRequest(http.MethodPost, "/api/v1/tasks", bytes.NewReader(taskBody)))
+	if taskResponse.Code != http.StatusCreated {
+		t.Fatalf("create task status=%d body=%s", taskResponse.Code, taskResponse.Body.String())
+	}
+	var taskResult apipb.CreateTaskResponse
+	decodeProtoJSON(t, taskResponse.Body.Bytes(), &taskResult)
+
+	key := "typed-replay-conflict-" + uuid.NewString()
+	profileID := profileResult.Profile.Id
+	create := func(prompt string) *httptest.ResponseRecorder {
+		t.Helper()
+		idempotencyKey := key
+		body := encodeProtoJSON(t, &apipb.CreateRunRequest{
+			TaskId: taskResult.Task.Id, AgentProfileId: &profileID,
+			IdempotencyKey: &idempotencyKey, Prompt: &prompt,
+		})
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, authenticatedRunTestRequest(bytes.NewReader(body)))
+		return response
+	}
+
+	first := create("original request")
+	if first.Code != http.StatusCreated {
+		t.Fatalf("first run status=%d body=%s", first.Code, first.Body.String())
+	}
+	var firstResult apipb.CreateRunResponse
+	decodeProtoJSON(t, first.Body.Bytes(), &firstResult)
+	if firstResult.Run == nil {
+		t.Fatal("first create did not return its run")
+	}
+
+	conflict := create("changed request")
+	if conflict.Code != http.StatusConflict {
+		t.Fatalf("replay status=%d body=%s; want typed conflict", conflict.Code, conflict.Body.String())
+	}
+	var errorBody struct {
+		Code string `json:"code"`
+	}
+	if err := json.Unmarshal(conflict.Body.Bytes(), &errorBody); err != nil || errorBody.Code != string(domain.ErrCodeStateIdempotencyReplayConflict) {
+		t.Fatalf("replay error code=%q err=%v body=%s", errorBody.Code, err, conflict.Body.String())
+	}
+	stored, err := repos.Runs.GetByIdempotencyKey(t.Context(), key)
+	if err != nil || stored == nil || stored.ID.String() != firstResult.Run.Id {
+		t.Fatalf("original accepted run changed: stored=%+v err=%v", stored, err)
+	}
+}
+
 func TestPartialApproveRunRejectsInvalidRequestsBeforeCallingService(t *testing.T) {
 	_, router := setupTestHandler(t)
 	runID := uuid.New()

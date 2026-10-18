@@ -94,10 +94,14 @@ type AskRequest struct {
 	DefaultAnswer string `protobuf:"bytes,9,opt,name=default_answer,json=defaultAnswer,proto3" json:"default_answer,omitempty"`
 	Reversible    bool   `protobuf:"varint,10,opt,name=reversible,proto3" json:"reversible,omitempty"`
 	// low, normal, high (default), or critical.
-	Urgency       string `protobuf:"bytes,11,opt,name=urgency,proto3" json:"urgency,omitempty"`
-	ContextUrl    string `protobuf:"bytes,12,opt,name=context_url,json=contextUrl,proto3" json:"context_url,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Urgency    string `protobuf:"bytes,11,opt,name=urgency,proto3" json:"urgency,omitempty"`
+	ContextUrl string `protobuf:"bytes,12,opt,name=context_url,json=contextUrl,proto3" json:"context_url,omitempty"`
+	// Optional plain-text purpose and impact explanation for a cold reader.
+	BigPicture string `protobuf:"bytes,29,opt,name=big_picture,json=bigPicture,proto3" json:"big_picture,omitempty"`
+	// Optional plain-text mechanism, evidence, risks, and limitations.
+	TechnicalDetails string `protobuf:"bytes,30,opt,name=technical_details,json=technicalDetails,proto3" json:"technical_details,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *AskRequest) Reset() {
@@ -210,6 +214,20 @@ func (x *AskRequest) GetUrgency() string {
 func (x *AskRequest) GetContextUrl() string {
 	if x != nil {
 		return x.ContextUrl
+	}
+	return ""
+}
+
+func (x *AskRequest) GetBigPicture() string {
+	if x != nil {
+		return x.BigPicture
+	}
+	return ""
+}
+
+func (x *AskRequest) GetTechnicalDetails() string {
+	if x != nil {
+		return x.TechnicalDetails
 	}
 	return ""
 }
@@ -552,6 +570,8 @@ type Ask struct {
 	ResolvedAt        string `protobuf:"bytes,26,opt,name=resolved_at,json=resolvedAt,proto3" json:"resolved_at,omitempty"`
 	CreatedAt         string `protobuf:"bytes,27,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt         string `protobuf:"bytes,28,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	BigPicture        string `protobuf:"bytes,29,opt,name=big_picture,json=bigPicture,proto3" json:"big_picture,omitempty"`
+	TechnicalDetails  string `protobuf:"bytes,30,opt,name=technical_details,json=technicalDetails,proto3" json:"technical_details,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -782,6 +802,20 @@ func (x *Ask) GetUpdatedAt() string {
 	return ""
 }
 
+func (x *Ask) GetBigPicture() string {
+	if x != nil {
+		return x.BigPicture
+	}
+	return ""
+}
+
+func (x *Ask) GetTechnicalDetails() string {
+	if x != nil {
+		return x.TechnicalDetails
+	}
+	return ""
+}
+
 type GetAskRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AskId         string                 `protobuf:"bytes,1,opt,name=ask_id,json=askId,proto3" json:"ask_id,omitempty"`
@@ -973,7 +1007,7 @@ const file_notification_hub_v1_conversations_conversations_proto_rawDesc = "" +
 	"5notification-hub/v1/conversations/conversations.proto\x12(vrooli.notification_hub.v1.conversations\x1a&notification-hub/v1/shared/types.proto\"3\n" +
 	"\tAskOption\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05label\x18\x02 \x01(\tR\x05label\"\xeb\x03\n" +
+	"\x05label\x18\x02 \x01(\tR\x05label\"\xb9\x04\n" +
 	"\n" +
 	"AskRequest\x12\x1a\n" +
 	"\bquestion\x18\x01 \x01(\tR\bquestion\x12'\n" +
@@ -991,7 +1025,10 @@ const file_notification_hub_v1_conversations_conversations_proto_rawDesc = "" +
 	"reversible\x12\x18\n" +
 	"\aurgency\x18\v \x01(\tR\aurgency\x12\x1f\n" +
 	"\vcontext_url\x18\f \x01(\tR\n" +
-	"contextUrl\"y\n" +
+	"contextUrl\x12\x1f\n" +
+	"\vbig_picture\x18\x1d \x01(\tR\n" +
+	"bigPicture\x12+\n" +
+	"\x11technical_details\x18\x1e \x01(\tR\x10technicalDetails\"y\n" +
 	"\vAskResponse\x12\x15\n" +
 	"\x06ask_id\x18\x01 \x01(\tR\x05askId\x12S\n" +
 	"\fnotification\x18\x02 \x01(\v2/.vrooli.notification_hub.v1.shared.NotificationR\fnotification\"R\n" +
@@ -1012,7 +1049,7 @@ const file_notification_hub_v1_conversations_conversations_proto_rawDesc = "" +
 	"\x06ask_id\x18\x01 \x01(\tR\x05askId\x12\x14\n" +
 	"\x05state\x18\x02 \x01(\tR\x05state\x12\x16\n" +
 	"\x06answer\x18\x03 \x01(\tR\x06answer\x12\x16\n" +
-	"\x06reason\x18\x04 \x01(\tR\x06reason\"\xc5\a\n" +
+	"\x06reason\x18\x04 \x01(\tR\x06reason\"\x93\b\n" +
 	"\x03Ask\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12'\n" +
 	"\x0fnotification_id\x18\x02 \x01(\tR\x0enotificationId\x12\x1a\n" +
@@ -1050,7 +1087,10 @@ const file_notification_hub_v1_conversations_conversations_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x1b \x01(\tR\tcreatedAt\x12\x1d\n" +
 	"\n" +
-	"updated_at\x18\x1c \x01(\tR\tupdatedAt\"&\n" +
+	"updated_at\x18\x1c \x01(\tR\tupdatedAt\x12\x1f\n" +
+	"\vbig_picture\x18\x1d \x01(\tR\n" +
+	"bigPicture\x12+\n" +
+	"\x11technical_details\x18\x1e \x01(\tR\x10technicalDetails\"&\n" +
 	"\rGetAskRequest\x12\x15\n" +
 	"\x06ask_id\x18\x01 \x01(\tR\x05askId\"Q\n" +
 	"\x0eGetAskResponse\x12?\n" +

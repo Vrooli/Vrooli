@@ -2,6 +2,9 @@ package incidents
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"reflect"
 	"testing"
 	"time"
 
@@ -14,30 +17,131 @@ type memoryStore struct {
 	list      []Incident
 	updates   []Status
 	updateIDs []string
+	pending   []OpeningPublication
 }
 
 type recordingPublisher struct {
 	eventType string
 	payload   map[string]any
+	events    []string
 	count     int
+	err       error
 }
 
 func (p *recordingPublisher) Publish(_ context.Context, eventType string, payload map[string]any) error {
 	p.eventType = eventType
 	p.payload = payload
+	p.events = append(p.events, eventType)
 	p.count++
-	return nil
+	return p.err
 }
 
 func (m *memoryStore) UpsertIncident(ctx context.Context, input UpsertInput) (*Incident, error) {
 	m.inputs = append(m.inputs, input)
 	eventCount := 1
-	for _, incident := range m.list {
-		if incident.Fingerprint == input.Fingerprint {
-			eventCount = incident.EventCount + 1
+	newLifecycle := true
+	for _, previous := range m.list {
+		if previous.Fingerprint != input.Fingerprint {
+			continue
 		}
+		eventCount = previous.EventCount
+		newLifecycle = previous.Status == StatusResolved
+		if newLifecycle {
+			eventCount++
+		}
+		break
 	}
-	return &Incident{ID: "inc_test", Fingerprint: input.Fingerprint, Type: input.Type, Severity: input.Severity, Status: StatusOpen, EventCount: eventCount, SourceCheckIDs: []string{input.SourceCheckID}}, nil
+	incident := &Incident{
+		ID: "inc_test_" + input.Fingerprint, Fingerprint: input.Fingerprint, Type: input.Type, Severity: input.Severity,
+		Status: StatusOpen, Title: input.Title, Summary: input.Summary,
+		EventCount: eventCount, SourceCheckIDs: []string{input.SourceCheckID},
+		RemediationCandidates: input.RemediationCandidates,
+	}
+	if newLifecycle {
+		m.pending = append(m.pending, OpeningPublication{IncidentID: incident.ID, Generation: incident.EventCount, EventType: "incident.opened.v1", Payload: OpeningEventFacts(incident)})
+	}
+	return incident, nil
+}
+
+func TestDisabledEventBusLeavesOpeningPublicationPending(t *testing.T) {
+	store := &memoryStore{pending: []OpeningPublication{{IncidentID: "inc-test", Generation: 1, EventType: "incident.opened.v1", Payload: map[string]any{"incident_id": "inc-test"}}}}
+	service := NewService(store)
+	service.SetEventPublisher(EventBusPublisher{})
+
+	service.publishPendingOpeningPublications(context.Background())
+	if len(store.pending) != 1 {
+		t.Fatalf("disabled event bus cleared pending publication; want it retained")
+	}
+}
+
+func TestUpsertAllFromCheckResultDrainsAtMostOnePublicationBatch(t *testing.T) {
+	store := &memoryStore{}
+	publisher := &recordingPublisher{}
+	service := NewService(store)
+	service.SetEventPublisher(publisher)
+	findings := make([]any, pendingOpeningPublicationBatch+5)
+	for i := range findings {
+		findings[i] = map[string]any{"name": fmt.Sprintf("finding-%03d", i), "reason": "active"}
+	}
+	result := checks.Result{
+		CheckID: "system-emergency-watchdog-report", Status: checks.StatusCritical,
+		Details: map[string]any{"findings": findings},
+	}
+
+	count, err := service.UpsertAllFromCheckResult(context.Background(), result)
+	if err != nil {
+		t.Fatalf("UpsertAllFromCheckResult() error = %v", err)
+	}
+	if count != len(findings) {
+		t.Fatalf("created incidents = %d, want %d", count, len(findings))
+	}
+	if publisher.count != pendingOpeningPublicationBatch || len(store.pending) != 5 {
+		t.Fatalf("one bounded drain published/left pending %d/%d; want %d/5", publisher.count, len(store.pending), pendingOpeningPublicationBatch)
+	}
+}
+
+func TestUpsertFromCheckResultsDrainsOneBatchOnTickPath(t *testing.T) {
+	store := &memoryStore{}
+	publisher := &recordingPublisher{}
+	service := NewService(store)
+	service.SetEventPublisher(publisher)
+	findings := make([]any, pendingOpeningPublicationBatch+5)
+	for i := range findings {
+		findings[i] = map[string]any{"name": fmt.Sprintf("tick-finding-%03d", i), "reason": "active"}
+	}
+	result := checks.Result{
+		CheckID: "system-emergency-watchdog-report", Status: checks.StatusCritical,
+		Details: map[string]any{"findings": findings},
+	}
+
+	count, err := service.UpsertFromCheckResults(context.Background(), []checks.Result{result})
+	if err != nil {
+		t.Fatalf("UpsertFromCheckResults() error = %v", err)
+	}
+	if count != len(findings) {
+		t.Fatalf("created incidents = %d, want %d", count, len(findings))
+	}
+	if publisher.count != pendingOpeningPublicationBatch || len(store.pending) != 5 {
+		t.Fatalf("one Tick-path drain published/left pending %d/%d; want %d/5", publisher.count, len(store.pending), pendingOpeningPublicationBatch)
+	}
+}
+
+func TestCriticalApprovalFollowsOpeningPublicationAttempt(t *testing.T) {
+	store := &memoryStore{}
+	publisher := &recordingPublisher{}
+	service := NewService(store)
+	service.SetEventPublisher(publisher)
+
+	_, _, err := service.UpsertFromCheckResult(context.Background(), checks.Result{
+		CheckID: "host-runtime-integrity", Status: checks.StatusCritical, Message: "runtime failed",
+		Details: map[string]any{"evidence": []map[string]any{{"kind": "runtime_not_callable", "service": "runtime"}}},
+	})
+	if err != nil {
+		t.Fatalf("UpsertFromCheckResult() error = %v", err)
+	}
+	if len(publisher.events) < 2 || publisher.events[0] != "incident.opened.v1" || publisher.events[1] != RemediationDecisionEventType {
+		t.Fatalf("publication order = %v; want opening attempt before remediation decision", publisher.events)
+	}
 }
 
 func TestUpsertFromCheckResultPublishesWireSafeIncidentFacts(t *testing.T) {
@@ -65,22 +169,81 @@ func TestUpsertFromCheckResultPublishesWireSafeIncidentFacts(t *testing.T) {
 	}
 }
 
-func TestUpsertFromCheckResultDoesNotRepublishAnOpenIncident(t *testing.T) {
+func TestUpsertFromCheckResultRetriesFailedPublicationForOpenIncident(t *testing.T) {
 	store := &memoryStore{}
-	publisher := &recordingPublisher{}
+	publisher := &recordingPublisher{err: errors.New("temporary publish failure")}
 	service := NewService(store)
 	service.SetEventPublisher(publisher)
 	result := checks.Result{CheckID: "host-runtime-integrity", Status: checks.StatusCritical, Message: "runtime failed"}
 
-	if _, _, err := service.UpsertFromCheckResult(context.Background(), result); err != nil {
+	first, _, err := service.UpsertFromCheckResult(context.Background(), result)
+	if err != nil {
 		t.Fatalf("first upsert error = %v", err)
 	}
-	store.list = []Incident{{Fingerprint: store.inputs[0].Fingerprint, Severity: SeverityCritical, Status: StatusOpen, EventCount: 1, SourceCheckIDs: []string{result.CheckID}}}
-	if _, _, err := service.UpsertFromCheckResult(context.Background(), result); err != nil {
-		t.Fatalf("second upsert error = %v", err)
+	if first == nil || first.EventCount != 1 {
+		t.Fatalf("first SQLite-faithful event count = %+v, want open event count 1", first)
 	}
 	if publisher.count != 1 || publisher.eventType != "incident.opened.v1" {
-		t.Fatalf("published count/type = %d/%q, want 1/incident.opened.v1", publisher.count, publisher.eventType)
+		t.Fatalf("first publication = %d/%q, want one incident.opened.v1 attempt", publisher.count, publisher.eventType)
+	}
+	firstType := publisher.eventType
+	firstFacts := publisher.payload
+	store.list = []Incident{{ID: first.ID, Fingerprint: first.Fingerprint, Severity: first.Severity, Status: StatusOpen, EventCount: first.EventCount, SourceCheckIDs: []string{result.CheckID}}}
+	publisher.err = nil
+
+	second, _, err := service.UpsertFromCheckResult(context.Background(), result)
+	if err != nil {
+		t.Fatalf("second upsert error = %v", err)
+	}
+	if second == nil || second.EventCount != 1 {
+		t.Fatalf("repeated open SQLite-faithful event count = %+v, want 1", second)
+	}
+	if publisher.count != 2 || publisher.eventType != firstType {
+		t.Fatalf("publication attempts/type = %d/%q, want 2/%q", publisher.count, publisher.eventType, firstType)
+	}
+	if !reflect.DeepEqual(firstFacts, publisher.payload) {
+		t.Fatalf("retry facts changed:\nfirst: %+v\nretry: %+v", firstFacts, publisher.payload)
+	}
+}
+
+func TestUpsertFromCheckResultPublishesResolvedRecurrenceAsNewLifecycle(t *testing.T) {
+	store := &memoryStore{}
+	service := NewService(store)
+	result := checks.Result{CheckID: "host-runtime-integrity", Status: checks.StatusCritical, Message: "runtime failed"}
+	firstPublisher := &recordingPublisher{}
+	service.SetEventPublisher(firstPublisher)
+
+	first, _, err := service.UpsertFromCheckResult(context.Background(), result)
+	if err != nil {
+		t.Fatalf("initial upsert error = %v", err)
+	}
+	if first == nil || first.EventCount != 1 || firstPublisher.count != 1 {
+		t.Fatalf("initial lifecycle = incident %+v, publish count %d; want generation 1 and one opening event", first, firstPublisher.count)
+	}
+	store.list = []Incident{{ID: first.ID, Fingerprint: first.Fingerprint, Type: first.Type, Severity: first.Severity, Status: StatusResolved, EventCount: first.EventCount, SourceCheckIDs: []string{result.CheckID}}}
+	publisher := &recordingPublisher{}
+	service.SetEventPublisher(publisher)
+
+	reopened, _, err := service.UpsertFromCheckResult(context.Background(), result)
+	if err != nil {
+		t.Fatalf("resolved recurrence upsert error = %v", err)
+	}
+	if reopened == nil || reopened.Status != StatusOpen || reopened.EventCount != 2 {
+		t.Fatalf("reopened incident = %+v, want open generation 2", reopened)
+	}
+	if publisher.count != 1 || publisher.eventType != "incident.opened.v1" {
+		t.Fatalf("recurrence publications = %d/%q, want one incident.opened.v1", publisher.count, publisher.eventType)
+	}
+	if got := publisher.payload["event_count"]; got != 2 {
+		t.Fatalf("event generation = %#v, want 2 to distinguish this reopen from generation 1", got)
+	}
+
+	store.list = []Incident{{ID: reopened.ID, Fingerprint: reopened.Fingerprint, Type: reopened.Type, Severity: reopened.Severity, Status: StatusOpen, EventCount: reopened.EventCount, SourceCheckIDs: []string{result.CheckID}}}
+	if _, _, err := service.UpsertFromCheckResult(context.Background(), result); err != nil {
+		t.Fatalf("later same-generation upsert error = %v", err)
+	}
+	if publisher.count != 1 {
+		t.Fatalf("same-generation open update published %d times, want no duplicate opening event", publisher.count)
 	}
 }
 
@@ -107,6 +270,23 @@ func (m *memoryStore) UpdateIncidentStatus(ctx context.Context, incidentID strin
 	m.updateIDs = append(m.updateIDs, incidentID)
 	m.updates = append(m.updates, status)
 	return &Incident{ID: incidentID, Status: status}, nil
+}
+
+func (m *memoryStore) ListPendingOpeningPublications(_ context.Context, limit int) ([]OpeningPublication, error) {
+	if limit > len(m.pending) {
+		limit = len(m.pending)
+	}
+	return append([]OpeningPublication(nil), m.pending[:limit]...), nil
+}
+
+func (m *memoryStore) AcknowledgeOpeningPublication(_ context.Context, incidentID string, generation int) error {
+	for i, event := range m.pending {
+		if event.IncidentID == incidentID && event.Generation == generation {
+			m.pending = append(m.pending[:i], m.pending[i+1:]...)
+			return nil
+		}
+	}
+	return nil
 }
 
 func TestUpsertFromCheckResultCreatesHostIntegrityIncident(t *testing.T) {
@@ -136,6 +316,34 @@ func TestUpsertFromCheckResultCreatesHostIntegrityIncident(t *testing.T) {
 	}
 	if store.inputs[0].Severity != SeverityCritical {
 		t.Fatalf("severity = %s, want critical", store.inputs[0].Severity)
+	}
+}
+
+func TestCriticalIncidentPublishesRemediationDecisionOnlyForFirstLifecycle(t *testing.T) {
+	store := &memoryStore{}
+	publisher := &decisionRecordingPublisher{}
+	service := NewService(store)
+	service.SetEventPublisher(publisher)
+	result := checks.Result{
+		CheckID: "host-runtime-integrity", Status: checks.StatusCritical, Message: "runtime failed",
+		Details: map[string]any{"evidence": []map[string]any{{"kind": "runtime_not_callable", "service": "runtime"}}},
+	}
+
+	first, _, err := service.UpsertFromCheckResult(context.Background(), result)
+	if err != nil {
+		t.Fatalf("first critical upsert error = %v", err)
+	}
+	if first.EventCount != 1 || publisher.count != 1 {
+		t.Fatalf("first lifecycle event count/prompt count = %d/%d, want 1/1", first.EventCount, publisher.count)
+	}
+	store.list = []Incident{{ID: first.ID, Fingerprint: first.Fingerprint, Type: first.Type, Severity: first.Severity, Status: StatusResolved, EventCount: first.EventCount, SourceCheckIDs: []string{result.CheckID}}}
+
+	second, _, err := service.UpsertFromCheckResult(context.Background(), result)
+	if err != nil {
+		t.Fatalf("recurrent critical upsert error = %v", err)
+	}
+	if second.EventCount != 2 || publisher.count != 1 {
+		t.Fatalf("recurrence event count/prompt count = %d/%d, want 2/1", second.EventCount, publisher.count)
 	}
 }
 

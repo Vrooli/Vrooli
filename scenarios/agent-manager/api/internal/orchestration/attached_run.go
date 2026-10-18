@@ -98,27 +98,40 @@ func (o *Orchestrator) AttachRun(ctx context.Context, req AttachRunRequest) (*At
 	// boundary as a VERIFIED, session-scoped delegation minted by
 	// scenario-authenticator and forwarded in the attach. We verify it against the
 	// same scenario-authenticator root the owner path uses and bind it to THIS
-	// session; only then is the run attributed. A missing or unverifiable
-	// delegation leaves the run unattributed (zero-scope), never refused — a
-	// local/agent/loopback attach can therefore never self-assert a human.
+	// session; only then does the run receive the delegation's exact owner scope
+	// ceiling. The attached identity expires no later than that proof. A missing
+	// or unverifiable delegation leaves the run unattributed (zero-scope), never
+	// refused — a local/agent/loopback attach can therefore never self-assert a
+	// human or supply its own authority.
 	run.WebConsoleSessionID = req.WebConsoleSessionID
+	delegationVerified := false
+	delegationExpiresAt := time.Time{}
 	if subject, scopes, expiresAt := o.verifiedDelegationOwner(ctx, req.HumanOwnerDelegation, req.WebConsoleSessionID); subject != "" {
+		delegationVerified = true
+		delegationExpiresAt = expiresAt
 		run.OwnerSubject = subject
 		run.OwnerScopes = scopes
 		if !expiresAt.IsZero() {
 			run.OwnerExpiresAt = &expiresAt
 		}
-	} else if owner, err := authn.RequireHuman(ctx); err == nil {
+	} else if owner, err := authn.RequireHuman(ctx); err == nil && (owner.ExpiresAt.IsZero() || owner.ExpiresAt.After(now)) {
 		// Retained for a genuine in-context verified human (non-loopback callers).
 		run.OwnerSubject = owner.Subject
-		run.OwnerScopes = append([]string(nil), owner.Scopes...)
-		if !owner.ExpiresAt.IsZero() {
+		if ownerScopeExpiryUsable(owner.ExpiresAt, now) {
+			run.OwnerScopes = append([]string(nil), owner.Scopes...)
 			expiry := owner.ExpiresAt
 			run.OwnerExpiresAt = &expiry
 		}
 	}
 
 	expiresAt := now.Add(identity.DefaultTTL)
+	if run.OwnerExpiresAt != nil && expiresAt.After(*run.OwnerExpiresAt) {
+		expiresAt = *run.OwnerExpiresAt
+	}
+	identityScopes := append([]string{}, run.OwnerScopes...)
+	if run.OwnerSubject == "" {
+		identityScopes = []string{}
+	}
 	token, err := identity.GenerateToken(&identity.Claims{
 		RunID:      run.ID,
 		Subject:    run.OwnerSubject,
@@ -126,7 +139,7 @@ func (o *Orchestrator) AttachRun(ctx context.Context, req AttachRunRequest) (*At
 		ProfileKey: kind,
 		IssuedAt:   now.Unix(),
 		ExpiresAt:  expiresAt.Unix(),
-		Scopes:     []string{},
+		Scopes:     identityScopes,
 		Meta: map[string]string{
 			"execution_mode":  string(domain.ExecutionModeAttached),
 			"harness_kind":    kind,
@@ -145,8 +158,12 @@ func (o *Orchestrator) AttachRun(ctx context.Context, req AttachRunRequest) (*At
 	// human delegation mints a short-lived, session-scoped standing grant so work
 	// done inside this operator session inherits the operator's authority, bounded
 	// and attributable. Best-effort — a mint failure must not fail the attach.
-	if run.OwnerSubject != "" && strings.TrimSpace(req.HumanOwnerDelegation) != "" && o.standingGrants != nil {
-		if _, err := o.CreateSessionGrant(ctx, run.OwnerSubject, session, MaxSessionGrantLifetime); err != nil {
+	if delegationVerified && run.OwnerSubject != "" && run.WebConsoleSessionID != "" && o.standingGrants != nil {
+		// Match the attached identity's second-resolution exp claim exactly. The
+		// grant owner computes its expiry from one clock read, so elapsed time
+		// between attach and persistence cannot extend it past this proof.
+		proofExpiry := time.Unix(delegationExpiresAt.Unix(), 0)
+		if _, err := o.createSessionGrant(ctx, run.OwnerSubject, run.WebConsoleSessionID, MaxSessionGrantLifetime, proofExpiry); err != nil {
 			obs.Component("attached").Warn("attached run: session grant mint failed",
 				obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
 		}
@@ -167,7 +184,7 @@ func (o *Orchestrator) verifiedDelegationOwner(ctx context.Context, delegation, 
 		return "", nil, time.Time{}
 	}
 	principal, err := o.ownerIdentity.Verify(ctx, delegation)
-	if err != nil || !principal.IsHuman() {
+	if err != nil || !principal.IsHuman() || !ownerScopeExpiryUsable(principal.ExpiresAt, o.now()) {
 		return "", nil, time.Time{}
 	}
 	if boundSession := delegationWCSessionID(delegation); boundSession == "" || boundSession != session {
@@ -176,6 +193,12 @@ func (o *Orchestrator) verifiedDelegationOwner(ctx context.Context, delegation, 
 		return "", nil, time.Time{}
 	}
 	return principal.Subject, append([]string(nil), principal.Scopes...), principal.ExpiresAt
+}
+
+// ownerScopeExpiryUsable ensures an owner scope ceiling can produce a valid
+// whole-second identity-token expiry that remains within the source proof.
+func ownerScopeExpiryUsable(expiresAt, now time.Time) bool {
+	return !expiresAt.IsZero() && expiresAt.After(now) && expiresAt.Unix() > now.Unix()
 }
 
 // delegationWCSessionID extracts the wc_session_id claim from an already-verified

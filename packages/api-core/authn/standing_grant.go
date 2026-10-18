@@ -66,6 +66,62 @@ type StandingGrantUsage struct {
 	RequestBudgetUSD float64
 }
 
+// StandingGrantLimitDimension names a declared grant bound reached by the
+// supplied usage. It is used for a read-only diagnosis of the same admission
+// decision; it does not alter that decision or inspect owner data.
+type StandingGrantLimitDimension string
+
+const (
+	StandingGrantConcurrentRunsLimit StandingGrantLimitDimension = "max_concurrent_runs"
+	StandingGrantBudgetLimit         StandingGrantLimitDimension = "max_run_budget_usd"
+)
+
+// StandingGrantLimit reports the current aggregate and configured bound for a
+// single exceeded dimension. Exactly one numeric pair is populated.
+type StandingGrantLimit struct {
+	Dimension        StandingGrantLimitDimension
+	CurrentRuns      int
+	BoundRuns        int
+	CurrentBudgetUSD float64
+	BoundBudgetUSD   float64
+}
+
+// StandingGrantEvaluation is the pure result of evaluating one grant. Covered
+// distinguishes a grant that applies to the requested operation/target from an
+// absent, expired, or non-covering grant. Exceeded contains only active bounds.
+type StandingGrantEvaluation struct {
+	Covered  bool
+	Admitted bool
+	Exceeded []StandingGrantLimit
+}
+
+// EvaluateStandingGrant evaluates one grant against already-read usage. It is
+// pure: it neither reads state nor mutates authority, and is shared by normal
+// admission and the bounded read-only diagnostic.
+func EvaluateStandingGrant(grant *identity.OperationGrant, limits StandingGrantLimits, usage StandingGrantUsage, operation, target string, now time.Time) StandingGrantEvaluation {
+	if grant == nil || !grant.Allows(operation, target, now) {
+		return StandingGrantEvaluation{}
+	}
+	evaluation := StandingGrantEvaluation{Covered: true}
+	if limits.MaxConcurrentRuns > 0 && usage.ConcurrentRuns >= limits.MaxConcurrentRuns {
+		evaluation.Exceeded = append(evaluation.Exceeded, StandingGrantLimit{
+			Dimension:   StandingGrantConcurrentRunsLimit,
+			CurrentRuns: usage.ConcurrentRuns,
+			BoundRuns:   limits.MaxConcurrentRuns,
+		})
+	}
+	currentBudget := usage.CommittedBudgetUSD + usage.RequestBudgetUSD
+	if limits.MaxRunBudgetUSD > 0 && currentBudget > limits.MaxRunBudgetUSD {
+		evaluation.Exceeded = append(evaluation.Exceeded, StandingGrantLimit{
+			Dimension:        StandingGrantBudgetLimit,
+			CurrentBudgetUSD: currentBudget,
+			BoundBudgetUSD:   limits.MaxRunBudgetUSD,
+		})
+	}
+	evaluation.Admitted = len(evaluation.Exceeded) == 0
+	return evaluation
+}
+
 // AuthorizeStandingGrant decides whether a standing grant authorizes one costly
 // operation against one target for one request, within its declared limits. It
 // returns nil on admission, ErrOperation when the grant does not cover the
@@ -77,13 +133,11 @@ type StandingGrantUsage struct {
 // attributed to is the grant's Approver — the accountable human — which the
 // caller reads from grant.Approver after a nil return.
 func AuthorizeStandingGrant(grant *identity.OperationGrant, limits StandingGrantLimits, usage StandingGrantUsage, operation, target string, now time.Time) error {
-	if !grant.Allows(operation, target, now) {
+	evaluation := EvaluateStandingGrant(grant, limits, usage, operation, target, now)
+	if !evaluation.Covered {
 		return ErrOperation
 	}
-	if limits.MaxConcurrentRuns > 0 && usage.ConcurrentRuns >= limits.MaxConcurrentRuns {
-		return ErrStandingGrantLimit
-	}
-	if limits.MaxRunBudgetUSD > 0 && usage.CommittedBudgetUSD+usage.RequestBudgetUSD > limits.MaxRunBudgetUSD {
+	if !evaluation.Admitted {
 		return ErrStandingGrantLimit
 	}
 	return nil

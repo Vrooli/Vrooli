@@ -118,6 +118,9 @@ const (
 	ErrCodeStateTerminal    ErrorCode = "STATE_TERMINAL"
 	ErrCodeStateNotReady    ErrorCode = "STATE_NOT_READY"
 	ErrCodeStateConcurrency ErrorCode = "STATE_CONCURRENCY"
+	// ErrCodeStateIdempotencyReplayConflict means the key already identifies a
+	// durable run, but the replay request differs from that accepted request.
+	ErrCodeStateIdempotencyReplayConflict ErrorCode = "STATE_IDEMPOTENCY_REPLAY_CONFLICT"
 
 	// --- Policy Errors (403) ---
 	ErrCodePolicySandbox  ErrorCode = "POLICY_SANDBOX_REQUIRED"
@@ -399,6 +402,35 @@ type StateError struct {
 	Operation    string
 	Reason       string
 	IsTerminal   bool // true if the entity is in a terminal state
+}
+
+// IdempotencyReplayConflictError means an accepted run already owns the
+// idempotency key, but a later request does not match that run's frozen
+// request identity. It is a state conflict so callers know the owner may
+// already have an active effect and must reconcile instead of creating anew.
+type IdempotencyReplayConflictError struct {
+	Message string
+}
+
+func (e *IdempotencyReplayConflictError) Error() string {
+	if e == nil || e.Message == "" {
+		return "idempotency key is bound to a different accepted request"
+	}
+	return e.Message
+}
+
+func (*IdempotencyReplayConflictError) Code() ErrorCode          { return ErrCodeStateIdempotencyReplayConflict }
+func (*IdempotencyReplayConflictError) Recovery() RecoveryAction { return RecoveryEscalate }
+func (*IdempotencyReplayConflictError) Retryable() bool          { return false }
+func (e *IdempotencyReplayConflictError) UserMessage() string {
+	return "This idempotency key already identifies an accepted run with different request terms. Reconcile the existing run before retrying."
+}
+func (*IdempotencyReplayConflictError) Details() map[string]interface{} {
+	return map[string]interface{}{"operation": "run_create_replay", "accepted_run_exists": true}
+}
+
+func NewIdempotencyReplayConflictError() *IdempotencyReplayConflictError {
+	return &IdempotencyReplayConflictError{}
 }
 
 func (e *StateError) Error() string {

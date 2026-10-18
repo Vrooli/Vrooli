@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS delivery_attempts (
   created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_delivery_attempts_due ON delivery_attempts(next_attempt_at, outcome);
+CREATE INDEX IF NOT EXISTS idx_delivery_attempts_projection ON delivery_attempts(notification_id, created_at, attempt_number, id);
 CREATE TABLE IF NOT EXISTS receipts (
   id TEXT PRIMARY KEY,
   notification_id TEXT NOT NULL,

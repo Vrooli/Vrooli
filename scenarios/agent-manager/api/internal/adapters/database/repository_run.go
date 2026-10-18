@@ -740,6 +740,15 @@ func (r *runRepository) Get(ctx context.Context, id uuid.UUID) (*domain.Run, err
 func (r *runRepository) List(ctx context.Context, filter repository.RunListFilter) ([]*domain.Run, error) {
 	var conditions []string
 	var args []interface{}
+	if filter.NonTerminalOnly {
+		// Keep this set aligned with RunStatus.IsTerminal: unknown is terminal,
+		// while parked and needs_review remain resumable/nonterminal.
+		conditions = append(conditions, "runs.status IN (?, ?, ?, ?, ?)")
+		args = append(args,
+			string(domain.RunStatusPending), string(domain.RunStatusStarting), string(domain.RunStatusRunning),
+			string(domain.RunStatusNeedsReview), string(domain.RunStatusParked),
+		)
+	}
 
 	if filter.TaskID != nil {
 		conditions = append(conditions, "runs.task_id = ?")
@@ -805,7 +814,7 @@ func (r *runRepository) List(ctx context.Context, filter repository.RunListFilte
 	}
 
 	base := fmt.Sprintf(
-		"SELECT %s, SUBSTR(t.description, 1, 120) AS prompt_preview FROM runs LEFT JOIN tasks t ON runs.task_id = t.id%s ORDER BY runs.created_at DESC",
+		"SELECT %s, SUBSTR(t.description, 1, 120) AS prompt_preview FROM runs LEFT JOIN tasks t ON runs.task_id = t.id%s ORDER BY runs.created_at DESC, runs.id DESC",
 		strings.Join(prefixed, ", "),
 		whereClause,
 	)

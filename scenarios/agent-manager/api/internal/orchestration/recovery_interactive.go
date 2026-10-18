@@ -75,10 +75,8 @@ func (r *Reconciler) recoverInteractiveRun(ctx context.Context, run *domain.Run,
 		if inspection.InteractiveInvocationStartedAt == nil && r.events != nil {
 			starts, err := r.events.Get(ctx, run.ID, event.GetOptions{AfterSequence: -1, EventTypes: []domain.RunEventType{domain.EventTypeStatus}, Limit: 1025})
 			if err != nil || len(starts) > 1024 {
-				if hadTailer {
-					r.startInteractiveTailer(run, coord)
-				}
-				return &RecoverResult{Run: run, Message: "interactive invocation evidence unavailable or exceeds replay bound"}, nil
+				return r.retainInteractiveOnEvidenceUnavailable(ctx, run, coord, allowTail, hadTailer,
+					"interactive invocation evidence unavailable or exceeds replay bound")
 			}
 			for _, item := range starts {
 				if invocationreadmodel.BeginsRunInvocation(item) && !item.Timestamp.IsZero() && (inspection.InteractiveInvocationStartedAt == nil || item.Timestamp.After(*inspection.InteractiveInvocationStartedAt)) {
@@ -87,15 +85,16 @@ func (r *Reconciler) recoverInteractiveRun(ctx context.Context, run *domain.Run,
 				}
 			}
 		}
-		terminal, inspectErr := coord.InspectRetainedGoal(ctx, &inspection)
+		evidence, inspectErr := coord.InspectRetainedGoal(ctx, &inspection)
 		if inspectErr != nil {
-			if hadTailer {
-				r.startInteractiveTailer(run, coord)
-			}
-			return &RecoverResult{Run: run, Message: "retained native goal evidence unavailable: " + inspectErr.Error()}, nil
+			return r.retainInteractiveOnEvidenceUnavailable(ctx, run, coord, allowTail, hadTailer,
+				"retained native goal evidence unavailable: "+inspectErr.Error())
 		}
-		if terminal != nil {
-			if err := coord.Finalize(ctx, run, terminal, nil); err != nil {
+		if evidence != nil {
+			if err := r.recordRetainedGoalStatus(ctx, run, evidence); err != nil {
+				return nil, err
+			}
+			if err := coord.Finalize(ctx, run, evidence.Terminal, nil); err != nil {
 				return nil, err
 			}
 			return &RecoverResult{Run: run, Recovered: true, Message: "reconciled accepted native goal from exact retained session and invocation"}, nil
@@ -146,6 +145,109 @@ func (r *Reconciler) recoverInteractiveRun(ctx context.Context, run *domain.Run,
 			"reattached interactive tailer for run %s at offset %d", run.ID, run.TranscriptCursor)}, nil
 	}
 	return &RecoverResult{Run: run, Recovered: true, Message: "interactive session alive"}, nil
+}
+
+func (r *Reconciler) recordRetainedGoalStatus(ctx context.Context, run *domain.Run, evidence *interactive.RetainedGoalEvidence) error {
+	if r.events == nil {
+		return fmt.Errorf("goal recovery cannot converge observed status without the event store")
+	}
+	if run == nil || evidence == nil || evidence.Terminal == nil || evidence.At.IsZero() {
+		return fmt.Errorf("goal recovery evidence is incomplete")
+	}
+	marker := evidence.Marker
+	if marker.Objective == "" || !marker.Status.Valid() || evidence.Terminal.TerminalReason != "goal_"+string(marker.Status) {
+		return fmt.Errorf("goal recovery evidence does not match its terminal verdict")
+	}
+
+	// A live tail may have persisted this exact marker just before recovery
+	// joined it. Query only the small event-time suffix at the marker boundary
+	// to avoid emitting a duplicate. A different later marker means this retained
+	// verdict was superseded and must not overwrite the newer observation.
+	since := evidence.At.Add(-time.Nanosecond)
+	existing, err := r.events.Get(ctx, run.ID, event.GetOptions{
+		AfterSequence: -1,
+		EventTypes:    []domain.RunEventType{domain.EventTypeGoalStatusChanged},
+		Since:         &since,
+		Limit:         1025,
+	})
+	if err != nil {
+		return fmt.Errorf("read retained goal status events: %w", err)
+	}
+	if len(existing) > 1024 {
+		return fmt.Errorf("retained goal status suffix exceeds the 1024-event reconciliation bound")
+	}
+	if len(existing) > 0 {
+		last := existing[len(existing)-1]
+		goal, ok := last.Data.(*domain.GoalStatusChangedEventData)
+		if !ok || goal == nil || goal.Objective != marker.Objective || goal.Status != string(marker.Status) || goal.Iteration != marker.Iteration || goal.LastReason != marker.LastReason {
+			return fmt.Errorf("retained goal verdict was superseded by a later observed goal status")
+		}
+		run.ObservedGoalStatus = goal.Status
+		observedAt := last.Timestamp
+		run.ObservedGoalAt = &observedAt
+		return nil
+	}
+
+	eventID := uuid.NewSHA1(run.ID, []byte(fmt.Sprintf("goal-status:%s:%s:%d:%s:%s", marker.Objective, marker.Status, marker.Iteration, marker.LastReason, evidence.At.UTC().Format(time.RFC3339Nano))))
+	event := domain.NewGoalStatusChangedEvent(run.ID, marker.Objective, string(marker.Status), marker.Iteration, marker.LastReason)
+	event.ID = eventID
+	event.Timestamp = evidence.At
+	if err := r.recoveryEventSink(run.ID).Emit(event); err != nil {
+		return fmt.Errorf("persist retained goal status: %w", err)
+	}
+	run.ObservedGoalStatus = string(marker.Status)
+	observedAt := event.Timestamp
+	run.ObservedGoalAt = &observedAt
+	return nil
+}
+
+func (r *Reconciler) reconcileCompletedInteractiveGoal(ctx context.Context, run *domain.Run) (*RecoverResult, error) {
+	if !r.interactiveRecoveryMu.TryLock() {
+		return &RecoverResult{Run: run, Idempotent: true, Message: "interactive goal observation reconciliation is already in flight"}, nil
+	}
+	defer r.interactiveRecoveryMu.Unlock()
+
+	evidence, err := r.interactiveCoordinator().InspectRetainedGoal(ctx, run)
+	if err != nil {
+		return nil, fmt.Errorf("inspect retained completed interactive goal: %w", err)
+	}
+	if evidence == nil || evidence.Terminal == nil || run.Result == nil || evidence.Terminal.TerminalReason != run.Result.TerminalReason ||
+		run.EndedAt == nil || evidence.At.After(*run.EndedAt) {
+		return &RecoverResult{Run: run, Idempotent: true, Message: fmt.Sprintf("completed interactive run has no matching retained native goal evidence (evidence=%t terminal=%q result=%q ended=%v after=%v)", evidence != nil, func() string {
+			if evidence == nil || evidence.Terminal == nil {
+				return ""
+			}
+			return evidence.Terminal.TerminalReason
+		}(), func() string {
+			if run.Result == nil {
+				return ""
+			}
+			return run.Result.TerminalReason
+		}(), run.EndedAt, evidence != nil && run.EndedAt != nil && evidence.At.After(*run.EndedAt))}, nil
+	}
+	if err := r.recordRetainedGoalStatus(ctx, run, evidence); err != nil {
+		return nil, err
+	}
+	return &RecoverResult{Run: run, Recovered: true, Message: "reconciled observed goal status for an already-completed interactive run"}, nil
+}
+
+func (r *Reconciler) retainInteractiveOnEvidenceUnavailable(ctx context.Context, run *domain.Run, coord *interactive.Coordinator, allowTail, hadTailer bool, evidenceMessage string) (*RecoverResult, error) {
+	alive, err := coord.VerifySession(ctx, run)
+	if err != nil {
+		if hadTailer {
+			r.startInteractiveTailer(run, coord)
+		}
+		return &RecoverResult{Run: run, Message: evidenceMessage + "; session liveness unknown: " + err.Error()}, nil
+	}
+	if !alive {
+		return r.failRecoveredRun(ctx, run, fmt.Sprintf(
+			"web-console session %s no longer exists; %s; completion remains unproven",
+			run.WebConsoleSessionID, evidenceMessage))
+	}
+	if allowTail || hadTailer {
+		r.startInteractiveTailer(run, coord)
+	}
+	return &RecoverResult{Run: run, Message: evidenceMessage + "; web-console session remains present"}, nil
 }
 
 // drainInteractiveTranscript drains the run's on-disk transcript from the

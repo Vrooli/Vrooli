@@ -45,6 +45,9 @@ type decisionFacts struct {
 	Deadline             string            `json:"deadline"`
 	Urgency              string            `json:"urgency"`
 	ContextURL           string            `json:"context_url"`
+	BigPicture           string            `json:"big_picture"`
+	TechnicalDetails     string            `json:"technical_details"`
+	Note                 string            `json:"note"`
 	Correlation          map[string]string `json:"correlation"`
 }
 
@@ -84,12 +87,17 @@ func DecisionAskSpecWithDefaults(recipient, sourceScenario, eventType, eventID s
 		return hub.AskSpec{}, fmt.Errorf("%w: recommendation_reason exceeds %d characters", hub.ErrInvalidArgument, maxDecisionRecommendationLen)
 	}
 	deadline := now.Add(defaultDeadline)
+	deadlineSpecified := strings.TrimSpace(facts.Deadline) != ""
 	if value := strings.TrimSpace(facts.Deadline); value != "" {
 		parsed, err := time.Parse(time.RFC3339, value)
 		if err != nil {
 			return hub.AskSpec{}, fmt.Errorf("%w: deadline must be RFC 3339", hub.ErrInvalidArgument)
 		}
 		deadline = parsed
+	}
+	technicalDetails := facts.TechnicalDetails
+	if strings.TrimSpace(technicalDetails) == "" {
+		technicalDetails = facts.Note
 	}
 	subject := strings.TrimSpace(facts.Subject)
 	if len(subject) > maxDecisionSubjectLength {
@@ -110,7 +118,10 @@ func DecisionAskSpecWithDefaults(recipient, sourceScenario, eventType, eventID s
 		Reversible:           facts.Reversible,
 		Urgency:              facts.Urgency,
 		ContextURL:           strings.TrimSpace(facts.ContextURL),
+		BigPicture:           facts.BigPicture,
+		TechnicalDetails:     technicalDetails,
 		Deadline:             deadline,
+		DeadlineSpecified:    deadlineSpecified,
 		SensitivityLabel:     sensitivityLabel,
 		IdempotencyKey:       eventID,
 		Source:               sourceScenario,

@@ -2,6 +2,8 @@ package orchestration
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,6 +13,7 @@ import (
 	"time"
 
 	"agent-manager/internal/adapters/database"
+	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/runner/codecs"
 	"agent-manager/internal/adapters/webconsole"
@@ -24,8 +27,10 @@ import (
 // fakeInteractiveSessions is an in-memory webconsole.SessionController for
 // recovery tests: it reports whether a session is alive and records deletes.
 type fakeInteractiveSessions struct {
-	mu    sync.Mutex
-	alive map[string]bool
+	mu         sync.Mutex
+	alive      map[string]bool
+	getErr     error
+	getErrOnce bool
 }
 
 type retainedGoalReplayRunner struct{ *mocks.TranscriptReplayRunner }
@@ -44,8 +49,8 @@ func TestRecoverInteractiveConsumedGoalReconcilesDespiteAttachedTailer(t *testin
 	run.SessionID = "exact-native-session"
 	run.ResolvedConfig.RunnerType = domain.RunnerTypeCodex
 	run.ResolvedConfig.Until = "finish assignment"
-	stamp := run.StartedAt.Add(time.Second).Format(time.RFC3339Nano)
-	body := fmt.Sprintf("{\"timestamp\":%q,\"type\":\"session_meta\",\"payload\":{\"id\":%q}}\n{\"timestamp\":%q,\"type\":\"event_msg\",\"payload\":{\"type\":\"thread_goal_updated\",\"goal\":{\"objective\":\"finish assignment\",\"status\":\"complete\"}}}\n", stamp, run.SessionID, stamp)
+	objective := "finish assignment"
+	body, markerAt := writeAcceptedRetainedGoalTranscript(t, run, objective)
 	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -66,8 +71,173 @@ func TestRecoverInteractiveConsumedGoalReconcilesDespiteAttachedTailer(t *testin
 	if err != nil || retained.Status != domain.RunStatusComplete || retained.TranscriptCursor != int64(len(body)) {
 		t.Fatal("recovery not durable or replayed cursor", retained, err)
 	}
+	observed := *retained
+	view := &Orchestrator{events: reconciler.events}
+	if err := view.observeInteractiveRun(t.Context(), &observed); err != nil || observed.ObservedGoalStatus != "complete" || observed.ObservedGoalAt == nil || !observed.ObservedGoalAt.Equal(markerAt) {
+		t.Fatal("ordinary event-derived run projection did not converge", observed.ObservedGoalStatus, observed.ObservedGoalAt, err)
+	}
+	goalEvents, err := reconciler.events.Get(t.Context(), run.ID, event.GetOptions{AfterSequence: -1, EventTypes: []domain.RunEventType{domain.EventTypeGoalStatusChanged}})
+	if err != nil || len(goalEvents) != 1 {
+		t.Fatal("retained accepted goal did not converge exactly one goal status event", len(goalEvents), err)
+	}
+	goalData, ok := goalEvents[0].Data.(*domain.GoalStatusChangedEventData)
+	if !ok || goalData.Objective != objective || goalData.Status != "complete" || !goalEvents[0].Timestamp.Equal(markerAt) {
+		t.Fatalf("retained goal event did not preserve the matched marker: %#v", goalEvents[0])
+	}
 	if _, err := reconciler.RecoverRun(t.Context(), run.ID); err != nil {
 		t.Fatal("terminal recovery replay failed", err)
+	}
+	goalEvents, err = reconciler.events.Get(t.Context(), run.ID, event.GetOptions{AfterSequence: -1, EventTypes: []domain.RunEventType{domain.EventTypeGoalStatusChanged}})
+	if err != nil || len(goalEvents) != 1 {
+		t.Fatal("terminal recovery duplicated retained goal event", len(goalEvents), err)
+	}
+}
+
+func writeAcceptedRetainedGoalTranscript(t *testing.T, run *domain.Run, objective string) (string, time.Time) {
+	t.Helper()
+	activeAt := run.StartedAt.Add(time.Second)
+	markerAt := run.StartedAt.Add(2 * time.Second)
+	line := func(at time.Time, eventType string, payload any) string {
+		t.Helper()
+		encoded, err := json.Marshal(map[string]any{"timestamp": at.Format(time.RFC3339Nano), "type": eventType, "payload": payload})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(encoded) + "\n"
+	}
+	receipt, err := json.Marshal(map[string]any{"goal": map[string]any{
+		"threadId": run.SessionID, "objective": objective, "status": "complete",
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := strings.Join([]string{
+		line(activeAt, "session_meta", map[string]any{"id": run.SessionID}),
+		line(activeAt, "event_msg", map[string]any{"type": "thread_goal_updated", "threadId": run.SessionID, "goal": map[string]any{"threadId": run.SessionID, "objective": objective, "status": "active"}}),
+		line(markerAt, "response_item", map[string]any{
+			"type": "custom_tool_call", "name": "exec", "call_id": "complete-call",
+			"input": "const r = await tools.update_goal({status:\"complete\"});\ntext(JSON.stringify(r, null, 2));",
+		}),
+		line(markerAt, "response_item", map[string]any{
+			"type": "custom_tool_call_output", "call_id": "complete-call",
+			"output": []any{
+				map[string]any{"type": "input_text", "text": "Script completed\nWall time 0.1 seconds\nOutput:\n"},
+				map[string]any{"type": "input_text", "text": string(receipt)},
+			},
+		}),
+	}, "")
+	return body, markerAt
+}
+
+func TestRecoverAlreadyCompletedInteractiveGoalConvergesObservedState(t *testing.T) {
+	reconciler, repos := newInteractiveRecoveryReconciler(t, newFakeInteractiveSessions("retained-terminal-ui"))
+	if err := reconciler.runners.Register(&retainedGoalReplayRunner{mocks.NewTranscriptReplayRunner(domain.RunnerTypeCodex)}); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "rollout.jsonl")
+	run := createInteractiveRecoveryRun(t, repos, "retained-terminal-ui", path)
+	run.SessionID = "exact-native-session"
+	run.ResolvedConfig.RunnerType = domain.RunnerTypeCodex
+	run.ResolvedConfig.Until = "finish assignment"
+	body, markerAt := writeAcceptedRetainedGoalTranscript(t, run, run.ResolvedConfig.Until)
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	activeAt := run.StartedAt.Add(time.Second)
+	active := domain.NewGoalStatusChangedEvent(run.ID, run.ResolvedConfig.Until, "active", 0, "")
+	active.Timestamp = activeAt
+	if err := reconciler.events.Append(t.Context(), run.ID, active); err != nil {
+		t.Fatal(err)
+	}
+	endedAt := run.StartedAt.Add(3 * time.Second)
+	run.TranscriptCursor = int64(len(body))
+	run.Status = domain.RunStatusComplete
+	run.Phase = domain.RunPhaseCompleted
+	run.EndedAt = &endedAt
+	run.StopReason = domain.RunStopReasonComplete
+	run.Result = &domain.RunResult{Success: true, TerminalReason: "goal_complete"}
+	if err := repos.Runs.Update(t.Context(), run); err != nil {
+		t.Fatal(err)
+	}
+	result, err := reconciler.RecoverRun(t.Context(), run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.Recovered || result.Run.Status != domain.RunStatusComplete {
+		t.Fatalf("terminal goal reconciliation changed run lifecycle or did not report repair: %#v", result)
+	}
+	retained, err := repos.Runs.Get(t.Context(), run.ID)
+	if err != nil || retained.Status != domain.RunStatusComplete {
+		t.Fatalf("terminal run lifecycle changed: %#v, %v", retained, err)
+	}
+	observed := *retained
+	view := &Orchestrator{events: reconciler.events}
+	if err := view.observeInteractiveRun(t.Context(), &observed); err != nil || observed.ObservedGoalStatus != "complete" || observed.ObservedGoalAt == nil || !observed.ObservedGoalAt.Equal(markerAt) {
+		t.Fatalf("ordinary event-derived terminal projection did not converge: %#v, %v", observed, err)
+	}
+	if retained.EndedAt == nil || !retained.EndedAt.Equal(endedAt) || retained.Result == nil || retained.Result.TerminalReason != "goal_complete" {
+		t.Fatal("goal projection repair changed terminal lifecycle evidence", retained)
+	}
+	goalEvents, err := reconciler.events.Get(t.Context(), run.ID, event.GetOptions{AfterSequence: -1, EventTypes: []domain.RunEventType{domain.EventTypeGoalStatusChanged}})
+	if err != nil || len(goalEvents) != 2 {
+		t.Fatalf("terminal repair should preserve active and append exactly one complete marker, got %d events: %v", len(goalEvents), err)
+	}
+	data, ok := goalEvents[1].Data.(*domain.GoalStatusChangedEventData)
+	if !ok || data.Status != "complete" || data.Objective != run.ResolvedConfig.Until || data.Iteration != 0 || data.LastReason != "" || !goalEvents[1].Timestamp.Equal(markerAt) {
+		t.Fatalf("terminal repair did not preserve exact final marker: %#v", goalEvents[1])
+	}
+	if _, err := reconciler.RecoverRun(t.Context(), run.ID); err != nil {
+		t.Fatal("second terminal repair failed", err)
+	}
+	goalEvents, err = reconciler.events.Get(t.Context(), run.ID, event.GetOptions{AfterSequence: -1, EventTypes: []domain.RunEventType{domain.EventTypeGoalStatusChanged}})
+	if err != nil || len(goalEvents) != 2 {
+		t.Fatalf("second terminal repair duplicated goal event: %d, %v", len(goalEvents), err)
+	}
+}
+
+func TestRecoverAlreadyCompletedInteractiveGoalIgnoresPostEndMarker(t *testing.T) {
+	reconciler, repos := newInteractiveRecoveryReconciler(t, newFakeInteractiveSessions("retained-late-ui"))
+	if err := reconciler.runners.Register(&retainedGoalReplayRunner{mocks.NewTranscriptReplayRunner(domain.RunnerTypeCodex)}); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "rollout.jsonl")
+	run := createInteractiveRecoveryRun(t, repos, "retained-late-ui", path)
+	run.SessionID = "exact-native-session"
+	run.ResolvedConfig.RunnerType = domain.RunnerTypeCodex
+	run.ResolvedConfig.Until = "finish assignment"
+	body, markerAt := writeAcceptedRetainedGoalTranscript(t, run, run.ResolvedConfig.Until)
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	active := domain.NewGoalStatusChangedEvent(run.ID, run.ResolvedConfig.Until, "active", 0, "")
+	active.Timestamp = run.StartedAt.Add(time.Second)
+	if err := reconciler.events.Append(t.Context(), run.ID, active); err != nil {
+		t.Fatal(err)
+	}
+	endedAt := markerAt.Add(-time.Second)
+	run.TranscriptCursor = int64(len(body))
+	run.Status = domain.RunStatusComplete
+	run.Phase = domain.RunPhaseCompleted
+	run.EndedAt = &endedAt
+	run.StopReason = domain.RunStopReasonComplete
+	run.Result = &domain.RunResult{Success: true, TerminalReason: "goal_complete"}
+	if err := repos.Runs.Update(t.Context(), run); err != nil {
+		t.Fatal(err)
+	}
+	result, err := reconciler.RecoverRun(t.Context(), run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.Idempotent || result.Run.ObservedGoalStatus != "" {
+		t.Fatalf("post-EndAt goal marker was projected onto an already-completed run: %#v", result)
+	}
+	retained, err := repos.Runs.Get(t.Context(), run.ID)
+	if err != nil || retained.ObservedGoalStatus != "" || retained.EndedAt == nil || !retained.EndedAt.Equal(endedAt) {
+		t.Fatalf("post-EndAt marker changed terminal projection: %#v, %v", retained, err)
+	}
+	events, err := reconciler.events.Get(t.Context(), run.ID, event.GetOptions{AfterSequence: -1, EventTypes: []domain.RunEventType{domain.EventTypeGoalStatusChanged}})
+	if err != nil || len(events) != 1 {
+		t.Fatalf("post-EndAt marker appended an event: %d, %v", len(events), err)
 	}
 }
 
@@ -92,6 +262,13 @@ func (f *fakeInteractiveSessions) CreateSession(context.Context, webconsole.Crea
 func (f *fakeInteractiveSessions) GetSession(_ context.Context, id string) (webconsole.SessionInfo, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if f.getErr != nil {
+		err := f.getErr
+		if f.getErrOnce {
+			f.getErr = nil
+		}
+		return webconsole.SessionInfo{}, err
+	}
 	if f.alive[id] {
 		return webconsole.SessionInfo{ID: id, Owner: webconsole.OwnerAgentManager}, nil
 	}
@@ -110,6 +287,9 @@ func (f *fakeInteractiveSessions) ArchiveSession(_ context.Context, id string) e
 }
 
 func (f *fakeInteractiveSessions) SendText(context.Context, string, string, string) error { return nil }
+func (f *fakeInteractiveSessions) SendCommand(context.Context, string, string, string) (webconsole.PromptSubmission, error) {
+	return webconsole.PromptSubmission{Verified: true, EnterPresses: 1}, nil
+}
 func (f *fakeInteractiveSessions) SendPrompt(context.Context, string, string, string) (webconsole.PromptSubmission, error) {
 	return webconsole.PromptSubmission{Verified: true, EnterPresses: 1}, nil
 }
@@ -316,6 +496,144 @@ func TestRecoverInteractive_SessionDiesMidReattach(t *testing.T) {
 	}
 	if !containsAll(got.ErrorMsg, "sess-flaky", "no longer exists") {
 		t.Errorf("error msg = %q, want it to name the vanished session", got.ErrorMsg)
+	}
+}
+
+func createUntilRecoveryRun(t *testing.T, repos *database.Repositories, sessionID, transcriptPath string) *domain.Run {
+	t.Helper()
+	run := createInteractiveRecoveryRun(t, repos, sessionID, transcriptPath)
+	run.SessionID = "native-session-for-recovery"
+	run.ResolvedConfig.RunnerType = domain.RunnerTypeCodex
+	run.ResolvedConfig.Until = "finish Desktop recovery"
+	started := run.StartedAt.Add(-time.Second)
+	run.InteractiveInvocationStartedAt = &started
+	if err := repos.Runs.Update(t.Context(), run); err != nil {
+		t.Fatal(err)
+	}
+	return run
+}
+
+func createOversizedTranscript(t *testing.T) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "oversized.jsonl")
+	if err := os.WriteFile(path, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Truncate(path, (16<<20)+1); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func TestRecoveryOversizedGoalEvidenceAndGoneSessionNeedsReview(t *testing.T) {
+	reconciler, repos := newInteractiveRecoveryReconciler(t, newFakeInteractiveSessions())
+	run := createUntilRecoveryRun(t, repos, "gone-exact-session", createOversizedTranscript(t))
+
+	result, err := reconciler.RecoverRun(t.Context(), run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := repos.Runs.Get(t.Context(), run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Status != domain.RunStatusNeedsReview || got.EndedAt == nil || got.Result != nil {
+		t.Fatalf("oversized evidence with confirmed-gone session must become resumable needs_review without a success result: status=%s ended=%v result=%+v", got.Status, got.EndedAt, got.Result)
+	}
+	if !containsAll(got.ErrorMsg, "gone-exact-session", "retained native goal evidence unavailable", "completion remains unproven") {
+		t.Fatalf("missing-proof details not retained: %q", got.ErrorMsg)
+	}
+	if result.Run.Status != domain.RunStatusNeedsReview {
+		t.Fatalf("result status = %s, want needs_review", result.Run.Status)
+	}
+}
+
+func TestRecoveryOversizedGoalEvidenceKeepsLiveSessionRunning(t *testing.T) {
+	sessions := newFakeInteractiveSessions("live-exact-session")
+	reconciler, repos := newInteractiveRecoveryReconciler(t, sessions)
+	run := createUntilRecoveryRun(t, repos, "live-exact-session", createOversizedTranscript(t))
+
+	result, err := reconciler.RecoverRun(t.Context(), run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := repos.Runs.Get(t.Context(), run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Status != domain.RunStatusRunning || got.EndedAt != nil {
+		t.Fatalf("live session must remain running when completion proof is unavailable: status=%s ended=%v", got.Status, got.EndedAt)
+	}
+	if !strings.Contains(result.Message, "session remains present") {
+		t.Fatalf("result should report live session and unavailable evidence: %q", result.Message)
+	}
+	if reconciler.hasTailer(run.ID) {
+		t.Fatal("ordinary read recovery must not create a new tailer when none was attached")
+	}
+}
+
+func TestRecoveryEvidenceLivenessErrorRestoresJoinedObserver(t *testing.T) {
+	sessions := newFakeInteractiveSessions("live-exact-session")
+	sessions.getErr = errors.New("temporary Web Console lookup failure")
+	sessions.getErrOnce = true
+	reconciler, repos := newInteractiveRecoveryReconciler(t, sessions)
+	path := filepath.Join(t.TempDir(), "empty.jsonl")
+	if err := os.WriteFile(path, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	run := createUntilRecoveryRun(t, repos, "live-exact-session", path)
+	if err := reconciler.runners.Register(&retainedGoalReplayRunner{mocks.NewTranscriptReplayRunner(domain.RunnerTypeCodex)}); err != nil {
+		t.Fatal(err)
+	}
+	if reconciler.tailers == nil {
+		reconciler.tailers = make(map[uuid.UUID]context.CancelFunc)
+	}
+	reconciler.tailers[run.ID] = func() {} // Model a previously attached recovery observer that was joined.
+
+	result, err := reconciler.RecoverRun(t.Context(), run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(result.Message, "session liveness unknown") {
+		t.Fatalf("result should preserve unknown liveness: %q", result.Message)
+	}
+	if !reconciler.hasTailer(run.ID) {
+		t.Fatal("transient session lookup error must restore the observer that recovery joined")
+	}
+	defer reconciler.CancelInteractiveTail(run.ID)
+	got, err := repos.Runs.Get(t.Context(), run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Status != domain.RunStatusRunning || got.EndedAt != nil {
+		t.Fatalf("unknown session liveness must not mutate run terminal state: status=%s ended=%v", got.Status, got.EndedAt)
+	}
+}
+
+func TestStartupRecoveryReattachesWhenGoalEvidenceIsEmpty(t *testing.T) {
+	sessions := newFakeInteractiveSessions("live-startup-session")
+	reconciler, repos := newInteractiveRecoveryReconciler(t, sessions)
+	path := filepath.Join(t.TempDir(), "empty.jsonl")
+	if err := os.WriteFile(path, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	run := createUntilRecoveryRun(t, repos, "live-startup-session", path)
+	if err := reconciler.runners.Register(&retainedGoalReplayRunner{mocks.NewTranscriptReplayRunner(domain.RunnerTypeCodex)}); err != nil {
+		t.Fatal(err)
+	}
+	if err := reconciler.RecoverInFlightRuns(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if !reconciler.hasTailer(run.ID) {
+		t.Fatal("startup recovery should reattach a live session despite unavailable goal evidence")
+	}
+	defer reconciler.CancelInteractiveTail(run.ID)
+	got, err := repos.Runs.Get(t.Context(), run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Status != domain.RunStatusRunning || got.EndedAt != nil {
+		t.Fatalf("live startup recovery must preserve running state: status=%s ended=%v", got.Status, got.EndedAt)
 	}
 }
 

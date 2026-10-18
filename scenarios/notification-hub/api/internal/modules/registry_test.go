@@ -3,6 +3,7 @@ package modules_test
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 
 	"notification-hub/internal/modules"
@@ -13,6 +14,7 @@ import (
 
 	apidb "github.com/vrooli/api-core/database"
 
+	conversationSchema "notification-hub/internal/conversations"
 	localdb "notification-hub/internal/database"
 )
 
@@ -82,6 +84,58 @@ func TestAllSchemas_AppliesIdempotently(t *testing.T) {
 	require.NoError(t, apidb.EnsureSchemas(ctx, d, modules.AllSchemas()...))
 	require.NoError(t, apidb.EnsureSchemas(ctx, d, modules.AllSchemas()...),
 		"second apply must succeed (uses IF NOT EXISTS guards)")
+}
+
+func TestConversationSchemaAddsDecisionContextToExistingStore(t *testing.T) {
+	d := db.NewSQLite(t)
+	ctx := context.Background()
+	legacySchema := conversationSchema.Schema()
+	legacySchema = strings.ReplaceAll(legacySchema, "  big_picture TEXT NOT NULL DEFAULT '',\n", "")
+	legacySchema = strings.ReplaceAll(legacySchema, "  technical_details TEXT NOT NULL DEFAULT '',\n", "")
+	provider := apidb.SchemaProviderFunc(func() string { return legacySchema })
+	require.NoError(t, apidb.EnsureSchemas(ctx, d, provider))
+	_, err := d.ExecContext(ctx, `INSERT INTO asks (id, notification_id, question, allowed_answers, deadline, state, reason, created_at, updated_at) VALUES ('old', 'notice-old', 'Still answerable?', '["yes","no"]', '2026-10-17T00:00:00Z', 'pending', '', '2026-10-16T00:00:00Z', '2026-10-16T00:00:00Z')`)
+	require.NoError(t, err)
+
+	require.NoError(t, apidb.EnsureSchemas(ctx, d, apidb.SchemaProviderFunc(conversationSchema.Schema)))
+	var question, bigPicture, technicalDetails string
+	require.NoError(t, d.QueryRowContext(ctx, `SELECT question, big_picture, technical_details FROM asks WHERE id = 'old'`).Scan(&question, &bigPicture, &technicalDetails))
+	require.Equal(t, "Still answerable?", question)
+	require.Empty(t, bigPicture)
+	require.Empty(t, technicalDetails)
+}
+
+func TestConversationSchemaIdentityIndexPreservesEmptyLegacyRefsAndFailsOnDuplicates(t *testing.T) {
+	ctx := context.Background()
+	t.Run("multiple empty legacy references remain valid", func(t *testing.T) {
+		d := db.NewSQLite(t)
+		require.NoError(t, apidb.EnsureSchemas(ctx, d, apidb.SchemaProviderFunc(conversationSchema.Schema)))
+		for _, id := range []string{"legacy-empty-1", "legacy-empty-2"} {
+			_, err := d.ExecContext(ctx, `INSERT INTO asks (id, notification_id, question, allowed_answers, deadline, state, reason, created_at, updated_at, source, requester_ref) VALUES (?, ?, 'old ask', '["yes"]', '2026-10-17T00:00:00Z', 'pending', '', '2026-10-16T00:00:00Z', '2026-10-16T00:00:00Z', '', '')`, id, "notice-"+id)
+			require.NoError(t, err)
+		}
+		var count int
+		require.NoError(t, d.QueryRowContext(ctx, `SELECT COUNT(*) FROM asks WHERE requester_ref = ''`).Scan(&count))
+		require.Equal(t, 2, count)
+	})
+
+	t.Run("pre-existing nonempty duplicates fail closed without choosing a winner", func(t *testing.T) {
+		d := db.NewSQLite(t)
+		legacySchema := strings.ReplaceAll(conversationSchema.Schema(), "CREATE UNIQUE INDEX IF NOT EXISTS idx_asks_requester_identity\n  ON asks(source, requester_ref) WHERE requester_ref <> '';\n", "")
+		require.NoError(t, apidb.EnsureSchemas(ctx, d, apidb.SchemaProviderFunc(func() string { return legacySchema })))
+		for _, id := range []string{"duplicate-a", "duplicate-b"} {
+			_, err := d.ExecContext(ctx, `INSERT INTO asks (id, notification_id, question, allowed_answers, deadline, state, reason, created_at, updated_at, source, requester_ref) VALUES (?, ?, 'old ask', '["yes"]', '2026-10-17T00:00:00Z', 'pending', '', '2026-10-16T00:00:00Z', '2026-10-16T00:00:00Z', 'agent-manager', 'evt-duplicate')`, id, "notice-"+id)
+			require.NoError(t, err)
+		}
+		groups, err := conversationSchema.AskIdentityDuplicateGroups(ctx, d)
+		require.NoError(t, err)
+		require.EqualValues(t, 1, groups, "the nondestructive preflight must catch the same population the index will reject")
+		err = apidb.EnsureSchemas(ctx, d, apidb.SchemaProviderFunc(conversationSchema.Schema))
+		require.Error(t, err, "declaring identity uniqueness must stop adoption until existing duplicate identities are reconciled")
+		var count int
+		require.NoError(t, d.QueryRowContext(ctx, `SELECT COUNT(*) FROM asks WHERE source='agent-manager' AND requester_ref='evt-duplicate'`).Scan(&count))
+		require.Equal(t, 2, count, "schema application must not delete, merge, answer, or select either existing ask")
+	})
 }
 
 // TestProtoConnectParity enforces the proto/Connect-RPC anti-drift

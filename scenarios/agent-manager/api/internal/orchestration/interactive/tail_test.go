@@ -3,6 +3,7 @@ package interactive
 import (
 	"bufio"
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -334,6 +335,274 @@ func TestTailerStructuredResultCompletesGoalRun(t *testing.T) {
 	}
 }
 
+func TestTailerDrainsAcceptedGoalThroughSameProviderTurn(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "transcript.jsonl")
+	goalLines := readCodecFixture(t, "codex_goal_accepted.jsonl")
+	if err := os.WriteFile(path, []byte(strings.Join(goalLines, "\n")+"\n"), 0o644); err != nil {
+		t.Fatalf("write goal transcript: %v", err)
+	}
+
+	sink := &collectSink{}
+	goalObserved := make(chan struct{}, 1)
+	tailer := NewTailer(codecParserResolver, WithTailPollInterval(5*time.Millisecond))
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	runID := uuid.New()
+	done := make(chan struct {
+		terminal *runner.TranscriptTerminal
+		err      error
+	}, 1)
+	go func() {
+		terminal, err := tailer.Tail(ctx, TailParams{
+			RunID:            runID,
+			RunnerType:       domain.RunnerTypeCodex,
+			TranscriptPath:   path,
+			SessionID:        "fixture-thread",
+			Until:            "complete the fixture",
+			GoalDrainTimeout: 500 * time.Millisecond,
+			Sink:             sink,
+			OnGoalStatus: func(runner.GoalMarker) error {
+				select {
+				case goalObserved <- struct{}{}:
+				default:
+				}
+				return nil
+			},
+		})
+		done <- struct {
+			terminal *runner.TranscriptTerminal
+			err      error
+		}{terminal, err}
+	}()
+
+	select {
+	case <-goalObserved:
+	case <-ctx.Done():
+		t.Fatalf("native goal was not observed: %v", ctx.Err())
+	}
+	// D21's ordering has the final assistant response and provider boundary
+	// after the matched goal-update result.
+	time.Sleep(25 * time.Millisecond)
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0)
+	if err != nil {
+		t.Fatalf("open transcript for append: %v", err)
+	}
+	for _, line := range []string{
+		`{"type":"event_msg","payload":{"type":"agent_message","message":"final answer after accepted goal"}}`,
+		`{"type":"event_msg","payload":{"type":"task_complete","turn_id":"fixture-turn"}}`,
+	} {
+		if _, err := f.WriteString(line + "\n"); err != nil {
+			_ = f.Close()
+			t.Fatalf("append transcript: %v", err)
+		}
+	}
+	if err := f.Close(); err != nil {
+		t.Fatalf("close transcript: %v", err)
+	}
+
+	var gotTerminal *runner.TranscriptTerminal
+	select {
+	case got := <-done:
+		if got.err != nil {
+			t.Fatalf("Tail returned error: %v", got.err)
+		}
+		if got.terminal == nil || !got.terminal.Success || got.terminal.TerminalReason != "goal_complete" {
+			t.Fatalf("terminal = %+v, want accepted goal_complete verdict", got.terminal)
+		}
+		gotTerminal = got.terminal
+	case <-ctx.Done():
+		t.Fatalf("Tail did not finish at provider turn boundary: %v", ctx.Err())
+	}
+
+	sink.mu.Lock()
+	finalCaptured := false
+	for _, event := range sink.events {
+		if message, ok := event.Data.(*domain.MessageEventData); ok && message.Content == "final answer after accepted goal" {
+			finalCaptured = true
+			break
+		}
+	}
+	sink.mu.Unlock()
+	if !finalCaptured {
+		t.Fatal("same-turn final assistant answer was not emitted before finalization")
+	}
+
+	run := newInteractiveRun(domain.RunnerTypeCodex, path)
+	run.ID = runID
+	store := &fakeRunStore{}
+	broadcaster := &fakeBroadcaster{}
+	resultBuilds := 0
+	coord := NewCoordinator(CoordinatorDeps{
+		Runs:        store,
+		Broadcaster: broadcaster,
+		Result: func(_ context.Context, _ uuid.UUID, success bool, exitCode int, reason string) (*domain.RunResult, *domain.RunSummary) {
+			resultBuilds++
+			sink.mu.Lock()
+			defer sink.mu.Unlock()
+			for _, event := range sink.events {
+				if message, ok := event.Data.(*domain.MessageEventData); ok && message.Content == "final answer after accepted goal" {
+					return &domain.RunResult{FinalOutput: message.Content, Success: success, ExitCode: exitCode, TerminalReason: reason}, &domain.RunSummary{Description: message.Content}
+				}
+			}
+			return &domain.RunResult{Success: success, ExitCode: exitCode, TerminalReason: reason}, nil
+		},
+	})
+	if err := coord.Finalize(ctx, run, gotTerminal, nil); err != nil {
+		t.Fatalf("Finalize: %v", err)
+	}
+	if resultBuilds != 1 || run.Result == nil || run.Result.FinalOutput != "final answer after accepted goal" || run.LastHandoff != "final answer after accepted goal" {
+		t.Fatalf("finalized result did not select captured handoff: builds=%d result=%+v handoff=%q", resultBuilds, run.Result, run.LastHandoff)
+	}
+	broadcaster.mu.Lock()
+	defer broadcaster.mu.Unlock()
+	if len(broadcaster.statuses) != 1 || broadcaster.statuses[0] != domain.RunStatusComplete {
+		t.Fatalf("completion was not broadcast exactly once: %v", broadcaster.statuses)
+	}
+}
+
+func TestTailerGoalDrainStopsAtNextUserTurnOrSession(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		lines []string
+	}{
+		{
+			name: "next user turn",
+			lines: []string{
+				`{"type":"event_msg","payload":{"type":"user_message","message":"start another task"}}`,
+				`{"type":"event_msg","payload":{"type":"agent_message","message":"answer from later turn"}}`,
+				`{"type":"event_msg","payload":{"type":"task_complete","turn_id":"later-turn"}}`,
+			},
+		},
+		{
+			name: "session change",
+			lines: []string{
+				`{"type":"session_meta","payload":{"id":"different-session"}}`,
+				`{"type":"event_msg","payload":{"type":"agent_message","message":"answer from another session"}}`,
+				`{"type":"event_msg","payload":{"type":"task_complete","turn_id":"other-session-turn"}}`,
+			},
+		},
+		{
+			name: "next provider turn",
+			lines: []string{
+				`{"type":"turn_context","payload":{"turn_id":"later-turn"}}`,
+				`{"type":"event_msg","payload":{"type":"agent_message","message":"answer from later provider turn"}}`,
+				`{"type":"event_msg","payload":{"type":"task_complete","turn_id":"later-turn"}}`,
+			},
+		},
+		{
+			name: "replacement active goal",
+			lines: []string{
+				`{"type":"event_msg","payload":{"type":"thread_goal_updated","goal":{"objective":"a replacement goal","status":"active"}}}`,
+				`{"type":"event_msg","payload":{"type":"agent_message","message":"answer from replacement goal"}}`,
+				`{"type":"event_msg","payload":{"type":"task_complete","turn_id":"replacement-turn"}}`,
+			},
+		},
+		{
+			name: "later goal status cannot override accepted verdict",
+			lines: []string{
+				`{"type":"event_msg","payload":{"type":"thread_goal_updated","goal":{"objective":"complete the fixture","status":"usage_limited"}}}`,
+				`{"type":"event_msg","payload":{"type":"agent_message","message":"answer after accepted goal"}}`,
+				`{"type":"event_msg","payload":{"type":"task_complete","turn_id":"later-status-turn"}}`,
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "transcript.jsonl")
+			lines := append(readCodecFixture(t, "codex_goal_accepted.jsonl"), tc.lines...)
+			if err := os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0o644); err != nil {
+				t.Fatalf("write transcript: %v", err)
+			}
+			sink := &collectSink{}
+			tailer := NewTailer(codecParserResolver, WithTailPollInterval(5*time.Millisecond))
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			defer cancel()
+			var goalStatuses []runner.GoalStatus
+			term, err := tailer.Tail(ctx, TailParams{
+				RunID: uuid.New(), RunnerType: domain.RunnerTypeCodex,
+				TranscriptPath: path, SessionID: "fixture-thread",
+				Until: "complete the fixture", GoalDrainTimeout: 400 * time.Millisecond,
+				Sink: sink,
+				OnGoalStatus: func(marker runner.GoalMarker) error {
+					goalStatuses = append(goalStatuses, marker.Status)
+					return nil
+				},
+			})
+			if err != nil || term == nil || term.TerminalReason != "goal_complete" {
+				t.Fatalf("Tail terminal=%+v err=%v, want accepted goal verdict", term, err)
+			}
+			if got := sink.count(domain.EventTypeMessage); got != 0 {
+				t.Fatalf("captured %d message(s) from after the invocation boundary", got)
+			}
+			if len(goalStatuses) != 2 || goalStatuses[0] != runner.GoalStatusActive || goalStatuses[1] != runner.GoalStatusComplete {
+				t.Fatalf("processed goal statuses %v through the prior invocation boundary; want only original active+complete markers", goalStatuses)
+			}
+		})
+	}
+}
+
+func TestTailerGoalOnlyCompletesOnBoundedDrainAndCancellationIsHonored(t *testing.T) {
+	goalLines := readCodecFixture(t, "codex_goal_accepted.jsonl")
+	for _, tc := range []struct {
+		name   string
+		cancel bool
+	}{
+		{name: "goal only"},
+		{name: "cancel while draining", cancel: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "transcript.jsonl")
+			if err := os.WriteFile(path, []byte(strings.Join(goalLines, "\n")+"\n"), 0o644); err != nil {
+				t.Fatalf("write transcript: %v", err)
+			}
+			tailer := NewTailer(codecParserResolver, WithTailPollInterval(5*time.Millisecond))
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			observed := make(chan struct{}, 1)
+			termCh := make(chan *runner.TranscriptTerminal, 1)
+			errCh := make(chan error, 1)
+			go func() {
+				term, err := tailer.Tail(ctx, TailParams{
+					RunID: uuid.New(), RunnerType: domain.RunnerTypeCodex,
+					TranscriptPath: path, SessionID: "fixture-thread",
+					Until: "complete the fixture", GoalDrainTimeout: 80 * time.Millisecond,
+					OnGoalStatus: func(runner.GoalMarker) error {
+						select {
+						case observed <- struct{}{}:
+						default:
+						}
+						if tc.cancel {
+							cancel()
+						}
+						return nil
+					},
+				})
+				termCh <- term
+				errCh <- err
+			}()
+			select {
+			case <-observed:
+			case <-time.After(time.Second):
+				t.Fatal("native goal was not observed")
+			}
+			select {
+			case term := <-termCh:
+				err := <-errCh
+				if tc.cancel {
+					if err == nil || !errors.Is(err, context.Canceled) {
+						t.Fatalf("Tail error=%v, want cancellation", err)
+					}
+					return
+				}
+				if err != nil || term == nil || term.TerminalReason != "goal_complete" {
+					t.Fatalf("Tail terminal=%+v err=%v, want bounded goal completion", term, err)
+				}
+			case <-time.After(500 * time.Millisecond):
+				t.Fatal("goal-only drain exceeded its configured bound")
+			}
+		})
+	}
+}
+
 func TestTailerCarriesBillingIntoCodexTranscript(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "transcript.jsonl")
 	content := strings.Join([]string{
@@ -371,4 +640,26 @@ func TestTailerCarriesBillingIntoCodexTranscript(t *testing.T) {
 		}
 	}
 	t.Fatal("interactive Codex transcript did not emit an explicit zero subscription charge")
+}
+
+func TestTailerAcceptsPinnedCodexGetGoalRead(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "get-goal.jsonl")
+	transcript := strings.Join([]string{
+		`{"type":"response_item","payload":{"type":"custom_tool_call","name":"exec","call_id":"goal-read","input":"text(JSON.stringify(await tools.get_goal({})));"}}`,
+		`{"type":"response_item","payload":{"type":"custom_tool_call_output","call_id":"goal-read","output":[{"type":"input_text","text":"Script completed\nWall time 0.0 seconds\nOutput:\n"},{"type":"input_text","text":"{\"goal\":{\"threadId\":\"fixture-thread\",\"objective\":\"finish the route\\ninitial prompt context\",\"status\":\"complete\",\"tokensUsed\":12,\"timeUsedSeconds\":4,\"createdAt\":1,\"updatedAt\":2},\"remainingTokens\":null,\"completionBudgetReport\":null}"}]}}`,
+	}, "\n") + "\n"
+	if err := os.WriteFile(path, []byte(transcript), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	tailer := NewTailer(codecParserResolver, WithTailPollInterval(time.Millisecond))
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	terminal, err := tailer.Tail(ctx, TailParams{
+		RunID: uuid.New(), RunnerType: domain.RunnerTypeCodex,
+		TranscriptPath: path, SessionID: "fixture-thread", Until: "finish the route",
+		GoalDrainTimeout: 10 * time.Millisecond,
+	})
+	if err != nil || terminal == nil || !terminal.Success || terminal.TerminalReason != "goal_complete" {
+		t.Fatalf("pinned native get_goal result was not accepted: terminal=%+v err=%v", terminal, err)
+	}
 }

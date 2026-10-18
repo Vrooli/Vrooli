@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 // Facts is the domain-neutral description of an operator decision: what the
@@ -40,6 +41,10 @@ type Facts struct {
 	Urgency string
 	// Note is optional free text carried to the operator.
 	Note string
+	// BigPicture explains the decision's purpose and practical consequences.
+	BigPicture string
+	// TechnicalDetails explains mechanism, evidence, risks and known limits.
+	TechnicalDetails string
 	// ContextURL optionally deep-links the operator to a review surface. A producer
 	// resolves this (e.g. from its web-console base) BEFORE building Facts.
 	ContextURL string
@@ -61,10 +66,12 @@ type Option struct {
 // package accepts is never refused by the hub. They match goalhome's Decision
 // limits.
 const (
-	MaxQuestion    = 600
-	MaxReason      = 300
-	MaxOptions     = 8
-	MaxOptionLabel = 200
+	MaxQuestion                   = 600
+	MaxReason                     = 300
+	MaxOptions                    = 8
+	MaxOptionLabel                = 200
+	MaxBigPictureCodePoints       = 4_000
+	MaxTechnicalDetailsCodePoints = 12_000
 )
 
 var (
@@ -85,6 +92,10 @@ func (f Facts) Validate() error {
 		return fmt.Errorf("a decision needs 2-%d options", MaxOptions)
 	case len(f.RecommendationReason) > MaxReason:
 		return fmt.Errorf("the recommendation reason is at most %d bytes", MaxReason)
+	case !utf8.ValidString(f.BigPicture) || utf8.RuneCountInString(f.BigPicture) > MaxBigPictureCodePoints:
+		return fmt.Errorf("big_picture must be valid UTF-8 and at most %d Unicode code points", MaxBigPictureCodePoints)
+	case !utf8.ValidString(f.TechnicalDetails) || utf8.RuneCountInString(f.TechnicalDetails) > MaxTechnicalDetailsCodePoints:
+		return fmt.Errorf("technical_details must be valid UTF-8 and at most %d Unicode code points", MaxTechnicalDetailsCodePoints)
 	case !factsUrgency[f.Urgency]:
 		return fmt.Errorf("urgency must be low, normal, high or critical")
 	}
@@ -196,6 +207,12 @@ func (f Facts) Payload() map[string]any {
 	}
 	if f.Note != "" {
 		payload["note"] = f.Note
+	}
+	if f.BigPicture != "" {
+		payload["big_picture"] = f.BigPicture
+	}
+	if f.TechnicalDetails != "" {
+		payload["technical_details"] = f.TechnicalDetails
 	}
 	if !f.Deadline.IsZero() {
 		payload["deadline"] = f.Deadline.UTC().Format(time.RFC3339)

@@ -19,5 +19,6 @@ func AllSchemas() []database.SchemaProvider {
 		database.SchemaProviderFunc(tags.Schema),
 		database.SchemaProviderFunc(testing.Schema),
 		database.SchemaProviderFunc(store.ExperimentSchema),
+		database.SchemaProviderFunc(store.HeartbeatAttemptPublicationSchema),
 	}
 }

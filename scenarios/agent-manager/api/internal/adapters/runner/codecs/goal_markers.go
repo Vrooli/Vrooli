@@ -38,15 +38,18 @@ func codexGoalStatus(line string) (runner.GoalMarker, bool) {
 // one Consume segment. A new parser must replay the request prefix. Never keep
 // this state on the shared codec or infer acceptance from an output-only tail.
 type codexGoalContext struct {
-	runID     uuid.UUID
-	threadID  string
-	objective string
-	pending   map[string]codexGoalCall
+	runID             uuid.UUID
+	threadID          string
+	objective         string
+	expectedThreadID  string
+	expectedObjective string
+	pending           map[string]codexGoalCall
 }
 
 type codexGoalCall struct {
-	status     runner.GoalStatus
-	outputType string
+	status      runner.GoalStatus
+	outputType  string
+	currentRead bool
 }
 
 type codexAcceptedGoal struct {
@@ -84,11 +87,20 @@ func (s *codexGoalContext) parse(runID uuid.UUID, line string) (runner.GoalMarke
 		return runner.GoalMarker{}, false
 	}
 	if envelope.Type == "session_meta" && envelope.Payload.ID != "" && envelope.Payload.ID != s.threadID {
-		*s = codexGoalContext{runID: runID, threadID: envelope.Payload.ID}
+		*s = codexGoalContext{
+			runID: runID, threadID: envelope.Payload.ID,
+			expectedThreadID: s.expectedThreadID, expectedObjective: s.expectedObjective,
+		}
 	}
 	if marker, ok := codexGoalStatus(line); ok {
 		threadID := envelope.Payload.Goal.ThreadID
 		if s.threadID != "" && threadID != "" && threadID != s.threadID {
+			return runner.GoalMarker{}, false
+		}
+		if s.expectedThreadID != "" && threadID != "" && threadID != s.expectedThreadID {
+			return runner.GoalMarker{}, false
+		}
+		if s.expectedObjective != "" && marker.Status != runner.GoalStatusActive && !codexGoalObjectiveMatches(marker.Objective, s.expectedObjective) {
 			return runner.GoalMarker{}, false
 		}
 		// A delayed status for an older objective cannot finalize the newer
@@ -107,7 +119,7 @@ func (s *codexGoalContext) parse(runID uuid.UUID, line string) (runner.GoalMarke
 }
 
 // codexGoalToolStatus requires a typed call plus its successful native result.
-// The supported exec forms only return update_goal's actual value. Arbitrary
+// The supported exec forms return a native update_goal or get_goal result. Arbitrary
 // JavaScript (including conditionals, quoted examples and fabricated text) is
 // deliberately unsupported; this is not a JavaScript interpreter.
 func codexGoalToolStatus(s *codexGoalContext, envelope codexGoalEnvelope) (runner.GoalMarker, bool) {
@@ -116,12 +128,17 @@ func codexGoalToolStatus(s *codexGoalContext, envelope codexGoalEnvelope) (runne
 		return runner.GoalMarker{}, false
 	}
 	if p.Type == "custom_tool_call" || p.Type == "function_call" {
-		status, ok := codexGoalRequestedStatus(envelope)
-		if !ok {
-			delete(s.pending, p.CallID)
-			return runner.GoalMarker{}, false
+		call := codexGoalCall{outputType: p.Type + "_output"}
+		if p.Type == "custom_tool_call" && (p.Name == "exec" || p.Name == "functions.exec") && codexGoalReadCallReturned(p.Input) {
+			call.currentRead = true
+		} else {
+			status, ok := codexGoalRequestedStatus(envelope)
+			if !ok {
+				delete(s.pending, p.CallID)
+				return runner.GoalMarker{}, false
+			}
+			call.status = status
 		}
-		call := codexGoalCall{status: status, outputType: p.Type + "_output"}
 		if prior, exists := s.pending[p.CallID]; exists {
 			if prior != call {
 				s.pending[p.CallID] = codexGoalCall{} // conflicting ID cannot qualify
@@ -145,7 +162,13 @@ func codexGoalToolStatus(s *codexGoalContext, envelope codexGoalEnvelope) (runne
 		return runner.GoalMarker{}, false
 	}
 	goal, ok := codexAcceptedGoalOutput(p.Output)
-	if !ok || goal.Status != call.status || (s.threadID != "" && goal.ThreadID != s.threadID) || (s.objective != "" && strings.TrimSpace(goal.Objective) != s.objective) {
+	objective := strings.TrimSpace(goal.Objective)
+	if !ok || (call.currentRead && (s.expectedThreadID == "" || s.expectedObjective == "" || goal.ThreadID != s.expectedThreadID)) ||
+		(!call.currentRead && goal.Status != call.status) ||
+		(s.threadID != "" && goal.ThreadID != s.threadID) ||
+		(s.expectedThreadID != "" && goal.ThreadID != s.expectedThreadID) ||
+		(s.expectedObjective != "" && !codexGoalObjectiveMatches(objective, s.expectedObjective)) ||
+		(s.objective != "" && objective != s.objective) {
 		return runner.GoalMarker{}, false
 	}
 	s.threadID, s.objective = goal.ThreadID, strings.TrimSpace(goal.Objective)
@@ -153,10 +176,36 @@ func codexGoalToolStatus(s *codexGoalContext, envelope codexGoalEnvelope) (runne
 }
 
 var (
-	codexGoalAssignedCall = regexp.MustCompile(`^\s*(?:const|let|var)\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*=\s*await\s+tools\.update_goal\(\s*(\{[^{}]*\})\s*\)\s*;\s*text\(\s*([A-Za-z_$][A-Za-z0-9_$]*)\s*\)\s*;?\s*$`)
-	codexGoalReturnedCall = regexp.MustCompile(`^\s*text\(\s*await\s+tools\.update_goal\(\s*(\{[^{}]*\})\s*\)\s*\)\s*;?\s*$`)
-	codexGoalStatusArg    = regexp.MustCompile(`^\{\s*(?:status|"status"|'status')\s*:\s*(?:"([a-z_]+)"|'([a-z_]+)')\s*,?\s*\}$`)
+	codexGoalAssignedCall           = regexp.MustCompile(`^\s*(?:const|let|var)\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*=\s*await\s+tools\.update_goal\(\s*(\{[^{}]*\})\s*\)\s*;\s*text\(\s*((?:[A-Za-z_$][A-Za-z0-9_$]*)|(?:JSON\.stringify\(\s*[A-Za-z_$][A-Za-z0-9_$]*\s*(?:,\s*null(?:\s*,\s*2\s*)?)?\)))\s*\)\s*;?\s*$`)
+	codexGoalAssignedResultVariable = regexp.MustCompile(`^\s*(?:([A-Za-z_$][A-Za-z0-9_$]*)|JSON\.stringify\(\s*([A-Za-z_$][A-Za-z0-9_$]*)\s*(?:,\s*null(?:\s*,\s*2\s*)?)?\))\s*$`)
+	codexGoalReturnedCall           = regexp.MustCompile(`^\s*text\(\s*await\s+tools\.update_goal\(\s*(\{[^{}]*\})\s*\)\s*\)\s*;?\s*$`)
+	codexGoalReadReturnedCall       = regexp.MustCompile(`^\s*text\(\s*JSON\.stringify\(\s*await\s+tools\.get_goal\(\s*\{\s*\}\s*\)\s*\)\s*\)\s*;?\s*$`)
+	codexGoalDirectReadCall         = regexp.MustCompile(`^\s*text\(\s*await\s+tools\.get_goal\(\s*\{\s*\}\s*\)\s*\)\s*;?\s*$`)
+	codexGoalAssignedReadCall       = regexp.MustCompile(`^\s*(?:const|let|var)\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*=\s*await\s+tools\.get_goal\(\s*\{\s*\}\s*\)\s*;\s*text\(\s*((?:[A-Za-z_$][A-Za-z0-9_$]*)|(?:JSON\.stringify\(\s*[A-Za-z_$][A-Za-z0-9_$]*\s*(?:,\s*null(?:,\s*2\s*)?)?\)))\s*\)\s*;?\s*$`)
+	codexGoalStatusArg              = regexp.MustCompile(`^\{\s*(?:status|"status"|'status')\s*:\s*(?:"([a-z_]+)"|'([a-z_]+)')\s*,?\s*\}$`)
 )
+
+func codexGoalReadCallReturned(input string) bool {
+	if len(input) > 4096 {
+		return false
+	}
+	if codexGoalReadReturnedCall.MatchString(input) || codexGoalDirectReadCall.MatchString(input) {
+		return true
+	}
+	match := codexGoalAssignedReadCall.FindStringSubmatch(input)
+	if match == nil {
+		return false
+	}
+	rendered := codexGoalAssignedResultVariable.FindStringSubmatch(match[2])
+	if rendered == nil {
+		return false
+	}
+	variable := rendered[1]
+	if variable == "" {
+		variable = rendered[2]
+	}
+	return match[1] == variable
+}
 
 func codexGoalRequestedStatus(envelope codexGoalEnvelope) (runner.GoalStatus, bool) {
 	p := envelope.Payload
@@ -164,8 +213,16 @@ func codexGoalRequestedStatus(envelope codexGoalEnvelope) (runner.GoalStatus, bo
 	switch {
 	case p.Type == "custom_tool_call" && (p.Name == "exec" || p.Name == "functions.exec") && len(p.Input) <= 4096:
 		argument := ""
-		if match := codexGoalAssignedCall.FindStringSubmatch(p.Input); match != nil && match[1] == match[3] {
-			argument = match[2]
+		if match := codexGoalAssignedCall.FindStringSubmatch(p.Input); match != nil {
+			if rendered := codexGoalAssignedResultVariable.FindStringSubmatch(match[3]); rendered != nil {
+				outputVariable := rendered[1]
+				if outputVariable == "" {
+					outputVariable = rendered[2]
+				}
+				if match[1] == outputVariable {
+					argument = match[2]
+				}
+			}
 		} else if match := codexGoalReturnedCall.FindStringSubmatch(p.Input); match != nil {
 			argument = match[1]
 		}
@@ -235,6 +292,13 @@ func codexAcceptedGoalOutput(output json.RawMessage) (codexAcceptedGoal, bool) {
 		accepted, found = goal, true
 	}
 	return accepted, found
+}
+
+// Match the persisted Until contract used by observedGoalMatchesRun: a native
+// objective may extend the configured Until with a prompt/attachment suffix,
+// but it cannot replace or shorten that pinned prefix.
+func codexGoalObjectiveMatches(objective, expected string) bool {
+	return runner.NativeGoalObjectiveMatches(objective, expected)
 }
 
 func nonNullJSON(value json.RawMessage) bool {

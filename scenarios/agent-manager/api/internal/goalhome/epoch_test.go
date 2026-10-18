@@ -216,9 +216,36 @@ func TestParseQuantityReadsSignsSeparatorsAndUnits(t *testing.T) {
 	}
 }
 
-func TestWorkerRunIDsSkipsParenthesizedNotes(t *testing.T) {
-	raw := "c33912b5 (task 42f4; prompt-manager/delivery-epoch-worker, gpt-6-luna medium; canceled after handoff), 6980e693 (handoff follow-through only), a7240424"
-	if got := strings.Join(WorkerRunIDs(raw), ","); got != "c33912b5,6980e693,a7240424" {
-		t.Fatalf("worker IDs = %s", got)
+func TestWorkerRunIDsRequiresACompleteExplicitUUIDList(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		raw  string
+		want []string
+	}{
+		{
+			name: "UUIDs with parenthesized notes",
+			raw:  "c33912b5-1b51-49b3-8ddb-aad93600b001 (canceled after handoff), 6980e693-3ffd-42fe-b383-c2f0689354b1 (handoff follow-through only), a7240424-43e7-4d36-87f6-2b2e83d0c959",
+			want: []string{"c33912b5-1b51-49b3-8ddb-aad93600b001", "6980e693-3ffd-42fe-b383-c2f0689354b1", "a7240424-43e7-4d36-87f6-2b2e83d0c959"},
+		},
+		{
+			name: "separate balanced notes",
+			raw:  "7e762c65-72ee-413c-b051-e498d384baaa (prior run)(handoff only)",
+			want: []string{"7e762c65-72ee-413c-b051-e498d384baaa"},
+		},
+		{
+			name: "current Nooch E30 Workers prose is unknown",
+			raw:  "task `51b75231-d745-4279-9aed-435b43c439a4`; attempts 1 and 2 are historical as detailed below. Attempt 3 `650c0416-6afd-416a-be82-5b1838ecf90d` was explicitly refused by retained-parent identity before creating a run. Following SUP-IDENTITY-RECOVERED-20261014, attempt 4 run `02e08dc1-0ef8-4a4c-9fb2-9b309e2220ce` used the same task, registered profile `4c19aef1-36a2-4cc5-8961-42648692883b`, parent `16d59037-b9a9-4442-8ae7-0c28921bd54b`, Luna-medium `gpt-6-luna`, workload `nooch/E30`, and unchanged until/G1-G8. It failed before worker turn: `web-console stable-create identity unsupported; no Create submitted`; no source work occurred. After current Agent Manager serving restart and service-principal route adoption, attempt 5 run `687338a6-7413-4cd5-b6c4-d9cca22ae998` was created on the same task/profile/parent in interactive mode with Luna medium and the unchanged E30 until/G1-G8; run readback shows session `01a13b30-72ee-7f63-b2a7-2b8188ce400f` and RUNNING. Parent-filtered native run listing includes the run under the retained parent; public run projection omits the parent field. Workload key `nooch/E30` was supplied to Create. Do not change mode, launcher, identity, profile, grants or gates.",
+		},
+		{name: "partial list is unknown", raw: "7e762c65-72ee-413c-b051-e498d384baaa, current attempt"},
+		{name: "note cannot hide a malformed trailing token", raw: "7e762c65-72ee-413c-b051-e498d384baaa (prior run) current attempt"},
+		{name: "same-token prose after note is unknown", raw: "7e762c65-72ee-413c-b051-e498d384baaa (prior run)current"},
+		{name: "unclosed note is unknown", raw: "7e762c65-72ee-413c-b051-e498d384baaa (prior run"},
+		{name: "blank field means no references", raw: ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := WorkerRunIDs(tc.raw); strings.Join(got, ",") != strings.Join(tc.want, ",") {
+				t.Fatalf("WorkerRunIDs(%q) = %v, want %v", tc.raw, got, tc.want)
+			}
+		})
 	}
 }

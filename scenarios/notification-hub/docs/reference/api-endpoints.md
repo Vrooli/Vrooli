@@ -52,6 +52,22 @@ and mirrors `api-core/health.Response` field-for-field.
 
 ---
 
+## Notification Hub read boundary
+
+Ordinary reads do not require an interactive owner login. Recipient-scoped
+procedures (`GetAsk`, `ListAsks`, notification `Get`/`List`, delivery
+timeline/analytics, routing channel status, recipient metadata, devices, quiet
+windows, escalation chain, and preference reads) use the recipient configured
+for this Hub instance and return only matching recipient data; an unset
+recipient yields no recipient data. The client cannot choose a recipient.
+Recipient metadata lookup never creates a missing recipient row. The existing
+routing-status call also refreshes its bounded status snapshot, using configured target IDs or `local` for cache keys. Notification detail receipts omit push provider IDs for every caller on this public configured-recipient projection. Catalog reads
+expose source/category metadata only. Ask creation and answers,
+notification send/relay, subscription/credential operations, and
+recipient/device/preferences writes retain their existing identity checks.
+Other endpoints are unchanged by this read rule. In particular, reading an ask
+never authorizes its answer.
+
 ## Domain endpoints — `<domain>`
 
 Each product domain exposes its endpoints under

@@ -43,14 +43,16 @@ class ResourceStopAllResponse(_message.Message):
     def __init__(self, success: _Optional[bool] = ..., report: _Optional[_Union[ResourceStopReport, _Mapping]] = ...) -> None: ...
 
 class ResourceStopReport(_message.Message):
-    __slots__ = ("stopped", "failed", "message")
+    __slots__ = ("stopped", "failed", "message", "observed")
     STOPPED_FIELD_NUMBER: _ClassVar[int]
     FAILED_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_FIELD_NUMBER: _ClassVar[int]
     stopped: _containers.RepeatedCompositeFieldContainer[ResourceControlResultItem]
     failed: _containers.RepeatedCompositeFieldContainer[ResourceControlResultItem]
     message: str
-    def __init__(self, stopped: _Optional[_Iterable[_Union[ResourceControlResultItem, _Mapping]]] = ..., failed: _Optional[_Iterable[_Union[ResourceControlResultItem, _Mapping]]] = ..., message: _Optional[str] = ...) -> None: ...
+    observed: _containers.RepeatedCompositeFieldContainer[ResourceControlResultItem]
+    def __init__(self, stopped: _Optional[_Iterable[_Union[ResourceControlResultItem, _Mapping]]] = ..., failed: _Optional[_Iterable[_Union[ResourceControlResultItem, _Mapping]]] = ..., message: _Optional[str] = ..., observed: _Optional[_Iterable[_Union[ResourceControlResultItem, _Mapping]]] = ...) -> None: ...
 
 class ResourceDeprecatedResource(_message.Message):
     __slots__ = ("name", "deprecated_at", "reason", "replacement", "archive_path", "archive_hash", "retention_policy_days", "restore_supported", "purge_after", "purged_at")

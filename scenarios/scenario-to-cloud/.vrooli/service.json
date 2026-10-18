@@ -148,7 +148,7 @@
       {
         "id": "scenario-to-cloud:write",
         "effect": "write",
-        "agent_eligible": false
+        "agent_eligible": true
       },
       {
         "id": "scenario-to-cloud:destructive",

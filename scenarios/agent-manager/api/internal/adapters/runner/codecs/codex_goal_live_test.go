@@ -191,6 +191,71 @@ func TestCodexGoalEvidenceRejectsRequestsQuotesAndUnmatchedResults(t *testing.T)
 	}
 }
 
+func TestCodexGoalAssignedCallAcceptsSerializedResultVariable(t *testing.T) {
+	for name, render := range map[string]func(string) string{
+		"json_stringify":          func(variable string) string { return "text(JSON.stringify(" + variable + "));" },
+		"json_stringify_indented": func(variable string) string { return "text(JSON.stringify(" + variable + ", null, 2));" },
+	} {
+		t.Run(name, func(t *testing.T) {
+			parser := NewCodexForTest().NewTranscriptParser()
+			runID := uuid.New()
+			threadID := "fixture-thread"
+			objective := "complete the fixture"
+			parser.ParseTranscriptLine(runID, `{"type":"session_meta","payload":{"id":"fixture-thread"}}`)
+			install, _ := json.Marshal(map[string]any{
+				"type": "event_msg",
+				"payload": map[string]any{
+					"type":     "thread_goal_updated",
+					"threadId": threadID,
+					"goal": map[string]any{
+						"threadId":  threadID,
+						"objective": objective,
+						"status":    "active",
+					},
+				},
+			})
+			parser.ParseTranscriptLine(runID, string(install))
+			request := "const r = await tools.update_goal({status:\"complete\"});\n" + render("r")
+			if got := parser.ParseTranscriptLine(runID, goalRequestLine("call-goal", request)); got.Goal != nil || got.Terminal != nil {
+				t.Fatalf("serialized update request became completion before its result: %+v", got)
+			}
+			result := parser.ParseTranscriptLine(runID, goalReceiptLine("call-goal", acceptedGoalReceipt()))
+			if result.Goal == nil || result.Goal.Status != runner.GoalStatusComplete || result.Goal.Objective != objective {
+				t.Fatalf("correlated serialized update receipt = %+v, want complete goal for current thread", result.Goal)
+			}
+		})
+	}
+}
+
+func TestCodexGoalAssignedCallRequiresSameSerializedResultVariable(t *testing.T) {
+	parser := NewCodexForTest().NewTranscriptParser()
+	runID := uuid.New()
+	threadID := "fixture-thread"
+	objective := "complete the fixture"
+	parser.ParseTranscriptLine(runID, `{"type":"session_meta","payload":{"id":"fixture-thread"}}`)
+	install, _ := json.Marshal(map[string]any{
+		"type": "event_msg",
+		"payload": map[string]any{
+			"type":     "thread_goal_updated",
+			"threadId": threadID,
+			"goal": map[string]any{
+				"threadId":  threadID,
+				"objective": objective,
+				"status":    "active",
+			},
+		},
+	})
+	parser.ParseTranscriptLine(runID, string(install))
+	request := `const r = await tools.update_goal({status:"complete"});` + "\n" + `text(JSON.stringify(other));`
+	if got := parser.ParseTranscriptLine(runID, goalRequestLine("call-goal", request)); got.Goal != nil || got.Terminal != nil {
+		t.Fatalf("mismatched serialized result request became completion: %+v", got)
+	}
+	result := parser.ParseTranscriptLine(runID, goalReceiptLine("call-goal", acceptedGoalReceipt()))
+	if result.Goal != nil || result.Terminal != nil {
+		t.Fatalf("receipt for a request whose different variable was rendered completed the goal: %+v", result)
+	}
+}
+
 func TestCodexGoalOnlyMatchingSuccessfulReceiptQualifies(t *testing.T) {
 	for name, mutate := range map[string]func(map[string]any){
 		"accepted":          func(map[string]any) {},
@@ -352,5 +417,120 @@ func TestCodexDefaultPrivacyStillInvalidatesGoalAcrossUserTurn(t *testing.T) {
 		if err != nil || terminal != nil {
 			t.Fatalf("old completion survived private next turn: terminal=%+v err=%v", terminal, err)
 		}
+	}
+}
+
+func TestCodexGetGoalReadRequiresExactCallAndCurrentSessionGoal(t *testing.T) {
+	const (
+		expectedThread    = "fixture-thread"
+		expectedObjective = "complete the fixture"
+	)
+	for name, tc := range map[string]struct {
+		context bool
+		request string
+		callID  string
+		goal    map[string]any
+		isError bool
+		want    bool
+	}{
+		"accepted_pinned_read_with_prompt_suffix": {context: true, request: `text(JSON.stringify(await tools.get_goal({})));`, callID: "get-goal", goal: map[string]any{"threadId": expectedThread, "objective": expectedObjective + "\ninitial prompt context", "status": "complete"}, want: true},
+		"accepted_direct_read_text":               {context: true, request: `text(await tools.get_goal({}));`, callID: "get-goal", goal: map[string]any{"threadId": expectedThread, "objective": expectedObjective, "status": "complete"}, want: true},
+		"accepted_assigned_read_text":             {context: true, request: `const r = await tools.get_goal({}); text(r);`, callID: "get-goal", goal: map[string]any{"threadId": expectedThread, "objective": expectedObjective, "status": "complete"}, want: true},
+		"accepted_assigned_read_json":             {context: true, request: `let result = await tools.get_goal({}); text(JSON.stringify(result, null, 2));`, callID: "get-goal", goal: map[string]any{"threadId": expectedThread, "objective": expectedObjective, "status": "complete"}, want: true},
+		"assigned_read_wrong_variable":            {context: true, request: `const r = await tools.get_goal({}); text(other);`, callID: "get-goal", goal: map[string]any{"threadId": expectedThread, "objective": expectedObjective, "status": "complete"}},
+		"assigned_read_wrong_stringify_variable":  {context: true, request: `const r = await tools.get_goal({}); text(JSON.stringify(other));`, callID: "get-goal", goal: map[string]any{"threadId": expectedThread, "objective": expectedObjective, "status": "complete"}},
+		"assigned_read_conditional":               {context: true, request: `const r = await tools.get_goal({}); if (r) text(r);`, callID: "get-goal", goal: map[string]any{"threadId": expectedThread, "objective": expectedObjective, "status": "complete"}},
+		"assigned_read_other_call":                {context: true, request: `const r = await tools.get_goal({status:"complete"}); text(r);`, callID: "get-goal", goal: map[string]any{"threadId": expectedThread, "objective": expectedObjective, "status": "complete"}},
+		"assigned_read_too_large":                 {context: true, request: strings.Repeat(" ", 4097) + `const r = await tools.get_goal({}); text(r);`, callID: "get-goal", goal: map[string]any{"threadId": expectedThread, "objective": expectedObjective, "status": "complete"}},
+		"wrong_session":                           {context: true, request: `text(JSON.stringify(await tools.get_goal({})));`, callID: "get-goal", goal: map[string]any{"threadId": "other-thread", "objective": expectedObjective, "status": "complete"}},
+		"wrong_objective":                         {context: true, request: `text(JSON.stringify(await tools.get_goal({})));`, callID: "get-goal", goal: map[string]any{"threadId": expectedThread, "objective": "other objective", "status": "complete"}},
+		"wrong_prefix_without_delimiter":          {context: true, request: `text(JSON.stringify(await tools.get_goal({})));`, callID: "get-goal", goal: map[string]any{"threadId": expectedThread, "objective": expectedObjective + "suffix", "status": "complete"}},
+		"unmatched_result":                        {context: true, request: `text(JSON.stringify(await tools.get_goal({})));`, callID: "different-call", goal: acceptedGoalReceipt()["goal"].(map[string]any)},
+		"failed_result":                           {context: true, request: `text(JSON.stringify(await tools.get_goal({})));`, callID: "get-goal", goal: acceptedGoalReceipt()["goal"].(map[string]any), isError: true},
+		"missing_run_context":                     {context: false, request: `text(JSON.stringify(await tools.get_goal({})));`, callID: "get-goal", goal: acceptedGoalReceipt()["goal"].(map[string]any)},
+		"printed_json_is_not_a_tool_read":         {context: true, request: `text(JSON.stringify({goal:{threadId:"fixture-thread",objective:"complete the fixture",status:"complete"}}));`, callID: "get-goal", goal: acceptedGoalReceipt()["goal"].(map[string]any)},
+	} {
+		t.Run(name, func(t *testing.T) {
+			parser := NewCodexForTest().NewTranscriptParser().(*codexTranscriptParser)
+			runID := uuid.New()
+			if tc.context {
+				parser.SetGoalContext(runID, expectedThread, expectedObjective)
+			}
+			if got := parser.ParseTranscriptLine(runID, goalRequestLine("get-goal", tc.request)); got.Goal != nil || got.Terminal != nil {
+				t.Fatalf("read request became evidence before its result: %+v", got)
+			}
+			receipt := map[string]any{"goal": tc.goal}
+			if tc.isError {
+				receipt["isError"] = true
+			}
+			got := parser.ParseTranscriptLine(runID, goalReceiptLine(tc.callID, receipt))
+			if (got.Goal != nil) != tc.want {
+				t.Fatalf("goal read result = %+v, want accepted=%v", got, tc.want)
+			}
+			if tc.want && (!codexGoalObjectiveMatches(got.Goal.Objective, expectedObjective) || got.Goal.Status != runner.GoalStatusComplete) {
+				t.Fatalf("goal read = %+v, want pinned complete goal", got.Goal)
+			}
+		})
+	}
+}
+
+func TestCodexGetGoalAssignedNativeReceiptUsesPairedStructuredResult(t *testing.T) {
+	const thread = "01a170-native-thread"
+	const objective = "finish the configured work"
+	parser := NewCodexForTest().NewTranscriptParser().(*codexTranscriptParser)
+	runID := uuid.New()
+	parser.SetGoalContext(runID, thread, objective)
+	request := goalRequestLine("assigned-native-read", `const r = await tools.get_goal({}); text(r);`)
+	if got := parser.ParseTranscriptLine(runID, request); got.Goal != nil || got.Terminal != nil {
+		t.Fatalf("native read request became evidence before its result: %+v", got)
+	}
+	output, err := json.Marshal(map[string]any{
+		"type": "response_item",
+		"payload": map[string]any{
+			"type":    "custom_tool_call_output",
+			"call_id": "assigned-native-read",
+			"output": []map[string]string{
+				{"type": "input_text", "text": "Script completed\nWall time 0.0 seconds\nOutput:\n"},
+				{"type": "input_text", "text": `{"goal":{"threadId":"01a170-native-thread","objective":"finish the configured work","status":"complete","iteration":3}}`},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := parser.ParseTranscriptLine(runID, string(output))
+	if got.Goal == nil || got.Goal.Status != runner.GoalStatusComplete || got.Goal.Iteration != 3 {
+		t.Fatalf("paired assigned native goal result was not accepted: %+v", got)
+	}
+}
+
+func TestCodexGetGoalReadMatchesOnlyLaunchNormalizedConfiguredObjective(t *testing.T) {
+	const thread = "fixture-thread"
+	configured := "complete  the\r\nfixture\twith exact spacing"
+	parser := NewCodexForTest().NewTranscriptParser().(*codexTranscriptParser)
+	runID := uuid.New()
+	parser.SetGoalContext(runID, thread, configured)
+	if got := parser.ParseTranscriptLine(runID, goalRequestLine("read-normalized", `const r = await tools.get_goal({}); text(r);`)); got.Goal != nil {
+		t.Fatalf("request became evidence before result: %+v", got)
+	}
+	good := map[string]any{"goal": map[string]any{"threadId": thread, "objective": "complete  the fixture\twith exact spacing", "status": "complete"}}
+	if got := parser.ParseTranscriptLine(runID, goalReceiptLine("read-normalized", good)); got.Goal == nil || got.Goal.Status != runner.GoalStatusComplete {
+		t.Fatalf("launch-normalized native objective was not accepted: %+v", got)
+	}
+	for name, objective := range map[string]string{
+		"space-collapsed": "complete the fixture with exact spacing",
+		"tab-changed":     "complete  the fixture with exact spacing",
+		"term-changed":    "complete  the fixture with changed spacing",
+	} {
+		t.Run(name, func(t *testing.T) {
+			p := NewCodexForTest().NewTranscriptParser().(*codexTranscriptParser)
+			id := uuid.New()
+			p.SetGoalContext(id, thread, configured)
+			p.ParseTranscriptLine(id, goalRequestLine("read-bad", `const r = await tools.get_goal({}); text(r);`))
+			bad := map[string]any{"goal": map[string]any{"threadId": thread, "objective": objective, "status": "complete"}}
+			if got := p.ParseTranscriptLine(id, goalReceiptLine("read-bad", bad)); got.Goal != nil || got.Terminal != nil {
+				t.Fatalf("altered objective accepted: %+v", got)
+			}
+		})
 	}
 }

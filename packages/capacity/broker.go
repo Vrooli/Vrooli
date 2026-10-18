@@ -4,16 +4,35 @@ package capacity
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
 	"fmt"
+	"math"
+	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/artifactlock"
 	internalcapacity "github.com/vrooli/vrooli/internal/capacity"
 	"github.com/vrooli/vrooli/internal/hostinventory"
+	"github.com/vrooli/vrooli/internal/hostpressure"
+	"github.com/vrooli/vrooli/internal/setpoint"
 )
 
 const capacityHeartbeatTTL = 15 * time.Minute
+const capacityCleanupTimeout = 5 * time.Second
+
+// RecommendedLeaseHeartbeatInterval returns a renewal cadence derived from
+// the broker's operation-claim TTL. Long-running owner work should call
+// Heartbeat more frequently than this interval and still treat renewal errors
+// as loss of admission.
+func RecommendedLeaseHeartbeatInterval() time.Duration {
+	return capacityHeartbeatTTL / 3
+}
 
 // Verdict describes whether a short-lived operation may consume its requested
 // host capacity. Queue and deny both fall back to serial execution upstream.
@@ -34,6 +53,14 @@ type HostObservation struct {
 // Lease releases all claims acquired for one operation.
 type Lease interface {
 	Release(context.Context) error
+}
+
+// RenewableLease is implemented by leases that can extend their ledger claims.
+// Lease remains unchanged for existing consumers; long-running operations can
+// opt in to renewal when they hold the concrete broker lease.
+type RenewableLease interface {
+	Lease
+	Heartbeat(context.Context) error
 }
 
 // snapshotTTL bounds how long one host-capacity reading is reused across
@@ -64,6 +91,12 @@ type Broker struct {
 	mu     sync.Mutex
 	store  *internalcapacity.SQLiteStore
 	source internalcapacity.CapacitySource
+	// memoryPressure reads fresh Linux PSI for production admission. A nil
+	// reader is intentionally unknown for injected snapshot brokers.
+	memoryPressure func() hostpressure.Reading
+	// admissionLockKey identifies this ledger across processes. Empty is reserved
+	// for stores without a persistent SQLite path (for example :memory:).
+	admissionLockKey string
 
 	// cachedSnapshot is the last host reading and when it was taken. It is
 	// guarded by mu, which Acquire already holds for its whole body.
@@ -71,6 +104,10 @@ type Broker struct {
 	cachedAt       time.Time
 	// now is a clock seam so the TTL is testable without sleeping.
 	now func() time.Time
+
+	// afterClaimCreated is a narrow fault-injection seam for admission cleanup
+	// tests. Production brokers leave it nil.
+	afterClaimCreated func(internalcapacity.CapacityClaim)
 }
 
 // OwnerIDFor formats an operation claim identity as scenario:run:phase. Colons
@@ -115,13 +152,89 @@ func (b *Broker) ReleaseRun(ctx context.Context, scenario, runID string) error {
 }
 
 // NewBroker opens the shared capacity ledger. An empty dbPath uses the normal
-// Vrooli runtime-home state path.
+// Vrooli runtime-home state path outside tests; tests must pass an explicit path.
 func NewBroker(ctx context.Context, dbPath string) (*Broker, error) {
+	dbPath, err := internalcapacity.ResolveConfiguredDBPath(internalcapacity.Config{DBPath: dbPath})
+	if err != nil {
+		return nil, err
+	}
+	// Schema verification reapplies idempotent DDL even for an existing
+	// ledger. Serialize construction with admissions before opening SQLite so
+	// two first-use brokers cannot race in ensureSchema before Acquire's lock.
+	lockKey := capacityAdmissionLockKey(dbPath)
+	unlock := func() {}
+	if lockKey != "" {
+		var err error
+		unlock, err = artifactlock.AcquireContext(ctx, lockKey)
+		if err != nil {
+			return nil, fmt.Errorf("capacity broker initialization lock unavailable: %w", err)
+		}
+	}
+	defer unlock()
 	store, err := internalcapacity.NewSQLiteStore(ctx, internalcapacity.Config{DBPath: dbPath})
 	if err != nil {
 		return nil, err
 	}
-	return &Broker{store: store, source: internalcapacity.HostInventorySource{}}, nil
+	broker := NewBrokerWithSource(store, internalcapacity.HostInventorySource{})
+	broker.memoryPressure = readHostMemoryPressure
+	return broker, nil
+}
+
+func readHostMemoryPressure() hostpressure.Reading {
+	if runtime.GOOS != "linux" {
+		return hostpressure.NewUnread("host-psi", "memory PSI is unavailable on this host")
+	}
+	const path = "/proc/pressure/memory"
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return hostpressure.NewUnread("linux:"+path, err.Error())
+	}
+	value, ok := hostpressure.ParsePSISomeAvg10(string(raw))
+	if !ok || math.IsNaN(value) || math.IsInf(value, 0) || value < 0 || value > 100 {
+		return hostpressure.NewUnread("linux:"+path, "memory PSI some.avg10 is missing or invalid")
+	}
+	return hostpressure.NewRead(value, "linux:"+path)
+}
+
+func memoryPSIThreshold() (float64, error) {
+	cwd, _ := os.Getwd()
+	bars, err := setpoint.Resolve(os.Environ(), cwd)
+	if err != nil {
+		return 0, fmt.Errorf("resolve memory pressure setpoint: %w", err)
+	}
+	bar, ok := bars.Bar(setpoint.CellMemoryPSI)
+	if !ok || bar.Max == nil {
+		return 0, fmt.Errorf("memory pressure setpoint %s has no maximum threshold", setpoint.CellMemoryPSI)
+	}
+	threshold := *bar.Max
+	if math.IsNaN(threshold) || math.IsInf(threshold, 0) || threshold < 0 || threshold > 100 {
+		return 0, fmt.Errorf("memory pressure setpoint %s has invalid maximum %v", setpoint.CellMemoryPSI, threshold)
+	}
+	return threshold, nil
+}
+
+func capacityAdmissionLockKey(dbPath string) string {
+	dbPath = strings.TrimSpace(dbPath)
+	if dbPath == "" || dbPath == ":memory:" {
+		return ""
+	}
+	if absPath, err := filepath.Abs(filepath.Clean(dbPath)); err == nil {
+		dbPath = absPath
+	}
+	// Resolve symlink aliases for existing ledgers, and canonicalize the parent
+	// for a new ledger before its leaf exists, so initialization and admission
+	// use the same identity through alternate runtime-home paths.
+	if realPath, err := filepath.EvalSymlinks(dbPath); err == nil {
+		dbPath = realPath
+	} else if os.IsNotExist(err) {
+		// Before the ledger file exists, canonicalize its parent so a symlinked
+		// runtime-home directory still maps to the same initialization lock.
+		if parent, parentErr := filepath.EvalSymlinks(filepath.Dir(dbPath)); parentErr == nil {
+			dbPath = filepath.Join(parent, filepath.Base(dbPath))
+		}
+	}
+	digest := sha256.Sum256([]byte(filepath.Clean(dbPath)))
+	return "capacity-admission-" + hex.EncodeToString(digest[:])
 }
 
 // NewBrokerWithSource is a test seam and is also useful to callers that have
@@ -130,7 +243,11 @@ func NewBrokerWithSource(store *internalcapacity.SQLiteStore, source internalcap
 	if source == nil {
 		source = internalcapacity.HostInventorySource{}
 	}
-	return &Broker{store: store, source: source}
+	var lockKey string
+	if store != nil {
+		lockKey = capacityAdmissionLockKey(store.DBPath())
+	}
+	return &Broker{store: store, source: source, admissionLockKey: lockKey}
 }
 
 // Close closes the underlying ledger.
@@ -154,6 +271,13 @@ func (b *Broker) Acquire(ctx context.Context, ownerID string, ramBytes, cpuMilli
 
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if b.admissionLockKey != "" {
+		unlock, err := artifactlock.AcquireContext(ctx, b.admissionLockKey)
+		if err != nil {
+			return nil, Verdict{Kind: internalcapacity.VerdictDeny, Reason: "capacity admission lock unavailable: " + err.Error()}, nil
+		}
+		defer unlock()
+	}
 	// Admission is also an opportunistic liveness sweep. Operation claims are
 	// short-lived and heartbeat-backed; if their owner crashed or the process
 	// restarted, leaving them in the active ledger would make a dead operation
@@ -164,7 +288,9 @@ func (b *Broker) Acquire(ctx context.Context, ownerID string, ramBytes, cpuMilli
 	if b.now != nil {
 		at = b.now().UTC()
 	}
-	if _, err := b.store.ExpireStaleClaims(ctx, at); err != nil {
+	// This path has no GPU absence proof. The owner defaults resident expiry to
+	// unknown; operation TTL and non-GPU stale leases still expire normally.
+	if _, err := b.store.ExpireStaleClaims(ctx, at, nil); err != nil {
 		return nil, Verdict{Kind: internalcapacity.VerdictDeny, Reason: "capacity liveness sweep failed: " + err.Error()}, nil
 	}
 	snapshot, err := b.snapshot(ctx)
@@ -175,8 +301,44 @@ func (b *Broker) Acquire(ctx context.Context, ownerID string, ramBytes, cpuMilli
 	if err != nil {
 		return nil, Verdict{}, err
 	}
+	if ramBytes > 0 && b.memoryPressure != nil {
+		threshold, thresholdErr := memoryPSIThreshold()
+		if thresholdErr != nil {
+			return nil, Verdict{Kind: internalcapacity.VerdictDeny, Reason: "memory pressure threshold unavailable: " + thresholdErr.Error()}, nil
+		}
+		reading := b.memoryPressure()
+		if reading.State == hostpressure.Read && !math.IsNaN(reading.Value) && !math.IsInf(reading.Value, 0) && reading.Value >= 0 && reading.Value <= 100 {
+			if reading.Value >= threshold {
+				return nil, Verdict{
+					Kind:   internalcapacity.VerdictDeny,
+					Reason: fmt.Sprintf("host memory PSI some.avg10 %.2f%% is at or above setpoint %s maximum %.2f%%", reading.Value, setpoint.CellMemoryPSI, threshold),
+				}, nil
+			}
+			// Swap occupancy is a lagging signal. A fresh PSI reading below its
+			// canonical threshold classifies the host as not currently stalled;
+			// RAM and ledger fit checks below still gate admission.
+			policy.SwapPressureThresholdPct = 0
+		}
+	}
 	now := time.Now().UTC()
-	var claimIDs []string
+	var claims []leaseClaim
+	rollback := func(cause error) error {
+		if len(claims) == 0 {
+			return cause
+		}
+		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), capacityCleanupTimeout)
+		defer cancel()
+		errs := make([]error, 0, len(claims)+1)
+		if cause != nil {
+			errs = append(errs, cause)
+		}
+		for _, claim := range claims {
+			if _, releaseErr := b.store.ReleaseClaim(cleanupCtx, claim.id); releaseErr != nil {
+				errs = append(errs, fmt.Errorf("rollback created capacity claim %s: %w", claim.id, releaseErr))
+			}
+		}
+		return errors.Join(errs...)
+	}
 	for _, spec := range []struct {
 		kind string
 		want int64
@@ -189,7 +351,7 @@ func (b *Broker) Acquire(ctx context.Context, ownerID string, ramBytes, cpuMilli
 		}
 		ledger, err := b.store.ListClaims(ctx, internalcapacity.ClaimFilter{ResourceKind: spec.kind, Statuses: internalcapacity.ActiveClaimStatuses()})
 		if err != nil {
-			return nil, Verdict{}, err
+			return nil, Verdict{}, rollback(err)
 		}
 		req := internalcapacity.CapacityRequest{
 			OwnerKind:      internalcapacity.OwnerKindOp,
@@ -202,10 +364,7 @@ func (b *Broker) Acquire(ctx context.Context, ownerID string, ramBytes, cpuMilli
 		}
 		verdict := internalcapacity.Decide(req, snapshot, ledger, policy, now)
 		if !verdict.Granted() {
-			for _, claimID := range claimIDs {
-				_, _ = b.store.ReleaseClaim(ctx, claimID)
-			}
-			return nil, Verdict{Kind: verdict.Kind, Reason: verdict.Reason}, nil
+			return nil, Verdict{Kind: verdict.Kind, Reason: verdict.Reason}, rollback(nil)
 		}
 		claim, err := b.store.CreateClaim(ctx, internalcapacity.CapacityClaim{
 			OwnerKind:      req.OwnerKind,
@@ -218,14 +377,14 @@ func (b *Broker) Acquire(ctx context.Context, ownerID string, ramBytes, cpuMilli
 			Status:         internalcapacity.StatusGranted,
 		}, req.TTL)
 		if err != nil {
-			for _, claimID := range claimIDs {
-				_, _ = b.store.ReleaseClaim(ctx, claimID)
-			}
-			return nil, Verdict{}, fmt.Errorf("create %s capacity claim: %w", spec.kind, err)
+			return nil, Verdict{}, rollback(fmt.Errorf("create %s capacity claim: %w", spec.kind, err))
 		}
-		claimIDs = append(claimIDs, claim.ClaimID)
+		claims = append(claims, leaseClaim{id: claim.ClaimID, generation: claim.Generation})
+		if b.afterClaimCreated != nil {
+			b.afterClaimCreated(claim)
+		}
 	}
-	return &lease{broker: b, claimIDs: claimIDs}, Verdict{Kind: internalcapacity.VerdictGrant}, nil
+	return &lease{broker: b, claims: claims}, Verdict{Kind: internalcapacity.VerdictGrant}, nil
 }
 
 // ObserveHostState returns the latest host reading without creating a claim.
@@ -280,23 +439,58 @@ func (b *Broker) snapshot(ctx context.Context) (hostinventory.Snapshot, error) {
 	return fresh, nil
 }
 
+type leaseClaim struct {
+	id         string
+	generation int64
+}
+
 type lease struct {
+	mu       sync.Mutex
 	broker   *Broker
-	claimIDs []string
+	claims   []leaseClaim
+	released bool
+}
+
+// Heartbeat extends every claim under its captured generation. If a claim was
+// expired, released, or changed by another owner, the store rejects renewal;
+// this method never recreates or revives a claim.
+func (l *lease) Heartbeat(ctx context.Context) error {
+	if l == nil || l.broker == nil {
+		return fmt.Errorf("capacity lease is unavailable")
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.released {
+		return fmt.Errorf("capacity lease has been released")
+	}
+	for _, claim := range l.claims {
+		if _, err := l.broker.store.HeartbeatClaim(ctx, claim.id, claim.generation, capacityHeartbeatTTL); err != nil {
+			return fmt.Errorf("renew capacity claim %s: %w", claim.id, err)
+		}
+	}
+	return nil
 }
 
 func (l *lease) Release(ctx context.Context) error {
 	if l == nil || l.broker == nil {
 		return nil
 	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.released {
+		return nil
+	}
 	l.broker.mu.Lock()
 	defer l.broker.mu.Unlock()
 	var first error
-	for _, claimID := range l.claimIDs {
-		if _, err := l.broker.store.ReleaseClaim(ctx, claimID); err != nil && first == nil {
+	for _, claim := range l.claims {
+		if _, err := l.broker.store.ReleaseClaim(ctx, claim.id); err != nil && first == nil {
 			first = err
 		}
 	}
-	l.claimIDs = nil
+	if first == nil {
+		l.claims = nil
+		l.released = true
+	}
 	return first
 }

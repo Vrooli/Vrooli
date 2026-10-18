@@ -35,11 +35,14 @@ func TestPendingAuthorizationStorePutGetAndCount(t *testing.T) {
 	}
 
 	p := pendingRequest("auth-1", "prompt-manager", now)
+	p.EventID = "event-generation-1"
+	publishedAt := now.Add(time.Second)
+	p.PublishedAt = &publishedAt
 	if err := repo.Put(ctx, p); err != nil {
 		t.Fatalf("put: %v", err)
 	}
 	got, err := repo.Get(ctx, "auth-1")
-	if err != nil || got == nil || got.Subject != "prompt-manager" || got.MaxConcurrentRuns != 3 || got.State != domain.PendingAuthorizationPending {
+	if err != nil || got == nil || got.Subject != "prompt-manager" || got.MaxConcurrentRuns != 3 || got.State != domain.PendingAuthorizationPending || got.EventID != p.EventID || got.PublishedAt == nil || !got.PublishedAt.Equal(publishedAt) {
 		t.Fatalf("get round-trip lost fields: %+v %v", got, err)
 	}
 

@@ -731,9 +731,33 @@ func (h *Handlers) triggerHeartbeatMember(ctx context.Context, teamID, agentID s
 		// survives a prompt-manager restart.
 		h.manualTriggerMu.Lock()
 		defer h.manualTriggerMu.Unlock()
+		// An explicit repeat can resume only its own retained manual intent.
+		// This precedes both duplicate rejection and the completed-trigger
+		// dedupe window, while the handler's team/member/pause and caller gates
+		// above still apply. Capacity retries never rebuild request terms.
+		if retried, retryErr := h.teamExecStore.RetryManualDispatch(ctx, teamID, agentID); retried {
+			if config == nil {
+				config = &store.HeartbeatConfig{TeamID: teamID, AgentID: agentID, Schedule: "@hourly"}
+			}
+			config.LastManualTriggerAt = time.Now().UTC().Format(time.RFC3339Nano)
+			if err := h.teamStore.SetHeartbeatConfig(ctx, teamID, agentID, config); err != nil {
+				return nil, http.StatusInternalServerError, fmt.Errorf("record manual heartbeat retry: %w", err)
+			}
+			status := "retrying"
+			if retryErr != nil {
+				status = "waiting_for_capacity"
+				log.Printf("manual heartbeat retry for %s/%s remains unresolved: %v", teamID, agentID, retryErr)
+			}
+			return &TriggerHeartbeatResponse{TeamID: teamID, AgentID: agentID, Status: status}, http.StatusAccepted, nil
+		}
 		queueStatus := h.teamExecStore.Status(teamID)
 		for _, runningAgentID := range queueStatus.RunningAgentIDs {
 			if runningAgentID == agentID {
+				return nil, http.StatusConflict, &MemberAlreadyQueuedError{TeamID: teamID, AgentID: agentID}
+			}
+		}
+		for _, deferredAgentID := range queueStatus.AdmissionDeferredAgentIDs {
+			if deferredAgentID == agentID {
 				return nil, http.StatusConflict, &MemberAlreadyQueuedError{TeamID: teamID, AgentID: agentID}
 			}
 		}
@@ -1315,12 +1339,14 @@ func (h *Handlers) ListRunning(w http.ResponseWriter, r *http.Request) {
 
 	for _, run := range active {
 		entry := RunningAgentEntry{
-			TeamID:    run.TeamID,
-			AgentID:   run.AgentID,
-			RunID:     run.RunID,
-			StartedAt: run.StartedAt.Format(time.RFC3339),
-			Duration:  formatDuration(now.Sub(run.StartedAt)),
-			State:     run.State,
+			TeamID:  run.TeamID,
+			AgentID: run.AgentID,
+			RunID:   run.RunID,
+			State:   run.State,
+		}
+		if !run.StartedAt.IsZero() {
+			entry.StartedAt = run.StartedAt.UTC().Format(time.RFC3339)
+			entry.Duration = formatDuration(now.Sub(run.StartedAt))
 		}
 
 		// Look up display names (best-effort)
@@ -2368,12 +2394,13 @@ func (h *Handlers) GetTeamExecutionStatus(w http.ResponseWriter, r *http.Request
 	if h.teamExecStore == nil {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(TeamExecutionStatus{
-			TeamID:            teamID,
-			State:             "idle",
-			RunningAgentIDs:   []string{},
-			Queue:             []string{},
-			QueuePolicy:       team.Execution.QueuePolicy,
-			MaxConcurrentRuns: team.Execution.MaxConcurrentRuns,
+			TeamID:                         teamID,
+			State:                          "idle",
+			RunningAgentIDs:                []string{},
+			Queue:                          []string{},
+			PreparationInterruptedAgentIDs: []string{},
+			QueuePolicy:                    team.Execution.QueuePolicy,
+			MaxConcurrentRuns:              team.Execution.MaxConcurrentRuns,
 		})
 		return
 	}
@@ -2475,22 +2502,24 @@ func (h *Handlers) toResponse(config *store.HeartbeatConfig) HeartbeatConfigResp
 	resp.WakeAdmission = config.WakeAdmission
 	if config.LastExecution != nil {
 		resp.LastExecution = &HeartbeatExecResultDTO{
-			StartedAt: config.LastExecution.StartedAt,
-			EndedAt:   config.LastExecution.EndedAt,
-			Status:    config.LastExecution.Status,
-			RunID:     config.LastExecution.RunID,
-			LogPath:   filepath.Base(config.LastExecution.LogPath),
-			Error:     config.LastExecution.Error,
+			StartedAt:       config.LastExecution.StartedAt,
+			EndedAt:         config.LastExecution.EndedAt,
+			Status:          config.LastExecution.Status,
+			RunID:           config.LastExecution.RunID,
+			LogPath:         filepath.Base(config.LastExecution.LogPath),
+			Error:           config.LastExecution.Error,
+			AdmissionReason: config.LastExecution.AdmissionReason,
 		}
 	}
 	if config.LastSuccessfulExecution != nil {
 		resp.LastSuccessfulExecution = &HeartbeatExecResultDTO{
-			StartedAt: config.LastSuccessfulExecution.StartedAt,
-			EndedAt:   config.LastSuccessfulExecution.EndedAt,
-			Status:    config.LastSuccessfulExecution.Status,
-			RunID:     config.LastSuccessfulExecution.RunID,
-			LogPath:   filepath.Base(config.LastSuccessfulExecution.LogPath),
-			Error:     config.LastSuccessfulExecution.Error,
+			StartedAt:       config.LastSuccessfulExecution.StartedAt,
+			EndedAt:         config.LastSuccessfulExecution.EndedAt,
+			Status:          config.LastSuccessfulExecution.Status,
+			RunID:           config.LastSuccessfulExecution.RunID,
+			LogPath:         filepath.Base(config.LastSuccessfulExecution.LogPath),
+			Error:           config.LastSuccessfulExecution.Error,
+			AdmissionReason: config.LastSuccessfulExecution.AdmissionReason,
 		}
 	}
 

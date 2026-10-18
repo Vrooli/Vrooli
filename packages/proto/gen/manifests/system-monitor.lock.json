@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "system-monitor",
-  "input_digest": "sha256:151d905c5a6d332d8a4dacc63cfc169021a905234d98c654110b90a84d2d588e",
+  "input_digest": "sha256:3692f073b062fbc257e997ea1b99f4e5d98fd54507f7163cff24fad86d7f63e5",
   "input_files": [
     "schemas/common/v1/types.proto",
     "schemas/system-monitor/v1/alerts/alerts.proto",
@@ -30,7 +30,7 @@
   "outputs": {
     "gen/go/system-monitor/v1/alerts/alerts.pb.go": "sha256:6990148a2801fea1f19261742230b195f631ab5429c56e84b9dbc6dc63cb1201",
     "gen/go/system-monitor/v1/alerts/alertsconnect/alerts.connect.go": "sha256:173cb8e76acf86662db3d1c34ea5b9c0c40b9f5b58339cb8dc1b98f3c0662be4",
-    "gen/go/system-monitor/v1/capacity/capacity.pb.go": "sha256:12e03d5161685046028a44389c2032724bd2cb847252642b2a15e2bb09e286a2",
+    "gen/go/system-monitor/v1/capacity/capacity.pb.go": "sha256:e8756898e83f2e15b7f8aafb5c082979b3ee556e582870b4db66bb29614ef38e",
     "gen/go/system-monitor/v1/capacity/capacityconnect/capacity.connect.go": "sha256:2b48e539906ac3cd96003c0ed700920d4b7d08c0bad6109e26bc518b7822a218",
     "gen/go/system-monitor/v1/devicegraph/devicegraph.pb.go": "sha256:69da1303dcca52257b1ea5a4a84a3445ea952a762905e1ad0a6e2ab53639212b",
     "gen/go/system-monitor/v1/devicegraph/devicegraphconnect/devicegraph.connect.go": "sha256:7a822d73812a8613b3d272338349b47a9a16fecf48f5fb73a40b3122929ae4b3",
@@ -52,8 +52,8 @@
     "gen/python/system_monitor/v1/alerts/alerts_pb2.py": "sha256:056a7715ab8dbbedf10239e9c32499abe49ddcba0fb8ba4bf455556bfdb3507d",
     "gen/python/system_monitor/v1/alerts/alerts_pb2.pyi": "sha256:31e9fd678ecb14131421585d0e5ba1661e42b48dd6d2370c15b193e9357c9dce",
     "gen/python/system_monitor/v1/alerts/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/system_monitor/v1/capacity/capacity_pb2.py": "sha256:b052a262ae6d0f3ac5750573aa8c7fb8e27ca20a39d0cb3b64f19e745911fdc1",
-    "gen/python/system_monitor/v1/capacity/capacity_pb2.pyi": "sha256:79aeb222807dfbeaef785ac4342cbb8d39f8708bdb2f745d271461dd078e4977",
+    "gen/python/system_monitor/v1/capacity/capacity_pb2.py": "sha256:cbc60d5fd45242d949e219198d32aef5aaf3c626e0e0ca8d182e3dc99c432005",
+    "gen/python/system_monitor/v1/capacity/capacity_pb2.pyi": "sha256:6ab9ae9b4e45fd64ed536db25ddb9402b77ba75068667b4ce31c458bf5e082f6",
     "gen/python/system_monitor/v1/capacity/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/system_monitor/v1/devicegraph/devicegraph_pb2.py": "sha256:1379a116679d0f56bdbda7e6b19f7295770ec0211b348b8d16d47f54c3732f02",
     "gen/python/system_monitor/v1/devicegraph/devicegraph_pb2.pyi": "sha256:428f1162c002dacbbe01c2a66c5c3c3e45293cd6763b6922ed4b1858a0d70940",
@@ -81,7 +81,7 @@
     "gen/python/system_monitor/v1/settings/settings_pb2.py": "sha256:3f9525294f858a34c97ffb13743f064a9d72f00723dce98175aa48e730142f03",
     "gen/python/system_monitor/v1/settings/settings_pb2.pyi": "sha256:634182ba1852f92594f610fd76af09cfacd47aa7d73ba09c50cb3d04b0b78b82",
     "gen/typescript/system-monitor/v1/alerts/alerts_pb.ts": "sha256:17cdc336d9fc35a42a1c8ab99858120d33372a9db78cecc9674914f8991d3e76",
-    "gen/typescript/system-monitor/v1/capacity/capacity_pb.ts": "sha256:38373d1b10a1366e4c5ef84d1be1e15fd89fcd54ab5ad3f8a8bbfffe7d007289",
+    "gen/typescript/system-monitor/v1/capacity/capacity_pb.ts": "sha256:58084fc0e9985ee591ed5a7c164c777992575efac8e008407ff41e46bc48bc8c",
     "gen/typescript/system-monitor/v1/devicegraph/devicegraph_pb.ts": "sha256:fc1d4843759243faa1f5ce91d57280d33105ef1405f48dff794bf10038b2ede2",
     "gen/typescript/system-monitor/v1/health/health_pb.ts": "sha256:6593d40c77d805139efcb0324d1a5af5a34b72dc1b5f18fc2f7c5e3e0a1d2ab6",
     "gen/typescript/system-monitor/v1/investigations/investigations_pb.ts": "sha256:d545bd676945eca310beeda7270435779824533a0cebffe8d46b69c7d059599e",

@@ -98,3 +98,39 @@ func TestStandingGrantStoreRevokeDeniesNextLookup(t *testing.T) {
 		t.Fatal("re-revoking reported a transition")
 	}
 }
+
+func TestStandingGrantListForApproverFiltersBeforeLimit(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repo := NewStandingGrantRepository(db)
+	ctx := context.Background()
+	now := time.Now().UTC()
+
+	for i := 0; i < 70; i++ {
+		grant := runCreationStandingGrant(uuid.NewString(), "prompt-manager", "other-owner", now.Add(time.Hour))
+		grant.ApprovedAt = now.Add(time.Duration(i) * time.Second)
+		if err := repo.Put(ctx, grant); err != nil {
+			t.Fatalf("put foreign decoy %d: %v", i, err)
+		}
+	}
+	// An inconsistent JSON approver must not consume the owner's bounded page.
+	mismatched := runCreationStandingGrant(uuid.NewString(), "prompt-manager", "other-owner", now.Add(time.Hour))
+	mismatched.ApprovedBy = "owner-1"
+	mismatched.ApprovedAt = now.Add(71 * time.Second)
+	if err := repo.Put(ctx, mismatched); err != nil {
+		t.Fatalf("put inconsistent decoy: %v", err)
+	}
+	wanted := runCreationStandingGrant("owner-grant", "prompt-manager", "owner-1", now.Add(time.Hour))
+	wanted.ApprovedAt = now.Add(-time.Hour)
+	if err := repo.Put(ctx, wanted); err != nil {
+		t.Fatalf("put owner grant: %v", err)
+	}
+
+	grants, err := repo.ListForApprover(ctx, "owner-1", 1)
+	if err != nil {
+		t.Fatalf("list owner grants: %v", err)
+	}
+	if len(grants) != 1 || grants[0].ID != wanted.ID || grants[0].ApprovedBy != "owner-1" || grants[0].Grant.Approver != "owner-1" {
+		t.Fatalf("owner-scoped limit was applied before both approver filters: %+v", grants)
+	}
+}

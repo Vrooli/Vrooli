@@ -39,7 +39,7 @@ type channelTarget struct {
 }
 
 func (s *Service) channelTargets(ctx context.Context, recipient string) ([]channelTarget, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT a.channel, a.address, d.machine_id, a.approved_labels FROM channel_addresses a JOIN devices d ON d.id=a.device_id JOIN recipients r ON r.id=d.recipient_id WHERE r.subject=? ORDER BY a.created_at`, recipient)
+	rows, err := s.db.QueryContext(ctx, `SELECT a.channel, CASE WHEN a.channel='web_push' THEN p.endpoint ELSE a.address END, d.machine_id, a.approved_labels FROM channel_addresses a JOIN devices d ON d.id=a.device_id JOIN recipients r ON r.id=d.recipient_id LEFT JOIN push_subscriptions p ON p.device_id=d.id AND p.recipient_id=r.id AND a.channel='web_push' WHERE r.subject=? AND (a.channel<>'web_push' OR p.id IS NOT NULL) ORDER BY a.created_at, p.updated_at DESC, p.id`, recipient)
 	if err != nil {
 		return nil, err
 	}
@@ -67,12 +67,16 @@ func approvedLabel(labels []string, wanted string) bool {
 }
 
 func (s *Service) EnsureRecipient(ctx context.Context, subject string) error {
+	return s.ensureRecipientUsing(ctx, s.db, subject)
+}
+
+func (s *Service) ensureRecipientUsing(ctx context.Context, q dbTx, subject string) error {
 	subject = strings.TrimSpace(subject)
 	if subject == "" {
 		return fmt.Errorf("recipient subject is required")
 	}
 	now := s.clock.Now().UTC().Format("2006-01-02T15:04:05.999999999Z07:00")
-	_, err := s.db.ExecContext(ctx, `INSERT INTO recipients (id, subject, trust_posture, created_at, updated_at) VALUES (?, ?, 'personal', ?, ?) ON CONFLICT(subject) DO UPDATE SET updated_at=excluded.updated_at`, uuid.NewString(), subject, now, now)
+	_, err := q.ExecContext(ctx, `INSERT INTO recipients (id, subject, trust_posture, created_at, updated_at) VALUES (?, ?, 'personal', ?, ?) ON CONFLICT(subject) DO UPDATE SET updated_at=excluded.updated_at`, uuid.NewString(), subject, now, now)
 	return err
 }
 
@@ -82,6 +86,14 @@ func (s *Service) GetRecipient(ctx context.Context, subject string) (Recipient, 
 	}
 	var out Recipient
 	err := s.db.QueryRowContext(ctx, `SELECT id, subject, trust_posture, created_at, updated_at FROM recipients WHERE subject=?`, subject).Scan(&out.ID, &out.Subject, &out.TrustPosture, &out.CreatedAt, &out.UpdatedAt)
+	return out, err
+}
+
+// GetRecipientReadOnly returns configured recipient metadata without creating
+// the recipient row. Public read handlers use this so a GET never mutates state.
+func (s *Service) GetRecipientReadOnly(ctx context.Context, subject string) (Recipient, error) {
+	var out Recipient
+	err := s.db.QueryRowContext(ctx, `SELECT id, subject, trust_posture, created_at, updated_at FROM recipients WHERE subject=?`, strings.TrimSpace(subject)).Scan(&out.ID, &out.Subject, &out.TrustPosture, &out.CreatedAt, &out.UpdatedAt)
 	return out, err
 }
 
@@ -252,6 +264,32 @@ func (s *Service) SetEscalationChain(ctx context.Context, recipient string, chan
 		}
 	}
 	return s.GetEscalationChain(ctx, recipient)
+}
+
+// GetEscalationChainReadOnly reads the configured recipient's chain without
+// creating a recipient as a side effect when none is registered.
+func (s *Service) GetEscalationChainReadOnly(ctx context.Context, recipient string) (EscalationChain, error) {
+	var chain EscalationChain
+	err := s.db.QueryRowContext(ctx, `SELECT id FROM recipients WHERE subject=?`, strings.TrimSpace(recipient)).Scan(&chain.RecipientID)
+	if errors.Is(err, sql.ErrNoRows) || strings.TrimSpace(recipient) == "" {
+		return chain, nil
+	}
+	if err != nil {
+		return EscalationChain{}, err
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT ordinal, channel FROM escalation_chains WHERE recipient_id=? ORDER BY ordinal`, chain.RecipientID)
+	if err != nil {
+		return EscalationChain{}, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var step EscalationStep
+		if err := rows.Scan(&step.Ordinal, &step.Channel); err != nil {
+			return EscalationChain{}, err
+		}
+		chain.Steps = append(chain.Steps, step)
+	}
+	return chain, rows.Err()
 }
 
 func (s *Service) GetEscalationChain(ctx context.Context, recipient string) (EscalationChain, error) {

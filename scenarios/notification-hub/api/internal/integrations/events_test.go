@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -287,6 +288,219 @@ func TestEventWebhookTurnsDecisionRequestIntoOneStructuredAsk(t *testing.T) {
 	require.Equal(t, 1, notifications)
 }
 
+func TestEventWebhookAcceptsAgentManagerAuthorizationFYI(t *testing.T) {
+	primary := databasetest.NewSQLite(t)
+	require.NoError(t, database.EnsureSchemas(context.Background(), primary, modules.AllSchemas()...))
+	db := database.NewFromPrimary(primary)
+	service := hub.New(db, nil, nil)
+	secret := "event-secret"
+	eventID := "authorization-generation-1"
+	consentURL := "https://agent-manager.example.test/api/v1/authorizations/123e4567-e89b-12d3-a456-426614174000/approve"
+	body := []byte(`{"event_id":"authorization-generation-1","event_type":"agent_manager.authorization_requested.notification.v1","source_scenario":"agent-manager","payload":{"title":"Authorization requested: swarm-bookkeeping","body":"codex requests swarm-bookkeeping for swarm-manager:backlog/execute/obsolete. The 16-hour permission lifetime starts only after you approve on the authenticated Agent Manager page; this notification grants no authority.","category":"authorization-requested","urgency":"normal","sensitivity":"private","context_url":"` + consentURL + `","dedupe_key":"grant-1","correlation":{"authorization_id":"grant-1","run_id":"run-1","policy":"swarm-bookkeeping"}}}`)
+	handler := EventWebhook(service, secret)
+	for i := 0; i < 2; i++ {
+		recorder := httptest.NewRecorder()
+		handler.ServeHTTP(recorder, signedEventRequest(t, secret, eventID, body))
+		require.Equal(t, http.StatusAccepted, recorder.Code, recorder.Body.String())
+	}
+	var count int
+	require.NoError(t, db.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM notifications WHERE idempotency_key = ?`, eventID).Scan(&count))
+	require.Equal(t, 1, count, "event redelivery must reuse one Hub notification")
+	var title, notificationBody, category, contextURL string
+	require.NoError(t, db.QueryRowContext(context.Background(), `SELECT title, body, category, context_url FROM notifications WHERE idempotency_key = ?`, eventID).Scan(&title, &notificationBody, &category, &contextURL))
+	require.Equal(t, "Authorization requested: swarm-bookkeeping", title)
+	require.Contains(t, notificationBody, "starts only after you approve")
+	require.Equal(t, "authorization-requested", category)
+	require.Equal(t, consentURL, contextURL)
+}
+
+func TestEventWebhookTurnsThresholdHeartbeatEpisodeIntoIdempotentFYI(t *testing.T) {
+	primary := databasetest.NewSQLite(t)
+	require.NoError(t, database.EnsureSchemas(context.Background(), primary, modules.AllSchemas()...))
+	db := database.NewFromPrimary(primary)
+	service := hub.New(db, nil, nil)
+	secret := "event-secret"
+	const episodeID = "episode-heartbeat-team-a-agent-b-success-1"
+	handler := EventWebhook(service, secret)
+	for _, tc := range []struct {
+		eventID string
+		streak  int
+		outcome string
+	}{
+		{eventID: "heartbeat-attempt-3", streak: 3, outcome: "request_submitted"},
+		{eventID: "heartbeat-attempt-4", streak: 4, outcome: "request_suppressed"},
+	} {
+		body := []byte(fmt.Sprintf(`{"event_id":%q,"event_type":"prompt-manager.heartbeat.attempt.v1","source_scenario":"prompt-manager","payload":{"teamId":"team-a","agentId":"agent-b","status":"failed","attentionEligible":true,"consecutiveFailures":%d,"failureEpisodeId":%q,"recoveryOutcome":%q,"recoveryRequestId":"recovery-123","reviewUrl":"https://pm.example/teams/team-a"}}`, tc.eventID, tc.streak, episodeID, tc.outcome))
+		recorder := httptest.NewRecorder()
+		handler.ServeHTTP(recorder, signedEventRequest(t, secret, tc.eventID, body))
+		require.Equal(t, http.StatusAccepted, recorder.Code, recorder.Body.String())
+	}
+	var count int
+	require.NoError(t, db.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM notifications WHERE idempotency_key = ?`, episodeID).Scan(&count))
+	require.Equal(t, 1, count, "later attempts in one failure episode must reuse the FYI")
+	var title, notificationBody, sensitivity, category, contextURL string
+	require.NoError(t, db.QueryRowContext(context.Background(), `SELECT title, body, sensitivity_label, category, context_url FROM notifications WHERE idempotency_key = ?`, episodeID).Scan(&title, &notificationBody, &sensitivity, &category, &contextURL))
+	require.Equal(t, "Prompt Manager heartbeat needs review", title)
+	require.Contains(t, notificationBody, "3 consecutive failed heartbeats")
+	require.Contains(t, notificationBody, "recovery request (recovery-123) was submitted")
+	require.Contains(t, notificationBody, "This does not mean it was approved or completed.")
+	require.Equal(t, "private", sensitivity)
+	require.Equal(t, "prompt_manager_heartbeat", category)
+	require.Equal(t, "https://pm.example/teams/team-a", contextURL)
+}
+
+func TestEventWebhookDoesNotAlertForNonthresholdOrNonfailureHeartbeatAttempts(t *testing.T) {
+	primary := databasetest.NewSQLite(t)
+	require.NoError(t, database.EnsureSchemas(context.Background(), primary, modules.AllSchemas()...))
+	db := database.NewFromPrimary(primary)
+	service := hub.New(db, nil, nil)
+	secret := "event-secret"
+	for _, tc := range []struct {
+		id, status string
+		streak     int
+		eligible   bool
+	}{
+		{id: "heartbeat-attempt-2", status: "failed", streak: 2},
+		{id: "heartbeat-attempt-pending", status: "approval_pending", streak: 2},
+		{id: "heartbeat-attempt-observer", status: "observer_unavailable", streak: 3},
+		{id: "heartbeat-attempt-uncertain", status: "failed", streak: 3, eligible: false},
+	} {
+		body := []byte(fmt.Sprintf(`{"event_id":%q,"event_type":"prompt-manager.heartbeat.attempt.v1","source_scenario":"prompt-manager","payload":{"teamId":"team-a","agentId":"agent-b","status":%q,"attentionEligible":%t,"consecutiveFailures":%d,"recoveryOutcome":"not_requested"}}`, tc.id, tc.status, tc.eligible, tc.streak))
+		recorder := httptest.NewRecorder()
+		EventWebhook(service, secret).ServeHTTP(recorder, signedEventRequest(t, secret, tc.id, body))
+		require.Equal(t, http.StatusAccepted, recorder.Code, recorder.Body.String())
+	}
+	var count int
+	require.NoError(t, db.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM notifications`).Scan(&count))
+	require.Zero(t, count, "nonthreshold, nonfailure, pending, observer-unavailable, and uncertain attempts are not attention-worthy")
+}
+
+func TestEventWebhookMapsRetainedOwnerStateToScopedFYIWithoutDecisionActions(t *testing.T) {
+	primary := databasetest.NewSQLite(t)
+	require.NoError(t, database.EnsureSchemas(context.Background(), primary, modules.AllSchemas()...))
+	db := database.NewFromPrimary(primary)
+	service := hub.New(db, nil, nil)
+	secret := "event-secret"
+	eventID := "retained-owner-event-1"
+	body := []byte(`{"event_id":"retained-owner-event-1","event_type":"prompt-manager.heartbeat.owner-state.v1","source_scenario":"prompt-manager","payload":{"teamId":"team-a","agentId":"agent-a","ownerObligationId":"obligation-a","retainedOwnerState":"dispatch_uncertain","status":"dispatch_uncertain","observedAt":"2026-10-17T01:02:03Z","reviewUrl":"https://pm.example/teams/team-a"}}`)
+	handler := EventWebhook(service, secret)
+	for i := 0; i < 2; i++ {
+		recorder := httptest.NewRecorder()
+		handler.ServeHTTP(recorder, signedEventRequest(t, secret, eventID, body))
+		require.Equal(t, http.StatusAccepted, recorder.Code, recorder.Body.String())
+	}
+	var count int
+	require.NoError(t, db.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM notifications WHERE category='prompt_manager_heartbeat'`).Scan(&count))
+	require.Equal(t, 1, count, "redelivery of one frozen owner-state fact must reuse one FYI")
+	var id, title, notificationBody, category, contextURL string
+	require.NoError(t, db.QueryRowContext(context.Background(), `SELECT id, title, body, category, context_url FROM notifications WHERE category='prompt_manager_heartbeat'`).Scan(&id, &title, &notificationBody, &category, &contextURL))
+	require.Equal(t, "Prompt Manager heartbeat owner state needs review", title)
+	require.Contains(t, notificationBody, "did not establish whether it accepted the run")
+	require.NotContains(t, notificationBody, "approve")
+	require.NotContains(t, notificationBody, "clear")
+	require.Equal(t, "prompt_manager_heartbeat", category)
+	require.Equal(t, "https://pm.example/teams/team-a", contextURL)
+	require.Eventually(t, func() bool {
+		notification, _, err := service.Get(context.Background(), id)
+		return err == nil && notification.State == "unroutable"
+	}, time.Second, 10*time.Millisecond, "finish the accepted owner's delivery attempt before closing the test database")
+}
+
+func TestEventWebhookMapsPreparationInterruptedToStableScopedFYIWithoutAsk(t *testing.T) {
+	primary := databasetest.NewSQLite(t)
+	require.NoError(t, database.EnsureSchemas(context.Background(), primary, modules.AllSchemas()...))
+	db := database.NewFromPrimary(primary)
+	service := hub.New(db, nil, nil)
+	secret := "event-secret"
+	eventID := "preparation-interrupted-event-1"
+	body := []byte(`{"event_id":"preparation-interrupted-event-1","event_type":"prompt-manager.heartbeat.owner-state.v1","source_scenario":"prompt-manager","payload":{"teamId":"team-a","agentId":"agent-a","ownerObligationId":"obligation-preparation-1","retainedOwnerState":"preparation_interrupted","observedAt":"2026-10-17T01:02:03Z","reviewUrl":"https://pm.example/teams/team-a"}}`)
+	handler := EventWebhook(service, secret)
+	for i := 0; i < 2; i++ {
+		recorder := httptest.NewRecorder()
+		handler.ServeHTTP(recorder, signedEventRequest(t, secret, eventID, body))
+		require.Equal(t, http.StatusAccepted, recorder.Code, recorder.Body.String())
+	}
+
+	var notifications, asks int
+	require.NoError(t, db.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM notifications WHERE category='prompt_manager_heartbeat'`).Scan(&notifications))
+	require.NoError(t, db.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM asks`).Scan(&asks))
+	require.Equal(t, 1, notifications, "redelivery must reuse the retained obligation's scoped FYI")
+	require.Zero(t, asks, "preparation interruption is informational and must not create an Ask")
+	var id, title, notificationBody, category, contextURL, idempotencyKey string
+	require.NoError(t, db.QueryRowContext(context.Background(), `SELECT id, title, body, category, context_url, idempotency_key FROM notifications WHERE category='prompt_manager_heartbeat'`).Scan(&id, &title, &notificationBody, &category, &contextURL, &idempotencyKey))
+	require.Equal(t, "Prompt Manager heartbeat owner state needs review", title)
+	require.Contains(t, notificationBody, "before sending the first Agent Manager task or run request")
+	require.Contains(t, notificationBody, "The obligation remains retained")
+	require.Contains(t, notificationBody, "ordinary enabled scheduled admission or a fresh authorized manual admission")
+	require.NotContains(t, notificationBody, "owner state could not be confirmed")
+	require.NotContains(t, notificationBody, "approve")
+	require.NotContains(t, notificationBody, "clear")
+	require.Equal(t, "prompt_manager_heartbeat", category)
+	require.Equal(t, "https://pm.example/teams/team-a", contextURL)
+	require.Equal(t, "prompt-manager:team-a:agent-a:obligation-preparation-1:preparation_interrupted", idempotencyKey)
+	require.Eventually(t, func() bool {
+		notification, _, err := service.Get(context.Background(), id)
+		return err == nil && notification.State == "unroutable"
+	}, time.Second, 10*time.Millisecond, "finish the accepted owner's delivery attempt before closing the test database")
+}
+
+func TestEventWebhookRejectsPreparationInterruptedOwnerStateWithRunID(t *testing.T) {
+	primary := databasetest.NewSQLite(t)
+	require.NoError(t, database.EnsureSchemas(context.Background(), primary, modules.AllSchemas()...))
+	db := database.NewFromPrimary(primary)
+	service := hub.New(db, nil, nil)
+	secret := "event-secret"
+	eventID := "preparation-interrupted-with-run"
+	body := []byte(`{"event_id":"preparation-interrupted-with-run","event_type":"prompt-manager.heartbeat.owner-state.v1","source_scenario":"prompt-manager","payload":{"teamId":"team-a","agentId":"agent-a","ownerObligationId":"obligation-preparation-2","retainedOwnerState":"preparation_interrupted","runId":"run-should-not-exist","observedAt":"2026-10-17T01:02:03Z","reviewUrl":"https://pm.example/teams/team-a"}}`)
+	recorder := httptest.NewRecorder()
+	EventWebhook(service, secret).ServeHTTP(recorder, signedEventRequest(t, secret, eventID, body))
+	require.Equal(t, http.StatusBadRequest, recorder.Code, recorder.Body.String())
+	var notifications, asks int
+	require.NoError(t, db.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM notifications`).Scan(&notifications))
+	require.NoError(t, db.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM asks`).Scan(&asks))
+	require.Zero(t, notifications, "an internally contradictory pre-task owner fact must not be published")
+	require.Zero(t, asks)
+}
+
+func TestHeartbeatOwnerStateMapperDoesNotCreateAnApprovalAsk(t *testing.T) {
+	primary := databasetest.NewSQLite(t)
+	require.NoError(t, database.EnsureSchemas(context.Background(), primary, modules.AllSchemas()...))
+	db := database.NewFromPrimary(primary)
+	service := hub.New(db, nil, nil)
+	secret := "event-secret"
+	body := []byte(`{"event_id":"retained-owner-approval-pending","event_type":"prompt-manager.heartbeat.owner-state.v1","source_scenario":"prompt-manager","payload":{"teamId":"team-a","agentId":"agent-a","ownerObligationId":"obligation-a","retainedOwnerState":"approval_pending","status":"approval_pending","observedAt":"2026-10-17T01:02:03Z"}}`)
+	recorder := httptest.NewRecorder()
+	EventWebhook(service, secret).ServeHTTP(recorder, signedEventRequest(t, secret, "retained-owner-approval-pending", body))
+	require.Equal(t, http.StatusBadRequest, recorder.Code, recorder.Body.String())
+	var notifications, asks int
+	require.NoError(t, db.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM notifications`).Scan(&notifications))
+	require.NoError(t, db.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM asks`).Scan(&asks))
+	require.Zero(t, notifications)
+	require.Zero(t, asks)
+}
+
+func TestHeartbeatFailureEpisodesForDifferentTeamsDoNotCollapse(t *testing.T) {
+	primary := databasetest.NewSQLite(t)
+	require.NoError(t, database.EnsureSchemas(context.Background(), primary, modules.AllSchemas()...))
+	db := database.NewFromPrimary(primary)
+	service := hub.New(db, nil, nil)
+	secret := "event-secret"
+	for _, tc := range []struct {
+		eventID, teamID, episodeID string
+	}{
+		{eventID: "team-a-attempt", teamID: "team-a", episodeID: "episode-team-a"},
+		{eventID: "team-b-attempt", teamID: "team-b", episodeID: "episode-team-b"},
+	} {
+		body := []byte(fmt.Sprintf(`{"event_id":%q,"event_type":"prompt-manager.heartbeat.attempt.v1","source_scenario":"prompt-manager","payload":{"teamId":%q,"agentId":"agent-1","status":"failed","attentionEligible":true,"consecutiveFailures":3,"failureEpisodeId":%q,"recoveryOutcome":"not_requested"}}`, tc.eventID, tc.teamID, tc.episodeID))
+		recorder := httptest.NewRecorder()
+		EventWebhook(service, secret).ServeHTTP(recorder, signedEventRequest(t, secret, tc.eventID, body))
+		require.Equal(t, http.StatusAccepted, recorder.Code, recorder.Body.String())
+	}
+	var count int
+	require.NoError(t, db.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM notifications`).Scan(&count))
+	require.Equal(t, 2, count, "different team failure episodes must have independent dedupe identities")
+}
+
 // [REQ:NOTIFICA-P1-003]
 func TestEventWebhookRejectsUnsafeDecisionRequest(t *testing.T) {
 	primary := databasetest.NewSQLite(t)
@@ -317,4 +531,26 @@ func TestEnsureDecisionSubscriptionAddsItsOwnSubscriptionBesideTheIncidentOne(t 
 	require.NoError(t, EnsureDecisionSubscription(context.Background(), server.URL, "https://hub.test/events"))
 	require.Equal(t, "notification-hub-decisions", created["name"])
 	require.Equal(t, DecisionRequestPattern, created["event_pattern"])
+}
+
+func TestEnsureHeartbeatAttemptSubscriptionAddsExactPatternBesideExistingSubscriptions(t *testing.T) {
+	var created []map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			_, _ = w.Write([]byte(`[{"id":1,"name":"notification-hub-events","event_pattern":"incident.**","delivery_target":"https://hub.test/events","enabled":true}]`))
+			return
+		}
+		require.Equal(t, http.MethodPost, r.Method)
+		var item map[string]any
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&item))
+		created = append(created, item)
+		w.WriteHeader(http.StatusCreated)
+	}))
+	defer server.Close()
+	require.NoError(t, EnsureHeartbeatAttemptSubscription(context.Background(), server.URL, "https://hub.test/events"))
+	require.Len(t, created, 2)
+	require.Equal(t, heartbeatAttemptSubscriptionName, created[0]["name"])
+	require.Equal(t, HeartbeatAttemptEventPattern, created[0]["event_pattern"])
+	require.Equal(t, heartbeatOwnerStateSubscriptionName, created[1]["name"])
+	require.Equal(t, HeartbeatOwnerStateEventPattern, created[1]["event_pattern"])
 }

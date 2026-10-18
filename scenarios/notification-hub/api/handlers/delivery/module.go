@@ -2,7 +2,6 @@ package delivery
 
 import (
 	"context"
-	"errors"
 	"net/http"
 
 	"connectrpc.com/connect"
@@ -36,10 +35,8 @@ func ModuleWithVerifier(service *hub.Service, verifier identity.Verifier) module
 }
 
 func (h *handler) GetTimeline(ctx context.Context, req *connect.Request[v1.GetTimelineRequest]) (*connect.Response[v1.GetTimelineResponse], error) {
-	if _, err := identity.Subject(ctx, req.Header(), h.verifier); err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("verified owner identity is required"))
-	}
-	items, err := h.service.List(ctx, int(req.Msg.GetLimit()))
+	recipient := h.service.ResolveRecipient(ctx)
+	items, err := h.service.ListForRecipient(ctx, recipient, int(req.Msg.GetLimit()))
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -66,10 +63,8 @@ func (h *handler) Deliver(ctx context.Context, req *connect.Request[v1.DeliverRe
 }
 
 func (h *handler) GetAnalytics(ctx context.Context, req *connect.Request[v1.GetAnalyticsRequest]) (*connect.Response[v1.GetAnalyticsResponse], error) {
-	if _, err := identity.Subject(ctx, req.Header(), h.verifier); err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("verified owner identity is required"))
-	}
-	analytics, err := h.service.Analytics(ctx, req.Msg.GetSince(), req.Msg.GetUntil())
+	recipient := h.service.ResolveRecipient(ctx)
+	analytics, err := h.service.AnalyticsForRecipient(ctx, req.Msg.GetSince(), req.Msg.GetUntil(), recipient)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}

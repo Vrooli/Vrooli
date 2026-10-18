@@ -49,14 +49,30 @@ func NotificationHubDeliveryReader(lister IncidentLister, resolve BaseURLResolve
 			return DeliverySnapshot{}, fmt.Errorf("list critical incidents: %w", err)
 		}
 		snapshot := DeliverySnapshot{}
+		incidentIDs := make([]string, 0, len(listed.Incidents))
+		incidentSet := make(map[string]struct{}, len(listed.Incidents))
 		for _, incident := range listed.Incidents {
 			snapshot.Incidents = append(snapshot.Incidents, CriticalFinding{ID: incident.ID, Check: firstCheck(incident), Title: incident.Title})
+			if id := strings.TrimSpace(incident.ID); id != "" {
+				if _, exists := incidentSet[id]; !exists {
+					incidentSet[id] = struct{}{}
+					incidentIDs = append(incidentIDs, id)
+				}
+			}
+		}
+		if len(listed.Incidents) >= deliveryProjectionLimit {
+			snapshot.Incomplete = true
+			snapshot.IncompleteReasons = append(snapshot.IncompleteReasons, "critical incident sample reached its 200-item limit")
 		}
 		base, err := resolve(ctx)
 		if err != nil {
 			return DeliverySnapshot{}, fmt.Errorf("resolve notification-hub: %w", err)
 		}
-		endpoint := strings.TrimRight(base, "/") + deliveryProjectionPath + "?" + url.Values{"prefix": {deliveryProjectionPrefix}, "limit": {fmt.Sprint(deliveryProjectionLimit)}}.Encode()
+		query := url.Values{"prefix": {deliveryProjectionPrefix}, "limit": {fmt.Sprint(deliveryProjectionLimit)}}
+		for _, id := range incidentIDs {
+			query.Add("incident_id", id)
+		}
+		endpoint := strings.TrimRight(base, "/") + deliveryProjectionPath + "?" + query.Encode()
 		request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 		if err != nil {
 			return DeliverySnapshot{}, err
@@ -70,9 +86,11 @@ func NotificationHubDeliveryReader(lister IncidentLister, resolve BaseURLResolve
 			return DeliverySnapshot{}, fmt.Errorf("notification-hub delivery projection returned %s", response.Status)
 		}
 		var body struct {
+			Truncated     *bool `json:"truncated"`
 			Notifications []struct {
-				DedupeKey string `json:"dedupe_key"`
-				Attempts  []struct {
+				DedupeKey          string `json:"dedupe_key"`
+				AutohealIncidentID string `json:"autoheal_incident_id"`
+				Attempts           []struct {
 					Channel string `json:"channel"`
 					Outcome string `json:"outcome"`
 				} `json:"attempts"`
@@ -81,13 +99,30 @@ func NotificationHubDeliveryReader(lister IncidentLister, resolve BaseURLResolve
 		if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
 			return DeliverySnapshot{}, fmt.Errorf("decode notification-hub delivery projection: %w", err)
 		}
+		if body.Truncated == nil {
+			snapshot.Incomplete = true
+			snapshot.IncompleteReasons = append(snapshot.IncompleteReasons, "notification-hub delivery projection did not report completeness")
+		} else if *body.Truncated {
+			snapshot.Incomplete = true
+			snapshot.IncompleteReasons = append(snapshot.IncompleteReasons, "notification-hub delivery projection reached its 200-item limit")
+		}
 		for _, notification := range body.Notifications {
-			incidentID := IncidentIDFromDedupeKey(notification.DedupeKey)
-			if incidentID == "" {
-				continue
-			}
-			for _, attempt := range notification.Attempts {
-				snapshot.Attempts = append(snapshot.Attempts, DeliveryAttempt{IncidentID: incidentID, Outcome: attempt.Outcome, Channel: attempt.Channel})
+			ids := []string{IncidentIDFromDedupeKey(notification.DedupeKey), strings.TrimSpace(notification.AutohealIncidentID)}
+			seen := make(map[string]struct{}, len(ids))
+			for _, incidentID := range ids {
+				if incidentID == "" {
+					continue
+				}
+				if _, requested := incidentSet[incidentID]; !requested {
+					continue
+				}
+				if _, duplicate := seen[incidentID]; duplicate {
+					continue
+				}
+				seen[incidentID] = struct{}{}
+				for _, attempt := range notification.Attempts {
+					snapshot.Attempts = append(snapshot.Attempts, DeliveryAttempt{IncidentID: incidentID, Outcome: attempt.Outcome, Channel: attempt.Channel})
+				}
 			}
 		}
 		return snapshot, nil

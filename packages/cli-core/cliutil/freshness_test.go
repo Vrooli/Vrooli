@@ -27,6 +27,33 @@ func TestResolveFreshnessInputFilesReusesCanonicalExclusions(t *testing.T) {
 	}
 }
 
+func TestSourcePackageDirsKeepsNestedCoveragePackages(t *testing.T) {
+	root := t.TempDir()
+	mustWriteFile(t, filepath.Join(root, ".vrooli", "repo-contract.json"), "{}\n")
+	mustWriteFile(t, filepath.Join(root, ".gitignore"), "/coverage/\npackages/*/coverage/\nscenarios/*/ui/coverage/\ntemplates/scenarios/*/ui/coverage/\n")
+	mustWriteFile(t, filepath.Join(root, "api", "internal", "checks", "coverage", "check.go"), "package coverage\n")
+	mustWriteFile(t, filepath.Join(root, "api", "internal", "ui", "coverage", "check.go"), "package coverage\n")
+	mustWriteFile(t, filepath.Join(root, "scenarios", "demo", "ui", "coverage", "report.go"), "package coverage\n")
+
+	got := sourcePackageDirs(root)
+	seen := make(map[string]bool, len(got))
+	for _, dir := range got {
+		rel, err := filepath.Rel(root, dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		seen[filepath.ToSlash(rel)] = true
+	}
+	for _, want := range []string{"api/internal/checks/coverage", "api/internal/ui/coverage"} {
+		if !seen[want] {
+			t.Errorf("source package walk omitted %q: %v", want, got)
+		}
+	}
+	if seen["scenarios/demo/ui/coverage"] {
+		t.Fatalf("source package walk included repo-declared report root: %v", got)
+	}
+}
+
 // TestCanonicalScenarioSpecMatchesStaleCheckerDerivation verifies that
 // CanonicalScenarioGoModuleFreshnessSpec and the spec a StaleChecker would
 // derive for a scenario CLI produce the same fingerprint. This is the

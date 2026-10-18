@@ -106,6 +106,51 @@ func TestConversationGetTaskDistinguishesMissingFromOutage(t *testing.T) {
 	}
 }
 
+func TestGetTaskRejectsMalformedSuccessfulResponse(t *testing.T) {
+	for _, body := range []string{`{}`, `{"task":null}`} {
+		t.Run(body, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method != http.MethodGet || r.URL.Path != "/api/v1/tasks/task-id" {
+					t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+				}
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				_, _ = w.Write([]byte(body))
+			}))
+			defer server.Close()
+
+			client := newTestClient(t, server)
+			task, err := client.GetTask(context.Background(), "task-id")
+			if err == nil || task != nil {
+				t.Fatalf("malformed success returned task=%+v err=%v; expected an error and no absence result", task, err)
+			}
+		})
+	}
+}
+
+func TestGetTaskRetainsPhasePromptIDs(t *testing.T) {
+	phaseID := "c2149690-93a4-4cf0-83d2-f21446ec3e58"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Path != "/api/v1/tasks/task-id" {
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"task": map[string]any{
+			"id": "task-id", "title": "task", "description": "request",
+			"scope_path": "/workspace", "status": "queued", "phase_prompt_ids": []string{phaseID},
+		}})
+	}))
+	defer server.Close()
+
+	task, err := newTestClient(t, server).GetTask(context.Background(), "task-id")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if task == nil || len(task.PhasePromptIDs) != 1 || task.PhasePromptIDs[0] != phaseID {
+		t.Fatalf("phase prompt IDs were not retained: %+v", task)
+	}
+}
+
 func TestCreateTask_Success(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -173,6 +218,92 @@ func TestCreateTask_ServerError(t *testing.T) {
 	}
 	if got := err.Error(); got == "" {
 		t.Fatal("expected non-empty error message")
+	}
+}
+
+func TestCreateTaskApprovalPendingIsTypedAndDefinitive(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusAccepted)
+		_, _ = w.Write([]byte(`{"status":"approval_pending","detail":"operator approval requested"}`))
+	}))
+	defer server.Close()
+
+	_, err := newTestClient(t, server).CreateTask(context.Background(), &Task{Title: "scheduled"})
+	var pending *ApprovalPendingError
+	if !errors.As(err, &pending) || pending.Stage != "creating_task" {
+		t.Fatalf("error=%v; want typed task-stage approval pending", err)
+	}
+	if IsDispatchUncertain(err) {
+		t.Fatalf("typed approval pending was classified as uncertain: %v", err)
+	}
+}
+
+func TestCreateRunApprovalPendingIsTypedAndDefinitive(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusAccepted)
+		_, _ = w.Write([]byte(`{"status":"approval_pending","detail":"operator approval requested"}`))
+	}))
+	defer server.Close()
+
+	_, err := newTestClient(t, server).CreateRun(context.Background(), &CreateRunRequest{TaskID: "task-1", IdempotencyKey: "run-key"})
+	var pending *ApprovalPendingError
+	if !errors.As(err, &pending) || pending.Stage != "creating_run" {
+		t.Fatalf("error=%v; want typed run-stage approval pending", err)
+	}
+	if IsDispatchUncertain(err) {
+		t.Fatalf("typed approval pending was classified as uncertain: %v", err)
+	}
+}
+
+func TestCreateRunReplayConflictIsUncertainButOrdinaryBadRequestIsRejected(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		status        int
+		code          string
+		wantUncertain bool
+	}{
+		{name: "accepted-key request conflict", status: http.StatusConflict, code: "STATE_IDEMPOTENCY_REPLAY_CONFLICT", wantUncertain: true},
+		{name: "ordinary validation refusal", status: http.StatusBadRequest, code: "VALIDATION_FIELD", wantUncertain: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(tc.status)
+				_, _ = fmt.Fprintf(w, `{"code":%q,"message":"request refused"}`, tc.code)
+			}))
+			defer server.Close()
+
+			_, err := newTestClient(t, server).CreateRun(
+				withCreateRunCaller(context.Background(), "Bearer fixture-owner", ""),
+				&CreateRunRequest{TaskID: "task-1", IdempotencyKey: "run-key"},
+			)
+			if IsDispatchUncertain(err) != tc.wantUncertain {
+				t.Fatalf("uncertain=%v err=%v; want %v", IsDispatchUncertain(err), err, tc.wantUncertain)
+			}
+			if IsDispatchRejected(err) == tc.wantUncertain {
+				t.Fatalf("rejected=%v err=%v; want rejected=%v", IsDispatchRejected(err), err, !tc.wantUncertain)
+			}
+		})
+	}
+}
+
+func TestUnrecognizedTask202RemainsUncertain(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusAccepted)
+		_, _ = w.Write([]byte(`{"status":"accepted"}`))
+	}))
+	defer server.Close()
+
+	_, err := newTestClient(t, server).CreateTask(context.Background(), &Task{Title: "scheduled"})
+	if !IsDispatchUncertain(err) || IsApprovalPending(err) {
+		t.Fatalf("unrecognized 202 outcome must remain uncertain, got %v", err)
+	}
+}
+
+func TestApprovalPendingCauseCannotPromoteTypedOutcomeToUncertain(t *testing.T) {
+	err := NewApprovalPendingError("creating_task", errors.New("approval timed out awaiting operator"))
+	if IsDispatchUncertain(err) {
+		t.Fatalf("typed approval pending cause text changed dispatch classification: %v", err)
 	}
 }
 
@@ -514,10 +645,10 @@ func TestDoRequestWithRetry_NoRetryOn4xx(t *testing.T) {
 // protected separately by the task dispatch tests.
 func TestParseErrorOwnerEnvelopes(t *testing.T) {
 	cases := []struct{ body, want string }{
-		{`{"error":"validation failed: title required"}`, "agent-manager error: validation failed: title required"},
-		{`{"message":"invalid JSON request body"}`, "agent-manager error: invalid JSON request body"},
-		{`{"code":"VALIDATION","message":"field 'timeout' has invalid Duration format","details":{}}`, "agent-manager error: field 'timeout' has invalid Duration format"},
-		{`{"status":"INTERNAL","detail":"something broke"}`, `agent-manager error: status 400, body: {"status":"INTERNAL","detail":"something broke"}`},
+		{`{"error":"validation failed: title required"}`, "agent-manager error: status 400: validation failed: title required"},
+		{`{"message":"invalid JSON request body"}`, "agent-manager error: status 400: invalid JSON request body"},
+		{`{"code":"VALIDATION","message":"field 'timeout' has invalid Duration format","details":{}}`, "agent-manager error: status 400: field 'timeout' has invalid Duration format"},
+		{`{"status":"INTERNAL","detail":"something broke"}`, `agent-manager error: status 400: body: {"status":"INTERNAL","detail":"something broke"}`},
 	}
 	for _, tc := range cases {
 		t.Run(tc.body, func(t *testing.T) {
@@ -528,6 +659,70 @@ func TestParseErrorOwnerEnvelopes(t *testing.T) {
 			defer response.Body.Close()
 			if err := (&AgentManagerClient{}).parseError(response); err == nil || err.Error() != tc.want {
 				t.Fatalf("err=%v want=%s", err, tc.want)
+			}
+		})
+	}
+}
+
+func TestParseErrorPreservesAuthorizationStatus(t *testing.T) {
+	for _, status := range []int{http.StatusUnauthorized, http.StatusForbidden} {
+		t.Run(fmt.Sprint(status), func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			recorder.WriteHeader(status)
+			recorder.WriteString(`{"error":"authorization refused"}`)
+			response := recorder.Result()
+			defer response.Body.Close()
+			err := (&AgentManagerClient{}).parseError(response)
+			got, ok := AgentManagerAuthorizationStatus(err)
+			if !ok || got != status {
+				t.Fatalf("authorization status = %d, %v; want %d", got, ok, status)
+			}
+			if err.Error() != "agent-manager error: status "+fmt.Sprint(status)+": authorization refused" {
+				t.Fatalf("user-facing error = %q", err)
+			}
+		})
+	}
+}
+
+func TestParseErrorPreservesOnlyAllowlistedAdmissionReason(t *testing.T) {
+	cases := []struct {
+		name       string
+		status     int
+		reason     string
+		wantReason string
+		wantError  string
+	}{
+		{name: "known reason", status: http.StatusForbidden, reason: "grant_limit_reached", wantReason: "grant_limit_reached", wantError: "agent-manager error: status 403: service authority does not include this operation"},
+		{name: "rate-limited reason", status: http.StatusTooManyRequests, reason: "approval_raise_limited", wantReason: "approval_raise_limited", wantError: "agent-manager error: status 429: service authority does not include this operation"},
+		{name: "unknown reason is dropped", status: http.StatusForbidden, reason: "internal-secret-detail", wantReason: "", wantError: "agent-manager error: status 403: service authority does not include this operation"},
+		{name: "reason on unrelated status is dropped", status: http.StatusBadRequest, reason: "grant_limit_reached", wantReason: "", wantError: "agent-manager error: status 400: service authority does not include this operation"},
+		{name: "legacy response has no reason", status: http.StatusForbidden, wantReason: "", wantError: "agent-manager error: status 403: service authority does not include this operation"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			body := `{"error":"service authority does not include this operation"}`
+			if tc.reason != "" {
+				body = `{"error":"service authority does not include this operation","admission_reason":"` + tc.reason + `"}`
+			}
+			recorder := httptest.NewRecorder()
+			recorder.WriteHeader(tc.status)
+			recorder.WriteString(body)
+			response := recorder.Result()
+			defer response.Body.Close()
+
+			err := (&AgentManagerClient{}).parseError(response)
+			var ownerErr *AgentManagerHTTPError
+			if !errors.As(err, &ownerErr) {
+				t.Fatalf("error type = %T; want *AgentManagerHTTPError", err)
+			}
+			if ownerErr.AdmissionReason != tc.wantReason {
+				t.Fatalf("AdmissionReason=%q, want %q", ownerErr.AdmissionReason, tc.wantReason)
+			}
+			if err.Error() != tc.wantError {
+				t.Fatalf("error prose changed: %q, want %q", err, tc.wantError)
+			}
+			if strings.Contains(err.Error(), "internal-secret-detail") {
+				t.Fatal("unrecognized admission metadata leaked into error prose")
 			}
 		})
 	}
@@ -640,6 +835,51 @@ func TestCreateTaskKeepsCanceledContextAndDoesNotSend(t *testing.T) {
 	_, err := newTestClient(t, server).CreateTask(ctx, &Task{Title: "original task"})
 	if !IsDispatchRejected(err) || IsDispatchUncertain(err) || !errors.Is(err, context.Canceled) || atomic.LoadInt32(&calls) != 0 {
 		t.Fatalf("err=%v calls=%d, want preserved cancellation before sending", err, calls)
+	}
+}
+
+func TestCreateRunCanceledContextIsRejectedBeforeSend(t *testing.T) {
+	var calls int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { atomic.AddInt32(&calls, 1) }))
+	defer server.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err := newTestClient(t, server).CreateRun(ctx, &CreateRunRequest{TaskID: "task-1", IdempotencyKey: "run-key"})
+	if !IsDispatchRejected(err) || IsDispatchUncertain(err) || !errors.Is(err, context.Canceled) || atomic.LoadInt32(&calls) != 0 {
+		t.Fatalf("err=%v calls=%d, want proven pre-send cancellation", err, calls)
+	}
+}
+
+func TestCreateRunCancellationAfterRequestBeginsRemainsUncertain(t *testing.T) {
+	started := make(chan struct{})
+	release := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		close(started)
+		<-release
+	}))
+	defer server.Close()
+	defer close(release)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	client := newTestClient(t, server)
+	result := make(chan error, 1)
+	go func() {
+		_, err := client.CreateRun(ctx, &CreateRunRequest{TaskID: "task-1", IdempotencyKey: "run-key"})
+		result <- err
+	}()
+	select {
+	case <-started:
+	case <-time.After(2 * time.Second):
+		t.Fatal("CreateRun never reached the owner fixture")
+	}
+	cancel()
+	select {
+	case err := <-result:
+		if !IsDispatchUncertain(err) || IsDispatchRejected(err) || !errors.Is(err, context.Canceled) {
+			t.Fatalf("err=%v; after request reached owner, cancellation must remain uncertain", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("CreateRun did not return after cancellation")
 	}
 }
 

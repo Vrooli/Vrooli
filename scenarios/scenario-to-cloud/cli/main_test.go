@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/cli-core/cliutil"
 	accountsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-authenticator/v1/accounts"
 	scenariocmd "scenario-to-cloud/cli/scenario"
 )
@@ -691,6 +693,9 @@ func TestLocalManagementAutoExchangesOperatorToken(t *testing.T) {
 	}
 	original := exchangeLocalMachinePrincipal
 	t.Cleanup(func() { exchangeLocalMachinePrincipal = original })
+	originalResolver := resolveLocalAgentCredential
+	t.Cleanup(func() { resolveLocalAgentCredential = originalResolver })
+	resolveLocalAgentCredential = func(context.Context) (string, error) { return "", nil }
 	exchangeLocalMachinePrincipal = func(context.Context) (*accountsv1.LoginResponse, error) {
 		return &accountsv1.LoginResponse{Tokens: &accountsv1.TokenPair{AccessToken: "memory-only-access"}}, nil
 	}
@@ -700,6 +705,44 @@ func TestLocalManagementAutoExchangesOperatorToken(t *testing.T) {
 	}
 	if app.core.Config.Token != "memory-only-access" {
 		t.Fatalf("token = %q, want exchanged token held in memory", app.core.Config.Token)
+	}
+}
+
+func TestLocalManagementAgentAuthorityPrecedesOperatorExchange(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		token string
+		err   error
+	}{
+		{name: "approved", token: "approved-session-proof"},
+		{name: "revoked", err: &cliutil.AgentAuthorizationError{Code: "revoked"}},
+		{name: "authority unavailable", err: errors.New("agent credential authority unavailable")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("HOME", t.TempDir())
+			t.Setenv("SCENARIO_TO_CLOUD_API_TOKEN", "")
+			t.Setenv("VROOLI_API_TOKEN", "")
+			t.Setenv("SCENARIO_TO_CLOUD_API_BASE", "http://127.0.0.1:15672")
+			originalResolver, originalExchange := resolveLocalAgentCredential, exchangeLocalMachinePrincipal
+			t.Cleanup(func() {
+				resolveLocalAgentCredential, exchangeLocalMachinePrincipal = originalResolver, originalExchange
+			})
+			resolveLocalAgentCredential = func(context.Context) (string, error) { return tc.token, tc.err }
+			exchangeLocalMachinePrincipal = func(context.Context) (*accountsv1.LoginResponse, error) {
+				t.Error("agent authority must not fall back to operator login")
+				return nil, errors.New("unexpected exchange")
+			}
+			app, err := NewApp()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := app.ensureLocalOperatorToken([]string{"deployment", "list"}); !errors.Is(err, tc.err) {
+				t.Fatalf("got %v, want %v", err, tc.err)
+			}
+			if app.core.Config.Token != "" {
+				t.Fatal("agent proof must not be copied into operator configuration")
+			}
+		})
 	}
 }
 

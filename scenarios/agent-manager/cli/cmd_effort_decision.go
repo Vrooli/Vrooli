@@ -26,7 +26,7 @@ import (
 )
 
 const decisionUsage = `usage:
-  agent-manager effort decision raise <goal home> --id <id> --question <text> --option key=label --option key=label --recommend <key> [--why <text>] [--default <key> --reversible] [--deadline 24h|<RFC3339>] [--urgency low|normal|high|critical] [--note <text>] [--context-url <url>] [--home-ref <repo-relative dir>] [--effort-ref <ref>] [--dry-run] [--json]
+  agent-manager effort decision raise <goal home> --id <id> --question <text> --option key=label --option key=label --recommend <key> [--why <text>] [--default <key> --reversible] [--deadline 24h|<RFC3339>] [--urgency low|normal|high|critical] [--big-picture <text>] [--technical-details <text>] [--note <legacy technical-details fallback>] [--context-url <url>] [--home-ref <repo-relative dir>] [--effort-ref <ref>] [--dry-run] [--json]
   agent-manager effort decision answer <goal home> <id> <option key> [--note <text>] [--home-ref <dir>] [--local-owner] [--json]
   agent-manager effort decision list [<goal home>] [--effort-ref <ref>] [--unrecorded] [--home-ref <dir>] [--json]
   agent-manager effort decision sync <goal home> [--home-ref <dir>] [--json]`
@@ -122,7 +122,9 @@ func (a *App) decisionRaise(args []string) error {
 	reversible := fs.Bool("reversible", false, "The decision can be undone later; required for --default")
 	deadline := fs.String("deadline", "", "When a default may apply: a duration (at least 12h) or an RFC 3339 time")
 	urgency := fs.String("urgency", "high", "low, normal, high or critical")
-	note := fs.String("note", "", "Short context shown with the question")
+	bigPicture := fs.String("big-picture", "", "Purpose of the decision and its practical consequences")
+	technicalDetails := fs.String("technical-details", "", "Mechanism, evidence, risks, limits and remaining uncertainty")
+	note := fs.String("note", "", "Legacy technical-details fallback; ignored when --technical-details is set")
 	contextURL := fs.String("context-url", "", "Link for more context")
 	homeRef := fs.String("home-ref", "", "Repository-relative goal home (default: the directory relative to the repository root)")
 	effortRef := fs.String("effort-ref", "", "Effort reference (default: the enrollment registered for this goal home)")
@@ -154,7 +156,8 @@ func (a *App) decisionRaise(args []string) error {
 	view := goalhome.Decision{
 		ID: strings.TrimSpace(*id), Question: strings.TrimSpace(*question), Options: options, Recommended: strings.TrimSpace(*recommend),
 		RecommendationReason: strings.TrimSpace(*why), DefaultAnswer: strings.TrimSpace(*defaultAnswer), Reversible: *reversible,
-		Urgency: strings.TrimSpace(*urgency), Note: strings.TrimSpace(*note), ContextURL: strings.TrimSpace(*contextURL), Deadline: at, RaisedAt: now,
+		Urgency: strings.TrimSpace(*urgency), Note: strings.TrimSpace(*note), BigPicture: strings.TrimSpace(*bigPicture),
+		TechnicalDetails: strings.TrimSpace(*technicalDetails), ContextURL: strings.TrimSpace(*contextURL), Deadline: at, RaisedAt: now,
 	}
 	if err := view.Validate(); err != nil {
 		return fmt.Errorf("%w\n%s", err, decisionUsage)
@@ -162,7 +165,7 @@ func (a *App) decisionRaise(args []string) error {
 	record := &pb.EffortDecision{
 		EffortRef: strings.TrimSpace(*effortRef), GoalHome: ref, DecisionId: view.ID, Question: view.Question, Recommended: view.Recommended,
 		RecommendationReason: view.RecommendationReason, DefaultAnswer: view.DefaultAnswer, Reversible: view.Reversible, Urgency: view.Urgency,
-		Note: view.Note, ContextUrl: view.ContextURL,
+		Note: view.Note, BigPicture: view.BigPicture, TechnicalDetails: view.TechnicalDetails, ContextUrl: view.ContextURL,
 	}
 	for _, option := range view.Options {
 		record.Options = append(record.Options, &pb.EffortDecisionOption{Key: option.Key, Label: option.Label})

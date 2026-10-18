@@ -14,6 +14,7 @@ import (
 	"agent-manager/internal/orchestration/testutil"
 	"errors"
 	"github.com/vrooli/api-core/authn"
+	"github.com/vrooli/api-core/operatordecision"
 
 	requestidentity "github.com/vrooli/api-core/identity"
 )
@@ -130,6 +131,37 @@ func TestNewRequestSupersedesPendingAndApprovalExplainsWhy(t *testing.T) {
 	}
 	if token, found, err := o.ResolveAuthorizationCredential(ctx, os.Getpid()); err != nil || found || token != "" {
 		t.Fatalf("superseded or pending requests granted authority: found=%v err=%v", found, err)
+	}
+}
+
+func TestIdenticalPendingAuthorizationRetriesOnlyUnpublishedNotification(t *testing.T) {
+	now := time.Now().UTC()
+	o := authorizationFixture(t, &now)
+	t.Setenv("AGENT_MANAGER_AUTHORIZATION_URL", "https://agent-manager.example.test")
+	pub := &capturingAuthPublisher{err: errors.New("events unavailable")}
+	o.approvalPublisher = pub
+	ctx := context.Background()
+	req := AuthorizationRequest{PID: os.Getpid(), HarnessKind: "claude-code", HarnessSession: "notification-retry", DurationSeconds: 16 * 60 * 60, Policy: "agent-management", Targets: []string{"agent-manager:run/r1"}}
+	first, err := o.RequestAuthorization(ctx, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	failed, err := o.GetAuthorization(ctx, first.ID)
+	if err != nil || failed.NotificationSnapshot == nil || failed.NotificationPublishedAt != nil {
+		t.Fatalf("failed publication must preserve a retryable generation: %+v err=%v", failed, err)
+	}
+	firstEventID := failed.NotificationSnapshot.EventID
+	pub.err = nil
+	again, err := o.RequestAuthorization(ctx, req)
+	if err != nil || again.ID != first.ID {
+		t.Fatalf("identical pending request changed generation: id=%v err=%v", again.ID, err)
+	}
+	if len(pub.events) != 1 || operatordecision.EventID(pub.events[0]) != firstEventID {
+		t.Fatalf("same-pending retry did not publish the stored event: events=%d", len(pub.events))
+	}
+	third, err := o.RequestAuthorization(ctx, req)
+	if err != nil || third.ID != first.ID || len(pub.events) != 1 {
+		t.Fatalf("successful receipt did not suppress another retry: events=%d err=%v", len(pub.events), err)
 	}
 }
 

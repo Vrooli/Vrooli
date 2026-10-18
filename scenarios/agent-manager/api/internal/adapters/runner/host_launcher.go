@@ -37,6 +37,19 @@ func NewHostLauncher() *HostLauncher { return &HostLauncher{} }
 //   - When ctx is cancelled, exec.CommandContext kills the leader; the
 //     managed-process goroutine then kills the rest of the group.
 func (l *HostLauncher) Launch(ctx context.Context, req LaunchRequest) (LaunchedProcess, error) {
+	return l.launch(ctx, req, nil, nil)
+}
+
+// LaunchDurable directs the child streams to the run's append-only files so
+// their write ends do not depend on this owner's reader-pipe lifetime.
+func (l *HostLauncher) LaunchDurable(ctx context.Context, req LaunchRequest, stdout, stderr *os.File) (LaunchedProcess, error) {
+	if stdout == nil || stderr == nil {
+		return nil, errors.New("launcher: durable stdout and stderr files are required")
+	}
+	return l.launch(ctx, req, stdout, stderr)
+}
+
+func (l *HostLauncher) launch(ctx context.Context, req LaunchRequest, durableStdout, durableStderr *os.File) (LaunchedProcess, error) {
 	if len(req.PolicyFiles) > 0 {
 		return nil, errors.New("launcher: policy files require read-only sandbox mounts")
 	}
@@ -55,7 +68,14 @@ func (l *HostLauncher) Launch(ctx context.Context, req LaunchRequest) (LaunchedP
 		return nil, err
 	}
 
-	mp, err := startManagedProcess(cmd, req.IdleTimeout)
+	var mp *managedProcess
+	if durableStdout != nil {
+		cmd.Stdout = durableStdout
+		cmd.Stderr = durableStderr
+		mp, err = startManagedProcessWithFiles(cmd, req.IdleTimeout, durableStdout)
+	} else {
+		mp, err = startManagedProcess(cmd, req.IdleTimeout)
+	}
 	if err != nil {
 		_ = stdin.Close()
 		return nil, err
@@ -102,12 +122,22 @@ type hostLaunchedProcess struct {
 	signalActive atomic.Bool
 }
 
-func (h *hostLaunchedProcess) Stdout() io.Reader { return h.mp.Stdout() }
-func (h *hostLaunchedProcess) Stderr() io.Reader { return h.stderr }
-func (h *hostLaunchedProcess) ResetIdleTimer()   { h.mp.ResetTimer() }
-func (h *hostLaunchedProcess) TimedOut() bool    { return h.mp.TimedOut() }
-func (h *hostLaunchedProcess) Kill()             { h.mp.Kill() }
-func (h *hostLaunchedProcess) Wait() error       { return h.mp.Wait() }
+func (h *hostLaunchedProcess) Stdout() io.Reader {
+	if stdout := h.mp.Stdout(); stdout != nil {
+		return stdout
+	}
+	return strings.NewReader("")
+}
+func (h *hostLaunchedProcess) Stderr() io.Reader {
+	if h.stderr != nil {
+		return h.stderr
+	}
+	return strings.NewReader("")
+}
+func (h *hostLaunchedProcess) ResetIdleTimer() { h.mp.ResetTimer() }
+func (h *hostLaunchedProcess) TimedOut() bool  { return h.mp.TimedOut() }
+func (h *hostLaunchedProcess) Kill()           { h.mp.Kill() }
+func (h *hostLaunchedProcess) Wait() error     { return h.mp.Wait() }
 
 func (h *hostLaunchedProcess) PID() int {
 	if h.cmd.Process == nil {

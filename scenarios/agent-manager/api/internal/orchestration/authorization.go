@@ -239,6 +239,13 @@ func (o *Orchestrator) RevokeStandingGrant(ctx context.Context, id string) (bool
 // lifetime is min(requested, MaxSessionGrantLifetime): a forgotten-open session
 // cannot confer indefinite authority. It is revoked when the session closes.
 func (o *Orchestrator) CreateSessionGrant(ctx context.Context, humanSubject, sessionID string, requestedTTL time.Duration) (*domain.StandingGrant, error) {
+	return o.createSessionGrant(ctx, humanSubject, sessionID, requestedTTL, time.Time{})
+}
+
+// createSessionGrant can additionally cap a session grant at an absolute
+// proof expiry. Keep that ceiling private so callers cannot turn it into a
+// general-purpose grant policy surface.
+func (o *Orchestrator) createSessionGrant(ctx context.Context, humanSubject, sessionID string, requestedTTL time.Duration, proofExpiresAt time.Time) (*domain.StandingGrant, error) {
 	if o.standingGrants == nil {
 		return nil, errors.New("standing grant store is not configured")
 	}
@@ -253,6 +260,12 @@ func (o *Orchestrator) CreateSessionGrant(ctx context.Context, humanSubject, ses
 	}
 	now := o.now()
 	expires := now.Add(ttl)
+	if !proofExpiresAt.IsZero() && expires.After(proofExpiresAt) {
+		expires = proofExpiresAt
+	}
+	if !expires.After(now) {
+		return nil, domain.NewValidationError("session_grant", "session grant proof expiry must be in the future")
+	}
 	id := uuid.NewString()
 	g := &domain.StandingGrant{
 		ID:        id,
@@ -313,6 +326,18 @@ func (o *Orchestrator) ListStandingGrants(ctx context.Context, limit int) ([]*do
 	return o.standingGrants.List(ctx, limit)
 }
 
+// ListStandingGrantsForApprover returns the bounded history attributed to one
+// verified owner. The repository applies the owner filter before its limit.
+func (o *Orchestrator) ListStandingGrantsForApprover(ctx context.Context, approver string, limit int) ([]*domain.StandingGrant, error) {
+	if o.standingGrants == nil {
+		return nil, errors.New("standing grant store is not configured")
+	}
+	if strings.TrimSpace(approver) == "" {
+		return nil, errors.New("standing grant approver is required")
+	}
+	return o.standingGrants.ListForApprover(ctx, approver, limit)
+}
+
 func (o *Orchestrator) RequestAuthorization(ctx context.Context, req AuthorizationRequest) (*domain.AuthorizationGrant, error) {
 	if o.authorizations == nil || len(o.identitySecret) == 0 {
 		return nil, errors.New("authorization authority is not configured")
@@ -359,6 +384,9 @@ func (o *Orchestrator) RequestAuthorization(ctx context.Context, req Authorizati
 		if grant.RunID == req.RunID && grant.DurationSeconds == req.DurationSeconds && grant.HarnessKind == req.HarnessKind && grant.HarnessSession == req.HarnessSession && slices.EqualFunc(grant.PolicyRules(), rules, func(a, b domain.AuthorizationRule) bool {
 			return a.Policy == b.Policy && slices.Equal(a.Targets, b.Targets)
 		}) {
+			if grant.NotificationPublishedAt == nil {
+				o.NotifyAuthorizationRequested(ctx, grant)
+			}
 			return grant, nil
 		}
 		outdated = append(outdated, grant)
@@ -435,7 +463,7 @@ func missingAuthorizationCapabilities(ctx context.Context, policy authn.Policy) 
 func (o *Orchestrator) managedAuthorizationRun(ctx context.Context, binding cliutil.ProcessBinding) (uuid.UUID, error) {
 	managedID := uuid.Nil
 	for offset := 0; ; offset += 100 {
-		runs, err := o.runs.List(ctx, repository.RunListFilter{ListFilter: repository.ListFilter{Limit: 100, Offset: offset}})
+		runs, err := o.runs.List(ctx, repository.RunListFilter{ListFilter: repository.ListFilter{Limit: 100, Offset: offset}, NonTerminalOnly: true})
 		if err != nil {
 			return uuid.Nil, err
 		}
@@ -712,7 +740,7 @@ func (o *Orchestrator) verifyAuthorization(ctx context.Context, token string, cl
 	if err != nil || live != g.Binding {
 		return &IdentityVerifyResult{Error: "session_changed"}, nil
 	}
-	run, err := o.GetRun(ctx, g.RunID)
+	run, err := o.GetStoredRun(ctx, g.RunID)
 	if err != nil {
 		return nil, err
 	}
@@ -722,15 +750,263 @@ func (o *Orchestrator) verifyAuthorization(ctx context.Context, token string, cl
 	return &IdentityVerifyResult{Valid: true, Claims: claims, RunStatus: run.Status}, nil
 }
 
+// VerifyIdentityPair verifies two independently issued credentials without
+// combining their scopes. The baseline proves the ordinary run identity; the
+// operation token proves only its own currently approved operation grant.
+func (o *Orchestrator) VerifyIdentityPair(ctx context.Context, baselineToken, operationToken string) (*IdentityPairVerifyResult, error) {
+	baselineToken = strings.TrimSpace(baselineToken)
+	operationToken = strings.TrimSpace(operationToken)
+	if baselineToken == "" || operationToken == "" || baselineToken == operationToken {
+		return &IdentityPairVerifyResult{Error: "invalid_pair"}, nil
+	}
+	baseline, err := o.VerifyIdentityToken(ctx, baselineToken)
+	if err != nil {
+		return nil, err
+	}
+	if baseline == nil || !baseline.Valid || baseline.Claims == nil || baseline.Claims.Purpose != "" || baseline.Claims.Meta["authorization_id"] != "" {
+		return &IdentityPairVerifyResult{Error: "invalid_pair"}, nil
+	}
+	operation, err := o.VerifyIdentityToken(ctx, operationToken)
+	if err != nil {
+		return nil, err
+	}
+	if operation == nil || !operation.Valid || operation.Claims == nil || operation.Claims.Meta["authorization_id"] == "" {
+		return &IdentityPairVerifyResult{Error: "invalid_pair"}, nil
+	}
+
+	baselineRun, err := o.runs.GetByTokenHash(ctx, identity.HashToken(baselineToken))
+	if err != nil {
+		return nil, err
+	}
+	operationRun, err := o.GetStoredRun(ctx, operation.Claims.RunID)
+	if err != nil {
+		return nil, err
+	}
+	if baselineRun == nil || operationRun == nil || baselineRun.ID != baseline.Claims.RunID || operationRun.ID != operation.Claims.RunID || baselineRun.Status.IsTerminal() || operationRun.Status.IsTerminal() || baselineRun.IdentityTokenRevokedAt != nil || operationRun.IdentityTokenRevokedAt != nil {
+		return &IdentityPairVerifyResult{Error: "invalid_pair"}, nil
+	}
+	owner := strings.TrimSpace(baselineRun.OwnerSubject)
+	if owner == "" || owner != strings.TrimSpace(operationRun.OwnerSubject) || baselineRun.RunnerPID <= 0 {
+		return &IdentityPairVerifyResult{Error: "invalid_pair"}, nil
+	}
+
+	grantID, err := uuid.Parse(operation.Claims.Meta["authorization_id"])
+	if err != nil {
+		return &IdentityPairVerifyResult{Error: "invalid_pair"}, nil
+	}
+	grant, err := o.GetAuthorization(ctx, grantID)
+	if err != nil {
+		return nil, err
+	}
+	// VerifyIdentityToken already checked the current full process binding and
+	// grant state. Repeat the owner and PID relation here against repository
+	// records so a valid but unrelated grant cannot be paired with this run.
+	if grant == nil || grant.Grant == nil || grant.RunID != operationRun.ID || grant.Binding.PID != baselineRun.RunnerPID || strings.TrimSpace(grant.Grant.Approver) != owner {
+		return &IdentityPairVerifyResult{Error: "invalid_pair"}, nil
+	}
+	// A descendant may inherit the broker's reachability but cannot borrow a
+	// parent grant. A child is pairable only with its own run's authorization.
+	if baselineRun.ParentRunID != nil && grant.RunID != baselineRun.ID {
+		return &IdentityPairVerifyResult{Error: "invalid_pair"}, nil
+	}
+	return &IdentityPairVerifyResult{Valid: true, Operation: operation}, nil
+}
+
+// ResolveAuthorizationCredentials returns a legacy grant-only token, an
+// ownerless attached run's grant-only compatibility token, or an owner-attributed
+// baseline plus a separately verified operation token. An owner-attributed
+// baseline is never replaced by a grant, and grant failure does not disable its
+// ordinary identity use.
+func (o *Orchestrator) ResolveAuthorizationCredentials(ctx context.Context, pid int, baselineToken string) (AuthorizationCredentials, error) {
+	baselineToken = strings.TrimSpace(baselineToken)
+	// Resolve managed-run ownership from the verified broker peer even when no
+	// baseline header was supplied. A managed child must not be able to omit
+	// that header (or let it expire) and fall back to an ancestor's grant-only
+	// credential.
+	var managedRun *domain.Run
+	if pid > 1 {
+		binding, err := cliutil.ObserveProcessBinding(pid)
+		if err != nil {
+			if baselineToken != "" {
+				return AuthorizationCredentials{BaselineToken: baselineToken, OperationRefusal: "process_binding_unavailable"}, nil
+			}
+			return AuthorizationCredentials{}, err
+		}
+		managedID, err := o.managedAuthorizationRun(ctx, binding)
+		if err != nil {
+			if baselineToken != "" {
+				return AuthorizationCredentials{BaselineToken: baselineToken, OperationRefusal: "managed_run_unavailable"}, nil
+			}
+			return AuthorizationCredentials{}, err
+		}
+		if managedID != uuid.Nil {
+			managedRun, err = o.GetStoredRun(ctx, managedID)
+			if err != nil {
+				if baselineToken != "" {
+					return AuthorizationCredentials{BaselineToken: baselineToken, OperationRefusal: "managed_run_unavailable"}, nil
+				}
+				return AuthorizationCredentials{}, err
+			}
+		}
+	}
+	var requiredRunID uuid.UUID
+	if managedRun != nil && managedRun.ParentRunID != nil {
+		requiredRunID = managedRun.ID
+	}
+	if baselineToken != "" {
+		if inheritedClaims, verifyErr := identity.VerifyToken(baselineToken, o.identitySecret); verifyErr == nil && inheritedClaims.Meta["authorization_id"] != "" {
+			// Existing grant-only identities remain on the legacy bounded path;
+			// they are never reinterpreted as a baseline for a second grant.
+			legacy, found, resolveErr := o.resolveAuthorizationCredentialForRun(ctx, pid, requiredRunID)
+			if resolveErr != nil {
+				return AuthorizationCredentials{OperationRefusal: authorizationRefusalCode(resolveErr)}, resolveErr
+			}
+			if found && legacy != "" {
+				return AuthorizationCredentials{LegacyToken: legacy}, nil
+			}
+			if requiredRunID != uuid.Nil {
+				return AuthorizationCredentials{OperationRefusal: "managed_child_requires_own_grant"}, nil
+			}
+			return AuthorizationCredentials{LegacyToken: baselineToken}, nil
+		}
+	}
+	if baselineToken == "" {
+		legacy, found, resolveErr := o.resolveAuthorizationCredentialForRun(ctx, pid, requiredRunID)
+		if resolveErr != nil {
+			return AuthorizationCredentials{OperationRefusal: authorizationRefusalCode(resolveErr)}, resolveErr
+		}
+		if !found {
+			return AuthorizationCredentials{}, nil
+		}
+		return AuthorizationCredentials{LegacyToken: legacy}, nil
+	}
+
+	verifiedBaseline, verifyErr := o.VerifyIdentityToken(ctx, baselineToken)
+	if verifyErr != nil || verifiedBaseline == nil || !verifiedBaseline.Valid || verifiedBaseline.Claims == nil || verifiedBaseline.Claims.Purpose != "" || verifiedBaseline.Claims.Meta["authorization_id"] != "" {
+		// An expired baseline is never returned as an identity. Preserve only the
+		// existing independent grant path when its exact token hash identifies a
+		// live ownerless attached root (or a child whose own grant can be
+		// resolved). This is classification from the retained owner record, not
+		// authority from an expired bearer.
+		expiredRun, lookupErr := o.runs.GetByTokenHash(ctx, identity.HashToken(baselineToken))
+		if lookupErr != nil {
+			return AuthorizationCredentials{OperationRefusal: "baseline_lookup_unavailable"}, lookupErr
+		}
+		if expiredRun != nil {
+			credentials, handled, resolveErr := o.resolveAttachedBaselineGrant(ctx, pid, expiredRun, managedRun)
+			if resolveErr != nil {
+				return credentials, resolveErr
+			}
+			if handled {
+				return credentials, nil
+			}
+		}
+		return AuthorizationCredentials{BaselineToken: baselineToken, OperationRefusal: "baseline_invalid"}, nil
+	}
+	// An ownerless attached baseline carries no delegated scopes and cannot be
+	// paired to a human-approved operation grant. Preserve the pre-pair legacy
+	// behavior for a valid ownerless root: resolve only the grant independently
+	// bound to this peer, and return it grant-only. The resolver's exact managed
+	// child restriction still prevents an ownerless child from borrowing its
+	// parent's grant.
+	if strings.TrimSpace(verifiedBaseline.Claims.Subject) == "" {
+		baselineRun, lookupErr := o.runs.GetByTokenHash(ctx, identity.HashToken(baselineToken))
+		if lookupErr != nil {
+			return AuthorizationCredentials{BaselineToken: baselineToken, OperationRefusal: "baseline_lookup_unavailable"}, nil
+		}
+		if baselineRun != nil && baselineRun.ID == verifiedBaseline.Claims.RunID && strings.TrimSpace(baselineRun.OwnerSubject) == "" && baselineRun.ExecutionMode.Normalized() == domain.ExecutionModeAttached {
+			credentials, handled, resolveErr := o.resolveAttachedBaselineGrant(ctx, pid, baselineRun, managedRun)
+			if resolveErr != nil {
+				return AuthorizationCredentials{BaselineToken: baselineToken, OperationRefusal: authorizationRefusalCode(resolveErr)}, nil
+			}
+			if handled && credentials.LegacyToken != "" {
+				return credentials, nil
+			}
+			return AuthorizationCredentials{BaselineToken: baselineToken, OperationRefusal: credentials.OperationRefusal}, nil
+		}
+	}
+	grantToken, found, resolveErr := o.resolveAuthorizationCredentialForRun(ctx, pid, requiredRunID)
+	if resolveErr != nil {
+		return AuthorizationCredentials{BaselineToken: baselineToken, OperationRefusal: authorizationRefusalCode(resolveErr)}, nil
+	}
+	if !found || grantToken == "" {
+		return AuthorizationCredentials{BaselineToken: baselineToken}, nil
+	}
+	pair, pairErr := o.VerifyIdentityPair(ctx, baselineToken, grantToken)
+	if pairErr != nil || pair == nil || !pair.Valid {
+		return AuthorizationCredentials{BaselineToken: baselineToken, OperationRefusal: "pair_unavailable"}, nil
+	}
+	return AuthorizationCredentials{BaselineToken: baselineToken, OperationToken: grantToken}, nil
+}
+
+func (o *Orchestrator) resolveAttachedBaselineGrant(ctx context.Context, pid int, baseline, peerRun *domain.Run) (AuthorizationCredentials, bool, error) {
+	if baseline == nil || baseline.Status.IsTerminal() || baseline.IdentityTokenRevokedAt != nil || baseline.RunnerPID <= 1 {
+		return AuthorizationCredentials{}, false, nil
+	}
+	if peerRun != nil && peerRun.ID != baseline.ID {
+		// A managed process may not present an ancestor/top-level token to
+		// recover that ancestor's independent grant.
+		return AuthorizationCredentials{OperationRefusal: "baseline_run_mismatch"}, true, nil
+	}
+	requiredRunID := uuid.Nil
+	if baseline.ParentRunID != nil || (peerRun != nil && peerRun.ParentRunID != nil) {
+		requiredRunID = baseline.ID
+	} else if baseline.ExecutionMode.Normalized() != domain.ExecutionModeAttached {
+		return AuthorizationCredentials{}, false, nil
+	}
+	grantToken, found, err := o.resolveAuthorizationCredentialForRun(ctx, pid, requiredRunID)
+	if err != nil {
+		return AuthorizationCredentials{OperationRefusal: authorizationRefusalCode(err)}, true, err
+	}
+	if !found || grantToken == "" {
+		return AuthorizationCredentials{OperationRefusal: "grant_unavailable"}, true, nil
+	}
+	verified, err := o.VerifyIdentityToken(ctx, grantToken)
+	if err != nil || verified == nil || !verified.Valid || verified.Claims == nil || verified.Claims.Meta["authorization_id"] == "" {
+		return AuthorizationCredentials{OperationRefusal: "grant_unavailable"}, true, nil
+	}
+	grantID, err := uuid.Parse(verified.Claims.Meta["authorization_id"])
+	if err != nil {
+		return AuthorizationCredentials{OperationRefusal: "grant_unavailable"}, true, nil
+	}
+	grant, err := o.GetAuthorization(ctx, grantID)
+	if err != nil {
+		return AuthorizationCredentials{OperationRefusal: "grant_unavailable"}, true, err
+	}
+	if grant == nil || grant.Grant == nil || grant.Binding.PID != baseline.RunnerPID || (strings.TrimSpace(baseline.OwnerSubject) != "" && strings.TrimSpace(grant.Grant.Approver) != strings.TrimSpace(baseline.OwnerSubject)) {
+		return AuthorizationCredentials{OperationRefusal: "grant_binding_mismatch"}, true, nil
+	}
+	return AuthorizationCredentials{LegacyToken: grantToken}, true, nil
+}
+
+func authorizationRefusalCode(err error) string {
+	var refused *domain.AuthorizationError
+	if errors.As(err, &refused) && strings.TrimSpace(refused.Code) != "" {
+		return refused.Code
+	}
+	return "unavailable"
+}
+
 // ResolveAuthorizationCredential is called only after Unix peer verification.
 // Newest non-pending consent wins; revocation never resurrects an older grant.
 func (o *Orchestrator) ResolveAuthorizationCredential(ctx context.Context, pid int) (string, bool, error) {
+	return o.resolveAuthorizationCredentialForRun(ctx, pid, uuid.Nil)
+}
+
+// resolveAuthorizationCredentialForRun can restrict an inherited process
+// grant to the exact managed run represented by the peer. An empty run ID
+// preserves legacy resolution for ownerless attached roots and grant-only
+// identities.
+func (o *Orchestrator) resolveAuthorizationCredentialForRun(ctx context.Context, pid int, requiredRunID uuid.UUID) (string, bool, error) {
 	for root, hops := pid, 0; root > 1 && hops < 256; hops++ {
 		grants, err := o.ListAuthorizations(ctx, root)
 		if err != nil {
 			return "", true, err
 		}
 		for _, g := range grants {
+			if requiredRunID != uuid.Nil && (g == nil || g.RunID != requiredRunID) {
+				continue
+			}
 			state := g.EffectiveState(o.now())
 			if g.State == domain.AuthorizationPending || state == domain.AuthorizationApproving || state == domain.AuthorizationSuperseded {
 				// Requests that never became consent carry no authority.

@@ -362,7 +362,9 @@ GET /teams/{teamId}/execution-status
   "runningAgentIds": ["agent-1", "agent-2"],
   "queue": ["agent-3"],
   "queuePolicy": "bounded-parallel",
-  "maxConcurrentRuns": 2
+  "maxConcurrentRuns": 2,
+  "preparationInterruptedAgentIds": ["agent-3"],
+  "admissionDeferredAgentIds": ["agent-4"]
 }
 ```
 
@@ -373,6 +375,8 @@ GET /teams/{teamId}/execution-status
 | `queue` | string[] | Agent IDs waiting to execute (FIFO order) |
 | `queuePolicy` | string | `serialized` or `bounded-parallel` |
 | `maxConcurrentRuns` | integer | Concurrency cap for the team execution context |
+| `preparationInterruptedAgentIds` | string[] | Accepted pre-dispatch work retained after a restart; requires a fresh, normally gated admission and is not currently executing |
+| `admissionDeferredAgentIds` | string[] | Exact heartbeat task/run intent retained after Agent Manager definitively refuses only because the current grant capacity is full; it is not a running model and is replayed on an otherwise eligible scheduled callback |
 
 ---
 

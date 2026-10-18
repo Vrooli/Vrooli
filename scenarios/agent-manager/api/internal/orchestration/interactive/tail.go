@@ -19,6 +19,11 @@ import (
 // override is supplied.
 const defaultTailPoll = 250 * time.Millisecond
 
+// defaultGoalDrainWindow matches the coordinator's existing interactive idle
+// debounce. A native goal verdict is already final; this window only captures
+// provider output emitted before the same turn closes.
+const defaultGoalDrainWindow = 5 * time.Second
+
 // ParserResolver resolves a fresh codec transcript parser for a runner type.
 // A registry-backed resolver ([RegistryParser]) is used in production; tests
 // supply a codec's real parser directly.
@@ -48,7 +53,9 @@ func RegistryParser(reg runner.Registry) ParserResolver {
 
 // Tailer follows an interactive run's agent-owned transcript and emits the same
 // structured events a codec pipe run produces, by feeding each transcript line
-// through the codec's transcript parser (design §1/§3). It is the sibling of
+// through the codec's transcript parser (design §1/§3). An accepted native goal
+// is reported immediately and followed by a bounded drain to the same provider
+// turn boundary before the terminal is returned. It is the sibling of
 // core.runDurable's live tail: it does not launch a process, scan stdout, or
 // wait on process exit — it only tails the file the real CLI writes inside the
 // web-console session.
@@ -115,6 +122,10 @@ type TailParams struct {
 	LaunchedAt time.Time
 	// StartCursor resumes a tail from a persisted byte offset (0 = start).
 	StartCursor int64
+	// GoalDrainTimeout bounds capture after an accepted native goal verdict.
+	// The verdict remains authoritative if the provider turn does not close in
+	// time. Zero uses the existing five-second interactive debounce.
+	GoalDrainTimeout time.Duration
 
 	Sink         runner.EventSink
 	OnAdvance    func(cursor, lastSeq int64) error
@@ -129,7 +140,7 @@ type TailParams struct {
 }
 
 // Tail follows the transcript, emitting codec events to the sink until the
-// terminal marker appears (returned for Phase 4 to consume) or ctx is
+// terminal boundary appears (returned for Phase 4 to consume) or ctx is
 // cancelled. It reuses runner.Consume(Live=false) in a re-open-from-cursor
 // poll loop, which uniformly handles the three interactive-tail hazards:
 //
@@ -156,13 +167,36 @@ func (t *Tailer) Tail(ctx context.Context, p TailParams) (*runner.TranscriptTerm
 	if setter, ok := parser.(runner.TranscriptBillingSetter); ok {
 		setter.SetTranscriptBilling(p.Billing)
 	}
+	if setter, ok := parser.(interface {
+		SetGoalContext(uuid.UUID, string, string)
+	}); ok {
+		setter.SetGoalContext(p.RunID, p.SessionID, p.Until)
+	}
 
 	path := p.TranscriptPath
 	cursor := p.StartCursor
 	turnBoundaries := 0
+	var acceptedGoal *runner.TranscriptTerminal
+	var lastGoalMarker *runner.GoalMarker
+	var acceptedGoalMarker *runner.GoalMarker
+	var goalDrainDeadline time.Time
+	goalMarkerSeen := false
+	goalDrainEnabled := strings.TrimSpace(p.Until) != ""
+	providerBoundary := false
+	userBoundary := false
+	goalBoundary := false
+	sessionChanged := false
+	expectedSessionID := strings.TrimSpace(p.SessionID)
+	goalDrainTimeout := p.GoalDrainTimeout
+	if goalDrainTimeout <= 0 {
+		goalDrainTimeout = defaultGoalDrainWindow
+	}
 	for {
 		if err := ctx.Err(); err != nil {
 			return nil, err
+		}
+		if acceptedGoal != nil && !time.Now().Before(goalDrainDeadline) {
+			return acceptedGoal, nil
 		}
 
 		if path == "" {
@@ -180,12 +214,23 @@ func (t *Tailer) Tail(ctx context.Context, p TailParams) (*runner.TranscriptTerm
 			cursor = 0
 		}
 
+		parseLine := func(runID uuid.UUID, line string) runner.TranscriptParseResult {
+			result := parser.ParseTranscriptLine(runID, line)
+			if result.SessionID != "" {
+				if expectedSessionID == "" {
+					expectedSessionID = result.SessionID
+				} else if result.SessionID != expectedSessionID && goalMarkerSeen {
+					sessionChanged = true
+				}
+			}
+			return result
+		}
 		nextCursor, terminal, cerr := runner.Consume(ctx, runner.ConsumeArgs{
 			RunID:      p.RunID,
 			Transcript: path,
 			StartAt:    cursor,
 			Live:       false,
-			ParseFn:    parser.ParseTranscriptLine,
+			ParseFn:    parseLine,
 			EventSink:  p.Sink,
 			OnAdvance:  p.OnAdvance,
 			OnSessionID: func(sessionID string) error {
@@ -194,7 +239,50 @@ func (t *Tailer) Tail(ctx context.Context, p TailParams) (*runner.TranscriptTerm
 				}
 				return p.OnSessionID(sessionID)
 			},
-			OnGoalStatus: p.OnGoalStatus,
+			OnGoalStatus: func(marker runner.GoalMarker) error {
+				markerCopy := marker
+				lastGoalMarker = &markerCopy
+				if p.OnGoalStatus != nil {
+					return p.OnGoalStatus(marker)
+				}
+				return nil
+			},
+			OnTerminal: func(terminal *runner.TranscriptTerminal) error {
+				if goalDrainEnabled && acceptedGoal == nil && terminal != nil && terminal.Success &&
+					(terminal.TerminalReason == "goal_complete" || terminal.TerminalReason == "goal_blocked") {
+					// Preserve the canonical terminal constructed by runner.Consume.
+					acceptedGoal = terminal
+					acceptedGoalMarker = lastGoalMarker
+					goalMarkerSeen = true
+					goalDrainDeadline = time.Now().Add(goalDrainTimeout)
+				}
+				return nil
+			},
+			StopBeforeTranscriptResult: func(result runner.TranscriptParseResult) bool {
+				if !goalMarkerSeen {
+					return false
+				}
+				if result.Goal != nil && acceptedGoalMarker != nil {
+					marker := result.Goal
+					if marker.Status == runner.GoalStatusActive || marker.Status == runner.GoalStatusPaused ||
+						marker.Objective != acceptedGoalMarker.Objective || marker.Status != acceptedGoalMarker.Status {
+						goalBoundary = true
+						return true
+					}
+				}
+				if result.UserTurnStarted || result.ProviderTurnStarted {
+					userBoundary = true
+					return true
+				}
+				return sessionChanged
+			},
+			StopAfterTranscriptResult: func(result runner.TranscriptParseResult) bool {
+				if goalMarkerSeen && result.Terminal != nil {
+					providerBoundary = true
+					return true
+				}
+				return false
+			},
 		})
 		cursor = nextCursor
 		if cerr != nil {
@@ -211,6 +299,21 @@ func (t *Tailer) Tail(ctx context.Context, p TailParams) (*runner.TranscriptTerm
 				continue
 			}
 			return terminal, cerr
+		}
+		if acceptedGoal != nil {
+			if providerBoundary || userBoundary || goalBoundary || sessionChanged {
+				return acceptedGoal, nil
+			}
+			if !time.Now().Before(goalDrainDeadline) {
+				return acceptedGoal, nil
+			}
+			// The native verdict is already accepted. Keep consuming only this
+			// provider turn so a delayed final answer is persisted before the
+			// coordinator finalizes and wakes its parent.
+			if !sleepCtx(ctx, t.pollInterval) {
+				return nil, ctx.Err()
+			}
+			continue
 		}
 		if terminal != nil {
 			// In goal mode a provider success marker is only a turn boundary.

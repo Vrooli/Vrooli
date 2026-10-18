@@ -1,10 +1,12 @@
 package cliutil
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -25,6 +27,9 @@ const (
 	// HeaderAgentIdentityToken carries the opaque Agent Manager token. APIs must
 	// verify it server-side before treating any request as agent-attributed.
 	HeaderAgentIdentityToken = "X-Agent-Identity-Token"
+	// HeaderAgentOperationToken carries a separately verified operation grant.
+	// It is never folded into the ordinary agent identity principal.
+	HeaderAgentOperationToken = "X-Agent-Operation-Token"
 	// HeaderInvocationScenario, HeaderInvocationCommand, and
 	// HeaderInvocationID are channel observations. They identify what the CLI
 	// says it invoked; unlike HeaderAgentIdentityToken, they are not proof that
@@ -65,6 +70,14 @@ type VerifyResult struct {
 	Claims    *VerifiedClaims `json:"claims,omitempty"`
 	RunStatus string          `json:"run_status,omitempty"`
 	Error     string          `json:"error,omitempty"`
+}
+
+// VerifyPairResult mirrors the owner-verified supplemental result returned by
+// Agent Manager. Its claims never replace the ordinary baseline claims.
+type VerifyPairResult struct {
+	Valid     bool          `json:"valid"`
+	Operation *VerifyResult `json:"operation,omitempty"`
+	Error     string        `json:"error,omitempty"`
 }
 
 // DetectIdentity reads the agent identity token from the environment.
@@ -149,7 +162,11 @@ func (env IdentityEnv) VerifyIdentity() (*VerifyResult, error) {
 	})
 
 	body := map[string]string{"token": env.Token}
-	data, err := client.Do("POST", "/api/v1/identity/verify", nil, body)
+	// This endpoint is verifying the explicitly selected body credential. Do
+	// not resolve or attach the caller process's ambient credential as a second
+	// identity proof; the receiver verifies the body token directly.
+	ctx := context.WithValue(context.Background(), identityInjectionBypassKey{}, true)
+	data, err := client.DoWithContext(ctx, "POST", "/api/v1/identity/verify", nil, body)
 	if err != nil {
 		var apiErr *APIError
 		if errors.As(err, &apiErr) && apiErr.StatusCode == 401 {
@@ -165,6 +182,45 @@ func (env IdentityEnv) VerifyIdentity() (*VerifyResult, error) {
 	var result VerifyResult
 	if err := json.Unmarshal(data, &result); err != nil {
 		return nil, fmt.Errorf("parse verification response: %w", err)
+	}
+	return &result, nil
+}
+
+// VerifyIdentityPair asks Agent Manager to verify an operation grant against
+// this exact active baseline token. The supplemental token is not forwarded as
+// the ordinary identity and is only used by the operation authorization seam.
+func (env IdentityEnv) VerifyIdentityPair(ctx context.Context, operationToken string) (*VerifyPairResult, error) {
+	if strings.TrimSpace(env.Token) == "" || strings.TrimSpace(operationToken) == "" {
+		return nil, errors.New("baseline and operation identity tokens are required")
+	}
+	baseURL := DetermineAPIBase(APIBaseOptions{
+		EnvVars:      []string{"AGENT_MANAGER_API_BASE", "AGENT_MANAGER_API_URL"},
+		PortDetector: detectAgentManagerPort,
+	})
+	if baseURL == "" {
+		return nil, errors.New("agent-manager base URL not discoverable")
+	}
+	client := NewHTTPClient(HTTPClientOptions{BaseOptions: APIBaseOptions{Override: baseURL}, Timeout: 10 * time.Second})
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	ctx = context.WithValue(ctx, identityInjectionBypassKey{}, true)
+	body := map[string]string{"token": env.Token, "operation_token": operationToken}
+	data, err := client.DoWithContext(ctx, "POST", "/api/v1/identity/verify", nil, body)
+	if err != nil {
+		var apiErr *APIError
+		if errors.As(err, &apiErr) && apiErr.StatusCode == http.StatusUnauthorized {
+			var result VerifyPairResult
+			if jsonErr := json.Unmarshal(apiErr.RawResponse, &result); jsonErr == nil {
+				return &result, nil
+			}
+			return &VerifyPairResult{Error: apiErr.Message}, nil
+		}
+		return nil, fmt.Errorf("identity pair verification request failed: %w", err)
+	}
+	var result VerifyPairResult
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, fmt.Errorf("parse identity pair verification response: %w", err)
 	}
 	return &result, nil
 }

@@ -108,6 +108,63 @@ func TestBugCaptureDraftRemainsPrivateUntilRepairPublishes(t *testing.T) {
 	}
 }
 
+func TestBugCaptureOwnerKeepsTeamAttributionAndTaxonomyChecks(t *testing.T) {
+	roots := paths.RootsForTest(t)
+	fileStore := newFileStore(t, roots)
+	teamStore := fileStore.Teams().(*store.FileTeamStore)
+	agentStore := fileStore.Agents().(*store.FileAgentStore)
+	h := NewHandlers(HandlersDeps{
+		TeamStore:     teamStore,
+		AgentStore:    agentStore,
+		RelationStore: fileStore.Relations(),
+		Executor:      newTestExecutor(t, teamStore, agentStore, nil, "", nil, nil),
+	})
+	if err := teamStore.Create(context.Background(), newIndependentTestTeam(scenarioQATeamID, "Scenario QA")); err != nil {
+		t.Fatal(err)
+	}
+	sourceSkill, targetTeam := "report-bug", scenarioQATeamID
+	validAttribution := encodeAttribution(t, store.AttributionInfo{
+		Kind: store.KnowledgeKindWriterSkill, SourceSkillID: &sourceSkill, TeamID: &targetTeam,
+		SpawnOrigin: store.SpawnOriginHeartbeat,
+	})
+	call := func(teamID, attribution string, payload BugCaptureRequest) *httptest.ResponseRecorder {
+		t.Helper()
+		body, err := json.Marshal(payload)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req := httptest.NewRequest(http.MethodPost, "/capture", bytes.NewReader(body))
+		if attribution != "" {
+			req.Header.Set(attributionHeaderName, attribution)
+		}
+		req = mux.SetURLVars(req, map[string]string{"id": teamID})
+		w := httptest.NewRecorder()
+		h.CaptureBug(w, req)
+		return w
+	}
+
+	if got := call("other-team", validAttribution, BugCaptureRequest{}); got.Code != http.StatusBadRequest {
+		t.Fatalf("non-QA target status=%d body=%s", got.Code, got.Body.String())
+	}
+	if got := call(scenarioQATeamID, "", BugCaptureRequest{}); got.Code != http.StatusBadRequest {
+		t.Fatalf("missing attribution status=%d body=%s", got.Code, got.Body.String())
+	}
+	partial := call(scenarioQATeamID, validAttribution, BugCaptureRequest{Title: "partial observation", SignalType: "made-up", Severity: "major"})
+	if partial.Code != http.StatusOK {
+		t.Fatalf("invalid/incomplete taxonomy status=%d body=%s", partial.Code, partial.Body.String())
+	}
+	var result BugCaptureResponse
+	if err := json.Unmarshal(partial.Body.Bytes(), &result); err != nil {
+		t.Fatal(err)
+	}
+	if result.Disposition != "draft" || result.DraftID == "" || len(result.Invalid) == 0 || len(result.Needs) == 0 {
+		t.Fatalf("invalid/incomplete intake was not retained as a diagnostic draft: %+v", result)
+	}
+	if entries, err := teamStore.ListTeamCorpus(context.Background(), scenarioQATeamID, "", "bug-inbox/", 0); err != nil || len(entries) != 0 {
+		t.Fatalf("invalid/incomplete report reached inbox: entries=%+v err=%v", entries, err)
+	}
+}
+
 func containsCaptureValue(values []string, want string) bool {
 	for _, value := range values {
 		if value == want {
