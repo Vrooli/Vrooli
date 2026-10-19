@@ -22,8 +22,8 @@ import (
 //
 // DOC: docs/internal/SEAMS.md#conversation-dispatcher-seam-api
 type ConversationDispatcher interface {
-	AppendAssistant(responseText, sessionID, source string) ConversationAppendResult
-	AppendUser(promptText, sessionID, source string) ConversationAppendResult
+	AppendAssistant(ctx context.Context, responseText, sessionID, source string) ConversationAppendResult
+	AppendUser(ctx context.Context, promptText, sessionID, source string) ConversationAppendResult
 }
 
 // Compile-time check that *Server satisfies ConversationDispatcher.
@@ -79,7 +79,7 @@ func conversationAppendFailure(code, reason, source, sessionID string) Conversat
 // the owning terminal session. Auto-TTS enablement is not checked here:
 // the conversation log is the source of truth and TTS is only one consumer.
 // Satisfies ConversationDispatcher.
-func (s *Server) AppendAssistant(responseText, targetSessionID, source string) ConversationAppendResult {
+func (s *Server) AppendAssistant(ctx context.Context, responseText, targetSessionID, source string) ConversationAppendResult {
 	if strings.TrimSpace(targetSessionID) == "" {
 		result := conversationAppendFailure("conversation_target_missing", "No web-console terminal session was identified for this conversation event", source, "")
 		s.recordLastTTSRouting(result)
@@ -92,7 +92,7 @@ func (s *Server) AppendAssistant(responseText, targetSessionID, source string) C
 		return result
 	}
 
-	event, result := s.conversations.AppendAssistantEvent(context.Background(), targetSessionID, source, responseText)
+	event, result := s.conversations.AppendAssistantEvent(ctx, targetSessionID, source, responseText)
 	if result.Appended && !result.Duplicate {
 		// Publish to the global event channel immediately so the text lands in
 		// every subscribed client with no delay — audio is handled separately
@@ -105,7 +105,7 @@ func (s *Server) AppendAssistant(responseText, targetSessionID, source string) C
 			// Summarize-first path: wait for the audio-tools Summarize call
 			// to finish before notifying clients of the summarized version.
 			go func(ev ConversationEvent) {
-				s.asyncSummarizeAndNotify(ev, targetSessionID, policy)
+				s.asyncSummarizeAndNotify(context.WithoutCancel(ctx), ev, targetSessionID, policy)
 			}(event)
 		}
 	}
@@ -116,7 +116,7 @@ func (s *Server) AppendAssistant(responseText, targetSessionID, source string) C
 // AppendUser validates and publishes a user prompt to the owning terminal
 // session. No TTS routing is performed for user messages. Satisfies
 // ConversationDispatcher.
-func (s *Server) AppendUser(promptText, targetSessionID, source string) ConversationAppendResult {
+func (s *Server) AppendUser(ctx context.Context, promptText, targetSessionID, source string) ConversationAppendResult {
 	if strings.TrimSpace(targetSessionID) == "" {
 		return conversationAppendFailure("conversation_target_missing", "No web-console terminal session was identified for this conversation event", source, "")
 	}
@@ -125,7 +125,7 @@ func (s *Server) AppendUser(promptText, targetSessionID, source string) Conversa
 		return conversationAppendFailure("conversation_target_missing", "The mapped terminal session is no longer available", source, targetSessionID)
 	}
 
-	event, result := s.conversations.AppendUserEvent(context.Background(), targetSessionID, source, promptText)
+	event, result := s.conversations.AppendUserEvent(ctx, targetSessionID, source, promptText)
 	if result.Appended && !result.Duplicate {
 		s.publishConversationEvent(event)
 	}
@@ -137,7 +137,7 @@ func (s *Server) AppendUser(promptText, targetSessionID, source string) Conversa
 // version without a refresh. Cooldown/inflight-dedup are audio-tools'
 // concern now; the remote tier handles backpressure. On failure we surface
 // a one-off error event with the failure message.
-func (s *Server) asyncSummarizeAndNotify(event ConversationEvent, sessionID string, policy SummarizeAutoPolicy) {
+func (s *Server) asyncSummarizeAndNotify(parent context.Context, event ConversationEvent, sessionID string, policy SummarizeAutoPolicy) {
 	if s.summarizer == nil {
 		return
 	}
@@ -155,7 +155,7 @@ func (s *Server) asyncSummarizeAndNotify(event ConversationEvent, sessionID stri
 	if timeout <= 0 {
 		timeout = 120 * time.Second
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(parent, timeout)
 	defer cancel()
 
 	out, err := s.summarizer.Summarize(ctx, audioports.SummarizeInput{
@@ -179,7 +179,7 @@ func (s *Server) asyncSummarizeAndNotify(event ConversationEvent, sessionID stri
 	if len(newParagraphs) == 0 {
 		return
 	}
-	if err := s.conversations.UpdateSpeechParagraphs(context.Background(), sessionID, event.ID, newParagraphs); err != nil {
+	if err := s.conversations.UpdateSpeechParagraphs(ctx, sessionID, event.ID, newParagraphs); err != nil {
 		log.Printf("tts-summarize: failed to persist event update event=%s: %v", sanitizeID(event.ID), err)
 		return
 	}

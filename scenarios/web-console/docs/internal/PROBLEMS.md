@@ -1,5 +1,962 @@
 # Web Console — Known Problems and Risks
 
+## 2026-10-18 — Imported GLB clearcoat/specular rejection (bounded W3 repair)
+
+Operator reports adapted-iphone15promax.glb still failing after the authored
+phone repair. Reuse scientific-debugging, scenario-work-ladder and the bounded
+harness workflow from the preceding repair. Established expected behavior is
+unchanged; scoped W3 implementation, no contract or readiness certification.
+Recall found prior records 52fd6ce2-3d5d-45a8-b299-37bffb343248 and
+48b9a6f8-db0f-4fa3-98f1-dcf3ee61ffb5; ranking/scoped recall partly degraded.
+
+Hypotheses: (1) clearcoat/specular material extensions are rejected by preflight
+despite installed GLTFLoader support; (2) embedded textures or geometry exceed
+limits; (3) browser rendering fails independently. Tests: exact source preflight,
+portable material preservation/security regressions, then actual narrow/desktop
+rendering of both reported phones. Initial exact source fails `unsupported` in
+/tmp/wc-glb-imported-exact-before.log. It is 1,112,040 bytes, 30 mesh definitions,
+31 nodes, two embedded PNGs and no skins, animations, sparse accessors or
+compressed primitives. Its only extensions are KHR_materials_clearcoat and
+KHR_materials_specular, both implemented by installed Three.js 0.185.1.
+
+Harness handoff: implement bounded clearcoat/specular support as specified in
+ARCHITECTURE.md, preserve all resource/network/unsupported-feature guards, and
+retain the previous transmission fix. Prove failing-then-passing portable tests,
+exact file preflight, focused model tests, types/lint/build, scoped Test Genie
+unit receipt, and served Chromium phone/desktop checks for both models. Track
+findings here; finish after two fresh reviews find nothing material. No new
+dependencies, shell changes, source-model edits, commit or full certification.
+If interrupted, checkpoint remaining and unverified work here.
+
+The two portable GLB/glTF preservation regressions fail before repair, as does
+exact source admission. The bounded material policy now shares its allowlist
+with scalar/texture validation for transmission, clearcoat and specular. Both
+reported source files pass full preflight after repair; resource/network guards
+remain unchanged. No new decoder, dependency or renderer plugin is needed.
+
+Pre-close schema review caught that specularColorFactor permits HDR channels
+above one in the canonical Khronos schema. Corrected the initial SDR-only
+validation and added an accepted HDR case plus a retained finite numeric cap.
+A normal-scale test initially lacked otherwise valid image bytes, so a later
+image-reference failure could have hidden missing scale validation; supplied
+a valid embedded image and positive scale controls before finalizing the test.
+These are resolved in-scope findings; restart/browser proof must use the final
+HDR-compatible build. Focused tests so far pass 59 in three files; types/lint
+are clean. Test Genie unit run 20261019-031049-d6c1ff15 is admitted and has one
+durable waiter; its mutable shared inputs may overlap these refinements.
+
+Final focused check: 59/59 model tests in three files pass; final types and
+scoped lint pass with empty diagnostics (/tmp/wc-glb-imported-{tests,types,lint}-final.log).
+The previous phone preflight also passes (/tmp/wc-glb-imported-prior-phone.log).
+The final HDR-compatible lifecycle restart is pending before browser checks.
+
+Fresh review 1 after focused checks: compared each admitted extension field
+against the canonical Khronos schemas and installed loader code. Reviewed
+factor endpoints/defaults, HDR color shape/range, normal scale, required versus
+advisory extension admission, unlit exclusions, texture indices, unknown
+extensions and image decode/network limits. No material finding remains after
+the HDR and test-isolation corrections. No changes to unrelated UI or files.
+
+Served browser proof passes at 390px and 1440px: exact imported phone reports
+30 rendered meshes / 8,557 triangles, screen and lens textures are visible,
+zoom/fit/orbit/wireframe/background work, context loss recovers, and replacement
+releases the old context. The prior authored phone also reaches ready at both
+widths. No page errors, external requests or horizontal overflow. Evidence:
+/tmp/wc-glb-imported-browser.{json,log}; inspected screenshots
+/tmp/wc-glb-imported-{390,1440}.png and light variants. Final healthy/readiness
+build: sha256:2ba56bf90e05571331b7022307438bdc9ba2965cfd9cd12f59cbabc65ec4ccab. Desktop Focus uses keyboard
+activation around the previously reported approval-banner pointer overlap
+(knw-1792378488243184087); that unrelated issue is unchanged, not re-reported.
+Native Safari/iPhone remains unverified; mobile proof is touch/Chromium emulation.
+
+Fresh review 2: checked final narrow/desktop rendered output, material/texture
+preservation, both reported phones, error/recovery and resource ownership paths,
+and portable tests without private fixture paths. No new material issue found.
+No product changes after final browser proof. Remaining: terminal unit receipt
+and completion journal, not additional implementation.
+
+Final unit run 20261019-031049-d6c1ff15 is terminal FAIL after 352 seconds.
+One durable waiter completed inline (AM parking token expired). Inspected the
+unfiltered catalog and opaque findings.report artifact
+artifact_ab1bb35fac90341f69c44eec492a40d0. The existing approvals keyboard/REST,
+locale shape/interpolation failures, image-test provider-policy drift and
+83.8% versus 85% function-coverage threshold remain; no model assertion failure
+is reported. Existing bug records cover these families; no duplicate report,
+threshold relaxation or unrelated repair. Evidence: /tmp/wc-glb-imported-testgenie-
+{result,catalog,findings}.json and /tmp/wc-glb-imported-unit-diagnostics.txt.
+The receipt spans shared-worktree refinements; do not claim isolated exact-input
+or whole-scenario certification. All owned suite/lifecycle/browser operations
+are terminal. The repair boundary is complete. Completion work-record:
+91379ca5-abc6-48f8-b938-0bf8582bad78 (/tmp/wc-glb-imported-work-record.json).
+No required in-scope work remains.
+
+
+## 2026-10-18 — Blender GLB transmission material rejection (bounded W3 repair)
+
+Operator reports original-iphone16pro-iter03.glb failing with the unsupported
+features fallback (IMG_1753.png). Established expected behavior: inspect bounded,
+self-contained static models with their authored materials. This is a localized
+W3 implementation repair, not a contract or scenario readiness review.
+
+Recall: prior 3D implementation record 48b9a6f8-db0f-4fa3-98f1-dcf3ee61ffb5
+and ARCHITECTURE.md “3D model inspection”; search ranking was degraded. Prior
+external-resource and allocation protections are relevant, with no evidence of
+their earlier failure recurring. Source GLB is 2,583,052 bytes, 57 meshes,
+no skins/animations, one embedded PNG and KHR_materials_transmission.
+
+Hypotheses before repair:
+1. Preflight rejects the transmission material extension although the installed
+   GLTFLoader implements it. Test: inspect extension payloads and run the exact
+   file through prepareModel; admit transmission in a controlled probe.
+2. Geometry/image budgets or malformed embedded bytes cause the failure.
+   Test: rerun the unchanged full preflight with only transmission admitted.
+3. Browser texture/WebGL loading fails independently. Test: render the exact
+   file through the served worker/renderer at narrow and desktop widths.
+
+Harness handoff: restore the reported self-contained GLB preview with authored
+transmission materials. Keep current byte/geometry/texture/network limits and
+unsupported compressed/skinned-model fallbacks. Prove a failing-then-passing
+portable regression, the exact source preflight, focused model tests, types/lint,
+scoped Test Genie unit receipt and served narrow/desktop WebGL inspection.
+Record findings here, preserve shared edits, and finish after two fresh review
+passes find no material issue. No dependencies, new UI, commit, or broad
+certification claim is required. If interrupted, retain remaining/unverified work.
+
+Diagnosis: the exact source fails prepareModel with `unsupported` before repair
+(/tmp/wc-glb-exact-before.log). Adding only KHR_materials_transmission to the
+allowlist lets the same complete preflight pass (after log), rejecting the
+budget/malformed-data hypothesis. It has 58,196 triangles and uses transmission
+factor 1 on two glass materials. Installed Three.js 0.185.1 implements this
+extension; the Khronos specification restricts its factor to 0–1 and excludes
+combination with unlit. Repair validates those restrictions and the optional
+texture index/coordinate before the unchanged embedded-image checks. Unknown
+extensions, skins, sparse accessors, external assets and all budgets stay guarded.
+
+Portable regression: two GLB/glTF material-preservation tests fail before the
+repair; /tmp/wc-glb-before.log. The final model/parser/hook/UI set passes 45 tests
+in three files, /tmp/wc-glb-tests-final.log. Malformed factors/payloads/references,
+external transmission textures and conflicting unlit materials are covered.
+Types pass; a test matcher introduced an unsafe-any lint warning, replaced with
+an explicit typed URI assertion. Final scoped lint is clean. Initial one-shot
+checks used an incorrect relative path for installed renderer source and did
+not inspect it; corrected owner-source reads verify transmission allocation
+follows the bounded viewport and the existing forced context teardown frees it.
+
+First review: inspected preflight/loader handoff, material defaults, texture
+allocation/network admission, viewport target bound, and close/context-loss
+ownership. No material finding remains. No dependency or UI layout change.
+Served browser proof and the unit-phase receipt are pending.
+
+The initial browser probe successfully rendered the exact GLB but incorrectly
+expected the 57 glTF mesh definitions to equal the renderer's mesh count. One
+multi-primitive definition yields 58 rendered meshes; the 58,196-triangle total
+is unchanged. Corrected the probe's assertion rather than changing product code.
+
+Served proof now passes at 390px and 1440px: /tmp/wc-glb-browser.json and
+/tmp/wc-glb-browser.log. The exact source renders its screen texture and glass,
+reports 58 rendered meshes / 58,196 triangles, and preserves zoom/fit/orbit,
+wireframe, background switching, graphics-context recovery, old-context teardown
+on replacement, and the original sculpture fixture. No page errors, external
+requests or horizontal overflow. Screenshots /tmp/wc-glb-{390,1440}.png and
+/tmp/wc-glb-light-{390,1440}.png were inspected. Native Safari/iPhone remains
+unverified; the mobile proof is Chromium with touch/390px emulation.
+
+Desktop pointer activation of Focus was intercepted by the separate existing
+approval banner (workspace-top-edge Review). The final probe uses keyboard
+focus/Enter, not a forced pointer click; no claim that pointer overlap is fixed.
+This adjacent shell issue is outside the material repair and was published via
+report-bug as knw-1792378488243184087.
+An extra lint invocation from repository root found no configuration and was
+not treated as product failure; the UI-owner scoped lint already passed cleanly.
+
+Closing review 1: freshly checked the changed parser and portable tests against
+factor defaults/bounds, invalid references/payloads, unlit incompatibility,
+unsupported extension and external-texture fallbacks, and unchanged allocation
+limits. No material finding remains.
+Closing review 2: freshly reviewed actual narrow/desktop visuals and source
+lifecycle paths, including transmission texture ownership, forced context cleanup,
+selected-scene sanitization and regression portability (no private absolute paths
+in maintained tests). No material finding remains within the repair boundary.
+Unit-phase verdict and completion journal remain pending; no certification claim.
+
+Final scoped Test Genie unit run 20261019-025001-d1274932 is terminal FAIL,
+379 seconds. One durable waiter attached; AM parking token had expired, so the
+same waiter completed inline. No polling or second suite. Read the unfiltered
+catalog and findings.report artifact_73e93bd498a9efb1a30cecbb0f79d589; retained
+/tmp/wc-glb-testgenie-{result,catalog,findings}.json and decoded native diagnostic
+strings in /tmp/wc-glb-unit-diagnostics.txt. The receipt shows the previously
+recorded approvals keyboard contract, approvals REST-exception check, locale
+shape/interpolation failures, 83.79% function coverage versus 85%, and the
+existing useImageInspection direct-render policy finding. No model assertion
+failure is reported. No threshold/guard changes or duplicate reports for these
+known families. Mutable shared inputs limit exact-version attribution; receipt
+is not whole-scenario certification. All owned suite/restart/browser operations
+are terminal; serving build sha256:2eb5481a98c38a6ffa0591f3edf458c32db911a7d666a4958ca8ce7c111996af
+is healthy/readiness true. Implementation boundary remains closed after the two
+fresh review passes. Completion work-record: 52fd6ce2-3d5d-45a8-b299-37bffb343248
+(/tmp/wc-glb-work-record.json). No required in-scope work remains.
+
+
+## 2026-10-18 — SQLite preview (bounded W3 task, implemented)
+
+Operator: “Let's do it!” following the read-only SQLite browser proposal. Scope:
+existing preview subsystem, additive proto kind, snapshot representation of the
+existing blob route, governed browser SQLite dependency, tests/fixtures/docs.
+Expected behavior is established; no disputed upstream contract. This is W3
+implementation, not a scenario-wide W0–W2 or maturity certification.
+
+Harness handoff: Work until ARCHITECTURE.md “SQLite database inspection” is
+implemented and proven by focused Go snapshot/security/routing regressions,
+worker/query/lifecycle/UI tests, type/lint/build, scoped Test Genie unit receipt,
+and actual served desktop/mobile inspection. Follow docs/mockups/sqlite-preview.svg
+and the established artifact family; concept was proposed in chat and operator
+authorized implementation. No new primary route or human-ratified L4 claim.
+Preserve unrelated shared edits. Fix in-boundary findings; file adjacent defects.
+Blocked means a decision, credential, or approval you lack. Name it. Keep going
+through friction; when progress stalls, step back — write why, then park, switch
+or shrink — instead of stopping or adding more of the same. Finish after two
+fresh review passes find nothing material. Checkpoint changed, verified,
+remaining and unverified here if interrupted. No SQL editor, mutation, new
+permission flow, commit, comprehensive certification, or weakened checks.
+
+Recall found preview architecture/history but no reusable database viewer;
+some ranking/recall providers were degraded. Reuse existing modernc SQLite,
+ArtifactChrome, worker byte transport, shared dialogs and clipboard. Target
+limits and both media compositions are recorded before product changes.
+
+Implementation checkpoint: database kind (enum 20), common extensions and header
+sniffing are wired through Go/Connect/UI/registry/folder icons. The existing blob
+capability accepts representation=sqlite-snapshot; no new path-based or SQL API.
+Source mode=ro plus trusted_schema=OFF/query_only and an explicitly pinned read
+transaction precede size admission and incremental backup into private memory.
+Only the completed image's WAL header is normalized; tests prove committed WAL
+rows, unchanged database/journal bytes, point-in-time isolation and refresh.
+Native work is limited to two concurrent snapshots, 32 MiB logical/physical size,
+128-page steps, 100ms busy waits and a 5s context checked between steps. Worker
+queries are generated SELECTs with quoted/validated names, bound literal filters,
+engine-read-only deserialization, disabled executable schema/view/extension
+features, reduced SQLite limits and a 2s progress handler plus 5s host cutoff.
+No custom SQL, source journal-mode change, OS sqlite command or persistence.
+
+Budgets: 256 ordinary tables, 128 columns per table, 64 indexes, 128 foreign-key
+entries, 50 rows/page and 100,000 preview rows, 16,384 characters/cell (<=64 KiB),
+1 MiB schema and page payloads. Binary cells never load blob content. Integers
+remain strings to preserve int64 values. CSV exports only the current page,
+escapes formula-like text and marks shortened values. Each worker and export
+object URL has an explicit teardown owner; late replies are ignored by identity.
+
+Initial probes and corrections: blank-parameter binding was rejected by the
+actual official engine, so parameterless statements no longer call bind([]).
+The native backup retained WAL-mode header bytes; normalize only its completed
+private image per SQLite cookbook, retaining source-byte assertions. Browser
+review caught unsupported alpha-modified border tokens rendering white; use the
+existing semantic border. Desktop harness initially omitted the drawer Focus
+toggle and incorrectly awaited a grid in the narrow drawer; final harness uses
+the existing focus selector. A fixture-loading URL under jsdom was HTTP rather
+than file; the real-engine test now uses the maintained fixture path. A temporary
+CSV refactor misplaced join outside row mapping; explicit header/rows construction
+and a CSV row-count assertion guard the correction. All these failing probes
+were diagnostic, not adopted passing evidence.
+
+Validation so far: 36 database-focused browser-unit tests pass, including real
+WASM parsing/querying/read-only enforcement, schema and payload bounds, worker
+transport/recovery and lifecycle, and local mobile Back. Earlier preview-family
+run passed 371 tests / 53 files; exact final small changes have focused checks.
+Scoped types/lint clean. Go snapshot packages and HTTP capability/header tests
+pass. SDA installed @sqlite.org/sqlite-wasm 3.53.4-build2 (Apache-2.0 wrapper / public
+domain core), no runtime transitive dependencies or install scripts. Governance
+validation passes with 10 existing warnings; no new SQLite dependency finding.
+Security Health status was read; this is not a new clean vulnerability scan.
+
+Test Genie unit run 20261019-010752-3233fe30 was server-owned and attached once with
+runs wait; its terminal receipt is recorded below. It was admitted before the final pinned-read
+hardening, fixture naming and schema-layout polish, so it will not be represented
+as isolated exact-source certification. No check weakened or unrelated repair.
+
+Served Chromium passes at 390px and focused 1440px: real tables, literal filters,
+pagination, JSON cell details, schema/indexes/relationships, current-page CSV,
+refresh, int64/text/blob cases and corrupt fallback. Additional 320px checks pass
+for unavailable WASM, expired-handle recovery, searchable table chooser, AR/JA
+options and constrained input-height containment. Initial "light" harness only
+set an unused theme attribute; it is not light-theme proof. A final check will
+apply the actual derived light palette and assert the computed background.
+Native Safari, Windows runtime, and a real phone software keyboard remain
+unverified. Chromium captures and mocked cutoff tests do not prove those paths.
+
+
+
+Closing review findings and resolutions: the SQLite deserialize contract frees
+FREEONCLOSE buffers on failure as well as success. Ownership is now transferred
+before checking its return code, avoiding a second free, with a pointer-specific
+failure regression. Untrusted images receive the documented 20 trailing padding
+bytes, excluded from logical database length. An initial test counted unrelated
+internal allocator frees; the adopted test checks the actual image pointer.
+Review also found SQL LIKE's underscore wildcard could hide valid user table
+names beginning with "sqlite"; GLOB now excludes only the reserved sqlite_ prefix,
+with a real-engine regression. Desktop schema details use the available width
+for columns alongside indexes and relationships. All findings were in scope.
+
+Test Genie 20261019-010752-3233fe30 is terminal FAIL (unit, 397s). Published typed
+artifact findings report lists four failed assertions: approvals overlay keyboard
+contract, approvals REST exception, and approvals/terminal locale key/token
+parity. Aggregate function coverage is 83.79% versus 85% (not an unchanged-baseline
+claim). A separate provider policy finding points to existing useImageInspection
+render imports, already filed as knw-1792296322249006933. Approvals keyboard is
+already knw-1792357420384370598; other families are previously recorded. No duplicate
+bug report or unrelated repair was made. No SQLite assertion failure appears in
+that receipt. It predates the final allocation/prefix hardening; final focused
+checks and served inspection cover those changes, not a whole-scenario certificate.
+Evidence: /tmp/wc-db-testgenie-{result,findings,catalog-all}.json and
+/tmp/wc-db-global-diagnostics.txt. Canonical opaque findings artifact id:
+artifact_beda02ffd293a8b03614f9faa0cac857.
+
+Final browser checks verify 390px record flow and focused 1440px grid, plus320px
+unavailable/expired/AR/JA and a derived light content palette. Light harness now
+leaves the shell's intentionally dark portaled dialogs pinned to their own theme;
+its first attempt incorrectly overrode dialog tokens and is not adopted evidence.
+Both content and options dialog pass WCAG2A/AA/2.1AA axe checks in dark and derived
+light content contexts (zero violations). No claim of an app-wide light-theme
+switch is made. Captures: /tmp/wc-db-{390,1440}.png, schema/cell/edge variants,
+/tmp/wc-db-extra-{ar,ja,light}.png and /tmp/wc-db-keyboard.png. Browser result records:
+/tmp/wc-db-browser.json and /tmp/wc-db-extra-browser.json; /tmp/wc-db-axe-*.json.
+
+
+The final table-picker refinement confines search to the searchable dialog;
+selecting a result clears that search and the main dropdown always retains all
+tables. It cannot silently leave the primary table selector filtered. Focused UI
+checks pass after that change. The final preview family passed 373 tests /53 files
+(/tmp/wc-db-preview-final.log), and 36 database checks pass
+(/tmp/wc-db-focused-final.log). Final types and scoped lint are clean; selectors,
+typed strings and 62 database EN/AR/JA keys/interpolation tokens are in sync.
+Latest affected Go packages and two HTTP snapshot tests pass
+(/tmp/wc-db-go-final.log, /tmp/wc-db-http-final.log). Proto owner verification
+passes, artifact 5d445b6bb3471e7e9a22ad6d4a4332449a8d3507efe5a74ee7c50411640da1ad,
+source sha256:3379b11f727c0f28c1e2eef47fc8707cf5287995a742fe50672fc5b6dd777527.
+
+An additional portability probe caught Go URL formatting a Windows drive as an
+URI authority (file://C:/...). The snapshot URI builder now emits file:///C:/...
+and preserves encoded punctuation; Go regressions cover drive, Unix and network
+paths. These are URI portability proofs, not native Windows runtime proof.
+
+Fresh closing review 1 (after allocation/prefix/chooser/URI fixes): inspected query
+construction, read-only admission, allocation/cursor/connection/worker cleanup,
+budgets, stale/cancel behavior, int64/NULL/blob representation, schema bounds,
+export escaping, responsive navigation and recovery. No material finding.
+No tests disabled, coverage floors changed, unrelated source repaired, or commit
+created. Shared working-tree edits are preserved. Final served adoption is recorded below.
+
+
+Fresh closing review 2: reviewed the adopted desktop/mobile captures against the
+mockup and existing artifact family, exercised table-picker search without
+leaking its filter, schema/cell/record navigation, download/CSV/recovery, payload
+bounds, source snapshot consistency and teardown. No material finding. The two
+fresh reviews are self-verification, not independent human acceptance or L4.
+
+Final managed restart is healthy with readiness=true, serving build
+sha256:b7cc535d7182efeb21e74a507ae2625f725aad9f1dcca1e0b90a834d8efc03f9. Adoption logs:
+/tmp/wc-db-adopted-native-restart.log and /tmp/wc-db-health-adopted.json.
+Final actual-browser runs /tmp/wc-db-browser-adopted.log (390/1440) and
+/tmp/wc-db-extra-adopted.log (five320px variants) both pass; 7 result records,
+no page errors, no horizontal overflow, and four axe contexts with zero
+violations. The constrained-height check is simulated, not a real keyboard.
+No product work remains in this bounded task. Native Safari/Windows runtime
+and whole-scenario certification remain unverified/outside this evidence.
+
+
+A final large-binary stress regression found length(CAST(blob AS BLOB)) defeats
+SQLite's length-only column optimization, causing SQLITE_TOOBIG for a 2 MiB
+payload despite rendering only its size. The projection now takes length(blob)
+directly for binary types and never materializes their content. The real-engine
+2 MiB regression failed before and passes after the correction. Prior journal
+checkpoint 7faa5c42-c647-4f18-a46e-cfe1d585b09d predates this additional fix;
+final completion evidence below supersedes its build/test counts. The prior
+closing passes are not adopted as the final reviews after this finding.
+
+
+Post-stress closing review 1: checked direct length-only BLOB access versus text
+conversion, default stable ordering, row/page/schema budgets, source read-only
+transactions, worker/allocation teardown, filter/search/sort state and all
+responsive navigation/recovery paths. No material finding after the BLOB fix.
+The 37 database-focused tests now pass, including the failed-before 2 MiB case;
+final types and scoped lint remain clean. Final adoption and second post-stress
+review follow the managed restart; no more product changes are planned.
+
+
+Final post-stress adoption: managed restart healthy/readiness=true, build
+sha256:7af7b0a93551b991dcc8445a345f4933f34308ca21ae5972b9c7d93c6f306990. /tmp/wc-db-blob-restart.log and
+/tmp/wc-db-health-release.json record this identity. Both actual-browser runs
+/tmp/wc-db-browser-release.log and /tmp/wc-db-extra-release.log pass: 390px,
+focused1440px, and six320px variants, now including a real served 2 MiB BLOB.
+Eight result records, no page errors/overflow, and four zero-violation axe
+contexts. The searchable chooser retains all four tables after choosing a
+filtered result. Final source has 37 passing focused database tests, clean
+types/scoped lint, and unchanged passing Go/proto/selector/string checks.
+The 373-test preview family receipt precedes the final BLOB projection; its
+failed-before/passing-after real-engine regression and served test cover that
+last change. The Test Genie failure and all platform limits above still apply.
+
+Post-stress fresh review 2: checked the final rendered grid/records/schema/cell
+flows against the mockup and existing family, query/filter and download behavior,
+large-binary isolation, current build identity, lifecycle cleanup, and recovery.
+No material finding. Together with post-stress review1 this closes the bounded
+task; these are self-reviews, not independent human or whole-scenario acceptance.
+No product work remains. All owned test runs and managed restarts are terminal.
+
+
+Completion work record: 9ca5d3a0-e27a-4687-8a94-45f79626ee10.
+
+
+## 2026-10-18 — Font specimens (bounded W3 task, implemented)
+
+Operator: “Yes, let's do fonts!” Expected behavior and proposed examples are
+established in the conversation. Currently TTF/OTF/WOFF/WOFF2 have no dedicated
+classification or renderer. Scope is the existing preview subsystem, additive
+proto kind, generated outputs, governed fontkit dependency, tests and docs.
+No disputed upstream contract; this is a scoped W3 implementation addition.
+Concept and responsive composition extend the approved artifact family and
+prior operator direction to avoid content containers. Target: ARCHITECTURE.md
+“Font specimens” and docs/mockups/font-preview.svg. No scenario-wide maturity
+or human-ratified L4 claim.
+
+Harness handoff: Work until that font specimen target is implemented and proven
+by focused parser/lifecycle/UI and Go routing regressions, types/lint/build,
+scoped Test Genie unit phase and served desktop/mobile inspection including
+real fonts, corrupt/oversize fallbacks and cleanup. Keep going through friction;
+when progress stalls, step back — write why, then park, switch or shrink — instead
+of stopping or adding more of the same. Blocked means a decision, credential,
+or approval you lack. Name it. Finish after two fresh review passes find no
+material issue. Checkpoint changed, verified, remaining and unverified here if
+interrupted. No unrelated repairs, disabled checks, commit or certification.
+
+Recall supplied existing artifact architecture and preview history; ranking
+providers were partly degraded. No reusable font preview surfaced. Fontkit
+2.0.4 (MIT) was selected for WOFF2 metadata/actual coverage over opentype.js,
+and recorded/installed through SDA with lifecycle scripts disabled.
+
+
+Implementation checkpoint: kind `font` (enum 19) is wired through Go, Connect,
+TypeScript, the renderer registry and folder glyphs. Native FontFace is scoped
+to a unique family and removed on teardown; neither worker validation nor
+rendering installs a font. The worker parses actual mappings without expanding
+cmap ranges, bounds name-string duplication and axis/cmap counts, and admits
+only native-sanitized bytes to fontkit. Review found its Brotli decoder grows
+output beyond the expected length, so header bounds alone were insufficient;
+worker/native validation now precedes all library decompression and has ordering
+and rejection regressions. Variable axes use authored ranges; no synthetic
+bold or italic. Character pages are bounded to 96 items; invisible formatting
+controls are omitted from the grid. Sample length is bounded without splitting
+an inserted astral character.
+
+Owner generation and verifier pass. Initial generation overlapped the additive
+source edit and verifier honestly found drift; final scoped regeneration fixed
+it. UI's installed proto copy was stale, so governed lifecycle setup refreshed
+it, with no consumer shim. Proto artifact
+5cc548e965b75fbbc4060ac15916579cebdcdcda14b0bc97b072e9920d732cb4,
+source sha256:5a4c053afe9dc72c842d2580363e7a2f2c33c7254be8fd9a5c0b82cec7ba76fe.
+Focused preview/API regressions: 338 PASS / 51 files; changed Go packages PASS;
+types and scoped ESLint pass. Further UI finish and two regression additions
+are undergoing their final scoped check. All four real formats plus an original
+variable font loaded at 390px and 1440px in Chromium, including actual mapped
+character search/insertion, options, corrupt fallback and zero retained preview
+faces after replacement/failure. Evidence /tmp/wc-font-browser.json and captures
+/tmp/wc-font-{390,1440}.png. Phone keyboard-height capture uses constrained viewport
+simulation, not a native phone keyboard. Native Safari remains unverified.
+
+Visual review replaced unsupported currentColor opacity classes with the shared
+border token, removed glyph row dividers, strengthened Unicode labels and named
+the character count. First UI test failures were harness cimode labels and modal
+background inaccessibility, corrected without changing product behavior. Python
+WOFF2 fixture encoding was unavailable because Brotli is absent; no dependency
+workaround was installed. Existing real WOFF2 is used instead, alongside original
+TTF/OTF/WOFF and variable TTF fixtures. No font license was copied.
+
+Scoped Test Genie unit run 20261018-205532-b082349c has one durable waiter;
+terminal verdict pending. The last UI finish overlaps that mutable-worktree run;
+its assertions will be retained without claiming an isolated exact-source input.
+
+Final review found mapped nonbreaking spaces and variation selectors could
+still appear as blank character tiles. A desired-behavior regression failed
+before the fix (/tmp/wc-font-invisible-before.log); Unicode whitespace/control/
+default-ignorable filtering now omits those while preserving private-use icon
+mappings. This is the last product change. New sample insertion also preserves
+supplementary-plane characters at its 1,000 UTF-16-unit limit. Final focused
+font group is 30 passing tests; the full preview family is being rechecked.
+
+Fresh review pass 1 after these fixes: reviewed storage and decompression
+admission order, metadata bounds, native font ownership, worker/native deadlines,
+source renewal and late-result suppression, render-only font scoping, Unicode
+search/insertion, axis/style fidelity and download recovery. No material finding
+remains on the active preview path.
+
+Served browser proof before the last character filter: all formats and variable
+TTF pass at 390/1440px; 320px long-text/AR/JA options, no FontFace API fallback,
+and an actual expired blob followed by Reopen recovery pass. Axe WCAG A/AA/2.1
+AA checks have zero findings for both default and explicit light specimen stages
+(/tmp/wc-font-axe.json, /tmp/wc-font-axe-light.json). Color changes are scoped to
+the specimen; app chrome keeps shared tokens. A final managed restart will
+adopt the last character filter and repeat served checks.
+
+The first unit run completed FAIL in 381 seconds. Retained diagnostics:
+/tmp/wc-font-testgenie-result.json, /tmp/wc-font-testgenie-catalog.json,
+/tmp/wc-font-testgenie-report.json, /tmp/wc-font-unit-diagnostics.txt. It reports
+approvals REST policy, approvals/terminal AR/JA parity, the approvals drawer's
+keyboard opt-in, function coverage 83.93% versus 85%, and the font astral-limit
+assertion during the overlapping edit. The current font assertion passes in a
+coverage-instrumented run (six tests), as well as the stable focused family. The
+filtered coverage command deliberately retains global floors and exits 1 because
+unselected app paths are unexercised; only its six assertions are claimed passing
+(/tmp/wc-font-coverage-regression.log). Mixed-source cache timing is an inference,
+not a proven root cause of the first receipt's font assertion. No floor was lowered.
+
+The approvals keyboard omission reproduces independently (1 fail / 58 pass)
+in /tmp/wc-font-unrelated-overlay.log, and was filed through report-bug as
+knw-1792357420384370598. Recall for duplicate context had degraded providers; no
+matching report was retrieved. No unrelated approvals source was edited. Existing
+REST/locale/coverage failure families were already present in prior preview receipts.
+
+Closing script/font review also identified that an icon font or a font lacking
+the UI's script could show mostly fallback letters in its default specimen.
+Defaults now prefer an actually covered language sample, then mapped characters;
+the hero likewise uses authored mappings when Aa is unavailable. User-entered
+text remains exact, with ordinary browser fallback disclosed in options. Two
+regressions protect this choice and private-use glyphs. Run
+20261018-210302-7c4fd5ef was explicitly aborted before this final change, so its
+non-completion is not a failed test verdict. A new unit-only capture is being
+admitted against the now-frozen font product source.
+
+Final specimen check: the actual logo WOFF2 contains an 8,792-byte license
+name record, which correctly exposed an overly strict 4 KiB per-record admission
+limit. The per-record bound is now 32 KiB; aggregate decoded names remain 64 KiB,
+512 records and 160-character returned labels. This preserves amplification
+protection while accepting ordinary OFL-length licenses. A real-file regression
+now protects it. Earlier browser all-format loops lacked an explicit filename
+transition wait; the logo check exposed that harness race. The corrected harness
+waits for the new filename before sample readiness. Early screenshots and
+individual passes remain observations; final adopted-file records are authoritative.
+
+Fresh unit capture 20261018-210533-20504782 has one durable waiter. The font
+specimen defaults are stable; the final license-bound refinement occurred after
+admission. Assertions will be reported with this mutable-input limitation, not
+an isolated-source certification. The intermediate capture
+20261018-210302-7c4fd5ef remains explicitly aborted.
+
+Latest unit receipt 20261018-210533-20504782 is terminal FAIL (388 seconds),
+with no font assertion failure. It reports the existing approvals REST exception,
+AR/JA locale shape/interpolation and aggregate UI function coverage 83.94% versus
+85%. The approvals keyboard contract is absent from this newer failure set;
+shared approvals work can change independently. Full catalog and native bounded
+diagnostics: /tmp/wc-font-testgenie-stable-{result,catalog,report}.json and
+/tmp/wc-font-unit-stable-diagnostics.txt. No policy or threshold was weakened.
+The final exact/short Unicode-code search refinement has its focused regression;
+this receipt is retained with its actual mutable-source applicability.
+
+Full focused preview/API family before the final license regression: 342 PASS
+/ 51 files (/tmp/wc-font-final-regression.log). The final focused font group,
+including the real long-license font and short U+41 lookup, is being checked
+in /tmp/wc-font-release-tests.log. Unicode search prefers an exact mapped
+code point (including omitted leading zeroes), then supports prefix browsing.
+
+Fresh review 1 after the final bounds/search refinements: checked compressed
+size versus actual native admission, total and per-record metadata allocation,
+Unicode/private-use correctness, coverage-aware defaults, renderer and native
+face ownership, timed-out/late work, source reset, variable axis fidelity and
+authenticated same-origin transport. Existing focused/native evidence covers
+the active paths; no material remaining code finding. No new feature was added
+after this review. Awaiting final served visual/interaction check.
+
+Final served evidence: managed restart completed healthy on API 16382 / UI
+21233. Readiness true, build identity
+sha256:6da0bb6109826182fc3b550e3f13a5f64532efbbb894c841dd75e2c16aa2adf4
+(/tmp/wc-font-health-release.json). Final adopted-file browser harness passes
+all four formats, variable TTF and the actual logo font at 390/1440px, with one
+active private face, character search/insertion, size/axes, corrupt fallback,
+download and zero retained preview faces on replacement. Fourteen final records:
+/tmp/wc-font-browser.json and /tmp/wc-font-browser-release.log. Actual icon defaults
+are mapped letters (hero Vi), not a system fallback pangram. The earlier native
+probe that navigated during restart failed as a harness timing error, not a pass;
+final proof waited for the lifecycle owner to return healthy.
+
+Final extra browser checks: 320px long input, no font-loading API, expired blob
+and real Reopen recovery, Arabic/Japanese layout, and actual CSS application of
+letter spacing, line height, centering, kerning and ligatures PASS
+(/tmp/wc-font-extra-release.log, /tmp/wc-font-extra-browser.json). Default/light
+Axe WCAG A/AA/2.1 AA scans have zero violations. Desktop/mobile and light/dark
+composition captures visually inspected against docs/mockups/font-preview.svg;
+no extra content card, no overflow or open visual finding. Final font regressions:
+33 PASS / 4 files (/tmp/wc-font-release-tests.log); TypeScript and scoped ESLint
+PASS (/tmp/wc-font-release-types.log, /tmp/wc-font-release-lint.log); Go changed
+packages PASS; EN/AR/JA font key/token parity and diff whitespace checks PASS.
+
+Fresh review 2: re-read the final controls, fallback and metadata flows, inspected
+the actual final text/icon specimens and responsive settings captures, compared
+them with the mockup and operator feedback, and assessed all retained failures.
+No material font behavior or visual issue remains. The scenario-wide unit failure
+is retained separately; there is no whole-scenario certification claim. Native
+Safari, actual OS font engines and a real mobile software keyboard remain
+unverified (phone layout/keyboard-height proof uses Chromium and a constrained
+viewport). Outcome: implemented and serving, original downloads preserved, no
+unrelated fixes or commit. Refresh an already-open console tab to adopt enum 19
+and the newly built client.
+
+Completed work record: `34d282e6-e4ee-4e21-83d2-714bd724a97a`.
+
+## 2026-10-18 — 3D model viewer (bounded W3 task, implemented)
+
+Operator: “3d sounds interesting! Let's go for it!” Prior feedback: avoid
+unnecessary content containers; match the polished artifact controls. Existing
+GLB resolves to unsupported, while OBJ/STL/glTF can fall through to raw text.
+No disputed upstream contract is implicated; scoped implementation addition.
+Recall found the existing artifact architecture and Three.js ecosystem usage;
+no reusable preview implementation. Source-ledger recall timed out, other
+providers supplied the local architecture.
+
+Harness handoff: Work until the formats and UX specified in ARCHITECTURE.md
+“3D model inspection” and docs/mockups/model-preview.svg are implemented.
+Proof: focused parser/loader/UI and Go classification/transport regressions,
+TypeScript/lint/build, scoped Test Genie unit phase, and actual served WebGL
+inspection at narrow/wide drawer widths, including fallback and teardown.
+Boundary: web-console preview subsystem, its proto kind and generated outputs,
+governed Three.js dependencies, samples and documentation. Keep going through
+friction; when progress stalls, step back — write why, then park, switch or
+shrink — instead of stopping or adding more of the same. Blocked means a
+decision, credential, or approval you lack. Name it. Record findings here,
+resolve user feedback, and finish with two fresh review passes finding no
+material issue. No certification claim or unrelated console repair. If
+interrupted, checkpoint changed, verified, remaining and unverified here.
+
+Implementation and validation checkpoint: kind `model3d` now travels through
+Go classification, Connect enum 18, the generated TypeScript map and renderer
+registry. Three.js 0.185.1 and @types/three 0.185.4 were installed through SDA.
+The parser runs in a terminable local worker; embedded resources and allocation
+limits are checked before Three.js sees bytes. Shared raster-header inspection
+was factored from publication parsing without changing its existing defaults.
+Four original procedural fixtures live at fixtures/file-preview/orbital-study.*.
+The canvas has no extra content card. Secondary tools share InspectionOptions.
+
+Evidence so far: 305 focused preview/API tests in 47 files PASS; 20 parser
+regressions PASS independently; affected Go filepreview and Connect packages
+PASS; TypeScript, scoped ESLint and diff whitespace checks PASS. Proto generation
+used the governed owner; verify-committed-gen passed. An initially stale UI proto
+copy was reconciled through lifecycle setup rather than a consumer shim.
+Build/restart is healthy on API 16382 / UI 21233, identity
+sha256:412e78c2f4a310f9e594011c5c634e4dde3ba3cc0b4c036b5c3190dab58a6678.
+EN/AR/JA 3D key/token parity passes.
+
+Browser proof: /tmp/wc-3d-browser.json and /tmp/wc-3d-browser-verified.log.
+Chromium at 390px and 1440px rendered all four real formats plus the existing
+room_blockout.glb; embedded PNG texture painting, external texture rejection
+with zero remote requests, corrupt-file download fallback, context-loss retry
+and graphics-context disposal on navigation all passed without page errors.
+The first desktop harness assumed viewport width equaled drawer width; it was
+corrected to exercise the actual Focus action, not by changing product code.
+A first dialog-close selector likewise expected “Close” instead of the existing
+“Close options.” Those failed harness attempts are not product passes. Native
+Safari remains unverified. Captures: /tmp/wc-3d-{390,1440}.png and matching
+options/light/textured captures. Original sample normals were corrected before
+the final build; authored normals are preserved for OBJ and glTF.
+
+Scoped Test Genie unit run 20261018-183908-5f0a60c5 is attached once via its
+durable waiter; terminal receipt pending. Baseline capture bypasses the known
+mid-edit phase-cache issue reported in the previous PowerPoint repair. This
+remains a unit-only run despite the CLI banner saying comprehensive.
+
+Hardening review found two allocation-amplification paths: cloned publisher
+extras and repeated texture uploads using one image. Regressions failed against
+the initial parser (/tmp/wc-3d-metadata-before.log and
+/tmp/wc-3d-texture-before.log). Worker JSON decoding now strips unused extras
+and animations; GLB JSON is rebuilt while preserving its binary chunk, and
+only the selected scene reaches the renderer. Image and per-texture pixel
+budgets both apply; labels and sampler count are bounded. Index values are
+checked against position counts before GPU submission. Focused regressions
+now pass 308 tests / 47 files; TypeScript and scoped ESLint remain clean.
+
+The first scoped unit run completed FAIL (388 seconds): console REST-exception
+policy (api/approvals.ts), AR/JA approvals + terminal-hint locale parity, and
+global UI function coverage 83.95% versus 85%. The earlier PowerPoint receipt
+already contained these failure families (84.06% then); coverage includes this
+change and is not claimed to be an unchanged baseline. Existing issues were
+reported previously; no duplicate bug was filed. Catalog and detailed evidence:
+/tmp/wc-3d-testgenie-artifacts.json, /tmp/wc-3d-testgenie-report.json, and
+/tmp/wc-3d-unit-diagnostics.txt. The run overlapped the final parser hardening;
+a fresh unit receipt is being captured against the final source.
+
+Additional browser proof before hardening: actual CDP two-touch gestures
+triggered rendering; simulated WebGL2 absence produced the correct download
+fallback; a settled light-background capture is visually inspected. Evidence:
+/tmp/wc-3d-extra-browser.json, /tmp/wc-3d-light-settled-1440.png. The final
+build will repeat the served checks after the sanitizer/texture-budget change.
+
+Closing review checkpoint: a preset chosen during loading initially could be
+lost when the stage initialized. ModelReader now reapplies the selected view
+on stage readiness; the focused regression passes. Final focused suite:
+309 tests / 47 files PASS (/tmp/wc-3d-regression-delivery.log). Latest
+TypeScript/scoped ESLint PASS (/tmp/wc-3d-types-delivery.log,
+/tmp/wc-3d-lint-release.log, /tmp/wc-3d-last-lint.log). Build PASS
+(/tmp/wc-3d-build-delivery.log). Source is stable for final served verification.
+
+Fresh review 1 after hardening: parser bounds, URL authority, GLB reconstruction,
+image/texture allocation, scene graph and index integrity, worker deadlines,
+and abort/close/renewal ownership reviewed against actual tests. No material
+findings remain on the active file-preview path. Remaining broad console
+checks are tracked separately; none were weakened or hidden.
+
+Fresh unit receipt: 20261018-184727-8136890e, one durable waiter attached;
+its result is pending. The last view-readiness fix has focused proof and the
+run's precise source applicability will be retained with its terminal evidence.
+
+Final served verification: make restart completed healthy at 14:51:45 EDT;
+API readiness true, build identity
+sha256:abfdb9491887acc13ba3fd01fe3a99c32699167a013a658f804ecc7bcdf03f56
+(/tmp/wc-3d-health-delivery.json). Repeated real-model/texture/fallback/context
+checks pass on the final served build at 390px and 1440px with no page errors
+or remote asset requests (/tmp/wc-3d-browser-delivery.log and
+/tmp/wc-3d-browser.json). Touch, WebGL absence and light-background checks pass
+again; a delayed blob response confirms a Top preset chosen during loading is
+applied to the actual stage. Capture /tmp/wc-3d-loading-top.png is visually
+verified against the orientation and controls. The harness was corrected to
+click the visible radio label, matching the actual user action, after the
+screen-reader-only input was correctly covered by its label. This is not a
+product change or a claimed passing result for the failed harness attempt.
+
+Fresh review 2: final desktop and phone captures match the immersive stage and
+compact shared chrome in docs/mockups/model-preview.svg; no extra canvas card.
+Checked options, light stage, keyboard/touch access, preset startup, content
+framing, download preservation, translation keys, cleanup and source resets.
+No material findings remain in the assigned boundary. Two consecutive fresh
+closing passes are clear after the hardening fixes. Native Safari and unusual
+GPU drivers remain unverified; supported browser capability is checked at runtime.
+
+Terminal receipt: fresh unit run 20261018-184727-8136890e completed FAIL
+in 394 seconds. Retained failures: api/approvals.ts REST-exception policy,
+AR/JA approvals + terminal-hint locale parity, and global UI function coverage
+83.98% versus 85%. No 3D test failure is reported; final focused regressions
+remain 309/309. The view-readiness fix overlapped this shared-worktree run; its
+focused and final served proofs establish its behavior without an exact-input
+certification claim. Evidence: /tmp/wc-3d-testgenie-release-result.json,
+/tmp/wc-3d-testgenie-release-artifacts.json,
+/tmp/wc-3d-testgenie-release-report.json,
+/tmp/wc-3d-unit-release-diagnostics.txt. No further unit rerun is justified by
+these unchanged failure families. No checks or thresholds were weakened.
+
+Outcome: operator-requested 3D viewer implemented and serving, with four original
+format examples. Bounds, graceful failures, cleanup, responsive interactions
+and delivered visuals have focused and browser evidence. The broader console
+unit suite remains red, so this is not whole-scenario certification. No commit
+was requested or created. Shared unrelated work was preserved.
+
+Completed work record: 48b9a6f8-db0f-4fa3-98f1-dcf3ee61ffb5.
+
+## 2026-10-18 — PowerPoint sample stalls during loading (W3, repaired)
+
+Operator report: “Not sure if it's on my end or what, but the powerpoint example
+isn't loading.” IMG_1730.png shows “Preparing slides…” with no slide metadata.
+Bounded repair: identify and reproduce the startup failure, fix its owning
+boundary while preserving the opaque-origin sandbox and package limits, add a
+regression that fails before the repair, and verify the served sample on phone
+and desktop plus the scoped unit receipt. Earlier Chromium-only evidence did
+not qualify authenticated remote access or native Safari.
+
+Recall found prior tunnel-safe HTML preview work; its existing srcDoc approach
+avoids an additional anonymous document request across Access. Hypothesis A:
+the presentation iframe's anonymous module request loses the parent's access
+cookie, so an authenticated proxy blocks it. Test: keep a valid parent cookie
+and require it only for the renderer asset; inspect the actual request and
+compare unprotected/local loading. Falsified if the frame sends the cookie or
+the protected asset still loads and paints. Hypothesis B: a broken fixture,
+parser or browser startup feature prevents metadata. Test: render the exact
+sample locally with frame errors and actual slide paint checks; independent
+worker/protocol regressions cover package rejection and handshake ownership.
+Local rendering already supports the fixture, but does not establish Safari
+compatibility. A slow connection remains a separate hypothesis until startup
+phase/network evidence distinguishes it.
+
+Reproduction confirmed hypothesis A under a cookie-protected renderer asset:
+the original frame request had Origin:null, no access cookie, and never painted
+a slide; its deadline incorrectly reported a size limit. The unchanged fixture
+rendered locally. Evidence: /tmp/wc-pptx-loading-repro.json and the before-fix
+regression /tmp/wc-pptx-loading-before.log (external script assertion failed).
+The operator's exact native Safari connection remains unmeasured; this is a
+reproduced application loading defect, not a claim to have inspected that device.
+
+The renderer is now an owned, self-contained asset built through Vite's public
+build/plugin APIs in development and production. A bounded host fetch carries
+same-origin credentials; a fresh-nonce srcDoc executes the trusted source only
+inside the existing opaque frame. No anonymous script/module requests leave the
+frame. Startup, HTTP/download and runtime failures stay in the drawer with retry
+and original download, without reporting a package size limit. The renderer
+fetch has a 4 MiB actual byte bound and shares the 25-second startup/processing
+deadline; close, retry, renewal and terminal failure abort it and ignore late
+results. Existing worker package bounds and message-source checks remain intact.
+
+A proposed dynamic-module transport was rejected after the served failure-path
+check triggered the application's stale-chunk page reload. Fetching inert source
+as data avoids that global reload mechanism and permits a real retry. A standalone
+library build also initially retained process.env.NODE_ENV; the owned build now
+defines it explicitly. Neither failed experiment is counted as passing evidence.
+A build that overlapped the localized fallback-copy edit retained the earlier
+copy, so the final release build is recreated from stable source before capture.
+
+Final focused preview/API cohort: **275 PASS / 44 files**. TypeScript and scoped
+ESLint pass. EN/AR/JA presentation keys and interpolation tokens match. Tests
+cover the nonce policy, script-end-tag escaping, bounded authenticated fetch,
+failed downloads, aborts, late results, timeout classification and frame ownership.
+Checks: /tmp/wc-pptx-loading-{regressions-final,typecheck-final,lint-verified}.log.
+
+Validation accounting: run 20261018-170901-a9a47053 overlapped loader/test edits
+and contains two own presentationFrame test failures as well as the docs orphan,
+approvals/locale/policy findings and function coverage threshold. Run
+20261018-171549-7b979399 then reused that failed result in zero seconds, despite
+changed renderer/test source. Neither receipt proves the final source passes.
+The cache observation is published through report-bug as
+knw-1792343949703663260 (possible mid-run identity capture, explicitly speculative).
+A fresh unit run uses the supported --capture-profile baseline cache bypass:
+20261018-171732-1de16450. Its fresh terminal receipt is recorded below; the
+earlier failures are not recast as baseline-only.
+
+Stable release restart completed healthy (API 16382 / UI 21233); API readiness
+is true with build identity sha256:2a438f932ee46cf9381024dc3df7c99af14c1a5998f6ef3ff49a78c47d1d52df.
+The final served proof passes all five cases: normal 390px loading, authenticated
+390px and 1440px loading, one denied renderer fetch followed by Reopen, and one
+injected runtime exception followed by Reopen. Both failures stay in the drawer
+and recover with exactly one main-page navigation. Authenticated runtime fetches
+carry the test access cookie. Ready cases verify slide title, chart, notes,
+thumbnail navigation, EPUB regression, no external frame scripts and inaccessible
+parent document. No unexpected page errors; the injected exception is expected.
+Fallback appears in 141/156ms in the local harness; these are observations, not
+network performance guarantees. Evidence: /tmp/wc-pptx-loading-proof.json,
+/tmp/wc-pptx-loading-proof-release.log and /tmp/wc-pptx-loading-health-release.json.
+The earlier harness clicked Reopen during the drawer entrance animation; ordinary
+Playwright actionability waiting resolves that capture issue without product edits.
+Native iPhone Safari and the operator's actual tunnel remain unmeasured.
+
+Closing review 1 checked the owned asset URL, actual byte bound, nonce-only CSP,
+HTML script-end escaping, opaque-origin isolation, trusted versus publisher code
+and active-frame message ownership. Closing review 2 checked retry/renewal/close,
+worker and download cancellation, late completion guards, fallback copy and
+source download, processing versus startup deadlines, and the global reload
+boundary. No further material issue was found in this repair boundary. The final
+phone capture after a simulated runtime failure and successful retry displays
+the original slide with the existing polished controls and no extra container:
+/tmp/wc-pptx-loading-runtime-failure.png.
+
+Final fresh unit receipt **20261018-171732-1de16450 FAIL** after 369 seconds.
+The before-fix/overlapping presentationFrame failures are absent. Retained
+failures are TestDocsNoOrphans, approvals keyboard placement and REST policy,
+locale key/token parity (approvals plus two terminal hints), and global UI
+function coverage 84.06% against 85%. The existing image-inspection test helper
+policy finding remains. These failures are recorded separately from the passing
+275 focused tests and five served cases; the whole scenario is not certified
+green. Existing QA records cover the recurring docs/approvals/locale/policy
+findings; no duplicate report or unrelated repair is added.
+Receipt/catalog: /tmp/wc-pptx-loading-testgenie-fresh-{result,artifacts}.json.
+Retained findings: /tmp/wc-pptx-loading-unit-fresh-report.json.
+Completed work record: 7023278c-19b8-4079-9430-43346670df17.
+
+## 2026-10-18 — PowerPoint and EPUB previews (W3, implementation complete)
+
+Operator instruction: “Ooo let's do PowerPoint!” following the recommendation
+for slide thumbnails/navigation, fit/zoom and speaker notes. Existing evidence:
+the kind registry has no presentation kind, so PPTX opens UnsupportedPreview.
+Work shape: bounded convergence task. Work until the PowerPoint inspection
+contract in ARCHITECTURE.md is implemented, the paired mockup is reflected in
+served desktop/phone captures, focused parser/protocol/renderer regressions pass,
+and the scoped Test Genie unit phase has a terminal receipt. This extends the
+operator-approved artifact inspection design; no separate plan or Swarm goal.
+Boundary: preview transport/classification, UI reader, locale/selector owners,
+governed dependencies and sample fixtures. Preserve existing preview families.
+Record findings and resolve them; after green run two fresh reviews covering
+correctness, malicious packages, cleanup, maintainability and visual parity.
+Keep going through friction; when progress stalls, step back and record why
+before changing approach. Checkpoint here if interrupted. Report native-platform
+or rendering qualification gaps precisely; do not claim full PowerPoint parity.
+
+Additional operator instruction: “And when you're done, please do epub too!”
+Extend this bounded task sequentially with the EPUB reading contract in
+ARCHITECTURE.md, paired EPUB composition, real sample book, parser/reader
+regressions and served phone/desktop proof. EPUB currently has no dedicated kind
+or renderer. Share package safety code without sharing the distinct reading UX.
+
+Implemented both kinds through the typed resolve/listing adapters and renderer
+registry. The pinned browser PowerPoint renderer runs inside an opaque-origin
+CSP sandbox; controls, notes and text stay in the host's established inspection
+chrome. Thumbnails mount on demand, desktop can retain the rail, phones select
+from a grid, and keyboard/fit/zoom controls keep navigation local. Legacy PPT,
+encrypted, invalid and over-budget decks retain an original download.
+
+EPUB follows package spine order, EPUB 3 nested nav or EPUB 2 NCX, including
+nonlinear notes. The semantic reader has desktop/phone contents compositions,
+fragment-aware within-book navigation, chapter search, text/measure settings,
+estimated progress and owned-image cleanup. Publisher scripts/styles, active
+media and remote content are omitted. Common EPUB 2 XHTML declarations are
+discarded without fetching a DTD; named text entities decode safely while
+literal CDATA remains intact. Fixed-layout fidelity is disclosed.
+
+Both readers share a terminable worker's physical ZIP preflight and streamed
+actual-expansion accounting, with CRC, duplicate/path, count, XML depth/tag and
+raster-dimension limits. No Office/LibreOffice, host converter, extraction or
+third-party upload is used. Dependencies were installed and pinned through SDA;
+governance validation passes with the existing advisory findings. Fixtures:
+`fixtures/file-preview/operations-review.pptx` and
+`fixtures/file-preview/thoughtful-software.epub` contain original sample content.
+
+Focused proof: **266 PASS / 43 preview/API test files**; TypeScript and scoped
+ESLint pass. Focused Go kind/adapter suites pass, including both new blob kinds
+and listing projections. Proto generation and freshness verification pass;
+published artifact bd0c11e68874d78f21a87f8fb94e31be64c11035bc94ccef37bc43243017657b.
+Checks: /tmp/wc-publication-{regressions-final,typecheck-final,lint-final,go-tests}.log.
+
+Served proof before the final renewal/cleanup pass: 390px/1440px English and
+320px Arabic/Japanese cases pass, with 24 scoped WCAG A/AA audits, zero page
+errors and no preview overflow. Checks include slide thumbnails, chart/table
+content, notes copying, keyboard Home, zoom, options, chapter navigation/search,
+within-book fragments, direct and archive-member previews, corrupt/legacy
+recovery, inaccessible parent document and zero external requests from hostile
+PPTX/EPUB fixtures. An additional real chart/SmartArt deck renders without a
+page exception. This is Chromium evidence, not native Safari/Office parity.
+Evidence: /tmp/wc-publication-proof.json, /tmp/wc-publication-proof.log and
+/tmp/wc-publication-{en,ar,ja}-*-{slide,slides,book,options}.png.
+
+Review findings resolved: renderer capture initially preceded thumbnail paint;
+waiting for committed content and paint produces the expected thumbnail grid.
+Added raster area limits, literal CDATA preservation, sanitized HTML bounds and
+cleanup, a fresh byte-URL/frame handshake, index bounds and quiet error chrome.
+The final focused suite includes expected behavior for bombs, CRC corruption,
+path/duplicate/encryption rejection, EPUB 2/3 ordering, internal links, active
+content removal, owned-image revocation and stale/foreign frame messages.
+
+Initial Test Genie unit run **20261018-162024-1dfabb71 FAIL** (360 seconds).
+It overlapped parser edits and reported three publication test failures plus the
+previous docs orphan and approvals keyboard/REST/locale findings. The final
+focused suite now passes those publication tests. Do not attribute that first
+receipt solely to unrelated baseline issues. The stable final receipt and
+served build review are recorded below.
+
+Final scoped unit receipt **20261018-163525-57b079ab FAIL** (370 seconds).
+Its retained failures are the perf-doc orphan, approvals keyboard/REST/locale
+checks and global UI function coverage 84.07% against 85%. No publication test
+failure remains in that receipt. It is not formal baseline attribution and the
+whole scenario is not certified green. A final review then corrected one EPUB
+compatibility case: remote artwork/styles in the manifest are omitted while the
+local spine remains readable; remote spine chapters still fail safely. The full
+**266-test / 43-file** preview/API regression suite, TypeScript and scoped ESLint
+pass after that change. The affected locale sections have matching keys and
+interpolation tokens in English/Arabic/Japanese. The final managed restart is
+healthy; final sample checksums/XML well-formedness pass. Canonical main content
+type, theme style lists and reciprocal speaker-notes relation are included in
+the sample PPTX. No native Office claim is made.
+
+Closing review 1 checked byte/ZIP/XML/image/HTML limits, CRC and path ambiguity,
+declared versus actual expansion, external resource isolation, untrusted metadata
+and old-frame results. Closing review 2 checked keyboard/focus restoration,
+responsive composition, notes/text states, cleanup/renewal, sample coherence,
+original downloads and parity with the paired mockups. After the recorded
+corrections, both reviews found no further material issue in this boundary.
+Final receipt/artifacts: /tmp/wc-publication-testgenie-final-{result,findings}.json.
+Served final proof: /tmp/wc-publication-proof-final.log (all four locale/size
+cases), /tmp/wc-publication-fixture-proof.json (final 390px case including remote
+manifest artwork), and /tmp/wc-publication-health.json. Existing QA records cover
+the repeated broader-suite findings; no duplicate report or unrelated repair.
+
 
 ## 2026-10-18 — Plain-text reader finish (W3, implementation complete)
 

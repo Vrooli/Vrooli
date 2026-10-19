@@ -25,21 +25,26 @@ import (
 type Kind string
 
 const (
-	KindMarkdown    Kind = "markdown"
-	KindCode        Kind = "code"
-	KindText        Kind = "text"
-	KindSVG         Kind = "svg"
-	KindImage       Kind = "image"
-	KindPDF         Kind = "pdf"
-	KindAudio       Kind = "audio"
-	KindVideo       Kind = "video"
-	KindCSV         Kind = "csv"
-	KindSpreadsheet Kind = "spreadsheet"
-	KindDocument    Kind = "document"
-	KindArchive     Kind = "archive"
-	KindDiff        Kind = "diff"
-	KindDirectory   Kind = "directory"
-	KindUnsupported Kind = "unsupported"
+	KindMarkdown     Kind = "markdown"
+	KindCode         Kind = "code"
+	KindText         Kind = "text"
+	KindSVG          Kind = "svg"
+	KindImage        Kind = "image"
+	KindPDF          Kind = "pdf"
+	KindAudio        Kind = "audio"
+	KindVideo        Kind = "video"
+	KindCSV          Kind = "csv"
+	KindSpreadsheet  Kind = "spreadsheet"
+	KindDocument     Kind = "document"
+	KindPresentation Kind = "presentation"
+	KindEbook        Kind = "ebook"
+	KindModel3D      Kind = "model3d"
+	KindFont         Kind = "font"
+	KindDatabase     Kind = "database"
+	KindArchive      Kind = "archive"
+	KindDiff         Kind = "diff"
+	KindDirectory    Kind = "directory"
+	KindUnsupported  Kind = "unsupported"
 )
 
 // MIMEDirectory is the conventional media type reported for a directory
@@ -59,13 +64,18 @@ var textKinds = map[Kind]bool{
 // SVG is served as a blob (image/svg+xml) and rendered via a blob URL rather
 // than injected into the DOM, keeping it XSS-safe.
 var blobKinds = map[Kind]bool{
-	KindSVG:         true,
-	KindImage:       true,
-	KindPDF:         true,
-	KindSpreadsheet: true,
-	KindDocument:    true,
-	KindAudio:       true,
-	KindVideo:       true,
+	KindSVG:          true,
+	KindImage:        true,
+	KindPDF:          true,
+	KindSpreadsheet:  true,
+	KindDocument:     true,
+	KindPresentation: true,
+	KindEbook:        true,
+	KindModel3D:      true,
+	KindFont:         true,
+	KindDatabase:     true,
+	KindAudio:        true,
+	KindVideo:        true,
 }
 
 // listingKinds render from a bounded, paginated Connect listing rather than
@@ -103,7 +113,12 @@ var extKind = map[string]Kind{
 	".m4a": KindAudio, ".aac": KindAudio, ".flac": KindAudio, ".opus": KindAudio,
 	".csv": KindCSV, ".tsv": KindCSV,
 	".docx": KindDocument,
-	".zip":  KindArchive, ".tar": KindArchive, ".tgz": KindArchive, ".gz": KindArchive, ".7z": KindArchive, ".rar": KindArchive, ".xz": KindArchive, ".zst": KindArchive,
+	".pptx": KindPresentation, ".ppsx": KindPresentation, ".potx": KindPresentation, ".ppt": KindPresentation,
+	".epub": KindEbook,
+	".db":   KindDatabase, ".sqlite": KindDatabase, ".sqlite3": KindDatabase,
+	".ttf": KindFont, ".otf": KindFont, ".woff": KindFont, ".woff2": KindFont,
+	".glb": KindModel3D, ".gltf": KindModel3D, ".obj": KindModel3D, ".stl": KindModel3D,
+	".zip": KindArchive, ".tar": KindArchive, ".tgz": KindArchive, ".gz": KindArchive, ".7z": KindArchive, ".rar": KindArchive, ".xz": KindArchive, ".zst": KindArchive,
 	".xlsx": KindSpreadsheet, ".xls": KindSpreadsheet, ".xlsm": KindSpreadsheet, ".xlsb": KindSpreadsheet,
 	".diff": KindDiff, ".patch": KindDiff,
 	".go": KindCode, ".ts": KindCode, ".tsx": KindCode, ".js": KindCode, ".jsx": KindCode,
@@ -118,13 +133,16 @@ var extKind = map[string]Kind{
 // extension has no registered MIME or whose registered MIME we want to override
 // (markdown, csv) so the blob/Connect layers agree on charset.
 var mimeByKind = map[Kind]string{
-	KindMarkdown: "text/markdown; charset=utf-8",
-	KindCode:     "text/plain; charset=utf-8",
-	KindText:     "text/plain; charset=utf-8",
-	KindCSV:      "text/csv; charset=utf-8",
-	KindDiff:     "text/x-diff; charset=utf-8",
-	KindSVG:      "image/svg+xml",
-	KindDocument: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+	KindDatabase:     "application/vnd.sqlite3",
+	KindMarkdown:     "text/markdown; charset=utf-8",
+	KindCode:         "text/plain; charset=utf-8",
+	KindText:         "text/plain; charset=utf-8",
+	KindCSV:          "text/csv; charset=utf-8",
+	KindDiff:         "text/x-diff; charset=utf-8",
+	KindSVG:          "image/svg+xml",
+	KindDocument:     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+	KindPresentation: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+	KindEbook:        "application/epub+zip",
 }
 
 // classification is the result of inspecting a file's extension and (for
@@ -156,6 +174,9 @@ func classify(path string, sniff func() ([]byte, error)) classification {
 	if isProbablyText(data) {
 		return classification{kind: KindText, mimeType: "text/plain; charset=utf-8"}
 	}
+	if len(data) >= 16 && string(data[:16]) == "SQLite format 3\x00" {
+		return classification{kind: KindDatabase, mimeType: "application/vnd.sqlite3"}
+	}
 	detected := http.DetectContentType(data)
 	if k := kindFromMIME(detected); k != KindUnsupported {
 		return classification{kind: k, mimeType: cleanMIME(detected)}
@@ -184,6 +205,16 @@ func IsMediaFilename(name string) bool {
 // canonical override use it; otherwise the registered extension MIME wins, with
 // an octet-stream fallback for blob kinds and text/plain for text kinds.
 func mimeForKind(k Kind, ext string) string {
+	if k == KindPresentation {
+		switch ext {
+		case ".ppt":
+			return "application/vnd.ms-powerpoint"
+		case ".ppsx":
+			return "application/vnd.openxmlformats-officedocument.presentationml.slideshow"
+		case ".potx":
+			return "application/vnd.openxmlformats-officedocument.presentationml.template"
+		}
+	}
 	if m, ok := mimeByKind[k]; ok {
 		return m
 	}

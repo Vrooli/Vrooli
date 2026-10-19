@@ -106,9 +106,27 @@ func TestDocumentPreviewKindMapping(t *testing.T) {
 	}
 }
 
+func TestPublicationPreviewKindMappings(t *testing.T) {
+	for kind, want := range map[string]filepreviewv1.PreviewKind{
+		"presentation": filepreviewv1.PreviewKind_PREVIEW_KIND_PRESENTATION,
+		"ebook":        filepreviewv1.PreviewKind_PREVIEW_KIND_EBOOK,
+		"model3d":      filepreviewv1.PreviewKind_PREVIEW_KIND_MODEL_3D,
+		"font":         filepreviewv1.PreviewKind_PREVIEW_KIND_FONT,
+		"database":     filepreviewv1.PreviewKind_PREVIEW_KIND_DATABASE,
+	} {
+		if got := kindToProto(kind); got != want {
+			t.Fatalf("%s resolve kind = %v", kind, got)
+		}
+		if got := entryKindToProto(kind); got != want {
+			t.Fatalf("%s listing kind = %v", kind, got)
+		}
+	}
+}
+
 func (f fakePreviewService) ListArchive(context.Context, string, string) (ArchiveResult, error) {
 	return ArchiveResult{Status: "ready"}, f.err
 }
+
 func (f fakePreviewService) OpenArchiveEntry(context.Context, string, string, string) (ArchiveOpenResult, error) {
 	return ArchiveOpenResult{Status: "ready"}, f.err
 }

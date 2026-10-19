@@ -11,7 +11,65 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/vrooli/cli-core/cliutil"
 )
+
+func TestExplicitInstanceLeavesProjectHooksUntouched(t *testing.T) {
+	cliutil.SetInstanceOverride("web-console", "presentation")
+	t.Cleanup(func() { cliutil.SetInstanceOverride("web-console", "") })
+	r := testRegistrar()
+	r.lookup = func(string) (string, error) { t.Fatal("explicit instance touched live hooks"); return "", nil }
+	if err := r.register(nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.remove(nil); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestAPIPortPrefersLifecycleEnvironmentToStaleProcessFile(t *testing.T) {
+	r := testRegistrar()
+	r.getenv = func(key string) string {
+		if key == "API_PORT" {
+			return "19876"
+		}
+		return ""
+	}
+	r.readFile = func(string) ([]byte, error) { return []byte(`{"port":19777}`), nil }
+	port, err := r.apiPort()
+	if err != nil || port != 19876 {
+		t.Fatalf("port = %d, %v; want lifecycle port 19876", port, err)
+	}
+}
+
+// Presentation and test instances cannot own the project's live hook IDs.
+func TestNonLiveInstancesLeaveProjectHooksUntouched(t *testing.T) {
+	for _, variant := range []string{"presentation", "shadow", "qualification"} {
+		for _, operation := range []string{"register", "remove"} {
+			t.Run(variant+"/"+operation, func(t *testing.T) {
+				r := testRegistrar()
+				r.getenv = func(key string) string {
+					if key == "VROOLI_VARIANT" {
+						return variant
+					}
+					return ""
+				}
+				r.lookup = func(string) (string, error) { t.Fatal("non-live instance looked up global hook owner"); return "", nil }
+				r.readFile = func(string) ([]byte, error) { t.Fatal("non-live instance read live hook state"); return nil, nil }
+				var err error
+				if operation == "register" {
+					err = r.register(nil)
+				} else {
+					err = r.remove(nil)
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
+			})
+		}
+	}
+}
 
 func TestRegisterReconcilesEveryHook(t *testing.T) {
 	var calls [][]string
@@ -22,12 +80,11 @@ func TestRegisterReconcilesEveryHook(t *testing.T) {
 			calls = append(calls, append([]string{name}, args...))
 			return []byte(`{"status":"applied"}`), nil
 		},
-		sleep:       func(time.Duration) {},
-		stdout:      stdout,
-		stderr:      &bytes.Buffer{},
-		getenv:      func(string) string { return "" },
-		userHomeDir: func() (string, error) { return "/home/test", nil },
-		workingDir:  func() (string, error) { return "/repo/scenarios/web-console", nil },
+		sleep:         func(time.Duration) {},
+		stdout:        stdout,
+		stderr:        &bytes.Buffer{},
+		getenv:        func(string) string { return "" },
+		detectAPIPort: func() string { return "19777" },
 		readFile: func(path string) ([]byte, error) {
 			switch {
 			case strings.HasSuffix(path, "start-api.json"):
@@ -169,7 +226,7 @@ func TestHookTokenRejectsAnEmptyFile(t *testing.T) {
 	}
 }
 
-func TestAPIPortFallsBackToEnvironment(t *testing.T) {
+func TestAPIPortUsesLifecycleEnvironment(t *testing.T) {
 	r := testRegistrar()
 	r.readFile = func(string) ([]byte, error) { return nil, errors.New("missing") }
 	r.getenv = func(key string) string {
@@ -196,14 +253,13 @@ func testRegistrar() *registrar {
 		run: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
 			return []byte(`{"status":"unchanged"}`), nil
 		},
-		sleep:       func(time.Duration) {},
-		stdout:      &bytes.Buffer{},
-		stderr:      &bytes.Buffer{},
-		getenv:      func(string) string { return "" },
-		userHomeDir: func() (string, error) { return "/home/test", nil },
-		workingDir:  func() (string, error) { return filepath.Join("repo", "scenarios", "web-console"), nil },
-		readFile:    func(string) ([]byte, error) { return nil, errors.New("missing") },
-		maxAttempts: 1,
+		sleep:         func(time.Duration) {},
+		stdout:        &bytes.Buffer{},
+		stderr:        &bytes.Buffer{},
+		getenv:        func(string) string { return "" },
+		detectAPIPort: func() string { return "19777" },
+		readFile:      func(string) ([]byte, error) { return nil, errors.New("missing") },
+		maxAttempts:   1,
 	}
 }
 
@@ -214,4 +270,39 @@ func indexOf(values []string, wanted string) int {
 		}
 	}
 	return -1
+}
+
+func TestTokenPathDoesNotReadSecretOrGuessNonLiveStorage(t *testing.T) {
+	r := testRegistrar()
+	r.readFile = func(string) ([]byte, error) { t.Fatal("token-path read a secret"); return nil, nil }
+	r.getenv = func(key string) string {
+		if key == "WC_HOOK_TOKEN_PATH" {
+			return "/target/hook-token.txt"
+		}
+		return ""
+	}
+	if err := r.tokenPath(nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := r.stdout.(*bytes.Buffer).String(); got != "/target/hook-token.txt\n" {
+		t.Fatalf("path = %q", got)
+	}
+	cliutil.SetInstanceOverride("web-console", "presentation")
+	t.Cleanup(func() { cliutil.SetInstanceOverride("web-console", "") })
+	r.getenv = func(string) string { return "" }
+	if err := r.tokenPath(nil); err == nil {
+		t.Fatal("guessed a live path for a non-live target")
+	}
+	r.getenv = func(key string) string {
+		switch key {
+		case "VROOLI_SCENARIO":
+			return "test-genie"
+		case "VROOLI_STORAGE_NAMESPACE":
+			return "test-genie"
+		}
+		return ""
+	}
+	if err := r.tokenPath(nil); err == nil {
+		t.Fatal("accepted an unrelated storage namespace")
+	}
 }

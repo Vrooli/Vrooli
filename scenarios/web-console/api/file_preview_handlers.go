@@ -197,6 +197,11 @@ func (s *Server) handleFilePreviewBlob(w http.ResponseWriter, r *http.Request) {
 
 	defer release()
 
+	if r.URL.Query().Get("representation") == "sqlite-snapshot" {
+		s.serveSQLiteSnapshot(w, r, entry)
+		return
+	}
+
 	if entry.RootID != "" {
 		if err := s.filePreviews.Fresh(entry); err != nil {
 			http.Error(w, "archive preview expired or changed; reopen the original archive", http.StatusConflict)

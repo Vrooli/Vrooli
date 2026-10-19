@@ -220,13 +220,18 @@ describe("scroll transport selection", () => {
   });
 
   it("routes each terminal state to the mechanism that can actually scroll it", () => {
-    // The program asked for the wheel, so it scrolls itself.
+    // A non-tmux terminal whose program asked for the wheel scrolls itself.
     expect(scrollTransportFor(terminal("sgr"))).toBe("mouse-report");
-    expect(scrollTransportFor(altBufferTerminal("sgr"))).toBe("mouse-report");
+    // A tmux pane (alternate buffer) ALWAYS routes to the server, even when the
+    // outer terminal reports mouse tracking: inside tmux that flag is tmux's own
+    // propagation (it appears whenever `mouse on` is set), not a reliable signal
+    // that forwarding raw wheel bytes will scroll the program. Trusting it let
+    // tmux hijack the wheel into copy-mode and strand the pane. The server
+    // forwards the wheel to the program itself via send-keys instead.
+    expect(scrollTransportFor(altBufferTerminal("sgr"))).toBe("server-scroll");
     // Real client-side scrollback: no network round trip needed.
     expect(scrollTransportFor(terminal("none"))).toBe("local");
-    // Neither: only the backend holds history. This is every tmux pane whose
-    // program does not request mouse tracking.
+    // No local scrollback and no mouse tracking: only the backend holds history.
     expect(scrollTransportFor(altBufferTerminal("none"))).toBe("server-scroll");
     expect(scrollTransportFor(null)).toBeNull();
   });

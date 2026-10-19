@@ -44,7 +44,8 @@ Web Console is designed for personal server use — a single operator running th
 ### File inspection
 
 The file drawer supports HTML, audio, images, PDF, video, Markdown, JSON/YAML,
-CSV/TSV, code/logs, unified patches, Excel workbooks, Word documents, and folders. Source readers provide
+CSV/TSV, code/logs, unified patches, Excel workbooks, Word documents, PowerPoint,
+EPUB, archives, 3D models, and folders. Source readers provide
 literal search, original-line navigation, range copying, and log severity filters.
 Change review includes file/hunk navigation, old/new line numbers, and wide
 comparison views. Excel (.xlsx, .xls, .xlsm, .xlsb) provides worksheet selection,
@@ -52,6 +53,13 @@ formatted values, cell/formula inspection, loaded-cell search, address navigatio
 and pagination. Phones use row and cell drill-in views. Workbooks are read-only;
 formulas display saved results without recalculation. Preview limits and errors
 retain access to the original download.
+
+3D previews support GLB, self-contained glTF 2.0, OBJ geometry and STL, with
+orbit/pan/zoom, preset views, wireframe, ground grid, lighting and background
+controls. The viewer is static and read-only. Models requiring separate assets,
+unsupported compression or skeletal/morph geometry retain download access.
+WebGL2 is required; parsing and rendering use bounded local resources on any
+host OS. Try the original [Orbital study model](fixtures/file-preview/orbital-study.glb).
 
 Open `fixtures/file-preview/operations-workbook.xlsx` for a multi-sheet example
 with currency, percentages, dates, booleans, and saved formulas.
@@ -238,3 +246,27 @@ make stop
 
 - Avoid direct process execution outside scenario lifecycle commands.
 - Keep docs and requirements in lockstep as rewrite decisions evolve.
+
+Font files (`.ttf`, `.otf`, `.woff`, `.woff2`) open as local specimens with
+editable text, size/spacing controls, mapped Unicode character browsing and
+authored variable axes. They require no OS installation or remote converter.
+Try the existing [Archivo font](../landing-page-business-suite/ui/public/presentation/archivo.ttf).
+The `console-stencil` fixtures are original geometric test fonts, including
+a variable TTF; they are parser/transport specimens rather than readable typefaces.
+
+
+SQLite files (`.sqlite`, `.sqlite3`, `.db`, or an extensionless SQLite header)
+open in a read-only table browser with column filters, sorting, 50-row pages,
+column/index/relationship details, bounded cell inspection and CSV export of
+the current page. Phones use records with local Back; wide drawers use a grid.
+Try [Project Atlas](fixtures/file-preview/project-atlas.sqlite), an original
+sample with projects, tasks, relationships, JSON, binary and edge-case values.
+
+Database snapshots include committed WAL changes, are limited to 32 MiB, and
+never change the source database's journal mode. Refresh obtains a new snapshot.
+The bundled browser engine uses no system SQLite command, remote viewer, OPFS
+or browser persistence. Views/virtual tables, encrypted databases and incomplete
+journal-dependent archive members are not supported. Values are bounded to
+16,384 characters (at most 64 KiB UTF-8); oversized results require a narrower
+filter. Original download is the raw source file, which may need its journal
+when opened in another application.

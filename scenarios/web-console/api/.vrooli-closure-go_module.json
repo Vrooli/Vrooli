@@ -1,6 +1,6 @@
 {
-  "version": 1,
-  "key": "12256f55289a1e204f81ba0b02e876808d480cd873d452706c139de80e1a4328",
+  "version": 2,
+  "key": "b3f63c630d89525e4659ca892fa5e6d1fa4ffbec65d5faf2299709b16d5dbc76",
   "inputs": [
     "go.mod",
     "go.sum",

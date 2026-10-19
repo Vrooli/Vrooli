@@ -37,6 +37,14 @@ describe("Word preview transport", () => {
   });
 });
 
+describe("publication preview transport", () => {
+  it.each([[PreviewKind.DATABASE, "database", "project.sqlite"], [PreviewKind.FONT, "font", "face.woff2"], [PreviewKind.MODEL_3D, "model3d", "model.glb"], [PreviewKind.PRESENTATION, "presentation", "deck.pptx"], [PreviewKind.EBOOK, "ebook", "book.epub"]] as const)("decodes %s as a local blob preview", async (previewKind, kind, basename) => {
+    const resolve = vi.spyOn(filePreviewClient, "resolve").mockResolvedValue(create(ResolveResponseSchema, { previewKind, previewId: "publication", basename, canPreview: true, canDownload: true, blobUrl: "/blob" }));
+    try { expect(await resolveFilePreview("session", basename)).toMatchObject({ kind, canPreview: true, textContentAvailable: false, blobUrl: "/blob" }); }
+    finally { resolve.mockRestore(); }
+  });
+});
+
 
 describe("archive transport", () => {
   it("decodes archive metadata and preserves physical entry IDs", async () => {

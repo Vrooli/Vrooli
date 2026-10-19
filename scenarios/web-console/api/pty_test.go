@@ -718,3 +718,28 @@ func TestFakePTY_ExitSignal(t *testing.T) {
 		t.Error("session should be auto-removed after exit")
 	}
 }
+
+func TestFilterServiceEnvRemovesAmbientRunIdentityButKeepsSessionOverlay(t *testing.T) {
+	filtered := filterServiceEnv([]string{
+		"HOME=/home/test",
+		"VROOLI_AGENT_IDENTITY_TOKEN=ambient-host-token",
+	})
+	for _, entry := range filtered {
+		if strings.HasPrefix(entry, "VROOLI_AGENT_IDENTITY_TOKEN=") {
+			t.Fatalf("ambient run identity leaked through service filter: %q", entry)
+		}
+	}
+	launched := applySessionEnv(filtered, map[string]string{"VROOLI_AGENT_IDENTITY_TOKEN": "reserved-session-token"})
+	found := false
+	for _, entry := range launched {
+		if strings.HasPrefix(entry, "VROOLI_AGENT_IDENTITY_TOKEN=") {
+			if entry != "VROOLI_AGENT_IDENTITY_TOKEN=reserved-session-token" {
+				t.Fatalf("per-session run identity overlay = %q", entry)
+			}
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("explicit reserved-session identity was lost after ambient filtering")
+	}
+}

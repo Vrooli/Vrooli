@@ -1,6 +1,94 @@
 {
   "schemaVersion": 1,
   "selectors": {
+    "databasePreview.root": {
+      "testId": "file-preview-database",
+      "selector": "[data-testid=\"file-preview-database\"]"
+    },
+    "databasePreview.tables": {
+      "testId": "database-tables",
+      "selector": "[data-testid=\"database-tables\"]"
+    },
+    "databasePreview.grid": {
+      "testId": "database-grid",
+      "selector": "[data-testid=\"database-grid\"]"
+    },
+    "databasePreview.records": {
+      "testId": "database-records",
+      "selector": "[data-testid=\"database-records\"]"
+    },
+    "databasePreview.schema": {
+      "testId": "database-schema",
+      "selector": "[data-testid=\"database-schema\"]"
+    },
+    "databasePreview.navigation": {
+      "testId": "database-navigation",
+      "selector": "[data-testid=\"database-navigation\"]"
+    },
+    "fontPreview.root": {
+      "testId": "file-preview-font",
+      "selector": "[data-testid=\"file-preview-font\"]"
+    },
+    "fontPreview.specimen": {
+      "testId": "font-preview-specimen",
+      "selector": "[data-testid=\"font-preview-specimen\"]"
+    },
+    "fontPreview.sample": {
+      "testId": "font-preview-sample",
+      "selector": "[data-testid=\"font-preview-sample\"]"
+    },
+    "fontPreview.characters": {
+      "testId": "font-preview-characters",
+      "selector": "[data-testid=\"font-preview-characters\"]"
+    },
+    "fontPreview.navigation": {
+      "testId": "font-preview-navigation",
+      "selector": "[data-testid=\"font-preview-navigation\"]"
+    },
+    "modelPreview.root": {
+      "testId": "file-preview-model",
+      "selector": "[data-testid=\"file-preview-model\"]"
+    },
+    "modelPreview.stage": {
+      "testId": "model-preview-stage",
+      "selector": "[data-testid=\"model-preview-stage\"]"
+    },
+    "modelPreview.navigation": {
+      "testId": "model-preview-navigation",
+      "selector": "[data-testid=\"model-preview-navigation\"]"
+    },
+    "presentationPreview.root": {
+      "testId": "file-preview-presentation",
+      "selector": "[data-testid=\"file-preview-presentation\"]"
+    },
+    "presentationPreview.frame": {
+      "testId": "presentation-preview-frame",
+      "selector": "[data-testid=\"presentation-preview-frame\"]"
+    },
+    "presentationPreview.notes": {
+      "testId": "presentation-preview-notes",
+      "selector": "[data-testid=\"presentation-preview-notes\"]"
+    },
+    "presentationPreview.navigation": {
+      "testId": "presentation-preview-navigation",
+      "selector": "[data-testid=\"presentation-preview-navigation\"]"
+    },
+    "ebookPreview.root": {
+      "testId": "file-preview-ebook",
+      "selector": "[data-testid=\"file-preview-ebook\"]"
+    },
+    "ebookPreview.article": {
+      "testId": "ebook-preview-article",
+      "selector": "[data-testid=\"ebook-preview-article\"]"
+    },
+    "ebookPreview.pane": {
+      "testId": "ebook-preview-pane",
+      "selector": "[data-testid=\"ebook-preview-pane\"]"
+    },
+    "ebookPreview.contents": {
+      "testId": "ebook-preview-contents",
+      "selector": "[data-testid=\"ebook-preview-contents\"]"
+    },
     "documentPreview.root": {
       "testId": "file-preview-document",
       "selector": "[data-testid=\"file-preview-document\"]"
@@ -1820,6 +1908,6 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "783bebc443f6ed1e61b95336ffbcebf17c314ab77920d83e535e87e09340ce15",
-    "ui/src/consts/selectors.ts": "70495a288738d6fbe12f380ca01917de1146c0a832c8dcb4f6207c579c6c41e8"
+    "ui/src/consts/selectors.ts": "d6e2cc54625968139e4e3e7632d281de92d5a7a8d4d6f938bf8dfbe191381c67"
   }
 }

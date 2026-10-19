@@ -91,16 +91,26 @@ export function terminalHasLocalScrollback(t: Terminal | null): boolean {
 /**
  * Which mechanism can actually move this terminal's view.
  *
- * - `mouse-report`: the program requested mouse tracking, so it owns the
- *   wheel and scrolls itself (Claude Code, vim, or tmux with `mouse on`).
+ * - `server-scroll`: the pane has no client-side scrollback (every tmux pane —
+ *   it sits in the alternate buffer for its whole life). The server owns the
+ *   movement: it either scrolls the tmux history or forwards the wheel straight
+ *   to a full-screen program via `send-keys`, bypassing tmux's own mouse
+ *   handling. This is checked FIRST and deliberately overrides mouse-report,
+ *   because inside tmux the outer terminal's "mouse tracking on" state is
+ *   tmux's own propagation (it appears whenever tmux `mouse on` is set, even for
+ *   a program that does not capture the mouse). Trusting it made the client send
+ *   raw wheel bytes that tmux then hijacked into copy-mode, stranding the pane
+ *   and defeating the server forward — the exact bug behind "I still can't
+ *   scroll" on a Codex pane with tmux mouse mode enabled.
+ * - `mouse-report`: a non-tmux terminal whose program requested mouse tracking,
+ *   so it owns the wheel and scrolls itself.
  * - `local`: xterm holds real scrollback and can scroll without the network.
- * - `server-scroll`: neither is true — the only history lives in the backend
- *   (a tmux pane), so the server has to do the scrolling.
  */
 export function scrollTransportFor(t: Terminal | null): ScrollTransport | null {
   if (!t) return null;
+  if (!terminalHasLocalScrollback(t)) return "server-scroll";
   if (terminalIsInMouseTrackingMode(t)) return "mouse-report";
-  return terminalHasLocalScrollback(t) ? "local" : "server-scroll";
+  return "local";
 }
 
 /** Apply a local viewport correction through the same terminal scroll seam. */

@@ -1,15 +1,16 @@
 import DOMPurify from "dompurify";
 
 // Word contributes content, never app styles, controls, remote images or code.
-export function sanitizeDocument(html: string, tableLabel: string): string {
+export function sanitizeDocument(html: string, tableLabel: string, ownedImages?: ReadonlySet<string>): string {
   const fragment = DOMPurify.sanitize(html, {
-    ALLOWED_TAGS: ["p", "h1", "h2", "h3", "h4", "h5", "h6", "strong", "em", "u", "s", "sup", "sub", "br", "hr", "ul", "ol", "li", "blockquote", "pre", "code", "table", "thead", "tbody", "tfoot", "tr", "th", "td", "a", "img", "span"],
+    ALLOWED_TAGS: ["p", "h1", "h2", "h3", "h4", "h5", "h6", "strong", "em", "u", "s", "sup", "sub", "br", "hr", "ul", "ol", "li", "blockquote", "pre", "code", "table", "thead", "tbody", "tfoot", "tr", "th", "td", "a", "img", "span", "div", "section", "article", "figure", "figcaption"],
     ALLOWED_ATTR: ["href", "id", "src", "alt", "colspan", "rowspan", "start"],
     ALLOW_DATA_ATTR: false, ALLOW_ARIA_ATTR: false,
     RETURN_DOM_FRAGMENT: true,
+    ...(ownedImages ? { ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|blob):|#|data:image\/(?:png|jpeg|gif|webp);base64,)/i } : {}),
   });
   for (const image of fragment.querySelectorAll("img")) {
-    if (!/^data:image\/(png|jpeg|gif|webp);base64,[a-z0-9+/=]+$/i.test(image.getAttribute("src") ?? "")) { image.remove(); continue; }
+    if (!ownedImages?.has(image.getAttribute("src") ?? "") && !/^data:image\/(png|jpeg|gif|webp);base64,[a-z0-9+/=]+$/i.test(image.getAttribute("src") ?? "")) { image.remove(); continue; }
     image.setAttribute("loading", "lazy"); image.setAttribute("decoding", "async");
     if (!image.hasAttribute("alt")) image.setAttribute("alt", "");
   }

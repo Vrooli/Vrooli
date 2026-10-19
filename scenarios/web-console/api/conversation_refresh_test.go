@@ -56,7 +56,7 @@ func TestGetConversationSession_SinceSequence_FiltersEvents(t *testing.T) {
 	srv.conversations = NewConversationStore()
 
 	for _, text := range []string{"one", "two", "three", "four"} {
-		res := srv.AppendAssistant(text, sess.ID, "unit-test")
+		res := srv.AppendAssistant(context.Background(), text, sess.ID, "unit-test")
 		if !res.Appended {
 			t.Fatalf("append %q failed: %+v", text, res)
 		}
@@ -87,7 +87,7 @@ func TestGetConversationSession_SinceSequence_FiltersEvents(t *testing.T) {
 func TestGetConversationSession_SinceSequence_IgnoresInvalid(t *testing.T) {
 	srv, sess := newCodexTailerTestServer(t)
 	srv.conversations = NewConversationStore()
-	srv.AppendAssistant("only", sess.ID, "unit-test")
+	srv.AppendAssistant(context.Background(), "only", sess.ID, "unit-test")
 
 	for _, since := range []int64{-5, 0} {
 		resp, err := newConversationConnectHandlerForServer(srv).Get(
@@ -111,12 +111,12 @@ func TestAppendConversation_DedupAcrossSources(t *testing.T) {
 	srv, sess := newCodexTailerTestServer(t)
 	srv.conversations = NewConversationStore()
 
-	first := srv.AppendAssistant("identical text", sess.ID, "codex_tailer")
+	first := srv.AppendAssistant(context.Background(), "identical text", sess.ID, "codex_tailer")
 	if !first.Appended || first.Duplicate {
 		t.Fatalf("first append should be appended and non-duplicate: %+v", first)
 	}
 
-	second := srv.AppendAssistant("identical text", sess.ID, "claude_hook")
+	second := srv.AppendAssistant(context.Background(), "identical text", sess.ID, "claude_hook")
 	if !second.Duplicate {
 		t.Fatalf("second append from different source should be flagged duplicate, got: %+v", second)
 	}

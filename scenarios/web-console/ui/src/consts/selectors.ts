@@ -9,6 +9,21 @@ import { createSelectorRegistry, defineDynamicSelector, type LiteralSelectorTree
 export { defineDynamicSelector } from "@vrooli/ui-selectors";
 
 const literalSelectors = {
+  databasePreview: { root: "file-preview-database", tables: "database-tables", grid: "database-grid", records: "database-records", schema: "database-schema", navigation: "database-navigation" },
+  fontPreview: { root: "file-preview-font", specimen: "font-preview-specimen", sample: "font-preview-sample", characters: "font-preview-characters", navigation: "font-preview-navigation" },
+  modelPreview: { root: "file-preview-model", stage: "model-preview-stage", navigation: "model-preview-navigation" },
+  presentationPreview: {
+    root: "file-preview-presentation",
+    frame: "presentation-preview-frame",
+    notes: "presentation-preview-notes",
+    navigation: "presentation-preview-navigation",
+  },
+  ebookPreview: {
+    root: "file-preview-ebook",
+    article: "ebook-preview-article",
+    pane: "ebook-preview-pane",
+    contents: "ebook-preview-contents",
+  },
   documentPreview: {
     root: "file-preview-document",
     article: "document-preview-article",

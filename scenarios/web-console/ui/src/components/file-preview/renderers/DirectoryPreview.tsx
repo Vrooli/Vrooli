@@ -3,7 +3,9 @@ import { useResizeObserver } from "@vrooli/react-component-library/useResizeObse
 import { ArtifactFrame, InspectionHeader, InspectionOptions, InspectionSetting, PreviewButton, PreviewLoading, previewSelectClass, previewTextButtonClass } from "./ArtifactChrome";
 import {
   AlertTriangle,
+  Boxes,
   ArrowUp,
+  BookOpen,
   ChevronRight,
   Eye,
   File as FileIcon,
@@ -16,8 +18,11 @@ import {
   Link2Off,
   Loader2,
   Music,
+  Presentation,
   Search,
   Table,
+  Type,
+  Database,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -176,6 +181,16 @@ function EntryGlyph({ entry }: { entry: DirectoryEntry }) {
 // "determined on open" case and gets the neutral file glyph.
 function KindGlyph({ kind, className }: { kind: PreviewKind | null; className: string }) {
   switch (kind) {
+    case "database":
+      return <Database className={className} />;
+    case "font":
+      return <Type className={className} />;
+    case "model3d":
+      return <Boxes className={className} />;
+    case "presentation":
+      return <Presentation className={className} />;
+    case "ebook":
+      return <BookOpen className={className} />;
     case "document":
     case "markdown":
     case "text":

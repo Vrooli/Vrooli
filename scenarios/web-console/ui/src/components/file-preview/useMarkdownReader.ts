@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 
 export interface ReaderHeading { id: string; label: string; level: number; slug: string }
-export function useMarkdownReader(content: string, query: string, source: boolean) {
+export function useMarkdownReader(content: string, query: string, source: boolean, preserveIds = false) {
   const articleRef = useRef<HTMLDivElement>(null);
   const [headings, setHeadings] = useState<ReaderHeading[]>([]);
   const [matches, setMatches] = useState<Range[]>([]);
@@ -19,7 +19,7 @@ export function useMarkdownReader(content: string, query: string, source: boolea
         const label = element.textContent.trim();
         const base = label.toLocaleLowerCase().replace(/[^\p{L}\p{N}_\s-]/gu, "").trim().replace(/\s+/g, "-");
         const count = slugs.get(base) ?? 0; slugs.set(base, count + 1);
-        const id = `${prefix}-section-${String(index)}`;
+        const id = preserveIds && element.id ? element.id : `${prefix}-section-${String(index)}`;
         element.id = id;
         element.tabIndex = -1;
         return { id, label, level: Number(element.tagName.slice(1)), slug: `${base}${count ? `-${String(count)}` : ""}` };
@@ -57,7 +57,7 @@ export function useMarkdownReader(content: string, query: string, source: boolea
     const observer = new MutationObserver(() => { if (!frame) frame = requestAnimationFrame(scan); });
     observer.observe(article, { childList: true, characterData: true, subtree: true });
     return () => { window.clearTimeout(timer); cancelAnimationFrame(frame); observer.disconnect(); };
-  }, [content, query, source, prefix]);
+  }, [content, query, source, prefix, preserveIds]);
   useEffect(() => { setSelected(0); }, [query]);
   useEffect(() => {
     const supported = typeof CSS !== "undefined" && "highlights" in CSS && typeof Highlight !== "undefined";

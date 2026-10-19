@@ -33,7 +33,7 @@ func (s testSummarizer) Summarize(context.Context, audioports.SummarizeInput) (a
 
 func TestAppendConversationEvent_MissingSession(t *testing.T) {
 	srv := newFakeTestServer()
-	result := srv.AppendAssistant("hello", "", "test")
+	result := srv.AppendAssistant(context.Background(), "hello", "", "test")
 	if result.Appended {
 		t.Error("expected failure for empty session")
 	}
@@ -44,7 +44,7 @@ func TestAppendConversationEvent_MissingSession(t *testing.T) {
 
 func TestAppendConversationEvent_UnknownSession(t *testing.T) {
 	srv := newFakeTestServer()
-	result := srv.AppendAssistant("hello", "nonexistent", "test")
+	result := srv.AppendAssistant(context.Background(), "hello", "nonexistent", "test")
 	if result.Appended {
 		t.Error("expected failure for unknown session")
 	}
@@ -52,7 +52,7 @@ func TestAppendConversationEvent_UnknownSession(t *testing.T) {
 
 func TestAppendUserConversationEvent_MissingSession(t *testing.T) {
 	srv := newFakeTestServer()
-	result := srv.AppendUser("hello", "", "test")
+	result := srv.AppendUser(context.Background(), "hello", "", "test")
 	if result.Appended {
 		t.Error("expected failure for empty session")
 	}
@@ -60,7 +60,7 @@ func TestAppendUserConversationEvent_MissingSession(t *testing.T) {
 
 func TestAppendUserConversationEvent_UnknownSession(t *testing.T) {
 	srv := newFakeTestServer()
-	result := srv.AppendUser("hello", "nonexistent", "test")
+	result := srv.AppendUser(context.Background(), "hello", "nonexistent", "test")
 	if result.Appended {
 		t.Error("expected failure for unknown session")
 	}
@@ -85,11 +85,11 @@ func TestSummarizeHelpersAndAsyncPaths(t *testing.T) {
 	srv := newFakeTestServer()
 	event := ConversationEvent{ID: "event-1", Text: "this is long enough"}
 	srv.summarizer = testSummarizer{out: audioports.SummarizeOutput{Text: "first\n\nsecond", Latency: 5}}
-	srv.asyncSummarizeAndNotify(event, "missing-session", SummarizeAutoPolicy{Enabled: false, CharThreshold: 1})
-	srv.asyncSummarizeAndNotify(event, "missing-session", SummarizeAutoPolicy{Enabled: true, CharThreshold: 100})
-	srv.asyncSummarizeAndNotify(event, "missing-session", SummarizeAutoPolicy{Enabled: true, CharThreshold: 1})
+	srv.asyncSummarizeAndNotify(context.Background(), event, "missing-session", SummarizeAutoPolicy{Enabled: false, CharThreshold: 1})
+	srv.asyncSummarizeAndNotify(context.Background(), event, "missing-session", SummarizeAutoPolicy{Enabled: true, CharThreshold: 100})
+	srv.asyncSummarizeAndNotify(context.Background(), event, "missing-session", SummarizeAutoPolicy{Enabled: true, CharThreshold: 1})
 	srv.summarizer = testSummarizer{err: audiotools.ErrTimeout}
-	srv.asyncSummarizeAndNotify(event, "missing-session", SummarizeAutoPolicy{Enabled: true, CharThreshold: 1})
+	srv.asyncSummarizeAndNotify(context.Background(), event, "missing-session", SummarizeAutoPolicy{Enabled: true, CharThreshold: 1})
 	if result := conversationAppendFailure("code", "reason", "source", "session"); result.Appended || result.Code != "code" {
 		t.Fatalf("failure result = %#v", result)
 	}

@@ -28,6 +28,11 @@ export type PreviewKind =
   | "video"
   | "archive"
   | "document"
+  | "presentation"
+  | "ebook"
+  | "model3d"
+  | "font"
+  | "database"
   | "spreadsheet"
   | "csv"
   | "diff"
@@ -46,6 +51,11 @@ const PREVIEW_KIND_BY_PROTO: Record<ProtoPreviewKind, PreviewKind> = {
   [ProtoPreviewKind.VIDEO]: "video",
   [ProtoPreviewKind.CSV]: "csv",
   [ProtoPreviewKind.DOCUMENT]: "document",
+  [ProtoPreviewKind.PRESENTATION]: "presentation",
+  [ProtoPreviewKind.EBOOK]: "ebook",
+  [ProtoPreviewKind.MODEL_3D]: "model3d",
+  [ProtoPreviewKind.FONT]: "font",
+  [ProtoPreviewKind.DATABASE]: "database",
   [ProtoPreviewKind.ARCHIVE]: "archive",
   [ProtoPreviewKind.SPREADSHEET]: "spreadsheet",
   [ProtoPreviewKind.DIFF]: "diff",

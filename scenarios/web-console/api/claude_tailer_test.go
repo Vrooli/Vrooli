@@ -94,7 +94,7 @@ func TestClaudeTailer_ResumesFromCheckpoint(t *testing.T) {
 
 func TestClaudeTailer_DeduplicatesHookDelivery(t *testing.T) {
 	srv, sessionID, path := newClaudeTailerTestServer(t)
-	if result := srv.AppendAssistant("same response", sessionID, "claude_hook"); !result.Appended {
+	if result := srv.AppendAssistant(context.Background(), "same response", sessionID, "claude_hook"); !result.Appended {
 		t.Fatalf("hook append failed: %+v", result)
 	}
 	writeClaudeTranscript(t, path, `{"type":"assistant","message":{"content":[{"type":"text","text":"same response"}]}}`)
@@ -111,7 +111,7 @@ func TestClaudeTailer_DeduplicatesWhenTailerArrivesFirst(t *testing.T) {
 	writeClaudeTranscript(t, path, `{"type":"assistant","message":{"content":[{"type":"text","text":"same response"}]}}`)
 	tailer := NewClaudeTailer(srv)
 	tailer.scan()
-	if result := srv.AppendAssistant("same response", sessionID, "claude_hook"); !result.Duplicate {
+	if result := srv.AppendAssistant(context.Background(), "same response", sessionID, "claude_hook"); !result.Duplicate {
 		t.Fatalf("hook should be duplicate after tailer delivery: %+v", result)
 	}
 	state := srv.conversations.ListSession(context.Background(), sessionID)

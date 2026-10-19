@@ -1121,6 +1121,15 @@
           "completion": "optional"
         },
         {
+          "path": "perf/2026-10-15-long-session-performance.md",
+          "docType": "performance-audit",
+          "title": "Long Session Performance",
+          "description": "Measured long-session behavior, paging budgets and regression evidence",
+          "audience": ["developers", "agents"],
+          "maturity": "active",
+          "completion": "optional"
+        },
+        {
           "path": "perf/2026-09-16-messages-and-markdown-journeys.md",
           "docType": "performance-audit",
           "title": "Messages and Markdown Journey Audit",

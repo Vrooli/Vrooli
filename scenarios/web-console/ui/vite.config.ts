@@ -4,6 +4,7 @@ import stringsCodegen from "./scripts/vite-plugin-strings-codegen.mjs";
 import { readFileSync } from "node:fs";
 import launchProfiles from "./src/launch-profiles.json";
 import { pdfAssets } from "./scripts/pdf-assets";
+import { presentationSource } from "./scripts/presentation-source";
 
 // Mode-aware config. A regular `vite build` ships the lean prod artifact;
 // `vite build --mode profile` produces the perf-build channel used for
@@ -26,7 +27,7 @@ export default defineConfig(({ mode }): UserConfig => {
     // INTEROP-CRITICAL: base must be './' for tunnel/proxy embedding compatibility.
     // Changing this breaks parent-scenario iframe routing.
     base: './',
-    plugins: [react(), stringsCodegen(), pdfAssets(), {
+    plugins: [react(), stringsCodegen(), pdfAssets(), presentationSource(), {
       name: "aquila-launch-shell",
       transformIndexHtml: {
         order: "pre",

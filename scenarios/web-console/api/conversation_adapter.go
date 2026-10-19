@@ -26,21 +26,21 @@ func newConversationAdapter(s *Server) *conversationAdapter {
 // intentionally removes the PTY from the live session manager. Persisted
 // archive metadata authorizes reads only; mutation paths retain their stricter
 // live-session checks below.
-func (a *conversationAdapter) canReadSession(sessionID string) bool {
-	if a.isLiveSession(sessionID) {
+func (a *conversationAdapter) canReadSession(ctx context.Context, sessionID string) bool {
+	if a.isLiveSession(ctx, sessionID) {
 		return true
 	}
 	if a.srv.sessionStore == nil {
 		return false
 	}
-	meta, err := a.srv.sessionStore.Get(context.Background(), sessionID)
+	meta, err := a.srv.sessionStore.Get(ctx, sessionID)
 	if err != nil {
 		return false
 	}
 	return meta.LaunchMode == sessionstore.LaunchModeCodexAppServer || !meta.ArchivedAt.IsZero() || meta.Status == sessionstore.StatusDismissed || meta.Status == sessionstore.StatusAwaitingRecovery
 }
 
-func (a *conversationAdapter) isLiveSession(sessionID string) bool {
+func (a *conversationAdapter) isLiveSession(ctx context.Context, sessionID string) bool {
 	if a == nil || a.srv == nil {
 		return false
 	}
@@ -50,20 +50,20 @@ func (a *conversationAdapter) isLiveSession(sessionID string) bool {
 		}
 	}
 	if a.srv.managedCodex != nil {
-		_, err := a.srv.managedCodex.Get(context.Background(), sessionID)
+		_, err := a.srv.managedCodex.Get(ctx, sessionID)
 		return err == nil
 	}
 	return false
 }
 
-func (a *conversationAdapter) Get(sessionID string, sinceSequence int64, limit int, beforeSequence int64) (conversationH.SessionState, error) {
-	if !a.canReadSession(sessionID) {
+func (a *conversationAdapter) Get(ctx context.Context, sessionID string, sinceSequence int64, limit int, beforeSequence int64) (conversationH.SessionState, error) {
+	if !a.canReadSession(ctx, sessionID) {
 		return conversationH.SessionState{}, fmt.Errorf("session %q: %w", sanitizeID(sessionID), conversationH.ErrSessionNotFound)
 	}
-	state := a.srv.conversations.ListSession(context.Background(), sessionID)
+	state := a.srv.conversations.ListSession(ctx, sessionID)
 	hasMore := false
 	if limit > 0 {
-		state, hasMore = a.srv.conversations.ListSessionPage(context.Background(), sessionID, limit, beforeSequence)
+		state, hasMore = a.srv.conversations.ListSessionPage(ctx, sessionID, limit, beforeSequence)
 	}
 	events := state.Events
 	if sinceSequence > 0 {
@@ -83,7 +83,7 @@ func (a *conversationAdapter) Get(sessionID string, sinceSequence int64, limit i
 			LastListenedSequence: state.Cursor.LastListenedSequence,
 		},
 		HasMore:    hasMore,
-		TotalCount: a.srv.conversations.CountSessionEvents(context.Background(), sessionID),
+		TotalCount: a.srv.conversations.CountSessionEvents(ctx, sessionID),
 	}
 	if len(events) > 0 {
 		result.OldestSequence = events[0].Sequence
@@ -107,11 +107,11 @@ func handlerRanges(ranges []TextRange) []conversationH.TextRange {
 	return out
 }
 
-func (a *conversationAdapter) Search(sessionID string, query conversationH.SearchQuery) (conversationH.SearchResult, error) {
-	if !a.canReadSession(sessionID) {
+func (a *conversationAdapter) Search(ctx context.Context, sessionID string, query conversationH.SearchQuery) (conversationH.SearchResult, error) {
+	if !a.canReadSession(ctx, sessionID) {
 		return conversationH.SearchResult{}, fmt.Errorf("session %q: %w", sanitizeID(sessionID), conversationH.ErrSessionNotFound)
 	}
-	result, err := a.srv.conversations.SearchSession(context.Background(), sessionID, repoSearchQuery(query))
+	result, err := a.srv.conversations.SearchSession(ctx, sessionID, repoSearchQuery(query))
 	if err != nil {
 		return conversationH.SearchResult{}, err
 	}
@@ -151,20 +151,20 @@ func (a *conversationAdapter) SearchArchived(ctx context.Context, filter convers
 	return result, nil
 }
 
-func (a *conversationAdapter) GetRange(sessionID string, from, to int64) (conversationH.SessionState, error) {
-	if !a.canReadSession(sessionID) {
+func (a *conversationAdapter) GetRange(ctx context.Context, sessionID string, from, to int64) (conversationH.SessionState, error) {
+	if !a.canReadSession(ctx, sessionID) {
 		return conversationH.SessionState{}, fmt.Errorf("session %q: %w", sanitizeID(sessionID), conversationH.ErrSessionNotFound)
 	}
-	events, err := a.srv.conversations.ListSessionRange(context.Background(), sessionID, from, to)
+	events, err := a.srv.conversations.ListSessionRange(ctx, sessionID, from, to)
 	if err != nil {
 		return conversationH.SessionState{}, err
 	}
-	state := a.srv.conversations.ListSession(context.Background(), sessionID)
+	state := a.srv.conversations.ListSession(ctx, sessionID)
 	return conversationH.SessionState{SessionID: sessionID, Events: transportEvents(events), Cursor: conversationH.Cursor{LastSeenSequence: state.Cursor.LastSeenSequence, LastListenedSequence: state.Cursor.LastListenedSequence}}, nil
 }
 
-func (a *conversationAdapter) UpdateCursor(sessionID string, patch conversationH.CursorPatch) (conversationH.Cursor, error) {
-	if !a.isLiveSession(sessionID) {
+func (a *conversationAdapter) UpdateCursor(ctx context.Context, sessionID string, patch conversationH.CursorPatch) (conversationH.Cursor, error) {
+	if !a.isLiveSession(ctx, sessionID) {
 		return conversationH.Cursor{}, fmt.Errorf("session %q: %w", sanitizeID(sessionID), conversationH.ErrSessionNotFound)
 	}
 	storePatch := conversationCursorPatch{}
@@ -176,7 +176,7 @@ func (a *conversationAdapter) UpdateCursor(sessionID string, patch conversationH
 		v := patch.LastListenedSequence
 		storePatch.listenedSequence = &v
 	}
-	cur := a.srv.conversations.UpdateCursor(context.Background(), sessionID, storePatch)
+	cur := a.srv.conversations.UpdateCursor(ctx, sessionID, storePatch)
 	return conversationH.Cursor{
 		LastSeenSequence:     cur.LastSeenSequence,
 		LastListenedSequence: cur.LastListenedSequence,
@@ -184,7 +184,7 @@ func (a *conversationAdapter) UpdateCursor(sessionID string, patch conversationH
 }
 
 func (a *conversationAdapter) SummarizeEvent(ctx context.Context, sessionID, eventID string) (conversationH.SummarizeResult, error) {
-	if !a.isLiveSession(sessionID) {
+	if !a.isLiveSession(ctx, sessionID) {
 		return conversationH.SummarizeResult{}, fmt.Errorf("session %q: %w", sanitizeID(sessionID), conversationH.ErrSessionNotFound)
 	}
 	if a.srv.summarizer == nil {

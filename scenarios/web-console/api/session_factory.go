@@ -6,6 +6,7 @@ import (
 
 	"github.com/vrooli/cli-core/cliutil"
 
+	handlerSessions "web-console/handlers/sessions"
 	"web-console/internal/config"
 	"web-console/internal/pty"
 	"web-console/session"
@@ -69,6 +70,9 @@ func defaultSessionEnv(sessionID string) map[string]string {
 	// and it is the derived minted token, never the operator's browser credential.
 	if token, ok := activeSessionDelegations.Lookup(sessionID, time.Now()); ok {
 		env[cliutil.HumanOwnerDelegationEnv] = token
+	}
+	if token, ok := handlerSessions.TakeSessionRunIdentity(sessionID); ok {
+		env["VROOLI_AGENT_IDENTITY_TOKEN"] = token
 	}
 	return env
 }

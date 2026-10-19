@@ -48,7 +48,7 @@ func (h *connectHandler) Get(ctx context.Context, req *connect.Request[conversat
 	if sessionID == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("session_id is required"))
 	}
-	state, err := h.deps.Service.Get(sessionID, req.Msg.GetSinceSequence(), int(req.Msg.GetLimit()), req.Msg.GetBeforeSequence())
+	state, err := h.deps.Service.Get(ctx, sessionID, req.Msg.GetSinceSequence(), int(req.Msg.GetLimit()), req.Msg.GetBeforeSequence())
 	if err != nil {
 		return nil, h.classify(err, "conversation.Get")
 	}
@@ -121,8 +121,8 @@ func rangesToProto(ranges []TextRange) []*conversationv1.TextRange {
 	return out
 }
 
-func (h *connectHandler) Search(_ context.Context, req *connect.Request[conversationv1.SearchRequest]) (*connect.Response[conversationv1.SearchResponse], error) {
-	result, err := h.deps.Service.Search(strings.TrimSpace(req.Msg.GetSessionId()), SearchQuery{
+func (h *connectHandler) Search(ctx context.Context, req *connect.Request[conversationv1.SearchRequest]) (*connect.Response[conversationv1.SearchResponse], error) {
+	result, err := h.deps.Service.Search(ctx, strings.TrimSpace(req.Msg.GetSessionId()), SearchQuery{
 		Query:         req.Msg.GetQuery(),
 		Mode:          searchModeName(req.Msg.GetMode()),
 		CaseSensitive: req.Msg.GetCaseSensitive(),
@@ -175,20 +175,20 @@ func (h *connectHandler) SearchArchived(ctx context.Context, req *connect.Reques
 	}), nil
 }
 
-func (h *connectHandler) GetRange(_ context.Context, req *connect.Request[conversationv1.GetRangeRequest]) (*connect.Response[conversationv1.GetResponse], error) {
-	state, err := h.deps.Service.GetRange(strings.TrimSpace(req.Msg.GetSessionId()), req.Msg.GetFromSequence(), req.Msg.GetToSequence())
+func (h *connectHandler) GetRange(ctx context.Context, req *connect.Request[conversationv1.GetRangeRequest]) (*connect.Response[conversationv1.GetResponse], error) {
+	state, err := h.deps.Service.GetRange(ctx, strings.TrimSpace(req.Msg.GetSessionId()), req.Msg.GetFromSequence(), req.Msg.GetToSequence())
 	if err != nil {
 		return nil, h.classify(err, "conversation.GetRange")
 	}
 	return connect.NewResponse(&conversationv1.GetResponse{SessionId: state.SessionID, Events: eventsToProto(state.Events), Cursor: cursorToProto(state.Cursor)}), nil
 }
 
-func (h *connectHandler) UpdateCursor(_ context.Context, req *connect.Request[conversationv1.UpdateCursorRequest]) (*connect.Response[conversationv1.UpdateCursorResponse], error) {
+func (h *connectHandler) UpdateCursor(ctx context.Context, req *connect.Request[conversationv1.UpdateCursorRequest]) (*connect.Response[conversationv1.UpdateCursorResponse], error) {
 	sessionID := strings.TrimSpace(req.Msg.GetSessionId())
 	if sessionID == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("session_id is required"))
 	}
-	cursor, err := h.deps.Service.UpdateCursor(sessionID, CursorPatch{
+	cursor, err := h.deps.Service.UpdateCursor(ctx, sessionID, CursorPatch{
 		LastSeenSequence:        req.Msg.GetLastSeenSequence(),
 		HasLastSeenSequence:     req.Msg.GetHasLastSeenSequence(),
 		LastListenedSequence:    req.Msg.GetLastListenedSequence(),

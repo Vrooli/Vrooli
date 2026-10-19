@@ -225,6 +225,8 @@ type CreateInput struct {
 	// session's stable-create owner so a tunnel-UI spawn is attributed to the
 	// operator, not the service principal. Empty leaves the prior behaviour.
 	HumanOwnerSubject string
+	// AgentRunIdentityToken is a sensitive child-run credential accepted only on the verified local reserved-create path.
+	AgentRunIdentityToken string
 	// HumanOwnerCredentials are request-local credential candidates carried only
 	// for a best-effort delegation mint before a new PTY environment is built.
 	// They are never persisted, logged, or placed in the agent env; only the

@@ -781,6 +781,13 @@ func resolveSQLiteDSN() string {
 // migrateLegacyStateFiles adapts the application storage resolver to the
 // standalone legacy-migration package and runs before any state file is read.
 func migrateLegacyStateFiles() {
+	// Legacy files belong to live, just like the legacy database above. A
+	// fresh variant must mint its own token and defaults rather than import
+	// the operator's credentials and audio preferences.
+	namespace, err := storage.ScenarioNamespace("web-console")
+	if err != nil || namespace != "web-console" {
+		return
+	}
 	legacymigrate.MigrateStateFiles(func(name string) string {
 		return mustResolveScenarioStoragePath(storage.ClassState, name)
 	}, legacymigrate.DefaultStateFiles)

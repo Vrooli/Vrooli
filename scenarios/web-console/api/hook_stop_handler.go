@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"log"
 	"net/http"
 	"time"
@@ -51,12 +50,12 @@ func (s *Server) handleHookStop(w http.ResponseWriter, r *http.Request) {
 		writeCatalogError(w, "tts_input_required", "Hook payload did not include assistant response text")
 		return
 	}
-	result := s.AppendAssistant(assistantText, req.WebConsoleSessionID, "claude_hook")
+	result := s.AppendAssistant(r.Context(), assistantText, req.WebConsoleSessionID, "claude_hook")
 	// Persist agent identity from the hook payload so the recovery flow can
 	// later issue `claude --resume <agent_session_id>` against the right
 	// project. The payload's session_id is Claude's own session UUID.
 	if result.Appended && req.WebConsoleSessionID != "" && req.SessionIDSnake != "" && s.sessionStore != nil {
-		if err := s.sessionStore.UpdateAgentInfo(context.Background(), req.WebConsoleSessionID, sessionstore.AgentInfo{
+		if err := s.sessionStore.UpdateAgentInfo(r.Context(), req.WebConsoleSessionID, sessionstore.AgentInfo{
 			AgentType:      sessionstore.AgentClaude,
 			AgentSessionID: req.SessionIDSnake,
 			CWD:            req.CWD,

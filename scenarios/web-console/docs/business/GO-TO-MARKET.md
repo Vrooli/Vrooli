@@ -65,3 +65,21 @@ for future offers. Recheck target, package, dependency and reliability assumptio
 when either the offer or product changes. The launch-video skill owns production
 selection and proof; Offer Desk owns commercial intent, and Content Desk and the
 published presentation retain their claim-approval boundaries.
+
+
+## Readiness evidence for production
+
+Read the feature owners before using a claim. `web-console capabilities` reports
+current dependency/provider state for the contacted host; renderer and workspace
+regressions plus native UI captures establish their narrower behavior. Neither
+surface certifies a different desktop bundle. Offer Desk owns the intended offer;
+Deployment Manager and the relevant ramp own target/build/package readiness.
+Keep those owner receipts beside the production brief, with observed build,
+product target and the specific benefit exercised. Unknown voice/provider setup
+and unverified mobile access remain visible candidates with unknown eligibility.
+
+The launch-video brief's version-2 qualification joins these identities and
+separates UI, runtime, installation and integration promises. A `TRIGGER_MET`
+deliverable or an API boot result cannot qualify an unrelated integration or
+installer claim. Refresh the observed receipt when the build, target or relevant
+setup changes. This avoids maintaining a second product-readiness ledger here.

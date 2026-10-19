@@ -2436,6 +2436,11 @@
       "command": "terminal send-keys",
       "class": "external_delegation",
       "reason": "Uses a hand-registered terminal adapter for named-key parsing; it shares TerminalService.SendInput with send-text."
+    },
+    {
+      "command": "hooks token-path",
+      "class": "external_delegation",
+      "reason": "Reads the API-owned canonical storage path for seed authentication without exposing token contents."
     }
   ]
 }

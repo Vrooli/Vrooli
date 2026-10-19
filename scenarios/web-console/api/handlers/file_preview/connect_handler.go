@@ -186,6 +186,16 @@ func kindToProto(kind string) filepreviewv1.PreviewKind {
 		return filepreviewv1.PreviewKind_PREVIEW_KIND_ARCHIVE
 	case "document":
 		return filepreviewv1.PreviewKind_PREVIEW_KIND_DOCUMENT
+	case "presentation":
+		return filepreviewv1.PreviewKind_PREVIEW_KIND_PRESENTATION
+	case "database":
+		return filepreviewv1.PreviewKind_PREVIEW_KIND_DATABASE
+	case "font":
+		return filepreviewv1.PreviewKind_PREVIEW_KIND_FONT
+	case "model3d":
+		return filepreviewv1.PreviewKind_PREVIEW_KIND_MODEL_3D
+	case "ebook":
+		return filepreviewv1.PreviewKind_PREVIEW_KIND_EBOOK
 	case "spreadsheet":
 		return filepreviewv1.PreviewKind_PREVIEW_KIND_SPREADSHEET
 	case "csv":
@@ -313,6 +323,7 @@ func (h *connectHandler) ListArchive(ctx context.Context, req *connect.Request[f
 	}
 	return connect.NewResponse(&filepreviewv1.ListArchiveResponse{Format: res.Format, Status: res.Status, Entries: entries}), nil
 }
+
 func (h *connectHandler) OpenArchiveEntry(ctx context.Context, req *connect.Request[filepreviewv1.OpenArchiveEntryRequest]) (*connect.Response[filepreviewv1.OpenArchiveEntryResponse], error) {
 	sessionID, id, entryID := strings.TrimSpace(req.Msg.SessionId), strings.TrimSpace(req.Msg.PreviewId), strings.TrimSpace(req.Msg.EntryId)
 	if sessionID == "" || id == "" || entryID == "" || len(entryID) > 8 {

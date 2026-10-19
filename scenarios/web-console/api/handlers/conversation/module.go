@@ -19,15 +19,15 @@ import (
 // implementation lives in package main (adapts ConversationStore and the TTS
 // summarizer to satisfy this interface).
 type Service interface {
-	Get(sessionID string, sinceSequence int64, limit int, beforeSequence int64) (SessionState, error)
+	Get(ctx context.Context, sessionID string, sinceSequence int64, limit int, beforeSequence int64) (SessionState, error)
 	// CaptureStatus diagnoses one session's message capture independently of
 	// its events, so callers can explain an empty transcript without a second
 	// round trip.
 	CaptureStatus(ctx context.Context, sessionID string) CaptureStatus
-	Search(sessionID string, query SearchQuery) (SearchResult, error)
+	Search(ctx context.Context, sessionID string, query SearchQuery) (SearchResult, error)
 	SearchArchived(ctx context.Context, filter ArchivedSearchFilter) (ArchivedSearchResult, error)
-	GetRange(sessionID string, from, to int64) (SessionState, error)
-	UpdateCursor(sessionID string, patch CursorPatch) (Cursor, error)
+	GetRange(ctx context.Context, sessionID string, from, to int64) (SessionState, error)
+	UpdateCursor(ctx context.Context, sessionID string, patch CursorPatch) (Cursor, error)
 	SummarizeEvent(ctx context.Context, sessionID, eventID string) (SummarizeResult, error)
 }
 

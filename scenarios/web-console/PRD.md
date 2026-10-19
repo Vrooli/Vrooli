@@ -8,7 +8,7 @@
 
 ## 🎯 Overview
 
-**Purpose**: Web Console delivers a full-fidelity terminal and desktop-session experience in the browser with pane-based workflows, durable sessions, AI-assisted input generation, and authenticated parent-scenario integration. It is useful without an account and supports an optional Vrooli subscription identity and user-owned provider keys. Desktop sessions are presented here but are operated by Device Control and reached through Vrooli Bridge.
+**Purpose**: Aquila is a workspace for working with coding agents: find conversations that need attention, read structured answers, inspect their files, and carry selected context forward. Its browser terminals and pane-based workflows support the underlying CLI work. It is useful without an account and supports an optional Vrooli subscription identity and user-owned provider keys. Desktop sessions are presented here but are operated by Device Control and reached through Vrooli Bridge.
 
 **Primary Users**:
 - Operators and engineers running interactive CLI workflows (Claude Code, Codex, diagnostics)
@@ -21,7 +21,9 @@
 - iframe bridge over `postMessage` for parent coordination and telemetry
 - CLI + Makefile lifecycle commands for local development and testing
 
-**Value Promise**: Zero-compromise browser terminal operations with resilient reconnect behavior, better multiterminal visibility, and faster command execution through configurable shortcuts and AI assist.
+**Value Promise**: Keep multi-agent work understandable from the next conversation to the reviewed deliverable and handoff. Groups and unread signals, Markdown messages, file viewers, and selected-message export support that daily review loop.
+
+Customer positioning, evidence sources, and current desktop offer boundaries live in [Go to market](docs/business/GO-TO-MARKET.md). The product targets below include broader work; they do not certify package availability. Mobile access and execution-dependent integrations require their own setup and reliability evidence before becoming launch promises.
 
 ## 🎯 Operational Targets
 

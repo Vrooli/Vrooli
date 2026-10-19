@@ -582,6 +582,53 @@ func TestTmuxPTY_Scroll_BackOnAltScreenForwardsToApp(t *testing.T) {
 	}
 }
 
+// TestTmuxPTY_Scroll_BackOnAltScreenCancelsStrandedCopyMode reproduces the live
+// "I still can't scroll" state: a full-screen pane left in tmux copy-mode (as
+// happens when tmux mouse mode is on and a prior wheel event was hijacked into
+// copy-mode instead of reaching the program). A back-scroll must return the
+// pane to live before forwarding the wheel, so send-keys reaches the program
+// rather than driving copy-mode navigation.
+func TestTmuxPTY_Scroll_BackOnAltScreenCancelsStrandedCopyMode(t *testing.T) {
+	requireTmux(t)
+	script := writeTmuxPaneScript(t, "i=1\nwhile [ $i -le 50 ]; do echo \"pre-$i\"; i=$((i+1)); done\nprintf '\\033[?1049h'\nsleep 300\n")
+	p, err := tmuxPTYFactory(pty.LaunchSpec{SessionID: "test-scroll-alt-copymode", Shell: script, Cols: 80, Rows: 10})
+	if err != nil {
+		t.Fatalf("tmuxPTYFactory failed: %v", err)
+	}
+	sessionName := tmuxSessionPrefix + "test-scroll-alt-copymode"
+	t.Cleanup(func() {
+		_ = p.Kill()
+		p.Close()
+		_ = tmuxCmd("kill-session", "-t", sessionName).Run()
+	})
+	scroller := requireScroller(t, p)
+
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		if tmuxPaneField(t, sessionName, "#{alternate_on}") == "1" {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	if got := tmuxPaneField(t, sessionName, "#{alternate_on}"); got != "1" {
+		t.Fatalf("precondition: pane not on the alternate screen: %q", got)
+	}
+	// Strand the pane in copy-mode, the state a hijacked wheel leaves behind.
+	if err := tmuxCmd("copy-mode", "-t", sessionName).Run(); err != nil {
+		t.Fatalf("precondition: enter copy-mode: %v", err)
+	}
+	if got := tmuxPaneField(t, sessionName, "#{pane_in_mode}"); got != "1" {
+		t.Fatalf("precondition: pane not in copy-mode: %q", got)
+	}
+
+	if err := scroller.Scroll(-5); !errors.Is(err, errScrollForwardedToApp) {
+		t.Fatalf("Scroll(-5) on a stranded alt-screen pane = %v, want errScrollForwardedToApp", err)
+	}
+	if got := tmuxPaneField(t, sessionName, "#{pane_in_mode}"); got != "0" {
+		t.Fatalf("pane_in_mode after remediated back-scroll = %q, want 0 (copy-mode must be cancelled)", got)
+	}
+}
+
 // TestTmuxPTY_Scroll_ForwardToBottomReturnsPaneToLive asserts the pane does not
 // get stranded in copy-mode once the operator scrolls back to the bottom.
 // tmux clamps scroll-down at the live edge and stays in the mode; leaving it

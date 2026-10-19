@@ -174,7 +174,8 @@ func TestStableCreateOwnerRequiresVerifiedServicePrincipal(t *testing.T) {
 	hid := uuid.NewString()
 	hcreated, err := humanService.Create(t.Context(), connect.NewRequest(&sessionsv1.CreateRequest{
 		RequestedSessionId: hid, Shell: "/bin/sh", Backend: "standard", Owner: "forged",
-		Origin: sessionsv1.SessionOrigin_SESSION_ORIGIN_PROGRAMMATIC,
+		Origin:                sessionsv1.SessionOrigin_SESSION_ORIGIN_PROGRAMMATIC,
+		AgentRunIdentityToken: "test-only-child-bearer",
 	}))
 	if err != nil {
 		t.Fatal(err)

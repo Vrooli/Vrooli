@@ -150,3 +150,28 @@ func TestMigrateLegacyStateFile_PreservesTokenMode(t *testing.T) {
 		t.Errorf("migrated hook-token mode = %#o, want 0o600", mode)
 	}
 }
+
+func TestNonLiveStartupDoesNotImportLegacyOperatorState(t *testing.T) {
+	legacyHome := t.TempDir()
+	t.Setenv("XDG_STATE_HOME", legacyHome)
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("VROOLI_STORAGE_ROOT", t.TempDir())
+	t.Setenv("VROOLI_SCENARIO", "web-console")
+	t.Setenv("VROOLI_VARIANT", "presentation")
+	t.Setenv("VROOLI_STORAGE_NAMESPACE", "web-console_presentation")
+	legacy := filepath.Join(legacyHome, "vrooli", "web-console", "hook-token.txt")
+	if err := os.MkdirAll(filepath.Dir(legacy), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(legacy, []byte("operator-secret"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	canonical := resolveHookTokenPath()
+	migrateLegacyStateFiles()
+	if _, err := os.Stat(canonical); !os.IsNotExist(err) {
+		t.Fatalf("non-live startup imported live state: %v", err)
+	}
+	if got, err := os.ReadFile(legacy); err != nil || string(got) != "operator-secret" {
+		t.Fatal("legacy operator state changed")
+	}
+}

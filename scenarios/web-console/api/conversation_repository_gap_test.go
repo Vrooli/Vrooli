@@ -157,17 +157,17 @@ func TestConversationAdapterProjectsStoreOperations(t *testing.T) {
 	}
 	adapter := newConversationAdapter(srv)
 
-	state, err := adapter.Get(sess.ID, 0, 10, 0)
+	state, err := adapter.Get(ctx, sess.ID, 0, 10, 0)
 	if err != nil || len(state.Events) != 1 || state.TotalCount != 1 || state.OldestSequence != 1 || state.NewestSequence != 1 {
 		t.Fatalf("get state=%+v err=%v", state, err)
 	}
-	if found, err := adapter.Search(sess.ID, conversationH.SearchQuery{Query: "needle", Limit: 10}); err != nil || len(found.Matches) != 1 || found.TotalMatches != 1 {
+	if found, err := adapter.Search(ctx, sess.ID, conversationH.SearchQuery{Query: "needle", Limit: 10}); err != nil || len(found.Matches) != 1 || found.TotalMatches != 1 {
 		t.Fatalf("search=%+v err=%v", found, err)
 	}
-	if ranged, err := adapter.GetRange(sess.ID, 1, 1); err != nil || len(ranged.Events) != 1 {
+	if ranged, err := adapter.GetRange(ctx, sess.ID, 1, 1); err != nil || len(ranged.Events) != 1 {
 		t.Fatalf("range=%+v err=%v", ranged, err)
 	}
-	cursor, err := adapter.UpdateCursor(sess.ID, conversationH.CursorPatch{HasLastSeenSequence: true, LastSeenSequence: 1})
+	cursor, err := adapter.UpdateCursor(ctx, sess.ID, conversationH.CursorPatch{HasLastSeenSequence: true, LastSeenSequence: 1})
 	if err != nil || cursor.LastSeenSequence != 1 {
 		t.Fatalf("cursor=%+v err=%v", cursor, err)
 	}

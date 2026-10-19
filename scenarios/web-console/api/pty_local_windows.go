@@ -272,7 +272,17 @@ func ensureTermEnv(env []string) []string {
 	return append(env, term)
 }
 
-func filterServiceEnv(env []string) []string { return env }
+func filterServiceEnv(env []string) []string {
+	filtered := make([]string, 0, len(env))
+	for _, entry := range env {
+		name, _, ok := strings.Cut(entry, "=")
+		if ok && name == "VROOLI_AGENT_IDENTITY_TOKEN" {
+			continue
+		}
+		filtered = append(filtered, entry)
+	}
+	return filtered
+}
 
 func applySessionEnv(base []string, extra map[string]string) []string {
 	result := append([]string(nil), base...)

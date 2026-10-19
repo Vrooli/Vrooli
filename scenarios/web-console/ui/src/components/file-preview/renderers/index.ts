@@ -6,6 +6,11 @@ import { ArchivePreview } from "./ArchivePreview";
 import { DirectoryPreview } from "./DirectoryPreview";
 import { SpreadsheetPreview } from "./SpreadsheetPreview";
 import { DocumentPreview } from "./DocumentPreview";
+import { PresentationPreview } from "./PresentationPreview";
+import { DatabasePreview } from "./DatabasePreview";
+import { FontPreview } from "./FontPreview";
+import { ModelPreview } from "./ModelPreview";
+import { EbookPreview } from "./EbookPreview";
 import { UnsupportedPreview } from "./UnsupportedPreview";
 
 // renderers maps every PreviewKind to its dedicated renderer. The viewer routes
@@ -24,6 +29,11 @@ export const renderers: Record<PreviewKind, PreviewRenderer> = {
   csv: CsvPreview,
   spreadsheet: SpreadsheetPreview,
   document: DocumentPreview,
+  presentation: PresentationPreview,
+  ebook: EbookPreview,
+  model3d: ModelPreview,
+  font: FontPreview,
+  database: DatabasePreview,
   diff: DiffPreview,
   directory: DirectoryPreview,
  archive: ArchivePreview,

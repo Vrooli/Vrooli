@@ -78,6 +78,21 @@ func TestClassify(t *testing.T) {
 		{"a.flac", KindAudio},
 		{"a.docx", KindDocument},
 		{"a.DOCX", KindDocument},
+		{"a.pptx", KindPresentation},
+		{"a.PPTX", KindPresentation},
+		{"a.ppsx", KindPresentation},
+		{"a.potx", KindPresentation},
+		{"a.ppt", KindPresentation},
+		{"a.ttf", KindFont},
+		{"a.OTF", KindFont},
+		{"a.woff", KindFont},
+		{"a.WOFF2", KindFont},
+		{"a.glb", KindModel3D},
+		{"a.GLTF", KindModel3D},
+		{"a.obj", KindModel3D},
+		{"a.stl", KindModel3D},
+		{"a.epub", KindEbook},
+		{"a.EPUB", KindEbook},
 		{"a.xlsx", KindSpreadsheet},
 		{"a.xls", KindSpreadsheet},
 		{"a.XLSM", KindSpreadsheet},
@@ -248,7 +263,7 @@ func TestResolveDirectory(t *testing.T) {
 func TestKindTransportClassesAreExclusive(t *testing.T) {
 	all := []Kind{
 		KindMarkdown, KindCode, KindText, KindSVG, KindImage, KindPDF,
-		KindAudio, KindVideo, KindDocument, KindSpreadsheet, KindCSV, KindDiff, KindDirectory, KindUnsupported,
+		KindAudio, KindVideo, KindDocument, KindPresentation, KindEbook, KindSpreadsheet, KindCSV, KindDiff, KindDirectory, KindUnsupported,
 	}
 	for _, k := range all {
 		n := 0

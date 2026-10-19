@@ -155,16 +155,17 @@ func ensureTermEnv(env []string) []string {
 // any UI is rendered. For the persistent backend this is a no-op because
 // tmux re-sets TMUX/TMUX_PANE for each pane it spawns.
 var serviceEnvVars = map[string]struct{}{
-	"API_PORT":                 {},
-	"API_BASE_URL":             {},
-	"API_BASE":                 {},
-	"UI_PORT":                  {},
-	"WS_PORT":                  {},
-	"VITE_API_BASE_URL":        {},
-	"VROOLI_LIFECYCLE_MANAGED": {},
-	"VROOLI_SCENARIO":          {},
-	"VROOLI_STEP":              {},
-	"VROOLI_PHASE":             {},
+	"VROOLI_AGENT_IDENTITY_TOKEN": {},
+	"API_PORT":                    {},
+	"API_BASE_URL":                {},
+	"API_BASE":                    {},
+	"UI_PORT":                     {},
+	"WS_PORT":                     {},
+	"VITE_API_BASE_URL":           {},
+	"VROOLI_LIFECYCLE_MANAGED":    {},
+	"VROOLI_SCENARIO":             {},
+	"VROOLI_STEP":                 {},
+	"VROOLI_PHASE":                {},
 	// Instance identity belongs to this web-console instance. A shell in a
 	// presentation instance's terminal is not that instance, and a CLI that
 	// inherits these would resolve storage as if it were.

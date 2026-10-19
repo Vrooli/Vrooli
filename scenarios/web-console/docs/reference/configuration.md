@@ -384,3 +384,60 @@ not placed in ordinary configuration answers or command arguments.
 Machine detail shows readiness, desired and applied policy evidence, typed
 drift, outstanding questions, credential receipts, audit events, and terminal
 apply outcomes. Re-apply uses the same durable status surface.
+
+
+## Isolated presentation and capture
+
+A non-live instance uses its own ports, SQLite namespace, session state and hook
+token. Live project hook registration/removal and live legacy-state migration are
+excluded. This does not isolate dependency services or shared build outputs.
+
+Use `vrooli scenario start web-console@presentation --path <independent-scenario-dir>`
+when a separate source/build tree is available. Keep the source tree while its
+instance runs. The lifecycle admits a declarative component build only when its
+build/install/output paths remain inside that tree and outside serving source
+trees; shared or unknown paths retain their refusal. An alternate port alone is
+not build isolation. Use the lifecycle/source owners for materialization, and
+qualify the resulting tree. Repository-shaped exports without Git metadata may
+need the supported `GOFLAGS=-buildvcs=false` build setting.
+
+The maintained fixture entrypoint is `bas/seeds/seed.sh`. Supply the exact isolated
+API URL as `BAS_TARGET_API_BASE` and that target's `BAS_WEB_CONSOLE_HOOK_TOKEN_PATH`.
+An explicit `BAS_LIVE_WEB_CONSOLE_API_PORT` adds a live-target rejection. The script
+creates two distinct Northline conversations, rich Markdown and linked files
+through real session, workspace and hook interfaces. It runs no coding agent.
+It fails on required setup errors and attempts to remove sessions created before
+a failure. Every take gets a unique fixture directory with `seed-receipt.json`;
+retain that receipt with the capture. Inspect the actual conversation response
+and UI before treating the fixture as usable.
+
+For Test Genie's leased primary target, webhook authentication remains owned by
+the serving API while SQL and files are routed. The script resolves the primary
+hook path through `web-console hooks token-path` outside the test storage overlay;
+non-live or custom-storage targets supply the explicit target path. The command
+prints a path without reading the secret. Never substitute a primary token for
+a presentation target. Custom target authentication remains caller-supplied.
+
+Cleanup is scoped to `session_ids` and `target_api` from the retained receipt:
+use the normal `session delete` commands against that same instance, then remove
+only the receipt's owned temporary fixture directory. Use `vrooli scenario stop
+web-console@<variant>` for an instance created for the capture. Do not clear an
+existing database or the operator's workspace to reset a take. Fresh owned
+variants provide a clean starting state; raw/rejected takes remain evidence.
+
+For native motion capture, use BAS `capture --interaction-flow-file take.json`
+with a bounded wait/action/assert graph. Keep each returned execution identity and
+artifact references. Measured video geometry can differ from requested DPR;
+see BAS capture metadata rather than multiplying CSS dimensions by DPR.
+
+Routed fixtures require the caller-owned `TEST_GENIE_ROUTING_LEASE_ID` (or
+`BAS_ROUTING_LEASE_ID`) and `PLAYBOOKS_SQLITE_DSN`. The seed verifies both the
+SQL pool and file roots before mutation and retains the test-mode header on all
+service calls. Test Genie passes the lease identity to seed producers. For native
+capture against that lease, add BAS `--routed-test-mode`; it marks browser target
+traffic, leaving BAS control-plane persistence unchanged. Keep the lease alive
+through inspection and cleanup. Delete each receipt session with
+`{id, confirmation:"DELETE:"+id}` through SessionsService/Delete on the same
+routed target before clearing the lease. Check exact fixture IDs in both primary
+and leased databases as well as lease counters: code that loses request context
+can bypass the counters. Do not infer isolation from counters alone.

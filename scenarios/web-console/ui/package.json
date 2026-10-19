@@ -1,10 +1,12 @@
 {
   "dependencies": {
+    "@aiden0z/pptx-renderer": "1.4.0",
     "@bufbuild/protobuf": "^2.10.1",
     "@connectrpc/connect": "^2.1.1",
     "@connectrpc/connect-web": "^2.1.1",
     "@fontsource/jetbrains-mono": "5.2.5",
     "@radix-ui/react-slot": "^1.1.0",
+    "@sqlite.org/sqlite-wasm": "3.53.4-build2",
     "@tanstack/react-query": "^5.59.0",
     "@vrooli/api-base": "file:../../../packages/api-base",
     "@vrooli/audio-capture-browser": "file:../../../packages/audio-capture-browser",
@@ -21,7 +23,9 @@
     "clsx": "^2.1.1",
     "dompurify": "3.4.17",
     "express": "^4.18.2",
+    "fontkit": "2.0.4",
     "i18next": "^23.16.4",
+    "jszip": "3.10.1",
     "lucide-react": "^0.424.0",
     "mammoth": "1.13.0",
     "mermaid": "^11.4.1",
@@ -35,6 +39,7 @@
     "remark-gfm": "^4.0.0",
     "shiki": "^1.24.0",
     "tailwind-merge": "^2.3.0",
+    "three": "0.185.1",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "yaml": "2.9.1",
     "zustand": "^5.0.11"
@@ -47,6 +52,7 @@
     "@types/node": "^22.10.0",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
+    "@types/three": "0.185.4",
     "@typescript-eslint/eslint-plugin": "^8.7.0",
     "@typescript-eslint/parser": "^8.7.0",
     "@vitejs/plugin-react": "^4.3.1",

@@ -46,7 +46,7 @@ func TestRegistrarEnvironmentResolution(t *testing.T) {
 			return "16382"
 		}
 		return ""
-	}, userHomeDir: func() (string, error) { return "/missing", nil }, readFile: func(string) ([]byte, error) { return nil, errors.New("missing") }}
+	}, readFile: func(string) ([]byte, error) { return nil, errors.New("missing") }}
 	if port, err := r.apiPort(); err != nil || port != 16382 {
 		t.Fatalf("apiPort = %d, %v", port, err)
 	}
@@ -62,7 +62,7 @@ func TestRegistrarEnvironmentResolution(t *testing.T) {
 
 func TestRegisterExposesValidationCommands(t *testing.T) {
 	group := Register()
-	if len(group.Subcommands) != 3 {
+	if len(group.Subcommands) != 4 {
 		t.Fatalf("commands = %#v", group.Subcommands)
 	}
 	for _, command := range group.Subcommands {

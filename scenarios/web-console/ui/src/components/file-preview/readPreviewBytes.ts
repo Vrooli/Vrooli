@@ -1,7 +1,7 @@
 // Office readers share the same bounded byte transport inside their workers.
-export async function readPreviewBytes(href: string, maxBytes: number): Promise<ArrayBuffer> {
-  const response = await fetch(href, { credentials: "same-origin" });
-  if (!response.ok || !response.body) throw new Error("fetch");
+export async function readPreviewBytes(href: string, maxBytes: number, signal?: AbortSignal): Promise<ArrayBuffer> {
+  const response = await fetch(href, { credentials: "same-origin", signal });
+  if (!response.ok || !response.body) { await response.body?.cancel(); throw new Error("fetch"); }
   if (Number(response.headers.get("content-length")) > maxBytes) {
     await response.body.cancel(); throw new RangeError("bytes");
   }

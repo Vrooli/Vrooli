@@ -153,7 +153,7 @@ func TestHandleHookStop_MidSessionClaudeAttribution(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = srv.sessions.Delete(context.Background(), sess.ID) })
 
-	result := srv.AppendAssistant("assistant speaking mid-session", sess.ID, "claude_hook")
+	result := srv.AppendAssistant(context.Background(), "assistant speaking mid-session", sess.ID, "claude_hook")
 	if !result.Appended {
 		t.Fatalf("expected event appended, got %+v", result)
 	}
@@ -188,7 +188,7 @@ func TestAppendConversationEvent_RejectsUnattributedPayload(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = srv.sessions.Delete(context.Background(), sess.ID) })
 
-	result := srv.AppendAssistant("stray assistant text", "", "claude_hook")
+	result := srv.AppendAssistant(context.Background(), "stray assistant text", "", "claude_hook")
 	if result.Appended {
 		t.Fatalf("expected unattributed payload to be rejected, got %+v", result)
 	}

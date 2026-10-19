@@ -351,6 +351,9 @@ func (a *Adapter) Create(ctx context.Context, in CreateInput) (Session, error) {
 	if verifiedCaller && in.HumanOwnerSubject != "" {
 		in.Owner = in.HumanOwnerSubject
 	}
+	if err := validateAgentRunIdentityCreate(ctx, in); err != nil {
+		return Session{}, err
+	}
 	fingerprint := createFingerprint(in)
 	if in.RequestFingerprint != "" {
 		fingerprint = in.RequestFingerprint
@@ -478,6 +481,12 @@ func (a *Adapter) Create(ctx context.Context, in CreateInput) (Session, error) {
 		ctx = withDelegationPreSpawn(ctx, a.DelegationMinter, in.HumanOwnerCredentials)
 	}
 
+	if in.AgentRunIdentityToken != "" {
+		if !putSessionRunIdentity(in.RequestedSessionID, in.AgentRunIdentityToken) {
+			return Session{}, fmt.Errorf("%w: child identity already staged for reserved session", ErrFailedPrecondition)
+		}
+		defer deleteSessionRunIdentity(in.RequestedSessionID)
+	}
 	var sess *session.Session
 	var err error
 	if in.RequestedSessionID != "" {
@@ -1685,25 +1694,40 @@ func handlerSessionToResponse(s Session) intsessions.Response {
 	}
 }
 
+func validateAgentRunIdentityCreate(ctx context.Context, in CreateInput) error {
+	if in.AgentRunIdentityToken == "" {
+		return nil
+	}
+	principal, ok := identity.PrincipalFromContext(ctx)
+	if !ok || !principal.IsVerified() || principal.Kind != identity.ActorService || principal.Source != identity.SourceScenarioAuthenticator || principal.Subject != "agent-manager" {
+		return fmt.Errorf("%w: child identity requires the verified agent-manager service", ErrFailedPrecondition)
+	}
+	if len(in.AgentRunIdentityToken) > 16384 || strings.TrimSpace(in.AgentRunIdentityToken) != in.AgentRunIdentityToken || in.RequestedSessionID == "" || in.TargetID != "" && in.TargetID != "local" || intsessions.NormalizeOrigin(in.Origin) != sessionstore.OriginProgrammatic || in.ExecuteLaunchCommand || in.LaunchMode != "" {
+		return fmt.Errorf("%w: child identity requires a bounded local reserved programmatic create", ErrFailedPrecondition)
+	}
+	return nil
+}
+
 func createFingerprint(in CreateInput) string {
 	payload, _ := json.Marshal(struct {
-		Shell                string
-		Cols                 int
-		Rows                 int
-		Backend              string
-		Policy               Policy
-		HasPolicy            bool
-		LaunchCommand        string
-		ExecuteLaunchCommand bool
-		AgentType            string
-		Origin               string
-		Owner                string
-		DisplayLabel         string
-		TargetID             string
-		WorkingDir           string
-		TmuxMouseMode        bool
-		LaunchMode           string
-		LaunchDescriptorJSON string
+		Shell                  string
+		Cols                   int
+		Rows                   int
+		Backend                string
+		Policy                 Policy
+		HasPolicy              bool
+		LaunchCommand          string
+		ExecuteLaunchCommand   bool
+		AgentType              string
+		Origin                 string
+		Owner                  string
+		DisplayLabel           string
+		TargetID               string
+		WorkingDir             string
+		TmuxMouseMode          bool
+		LaunchMode             string
+		LaunchDescriptorJSON   string
+		AgentRunIdentityDigest string
 	}{
 		Shell: in.Shell, Cols: in.Cols, Rows: in.Rows, Backend: in.Backend,
 		Policy: in.Policy, HasPolicy: in.HasPolicy, LaunchCommand: in.LaunchCommand,
@@ -1711,6 +1735,10 @@ func createFingerprint(in CreateInput) string {
 		Origin: in.Origin, Owner: in.Owner, DisplayLabel: in.DisplayLabel,
 		TargetID: in.TargetID, WorkingDir: in.WorkingDir, TmuxMouseMode: in.TmuxMouseMode,
 		LaunchMode: in.LaunchMode, LaunchDescriptorJSON: in.LaunchDescriptorJSON,
+		AgentRunIdentityDigest: func() string {
+			digest := sha256.Sum256([]byte(in.AgentRunIdentityToken))
+			return hex.EncodeToString(digest[:])
+		}(),
 	})
 	digest := sha256.Sum256(payload)
 	return hex.EncodeToString(digest[:])

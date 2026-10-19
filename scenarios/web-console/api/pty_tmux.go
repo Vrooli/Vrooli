@@ -767,17 +767,6 @@ func (p *tmuxPTY) SetMouseMode(enabled bool) error {
 	return nil
 }
 
-// paneInMode reports whether the pane is in copy-mode (or any other tmux
-// mode). `send-keys -X` fails with "not in a mode" outside one, so the
-// forward-scroll path has to ask before it acts.
-func (p *tmuxPTY) paneInMode(ctx context.Context, sessionName string) (bool, error) {
-	out, err := p.tmuxOutput(ctx, "display-message", "-t", sessionName, "-p", "#{pane_in_mode}")
-	if err != nil {
-		return false, fmt.Errorf("tmux display-message pane_in_mode: %w", err)
-	}
-	return strings.TrimSpace(out) == "1", nil
-}
-
 // paneScrollState reports, in one round-trip, whether the pane is on the
 // alternate screen and how many lines of tmux history sit above its viewport.
 //
@@ -791,20 +780,40 @@ func (p *tmuxPTY) paneInMode(ctx context.Context, sessionName string) (bool, err
 //     signal. These panes are scrolled by forwarding wheel input to the program.
 //   - history_size: for a normal-screen pane this is the real scrollback; zero
 //     means a fresh pane with nothing to reveal.
-func (p *tmuxPTY) paneScrollState(ctx context.Context, sessionName string) (altOn bool, histSize int, err error) {
-	out, err := p.tmuxOutput(ctx, "display-message", "-t", sessionName, "-p", "#{alternate_on} #{history_size}")
+//   - pane_in_mode: whether the pane is currently in copy-mode (or any tmux
+//     mode). A pane can be stranded there — e.g. a prior wheel event that tmux
+//     mouse mode hijacked — and send-keys would then be routed into copy-mode
+//     navigation instead of the program, so the forward path must cancel it.
+//
+// All three are queried together in one round-trip.
+func (p *tmuxPTY) paneScrollState(ctx context.Context, sessionName string) (altOn bool, histSize int, inMode bool, err error) {
+	out, err := p.tmuxOutput(ctx, "display-message", "-t", sessionName, "-p", "#{alternate_on} #{history_size} #{pane_in_mode}")
 	if err != nil {
-		return false, 0, fmt.Errorf("tmux display-message alternate_on/history_size: %w", err)
+		return false, 0, false, fmt.Errorf("tmux display-message alternate_on/history_size/pane_in_mode: %w", err)
 	}
 	fields := strings.Fields(strings.TrimSpace(out))
-	if len(fields) != 2 {
-		return false, 0, fmt.Errorf("tmux alternate_on/history_size %q: unexpected format", strings.TrimSpace(out))
+	if len(fields) != 3 {
+		return false, 0, false, fmt.Errorf("tmux alternate_on/history_size/pane_in_mode %q: unexpected format", strings.TrimSpace(out))
 	}
 	histSize, convErr := strconv.Atoi(fields[1])
 	if convErr != nil {
-		return false, 0, fmt.Errorf("tmux history_size %q: %w", fields[1], convErr)
+		return false, 0, false, fmt.Errorf("tmux history_size %q: %w", fields[1], convErr)
 	}
-	return fields[0] == "1", histSize, nil
+	return fields[0] == "1", histSize, fields[2] == "1", nil
+}
+
+// forwardScrollToApp returns a full-screen pane to live (if a prior gesture
+// stranded it in copy-mode) and forwards the wheel gesture to the program so it
+// scrolls its own transcript.
+func (p *tmuxPTY) forwardScrollToApp(ctx context.Context, sessionName string, lines int, inMode bool) error {
+	if inMode {
+		// send-keys into a pane in copy-mode drives copy-mode navigation, not
+		// the program. Cancel first so the wheel reaches the program.
+		if _, err := p.tmuxOutput(ctx, "send-keys", "-t", sessionName, "-X", "cancel"); err != nil {
+			return fmt.Errorf("tmux cancel copy-mode: %w", err)
+		}
+	}
+	return p.forwardWheelToApp(ctx, sessionName, lines)
 }
 
 // appWheelLinesPerNotch approximates how many transcript lines one forwarded
@@ -882,7 +891,7 @@ func (p *tmuxPTY) Scroll(lines int) error {
 	defer cancel()
 
 	if lines < 0 {
-		altOn, histSize, err := p.paneScrollState(ctx, sessionName)
+		altOn, histSize, inMode, err := p.paneScrollState(ctx, sessionName)
 		if err != nil {
 			return err
 		}
@@ -893,7 +902,7 @@ func (p *tmuxPTY) Scroll(lines int) error {
 			// and strand the pane in a mode the user never asked for). Report
 			// the forward so the client can point once at the full transcript in
 			// Messages.
-			if err := p.forwardWheelToApp(ctx, sessionName, lines); err != nil {
+			if err := p.forwardScrollToApp(ctx, sessionName, lines, inMode); err != nil {
 				return err
 			}
 			return errScrollForwardedToApp
@@ -918,21 +927,17 @@ func (p *tmuxPTY) Scroll(lines int) error {
 
 	// Forward scrolling. A full-screen program scrolls its own transcript back
 	// toward live on forwarded wheel-down input, mirroring the back-scroll path.
-	altOn, _, err := p.paneScrollState(ctx, sessionName)
+	altOn, _, inMode, err := p.paneScrollState(ctx, sessionName)
 	if err != nil {
 		return err
 	}
 	if altOn {
-		return p.forwardWheelToApp(ctx, sessionName, lines)
+		return p.forwardScrollToApp(ctx, sessionName, lines, inMode)
 	}
 
 	// On a normal-screen pane, forward scrolling only means something while
 	// scrolled back. Entering copy-mode to scroll down would strand the pane in
 	// a mode it was never in, and would swallow the next keystroke to cancel it.
-	inMode, err := p.paneInMode(ctx, sessionName)
-	if err != nil {
-		return err
-	}
 	if !inMode {
 		return nil
 	}

@@ -11,7 +11,7 @@ import (
 
 type fakeConversationService struct{ err error }
 
-func (f fakeConversationService) Get(string, int64, int, int64) (SessionState, error) {
+func (f fakeConversationService) Get(context.Context, string, int64, int, int64) (SessionState, error) {
 	return SessionState{SessionID: "s1", Events: []Event{{ID: "e1", SessionID: "s1", Role: "assistant", Text: "hello", SpeechParagraphs: []string{"hello"}, OriginalSpeechParagraphs: []string{"hello"}, Sequence: 2, DeliveryState: "complete", TTSState: "ready", ConsumptionState: "new"}}, Cursor: Cursor{LastSeenSequence: 1}, HasMore: true, OldestSequence: 1, NewestSequence: 2, TotalCount: 2}, f.err
 }
 
@@ -19,7 +19,7 @@ func (f fakeConversationService) CaptureStatus(context.Context, string) CaptureS
 	return CaptureStatus{State: CaptureCapturing, Summary: "Messages are being captured."}
 }
 
-func (f fakeConversationService) Search(string, SearchQuery) (SearchResult, error) {
+func (f fakeConversationService) Search(context.Context, string, SearchQuery) (SearchResult, error) {
 	return SearchResult{Matches: []SearchMatch{{EventID: "e1", Sequence: 2, Excerpt: "hello"}}, Truncated: true, TotalMatches: 1}, f.err
 }
 
@@ -27,11 +27,11 @@ func (f fakeConversationService) SearchArchived(context.Context, ArchivedSearchF
 	return ArchivedSearchResult{Matches: []ArchivedSearchMatch{{EventID: "e1", SessionID: "s1", Sequence: 2, Role: "assistant", CreatedAt: "now", Excerpt: "hello"}}, Truncated: true, TotalMatches: 1, DistinctSessions: 1}, f.err
 }
 
-func (f fakeConversationService) GetRange(string, int64, int64) (SessionState, error) {
+func (f fakeConversationService) GetRange(context.Context, string, int64, int64) (SessionState, error) {
 	return SessionState{SessionID: "s1", Cursor: Cursor{LastListenedSequence: 2}}, f.err
 }
 
-func (f fakeConversationService) UpdateCursor(string, CursorPatch) (Cursor, error) {
+func (f fakeConversationService) UpdateCursor(context.Context, string, CursorPatch) (Cursor, error) {
 	return Cursor{LastSeenSequence: 3}, f.err
 }
 

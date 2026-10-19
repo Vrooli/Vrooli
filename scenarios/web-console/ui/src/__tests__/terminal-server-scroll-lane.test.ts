@@ -65,16 +65,23 @@ describe("terminal server scroll lane", () => {
     view.unmount();
   });
 
-  it("leaves the wheel to the program when it requested mouse tracking", async () => {
+  it("routes a tmux pane through the server even when mouse tracking is reported", async () => {
+    // Inside tmux a reported mouse-tracking mode is tmux's own propagation (it
+    // appears whenever tmux `mouse on` is set), not a promise that the program
+    // will scroll on raw wheel bytes. Sending the bytes client-side let tmux
+    // hijack them into copy-mode. So the client asks the server to scroll, and
+    // the server forwards the wheel to the program via send-keys — no raw
+    // control frame leaves the browser.
     const terminal = createTerminalStub({ mouseTrackingMode: "sgr", onAltBuffer: true });
     const { view, frames } = openSession(terminal);
 
     act(() => { view.result.current.scrollBy(-1, "wheel"); });
 
     await waitFor(() => {
-      expect(frames().some((frame) => frame.type === "control" && frame.data?.includes("\x1b[<64;"))).toBe(true);
+      expect(frames().filter((frame) => frame.type === "scroll")).toHaveLength(1);
     });
-    expect(frames().some((frame) => frame.type === "scroll")).toBe(false);
+    expect(frames().find((frame) => frame.type === "scroll")?.lines).toBe(-1);
+    expect(frames().some((frame) => frame.type === "control" && frame.data?.includes("\x1b[<64;"))).toBe(false);
     view.unmount();
   });
 

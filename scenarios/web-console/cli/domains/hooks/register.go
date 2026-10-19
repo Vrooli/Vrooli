@@ -15,6 +15,7 @@ import (
 
 	"github.com/vrooli/api-core/storage"
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 const (
@@ -38,20 +39,15 @@ var errResourceCLIMissing = errors.New("resource-claude-code is not installed, s
 type commandRunner func(context.Context, string, ...string) ([]byte, error)
 
 type registrar struct {
-	lookup      func(string) (string, error)
-	run         commandRunner
-	sleep       func(time.Duration)
-	stdout      io.Writer
-	stderr      io.Writer
-	getenv      func(string) string
-	userHomeDir func() (string, error)
-	workingDir  func() (string, error)
-	readFile    func(string) ([]byte, error)
-	maxAttempts int
-}
-
-type processState struct {
-	Port int `json:"port"`
+	lookup        func(string) (string, error)
+	run           commandRunner
+	sleep         func(time.Duration)
+	stdout        io.Writer
+	stderr        io.Writer
+	getenv        func(string) string
+	detectAPIPort func() string
+	readFile      func(string) ([]byte, error)
+	maxAttempts   int
 }
 
 type reconcileResult struct {
@@ -71,20 +67,42 @@ func Register() cliapp.SubcommandGroup {
 			{Name: "register", Description: "Register the Stop, UserPromptSubmit, and Notification hooks", Run: r.register},
 			{Name: "remove", Description: "Remove the Stop, UserPromptSubmit, and Notification hooks", Run: r.remove},
 			{Name: "dispatch", Description: "Dispatch a Claude hook payload to Web Console", Run: dispatch},
+			{Name: "token-path", Description: "Print this storage context's hook token path without reading its secret", Run: r.tokenPath},
 		},
 	}
 }
 
+func (r *registrar) tokenPath(args []string) error {
+	if len(args) != 0 {
+		return errors.New("usage: hooks token-path")
+	}
+	target := cliutil.ResolveShadowTarget("web-console")
+	if cliutil.IsNonLiveTarget(target) && strings.TrimSpace(r.getenv("WC_HOOK_TOKEN_PATH")) == "" {
+		if strings.TrimSpace(r.getenv(storage.EnvScenario)) != "web-console" ||
+			strings.TrimSpace(r.getenv(storage.EnvStorageNamespace)) == "" ||
+			cliutil.InstanceSlug("web-console", r.getenv(storage.EnvVariant)) != target {
+			return errors.New("non-live token path requires the target's lifecycle storage environment or WC_HOOK_TOKEN_PATH")
+		}
+	}
+	path, err := r.hookTokenPath()
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(r.stdout, path)
+	return nil
+}
+
 func newRegistrar() *registrar {
 	return &registrar{
-		lookup:      exec.LookPath,
-		run:         runCommand,
-		sleep:       time.Sleep,
-		stdout:      os.Stdout,
-		stderr:      os.Stderr,
-		getenv:      os.Getenv,
-		userHomeDir: os.UserHomeDir,
-		workingDir:  os.Getwd,
+		lookup: exec.LookPath,
+		run:    runCommand,
+		sleep:  time.Sleep,
+		stdout: os.Stdout,
+		stderr: os.Stderr,
+		getenv: os.Getenv,
+		detectAPIPort: func() string {
+			return cliutil.LookupScenarioPort(context.Background(), "web-console", "API_PORT", cliutil.DefaultPortCachePolicy).Port
+		},
 		readFile:    os.ReadFile,
 		maxAttempts: defaultAttempts,
 	}
@@ -102,6 +120,9 @@ func runCommand(ctx context.Context, name string, args ...string) ([]byte, error
 func (r *registrar) register(args []string) error {
 	if len(args) != 0 {
 		return fmt.Errorf("usage: hooks register")
+	}
+	if r.skipNonLiveHooks() {
+		return nil
 	}
 	resourceCLI, err := r.resourceCLI()
 	if errors.Is(err, exec.ErrNotFound) {
@@ -159,6 +180,9 @@ func (r *registrar) remove(args []string) error {
 	if len(args) != 0 {
 		return fmt.Errorf("usage: hooks remove")
 	}
+	if r.skipNonLiveHooks() {
+		return nil
+	}
 	resourceCLI, err := r.resourceCLI()
 	if errors.Is(err, exec.ErrNotFound) {
 		return nil
@@ -177,6 +201,21 @@ func (r *registrar) remove(args []string) error {
 		fmt.Fprintf(r.stdout, "tts-hook: deregistered %s hook\n", hook.label)
 	}
 	return nil
+}
+
+// These IDs belong to the operator's project, not a scenario variant. A
+// presentation start (or stop) must never redirect or remove the live hooks.
+func (r *registrar) skipNonLiveHooks() bool {
+	variant := ""
+	if r.getenv != nil {
+		variant = r.getenv(cliutil.EnvInstanceVariant)
+	}
+	if !cliutil.IsNonLiveTarget(cliutil.ResolveShadowTarget("web-console")) &&
+		!cliutil.IsNonLiveTarget(cliutil.InstanceSlug("web-console", variant)) {
+		return false
+	}
+	fmt.Fprintln(r.stdout, "tts-hook: project hooks are owned by live web-console; leaving them unchanged for this non-live instance")
+	return true
 }
 
 func (r *registrar) reconcile(resourceCLI, event, id, command string, timeout int, label string, apiPort int) error {
@@ -217,23 +256,15 @@ func (r *registrar) resourceCLI() (string, error) {
 }
 
 func (r *registrar) apiPort() (int, error) {
-	home, err := r.userHomeDir()
-	if err == nil {
-		contents, readErr := r.readFile(filepath.Join(home, ".vrooli", "processes", "scenarios", "web-console", "start-api.json"))
-		if readErr == nil {
-			var state processState
-			if json.Unmarshal(contents, &state) == nil && state.Port > 0 {
-				return state.Port, nil
-			}
-		}
+	value := strings.TrimSpace(r.getenv("API_PORT"))
+	if value == "" && r.detectAPIPort != nil {
+		value = r.detectAPIPort()
 	}
-	if value := strings.TrimSpace(r.getenv("API_PORT")); value != "" {
-		port, parseErr := strconv.Atoi(value)
-		if parseErr == nil && port > 0 {
-			return port, nil
-		}
+	port, err := strconv.Atoi(value)
+	if err != nil || port < 1 || port > 65535 {
+		return 0, errors.New("API port unavailable or invalid")
 	}
-	return 0, errors.New("API port unavailable")
+	return port, nil
 }
 
 func (r *registrar) awaitHookToken() (string, error) {
@@ -284,6 +315,7 @@ func (r *registrar) hookTokenPath() (string, error) {
 	resolver, err := storage.NewResolver(storage.ResolverConfig{
 		AppID:   "vrooli",
 		Profile: storage.ProfileAuto,
+		EnvGet:  r.getenv,
 	})
 	if err != nil {
 		return "", fmt.Errorf("resolve hook token path: %w", err)

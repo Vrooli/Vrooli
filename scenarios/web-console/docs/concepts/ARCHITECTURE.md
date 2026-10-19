@@ -212,7 +212,7 @@ Two transports, by intent:
 1. **Metadata + bounded text — Connect-RPC** `FilePreviewService` ([CODE: api/handlers/file_preview]). `Resolve(path)` returns a `PreviewModel`: canonical path, basename, `:line`, classification (`PreviewKind`), MIME type, size, capability flags (`can_preview`/`can_download`/`supports_range`/`text_content_available`), an opaque short-lived `preview_id`, a same-origin `blob_url`, and warnings. `GetTextContent(preview_id)` returns ≤1 MiB UTF-8 for text kinds (markdown/code/text/csv/diff).
 2. **Bytes — REST blob/range** `GET|HEAD /api/v1/sessions/{id}/file-previews/{previewId}/blob` ([CODE: api/file_preview_handlers.go]). A sanctioned REST exception (reason `stream_upgrade`) because byte-range streaming consumed directly by native `<img>/<video>/<audio>/<iframe>` is browser-native and cannot be a Connect call. Binary/media bytes never travel through Connect.
 
-Resolution + classification + the preview-id store live in the transport-neutral [CODE: api/internal/filepreview] package (independently unit-tested, reusable). The UI side is registry-based: a viewer state machine ([CODE: ui/src/components/file-preview/useFilePreviewController.ts]) feeds a normalized `PreviewModel` to [CODE: ui/src/components/MessagesFileViewer.tsx], which routes on `kind` through the renderer registry ([CODE: ui/src/components/file-preview/renderers/index.ts]) — one dedicated renderer per kind (markdown, code/text, image/svg, pdf, audio, video, csv, spreadsheet, document, diff, directory, unsupported).
+Resolution + classification + the preview-id store live in the transport-neutral [CODE: api/internal/filepreview] package (independently unit-tested, reusable). The UI side is registry-based: a viewer state machine ([CODE: ui/src/components/file-preview/useFilePreviewController.ts]) feeds a normalized `PreviewModel` to [CODE: ui/src/components/MessagesFileViewer.tsx], which routes on `kind` through the renderer registry ([CODE: ui/src/components/file-preview/renderers/index.ts]) — one dedicated renderer per kind (markdown, code/text, image/svg, pdf, audio, video, csv, spreadsheet, document, presentation, ebook, archive, diff, directory, unsupported).
 
 Flow: message link/chip → `openPreview(path)` → `Resolve` issues a session-bound `preview_id` → text kinds fetch `GetTextContent`; blob kinds load lazily via `blob_href` in the renderer. The blob handler re-stats the file on every request and returns 409 if size/mtime changed since resolve, 404 for unknown/expired/session-mismatched ids.
 
@@ -750,6 +750,68 @@ closes the drawer. Failed inspection retains the original download and recovery.
 Desktop/phone composition: `docs/mockups/archive-previews.svg`.
 
 
+### PowerPoint inspection surface
+
+PowerPoint is an immersive, read-only inspection surface using the established
+InspectionHeader/InspectionOptions chrome. The slide itself is the focal plane,
+with no surrounding card or decorative container. Desktop can show an optional
+thumbnail rail beside the fitted slide; a phone uses an on-demand slide grid that
+replaces the canvas and returns to it after selection. Notes and extracted slide
+text are available on demand, including empty notes. Previous/next, a slide
+counter, fit/zoom and scoped keyboard navigation remain available. Preserve slide
+order, hidden-slide identity and the original download. See
+`docs/mockups/powerpoint-previews.svg` for the paired compositions.
+
+Modern PPTX/PPSX/POTX packages render locally through the pinned browser OOXML
+renderer; no external Office viewer, host converter, installation or upload is
+required. Legacy PPT and encrypted, invalid or over-budget packages have explicit
+fallback states. Animations, macros, live media and external assets are not run.
+Typography may vary with installed fonts; unsupported visual features are
+disclosed in the options and partial-render failures are surfaced, never hidden.
+
+Untrusted bytes first pass a terminable worker: 20 MiB input, 4,000 ZIP records,
+16 MiB per entry, 64 MiB actual total expansion, 2 MiB per XML part, bounded XML
+depth/element count and 300 slides. Raster headers bound individual images to 24 million pixels
+and total package image area to 64 million pixels; XML is bounded to 64 levels
+and 200,000 total elements. Streamed inflation stops at actual budgets,
+independent of declared ZIP sizes. Ambiguous/duplicate paths, traversal, encrypted
+entries, unsupported compression, malformed XML and entity declarations are
+rejected. Parsing and rendering use an opaque-origin sandboxed iframe with a
+restrictive CSP, external media disabled, no network access, no same-origin,
+forms, popups or host navigation privileges. The owned renderer is built as inert
+source in a separate lazy asset in both development and production. The host's
+bounded, abortable same-origin fetch retains access cookies across an authenticated proxy;
+the source then executes only in the opaque frame under a fresh nonce-only
+script policy. The frame makes no anonymous renderer/module requests. Startup
+failure and its deadline report viewer unavailability; only a parser that
+actually started can report a processing-budget timeout. The parent accepts messages only
+from the active iframe and validates bounded plain metadata. All workers, slide
+handles, media URLs, listeners and pending requests are released on change/close.
+
+### EPUB reading surface
+
+EPUB is a semantic reflowable reader using the Word reader's typography and
+shared inspection chrome. Show book title/creator, chapter position and estimated progress (weighted by chapter byte length);
+previous/next chapters and an on-demand contents list make a whole publication
+navigable. Desktop can retain contents beside the text; phones use a contents
+screen and return to the chapter on selection. Text sizing, comfortable reading
+width, within-chapter search and original download are available. Preserve
+spine order, nested navigation labels, fragments and within-book links.
+
+EPUB shares the publication worker's bounded ZIP transport, actual decompression
+budgets, CRC/path checks and termination. Package/container/OPF and EPUB 3 nav or
+EPUB 2 NCX metadata are parsed with DOMParser after bounded worker validation.
+Limit the spine to 300 chapters and rendered HTML to 2 MiB per chapter. Reject
+encrypted/DRM books and invalid/unsupported packages with explicit recovery.
+Publishers' scripts, forms, stylesheets, remote resources and embedded active
+content are omitted. Sanitize semantic XHTML through the existing document
+allowlist, with bounded raster images rewritten to owned blob URLs. Internal
+links resolve against package parts and cannot escape to host paths. External
+links require an explicit click and use safe protocols/no opener. No content
+is uploaded and no host converter is required. Fixed-layout books disclose
+their reflow limitation rather than claiming page fidelity. See
+`docs/mockups/epub-previews.svg`.
+
 ### Plain-text inspection surface
 
 Source inspection uses a full-width, unframed reading surface below its controls.
@@ -758,3 +820,120 @@ code retains its existing spacing and wrapping default. The idle line count appe
 in the header once. The lower source status row appears only for selection/copy
 feedback or pagination. Logical line numbers and copied bytes remain unchanged.
 Archive members and local files share this presentation.
+
+### 3D model inspection
+
+The existing focused artifact-inspection concept extends to a read-only 3D
+viewer, an immersive single-task drawer. The operator authorized implementation
+of the proposed 3D formats. Content model: model identity/format, static geometry
+and authored materials, orbit/pan/zoom, fit and canonical views, wireframe, grid,
+lighting, background, counts, loading/recovery and original download. Desktop
+puts inspection controls alongside the stage; narrow drawers keep the stage
+primary, place fit/zoom in a thumb bar, and reveal secondary settings through
+the existing responsive options dialog. No extra card surrounds the canvas.
+Composition: docs/mockups/model-preview.svg. This extends the already approved
+artifact family; no token or primitive redesign is included.
+
+Support boundary: GLB and self-contained glTF 2.0, OBJ geometry, ASCII/binary STL.
+External buffers, textures and material libraries are never fetched. A bounded
+local worker validates input, graph/geometry/allocation bounds and embedded
+resources before rendering. Unsupported compression/extensions and sidecar
+assets retain download with an explicit explanation. Browser WebGL2 capability
+is required; failure/context loss preserves recovery/download. No OS tool or
+remote conversion service participates. Rendering is lazy, demand-driven,
+resolution-bounded and fully disposed on close or source change.
+
+3D budgets: 20 MiB streamed input, 600,000 vertices / 200,000 triangles,
+256 draw primitives across model instances, 2,048 nodes / depth 64, eight
+scenes, 32 MiB decoded accessor storage, 32 textures/images, 4,096px texture
+edges, eight megapixels per texture and 16 megapixels total. JSON syntax is
+bounded before object materialization; cycles/shared parents, sparse accessors,
+non-finite coordinates and unsupported feature extensions are rejected before
+Three.js parsing. A 45-second download deadline, ten-second worker processing
+deadline and twenty-second renderer deadline have distinct fallbacks.
+The renderer is a lazy local chunk; no network models/decoders/environments
+are loaded. Studio reflections are generated locally at 128px. The canvas
+caps device-pixel ratio at 1.75 and total pixels at two million. Static views
+render on demand; explicit rotation pauses when the page is hidden.
+All workers, frames, observers, controls, geometries, materials, textures,
+image bitmaps, environment targets and the graphics context have owned cleanup.
+
+Authored thin glass/plastic materials using `KHR_materials_transmission` are
+supported by the existing GLTFLoader. Preflight validates their factor (0–1)
+and optional embedded texture reference before rendering; they retain the same
+image and texture budgets. The renderer's transmission target inherits the
+two-million-pixel canvas limit and is disposed with the renderer. This does not
+enable compression decoders, external textures, or arbitrary extensions.
+
+The same bounded material admission supports `KHR_materials_clearcoat` and
+`KHR_materials_specular`, using the installed loader's authored shading. Check
+their scalar factors against 0–1, specular RGB for nonnegative finite values
+(HDR colors above one are valid), normal-map scale for finite values, and every
+optional texture index/coordinate. These physical
+material extensions cannot be combined with unlit on one material. All their
+images still pass the common embedded-image and texture allocation checks;
+no additional asset acquisition or decoder is enabled.
+
+### Font specimens
+
+The focused artifact-inspection family extends to local TTF, OTF, WOFF and
+WOFF2 files. Concept: a typographic specimen, with the font itself as the focal
+content and no extra card around it. Content model: authored family/style,
+editable sample, size, spacing and line height, actual mapped Unicode characters,
+variable axes where authored, ligatures/kerning, background and original download.
+Desktop exposes specimen/character tabs and a size slider together; narrow drawers
+use a compact mode selector and thumb-sized size controls. Secondary tools and
+metadata use the existing responsive InspectionOptions dialog. Characters are
+paginated and searchable by character or U+ code point. The browser renders the
+file's authored face without synthetic bold/italic. Default specimens select a
+supported language sample or mapped characters when a font lacks the preferred
+script; the hero uses actual mappings for icon/script-specific fonts. Changing text does not modify
+the original. See ../mockups/font-preview.svg. This is an extension of the
+operator-approved artifact family, not a token/primitive redesign.
+
+Support is browser-native via FontFace constructed from bounded bytes, with a
+unique family per preview and explicit document.fonts deletion on replacement,
+close or failure. No OS installation, remote font service, external URL or shell
+converter is used. Metadata/coverage parsing uses fontkit in a terminable worker. Before library
+parsing, an unregistered worker FontFace requires native font sanitization;
+fontkit's Brotli decoder can otherwise expand beyond its expected output.
+Input is capped at 10 MiB and declared expanded sfnt storage at 32 MiB; table,
+character and axis counts are bounded. Download, parser and native-loader
+deadlines retain meaningful retry/download fallbacks. Font collections are not
+in the initial support boundary. Native browser sanitization is authoritative
+for rendering; invalid or browser-unsupported fonts preserve the original.
+
+
+### SQLite database inspection
+
+Extend the existing focused artifact-inspection family with a read-only SQLite
+browser. Content model: database identity, snapshot time, ordinary tables,
+column types/keys, indexes and foreign keys, paginated records, per-column
+filter/sort, full bounded cell details, copy and CSV export of the current page.
+No SQL editor, mutations, remote database credentials, extension loading, or
+persistent browser storage. Identify SQLite by its header as well as common
+.sqlite/.sqlite3/.db extensions; a .db extension alone does not prove SQLite.
+
+Desktop composition: searchable table selector, Data/Schema modes, native table
+with sortable headers and cell inspection in the shared options dialog. Narrow
+drawers: table selector then compact record list, drill into a record and its
+cells with local Back (never drawer dismissal). All columns remain reachable.
+Use shared ArtifactChrome and semantic tokens, without a card around content.
+Filters explicitly target a selected column. Binary cells show length; JSON is
+formatted on demand. NULL and empty strings remain distinguishable. Export is
+bounded to the displayed page and neutralizes spreadsheet formula prefixes.
+
+The existing session-bound blob capability gains an explicit SQLite snapshot
+representation. Source is opened read-only, trusted schema disabled, and a
+consistent read transaction/SQLite backup yields standalone bytes including
+committed WAL changes. No raw filesystem copy of an active database; no writes,
+checkpoint, or journal-mode changes to source. Bounded snapshot size 32 MiB,
+2 concurrent snapshots, 5-second work deadline, opaque errors, no-store headers.
+Virtual archive members can be inspected as standalone bytes but WAL-dependent
+members must fail clearly. A browser worker owns the official SQLite WASM runtime
+and an engine-read-only in-memory connection. Generated internal queries only,
+quoted identifiers, bound filters, no executable schema objects or views.
+Bound schema/table counts, column counts, cell bytes, response bytes, page size,
+and query duration; terminate the worker on close/replacement or deadline.
+Encrypted/corrupt/non-SQLite/oversized sources get recovery and download options.
+Snapshots are point-in-time; Refresh obtains a new preview handle and snapshot.

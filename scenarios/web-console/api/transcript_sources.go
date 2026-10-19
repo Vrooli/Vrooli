@@ -238,9 +238,9 @@ func newClaudeTranscriptEngine(ct *ClaudeTailer) *tailer.Engine {
 		TailInterval: 500 * time.Millisecond,
 		Dispatch: func(event tailer.Event, sessionID string) bool {
 			if event.Role == "user" {
-				return ct.server.AppendUser(event.Text, sessionID, claudeTailerSource).Appended
+				return ct.server.AppendUser(context.Background(), event.Text, sessionID, claudeTailerSource).Appended
 			} else {
-				return ct.server.AppendAssistant(event.Text, sessionID, claudeTailerSource).Appended
+				return ct.server.AppendAssistant(context.Background(), event.Text, sessionID, claudeTailerSource).Appended
 			}
 		},
 	})
@@ -256,9 +256,9 @@ func newCodexTranscriptEngine(ct *CodexTailer) *tailer.Engine {
 		StaleTimeout: codexStaleTimeout,
 		Dispatch: func(event tailer.Event, sessionID string) bool {
 			if event.Role == "user" {
-				return ct.server.AppendUser(event.Text, sessionID, codexTailerSource).Appended
+				return ct.server.AppendUser(context.Background(), event.Text, sessionID, codexTailerSource).Appended
 			} else {
-				return ct.server.AppendAssistant(event.Text, sessionID, codexTailerSource).Appended
+				return ct.server.AppendAssistant(context.Background(), event.Text, sessionID, codexTailerSource).Appended
 			}
 		},
 	})
@@ -275,11 +275,11 @@ func newGrokTranscriptEngine(gt *GrokTailer) *tailer.Engine {
 		StaleTimeout: grokStaleTimeout,
 		Dispatch: func(event tailer.Event, sessionID string) bool {
 			if event.Role == "user" {
-				result := gt.server.AppendUser(event.Text, sessionID, grokSource)
+				result := gt.server.AppendUser(context.Background(), event.Text, sessionID, grokSource)
 				logGrokAppend("user", sessionID, result)
 				return result.Appended
 			} else {
-				result := gt.server.AppendAssistant(event.Text, sessionID, grokSource)
+				result := gt.server.AppendAssistant(context.Background(), event.Text, sessionID, grokSource)
 				logGrokAppend("assistant", sessionID, result)
 				return result.Appended
 			}

@@ -75,16 +75,20 @@ describe("terminal wheel ownership", () => {
     expect(scrollBy).toHaveBeenCalledWith(-3, "wheel");
   });
 
-  it("defers to xterm when the program owns the wheel through mouse tracking", () => {
-    // Claude Code and friends enable mouse tracking; xterm must keep encoding
-    // wheel events as mouse reports so the program scrolls itself.
+  it("claims the wheel on a tmux pane even when mouse tracking is reported", () => {
+    // Inside tmux the alternate buffer plus a reported mouse-tracking mode does
+    // NOT mean the program will scroll on raw wheel bytes: that flag appears
+    // whenever tmux `mouse on` is set, and deferring to xterm then lets tmux
+    // hijack the wheel into copy-mode (the "I still can't scroll on a Codex
+    // pane" bug). So the handler claims the wheel and routes it through the
+    // server, which forwards it straight to the program via send-keys.
     const { fire, scrollBy } = render({ mouseTrackingMode: "sgr", onAltBuffer: true });
 
     const { result, preventDefault } = fire(-60);
 
-    expect(result).toBe(true);
-    expect(preventDefault).not.toHaveBeenCalled();
-    expect(scrollBy).not.toHaveBeenCalled();
+    expect(result).toBe(false);
+    expect(preventDefault).toHaveBeenCalled();
+    expect(scrollBy).toHaveBeenCalledWith(-3, "wheel");
   });
 
   it("defers to xterm when the terminal has real scrollback of its own", () => {

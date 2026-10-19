@@ -502,9 +502,11 @@ Replaces the pre-Phase-3 `stripANSI` helper that lived in `package main`.
 
 | Component | Surface |
 |-----------|---------|
-| `ConversationDispatcher.AppendAssistant(text, sessionID, source)` | Publish an assistant response, run TTS routing |
-| `ConversationDispatcher.AppendUser(text, sessionID, source)` | Publish a user prompt (no TTS) |
+| `ConversationDispatcher.AppendAssistant(ctx, text, sessionID, source)` | Publish an assistant response, run TTS routing |
+| `ConversationDispatcher.AppendUser(ctx, text, sessionID, source)` | Publish a user prompt (no TTS) |
 | `*Server` implements both implicitly | Compile-time check via `var _ ConversationDispatcher = (*Server)(nil)` |
+
+HTTP hooks, conversation reads, search, ranges and cursor writes retain the request context through this seam and the repository. Detached summaries preserve context values with `context.WithoutCancel` and add a bounded timeout. A background transcript producer supplies its own context explicitly. Routed test qualification checks primary and leased rows directly; routing counters alone cannot detect code that discarded the context before reaching the database.
 
 ### Conversation Hub Seam (API)
 **Files**: `api/conversation_hub.go`, `api/events_stream.go`
