@@ -43,8 +43,14 @@ type Provider interface {
 	// Approve applies sandbox changes to the canonical repository.
 	Approve(ctx context.Context, req ApproveRequest) (*ApproveResult, error)
 
-	// Reject marks sandbox changes as rejected without applying.
+	// Reject marks sandbox changes as rejected without applying. Empty-hash
+	// callers retain the legacy manual rejection behavior.
 	Reject(ctx context.Context, id uuid.UUID, actor string) error
+
+	// RejectReviewed conditionally rejects only the exact patch shown in the
+	// current decision. Implementations must fail before state or cleanup if
+	// the patch differs or cannot be read.
+	RejectReviewed(ctx context.Context, req RejectRequest) error
 
 	// PartialApprove approves only selected files from the sandbox.
 	PartialApprove(ctx context.Context, req PartialApproveRequest) (*ApproveResult, error)
@@ -239,8 +245,17 @@ type DiffResult struct {
 	SandboxID   uuid.UUID    `json:"sandboxId"`
 	Files       []FileChange `json:"files"`
 	UnifiedDiff string       `json:"unifiedDiff"`
-	Generated   time.Time    `json:"generated"`
-	Stats       DiffStats    `json:"stats"`
+	// PatchSHA256 identifies the exact unified-diff bytes, not a source-tree snapshot.
+	PatchSHA256 string    `json:"patchSha256,omitempty"`
+	Generated   time.Time `json:"generated"`
+	Stats       DiffStats `json:"stats"`
+	// EvidenceComplete is set only by a provider that verified the complete
+	// diff response shape, requested sandbox identity, and patch digest. It is
+	// internal metadata; it is never serialized to callers.
+	EvidenceComplete bool `json:"-"`
+	// FileCountVerified is set by orchestration only after checking the
+	// provider evidence against the exact run sandbox. It is not provider input.
+	FileCountVerified bool `json:"-"`
 
 	// ArchiveState distinguishes archive-sourced responses from live
 	// responses. Empty (zero value) means the diff was served from the
@@ -298,11 +313,21 @@ type DiffStats struct {
 }
 
 // ApproveRequest contains parameters for approving sandbox changes.
+// RejectRequest carries the reviewed-patch precondition for a decision-driven
+// discard. Manual callers continue to use Reject without a digest.
+type RejectRequest struct {
+	SandboxID           uuid.UUID
+	Actor               string
+	ExpectedPatchSHA256 string
+}
+
 type ApproveRequest struct {
 	SandboxID uuid.UUID `json:"sandboxId"`
 	Actor     string    `json:"actor"`
 	CommitMsg string    `json:"commitMsg,omitempty"`
 	Force     bool      `json:"force,omitempty"` // Force despite conflicts
+	// ExpectedPatchSHA256 binds approval to the exact reviewed unified diff.
+	ExpectedPatchSHA256 string `json:"expectedPatchSha256,omitempty"`
 }
 
 // PartialApproveRequest approves only selected files.

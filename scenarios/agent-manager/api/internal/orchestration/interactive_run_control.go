@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/webconsole"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration/interactive"
@@ -97,6 +98,28 @@ func (r *interactiveDriverRegistry) cancelAndWait(runID uuid.UUID) bool {
 	return true
 }
 
+// revokeInteractiveRunIdentity loads and durably revokes a run's currently
+// active identity. No-op when no token exists or it was already revoked.
+func (o *Orchestrator) revokeInteractiveRunIdentity(ctx context.Context, runID uuid.UUID) error {
+	if o.runs == nil {
+		return fmt.Errorf("run repository is not configured")
+	}
+	run, err := o.runs.Get(ctx, runID)
+	if err != nil {
+		return err
+	}
+	if run == nil {
+		return domain.NewNotFoundError("Run", runID)
+	}
+	if run.IdentityTokenHash == "" || run.IdentityTokenRevokedAt != nil {
+		return nil
+	}
+	now := o.now()
+	run.IdentityTokenRevokedAt = &now
+	run.UpdatedAt = now
+	return o.runs.Update(ctx, run)
+}
+
 // stopInteractiveRun stops an ExecutionMode=interactive run. The CLI lives in a
 // web-console tmux session, so there is no local process to signal: Stop cancels
 // the live coordinator (and waits for it to exit), tears the session down via the
@@ -113,15 +136,21 @@ func (o *Orchestrator) stopInteractiveRun(ctx context.Context, run *domain.Run) 
 	if o.reconciler != nil {
 		o.reconciler.CancelInteractiveTail(run.ID)
 	}
+	// A stopped PTY is a true session retirement even when its run had already
+	// reached a resumable terminal turn. Revoke the child bearer durably before
+	// teardown; a failed write prevents Stop from claiming retirement.
+	if err := o.revokeInteractiveRunIdentity(ctx, run.ID); err != nil {
+		return fmt.Errorf("revoke interactive run identity before stop: %w", err)
+	}
 
-	// 2. Hard-stop the web-console session: interrupt (soft) then archive (hard),
-	//    idempotent. A teardown error is non-fatal — the session may already be
-	//    gone — so we still finalize the run.
+	// 2. Hard-stop the web-console session: interrupt (soft) then archive (hard).
+	//    Only a successful archive (or the adapter's typed already-gone result)
+	//    proves retirement. Keep the run retryable and its child identity revoked
+	//    when archive fails; do not clean credentials or finalize it as stopped.
 	if run.WebConsoleSessionID != "" && o.interactiveSessions != nil {
 		sub := interactive.NewSubstrate(o.interactiveSessions, interactive.RegistryLaunchInfo(o.runners))
 		if err := sub.Stop(ctx, run.WebConsoleSessionID, interactiveRunSource(run.ID)); err != nil {
-			obs.Component("interactive").Warn("interactive stop: session teardown failed",
-				obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
+			return fmt.Errorf("stop interactive web-console session: %w", err)
 		}
 		// The session is closing, so any human-session delegation grant minted for
 		// it is revoked now — a closed session must confer no further authority
@@ -211,6 +240,7 @@ func (o *Orchestrator) finalizeSandboxForTerminalRun(ctx context.Context, run *d
 // follow-up lands in the same CLI; if the session is gone, the run cannot be
 // continued in place and an actionable error is returned.
 func (o *Orchestrator) continueInteractiveRun(ctx context.Context, run *domain.Run, message string, _ []string, reinstallGoal bool) (*domain.Run, error) {
+	completeAfterFirstTurn := shouldCompleteAfterCompletedGoalContinuation(run, reinstallGoal)
 	if o.interactiveSessions == nil {
 		return nil, domain.RefuseBeforeEffects(domain.NewConfigMissingError("interactiveSessions", "interactive execution mode is not configured", nil))
 	}
@@ -238,7 +268,20 @@ func (o *Orchestrator) continueInteractiveRun(ctx context.Context, run *domain.R
 	// Reactivate the run (reset the heartbeat in the same transition) and record
 	// the follow-up as a user message, mirroring pipe-mode resumeConversation.
 	now := o.now()
+	transcriptStartCursor := run.TranscriptCursor
 	run.InteractiveInvocationStartedAt = &now
+	// Persist this exception with the invocation boundary itself so recovery
+	// can apply it only to this exact admitted continuation after a restart.
+	if run.ResolvedConfig != nil {
+		run.ResolvedConfig.InteractiveContinuation = nil
+		if completeAfterFirstTurn {
+			run.ResolvedConfig.InteractiveContinuation = &domain.InteractiveContinuationPolicy{
+				InvocationStartedAt:                               now,
+				TranscriptStartCursor:                             &transcriptStartCursor,
+				CompleteAfterFirstSuccessfulTurnWithoutGoalMarker: true,
+			}
+		}
+	}
 	run, err := o.applyRunStatusTransition(ctx, RunStatusTransitionInput{
 		Run:           run,
 		NewStatus:     domain.RunStatusRunning,
@@ -300,16 +343,29 @@ func (o *Orchestrator) continueInteractiveRun(ctx context.Context, run *domain.R
 	// Reattach a live coordinator to drive the new turn to completion. Its
 	// turn-boundary debounce closes the follow-up turn exactly like the initial
 	// Execute turn.
-	o.driveInteractiveContinuation(run)
+	o.driveInteractiveContinuation(run, completeAfterFirstTurn)
 
 	return o.attachRunActions(ctx, run), nil
+}
+
+// shouldCompleteAfterCompletedGoalContinuation scopes the one-turn terminal
+// rule to a completed native goal that the caller did not reinstall. A new
+// invocation with a reinstalled goal keeps the normal goal-verdict contract.
+func shouldCompleteAfterCompletedGoalContinuation(run *domain.Run, reinstallGoal bool) bool {
+	return !reinstallGoal &&
+		run != nil &&
+		run.Status == domain.RunStatusComplete &&
+		run.ExecutionMode.Normalized() == domain.ExecutionModeInteractive &&
+		run.ResolvedConfig != nil &&
+		strings.TrimSpace(run.ResolvedConfig.Until) != "" &&
+		run.ObservedGoalStatus == string(runner.GoalStatusComplete)
 }
 
 // reinstallNativeGoal re-sends the harness-native /goal objective into a live
 // interactive session. It is a no-op when the run has no completion objective,
 // the runner declares no native objective for the run's sandbox, or the session
-// controller is not configured. The objective is single-lined because the slash
-// command submits on its first newline.
+// controller is not configured. The objective is single-lined because native
+// slash commands must be typed as literal keystrokes and explicitly submitted.
 func (o *Orchestrator) reinstallNativeGoal(ctx context.Context, run *domain.Run) error {
 	if run == nil || run.ResolvedConfig == nil || strings.TrimSpace(run.ResolvedConfig.Until) == "" {
 		return nil
@@ -325,8 +381,18 @@ func (o *Orchestrator) reinstallNativeGoal(ctx context.Context, run *domain.Run)
 	if strings.TrimSpace(objective) == "" {
 		return nil
 	}
-	objective = strings.TrimSpace(strings.ReplaceAll(strings.ReplaceAll(objective, "\r\n", " "), "\n", " "))
-	return o.interactiveSessions.SendText(ctx, run.WebConsoleSessionID, "/goal "+objective+"\n", interactiveRunSource(run.ID))
+	command := "/goal " + runner.NativeGoalObjective(objective)
+	submission, err := o.interactiveSessions.SendCommand(ctx, run.WebConsoleSessionID, command, interactiveRunSource(run.ID))
+	if err != nil {
+		// SendCommand may have typed the command or pressed Enter before the
+		// transport failed. The caller must withhold the follow-up and leave its
+		// idempotency receipt pending for owner reconciliation.
+		return fmt.Errorf("native goal command submission outcome is uncertain: %w", err)
+	}
+	if !submission.Verified {
+		return fmt.Errorf("native goal command submission was unverified after %d Enter presses; follow-up withheld", submission.EnterPresses)
+	}
+	return nil
 }
 
 // driveInteractiveContinuation reattaches a live interactive coordinator to a run
@@ -336,7 +402,7 @@ func (o *Orchestrator) reinstallNativeGoal(ctx context.Context, run *domain.Run)
 // interactive driver registry so StopRun can cancel it deterministically. The
 // coordinator mutates its own copy of the run; the persisted DB row is the
 // source of truth.
-func (o *Orchestrator) driveInteractiveContinuation(run *domain.Run) {
+func (o *Orchestrator) driveInteractiveContinuation(run *domain.Run, completeAfterFirstTurn bool) {
 	coord := interactive.NewCoordinator(interactive.CoordinatorDeps{
 		Tailer:      interactive.NewTailer(interactive.RegistryParser(o.runners)),
 		Sessions:    o.interactiveSessions,
@@ -353,7 +419,9 @@ func (o *Orchestrator) driveInteractiveContinuation(run *domain.Run) {
 		defer obs.RecoverToFailure("interactive continuation driver", func(failure obs.PanicFailure) {
 			o.recoverPanickedRun(&runCopy, failure)
 		})
-		terminal, tailErr := coord.TailToCompletion(ctx, &runCopy)
+		terminal, tailErr := coord.TailToCompletionWithOptions(ctx, &runCopy, interactive.TailCompletionOptions{
+			CompleteAfterFirstSuccessfulTurnWithoutGoalMarker: completeAfterFirstTurn,
+		})
 		if err := coord.Finalize(ctx, &runCopy, terminal, tailErr); err != nil {
 			obs.Component("interactive").Warn("interactive continuation finalize failed",
 				obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())

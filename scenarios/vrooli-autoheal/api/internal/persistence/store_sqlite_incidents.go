@@ -58,8 +58,8 @@ func (s *Store) upsertIncidentSQLite(ctx context.Context, input incidents.Upsert
 			boot_id, previous_boot_id, source_check_ids_json, source_result_ids_json, evidence_json, recommendations_json,
 			diagnosis, confidence, evidence_items_json, corroboration_needed_json, safe_actions_json, operator_actions_json,
 			rollback_or_fallback_json, post_checks_json, remediation_candidates_json, remediation_artifacts_json, outcome_json,
-			event_count, observation_count
-		) VALUES (?, ?, ?, ?, 'open', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0)
+			event_count, observation_count, remediation_decision_generation, remediation_decision_revision, remediation_decision_event_id, remediation_decision_candidate_id, remediation_candidate_digest, remediation_decision_expires_at
+		) VALUES (?, ?, ?, ?, 'open', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, 1, 0, '', '', '', NULL)
 		ON CONFLICT(fingerprint) DO UPDATE SET
 			severity = CASE
 				WHEN incidents.severity = 'critical' OR excluded.severity = 'critical' THEN 'critical'
@@ -91,7 +91,13 @@ func (s *Store) upsertIncidentSQLite(ctx context.Context, input incidents.Upsert
 				ELSE excluded.remediation_artifacts_json
 			END,
 			outcome_json = COALESCE(excluded.outcome_json, incidents.outcome_json),
-			event_count = CASE WHEN incidents.status = 'resolved' THEN incidents.event_count + 1 ELSE incidents.event_count END
+			event_count = CASE WHEN incidents.status = 'resolved' THEN incidents.event_count + 1 ELSE incidents.event_count END,
+			remediation_decision_generation = CASE WHEN incidents.status = 'resolved' THEN incidents.event_count + 1 ELSE incidents.remediation_decision_generation END,
+			remediation_decision_revision = CASE WHEN incidents.status = 'resolved' THEN 0 ELSE incidents.remediation_decision_revision END,
+			remediation_decision_event_id = CASE WHEN incidents.status = 'resolved' THEN '' ELSE incidents.remediation_decision_event_id END,
+			remediation_decision_candidate_id = CASE WHEN incidents.status = 'resolved' THEN '' ELSE incidents.remediation_decision_candidate_id END,
+			remediation_candidate_digest = CASE WHEN incidents.status = 'resolved' THEN '' ELSE incidents.remediation_candidate_digest END,
+			remediation_decision_expires_at = CASE WHEN incidents.status = 'resolved' THEN NULL ELSE incidents.remediation_decision_expires_at END
 	`, id, input.Fingerprint, input.Type, input.Severity, input.Title, input.Summary,
 		input.ObservedAt.UTC().Format(time.RFC3339Nano),
 		input.ObservedAt.UTC().Format(time.RFC3339Nano),
@@ -226,6 +232,12 @@ func (s *Store) ensureIncidentContractColumns(ctx context.Context) error {
 		{"remediation_candidates_json", "TEXT NOT NULL DEFAULT '[]'"},
 		{"remediation_artifacts_json", "TEXT NOT NULL DEFAULT '[]'"},
 		{"outcome_json", "TEXT"},
+		{"remediation_decision_generation", "INTEGER NOT NULL DEFAULT 0"},
+		{"remediation_decision_revision", "INTEGER NOT NULL DEFAULT 0"},
+		{"remediation_decision_event_id", "TEXT NOT NULL DEFAULT ''"},
+		{"remediation_decision_candidate_id", "TEXT NOT NULL DEFAULT ''"},
+		{"remediation_candidate_digest", "TEXT NOT NULL DEFAULT ''"},
+		{"remediation_decision_expires_at", "TEXT"},
 	}
 	for _, column := range columns {
 		if _, err := s.db.ExecContext(ctx, fmt.Sprintf("ALTER TABLE incidents ADD COLUMN %s %s", column.name, column.def)); err != nil {
@@ -304,7 +316,7 @@ func (s *Store) listIncidentsSQLite(ctx context.Context, filters incidents.ListF
 			source_check_ids_json, source_result_ids_json, evidence_json, recommendations_json,
 			diagnosis, confidence, evidence_items_json, corroboration_needed_json, safe_actions_json, operator_actions_json,
 			rollback_or_fallback_json, post_checks_json, remediation_candidates_json, remediation_artifacts_json, outcome_json,
-			event_count, observation_count, operator_notes
+			event_count, observation_count, operator_notes, remediation_decision_generation, remediation_decision_revision, remediation_decision_event_id, remediation_decision_candidate_id, remediation_candidate_digest, remediation_decision_expires_at
 		FROM incidents
 		WHERE `+strings.Join(where, " AND ")+`
 		ORDER BY updated_at DESC
@@ -335,7 +347,7 @@ func (s *Store) getIncidentSQLite(ctx context.Context, id string) (*incidents.In
 			source_check_ids_json, source_result_ids_json, evidence_json, recommendations_json,
 			diagnosis, confidence, evidence_items_json, corroboration_needed_json, safe_actions_json, operator_actions_json,
 			rollback_or_fallback_json, post_checks_json, remediation_candidates_json, remediation_artifacts_json, outcome_json,
-			event_count, observation_count, operator_notes
+			event_count, observation_count, operator_notes, remediation_decision_generation, remediation_decision_revision, remediation_decision_event_id, remediation_decision_candidate_id, remediation_candidate_digest, remediation_decision_expires_at
 		FROM incidents
 		WHERE id = ?
 	`, id)
@@ -357,7 +369,7 @@ func getIncidentByFingerprintSQLite(ctx context.Context, queryer incidentRowQuer
 			source_check_ids_json, source_result_ids_json, evidence_json, recommendations_json,
 			diagnosis, confidence, evidence_items_json, corroboration_needed_json, safe_actions_json, operator_actions_json,
 			rollback_or_fallback_json, post_checks_json, remediation_candidates_json, remediation_artifacts_json, outcome_json,
-			event_count, observation_count, operator_notes
+			event_count, observation_count, operator_notes, remediation_decision_generation, remediation_decision_revision, remediation_decision_event_id, remediation_decision_candidate_id, remediation_candidate_digest, remediation_decision_expires_at
 		FROM incidents
 		WHERE fingerprint = ?
 	`, fingerprint)
@@ -508,6 +520,7 @@ func scanIncident(row rowScanner) (*incidents.Incident, error) {
 	var evidenceItemsJSON, corroborationNeededJSON, safeActionsJSON, operatorActionsJSON []byte
 	var rollbackOrFallbackJSON, postChecksJSON, remediationCandidatesJSON, remediationArtifactsJSON []byte
 	var outcomeJSON []byte
+	var decisionExpiresRaw any
 	if err := row.Scan(
 		&incident.ID, &incident.Fingerprint, &incident.Type, &incident.Severity, &incident.Status,
 		&incident.Title, &incident.Summary, &detectedRaw, &lastSeenRaw, &updatedRaw,
@@ -516,6 +529,7 @@ func scanIncident(row rowScanner) (*incidents.Incident, error) {
 		&incident.Diagnosis, &incident.Confidence, &evidenceItemsJSON, &corroborationNeededJSON, &safeActionsJSON, &operatorActionsJSON,
 		&rollbackOrFallbackJSON, &postChecksJSON, &remediationCandidatesJSON, &remediationArtifactsJSON, &outcomeJSON,
 		&incident.EventCount, &incident.ObservationCount, &incident.OperatorNotes,
+		&incident.RemediationDecisionGeneration, &incident.RemediationDecisionRevision, &incident.RemediationDecisionEventID, &incident.RemediationDecisionCandidateID, &incident.RemediationCandidateDigest, &decisionExpiresRaw,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -535,6 +549,7 @@ func scanIncident(row rowScanner) (*incidents.Incident, error) {
 	incident.ResolvedAt = parseOptionalTimePtr(resolvedRaw)
 	incident.AcknowledgedAt = parseOptionalTimePtr(acknowledgedRaw)
 	incident.IgnoredAt = parseOptionalTimePtr(ignoredRaw)
+	incident.RemediationDecisionExpiresAt = parseOptionalTimePtr(decisionExpiresRaw)
 	_ = json.Unmarshal(sourceChecksJSON, &incident.SourceCheckIDs)
 	_ = json.Unmarshal(sourceResultsJSON, &incident.SourceResultIDs)
 	_ = json.Unmarshal(evidenceJSON, &incident.Evidence)

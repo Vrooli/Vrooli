@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"strings"
 
+	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/domain"
 
 	"github.com/vrooli/api-core/discovery"
@@ -87,8 +88,27 @@ func (o *Orchestrator) runActionContext(ctx context.Context) domain.RunActionCon
 	}
 }
 
+const deletedReviewUnavailableReason = "The workspace sandbox was deleted before this decision was completed. Approve and reject are unavailable; the archived diff remains read-only."
+
 func (o *Orchestrator) runActionsFor(ctx context.Context, run *domain.Run) domain.RunActions {
-	return domain.RunActionsFor(run, o.runActionContext(ctx))
+	return o.runActionsForContext(ctx, run, o.runActionContext(ctx))
+}
+
+func (o *Orchestrator) runActionsForContext(ctx context.Context, run *domain.Run, actionContext domain.RunActionContext) domain.RunActions {
+	actions := domain.RunActionsFor(run, actionContext)
+	if !isPendingManualReview(run) || o.sandbox == nil {
+		return actions
+	}
+	sbx, err := o.sandbox.Get(ctx, *run.SandboxID)
+	if err != nil || sbx == nil || sbx.ID != *run.SandboxID || sbx.Status != sandbox.SandboxStatusDeleted {
+		return actions
+	}
+	// The archived diff is still useful for read-only inspection, so CanReview
+	// stays true. Applying or discarding changes is no longer supported.
+	actions.CanApprove = false
+	actions.CanReject = false
+	actions.ReviewUnavailableReason = deletedReviewUnavailableReason
+	return actions
 }
 
 func (o *Orchestrator) attachRunActions(ctx context.Context, run *domain.Run) *domain.Run {
@@ -112,7 +132,7 @@ func (o *Orchestrator) attachRunActionsList(ctx context.Context, runs []*domain.
 		if run == nil {
 			continue
 		}
-		actions := domain.RunActionsFor(run, actx)
+		actions := o.runActionsForContext(ctx, run, actx)
 		run.Actions = &actions
 		run.WebConsoleSessionURL = sessionURLForBase(base, run)
 	}

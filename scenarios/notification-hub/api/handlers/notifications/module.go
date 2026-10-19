@@ -55,7 +55,7 @@ func (h *handler) Send(ctx context.Context, req *connect.Request[v1.SendRequest]
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	return connect.NewResponse(&v1.SendResponse{Notification: toProto(n)}), nil
+	return connect.NewResponse(&v1.SendResponse{Notification: ToProto(n)}), nil
 }
 
 type relayPayload struct {
@@ -89,7 +89,7 @@ func (h *handler) Relay(ctx context.Context, req *connect.Request[v1.RelayReques
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	return connect.NewResponse(&v1.RelayResponse{Notification: toProto(n)}), nil
+	return connect.NewResponse(&v1.RelayResponse{Notification: ToProto(n)}), nil
 }
 
 func (h *handler) Get(ctx context.Context, req *connect.Request[v1.GetRequest]) (*connect.Response[v1.GetResponse], error) {
@@ -98,7 +98,7 @@ func (h *handler) Get(ctx context.Context, req *connect.Request[v1.GetRequest]) 
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, err)
 	}
-	out := &v1.GetResponse{Notification: toProto(n)}
+	out := &v1.GetResponse{Notification: ToProto(n)}
 	for _, receipt := range receipts {
 		out.Receipts = append(out.Receipts, receiptProtoForRead(receipt))
 	}
@@ -113,13 +113,13 @@ func (h *handler) List(ctx context.Context, req *connect.Request[v1.ListRequest]
 	}
 	out := &v1.ListResponse{}
 	for _, item := range items {
-		out.Notifications = append(out.Notifications, toProto(item))
+		out.Notifications = append(out.Notifications, ToProto(item))
 	}
 	return connect.NewResponse(out), nil
 }
 
-func toProto(n hub.Notification) *shared.Notification {
-	return &shared.Notification{Id: n.ID, RequestedBy: n.RequestedBy, Title: n.Title, Body: n.Body, Urgency: n.Urgency, SensitivityLabel: n.SensitivityLabel, IdempotencyKey: n.IdempotencyKey, DedupeKey: n.DedupeKey, State: StateProto(n.State), Reason: n.Reason, CreatedAt: n.CreatedAt, UpdatedAt: n.UpdatedAt}
+func ToProto(n hub.Notification) *shared.Notification {
+	return &shared.Notification{Id: n.ID, RequestedBy: n.RequestedBy, Title: n.Title, Body: n.Body, Urgency: n.Urgency, SensitivityLabel: n.SensitivityLabel, IdempotencyKey: n.IdempotencyKey, DedupeKey: n.DedupeKey, State: StateProto(n.State), Reason: n.Reason, CreatedAt: n.CreatedAt, UpdatedAt: n.UpdatedAt, ContextUrl: n.ContextURL}
 }
 
 func StateProto(state string) shared.NotificationState {

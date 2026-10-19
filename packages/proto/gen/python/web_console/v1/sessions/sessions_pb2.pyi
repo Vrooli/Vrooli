@@ -223,7 +223,7 @@ class RecoverableSession(_message.Message):
     def __init__(self, id: _Optional[str] = ..., backend: _Optional[str] = ..., shell: _Optional[str] = ..., cols: _Optional[int] = ..., rows: _Optional[int] = ..., created_at: _Optional[str] = ..., orphaned_at: _Optional[str] = ..., last_activity_at: _Optional[str] = ..., agent_type: _Optional[str] = ..., agent_session_id: _Optional[str] = ..., launch_command: _Optional[str] = ..., cwd: _Optional[str] = ..., last_rollout_path: _Optional[str] = ..., recoverable: _Optional[bool] = ..., not_recoverable_reason: _Optional[str] = ..., pane_name: _Optional[str] = ..., header_color: _Optional[str] = ..., group_name: _Optional[str] = ..., launch_mode: _Optional[str] = ..., control_mode: _Optional[str] = ..., native_owner: _Optional[str] = ..., native_transport: _Optional[str] = ..., provider_version: _Optional[str] = ..., native_thread_id: _Optional[str] = ..., last_verified_turn_id: _Optional[str] = ..., forked_from_native_session: _Optional[str] = ...) -> None: ...
 
 class CreateRequest(_message.Message):
-    __slots__ = ("shell", "cols", "rows", "backend", "policy", "has_policy", "launch_command", "agent_type", "origin", "owner", "display_label", "execute_launch_command", "target_id", "working_dir", "tmux_mouse_mode", "launch_mode", "launch_descriptor_json", "requested_session_id")
+    __slots__ = ("shell", "cols", "rows", "backend", "policy", "has_policy", "launch_command", "agent_type", "origin", "owner", "display_label", "execute_launch_command", "target_id", "working_dir", "tmux_mouse_mode", "launch_mode", "launch_descriptor_json", "requested_session_id", "agent_run_identity_token")
     SHELL_FIELD_NUMBER: _ClassVar[int]
     COLS_FIELD_NUMBER: _ClassVar[int]
     ROWS_FIELD_NUMBER: _ClassVar[int]
@@ -242,6 +242,7 @@ class CreateRequest(_message.Message):
     LAUNCH_MODE_FIELD_NUMBER: _ClassVar[int]
     LAUNCH_DESCRIPTOR_JSON_FIELD_NUMBER: _ClassVar[int]
     REQUESTED_SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    AGENT_RUN_IDENTITY_TOKEN_FIELD_NUMBER: _ClassVar[int]
     shell: str
     cols: int
     rows: int
@@ -260,7 +261,8 @@ class CreateRequest(_message.Message):
     launch_mode: str
     launch_descriptor_json: str
     requested_session_id: str
-    def __init__(self, shell: _Optional[str] = ..., cols: _Optional[int] = ..., rows: _Optional[int] = ..., backend: _Optional[str] = ..., policy: _Optional[_Union[ExpirationPolicy, _Mapping]] = ..., has_policy: _Optional[bool] = ..., launch_command: _Optional[str] = ..., agent_type: _Optional[str] = ..., origin: _Optional[_Union[SessionOrigin, str]] = ..., owner: _Optional[str] = ..., display_label: _Optional[str] = ..., execute_launch_command: _Optional[bool] = ..., target_id: _Optional[str] = ..., working_dir: _Optional[str] = ..., tmux_mouse_mode: _Optional[bool] = ..., launch_mode: _Optional[str] = ..., launch_descriptor_json: _Optional[str] = ..., requested_session_id: _Optional[str] = ...) -> None: ...
+    agent_run_identity_token: str
+    def __init__(self, shell: _Optional[str] = ..., cols: _Optional[int] = ..., rows: _Optional[int] = ..., backend: _Optional[str] = ..., policy: _Optional[_Union[ExpirationPolicy, _Mapping]] = ..., has_policy: _Optional[bool] = ..., launch_command: _Optional[str] = ..., agent_type: _Optional[str] = ..., origin: _Optional[_Union[SessionOrigin, str]] = ..., owner: _Optional[str] = ..., display_label: _Optional[str] = ..., execute_launch_command: _Optional[bool] = ..., target_id: _Optional[str] = ..., working_dir: _Optional[str] = ..., tmux_mouse_mode: _Optional[bool] = ..., launch_mode: _Optional[str] = ..., launch_descriptor_json: _Optional[str] = ..., requested_session_id: _Optional[str] = ..., agent_run_identity_token: _Optional[str] = ...) -> None: ...
 
 class CreateResponse(_message.Message):
     __slots__ = ("session",)

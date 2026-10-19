@@ -24,6 +24,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "generator_digest": "sha256:d62f642cc85260466ef67f24653340c95d277e2268cdf9983a7144dca50b1d50",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -104,6 +105,7 @@
     "gen/typescript/git-control-tower/v1/repo/repo_pb.ts": "sha256:1379ea8d1b0ec4b5530ecdecd3334500936f115372ce109d3246377b0e5deba4",
     "gen/typescript/git-control-tower/v1/review/review_pb.ts": "sha256:9840c0fa8600168e33040a739d48d81768cf8d78d88d9cd195eb1e7ec4ef4261",
     "gen/typescript/git-control-tower/v1/shared/health_pb.ts": "sha256:a36f9b89eed8fe309a4a49685b952f6c8caf7cb996a2a1c3a2e06b2dae189315",
-    "gen/typescript/git-control-tower/v1/worktree/worktree_pb.ts": "sha256:9d7e2747bed2a09718803102df69f56086ea44d7c43c0dfa6a2226d8ac6ddb15"
+    "gen/typescript/git-control-tower/v1/worktree/worktree_pb.ts": "sha256:9d7e2747bed2a09718803102df69f56086ea44d7c43c0dfa6a2226d8ac6ddb15",
+    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4"
   }
 }

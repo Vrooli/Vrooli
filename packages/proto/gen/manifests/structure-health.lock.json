@@ -13,6 +13,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "generator_digest": "sha256:d62f642cc85260466ef67f24653340c95d277e2268cdf9983a7144dca50b1d50",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -40,6 +41,7 @@
     "gen/python/structure_health/v1/validation/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/structure_health/v1/validation/validation_pb2.py": "sha256:b6c01e4130d4ddf6f114e41fee9d4cbe15b7efcdb66eb03be860841d4fe1b09b",
     "gen/python/structure_health/v1/validation/validation_pb2.pyi": "sha256:9048ba795e533b3a3d02029a8e4b1e4da5781df9bf326e055a6d344f57f13f43",
+    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4",
     "gen/typescript/structure-health/v1/fleet/fleet_pb.ts": "sha256:a0f3e2aedef4d0afdb8b88d44624bf88526ea7e7259e3b0a8baeb30c1952076c",
     "gen/typescript/structure-health/v1/shared/errors_pb.ts": "sha256:e0365c95315e4381cd46510dcf292aaa4d6f9b567f7189d5512e447df30da6c0",
     "gen/typescript/structure-health/v1/shared/health_pb.ts": "sha256:9fedcb58dfe98e08ce469734d654542e0e21cefa5d6deaf8aebeb917a50338cc",

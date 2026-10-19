@@ -5,6 +5,8 @@ import { HealthCard } from "../features/health/HealthCard";
 import { useTranslation } from "../i18n";
 import { useQuery } from "@tanstack/react-query";
 import { deliveryClient } from "../api/notifications";
+import { safeContextUrl } from "../features/asks/askView";
+import { NotificationState } from "@vrooli/proto-types/notification-hub/v1/shared/types_pb";
 
 /**
  * Dashboard / home page. Composes the health card plus stat placeholders.
@@ -32,6 +34,19 @@ export function DashboardPage() {
   );
 }
 
+function notificationStateLabel(state: NotificationState): string {
+  switch (state) {
+    case NotificationState.PENDING: return "pending";
+    case NotificationState.HELD: return "held";
+    case NotificationState.ROUTED: return "routed";
+    case NotificationState.DELIVERED: return "delivered";
+    case NotificationState.FAILED: return "failed";
+    case NotificationState.UNROUTABLE: return "unroutable";
+    case NotificationState.SUPPRESSED: return "suppressed";
+    default: return "unknown";
+  }
+}
+
 function DeliverySummaryCard() {
   const analytics = useQuery({
     queryKey: ["notification-summary"],
@@ -39,7 +54,7 @@ function DeliverySummaryCard() {
     refetchInterval: 15000,
   });
   const notifications = analytics.data?.notifications ?? [];
-  const delivered = notifications.filter((item) => item.state.toString().endsWith("DELIVERED")).length;
+  const delivered = notifications.filter((item) => item.state === NotificationState.DELIVERED).length;
   return (
     <Card>
       <CardHeader><CardTitle className="text-sm uppercase text-app-muted-foreground">Delivery analytics</CardTitle></CardHeader>
@@ -54,6 +69,7 @@ function DeliverySummaryCard() {
 }
 
 function TimelineCard() {
+  const { t } = useTranslation();
   const timeline = useQuery({
     queryKey: ["notification-timeline"],
     queryFn: () => deliveryClient.getTimeline({ limit: 20 }),
@@ -67,7 +83,23 @@ function TimelineCard() {
         {timeline.isError && <p className="text-sm text-red-400">Timeline unavailable — check the configured recipient and scenario health.</p>}
         {!timeline.isError && notifications.length === 0 && <p className="text-sm text-app-muted-foreground">No notifications yet. Register this device, then send one from the CLI.</p>}
         <ul className="space-y-2" aria-label="Notification delivery timeline">
-          {notifications.map((item) => <li key={item.id} className="flex items-center justify-between rounded border border-app-border px-3 py-2 text-sm"><span className="truncate">{item.title || item.body}</span><span className="ml-3 shrink-0 text-app-muted-foreground">{item.state.toString().replace("NOTIFICATION_STATE_", "").toLowerCase()}</span></li>)}
+          {notifications.map((item) => {
+            const title = item.title || item.body;
+            const context = item.contextUrl ? safeContextUrl(item.contextUrl) : null;
+            return (
+              <li key={item.id} className="flex items-center justify-between rounded border border-app-border px-3 py-2 text-sm">
+                <span className="truncate">{title}</span>
+                <span className="ml-3 flex shrink-0 items-center gap-3 text-app-muted-foreground">
+                  {context && (
+                    <a href={context} className="underline" rel="noreferrer" aria-label={`${title} — ${t(strings.asks.detail.more)}`}>
+                      {t(strings.asks.detail.more)}
+                    </a>
+                  )}
+                  <span>{notificationStateLabel(item.state)}</span>
+                </span>
+              </li>
+            );
+          })}
         </ul>
       </CardContent>
     </Card>

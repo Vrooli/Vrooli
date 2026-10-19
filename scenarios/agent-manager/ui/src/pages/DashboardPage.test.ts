@@ -31,6 +31,17 @@ test("DashboardPage presents run counts, review navigation, task names, and refr
   assert.equal(refresh.mock.calls.length, 1);
 });
 
+test("DashboardPage does not report a zero count for a pending run without diff evidence", async () => {
+  renderWithProviders(createElement(DashboardPage, {
+    health: null,
+    statusCounts: { running: 0, needsReview: 1, total: 1 },
+    runs: [makeRun({ id: "unknown-review", taskId: "task-unknown", status: RunStatus.NEEDS_REVIEW, changedFiles: 0 })],
+    onRefresh: vi.fn(), onGetTask: vi.fn(async () => ({ id: "task-unknown", title: "Unknown diff review" })),
+  }));
+  assert.ok(await screen.findByText(/File count unavailable/));
+  assert.equal(screen.queryByText("0 files changed"), null);
+});
+
 test("DashboardPage shows dependency failures and runs a copyable runner probe", async () => {
   state.probeRunner.mockResolvedValue({ success: true, latencyMs: 17n, details: { response: "pong" } });
   const clipboard = { writeText: vi.fn().mockResolvedValue(undefined) };

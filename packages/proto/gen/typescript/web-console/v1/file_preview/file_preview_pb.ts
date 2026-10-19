@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file web-console/v1/file_preview/file_preview.proto.
  */
 export const file_web_console_v1_file_preview_file_preview: GenFile = /*@__PURE__*/
-  fileDesc("Ci53ZWItY29uc29sZS92MS9maWxlX3ByZXZpZXcvZmlsZV9wcmV2aWV3LnByb3RvEiJ2cm9vbGkud2ViX2NvbnNvbGUudjEuZmlsZV9wcmV2aWV3In0KDlJlc29sdmVSZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkSDAoEcGF0aBgCIAEoCRJJCg5zb3VyY2VfY29udGV4dBgDIAEoDjIxLnZyb29saS53ZWJfY29uc29sZS52MS5maWxlX3ByZXZpZXcuU291cmNlQ29udGV4dCLgAwoPUmVzb2x2ZVJlc3BvbnNlEhIKCnByZXZpZXdfaWQYASABKAkSEgoKaW5wdXRfcGF0aBgCIAEoCRIVCg1yZXNvbHZlZF9wYXRoGAMgASgJEhAKCGJhc2VuYW1lGAQgASgJEgwKBGxpbmUYBSABKAUSEAoIaGFzX2xpbmUYBiABKAgSGAoQcmVzb2x1dGlvbl9iYXNpcxgHIAEoCRJFCgxwcmV2aWV3X2tpbmQYCCABKA4yLy52cm9vbGkud2ViX2NvbnNvbGUudjEuZmlsZV9wcmV2aWV3LlByZXZpZXdLaW5kEhEKCW1pbWVfdHlwZRgJIAEoCRISCgpzaXplX2J5dGVzGAogASgDEhcKD210aW1lX3VuaXhfbmFubxgLIAEoAxITCgtjYW5fcHJldmlldxgMIAEoCBIUCgxjYW5fZG93bmxvYWQYDSABKAgSFgoOc3VwcG9ydHNfcmFuZ2UYDiABKAgSHgoWdGV4dF9jb250ZW50X2F2YWlsYWJsZRgPIAEoCBIQCghibG9iX3VybBgQIAEoCRIZChFleHBpcmVzX3VuaXhfbmFubxgRIAEoAxIQCgh3YXJuaW5ncxgSIAMoCRIZChFsaXN0aW5nX2F2YWlsYWJsZRgTIAEoCCI/ChVHZXRUZXh0Q29udGVudFJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRISCgpwcmV2aWV3X2lkGAIgASgJIs0BChZHZXRUZXh0Q29udGVudFJlc3BvbnNlEhUKDXJlc29sdmVkX3BhdGgYASABKAkSRQoMcHJldmlld19raW5kGAIgASgOMi8udnJvb2xpLndlYl9jb25zb2xlLnYxLmZpbGVfcHJldmlldy5QcmV2aWV3S2luZBIRCgltaW1lX3R5cGUYAyABKAkSDwoHY29udGVudBgEIAEoCRIRCgl0cnVuY2F0ZWQYBSABKAgSDAoEbGluZRgGIAEoBRIQCghoYXNfbGluZRgHIAEoCCK7AQoUTGlzdERpcmVjdG9yeVJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRISCgpwcmV2aWV3X2lkGAIgASgJEj8KBHNvcnQYAyABKA4yMS52cm9vbGkud2ViX2NvbnNvbGUudjEuZmlsZV9wcmV2aWV3LkRpcmVjdG9yeVNvcnQSEwoLc2hvd19oaWRkZW4YBCABKAgSEQoJcGFnZV9zaXplGAUgASgFEhIKCnBhZ2VfdG9rZW4YBiABKAkivQIKDkRpcmVjdG9yeUVudHJ5EgwKBG5hbWUYASABKAkSQQoKZW50cnlfdHlwZRgCIAEoDjItLnZyb29saS53ZWJfY29uc29sZS52MS5maWxlX3ByZXZpZXcuRW50cnlUeXBlEkUKDHByZXZpZXdfa2luZBgDIAEoDjIvLnZyb29saS53ZWJfY29uc29sZS52MS5maWxlX3ByZXZpZXcuUHJldmlld0tpbmQSEgoKc2l6ZV9ieXRlcxgEIAEoAxIXCg9tdGltZV91bml4X25hbm8YBSABKAMSEwoLY2FuX3ByZXZpZXcYBiABKAgSFgoOc3ltbGlua190YXJnZXQYByABKAkSFgoOc3ltbGlua19icm9rZW4YCCABKAgSDAoEbW9kZRgJIAEoCRITCgtjaGlsZF9jb3VudBgKIAEoAyKoAgoVTGlzdERpcmVjdG9yeVJlc3BvbnNlEhUKDXJlc29sdmVkX3BhdGgYASABKAkSEwoLcGFyZW50X3BhdGgYAiABKAkSQwoHZW50cmllcxgDIAMoCzIyLnZyb29saS53ZWJfY29uc29sZS52MS5maWxlX3ByZXZpZXcuRGlyZWN0b3J5RW50cnkSFQoNdG90YWxfZW50cmllcxgEIAEoBRIRCgl0cnVuY2F0ZWQYBSABKAgSFwoPbmV4dF9wYWdlX3Rva2VuGAYgASgJEkkKDmVmZmVjdGl2ZV9zb3J0GAcgASgOMjEudnJvb2xpLndlYl9jb25zb2xlLnYxLmZpbGVfcHJldmlldy5EaXJlY3RvcnlTb3J0EhAKCHdhcm5pbmdzGAggAygJKs8CCgtQcmV2aWV3S2luZBIcChhQUkVWSUVXX0tJTkRfVU5TUEVDSUZJRUQQABIZChVQUkVWSUVXX0tJTkRfTUFSS0RPV04QARIVChFQUkVWSUVXX0tJTkRfQ09ERRACEhUKEVBSRVZJRVdfS0lORF9URVhUEAMSFAoQUFJFVklFV19LSU5EX1NWRxAEEhYKElBSRVZJRVdfS0lORF9JTUFHRRAFEhQKEFBSRVZJRVdfS0lORF9QREYQBhIWChJQUkVWSUVXX0tJTkRfQVVESU8QBxIWChJQUkVWSUVXX0tJTkRfVklERU8QCBIUChBQUkVWSUVXX0tJTkRfQ1NWEAkSFQoRUFJFVklFV19LSU5EX0RJRkYQChIcChhQUkVWSUVXX0tJTkRfVU5TVVBQT1JURUQQCxIaChZQUkVWSUVXX0tJTkRfRElSRUNUT1JZEAwqqQEKDURpcmVjdG9yeVNvcnQSHgoaRElSRUNUT1JZX1NPUlRfVU5TUEVDSUZJRUQQABIiCh5ESVJFQ1RPUllfU09SVF9ESVJTX0ZJUlNUX05BTUUQARIXChNESVJFQ1RPUllfU09SVF9OQU1FEAISHAoYRElSRUNUT1JZX1NPUlRfU0laRV9ERVNDEAMSHQoZRElSRUNUT1JZX1NPUlRfTVRJTUVfREVTQxAEKoQBCglFbnRyeVR5cGUSGgoWRU5UUllfVFlQRV9VTlNQRUNJRklFRBAAEhMKD0VOVFJZX1RZUEVfRklMRRABEhgKFEVOVFJZX1RZUEVfRElSRUNUT1JZEAISFgoSRU5UUllfVFlQRV9TWU1MSU5LEAMSFAoQRU5UUllfVFlQRV9PVEhFUhAEKogBCg1Tb3VyY2VDb250ZXh0Eh4KGlNPVVJDRV9DT05URVhUX1VOU1BFQ0lGSUVEEAASHwobU09VUkNFX0NPTlRFWFRfTUVTU0FHRV9MSU5LEAESHgoaU09VUkNFX0NPTlRFWFRfSU5MSU5FX0NPREUQAhIWChJTT1VSQ0VfQ09OVEVYVF9DTEkQAzKZAwoSRmlsZVByZXZpZXdTZXJ2aWNlEnIKB1Jlc29sdmUSMi52cm9vbGkud2ViX2NvbnNvbGUudjEuZmlsZV9wcmV2aWV3LlJlc29sdmVSZXF1ZXN0GjMudnJvb2xpLndlYl9jb25zb2xlLnYxLmZpbGVfcHJldmlldy5SZXNvbHZlUmVzcG9uc2UShwEKDkdldFRleHRDb250ZW50EjkudnJvb2xpLndlYl9jb25zb2xlLnYxLmZpbGVfcHJldmlldy5HZXRUZXh0Q29udGVudFJlcXVlc3QaOi52cm9vbGkud2ViX2NvbnNvbGUudjEuZmlsZV9wcmV2aWV3LkdldFRleHRDb250ZW50UmVzcG9uc2UShAEKDUxpc3REaXJlY3RvcnkSOC52cm9vbGkud2ViX2NvbnNvbGUudjEuZmlsZV9wcmV2aWV3Lkxpc3REaXJlY3RvcnlSZXF1ZXN0GjkudnJvb2xpLndlYl9jb25zb2xlLnYxLmZpbGVfcHJldmlldy5MaXN0RGlyZWN0b3J5UmVzcG9uc2VCXFpaZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby93ZWItY29uc29sZS92MS9maWxlX3ByZXZpZXc7ZmlsZV9wcmV2aWV3X3YxYgZwcm90bzM");
+  fileDesc("Ci53ZWItY29uc29sZS92MS9maWxlX3ByZXZpZXcvZmlsZV9wcmV2aWV3LnByb3RvEiJ2cm9vbGkud2ViX2NvbnNvbGUudjEuZmlsZV9wcmV2aWV3In0KDlJlc29sdmVSZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkSDAoEcGF0aBgCIAEoCRJJCg5zb3VyY2VfY29udGV4dBgDIAEoDjIxLnZyb29saS53ZWJfY29uc29sZS52MS5maWxlX3ByZXZpZXcuU291cmNlQ29udGV4dCL4AwoPUmVzb2x2ZVJlc3BvbnNlEhIKCnByZXZpZXdfaWQYASABKAkSEgoKaW5wdXRfcGF0aBgCIAEoCRIVCg1yZXNvbHZlZF9wYXRoGAMgASgJEhAKCGJhc2VuYW1lGAQgASgJEgwKBGxpbmUYBSABKAUSEAoIaGFzX2xpbmUYBiABKAgSGAoQcmVzb2x1dGlvbl9iYXNpcxgHIAEoCRJFCgxwcmV2aWV3X2tpbmQYCCABKA4yLy52cm9vbGkud2ViX2NvbnNvbGUudjEuZmlsZV9wcmV2aWV3LlByZXZpZXdLaW5kEhEKCW1pbWVfdHlwZRgJIAEoCRISCgpzaXplX2J5dGVzGAogASgDEhcKD210aW1lX3VuaXhfbmFubxgLIAEoAxITCgtjYW5fcHJldmlldxgMIAEoCBIUCgxjYW5fZG93bmxvYWQYDSABKAgSFgoOc3VwcG9ydHNfcmFuZ2UYDiABKAgSHgoWdGV4dF9jb250ZW50X2F2YWlsYWJsZRgPIAEoCBIQCghibG9iX3VybBgQIAEoCRIZChFleHBpcmVzX3VuaXhfbmFubxgRIAEoAxIQCgh3YXJuaW5ncxgSIAMoCRIZChFsaXN0aW5nX2F2YWlsYWJsZRgTIAEoCBIWCg5hcmNoaXZlX21lbWJlchgUIAEoCCI/ChVHZXRUZXh0Q29udGVudFJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRISCgpwcmV2aWV3X2lkGAIgASgJIs0BChZHZXRUZXh0Q29udGVudFJlc3BvbnNlEhUKDXJlc29sdmVkX3BhdGgYASABKAkSRQoMcHJldmlld19raW5kGAIgASgOMi8udnJvb2xpLndlYl9jb25zb2xlLnYxLmZpbGVfcHJldmlldy5QcmV2aWV3S2luZBIRCgltaW1lX3R5cGUYAyABKAkSDwoHY29udGVudBgEIAEoCRIRCgl0cnVuY2F0ZWQYBSABKAgSDAoEbGluZRgGIAEoBRIQCghoYXNfbGluZRgHIAEoCCK7AQoUTGlzdERpcmVjdG9yeVJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRISCgpwcmV2aWV3X2lkGAIgASgJEj8KBHNvcnQYAyABKA4yMS52cm9vbGkud2ViX2NvbnNvbGUudjEuZmlsZV9wcmV2aWV3LkRpcmVjdG9yeVNvcnQSEwoLc2hvd19oaWRkZW4YBCABKAgSEQoJcGFnZV9zaXplGAUgASgFEhIKCnBhZ2VfdG9rZW4YBiABKAkivQIKDkRpcmVjdG9yeUVudHJ5EgwKBG5hbWUYASABKAkSQQoKZW50cnlfdHlwZRgCIAEoDjItLnZyb29saS53ZWJfY29uc29sZS52MS5maWxlX3ByZXZpZXcuRW50cnlUeXBlEkUKDHByZXZpZXdfa2luZBgDIAEoDjIvLnZyb29saS53ZWJfY29uc29sZS52MS5maWxlX3ByZXZpZXcuUHJldmlld0tpbmQSEgoKc2l6ZV9ieXRlcxgEIAEoAxIXCg9tdGltZV91bml4X25hbm8YBSABKAMSEwoLY2FuX3ByZXZpZXcYBiABKAgSFgoOc3ltbGlua190YXJnZXQYByABKAkSFgoOc3ltbGlua19icm9rZW4YCCABKAgSDAoEbW9kZRgJIAEoCRITCgtjaGlsZF9jb3VudBgKIAEoAyKoAgoVTGlzdERpcmVjdG9yeVJlc3BvbnNlEhUKDXJlc29sdmVkX3BhdGgYASABKAkSEwoLcGFyZW50X3BhdGgYAiABKAkSQwoHZW50cmllcxgDIAMoCzIyLnZyb29saS53ZWJfY29uc29sZS52MS5maWxlX3ByZXZpZXcuRGlyZWN0b3J5RW50cnkSFQoNdG90YWxfZW50cmllcxgEIAEoBRIRCgl0cnVuY2F0ZWQYBSABKAgSFwoPbmV4dF9wYWdlX3Rva2VuGAYgASgJEkkKDmVmZmVjdGl2ZV9zb3J0GAcgASgOMjEudnJvb2xpLndlYl9jb25zb2xlLnYxLmZpbGVfcHJldmlldy5EaXJlY3RvcnlTb3J0EhAKCHdhcm5pbmdzGAggAygJIjwKEkxpc3RBcmNoaXZlUmVxdWVzdBISCgpzZXNzaW9uX2lkGAEgASgJEhIKCnByZXZpZXdfaWQYAiABKAkieAoTTGlzdEFyY2hpdmVSZXNwb25zZRIOCgZmb3JtYXQYASABKAkSDgoGc3RhdHVzGAIgASgJEkEKB2VudHJpZXMYAyADKAsyMC52cm9vbGkud2ViX2NvbnNvbGUudjEuZmlsZV9wcmV2aWV3LkFyY2hpdmVFbnRyeSJSCgxBcmNoaXZlRW50cnkSEAoIZW50cnlfaWQYASABKAkSDAoEbmFtZRgCIAEoCRISCgpzaXplX2J5dGVzGAMgASgDEg4KBnN0YXR1cxgEIAEoCSJTChdPcGVuQXJjaGl2ZUVudHJ5UmVxdWVzdBISCgpzZXNzaW9uX2lkGAEgASgJEhIKCnByZXZpZXdfaWQYAiABKAkSEAoIZW50cnlfaWQYAyABKAkibwoYT3BlbkFyY2hpdmVFbnRyeVJlc3BvbnNlEg4KBnN0YXR1cxgBIAEoCRJDCgZ0YXJnZXQYAiABKAsyMy52cm9vbGkud2ViX2NvbnNvbGUudjEuZmlsZV9wcmV2aWV3LlJlc29sdmVSZXNwb25zZSqmBAoLUHJldmlld0tpbmQSHAoYUFJFVklFV19LSU5EX1VOU1BFQ0lGSUVEEAASGQoVUFJFVklFV19LSU5EX01BUktET1dOEAESFQoRUFJFVklFV19LSU5EX0NPREUQAhIVChFQUkVWSUVXX0tJTkRfVEVYVBADEhQKEFBSRVZJRVdfS0lORF9TVkcQBBIWChJQUkVWSUVXX0tJTkRfSU1BR0UQBRIUChBQUkVWSUVXX0tJTkRfUERGEAYSFgoSUFJFVklFV19LSU5EX0FVRElPEAcSFgoSUFJFVklFV19LSU5EX1ZJREVPEAgSFAoQUFJFVklFV19LSU5EX0NTVhAJEhUKEVBSRVZJRVdfS0lORF9ESUZGEAoSHAoYUFJFVklFV19LSU5EX1VOU1VQUE9SVEVEEAsSGgoWUFJFVklFV19LSU5EX0RJUkVDVE9SWRAMEhwKGFBSRVZJRVdfS0lORF9TUFJFQURTSEVFVBANEhkKFVBSRVZJRVdfS0lORF9ET0NVTUVOVBAOEhgKFFBSRVZJRVdfS0lORF9BUkNISVZFEA8SHQoZUFJFVklFV19LSU5EX1BSRVNFTlRBVElPThAQEhYKElBSRVZJRVdfS0lORF9FQk9PSxAREhkKFVBSRVZJRVdfS0lORF9NT0RFTF8zRBASEhUKEVBSRVZJRVdfS0lORF9GT05UEBMSGQoVUFJFVklFV19LSU5EX0RBVEFCQVNFEBQqqQEKDURpcmVjdG9yeVNvcnQSHgoaRElSRUNUT1JZX1NPUlRfVU5TUEVDSUZJRUQQABIiCh5ESVJFQ1RPUllfU09SVF9ESVJTX0ZJUlNUX05BTUUQARIXChNESVJFQ1RPUllfU09SVF9OQU1FEAISHAoYRElSRUNUT1JZX1NPUlRfU0laRV9ERVNDEAMSHQoZRElSRUNUT1JZX1NPUlRfTVRJTUVfREVTQxAEKoQBCglFbnRyeVR5cGUSGgoWRU5UUllfVFlQRV9VTlNQRUNJRklFRBAAEhMKD0VOVFJZX1RZUEVfRklMRRABEhgKFEVOVFJZX1RZUEVfRElSRUNUT1JZEAISFgoSRU5UUllfVFlQRV9TWU1MSU5LEAMSFAoQRU5UUllfVFlQRV9PVEhFUhAEKogBCg1Tb3VyY2VDb250ZXh0Eh4KGlNPVVJDRV9DT05URVhUX1VOU1BFQ0lGSUVEEAASHwobU09VUkNFX0NPTlRFWFRfTUVTU0FHRV9MSU5LEAESHgoaU09VUkNFX0NPTlRFWFRfSU5MSU5FX0NPREUQAhIWChJTT1VSQ0VfQ09OVEVYVF9DTEkQAzKpBQoSRmlsZVByZXZpZXdTZXJ2aWNlEnIKB1Jlc29sdmUSMi52cm9vbGkud2ViX2NvbnNvbGUudjEuZmlsZV9wcmV2aWV3LlJlc29sdmVSZXF1ZXN0GjMudnJvb2xpLndlYl9jb25zb2xlLnYxLmZpbGVfcHJldmlldy5SZXNvbHZlUmVzcG9uc2UShwEKDkdldFRleHRDb250ZW50EjkudnJvb2xpLndlYl9jb25zb2xlLnYxLmZpbGVfcHJldmlldy5HZXRUZXh0Q29udGVudFJlcXVlc3QaOi52cm9vbGkud2ViX2NvbnNvbGUudjEuZmlsZV9wcmV2aWV3LkdldFRleHRDb250ZW50UmVzcG9uc2UShAEKDUxpc3REaXJlY3RvcnkSOC52cm9vbGkud2ViX2NvbnNvbGUudjEuZmlsZV9wcmV2aWV3Lkxpc3REaXJlY3RvcnlSZXF1ZXN0GjkudnJvb2xpLndlYl9jb25zb2xlLnYxLmZpbGVfcHJldmlldy5MaXN0RGlyZWN0b3J5UmVzcG9uc2USfgoLTGlzdEFyY2hpdmUSNi52cm9vbGkud2ViX2NvbnNvbGUudjEuZmlsZV9wcmV2aWV3Lkxpc3RBcmNoaXZlUmVxdWVzdBo3LnZyb29saS53ZWJfY29uc29sZS52MS5maWxlX3ByZXZpZXcuTGlzdEFyY2hpdmVSZXNwb25zZRKNAQoQT3BlbkFyY2hpdmVFbnRyeRI7LnZyb29saS53ZWJfY29uc29sZS52MS5maWxlX3ByZXZpZXcuT3BlbkFyY2hpdmVFbnRyeVJlcXVlc3QaPC52cm9vbGkud2ViX2NvbnNvbGUudjEuZmlsZV9wcmV2aWV3Lk9wZW5BcmNoaXZlRW50cnlSZXNwb25zZUJcWlpnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3dlYi1jb25zb2xlL3YxL2ZpbGVfcHJldmlldztmaWxlX3ByZXZpZXdfdjFiBnByb3RvMw");
 
 /**
  * @generated from message vrooli.web_console.v1.file_preview.ResolveRequest
@@ -152,6 +152,13 @@ export type ResolveResponse = Message<"vrooli.web_console.v1.file_preview.Resolv
    * @generated from field: bool listing_available = 19;
    */
   listingAvailable: boolean;
+
+  /**
+   * Virtual members cannot be resolved as host paths or executed.
+   *
+   * @generated from field: bool archive_member = 20;
+   */
+  archiveMember: boolean;
 };
 
 /**
@@ -425,6 +432,143 @@ export const ListDirectoryResponseSchema: GenMessage<ListDirectoryResponse> = /*
   messageDesc(file_web_console_v1_file_preview_file_preview, 6);
 
 /**
+ * @generated from message vrooli.web_console.v1.file_preview.ListArchiveRequest
+ */
+export type ListArchiveRequest = Message<"vrooli.web_console.v1.file_preview.ListArchiveRequest"> & {
+  /**
+   * @generated from field: string session_id = 1;
+   */
+  sessionId: string;
+
+  /**
+   * @generated from field: string preview_id = 2;
+   */
+  previewId: string;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.file_preview.ListArchiveRequest.
+ * Use `create(ListArchiveRequestSchema)` to create a new message.
+ */
+export const ListArchiveRequestSchema: GenMessage<ListArchiveRequest> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_file_preview_file_preview, 7);
+
+/**
+ * Stable machine codes: ready, unsupported, corrupt, limit, busy, timeout,
+ * expired, stale, depth, missing, blocked. Clients localize these codes.
+ *
+ * @generated from message vrooli.web_console.v1.file_preview.ListArchiveResponse
+ */
+export type ListArchiveResponse = Message<"vrooli.web_console.v1.file_preview.ListArchiveResponse"> & {
+  /**
+   * @generated from field: string format = 1;
+   */
+  format: string;
+
+  /**
+   * @generated from field: string status = 2;
+   */
+  status: string;
+
+  /**
+   * @generated from field: repeated vrooli.web_console.v1.file_preview.ArchiveEntry entries = 3;
+   */
+  entries: ArchiveEntry[];
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.file_preview.ListArchiveResponse.
+ * Use `create(ListArchiveResponseSchema)` to create a new message.
+ */
+export const ListArchiveResponseSchema: GenMessage<ListArchiveResponse> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_file_preview_file_preview, 8);
+
+/**
+ * @generated from message vrooli.web_console.v1.file_preview.ArchiveEntry
+ */
+export type ArchiveEntry = Message<"vrooli.web_console.v1.file_preview.ArchiveEntry"> & {
+  /**
+   * Physical entry ordinal, independent of path and duplicate names.
+   *
+   * @generated from field: string entry_id = 1;
+   */
+  entryId: string;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * @generated from field: int64 size_bytes = 3;
+   */
+  sizeBytes: bigint;
+
+  /**
+   * ready, directory, unsafe, link, special, encrypted, unsupported, too_large.
+   *
+   * @generated from field: string status = 4;
+   */
+  status: string;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.file_preview.ArchiveEntry.
+ * Use `create(ArchiveEntrySchema)` to create a new message.
+ */
+export const ArchiveEntrySchema: GenMessage<ArchiveEntry> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_file_preview_file_preview, 9);
+
+/**
+ * @generated from message vrooli.web_console.v1.file_preview.OpenArchiveEntryRequest
+ */
+export type OpenArchiveEntryRequest = Message<"vrooli.web_console.v1.file_preview.OpenArchiveEntryRequest"> & {
+  /**
+   * @generated from field: string session_id = 1;
+   */
+  sessionId: string;
+
+  /**
+   * @generated from field: string preview_id = 2;
+   */
+  previewId: string;
+
+  /**
+   * @generated from field: string entry_id = 3;
+   */
+  entryId: string;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.file_preview.OpenArchiveEntryRequest.
+ * Use `create(OpenArchiveEntryRequestSchema)` to create a new message.
+ */
+export const OpenArchiveEntryRequestSchema: GenMessage<OpenArchiveEntryRequest> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_file_preview_file_preview, 10);
+
+/**
+ * @generated from message vrooli.web_console.v1.file_preview.OpenArchiveEntryResponse
+ */
+export type OpenArchiveEntryResponse = Message<"vrooli.web_console.v1.file_preview.OpenArchiveEntryResponse"> & {
+  /**
+   * @generated from field: string status = 1;
+   */
+  status: string;
+
+  /**
+   * @generated from field: vrooli.web_console.v1.file_preview.ResolveResponse target = 2;
+   */
+  target?: ResolveResponse | undefined;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.file_preview.OpenArchiveEntryResponse.
+ * Use `create(OpenArchiveEntryResponseSchema)` to create a new message.
+ */
+export const OpenArchiveEntryResponseSchema: GenMessage<OpenArchiveEntryResponse> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_file_preview_file_preview, 11);
+
+/**
  * PreviewKind classifies how a resolved file should be rendered. The UI keys
  * its renderer registry on these values.
  *
@@ -497,6 +641,60 @@ export enum PreviewKind {
    * @generated from enum value: PREVIEW_KIND_DIRECTORY = 12;
    */
   DIRECTORY = 12,
+
+  /**
+   * Excel workbook; read locally from opaque blob bytes.
+   *
+   * @generated from enum value: PREVIEW_KIND_SPREADSHEET = 13;
+   */
+  SPREADSHEET = 13,
+
+  /**
+   * Word document; semantic read-only preview from opaque blob bytes.
+   *
+   * @generated from enum value: PREVIEW_KIND_DOCUMENT = 14;
+   */
+  DOCUMENT = 14,
+
+  /**
+   * @generated from enum value: PREVIEW_KIND_ARCHIVE = 15;
+   */
+  ARCHIVE = 15,
+
+  /**
+   * Locally rendered modern PowerPoint presentation.
+   *
+   * @generated from enum value: PREVIEW_KIND_PRESENTATION = 16;
+   */
+  PRESENTATION = 16,
+
+  /**
+   * Reflowable EPUB publication.
+   *
+   * @generated from enum value: PREVIEW_KIND_EBOOK = 17;
+   */
+  EBOOK = 17,
+
+  /**
+   * Locally rendered bounded 3D model.
+   *
+   * @generated from enum value: PREVIEW_KIND_MODEL_3D = 18;
+   */
+  MODEL_3D = 18,
+
+  /**
+   * Browser-local font specimen.
+   *
+   * @generated from enum value: PREVIEW_KIND_FONT = 19;
+   */
+  FONT = 19,
+
+  /**
+   * Read-only SQLite database inspection.
+   *
+   * @generated from enum value: PREVIEW_KIND_DATABASE = 20;
+   */
+  DATABASE = 20,
 }
 
 /**
@@ -664,6 +862,24 @@ export const FilePreviewService: GenService<{
     methodKind: "unary";
     input: typeof ListDirectoryRequestSchema;
     output: typeof ListDirectoryResponseSchema;
+  },
+  /**
+   * Bounded virtual inspection; never extracts to the filesystem.
+   *
+   * @generated from rpc vrooli.web_console.v1.file_preview.FilePreviewService.ListArchive
+   */
+  listArchive: {
+    methodKind: "unary";
+    input: typeof ListArchiveRequestSchema;
+    output: typeof ListArchiveResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.web_console.v1.file_preview.FilePreviewService.OpenArchiveEntry
+   */
+  openArchiveEntry: {
+    methodKind: "unary";
+    input: typeof OpenArchiveEntryRequestSchema;
+    output: typeof OpenArchiveEntryResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_web_console_v1_file_preview_file_preview, 0);

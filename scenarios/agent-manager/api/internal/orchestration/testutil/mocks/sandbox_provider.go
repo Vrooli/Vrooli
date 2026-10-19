@@ -25,6 +25,7 @@ type FakeSandboxProvider struct {
 	ListFunc           func(context.Context, string) ([]*sandbox.Sandbox, error)
 	ApproveFunc        func(context.Context, sandbox.ApproveRequest) (*sandbox.ApproveResult, error)
 	RejectFunc         func(context.Context, uuid.UUID, string) error
+	RejectReviewedFunc func(context.Context, sandbox.RejectRequest) error
 	PartialApproveFunc func(context.Context, sandbox.PartialApproveRequest) (*sandbox.ApproveResult, error)
 	StopFunc           func(context.Context, uuid.UUID) error
 	StartFunc          func(context.Context, uuid.UUID) error
@@ -133,6 +134,16 @@ func (p *FakeSandboxProvider) Approve(ctx context.Context, req sandbox.ApproveRe
 func (p *FakeSandboxProvider) Reject(ctx context.Context, id uuid.UUID, actor string) error {
 	if p.RejectFunc != nil {
 		return p.RejectFunc(ctx, id, actor)
+	}
+	return nil
+}
+
+func (p *FakeSandboxProvider) RejectReviewed(ctx context.Context, req sandbox.RejectRequest) error {
+	if p.RejectReviewedFunc != nil {
+		return p.RejectReviewedFunc(ctx, req)
+	}
+	if p.RejectFunc != nil {
+		return p.RejectFunc(ctx, req.SandboxID, req.Actor)
 	}
 	return nil
 }

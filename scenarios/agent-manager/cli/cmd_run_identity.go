@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -24,11 +25,32 @@ func (a *App) runIdentity(args []string) error {
 		}
 	}
 
-	identity := cliutil.DetectIdentity()
-	if !identity.IsIdentityPresent() {
+	inherited := cliutil.DetectIdentity()
+	if !inherited.IsIdentityPresent() {
 		return fmt.Errorf("no agent-manager run identity: set %s or run inside an agent-manager run", cliutil.EnvIdentityToken)
 	}
-	verified, err := identity.VerifyIdentity()
+
+	// Preserve the existing behavior for a currently valid inherited identity.
+	// In particular, a separately selected legacy operation grant must never
+	// replace the run whose identity this command reports.
+	verified, err := inherited.VerifyIdentity()
+	if err != nil {
+		return err
+	}
+	if verified != nil && verified.Valid && verified.Claims != nil && strings.TrimSpace(verified.Claims.RunID) != "" {
+		return printRunIdentity(verified, jsonOutput)
+	}
+
+	// This selector returns only the ordinary same-run baseline. The normal
+	// credential path keeps its independent operation-grant behavior unchanged.
+	token, err := cliutil.ResolveOrdinaryAgentIdentity(context.Background())
+	if err != nil {
+		return err
+	}
+	if strings.TrimSpace(token) == "" {
+		return fmt.Errorf("current ordinary agent-manager run identity is unavailable")
+	}
+	verified, err = (cliutil.IdentityEnv{Token: token}).VerifyIdentity()
 	if err != nil {
 		return err
 	}
@@ -38,7 +60,10 @@ func (a *App) runIdentity(args []string) error {
 		}
 		return fmt.Errorf("agent-manager run identity is invalid")
 	}
+	return printRunIdentity(verified, jsonOutput)
+}
 
+func printRunIdentity(verified *cliutil.VerifyResult, jsonOutput bool) error {
 	if jsonOutput {
 		payload, err := json.Marshal(verified)
 		if err != nil {

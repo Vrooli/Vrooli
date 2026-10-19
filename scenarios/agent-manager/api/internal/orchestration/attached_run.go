@@ -150,6 +150,8 @@ func (o *Orchestrator) AttachRun(ctx context.Context, req AttachRunRequest) (*At
 		return nil, fmt.Errorf("mint attached identity token: %w", err)
 	}
 	run.IdentityTokenHash = identity.HashToken(token)
+	issuedAt := time.Unix(now.Unix(), 0).UTC()
+	run.IdentityTokenIssuedAt = &issuedAt
 	if err := o.runs.Create(ctx, run); err != nil {
 		return nil, err
 	}

@@ -27,17 +27,27 @@ func newParkFromAgentSvc(t *testing.T) (*orchestration.Orchestrator, *domain.Run
 	return svc, run
 }
 
-// newParkFromAgentSvcWithRepos is newParkFromAgentSvc but also returns the
-// repositories, so tests that need to seed run state directly (e.g. the re-park
-// guard's persisted streak / last-await fields) can do so without driving the
-// racy wake-continuation goroutine.
+// newParkFromAgentSvcWithRepos also returns the repositories so tests can seed
+// durable state without driving the racy wake-continuation goroutine.
 func newParkFromAgentSvcWithRepos(t *testing.T) (*orchestration.Orchestrator, *domain.Run, *database.Repositories) {
+	svc, run, repos, _ := newParkFromAgentSvcWithStopObserver(t)
+	return svc, run, repos
+}
+
+// newParkFromAgentSvcWithStopObserver adds a runner-stop observer for tests
+// that assert a refusal happens before any process-control effect.
+func newParkFromAgentSvcWithStopObserver(t *testing.T) (*orchestration.Orchestrator, *domain.Run, *database.Repositories, *atomic.Int32) {
 	t.Helper()
 	ctx := context.Background()
 	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
 	t.Cleanup(cleanup)
 
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	stopCalls := &atomic.Int32{}
+	mockRunner.StopFunc = func(context.Context, uuid.UUID) error {
+		stopCalls.Add(1)
+		return nil
+	}
 	registry := runner.NewRegistry()
 	if err := registry.Register(mockRunner); err != nil {
 		t.Fatalf("register runner: %v", err)
@@ -57,7 +67,7 @@ func newParkFromAgentSvcWithRepos(t *testing.T) (*orchestration.Orchestrator, *d
 	)
 
 	run := newParkableRun(t, ctx, svc, repos)
-	return svc, run, repos
+	return svc, run, repos, stopCalls
 }
 
 // mintToken mints a valid identity token binding to runID with a 24h TTL.
@@ -125,6 +135,60 @@ func TestParkRunFromAgent_OwningTokenParks(t *testing.T) {
 	}
 	if reloaded.Status != domain.RunStatusParked {
 		t.Fatalf("persisted status = %s, want parked", reloaded.Status)
+	}
+}
+
+func TestParkRunFromAgent_AttachedRunRefusedBeforeParkOrStop(t *testing.T) {
+	ctx := context.Background()
+	svc, run, repos, stopCalls := newParkFromAgentSvcWithStopObserver(t)
+	run.ExecutionMode = domain.ExecutionModeAttached
+	if err := repos.Runs.Update(ctx, run); err != nil {
+		t.Fatalf("set attached execution mode: %v", err)
+	}
+	token := activateToken(t, ctx, repos, run)
+
+	_, err := svc.ParkRunFromAgent(ctx, orchestration.ParkRunFromAgentRequest{
+		RunID: run.ID, Producer: "test-genie", Key: "attached/should-not-park", IdentityToken: token,
+	})
+	if err == nil || !strings.Contains(strings.ToLower(err.Error()), "attached") {
+		t.Fatalf("attached run park error = %v, want explicit attached-mode refusal", err)
+	}
+
+	after, err := svc.GetRun(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("GetRun after refusal: %v", err)
+	}
+	if after.Status != domain.RunStatusRunning || after.AwaitHandle != nil {
+		t.Fatalf("refused attached run changed state: status=%s await=%+v", after.Status, after.AwaitHandle)
+	}
+	if got := stopCalls.Load(); got != 0 {
+		t.Fatalf("runner stop calls = %d, want 0 after pre-effect refusal", got)
+	}
+}
+
+func TestParkRunFromAgent_UnknownProducerRefusedBeforeParkOrStop(t *testing.T) {
+	ctx := context.Background()
+	svc, run, repos, stopCalls := newParkFromAgentSvcWithStopObserver(t)
+	registry := orchestration.NewAwaitRegistry(svc)
+	svc.SetAwaitRegistry(registry)
+	defer registry.Stop()
+	token := activateToken(t, ctx, repos, run)
+
+	_, err := svc.ParkRunFromAgent(ctx, orchestration.ParkRunFromAgentRequest{
+		RunID: run.ID, Producer: "a227-r17", Key: "lantern-ledger-v5", IdentityToken: token,
+	})
+	if err == nil || !strings.Contains(err.Error(), "no waiter is registered") {
+		t.Fatalf("unknown producer park error = %v, want pre-effect registered-waiter refusal", err)
+	}
+	retained, err := svc.GetRun(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("GetRun after refusal: %v", err)
+	}
+	if retained.Status != domain.RunStatusRunning || retained.AwaitHandle != nil {
+		t.Fatalf("unknown producer changed run before refusal: status=%s handle=%+v", retained.Status, retained.AwaitHandle)
+	}
+	if got := stopCalls.Load(); got != 0 {
+		t.Fatalf("runner stop calls = %d, want 0 after unsupported producer refusal", got)
 	}
 }
 
@@ -270,5 +334,45 @@ func TestWakeRun_WaitsForParkedTurnToEnd(t *testing.T) {
 		}
 	case <-time.After(15 * time.Second):
 		t.Fatal("timed out waiting for the continuation")
+	}
+}
+
+func TestInteractiveIdentityRequiresPersistedSessionClaim(t *testing.T) {
+	ctx := context.Background()
+	svc, run, repos := newParkFromAgentSvcWithRepos(t)
+	run.ExecutionMode = domain.ExecutionModeInteractive
+	run.WebConsoleSessionID = "a244-bound-session"
+	makeToken := func(sessionID string) string {
+		t.Helper()
+		now := time.Now()
+		token, err := identity.GenerateToken(&identity.Claims{
+			RunID: run.ID, TaskID: run.TaskID, IssuedAt: now.Unix(), ExpiresAt: now.Add(time.Hour).Unix(),
+			Meta: map[string]string{"web_console_session_id": sessionID},
+		}, parkFromAgentSecret)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return token
+	}
+	for _, tc := range []struct {
+		name, claim string
+		want        bool
+	}{
+		{name: "matching", claim: "a244-bound-session", want: true},
+		{name: "missing", claim: "", want: false},
+		{name: "other session", claim: "other-session", want: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			token := makeToken(tc.claim)
+			run.IdentityTokenHash = identity.HashToken(token)
+			run.IdentityTokenRevokedAt = nil
+			if err := repos.Runs.Update(ctx, run); err != nil {
+				t.Fatal(err)
+			}
+			verified, err := svc.VerifyIdentityToken(ctx, token)
+			if err != nil || verified == nil || verified.Valid != tc.want {
+				t.Fatalf("verification = %+v, %v; want valid=%t", verified, err, tc.want)
+			}
+		})
 	}
 }

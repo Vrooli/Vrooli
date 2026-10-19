@@ -127,6 +127,22 @@ func (r *Reconciler) releaseInteractiveSession(ctx context.Context, info webcons
 		}
 	}
 
+	// Retention is a true session retirement. Revoke every child identity
+	// before archiving; if one write fails, leave the session intact and let the
+	// next reconciliation retry. Earlier successful revocations are idempotent.
+	for _, run := range runs {
+		if run == nil || run.IdentityTokenHash == "" || run.IdentityTokenRevokedAt != nil {
+			continue
+		}
+		now := r.now()
+		run.IdentityTokenRevokedAt = &now
+		run.UpdatedAt = now
+		if err := r.runs.Update(ctx, run); err != nil {
+			stats.Errors = append(stats.Errors, fmt.Sprintf("failed to revoke identity before archiving interactive session %s: %v", info.ID, err))
+			return true
+		}
+	}
+
 	archiveCtx, cancel := context.WithTimeout(ctx, orphanSandboxOperationTimeout)
 	err = r.sessions.ArchiveSession(archiveCtx, info.ID)
 	cancel()

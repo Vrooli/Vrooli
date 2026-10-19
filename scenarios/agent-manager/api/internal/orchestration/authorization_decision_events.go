@@ -31,6 +31,7 @@ import (
 	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/eventbus"
 	"github.com/vrooli/api-core/operatordecision"
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 // AuthorizationDecisionEventType is the decision event raised when a verified
@@ -249,86 +250,176 @@ func (o *Orchestrator) authorizationDecisionEvent(ctx context.Context, p *domain
 // interactive request. The event links to native consent; Notification Hub
 // answers are never connected to interactive authority issuance.
 func (o *Orchestrator) NotifyAuthorizationRequested(ctx context.Context, g *domain.AuthorizationGrant) {
+	if err := o.notifyAuthorizationRequested(ctx, g); err != nil && g != nil {
+		o.logAuthorizationNotificationError(g.ID, err)
+	}
+}
+
+const (
+	authorizationNotificationScanLimit            = 100
+	authorizationNotificationAttemptLimit         = 10
+	authorizationNotificationRetryTimeout         = 10 * time.Second
+	authorizationNotificationPublishTimeout       = 5 * time.Second
+	authorizationNotificationFailureRecordTimeout = 500 * time.Millisecond
+)
+
+// retryPendingAuthorizationNotifications retries a bounded repository page.
+// The reconciler owns the keyset cursor; this method checks live request
+// eligibility and delegates to the same immutable-snapshot/CAS publisher used
+// by the original request path.
+func (o *Orchestrator) retryPendingAuthorizationNotifications(ctx context.Context, afterID string, scanLimit, attemptLimit int) (string, error) {
+	if o == nil || o.approvalPublisher == nil || scanLimit <= 0 || attemptLimit <= 0 {
+		return "", nil
+	}
+	if o.authorizations == nil {
+		return afterID, errors.New("authorization repository is unavailable")
+	}
+	retryRepo, ok := o.authorizations.(domain.AuthorizationNotificationRetryRepository)
+	if !ok {
+		return afterID, errors.New("authorization notification retry repository is unavailable")
+	}
+	page, err := retryRepo.ListNotificationRetryScanPage(ctx, afterID, scanLimit)
+	if err != nil {
+		return afterID, err
+	}
+	if len(page) == 0 && afterID != "" {
+		page, err = retryRepo.ListNotificationRetryScanPage(ctx, "", scanLimit)
+		if err != nil {
+			return afterID, err
+		}
+	}
+	if len(page) == 0 {
+		return "", nil
+	}
+
+	now := o.now()
+	attempts := 0
+	lastCompletedID := afterID
+	for _, grant := range page {
+		if err := ctx.Err(); err != nil {
+			return lastCompletedID, err
+		}
+		if grant == nil {
+			continue
+		}
+		if attempts >= attemptLimit {
+			break
+		}
+		if grant.State == domain.AuthorizationPending && grant.EffectiveState(now) == domain.AuthorizationPending && grant.NotificationPublishedAt == nil && grant.Binding.PID > 0 {
+			live, err := cliutil.ObserveProcessBinding(grant.Binding.PID)
+			if ctx.Err() != nil {
+				return lastCompletedID, ctx.Err()
+			}
+			if err == nil && live == grant.Binding {
+				attempts++
+				if err := o.notifyAuthorizationRequested(ctx, grant); err != nil {
+					if ctx.Err() != nil {
+						if recordErr := o.recordCancelledAuthorizationNotificationFailure(ctx, grant.ID, err); recordErr != nil {
+							o.logAuthorizationNotificationError(grant.ID, recordErr)
+						}
+						o.logAuthorizationNotificationError(grant.ID, err)
+						// Keep this row eligible next cycle. A timed-out persistence
+						// operation must not advance the in-memory keyset past it.
+						return lastCompletedID, ctx.Err()
+					}
+					o.logAuthorizationNotificationError(grant.ID, err)
+				}
+			}
+		}
+		lastCompletedID = grant.ID.String()
+	}
+	if attempts >= attemptLimit {
+		return lastCompletedID, nil
+	}
+	if len(page) < scanLimit {
+		return "", nil
+	}
+	return lastCompletedID, nil
+}
+
+func (o *Orchestrator) notifyAuthorizationRequested(ctx context.Context, g *domain.AuthorizationGrant) error {
 	if o == nil || o.authorizations == nil || g == nil || g.ID == uuid.Nil {
-		return
+		return nil
 	}
 	current, err := o.authorizations.Get(ctx, g.ID)
 	if err != nil {
-		o.logAuthorizationNotificationError(g.ID, err)
-		return
+		return err
 	}
-	if current == nil || current.State != domain.AuthorizationPending || current.NotificationPublishedAt != nil {
-		return
+	if current == nil || current.State != domain.AuthorizationPending || current.EffectiveState(o.now()) != domain.AuthorizationPending || current.NotificationPublishedAt != nil {
+		return nil
 	}
 	if current.NotificationSnapshot == nil {
 		snapshot, buildErr := o.authorizationNotificationSnapshot(ctx, current)
 		next := cloneAuthorizationGrant(current)
 		if buildErr != nil {
-			next.NotificationUnreached = buildErr.Error()
+			next.NotificationUnreached = boundedAuthorizationNotificationFailure(buildErr)
 		} else {
 			next.NotificationSnapshot = snapshot
 			next.NotificationUnreached = ""
 		}
 		stored, storeErr := o.authorizations.UpdateNotification(ctx, current, next)
 		if storeErr != nil {
-			o.logAuthorizationNotificationError(g.ID, storeErr)
-			return
+			return storeErr
 		}
 		if stored {
 			current = next
 		} else {
 			current, err = o.authorizations.Get(ctx, g.ID)
 			if err != nil {
-				o.logAuthorizationNotificationError(g.ID, err)
-				return
+				return err
 			}
 		}
-		if current == nil || current.State != domain.AuthorizationPending {
-			return
+		if current == nil || current.State != domain.AuthorizationPending || current.EffectiveState(o.now()) != domain.AuthorizationPending {
+			return nil
 		}
 		// A lost CAS may mean another publisher stored this generation first.
 		// Re-read and use that exact snapshot; never rebuild a changed link.
 		if current.NotificationSnapshot == nil {
 			if buildErr != nil {
-				o.logAuthorizationNotificationError(g.ID, buildErr)
+				return buildErr
 			}
-			return
+			return errors.New("authorization notification snapshot unavailable after concurrent update")
 		}
 	}
-	if current.NotificationPublishedAt != nil || current.NotificationSnapshot == nil {
-		return
+	if current.State != domain.AuthorizationPending || current.EffectiveState(o.now()) != domain.AuthorizationPending || current.NotificationPublishedAt != nil || current.NotificationSnapshot == nil {
+		return nil
 	}
 	if o.approvalPublisher == nil {
-		o.markAuthorizationNotificationUnreached(ctx, current, "event publisher unavailable")
-		return
+		return o.markAuthorizationNotificationUnreached(ctx, current, "event publisher unavailable")
 	}
 	event := eventFromAuthorizationNotification(current.NotificationSnapshot)
 	if operatordecision.EventID(event) != current.NotificationSnapshot.EventID {
-		o.logAuthorizationNotificationError(g.ID, errors.New("stored authorization notification snapshot identity is invalid"))
-		return
+		return errors.New("stored authorization notification snapshot identity is invalid")
 	}
-	if err := o.approvalPublisher.PublishDomainEvent(ctx, event); err != nil {
-		o.logAuthorizationNotificationError(g.ID, err)
-		return
+	publishCtx, cancel := context.WithTimeout(ctx, authorizationNotificationPublishTimeout)
+	err = o.approvalPublisher.PublishDomainEvent(publishCtx, event)
+	cancel()
+	if err != nil {
+		bounded := boundedAuthorizationNotificationFailure(err)
+		markErr := o.markAuthorizationNotificationUnreached(ctx, current, bounded)
+		if markErr != nil {
+			return errors.Join(err, markErr)
+		}
+		return err
 	}
 	// Record the receipt only against the exact still-pending body and snapshot.
 	// If a human decision or a replacement request won while publishing, the CAS
 	// fails harmlessly and never writes the stale pending body over that state.
 	fresh, err := o.authorizations.Get(ctx, g.ID)
 	if err != nil {
-		o.logAuthorizationNotificationError(g.ID, err)
-		return
+		return err
 	}
 	if fresh == nil || fresh.State != domain.AuthorizationPending || fresh.NotificationPublishedAt != nil || !sameAuthorizationNotification(fresh.NotificationSnapshot, current.NotificationSnapshot) {
-		return
+		return nil
 	}
 	next := cloneAuthorizationGrant(fresh)
 	publishedAt := o.now().UTC()
 	next.NotificationPublishedAt = &publishedAt
 	next.NotificationUnreached = ""
 	if _, err := o.authorizations.UpdateNotification(ctx, fresh, next); err != nil {
-		o.logAuthorizationNotificationError(g.ID, err)
+		return err
 	}
+	return nil
 }
 
 func (o *Orchestrator) authorizationNotificationSnapshot(ctx context.Context, g *domain.AuthorizationGrant) (*domain.AuthorizationNotificationSnapshot, error) {
@@ -348,7 +439,7 @@ func (o *Orchestrator) authorizationNotificationSnapshot(ctx context.Context, g 
 		"sensitivity": "private",
 		"context_url": consentURL,
 		"dedupe_key":  g.ID.String(),
-		"correlation": map[string]string{"authorization_id": g.ID.String(), "run_id": g.RunID.String(), "policy": g.Policy},
+		"correlation": map[string]any{"authorization_id": g.ID.String(), "run_id": g.RunID.String(), "policy": g.Policy},
 	}
 	event := eventbus.DomainEvent{Source: runApprovalSource, EventType: InteractiveAuthorizationNotificationEventType, Occurred: g.CreatedAt.UTC(), Payload: payload}
 	return &domain.AuthorizationNotificationSnapshot{Source: event.Source, EventType: event.EventType, EventID: operatordecision.EventID(event), Occurred: event.Occurred, Payload: payload}, nil
@@ -422,12 +513,49 @@ func cloneAuthorizationGrant(g *domain.AuthorizationGrant) *domain.Authorization
 	return &cp
 }
 
-func (o *Orchestrator) markAuthorizationNotificationUnreached(ctx context.Context, current *domain.AuthorizationGrant, reason string) {
-	next := cloneAuthorizationGrant(current)
-	next.NotificationUnreached = reason
-	if _, err := o.authorizations.UpdateNotification(ctx, current, next); err != nil {
-		o.logAuthorizationNotificationError(current.ID, err)
+const authorizationNotificationFailureLimit = 256
+
+func boundedAuthorizationNotificationFailure(err error) string {
+	if err == nil {
+		return "notification publication failed"
 	}
+	reason := strings.TrimSpace(err.Error())
+	if len(reason) > authorizationNotificationFailureLimit {
+		reason = reason[:authorizationNotificationFailureLimit]
+	}
+	if reason == "" {
+		return "notification publication failed"
+	}
+	return reason
+}
+
+func (o *Orchestrator) markAuthorizationNotificationUnreached(ctx context.Context, current *domain.AuthorizationGrant, reason string) error {
+	if current == nil || o == nil || o.authorizations == nil || current.State != domain.AuthorizationPending || current.EffectiveState(o.now()) != domain.AuthorizationPending {
+		return nil
+	}
+	next := cloneAuthorizationGrant(current)
+	next.NotificationUnreached = boundedAuthorizationNotificationFailure(errors.New(reason))
+	if _, err := o.authorizations.UpdateNotification(ctx, current, next); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (o *Orchestrator) recordCancelledAuthorizationNotificationFailure(parent context.Context, id uuid.UUID, cause error) error {
+	if o == nil || o.authorizations == nil || id == uuid.Nil {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(parent), authorizationNotificationFailureRecordTimeout)
+	defer cancel()
+	current, err := o.authorizations.Get(ctx, id)
+	if err != nil {
+		return err
+	}
+	if current == nil || current.State != domain.AuthorizationPending || current.EffectiveState(o.now()) != domain.AuthorizationPending || current.NotificationPublishedAt != nil || current.NotificationUnreached != "" {
+		return nil
+	}
+	reason := "notification retry ended before receipt: " + boundedAuthorizationNotificationFailure(cause)
+	return o.markAuthorizationNotificationUnreached(ctx, current, reason)
 }
 
 func (o *Orchestrator) logAuthorizationNotificationError(id uuid.UUID, err error) {

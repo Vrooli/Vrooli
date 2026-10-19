@@ -3,6 +3,7 @@ package orchestration_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -203,6 +204,30 @@ func TestAwaitRegistry_UnknownProducerWakesImmediately(t *testing.T) {
 	}
 	if want := "[wait error] no waiter"; len(in.Result) < len(want) || in.Result[:len(want)] != want {
 		t.Fatalf("expected no-waiter error, got %q", in.Result)
+	}
+}
+
+func TestAwaitRegistry_RecoveryPreservesLegacyUnknownProducerFallback(t *testing.T) {
+	waker := newRecordingWaker()
+	legacyRun := &domain.Run{
+		ID: uuid.New(), Status: domain.RunStatusParked,
+		AwaitHandle: handle("legacy-unregistered-producer", "legacy/key", nil),
+	}
+	waker.parked = []*domain.Run{legacyRun}
+	reg := orchestration.NewAwaitRegistry(waker)
+	waker.reg = reg
+	defer reg.Stop()
+
+	n, err := reg.RecoverParkedRuns(context.Background())
+	if err != nil {
+		t.Fatalf("RecoverParkedRuns: %v", err)
+	}
+	if n != 1 {
+		t.Fatalf("recovered watcher count = %d, want 1 for persisted handle", n)
+	}
+	wake := waker.awaitWake(t)
+	if wake.RunID != legacyRun.ID || wake.TimedOut || !strings.Contains(wake.Result, "no waiter registered for producer \"legacy-unregistered-producer\"") {
+		t.Fatalf("legacy recovery wake = %+v, want truthful immediate no-waiter result", wake)
 	}
 }
 

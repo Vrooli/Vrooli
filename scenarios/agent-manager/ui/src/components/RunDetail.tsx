@@ -531,6 +531,7 @@ export function RunDetail({
           <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3 sm:p-4 sm:space-y-4">
             <RunDetailsContent
               run={run}
+              diff={diffLoading ? null : diff}
               taskTitle={taskTitle}
               profileName={profileName}
               durationMs={durationMs}
@@ -673,7 +674,7 @@ export function RunDetail({
                       <p className="font-medium text-muted-foreground">No diff available</p>
                       <p className="text-sm text-muted-foreground/70 mt-1">
                         {run.sandboxId
-                          ? "The diff hasn't been generated yet. You can review changes directly in the sandbox."
+                          ? "No complete diff evidence is available. The file count and changes are unverified."
                           : "This run didn't use a sandbox, so no diff was collected."}
                       </p>
                     </div>
@@ -685,6 +686,10 @@ export function RunDetail({
                         </Button>
                       )}
                     </div>
+                  </div>
+                ) : diff.runId !== run.id || !diff.fileCountVerified ? (
+                  <div className="py-8 text-center text-muted-foreground" role="status">
+                    Diff evidence is incomplete; changes and file count are unverified.
                   </div>
                 ) : (
                   <DiffViewer
@@ -859,6 +864,7 @@ export function RunDetail({
               </div>
               <RunDetailsContent
                 run={run}
+                diff={diffLoading ? null : diff}
                 taskTitle={taskTitle}
                 profileName={profileName}
                 durationMs={durationMs}

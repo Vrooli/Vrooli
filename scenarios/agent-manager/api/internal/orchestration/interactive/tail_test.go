@@ -603,6 +603,77 @@ func TestTailerGoalOnlyCompletesOnBoundedDrainAndCancellationIsHonored(t *testin
 	}
 }
 
+func TestTailerCompletesOnePostGoalContinuationTurnOnlyWithoutNewGoal(t *testing.T) {
+	oldGoal := readCodecFixture(t, "codex_goal_accepted.jsonl")
+	oldBytes := []byte(strings.Join(oldGoal, "\n") + "\n")
+	newTurn := []string{
+		`{"type":"turn_context","payload":{"turn_id":"continued-turn"}}`,
+		`{"type":"event_msg","payload":{"type":"user_message","message":"acknowledge the returned catalog finding"}}`,
+		`{"type":"event_msg","payload":{"type":"agent_message","message":"acknowledged; current clean/refusal result is preserved"}}`,
+		`{"type":"event_msg","payload":{"type":"task_complete","turn_id":"continued-turn"}}`,
+	}
+	for _, tc := range []struct {
+		name                     string
+		lines                    []string
+		wantTerminal             bool
+		wantSuccessful           bool
+		initialMarkerObserved    bool
+		omitMarkerObservationAPI bool
+	}{
+		{name: "ordinary acknowledgement closes the continued run", lines: newTurn, wantTerminal: true, wantSuccessful: true},
+		{name: "prior goal terminal alone cannot complete the new invocation"},
+		{name: "new active goal remains governed by a new goal verdict", lines: append([]string{`{"type":"event_msg","payload":{"type":"thread_goal_updated","goal":{"threadId":"fixture-thread","objective":"complete the fixture","status":"active"}}}`}, newTurn...)},
+		{name: "new paused goal remains governed by a new goal verdict", lines: append([]string{`{"type":"event_msg","payload":{"type":"thread_goal_updated","goal":{"threadId":"fixture-thread","objective":"complete the fixture","status":"paused"}}}`}, newTurn...)},
+		{name: "new active goal is guarded even without callback", lines: append([]string{`{"type":"event_msg","payload":{"type":"thread_goal_updated","goal":{"threadId":"fixture-thread","objective":"complete the fixture","status":"active"}}}`}, newTurn...), omitMarkerObservationAPI: true},
+		{name: "marker remembered across tail reentry blocks close", lines: newTurn, initialMarkerObserved: true},
+		{name: "failed continuation remains failed", lines: []string{`{"type":"turn_context","payload":{"turn_id":"continued-turn"}}`, `{"type":"event_msg","payload":{"type":"turn_aborted","turn_id":"continued-turn","reason":"provider stopped"}}`}, wantTerminal: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "transcript.jsonl")
+			if err := os.WriteFile(path, oldBytes, 0o644); err != nil {
+				t.Fatalf("write prior completed invocation: %v", err)
+			}
+			startCursor := int64(len(oldBytes))
+			if len(tc.lines) > 0 {
+				if err := os.WriteFile(path, append(oldBytes, []byte(strings.Join(tc.lines, "\n")+"\n")...), 0o644); err != nil {
+					t.Fatalf("append continued invocation: %v", err)
+				}
+			}
+			tailer := NewTailer(codecParserResolver, WithTailPollInterval(5*time.Millisecond))
+			ctx, cancel := context.WithTimeout(context.Background(), 120*time.Millisecond)
+			defer cancel()
+			goalMarkerObserved := tc.initialMarkerObserved
+			onGoalStatus := func(runner.GoalMarker) error {
+				goalMarkerObserved = true
+				return nil
+			}
+			params := TailParams{
+				RunID: uuid.New(), RunnerType: domain.RunnerTypeCodex,
+				TranscriptPath: path, SessionID: "fixture-thread",
+				StartCursor: startCursor, Until: "complete the fixture",
+				CompleteAfterFirstSuccessfulTurnWithoutGoalMarker: true,
+			}
+			if !tc.omitMarkerObservationAPI {
+				params.OnGoalStatus = onGoalStatus
+				params.GoalMarkerObserved = func() bool { return goalMarkerObserved }
+			}
+			term, err := tailer.Tail(ctx, params)
+			if tc.wantTerminal {
+				if err != nil || term == nil || term.Success != tc.wantSuccessful {
+					t.Fatalf("continued terminal=%+v err=%v, want terminal success=%v", term, err, tc.wantSuccessful)
+				}
+				if tc.wantSuccessful && term.TerminalReason != "completed_goal_continuation" {
+					t.Fatalf("terminal reason=%q, want completed_goal_continuation", term.TerminalReason)
+				}
+				return
+			}
+			if !errors.Is(err, context.DeadlineExceeded) || term != nil {
+				t.Fatalf("new active goal prematurely closed from an ordinary turn: terminal=%+v err=%v", term, err)
+			}
+		})
+	}
+}
+
 func TestTailerCarriesBillingIntoCodexTranscript(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "transcript.jsonl")
 	content := strings.Join([]string{

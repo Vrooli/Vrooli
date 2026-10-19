@@ -7,6 +7,8 @@ package sandbox
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -281,15 +283,32 @@ func (p *WorkspaceSandboxProvider) GetDiff(ctx context.Context, id uuid.UUID) (*
 		}
 	}
 
+	if result.SandboxID != "" {
+		responseID, parseErr := uuid.Parse(result.SandboxID)
+		if parseErr != nil || responseID != id {
+			return nil, &domain.SandboxError{SandboxID: &id, Operation: "diff", Cause: errors.New("workspace-sandbox diff response identifies a different sandbox")}
+		}
+	}
+	patchDigest := sha256.Sum256([]byte(result.UnifiedDiff))
+	expectedPatchSHA256 := hex.EncodeToString(patchDigest[:])
+	if result.PatchSHA256 != "" && result.PatchSHA256 != expectedPatchSHA256 {
+		return nil, &domain.SandboxError{SandboxID: &id, Operation: "diff", Cause: errors.New("workspace-sandbox diff patch digest does not match its diff bytes")}
+	}
+	result.evidenceComplete = result.evidenceComplete && result.SandboxID != "" &&
+		result.PatchSHA256 == expectedPatchSHA256 &&
+		(result.ArchiveState == "" || result.ArchiveState == "complete")
 	return result.toDiffResult(id), nil
 }
 
 // Approve applies sandbox changes to the canonical repository.
 func (p *WorkspaceSandboxProvider) Approve(ctx context.Context, req ApproveRequest) (*ApproveResult, error) {
 	body := map[string]interface{}{
-		"actor":     req.Actor,
-		"commitMsg": req.CommitMsg,
-		"force":     req.Force,
+		"actor":         req.Actor,
+		"commitMessage": req.CommitMsg,
+		"force":         req.Force,
+	}
+	if req.ExpectedPatchSHA256 != "" {
+		body["expectedPatchSha256"] = req.ExpectedPatchSHA256
 	}
 
 	resp, err := p.doRequest(ctx, "POST", fmt.Sprintf("/api/v1/sandboxes/%s/approve", req.SandboxID), body)
@@ -322,26 +341,36 @@ func (p *WorkspaceSandboxProvider) Approve(ctx context.Context, req ApproveReque
 
 // Reject marks sandbox changes as rejected without applying.
 func (p *WorkspaceSandboxProvider) Reject(ctx context.Context, id uuid.UUID, actor string) error {
-	body := map[string]interface{}{
-		"actor": actor,
-	}
+	return p.reject(ctx, RejectRequest{SandboxID: id, Actor: actor})
+}
 
-	resp, err := p.doRequest(ctx, "POST", fmt.Sprintf("/api/v1/sandboxes/%s/reject", id), body)
+// RejectReviewed sends a conditional rejection. Empty expected digests are not
+// accepted here; callers that intentionally request legacy/manual semantics use
+// Reject instead.
+func (p *WorkspaceSandboxProvider) RejectReviewed(ctx context.Context, req RejectRequest) error {
+	if strings.TrimSpace(req.ExpectedPatchSHA256) == "" {
+		return errors.New("reviewed reject requires expected patch SHA-256")
+	}
+	return p.reject(ctx, req)
+}
+
+func (p *WorkspaceSandboxProvider) reject(ctx context.Context, req RejectRequest) error {
+	body := map[string]interface{}{"actor": req.Actor}
+	if req.ExpectedPatchSHA256 != "" {
+		body["expectedPatchSha256"] = req.ExpectedPatchSHA256
+	}
+	path := fmt.Sprintf("/api/v1/sandboxes/%s/reject", req.SandboxID)
+	if req.ExpectedPatchSHA256 != "" {
+		path = fmt.Sprintf("/api/v1/sandboxes/%s/reject-reviewed", req.SandboxID)
+	}
+	resp, err := p.doRequest(ctx, "POST", path, body)
 	if err != nil {
-		return &domain.SandboxError{
-			SandboxID:   &id,
-			Operation:   "reject",
-			Cause:       err,
-			IsTransient: true,
-			CanRetry:    true,
-		}
+		return &domain.SandboxError{SandboxID: &req.SandboxID, Operation: "reject", Cause: err, IsTransient: true, CanRetry: true}
 	}
 	defer resp.Body.Close()
-
 	if resp.StatusCode != http.StatusOK {
-		return p.parseError("reject", &id, resp)
+		return p.parseError("reject", &req.SandboxID, resp)
 	}
-
 	return nil
 }
 
@@ -354,9 +383,9 @@ func (p *WorkspaceSandboxProvider) PartialApprove(ctx context.Context, req Parti
 	}
 
 	body := map[string]interface{}{
-		"actor":     req.Actor,
-		"commitMsg": req.CommitMsg,
-		"fileIds":   fileIDs,
+		"actor":         req.Actor,
+		"commitMessage": req.CommitMsg,
+		"fileIds":       fileIDs,
 	}
 
 	resp, err := p.doRequest(ctx, "POST", fmt.Sprintf("/api/v1/sandboxes/%s/partial-approve", req.SandboxID), body)
@@ -862,10 +891,60 @@ func (r *wsSandboxResponse) toSandbox() *Sandbox {
 }
 
 type wsDiffResponse struct {
-	Files        []wsFileChange `json:"files"`
-	UnifiedDiff  string         `json:"unifiedDiff"`
-	Stats        wsDiffStats    `json:"stats"`
-	ArchiveState string         `json:"archiveState,omitempty"`
+	SandboxID        string         `json:"sandboxId"`
+	Files            []wsFileChange `json:"files"`
+	UnifiedDiff      string         `json:"unifiedDiff"`
+	PatchSHA256      string         `json:"patchSha256"`
+	Stats            wsDiffStats    `json:"stats"`
+	ArchiveState     string         `json:"archiveState,omitempty"`
+	evidenceComplete bool
+}
+
+func (r *wsDiffResponse) UnmarshalJSON(data []byte) error {
+	type response wsDiffResponse
+	var decoded response
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		return err
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(data, &fields); err != nil {
+		return err
+	}
+	nonNull := func(raw json.RawMessage) bool {
+		trimmed := bytes.TrimSpace(raw)
+		return len(trimmed) > 0 && !bytes.Equal(trimmed, []byte("null"))
+	}
+	requiredScalars := []string{"sandboxId", "unifiedDiff", "patchSha256"}
+	complete := true
+	for _, key := range requiredScalars {
+		raw, ok := fields[key]
+		if !ok || !nonNull(raw) {
+			complete = false
+		}
+	}
+	if raw := fields["files"]; len(raw) == 0 || !nonNull(raw) || bytes.TrimSpace(raw)[0] != '[' {
+		complete = false
+	}
+	if raw, ok := fields["stats"]; !ok || !nonNull(raw) {
+		complete = false
+	} else {
+		var stats map[string]json.RawMessage
+		if err := json.Unmarshal(raw, &stats); err != nil {
+			return err
+		}
+		for _, key := range []string{"filesChanged", "filesAdded", "filesModified", "filesDeleted", "linesAdded", "linesRemoved", "totalBytes"} {
+			value, ok := stats[key]
+			if !ok || !nonNull(value) {
+				complete = false
+			}
+		}
+	}
+	if raw, ok := fields["archiveState"]; ok && !nonNull(raw) {
+		complete = false
+	}
+	decoded.evidenceComplete = complete
+	*r = wsDiffResponse(decoded)
+	return nil
 }
 
 type wsFileChange struct {
@@ -903,10 +982,12 @@ func (r *wsDiffResponse) toDiffResult(sandboxID uuid.UUID) *DiffResult {
 	}
 
 	return &DiffResult{
-		SandboxID:   sandboxID,
-		Files:       files,
-		UnifiedDiff: filterUnifiedDiff(r.UnifiedDiff),
-		Generated:   time.Now(),
+		SandboxID:        sandboxID,
+		Files:            files,
+		UnifiedDiff:      filterUnifiedDiff(r.UnifiedDiff),
+		PatchSHA256:      r.PatchSHA256,
+		Generated:        time.Now(),
+		EvidenceComplete: r.evidenceComplete,
 		Stats: DiffStats{
 			FilesChanged:  r.Stats.FilesChanged,
 			FilesAdded:    r.Stats.FilesAdded,

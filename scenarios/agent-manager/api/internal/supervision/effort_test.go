@@ -295,6 +295,88 @@ func TestEffortDiscoveryMissingAndMalformedNeverCompletes(t *testing.T) {
 	}
 }
 
+func TestEffortDiscoverySkipsUnregisteredArtifactDirectory(t *testing.T) {
+	s, r, _ := effortFixture(t)
+	dir := filepath.Join(s.config.Root, "research-notes")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "README.md"), []byte("planning artifacts, not an Agent Manager enrollment"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	discovery, err := s.ReconcileDiscovery(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	list, err := s.List(context.Background(), nil)
+	if err != nil || len(list.Efforts) != 0 {
+		t.Fatalf("unregistered artifact became an effort: rows=%v err=%v", list.Efforts, err)
+	}
+	for _, f := range discovery.Findings {
+		if f.Source == "research-notes" {
+			t.Fatalf("unregistered artifact produced a discovery finding: %+v", f)
+		}
+	}
+	if _, _, err := r.GetEffort(context.Background(), "legacy-effort:research-notes"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("unregistered artifact minted a legacy identity: %v", err)
+	}
+}
+
+func TestEffortDiscoveryRetainsEnrolledLegacyIdentityWhenCheckpointDisappears(t *testing.T) {
+	s, r, _ := effortFixture(t)
+	ctx := context.Background()
+	checkpoint := legacyDriverFixture(t, s.config.Root, "formerly-enrolled", `{"effort":"source-work","next_action":"continue bounded review","loop_state":"running"}`)
+	if _, err := s.ReconcileDiscovery(ctx); err != nil {
+		t.Fatal(err)
+	}
+	const ref = "legacy-effort:source-work"
+	priorEnrollment, priorObservation, err := r.GetEffort(ctx, ref)
+	if err != nil || priorEnrollment.Workspace != "formerly-enrolled" || len(priorObservation.EvidenceRefs) == 0 {
+		t.Fatalf("legacy source was not initially retained: enrollment=%v observation=%v err=%v", priorEnrollment, priorObservation, err)
+	}
+	if err := os.Remove(checkpoint); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.ReconcileDiscovery(ctx); err != nil {
+		t.Fatal(err)
+	}
+	enrollment, observation, err := r.GetEffort(ctx, ref)
+	if err != nil || enrollment.EffortRef != priorEnrollment.EffortRef || enrollment.Workspace != priorEnrollment.Workspace || enrollment.Withdrawn {
+		t.Fatalf("missing checkpoint erased or changed the prior enrollment: enrollment=%v err=%v", enrollment, err)
+	}
+	if observation.Freshness != pb.EffortFreshness_EFFORT_FRESHNESS_UNAVAILABLE {
+		t.Fatalf("missing checkpoint was treated as fresh: %+v", observation)
+	}
+	if !strings.Contains(strings.Join(observation.Limitations, " "), "previously enrolled workspace has no manifest or legacy checkpoint") {
+		t.Fatalf("lost source was described as removal or completion: %+v", observation.Limitations)
+	}
+	for _, evidence := range priorObservation.EvidenceRefs {
+		retained := false
+		for _, currentEvidence := range observation.EvidenceRefs {
+			retained = retained || currentEvidence == evidence
+		}
+		if !retained {
+			t.Fatalf("last observed source evidence was lost: before=%v after=%v", priorObservation.EvidenceRefs, observation.EvidenceRefs)
+		}
+	}
+	discovery, err := r.GetEffortDiscovery(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	foundUnavailable := false
+	for _, finding := range discovery.Findings {
+		if finding.Source == enrollment.Workspace && finding.Code == "checkpoint_unavailable" {
+			foundUnavailable = true
+		}
+		if finding.Source == enrollment.Workspace && finding.Code == "invalid_manifest" {
+			t.Fatalf("lost legacy checkpoint was mislabeled as malformed manifest: %+v", finding)
+		}
+	}
+	if !foundUnavailable {
+		t.Fatalf("missing checkpoint did not produce an explicit unavailable finding: %+v", discovery.Findings)
+	}
+}
+
 func TestEffortDiscoveryRetiresFindingsForRemovedWorkspaces(t *testing.T) {
 	s, r, _ := effortFixture(t)
 	ctx := context.Background()

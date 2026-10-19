@@ -65,20 +65,42 @@ func ResolveAgentCredentials(ctx context.Context) (AgentCredentials, error) {
 	return resolveAgentCredentials(ctx, AgentCredentialSocket(), os.Getenv(EnvIdentityToken))
 }
 
+// ResolveOrdinaryAgentIdentity asks the local broker only for the ordinary
+// inherited run identity. It is reserved for the identity-reporting command;
+// normal API and child-launch credential selection remains unchanged.
+func ResolveOrdinaryAgentIdentity(ctx context.Context) (string, error) {
+	credentials, err := resolveAgentCredentialsWithPurpose(ctx, AgentCredentialSocket(), os.Getenv(EnvIdentityToken), true)
+	if err != nil {
+		return "", err
+	}
+	if credentials.BaselineToken == "" || credentials.LegacyToken != "" || credentials.OperationToken != "" {
+		return "", errors.New("ordinary agent-manager run identity is unavailable")
+	}
+	return credentials.BaselineToken, nil
+}
+
 func resolveAgentCredentials(ctx context.Context, socket, inherited string) (AgentCredentials, error) {
+	return resolveAgentCredentialsWithPurpose(ctx, socket, inherited, false)
+}
+
+func resolveAgentCredentialsWithPurpose(ctx context.Context, socket, inherited string, ordinaryIdentity bool) (AgentCredentials, error) {
 	inherited = strings.TrimSpace(inherited)
 	transport := &http.Transport{DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
 		return (&net.Dialer{}).DialContext(ctx, "unix", socket)
 	}}
 	defer transport.CloseIdleConnections()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://local-agent-manager/credential", nil)
+	endpoint := "http://local-agent-manager/credential"
+	if ordinaryIdentity {
+		endpoint += "?purpose=ordinary_identity"
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return AgentCredentials{}, err
 	}
 	if inherited != "" {
 		req.Header.Set(HeaderAgentIdentityToken, inherited)
 	}
-	resp, err := (&http.Client{Transport: transport, Timeout: 3 * time.Second}).Do(req)
+	resp, err := (&http.Client{Transport: transport, Timeout: 5 * time.Second}).Do(req)
 	if err != nil {
 		if _, directoryErr := os.Stat(filepath.Dir(socket)); errors.Is(directoryErr, os.ErrNotExist) {
 			return inheritedBaselineOnUnavailableBroker(inherited)
@@ -117,10 +139,101 @@ func resolveAgentCredentials(ctx context.Context, socket, inherited string) (Age
 	if (credentials.BaselineToken == "") == (credentials.LegacyToken == "") ||
 		(credentials.LegacyToken != "" && credentials.OperationToken != "") ||
 		(credentials.BaselineToken != "" && inherited == "") ||
-		(credentials.BaselineToken != "" && credentials.BaselineToken != inherited) {
+		(credentials.BaselineToken != "" && !isSameRunBaselineRenewal(inherited, credentials.BaselineToken)) {
 		return AgentCredentials{}, errors.New("invalid agent credential authority response")
 	}
 	return credentials, nil
+}
+
+type ordinaryIdentityClaims struct {
+	Purpose     string            `json:"purpose,omitempty"`
+	RunID       string            `json:"run_id"`
+	TaskID      string            `json:"task_id"`
+	Subject     string            `json:"subject,omitempty"`
+	WorkspaceID string            `json:"workspace_id,omitempty"`
+	Scopes      []string          `json:"scopes"`
+	ProfileKey  string            `json:"profile_key"`
+	ScopePath   string            `json:"scope_path"`
+	IssuedAt    int64             `json:"iat"`
+	ExpiresAt   int64             `json:"exp"`
+	Meta        map[string]string `json:"meta"`
+}
+
+func isSameRunBaselineRenewal(previous, replacement string) bool {
+	if previous == replacement {
+		return true
+	}
+	oldClaims, oldOK := parseOrdinaryIdentityClaims(previous)
+	newClaims, newOK := parseOrdinaryIdentityClaims(replacement)
+	now := time.Now().Unix()
+	if !oldOK || !newOK || oldClaims.Purpose != "" || newClaims.Purpose != "" ||
+		oldClaims.Meta["authorization_id"] != "" || newClaims.Meta["authorization_id"] != "" ||
+		oldClaims.ExpiresAt > now || oldClaims.ExpiresAt > oldClaims.IssuedAt+int64(defaultAgentIdentityTTL/time.Second) ||
+		oldClaims.RunID == "" || oldClaims.RunID != newClaims.RunID ||
+		oldClaims.TaskID != newClaims.TaskID || oldClaims.Subject != newClaims.Subject ||
+		oldClaims.WorkspaceID != newClaims.WorkspaceID || oldClaims.ProfileKey != newClaims.ProfileKey ||
+		oldClaims.ScopePath != newClaims.ScopePath || !sameStringSlice(oldClaims.Scopes, newClaims.Scopes) ||
+		!sameStringMap(oldClaims.Meta, newClaims.Meta) || newClaims.IssuedAt <= oldClaims.IssuedAt || newClaims.IssuedAt > now ||
+		newClaims.ExpiresAt <= newClaims.IssuedAt || newClaims.ExpiresAt > newClaims.IssuedAt+int64(defaultAgentIdentityTTL/time.Second) ||
+		newClaims.ExpiresAt <= now {
+		return false
+	}
+	return true
+}
+
+const defaultAgentIdentityTTL = 24 * time.Hour
+
+func parseOrdinaryIdentityClaims(token string) (ordinaryIdentityClaims, bool) {
+	parts := strings.SplitN(token, ".", 2)
+	if len(parts) != 2 || parts[0] == "" {
+		return ordinaryIdentityClaims{}, false
+	}
+	signature, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil || len(signature) != 32 {
+		return ordinaryIdentityClaims{}, false
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(parts[0])
+	if err != nil {
+		return ordinaryIdentityClaims{}, false
+	}
+	dec := json.NewDecoder(strings.NewReader(string(payload)))
+	dec.DisallowUnknownFields()
+	var claims ordinaryIdentityClaims
+	if err := dec.Decode(&claims); err != nil || claims.IssuedAt <= 0 || claims.ExpiresAt <= claims.IssuedAt {
+		return ordinaryIdentityClaims{}, false
+	}
+	var extra any
+	if err := dec.Decode(&extra); err != io.EOF {
+		return ordinaryIdentityClaims{}, false
+	}
+	if claims.Scopes == nil {
+		claims.Scopes = []string{}
+	}
+	return claims, true
+}
+
+func sameStringSlice(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func sameStringMap(a, b map[string]string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for key, value := range a {
+		if b[key] != value {
+			return false
+		}
+	}
+	return true
 }
 
 // inheritedBaselineOnUnavailableBroker preserves only a well-formed ordinary

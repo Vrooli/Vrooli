@@ -116,6 +116,36 @@ func (s orchestratorReportSource) Events(ctx context.Context, id uuid.UUID) ([]*
 	return s.o.allRunEvents(ctx, id, event.GetOptions{AfterSequence: -1})
 }
 
+func (s orchestratorReportSource) CanonicalUsageProjection(run *domain.Run, events []*domain.RunEvent) (int64, bool) {
+	fact := invocationreadmodel.ProjectRun(run, events, s.o.now())
+	usageByInvocation := map[int]bool{}
+	authorityByInvocation := map[int]bool{}
+	invocation := 0
+	for _, event := range events {
+		if event == nil {
+			continue
+		}
+		if invocationreadmodel.BeginsRunInvocation(event) {
+			invocation++
+		}
+		usage, ok := event.Data.(*domain.UsageEventData)
+		if ok {
+			usageByInvocation[invocation] = true
+			if usage.ReconciliationAuthority {
+				authorityByInvocation[invocation] = true
+			}
+		}
+	}
+	fullyReconciled := len(usageByInvocation) > 0
+	for invocation := range usageByInvocation {
+		if !authorityByInvocation[invocation] {
+			fullyReconciled = false
+			break
+		}
+	}
+	return fact.TotalTokens, fullyReconciled
+}
+
 func (s orchestratorReportSource) Diff(ctx context.Context, id uuid.UUID) (*sandbox.DiffResult, error) {
 	return s.o.GetRunDiff(ctx, id)
 }

@@ -54,6 +54,7 @@ import { FallbackTimeline } from "./runs/FallbackTimeline";
 import { ContextAttachmentModal } from "./ContextAttachmentModal";
 import { DiffViewer } from "./DiffViewer";
 import { ReviewModal } from "./ReviewModal";
+import { reviewFileCount } from "../lib/reviewFileCount";
 
 
 
@@ -369,14 +370,16 @@ export const STATUS_DOT_COLORS: Record<string, string> = {
 
 interface RunDetailsContentProps {
   run: Run;
+  diff?: RunDiff | null;
   taskTitle: string;
   profileName: string;
   durationMs: number | null;
   costTotals: CostTotals;
 }
 
-export function RunDetailsContent({ run, taskTitle, profileName, durationMs, costTotals }: RunDetailsContentProps) {
+export function RunDetailsContent({ run, diff, taskTitle, profileName, durationMs, costTotals }: RunDetailsContentProps) {
 	const runTitle = run.label || taskTitle;
+	const fileCount = reviewFileCount(run, diff);
 	return (
     <>
       {/* Run Overview */}
@@ -560,7 +563,7 @@ export function RunDetailsContent({ run, taskTitle, profileName, durationMs, cos
         </div>
         <div className="rounded border border-border px-3 py-2">
           <div className="text-xs text-muted-foreground">Changes</div>
-          <div className="font-semibold">{run.changedFiles > 0 ? `${run.changedFiles} files` : "None"}</div>
+          <div className="font-semibold">{fileCount.available ? (fileCount.count > 0 ? `${fileCount.count} files` : "None") : "Unavailable"}</div>
         </div>
       </div>
     </>

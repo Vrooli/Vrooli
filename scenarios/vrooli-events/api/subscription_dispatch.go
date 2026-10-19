@@ -140,9 +140,9 @@ func (s *Server) drainSubscriptionQueue(ctx context.Context, queue subscription.
 			continue
 		}
 		if err := s.webhookDeliverer.Deliver(ctx, sub.DeliveryTarget, payload); err != nil {
-			attempt := delivery.Attempts + 1
-			deadLetter := attempt >= 5
-			delay := time.Second << min(attempt-1, 4)
+			attemptInCycle := delivery.Attempts%subscription.DeliveryAttemptsPerCycle + 1
+			deadLetter := attemptInCycle >= subscription.DeliveryAttemptsPerCycle
+			delay := time.Second << min(attemptInCycle-1, subscription.DeliveryAttemptsPerCycle-1)
 			_ = queue.MarkFailed(ctx, delivery.ID, delivery.SubscriptionID, safeDeliveryError(err), time.Now().UTC().Add(delay), deadLetter)
 			continue
 		}

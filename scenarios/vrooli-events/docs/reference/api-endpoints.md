@@ -276,17 +276,67 @@ SSE stream of policy updates. Used by EmittingResolver and PolicyMiddleware to k
 **Response**:
 ```json
 {
+  "subscription_id": 7,
   "total_delivered": 1234,
   "total_failed": 5,
-  "success_rate": 0.996,
   "consecutive_failures": 0,
   "last_delivered_at": "2026-04-05T10:30:00Z",
   "last_failed_at": "2026-04-04T08:15:00Z",
-  "status": "healthy"
+  "status": "active"
 }
 ```
 
-Status values: `healthy`, `degraded` (>5% failure rate), `circuit_broken` (auto-disabled)
+`status` is the delivery-health state: `active` or `circuit_broken`. A
+`circuit_broken` value records that a delivery exhausted its automatic retry
+budget; it does not disable the subscription or stop delivery of other events.
+The direct `/deliver` endpoint below is a one-shot send and does not update the
+durable queue or health counters.
+
+### GET /subscriptions/:id/deliveries/:eventID — Read delivery retry metadata
+
+Returns only the delivery status and cumulative failed-attempt count needed
+to make a safe retry request. Successful delivery does not increment this
+existing queue counter. The stored webhook payload, destination, and last
+error are not returned.
+
+**Response**:
+```json
+{
+  "subscription_id": 7,
+  "event_id": "example.audit.001",
+  "status": "dead_letter",
+  "attempts": 5
+}
+```
+
+### POST /subscriptions/:id/deliveries/retry — Retry one dead-lettered delivery
+
+Requeue one exact durable delivery after its target is repaired. This operation
+uses the payload already stored for `(subscription_id, event_id)`; callers
+cannot replace it. `expected_attempts` is the row's current cumulative failed-attempt
+count and must be a positive multiple of five from a fully exhausted cycle.
+Early terminal failures such as invalid stored payloads cannot be repaired
+through this API because it never accepts replacement payload. The count makes
+a lost-response retry safe: the first request changes the row
+from `dead_letter` to `pending`, and a duplicate or stale request conflicts.
+
+**Request Body**:
+```json
+{
+  "event_id": "example.audit.001",
+  "expected_attempts": 5
+}
+```
+
+**Response**: `202 Accepted` with `{"status":"queued","subscription_id":7,"event_id":"example.audit.001","attempts":5}`.
+The existing dispatcher performs the next delivery attempt. A matching row
+that is absent, not dead-lettered, not at an exhausted five-failure boundary,
+or has a different attempt count returns
+`409 Conflict` without mutation. Each explicit retry starts one new bounded
+cycle of at most five attempts; cumulative failed `attempts` and subscription
+health totals remain intact. The cumulative count itself marks cycle boundaries,
+so a restart cannot reset or extend the budget. Retry backoff starts again at
+one second for the first failure in the new cycle.
 
 ### POST /subscriptions/:id/test — Send Test Event
 

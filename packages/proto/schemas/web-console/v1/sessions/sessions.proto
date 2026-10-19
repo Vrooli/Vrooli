@@ -240,6 +240,8 @@ message CreateRequest {
   string launch_mode = 16;
   string launch_descriptor_json = 17;
   string requested_session_id = 18; // optional preallocated UUID; replay requires identical request
+  // Sensitive Agent Manager child identity credential. Accepted only on the verified local reserved-session path; never returned or persisted in plaintext.
+  string agent_run_identity_token = 19;
 }
 
 message CreateResponse {

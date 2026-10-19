@@ -1,9 +1,8 @@
 {
   "schema_version": 1,
   "scenario": "device-control",
-  "input_digest": "sha256:a2b305dacb58ca4969dd68dc2374a9f90d96d8c43019a3603e98e15f0a94ab41",
+  "input_digest": "sha256:46c4de8ebd3a086162a1728c256f4cd09c0719543dbf98b9fb81f45c93f9c02d",
   "input_files": [
-    "schemas/cli/v1/runtime.proto",
     "schemas/common/v1/surface.proto",
     "schemas/device-control/v1/auth/auth.proto",
     "schemas/device-control/v1/desktop/desktop.proto",
@@ -20,6 +19,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "generator_digest": "sha256:d62f642cc85260466ef67f24653340c95d277e2268cdf9983a7144dca50b1d50",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -30,8 +30,8 @@
   "outputs": {
     "gen/go/device-control/v1/auth/auth.pb.go": "sha256:9af7dfe7c1c6f44a307f91d43c20cd82ecf943fa673cfb7f381daa6739803f0b",
     "gen/go/device-control/v1/auth/auth_v1connect/auth.connect.go": "sha256:8304866bafaf47fe2107212fa6fc12260b559dd7fc6ea8cbda96c61473d127b0",
-    "gen/go/device-control/v1/desktop/desktop.pb.go": "sha256:f2dfa757068cab37612c1b399e31242cc1c3e9599283591d64741cd31c320cb4",
-    "gen/go/device-control/v1/desktop/desktopv1connect/desktop.connect.go": "sha256:726458230f656301f79b25a29d4c8bda177aa7502664d6d18cb1523d5aac3ed9",
+    "gen/go/device-control/v1/desktop/desktop.pb.go": "sha256:20b5d9f0748dfa78ece6b528422ad28fef3ade50bc8284f6b57058e9ebb117e4",
+    "gen/go/device-control/v1/desktop/desktopv1connect/desktop.connect.go": "sha256:6bcf0aad173ca48cc84566215699aec630643aa58de732afdc6cf4536d2ad193",
     "gen/go/device-control/v1/devices/devices.pb.go": "sha256:9fb99ced2ed835f5757518f6b940ba8611ba958affb1a6286121e2dfdc9539e0",
     "gen/go/device-control/v1/devices/devices_v1connect/devices.connect.go": "sha256:b2f0f01222ed8d2080f685ab9a5052cc14513b543b9c3ea440c3f85271c654dc",
     "gen/go/device-control/v1/evidence/evidence.pb.go": "sha256:861718f79f07d49c787e13cb5b4dd56fcf3253359562aef55ee8f99cc2f59235",
@@ -49,8 +49,8 @@
     "gen/python/device_control/v1/auth/auth_pb2.py": "sha256:21c70cba4887be6b371b1b933d8c7fdd68b95e642808ba60c23a0827e27e956a",
     "gen/python/device_control/v1/auth/auth_pb2.pyi": "sha256:fd3c50e95706b2095972dae052ca124dbc753ff3d7eab18ed9b1bdff25118773",
     "gen/python/device_control/v1/auth/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/device_control/v1/desktop/desktop_pb2.py": "sha256:c28ba7f33af350e4967b5abdf5f154a7c8bf249ba8eadede5b67f77729f1dc6f",
-    "gen/python/device_control/v1/desktop/desktop_pb2.pyi": "sha256:4a017dd05b3ec9f3d5bcd8ee2b324fc8184007454a7dcc7ea8c0f2ebf2482c3d",
+    "gen/python/device_control/v1/desktop/desktop_pb2.py": "sha256:b03efb1af1c1af0fb362053256a9469e8a057094bfdfaadeb77c367907664938",
+    "gen/python/device_control/v1/desktop/desktop_pb2.pyi": "sha256:e14159f8fd2904a67ec96f93a0e123803136636f2de75ce12859f478c80e413d",
     "gen/python/device_control/v1/desktop/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/device_control/v1/devices/devices_pb2.py": "sha256:d72bd6b410ceeeab09b1102bf9369d5287cc3c0afe838a10a34a27be2a665bc2",
     "gen/python/device_control/v1/devices/devices_pb2.pyi": "sha256:9503dd917e393f9d54bea378e55bbf5f8047d4cb3edee880bc87b229aee0f1cb",
@@ -76,7 +76,7 @@
     "gen/python/device_control/v1/strategies/strategies_pb2.py": "sha256:9b3720d30caf5bd0c34e688dd3e0bfa992f22cb41a91c0efb9b95c0a04458830",
     "gen/python/device_control/v1/strategies/strategies_pb2.pyi": "sha256:a5ab205e4c3043b7e2b4a38040d5d92ac25f4c401b68a4f10435050143b4117c",
     "gen/typescript/device-control/v1/auth/auth_pb.ts": "sha256:2bb886f97303e3631829d43ce146cf4efdf9d6f2366472a173f36f083e1f026c",
-    "gen/typescript/device-control/v1/desktop/desktop_pb.ts": "sha256:e86a53adccb1a6129d248abac5210a6d89947d7d402ddb1b1894fb5ccf5e54bb",
+    "gen/typescript/device-control/v1/desktop/desktop_pb.ts": "sha256:1628103e1145233379fd675da466274ef9d7332156959d4a3aba45b587f36035",
     "gen/typescript/device-control/v1/devices/devices_pb.ts": "sha256:0ad86d7dedc94b12e60c2294460890e6ea0db4dafc9d6624e9f3853cab58ccc1",
     "gen/typescript/device-control/v1/evidence/evidence_pb.ts": "sha256:3c06219632c4961c4989c3212fcd7bb84d96860923abf3215ce57c913652a640",
     "gen/typescript/device-control/v1/flows/flows_pb.ts": "sha256:6e586f3a728a59e01d420633c0fd027fa1fbaf5020421d25b5ebeadda0ed719e",
@@ -84,6 +84,7 @@
     "gen/typescript/device-control/v1/shared/errors_pb.ts": "sha256:4dedf4b347926963b05d9d8040799997088ce901013c4059419a696b765547fa",
     "gen/typescript/device-control/v1/shared/flow_pb.ts": "sha256:063ceaa82c9fc26cf0998bdecb8f5ccb9d11c933fad25b11dd7ceb8242b557c9",
     "gen/typescript/device-control/v1/shared/health_pb.ts": "sha256:3ffa323c645c011d4fa0df7a44b3cb102d9e8f2c0f677b8e47dbc6a66eddab22",
-    "gen/typescript/device-control/v1/strategies/strategies_pb.ts": "sha256:088c621d4f83e1a82ce9678349c23ac4678db863f52ef81af50c87d19122594c"
+    "gen/typescript/device-control/v1/strategies/strategies_pb.ts": "sha256:088c621d4f83e1a82ce9678349c23ac4678db863f52ef81af50c87d19122594c",
+    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4"
   }
 }

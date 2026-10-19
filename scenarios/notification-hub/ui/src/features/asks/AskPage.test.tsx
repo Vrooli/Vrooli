@@ -98,6 +98,25 @@ describe("AskPage", () => {
     );
   });
 
+  it("shows a producer-withdrawn request without answer controls or answer attribution", async () => {
+    vi.mocked(conversationsClient.getAsk).mockResolvedValue({
+      ask: {
+        ...pendingAsk(),
+        state: "withdrawn",
+        answer: "",
+        answeredBy: "",
+      },
+    } as never);
+    renderAsk();
+
+    expect(
+      await screen.findByText("The requester withdrew this decision; no answer was recorded."),
+    ).toBeInTheDocument();
+    expect(screen.queryAllByTestId(selectors.asks.option)).toHaveLength(0);
+    expect(screen.queryByRole("button", { name: /answer/i })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/note/i)).not.toBeInTheDocument();
+  });
+
   it("shows the purpose and technical context as separate disclosures", async () => {
     vi.mocked(conversationsClient.getAsk).mockResolvedValue({
       ask: {

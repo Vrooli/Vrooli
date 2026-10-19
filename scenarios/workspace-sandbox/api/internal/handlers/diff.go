@@ -209,14 +209,14 @@ func (h *Handlers) TurnCheckpoint(w http.ResponseWriter, r *http.Request) {
 	h.JSONSuccess(w, result)
 }
 
-// Reject handles rejecting sandbox changes.
+// Reject handles legacy/manual rejection without a reviewed-patch precondition.
+// Keep its original actor-only decoder semantics for existing manual callers.
 func (h *Handlers) Reject(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(mux.Vars(r)["id"])
 	if err != nil {
 		h.JSONError(w, "invalid sandbox ID", http.StatusBadRequest)
 		return
 	}
-
 	var req struct {
 		Actor string `json:"actor"`
 	}
@@ -224,12 +224,51 @@ func (h *Handlers) Reject(w http.ResponseWriter, r *http.Request) {
 		h.JSONError(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
-
 	sb, err := h.Service.Reject(r.Context(), id, req.Actor)
 	if h.HandleDomainError(w, err) {
 		return
 	}
+	h.JSONSuccess(w, sb)
+}
 
+// RejectReviewed handles a Hub decision bound to the reviewed patch. This
+// distinct route makes an older workspace-sandbox fail closed with 404 rather
+// than decoding and ignoring the digest on the legacy /reject route.
+func (h *Handlers) RejectReviewed(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(mux.Vars(r)["id"])
+	if err != nil {
+		h.JSONError(w, "invalid sandbox ID", http.StatusBadRequest)
+		return
+	}
+
+	var req *types.RejectionRequest
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&req); err == io.EOF {
+		req = &types.RejectionRequest{}
+	} else if err != nil {
+		h.JSONError(w, "invalid request body", http.StatusBadRequest)
+		return
+	} else {
+		if req == nil {
+			h.JSONError(w, "reject request must be an object", http.StatusBadRequest)
+			return
+		}
+		if err := decoder.Decode(new(any)); err != io.EOF {
+			h.JSONError(w, "reject request must contain one JSON object", http.StatusBadRequest)
+			return
+		}
+	}
+	if req.ExpectedPatchSHA256 == "" {
+		h.JSONError(w, "reviewed reject requires expectedPatchSha256", http.StatusBadRequest)
+		return
+	}
+	req.SandboxID = id
+
+	sb, err := h.Service.RejectWithPrecondition(r.Context(), req)
+	if h.HandleDomainError(w, err) {
+		return
+	}
 	h.JSONSuccess(w, sb)
 }
 

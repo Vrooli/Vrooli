@@ -42,19 +42,21 @@ func (r *approvalRunnerStub) Run(_ context.Context, path string) (int, string, e
 
 type approvalStoreStub struct {
 	*mockStore
-	recordedAsk         string
-	recordedIncident    string
-	recordedFingerprint string
-	recordedRemediation string
-	recordedApprovedBy  string
-	claimed             bool
-	claimAsk            string
-	claimIncident       string
-	claimFingerprint    string
-	claimRemediation    string
+	recordedAsk            string
+	recordedIncident       string
+	recordedFingerprint    string
+	recordedRemediation    string
+	recordedApprovedBy     string
+	claimed                bool
+	claimAsk               string
+	claimIncident          string
+	claimFingerprint       string
+	claimRemediation       string
+	claimCandidateSnapshot string
+	claimArtifactSnapshot  string
 }
 
-func (s *approvalStoreStub) RecordRemediationAuthorisation(_ context.Context, askID, incidentID, fingerprint, remediationID, approvedBy string, _ time.Time) error {
+func (s *approvalStoreStub) RecordRemediationAuthorisation(_ context.Context, askID, incidentID, fingerprint, remediationID string, _ int, _, _, _, _, approvedBy string, _ time.Time) error {
 	s.recordedAsk = askID
 	s.recordedIncident = incidentID
 	s.recordedFingerprint = fingerprint
@@ -63,31 +65,44 @@ func (s *approvalStoreStub) RecordRemediationAuthorisation(_ context.Context, as
 	return nil
 }
 
-func (s *approvalStoreStub) ClaimRemediationAuthorisation(_ context.Context, askID, incidentID, fingerprint, remediationID string, _ time.Time) (bool, error) {
+func (s *approvalStoreStub) ClaimRemediationAuthorisation(_ context.Context, askID, incidentID, fingerprint, remediationID string, _ int, _, _, candidateSnapshot, artifactSnapshot string, _ time.Time) (bool, error) {
 	s.claimAsk = askID
 	s.claimIncident = incidentID
 	s.claimFingerprint = fingerprint
 	s.claimRemediation = remediationID
+	s.claimCandidateSnapshot = candidateSnapshot
+	s.claimArtifactSnapshot = artifactSnapshot
 	return s.claimed, nil
 }
 
 func TestApproveIncidentRemediationExecutesVerifiedAskAtHTTPBoundary(t *testing.T) {
-	store := &approvalStoreStub{
-		mockStore: &mockStore{incident: &incidents.Incident{
-			ID:             "inc-1",
-			Fingerprint:    "fp-1",
-			SourceCheckIDs: []string{"host-kernel-module-drift"},
-			RemediationCandidates: []incidents.RemediationCandidate{{
-				ID:            "candidate-1",
-				Applicability: "applicable",
-			}},
-			RemediationArtifacts: []incidents.RemediationArtifact{{
-				RemediationID: "candidate-1",
-				Path:          "/tmp/fixture-remediation",
-			}},
+	incident := &incidents.Incident{
+		ID:             "inc-1",
+		Fingerprint:    "fp-1",
+		Severity:       incidents.SeverityCritical,
+		Status:         incidents.StatusOpen,
+		SourceCheckIDs: []string{"host-kernel-module-drift"},
+		RemediationCandidates: []incidents.RemediationCandidate{{
+			ID:            "candidate-1",
+			Applicability: "applicable",
 		}},
-		claimed: true,
+		RemediationArtifacts: []incidents.RemediationArtifact{{
+			RemediationID: "candidate-1",
+			Path:          "/tmp/fixture-remediation",
+		}},
 	}
+	incident.EventCount = 1
+	incident.RemediationDecisionGeneration = 1
+	incident.RemediationDecisionEventID = "decision-event-1"
+	incident.RemediationDecisionCandidateID = "candidate-1"
+	expires := time.Now().UTC().Add(time.Hour)
+	incident.RemediationDecisionExpiresAt = &expires
+	digest, err := incidents.RemediationDecisionSnapshotDigest(*incident, incident.RemediationCandidates[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	incident.RemediationCandidateDigest = digest
+	store := &approvalStoreStub{mockStore: &mockStore{incident: incident}, claimed: true}
 	caps := &platform.Capabilities{Platform: platform.Linux}
 	registry := checks.NewRegistry(caps)
 	registry.Register(&mockHealableCheckCritical{
@@ -99,9 +114,8 @@ func TestApproveIncidentRemediationExecutesVerifiedAskAtHTTPBoundary(t *testing.
 	})
 	h := NewWithInterface(registry, store, caps)
 	h.SetRemediationAskVerifier(approvalVerifierStub{approval: remediation.AskApproval{
-		AskID:  "ask-1",
-		Answer: "approve",
-		Actor:  "operator-1",
+		AskID: "ask-1", Answer: "approve", Actor: "operator-1",
+		RequesterRef: incident.RemediationDecisionEventID, SourceEventType: incidents.RemediationDecisionEventType,
 	}})
 	runner := &approvalRunnerStub{}
 	h.remediationService.SetScriptRunner(runner)
@@ -130,6 +144,13 @@ func TestApproveIncidentRemediationExecutesVerifiedAskAtHTTPBoundary(t *testing.
 	}
 	if store.claimAsk != "ask-1" || store.claimIncident != "inc-1" || store.claimFingerprint != "fp-1" || store.claimRemediation != "candidate-1" {
 		t.Fatalf("claimed authorisation = ask=%q incident=%q fingerprint=%q remediation=%q", store.claimAsk, store.claimIncident, store.claimFingerprint, store.claimRemediation)
+	}
+	wantCandidates, wantArtifacts, err := incidents.RemediationDecisionStorageSnapshot(*incident)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if store.claimCandidateSnapshot != wantCandidates || store.claimArtifactSnapshot != wantArtifacts {
+		t.Fatalf("claim did not bind exact stored candidate/artifact JSON")
 	}
 	if store.recordedOutcome == nil || store.recordedOutcome.Status != "executed" || store.recordedOutcome.AskID != "ask-1" || store.recordedOutcome.ScriptPath != runner.runPath {
 		t.Fatalf("recorded outcome = %#v", store.recordedOutcome)

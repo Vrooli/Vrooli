@@ -8,10 +8,17 @@ Access control rules, CRUD API, evaluation engine, violation logging, circuit br
 ### P1 — Discovery integration fully implemented (Phase 13.4)
 All 7 discovery-integration requirements are complete. Packages: internal/emitter (fire-and-forget), internal/headers (X-Source-Scenario injection), internal/fallback (zero-dep fallback), internal/resolver (EmittingResolver with sender-side policy cache), internal/middleware (receiver-side policy middleware with graceful degradation). Each has dedicated tests.
 
-### P1 — Persistent subscription fan-out now has a durable delivery path
+### P1 — Persistent subscription fan-out needs an owner-operated dead-letter retry
 CRUD API, glob pattern validation, health tracking, signed webhook delivery,
-idempotent queue rows, retry, and dead-letter accounting are implemented. The
-remaining operational proof is a live receiver run in the scenario suite.
+idempotent queue rows, bounded automatic retry, and dead-letter accounting are
+implemented. The dispatcher selects only `pending` rows; an exact metadata read
+and explicit retry now reopen one fully exhausted dead-lettered row using its
+stored payload, guarded by the current cumulative failed-attempt count and the
+existing five-failure cycle. Early terminal rows such as invalid payloads are
+not retryable because their stored input cannot be replaced. The one-shot `/deliver` route still accepts caller payload and does
+not reconcile queue state. The retry operation does not change historical
+attempt/health totals or the automatic retry policy. Remaining operational
+proof is a live receiver run in the scenario suite.
 
 ### P2 — Retention settings are hardcoded
 Pruning uses hardcoded 30-day retention and 2GB size cap. Configurable settings via API/UI are specified in REQ-ES-004 but not yet implemented.

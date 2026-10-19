@@ -182,8 +182,12 @@ var ErrRemediationAlreadyApplied = errors.New("remediation authorization was alr
 // interface (rather than widening StoreInterface) lets the in-memory test store
 // opt in without every other handler depending on it.
 type remediationAuthorisationStore interface {
-	RecordRemediationAuthorisation(context.Context, string, string, string, string, string, time.Time) error
-	ClaimRemediationAuthorisation(context.Context, string, string, string, string, time.Time) (bool, error)
+	RecordRemediationAuthorisation(context.Context, string, string, string, string, int, string, string, string, string, string, time.Time) error
+	ClaimRemediationAuthorisation(context.Context, string, string, string, string, int, string, string, string, string, time.Time) (bool, error)
+}
+
+type remediationDecisionOutcomeStore interface {
+	RecordRemediationDeclineIfCurrent(context.Context, string, string, string, string, string, int, string, string, incidents.Outcome) (bool, error)
 }
 
 // remediationApprovalInput is the verified-ask-to-incident binding the approval
@@ -203,6 +207,9 @@ type remediationApprovalInput struct {
 	CandidateID         string
 	AskID               string
 	IncidentFingerprint string
+	RequesterRef        string
+	Generation          int
+	CandidateDigest     string
 	RiskGated           bool
 }
 
@@ -238,10 +245,9 @@ func autoApplyEligible(candidate incidents.RemediationCandidate) bool {
 //  2. re-matches the incident fingerprint (TOCTOU staleness re-check at apply
 //     time: the incident is re-read here, not at raise time),
 //  3. checks autoheal-enabled for the incident's originating check,
-//  4. records the single-use authorisation, then claims it (double-spend guard),
-//  5. risk-gates: only a low-risk candidate auto-executes; a high-risk one
-//     records the approval and returns with AutoApplyDeferred set,
-//  6. executes (low-risk only) and records the execution outcome.
+//  4. records the current Ask binding; a high-risk webhook result stays unclaimed,
+//  5. claims only when this call is the actual execution path,
+//  6. executes and records the execution outcome.
 func (h *Handlers) ApproveRemediationFromDecision(ctx context.Context, in remediationApprovalInput) (remediationApprovalOutcome, error) {
 	if h.remediationService == nil {
 		return remediationApprovalOutcome{}, fmt.Errorf("remediation service unavailable")
@@ -264,6 +270,39 @@ func (h *Handlers) ApproveRemediationFromDecision(ctx context.Context, in remedi
 	if approval.AskID == "" {
 		approval.AskID = in.AskID
 	}
+	if approval.SourceEventType != incidents.RemediationDecisionEventType || approval.RequesterRef == "" {
+		return remediationApprovalOutcome{}, fmt.Errorf("notification ask is not bound to an autoheal remediation request: %w", remediation.ErrAskNotApproved)
+	}
+	generation := incident.RemediationDecisionGeneration
+	digest := incident.RemediationCandidateDigest
+	eventID := incident.RemediationDecisionEventID
+	if in.RequesterRef != "" && in.RequesterRef != approval.RequesterRef {
+		return remediationApprovalOutcome{}, fmt.Errorf("notification request reference does not match: %w", remediation.ErrAskNotApproved)
+	}
+	if in.Generation != 0 && in.Generation != generation {
+		return remediationApprovalOutcome{}, fmt.Errorf("notification generation does not match: %w", remediation.ErrAskNotApproved)
+	}
+	if in.CandidateDigest != "" && in.CandidateDigest != digest {
+		return remediationApprovalOutcome{}, fmt.Errorf("notification candidate snapshot does not match: %w", remediation.ErrAskNotApproved)
+	}
+	if approval.RequesterRef != eventID || !incidents.RemediationDecisionBindingMatches(*incident, eventID, generation, digest, in.CandidateID) {
+		return remediationApprovalOutcome{}, fmt.Errorf("notification ask is stale: %w", remediation.ErrAskNotApproved)
+	}
+	// Re-read after the Hub lookup. The store below repeats this predicate atomically
+	// when recording and claiming the authorization.
+	incident, err = h.store.GetIncident(ctx, in.IncidentID)
+	if err != nil {
+		return remediationApprovalOutcome{}, fmt.Errorf("re-read incident binding: %w", err)
+	}
+	if incident == nil || incident.RemediationDecisionEventID != eventID || incident.RemediationDecisionGeneration != generation || incident.RemediationCandidateDigest != digest || !incidents.RemediationDecisionBindingMatches(*incident, eventID, generation, digest, in.CandidateID) {
+		return remediationApprovalOutcome{}, fmt.Errorf("notification ask became stale: %w", remediation.ErrAskNotApproved)
+	}
+	candidateSnapshot, artifactSnapshot, err := incidents.RemediationDecisionStorageSnapshot(*incident)
+	if err != nil {
+		return remediationApprovalOutcome{}, fmt.Errorf("snapshot remediation decision inputs: %w", err)
+	}
+	// The exact JSON columns are passed to the SQL compare-and-set below so a
+	// candidate/artifact replacement after this read cannot pass on an old binding.
 	// Gate 3 (TOCTOU): the fingerprint the ask was raised against must still be
 	// the incident's current fingerprint. A superseded incident fails here.
 	if in.IncidentFingerprint != incident.Fingerprint {
@@ -278,25 +317,12 @@ func (h *Handlers) ApproveRemediationFromDecision(ctx context.Context, in remedi
 	if !ok {
 		return remediationApprovalOutcome{}, fmt.Errorf("remediation authorization storage unavailable")
 	}
-	if err := authorisations.RecordRemediationAuthorisation(ctx, approval.AskID, incident.ID, incident.Fingerprint, in.CandidateID, approval.Actor, time.Now().UTC()); err != nil {
+	if err := authorisations.RecordRemediationAuthorisation(ctx, approval.AskID, incident.ID, incident.Fingerprint, in.CandidateID, generation, eventID, digest, candidateSnapshot, artifactSnapshot, approval.Actor, time.Now().UTC()); err != nil {
 		return remediationApprovalOutcome{}, fmt.Errorf("record remediation authorization: %w", err)
 	}
-	// Gate 4: single-use claim. A replay of an already-consumed authorisation is
-	// refused here, before any risk decision or execution.
-	claimed, err := authorisations.ClaimRemediationAuthorisation(ctx, approval.AskID, incident.ID, incident.Fingerprint, in.CandidateID, time.Now().UTC())
-	if err != nil {
-		return remediationApprovalOutcome{}, fmt.Errorf("claim remediation authorization: %w", err)
-	}
-	if !claimed {
-		return remediationApprovalOutcome{}, ErrRemediationAlreadyApplied
-	}
-
-	// Risk gate (event-consumer path only): an approval of a privileged/high-risk
-	// candidate is recorded (the authorisation above stands and is claimed) but
-	// does NOT auto-execute. The operator must still trigger the explicit manual
-	// apply step. Only a low-risk candidate crosses into execution on an approve.
-	// The manual REST route sets RiskGated=false because it IS that explicit
-	// apply step.
+	// A high-risk webhook approval is durably recorded but remains unclaimed so
+	// the explicit manual-apply route can consume this same Ask exactly once.
+	// Only an execution path claims the single-use authorization.
 	candidate, ok := findIncidentCandidate(*incident, in.CandidateID)
 	if !ok {
 		return remediationApprovalOutcome{}, fmt.Errorf("remediation candidate %q not found", in.CandidateID)
@@ -304,6 +330,13 @@ func (h *Handlers) ApproveRemediationFromDecision(ctx context.Context, in remedi
 	if in.RiskGated && !autoApplyEligible(candidate) {
 		reason := fmt.Sprintf("candidate risk level %q requires an explicit operator apply step", candidate.RiskLevel)
 		return remediationApprovalOutcome{AutoApplyDeferred: true, DeferralReason: reason}, nil
+	}
+	claimed, err := authorisations.ClaimRemediationAuthorisation(ctx, approval.AskID, incident.ID, incident.Fingerprint, in.CandidateID, generation, eventID, digest, candidateSnapshot, artifactSnapshot, time.Now().UTC())
+	if err != nil {
+		return remediationApprovalOutcome{}, fmt.Errorf("claim remediation authorization: %w", err)
+	}
+	if !claimed {
+		return remediationApprovalOutcome{}, ErrRemediationAlreadyApplied
 	}
 
 	result, err := h.remediationService.Execute(ctx, *incident, in.CandidateID, remediation.Authorisation{
@@ -329,15 +362,26 @@ func (h *Handlers) ApproveRemediationFromDecision(ctx context.Context, in remedi
 // recordDeclinedRemediation records a DECLINED outcome WITHOUT executing, for a
 // reject/no-answer resolution. It never touches the authorisation store, so a
 // later genuine approve is unaffected.
-func (h *Handlers) recordDeclinedRemediation(ctx context.Context, incidentID, candidateID, askID, fingerprint, reason string) error {
-	if h.store == nil {
-		return fmt.Errorf("remediation outcome storage unavailable")
+func (h *Handlers) recordDeclinedRemediation(ctx context.Context, incidentID, candidateID, askID, fingerprint, requesterRef, digest string, generation int, reason string) (bool, error) {
+	store, ok := h.store.(remediationDecisionOutcomeStore)
+	if !ok {
+		return false, fmt.Errorf("current remediation decision storage unavailable")
 	}
-	_, err := h.store.RecordIncidentRemediationOutcome(ctx, incidentID, incidents.Outcome{
+	incident, err := h.store.GetIncident(ctx, incidentID)
+	if err != nil {
+		return false, err
+	}
+	if incident == nil || incident.Fingerprint != fingerprint || !incidents.RemediationDecisionBindingMatches(*incident, requesterRef, generation, digest, candidateID) {
+		return false, nil
+	}
+	candidateSnapshot, artifactSnapshot, err := incidents.RemediationDecisionStorageSnapshot(*incident)
+	if err != nil {
+		return false, err
+	}
+	return store.RecordRemediationDeclineIfCurrent(ctx, incidentID, fingerprint, candidateID, requesterRef, digest, generation, candidateSnapshot, artifactSnapshot, incidents.Outcome{
 		RemediationID: candidateID, Status: "declined", ReportedAt: time.Now().UTC(), AskID: askID,
 		IncidentFingerprint: fingerprint, Output: reason,
 	})
-	return err
 }
 
 func findIncidentCandidate(incident incidents.Incident, candidateID string) (incidents.RemediationCandidate, bool) {

@@ -18,6 +18,8 @@ import (
 	"agent-manager/internal/promptmanager"
 	"agent-manager/internal/runstate"
 
+	"agent-manager/internal/identity"
+
 	"github.com/google/uuid"
 )
 
@@ -32,7 +34,7 @@ func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *do
 	// to completion, instead of owning a codec stdout pipe. Selected by the run's
 	// ExecutionMode (design §1).
 	if run.ExecutionMode.Normalized() == domain.ExecutionModeInteractive {
-		o.executeInteractiveRun(ctx, run, task, interactiveInitialPrompt(systemPrompt, prompt), started)
+		o.executeInteractiveRun(ctx, run, task, profile, interactiveInitialPrompt(systemPrompt, prompt), started)
 		return
 	}
 
@@ -189,7 +191,7 @@ func boundedNativeObjective(objective string) string {
 // terminal marker (design §1). It is the parallel path to the codec-pipe
 // RunExecutor and leaves the Continue/Stop seam (Substrate.Stop, SendText) for
 // Phase 5.
-func (o *Orchestrator) executeInteractiveRun(ctx context.Context, run *domain.Run, task *domain.Task, initialPrompt string, started spawn.StartedFn) {
+func (o *Orchestrator) executeInteractiveRun(ctx context.Context, run *domain.Run, task *domain.Task, profile *domain.AgentProfile, initialPrompt string, started spawn.StartedFn) {
 	// The spawn slot must be released even if we fail before reaching Running.
 	releaseOnce := sync.Once{}
 	release := func() {
@@ -251,10 +253,39 @@ func (o *Orchestrator) executeInteractiveRun(ctx context.Context, run *domain.Ru
 	}
 
 	coord := interactive.NewCoordinator(interactive.CoordinatorDeps{
-		Substrate:   interactive.NewSubstrate(o.interactiveSessions, interactive.RegistryLaunchInfo(o.runners)),
-		Tailer:      interactive.NewTailer(interactive.RegistryParser(o.runners)),
-		Sessions:    o.interactiveSessions,
-		Runs:        o.runs,
+		Substrate: interactive.NewSubstrate(o.interactiveSessions, interactive.RegistryLaunchInfo(o.runners)),
+		Tailer:    interactive.NewTailer(interactive.RegistryParser(o.runners)),
+		Sessions:  o.interactiveSessions,
+		Runs:      o.runs,
+		MintIdentityToken: func(mintCtx context.Context, mintRun *domain.Run, sessionID string) (string, error) {
+			if len(o.identitySecret) == 0 {
+				return "", fmt.Errorf("agent identity signing is not configured")
+			}
+			// Generate against a value copy: a failed persistence/readback must not
+			// leave an unverified replacement hash on the coordinator's live run.
+			mintedRun := *mintRun
+			meta := workflowIdentityMeta(mintRun.CustomEnv)
+			meta["web_console_session_id"] = sessionID
+			token := phases.GenerateIdentityToken(mintCtx, phases.GenerateIdentityTokenInput{
+				Deps: phases.Deps{Runs: o.runs, Events: o.events, Broadcaster: o.broadcaster, Clock: o.now},
+				Run:  &mintedRun, Profile: profile, Task: task, Secret: o.identitySecret,
+				RequestedScopes: mintRun.RequestedScopes, Meta: meta,
+			})
+			if token == "" {
+				return "", fmt.Errorf("identity token generation failed")
+			}
+			persisted, readErr := o.runs.Get(mintCtx, mintRun.ID)
+			if readErr != nil {
+				return "", fmt.Errorf("verify persisted child identity: %w", readErr)
+			}
+			if persisted == nil || persisted.WebConsoleSessionID != sessionID || persisted.IdentityTokenHash != identity.HashToken(token) || persisted.IdentityTokenRevokedAt != nil {
+				return "", fmt.Errorf("child identity hash/session binding was not durably verified")
+			}
+			mintRun.IdentityTokenHash = mintedRun.IdentityTokenHash
+			mintRun.IdentityTokenRevokedAt = mintedRun.IdentityTokenRevokedAt
+			mintRun.IdentityTokenIssuedAt = mintedRun.IdentityTokenIssuedAt
+			return token, nil
+		},
 		Broadcaster: o.broadcaster,
 		NewSink:     o.interactiveEventSink,
 		Result:      o.persistedResultBuilder,

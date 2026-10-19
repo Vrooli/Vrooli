@@ -1303,6 +1303,17 @@ func TestDiffResultToProto_ExactPathMatch(t *testing.T) {
 	}
 }
 
+func TestDiffResultToProto_ProjectsVerifiedFileCount(t *testing.T) {
+	proto := DiffResultToProto(uuid.New(), &DiffResult{FileCountVerified: true})
+	if proto == nil || !proto.FileCountVerified {
+		t.Fatal("expected verified file-count evidence to reach RunDiff")
+	}
+	proto = DiffResultToProto(uuid.New(), &DiffResult{})
+	if proto == nil || proto.FileCountVerified {
+		t.Fatal("missing verification must remain false for older or incomplete data")
+	}
+}
+
 func TestDiffResultToProto_NilResult(t *testing.T) {
 	if DiffResultToProto(uuid.New(), nil) != nil {
 		t.Error("expected nil for nil DiffResult")
@@ -1359,5 +1370,14 @@ func TestRunEventToProtoOversizedExitRemainsUnknown(t *testing.T) {
 	}
 	if data.ExitCode != &code || !data.Success {
 		t.Fatal("conversion rewrote durable evidence")
+	}
+}
+
+func TestRunActionsReviewUnavailableReasonRoundTrip(t *testing.T) {
+	want := "The workspace sandbox was deleted before this decision was completed."
+	run := &domain.Run{ID: uuid.New(), Actions: &domain.RunActions{CanReview: true, CanApprove: false, CanReject: false, ReviewUnavailableReason: want}}
+	got := RunFromProto(RunToProto(run))
+	if got.Actions == nil || got.Actions.ReviewUnavailableReason != want {
+		t.Fatalf("review unavailable reason did not round trip: %+v", got.Actions)
 	}
 }

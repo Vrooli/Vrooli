@@ -24,6 +24,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "generator_digest": "sha256:d62f642cc85260466ef67f24653340c95d277e2268cdf9983a7144dca50b1d50",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -114,6 +115,7 @@
     "gen/typescript/deployment-manager/v1/releases/contracts_pb.ts": "sha256:8c1f73338f779a90b280be3615fbc923997e34ab4fbcde95155e4febd8d9f2ea",
     "gen/typescript/deployment-manager/v1/releases/releases_pb.ts": "sha256:dfff87dcf686cd17f6d132849bd42c369f73883726c0ff4b278dc7e5fc93df13",
     "gen/typescript/deployment-manager/v1/swaps/swaps_pb.ts": "sha256:a50511f800faa61d2bd06473424cda966de27006627256e7a64ca3182f843e49",
-    "gen/typescript/deployment-manager/v1/telemetry/telemetry_pb.ts": "sha256:b1dc151c8684c02c869d4a4a8fe1ff180963bc9af81b25a0c7df2cac60f0ffe8"
+    "gen/typescript/deployment-manager/v1/telemetry/telemetry_pb.ts": "sha256:b1dc151c8684c02c869d4a4a8fe1ff180963bc9af81b25a0c7df2cac60f0ffe8",
+    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4"
   }
 }

@@ -85,6 +85,33 @@ func (r *authorizationRepository) List(ctx context.Context, pid int) ([]*domain.
 	}
 	return grants, nil
 }
+
+// ListNotificationRetryScanPage reads a bounded keyset page from the existing
+// grant table. Eligibility is filtered by the caller after this bounded scan,
+// so published or terminal rows cannot make the database walk an unbounded
+// number of records to fill a page. UUID ordering gives the reconciler a stable
+// cursor without materializing the whole authorization table.
+func (r *authorizationRepository) ListNotificationRetryScanPage(ctx context.Context, afterID string, limit int) ([]*domain.AuthorizationGrant, error) {
+	if limit <= 0 {
+		return nil, nil
+	}
+	var bodies []string
+	err := r.db.SelectContext(ctx, &bodies, `SELECT body FROM authorization_grants
+WHERE id > ? ORDER BY id LIMIT ?`, afterID, limit)
+	if err != nil {
+		return nil, err
+	}
+	grants := make([]*domain.AuthorizationGrant, 0, len(bodies))
+	for _, body := range bodies {
+		grant, err := decodeAuthorization(body)
+		if err != nil {
+			return nil, err
+		}
+		grants = append(grants, grant)
+	}
+	return grants, nil
+}
+
 func (r *authorizationRepository) Replace(ctx context.Context, g *domain.AuthorizationGrant, state string) (bool, error) {
 	// A notification receipt may be stored while an approval/supersession is
 	// being prepared from a previously-read grant. Retry the state transition

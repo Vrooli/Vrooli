@@ -97,6 +97,9 @@ func TestCanParkRun(t *testing.T) {
 		want bool
 	}{
 		{"running with session", &Run{Status: RunStatusRunning, SessionID: sess}, true},
+		{"running codec-pipe with session", &Run{Status: RunStatusRunning, SessionID: sess, ExecutionMode: ExecutionModeCodecPipe}, true},
+		{"running interactive with session", &Run{Status: RunStatusRunning, SessionID: sess, ExecutionMode: ExecutionModeInteractive}, true},
+		{"attached is externally owned", &Run{Status: RunStatusRunning, SessionID: sess, ExecutionMode: ExecutionModeAttached}, false},
 		{"already parked", &Run{Status: RunStatusParked, SessionID: sess}, false},
 		{"running without session", &Run{Status: RunStatusRunning}, false},
 		{"starting", &Run{Status: RunStatusStarting, SessionID: sess}, false},

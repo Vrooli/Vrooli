@@ -9,6 +9,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "generator_digest": "sha256:d62f642cc85260466ef67f24653340c95d277e2268cdf9983a7144dca50b1d50",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -22,6 +23,7 @@
     "gen/python/measures/v1/measures_pb2.py": "sha256:4887f4005d89663a71acae81ffacc7d217ae2b237e5d2c106cfa1e79b5977740",
     "gen/python/measures/v1/measures_pb2.pyi": "sha256:cbd55526dbed8ade3d65d92c59302ac123f15fe857442cebcdc8fb7036cc3048",
     "gen/python/measures/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/typescript/measures/v1/measures_pb.ts": "sha256:0186f140da5ca6ea9126c6c8609f938564cf3310751a7f5b559cea1d3fad3c5e"
+    "gen/typescript/measures/v1/measures_pb.ts": "sha256:0186f140da5ca6ea9126c6c8609f938564cf3310751a7f5b559cea1d3fad3c5e",
+    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4"
   }
 }

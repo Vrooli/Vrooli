@@ -302,6 +302,7 @@ func (h *Handlers) RegisterRoutes(router *mux.Router, metricsCollector *metrics.
 	api.HandleFunc("/sandboxes/{id}/apply-at-run-end", h.ApplyAtRunEnd).Methods("POST")
 	api.HandleFunc("/sandboxes/{id}/turn-checkpoint", h.TurnCheckpoint).Methods("POST")
 	api.HandleFunc("/sandboxes/{id}/reject", h.Reject).Methods("POST")
+	api.HandleFunc("/sandboxes/{id}/reject-reviewed", h.RejectReviewed).Methods("POST")
 	api.HandleFunc("/sandboxes/{id}/discard", h.Discard).Methods("POST")
 
 	// --- Workflow: Conflict Detection and Rebase (OT-P2-003) ---

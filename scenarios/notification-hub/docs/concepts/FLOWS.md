@@ -130,7 +130,13 @@ Reads never change an ask. The blocking call returns on `answered`,
 returns the open state and the ask keeps waiting for the operator. A caller
 that disconnects does not cancel the ask; the answer is still recorded.
 Every terminal transition publishes `notification_hub.ask.resolved.v1`
-(see [`INTEGRATIONS.md`](INTEGRATIONS.md)).
+(see [`INTEGRATIONS.md`](INTEGRATIONS.md)). Before routing a still-pending or
+held notification, the hub checks its linked Ask; an already `answered`,
+`withdrawn`, or `expired` Ask suppresses the stale question. `defaulted`
+remains routable under the late-answer contract, and ordinary notifications
+without an Ask are unaffected. This check prevents a later queued/recovery pass
+from starting delivery after resolution; it cannot retract a send a provider
+already accepted or eliminate a concurrent resolution after routing starts.
 
 ## State Machines
 

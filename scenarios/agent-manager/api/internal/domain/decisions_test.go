@@ -70,6 +70,7 @@ func TestRunStatus_CanTransitionTo(t *testing.T) {
 		{"running to cancelled", RunStatusRunning, RunStatusCancelled, true},
 		{"needs_review to complete", RunStatusNeedsReview, RunStatusComplete, true},
 		{"needs_review to failed", RunStatusNeedsReview, RunStatusFailed, true},
+		{"needs_review to cancelled", RunStatusNeedsReview, RunStatusCancelled, true},
 
 		// Continuation reactivation: a finished run with a preserved SessionID
 		// can be continued back to running (see CanContinueRun / ContinueRun).

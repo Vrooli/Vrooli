@@ -99,3 +99,102 @@ func TestGoFailureDiagnosticsKeepExactPackageIdentityAndCommandIsolation(t *test
 		t.Fatal(one.Summary(), two.Summary())
 	}
 }
+
+func outputDiagnosticEvent(pkg, test, output string) []byte {
+	data, _ := json.Marshal(nativeEvent{Action: "output", Package: pkg, Test: test, Output: output})
+	return append(data, '\n')
+}
+
+func TestGoFailureDiagnosticsRetainMatchedAssertionAfterLaterPassingOutput(t *testing.T) {
+	d := &failureDiagnostics{}
+	d.Write(diagnosticEvent("run", "example/api", "TestBroken"))
+	d.Write(outputDiagnosticEvent("example/api", "TestBroken", "assertion failed: expected 4, got 9\n"))
+	d.Write(diagnosticEvent("run", "example/api", "TestPassing"))
+	d.Write(outputDiagnosticEvent("example/api", "TestPassing", "unrelated passing output\n"))
+	d.Write(diagnosticEvent("pass", "example/api", "TestPassing"))
+	d.Write(diagnosticEvent("run", "example/api", "TestSkipped"))
+	d.Write(outputDiagnosticEvent("example/api", "TestSkipped", "skipped-only output\n"))
+	d.Write(diagnosticEvent("skip", "example/api", "TestSkipped"))
+	d.Write(diagnosticEvent("fail", "example/api", "TestBroken"))
+	for i := 0; i < 40; i++ {
+		d.Write(diagnosticEvent("pass", "example/later", fmt.Sprintf("TestPass%d", i)))
+	}
+
+	summary := d.Summary()
+	if !strings.Contains(summary, `test="TestBroken" output="assertion failed: expected 4, got 9"`) {
+		t.Fatalf("failed-test assertion was not retained: %s", summary)
+	}
+	if strings.Contains(summary, "unrelated passing output") || strings.Contains(summary, "skipped-only output") || !strings.Contains(summary, "retained=1 omitted_failure_events=0") || len(summary) > maxDiagnosticSummaryBytes {
+		t.Fatalf("unrelated output leaked or bounds changed: %s", summary)
+	}
+}
+
+func TestGoFailureDiagnosticsRetainPackageOnlyFailureOutput(t *testing.T) {
+	d := &failureDiagnostics{}
+	d.Write(outputDiagnosticEvent("example/api", "", "package setup assertion failed\n"))
+	d.Write(diagnosticEvent("fail", "example/api", ""))
+	summary := d.Summary()
+	if !strings.Contains(summary, `package="example/api" (package failure; no test identity supplied) output="package setup assertion failed"`) {
+		t.Fatalf("package-only failure output missing: %s", summary)
+	}
+}
+
+func TestGoFailureDiagnosticsBoundPendingAndFailureOutput(t *testing.T) {
+	d := &failureDiagnostics{}
+	for i := 0; i < maxPendingDiagnosticTests+8; i++ {
+		test := fmt.Sprintf("TestParallel%d", i)
+		d.Write(diagnosticEvent("run", "example/api", test))
+		d.Write(outputDiagnosticEvent("example/api", test, strings.Repeat("x", 1000)))
+		if len(d.pendingOutputs) > maxPendingDiagnosticTests || d.pendingOutputBytes > maxPendingOutputTotalBytes {
+			t.Fatalf("pending output exceeded bounds: tests=%d bytes=%d", len(d.pendingOutputs), d.pendingOutputBytes)
+		}
+	}
+	if _, ok := d.pendingOutputs[outputKey{packageName: "example/api", testName: "TestParallel0"}]; ok {
+		t.Fatal("oldest pending test was not evicted at the pending-test bound")
+	}
+	for i := 0; i < maxPendingDiagnosticTests+8; i++ {
+		d.Write(diagnosticEvent("fail", "example/api", fmt.Sprintf("TestParallel%d", i)))
+	}
+	summary := d.Summary()
+	if len(summary) > maxDiagnosticSummaryBytes || d.failureOutputBytes > maxDiagnosticFailureOutputTotalBytes || d.witnessBytes > maxDiagnosticWitnessBytes || !strings.Contains(summary, "omitted_output_bytes=") || !strings.Contains(summary, "diagnostics partial") {
+		t.Fatalf("failure output exceeded summary bounds or lacked omission accounting: bytes=%d summary=%d %s", d.failureOutputBytes, len(summary), summary)
+	}
+}
+
+func TestGoFailureDiagnosticsRejectOversizedOutputEventLine(t *testing.T) {
+	d := &failureDiagnostics{}
+	d.Write(outputDiagnosticEvent("example/api", "TestLarge", strings.Repeat("x", maxDiagnosticLineBytes)))
+	d.Write(diagnosticEvent("fail", "example/api", "TestLarge"))
+	summary := d.Summary()
+	if !strings.Contains(summary, "oversized_lines=1") || strings.Contains(summary, "output=") || !strings.Contains(summary, `test="TestLarge"`) || len(summary) > maxDiagnosticSummaryBytes {
+		t.Fatalf("oversized line changed identity or escaped bounds: %s", summary)
+	}
+}
+
+func TestGoFailureDiagnosticsCountsUTF8BoundaryTrimming(t *testing.T) {
+	d := &failureDiagnostics{}
+	key := outputKey{packageName: "example/api", testName: "TestUnicode"}
+	output := strings.Repeat("a", 100) + "界" + strings.Repeat("b", maxPendingOutputPerTestBytes-2)
+	if got := len(output); got <= maxPendingOutputPerTestBytes {
+		t.Fatalf("fixture must exceed pending output cap: %d", got)
+	}
+	d.rememberOutput(key, output)
+	if got := d.omittedOutputBytes; got != uint64(len(output)-maxPendingOutputPerTestBytes+2) {
+		t.Fatalf("omitted bytes should include UTF-8 boundary trim: got=%d want=%d", got, len(output)-maxPendingOutputPerTestBytes+2)
+	}
+	if got := d.pendingOutputBytes; got != maxPendingOutputPerTestBytes-2 {
+		t.Fatalf("retained UTF-8 tail byte count mismatch: got=%d want=%d", got, maxPendingOutputPerTestBytes-2)
+	}
+}
+
+func TestGoFailureDiagnosticsCountsOutputWhenIdentityWitnessBudgetIsFull(t *testing.T) {
+	d := &failureDiagnostics{}
+	key := outputKey{packageName: "example/api", testName: "TestBudget"}
+	d.rememberOutput(key, "assertion output")
+	witness := `package="example/api" test="TestBudget"`
+	d.witnessBytes = maxDiagnosticWitnessBytes - len(witness) // one byte too little for witness newline
+	d.recordFailure(nativeEvent{Package: key.packageName, Test: key.testName}, key, true)
+	if d.omittedOutputBytes != uint64(len("assertion output")) || d.failureOutputBytes != 0 || d.omittedFailureEvents != 1 || len(d.witnesses) != 0 {
+		t.Fatalf("discarded output accounting mismatch: omitted=%d excerpt=%d omitted_failures=%d witnesses=%d", d.omittedOutputBytes, d.failureOutputBytes, d.omittedFailureEvents, len(d.witnesses))
+	}
+}

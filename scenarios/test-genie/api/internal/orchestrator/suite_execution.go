@@ -651,6 +651,7 @@ func (o *SuiteOrchestrator) execute(ctx context.Context, req SuiteExecutionReque
 	}()
 
 	phaseCtx := runtimeLease.Context(ctx)
+	phaseReadiness := providerReadinessByPhase(readiness.Outcomes)
 	phaseResults, anyFailure, loopMetrics := o.runSelectedPhasesWithRunID(
 		phaseCtx,
 		env,
@@ -658,7 +659,7 @@ func (o *SuiteOrchestrator) execute(ctx context.Context, req SuiteExecutionReque
 		prepared.result.RunID,
 		prepared.runLogDir,
 		prepared.plan.Selected,
-		readiness.Blocked,
+		phaseReadiness,
 		req.FailFast,
 		emit,
 		buildPhaseWarningMap(prepared.plan),
@@ -690,6 +691,19 @@ func (o *SuiteOrchestrator) execute(ctx context.Context, req SuiteExecutionReque
 		prepared.result.FailureReason = fmt.Sprintf("target phase lifetime ended: %v", cause)
 	}
 	return o.finalizeExecution(ctx, req, prepared, phaseResults, anyFailure, emit), nil
+}
+
+// providerReadinessByPhase retains ready provider build evidence for cache identity
+// while the phase loop independently consults BlocksExecution for admission.
+func providerReadinessByPhase(outcomes []providerreadiness.Outcome) map[string]providerreadiness.Outcome {
+	byPhase := make(map[string]providerreadiness.Outcome, len(outcomes))
+	for _, outcome := range outcomes {
+		phase := strings.ToLower(strings.TrimSpace(outcome.Phase))
+		if phase != "" {
+			byPhase[phase] = outcome
+		}
+	}
+	return byPhase
 }
 
 // emitPreparationProgress exposes work that precedes the first test phase.
@@ -1489,7 +1503,7 @@ func (o *SuiteOrchestrator) runSelectedPhasesWithRunID(
 		// trip, this keeps cache-heavy runs from reporting scheduler overhead as
 		// execution pressure. Audited hits intentionally stay on the normal path
 		// so the provider still revalidates the cached verdict at its sample rate.
-		if _, blocked := readiness[defs[start].Name.Key()]; !blocked {
+		if outcome, hasOutcome := readiness[defs[start].Name.Key()]; !hasOutcome || !outcome.BlocksExecution() {
 			verdict := resolvePhaseVerdict(defs[start], runCtx)
 			if !verdict.IsSkip() {
 				if cached, audit, found, _ := phasecacheidentity.Load(o.projectRoot, env, runID, phaseLogPath(runLogDir, defs[start].Name), defs[start], readiness); found && !audit {
@@ -1557,7 +1571,7 @@ func (o *SuiteOrchestrator) runSelectedPhasesWithRunID(
 				if admissionReason != "" {
 					phaseWarnings = append(phaseWarnings, phases.NewWarningObservation("scheduler serial fallback: "+admissionReason))
 				}
-				if outcome, blocked := readiness[phase.Name.Key()]; blocked {
+				if outcome, hasOutcome := readiness[phase.Name.Key()]; hasOutcome && outcome.BlocksExecution() {
 					result = o.newProviderReadinessPhaseResult(phase, runLogDir, outcome)
 				} else if verdict := resolvePhaseVerdict(phase, runCtx); verdict.IsSkip() {
 					result = o.newSkippedPhaseResult(phase, runLogDir, verdict)

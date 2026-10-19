@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strconv"
 
 	"github.com/vrooli/api-core/operatordecision"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/incidents"
@@ -48,7 +49,9 @@ func (e remediationDecisionEffect) Apply(ctx context.Context, res operatordecisi
 	incidentID := res.Correlation["incident_id"]
 	candidateID := res.Correlation["candidate_id"]
 	fingerprint := res.Correlation["incident_fingerprint"]
-	if incidentID == "" || candidateID == "" {
+	digest := res.Correlation["candidate_digest"]
+	generation, generationErr := strconv.Atoi(res.Correlation["generation"])
+	if incidentID == "" || candidateID == "" || digest == "" || generationErr != nil || generation < 1 || res.RequesterRef == "" {
 		// A resolution without the keys we need is not ours to act on; ack it as a
 		// benign no-op so vrooli-events does not retry a poison message.
 		return true, nil
@@ -59,9 +62,11 @@ func (e remediationDecisionEffect) Apply(ctx context.Context, res operatordecisi
 	// executes nothing.
 	if res.State != operatordecision.StateAnswered || !remediation.ApprovedAsk(remediation.AskApproval{Answer: res.Answer}) {
 		reason := "operator declined remediation (" + res.State + "/" + res.Answer + ")"
-		if err := e.handlers.recordDeclinedRemediation(ctx, incidentID, candidateID, res.AskID, fingerprint, reason); err != nil {
+		applied, err := e.handlers.recordDeclinedRemediation(ctx, incidentID, candidateID, res.AskID, fingerprint, res.RequesterRef, digest, generation, reason)
+		if err != nil {
 			return true, err
 		}
+		_ = applied // A stale answer is a benign acknowledged no-op.
 		return true, nil
 	}
 
@@ -70,6 +75,9 @@ func (e remediationDecisionEffect) Apply(ctx context.Context, res operatordecisi
 		CandidateID:         candidateID,
 		AskID:               res.AskID,
 		IncidentFingerprint: fingerprint,
+		RequesterRef:        res.RequesterRef,
+		Generation:          generation,
+		CandidateDigest:     digest,
 		// The event consumer is the auto-apply path: it risk-gates so only a
 		// low-risk candidate executes on approve.
 		RiskGated: true,

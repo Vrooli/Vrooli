@@ -13,6 +13,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "generator_digest": "sha256:d62f642cc85260466ef67f24653340c95d277e2268cdf9983a7144dca50b1d50",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -39,6 +40,7 @@
     "gen/python/unit_health/v1/validation/test_quality_pb2.pyi": "sha256:cc4fd0b06bb3175eac7046ef432340513003bd99b544bd758a53b6bee46cd400",
     "gen/python/unit_health/v1/validation/validation_pb2.py": "sha256:4a434449957e96d6140df01971175988d8eefe85acb4fe2db74554f90ee9951f",
     "gen/python/unit_health/v1/validation/validation_pb2.pyi": "sha256:a28d258fda05b2d3eb25e97064baee538a1c8e3ebb8319d5e3c71ea77f60afc8",
+    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4",
     "gen/typescript/unit-health/v1/errors/errors_pb.ts": "sha256:9fe39efdf21d0ecedc80e72f2a12a496dae81899a073bbb33478465a4803c60b",
     "gen/typescript/unit-health/v1/health/health_pb.ts": "sha256:3018fb2531b02a92c737efbaef4f6540349f95ce45be758e0c53288b3cb09f2a",
     "gen/typescript/unit-health/v1/validation/test_quality_pb.ts": "sha256:82c42fc3570a2d294ce4ecfd8e9fc05154004316de48fb605d4f38d0ad211d4a",

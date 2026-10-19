@@ -97,6 +97,8 @@ CREATE TABLE IF NOT EXISTS runs (
     conversation_id TEXT DEFAULT '',
     identity_token_hash TEXT,
     identity_token_revoked_at TEXT,
+    identity_renewal_anchor_hash TEXT NOT NULL DEFAULT '',
+    identity_token_issued_at TEXT,
     custom_env TEXT,
     await_handle TEXT,
     last_await_key TEXT DEFAULT '',

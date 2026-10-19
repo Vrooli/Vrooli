@@ -5,6 +5,7 @@ import { test, vi } from "vitest";
 import { RunDetail } from "./RunDetail.js";
 import { renderWithProviders } from "../test-utils/index.js";
 import { makeRun } from "../test-utils/fixtures/runs.js";
+import { RunStatus } from "../types.js";
 import type { RunDiff } from "../types.js";
 
 vi.mock("./RunTimeline.js", () => ({
@@ -89,7 +90,7 @@ test("RunDetail offers no inline full-run approve/reject and points approvals to
 
 test("RunDetail approves only explicitly selected diff files", async () => {
   const partialApprove = vi.fn(async () => undefined);
-  const diff = { files: [
+  const diff = { runId: "run-1", fileCountVerified: true, files: [
     { id: "file-a", path: "api/report.go", changeType: "modified", additions: 1, deletions: 0, patch: "@@ -1 +1 @@\n+report" },
     { id: "file-b", path: "ui/report.tsx", changeType: "modified", additions: 1, deletions: 0, patch: "@@ -1 +1 @@\n+report" },
   ] } as RunDiff;
@@ -123,6 +124,46 @@ test("RunDetail explains absent task/diff/cost data and exposes its collapse and
   await waitFor(() => assert.deepEqual(clipboard.writeText.mock.calls, [["no-data-run"]]));
   fireEvent.click(screen.getByText("Details"));
   assert.equal(screen.queryByText("Run Overview"), null);
+});
+
+test("RunDetail does not present a missing pending diff count as None", () => {
+  renderWithProviders(createElement(RunDetail, {
+    run: makeRun({ status: RunStatus.NEEDS_REVIEW, changedFiles: 0 }), events: [], diff: null, eventsLoading: false, diffLoading: false, initialTab: "task", task: null,
+    taskTitle: "Review task", profileName: "Test profile", onApprove: vi.fn(async () => undefined), onReject: vi.fn(async () => undefined),
+    onRetry: vi.fn(async (run) => run), onResumeFromFailure: vi.fn(), onInvestigate: vi.fn(), onApplyInvestigation: vi.fn(),
+    onStop: vi.fn(async () => undefined), onDelete: vi.fn(), onContinue: vi.fn(async () => undefined), onDeleteMessage: vi.fn(async () => undefined), deleteLoading: false,
+  }));
+  const changeLabel = screen.getByText("Changes", { selector: ".text-xs" });
+  assert.equal(changeLabel.nextElementSibling?.textContent, "Unavailable");
+});
+
+test("RunDetail keeps an unverified empty diff unavailable", () => {
+  const run = makeRun({ status: RunStatus.NEEDS_REVIEW, changedFiles: 0 });
+  const diff = { runId: run.id, files: [], fileCountVerified: false } as RunDiff;
+  renderWithProviders(createElement(RunDetail, {
+    run, events: [], diff, eventsLoading: false, diffLoading: false, initialTab: "task", task: null,
+    taskTitle: "Review task", profileName: "Test profile", onApprove: vi.fn(async () => undefined), onReject: vi.fn(async () => undefined),
+    onRetry: vi.fn(async (run) => run), onResumeFromFailure: vi.fn(), onInvestigate: vi.fn(), onApplyInvestigation: vi.fn(),
+    onStop: vi.fn(async () => undefined), onDelete: vi.fn(), onContinue: vi.fn(async () => undefined), onDeleteMessage: vi.fn(async () => undefined), deleteLoading: false,
+  }));
+  const changeLabel = screen.getByText("Changes", { selector: ".text-xs" });
+  assert.equal(changeLabel.nextElementSibling?.textContent, "Unavailable");
+  fireEvent.click(screen.getByRole("button", { name: "Diff" }));
+  assert.ok(screen.getByText("Diff evidence is incomplete; changes and file count are unverified."));
+  assert.equal(screen.queryByText("No changes"), null);
+});
+
+test("RunDetail shows None only after a verified empty diff read", () => {
+  const run = makeRun({ status: RunStatus.NEEDS_REVIEW, changedFiles: 0 });
+  const diff = { runId: run.id, files: [], fileCountVerified: true } as RunDiff;
+  renderWithProviders(createElement(RunDetail, {
+    run, events: [], diff, eventsLoading: false, diffLoading: false, initialTab: "task", task: null,
+    taskTitle: "Review task", profileName: "Test profile", onApprove: vi.fn(async () => undefined), onReject: vi.fn(async () => undefined),
+    onRetry: vi.fn(async (run) => run), onResumeFromFailure: vi.fn(), onInvestigate: vi.fn(), onApplyInvestigation: vi.fn(),
+    onStop: vi.fn(async () => undefined), onDelete: vi.fn(), onContinue: vi.fn(async () => undefined), onDeleteMessage: vi.fn(async () => undefined), deleteLoading: false,
+  }));
+  const changeLabel = screen.getByText("Changes", { selector: ".text-xs" });
+  assert.equal(changeLabel.nextElementSibling?.textContent, "None");
 });
 
 test("RunDetail opens sandbox review from an available sandbox and routes desktop review into the review modal", async () => {
@@ -176,7 +217,7 @@ test("RunDetail lets desktop operators traverse every evidence tab and preserves
   fireEvent.click(screen.getByRole("button", { name: /Timeline/ }));
   assert.ok(screen.getByTestId("run-timeline"));
   fireEvent.click(screen.getByRole("button", { name: "Diff" }));
-  assert.ok(screen.getByText("The diff hasn't been generated yet. You can review changes directly in the sandbox."));
+  assert.ok(screen.getByText("No complete diff evidence is available. The file count and changes are unverified."));
   fireEvent.click(screen.getByRole("button", { name: "Cost" }));
   assert.ok(screen.getByText("No cost data available"));
   fireEvent.click(screen.getByRole("button", { name: "Report" }));
@@ -190,7 +231,7 @@ test("RunDetail lets desktop operators traverse every evidence tab and preserves
 });
 
 test("RunDetail permits cancelling a partial review before selected files are submitted", () => {
-  const diff = { files: [
+  const diff = { runId: "run-1", fileCountVerified: true, files: [
     { id: "one", path: "api/one.go", changeType: "modified", additions: 1, deletions: 0, patch: "" },
     { id: "two", path: "api/two.go", changeType: "modified", additions: 1, deletions: 0, patch: "" },
   ] } as RunDiff;
@@ -206,7 +247,7 @@ test("RunDetail permits cancelling a partial review before selected files are su
 });
 
 test("RunDetail keeps the partial approval selection accurate when an operator deselects a file", () => {
-  const diff = { files: [
+  const diff = { runId: "run-1", fileCountVerified: true, files: [
     { id: "one", path: "api/one.go", changeType: "modified", additions: 1, deletions: 0, patch: "" },
     { id: "two", path: "api/two.go", changeType: "modified", additions: 1, deletions: 0, patch: "" },
   ] } as RunDiff;
@@ -224,7 +265,7 @@ test("RunDetail keeps the partial approval selection accurate when an operator d
 
 test("RunDetail submits only the selected files with the operator's partial-approval metadata", async () => {
   const partialApprove = vi.fn(async () => undefined);
-  const diff = { files: [
+  const diff = { runId: "run-1", fileCountVerified: true, files: [
     { id: "one", path: "api/one.go", changeType: "modified", additions: 1, deletions: 0, patch: "" },
     { id: "two", path: "api/two.go", changeType: "modified", additions: 1, deletions: 0, patch: "" },
   ] } as RunDiff;
@@ -263,4 +304,3 @@ test("RunDetail distinguishes loading diff and cost evidence from completed evid
   assert.ok(screen.getAllByText("$0.1250").length >= 1);
   assert.ok(screen.getAllByText("15").length >= 1);
 });
-

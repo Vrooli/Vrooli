@@ -779,13 +779,11 @@
             }
           ],
           "binding": {
-            "kind": "connect-rpc",
-            "service": "AgentManagerService",
-            "method": "ValidateWorkflow"
+            "kind": "local"
           },
           "governance": {
             "effect": "read",
-            "run_eligible": true,
+            "run_eligible": false,
             "permissions": [
               "filesystem:read"
             ]
@@ -805,13 +803,11 @@
             }
           ],
           "binding": {
-            "kind": "connect-rpc",
-            "service": "AgentManagerService",
-            "method": "PlanScenarioWorkflows"
+            "kind": "local"
           },
           "governance": {
             "effect": "read",
-            "run_eligible": true,
+            "run_eligible": false,
             "permissions": [
               "network:internal"
             ]
@@ -841,9 +837,7 @@
             }
           ],
           "binding": {
-            "kind": "connect-rpc",
-            "service": "AgentManagerService",
-            "method": "ReconcileScenarioWorkflows"
+            "kind": "local"
           },
           "governance": {
             "effect": "write",
@@ -851,9 +845,6 @@
             "permissions": [
               "network:internal"
             ]
-          },
-          "architecture": {
-            "primitive": "proto_mutation"
           }
         },
         {
@@ -867,9 +858,7 @@
             }
           ],
           "binding": {
-            "kind": "connect-rpc",
-            "service": "AgentManagerService",
-            "method": "ReloadScenarioWorkflows"
+            "kind": "local"
           },
           "governance": {
             "effect": "write",
@@ -877,9 +866,6 @@
             "permissions": [
               "network:internal"
             ]
-          },
-          "architecture": {
-            "primitive": "proto_mutation"
           }
         },
         {
@@ -905,19 +891,14 @@
             }
           ],
           "binding": {
-            "kind": "connect-rpc",
-            "service": "AgentManagerService",
-            "method": "ListWorkflowRevisions"
+            "kind": "local"
           },
           "governance": {
             "effect": "read",
-            "run_eligible": true,
+            "run_eligible": false,
             "permissions": [
               "network:internal"
             ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
           }
         },
         {
@@ -939,19 +920,14 @@
             }
           ],
           "binding": {
-            "kind": "connect-rpc",
-            "service": "AgentManagerService",
-            "method": "GetWorkflowRevision"
+            "kind": "local"
           },
           "governance": {
             "effect": "read",
-            "run_eligible": true,
+            "run_eligible": false,
             "permissions": [
               "network:internal"
             ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
           }
         },
         {
@@ -973,19 +949,14 @@
             }
           ],
           "binding": {
-            "kind": "connect-rpc",
-            "service": "AgentManagerService",
-            "method": "ExplainWorkflow"
+            "kind": "local"
           },
           "governance": {
             "effect": "read",
-            "run_eligible": true,
+            "run_eligible": false,
             "permissions": [
               "network:internal"
             ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
           }
         },
         {
@@ -1021,13 +992,11 @@
             }
           ],
           "binding": {
-            "kind": "connect-rpc",
-            "service": "AgentManagerService",
-            "method": "SimulateWorkflow"
+            "kind": "local"
           },
           "governance": {
             "effect": "read",
-            "run_eligible": true,
+            "run_eligible": false,
             "permissions": [
               "network:internal",
               "filesystem:read"
@@ -1110,19 +1079,14 @@
             }
           ],
           "binding": {
-            "kind": "connect-rpc",
-            "service": "AgentManagerService",
-            "method": "ListWorkflowExecutions"
+            "kind": "local"
           },
           "governance": {
             "effect": "read",
-            "run_eligible": true,
+            "run_eligible": false,
             "permissions": [
               "network:internal"
             ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
           }
         },
         {
@@ -1136,19 +1100,14 @@
             }
           ],
           "binding": {
-            "kind": "connect-rpc",
-            "service": "AgentManagerService",
-            "method": "ListWorkflowExecutionRuns"
+            "kind": "local"
           },
           "governance": {
             "effect": "read",
-            "run_eligible": true,
+            "run_eligible": false,
             "permissions": [
               "network:internal"
             ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
           }
         },
         {
@@ -1222,9 +1181,7 @@
             }
           ],
           "binding": {
-            "kind": "connect-rpc",
-            "service": "AgentManagerService",
-            "method": "AdvanceWorkflowExecution"
+            "kind": "local"
           },
           "governance": {
             "effect": "write",
@@ -1232,9 +1189,6 @@
             "permissions": [
               "network:internal"
             ]
-          },
-          "architecture": {
-            "primitive": "proto_mutation"
           }
         },
         {
@@ -1290,19 +1244,14 @@
             }
           ],
           "binding": {
-            "kind": "connect-rpc",
-            "service": "AgentManagerService",
-            "method": "GetWorkflowExecutionTrace"
+            "kind": "local"
           },
           "governance": {
             "effect": "read",
-            "run_eligible": true,
+            "run_eligible": false,
             "permissions": [
               "network:internal"
             ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
           }
         },
         {
@@ -1337,9 +1286,7 @@
             }
           ],
           "binding": {
-            "kind": "connect-rpc",
-            "service": "AgentManagerService",
-            "method": "SignalWorkflowExecution"
+            "kind": "local"
           },
           "governance": {
             "effect": "write",
@@ -1348,9 +1295,6 @@
               "network:internal",
               "filesystem:read"
             ]
-          },
-          "architecture": {
-            "primitive": "proto_mutation"
           }
         },
         {
@@ -1420,9 +1364,7 @@
             }
           ],
           "binding": {
-            "kind": "connect-rpc",
-            "service": "AgentManagerService",
-            "method": "RetryWorkflowExecution"
+            "kind": "local"
           },
           "governance": {
             "effect": "write",
@@ -1430,9 +1372,6 @@
             "permissions": [
               "network:internal"
             ]
-          },
-          "architecture": {
-            "primitive": "proto_mutation"
           }
         },
         {
@@ -1461,9 +1400,7 @@
             }
           ],
           "binding": {
-            "kind": "connect-rpc",
-            "service": "AgentManagerService",
-            "method": "ResumeWorkflowExecution"
+            "kind": "local"
           },
           "governance": {
             "effect": "write",
@@ -1471,9 +1408,6 @@
             "permissions": [
               "network:internal"
             ]
-          },
-          "architecture": {
-            "primitive": "proto_mutation"
           }
         }
       ]
@@ -1790,6 +1724,105 @@
         {
           "name": "purge",
           "description": "Delete matching profiles, tasks, or runs",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "begin",
+          "description": "Close admission without cancelling already admitted work",
+          "flags": [
+            {
+              "name": "reason",
+              "required": true,
+              "description": "Required nonblank reason (1-512 bytes)"
+            },
+            {
+              "name": "local-owner",
+              "bool": true,
+              "description": "Explicit local operator exchange; unavailable in identified agent runs",
+              "local_only": true
+            },
+            {
+              "name": "json",
+              "bool": true,
+              "description": "Print the typed or command result as JSON",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "drain",
+          "description": "Wait for admitted work; timeout leaves the fence closed",
+          "flags": [
+            {
+              "name": "timeout",
+              "default": "1m",
+              "description": "Attachment drain timeout (1s-120s)"
+            },
+            {
+              "name": "local-owner",
+              "bool": true,
+              "description": "Explicit local operator exchange; unavailable in identified agent runs",
+              "local_only": true
+            },
+            {
+              "name": "json",
+              "bool": true,
+              "description": "Print the typed or command result as JSON",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "resume",
+          "description": "Reopen admission using the exact closed maintenance revision",
+          "flags": [
+            {
+              "name": "revision",
+              "required": true,
+              "description": "Exact closed revision from status or begin"
+            },
+            {
+              "name": "local-owner",
+              "bool": true,
+              "description": "Explicit local operator exchange; unavailable in identified agent runs",
+              "local_only": true
+            },
+            {
+              "name": "json",
+              "bool": true,
+              "description": "Print the typed or command result as JSON",
+              "local_only": true
+            }
+          ],
           "binding": {
             "kind": "local"
           },
@@ -2242,6 +2275,32 @@
               "network:internal"
             ]
           }
+        },
+        {
+          "name": "execution-options",
+          "description": "Read available runner, model, effort, and portable-role execution options",
+          "flags": [
+            {
+              "name": "role",
+              "description": "Optional portable role reference"
+            },
+            {
+              "name": "json",
+              "bool": true,
+              "description": "Print the typed or command result as JSON",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -2316,6 +2375,45 @@
               "network:internal"
             ]
           }
+        },
+        {
+          "name": "quota",
+          "description": "List provider-reported quota observations",
+          "flags": [
+            {
+              "name": "provider",
+              "description": "Provider filter"
+            },
+            {
+              "name": "pool",
+              "description": "Provider quota pool filter"
+            },
+            {
+              "name": "window",
+              "description": "Provider quota window filter"
+            },
+            {
+              "name": "limit",
+              "default": "100",
+              "description": "Maximum observations (1-100)"
+            },
+            {
+              "name": "json",
+              "bool": true,
+              "description": "Print the typed or command result as JSON",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -2344,9 +2442,7 @@
             }
           ],
           "binding": {
-            "kind": "connect-rpc",
-            "service": "AgentManagerService",
-            "method": "ReconcileScenarioDeclarations"
+            "kind": "local"
           },
           "governance": {
             "effect": "write",
@@ -2354,9 +2450,6 @@
             "permissions": [
               "network:internal"
             ]
-          },
-          "architecture": {
-            "primitive": "proto_mutation"
           }
         },
         {
@@ -2370,13 +2463,11 @@
             }
           ],
           "binding": {
-            "kind": "connect-rpc",
-            "service": "AgentManagerService",
-            "method": "PlanScenarioDeclarations"
+            "kind": "local"
           },
           "governance": {
             "effect": "read",
-            "run_eligible": true,
+            "run_eligible": false,
             "permissions": [
               "network:internal"
             ]
@@ -2405,19 +2496,14 @@
             }
           ],
           "binding": {
-            "kind": "connect-rpc",
-            "service": "AgentManagerService",
-            "method": "ListProfiles"
+            "kind": "local"
           },
           "governance": {
             "effect": "read",
-            "run_eligible": true,
+            "run_eligible": false,
             "permissions": [
               "network:internal"
             ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
           }
         },
         {
@@ -2528,19 +2614,14 @@
             }
           ],
           "binding": {
-            "kind": "connect-rpc",
-            "service": "AgentManagerService",
-            "method": "ListTasks"
+            "kind": "local"
           },
           "governance": {
             "effect": "read",
-            "run_eligible": true,
+            "run_eligible": false,
             "permissions": [
               "network:internal"
             ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
           }
         },
         {
@@ -2952,6 +3033,52 @@
       "description": "Bounded run inspection and execution operations",
       "commands": [
         {
+          "name": "event-page",
+          "description": "Read one bounded typed page from a run event stream",
+          "positionals": [
+            {
+              "name": "run_id",
+              "required": true,
+              "description": "Run UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "limit",
+              "description": "Maximum events (1-1000)",
+              "default": "100"
+            },
+            {
+              "name": "after-sequence",
+              "description": "Resume after this event sequence",
+              "bind": {
+                "field": "after_sequence"
+              }
+            },
+            {
+              "name": "json",
+              "bool": true,
+              "local_only": true,
+              "description": "Print the typed protobuf response as JSON"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "GetRunEvents"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
           "name": "report",
           "description": "Show the bounded shared run investigation report",
           "positionals": [
@@ -3020,9 +3147,7 @@
             }
           ],
           "binding": {
-            "kind": "connect-rpc",
-            "service": "AgentManagerService",
-            "method": "AttachRun"
+            "kind": "local"
           },
           "governance": {
             "effect": "write",
@@ -3030,9 +3155,6 @@
             "permissions": [
               "network:internal"
             ]
-          },
-          "architecture": {
-            "primitive": "proto_mutation"
           }
         },
         {
@@ -3055,9 +3177,7 @@
             }
           ],
           "binding": {
-            "kind": "connect-rpc",
-            "service": "AgentManagerService",
-            "method": "DetachRun"
+            "kind": "local"
           },
           "governance": {
             "effect": "write",
@@ -3065,9 +3185,6 @@
             "permissions": [
               "network:internal"
             ]
-          },
-          "architecture": {
-            "primitive": "proto_mutation"
           }
         },
         {
@@ -4303,6 +4420,28 @@
               "network:internal"
             ]
           }
+        },
+        {
+          "name": "identity",
+          "description": "Read the verified identity of the current Agent Manager run",
+          "flags": [
+            {
+              "name": "json",
+              "bool": true,
+              "description": "Print the typed or command result as JSON",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -4317,17 +4456,24 @@
             {
               "name": "effort-ref",
               "description": "Optional exact effort reference",
-              "bind": {"field": "effort_ref"}
+              "bind": {
+                "field": "effort_ref"
+              }
             },
             {
               "name": "page-size",
               "description": "Maximum owner rows (1-100)",
-              "bind": {"field": "page_size"}
+              "bind": {
+                "field": "page_size"
+              },
+              "bind_waiver": "This is request pagination data: cmdEffort validates 1-100 and sends it as GetEffortBoardRequest.page_size; it does not control CLI execution."
             },
             {
               "name": "page-token",
               "description": "Opaque continuation token from the prior board response",
-              "bind": {"field": "page_token"}
+              "bind": {
+                "field": "page_token"
+              }
             }
           ],
           "binding": {
@@ -4338,9 +4484,13 @@
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           },
-          "architecture": {"primitive": "proto_list"}
+          "architecture": {
+            "primitive": "proto_list"
+          }
         },
         {
           "name": "epoch-check",
@@ -4586,6 +4736,399 @@
             "permissions": [
               "network:internal",
               "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "compact",
+          "description": "Render a compact joined owner observation from the bounded effort board",
+          "flags": [
+            {
+              "name": "effort-ref",
+              "description": "Optional exact effort reference"
+            },
+            {
+              "name": "page-size",
+              "default": "50",
+              "description": "Maximum rows (1-100)"
+            },
+            {
+              "name": "page-token",
+              "description": "Next page token from prior response"
+            },
+            {
+              "name": "json",
+              "bool": true,
+              "description": "Print the typed or command result as JSON",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "decision",
+          "description": "Raise, answer, list, or sync decisions for a goal home",
+          "flags": [
+            {
+              "name": "json",
+              "bool": true,
+              "description": "Print the typed or command result as JSON",
+              "local_only": true
+            },
+            {
+              "name": "id",
+              "description": "Decision ID for raise",
+              "local_only": true
+            },
+            {
+              "name": "question",
+              "description": "One-sentence question for raise",
+              "local_only": true
+            },
+            {
+              "name": "option",
+              "description": "Answer option key=label; repeatable for raise",
+              "local_only": true
+            },
+            {
+              "name": "recommend",
+              "description": "Recommended option key for raise",
+              "local_only": true
+            },
+            {
+              "name": "why",
+              "description": "Recommendation reason for raise",
+              "local_only": true
+            },
+            {
+              "name": "default",
+              "description": "Option applied at deadline for reversible raise",
+              "local_only": true
+            },
+            {
+              "name": "reversible",
+              "bool": true,
+              "description": "Decision can be undone; required with default",
+              "local_only": true
+            },
+            {
+              "name": "deadline",
+              "description": "At least 12h duration or RFC3339 time for raise",
+              "local_only": true
+            },
+            {
+              "name": "urgency",
+              "description": "low, normal, high, or critical for raise",
+              "local_only": true
+            },
+            {
+              "name": "note",
+              "description": "Raise context or operator answer note",
+              "local_only": true
+            },
+            {
+              "name": "context-url",
+              "description": "Link for more context in raise",
+              "local_only": true
+            },
+            {
+              "name": "home-ref",
+              "description": "Repository-relative goal home",
+              "local_only": true
+            },
+            {
+              "name": "effort-ref",
+              "description": "Effort reference for raise/list",
+              "local_only": true
+            },
+            {
+              "name": "unrecorded",
+              "bool": true,
+              "description": "Only decisions not in FEEDBACK.md for list",
+              "local_only": true
+            },
+            {
+              "name": "dry-run",
+              "bool": true,
+              "description": "Print raise output without writes",
+              "local_only": true
+            },
+            {
+              "name": "local-owner",
+              "bool": true,
+              "description": "Explicit local operator exchange; unavailable in identified agent runs",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "discover",
+          "description": "Reconcile bounded effort discovery using the owner service",
+          "flags": [
+            {
+              "name": "json",
+              "bool": true,
+              "description": "Print the typed or command result as JSON",
+              "local_only": true
+            },
+            {
+              "name": "local-owner",
+              "bool": true,
+              "description": "Explicit local operator exchange; unavailable in identified agent runs",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "enroll",
+          "description": "Enroll or amend an effort with a typed request",
+          "flags": [
+            {
+              "name": "request-file",
+              "required": true,
+              "description": "Typed EnrollEffortRequest protobuf JSON",
+              "local_only": true
+            },
+            {
+              "name": "local-owner",
+              "bool": true,
+              "description": "Explicit local operator exchange; unavailable in identified agent runs",
+              "local_only": true
+            },
+            {
+              "name": "json",
+              "bool": true,
+              "description": "Print the typed or command result as JSON",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "list",
+          "description": "List durable effort enrollments with opaque pagination",
+          "flags": [
+            {
+              "name": "page-size",
+              "default": "50",
+              "description": "Maximum rows (1-100)"
+            },
+            {
+              "name": "page-token",
+              "description": "Next page token from prior response"
+            },
+            {
+              "name": "json",
+              "bool": true,
+              "description": "Print the typed or command result as JSON",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "reconcile-metadata",
+          "description": "Reconcile owner-facing effort metadata with a typed request",
+          "flags": [
+            {
+              "name": "request-file",
+              "required": true,
+              "description": "Typed ReconcileEffortMetadataRequest protobuf JSON",
+              "local_only": true
+            },
+            {
+              "name": "local-owner",
+              "bool": true,
+              "description": "Explicit local operator exchange; unavailable in identified agent runs",
+              "local_only": true
+            },
+            {
+              "name": "json",
+              "bool": true,
+              "description": "Print the typed or command result as JSON",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "signal",
+          "description": "Record one feedback or step_back signal for an effort",
+          "flags": [
+            {
+              "name": "kind",
+              "required": true,
+              "description": "feedback or step_back",
+              "local_only": true
+            },
+            {
+              "name": "detail",
+              "description": "What happened",
+              "local_only": true
+            },
+            {
+              "name": "run",
+              "description": "Run of the effort named by the signal",
+              "local_only": true
+            },
+            {
+              "name": "dedupe-key",
+              "description": "Idempotency key; defaults to kind:run:detail",
+              "local_only": true
+            },
+            {
+              "name": "json",
+              "bool": true,
+              "description": "Print the typed or command result as JSON",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "positionals": [
+            {
+              "name": "effort-ref",
+              "required": true,
+              "description": "Stable effort reference"
+            }
+          ]
+        },
+        {
+          "name": "signals",
+          "description": "Read durable effort signals after a sequence cursor",
+          "flags": [
+            {
+              "name": "after",
+              "default": "0",
+              "description": "Only signals with sequence greater than this cursor",
+              "local_only": true
+            },
+            {
+              "name": "limit",
+              "default": "100",
+              "description": "Maximum signals (1-500)",
+              "local_only": true
+            },
+            {
+              "name": "json",
+              "bool": true,
+              "description": "Print the typed or command result as JSON",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "positionals": [
+            {
+              "name": "effort-ref",
+              "required": true,
+              "description": "Stable effort reference"
+            }
+          ]
+        },
+        {
+          "name": "withdraw",
+          "description": "Withdraw an effort enrollment with revision fencing",
+          "flags": [
+            {
+              "name": "request-file",
+              "required": true,
+              "description": "Typed WithdrawEffortRequest protobuf JSON",
+              "local_only": true
+            },
+            {
+              "name": "local-owner",
+              "bool": true,
+              "description": "Explicit local operator exchange; unavailable in identified agent runs",
+              "local_only": true
+            },
+            {
+              "name": "json",
+              "bool": true,
+              "description": "Print the typed or command result as JSON",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
             ]
           }
         }
@@ -5737,11 +6280,6 @@
     },
     {
       "service": "AgentManagerService",
-      "method": "GetRunEvents",
-      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
-    },
-    {
-      "service": "AgentManagerService",
       "method": "GetRunnerStatus",
       "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
     },
@@ -5758,17 +6296,12 @@
     {
       "service": "AgentManagerService",
       "method": "ListProfiles",
-      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
-    },
-    {
-      "service": "AgentManagerService",
-      "method": "ListRuns",
-      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+      "reason": "The native CLI lists through the existing REST handler; the Connect receiver is not implemented yet, so this local command is not workflow-run eligible."
     },
     {
       "service": "AgentManagerService",
       "method": "ListTasks",
-      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+      "reason": "The native CLI lists through the existing REST handler; the Connect receiver is not implemented yet, so this local command is not workflow-run eligible."
     },
     {
       "service": "AgentManagerService",
@@ -5884,6 +6417,166 @@
       "service": "ConversationSearchControlService",
       "method": "WriteConversationSearchCorpus",
       "reason": "Corpus writes are owned by Search Hub's token-gated provider control and are not a direct Agent Manager operator command."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "AnswerEffortDecision",
+      "reason": "Existing hand-registered CLI/owner API surface; intentionally not exposed as a workflow-manifest command in this bounded migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "EnrollEffort",
+      "reason": "Existing hand-registered CLI/owner API surface; intentionally not exposed as a workflow-manifest command in this bounded migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "GetRunAccounting",
+      "reason": "Existing hand-registered CLI/owner API surface; intentionally not exposed as a workflow-manifest command in this bounded migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "ListEffortDecisions",
+      "reason": "Existing hand-registered CLI/owner API surface; intentionally not exposed as a workflow-manifest command in this bounded migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "ListEffortSignals",
+      "reason": "Existing hand-registered CLI/owner API surface; intentionally not exposed as a workflow-manifest command in this bounded migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "ListEfforts",
+      "reason": "Existing hand-registered CLI/owner API surface; intentionally not exposed as a workflow-manifest command in this bounded migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "ListExecutionOptions",
+      "reason": "Existing hand-registered CLI/owner API surface; intentionally not exposed as a workflow-manifest command in this bounded migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "MarkEffortDecisionRecorded",
+      "reason": "Existing hand-registered CLI/owner API surface; intentionally not exposed as a workflow-manifest command in this bounded migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "RaiseEffortDecision",
+      "reason": "Existing hand-registered CLI/owner API surface; intentionally not exposed as a workflow-manifest command in this bounded migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "ReconcileEffortDiscovery",
+      "reason": "Existing hand-registered CLI/owner API surface; intentionally not exposed as a workflow-manifest command in this bounded migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "ReconcileEffortMetadata",
+      "reason": "Existing hand-registered CLI/owner API surface; intentionally not exposed as a workflow-manifest command in this bounded migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "RecordEffortSignal",
+      "reason": "Existing hand-registered CLI/owner API surface; intentionally not exposed as a workflow-manifest command in this bounded migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "WithdrawEffort",
+      "reason": "Existing hand-registered CLI/owner API surface; intentionally not exposed as a workflow-manifest command in this bounded migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "AdvanceWorkflowExecution",
+      "reason": "Compatibility Connect RPC is not implemented on the registered handler; this native CLI command keeps its separate owner path and is not workflow-run eligible."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "AttachRun",
+      "reason": "Compatibility Connect RPC is not implemented on the registered handler; this native CLI command keeps its separate owner path and is not workflow-run eligible."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "DetachRun",
+      "reason": "Compatibility Connect RPC is not implemented on the registered handler; this native CLI command keeps its separate owner path and is not workflow-run eligible."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "ExplainWorkflow",
+      "reason": "Compatibility Connect RPC is not implemented on the registered handler; this native CLI command keeps its separate owner path and is not workflow-run eligible."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "GetWorkflowExecutionTrace",
+      "reason": "Compatibility Connect RPC is not implemented on the registered handler; this native CLI command keeps its separate owner path and is not workflow-run eligible."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "GetWorkflowRevision",
+      "reason": "Compatibility Connect RPC is not implemented on the registered handler; this native CLI command keeps its separate owner path and is not workflow-run eligible."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "ListWorkflowExecutionRuns",
+      "reason": "Compatibility Connect RPC is not implemented on the registered handler; this native CLI command keeps its separate owner path and is not workflow-run eligible."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "ListWorkflowExecutions",
+      "reason": "Compatibility Connect RPC is not implemented on the registered handler; this native CLI command keeps its separate owner path and is not workflow-run eligible."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "ListWorkflowRevisions",
+      "reason": "Compatibility Connect RPC is not implemented on the registered handler; this native CLI command keeps its separate owner path and is not workflow-run eligible."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "PlanScenarioDeclarations",
+      "reason": "Compatibility Connect RPC is not implemented on the registered handler; this native CLI command keeps its separate owner path and is not workflow-run eligible."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "PlanScenarioWorkflows",
+      "reason": "Compatibility Connect RPC is not implemented on the registered handler; this native CLI command keeps its separate owner path and is not workflow-run eligible."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "ReconcileScenarioDeclarations",
+      "reason": "Compatibility Connect RPC is not implemented on the registered handler; this native CLI command keeps its separate owner path and is not workflow-run eligible."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "ReconcileScenarioWorkflows",
+      "reason": "Compatibility Connect RPC is not implemented on the registered handler; this native CLI command keeps its separate owner path and is not workflow-run eligible."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "ReloadScenarioWorkflows",
+      "reason": "Compatibility Connect RPC is not implemented on the registered handler; this native CLI command keeps its separate owner path and is not workflow-run eligible."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "ResumeWorkflowExecution",
+      "reason": "Compatibility Connect RPC is not implemented on the registered handler; this native CLI command keeps its separate owner path and is not workflow-run eligible."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "RetryWorkflowExecution",
+      "reason": "Compatibility Connect RPC is not implemented on the registered handler; this native CLI command keeps its separate owner path and is not workflow-run eligible."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "SignalWorkflowExecution",
+      "reason": "Compatibility Connect RPC is not implemented on the registered handler; this native CLI command keeps its separate owner path and is not workflow-run eligible."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "SimulateWorkflow",
+      "reason": "Compatibility Connect RPC is not implemented on the registered handler; this native CLI command keeps its separate owner path and is not workflow-run eligible."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "ValidateWorkflow",
+      "reason": "Compatibility Connect RPC is not implemented on the registered handler; this native CLI command keeps its separate owner path and is not workflow-run eligible."
     }
   ],
   "measures": {

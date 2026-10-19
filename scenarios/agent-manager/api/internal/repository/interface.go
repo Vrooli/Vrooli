@@ -634,3 +634,11 @@ type StatsRepository interface {
 	// GetRecentModels returns recently used models ordered by most recent use (system-wide).
 	GetRecentModels(ctx context.Context, limit int) ([]string, error)
 }
+
+// AttachedIdentityRenewalRepository is the narrow persistence seam for
+// same-run ordinary identity rotation. It is optional so unrelated in-memory
+// RunRepository implementations do not acquire renewal authority implicitly.
+type AttachedIdentityRenewalRepository interface {
+	GetByIdentityRenewalAnchorHash(context.Context, string) (*domain.Run, error)
+	RenewAttachedIdentity(context.Context, *domain.Run, string, string, time.Time) (bool, error)
+}

@@ -17,6 +17,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "generator_digest": "sha256:d62f642cc85260466ef67f24653340c95d277e2268cdf9983a7144dca50b1d50",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -59,6 +60,7 @@
     "gen/typescript/measures-health/v1/health/health_pb.ts": "sha256:79e4b09ce9c6b1d0f4822c0a26f8d882d541efef096809b0ee188d3ccaed0cf0",
     "gen/typescript/measures-health/v1/measures/measures_pb.ts": "sha256:117e6a6e738f5128a1231b1d71ef08a1595486914e9cb9fee75914ef82a4b422",
     "gen/typescript/measures-health/v1/search/search_pb.ts": "sha256:7dd20e930e06dc19c729aea5c546fbde3dc677b917c6563841c669aa2470966a",
-    "gen/typescript/measures-health/v1/validation/validation_pb.ts": "sha256:262b93cbe71dbc7c2c5f1ce4fc6f27efb9f82294a7a35c2027c0b10d7f2826a0"
+    "gen/typescript/measures-health/v1/validation/validation_pb.ts": "sha256:262b93cbe71dbc7c2c5f1ce4fc6f27efb9f82294a7a35c2027c0b10d7f2826a0",
+    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4"
   }
 }

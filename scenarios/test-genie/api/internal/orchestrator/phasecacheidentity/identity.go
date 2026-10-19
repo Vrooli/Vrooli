@@ -47,20 +47,22 @@ func Identity(env workspacepkg.Environment, phase phases.Definition, readiness m
 		if provider == "" {
 			return phasecache.Identity{}, false
 		}
+		buildRevision := strings.TrimSpace(outcome.BuildRevision)
+		binaryModifiedAt := strings.TrimSpace(outcome.BinaryModifiedAt)
+		freshnessDigest := strings.TrimSpace(outcome.FreshnessDigest)
+		// A descriptor contract describes what a provider promises, not which
+		// provider build produced a verdict. If readiness did not supply any live
+		// build evidence, the result is not safe to reuse across runs.
+		if buildRevision == "" && binaryModifiedAt == "" && freshnessDigest == "" {
+			return phasecache.Identity{}, false
+		}
 		providerIdentity = strings.Join([]string{
 			provider,
 			strings.TrimSpace(outcome.SpecVersion),
-			strings.TrimSpace(outcome.BuildRevision),
-			strings.TrimSpace(outcome.BinaryModifiedAt),
-			strings.TrimSpace(outcome.FreshnessDigest),
+			buildRevision,
+			binaryModifiedAt,
+			freshnessDigest,
 		}, "|")
-		// A provider with no readiness policy has no live build identity to
-		// report. The descriptor snapshot is still part of the cache key, so
-		// bind this safe file-determined fallback to the provider contract rather
-		// than silently treating an empty readiness outcome as an identity.
-		if strings.Trim(providerIdentity, "|") == provider {
-			providerIdentity = "descriptor-contract:" + env.DescriptorSnapshotDigest + "|" + provider
-		}
 	}
 	if env.DescriptorSnapshotDigest == "" || env.ExecutionConfigurationDigest == "" {
 		return phasecache.Identity{}, false

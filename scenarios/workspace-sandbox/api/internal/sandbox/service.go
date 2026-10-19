@@ -93,6 +93,7 @@ type ServiceAPI interface {
 	// Reject marks sandbox changes as rejected.
 	// Returns StateError if sandbox cannot be rejected.
 	Reject(ctx context.Context, id uuid.UUID, actor string) (*types.Sandbox, error)
+	RejectWithPrecondition(ctx context.Context, req *types.RejectionRequest) (*types.Sandbox, error)
 
 	// Discard removes specific files from a sandbox without applying them.
 	// This allows rejecting individual files while keeping others pending.

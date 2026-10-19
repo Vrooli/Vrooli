@@ -67,9 +67,11 @@ func LifecycleRefusalCount(operation string) uint64 {
 	return lifecycleRefusalCounts.byOperation[operation]
 }
 
-// denyRunInitiatedLifecycleOperation closes the privilege escalation created
-// by giving investigation runs shell access. A valid run identity may inspect
-// the service, but it may not create, resume, or stop agent-manager runs.
+// denyRunInitiatedLifecycleOperation refuses lifecycle work that a verified
+// run identity alone does not authorize. A current covering run.create grant
+// permits creation; a covering agent.manage grant permits the named lifecycle
+// operations below. Separately checked lineage routes remain bounded to their
+// caller and target. Identity alone grants none of those operations.
 // Operator requests carry no run identity token and continue unchanged.
 // A presented but unverified credential is refused, never treated as absence.
 func (h *Handler) denyRunInitiatedLifecycleOperation(w http.ResponseWriter, r *http.Request, operation string) bool {

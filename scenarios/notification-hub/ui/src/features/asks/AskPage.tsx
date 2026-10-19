@@ -211,6 +211,13 @@ function AskStatus({ ask, now }: { ask: Ask; now: number }) {
       </p>
     );
   }
+  if (ask.state === "withdrawn") {
+    return (
+      <p data-testid={selectors.asks.status} role="status">
+        {t(strings.asks.detail.withdrawn)}
+      </p>
+    );
+  }
   if (!ask.defaultAnswer) return null;
   const remaining = remainingUntil(ask.defaultEligibleAt, now);
   const option = optionLabel(ask, ask.defaultAnswer);

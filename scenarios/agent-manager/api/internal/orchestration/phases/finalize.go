@@ -343,6 +343,45 @@ func ApplyAtRunEnd(ctx context.Context, in ApplyAtRunEndInput) bool {
 	// persists past run end; the run terminates as Complete with
 	// ApprovalState=Pending so the AI Changes review queue surfaces it.
 	if cfg.ManualReview {
+		// A review is only useful when there is a verified patch to decide on.
+		// Read failures, partial wire payloads, and uncaptured archives remain
+		// unknown and follow the existing review path below.
+		if diff, err := in.Sandbox.GetDiff(ctx, *in.SandboxID); err == nil && sandbox.IsVerifiedEmptyDiff(diff, *in.SandboxID) {
+			var withdrawalErr error
+			if in.Deps.ApprovalNotifier != nil {
+				withdrawer, ok := in.Deps.ApprovalNotifier.(ApprovalWithdrawalNotifier)
+				if !ok {
+					withdrawalErr = fmt.Errorf("approval notifier cannot confirm exact review-request withdrawal")
+				} else {
+					withdrawalErr = withdrawer.WithdrawRunNeedsReview(ctx, in.Run, "verified_empty_diff")
+				}
+			}
+			if withdrawalErr != nil {
+				// Keep this run in the existing pending-review reconciler so it can
+				// retry exact cleanup. A verified empty patch suppresses a new Ask,
+				// but does not prove a prior Ask was withdrawn.
+				now := in.Deps.Now()
+				in.Run.Status = domain.RunStatusNeedsReview
+				in.Run.ApprovalState = domain.ApprovalStatePending
+				in.Run.ApprovedBy = ""
+				in.Run.ApprovedAt = &now
+				if in.Run.FinalizationStatus != domain.RunFinalizationStatusFailed {
+					domain.MarkFinalizationSkipped(in.Run, "manualReview=true; verified empty diff; exact review withdrawal pending: "+withdrawalErr.Error(), now)
+				}
+				EmitSystemEvent(ctx, in.Deps, in.Run.ID, "warn",
+					"verified empty review remains pending because exact Ask withdrawal failed")
+				return false
+			}
+			now := in.Deps.Now()
+			in.Run.ApprovalState = domain.ApprovalStateNone
+			in.Run.ApprovedBy = ""
+			in.Run.ApprovedAt = nil
+			domain.MarkFinalizationSkipped(in.Run, "manualReview=true; verified empty diff; no approval needed", now)
+			EmitSystemEvent(ctx, in.Deps, in.Run.ID, "info",
+				"manual review skipped: verified sandbox diff is empty")
+			return false
+		}
+
 		now := in.Deps.Now()
 		in.Run.ApprovalState = domain.ApprovalStatePending
 		in.Run.ApprovedAt = &now

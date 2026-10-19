@@ -1644,8 +1644,11 @@ type RunActions struct {
 	FinalizationWarning string `protobuf:"bytes,15,opt,name=finalization_warning,json=finalizationWarning,proto3" json:"finalization_warning,omitempty"`
 	// Whether the run has failed finalization that can be retried or repaired.
 	CanRetryFinalization bool `protobuf:"varint,16,opt,name=can_retry_finalization,json=canRetryFinalization,proto3" json:"can_retry_finalization,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// Explains why operator review cannot take an approval/rejection action.
+	// Empty when no review-action restriction is known.
+	ReviewUnavailableReason string `protobuf:"bytes,17,opt,name=review_unavailable_reason,json=reviewUnavailableReason,proto3" json:"review_unavailable_reason,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *RunActions) Reset() {
@@ -1774,6 +1777,13 @@ func (x *RunActions) GetCanRetryFinalization() bool {
 		return x.CanRetryFinalization
 	}
 	return false
+}
+
+func (x *RunActions) GetReviewUnavailableReason() string {
+	if x != nil {
+		return x.ReviewUnavailableReason
+	}
+	return ""
 }
 
 // RunSummary contains the structured summary from an agent run.
@@ -2913,9 +2923,13 @@ type RunDiff struct {
 	// Individual file changes.
 	Files []*FileDiff `protobuf:"bytes,3,rep,name=files,proto3" json:"files,omitempty"`
 	// When the diff was generated.
-	GeneratedAt   *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=generated_at,json=generatedAt,proto3" json:"generated_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	GeneratedAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=generated_at,json=generatedAt,proto3" json:"generated_at,omitempty"`
+	// True when files contains the complete, verified file index for this diff.
+	// False means the file count is unavailable and must not be inferred from an
+	// empty files array. Older servers omit this field and decode it as false.
+	FileCountVerified bool `protobuf:"varint,5,opt,name=file_count_verified,json=fileCountVerified,proto3" json:"file_count_verified,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *RunDiff) Reset() {
@@ -2974,6 +2988,13 @@ func (x *RunDiff) GetGeneratedAt() *timestamppb.Timestamp {
 		return x.GeneratedAt
 	}
 	return nil
+}
+
+func (x *RunDiff) GetFileCountVerified() bool {
+	if x != nil {
+		return x.FileCountVerified
+	}
+	return false
 }
 
 // FileDiff represents changes to a single file.
@@ -4156,7 +4177,7 @@ const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\x03key\x18\x02 \x01(\tR\x03key\x12;\n" +
 	"\bdeadline\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampH\x00R\bdeadline\x88\x01\x01\x12?\n" +
 	"\rregistered_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\fregisteredAtB\v\n" +
-	"\t_deadline\"\xa3\x05\n" +
+	"\t_deadline\"\xdf\x05\n" +
 	"\n" +
 	"RunActions\x12'\n" +
 	"\x0fcan_investigate\x18\x01 \x01(\bR\x0ecanInvestigate\x126\n" +
@@ -4176,7 +4197,8 @@ const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\x17can_resume_from_failure\x18\r \x01(\bR\x14canResumeFromFailure\x12B\n" +
 	"\x1ecan_resume_from_failure_reason\x18\x0e \x01(\tR\x1acanResumeFromFailureReason\x121\n" +
 	"\x14finalization_warning\x18\x0f \x01(\tR\x13finalizationWarning\x124\n" +
-	"\x16can_retry_finalization\x18\x10 \x01(\bR\x14canRetryFinalizationJ\x04\b\n" +
+	"\x16can_retry_finalization\x18\x10 \x01(\bR\x14canRetryFinalization\x12:\n" +
+	"\x19review_unavailable_reason\x18\x11 \x01(\tR\x17reviewUnavailableReasonJ\x04\b\n" +
 	"\x10\vJ\x04\b\v\x10\fR\x1bcan_extract_recommendationsR\x1ecan_regenerate_recommendations\"\xab\x02\n" +
 	"\n" +
 	"RunSummary\x12 \n" +
@@ -4298,12 +4320,13 @@ const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\amessage\x18\x04 \x01(\tR\amessage\x12\x1c\n" +
 	"\tremaining\x18\x05 \x01(\x05R\tremaining\x12\x1d\n" +
 	"\n" +
-	"is_partial\x18\x06 \x01(\bR\tisPartial\"\xab\x01\n" +
+	"is_partial\x18\x06 \x01(\bR\tisPartial\"\xdb\x01\n" +
 	"\aRunDiff\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x18\n" +
 	"\acontent\x18\x02 \x01(\tR\acontent\x120\n" +
 	"\x05files\x18\x03 \x03(\v2\x1a.agent_manager.v1.FileDiffR\x05files\x12=\n" +
-	"\fgenerated_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\vgeneratedAt\"\xbe\x01\n" +
+	"\fgenerated_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\vgeneratedAt\x12.\n" +
+	"\x13file_count_verified\x18\x05 \x01(\bR\x11fileCountVerified\"\xbe\x01\n" +
 	"\bFileDiff\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\x12\x1f\n" +
 	"\vchange_type\x18\x02 \x01(\tR\n" +

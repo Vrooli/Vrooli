@@ -75,6 +75,22 @@ func (s *Service) snapshotAndTransition(
 	mutator func(*types.Sandbox),
 	prepared *types.DiffArchive,
 ) error {
+	return s.snapshotAndTransitionWithExpectedPatch(ctx, sandbox, terminalStatus, captured, mutator, prepared, "")
+}
+
+// snapshotAndTransitionWithExpectedPatch optionally binds a terminal archive
+// to the exact diff generated and consumed by this transition. The caller must
+// hold the review lock. A nonempty expected digest is checked before blob or
+// database writes; captureBlobs consumes the same DiffResult checked here.
+func (s *Service) snapshotAndTransitionWithExpectedPatch(
+	ctx context.Context,
+	sandbox *types.Sandbox,
+	terminalStatus types.Status,
+	captured bool,
+	mutator func(*types.Sandbox),
+	prepared *types.DiffArchive,
+	expectedPatchSHA256 string,
+) error {
 	if sandbox == nil {
 		return errors.New("sandbox.snapshotAndTransition: sandbox is nil")
 	}
@@ -88,6 +104,15 @@ func (s *Service) snapshotAndTransition(
 	// Tests that don't wire the archive seam fall back to a plain status
 	// flip. Production always wires both via WithArchive in main.go.
 	if s.archiveRepo == nil || s.blobs == nil {
+		if expectedPatchSHA256 != "" {
+			diffResult, err := s.GetDiff(ctx, sandbox.ID)
+			if err != nil {
+				return fmt.Errorf("get diff: %w", err)
+			}
+			if err := checkReviewedPatch(expectedPatchSHA256, diffResult.PatchSHA256); err != nil {
+				return err
+			}
+		}
 		sandbox.Status = terminalStatus
 		if mutator != nil {
 			mutator(sandbox)
@@ -112,12 +137,24 @@ func (s *Service) snapshotAndTransition(
 	// Prepared approval evidence must survive a failed transaction because
 	// source may already have changed. Unindexed-blob reconciliation remains
 	// a separate recovery gap; indexed archive retention does not cover it.
+	if expectedPatchSHA256 != "" && prepared != nil {
+		if err := checkReviewedPatch(expectedPatchSHA256, prepared.UnifiedDiffSHA256); err != nil {
+			return err
+		}
+	}
+
 	blobsWritten := false
 
+	if expectedPatchSHA256 != "" && !captured {
+		return errors.New("reviewed patch cannot be checked because sandbox diff is unavailable")
+	}
 	if captured && prepared == nil {
 		diffResult, err := s.GetDiff(ctx, sandbox.ID)
 		if err != nil {
 			return fmt.Errorf("get diff: %w", err)
+		}
+		if err := checkReviewedPatch(expectedPatchSHA256, diffResult.PatchSHA256); err != nil {
+			return err
 		}
 		written, err := s.captureBlobs(ctx, sandbox, archive, diffResult)
 		if err != nil {

@@ -30,6 +30,7 @@ import type { ProbeResult, Run, RunnerType, Task, HealthResponse, JsonValue } fr
 import { RunStatus } from "../types";
 import { ProbeResultSchema } from "@vrooli/proto-types/agent-manager/v1/domain/run_pb";
 import { formatStandardRelativeTime } from "../lib/dateTime";
+import { reviewFileCount } from "../lib/reviewFileCount";
 
 interface DashboardPageProps {
   health: HealthResponse | null;
@@ -179,6 +180,7 @@ export function DashboardPage({
           <CardContent className="p-0">
             <div>
               {pendingReview.map((run) => {
+                const fileCount = reviewFileCount(run);
                 return (
                   <div
                     key={run.id}
@@ -191,7 +193,7 @@ export function DashboardPage({
                     <div className="min-w-0 flex-1 mr-3">
                       <p className="font-medium text-sm truncate">{taskTitles[run.taskId] || "Loading task..."}</p>
                       <p className="text-xs text-muted-foreground">
-                        {run.changedFiles} files changed | {formatStandardRelativeTime(run.endedAt)}
+                        {fileCount.available ? `${fileCount.count} files changed` : "File count unavailable"} | {formatStandardRelativeTime(run.endedAt)}
                       </p>
                     </div>
                     <Badge variant="needs_review" className="flex-shrink-0">Needs Review</Badge>

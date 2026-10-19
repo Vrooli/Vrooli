@@ -1074,6 +1074,8 @@ var runColumnMigrations = []columnMigration{
 	{column: "goal_id", ddl: "ALTER TABLE runs ADD COLUMN goal_id TEXT NOT NULL DEFAULT ''"},
 	{column: "goal_status", ddl: "ALTER TABLE runs ADD COLUMN goal_status TEXT NOT NULL DEFAULT ''"},
 	{column: "canary_arm", ddl: "ALTER TABLE runs ADD COLUMN canary_arm TEXT NOT NULL DEFAULT ''"},
+	{column: "identity_renewal_anchor_hash", ddl: "ALTER TABLE runs ADD COLUMN identity_renewal_anchor_hash TEXT NOT NULL DEFAULT ''"},
+	{column: "identity_token_issued_at", ddl: "ALTER TABLE runs ADD COLUMN identity_token_issued_at TEXT"},
 }
 
 const nullableTaskRunsTable = "runs__task_nullable"
@@ -1308,7 +1310,10 @@ func (db *DB) migrateRunColumns(ctx context.Context) error {
 		return err
 	}
 	// The reconciler resolves web-console sessions back to their runs.
-	_, err := db.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS idx_runs_web_console_session ON runs(web_console_session_id) WHERE web_console_session_id <> ''`)
+	if _, err := db.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS idx_runs_web_console_session ON runs(web_console_session_id) WHERE web_console_session_id <> ''`); err != nil {
+		return err
+	}
+	_, err := db.ExecContext(ctx, `CREATE UNIQUE INDEX IF NOT EXISTS idx_runs_identity_renewal_anchor ON runs(identity_renewal_anchor_hash) WHERE identity_renewal_anchor_hash <> ''`)
 	return err
 }
 

@@ -53,17 +53,23 @@ func DeriveTimeAccounting(events []*domain.RunEvent, startedAt, endedAt *time.Ti
 	if startedAt == nil || endedAt == nil || !endedAt.After(*startedAt) {
 		return out
 	}
-	ordered := make([]*domain.RunEvent, 0, len(events))
-	for _, event := range events {
+	tokenSelection := SelectCanonicalUsage(events)
+	type indexedEvent struct {
+		event *domain.RunEvent
+		index int
+	}
+	ordered := make([]indexedEvent, 0, len(events))
+	for index, event := range events {
 		if event != nil && !event.Timestamp.IsZero() {
-			ordered = append(ordered, event)
+			ordered = append(ordered, indexedEvent{event: event, index: index})
 		}
 	}
-	sort.SliceStable(ordered, func(i, j int) bool { return ordered[i].Timestamp.Before(ordered[j].Timestamp) })
+	sort.SliceStable(ordered, func(i, j int) bool { return ordered[i].event.Timestamp.Before(ordered[j].event.Timestamp) })
 	previousAt := *startedAt
 	state := TimeAttributionUnattributable
 	var previous *domain.RunEvent
-	for _, event := range ordered {
+	for _, indexed := range ordered {
+		event := indexed.event
 		if event.Timestamp.Before(*startedAt) || event.Timestamp.After(*endedAt) {
 			continue
 		}
@@ -93,7 +99,9 @@ func DeriveTimeAccounting(events []*domain.RunEvent, startedAt, endedAt *time.Ti
 			addDuration(&out, state, interval)
 		}
 		if usage, ok := event.Data.(*domain.UsageEventData); ok {
-			addTokens(&out, state, int64(usage.InputTokens+usage.OutputTokens+usage.CacheCreationTokens+usage.CacheReadTokens))
+			if indexed.index < len(tokenSelection.Selected) && tokenSelection.Selected[indexed.index] {
+				addTokens(&out, state, int64(usage.InputTokens+usage.OutputTokens+usage.CacheCreationTokens+usage.CacheReadTokens))
+			}
 		} else {
 			state = timeStateAfter(event)
 		}

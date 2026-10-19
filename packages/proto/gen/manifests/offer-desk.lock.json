@@ -15,6 +15,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "generator_digest": "sha256:d62f642cc85260466ef67f24653340c95d277e2268cdf9983a7144dca50b1d50",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -50,6 +51,7 @@
     "gen/typescript/offer-desk/v1/offers/offers_pb.ts": "sha256:a64d4b4870ca1a8924f896285a8ffad945f80fedc78e99636c2c46ca04059c7d",
     "gen/typescript/offer-desk/v1/search/search_pb.ts": "sha256:481acab6199d52ec06b2b5daeb574b94770518bbf6c410b69c38e5aced914973",
     "gen/typescript/offer-desk/v1/shared/errors_pb.ts": "sha256:ca6c331090886380d26b08505e129312a14178a18b723fa48efab3a483a9ada9",
-    "gen/typescript/offer-desk/v1/shared/health_pb.ts": "sha256:506d28c1616dc2182618bc0509013b07221f5cc795a5cae3cf6e578a44077d69"
+    "gen/typescript/offer-desk/v1/shared/health_pb.ts": "sha256:506d28c1616dc2182618bc0509013b07221f5cc795a5cae3cf6e578a44077d69",
+    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4"
   }
 }

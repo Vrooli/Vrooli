@@ -141,8 +141,35 @@ CREATE TABLE IF NOT EXISTS incidents (
     outcome_json TEXT,
     event_count INTEGER NOT NULL DEFAULT 1,
     observation_count INTEGER NOT NULL DEFAULT 0,
-    operator_notes TEXT NOT NULL DEFAULT ''
+    operator_notes TEXT NOT NULL DEFAULT '',
+    remediation_decision_generation INTEGER NOT NULL DEFAULT 0,
+    remediation_decision_revision INTEGER NOT NULL DEFAULT 0,
+    remediation_decision_event_id TEXT NOT NULL DEFAULT '',
+    remediation_decision_candidate_id TEXT NOT NULL DEFAULT '',
+    remediation_candidate_digest TEXT NOT NULL DEFAULT '',
+    remediation_decision_expires_at TEXT
 );
+
+-- Immutable remediation requests live beside (not inside) the opening-FYI
+-- queue. A request is retried byte-for-byte by event ID. Superseding a pending
+-- revision is explicit; it is not falsely reported as published.
+CREATE TABLE IF NOT EXISTS incident_remediation_publications (
+    event_id TEXT PRIMARY KEY,
+    incident_id TEXT NOT NULL,
+    generation INTEGER NOT NULL,
+    revision INTEGER NOT NULL,
+    candidate_digest TEXT NOT NULL,
+    event_json TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    published_at TEXT,
+    superseded_at TEXT,
+    UNIQUE (incident_id, generation, revision)
+);
+
+CREATE INDEX IF NOT EXISTS idx_incident_remediation_publications_pending
+    ON incident_remediation_publications (created_at, event_id)
+    WHERE published_at IS NULL AND superseded_at IS NULL;
 
 -- One immutable incident-open event snapshot per persisted lifecycle.
 -- Pending rows are immutable retry snapshots. The accepted acknowledgement

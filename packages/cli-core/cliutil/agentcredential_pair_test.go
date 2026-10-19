@@ -4,6 +4,7 @@ package cliutil
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"net"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func credentialSocketResponse(t *testing.T, payload any, verifyRequest func(*http.Request)) string {
@@ -58,6 +60,77 @@ func TestResolveAgentCredentialsPreservesPairAndLegacyRoles(t *testing.T) {
 	if err != nil || baselineOnly.BaselineToken != "baseline-proof" || baselineOnly.OperationToken != "" || baselineOnly.OperationRefusal != "revoked" {
 		t.Fatalf("supplement refusal suppressed baseline identity: %+v err=%v", baselineOnly, err)
 	}
+}
+
+func TestResolveAgentCredentialsAcceptsOnlySameRunBaselineRenewal(t *testing.T) {
+	now := time.Now().Unix()
+	meta := map[string]string{"execution_mode": "attached", "harness_kind": "codex", "harness_session": "same"}
+	old := renewalClientTestToken(ordinaryIdentityClaims{
+		RunID: "run-one", TaskID: "", Scopes: []string{}, ProfileKey: "codex", ScopePath: "",
+		IssuedAt: now - 48*60*60, ExpiresAt: now - 24*60*60, Meta: meta,
+	})
+	current := renewalClientTestToken(ordinaryIdentityClaims{
+		RunID: "run-one", TaskID: "", Scopes: []string{}, ProfileKey: "codex", ScopePath: "",
+		IssuedAt: now - 60, ExpiresAt: now + 60*60, Meta: meta,
+	})
+	socket := credentialSocketResponse(t, map[string]string{"baseline_token": current}, func(req *http.Request) {
+		if req.Header.Get(HeaderAgentIdentityToken) != old {
+			t.Error("broker request did not carry the exact expired inherited token")
+		}
+	})
+	got, err := resolveAgentCredentials(context.Background(), socket, old)
+	if err != nil || got.BaselineToken != current || got.LegacyToken != "" || got.OperationToken != "" {
+		t.Fatalf("same-run ordinary renewal was not adopted as baseline-only (baseline=%t legacy=%t operation=%t) err=%v", got.BaselineToken != "", got.LegacyToken != "", got.OperationToken != "", err)
+	}
+}
+
+func TestSameRunBaselineRenewalRejectsScopeAndGenerationChanges(t *testing.T) {
+	now := time.Now().Unix()
+	meta := map[string]string{"execution_mode": "attached", "harness_kind": "codex", "harness_session": "same"}
+	old := ordinaryIdentityClaims{
+		RunID: "run-one", Scopes: []string{}, ProfileKey: "codex", Meta: meta,
+		IssuedAt: now - 48*60*60, ExpiresAt: now - 24*60*60,
+	}
+	base := ordinaryIdentityClaims{
+		RunID: "run-one", Scopes: []string{}, ProfileKey: "codex", Meta: meta,
+		IssuedAt: now - 60, ExpiresAt: now + 60*60,
+	}
+	cases := map[string]func(*ordinaryIdentityClaims){
+		"different run":    func(c *ordinaryIdentityClaims) { c.RunID = "run-two" },
+		"different scopes": func(c *ordinaryIdentityClaims) { c.Scopes = []string{"agent-manager:write"} },
+		"different harness binding": func(c *ordinaryIdentityClaims) {
+			c.Meta = map[string]string{"execution_mode": "attached", "harness_kind": "other", "harness_session": "same"}
+		},
+		"grant purpose":       func(c *ordinaryIdentityClaims) { c.Meta["authorization_id"] = "grant" },
+		"replacement expired": func(c *ordinaryIdentityClaims) { c.ExpiresAt = now - 1 },
+		"future issued at":    func(c *ordinaryIdentityClaims) { c.IssuedAt = now + 1 },
+		"too long": func(c *ordinaryIdentityClaims) {
+			c.ExpiresAt = c.IssuedAt + int64(defaultAgentIdentityTTL/time.Second) + 1
+		},
+	}
+	for name, change := range cases {
+		t.Run(name, func(t *testing.T) {
+			replacement := base
+			replacement.Meta = make(map[string]string, len(base.Meta))
+			for key, value := range base.Meta {
+				replacement.Meta[key] = value
+			}
+			change(&replacement)
+			if isSameRunBaselineRenewal(renewalClientTestToken(old), renewalClientTestToken(replacement)) {
+				t.Fatal("broker replacement changed an immutable run/authority claim but was accepted")
+			}
+		})
+	}
+	validOld := old
+	validOld.ExpiresAt = now + 60
+	if isSameRunBaselineRenewal(renewalClientTestToken(validOld), renewalClientTestToken(base)) {
+		t.Fatal("client accepted replacement while inherited baseline was still valid")
+	}
+}
+
+func renewalClientTestToken(claims ordinaryIdentityClaims) string {
+	encoded, _ := json.Marshal(claims)
+	return base64.RawURLEncoding.EncodeToString(encoded) + "." + base64.RawURLEncoding.EncodeToString(make([]byte, 32))
 }
 
 func TestResolveAgentCredentialsRejectsRoleConfusionAndBaselineSubstitution(t *testing.T) {

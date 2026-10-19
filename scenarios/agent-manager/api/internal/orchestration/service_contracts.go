@@ -584,6 +584,9 @@ type ApproveRequest struct {
 	Actor     string
 	CommitMsg string
 	Force     bool // Force despite conflicts
+	// ExpectedPatchSHA256 binds an event-driven approval to the diff that was
+	// reviewed. Empty preserves the existing manual approval contract.
+	ExpectedPatchSHA256 string
 }
 
 // PartialApproveRequest approves only selected files.

@@ -20,33 +20,34 @@ import (
 // FakeRepository / FakeDriver) suits the handler-test surface where
 // each test cares about exactly one or two service calls.
 type FakeService struct {
-	BeginProcessFn       func(context.Context, uuid.UUID) (*types.Sandbox, func(), error)
-	CreateFn             func(ctx context.Context, req *types.CreateRequest) (*types.Sandbox, error)
-	GetFn                func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error)
-	ListFn               func(ctx context.Context, filter *types.ListFilter) (*types.ListResult, error)
-	StopFn               func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error)
-	StartFn              func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error)
-	ResumeFn             func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error)
-	DeleteFn             func(ctx context.Context, id uuid.UUID) error
-	GetDiffFn            func(ctx context.Context, id uuid.UUID) (*types.DiffResult, error)
-	ApproveFn            func(ctx context.Context, req *types.ApprovalRequest) (*types.ApprovalResult, error)
-	ApplyAtRunEndFn      func(ctx context.Context, req *types.ApplyAtRunEndRequest) (*types.ApprovalResult, error)
-	TurnCheckpointFn     func(ctx context.Context, req *types.TurnCheckpointRequest) (*types.TurnCheckpointResult, error)
-	RejectFn             func(ctx context.Context, id uuid.UUID, actor string) (*types.Sandbox, error)
-	DiscardFn            func(ctx context.Context, req *types.DiscardRequest) (*types.DiscardResult, error)
-	GetWorkspacePathFn   func(ctx context.Context, id uuid.UUID) (string, error)
-	CheckConflictsFn     func(ctx context.Context, id uuid.UUID) (*types.ConflictCheckResponse, error)
-	RebaseFn             func(ctx context.Context, req *types.RebaseRequest) (*types.RebaseResult, error)
-	ValidatePathFn       func(ctx context.Context, path, projectRoot string) (*types.PathValidationResult, error)
-	GetPendingChangesFn  func(ctx context.Context, projectRoot string, limit, offset int) (*types.PendingChangesResult, error)
-	GetFileProvenanceFn  func(ctx context.Context, filePath, projectRoot string, limit int) ([]*types.AppliedChange, error)
-	GetCommitPreviewFn   func(ctx context.Context, req *types.CommitPreviewRequest) (*types.CommitPreviewResult, error)
-	CommitPendingFn      func(ctx context.Context, req *types.CommitPendingRequest) (*types.CommitPendingResult, error)
-	MarkCommittedFn      func(ctx context.Context, req *types.MarkCommittedRequest) (*types.MarkCommittedResult, error)
-	GetProvenanceByRunFn func(ctx context.Context, projectRoot string) ([]types.ProvenanceRunGroup, error)
-	GetArchiveFn         func(ctx context.Context, sandboxID uuid.UUID) (*types.DiffResult, error)
-	FetchArchiveFileFn   func(ctx context.Context, sandboxID uuid.UUID, path string) ([]byte, error)
-	ListHistoryFn        func(ctx context.Context, filter types.ArchiveListFilter) ([]*types.DiffArchive, int, error)
+	BeginProcessFn           func(context.Context, uuid.UUID) (*types.Sandbox, func(), error)
+	CreateFn                 func(ctx context.Context, req *types.CreateRequest) (*types.Sandbox, error)
+	GetFn                    func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error)
+	ListFn                   func(ctx context.Context, filter *types.ListFilter) (*types.ListResult, error)
+	StopFn                   func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error)
+	StartFn                  func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error)
+	ResumeFn                 func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error)
+	DeleteFn                 func(ctx context.Context, id uuid.UUID) error
+	GetDiffFn                func(ctx context.Context, id uuid.UUID) (*types.DiffResult, error)
+	ApproveFn                func(ctx context.Context, req *types.ApprovalRequest) (*types.ApprovalResult, error)
+	ApplyAtRunEndFn          func(ctx context.Context, req *types.ApplyAtRunEndRequest) (*types.ApprovalResult, error)
+	TurnCheckpointFn         func(ctx context.Context, req *types.TurnCheckpointRequest) (*types.TurnCheckpointResult, error)
+	RejectFn                 func(ctx context.Context, id uuid.UUID, actor string) (*types.Sandbox, error)
+	RejectWithPreconditionFn func(ctx context.Context, req *types.RejectionRequest) (*types.Sandbox, error)
+	DiscardFn                func(ctx context.Context, req *types.DiscardRequest) (*types.DiscardResult, error)
+	GetWorkspacePathFn       func(ctx context.Context, id uuid.UUID) (string, error)
+	CheckConflictsFn         func(ctx context.Context, id uuid.UUID) (*types.ConflictCheckResponse, error)
+	RebaseFn                 func(ctx context.Context, req *types.RebaseRequest) (*types.RebaseResult, error)
+	ValidatePathFn           func(ctx context.Context, path, projectRoot string) (*types.PathValidationResult, error)
+	GetPendingChangesFn      func(ctx context.Context, projectRoot string, limit, offset int) (*types.PendingChangesResult, error)
+	GetFileProvenanceFn      func(ctx context.Context, filePath, projectRoot string, limit int) ([]*types.AppliedChange, error)
+	GetCommitPreviewFn       func(ctx context.Context, req *types.CommitPreviewRequest) (*types.CommitPreviewResult, error)
+	CommitPendingFn          func(ctx context.Context, req *types.CommitPendingRequest) (*types.CommitPendingResult, error)
+	MarkCommittedFn          func(ctx context.Context, req *types.MarkCommittedRequest) (*types.MarkCommittedResult, error)
+	GetProvenanceByRunFn     func(ctx context.Context, projectRoot string) ([]types.ProvenanceRunGroup, error)
+	GetArchiveFn             func(ctx context.Context, sandboxID uuid.UUID) (*types.DiffResult, error)
+	FetchArchiveFileFn       func(ctx context.Context, sandboxID uuid.UUID, path string) ([]byte, error)
+	ListHistoryFn            func(ctx context.Context, filter types.ArchiveListFilter) ([]*types.DiffArchive, int, error)
 }
 
 func (s *FakeService) BeginProcess(ctx context.Context, id uuid.UUID) (*types.Sandbox, func(), error) {
@@ -151,6 +152,16 @@ func (m *FakeService) Reject(ctx context.Context, id uuid.UUID, actor string) (*
 		return m.RejectFn(ctx, id, actor)
 	}
 	return nil, notImpl("Reject")
+}
+
+func (m *FakeService) RejectWithPrecondition(ctx context.Context, req *types.RejectionRequest) (*types.Sandbox, error) {
+	if m.RejectWithPreconditionFn != nil {
+		return m.RejectWithPreconditionFn(ctx, req)
+	}
+	if req != nil && req.ExpectedPatchSHA256 == "" {
+		return m.Reject(ctx, req.SandboxID, req.Actor)
+	}
+	return nil, notImpl("RejectWithPrecondition")
 }
 
 func (m *FakeService) Discard(ctx context.Context, req *types.DiscardRequest) (*types.DiscardResult, error) {

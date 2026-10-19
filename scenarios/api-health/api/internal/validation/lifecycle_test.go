@@ -98,6 +98,77 @@ func main() {
 	require.Empty(t, report.Findings)
 }
 
+func TestValidateScenarioAllowsEnvironmentDerivedPreflightConfig(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "scenarios", "api-app", ".vrooli", "service.json"), validServiceJSON())
+	writeFile(t, filepath.Join(root, "scenarios", "api-app", "api", "main.go"), `package main
+
+import (
+	"net/http"
+	env "os"
+
+	"github.com/vrooli/api-core/preflight"
+	apiserver "github.com/vrooli/api-core/server"
+)
+
+func main() {
+	standalone := env.Getenv("API_STANDALONE") == "1"
+	if preflight.Run(preflight.Config{ScenarioName: "api-app", DisableStaleness: standalone}) {
+		return
+	}
+	_ = apiserver.Run(apiserver.Config{Handler: http.NewServeMux()})
+}
+`)
+
+	report, err := New(Deps{RepoRoot: root}).ValidateScenario(context.Background(), "api-app", "", false)
+	require.NoError(t, err)
+	require.True(t, report.Target.Lifecycle.PreflightHealthy, "%#v", report.Findings)
+}
+
+func TestValidateScenarioStillRejectsPreflightAfterAssignedStartupWork(t *testing.T) {
+	tests := []struct {
+		name    string
+		imports string
+		work    string
+	}{
+		{
+			name:    "database initialization",
+			imports: `"github.com/vrooli/api-core/database"`,
+			work:    `db, err := database.Open(context.Background(), database.Config{Scenario: "api-app"}); _ = db; _ = err`,
+		},
+		{
+			name:    "arbitrary config helper",
+			imports: ``,
+			work:    `settings := loadSettings(); _ = settings`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			root := t.TempDir()
+			writeFile(t, filepath.Join(root, "scenarios", "api-app", ".vrooli", "service.json"), validServiceJSON())
+			imports := `"context"` + "\n  " + tt.imports
+			writeFile(t, filepath.Join(root, "scenarios", "api-app", "api", "main.go"), `package main
+import (
+  "net/http"
+  `+imports+`
+  "github.com/vrooli/api-core/preflight"
+  apiserver "github.com/vrooli/api-core/server"
+)
+func loadSettings() int { return 1 }
+func main() {
+  `+tt.work+`
+  if preflight.Run(preflight.Config{ScenarioName:"api-app"}) { return }
+  _ = apiserver.Run(apiserver.Config{Handler:http.NewServeMux()})
+}
+`)
+			report, err := New(Deps{RepoRoot: root}).ValidateScenario(context.Background(), "api-app", "", false)
+			require.NoError(t, err)
+			finding := requireFinding(t, report, CodePreflightMissingLate)
+			require.Contains(t, finding.Message, "business logic executes before api-core preflight")
+		})
+	}
+}
+
 func TestValidateScenarioReportsDirectListenAndServe(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "scenarios", "api-app", ".vrooli", "service.json"), validServiceJSON())

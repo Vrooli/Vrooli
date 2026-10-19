@@ -19,15 +19,19 @@ import (
 // fakeRunStore records how many times a run was persisted; the run pointer is
 // mutated in place by the coordinator, so tests read fields off the run directly.
 type fakeRunStore struct {
-	mu      sync.Mutex
-	updates int
-	err     error
+	mu       sync.Mutex
+	updates  int
+	err      error
+	onUpdate func(*domain.Run)
 }
 
-func (s *fakeRunStore) Update(_ context.Context, _ *domain.Run) error {
+func (s *fakeRunStore) Update(_ context.Context, run *domain.Run) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.updates++
+	if s.onUpdate != nil {
+		s.onUpdate(run)
+	}
 	return s.err
 }
 
@@ -552,5 +556,53 @@ func TestCoordinatorReservedBindingRefusesPreSubmitPersistenceAndRepeat(t *testi
 				t.Fatalf("effects=%v binding=%s", sessions.calls, run.WebConsoleSessionID)
 			}
 		})
+	}
+}
+
+func TestCoordinatorDoesNotRemintForAlreadyBoundSessionRetry(t *testing.T) {
+	run := newInteractiveRun(domain.RunnerTypeCodex, "")
+	run.WebConsoleSessionID = "existing-session"
+	store := &fakeRunStore{}
+	mintCalls := 0
+	coord := NewCoordinator(CoordinatorDeps{
+		Substrate: &Substrate{}, Runs: store,
+		MintIdentityToken: func(context.Context, *domain.Run, string) (string, error) {
+			mintCalls++
+			return "replacement-bearer", nil
+		},
+	})
+	err := coord.Execute(context.Background(), run, LaunchParams{}, nil)
+	if err == nil || !strings.Contains(err.Error(), "already has a different session binding") {
+		t.Fatalf("Execute error = %v, want existing binding refusal", err)
+	}
+	if mintCalls != 0 || store.updates != 0 || run.WebConsoleSessionID != "existing-session" {
+		t.Fatalf("retry changed identity state: mint=%d updates=%d session=%q", mintCalls, store.updates, run.WebConsoleSessionID)
+	}
+}
+
+func TestCoordinatorPersistsSessionBindingBeforeIdentityMint(t *testing.T) {
+	run := newInteractiveRun(domain.RunnerTypeCodex, "")
+	var firstPersisted string
+	store := &fakeRunStore{onUpdate: func(saved *domain.Run) {
+		if firstPersisted == "" {
+			firstPersisted = saved.WebConsoleSessionID
+		}
+	}}
+	mintedSession := ""
+	coord := NewCoordinator(CoordinatorDeps{
+		Substrate: &Substrate{}, Runs: store,
+		MintIdentityToken: func(_ context.Context, candidate *domain.Run, sessionID string) (string, error) {
+			mintedSession = sessionID
+			if candidate.WebConsoleSessionID != sessionID {
+				t.Fatalf("mint saw run binding %q, want %q", candidate.WebConsoleSessionID, sessionID)
+			}
+			return "", errors.New("test stops before launch")
+		},
+	})
+	if err := coord.Execute(context.Background(), run, LaunchParams{}, nil); err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if firstPersisted == "" || firstPersisted != mintedSession || run.WebConsoleSessionID != mintedSession {
+		t.Fatalf("reservation/mint ordering: persisted=%q minted=%q run=%q", firstPersisted, mintedSession, run.WebConsoleSessionID)
 	}
 }

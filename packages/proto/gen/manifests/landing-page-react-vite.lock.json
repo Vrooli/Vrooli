@@ -24,6 +24,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "generator_digest": "sha256:d62f642cc85260466ef67f24653340c95d277e2268cdf9983a7144dca50b1d50",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -111,6 +112,7 @@
     "gen/typescript/landing-page-react-vite/v1/seo_pb.ts": "sha256:c6d17cd2c24a2270415e5a23c274002e42f16c2940b6351d467e8c75e6c5da19",
     "gen/typescript/landing-page-react-vite/v1/settings_pb.ts": "sha256:6f714b1706c5d61cbbac17eef2861f595104fea3b997a99996dba847f85dc804",
     "gen/typescript/landing-page-react-vite/v1/variant_pb.ts": "sha256:205fa65aa01c6988fcfa4f866d4b0554512056d610c12c72beb595b21006a7de",
-    "gen/typescript/landing-page-react-vite/v1/variant_space_pb.ts": "sha256:f96f668dfcb8bf470b6e159148f8ba4eb6175596a78532d15a105fd8e7474b0f"
+    "gen/typescript/landing-page-react-vite/v1/variant_space_pb.ts": "sha256:f96f668dfcb8bf470b6e159148f8ba4eb6175596a78532d15a105fd8e7474b0f",
+    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4"
   }
 }

@@ -2,9 +2,13 @@ package incidents
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"log"
 	"reflect"
+	"sort"
 	"strings"
 	"time"
 
@@ -26,12 +30,105 @@ const (
 // request is published under.
 var RemediationDecisionEventType = operatordecision.DecisionRequestedEventType(RemediationDecisionSource, RemediationDecisionKind)
 
-// RemediationCorrelationID is the stable idempotency key for a remediation
-// approval ask. It is derived from the four correlation keys the resolution
-// carries back (incident id, fingerprint, candidate id) so a re-raise inside the
-// window maps to the same ask rather than a duplicate operator notification.
-func RemediationCorrelationID(incidentID, fingerprint, candidateID string) string {
-	return operatordecision.CorrelationID("autoheal-remediation", incidentID, fingerprint, candidateID)
+// RemediationDecisionSnapshotDigest binds the incident facts, selected candidate,
+// and that candidate's generated artifacts to one operator decision.
+func RemediationDecisionSnapshotDigest(incident Incident, candidate RemediationCandidate) (string, error) {
+	artifacts := make([]RemediationArtifact, 0)
+	for _, artifact := range incident.RemediationArtifacts {
+		if artifact.RemediationID == candidate.ID {
+			artifacts = append(artifacts, artifact)
+		}
+	}
+	sort.Slice(artifacts, func(i, j int) bool {
+		if artifacts[i].ID != artifacts[j].ID {
+			return artifacts[i].ID < artifacts[j].ID
+		}
+		return artifacts[i].Path < artifacts[j].Path
+	})
+	snapshot := struct {
+		IncidentID  string                `json:"incident_id"`
+		Fingerprint string                `json:"fingerprint"`
+		Title       string                `json:"title"`
+		Severity    Severity              `json:"severity"`
+		Candidate   RemediationCandidate  `json:"candidate"`
+		Artifacts   []RemediationArtifact `json:"artifacts"`
+	}{incident.ID, incident.Fingerprint, incident.Title, incident.Severity, candidate, artifacts}
+	encoded, err := json.Marshal(snapshot)
+	if err != nil {
+		return "", fmt.Errorf("marshal remediation decision snapshot: %w", err)
+	}
+	sum := sha256.Sum256(encoded)
+	return hex.EncodeToString(sum[:]), nil
+}
+
+// RemediationDecisionStorageSnapshot returns the exact JSON column values used
+// to revalidate candidate/artifact storage at the authorization write boundary.
+func RemediationDecisionStorageSnapshot(incident Incident) (string, string, error) {
+	candidates, err := json.Marshal(incident.RemediationCandidates)
+	if err != nil {
+		return "", "", fmt.Errorf("marshal remediation candidates: %w", err)
+	}
+	artifacts, err := json.Marshal(incident.RemediationArtifacts)
+	if err != nil {
+		return "", "", fmt.Errorf("marshal remediation artifacts: %w", err)
+	}
+	return string(candidates), string(artifacts), nil
+}
+
+// BuildRemediationDecisionEvent constructs one immutable request revision. The
+// caller persists the returned event before publishing it.
+func RemediationDecisionBindingMatches(incident Incident, eventID string, generation int, digest, candidateID string) bool {
+	if incident.Status != StatusOpen && incident.Status != StatusAcknowledged {
+		return false
+	}
+	if incident.RemediationDecisionExpiresAt == nil || !time.Now().UTC().Before(*incident.RemediationDecisionExpiresAt) {
+		return false
+	}
+	if eventID == "" || digest == "" || candidateID == "" || generation < 1 {
+		return false
+	}
+	if incident.EventCount != generation || incident.RemediationDecisionGeneration != generation || incident.RemediationDecisionEventID != eventID || incident.RemediationDecisionCandidateID != candidateID || incident.RemediationCandidateDigest != digest {
+		return false
+	}
+	candidate, ok := findRemediationCandidate(incident.RemediationCandidates, candidateID)
+	if !ok || candidate.Applicability != "applicable" {
+		return false
+	}
+	currentDigest, err := RemediationDecisionSnapshotDigest(incident, candidate)
+	return err == nil && currentDigest == digest
+}
+
+func findRemediationCandidate(candidates []RemediationCandidate, id string) (RemediationCandidate, bool) {
+	for _, candidate := range candidates {
+		if candidate.ID == id {
+			return candidate, true
+		}
+	}
+	return RemediationCandidate{}, false
+}
+
+func BuildRemediationDecisionEvent(incident Incident, candidate RemediationCandidate, revision int, digest string, occurred, deadline time.Time) eventbus.DomainEvent {
+	facts := operatordecision.Facts{
+		Subject:              fmt.Sprintf("Approve remediation for incident %s", incident.Title),
+		Question:             fmt.Sprintf("Autoheal detected %q and proposes remediation %q (risk: %s). Approve applying it?", incident.Title, candidate.Title, remediationRiskLabel(candidate.RiskLevel)),
+		Options:              []operatordecision.Option{{Key: "approve", Label: "Approve remediation"}, {Key: "reject", Label: "Do not remediate"}},
+		Recommended:          "reject",
+		RecommendationReason: "A generated host script can affect the system; review its current candidate and artifact before approving.",
+		Reversible:           false,
+		Urgency:              "high",
+		Note:                 candidate.DecisionPrompt,
+		Deadline:             deadline.UTC(),
+		Correlation: map[string]string{
+			"incident_id":          incident.ID,
+			"incident_fingerprint": incident.Fingerprint,
+			"candidate_id":         candidate.ID,
+			"candidate_risk_level": candidate.RiskLevel,
+			"generation":           fmt.Sprint(incident.RemediationDecisionGeneration),
+			"revision":             fmt.Sprint(revision),
+			"candidate_digest":     digest,
+		},
+	}
+	return operatordecision.BuildEvent(RemediationDecisionSource, RemediationDecisionKind, occurred.UTC(), facts)
 }
 
 type Store interface {
@@ -42,6 +139,9 @@ type Store interface {
 	UpdateIncidentStatus(ctx context.Context, incidentID string, status Status, note string) (*Incident, error)
 	ListPendingOpeningPublications(ctx context.Context, limit int) ([]OpeningPublication, error)
 	AcknowledgeOpeningPublication(ctx context.Context, incidentID string, generation int) error
+	EnsureRemediationDecisionPublication(ctx context.Context, incidentID string, observedAt time.Time) (*RemediationDecisionPublication, error)
+	ListPendingRemediationDecisionPublications(ctx context.Context, limit int) ([]RemediationDecisionPublication, error)
+	AcknowledgeRemediationDecisionPublication(ctx context.Context, eventID string) error
 }
 
 type EventPublisher interface {
@@ -49,12 +149,21 @@ type EventPublisher interface {
 }
 
 // DecisionPublisher is the operatordecision.Publisher shape (PublishDomainEvent).
-// The remediation approval request rides the shared operator-decision substrate
-// rather than a bespoke event type, so notification-hub renders it as an Ask with
-// no autoheal-specific code. An EventPublisher that also satisfies this (the
-// production EventBusPublisher does) lets publishApprovalRequest emit a
-// decision_requested event; a publisher that does not falls back to the legacy
-// facts event so a test double stays simple.
+// Decision publications require this identity-preserving contract; the legacy
+// facts publisher is reserved for mutable lifecycle notifications.
+type publicationDrainDeferredKey struct{}
+
+// DeferPublicationDrain marks a larger owner operation that will drain both
+// publication queues once after all of its mutations are complete.
+func DeferPublicationDrain(ctx context.Context) context.Context {
+	return context.WithValue(ctx, publicationDrainDeferredKey{}, true)
+}
+
+func publicationDrainDeferred(ctx context.Context) bool {
+	deferred, _ := ctx.Value(publicationDrainDeferredKey{}).(bool)
+	return deferred
+}
+
 type DecisionPublisher interface {
 	PublishDomainEvent(context.Context, eventbus.DomainEvent) error
 }
@@ -100,16 +209,20 @@ func (s *Service) UpsertFromCheckResult(ctx context.Context, result checks.Resul
 }
 
 type pendingApprovalRequest struct {
-	incident  *Incident
-	candidate RemediationCandidate
+	incident *Incident
 }
 
 func (s *Service) finishCheckResultUpsert(ctx context.Context, approvals []pendingApprovalRequest) {
-	s.publishPendingOpeningPublications(ctx)
 	for _, approval := range approvals {
-		if approval.incident != nil {
-			s.publishApprovalRequest(ctx, approval.incident, approval.candidate)
+		if approval.incident == nil {
+			continue
 		}
+		if _, err := s.store.EnsureRemediationDecisionPublication(ctx, approval.incident.ID, approval.incident.LastSeenAt); err != nil {
+			log.Printf("vrooli-autoheal remediation decision snapshot failed: incident=%s error=%v", approval.incident.ID, err)
+		}
+	}
+	if !publicationDrainDeferred(ctx) {
+		s.DrainPendingPublications(ctx)
 	}
 }
 
@@ -152,13 +265,7 @@ func (s *Service) upsertFromCheckResult(ctx context.Context, result checks.Resul
 	if incident != nil && hadOpen && previousSeverity != incident.Severity {
 		s.publish(ctx, "incident.severity_changed.v1", incident)
 	}
-	approval := pendingApprovalRequest{}
-	if incident != nil && incident.EventCount == 1 && incident.Severity == SeverityCritical {
-		if candidate, ok := firstApplicableCandidate(*incident); ok {
-			approval = pendingApprovalRequest{incident: incident, candidate: candidate}
-		}
-	}
-	return incident, true, approval, nil
+	return incident, true, pendingApprovalRequest{incident: incident}, nil
 }
 
 func (s *Service) openIncidentSeverity(ctx context.Context, fingerprint string) (Severity, bool) {
@@ -323,7 +430,9 @@ func (s *Service) OpenHealIncident(ctx context.Context, checkID, actionID, lastE
 		},
 		Recommendations: []string{"Inspect the recorded auto-heal error and restore the check's dependency before retrying."},
 	})
-	s.publishPendingOpeningPublications(ctx)
+	if !publicationDrainDeferred(ctx) {
+		s.DrainPendingPublications(ctx)
+	}
 	return returnErr
 }
 
@@ -371,26 +480,74 @@ func (s *Service) resolveRecoveredForCheck(ctx context.Context, result checks.Re
 
 const pendingOpeningPublicationBatch = 100
 
-func (s *Service) publishPendingOpeningPublications(ctx context.Context) {
-	if s == nil || s.store == nil || s.publisher == nil {
+// DrainPendingPublications gives one operation a shared maximum of 100
+// attempts across opening notices and remediation decisions.
+func (s *Service) DrainPendingPublications(ctx context.Context) {
+	attempted := s.publishPendingOpeningPublications(ctx, pendingOpeningPublicationBatch)
+	s.publishPendingRemediationDecisionPublications(ctx, pendingOpeningPublicationBatch-attempted)
+}
+
+func (s *Service) publishPendingOpeningPublications(ctx context.Context, limit int) int {
+	if s == nil || s.store == nil || s.publisher == nil || limit <= 0 {
+		return 0
+	}
+	if readiness, ok := s.publisher.(interface{ Enabled() bool }); ok && !readiness.Enabled() {
+		return 0
+	}
+	pending, err := s.store.ListPendingOpeningPublications(ctx, limit)
+	if err != nil {
+		log.Printf("vrooli-autoheal pending incident-open read failed: %v", err)
+		return 0
+	}
+	attempted := 0
+	for _, event := range pending {
+		attempted++
+		if err := s.publisher.Publish(ctx, event.EventType, event.Payload); err != nil {
+			log.Printf("vrooli-autoheal incident event publish failed: type=%s incident=%s generation=%d error=%v", event.EventType, event.IncidentID, event.Generation, err)
+			return attempted // Preserve ordering; the next scheduled tick retries this exact snapshot.
+		}
+		if err := s.store.AcknowledgeOpeningPublication(ctx, event.IncidentID, event.Generation); err != nil {
+			log.Printf("vrooli-autoheal incident publication acknowledgement failed: incident=%s generation=%d error=%v", event.IncidentID, event.Generation, err)
+			return attempted // A duplicate publish is safe: the event ID is stable for this snapshot.
+		}
+	}
+	return attempted
+}
+
+func (s *Service) publishPendingRemediationDecisionPublications(ctx context.Context, limit int) {
+	if s == nil || s.store == nil || s.publisher == nil || limit <= 0 {
 		return
 	}
 	if readiness, ok := s.publisher.(interface{ Enabled() bool }); ok && !readiness.Enabled() {
 		return
 	}
-	pending, err := s.store.ListPendingOpeningPublications(ctx, pendingOpeningPublicationBatch)
+	pending, err := s.store.ListPendingRemediationDecisionPublications(ctx, limit)
 	if err != nil {
-		log.Printf("vrooli-autoheal pending incident-open read failed: %v", err)
+		log.Printf("vrooli-autoheal pending remediation decision read failed: %v", err)
 		return
 	}
-	for _, event := range pending {
-		if err := s.publisher.Publish(ctx, event.EventType, event.Payload); err != nil {
-			log.Printf("vrooli-autoheal incident event publish failed: type=%s incident=%s generation=%d error=%v", event.EventType, event.IncidentID, event.Generation, err)
-			return // Preserve ordering; the next scheduled tick retries this exact snapshot.
+	for _, publication := range pending {
+		var event eventbus.DomainEvent
+		if err := json.Unmarshal(publication.EventJSON, &event); err != nil {
+			log.Printf("vrooli-autoheal remediation decision decode failed: event=%s error=%v", publication.EventID, err)
+			return
 		}
-		if err := s.store.AcknowledgeOpeningPublication(ctx, event.IncidentID, event.Generation); err != nil {
-			log.Printf("vrooli-autoheal incident publication acknowledgement failed: incident=%s generation=%d error=%v", event.IncidentID, event.Generation, err)
-			return // A duplicate publish is safe: the event ID is stable for this snapshot.
+		if operatordecision.EventID(event) != publication.EventID {
+			log.Printf("vrooli-autoheal remediation decision identity mismatch: event=%s", publication.EventID)
+			return
+		}
+		decisionPublisher, ok := s.publisher.(DecisionPublisher)
+		if !ok {
+			log.Printf("vrooli-autoheal remediation decision publisher unavailable: incident=%s generation=%d revision=%d", publication.IncidentID, publication.Generation, publication.Revision)
+			return
+		}
+		if publishErr := decisionPublisher.PublishDomainEvent(ctx, event); publishErr != nil {
+			log.Printf("vrooli-autoheal remediation decision publish failed: incident=%s generation=%d revision=%d error=%v", publication.IncidentID, publication.Generation, publication.Revision, publishErr)
+			return
+		}
+		if err := s.store.AcknowledgeRemediationDecisionPublication(ctx, publication.EventID); err != nil {
+			log.Printf("vrooli-autoheal remediation decision acknowledgement failed: event=%s error=%v", publication.EventID, err)
+			return
 		}
 	}
 }
@@ -403,64 +560,6 @@ func (s *Service) publish(ctx context.Context, eventType string, incident *Incid
 	// sensitivity are owned by notification-hub.
 	if err := s.publisher.Publish(ctx, eventType, incidentEventFacts(incident)); err != nil {
 		log.Printf("vrooli-autoheal incident event publish failed: type=%s incident=%s error=%v", eventType, incident.ID, err)
-	}
-}
-
-// publishApprovalRequest raises the remediation approval on the shared operator-
-// decision substrate. notification-hub (which wildcard-subscribes
-// **.decision_requested.v1) renders the Facts as an operator Ask; the operator's
-// answer returns on notification_hub.ask.resolved.v1 and the autoheal decision
-// webhook reconstructs the apply call server-side.
-//
-// The Correlation map carries the four keys the resolution must hand back so the
-// webhook can re-verify and re-match: the incident id, the incident fingerprint,
-// the candidate id, and the candidate risk level the auto-apply gate reads. The
-// deterministic occurred time (truncated to the window) keeps the EventID stable
-// across retries so a redelivery maps to the same ask.
-func (s *Service) publishApprovalRequest(ctx context.Context, incident *Incident, candidate RemediationCandidate) {
-	if s == nil || s.publisher == nil || incident == nil {
-		return
-	}
-	facts := operatordecision.Facts{
-		Subject:  fmt.Sprintf("Approve remediation for incident %s", incident.Title),
-		Question: fmt.Sprintf("Autoheal detected %q and proposes remediation %q (risk: %s). Approve applying it?", incident.Title, candidate.Title, remediationRiskLabel(candidate.RiskLevel)),
-		Options: []operatordecision.Option{
-			{Key: "approve", Label: "Approve remediation"},
-			{Key: "reject", Label: "Do not remediate"},
-		},
-		Recommended:          "reject",
-		RecommendationReason: "A remediation runs a generated host script; review it before approving.",
-		// Acting on a host remediation is NOT trivially reversible, so no silent
-		// default answer is offered: the hub must wait for an explicit operator
-		// answer rather than apply one at a deadline.
-		Reversible: false,
-		Urgency:    "high",
-		Note:       candidate.DecisionPrompt,
-		Correlation: map[string]string{
-			"incident_id":          incident.ID,
-			"incident_fingerprint": incident.Fingerprint,
-			"candidate_id":         candidate.ID,
-			"candidate_risk_level": candidate.RiskLevel,
-		},
-	}
-
-	// Prefer the decision substrate when the publisher supports PublishDomainEvent
-	// (the production event-bus publisher does). A deterministic occurred time
-	// truncated to the default window keeps the EventID stable on retry.
-	if decisionPublisher, ok := s.publisher.(DecisionPublisher); ok {
-		occurred := s.now().UTC().Truncate(operatordecision.DefaultWindow)
-		event := operatordecision.BuildEvent(RemediationDecisionSource, RemediationDecisionKind, occurred, facts)
-		if err := decisionPublisher.PublishDomainEvent(ctx, event); err != nil {
-			log.Printf("vrooli-autoheal remediation decision event publish failed: incident=%s candidate=%s error=%v", incident.ID, candidate.ID, err)
-		}
-		return
-	}
-
-	// Fallback for a publisher that only exposes the legacy facts Publish (keeps a
-	// minimal test double working): emit the decision payload under the same event
-	// type without the domain-event envelope.
-	if err := s.publisher.Publish(ctx, RemediationDecisionEventType, facts.Payload()); err != nil {
-		log.Printf("vrooli-autoheal remediation approval event publish failed: incident=%s candidate=%s error=%v", incident.ID, candidate.ID, err)
 	}
 }
 
@@ -496,15 +595,6 @@ func incidentEventFacts(incident *Incident) map[string]any {
 		"incident_title":   incident.Title,
 		"incident_summary": incident.Summary,
 	}
-}
-
-func firstApplicableCandidate(incident Incident) (RemediationCandidate, bool) {
-	for _, candidate := range incident.RemediationCandidates {
-		if candidate.Applicability == "applicable" && strings.TrimSpace(candidate.ID) != "" {
-			return candidate, true
-		}
-	}
-	return RemediationCandidate{}, false
 }
 
 func firstString(values []string) string {

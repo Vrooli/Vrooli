@@ -111,7 +111,14 @@ func (o *Orchestrator) GetRunDiff(ctx context.Context, runID uuid.UUID) (*sandbo
 		return nil, domain.NewConfigMissingError("sandbox", "provider not configured", nil)
 	}
 
-	return o.sandbox.GetDiff(ctx, *run.SandboxID)
+	diff, err := o.sandbox.GetDiff(ctx, *run.SandboxID)
+	if err != nil {
+		return nil, err
+	}
+	if diff != nil {
+		diff.FileCountVerified = sandbox.IsVerifiedFileCount(diff, *run.SandboxID)
+	}
+	return diff, nil
 }
 
 // -----------------------------------------------------------------------------
@@ -204,6 +211,9 @@ func (o *Orchestrator) VerifyIdentityToken(ctx context.Context, token string) (*
 	}
 	if run.ID != claims.RunID {
 		return &IdentityVerifyResult{Valid: false, Error: "identity token does not match its active run"}, nil
+	}
+	if run.ExecutionMode.Normalized() == domain.ExecutionModeInteractive && (run.WebConsoleSessionID == "" || claims.Meta["web_console_session_id"] != run.WebConsoleSessionID) {
+		return &IdentityVerifyResult{Valid: false, Error: "interactive identity token does not match its persisted session binding"}, nil
 	}
 	if run.IdentityTokenRevokedAt != nil {
 		return &IdentityVerifyResult{Valid: false, Error: "identity token has been revoked"}, nil

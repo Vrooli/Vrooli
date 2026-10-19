@@ -199,9 +199,10 @@ func TestTimelinePropagatesIsolationHeaders(t *testing.T) {
 
 func TestControlPlaneHeadersExcludeTargetAuthentication(t *testing.T) {
 	got := controlPlaneHeaders(map[string]string{
-		"Authorization":      "LocalSession target-token",
-		"X-Vrooli-Test-Mode": "1",
-		"X-Trace":            "trace-1",
+		"Authorization":          "LocalSession target-token",
+		"X-Vrooli-Test-Mode":     "1",
+		"X-Vrooli-Test-Lease-ID": "lease-1",
+		"X-Trace":                "trace-1",
 	})
 	if len(got) != 1 || got["X-Trace"] != "trace-1" {
 		t.Fatalf("control-plane headers = %#v, want only X-Trace", got)

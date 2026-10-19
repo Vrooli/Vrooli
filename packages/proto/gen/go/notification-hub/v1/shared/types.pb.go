@@ -160,6 +160,7 @@ type Notification struct {
 	Reason           string                 `protobuf:"bytes,10,opt,name=reason,proto3" json:"reason,omitempty"`
 	CreatedAt        string                 `protobuf:"bytes,11,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt        string                 `protobuf:"bytes,12,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	ContextUrl       string                 `protobuf:"bytes,13,opt,name=context_url,json=contextUrl,proto3" json:"context_url,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -274,6 +275,13 @@ func (x *Notification) GetCreatedAt() string {
 func (x *Notification) GetUpdatedAt() string {
 	if x != nil {
 		return x.UpdatedAt
+	}
+	return ""
+}
+
+func (x *Notification) GetContextUrl() string {
+	if x != nil {
+		return x.ContextUrl
 	}
 	return ""
 }
@@ -442,7 +450,7 @@ var File_notification_hub_v1_shared_types_proto protoreflect.FileDescriptor
 
 const file_notification_hub_v1_shared_types_proto_rawDesc = "" +
 	"\n" +
-	"&notification-hub/v1/shared/types.proto\x12!vrooli.notification_hub.v1.shared\"\x9c\x03\n" +
+	"&notification-hub/v1/shared/types.proto\x12!vrooli.notification_hub.v1.shared\"\xbd\x03\n" +
 	"\fNotification\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\frequested_by\x18\x02 \x01(\tR\vrequestedBy\x12\x12\n" +
@@ -459,7 +467,9 @@ const file_notification_hub_v1_shared_types_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\v \x01(\tR\tcreatedAt\x12\x1d\n" +
 	"\n" +
-	"updated_at\x18\f \x01(\tR\tupdatedAt\"\xda\x01\n" +
+	"updated_at\x18\f \x01(\tR\tupdatedAt\x12\x1f\n" +
+	"\vcontext_url\x18\r \x01(\tR\n" +
+	"contextUrl\"\xda\x01\n" +
 	"\rChannelStatus\x12\x18\n" +
 	"\achannel\x18\x01 \x01(\tR\achannel\x12\x1d\n" +
 	"\n" +

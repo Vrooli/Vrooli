@@ -16,8 +16,8 @@ import (
 	"github.com/vrooli/api-core/eventbus"
 )
 
-// Ask states. pending and escalated are open; answered, defaulted, and
-// expired are resolved. A defaulted ask still accepts one late operator
+// Ask states. pending and escalated are open; answered, defaulted, expired,
+// and withdrawn are resolved. A defaulted ask still accepts one late operator
 // answer, which supersedes the default.
 const (
 	AskPending   = "pending"
@@ -25,6 +25,7 @@ const (
 	AskAnswered  = "answered"
 	AskDefaulted = "defaulted"
 	AskExpired   = "expired"
+	AskWithdrawn = "withdrawn"
 )
 
 const (
@@ -35,7 +36,7 @@ const (
 	// receipt and applying a default answer.
 	DefaultAskDefaultFloor = 12 * time.Hour
 	// AskResolvedEventType tells the requester an ask was answered, defaulted,
-	// or expired. It is published once per transition.
+	// expired, or withdrawn. It is published once per transition.
 	AskResolvedEventType = "notification_hub.ask.resolved.v1"
 	// DefaultAnsweredBy marks an answer the sweep applied.
 	DefaultAnsweredBy = "default"
@@ -51,6 +52,7 @@ const (
 var (
 	ErrAskResolved         = errors.New("ask is already resolved")
 	ErrAskIdentityConflict = errors.New("ask identity is already bound to different immutable terms")
+	ErrAskWithdrawn        = errors.New("decision request was withdrawn before ask creation")
 	askOptionKeyRule       = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$`)
 	validUrgencies         = map[string]bool{"low": true, "normal": true, "high": true, "critical": true}
 )
@@ -298,12 +300,18 @@ func (s *Service) AskWithSpec(ctx context.Context, spec AskSpec) (AskRecord, Not
 		return AskRecord{}, Notification{}, err
 	}
 	if existing, err := s.askByRequester(ctx, spec.Source, spec.IdempotencyKey); err == nil {
+		if existing.SourceEventType != spec.SourceEventType {
+			return AskRecord{}, Notification{}, ErrAskIdentityConflict
+		}
 		n, _, getErr := s.Get(ctx, existing.NotificationID)
 		if getErr != nil {
 			return AskRecord{}, Notification{}, getErr
 		}
 		if !sameAskTerms(existing, n, spec) {
 			return AskRecord{}, Notification{}, ErrAskIdentityConflict
+		}
+		if existing.State == AskWithdrawn {
+			return AskRecord{}, Notification{}, ErrAskWithdrawn
 		}
 		return existing, n, getErr
 	} else if !errors.Is(err, ErrNotFound) {
@@ -317,6 +325,24 @@ func (s *Service) AskWithSpec(ctx context.Context, spec AskSpec) (AskRecord, Not
 		return AskRecord{}, Notification{}, err
 	}
 	defer tx.Rollback()
+	// The A239 lifecycle ledger covers only Agent Manager run-approval asks.
+	// Other producers and direct/manual asks keep their existing path. A
+	// mismatched Agent Manager type still cannot reuse a ref already reserved
+	// by the exact run-approval withdrawal contract.
+	if spec.Source == "agent-manager" && spec.IdempotencyKey != "" {
+		var withdrawn bool
+		if spec.SourceEventType == agentManagerRunDecisionRequestEventType {
+			withdrawn, err = reserveDecisionRequestTx(ctx, tx, spec.Source, spec.IdempotencyKey, spec.SourceEventType, s.clock.Now().UTC().Format(time.RFC3339Nano))
+		} else {
+			withdrawn, err = checkDecisionRequestLifecycleTx(ctx, tx, spec.Source, spec.IdempotencyKey, spec.SourceEventType)
+		}
+		if err != nil {
+			return AskRecord{}, Notification{}, err
+		}
+		if withdrawn {
+			return AskRecord{}, Notification{}, ErrAskWithdrawn
+		}
+	}
 	n, created, err := s.persistNotificationUsing(ctx, tx, SendInput{RequestedBy: spec.Recipient, Title: spec.Title, Body: spec.Body, Urgency: spec.Urgency, SensitivityLabel: spec.SensitivityLabel, IdempotencyKey: spec.IdempotencyKey})
 	if err != nil {
 		return AskRecord{}, Notification{}, err
@@ -355,12 +381,18 @@ func (s *Service) AskWithSpec(ctx context.Context, spec AskSpec) (AskRecord, Not
 		// immutable identity first so a different recipient cannot split one
 		// source event into two answerable asks.
 		if existing, lookupErr := askByRequesterTx(ctx, tx, spec.Source, spec.IdempotencyKey); lookupErr == nil {
+			if existing.SourceEventType != spec.SourceEventType {
+				return AskRecord{}, Notification{}, ErrAskIdentityConflict
+			}
 			existingNotification, getErr := notificationByIDTx(ctx, tx, existing.NotificationID)
 			if getErr != nil {
 				return AskRecord{}, Notification{}, getErr
 			}
 			if !sameAskTerms(existing, existingNotification, spec) {
 				return AskRecord{}, Notification{}, ErrAskIdentityConflict
+			}
+			if existing.State == AskWithdrawn {
+				return AskRecord{}, Notification{}, ErrAskWithdrawn
 			}
 			if err := tx.Commit(); err != nil {
 				return AskRecord{}, Notification{}, err

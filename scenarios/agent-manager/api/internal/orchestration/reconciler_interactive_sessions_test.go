@@ -17,6 +17,7 @@ import (
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration/interactive"
 	"agent-manager/internal/orchestration/testutil"
+	"agent-manager/internal/repository"
 
 	"github.com/google/uuid"
 )
@@ -30,6 +31,7 @@ type inventorySessions struct {
 	listErr   error
 	listCalls int
 	archived  []string
+	onArchive func(string)
 }
 
 func (f *inventorySessions) ListSessions(context.Context) ([]webconsole.SessionInfo, error) {
@@ -46,6 +48,9 @@ func (f *inventorySessions) ArchiveSession(_ context.Context, id string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.archived = append(f.archived, id)
+	if f.onArchive != nil {
+		f.onArchive(id)
+	}
 	return nil
 }
 
@@ -373,5 +378,55 @@ func TestReconcilerCanonicalVerifiedOwnerRemainsConservativeWithoutAMProvenance(
 	stats := f.reconciler.RunOnce(t.Context())
 	if len(f.sessions.archivedIDs()) != 0 || stats.InteractiveSessionsReleased != 0 {
 		t.Fatalf("canonical owner cleanup broadened without AM provenance: %+v", stats)
+	}
+}
+
+func TestRetentionRevokesInteractiveRunIdentityBeforeArchive(t *testing.T) {
+	f := newRetentionFixture(t, time.Hour)
+	run := f.interactiveRun(t, "identity-retention", domain.RunStatusComplete, ago(4*time.Hour))
+	run.IdentityTokenHash = "retained-child-hash"
+	if err := f.repos.Runs.Update(context.Background(), run); err != nil {
+		t.Fatal(err)
+	}
+	f.sessions.listed = []webconsole.SessionInfo{agentManagerSession("identity-retention", retentionNow.Add(-5*time.Hour))}
+	archiveObservedRevoked := false
+	f.sessions.onArchive = func(id string) {
+		if id != "identity-retention" {
+			t.Fatalf("unexpected archive id %q", id)
+		}
+		stored, err := f.repos.Runs.Get(context.Background(), run.ID)
+		archiveObservedRevoked = err == nil && stored.IdentityTokenRevokedAt != nil
+	}
+	stats := f.reconciler.RunOnce(context.Background())
+	if !archiveObservedRevoked || stats.InteractiveSessionsReleased != 1 || len(stats.Errors) != 0 {
+		t.Fatalf("archive observed revoked=%t stats=%+v", archiveObservedRevoked, stats)
+	}
+}
+
+type rejectingRetentionRunUpdateRepository struct {
+	repository.RunRepository
+	err error
+}
+
+func (r rejectingRetentionRunUpdateRepository) Update(context.Context, *domain.Run) error {
+	return r.err
+}
+
+func TestRetentionRevocationFailureDoesNotArchiveInteractiveSession(t *testing.T) {
+	f := newRetentionFixture(t, time.Hour)
+	run := f.interactiveRun(t, "identity-retention-fail", domain.RunStatusComplete, ago(4*time.Hour))
+	run.IdentityTokenHash = "retained-child-hash"
+	if err := f.repos.Runs.Update(context.Background(), run); err != nil {
+		t.Fatal(err)
+	}
+	f.sessions.listed = []webconsole.SessionInfo{agentManagerSession("identity-retention-fail", retentionNow.Add(-5*time.Hour))}
+	failure := errors.New("identity revocation store unavailable")
+	f.reconciler.runs = rejectingRetentionRunUpdateRepository{RunRepository: f.repos.Runs, err: failure}
+	stats := f.reconciler.RunOnce(context.Background())
+	if got := f.sessions.archivedIDs(); len(got) != 0 {
+		t.Fatalf("archived before revocation: %v", got)
+	}
+	if len(stats.Errors) == 0 || !strings.Contains(stats.Errors[0], "failed to revoke identity") {
+		t.Fatalf("missing revocation failure receipt: %+v", stats)
 	}
 }

@@ -73,6 +73,8 @@ type CreateSessionParams struct {
 	// principal. It is populated ONLY from a verified-independent-human spawn
 	// context; empty for service/agent spawns (web-console then behaves as before).
 	HumanOwnerSubject string
+	// AgentRunIdentityToken is the child run bearer injected only into this reserved session.
+	AgentRunIdentityToken string
 }
 
 // SessionInfo is the proto-free projection of a web-console session that the
@@ -173,15 +175,16 @@ func (c *Client) CreateSession(ctx context.Context, params CreateSessionParams) 
 		rows = 40
 	}
 	req := connect.NewRequest(&sessionsv1.CreateRequest{
-		RequestedSessionId:   params.RequestedSessionID,
-		Cols:                 cols,
-		Rows:                 rows,
-		Backend:              backend,
-		LaunchCommand:        params.LaunchCommand,
-		Origin:               sessionsv1.SessionOrigin_SESSION_ORIGIN_PROGRAMMATIC,
-		Owner:                OwnerAgentManager,
-		DisplayLabel:         params.DisplayLabel,
-		ExecuteLaunchCommand: params.Execute,
+		RequestedSessionId:    params.RequestedSessionID,
+		Cols:                  cols,
+		Rows:                  rows,
+		Backend:               backend,
+		LaunchCommand:         params.LaunchCommand,
+		Origin:                sessionsv1.SessionOrigin_SESSION_ORIGIN_PROGRAMMATIC,
+		Owner:                 OwnerAgentManager,
+		DisplayLabel:          params.DisplayLabel,
+		ExecuteLaunchCommand:  params.Execute,
+		AgentRunIdentityToken: params.AgentRunIdentityToken,
 	})
 	// A verified-human tunnel-UI spawn carries the operator subject on the
 	// header so web-console attributes the session's stable-create owner to the

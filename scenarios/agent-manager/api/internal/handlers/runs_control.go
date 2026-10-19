@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -240,11 +241,15 @@ func (h *Handler) GetRunEvents(w http.ResponseWriter, r *http.Request) {
 		writeSimpleError(w, r, "limit", "must be a number")
 		return
 	} else if provided {
+		// Validate the public range before narrowing to the int32 proto field.
+		// Otherwise a large host int (for example 4294967297) can wrap to 1.
+		if limit < 1 || limit > 1000 {
+			writeSimpleError(w, r, "limit", "must be between 1 and 1000")
+			return
+		}
 		value := int32(limit)
 		req.Limit = &value
 	}
-
-	opts := event.GetOptions{AfterSequence: -1}
 	eventTypesRaw := r.URL.Query()["event_types"]
 	if len(eventTypesRaw) == 0 {
 		eventTypesRaw = r.URL.Query()["eventTypes"]
@@ -256,36 +261,66 @@ func (h *Handler) GetRunEvents(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		req.EventTypes = make([]domainpb.RunEventType, len(types))
-		for i, t := range types {
-			req.EventTypes[i] = protoconv.RunEventTypeToProto(t)
+		for i, eventType := range types {
+			req.EventTypes[i] = protoconv.RunEventTypeToProto(eventType)
 		}
 	}
 	if !h.validateProto(w, r, &req) {
 		return
 	}
 
-	if req.AfterSequence != nil {
-		opts.AfterSequence = req.GetAfterSequence()
-	}
-	if req.Limit != nil {
-		opts.Limit = int(req.GetLimit())
-	}
-	if len(req.EventTypes) > 0 {
-		opts.EventTypes = make([]domain.RunEventType, len(req.EventTypes))
-		for i, t := range req.EventTypes {
-			opts.EventTypes[i] = protoconv.RunEventTypeFromProto(t)
-		}
-	}
-
-	events, err := h.svc.GetRunEvents(r.Context(), id, opts)
+	response, err := h.getRunEventsPage(r.Context(), id, &req)
 	if err != nil {
 		writeError(w, r, err)
 		return
 	}
 
-	writeProtoJSON(w, http.StatusOK, &apipb.GetRunEventsResponse{
-		Events: protoconv.RunEventsToProto(events),
-	})
+	writeProtoJSON(w, http.StatusOK, response)
+}
+
+// getRunEventsPage is the shared bounded event projection for REST and Connect.
+// Callers own transport parsing and validation; this helper owns filtering,
+// cursor semantics, and the lookahead used to report HasMore.
+func (h *Handler) getRunEventsPage(ctx context.Context, runID uuid.UUID, req *apipb.GetRunEventsRequest) (*apipb.GetRunEventsResponse, error) {
+	if req == nil {
+		return nil, domain.NewValidationError("body", "request is required")
+	}
+	opts := event.GetOptions{AfterSequence: -1}
+	if req.AfterSequence != nil {
+		opts.AfterSequence = req.GetAfterSequence()
+	}
+	if req.Limit != nil {
+		limit := req.GetLimit()
+		if limit < 1 || limit > 1000 {
+			return nil, domain.NewValidationError("limit", "must be between 1 and 1000")
+		}
+		// Fetch one lookahead event so the response distinguishes a complete
+		// page from one that has more events. The public limit remains capped.
+		opts.Limit = int(limit) + 1
+	}
+	if len(req.EventTypes) > 0 {
+		opts.EventTypes = make([]domain.RunEventType, len(req.EventTypes))
+		for i, eventType := range req.EventTypes {
+			converted := protoconv.RunEventTypeFromProto(eventType)
+			if !converted.IsValid() {
+				return nil, domain.NewValidationError("event_types", "invalid event type")
+			}
+			opts.EventTypes[i] = converted
+		}
+	}
+
+	events, err := h.svc.GetRunEvents(ctx, runID, opts)
+	if err != nil {
+		return nil, err
+	}
+	hasMore := req.Limit != nil && len(events) > int(req.GetLimit())
+	if hasMore {
+		events = events[:int(req.GetLimit())]
+	}
+	return &apipb.GetRunEventsResponse{
+		Events:  protoconv.RunEventsToProto(events),
+		HasMore: hasMore,
+	}, nil
 }
 
 // GetRunDiff returns the diff for a run.
@@ -332,7 +367,8 @@ func (h *Handler) GetRunDiff(w http.ResponseWriter, r *http.Request) {
 				FilesModified: diff.Stats.FilesModified,
 				FilesDeleted:  diff.Stats.FilesDeleted,
 			},
-			ArchiveState: string(diff.ArchiveState),
+			ArchiveState:      string(diff.ArchiveState),
+			FileCountVerified: diff.FileCountVerified,
 		}),
 	})
 }

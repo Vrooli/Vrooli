@@ -65,7 +65,8 @@ func Schema() string { return subscriptionSchema }
 // NewSQLiteStore creates subscription tables in the provided database.
 
 func NewSQLiteStore(db sqlutil.DB) (*SQLiteStore, error) {
-	if _, err := db.ExecContext(context.Background(), subscriptionSchema); err != nil {
+	ctx := context.Background()
+	if _, err := db.ExecContext(ctx, subscriptionSchema); err != nil {
 		return nil, fmt.Errorf("apply subscription schema: %w", err)
 	}
 	return &SQLiteStore{db: db}, nil
@@ -218,6 +219,46 @@ func (s *SQLiteStore) Due(ctx context.Context, limit int) ([]QueuedDelivery, err
 		out = append(out, d)
 	}
 	return out, rows.Err()
+}
+
+func (s *SQLiteStore) GetDelivery(ctx context.Context, subscriptionID int64, eventID string) (DeliveryMetadata, error) {
+	var delivery DeliveryMetadata
+	err := s.db.QueryRowContext(ctx, `SELECT subscription_id, event_id, status, attempts FROM subscription_deliveries WHERE subscription_id=? AND event_id=?`, subscriptionID, eventID).Scan(
+		&delivery.SubscriptionID, &delivery.EventID, &delivery.Status, &delivery.Attempts,
+	)
+	if err != nil {
+		return DeliveryMetadata{}, err
+	}
+	return delivery, nil
+}
+
+// RetryDeadLetter atomically starts one new retry cycle for exactly the
+// observed exhausted row generation. Retryable rows have completed five
+// failed deliveries in the current five-attempt cycle; this makes cumulative
+// attempts the durable cycle boundary without another schema field. It
+// preserves the stored payload and cumulative attempts, and a stale request
+// cannot reopen a later cycle.
+func (s *SQLiteStore) RetryDeadLetter(ctx context.Context, subscriptionID int64, eventID string, expectedAttempts int) error {
+	if expectedAttempts <= 0 {
+		return ErrDeliveryNotRetryable
+	}
+	res, err := s.db.ExecContext(ctx, `UPDATE subscription_deliveries
+		SET status='pending',
+		    next_attempt_at=strftime('%Y-%m-%dT%H:%M:%f','now'), updated_at=strftime('%Y-%m-%dT%H:%M:%f','now')
+		WHERE subscription_id=? AND event_id=? AND status='dead_letter' AND attempts=? AND attempts > 0 AND attempts % ? = 0
+		AND EXISTS (SELECT 1 FROM subscriptions WHERE subscriptions.id=subscription_deliveries.subscription_id AND delivery_type='webhook' AND enabled=1)`,
+		subscriptionID, eventID, expectedAttempts, DeliveryAttemptsPerCycle)
+	if err != nil {
+		return err
+	}
+	changed, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if changed != 1 {
+		return ErrDeliveryNotRetryable
+	}
+	return nil
 }
 
 func (s *SQLiteStore) MarkDelivered(ctx context.Context, deliveryID, subscriptionID int64, at time.Time) error {

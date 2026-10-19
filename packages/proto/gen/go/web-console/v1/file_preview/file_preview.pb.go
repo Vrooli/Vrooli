@@ -40,6 +40,21 @@ const (
 	PreviewKind_PREVIEW_KIND_UNSUPPORTED PreviewKind = 11
 	// A directory. Renders from ListDirectory rather than text or bytes.
 	PreviewKind_PREVIEW_KIND_DIRECTORY PreviewKind = 12
+	// Excel workbook; read locally from opaque blob bytes.
+	PreviewKind_PREVIEW_KIND_SPREADSHEET PreviewKind = 13
+	// Word document; semantic read-only preview from opaque blob bytes.
+	PreviewKind_PREVIEW_KIND_DOCUMENT PreviewKind = 14
+	PreviewKind_PREVIEW_KIND_ARCHIVE  PreviewKind = 15
+	// Locally rendered modern PowerPoint presentation.
+	PreviewKind_PREVIEW_KIND_PRESENTATION PreviewKind = 16
+	// Reflowable EPUB publication.
+	PreviewKind_PREVIEW_KIND_EBOOK PreviewKind = 17
+	// Locally rendered bounded 3D model.
+	PreviewKind_PREVIEW_KIND_MODEL_3D PreviewKind = 18
+	// Browser-local font specimen.
+	PreviewKind_PREVIEW_KIND_FONT PreviewKind = 19
+	// Read-only SQLite database inspection.
+	PreviewKind_PREVIEW_KIND_DATABASE PreviewKind = 20
 )
 
 // Enum value maps for PreviewKind.
@@ -58,21 +73,37 @@ var (
 		10: "PREVIEW_KIND_DIFF",
 		11: "PREVIEW_KIND_UNSUPPORTED",
 		12: "PREVIEW_KIND_DIRECTORY",
+		13: "PREVIEW_KIND_SPREADSHEET",
+		14: "PREVIEW_KIND_DOCUMENT",
+		15: "PREVIEW_KIND_ARCHIVE",
+		16: "PREVIEW_KIND_PRESENTATION",
+		17: "PREVIEW_KIND_EBOOK",
+		18: "PREVIEW_KIND_MODEL_3D",
+		19: "PREVIEW_KIND_FONT",
+		20: "PREVIEW_KIND_DATABASE",
 	}
 	PreviewKind_value = map[string]int32{
-		"PREVIEW_KIND_UNSPECIFIED": 0,
-		"PREVIEW_KIND_MARKDOWN":    1,
-		"PREVIEW_KIND_CODE":        2,
-		"PREVIEW_KIND_TEXT":        3,
-		"PREVIEW_KIND_SVG":         4,
-		"PREVIEW_KIND_IMAGE":       5,
-		"PREVIEW_KIND_PDF":         6,
-		"PREVIEW_KIND_AUDIO":       7,
-		"PREVIEW_KIND_VIDEO":       8,
-		"PREVIEW_KIND_CSV":         9,
-		"PREVIEW_KIND_DIFF":        10,
-		"PREVIEW_KIND_UNSUPPORTED": 11,
-		"PREVIEW_KIND_DIRECTORY":   12,
+		"PREVIEW_KIND_UNSPECIFIED":  0,
+		"PREVIEW_KIND_MARKDOWN":     1,
+		"PREVIEW_KIND_CODE":         2,
+		"PREVIEW_KIND_TEXT":         3,
+		"PREVIEW_KIND_SVG":          4,
+		"PREVIEW_KIND_IMAGE":        5,
+		"PREVIEW_KIND_PDF":          6,
+		"PREVIEW_KIND_AUDIO":        7,
+		"PREVIEW_KIND_VIDEO":        8,
+		"PREVIEW_KIND_CSV":          9,
+		"PREVIEW_KIND_DIFF":         10,
+		"PREVIEW_KIND_UNSUPPORTED":  11,
+		"PREVIEW_KIND_DIRECTORY":    12,
+		"PREVIEW_KIND_SPREADSHEET":  13,
+		"PREVIEW_KIND_DOCUMENT":     14,
+		"PREVIEW_KIND_ARCHIVE":      15,
+		"PREVIEW_KIND_PRESENTATION": 16,
+		"PREVIEW_KIND_EBOOK":        17,
+		"PREVIEW_KIND_MODEL_3D":     18,
+		"PREVIEW_KIND_FONT":         19,
+		"PREVIEW_KIND_DATABASE":     20,
 	}
 )
 
@@ -364,8 +395,10 @@ type ResolveResponse struct {
 	// listing_available is true for directories, whose contents come from
 	// ListDirectory. Mutually exclusive with text_content_available.
 	ListingAvailable bool `protobuf:"varint,19,opt,name=listing_available,json=listingAvailable,proto3" json:"listing_available,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Virtual members cannot be resolved as host paths or executed.
+	ArchiveMember bool `protobuf:"varint,20,opt,name=archive_member,json=archiveMember,proto3" json:"archive_member,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ResolveResponse) Reset() {
@@ -527,6 +560,13 @@ func (x *ResolveResponse) GetWarnings() []string {
 func (x *ResolveResponse) GetListingAvailable() bool {
 	if x != nil {
 		return x.ListingAvailable
+	}
+	return false
+}
+
+func (x *ResolveResponse) GetArchiveMember() bool {
+	if x != nil {
+		return x.ArchiveMember
 	}
 	return false
 }
@@ -997,6 +1037,302 @@ func (x *ListDirectoryResponse) GetWarnings() []string {
 	return nil
 }
 
+type ListArchiveRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	PreviewId     string                 `protobuf:"bytes,2,opt,name=preview_id,json=previewId,proto3" json:"preview_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListArchiveRequest) Reset() {
+	*x = ListArchiveRequest{}
+	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListArchiveRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListArchiveRequest) ProtoMessage() {}
+
+func (x *ListArchiveRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListArchiveRequest.ProtoReflect.Descriptor instead.
+func (*ListArchiveRequest) Descriptor() ([]byte, []int) {
+	return file_web_console_v1_file_preview_file_preview_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ListArchiveRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *ListArchiveRequest) GetPreviewId() string {
+	if x != nil {
+		return x.PreviewId
+	}
+	return ""
+}
+
+// Stable machine codes: ready, unsupported, corrupt, limit, busy, timeout,
+// expired, stale, depth, missing, blocked. Clients localize these codes.
+type ListArchiveResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Format        string                 `protobuf:"bytes,1,opt,name=format,proto3" json:"format,omitempty"`
+	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	Entries       []*ArchiveEntry        `protobuf:"bytes,3,rep,name=entries,proto3" json:"entries,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListArchiveResponse) Reset() {
+	*x = ListArchiveResponse{}
+	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListArchiveResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListArchiveResponse) ProtoMessage() {}
+
+func (x *ListArchiveResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListArchiveResponse.ProtoReflect.Descriptor instead.
+func (*ListArchiveResponse) Descriptor() ([]byte, []int) {
+	return file_web_console_v1_file_preview_file_preview_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *ListArchiveResponse) GetFormat() string {
+	if x != nil {
+		return x.Format
+	}
+	return ""
+}
+
+func (x *ListArchiveResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *ListArchiveResponse) GetEntries() []*ArchiveEntry {
+	if x != nil {
+		return x.Entries
+	}
+	return nil
+}
+
+type ArchiveEntry struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Physical entry ordinal, independent of path and duplicate names.
+	EntryId   string `protobuf:"bytes,1,opt,name=entry_id,json=entryId,proto3" json:"entry_id,omitempty"`
+	Name      string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	SizeBytes int64  `protobuf:"varint,3,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
+	// ready, directory, unsafe, link, special, encrypted, unsupported, too_large.
+	Status        string `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ArchiveEntry) Reset() {
+	*x = ArchiveEntry{}
+	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchiveEntry) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchiveEntry) ProtoMessage() {}
+
+func (x *ArchiveEntry) ProtoReflect() protoreflect.Message {
+	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchiveEntry.ProtoReflect.Descriptor instead.
+func (*ArchiveEntry) Descriptor() ([]byte, []int) {
+	return file_web_console_v1_file_preview_file_preview_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *ArchiveEntry) GetEntryId() string {
+	if x != nil {
+		return x.EntryId
+	}
+	return ""
+}
+
+func (x *ArchiveEntry) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ArchiveEntry) GetSizeBytes() int64 {
+	if x != nil {
+		return x.SizeBytes
+	}
+	return 0
+}
+
+func (x *ArchiveEntry) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+type OpenArchiveEntryRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	PreviewId     string                 `protobuf:"bytes,2,opt,name=preview_id,json=previewId,proto3" json:"preview_id,omitempty"`
+	EntryId       string                 `protobuf:"bytes,3,opt,name=entry_id,json=entryId,proto3" json:"entry_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OpenArchiveEntryRequest) Reset() {
+	*x = OpenArchiveEntryRequest{}
+	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OpenArchiveEntryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OpenArchiveEntryRequest) ProtoMessage() {}
+
+func (x *OpenArchiveEntryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OpenArchiveEntryRequest.ProtoReflect.Descriptor instead.
+func (*OpenArchiveEntryRequest) Descriptor() ([]byte, []int) {
+	return file_web_console_v1_file_preview_file_preview_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *OpenArchiveEntryRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *OpenArchiveEntryRequest) GetPreviewId() string {
+	if x != nil {
+		return x.PreviewId
+	}
+	return ""
+}
+
+func (x *OpenArchiveEntryRequest) GetEntryId() string {
+	if x != nil {
+		return x.EntryId
+	}
+	return ""
+}
+
+type OpenArchiveEntryResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Status        string                 `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	Target        *ResolveResponse       `protobuf:"bytes,2,opt,name=target,proto3" json:"target,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OpenArchiveEntryResponse) Reset() {
+	*x = OpenArchiveEntryResponse{}
+	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OpenArchiveEntryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OpenArchiveEntryResponse) ProtoMessage() {}
+
+func (x *OpenArchiveEntryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OpenArchiveEntryResponse.ProtoReflect.Descriptor instead.
+func (*OpenArchiveEntryResponse) Descriptor() ([]byte, []int) {
+	return file_web_console_v1_file_preview_file_preview_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *OpenArchiveEntryResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *OpenArchiveEntryResponse) GetTarget() *ResolveResponse {
+	if x != nil {
+		return x.Target
+	}
+	return nil
+}
+
 var File_web_console_v1_file_preview_file_preview_proto protoreflect.FileDescriptor
 
 const file_web_console_v1_file_preview_file_preview_proto_rawDesc = "" +
@@ -1006,7 +1342,7 @@ const file_web_console_v1_file_preview_file_preview_proto_rawDesc = "" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12X\n" +
-	"\x0esource_context\x18\x03 \x01(\x0e21.vrooli.web_console.v1.file_preview.SourceContextR\rsourceContext\"\xd3\x05\n" +
+	"\x0esource_context\x18\x03 \x01(\x0e21.vrooli.web_console.v1.file_preview.SourceContextR\rsourceContext\"\xfa\x05\n" +
 	"\x0fResolveResponse\x12\x1d\n" +
 	"\n" +
 	"preview_id\x18\x01 \x01(\tR\tpreviewId\x12\x1d\n" +
@@ -1031,7 +1367,8 @@ const file_web_console_v1_file_preview_file_preview_proto_rawDesc = "" +
 	"\bblob_url\x18\x10 \x01(\tR\ablobUrl\x12*\n" +
 	"\x11expires_unix_nano\x18\x11 \x01(\x03R\x0fexpiresUnixNano\x12\x1a\n" +
 	"\bwarnings\x18\x12 \x03(\tR\bwarnings\x12+\n" +
-	"\x11listing_available\x18\x13 \x01(\bR\x10listingAvailable\"U\n" +
+	"\x11listing_available\x18\x13 \x01(\bR\x10listingAvailable\x12%\n" +
+	"\x0earchive_member\x18\x14 \x01(\bR\rarchiveMember\"U\n" +
 	"\x15GetTextContentRequest\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x1d\n" +
@@ -1081,7 +1418,31 @@ const file_web_console_v1_file_preview_file_preview_proto_rawDesc = "" +
 	"\ttruncated\x18\x05 \x01(\bR\ttruncated\x12&\n" +
 	"\x0fnext_page_token\x18\x06 \x01(\tR\rnextPageToken\x12X\n" +
 	"\x0eeffective_sort\x18\a \x01(\x0e21.vrooli.web_console.v1.file_preview.DirectorySortR\reffectiveSort\x12\x1a\n" +
-	"\bwarnings\x18\b \x03(\tR\bwarnings*\xcf\x02\n" +
+	"\bwarnings\x18\b \x03(\tR\bwarnings\"R\n" +
+	"\x12ListArchiveRequest\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x1d\n" +
+	"\n" +
+	"preview_id\x18\x02 \x01(\tR\tpreviewId\"\x91\x01\n" +
+	"\x13ListArchiveResponse\x12\x16\n" +
+	"\x06format\x18\x01 \x01(\tR\x06format\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x12J\n" +
+	"\aentries\x18\x03 \x03(\v20.vrooli.web_console.v1.file_preview.ArchiveEntryR\aentries\"t\n" +
+	"\fArchiveEntry\x12\x19\n" +
+	"\bentry_id\x18\x01 \x01(\tR\aentryId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1d\n" +
+	"\n" +
+	"size_bytes\x18\x03 \x01(\x03R\tsizeBytes\x12\x16\n" +
+	"\x06status\x18\x04 \x01(\tR\x06status\"r\n" +
+	"\x17OpenArchiveEntryRequest\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x1d\n" +
+	"\n" +
+	"preview_id\x18\x02 \x01(\tR\tpreviewId\x12\x19\n" +
+	"\bentry_id\x18\x03 \x01(\tR\aentryId\"\x7f\n" +
+	"\x18OpenArchiveEntryResponse\x12\x16\n" +
+	"\x06status\x18\x01 \x01(\tR\x06status\x12K\n" +
+	"\x06target\x18\x02 \x01(\v23.vrooli.web_console.v1.file_preview.ResolveResponseR\x06target*\xa6\x04\n" +
 	"\vPreviewKind\x12\x1c\n" +
 	"\x18PREVIEW_KIND_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15PREVIEW_KIND_MARKDOWN\x10\x01\x12\x15\n" +
@@ -1096,7 +1457,15 @@ const file_web_console_v1_file_preview_file_preview_proto_rawDesc = "" +
 	"\x11PREVIEW_KIND_DIFF\x10\n" +
 	"\x12\x1c\n" +
 	"\x18PREVIEW_KIND_UNSUPPORTED\x10\v\x12\x1a\n" +
-	"\x16PREVIEW_KIND_DIRECTORY\x10\f*\xa9\x01\n" +
+	"\x16PREVIEW_KIND_DIRECTORY\x10\f\x12\x1c\n" +
+	"\x18PREVIEW_KIND_SPREADSHEET\x10\r\x12\x19\n" +
+	"\x15PREVIEW_KIND_DOCUMENT\x10\x0e\x12\x18\n" +
+	"\x14PREVIEW_KIND_ARCHIVE\x10\x0f\x12\x1d\n" +
+	"\x19PREVIEW_KIND_PRESENTATION\x10\x10\x12\x16\n" +
+	"\x12PREVIEW_KIND_EBOOK\x10\x11\x12\x19\n" +
+	"\x15PREVIEW_KIND_MODEL_3D\x10\x12\x12\x15\n" +
+	"\x11PREVIEW_KIND_FONT\x10\x13\x12\x19\n" +
+	"\x15PREVIEW_KIND_DATABASE\x10\x14*\xa9\x01\n" +
 	"\rDirectorySort\x12\x1e\n" +
 	"\x1aDIRECTORY_SORT_UNSPECIFIED\x10\x00\x12\"\n" +
 	"\x1eDIRECTORY_SORT_DIRS_FIRST_NAME\x10\x01\x12\x17\n" +
@@ -1113,11 +1482,13 @@ const file_web_console_v1_file_preview_file_preview_proto_rawDesc = "" +
 	"\x1aSOURCE_CONTEXT_UNSPECIFIED\x10\x00\x12\x1f\n" +
 	"\x1bSOURCE_CONTEXT_MESSAGE_LINK\x10\x01\x12\x1e\n" +
 	"\x1aSOURCE_CONTEXT_INLINE_CODE\x10\x02\x12\x16\n" +
-	"\x12SOURCE_CONTEXT_CLI\x10\x032\x99\x03\n" +
+	"\x12SOURCE_CONTEXT_CLI\x10\x032\xa9\x05\n" +
 	"\x12FilePreviewService\x12r\n" +
 	"\aResolve\x122.vrooli.web_console.v1.file_preview.ResolveRequest\x1a3.vrooli.web_console.v1.file_preview.ResolveResponse\x12\x87\x01\n" +
 	"\x0eGetTextContent\x129.vrooli.web_console.v1.file_preview.GetTextContentRequest\x1a:.vrooli.web_console.v1.file_preview.GetTextContentResponse\x12\x84\x01\n" +
-	"\rListDirectory\x128.vrooli.web_console.v1.file_preview.ListDirectoryRequest\x1a9.vrooli.web_console.v1.file_preview.ListDirectoryResponseB\\ZZgithub.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/file_preview;file_preview_v1b\x06proto3"
+	"\rListDirectory\x128.vrooli.web_console.v1.file_preview.ListDirectoryRequest\x1a9.vrooli.web_console.v1.file_preview.ListDirectoryResponse\x12~\n" +
+	"\vListArchive\x126.vrooli.web_console.v1.file_preview.ListArchiveRequest\x1a7.vrooli.web_console.v1.file_preview.ListArchiveResponse\x12\x8d\x01\n" +
+	"\x10OpenArchiveEntry\x12;.vrooli.web_console.v1.file_preview.OpenArchiveEntryRequest\x1a<.vrooli.web_console.v1.file_preview.OpenArchiveEntryResponseB\\ZZgithub.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/file_preview;file_preview_v1b\x06proto3"
 
 var (
 	file_web_console_v1_file_preview_file_preview_proto_rawDescOnce sync.Once
@@ -1132,19 +1503,24 @@ func file_web_console_v1_file_preview_file_preview_proto_rawDescGZIP() []byte {
 }
 
 var file_web_console_v1_file_preview_file_preview_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_web_console_v1_file_preview_file_preview_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_web_console_v1_file_preview_file_preview_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_web_console_v1_file_preview_file_preview_proto_goTypes = []any{
-	(PreviewKind)(0),               // 0: vrooli.web_console.v1.file_preview.PreviewKind
-	(DirectorySort)(0),             // 1: vrooli.web_console.v1.file_preview.DirectorySort
-	(EntryType)(0),                 // 2: vrooli.web_console.v1.file_preview.EntryType
-	(SourceContext)(0),             // 3: vrooli.web_console.v1.file_preview.SourceContext
-	(*ResolveRequest)(nil),         // 4: vrooli.web_console.v1.file_preview.ResolveRequest
-	(*ResolveResponse)(nil),        // 5: vrooli.web_console.v1.file_preview.ResolveResponse
-	(*GetTextContentRequest)(nil),  // 6: vrooli.web_console.v1.file_preview.GetTextContentRequest
-	(*GetTextContentResponse)(nil), // 7: vrooli.web_console.v1.file_preview.GetTextContentResponse
-	(*ListDirectoryRequest)(nil),   // 8: vrooli.web_console.v1.file_preview.ListDirectoryRequest
-	(*DirectoryEntry)(nil),         // 9: vrooli.web_console.v1.file_preview.DirectoryEntry
-	(*ListDirectoryResponse)(nil),  // 10: vrooli.web_console.v1.file_preview.ListDirectoryResponse
+	(PreviewKind)(0),                 // 0: vrooli.web_console.v1.file_preview.PreviewKind
+	(DirectorySort)(0),               // 1: vrooli.web_console.v1.file_preview.DirectorySort
+	(EntryType)(0),                   // 2: vrooli.web_console.v1.file_preview.EntryType
+	(SourceContext)(0),               // 3: vrooli.web_console.v1.file_preview.SourceContext
+	(*ResolveRequest)(nil),           // 4: vrooli.web_console.v1.file_preview.ResolveRequest
+	(*ResolveResponse)(nil),          // 5: vrooli.web_console.v1.file_preview.ResolveResponse
+	(*GetTextContentRequest)(nil),    // 6: vrooli.web_console.v1.file_preview.GetTextContentRequest
+	(*GetTextContentResponse)(nil),   // 7: vrooli.web_console.v1.file_preview.GetTextContentResponse
+	(*ListDirectoryRequest)(nil),     // 8: vrooli.web_console.v1.file_preview.ListDirectoryRequest
+	(*DirectoryEntry)(nil),           // 9: vrooli.web_console.v1.file_preview.DirectoryEntry
+	(*ListDirectoryResponse)(nil),    // 10: vrooli.web_console.v1.file_preview.ListDirectoryResponse
+	(*ListArchiveRequest)(nil),       // 11: vrooli.web_console.v1.file_preview.ListArchiveRequest
+	(*ListArchiveResponse)(nil),      // 12: vrooli.web_console.v1.file_preview.ListArchiveResponse
+	(*ArchiveEntry)(nil),             // 13: vrooli.web_console.v1.file_preview.ArchiveEntry
+	(*OpenArchiveEntryRequest)(nil),  // 14: vrooli.web_console.v1.file_preview.OpenArchiveEntryRequest
+	(*OpenArchiveEntryResponse)(nil), // 15: vrooli.web_console.v1.file_preview.OpenArchiveEntryResponse
 }
 var file_web_console_v1_file_preview_file_preview_proto_depIdxs = []int32{
 	3,  // 0: vrooli.web_console.v1.file_preview.ResolveRequest.source_context:type_name -> vrooli.web_console.v1.file_preview.SourceContext
@@ -1155,17 +1531,23 @@ var file_web_console_v1_file_preview_file_preview_proto_depIdxs = []int32{
 	0,  // 5: vrooli.web_console.v1.file_preview.DirectoryEntry.preview_kind:type_name -> vrooli.web_console.v1.file_preview.PreviewKind
 	9,  // 6: vrooli.web_console.v1.file_preview.ListDirectoryResponse.entries:type_name -> vrooli.web_console.v1.file_preview.DirectoryEntry
 	1,  // 7: vrooli.web_console.v1.file_preview.ListDirectoryResponse.effective_sort:type_name -> vrooli.web_console.v1.file_preview.DirectorySort
-	4,  // 8: vrooli.web_console.v1.file_preview.FilePreviewService.Resolve:input_type -> vrooli.web_console.v1.file_preview.ResolveRequest
-	6,  // 9: vrooli.web_console.v1.file_preview.FilePreviewService.GetTextContent:input_type -> vrooli.web_console.v1.file_preview.GetTextContentRequest
-	8,  // 10: vrooli.web_console.v1.file_preview.FilePreviewService.ListDirectory:input_type -> vrooli.web_console.v1.file_preview.ListDirectoryRequest
-	5,  // 11: vrooli.web_console.v1.file_preview.FilePreviewService.Resolve:output_type -> vrooli.web_console.v1.file_preview.ResolveResponse
-	7,  // 12: vrooli.web_console.v1.file_preview.FilePreviewService.GetTextContent:output_type -> vrooli.web_console.v1.file_preview.GetTextContentResponse
-	10, // 13: vrooli.web_console.v1.file_preview.FilePreviewService.ListDirectory:output_type -> vrooli.web_console.v1.file_preview.ListDirectoryResponse
-	11, // [11:14] is the sub-list for method output_type
-	8,  // [8:11] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	13, // 8: vrooli.web_console.v1.file_preview.ListArchiveResponse.entries:type_name -> vrooli.web_console.v1.file_preview.ArchiveEntry
+	5,  // 9: vrooli.web_console.v1.file_preview.OpenArchiveEntryResponse.target:type_name -> vrooli.web_console.v1.file_preview.ResolveResponse
+	4,  // 10: vrooli.web_console.v1.file_preview.FilePreviewService.Resolve:input_type -> vrooli.web_console.v1.file_preview.ResolveRequest
+	6,  // 11: vrooli.web_console.v1.file_preview.FilePreviewService.GetTextContent:input_type -> vrooli.web_console.v1.file_preview.GetTextContentRequest
+	8,  // 12: vrooli.web_console.v1.file_preview.FilePreviewService.ListDirectory:input_type -> vrooli.web_console.v1.file_preview.ListDirectoryRequest
+	11, // 13: vrooli.web_console.v1.file_preview.FilePreviewService.ListArchive:input_type -> vrooli.web_console.v1.file_preview.ListArchiveRequest
+	14, // 14: vrooli.web_console.v1.file_preview.FilePreviewService.OpenArchiveEntry:input_type -> vrooli.web_console.v1.file_preview.OpenArchiveEntryRequest
+	5,  // 15: vrooli.web_console.v1.file_preview.FilePreviewService.Resolve:output_type -> vrooli.web_console.v1.file_preview.ResolveResponse
+	7,  // 16: vrooli.web_console.v1.file_preview.FilePreviewService.GetTextContent:output_type -> vrooli.web_console.v1.file_preview.GetTextContentResponse
+	10, // 17: vrooli.web_console.v1.file_preview.FilePreviewService.ListDirectory:output_type -> vrooli.web_console.v1.file_preview.ListDirectoryResponse
+	12, // 18: vrooli.web_console.v1.file_preview.FilePreviewService.ListArchive:output_type -> vrooli.web_console.v1.file_preview.ListArchiveResponse
+	15, // 19: vrooli.web_console.v1.file_preview.FilePreviewService.OpenArchiveEntry:output_type -> vrooli.web_console.v1.file_preview.OpenArchiveEntryResponse
+	15, // [15:20] is the sub-list for method output_type
+	10, // [10:15] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_web_console_v1_file_preview_file_preview_proto_init() }
@@ -1179,7 +1561,7 @@ func file_web_console_v1_file_preview_file_preview_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_web_console_v1_file_preview_file_preview_proto_rawDesc), len(file_web_console_v1_file_preview_file_preview_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   7,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

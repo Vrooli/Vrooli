@@ -19,6 +19,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "generator_digest": "sha256:d62f642cc85260466ef67f24653340c95d277e2268cdf9983a7144dca50b1d50",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -76,6 +77,7 @@
     "gen/python/template_manager/v1/validation/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/template_manager/v1/validation/validation_pb2.py": "sha256:ebeccc43c46d34ed9b8878afe57692fc56e754fbbc8781ca32542beac380fd97",
     "gen/python/template_manager/v1/validation/validation_pb2.pyi": "sha256:adb1a21fe8940646e1caa2fa5a0ad6f41a871ce3bc8de81c63aceb60e0c71f37",
+    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4",
     "gen/typescript/template-manager/v1/debt/debt_pb.ts": "sha256:7dcc4e86d6a35b2a14bfd8bd8be3958088aaea4a78b4cac6c64af9933fdf55a3",
     "gen/typescript/template-manager/v1/guidance/guidance_pb.ts": "sha256:5afbf9618f6e98d48200ec7d17a51357f3615c8313adad4e585769bfeb92fe3a",
     "gen/typescript/template-manager/v1/lifecycle/lifecycle_pb.ts": "sha256:37376a31c9c6a128c9e78ac0c12d59316bb85436fe52c7ed1b858851bfb47a68",

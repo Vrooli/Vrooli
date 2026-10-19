@@ -13,6 +13,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "generator_digest": "sha256:d62f642cc85260466ef67f24653340c95d277e2268cdf9983a7144dca50b1d50",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -41,6 +42,7 @@
     "gen/typescript/music-library/v1/notes/attachments_pb.ts": "sha256:fafe6d5090a3ba0126b9396a9258edc4aaeada63b9a111a082690b703eeb326f",
     "gen/typescript/music-library/v1/notes/notes_pb.ts": "sha256:39db1b193992d1050ca1b875b0768a417f5569b378fe3d1d89c1563b43027760",
     "gen/typescript/music-library/v1/shared/errors_pb.ts": "sha256:5189b203062fcc42573c38873f2f3aff17bda540aac33c537cbd9150facacc7d",
-    "gen/typescript/music-library/v1/shared/health_pb.ts": "sha256:e2daf09a51c85b04989ee6c27dc82c0948f765318170d297200dbaf22407cee4"
+    "gen/typescript/music-library/v1/shared/health_pb.ts": "sha256:e2daf09a51c85b04989ee6c27dc82c0948f765318170d297200dbaf22407cee4",
+    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4"
   }
 }

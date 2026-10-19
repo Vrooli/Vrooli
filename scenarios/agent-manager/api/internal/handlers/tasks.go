@@ -246,6 +246,11 @@ func (h *Handler) CancelTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if _, err := authn.RequireOperation(r.Context(), "agent-manager:write", "agent.manage", "agent-manager:task/"+id.String()); err != nil {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "task cancellation requires exact agent.manage authority"})
+		return
+	}
+
 	if err := h.svc.CancelTask(r.Context(), id); err != nil {
 		writeError(w, r, err)
 		return

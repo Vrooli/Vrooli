@@ -102,6 +102,13 @@ type AuthorizationRepository interface {
 	UpdateNotification(context.Context, *AuthorizationGrant, *AuthorizationGrant) (bool, error)
 }
 
+// AuthorizationNotificationRetryRepository is the optional durable scan used
+// by the background notification reconciler. Keeping it separate preserves the
+// core authority repository contract for in-memory/test implementations.
+type AuthorizationNotificationRetryRepository interface {
+	ListNotificationRetryScanPage(context.Context, string, int) ([]*AuthorizationGrant, error)
+}
+
 // AuthorizationError carries bounded recovery metadata without credentials.
 type AuthorizationError struct{ Code string }
 

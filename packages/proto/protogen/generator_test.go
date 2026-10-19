@@ -393,6 +393,12 @@ func TestConcurrentGeneratorsKeepPublishedArtifactsReadable(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(protoRoot, "buf.gen.yaml"), []byte("version: v2\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.MkdirAll(filepath.Join(protoRoot, "protogen"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(protoRoot, "protogen", "generator.go"), []byte("package protogen\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	for _, tool := range []string{"buf", "protoc-gen-go", "protoc-gen-connect-go", "protoc-gen-es", "protoc"} {
 		path := filepath.Join(root, "internal", "tools", tool, "tool.json")
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
@@ -533,6 +539,12 @@ func TestGeneratePublishesSelectedArtifactAndRejectsSourceDrift(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	if err := os.MkdirAll(filepath.Join(protoRoot, "protogen"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(protoRoot, "protogen", "generator.go"), []byte("package protogen\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	for _, tool := range []string{"buf", "protoc-gen-go", "protoc-gen-connect-go", "protoc-gen-es", "protoc"} {
 		path := filepath.Join(root, "internal", "tools", tool, "tool.json")
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
@@ -642,6 +654,7 @@ func TestScopedArtifactPublishPreservesUnrelatedWorktreeOutputs(t *testing.T) {
 			for _, file := range []string{"buf.yaml", "buf.gen.yaml", "buf.lock"} {
 				write(filepath.Join(protoRoot, file), "version: v2\n")
 			}
+			write(filepath.Join(protoRoot, "protogen", "generator.go"), "package protogen\n")
 			for _, tool := range []string{"buf", "protoc-gen-go", "protoc-gen-connect-go", "protoc-gen-es", "protoc"} {
 				write(filepath.Join(root, "internal", "tools", tool, "tool.json"), `{"version":"test"}`)
 			}
@@ -711,7 +724,7 @@ func TestScopedArtifactPublishPreservesUnrelatedWorktreeOutputs(t *testing.T) {
 				"typescript/beta/effort.ts":  "new unrelated TS type",
 				"manifests/beta.lock.json":   "unrelated beta manifest",
 				"typescript/buf/other.ts":    "unmaterialized shared type",
-				"typescript/package.json":    "{\"name\":\"fixture-types\"}",
+				"typescript/package.json":    defaultTypeScriptPackage,
 			}
 			for rel, contents := range preserved {
 				write(filepath.Join(genRoot, rel), contents)
@@ -1163,5 +1176,124 @@ func TestScopedPublishWithoutDescriptorLeavesTheCommittedImage(t *testing.T) {
 	}
 	if got, err := os.ReadFile(filepath.Join(targetGen, "go", "alpha", "binding.go")); err != nil || string(got) != "partial" {
 		t.Fatalf("scoped output = %q, err=%v; want the scoped code still published", got, err)
+	}
+}
+
+// A clean generation cannot depend on the metadata it is responsible for
+// producing. The verifier must stage it too, making its absence visible.
+func TestGeneratedTypeScriptMetadataAlwaysUsesCanonicalProducer(t *testing.T) {
+	for _, initial := range []string{"missing", "tampered"} {
+		t.Run(initial, func(t *testing.T) {
+			root := t.TempDir()
+			protoRoot := filepath.Join(root, "packages", "proto")
+			if initial == "tampered" {
+				source := filepath.Join(protoRoot, "gen", "typescript", "package.json")
+				if err := os.MkdirAll(filepath.Dir(source), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(source, []byte(`{"name":"not-the-package"}`), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			generator := &Generator{cfg: Config{ProtoRoot: protoRoot}}
+			stage := filepath.Join(root, "stage")
+			if err := generator.seedGeneratedMetadata(stage); err != nil {
+				t.Fatal(err)
+			}
+			raw, err := os.ReadFile(filepath.Join(stage, "typescript", "package.json"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(raw) != defaultTypeScriptPackage {
+				t.Fatalf("staged metadata = %q; want canonical producer bytes", raw)
+			}
+			committed := filepath.Join(root, "gen")
+			if err := os.MkdirAll(committed, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			findings, err := compareTrees(stage, committed)
+			if err != nil || len(findings) == 0 {
+				t.Fatalf("missing manifest was not detected: %v %v", findings, err)
+			}
+		})
+	}
+}
+
+func TestScopedPublishRestoresCanonicalTypeScriptPackageMetadata(t *testing.T) {
+	canonical := []byte(defaultTypeScriptPackage)
+	for _, initial := range []string{"missing", "tampered"} {
+		t.Run(initial, func(t *testing.T) {
+			root := t.TempDir()
+			protoRoot := filepath.Join(root, "packages", "proto")
+			targetRoot := filepath.Join(protoRoot, "gen", "typescript")
+			stageGen := filepath.Join(root, "stage", "gen")
+			stageRoot := filepath.Join(stageGen, "typescript")
+			if err := os.MkdirAll(stageRoot, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.MkdirAll(filepath.Join(targetRoot, "buf"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if initial == "tampered" {
+				if err := os.WriteFile(filepath.Join(targetRoot, "package.json"), []byte("stale metadata\n"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := os.WriteFile(filepath.Join(targetRoot, "buf", "types_pb.ts"), []byte("preserve\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(stageRoot, "package.json"), canonical, 0o644); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.MkdirAll(filepath.Join(stageRoot, "buf"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(stageRoot, "buf", "selected.ts"), []byte("selected\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			generator := &Generator{cfg: Config{ProtoRoot: protoRoot, Logger: io.Discard}}
+			if err := generator.publishSharedImports(stageGen, filepath.Join(protoRoot, "gen"), []string{"selected-scenario"}); err != nil {
+				t.Fatal(err)
+			}
+			published, err := os.ReadFile(filepath.Join(targetRoot, "package.json"))
+			if err != nil || string(published) != string(canonical) {
+				t.Fatalf("published package metadata = %q, err=%v; want canonical bytes", published, err)
+			}
+			survivor, err := os.ReadFile(filepath.Join(targetRoot, "buf", "types_pb.ts"))
+			if err != nil || string(survivor) != "preserve\n" {
+				t.Fatalf("unselected shared type = %q, err=%v; want preserved bytes", survivor, err)
+			}
+		})
+	}
+}
+
+func TestCompareTreesIgnoresPythonRuntimeBytecodeButDetectsSourceDrift(t *testing.T) {
+	stage, committed := t.TempDir(), t.TempDir()
+	for _, root := range []string{stage, committed} {
+		dir := filepath.Join(root, "python", "demo")
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "demo_pb2.py"), []byte("generated source"), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cache := filepath.Join(committed, "python", "demo", "__pycache__")
+	if err := os.MkdirAll(cache, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(cache, "demo_pb2.cpython-312.pyc"), []byte("runtime cache"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	findings, err := compareTrees(stage, committed)
+	if err != nil || len(findings) != 0 {
+		t.Fatalf("runtime bytecode changed generated standing: %v %v", findings, err)
+	}
+	if err := os.WriteFile(filepath.Join(committed, "python", "demo", "demo_pb2.py"), []byte("drifted source"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	findings, err = compareTrees(stage, committed)
+	if err != nil || len(findings) != 1 || findings[0] != "content-differs:gen/python/demo/demo_pb2.py" {
+		t.Fatalf("source drift was hidden: %v %v", findings, err)
 	}
 }

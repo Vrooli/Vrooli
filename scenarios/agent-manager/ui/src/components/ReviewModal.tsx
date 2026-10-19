@@ -13,6 +13,7 @@ import {
 import { DiffViewer } from "./DiffViewer";
 import type { Run, RunDiff } from "../types";
 import { ApprovalState } from "../types";
+import { reviewFileCount } from "../lib/reviewFileCount";
 
 interface ReviewModalProps {
   open: boolean;
@@ -52,6 +53,17 @@ export function ReviewModal({
 }: ReviewModalProps) {
   const approvalLabel = approvalStateLabel(run.approvalState);
   const awaitingReview = run.approvalState === ApprovalState.PENDING;
+  const currentDiff = diffLoading ? null : diff;
+  const fileCount = reviewFileCount(run, currentDiff);
+  const hasVerifiedDiff = currentDiff?.runId === run.id && currentDiff.fileCountVerified;
+  let countDescription = "Review run changes";
+  if (!fileCount.available) {
+    countDescription = "File count unavailable";
+  } else if (fileCount.count === 0) {
+    countDescription = "0 changed files in the verified diff";
+  } else if (fileCount.count > 0) {
+    countDescription = `${fileCount.count} changed file${fileCount.count !== 1 ? "s" : ""} awaiting review`;
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -62,9 +74,7 @@ export function ReviewModal({
             Review Changes
           </DialogTitle>
           <DialogDescription>
-            {run.changedFiles > 0
-              ? `${run.changedFiles} changed file${run.changedFiles !== 1 ? "s" : ""} awaiting review`
-              : "Review run changes"}
+            {countDescription}
           </DialogDescription>
         </DialogHeader>
 
@@ -83,7 +93,7 @@ export function ReviewModal({
                   )}
                   <div>
                     <span className="text-muted-foreground">Changed files: </span>
-                    {run.changedFiles > 0 ? run.changedFiles : "None"}
+                    {fileCount.available ? fileCount.count : "Unavailable"}
                   </div>
                   {run.sandboxId && (
                     <div>
@@ -108,11 +118,15 @@ export function ReviewModal({
               </div>
 
               {/* Approvals are handled in the Web Console approvals inbox, not here. */}
-              {awaitingReview && (
+              {awaitingReview && (run.actions?.reviewUnavailableReason ? (
+                <div role="status" className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 text-sm text-amber-700 dark:text-amber-400">
+                  {run.actions.reviewUnavailableReason}
+                </div>
+              ) : (
                 <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
                   Approve or reject this run from the <span className="font-medium text-foreground">Web Console approvals inbox</span>, the single place operator decisions are answered.
                 </div>
-              )}
+              ))}
             </div>
 
             {/* Right column: Diff */}
@@ -125,8 +139,12 @@ export function ReviewModal({
                   <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
                   <p className="mt-3 text-sm">Loading diff...</p>
                 </div>
-              ) : diff ? (
-                <DiffViewer diff={diff} />
+              ) : hasVerifiedDiff && currentDiff ? (
+                <DiffViewer diff={currentDiff} />
+              ) : currentDiff ? (
+                <div className="py-12 text-center text-muted-foreground text-sm">
+                  Diff evidence is incomplete; changes and file count are unverified.
+                </div>
               ) : (
                 <div className="py-12 text-center text-muted-foreground text-sm">
                   No diff available

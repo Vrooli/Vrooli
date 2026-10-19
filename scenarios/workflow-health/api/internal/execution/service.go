@@ -175,6 +175,7 @@ func (s *Service) RunScenario(ctx context.Context, scenario, path string, opts O
 				opts.ExtraHeaders = map[string]string{}
 			}
 			opts.ExtraHeaders["X-Vrooli-Test-Mode"] = "1"
+			opts.ExtraHeaders["X-Vrooli-Test-Lease-ID"] = report.Isolation.LeaseID
 			defer func() {
 				report.Isolation = lease.Close(context.Background())
 				if heartbeatErr := isolationHealthError(lease); heartbeatErr != nil {
@@ -201,7 +202,7 @@ func (s *Service) RunScenario(ctx context.Context, scenario, path string, opts O
 	}
 	writer := artifacts.NewWriter(targetDir, firstNonEmpty(opts.RunID, fmt.Sprintf("workflow-health-%d", s.now().Unix())))
 	for _, asset := range selected {
-		run := s.runAsset(executionCtx, writer, asset, targetDir, opts, isolationInstalled, isolationLease, scenario)
+		run := s.runAsset(executionCtx, writer, asset, targetDir, opts, isolationInstalled, isolationLease, scenario, static.Findings)
 		report.Runs = append(report.Runs, run)
 		switch {
 		case run.Refused:
@@ -256,7 +257,7 @@ func isolationHealthError(lease IsolationLease) error {
 	return nil
 }
 
-func (s *Service) runAsset(ctx context.Context, writer *artifacts.Writer, asset workflows.WorkflowAsset, targetDir string, opts Options, isolationInstalled bool, lease IsolationLease, runtimeScenario string) (run WorkflowRun) {
+func (s *Service) runAsset(ctx context.Context, writer *artifacts.Writer, asset workflows.WorkflowAsset, targetDir string, opts Options, isolationInstalled bool, lease IsolationLease, runtimeScenario string, staticFindings []validation.Finding) (run WorkflowRun) {
 	started := s.now()
 	run = WorkflowRun{Asset: asset, StartedAt: started}
 	defer func() {
@@ -300,7 +301,7 @@ func (s *Service) runAsset(ctx context.Context, writer *artifacts.Writer, asset 
 		run.Error = electronErr
 		return run
 	}
-	if reason := refusalReason(asset, isolationInstalled); reason != "" {
+	if reason := refusalReason(asset, isolationInstalled, staticFindings); reason != "" {
 		run.Refused = true
 		run.Status = "refused"
 		run.Error = reason
@@ -508,7 +509,12 @@ func selectAssets(catalog *workflows.ScenarioWorkflowCatalog, opts Options) []wo
 	return out
 }
 
-func refusalReason(asset workflows.WorkflowAsset, isolationInstalled bool) string {
+func refusalReason(asset workflows.WorkflowAsset, isolationInstalled bool, staticFindings []validation.Finding) string {
+	for _, finding := range staticFindings {
+		if finding.Code == validation.CodeObserverContentUnsafe && finding.Severity == validation.SeverityError && finding.FilePath == asset.Path && (finding.AssetID == "" || finding.AssetID == asset.ID) {
+			return "observer workflow has a static safety error and cannot execute"
+		}
+	}
 	if asset.ParseError != "" {
 		return "workflow JSON did not parse; static validation must pass before execution"
 	}

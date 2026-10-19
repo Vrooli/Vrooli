@@ -276,17 +276,21 @@ func (s *Store) RecordIncidentRemediationOutcome(ctx context.Context, incidentID
 	return s.recordIncidentRemediationOutcomeSQLite(ctx, incidentID, outcome)
 }
 
+func (s *Store) RecordRemediationDeclineIfCurrent(ctx context.Context, incidentID, fingerprint, candidateID, eventID, digest string, generation int, candidateSnapshot, artifactSnapshot string, outcome incidents.Outcome) (bool, error) {
+	return s.recordRemediationDeclineIfCurrentSQLite(ctx, incidentID, fingerprint, candidateID, eventID, digest, generation, candidateSnapshot, artifactSnapshot, outcome)
+}
+
 // RecordRemediationAuthorisation persists the exact ask-to-incident binding
 // that was verified by notification-hub. The ask id is unique, so an answer
 // cannot authorize two executions.
-func (s *Store) RecordRemediationAuthorisation(ctx context.Context, askID, incidentID, fingerprint, remediationID, approvedBy string, approvedAt time.Time) error {
-	return s.recordRemediationAuthorisationSQLite(ctx, askID, incidentID, fingerprint, remediationID, approvedBy, approvedAt)
+func (s *Store) RecordRemediationAuthorisation(ctx context.Context, askID, incidentID, fingerprint, remediationID string, generation int, eventID, digest, candidateSnapshot, artifactSnapshot, approvedBy string, approvedAt time.Time) error {
+	return s.recordRemediationAuthorisationSQLite(ctx, askID, incidentID, fingerprint, remediationID, generation, eventID, digest, candidateSnapshot, artifactSnapshot, approvedBy, approvedAt)
 }
 
 // ClaimRemediationAuthorisation makes an approved ask single-use. A false
 // result means the authorization was absent, mismatched, or already consumed.
-func (s *Store) ClaimRemediationAuthorisation(ctx context.Context, askID, incidentID, fingerprint, remediationID string, consumedAt time.Time) (bool, error) {
-	return s.claimRemediationAuthorisationSQLite(ctx, askID, incidentID, fingerprint, remediationID, consumedAt)
+func (s *Store) ClaimRemediationAuthorisation(ctx context.Context, askID, incidentID, fingerprint, remediationID string, generation int, eventID, digest, candidateSnapshot, artifactSnapshot string, consumedAt time.Time) (bool, error) {
+	return s.claimRemediationAuthorisationSQLite(ctx, askID, incidentID, fingerprint, remediationID, generation, eventID, digest, candidateSnapshot, artifactSnapshot, consumedAt)
 }
 
 // ActionLog represents a logged recovery action execution.

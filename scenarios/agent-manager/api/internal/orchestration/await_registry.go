@@ -87,6 +87,19 @@ func (r *AwaitRegistry) RegisterWaiter(waiter Waiter) {
 	r.waiters[waiter.Producer()] = waiter
 }
 
+// SupportsProducer reports whether a waiter is currently registered for a new
+// park request. Persisted handles are still recovered through Register; this
+// admission check does not change legacy recovery behavior.
+func (r *AwaitRegistry) SupportsProducer(producer string) bool {
+	if r == nil {
+		return false
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	_, ok := r.waiters[producer]
+	return ok
+}
+
 func (r *AwaitRegistry) log() *slog.Logger { return obs.Component("await-registry") }
 
 // Register spawns (if not already watching the run) a background watcher for a

@@ -340,6 +340,23 @@ func validateApplyAtRunEndRequest(req *types.ApplyAtRunEndRequest) error {
 // Idempotent: calling Reject on an already-rejected sandbox returns
 // success with the current sandbox state.
 func (s *Service) Reject(ctx context.Context, id uuid.UUID, actor string) (*types.Sandbox, error) {
+	return s.RejectWithPrecondition(ctx, &types.RejectionRequest{SandboxID: id, Actor: actor})
+}
+
+// RejectWithPrecondition rejects under the normal review lock. When a patch
+// digest is supplied, the transition checks the exact DiffResult it archives;
+// a mismatch leaves sandbox state, archive, and overlay untouched.
+func (s *Service) RejectWithPrecondition(ctx context.Context, req *types.RejectionRequest) (*types.Sandbox, error) {
+	if req == nil {
+		return nil, types.NewValidationError("request", "request body is required")
+	}
+	if req.ExpectedPatchSHA256 != "" {
+		digest, err := hex.DecodeString(req.ExpectedPatchSHA256)
+		if err != nil || len(digest) != sha256.Size || strings.ToLower(req.ExpectedPatchSHA256) != req.ExpectedPatchSHA256 {
+			return nil, types.NewValidationError("expectedPatchSha256", "must be a lowercase SHA-256 hex digest")
+		}
+	}
+	id, actor := req.SandboxID, req.Actor
 	release, err := s.lockUnprepared(ctx, id)
 	if err != nil {
 		return nil, err
@@ -351,6 +368,18 @@ func (s *Service) Reject(ctx context.Context, id uuid.UUID, actor string) (*type
 	}
 
 	if sandbox.Status == types.StatusRejected {
+		if req.ExpectedPatchSHA256 != "" {
+			archived, err := s.GetArchive(ctx, id)
+			if err != nil {
+				return nil, err
+			}
+			if archived == nil || archived.ArchiveState != types.ArchiveStateComplete {
+				return nil, types.NewValidationError("expectedPatchSha256", "rejected sandbox has no captured patch to verify")
+			}
+			if err := checkReviewedPatch(req.ExpectedPatchSHA256, archived.PatchSHA256); err != nil {
+				return nil, err
+			}
+		}
 		return sandbox, nil
 	}
 
@@ -359,7 +388,10 @@ func (s *Service) Reject(ctx context.Context, id uuid.UUID, actor string) (*type
 	}
 
 	captured := types.CanGenerateDiff(sandbox.Status) == nil
-	if err := s.snapshotAndTransition(ctx, sandbox, types.StatusRejected, captured, nil, nil); err != nil {
+	if req.ExpectedPatchSHA256 != "" && !captured {
+		return nil, types.NewValidationError("expectedPatchSha256", "sandbox diff is unavailable; refusing reviewed rejection")
+	}
+	if err := s.snapshotAndTransitionWithExpectedPatch(ctx, sandbox, types.StatusRejected, captured, nil, nil, req.ExpectedPatchSHA256); err != nil {
 		s.logAuditEvent(ctx, sandbox, "snapshot_failed", actor, "", map[string]interface{}{
 			"phase": "reject",
 			"error": err.Error(),

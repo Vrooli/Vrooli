@@ -42,6 +42,12 @@ const (
 	// FilePreviewServiceListDirectoryProcedure is the fully-qualified name of the FilePreviewService's
 	// ListDirectory RPC.
 	FilePreviewServiceListDirectoryProcedure = "/vrooli.web_console.v1.file_preview.FilePreviewService/ListDirectory"
+	// FilePreviewServiceListArchiveProcedure is the fully-qualified name of the FilePreviewService's
+	// ListArchive RPC.
+	FilePreviewServiceListArchiveProcedure = "/vrooli.web_console.v1.file_preview.FilePreviewService/ListArchive"
+	// FilePreviewServiceOpenArchiveEntryProcedure is the fully-qualified name of the
+	// FilePreviewService's OpenArchiveEntry RPC.
+	FilePreviewServiceOpenArchiveEntryProcedure = "/vrooli.web_console.v1.file_preview.FilePreviewService/OpenArchiveEntry"
 )
 
 // FilePreviewServiceClient is a client for the
@@ -59,6 +65,9 @@ type FilePreviewServiceClient interface {
 	// resolved by Resolve. It accepts only a preview_id — never a raw path — so
 	// a directory handle can never be repointed at another directory.
 	ListDirectory(context.Context, *connect.Request[file_preview.ListDirectoryRequest]) (*connect.Response[file_preview.ListDirectoryResponse], error)
+	// Bounded virtual inspection; never extracts to the filesystem.
+	ListArchive(context.Context, *connect.Request[file_preview.ListArchiveRequest]) (*connect.Response[file_preview.ListArchiveResponse], error)
+	OpenArchiveEntry(context.Context, *connect.Request[file_preview.OpenArchiveEntryRequest]) (*connect.Response[file_preview.OpenArchiveEntryResponse], error)
 }
 
 // NewFilePreviewServiceClient constructs a client for the
@@ -91,14 +100,28 @@ func NewFilePreviewServiceClient(httpClient connect.HTTPClient, baseURL string, 
 			connect.WithSchema(filePreviewServiceMethods.ByName("ListDirectory")),
 			connect.WithClientOptions(opts...),
 		),
+		listArchive: connect.NewClient[file_preview.ListArchiveRequest, file_preview.ListArchiveResponse](
+			httpClient,
+			baseURL+FilePreviewServiceListArchiveProcedure,
+			connect.WithSchema(filePreviewServiceMethods.ByName("ListArchive")),
+			connect.WithClientOptions(opts...),
+		),
+		openArchiveEntry: connect.NewClient[file_preview.OpenArchiveEntryRequest, file_preview.OpenArchiveEntryResponse](
+			httpClient,
+			baseURL+FilePreviewServiceOpenArchiveEntryProcedure,
+			connect.WithSchema(filePreviewServiceMethods.ByName("OpenArchiveEntry")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // filePreviewServiceClient implements FilePreviewServiceClient.
 type filePreviewServiceClient struct {
-	resolve        *connect.Client[file_preview.ResolveRequest, file_preview.ResolveResponse]
-	getTextContent *connect.Client[file_preview.GetTextContentRequest, file_preview.GetTextContentResponse]
-	listDirectory  *connect.Client[file_preview.ListDirectoryRequest, file_preview.ListDirectoryResponse]
+	resolve          *connect.Client[file_preview.ResolveRequest, file_preview.ResolveResponse]
+	getTextContent   *connect.Client[file_preview.GetTextContentRequest, file_preview.GetTextContentResponse]
+	listDirectory    *connect.Client[file_preview.ListDirectoryRequest, file_preview.ListDirectoryResponse]
+	listArchive      *connect.Client[file_preview.ListArchiveRequest, file_preview.ListArchiveResponse]
+	openArchiveEntry *connect.Client[file_preview.OpenArchiveEntryRequest, file_preview.OpenArchiveEntryResponse]
 }
 
 // Resolve calls vrooli.web_console.v1.file_preview.FilePreviewService.Resolve.
@@ -116,6 +139,16 @@ func (c *filePreviewServiceClient) ListDirectory(ctx context.Context, req *conne
 	return c.listDirectory.CallUnary(ctx, req)
 }
 
+// ListArchive calls vrooli.web_console.v1.file_preview.FilePreviewService.ListArchive.
+func (c *filePreviewServiceClient) ListArchive(ctx context.Context, req *connect.Request[file_preview.ListArchiveRequest]) (*connect.Response[file_preview.ListArchiveResponse], error) {
+	return c.listArchive.CallUnary(ctx, req)
+}
+
+// OpenArchiveEntry calls vrooli.web_console.v1.file_preview.FilePreviewService.OpenArchiveEntry.
+func (c *filePreviewServiceClient) OpenArchiveEntry(ctx context.Context, req *connect.Request[file_preview.OpenArchiveEntryRequest]) (*connect.Response[file_preview.OpenArchiveEntryResponse], error) {
+	return c.openArchiveEntry.CallUnary(ctx, req)
+}
+
 // FilePreviewServiceHandler is an implementation of the
 // vrooli.web_console.v1.file_preview.FilePreviewService service.
 type FilePreviewServiceHandler interface {
@@ -131,6 +164,9 @@ type FilePreviewServiceHandler interface {
 	// resolved by Resolve. It accepts only a preview_id — never a raw path — so
 	// a directory handle can never be repointed at another directory.
 	ListDirectory(context.Context, *connect.Request[file_preview.ListDirectoryRequest]) (*connect.Response[file_preview.ListDirectoryResponse], error)
+	// Bounded virtual inspection; never extracts to the filesystem.
+	ListArchive(context.Context, *connect.Request[file_preview.ListArchiveRequest]) (*connect.Response[file_preview.ListArchiveResponse], error)
+	OpenArchiveEntry(context.Context, *connect.Request[file_preview.OpenArchiveEntryRequest]) (*connect.Response[file_preview.OpenArchiveEntryResponse], error)
 }
 
 // NewFilePreviewServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -158,6 +194,18 @@ func NewFilePreviewServiceHandler(svc FilePreviewServiceHandler, opts ...connect
 		connect.WithSchema(filePreviewServiceMethods.ByName("ListDirectory")),
 		connect.WithHandlerOptions(opts...),
 	)
+	filePreviewServiceListArchiveHandler := connect.NewUnaryHandler(
+		FilePreviewServiceListArchiveProcedure,
+		svc.ListArchive,
+		connect.WithSchema(filePreviewServiceMethods.ByName("ListArchive")),
+		connect.WithHandlerOptions(opts...),
+	)
+	filePreviewServiceOpenArchiveEntryHandler := connect.NewUnaryHandler(
+		FilePreviewServiceOpenArchiveEntryProcedure,
+		svc.OpenArchiveEntry,
+		connect.WithSchema(filePreviewServiceMethods.ByName("OpenArchiveEntry")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.web_console.v1.file_preview.FilePreviewService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case FilePreviewServiceResolveProcedure:
@@ -166,6 +214,10 @@ func NewFilePreviewServiceHandler(svc FilePreviewServiceHandler, opts ...connect
 			filePreviewServiceGetTextContentHandler.ServeHTTP(w, r)
 		case FilePreviewServiceListDirectoryProcedure:
 			filePreviewServiceListDirectoryHandler.ServeHTTP(w, r)
+		case FilePreviewServiceListArchiveProcedure:
+			filePreviewServiceListArchiveHandler.ServeHTTP(w, r)
+		case FilePreviewServiceOpenArchiveEntryProcedure:
+			filePreviewServiceOpenArchiveEntryHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -185,4 +237,12 @@ func (UnimplementedFilePreviewServiceHandler) GetTextContent(context.Context, *c
 
 func (UnimplementedFilePreviewServiceHandler) ListDirectory(context.Context, *connect.Request[file_preview.ListDirectoryRequest]) (*connect.Response[file_preview.ListDirectoryResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.file_preview.FilePreviewService.ListDirectory is not implemented"))
+}
+
+func (UnimplementedFilePreviewServiceHandler) ListArchive(context.Context, *connect.Request[file_preview.ListArchiveRequest]) (*connect.Response[file_preview.ListArchiveResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.file_preview.FilePreviewService.ListArchive is not implemented"))
+}
+
+func (UnimplementedFilePreviewServiceHandler) OpenArchiveEntry(context.Context, *connect.Request[file_preview.OpenArchiveEntryRequest]) (*connect.Response[file_preview.OpenArchiveEntryResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.file_preview.FilePreviewService.OpenArchiveEntry is not implemented"))
 }

@@ -43,24 +43,32 @@ func GenerateToken(claims *Claims, secret []byte) (string, error) {
 // VerifyToken parses and validates a token string. Returns the claims if the
 // signature is valid and the token has not expired.
 func VerifyToken(token string, secret []byte) (*Claims, error) {
+	claims, err := VerifyTokenSignature(token, secret)
+	if err != nil {
+		return nil, err
+	}
+	if time.Now().Unix() >= claims.ExpiresAt {
+		return nil, ErrTokenExpired
+	}
+	return claims, nil
+}
+
+// VerifyTokenSignature validates the signature and parses claims without
+// applying the expiry policy. It is only for the local attached-identity
+// renewal broker; API authentication must continue to call VerifyToken.
+func VerifyTokenSignature(token string, secret []byte) (*Claims, error) {
 	parts := strings.SplitN(token, ".", 2)
 	if len(parts) != 2 {
 		return nil, ErrMalformedToken
 	}
 	payload, sigStr := parts[0], parts[1]
-
-	// Verify signature.
-	expected := sign([]byte(payload), secret)
-	if !hmac.Equal([]byte(sigStr), []byte(expected)) {
+	if !hmac.Equal([]byte(sigStr), []byte(sign([]byte(payload), secret))) {
 		return nil, ErrInvalidSignature
 	}
-
-	// Decode claims.
 	claimsJSON, err := base64.RawURLEncoding.DecodeString(payload)
 	if err != nil {
 		return nil, ErrMalformedToken
 	}
-
 	var claims Claims
 	if err := json.Unmarshal(claimsJSON, &claims); err != nil {
 		return nil, ErrMalformedToken
@@ -68,12 +76,6 @@ func VerifyToken(token string, secret []byte) (*Claims, error) {
 	if claims.Scopes == nil {
 		claims.Scopes = []string{}
 	}
-
-	// Check expiry.
-	if time.Now().Unix() >= claims.ExpiresAt {
-		return nil, ErrTokenExpired
-	}
-
 	return &claims, nil
 }
 

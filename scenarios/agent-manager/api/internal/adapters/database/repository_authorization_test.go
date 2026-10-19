@@ -64,6 +64,46 @@ func TestAuthorizationRepositoryNotificationCodecIsDurableAndRedacted(t *testing
 	}
 }
 
+func TestAuthorizationRepositoryNotificationRetryScanPageIsBoundedAndKeysetOrdered(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	t.Cleanup(cleanup)
+	repo := &authorizationRepository{db: db}
+	ctx := context.Background()
+	now := time.Date(2026, 10, 18, 8, 0, 0, 0, time.UTC)
+	ids := []string{
+		"00000000-0000-4000-8000-000000000001",
+		"00000000-0000-4000-8000-000000000002",
+		"00000000-0000-4000-8000-000000000003",
+		"00000000-0000-4000-8000-000000000004",
+	}
+	for i, rawID := range ids {
+		id, err := uuid.Parse(rawID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		grant := authorizationGrantFixture(now.Add(time.Duration(i) * time.Minute))
+		grant.ID = id
+		switch i {
+		case 1:
+			published := now
+			grant.NotificationPublishedAt = &published
+		case 3:
+			grant.State = domain.AuthorizationApproved
+		}
+		if err := repo.Create(ctx, grant); err != nil {
+			t.Fatal(err)
+		}
+	}
+	first, err := repo.ListNotificationRetryScanPage(ctx, "", 1)
+	if err != nil || len(first) != 1 || first[0].ID.String() != ids[0] {
+		t.Fatalf("first bounded page = %#v, err=%v; want %s", first, err, ids[0])
+	}
+	second, err := repo.ListNotificationRetryScanPage(ctx, first[0].ID.String(), 2)
+	if err != nil || len(second) != 2 || second[0].ID.String() != ids[1] || second[1].ID.String() != ids[2] {
+		t.Fatalf("cursor page = %#v, err=%v; want bounded rows %s and %s regardless of state", second, err, ids[1], ids[2])
+	}
+}
+
 func TestAuthorizationReplacePreservesReceiptInterleavingAndCASRejectsLateReceipt(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	t.Cleanup(cleanup)

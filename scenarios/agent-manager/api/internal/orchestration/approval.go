@@ -7,6 +7,9 @@ package orchestration
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
 	"log/slog"
 	"strings"
 
@@ -43,19 +46,50 @@ func (o *Orchestrator) ApproveRun(ctx context.Context, req ApproveRequest) (*App
 	}
 
 	// Apply changes via sandbox
+	sandboxID := *run.SandboxID
 	result, err := o.sandbox.Approve(ctx, sandbox.ApproveRequest{
-		SandboxID: *run.SandboxID,
-		Actor:     req.Actor,
-		CommitMsg: req.CommitMsg,
-		Force:     req.Force,
+		SandboxID:           sandboxID,
+		Actor:               req.Actor,
+		CommitMsg:           req.CommitMsg,
+		Force:               req.Force,
+		ExpectedPatchSHA256: req.ExpectedPatchSHA256,
 	})
 	if err != nil {
 		return nil, err
 	}
+	if result == nil {
+		return nil, &domain.SandboxError{
+			SandboxID: &sandboxID,
+			Operation: "approve",
+			Cause:     errors.New("workspace-sandbox returned no approval result"),
+		}
+	}
+	if !result.Success {
+		failure := strings.TrimSpace(result.ErrorMsg)
+		if failure == "" {
+			failure = "workspace-sandbox approval did not succeed"
+		}
+		return nil, &domain.SandboxError{
+			SandboxID: &sandboxID,
+			Operation: "approve",
+			Cause:     errors.New(failure),
+		}
+	}
 
-	// Update run to approved state
+	// Workspace Sandbox may accept only part of a manual Mode=all request.
+	// Preserve that outcome on the run instead of marking all changes approved.
+	if result.IsPartial || result.Remaining > 0 {
+		if err := o.markRunPartiallyApproved(ctx, run); err != nil {
+			approvalLog().Warn("mark run partially approved failed", obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
+			return nil, err
+		}
+		return mapApproveResult(result), nil
+	}
+
+	// Update run to approved state only after the provider reports full success.
 	if err := o.markRunApproved(ctx, run, req.Actor); err != nil {
 		approvalLog().Warn("mark run approved failed", obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
+		return nil, err
 	}
 
 	return mapApproveResult(result), nil
@@ -67,7 +101,20 @@ func (o *Orchestrator) ApproveRun(ctx context.Context, req ApproveRequest) (*App
 
 // RejectRun marks sandbox changes as rejected without applying.
 func (o *Orchestrator) RejectRun(ctx context.Context, id uuid.UUID, actor, reason string) error {
-	// Fetch and validate run
+	return o.rejectRun(ctx, id, actor, reason, "")
+}
+
+// RejectRunWithExpectedPatch is the Hub-driven decision path. It refuses to
+// claim rejection unless the sandbox owner confirms the exact reviewed patch.
+func (o *Orchestrator) RejectRunWithExpectedPatch(ctx context.Context, id uuid.UUID, actor, reason, expectedPatchSHA256 string) error {
+	digest, err := hex.DecodeString(expectedPatchSHA256)
+	if err != nil || len(digest) != sha256.Size || strings.ToLower(expectedPatchSHA256) != expectedPatchSHA256 {
+		return domain.NewValidationError("expectedPatchSha256", "must be a lowercase SHA-256 hex digest")
+	}
+	return o.rejectRun(ctx, id, actor, reason, expectedPatchSHA256)
+}
+
+func (o *Orchestrator) rejectRun(ctx context.Context, id uuid.UUID, actor, reason, expectedPatchSHA256 string) error {
 	run, err := o.getRunForApproval(ctx, id)
 	if err != nil {
 		return err
@@ -75,31 +122,39 @@ func (o *Orchestrator) RejectRun(ctx context.Context, id uuid.UUID, actor, reaso
 	if run.ExecutionMode.Normalized() == domain.ExecutionModeImported {
 		return importedRunLifecycleError("reject")
 	}
-
 	if allowed, rejectReason := domain.CanRejectRun(run); !allowed {
 		return domain.NewStateError("Run", string(run.Status), "reject", rejectReason)
 	}
-
-	// Reject and cleanup sandbox
-	if run.SandboxID != nil && o.sandbox != nil {
-		// First mark as rejected in workspace-sandbox
-		if err := o.sandbox.Reject(ctx, *run.SandboxID, actor); err != nil {
-			approvalLog().Warn("sandbox reject failed",
-				obs.KeySandboxID, run.SandboxID.String(),
-				obs.KeyError, err.Error(),
-			)
+	if expectedPatchSHA256 != "" {
+		if run.SandboxID == nil {
+			return domain.NewValidationError("sandboxId", "reviewed rejection requires the run sandbox")
 		}
-		// Then delete to fully release the scope lock
-		// This ensures the sandbox is cleaned up and scope is available for new runs
-		if err := o.sandbox.Delete(ctx, *run.SandboxID); err != nil {
-			approvalLog().Warn("sandbox delete failed",
-				obs.KeySandboxID, run.SandboxID.String(),
-				obs.KeyError, err.Error(),
-			)
+		if o.sandbox == nil {
+			return domain.NewConfigMissingError("sandbox", "reviewed rejection requires a sandbox provider", nil)
 		}
 	}
 
-	// Update run state
+	if run.SandboxID != nil && o.sandbox != nil {
+		var rejectErr error
+		if expectedPatchSHA256 != "" {
+			rejectErr = o.sandbox.RejectReviewed(ctx, sandbox.RejectRequest{
+				SandboxID: *run.SandboxID, Actor: actor, ExpectedPatchSHA256: expectedPatchSHA256,
+			})
+		} else {
+			rejectErr = o.sandbox.Reject(ctx, *run.SandboxID, actor)
+		}
+		if rejectErr != nil {
+			approvalLog().Warn("sandbox reject failed",
+				obs.KeySandboxID, run.SandboxID.String(), obs.KeyError, rejectErr.Error())
+			// Rejection is a prerequisite to disposal and run-state mutation. On
+			// provider failure or patch mismatch, preserve the pending run/sandbox.
+			return rejectErr
+		}
+		if err := o.sandbox.Delete(ctx, *run.SandboxID); err != nil {
+			approvalLog().Warn("sandbox delete failed",
+				obs.KeySandboxID, run.SandboxID.String(), obs.KeyError, err.Error())
+		}
+	}
 	return o.markRunRejected(ctx, run, actor, reason)
 }
 
@@ -132,14 +187,34 @@ func (o *Orchestrator) PartialApprove(ctx context.Context, req PartialApproveReq
 	if err != nil {
 		return nil, err
 	}
+	if result == nil {
+		return nil, &domain.SandboxError{
+			SandboxID: run.SandboxID,
+			Operation: "partial_approve",
+			Cause:     errors.New("workspace-sandbox returned no approval result"),
+		}
+	}
+	if !result.Success {
+		failure := strings.TrimSpace(result.ErrorMsg)
+		if failure == "" {
+			failure = "workspace-sandbox partial approval did not succeed"
+		}
+		return nil, &domain.SandboxError{
+			SandboxID: run.SandboxID,
+			Operation: "partial_approve",
+			Cause:     errors.New(failure),
+		}
+	}
 	// Update run state based on remaining files
-	if result.Remaining == 0 {
+	if result.Remaining == 0 && !result.IsPartial {
 		if err := o.markRunApproved(ctx, run, req.Actor); err != nil {
 			approvalLog().Warn("mark run approved failed", obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
+			return nil, err
 		}
 	} else {
 		if err := o.markRunPartiallyApproved(ctx, run); err != nil {
 			approvalLog().Warn("mark run partially approved failed", obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
+			return nil, err
 		}
 	}
 

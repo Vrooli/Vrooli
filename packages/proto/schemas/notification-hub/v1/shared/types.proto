@@ -39,6 +39,7 @@ message Notification {
   string reason = 10;
   string created_at = 11;
   string updated_at = 12;
+  string context_url = 13;
 }
 
 message ChannelStatus {

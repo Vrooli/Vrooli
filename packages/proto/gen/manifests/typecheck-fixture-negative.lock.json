@@ -13,6 +13,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "generator_digest": "sha256:d62f642cc85260466ef67f24653340c95d277e2268cdf9983a7144dca50b1d50",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -38,6 +39,7 @@
     "gen/python/typecheck_fixture_negative/v1/shared/health_pb2.py": "sha256:a02c07f212d1f081ef99bd12ef67336a1950cdf073600d1d7dc3b18d345e57f7",
     "gen/python/typecheck_fixture_negative/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
     "gen/python/typecheck_fixture_negative/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4",
     "gen/typescript/typecheck-fixture-negative/v1/notes/attachments_pb.ts": "sha256:c288ab48e84a430144e6ac5a88a437816c37a1d03ba7b977bd0a48251268a04b",
     "gen/typescript/typecheck-fixture-negative/v1/notes/notes_pb.ts": "sha256:07e433efcc4419cd89d61bd6363df41ad20800da965f1d9d7f6d03f8bd7ed22c",
     "gen/typescript/typecheck-fixture-negative/v1/shared/errors_pb.ts": "sha256:b813c3100e5c90d5190a326599150f159863247a998f0b475561f18c13c0d6c4",

@@ -1,7 +1,6 @@
 import datetime
 
 from common.v1 import surface_pb2 as _surface_pb2
-from cli.v1 import runtime_pb2 as _runtime_pb2
 from device_control.v1.shared import flow_pb2 as _flow_pb2
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from google.protobuf.internal import containers as _containers
@@ -73,10 +72,6 @@ INPUT_OUTCOME_UNKNOWN: InputOutcome
 CLIPBOARD_DIRECTION_UNSPECIFIED: ClipboardDirection
 CLIPBOARD_DIRECTION_TO_DESKTOP: ClipboardDirection
 CLIPBOARD_DIRECTION_FROM_DESKTOP: ClipboardDirection
-
-class OwnerInspectSessionPeerRequest(_message.Message):
-    __slots__ = ()
-    def __init__(self) -> None: ...
 
 class OwnerDescribeRequest(_message.Message):
     __slots__ = ()

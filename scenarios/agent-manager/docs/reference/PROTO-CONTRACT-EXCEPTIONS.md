@@ -10,4 +10,4 @@ The machine-readable companion [`proto-health-exceptions.json`](../../.vrooli/pr
 
 ## Stability policy
 
-`AgentManagerService` is marked `experimental` until the generated Connect handler is mounted and its RPC surface has an explicit compatibility commitment. The existing REST API remains supported independently; it is not evidence that the generated Connect transport is implemented.
+`AgentManagerService` remains an experimental compatibility Connect service. A method is available over Connect only when the currently registered `AgentManagerConnectHandler` explicitly implements it; generated service descriptors and native CLI commands do not imply Connect support. The existing REST and native CLI owner paths remain supported independently and are not evidence that an unimplemented Connect RPC is available.

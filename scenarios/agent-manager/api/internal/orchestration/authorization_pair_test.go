@@ -140,6 +140,52 @@ func TestCredentialPairKeepsBaselineAndOperationSeparateThroughBroker(t *testing
 	if response.StatusCode != http.StatusOK || received.BaselineToken != baselineToken || received.OperationToken == "" || received.LegacyToken != "" {
 		t.Fatalf("broker did not preserve distinct credential roles: status=%d credentials=%+v", response.StatusCode, received)
 	}
+	_ = response.Body.Close()
+
+	identityReq, err := http.NewRequest(http.MethodGet, "http://local-agent-manager/credential?purpose=ordinary_identity", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	identityReq.Header.Set(cliutil.HeaderAgentIdentityToken, baselineToken)
+	identityResponse, err := (&http.Client{Transport: transport}).Do(identityReq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ordinary AuthorizationCredentials
+	if err := json.NewDecoder(identityResponse.Body).Decode(&ordinary); err != nil {
+		t.Fatal(err)
+	}
+	_ = identityResponse.Body.Close()
+	if identityResponse.StatusCode != http.StatusOK || ordinary.BaselineToken != baselineToken || ordinary.LegacyToken != "" || ordinary.OperationToken != "" {
+		t.Fatalf("identity-purpose selector returned the wrong role set: status=%d baseline=%t legacy=%t operation=%t", identityResponse.StatusCode, ordinary.BaselineToken != "", ordinary.LegacyToken != "", ordinary.OperationToken != "")
+	}
+
+	unknownReq, err := http.NewRequest(http.MethodGet, "http://local-agent-manager/credential?purpose=unexpected", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	unknownReq.Header.Set(cliutil.HeaderAgentIdentityToken, baselineToken)
+	unknownResponse, err := (&http.Client{Transport: transport}).Do(unknownReq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = unknownResponse.Body.Close()
+	if unknownResponse.StatusCode != http.StatusBadRequest {
+		t.Fatalf("unknown credential purpose status=%d, want 400", unknownResponse.StatusCode)
+	}
+	duplicateReq, err := http.NewRequest(http.MethodGet, "http://local-agent-manager/credential?purpose=ordinary_identity&purpose=ordinary_identity", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	duplicateReq.Header.Set(cliutil.HeaderAgentIdentityToken, baselineToken)
+	duplicateResponse, err := (&http.Client{Transport: transport}).Do(duplicateReq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = duplicateResponse.Body.Close()
+	if duplicateResponse.StatusCode != http.StatusBadRequest {
+		t.Fatalf("duplicate credential purpose status=%d, want 400", duplicateResponse.StatusCode)
+	}
 }
 
 func TestCredentialPairAcceptsDistinctAttachedRunIDsForSameOwnerAndProcess(t *testing.T) {
@@ -258,6 +304,10 @@ func TestValidOwnerlessAttachedBaselineKeepsIndependentLongGrant(t *testing.T) {
 	if baseline.Run.RunnerPID != alias.Run.RunnerPID || baseline.Run.RunnerPID != os.Getpid() {
 		t.Fatalf("fixture grants are not bound to the same current process: baseline=%+v alias=%+v", baseline.Run, alias.Run)
 	}
+	ordinary, err := o.resolveOrdinaryRunIdentityCredential(ctx, os.Getpid(), baseline.Token)
+	if err != nil || ordinary.BaselineToken != baseline.Token || ordinary.LegacyToken != "" || ordinary.OperationToken != "" {
+		t.Fatalf("identity-purpose resolution did not preserve the ordinary baseline: baseline=%t legacy=%t operation=%t err=%v", ordinary.BaselineToken != "", ordinary.LegacyToken != "", ordinary.OperationToken != "", err)
+	}
 	credentials, err := o.ResolveAuthorizationCredentials(ctx, os.Getpid(), baseline.Token)
 	if err != nil || credentials.LegacyToken == "" || credentials.BaselineToken != "" || credentials.OperationToken != "" {
 		t.Fatalf("valid ownerless baseline hid or paired its separate grant: baseline=%t legacy=%t operation=%t refusal=%s err=%v", credentials.BaselineToken != "", credentials.LegacyToken != "", credentials.OperationToken != "", credentials.OperationRefusal, err)
@@ -293,6 +343,10 @@ func TestOwnerlessAttachedBaselineCannotGiveManagedChildParentGrant(t *testing.T
 		t.Fatal(err)
 	}
 
+	borrowed, borrowErr := o.resolveOrdinaryRunIdentityCredential(ctx, os.Getpid(), parent.Token)
+	if borrowErr == nil || borrowed.BaselineToken != "" || borrowed.LegacyToken != "" || borrowed.OperationToken != "" {
+		t.Fatalf("managed child borrowed an ancestor ordinary identity (baseline=%t legacy=%t operation=%t) err=%v", borrowed.BaselineToken != "", borrowed.LegacyToken != "", borrowed.OperationToken != "", borrowErr)
+	}
 	credentials, err := o.ResolveAuthorizationCredentials(ctx, os.Getpid(), child.Token)
 	if err != nil || credentials.BaselineToken != child.Token || credentials.LegacyToken != "" || credentials.OperationToken != "" {
 		t.Fatalf("ownerless managed child inherited the parent's independent grant: credentials=%+v err=%v", credentials, err)

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
 
 	"connectrpc.com/connect"
 	conversationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/conversations"
@@ -37,16 +36,17 @@ func (v *NotificationHubAskVerifier) Verify(ctx context.Context, askID string) (
 	if askID == "" {
 		return AskApproval{}, fmt.Errorf("%w: ask id is empty", ErrAskNotApproved)
 	}
-	// An answered ask returns immediately. A pending ask is intentionally
-	// expired by the read deadline rather than being waited on by an execution
-	// endpoint; execution must only follow a prior operator answer.
-	deadline := time.Now().UTC().Format(time.RFC3339Nano)
-	response, err := v.client.Wait(ctx, connect.NewRequest(&conversationv1.WaitRequest{AskId: askID, Deadline: deadline}))
+	response, err := v.client.GetAsk(ctx, connect.NewRequest(&conversationv1.GetAskRequest{AskId: askID}))
 	if err != nil {
 		return AskApproval{}, fmt.Errorf("read notification ask %q: %w", askID, err)
 	}
-	if response.Msg.GetState() != "answered" || !ApprovedAsk(AskApproval{Answer: response.Msg.GetAnswer()}) {
-		return AskApproval{AskID: askID, Answer: response.Msg.GetAnswer()}, ErrAskNotApproved
+	ask := response.Msg.GetAsk()
+	if ask == nil || ask.GetId() != askID || ask.GetState() != "answered" || !ApprovedAsk(AskApproval{Answer: ask.GetAnswer()}) {
+		answer := ""
+		if ask != nil {
+			answer = ask.GetAnswer()
+		}
+		return AskApproval{AskID: askID, Answer: answer}, ErrAskNotApproved
 	}
-	return AskApproval{AskID: askID, Answer: response.Msg.GetAnswer(), Actor: "notification-hub"}, nil
+	return AskApproval{AskID: askID, Answer: ask.GetAnswer(), Actor: ask.GetAnsweredBy(), RequesterRef: ask.GetRequesterRef(), SourceEventType: ask.GetSourceEventType()}, nil
 }

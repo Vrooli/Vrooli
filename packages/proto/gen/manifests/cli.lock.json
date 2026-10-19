@@ -31,6 +31,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "generator_digest": "sha256:d62f642cc85260466ef67f24653340c95d277e2268cdf9983a7144dca50b1d50",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -137,6 +138,7 @@
     "gen/typescript/cli/v1/shared_drift_pb.ts": "sha256:ee764b4291184a2f66956fb4d12b1f503d51f65a932e2522bfc22aaa81f68507",
     "gen/typescript/cli/v1/status_pb.ts": "sha256:0f6ed2f200d6d31e8b14a505562d637e366d66efb27d6e163161a89606aee45f",
     "gen/typescript/cli/v1/supervision_pb.ts": "sha256:2fb9c01cd31077f554a438f7a9ccb45d2ed472d3bad6aaade25ac5855da481b7",
-    "gen/typescript/cli/v1/volume_remediation_pb.ts": "sha256:cbf9135b3d52d03ca1f66104c7334d67827d7e48e834ba2053116f01b9b17d04"
+    "gen/typescript/cli/v1/volume_remediation_pb.ts": "sha256:cbf9135b3d52d03ca1f66104c7334d67827d7e48e834ba2053116f01b9b17d04",
+    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4"
   }
 }

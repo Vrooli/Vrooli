@@ -46,6 +46,48 @@ func TestRunOwnerAttenuationRoundTrip(t *testing.T) {
 	}
 }
 
+func TestInteractiveContinuationPolicyRepositoryRoundTrip(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+	started := time.Date(2026, 10, 18, 19, 30, 0, 123456000, time.UTC)
+	transcriptStart := int64(73)
+	run := &domain.Run{
+		ID: uuid.New(), Tag: "interactive-continuation-policy", RunMode: domain.RunModeInPlace,
+		Status: domain.RunStatusRunning, Phase: domain.RunPhaseExecuting,
+		ExecutionMode: domain.ExecutionModeInteractive, InteractiveInvocationStartedAt: &started,
+		ResolvedConfig: &domain.RunConfig{RunnerType: domain.RunnerTypeClaudeCode, Until: "finish the current objective",
+			InteractiveContinuation: &domain.InteractiveContinuationPolicy{
+				InvocationStartedAt: started, TranscriptStartCursor: &transcriptStart,
+				CompleteAfterFirstSuccessfulTurnWithoutGoalMarker: true,
+			}},
+	}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	got, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	policy := got.ResolvedConfig.InteractiveContinuation
+	if got.InteractiveInvocationStartedAt == nil || !got.InteractiveInvocationStartedAt.Equal(started) || policy == nil ||
+		!policy.InvocationStartedAt.Equal(started) || policy.TranscriptStartCursor == nil || *policy.TranscriptStartCursor != transcriptStart || !policy.CompleteAfterFirstSuccessfulTurnWithoutGoalMarker {
+		t.Fatalf("owner continuation policy did not round-trip with its invocation: invocation=%v policy=%+v", got.InteractiveInvocationStartedAt, policy)
+	}
+	got.ResolvedConfig.InteractiveContinuation = nil
+	if err := repos.Runs.Update(ctx, got); err != nil {
+		t.Fatal(err)
+	}
+	cleared, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cleared.ResolvedConfig.InteractiveContinuation != nil {
+		t.Fatalf("cleared invocation policy reappeared after repository update: %+v", cleared.ResolvedConfig.InteractiveContinuation)
+	}
+}
+
 func TestOwnedRunDeletionRetainsReplayEvidence(t *testing.T) {
 	for _, mode := range []string{"run", "task-cascade", "missing-expiry", "expired", "ordinary"} {
 		t.Run(mode, func(t *testing.T) {

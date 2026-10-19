@@ -746,18 +746,30 @@ func (g *Generator) resolveScope(all []string) ([]string, error) {
 }
 
 func (g *Generator) seedGeneratedMetadata(stageGen string) error {
-	source := filepath.Join(g.cfg.ProtoRoot, "gen", "typescript", "package.json")
 	dest := filepath.Join(stageGen, "typescript", "package.json")
-	if raw, err := os.ReadFile(source); err == nil {
-		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
-			return err
-		}
-		if err := os.WriteFile(dest, raw, 0o644); err != nil {
-			return fmt.Errorf("seed generated TypeScript metadata: %w", err)
-		}
+	raw := []byte(defaultTypeScriptPackage)
+	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+		return err
+	}
+	if err := os.WriteFile(dest, raw, 0o644); err != nil {
+		return fmt.Errorf("seed generated TypeScript metadata: %w", err)
 	}
 	return nil
 }
+
+const defaultTypeScriptPackage = `{
+  "name": "@vrooli/proto-types",
+  "version": "1.0.1",
+  "description": "Protocol Buffer generated TypeScript types for Vrooli",
+  "type": "module",
+  "dependencies": {
+    "@bufbuild/protobuf": "^2.10.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
+`
 
 func markPythonPackages(genRoot string) error {
 	root := filepath.Join(genRoot, "python")
@@ -832,6 +844,9 @@ func (g *Generator) publishSharedImports(stageGen, targetGen string, scenarios [
 		}
 		if err != nil {
 			return err
+		}
+		if err := publishFile(filepath.Join(stageRoot, "package.json"), filepath.Join(targetRoot, "package.json")); err != nil {
+			return fmt.Errorf("publish shared TypeScript package metadata: %w", err)
 		}
 		for _, entry := range entries {
 			if entry.Name() == "package.json" || isScenarioOutput(entry.Name(), scenarios) {
@@ -1033,6 +1048,11 @@ func treeDigests(root string) (map[string]string, error) {
 			return err
 		}
 		if entry.IsDir() {
+			// Importing generated Python writes local bytecode caches. They
+			// are runtime state, not producer output or artifact identity.
+			if entry.Name() == "__pycache__" {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 		rel, err := filepath.Rel(root, path)

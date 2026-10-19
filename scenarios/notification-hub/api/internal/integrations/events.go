@@ -236,6 +236,10 @@ func EventWebhookFromSecretSourceWithDecisionDefaults(service *hub.Service, secr
 					writeJSON(w, http.StatusAccepted, map[string]string{"ask_id": ask.ID, "event_id": eventID})
 					return
 				}
+				if errors.Is(specErr, hub.ErrAskWithdrawn) {
+					writeJSON(w, http.StatusAccepted, map[string]any{"event_id": eventID, "withdrawn": true})
+					return
+				}
 			}
 			status := http.StatusInternalServerError
 			if errors.Is(specErr, hub.ErrInvalidArgument) {
@@ -244,6 +248,33 @@ func EventWebhookFromSecretSourceWithDecisionDefaults(service *hub.Service, secr
 				status = http.StatusConflict
 			}
 			writeJSONError(w, status, specErr.Error())
+			return
+		}
+		if IsDecisionWithdrawal(payload.EventType) {
+			if eventID == "" || strings.TrimSpace(payload.SourceScenario) != "agent-manager" {
+				writeJSONError(w, http.StatusBadRequest, "event_id and agent-manager source are required")
+				return
+			}
+			withdrawal, parseErr := ParseDecisionWithdrawal(payload.Payload)
+			if parseErr != nil {
+				writeJSONError(w, http.StatusBadRequest, parseErr.Error())
+				return
+			}
+			changed, withdrawErr := service.WithdrawDecisionAsk(r.Context(), hub.DecisionWithdrawal{
+				Source: payload.SourceScenario, RequesterRef: withdrawal.RequesterRef,
+				SourceEventType: withdrawal.SourceEventType, Reason: withdrawal.Reason,
+			})
+			if withdrawErr != nil {
+				status := http.StatusInternalServerError
+				if errors.Is(withdrawErr, hub.ErrInvalidArgument) {
+					status = http.StatusBadRequest
+				} else if errors.Is(withdrawErr, hub.ErrAskIdentityConflict) {
+					status = http.StatusConflict
+				}
+				writeJSONError(w, status, withdrawErr.Error())
+				return
+			}
+			writeJSON(w, http.StatusAccepted, map[string]any{"event_id": eventID, "withdrawn": changed})
 			return
 		}
 		// The recipient is the operator (override, then operator state). With
@@ -499,6 +530,12 @@ func EnsureEventSubscription(ctx context.Context, baseURL, target, pattern strin
 // *.decision_requested.v1 event into an ask.
 func EnsureDecisionSubscription(ctx context.Context, baseURL, target string) error {
 	return EnsureEventSubscriptions(ctx, baseURL, target, []SubscriptionSpec{{Name: decisionSubscriptionName, Pattern: DecisionRequestPattern}})
+}
+
+// EnsureDecisionWithdrawalSubscription routes producer lifecycle withdrawals
+// through the same signed Events webhook without treating them as answers.
+func EnsureDecisionWithdrawalSubscription(ctx context.Context, baseURL, target string) error {
+	return EnsureEventSubscriptions(ctx, baseURL, target, []SubscriptionSpec{{Name: "notification-hub-decision-withdrawals", Pattern: DecisionWithdrawalPattern}})
 }
 
 // EnsureNotificationSubscription reconciles the subscription that turns every

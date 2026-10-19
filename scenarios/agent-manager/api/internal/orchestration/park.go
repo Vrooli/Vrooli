@@ -119,6 +119,9 @@ func (o *Orchestrator) ParkRun(ctx context.Context, in ParkRunInput) (*domain.Ru
 	if key == "" {
 		return nil, domain.NewValidationError("key", "await key is required to park a run")
 	}
+	if o.awaitRegistry != nil && !o.awaitRegistry.SupportsProducer(producer) {
+		return nil, domain.NewValidationError("producer", fmt.Sprintf("no waiter is registered for producer %q", producer))
+	}
 
 	run, err := o.GetRun(ctx, in.RunID)
 	if err != nil {

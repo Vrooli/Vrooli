@@ -1,7 +1,6 @@
 syntax = "proto3";
 package vrooli.device_control.v1.desktop;
 import "common/v1/surface.proto";
-import "cli/v1/runtime.proto";
 import "device-control/v1/shared/flow.proto";
 import "google/protobuf/timestamp.proto";
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/desktop;desktopv1";
@@ -29,7 +28,6 @@ service DesktopHelperService {
 // Local owner IPC. Kernel peer identity authorizes requests. Helper grants and
 // lease tokens remain in the owner; safe references alone carry no authority.
 service DesktopOwnerService {
- rpc InspectSessionPeer(OwnerInspectSessionPeerRequest) returns (vrooli.cli.v1.CliDesktopSessionFacts);
  rpc CaptureCompanionActivation(OwnerCompanionActivationRequest) returns (ActivationReference);
  rpc CaptureActivation(OwnerStopRequest) returns (ActivationReference);
  rpc ReadActivation(OwnerReadActivationRequest) returns (ActivationReference);
@@ -50,9 +48,6 @@ service DesktopOwnerService {
  rpc Act(OwnerActRequest) returns (ActResponse);
  rpc Stop(OwnerStopRequest) returns (StopResponse);
 }
-// Empty request: the owner derives the display and login session only from
-// protected bootstrap configuration and the kernel-authenticated X peer.
-message OwnerInspectSessionPeerRequest {}
 message OwnerDescribeRequest {}
 // @stability experimental
 // Separate method namespace prevents older local-only owners from accepting

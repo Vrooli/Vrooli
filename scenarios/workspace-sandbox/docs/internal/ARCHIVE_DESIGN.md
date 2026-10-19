@@ -173,6 +173,15 @@ that the patcher receives. A mismatch refuses approval before source writes;
 hunk selection, and no silent acceptance-filter exclusion. Malformed approval
 JSON is an error, never a request for unconditional default approval.
 
+Decision-driven rejection can pass the same `expectedPatchSha256` value to
+`POST /api/v1/sandboxes/{id}/reject`. The service checks it under the review
+lock against the exact diff result used to write the rejection archive, before
+archive/status writes or lifecycle cleanup. A mismatch or unavailable diff
+leaves the sandbox and its overlay unchanged. Existing manual reject callers
+that omit the field retain their prior behavior. Agent Manager only deletes the
+sandbox and marks its run rejected after the sandbox confirms the conditional
+reject; provider failure or patch mismatch leaves the run pending for review.
+
 The response returns `appliedPatchSha256`. Full approval persists that identity
 in the existing sandbox metadata, transactionally with its terminal transition.
 A matching terminal retry returns the original identity without applying again,

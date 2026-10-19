@@ -113,6 +113,7 @@ export const strings = {
       answered: "asks.detail.answered",
       defaulted: "asks.detail.defaulted",
       expired: "asks.detail.expired",
+      withdrawn: "asks.detail.withdrawn",
       sending: "asks.detail.sending",
       saveError: "asks.detail.saveError",
       more: "asks.detail.more",

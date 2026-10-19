@@ -317,7 +317,13 @@ epoch and workers, last acceptance and yield, `## Needs operator` items, open
 workarounds and feedback, unrecorded decisions, mean weighted tokens of the
 last accepted epochs whose workers are all metered, cap usage of active runs,
 and blocking lint codes. A fact that cannot be read is absent and printed
-"unknown", never zero.
+"unknown", never zero. Active epoch and latest accepted epoch are independent:
+the board gives a reopened epoch (an `ACCEPTED` record followed by a later
+directive) the same active priority as `in-progress`, `parked` or legacy
+`active`, even if its status text still says accepted. The highest-numbered
+epoch wins among those active candidates; next comes one marked `admitted`, then
+the highest-numbered remaining unaccepted epoch. Acceptance is grounded in the
+epoch's `ACCEPTED` record and later-directive rule, not its status text.
 
 **Token caps (DL-8).** A profile's `maxWeightedTokens` caps each of its runs;
 `CreateRunRequest.inline_config.max_weighted_tokens` may only lower it. Runs
@@ -367,6 +373,15 @@ more than 1000 immediate entries is explicitly refused, not silently truncated.
 Symlinks and path escapes are rejected. Unvisited pages do not imply removal.
 Coverage/findings and timestamps expose partial availability. A real scan clears
 bootstrap `not_scanned` even if another manifest remains malformed.
+
+The runtime root can also contain planning or evidence directories that are not
+Agent Manager enrollments. A child with neither a canonical `effort.json` nor the
+legacy `handoffs/state.json` is unregistered when no retained enrollment names that
+workspace; it is skipped without creating an effort row or invalid-manifest finding.
+If an enrollment already names the workspace, the same missing sources mean the
+observation is unavailable: retain its identity and prior evidence, and never infer
+withdrawal or completion. Malformed canonical manifests and failures of declared
+checkpoints or observation sources remain explicit failures.
 
 Schema 1 reads the canonical `effort.json`; schema 2 contains a typed `enrollment`.
 Explicit `target_revision` wins, then schema 1's declared

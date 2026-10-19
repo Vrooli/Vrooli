@@ -140,10 +140,11 @@ func DiffResultToProto(runID uuid.UUID, r *DiffResult) *pb.RunDiff {
 		}
 	}
 	return &pb.RunDiff{
-		RunId:       UUIDToString(runID),
-		Content:     r.UnifiedDiff,
-		Files:       files,
-		GeneratedAt: TimestampToProto(r.Generated),
+		RunId:             UUIDToString(runID),
+		Content:           r.UnifiedDiff,
+		Files:             files,
+		GeneratedAt:       TimestampToProto(r.Generated),
+		FileCountVerified: r.FileCountVerified,
 	}
 }
 
@@ -213,12 +214,13 @@ func extractDiffPath(line string) string {
 
 // DiffResult mirrors sandbox.DiffResult for import avoidance.
 type DiffResult struct {
-	SandboxID    uuid.UUID
-	Files        []FileChange
-	UnifiedDiff  string
-	Generated    time.Time
-	Stats        DiffStats
-	ArchiveState string
+	SandboxID         uuid.UUID
+	Files             []FileChange
+	UnifiedDiff       string
+	Generated         time.Time
+	Stats             DiffStats
+	ArchiveState      string
+	FileCountVerified bool
 }
 
 // DiffStats mirrors the value nested in sandbox.DiffResult without importing

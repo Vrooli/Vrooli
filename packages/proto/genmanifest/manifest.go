@@ -29,6 +29,7 @@ type Manifest struct {
 type Toolchain struct {
 	Buf              string            `json:"buf"`
 	BufGenYAMLDigest string            `json:"buf_gen_yaml_digest"`
+	GeneratorDigest  string            `json:"generator_digest"`
 	Plugins          map[string]string `json:"plugins"`
 }
 
@@ -193,7 +194,7 @@ func generatedOutputsMatch(opts Options, scenario string, recorded map[string]st
 }
 
 func sameToolchain(a, b Toolchain) bool {
-	if a.Buf != b.Buf || a.BufGenYAMLDigest != b.BufGenYAMLDigest || len(a.Plugins) != len(b.Plugins) {
+	if a.Buf != b.Buf || a.BufGenYAMLDigest != b.BufGenYAMLDigest || a.GeneratorDigest != b.GeneratorDigest || len(a.Plugins) != len(b.Plugins) {
 		return false
 	}
 	for name, version := range b.Plugins {
@@ -267,6 +268,10 @@ func ToolchainFingerprint(opts Options) (Toolchain, error) {
 	if err != nil {
 		return Toolchain{}, err
 	}
+	generatorDigest, err := digestOne(filepath.Join(protoRoot, "protogen", "generator.go"))
+	if err != nil {
+		return Toolchain{}, fmt.Errorf("digest Proto generator source: %w", err)
+	}
 	versions := map[string]string{}
 	for _, name := range []string{"buf", "protoc-gen-go", "protoc-gen-connect-go", "protoc-gen-es", "protoc"} {
 		version, err := toolVersion(filepath.Join(repoRoot, "internal", "tools", name, "tool.json"))
@@ -278,6 +283,7 @@ func ToolchainFingerprint(opts Options) (Toolchain, error) {
 	return Toolchain{
 		Buf:              versions["buf"],
 		BufGenYAMLDigest: bufGenDigest,
+		GeneratorDigest:  generatorDigest,
 		Plugins: map[string]string{
 			"protoc-gen-go":         versions["protoc-gen-go"],
 			"protoc-gen-connect-go": versions["protoc-gen-connect-go"],
@@ -337,10 +343,17 @@ func OutputFiles(protoRoot, scenario string) ([]string, error) {
 	return OutputFilesAt(filepath.Join(protoRoot, "gen"), scenario)
 }
 
-// OutputFilesAt lists generated files below outputRoot while retaining paths
-// relative to the proto root's generated tree (gen/...).
+// OutputFilesAt lists scenario-owned generated files and the shared TypeScript
+// package manifest when present, retaining paths relative to gen/ so each
+// owner lock detects shared metadata loss or tampering.
 func OutputFilesAt(outputRoot, scenario string) ([]string, error) {
 	var out []string
+	metadata := filepath.Join(outputRoot, "typescript", "package.json")
+	if _, err := os.Stat(metadata); err == nil {
+		out = append(out, "gen/typescript/package.json")
+	} else if !os.IsNotExist(err) {
+		return nil, err
+	}
 	for _, dir := range scenarioOutputDirs(scenario) {
 		rel := strings.TrimPrefix(dir, "gen/")
 		root := filepath.Join(outputRoot, filepath.FromSlash(rel))

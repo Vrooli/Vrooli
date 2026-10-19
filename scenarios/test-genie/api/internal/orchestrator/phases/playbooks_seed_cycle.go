@@ -193,6 +193,8 @@ func installRoutedLease(ctx context.Context, env workspace.Environment, needs re
 	if response == nil || response.Msg == nil || response.Msg.GetActiveLeaseId() != result.RunID || !response.Msg.GetFileRootsInstalled() {
 		return routedLease{}, fmt.Errorf("routed qualification lease did not prove both database and file roots are installed")
 	}
+	// Publish only the verified lease identity to seed/browser producers.
+	result.Env["TEST_GENIE_ROUTING_LEASE_ID"] = result.RunID
 	shared.LogInfo(logWriter, "installed routed qualification lease %s on %s", result.RunID, env.APIURL)
 	heartbeatCtx, heartbeatCancel := context.WithCancel(context.Background())
 	heartbeatStopped := make(chan struct{})

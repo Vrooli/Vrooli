@@ -508,9 +508,12 @@ func TestReservedCreateOldPeerAndUncertainResponse(t *testing.T) {
 				owner.creatorOwner = ""
 			}
 			c := newWebConsoleTestClient(t, owner, &terminalTestServer{})
-			id, err := c.CreateSession(t.Context(), CreateSessionParams{RequestedSessionID: "c06dce6e-c663-4898-bf98-d66f13013197", LaunchCommand: "bounded"})
+			id, err := c.CreateSession(t.Context(), CreateSessionParams{RequestedSessionID: "c06dce6e-c663-4898-bf98-d66f13013197", LaunchCommand: "bounded", AgentRunIdentityToken: "test-only-child-bearer"})
 			if (err == nil) != tc.want || tc.want && id != "c06dce6e-c663-4898-bf98-d66f13013197" || owner.createCalls != tc.writes {
 				t.Fatalf("id=%q err=%v writes=%d", id, err, owner.createCalls)
+			}
+			if owner.createCalls > 0 && owner.created.GetAgentRunIdentityToken() != "test-only-child-bearer" {
+				t.Fatal("stable reserved Create did not carry its exact child identity")
 			}
 		})
 	}

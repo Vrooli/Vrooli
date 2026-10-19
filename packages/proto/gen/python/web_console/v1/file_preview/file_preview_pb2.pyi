@@ -22,6 +22,14 @@ class PreviewKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PREVIEW_KIND_DIFF: _ClassVar[PreviewKind]
     PREVIEW_KIND_UNSUPPORTED: _ClassVar[PreviewKind]
     PREVIEW_KIND_DIRECTORY: _ClassVar[PreviewKind]
+    PREVIEW_KIND_SPREADSHEET: _ClassVar[PreviewKind]
+    PREVIEW_KIND_DOCUMENT: _ClassVar[PreviewKind]
+    PREVIEW_KIND_ARCHIVE: _ClassVar[PreviewKind]
+    PREVIEW_KIND_PRESENTATION: _ClassVar[PreviewKind]
+    PREVIEW_KIND_EBOOK: _ClassVar[PreviewKind]
+    PREVIEW_KIND_MODEL_3D: _ClassVar[PreviewKind]
+    PREVIEW_KIND_FONT: _ClassVar[PreviewKind]
+    PREVIEW_KIND_DATABASE: _ClassVar[PreviewKind]
 
 class DirectorySort(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -58,6 +66,14 @@ PREVIEW_KIND_CSV: PreviewKind
 PREVIEW_KIND_DIFF: PreviewKind
 PREVIEW_KIND_UNSUPPORTED: PreviewKind
 PREVIEW_KIND_DIRECTORY: PreviewKind
+PREVIEW_KIND_SPREADSHEET: PreviewKind
+PREVIEW_KIND_DOCUMENT: PreviewKind
+PREVIEW_KIND_ARCHIVE: PreviewKind
+PREVIEW_KIND_PRESENTATION: PreviewKind
+PREVIEW_KIND_EBOOK: PreviewKind
+PREVIEW_KIND_MODEL_3D: PreviewKind
+PREVIEW_KIND_FONT: PreviewKind
+PREVIEW_KIND_DATABASE: PreviewKind
 DIRECTORY_SORT_UNSPECIFIED: DirectorySort
 DIRECTORY_SORT_DIRS_FIRST_NAME: DirectorySort
 DIRECTORY_SORT_NAME: DirectorySort
@@ -84,7 +100,7 @@ class ResolveRequest(_message.Message):
     def __init__(self, session_id: _Optional[str] = ..., path: _Optional[str] = ..., source_context: _Optional[_Union[SourceContext, str]] = ...) -> None: ...
 
 class ResolveResponse(_message.Message):
-    __slots__ = ("preview_id", "input_path", "resolved_path", "basename", "line", "has_line", "resolution_basis", "preview_kind", "mime_type", "size_bytes", "mtime_unix_nano", "can_preview", "can_download", "supports_range", "text_content_available", "blob_url", "expires_unix_nano", "warnings", "listing_available")
+    __slots__ = ("preview_id", "input_path", "resolved_path", "basename", "line", "has_line", "resolution_basis", "preview_kind", "mime_type", "size_bytes", "mtime_unix_nano", "can_preview", "can_download", "supports_range", "text_content_available", "blob_url", "expires_unix_nano", "warnings", "listing_available", "archive_member")
     PREVIEW_ID_FIELD_NUMBER: _ClassVar[int]
     INPUT_PATH_FIELD_NUMBER: _ClassVar[int]
     RESOLVED_PATH_FIELD_NUMBER: _ClassVar[int]
@@ -104,6 +120,7 @@ class ResolveResponse(_message.Message):
     EXPIRES_UNIX_NANO_FIELD_NUMBER: _ClassVar[int]
     WARNINGS_FIELD_NUMBER: _ClassVar[int]
     LISTING_AVAILABLE_FIELD_NUMBER: _ClassVar[int]
+    ARCHIVE_MEMBER_FIELD_NUMBER: _ClassVar[int]
     preview_id: str
     input_path: str
     resolved_path: str
@@ -123,7 +140,8 @@ class ResolveResponse(_message.Message):
     expires_unix_nano: int
     warnings: _containers.RepeatedScalarFieldContainer[str]
     listing_available: bool
-    def __init__(self, preview_id: _Optional[str] = ..., input_path: _Optional[str] = ..., resolved_path: _Optional[str] = ..., basename: _Optional[str] = ..., line: _Optional[int] = ..., has_line: _Optional[bool] = ..., resolution_basis: _Optional[str] = ..., preview_kind: _Optional[_Union[PreviewKind, str]] = ..., mime_type: _Optional[str] = ..., size_bytes: _Optional[int] = ..., mtime_unix_nano: _Optional[int] = ..., can_preview: _Optional[bool] = ..., can_download: _Optional[bool] = ..., supports_range: _Optional[bool] = ..., text_content_available: _Optional[bool] = ..., blob_url: _Optional[str] = ..., expires_unix_nano: _Optional[int] = ..., warnings: _Optional[_Iterable[str]] = ..., listing_available: _Optional[bool] = ...) -> None: ...
+    archive_member: bool
+    def __init__(self, preview_id: _Optional[str] = ..., input_path: _Optional[str] = ..., resolved_path: _Optional[str] = ..., basename: _Optional[str] = ..., line: _Optional[int] = ..., has_line: _Optional[bool] = ..., resolution_basis: _Optional[str] = ..., preview_kind: _Optional[_Union[PreviewKind, str]] = ..., mime_type: _Optional[str] = ..., size_bytes: _Optional[int] = ..., mtime_unix_nano: _Optional[int] = ..., can_preview: _Optional[bool] = ..., can_download: _Optional[bool] = ..., supports_range: _Optional[bool] = ..., text_content_available: _Optional[bool] = ..., blob_url: _Optional[str] = ..., expires_unix_nano: _Optional[int] = ..., warnings: _Optional[_Iterable[str]] = ..., listing_available: _Optional[bool] = ..., archive_member: _Optional[bool] = ...) -> None: ...
 
 class GetTextContentRequest(_message.Message):
     __slots__ = ("session_id", "preview_id")
@@ -210,3 +228,51 @@ class ListDirectoryResponse(_message.Message):
     effective_sort: DirectorySort
     warnings: _containers.RepeatedScalarFieldContainer[str]
     def __init__(self, resolved_path: _Optional[str] = ..., parent_path: _Optional[str] = ..., entries: _Optional[_Iterable[_Union[DirectoryEntry, _Mapping]]] = ..., total_entries: _Optional[int] = ..., truncated: _Optional[bool] = ..., next_page_token: _Optional[str] = ..., effective_sort: _Optional[_Union[DirectorySort, str]] = ..., warnings: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class ListArchiveRequest(_message.Message):
+    __slots__ = ("session_id", "preview_id")
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    PREVIEW_ID_FIELD_NUMBER: _ClassVar[int]
+    session_id: str
+    preview_id: str
+    def __init__(self, session_id: _Optional[str] = ..., preview_id: _Optional[str] = ...) -> None: ...
+
+class ListArchiveResponse(_message.Message):
+    __slots__ = ("format", "status", "entries")
+    FORMAT_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    ENTRIES_FIELD_NUMBER: _ClassVar[int]
+    format: str
+    status: str
+    entries: _containers.RepeatedCompositeFieldContainer[ArchiveEntry]
+    def __init__(self, format: _Optional[str] = ..., status: _Optional[str] = ..., entries: _Optional[_Iterable[_Union[ArchiveEntry, _Mapping]]] = ...) -> None: ...
+
+class ArchiveEntry(_message.Message):
+    __slots__ = ("entry_id", "name", "size_bytes", "status")
+    ENTRY_ID_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    SIZE_BYTES_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    entry_id: str
+    name: str
+    size_bytes: int
+    status: str
+    def __init__(self, entry_id: _Optional[str] = ..., name: _Optional[str] = ..., size_bytes: _Optional[int] = ..., status: _Optional[str] = ...) -> None: ...
+
+class OpenArchiveEntryRequest(_message.Message):
+    __slots__ = ("session_id", "preview_id", "entry_id")
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    PREVIEW_ID_FIELD_NUMBER: _ClassVar[int]
+    ENTRY_ID_FIELD_NUMBER: _ClassVar[int]
+    session_id: str
+    preview_id: str
+    entry_id: str
+    def __init__(self, session_id: _Optional[str] = ..., preview_id: _Optional[str] = ..., entry_id: _Optional[str] = ...) -> None: ...
+
+class OpenArchiveEntryResponse(_message.Message):
+    __slots__ = ("status", "target")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    TARGET_FIELD_NUMBER: _ClassVar[int]
+    status: str
+    target: ResolveResponse
+    def __init__(self, status: _Optional[str] = ..., target: _Optional[_Union[ResolveResponse, _Mapping]] = ...) -> None: ...

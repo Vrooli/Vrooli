@@ -415,6 +415,10 @@ message RunActions {
 
   // Whether the run has failed finalization that can be retried or repaired.
   bool can_retry_finalization = 16;
+
+  // Explains why operator review cannot take an approval/rejection action.
+  // Empty when no review-action restriction is known.
+  string review_unavailable_reason = 17;
 }
 
 // =============================================================================
@@ -761,6 +765,11 @@ message RunDiff {
 
   // When the diff was generated.
   google.protobuf.Timestamp generated_at = 4;
+
+  // True when files contains the complete, verified file index for this diff.
+  // False means the file count is unavailable and must not be inferred from an
+  // empty files array. Older servers omit this field and decode it as false.
+  bool file_count_verified = 5;
 }
 
 // FileDiff represents changes to a single file.

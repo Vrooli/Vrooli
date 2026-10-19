@@ -39,6 +39,29 @@ func (r *retainedGoalReplayRunner) NewTranscriptParser() runner.TranscriptParser
 	return codecs.NewCodexForTest().NewTranscriptParser()
 }
 
+type continuationRecoveryRunner struct{ *mocks.TranscriptReplayRunner }
+
+func (r *continuationRecoveryRunner) NewTranscriptParser() runner.TranscriptParser {
+	return continuationRecoveryParser{base: r.TranscriptReplayRunner.NewTranscriptParser()}
+}
+
+type continuationRecoveryParser struct{ base runner.TranscriptParser }
+
+func (p continuationRecoveryParser) ParseTranscriptLine(runID uuid.UUID, line string) runner.TranscriptParseResult {
+	switch strings.TrimSpace(line) {
+	case "user-turn":
+		return runner.TranscriptParseResult{UserTurnStarted: true}
+	case "provider-turn":
+		return runner.TranscriptParseResult{ProviderTurnStarted: true}
+	case "goal-active":
+		return runner.TranscriptParseResult{Goal: &runner.GoalMarker{Objective: "finish the current objective", Status: runner.GoalStatusActive}}
+	case "goal-paused":
+		return runner.TranscriptParseResult{Goal: &runner.GoalMarker{Objective: "finish the current objective", Status: runner.GoalStatusPaused}}
+	default:
+		return p.base.ParseTranscriptLine(runID, line)
+	}
+}
+
 func TestRecoverInteractiveConsumedGoalReconcilesDespiteAttachedTailer(t *testing.T) {
 	reconciler, repos := newInteractiveRecoveryReconciler(t, newFakeInteractiveSessions("retained-ui"))
 	if err := reconciler.runners.Register(&retainedGoalReplayRunner{mocks.NewTranscriptReplayRunner(domain.RunnerTypeCodex)}); err != nil {
@@ -460,6 +483,125 @@ func TestRecoverInteractive_SessionAliveReattachesUntilTerminal(t *testing.T) {
 	}
 	if final.Summary == nil || final.Summary.Description != "interactive completion" {
 		t.Fatalf("summary = %+v, want interactive completion", final.Summary)
+	}
+}
+
+func TestRecoverInteractive_ContinuedCompletedGoalPolicySurvivesRestart(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		sessionLine string
+		continued   string
+		wantStatus  domain.RunStatus
+		wantSuccess bool
+		checkResult bool
+	}{
+		{name: "terminal and cursor persisted before finalize", continued: "user-turn\nmessage:continued work\ndone:continued result\n", wantStatus: domain.RunStatusComplete, wantSuccess: true, checkResult: true},
+		{name: "failed terminal remains failure", continued: "user-turn\nfail:provider failure\n", wantStatus: domain.RunStatusFailed},
+		{name: "later user turn invalidates earlier success", continued: "user-turn\ndone:first turn\nuser-turn\n", wantStatus: domain.RunStatusRunning},
+		{name: "later provider turn invalidates earlier success", continued: "user-turn\ndone:first turn\nprovider-turn\n", wantStatus: domain.RunStatusRunning},
+		{name: "active goal does not use prior success", continued: "user-turn\ndone:first turn\ngoal-active\n", wantStatus: domain.RunStatusRunning},
+		{name: "paused goal does not use prior success", continued: "user-turn\ndone:first turn\ngoal-paused\n", wantStatus: domain.RunStatusRunning},
+		{name: "old pre-invocation terminal is outside the segment", continued: "", wantStatus: domain.RunStatusRunning},
+		{name: "missing transcript session evidence fails closed", sessionLine: "", continued: "user-turn\ndone:continued result\n", wantStatus: domain.RunStatusRunning},
+		{name: "other transcript session evidence fails closed", sessionLine: "session:other-session\n", continued: "user-turn\ndone:continued result\n", wantStatus: domain.RunStatusRunning},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			sessionID := "sess-post-goal-continuation-" + strings.ReplaceAll(tc.name, " ", "-")
+			reconciler, repos := newInteractiveRecoveryReconciler(t, newFakeInteractiveSessions(sessionID))
+			base := mocks.NewTranscriptReplayRunner(domain.RunnerTypeCodex)
+			if err := reconciler.runners.Register(&continuationRecoveryRunner{TranscriptReplayRunner: base}); err != nil {
+				t.Fatal(err)
+			}
+			transcript := filepath.Join(t.TempDir(), "transcript.ndjson")
+			run := createInteractiveRecoveryRun(t, repos, sessionID, transcript)
+			run.SessionID = "native-session-" + strings.ReplaceAll(tc.name, " ", "-")
+			run.ResolvedConfig.RunnerType = domain.RunnerTypeCodex
+			run.ResolvedConfig.Until = "finish the current objective"
+			transcriptSession := tc.sessionLine
+			if transcriptSession == "" && !strings.HasPrefix(tc.name, "missing transcript session") {
+				transcriptSession = "session:" + run.SessionID + "\n"
+			}
+			priorTurn := transcriptSession + "done:original completed native-goal turn\n"
+			if err := os.WriteFile(transcript, []byte(priorTurn), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			invocation := time.Now().UTC().Truncate(time.Microsecond)
+			startCursor := int64(len(priorTurn))
+			run.InteractiveInvocationStartedAt = &invocation
+			run.TranscriptCursor = startCursor
+			run.ResolvedConfig.InteractiveContinuation = &domain.InteractiveContinuationPolicy{
+				InvocationStartedAt: invocation, TranscriptStartCursor: &startCursor,
+				CompleteAfterFirstSuccessfulTurnWithoutGoalMarker: true,
+			}
+			if tc.continued != "" {
+				appendRecoveryTranscript(t, transcript, tc.continued)
+			}
+			// Simulate the crash after the transcript tailer durably advanced
+			// through the new terminal but before it could finalize the run.
+			contents, err := os.ReadFile(transcript)
+			if err != nil {
+				t.Fatal(err)
+			}
+			run.TranscriptCursor = int64(len(contents))
+			if err := repos.Runs.Update(context.Background(), run); err != nil {
+				t.Fatal(err)
+			}
+			result, err := reconciler.recoverInteractiveRun(context.Background(), run, false)
+			if err != nil {
+				t.Fatalf("recoverInteractiveRun: %v", err)
+			}
+			got, err := repos.Runs.Get(context.Background(), run.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.Status != tc.wantStatus || result.Run.Status != tc.wantStatus {
+				t.Fatalf("status=%s result=%s want=%s (result=%+v)", got.Status, result.Run.Status, tc.wantStatus, result)
+			}
+			if tc.checkResult && (got.Result == nil || got.Result.Success != tc.wantSuccess || got.Result.TerminalReason != "post_goal_continuation") {
+				t.Fatalf("result=%+v want success=%v post-goal-continuation", got.Result, tc.wantSuccess)
+			}
+			if tc.wantStatus == domain.RunStatusFailed && got.ErrorMsg != "provider failure" {
+				t.Fatalf("failure terminal was not preserved: error=%q result=%+v", got.ErrorMsg, got.Result)
+			}
+		})
+	}
+}
+
+func TestInteractiveContinuationRecoveryOptionsRequireExactActiveInvocation(t *testing.T) {
+	started := time.Date(2026, 10, 18, 19, 30, 0, 0, time.UTC)
+	startCursor := int64(0)
+	valid := &domain.Run{Status: domain.RunStatusRunning, ExecutionMode: domain.ExecutionModeInteractive,
+		InteractiveInvocationStartedAt: &started, ResolvedConfig: &domain.RunConfig{InteractiveContinuation: &domain.InteractiveContinuationPolicy{
+			InvocationStartedAt: started, TranscriptStartCursor: &startCursor, CompleteAfterFirstSuccessfulTurnWithoutGoalMarker: true,
+		}}}
+	if got := interactiveContinuationRecoveryOptions(valid); !got.CompleteAfterFirstSuccessfulTurnWithoutGoalMarker {
+		t.Fatal("exact current interactive invocation did not restore its owner completion option")
+	}
+	stale := *valid
+	staleConfig := *valid.ResolvedConfig
+	staleConfig.InteractiveContinuation = &domain.InteractiveContinuationPolicy{InvocationStartedAt: started.Add(-time.Second), CompleteAfterFirstSuccessfulTurnWithoutGoalMarker: true}
+	stale.ResolvedConfig = &staleConfig
+	legacy := *valid
+	legacyConfig := *valid.ResolvedConfig
+	legacyConfig.InteractiveContinuation = nil
+	legacy.ResolvedConfig = &legacyConfig
+	missingCursor := *valid
+	missingCursorConfig := *valid.ResolvedConfig
+	missingCursorConfig.InteractiveContinuation = &domain.InteractiveContinuationPolicy{InvocationStartedAt: started, CompleteAfterFirstSuccessfulTurnWithoutGoalMarker: true}
+	missingCursor.ResolvedConfig = &missingCursorConfig
+	futureCursor := *valid
+	futureCursorConfig := *valid.ResolvedConfig
+	future := int64(1)
+	futureCursorConfig.InteractiveContinuation = &domain.InteractiveContinuationPolicy{InvocationStartedAt: started, TranscriptStartCursor: &future, CompleteAfterFirstSuccessfulTurnWithoutGoalMarker: true}
+	futureCursor.ResolvedConfig = &futureCursorConfig
+	inactive := *valid
+	inactive.Status = domain.RunStatusComplete
+	for name, run := range map[string]*domain.Run{"stale policy timestamp": &stale, "legacy missing policy": &legacy, "missing transcript cursor": &missingCursor, "cursor after observed cursor": &futureCursor, "non-running row": &inactive} {
+		t.Run(name, func(t *testing.T) {
+			if got := interactiveContinuationRecoveryOptions(run); got.CompleteAfterFirstSuccessfulTurnWithoutGoalMarker {
+				t.Fatal("recovery enabled completion for a non-current invocation")
+			}
+		})
 	}
 }
 

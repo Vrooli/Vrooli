@@ -16,6 +16,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "generator_digest": "sha256:d62f642cc85260466ef67f24653340c95d277e2268cdf9983a7144dca50b1d50",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -77,6 +78,7 @@
     "gen/typescript/development-toolchain-validator/v1/skill_catalog/skill_catalog_pb.ts": "sha256:3ead3ad24389d1613d2ef482bb34289ea3f1db19736b16a625744fea239046f4",
     "gen/typescript/development-toolchain-validator/v1/staleness/staleness_pb.ts": "sha256:8fd72386e597a5a3afe0196bacc185e4db278a2b9af7eb731c6bb988869d25c2",
     "gen/typescript/development-toolchain-validator/v1/validation_record/validation_record_pb.ts": "sha256:532a9d29ecd605f62e2a911b3261fce8a11aac076120e7b58e4381b65a08deb8",
-    "gen/typescript/development-toolchain-validator/v1/validation_run/validation_run_pb.ts": "sha256:692ac4a8a0b0baf5d2ca4c803c8393f16ee411b22899ca0538250e2e2eb96096"
+    "gen/typescript/development-toolchain-validator/v1/validation_run/validation_run_pb.ts": "sha256:692ac4a8a0b0baf5d2ca4c803c8393f16ee411b22899ca0538250e2e2eb96096",
+    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4"
   }
 }

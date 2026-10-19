@@ -128,6 +128,12 @@ type CoordinatorDeps struct {
 	// Summary optionally builds the completion summary from stored events.
 	Summary SummaryBuilder
 	Result  ResultBuilder
+	// CompletionOptions is owner-supplied for a particular recovered invocation.
+	// Ordinary coordinator construction leaves it zero-valued.
+	CompletionOptions TailCompletionOptions
+	// MintIdentityToken creates the child bearer after a reserved session ID is
+	// bound to the run. Nil disables child identity minting for isolated callers.
+	MintIdentityToken func(ctx context.Context, run *domain.Run, sessionID string) (string, error)
 	// Clock overrides time.Now for run timestamps (tests). Nil uses time.Now.
 	Clock func() time.Time
 	// Debounce overrides the turn-boundary idle window (0 uses the default).
@@ -259,6 +265,16 @@ func (c *Coordinator) Execute(ctx context.Context, run *domain.Run, p LaunchPara
 		return fmt.Errorf("persist reserved interactive session: %w", err)
 	}
 	p.RequestedSessionID = expectedSessionID
+	if c.deps.MintIdentityToken != nil {
+		token, mintErr := c.deps.MintIdentityToken(ctx, run, expectedSessionID)
+		if mintErr != nil {
+			return c.finalizeFailed(ctx, run, fmt.Sprintf("mint interactive child identity: %v", mintErr))
+		}
+		if strings.TrimSpace(token) == "" {
+			return c.finalizeFailed(ctx, run, "mint interactive child identity returned no token")
+		}
+		p.AgentRunIdentityToken = token
+	}
 
 	res, err := c.deps.Substrate.Launch(ctx, p)
 	// Persist whatever the launch produced (session id at minimum) before acting
@@ -299,7 +315,7 @@ func (c *Coordinator) Execute(ctx context.Context, run *domain.Run, p LaunchPara
 	defer stopHeartbeat()
 
 	tc := tailContext{RunDir: p.RunDir, WorkingDir: p.WorkingDir}
-	terminal, tailErr := c.tailToCompletion(ctx, run, tc, &mu)
+	terminal, tailErr := c.tailToCompletion(ctx, run, tc, &mu, TailCompletionOptions{})
 	return c.Finalize(ctx, run, terminal, tailErr)
 }
 
@@ -311,8 +327,25 @@ func (c *Coordinator) Execute(ctx context.Context, run *domain.Run, p LaunchPara
 // non-nil error only for a vanished session (ErrSessionGone) or a cancelled
 // context.
 func (c *Coordinator) TailToCompletion(ctx context.Context, run *domain.Run) (*runner.TranscriptTerminal, error) {
+	return c.TailToCompletionWithOptions(ctx, run, c.deps.CompletionOptions)
+}
+
+// TailCompletionOptions narrows completion behavior for a specific invocation
+// without changing the normal live/recovery tail contract.
+type TailCompletionOptions struct {
+	// CompleteAfterFirstSuccessfulTurnWithoutGoalMarker is used only when a
+	// completed native goal is continued without reinstalling that goal. The
+	// first successful turn in the new invocation then closes the continued run
+	// only if no new goal marker is observed.
+	CompleteAfterFirstSuccessfulTurnWithoutGoalMarker bool
+}
+
+// TailToCompletionWithOptions drains an interactive invocation with an
+// invocation-scoped completion policy. Existing callers use TailToCompletion
+// and keep the default behavior.
+func (c *Coordinator) TailToCompletionWithOptions(ctx context.Context, run *domain.Run, options TailCompletionOptions) (*runner.TranscriptTerminal, error) {
 	var mu sync.Mutex
-	return c.tailToCompletion(ctx, run, tailContext{}, &mu)
+	return c.tailToCompletion(ctx, run, tailContext{}, &mu, options)
 }
 
 // tailToCompletion follows the transcript to a run boundary. When the run's
@@ -320,10 +353,10 @@ func (c *Coordinator) TailToCompletion(ctx context.Context, run *domain.Run) (*r
 // bounded grace, so the harness's closing record (codex writes turn_aborted,
 // which its parser turns into the turn's usage receipt) is stored before the run
 // is finalized. The result still reports the timeout.
-func (c *Coordinator) tailToCompletion(ctx context.Context, run *domain.Run, tc tailContext, mu *sync.Mutex) (*runner.TranscriptTerminal, error) {
+func (c *Coordinator) tailToCompletion(ctx context.Context, run *domain.Run, tc tailContext, mu *sync.Mutex, options TailCompletionOptions) (*runner.TranscriptTerminal, error) {
 	loopCtx, timedOut, release := c.timeoutInterruptContext(ctx, run)
 	defer release()
-	terminal, err := c.tailLoop(loopCtx, run, tc, mu)
+	terminal, err := c.tailLoop(loopCtx, run, tc, mu, options)
 	if timedOut() && !errors.Is(err, ErrSessionGone) {
 		if terminal != nil && !terminal.Success {
 			// The harness's abort answers our own timeout interrupt; it is not
@@ -365,7 +398,7 @@ func (c *Coordinator) timeoutInterruptContext(ctx context.Context, run *domain.R
 	}
 }
 
-func (c *Coordinator) tailLoop(ctx context.Context, run *domain.Run, tc tailContext, mu *sync.Mutex) (*runner.TranscriptTerminal, error) {
+func (c *Coordinator) tailLoop(ctx context.Context, run *domain.Run, tc tailContext, mu *sync.Mutex, options TailCompletionOptions) (*runner.TranscriptTerminal, error) {
 	var sink runner.EventSink
 	if c.deps.NewSink != nil {
 		sink = c.deps.NewSink(run.ID)
@@ -456,6 +489,7 @@ func (c *Coordinator) tailLoop(ctx context.Context, run *domain.Run, tc tailCont
 			StructuredResultSatisfied: func() bool {
 				return c.structuredResultSatisfied(ctx, run)
 			},
+			CompleteAfterFirstSuccessfulTurnWithoutGoalMarker: options.CompleteAfterFirstSuccessfulTurnWithoutGoalMarker,
 		})
 		cancel()
 

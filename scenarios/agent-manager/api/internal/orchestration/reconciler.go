@@ -166,6 +166,24 @@ type Reconciler struct {
 	lastRunTime  time.Time
 	lastRunStats ReconcileStats
 
+	// reviewNoticePublisher republishes a pending manual-review decision from its
+	// durable run and current sandbox diff. The per-run retry state below is only
+	// an optimization; a reconciler restart reconstructs pending work from runs.
+	reviewNoticePublisher func(context.Context, *domain.Run) (string, error)
+	// reviewNoticeEmptyReconciler rechecks already-published pending reviews for
+	// strict verified-empty evidence and withdraws their exact durable Ask refs.
+	reviewNoticeEmptyReconciler func(context.Context, *domain.Run) (bool, error)
+	reviewNoticeMu              sync.Mutex
+	reviewNoticeStates          map[uuid.UUID]reviewNoticeState
+	reviewNoticeCursor          uuid.UUID
+	reviewNoticeAttemptID       uint64
+
+	// authorizationNotificationRetry reuses the orchestrator's durable grant
+	// snapshot/CAS and advances a bounded keyset page each reconcile cycle.
+	authorizationNotificationRetryMu sync.Mutex
+	authorizationNotificationRetry   func(context.Context, string, int, int) (string, error)
+	authorizationNotificationCursor  string
+
 	// Broadcaster for real-time updates
 	broadcaster EventBroadcaster
 
@@ -677,7 +695,24 @@ func (r *Reconciler) reconcile(ctx context.Context) ReconcileStats {
 	// and deletion is allowed only after the provider proves an empty diff.
 	r.reconcileOrphanSandboxes(ctx, &stats)
 
-	// Step 6c: Release web-console sessions retained for continuation once
+	// Step 6c: Retry only durable, still-live interactive consent notices whose
+	// immutable FYI publication has no receipt. This path never decides consent.
+	if r.authorizationNotificationRetry != nil {
+		r.authorizationNotificationRetryMu.Lock()
+		retryCtx, cancelRetry := context.WithTimeout(ctx, authorizationNotificationRetryTimeout)
+		nextCursor, err := r.authorizationNotificationRetry(retryCtx, r.authorizationNotificationCursor, authorizationNotificationScanLimit, authorizationNotificationAttemptLimit)
+		cancelRetry()
+		// The retry callback returns its last fully inspected key even when its
+		// time budget expires. Other errors return the input key, so assigning
+		// the result here preserves progress without skipping unfinished rows.
+		r.authorizationNotificationCursor = nextCursor
+		if err != nil {
+			stats.Errors = append(stats.Errors, "interactive authorization notification retry: "+err.Error())
+		}
+		r.authorizationNotificationRetryMu.Unlock()
+	}
+
+	// Step 6d: Release web-console sessions retained for continuation once
 	// their interactive run has been ended longer than the retention window.
 	r.releaseRetainedInteractiveSessions(ctx, &stats)
 

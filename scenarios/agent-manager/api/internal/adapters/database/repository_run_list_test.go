@@ -114,8 +114,8 @@ func TestList_OmitsHeavyFields(t *testing.T) {
 	if got.SandboxConfig != nil {
 		t.Errorf("List() should omit SandboxConfig, got %+v", got.SandboxConfig)
 	}
-	if got.SandboxID != nil {
-		t.Errorf("List() should omit SandboxID, got %v", got.SandboxID)
+	if got.SandboxID == nil || *got.SandboxID != *run.SandboxID {
+		t.Errorf("List() should include lightweight SandboxID for action projection, got %v want %v", got.SandboxID, *run.SandboxID)
 	}
 	if got.DiffPath != "" {
 		t.Errorf("List() should omit DiffPath, got %q", got.DiffPath)
@@ -372,5 +372,34 @@ func TestGet_StillReturnsFullFields(t *testing.T) {
 	}
 	if got.ApprovedBy != run.ApprovedBy {
 		t.Errorf("Get() ApprovedBy: want %q, got %q", run.ApprovedBy, got.ApprovedBy)
+	}
+}
+
+func TestListIncludesSandboxIDWithoutHydratingHeavyFields(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repos := NewRepositories(db, db.log)
+	ctx := context.Background()
+	task := &domain.Task{ID: uuid.New(), Title: "review-list-test", Description: "", ScopePath: "src/", CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatalf("create task: %v", err)
+	}
+	run := makeFullRun(task.ID, nil)
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatalf("create run: %v", err)
+	}
+	listed, err := repos.Runs.List(ctx, repository.RunListFilter{ListFilter: repository.ListFilter{Limit: 10}})
+	if err != nil {
+		t.Fatalf("list runs: %v", err)
+	}
+	if len(listed) != 1 {
+		t.Fatalf("listed runs=%d, want 1", len(listed))
+	}
+	if listed[0].SandboxID == nil || *listed[0].SandboxID != *run.SandboxID {
+		t.Fatalf("listed sandbox id=%v, want %s", listed[0].SandboxID, *run.SandboxID)
+	}
+	if listed[0].Summary != nil || listed[0].ResolvedConfig != nil || listed[0].SandboxConfig != nil {
+		t.Fatalf("list projection hydrated heavy fields: summary=%v config=%v sandbox=%v", listed[0].Summary, listed[0].ResolvedConfig, listed[0].SandboxConfig)
 	}
 }

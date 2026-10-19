@@ -2,6 +2,7 @@ package genmanifest
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -22,6 +23,7 @@ message Shared {}
 	writeFile(t, filepath.Join(protoRoot, "gen", "typescript", "demo", "v1", "core", "core_pb.ts"), "ts")
 	writeFile(t, filepath.Join(protoRoot, "gen", "python", "demo", "v1", "core", "core_pb2.py"), "py")
 	writeFile(t, filepath.Join(protoRoot, "gen", "python", "demo", "v1", "core", "py.typed"), "")
+	writeFile(t, filepath.Join(protoRoot, "gen", "typescript", "package.json"), `{"name":"@vrooli/proto-types"}`)
 
 	manifest, err := BuildManifest(Options{RepoRoot: repoRoot, ProtoRoot: protoRoot}, "demo")
 	if err != nil {
@@ -36,6 +38,9 @@ message Shared {}
 	}
 	if _, ok := manifest.Outputs["gen/python/demo/v1/core/py.typed"]; !ok {
 		t.Fatalf("manifest missing py.typed output: %#v", manifest.Outputs)
+	}
+	if _, ok := manifest.Outputs["gen/typescript/package.json"]; !ok {
+		t.Fatalf("manifest missing shared TypeScript package metadata: %#v", manifest.Outputs)
 	}
 }
 
@@ -218,6 +223,7 @@ func makeRepo(t *testing.T) (string, string) {
 	repoRoot := t.TempDir()
 	protoRoot := filepath.Join(repoRoot, "packages", "proto")
 	writeFile(t, filepath.Join(protoRoot, "buf.gen.yaml"), "version: v2\n")
+	writeFile(t, filepath.Join(protoRoot, "protogen", "generator.go"), "package protogen\n")
 	for _, tool := range []string{"buf", "protoc-gen-go", "protoc-gen-connect-go", "protoc-gen-es", "protoc"} {
 		writeFile(t, filepath.Join(repoRoot, "internal", "tools", tool, "tool.json"), `{"version":"1.0.0"}`)
 	}
@@ -244,4 +250,90 @@ func equalStrings(a, b []string) bool {
 		}
 	}
 	return true
+}
+
+func TestChangedScenariosTracksSharedTypeScriptMetadata(t *testing.T) {
+	repoRoot, protoRoot := makeRepo(t)
+	writeFile(t, filepath.Join(protoRoot, "schemas", "leaf", "v1", "leaf.proto"), "syntax = \"proto3\";\npackage leaf.v1;\nmessage Leaf {}\n")
+	writeFile(t, filepath.Join(protoRoot, "gen", "go", "leaf", "v1", "leaf.pb.go"), "go")
+	writeFile(t, filepath.Join(protoRoot, "gen", "typescript", "leaf", "v1", "leaf_pb.ts"), "ts")
+	writeFile(t, filepath.Join(protoRoot, "gen", "python", "leaf", "v1", "leaf_pb2.py"), "py")
+	metadata := filepath.Join(protoRoot, "gen", "typescript", "package.json")
+	writeFile(t, metadata, `{"name":"@vrooli/proto-types","type":"module"}`)
+	manifest, err := BuildManifest(Options{RepoRoot: repoRoot, ProtoRoot: protoRoot}, "leaf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteManifest(ManifestPath(protoRoot, "leaf"), manifest); err != nil {
+		t.Fatal(err)
+	}
+	changed, err := ChangedScenarios(Options{RepoRoot: repoRoot, ProtoRoot: protoRoot})
+	if err != nil || len(changed) != 0 {
+		t.Fatalf("fresh owner changed=%v err=%v", changed, err)
+	}
+	writeFile(t, metadata, `{"name":"tampered"}`)
+	changed, err = ChangedScenarios(Options{RepoRoot: repoRoot, ProtoRoot: protoRoot})
+	if err != nil || !equalStrings(changed, []string{"leaf"}) {
+		t.Fatalf("tampered shared metadata changed=%v err=%v", changed, err)
+	}
+	writeFile(t, metadata, `{"name":"@vrooli/proto-types","type":"module"}`)
+	if err := os.Remove(metadata); err != nil {
+		t.Fatal(err)
+	}
+	changed, err = ChangedScenarios(Options{RepoRoot: repoRoot, ProtoRoot: protoRoot})
+	if err != nil || !equalStrings(changed, []string{"leaf"}) {
+		t.Fatalf("missing shared metadata changed=%v err=%v", changed, err)
+	}
+}
+
+func TestChangedScenariosTracksGeneratorSourceAndLegacyLocks(t *testing.T) {
+	repoRoot, protoRoot := makeRepo(t)
+	writeFile(t, filepath.Join(protoRoot, "schemas", "leaf", "v1", "leaf.proto"), "syntax = \"proto3\";\npackage leaf.v1;\nmessage Leaf {}\n")
+	writeFile(t, filepath.Join(protoRoot, "gen", "go", "leaf", "v1", "leaf.pb.go"), "go")
+	writeFile(t, filepath.Join(protoRoot, "gen", "typescript", "leaf", "v1", "leaf_pb.ts"), "ts")
+	writeFile(t, filepath.Join(protoRoot, "gen", "python", "leaf", "v1", "leaf_pb2.py"), "py")
+	writeFile(t, filepath.Join(protoRoot, "gen", "typescript", "package.json"), `{"name":"@vrooli/proto-types","type":"module"}`)
+	manifest, err := BuildManifest(Options{RepoRoot: repoRoot, ProtoRoot: protoRoot}, "leaf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	lock := ManifestPath(protoRoot, "leaf")
+	if err := WriteManifest(lock, manifest); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(protoRoot, "protogen", "generator.go"), "package protogen\n// metadata producer changed\n")
+	changed, err := ChangedScenarios(Options{RepoRoot: repoRoot, ProtoRoot: protoRoot})
+	if err != nil || !equalStrings(changed, []string{"leaf"}) {
+		t.Fatalf("generator source change changed=%v err=%v", changed, err)
+	}
+	writeFile(t, filepath.Join(protoRoot, "protogen", "generator.go"), "package protogen\n")
+
+	legacyRaw, err := json.Marshal(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var legacyDocument map[string]json.RawMessage
+	if err := json.Unmarshal(legacyRaw, &legacyDocument); err != nil {
+		t.Fatal(err)
+	}
+	var legacyToolchain map[string]json.RawMessage
+	if err := json.Unmarshal(legacyDocument["toolchain"], &legacyToolchain); err != nil {
+		t.Fatal(err)
+	}
+	delete(legacyToolchain, "generator_digest")
+	legacyDocument["toolchain"], err = json.Marshal(legacyToolchain)
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacyRaw, err = json.Marshal(legacyDocument)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(lock, legacyRaw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	changed, err = ChangedScenarios(Options{RepoRoot: repoRoot, ProtoRoot: protoRoot})
+	if err != nil || !equalStrings(changed, []string{"leaf"}) {
+		t.Fatalf("legacy lock without generator digest changed=%v err=%v", changed, err)
+	}
 }

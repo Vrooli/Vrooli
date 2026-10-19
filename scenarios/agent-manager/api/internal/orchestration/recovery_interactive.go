@@ -48,7 +48,7 @@ func (r *Reconciler) recoverInteractiveRun(ctx context.Context, run *domain.Run,
 	if r.interactiveLiveDrivers != nil && r.interactiveLiveDrivers.has(run.ID) {
 		return &RecoverResult{Run: run, Idempotent: true, Message: "live interactive driver owns completion"}, nil
 	}
-	coord := r.interactiveCoordinator()
+	coord := r.interactiveCoordinator(interactiveContinuationRecoveryOptions(run))
 	if run.ResolvedConfig != nil && strings.TrimSpace(run.ResolvedConfig.Until) != "" {
 		joinCtx, cancel := context.WithTimeout(ctx, 4*time.Second)
 		hadTailer, joinErr := r.cancelInteractiveTailAndWait(joinCtx, run.ID)
@@ -66,6 +66,10 @@ func (r *Reconciler) recoverInteractiveRun(ctx context.Context, run *domain.Run,
 		if run == nil {
 			return nil, domain.NewNotFoundErrorWithID("Run", "interactive recovery")
 		}
+		// The joined invocation may have changed while recovery waited for its
+		// previous tailer. Rebind completion behavior only to the freshly loaded
+		// running row and its exact invocation policy.
+		coord = r.interactiveCoordinator(interactiveContinuationRecoveryOptions(run))
 		if !run.Status.LivenessPolicy().ExpectsProcess {
 			return &RecoverResult{Run: run, Idempotent: true, Message: "interactive owner already finalized"}, nil
 		}
@@ -98,6 +102,22 @@ func (r *Reconciler) recoverInteractiveRun(ctx context.Context, run *domain.Run,
 				return nil, err
 			}
 			return &RecoverResult{Run: run, Recovered: true, Message: "reconciled accepted native goal from exact retained session and invocation"}, nil
+		}
+		if interactiveContinuationRecoveryOptions(run).CompleteAfterFirstSuccessfulTurnWithoutGoalMarker {
+			continuation, continuationErr := coord.InspectRetainedContinuation(ctx, run)
+			if continuationErr != nil {
+				return r.retainInteractiveOnEvidenceUnavailable(ctx, run, coord, allowTail, hadTailer,
+					"retained continuation evidence unavailable: "+continuationErr.Error())
+			}
+			if continuation != nil && continuation.Terminal != nil {
+				if continuation.Terminal.TerminalReason == "" {
+					continuation.Terminal.TerminalReason = "post_goal_continuation"
+				}
+				if err := coord.Finalize(ctx, run, continuation.Terminal, nil); err != nil {
+					return nil, err
+				}
+				return &RecoverResult{Run: run, Recovered: true, Message: "finalized terminal from the exact retained continuation segment"}, nil
+			}
 		}
 		// A joined observer owned this run even for a read-triggered recovery call.
 		// Preserve that ownership when new work superseded historical completion.
@@ -207,7 +227,7 @@ func (r *Reconciler) reconcileCompletedInteractiveGoal(ctx context.Context, run 
 	}
 	defer r.interactiveRecoveryMu.Unlock()
 
-	evidence, err := r.interactiveCoordinator().InspectRetainedGoal(ctx, run)
+	evidence, err := r.interactiveCoordinator(interactive.TailCompletionOptions{}).InspectRetainedGoal(ctx, run)
 	if err != nil {
 		return nil, fmt.Errorf("inspect retained completed interactive goal: %w", err)
 	}
@@ -272,7 +292,7 @@ func (r *Reconciler) drainInteractiveTranscript(ctx context.Context, run *domain
 // interactiveCoordinator builds a recovery-flavoured interactive coordinator: no
 // substrate (reattach never launches), heartbeat disabled (the run is not owned
 // live), and the recovery event sink + summary builder wired in.
-func (r *Reconciler) interactiveCoordinator() *interactive.Coordinator {
+func (r *Reconciler) interactiveCoordinator(options interactive.TailCompletionOptions) *interactive.Coordinator {
 	return interactive.NewCoordinator(interactive.CoordinatorDeps{
 		Tailer:      interactive.NewTailer(interactive.RegistryParser(r.runners)),
 		Sessions:    r.sessions,
@@ -282,11 +302,24 @@ func (r *Reconciler) interactiveCoordinator() *interactive.Coordinator {
 			return r.recoveryEventSink(runID)
 		},
 		Result:                r.recoveredResult,
+		CompletionOptions:     options,
 		Heartbeat:             -1,
 		Debounce:              r.interactiveDebounce,
 		SessionPoll:           r.interactiveSessionPoll,
 		SessionReattachWindow: r.interactiveSessionReattachWindow,
 	})
+}
+
+func interactiveContinuationRecoveryOptions(run *domain.Run) interactive.TailCompletionOptions {
+	if run == nil || run.Status != domain.RunStatusRunning || run.ExecutionMode.Normalized() != domain.ExecutionModeInteractive ||
+		run.InteractiveInvocationStartedAt == nil || run.ResolvedConfig == nil || run.ResolvedConfig.InteractiveContinuation == nil {
+		return interactive.TailCompletionOptions{}
+	}
+	policy := run.ResolvedConfig.InteractiveContinuation
+	if !policy.CompleteAfterFirstSuccessfulTurnWithoutGoalMarker || policy.TranscriptStartCursor == nil || *policy.TranscriptStartCursor < 0 || *policy.TranscriptStartCursor > run.TranscriptCursor || !policy.InvocationStartedAt.Equal(*run.InteractiveInvocationStartedAt) {
+		return interactive.TailCompletionOptions{}
+	}
+	return interactive.TailCompletionOptions{CompleteAfterFirstSuccessfulTurnWithoutGoalMarker: true}
 }
 
 func (r *Reconciler) recoveredResult(ctx context.Context, runID uuid.UUID, success bool, exitCode int, terminalReason string) (*domain.RunResult, *domain.RunSummary) {

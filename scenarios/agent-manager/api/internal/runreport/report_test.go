@@ -30,6 +30,16 @@ type durableReportSource struct {
 	accounting runsignal.TimeAccounting
 }
 
+type canonicalUsageReportSource struct {
+	reportSource
+	tokens               int64
+	usageFullyReconciled bool
+}
+
+func (s canonicalUsageReportSource) CanonicalUsageProjection(*domain.Run, []*domain.RunEvent) (int64, bool) {
+	return s.tokens, s.usageFullyReconciled
+}
+
 func (s durableReportSource) DurableInvocationFacts(context.Context, uuid.UUID) ([]runsignal.InvocationFact, bool, error) {
 	return s.facts, true, nil
 }
@@ -105,14 +115,68 @@ func TestBuildPrefersDetailedCostEventsOverSummary(t *testing.T) {
 	id := uuid.New()
 	run := &domain.Run{ID: id, Summary: &domain.RunSummary{TokensUsed: 999, CostEstimate: 9.99}}
 	amount := int64(120000)
-	events := []*domain.RunEvent{{ID: uuid.New(), RunID: id, EventType: domain.EventTypeMetric, Data: &domain.UsageEventData{InputTokens: 4, OutputTokens: 6}}, {ID: uuid.New(), RunID: id, EventType: domain.EventTypeMetric, Data: &domain.ChargeEventData{Basis: domain.ChargeBasisMetered, AmountMicroUSD: &amount}}}
-	report, err := Build(context.Background(), reportSource{run: run, events: events}, id)
+	events := []*domain.RunEvent{{ID: uuid.New(), RunID: id, EventType: domain.EventTypeMetric, Data: &domain.UsageEventData{InputTokens: 4, OutputTokens: 6, ReconciliationAuthority: true}}, {ID: uuid.New(), RunID: id, EventType: domain.EventTypeMetric, Data: &domain.ChargeEventData{Basis: domain.ChargeBasisMetered, AmountMicroUSD: &amount}}}
+	report, err := Build(context.Background(), canonicalUsageReportSource{reportSource: reportSource{run: run, events: events}, tokens: 10, usageFullyReconciled: true}, id)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if report.Tokens != 10 || report.CostUSD != 0.12 {
 		t.Fatalf("event cost should replace summary, got tokens=%d cost=%f", report.Tokens, report.CostUSD)
 	}
+}
+
+func TestBuildUsesCanonicalUsageAndKeepsKnownSummaryForUnfinalizedEvents(t *testing.T) {
+	id := uuid.New()
+	events := []*domain.RunEvent{
+		{ID: uuid.New(), RunID: id, EventType: domain.EventTypeMetric, Data: &domain.UsageEventData{InputTokens: 10, OutputTokens: 1}},
+		{ID: uuid.New(), RunID: id, EventType: domain.EventTypeMetric, Data: &domain.UsageEventData{InputTokens: 20, OutputTokens: 2, ReconciliationAuthority: true}},
+		{ID: uuid.New(), RunID: id, EventType: domain.EventTypeMetric, Data: &domain.UsageEventData{InputTokens: 20, OutputTokens: 2, ReconciliationAuthority: true}},
+	}
+	knownSummary := &domain.Run{ID: id, Summary: &domain.RunSummary{TokensUsed: 999}}
+	report, err := Build(context.Background(), canonicalUsageReportSource{reportSource: reportSource{run: knownSummary, events: events}, tokens: 42, usageFullyReconciled: true}, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Tokens != 42 {
+		t.Fatalf("authoritative usage total=%d, want canonical 42", report.Tokens)
+	}
+
+	interimEvents := events[:1]
+	interim, err := Build(context.Background(), canonicalUsageReportSource{reportSource: reportSource{run: knownSummary, events: interimEvents}, tokens: 11}, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if interim.Tokens != 999 {
+		t.Fatalf("interim usage replaced known whole-run total: tokens=%d", interim.Tokens)
+	}
+
+	partiallyReconciledEvents := append(append([]*domain.RunEvent{}, events[1:3]...), domain.NewStatusEvent(id, "complete", "running", "new invocation"), interimEvents[0])
+	partiallyReconciled, err := Build(context.Background(), canonicalUsageReportSource{reportSource: reportSource{run: knownSummary, events: partiallyReconciledEvents}, tokens: 25}, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if partiallyReconciled.Tokens != 999 {
+		t.Fatalf("mixed reconciled and interim invocations replaced known whole-run total: tokens=%d", partiallyReconciled.Tokens)
+	}
+}
+
+func TestBuildRetainsSummaryWhenEventReadIsUnavailable(t *testing.T) {
+	id := uuid.New()
+	knownSummary := &domain.Run{ID: id, Summary: &domain.RunSummary{TokensUsed: 999}}
+	source := eventErrorReportSource{reportSource: reportSource{run: knownSummary}}
+	report, err := Build(context.Background(), source, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Tokens != 999 || report.EventsAvailability.State != AvailabilityUnavailable {
+		t.Fatalf("event read failure replaced the known summary: tokens=%d availability=%+v", report.Tokens, report.EventsAvailability)
+	}
+}
+
+type eventErrorReportSource struct{ reportSource }
+
+func (s eventErrorReportSource) Events(context.Context, uuid.UUID) ([]*domain.RunEvent, error) {
+	return nil, context.DeadlineExceeded
 }
 
 func TestTextLabelsNonMeteredAndUnpricedCostHonestly(t *testing.T) {

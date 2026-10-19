@@ -12,6 +12,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "generator_digest": "sha256:d62f642cc85260466ef67f24653340c95d277e2268cdf9983a7144dca50b1d50",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -45,6 +46,7 @@
     "gen/python/tech_tree_designer/v1/planning/planning_pb2.pyi": "sha256:646ce1b69656fa9a418f63667701f87a519b9a70fc961f8463380e45557fca22",
     "gen/python/tech_tree_designer/v1/planning/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/tech_tree_designer/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4",
     "gen/typescript/tech-tree-designer/v1/errors/errors_pb.ts": "sha256:60e30bf7bd306e1051e31157ce7c731543ee6d24ca90d90aedf6a49a38113a6b",
     "gen/typescript/tech-tree-designer/v1/graph/graph_pb.ts": "sha256:eec828bc5943e4666ca1bc743944037db88b40c91b1d71c8abd77a592a7e5576",
     "gen/typescript/tech-tree-designer/v1/health/health_pb.ts": "sha256:8cab4123ed33d69aa937cbd15b0d1c7b17882d2848c598f44010081775cf4ddf",

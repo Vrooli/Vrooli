@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -84,8 +85,18 @@ func TestFileDeterminedProviderPhasesAreCacheEligible(t *testing.T) {
 		eligible++
 		if digest, digestErr := phasecache.ScopedDigest(env.ScenarioDir, def.Determinism.Inputs); digestErr != nil {
 			t.Errorf("phase %s scoped digest: %v", def.Name, digestErr)
-		} else if _, ok := phasecacheidentity.Identity(env, def, nil); !ok {
-			t.Errorf("file-determined phase %s was not cache eligible (digest %q provider %q)", def.Name, digest, def.ProviderScenario)
+		} else {
+			readiness := map[string]providerreadiness.Outcome{}
+			if def.ProviderScenario != "" {
+				readiness[def.Name.Key()] = providerreadiness.Outcome{
+					Phase: def.Name.String(), ProviderScenario: def.ProviderScenario,
+					BuildRevision: "test-build", BinaryModifiedAt: "2026-10-18T00:00:00Z",
+					FreshnessDigest: "test-freshness",
+				}
+			}
+			if _, ok := phasecacheidentity.Identity(env, def, readiness); !ok {
+				t.Errorf("file-determined phase %s was not cache eligible with live identity (digest %q provider %q)", def.Name, digest, def.ProviderScenario)
+			}
 		}
 	}
 	if eligible == 0 {
@@ -106,9 +117,8 @@ func TestLoadCachedPhaseResultWritesLogToCurrentRunDirectory(t *testing.T) {
 		ExecutionConfigurationDigest: "config:test",
 	}
 	phase := phasespkg.Definition{
-		Name:             "structure",
-		ProviderScenario: "structure-health",
-		Determinism:      phasespkg.Determinism{Default: "file-determined", Inputs: []string{"**"}},
+		Name:        "structure",
+		Determinism: phasespkg.Determinism{Default: "file-determined", Inputs: []string{"**"}},
 	}
 	identity, ok := phasecacheidentity.Identity(env, phase, nil)
 	if !ok {
@@ -127,6 +137,37 @@ func TestLoadCachedPhaseResultWritesLogToCurrentRunDirectory(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(runLogDir, "structure.log")); err != nil {
 		t.Fatalf("cache-hit log not written under current run directory: %v", err)
+	}
+}
+
+func TestReadyProviderOutcomeRemainsExecutableWithLiveCacheIdentity(t *testing.T) {
+	var calls atomic.Int32
+	scenarioDir := t.TempDir()
+	phase := staticDef(phasespkg.Name("unit"))
+	phase.ProviderScenario = "unit-health"
+	phase.Determinism = phasespkg.Determinism{Default: "file-determined", Inputs: []string{"**"}}
+	phase.Runner = func(context.Context, workspacepkg.Environment, io.Writer) phasespkg.RunReport {
+		calls.Add(1)
+		return phasespkg.RunReport{Observations: []phasespkg.Observation{phasespkg.NewSuccessObservation("executed")}}
+	}
+	readiness := map[string]providerreadiness.Outcome{
+		"unit": {
+			Phase: "unit", ProviderScenario: "unit-health", Status: providerreadiness.OutcomeReady, Ready: true,
+			BuildRevision: "current-build", BinaryModifiedAt: "2026-10-18T00:00:00Z", FreshnessDigest: "current-inputs",
+		},
+	}
+	env := workspacepkg.Environment{
+		ScenarioName: "demo", ScenarioDir: scenarioDir, ArtifactRoot: filepath.Join(t.TempDir(), "artifacts"),
+		DescriptorSnapshotDigest: "descriptor:v1", ExecutionConfigurationDigest: "config:v1",
+	}
+	results, failed, _ := (&SuiteOrchestrator{phaseTimeout: time.Second}).runSelectedPhasesWithRunID(
+		context.Background(), env, runnability.RunContext{}, "current-run", t.TempDir(), []phasespkg.Definition{phase}, readiness, false, nil, nil, nil,
+	)
+	if failed || len(results) != 1 || results[0].Status != phaseStatusPassed || results[0].CacheHit {
+		t.Fatalf("ready provider phase result = failed:%t results:%+v, want a fresh pass", failed, results)
+	}
+	if calls.Load() != 1 {
+		t.Fatalf("runner calls = %d, want 1; ready outcome may have been mistaken for a block", calls.Load())
 	}
 }
 
@@ -169,7 +210,6 @@ func TestRunSelectedPhasesServesCacheBeforeAdmission(t *testing.T) {
 		ExecutionConfigurationDigest: "config:test",
 	}
 	phase := staticDef(phasespkg.Name("structure"))
-	phase.ProviderScenario = "structure-health"
 	phase.Determinism = phasespkg.Determinism{Default: "file-determined", Inputs: []string{"**"}}
 	phase.Concurrency = phasespkg.Concurrency{Mode: "parallel-safe"}
 	identity, ok := phasecacheidentity.Identity(env, phase, nil)
@@ -205,7 +245,6 @@ func TestPrunedPhaseCacheEntryRecomputesIdenticalVerdict(t *testing.T) {
 		ExecutionConfigurationDigest: "config:test",
 	}
 	phase := staticDef(phasespkg.Name("structure"))
-	phase.ProviderScenario = "structure-health"
 	phase.Determinism = phasespkg.Determinism{Default: "file-determined", Inputs: []string{"**"}}
 	identity, ok := phasecacheidentity.Identity(env, phase, nil)
 	if !ok {

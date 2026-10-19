@@ -2,6 +2,8 @@ package sandbox_test
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -333,6 +335,8 @@ func TestWorkspaceSandboxProvider_GetDiff(t *testing.T) {
 			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
 		}
 
+		unifiedDiff := "diff --git a/tmp b/tmp\nnew file mode 040755\n--- /dev/null\n+++ b/tmp\n\ndiff --git a/src/main.go b/src/main.go\n--- a/src/main.go\n+++ b/src/main.go\n@@ -1,5 +1,10 @@\n+// Added line\n"
+		digest := sha256.Sum256([]byte(unifiedDiff))
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"sandboxId": sandboxID.String(),
 			"files": []map[string]interface{}{
@@ -345,7 +349,8 @@ func TestWorkspaceSandboxProvider_GetDiff(t *testing.T) {
 					"linesRemoved": 5,
 				},
 			},
-			"unifiedDiff": "diff --git a/tmp b/tmp\nnew file mode 040755\n--- /dev/null\n+++ b/tmp\n\ndiff --git a/src/main.go b/src/main.go\n--- a/src/main.go\n+++ b/src/main.go\n@@ -1,5 +1,10 @@\n+// Added line\n",
+			"unifiedDiff": unifiedDiff,
+			"patchSha256": hex.EncodeToString(digest[:]),
 			"generated":   "2026-04-24T20:00:00Z",
 			"stats": map[string]interface{}{
 				"filesChanged":  1,
@@ -372,6 +377,9 @@ func TestWorkspaceSandboxProvider_GetDiff(t *testing.T) {
 	}
 	if result.Stats.FilesChanged != 1 {
 		t.Errorf("expected 1 file changed, got %d", result.Stats.FilesChanged)
+	}
+	if result.PatchSHA256 == "" {
+		t.Fatal("expected workspace-sandbox patchSha256 to survive adapter decoding")
 	}
 	if result.Stats.FilesModified != 1 {
 		t.Errorf("expected 1 file modified, got %d", result.Stats.FilesModified)
@@ -404,11 +412,30 @@ func TestWorkspaceSandboxProvider_GetDiff(t *testing.T) {
 // DiffResult.ArchiveState verbatim — the field is what
 // agent-manager UI uses to render archived diffs differently from
 // generic empty responses.
+
+func TestWorkspaceSandboxProvider_GetDiffRejectsPatchDigestMismatch(t *testing.T) {
+	sandboxID := uuid.New()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"files": []any{}, "unifiedDiff": "diff bytes", "patchSha256": strings.Repeat("0", 64),
+			"stats": map[string]any{},
+		})
+	}))
+	defer server.Close()
+
+	provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
+	if _, err := provider.GetDiff(context.Background(), sandboxID); err == nil {
+		t.Fatal("GetDiff accepted a digest that does not identify the returned unified diff")
+	}
+}
+
 func TestWorkspaceSandboxProvider_GetDiff_ArchiveStateComplete(t *testing.T) {
 	sandboxID := uuid.New()
 	fileID := uuid.New()
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		unifiedDiff := "diff --git a/src/main.go b/src/main.go\n@@ -1 +1 @@\n+x\n"
+		digest := sha256.Sum256([]byte(unifiedDiff))
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"sandboxId": sandboxID.String(),
 			"files": []map[string]interface{}{
@@ -421,11 +448,15 @@ func TestWorkspaceSandboxProvider_GetDiff_ArchiveStateComplete(t *testing.T) {
 					"linesRemoved": 1,
 				},
 			},
-			"unifiedDiff": "diff --git a/src/main.go b/src/main.go\n@@ -1 +1 @@\n+x\n",
+			"patchSha256": hex.EncodeToString(digest[:]),
+			"unifiedDiff": unifiedDiff,
 			"generated":   "2026-04-30T00:00:00Z",
 			"stats": map[string]interface{}{
 				"filesChanged":  1,
+				"filesAdded":    0,
 				"filesModified": 1,
+				"filesDeleted":  0,
+				"totalLines":    4,
 				"linesAdded":    3,
 				"linesRemoved":  1,
 				"totalBytes":    int64(1024),
@@ -445,6 +476,9 @@ func TestWorkspaceSandboxProvider_GetDiff_ArchiveStateComplete(t *testing.T) {
 	}
 	if len(result.Files) != 1 {
 		t.Errorf("expected 1 file, got %d", len(result.Files))
+	}
+	if !result.EvidenceComplete {
+		t.Error("complete archive response with exact identity, full stats, and digest should be authoritative")
 	}
 }
 
@@ -488,22 +522,13 @@ func TestWorkspaceSandboxProvider_GetDiff_ArchiveStateNotCaptured(t *testing.T) 
 func TestWorkspaceSandboxProvider_GetDiff_Empty(t *testing.T) {
 	sandboxID := uuid.New()
 
+	// This is the captured current Workspace Sandbox /diff wire shape
+	// (A237logs/current-wsb-empty-diff-wire.json), with only the sandbox ID
+	// replaced so the provider still checks the exact requested identity.
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{
-			"sandboxId":   sandboxID.String(),
-			"files":       []map[string]interface{}{},
-			"unifiedDiff": "",
-			"generated":   "2026-04-24T20:00:00Z",
-			"stats": map[string]interface{}{
-				"filesChanged":  0,
-				"filesAdded":    0,
-				"filesModified": 0,
-				"filesDeleted":  0,
-				"linesAdded":    0,
-				"linesRemoved":  0,
-				"totalBytes":    int64(0),
-			},
-		})
+		const captured = `{"sandboxId":"8bc153c3-3822-4bdf-9b34-a628c2070328","files":[],"unifiedDiff":"","patchSha256":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","generated":"2026-10-18T06:25:16.876583678-04:00","stats":{"filesChanged":0,"filesAdded":0,"filesModified":0,"filesDeleted":0,"linesAdded":0,"linesRemoved":0,"totalBytes":0},"mode":"diff"}`
+		wire := strings.Replace(captured, "8bc153c3-3822-4bdf-9b34-a628c2070328", sandboxID.String(), 1)
+		_, _ = w.Write([]byte(wire))
 	}))
 	defer server.Close()
 
@@ -518,15 +543,111 @@ func TestWorkspaceSandboxProvider_GetDiff_Empty(t *testing.T) {
 	if len(result.Files) != 0 {
 		t.Errorf("expected 0 files, got %d", len(result.Files))
 	}
+	if !result.EvidenceComplete || !sandbox.IsVerifiedEmptyDiff(result, sandboxID) {
+		t.Fatal("complete live empty response must qualify as verified no-change evidence")
+	}
+}
+
+func TestWorkspaceSandboxProvider_GetDiffDoesNotTreatOmittedFieldsAsEmptyEvidence(t *testing.T) {
+	sandboxID := uuid.New()
+	digest := sha256.Sum256(nil)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"sandboxId": sandboxID.String(), "patchSha256": hex.EncodeToString(digest[:]),
+			"unifiedDiff": "", "files": []any{},
+		})
+	}))
+	defer server.Close()
+
+	provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
+	result, err := provider.GetDiff(context.Background(), sandboxID)
+	if err != nil {
+		t.Fatalf("GetDiff: %v", err)
+	}
+	if sandbox.IsVerifiedEmptyDiff(result, sandboxID) {
+		t.Fatal("digest alone must not make an omitted stats object authoritative empty evidence")
+	}
+}
+
+func TestWorkspaceSandboxProvider_GetDiffRejectsNullEvidenceScalars(t *testing.T) {
+	sandboxID := uuid.New()
+	const captured = `{"sandboxId":"8bc153c3-3822-4bdf-9b34-a628c2070328","files":[],"unifiedDiff":"","patchSha256":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","generated":"2026-10-18T06:25:16.876583678-04:00","stats":{"filesChanged":0,"filesAdded":0,"filesModified":0,"filesDeleted":0,"linesAdded":0,"linesRemoved":0,"totalBytes":0},"mode":"diff"}`
+	valid := strings.Replace(captured, "8bc153c3-3822-4bdf-9b34-a628c2070328", sandboxID.String(), 1)
+	cases := []struct {
+		name string
+		old  string
+		new  string
+	}{
+		{name: "sandboxId", old: `"sandboxId":"` + sandboxID.String() + `"`, new: `"sandboxId":null`},
+		{name: "unifiedDiff", old: `"unifiedDiff":""`, new: `"unifiedDiff":null`},
+		{name: "patchSha256", old: `"patchSha256":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"`, new: `"patchSha256":null`},
+		{name: "files", old: `"files":[]`, new: `"files":null`},
+		{name: "stats", old: `"stats":{"filesChanged":0,"filesAdded":0,"filesModified":0,"filesDeleted":0,"linesAdded":0,"linesRemoved":0,"totalBytes":0}`, new: `"stats":null`},
+		{name: "archiveState", old: `"mode":"diff"`, new: `"archiveState":null,"mode":"diff"`},
+		{name: "stats.filesChanged", old: `"filesChanged":0`, new: `"filesChanged":null`},
+		{name: "stats.filesAdded", old: `"filesAdded":0`, new: `"filesAdded":null`},
+		{name: "stats.filesModified", old: `"filesModified":0`, new: `"filesModified":null`},
+		{name: "stats.filesDeleted", old: `"filesDeleted":0`, new: `"filesDeleted":null`},
+		{name: "stats.linesAdded", old: `"linesAdded":0`, new: `"linesAdded":null`},
+		{name: "stats.linesRemoved", old: `"linesRemoved":0`, new: `"linesRemoved":null`},
+		{name: "stats.totalBytes", old: `"totalBytes":0`, new: `"totalBytes":null`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if !strings.Contains(valid, tc.old) {
+				t.Fatalf("captured wire fixture lacks target %q", tc.old)
+			}
+			body := strings.Replace(valid, tc.old, tc.new, 1)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				_, _ = w.Write([]byte(body))
+			}))
+			defer server.Close()
+			provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
+			result, err := provider.GetDiff(context.Background(), sandboxID)
+			if err != nil {
+				t.Fatalf("GetDiff: %v", err)
+			}
+			if sandbox.IsVerifiedEmptyDiff(result, sandboxID) {
+				t.Fatal("explicit null evidence must remain unverified, not become a zero value")
+			}
+		})
+	}
+}
+
+func TestWorkspaceSandboxProvider_GetDiffRejectsMismatchedResponseSandboxID(t *testing.T) {
+	sandboxID := uuid.New()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{"sandboxId": uuid.New().String(), "files": []any{}, "unifiedDiff": ""})
+	}))
+	defer server.Close()
+
+	provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
+	if _, err := provider.GetDiff(context.Background(), sandboxID); err == nil {
+		t.Fatal("GetDiff accepted a response for a different sandbox ID")
+	}
 }
 
 func TestWorkspaceSandboxProvider_Approve(t *testing.T) {
 	sandboxID := uuid.New()
 
+	expectedPatch := strings.Repeat("a", 64)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		expectedPath := "/api/v1/sandboxes/" + sandboxID.String() + "/approve"
 		if r.Method != "POST" || r.URL.Path != expectedPath {
 			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+		}
+		var request struct {
+			Actor               string `json:"actor"`
+			CommitMessage       string `json:"commitMessage"`
+			Force               bool   `json:"force"`
+			ExpectedPatchSHA256 string `json:"expectedPatchSha256"`
+		}
+		decoder := json.NewDecoder(r.Body)
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&request); err != nil {
+			t.Errorf("decode strict approval request: %v", err)
+		} else if request.Actor != "test-user" || request.CommitMessage != "Apply changes" || request.ExpectedPatchSHA256 != expectedPatch {
+			t.Errorf("approval request=%+v, want actor, commitMessage and reviewed patch", request)
 		}
 
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
@@ -545,9 +666,10 @@ func TestWorkspaceSandboxProvider_Approve(t *testing.T) {
 	provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
 
 	result, err := provider.Approve(context.Background(), sandbox.ApproveRequest{
-		SandboxID: sandboxID,
-		Actor:     "test-user",
-		CommitMsg: "Apply changes",
+		SandboxID:           sandboxID,
+		Actor:               "test-user",
+		CommitMsg:           "Apply changes",
+		ExpectedPatchSHA256: expectedPatch,
 	})
 	if err != nil {
 		t.Fatalf("Approve failed: %v", err)
@@ -567,6 +689,54 @@ func TestWorkspaceSandboxProvider_Approve(t *testing.T) {
 	}
 }
 
+func TestWorkspaceSandboxProvider_RejectReviewedSendsExpectedPatch(t *testing.T) {
+	sandboxID := uuid.New()
+	const expected = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		expectedPath := "/api/v1/sandboxes/" + sandboxID.String() + "/reject-reviewed"
+		if r.Method != "POST" || r.URL.Path != expectedPath {
+			t.Errorf("unexpected reviewed reject request: %s %s", r.Method, r.URL.Path)
+		}
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Errorf("decode reject request: %v", err)
+		}
+		if body["expectedPatchSha256"] != expected || body["actor"] != "reviewer" {
+			t.Errorf("reject request=%v, want reviewed digest and actor", body)
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+	provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
+	if err := provider.RejectReviewed(context.Background(), sandbox.RejectRequest{
+		SandboxID: sandboxID, Actor: "reviewer", ExpectedPatchSHA256: expected,
+	}); err != nil {
+		t.Fatalf("RejectReviewed: %v", err)
+	}
+}
+
+func TestWorkspaceSandboxProvider_RejectReviewedDoesNotFallbackToLegacyRoute(t *testing.T) {
+	sandboxID := uuid.New()
+	var paths []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		paths = append(paths, r.URL.Path)
+		if strings.HasSuffix(r.URL.Path, "/reject") {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer server.Close()
+	provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
+	err := provider.RejectReviewed(context.Background(), sandbox.RejectRequest{
+		SandboxID: sandboxID, Actor: "reviewer", ExpectedPatchSHA256: strings.Repeat("a", 64),
+	})
+	want := "/api/v1/sandboxes/" + sandboxID.String() + "/reject-reviewed"
+	if err == nil || len(paths) != 1 || paths[0] != want {
+		t.Fatalf("reviewed reject must fail on an old server without legacy fallback: err=%v paths=%v, want [%s]", err, paths, want)
+	}
+}
+
 func TestWorkspaceSandboxProvider_Reject(t *testing.T) {
 	sandboxID := uuid.New()
 
@@ -575,7 +745,6 @@ func TestWorkspaceSandboxProvider_Reject(t *testing.T) {
 		if r.Method != "POST" || r.URL.Path != expectedPath {
 			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
 		}
-
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer server.Close()
@@ -865,6 +1034,18 @@ func TestWorkspaceSandboxProvider_PartialApprove(t *testing.T) {
 		expectedPath := "/api/v1/sandboxes/" + sandboxID.String() + "/partial-approve"
 		if r.Method != "POST" || r.URL.Path != expectedPath {
 			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+		}
+		var request struct {
+			Actor         string   `json:"actor"`
+			CommitMessage string   `json:"commitMessage"`
+			FileIDs       []string `json:"fileIds"`
+		}
+		decoder := json.NewDecoder(r.Body)
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&request); err != nil {
+			t.Errorf("decode strict partial approval request: %v", err)
+		} else if request.Actor != "test-user" || request.CommitMessage != "Apply selected files" || len(request.FileIDs) != 2 {
+			t.Errorf("partial approval request=%+v, want actor, commitMessage and selected file IDs", request)
 		}
 
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{

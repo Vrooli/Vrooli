@@ -2,6 +2,7 @@ package incidents
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -9,15 +10,18 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/eventbus"
+	"github.com/vrooli/api-core/operatordecision"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 )
 
 type memoryStore struct {
-	inputs    []UpsertInput
-	list      []Incident
-	updates   []Status
-	updateIDs []string
-	pending   []OpeningPublication
+	inputs          []UpsertInput
+	list            []Incident
+	updates         []Status
+	updateIDs       []string
+	pending         []OpeningPublication
+	decisionPending []RemediationDecisionPublication
+	ensured         []string
 }
 
 type recordingPublisher struct {
@@ -68,7 +72,7 @@ func TestDisabledEventBusLeavesOpeningPublicationPending(t *testing.T) {
 	service := NewService(store)
 	service.SetEventPublisher(EventBusPublisher{})
 
-	service.publishPendingOpeningPublications(context.Background())
+	service.publishPendingOpeningPublications(context.Background(), pendingOpeningPublicationBatch)
 	if len(store.pending) != 1 {
 		t.Fatalf("disabled event bus cleared pending publication; want it retained")
 	}
@@ -123,24 +127,6 @@ func TestUpsertFromCheckResultsDrainsOneBatchOnTickPath(t *testing.T) {
 	}
 	if publisher.count != pendingOpeningPublicationBatch || len(store.pending) != 5 {
 		t.Fatalf("one Tick-path drain published/left pending %d/%d; want %d/5", publisher.count, len(store.pending), pendingOpeningPublicationBatch)
-	}
-}
-
-func TestCriticalApprovalFollowsOpeningPublicationAttempt(t *testing.T) {
-	store := &memoryStore{}
-	publisher := &recordingPublisher{}
-	service := NewService(store)
-	service.SetEventPublisher(publisher)
-
-	_, _, err := service.UpsertFromCheckResult(context.Background(), checks.Result{
-		CheckID: "host-runtime-integrity", Status: checks.StatusCritical, Message: "runtime failed",
-		Details: map[string]any{"evidence": []map[string]any{{"kind": "runtime_not_callable", "service": "runtime"}}},
-	})
-	if err != nil {
-		t.Fatalf("UpsertFromCheckResult() error = %v", err)
-	}
-	if len(publisher.events) < 2 || publisher.events[0] != "incident.opened.v1" || publisher.events[1] != RemediationDecisionEventType {
-		t.Fatalf("publication order = %v; want opening attempt before remediation decision", publisher.events)
 	}
 }
 
@@ -319,31 +305,24 @@ func TestUpsertFromCheckResultCreatesHostIntegrityIncident(t *testing.T) {
 	}
 }
 
-func TestCriticalIncidentPublishesRemediationDecisionOnlyForFirstLifecycle(t *testing.T) {
+func TestCriticalIncidentRefreshesDecisionBindingForEveryLifecycle(t *testing.T) {
 	store := &memoryStore{}
-	publisher := &decisionRecordingPublisher{}
 	service := NewService(store)
-	service.SetEventPublisher(publisher)
-	result := checks.Result{
-		CheckID: "host-runtime-integrity", Status: checks.StatusCritical, Message: "runtime failed",
-		Details: map[string]any{"evidence": []map[string]any{{"kind": "runtime_not_callable", "service": "runtime"}}},
-	}
-
+	result := checks.Result{CheckID: "host-runtime-integrity", Status: checks.StatusCritical, Message: "runtime failed", Details: map[string]any{"evidence": []map[string]any{{"kind": "runtime_not_callable", "service": "runtime"}}}}
 	first, _, err := service.UpsertFromCheckResult(context.Background(), result)
 	if err != nil {
 		t.Fatalf("first critical upsert error = %v", err)
 	}
-	if first.EventCount != 1 || publisher.count != 1 {
-		t.Fatalf("first lifecycle event count/prompt count = %d/%d, want 1/1", first.EventCount, publisher.count)
-	}
 	store.list = []Incident{{ID: first.ID, Fingerprint: first.Fingerprint, Type: first.Type, Severity: first.Severity, Status: StatusResolved, EventCount: first.EventCount, SourceCheckIDs: []string{result.CheckID}}}
-
 	second, _, err := service.UpsertFromCheckResult(context.Background(), result)
 	if err != nil {
 		t.Fatalf("recurrent critical upsert error = %v", err)
 	}
-	if second.EventCount != 2 || publisher.count != 1 {
-		t.Fatalf("recurrence event count/prompt count = %d/%d, want 2/1", second.EventCount, publisher.count)
+	if second.EventCount != 2 {
+		t.Fatalf("recurrence generation = %d, want 2", second.EventCount)
+	}
+	if len(store.ensured) != 2 || store.ensured[0] != first.ID || store.ensured[1] != second.ID {
+		t.Fatalf("decision snapshot calls = %v, want both lifecycle upserts", store.ensured)
 	}
 }
 
@@ -638,63 +617,213 @@ func TestPanicEvidenceCoverageGapIsAWarning(t *testing.T) {
 	}
 }
 
-// decisionRecordingPublisher captures the full DomainEvent so the test can
-// assert the event type and the correlation keys the resolution must hand back.
-type decisionRecordingPublisher struct {
-	event eventbus.DomainEvent
-	count int
+func TestBuildRemediationDecisionEventCarriesCurrentBinding(t *testing.T) {
+	incident := Incident{ID: "inc-42", Fingerprint: "fp-42", Title: "NVIDIA module missing", Severity: SeverityCritical, RemediationDecisionGeneration: 2}
+	candidate := RemediationCandidate{ID: "candidate-x", Title: "Install module", RiskLevel: "moderate"}
+	event := BuildRemediationDecisionEvent(incident, candidate, 3, "digest-42", time.Date(2026, 10, 17, 12, 0, 0, 0, time.UTC), time.Date(2026, 10, 18, 12, 0, 0, 0, time.UTC))
+	if event.EventType != RemediationDecisionEventType || event.Source != RemediationDecisionSource {
+		t.Fatalf("event identity = %s/%s", event.Source, event.EventType)
+	}
+	correlation, _ := event.Payload["correlation"].(map[string]any)
+	want := map[string]string{"incident_id": "inc-42", "incident_fingerprint": "fp-42", "candidate_id": "candidate-x", "candidate_risk_level": "moderate", "generation": "2", "revision": "3", "candidate_digest": "digest-42"}
+	for key, value := range want {
+		if got, _ := correlation[key].(string); got != value {
+			t.Errorf("correlation[%q]=%q want %q", key, got, value)
+		}
+	}
 }
 
-func (p *decisionRecordingPublisher) Publish(context.Context, string, map[string]any) error {
+
+func (m *memoryStore) EnsureRemediationDecisionPublication(_ context.Context, incidentID string, _ time.Time) (*RemediationDecisionPublication, error) {
+	m.ensured = append(m.ensured, incidentID)
+	return nil, nil
+}
+func (m *memoryStore) ListPendingRemediationDecisionPublications(_ context.Context, limit int) ([]RemediationDecisionPublication, error) {
+	if limit > len(m.decisionPending) {
+		limit = len(m.decisionPending)
+	}
+	return append([]RemediationDecisionPublication(nil), m.decisionPending[:limit]...), nil
+}
+func (m *memoryStore) AcknowledgeRemediationDecisionPublication(_ context.Context, eventID string) error {
+	for i, event := range m.decisionPending {
+		if event.EventID == eventID {
+			m.decisionPending = append(m.decisionPending[:i], m.decisionPending[i+1:]...)
+			return nil
+		}
+	}
 	return nil
 }
 
-func (p *decisionRecordingPublisher) PublishDomainEvent(_ context.Context, event eventbus.DomainEvent) error {
-	p.event = event
-	p.count++
+type combinedPublisher struct {
+	opening   int
+	decisions int
+	order     []string
+}
+
+type openingOnlyPublisher struct{ calls int }
+
+func (p *openingOnlyPublisher) Publish(context.Context, string, map[string]any) error {
+	p.calls++
 	return nil
 }
 
-// A critical incident with an applicable candidate raises the remediation
-// approval on the operator-decision substrate: the composed event type and the
-// four correlation keys the webhook re-verifies against.
-func TestCriticalIncidentRaisesRemediationDecisionOnTheSubstrate(t *testing.T) {
+type failOnceDecisionPublisher struct{ attempts []string }
+
+func (*failOnceDecisionPublisher) Publish(context.Context, string, map[string]any) error { return nil }
+func (p *failOnceDecisionPublisher) PublishDomainEvent(_ context.Context, event eventbus.DomainEvent) error {
+	encoded, err := json.Marshal(event)
+	if err != nil {
+		return err
+	}
+	p.attempts = append(p.attempts, string(encoded))
+	if len(p.attempts) == 1 {
+		return fmt.Errorf("fixture transient publisher failure")
+	}
+	return nil
+}
+
+func (p *combinedPublisher) Publish(context.Context, string, map[string]any) error {
+	p.opening++
+	p.order = append(p.order, "opening")
+	return nil
+}
+func (p *combinedPublisher) PublishDomainEvent(context.Context, eventbus.DomainEvent) error {
+	p.decisions++
+	p.order = append(p.order, "decision")
+	return nil
+}
+
+func TestDecisionPublicationRequiresIdentityPreservingPublisher(t *testing.T) {
 	store := &memoryStore{}
-	publisher := &decisionRecordingPublisher{}
+	event := BuildRemediationDecisionEvent(Incident{ID: "decision-identity", Fingerprint: "fp", Title: "title", Severity: SeverityCritical, RemediationDecisionGeneration: 1}, RemediationCandidate{ID: "candidate", Applicability: "applicable"}, 1, "digest", time.Date(2026, 10, 17, 14, 0, 0, 0, time.UTC), time.Date(2026, 10, 18, 14, 0, 0, 0, time.UTC))
+	encoded, err := json.Marshal(event)
+	if err != nil {
+		t.Fatal(err)
+	}
+	publication := RemediationDecisionPublication{EventID: operatordecision.EventID(event), IncidentID: "decision-identity", Generation: 1, Revision: 1, CandidateDigest: "digest", EventJSON: encoded}
+	store.decisionPending = []RemediationDecisionPublication{publication}
+	publisher := &openingOnlyPublisher{}
 	service := NewService(store)
 	service.SetEventPublisher(publisher)
+	service.DrainPendingPublications(context.Background())
+	if publisher.calls != 0 {
+		t.Fatalf("legacy facts publisher received identity-bound decision event %d times", publisher.calls)
+	}
+	if len(store.decisionPending) != 1 || store.decisionPending[0].EventID != publication.EventID {
+		t.Fatalf("identity-bound event was acknowledged without domain publisher: %#v", store.decisionPending)
+	}
+}
 
-	incident := &Incident{
-		ID:          "inc-42",
-		Fingerprint: "fp-42",
-		Title:       "NVIDIA module missing",
-		Severity:    SeverityCritical,
-		Status:      StatusOpen,
+func TestDecisionPublicationRetriesPersistedBytesAndEventIdentity(t *testing.T) {
+	store := &memoryStore{}
+	event := BuildRemediationDecisionEvent(Incident{ID: "decision-retry", Fingerprint: "fp", Title: "title", Severity: SeverityCritical, RemediationDecisionGeneration: 1}, RemediationCandidate{ID: "candidate", Applicability: "applicable"}, 1, "digest", time.Date(2026, 10, 17, 15, 0, 0, 0, time.UTC), time.Date(2026, 10, 18, 15, 0, 0, 0, time.UTC))
+	encoded, err := json.Marshal(event)
+	if err != nil {
+		t.Fatal(err)
 	}
-	candidate := RemediationCandidate{ID: "candidate-x", Title: "Install module", RiskLevel: "moderate"}
-	service.publishApprovalRequest(context.Background(), incident, candidate)
+	publication := RemediationDecisionPublication{EventID: operatordecision.EventID(event), IncidentID: "decision-retry", Generation: 1, Revision: 1, CandidateDigest: "digest", EventJSON: encoded}
+	store.decisionPending = []RemediationDecisionPublication{publication}
+	publisher := &failOnceDecisionPublisher{}
+	service := NewService(store)
+	service.SetEventPublisher(publisher)
+	service.DrainPendingPublications(context.Background())
+	if len(store.decisionPending) != 1 || len(publisher.attempts) != 1 {
+		t.Fatalf("after transient failure pending=%d attempts=%d", len(store.decisionPending), len(publisher.attempts))
+	}
+	service.DrainPendingPublications(context.Background())
+	if len(store.decisionPending) != 0 || len(publisher.attempts) != 2 {
+		t.Fatalf("after retry pending=%d attempts=%d", len(store.decisionPending), len(publisher.attempts))
+	}
+	if publisher.attempts[0] != publisher.attempts[1] || operatordecision.EventID(event) != publication.EventID {
+		t.Fatalf("retry did not publish identical persisted event: eventID=%s attempts=%q", publication.EventID, publisher.attempts)
+	}
+}
 
-	if publisher.count != 1 {
-		t.Fatalf("expected one decision event, got %d", publisher.count)
+func TestDrainPendingPublicationsSharesOneHundredAttemptBudget(t *testing.T) {
+	store := &memoryStore{}
+	for i := 0; i < 98; i++ {
+		store.pending = append(store.pending, OpeningPublication{IncidentID: fmt.Sprintf("open-%03d", i), Generation: 1, EventType: "incident.opened.v1", Payload: map[string]any{}})
 	}
-	if publisher.event.EventType != "vrooli-autoheal.remediation.decision_requested.v1" {
-		t.Fatalf("event type = %q", publisher.event.EventType)
+	for i := 0; i < 5; i++ {
+		event := BuildRemediationDecisionEvent(Incident{ID: fmt.Sprintf("decision-%03d", i), Fingerprint: "fp", Title: "title", Severity: SeverityCritical, RemediationDecisionGeneration: 1}, RemediationCandidate{ID: "candidate", Applicability: "applicable"}, 1, fmt.Sprintf("digest-%d", i), time.Date(2026, 10, 17, 12, i, 0, 0, time.UTC), time.Date(2026, 10, 18, 12, i, 0, 0, time.UTC))
+		encoded, err := json.Marshal(event)
+		if err != nil {
+			t.Fatal(err)
+		}
+		store.decisionPending = append(store.decisionPending, RemediationDecisionPublication{EventID: operatordecision.EventID(event), IncidentID: fmt.Sprintf("decision-%03d", i), Generation: 1, Revision: 1, CandidateDigest: fmt.Sprintf("digest-%d", i), EventJSON: encoded})
 	}
-	if publisher.event.Source != "vrooli-autoheal" {
-		t.Fatalf("event source = %q", publisher.event.Source)
+	publisher := &combinedPublisher{}
+	service := NewService(store)
+	service.SetEventPublisher(publisher)
+	service.DrainPendingPublications(context.Background())
+	if publisher.opening+publisher.decisions != pendingOpeningPublicationBatch {
+		t.Fatalf("attempts=%d, want budget %d", publisher.opening+publisher.decisions, pendingOpeningPublicationBatch)
 	}
-	correlation, _ := publisher.event.Payload["correlation"].(map[string]any)
-	if correlation == nil {
-		t.Fatalf("payload carries no correlation: %#v", publisher.event.Payload)
+	if publisher.opening != 98 || publisher.decisions != 2 || len(store.decisionPending) != 3 {
+		t.Fatalf("opened=%d decisions=%d pending decisions=%d", publisher.opening, publisher.decisions, len(store.decisionPending))
 	}
-	for key, want := range map[string]string{
-		"incident_id":          "inc-42",
-		"incident_fingerprint": "fp-42",
-		"candidate_id":         "candidate-x",
-		"candidate_risk_level": "moderate",
-	} {
-		if got, _ := correlation[key].(string); got != want {
-			t.Fatalf("correlation[%q] = %q, want %q", key, got, want)
+	for _, kind := range publisher.order[:98] {
+		if kind != "opening" {
+			t.Fatalf("decision publication overtook opening FYI at order %#v", publisher.order)
+		}
+	}
+	for _, kind := range publisher.order[98:] {
+		if kind != "decision" {
+			t.Fatalf("unexpected publication order: %#v", publisher.order)
+		}
+	}
+}
+
+func TestTickDeferredPublicationUsesOneFinalDrainAcrossPhases(t *testing.T) {
+	store := &memoryStore{}
+	for i := 0; i < 96; i++ {
+		store.pending = append(store.pending, OpeningPublication{IncidentID: fmt.Sprintf("old-%03d", i), Generation: 1, EventType: "incident.opened.v1", Payload: map[string]any{}})
+	}
+	for i := 0; i < 5; i++ {
+		event := BuildRemediationDecisionEvent(Incident{ID: fmt.Sprintf("decision-%03d", i), Fingerprint: "fp", Title: "title", Severity: SeverityCritical, RemediationDecisionGeneration: 1}, RemediationCandidate{ID: "candidate", Applicability: "applicable"}, 1, fmt.Sprintf("tick-digest-%d", i), time.Date(2026, 10, 17, 13, i, 0, 0, time.UTC), time.Date(2026, 10, 18, 13, i, 0, 0, time.UTC))
+		encoded, err := json.Marshal(event)
+		if err != nil {
+			t.Fatal(err)
+		}
+		store.decisionPending = append(store.decisionPending, RemediationDecisionPublication{EventID: operatordecision.EventID(event), IncidentID: fmt.Sprintf("decision-%03d", i), Generation: 1, Revision: 1, CandidateDigest: fmt.Sprintf("tick-digest-%d", i), EventJSON: encoded})
+	}
+	publisher := &combinedPublisher{}
+	service := NewService(store)
+	service.SetEventPublisher(publisher)
+	ctx := DeferPublicationDrain(context.Background())
+	if _, err := service.UpsertFromCheckResults(ctx, nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := service.OpenHealIncident(ctx, "resource-a", "restart", "failed", 3); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.UpsertAllFromCheckResult(ctx, checks.Result{CheckID: "host-check", Status: checks.StatusCritical, Message: "failed"}); err != nil {
+		t.Fatal(err)
+	}
+	if publisher.opening+publisher.decisions != 0 {
+		t.Fatalf("deferred phases published before tick drain: %#v", publisher)
+	}
+	if len(store.pending) != 98 || len(store.decisionPending) != 5 {
+		t.Fatalf("pre-drain queues opening=%d decisions=%d; want 98/5 after two new opening snapshots", len(store.pending), len(store.decisionPending))
+	}
+	service.DrainPendingPublications(ctx)
+	if publisher.opening+publisher.decisions != pendingOpeningPublicationBatch {
+		t.Fatalf("tick attempts=%d, want %d", publisher.opening+publisher.decisions, pendingOpeningPublicationBatch)
+	}
+	// The fixture starts with 96 retained opening notices; OpenHealIncident and
+	// the critical host-check phase each append one more, so the final drain sees
+	// 98 opening notices before it can spend the remaining two attempts on decisions.
+	if publisher.opening != 98 || publisher.decisions != 2 || len(store.decisionPending) != 3 {
+		t.Fatalf("final drain opened=%d decisions=%d decision remainder=%d; want 98/2/3 from one 100-attempt budget", publisher.opening, publisher.decisions, len(store.decisionPending))
+	}
+	for _, kind := range publisher.order[:98] {
+		if kind != "opening" {
+			t.Fatalf("decision publication overtook opening FYI at order %#v", publisher.order)
+		}
+	}
+	for _, kind := range publisher.order[98:] {
+		if kind != "decision" {
+			t.Fatalf("unexpected publication order: %#v", publisher.order)
 		}
 	}
 }

@@ -18,6 +18,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "generator_digest": "sha256:d62f642cc85260466ef67f24653340c95d277e2268cdf9983a7144dca50b1d50",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -76,6 +77,7 @@
     "gen/typescript/ai-gateway/v1/routing/routing_pb.ts": "sha256:e42927384d39580da49390e860f87a6cfdc238eab261527f960d924dbc1aeeb1",
     "gen/typescript/ai-gateway/v1/shared/errors_pb.ts": "sha256:c87a5a7e2149035d0c4cd9ddac7f3ca66cb5140ae871cf1cc4babb26a25ec3f1",
     "gen/typescript/ai-gateway/v1/shared/gateway_pb.ts": "sha256:9b0750e97318cb3d0420b1476faf021c463373d5bfb96b98d209d8c88dc56532",
-    "gen/typescript/ai-gateway/v1/shared/health_pb.ts": "sha256:274e0fd77fc45e9f0b471651fe7092101a491a0fa2f68ef90e594d2a9fa6fbc9"
+    "gen/typescript/ai-gateway/v1/shared/health_pb.ts": "sha256:274e0fd77fc45e9f0b471651fe7092101a491a0fa2f68ef90e594d2a9fa6fbc9",
+    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4"
   }
 }

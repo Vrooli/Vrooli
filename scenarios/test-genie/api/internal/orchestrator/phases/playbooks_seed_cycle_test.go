@@ -42,12 +42,16 @@ func TestRoutedQualificationLeaseInstallsAndClearsPairedOwnerRoute(t *testing.T)
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
-	lease, err := installRoutedLease(context.Background(), workspace.Environment{APIURL: server.URL}, resourceNeeds{PrimaryDriver: "sqlite"}, &isolation.Result{RunID: "qualification-1", Env: map[string]string{"PLAYBOOKS_SQLITE_DSN": "file:test-qualification"}}, nil)
+	result := &isolation.Result{RunID: "qualification-1", Env: map[string]string{"PLAYBOOKS_SQLITE_DSN": "file:test-qualification"}}
+	lease, err := installRoutedLease(context.Background(), workspace.Environment{APIURL: server.URL}, resourceNeeds{PrimaryDriver: "sqlite"}, result, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !fixture.installed || fixture.dsn != "file:test-qualification" || lease.leaseID != "qualification-1" {
 		t.Fatalf("install fixture=%+v lease=%+v", fixture, lease)
+	}
+	if result.Env["TEST_GENIE_ROUTING_LEASE_ID"] != lease.leaseID {
+		t.Fatal("seed/browser producers did not receive the installed lease identity")
 	}
 	if err := clearRoutedLease(context.Background(), lease, nil); err != nil {
 		t.Fatal(err)

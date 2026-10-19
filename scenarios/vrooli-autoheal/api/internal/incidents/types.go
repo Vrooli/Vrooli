@@ -43,40 +43,60 @@ type OpeningPublication struct {
 	Payload    map[string]any
 }
 
+// RemediationDecisionPublication is one immutable operator request snapshot.
+// EventID is the eventbus idempotency key; a replacement gets a new monotonic
+// revision and never rewrites an older request.
+type RemediationDecisionPublication struct {
+	EventID         string
+	IncidentID      string
+	Generation      int
+	Revision        int
+	CandidateDigest string
+	EventJSON       []byte
+	PublishedAt     *time.Time
+	SupersededAt    *time.Time
+}
+
 type Incident struct {
-	ID                    string                 `json:"id"`
-	Fingerprint           string                 `json:"fingerprint"`
-	Type                  Type                   `json:"type"`
-	Severity              Severity               `json:"severity"`
-	Status                Status                 `json:"status"`
-	Title                 string                 `json:"title"`
-	Summary               string                 `json:"summary"`
-	DetectedAt            time.Time              `json:"detectedAt"`
-	LastSeenAt            time.Time              `json:"lastSeenAt"`
-	UpdatedAt             time.Time              `json:"updatedAt"`
-	ResolvedAt            *time.Time             `json:"resolvedAt,omitempty"`
-	AcknowledgedAt        *time.Time             `json:"acknowledgedAt,omitempty"`
-	IgnoredAt             *time.Time             `json:"ignoredAt,omitempty"`
-	BootID                string                 `json:"bootId,omitempty"`
-	PreviousBootID        string                 `json:"previousBootId,omitempty"`
-	SourceCheckIDs        []string               `json:"sourceCheckIds,omitempty"`
-	SourceResultIDs       []string               `json:"sourceResultIds,omitempty"`
-	Evidence              map[string]any         `json:"evidence,omitempty"`
-	Recommendations       []string               `json:"recommendations,omitempty"`
-	Diagnosis             string                 `json:"diagnosis,omitempty"`
-	Confidence            string                 `json:"confidence,omitempty"`
-	EvidenceItems         []EvidenceItem         `json:"evidenceItems,omitempty"`
-	CorroborationNeeded   []string               `json:"corroborationNeeded,omitempty"`
-	SafeActions           []string               `json:"safeActions,omitempty"`
-	OperatorActions       []string               `json:"operatorActions,omitempty"`
-	RollbackOrFallback    []string               `json:"rollbackOrFallback,omitempty"`
-	PostChecks            []string               `json:"postChecks,omitempty"`
-	RemediationCandidates []RemediationCandidate `json:"remediationCandidates,omitempty"`
-	RemediationArtifacts  []RemediationArtifact  `json:"remediationArtifacts,omitempty"`
-	Outcome               *Outcome               `json:"outcome,omitempty"`
-	EventCount            int                    `json:"eventCount"`
-	ObservationCount      int                    `json:"observationCount"`
-	OperatorNotes         string                 `json:"operatorNotes,omitempty"`
+	ID                             string                 `json:"id"`
+	Fingerprint                    string                 `json:"fingerprint"`
+	Type                           Type                   `json:"type"`
+	Severity                       Severity               `json:"severity"`
+	Status                         Status                 `json:"status"`
+	Title                          string                 `json:"title"`
+	Summary                        string                 `json:"summary"`
+	DetectedAt                     time.Time              `json:"detectedAt"`
+	LastSeenAt                     time.Time              `json:"lastSeenAt"`
+	UpdatedAt                      time.Time              `json:"updatedAt"`
+	ResolvedAt                     *time.Time             `json:"resolvedAt,omitempty"`
+	AcknowledgedAt                 *time.Time             `json:"acknowledgedAt,omitempty"`
+	IgnoredAt                      *time.Time             `json:"ignoredAt,omitempty"`
+	BootID                         string                 `json:"bootId,omitempty"`
+	PreviousBootID                 string                 `json:"previousBootId,omitempty"`
+	SourceCheckIDs                 []string               `json:"sourceCheckIds,omitempty"`
+	SourceResultIDs                []string               `json:"sourceResultIds,omitempty"`
+	Evidence                       map[string]any         `json:"evidence,omitempty"`
+	Recommendations                []string               `json:"recommendations,omitempty"`
+	Diagnosis                      string                 `json:"diagnosis,omitempty"`
+	Confidence                     string                 `json:"confidence,omitempty"`
+	EvidenceItems                  []EvidenceItem         `json:"evidenceItems,omitempty"`
+	CorroborationNeeded            []string               `json:"corroborationNeeded,omitempty"`
+	SafeActions                    []string               `json:"safeActions,omitempty"`
+	OperatorActions                []string               `json:"operatorActions,omitempty"`
+	RollbackOrFallback             []string               `json:"rollbackOrFallback,omitempty"`
+	PostChecks                     []string               `json:"postChecks,omitempty"`
+	RemediationCandidates          []RemediationCandidate `json:"remediationCandidates,omitempty"`
+	RemediationArtifacts           []RemediationArtifact  `json:"remediationArtifacts,omitempty"`
+	Outcome                        *Outcome               `json:"outcome,omitempty"`
+	EventCount                     int                    `json:"eventCount"`
+	ObservationCount               int                    `json:"observationCount"`
+	OperatorNotes                  string                 `json:"operatorNotes,omitempty"`
+	RemediationDecisionGeneration  int                    `json:"-"`
+	RemediationDecisionRevision    int                    `json:"-"`
+	RemediationDecisionEventID     string                 `json:"-"`
+	RemediationDecisionCandidateID string                 `json:"-"`
+	RemediationCandidateDigest     string                 `json:"-"`
+	RemediationDecisionExpiresAt   *time.Time             `json:"-"`
 }
 
 type EvidenceItem struct {

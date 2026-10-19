@@ -12,6 +12,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "generator_digest": "sha256:d62f642cc85260466ef67f24653340c95d277e2268cdf9983a7144dca50b1d50",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -39,6 +40,7 @@
     "gen/python/typescript_code_graph/v1/rewrite/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/typescript_code_graph/v1/rewrite/rewrite_pb2.py": "sha256:34abd446abe43ed02af01a6c00d8b840c1f6f5a4894722ba4f33f95d9f9013b6",
     "gen/python/typescript_code_graph/v1/rewrite/rewrite_pb2.pyi": "sha256:0472d7a37158f74eb05429108798cce6cd1fd41747192a1f7ef08ae7c0e47c1e",
+    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4",
     "gen/typescript/typescript-code-graph/v1/errors/errors_pb.ts": "sha256:7a55d3621177d3704bf2d10d30bdf2bcb02fbf67550d1c9db856862f9ed40509",
     "gen/typescript/typescript-code-graph/v1/graph/graph_pb.ts": "sha256:00fd0450980ee0af1be171188cfa37c2be0cf5a06fc1abc1959ace2b3b1512c5",
     "gen/typescript/typescript-code-graph/v1/health/health_pb.ts": "sha256:554eb0c48fe1c7181534865d33ed3f4ad2fbe6df902710c0ce121106704837b8",

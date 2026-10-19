@@ -770,6 +770,15 @@ func (s *Service) Process(ctx context.Context, id string) error {
 	if isTerminal(n.State) {
 		return nil
 	}
+	ask, askErr := s.askByNotification(ctx, n.ID)
+	if askErr == nil {
+		switch ask.State {
+		case AskAnswered, AskWithdrawn, AskExpired:
+			return s.appendEvent(ctx, n.ID, "suppressed", "linked ask already resolved before notification routing", s.clock.Now().UTC().Format(time.RFC3339Nano))
+		}
+	} else if !errors.Is(askErr, ErrNotFound) {
+		return askErr
+	}
 	if released, wait, err := s.releaseScheduledHold(ctx, n); err != nil {
 		return err
 	} else if wait {

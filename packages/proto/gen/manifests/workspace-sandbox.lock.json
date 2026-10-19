@@ -9,6 +9,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "generator_digest": "sha256:d62f642cc85260466ef67f24653340c95d277e2268cdf9983a7144dca50b1d50",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -28,6 +29,7 @@
     "gen/python/workspace_sandbox/v1/workspace/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/workspace_sandbox/v1/workspace/workspace_pb2.py": "sha256:b7fba52d310fed23372709ce28b6f84874ea5e954a5cae5eabb94147883344df",
     "gen/python/workspace_sandbox/v1/workspace/workspace_pb2.pyi": "sha256:2b836cc49cc66a66e312f34bc81a7734911d2e0491e5976161e967315d6ff020",
+    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4",
     "gen/typescript/workspace-sandbox/v1/domain/applied_change_pb.ts": "sha256:3cdf2fd65d4709b76e108dbf894e99b97674ac7dd08415c1faa258ae67c37ddd",
     "gen/typescript/workspace-sandbox/v1/workspace/workspace_pb.ts": "sha256:bb0c15c045019fc8332691e59e25cbc060566a745e23abf0a012b187440940d6"
   }

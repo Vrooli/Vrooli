@@ -17,6 +17,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "generator_digest": "sha256:d62f642cc85260466ef67f24653340c95d277e2268cdf9983a7144dca50b1d50",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -64,6 +65,7 @@
     "gen/python/source_ledger/v1/shared/health_pb2.py": "sha256:103bcbe74291de8137f487253fc2b579e215caf5ee27c51d90b9dc7037b05f33",
     "gen/python/source_ledger/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
     "gen/python/source_ledger/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4",
     "gen/typescript/source-ledger/v1/facets/facets_pb.ts": "sha256:fe9a5623ea821136cb916c578ff73a887d6eede1aea0fe5e658a462f22bf2d4c",
     "gen/typescript/source-ledger/v1/forest/forest_pb.ts": "sha256:9e35dfe669d1a8ce9f06f695eb09f1619679dbb7655b9a53a5e5c8ac883a2e72",
     "gen/typescript/source-ledger/v1/journal/journal_pb.ts": "sha256:2b0cb31756d682a7dbfe959e6e652714d4e73d5d012ed690b914cc1d901b845e",

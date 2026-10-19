@@ -288,6 +288,7 @@ func agentOperationRoute(r *http.Request, interactive bool) bool {
 	template, _ := route.GetPathTemplate()
 	switch template {
 	case "/api/v1/runs/{id}/stop", "/api/v1/runs/{id}/continue", "/api/v1/runs/{id}/wake", "/api/v1/runs/{id}/recover", "/api/v1/runs/{id}/park",
+		"/api/v1/tasks/{id}/cancel",
 		"/api/v1/investigations/{id}/wait", "/api/v1/investigations/{id}/result", "/api/v1/investigations/{id}/cancel", "/api/v1/investigations/{id}/learning-retry":
 		return true
 	}

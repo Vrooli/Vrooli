@@ -236,9 +236,13 @@ type Run struct {
 	// etc.) with an unrelated lifetime.
 	ConversationID string `json:"conversationId,omitempty" db:"conversation_id"`
 
-	// Identity token fields
-	IdentityTokenHash      string     `json:"identityTokenHash,omitempty" db:"identity_token_hash"`
-	IdentityTokenRevokedAt *time.Time `json:"identityTokenRevokedAt,omitempty" db:"identity_token_revoked_at"`
+	// Identity token fields. Renewal uses a stable hash of the original
+	// attached credential as a broker-only anchor; IdentityTokenHash remains
+	// the only hash accepted by API verification.
+	IdentityTokenHash         string     `json:"identityTokenHash,omitempty" db:"identity_token_hash"`
+	IdentityTokenRevokedAt    *time.Time `json:"identityTokenRevokedAt,omitempty" db:"identity_token_revoked_at"`
+	IdentityRenewalAnchorHash string     `json:"-" db:"identity_renewal_anchor_hash"`
+	IdentityTokenIssuedAt     *time.Time `json:"-" db:"identity_token_issued_at"`
 
 	// CustomEnv holds the caller-supplied VROOLI_-prefixed environment
 	// variables passed at run creation (CreateRunRequest.Environment).
@@ -751,10 +755,15 @@ type RunConfig struct {
 	TranscriptCodec       string  `json:"transcriptCodec,omitempty"`
 	TranscriptCodecScore  float64 `json:"transcriptCodecScore,omitempty"`
 	Until                 string  `json:"until,omitempty"`
-	Model                 string  `json:"model,omitempty"`
-	RoleRef               string  `json:"roleRef,omitempty"`
-	PreferredRunner       string  `json:"preferredRunner,omitempty"`
-	MaxTurns              int     `json:"maxTurns,omitempty"`
+	// InteractiveContinuation is owner-written lifecycle metadata for the
+	// currently admitted interactive invocation. Public create resolution never
+	// copies this field from a request or profile. Its timestamp must equal the
+	// run's InteractiveInvocationStartedAt before recovery may use the policy.
+	InteractiveContinuation *InteractiveContinuationPolicy `json:"interactiveContinuation,omitempty"`
+	Model                   string                         `json:"model,omitempty"`
+	RoleRef                 string                         `json:"roleRef,omitempty"`
+	PreferredRunner         string                         `json:"preferredRunner,omitempty"`
+	MaxTurns                int                            `json:"maxTurns,omitempty"`
 	// MaxToolCalls is an owner-declared hard ceiling for one runner process.
 	// Unlike aggregate token accounting, it remains enforceable when a provider
 	// emits usage only at terminal completion. Zero preserves unlimited behavior.
@@ -820,6 +829,15 @@ type RunConfig struct {
 	// Admission records the requested-versus-effective configuration proven
 	// for this admitted run. Nil on historical rows created before adoption.
 	Admission *RunAdmission `json:"admission,omitempty"`
+}
+
+// InteractiveContinuationPolicy records a narrowly scoped tail completion
+// rule for one admitted interactive invocation. It is serialized with the
+// already-persisted ResolvedConfig and is never an authorization or caller input.
+type InteractiveContinuationPolicy struct {
+	InvocationStartedAt                               time.Time `json:"invocationStartedAt"`
+	TranscriptStartCursor                             *int64    `json:"transcriptStartCursor,omitempty"`
+	CompleteAfterFirstSuccessfulTurnWithoutGoalMarker bool      `json:"completeAfterFirstSuccessfulTurnWithoutGoalMarker"`
 }
 
 // ApplyProfile applies values from an AgentProfile as the base configuration.

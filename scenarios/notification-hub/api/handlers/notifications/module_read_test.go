@@ -27,14 +27,14 @@ func TestConfiguredRecipientCanReadNotificationsWithoutIdentity(t *testing.T) {
 	service := hub.New(db, nil, nil)
 	service.SetDefaultRecipient("alice")
 	createdAt := time.Now().UTC().Format(time.RFC3339Nano)
-	insert := func(id, recipient string) {
-		_, err := db.ExecContext(ctx, `INSERT INTO notifications (id, requested_by, title, body, urgency, sensitivity_label, idempotency_key, dedupe_key, dedupe_window_seconds, created_at, updated_at) VALUES (?, ?, ?, 'body', 'normal', 'public', ?, '', 300, ?, ?)`, id, recipient, id, id, createdAt, createdAt)
+	insert := func(id, recipient, contextURL string) {
+		_, err := db.ExecContext(ctx, `INSERT INTO notifications (id, requested_by, title, body, urgency, sensitivity_label, idempotency_key, dedupe_key, dedupe_window_seconds, context_url, created_at, updated_at) VALUES (?, ?, ?, 'body', 'normal', 'public', ?, '', 300, ?, ?, ?)`, id, recipient, id, id, contextURL, createdAt, createdAt)
 		require.NoError(t, err)
 		_, err = db.ExecContext(ctx, `INSERT INTO notification_events (notification_id, state, reason, created_at) VALUES (?, 'pending', 'accepted', ?)`, id, createdAt)
 		require.NoError(t, err)
 	}
-	insert("alice-notification", "alice")
-	insert("bob-notification", "bob")
+	insert("alice-notification", "alice", "https://agent-manager.example/runs/run-42")
+	insert("bob-notification", "bob", "javascript:alert(1)")
 	_, err := db.ExecContext(ctx, `INSERT INTO receipts (id, notification_id, channel, machine_id, provider_id, delivered_at) VALUES (?, ?, 'web_push', 'local', ?, ?)`, "receipt-1", "alice-notification", "https://push.example.invalid/subscription?secret=sentinel", createdAt)
 	require.NoError(t, err)
 
@@ -48,10 +48,12 @@ func TestConfiguredRecipientCanReadNotificationsWithoutIdentity(t *testing.T) {
 	require.NoError(t, err, "ordinary notification reads must not require an owner login")
 	require.Len(t, list.Msg.GetNotifications(), 1)
 	require.Equal(t, "alice-notification", list.Msg.GetNotifications()[0].GetId())
+	require.Equal(t, "https://agent-manager.example/runs/run-42", list.Msg.GetNotifications()[0].GetContextUrl())
 
 	got, err := client.Get(ctx, connect.NewRequest(&v1.GetRequest{Id: "alice-notification"}))
 	require.NoError(t, err)
 	require.Equal(t, "alice", got.Msg.GetNotification().GetRequestedBy())
+	require.Equal(t, "https://agent-manager.example/runs/run-42", got.Msg.GetNotification().GetContextUrl())
 	require.Len(t, got.Msg.GetReceipts(), 1)
 	require.Empty(t, got.Msg.GetReceipts()[0].GetProviderId(), "public reads must not expose push endpoint URLs")
 	_, internalReceipts, err := service.GetForRecipient(ctx, "alice-notification", "alice")

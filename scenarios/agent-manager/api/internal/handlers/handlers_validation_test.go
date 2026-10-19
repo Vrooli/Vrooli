@@ -14,6 +14,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 
+	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/adapters/sandbox"
+	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
@@ -769,6 +772,78 @@ func TestGetRunEvents_Success(t *testing.T) {
 	}
 }
 
+func TestGetRunEvents_LimitReportsHasMoreAndCursorCompletes(t *testing.T) {
+	_, router, repos, events := setupTestHandlerWithRunnerAndRepos(t, runner.NewMockRunner(domain.RunnerTypeClaudeCode))
+	ctx := context.Background()
+	task := &domain.Task{ID: uuid.New(), Title: "event page", ScopePath: ".", Status: domain.TaskStatusQueued}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatal(err)
+	}
+	run := &domain.Run{ID: uuid.New(), TaskID: task.ID, Status: domain.RunStatusComplete, Phase: domain.RunPhaseCompleted}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	for _, content := range []string{"first", "second", "third"} {
+		if err := events.Append(ctx, run.ID, domain.NewMessageEvent(run.ID, "assistant", content)); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	first := httptest.NewRecorder()
+	router.ServeHTTP(first, httptest.NewRequest(http.MethodGet, "/api/v1/runs/"+run.ID.String()+"/events?limit=2", nil))
+	if first.Code != http.StatusOK {
+		t.Fatalf("first page status=%d body=%s", first.Code, first.Body.String())
+	}
+	var page apipb.GetRunEventsResponse
+	decodeProtoJSON(t, first.Body.Bytes(), &page)
+	if len(page.GetEvents()) != 2 || !page.GetHasMore() {
+		t.Fatalf("first page events=%d has_more=%t", len(page.GetEvents()), page.GetHasMore())
+	}
+
+	lastSequence := page.GetEvents()[len(page.GetEvents())-1].GetSequence()
+	second := httptest.NewRecorder()
+	path := fmt.Sprintf("/api/v1/runs/%s/events?after_sequence=%d&limit=2", run.ID, lastSequence)
+	router.ServeHTTP(second, httptest.NewRequest(http.MethodGet, path, nil))
+	if second.Code != http.StatusOK {
+		t.Fatalf("second page status=%d body=%s", second.Code, second.Body.String())
+	}
+	var finalPage apipb.GetRunEventsResponse
+	decodeProtoJSON(t, second.Body.Bytes(), &finalPage)
+	if len(finalPage.GetEvents()) != 1 || finalPage.GetHasMore() {
+		t.Fatalf("final page events=%d has_more=%t", len(finalPage.GetEvents()), finalPage.GetHasMore())
+	}
+	if finalPage.GetEvents()[0].GetSequence() <= lastSequence {
+		t.Fatalf("cursor did not advance: last=%d next=%d", lastSequence, finalPage.GetEvents()[0].GetSequence())
+	}
+}
+
+func TestGetRunEvents_RejectsLimitBeforeInt32Narrowing(t *testing.T) {
+	_, router, repos, _ := setupTestHandlerWithRunnerAndRepos(t, runner.NewMockRunner(domain.RunnerTypeClaudeCode))
+	ctx := context.Background()
+	task := &domain.Task{ID: uuid.New(), Title: "event page limit", ScopePath: ".", Status: domain.TaskStatusQueued}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatal(err)
+	}
+	run := &domain.Run{ID: uuid.New(), TaskID: task.ID, Status: domain.RunStatusComplete, Phase: domain.RunPhaseCompleted}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, limit := range []string{"4294967297", "-4294967295"} {
+		t.Run(limit, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/api/v1/runs/"+run.ID.String()+"/events?limit="+limit, nil)
+			rr := httptest.NewRecorder()
+			router.ServeHTTP(rr, req)
+			if rr.Code != http.StatusBadRequest {
+				t.Fatalf("expected out-of-range limit %s to return 400, got %d: %s", limit, rr.Code, rr.Body.String())
+			}
+			if !strings.Contains(rr.Body.String(), "between 1 and 1000") {
+				t.Fatalf("expected range error for limit %s, got %s", limit, rr.Body.String())
+			}
+		})
+	}
+}
+
 // TestGetRunEvents_NotFound tests getting events for non-existent run.
 func TestGetRunEvents_NotFound(t *testing.T) {
 	_, router := setupTestHandler(t)
@@ -819,6 +894,39 @@ func TestGetRunDiff_InvalidUUID(t *testing.T) {
 
 	if rr.Code != http.StatusBadRequest && rr.Code != http.StatusNotFound {
 		t.Errorf("expected status 400 or 404, got %d", rr.Code)
+	}
+}
+
+type getRunDiffResponseService struct {
+	orchestration.RunService
+	diff *sandbox.DiffResult
+}
+
+func (s getRunDiffResponseService) GetRunDiff(context.Context, uuid.UUID) (*sandbox.DiffResult, error) {
+	return s.diff, nil
+}
+
+func TestGetRunDiffProjectsVerifiedFileCount(t *testing.T) {
+	runID := uuid.New()
+	service := getRunDiffResponseService{diff: &sandbox.DiffResult{FileCountVerified: true}}
+	handler := New(orchestration.HandlerServices{RunService: service})
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/runs/"+runID.String()+"/diff", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": runID.String()})
+	response := httptest.NewRecorder()
+	handler.GetRunDiff(response, req)
+	if response.Code != http.StatusOK {
+		t.Fatalf("GetRunDiff status = %d, body=%s", response.Code, response.Body.String())
+	}
+	var body struct {
+		Diff struct {
+			FileCountVerified bool `json:"file_count_verified"`
+		} `json:"diff"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if !body.Diff.FileCountVerified {
+		t.Fatalf("response did not preserve verified count: %s", response.Body.String())
 	}
 }
 

@@ -67,6 +67,13 @@ type ApprovalNotifier interface {
 	NotifyRunOutcome(ctx context.Context, run *domain.Run)
 }
 
+// ApprovalWithdrawalNotifier retracts a previously raised request when the
+// run no longer has a decision to make. It is separate from ApprovalNotifier
+// so existing notification-only implementations remain compatible.
+type ApprovalWithdrawalNotifier interface {
+	WithdrawRunNeedsReview(ctx context.Context, run *domain.Run, reason string) error
+}
+
 // Deps bundles the common dependencies every phase shares. Each phase's
 // input struct carries a Deps so the call site is explicit about what the
 // phase touches without each phase repeating the same handful of fields.

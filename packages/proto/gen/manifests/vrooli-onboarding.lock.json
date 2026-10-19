@@ -26,6 +26,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "generator_digest": "sha256:d62f642cc85260466ef67f24653340c95d277e2268cdf9983a7144dca50b1d50",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -111,6 +112,7 @@
     "gen/python/vrooli_onboarding/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/vrooli_onboarding/v1/shared/shared_pb2.py": "sha256:ba76d7b54297156a45ef66a93d977b5c117017baab3b0064a5d09997c060ffa8",
     "gen/python/vrooli_onboarding/v1/shared/shared_pb2.pyi": "sha256:bf3ea6c628984c967461c4525d849304ae9ddedf8cd3f4fd049ee606291e1822",
+    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4",
     "gen/typescript/vrooli-onboarding/v1/apply/apply_pb.ts": "sha256:5b07574978d83037d83ada6634f97bf28543942148d5d17a101ba5f1fab06eb7",
     "gen/typescript/vrooli-onboarding/v1/auth/auth_pb.ts": "sha256:943da05703d3f6e0b0e91cb90161b5f5ea95a23d671c3c3d2588e7d779dfe94d",
     "gen/typescript/vrooli-onboarding/v1/capabilities/capabilities_pb.ts": "sha256:e3957c92ab0f3c25a39567c2519f641a4280bc2432ea1b2a8cdbc8b1398c0ad0",

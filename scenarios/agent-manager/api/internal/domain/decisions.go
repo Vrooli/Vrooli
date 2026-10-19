@@ -102,9 +102,10 @@ var runTransitions = map[RunStatus][]RunStatus{
 		RunStatusCancelled,
 	},
 	RunStatusNeedsReview: {
-		RunStatusComplete, // After approval
-		RunStatusFailed,   // Rejection or error
-		RunStatusRunning,  // Continuation (operator follow-up turn)
+		RunStatusComplete,  // After approval
+		RunStatusFailed,    // Rejection or error
+		RunStatusCancelled, // Verified-empty review restored the original cancellation
+		RunStatusRunning,   // Continuation (operator follow-up turn)
 	},
 	// parked: waiting on an external await-handle. Wake resumes it (→running);
 	// the park deadline elapsing also wakes it (→running with a typed timeout

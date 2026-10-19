@@ -817,8 +817,40 @@ func (o *Orchestrator) VerifyIdentityPair(ctx context.Context, baselineToken, op
 // baseline plus a separately verified operation token. An owner-attributed
 // baseline is never replaced by a grant, and grant failure does not disable its
 // ordinary identity use.
+type authorizationCredentialPurpose uint8
+
+const (
+	authorizationCredentialPurposeDefault authorizationCredentialPurpose = iota
+	authorizationCredentialPurposeOrdinaryIdentity
+)
+
 func (o *Orchestrator) ResolveAuthorizationCredentials(ctx context.Context, pid int, baselineToken string) (AuthorizationCredentials, error) {
+	return o.resolveAuthorizationCredentials(ctx, pid, baselineToken, authorizationCredentialPurposeDefault)
+}
+
+// resolveOrdinaryRunIdentityCredential is used only by the local identity
+// reporting command. It shares the exact peer, managed-run, expiry and renewal
+// checks with normal credential resolution but never returns an operation grant.
+func (o *Orchestrator) resolveOrdinaryRunIdentityCredential(ctx context.Context, pid int, baselineToken string) (AuthorizationCredentials, error) {
+	credentials, err := o.resolveAuthorizationCredentials(ctx, pid, baselineToken, authorizationCredentialPurposeOrdinaryIdentity)
+	if err != nil {
+		return credentials, err
+	}
+	if credentials.BaselineToken == "" || credentials.LegacyToken != "" || credentials.OperationToken != "" {
+		return ordinaryIdentityCredentialFailure(nil)
+	}
+	return credentials, nil
+}
+
+func ordinaryIdentityCredentialFailure(cause error) (AuthorizationCredentials, error) {
+	return AuthorizationCredentials{OperationRefusal: "identity_refresh_unavailable"}, identityRefreshUnavailable(cause)
+}
+
+func (o *Orchestrator) resolveAuthorizationCredentials(ctx context.Context, pid int, baselineToken string, purpose authorizationCredentialPurpose) (AuthorizationCredentials, error) {
 	baselineToken = strings.TrimSpace(baselineToken)
+	if purpose == authorizationCredentialPurposeOrdinaryIdentity && baselineToken == "" {
+		return ordinaryIdentityCredentialFailure(nil)
+	}
 	// Resolve managed-run ownership from the verified broker peer even when no
 	// baseline header was supplied. A managed child must not be able to omit
 	// that header (or let it expire) and fall back to an ancestor's grant-only
@@ -827,6 +859,9 @@ func (o *Orchestrator) ResolveAuthorizationCredentials(ctx context.Context, pid 
 	if pid > 1 {
 		binding, err := cliutil.ObserveProcessBinding(pid)
 		if err != nil {
+			if purpose == authorizationCredentialPurposeOrdinaryIdentity {
+				return ordinaryIdentityCredentialFailure(err)
+			}
 			if baselineToken != "" {
 				return AuthorizationCredentials{BaselineToken: baselineToken, OperationRefusal: "process_binding_unavailable"}, nil
 			}
@@ -834,6 +869,9 @@ func (o *Orchestrator) ResolveAuthorizationCredentials(ctx context.Context, pid 
 		}
 		managedID, err := o.managedAuthorizationRun(ctx, binding)
 		if err != nil {
+			if purpose == authorizationCredentialPurposeOrdinaryIdentity {
+				return ordinaryIdentityCredentialFailure(err)
+			}
 			if baselineToken != "" {
 				return AuthorizationCredentials{BaselineToken: baselineToken, OperationRefusal: "managed_run_unavailable"}, nil
 			}
@@ -842,6 +880,9 @@ func (o *Orchestrator) ResolveAuthorizationCredentials(ctx context.Context, pid 
 		if managedID != uuid.Nil {
 			managedRun, err = o.GetStoredRun(ctx, managedID)
 			if err != nil {
+				if purpose == authorizationCredentialPurposeOrdinaryIdentity {
+					return ordinaryIdentityCredentialFailure(err)
+				}
 				if baselineToken != "" {
 					return AuthorizationCredentials{BaselineToken: baselineToken, OperationRefusal: "managed_run_unavailable"}, nil
 				}
@@ -852,6 +893,15 @@ func (o *Orchestrator) ResolveAuthorizationCredentials(ctx context.Context, pid 
 	var requiredRunID uuid.UUID
 	if managedRun != nil && managedRun.ParentRunID != nil {
 		requiredRunID = managedRun.ID
+	}
+	if purpose == authorizationCredentialPurposeOrdinaryIdentity {
+		claims, err := identity.VerifyTokenSignature(baselineToken, o.identitySecret)
+		if err != nil || claims == nil || claims.RunID == uuid.Nil || claims.Purpose != "" || claims.Meta["authorization_id"] != "" {
+			return ordinaryIdentityCredentialFailure(err)
+		}
+		if managedRun != nil && managedRun.ID != claims.RunID {
+			return AuthorizationCredentials{OperationRefusal: "baseline_run_mismatch"}, &domain.AuthorizationError{Code: "baseline_run_mismatch"}
+		}
 	}
 	if baselineToken != "" {
 		if inheritedClaims, verifyErr := identity.VerifyToken(baselineToken, o.identitySecret); verifyErr == nil && inheritedClaims.Meta["authorization_id"] != "" {
@@ -882,26 +932,64 @@ func (o *Orchestrator) ResolveAuthorizationCredentials(ctx context.Context, pid 
 	}
 
 	verifiedBaseline, verifyErr := o.VerifyIdentityToken(ctx, baselineToken)
+	renewedBaseline := false
 	if verifyErr != nil || verifiedBaseline == nil || !verifiedBaseline.Valid || verifiedBaseline.Claims == nil || verifiedBaseline.Claims.Purpose != "" || verifiedBaseline.Claims.Meta["authorization_id"] != "" {
-		// An expired baseline is never returned as an identity. Preserve only the
-		// existing independent grant path when its exact token hash identifies a
-		// live ownerless attached root (or a child whose own grant can be
-		// resolved). This is classification from the retained owner record, not
-		// authority from an expired bearer.
-		expiredRun, lookupErr := o.runs.GetByTokenHash(ctx, identity.HashToken(baselineToken))
-		if lookupErr != nil {
-			return AuthorizationCredentials{OperationRefusal: "baseline_lookup_unavailable"}, lookupErr
+		// Ordinary API verification remains expiry-strict. Only the local
+		// credential broker can use a signed expired attached-root token as a
+		// renewal anchor after rechecking the exact launch owner/session proof.
+		if claims, signatureErr := identity.VerifyTokenSignature(baselineToken, o.identitySecret); signatureErr == nil && requiredRunID == uuid.Nil && claims.ExpiresAt > 0 && claims.ExpiresAt <= o.now().Unix() && claims.Purpose == "" && claims.Meta["authorization_id"] == "" {
+			if renewed, ok, renewalErr := o.resolveAttachedBaselineRenewal(ctx, pid, baselineToken, claims); renewalErr != nil {
+				if purpose == authorizationCredentialPurposeOrdinaryIdentity {
+					return ordinaryIdentityCredentialFailure(renewalErr)
+				}
+				// Identity refresh is not a prerequisite for an already independent
+				// grant. Preserve that established grant-only path if it remains
+				// current, but never return the expired baseline as an identity.
+				grantCredentials, handled, grantErr := o.resolveExpiredAttachedBaselineGrant(ctx, pid, baselineToken, managedRun)
+				if grantErr != nil {
+					return grantCredentials, grantErr
+				}
+				if handled && grantCredentials.LegacyToken != "" {
+					return grantCredentials, nil
+				}
+				return AuthorizationCredentials{OperationRefusal: "identity_refresh_unavailable"}, renewalErr
+			} else if ok {
+				// Continue through the normal ownerless-root resolution below. It
+				// may return this ordinary baseline or the existing independently
+				// bound grant-only credential; renewal must not bypass grant lookup.
+				baselineToken = renewed
+				verifiedBaseline, verifyErr = o.VerifyIdentityToken(ctx, baselineToken)
+				if verifyErr != nil || verifiedBaseline == nil || !verifiedBaseline.Valid || verifiedBaseline.Claims == nil || verifiedBaseline.Claims.Purpose != "" || verifiedBaseline.Claims.Meta["authorization_id"] != "" {
+					return AuthorizationCredentials{OperationRefusal: "identity_refresh_unavailable"}, identityRefreshUnavailable(verifyErr)
+				}
+				renewedBaseline = true
+			}
 		}
-		if expiredRun != nil {
-			credentials, handled, resolveErr := o.resolveAttachedBaselineGrant(ctx, pid, expiredRun, managedRun)
+		if !renewedBaseline {
+			if purpose == authorizationCredentialPurposeOrdinaryIdentity {
+				return ordinaryIdentityCredentialFailure(verifyErr)
+			}
+			// If renewal is unavailable, preserve only the existing independent
+			// grant path. Grant-only authorization does not make the expired anchor
+			// an API identity.
+			credentials, handled, resolveErr := o.resolveExpiredAttachedBaselineGrant(ctx, pid, baselineToken, managedRun)
 			if resolveErr != nil {
 				return credentials, resolveErr
 			}
 			if handled {
 				return credentials, nil
 			}
+			return AuthorizationCredentials{BaselineToken: baselineToken, OperationRefusal: "baseline_invalid"}, nil
 		}
-		return AuthorizationCredentials{BaselineToken: baselineToken, OperationRefusal: "baseline_invalid"}, nil
+	}
+	if purpose == authorizationCredentialPurposeOrdinaryIdentity {
+		if verifiedBaseline == nil || !verifiedBaseline.Valid || verifiedBaseline.Claims == nil || verifiedBaseline.Claims.RunID == uuid.Nil {
+			return ordinaryIdentityCredentialFailure(nil)
+		}
+		if managedRun != nil && managedRun.ID != verifiedBaseline.Claims.RunID {
+			return AuthorizationCredentials{OperationRefusal: "baseline_run_mismatch"}, &domain.AuthorizationError{Code: "baseline_run_mismatch"}
+		}
+		return AuthorizationCredentials{BaselineToken: baselineToken}, nil
 	}
 	// An ownerless attached baseline carries no delegated scopes and cannot be
 	// paired to a human-approved operation grant. Preserve the pre-pair legacy
@@ -937,6 +1025,26 @@ func (o *Orchestrator) ResolveAuthorizationCredentials(ctx context.Context, pid 
 		return AuthorizationCredentials{BaselineToken: baselineToken, OperationRefusal: "pair_unavailable"}, nil
 	}
 	return AuthorizationCredentials{BaselineToken: baselineToken, OperationToken: grantToken}, nil
+}
+
+func (o *Orchestrator) resolveExpiredAttachedBaselineGrant(ctx context.Context, pid int, baselineToken string, peerRun *domain.Run) (AuthorizationCredentials, bool, error) {
+	anchorHash := identity.HashToken(baselineToken)
+	baseline, err := o.runs.GetByTokenHash(ctx, anchorHash)
+	if err != nil {
+		return AuthorizationCredentials{OperationRefusal: "baseline_lookup_unavailable"}, true, err
+	}
+	if baseline == nil {
+		if store, ok := o.runs.(repository.AttachedIdentityRenewalRepository); ok {
+			baseline, err = store.GetByIdentityRenewalAnchorHash(ctx, anchorHash)
+			if err != nil {
+				return AuthorizationCredentials{OperationRefusal: "baseline_lookup_unavailable"}, true, err
+			}
+		}
+	}
+	if baseline == nil {
+		return AuthorizationCredentials{}, false, nil
+	}
+	return o.resolveAttachedBaselineGrant(ctx, pid, baseline, peerRun)
 }
 
 func (o *Orchestrator) resolveAttachedBaselineGrant(ctx context.Context, pid int, baseline, peerRun *domain.Run) (AuthorizationCredentials, bool, error) {

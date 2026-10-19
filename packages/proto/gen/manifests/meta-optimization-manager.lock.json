@@ -15,6 +15,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "generator_digest": "sha256:d62f642cc85260466ef67f24653340c95d277e2268cdf9983a7144dca50b1d50",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -61,6 +62,7 @@
     "gen/typescript/meta-optimization-manager/v1/shared/errors_pb.ts": "sha256:05e7cfa15886f8ffc7d5643fa9605b3e7d5d804e55a363445ffbc6b0d71a9179",
     "gen/typescript/meta-optimization-manager/v1/shared/health_pb.ts": "sha256:47d6618f77376f1fcd7187aefcb192f4fd634d001093d23f31b74bd641f98f08",
     "gen/typescript/meta-optimization-manager/v1/shared/model_pb.ts": "sha256:bfac1e581ef31d01cd0a30e4968151feba567b4c6af1aaf293b50ad17f4ea656",
-    "gen/typescript/meta-optimization-manager/v1/trials/trials_pb.ts": "sha256:a6df084bc7cef8620d9dfcd10bc18cd75d748167e2dc618c10059d71df1bf6c9"
+    "gen/typescript/meta-optimization-manager/v1/trials/trials_pb.ts": "sha256:a6df084bc7cef8620d9dfcd10bc18cd75d748167e2dc618c10059d71df1bf6c9",
+    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4"
   }
 }

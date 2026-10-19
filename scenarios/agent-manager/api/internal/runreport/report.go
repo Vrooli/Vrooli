@@ -48,6 +48,15 @@ type DurableTimeAccountingSource interface {
 	DurableTimeAccounting(context.Context, uuid.UUID) (runsignal.TimeAccounting, bool, error)
 }
 
+// CanonicalUsageProjectionSource supplies the token total projected from the
+// same complete event stream returned by Source.Events. It also reports
+// whether all usage-bearing invocations in that stream have authoritative
+// snapshots. A complete stream is required: callers must return an error
+// instead of a truncated prefix.
+type CanonicalUsageProjectionSource interface {
+	CanonicalUsageProjection(*domain.Run, []*domain.RunEvent) (tokens int64, usageFullyReconciled bool)
+}
+
 // ReceiptSummary is deliberately bounded: the report needs availability and
 // count to route an investigation, while the receipts command owns payload
 // disclosure.
@@ -267,6 +276,22 @@ func Build(ctx context.Context, source Source, runID uuid.UUID) (*RunReport, err
 		r.EventsAvailability = Availability{State: AvailabilityUnavailable, Reason: err.Error()}
 	} else {
 		r.foldEvents(events)
+		if projection, ok := source.(CanonicalUsageProjectionSource); ok {
+			tokens, usageFullyReconciled := projection.CanonicalUsageProjection(run, events)
+			switch {
+			case usageFullyReconciled:
+				// Reconciliation authority resolves interim snapshots and removes
+				// replayed cumulative snapshots using the canonical invocation
+				// projection, while still adding distinct invocations.
+				r.Tokens = int(tokens)
+			case run.Summary != nil && run.Summary.TokensUsed > 0:
+				// An interim-only or unknown projection must not replace a known
+				// whole-run summary with a smaller partial event total.
+				r.Tokens = run.Summary.TokensUsed
+			default:
+				r.Tokens = int(tokens)
+			}
+		}
 		r.TimeAccounting = runsignal.DeriveTimeAccounting(events, run.StartedAt, run.EndedAt)
 		if durable, ok := source.(DurableTimeAccountingSource); ok {
 			accounting, present, durableErr := durable.DurableTimeAccounting(ctx, runID)

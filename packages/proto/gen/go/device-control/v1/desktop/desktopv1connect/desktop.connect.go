@@ -8,7 +8,6 @@ import (
 	connect "connectrpc.com/connect"
 	context "context"
 	errors "errors"
-	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 	desktop "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/desktop"
 	http "net/http"
 	strings "strings"
@@ -82,9 +81,6 @@ const (
 	// DesktopHelperServiceStopProcedure is the fully-qualified name of the DesktopHelperService's Stop
 	// RPC.
 	DesktopHelperServiceStopProcedure = "/vrooli.device_control.v1.desktop.DesktopHelperService/Stop"
-	// DesktopOwnerServiceInspectSessionPeerProcedure is the fully-qualified name of the
-	// DesktopOwnerService's InspectSessionPeer RPC.
-	DesktopOwnerServiceInspectSessionPeerProcedure = "/vrooli.device_control.v1.desktop.DesktopOwnerService/InspectSessionPeer"
 	// DesktopOwnerServiceCaptureCompanionActivationProcedure is the fully-qualified name of the
 	// DesktopOwnerService's CaptureCompanionActivation RPC.
 	DesktopOwnerServiceCaptureCompanionActivationProcedure = "/vrooli.device_control.v1.desktop.DesktopOwnerService/CaptureCompanionActivation"
@@ -636,7 +632,6 @@ func (UnimplementedDesktopHelperServiceHandler) Stop(context.Context, *connect.R
 // DesktopOwnerServiceClient is a client for the
 // vrooli.device_control.v1.desktop.DesktopOwnerService service.
 type DesktopOwnerServiceClient interface {
-	InspectSessionPeer(context.Context, *connect.Request[desktop.OwnerInspectSessionPeerRequest]) (*connect.Response[v1.CliDesktopSessionFacts], error)
 	CaptureCompanionActivation(context.Context, *connect.Request[desktop.OwnerCompanionActivationRequest]) (*connect.Response[desktop.ActivationReference], error)
 	CaptureActivation(context.Context, *connect.Request[desktop.OwnerStopRequest]) (*connect.Response[desktop.ActivationReference], error)
 	ReadActivation(context.Context, *connect.Request[desktop.OwnerReadActivationRequest]) (*connect.Response[desktop.ActivationReference], error)
@@ -670,12 +665,6 @@ func NewDesktopOwnerServiceClient(httpClient connect.HTTPClient, baseURL string,
 	baseURL = strings.TrimRight(baseURL, "/")
 	desktopOwnerServiceMethods := desktop.File_device_control_v1_desktop_desktop_proto.Services().ByName("DesktopOwnerService").Methods()
 	return &desktopOwnerServiceClient{
-		inspectSessionPeer: connect.NewClient[desktop.OwnerInspectSessionPeerRequest, v1.CliDesktopSessionFacts](
-			httpClient,
-			baseURL+DesktopOwnerServiceInspectSessionPeerProcedure,
-			connect.WithSchema(desktopOwnerServiceMethods.ByName("InspectSessionPeer")),
-			connect.WithClientOptions(opts...),
-		),
 		captureCompanionActivation: connect.NewClient[desktop.OwnerCompanionActivationRequest, desktop.ActivationReference](
 			httpClient,
 			baseURL+DesktopOwnerServiceCaptureCompanionActivationProcedure,
@@ -795,7 +784,6 @@ func NewDesktopOwnerServiceClient(httpClient connect.HTTPClient, baseURL string,
 
 // desktopOwnerServiceClient implements DesktopOwnerServiceClient.
 type desktopOwnerServiceClient struct {
-	inspectSessionPeer         *connect.Client[desktop.OwnerInspectSessionPeerRequest, v1.CliDesktopSessionFacts]
 	captureCompanionActivation *connect.Client[desktop.OwnerCompanionActivationRequest, desktop.ActivationReference]
 	captureActivation          *connect.Client[desktop.OwnerStopRequest, desktop.ActivationReference]
 	readActivation             *connect.Client[desktop.OwnerReadActivationRequest, desktop.ActivationReference]
@@ -815,11 +803,6 @@ type desktopOwnerServiceClient struct {
 	observe                    *connect.Client[desktop.OwnerObserveRequest, desktop.ObserveResponse]
 	act                        *connect.Client[desktop.OwnerActRequest, desktop.ActResponse]
 	stop                       *connect.Client[desktop.OwnerStopRequest, desktop.StopResponse]
-}
-
-// InspectSessionPeer calls vrooli.device_control.v1.desktop.DesktopOwnerService.InspectSessionPeer.
-func (c *desktopOwnerServiceClient) InspectSessionPeer(ctx context.Context, req *connect.Request[desktop.OwnerInspectSessionPeerRequest]) (*connect.Response[v1.CliDesktopSessionFacts], error) {
-	return c.inspectSessionPeer.CallUnary(ctx, req)
 }
 
 // CaptureCompanionActivation calls
@@ -922,7 +905,6 @@ func (c *desktopOwnerServiceClient) Stop(ctx context.Context, req *connect.Reque
 // DesktopOwnerServiceHandler is an implementation of the
 // vrooli.device_control.v1.desktop.DesktopOwnerService service.
 type DesktopOwnerServiceHandler interface {
-	InspectSessionPeer(context.Context, *connect.Request[desktop.OwnerInspectSessionPeerRequest]) (*connect.Response[v1.CliDesktopSessionFacts], error)
 	CaptureCompanionActivation(context.Context, *connect.Request[desktop.OwnerCompanionActivationRequest]) (*connect.Response[desktop.ActivationReference], error)
 	CaptureActivation(context.Context, *connect.Request[desktop.OwnerStopRequest]) (*connect.Response[desktop.ActivationReference], error)
 	ReadActivation(context.Context, *connect.Request[desktop.OwnerReadActivationRequest]) (*connect.Response[desktop.ActivationReference], error)
@@ -951,12 +933,6 @@ type DesktopOwnerServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewDesktopOwnerServiceHandler(svc DesktopOwnerServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	desktopOwnerServiceMethods := desktop.File_device_control_v1_desktop_desktop_proto.Services().ByName("DesktopOwnerService").Methods()
-	desktopOwnerServiceInspectSessionPeerHandler := connect.NewUnaryHandler(
-		DesktopOwnerServiceInspectSessionPeerProcedure,
-		svc.InspectSessionPeer,
-		connect.WithSchema(desktopOwnerServiceMethods.ByName("InspectSessionPeer")),
-		connect.WithHandlerOptions(opts...),
-	)
 	desktopOwnerServiceCaptureCompanionActivationHandler := connect.NewUnaryHandler(
 		DesktopOwnerServiceCaptureCompanionActivationProcedure,
 		svc.CaptureCompanionActivation,
@@ -1073,8 +1049,6 @@ func NewDesktopOwnerServiceHandler(svc DesktopOwnerServiceHandler, opts ...conne
 	)
 	return "/vrooli.device_control.v1.desktop.DesktopOwnerService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case DesktopOwnerServiceInspectSessionPeerProcedure:
-			desktopOwnerServiceInspectSessionPeerHandler.ServeHTTP(w, r)
 		case DesktopOwnerServiceCaptureCompanionActivationProcedure:
 			desktopOwnerServiceCaptureCompanionActivationHandler.ServeHTTP(w, r)
 		case DesktopOwnerServiceCaptureActivationProcedure:
@@ -1121,10 +1095,6 @@ func NewDesktopOwnerServiceHandler(svc DesktopOwnerServiceHandler, opts ...conne
 
 // UnimplementedDesktopOwnerServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedDesktopOwnerServiceHandler struct{}
-
-func (UnimplementedDesktopOwnerServiceHandler) InspectSessionPeer(context.Context, *connect.Request[desktop.OwnerInspectSessionPeerRequest]) (*connect.Response[v1.CliDesktopSessionFacts], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.device_control.v1.desktop.DesktopOwnerService.InspectSessionPeer is not implemented"))
-}
 
 func (UnimplementedDesktopOwnerServiceHandler) CaptureCompanionActivation(context.Context, *connect.Request[desktop.OwnerCompanionActivationRequest]) (*connect.Response[desktop.ActivationReference], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.device_control.v1.desktop.DesktopOwnerService.CaptureCompanionActivation is not implemented"))

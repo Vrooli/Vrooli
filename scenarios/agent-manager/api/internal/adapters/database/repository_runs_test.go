@@ -576,6 +576,137 @@ func TestRunLastAwaitFieldsRoundTrip(t *testing.T) {
 	}
 }
 
+func TestRenewalAnchorPreservesAttachedBindingAcrossStaleFullRowUpdate(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+	run := &domain.Run{
+		ID: uuid.New(), RunMode: domain.RunModeInPlace,
+		ExecutionMode: domain.ExecutionModeAttached, HarnessKind: "codex",
+		HarnessSessionID: "harness-session", WebConsoleSessionID: "wc-session",
+		Status: domain.RunStatusRunning, Phase: domain.RunPhaseExecuting,
+		ApprovalState: domain.ApprovalStateNone, IdentityTokenHash: "original-active-hash",
+		RunnerPID: 1234, RunnerPGID: 1234,
+	}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	stale, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rotator := repos.Runs.(repository.AttachedIdentityRenewalRepository)
+	issuedAt := time.Now().UTC().Truncate(time.Second)
+	if changed, err := rotator.RenewAttachedIdentity(ctx, stale, "original-anchor-hash", "rotated-active-hash", issuedAt); err != nil || !changed {
+		t.Fatalf("renew attached identity: changed=%v err=%v", changed, err)
+	}
+
+	// A full-row writer that loaded before the CAS may update ordinary metadata,
+	// but it must not restore its old process/session binding after the renewal
+	// anchor made that binding part of the proof.
+	stale.Label = "metadata from stale snapshot"
+	stale.IdentityTokenHash = "stale-old-hash"
+	stale.TaskID = uuid.New()
+	stale.OwnerSubject = "stale-owner"
+	stale.OwnerScopes = []string{"stale:scope"}
+	staleExpires := time.Now().Add(time.Hour)
+	stale.OwnerExpiresAt = &staleExpires
+	stale.ExecutionMode = domain.ExecutionModeCodecPipe
+	staleParentID := uuid.New()
+	stale.ParentRunID = &staleParentID
+	stale.RunnerPID, stale.RunnerPGID = 9876, 9876
+	stale.HarnessKind, stale.HarnessSessionID = "other", "other-session"
+	stale.WebConsoleSessionID = "other-wc-session"
+	if err := repos.Runs.Update(ctx, stale); err != nil {
+		t.Fatalf("stale metadata update: %v", err)
+	}
+	got, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Label != stale.Label {
+		t.Errorf("ordinary metadata update lost: label=%q", got.Label)
+	}
+	if got.IdentityTokenHash != "rotated-active-hash" || got.IdentityRenewalAnchorHash != "original-anchor-hash" {
+		t.Errorf("renewed identity generation was overwritten: active=%q anchor=%q", got.IdentityTokenHash, got.IdentityRenewalAnchorHash)
+	}
+	if got.RunnerPID != 1234 || got.RunnerPGID != 1234 || got.HarnessKind != "codex" || got.HarnessSessionID != "harness-session" || got.WebConsoleSessionID != "wc-session" || got.TaskID != run.TaskID || got.OwnerSubject != run.OwnerSubject || len(got.OwnerScopes) != 0 || got.ExecutionMode != domain.ExecutionModeAttached || got.ParentRunID != nil || got.OwnerExpiresAt != nil {
+		t.Errorf("renewal proof/identity claims were overwritten: pid/pgid=%d/%d harness=%q/%q wc=%q task=%s owner=%q scopes=%v mode=%q parent=%v", got.RunnerPID, got.RunnerPGID, got.HarnessKind, got.HarnessSessionID, got.WebConsoleSessionID, got.TaskID, got.OwnerSubject, got.OwnerScopes, got.ExecutionMode, got.ParentRunID)
+	}
+	stale.TranscriptCursor = 17
+	if updated, err := repos.Runs.UpdateRunnerStreamState(ctx, stale); err != nil || updated {
+		t.Errorf("renewal-anchored attached stream write = %v, %v; want binding-preserving refusal", updated, err)
+	}
+	revokedAt := time.Now().UTC()
+	if _, err := db.ExecContext(ctx, `UPDATE runs SET identity_token_revoked_at = ? WHERE id = ?`, SQLiteTime(revokedAt), run.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := repos.Runs.Update(ctx, stale); err != nil {
+		t.Fatalf("stale update after revocation: %v", err)
+	}
+	got, err = repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.IdentityTokenRevokedAt == nil || !got.IdentityTokenRevokedAt.Equal(revokedAt) {
+		t.Errorf("stale full-row update erased token revocation: got=%v want=%v", got.IdentityTokenRevokedAt, revokedAt)
+	}
+	terminal, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	terminal.Status = domain.RunStatusFailed
+	endedAt := time.Now().UTC()
+	terminal.EndedAt = &endedAt
+	if err := repos.Runs.Update(ctx, terminal); err != nil {
+		t.Fatalf("terminal transition: %v", err)
+	}
+	stale.Status = domain.RunStatusRunning
+	if err := repos.Runs.Update(ctx, stale); err == nil {
+		t.Error("stale full-row update resurrected a terminal attached run")
+	}
+}
+
+func TestUnanchoredAttachedFullRowUpdateRetainsLegacyBindingBehavior(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+	run := &domain.Run{
+		ID: uuid.New(), RunMode: domain.RunModeInPlace,
+		ExecutionMode: domain.ExecutionModeAttached, HarnessKind: "codex",
+		HarnessSessionID: "before", WebConsoleSessionID: "wc-before",
+		Status: domain.RunStatusRunning, Phase: domain.RunPhaseExecuting,
+		ApprovalState: domain.ApprovalStateNone, RunnerPID: 1234, RunnerPGID: 1234,
+	}
+	revokedAt := time.Now().UTC().Add(-time.Minute)
+	run.IdentityTokenRevokedAt = &revokedAt
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	run.RunnerPID, run.RunnerPGID = 4321, 4321
+	run.HarnessSessionID, run.WebConsoleSessionID = "after", "wc-after"
+	run.IdentityTokenHash = "legacy-updated-hash"
+	run.IdentityTokenRevokedAt = nil // managed credential replacement clears the prior generation's revocation.
+	if err := repos.Runs.Update(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	run.TranscriptCursor = 9
+	if updated, err := repos.Runs.UpdateRunnerStreamState(ctx, run); err != nil || !updated {
+		t.Fatalf("unanchored attached stream update changed legacy behavior: updated=%v err=%v", updated, err)
+	}
+	got, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.IdentityRenewalAnchorHash != "" || got.IdentityTokenHash != "legacy-updated-hash" || got.IdentityTokenRevokedAt != nil || got.RunnerPID != 4321 || got.RunnerPGID != 4321 || got.HarnessSessionID != "after" || got.WebConsoleSessionID != "wc-after" {
+		t.Fatalf("unanchored attached update changed legacy behavior unexpectedly: %+v", got)
+	}
+}
+
 func TestRunListFilters(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
@@ -753,3 +884,40 @@ func TestRunListNonTerminalOnlyExcludesTerminalHistory(t *testing.T) {
 // ============================================================================
 // Event Repository Tests
 // ============================================================================
+
+func TestRenewAttachedIdentityLosesToCancellationIntent(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+	run := &domain.Run{
+		ID: uuid.New(), RunMode: domain.RunModeInPlace,
+		ExecutionMode: domain.ExecutionModeAttached, HarnessKind: "codex",
+		HarnessSessionID: "harness-session", WebConsoleSessionID: "wc-session",
+		Status: domain.RunStatusRunning, Phase: domain.RunPhaseExecuting,
+		ApprovalState: domain.ApprovalStateNone, IdentityTokenHash: "original-active-hash",
+		RunnerPID: 1234, RunnerPGID: 1234,
+	}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	stale, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cancelledAt := time.Now().UTC()
+	if requested, err := repos.Runs.RequestCancellation(ctx, run.ID, cancelledAt); err != nil || !requested {
+		t.Fatalf("request cancellation: requested=%v err=%v", requested, err)
+	}
+	rotator := repos.Runs.(repository.AttachedIdentityRenewalRepository)
+	if rotated, err := rotator.RenewAttachedIdentity(ctx, stale, "original-anchor-hash", "rotated-active-hash", time.Now().UTC()); err != nil || rotated {
+		t.Fatalf("renewal raced past cancellation intent: rotated=%v err=%v", rotated, err)
+	}
+	got, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.CancelRequestedAt == nil || got.IdentityTokenHash != "original-active-hash" || got.IdentityRenewalAnchorHash != "" || got.IdentityTokenIssuedAt != nil {
+		t.Fatalf("cancellation/identity state changed unexpectedly: cancelled=%v active=%q anchor=%q issued=%v", got.CancelRequestedAt != nil, got.IdentityTokenHash, got.IdentityRenewalAnchorHash, got.IdentityTokenIssuedAt)
+	}
+}

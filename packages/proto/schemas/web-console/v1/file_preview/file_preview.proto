@@ -20,10 +20,11 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/
 // bounded text over Connect (GetTextContent) or stream bytes from the REST blob
 // endpoint using the opaque preview_id.
 //
-// Every resolved target falls into exactly one of three transport classes:
+// Every resolved target falls into exactly one of four transport classes:
 //   text    — bounded UTF-8 fetched with GetTextContent (markdown/code/csv/…)
 //   blob    — opaque bytes streamed from the REST range route (image/pdf/av)
 //   listing — a bounded page of directory entries from ListDirectory
+//   archive — a bounded virtual index from ListArchive; selected bytes still use the blob route
 // The class follows from PreviewKind, so the client routes on kind alone.
 //
 // Binary/media bytes do NOT travel through Connect. Resolve returns a blob_url
@@ -56,6 +57,10 @@ service FilePreviewService {
   // resolved by Resolve. It accepts only a preview_id — never a raw path — so
   // a directory handle can never be repointed at another directory.
   rpc ListDirectory(ListDirectoryRequest) returns (ListDirectoryResponse);
+
+  // Bounded virtual inspection; never extracts to the filesystem.
+  rpc ListArchive(ListArchiveRequest) returns (ListArchiveResponse);
+  rpc OpenArchiveEntry(OpenArchiveEntryRequest) returns (OpenArchiveEntryResponse);
 }
 
 // PreviewKind classifies how a resolved file should be rendered. The UI keys
@@ -75,6 +80,21 @@ enum PreviewKind {
   PREVIEW_KIND_UNSUPPORTED = 11;
   // A directory. Renders from ListDirectory rather than text or bytes.
   PREVIEW_KIND_DIRECTORY = 12;
+  // Excel workbook; read locally from opaque blob bytes.
+  PREVIEW_KIND_SPREADSHEET = 13;
+  // Word document; semantic read-only preview from opaque blob bytes.
+  PREVIEW_KIND_DOCUMENT = 14;
+  PREVIEW_KIND_ARCHIVE = 15;
+  // Locally rendered modern PowerPoint presentation.
+  PREVIEW_KIND_PRESENTATION = 16;
+  // Reflowable EPUB publication.
+  PREVIEW_KIND_EBOOK = 17;
+  // Locally rendered bounded 3D model.
+  PREVIEW_KIND_MODEL_3D = 18;
+  // Browser-local font specimen.
+  PREVIEW_KIND_FONT = 19;
+  // Read-only SQLite database inspection.
+  PREVIEW_KIND_DATABASE = 20;
 }
 
 // DirectorySort selects the ordering of a directory page.
@@ -144,6 +164,8 @@ message ResolveResponse {
   // listing_available is true for directories, whose contents come from
   // ListDirectory. Mutually exclusive with text_content_available.
   bool listing_available = 19;
+  // Virtual members cannot be resolved as host paths or executed.
+  bool archive_member = 20;
 }
 
 message GetTextContentRequest {
@@ -214,4 +236,35 @@ message ListDirectoryResponse {
   // request when an expensive sort exceeded its threshold.
   DirectorySort effective_sort = 7;
   repeated string warnings = 8;
+}
+
+
+message ListArchiveRequest {
+  string session_id = 1;
+  string preview_id = 2;
+}
+
+// Stable machine codes: ready, unsupported, corrupt, limit, busy, timeout,
+// expired, stale, depth, missing, blocked. Clients localize these codes.
+message ListArchiveResponse {
+  string format = 1;
+  string status = 2;
+  repeated ArchiveEntry entries = 3;
+}
+message ArchiveEntry {
+  // Physical entry ordinal, independent of path and duplicate names.
+  string entry_id = 1;
+  string name = 2;
+  int64 size_bytes = 3;
+  // ready, directory, unsafe, link, special, encrypted, unsupported, too_large.
+  string status = 4;
+}
+message OpenArchiveEntryRequest {
+  string session_id = 1;
+  string preview_id = 2;
+  string entry_id = 3;
+}
+message OpenArchiveEntryResponse {
+  string status = 1;
+  ResolveResponse target = 2;
 }

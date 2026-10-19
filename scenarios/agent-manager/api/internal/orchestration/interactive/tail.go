@@ -137,6 +137,11 @@ type TailParams struct {
 	// goal-session worker may finish with its structured result without emitting
 	// a runner-native goal marker.
 	StructuredResultSatisfied func() bool
+	// CompleteAfterFirstSuccessfulTurnWithoutGoalMarker closes a continuation
+	// after its first successful provider turn only when that new invocation
+	// emitted no native goal marker. It is reserved for continuing an already
+	// completed native goal without reinstalling it.
+	CompleteAfterFirstSuccessfulTurnWithoutGoalMarker bool
 }
 
 // Tail follows the transcript, emitting codec events to the sink until the
@@ -325,6 +330,10 @@ func (t *Tailer) Tail(ctx context.Context, p TailParams) (*runner.TranscriptTerm
 				// without a runner-specific goal marker.
 				if p.StructuredResultSatisfied != nil && p.StructuredResultSatisfied() {
 					terminal.TerminalReason = terminalReasonStructuredResult
+					return terminal, nil
+				}
+				if p.CompleteAfterFirstSuccessfulTurnWithoutGoalMarker && lastGoalMarker == nil && (p.GoalMarkerObserved == nil || !p.GoalMarkerObserved()) {
+					terminal.TerminalReason = "completed_goal_continuation"
 					return terminal, nil
 				}
 				turnBoundaries++

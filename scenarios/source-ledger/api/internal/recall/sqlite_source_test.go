@@ -167,6 +167,119 @@ func TestAmbientNodesSkipsVectorsAndAbsorbedLeaves(t *testing.T) { // [REQ:VMEM-
 	require.True(t, ids[free.ID].Frontier)
 }
 
+func TestSupersededSourcesAndCompactedAncestorsAreExcludedWithoutLosingCleanFrontier(t *testing.T) {
+	ctx := context.Background()
+	db, err := apidb.Open(ctx, apidb.Config{Driver: apidb.DriverSQLite, DSN: "file:recall-superseded-frontier?mode=memory&cache=shared"})
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, db.Close()) })
+	require.NoError(t, apidb.EnsureSchemas(ctx, db.Primary(), apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(journal.Schema), apidb.SchemaProviderFunc(facets.Schema), apidb.SchemaProviderFunc(forest.Schema)))
+
+	journalRepo := journal.NewSQLiteRepository(db.Primary())
+	forestRepo := forest.NewSQLiteRepository(db.Primary())
+	facetRepo := facets.NewSQLiteRepository(db.Primary())
+	appendEntry := func(id, body string) journal.Entry {
+		t.Helper()
+		entry, appendErr := journalRepo.Append(ctx, journal.Entry{ID: id, Body: body, FacetID: "episode"}, nil)
+		require.NoError(t, appendErr)
+		return entry
+	}
+	oldFrontier := appendEntry("superseded-frontier", "old frontier")
+	replacement := appendEntry("replacement-frontier", "replacement frontier")
+	pinnedOld := appendEntry("superseded-pinned", "old pinned memory")
+	oldNested := appendEntry("superseded-nested", "old nested memory")
+	cleanNestedSibling := appendEntry("clean-nested-sibling", "clean nested sibling")
+	cleanDirectChild := appendEntry("clean-direct-child", "clean direct child")
+	cleanPinned := appendEntry("clean-pinned", "clean pinned memory")
+	unrelatedLeaf := appendEntry("unrelated-leaf", "unrelated summary leaf")
+	otherScope := policy.WithScope(ctx, "team:other")
+	foreignMarked := appendEntryInScope(t, journalRepo, otherScope, "foreign-superseded", "foreign marked memory")
+	foreignReplacement := appendEntryInScope(t, journalRepo, otherScope, "foreign-replacement", "foreign replacement")
+
+	_, err = forestRepo.CreateSummary(ctx, forest.Summary{ID: "dirty-child", Body: "summary with superseded source", FacetID: "episode", Depth: 1}, []forest.Edge{
+		{ChildID: oldNested.ID, ChildKind: "entry"},
+		{ChildID: cleanNestedSibling.ID, ChildKind: "entry"},
+	})
+	require.NoError(t, err)
+	_, err = forestRepo.CreateSummary(ctx, forest.Summary{ID: "clean-subsummary", Body: "clean nested summary", FacetID: "episode", Depth: 1}, []forest.Edge{{ChildID: cleanDirectChild.ID, ChildKind: "entry"}})
+	require.NoError(t, err)
+	_, err = forestRepo.CreateSummary(ctx, forest.Summary{ID: "unrelated-summary", Body: "unrelated clean summary", FacetID: "episode", Depth: 1}, []forest.Edge{{ChildID: unrelatedLeaf.ID, ChildKind: "entry"}})
+	require.NoError(t, err)
+	_, err = forestRepo.CreateSummary(ctx, forest.Summary{ID: "dirty-root", Body: "ancestor of superseded source", FacetID: "episode", Depth: 2}, []forest.Edge{
+		{ChildID: "dirty-child", ChildKind: "summary"},
+		{ChildID: "clean-subsummary", ChildKind: "summary"},
+	})
+	require.NoError(t, err)
+	_, err = forestRepo.CreateSummary(otherScope, forest.Summary{ID: "foreign-summary", Body: "foreign summary", FacetID: "episode", Depth: 1}, []forest.Edge{{ChildID: foreignMarked.ID, ChildKind: "entry"}})
+	require.NoError(t, err)
+	require.NoError(t, facetRepo.MarkSuperseded(ctx, oldFrontier.ID, replacement.ID))
+	require.NoError(t, facetRepo.MarkSuperseded(ctx, pinnedOld.ID, replacement.ID))
+	require.NoError(t, facetRepo.MarkSuperseded(ctx, oldNested.ID, replacement.ID))
+	require.NoError(t, facetRepo.MarkSuperseded(otherScope, foreignMarked.ID, foreignReplacement.ID))
+	for _, id := range []string{pinnedOld.ID, cleanPinned.ID} {
+		_, err = db.Primary().ExecContext(ctx, `INSERT INTO pins(entry_id,review_at,pinned_at) VALUES(?,NULL,?)`, id, time.Now().UTC().Format(time.RFC3339Nano))
+		require.NoError(t, err)
+	}
+
+	nodes, err := NewSQLiteSource(db.Primary()).Nodes(ctx)
+	require.NoError(t, err)
+	semantic := make(map[string]Node, len(nodes))
+	for _, node := range nodes {
+		semantic[node.ID] = node
+	}
+	for _, id := range []string{oldFrontier.ID, pinnedOld.ID, oldNested.ID, "dirty-child", "dirty-root"} {
+		require.NotContains(t, semantic, id, "superseded content and summaries that contain it are not recall candidates")
+	}
+	for _, id := range []string{replacement.ID, cleanNestedSibling.ID, cleanDirectChild.ID, "clean-subsummary", cleanPinned.ID, "unrelated-summary"} {
+		require.Contains(t, semantic, id, "clean records and records outside this scope remain available")
+	}
+	require.Empty(t, semantic[cleanNestedSibling.ID].ParentID)
+	require.True(t, semantic[cleanNestedSibling.ID].Frontier)
+	require.Empty(t, semantic["clean-subsummary"].ParentID)
+	require.True(t, semantic["clean-subsummary"].Frontier)
+	require.Equal(t, "clean-subsummary", semantic[cleanDirectChild.ID].ParentID)
+	require.NotContains(t, semantic, foreignMarked.ID)
+	require.NotContains(t, semantic, "foreign-summary")
+
+	ambientNodes, err := NewSQLiteSource(db.Primary()).AmbientNodes(ctx, 50)
+	require.NoError(t, err)
+	ambient := make(map[string]Node, len(ambientNodes))
+	for _, node := range ambientNodes {
+		ambient[node.ID] = node
+		require.Empty(t, node.Vectors)
+	}
+	for _, id := range []string{oldFrontier.ID, pinnedOld.ID, oldNested.ID, "dirty-child", "dirty-root"} {
+		require.NotContains(t, ambient, id, "a pin must not resurrect superseded content")
+	}
+	for _, id := range []string{replacement.ID, cleanNestedSibling.ID, "clean-subsummary", cleanPinned.ID} {
+		require.Contains(t, ambient, id, "clean children are promoted to the frontier when a superseded ancestor summary is hidden")
+	}
+	require.True(t, ambient[cleanNestedSibling.ID].Frontier)
+	require.True(t, ambient["clean-subsummary"].Frontier)
+	require.True(t, ambient[cleanPinned.ID].Pinned)
+	require.Contains(t, ambient, "unrelated-summary", "a clean summary remains a frontier node")
+	require.NotContains(t, ambient, unrelatedLeaf.ID, "a clean leaf still absorbed by a clean summary is not promoted")
+	foreignAmbient, err := NewSQLiteSource(db.Primary()).AmbientNodes(otherScope, 50)
+	require.NoError(t, err)
+	foreignIDs := make(map[string]struct{}, len(foreignAmbient))
+	for _, node := range foreignAmbient {
+		foreignIDs[node.ID] = struct{}{}
+	}
+	require.NotContains(t, foreignIDs, foreignMarked.ID)
+	require.NotContains(t, foreignIDs, "foreign-summary", "supersession also taints summaries in its own scope")
+	require.Contains(t, foreignIDs, foreignReplacement.ID)
+
+	historical, err := journalRepo.Get(ctx, oldNested.ID)
+	require.NoError(t, err)
+	require.Equal(t, "old nested memory", historical.Body, "superseding changes recall projection, not journal history")
+}
+
+func appendEntryInScope(t *testing.T, repo *journal.SQLiteRepository, ctx context.Context, id, body string) journal.Entry {
+	t.Helper()
+	entry, err := repo.Append(ctx, journal.Entry{ID: id, Scope: string(policy.ScopeFromContext(ctx)), Body: body, FacetID: "episode"}, nil)
+	require.NoError(t, err)
+	return entry
+}
+
 func TestLivenessCountsUnabsorbedLeavesAndReportsSummaryTimes(t *testing.T) { // [REQ:SL-P0-003]
 	ctx := context.Background()
 	db, err := apidb.Open(ctx, apidb.Config{Driver: apidb.DriverSQLite, DSN: "file:recall-liveness?mode=memory&cache=shared"})

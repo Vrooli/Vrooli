@@ -3,6 +3,7 @@ package persistence
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -388,21 +389,226 @@ func TestSQLiteStore_RemediationAuthorisationIsBoundAndSingleUse(t *testing.T) {
 	db := openSQLiteTestDB(t)
 	store := NewStore(db)
 	ctx := context.Background()
-	approvedAt := time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC)
-	if err := store.RecordRemediationAuthorisation(ctx, "ask-1", "incident-1", "fingerprint-1", "candidate-1", "operator-1", approvedAt); err != nil {
+	approvedAt := time.Now().UTC()
+	incident, err := store.UpsertIncident(ctx, incidents.UpsertInput{
+		Fingerprint: incidents.Fingerprint("host_integrity", "host-kernel-module-drift", "boot-a"),
+		Type:        incidents.TypeHostIntegrity, Severity: incidents.SeverityCritical,
+		Title: "Runtime failed", Summary: "Fixture failure", ObservedAt: approvedAt,
+		SourceCheckID:         "host-kernel-module-drift",
+		RemediationCandidates: []incidents.RemediationCandidate{{ID: "candidate-1", Applicability: "applicable"}},
+	})
+	if err != nil {
+		t.Fatalf("UpsertIncident() error = %v", err)
+	}
+	publication, err := store.EnsureRemediationDecisionPublication(ctx, incident.ID, approvedAt)
+	if err != nil || publication == nil {
+		t.Fatalf("EnsureRemediationDecisionPublication() = %#v, %v", publication, err)
+	}
+	current, err := store.GetIncident(ctx, incident.ID)
+	if err != nil {
+		t.Fatalf("GetIncident() error = %v", err)
+	}
+	candidateSnapshot, artifactSnapshot, err := incidents.RemediationDecisionStorageSnapshot(*current)
+	if err != nil {
+		t.Fatalf("RemediationDecisionStorageSnapshot() error = %v", err)
+	}
+
+	if err := store.RecordRemediationAuthorisation(ctx, "ask-1", current.ID, current.Fingerprint, "candidate-1", publication.Generation, publication.EventID, publication.CandidateDigest, candidateSnapshot, artifactSnapshot, "operator-1", approvedAt); err != nil {
 		t.Fatalf("RecordRemediationAuthorisation() error = %v", err)
 	}
-	claimed, err := store.ClaimRemediationAuthorisation(ctx, "ask-1", "incident-1", "fingerprint-1", "candidate-1", approvedAt.Add(time.Minute))
+	claimed, err := store.ClaimRemediationAuthorisation(ctx, "ask-1", current.ID, current.Fingerprint, "candidate-1", publication.Generation, publication.EventID, publication.CandidateDigest, candidateSnapshot, artifactSnapshot, approvedAt.Add(time.Minute))
 	if err != nil || !claimed {
-		t.Fatalf("first claim = %v/%v, want true", claimed, err)
+		t.Fatalf("first claim = %v/%v, want true; raw fixture state: %s", claimed, err, remediationClaimDiagnostic(t, db, current.ID, current.Fingerprint, publication.Generation, publication.EventID, "candidate-1", publication.CandidateDigest, candidateSnapshot, artifactSnapshot, approvedAt.Add(time.Minute), "ask-1"))
 	}
-	claimed, err = store.ClaimRemediationAuthorisation(ctx, "ask-1", "incident-1", "fingerprint-1", "candidate-1", approvedAt.Add(2*time.Minute))
+	claimed, err = store.ClaimRemediationAuthorisation(ctx, "ask-1", current.ID, current.Fingerprint, "candidate-1", publication.Generation, publication.EventID, publication.CandidateDigest, candidateSnapshot, artifactSnapshot, approvedAt.Add(2*time.Minute))
 	if err != nil || claimed {
 		t.Fatalf("replay claim = %v/%v, want false", claimed, err)
 	}
-	claimed, err = store.ClaimRemediationAuthorisation(ctx, "ask-1", "incident-1", "different-fingerprint", "candidate-1", approvedAt.Add(3*time.Minute))
+	claimed, err = store.ClaimRemediationAuthorisation(ctx, "ask-1", current.ID, "different-fingerprint", "candidate-1", publication.Generation, publication.EventID, publication.CandidateDigest, candidateSnapshot, artifactSnapshot, approvedAt.Add(3*time.Minute))
 	if err != nil || claimed {
-		t.Fatalf("mismatched claim = %v/%v, want false", claimed, err)
+		t.Fatalf("mismatched fingerprint claim = %v/%v, want false", claimed, err)
+	}
+	claimed, err = store.ClaimRemediationAuthorisation(ctx, "ask-1", current.ID, current.Fingerprint, "candidate-1", publication.Generation, publication.EventID, publication.CandidateDigest, candidateSnapshot+" ", artifactSnapshot, approvedAt.Add(4*time.Minute))
+	if err != nil || claimed {
+		t.Fatalf("mismatched candidate snapshot claim = %v/%v, want false", claimed, err)
+	}
+}
+
+// remediationClaimDiagnostic is used only on a failed fixture claim so the
+// exact persisted comparison inputs are visible without weakening the CAS.
+func remediationClaimDiagnostic(t *testing.T, db *sql.DB, incidentID, fingerprint string, generation int, eventID, candidateID, digest, candidatesJSON, artifactsJSON string, at time.Time, askID string) string {
+	t.Helper()
+	var storedStatus, storedEventID, storedCandidateID, storedDigest, storedCandidatesJSON, storedArtifactsJSON string
+	var candidatesStorageType, artifactsStorageType string
+	var eventCount, storedGeneration, revision int
+	var expiresAt sql.NullString
+	err := db.QueryRow(`SELECT status, event_count, remediation_decision_generation, remediation_decision_revision,
+		remediation_decision_event_id, remediation_decision_candidate_id, remediation_candidate_digest,
+		remediation_candidates_json, remediation_artifacts_json, remediation_decision_expires_at
+		FROM incidents WHERE id=?`, incidentID).Scan(&storedStatus, &eventCount, &storedGeneration, &revision, &storedEventID, &storedCandidateID, &storedDigest, &storedCandidatesJSON, &storedArtifactsJSON, &expiresAt)
+	if err != nil {
+		return fmt.Sprintf("incident row read failed: %v", err)
+	}
+	if err := db.QueryRow(`SELECT typeof(remediation_candidates_json), typeof(remediation_artifacts_json) FROM incidents WHERE id=?`, incidentID).Scan(&candidatesStorageType, &artifactsStorageType); err != nil {
+		return fmt.Sprintf("incident JSON storage-type read failed: %v", err)
+	}
+	var matches [11]bool
+	err = db.QueryRow(`SELECT id=?, fingerprint=?, status IN ('open','acknowledged'), event_count=?,
+		remediation_decision_generation=?, remediation_decision_event_id=?, remediation_decision_candidate_id=?,
+		remediation_candidate_digest=?, CAST(remediation_candidates_json AS TEXT)=?, CAST(remediation_artifacts_json AS TEXT)=?,
+		remediation_decision_expires_at>? FROM incidents WHERE id=?`, incidentID, fingerprint, generation, generation,
+		eventID, candidateID, digest, candidatesJSON, artifactsJSON, at.UTC().Format(time.RFC3339Nano), incidentID).Scan(
+		&matches[0], &matches[1], &matches[2], &matches[3], &matches[4], &matches[5], &matches[6], &matches[7], &matches[8], &matches[9], &matches[10])
+	if err != nil {
+		return fmt.Sprintf("predicate probes failed: %v", err)
+	}
+	var authorisationCount int
+	var consumedAt sql.NullString
+	err = db.QueryRow(`SELECT COUNT(*), MAX(consumed_at) FROM remediation_authorisations WHERE ask_id=?`, askID).Scan(&authorisationCount, &consumedAt)
+	if err != nil {
+		return fmt.Sprintf("predicateMatches=%v expected={fingerprint:%q generation:%d eventID:%q candidateID:%q digest:%q candidatesJSON:%q artifactsJSON:%q at:%s} incident={status:%q eventCount:%d generation:%d revision:%d eventID:%q candidateID:%q digest:%q candidatesJSON:%q artifactsJSON:%q JSONTypes:%s/%s expiresAt:%v}; authorization row read failed: %v", matches, fingerprint, generation, eventID, candidateID, digest, candidatesJSON, artifactsJSON, at.UTC().Format(time.RFC3339Nano), storedStatus, eventCount, storedGeneration, revision, storedEventID, storedCandidateID, storedDigest, storedCandidatesJSON, storedArtifactsJSON, candidatesStorageType, artifactsStorageType, expiresAt, err)
+	}
+	return fmt.Sprintf("predicateMatches=%v expected={fingerprint:%q generation:%d eventID:%q candidateID:%q digest:%q candidatesJSON:%q artifactsJSON:%q at:%s} incident={status:%q eventCount:%d generation:%d revision:%d eventID:%q candidateID:%q digest:%q candidatesJSON:%q artifactsJSON:%q JSONTypes:%s/%s expiresAt:%v}; authorization={count:%d consumedAt:%v}", matches, fingerprint, generation, eventID, candidateID, digest, candidatesJSON, artifactsJSON, at.UTC().Format(time.RFC3339Nano), storedStatus, eventCount, storedGeneration, revision, storedEventID, storedCandidateID, storedDigest, storedCandidatesJSON, storedArtifactsJSON, candidatesStorageType, artifactsStorageType, expiresAt, authorisationCount, consumedAt)
+}
+
+func createCriticalDecisionIncident(t *testing.T, store *Store, observedAt time.Time, candidateID, artifactPath string) *incidents.Incident {
+	t.Helper()
+	incident, err := store.UpsertIncident(context.Background(), incidents.UpsertInput{
+		Fingerprint: incidents.Fingerprint("host_integrity", "host-kernel-module-drift", "boot-a"),
+		Type:        incidents.TypeHostIntegrity, Severity: incidents.SeverityCritical,
+		Title: "Runtime failed", Summary: "Fixture failure", ObservedAt: observedAt,
+		SourceCheckID:         "host-kernel-module-drift",
+		RemediationCandidates: []incidents.RemediationCandidate{{ID: candidateID, Applicability: "applicable", Title: candidateID}},
+		RemediationArtifacts:  []incidents.RemediationArtifact{{ID: candidateID + "-artifact", RemediationID: candidateID, Path: artifactPath}},
+	})
+	if err != nil {
+		t.Fatalf("UpsertIncident() error = %v", err)
+	}
+	return incident
+}
+
+func TestSQLiteStore_OldDecisionCannotAuthorizeOrDeclineAfterSnapshotReplacement(t *testing.T) {
+	db := openSQLiteTestDB(t)
+	store := NewStore(db)
+	ctx := context.Background()
+	now := time.Now().UTC()
+	incident := createCriticalDecisionIncident(t, store, now, "candidate-a", "/tmp/a")
+	first, err := store.EnsureRemediationDecisionPublication(ctx, incident.ID, now)
+	if err != nil || first == nil {
+		t.Fatalf("first decision publication = %#v, %v", first, err)
+	}
+	bound, err := store.GetIncident(ctx, incident.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstCandidates, firstArtifacts, err := incidents.RemediationDecisionStorageSnapshot(*bound)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.RecordRemediationAuthorisation(ctx, "ask-old", bound.ID, bound.Fingerprint, "candidate-a", first.Generation, first.EventID, first.CandidateDigest, firstCandidates, firstArtifacts, "operator", now); err != nil {
+		t.Fatal(err)
+	}
+
+	// Change both the selected candidate and its generated artifact in the same
+	// still-open lifecycle. The old Ask must not survive the new exact snapshot.
+	createCriticalDecisionIncident(t, store, now.Add(time.Second), "candidate-b", "/tmp/b")
+	second, err := store.EnsureRemediationDecisionPublication(ctx, incident.ID, now.Add(time.Second))
+	if err != nil || second == nil {
+		t.Fatalf("replacement decision publication = %#v, %v", second, err)
+	}
+	current, err := store.GetIncident(ctx, incident.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	currentCandidates, currentArtifacts, err := incidents.RemediationDecisionStorageSnapshot(*current)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	claimed, err := store.ClaimRemediationAuthorisation(ctx, "ask-old", current.ID, current.Fingerprint, "candidate-a", first.Generation, first.EventID, first.CandidateDigest, firstCandidates, firstArtifacts, now.Add(2*time.Second))
+	if err != nil || claimed {
+		t.Fatalf("old Ask claim = %v/%v, want false", claimed, err)
+	}
+	declined, err := store.RecordRemediationDeclineIfCurrent(ctx, current.ID, current.Fingerprint, "candidate-a", first.EventID, first.CandidateDigest, first.Generation, firstCandidates, firstArtifacts, incidents.Outcome{RemediationID: "candidate-a", Status: "declined", ReportedAt: now.Add(2 * time.Second), AskID: "ask-old"})
+	if err != nil || declined {
+		t.Fatalf("old Ask decline = %v/%v, want false", declined, err)
+	}
+	currentAfter, err := store.GetIncident(ctx, incident.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if currentAfter.Outcome != nil {
+		t.Fatalf("stale decline wrote outcome: %#v", currentAfter.Outcome)
+	}
+
+	if err := store.RecordRemediationAuthorisation(ctx, "ask-current", current.ID, current.Fingerprint, "candidate-b", second.Generation, second.EventID, second.CandidateDigest, currentCandidates, currentArtifacts, "operator", now.Add(2*time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	claimed, err = store.ClaimRemediationAuthorisation(ctx, "ask-current", current.ID, current.Fingerprint, "candidate-b", second.Generation, second.EventID, second.CandidateDigest, currentCandidates, currentArtifacts, now.Add(3*time.Second))
+	if err != nil || !claimed {
+		t.Fatalf("current Ask claim = %v/%v, want true", claimed, err)
+	}
+}
+
+func TestSQLiteStore_DecisionPublicationRevisionsAreImmutableAndExpire(t *testing.T) {
+	db := openSQLiteTestDB(t)
+	store := NewStore(db)
+	ctx := context.Background()
+	now := time.Now().UTC().Truncate(time.Second)
+	incident := createCriticalDecisionIncident(t, store, now, "candidate-a", "/tmp/a")
+	first, err := store.EnsureRemediationDecisionPublication(ctx, incident.ID, now)
+	if err != nil || first == nil {
+		t.Fatalf("first publication = %#v, %v", first, err)
+	}
+	firstBytes := append([]byte(nil), first.EventJSON...)
+	unchanged, err := store.EnsureRemediationDecisionPublication(ctx, incident.ID, now.Add(time.Second))
+	if err != nil || unchanged != nil {
+		t.Fatalf("unchanged publication = %#v, %v; want no duplicate", unchanged, err)
+	}
+
+	createCriticalDecisionIncident(t, store, now.Add(2*time.Second), "candidate-b", "/tmp/b")
+	second, err := store.EnsureRemediationDecisionPublication(ctx, incident.ID, now.Add(2*time.Second))
+	if err != nil || second == nil || second.Revision != 2 {
+		t.Fatalf("second publication = %#v, %v; want revision 2", second, err)
+	}
+	createCriticalDecisionIncident(t, store, now.Add(3*time.Second), "candidate-a", "/tmp/a")
+	third, err := store.EnsureRemediationDecisionPublication(ctx, incident.ID, now.Add(3*time.Second))
+	if err != nil || third == nil || third.Revision != 3 {
+		t.Fatalf("A→B→A publication = %#v, %v; want fresh revision 3", third, err)
+	}
+	if first.EventID == second.EventID || second.EventID == third.EventID || first.EventID == third.EventID {
+		t.Fatalf("revision EventIDs were reused: %q %q %q", first.EventID, second.EventID, third.EventID)
+	}
+	var storedFirst []byte
+	if err := db.QueryRowContext(ctx, `SELECT event_json FROM incident_remediation_publications WHERE event_id=?`, first.EventID).Scan(&storedFirst); err != nil {
+		t.Fatal(err)
+	}
+	if string(storedFirst) != string(firstBytes) {
+		t.Fatal("first immutable event bytes changed after later revisions")
+	}
+
+	var thirdExpiry string
+	if err := db.QueryRowContext(ctx, `SELECT expires_at FROM incident_remediation_publications WHERE event_id=?`, third.EventID).Scan(&thirdExpiry); err != nil {
+		t.Fatal(err)
+	}
+	deadline, err := time.Parse(time.RFC3339Nano, thirdExpiry)
+	if err != nil {
+		t.Fatalf("parse deadline: %v", err)
+	}
+	fourth, err := store.EnsureRemediationDecisionPublication(ctx, incident.ID, deadline.Add(time.Second))
+	if err != nil || fourth == nil || fourth.Revision != 4 {
+		t.Fatalf("expired unchanged request = %#v, %v; want renewed revision 4", fourth, err)
+	}
+	pending, err := store.ListPendingRemediationDecisionPublications(ctx, 100)
+	if err != nil || len(pending) != 1 || pending[0].EventID != fourth.EventID {
+		t.Fatalf("pending decision rows = %#v, %v; want only latest revision", pending, err)
+	}
+	var openingCount int
+	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM incident_open_publications WHERE incident_id=? AND generation=1`, incident.ID).Scan(&openingCount); err != nil {
+		t.Fatal(err)
+	}
+	if openingCount != 1 {
+		t.Fatalf("opening FYI row count = %d, want preserved row", openingCount)
 	}
 }
 

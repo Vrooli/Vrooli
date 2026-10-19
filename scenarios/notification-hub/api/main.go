@@ -211,6 +211,11 @@ func main() {
 	} else {
 		slog.Info("vrooli-events decision subscription reconciled", "pattern", integrations.DecisionRequestPattern)
 	}
+	if err := integrations.EnsureDecisionWithdrawalSubscription(context.Background(), eventConfig.Get().EventsAPIBase, eventConfig.Get().WebhookURL); err != nil {
+		slog.Error("vrooli-events decision-withdrawal subscription reconciliation failed", "error", err)
+	} else {
+		slog.Info("vrooli-events decision-withdrawal subscription reconciled", "pattern", integrations.DecisionWithdrawalPattern)
+	}
 	if err := integrations.EnsureNotificationSubscription(context.Background(), eventConfig.Get().EventsAPIBase, eventConfig.Get().WebhookURL); err != nil {
 		slog.Error("vrooli-events notification subscription reconciliation failed", "error", err)
 	} else {

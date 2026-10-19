@@ -822,6 +822,15 @@ func (s ApprovalSource) IsValidInbound() bool {
 	}
 }
 
+// RejectionRequest contains the parameters for rejecting a sandbox.
+// ExpectedPatchSHA256 is optional for legacy/manual callers; decision-driven
+// rejection supplies it to bind the archived discard to the reviewed patch.
+type RejectionRequest struct {
+	SandboxID           uuid.UUID `json:"sandboxId"`
+	Actor               string    `json:"actor,omitempty"`
+	ExpectedPatchSHA256 string    `json:"expectedPatchSha256,omitempty"`
+}
+
 // ApprovalRequest contains the parameters for approving changes.
 type ApprovalRequest struct {
 	SandboxID  uuid.UUID   `json:"sandboxId"`

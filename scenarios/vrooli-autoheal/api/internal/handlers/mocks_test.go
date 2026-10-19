@@ -226,6 +226,18 @@ func (m *mockStore) AcknowledgeOpeningPublication(context.Context, string, int) 
 	return nil
 }
 
+func (m *mockStore) EnsureRemediationDecisionPublication(context.Context, string, time.Time) (*incidents.RemediationDecisionPublication, error) {
+	return nil, nil
+}
+
+func (m *mockStore) ListPendingRemediationDecisionPublications(context.Context, int) ([]incidents.RemediationDecisionPublication, error) {
+	return nil, nil
+}
+
+func (m *mockStore) AcknowledgeRemediationDecisionPublication(context.Context, string) error {
+	return nil
+}
+
 func (m *mockStore) RecordIncidentRemediationArtifact(ctx context.Context, incidentID string, artifact incidents.RemediationArtifact) (*incidents.Incident, error) {
 	m.recordedArtifact = &artifact
 	if m.incident == nil {

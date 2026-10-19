@@ -30,6 +30,8 @@ package phases
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -491,6 +493,151 @@ func TestApplyAtRunEnd_ManualReviewDeferred(t *testing.T) {
 	}
 	if _, ok := fx.events.FindLogMessage("manualReview=true"); !ok {
 		t.Error("expected info event explaining the deferral")
+	}
+}
+
+type approvalNotificationRecorder struct {
+	reviewCalls   int
+	outcomeCalls  int
+	withdrawCalls int
+	withdrawErr   error
+}
+
+func (r *approvalNotificationRecorder) NotifyRunNeedsReview(context.Context, *domain.Run) {
+	r.reviewCalls++
+}
+
+func (r *approvalNotificationRecorder) NotifyRunOutcome(context.Context, *domain.Run) {
+	r.outcomeCalls++
+}
+
+func (r *approvalNotificationRecorder) WithdrawRunNeedsReview(context.Context, *domain.Run, string) error {
+	r.withdrawCalls++
+	return r.withdrawErr
+}
+
+type approvalNotificationOnlyRecorder struct{}
+
+func (*approvalNotificationOnlyRecorder) NotifyRunNeedsReview(context.Context, *domain.Run) {}
+func (*approvalNotificationOnlyRecorder) NotifyRunOutcome(context.Context, *domain.Run)     {}
+
+func TestApplyAtRunEnd_ManualReviewVerifiedEmptyDoesNotRequestApproval(t *testing.T) {
+	tests := []struct {
+		name    string
+		status  domain.RunStatus
+		outcome domain.ContractRunOutcome
+	}{
+		{name: "success", status: domain.RunStatusComplete, outcome: domain.ContractRunOutcomeSuccess},
+		{name: "failure", status: domain.RunStatusFailed, outcome: domain.ContractRunOutcomeFailure},
+		{name: "cancelled", status: domain.RunStatusCancelled, outcome: domain.ContractRunOutcomeCancelled},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			stub := mocks.NewFakeSandboxProvider()
+			stub.GetDiffFunc = func(_ context.Context, id uuid.UUID) (*sandbox.DiffResult, error) {
+				return &sandbox.DiffResult{
+					SandboxID: id, Files: []sandbox.FileChange{}, PatchSHA256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+					EvidenceComplete: true,
+				}, nil
+			}
+			fx := newFinalizeFixture(t, func() *domain.SandboxConfig {
+				cfg := domain.DefaultSandboxConfig()
+				cfg.ManualReview = true
+				return cfg
+			}(), stub)
+			fx.run.Status = test.status
+			notifier := &approvalNotificationRecorder{}
+			fx.deps.ApprovalNotifier = notifier
+
+			if ApplyAtRunEnd(context.Background(), ApplyAtRunEndInput{
+				Deps: fx.deps, Run: fx.run, SandboxID: &fx.sandboxID, Sandbox: fx.sandbox, Outcome: test.outcome,
+			}) {
+				t.Fatal("verified empty diff must not be reported as applied")
+			}
+			if fx.run.Status != test.status || fx.run.ApprovalState != domain.ApprovalStateNone {
+				t.Fatalf("run state = %s/%s, want original terminal status %s and no approval", fx.run.Status, fx.run.ApprovalState, test.status)
+			}
+			if fx.run.ApprovedBy != "" || fx.run.ApprovedAt != nil {
+				t.Fatalf("empty diff invented approval attribution: by=%q at=%v", fx.run.ApprovedBy, fx.run.ApprovedAt)
+			}
+			if fx.run.FinalizationStatus != domain.RunFinalizationStatusSkipped || fx.run.FinalizationError == "" {
+				t.Fatalf("finalization = %s/%q, want skipped with reason", fx.run.FinalizationStatus, fx.run.FinalizationError)
+			}
+			if notifier.reviewCalls != 0 || notifier.withdrawCalls != 1 || stub.ApplyAtRunEndCallCount() != 0 {
+				t.Fatalf("empty diff requested review %d times, withdrew %d times, or applied %d times", notifier.reviewCalls, notifier.withdrawCalls, stub.ApplyAtRunEndCallCount())
+			}
+			wantOutcome := test.status == domain.RunStatusComplete || test.status == domain.RunStatusFailed
+			if (notifier.outcomeCalls > 0) != wantOutcome {
+				t.Fatalf("outcome notices = %d, want any=%v", notifier.outcomeCalls, wantOutcome)
+			}
+		})
+	}
+}
+
+func TestApplyAtRunEnd_ManualReviewVerifiedEmptyKeepsPendingWhenWithdrawalUnverified(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		notifier ApprovalNotifier
+	}{
+		{name: "withdrawal failure", notifier: &approvalNotificationRecorder{withdrawErr: fmt.Errorf("events unavailable")}},
+		{name: "notifier has no withdrawal contract", notifier: &approvalNotificationOnlyRecorder{}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			stub := mocks.NewFakeSandboxProvider()
+			stub.GetDiffFunc = func(_ context.Context, id uuid.UUID) (*sandbox.DiffResult, error) {
+				return &sandbox.DiffResult{SandboxID: id, Files: []sandbox.FileChange{}, PatchSHA256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", EvidenceComplete: true}, nil
+			}
+			cfg := domain.DefaultSandboxConfig()
+			cfg.ManualReview = true
+			fx := newFinalizeFixture(t, cfg, stub)
+			fx.run.Status = domain.RunStatusComplete
+			fx.deps.ApprovalNotifier = tc.notifier
+			if ApplyAtRunEnd(context.Background(), ApplyAtRunEndInput{Deps: fx.deps, Run: fx.run, SandboxID: &fx.sandboxID, Sandbox: fx.sandbox, Outcome: domain.ContractRunOutcomeSuccess}) {
+				t.Fatal("verified empty diff with unverified withdrawal must not report an apply")
+			}
+			if fx.run.Status != domain.RunStatusNeedsReview || fx.run.ApprovalState != domain.ApprovalStatePending {
+				t.Fatalf("run state=%s/%s, want needs_review/pending", fx.run.Status, fx.run.ApprovalState)
+			}
+			if fx.run.FinalizationStatus != domain.RunFinalizationStatusSkipped || !strings.Contains(fx.run.FinalizationError, "withdrawal pending") {
+				t.Fatalf("finalization=%s/%q, want skipped with pending-cleanup reason", fx.run.FinalizationStatus, fx.run.FinalizationError)
+			}
+			if stub.ApplyAtRunEndCallCount() != 0 {
+				t.Fatalf("failed withdrawal reached sandbox apply %d times", stub.ApplyAtRunEndCallCount())
+			}
+		})
+	}
+}
+
+func TestApplyAtRunEnd_ManualReviewUnavailableOrNonemptyStillRequestsApproval(t *testing.T) {
+	tests := []struct {
+		name string
+		get  func(context.Context, uuid.UUID) (*sandbox.DiffResult, error)
+	}{
+		{name: "unavailable", get: func(context.Context, uuid.UUID) (*sandbox.DiffResult, error) {
+			return nil, fmt.Errorf("diff unavailable")
+		}},
+		{name: "nonempty", get: func(_ context.Context, id uuid.UUID) (*sandbox.DiffResult, error) {
+			return &sandbox.DiffResult{SandboxID: id, Files: []sandbox.FileChange{{FilePath: "changed.txt"}}}, nil
+		}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			stub := mocks.NewFakeSandboxProvider()
+			stub.GetDiffFunc = test.get
+			cfg := domain.DefaultSandboxConfig()
+			cfg.ManualReview = true
+			fx := newFinalizeFixture(t, cfg, stub)
+			notifier := &approvalNotificationRecorder{}
+			fx.deps.ApprovalNotifier = notifier
+			if ApplyAtRunEnd(context.Background(), ApplyAtRunEndInput{
+				Deps: fx.deps, Run: fx.run, SandboxID: &fx.sandboxID, Sandbox: fx.sandbox, Outcome: domain.ContractRunOutcomeSuccess,
+			}) {
+				t.Fatal("manual review must defer")
+			}
+			if fx.run.Status != domain.RunStatusNeedsReview || fx.run.ApprovalState != domain.ApprovalStatePending || notifier.reviewCalls != 1 || notifier.withdrawCalls != 0 {
+				t.Fatalf("run/notifier = %s/%s/review=%d/withdraw=%d, want needs_review/pending/1/0", fx.run.Status, fx.run.ApprovalState, notifier.reviewCalls, notifier.withdrawCalls)
+			}
+		})
 	}
 }
 

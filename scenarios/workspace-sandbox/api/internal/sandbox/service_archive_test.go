@@ -947,6 +947,59 @@ func TestSnapshot_ApprovePartial_NoArchive(t *testing.T) {
 
 // --- Reject ---
 
+func TestReviewedRejectRefusesChangedPatchBeforeArchiveOrTransition(t *testing.T) {
+	env := newArchiveTestEnv(t)
+	sb := env.makeSandbox(types.StatusActive, map[string]string{"review.txt": "reviewed\n"}, nil)
+	reviewed, err := env.svc.GetDiff(t.Context(), sb.ID)
+	if err != nil || reviewed.PatchSHA256 == "" {
+		t.Fatalf("review fixture: %+v, %v", reviewed, err)
+	}
+	if err := os.WriteFile(filepath.Join(sb.UpperDir, "review.txt"), []byte("unreviewed\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	_, err = env.svc.RejectWithPrecondition(t.Context(), &types.RejectionRequest{
+		SandboxID: sb.ID, Actor: "reviewer", ExpectedPatchSHA256: reviewed.PatchSHA256,
+	})
+	if err == nil {
+		t.Fatal("reject accepted a patch different from the reviewed diff")
+	}
+	stored, getErr := env.repo.Get(t.Context(), sb.ID)
+	if getErr != nil || stored.Status != types.StatusActive {
+		t.Fatalf("mismatched reject changed sandbox state: %+v, %v", stored, getErr)
+	}
+	archive, archiveErr := env.archiveRepo.Get(t.Context(), sb.ID)
+	if archiveErr != nil || archive != nil {
+		t.Fatalf("mismatched reject published an archive: %+v, %v", archive, archiveErr)
+	}
+	if body, readErr := os.ReadFile(filepath.Join(sb.UpperDir, "review.txt")); readErr != nil || string(body) != "unreviewed\n" {
+		t.Fatalf("mismatched reject changed the overlay: %q, %v", body, readErr)
+	}
+}
+
+func TestReviewedRejectArchivesExactPatchAndManualRejectRemainsUnconditional(t *testing.T) {
+	env := newArchiveTestEnv(t)
+	sb := env.makeSandbox(types.StatusActive, map[string]string{"review.txt": "reviewed\n"}, nil)
+	reviewed, err := env.svc.GetDiff(t.Context(), sb.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := env.svc.RejectWithPrecondition(t.Context(), &types.RejectionRequest{
+		SandboxID: sb.ID, Actor: "reviewer", ExpectedPatchSHA256: reviewed.PatchSHA256,
+	}); err != nil {
+		t.Fatalf("same-patch reviewed reject: %v", err)
+	}
+	archive, err := env.archiveRepo.Get(t.Context(), sb.ID)
+	if err != nil || archive == nil || archive.UnifiedDiffSHA256 != reviewed.PatchSHA256 {
+		t.Fatalf("archive digest=%v err=%v, want %s", archive, err, reviewed.PatchSHA256)
+	}
+
+	manualEnv := newArchiveTestEnv(t)
+	manual := manualEnv.makeSandbox(types.StatusActive, map[string]string{"review.txt": "manual\n"}, nil)
+	if _, err := manualEnv.svc.Reject(t.Context(), manual.ID, "manual-reviewer"); err != nil {
+		t.Fatalf("legacy no-hash manual reject changed behavior: %v", err)
+	}
+}
+
 func TestSnapshot_Reject_WritesArchive(t *testing.T) {
 	env := newArchiveTestEnv(t)
 	sb := env.makeSandbox(types.StatusActive, map[string]string{

@@ -17,17 +17,18 @@ import (
 // replayed resolution is refused.
 type oneShotClaimStore struct {
 	*mockStore
-	recordCalls int
-	claimCalls  int
-	claimed     bool
+	recordCalls  int
+	claimCalls   int
+	claimed      bool
+	declineCalls int
 }
 
-func (s *oneShotClaimStore) RecordRemediationAuthorisation(_ context.Context, _, _, _, _, _ string, _ time.Time) error {
+func (s *oneShotClaimStore) RecordRemediationAuthorisation(_ context.Context, _, _, _, _ string, _ int, _, _, _, _, _ string, _ time.Time) error {
 	s.recordCalls++
 	return nil
 }
 
-func (s *oneShotClaimStore) ClaimRemediationAuthorisation(_ context.Context, _, _, _, _ string, _ time.Time) (bool, error) {
+func (s *oneShotClaimStore) ClaimRemediationAuthorisation(_ context.Context, _, _, _, _ string, _ int, _, _, _, _ string, _ time.Time) (bool, error) {
 	s.claimCalls++
 	if s.claimed {
 		return false, nil
@@ -36,28 +37,46 @@ func (s *oneShotClaimStore) ClaimRemediationAuthorisation(_ context.Context, _, 
 	return true, nil
 }
 
+func (s *oneShotClaimStore) RecordRemediationDeclineIfCurrent(_ context.Context, _, _, _, _, _ string, _ int, _, _ string, outcome incidents.Outcome) (bool, error) {
+	s.declineCalls++
+	s.recordedOutcome = &outcome
+	return true, nil
+}
+
 // remediationFixture builds a handlers instance whose single incident carries one
 // candidate at the given risk level, with a generated artifact and an approving
 // verifier, autoheal enabled, and a stub runner that records what it executed.
 func remediationFixture(t *testing.T, riskLevel string, requiresPrivilege bool) (*Handlers, *oneShotClaimStore, *approvalRunnerStub) {
 	t.Helper()
-	store := &oneShotClaimStore{
-		mockStore: &mockStore{incident: &incidents.Incident{
-			ID:             "inc-1",
-			Fingerprint:    "fp-1",
-			SourceCheckIDs: []string{"host-kernel-module-drift"},
-			RemediationCandidates: []incidents.RemediationCandidate{{
-				ID:                "candidate-1",
-				Applicability:     "applicable",
-				RiskLevel:         riskLevel,
-				RequiresPrivilege: requiresPrivilege,
-			}},
-			RemediationArtifacts: []incidents.RemediationArtifact{{
-				RemediationID: "candidate-1",
-				Path:          "/tmp/fixture-remediation",
-			}},
+	incident := &incidents.Incident{
+		ID:             "inc-1",
+		Fingerprint:    "fp-1",
+		Severity:       incidents.SeverityCritical,
+		Status:         incidents.StatusOpen,
+		SourceCheckIDs: []string{"host-kernel-module-drift"},
+		RemediationCandidates: []incidents.RemediationCandidate{{
+			ID:                "candidate-1",
+			Applicability:     "applicable",
+			RiskLevel:         riskLevel,
+			RequiresPrivilege: requiresPrivilege,
+		}},
+		RemediationArtifacts: []incidents.RemediationArtifact{{
+			RemediationID: "candidate-1",
+			Path:          "/tmp/fixture-remediation",
 		}},
 	}
+	incident.EventCount = 1
+	incident.RemediationDecisionGeneration = 1
+	incident.RemediationDecisionEventID = "decision-event-1"
+	incident.RemediationDecisionCandidateID = "candidate-1"
+	expires := time.Now().UTC().Add(time.Hour)
+	incident.RemediationDecisionExpiresAt = &expires
+	digest, err := incidents.RemediationDecisionSnapshotDigest(*incident, incident.RemediationCandidates[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	incident.RemediationCandidateDigest = digest
+	store := &oneShotClaimStore{mockStore: &mockStore{incident: incident}}
 	caps := &platform.Capabilities{Platform: platform.Linux}
 	registry := checks.NewRegistry(caps)
 	registry.Register(&mockHealableCheckCritical{
@@ -70,24 +89,28 @@ func remediationFixture(t *testing.T, riskLevel string, requiresPrivilege bool) 
 	h := NewWithInterface(registry, store, caps)
 	h.SetRemediationAskVerifier(approvalVerifierStub{approval: remediation.AskApproval{
 		AskID: "ask-1", Answer: "approve", Actor: "operator-1",
+		RequesterRef: incident.RemediationDecisionEventID, SourceEventType: incidents.RemediationDecisionEventType,
 	}})
 	runner := &approvalRunnerStub{}
 	h.remediationService.SetScriptRunner(runner)
 	return h, store, runner
 }
 
-func approveResolution(answer string) operatordecision.DecisionResolution {
+func approveResolution(answer, digest string) operatordecision.DecisionResolution {
 	return operatordecision.DecisionResolution{
 		AskID:           "ask-1",
 		State:           operatordecision.StateAnswered,
 		Answer:          answer,
 		AnsweredBy:      "operator-1",
 		SourceEventType: incidents.RemediationDecisionEventType,
+		RequesterRef:    "decision-event-1",
 		Correlation: map[string]string{
 			"incident_id":          "inc-1",
 			"incident_fingerprint": "fp-1",
 			"candidate_id":         "candidate-1",
 			"candidate_risk_level": "low",
+			"generation":           "1",
+			"candidate_digest":     digest,
 		},
 	}
 }
@@ -97,7 +120,7 @@ func TestDecisionApproveLowRiskAutoApplies(t *testing.T) {
 	h, store, runner := remediationFixture(t, "low", false)
 	effect := remediationDecisionEffect{handlers: h}
 
-	handled, err := effect.Apply(context.Background(), approveResolution("approve"))
+	handled, err := effect.Apply(context.Background(), approveResolution("approve", store.incident.RemediationCandidateDigest))
 	if err != nil || !handled {
 		t.Fatalf("Apply handled=%v err=%v, want handled=true err=nil", handled, err)
 	}
@@ -115,20 +138,37 @@ func TestDecisionApproveHighRiskRecordsButDoesNotApply(t *testing.T) {
 	h, store, runner := remediationFixture(t, "moderate", true)
 	effect := remediationDecisionEffect{handlers: h}
 
-	handled, err := effect.Apply(context.Background(), approveResolution("approve"))
+	handled, err := effect.Apply(context.Background(), approveResolution("approve", store.incident.RemediationCandidateDigest))
 	if err != nil || !handled {
 		t.Fatalf("Apply handled=%v err=%v, want handled=true err=nil", handled, err)
 	}
-	// The approval was recorded and claimed (the authorisation stands for the
-	// later manual apply), but nothing executed and no execution outcome exists.
-	if store.recordCalls != 1 || store.claimCalls != 1 {
-		t.Fatalf("expected the approval to be recorded and claimed once, record=%d claim=%d", store.recordCalls, store.claimCalls)
+	// The webhook records the exact Ask but must leave its single-use execution
+	// claim available for the explicit manual apply route.
+	if store.recordCalls != 1 || store.claimCalls != 0 {
+		t.Fatalf("high-risk approval record/claim calls = %d/%d, want 1/0", store.recordCalls, store.claimCalls)
 	}
-	if runner.runPath != "" {
-		t.Fatalf("expected NO execution for a high-risk candidate, runPath=%q", runner.runPath)
+	if runner.runPath != "" || store.recordedOutcome != nil {
+		t.Fatalf("high-risk webhook executed unexpectedly: run=%q outcome=%#v", runner.runPath, store.recordedOutcome)
 	}
-	if store.recordedOutcome != nil {
-		t.Fatalf("expected no execution outcome recorded, got %#v", store.recordedOutcome)
+
+	outcome, err := h.ApproveRemediationFromDecision(context.Background(), remediationApprovalInput{
+		IncidentID: "inc-1", CandidateID: "candidate-1", AskID: "ask-1",
+		IncidentFingerprint: "fp-1", RequesterRef: "decision-event-1", Generation: 1,
+		CandidateDigest: store.incident.RemediationCandidateDigest,
+	})
+	if err != nil || !outcome.Applied {
+		t.Fatalf("manual apply after high-risk webhook = %#v, err=%v", outcome, err)
+	}
+	if store.claimCalls != 1 || runner.runPath != "/tmp/fixture-remediation/remediation.sh" {
+		t.Fatalf("manual apply did not consume the original approval once: claims=%d run=%q", store.claimCalls, runner.runPath)
+	}
+
+	runner.runPath = ""
+	if handled, err := effect.Apply(context.Background(), approveResolution("approve", store.incident.RemediationCandidateDigest)); err != nil || !handled {
+		t.Fatalf("duplicate webhook handled=%v err=%v", handled, err)
+	}
+	if store.claimCalls != 1 || runner.runPath != "" {
+		t.Fatalf("duplicate webhook must not claim or execute again: claims=%d run=%q", store.claimCalls, runner.runPath)
 	}
 }
 
@@ -138,7 +178,7 @@ func TestDecisionApproveReplayIsRefused(t *testing.T) {
 	h, store, runner := remediationFixture(t, "low", false)
 	effect := remediationDecisionEffect{handlers: h}
 
-	if handled, err := effect.Apply(context.Background(), approveResolution("approve")); err != nil || !handled {
+	if handled, err := effect.Apply(context.Background(), approveResolution("approve", store.incident.RemediationCandidateDigest)); err != nil || !handled {
 		t.Fatalf("first Apply handled=%v err=%v", handled, err)
 	}
 	if store.recordedOutcome == nil || store.recordedOutcome.Status != "executed" {
@@ -148,7 +188,7 @@ func TestDecisionApproveReplayIsRefused(t *testing.T) {
 	store.recordedOutcome = nil
 
 	// Replay the same resolution: the single-use claim now fails.
-	handled, err := effect.Apply(context.Background(), approveResolution("approve"))
+	handled, err := effect.Apply(context.Background(), approveResolution("approve", store.incident.RemediationCandidateDigest))
 	if err != nil {
 		t.Fatalf("replay should be a benign ack, got err=%v", err)
 	}
@@ -163,20 +203,72 @@ func TestDecisionApproveReplayIsRefused(t *testing.T) {
 	}
 }
 
+func TestDecisionApprovalRejectsWrongRequesterOrDigestWithoutEffects(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		requester string
+		digest    string
+	}{
+		{name: "foreign requester reference", requester: "foreign-event", digest: "current"},
+		{name: "stale candidate digest", requester: "decision-event-1", digest: "stale"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h, store, runner := remediationFixture(t, "low", false)
+			digest := store.incident.RemediationCandidateDigest
+			resolution := approveResolution("approve", digest)
+			resolution.RequesterRef = tc.requester
+			if tc.digest != "current" {
+				resolution.Correlation["candidate_digest"] = tc.digest
+			}
+			handled, err := (remediationDecisionEffect{handlers: h}).Apply(context.Background(), resolution)
+			if err == nil || !handled {
+				t.Fatalf("Apply handled=%v err=%v, want handled error for mismatched binding", handled, err)
+			}
+			if store.recordCalls != 0 || store.claimCalls != 0 || store.recordedOutcome != nil || runner.runPath != "" {
+				t.Fatalf("mismatched decision had effects: records=%d claims=%d outcome=%#v run=%q", store.recordCalls, store.claimCalls, store.recordedOutcome, runner.runPath)
+			}
+		})
+	}
+}
+
+func TestDecisionApprovalRejectsAskWithoutCurrentSourceBinding(t *testing.T) {
+	for _, tc := range []struct{ name, sourceType, requester string }{
+		{name: "wrong source event", sourceType: "unrelated.request.v1", requester: "decision-event-1"},
+		{name: "missing requester reference", sourceType: incidents.RemediationDecisionEventType, requester: ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h, store, runner := remediationFixture(t, "low", false)
+			h.SetRemediationAskVerifier(approvalVerifierStub{approval: remediation.AskApproval{
+				AskID: "ask-1", Answer: "approve", Actor: "operator-1", SourceEventType: tc.sourceType, RequesterRef: tc.requester,
+			}})
+			_, err := h.ApproveRemediationFromDecision(context.Background(), remediationApprovalInput{
+				IncidentID: "inc-1", CandidateID: "candidate-1", AskID: "ask-1", IncidentFingerprint: "fp-1",
+				RequesterRef: "decision-event-1", Generation: 1, CandidateDigest: store.incident.RemediationCandidateDigest,
+			})
+			if err == nil {
+				t.Fatal("approval with unbound Ask unexpectedly succeeded")
+			}
+			if store.recordCalls != 0 || store.claimCalls != 0 || runner.runPath != "" || store.recordedOutcome != nil {
+				t.Fatalf("unbound Ask had effects: records=%d claims=%d run=%q outcome=%#v", store.recordCalls, store.claimCalls, runner.runPath, store.recordedOutcome)
+			}
+		})
+	}
+}
+
 // Behaviour 4: a reject records a declined outcome and executes nothing.
 func TestDecisionRejectRecordsDeclined(t *testing.T) {
 	h, store, runner := remediationFixture(t, "low", false)
 	effect := remediationDecisionEffect{handlers: h}
 
-	handled, err := effect.Apply(context.Background(), approveResolution("reject"))
+	handled, err := effect.Apply(context.Background(), approveResolution("reject", store.incident.RemediationCandidateDigest))
 	if err != nil || !handled {
 		t.Fatalf("Apply handled=%v err=%v, want handled=true err=nil", handled, err)
 	}
 	if runner.runPath != "" {
 		t.Fatalf("a reject must execute nothing, runPath=%q", runner.runPath)
 	}
-	if store.recordCalls != 0 || store.claimCalls != 0 {
-		t.Fatalf("a reject must not touch the authorisation store, record=%d claim=%d", store.recordCalls, store.claimCalls)
+	if store.recordCalls != 0 || store.claimCalls != 0 || store.declineCalls != 1 {
+		t.Fatalf("a reject must only write one decline, records=%d claims=%d declines=%d", store.recordCalls, store.claimCalls, store.declineCalls)
 	}
 	if store.recordedOutcome == nil || store.recordedOutcome.Status != "declined" {
 		t.Fatalf("expected a declined outcome, got %#v", store.recordedOutcome)

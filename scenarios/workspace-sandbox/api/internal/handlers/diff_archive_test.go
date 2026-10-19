@@ -80,6 +80,61 @@ func TestApprovalTransportsPreserveReviewedPatchIdentity(t *testing.T) {
 	}
 }
 
+func TestRejectTransportPreservesReviewedPatchPrecondition(t *testing.T) {
+	id := uuid.New()
+	digest := strings.Repeat("a", 64)
+	calls := 0
+	svc := &sandboxiface.FakeService{RejectWithPreconditionFn: func(_ context.Context, req *types.RejectionRequest) (*types.Sandbox, error) {
+		calls++
+		if req.SandboxID != id || req.Actor != "reviewer" || req.ExpectedPatchSHA256 != digest {
+			t.Fatalf("reject transport changed precondition: %+v", req)
+		}
+		return &types.Sandbox{ID: id, Status: types.StatusRejected}, nil
+	}}
+	live := newLive(t, svc)
+	response, _ := live.DoJSON(t, "POST", sandboxesPath(id, "/reject-reviewed"), `{"actor":"reviewer","expectedPatchSha256":"`+digest+`"}`)
+	if response.StatusCode != http.StatusOK || calls != 1 {
+		t.Fatalf("reviewed reject transport: HTTP %d, calls %d", response.StatusCode, calls)
+	}
+}
+
+func TestRejectReviewedRouteRequiresPatchDigest(t *testing.T) {
+	id := uuid.New()
+	calls := 0
+	svc := &sandboxiface.FakeService{RejectWithPreconditionFn: func(_ context.Context, req *types.RejectionRequest) (*types.Sandbox, error) {
+		calls++
+		return &types.Sandbox{ID: req.SandboxID, Status: types.StatusRejected}, nil
+	}}
+	live := newLive(t, svc)
+	response, _ := live.DoJSON(t, "POST", sandboxesPath(id, "/reject-reviewed"), `{"actor":"reviewer"}`)
+	if response.StatusCode != http.StatusBadRequest || calls != 0 {
+		t.Fatalf("reviewed reject without digest: HTTP %d, service calls %d", response.StatusCode, calls)
+	}
+}
+
+func TestMalformedRejectCannotDropReviewedPatchPrecondition(t *testing.T) {
+	for _, body := range []string{
+		`{"actor":"reviewer","expectedPatchSha256":123}`,
+		`{"actor":"reviewer","expectedPatchSha256":"truncated`,
+		`{"actor":"reviewer","expectedPatchSha25":"misspelled"}`,
+		`{"actor":"reviewer"} {"expectedPatchSha256":"` + strings.Repeat("a", 64) + `"}`,
+		`null`,
+	} {
+		t.Run(body, func(t *testing.T) {
+			calls := 0
+			svc := &sandboxiface.FakeService{RejectWithPreconditionFn: func(context.Context, *types.RejectionRequest) (*types.Sandbox, error) {
+				calls++
+				return &types.Sandbox{ID: uuid.New(), Status: types.StatusRejected}, nil
+			}}
+			live := newLive(t, svc)
+			response, result := live.DoJSON(t, "POST", sandboxesPath(uuid.New(), "/reject-reviewed"), body)
+			if response.StatusCode != http.StatusBadRequest || calls != 0 {
+				t.Fatalf("malformed reviewed rejection reached service: HTTP %d, calls %d, %s", response.StatusCode, calls, result)
+			}
+		})
+	}
+}
+
 func TestMalformedApprovalCannotDropReviewPrecondition(t *testing.T) {
 	for _, body := range []string{
 		`{"expectedPatchSha256":123}`,

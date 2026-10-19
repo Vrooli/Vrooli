@@ -34,6 +34,8 @@ package integration
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"sync"
 	"testing"
 	"time"
@@ -112,6 +114,9 @@ func (p *archiveAwareSandboxProvider) Approve(_ context.Context, _ sandbox.Appro
 }
 
 func (p *archiveAwareSandboxProvider) Reject(_ context.Context, _ uuid.UUID, _ string) error {
+	return nil
+}
+func (p *archiveAwareSandboxProvider) RejectReviewed(_ context.Context, _ sandbox.RejectRequest) error {
 	return nil
 }
 
@@ -345,5 +350,46 @@ func TestGetRunDiff_ArchiveNotCapturedDistinguishedFromEmpty(t *testing.T) {
 	}
 	if len(got.Files) != 0 {
 		t.Errorf("Files len = %d, want 0 (not_captured archives carry no files)", len(got.Files))
+	}
+}
+
+func TestGetRunDiffMarksOnlyCompleteConsistentEvidenceVerified(t *testing.T) {
+	ctx := context.Background()
+	emptyDigest := sha256.Sum256(nil)
+	archived := &sandbox.DiffResult{
+		Files:            []sandbox.FileChange{},
+		UnifiedDiff:      "",
+		PatchSHA256:      hex.EncodeToString(emptyDigest[:]),
+		EvidenceComplete: true,
+		ArchiveState:     sandbox.ArchiveStateComplete,
+	}
+	svc, runID, provider := runClosedDiffScenario(t, archived)
+	run, err := svc.GetRun(ctx, runID)
+	if err != nil {
+		t.Fatalf("GetRun: %v", err)
+	}
+	if run.SandboxID == nil {
+		t.Fatal("run has no sandbox")
+	}
+	archived.SandboxID = *run.SandboxID
+	provider.mu.Lock()
+	provider.diffResp = archived
+	provider.mu.Unlock()
+
+	got, err := svc.GetRunDiff(ctx, runID)
+	if err != nil {
+		t.Fatalf("GetRunDiff: %v", err)
+	}
+	if !got.FileCountVerified {
+		t.Fatal("complete exact empty archive should verify its zero file count")
+	}
+
+	archived.EvidenceComplete = false
+	got, err = svc.GetRunDiff(ctx, runID)
+	if err != nil {
+		t.Fatalf("GetRunDiff with incomplete evidence: %v", err)
+	}
+	if got.FileCountVerified {
+		t.Fatal("incomplete provider evidence must not verify an empty count")
 	}
 }

@@ -16,6 +16,7 @@ import (
 	"agent-manager/internal/maintenance"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/orchestration/testutil"
+	"agent-manager/internal/orchestration/testutil/mocks"
 	"agent-manager/internal/rolepolicy"
 
 	"github.com/google/uuid"
@@ -127,6 +128,47 @@ func TestWakeRunRejectsCurrentModelExclusionBeforeClearingAwaitHandle(t *testing
 // untouched, never revoked); parked→running (wake) clears the handle, injects
 // the awaited result as the next turn, re-injects custom env + a fresh verifiable
 // identity token (Phase 0 assembler), and resets the heartbeat.
+func TestParkRunRegisteredChildrenProducerIsAccepted(t *testing.T) {
+	ctx := context.Background()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	svc := orchestration.New(repos.Profiles, repos.Tasks, repos.Runs, orchestration.WithEvents(eventStore))
+	waiter := mocks.NewFakeWaiter(orchestration.ProducerChildren)
+	registry := orchestration.NewAwaitRegistry(svc, waiter)
+	svc.SetAwaitRegistry(registry)
+	defer registry.Stop()
+	run := newParkableRun(t, ctx, svc, repos)
+
+	parked, err := svc.ParkRun(ctx, orchestration.ParkRunInput{
+		RunID: run.ID, Producer: orchestration.ProducerChildren, Key: run.ID.String(),
+	})
+	if err != nil {
+		t.Fatalf("registered children producer park: %v", err)
+	}
+	if parked.Status != domain.RunStatusParked || parked.AwaitHandle == nil || parked.AwaitHandle.Producer != orchestration.ProducerChildren {
+		t.Fatalf("registered children park = status %s handle %+v", parked.Status, parked.AwaitHandle)
+	}
+	eventually(t, func() bool { return registry.Watching(run.ID) }, "registered children producer did not get a waiter")
+}
+
+func TestParkRunWithoutRegistryRetainsIsolatedSeam(t *testing.T) {
+	ctx := context.Background()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	svc := orchestration.New(repos.Profiles, repos.Tasks, repos.Runs, orchestration.WithEvents(eventStore))
+	run := newParkableRun(t, ctx, svc, repos)
+
+	parked, err := svc.ParkRun(ctx, orchestration.ParkRunInput{
+		RunID: run.ID, Producer: "isolated-test-producer", Key: "isolated/key",
+	})
+	if err != nil {
+		t.Fatalf("nil-registry isolated park: %v", err)
+	}
+	if parked.Status != domain.RunStatusParked || parked.AwaitHandle == nil || parked.AwaitHandle.Producer != "isolated-test-producer" {
+		t.Fatalf("nil-registry isolated park = status %s handle %+v", parked.Status, parked.AwaitHandle)
+	}
+}
+
 func TestParkRun_AndWake_PreservesIdentityEnvAndResetsHeartbeat(t *testing.T) {
 	ctx := context.Background()
 	db, cleanup := testutil.SetupTestDB(t)

@@ -146,6 +146,114 @@ func TestEffortGoalHomeProjectsRegisteredHome(t *testing.T) {
 	}
 }
 
+func TestEffortGoalHomeProjectsActiveEpochIndependentlyOfLatestAcceptance(t *testing.T) {
+	s, _, c := effortFixture(t)
+	s.config.ProjectRoot = t.TempDir()
+	home := filepath.Join(s.config.ProjectRoot, filepath.FromSlash(goalHomeRef))
+	epochs := filepath.Join(home, "epochs")
+	for _, dir := range []string{home, epochs} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	files := map[string]string{
+		"GOAL.md":        "# Goal\n\n- Destination: journeys >= 24\n- Current: 12 @ 2026-10-07\n",
+		"QUEUE.md":       "# Queue\n\n## Handoff\n\nContinue the admitted work.\n",
+		"FEEDBACK.md":    "# Feedback\n\n## Resolved\n",
+		"WORKAROUNDS.md": "# Workarounds\n\n## Resolved\n",
+		"epochs/E1.md":   "# E1\n\n- Status: active — D35 same-run correction continuation admitted\n- Workers: 11111111-1111-4111-8111-111111111111\n\n## Slice log\n",
+		"epochs/E2.md":   "# E2\n\n- Status: A190 validation complete; G1 failed, E2 remains unaccepted\n\n## Slice log\n",
+		"epochs/E3.md":   "# E3\n\n- Status: accepted by the original owner\n\n## Slice log\nACCEPTED 2026-10-18T10:03:08Z delivered; gates=G1,G2,G3\n",
+	}
+	for name, data := range files {
+		path := filepath.Join(home, filepath.FromSlash(name))
+		if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	facts := goalHomeBoardRow(t, s, c).GetGoalHome()
+	if facts == nil || facts.ActiveEpoch != "E1" || facts.ActiveStatus != "active — D35 same-run correction continuation admitted" {
+		t.Fatalf("the explicit active epoch must remain visible beside a later accepted epoch: %+v", facts)
+	}
+	if facts.LastAcceptedEpoch != "E3" || facts.LastAcceptedAt == nil {
+		t.Fatalf("latest acceptance must be reported independently: %+v", facts)
+	}
+	if len(facts.ActiveWorkers) != 1 || facts.ActiveWorkers[0] != "11111111-1111-4111-8111-111111111111" {
+		t.Fatalf("workers must come from the selected active epoch: %q", facts.ActiveWorkers)
+	}
+}
+
+func TestEffortGoalHomeProjectsReopenedEpochDespiteStaleAcceptedStatus(t *testing.T) {
+	s, _, c := effortFixture(t)
+	s.config.ProjectRoot = t.TempDir()
+	home := filepath.Join(s.config.ProjectRoot, filepath.FromSlash(goalHomeRef))
+	epochs := filepath.Join(home, "epochs")
+	for _, dir := range []string{home, epochs} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	files := map[string]string{
+		"GOAL.md":        "# Goal\n\n- Destination: journeys >= 24\n- Current: 12 @ 2026-10-07\n",
+		"QUEUE.md":       "# Queue\n\n## Handoff\n\nContinue the reopened work.\n",
+		"FEEDBACK.md":    "# Feedback\n\n## Resolved\n",
+		"WORKAROUNDS.md": "# Workarounds\n\n## Resolved\n",
+		"epochs/E1.md":   "# E1\n\n- Status: in-progress\n\n## Slice log\n",
+		"epochs/E2.md":   "# E2\n\n- Status: A190 validation complete; G1 failed, E2 remains unaccepted\n\n## Slice log\n",
+		"epochs/E3.md":   "# E3\n\n- Status: accepted by the original owner\n\n## Directives\n- D1 2026-10-18T10:10:00Z resume after new directive\n\n## Slice log\nACCEPTED 2026-10-18T10:03:08Z delivered; gates=G1,G2,G3\n",
+	}
+	for name, data := range files {
+		if err := os.WriteFile(filepath.Join(home, filepath.FromSlash(name)), []byte(data), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	facts := goalHomeBoardRow(t, s, c).GetGoalHome()
+	if facts == nil || facts.ActiveEpoch != "E3" || facts.ActiveStatus != "accepted by the original owner" {
+		t.Fatalf("a later directive must reopen E3 even when its status text is stale: %+v", facts)
+	}
+	if facts.LastAcceptedEpoch != "" || facts.LastAcceptedAt != nil {
+		t.Fatalf("reopened E3 must not remain the latest accepted epoch: %+v", facts)
+	}
+	if len(facts.ActiveWorkers) != 0 {
+		t.Fatalf("workers must come only from the selected reopened epoch: %q", facts.ActiveWorkers)
+	}
+}
+
+func TestEffortGoalHomeNewestActiveEpochWinsReopenedTie(t *testing.T) {
+	s, _, c := effortFixture(t)
+	s.config.ProjectRoot = t.TempDir()
+	home := filepath.Join(s.config.ProjectRoot, filepath.FromSlash(goalHomeRef))
+	epochs := filepath.Join(home, "epochs")
+	for _, dir := range []string{home, epochs} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	files := map[string]string{
+		"GOAL.md":        "# Goal\n\n- Destination: journeys >= 24\n- Current: 12 @ 2026-10-07\n",
+		"QUEUE.md":       "# Queue\n\n## Handoff\n\nContinue the current work.\n",
+		"FEEDBACK.md":    "# Feedback\n\n## Resolved\n",
+		"WORKAROUNDS.md": "# Workarounds\n\n## Resolved\n",
+		"epochs/E1.md":   "# E1\n\n- Status: accepted by the original owner\n\n## Directives\n- D1 2026-10-18T10:10:00Z resume after new directive\n\n## Slice log\nACCEPTED 2026-10-18T10:03:08Z delivered; gates=G1,G2,G3\n",
+		"epochs/E2.md":   "# E2\n\n- Status: in-progress\n\n## Slice log\n",
+	}
+	for name, data := range files {
+		if err := os.WriteFile(filepath.Join(home, filepath.FromSlash(name)), []byte(data), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	facts := goalHomeBoardRow(t, s, c).GetGoalHome()
+	if facts == nil || facts.ActiveEpoch != "E2" || facts.ActiveStatus != "in-progress" {
+		t.Fatalf("newer explicitly active E2 must win the shared active-priority tie: %+v", facts)
+	}
+	if facts.LastAcceptedEpoch != "" {
+		t.Fatalf("reopened E1 must not be reported as accepted: %+v", facts)
+	}
+}
+
 func TestEffortGoalHomeLeavesProseWorkersUnknown(t *testing.T) {
 	s, _, c := effortFixture(t)
 	s.config.ProjectRoot = t.TempDir()

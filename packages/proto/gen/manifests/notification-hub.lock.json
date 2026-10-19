@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "notification-hub",
-  "input_digest": "sha256:ce59aec0930270b857c064bd44b2c67ecaecda6638d385ac9f022cb055700f2a",
+  "input_digest": "sha256:5b07d402585c1265697a1dc91c4947269d2c590e1abfc7d2d7f6955ed40a9d51",
   "input_files": [
     "schemas/notification-hub/v1/conversations/conversations.proto",
     "schemas/notification-hub/v1/delivery/delivery.proto",
@@ -16,6 +16,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "generator_digest": "sha256:d62f642cc85260466ef67f24653340c95d277e2268cdf9983a7144dca50b1d50",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -38,7 +39,7 @@
     "gen/go/notification-hub/v1/routing/routing_v1connect/routing.connect.go": "sha256:92c0704c4f47fc0be15787a1f293473352ef82b7e3478f8523b47821535ff13a",
     "gen/go/notification-hub/v1/shared/errors.pb.go": "sha256:5a7f6004bc244398a1d9e4511c99a8b62d07ab4e92fa1e198c57a375beb7cb56",
     "gen/go/notification-hub/v1/shared/health.pb.go": "sha256:e8ffa676a226dd08ab45f62e7cb627e4579eb26d9b964f0983ce5712466c6f98",
-    "gen/go/notification-hub/v1/shared/types.pb.go": "sha256:5c3d95341d24f46d4778378b4eaba1636c863999d7f9650621c2351de652877d",
+    "gen/go/notification-hub/v1/shared/types.pb.go": "sha256:bd825621e3a2fce272feb6a8b1a775c6487c9b10c0ae19ec609ba7ef5345b17f",
     "gen/python/notification_hub/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/notification_hub/v1/conversations/conversations_pb2.py": "sha256:fe0f41485857bf9cdc41494d05ba7a08701c758615d6fdcb8e63fdc6e556385c",
     "gen/python/notification_hub/v1/conversations/conversations_pb2.pyi": "sha256:e396400db97495f4b69b09b54d857380f39f64bd194c8f3f753a06a6ac57ae8e",
@@ -64,8 +65,8 @@
     "gen/python/notification_hub/v1/shared/health_pb2.py": "sha256:feb6fbed44757b2e77e68f7e1593d6c2ef3dbac8f9ebc52fa9c9dfe09624236e",
     "gen/python/notification_hub/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
     "gen/python/notification_hub/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/notification_hub/v1/shared/types_pb2.py": "sha256:e12e0a5fc0eae5a61c2269b95982b0bab202ca15af785c4683bd53af30b96935",
-    "gen/python/notification_hub/v1/shared/types_pb2.pyi": "sha256:75da3c76c48a26c3cfa64cfbe8c9973bbeaee3b9cfebf54402fe9b6effc47af2",
+    "gen/python/notification_hub/v1/shared/types_pb2.py": "sha256:68c7f7ea73c487a281e532abb39478e8f8ba495d9ad8fe0856390e58bd243b09",
+    "gen/python/notification_hub/v1/shared/types_pb2.pyi": "sha256:e7350e7cab9a06a2c8c8960c96cecc4b6e3f7019b97328512edbccf7bbdc397d",
     "gen/typescript/notification-hub/v1/conversations/conversations_pb.ts": "sha256:438b17cf3f907320a909f073f058ffe7addd8a6a2e19802a129cfea48246df23",
     "gen/typescript/notification-hub/v1/delivery/delivery_pb.ts": "sha256:d2f6157b800452a9730591b61e829037c18f845282c81269c62ac57af6a014e4",
     "gen/typescript/notification-hub/v1/identity/identity_pb.ts": "sha256:a8f459c38c32c33b42fa6b38153fc7151c09d5a7662b73851af3752ddfe32ac9",
@@ -74,6 +75,7 @@
     "gen/typescript/notification-hub/v1/routing/routing_pb.ts": "sha256:cdce8d02cd9a413cfd90bf068f80cd2c81a386aad890e87ce8a22168a576dd12",
     "gen/typescript/notification-hub/v1/shared/errors_pb.ts": "sha256:43cf51abf563c4a285d7a73ec3d657945b13a99e457f75ed1a58c049e4b172a1",
     "gen/typescript/notification-hub/v1/shared/health_pb.ts": "sha256:f54347c375e616769be3665767e6734cb981b7cbfd85df216702aca8e68511b0",
-    "gen/typescript/notification-hub/v1/shared/types_pb.ts": "sha256:7fd3cd67fb33387bc783b108a93ca0cb157d6f0604772c600be2722f3288f3c2"
+    "gen/typescript/notification-hub/v1/shared/types_pb.ts": "sha256:ec653d0f341fc0722f333ab5a9f1ebcf9234f15119490ebf85576b6db4ee60f3",
+    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4"
   }
 }

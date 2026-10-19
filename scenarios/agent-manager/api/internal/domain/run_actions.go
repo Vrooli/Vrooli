@@ -18,6 +18,7 @@ type RunActions struct {
 	CanContinueReason          string `json:"canContinueReason,omitempty"`
 	CanApprove                 bool   `json:"canApprove"`
 	CanReject                  bool   `json:"canReject"`
+	ReviewUnavailableReason    string `json:"reviewUnavailableReason,omitempty"`
 	CanReview                  bool   `json:"canReview"`
 	CanResumeFromFailure       bool   `json:"canResumeFromFailure"`
 	CanResumeFromFailureReason string `json:"canResumeFromFailureReason,omitempty"`
@@ -138,6 +139,9 @@ func CanStopRun(run *Run) (bool, string) {
 func CanParkRun(run *Run) (bool, string) {
 	if run == nil {
 		return false, "run not found"
+	}
+	if run.ExecutionMode.Normalized() == ExecutionModeAttached {
+		return false, "attached runs are externally owned and cannot be parked"
 	}
 	if run.Status == RunStatusParked {
 		return false, "run is already parked"

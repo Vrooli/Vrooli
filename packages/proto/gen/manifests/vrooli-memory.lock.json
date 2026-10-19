@@ -18,6 +18,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "generator_digest": "sha256:d62f642cc85260466ef67f24653340c95d277e2268cdf9983a7144dca50b1d50",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -80,6 +81,7 @@
     "gen/python/vrooli_memory/v1/shared/health_pb2.py": "sha256:e5194348673797e19635ea83b0c8a9ded9c30ff9d7a4a4f5c94a376709a5a4a3",
     "gen/python/vrooli_memory/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
     "gen/python/vrooli_memory/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4",
     "gen/typescript/vrooli-memory/v1/facets/facets_pb.ts": "sha256:0b561d295af6e6ddf041eefd5608da5cfe5a207974ece7a085523c64bb975941",
     "gen/typescript/vrooli-memory/v1/federation/federation_pb.ts": "sha256:beae147caaa70ba59b11ce72fa1818ec31608950161f4947780d68d8ce349482",
     "gen/typescript/vrooli-memory/v1/forest/forest_pb.ts": "sha256:a861e718fd960715b17aa8358e59b4380eb79305de3d6832a16d08f353842a58",

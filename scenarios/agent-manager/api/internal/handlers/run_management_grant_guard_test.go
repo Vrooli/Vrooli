@@ -142,3 +142,148 @@ func TestRunLifecycleOperationGrantUsesCanonicalAuthorization(t *testing.T) {
 		t.Fatal("legacy grant without write capability was allowed")
 	}
 }
+
+type taskCancelAuthoritySpy struct {
+	orchestration.TaskService
+	cancelled []uuid.UUID
+}
+
+func (s *taskCancelAuthoritySpy) CancelTask(_ context.Context, id uuid.UUID) error {
+	s.cancelled = append(s.cancelled, id)
+	return nil
+}
+
+func servePairedTaskCancel(t *testing.T, taskID uuid.UUID, baseline, operation *cliutil.VerifyResult, baselineToken, operationToken string) (*httptest.ResponseRecorder, int) {
+	t.Helper()
+	spy := &taskCancelAuthoritySpy{}
+	h := New(orchestration.HandlerServices{TaskService: spy})
+	verifier := managementGrantVerifier{baseline: baseline, operation: operation}
+	router := mux.NewRouter()
+	router.Use(provenance.Middleware(verifier))
+	router.Use(authn.Middleware(authn.Config{}))
+	router.Use(AgentOperationMiddleware)
+	h.RegisterRoutes(router)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/tasks/"+taskID.String()+"/cancel", nil)
+	if baselineToken != "" {
+		req.Header.Set(cliutil.HeaderAgentIdentityToken, baselineToken)
+	}
+	if operationToken != "" {
+		req.Header.Set(cliutil.HeaderAgentOperationToken, operationToken)
+	}
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, req)
+	return response, len(spy.cancelled)
+}
+
+func TestTaskCancelRequiresPairedExactAgentManageGrant(t *testing.T) {
+	now := time.Now()
+	runID, taskID := uuid.New(), uuid.New()
+	allowed := managementGrantFixture(now, managementRuleFixture("agent-management", []string{"agent.manage"}, []string{"agent-manager:*"}))
+	exact := managementGrantFixture(now, managementRuleFixture("agent-management", []string{"agent.manage"}, []string{"agent-manager:task/" + taskID.String()}))
+	wrongTarget := managementGrantFixture(now, managementRuleFixture("agent-management", []string{"agent.manage"}, []string{"agent-manager:task/" + uuid.NewString()}))
+	wrongOperation := managementGrantFixture(now, managementRuleFixture("agent-management", []string{"agent.investigate"}, []string{"agent-manager:*"}))
+	expired := managementGrantFixture(now.Add(-2*time.Hour), managementRuleFixture("agent-management", []string{"agent.manage"}, []string{"agent-manager:*"}))
+	cases := []struct {
+		name             string
+		grant            *coreidentity.OperationGrant
+		operationToken   string
+		baselineToken    string
+		baselineScopes   []string
+		operationExpires time.Time
+		wantStatus       int
+		wantCalls        int
+	}{
+		{name: "domain-wide target is bounded to this operation", grant: allowed, operationToken: managementOperationToken, baselineToken: managementBaselineToken, baselineScopes: []string{"agent-manager:read"}, operationExpires: now.Add(time.Hour), wantStatus: http.StatusOK, wantCalls: 1},
+		{name: "exact task target", grant: exact, operationToken: managementOperationToken, baselineToken: managementBaselineToken, baselineScopes: []string{"agent-manager:read"}, operationExpires: now.Add(time.Hour), wantStatus: http.StatusOK, wantCalls: 1},
+		{name: "wrong task target", grant: wrongTarget, operationToken: managementOperationToken, baselineToken: managementBaselineToken, baselineScopes: []string{"agent-manager:read"}, operationExpires: now.Add(time.Hour), wantStatus: http.StatusForbidden},
+		{name: "wrong operation", grant: wrongOperation, operationToken: managementOperationToken, baselineToken: managementBaselineToken, baselineScopes: []string{"agent-manager:read"}, operationExpires: now.Add(time.Hour), wantStatus: http.StatusForbidden},
+		{name: "expired grant", grant: expired, operationToken: managementOperationToken, baselineToken: managementBaselineToken, baselineScopes: []string{"agent-manager:read"}, operationExpires: now.Add(-time.Hour), wantStatus: http.StatusForbidden},
+		{name: "invalid pair token", grant: allowed, operationToken: "unverified-operation", baselineToken: managementBaselineToken, baselineScopes: []string{"agent-manager:read"}, operationExpires: now.Add(time.Hour), wantStatus: http.StatusForbidden},
+		{name: "missing pair and no grant on baseline", baselineToken: managementBaselineToken, baselineScopes: []string{"agent-manager:read", "agent-manager:write"}, wantStatus: http.StatusForbidden},
+		{name: "unverified identity token", baselineToken: "unverified-baseline", baselineScopes: []string{"agent-manager:read", "agent-manager:write"}, wantStatus: http.StatusUnauthorized},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var operation *cliutil.VerifyResult
+			if tc.grant != nil {
+				operation = managementClaimsFixture(t, runID, []string{"agent-manager:read", "agent-manager:write"}, tc.grant, tc.operationExpires)
+			}
+			base := managementClaimsFixture(t, runID, tc.baselineScopes, nil, now.Add(time.Hour))
+			response, calls := servePairedTaskCancel(t, taskID, base, operation, tc.baselineToken, tc.operationToken)
+			if response.Code != tc.wantStatus {
+				t.Fatalf("status = %d, want %d: %s", response.Code, tc.wantStatus, response.Body.String())
+			}
+			if calls != tc.wantCalls {
+				t.Fatalf("CancelTask calls = %d, want %d", calls, tc.wantCalls)
+			}
+		})
+	}
+}
+
+func TestTaskCancelKeepsHumanRouteAndDeniesOtherTaskWrites(t *testing.T) {
+	spy := &taskCancelAuthoritySpy{}
+	h := New(orchestration.HandlerServices{TaskService: spy})
+	router := mux.NewRouter()
+	router.Use(AgentOperationMiddleware)
+	h.RegisterRoutes(router)
+	human := coreidentity.Principal{Kind: coreidentity.ActorHuman, Subject: "operator", Verified: true, Scopes: []string{"agent-manager:write"}}
+	id := uuid.New()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/tasks/"+id.String()+"/cancel", nil).WithContext(coreidentity.WithPrincipal(context.Background(), human))
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, req)
+	if response.Code != http.StatusOK || len(spy.cancelled) != 1 {
+		t.Fatalf("verified human cancellation: status=%d calls=%d body=%s", response.Code, len(spy.cancelled), response.Body.String())
+	}
+	grant := managementGrantFixture(time.Now(), managementRuleFixture("agent-management", []string{"agent.manage"}, []string{"agent-manager:*"}))
+	agent := coreidentity.Principal{Kind: coreidentity.ActorAgent, Subject: "grant-only", Verified: true, Scopes: []string{"agent-manager:write"}, Grant: grant}
+	for _, method := range []string{http.MethodPut, http.MethodDelete} {
+		t.Run(method, func(t *testing.T) {
+			taskID := uuid.New()
+			req := httptest.NewRequest(method, "/api/v1/tasks/"+taskID.String(), nil).WithContext(coreidentity.WithPrincipal(context.Background(), agent))
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+			if w.Code != http.StatusForbidden {
+				t.Fatalf("%s status = %d, want forbidden", method, w.Code)
+			}
+		})
+	}
+	if len(spy.cancelled) != 1 {
+		t.Fatalf("unrelated task mutation reached TaskService: %#v", spy.cancelled)
+	}
+}
+
+func TestTaskCancelServicePrincipalAndChildWithoutGrantAreRefused(t *testing.T) {
+	spy := &taskCancelAuthoritySpy{}
+	h := New(orchestration.HandlerServices{TaskService: spy})
+	router := mux.NewRouter()
+	router.Use(AgentOperationMiddleware)
+	h.RegisterRoutes(router)
+	for _, principal := range []coreidentity.Principal{
+		{Kind: coreidentity.ActorAgent, Subject: "child-run", Verified: true, Scopes: []string{"agent-manager:write"}},
+		{Kind: coreidentity.ActorService, Subject: "service", Verified: true, Scopes: []string{"agent-manager:write"}},
+	} {
+		id := uuid.New()
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/tasks/"+id.String()+"/cancel", nil).WithContext(coreidentity.WithPrincipal(context.Background(), principal))
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+		if w.Code != http.StatusForbidden {
+			t.Fatalf("principal kind %s status = %d, want forbidden", principal.Kind, w.Code)
+		}
+	}
+	if len(spy.cancelled) != 0 {
+		t.Fatalf("refused principal reached TaskService: %#v", spy.cancelled)
+	}
+}
+
+func TestTaskCancelDirectHandlerRequiresOperationBeforeService(t *testing.T) {
+	spy := &taskCancelAuthoritySpy{}
+	h := New(orchestration.HandlerServices{TaskService: spy})
+	id := uuid.New()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/tasks/"+id.String()+"/cancel", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": id.String()})
+	response := httptest.NewRecorder()
+	h.CancelTask(response, req)
+	if response.Code != http.StatusForbidden || len(spy.cancelled) != 0 {
+		t.Fatalf("direct handler bypassed authority: status=%d calls=%d", response.Code, len(spy.cancelled))
+	}
+}

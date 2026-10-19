@@ -21,6 +21,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "generator_digest": "sha256:d62f642cc85260466ef67f24653340c95d277e2268cdf9983a7144dca50b1d50",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -105,6 +106,7 @@
     "gen/typescript/data-backup-manager/v1/runs/runs_pb.ts": "sha256:a1c303901904d90345b858118505ce5956afe46ba67efc20946e411481d0dfd4",
     "gen/typescript/data-backup-manager/v1/safety/safety_pb.ts": "sha256:53b1558d5d82f481d09d7cc7b0835bcadfac504d40c3f516faea3262ada427cb",
     "gen/typescript/data-backup-manager/v1/sources/sources_pb.ts": "sha256:4ab9390616417ea8cab770f7a856332d97c825106534d708a10b3f0de9180007",
-    "gen/typescript/data-backup-manager/v1/targets/targets_pb.ts": "sha256:f8459a903e2948fb7f33b960d14880672b117935768c50e43b28184905760569"
+    "gen/typescript/data-backup-manager/v1/targets/targets_pb.ts": "sha256:f8459a903e2948fb7f33b960d14880672b117935768c50e43b28184905760569",
+    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4"
   }
 }

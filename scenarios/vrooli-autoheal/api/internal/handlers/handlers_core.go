@@ -67,6 +67,9 @@ type StoreInterface interface {
 	UpdateIncidentStatus(ctx context.Context, incidentID string, status incidents.Status, note string) (*incidents.Incident, error)
 	ListPendingOpeningPublications(ctx context.Context, limit int) ([]incidents.OpeningPublication, error)
 	AcknowledgeOpeningPublication(ctx context.Context, incidentID string, generation int) error
+	EnsureRemediationDecisionPublication(ctx context.Context, incidentID string, observedAt time.Time) (*incidents.RemediationDecisionPublication, error)
+	ListPendingRemediationDecisionPublications(ctx context.Context, limit int) ([]incidents.RemediationDecisionPublication, error)
+	AcknowledgeRemediationDecisionPublication(ctx context.Context, eventID string) error
 	RecordIncidentRemediationArtifact(ctx context.Context, incidentID string, artifact incidents.RemediationArtifact) (*incidents.Incident, error)
 	RecordIncidentRemediationOutcome(ctx context.Context, incidentID string, outcome incidents.Outcome) (*incidents.Incident, error)
 	// Action log operations [REQ:HEAL-ACTION-001]
@@ -518,6 +521,10 @@ func (h *Handlers) Tick(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Minute)
 	defer cancel()
+	ctx = incidents.DeferPublicationDrain(ctx)
+	if h.incidentService != nil {
+		defer h.incidentService.DrainPendingPublications(ctx)
+	}
 
 	results := h.registry.RunAll(ctx, forceAll)
 

@@ -12,6 +12,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "generator_digest": "sha256:d62f642cc85260466ef67f24653340c95d277e2268cdf9983a7144dca50b1d50",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -43,6 +44,7 @@
     "gen/python/proto_health/v1/validation/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/proto_health/v1/validation/validation_pb2.py": "sha256:53897953bff5a7055a8ff9ccc7b36205ddf92bc0bfad3221210d2d327cf58745",
     "gen/python/proto_health/v1/validation/validation_pb2.pyi": "sha256:7aef26c1f4204b6bc08f0c203897ec3a4d991ed213e470aa130c4f5d56d805d0",
+    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4",
     "gen/typescript/proto-health/v1/health/health_pb.ts": "sha256:0c76e39cdee9c80bc0e39bb431526b879f6928ff699b6ad248f771b99a3dec00",
     "gen/typescript/proto-health/v1/impact/impact_pb.ts": "sha256:7fd98c6bf288013112ec69e338e13e668897a482b1ee53f37538233a6506a04a",
     "gen/typescript/proto-health/v1/shared/errors_pb.ts": "sha256:b529e957ae5b3148c3f8af89b963b945180099eb2007e159c5ed47ecd091666d",

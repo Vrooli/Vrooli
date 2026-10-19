@@ -42,7 +42,7 @@ CHANNEL_DISPOSITION_DEGRADED: ChannelDisposition
 CHANNEL_DISPOSITION_UNKNOWN: ChannelDisposition
 
 class Notification(_message.Message):
-    __slots__ = ("id", "requested_by", "body", "title", "urgency", "sensitivity_label", "idempotency_key", "dedupe_key", "state", "reason", "created_at", "updated_at")
+    __slots__ = ("id", "requested_by", "body", "title", "urgency", "sensitivity_label", "idempotency_key", "dedupe_key", "state", "reason", "created_at", "updated_at", "context_url")
     ID_FIELD_NUMBER: _ClassVar[int]
     REQUESTED_BY_FIELD_NUMBER: _ClassVar[int]
     BODY_FIELD_NUMBER: _ClassVar[int]
@@ -55,6 +55,7 @@ class Notification(_message.Message):
     REASON_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CONTEXT_URL_FIELD_NUMBER: _ClassVar[int]
     id: str
     requested_by: str
     body: str
@@ -67,7 +68,8 @@ class Notification(_message.Message):
     reason: str
     created_at: str
     updated_at: str
-    def __init__(self, id: _Optional[str] = ..., requested_by: _Optional[str] = ..., body: _Optional[str] = ..., title: _Optional[str] = ..., urgency: _Optional[str] = ..., sensitivity_label: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., dedupe_key: _Optional[str] = ..., state: _Optional[_Union[NotificationState, str]] = ..., reason: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ...) -> None: ...
+    context_url: str
+    def __init__(self, id: _Optional[str] = ..., requested_by: _Optional[str] = ..., body: _Optional[str] = ..., title: _Optional[str] = ..., urgency: _Optional[str] = ..., sensitivity_label: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., dedupe_key: _Optional[str] = ..., state: _Optional[_Union[NotificationState, str]] = ..., reason: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., context_url: _Optional[str] = ...) -> None: ...
 
 class ChannelStatus(_message.Message):
     __slots__ = ("channel", "machine_id", "disposition", "reason", "observed_at")

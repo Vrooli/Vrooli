@@ -8,8 +8,11 @@ package subscription
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"time"
 )
+
+var ErrDeliveryNotRetryable = errors.New("delivery is not in the expected dead-letter state")
 
 // DeliveryType defines how events are delivered to subscribers.
 type DeliveryType string
@@ -18,6 +21,9 @@ const (
 	DeliverySSE     DeliveryType = "sse"
 	DeliveryWebhook DeliveryType = "webhook"
 )
+
+// DeliveryAttemptsPerCycle bounds automatic delivery and each explicit retry.
+const DeliveryAttemptsPerCycle = 5
 
 // Subscription represents a persistent event subscription.
 type Subscription struct {
@@ -41,7 +47,7 @@ type Health struct {
 	ConsecutiveFailures int64  `json:"consecutive_failures"`
 	LastDeliveredAt     string `json:"last_delivered_at,omitempty"`
 	LastFailedAt        string `json:"last_failed_at,omitempty"`
-	Status              string `json:"status"` // "active", "circuit_broken"
+	Status              string `json:"status"` // "active" or exhausted-delivery marker "circuit_broken"; informational, not a dispatcher gate
 }
 
 // QueuedDelivery is a durable attempt to fan an event out to one webhook.
@@ -54,6 +60,15 @@ type QueuedDelivery struct {
 	PayloadJSON    string
 	Attempts       int
 	NextAttemptAt  time.Time
+}
+
+// DeliveryMetadata exposes only the fields needed to inspect and CAS-retry a
+// durable delivery. It deliberately excludes payload and target data.
+type DeliveryMetadata struct {
+	SubscriptionID int64  `json:"subscription_id"`
+	EventID        string `json:"event_id"`
+	Status         string `json:"status"`
+	Attempts       int    `json:"attempts"`
 }
 
 // ListFilters defines filters for listing subscriptions.
@@ -78,6 +93,8 @@ type QueueStore interface {
 	Store
 	Enqueue(ctx context.Context, subscriptionID int64, eventID, payload string) error
 	Due(ctx context.Context, limit int) ([]QueuedDelivery, error)
+	GetDelivery(ctx context.Context, subscriptionID int64, eventID string) (DeliveryMetadata, error)
+	RetryDeadLetter(ctx context.Context, subscriptionID int64, eventID string, expectedAttempts int) error
 	MarkDelivered(ctx context.Context, deliveryID, subscriptionID int64, at time.Time) error
 	MarkFailed(ctx context.Context, deliveryID, subscriptionID int64, reason string, next time.Time, deadLetter bool) error
 }

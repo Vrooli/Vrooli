@@ -13,6 +13,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "generator_digest": "sha256:d62f642cc85260466ef67f24653340c95d277e2268cdf9983a7144dca50b1d50",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -38,6 +39,7 @@
     "gen/python/rcl_fixture_positive_1787641498371379912/v1/shared/health_pb2.py": "sha256:25c7708f25a579c4565113bf41c8dc43328618f204019efb1cf5cf01067fcb14",
     "gen/python/rcl_fixture_positive_1787641498371379912/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
     "gen/python/rcl_fixture_positive_1787641498371379912/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4",
     "gen/typescript/rcl-fixture-positive-1787641498371379912/v1/notes/attachments_pb.ts": "sha256:e7142f193422677168d8cdbaccad7edc66860403db85d3447291aa4b8c4ceca1",
     "gen/typescript/rcl-fixture-positive-1787641498371379912/v1/notes/notes_pb.ts": "sha256:668faaa06cc884d9fab151d6c0f0af28606c44bffb433c2f107d98a69b8f8478",
     "gen/typescript/rcl-fixture-positive-1787641498371379912/v1/shared/errors_pb.ts": "sha256:bede2c444c820e48797d2323cf999ab750a9405e34d8e7d1239694ea403a3b11",

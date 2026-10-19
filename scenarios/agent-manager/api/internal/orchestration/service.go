@@ -161,6 +161,9 @@ type Orchestrator struct {
 
 	// Identity signing secret for agent identity tokens.
 	identitySecret []byte
+	// sessionBindingProofReader is the bounded control-plane read used only
+	// when an attached baseline expires and needs same-run renewal.
+	sessionBindingProofReader SessionBindingProofReader
 	// ownerIdentity verifies an owner JWT before its subject and scope ceiling
 	// are admitted into a run. A missing provider is permitted for internal
 	// callers that do not present an owner token; a presented token never
@@ -646,6 +649,13 @@ func WithIdentitySecret(secret []byte) Option {
 	}
 }
 
+// WithSessionBindingProofReader installs the read-only owner proof needed by
+// attached identity renewal. A missing reader leaves ordinary identity expiry
+// unchanged and renewal unavailable.
+func WithSessionBindingProofReader(reader SessionBindingProofReader) Option {
+	return func(o *Orchestrator) { o.sessionBindingProofReader = reader }
+}
+
 // WithSpawnDispatcher installs the runner-startup dispatcher. The
 // orchestrator routes every spawn (CreateRun, ResumeRun) through it
 // to enforce startup serialization and surface queue depth in
@@ -682,6 +692,11 @@ func (o *Orchestrator) SetReconciler(r *Reconciler) {
 	o.reconciler = r
 	if r != nil {
 		r.structuredResults = o.structuredResults
+		if o.approvalPublisher != nil {
+			r.reviewNoticePublisher = o.publishRunNeedsReview
+			r.authorizationNotificationRetry = o.retryPendingAuthorizationNotifications
+		}
+		r.reviewNoticeEmptyReconciler = o.reconcilePublishedEmptyReview
 		r.interactiveRecoveryMu = &o.wakeMu
 		r.interactiveLiveDrivers = o.interactiveDrivers
 	}

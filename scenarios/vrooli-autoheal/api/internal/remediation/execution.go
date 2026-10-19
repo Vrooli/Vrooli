@@ -23,9 +23,11 @@ var (
 // itself: an approved remediation is an authorization record, not a request
 // field.
 type AskApproval struct {
-	AskID  string
-	Answer string
-	Actor  string
+	AskID           string
+	Answer          string
+	Actor           string
+	RequesterRef    string
+	SourceEventType string
 }
 
 type AskVerifier interface {

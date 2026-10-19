@@ -20,6 +20,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "generator_digest": "sha256:d62f642cc85260466ef67f24653340c95d277e2268cdf9983a7144dca50b1d50",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -79,6 +80,7 @@
     "gen/typescript/common/v1/operations_pb.ts": "sha256:13bfc1bf16e5576279354d187137ba1bd5c1a90af4f3f529666b61d1c3570f13",
     "gen/typescript/common/v1/surface_pb.ts": "sha256:554ff90c910b6a4f544a4979383a779a1e61cb0734a90aa3ce8084913abb218e",
     "gen/typescript/common/v1/types_pb.ts": "sha256:7e9766edd4c465f9d1f1cf7f55e12b65edf28231b8ce115688f29f1d73efd819",
-    "gen/typescript/common/v1/validation_target_pb.ts": "sha256:05875924685131d607e217353f06ed2585f394dcbc27721172afaac36e7ca230"
+    "gen/typescript/common/v1/validation_target_pb.ts": "sha256:05875924685131d607e217353f06ed2585f394dcbc27721172afaac36e7ca230",
+    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4"
   }
 }

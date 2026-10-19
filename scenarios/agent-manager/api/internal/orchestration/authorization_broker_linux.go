@@ -106,7 +106,25 @@ func (o *Orchestrator) startAuthorizationBrokerAt(path string) (func() error, er
 				return
 			}
 			baselineToken := strings.TrimSpace(r.Header.Get(cliutil.HeaderAgentIdentityToken))
-			credentials, err := o.ResolveAuthorizationCredentials(r.Context(), peer.pid, baselineToken)
+			purpose := ""
+			if values, present := r.URL.Query()["purpose"]; present {
+				if len(values) != 1 || strings.TrimSpace(values[0]) == "" {
+					http.Error(w, "invalid credential purpose", http.StatusBadRequest)
+					return
+				}
+				purpose = values[0]
+			}
+			var credentials AuthorizationCredentials
+			var err error
+			switch purpose {
+			case "":
+				credentials, err = o.ResolveAuthorizationCredentials(r.Context(), peer.pid, baselineToken)
+			case "ordinary_identity":
+				credentials, err = o.resolveOrdinaryRunIdentityCredential(r.Context(), peer.pid, baselineToken)
+			default:
+				http.Error(w, "unknown credential purpose", http.StatusBadRequest)
+				return
+			}
 			if err != nil {
 				code := "unavailable"
 				var refused *domain.AuthorizationError

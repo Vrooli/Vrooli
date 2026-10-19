@@ -31,6 +31,8 @@ func (s *Server) routes() *http.ServeMux {
 	mux.HandleFunc("PUT /api/v1/subscriptions/{id}", s.handleUpdateSubscription)
 	mux.HandleFunc("DELETE /api/v1/subscriptions/{id}", s.handleDeleteSubscription)
 	mux.HandleFunc("GET /api/v1/subscriptions/{id}/health", s.handleGetSubscriptionHealth)
+	mux.HandleFunc("GET /api/v1/subscriptions/{id}/deliveries/{eventID}", s.handleGetSubscriptionDelivery)
+	mux.HandleFunc("POST /api/v1/subscriptions/{id}/deliveries/retry", s.handleRetrySubscriptionDelivery)
 	mux.HandleFunc("POST /api/v1/subscriptions/{id}/test", s.handleTestSubscription)
 	mux.HandleFunc("POST /api/v1/subscriptions/{id}/deliver", s.handleDeliverSubscription)
 

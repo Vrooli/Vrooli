@@ -230,6 +230,8 @@ func (s *EffortService) goalHomeFileFacts(out *pb.EffortGoalHome, home *goalhome
 			out.CurrentAsOf = timestamppb.New(c.At)
 		}
 	}
+	var active *goalhome.EpochFile
+	activePriority := 0
 	for i := len(home.Epochs) - 1; i >= 0; i-- {
 		epoch := home.Epochs[i]
 		if epoch.Epoch.IsAccepted() {
@@ -244,14 +246,19 @@ func (s *EffortService) goalHomeFileFacts(out *pb.EffortGoalHome, home *goalhome
 			}
 			continue
 		}
-		if out.ActiveEpoch == "" && out.LastAcceptedEpoch == "" {
-			out.ActiveEpoch = fmt.Sprintf("E%d", epoch.Number)
-			out.ActiveStatus = epoch.Epoch.Fields["status"]
-			rawWorkers := epoch.Epoch.Fields["workers"]
-			out.ActiveWorkers = goalhome.WorkerRunIDs(rawWorkers)
-			if strings.TrimSpace(rawWorkers) != "" && len(out.ActiveWorkers) == 0 {
-				out.Limitations = append(out.Limitations, "active epoch Workers field is not a well-formed UUID list")
-			}
+		priority := goalHomeEpochPriority(epoch.Epoch)
+		if active == nil || priority > activePriority {
+			active = &epoch
+			activePriority = priority
+		}
+	}
+	if active != nil {
+		out.ActiveEpoch = fmt.Sprintf("E%d", active.Number)
+		out.ActiveStatus = active.Epoch.Fields["status"]
+		rawWorkers := active.Epoch.Fields["workers"]
+		out.ActiveWorkers = goalhome.WorkerRunIDs(rawWorkers)
+		if strings.TrimSpace(rawWorkers) != "" && len(out.ActiveWorkers) == 0 {
+			out.Limitations = append(out.Limitations, "active epoch Workers field is not a well-formed UUID list")
 		}
 	}
 	for i, item := range home.Queue.NeedsOperator {
@@ -283,6 +290,28 @@ func (s *EffortService) goalHomeFileFacts(out *pb.EffortGoalHome, home *goalhome
 		if finding.Blocking && !slices.Contains(out.LintFindings, finding.Code) {
 			out.LintFindings = append(out.LintFindings, finding.Code)
 		}
+	}
+}
+
+// goalHomeEpochPriority prefers reopened accepted work, then explicitly active
+// work, to admitted work. Unknown non-accepted statuses remain visible as a
+// fallback, but cannot hide an active epoch. "active" is retained for existing
+// goal homes that use that legacy status prefix.
+func goalHomeEpochPriority(epoch *goalhome.Epoch) int {
+	if epoch != nil && epoch.LastAcceptance() != nil && !epoch.IsAccepted() {
+		return 2
+	}
+	fields := strings.Fields(strings.ToLower(strings.TrimSpace(epoch.Fields["status"])))
+	if len(fields) == 0 {
+		return 0
+	}
+	switch fields[0] {
+	case "in-progress", "parked", "active":
+		return 2
+	case "admitted":
+		return 1
+	default:
+		return 0
 	}
 }
 

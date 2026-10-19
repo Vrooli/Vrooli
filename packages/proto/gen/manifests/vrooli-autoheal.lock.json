@@ -12,6 +12,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "generator_digest": "sha256:d62f642cc85260466ef67f24653340c95d277e2268cdf9983a7144dca50b1d50",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -47,6 +48,7 @@
     "gen/python/vrooli_autoheal/v1/measures/measures_pb2.pyi": "sha256:e4e833349c31c2ad404b9c39f4a2fe1cc1a70a2686f625e492e29e7cafb86fba",
     "gen/python/vrooli_autoheal/v1/measures/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/vrooli_autoheal/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4",
     "gen/typescript/vrooli-autoheal/v1/actions/actions_pb.ts": "sha256:1fd7ed54962ff81e2eaf42c74cd524a4d1ca7a1b2b3686e1007ccedd01142170",
     "gen/typescript/vrooli-autoheal/v1/checks/checks_pb.ts": "sha256:1510b820efbc71e46bb8c456947283b2efd11e45eecbfce4f17739b3693c1342",
     "gen/typescript/vrooli-autoheal/v1/healing/healing_pb.ts": "sha256:ef273d773726bfc2863dba3f30f593c94d9dcb3113b0617c602297ae96594558",

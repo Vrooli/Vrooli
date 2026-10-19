@@ -13,6 +13,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "generator_digest": "sha256:d62f642cc85260466ef67f24653340c95d277e2268cdf9983a7144dca50b1d50",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -55,6 +56,7 @@
     "gen/typescript/device-sync-hub/v1/health/health_pb.ts": "sha256:aac62c0f744ab0146ddd7ce3116442f8b1d6fc866a76a684514079385ec4235b",
     "gen/typescript/device-sync-hub/v1/identity/identity_pb.ts": "sha256:009545fc1b28821e820d28a96f08230e3fd8590c9f2f4b20537e505fe87619d8",
     "gen/typescript/device-sync-hub/v1/realtime/realtime_pb.ts": "sha256:eae9d05ba7e9b28ffaf8d40bcf7b99c46ee36fcdfbb3d13ebac63cda0b51f001",
-    "gen/typescript/device-sync-hub/v1/transfer/transfer_pb.ts": "sha256:4915cfbe7b24f8fafac563094f4e5ea5e3809e66ed07434ad72127797979d235"
+    "gen/typescript/device-sync-hub/v1/transfer/transfer_pb.ts": "sha256:4915cfbe7b24f8fafac563094f4e5ea5e3809e66ed07434ad72127797979d235",
+    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4"
   }
 }

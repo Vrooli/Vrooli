@@ -1,9 +1,8 @@
 {
   "schema_version": 1,
   "scenario": "vrooli-bridge",
-  "input_digest": "sha256:0202781e96dd0df184507ab1d96e392353e1c7d239fdfa0a2af0dbdc796fc660",
+  "input_digest": "sha256:d534a4370a1304100cb02561c3d95215f8613e51a30f92de6ac60196d0ece662",
   "input_files": [
-    "schemas/cli/v1/runtime.proto",
     "schemas/common/v1/surface.proto",
     "schemas/device-control/v1/desktop/desktop.proto",
     "schemas/device-control/v1/shared/flow.proto",
@@ -38,6 +37,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "generator_digest": "sha256:d62f642cc85260466ef67f24653340c95d277e2268cdf9983a7144dca50b1d50",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -168,6 +168,7 @@
     "gen/python/vrooli_bridge/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/vrooli_bridge/v1/shared/shared_pb2.py": "sha256:700227aeebaf3350e05b0f3c118b975d76d8ca7c777c57b2947cbfd273f471f7",
     "gen/python/vrooli_bridge/v1/shared/shared_pb2.pyi": "sha256:b1a02bd3060699bbf0a4e15971f0446470c04658668e76beec40ae017194979d",
+    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4",
     "gen/typescript/vrooli-bridge/v1/artifacts/artifacts_pb.ts": "sha256:d409784942a4c09415720122518c4824c00c6a62078a75ff2756118399170f86",
     "gen/typescript/vrooli-bridge/v1/attached_devices/attached_devices_pb.ts": "sha256:47216d9d284701e97293ccd953d351ea058db68cf893860b886a09a73671a749",
     "gen/typescript/vrooli-bridge/v1/audit/audit_pb.ts": "sha256:fb5088c24098540e5d9288c10f1111cee42c33f5b113c226276bf46c767946c3",

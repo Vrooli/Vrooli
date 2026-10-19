@@ -37,6 +37,19 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_asks_notification ON asks(notification_id)
 -- concurrent producers choose different notification recipients/keys.
 CREATE UNIQUE INDEX IF NOT EXISTS idx_asks_requester_identity
   ON asks(source, requester_ref) WHERE requester_ref <> '';
+-- Request and withdrawal handlers serialize on this exact key. A withdrawal
+-- received first leaves a durable state that blocks delayed request delivery.
+-- These are producer lifecycle facts, not operator answers.
+CREATE TABLE IF NOT EXISTS decision_request_lifecycle (
+  source TEXT NOT NULL,
+  requester_ref TEXT NOT NULL,
+  source_event_type TEXT NOT NULL,
+  state TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (source, requester_ref)
+);
 CREATE TABLE IF NOT EXISTS answers (
   id TEXT PRIMARY KEY,
   ask_id TEXT NOT NULL UNIQUE REFERENCES asks(id) ON DELETE CASCADE,

@@ -27,15 +27,15 @@ func TestConfiguredRecipientCanReadDeliveryViewsWithoutIdentity(t *testing.T) {
 	service := hub.New(db, nil, nil)
 	service.SetDefaultRecipient("alice")
 	createdAt := time.Now().UTC().Format(time.RFC3339Nano)
-	insert := func(id, recipient string) {
+	insert := func(id, recipient, contextURL string) {
 		t.Helper()
-		_, err := db.ExecContext(ctx, `INSERT INTO notifications (id, requested_by, title, body, urgency, sensitivity_label, idempotency_key, dedupe_key, dedupe_window_seconds, created_at, updated_at) VALUES (?, ?, ?, 'body', 'normal', 'public', ?, '', 300, ?, ?)`, id, recipient, id, id, createdAt, createdAt)
+		_, err := db.ExecContext(ctx, `INSERT INTO notifications (id, requested_by, title, body, urgency, sensitivity_label, idempotency_key, dedupe_key, dedupe_window_seconds, context_url, created_at, updated_at) VALUES (?, ?, ?, 'body', 'normal', 'public', ?, '', 300, ?, ?, ?)`, id, recipient, id, id, contextURL, createdAt, createdAt)
 		require.NoError(t, err)
 		_, err = db.ExecContext(ctx, `INSERT INTO notification_events (notification_id, state, reason, created_at) VALUES (?, 'pending', 'accepted', ?)`, id, createdAt)
 		require.NoError(t, err)
 	}
-	insert("alice-delivery", "alice")
-	insert("bob-delivery", "bob")
+	insert("alice-delivery", "alice", "https://agent-manager.example/runs/run-42")
+	insert("bob-delivery", "bob", "https://agent-manager.example/runs/run-43")
 
 	router := mux.NewRouter()
 	deliveryH.Module(service).Mount(router)
@@ -47,6 +47,7 @@ func TestConfiguredRecipientCanReadDeliveryViewsWithoutIdentity(t *testing.T) {
 	require.NoError(t, err, "ordinary delivery reads must not require an owner login")
 	require.Len(t, timeline.Msg.GetNotifications(), 1)
 	require.Equal(t, "alice-delivery", timeline.Msg.GetNotifications()[0].GetId())
+	require.Equal(t, "https://agent-manager.example/runs/run-42", timeline.Msg.GetNotifications()[0].GetContextUrl())
 
 	analytics, err := client.GetAnalytics(ctx, connect.NewRequest(&v1.GetAnalyticsRequest{}))
 	require.NoError(t, err)

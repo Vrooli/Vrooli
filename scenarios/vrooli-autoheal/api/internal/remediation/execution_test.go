@@ -13,12 +13,16 @@ import (
 )
 
 func TestNotificationHubAskVerifierAcceptsOnlyDurableApproval(t *testing.T) {
+	ask := &conversationv1.Ask{
+		Id: "ask-1", State: "answered", Answer: "approve", AnsweredBy: "operator-1",
+		RequesterRef: "event-1", SourceEventType: incidents.RemediationDecisionEventType,
+	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/vrooli.notification_hub.v1.conversations.ConversationsService/Wait" {
+		if r.URL.Path != "/vrooli.notification_hub.v1.conversations.ConversationsService/GetAsk" {
 			t.Fatalf("path = %q", r.URL.Path)
 		}
 		w.Header().Set("Content-Type", "application/proto")
-		body, marshalErr := proto.Marshal(&conversationv1.WaitResponse{State: "answered", Answer: "approve"})
+		body, marshalErr := proto.Marshal(&conversationv1.GetAskResponse{Ask: ask})
 		if marshalErr != nil {
 			t.Fatalf("marshal response: %v", marshalErr)
 		}
@@ -30,8 +34,28 @@ func TestNotificationHubAskVerifierAcceptsOnlyDurableApproval(t *testing.T) {
 		t.Fatalf("NewNotificationHubAskVerifier() error = %v", err)
 	}
 	approval, err := verifier.Verify(context.Background(), "ask-1")
-	if err != nil || !ApprovedAsk(approval) || approval.AskID != "ask-1" {
+	if err != nil || !ApprovedAsk(approval) || approval.AskID != "ask-1" || approval.RequesterRef != "event-1" || approval.SourceEventType != incidents.RemediationDecisionEventType {
 		t.Fatalf("approval = %+v error = %v", approval, err)
+	}
+
+	for _, tc := range []struct {
+		name, answer, eventType, requester string
+		wantErr                            bool
+	}{
+		{name: "wrong source event is returned for owner validation", answer: "approve", eventType: "other.decision.v1", requester: "event-1", wantErr: false},
+		{name: "missing requester reference", answer: "approve", eventType: incidents.RemediationDecisionEventType, requester: "", wantErr: false},
+		{name: "not approved", answer: "reject", eventType: incidents.RemediationDecisionEventType, requester: "event-1", wantErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ask = &conversationv1.Ask{Id: "ask-1", State: "answered", Answer: tc.answer, SourceEventType: tc.eventType, RequesterRef: tc.requester}
+			got, err := verifier.Verify(context.Background(), "ask-1")
+			if tc.wantErr != (err != nil) {
+				t.Fatalf("Verify error=%v wantErr=%v (approval=%+v)", err, tc.wantErr, got)
+			}
+			if err == nil && (got.RequesterRef != tc.requester || got.SourceEventType != tc.eventType) {
+				t.Fatalf("approval lost source binding: %+v", got)
+			}
+		})
 	}
 }
 

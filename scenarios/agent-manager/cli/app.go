@@ -1,24 +1,28 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
 	"agent-manager/cli/domains"
 	"agent-manager/cli/internal/support"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
-
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 const (
@@ -212,7 +216,51 @@ func (a *App) runCommands() []cliapp.Command {
 		command.Usage = item.usage
 		commands = append(commands, command)
 	}
+	// Keep the richer local `run events` view for statistics, failed-result filtering,
+	// and WebSocket following. This separate typed page is the governed bounded
+	// Connect surface for workflow consumers.
+	commands = append(commands, runEventPageCommand())
 	return commands
+}
+
+func runEventPageCommand() cliapp.Command {
+	command := cliapp.Command{
+		Name:        "event-page",
+		Description: "Read one bounded typed page from a run event stream",
+		NeedsAPI:    true,
+		Args: cliapp.ArgSchema{
+			Positionals: []cliapp.Positional{{Name: "run_id", Required: true, Description: "Run UUID"}},
+			Flags: []cliapp.Flag{
+				{Name: "limit", Default: "100", Description: "Maximum events (1-1000)"},
+				{Name: "after-sequence", Description: "Resume after this event sequence", Bind: cliapp.FlagBind{Field: "after_sequence"}},
+			},
+		},
+	}
+	return command.WithPrimitive(cliapp.ProtoList(
+		func(op cliapp.OperationContext) (*apipb.GetRunEventsResponse, error) {
+			limitValue, err := strconv.ParseInt(op.Flag("limit"), 10, 32)
+			if err != nil || limitValue < 1 || limitValue > 1000 {
+				return nil, fmt.Errorf("limit must be between 1 and 1000")
+			}
+			request := &apipb.GetRunEventsRequest{RunId: op.Positional("run_id"), Limit: proto.Int32(int32(limitValue))}
+			if op.FlagProvided("after-sequence") {
+				sequence, parseErr := strconv.ParseInt(op.Flag("after-sequence"), 10, 64)
+				if parseErr != nil || sequence < 0 {
+					return nil, fmt.Errorf("after-sequence must be a non-negative integer")
+				}
+				request.AfterSequence = proto.Int64(sequence)
+			}
+			h, base := cliapp.NewConnectHTTPClient(op.Core())
+			response, err := apiconnect.NewAgentManagerServiceClient(h, base).GetRunEvents(context.Background(), connect.NewRequest(request))
+			if err != nil {
+				return nil, err
+			}
+			return response.Msg, nil
+		},
+		func(_ cliapp.OperationContext, response *apipb.GetRunEventsResponse) cliapp.ListReport {
+			return cliapp.ListReport{Summary: []string{fmt.Sprintf("Run event page: %d events (has_more=%t)", len(response.GetEvents()), response.GetHasMore())}}
+		},
+	))
 }
 
 func formatEnumValue(value fmt.Stringer, prefix, separator string) string {

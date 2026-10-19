@@ -65,6 +65,44 @@ func TestRunScenarioExecutesObserverCaseAndWritesArtifacts(t *testing.T) {
 	require.FileExists(t, run.Artifact.Timeline)
 }
 
+func TestRunScenarioRefusesObserverWithStaticSafetyErrorAndRunsSafeSibling(t *testing.T) {
+	root := makeExecutionFixture(t, false)
+	writeFixtureJSON(t, filepath.Join(root, "bas", "cases", "observer-unsafe.json"), map[string]any{
+		"metadata": map[string]any{
+			"name":           "Unsafe observer",
+			"description":    "Contains a mutating browser action.",
+			"execution_mode": "observer",
+			"labels":         map[string]any{"reset": "none"},
+		},
+		"nodes": []map[string]any{{
+			"id": "click-write", "action": map[string]any{"type": "ACTION_TYPE_CLICK"},
+		}},
+	})
+	client := &fakeBASClient{result: &ExecuteResult{ExecutionID: "safe-sibling", Status: basbase.ExecutionStatus_EXECUTION_STATUS_COMPLETED}}
+
+	report, err := NewService(client).RunScenario(context.Background(), "sample", root, Options{
+		IncludeExecution: true,
+		Selector:         AssetSelector{CasesProvided: true, CasePaths: []string{"bas/cases/dashboard.json", "bas/cases/observer-unsafe.json"}},
+	})
+	require.NoError(t, err)
+	require.Equal(t, 2, report.Summary.Selected)
+	require.Equal(t, 1, report.Summary.Refused)
+	require.Equal(t, 1, report.Summary.Passed)
+	require.Equal(t, 1, client.validateCalls, "only the safe sibling may reach BAS validation")
+	require.Equal(t, 1, client.executeCalls, "only the safe sibling may execute")
+	var unsafeRun *WorkflowRun
+	for i := range report.Runs {
+		if report.Runs[i].Asset.Path == "bas/cases/observer-unsafe.json" {
+			unsafeRun = &report.Runs[i]
+			break
+		}
+	}
+	require.NotNil(t, unsafeRun, "selected observer asset must have its own run result")
+	require.True(t, unsafeRun.Refused)
+	require.Contains(t, unsafeRun.Error, "static safety error")
+	requireFindingCode(t, report.Findings, validation.CodeObserverContentUnsafe)
+}
+
 func TestRunScenarioDoesNotInstallIsolationForObserverCase(t *testing.T) {
 	root := makeExecutionFixture(t, false)
 	client := &fakeBASClient{result: &ExecuteResult{ExecutionID: "exec-observer", Status: basbase.ExecutionStatus_EXECUTION_STATUS_COMPLETED}}
@@ -127,6 +165,7 @@ func TestRunScenarioInstallsIsolationForEveryCaseAndClosesLease(t *testing.T) {
 	require.True(t, isolation.acquired)
 	require.True(t, isolation.closed)
 	require.Equal(t, "1", client.lastRequest.Parameters.ExtraHeaders["X-Vrooli-Test-Mode"])
+	require.Equal(t, "lease-1", client.lastRequest.Parameters.ExtraHeaders["X-Vrooli-Test-Lease-ID"])
 	require.Equal(t, 1, report.Summary.Passed)
 	require.True(t, report.Isolation.Installed)
 	require.Equal(t, int64(1), report.Isolation.TestRootWrites)

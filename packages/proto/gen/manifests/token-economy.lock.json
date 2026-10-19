@@ -17,6 +17,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "generator_digest": "sha256:d62f642cc85260466ef67f24653340c95d277e2268cdf9983a7144dca50b1d50",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -68,6 +69,7 @@
     "gen/python/token_economy/v1/shared/health_pb2.py": "sha256:56214efc12795e96e559880c6767a5ba4e105f4d22c431d91aff49354baa689e",
     "gen/python/token_economy/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
     "gen/python/token_economy/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4",
     "gen/typescript/token-economy/v1/access/access_pb.ts": "sha256:622a02f91b5c8f5ec187f0aa1254aad9d01bc16ac2e78c097d3bacecfcc90a02",
     "gen/typescript/token-economy/v1/catalog/catalog_pb.ts": "sha256:96ef9ae95e3d2d896483b9052c54fc19f348d7ae8174ea0afb18126d24f6b589",
     "gen/typescript/token-economy/v1/earning/earning_pb.ts": "sha256:fd09352bd197a3a30c80a23ddedfbf89f732c68e14a7b424eb97a488761d8811",

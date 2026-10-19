@@ -3,7 +3,13 @@ package orchestration
 import (
 	"context"
 	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -15,6 +21,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/eventbus"
 	"github.com/vrooli/api-core/operatordecision"
+	"github.com/vrooli/cli-core/cliutil"
+	eventdomain "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 // capturingPending is an in-memory PendingAuthorizationRepository that records
@@ -88,6 +98,32 @@ func (c *capturingAuthPublisher) PublishDomainEvent(_ context.Context, e eventbu
 	c.events = append(c.events, e)
 	return nil
 }
+
+type contextBlockingAuthPublisher struct{ entered chan struct{} }
+
+func (p *contextBlockingAuthPublisher) PublishDomainEvent(ctx context.Context, _ eventbus.DomainEvent) error {
+	select {
+	case p.entered <- struct{}{}:
+	default:
+	}
+	<-ctx.Done()
+	return ctx.Err()
+}
+
+type advancingAuthPublisher struct {
+	events  []eventbus.DomainEvent
+	advance func()
+}
+
+func (p *advancingAuthPublisher) PublishDomainEvent(_ context.Context, event eventbus.DomainEvent) error {
+	p.events = append(p.events, event)
+	if p.advance != nil {
+		p.advance()
+	}
+	return nil
+}
+
+type authorizationRepoWithoutRetryScan struct{ domain.AuthorizationRepository }
 
 func phase4Orchestrator(pending domain.PendingAuthorizationRepository, grants domain.StandingGrantRepository, pub ApprovalEventPublisher, now time.Time) *Orchestrator {
 	return &Orchestrator{
@@ -176,6 +212,25 @@ func TestAuthorizationAskStatesItsScope(t *testing.T) {
 	}
 }
 
+func TestSetReconcilerSurfacesMissingAuthorizationRetryScan(t *testing.T) {
+	o := &Orchestrator{
+		authorizations:    authorizationRepoWithoutRetryScan{},
+		approvalPublisher: &capturingAuthPublisher{},
+	}
+	reconciler := &Reconciler{}
+	o.SetReconciler(reconciler)
+	if reconciler.authorizationNotificationRetry == nil {
+		t.Fatal("configured publisher must install the retry callback so missing repository support is visible")
+	}
+	if _, err := reconciler.authorizationNotificationRetry(context.Background(), "", 100, 10); err == nil {
+		t.Fatal("repository without bounded retry scan must report a visible error")
+	}
+	withoutRepository := &Orchestrator{approvalPublisher: &capturingAuthPublisher{}}
+	if _, err := withoutRepository.retryPendingAuthorizationNotifications(context.Background(), "cursor", 100, 10); err == nil {
+		t.Fatal("configured notification retry without an authorization repository must report a visible error")
+	}
+}
+
 // Anti-flood: beyond the per-subject outstanding cap, a NEW distinct ask is
 // refused without raising another notification.
 func TestRaiseAuthorizationApprovalAntiFloodCap(t *testing.T) {
@@ -202,6 +257,458 @@ func TestRaiseAuthorizationApprovalAntiFloodCap(t *testing.T) {
 	}
 	if len(pub.events) != eventsAtCap {
 		t.Fatalf("over the cap must NOT raise another notification: was %d now %d", eventsAtCap, len(pub.events))
+	}
+}
+
+func TestNotifyAuthorizationRequestedPublishesFreshSnapshotThroughEventBusClient(t *testing.T) {
+	db, cleanup := testutil.SetupTestDB(t)
+	t.Cleanup(cleanup)
+	t.Setenv("AGENT_MANAGER_AUTHORIZATION_URL", "https://agent-manager.example.test")
+	repo := database.NewAuthorizationRepository(db)
+	now := time.Date(2026, 10, 18, 7, 0, 0, 0, time.UTC)
+	g := &domain.AuthorizationGrant{
+		ID: uuid.New(), RunID: uuid.New(), State: domain.AuthorizationPending,
+		Policy: "run-creation", Targets: []string{"agent-manager:*"}, DurationSeconds: 3600,
+		HarnessKind: "codex", CreatedAt: now, RequestExpiresAt: now.Add(24 * time.Hour),
+	}
+	if err := repo.Create(context.Background(), g); err != nil {
+		t.Fatal(err)
+	}
+
+	var requests atomic.Int32
+	receivedEvents := make(chan eventdomain.EventEnvelope, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		if r.Method != http.MethodPost || r.URL.Path != "/api/v1/events" {
+			t.Errorf("event request = %s %s, want POST /api/v1/events", r.Method, r.URL.Path)
+		}
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Errorf("read event body: %v", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		var received eventdomain.EventEnvelope
+		if err := protojson.Unmarshal(body, &received); err != nil {
+			t.Errorf("decode event envelope: %v", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		select {
+		case receivedEvents <- received:
+		default:
+			t.Errorf("received more decoded event envelopes than the test can inspect")
+		}
+		w.WriteHeader(http.StatusAccepted)
+	}))
+	defer server.Close()
+
+	o := &Orchestrator{
+		authorizations:    repo,
+		approvalPublisher: eventbus.Client{BaseURL: server.URL, HTTPClient: server.Client()},
+		clock:             func() time.Time { return now },
+	}
+	o.NotifyAuthorizationRequested(context.Background(), g)
+	if got := requests.Load(); got != 1 {
+		t.Fatalf("first notification should publish one event request, got %d", got)
+	}
+	var received eventdomain.EventEnvelope
+	select {
+	case received = <-receivedEvents:
+	default:
+		t.Fatal("the event server did not receive a decodable event envelope")
+	}
+	if received.EventType != InteractiveAuthorizationNotificationEventType {
+		t.Fatalf("wire event type = %q, want %q", received.EventType, InteractiveAuthorizationNotificationEventType)
+	}
+	var payload structpb.Struct
+	if received.Data == nil {
+		t.Fatal("wire event omitted data")
+	}
+	if err := received.Data.UnmarshalTo(&payload); err != nil {
+		t.Fatalf("decode event data: %v", err)
+	}
+	fields := payload.AsMap()
+	if fields["title"] != "Authorization requested: run-creation" {
+		t.Fatalf("wire title = %#v", fields["title"])
+	}
+	body, ok := fields["body"].(string)
+	if !ok || !strings.Contains(body, "run-creation") || !strings.Contains(body, "agent-manager:*") || !strings.Contains(body, "1-hour permission lifetime starts only after you approve") || !strings.Contains(body, "grants no authority") {
+		t.Fatalf("wire body omitted the approved operation bounds or explicit non-authority statement: %#v", fields["body"])
+	}
+	wantURL := "https://agent-manager.example.test/api/v1/authorizations/" + g.ID.String() + "/approve"
+	if fields["context_url"] != wantURL {
+		t.Fatalf("wire context URL = %#v, want %q", fields["context_url"], wantURL)
+	}
+	correlation, ok := fields["correlation"].(map[string]any)
+	if !ok {
+		t.Fatalf("wire correlation has type %T, want object", fields["correlation"])
+	}
+	if correlation["authorization_id"] != g.ID.String() || correlation["run_id"] != g.RunID.String() || correlation["policy"] != g.Policy {
+		t.Fatalf("wire correlation = %#v", correlation)
+	}
+	stored, err := repo.Get(context.Background(), g.ID)
+	if err != nil || stored == nil || stored.NotificationSnapshot == nil || stored.NotificationPublishedAt == nil {
+		t.Fatalf("first publication receipt was not persisted: stored=%+v err=%v", stored, err)
+	}
+	if received.EventId != stored.NotificationSnapshot.EventID || received.EventId != operatordecision.EventID(eventFromAuthorizationNotification(stored.NotificationSnapshot)) {
+		t.Fatalf("wire event ID %q does not match durable snapshot %q", received.EventId, stored.NotificationSnapshot.EventID)
+	}
+
+	// The durable success receipt suppresses another HTTP publication.
+	o.NotifyAuthorizationRequested(context.Background(), g)
+	if got := requests.Load(); got != 1 {
+		t.Fatalf("duplicate notify published another event, request count=%d", got)
+	}
+}
+
+func TestReconcilerAutomaticallyRetriesAuthorizationNoticeWithSameEvent(t *testing.T) {
+	db, cleanup := testutil.SetupTestDB(t)
+	t.Cleanup(cleanup)
+	t.Setenv("AGENT_MANAGER_AUTHORIZATION_URL", "https://agent-manager.example.test")
+	repo := database.NewAuthorizationRepository(db)
+	now := time.Date(2026, 10, 18, 8, 0, 0, 0, time.UTC)
+	var attempts atomic.Int32
+	events := make(chan eventdomain.EventEnvelope, 2)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/api/v1/events" {
+			t.Errorf("event request = %s %s, want POST /api/v1/events", r.Method, r.URL.Path)
+			http.Error(w, "wrong route", http.StatusNotFound)
+			return
+		}
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Errorf("read event body: %v", err)
+			http.Error(w, "bad body", http.StatusBadRequest)
+			return
+		}
+		var event eventdomain.EventEnvelope
+		if err := protojson.Unmarshal(body, &event); err != nil {
+			t.Errorf("decode event envelope: %v", err)
+			http.Error(w, "bad envelope", http.StatusBadRequest)
+			return
+		}
+		select {
+		case events <- event:
+		default:
+			t.Errorf("more than two event attempts reached the fixture")
+		}
+		if attempts.Add(1) == 1 {
+			http.Error(w, "temporarily unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		w.WriteHeader(http.StatusAccepted)
+	}))
+	t.Cleanup(server.Close)
+
+	pub := eventbus.Client{BaseURL: server.URL, HTTPClient: server.Client()}
+	o := &Orchestrator{authorizations: repo, approvalPublisher: pub, identitySecret: []byte("retry-test"), clock: func() time.Time { return now }}
+	request := AuthorizationRequest{
+		RunID: uuid.New(), PID: os.Getpid(), HarnessKind: "codex", HarnessSession: "a221-session",
+		Policy: "swarm-bookkeeping", Targets: []string{"swarm-manager:backlog/execute/obsolete"}, DurationSeconds: 3600,
+	}
+	grant, err := o.RequestAuthorization(context.Background(), request)
+	if err != nil || grant == nil {
+		t.Fatalf("persist first pending request: grant=%+v err=%v", grant, err)
+	}
+	failed, err := repo.Get(context.Background(), grant.ID)
+	if err != nil || failed.NotificationSnapshot == nil || failed.NotificationPublishedAt != nil || failed.NotificationUnreached == "" {
+		t.Fatalf("first failed notice must keep its immutable snapshot and bounded failure: %+v err=%v", failed, err)
+	}
+	firstID := failed.NotificationSnapshot.EventID
+	firstLink := failed.NotificationSnapshot.Payload["context_url"]
+	var firstEnvelope eventdomain.EventEnvelope
+	select {
+	case firstEnvelope = <-events:
+	case <-time.After(2 * time.Second):
+		t.Fatal("initial EventBus publication did not reach the HTTP fixture")
+	}
+	if firstEnvelope.EventId != firstID {
+		t.Fatalf("first attempted EventID=%q, persisted snapshot=%q", firstEnvelope.EventId, firstID)
+	}
+
+	repos, _, _ := testutil.SetupTestReposWithDB(t, db)
+	reconciler := NewReconciler(repos.Runs, nil)
+	reconciler.clock = func() time.Time { return now }
+	o.SetReconciler(reconciler)
+	stats := reconciler.RunOnce(context.Background())
+	if len(stats.Errors) != 0 {
+		t.Fatalf("reconciler retry errors = %v", stats.Errors)
+	}
+	var secondEnvelope eventdomain.EventEnvelope
+	select {
+	case secondEnvelope = <-events:
+	case <-time.After(2 * time.Second):
+		t.Fatal("reconciler did not retry the pending authorization notice")
+	}
+	if attempts.Load() != 2 || secondEnvelope.EventId != firstID {
+		t.Fatalf("automatic retry attempts=%d EventID=%q, want same durable EventID %q", attempts.Load(), secondEnvelope.EventId, firstID)
+	}
+	stored, err := repo.Get(context.Background(), grant.ID)
+	if err != nil || stored.NotificationPublishedAt == nil || stored.NotificationSnapshot.EventID != firstID || stored.NotificationSnapshot.Payload["context_url"] != firstLink || stored.NotificationUnreached != "" {
+		t.Fatalf("reconciler did not record success for the unchanged snapshot: %+v err=%v", stored, err)
+	}
+	reconciler.RunOnce(context.Background())
+	if attempts.Load() != 2 {
+		t.Fatalf("published receipt did not suppress later reconciliation, attempts=%d", attempts.Load())
+	}
+}
+
+func TestAuthorizationRetryRechecksExpiryBeforePublishing(t *testing.T) {
+	t.Setenv("AGENT_MANAGER_AUTHORIZATION_URL", "https://agent-manager.example.test")
+	db, cleanup := testutil.SetupTestDB(t)
+	t.Cleanup(cleanup)
+	repo := database.NewAuthorizationRepository(db)
+	now := time.Date(2026, 10, 18, 7, 0, 0, 0, time.UTC)
+	binding, err := cliutil.ObserveProcessBinding(os.Getpid())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, expiry := range []time.Time{now.Add(time.Hour), now.Add(time.Minute)} {
+		id := uuid.MustParse(fmt.Sprintf("00000000-0000-4000-8000-%012x", i+1))
+		grant := &domain.AuthorizationGrant{
+			ID: id, State: domain.AuthorizationPending, Policy: "swarm-bookkeeping",
+			Targets: []string{"swarm-manager:backlog/execute/obsolete"}, DurationSeconds: 3600,
+			Binding: binding, CreatedAt: now, RequestExpiresAt: expiry,
+		}
+		if err := repo.Create(context.Background(), grant); err != nil {
+			t.Fatal(err)
+		}
+	}
+	pub := &advancingAuthPublisher{advance: func() { now = now.Add(2 * time.Minute) }}
+	o := &Orchestrator{authorizations: repo, approvalPublisher: pub, clock: func() time.Time { return now }}
+	if _, err := o.retryPendingAuthorizationNotifications(context.Background(), "", authorizationNotificationScanLimit, authorizationNotificationAttemptLimit); err != nil {
+		t.Fatal(err)
+	}
+	if len(pub.events) != 1 {
+		t.Fatalf("retry published a request that expired during the scan: events=%d", len(pub.events))
+	}
+	second, err := repo.Get(context.Background(), uuid.MustParse("00000000-0000-4000-8000-000000000002"))
+	if err != nil || second == nil || second.NotificationSnapshot != nil || second.NotificationPublishedAt != nil {
+		t.Fatalf("request that expired before its publication was mutated: row=%+v err=%v", second, err)
+	}
+}
+
+func TestAuthorizationRetryContextCancellationDoesNotAdvancePastInterruptedRow(t *testing.T) {
+	t.Setenv("AGENT_MANAGER_AUTHORIZATION_URL", "https://agent-manager.example.test")
+	db, cleanup := testutil.SetupTestDB(t)
+	t.Cleanup(cleanup)
+	repo := database.NewAuthorizationRepository(db)
+	now := time.Date(2026, 10, 18, 8, 0, 0, 0, time.UTC)
+	binding, err := cliutil.ObserveProcessBinding(os.Getpid())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 1; i <= authorizationNotificationScanLimit; i++ {
+		id := uuid.MustParse(fmt.Sprintf("00000000-0000-4000-8000-%012x", i))
+		grant := &domain.AuthorizationGrant{
+			ID: id, State: domain.AuthorizationPending, Policy: "swarm-bookkeeping",
+			Targets: []string{"swarm-manager:backlog/execute/obsolete"}, DurationSeconds: 3600,
+			Binding: binding, CreatedAt: now, RequestExpiresAt: now.Add(time.Hour),
+		}
+		if err := repo.Create(context.Background(), grant); err != nil {
+			t.Fatal(err)
+		}
+	}
+	blocking := &contextBlockingAuthPublisher{entered: make(chan struct{}, 1)}
+	o := &Orchestrator{authorizations: repo, approvalPublisher: blocking, clock: func() time.Time { return now }}
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		<-blocking.entered
+		cancel()
+	}()
+	next, err := o.retryPendingAuthorizationNotifications(ctx, "", authorizationNotificationScanLimit, authorizationNotificationAttemptLimit)
+	if !errors.Is(err, context.Canceled) || next != "" {
+		t.Fatalf("cancelled publication advanced the retry keyset: next=%q err=%v", next, err)
+	}
+	firstID := uuid.MustParse("00000000-0000-4000-8000-000000000001")
+	interrupted, err := repo.Get(context.Background(), firstID)
+	if err != nil || interrupted == nil || interrupted.NotificationSnapshot == nil || interrupted.NotificationPublishedAt != nil || interrupted.NotificationUnreached == "" || len(interrupted.NotificationUnreached) > authorizationNotificationFailureLimit {
+		t.Fatalf("interrupted row did not retain its retryable snapshot and bounded failure diagnostic: row=%+v err=%v", interrupted, err)
+	}
+	interruptedEventID := interrupted.NotificationSnapshot.EventID
+
+	success := &capturingAuthPublisher{}
+	o.approvalPublisher = success
+	if _, err := o.retryPendingAuthorizationNotifications(context.Background(), next, authorizationNotificationScanLimit, authorizationNotificationAttemptLimit); err != nil {
+		t.Fatal(err)
+	}
+	if len(success.events) != authorizationNotificationAttemptLimit {
+		t.Fatalf("fresh cycle did not resume from the interrupted first row: published=%d", len(success.events))
+	}
+	first, err := repo.Get(context.Background(), firstID)
+	if err != nil || first == nil || first.NotificationPublishedAt == nil || operatordecision.EventID(success.events[0]) != interruptedEventID || first.NotificationSnapshot.EventID != interruptedEventID {
+		t.Fatalf("interrupted first row was skipped or its event identity changed: row=%+v err=%v", first, err)
+	}
+}
+
+func TestReconcilerKeepsCompletedAuthorizationRetryCheckpointOnCallbackError(t *testing.T) {
+	db, cleanup := testutil.SetupTestDB(t)
+	t.Cleanup(cleanup)
+	repos, _, _ := testutil.SetupTestReposWithDB(t, db)
+	reconciler := NewReconciler(repos.Runs, nil)
+	reconciler.authorizationNotificationCursor = "before"
+	reconciler.authorizationNotificationRetry = func(context.Context, string, int, int) (string, error) {
+		return "checkpoint", context.DeadlineExceeded
+	}
+	stats := reconciler.RunOnce(context.Background())
+	if reconciler.authorizationNotificationCursor != "checkpoint" {
+		t.Fatalf("reconciler discarded fully inspected retry checkpoint: %q", reconciler.authorizationNotificationCursor)
+	}
+	if len(stats.Errors) == 0 {
+		t.Fatal("retry callback error was not recorded")
+	}
+}
+
+func TestReconcilerAuthorizationNotificationRetryIsBoundedFairAndEligibilityChecked(t *testing.T) {
+	db, cleanup := testutil.SetupTestDB(t)
+	t.Cleanup(cleanup)
+	repo := database.NewAuthorizationRepository(db)
+	now := time.Date(2026, 10, 18, 9, 0, 0, 0, time.UTC)
+	binding, err := cliutil.ObserveProcessBinding(os.Getpid())
+	if err != nil {
+		t.Fatal(err)
+	}
+	pub := &capturingAuthPublisher{}
+	o := &Orchestrator{authorizations: repo, approvalPublisher: pub, clock: func() time.Time { return now }}
+	const retryScanLimit = 100
+	for i := 1; i <= retryScanLimit+1; i++ {
+		id := uuid.MustParse(fmt.Sprintf("00000000-0000-4000-8000-%012x", i))
+		grant := &domain.AuthorizationGrant{
+			ID: id, State: domain.AuthorizationPending, Policy: "swarm-bookkeeping",
+			Targets: []string{"swarm-manager:backlog/execute/obsolete"}, DurationSeconds: 3600,
+			Binding: binding, CreatedAt: now, RequestExpiresAt: now.Add(time.Hour),
+		}
+		if i <= retryScanLimit {
+			grant.Binding.Start = "different-process-incarnation"
+		}
+		if err := repo.Create(context.Background(), grant); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// The expired request remains stored as pending, but must not be notified.
+	expired := &domain.AuthorizationGrant{
+		ID: uuid.MustParse("00000000-0000-4000-8000-000000000102"), State: domain.AuthorizationPending,
+		Policy: "swarm-bookkeeping", Targets: []string{"swarm-manager:backlog/execute/obsolete"},
+		DurationSeconds: 3600, Binding: binding, CreatedAt: now.Add(-2 * time.Hour), RequestExpiresAt: now.Add(-time.Second),
+	}
+	if err := repo.Create(context.Background(), expired); err != nil {
+		t.Fatal(err)
+	}
+	terminal := *expired
+	terminal.ID = uuid.MustParse("00000000-0000-4000-8000-000000000103")
+	terminal.State = domain.AuthorizationSuperseded
+	terminal.RequestExpiresAt = now.Add(time.Hour)
+	if err := repo.Create(context.Background(), &terminal); err != nil {
+		t.Fatal(err)
+	}
+	published := *expired
+	published.ID = uuid.MustParse("00000000-0000-4000-8000-000000000104")
+	published.RequestExpiresAt = now.Add(time.Hour)
+	publishedAt := now.Add(-time.Minute)
+	published.NotificationPublishedAt = &publishedAt
+	if err := repo.Create(context.Background(), &published); err != nil {
+		t.Fatal(err)
+	}
+	deadProcess := published
+	deadProcess.ID = uuid.MustParse("00000000-0000-4000-8000-000000000105")
+	deadProcess.NotificationPublishedAt = nil
+	deadProcess.Binding = cliutil.ProcessBinding{PID: 2147483647, Start: "not-running"}
+	if err := repo.Create(context.Background(), &deadProcess); err != nil {
+		t.Fatal(err)
+	}
+
+	repos, _, _ := testutil.SetupTestReposWithDB(t, db)
+	reconciler := NewReconciler(repos.Runs, nil)
+	reconciler.clock = func() time.Time { return now }
+	o.SetReconciler(reconciler)
+	first := reconciler.RunOnce(context.Background())
+	if len(first.Errors) != 0 || len(pub.events) != 0 {
+		t.Fatalf("first bounded page should inspect only mismatched process incarnations: events=%d errors=%v", len(pub.events), first.Errors)
+	}
+	second := reconciler.RunOnce(context.Background())
+	if len(second.Errors) != 0 || len(pub.events) != 1 {
+		t.Fatalf("cursor did not reach the later live pending request: events=%d errors=%v", len(pub.events), second.Errors)
+	}
+	liveID := uuid.MustParse("00000000-0000-4000-8000-000000000065")
+	liveStored, err := repo.Get(context.Background(), liveID)
+	if err != nil || liveStored == nil || liveStored.NotificationSnapshot == nil || liveStored.NotificationPublishedAt == nil {
+		t.Fatalf("later live request was not the retried row: stored=%+v err=%v", liveStored, err)
+	}
+	if got := operatordecision.EventID(pub.events[0]); got != liveStored.NotificationSnapshot.EventID {
+		t.Fatalf("reconciler published event %q, want later live request %q", got, liveStored.NotificationSnapshot.EventID)
+	}
+	for _, id := range []uuid.UUID{expired.ID, terminal.ID, published.ID, deadProcess.ID} {
+		stored, err := repo.Get(context.Background(), id)
+		if err != nil || stored == nil {
+			t.Fatalf("read eligibility control %s: stored=%+v err=%v", id, stored, err)
+		}
+		if id == published.ID && stored.NotificationPublishedAt == nil {
+			t.Fatalf("published control lost its receipt: %+v", stored)
+		}
+		if id != published.ID && (stored.NotificationPublishedAt != nil || stored.NotificationSnapshot != nil) {
+			t.Fatalf("ineligible request %s was notified: %+v", id, stored)
+		}
+	}
+}
+
+func TestReconcilerAuthorizationNotificationRetryAdvancesAfterAttemptCap(t *testing.T) {
+	db, cleanup := testutil.SetupTestDB(t)
+	t.Cleanup(cleanup)
+	t.Setenv("AGENT_MANAGER_AUTHORIZATION_URL", "https://agent-manager.example.test")
+	repo := database.NewAuthorizationRepository(db)
+	now := time.Date(2026, 10, 18, 10, 0, 0, 0, time.UTC)
+	binding, err := cliutil.ObserveProcessBinding(os.Getpid())
+	if err != nil {
+		t.Fatal(err)
+	}
+	pub := &capturingAuthPublisher{}
+	o := &Orchestrator{authorizations: repo, approvalPublisher: pub, clock: func() time.Time { return now }}
+	ids := make([]uuid.UUID, 21)
+	for i := range ids {
+		ids[i] = uuid.MustParse(fmt.Sprintf("00000000-0000-4000-8000-%012x", i+1))
+		grant := &domain.AuthorizationGrant{
+			ID: ids[i], State: domain.AuthorizationPending, Policy: "swarm-bookkeeping",
+			Targets: []string{"swarm-manager:backlog/execute/obsolete"}, DurationSeconds: 3600,
+			Binding: binding, CreatedAt: now, RequestExpiresAt: now.Add(time.Hour),
+		}
+		if err := repo.Create(context.Background(), grant); err != nil {
+			t.Fatal(err)
+		}
+	}
+	repos, _, _ := testutil.SetupTestReposWithDB(t, db)
+	reconciler := NewReconciler(repos.Runs, nil)
+	reconciler.clock = func() time.Time { return now }
+	o.SetReconciler(reconciler)
+	if stats := reconciler.RunOnce(context.Background()); len(stats.Errors) != 0 {
+		t.Fatalf("first retry cycle errors = %v", stats.Errors)
+	}
+	if len(pub.events) != authorizationNotificationAttemptLimit {
+		t.Fatalf("first cycle published %d events, want attempt cap %d", len(pub.events), authorizationNotificationAttemptLimit)
+	}
+	for i := 0; i < authorizationNotificationAttemptLimit; i++ {
+		stored, err := repo.Get(context.Background(), ids[i])
+		if err != nil || stored.NotificationPublishedAt == nil {
+			t.Fatalf("first page row %s was not published: stored=%+v err=%v", ids[i], stored, err)
+		}
+	}
+	for i := authorizationNotificationAttemptLimit; i < len(ids); i++ {
+		stored, err := repo.Get(context.Background(), ids[i])
+		if err != nil || stored.NotificationPublishedAt != nil {
+			t.Fatalf("later page row %s was touched before its turn: stored=%+v err=%v", ids[i], stored, err)
+		}
+	}
+	if stats := reconciler.RunOnce(context.Background()); len(stats.Errors) != 0 {
+		t.Fatalf("second retry cycle errors = %v", stats.Errors)
+	}
+	if len(pub.events) != 2*authorizationNotificationAttemptLimit {
+		t.Fatalf("second cycle did not advance past first attempt cap: total publications=%d", len(pub.events))
+	}
+	for i := authorizationNotificationAttemptLimit; i < 2*authorizationNotificationAttemptLimit; i++ {
+		stored, err := repo.Get(context.Background(), ids[i])
+		if err != nil || stored.NotificationPublishedAt == nil {
+			t.Fatalf("second page row %s was not published: stored=%+v err=%v", ids[i], stored, err)
+		}
 	}
 }
 
@@ -254,7 +761,7 @@ func TestNotifyAuthorizationRequestedRetriesSameSnapshotAfterFailure(t *testing.
 	t.Setenv("AGENT_MANAGER_AUTHORIZATION_URL", "https://agent-manager.example.test")
 	repo := database.NewAuthorizationRepository(db)
 	now := time.Now().UTC()
-	pub := &capturingAuthPublisher{err: errors.New("events unavailable")}
+	pub := &capturingAuthPublisher{err: errors.New(strings.Repeat("events unavailable ", 128))}
 	o := &Orchestrator{authorizations: repo, approvalPublisher: pub, clock: func() time.Time { return now }}
 	g := &domain.AuthorizationGrant{ID: uuid.New(), RunID: uuid.New(), State: domain.AuthorizationPending, Policy: "swarm-bookkeeping", Targets: []string{"swarm-manager:backlog/execute/obsolete"}, DurationSeconds: 57600, HarnessKind: "codex", CreatedAt: now, RequestExpiresAt: now.Add(24 * time.Hour)}
 	if err := repo.Create(context.Background(), g); err != nil {
@@ -262,7 +769,7 @@ func TestNotifyAuthorizationRequestedRetriesSameSnapshotAfterFailure(t *testing.
 	}
 	o.NotifyAuthorizationRequested(context.Background(), g)
 	failed, err := repo.Get(context.Background(), g.ID)
-	if err != nil || failed.NotificationSnapshot == nil || failed.NotificationPublishedAt != nil {
+	if err != nil || failed.NotificationSnapshot == nil || failed.NotificationPublishedAt != nil || len(failed.NotificationUnreached) > authorizationNotificationFailureLimit {
 		t.Fatalf("failed publication lost its immutable retry snapshot: %+v err=%v", failed, err)
 	}
 	firstID := failed.NotificationSnapshot.EventID
@@ -308,6 +815,29 @@ func TestNotifyAuthorizationRequestedMissingOriginIsUnreached(t *testing.T) {
 	stored, err := repo.Get(context.Background(), g.ID)
 	if err != nil || stored.NotificationUnreached == "" || stored.NotificationSnapshot != nil || stored.NotificationPublishedAt != nil || len(pub.events) != 0 {
 		t.Fatalf("missing origin must remain explicitly unreached without a broken-link publish: %+v events=%d err=%v", stored, len(pub.events), err)
+	}
+}
+
+func TestNotifyAuthorizationRequestedDoesNotPublishExpiredGrant(t *testing.T) {
+	db, cleanup := testutil.SetupTestDB(t)
+	t.Cleanup(cleanup)
+	t.Setenv("AGENT_MANAGER_AUTHORIZATION_URL", "https://agent-manager.example.test")
+	repo := database.NewAuthorizationRepository(db)
+	now := time.Now().UTC()
+	pub := &capturingAuthPublisher{}
+	o := &Orchestrator{authorizations: repo, approvalPublisher: pub, clock: func() time.Time { return now }}
+	g := &domain.AuthorizationGrant{
+		ID: uuid.New(), State: domain.AuthorizationPending, Policy: "swarm-bookkeeping",
+		Targets: []string{"swarm-manager:backlog/execute/obsolete"}, DurationSeconds: 3600,
+		CreatedAt: now.Add(-2 * time.Hour), RequestExpiresAt: now.Add(-time.Second),
+	}
+	if err := repo.Create(context.Background(), g); err != nil {
+		t.Fatal(err)
+	}
+	o.NotifyAuthorizationRequested(context.Background(), g)
+	stored, err := repo.Get(context.Background(), g.ID)
+	if err != nil || stored == nil || stored.NotificationSnapshot != nil || stored.NotificationPublishedAt != nil || len(pub.events) != 0 {
+		t.Fatalf("expired pending row must not create or publish an FYI: stored=%+v events=%d err=%v", stored, len(pub.events), err)
 	}
 }
 

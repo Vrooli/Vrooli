@@ -229,6 +229,8 @@ type LaunchParams struct {
 	// stable-create owner is the operator, not agent-manager's service principal.
 	// Empty for service/agent-spawned runs.
 	HumanOwnerSubject string
+	// AgentRunIdentityToken is sent only in the typed reserved Create request; it is never part of the launch command.
+	AgentRunIdentityToken string
 }
 
 // LaunchResult is the durable outcome of a launch.
@@ -338,10 +340,11 @@ func (s *Substrate) Launch(ctx context.Context, p LaunchParams) (LaunchResult, e
 		// Submit explicitly below after the shell boot window. Web Console's
 		// create-time execute path only bracket-pastes this command, which
 		// leaves it pending at a POSIX shell prompt.
-		Execute:           false,
-		DisplayLabel:      label,
-		Backend:           "persistent",
-		HumanOwnerSubject: p.HumanOwnerSubject,
+		Execute:               false,
+		DisplayLabel:          label,
+		Backend:               "persistent",
+		HumanOwnerSubject:     p.HumanOwnerSubject,
+		AgentRunIdentityToken: p.AgentRunIdentityToken,
 	})
 	if err != nil {
 		return LaunchResult{}, fmt.Errorf("create interactive session for %s: %w", p.RunnerType, err)

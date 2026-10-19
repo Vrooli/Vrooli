@@ -105,8 +105,10 @@ type runRow struct {
 	ParentRunID              NullableUUID          `db:"parent_run_id"`
 	ConversationID           sql.NullString        `db:"conversation_id"`
 	// Identity token fields
-	IdentityTokenHash      sql.NullString `db:"identity_token_hash"`
-	IdentityTokenRevokedAt NullableTime   `db:"identity_token_revoked_at"`
+	IdentityTokenHash         sql.NullString `db:"identity_token_hash"`
+	IdentityTokenRevokedAt    NullableTime   `db:"identity_token_revoked_at"`
+	IdentityRenewalAnchorHash string         `db:"identity_renewal_anchor_hash"`
+	IdentityTokenIssuedAt     NullableTime   `db:"identity_token_issued_at"`
 	// Caller-supplied custom env (JSON object), re-injected on continue/wake
 	CustomEnv sql.NullString `db:"custom_env"`
 	// Await-handle (JSON object) for a parked run; NULL for non-parked runs
@@ -196,15 +198,17 @@ func (row *runRow) toDomain() *domain.Run {
 		ParentRunID:                    row.ParentRunID.ToPtr(),
 		ConversationID:                 row.ConversationID.String,
 		// Identity token fields
-		IdentityTokenHash:      row.IdentityTokenHash.String,
-		IdentityTokenRevokedAt: row.IdentityTokenRevokedAt.ToPtr(),
-		CustomEnv:              parseStringMapJSON(row.CustomEnv),
-		AwaitHandle:            parseAwaitHandleJSON(row.AwaitHandle),
-		LastAwaitKey:           row.LastAwaitKey.String,
-		LastAwaitResult:        row.LastAwaitResult.String,
-		LastAwaitResolvedAt:    row.LastAwaitResolvedAt.ToPtr(),
-		LastWakeSeq:            row.LastWakeSeq,
-		SameKeyParkStreak:      row.SameKeyParkStreak,
+		IdentityTokenHash:         row.IdentityTokenHash.String,
+		IdentityTokenRevokedAt:    row.IdentityTokenRevokedAt.ToPtr(),
+		IdentityRenewalAnchorHash: row.IdentityRenewalAnchorHash,
+		IdentityTokenIssuedAt:     row.IdentityTokenIssuedAt.ToPtr(),
+		CustomEnv:                 parseStringMapJSON(row.CustomEnv),
+		AwaitHandle:               parseAwaitHandleJSON(row.AwaitHandle),
+		LastAwaitKey:              row.LastAwaitKey.String,
+		LastAwaitResult:           row.LastAwaitResult.String,
+		LastAwaitResolvedAt:       row.LastAwaitResolvedAt.ToPtr(),
+		LastWakeSeq:               row.LastWakeSeq,
+		SameKeyParkStreak:         row.SameKeyParkStreak,
 		// Model provenance
 		RequestedModel: row.RequestedModel.String,
 		ActualModel:    row.ActualModel.String,
@@ -296,15 +300,17 @@ func runFromDomain(r *domain.Run) *runRow {
 		ParentRunID:                    NewNullableUUID(r.ParentRunID),
 		ConversationID:                 sql.NullString{String: r.ConversationID, Valid: r.ConversationID != ""},
 		// Identity token fields
-		IdentityTokenHash:      sql.NullString{String: r.IdentityTokenHash, Valid: r.IdentityTokenHash != ""},
-		IdentityTokenRevokedAt: NewNullableTime(r.IdentityTokenRevokedAt),
-		CustomEnv:              marshalStringMapJSON(r.CustomEnv),
-		AwaitHandle:            marshalAwaitHandleJSON(r.AwaitHandle),
-		LastAwaitKey:           sql.NullString{String: r.LastAwaitKey, Valid: r.LastAwaitKey != ""},
-		LastAwaitResult:        sql.NullString{String: r.LastAwaitResult, Valid: r.LastAwaitResult != ""},
-		LastAwaitResolvedAt:    NewNullableTime(r.LastAwaitResolvedAt),
-		LastWakeSeq:            r.LastWakeSeq,
-		SameKeyParkStreak:      r.SameKeyParkStreak,
+		IdentityTokenHash:         sql.NullString{String: r.IdentityTokenHash, Valid: r.IdentityTokenHash != ""},
+		IdentityTokenRevokedAt:    NewNullableTime(r.IdentityTokenRevokedAt),
+		IdentityRenewalAnchorHash: r.IdentityRenewalAnchorHash,
+		IdentityTokenIssuedAt:     NewNullableTime(r.IdentityTokenIssuedAt),
+		CustomEnv:                 marshalStringMapJSON(r.CustomEnv),
+		AwaitHandle:               marshalAwaitHandleJSON(r.AwaitHandle),
+		LastAwaitKey:              sql.NullString{String: r.LastAwaitKey, Valid: r.LastAwaitKey != ""},
+		LastAwaitResult:           sql.NullString{String: r.LastAwaitResult, Valid: r.LastAwaitResult != ""},
+		LastAwaitResolvedAt:       NewNullableTime(r.LastAwaitResolvedAt),
+		LastWakeSeq:               r.LastWakeSeq,
+		SameKeyParkStreak:         r.SameKeyParkStreak,
 		// Model provenance
 		RequestedModel: sql.NullString{String: r.RequestedModel, Valid: r.RequestedModel != ""},
 		ActualModel:    sql.NullString{String: r.ActualModel, Valid: r.ActualModel != ""},
@@ -509,18 +515,18 @@ const runColumns = `id, lifecycle_version, owner_identity, owner_epoch, task_id,
 	resolved_config, diff_path, log_path, changed_files, total_size_bytes, commit_hash, sandbox_config, session_id,
 	runner_pid, runner_pgid, transcript_path, transcript_cursor, transcript_last_seq, import_source_harness, import_source_session_id, imported_at,
 	source_run_ids, source_investigation_run_id, parent_run_id, conversation_id,
-	identity_token_hash, identity_token_revoked_at, custom_env, await_handle,
+	identity_token_hash, identity_token_revoked_at, identity_renewal_anchor_hash, identity_token_issued_at, custom_env, await_handle,
 	last_await_key, last_await_result, last_await_resolved_at, last_wake_seq, same_key_park_streak,
 	requested_model, actual_model, canary_arm,
 	created_at, updated_at`
 
 // listRunColumns contains the pruned column set for List() queries.
-// Omits heavy fields: summary, resolved_config, sandbox_config, sandbox_id,
+// Omits heavy fields: summary, resolved_config, sandbox_config,
 // idempotency_key, last_checkpoint_id, diff_path, log_path,
 // approved_by, approved_at.
 // NOTE: last_heartbeat MUST be included — the reconciler depends on it
 // to detect stale runs. Without it, every run appears stale after creation.
-const listRunColumns = `id, lifecycle_version, owner_identity, owner_epoch, task_id, agent_profile_id, tag, label, label_source, subject, owner_subject, owner_expires_at, owner_scopes, requested_scopes, work_references, workload_kind, workload_key, workload_instance, billing_snapshot, run_mode,
+const listRunColumns = `id, lifecycle_version, owner_identity, owner_epoch, task_id, agent_profile_id, tag, label, label_source, subject, owner_subject, owner_expires_at, owner_scopes, requested_scopes, work_references, workload_kind, workload_key, workload_instance, billing_snapshot, sandbox_id, run_mode,
 	execution_mode, harness_kind, harness_session_id, goal_delivery, terminal_class, stop_reason, last_handoff, web_console_session_id, status,
 	started_at, interactive_invocation_started_at, ended_at, phase, last_heartbeat, progress_percent,
 	error_msg, exit_code, approval_state, finalization_status, finalization_error, finalized_at,
@@ -551,6 +557,7 @@ type listRunLiteRow struct {
 	WorkloadKey                    string         `db:"workload_key"`
 	WorkloadInstance               string         `db:"workload_instance"`
 	BillingSnapshot                sql.NullString `db:"billing_snapshot"`
+	SandboxID                      NullableUUID   `db:"sandbox_id"`
 	RunMode                        string         `db:"run_mode"`
 	ExecutionMode                  sql.NullString `db:"execution_mode"`
 	HarnessKind                    sql.NullString `db:"harness_kind"`
@@ -621,6 +628,7 @@ func (row *listRunLiteRow) toDomain() *domain.Run {
 		WorkReferences:                 parseWorkReferencesJSON(row.WorkReferences),
 		Workload:                       domain.WorkloadRef{Kind: domain.WorkloadKind(row.WorkloadKind), Key: row.WorkloadKey, Instance: row.WorkloadInstance},
 		Billing:                        decodeBillingSnapshot(row.BillingSnapshot),
+		SandboxID:                      row.SandboxID.ToPtr(),
 		RunMode:                        domain.RunMode(row.RunMode),
 		ExecutionMode:                  domain.ExecutionMode(row.ExecutionMode.String).Normalized(),
 		HarnessKind:                    row.HarnessKind.String,
@@ -689,7 +697,7 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 			resolved_config, diff_path, log_path, changed_files, total_size_bytes, commit_hash, sandbox_config, session_id,
 			runner_pid, runner_pgid, transcript_path, transcript_cursor, transcript_last_seq, import_source_harness, import_source_session_id, imported_at,
 			source_run_ids, source_investigation_run_id, parent_run_id, conversation_id,
-			identity_token_hash, identity_token_revoked_at, custom_env, await_handle,
+			identity_token_hash, identity_token_revoked_at, identity_renewal_anchor_hash, identity_token_issued_at, custom_env, await_handle,
 			last_await_key, last_await_result, last_await_resolved_at, last_wake_seq, same_key_park_streak,
 			requested_model, actual_model, canary_arm,
 			created_at, updated_at)
@@ -701,7 +709,7 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 			:resolved_config, :diff_path, :log_path, :changed_files, :total_size_bytes, :commit_hash, :sandbox_config, :session_id,
 			:runner_pid, :runner_pgid, :transcript_path, :transcript_cursor, :transcript_last_seq, :import_source_harness, :import_source_session_id, :imported_at,
 			:source_run_ids, :source_investigation_run_id, :parent_run_id, :conversation_id,
-			:identity_token_hash, :identity_token_revoked_at, :custom_env, :await_handle,
+			:identity_token_hash, :identity_token_revoked_at, :identity_renewal_anchor_hash, :identity_token_issued_at, :custom_env, :await_handle,
 			:last_await_key, :last_await_result, :last_await_resolved_at, :last_wake_seq, :same_key_park_streak,
 			:requested_model, :actual_model, :canary_arm,
 			:created_at, :updated_at)`
@@ -845,12 +853,26 @@ func (r *runRepository) Update(ctx context.Context, run *domain.Run) error {
 	run.UpdatedAt = time.Now()
 	row := runFromDomain(run)
 
+	// A renewal anchor marks an attached run whose process binding participates
+	// in the broker's proof. Preserve that binding across stale full-row writes;
+	// legacy attached rows without a renewal anchor retain the prior update path.
+	// Renewal-generation columns themselves are intentionally absent here.
 	query := `UPDATE runs SET lifecycle_version = lifecycle_version + CASE WHEN status = :status THEN 0 ELSE 1 END,
 			owner_identity = CASE WHEN :owner_identity <> '' THEN :owner_identity ELSE owner_identity END,
 			owner_epoch = CASE WHEN :owner_epoch > 0 THEN :owner_epoch ELSE owner_epoch END,
-			task_id = :task_id, agent_profile_id = :agent_profile_id,
-			tag = :tag, label = :label, label_source = :label_source, subject = :subject, owner_subject = :owner_subject, owner_expires_at = :owner_expires_at, owner_scopes = :owner_scopes, requested_scopes = :requested_scopes, work_references = :work_references, sandbox_id = :sandbox_id, run_mode = :run_mode,
-			execution_mode = :execution_mode, harness_kind = :harness_kind, harness_session_id = :harness_session_id, goal_delivery = :goal_delivery, terminal_class = :terminal_class, stop_reason = :stop_reason, last_handoff = :last_handoff, web_console_session_id = :web_console_session_id, status = :status,
+			task_id = CASE WHEN identity_renewal_anchor_hash <> '' THEN task_id ELSE :task_id END,
+			agent_profile_id = :agent_profile_id,
+			tag = :tag, label = :label, label_source = :label_source, subject = :subject,
+			owner_subject = CASE WHEN identity_renewal_anchor_hash <> '' THEN owner_subject ELSE :owner_subject END,
+			owner_expires_at = CASE WHEN identity_renewal_anchor_hash <> '' THEN owner_expires_at ELSE :owner_expires_at END,
+			owner_scopes = CASE WHEN identity_renewal_anchor_hash <> '' THEN owner_scopes ELSE :owner_scopes END,
+			requested_scopes = :requested_scopes, work_references = :work_references, sandbox_id = :sandbox_id, run_mode = :run_mode,
+		execution_mode = CASE WHEN identity_renewal_anchor_hash <> '' THEN execution_mode ELSE :execution_mode END,
+		harness_kind = CASE WHEN identity_renewal_anchor_hash <> '' THEN harness_kind ELSE :harness_kind END,
+		harness_session_id = CASE WHEN identity_renewal_anchor_hash <> '' THEN harness_session_id ELSE :harness_session_id END,
+		goal_delivery = :goal_delivery, terminal_class = :terminal_class, stop_reason = :stop_reason, last_handoff = :last_handoff,
+		web_console_session_id = CASE WHEN identity_renewal_anchor_hash <> '' THEN web_console_session_id ELSE :web_console_session_id END,
+		status = :status,
 		started_at = :started_at, interactive_invocation_started_at = :interactive_invocation_started_at, ended_at = :ended_at, cancel_requested_at = COALESCE(cancel_requested_at, :cancel_requested_at), phase = :phase,
 		last_checkpoint_id = :last_checkpoint_id, last_heartbeat = CASE WHEN last_heartbeat IS NULL OR last_heartbeat < :last_heartbeat THEN :last_heartbeat ELSE last_heartbeat END,
 		progress_percent = :progress_percent, idempotency_key = :idempotency_key,
@@ -859,13 +881,17 @@ func (r *runRepository) Update(ctx context.Context, run *domain.Run) error {
 		finalization_status = :finalization_status, finalization_error = :finalization_error, finalized_at = :finalized_at,
 		resolved_config = :resolved_config, diff_path = :diff_path, log_path = :log_path,
 			changed_files = :changed_files, total_size_bytes = :total_size_bytes, commit_hash = :commit_hash, sandbox_config = :sandbox_config,
-			session_id = :session_id, runner_pid = :runner_pid, runner_pgid = :runner_pgid,
+			 session_id = :session_id,
+			runner_pid = CASE WHEN identity_renewal_anchor_hash <> '' THEN runner_pid ELSE :runner_pid END,
+			runner_pgid = CASE WHEN identity_renewal_anchor_hash <> '' THEN runner_pgid ELSE :runner_pgid END,
 			transcript_path = :transcript_path, transcript_cursor = :transcript_cursor, transcript_last_seq = :transcript_last_seq,
 			import_source_harness = :import_source_harness, import_source_session_id = :import_source_session_id, imported_at = :imported_at,
 			source_run_ids = :source_run_ids,
 			source_investigation_run_id = :source_investigation_run_id,
-			parent_run_id = :parent_run_id, conversation_id = :conversation_id,
-		identity_token_hash = :identity_token_hash, identity_token_revoked_at = :identity_token_revoked_at,
+			parent_run_id = CASE WHEN identity_renewal_anchor_hash <> '' THEN parent_run_id ELSE :parent_run_id END,
+		conversation_id = :conversation_id,
+		identity_token_hash = CASE WHEN identity_renewal_anchor_hash <> '' THEN identity_token_hash ELSE :identity_token_hash END,
+		identity_token_revoked_at = CASE WHEN identity_renewal_anchor_hash <> '' THEN COALESCE(identity_token_revoked_at, :identity_token_revoked_at) ELSE :identity_token_revoked_at END,
 		custom_env = :custom_env, await_handle = :await_handle,
 		last_await_key = :last_await_key, last_await_result = :last_await_result,
 		last_await_resolved_at = :last_await_resolved_at, last_wake_seq = :last_wake_seq,
@@ -979,13 +1005,19 @@ func (r *runRepository) RequestCancellation(ctx context.Context, id uuid.UUID, a
 	return affected > 0, nil
 }
 
-// UpdateRunnerStreamState persists ONLY the runner streaming columns (session
+// UpdateRunnerStreamState persists ONLY the managed-run runner streaming columns (session
 // id, runner pid/pgid, transcript path/cursor/seq) and ONLY while the run is
-// still actively executing (running or starting). The status guard means an
+// still actively executing (running or starting). Once an attached root has a
+// renewal anchor, its process/session fields are proof inputs and this stream
+// writer is excluded; unanchored attached rows retain their legacy behavior.
+// The status guard means an
 // in-flight transcript callback (OnAdvance/OnProcessStart/OnSessionID) that
 // races a park/stop/terminal transition is a no-op rather than a clobber: it
-// can never rewrite a parked/terminal status back to running. Returns true when
-// a row matched. The status literals mirror domain.RunStatus{Running,Starting}
+// can never rewrite a parked/terminal status back to running. This exclusion
+// is limited to attached rows with a renewal anchor; legacy rows keep their
+// prior stream-writer behavior.
+//
+// Returns true when a row matched. The status literals mirror domain.RunStatus{Running,Starting}
 // (the status column is free-text).
 func (r *runRepository) UpdateRunnerStreamState(ctx context.Context, run *domain.Run) (bool, error) {
 	run.UpdatedAt = time.Now()
@@ -994,6 +1026,7 @@ func (r *runRepository) UpdateRunnerStreamState(ctx context.Context, run *domain
 		session_id = ?, runner_pid = ?, runner_pgid = ?,
 		transcript_path = ?, transcript_cursor = MAX(transcript_cursor, ?), transcript_last_seq = MAX(transcript_last_seq, ?), updated_at = ?
 		WHERE id = ? AND status IN (?, ?) AND lifecycle_version = ?
+		  AND (execution_mode IS NULL OR execution_mode <> 'attached' OR identity_renewal_anchor_hash = '')
 		  AND owner_epoch = ?`
 	res, err := r.db.ExecContext(ctx, query,
 		row.SessionID, row.RunnerPID, row.RunnerPGID,
@@ -1196,6 +1229,55 @@ func (r *runRepository) GetByTokenHash(ctx context.Context, tokenHash string) (*
 		return nil, wrapDBError("get_by_token_hash", "Run", tokenHash, err)
 	}
 	return row.toDomain(), nil
+}
+
+// GetByIdentityRenewalAnchorHash resolves only the broker-held original
+// attached identity. API verification continues to look up IdentityTokenHash.
+func (r *runRepository) GetByIdentityRenewalAnchorHash(ctx context.Context, anchorHash string) (*domain.Run, error) {
+	query := fmt.Sprintf("SELECT %s FROM runs WHERE identity_renewal_anchor_hash = ? AND identity_renewal_anchor_hash <> ''", runColumns)
+	var row runRow
+	if err := r.db.GetContext(ctx, &row, query, anchorHash); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, wrapDBError("get_by_identity_renewal_anchor_hash", "Run", anchorHash, err)
+	}
+	return row.toDomain(), nil
+}
+
+// RenewAttachedIdentity atomically rotates only an active attached, ownerless
+// run's ordinary baseline. The expected snapshot fences lifecycle/recovery
+// races; the SQL predicate is the linearization point against completion,
+// revocation and competing renewals.
+func (r *runRepository) RenewAttachedIdentity(ctx context.Context, expected *domain.Run, anchorHash, activeHash string, issuedAt time.Time) (bool, error) {
+	if expected == nil || expected.ID == uuid.Nil || anchorHash == "" || activeHash == "" || issuedAt.IsZero() {
+		return false, fmt.Errorf("renew attached identity: incomplete compare-and-swap input")
+	}
+	query := `UPDATE runs
+		SET identity_token_hash = ?,
+		    identity_renewal_anchor_hash = CASE WHEN identity_renewal_anchor_hash = '' THEN ? ELSE identity_renewal_anchor_hash END,
+		    identity_token_issued_at = ?, updated_at = ?
+		WHERE id = ? AND identity_token_hash = ?
+		  AND lifecycle_version = ? AND owner_identity = ? AND owner_epoch = ?
+		  AND runner_pid = ? AND harness_kind = ? AND harness_session_id = ?
+		  AND web_console_session_id = ? AND owner_expires_at IS ?
+		  AND (identity_renewal_anchor_hash = '' OR identity_renewal_anchor_hash = ?)
+		  AND execution_mode = ? AND parent_run_id IS NULL
+		  AND status IN (?, ?) AND identity_token_revoked_at IS NULL AND cancel_requested_at IS NULL
+		  AND owner_subject = '' AND (owner_scopes = '[]' OR owner_scopes = '' OR owner_scopes IS NULL)`
+	ownerExpiresAt := NewNullableTime(expected.OwnerExpiresAt)
+	result, err := r.db.ExecContext(ctx, query, activeHash, anchorHash, SQLiteTime(issuedAt), SQLiteTime(time.Now()),
+		expected.ID, expected.IdentityTokenHash, expected.LifecycleVersion, expected.OwnerIdentity, expected.OwnerEpoch,
+		expected.RunnerPID, expected.HarnessKind, expected.HarnessSessionID, expected.WebConsoleSessionID, ownerExpiresAt,
+		anchorHash, string(domain.ExecutionModeAttached), string(domain.RunStatusStarting), string(domain.RunStatusRunning))
+	if err != nil {
+		return false, wrapDBError("renew_attached_identity", "Run", expected.ID.String(), err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	return rows == 1, nil
 }
 
 // GetByImportProvenance resolves the run that already adopted a harness

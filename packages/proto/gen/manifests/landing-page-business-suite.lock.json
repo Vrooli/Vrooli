@@ -44,6 +44,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "generator_digest": "sha256:d62f642cc85260466ef67f24653340c95d277e2268cdf9983a7144dca50b1d50",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -218,6 +219,7 @@
     "gen/typescript/landing-page-business-suite/v1/variant_pb.ts": "sha256:ab9d73358a5be39a9cd4108a110ae7b46a99179e1f5a1c1a392697f01afa841a",
     "gen/typescript/landing-page-business-suite/v1/variant_section_pb.ts": "sha256:4830edc3b12d3c79e8866761f8976101d273833a857ff67b855179d097c06928",
     "gen/typescript/landing-page-business-suite/v1/variant_space_pb.ts": "sha256:189866cac080f6c69bd0284f1a7ad8fb163844e4b8c24098f4da5659b9738013",
-    "gen/typescript/landing-page-business-suite/v1/waitlist_pb.ts": "sha256:1cbb792bfe1ef369ad39d69d71b8fecb1479a504a15fdbc19e973d11984abee0"
+    "gen/typescript/landing-page-business-suite/v1/waitlist_pb.ts": "sha256:1cbb792bfe1ef369ad39d69d71b8fecb1479a504a15fdbc19e973d11984abee0",
+    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4"
   }
 }

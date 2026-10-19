@@ -98,8 +98,9 @@ func validatePreflight(target *Target, file *ast.File, fset *token.FileSet, main
 	}
 
 	imports := importAliases(file, "github.com/vrooli/api-core/preflight")
+	osImports := importAliases(file, "os")
 	values := packageFunctionValues(file)
-	info, firstBusinessLogic := inspectPreflightBody(mainFunc, imports, values, fset)
+	info, firstBusinessLogic := inspectPreflightBody(mainFunc, imports, osImports, values, fset)
 	if !info.found {
 		// Some APIs keep main deliberately small and put startup in one same-file
 		// helper. Follow only the first non-harmless call from main; this is a
@@ -107,7 +108,7 @@ func validatePreflight(target *Target, file *ast.File, fset *token.FileSet, main
 		if firstBusinessLogic >= 0 {
 			helper := initialLocalHelper(mainFunc.Body.List[firstBusinessLogic], values)
 			if helper != nil && helper.Body != nil {
-				info, firstBusinessLogic = inspectPreflightBody(helper, imports, values, fset)
+				info, firstBusinessLogic = inspectPreflightBody(helper, imports, osImports, values, fset)
 			}
 		}
 	}
@@ -134,7 +135,7 @@ func validatePreflight(target *Target, file *ast.File, fset *token.FileSet, main
 	return nil
 }
 
-func inspectPreflightBody(fn *ast.FuncDecl, imports map[string]bool, values map[string]packageFunctionValue, fset *token.FileSet) (preflightInfo, int) {
+func inspectPreflightBody(fn *ast.FuncDecl, imports, osImports map[string]bool, values map[string]packageFunctionValue, fset *token.FileSet) (preflightInfo, int) {
 	var info preflightInfo
 	firstBusinessLogic := -1
 	if fn == nil || fn.Body == nil {
@@ -166,7 +167,7 @@ func inspectPreflightBody(fn *ast.FuncDecl, imports map[string]bool, values map[
 				break
 			}
 		}
-		if firstBusinessLogic == -1 && !harmlessStartupStatement(stmt) {
+		if firstBusinessLogic == -1 && !harmlessStartupStatement(stmt) && !harmlessPreflightConfigRead(stmt, osImports) {
 			firstBusinessLogic = i
 		}
 	}
@@ -452,6 +453,42 @@ func harmlessStartupStatement(stmt ast.Stmt) bool {
 	default:
 		return false
 	}
+}
+
+// harmlessPreflightConfigRead accepts only a local boolean declaration derived
+// from a direct os.Getenv string comparison. Preflight Config values sometimes
+// depend on a process-mode flag; reading that value does not initialize the API.
+// Other assignments remain startup work, including calls that happen to return
+// configuration-shaped values.
+func harmlessPreflightConfigRead(stmt ast.Stmt, osImports map[string]bool) bool {
+	assignment, ok := stmt.(*ast.AssignStmt)
+	if !ok || assignment.Tok != token.DEFINE || len(assignment.Lhs) != 1 || len(assignment.Rhs) != 1 {
+		return false
+	}
+	name, ok := assignment.Lhs[0].(*ast.Ident)
+	if !ok || name.Name == "_" {
+		return false
+	}
+	comparison, ok := assignment.Rhs[0].(*ast.BinaryExpr)
+	if !ok || comparison.Op != token.EQL {
+		return false
+	}
+	if _, ok := stringLiteral(comparison.Y); !ok {
+		return false
+	}
+	call, ok := comparison.X.(*ast.CallExpr)
+	if !ok || len(call.Args) != 1 {
+		return false
+	}
+	if _, ok := stringLiteral(call.Args[0]); !ok {
+		return false
+	}
+	selector, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok || selector.Sel.Name != "Getenv" {
+		return false
+	}
+	base, ok := selector.X.(*ast.Ident)
+	return ok && base.Obj == nil && osImports[base.Name]
 }
 
 func selectorChain(expr ast.Expr) string {

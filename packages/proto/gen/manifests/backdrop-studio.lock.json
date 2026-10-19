@@ -18,6 +18,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "generator_digest": "sha256:d62f642cc85260466ef67f24653340c95d277e2268cdf9983a7144dca50b1d50",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -88,6 +89,7 @@
     "gen/typescript/backdrop-studio/v1/shared/errors_pb.ts": "sha256:4c10691fdd052b6d9bb5a014683664f7e19883e05f95e6808e35c9b92e8cfded",
     "gen/typescript/backdrop-studio/v1/shared/health_pb.ts": "sha256:d75e2997c69c7cb5686e2618b7ec301af529dd13e87b9c3fcbf430220e77ee9a",
     "gen/typescript/backdrop-studio/v1/shared/shared_pb.ts": "sha256:4c2e100579773d87594f440bf045a0503f30b116c7d623517f7d245ac8ad62ea",
-    "gen/typescript/backdrop-studio/v1/surfaces/surfaces_pb.ts": "sha256:a58b3577fcebfe52737be219ac1e7ac49946190156df5f9fd91f831948a67bfb"
+    "gen/typescript/backdrop-studio/v1/surfaces/surfaces_pb.ts": "sha256:a58b3577fcebfe52737be219ac1e7ac49946190156df5f9fd91f831948a67bfb",
+    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4"
   }
 }

@@ -203,6 +203,36 @@ func TestSubscriptionDispatcher_RetriesAndDeadLetters(t *testing.T) {
 	}
 }
 
+func TestSubscriptionDispatcherAppliesPersistedRetryCycleBoundary(t *testing.T) {
+	webhook := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer webhook.Close()
+	queue := &retryQueueStore{
+		sub: subscription.Subscription{
+			ID: 2, Name: "second-cycle", OwnerScenario: "notification-hub",
+			EventPattern: "example.**", DeliveryType: subscription.DeliveryWebhook,
+			DeliveryTarget: webhook.URL, Enabled: true,
+		},
+		delivery: subscription.QueuedDelivery{
+			ID: 2, SubscriptionID: 2, EventID: "evt-retry-cycle-2",
+			PayloadJSON: `{"event_id":"evt-retry-cycle-2"}`,
+			Attempts:    5,
+		},
+	}
+	srv := &Server{subStore: queue, webhookDeliverer: subscription.NewWebhookDeliverer()}
+	for i := 0; i < 5; i++ {
+		srv.drainSubscriptionQueue(context.Background(), queue)
+		got := queue.failed[len(queue.failed)-1].deadLetter
+		if got != (i == 4) {
+			t.Fatalf("cycle failure %d dead-letter=%v, want %v", i+1, got, i == 4)
+		}
+	}
+	if queue.delivery.Attempts != 10 {
+		t.Fatalf("cumulative attempts=%d, want 10", queue.delivery.Attempts)
+	}
+}
+
 type retryFailure struct {
 	deadLetter bool
 }
@@ -236,6 +266,12 @@ func (q *retryQueueStore) GetHealth(context.Context, int64) (subscription.Health
 }
 func (q *retryQueueStore) Close() error                                                 { return nil }
 func (q *retryQueueStore) Enqueue(_ context.Context, _ int64, _ string, _ string) error { return nil }
+func (q *retryQueueStore) GetDelivery(context.Context, int64, string) (subscription.DeliveryMetadata, error) {
+	return subscription.DeliveryMetadata{}, context.Canceled
+}
+func (q *retryQueueStore) RetryDeadLetter(context.Context, int64, string, int) error {
+	return context.Canceled
+}
 func (q *retryQueueStore) Due(context.Context, int) ([]subscription.QueuedDelivery, error) {
 	if len(q.failed) > 0 && q.failed[len(q.failed)-1].deadLetter {
 		return nil, nil

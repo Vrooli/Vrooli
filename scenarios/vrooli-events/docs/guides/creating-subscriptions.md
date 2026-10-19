@@ -70,9 +70,9 @@ This sends a synthetic test event matching the pattern and reports whether deliv
 curl "http://localhost:${API_PORT}/api/v1/subscriptions/${SUBSCRIPTION_ID}/health"
 ```
 
-Shows: total delivered, total failed, success rate, consecutive failures, and status (healthy/degraded/circuit_broken).
+Shows: total delivered, total failed, consecutive failures, last delivery timestamps, and delivery status (`active` or `circuit_broken`). `circuit_broken` records an exhausted webhook delivery; it does not disable the subscription or prevent other queued events from being delivered.
 
-If consecutive failures exceed the threshold (default: 50), the subscription auto-disables. Re-enable it after fixing the target:
+After fixing the target, retry one exhausted dead-lettered event through `POST /api/v1/subscriptions/{id}/deliveries/retry`, supplying its event ID and the row's current cumulative failed-attempt count. The count must be a positive multiple of five; early terminal rows such as invalid stored payloads cannot be repaired through this API. Successful delivery does not increment the existing `attempts` field. The Events service requeues only that persisted event payload. The dispatcher makes at most five attempts in the new cycle, with backoff starting again at one second. A repeated or stale request conflicts instead of opening another cycle. The separate `POST /api/v1/subscriptions/{id}/deliver` endpoint remains a one-shot send and does not reconcile queue history.
 
 ```bash
 curl -X PUT "http://localhost:${API_PORT}/api/v1/subscriptions/${SUBSCRIPTION_ID}" \

@@ -36,6 +36,8 @@ type discoveredEffort struct {
 	manifestless bool
 }
 
+var errUnregisteredWorkspace = errors.New("workspace has no effort manifest or legacy checkpoint")
+
 // openSafeRoot anchors every directory handle and rejects symlinks, including in
 // the configured root. Root handles prevent path substitution from escaping scope.
 func openSafeRoot(path string) (*os.Root, error) {
@@ -265,6 +267,9 @@ func readWorkspace(root *os.Root, name string, limit int64, now time.Time) (*dis
 	raw, err := safeRead(folder, "effort.json", limit)
 	if errors.Is(err, os.ErrNotExist) {
 		legacy, readErr := safeRead(folder, "handoffs/state.json", limit)
+		if errors.Is(readErr, os.ErrNotExist) {
+			return nil, errUnregisteredWorkspace
+		}
 		if readErr != nil {
 			return nil, fmt.Errorf("manifest absent; legacy checkpoint unavailable: %w", readErr)
 		}
@@ -500,6 +505,7 @@ func (s *EffortService) reconcileDiscovery(ctx context.Context) (*pb.EffortDisco
 	d.ScanCursor = previous.GetScanCursor()
 	paths := map[string]bool{}
 	invalidPaths := map[string]bool{}
+	checkpointUnavailablePaths := map[string]bool{}
 	completeIndex := false
 	// Retain failures from pages not revisited in this scan.
 	for _, f := range previous.Findings {
@@ -564,6 +570,23 @@ func (s *EffortService) reconcileDiscovery(ctx context.Context) (*pb.EffortDisco
 				}
 				item, readErr := readWorkspace(root, entry.Name(), s.config.FileBytes, now)
 				if readErr != nil {
+					if errors.Is(readErr, errUnregisteredWorkspace) {
+						prior := byWorkspace[entry.Name()]
+						if len(prior) == 0 && len(existing) <= 1000 {
+							continue
+						}
+						invalidPaths[entry.Name()] = true
+						if len(prior) > 0 {
+							checkpointUnavailablePaths[entry.Name()] = true
+							finding(entry.Name(), "checkpoint_unavailable", errors.New("previously enrolled workspace has no manifest or legacy checkpoint; source is unavailable"))
+							if len(prior) > 1 {
+								finding(entry.Name(), "identity_conflict", errors.New("multiple retained enrollments map to a workspace with no current identity source"))
+							}
+						} else {
+							finding(entry.Name(), "enrollment_lookup_incomplete", errors.New("retained enrollment index is capped; workspace cannot be classified as unregistered"))
+						}
+						continue
+					}
 					invalidPaths[entry.Name()] = true
 					finding(entry.Name(), "invalid_manifest", readErr)
 					continue
@@ -712,7 +735,11 @@ func (s *EffortService) reconcileDiscovery(ctx context.Context) (*pb.EffortDisco
 		e.Revision++
 		e.UpdatedAt = timestamppb.New(now)
 		o.Freshness = pb.EffortFreshness_EFFORT_FRESHNESS_UNAVAILABLE
-		o.Limitations = append(o.Limitations, "workspace removed or identity conflicted; outcome remains unverified")
+		limitation := "workspace removed or identity conflicted; outcome remains unverified"
+		if checkpointUnavailablePaths[e.Workspace] {
+			limitation = "previously enrolled workspace has no manifest or legacy checkpoint; source is unavailable and outcome remains unverified"
+		}
+		o.Limitations = append(o.Limitations, limitation)
 		o.ChangeIdentity = "unavailable:" + o.ChangeIdentity
 		if err = s.repo.SaveEffort(ctx, e, o, expected, fmt.Sprintf("discovery:%s:%d", e.EffortRef, e.Revision), o.ChangeIdentity); err != nil {
 			return nil, err

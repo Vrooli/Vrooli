@@ -378,6 +378,70 @@ func TestProcessEscalations_AppliesDefaultAtLeastTheFloorAfterDelivery(t *testin
 	require.Equal(t, "evt-floor", event.Payload["requester_ref"])
 }
 
+// [REQ:NOTIFICA-P1-010]
+func TestProcess_SuppressesResolvedAskNotificationsButPreservesOpenAndDefaulted(t *testing.T) {
+	ctx := context.Background()
+	for _, notificationState := range []string{"pending", "held"} {
+		for _, askState := range []string{hub.AskAnswered, hub.AskWithdrawn, hub.AskExpired} {
+			t.Run(notificationState+"/"+askState, func(t *testing.T) {
+				service, db := testService(t)
+				sender := &recordingSender{}
+				service.SetPushSender(sender)
+				registerSubscription(t, service, "alice")
+				notificationID := insertPending(t, db, "alice", "stale approval question", "private")
+				now := time.Now().UTC().Format(time.RFC3339Nano)
+				_, err := db.ExecContext(ctx, `INSERT INTO asks (id, notification_id, question, allowed_answers, deadline, state, created_at, updated_at, source, requester_ref) VALUES (?, ?, 'Approve?', '["yes","no"]', ?, ?, ?, ?, 'agent-manager', ?)`, "ask-"+notificationID, notificationID, time.Now().Add(time.Hour).UTC().Format(time.RFC3339Nano), askState, now, now, "request-"+notificationID)
+				require.NoError(t, err)
+				if notificationState == "held" {
+					_, err = db.ExecContext(ctx, `INSERT INTO notification_events (notification_id, state, reason, created_at) VALUES (?, 'held', 'quiet-hours hold', ?)`, notificationID, now)
+					require.NoError(t, err)
+				}
+
+				require.NoError(t, service.Process(ctx, notificationID))
+				got, _, err := service.Get(ctx, notificationID)
+				require.NoError(t, err)
+				require.Equal(t, "suppressed", got.State)
+				require.Empty(t, sender.messages, "a resolved Ask must not reach the sender after recovery or hold release")
+			})
+		}
+	}
+
+	for _, askState := range []string{hub.AskPending, hub.AskEscalated, hub.AskDefaulted} {
+		t.Run("linked-"+askState+"-still-routes", func(t *testing.T) {
+			service, db := testService(t)
+			sender := &recordingSender{}
+			service.SetPushSender(sender)
+			registerSubscription(t, service, "alice")
+			notificationID := insertPending(t, db, "alice", "current approval question", "private")
+			now := time.Now().UTC().Format(time.RFC3339Nano)
+			defaultAnswer, reversible, defaultAppliedAt, resolvedAt := "", 0, "", ""
+			if askState == hub.AskDefaulted {
+				defaultAnswer, reversible, defaultAppliedAt, resolvedAt = "yes", 1, now, now
+			}
+			_, err := db.ExecContext(ctx, `INSERT INTO asks (id, notification_id, question, allowed_answers, deadline, state, created_at, updated_at, source, requester_ref, default_answer, reversible, default_applied_at, resolved_at) VALUES (?, ?, 'Approve?', '["yes","no"]', ?, ?, ?, ?, 'agent-manager', ?, ?, ?, ?, ?)`, "ask-"+notificationID, notificationID, time.Now().Add(time.Hour).UTC().Format(time.RFC3339Nano), askState, now, now, "request-"+notificationID, defaultAnswer, reversible, defaultAppliedAt, resolvedAt)
+			require.NoError(t, err)
+			require.NoError(t, service.Process(ctx, notificationID))
+			got, _, err := service.Get(ctx, notificationID)
+			require.NoError(t, err)
+			require.Equal(t, "delivered", got.State)
+			require.Len(t, sender.messages, 1, "open and defaulted Asks retain their established routing/late-answer behavior")
+		})
+	}
+
+	t.Run("ordinary-fyi-without-ask-still-routes", func(t *testing.T) {
+		service, db := testService(t)
+		sender := &recordingSender{}
+		service.SetPushSender(sender)
+		registerSubscription(t, service, "alice")
+		notificationID := insertPending(t, db, "alice", "ordinary update", "public")
+		require.NoError(t, service.Process(ctx, notificationID))
+		got, _, err := service.Get(ctx, notificationID)
+		require.NoError(t, err)
+		require.Equal(t, "delivered", got.State)
+		require.Len(t, sender.messages, 1)
+	})
+}
+
 // [REQ:NOTIFICA-P1-009][REQ:NOTIFICA-P1-010]
 func TestAnswerAsk_PublishesResolutionOnceAndLateAnswerSupersedesDefault(t *testing.T) {
 	service, db := testService(t)

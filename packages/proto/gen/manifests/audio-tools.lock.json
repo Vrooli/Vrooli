@@ -27,6 +27,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "generator_digest": "sha256:d62f642cc85260466ef67f24653340c95d277e2268cdf9983a7144dca50b1d50",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -143,6 +144,7 @@
     "gen/typescript/audio-tools/v1/stt/stt_pb.ts": "sha256:8df403da6d3624873067b4daaa65c623852397b59fd0112fda90afe7d96d61e1",
     "gen/typescript/audio-tools/v1/summarize/summarize_pb.ts": "sha256:df742d60748654685b82c0191d946362876a95a7483efa43a1c7e3bd2aac3f66",
     "gen/typescript/audio-tools/v1/tts/tts_pb.ts": "sha256:2f5974d1e8c768b2f839d14564b3b639dffd2fa348a5d4a5e0cd4e22cb9e7b04",
-    "gen/typescript/audio-tools/v1/usage/usage_pb.ts": "sha256:24df86aa99b89341d5a746ab288704cecb54d8ea57c8c3419702542bb2e987a3"
+    "gen/typescript/audio-tools/v1/usage/usage_pb.ts": "sha256:24df86aa99b89341d5a746ab288704cecb54d8ea57c8c3419702542bb2e987a3",
+    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4"
   }
 }

@@ -13,7 +13,10 @@ import (
 // scenario raises through Vrooli Events, for example
 // agent_manager.effort.decision_requested.v1.
 const (
-	DecisionRequestPattern = "**.decision_requested.v1"
+	DecisionRequestPattern       = "**.decision_requested.v1"
+	DecisionWithdrawalPattern    = "agent_manager.run.decision_withdrawn.v1"
+	DecisionWithdrawalEventType  = DecisionWithdrawalPattern
+	RunApprovalDecisionEventType = "agent_manager.run.decision_requested.v1"
 	// NotificationRequestPattern subscribes the hub to every domain-neutral
 	// FYI notification any scenario raises through Vrooli Events, for example
 	// personal_planner.reminder.notification.v1.
@@ -25,6 +28,33 @@ const (
 	maxDecisionSubjectLength     = 80
 	maxDecisionRecommendationLen = 300
 )
+
+// DecisionWithdrawal is the exact lifecycle reference for a request that no
+// longer needs a human decision. It is separate from answer payloads and has
+// no answer or actor identity.
+type DecisionWithdrawal struct {
+	RequesterRef    string `json:"requester_ref"`
+	SourceEventType string `json:"source_event_type"`
+	Reason          string `json:"reason"`
+}
+
+func IsDecisionWithdrawal(eventType string) bool {
+	return strings.TrimSpace(eventType) == DecisionWithdrawalEventType
+}
+
+func ParseDecisionWithdrawal(raw json.RawMessage) (DecisionWithdrawal, error) {
+	var withdrawal DecisionWithdrawal
+	if err := json.Unmarshal(raw, &withdrawal); err != nil {
+		return DecisionWithdrawal{}, fmt.Errorf("%w: decision withdrawal payload is not valid JSON", hub.ErrInvalidArgument)
+	}
+	withdrawal.RequesterRef = strings.TrimSpace(withdrawal.RequesterRef)
+	withdrawal.SourceEventType = strings.TrimSpace(withdrawal.SourceEventType)
+	withdrawal.Reason = strings.TrimSpace(withdrawal.Reason)
+	if withdrawal.RequesterRef == "" || len(withdrawal.RequesterRef) > 128 || withdrawal.SourceEventType != RunApprovalDecisionEventType || (withdrawal.Reason != "verified_empty_diff" && withdrawal.Reason != "superseded_by_new_review") {
+		return DecisionWithdrawal{}, fmt.Errorf("%w: decision withdrawal identity or reason is invalid", hub.ErrInvalidArgument)
+	}
+	return withdrawal, nil
+}
 
 // IsDecisionRequest reports whether an event type asks the operator for a
 // structured decision.

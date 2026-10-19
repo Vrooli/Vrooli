@@ -15,6 +15,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "generator_digest": "sha256:d62f642cc85260466ef67f24653340c95d277e2268cdf9983a7144dca50b1d50",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -62,6 +63,7 @@
     "gen/python/ui_health/v1/visualhealth/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/ui_health/v1/visualhealth/visualhealth_pb2.py": "sha256:9d4ca8229bbe367e79bfe3697c42b2dfc3ef1f129fb4e91c9a96a4554a3ced33",
     "gen/python/ui_health/v1/visualhealth/visualhealth_pb2.pyi": "sha256:cf6b9f4193e340f6db25ff0d7c3b2ab07b05eaa9e68d515cdfefa5c32ff36e17",
+    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4",
     "gen/typescript/ui-health/v1/contracts/provenance/provenance_pb.ts": "sha256:34e294d531deda9021ded2a13fda8e4573013bd98b444cbf1d7c8d3bd037fa34",
     "gen/typescript/ui-health/v1/contracts/widget/widget_pb.ts": "sha256:ce19b1ed7cecd3cf4f1a7b427ecc8cfe6397c3dede75b3cbaeadabdf6205723e",
     "gen/typescript/ui-health/v1/errors/errors_pb.ts": "sha256:74616457be5a98d56bd55e56ee2c157f487f3966a3c9fe49243f25217ac6b6a9",
