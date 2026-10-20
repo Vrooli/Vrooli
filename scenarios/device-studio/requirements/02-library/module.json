@@ -1,0 +1,234 @@
+{
+  "_metadata": {
+    "module": "library",
+    "description": "Qualified representative library. Fresh product contract; all behavior remains unimplemented.",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": true
+  },
+  "requirements": [
+    {
+      "id": "DS-LIB-PHONE",
+      "title": "The library shall release a qualified slab-phone recipe.",
+      "description": "The library shall provide at least one accurate or explicitly generic slab phone with qualified front, rear and side views, screen cutouts and whole-device rotation scope.",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "library",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-LIB-PHONE protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-LIB-PHONE",
+            "planned_automation": "Reference-comparison, mask and temporal acceptance suite.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    },
+    {
+      "id": "DS-LIB-LAPTOP",
+      "title": "The library shall release a mechanically qualified laptop recipe.",
+      "description": "The library shall provide at least one laptop with separate rigid base and lid, qualified hinge endpoints and intermediate poses, active display and supported contact envelope.",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "library",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-LIB-LAPTOP protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-LIB-LAPTOP",
+            "planned_automation": "Rig/clearance property tests plus final-profile continuous-motion review.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    },
+    {
+      "id": "DS-LIB-TABLET",
+      "title": "The library shall release a qualified tablet recipe.",
+      "description": "The library shall provide at least one accurate or explicitly generic tablet with declared portrait/landscape mapping, corner and camera exclusions, supported poses and any stand attachment.",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "library",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-LIB-TABLET protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-LIB-TABLET",
+            "planned_automation": "Variant, mapping and attachment fixtures plus craft review.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    },
+    {
+      "id": "DS-LIB-FOLDABLE",
+      "title": "The library shall release a scoped foldable recipe.",
+      "description": "The library shall provide at least one foldable with independent external/internal surfaces or explicit dual-rigid topology, named supported states, actual capture-layout bindings and declared articulation limits.",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "library",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-LIB-FOLDABLE protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-LIB-FOLDABLE",
+            "planned_automation": "Topology/state/handoff fixtures and visual state review.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    },
+    {
+      "id": "DS-LIB-WATCH",
+      "title": "The library shall release a round-watch recipe.",
+      "description": "The library shall provide at least one round watch with physical active mask, app-safe region, variant-specific body and display measurements and explicitly supported strap or floating pose.",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "library",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-LIB-WATCH protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-LIB-WATCH",
+            "planned_automation": "Mask/ROI diagnostics and declared-pose review.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    },
+    {
+      "id": "DS-LIB-MONITOR-TV",
+      "title": "The library shall qualify monitor and TV support cases.",
+      "description": "The library shall provide monitor/TV representative coverage with explicit stand and wall-mount cases, exact or generic-labeled interfaces and pose/clearance scope.",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "library",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-LIB-MONITOR-TV protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-LIB-MONITOR-TV",
+            "planned_automation": "Attachment/clearance fixtures plus placement review.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    },
+    {
+      "id": "DS-LIB-SMART-DISPLAY",
+      "title": "The library shall qualify smart-display and frame cases.",
+      "description": "The library shall provide smart-display/frame representative coverage with fixed-wedge, stand or wall attachment geometry and declared active-screen orientation.",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "library",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-LIB-SMART-DISPLAY protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-LIB-SMART-DISPLAY",
+            "planned_automation": "Variant/support fixtures and final-look review.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    },
+    {
+      "id": "DS-LIB-VEHICLE",
+      "title": "The library shall release an embedded vehicle-host recipe.",
+      "description": "The library shall provide a vehicle-host representative separating host trim, physical panels, app viewport and system UI, with model/configuration and supported camera-occlusion scope.",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "library",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-LIB-VEHICLE protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-LIB-VEHICLE",
+            "planned_automation": "Host/panel/app-window compatibility fixtures plus visual review.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    }
+  ]
+}

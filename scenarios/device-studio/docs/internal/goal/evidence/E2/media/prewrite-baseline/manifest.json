@@ -1,0 +1,296 @@
+[
+  {
+    "path": "packages/proto/schemas/device-studio/v1/projects/projects.proto",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "bytes": 1631,
+    "sha256": "faf7c7ac42578bc328869382532344d1958a0c31380db02f38412b17577d0974"
+  },
+  {
+    "path": "packages/proto/gen/.vrooli-proto-artifact.json",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "bytes": 205,
+    "sha256": "45176f0bbf9b92eb75ebfb41229d8639abc8741cbaaa11d3fb58069f0fa38178"
+  },
+  {
+    "path": "packages/proto/gen/descriptor/image.binpb",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "bytes": 8583415,
+    "sha256": "756d420ba638133a931e79539b7cc5350075a600d4cc6acae34ba0ae49e5c822"
+  },
+  {
+    "path": "packages/proto/gen/manifests/device-studio.lock.json",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "bytes": 4618,
+    "sha256": "52d87468db1035fcb9fc3482f8a549729f00c429ef717b7413a320b825c44617"
+  },
+  {
+    "path": "packages/proto/gen/go/device-studio/v1/projects/projects.pb.go",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "bytes": 23360,
+    "sha256": "197a1d932a6d9f95650bbc593dde1c8b1f616e136435d8e23d921d59dd6ecff3"
+  },
+  {
+    "path": "packages/proto/gen/go/device-studio/v1/projects/projects_v1connect/projects.connect.go",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "bytes": 10968,
+    "sha256": "df4c4fab4c53fdb6de27a743ae9490f51a6a9b10711f0ef861cdb06da0cf9864"
+  },
+  {
+    "path": "packages/proto/gen/python/device_studio/v1/projects/py.typed",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "packages/proto/gen/python/device_studio/v1/projects/projects_pb2.pyi",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "bytes": 3851,
+    "sha256": "1ec2607fd36ad90cfb90938937bbd88d66525da75a30b5812e0b59106fcce06d"
+  },
+  {
+    "path": "packages/proto/gen/python/device_studio/v1/projects/projects_pb2.py",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "bytes": 5012,
+    "sha256": "36ec448d8115f93be7ecf249ffeb8ca326e5a52b47f0ca3569a631a9c06bb689"
+  },
+  {
+    "path": "packages/proto/gen/typescript/device-studio/v1/projects/projects_pb.ts",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "bytes": 11047,
+    "sha256": "190190b6d790fc0238a33a676a3429ca1ddaa0fa4906105a1df806df29d11d44"
+  },
+  {
+    "path": "scenarios/device-studio/api/main.go",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "bytes": 4246,
+    "sha256": "d3872691ac097705f097f323d771c001e7cd5c573e1e5f4dcef6c49635d53306"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/projects/schema.sql",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "bytes": 458,
+    "sha256": "6c853cec5ae633571afdcba8f6c953bb2a22bfeda6d232a42333d6dcd10e059a"
+  },
+  {
+    "path": "scenarios/device-studio/api/handlers/projects/module.go",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "bytes": 918,
+    "sha256": "bbd109e33174f299aeb23401461bfdf21572d114c869f340df758a622c149f14"
+  },
+  {
+    "path": "scenarios/device-studio/api/handlers/projects/endpoints.go",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "bytes": 1082,
+    "sha256": "b6f7176d712c39d4dfa5e7a44531ee6c7ac96633364d7bc3e8ec0bf37731f61f"
+  },
+  {
+    "path": "scenarios/device-studio/api/handlers/projects/connect_handler.go",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "bytes": 2222,
+    "sha256": "9e8ee76910346bdb2bc621ff619011bc09465e6018f05927f9c3cee20dfd42ec"
+  },
+  {
+    "path": "scenarios/device-studio/api/handlers/projects/adapter.go",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "bytes": 436,
+    "sha256": "74f543396d35c46d42891991d1c57080037f67ce1f2be73e66c9361763fc6399"
+  },
+  {
+    "path": "scenarios/device-studio/api/handlers/projects/errors.go",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "bytes": 1118,
+    "sha256": "5f30889c4ced716b500a9ec5c63a24ec372993afae763e0130f5d726043ba687"
+  },
+  {
+    "path": "scenarios/device-studio/api/handlers/notes/module.go",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "bytes": 9849,
+    "sha256": "61384f3a7a9071c07018107ac924132f546ef744c2b96de48a7f5f7a87b3a714"
+  },
+  {
+    "path": "scenarios/device-studio/api/handlers/notes/routed_blobstore.go",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "bytes": 1727,
+    "sha256": "34de6b558f91cbfe798c5e08e4ffede630e1f0bd2062f3200345a727e881d594"
+  },
+  {
+    "path": "scenarios/device-studio/api/handlers/notes/routed_blobstore_test.go",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "bytes": 3020,
+    "sha256": "cb767b23412faa2583df1ab7ef53ee227225487498eeedad19c147202124f8f6"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/modules/registry.go",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "bytes": 3837,
+    "sha256": "cf4ba83c8ac526706907ce3ef71404bb16dae6a5f0eecf17f086090fbcf67837"
+  },
+  {
+    "path": "scenarios/device-studio/.vrooli/endpoints.json",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "bytes": 9521,
+    "sha256": "878715b00d636dd22488dfd4eb2e2e429a00393e3ca0a0468a2fd808f6ebf8dc"
+  },
+  {
+    "path": "scenarios/device-studio/cli/manifest.json",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "bytes": 7483,
+    "sha256": "819e3e9e8f0c8a722180bcfec08425b33eecb1ae3078cd8556edca5fa591551d"
+  },
+  {
+    "path": "scenarios/device-studio/cli/domains/domains.go",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "bytes": 2133,
+    "sha256": "fbf912f588a3aa89e484230e0023543002db854922e414eb18ae6133532cda73"
+  },
+  {
+    "path": "scenarios/device-studio/cli/domains/projects/register.go",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "bytes": 796,
+    "sha256": "36798e1392e5cd259f3df2b36629b8e37edacadb57e00bfc20844728586288e0"
+  },
+  {
+    "path": "scenarios/device-studio/cli/domains/projects/handlers.go",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "bytes": 4998,
+    "sha256": "b691cf142b35f64a864006dd5ce4f4b50efa7b1333d43bebbf6e31c4a46395ec"
+  },
+  {
+    "path": "scenarios/device-studio/cli/domains/projects/handlers_test.go",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "bytes": 1082,
+    "sha256": "329604e9b9121f061415966bdfb8acbe8988bdb9cd82acc64c748d24d12ff4cc"
+  },
+  {
+    "path": "scenarios/device-studio/cli/app.go",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "bytes": 1713,
+    "sha256": "92a8ffc2e716198b19079ae57309cd7bf41c8a693fc590a04abb2fb2090b8087"
+  },
+  {
+    "path": "scenarios/device-studio/cli/app_test.go",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "bytes": 3786,
+    "sha256": "544190afba74518966ba28c6f3db6b92caec7dbe5b77f48e8c319f82aba6853e"
+  },
+  {
+    "path": "scenarios/device-studio/docs/reference/api-endpoints.md",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "bytes": 10870,
+    "sha256": "793201c98e89ec4de1a249187572da0bdb37e9f860aecd9edecf205da18cae89"
+  },
+  {
+    "path": "scenarios/device-studio/docs/reference/cli-commands.md",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "bytes": 14245,
+    "sha256": "9e3cc34e7767a8ede41f8b01088ab4179cbc848f04484245f599831349b57a29"
+  },
+  {
+    "path": "scenarios/device-studio/docs/concepts/DATA.md",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "bytes": 8961,
+    "sha256": "d94d3d6f5b29cb6dcd037916413d7c6b173198ffcd2b85e89b92217545e0514e"
+  },
+  {
+    "path": "packages/cli-core/cliapp/upload.go",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "bytes": 4174,
+    "sha256": "9f2322a8db8c266dcedf10300201c7363ede8466c6000b0fcd5462595fb310fc"
+  },
+  {
+    "path": "packages/cli-core/cliapp/upload_test.go",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "bytes": 6517,
+    "sha256": "17b0c3506737d38e78d17b0883446715234ec60b60fa62a0c6371aff887a7b57"
+  },
+  {
+    "path": "packages/proto/schemas/device-studio/v1/projects/media.proto",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/projects/media.go",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/projects/media_sqlite.go",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/device-studio/api/handlers/projects/media_handler.go",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/device-studio/api/handlers/projects/media_upload.go",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/routedblobstore/store.go",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/routedblobstore/store_test.go",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/device-studio/cli/domains/media/register.go",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/device-studio/cli/domains/media/handlers.go",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/device-studio/cli/domains/media/handlers_test.go",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/device-studio/cli/domains/media/manifest_test.go",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/device-studio/docs/internal/goal/evidence/E2/media/implementation.json",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/device-studio/docs/internal/goal/evidence/E2/media/slice-log.txt",
+    "observed_at": "2026-10-20T02:47:49.898562+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/projects/image_metadata.go",
+    "observed_at": "2026-10-20T02:50:56.043491+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/projects/image_metadata_test.go",
+    "observed_at": "2026-10-20T02:50:56.043491+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/projects/media_test.go",
+    "observed_at": "2026-10-20T02:50:56.043491+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/device-studio/api/handlers/projects/media_handler_test.go",
+    "observed_at": "2026-10-20T02:50:56.043491+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/device-studio/api/handlers/projects/media_upload_test.go",
+    "observed_at": "2026-10-20T02:50:56.043491+00:00",
+    "absent": true
+  }
+]

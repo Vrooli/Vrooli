@@ -1,0 +1,94 @@
+{
+  "_metadata": {
+    "module": "integration",
+    "description": "Public operations and launch-video integration. Fresh product contract; all behavior remains unimplemented.",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": true
+  },
+  "requirements": [
+    {
+      "id": "DS-INTEGRATION-OPERATIONS",
+      "title": "The public contract shall expose UI-equivalent operations.",
+      "description": "The API and CLI shall provide discoverable typed project/library/shot/job/creation/review operations with stable errors, immutable references, progress/cancel/reopen behavior and object authorization matching the UI.",
+      "prd_ref": "OT-P0-013",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "integration",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-INTEGRATION-OPERATIONS protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-INTEGRATION-OPERATIONS",
+            "planned_automation": "API/CLI contract, auth and parity journeys.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    },
+    {
+      "id": "DS-INTEGRATION-LAUNCH",
+      "title": "The launch-video workflow shall consume reproducible device shots.",
+      "description": "The launch-video consumer shall request, save, reopen and render a shot through public operations and use returned standalone media and provenance while retaining film/audio/CTA ownership outside Device Studio.",
+      "prd_ref": "OT-P0-013",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "integration",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-INTEGRATION-LAUNCH protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-INTEGRATION-LAUNCH",
+            "planned_automation": "Real consumer/API replay and resulting film-segment review.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    },
+    {
+      "id": "DS-INTEGRATION-DELIVERY",
+      "title": "The system shall deliver standalone inspectable artifacts.",
+      "description": "The system shall return directly accessible PNG/MP4/model/native/project artifacts as supported, with digests, attribution and readable limitations independent of HTML navigation.",
+      "prd_ref": "OT-P0-013",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "integration",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-INTEGRATION-DELIVERY protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-INTEGRATION-DELIVERY",
+            "planned_automation": "Direct artifact/download/reimport checks in intended consumer environment.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+[
+  {
+    "source": "scenarios/device-studio/docs/mockups/projects-desktop.svg",
+    "source_sha256": "1502bdbed45b7a523a005aff75de3b376e8d46016d538acec28dd4b654cb9223",
+    "raster": "scenarios/device-studio/docs/mockups/projects-desktop.png",
+    "sha256": "f0584b416c29c4bb51a0619ba25ea14b10e244ab25d99bb16e864165f31f5845",
+    "dimensions": [
+      1440,
+      900
+    ],
+    "review": "parent rasterization for operator UI concept/mockup checkpoint; no human acceptance yet"
+  },
+  {
+    "source": "scenarios/device-studio/docs/mockups/projects-mobile.svg",
+    "source_sha256": "2656affafc738943b2c572f2ed0e80ec330915b283aeb947cce6e289468d206b",
+    "raster": "scenarios/device-studio/docs/mockups/projects-mobile.png",
+    "sha256": "ed8348d3933fd0f548034ae196710a2bc367ea4ebfbe25ac5d19556415bb02a3",
+    "dimensions": [
+      430,
+      900
+    ],
+    "review": "parent rasterization for operator UI concept/mockup checkpoint; no human acceptance yet"
+  }
+]

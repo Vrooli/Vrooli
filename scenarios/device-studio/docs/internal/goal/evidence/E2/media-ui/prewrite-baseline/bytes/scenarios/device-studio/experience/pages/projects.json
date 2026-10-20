@@ -1,0 +1,166 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "projects",
+    "title": "Projects",
+    "routes": [
+      "/projects"
+    ],
+    "purpose": "Find, create and safely reopen local presentation projects with their latest saved work and unresolved tasks.",
+    "prd_refs": [
+      "OT-P0-001",
+      "OT-P0-009",
+      "OT-P0-012",
+      "OT-P0-013"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Find the project and its latest useful output."
+    },
+    {
+      "statement": "Start a local project without an account or provider call."
+    },
+    {
+      "statement": "Understand recovery and missing inputs before opening a project."
+    }
+  ],
+  "states": [
+    {
+      "id": "idle",
+      "description": "No operation is pending; identify the current task and available next action."
+    },
+    {
+      "id": "pending",
+      "description": "Work is acknowledged and queued or in flight with observed progress or an honest indeterminate state."
+    },
+    {
+      "id": "retrying",
+      "description": "A safe retry is actively reconciling or executing without blind duplicate side effects."
+    },
+    {
+      "id": "default",
+      "description": "Explain the current task, saved revision and next meaningful action."
+    },
+    {
+      "id": "loading",
+      "description": "Name what is loading; retain stable layout and existing local content."
+    },
+    {
+      "id": "submitting",
+      "description": "Acknowledge the requested operation once and prevent duplicate costly submissions."
+    },
+    {
+      "id": "saving",
+      "description": "Distinguish local draft changes from durably saved revision; never claim saved early."
+    },
+    {
+      "id": "syncing",
+      "description": "Explain local versus remote state and conflict resolution without silently overwriting edits."
+    },
+    {
+      "id": "refreshing",
+      "description": "Retain usable content and identify the specific information being refreshed."
+    },
+    {
+      "id": "empty",
+      "description": "Explain why there is no content and offer a relevant low-risk first action."
+    },
+    {
+      "id": "partial",
+      "description": "Show which inputs, output or services are available and which remain incomplete."
+    },
+    {
+      "id": "stale",
+      "description": "Show age, affected decisions and explicit refresh; never silently spend on refresh."
+    },
+    {
+      "id": "success",
+      "description": "Confirm the concrete durable result and offer inspection or the next task."
+    },
+    {
+      "id": "validation-error",
+      "description": "Associate actionable correction with each invalid field while preserving input."
+    },
+    {
+      "id": "request-error",
+      "description": "Explain the failed operation, preserved work and safe next action with diagnostic reference."
+    },
+    {
+      "id": "permission-denied",
+      "description": "Identify the unavailable operation and authority boundary without requesting unrelated access."
+    },
+    {
+      "id": "offline",
+      "description": "Keep supported local work usable; mark online operations unavailable and never auto-submit paid work on reconnect."
+    },
+    {
+      "id": "retry",
+      "description": "Explain whether retry reuses an operation identity, reconciles prior work or starts a newly authorized operation."
+    },
+    {
+      "id": "recoverable",
+      "description": "An interrupted draft offers inspect/recover/discard; no automatic remote execution."
+    },
+    {
+      "id": "importing",
+      "description": "Validate archive limits, paths and versions before extraction into a managed workspace."
+    },
+    {
+      "id": "missing-media",
+      "description": "Offer local relink by hash/path with preview and no automatic upload."
+    }
+  ],
+  "claims": [
+    {
+      "id": "projects-intent-1",
+      "type": "custom",
+      "statement": "Project entry preserves the last durable shot revision and distinguishes recoverable draft work.",
+      "tier": "aspirational",
+      "rationale": "Unimplemented design intent; runtime bindings, exact state setup, visual evidence and operator review remain required."
+    },
+    {
+      "id": "projects-intent-2",
+      "type": "custom",
+      "statement": "Creating, searching and opening local projects require no cloud sign-in, credits or hidden AI call.",
+      "tier": "aspirational",
+      "rationale": "Unimplemented design intent; runtime bindings, exact state setup, visual evidence and operator review remain required."
+    }
+  ],
+  "x-route-status": "partially-implemented",
+  "x-design": {
+    "layout": "Searchable recent-project rows with meaningful thumbnails, save/recovery badges and one Create project action; compact list alternative. Mobile preserves search and recovery actions.",
+    "controls": [
+      "Create project naming and workspace location; no AI call",
+      "Open or import portable project archive with bounded inspection",
+      "Search/filter/sort by recent edit, name, status; accessible list/grid switch",
+      "Rename, duplicate, archive and delete with affected-media explanation and recoverability policy"
+    ],
+    "details": [
+      "Thumbnail absence is a neutral placeholder, not fabricated success.",
+      "Import shows version, required media, missing files, unsupported features and secret stripping before adoption.",
+      "Local file-picker cancellation leaves current project untouched."
+    ]
+  },
+  "x-requirements": [
+    "DS-SAFETY-IMPORT"
+  ],
+  "x-evidence-policy": "No fake selectors, region bindings, setup hooks, captures or attestations. Planned controls are metadata until implemented and grounded.",
+  "x-implementation": {
+    "stage": "E1 workspace; final scoped unit pending",
+    "implemented": [
+      "Create a named local project",
+      "List and open persisted projects",
+      "Honest empty and no-saved-shot preview states",
+      "Approved Light-table desktop/mobile composition"
+    ],
+    "evidence": [
+      "docs/internal/goal/evidence/E1/routed-live-journey.json",
+      "docs/internal/goal/evidence/E1/primary-restart-readonly.json",
+      "docs/internal/goal/evidence/E1/ui-light-table/README.md"
+    ],
+    "limits": "Existing aspirational shot, recovery, privacy, budget, archive and search claims remain unimplemented. E2 media UI is in progress. No release or whole-page claim is promoted by this annotation."
+  }
+}

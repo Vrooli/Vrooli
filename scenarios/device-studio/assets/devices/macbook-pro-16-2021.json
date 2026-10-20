@@ -1,0 +1,149 @@
+{
+  "schema_version": "device-definition/v1",
+  "id": "macbook-pro-16-2021",
+  "group": "laptop",
+  "kind": "laptop",
+  "identity_status": "documented_product",
+  "manufacturer": "Apple",
+  "model": "MacBook Pro (16-inch, 2021)",
+  "dimensions": {
+    "closed": {
+      "width": {
+        "value": 355.7,
+        "unit": "mm",
+        "meaning": "left-to-right in front reference pose",
+        "configuration": "closed",
+        "method": "manufacturer",
+        "uncertainty": {
+          "status": "source_unspecified",
+          "explanation": "Manufacturer publishes nominal value; tolerance and protrusion envelope are not provided in this source record."
+        },
+        "evidence": [
+          {
+            "source": "https://support.apple.com/en-us/111901",
+            "kind": "manufacturer_specification",
+            "qualifier": "Manufacturer dimensions interpreted as closed envelope in archived source record."
+          }
+        ]
+      },
+      "height": {
+        "value": 248.1,
+        "unit": "mm",
+        "meaning": "bottom-to-top in front reference pose",
+        "configuration": "closed",
+        "method": "manufacturer",
+        "uncertainty": {
+          "status": "source_unspecified",
+          "explanation": "Manufacturer publishes nominal value; tolerance and protrusion envelope are not provided in this source record."
+        },
+        "evidence": [
+          {
+            "source": "https://support.apple.com/en-us/111901",
+            "kind": "manufacturer_specification",
+            "qualifier": "Manufacturer dimensions interpreted as closed envelope in archived source record."
+          }
+        ]
+      },
+      "depth": {
+        "value": 16.8,
+        "unit": "mm",
+        "meaning": "front-to-back in front reference pose",
+        "configuration": "closed",
+        "method": "manufacturer",
+        "uncertainty": {
+          "status": "source_unspecified",
+          "explanation": "Manufacturer publishes nominal value; tolerance and protrusion envelope are not provided in this source record."
+        },
+        "evidence": [
+          {
+            "source": "https://support.apple.com/en-us/111901",
+            "kind": "manufacturer_specification",
+            "qualifier": "Manufacturer dimensions interpreted as closed envelope in archived source record."
+          }
+        ]
+      }
+    }
+  },
+  "displays": [
+    {
+      "id": "built-in-display",
+      "topology": "planar",
+      "physical_boundary": {
+        "status": "unknown"
+      },
+      "active_area": {
+        "status": "unknown"
+      },
+      "app_safe_area": {
+        "status": "unknown"
+      },
+      "hardware_occlusions": []
+    }
+  ],
+  "joints": [
+    {
+      "id": "lid-hinge",
+      "parent_part": "base",
+      "child_part": "lid",
+      "status": "unknown"
+    }
+  ],
+  "supported_poses": [
+    {
+      "name": "closed",
+      "status": "candidate_only"
+    },
+    {
+      "name": "open",
+      "status": "candidate_only"
+    }
+  ],
+  "supported_motion": [
+    {
+      "name": "lid_hinge_open_close",
+      "status": "unknown"
+    }
+  ],
+  "supported_profiles": [],
+  "supports": [
+    {
+      "kind": "tabletop",
+      "status": "candidate_only",
+      "interface_id": "integrated-base"
+    }
+  ],
+  "model_candidates": [
+    {
+      "id": "v4-macbook-pro-m3-16-2024",
+      "status": "candidate_only",
+      "source_path": "/home/matthalloran8/.vrooli/evidence/device-presentation-2026-10-18/v4/laptop/macbook-browser-desktop.glb",
+      "sha256": "3a172a457714984819fe1e78e3af887003c2a458df50cb1ae81595edf8dafbe3",
+      "listing_url": "https://sketchfab.com/3d-models/macbook-pro-m3-16-inch-2024-8e34fc2b303144f78490007d91ff57c4",
+      "author": "jackbaeten",
+      "license": "CC BY 4.0",
+      "attribution": "Credit jackbaeten; include adaptation notice",
+      "rights_notes": "Exact local GLB bytes; listing identifies a 2024 M3 16-inch model, while this definition describes 2021; source transform was scaled to 355.7 mm width; no hinge/closed-state validation."
+    },
+    {
+      "id": "macbook-pro-16-2021-listing",
+      "status": "not_acquired",
+      "listing_url": "https://sketchfab.com/3d-models/apple-macbook-pro-16-inch-2021-6a42b31bac064b00a91fbfebec07c852",
+      "license": "license not recorded",
+      "rights_notes": "Title matches representative; archive records no acquired bytes or verified license terms."
+    }
+  ],
+  "provenance": [
+    {
+      "source": "https://support.apple.com/en-us/111901",
+      "kind": "manufacturer_specification",
+      "qualifier": "MacBook Pro (16-inch, 2021) published dimensions; open pose, hinge, and display active bounds not specified here."
+    },
+    {
+      "source": "/home/matthalloran8/.vrooli/evidence/device-presentation-2026-10-18/model-sourcing/large-devices.json",
+      "kind": "archived_source_record",
+      "qualifier": "Dimensions and candidate title/rights comparison."
+    }
+  ],
+  "qualification": "unqualified",
+  "description": "The M3 GLB is not the same generation as the dimensioned 2021 model; do not apply these dimensions to its mesh."
+}

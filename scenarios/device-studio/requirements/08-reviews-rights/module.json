@@ -1,0 +1,150 @@
+{
+  "_metadata": {
+    "module": "reviews-rights",
+    "description": "Rights and scoped visual qualification. Fresh product contract; all behavior remains unimplemented.",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": true
+  },
+  "requirements": [
+    {
+      "id": "DS-REVIEW-RIGHTS",
+      "title": "The library shall verify rights for actual dependency bytes.",
+      "description": "Before reusable release or editable export, the system shall record source, author, pinned bytes, license and attribution/change obligations for model, textures, media, fonts and references and reject unsupported intended reuse.",
+      "prd_ref": "OT-P0-008",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "reviews-rights",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-REVIEW-RIGHTS protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-REVIEW-RIGHTS",
+            "planned_automation": "Rights-policy decision fixtures and package attribution audit.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    },
+    {
+      "id": "DS-REVIEW-PHYSICAL",
+      "title": "The review shall bind physical evidence to use scope.",
+      "description": "The physical review shall report component/configuration bounds, calibrated silhouette/landmark comparisons, held-out views, rig/mount clearance and known unknowns against declared per-shot thresholds.",
+      "prd_ref": "OT-P0-008",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "reviews-rights",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-REVIEW-PHYSICAL protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-REVIEW-PHYSICAL",
+            "planned_automation": "Reference/measurement and motion-sweep checks with attended verdict.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    },
+    {
+      "id": "DS-REVIEW-CRAFT",
+      "title": "The release shall require final-profile visual acceptance.",
+      "description": "Before release of a device/scene/motion recipe, a reviewer shall inspect actual final-profile stills and continuous motion for silhouette, materials, lighting, contact, readability, reflections and temporal defects against the selected benchmark.",
+      "prd_ref": "OT-P0-008",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "reviews-rights",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-REVIEW-CRAFT protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-REVIEW-CRAFT",
+            "planned_automation": "Attended art-direction protocol with accepted/rejected comparison evidence.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    },
+    {
+      "id": "DS-REVIEW-PORTABLE",
+      "title": "The export shall retain separately qualified portable behavior.",
+      "description": "When native or portable packages are exported, the system shall pin dependency closure, rights, scale, screen mapping and retained material/rig behavior and reimport or target-viewer-check the promised format.",
+      "prd_ref": "OT-P0-008",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "reviews-rights",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-REVIEW-PORTABLE protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-REVIEW-PORTABLE",
+            "planned_automation": "Export/reimport/target-admission tests and visual inspection.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    },
+    {
+      "id": "DS-REVIEW-PUBLICATION",
+      "title": "The system shall preserve shared publication ownership.",
+      "description": "When an accepted asset is proposed for shared publication, Device Studio shall pass provenance and scoped physical/craft review to Asset Studio without cloning generic asset identity, release state or byte authority.",
+      "prd_ref": "OT-P0-008",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "reviews-rights",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-REVIEW-PUBLICATION protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-REVIEW-PUBLICATION",
+            "planned_automation": "Owner-adapter and unavailable-state integration tests.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    }
+  ]
+}

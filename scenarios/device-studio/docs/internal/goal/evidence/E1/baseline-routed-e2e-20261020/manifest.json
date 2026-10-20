@@ -1,0 +1,29 @@
+[
+  {
+    "path": "scenarios/device-studio/bas/registry.json",
+    "observed_at": "2026-10-20T02:30:08.970988+00:00",
+    "bytes": 1945,
+    "sha256": "4d565b3c79316ab31d687a38ba1cce366fc3c45035ea33d376b74b635b0b7933"
+  },
+  {
+    "path": "scenarios/device-studio/bas/cases/routed-database/proves-test-pool-routing.json",
+    "observed_at": "2026-10-20T02:30:08.971333+00:00",
+    "bytes": 3015,
+    "sha256": "1010ccf2d15a18128fff8426de98bff7c440c430aba78e777b8e63ff466c113c"
+  },
+  {
+    "path": "scenarios/device-studio/bas/seeds/seed.go",
+    "observed_at": "2026-10-20T02:30:08.971542+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/device-studio/bas/seeds/seed.sh",
+    "observed_at": "2026-10-20T02:30:08.971627+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/device-studio/bas/seeds/state.json",
+    "observed_at": "2026-10-20T02:30:08.971705+00:00",
+    "absent": true
+  }
+]

@@ -1,0 +1,8 @@
+scenarios/device-studio/api/internal/jobs/types.go
+scenarios/device-studio/api/internal/jobs/repository.go
+scenarios/device-studio/api/internal/jobs/service.go
+scenarios/device-studio/api/internal/jobs/schema.go
+scenarios/device-studio/api/internal/jobs/schema.sql
+scenarios/device-studio/api/internal/jobs/sqlite.go
+scenarios/device-studio/api/internal/jobs/service_test.go
+scenarios/device-studio/api/internal/jobs/sqlite_test.go

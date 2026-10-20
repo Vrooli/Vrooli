@@ -1,0 +1,122 @@
+{
+  "_metadata": {
+    "module": "editing",
+    "description": "Guided and advanced shot editing. Fresh product contract; all behavior remains unimplemented.",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": true
+  },
+  "requirements": [
+    {
+      "id": "DS-EDIT-GUIDED",
+      "title": "The UI shall guide complete saved-shot creation.",
+      "description": "The shot builder shall let a user choose device/scene, assign media, configure presentation/motion/output, preview, render/export and reopen a saved project with persistent preview and actionable states.",
+      "prd_ref": "OT-P0-005",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "editing",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-EDIT-GUIDED protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-EDIT-GUIDED",
+            "planned_automation": "Accessible end-to-end happy/empty/error/reopen journeys.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    },
+    {
+      "id": "DS-EDIT-ADVANCED",
+      "title": "The editor shall expose advanced shot controls.",
+      "description": "The editor shall expose camera and focal framing, lighting, support/placement, screen calibration, device/joint keyframes and timeline timing while preserving qualified limits and independent reusable libraries.",
+      "prd_ref": "OT-P0-005",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "editing",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-EDIT-ADVANCED protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-EDIT-ADVANCED",
+            "planned_automation": "Interaction/model round-trip tests and advanced editing journey.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    },
+    {
+      "id": "DS-EDIT-PREVIEW",
+      "title": "The UI shall present truthful progressive previews.",
+      "description": "The UI shall provide framing/pose preview and asynchronous final-profile checkpoints with labeled fidelity, progress, cancellation and measured latency rather than claiming native-render interactive speed.",
+      "prd_ref": "OT-P0-005",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "editing",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-EDIT-PREVIEW protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-EDIT-PREVIEW",
+            "planned_automation": "Preview revision/state/latency checks and attended usability review.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    },
+    {
+      "id": "DS-EDIT-ACCESSIBILITY",
+      "title": "The UI shall provide accessible editing alternatives.",
+      "description": "The UI shall provide visible labels, keyboard/numeric alternatives to drag controls, focus recovery, noncolor status cues and responsive review of the core workflow.",
+      "prd_ref": "OT-P0-005",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "editing",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-EDIT-ACCESSIBILITY protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-EDIT-ACCESSIBILITY",
+            "planned_automation": "Accessibility audits and keyboard/mobile-review journeys.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    }
+  ]
+}

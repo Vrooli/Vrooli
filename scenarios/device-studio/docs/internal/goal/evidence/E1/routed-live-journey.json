@@ -1,0 +1,55 @@
+{
+  "kind": "test-genie-playbooks-seed-routed-project-journey",
+  "observed_at": "2026-10-20T02:40:58.437483+00:00",
+  "test_genie_suite_run": false,
+  "lease_owner": "Test Genie playbooks-seed API",
+  "lease_run_id": "6be04f2f-b0d1-4dd4-a7df-2336c3fe6a05",
+  "lease_apply_status": "seeded",
+  "lease_cleanup_status": "cleaned",
+  "project": {
+    "id": "0e24b0df-2f09-4ca8-9a27-52650ad48957",
+    "name": "E1 routed project renamed",
+    "initialRevision": 1,
+    "currentRevision": 2,
+    "listedBefore": true,
+    "openedBefore": true,
+    "staleConflictRejected": true,
+    "reopenedAfterRename": true,
+    "listedAfter": true
+  },
+  "journey": "Device Studio CLI built from current sources, with DEVICE_STUDIO_TEST_MODE=1 and the exact Test Genie target API URL",
+  "journey_assertions": {
+    "create_list_open_rename_conflict_reopen_passed": true,
+    "stale_conflict_detail_asserted_by_seed": "expected revision 1, current revision 2",
+    "separate_cli_conflict_probe_output": "Error: project 0077500b-ad30-44ae-bf1c-abe8a2c66996 revision conflict: expected revision 1, current revision 2",
+    "primary_list_excludes_routed_project_id": true
+  },
+  "routed_lease_stats": {
+    "source": "RoutingService.ClearTestPool response before Test Genie cleanup",
+    "response": {
+      "testPoolRequests": "8"
+    },
+    "test_pool_requests": 8,
+    "primary_during_test_mode_requests": 0,
+    "test_root_writes": 0,
+    "primary_root_writes_during_test_mode": 0,
+    "omitted_protobuf_scalar_fields_interpreted_as_default_zero": true
+  },
+  "file_routing": {
+    "test_genie_install_response_requires_file_roots_installed_before_seed": true,
+    "test_root_writes": 0,
+    "primary_root_writes_during_test_mode": 0,
+    "live_file_mutation_exercised": false,
+    "focused_routed_notes_blobstore_test_passed": true
+  },
+  "cleanup_receipt": {
+    "status": "cleaned",
+    "scenario": "device-studio",
+    "run_id": "6be04f2f-b0d1-4dd4-a7df-2336c3fe6a05"
+  },
+  "failed_pre-migration_attempts": {
+    "cause": "test pool lacked projects table before test-only schema migration symlink was added",
+    "runtime_evidence": "RoutingService.ClearTestPool returned HTTP 200 after each failed seed attempt",
+    "primary_mutation": false
+  }
+}

@@ -1,0 +1,168 @@
+{
+  "run_id": "20261020-022208-0ec656b4",
+  "target": "device-studio",
+  "started_at": "2026-10-20T02:22:09Z",
+  "completed_at": "2026-10-20T02:22:26Z",
+  "status": "passed",
+  "phases": [
+    {
+      "name": "unit",
+      "status": "passed",
+      "duration_seconds": 17,
+      "comparable": true,
+      "findings_summary": {
+        "warnings": 29,
+        "total": 29
+      },
+      "phase_presentation": {
+        "contract_version": "v1",
+        "provider": "unit-health",
+        "phase": "unit",
+        "current_level": "L2",
+        "current_level_label": "Ready",
+        "next_level": "L3",
+        "ceiling_level": "L3",
+        "blocking_finding_codes": [
+          "MISSING_INJECTABLE_SEAM"
+        ],
+        "next_action": "Production helper boundaries and injectable seams are clean.",
+        "next_action_reason": "lowest current level with required/blocking findings WARNING evolvability_gap debt=1",
+        "focus_capability_id": "test_architecture",
+        "focus_capability_label": "Test Architecture",
+        "north_star": "Test architecture is clean.",
+        "capabilities": [
+          {
+            "id": "test_architecture",
+            "label": "Test Architecture",
+            "current_level": "L2",
+            "current_level_label": "Ready",
+            "next_level": "L3",
+            "current_summary": "Test layout and utilities are aligned.",
+            "blocking_finding_codes": [
+              "MISSING_INJECTABLE_SEAM"
+            ],
+            "priority_rank": 1,
+            "priority_reason": "lowest current level with required/blocking findings WARNING evolvability_gap debt=1",
+            "findings": [
+              {
+                "code": "MISSING_INJECTABLE_SEAM",
+                "severity": "FINDING_SEVERITY_WARNING",
+                "count": 1,
+                "title": "MISSING_INJECTABLE_SEAM",
+                "message": "Production code calls a non-deterministic dependency directly and no injectable seam exists for it.",
+                "locations": [
+                  "/home/matthalloran8/Vrooli/scenarios/device-studio/api"
+                ],
+                "remediation": "Introduce the missing seam (clock, env, http doer, or logger interface) and inject it (see seam-discovery-and-enforcement).",
+                "fix_affordance": "FIX_AFFORDANCE_MANUAL"
+              }
+            ]
+          },
+          {
+            "id": "coverage_quality",
+            "label": "Coverage Quality",
+            "current_level": "L2",
+            "current_level_label": "Complete",
+            "current_summary": "Coverage and test-quality depth are clean.",
+            "clean": true,
+            "priority_rank": 2,
+            "priority_reason": "lowest current level with advisory findings WARNING advisory debt=28",
+            "findings": [
+              {
+                "code": "LOW_COVERAGE",
+                "severity": "FINDING_SEVERITY_WARNING",
+                "count": 28,
+                "title": "LOW_COVERAGE",
+                "message": "File device-studio/cmd/gen-endpoints/main.go coverage 0.0% is below the 75.0% threshold.",
+                "locations": [
+                  "/home/matthalloran8/Vrooli/scenarios/device-studio/api",
+                  "/home/matthalloran8/Vrooli/scenarios/device-studio/cli",
+                  "/home/matthalloran8/Vrooli/scenarios/device-studio/ui/src/App.tsx",
+                  "/home/matthalloran8/Vrooli/scenarios/device-studio/ui/src/api/health.ts",
+                  "/home/matthalloran8/Vrooli/scenarios/device-studio/ui/src/components/experience/ExperienceSurface.tsx",
+                  "/home/matthalloran8/Vrooli/scenarios/device-studio/ui/src/features/notes/flow/transition.ts",
+                  "/home/matthalloran8/Vrooli/scenarios/device-studio/ui/src/lib/profiler.ts",
+                  "device-studio/cli/domains/projects/handlers.go",
+                  "device-studio/cli/domains/projects/register.go",
+                  "device-studio/cli/main.go",
+                  "device-studio/cmd/gen-endpoints/main.go",
+                  "device-studio/handlers/capabilities/module.go",
+                  "device-studio/handlers/notes/measures.go",
+                  "device-studio/handlers/notes/module.go",
+                  "device-studio/handlers/projects/connect_handler.go",
+                  "device-studio/handlers/projects/errors.go",
+                  "device-studio/handlers/projects/module.go",
+                  "device-studio/internal/capabilities/registry.go",
+                  "device-studio/internal/devices/definition.go",
+                  "device-studio/internal/httpx/errors.go",
+                  "device-studio/internal/jobs/service.go",
+                  "device-studio/internal/jobs/sqlite.go",
+                  "device-studio/internal/jobs/types.go",
+                  "device-studio/internal/notes/flow/generated/runtime.go",
+                  "device-studio/internal/notes/flow/transition.go",
+                  "device-studio/internal/notes/mocks/repository.go",
+                  "device-studio/internal/notes/types.go",
+                  "device-studio/main.go"
+                ],
+                "remediation": "Add tests exercising the uncovered branches of this file.",
+                "fix_affordance": "FIX_AFFORDANCE_MANUAL"
+              }
+            ]
+          },
+          {
+            "id": "framework_config",
+            "label": "Framework Config",
+            "current_level": "L3",
+            "current_level_label": "Complete",
+            "current_summary": "Framework configuration is clean.",
+            "clean": true,
+            "priority_rank": 3,
+            "priority_reason": "lowest current level"
+          },
+          {
+            "id": "surface_discovery",
+            "label": "Surface Discovery",
+            "current_level": "L2",
+            "current_level_label": "Complete",
+            "current_summary": "Test surface discovery is clean.",
+            "clean": true,
+            "priority_rank": 4,
+            "priority_reason": "lowest current level"
+          },
+          {
+            "id": "execution_readiness",
+            "label": "Execution Readiness",
+            "current_level": "L2",
+            "current_level_label": "Complete",
+            "current_summary": "Test execution is clean.",
+            "clean": true,
+            "priority_rank": 5,
+            "priority_reason": "lowest current level"
+          },
+          {
+            "id": "stability_traceability",
+            "label": "Stability Traceability",
+            "current_level": "L2",
+            "current_level_label": "Complete",
+            "current_summary": "Test stability and requirement traceability are clean.",
+            "clean": true,
+            "priority_rank": 6,
+            "priority_reason": "lowest current level"
+          }
+        ],
+        "documentation_topics": [
+          "unit maturity next move",
+          "unit MISSING_INJECTABLE_SEAM canonical fix"
+        ]
+      }
+    }
+  ],
+  "tree_digest": "td:de4ca70bba3db227dbce3b6c8c4cdbdb88e9f56e4bd8b7e9ad6f5d116f739e88",
+  "planned_phases": [
+    "unit"
+  ],
+  "git_sha": "758ddabe2903eb6cd678b3ca966c6d44908108cd",
+  "git_dirty": true,
+  "parent_readback": "test-genie runs show 20261020-022208-0ec656b4 --scenario device-studio --json",
+  "scope": "Unit phase only. This does not prove routed E2E, accepted UI design, renderer integration, or release completeness."
+}

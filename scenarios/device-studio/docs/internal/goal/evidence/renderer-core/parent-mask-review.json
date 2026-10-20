@@ -1,0 +1,14 @@
+{
+  "reviewer": "/root",
+  "checked_at": "2026-10-20T02:02:12.535900+00:00",
+  "scope": "independent archived plate replay comparison only; not E2 or visual approval",
+  "original_plate_sha256": "9d1c223677a610b9e63c13ccba51c8a5d44f87d0d087fc5e977e58897ceccf4a",
+  "output_sha256": "903fb7a8454800dc21bd42e6525352bbddacbddeaf9bbcdcf4d095f602acd13e",
+  "literal_mask_zero_pixels": 1262078,
+  "changed_protected_pixels": 0,
+  "changed_active_pixels": 310786,
+  "dimensions": [
+    1536,
+    1024
+  ]
+}

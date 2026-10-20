@@ -1,0 +1,21 @@
+{
+  "execution": {
+    "execution_id": "924da4b3-73ba-40a4-8310-5004a673a271",
+    "workflow_id": "99f8ccb9-46ff-405c-ab7d-a41f85cf74e4",
+    "workflow_version": 1,
+    "status": "EXECUTION_STATUS_COMPLETED",
+    "trigger_type": "TRIGGER_TYPE_API",
+    "started_at": "2026-10-20T02:58:48.596049679Z",
+    "completed_at": "2026-10-20T02:58:50.542463042Z",
+    "created_at": "2026-10-20T02:58:48Z",
+    "updated_at": "2026-10-20T02:58:50.542463042Z",
+    "parameters": {
+      "start_url": "http://127.0.0.1:21427/",
+      "viewport_width": 1440,
+      "viewport_height": 1000,
+      "artifact_config": {
+        "profile": "capture"
+      }
+    }
+  }
+}

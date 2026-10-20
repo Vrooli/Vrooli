@@ -1,0 +1,150 @@
+{
+  "_metadata": {
+    "module": "safety",
+    "description": "Disclosure, privacy and total budgets. Fresh product contract; all behavior remains unimplemented.",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": true
+  },
+  "requirements": [
+    {
+      "id": "DS-SAFETY-DISCLOSURE",
+      "title": "The UI shall identify AI and agent initiation before execution.",
+      "description": "Before an action invokes a model or launches/delegates to an agent, the system shall show visible labels and its funding, scope, data-egress, limits and stop behavior; ordinary deterministic editing/rendering shall not start hidden AI.",
+      "prd_ref": "OT-P0-010",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "safety",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-SAFETY-DISCLOSURE protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-SAFETY-DISCLOSURE",
+            "planned_automation": "UI/activity and server dispatch-policy acceptance tests.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    },
+    {
+      "id": "DS-SAFETY-BUDGET",
+      "title": "The admission service shall enforce an aggregate hard ceiling.",
+      "description": "Before cost-bearing work, admission shall bound settled cost plus outstanding holds across retries and child agents using authoritative rates or enforceable provider caps and refuse work when no safe upper bound exists.",
+      "prd_ref": "OT-P0-010",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "safety",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-SAFETY-BUDGET protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-SAFETY-BUDGET",
+            "planned_automation": "Concurrent budget/property tests and unknown-cost refusal protocol.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    },
+    {
+      "id": "DS-SAFETY-EGRESS",
+      "title": "The policy shall require per-project external app-media opt-in.",
+      "description": "Before external generation, critique, agent vision or child-tool egress, the system shall enforce project consent on actual uploaded images, video, thumbnails and derived text and default to blank/redacted screens.",
+      "prd_ref": "OT-P0-010",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "safety",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-SAFETY-EGRESS protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-SAFETY-EGRESS",
+            "planned_automation": "Egress interception/redaction/consent-revision tests.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    },
+    {
+      "id": "DS-SAFETY-IMPORT",
+      "title": "The importer shall constrain external and archived inputs.",
+      "description": "When a URL, archive or model dependency is imported, the system shall validate allowed origin/redirect/address policy, authorization and size/path bounds and refuse private-network fetches, traversal, decompression bombs or executable auto-load outside the declared policy.",
+      "prd_ref": "OT-P0-010",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "safety",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-SAFETY-IMPORT protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-SAFETY-IMPORT",
+            "planned_automation": "SSRF/redirect/archive/path and bounded-import adversarial tests.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    },
+    {
+      "id": "DS-SAFETY-INPUT-BOUNDS",
+      "title": "The API shall reject invalid and excessive work requests.",
+      "description": "Before enqueue, the API shall validate schema/references and bound raster/frame/duration, mesh/texture/archive sizes, timeline values and concurrency with typed errors and no secret leakage.",
+      "prd_ref": "OT-P0-010",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "safety",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-SAFETY-INPUT-BOUNDS protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-SAFETY-INPUT-BOUNDS",
+            "planned_automation": "Payload fuzz/property, authorization and resource-bound tests.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    }
+  ]
+}

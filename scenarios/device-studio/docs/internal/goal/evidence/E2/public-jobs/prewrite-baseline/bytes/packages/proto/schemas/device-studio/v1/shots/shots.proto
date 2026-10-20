@@ -1,0 +1,258 @@
+syntax = "proto3";
+
+package vrooli.device_studio.v1.shots;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/device-studio/v1/shots;shots_v1";
+
+// Shots owns immutable photographic composition revisions. Source media and
+// its bytes remain owned by ProjectsService.
+service ShotsService {
+  rpc CreateShot(CreateShotRequest) returns (CreateShotResponse);
+  rpc SaveShot(SaveShotRequest) returns (SaveShotResponse);
+  rpc ListShots(ListShotsRequest) returns (ListShotsResponse);
+  rpc GetShot(GetShotRequest) returns (GetShotResponse);
+  rpc GetShotRevision(GetShotRevisionRequest) returns (GetShotRevisionResponse);
+  rpc ListShotRevisions(ListShotRevisionsRequest) returns (ListShotRevisionsResponse);
+  rpc CompileShot(CompileShotRequest) returns (CompileShotResponse);
+  rpc ValidateShot(ValidateShotRequest) returns (ValidateShotResponse);
+}
+
+message Shot {
+  string id = 1;
+  string project_id = 2;
+  string name = 3;
+  google.protobuf.Timestamp created_at = 4;
+  google.protobuf.Timestamp updated_at = 5;
+  int64 head_revision = 6;
+}
+
+message ShotPoint {
+  double x = 1;
+  double y = 2;
+}
+
+// Quad points use plate-raster pixel boundaries in TL, TR, BR, BL order.
+message PlateQuad {
+  ShotPoint top_left = 1;
+  ShotPoint top_right = 2;
+  ShotPoint bottom_right = 3;
+  ShotPoint bottom_left = 4;
+}
+
+enum CoordinateConvention {
+  COORDINATE_CONVENTION_UNSPECIFIED = 0;
+  COORDINATE_CONVENTION_PLATE_RASTER_EDGE_PIXELS_V1 = 1;
+}
+
+message PhotographicScene {
+  string plate_media_id = 1;
+  string active_mask_media_id = 2;
+  string hardware_mask_media_id = 3;
+  // The flat display raster size in pixels. These are not physical dimensions.
+  uint32 display_width_pixels = 4;
+  uint32 display_height_pixels = 5;
+  PlateQuad plate_quad = 6;
+  CoordinateConvention coordinate_convention = 7;
+  string depiction_label = 8;
+}
+
+enum CaptureArea {
+  CAPTURE_AREA_UNSPECIFIED = 0;
+  CAPTURE_AREA_APP_ONLY = 1;
+  CAPTURE_AREA_ALREADY_COMPOSED = 2;
+}
+
+enum PresentationKind {
+  PRESENTATION_KIND_UNSPECIFIED = 0;
+  PRESENTATION_KIND_PLAIN = 1;
+  PRESENTATION_KIND_PHONE_SYSTEM = 2;
+  PRESENTATION_KIND_BROWSER_DESKTOP = 3;
+}
+
+enum ScreenFitMode {
+  SCREEN_FIT_MODE_UNSPECIFIED = 0;
+  SCREEN_FIT_MODE_CONTAIN = 1;
+  SCREEN_FIT_MODE_COVER = 2;
+}
+
+message PhoneSystemChrome {
+  string carrier_text = 1;
+  string clock_text = 2;
+  uint32 battery_percent = 3;
+  bool show_cellular_indicator = 4;
+  bool show_wifi_indicator = 5;
+  bool show_home_indicator = 6;
+}
+
+message BrowserDesktopChrome {
+  string window_title = 1;
+  string address_text = 2;
+  bool show_window_controls = 3;
+  bool show_toolbar = 4;
+}
+
+message ScreenPresentation {
+  string source_media_id = 1;
+  CaptureArea capture_area = 2;
+  PresentationKind kind = 3;
+  ScreenFitMode fit_mode = 4;
+  uint32 viewport_width_pixels = 5;
+  uint32 viewport_height_pixels = 6;
+  PhoneSystemChrome phone_system_chrome = 7;
+  BrowserDesktopChrome browser_desktop_chrome = 8;
+}
+
+enum MotionMode {
+  MOTION_MODE_UNSPECIFIED = 0;
+  MOTION_MODE_FIXED = 1;
+  MOTION_MODE_ROTATION = 2;
+  MOTION_MODE_HINGE = 3;
+  MOTION_MODE_PARALLAX = 4;
+  MOTION_MODE_CROP_PUSH = 5;
+}
+
+// Snapshot contains only editable, typed values. Server-resolved source
+// metadata and canonical digests live alongside each immutable revision.
+message ShotSnapshot {
+  PhotographicScene scene = 1;
+  ScreenPresentation presentation = 2;
+  MotionMode motion_mode = 3;
+}
+
+message ResolvedSourceMedia {
+  string id = 1;
+  string sha256 = 2;
+  int64 size_bytes = 3;
+  string media_type = 4;
+  uint32 width_pixels = 5;
+  uint32 height_pixels = 6;
+}
+
+enum ShotIssueCode {
+  SHOT_ISSUE_CODE_UNSPECIFIED = 0;
+  SHOT_ISSUE_CODE_DRAFT_INCOMPLETE = 1;
+  SHOT_ISSUE_CODE_MALFORMED_INPUT = 2;
+  SHOT_ISSUE_CODE_UNSAFE_GEOMETRY = 3;
+  SHOT_ISSUE_CODE_UNSUPPORTED_MOTION = 4;
+  SHOT_ISSUE_CODE_UNSUPPORTED_PRESENTATION = 5;
+  SHOT_ISSUE_CODE_UNSUPPORTED_FIT_MODE = 6;
+  SHOT_ISSUE_CODE_UNSUPPORTED_PROFILE = 7;
+  SHOT_ISSUE_CODE_UNSUPPORTED_SOURCE_MEDIA = 8;
+}
+
+message ShotIssue {
+  ShotIssueCode code = 1;
+  string field_path = 2;
+  string summary = 3;
+  string repair = 4;
+  bool blocks_render = 5;
+}
+
+message ShotRevision {
+  string shot_id = 1;
+  int64 revision = 2;
+  google.protobuf.Timestamp created_at = 3;
+  string name = 4;
+  ShotSnapshot snapshot = 5;
+  string recipe_sha256 = 6;
+  string scene_sha256 = 7;
+  string presentation_sha256 = 8;
+  string scene_version = 9;
+  string presentation_version = 10;
+  string compositor_profile = 11;
+  ResolvedSourceMedia plate = 12;
+  ResolvedSourceMedia active_mask = 13;
+  ResolvedSourceMedia hardware_mask = 14;
+  ResolvedSourceMedia screen = 15;
+  bool render_eligible = 16;
+  repeated ShotIssue issues = 17;
+}
+
+message CompiledShot {
+  string project_id = 1;
+  string shot_id = 2;
+  int64 revision = 3;
+  string recipe_sha256 = 4;
+  string compositor_profile = 5;
+  ShotSnapshot snapshot = 6;
+  ResolvedSourceMedia plate = 7;
+  ResolvedSourceMedia active_mask = 8;
+  ResolvedSourceMedia hardware_mask = 9;
+  ResolvedSourceMedia screen = 10;
+  repeated ShotIssue issues = 11;
+  bool render_eligible = 12;
+  string scene_sha256 = 13;
+  string presentation_sha256 = 14;
+  string scene_version = 15;
+  string presentation_version = 16;
+}
+
+message CreateShotRequest {
+  string project_id = 1;
+  string name = 2;
+  ShotSnapshot snapshot = 3;
+}
+message CreateShotResponse {
+  Shot shot = 1;
+  ShotRevision revision = 2;
+}
+message SaveShotRequest {
+  string shot_id = 1;
+  int64 expected_revision = 2;
+  string name = 3;
+  ShotSnapshot snapshot = 4;
+}
+message SaveShotResponse {
+  Shot shot = 1;
+  ShotRevision revision = 2;
+}
+message ListShotsRequest {
+  string project_id = 1;
+  int32 page_size = 2;
+  string page_token = 3;
+}
+message ListShotsResponse {
+  repeated Shot shots = 1;
+  string next_page_token = 2;
+}
+message GetShotRequest { string id = 1; }
+message GetShotResponse {
+  Shot shot = 1;
+  ShotRevision head = 2;
+}
+message GetShotRevisionRequest {
+  string shot_id = 1;
+  int64 revision = 2;
+}
+message GetShotRevisionResponse { ShotRevision revision = 1; }
+message ListShotRevisionsRequest {
+  string shot_id = 1;
+  int32 page_size = 2;
+  string page_token = 3;
+}
+message ListShotRevisionsResponse {
+  repeated ShotRevision revisions = 1;
+  string next_page_token = 2;
+}
+message CompileShotRequest {
+  string shot_id = 1;
+  int64 revision = 2;
+}
+message CompileShotResponse { CompiledShot compiled = 1; }
+message ValidateShotRequest {
+  string project_id = 1;
+  ShotSnapshot snapshot = 2;
+}
+message ValidateShotResponse {
+  bool render_eligible = 1;
+  repeated ShotIssue issues = 2;
+  CompiledShot compiled = 3;
+}
+
+message ShotConflict {
+  string shot_id = 1;
+  int64 expected_revision = 2;
+  int64 current_revision = 3;
+}

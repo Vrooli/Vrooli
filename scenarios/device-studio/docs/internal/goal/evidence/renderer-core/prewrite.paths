@@ -1,0 +1,6 @@
+scenarios/device-studio/api/internal/composition/composition.go
+scenarios/device-studio/api/internal/composition/homography.go
+scenarios/device-studio/api/internal/composition/clock.go
+scenarios/device-studio/api/internal/composition/composition_test.go
+scenarios/device-studio/api/internal/composition/clock_test.go
+scenarios/device-studio/api/internal/composition/v6_fixture_test.go

@@ -1,0 +1,353 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "device-studio",
+  "description": "Device Studio CLI for local project workspace and the notes reference domain.",
+  "groups": [
+    {
+      "name": "notes",
+      "description": "Manage notes (CRUD reference)",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List all notes",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "NotesService",
+            "method": "ListNotes"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "create",
+          "description": "Create a note",
+          "flags": [
+            {
+              "name": "title",
+              "required": true,
+              "description": "Note title"
+            },
+            {
+              "name": "body",
+              "description": "Note body"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "NotesService",
+            "method": "CreateNote"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get a note by id",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Note id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "NotesService",
+            "method": "GetNote"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "count",
+          "description": "Count notes created in a time window (the reference measure)",
+          "flags": [
+            {
+              "name": "window",
+              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "NotesService",
+            "method": "CountNotes"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "measure": {
+            "intent": "How many notes were created in a given time window.",
+            "questions": [
+              "how many notes were created this week",
+              "notes created last month",
+              "how many notes did we add in the last 7 days"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "count",
+              "unit": "notes",
+              "summary_template": "{count} notes created ({window})"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "projects",
+      "description": "Manage local Device Studio projects",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List a bounded page of projects",
+          "flags": [
+            {
+              "name": "page-size",
+              "description": "Maximum projects (default 50, max 100)"
+            },
+            {
+              "name": "page-token",
+              "description": "Next page token"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProjectsService",
+            "method": "ListProjects"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "create",
+          "description": "Create an empty local project",
+          "flags": [
+            {
+              "name": "name",
+              "required": true,
+              "description": "Project name"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProjectsService",
+            "method": "CreateProject"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "get",
+          "description": "Open a project by id",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Project id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProjectsService",
+            "method": "GetProject"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "rename",
+          "description": "Rename using its current revision",
+          "flags": [
+            {
+              "name": "name",
+              "required": true,
+              "description": "New project name"
+            },
+            {
+              "name": "expected-revision",
+              "required": true,
+              "description": "Revision observed when project was opened"
+            }
+          ],
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Project id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProjectsService",
+            "method": "RenameProject"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "media",
+      "description": "Import and inspect project source images",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List a bounded page of source images",
+          "positionals": [
+            {
+              "name": "project-id",
+              "required": true,
+              "description": "Project id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "page-size",
+              "description": "Maximum results (default 50, max 100)"
+            },
+            {
+              "name": "page-token",
+              "description": "Next page token"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProjectsService",
+            "method": "ListSourceMedia"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get source image metadata",
+          "positionals": [
+            {
+              "name": "project-id",
+              "required": true,
+              "description": "Project id"
+            },
+            {
+              "name": "id",
+              "required": true,
+              "description": "Source media id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProjectsService",
+            "method": "GetSourceMedia"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    }
+  ],
+  "measures": {
+    "domains": [
+      {
+        "domain": "notes",
+        "stateful": true,
+        "reason": "Notes are countable persisted rows; the notes count measure covers this domain at full tier."
+      }
+    ]
+  },
+  "exceptions": [
+    {
+      "command": "notes attach",
+      "class": "upload",
+      "reason": "Multipart file upload is exposed through the notes REST attachment endpoint, while cli-manifest/v1 only models Connect-RPC bindings."
+    },
+    {
+      "command": "media import",
+      "class": "upload",
+      "reason": "Multipart image bytes use the typed-response project media REST exception because Connect cannot carry multipart streaming."
+    }
+  ],
+  "omitted": []
+}

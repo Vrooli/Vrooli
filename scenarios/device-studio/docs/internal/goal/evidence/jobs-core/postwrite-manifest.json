@@ -1,0 +1,67 @@
+{
+  "captured_at": "2026-10-20T02:14:22.645991+00:00",
+  "files": [
+    {
+      "path": "scenarios/device-studio/api/internal/jobs/types.go",
+      "observed_at": "2026-10-20T02:14:22.645484+00:00",
+      "prewrite_absent": true,
+      "bytes": 13949,
+      "sha256": "e020c49e12ddeae7d4ae3c2b23645535b0a538f403312095d8b0ed32b9d1c82e",
+      "lines": 309
+    },
+    {
+      "path": "scenarios/device-studio/api/internal/jobs/repository.go",
+      "observed_at": "2026-10-20T02:14:22.645642+00:00",
+      "prewrite_absent": true,
+      "bytes": 1087,
+      "sha256": "22cb4a1703ed490458cfb58a083025c47e78dcb4b0579f2bfc63c960367cef3e",
+      "lines": 20
+    },
+    {
+      "path": "scenarios/device-studio/api/internal/jobs/service.go",
+      "observed_at": "2026-10-20T02:14:22.645694+00:00",
+      "prewrite_absent": true,
+      "bytes": 8151,
+      "sha256": "7e28a24d4a9f7dc0420e0e2248de5e5310dbc4c2481f445613466ce146dea1b5",
+      "lines": 205
+    },
+    {
+      "path": "scenarios/device-studio/api/internal/jobs/schema.go",
+      "observed_at": "2026-10-20T02:14:22.645751+00:00",
+      "prewrite_absent": true,
+      "bytes": 274,
+      "sha256": "b0a3c0f9d76dcb043215d3b77e748586df99cfa28bd44155a392cd6bc709c8df",
+      "lines": 10
+    },
+    {
+      "path": "scenarios/device-studio/api/internal/jobs/schema.sql",
+      "observed_at": "2026-10-20T02:14:22.645789+00:00",
+      "prewrite_absent": true,
+      "bytes": 1111,
+      "sha256": "2174788243ea041e0f01299e4f1ff3e7d567269bbf4d0a9449d5057b60002d6d",
+      "lines": 21
+    },
+    {
+      "path": "scenarios/device-studio/api/internal/jobs/sqlite.go",
+      "observed_at": "2026-10-20T02:14:22.645827+00:00",
+      "prewrite_absent": true,
+      "bytes": 13426,
+      "sha256": "e6ebba02b36f552e2ef3e1e01ab68e4da478be297fa2e5953b651d53ea033e51",
+      "lines": 438
+    },
+    {
+      "path": "scenarios/device-studio/api/internal/jobs/service_test.go",
+      "observed_at": "2026-10-20T02:14:22.645887+00:00",
+      "prewrite_absent": true,
+      "absent": true
+    },
+    {
+      "path": "scenarios/device-studio/api/internal/jobs/sqlite_test.go",
+      "observed_at": "2026-10-20T02:14:22.645920+00:00",
+      "prewrite_absent": true,
+      "bytes": 17474,
+      "sha256": "2a1f983e319843af44ef0b21434e2571bbd094f6829c69ed2f32edc66368bd1e",
+      "lines": 384
+    }
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "desktop": {
+    "app_viewport": {
+      "Min": {
+        "X": 166,
+        "Y": 190
+      },
+      "Max": {
+        "X": 2394,
+        "Y": 1296
+      }
+    },
+    "config_sha256": "96ed0052d32496bb6f0428ce0edb7dc7c83cf901ee1f545d20a77d9ea507023d",
+    "display_size": {
+      "X": 2560,
+      "Y": 1440
+    },
+    "output": "desktop-2560x1440.png",
+    "output_sha256": "b0a5b0a09d265dd5cf385aca40d4c4a672288e4296e21d008c9468bd0eef8339",
+    "profile_id": "generic-browser-desktop",
+    "profile_version": "2",
+    "rasterizer": "device-studio-bilinear-gofont-v1",
+    "source_role": "raw laptop app capture (1440x800); not the derived bare-app reference",
+    "source_sha256": "70ecddd6cfd3db8e32438a09f1c58d249fe83735bf28b99b7aa6e187461e389d"
+  },
+  "font_sha256": "197d9f3703b4c00af609178876a8d73e396f64fe438b2c871778566632374be3",
+  "phone": {
+    "app_viewport": {
+      "Min": {
+        "X": 0,
+        "Y": 215
+      },
+      "Max": {
+        "X": 1280,
+        "Y": 2461
+      }
+    },
+    "config_sha256": "a732ee27d57f69381a9f0e8e4294f2d038b375e251cfaab0234eedacc1a298ca",
+    "display_size": {
+      "X": 1280,
+      "Y": 2560
+    },
+    "output": "phone-1280x2560.png",
+    "output_sha256": "5f584dea274e2d9ff8b2ba9c1d3572cce664b8f209174a40af04e4c9869eb2ae",
+    "profile_id": "generic-tall-phone-system",
+    "profile_version": "2",
+    "rasterizer": "device-studio-bilinear-gofont-v1",
+    "source_role": "raw phone app capture (app content only)",
+    "source_sha256": "bd6bd9f303fe60771928c6fc7d1e2a6bbb776a0f7f45fee2926a2e098f0c697d"
+  },
+  "provenance": "illustrative pure-package raster proof from immutable raw app captures; no photo projection or product route",
+  "schema_version": 1
+}

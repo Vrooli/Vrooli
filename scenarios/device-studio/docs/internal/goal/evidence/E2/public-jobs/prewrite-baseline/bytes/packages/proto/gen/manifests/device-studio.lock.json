@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "scenario": "device-studio",
+  "input_digest": "sha256:1585ba1c9f96a08afe3fd3ad40b9a475e04326a3568369d1f57fba50f4980cc6",
+  "input_files": [
+    "schemas/device-studio/v1/notes/attachments.proto",
+    "schemas/device-studio/v1/notes/notes.proto",
+    "schemas/device-studio/v1/projects/projects.proto",
+    "schemas/device-studio/v1/shared/errors.proto",
+    "schemas/device-studio/v1/shared/health.proto",
+    "schemas/device-studio/v1/shots/shots.proto",
+    "schemas/measures/v1/measures.proto",
+    "vendor/protovalidate/buf/validate/validate.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "generator_digest": "sha256:d62f642cc85260466ef67f24653340c95d277e2268cdf9983a7144dca50b1d50",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/device-studio/v1/notes/attachments.pb.go": "sha256:9bf5bae3d532cfd52f1fbd9ddc1d385fe07758d705d00d405e96c75704ee9e60",
+    "gen/go/device-studio/v1/notes/notes.pb.go": "sha256:51d833bf5bc98be40a270329a787de29a5f7f5067c6f77030f7ba6b6f907d7b1",
+    "gen/go/device-studio/v1/notes/notes_v1connect/notes.connect.go": "sha256:e7e6fba068c28fe3ab47ade6fb19a6befc13b38c26815b81e89d529a3d30e8e8",
+    "gen/go/device-studio/v1/projects/projects.pb.go": "sha256:5c4c8dd2017268a52c6c1f6333df9829464a459beef0ef031de943c31bd7cf32",
+    "gen/go/device-studio/v1/projects/projects_v1connect/projects.connect.go": "sha256:46bd66f6141a54e6081b36ce6201088eedf20d6da409547a7479350442a35866",
+    "gen/go/device-studio/v1/shared/errors.pb.go": "sha256:edd0f1c01a30b6ababeaa54b8e21cb8232e160200161bfe5332ae99608c992d4",
+    "gen/go/device-studio/v1/shared/health.pb.go": "sha256:71ef74429adbdee16185a6a0268c4e0804203d8da7d0c093bc794ad0fcb87377",
+    "gen/go/device-studio/v1/shots/shots.pb.go": "sha256:c1c878bea36c2724e0834c104ac587d6e3df442984b252ecaa38bd4d3aa2465c",
+    "gen/go/device-studio/v1/shots/shots_v1connect/shots.connect.go": "sha256:a31a8657cb5d39f9eb2b54fb40d881c826965e761dd410d841a44c0852755ad6",
+    "gen/python/device_studio/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/device_studio/v1/notes/attachments_pb2.py": "sha256:95dab25aec2068285267ce63811299dfd2da9b7886194eedf4845e55db8cd821",
+    "gen/python/device_studio/v1/notes/attachments_pb2.pyi": "sha256:5594188beec26dac8bb0ab7d1ece27e28d425bc57b7544c9e509610cbb5e37fa",
+    "gen/python/device_studio/v1/notes/notes_pb2.py": "sha256:66d9030a6ee3b4342846336dc6d49f2ced3b4e740b91b521cb31a8cfef1a7b27",
+    "gen/python/device_studio/v1/notes/notes_pb2.pyi": "sha256:359aac5d47799ae41e88608988e03caee63bd56ec270e6b9959e4bcd3b139386",
+    "gen/python/device_studio/v1/notes/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/device_studio/v1/projects/projects_pb2.py": "sha256:8fbc9fe8720d8b8332a45891f7faeaa393f028c36ec3b03c11ab5d3d6ed0899f",
+    "gen/python/device_studio/v1/projects/projects_pb2.pyi": "sha256:6dbb376a73dd82257f94a5ff0f5b16884094e226e4bab0cdb2c7ae8d566852c3",
+    "gen/python/device_studio/v1/projects/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/device_studio/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/device_studio/v1/shared/errors_pb2.py": "sha256:02ee0cf1e93fbc5e1642064271887c4e53769e0e84d0069997785feca445de13",
+    "gen/python/device_studio/v1/shared/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
+    "gen/python/device_studio/v1/shared/health_pb2.py": "sha256:a0f8121c86260a7562cedc58e22bffbd8fecab4e90cff93af392906690e2bba2",
+    "gen/python/device_studio/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
+    "gen/python/device_studio/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/device_studio/v1/shots/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/device_studio/v1/shots/shots_pb2.py": "sha256:7804a7d82bb385ef110bfec2ebb6f60f90c4448fdf79d357b91c1c9c651d838a",
+    "gen/python/device_studio/v1/shots/shots_pb2.pyi": "sha256:7ccaa011207e0c38fc031edd45318e764aa0671e29827087e572418d7fad8b7d",
+    "gen/typescript/device-studio/v1/notes/attachments_pb.ts": "sha256:dcdfd6bcc173a8da5c0d4e9a5f537bab322b8c0f24bc9bc430b456b5a0dfa1c6",
+    "gen/typescript/device-studio/v1/notes/notes_pb.ts": "sha256:c587460b322ee770e0dc50cdf4267447c127b60a12256e256adc08f713c6af6e",
+    "gen/typescript/device-studio/v1/projects/projects_pb.ts": "sha256:945813424dd39b3bfb103f7ebff377c248738d7aa758654245cf60d77a77d8b6",
+    "gen/typescript/device-studio/v1/shared/errors_pb.ts": "sha256:c8b0173fb2bf9e97129cadbe047b354901c4f0e81d3d82ddd61d989fdbbf8f58",
+    "gen/typescript/device-studio/v1/shared/health_pb.ts": "sha256:f0b20c8388fd931a2dd1de84f3e2e65dbf932f04a527b9eb2dd0d71fd284097a",
+    "gen/typescript/device-studio/v1/shots/shots_pb.ts": "sha256:104a7fd65a16a8b3cbc3f1d09d549062a1cbcb80157250b14bd35716b7420caa",
+    "gen/typescript/package.json": "sha256:50d93031d2c18b3d841aeb57f4392798fe0dfba5f6c8aeedfa9932b942d329c4"
+  }
+}

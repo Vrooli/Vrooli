@@ -1,0 +1,146 @@
+{
+  "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Device Studio are uppercase-snake-case placeholders replaced by `template-manager generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
+  "app": {
+    "title": "Device Studio"
+  },
+  "layout": {
+    "navigationLabel": "Primary navigation",
+    "mobileNavigationLabel": "Mobile navigation",
+    "skipToContent": "Skip to content",
+    "openNavigation": "Open navigation",
+    "closeNavigation": "Close navigation",
+    "nav": {
+      "dashboard": "Projects",
+      "notes": "Notes",
+      "settings": "Settings"
+    }
+  },
+  "theme": {
+    "switcherLabel": "Theme",
+    "choice": {
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "Projects",
+      "description": "Your saved local workspaces. Create a project or open one to continue.",
+      "placeholderTitle": "This scenario has not decided its home surface yet",
+      "placeholderDescription": "Open START-HERE, Gate 5, and name the one question this page answers. Replace this placeholder with that surface. The health card beside it is the example of a scenario-owned feature built from library parts."
+    },
+    "notes": {
+      "title": "Notes",
+      "description": "A worked example domain: list, create, measure. Copy the shape once, then remove it with detemplate."
+    },
+    "settings": {
+      "title": "Settings",
+      "themeHeading": "Appearance",
+      "localeHeading": "Language",
+      "description": "Preferences for this browser. Add every setting your scenario actually needs; nothing else in the shell duplicates one.",
+      "preferences": "Preferences",
+      "themeHint": "Light, dark, or follow the system.",
+      "localeHint": "Applies to this console only.",
+      "diagnostics": "Diagnostics"
+    }
+  },
+  "health": {
+    "title": "API Health",
+    "loading": "Checking API status…",
+    "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
+    "refresh": "Refresh",
+    "refreshCount": "Refreshed {{count}} times",
+    "refreshCount_one": "Refreshed once",
+    "serviceLabel": "Service:",
+    "timestampLabel": "Timestamp:",
+    "description": "Polls this scenario's API and reports what it says."
+  },
+  "notifications": {
+    "summary": "{{count}} notifications",
+    "summary_zero": "No notifications",
+    "summary_one": "1 notification"
+  },
+  "notes": {
+    "title": "Notes",
+    "loading": "Loading notes…",
+    "empty": "No notes yet.",
+    "create": "Create note",
+    "attachmentsLabel": "{{count}} attachments",
+    "attachmentsLabel_one": "1 attachment",
+    "table": {
+      "title": "Title",
+      "created": "Created",
+      "attachments": "Attachments",
+      "actions": "Actions",
+      "search": "Search notes"
+    },
+    "uploadAttachment": "Upload attachment",
+    "attachmentFileLabel": "Attachment file",
+    "uploadSuccess": "Uploaded {{name}}.",
+    "noFileSelected": "Select a file before uploading.",
+    "measure": {
+      "title": "Notes this week",
+      "loading": "Counting…",
+      "thisWeek": "{{count}} notes created this week"
+    }
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "Language"
+  },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
+    "retry": "Try again"
+  },
+  "projects": {
+    "loadMore": "Load more",
+    "title": "Create a project",
+    "description": "Your projects are saved on this device and ready to open.",
+    "loading": "Loading projects…",
+    "empty": "Create a project to save work here. Open a saved project to continue.",
+    "create": "Create project",
+    "nameLabel": "Project name",
+    "open": "Open",
+    "createError": "Unable to create project.",
+    "loadError": "Unable to load projects.",
+    "rename": "Rename project",
+    "renameError": "Unable to rename project.",
+    "conflict": "This project changed elsewhere. Your attempted name is still here. Reload the latest revision before trying again.",
+    "reload": "Reload project",
+    "revision": "Revision {{revision}}",
+    "back": "All projects",
+    "recent": "Recent projects"
+  },
+  "project": {
+    "title": "Project",
+    "loading": "Loading project…",
+    "loadError": "Unable to open project.",
+    "renameError": "Unable to rename project.",
+    "nameLabel": "Project name",
+    "rename": "Save name",
+    "revision": "Revision {{revision}}",
+    "updated": "Updated {{date}}",
+    "conflict": "This project changed elsewhere. Your attempted name is still here. Reload the latest revision before trying again.",
+    "reload": "Reload project",
+    "back": "All projects"
+  }
+}

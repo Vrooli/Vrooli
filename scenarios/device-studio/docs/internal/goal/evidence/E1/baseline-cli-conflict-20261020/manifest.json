@@ -1,0 +1,13 @@
+[
+  {
+    "path": "scenarios/device-studio/cli/domains/projects/handlers.go",
+    "observed_at": "2026-10-20T02:36:47.417127+00:00",
+    "bytes": 4322,
+    "sha256": "9bb6b4cbfe607213d0d2095172773f84df11db304edd503944d5325fcd04187c"
+  },
+  {
+    "path": "scenarios/device-studio/cli/domains/projects/handlers_test.go",
+    "observed_at": "2026-10-20T02:36:47.417562+00:00",
+    "absent": true
+  }
+]

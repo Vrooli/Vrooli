@@ -1,0 +1,175 @@
+{
+  "schema_version": 1,
+  "kind": "device_studio_d2_d3_saved_shot_routed_lease",
+  "scenario": "device-studio",
+  "observed_at_utc": "2026-10-20",
+  "lease": {
+    "owner": "Test Genie playbooks-seed",
+    "run_id": "8a83dee4-f593-4d78-8f91-9a43bc5c3f6f",
+    "apply_command": "test-genie playbooks-seed apply --scenario device-studio",
+    "apply_status": "seeded; SQL and file roots installed",
+    "cleanup_command": "test-genie playbooks-seed cleanup --scenario device-studio --token [redacted]",
+    "cleanup_status": "cleaned",
+    "cleanup_token": "redacted"
+  },
+  "live_runtime": {
+    "api_base": "http://127.0.0.1:19349",
+    "ui_base": "http://127.0.0.1:21427",
+    "api_health": "healthy; readiness=true",
+    "api_executable": "scenarios/device-studio/api/device-studio-api",
+    "api_executable_sha256": "edcf0e639a1f8e32ee8c4fbb53db7faa7bb6bf7faa2e812e3077dd83893681fd",
+    "served_ui_index_sha256": "49a3f1aca391108f90355fa0703017e2357624096bbabf8fec8108195949d467",
+    "served_ui_js": "assets/index-BUDELkjc.js",
+    "served_ui_js_sha256": "38a375167ffeae4d1cae294d46bc0aa3e5d77b83fafe6e7d8d560127635fc599",
+    "served_ui_css": "assets/index-BYqSMm2I.css",
+    "served_ui_css_sha256": "a7447236343911121dd995f029bc96a7616f61ea98abc5c67ed08e2299ea6bd9",
+    "note": "No API rebuild/restart occurred during this lease."
+  },
+  "routing": {
+    "header": "X-Vrooli-Test-Mode: 1",
+    "cli_propagation": "DEVICE_STUDIO_TEST_MODE=1; exact API base passed on every CLI command",
+    "browser_propagation": "BAS session browserProfile.extraHeaders / browser_profile.extra_headers for target traffic only",
+    "clear_test_pool": {
+      "owner_rpc": "vrooli.dev_routing.v1.routing.RoutingService/ClearTestPool",
+      "called_before_test_genie_cleanup": true,
+      "request": {"lease_id": "8a83dee4-f593-4d78-8f91-9a43bc5c3f6f"},
+      "raw_response": {"stats": {"testPoolRequests": "154", "testRootWrites": "4"}},
+      "test_pool_requests": 154,
+      "primary_during_test_mode_requests": 0,
+      "test_root_writes": 4,
+      "primary_root_writes_during_test_mode": 0,
+      "omitted_protobuf_scalar_fields_interpreted_as_default_zero": true,
+      "interpretation": "154 test-pool requests and four test-root writes were recorded. The two primary-use scalar counters were omitted from proto3 JSON and therefore decode to zero."
+    }
+  },
+  "project_and_shots": {
+    "project_id": "652acb09-cf46-427b-80e4-b40f49f3f725",
+    "project_name": "Daylight study",
+    "main_shot": {
+      "id": "c808d1f7-f6fc-4630-b199-dcc5cb0914e3",
+      "name": "Daylight, held still",
+      "created_by_cli_revision": 1,
+      "head_after_coordinated_cli_save": 2,
+      "render_eligible_at_revision_1": true,
+      "cli_save_expected_revision": 1,
+      "cli_save_current_revision": 2,
+      "recipe_sha256_revision_1": "a666ba3a409983a3753fd50828b2ad0a5a86c89873866e557f13fb26fd2b6aa9",
+      "recipe_sha256_revision_2": "fb6eceba672655bcaf18dc8dc249c8b2f922647f50b6d1f9144f7495113b3106"
+    },
+    "incomplete_draft": {
+      "id": "cb7ae70a-8504-41b1-953c-a92cfffcb3f4",
+      "name": "Unfinished study",
+      "created_at_revision": 1,
+      "revision_1_was_empty_snapshot_with_typed_incomplete_issues": true,
+      "head_after_coordinated_cli_save": 2,
+      "cli_save_expected_revision": 1,
+      "revision_2_scene_label": "CLI remote revision"
+    },
+    "source_media": [
+      {
+        "id": "080287e2-5157-4255-9287-61fbd142fc6a",
+        "filename": "plate.png",
+        "sha256": "9d1c223677a610b9e63c13ccba51c8a5d44f87d0d087fc5e977e58897ceccf4a",
+        "dimensions": "1536x1024",
+        "provenance": "historical v6 generated approximate phone plate; not manufacturer-calibrated"
+      },
+      {
+        "id": "e6ecdddf-7290-4921-a987-1c6ae87a8f18",
+        "filename": "active-mask.png",
+        "sha256": "63b8751df790f9ad2145a1ee7fc9320473d8da682025c7ab5636c421a553dcf2",
+        "dimensions": "1536x1024",
+        "role": "active screen mask"
+      },
+      {
+        "id": "60b6a6fb-c5f0-4ef4-9f39-9594303bbd06",
+        "filename": "physical-pill-mask.png",
+        "sha256": "a122e0ec5193cb45a7cb3660715d0fbec04938bb69f64ce5bdf942c3b5260470",
+        "dimensions": "1536x1024",
+        "role": "hardware occlusion mask for the physical pill"
+      },
+      {
+        "id": "32f5a27e-565d-49a4-ab6b-9eb04fb1dd37",
+        "filename": "source-frame84.png",
+        "sha256": "bd6bd9f303fe60771928c6fc7d1e2a6bbb776a0f7f45fee2926a2e098f0c697d",
+        "dimensions": "430x880",
+        "provenance": "raw historical v4 phone source frame; not native-app/backend proof"
+      }
+    ],
+    "calibration": {
+      "source": "/home/matthalloran8/.vrooli/evidence/device-presentation-2026-10-18/v6/phone/calibration.json",
+      "quad": "fitted_quad_px in TL/TR/BR/BL order",
+      "display_raster_pixels": "1206x2622",
+      "capture_area": "APP_ONLY",
+      "presentation_kind": "PLAIN",
+      "motion_mode": "FIXED",
+      "api_validate_render_eligible": true
+    }
+  },
+  "cli_evidence": {
+    "all_mutations_used_routed_test_mode": true,
+    "successful_commands": [
+      "projects create --name 'Daylight study'",
+      "media import <project-id> --file <v6 plate.png>",
+      "media import <project-id> --file <v6 active-mask.png>",
+      "media import <project-id> --file <v6 physical-pill-mask.png>",
+      "media import <project-id> --file <v4 source-frame84.png>",
+      "shots validate --project-id <project-id> --snapshot <typed proto JSON> (render_eligible=true)",
+      "shots create --project-id <project-id> --name 'Daylight, held still' --snapshot <typed proto JSON>",
+      "shots create --project-id <project-id> --name 'Unfinished study' --snapshot {}",
+      "shots list --project-id <project-id>",
+      "shots get <main-shot-id>",
+      "shots compile <main-shot-id> --revision 1 (render_eligible=true)",
+      "shots revisions <main-shot-id>",
+      "shots save <main-shot-id> --expected-revision 1 (advanced revision 1 to 2)",
+      "shots save <incomplete-shot-id> --expected-revision 1 (advanced revision 1 to 2)"
+    ],
+    "typed_stale_conflict_probe": {
+      "shot_id": "cb7ae70a-8504-41b1-953c-a92cfffcb3f4",
+      "expected_revision": 1,
+      "current_revision": 2,
+      "result": "Error: shot cb7ae70a-8504-41b1-953c-a92cfffcb3f4 revision conflict: expected 1, current 2",
+      "mutation": false
+    }
+  },
+  "browser_evidence": {
+    "capture_manifest": "capture-manifest.json",
+    "desktop_execution_id": "18e27df2-b84c-4daa-a472-6070ebffa880",
+    "mobile_execution_id": "7dba4dca-46b0-4d65-a2ce-9b8d48c5dad4",
+    "same_context_attempt_id": "b29c435e-b6cb-488d-b0f8-684911f38966",
+    "read_only_capture_subject": "main shot revision 2; source-media records already selected by the CLI fixture creation",
+    "same_context_ui_conflict": "failed_before_typed_conflict; UI returned generic invalid shot input and no reapply/save occurred",
+    "diagnosis": "Code inspection shows the blank-revision UI serializer can emit an empty PlateQuad with UNSPECIFIED coordinate convention; service rejects that shape before repository revision-conflict check. This is a likely cause, not a captured request-body proof.",
+    "screenshots": [
+      "captures/desktop/final-first-viewport.jpg",
+      "captures/desktop/final-full-page.jpg",
+      "captures/desktop/final-geometry-expanded.jpg",
+      "captures/mobile/final-first-viewport.png",
+      "captures/mobile/final-full-page.jpg",
+      "captures/mobile/final-geometry-expanded.jpg",
+      "captures/desktop/stale-save-invalid-input.png"
+    ],
+    "read_only_capture_assertions": [
+      "main shot name and revision 2 visible",
+      "v6 plate.png and v4 source-frame84.png names visible",
+      "calibration overlay visible on plate stage",
+      "desktop and mobile first viewport/full page/expanded calibration captures retained"
+    ],
+    "not_proven": [
+      "successful browser UI save or reopen after save",
+      "successful UI typed conflict and reapply",
+      "rendered PNG output or worker execution"
+    ]
+  },
+  "post_cleanup": {
+    "primary_project_list_ids": ["921cf3bd-605e-4633-abdf-99a8e1e6ab3"],
+    "lease_project_absent_from_primary": true,
+    "lease_project_get_without_test_mode": "not_found",
+    "api_health": "healthy"
+  },
+  "limitations": [
+    "The read-only BAS screenshot journey is interaction/layout evidence, not render-output proof or product acceptance.",
+    "The UI conflict attempt failed before typed conflict; it is retained as a failure. The separate CLI stale-save probe proves typed conflict expected/current values.",
+    "ClearTestPool omitted zero-valued proto3 scalar fields; the recorded primary counters are interpreted as zero defaults from the exact owner response.",
+    "No API rebuild/restart or lease restoration claim is made."
+  ]
+}

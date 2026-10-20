@@ -1,0 +1,42 @@
+[
+  {
+    "path": "scenarios/device-studio/api/internal/jobs/types.go",
+    "observed_at": "2026-10-20T02:03:04.953882+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/jobs/repository.go",
+    "observed_at": "2026-10-20T02:03:04.954036+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/jobs/service.go",
+    "observed_at": "2026-10-20T02:03:04.954190+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/jobs/schema.go",
+    "observed_at": "2026-10-20T02:03:04.955272+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/jobs/schema.sql",
+    "observed_at": "2026-10-20T02:03:04.955439+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/jobs/sqlite.go",
+    "observed_at": "2026-10-20T02:03:04.955586+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/jobs/service_test.go",
+    "observed_at": "2026-10-20T02:03:04.955709+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/jobs/sqlite_test.go",
+    "observed_at": "2026-10-20T02:03:04.955916+00:00",
+    "absent": true
+  }
+]

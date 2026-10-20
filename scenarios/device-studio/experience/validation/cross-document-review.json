@@ -1,0 +1,145 @@
+{
+  "kind": "agent-semantic-document-review",
+  "reviewed_at_utc": "2026-10-20T01:18:45.935078+00:00",
+  "scope": "Design/experience versus current product requirements and owner docs. Same author performed both final reviews. Not independent human ratification, runtime execution, UI accessibility/capture evidence or visual acceptance.",
+  "corrective_history": [
+    {
+      "round": "initial semantic comparison",
+      "findings": [
+        "Explicitly distinguish app-only from full-screen capture to prevent duplicate system chrome.",
+        "Label local AI denoisers/upscalers before initiation.",
+        "Keep reduced-motion editor preference independent from authored export.",
+        "Expose VFR source timestamps and independent output schedule."
+      ],
+      "resolution": "Fixed in owned DESIGN and shot contract; no other-agent documents changed."
+    },
+    {
+      "round": "precision and workflow comparison",
+      "findings": [
+        "Separate private scoped approval from Asset Studio shared publication and human-only owner decisions.",
+        "Disclose every AI step including local inference, not only external calls.",
+        "Forbid automatic embedded-code execution during import; script execution is a separate authorized isolated job.",
+        "Render and review a genuine final-profile look frame/continuous motion sample before a long native render."
+      ],
+      "resolution": "Fixed in owned page/journey contracts and regenerated deterministically."
+    },
+    {
+      "round": "parent docs-health feedback",
+      "findings": [
+        "Restore meaningful Intent, Feedback & State and Request Lifecycle headings.",
+        "Use repository-relative design-kit reference and portable research index.",
+        "Preserve inherited idle/pending/retrying states and baseline bounded capture contract."
+      ],
+      "resolution": "Fixed without weakening validation; all18 common states declared on every page."
+    }
+  ],
+  "final_reviews": [
+    {
+      "pass": 1,
+      "focus": "Product semantic coverage and owner boundaries",
+      "material_findings": [],
+      "checked": [
+        "All14 committed P0 target groups linked; eight representative groups match PRD.",
+        "Photographic first slice does not complete physical phone spin, laptop lid motion, screen entry or broad library.",
+        "Guided/advanced edit same draft; full mobile controls, numeric/keyboard paths and source/audio/chrome policies align.",
+        "Preview is labeled approximate; native sample review and final output acceptance remain distinct.",
+        "AI/agent creation is explicit and bounded; deterministic editing/reuse/rendering starts no hidden AI.",
+        "Local approval never substitutes for shared generic publication authority."
+      ]
+    },
+    {
+      "pass": 2,
+      "focus": "Truthfulness, safety, recovery and implementation frontier",
+      "material_findings": [],
+      "checked": [
+        "All routes draft; exactly three actual template routes and thirteen planned product routes are identified.",
+        "No fabricated product selectors, region bindings, state hooks, attestations, captures or active machine claims.",
+        "Inherited Notes selector exists and pinned1.0.3 contract matches actual package major export.",
+        "Local identity, optional account, secure provider key, credits, entitlement and operation authority remain separate.",
+        "Media egress disabled by default per project, including remote vision/derived data; account connection is not consent.",
+        "Aggregate hard upper bound includes nested work; unknown unbounded paid routes are refused.",
+        "Dispatch/resume/retry rechecks live authority/consent/account/cap; snapshots grant no perpetual permission.",
+        "Cancellation versus terminal commit race, remote uncertainty and pending settlement remain truthful.",
+        "Cross-platform capability and native/portable/output-color qualification remain evidence obligations, not implemented claims.",
+        "Inherited state floors/headings and bounded baseline captures retained; parser-localL3 is not visual maturity."
+      ]
+    }
+  ],
+  "final_material_findings": [],
+  "remaining": [
+    "No concept/mockup human approval or product UI exists.",
+    "No planned journey, accessibility or responsive path has executed.",
+    "No renderer, worker, funded account, sandbox or desktop package integration has been implemented here.",
+    "This document review cannot certify photorealistic quality or production readiness."
+  ],
+  "reviewed_contract_sha256": {
+    "DESIGN.md": "1edd7f82263efcadd49e300d1f871f7c4527f3ae9d50de55e1f9757a7767302d",
+    "experience/index.json": "82730fb5b15e557f28cf8b3bc653a895bf9f687ba2a1d71e34a2872657810a67",
+    "experience/pages/account.json": "37e57b5ed30a8ec81a71e1bc78a16cb788eed5bb9155b248333b3c3dea88b1dc",
+    "experience/pages/asset.json": "a04bc2e62fd9ca2b633077a46ea4ab9b366c66fb906148baacbb0eecf3902589",
+    "experience/pages/creation.json": "348f95e6872ca8ad043800b7b5fe996c17860cfd7e4d8c85445e6d7dff9b7e3c",
+    "experience/pages/dashboard.json": "65fa4e5af2fbdc24496e11ab87608723ef5115fe63fb9f7c0402bf7e89a65f4c",
+    "experience/pages/import.json": "bcc15202a1b8a117da13351b86b197e6c3a984c977be274163c77ea777bcc560",
+    "experience/pages/job.json": "9f34e5da6b288e3306a6d5a3a131998477fb14ccd684c10333a357edbae9d685",
+    "experience/pages/jobs.json": "f5a3dd8ea7e25c79068102a6446254771c48f5c82c022b77f072c3398144ae50",
+    "experience/pages/library.json": "244a5b609475e243569d3a4fef9e6cfa5d391a2d4c95cb7ca3eaa22b098d291f",
+    "experience/pages/notes.json": "bb7fb79168033f7072c45c781cc591fe8486f6373ce445f41d87a487ad1f9385",
+    "experience/pages/project-settings.json": "09133e4d436ac11d32186df80d3a64f0f2824974c96ded537888de7afcbfea15",
+    "experience/pages/project.json": "88285eb528ea60b8b9195aa8cc934f44a471b97b4190033205781bebd8c361db",
+    "experience/pages/projects.json": "8ace4b116d0faedefc58eb5a71a6aadf38f825f649cc4b67416f03c62fd8cc2c",
+    "experience/pages/result.json": "ae636e1e227c839897ad32dc1b98fcc6164aef3e9458f122390c832f4b005293",
+    "experience/pages/review.json": "b4e39c2b1d5f3ebc26b020333acda0b6603db4e3ff3153caad5043ae0b1c389c",
+    "experience/pages/settings.json": "489d42137160089c70ac47db186deb93fafc20984f78b7cacaf35daeae29e51a",
+    "experience/pages/shot.json": "e170c1ab58057716c0ac9c24f66feef44c4d3aec031704f306d75ba0a99aa907",
+    "experience/journeys/account-and-funded-work.json": "d2b2c95d8c8ec369a61521c42f28421e0c58285f6f879f955c8648914bd81353",
+    "experience/journeys/agent-creation-and-release.json": "6c779de338b4b4aa25a24557562dfcb689d3ae4b50029a33e54f49882d1abb61",
+    "experience/journeys/controlled-device-motion.json": "3cf9928b55f43e9ce2c6fe7c3fbcb70d893aee75bbcfdc29bb578c2926a8eb95",
+    "experience/journeys/first-photographic-shot.json": "c37746bd286ef860e3e10d7ded23556ad3dec500b0f922af61801d7d5e5a83f5",
+    "experience/journeys/mobile-calibration.json": "09bc4c48397f2c5a231829314c66f1a31dce7f60e6cce8f8eb48bbf809b15adb",
+    "experience/journeys/offline-recovery.json": "83cd12cde19fa39866def9d663820e85643e59ef9f52bc9370bf24397edd29b8",
+    "experience/journeys/portable-replay-and-handoff.json": "bba53dddaa9f116d17312665074771f71183ab6c857a0597eeb0607fecc06f2d",
+    "experience/journeys/scoped-library-release.json": "5da8b26a922265e77761a7c092e627856a0430891ed4570709497400e78bcd84"
+  },
+  "cross_document_snapshot_sha256": {
+    "PRD.md": "2527709658bb3c527fea1b9c146d8fb1f53feb0452fe6b02fcc41073befb4d85",
+    "requirements/01-contracts/module.json": "fe68b8562ba9e49a99b5906199c4156795cd0b66041de08ecf2e79e391681dd5",
+    "requirements/02-library/module.json": "fe8ef9d432d015de07581b3126e20bb72bf7894284ca2575a29272ef3362dfed",
+    "requirements/03-photographic/module.json": "a5cd71cac7eb9cca6a55313ed8bfefbb0fbc88b4323e343776a39b1fd62b36ae",
+    "requirements/04-native-motion/module.json": "5e5229b625eb6d943cc028974a95bf61df84e9cd84e7a531139eb800fbd0378f",
+    "requirements/05-editing/module.json": "4fe7716364e9b7a485daded8de4e7069c85d92a2690a72eb326370f87f1def21",
+    "requirements/06-presentations/module.json": "59e5bd0d87e52c58ff832339e0d27cdede407834b7b8d38244ae24c37d92e22b",
+    "requirements/07-creations/module.json": "21eee4a2ea53f4bf48d66a6b9e5c2dce6b0987879a85482af91acbdfc6c59f7e",
+    "requirements/08-reviews-rights/module.json": "1bd1a1a976eb33dbd57a5ec7e4dc8351fa979996a443a81b5b01e3ef2c007c90",
+    "requirements/09-jobs/module.json": "b270704e80b2f614170cd924a15f85714c0ad6e7e91b5e0aecc8ad66c982b130",
+    "requirements/10-safety/module.json": "8aa7fdc816cb09e1be0d49528ebd4ab67245e159f94d1802bc2b0aaa428a1509",
+    "requirements/11-commerce/module.json": "bbd2d2673774ec5219f47486abe75e31f1771a76430c232b450e2c85ba26d96e",
+    "requirements/12-desktop/module.json": "baca87e163ee7b512e96321a588aeb5606bf9fe0437ef8f9e799a6bd816894b4",
+    "requirements/13-integration/module.json": "099dab1866385cd3b0c8fc2976ee54f98d0f4ad4fff74cce9442fc538be63a7b",
+    "requirements/14-output/module.json": "0b99de967b4c13fc98779f94eabf45b487503ed79e82d1fa9618395fb4622f57",
+    "requirements/15-batch/module.json": "8f0ee70720a42f21c8f57cff199fac455eccba5ae820bf28715e7ec424ad9fa1",
+    "requirements/16-advanced-output/module.json": "679ec3afd379fdd57ac56e6a54218bf88fd47cec96ed34decc03f39b90b2456e",
+    "requirements/17-optical/module.json": "f63a53e8dda1427e84c3d13dcb3514dcf17c7d145502a8968ab515f0216c6cf8",
+    "requirements/verification-protocols.md": "23c201885f070ad44eea060448fa70fd5dabb8b83622c39bce6f939496f11a64",
+    "docs/concepts/ARCHITECTURE.md": "4db37b135018007e39c8300221e2a905db15644f723185bdc252c0d65071a9b9",
+    "docs/concepts/DATA.md": "8d47668e077e393e7fcffefb602c7027608231bf135b7e868046adec1411eaaf",
+    "docs/concepts/DOMAINS.md": "cd08032461552b448e379345d0c6fe6013b48a3907581ca7e09be3941090ab5e",
+    "docs/concepts/EXPERIENCE.md": "4ee32da375361e4e5360d9439a56c0ee9432b0fda2f3026c3a9ecd23b3d9e6f8",
+    "docs/concepts/FLOWS.md": "71a242bc3c93095ec80759dbdcd86cc6a789a5dc887175982b8b375f60fe7c2f",
+    "docs/concepts/INTEGRATIONS.md": "d37260944389ef263f3e2fb782964e1552d9d771d990c6c9644e759257e6105e",
+    "docs/concepts/UI-ARCHITECTURE.md": "aa4afc76814e23894d7a147e34fced37c3535f7d0d858004c9329d228b0b8e9e",
+    "docs/domains/creation.md": "730ef9506cae783db06378b58ccdda1caa78d744b0cb450dd3eea8997c15391c",
+    "docs/domains/devices.md": "fcbbec18efaa79d7361b222d602164dc72fa867d7142144378e20268941a24e4",
+    "docs/domains/presentations.md": "c5945dbd5403fdc56c3f076414c80996b82a3cf4e395a3875c56eb53b9cfdfa7",
+    "docs/domains/rendering.md": "bdfe3d51a51bbffba6b95c82efbda56d58b951155e9783147483f0e76c58dae1",
+    "docs/internal/ACCEPTANCE.md": "90743ec3531cbbec162c6388e3b37ca401cf67f87bd67b6b3b866af28a8882d5",
+    "docs/internal/DECISIONS.md": "77394ce1d1900e16871d1059ab49fa2aff17634f5f9576b3399ef8947859edd0",
+    "docs/internal/SECURITY.md": "03cdf52455c694d57b47f10e3c6955cbd926d734d7ea133e3813c5caa0516283",
+    "docs/internal/ERROR-HANDLING.md": "328242a777252aa5a73d79ea299d4a456c3363a262e67286b65f65bf4b8d879d",
+    "docs/internal/PERFORMANCE.md": "5fe0adf0b4b42d905aaa6ddf7c44be8124dd88cb8092e75dbe216dcae6e4790e",
+    "docs/business/MONETIZATION.md": "e6e52bf9ea01a3e3a7cc07d9599b3f1da80a93dd8ef672ca9f58e942cb02763a",
+    "docs/operations/DEPLOYMENT.md": "4c2d509d98a69c7747c269fbded4ff2812dc28c3a2c66e17bf477c918b067b8d",
+    "docs/reference/component-library-gaps.md": "f73bacbe62e77cad74a7ced96ae09e723c499e5ebc4d46ced0166cf25fcc37e2",
+    "ui/src/app/routes.tsx": "b2d68a4fcd71ceadf1653dcb798b3908e74cd325c2eeef8c064600096fca3b6e",
+    "ui/src/consts/selectors.ts": "a306280718f1779c672cd1bb510b0e846f1f600b49a46c3864f00cb31cca5e5a"
+  }
+}

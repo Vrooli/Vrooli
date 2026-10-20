@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "kind": "composition_quad_validator_prewrite_baseline",
+  "captured_at": "2026-10-20T03:38:31.551465+00:00",
+  "git_head": "758ddabe2903eb6cd678b3ca966c6d44908108cd",
+  "entries": [
+    {
+      "path": "scenarios/device-studio/api/internal/composition/homography.go",
+      "state": "present",
+      "observed_at": "2026-10-20T01:56:01.329927+00:00",
+      "bytes": 4577,
+      "sha256": "16bb139a47c3835b1f22d5510661be77e474aa942818d88d41dbc532ae8599ca"
+    },
+    {
+      "path": "scenarios/device-studio/api/internal/composition/composition.go",
+      "state": "present",
+      "observed_at": "2026-10-20T02:00:19.234354+00:00",
+      "bytes": 13934,
+      "sha256": "1b785d6ff28a008e7450b262cd13ed457b110f59479c6e0acb83fc231a69cf3b"
+    },
+    {
+      "path": "scenarios/device-studio/api/internal/composition/composition_test.go",
+      "state": "present",
+      "observed_at": "2026-10-20T02:00:12.662317+00:00",
+      "bytes": 13367,
+      "sha256": "e057b6e9de15ec242293f9ba5a4d0ee4bf842817c4cfb8cbe6c6e604eea6402d"
+    }
+  ],
+  "scope_note": "Exact prewrite bytes for the narrow shared ValidatePlateQuad extraction; no composition source writes had begun."
+}

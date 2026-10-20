@@ -1,0 +1,150 @@
+{
+  "_metadata": {
+    "module": "presentations",
+    "description": "Authentic screen presentation. Fresh product contract; all behavior remains unimplemented.",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": true
+  },
+  "requirements": [
+    {
+      "id": "DS-SCREEN-FIT",
+      "title": "The compositor shall preserve explicit fit and crop.",
+      "description": "The compositor shall preserve capture aspect and identity in contain or explicitly selected crop mode, expose the lost region and verify required readable content at final projected size.",
+      "prd_ref": "OT-P0-006",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "presentations",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-SCREEN-FIT protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-SCREEN-FIT",
+            "planned_automation": "Aspect/crop/ROI property and image diagnostics.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    },
+    {
+      "id": "DS-SCREEN-MASKS",
+      "title": "The compositor shall respect active pixels and hardware occlusion.",
+      "description": "The compositor shall map app content only to declared active surfaces and exclude bezels, hinges and camera cutouts while preserving usable display around occlusions.",
+      "prd_ref": "OT-P0-006",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "presentations",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-SCREEN-MASKS protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-SCREEN-MASKS",
+            "planned_automation": "Mask/UV/depth export diagnostics and visual review.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    },
+    {
+      "id": "DS-SCREEN-CHROME",
+      "title": "The compositor shall keep simulated chrome independent.",
+      "description": "The presentation profile shall separate authentic app viewport, captured chrome, simulated status/home/menu/dock/browser layers and configurable backgrounds without doubling captured chrome or implying native device execution.",
+      "prd_ref": "OT-P0-006",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "presentations",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-SCREEN-CHROME protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-SCREEN-CHROME",
+            "planned_automation": "Presentation compositor fixtures and full-size review.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    },
+    {
+      "id": "DS-SCREEN-CLOCKS",
+      "title": "The compiler shall map source presentation timestamps.",
+      "description": "The compiler shall retain source presentation timestamps including variable-frame-rate media and independently map trims, holds, speed and layout handoffs to output, motion and simulated clocks.",
+      "prd_ref": "OT-P0-006",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "presentations",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-SCREEN-CLOCKS protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-SCREEN-CLOCKS",
+            "planned_automation": "Timestamp sampling/property and decode-order tests.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    },
+    {
+      "id": "DS-SCREEN-AUDIO",
+      "title": "The compiler shall declare device-shot audio behavior.",
+      "description": "When imported media contains audio, the shot shall default to silent output, preserve source audio provenance and record any explicitly supported passthrough/timing policy without starting narration or music generation.",
+      "prd_ref": "OT-P0-006",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "presentations",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-SCREEN-AUDIO protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-SCREEN-AUDIO",
+            "planned_automation": "Probe/decode and explicit audio-policy integration tests.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    }
+  ]
+}

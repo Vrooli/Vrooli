@@ -1,0 +1,38 @@
+{
+  "_metadata": {
+    "module": "optical",
+    "description": "Optical and virtual presentation targets. Fresh product contract; all behavior remains unimplemented.",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": true
+  },
+  "requirements": [
+    {
+      "id": "DS-OPTICAL-TARGETS",
+      "title": "The compiler may add qualified optical presentation adapters.",
+      "description": "Where projector, HUD or AR/VR support is added, the compiler may enable only separately qualified receiver or viewer/per-eye mappings rather than treating hardware housing as a physical display.",
+      "prd_ref": "OT-P2-002",
+      "criticality": "P2",
+      "delivery_scope": "roadmap",
+      "status": "not_implemented",
+      "category": "optical",
+      "tags": [
+        "explicit-roadmap",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-OPTICAL-TARGETS protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-OPTICAL-TARGETS",
+            "planned_automation": "Future optical mapping and viewer-pose qualification fixtures.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    }
+  ]
+}

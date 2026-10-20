@@ -1,0 +1,7 @@
+[
+  {
+    "path": "scenarios/storage-manager/cli/domains/validate/file_roots_ast.go",
+    "observed_at": "2026-10-20T02:37:55.820393+00:00",
+    "absent": true
+  }
+]

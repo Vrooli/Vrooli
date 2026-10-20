@@ -1,0 +1,11 @@
+D6a pure presentations package prewrite baseline
+Captured: 2026-10-20
+
+Before implementation:
+- scenarios/device-studio/api/internal/presentations did not exist.
+- scenarios/device-studio/api/go.mod SHA-256: 38b3df2a95385c1479df9bde08ee2def8d030627cee49fffa75ded3b88ebc4cc
+- scenarios/device-studio/docs/domains/presentations.md SHA-256: b5b58882740252e1d0eb65233eaf9a61b0efff71d275e5f05427a07912cd8f09
+- Raw phone app capture: /home/matthalloran8/.vrooli/evidence/device-presentation-2026-10-18/v4/phone/source-frame84.png, 430x880, SHA-256 bd6bd9f303fe60771928c6fc7d1e2a6bbb776a0f7f45fee2926a2e098f0c697d
+- Raw desktop app capture: /home/matthalloran8/.vrooli/evidence/device-presentation-2026-10-18/v3/imported-laptop/source/app-capture.png, 1440x800, SHA-256 70ecddd6cfd3db8e32438a09f1c58d249fe83735bf28b99b7aa6e187461e389d
+- v4 laptop/bare-app.png is derived and intentionally excluded as a raw source because it is already letterboxed.
+- golang.org/x/image is approved at >=v0.42.0, but not yet added to this module; implementation begins with stdlib only while the D2/D3 live lease remains active.

@@ -1,0 +1,209 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "shot",
+    "title": "Shot builder",
+    "routes": [
+      "/projects/:projectId/shots/:shotId"
+    ],
+    "purpose": "Compose a readable device presentation with guided defaults and full calibration, lighting, camera and timeline control over the same saved shot.",
+    "prd_refs": [
+      "OT-P0-001",
+      "OT-P0-003",
+      "OT-P0-004",
+      "OT-P0-005",
+      "OT-P0-006",
+      "OT-P0-010",
+      "OT-P0-014"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "See a trustworthy preview of the shot and its current route."
+    },
+    {
+      "statement": "Change the next useful property without losing source fidelity."
+    },
+    {
+      "statement": "Reach advanced precision without changing the underlying shot model."
+    }
+  ],
+  "states": [
+    {
+      "id": "idle",
+      "description": "No operation is pending; identify the current task and available next action."
+    },
+    {
+      "id": "pending",
+      "description": "Work is acknowledged and queued or in flight with observed progress or an honest indeterminate state."
+    },
+    {
+      "id": "retrying",
+      "description": "A safe retry is actively reconciling or executing without blind duplicate side effects."
+    },
+    {
+      "id": "default",
+      "description": "Explain the current task, saved revision and next meaningful action."
+    },
+    {
+      "id": "loading",
+      "description": "Name what is loading; retain stable layout and existing local content."
+    },
+    {
+      "id": "submitting",
+      "description": "Acknowledge the requested operation once and prevent duplicate costly submissions."
+    },
+    {
+      "id": "saving",
+      "description": "Distinguish local draft changes from durably saved revision; never claim saved early."
+    },
+    {
+      "id": "syncing",
+      "description": "Explain local versus remote state and conflict resolution without silently overwriting edits."
+    },
+    {
+      "id": "refreshing",
+      "description": "Retain usable content and identify the specific information being refreshed."
+    },
+    {
+      "id": "empty",
+      "description": "Explain why there is no content and offer a relevant low-risk first action."
+    },
+    {
+      "id": "partial",
+      "description": "Show which inputs, output or services are available and which remain incomplete."
+    },
+    {
+      "id": "stale",
+      "description": "Show age, affected decisions and explicit refresh; never silently spend on refresh."
+    },
+    {
+      "id": "success",
+      "description": "Confirm the concrete durable result and offer inspection or the next task."
+    },
+    {
+      "id": "validation-error",
+      "description": "Associate actionable correction with each invalid field while preserving input."
+    },
+    {
+      "id": "request-error",
+      "description": "Explain the failed operation, preserved work and safe next action with diagnostic reference."
+    },
+    {
+      "id": "permission-denied",
+      "description": "Identify the unavailable operation and authority boundary without requesting unrelated access."
+    },
+    {
+      "id": "offline",
+      "description": "Keep supported local work usable; mark online operations unavailable and never auto-submit paid work on reconnect."
+    },
+    {
+      "id": "retry",
+      "description": "Explain whether retry reuses an operation identity, reconciles prior work or starts a newly authorized operation."
+    },
+    {
+      "id": "calibrating",
+      "description": "Show active mask/corner handles, cutout exclusion, source grid and numeric alternatives without making an unearned calibrated-fit claim."
+    },
+    {
+      "id": "unsupported-motion",
+      "description": "Name missing physical parts/joints or route capability; preserve requested motion until user deliberately chooses a valid alternative."
+    },
+    {
+      "id": "preview-outdated",
+      "description": "Label preview revision and exactly what changed since render."
+    },
+    {
+      "id": "unsaved",
+      "description": "Retain local draft and distinguish it from durable and submitted revisions."
+    },
+    {
+      "id": "source-ended",
+      "description": "Expose hold/loop/trim policy rather than silently resetting playback."
+    },
+    {
+      "id": "render-preflight",
+      "description": "Show exact snapshot, worker/profile, output duration/resolution/color/audio, estimated latency/cost and privacy/authority/budget checks."
+    }
+  ],
+  "claims": [
+    {
+      "id": "shot-intent-1",
+      "type": "custom",
+      "statement": "Guided and advanced modes edit one shot; moving between them preserves exact parameters and undo history.",
+      "tier": "aspirational",
+      "rationale": "Unimplemented design intent; runtime bindings, exact state setup, visual evidence and operator review remain required."
+    },
+    {
+      "id": "shot-intent-2",
+      "type": "custom",
+      "statement": "The whole real recording is contained unless crop is explicitly selected, and simulated chrome is visibly identified as outside the original capture.",
+      "tier": "aspirational",
+      "rationale": "Unimplemented design intent; runtime bindings, exact state setup, visual evidence and operator review remain required."
+    },
+    {
+      "id": "shot-intent-3",
+      "type": "custom",
+      "statement": "Physical motion, camera motion and source playback have separate timelines with a fixed readable end hold and genuine joint limits.",
+      "tier": "aspirational",
+      "rationale": "Unimplemented design intent; runtime bindings, exact state setup, visual evidence and operator review remain required."
+    },
+    {
+      "id": "shot-intent-4",
+      "type": "custom",
+      "statement": "Precision controls are operable without dragging and remain available on mobile, keyboard-only use and reduced-motion preference.",
+      "tier": "aspirational",
+      "rationale": "Unimplemented design intent; runtime bindings, exact state setup, visual evidence and operator review remain required."
+    },
+    {
+      "id": "shot-intent-5",
+      "type": "custom",
+      "statement": "Draft previews disclose route, color and temporal limitations; final submission pins an immutable shot snapshot.",
+      "tier": "aspirational",
+      "rationale": "Unimplemented design intent; runtime bindings, exact state setup, visual evidence and operator review remain required."
+    }
+  ],
+  "x-route-status": "planned-not-implemented",
+  "x-design": {
+    "layout": "Desktop: source/asset bin, dominant stage, properties inspector, timeline below. Guided steps Setup, Content, Motion, Look, Output; Advanced reveals precise controls over identical state. Mobile: stage plus one inspector/timeline panel at a time, with all controls reachable.",
+    "controls": [
+      "Select device, scene, presentation route and qualified motion; show compatible alternatives",
+      "Import/select real recording; inspect source aspect, duration, timestamp/frame-rate behavior, audio and provenance; declare app-only versus already-complete system capture",
+      "Contain whole capture by default; explicit crop with visible lost-content guides; manage orientation and multi-display allocation",
+      "Calibrate plate corners, active mask, round corners and cutout exclusion; compare raw source and composite",
+      "Configure simulated status and home regions outside capture: clock, signal, wifi, battery, theme, sampled/override colors; label simulated chrome",
+      "For desktop profiles configure wallpaper, menu/status bar, dock and browser bounds/title/URL/tabs/theme around the named app viewport; label these as simulations",
+      "Set physical dimensions/axes, support contact, joint pivot/limits, camera lens/pose and non-clipping margins",
+      "Control environment/HDRI, softboxes, reflection cards, exposure, material response and route-specific capabilities",
+      "Choose scene placement slots and attachments; inspect support/contact, mounting, occlusion, scale and compatible camera envelope before moving devices",
+      "Edit camera/device/joint/source tracks with numeric keyframes, easing, tangents, range and last readable fixed hold",
+      "Trim/offset/hold/loop source independent of reveal motion; explicit audio include/mute/trim and clip-level policy",
+      "A/B draft preview versus final-render representative, request costed preview, select final output profile and submit render"
+    ],
+    "details": [
+      "Photographic mode warps screen into a static plate and can move crop/camera only within supported semantics; a physical spin/lid closure requires true articulated 3D.",
+      "Only the pill is black hardware; colored active pixels continue above/beside/below it. Full capture remains contained below deliberately simulated OS chrome.",
+      "Masks are distinct: active display, cutouts, occluders/reflections and optional overlay; curved/multiple/folding displays require explicit mappings.",
+      "A full-screen capture that already includes system chrome does not receive a second status and home bar by default; show the chosen profile and original bounds before saving.",
+      "Preview labels static representative versus moving texture, raster versus portable/native, color transform and approximation limitations. Any AI denoiser/upscaler is labeled as AI processing before its explicit initiation, including local inference.",
+      "Motion and source playback have separate clocks; decisive source content appears after reveal rather than disappearing during rotation.",
+      "Simulated padding sampling policy is fixed, per-frame, temporally filtered or keyed; only padding changes, never invented app pixels. Multi-display source transitions preserve exact captured layout and physical hinge gaps.",
+      "Unsaved changes, inherited asset version and render snapshot revision remain visible. Destructive route changes show retained/lost settings before confirmation.",
+      "Calibration has zoom/magnifier, corner snapping only when explicit, undo/redo, numeric entry, reset and keyboard movement; no drag-only control."
+    ]
+  },
+  "x-requirements": [
+    "DS-EDIT-GUIDED",
+    "DS-EDIT-ADVANCED",
+    "DS-EDIT-PREVIEW",
+    "DS-EDIT-ACCESSIBILITY",
+    "DS-SCREEN-FIT",
+    "DS-SCREEN-MASKS",
+    "DS-SCREEN-CHROME",
+    "DS-SCREEN-CLOCKS",
+    "DS-SCREEN-AUDIO"
+  ],
+  "x-evidence-policy": "No fake selectors, region bindings, setup hooks, captures or attestations. Planned controls are metadata until implemented and grounded."
+}

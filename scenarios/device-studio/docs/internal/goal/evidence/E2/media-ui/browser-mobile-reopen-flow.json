@@ -1,0 +1,187 @@
+{
+  "metadata": {
+    "name": "device-studio-p3-mobile-reopen",
+    "description": "Mobile viewport capture of the exact project created and imported by the desktop leased browser proof; returns to Projects and reselects the saved original source image.",
+    "version": "1",
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 430,
+    "viewport_height": 932
+  },
+  "nodes": [
+    {
+      "id": "wait-featured",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "article.studio-featured",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Wait featured"
+        }
+      }
+    },
+    {
+      "id": "assert-same-project",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "#featured-project-title",
+          "mode": "ASSERTION_MODE_TEXT_EQUALS",
+          "expected": {
+            "stringValue": "P3 source media browser proof 2026-10-20"
+          },
+          "case_sensitive": true,
+          "timeout_ms": 10000,
+          "failure_message": "The mobile capture must reopen the exact desktop journey project."
+        },
+        "metadata": {
+          "label": "Assert same project"
+        }
+      }
+    },
+    {
+      "id": "open-same-project",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "article.studio-featured a.studio-continue"
+        },
+        "metadata": {
+          "label": "Open same project"
+        }
+      }
+    },
+    {
+      "id": "wait-project-media",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid=\"project-source-media\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Wait project media"
+        }
+      }
+    },
+    {
+      "id": "wait-saved-image",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid^=\"project-source-media-select-\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        },
+        "metadata": {
+          "label": "Wait saved image"
+        }
+      }
+    },
+    {
+      "id": "select-saved-image",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "[data-testid^=\"project-source-media-select-\"]"
+        },
+        "metadata": {
+          "label": "Select saved image"
+        }
+      }
+    },
+    {
+      "id": "wait-image-preview",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid=\"project-source-media-image\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Wait image preview"
+        }
+      }
+    },
+    {
+      "id": "assert-original-image",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-testid=\"project-source-media-image\"]",
+          "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+          "attribute_name": "alt",
+          "expected": {
+            "stringValue": "Imported source image: ui-import-source.png"
+          },
+          "case_sensitive": true,
+          "timeout_ms": 10000,
+          "failure_message": "The same saved source is not previewed after the mobile reopen."
+        },
+        "metadata": {
+          "label": "Assert original image"
+        }
+      }
+    },
+    {
+      "id": "record-proof-identifiers",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "document.documentElement.setAttribute(\"data-p3-project-path\", location.pathname); const mediaButton = document.querySelector(\"[data-testid^=\\\"project-source-media-select-\\\"]\"); if (!mediaButton) throw new Error(\"saved source row is missing\"); document.documentElement.setAttribute(\"data-p3-media-id\", mediaButton.getAttribute(\"data-testid\").replace(\"project-source-media-select-\", \"\")); true"
+        },
+        "metadata": {
+          "label": "Record proof identifiers"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "wait-featured",
+      "target": "assert-same-project"
+    },
+    {
+      "id": "e2",
+      "source": "assert-same-project",
+      "target": "open-same-project"
+    },
+    {
+      "id": "e3",
+      "source": "open-same-project",
+      "target": "wait-project-media"
+    },
+    {
+      "id": "e4",
+      "source": "wait-project-media",
+      "target": "wait-saved-image"
+    },
+    {
+      "id": "e5",
+      "source": "wait-saved-image",
+      "target": "select-saved-image"
+    },
+    {
+      "id": "e6",
+      "source": "select-saved-image",
+      "target": "wait-image-preview"
+    },
+    {
+      "id": "e7",
+      "source": "wait-image-preview",
+      "target": "assert-original-image"
+    },
+    {
+      "id": "e8",
+      "source": "assert-original-image",
+      "target": "record-proof-identifiers"
+    }
+  ]
+}

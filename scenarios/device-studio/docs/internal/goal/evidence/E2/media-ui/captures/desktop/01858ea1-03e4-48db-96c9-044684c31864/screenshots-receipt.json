@@ -1,0 +1,21 @@
+{
+  "execution_id":  "01858ea1-03e4-48db-96c9-044684c31864",
+  "screenshots":  [
+    {
+      "screenshot":  {
+        "artifact_id":  "cb84888b-d4cf-4c96-9250-31400e53b173",
+        "url":  "/api/v1/screenshots/01858ea1-03e4-48db-96c9-044684c31864/artifacts/screenshots/00022--capture--57d4879d-b6b7-43e4-9993-0c39cf0673b9--ACTION_TYPE_SCREENSHOT.png",
+        "thumbnail_url":  "/api/v1/screenshots/01858ea1-03e4-48db-96c9-044684c31864/artifacts/screenshots/00022--capture--57d4879d-b6b7-43e4-9993-0c39cf0673b9--ACTION_TYPE_SCREENSHOT.png",
+        "width":  2880,
+        "height":  2000,
+        "content_type":  "image/png",
+        "size_bytes":  "186867",
+        "path":  "/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/recordings/01858ea1-03e4-48db-96c9-044684c31864/artifacts/screenshots/00022--capture--57d4879d-b6b7-43e4-9993-0c39cf0673b9--ACTION_TYPE_SCREENSHOT.png"
+      },
+      "step_index":  21,
+      "node_id":  "57d4879d-b6b7-43e4-9993-0c39cf0673b9",
+      "timestamp":  "2026-10-20T03:30:55.318587071Z"
+    }
+  ],
+  "total":  1
+}

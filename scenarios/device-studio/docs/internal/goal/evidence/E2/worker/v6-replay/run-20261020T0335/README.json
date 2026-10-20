@@ -1,0 +1,12 @@
+{
+  "active_mask_sha256": "63b8751df790f9ad2145a1ee7fc9320473d8da682025c7ab5636c421a553dcf2",
+  "fixture": "v6 phone; plate and active mask are original fixture bytes; source-screen.png is the historical precomposed source frame, not a raw app capture",
+  "manifest_sha256": "bbdad5e397419d8fa6354f2cf66aa3289655e6b380d1e2233ac0063d6777195b",
+  "output": "output.png",
+  "output_height": 1024,
+  "output_sha256": "f9081747545de547731e0d03520e6b0eec61efb26c0a0580e4f063d0db6bebe5",
+  "output_width": 1536,
+  "plate_sha256": "9d1c223677a610b9e63c13ccba51c8a5d44f87d0d087fc5e977e58897ceccf4a",
+  "receipt": "receipt.json",
+  "source_screen_sha256": "05cec1476f7c16a40bae8c8eabd965ce2d871f2d6260b3e43d8c9148e89cca13"
+}

@@ -1,0 +1,9 @@
+{
+  "startUrl": "http://127.0.0.1:21427/projects/652acb09-cf46-427b-80e4-b40f49f3f725",
+  "browserProfile": {
+    "extraHeaders": {
+      "X-Vrooli-Test-Mode": "1"
+    }
+  },
+  "timeoutMs": 120000
+}

@@ -1,0 +1,2 @@
+Initial baseline-original capture accidentally included dependency cache files (node_modules) and is not a valid source baseline. The captured manifest is retained as the audit record; only its duplicated dependency/cache byte copies were removed. Use baseline-source/manifest.json for the corrected source-only prewrite baseline.
+Generated build artifacts (captured API binary and UI dist tree) were also removed from this invalid copy; source bytes and the original manifest remain unchanged.

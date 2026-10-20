@@ -1,0 +1,32 @@
+[
+  {
+    "capture": "scenarios/device-studio/docs/internal/goal/evidence/E1/actual-projects-desktop.png",
+    "sha256": "e3ef3e1a47a3a6fc2f3c9b6d5ed261503d7124915da42c1dbdca61387e92f8c1",
+    "dimensions": [
+      1280,
+      720
+    ],
+    "url": "http://localhost:21427/",
+    "state": "live Device Studio project workspace; illustrative validation project"
+  },
+  {
+    "capture": "scenarios/device-studio/docs/internal/goal/evidence/E1/actual-projects-mobile.png",
+    "sha256": "93478bc03b82ce01f4c31c2a8d0df9a9e2e9629ca0777f1cfe65ed7f6974bd7a",
+    "dimensions": [
+      390,
+      844
+    ],
+    "url": "http://localhost:21427/",
+    "state": "live Device Studio project workspace; illustrative validation project"
+  },
+  {
+    "capture": "scenarios/device-studio/docs/internal/goal/evidence/E1/actual-project-detail.png",
+    "sha256": "1c4e106b182c10bb70dbf4369ce60eaf6ba8ca7d154cf7ec4a1252ef34fa49d3",
+    "dimensions": [
+      1280,
+      900
+    ],
+    "url": "http://localhost:21427/projects/921cf3bd-605e-4633-abdf-99a8de1e6ab3",
+    "state": "live Device Studio project workspace; illustrative validation project"
+  }
+]

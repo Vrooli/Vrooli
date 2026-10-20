@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "kind": "browser_source_media_routed_lease",
+  "scenario": "device-studio",
+  "observed_at_utc": "2026-10-20T03:32:30Z",
+  "lease": {
+    "owner": "Test Genie playbooks-seed",
+    "run_id": "5908158a-1b62-4efa-9b5e-d75eb98c97aa",
+    "apply_command": "test-genie playbooks-seed apply --scenario device-studio",
+    "apply_status": "seeded; SQL and file roots installed",
+    "cleanup_command": "test-genie playbooks-seed cleanup --scenario device-studio --token [redacted]",
+    "cleanup_status": "cleaned",
+    "cleanup_token": "redacted"
+  },
+  "browser_routing": {
+    "header": "X-Vrooli-Test-Mode: 1",
+    "scope": "BAS workflow routed-test-mode browser profile only",
+    "project_id": "451bec76-0b04-44d5-bb41-47a8a463cd7b",
+    "project_name": "P3 source media browser proof 2026-10-20",
+    "media_id": "d5c32717-a979-4e96-aa3b-658be9a7b210",
+    "filename": "ui-import-source.png",
+    "size_bytes": 10015,
+    "media_type": "image/png",
+    "dimensions": "1200x800",
+    "sha256": "024b6838ee4653dd6ca9ae4c872c673e398e0974f57714b3e974ffee7e315cd3",
+    "duplicate_import": "not_exercised"
+  },
+  "desktop": {
+    "execution_id": "01858ea1-03e4-48db-96c9-044684c31864",
+    "screenshot": "captures/desktop/01858ea1-03e4-48db-96c9-044684c31864/screenshots/step-22-57d4879d-b6b7-43e4-9993-0c39cf0673b9.png",
+    "screenshot_sha256": "f6fc865f3628f3dfd0ce8ebbe56a5fd2e5f2264c4f16cc81ca5c98b53e3c472b",
+    "screenshot_pixels": "2880x2000",
+    "journey": "create project, import source, return to Projects, reopen project, reselect saved source",
+    "assertions": [
+      "original filename matches ui-import-source.png",
+      "decoded dimensions match 1200 × 800"
+    ],
+    "dom_observations": [
+      "Captured DOM Source details shows SHA-256 024b6838ee4653dd6ca9ae4c872c673e398e0974f57714b3e974ffee7e315cd3; manually compared with the retained fixture SHA-256. This was not a BAS assertion."
+    ]
+  },
+  "mobile": {
+    "execution_id": "7ea261cf-3c06-4149-8c5d-00a9461388ec",
+    "viewport": "430x932",
+    "screenshot": "captures/mobile/7ea261cf-3c06-4149-8c5d-00a9461388ec/screenshots/step-12-44c2cba4-0331-42f0-a354-bdfeeace31cc.png",
+    "screenshot_sha256": "78e193804ce42b40369a0ed386e7fc2b878dff23da6a4c59fb3d1329ec607da9",
+    "screenshot_pixels": "860x1864",
+    "journey": "reopen the same project and select the saved source",
+    "assertions": [
+      "same project ID",
+      "original filename matches ui-import-source.png"
+    ]
+  },
+  "clear_test_pool": {
+    "owner_rpc": "vrooli.dev_routing.v1.routing.RoutingService/ClearTestPool",
+    "endpoint": "http://127.0.0.1:19349",
+    "called_before_test_genie_cleanup": true,
+    "response_stats": {
+      "test_pool_requests": 39,
+      "primary_during_test_mode_requests": 0,
+      "test_root_writes": 1,
+      "primary_root_writes_during_test_mode": 0,
+      "omitted_protobuf_scalar_fields_interpreted_as_default_zero": true
+    },
+    "interpretation": "The UI journey performed routed SQL requests and one file-root write; neither SQL nor file writes were routed to primary storage during test mode."
+  },
+  "post_cleanup": {
+    "primary_project_list": [
+      "921cf3bd-605e-4633-abdf-99a8de1e6ab3"
+    ],
+    "lease_project_absent_from_primary": true,
+    "lease_project_get_without_test_mode": "not_found",
+    "lease_project_get_with_test_mode": "not_found",
+    "api_status": "healthy"
+  },
+  "limitations": [
+    "This is a manual Test Genie Playbooks Seed browser journey, not a Test Genie suite run.",
+    "The screenshot files are BAS captures at 2x pixel dimensions relative to the 1440x1000 desktop and 430x932 mobile browser viewports.",
+    "The successful source preview is original imported media, not a rendered device shot."
+  ]
+}

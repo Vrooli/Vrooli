@@ -1,0 +1,14 @@
+[
+  {
+    "path": "scenarios/storage-manager/cli/domains/validate/handlers.go",
+    "observed_at": "2026-10-20T02:27:50.642128+00:00",
+    "bytes": 6742,
+    "sha256": "83699eef71241b75f12e93c97bfd7c84580934f3ec14e3dc4fea451359db49e6"
+  },
+  {
+    "path": "scenarios/storage-manager/cli/domains/validate/validate_test.go",
+    "observed_at": "2026-10-20T02:27:50.642399+00:00",
+    "bytes": 1553,
+    "sha256": "1186ea6d757f3222eb5202c352a58fa4f66eee1647f66813dacd5f8e74c8b760"
+  }
+]

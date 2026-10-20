@@ -1,0 +1,206 @@
+{
+  "schema_version": 1,
+  "kind": "shots_d2_precise_prewrite_baseline",
+  "captured_at": "2026-10-20T03:34:56.495641+00:00",
+  "git_head": "758ddabe2903eb6cd678b3ca966c6d44908108cd",
+  "working_tree_may_be_dirty": true,
+  "scope_note": "Exact byte copies or explicit absences for the anticipated shot proto/API/CLI source and generated outputs, plus supplemental absence entries captured before shot source writes. Composition source has its own exact supplemental baseline.",
+  "entries": [
+    {
+      "path": "packages/proto/schemas/device-studio/v1/shots/shots.proto",
+      "state": "absent"
+    },
+    {
+      "path": "packages/proto/gen/.vrooli-proto-artifact.json",
+      "state": "present",
+      "observed_at": "2026-10-20T03:27:15.265113+00:00",
+      "bytes": 205,
+      "sha256": "29e4b3762187c4399ca8129538e6984ef9194a0e20a82a4fba2eebd396b1837e"
+    },
+    {
+      "path": "packages/proto/gen/descriptor/image.binpb",
+      "state": "present",
+      "observed_at": "2026-10-20T03:27:14.824476+00:00",
+      "bytes": 8586555,
+      "sha256": "2b735d8548d43b85b43076709f82d69eb2f64f28ea65429d2fea61204d3d4ab8"
+    },
+    {
+      "path": "packages/proto/gen/manifests/device-studio.lock.json",
+      "state": "present",
+      "observed_at": "2026-10-20T03:27:14.987104+00:00",
+      "bytes": 4618,
+      "sha256": "9524c518782f5baeac429098700726c60ca3a1bc53b0fa6154b34d8f9c0859e3"
+    },
+    {
+      "path": "packages/proto/gen/go/device-studio/v1/projects/projects.pb.go",
+      "state": "present",
+      "observed_at": "2026-10-20T03:27:14.871453+00:00",
+      "bytes": 39290,
+      "sha256": "5c4c8dd2017268a52c6c1f6333df9829464a459beef0ef031de943c31bd7cf32"
+    },
+    {
+      "path": "packages/proto/gen/go/device-studio/v1/projects/projects_v1connect/projects.connect.go",
+      "state": "present",
+      "observed_at": "2026-10-20T03:27:14.871533+00:00",
+      "bytes": 14827,
+      "sha256": "46bd66f6141a54e6081b36ce6201088eedf20d6da409547a7479350442a35866"
+    },
+    {
+      "path": "packages/proto/gen/go/device-studio/v1/shots/shots.pb.go",
+      "state": "absent"
+    },
+    {
+      "path": "packages/proto/gen/go/device-studio/v1/shots/shots_v1connect/shots.connect.go",
+      "state": "absent"
+    },
+    {
+      "path": "packages/proto/gen/typescript/device-studio/v1/projects/projects_pb.ts",
+      "state": "present",
+      "observed_at": "2026-10-20T03:27:15.199050+00:00",
+      "bytes": 18468,
+      "sha256": "945813424dd39b3bfb103f7ebff377c248738d7aa758654245cf60d77a77d8b6"
+    },
+    {
+      "path": "packages/proto/gen/typescript/device-studio/v1/shots/shots_pb.ts",
+      "state": "absent"
+    },
+    {
+      "path": "scenarios/device-studio/api/main.go",
+      "state": "present",
+      "observed_at": "2026-10-20T03:12:41.058684+00:00",
+      "bytes": 4628,
+      "sha256": "a11e1b7c551378f86dd4ec9827fc4b8dc3d6a7b9fdc3e3540cc55956a08a0622"
+    },
+    {
+      "path": "scenarios/device-studio/api/internal/modules/registry.go",
+      "state": "present",
+      "observed_at": "2026-10-20T01:53:17.549403+00:00",
+      "bytes": 3837,
+      "sha256": "cf4ba83c8ac526706907ce3ef71404bb16dae6a5f0eecf17f086090fbcf67837"
+    },
+    {
+      "path": "scenarios/device-studio/api/internal/shots/schema.sql",
+      "state": "absent"
+    },
+    {
+      "path": "scenarios/device-studio/api/internal/shots/repository.go",
+      "state": "absent"
+    },
+    {
+      "path": "scenarios/device-studio/api/internal/shots/service.go",
+      "state": "absent"
+    },
+    {
+      "path": "scenarios/device-studio/api/internal/shots/repository_test.go",
+      "state": "absent"
+    },
+    {
+      "path": "scenarios/device-studio/api/internal/shots/service_test.go",
+      "state": "absent"
+    },
+    {
+      "path": "scenarios/device-studio/api/handlers/shots/module.go",
+      "state": "absent"
+    },
+    {
+      "path": "scenarios/device-studio/api/handlers/shots/endpoints.go",
+      "state": "absent"
+    },
+    {
+      "path": "scenarios/device-studio/api/handlers/shots/handler.go",
+      "state": "absent"
+    },
+    {
+      "path": "scenarios/device-studio/api/handlers/shots/handler_test.go",
+      "state": "absent"
+    },
+    {
+      "path": "scenarios/device-studio/api/device-studio-api.freshness.json",
+      "state": "present",
+      "observed_at": "2026-10-20T03:18:43.633370+00:00",
+      "bytes": 122791,
+      "sha256": "119de1871a2a9700996e3418de527bab34665693c0f591936dbd6c35f3593111"
+    },
+    {
+      "path": "scenarios/device-studio/.vrooli/endpoints.json",
+      "state": "present",
+      "observed_at": "2026-10-20T03:03:21.268935+00:00",
+      "bytes": 12120,
+      "sha256": "fefbae8cf2a3b88c89f09a587dfa20007a454c615a49d672c3e0b5900c546311"
+    },
+    {
+      "path": "scenarios/device-studio/cli/domains/domains.go",
+      "state": "present",
+      "observed_at": "2026-10-20T02:57:42.928194+00:00",
+      "bytes": 2294,
+      "sha256": "c7c3593b5abaab6c8c32b41b9057192babefb0e4e4dd3cf10575c474875c5f5c"
+    },
+    {
+      "path": "scenarios/device-studio/cli/domains/shots/register.go",
+      "state": "absent"
+    },
+    {
+      "path": "scenarios/device-studio/cli/domains/shots/handlers.go",
+      "state": "absent"
+    },
+    {
+      "path": "scenarios/device-studio/cli/domains/shots/handlers_test.go",
+      "state": "absent"
+    },
+    {
+      "path": "scenarios/device-studio/cli/domains/shots/manifest_test.go",
+      "state": "absent"
+    },
+    {
+      "path": "scenarios/device-studio/cli/manifest.json",
+      "state": "present",
+      "observed_at": "2026-10-20T02:57:42.924815+00:00",
+      "bytes": 9625,
+      "sha256": "7cbd73f4fe5aa1e527123b8a44aa517b6d1f023d021b94f86cbf30b9b4e8a4b1"
+    },
+    {
+      "path": "scenarios/device-studio/cli/docs/commands.md",
+      "state": "absent"
+    },
+    {
+      "path": "scenarios/device-studio/api/internal/shots/model.go",
+      "state": "absent"
+    },
+    {
+      "path": "scenarios/device-studio/api/internal/shots/errors.go",
+      "state": "absent"
+    },
+    {
+      "path": "scenarios/device-studio/api/internal/shots/sqlite.go",
+      "state": "absent"
+    },
+    {
+      "path": "scenarios/device-studio/api/internal/shots/compile.go",
+      "state": "absent"
+    },
+    {
+      "path": "scenarios/device-studio/api/internal/shots/validation.go",
+      "state": "absent"
+    },
+    {
+      "path": "scenarios/device-studio/api/internal/shots/sqlite_test.go",
+      "state": "absent"
+    },
+    {
+      "path": "scenarios/device-studio/api/handlers/shots/connect.go",
+      "state": "absent"
+    },
+    {
+      "path": "scenarios/device-studio/api/handlers/shots/connect_test.go",
+      "state": "absent"
+    },
+    {
+      "path": "scenarios/device-studio/bas/seeds/migrations/sqlite/001_shots.sql",
+      "state": "absent"
+    },
+    {
+      "path": "scenarios/device-studio/docs/internal/goal/evidence/E2/shots/README.md",
+      "state": "absent"
+    }
+  ]
+}

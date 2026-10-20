@@ -1,0 +1,168 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "device-studio",
+  "generator": "v1.0.0",
+  "manifest_hash": "a88534657912051d6f83c29e79e0c4da218c3331496b42ac8b5241342dc04dd1",
+  "commands": [
+    {
+      "path": "media get",
+      "group": "media",
+      "command": "get",
+      "binding": "ProjectsService.GetSourceMedia",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "media import",
+      "group": "media",
+      "command": "import",
+      "declared_exception": "upload",
+      "observed_primitive": "upload"
+    },
+    {
+      "path": "media list",
+      "group": "media",
+      "command": "list",
+      "binding": "ProjectsService.ListSourceMedia",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "notes attach",
+      "group": "notes",
+      "command": "attach",
+      "declared_exception": "upload",
+      "observed_primitive": "upload"
+    },
+    {
+      "path": "notes count",
+      "group": "notes",
+      "command": "count",
+      "binding": "NotesService.CountNotes",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "notes create",
+      "group": "notes",
+      "command": "create",
+      "binding": "NotesService.CreateNote",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "notes get",
+      "group": "notes",
+      "command": "get",
+      "binding": "NotesService.GetNote",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "notes list",
+      "group": "notes",
+      "command": "list",
+      "binding": "NotesService.ListNotes",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "projects create",
+      "group": "projects",
+      "command": "create",
+      "binding": "ProjectsService.CreateProject",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "projects get",
+      "group": "projects",
+      "command": "get",
+      "binding": "ProjectsService.GetProject",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "projects list",
+      "group": "projects",
+      "command": "list",
+      "binding": "ProjectsService.ListProjects",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "projects rename",
+      "group": "projects",
+      "command": "rename",
+      "binding": "ProjectsService.RenameProject",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "shots compile",
+      "group": "shots",
+      "command": "compile",
+      "binding": "ShotsService.CompileShot",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "shots create",
+      "group": "shots",
+      "command": "create",
+      "binding": "ShotsService.CreateShot",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "shots get",
+      "group": "shots",
+      "command": "get",
+      "binding": "ShotsService.GetShot",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "shots list",
+      "group": "shots",
+      "command": "list",
+      "binding": "ShotsService.ListShots",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "shots revision-get",
+      "group": "shots",
+      "command": "revision-get",
+      "binding": "ShotsService.GetShotRevision",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "shots revisions",
+      "group": "shots",
+      "command": "revisions",
+      "binding": "ShotsService.ListShotRevisions",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "shots save",
+      "group": "shots",
+      "command": "save",
+      "binding": "ShotsService.SaveShot",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "shots validate",
+      "group": "shots",
+      "command": "validate",
+      "binding": "ShotsService.ValidateShot",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    }
+  ]
+}

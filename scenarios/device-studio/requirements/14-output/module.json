@@ -1,0 +1,122 @@
+{
+  "_metadata": {
+    "module": "output",
+    "description": "Qualified output and renderer profiles. Fresh product contract; all behavior remains unimplemented.",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": true
+  },
+  "requirements": [
+    {
+      "id": "DS-OUTPUT-PROFILES",
+      "title": "The exporter shall qualify the accepted SDR output profiles.",
+      "description": "The exporter shall produce and verify 1920x1080 and 1080x1920 video at 24 and 30fps SDR, square pixels, declared color/range and duration/frame schedule, plus supported high-resolution stills without invented source detail.",
+      "prd_ref": "OT-P0-014",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "output",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-OUTPUT-PROFILES protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-OUTPUT-PROFILES",
+            "planned_automation": "Probe/full-decode/color-chart and selected-profile tests.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    },
+    {
+      "id": "DS-OUTPUT-READABILITY",
+      "title": "The release shall qualify source adequacy and readable proof.",
+      "description": "Before final acceptance, the shot shall evaluate capture/plate resolution, projected required text footprint, masking, crop and proof hold intervals at final viewing size and reject inadequate required content.",
+      "prd_ref": "OT-P0-014",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "output",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-OUTPUT-READABILITY protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-OUTPUT-READABILITY",
+            "planned_automation": "ROI/source adequacy fixtures and attended proof-interval review.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    },
+    {
+      "id": "DS-OUTPUT-COLOR",
+      "title": "The renderer shall preserve declared source and beauty color policies.",
+      "description": "The pipeline shall separate UI-faithful screen treatment from beauty lighting, record input/output color transforms/range and qualify native/portable results without claiming bit-identical pixels across hardware.",
+      "prd_ref": "OT-P0-014",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "output",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-OUTPUT-COLOR protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-OUTPUT-COLOR",
+            "planned_automation": "Color/mask/export diagnostics and reference parity review.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    },
+    {
+      "id": "DS-OUTPUT-METRICS",
+      "title": "The worker shall report measured profile resource evidence.",
+      "description": "The worker shall record startup-inclusive preview/final latency, owned-scope peak memory and device/VRAM observations with actual tool/profile/hardware and concurrent-load context.",
+      "prd_ref": "OT-P0-014",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "output",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-OUTPUT-METRICS protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-OUTPUT-METRICS",
+            "planned_automation": "Owned resource/timing capture and qualification evidence review.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    }
+  ]
+}

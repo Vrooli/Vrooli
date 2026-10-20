@@ -1,0 +1,20 @@
+{
+  "captured_at": "2026-10-20T03:26:14.442204+00:00",
+  "scope": "Follow-up unit-run fixes; bytes immediately before changing Arabic project.editName namespace and initial Dialog mount behavior",
+  "entries": [
+    {
+      "path": "scenarios/device-studio/ui/src/i18n/locales/ar.json",
+      "present": true,
+      "bytes": 10073,
+      "sha256": "0f840798dc4c25a3947468dc2d019c5449ef7606f8769e554ac86015923b082e",
+      "backup": "followup-prewrite/bytes/scenarios/device-studio/ui/src/i18n/locales/ar.json"
+    },
+    {
+      "path": "scenarios/device-studio/ui/src/features/projects/ProjectWorkspace.tsx",
+      "present": true,
+      "bytes": 6392,
+      "sha256": "a722a9c9e143e78b0ee9fe50db08af64ba142449bff33de234ef3bddfe4f2765",
+      "backup": "followup-prewrite/bytes/scenarios/device-studio/ui/src/features/projects/ProjectWorkspace.tsx"
+    }
+  ]
+}

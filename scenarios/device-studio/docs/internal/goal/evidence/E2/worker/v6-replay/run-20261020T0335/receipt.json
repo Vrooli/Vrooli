@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "job_id": "v6-phone-worker-replay",
+  "attempt_id": "attempt-1",
+  "input_fingerprint": "f0ab8e836ed284e820c8f87b48addedfce8589fecaa1b0441941cfa12f352125",
+  "manifest_sha256": "bbdad5e397419d8fa6354f2cf66aa3289655e6b380d1e2233ac0063d6777195b",
+  "profile": "go-still-homography-v1",
+  "algorithm": "inverse-homography-premultiplied-bilinear-ssaa-v1",
+  "inputs": [
+    {
+      "role": "plate",
+      "name": "plate.png",
+      "sha256": "9d1c223677a610b9e63c13ccba51c8a5d44f87d0d087fc5e977e58897ceccf4a",
+      "size_bytes": 2516367
+    },
+    {
+      "role": "screen",
+      "name": "source-screen.png",
+      "sha256": "05cec1476f7c16a40bae8c8eabd965ce2d871f2d6260b3e43d8c9148e89cca13",
+      "size_bytes": 850071
+    },
+    {
+      "role": "active_mask",
+      "name": "active-mask.png",
+      "sha256": "63b8751df790f9ad2145a1ee7fc9320473d8da682025c7ab5636c421a553dcf2",
+      "size_bytes": 7346
+    }
+  ],
+  "output_name": "output.png",
+  "output_sha256": "f9081747545de547731e0d03520e6b0eec61efb26c0a0580e4f063d0db6bebe5",
+  "output_size_bytes": 3917881,
+  "output_width": 1536,
+  "output_height": 1024,
+  "composition": {
+    "algorithm": "inverse-homography-premultiplied-bilinear-ssaa-v1",
+    "plate_width": 1536,
+    "plate_height": 1024,
+    "source_width": 1206,
+    "source_height": 2622,
+    "surface_width": 1206,
+    "surface_height": 2622,
+    "contain_scale": 1,
+    "contain_offset_x": 0,
+    "contain_offset_y": 0,
+    "samples_per_axis": 2,
+    "protected_pixel_count": 1262078,
+    "protected_changed_pixel_count": 0,
+    "protected_pixels_sha256": "fb0f3ea844b39776235a35bf126fe988b763fff9a423b070196196817871b512",
+    "replay_identity_bound": false
+  },
+  "completed_at": "2026-10-20T03:21:26.336112386Z"
+}

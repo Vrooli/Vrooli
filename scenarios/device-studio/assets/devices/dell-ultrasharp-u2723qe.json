@@ -1,0 +1,251 @@
+{
+  "schema_version": "device-definition/v1",
+  "id": "dell-ultrasharp-u2723qe",
+  "group": "monitor_tv",
+  "kind": "desktop_monitor",
+  "identity_status": "documented_product",
+  "manufacturer": "Dell",
+  "model": "UltraSharp 27 4K USB-C Hub Monitor U2723QE",
+  "dimensions": {
+    "without_stand": {
+      "width": {
+        "value": 611.44,
+        "unit": "mm",
+        "meaning": "left-to-right in front reference pose",
+        "configuration": "without_stand",
+        "method": "manufacturer",
+        "uncertainty": {
+          "status": "source_unspecified",
+          "explanation": "Manufacturer publishes nominal value; tolerance and protrusion envelope are not provided in this source record."
+        },
+        "evidence": [
+          {
+            "source": "https://www.delltechnologies.com/asset/en-gb/products/electronics-and-accessories/technical-support/dell-ultrasharp-27-and-32-usbc-hub-monitors-u2723qe-u3223qe-datasheet.pdf",
+            "kind": "manufacturer_specification",
+            "qualifier": "Manufacturer dimensions without stand."
+          }
+        ]
+      },
+      "height": {
+        "value": 353.01,
+        "unit": "mm",
+        "meaning": "bottom-to-top in front reference pose",
+        "configuration": "without_stand",
+        "method": "manufacturer",
+        "uncertainty": {
+          "status": "source_unspecified",
+          "explanation": "Manufacturer publishes nominal value; tolerance and protrusion envelope are not provided in this source record."
+        },
+        "evidence": [
+          {
+            "source": "https://www.delltechnologies.com/asset/en-gb/products/electronics-and-accessories/technical-support/dell-ultrasharp-27-and-32-usbc-hub-monitors-u2723qe-u3223qe-datasheet.pdf",
+            "kind": "manufacturer_specification",
+            "qualifier": "Manufacturer dimensions without stand."
+          }
+        ]
+      },
+      "depth": {
+        "value": 54.33,
+        "unit": "mm",
+        "meaning": "front-to-back in front reference pose",
+        "configuration": "without_stand",
+        "method": "manufacturer",
+        "uncertainty": {
+          "status": "source_unspecified",
+          "explanation": "Manufacturer publishes nominal value; tolerance and protrusion envelope are not provided in this source record."
+        },
+        "evidence": [
+          {
+            "source": "https://www.delltechnologies.com/asset/en-gb/products/electronics-and-accessories/technical-support/dell-ultrasharp-27-and-32-usbc-hub-monitors-u2723qe-u3223qe-datasheet.pdf",
+            "kind": "manufacturer_specification",
+            "qualifier": "Manufacturer dimensions without stand."
+          }
+        ]
+      }
+    },
+    "stand_low": {
+      "width": {
+        "value": 611.4,
+        "unit": "mm",
+        "meaning": "left-to-right in front reference pose",
+        "configuration": "stand_low",
+        "method": "manufacturer",
+        "uncertainty": {
+          "status": "source_unspecified",
+          "explanation": "Manufacturer publishes nominal value; tolerance and protrusion envelope are not provided in this source record."
+        },
+        "evidence": [
+          {
+            "source": "https://www.delltechnologies.com/asset/en-gb/products/electronics-and-accessories/technical-support/dell-ultrasharp-27-and-32-usbc-hub-monitors-u2723qe-u3223qe-datasheet.pdf",
+            "kind": "manufacturer_specification",
+            "qualifier": "Manufacturer dimensions with stand at lowest setting."
+          }
+        ]
+      },
+      "height": {
+        "value": 385.18,
+        "unit": "mm",
+        "meaning": "bottom-to-top in front reference pose",
+        "configuration": "stand_low",
+        "method": "manufacturer",
+        "uncertainty": {
+          "status": "source_unspecified",
+          "explanation": "Manufacturer publishes nominal value; tolerance and protrusion envelope are not provided in this source record."
+        },
+        "evidence": [
+          {
+            "source": "https://www.delltechnologies.com/asset/en-gb/products/electronics-and-accessories/technical-support/dell-ultrasharp-27-and-32-usbc-hub-monitors-u2723qe-u3223qe-datasheet.pdf",
+            "kind": "manufacturer_specification",
+            "qualifier": "Manufacturer dimensions with stand at lowest setting."
+          }
+        ]
+      },
+      "depth": {
+        "value": 185,
+        "unit": "mm",
+        "meaning": "front-to-back in front reference pose",
+        "configuration": "stand_low",
+        "method": "manufacturer",
+        "uncertainty": {
+          "status": "source_unspecified",
+          "explanation": "Manufacturer publishes nominal value; tolerance and protrusion envelope are not provided in this source record."
+        },
+        "evidence": [
+          {
+            "source": "https://www.delltechnologies.com/asset/en-gb/products/electronics-and-accessories/technical-support/dell-ultrasharp-27-and-32-usbc-hub-monitors-u2723qe-u3223qe-datasheet.pdf",
+            "kind": "manufacturer_specification",
+            "qualifier": "Manufacturer dimensions with stand at lowest setting."
+          }
+        ]
+      }
+    },
+    "stand_high": {
+      "width": {
+        "value": 611.4,
+        "unit": "mm",
+        "meaning": "left-to-right in front reference pose",
+        "configuration": "stand_high",
+        "method": "manufacturer",
+        "uncertainty": {
+          "status": "source_unspecified",
+          "explanation": "Manufacturer publishes nominal value; tolerance and protrusion envelope are not provided in this source record."
+        },
+        "evidence": [
+          {
+            "source": "https://www.delltechnologies.com/asset/en-gb/products/electronics-and-accessories/technical-support/dell-ultrasharp-27-and-32-usbc-hub-monitors-u2723qe-u3223qe-datasheet.pdf",
+            "kind": "manufacturer_specification",
+            "qualifier": "Manufacturer dimensions with stand at highest setting."
+          }
+        ]
+      },
+      "height": {
+        "value": 535.18,
+        "unit": "mm",
+        "meaning": "bottom-to-top in front reference pose",
+        "configuration": "stand_high",
+        "method": "manufacturer",
+        "uncertainty": {
+          "status": "source_unspecified",
+          "explanation": "Manufacturer publishes nominal value; tolerance and protrusion envelope are not provided in this source record."
+        },
+        "evidence": [
+          {
+            "source": "https://www.delltechnologies.com/asset/en-gb/products/electronics-and-accessories/technical-support/dell-ultrasharp-27-and-32-usbc-hub-monitors-u2723qe-u3223qe-datasheet.pdf",
+            "kind": "manufacturer_specification",
+            "qualifier": "Manufacturer dimensions with stand at highest setting."
+          }
+        ]
+      },
+      "depth": {
+        "value": 185,
+        "unit": "mm",
+        "meaning": "front-to-back in front reference pose",
+        "configuration": "stand_high",
+        "method": "manufacturer",
+        "uncertainty": {
+          "status": "source_unspecified",
+          "explanation": "Manufacturer publishes nominal value; tolerance and protrusion envelope are not provided in this source record."
+        },
+        "evidence": [
+          {
+            "source": "https://www.delltechnologies.com/asset/en-gb/products/electronics-and-accessories/technical-support/dell-ultrasharp-27-and-32-usbc-hub-monitors-u2723qe-u3223qe-datasheet.pdf",
+            "kind": "manufacturer_specification",
+            "qualifier": "Manufacturer dimensions with stand at highest setting."
+          }
+        ]
+      }
+    }
+  },
+  "displays": [
+    {
+      "id": "panel",
+      "topology": "planar",
+      "physical_boundary": {
+        "status": "unknown"
+      },
+      "active_area": {
+        "status": "unknown"
+      },
+      "app_safe_area": {
+        "status": "unknown"
+      },
+      "hardware_occlusions": []
+    }
+  ],
+  "joints": [
+    {
+      "id": "stand-height-adjustment",
+      "parent_part": "stand",
+      "child_part": "display",
+      "status": "candidate_only"
+    }
+  ],
+  "supported_poses": [
+    {
+      "name": "landscape",
+      "status": "candidate_only"
+    }
+  ],
+  "supported_motion": [
+    {
+      "name": "stand-height-adjustment",
+      "status": "candidate_only"
+    }
+  ],
+  "supported_profiles": [],
+  "supports": [
+    {
+      "kind": "tabletop",
+      "status": "candidate_only",
+      "interface_id": "integrated-stand"
+    },
+    {
+      "kind": "wall_mount",
+      "status": "unknown"
+    }
+  ],
+  "model_candidates": [
+    {
+      "id": "free-27-inch-monitor-listing",
+      "status": "not_acquired",
+      "listing_url": "https://www.blendkit.com/asset-gallery-detail/94a4383c-8e65-44aa-a9d8-0fea585c4341/",
+      "author": "Steven Yap",
+      "license": "Royalty-free listing; full terms not archived here",
+      "rights_notes": "Apple Studio Display candidate is a different monitor, not a U2723QE match."
+    }
+  ],
+  "provenance": [
+    {
+      "source": "https://www.delltechnologies.com/asset/en-gb/products/electronics-and-accessories/technical-support/dell-ultrasharp-27-and-32-usbc-hub-monitors-u2723qe-u3223qe-datasheet.pdf",
+      "kind": "manufacturer_datasheet",
+      "qualifier": "Body and with-stand low/high envelope dimensions; panel active geometry and mount pattern are separate unknowns."
+    },
+    {
+      "source": "/home/matthalloran8/.vrooli/evidence/device-presentation-2026-10-18/model-sourcing/large-devices.json",
+      "kind": "archived_source_record",
+      "qualifier": "Listed free monitor is a different Apple Studio Display model; not a U2723QE asset."
+    }
+  ],
+  "qualification": "unqualified",
+  "description": "No monitor geometry or mount compatibility can be inferred from diagonal/raster alone."
+}

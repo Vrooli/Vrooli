@@ -1,0 +1,150 @@
+{
+  "_metadata": {
+    "module": "creations",
+    "description": "Reference-based AI creation and refinement. Fresh product contract; all behavior remains unimplemented.",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": true
+  },
+  "requirements": [
+    {
+      "id": "DS-CREATION-PIPELINE",
+      "title": "The creation job shall preserve its source-to-candidate stages.",
+      "description": "When creation is requested, the system shall record identity/reference gathering, measured facts, source selection, import/adaptation/original construction, comparison, refinement and candidate packaging as resumable stages.",
+      "prd_ref": "OT-P0-007",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "creations",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-CREATION-PIPELINE protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-CREATION-PIPELINE",
+            "planned_automation": "Creation state-machine and source provenance integration tests.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    },
+    {
+      "id": "DS-CREATION-REFERENCE-LOOP",
+      "title": "The creation job shall refine against fixed evidence.",
+      "description": "The creation workflow shall lock verified dimensions, calibrate reference cameras, compare neutral geometry and held-out views, then refine materials/light with per-iteration hypotheses and uncertainty.",
+      "prd_ref": "OT-P0-007",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "creations",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-CREATION-REFERENCE-LOOP protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-CREATION-REFERENCE-LOOP",
+            "planned_automation": "Reference instrument tests and real held-out-view refinement review.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    },
+    {
+      "id": "DS-CREATION-AUTONOMY",
+      "title": "The creation job shall keep autonomous work inside its grant.",
+      "description": "The creation orchestrator shall search/import/build/refine within the disclosed total time, compute, spend, workspace and child-agent envelope and pause for an explicit revised choice before expanding it.",
+      "prd_ref": "OT-P0-007",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "creations",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-CREATION-AUTONOMY protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-CREATION-AUTONOMY",
+            "planned_automation": "Orchestrator/grant/budget fault-injection and activity review.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    },
+    {
+      "id": "DS-CREATION-ISOLATION",
+      "title": "The execution adapter shall isolate untrusted model tooling.",
+      "description": "Before executing imported/generated scripts, the owner adapter shall enforce bounded resources, allowed filesystem/network policy and disabled automatic script execution without exposing credentials or download sessions.",
+      "prd_ref": "OT-P0-007",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "creations",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-CREATION-ISOLATION protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-CREATION-ISOLATION",
+            "planned_automation": "Sandbox/argv/archive adversarial tests and containment qualification.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    },
+    {
+      "id": "DS-CREATION-REVIEW",
+      "title": "The system shall separate candidate readiness from release.",
+      "description": "When a creation ends, the system shall expose comparisons, unresolved mismatches and retained candidates and require the established review/release authority before reusable-library publication.",
+      "prd_ref": "OT-P0-007",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "creations",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-CREATION-REVIEW protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-CREATION-REVIEW",
+            "planned_automation": "Candidate/review/publication boundary integration tests.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    }
+  ]
+}

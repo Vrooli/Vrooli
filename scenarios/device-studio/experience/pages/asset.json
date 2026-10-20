@@ -1,0 +1,153 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "asset",
+    "title": "Asset detail",
+    "routes": [
+      "/library/:assetId"
+    ],
+    "purpose": "Inspect asset geometry, screens, articulation, rights and evidence before assigning an immutable version to a shot.",
+    "prd_refs": [
+      "OT-P0-002",
+      "OT-P0-004",
+      "OT-P0-006",
+      "OT-P0-008",
+      "OT-P0-014"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "See what the asset actually supports."
+    },
+    {
+      "statement": "Inspect visual evidence and remaining fidelity limitations."
+    },
+    {
+      "statement": "Choose a version or return to compatible alternatives."
+    }
+  ],
+  "states": [
+    {
+      "id": "idle",
+      "description": "No operation is pending; identify the current task and available next action."
+    },
+    {
+      "id": "pending",
+      "description": "Work is acknowledged and queued or in flight with observed progress or an honest indeterminate state."
+    },
+    {
+      "id": "retrying",
+      "description": "A safe retry is actively reconciling or executing without blind duplicate side effects."
+    },
+    {
+      "id": "default",
+      "description": "Explain the current task, saved revision and next meaningful action."
+    },
+    {
+      "id": "loading",
+      "description": "Name what is loading; retain stable layout and existing local content."
+    },
+    {
+      "id": "submitting",
+      "description": "Acknowledge the requested operation once and prevent duplicate costly submissions."
+    },
+    {
+      "id": "saving",
+      "description": "Distinguish local draft changes from durably saved revision; never claim saved early."
+    },
+    {
+      "id": "syncing",
+      "description": "Explain local versus remote state and conflict resolution without silently overwriting edits."
+    },
+    {
+      "id": "refreshing",
+      "description": "Retain usable content and identify the specific information being refreshed."
+    },
+    {
+      "id": "empty",
+      "description": "Explain why there is no content and offer a relevant low-risk first action."
+    },
+    {
+      "id": "partial",
+      "description": "Show which inputs, output or services are available and which remain incomplete."
+    },
+    {
+      "id": "stale",
+      "description": "Show age, affected decisions and explicit refresh; never silently spend on refresh."
+    },
+    {
+      "id": "success",
+      "description": "Confirm the concrete durable result and offer inspection or the next task."
+    },
+    {
+      "id": "validation-error",
+      "description": "Associate actionable correction with each invalid field while preserving input."
+    },
+    {
+      "id": "request-error",
+      "description": "Explain the failed operation, preserved work and safe next action with diagnostic reference."
+    },
+    {
+      "id": "permission-denied",
+      "description": "Identify the unavailable operation and authority boundary without requesting unrelated access."
+    },
+    {
+      "id": "offline",
+      "description": "Keep supported local work usable; mark online operations unavailable and never auto-submit paid work on reconnect."
+    },
+    {
+      "id": "retry",
+      "description": "Explain whether retry reuses an operation identity, reconciles prior work or starts a newly authorized operation."
+    },
+    {
+      "id": "unqualified-motion",
+      "description": "Name missing articulation/clearance proof and offer suitable assets or inspection, not fake hinges."
+    },
+    {
+      "id": "release-pending",
+      "description": "List rights, reference, visual, temporal, portable and worker checks still pending."
+    },
+    {
+      "id": "approved",
+      "description": "Show released version, exact review evidence and remaining limitations without implying universal device certification."
+    }
+  ],
+  "claims": [
+    {
+      "id": "asset-intent-1",
+      "type": "custom",
+      "statement": "Asset selection pins exact version and hashes, with screen and motion capability gates checked before the shot changes.",
+      "tier": "aspirational",
+      "rationale": "Unimplemented design intent; runtime bindings, exact state setup, visual evidence and operator review remain required."
+    },
+    {
+      "id": "asset-intent-2",
+      "type": "custom",
+      "statement": "Reference comparisons label qualitative versus calibrated evidence and preserve known modeling mismatches.",
+      "tier": "aspirational",
+      "rationale": "Unimplemented design intent; runtime bindings, exact state setup, visual evidence and operator review remain required."
+    }
+  ],
+  "x-route-status": "planned-not-implemented",
+  "x-design": {
+    "layout": "Large inspectable preview with front/side/back reference comparison, specification ledger, qualification badges and source/license rail; mobile exposes all via sequential panels.",
+    "controls": [
+      "Orbit/pan/zoom and reset with keyboard/numeric alternatives",
+      "Show neutral lighting, UV/display masks, parts/joints and dimension axes",
+      "Compare reference and rendered views with linked orientation where genuinely calibrated",
+      "Select version for shot, duplicate as draft, view attribution or request review"
+    ],
+    "details": [
+      "Measured, manufacturer-specified, estimated and unknown values remain distinguishable with units, axis labels, states and source links.",
+      "Joint min/max, pivot, closed clearance, display mapping and unsupported capabilities are visible.",
+      "Portable preview and native render may differ; separate evidence for each and never claim CAD fit from visual comparison.",
+      "Display can use diagnostic grid, real static representative or moving source preview; label which."
+    ]
+  },
+  "x-requirements": [
+    "DS-SCREEN-MASKS"
+  ],
+  "x-evidence-policy": "No fake selectors, region bindings, setup hooks, captures or attestations. Planned controls are metadata until implemented and grounded."
+}

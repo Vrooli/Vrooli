@@ -1,0 +1,9 @@
+D4 renderjobs prewrite baseline
+Captured: 2026-10-19
+
+Before creating this evidence directory:
+- scenarios/device-studio/api/internal/renderjobs did not exist.
+- scenarios/device-studio/docs/internal/goal/evidence/E2/renderjobs did not exist.
+- api/go.mod SHA-256: 4d8c8829d3bd52028aa88adc357df63b6297de39514fc5482bae4cfc49feeea0
+- E2/worker/README.md SHA-256: 45b1bf98d2e00b7c825c87c2ab8113ba152d87a4349c1c84439d89e89c4ac3f8
+Exact prewrite bytes of go.mod and worker README are retained alongside this record.

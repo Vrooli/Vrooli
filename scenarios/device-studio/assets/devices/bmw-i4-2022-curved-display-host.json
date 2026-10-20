@@ -1,0 +1,142 @@
+{
+  "schema_version": "device-definition/v1",
+  "id": "bmw-i4-2022-curved-display-host",
+  "group": "vehicle_host",
+  "kind": "embedded_vehicle_display",
+  "identity_status": "documented_product",
+  "manufacturer": "BMW",
+  "model": "2022 BMW i4 curved display host",
+  "dimensions": {
+    "dashboard_assembly": {
+      "width": {
+        "value": null,
+        "unit": "mm",
+        "meaning": "left-to-right in front reference pose",
+        "configuration": "complete curved glass/dashboard assembly",
+        "method": "unknown",
+        "uncertainty": {
+          "status": "unknown",
+          "explanation": "No source-backed numeric value established."
+        },
+        "evidence": []
+      },
+      "height": {
+        "value": null,
+        "unit": "mm",
+        "meaning": "bottom-to-top in front reference pose",
+        "configuration": "complete curved glass/dashboard assembly",
+        "method": "unknown",
+        "uncertainty": {
+          "status": "unknown",
+          "explanation": "No source-backed numeric value established."
+        },
+        "evidence": []
+      },
+      "depth": {
+        "value": null,
+        "unit": "mm",
+        "meaning": "front-to-back in front reference pose",
+        "configuration": "complete curved glass/dashboard assembly",
+        "method": "unknown",
+        "uncertainty": {
+          "status": "unknown",
+          "explanation": "No source-backed numeric value established."
+        },
+        "evidence": []
+      }
+    }
+  },
+  "displays": [
+    {
+      "id": "instrument-cluster",
+      "topology": "curved",
+      "physical_boundary": {
+        "status": "unknown"
+      },
+      "active_area": {
+        "status": "unknown"
+      },
+      "app_safe_area": {
+        "status": "unknown"
+      },
+      "hardware_occlusions": []
+    },
+    {
+      "id": "center-control",
+      "topology": "curved",
+      "physical_boundary": {
+        "status": "unknown"
+      },
+      "active_area": {
+        "status": "unknown"
+      },
+      "app_safe_area": {
+        "status": "unknown"
+      },
+      "hardware_occlusions": []
+    }
+  ],
+  "joints": [],
+  "supported_poses": [
+    {
+      "name": "driver-view",
+      "status": "unknown"
+    },
+    {
+      "name": "passenger-view",
+      "status": "unknown"
+    }
+  ],
+  "supported_motion": [
+    {
+      "name": "camera-orbit",
+      "status": "unknown"
+    }
+  ],
+  "supported_profiles": [
+    {
+      "name": "CarPlay",
+      "status": "unknown",
+      "evidence": [
+        {
+          "source": "/home/matthalloran8/.vrooli/evidence/device-presentation-2026-10-18/model-sourcing/embedded-devices.json",
+          "kind": "archived_source_record",
+          "qualifier": "Compatibility not verified for this exact host/software option."
+        }
+      ]
+    },
+    {
+      "name": "Android Auto",
+      "status": "unknown",
+      "evidence": [
+        {
+          "source": "/home/matthalloran8/.vrooli/evidence/device-presentation-2026-10-18/model-sourcing/embedded-devices.json",
+          "kind": "archived_source_record",
+          "qualifier": "Compatibility not verified for this exact host/software option."
+        }
+      ]
+    }
+  ],
+  "supports": [
+    {
+      "kind": "vehicle_integrated",
+      "status": "candidate_only",
+      "interface_id": "oem-integrated"
+    }
+  ],
+  "model_candidates": [],
+  "provenance": [
+    {
+      "source": "https://www.press.bmwgroup.com/canada/article/detail/T0334246EN/the-new-2022-bmw-i4-edrive40-and-i4-m50",
+      "kind": "manufacturer_press_specification",
+      "qualifier": "Host describes 12.3-inch instrument panel and 14.9-inch control display; no assembly extents, active widths/heights, radii or raster in retained record."
+    },
+    {
+      "source": "/home/matthalloran8/.vrooli/evidence/device-presentation-2026-10-18/model-sourcing/embedded-devices.json",
+      "kind": "archived_source_record",
+      "qualifier": "Body bounds and active geometry are null; integration interface is OEM-specific. CarPlay/Android Auto compatibility requires separate vehicle/software confirmation."
+    }
+  ],
+  "qualification": "unqualified",
+  "description": "CarPlay and Android Auto are software compatibility profiles, not proof of host dimensions or instrument-cluster access."
+}

@@ -1,0 +1,67 @@
+{
+  "capture_artifacts": [
+    {
+      "metadata": {
+        "content_type": "image/png",
+        "filename": "step-22-57d4879d-b6b7-43e4-9993-0c39cf0673b9.png",
+        "view_url": "/api/v1/artifacts/artifacts/01858ea1-03e4-48db-96c9-044684c31864/capture-screenshot-e480e7e6-c117-4bc0-83ef-bfecd04f4137.png"
+      },
+      "path": "/home/matthalloran8/Vrooli/scenarios/device-studio/docs/internal/goal/evidence/E2/media-ui/captures/desktop/01858ea1-03e4-48db-96c9-044684c31864/screenshots/step-22-57d4879d-b6b7-43e4-9993-0c39cf0673b9.png",
+      "primary": true,
+      "size_bytes": 186867,
+      "type": "CAPTURE_TYPE_SCREENSHOT"
+    },
+    {
+      "metadata": {
+        "content_type": "text/html; charset=utf-8",
+        "filename": "dom.html",
+        "view_url": "/api/v1/artifacts/artifacts/01858ea1-03e4-48db-96c9-044684c31864/capture-dom-657215c5-9b18-46ea-b294-fb91e9482691.html"
+      },
+      "path": "/home/matthalloran8/Vrooli/scenarios/device-studio/docs/internal/goal/evidence/E2/media-ui/captures/desktop/01858ea1-03e4-48db-96c9-044684c31864/dom.html",
+      "primary": false,
+      "size_bytes": 47260,
+      "type": "CAPTURE_TYPE_DOM"
+    },
+    {
+      "metadata": {
+        "content_type": "text/markdown; charset=utf-8",
+        "filename": "network-activity.md",
+        "view_url": "/api/v1/artifacts/artifacts/01858ea1-03e4-48db-96c9-044684c31864/capture-network-6f588fea-c0b1-439e-b19e-90264f712899.md"
+      },
+      "path": "/home/matthalloran8/Vrooli/scenarios/device-studio/docs/internal/goal/evidence/E2/media-ui/captures/desktop/01858ea1-03e4-48db-96c9-044684c31864/network-activity.md",
+      "primary": false,
+      "size_bytes": 116,
+      "type": "CAPTURE_TYPE_NETWORK"
+    },
+    {
+      "metadata": {
+        "content_type": "text/markdown; charset=utf-8",
+        "filename": "console-logs.md",
+        "view_url": "/api/v1/artifacts/artifacts/01858ea1-03e4-48db-96c9-044684c31864/capture-console_logs-56e49324-0167-4f62-8eef-f20a09e51b9c.md"
+      },
+      "path": "/home/matthalloran8/Vrooli/scenarios/device-studio/docs/internal/goal/evidence/E2/media-ui/captures/desktop/01858ea1-03e4-48db-96c9-044684c31864/console-logs.md",
+      "primary": false,
+      "size_bytes": 106,
+      "type": "CAPTURE_TYPE_CONSOLE_LOGS"
+    },
+    {
+      "metadata": {
+        "content_type": "application/json",
+        "filename": "accessibility.json",
+        "view_url": "/api/v1/artifacts/artifacts/01858ea1-03e4-48db-96c9-044684c31864/capture-accessibility-c052c3f4-00bd-4ea4-9d31-45b1f932528e.json"
+      },
+      "path": "/home/matthalloran8/Vrooli/scenarios/device-studio/docs/internal/goal/evidence/E2/media-ui/captures/desktop/01858ea1-03e4-48db-96c9-044684c31864/accessibility.json",
+      "primary": false,
+      "size_bytes": 79960,
+      "type": "CAPTURE_TYPE_ACCESSIBILITY"
+    }
+  ],
+  "duration_ms": 3781,
+  "execution_id": "01858ea1-03e4-48db-96c9-044684c31864",
+  "primary_artifact_path": "/home/matthalloran8/Vrooli/scenarios/device-studio/docs/internal/goal/evidence/E2/media-ui/captures/desktop/01858ea1-03e4-48db-96c9-044684c31864/screenshots/step-22-57d4879d-b6b7-43e4-9993-0c39cf0673b9.png",
+  "status": "completed",
+  "steps_completed": 22,
+  "steps_failed": 0,
+  "steps_total": 22,
+  "success": true
+}

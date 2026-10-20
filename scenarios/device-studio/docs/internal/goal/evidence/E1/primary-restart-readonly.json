@@ -1,0 +1,41 @@
+{
+  "kind": "device-studio-primary-project-readonly-restart-check",
+  "fixture_source": "preexisting primary project created by E1 unleased exploratory lifecycle journey; same fixture recorded in slice-log.txt",
+  "lease_attached": false,
+  "mutation_performed": false,
+  "before_restart": {
+    "observed_at": "2026-10-20T02:43:06.477374+00:00",
+    "api_base": "http://127.0.0.1:19349",
+    "command": "device-studio --api-base http://127.0.0.1:19349 projects get 921cf3bd-605e-4633-abdf-99a8de1e6ab3 --json",
+    "project": {
+      "id": "921cf3bd-605e-4633-abdf-99a8de1e6ab3",
+      "name": "E1 validation workspace renamed",
+      "revision": 2,
+      "created_at": "2026-10-20T02:03:41.886251225Z",
+      "updated_at": "2026-10-20T02:03:47.051984915Z"
+    }
+  },
+  "after_restart": {
+    "observed_at": "2026-10-20T02:48:52.040744+00:00",
+    "lifecycle_command": "make -C scenarios/device-studio restart",
+    "lifecycle_result": "healthy",
+    "scenario_started_at": "2026-10-20T02:48:43.563395671Z",
+    "api_base": "http://127.0.0.1:19349",
+    "command": "device-studio --api-base http://127.0.0.1:19349 projects get 921cf3bd-605e-4633-abdf-99a8de1e6ab3 --json",
+    "project": {
+      "id": "921cf3bd-605e-4633-abdf-99a8de1e6ab3",
+      "name": "E1 validation workspace renamed",
+      "revision": 2,
+      "created_at": "2026-10-20T02:03:41.886251225Z",
+      "updated_at": "2026-10-20T02:03:47.051984915Z"
+    },
+    "same_id_name_revision_as_before": true
+  },
+  "restart_gate": "passed read-only primary Get before and after supported lifecycle restart",
+  "interpretation": "This checks primary persistence using a read-only Get. It does not claim an active Test Genie routed lease survived restart or that a leased mutation was performed.",
+  "lease_reinstall": {
+    "active_lease_survived_restart": false,
+    "claim_made": false,
+    "reason": "The Playbooks Seed lease had already been cleaned before restart; current owner API has no session resume/reinstall operation after target restart."
+  }
+}

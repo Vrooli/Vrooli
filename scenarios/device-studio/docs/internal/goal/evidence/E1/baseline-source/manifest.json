@@ -1,0 +1,1272 @@
+[
+  {
+    "path": "packages/proto/gen/typescript/device-studio/v1/notes/attachments_pb.ts",
+    "observed_at": "2026-10-20T01:51:21.010198+00:00",
+    "bytes": 3014,
+    "sha256": "dcdfd6bcc173a8da5c0d4e9a5f537bab322b8c0f24bc9bc430b456b5a0dfa1c6"
+  },
+  {
+    "path": "packages/proto/gen/typescript/device-studio/v1/notes/notes_pb.ts",
+    "observed_at": "2026-10-20T01:51:21.011848+00:00",
+    "bytes": 10870,
+    "sha256": "c587460b322ee770e0dc50cdf4267447c127b60a12256e256adc08f713c6af6e"
+  },
+  {
+    "path": "packages/proto/gen/typescript/device-studio/v1/shared/errors_pb.ts",
+    "observed_at": "2026-10-20T01:51:21.012102+00:00",
+    "bytes": 1739,
+    "sha256": "c8b0173fb2bf9e97129cadbe047b354901c4f0e81d3d82ddd61d989fdbbf8f58"
+  },
+  {
+    "path": "packages/proto/gen/typescript/device-studio/v1/shared/health_pb.ts",
+    "observed_at": "2026-10-20T01:51:21.012329+00:00",
+    "bytes": 4680,
+    "sha256": "f0b20c8388fd931a2dd1de84f3e2e65dbf932f04a527b9eb2dd0d71fd284097a"
+  },
+  {
+    "path": "packages/proto/schemas/device-studio/README.md",
+    "observed_at": "2026-10-20T01:51:21.012536+00:00",
+    "bytes": 2768,
+    "sha256": "5908dc5788734eb934c88e466aa4db47878020dbf04bc77798cf1eba6433d1d2"
+  },
+  {
+    "path": "packages/proto/schemas/device-studio/v1/notes/attachments.proto",
+    "observed_at": "2026-10-20T01:51:21.012778+00:00",
+    "bytes": 1262,
+    "sha256": "4c171f78a7d8fb9a4f0061e8cb97049e680aa14be0fa9b0b2d222227308ecaa0"
+  },
+  {
+    "path": "packages/proto/schemas/device-studio/v1/notes/notes.proto",
+    "observed_at": "2026-10-20T01:51:21.013007+00:00",
+    "bytes": 4852,
+    "sha256": "32dd12523d05e2cf83937605ac0039b0cb75830d11a20dd2583315f2881b2a97"
+  },
+  {
+    "path": "packages/proto/schemas/device-studio/v1/shared/errors.proto",
+    "observed_at": "2026-10-20T01:51:21.013276+00:00",
+    "bytes": 1386,
+    "sha256": "0628c1ced44c80d110c9f8c3d7cd1471d8f0cc99089ced1127cc6d92a02f4318"
+  },
+  {
+    "path": "packages/proto/schemas/device-studio/v1/shared/health.proto",
+    "observed_at": "2026-10-20T01:51:21.013489+00:00",
+    "bytes": 3821,
+    "sha256": "81c0f2a6a0242f40479f15efd5e4e84b11f27ee9e6c2a61c7b018aff648d2533"
+  },
+  {
+    "path": "scenarios/device-studio/api/.golangci.yml",
+    "observed_at": "2026-10-20T01:51:21.013681+00:00",
+    "bytes": 662,
+    "sha256": "c3ced23d471a5387af9309f5ef8647e81acbc4e4fda8b68d2271fb2f19525c2b"
+  },
+  {
+    "path": "scenarios/device-studio/api/.vrooli-artifact-stage.lock",
+    "observed_at": "2026-10-20T01:51:21.013929+00:00",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "scenarios/device-studio/api/.vrooli-closure-go_module.json",
+    "observed_at": "2026-10-20T01:51:21.014107+00:00",
+    "bytes": 4812,
+    "sha256": "4c3788e9b4a776630e43ef23fb50037a422f8657c67029cac3552f8ddbd63fff"
+  },
+  {
+    "path": "scenarios/device-studio/api/.vrooli-install-go_module.json",
+    "observed_at": "2026-10-20T01:51:21.014296+00:00",
+    "bytes": 77,
+    "sha256": "83bc252d2e32fcb3d077fbaa1b789cbf9ab1e03b1a7dcacdc19b897afedf0da4"
+  },
+  {
+    "path": "scenarios/device-studio/api/cmd/gen-endpoints/main.go",
+    "observed_at": "2026-10-20T01:51:21.014495+00:00",
+    "bytes": 1528,
+    "sha256": "a2c36a3aad635922b73b957afd910f7604a6b8f383b2ff631d2585344edceb0c"
+  },
+  {
+    "path": "scenarios/device-studio/api/device-studio-api",
+    "observed_at": "2026-10-20T01:51:21.014769+00:00",
+    "bytes": 27975965,
+    "sha256": "b406abd0cb95f90061bb652546f3b815bba733d3a11c39bb18b65331d1224902"
+  },
+  {
+    "path": "scenarios/device-studio/api/device-studio-api.freshness.json",
+    "observed_at": "2026-10-20T01:51:21.100920+00:00",
+    "bytes": 108700,
+    "sha256": "63da429e6f011ab203203b37f436fb368d032ccc2f5c65da21e590b8446a28cd"
+  },
+  {
+    "path": "scenarios/device-studio/api/go.mod",
+    "observed_at": "2026-10-20T01:51:21.103709+00:00",
+    "bytes": 2318,
+    "sha256": "4d8c8829d3bd52028aa88adc357df63b6297de39514fc5482bae4cfc49feeea0"
+  },
+  {
+    "path": "scenarios/device-studio/api/go.sum",
+    "observed_at": "2026-10-20T01:51:21.103971+00:00",
+    "bytes": 7142,
+    "sha256": "68b6160a232e4941c0e559ef9f3cbdca676d40ab88d264802bf955f80b617902"
+  },
+  {
+    "path": "scenarios/device-studio/api/handlers/capabilities/endpoints.go",
+    "observed_at": "2026-10-20T01:51:21.104221+00:00",
+    "bytes": 336,
+    "sha256": "92b6e6da139fbaf27262439cdac40f19d3e9ccf42cdd302dfa560cd2424f6db6"
+  },
+  {
+    "path": "scenarios/device-studio/api/handlers/capabilities/module.go",
+    "observed_at": "2026-10-20T01:51:21.104588+00:00",
+    "bytes": 813,
+    "sha256": "5ed78a198c3ea0f1e5b414594fc037a79b35cc4a167cbc61ee92e15df78b7907"
+  },
+  {
+    "path": "scenarios/device-studio/api/handlers/capabilities/module_test.go",
+    "observed_at": "2026-10-20T01:51:21.104865+00:00",
+    "bytes": 1218,
+    "sha256": "32e8eacdb4c2b8d7eb01e6532f9d77bc6d1923ac6d053c8b7942c7e2485e6224"
+  },
+  {
+    "path": "scenarios/device-studio/api/handlers/health/endpoints.go",
+    "observed_at": "2026-10-20T01:51:21.105109+00:00",
+    "bytes": 1879,
+    "sha256": "1808a91b006f5d15a858b3e1781b3a6e40b29d6363c07f7fa073b8199f2ce4fa"
+  },
+  {
+    "path": "scenarios/device-studio/api/handlers/health/handler.go",
+    "observed_at": "2026-10-20T01:51:21.105378+00:00",
+    "bytes": 1154,
+    "sha256": "72ac3d3cc38d22c0827bca5132438eb89353acea87783012810e5bb303ac5435"
+  },
+  {
+    "path": "scenarios/device-studio/api/handlers/health/handler_test.go",
+    "observed_at": "2026-10-20T01:51:21.105669+00:00",
+    "bytes": 3795,
+    "sha256": "eb5fcbe7fe86461e0870f8eacee253eff012547f2322f9afdd5d7528fd44d3d4"
+  },
+  {
+    "path": "scenarios/device-studio/api/handlers/health/module.go",
+    "observed_at": "2026-10-20T01:51:21.105963+00:00",
+    "bytes": 1173,
+    "sha256": "dc333bfcfa75bd44ded305ab2f3d8ab3e32e636a222ba0b1db0e8399593d95bf"
+  },
+  {
+    "path": "scenarios/device-studio/api/handlers/health/module_test.go",
+    "observed_at": "2026-10-20T01:51:21.106248+00:00",
+    "bytes": 1902,
+    "sha256": "1a49b6bafa97f30b5f15703c3662bfdd251510db0a929a6d9ccbf9f7f16cc8b3"
+  },
+  {
+    "path": "scenarios/device-studio/api/handlers/notes/adapter.go",
+    "observed_at": "2026-10-20T01:51:21.106497+00:00",
+    "bytes": 1184,
+    "sha256": "37a39ce24fd40db6e93238ff72d548ddfd034ee1e0bcc04f3e2aa07348b3271d"
+  },
+  {
+    "path": "scenarios/device-studio/api/handlers/notes/adapter_test.go",
+    "observed_at": "2026-10-20T01:51:21.106776+00:00",
+    "bytes": 3170,
+    "sha256": "680262af83f561da675705f79a80a86d6b3ec6397c6c3b6a54ab46b0a21c1dcd"
+  },
+  {
+    "path": "scenarios/device-studio/api/handlers/notes/attachments_handler.go",
+    "observed_at": "2026-10-20T01:51:21.107079+00:00",
+    "bytes": 5649,
+    "sha256": "8638b53e72823feba8c6f2d7930d2500493bad781b66dd0bc4ce8eec96a63ce1"
+  },
+  {
+    "path": "scenarios/device-studio/api/handlers/notes/attachments_handler_test.go",
+    "observed_at": "2026-10-20T01:51:21.107329+00:00",
+    "bytes": 7840,
+    "sha256": "149532262312ceca6632b975dfd0cfe9a71f2c2e13ffa34d8397c2f216868f81"
+  },
+  {
+    "path": "scenarios/device-studio/api/handlers/notes/connect_handler.go",
+    "observed_at": "2026-10-20T01:51:21.107595+00:00",
+    "bytes": 3308,
+    "sha256": "c5b534ce662b13b9229e0ff361a0486cea6949696f6e02aa3a3871fb903e5314"
+  },
+  {
+    "path": "scenarios/device-studio/api/handlers/notes/connect_handler_test.go",
+    "observed_at": "2026-10-20T01:51:21.107845+00:00",
+    "bytes": 5448,
+    "sha256": "aed7d29ad8797030b161f265882566c9e32298612c07487d4e472dff4aaaefe9"
+  },
+  {
+    "path": "scenarios/device-studio/api/handlers/notes/measures.go",
+    "observed_at": "2026-10-20T01:51:21.108096+00:00",
+    "bytes": 4428,
+    "sha256": "e0e9901a46c2c6e2f38b5872b5fe4bf2c1edf585e5a13b57ae1e1ef84d5df95c"
+  },
+  {
+    "path": "scenarios/device-studio/api/handlers/notes/measures_test.go",
+    "observed_at": "2026-10-20T01:51:21.108394+00:00",
+    "bytes": 3054,
+    "sha256": "7fc095169d53d9b7459248a877a1c35bfebb33ff4e73a1e3b9e2bfbbb8d078bb"
+  },
+  {
+    "path": "scenarios/device-studio/api/handlers/notes/module.go",
+    "observed_at": "2026-10-20T01:51:21.108669+00:00",
+    "bytes": 10313,
+    "sha256": "8e5b5f31ef2e63852d93fe133bf04a74c0d381712af0f21bd7f3f2c12f3708e2"
+  },
+  {
+    "path": "scenarios/device-studio/api/handlers/notes/module_test.go",
+    "observed_at": "2026-10-20T01:51:21.108943+00:00",
+    "bytes": 3609,
+    "sha256": "1e22390dc3c50dc519f9ce392e35fb24d1f97da4ec60daa25296e423ff8e46a1"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/capabilities/registry.go",
+    "observed_at": "2026-10-20T01:51:21.109215+00:00",
+    "bytes": 2399,
+    "sha256": "6efe1e9d56175b898d4a8ed375940842e0518217bc1e955723f57b0933a7108d"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/capabilities/registry_test.go",
+    "observed_at": "2026-10-20T01:51:21.109542+00:00",
+    "bytes": 1813,
+    "sha256": "724b4c2b4b8872630ea076779ac41dd896a455f44acb23a2f2c7d4b02e8c9d97"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/database/pinger.go",
+    "observed_at": "2026-10-20T01:51:21.109808+00:00",
+    "bytes": 1252,
+    "sha256": "510e1a45465d18d7a9f013a640ae55880fcb4029874d0cc22cfc05a1353301bc"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/database/system.go",
+    "observed_at": "2026-10-20T01:51:21.110093+00:00",
+    "bytes": 794,
+    "sha256": "fa1d7f7da33c199a7732fe5d099fa64867ec402e1cf50db17cbebe4b15201d96"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/database/system.sql",
+    "observed_at": "2026-10-20T01:51:21.110357+00:00",
+    "bytes": 378,
+    "sha256": "18b476396d5f45125eb455ac389fb67d1cff56cd314473f4e9016738ed9bcfd5"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/database/system_test.go",
+    "observed_at": "2026-10-20T01:51:21.110640+00:00",
+    "bytes": 2297,
+    "sha256": "c838502c05b390571a11f8a51dfafd0fc040ac0fd8ba9e4b5e32394acfb6f9a5"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/httpc/doer.go",
+    "observed_at": "2026-10-20T01:51:21.110919+00:00",
+    "bytes": 1615,
+    "sha256": "7728642c4a57eb48c6ae2915e3e8e53ca0c79be91e45bf214d186990865e4484"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/httpc/doer_test.go",
+    "observed_at": "2026-10-20T01:51:21.111228+00:00",
+    "bytes": 2158,
+    "sha256": "e54d50c21a8ceac759ca8964a08e80ea853bc892cc04f8d736e37cc0a520e7e9"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/httpx/errors.go",
+    "observed_at": "2026-10-20T01:51:21.111515+00:00",
+    "bytes": 4080,
+    "sha256": "3569c9aec1ef1b751f27c359919049dbf1a87d95b03a62bea5ed802464e46d32"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/httpx/errors_test.go",
+    "observed_at": "2026-10-20T01:51:21.111856+00:00",
+    "bytes": 2117,
+    "sha256": "72bb56da0d26c50f06fb11d723a8c0b20dbbdc273a9724418bd7e118f1850eeb"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/middleware/logging.go",
+    "observed_at": "2026-10-20T01:51:21.112177+00:00",
+    "bytes": 1039,
+    "sha256": "de4cc55aa23cbadb77aeb0a0308093a7939903ef832556002bbdf7d1e8afa3f4"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/middleware/logging_test.go",
+    "observed_at": "2026-10-20T01:51:21.112481+00:00",
+    "bytes": 2187,
+    "sha256": "b398f554eddb4c6b5dd8784e870828b0f01900fb6c12027509568481eb0f6469"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/middleware/securityheaders.go",
+    "observed_at": "2026-10-20T01:51:21.112935+00:00",
+    "bytes": 1865,
+    "sha256": "65b2a3a5405095e938a7fccf49b5b9c22d579a3c81c2fc5124a65fd179f4aa68"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/middleware/securityheaders_test.go",
+    "observed_at": "2026-10-20T01:51:21.113211+00:00",
+    "bytes": 1789,
+    "sha256": "4357912110b0ac2d578b1d275552adc59dfea217ab836fd9304080dfb7cd7071"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/module/module.go",
+    "observed_at": "2026-10-20T01:51:21.113576+00:00",
+    "bytes": 2158,
+    "sha256": "e189b2185a2d79fad6fdbc80cfe1c7fa6250e5cf0aca757729053ed7d2314c1a"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/modules/registry.go",
+    "observed_at": "2026-10-20T01:51:21.113993+00:00",
+    "bytes": 3528,
+    "sha256": "5763cb99511b7a1a3f37f9fa25093bc0d610a1db1a73b0911224dbf0696fb8d8"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/modules/registry_test.go",
+    "observed_at": "2026-10-20T01:51:21.114413+00:00",
+    "bytes": 5389,
+    "sha256": "838f6b5d71edc49126b95746f4448b004e77ae692285c52b38d161a217bfc226"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/notes/attachments_service.go",
+    "observed_at": "2026-10-20T01:51:21.114704+00:00",
+    "bytes": 1431,
+    "sha256": "355d8289d8237da4a96eb09f424fe8f9a0669e96a084c09bbe3fe39e90a586e1"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/notes/attachments_service_test.go",
+    "observed_at": "2026-10-20T01:51:21.115178+00:00",
+    "bytes": 6629,
+    "sha256": "4c816a32f8abefca12c7814b2258b68d84b269e79a3f3cf36065c9bc3370ba11"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/notes/attachments_sqlite.go",
+    "observed_at": "2026-10-20T01:51:21.115519+00:00",
+    "bytes": 1374,
+    "sha256": "0fd23ce60ba0560d25bc9bec62093a1e9691ab9c592b4a25506e67fa686ced28"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/notes/flow/flow.json",
+    "observed_at": "2026-10-20T01:51:21.115864+00:00",
+    "bytes": 3514,
+    "sha256": "bfb1c9e2650de4160080c15634c609f912893d463efc46b987f01035bf38ab47"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/notes/flow/flow_test.go",
+    "observed_at": "2026-10-20T01:51:21.116189+00:00",
+    "bytes": 1393,
+    "sha256": "e56a2c8a66b0067f35d91dfa15fcf78d17dc4cca06ff21d82fa0b0c1997dfafb"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/notes/flow/generated/artifact.json",
+    "observed_at": "2026-10-20T01:51:21.116509+00:00",
+    "bytes": 11845,
+    "sha256": "f47ae9a6bcc8efff0b380d1e9196468cdb46458bb239746ded40a745fac9a92b"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/notes/flow/generated/model.qnt",
+    "observed_at": "2026-10-20T01:51:21.116860+00:00",
+    "bytes": 3225,
+    "sha256": "535419a1d2462f9e6a3660cb53af47448b0a641ef84d4a0635a40ace84ce7c0e"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/notes/flow/generated/runtime.go",
+    "observed_at": "2026-10-20T01:51:21.117163+00:00",
+    "bytes": 4219,
+    "sha256": "a62991996fe9c956864f3c2d6768fab2fc721ebac42e1043a13bf8ce542cb1d1"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/notes/flow/transition.go",
+    "observed_at": "2026-10-20T01:51:21.117480+00:00",
+    "bytes": 1593,
+    "sha256": "abd11dce5622decfd4964960d664025b0b8558012ae902f8d2a8fc436664187b"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/notes/mocks/attachments_repository.go",
+    "observed_at": "2026-10-20T01:51:21.117781+00:00",
+    "bytes": 2600,
+    "sha256": "40dd8527b95abd540f6bfdb6fcc04220bff666ca2708433d9372d5645ac13013"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/notes/mocks/attachments_repository_test.go",
+    "observed_at": "2026-10-20T01:51:21.118091+00:00",
+    "bytes": 3709,
+    "sha256": "ba33d797232dd0050c95334499c74bc292082da37928a9326bb6c24fce9475ce"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/notes/mocks/attachments_service.go",
+    "observed_at": "2026-10-20T01:51:21.118394+00:00",
+    "bytes": 1718,
+    "sha256": "e93f8e125f7a66efbe950880537ba4a23ca47f81566ec92a406b6919a059d1ea"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/notes/mocks/attachments_service_test.go",
+    "observed_at": "2026-10-20T01:51:21.118701+00:00",
+    "bytes": 2283,
+    "sha256": "4799fd81e5d9dc59dd0f683c8ad8416fe293df3f0c5f2767ddffcc2c255cec23"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/notes/mocks/repository.go",
+    "observed_at": "2026-10-20T01:51:21.119004+00:00",
+    "bytes": 3306,
+    "sha256": "882e281d8f7bded8d9d663fb21f6425c6767f6c2023304c0e5d4f572921afd6d"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/notes/mocks/service.go",
+    "observed_at": "2026-10-20T01:51:21.119319+00:00",
+    "bytes": 3117,
+    "sha256": "6dcddc1ec38ac5f8ecd690461841f54f43feaf2bc1fceb7a5f4e03ab0389b887"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/notes/mocks/service_test.go",
+    "observed_at": "2026-10-20T01:51:21.119654+00:00",
+    "bytes": 3370,
+    "sha256": "0a8b9a38a0e8618cb64d6d01f9f03d8600fc6041cb2ecd694da522d5d342683b"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/notes/repository.go",
+    "observed_at": "2026-10-20T01:51:21.119962+00:00",
+    "bytes": 1866,
+    "sha256": "7fb81e47bf0b4fc9b5d9bcef33f4f3e808108b1057a5ef40216c22f69aa50153"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/notes/schema.go",
+    "observed_at": "2026-10-20T01:51:21.120268+00:00",
+    "bytes": 546,
+    "sha256": "aac7ce03616d744af88a98381733f85a57742a89140ee61bba2315cfc23afcd5"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/notes/schema.sql",
+    "observed_at": "2026-10-20T01:51:21.120585+00:00",
+    "bytes": 1002,
+    "sha256": "aadad1b3743f4bc39e343abce7030ec448445c78b089f7bfe4b28c4896c09ee7"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/notes/schema_test.go",
+    "observed_at": "2026-10-20T01:51:21.120891+00:00",
+    "bytes": 959,
+    "sha256": "a2b34dc0cf42909bf8b447c3bc1553788e6fa6245518223d7e873e6b998862aa"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/notes/service.go",
+    "observed_at": "2026-10-20T01:51:21.121253+00:00",
+    "bytes": 3229,
+    "sha256": "d50eb5cdf3de6d81d97261fa195084b24e348439fd7f18972fee045df7498ed1"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/notes/service_error_mapping.go",
+    "observed_at": "2026-10-20T01:51:21.121576+00:00",
+    "bytes": 636,
+    "sha256": "ab3003dfc02abeaa2b82455f5dd95b0800fe902275f10ecccdddc93f5d84612b"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/notes/service_error_mapping_test.go",
+    "observed_at": "2026-10-20T01:51:21.121882+00:00",
+    "bytes": 738,
+    "sha256": "197ce6b87a6ce30ebcbe11081c63263ff363d8ff34b1cb0a12fb7876a5a99dc4"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/notes/service_test.go",
+    "observed_at": "2026-10-20T01:51:21.122194+00:00",
+    "bytes": 6261,
+    "sha256": "dda40ff99521549e384597742e285ced15404d13983fc064cbfa982409c5e26a"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/notes/sqlite.go",
+    "observed_at": "2026-10-20T01:51:21.122536+00:00",
+    "bytes": 5719,
+    "sha256": "140a864cdf3424148df24b6e2c44422ee8d64277fc25df2829d146d45b2bad3f"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/notes/sqlite_test.go",
+    "observed_at": "2026-10-20T01:51:21.122853+00:00",
+    "bytes": 6902,
+    "sha256": "7434a65da6256b087520debbee7f2a006e4338f77afac0f9b1c30e86b8cbf0f7"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/notes/types.go",
+    "observed_at": "2026-10-20T01:51:21.123169+00:00",
+    "bytes": 3123,
+    "sha256": "0982b0025c8d2001daa878fdbe45a0e3d407ca4137d628d241f81341bd513b0d"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/server/server.go",
+    "observed_at": "2026-10-20T01:51:21.123502+00:00",
+    "bytes": 2675,
+    "sha256": "75b3dd5d996389b294fb71a54d213301264d3093a0a2c2cdf2a9959e321a066b"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/server/server_test.go",
+    "observed_at": "2026-10-20T01:51:21.123838+00:00",
+    "bytes": 3088,
+    "sha256": "c460b7f9aec339b5703c0d401c1c64ef1995f44bcc6335db6608518b1bcc1813"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/testutil/mocks/doer.go",
+    "observed_at": "2026-10-20T01:51:21.124162+00:00",
+    "bytes": 2462,
+    "sha256": "2a2b154a1b17285b830ffdc0874dfc1c2933d92a3adc65d8003e3601141289fc"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/testutil/mocks/doer_test.go",
+    "observed_at": "2026-10-20T01:51:21.124548+00:00",
+    "bytes": 2442,
+    "sha256": "b30bd109c4d363dcb9fdd6e156df3ca0685e7fb76f00e30cce01e7cafaa890bf"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/testutil/mocks/pinger.go",
+    "observed_at": "2026-10-20T01:51:21.124882+00:00",
+    "bytes": 779,
+    "sha256": "579e803aac0da11dd914ae6f311fa1e302137ce3f0d861511b8721e27b230b1b"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/testutil/mocks/pinger_test.go",
+    "observed_at": "2026-10-20T01:51:21.125219+00:00",
+    "bytes": 1535,
+    "sha256": "c33d0a8faed7e32f8eb5e147b598b3dce19ebed7b9ab39186263bed3969cf3fc"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/testutil/no_prod_import_test.go",
+    "observed_at": "2026-10-20T01:51:21.125573+00:00",
+    "bytes": 1245,
+    "sha256": "9bdfdbc86cc7eff0a58476e009b895eb95eba257b4c6b9921474f6d974c3e862"
+  },
+  {
+    "path": "scenarios/device-studio/api/internal/testutil/testutil.go",
+    "observed_at": "2026-10-20T01:51:21.125915+00:00",
+    "bytes": 1839,
+    "sha256": "6c96754f26d80e4c397247d2eae9b8fc5505cfc9fb42916c5a7561af28a1b214"
+  },
+  {
+    "path": "scenarios/device-studio/api/main.go",
+    "observed_at": "2026-10-20T01:51:21.126241+00:00",
+    "bytes": 4151,
+    "sha256": "0f55ec5ccffca2d0be8094d364620ee2b2e84b15214a1708bce0db2542f98199"
+  },
+  {
+    "path": "scenarios/device-studio/api/main_e2e_test.go",
+    "observed_at": "2026-10-20T01:51:21.126599+00:00",
+    "bytes": 372,
+    "sha256": "d5ba4205674a9bee511af28e4797b4b7ee822d3e29d0ea4c70020dc5fab64968"
+  },
+  {
+    "path": "scenarios/device-studio/cli/.golangci.yml",
+    "observed_at": "2026-10-20T01:51:21.126944+00:00",
+    "bytes": 664,
+    "sha256": "d010b8ad13f8498a6cf7aba9707283b99c2561bc5ae8356197dd2f4686bbbb08"
+  },
+  {
+    "path": "scenarios/device-studio/cli/app.go",
+    "observed_at": "2026-10-20T01:51:21.127318+00:00",
+    "bytes": 1457,
+    "sha256": "f1a5727f786e2df0d5608edca842936928c9d9953cfa4648622b3cde319dac63"
+  },
+  {
+    "path": "scenarios/device-studio/cli/app_test.go",
+    "observed_at": "2026-10-20T01:51:21.127708+00:00",
+    "bytes": 1950,
+    "sha256": "f1a600f1cb78c8485621070e5a2a28e17a527697817bb22008847478d997d9cc"
+  },
+  {
+    "path": "scenarios/device-studio/cli/domains/README.md",
+    "observed_at": "2026-10-20T01:51:21.128146+00:00",
+    "bytes": 333,
+    "sha256": "a2c98846612f6b5cf02e2f1aeab123af13d5432ff68826a242e5f89a40a57c29"
+  },
+  {
+    "path": "scenarios/device-studio/cli/domains/domains.go",
+    "observed_at": "2026-10-20T01:51:21.128547+00:00",
+    "bytes": 1960,
+    "sha256": "e5827c080ce697ee3321f16757f814edc81249b2b998210d435a3b88e5620fd0"
+  },
+  {
+    "path": "scenarios/device-studio/cli/domains/domains_test.go",
+    "observed_at": "2026-10-20T01:51:21.129122+00:00",
+    "bytes": 2110,
+    "sha256": "33384468ecc3e4b67369b15ae68280c330c1ae5b9529ab883020dec1dd5465e6"
+  },
+  {
+    "path": "scenarios/device-studio/cli/domains/notes/attach_handler.go",
+    "observed_at": "2026-10-20T01:51:21.129730+00:00",
+    "bytes": 2325,
+    "sha256": "4f330b34dace52b23642adb057f09b5d4a74e0a7e0ea9e133a8b29b9d7f1d3a9"
+  },
+  {
+    "path": "scenarios/device-studio/cli/domains/notes/handlers.go",
+    "observed_at": "2026-10-20T01:51:21.130281+00:00",
+    "bytes": 6690,
+    "sha256": "dc786eef6dcead0edbe826e63dba270efc1eee39d531cb243481f21e23971518"
+  },
+  {
+    "path": "scenarios/device-studio/cli/domains/notes/handlers_test.go",
+    "observed_at": "2026-10-20T01:51:21.130691+00:00",
+    "bytes": 19039,
+    "sha256": "3cf90b833eceab991104aac9c2e08797ba64a881d3284163caec997af81eb648"
+  },
+  {
+    "path": "scenarios/device-studio/cli/domains/notes/notes_manifest_test.go",
+    "observed_at": "2026-10-20T01:51:21.131081+00:00",
+    "bytes": 1125,
+    "sha256": "54d035957da7a0987a9065f4fa49d3f8a661673f1ef18bd280dc8bcae541a071"
+  },
+  {
+    "path": "scenarios/device-studio/cli/domains/notes/register.go",
+    "observed_at": "2026-10-20T01:51:21.131500+00:00",
+    "bytes": 1815,
+    "sha256": "7c5b1b4cc914d294f99ab7a8582d82f23ede9d880cdb33cff15b1faed520f7e1"
+  },
+  {
+    "path": "scenarios/device-studio/cli/evidence_test.go",
+    "observed_at": "2026-10-20T01:51:21.131947+00:00",
+    "bytes": 3050,
+    "sha256": "33e15af0c1d9fefdf2cf396894670e32279c0c39797df10a044b7a422080210a"
+  },
+  {
+    "path": "scenarios/device-studio/cli/go.mod",
+    "observed_at": "2026-10-20T01:51:21.132324+00:00",
+    "bytes": 1190,
+    "sha256": "0e525e338973e8cbbbaf6b2a31bbdea1ec680a1b9729849ae8c107d7a679d184"
+  },
+  {
+    "path": "scenarios/device-studio/cli/go.sum",
+    "observed_at": "2026-10-20T01:51:21.132691+00:00",
+    "bytes": 2073,
+    "sha256": "4fee1880e62445f571ce661a1f0469961b153cbf9ae831fcf843644e6986d083"
+  },
+  {
+    "path": "scenarios/device-studio/cli/internal/testutil/no_prod_import_test.go",
+    "observed_at": "2026-10-20T01:51:21.133075+00:00",
+    "bytes": 1143,
+    "sha256": "77007f0f3e2a46c810df76dd7840c8b2fe946ddef6e4df3514bb074238e2b3ae"
+  },
+  {
+    "path": "scenarios/device-studio/cli/main.go",
+    "observed_at": "2026-10-20T01:51:21.133511+00:00",
+    "bytes": 262,
+    "sha256": "33671cd006b1e7b271c929929cb823902a9eb2db4bcc2c92f4ff4d93883d5120"
+  },
+  {
+    "path": "scenarios/device-studio/cli/manifest.json",
+    "observed_at": "2026-10-20T01:51:21.133880+00:00",
+    "bytes": 4331,
+    "sha256": "327d67a727f94060b298b40ced5b63d014d1726900f969edf4b7188dd08bca95"
+  },
+  {
+    "path": "scenarios/device-studio/cli/manifest_embed.go",
+    "observed_at": "2026-10-20T01:51:21.134264+00:00",
+    "bytes": 380,
+    "sha256": "583766773304d1007c56c2559b1c26d4d31a999db4d57bbe092dedb6b148f8e5"
+  },
+  {
+    "path": "scenarios/device-studio/ui/eslint.config.js",
+    "observed_at": "2026-10-20T01:51:21.134631+00:00",
+    "bytes": 15506,
+    "sha256": "6ace923894ba8c37fa623b44c78c33ffc52c0a3f137b4200001c30bd0ecdf232"
+  },
+  {
+    "path": "scenarios/device-studio/ui/index.html",
+    "observed_at": "2026-10-20T01:51:21.135083+00:00",
+    "bytes": 1626,
+    "sha256": "545d687e0caf25344a14294b493003d5ef9f8288b772a5212485b06e8821dff8"
+  },
+  {
+    "path": "scenarios/device-studio/ui/manifest.json",
+    "observed_at": "2026-10-20T01:51:21.135454+00:00",
+    "bytes": 8082,
+    "sha256": "16f99120efb0f9dc2fa93f3f92aae9b30c7164d0868fe187f6a60f984e589624"
+  },
+  {
+    "path": "scenarios/device-studio/ui/package.json",
+    "observed_at": "2026-10-20T01:51:21.135838+00:00",
+    "bytes": 2979,
+    "sha256": "3aae4935a6fb716f71733ed4b38ee0a362f70adce0f515d63feb535c9c550a8e"
+  },
+  {
+    "path": "scenarios/device-studio/ui/postcss.config.js",
+    "observed_at": "2026-10-20T01:51:21.136210+00:00",
+    "bytes": 79,
+    "sha256": "082f9a07aae22ae329bfc652d405ba5a704cba1ee86f4b78c7c70f98d628a610"
+  },
+  {
+    "path": "scenarios/device-studio/ui/scripts/design-tokens-composed.test.mjs",
+    "observed_at": "2026-10-20T01:51:21.136586+00:00",
+    "bytes": 2971,
+    "sha256": "3136f7bac96578d7b746f8b55bd3f5be4bf1d2cbff6dbbe1343f1c3099c1a4db"
+  },
+  {
+    "path": "scenarios/device-studio/ui/scripts/gen-strings.d.mts",
+    "observed_at": "2026-10-20T01:51:21.136999+00:00",
+    "bytes": 921,
+    "sha256": "6b75f1264954e8858e37c47c3effaeea3826351a650749b3105754a642038abf"
+  },
+  {
+    "path": "scenarios/device-studio/ui/scripts/gen-strings.mjs",
+    "observed_at": "2026-10-20T01:51:21.137371+00:00",
+    "bytes": 5412,
+    "sha256": "70df1d2a266f9df314e04184c0555dfdf8bf1fa413d4a462443b7dfe71c5e4e7"
+  },
+  {
+    "path": "scenarios/device-studio/ui/scripts/gen-strings.test.mjs",
+    "observed_at": "2026-10-20T01:51:21.137768+00:00",
+    "bytes": 3824,
+    "sha256": "2e0fba9de16af6ed59087b7fb2cd03790122e3aabed61237329076d049061216"
+  },
+  {
+    "path": "scenarios/device-studio/ui/scripts/generate-selector-manifest.mjs",
+    "observed_at": "2026-10-20T01:51:21.138152+00:00",
+    "bytes": 145,
+    "sha256": "85b1ebd0bfe3c6725524eb981071b57a486f636fe09bf5dd8e444d62809aa612"
+  },
+  {
+    "path": "scenarios/device-studio/ui/scripts/template-library-link.test.mjs",
+    "observed_at": "2026-10-20T01:51:21.138542+00:00",
+    "bytes": 1223,
+    "sha256": "e6dad43e528280fb5ac6c6afe2677ea886f0fc0fe738b6e5371dc79b627e3b96"
+  },
+  {
+    "path": "scenarios/device-studio/ui/scripts/vite-plugin-strings-codegen.d.mts",
+    "observed_at": "2026-10-20T01:51:21.138996+00:00",
+    "bytes": 293,
+    "sha256": "2c72c58a9479b84b7fb310e5c2d87f39e9f429094a19fc7a6b220037f2596344"
+  },
+  {
+    "path": "scenarios/device-studio/ui/scripts/vite-plugin-strings-codegen.mjs",
+    "observed_at": "2026-10-20T01:51:21.139390+00:00",
+    "bytes": 1124,
+    "sha256": "dd07f0cf6c536d418f11ee54bda014e4f32b6c9f1286933d7eb8a8ec71186c84"
+  },
+  {
+    "path": "scenarios/device-studio/ui/server.js",
+    "observed_at": "2026-10-20T01:51:21.139783+00:00",
+    "bytes": 1358,
+    "sha256": "e021c346c88506f15a37e6c2a8b27331098c69080791afd419dd093053ceca07"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/App.test.tsx",
+    "observed_at": "2026-10-20T01:51:21.140180+00:00",
+    "bytes": 2388,
+    "sha256": "f952cf5df6b7eb617bc43060215655577de86359cbe1aa67ded6d11637b7bc70"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/App.tsx",
+    "observed_at": "2026-10-20T01:51:21.140598+00:00",
+    "bytes": 433,
+    "sha256": "e535b29a388dfd3ecbfe3cabacfb5ef2a1deb56723031d5bca62ed73799d7f94"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/api/client.test.ts",
+    "observed_at": "2026-10-20T01:51:21.141096+00:00",
+    "bytes": 1711,
+    "sha256": "b3eb9e8796e7debcf4902317be4efc1a578db7c1497cf65b71c529ef8f4f7471"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/api/client.ts",
+    "observed_at": "2026-10-20T01:51:21.141684+00:00",
+    "bytes": 1987,
+    "sha256": "2535ad13fa7c798f0845b046dd4817ae55744da34a1da5de03374a9f712eb930"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/api/health.test.ts",
+    "observed_at": "2026-10-20T01:51:21.142490+00:00",
+    "bytes": 856,
+    "sha256": "9799b82b1d572d9cc67593fd01fd5ff887cbc773475ca2ccdaa426c76edfaffa"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/api/health.ts",
+    "observed_at": "2026-10-20T01:51:21.143019+00:00",
+    "bytes": 746,
+    "sha256": "40837ab3e93f2bbee822a4920c02ecf2b7a8728bb49b7b489f1f93487ce642d7"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/api/notes.test.ts",
+    "observed_at": "2026-10-20T01:51:21.143478+00:00",
+    "bytes": 3074,
+    "sha256": "88bfd78a2517e7522e425f9ec1f92f1df1e06823ddb571f102bac955f89ed8d7"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/api/notes.ts",
+    "observed_at": "2026-10-20T01:51:21.143903+00:00",
+    "bytes": 1926,
+    "sha256": "23bed5c5991aa57a37632a2cb40e245062fe31827136ff960f6ef0596e44227b"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/app/providers.tsx",
+    "observed_at": "2026-10-20T01:51:21.144332+00:00",
+    "bytes": 538,
+    "sha256": "dcaad3e1bb3b5ae0c8ae52bf855bd86c9189cbe145e8cf5052b93d9fd503cfd6"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/app/routes.test.tsx",
+    "observed_at": "2026-10-20T01:51:21.145001+00:00",
+    "bytes": 1330,
+    "sha256": "cc44b2228e2464fd1a94a2ea0b6caabc3919cf2241c0f2171da1ac17bc62f0cb"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/app/routes.tsx",
+    "observed_at": "2026-10-20T01:51:21.145446+00:00",
+    "bytes": 2161,
+    "sha256": "b2d68a4fcd71ceadf1653dcb798b3908e74cd325c2eeef8c064600096fca3b6e"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/components/ErrorBoundary.test.tsx",
+    "observed_at": "2026-10-20T01:51:21.145867+00:00",
+    "bytes": 4664,
+    "sha256": "9ee9fc1fe47aa2dc1c9541f7cdaf45f8f888c78d40b4f7a3fc7ec776326a64a1"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/components/ErrorBoundary.tsx",
+    "observed_at": "2026-10-20T01:51:21.146326+00:00",
+    "bytes": 2604,
+    "sha256": "7cc3a898046caeabd1de973198986de8b0eb2936b9ebf6e32328f6aa9da3031b"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/components/experience/ExperienceSurface.tsx",
+    "observed_at": "2026-10-20T01:51:21.146768+00:00",
+    "bytes": 734,
+    "sha256": "29bc69975752d92e1e5598a85e6725fc2538468b86a49a9a5159055f248c07fd"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/consts/selectors.library.ts",
+    "observed_at": "2026-10-20T01:51:21.147222+00:00",
+    "bytes": 111,
+    "sha256": "b59c9936b32366ad576ac2f7b9f9690194df4834f034ef71efa4836e71883eda"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/consts/selectors.manifest.json",
+    "observed_at": "2026-10-20T01:51:21.147673+00:00",
+    "bytes": 6518,
+    "sha256": "82344ca74f308d943f87286d7fec61ca2e04adee5adef96ee3a938a21e4a5baf"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/consts/selectors.ts",
+    "observed_at": "2026-10-20T01:51:21.148100+00:00",
+    "bytes": 3488,
+    "sha256": "a306280718f1779c672cd1bb510b0e846f1f600b49a46c3864f00cb31cca5e5a"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/consts/strings.generated.ts",
+    "observed_at": "2026-10-20T01:51:21.148532+00:00",
+    "bytes": 4141,
+    "sha256": "f86d364ce21a959dd2db4cbc318396086575c9586170b7ee7f392cfd9f48b075"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/consts/strings.ts",
+    "observed_at": "2026-10-20T01:51:21.148960+00:00",
+    "bytes": 2916,
+    "sha256": "c660415ab9fa124f571ab1cc3f4dde27512a392fda46f88b07e087663976d0d8"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/design-tokens.css",
+    "observed_at": "2026-10-20T01:51:21.149378+00:00",
+    "bytes": 14680,
+    "sha256": "1b69ab175aa78cc1131ed32b9e687df718d3d56b5528ddc2425379261636965c"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/features/health/HealthCard.a11y.test.tsx",
+    "observed_at": "2026-10-20T01:51:21.149991+00:00",
+    "bytes": 1781,
+    "sha256": "b5cc59834a418b43b0129f432eb33406b44f213f933b2c077cf2dd53ab3fc6e5"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/features/health/HealthCard.test.tsx",
+    "observed_at": "2026-10-20T01:51:21.150824+00:00",
+    "bytes": 4798,
+    "sha256": "1e9c9b02b6f8b5c6a51f526781f2e5e1163c439ac49a6b2244775383a3c5577f"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/features/health/HealthCard.tsx",
+    "observed_at": "2026-10-20T01:51:21.151329+00:00",
+    "bytes": 1876,
+    "sha256": "9564e2698ec83d91813af85709a7ab934645d893b04a9985ddfdf31a3970e493"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/features/notes/AttachmentUpload.test.tsx",
+    "observed_at": "2026-10-20T01:51:21.151818+00:00",
+    "bytes": 4895,
+    "sha256": "f40068287b7d9414213e2772c08983774bd855b0bcfd0e9d1367f3e35e4f1ffe"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/features/notes/AttachmentUpload.tsx",
+    "observed_at": "2026-10-20T01:51:21.152314+00:00",
+    "bytes": 3695,
+    "sha256": "c9b25865f8e2aa531c01d3c3f7406ce54ae0508281f5bcac82e27355e7354202"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/features/notes/NotesCard.a11y.test.tsx",
+    "observed_at": "2026-10-20T01:51:21.152792+00:00",
+    "bytes": 2546,
+    "sha256": "a028221ece2f217e8231fa8d2c940d1af11be63c8c7c7f2070f63d2e215c8df1"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/features/notes/NotesCard.test.tsx",
+    "observed_at": "2026-10-20T01:51:21.153260+00:00",
+    "bytes": 4413,
+    "sha256": "f9e575ab394fc394188ca72e46c2f095f6deb0f5549cd81c4d377cd45fe76f3a"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/features/notes/NotesCard.tsx",
+    "observed_at": "2026-10-20T01:51:21.153784+00:00",
+    "bytes": 5964,
+    "sha256": "aa6d7de6d7948b7e347ee5cacbe212bb22204e648b04e2bc1a105005584f4e87"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/features/notes/NotesMeasureCard.test.tsx",
+    "observed_at": "2026-10-20T01:51:21.154271+00:00",
+    "bytes": 2029,
+    "sha256": "2b7ceeeb9e0527f6a64962d27c7b72524c167932d2925ed1d7c2db0582c03bf3"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/features/notes/NotesMeasureCard.tsx",
+    "observed_at": "2026-10-20T01:51:21.154743+00:00",
+    "bytes": 2052,
+    "sha256": "3e3ee1d1d20af790c02c20a2be6fb9cafcbcef671fc10a0f3167d93cff2503e4"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/features/notes/flow/fixtures.ts",
+    "observed_at": "2026-10-20T01:51:21.155241+00:00",
+    "bytes": 984,
+    "sha256": "db793c9d44fe51fe87c7c4c6c522db21f881751429e058dfcc72df44781c2952"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/features/notes/flow/flow.json",
+    "observed_at": "2026-10-20T01:51:21.155819+00:00",
+    "bytes": 5577,
+    "sha256": "487545e152b8e28dbfb7da90d187aeb5a265b4b069c1f657fb3381242e8a8409"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/features/notes/flow/flow.test.ts",
+    "observed_at": "2026-10-20T01:51:21.156302+00:00",
+    "bytes": 290,
+    "sha256": "bfbc1f16a49797dec2a10d408d4bbf923943f4c93db6d7178a7b8ffe377764ef"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/features/notes/flow/generated/artifact.json",
+    "observed_at": "2026-10-20T01:51:21.156838+00:00",
+    "bytes": 19504,
+    "sha256": "919cf6e6a17812c37b4a0a3ac8ed2507971ba7fc90de9f520754db867b4dfdc2"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/features/notes/flow/generated/model.qnt",
+    "observed_at": "2026-10-20T01:51:21.157355+00:00",
+    "bytes": 4848,
+    "sha256": "47a97f004212ca9f41097bf070dd8baf5f39de646aca2816d5fb16768e67a973"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/features/notes/flow/generated/replay.helper.ts",
+    "observed_at": "2026-10-20T01:51:21.157864+00:00",
+    "bytes": 2414,
+    "sha256": "a48ad580bcf9c2c6f86638955b1145ce3fb19920184fd71ba6cc779e0a72421e"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/features/notes/flow/generated/runtime.ts",
+    "observed_at": "2026-10-20T01:51:21.158354+00:00",
+    "bytes": 4686,
+    "sha256": "628a8a78f387b0eb371370ef3a7b08a11dab8b87d896e035456cea5c049040c2"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/features/notes/flow/transition.ts",
+    "observed_at": "2026-10-20T01:51:21.158839+00:00",
+    "bytes": 3598,
+    "sha256": "accfcd099a07c05a8f06deacd6b528e9b8bd42c0f5fb3bc0b8354fb75f73b151"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/features/notes/mocks/factories.test.ts",
+    "observed_at": "2026-10-20T01:51:21.159319+00:00",
+    "bytes": 3805,
+    "sha256": "c5bdf32ad994878f3b57918b53f2048bca79ff71be007e199a9a2265bbbfd1cd"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/features/notes/mocks/factories.ts",
+    "observed_at": "2026-10-20T01:51:21.159810+00:00",
+    "bytes": 2651,
+    "sha256": "b00b09096b82a6536f1ddd5da119e9af696ab7945ced4625fdf9374a9a850f4e"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/features/notes/mocks/notes.test.ts",
+    "observed_at": "2026-10-20T01:51:21.160279+00:00",
+    "bytes": 2158,
+    "sha256": "dcb1c59a5455f40bab2679bca2a82214ca3108561e6bcd6c4039cb850a905860"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/features/notes/mocks/notes.ts",
+    "observed_at": "2026-10-20T01:51:21.160762+00:00",
+    "bytes": 2262,
+    "sha256": "08bbf999454e97a1e516d77336c84ac64c370764aaeb7486ea906a8c200ef201"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/i18n/format.test.ts",
+    "observed_at": "2026-10-20T01:51:21.161226+00:00",
+    "bytes": 5269,
+    "sha256": "7c5ef00f2977b29ffd5e979b5ea5a9f5aeb95349a84608587e49ed6cfddeaeab"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/i18n/format.ts",
+    "observed_at": "2026-10-20T01:51:21.161790+00:00",
+    "bytes": 2662,
+    "sha256": "1f972d2fb41c18a25195a97c3d6240c46b45d2bac1ae7e9bca078aacdfbe8fb9"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/i18n/index.ts",
+    "observed_at": "2026-10-20T01:51:21.162265+00:00",
+    "bytes": 4349,
+    "sha256": "9365af151650186c3f7c1e197671f17c21f82a69d2795c5cfcaa690258ab3622"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/i18n/locales.ts",
+    "observed_at": "2026-10-20T01:51:21.162743+00:00",
+    "bytes": 823,
+    "sha256": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/i18n/locales/ar.json",
+    "observed_at": "2026-10-20T01:51:21.163216+00:00",
+    "bytes": 5615,
+    "sha256": "8807523e5a3595cfd9578260e512da4464c43575581bfd11610db7013c9fbf47"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/i18n/locales/en.json",
+    "observed_at": "2026-10-20T01:51:21.163726+00:00",
+    "bytes": 4473,
+    "sha256": "830769e33f5eaaacf4672c1502d09431892d95500d9c90efcda3bfe7ffcc0ec0"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/i18n/locales/ja.json",
+    "observed_at": "2026-10-20T01:51:21.164208+00:00",
+    "bytes": 5158,
+    "sha256": "f67317f737d0d87e29294f5e8bbd52ffcf415e587ab2e9add1bea318b8d44ad6"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/i18n/locales/locales.test.ts",
+    "observed_at": "2026-10-20T01:51:21.164773+00:00",
+    "bytes": 6696,
+    "sha256": "90fc2dc5054cc9495fdc8ef937c94bd6b583fa1ac956f979d138948a21573af0"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/layout/AppShell.a11y.test.tsx",
+    "observed_at": "2026-10-20T01:51:21.165320+00:00",
+    "bytes": 1782,
+    "sha256": "bb5addefc1c0671d3da4e5c45fc588558bace76610613c5b9709a18403212e71"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/layout/AppShell.test.tsx",
+    "observed_at": "2026-10-20T01:51:21.165855+00:00",
+    "bytes": 4504,
+    "sha256": "bfc90429984c136146dc94a20dc8cc3b82913ae17ebe2663fb41d05f21c27173"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/layout/AppShell.tsx",
+    "observed_at": "2026-10-20T01:51:21.166346+00:00",
+    "bytes": 2823,
+    "sha256": "83aa321b75a48c38aaad7dc60875d24e6cb4e4e136a74220b7a50318a3783e3c"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/layout/BrandMark.tsx",
+    "observed_at": "2026-10-20T01:51:21.166835+00:00",
+    "bytes": 716,
+    "sha256": "16735592c03fc39dd861593f051b9b7c42a384e1bfc3b08bfbbb2af21709962d"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/layout/navItems.tsx",
+    "observed_at": "2026-10-20T01:51:21.167317+00:00",
+    "bytes": 1757,
+    "sha256": "aced942ae03371011c367e4792f8c5428e0ab76e1f439e4c0d6d0d5b2fd77e40"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/lib/errorMessage.test.ts",
+    "observed_at": "2026-10-20T01:51:21.167843+00:00",
+    "bytes": 927,
+    "sha256": "43a2d7275c66fe995c3f8dd552da9182c0594e2340991b6bfaba31ddfd27e1ee"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/lib/errorMessage.ts",
+    "observed_at": "2026-10-20T01:51:21.168361+00:00",
+    "bytes": 2499,
+    "sha256": "288aec27d1dc80e22bdfe34134a3788875f7d95cd5833cc4b35050f230870707"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/lib/profiler.ts",
+    "observed_at": "2026-10-20T01:51:21.168895+00:00",
+    "bytes": 2521,
+    "sha256": "1b655ecf06fe4e08e8f566cdf41db08de8d2889669d21d38e7e74b6ff4de293b"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/main.tsx",
+    "observed_at": "2026-10-20T01:51:21.169807+00:00",
+    "bytes": 2700,
+    "sha256": "8a59179dac4ffc7197b24a1f42deadfb9555050137f709e8a7788a4c2d4e9dc4"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/pages/DashboardPage.tsx",
+    "observed_at": "2026-10-20T01:51:21.170604+00:00",
+    "bytes": 1961,
+    "sha256": "771e9a701f7e7c180d678183597b94612d1bdb5a7b568fc0fa08c034f50654da"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/pages/NotesPage.tsx",
+    "observed_at": "2026-10-20T01:51:21.171273+00:00",
+    "bytes": 844,
+    "sha256": "979a2fd967d186643c8d8f5348846cad4b3b0f9aa4bf5531be6377beaaf1e6e0"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/pages/SettingsPage.tsx",
+    "observed_at": "2026-10-20T01:51:21.171824+00:00",
+    "bytes": 2756,
+    "sha256": "af7e798439c55caa688a22d9edf7eea2ee46e5c10dc697898f1bc6cc44ddaa15"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/react-i18next.d.ts",
+    "observed_at": "2026-10-20T01:51:21.172329+00:00",
+    "bytes": 3186,
+    "sha256": "e1c1e7f67faaaebe5228e1b6ddd3ca079591f7b6eeaddf81708a7ffa0043241b"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/styles.css",
+    "observed_at": "2026-10-20T01:51:21.172900+00:00",
+    "bytes": 695,
+    "sha256": "007d8db7b3d7400ce66882aa657a6d19958f84c0f3b10dbb194d6424433bde32"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/test-setup.ts",
+    "observed_at": "2026-10-20T01:51:21.173428+00:00",
+    "bytes": 2915,
+    "sha256": "a910f1600c1657701091a54ab4fbcb9ab12ed805a65775fc6c7d7a61a949b183"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/test-utils/console.test.ts",
+    "observed_at": "2026-10-20T01:51:21.173930+00:00",
+    "bytes": 2114,
+    "sha256": "14fc3349860c18d83bbf2790f133f0fa550faf0202d965e657ed8e255fdb10f1"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/test-utils/console.ts",
+    "observed_at": "2026-10-20T01:51:21.174533+00:00",
+    "bytes": 1398,
+    "sha256": "ca3871db6b553bafbea91e1dc2d14243ff142680d6d3256e2ba88e377de3d93f"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/test-utils/factories.test.ts",
+    "observed_at": "2026-10-20T01:51:21.175036+00:00",
+    "bytes": 4187,
+    "sha256": "c487789ab22a129acfb97ade7c7344cd7b08d28281348c5639d464be975a6f60"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/test-utils/factories.ts",
+    "observed_at": "2026-10-20T01:51:21.175545+00:00",
+    "bytes": 2385,
+    "sha256": "ca300c7e4da57d680b39e272e42832014bf46c280679570d0374f34d5c114f17"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/test-utils/index.ts",
+    "observed_at": "2026-10-20T01:51:21.176039+00:00",
+    "bytes": 5270,
+    "sha256": "50bde0a211329bffff4e0a0eb99a900300e62bf3df04f6c54ab7cff8352af4ee"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/test-utils/interp.test.ts",
+    "observed_at": "2026-10-20T01:51:21.176548+00:00",
+    "bytes": 2133,
+    "sha256": "ed4eef95932d3f7b523b34e8d827a778576b3d77c175cbd552b76fcfc318e7b2"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/test-utils/interp.ts",
+    "observed_at": "2026-10-20T01:51:21.177050+00:00",
+    "bytes": 775,
+    "sha256": "1643fcdc44c3fc43772369b320fd2afed6281c20f9f74ce94bb53f800eec9c95"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/test-utils/mocks/api.test.ts",
+    "observed_at": "2026-10-20T01:51:21.177567+00:00",
+    "bytes": 1405,
+    "sha256": "c3fbec33be022eef6ee27b39198900b658b6a550c2d14e96bb9775b0337e0496"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/test-utils/mocks/api.ts",
+    "observed_at": "2026-10-20T01:51:21.178235+00:00",
+    "bytes": 1851,
+    "sha256": "5e0ae1fcebffc1c65891a7bd4e0630873a55ad6c7dbf6e6f021eeceb6b0144f7"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/test-utils/renderWithProviders.test.tsx",
+    "observed_at": "2026-10-20T01:51:21.178935+00:00",
+    "bytes": 7221,
+    "sha256": "9c47a86d1d70a24248197c1156e3681f4fa42e55ac3a7da9e268c82e9ebac269"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/theme/ThemeProvider.test.tsx",
+    "observed_at": "2026-10-20T01:51:21.179660+00:00",
+    "bytes": 3277,
+    "sha256": "a958789712d2114f2fd76a81cb447528cbbe6903792edebcb30062dd4cea4462"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/theme/ThemeProvider.tsx",
+    "observed_at": "2026-10-20T01:51:21.180469+00:00",
+    "bytes": 3486,
+    "sha256": "6cf2e853d5253cddb525fdb1549bd24fe4222e4dd968790da30ee96fd4900cea"
+  },
+  {
+    "path": "scenarios/device-studio/ui/src/vite-env.d.ts",
+    "observed_at": "2026-10-20T01:51:21.181032+00:00",
+    "bytes": 38,
+    "sha256": "65996936fbb042915f7b74a200fcdde7e410f32a669b1ab9597cfaa4b0faddb5"
+  },
+  {
+    "path": "scenarios/device-studio/ui/tailwind.config.ts",
+    "observed_at": "2026-10-20T01:51:21.181559+00:00",
+    "bytes": 561,
+    "sha256": "de148bb4d13e2d650fde9edb4e10ce71fa9b821740cf5b9ff3d693facc19322a"
+  },
+  {
+    "path": "scenarios/device-studio/ui/tailwind.theme.json",
+    "observed_at": "2026-10-20T01:51:21.182093+00:00",
+    "bytes": 4640,
+    "sha256": "564e1731a1041064561d2e19e07f92c167ffded4f28e3027a4a6f6a47eec8da6"
+  },
+  {
+    "path": "scenarios/device-studio/ui/token-map.json",
+    "observed_at": "2026-10-20T01:51:21.182678+00:00",
+    "bytes": 1339,
+    "sha256": "c1fda14c5dc03986291f042a671fc51c495d9126e34d9df07c3f053a390fad25"
+  },
+  {
+    "path": "scenarios/device-studio/ui/tsconfig.json",
+    "observed_at": "2026-10-20T01:51:21.183452+00:00",
+    "bytes": 3249,
+    "sha256": "cfa8c66decc9a074ad30b3fd82d5acbfa60bcf511d78bbc48f32f666653abefe"
+  },
+  {
+    "path": "scenarios/device-studio/ui/tsconfig.node.json",
+    "observed_at": "2026-10-20T01:51:21.184073+00:00",
+    "bytes": 377,
+    "sha256": "229184f063083a79d08f80f8fff85ec79d78f476d8f33712d149526918e54464"
+  },
+  {
+    "path": "scenarios/device-studio/ui/vite.config.ts",
+    "observed_at": "2026-10-20T01:51:21.184601+00:00",
+    "bytes": 4720,
+    "sha256": "b19bd0722e1d00b6ed4ce41dac2a11ce9a645033339781e8126d885fb1cdd7d6"
+  },
+  {
+    "path": "scenarios/device-studio/docs/reference/api-endpoints.md",
+    "observed_at": "2026-10-20T01:51:21.185136+00:00",
+    "bytes": 9121,
+    "sha256": "868c975ff3a5440a71010f3fe7c54e61a018b1ad3f575434631f7c53361aa1d7"
+  },
+  {
+    "path": "scenarios/device-studio/docs/reference/cli-commands.md",
+    "observed_at": "2026-10-20T01:51:21.185743+00:00",
+    "bytes": 13537,
+    "sha256": "85b79179dade07cf9c5b575f55488fef169d5f139949bf01b3afdc4b6347ac34"
+  },
+  {
+    "path": "scenarios/device-studio/docs/internal/goal/epochs/E1.md",
+    "observed_at": "2026-10-20T01:51:21.186294+00:00",
+    "bytes": 3008,
+    "sha256": "097027f5e057975d08f0a51d654d401dffb1f5c9a4028cd29ad423c548a9ce82"
+  },
+  {
+    "path": "scenarios/device-studio/docs/internal/goal/evidence/E1/slice-log.txt",
+    "observed_at": "2026-10-20T01:51:21.186923+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/device-studio/.vrooli/endpoints.json",
+    "observed_at": "2026-10-20T01:51:21.187394+00:00",
+    "bytes": 8184,
+    "sha256": "501511776694979e10348182eaa911be2503a6ec4fcf69f5a15939172f5c9e05"
+  },
+  {
+    "path": "scenarios/device-studio/.vrooli/generated/cli-primitive-evidence.json",
+    "observed_at": "2026-10-20T01:51:21.188134+00:00",
+    "absent": true
+  }
+]

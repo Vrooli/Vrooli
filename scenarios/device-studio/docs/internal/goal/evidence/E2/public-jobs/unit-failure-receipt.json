@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "kind": "device_studio_d2_d3_unit_failure_receipt",
+  "scenario": "device-studio",
+  "run_id": "20261020-040437-a0f4ad43",
+  "requested_phases": ["unit"],
+  "verdict": "FAIL",
+  "test_genie_artifacts": {
+    "findings_report": {
+      "artifact_id": "artifact_8e4814fbcd29982846ecc954926e1ba7",
+      "sha256": "e8f0373f8076251aee9dc1a5eceb8418d9e5f53fbf8eafed2676c2c79b6e08bc",
+      "retained_file": "unit-failure-findings.json"
+    },
+    "command_log": {
+      "artifact_id": "artifact_43f22ed4f914a84a6c43fedd6263c835",
+      "sha256": "72ce4f2d8d8346b4c5362bf0b8da2336c55a3f8e855749cd093b6e89dc96c0ea",
+      "retained_file": "unit-failure-command.log"
+    }
+  },
+  "failures": [
+    {
+      "workspace": "cli",
+      "test": "TestPrimitiveEvidenceArtifactCurrent",
+      "reason": "Committed .vrooli/generated/cli-primitive-evidence.json was stale.",
+      "owner_repair": "UPDATE_CLI_EVIDENCE=1 go test -run '^TestPrimitiveEvidenceArtifactCurrent$' . -count=1 passed from scenarios/device-studio/cli."
+    },
+    {
+      "workspace": "ui",
+      "command": "pnpm run test:coverage",
+      "reason": "30 files and 151 tests passed; functions coverage was 83.67%, below the 85% threshold.",
+      "owner_repair_status": "Materials is adding focused tests for uncovered shot/media pagination, failed content/list recovery, and source API behavior; rerun pending a new freeze."
+    }
+  ],
+  "lifecycle": {
+    "command": "make -C scenarios/device-studio start",
+    "result": "healthy",
+    "api_port": 19349,
+    "ui_port": 21427,
+    "served_ui_index_sha256": "49a3f1aca391108f90355fa0703017e2357624096bbabf8fec8108195949d467",
+    "api_health": "healthy"
+  },
+  "notes": [
+    "The test-genie server owns the durable unit run; this receipt is a local copy of its findings and command-log artifacts.",
+    "The CLI evidence was repaired only through its owning update test; no generated evidence file was hand-edited."
+  ]
+}

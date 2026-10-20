@@ -1,0 +1,13 @@
+{
+  "e1RoutedProject": {
+    "id": "df3e8ac2-79bc-42dd-ae6b-2afa1d77f4c5",
+    "name": "E1 routed project renamed",
+    "initialRevision": 1,
+    "currentRevision": 2,
+    "listedBefore": true,
+    "openedBefore": true,
+    "staleConflictRejected": true,
+    "reopenedAfterRename": true,
+    "listedAfter": true
+  }
+}

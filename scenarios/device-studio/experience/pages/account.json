@@ -1,0 +1,175 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "account",
+    "title": "Account and providers",
+    "routes": [
+      "/settings/account"
+    ],
+    "purpose": "Separate local operator access, optional Vrooli account linking, provider credentials and funding while keeping local authoring available.",
+    "prd_refs": [
+      "OT-P0-010",
+      "OT-P0-011",
+      "OT-P0-012"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Understand local identity versus optional cloud account."
+    },
+    {
+      "statement": "Connect only the account/provider needed for the intended operation."
+    },
+    {
+      "statement": "See balance, authority and credential health without exposing secrets."
+    }
+  ],
+  "states": [
+    {
+      "id": "idle",
+      "description": "No operation is pending; identify the current task and available next action."
+    },
+    {
+      "id": "pending",
+      "description": "Work is acknowledged and queued or in flight with observed progress or an honest indeterminate state."
+    },
+    {
+      "id": "retrying",
+      "description": "A safe retry is actively reconciling or executing without blind duplicate side effects."
+    },
+    {
+      "id": "default",
+      "description": "Explain the current task, saved revision and next meaningful action."
+    },
+    {
+      "id": "loading",
+      "description": "Name what is loading; retain stable layout and existing local content."
+    },
+    {
+      "id": "submitting",
+      "description": "Acknowledge the requested operation once and prevent duplicate costly submissions."
+    },
+    {
+      "id": "saving",
+      "description": "Distinguish local draft changes from durably saved revision; never claim saved early."
+    },
+    {
+      "id": "syncing",
+      "description": "Explain local versus remote state and conflict resolution without silently overwriting edits."
+    },
+    {
+      "id": "refreshing",
+      "description": "Retain usable content and identify the specific information being refreshed."
+    },
+    {
+      "id": "empty",
+      "description": "Explain why there is no content and offer a relevant low-risk first action."
+    },
+    {
+      "id": "partial",
+      "description": "Show which inputs, output or services are available and which remain incomplete."
+    },
+    {
+      "id": "stale",
+      "description": "Show age, affected decisions and explicit refresh; never silently spend on refresh."
+    },
+    {
+      "id": "success",
+      "description": "Confirm the concrete durable result and offer inspection or the next task."
+    },
+    {
+      "id": "validation-error",
+      "description": "Associate actionable correction with each invalid field while preserving input."
+    },
+    {
+      "id": "request-error",
+      "description": "Explain the failed operation, preserved work and safe next action with diagnostic reference."
+    },
+    {
+      "id": "permission-denied",
+      "description": "Identify the unavailable operation and authority boundary without requesting unrelated access."
+    },
+    {
+      "id": "offline",
+      "description": "Keep supported local work usable; mark online operations unavailable and never auto-submit paid work on reconnect."
+    },
+    {
+      "id": "retry",
+      "description": "Explain whether retry reuses an operation identity, reconciles prior work or starts a newly authorized operation."
+    },
+    {
+      "id": "signed-out",
+      "description": "Local authoring works; explain optional account-backed operations."
+    },
+    {
+      "id": "linking",
+      "description": "Show trusted destination, selected scope, callback progress and cancellation."
+    },
+    {
+      "id": "linked",
+      "description": "Show account identity and verified capabilities separately from unavailable paid execution."
+    },
+    {
+      "id": "expired",
+      "description": "Mark account operations unavailable and preserve local work while reauthentication occurs."
+    },
+    {
+      "id": "balance-stale",
+      "description": "Show age and unknown spendability until authoritative refresh."
+    },
+    {
+      "id": "credential-invalid",
+      "description": "Name provider connection issue without disclosing or echoing secret text."
+    },
+    {
+      "id": "integration-unavailable",
+      "description": "Explain a missing account/credit execution adapter honestly; do not present a successful dummy integration."
+    }
+  ],
+  "claims": [
+    {
+      "id": "account-intent-1",
+      "type": "custom",
+      "statement": "Local identity, cloud session, provider credential, entitlement, authoritative spendable balance and per-operation authority are separate visible concepts.",
+      "tier": "aspirational",
+      "rationale": "Unimplemented design intent; runtime bindings, exact state setup, visual evidence and operator review remain required."
+    },
+    {
+      "id": "account-intent-2",
+      "type": "custom",
+      "statement": "Account connection never authorizes external media upload or paid work by itself, and sign-out never erases local project data.",
+      "tier": "aspirational",
+      "rationale": "Unimplemented design intent; runtime bindings, exact state setup, visual evidence and operator review remain required."
+    }
+  ],
+  "x-route-status": "planned-not-implemented",
+  "x-design": {
+    "layout": "Local workspace identity first, optional Vrooli account card, funding/usage, provider connections and active session controls; no mandatory login wall for local work.",
+    "controls": [
+      "Sign in or connect desktop via supported scoped account path with callback/session status",
+      "Inspect selected account, authoritative balance/entitlements and pending reservations",
+      "Add/change/remove provider connection through existing secure credential owner; masked presence only",
+      "Inspect provider model availability and pricing freshness",
+      "Sign out/disconnect with running-job and local-project implications",
+      "Reauthenticate expired session; view sanitized support reference"
+    ],
+    "details": [
+      "AccountSettingsSurface is currently a null placeholder, not reusable implemented account UI; working AuthClient and MonetizationAccount parts require audited integration.",
+      "Desktop account linking uses selected scoped lease/connection; generic website login alone is not proof of local paid-credit execution authority. Browser integration needs the corrected supported adapter path.",
+      "BYOK, credit-funded managed service, local execution and credits-only entitlement are distinct funding modes with explicit supported/unsupported state.",
+      "Sign-out clears/revokes the appropriate owner-held session without deleting local projects or silently canceling provider jobs; explain exact owner behavior when implemented.",
+      "Credentials, token storage, callbacks and logs use the canonical authentication/credential owner, never shot JSON, localStorage ad hoc secrets or exported bundles.",
+      "Connecting an account/key is not consent to upload project media or start AI calls."
+    ]
+  },
+  "x-requirements": [
+    "DS-COMMERCE-PERSONAL",
+    "DS-COMMERCE-LINK",
+    "DS-COMMERCE-FUNDING",
+    "DS-COMMERCE-PRICING",
+    "DS-SAFETY-DISCLOSURE"
+  ],
+  "x-evidence-policy": "No fake selectors, region bindings, setup hooks, captures or attestations. Planned controls are metadata until implemented and grounded."
+}
