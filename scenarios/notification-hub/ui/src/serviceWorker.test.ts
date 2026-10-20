@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { runInNewContext } from "node:vm";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { initPendingNavigation } from "./features/pendingNav";
 
 type Listener = (event: Record<string, unknown>) => void;
 
@@ -36,7 +37,13 @@ function loadWorker(windows: FakeWindow[]) {
       stash.set(key, res._body);
       return Promise.resolve();
     }),
-    match: vi.fn((key: string) => Promise.resolve(stash.has(key) ? { text: () => Promise.resolve(stash.get(key)) } : undefined)),
+    match: vi.fn((key: string) => {
+      const body = stash.get(key);
+      return Promise.resolve(body === undefined ? undefined : {
+        text: () => Promise.resolve(body),
+        json: () => Promise.resolve(JSON.parse(body)),
+      });
+    }),
     delete: vi.fn((key: string) => Promise.resolve(stash.delete(key))),
   };
   const caches = {
@@ -49,6 +56,9 @@ function loadWorker(windows: FakeWindow[]) {
     _body: string;
     constructor(body: string) {
       this._body = body;
+    }
+    json() {
+      return Promise.resolve(JSON.parse(this._body));
     }
   };
   const fetch = vi.fn(() => Promise.resolve({ ok: true }));
@@ -64,6 +74,7 @@ function loadWorker(windows: FakeWindow[]) {
   return {
     stash,
     cache,
+    caches,
     openWindow,
     fetch,
     async changeSubscription(replacement: unknown, oldOptions: unknown) {
@@ -158,5 +169,135 @@ describe("service worker notification click", () => {
       auth: "client-auth",
       origin: "https://hub.example.test",
     });
+  });
+});
+
+
+function setPageLocation(href: string) {
+  const current = new URL(href);
+  const assign = vi.fn((next: string) => {
+    current.href = next;
+  });
+  const location = {
+    get href() { return current.href; },
+    get hostname() { return current.hostname; },
+    get origin() { return current.origin; },
+    assign,
+  };
+  Object.defineProperty(window, "location", { configurable: true, value: location });
+  return assign;
+}
+
+const originalLocation = Object.getOwnPropertyDescriptor(window, "location");
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+  if (originalLocation) {
+    Object.defineProperty(window, "location", originalLocation);
+  }
+});
+
+function setDocumentVisibility(state: "hidden" | "visible") {
+  let current = state;
+  Object.defineProperty(document, "visibilityState", { configurable: true, get: () => current });
+  return (next: "hidden" | "visible") => {
+    current = next;
+    document.dispatchEvent(new Event("visibilitychange"));
+  };
+}
+
+describe("notification click to foreground navigation bridge", () => {
+  const approvalURL = "https://agent-manager.itsagitime.com/api/v1/authorizations/ffe2823f-ea1f-4e77-88ab-630270ecfbef/approve";
+
+  it("routes a warm hidden app when the worker stashes, posts, and focuses it", async () => {
+    const assign = setPageLocation("https://notification-hub.itsagitime.com/");
+    const setVisibility = setDocumentVisibility("hidden");
+    const pageMessages: Array<(event: MessageEvent) => void> = [];
+    vi.stubGlobal("navigator", {
+      serviceWorker: {
+        addEventListener: (_type: string, listener: (event: MessageEvent) => void) => pageMessages.push(listener),
+        removeEventListener: () => {},
+      },
+    });
+    let hasPendingTarget = () => false;
+    const page: FakeWindow = {
+      postMessage: (data) => pageMessages.forEach((listener) => listener({ data } as MessageEvent)),
+      focus: async () => {
+        // Model the app returning to the foreground after the click handler
+        // has persisted its target.
+        expect(hasPendingTarget()).toBe(true);
+        setVisibility("visible");
+        return page;
+      },
+    };
+    const worker = loadWorker([page]);
+    hasPendingTarget = () => worker.stash.has("/__pending_nav");
+    vi.stubGlobal("caches", worker.caches);
+    const dispose = initPendingNavigation();
+
+    await worker.click({ id: "approval-reminder", url: approvalURL });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(assign).toHaveBeenCalledWith(approvalURL);
+    expect(worker.stash.has("/__pending_nav")).toBe(false);
+    dispose();
+  });
+
+  it("routes an already-visible app from the worker message after the click stash", async () => {
+    const assign = setPageLocation("https://notification-hub.itsagitime.com/");
+    setDocumentVisibility("visible");
+    const pageMessages: Array<(event: MessageEvent) => void> = [];
+    vi.stubGlobal("navigator", {
+      serviceWorker: {
+        addEventListener: (_type: string, listener: (event: MessageEvent) => void) => pageMessages.push(listener),
+        removeEventListener: () => {},
+      },
+    });
+    let hasPendingTarget = () => false;
+    const page: FakeWindow = {
+      postMessage: (data) => {
+        expect(hasPendingTarget()).toBe(true);
+        pageMessages.forEach((listener) => listener({ data } as MessageEvent));
+      },
+      focus: async () => page,
+    };
+    const worker = loadWorker([page]);
+    hasPendingTarget = () => worker.stash.has("/__pending_nav");
+    vi.stubGlobal("caches", worker.caches);
+    const dispose = initPendingNavigation();
+
+    await worker.click({ id: "approval-reminder", url: approvalURL });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(assign).toHaveBeenCalledWith(approvalURL);
+    expect(worker.stash.has("/__pending_nav")).toBe(false);
+    dispose();
+  });
+
+  it("routes a cold launch from the cache after the worker opens the app root", async () => {
+    const assign = setPageLocation("https://notification-hub.itsagitime.com/");
+    const worker = loadWorker([]);
+    await worker.click({ id: "approval-reminder", url: approvalURL });
+    expect(worker.openWindow).toHaveBeenCalledWith("./");
+
+    vi.stubGlobal("caches", worker.caches);
+    vi.stubGlobal("navigator", { serviceWorker: { addEventListener: () => {}, removeEventListener: () => {} } });
+    const dispose = initPendingNavigation();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(assign).toHaveBeenCalledWith(approvalURL);
+    expect(worker.stash.has("/__pending_nav")).toBe(false);
+    dispose();
+  });
+
+  it("writes the destination before any resumed-window message or focus", async () => {
+    const order: string[] = [];
+    const worker = loadWorker([{
+      postMessage: () => { order.push(worker.stash.has("/__pending_nav") ? "message-after-stash" : "message-before-stash"); },
+      focus: async () => { order.push(worker.stash.has("/__pending_nav") ? "focus-after-stash" : "focus-before-stash"); return {} as FakeWindow; },
+    }]);
+    await worker.click({ id: "approval-reminder", url: approvalURL });
+    expect(order).toEqual(["message-after-stash", "focus-after-stash"]);
   });
 });

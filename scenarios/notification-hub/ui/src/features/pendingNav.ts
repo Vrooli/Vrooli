@@ -43,16 +43,23 @@ export function sameSiteTarget(rawUrl: string): string | null {
 }
 
 /** Read and CLEAR the stashed target; null if absent, stale, or off-site. */
-export async function takePendingNav(now: number = Date.now()): Promise<string | null> {
+export async function takePendingNav(
+  now: number = Date.now(),
+  expectedTarget?: string,
+): Promise<string | null> {
   if (typeof caches === "undefined") return null;
   try {
     const cache = await caches.open(PENDING_NAV_CACHE);
     const response = await cache.match(PENDING_NAV_KEY);
     if (!response) return null;
-    await cache.delete(PENDING_NAV_KEY);
     const { url, ts } = (await response.json()) as { url?: string; ts?: number };
-    if (!url || typeof ts !== "number" || now - ts > MAX_AGE_MS) return null;
-    return sameSiteTarget(url);
+    const target = typeof url === "string" ? sameSiteTarget(url) : null;
+    // A worker message may arrive after a newer click has replaced the stash.
+    // Leave that newer target for its own message or the next foreground event.
+    if (expectedTarget && target !== expectedTarget) return null;
+    await cache.delete(PENDING_NAV_KEY);
+    if (!target || typeof ts !== "number" || now - ts > MAX_AGE_MS) return null;
+    return target;
   } catch {
     return null;
   }
@@ -69,8 +76,13 @@ export function goTo(href: string): void {
  * navigated to, or null when there was nothing valid to do.
  */
 async function act(messageUrl?: string): Promise<string | null> {
+  // A backgrounded Home Screen app can initialize before the user sees it
+  // again. Keep the durable worker stash until a foreground lifecycle signal
+  // gives this page a safe time to navigate.
+  if (document.visibilityState !== "visible") return null;
   const href = messageUrl ? sameSiteTarget(messageUrl) : await takePendingNav();
   if (!href) return null;
+  if (messageUrl) await takePendingNav(Date.now(), href);
   // Don't bounce if we're already there (avoids a reload loop on same-origin).
   if (href === window.location.href) return null;
   goTo(href);
@@ -83,7 +95,7 @@ async function act(messageUrl?: string): Promise<string | null> {
  * to call once at startup; returns a disposer for tests.
  */
 export function initPendingNavigation(): () => void {
-  const onVisible = () => {
+  const onForeground = () => {
     if (document.visibilityState === "visible") void act();
   };
   const onMessage = (event: MessageEvent) => {
@@ -91,7 +103,9 @@ export function initPendingNavigation(): () => void {
     if (data?.type === "PENDING_NAV") void act(data.url);
   };
 
-  document.addEventListener("visibilitychange", onVisible);
+  document.addEventListener("visibilitychange", onForeground);
+  window.addEventListener("focus", onForeground);
+  window.addEventListener("pageshow", onForeground);
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.addEventListener("message", onMessage);
   }
@@ -99,7 +113,9 @@ export function initPendingNavigation(): () => void {
   void act();
 
   return () => {
-    document.removeEventListener("visibilitychange", onVisible);
+    document.removeEventListener("visibilitychange", onForeground);
+    window.removeEventListener("focus", onForeground);
+    window.removeEventListener("pageshow", onForeground);
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.removeEventListener("message", onMessage);
     }

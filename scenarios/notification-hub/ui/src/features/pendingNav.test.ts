@@ -1,8 +1,13 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { initPendingNavigation, sameSiteTarget, takePendingNav } from "./pendingNav";
 
 const HUB = "https://notification-hub.itsagitime.com/";
+let originalVisibility: PropertyDescriptor | undefined;
+
+beforeEach(() => {
+  originalVisibility = Object.getOwnPropertyDescriptor(document, "visibilityState");
+});
 
 function setLocation(href: string) {
   const u = new URL(href);
@@ -34,7 +39,19 @@ function mockCache(entry?: { url: string; ts: number }) {
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  if (originalVisibility) {
+    Object.defineProperty(document, "visibilityState", originalVisibility);
+  } else {
+    Reflect.deleteProperty(document, "visibilityState");
+  }
 });
+
+function setVisibility(state: "hidden" | "visible") {
+  Object.defineProperty(document, "visibilityState", {
+    configurable: true,
+    get: () => state,
+  });
+}
 
 describe("sameSiteTarget", () => {
   it("accepts the exact same host", () => {
@@ -119,6 +136,82 @@ describe("initPendingNavigation", () => {
     handlers.forEach((h) => h({ data: { type: "PENDING_NAV", url: "https://web-console.itsagitime.com/?session=s2" } } as MessageEvent));
     await new Promise((r) => setTimeout(r, 0));
     expect(assign).toHaveBeenCalledWith("https://web-console.itsagitime.com/?session=s2");
+    dispose();
+  });
+
+  it("keeps a hidden-start cache entry until a visible focus without another message", async () => {
+    const assign = setLocation(HUB);
+    setVisibility("hidden");
+    const store = mockCache({ url: "https://agent-manager.itsagitime.com/api/v1/authorizations/a1/approve", ts: Date.now() });
+    const dispose = initPendingNavigation();
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(assign).not.toHaveBeenCalled();
+    expect(store.has("/__pending_nav")).toBe(true);
+
+    // Model the app becoming visible without a visibilitychange or worker
+    // message. The focus signal must retry the same durable cache consumer.
+    setVisibility("visible");
+    window.dispatchEvent(new Event("focus"));
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(assign).toHaveBeenCalledWith("https://agent-manager.itsagitime.com/api/v1/authorizations/a1/approve");
+    expect(store.has("/__pending_nav")).toBe(false);
+    dispose();
+  });
+
+  it("consumes only the stash matching a worker message and preserves a newer target", async () => {
+    const assign = setLocation(HUB);
+    setVisibility("visible");
+    const store = mockCache({ url: "https://agent-manager.itsagitime.com/api/v1/authorizations/a1/approve", ts: Date.now() });
+    const handlers: Array<(e: MessageEvent) => void> = [];
+    vi.stubGlobal("navigator", {
+      serviceWorker: {
+        addEventListener: (_t: string, h: (e: MessageEvent) => void) => handlers.push(h),
+        removeEventListener: () => {},
+      },
+    });
+    const dispose = initPendingNavigation();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(assign).toHaveBeenCalledWith("https://agent-manager.itsagitime.com/api/v1/authorizations/a1/approve");
+    expect(store.has("/__pending_nav")).toBe(false);
+
+    const oldMessageURL = "https://agent-manager.itsagitime.com/api/v1/authorizations/a2/approve";
+    store.set("/__pending_nav", JSON.stringify({
+      url: "https://agent-manager.itsagitime.com/api/v1/authorizations/a3/approve",
+      ts: Date.now(),
+    }));
+    handlers.forEach((h) => h({ data: { type: "PENDING_NAV", url: oldMessageURL } } as MessageEvent));
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(assign).toHaveBeenLastCalledWith(oldMessageURL);
+    expect(JSON.parse(store.get("/__pending_nav") ?? "{}").url).toBe("https://agent-manager.itsagitime.com/api/v1/authorizations/a3/approve");
+    dispose();
+  });
+
+  it("recovers a fresh hidden-start cache entry on pageshow without visibilitychange or message", async () => {
+    const assign = setLocation(HUB);
+    setVisibility("hidden");
+    const store = mockCache();
+    const dispose = initPendingNavigation();
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(assign).not.toHaveBeenCalled();
+    expect(store.has("/__pending_nav")).toBe(false);
+
+    // Model the live worker writing the durable stash after app startup while
+    // its PENDING_NAV message is lost during suspension.
+    store.set("/__pending_nav", JSON.stringify({
+      url: "https://agent-manager.itsagitime.com/api/v1/authorizations/a2/approve",
+      ts: Date.now(),
+    }));
+
+    setVisibility("visible");
+    window.dispatchEvent(new Event("pageshow"));
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(assign).toHaveBeenCalledWith("https://agent-manager.itsagitime.com/api/v1/authorizations/a2/approve");
+    expect(store.has("/__pending_nav")).toBe(false);
     dispose();
   });
 });
