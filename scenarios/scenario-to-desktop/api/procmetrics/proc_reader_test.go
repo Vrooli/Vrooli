@@ -2,9 +2,21 @@ package procmetrics
 
 import (
 	"fmt"
+	"io/fs"
+	"strings"
 	"testing"
 	"testing/fstest"
 )
+
+type recordingFS struct {
+	fs.FS
+	opened []string
+}
+
+func (f *recordingFS) Open(name string) (fs.File, error) {
+	f.opened = append(f.opened, name)
+	return f.FS.Open(name)
+}
 
 func TestParseProcessStatAndRoleClassification(t *testing.T) {
 	input := "1234 (Electron Helper (GPU)) S 1000 1234 1234 0 -1 4194304 500 0 0 0 150 30 0 0 20 0 1 0 100 1000000 200 0 0 0"
@@ -18,6 +30,46 @@ func TestParseProcessStatAndRoleClassification(t *testing.T) {
 	if got := classifyProcess(ProcessInfo{PID: 1235, Command: command, Cmdline: []string{"electron", "--type=gpu-process"}, Exe: "/opt/app/app"}, 1234, ProcessTreeOptions{}); got != RoleElectronGPU {
 		t.Fatalf("role = %q, want %q", got, RoleElectronGPU)
 	}
+	for _, test := range []struct {
+		exe  string
+		want ProcessRole
+	}{
+		{"/usr/lib/WebKitWebProcess", RoleWebviewRenderer},
+		{"/usr/lib/WebKitGPUProcess", RoleWebviewGPU},
+		{"/usr/lib/WebKitNetworkProcess", RoleWebviewOther},
+	} {
+		if got := classifyProcess(ProcessInfo{PID: 1236, Exe: test.exe}, 1234, ProcessTreeOptions{}); got != test.want {
+			t.Errorf("classifyProcess(%q) = %q, want %q", test.exe, got, test.want)
+		}
+	}
+}
+
+func TestGenericProcessRoleMapsEngineRolesAndFutureWebviewRoles(t *testing.T) {
+	cases := map[ProcessRole]ProcessRole{
+		RoleElectronMain: RoleShellMain, RoleElectronRender: RoleWebviewRenderer,
+		RoleElectronGPU: RoleWebviewGPU, RoleElectronUtility: RoleWebviewOther,
+		RoleBundledRuntime: RoleBackend, RoleShellMain: RoleShellMain,
+		RoleWebviewRenderer: RoleWebviewRenderer, RoleWebviewGPU: RoleWebviewGPU,
+		RoleWebviewOther: RoleWebviewOther, RoleUnknown: RoleUnknown,
+	}
+	for engineRole, want := range cases {
+		if got := GenericProcessRole(engineRole); got != want {
+			t.Errorf("GenericProcessRole(%q) = %q, want %q", engineRole, got, want)
+		}
+	}
+}
+
+func TestParseSmapsRollupPSSAndUSS(t *testing.T) {
+	content := "00400000-00452000 r-xp 00000000 08:02 123 /app/app\n" +
+		"Rss:                 900 kB\nPss:                 700 kB\n" +
+		"Private_Clean:       200 kB\nPrivate_Dirty:       300 kB\nPrivate_Hugetlb:      10 kB\n"
+	pss, uss, err := parseSmapsRollup(content)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pss != 700*1024 || uss != 510*1024 {
+		t.Fatalf("PSS=%d USS=%d, want %d and %d", pss, uss, 700*1024, 510*1024)
+	}
 }
 
 func TestLinuxProcReaderReanchorsAndClassifiesFixtureTree(t *testing.T) {
@@ -25,8 +77,10 @@ func TestLinuxProcReaderReanchorsAndClassifiesFixtureTree(t *testing.T) {
 	add := func(pid, ppid int, command, exe, cmdline string) {
 		stat := []byte(fmt.Sprintf("%d (%s) S %d 1 1 0 -1 0 0 0 0 0 10 2 0 0 20 0 1 0 1 1 1 0 0 0", pid, command, ppid))
 		status := []byte("VmPeak:\t100 kB\nVmRSS:\t50 kB\nThreads:\t2\n")
+		smaps := []byte("Pss:\t25 kB\nPrivate_Clean:\t10 kB\nPrivate_Dirty:\t5 kB\n")
 		proc[fmt.Sprintf("%d/stat", pid)] = &fstest.MapFile{Data: stat}
 		proc[fmt.Sprintf("%d/status", pid)] = &fstest.MapFile{Data: status}
+		proc[fmt.Sprintf("%d/smaps_rollup", pid)] = &fstest.MapFile{Data: smaps}
 		proc[fmt.Sprintf("%d/cmdline", pid)] = &fstest.MapFile{Data: []byte(cmdline + "\x00")}
 		proc[fmt.Sprintf("%d/exe-target", pid)] = &fstest.MapFile{Data: []byte(exe)}
 	}
@@ -44,13 +98,40 @@ func TestLinuxProcReaderReanchorsAndClassifiesFixtureTree(t *testing.T) {
 		t.Fatal(err)
 	}
 	roles := map[int]ProcessRole{}
+	processes := map[int]ProcessInfo{}
 	for _, p := range got {
 		roles[p.PID] = p.Role
+		processes[p.PID] = p
 	}
 	want := map[int]ProcessRole{100: RoleLauncher, 200: RoleElectronMain, 201: RoleElectronRender, 202: RoleElectronGPU, 203: RoleBundledRuntime, 204: RoleScenarioService, 205: RoleUnknown}
 	for pid, role := range want {
 		if roles[pid] != role {
 			t.Errorf("pid %d role = %q, want %q", pid, roles[pid], role)
+		}
+	}
+	if p := processes[200]; !p.MemoryStatsAvailable || p.PSSBytes != 25*1024 || p.USSBytes != 15*1024 {
+		t.Fatalf("process memory stats = %+v, want smaps_rollup PSS/USS", p)
+	}
+}
+
+func TestLinuxProcReaderReadsExpensiveDetailsOnlyForTargetTree(t *testing.T) {
+	proc := fstest.MapFS{}
+	add := func(pid, ppid int) {
+		proc[fmt.Sprintf("%d/stat", pid)] = &fstest.MapFile{Data: []byte(fmt.Sprintf("%d (proc-%d) S %d 1 1 0 -1 0 0 0 0 0 10 2 0 0 20 0 1 0 1 1 1 0 0 0", pid, pid, ppid))}
+		proc[fmt.Sprintf("%d/status", pid)] = &fstest.MapFile{Data: []byte("VmPeak:\t100 kB\nVmRSS:\t50 kB\nThreads:\t2\n")}
+		proc[fmt.Sprintf("%d/smaps_rollup", pid)] = &fstest.MapFile{Data: []byte("Pss:\t25 kB\nPrivate_Clean:\t10 kB\nPrivate_Dirty:\t5 kB\n")}
+	}
+	add(100, 1)
+	add(200, 100)
+	add(900, 1) // unrelated host process
+	observed := &recordingFS{FS: proc}
+	reader := &LinuxProcReader{FS: observed}
+	if _, err := reader.ProcessTree(100); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range observed.opened {
+		if strings.HasPrefix(path, "900/") && (strings.HasSuffix(path, "/status") || strings.HasSuffix(path, "/smaps_rollup")) {
+			t.Fatalf("unrelated process detail read: %s", path)
 		}
 	}
 }

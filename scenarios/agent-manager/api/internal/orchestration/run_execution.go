@@ -524,6 +524,9 @@ func (o *Orchestrator) ResumeRun(ctx context.Context, id uuid.UUID) (*domain.Run
 	if err != nil {
 		return nil, err
 	}
+	if err := o.ensureCurrentTaskRun(ctx, run); err != nil {
+		return nil, err
+	}
 
 	// Get profile if available (may be nil for inline config runs)
 	var profile *domain.AgentProfile
@@ -534,40 +537,64 @@ func (o *Orchestrator) ResumeRun(ctx context.Context, id uuid.UUID) (*domain.Run
 		}
 	}
 
-	// Update status to running
-	run.Status = domain.RunStatusRunning
-	run.UpdatedAt = o.now()
-	if err := o.runs.Update(ctx, run); err != nil {
+	admission, err := o.dispatcher.ReserveAdmission(run.ID)
+	if err != nil {
 		return nil, err
+	}
+	handedOff := false
+	defer func() {
+		if !handedOff {
+			o.dispatcher.ReleaseAdmission(run.ID, admission)
+		}
+	}()
+	if err := o.ensureCurrentTaskRun(ctx, run); err != nil {
+		return nil, err
+	}
+
+	// Update status to running under the loaded lifecycle version. Keep the
+	// prior state so a dispatcher rejection can restore it without writing over
+	// a concurrent cancel or newer lifecycle transition.
+	previousStatus := run.Status
+	run.UpdatedAt = o.now()
+	updated, err := o.runs.AdmitCurrentRun(ctx, run, previousStatus, run.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	if !updated {
+		return nil, domain.NewStateError("Task", "not_current", "resume run", "task cancellation or a newer attempt won before runner dispatch")
 	}
 
 	// Resume goes through the same dispatcher as initial spawn —
 	// per contract decision 2 in SEAMS.md, no goroutine spawn outside
 	// spawn.Dispatcher.Enqueue.
-	if err := o.dispatcher.Enqueue(&spawn.Job{
+	if err := o.dispatcher.EnqueueAdmitted(&spawn.Job{
 		RunID:      run.ID,
 		RunMode:    run.RunMode,
 		RunnerType: runnerTypeOrEmpty(run),
 		Sink:       o.dispatcherSink(run.ID),
 		Fn: func(started spawn.StartedFn) {
+			defer o.dispatcher.ReleaseAdmission(run.ID, admission)
 			defer obs.RecoverToFailure("run resumption dispatch", func(failure obs.PanicFailure) {
 				o.recoverPanickedRun(run, failure)
 			})
-			o.resumeRun(context.WithoutCancel(ctx), run, task, profile, checkpoint, currentExclusions, started)
+			o.resumeRun(admission.Context(), run, task, profile, checkpoint, currentExclusions, started)
 		},
 		OnPanic: func(failure obs.PanicFailure) {
 			o.recoverPanickedRun(run, failure)
 		},
-	}); err != nil {
-		// Revert so the run stays resumable instead of stranded as a
-		// running row with no process (until the stale sweep reaps it).
-		run.Status = domain.RunStatusPending
+	}, admission); err != nil {
+		// Enqueue did not accept the executor. Restore the prior resumable state
+		// through the ordinary lifecycle-version CAS; cancellation or another
+		// lifecycle writer advances that version and makes this restoration fail
+		// closed instead of resurrecting stale work.
+		run.Status = previousStatus
 		run.UpdatedAt = o.now()
-		if revertErr := o.runs.Update(ctx, run); revertErr != nil {
-			obs.Component("orchestrator").Error("failed to revert run status after enqueue failure", obs.KeyRunID, run.ID.String(), obs.KeyError, revertErr.Error())
+		if restoreErr := o.runs.Update(context.WithoutCancel(ctx), run); restoreErr != nil {
+			return nil, fmt.Errorf("enqueue run resume: %v; restore prior run state: %w", err, restoreErr)
 		}
 		return nil, err
 	}
+	handedOff = true
 
 	return o.attachRunActions(ctx, run), nil
 }

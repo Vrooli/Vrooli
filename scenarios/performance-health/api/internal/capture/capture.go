@@ -30,16 +30,16 @@ const (
 	OutcomeCaptured
 	OutcomeSkipped
 	OutcomeFailed
-	// OutcomeUnavailable means the capture mechanism itself was unreachable —
-	// BAS down or no browser in the environment. Distinct from a clean SKIP (no
-	// UI / Tier None) so a degraded headless run is not read as success.
+	// OutcomeUnavailable records unavailable service discovery/transport or an
+	// explicit no-browser artifact. The reason identifies which was observed;
+	// this differs from an inapplicable capture (no UI / Tier None).
 	OutcomeUnavailable
 )
 
-// ErrCaptureUnavailable signals that the capture mechanism was unreachable (BAS
-// down / no browser), as opposed to a clean skip or a hard failure. The
-// orchestrator maps it to OutcomeUnavailable.
-var ErrCaptureUnavailable = errors.New("capture mechanism unavailable (no browser / BAS unreachable)")
+// ErrCaptureUnavailable signals unavailable service discovery or transport.
+// The caller retains the underlying cause; it does not infer browser absence.
+// The orchestrator maps it to OutcomeUnavailable.
+var ErrCaptureUnavailable = errors.New("capture mechanism unavailable")
 
 // Result is the outcome of one capture orchestration.
 type Result struct {
@@ -215,9 +215,9 @@ func (s *Service) Orchestrate(ctx context.Context, scenario, workflow string, ti
 
 	artifacts, err := s.captureWithRetry(ctx, uiURL, interactionFlowJSON)
 	if errors.Is(err, ErrCaptureUnavailable) {
-		// The capture mechanism itself was unreachable (BAS down / discovery
-		// failed) across every attempt — genuinely UNAVAILABLE.
-		return Result{Scenario: scenario, Outcome: OutcomeUnavailable, Tier: tier, Reason: "browser-automation-studio unreachable: " + err.Error()}, nil
+		// Service discovery or transport remained unavailable. Preserve its
+		// cause without inferring that a browser was absent.
+		return Result{Scenario: scenario, Outcome: OutcomeUnavailable, Tier: tier, Reason: err.Error()}, nil
 	}
 	if err != nil {
 		return Result{Scenario: scenario, Outcome: OutcomeFailed, Tier: tier, Reason: err.Error()}, nil

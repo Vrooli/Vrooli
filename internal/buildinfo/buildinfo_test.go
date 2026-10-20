@@ -217,6 +217,23 @@ func TestComputeSourceFingerprintForPathsSkipsKnownBuildArtifacts(t *testing.T) 
 	}
 }
 
+func TestComputeSourceFingerprintIncludesGoPackagesNamedCoverage(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, root, "api/internal/checks/coverage/check.go", "package coverage\nconst Value = 1\n")
+	first, err := ComputeSourceFingerprintForPaths(root, "api")
+	if err != nil {
+		t.Fatalf("fingerprint source: %v", err)
+	}
+	writeTestFile(t, root, "api/internal/checks/coverage/check.go", "package coverage\nconst Value = 2\n")
+	second, err := ComputeSourceFingerprintForPaths(root, "api")
+	if err != nil {
+		t.Fatalf("fingerprint edited source: %v", err)
+	}
+	if first == second {
+		t.Fatal("Go source under a coverage package was omitted from the fingerprint")
+	}
+}
+
 func TestComputeSourceFingerprintErrorsOnUnreadableFile(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		repocontracttest.SkipPlatform(t, "permissions differ on Windows")

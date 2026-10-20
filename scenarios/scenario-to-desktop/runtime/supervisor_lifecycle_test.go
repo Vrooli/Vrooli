@@ -408,6 +408,29 @@ func TestAllServicesReady(t *testing.T) {
 	})
 }
 
+func TestSetStatusNotifiesReadinessWaitersAndCoalescesBursts(t *testing.T) {
+	s := &Supervisor{
+		clock:         RealClock{},
+		serviceStatus: make(map[string]ServiceStatus),
+		statusChanges: make(chan struct{}, 1),
+	}
+	s.setStatus("api", ServiceStatus{Ready: false, Message: "starting"})
+	s.setStatus("api", ServiceStatus{Ready: true, Message: "ready"})
+	select {
+	case <-s.StatusChanges():
+	default:
+		t.Fatal("status changes did not notify readiness waiter")
+	}
+	if status := s.ServiceStatuses()["api"]; !status.Ready {
+		t.Fatalf("latest status = %#v, want ready", status)
+	}
+	select {
+	case <-s.StatusChanges():
+		t.Fatal("bursty status changes should coalesce into one notification")
+	default:
+	}
+}
+
 func TestServiceStatuses_ReturnsCopy(t *testing.T) {
 	tmp := t.TempDir()
 	m := &manifest.Manifest{

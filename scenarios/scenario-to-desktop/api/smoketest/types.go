@@ -105,23 +105,23 @@ type StateTransition struct {
 
 // Status represents the status of a desktop smoke test run.
 type Status struct {
-	SmokeTestID          string     `json:"smoke_test_id"`
-	ScenarioName         string     `json:"scenario_name"`
-	Platform             string     `json:"platform"`
-	DeploymentMode       string     `json:"deployment_mode,omitempty"`
-	ProxyURL             string     `json:"proxy_url,omitempty"`
-	PipelineID           string     `json:"pipeline_id,omitempty"`
-	ScreenContentSource  string     `json:"screen_content_source,omitempty"`
+	SmokeTestID           string                              `json:"smoke_test_id"`
+	ScenarioName          string                              `json:"scenario_name"`
+	Platform              string                              `json:"platform"`
+	DeploymentMode        string                              `json:"deployment_mode,omitempty"`
+	ProxyURL              string                              `json:"proxy_url,omitempty"`
+	PipelineID            string                              `json:"pipeline_id,omitempty"`
+	ScreenContentSource   string                              `json:"screen_content_source,omitempty"`
 	IsolationObservations []deliveryramp.IsolationObservation `json:"isolation_observations,omitempty"`
-	ProtocolPassed       bool       `json:"protocol_passed,omitempty"`
-	Status               string     `json:"status"` // running, passed, failed
-	ArtifactPath         string     `json:"artifact_path,omitempty"`
-	StartedAt            time.Time  `json:"started_at"`
-	CompletedAt          *time.Time `json:"completed_at,omitempty"`
-	Logs                 []string   `json:"logs,omitempty"`
-	Error                string     `json:"error,omitempty"`
-	TelemetryUploaded    bool       `json:"telemetry_uploaded,omitempty"`
-	TelemetryUploadError string     `json:"telemetry_upload_error,omitempty"`
+	ProtocolPassed        bool                                `json:"protocol_passed,omitempty"`
+	Status                string                              `json:"status"` // running, passed, failed
+	ArtifactPath          string                              `json:"artifact_path,omitempty"`
+	StartedAt             time.Time                           `json:"started_at"`
+	CompletedAt           *time.Time                          `json:"completed_at,omitempty"`
+	Logs                  []string                            `json:"logs,omitempty"`
+	Error                 string                              `json:"error,omitempty"`
+	TelemetryUploaded     bool                                `json:"telemetry_uploaded,omitempty"`
+	TelemetryUploadError  string                              `json:"telemetry_upload_error,omitempty"`
 
 	// Structured error for programmatic handling
 	ErrorKind       *ErrorKind        `json:"error_kind,omitempty"`
@@ -133,11 +133,12 @@ type Status struct {
 	Transitions  []StateTransition `json:"transitions,omitempty"`
 
 	// Execution details for debugging
-	LastStdout              string `json:"last_stdout,omitempty"`
-	LastStderr              string `json:"last_stderr,omitempty"`
-	RetryCount              int    `json:"retry_count,omitempty"`
-	OutputTruncated         bool   `json:"output_truncated,omitempty"`
-	ExtractedLifecycleState string `json:"extracted_lifecycle_state,omitempty"` // Debug: lifecycle state extracted from output
+	LastStdout              string                 `json:"last_stdout,omitempty"`
+	LastStderr              string                 `json:"last_stderr,omitempty"`
+	RetryCount              int                    `json:"retry_count,omitempty"`
+	OutputTruncated         bool                   `json:"output_truncated,omitempty"`
+	ProcessLifetimeChecks   []ProcessLifetimeCheck `json:"process_lifetime_checks,omitempty"`
+	ExtractedLifecycleState string                 `json:"extracted_lifecycle_state,omitempty"` // Debug: lifecycle state extracted from output
 
 	// AppReportedError contains the actual error from the app's telemetry
 	// when available. This provides more specific diagnostic information
@@ -167,21 +168,40 @@ type Status struct {
 	EvidenceReview            *JourneyReview         `json:"evidence_review,omitempty"`
 
 	// Process metrics from app execution
-	SplashDurationMs        *int64                         `json:"splash_duration_ms,omitempty"`
-	ReadyDurationMs         *int64                         `json:"ready_duration_ms,omitempty"`
-	ResourceSummary         *procmetrics.Summary           `json:"resource_summary,omitempty"`
-	ProtocolResourceSummary *procmetrics.Summary           `json:"protocol_resource_summary,omitempty"`
-	ProtocolProcessTree     *procmetrics.ProcessTreeReport `json:"protocol_process_tree,omitempty"`
-	DemoResourceSummary     *procmetrics.Summary           `json:"demo_resource_summary,omitempty"`
-	DemoProcessTree         *procmetrics.ProcessTreeReport `json:"demo_process_tree,omitempty"`
-	ProtocolTracePath       string                         `json:"protocol_trace_path,omitempty"`
-	DemoTracePath           string                         `json:"demo_trace_path,omitempty"`
-	ProtocolProfileDir      string                         `json:"protocol_profile_dir,omitempty"`
-	DemoProfileDir          string                         `json:"demo_profile_dir,omitempty"`
-	PerformanceStatus       string                         `json:"performance_status,omitempty"`
-	PerformanceReason       string                         `json:"performance_reason,omitempty"`
-	ProtocolPhases          []PerformancePhase             `json:"protocol_phases,omitempty"`
-	DemoPhases              []PerformancePhase             `json:"demo_phases,omitempty"`
+	SplashDurationMs              *int64                         `json:"splash_duration_ms,omitempty"`
+	ReadyDurationMs               *int64                         `json:"ready_duration_ms,omitempty"`
+	ResourceSummary               *procmetrics.Summary           `json:"resource_summary,omitempty"`
+	ProtocolResourceSummary       *procmetrics.Summary           `json:"protocol_resource_summary,omitempty"`
+	ProtocolProcessTree           *procmetrics.ProcessTreeReport `json:"protocol_process_tree,omitempty"`
+	DemoResourceSummary           *procmetrics.Summary           `json:"demo_resource_summary,omitempty"`
+	DemoProcessTree               *procmetrics.ProcessTreeReport `json:"demo_process_tree,omitempty"`
+	InteractiveProcessTree        *procmetrics.ProcessTreeReport `json:"interactive_process_tree,omitempty"`
+	IdleCPUWindow                 *procmetrics.ProcessTreeWindow `json:"idle_cpu_window,omitempty"`
+	SteadyPSSWindow               *procmetrics.ProcessTreeWindow `json:"steady_pss_window,omitempty"`
+	ProtocolTracePath             string                         `json:"protocol_trace_path,omitempty"`
+	DemoTracePath                 string                         `json:"demo_trace_path,omitempty"`
+	ProtocolProfileDir            string                         `json:"protocol_profile_dir,omitempty"`
+	DemoProfileDir                string                         `json:"demo_profile_dir,omitempty"`
+	Measured                      bool                           `json:"measured,omitempty"`
+	Condition                     string                         `json:"condition,omitempty"`
+	Strategy                      string                         `json:"strategy,omitempty"`
+	ExperimentID                  string                         `json:"experiment_id,omitempty"`
+	ArtifactDigest                string                         `json:"artifact_digest,omitempty"`
+	ArtifactPageCacheResidencyPct *float64                       `json:"artifact_page_cache_residency_pct,omitempty"`
+	PerformanceStatus             string                         `json:"performance_status,omitempty"`
+	PerformanceReason             string                         `json:"performance_reason,omitempty"`
+	ProtocolPhases                []PerformancePhase             `json:"protocol_phases,omitempty"`
+	DemoPhases                    []PerformancePhase             `json:"demo_phases,omitempty"`
+}
+
+// ProcessLifetimeCheck is retained per packaged launch so smoke and measured
+// evidence records the session marker and the post-cleanup descendant result.
+type ProcessLifetimeCheck struct {
+	Stage     string `json:"stage"`
+	SessionID string `json:"session_id,omitempty"`
+	Passed    bool   `json:"passed"`
+	Remaining []int  `json:"remaining_descendant_pids,omitempty"`
+	Assertion string `json:"assertion,omitempty"`
 }
 
 type PerformancePhase struct {

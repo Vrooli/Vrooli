@@ -67,7 +67,17 @@ func HandleResult(ctx context.Context, in HandleResultInput) HandleResultOutput 
 	if in.Run != nil && in.Deps.Runs != nil {
 		if durable, readErr := in.Deps.Runs.Get(ctx, in.Run.ID); readErr == nil && durable != nil {
 			if durable.LifecycleVersion != in.Run.LifecycleVersion {
-				return out
+				intentOnlyAdvance := in.Run.CancelRequestedAt == nil && durable.CancelRequestedAt != nil &&
+					durable.LifecycleVersion == in.Run.LifecycleVersion+1 && durable.Status == in.Run.Status &&
+					durable.OwnerIdentity == in.Run.OwnerIdentity && durable.OwnerEpoch == in.Run.OwnerEpoch &&
+					(durable.Status == domain.RunStatusPending || durable.Status == domain.RunStatusStarting || durable.Status == domain.RunStatusRunning)
+				if !intentOnlyAdvance {
+					return out
+				}
+				in.Run.LifecycleVersion = durable.LifecycleVersion
+				in.Run.CancelRequestedAt = durable.CancelRequestedAt
+				out.Outcome = domain.RunOutcomeCancelled
+				outcome = domain.RunOutcomeCancelled
 			}
 			if durable.Status.IsTerminal() {
 				*in.Run = *durable

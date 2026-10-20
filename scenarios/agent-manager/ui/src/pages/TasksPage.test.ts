@@ -240,16 +240,17 @@ describe("TasksPage", () => {
   it("renders each task status label and calls refresh from the list toolbar", () => {
     const refresh = vi.fn();
     const tasks = [
-      TaskStatus.QUEUED, TaskStatus.RUNNING, TaskStatus.NEEDS_REVIEW, TaskStatus.APPROVED,
-      TaskStatus.REJECTED, TaskStatus.FAILED, TaskStatus.CANCELLED,
+      TaskStatus.QUEUED, TaskStatus.RUNNING, TaskStatus.COMPLETED, TaskStatus.NEEDS_REVIEW, TaskStatus.APPROVED,
+      TaskStatus.REJECTED, TaskStatus.FAILED, TaskStatus.CANCELLED, 999 as TaskStatus,
     ].map((status) => makeTask({ id: `task-${status}`, title: `Status ${status}`, status }));
     renderWithProviders(createElement(TasksPage, {
       tasks, profiles: [], loading: false, error: "Task API unavailable",
       onCreateTask: vi.fn(), onUpdateTask: vi.fn(), onCancelTask: vi.fn(), onDeleteTask: vi.fn(), onCreateRun: vi.fn(), onCreateProfile: vi.fn(), onRefresh: refresh,
     }));
-    for (const label of ["queued", "running", "needs review", "approved", "rejected", "failed", "cancelled"]) {
+    for (const label of ["queued", "running", "completed", "needs review", "approved", "rejected", "failed", "cancelled"]) {
       expect(screen.getByText(label)).toBeInTheDocument();
     }
+    expect(screen.getByText("unknown")).toBeInTheDocument();
     expect(screen.getByText("Task API unavailable")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "New" }).previousElementSibling as HTMLButtonElement);
     expect(refresh).toHaveBeenCalledTimes(1);

@@ -12,6 +12,7 @@ import { Button } from "@vrooli/react-component-library/Button/2";
 import { Dialog } from "@vrooli/react-component-library/Dialog/1";
 import { Input } from "@vrooli/react-component-library/Input/1";
 import { Select } from "@vrooli/react-component-library/Select/1";
+import { Checkbox } from "@vrooli/react-component-library/Checkbox/1";
 
 export type LauncherAction = "menu" | "extract" | "adopt" | "create" | null;
 
@@ -39,6 +40,7 @@ function SearchablePicker({
       option.label.toLocaleLowerCase().includes(normalizedQuery) ||
       option.value.toLocaleLowerCase().includes(normalizedQuery),
   );
+  const selectedValues = Array.isArray(value) ? value : [];
   return (
     <div className="mt-space-3xs grid gap-space-3xs">
       <Input
@@ -48,27 +50,39 @@ function SearchablePicker({
         onChange={(event) => setQuery(event.target.value)}
         placeholder={`Search ${label}`}
       />
-      {/* Select, not a raw <select> with a local border/background class list:
-          the shared control owns hover, :focus-visible, aria-invalid, the
-          disabled treatment and the reduced-motion opt-out. The multi-select
-          height comes from the native `size` attribute rather than a min-height
-          utility, so the listbox shows whole rows at any font size. */}
-      <Select
-        aria-label={label}
-        required
-        multiple={multiple}
-        size={multiple ? 6 : undefined}
-        value={value}
-        onChange={(event) =>
-          onChange(
-            multiple
-              ? Array.from(event.target.selectedOptions, (option) => option.value)
-              : event.target.value,
-          )
-        }
-        placeholder={multiple ? undefined : "Select an option"}
-        options={visible}
-      />
+      {multiple ? (
+        <div className="grid max-h-48 gap-space-3xs overflow-y-auto rounded-control border border-app-border bg-app-surface p-space-2xs">
+          {visible.map((option) => (
+            <Checkbox
+              key={option.value}
+              label={option.label}
+              className="rounded-control hover:bg-app-surface-muted"
+              checked={selectedValues.includes(option.value)}
+              onCheckedChange={() =>
+                onChange(
+                  selectedValues.includes(option.value)
+                    ? selectedValues.filter((selected) => selected !== option.value)
+                    : [...selectedValues, option.value],
+                )
+              }
+            />
+          ))}
+          {visible.length === 0 && (
+            <p className="px-space-2xs py-space-3xs text-xs text-app-muted-foreground">
+              No matching choices.
+            </p>
+          )}
+        </div>
+      ) : (
+        <Select
+          aria-label={label}
+          required
+          value={value as string}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder="Select an option"
+          options={visible}
+        />
+      )}
     </div>
   );
 }

@@ -51,13 +51,20 @@ export const SCENE_NIGHT_URL = "/public/scenes/night-panorama.webp";
 
 export type SampledScene = { color?: string; aspect?: number };
 
+type StaticSceneURL = typeof SCENE_DAY_URL | typeof SCENE_NIGHT_URL;
+
+// These fixed panorama URLs are shared for this page's module lifetime; a full
+// page reload starts with a fresh cache. Keep reuse closed over the pair so
+// scenes share samples without retaining arbitrary URLs or image data.
+const staticSceneSamples = new Map<StaticSceneURL, Promise<SampledScene>>();
+
 /**
  * Reads the actual scenery asset and returns (a) the average colour of its top
  * "sky handoff" strip and (b) its intrinsic aspect ratio. The Today sky uses
  * these to derive its own gradient and band height from the image itself, so a
  * regenerated or slightly-different panorama can never leave a mismatched seam.
  */
-export function sampleSceneAsset(url: string): Promise<SampledScene> {
+function sampleSceneAssetUncached(url: string): Promise<SampledScene> {
   return new Promise((resolve) => {
     if (typeof document === "undefined" || typeof Image === "undefined") {
       resolve({});
@@ -105,6 +112,31 @@ export function sampleSceneAsset(url: string): Promise<SampledScene> {
     img.onerror = () => resolve({});
     img.src = url;
   });
+}
+
+function hasReusableSceneSample(sample: SampledScene): boolean {
+  return Boolean(sample.color) && Number.isFinite(sample.aspect) && (sample.aspect ?? 0) > 0;
+}
+
+export function sampleSceneAsset(url: string): Promise<SampledScene> {
+  if (url !== SCENE_DAY_URL && url !== SCENE_NIGHT_URL) {
+    return sampleSceneAssetUncached(url);
+  }
+
+  const staticURL = url as StaticSceneURL;
+  const cached = staticSceneSamples.get(staticURL);
+  if (cached) return cached;
+
+  const pending = sampleSceneAssetUncached(staticURL);
+  staticSceneSamples.set(staticURL, pending);
+  void pending.then((sample) => {
+    if (!hasReusableSceneSample(sample) && staticSceneSamples.get(staticURL) === pending) {
+      staticSceneSamples.delete(staticURL);
+    }
+  }, () => {
+    if (staticSceneSamples.get(staticURL) === pending) staticSceneSamples.delete(staticURL);
+  });
+  return pending;
 }
 
 export type SampledSceneColors = { day?: string; night?: string; aspect?: number };

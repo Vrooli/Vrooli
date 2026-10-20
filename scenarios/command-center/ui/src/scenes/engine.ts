@@ -1,6 +1,6 @@
 import type { Constellation, Reading } from "../lib/api";
 import { skyState, type SkyState } from "../lib/sky";
-import { figureValue, resolveReading, type Ink } from "@vrooli/react-component-library/ProvenanceInk/0.1.2";
+import { figureValue, resolveReading, type Ink } from "@vrooli/react-component-library/ProvenanceInk/0.1.3";
 
 export type SceneTier = "full" | "reduced";
 

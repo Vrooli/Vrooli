@@ -22,9 +22,8 @@ func TestDeleteTaskAndRunEnforceTerminalLifecyclePolicies(t *testing.T) {
 	if err := o.DeleteTask(ctx, task.ID); err == nil {
 		t.Fatal("queued task deleted")
 	}
-	task.Status = domain.TaskStatusCancelled
-	if err := repos.Tasks.Update(ctx, task); err != nil {
-		t.Fatal(err)
+	if err := o.CancelTask(ctx, task.ID); err != nil {
+		t.Fatalf("explicitly cancel queued task: %v", err)
 	}
 	if err := o.DeleteTask(ctx, task.ID); err != nil {
 		t.Fatal(err)
@@ -44,10 +43,8 @@ func TestDeleteTaskAndRunEnforceTerminalLifecyclePolicies(t *testing.T) {
 	if err := o.DeleteRun(ctx, pending.ID); err == nil {
 		t.Fatal("pending run deleted")
 	}
-	pending.Status = domain.RunStatusCancelled
-	pending.Phase = domain.RunPhaseCompleted
-	if err := repos.Runs.Update(ctx, pending); err != nil {
-		t.Fatal(err)
+	if err := o.StopRun(ctx, pending.ID); err != nil {
+		t.Fatalf("stop pending run through lifecycle owner: %v", err)
 	}
 	if err := o.DeleteRun(ctx, pending.ID); err != nil {
 		t.Fatal(err)

@@ -218,6 +218,9 @@ func loadRealCatalog(root string) (*realCatalog, error) {
 		}
 		path := filepath.Join(root, entry.Name(), "component.json")
 		raw, err := os.ReadFile(path)
+		if os.IsNotExist(err) {
+			continue
+		}
 		if err != nil {
 			return nil, err
 		}

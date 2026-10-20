@@ -134,3 +134,37 @@ func TestAdoptSkipsUndeclared(t *testing.T) {
 		t.Fatalf("undeclared consumer must not be adopted, created %+v", created)
 	}
 }
+
+func TestAdoptionPreservesDeclaredIdleGrace(t *testing.T) {
+	ctx := context.Background()
+	store := newResizeStore(t)
+	spec := ResourceClaimSpec{ResourceKind: ResourceKindVRAM, PreferredBytes: 4 << 30, Priority: "batch", IdleGraceSeconds: 900}
+	created, err := AdoptObservedResidents(ctx, store, snapshotWithProcs(hostinventory.GPUProcess{GPUIndex: 0, PID: 2000, UsedBytes: 3 << 30}), fakeAttributor{2000: Attribution{OwnerID: "model"}}, DefaultPolicy(), func(name string) (ResourceClaimSpec, bool, error) { return spec, name == "model", nil }, time.Now())
+	if err != nil || len(created) != 1 {
+		t.Fatalf("adopt=%v %v", created, err)
+	}
+	if created[0].IdleGrace != 900*time.Second {
+		t.Fatalf("adopted idle grace=%v, want authored 15m", created[0].IdleGrace)
+	}
+}
+
+func TestAdoptObservedResidentsRefusesConflictingIdentityBeforeSpecLookup(t *testing.T) {
+	ctx := context.Background()
+	now := time.Date(2026, 10, 17, 12, 0, 0, 0, time.UTC)
+	store := testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(ctx, Config{DBPath: path, Clock: testenv.NewClock(now)})
+	})
+	lookups := 0
+	snap := snapshotWithProcs(hostinventory.GPUProcess{PID: 1, GPUIndex: 0, ProcessName: "/tmp/artifacts/model-b/runtime/bin/python", UsedBytes: 3 << 30})
+	created, err := AdoptObservedResidents(ctx, store, snap, fakeAttributor{1: {OwnerID: "model-a"}}, DefaultPolicy(), func(string) (ResourceClaimSpec, bool, error) { lookups++; return kyutaiSpec() }, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows, err := store.ListClaims(ctx, ClaimFilter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if lookups != 0 || len(created) != 0 || len(rows) != 0 {
+		t.Fatalf("conflict reached declaration/adoption: lookups=%d created=%+v rows=%+v", lookups, created, rows)
+	}
+}

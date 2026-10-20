@@ -139,7 +139,7 @@ func (h *Handler) QuiesceScenario(w http.ResponseWriter, r *http.Request) {
 	if !h.validateProto(w, r, &req) {
 		return
 	}
-	if h.denyRunInitiatedQuiesce(w, r, strings.TrimSpace(req.GetScenario())) {
+	if h.denyRunInitiatedQuiesce(w, r, strings.TrimSpace(req.GetScenario()), req.GetForce()) {
 		return
 	}
 

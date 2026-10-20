@@ -39,6 +39,10 @@ func (r *SQLiteRepository) EnforcePayloadCeiling(ctx context.Context) error {
 }
 
 func (r *SQLiteRepository) Save(ctx context.Context, report Report) error {
+	return r.saveWithPayloadCeiling(ctx, report, reportPayloadCeiling)
+}
+
+func (r *SQLiteRepository) saveWithPayloadCeiling(ctx context.Context, report Report, payloadCeiling int64) error {
 	results, err := json.Marshal(struct {
 		Results   []Result   `json:"results"`
 		Artifacts []Artifact `json:"artifacts"`
@@ -67,10 +71,10 @@ source_revision=excluded.source_revision, verdict=excluded.verdict, results_json
 			return err
 		}
 	}
-	if err = retainVersionReports(ctx, tx, report.RootComponentID, report.RootLibraryID, report.RootVersion); err != nil {
+	if err = retainVersionReports(ctx, tx, report.RootComponentID, report.RootLibraryID, report.RootVersion, report.ID); err != nil {
 		return err
 	}
-	if err = enforceReportPayloadCeiling(ctx, tx); err != nil {
+	if err = enforceReportPayloadCeilingWithLimit(ctx, tx, payloadCeiling, report.ID); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -133,7 +137,9 @@ ON CONFLICT(library_id, version) DO UPDATE SET
 	return err
 }
 
-func retainVersionReports(ctx context.Context, tx *sql.Tx, componentID, libraryID, version string) error {
+func retainVersionReports(ctx context.Context, tx *sql.Tx, componentID, libraryID, version, preserveID string) error {
+	// Save must leave the just-written ID available for its exact-ID readback.
+	// This can temporarily retain one extra row when an older run finishes late.
 	_, err := tx.ExecContext(ctx, `
 WITH ranked AS (
   SELECT id, ROW_NUMBER() OVER (ORDER BY created_at DESC, id DESC) AS rank
@@ -145,18 +151,20 @@ WITH ranked AS (
 )
 DELETE FROM component_test_reports
 WHERE id IN (SELECT id FROM ranked WHERE rank > 5)
-		AND id NOT IN (SELECT id FROM pinned)`, componentID, version, libraryID, version, libraryID, version)
+		AND id NOT IN (SELECT id FROM pinned)
+		AND id <> ?`, componentID, version, libraryID, version, libraryID, version, preserveID)
 	return err
 }
 
 func enforceReportPayloadCeiling(ctx context.Context, tx *sql.Tx) error {
-	return enforceReportPayloadCeilingWithLimit(ctx, tx, reportPayloadCeiling)
+	return enforceReportPayloadCeilingWithLimit(ctx, tx, reportPayloadCeiling, "")
 }
 
-func enforceReportPayloadCeilingWithLimit(ctx context.Context, tx *sql.Tx, ceiling int64) error {
+func enforceReportPayloadCeilingWithLimit(ctx context.Context, tx *sql.Tx, ceiling int64, preserveID string) error {
 	// Select the oldest removable rows whose cumulative payload is at least
 	// the excess. One statement keeps startup and report writes bounded even
 	// when an older database accumulated hundreds of megabytes of evidence.
+	// A report being saved is protected until its caller can read it back by ID.
 	_, err := tx.ExecContext(ctx, `
 WITH totals AS (
   SELECT COALESCE(SUM(length(results_json)), 0) AS bytes
@@ -168,13 +176,13 @@ WITH totals AS (
   WHERE NOT EXISTS (
     SELECT 1 FROM component_version_test_rollup v
     WHERE v.first_pass_report_id = r.id OR v.first_fail_report_id = r.id
-  )
+  ) AND r.id <> ?
 ), to_delete AS (
   SELECT removable.id
   FROM removable, totals
   WHERE removable.cumulative - removable.payload_bytes < totals.bytes - ?
 )
-DELETE FROM component_test_reports WHERE id IN (SELECT id FROM to_delete)`, ceiling)
+DELETE FROM component_test_reports WHERE id IN (SELECT id FROM to_delete)`, preserveID, ceiling)
 	return err
 }
 

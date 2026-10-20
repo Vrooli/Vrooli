@@ -223,7 +223,7 @@ func TestDesktopPackagerClientHTTPWorkflow(t *testing.T) {
 			if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 				t.Errorf("decode quick request: %v", err)
 			}
-			if request.ScenarioName != "demo" || request.DeploymentMode != "release" {
+			if request.ScenarioName != "demo" || request.DeploymentMode != "release" || request.StrategyID != "electron-sidecar" {
 				t.Errorf("quick request = %+v", request)
 			}
 			w.WriteHeader(http.StatusCreated)
@@ -249,7 +249,7 @@ func TestDesktopPackagerClientHTTPWorkflow(t *testing.T) {
 	defer srv.Close()
 
 	client := &DesktopPackagerClient{httpClient: srv.Client(), baseURL: srv.URL, log: func(string, map[string]interface{}) {}}
-	generated, err := client.QuickGenerate(context.Background(), &QuickGenerateRequest{ScenarioName: "demo", DeploymentMode: "release", Platforms: []string{"linux"}})
+	generated, err := client.QuickGenerate(context.Background(), &QuickGenerateRequest{ScenarioName: "demo", DeploymentMode: "release", Platforms: []string{"linux"}, StrategyID: "electron-sidecar"})
 	if err != nil || generated.BuildID != "b1" {
 		t.Fatalf("QuickGenerate() = %+v, %v", generated, err)
 	}

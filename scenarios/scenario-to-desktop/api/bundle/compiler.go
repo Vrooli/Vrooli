@@ -104,9 +104,9 @@ func (c *defaultServiceCompiler) Compile(svc bundlemanifest.Service, platform, s
 	}
 }
 
-// compileGoBinary compiles a Go binary for the specified platform.
+// compileGoBinary builds a platform binary without requiring VCS metadata in exported source trees.
 func compileGoBinary(srcDir, outPath, goos, goarch string, build *bundlemanifest.BuildConfig) error {
-	args := []string{"build", "-o", outPath}
+	args := []string{"build", "-buildvcs=false", "-o", outPath}
 
 	// Add any custom build args
 	if len(build.Args) > 0 {

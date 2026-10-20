@@ -112,9 +112,21 @@ func TestRunCRUD(t *testing.T) {
 		t.Errorf("expected progress 50, got %d", got.ProgressPercent)
 	}
 
-	// Delete
-	if err := repos.Runs.Delete(ctx, run.ID); err != nil {
-		t.Fatalf("Delete: %v", err)
+	// Deletion refuses live execution and requires the exact terminal snapshot.
+	if err := repos.Runs.Delete(ctx, run.ID, got.Status, got.LifecycleVersion); err == nil {
+		t.Fatal("running run was deleted")
+	}
+	run.Status = domain.RunStatusComplete
+	run.Phase = domain.RunPhaseCompleted
+	if err := repos.Runs.Update(ctx, run); err != nil {
+		t.Fatalf("complete before deletion: %v", err)
+	}
+	got, err = repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("Get terminal snapshot: %v", err)
+	}
+	if err := repos.Runs.Delete(ctx, run.ID, got.Status, got.LifecycleVersion); err != nil {
+		t.Fatalf("Delete terminal snapshot: %v", err)
 	}
 	got, err = repos.Runs.Get(ctx, run.ID)
 	if err != nil {
@@ -426,6 +438,85 @@ func TestRequestCancellation_StatusGuardedAndIdempotent(t *testing.T) {
 	got, _ = repos.Runs.Get(ctx, complete.ID)
 	if got.CancelRequestedAt != nil {
 		t.Errorf("terminal run was stamped with cancellation intent: %v", got.CancelRequestedAt)
+	}
+}
+
+// TestRequestCancellationAdvancesLifecycleVersionRejectingStaleUpdates verifies that
+// the first durable cancellation intent consumes the current run lifecycle
+// version. A full-row writer holding a pre-intent Pending or Running snapshot
+// must not advance that run after cancellation has started. Replaying the same
+// intent is idempotent and does not consume another version.
+func TestRequestCancellationAdvancesLifecycleVersionRejectingStaleUpdates(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+	task := &domain.Task{ID: uuid.New(), Title: "Cancel version fence", ScopePath: "/test", Status: domain.TaskStatusQueued}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatalf("Create task: %v", err)
+	}
+
+	createRun := func(status domain.RunStatus) *domain.Run {
+		run := &domain.Run{ID: uuid.New(), TaskID: task.ID, RunMode: domain.RunModeInPlace, Status: status, Phase: domain.RunPhaseExecuting, ApprovalState: domain.ApprovalStateNone}
+		if err := repos.Runs.Create(ctx, run); err != nil {
+			t.Fatalf("Create run (%s): %v", status, err)
+		}
+		return run
+	}
+	read := func(id uuid.UUID) *domain.Run {
+		t.Helper()
+		run, err := repos.Runs.Get(ctx, id)
+		if err != nil {
+			t.Fatalf("Get run %s: %v", id, err)
+		}
+		return run
+	}
+
+	for _, status := range []domain.RunStatus{domain.RunStatusPending, domain.RunStatusRunning} {
+		t.Run(string(status), func(t *testing.T) {
+			created := createRun(status)
+			stale := read(created.ID)
+			versionBefore := stale.LifecycleVersion
+			epochBefore := stale.OwnerEpoch
+
+			updated, err := repos.Runs.RequestCancellation(ctx, created.ID, time.Now())
+			if err != nil || !updated {
+				t.Fatalf("RequestCancellation(%s): updated=%v err=%v", status, updated, err)
+			}
+			current := read(created.ID)
+			if current.LifecycleVersion != versionBefore+1 {
+				t.Fatalf("first cancellation did not consume exactly one lifecycle version: before=%d after=%d", versionBefore, current.LifecycleVersion)
+			}
+			if current.OwnerEpoch != epochBefore {
+				t.Fatalf("cancellation intent changed owner epoch: before=%d after=%d", epochBefore, current.OwnerEpoch)
+			}
+			if current.Status != status || current.CancelRequestedAt == nil {
+				t.Fatalf("cancellation intent changed lifecycle state: status=%s cancel_requested=%v", current.Status, current.CancelRequestedAt != nil)
+			}
+
+			if status == domain.RunStatusPending {
+				stale.Status = domain.RunStatusStarting
+			} else {
+				stale.Status = domain.RunStatusComplete
+			}
+			if err := repos.Runs.Update(ctx, stale); err == nil {
+				t.Fatalf("stale %s snapshot updated after cancellation intent", status)
+			}
+			current = read(created.ID)
+			if current.Status != status || current.LifecycleVersion != versionBefore+1 || current.CancelRequestedAt == nil {
+				t.Fatalf("stale update changed run after cancellation: status=%s version=%d cancel_requested=%v", current.Status, current.LifecycleVersion, current.CancelRequestedAt != nil)
+			}
+
+			updated, err = repos.Runs.RequestCancellation(ctx, created.ID, time.Now())
+			if err != nil || updated {
+				t.Fatalf("duplicate RequestCancellation: updated=%v err=%v (want false,nil)", updated, err)
+			}
+			current = read(created.ID)
+			if current.LifecycleVersion != versionBefore+1 {
+				t.Fatalf("duplicate cancellation consumed a lifecycle version: before=%d after=%d", versionBefore, current.LifecycleVersion)
+			}
+		})
 	}
 }
 
@@ -919,5 +1010,93 @@ func TestRenewAttachedIdentityLosesToCancellationIntent(t *testing.T) {
 	}
 	if got.CancelRequestedAt == nil || got.IdentityTokenHash != "original-active-hash" || got.IdentityRenewalAnchorHash != "" || got.IdentityTokenIssuedAt != nil {
 		t.Fatalf("cancellation/identity state changed unexpectedly: cancelled=%v active=%q anchor=%q issued=%v", got.CancelRequestedAt != nil, got.IdentityTokenHash, got.IdentityRenewalAnchorHash, got.IdentityTokenIssuedAt)
+	}
+}
+
+func TestRunListRunnerPIDFilterNarrowsNonterminalRows(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+	pid := 424242
+	for _, tc := range []struct {
+		status domain.RunStatus
+		pid    int
+		want   bool
+	}{
+		{status: domain.RunStatusRunning, pid: pid, want: true},
+		{status: domain.RunStatusParked, pid: pid, want: true},
+		{status: domain.RunStatusComplete, pid: pid, want: false},
+		{status: domain.RunStatusRunning, pid: pid + 1, want: false},
+	} {
+		run := &domain.Run{ID: uuid.New(), Status: tc.status, Phase: domain.RunPhaseExecuting, RunnerPID: tc.pid, ApprovalState: domain.ApprovalStateNone}
+		if err := repos.Runs.Create(ctx, run); err != nil {
+			t.Fatal(err)
+		}
+	}
+	rows, err := repos.Runs.List(ctx, repository.RunListFilter{
+		ListFilter: repository.ListFilter{Limit: 10}, NonTerminalOnly: true, RunnerPIDs: []int{pid},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 2 {
+		t.Fatalf("runner PID filter returned %d rows, want the two matching nonterminal states", len(rows))
+	}
+	for _, row := range rows {
+		if row.RunnerPID != pid || row.Status.IsTerminal() {
+			t.Fatalf("runner PID filter returned an unrelated row: pid=%d status=%s", row.RunnerPID, row.Status)
+		}
+	}
+}
+
+func TestRunUpdateDoesNotAdvanceCallerVersionWhenTaskProjectionRollsBack(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+	task := &domain.Task{ID: uuid.New(), Title: "projection rollback", ScopePath: "/test", Status: domain.TaskStatusQueued}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatalf("create task: %v", err)
+	}
+	run := &domain.Run{ID: uuid.New(), TaskID: task.ID, RunMode: domain.RunModeSandboxed, Status: domain.RunStatusPending, Phase: domain.RunPhaseQueued, ApprovalState: domain.ApprovalStateNone}
+	if err := repos.Runs.CreateTaskAttempt(ctx, task, run, nil, task.ProjectRoot); err != nil {
+		t.Fatalf("create task attempt: %v", err)
+	}
+	current, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil || current == nil {
+		t.Fatalf("read admitted run: %v", err)
+	}
+	startingVersion := current.LifecycleVersion
+	if _, err := db.ExecContext(ctx, `CREATE TRIGGER fail_running_task_projection BEFORE UPDATE ON tasks WHEN NEW.status = 'running' BEGIN SELECT RAISE(ABORT, 'injected task projection failure'); END`); err != nil {
+		t.Fatalf("create projection trigger: %v", err)
+	}
+	current.Status = domain.RunStatusRunning
+	err = repos.Runs.Update(ctx, current)
+	if err == nil {
+		t.Fatal("expected task projection failure")
+	}
+	if current.LifecycleVersion != startingVersion {
+		t.Fatalf("failed transaction advanced caller lifecycle version: got %d want %d", current.LifecycleVersion, startingVersion)
+	}
+	durable, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil || durable == nil {
+		t.Fatalf("read run after rollback: %v", err)
+	}
+	if durable.Status != domain.RunStatusPending || durable.LifecycleVersion != startingVersion {
+		t.Fatalf("transaction did not roll back run state: status=%s version=%d want pending/%d", durable.Status, durable.LifecycleVersion, startingVersion)
+	}
+	if _, err := db.ExecContext(ctx, `DROP TRIGGER fail_running_task_projection`); err != nil {
+		t.Fatalf("drop projection trigger: %v", err)
+	}
+	if err := repos.Runs.Update(ctx, current); err != nil {
+		t.Fatalf("retry with unchanged lifecycle version: %v", err)
+	}
+	durable, err = repos.Runs.Get(ctx, run.ID)
+	if err != nil || durable == nil {
+		t.Fatalf("read retried run: %v", err)
+	}
+	if durable.Status != domain.RunStatusRunning || durable.LifecycleVersion != startingVersion+1 {
+		t.Fatalf("retry did not commit once: status=%s version=%d want running/%d", durable.Status, durable.LifecycleVersion, startingVersion+1)
 	}
 }

@@ -3,7 +3,6 @@ package capacity
 import (
 	"context"
 	"math"
-	"strings"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/hostinventory"
@@ -34,36 +33,6 @@ func DecayedPeak(prevPeak, observed int64, prevAt, now time.Time, halflife time.
 	return decayed
 }
 
-// observedBytesForOwner sums the GPU memory of every observed process that
-// attributes to the claim's owner on the claim's GPU (mirrors the reconcile /
-// sweep owner-matching). Zero when nothing attributes to the owner — an honest
-// "idle / not resident right now" reading.
-func observedBytesForOwner(ctx context.Context, claim CapacityClaim, snapshot hostinventory.Snapshot, attr Attributor) int64 {
-	owner := strings.TrimSpace(claim.OwnerID)
-	if owner == "" {
-		return 0
-	}
-	var sum int64
-	for _, proc := range snapshot.GPUProcesses {
-		idx := proc.GPUIndex
-		if !sameGPU(claim.GPUIndex, &idx) {
-			continue
-		}
-		a := attr.Attribute(ctx, proc.PID)
-		for _, cand := range []string{a.OwnerID, NormalizeOwnerName(a.ContainerName), strings.TrimPrefix(a.ContainerName, "/"), NormalizeProcessOwner(proc.ProcessName)} {
-			cand = strings.TrimSpace(cand)
-			if cand == "" || cand == OwnerUnknown {
-				continue
-			}
-			if ownerMatches(owner, cand) {
-				sum += int64(proc.UsedBytes)
-				break
-			}
-		}
-	}
-	return sum
-}
-
 // SampleObservedUsage records per-claim observed GPU usage + the decaying peak for
 // every active VRAM claim in `claims`, using the live snapshot and attributor
 // (§Phase 2). It is best-effort telemetry: a RecordObserved error on one claim is
@@ -87,6 +56,10 @@ func SampleObservedUsageWithFootprints(ctx context.Context, store ClaimRepositor
 	if attr == nil {
 		attr = unknownAttributor{}
 	}
+	return sampleClaimUsage(ctx, store, claims, snapshot, observeClaimUsage(ctx, claims, snapshot, attr), policy, now, resolve)
+}
+
+func sampleClaimUsage(ctx context.Context, store ClaimRepository, claims []CapacityClaim, snapshot hostinventory.Snapshot, usage claimUsage, policy Policy, now time.Time, resolve FootprintResolver) int {
 	halflife := policy.ObservedPeakHalflife
 	if halflife <= 0 {
 		halflife = DefaultObservedPeakHalflife
@@ -96,13 +69,24 @@ func SampleObservedUsageWithFootprints(ctx context.Context, store ClaimRepositor
 		if !IsActiveClaimStatus(claim.Status) || claim.ResourceKind != ResourceKindVRAM {
 			continue
 		}
-		observed := observedBytesForOwner(ctx, claim, snapshot, attr)
+		workers := usage.assigned[claim.ClaimID]
+		if usage.uncertain.Contains(claim.ClaimID) || (len(workers) == 0 && !gpuProcessAbsenceVerified(snapshot, claim, now)) {
+			continue
+		}
+		var observed int64
+		for _, proc := range workers {
+			observed += int64(proc.UsedBytes)
+		}
 		var prevAt time.Time
 		if claim.ObservedAt != nil {
 			prevAt = *claim.ObservedAt
 		}
 		peak := DecayedPeak(claim.ObservedPeakBytes, observed, prevAt, now, halflife)
-		if _, err := store.RecordObserved(ctx, claim.ClaimID, observed, peak, now); err != nil {
+		var absence *AbsenceProof
+		if observed == 0 {
+			absence = &AbsenceProof{Generation: claim.Generation, ObservedAt: snapshot.FieldProvenance["gpu_processes"].ObservedAt}
+		}
+		if updated, err := store.RecordObserved(ctx, claim.ClaimID, observed, peak, now, absence); err != nil || !IsActiveClaimStatus(updated.Status) {
 			continue
 		}
 		if footprints, ok := store.(FootprintRepository); ok && resolve != nil {

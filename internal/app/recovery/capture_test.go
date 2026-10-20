@@ -60,7 +60,10 @@ func fixedRoots(roots ...lifecycle.SharedSourceRoot) func(context.Context, strin
 func TestCaptureKeepsSourceAndConfigAndDropsRuntimeData(t *testing.T) {
 	svc, scenarioDir := newTestService(t, time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC))
 	declaredScenario(t, svc, scenarioDir)
-	svc.SharedSourceRoots = fixedRoots(lifecycle.SharedSourceRoot{Path: "packages/shared", Reason: "file:@demo/shared"})
+	if err := os.WriteFile(filepath.Join(svc.Root, ".gitignore"), []byte("data/\n*.log\ndist/\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	svc.SharedSourceRoots = fixedRoots(lifecycle.SharedSourceRoot{Path: "packages/shared", Reason: "file:@demo/shared", KeepOutputs: []string{"dist"}})
 
 	out, err := svc.Capture(CaptureRequest{Scenario: "demo", Slug: "abc", NoReflink: true})
 	if err != nil {

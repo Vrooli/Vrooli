@@ -34,6 +34,45 @@ func (r *Runner) acquireDependencyDemandLease(ctx context.Context, consumer, dep
 	return leaseID, nil
 }
 
+func (r *Runner) snapshotDependencyDemandLeases(ctx context.Context, consumer scenario.Scenario, session *startSession) error {
+	if session == nil {
+		return nil
+	}
+	consumerID := scenarioruntime.DependencyConsumerID(consumer.Slug, consumer.Variant)
+	store, err := r.runtimeDeps().runtimeRegistry(ctx, r.Home)
+	if err != nil {
+		return fmt.Errorf("open runtime registry to snapshot dependency demand for %s: %w", consumerID, err)
+	}
+	defer store.Close()
+	instances, err := store.ListInstances(ctx, scenarioruntime.InstanceFilter{
+		Scenario: consumer.Slug,
+		Variant:  consumer.Variant,
+		Statuses: scenarioruntime.ActiveInstanceStatuses(),
+	})
+	if err != nil {
+		return fmt.Errorf("list active dependency consumer %s: %w", consumerID, err)
+	}
+	if len(instances) == 0 {
+		session.rememberPriorDependencyLeases(consumerID, nil)
+		return nil
+	}
+	leases, err := store.ListDemandLeases(ctx, scenarioruntime.DemandLeaseFilter{
+		ConsumerID: consumerID,
+		Statuses:   []string{scenarioruntime.DemandLeaseActive},
+	})
+	if err != nil {
+		return fmt.Errorf("list prior dependency demand for %s: %w", consumerID, err)
+	}
+	leaseIDs := make([]string, 0, len(leases))
+	for _, lease := range leases {
+		if lease.Kind == scenarioruntime.DemandLeaseDependency {
+			leaseIDs = append(leaseIDs, lease.LeaseID)
+		}
+	}
+	session.rememberPriorDependencyLeases(consumerID, leaseIDs)
+	return nil
+}
+
 func (r *Runner) releaseDemandLease(ctx context.Context, leaseID, reason string) error {
 	if ctx == nil {
 		ctx = context.Background()
@@ -50,7 +89,19 @@ func (r *Runner) releaseDemandLease(ctx context.Context, leaseID, reason string)
 	return err
 }
 
+func (r *Runner) releaseDependencyDemandIfCandidate(ctx context.Context, session *startSession, consumer scenario.Scenario, leaseID, reason string) error {
+	consumerID := scenarioruntime.DependencyConsumerID(consumer.Slug, consumer.Variant)
+	if session.shouldPreservePriorDependencyLease(consumerID, leaseID) {
+		return nil
+	}
+	return r.releaseDemandLease(ctx, leaseID, reason)
+}
+
 func (r *Runner) releaseDependencyLeasesForConsumer(ctx context.Context, scenarioName, variant, reason string) error {
+	return r.releaseDependencyLeasesForConsumerExcept(ctx, scenarioName, variant, reason, nil)
+}
+
+func (r *Runner) releaseDependencyLeasesForConsumerExcept(ctx context.Context, scenarioName, variant, reason string, keep map[string]struct{}) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -69,6 +120,9 @@ func (r *Runner) releaseDependencyLeasesForConsumer(ctx context.Context, scenari
 		if lease.Kind != scenarioruntime.DemandLeaseDependency {
 			continue
 		}
+		if _, retained := keep[lease.LeaseID]; retained {
+			continue
+		}
 		if _, err := store.ReleaseDemandLease(ctx, lease.LeaseID, reason); err != nil && !errors.Is(err, scenarioruntime.ErrDemandLeaseExpired) && !errors.Is(err, scenarioruntime.ErrNotFound) {
 			releaseErr = errors.Join(releaseErr, err)
 		}
@@ -85,6 +139,9 @@ func (r *Runner) releaseStartSessionDemand(ctx context.Context, session *startSe
 	}
 	var releaseErr error
 	for _, leaseID := range session.dependencyLeases() {
+		if session.shouldPreserveRecordedDependencyLease(leaseID) {
+			continue
+		}
 		if err := r.releaseDemandLease(ctx, leaseID, "scenario start failed"); err != nil {
 			releaseErr = errors.Join(releaseErr, err)
 		}
@@ -104,11 +161,17 @@ func (r *Runner) releaseNewStartSessionDemand(ctx context.Context, session *star
 		newIDs = append(newIDs, leaseID)
 	}
 	var releaseErr error
+	released := make([]string, 0, len(newIDs))
 	for _, leaseID := range newIDs {
+		if session.shouldPreserveRecordedDependencyLease(leaseID) {
+			continue
+		}
 		if err := r.releaseDemandLease(ctx, leaseID, reason); err != nil {
 			releaseErr = errors.Join(releaseErr, err)
+		} else {
+			released = append(released, leaseID)
 		}
 	}
-	session.forgetDependencyLeases(newIDs)
+	session.forgetDependencyLeases(released)
 	return releaseErr
 }

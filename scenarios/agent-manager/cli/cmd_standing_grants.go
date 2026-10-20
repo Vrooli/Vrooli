@@ -102,12 +102,8 @@ func localOwnerAPIForResource(api *cliutil.APIClient, resource string) (*cliutil
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	credential, err := cliutil.ResolveAgentCredential(ctx)
-	if err != nil {
+	if err := cliutil.ConfirmLocalOwnerEligible(ctx); err != nil {
 		return nil, fmt.Errorf("local owner caller authority unavailable: %w", err)
-	}
-	if credential != "" {
-		return nil, fmt.Errorf("--local-owner is unavailable inside an identified agent run; use the granted credential")
 	}
 	login, err := authn.ExchangeLocalMachinePrincipalForResource(ctx, resource)
 	if err != nil {

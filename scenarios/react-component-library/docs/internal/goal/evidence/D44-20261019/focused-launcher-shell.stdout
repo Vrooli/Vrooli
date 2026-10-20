@@ -1,0 +1,36 @@
+
+ RUN  v2.1.9 /home/matthalloran8/Vrooli/scenarios/react-component-library/ui
+
+ ✓ src/components/adopted-foundations.test.tsx > adopted foundation entry points > contains focus when a portal assigns the surface ref after the trap effect starts
+ ✓ src/components/adopted-foundations.test.tsx > adopted foundation entry points > expose the shared semantics and state transitions
+ ✓ src/components/adopted-foundations.test.tsx > adopted foundation entry points > keeps the drawer content available for minimal consumers
+ ✓ src/components/adopted-foundations.test.tsx > adopted foundation entry points > collapses an expanded drawer before a second downward swipe dismisses it
+ ✓ src/components/adopted-foundations.test.tsx > raw interactive element adoption > finds the composition layer it is supposed to police
+ ✓ src/components/adopted-foundations.test.tsx > raw interactive element adoption > lets no composition hand-roll an interactive element without a written reason
+ ✓ src/components/adopted-foundations.test.tsx > raw interactive element adoption > keeps every justification live, so the exemption list cannot rot
+ ✓ src/components/adopted-foundations.test.tsx > raw interactive element adoption > holds every justification to a real explanation
+ ✓ src/components/ApplicationShell.test.tsx > AppShell > renders one shell navigation and the child route content
+ ✓ src/components/ApplicationShell.test.tsx > AppShell > keeps the skip link in the viewport geometry and targets the main region
+ ✓ src/components/ApplicationShell.test.tsx > AppShell > does not wrap content in a centered card or eyebrow text
+ ✓ src/components/ApplicationShell.test.tsx > AppShell > collapses desktop navigation and exposes the header hamburger to restore it
+ ✓ src/components/ApplicationShell.test.tsx > AppShell > uses the full-bleed main layout for component detail routes
+ ✓ src/components/ApplicationShell.test.tsx > AppShell > keeps catalog content full-width inside the vertical workspace column
+ ✓ src/components/ApplicationShell.test.tsx > AppShell > keeps mobile destinations and settings reachable through the shell
+ ✓ src/components/ApplicationShell.test.tsx > AppShell > opens the shared main-actions menu and exposes all three guided actions
+ ✓ src/components/ApplicationShell.test.tsx > AppShell > opens the requested action from a PWA deep link
+ ✓ src/components/ApplicationShell.test.tsx > AppShell > routes the coverage operator view through the shared workspace header
+ ✓ src/components/ApplicationShell.test.tsx > AppShell > routes the capabilities operator view through the shared workspace header
+ ✓ src/components/ApplicationShell.test.tsx > AppShell > does not place the catalog mutation launcher on preferences
+ ✓ src/components/ApplicationShell.test.tsx > AppShell > submits catalog search and opens create from the single action launcher
+ ✓ src/components/ActionLauncher.test.tsx > ActionLauncher > starts extract-assist through the workflow dispatcher
+ ✓ src/components/ActionLauncher.test.tsx > ActionLauncher > starts one adopt-assist workflow for each target
+ ✓ src/components/ActionLauncher.test.tsx > ActionLauncher > filters typed picker options before selection
+ ✓ src/components/ActionLauncher.test.tsx > ActionLauncher > routes each menu action through its URL action state
+ ✓ src/components/ActionLauncher.test.tsx > ActionLauncher > shows a dispatch failure without leaving the overlay
+ ✓ src/components/ActionLauncher.test.tsx > ActionLauncher > keeps an adopt workflow error in the guided picker surface
+
+ Test Files  3 passed (3)
+      Tests  27 passed (27)
+   Start at  17:37:30
+   Duration  3.67s (transform 826ms, setup 386ms, collect 948ms, tests 1.76s, environment 287ms, prepare 36ms)
+

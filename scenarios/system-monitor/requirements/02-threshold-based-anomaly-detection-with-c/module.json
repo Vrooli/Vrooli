@@ -42,6 +42,134 @@
           "notes": "Alerts visible in dashboard"
         }
       ]
+    },
+    {
+      "id": "SM-P0-201",
+      "title": "Platform-neutral memory-pressure reading",
+      "status": "in_progress",
+      "criticality": "P0",
+      "prd_ref": "OT-P0-002",
+      "category": "core",
+      "description": "System Monitor MUST publish a memory-pressure level (normal, elevated, critical, unknown) derived from Linux PSI and swap-in rate, the macOS native pressure level, or the Windows low-memory notification, and MUST report every raw signal with an explicit state; an unsupported signal MUST NOT be reported as zero.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/collectors/memory_pressure_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Recorded Linux /proc fixtures, macOS host_statistics64 values, and Windows PDH samples; level derivation per platform."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/darwinsys/layout_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "macOS struct layouts match the C headers."
+        }
+      ]
+    },
+    {
+      "id": "SM-P0-202",
+      "title": "Paging contributor attribution",
+      "status": "in_progress",
+      "criticality": "P0",
+      "prd_ref": "OT-P0-002",
+      "category": "core",
+      "description": "When memory pressure is elevated or critical, System Monitor MUST attach the processes with the highest measured fault rate, then swapped memory, with their attributed owner; a process whose counter cannot be read MUST be reported unsupported.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/procsampler/contributors_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Ranking, macOS ri_pageins and Windows PROCESS_MEMORY_COUNTERS mapping."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/services/memory_pressure_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Contributors only at elevated or critical pressure, with owner attribution."
+        }
+      ]
+    },
+    {
+      "id": "SM-P0-203",
+      "title": "Server-owned sustained alert lifecycle",
+      "status": "in_progress",
+      "criticality": "P0",
+      "prd_ref": "OT-P0-002",
+      "category": "core",
+      "description": "The API MUST be the only alert source: a condition MUST hold for the configured sustain duration before one alert per rule and key opens, MUST stay clear for the same duration before the alert resolves, and a sustained critical alert MUST be escalated once into the anomaly and investigation pipeline. Unsupported or failed rules MUST NOT open or resolve alerts.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/services/alert_evaluator_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Sustain, dedup, severity escalation, auto-resolve, restart adoption, unsupported rules, ported host rules, escalation."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/handlers/alerts_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "AlertsService Connect projection and validation."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/services/tcp_rule_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Level plus leak-shaped growth TCP rule, ported from the dashboard."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/services/orphan_agents_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Orphaned-agents rule against a captured vrooli agent list --json."
+        }
+      ]
+    },
+    {
+      "id": "SM-P0-204",
+      "title": "Clients read server alerts",
+      "status": "in_progress",
+      "criticality": "P0",
+      "prd_ref": "OT-P0-002",
+      "category": "core",
+      "description": "The CLI status, alerts, and watch commands and the dashboard alert panel MUST read alerts from AlertsService and MUST NOT derive alerts from metric values; a paused monitor MUST be reported as inactive, never as maintenance.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "cli/domains/overview/register_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Status and alerts commands read the server feed."
+        },
+        {
+          "type": "test",
+          "ref": "cli/internal/support/support_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "OverallStatus regression: active monitoring is not MAINTENANCE."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/features/monitoring/serverAlerts.test.ts",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Server response mapping and feed states."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/shared/components/AlertPanel.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Unavailable or paused feeds are never shown as no alerts."
+        }
+      ]
     }
   ]
 }

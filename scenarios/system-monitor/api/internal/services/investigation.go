@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/vrooli/api-core/owneridentity"
 	"log/slog"
 	"os"
 	"sort"
@@ -15,6 +14,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/vrooli/api-core/owneridentity"
 
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/agentmanager"
@@ -101,7 +102,9 @@ func NewInvestigationService(cfg *config.Config, repo repository.InvestigationRe
 
 	// Initialize agent profile if agent-manager is enabled
 	if agentSvc != nil && agentSvc.IsEnabled() {
-		go s.initializeAgentProfile()
+		// Capture the constructor dependency before starting the goroutine. It must
+		// not reread a field that a caller/test replaces after construction.
+		go s.initializeAgentProfile(agentSvc)
 	}
 
 	return s
@@ -114,18 +117,18 @@ func (s *InvestigationService) Shutdown() {
 }
 
 // initializeAgentProfile ensures the agent profile exists in agent-manager.
-func (s *InvestigationService) initializeAgentProfile() {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+func (s *InvestigationService) initializeAgentProfile(agentSvc AgentExecutor) {
+	ctx, cancel := context.WithTimeout(s.shutdownCtx, 30*time.Second)
 	defer cancel()
 
-	if err := s.agentSvc.Initialize(ctx); err != nil {
+	if err := agentSvc.Initialize(ctx); err != nil {
 		s.log.Warn("failed to initialize agent profile", "error", err)
 	}
 }
 
 // TriggerInvestigation starts a new investigation
 func (s *InvestigationService) TriggerInvestigation(ctx context.Context, autoFix bool, note string) (*models.Investigation, error) {
-	if err := owneridentity.RequireCreateRunCaller(ctx, time.Now()); err != nil {
+	if err := owneridentity.RequireCreateRunCaller(ctx, time.Now(), true); err != nil {
 		return nil, err
 	}
 	if s.agentSvc == nil || !s.agentSvc.IsEnabled() {
@@ -148,7 +151,7 @@ func (s *InvestigationService) TriggerInvestigation(ctx context.Context, autoFix
 		}
 	}
 
-	workerCtx, authErr := owneridentity.CarryCreateRunCaller(ctx, s.shutdownCtx, time.Now())
+	workerCtx, authErr := owneridentity.CarryCreateRunCaller(ctx, s.shutdownCtx, time.Now(), true)
 	if authErr != nil {
 		return nil, authErr
 	}

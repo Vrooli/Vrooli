@@ -115,9 +115,9 @@ type MetricTimelineSample struct {
 	SwapTrafficState            MetricState `json:"swap_traffic_state"`
 	MajorFaultsState            MetricState `json:"major_faults_state"`
 	FragmentationIndexState     MetricState `json:"fragmentation_index_state"`
-	NetworkEstablishedRate       MetricState `json:"network_established_rate"`
-	NetworkTimeWaitRate          MetricState `json:"network_time_wait_rate"`
-	NetworkCloseWaitRate         MetricState `json:"network_close_wait_rate"`
+	NetworkEstablishedRate      MetricState `json:"network_established_rate"`
+	NetworkTimeWaitRate         MetricState `json:"network_time_wait_rate"`
+	NetworkCloseWaitRate        MetricState `json:"network_close_wait_rate"`
 }
 
 // MetricsTimelineResponse contains a windowed series of metric samples.
@@ -218,6 +218,35 @@ type MemoryMetrics struct {
 	DiskUsage          DiskInfo             `json:"disk_usage"`
 	Paging             PagingMetrics        `json:"paging"`
 	Fragmentation      FragmentationMetrics `json:"fragmentation"`
+	MemoryPressure     *MemoryPressure      `json:"memory_pressure,omitempty"`
+}
+
+// MemoryPressure is the platform-neutral memory-pressure verdict with its raw
+// signals and, when the level is elevated or critical, the processes doing
+// the paging. Level "unknown" means no supported signal produced a verdict.
+type MemoryPressure struct {
+	Level              string                      `json:"level"`
+	LevelSource        string                      `json:"level_source"`
+	LevelReason        string                      `json:"level_reason"`
+	Platform           string                      `json:"platform"`
+	Signals            map[string]MetricState      `json:"signals"`
+	Contributors       []MemoryPressureContributor `json:"contributors,omitempty"`
+	ContributorsStatus string                      `json:"contributors_status"`
+	ContributorsReason string                      `json:"contributors_reason,omitempty"`
+	ObservedAt         time.Time                   `json:"observed_at"`
+}
+
+// MemoryPressureContributor is one process ranked by paging activity.
+type MemoryPressureContributor struct {
+	PID                  int     `json:"pid"`
+	Name                 string  `json:"name"`
+	Owner                string  `json:"owner"`
+	MajorFaultsPerSecond float64 `json:"major_faults_per_second"`
+	FaultStatus          string  `json:"fault_status"`
+	FaultCounter         string  `json:"fault_counter"`
+	SwapKB               int64   `json:"swap_kb"`
+	SwapStatus           string  `json:"swap_status"`
+	RSSKB                int64   `json:"rss_kb"`
 }
 
 type PagingMetrics struct {

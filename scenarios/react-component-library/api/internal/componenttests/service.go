@@ -2,6 +2,9 @@ package componenttests
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
 	"strings"
 )
 
@@ -10,6 +13,13 @@ import "react-component-library/internal/components"
 type Service struct {
 	runner  Runner
 	reports Repository
+}
+
+// ExecutorFreshness is an optional stable identity for the execution policy
+// that produced browser evidence. Changing it separates reports made under
+// different executor behavior while preserving the source and closure key.
+type ExecutorFreshness interface {
+	ReportFreshnessKey() string
 }
 
 func NewService(runner Runner, reports Repository) *Service {
@@ -22,12 +32,15 @@ func (s *Service) Run(ctx context.Context, request Request) (Report, error) {
 }
 
 func (s *Service) RunWithReuse(ctx context.Context, request Request) (Report, bool, error) {
-	if expected, ok := s.runner.ExpectedReport(ctx, request); ok {
+	if expected, ok := s.expectedReport(ctx, request); ok {
 		if report, err := s.reports.Get(ctx, expected); err == nil {
 			// Only a report explicitly blocked by an unavailable executor is
 			// transient. Other blocked reports (for example incomplete BAS
 			// evidence) remain reusable for the unchanged revision.
 			if !reportHasUnavailableExecutor(report) {
+				if err := s.verifyDurableReport(ctx, report); err != nil {
+					return Report{}, false, err
+				}
 				return report, true, nil
 			}
 		}
@@ -36,10 +49,32 @@ func (s *Service) RunWithReuse(ctx context.Context, request Request) (Report, bo
 	if err != nil {
 		return Report{}, false, err
 	}
+	if key := executorFreshnessKey(s.runner.Executor); key != "" {
+		report.ID = withExecutorFreshness(report.ID, key)
+	}
 	if err := s.reports.Save(ctx, report); err != nil {
 		return Report{}, false, err
 	}
+	if err := s.verifyDurableReport(ctx, report); err != nil {
+		return Report{}, false, err
+	}
 	return report, false, nil
+}
+
+// verifyDurableReport prevents a successful run response from claiming a
+// report that the configured repository cannot return under its exact ID.
+func (s *Service) verifyDurableReport(ctx context.Context, expected Report) error {
+	actual, err := s.reports.Get(ctx, expected.ID)
+	if err != nil {
+		// Deliberately do not unwrap the repository error: sql.ErrNoRows here
+		// means persistence failed its postcondition and must map to Internal,
+		// not to the public Get endpoint's ordinary NotFound response.
+		return fmt.Errorf("component test report %q could not be read back after save or reuse: %v", expected.ID, err)
+	}
+	if actual.ID != expected.ID || actual.RootLibraryID != expected.RootLibraryID || actual.RootVersion != expected.RootVersion || actual.IncludeClosure != expected.IncludeClosure || actual.SourceRevision != expected.SourceRevision || actual.Verdict != expected.Verdict {
+		return fmt.Errorf("component test report %q readback identity mismatch", expected.ID)
+	}
+	return nil
 }
 
 func reportHasUnavailableExecutor(report Report) bool {
@@ -54,7 +89,7 @@ func reportHasUnavailableExecutor(report Report) bool {
 // Reusable returns the report for the current folded revision without ever
 // dispatching a browser run. A missing or stale report is reported as found=false.
 func (s *Service) Reusable(ctx context.Context, request Request) (Report, bool, error) {
-	expected, ok := s.runner.ExpectedReport(ctx, request)
+	expected, ok := s.expectedReport(ctx, request)
 	if !ok {
 		return Report{}, false, nil
 	}
@@ -63,6 +98,30 @@ func (s *Service) Reusable(ctx context.Context, request Request) (Report, bool, 
 		return Report{}, false, nil
 	}
 	return report, true, nil
+}
+
+func (s *Service) expectedReport(ctx context.Context, request Request) (string, bool) {
+	expected, ok := s.runner.ExpectedReport(ctx, request)
+	if !ok {
+		return "", false
+	}
+	if key := executorFreshnessKey(s.runner.Executor); key != "" {
+		expected = withExecutorFreshness(expected, key)
+	}
+	return expected, true
+}
+
+func executorFreshnessKey(executor StoryExecutor) string {
+	keyed, ok := executor.(ExecutorFreshness)
+	if !ok {
+		return ""
+	}
+	return strings.TrimSpace(keyed.ReportFreshnessKey())
+}
+
+func withExecutorFreshness(reportID, freshness string) string {
+	sum := sha256.Sum256([]byte(freshness))
+	return reportID + "_" + hex.EncodeToString(sum[:12])
 }
 
 // ExpectedReport returns the deterministic report identity when the runner
@@ -98,6 +157,9 @@ func (s *Service) Rerun(ctx context.Context, id string) (Report, error) {
 	report, err := s.runner.Run(ctx, request)
 	if err != nil {
 		return Report{}, err
+	}
+	if key := executorFreshnessKey(s.runner.Executor); key != "" {
+		report.ID = withExecutorFreshness(report.ID, key)
 	}
 	if err := s.reports.Save(ctx, report); err != nil {
 		return Report{}, err

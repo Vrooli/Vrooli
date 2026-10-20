@@ -517,7 +517,20 @@ func bundledServicePlan(manifest *resourceArtifactManifest, candidate string, pl
 	if err != nil {
 		return nil, fmt.Errorf("resolve bundled service artifact for %s: %w", candidate, err)
 	}
-	return &ResourceDeploymentService{ProviderPolicy: manifest.ManagedService.ProviderPolicy, Artifact: name, Layout: artifact.Layout, EntryPath: artifact.EntryPath, Version: artifact.Version, SHA256: artifact.SHA256, Arguments: append([]string(nil), manifest.ManagedService.Arguments...), Environment: cloneServiceEnvironment(manifest.ManagedService.Environment), Bootstrap: cloneServiceBootstrap(manifest.ManagedService.Bootstrap), Config: cloneServiceConfig(manifest.ManagedService.Config), Ports: append([]ResourceDeploymentServicePort(nil), manifest.Ports...), HealthChecks: append([]ResourceDeploymentHealthCheck(nil), manifest.HealthChecks...)}, nil
+	environment := cloneServiceEnvironment(manifest.ManagedService.Environment)
+	if acquisition := manifest.ManagedService.Acquisition; acquisition != nil {
+		target, err := acquisition.Resolve(binaryfetch.Facts{"os": platform.OS, "arch": platform.Arch})
+		if err != nil {
+			return nil, fmt.Errorf("resolve managed-service runtime environment for %s: %w", candidate, err)
+		}
+		if len(target.RuntimeEnv) > 0 && environment == nil {
+			environment = make(map[string]string, len(target.RuntimeEnv))
+		}
+		for key, value := range target.RuntimeEnv {
+			environment[key] = value
+		}
+	}
+	return &ResourceDeploymentService{ProviderPolicy: manifest.ManagedService.ProviderPolicy, Artifact: name, Layout: artifact.Layout, EntryPath: artifact.EntryPath, Version: artifact.Version, SHA256: artifact.SHA256, Arguments: append([]string(nil), manifest.ManagedService.Arguments...), Environment: environment, Bootstrap: cloneServiceBootstrap(manifest.ManagedService.Bootstrap), Config: cloneServiceConfig(manifest.ManagedService.Config), Ports: append([]ResourceDeploymentServicePort(nil), manifest.Ports...), HealthChecks: append([]ResourceDeploymentHealthCheck(nil), manifest.HealthChecks...)}, nil
 }
 
 func cloneServiceBootstrap(bootstrap *resourcedeployment.ServiceBootstrap) *resourcedeployment.ServiceBootstrap {
@@ -734,6 +747,9 @@ func copyArtifact(src, dst string) error {
 		return err
 	}
 	if info.IsDir() {
+		if err := os.RemoveAll(dst); err != nil {
+			return fmt.Errorf("replace artifact destination %q: %w", dst, err)
+		}
 		if err := os.MkdirAll(dst, info.Mode().Perm()); err != nil {
 			return err
 		}
@@ -757,6 +773,21 @@ func copyArtifact(src, dst string) error {
 				if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 					return err
 				}
+				if existing, err := os.Lstat(target); err == nil {
+					if existing.Mode()&os.ModeSymlink == 0 {
+						return fmt.Errorf("artifact destination %q exists and is not a symlink", target)
+					}
+					existingLink, err := os.Readlink(target)
+					if err != nil {
+						return err
+					}
+					if existingLink != link {
+						return fmt.Errorf("artifact destination %q links to %q, want %q", target, existingLink, link)
+					}
+					return nil
+				} else if !os.IsNotExist(err) {
+					return err
+				}
 				return os.Symlink(link, target)
 			}
 			if entry.IsDir() {
@@ -766,7 +797,24 @@ func copyArtifact(src, dst string) error {
 			if err != nil {
 				return err
 			}
-			if err := os.WriteFile(target, data, entry.Type().Perm()); err != nil {
+			fileInfo, err := entry.Info()
+			if err != nil {
+				return err
+			}
+			if existing, err := os.Lstat(target); err == nil {
+				if !existing.Mode().IsRegular() {
+					return fmt.Errorf("artifact destination %q is not a regular file", target)
+				}
+				if err := os.Chmod(target, 0o600); err != nil {
+					return err
+				}
+			} else if !os.IsNotExist(err) {
+				return err
+			}
+			if err := os.WriteFile(target, data, fileInfo.Mode().Perm()); err != nil {
+				return err
+			}
+			if err := os.Chmod(target, fileInfo.Mode().Perm()); err != nil {
 				return err
 			}
 			return nil

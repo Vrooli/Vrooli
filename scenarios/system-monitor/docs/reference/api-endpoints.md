@@ -31,6 +31,7 @@ probes, development pprof, logs, and forensics.
 |--------|------|-------------|
 | GET | `/api/v1/metrics/current` | Current system metrics snapshot |
 | GET | `/api/v1/metrics/pressure` | Typed Linux memory PSI/OOM snapshot; unavailable evidence is explicit |
+| — | `MetricsService/GetDetailedMetrics` → `memory_details.memory_pressure` | Cross-platform memory-pressure level, every raw signal with its state, and (at elevated/critical) top paging contributors |
 | GET | `/api/v1/metrics/detailed` | Comprehensive metrics (CPU, memory, network, GPU, disk, processes, system health) |
 | GET | `/api/v1/metrics/timeline` | Recent metrics timeline |
 | GET | `/api/v1/metrics/processes` | Process monitoring data (zombies, high-thread, leak candidates) |
@@ -58,6 +59,21 @@ Response:
 ```
 
 `[CODE: api/internal/handlers/metrics.go]`
+
+---
+
+## Alerts
+
+| Connect procedure | HTTP annotation | Description |
+|-------------------|-----------------|-------------|
+| `AlertsService/ListAlerts` | `GET /api/v1/alerts` | Persisted alerts plus per-rule evaluation state. `status`: `active` (default), `resolved`, `all`; `include_events` adds point-in-time `threshold_violation` and `anomaly` records; `limit` (default 100, max 1000). The response carries `evaluated_at`, `sustain_seconds`, and `monitoring_active` so a client can tell "no alerts" from "not evaluated". |
+| `AlertsService/AcknowledgeAlert` | `POST /api/v1/alerts/{id}/acknowledge` | Records an acknowledgement; resolution still follows the condition. |
+
+Condition alerts (`type=condition`) carry `rule_id`, `key`, `escalated`,
+`anomaly_id`, and rule evidence in `details` (for `memory_pressure`: level,
+level source/reason, measured signals, and top contributors with owner).
+
+`[CODE: api/internal/handlers/alerts.go]`
 
 ---
 
@@ -151,6 +167,9 @@ Valid types: `daily`, `weekly`
 |--------|------|-------------|
 | GET | `/api/v1/maintenance/state` | Get maintenance state |
 | POST | `/api/v1/maintenance/state` | Set maintenance state (active/inactive) |
+
+`maintenance_state` follows the maintenance-orchestrator contract: `active`
+means monitoring runs normally; `inactive` means it is paused.
 
 `[CODE: api/internal/handlers/settings.go]`
 

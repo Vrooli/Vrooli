@@ -158,8 +158,10 @@ describe("VersionsCard", () => {
     await waitFor(() => {
       expect(screen.getAllByTestId("data-display-version-row")).toHaveLength(2);
     });
-    await user.selectOptions(screen.getByTestId(selectors.versions.diff.fromSelect), "1.0.0");
-    await user.selectOptions(screen.getByTestId(selectors.versions.diff.toSelect), "1.0.1");
+    await user.click(screen.getByTestId(selectors.versions.diff.fromSelect));
+    await user.keyboard("{Home}{Enter}");
+    await user.click(screen.getByTestId(selectors.versions.diff.toSelect));
+    await user.keyboard("{End}{Enter}");
     await user.click(screen.getByTestId(selectors.versions.diff.runButton));
 
     await waitFor(() => {
@@ -198,8 +200,10 @@ describe("VersionsCard", () => {
     renderWithProviders(<VersionsCard componentId="cmp-1" onCompare={onCompare} />);
 
     await waitFor(() => expect(screen.getAllByTestId("data-display-version-row")).toHaveLength(2));
-    await user.selectOptions(screen.getByTestId(selectors.versions.diff.fromSelect), "1.0.0");
-    await user.selectOptions(screen.getByTestId(selectors.versions.diff.toSelect), "1.0.1");
+    await user.click(screen.getByTestId(selectors.versions.diff.fromSelect));
+    await user.keyboard("{Home}{Enter}");
+    await user.click(screen.getByTestId(selectors.versions.diff.toSelect));
+    await user.keyboard("{End}{Enter}");
     await user.click(screen.getByTestId(selectors.versions.diff.runButton));
 
     await waitFor(() => expect(onCompare).toHaveBeenCalledWith(diff));

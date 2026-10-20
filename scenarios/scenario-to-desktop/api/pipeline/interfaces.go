@@ -5,6 +5,8 @@ package pipeline
 
 import (
 	"context"
+
+	"github.com/vrooli/vrooli/packages/resource-deployment"
 )
 
 // Stage represents a single phase of the pipeline.
@@ -149,5 +151,5 @@ type WebhookNotifier interface {
 type ManifestGenerator interface {
 	// GenerateManifest creates a bundle manifest for the given scenario.
 	// Returns the path to the generated manifest, or an error if generation failed.
-	GenerateManifest(ctx context.Context, scenarioName, outputDir string) (string, error)
+	GenerateManifest(ctx context.Context, scenarioName, outputDir string, trustMode resourcedeployment.ArtifactTrustMode) (string, error)
 }

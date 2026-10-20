@@ -94,7 +94,8 @@ func TestService_DemoLaunch_RunsAfterPassedTest(t *testing.T) {
 	})
 	service.WithRecording(recorder, displayMgr)
 
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
 	service.PerformSmokeTest(ctx, "test-demo", "test-scenario", "/path/to/artifact.AppImage", "linux")
 
 	// Verify 2 execute calls: headless + demo

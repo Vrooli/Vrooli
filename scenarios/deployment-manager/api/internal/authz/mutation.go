@@ -38,28 +38,33 @@ func RequireRead(ctx context.Context) error {
 	return nil
 }
 
-// RequireWrite admits a verified human operator with the deployment-manager
-// write capability. Domain handlers still apply their exact identity and
+// RequireWrite admits ordinary operations through reviewed owner delegation. Domain handlers still apply their exact identity and
 // approval checks after this boundary.
 func RequireWrite(ctx context.Context) error {
-	if _, err := authn.RequireHuman(ctx); err != nil {
-		return errors.New("verified deployment-manager operator required")
-	}
-	if _, err := authn.RequireCapability(ctx, WriteCapability); err != nil {
-		return errors.New("deployment-manager write capability required")
-	}
-	return nil
+	_, err := authn.RequireOperation(ctx, WriteCapability, "deployment.manage", "deployment-manager:*")
+	return err
 }
 
-// RequireReleasePreparation admits the service that has produced an
-// immutable candidate or destination revision. The registration boundary
-// still canonicalizes and derives every identity before persistence.
-func RequireReleasePreparation(ctx context.Context) error {
+// RequireReleaseDecision retains the human boundary for release approval and
+// publication; routine write authority cannot create that decision.
+func RequireReleaseDecision(ctx context.Context) error {
+	if _, err := authn.RequireIndependentHuman(ctx); err != nil {
+		return err
+	}
+	_, err := authn.RequireCapability(ctx, WriteCapability)
+	return err
+}
+
+// RequireProductionReleasePreparation admits the service that has produced
+// an immutable production release candidate or destination revision. The
+// registration boundary still canonicalizes and derives every identity
+// before persistence.
+func RequireProductionReleasePreparation(ctx context.Context) error {
 	if _, err := authn.RequireService(ctx); err != nil {
-		return errors.New("verified deployment-manager preparation service required")
+		return errors.New("verified deployment-manager production release service required")
 	}
 	if _, err := authn.RequireCapability(ctx, ReleasePreparationCapability); err != nil {
-		return errors.New("deployment-manager release preparation capability required")
+		return errors.New("deployment-manager production release preparation capability required")
 	}
 	return nil
 }
@@ -127,15 +132,13 @@ func RequireReadinessEvidencePrincipal(ctx context.Context) (identity.Principal,
 	return principal, nil
 }
 
-// RequireDestructive admits a verified human operator with the stronger
-// recovery capability. Recovery handlers still validate the exact release,
-// review, candidate, destination, and owner receipt binding.
+// RequireDestructive admits a verified principal carrying the stronger recovery
+// capability through a reviewed deployment operation grant (an agent so
+// delegated is admitted, same as RequireWrite — it is NOT human-only). Recovery
+// handlers still validate the exact release, review, candidate, destination, and
+// owner receipt binding. This boundary is unchanged by the ask-don't-block work;
+// only the release DECISION moved onto the operator-decision rail.
 func RequireDestructive(ctx context.Context) error {
-	if _, err := authn.RequireHuman(ctx); err != nil {
-		return errors.New("verified deployment-manager operator required")
-	}
-	if _, err := authn.RequireCapability(ctx, DestructiveCapability); err != nil {
-		return errors.New("deployment-manager destructive capability required")
-	}
-	return nil
+	_, err := authn.RequireOperation(ctx, DestructiveCapability, "deployment.manage", "deployment-manager:*")
+	return err
 }

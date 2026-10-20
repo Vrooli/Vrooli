@@ -45,11 +45,11 @@
         "reason": "The drawer's menu control is the governed icon button."
       },
       {
-        "asset": "react-component-library:NotificationBadge",
+        "asset": "primitives.badge",
         "reason": "Notification badge tones are supplied by the governed badge asset."
       },
       {
-        "asset": "react-component-library:StyleSheet",
+        "asset": "foundations.style-sheet",
         "reason": "Shell styles are injected through the library stylesheet foundation."
       },
       {

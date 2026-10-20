@@ -15,6 +15,25 @@ import (
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
+func TestRunParentRunIDRoundTrips(t *testing.T) {
+	parentID := uuid.New()
+	original := &domain.Run{ID: uuid.New(), TaskID: uuid.New(), ParentRunID: &parentID}
+
+	encoded := RunToProto(original)
+	if encoded.ParentRunId == nil || encoded.GetParentRunId() != parentID.String() {
+		t.Fatalf("RunToProto parent_run_id = %v, want %s", encoded.ParentRunId, parentID)
+	}
+	decoded := RunFromProto(encoded)
+	if decoded.ParentRunID == nil || *decoded.ParentRunID != parentID {
+		t.Fatalf("RunFromProto parent_run_id = %v, want %s", decoded.ParentRunID, parentID)
+	}
+
+	root := RunToProto(&domain.Run{ID: uuid.New(), TaskID: uuid.New()})
+	if root.ParentRunId != nil {
+		t.Fatalf("root run parent_run_id = %v, want absent", root.ParentRunId)
+	}
+}
+
 func TestRunToProtoReplacesMalformedUTF8AtTransportBoundary(t *testing.T) {
 	run := &domain.Run{
 		ID:            uuid.New(),

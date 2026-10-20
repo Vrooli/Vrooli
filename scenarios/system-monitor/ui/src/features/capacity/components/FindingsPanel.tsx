@@ -12,6 +12,18 @@ const CLASS_LABEL: Record<string, string> = {
   claimed: 'Claimed',
 };
 
+// Classification, worker membership and measured bytes can change on one claim.
+// Bind rows to the logical claim/process rather than those mutable observations.
+const findingKey = (finding: CapacityFinding) => JSON.stringify([
+  finding.resourceKind,
+  finding.gpuIndex ?? null,
+  finding.claimId
+    ? ['claim', finding.claimId]
+    : finding.pid
+      ? ['process', finding.pid]
+      : ['owner', finding.ownerKind, finding.ownerId],
+]);
+
 /**
  * The reconciliation panel: observed GPU consumers classified against the
  * ledger. Unclaimed/over-claim findings are warnings (the adoption-tracker
@@ -43,7 +55,7 @@ export const FindingsPanel = ({ findings, available }: FindingsPanelProps) => {
           const isWarn = finding.severity === 'warn';
           return (
             <li
-              key={`${finding.ownerId}-${String(finding.pid)}-${finding.class}`}
+              key={findingKey(finding)}
               className={`finding-item ${isWarn ? 'finding-warning' : 'finding-neutral'}`}
             >
               <span

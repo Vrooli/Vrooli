@@ -67,6 +67,7 @@ class TaskStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     TASK_STATUS_REJECTED: _ClassVar[TaskStatus]
     TASK_STATUS_FAILED: _ClassVar[TaskStatus]
     TASK_STATUS_CANCELLED: _ClassVar[TaskStatus]
+    TASK_STATUS_COMPLETED: _ClassVar[TaskStatus]
 
 class RunStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -216,6 +217,7 @@ TASK_STATUS_APPROVED: TaskStatus
 TASK_STATUS_REJECTED: TaskStatus
 TASK_STATUS_FAILED: TaskStatus
 TASK_STATUS_CANCELLED: TaskStatus
+TASK_STATUS_COMPLETED: TaskStatus
 RUN_STATUS_UNSPECIFIED: RunStatus
 RUN_STATUS_PENDING: RunStatus
 RUN_STATUS_STARTING: RunStatus

@@ -42,9 +42,11 @@
         },
         {
           "name": "alerts",
-          "description": "Show active alerts from the current metrics snapshot",
+          "description": "Show server-evaluated alerts (active by default) and rules that cannot evaluate",
           "binding": {
-            "kind": "local"
+            "kind": "connect-rpc",
+            "service": "AlertsService",
+            "method": "ListAlerts"
           },
           "governance": {
             "effect": "read",
@@ -52,7 +54,27 @@
             "permissions": [
               "network:internal"
             ]
-          }
+          },
+          "flags": [
+            {
+              "name": "all",
+              "description": "Include resolved alerts; the handler translates this control to status=all",
+              "bool": true,
+              "local_only": true
+            },
+            {
+              "name": "events",
+              "description": "Include point-in-time events (threshold violations, anomalies)",
+              "bool": true,
+              "bind": {
+                "field": "include_events"
+              }
+            },
+            {
+              "name": "limit",
+              "description": "Maximum alerts to return (default 50)"
+            }
+          ]
         },
         {
           "name": "watch",
@@ -130,8 +152,18 @@
           "name": "network-diagnostic",
           "description": "Run a bounded on-demand network ownership and endpoint snapshot",
           "flags": [
-            {"name": "top", "description": "Maximum owners/endpoints"},
-            {"name": "timeout", "description": "Maximum diagnostic duration"}
+            {
+              "name": "top",
+              "description": "Maximum owners/endpoints",
+              "bind": {
+                "field": "top_n"
+              }
+            },
+            {
+              "name": "timeout",
+              "description": "Maximum diagnostic duration; the handler converts the duration to max_duration_ms",
+              "local_only": true
+            }
           ],
           "binding": {
             "kind": "connect-rpc",
@@ -141,7 +173,9 @@
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         },
         {
@@ -437,13 +471,21 @@
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         },
         {
           "name": "run",
           "description": "Execute a catalog investigation",
-          "positionals": [{"name": "id", "required": true, "description": "Catalog entry id"}],
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Catalog entry id"
+            }
+          ],
           "binding": {
             "kind": "connect-rpc",
             "service": "ScriptsService",
@@ -452,15 +494,24 @@
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         },
         {
           "name": "runs",
           "description": "List persisted investigation runs",
           "flags": [
-            {"name": "entry-id", "description": "Filter by catalog entry"},
-            {"name": "limit", "description": "Maximum runs", "default": "20"}
+            {
+              "name": "entry-id",
+              "description": "Filter by catalog entry"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum runs",
+              "default": "20"
+            }
           ],
           "binding": {
             "kind": "connect-rpc",
@@ -470,13 +521,21 @@
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         },
         {
           "name": "runs-get",
           "description": "Get one persisted investigation run",
-          "positionals": [{"name": "id", "required": true, "description": "Persisted run id"}],
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Persisted run id"
+            }
+          ],
           "binding": {
             "kind": "connect-rpc",
             "service": "ScriptsService",
@@ -485,13 +544,21 @@
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         },
         {
           "name": "runs-prune",
           "description": "Prune investigation history",
-          "flags": [{"name": "dry-run", "description": "Report rows without deleting", "bool": true}],
+          "flags": [
+            {
+              "name": "dry-run",
+              "description": "Report rows without deleting",
+              "bool": true
+            }
+          ],
           "binding": {
             "kind": "connect-rpc",
             "service": "ScriptsService",
@@ -501,7 +568,9 @@
             "effect": "write",
             "run_eligible": false,
             "requires_confirmation": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         }
       ]
@@ -878,6 +947,11 @@
       "service": "CapacityService",
       "method": "GetCapacityPolicy",
       "reason": "Read via the `get` positional of the `capacity policy` command, whose binding names the consequential set method."
+    },
+    {
+      "service": "AlertsService",
+      "method": "AcknowledgeAlert",
+      "reason": "Acknowledgement is an operator action in the UI alert panel; acknowledging does not change alert state, so there is no CLI verb."
     }
   ]
 }

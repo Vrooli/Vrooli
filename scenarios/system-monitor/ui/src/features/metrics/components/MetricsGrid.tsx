@@ -11,7 +11,22 @@ import type {
   ChartDataPoint
 } from '../../../types';
 import { MetricCard } from './MetricCard';
-import { metricConnectionAlertCount } from '../connectionAlerts';
+import type { Alert } from '../../../types';
+
+/**
+ * Which server alert rules belong to which card. Card badges count active
+ * server alerts; the dashboard never derives an alert from a metric value.
+ */
+export const CARD_ALERT_RULES: Record<CardType, readonly string[]> = {
+  cpu: ['cpu_usage'],
+  memory: ['memory_usage', 'memory_pressure'],
+  gpu: ['gpu_usage'],
+  disk: [],
+  network: ['tcp_connections'],
+};
+
+export const cardAlertCount = (card: CardType, alerts: readonly Alert[]): number =>
+  alerts.filter(alert => !alert.resolved && CARD_ALERT_RULES[card].includes(alert.category)).length;
 
 interface MetricsGridProps {
   metrics: MetricsResponse | null;
@@ -22,6 +37,8 @@ interface MetricsGridProps {
   storageIO?: StorageIOInfo | null;
   onOpenDetail: (cardType: CardType) => void;
   diskLastUpdated?: string;
+  /** Active server alerts for the local host (empty for a remote subject). */
+  serverAlerts?: readonly Alert[];
 }
 
 export const MetricsGrid = ({
@@ -32,7 +49,8 @@ export const MetricsGrid = ({
   metricHistory,
   storageIO,
   onOpenDetail,
-  diskLastUpdated
+  diskLastUpdated,
+  serverAlerts = []
 }: MetricsGridProps) => {
   const diskIOHistory = useMemo(() => {
     const readSeries = metricHistory?.diskRead ?? [];
@@ -89,7 +107,7 @@ export const MetricsGrid = ({
         isExpanded={expandedCards.has('cpu')}
         onToggle={() => { onToggleCard('cpu'); }}
         details={detailedMetrics?.cpuDetails}
-        alertCount={0} // TODO: Calculate based on thresholds
+        alertCount={cardAlertCount('cpu', serverAlerts)}
         history={metricHistory?.cpu}
         historyWindowSeconds={metricHistory?.windowSeconds}
         valueDomain={[0, 100]}
@@ -106,7 +124,7 @@ export const MetricsGrid = ({
         isExpanded={expandedCards.has('memory')}
         onToggle={() => { onToggleCard('memory'); }}
         details={detailedMetrics?.memoryDetails}
-        alertCount={0} // TODO: Calculate based on thresholds
+        alertCount={cardAlertCount('memory', serverAlerts)}
         history={metricHistory?.memory}
         historyWindowSeconds={metricHistory?.windowSeconds}
         valueDomain={[0, 100]}
@@ -123,7 +141,7 @@ export const MetricsGrid = ({
         isExpanded={expandedCards.has('gpu')}
         onToggle={() => { onToggleCard('gpu'); }}
         details={gpuDetails}
-        alertCount={0}
+        alertCount={cardAlertCount('gpu', serverAlerts)}
         history={metricHistory?.gpu}
         historyWindowSeconds={metricHistory?.windowSeconds}
         valueDomain={[0, 100]}
@@ -141,7 +159,7 @@ export const MetricsGrid = ({
         isExpanded={expandedCards.has('disk')}
         onToggle={() => { onToggleCard('disk'); }}
         details={diskDetails}
-        alertCount={0}
+        alertCount={cardAlertCount('disk', serverAlerts)}
         history={diskIOHistory}
         historyWindowSeconds={metricHistory?.windowSeconds}
         historyUnit=" MB/s"
@@ -158,7 +176,7 @@ export const MetricsGrid = ({
         isExpanded={expandedCards.has('network')}
         onToggle={() => { onToggleCard('network'); }}
         details={detailedMetrics?.networkDetails}
-        alertCount={metricConnectionAlertCount(metrics?.connections, metricHistory?.network)}
+        alertCount={cardAlertCount('network', serverAlerts)}
         history={metricHistory?.network}
         historyWindowSeconds={metricHistory?.windowSeconds}
         onOpenDetails={() => { onOpenDetail('network'); }}

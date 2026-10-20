@@ -64,6 +64,9 @@ func TestListRemoteProfiles(t *testing.T) {
 func TestLoadMonetizationManifestDefaultsEntitlement(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("VROOLI_ROOT", root)
+	if err := os.MkdirAll(filepath.Join(root, ".vrooli"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	manifestPath := filepath.Join(root, "scenarios", "paid-app", ".vrooli", "monetization.json")
 	if err := os.MkdirAll(filepath.Dir(manifestPath), 0o755); err != nil {
 		t.Fatal(err)
@@ -82,6 +85,9 @@ func TestLoadMonetizationManifestDefaultsEntitlement(t *testing.T) {
 
 func TestLoadMonetizationManifestRejectsMalformedDeclaration(t *testing.T) {
 	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".vrooli"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	manifestPath := filepath.Join(root, "scenarios", "paid-app", ".vrooli", "monetization.json")
 	if err := os.MkdirAll(filepath.Dir(manifestPath), 0o755); err != nil {
 		t.Fatal(err)

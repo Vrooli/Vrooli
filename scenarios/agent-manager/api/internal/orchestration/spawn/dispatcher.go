@@ -44,6 +44,7 @@
 package spawn
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"sync/atomic"
@@ -103,6 +104,11 @@ type Job struct {
 	// their run-specific failure path here. Nil is safe for dispatcher-only
 	// callers, which still get a recovered, structured log entry.
 	OnPanic func(obs.PanicFailure)
+
+	// Admission, when non-nil, is the durable Task-attempt launch fence. The
+	// dispatcher claims it immediately before invoking Fn; cancellation that
+	// wins this gate prevents the executor from starting.
+	Admission *Admission
 
 	enqueuedAt time.Time
 }
@@ -170,9 +176,141 @@ type Dispatcher struct {
 	startingCount atomic.Int32 // jobs holding a starting slot right now
 
 	// lifecycle
-	closed     atomic.Bool
-	workerStop chan struct{}
-	workerDone chan struct{}
+	closed      atomic.Bool
+	workerStop  chan struct{}
+	workerDone  chan struct{}
+	admissionMu sync.Mutex
+	admissions  map[uuid.UUID]*Admission
+}
+
+// Admission is the in-process half of a durable Task-attempt claim. Durable
+// Task/Run state remains authoritative; this object only closes the race
+// between cancellation and dispatch within this owner process. It never holds
+// its mutex while calling a provider or executor.
+type Admission struct {
+	mu              sync.Mutex
+	ctx             context.Context
+	cancel          context.CancelFunc
+	cancelled       bool
+	cancelPending   bool
+	executorClaimed bool
+	externalStarts  int
+}
+
+// Context carries cooperative cancellation into provider startup. Cancellation
+// during Start is reported as an uncertain external effect by the caller; a
+// provider error does not prove that no remote start occurred.
+func (a *Admission) Context() context.Context {
+	if a == nil {
+		return context.Background()
+	}
+	return a.ctx
+}
+
+// BeginExternalStart returns false if cancellation already won. The caller
+// must call EndExternalStart after the external call returns.
+func (a *Admission) BeginExternalStart() bool {
+	if a == nil {
+		return true
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.cancelled || a.cancelPending {
+		return false
+	}
+	a.externalStarts++
+	return true
+}
+
+func (a *Admission) EndExternalStart() {
+	if a == nil {
+		return
+	}
+	a.mu.Lock()
+	if a.externalStarts > 0 {
+		a.externalStarts--
+	}
+	a.mu.Unlock()
+}
+
+func (a *Admission) Cancelled() bool {
+	if a == nil {
+		return false
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.cancelled
+}
+
+// Cancel prevents a later dispatcher claim and cancels in-flight cooperative
+// provider work. It reports whether execution or an external start had already
+// crossed its admission gate, so the owner can reconcile/stop that exact Run.
+func (a *Admission) Cancel() (effectMayHaveStarted bool) {
+	if a == nil {
+		return false
+	}
+	a.mu.Lock()
+	a.cancelled = true
+	started := a.executorClaimed || a.externalStarts > 0
+	cancel := a.cancel
+	a.mu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
+	return started
+}
+
+// PrepareCancel closes the executor claim gate while the caller atomically
+// persists Task/Run cancellation. Call CommitCancel after persistence succeeds
+// or AbortCancel if it fails; no external work is called while this lock is held.
+func (a *Admission) PrepareCancel() (effectMayHaveStarted bool) {
+	if a == nil {
+		return false
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.cancelPending = true
+	return a.executorClaimed || a.externalStarts > 0
+}
+
+func (a *Admission) CommitCancel() bool {
+	if a == nil {
+		return false
+	}
+	a.mu.Lock()
+	a.cancelPending = false
+	a.cancelled = true
+	started := a.executorClaimed || a.externalStarts > 0
+	cancel := a.cancel
+	a.mu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
+	return started
+}
+
+func (a *Admission) AbortCancel() {
+	if a == nil {
+		return
+	}
+	a.mu.Lock()
+	if !a.cancelled {
+		a.cancelPending = false
+	}
+	a.mu.Unlock()
+}
+
+func (a *Admission) claimExecutor() bool {
+	if a == nil {
+		return true
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.cancelled || a.cancelPending {
+		return false
+	}
+	a.executorClaimed = true
+	return true
 }
 
 // New constructs a Dispatcher with the supplied Config and starts its
@@ -200,9 +338,65 @@ func New(cfg Config) *Dispatcher {
 		queue:      make(chan *Job, cfg.QueueCapacity),
 		workerStop: make(chan struct{}),
 		workerDone: make(chan struct{}),
+		admissions: make(map[uuid.UUID]*Admission),
 	}
 	go d.worker()
 	return d
+}
+
+// ReserveAdmission installs the local cancellation fence before the durable
+// Task/Run claim is committed. Call ReleaseAdmission if durable admission
+// fails. The returned context is detached from the request lifetime.
+func (d *Dispatcher) ReserveAdmission(runID uuid.UUID) (*Admission, error) {
+	if runID == uuid.Nil {
+		return nil, errors.New("spawn: admission requires a run ID")
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	a := &Admission{ctx: ctx, cancel: cancel}
+	d.admissionMu.Lock()
+	defer d.admissionMu.Unlock()
+	if d.closed.Load() {
+		cancel()
+		return nil, ErrDispatcherClosed
+	}
+	if _, exists := d.admissions[runID]; exists {
+		cancel()
+		return nil, errors.New("spawn: run admission already reserved")
+	}
+	d.admissions[runID] = a
+	return a, nil
+}
+
+// CancelAdmission closes the exact run's local launch gate. The caller must
+// persist its Task/Run cancellation fence before invoking this method.
+func (d *Dispatcher) CancelAdmission(runID uuid.UUID) bool {
+	d.admissionMu.Lock()
+	a := d.admissions[runID]
+	d.admissionMu.Unlock()
+	return a.Cancel()
+}
+
+func (d *Dispatcher) PrepareCancelAdmission(runID uuid.UUID) (*Admission, bool) {
+	d.admissionMu.Lock()
+	a := d.admissions[runID]
+	d.admissionMu.Unlock()
+	if a == nil {
+		return nil, false
+	}
+	return a, a.PrepareCancel()
+}
+
+// ReleaseAdmission forgets a reservation after the attempt has settled or
+// durable admission failed. It is safe to call more than once.
+func (d *Dispatcher) ReleaseAdmission(runID uuid.UUID, admission *Admission) {
+	d.admissionMu.Lock()
+	if d.admissions[runID] == admission {
+		delete(d.admissions, runID)
+	}
+	d.admissionMu.Unlock()
+	if admission != nil && admission.cancel != nil {
+		admission.cancel()
+	}
 }
 
 // Enqueue submits a job for execution. Returns immediately with either
@@ -216,13 +410,32 @@ func New(cfg Config) *Dispatcher {
 // the job-pre-snapshot Stats embedded in the response — the executor
 // runs entirely in the dispatcher's lifecycle from this point.
 func (d *Dispatcher) Enqueue(job *Job) error {
+	return d.enqueue(job)
+}
+
+// EnqueueAdmitted submits a job under a previously reserved Task-attempt
+// admission. Legacy callers continue using Enqueue without a reservation.
+func (d *Dispatcher) EnqueueAdmitted(job *Job, admission *Admission) error {
+	if admission == nil {
+		return errors.New("spawn.EnqueueAdmitted: admission is nil")
+	}
+	if job == nil {
+		return errors.New("spawn.EnqueueAdmitted: job is nil")
+	}
+	job.Admission = admission
+	return d.enqueue(job)
+}
+
+func (d *Dispatcher) enqueue(job *Job) error {
 	if job == nil {
 		return errors.New("spawn.Enqueue: job is nil")
 	}
 	if job.Fn == nil {
 		return errors.New("spawn.Enqueue: job.Fn is nil")
 	}
+	d.admissionMu.Lock()
 	if d.closed.Load() {
+		d.admissionMu.Unlock()
 		return ErrDispatcherClosed
 	}
 
@@ -236,6 +449,7 @@ func (d *Dispatcher) Enqueue(job *Job) error {
 	for {
 		cur := d.queueDepth.Load()
 		if cur >= int32(d.cfg.QueueCapacity) {
+			d.admissionMu.Unlock()
 			return &domain.CapacityExceededError{
 				Resource: "spawn_queue",
 				Current:  int(cur),
@@ -252,6 +466,7 @@ func (d *Dispatcher) Enqueue(job *Job) error {
 	// channel-resident count (worker decrements queueDepth on pickup),
 	// so this send never blocks past channel capacity.
 	d.queue <- job
+	d.admissionMu.Unlock()
 
 	obs.EmitSpawnEnqueued(job.Sink, job.RunID, obs.SpawnEnqueuedFields{
 		RunMode:     job.RunMode,
@@ -277,10 +492,13 @@ func (d *Dispatcher) Stats() Stats {
 // is idempotent and safe to call concurrently with Enqueue/Stats; once
 // closed, Enqueue returns ErrDispatcherClosed.
 func (d *Dispatcher) Close() {
+	d.admissionMu.Lock()
 	if !d.closed.CompareAndSwap(false, true) {
+		d.admissionMu.Unlock()
 		return
 	}
 	close(d.workerStop)
+	d.admissionMu.Unlock()
 	<-d.workerDone
 }
 
@@ -366,6 +584,16 @@ func (d *Dispatcher) workerLoop() (clean bool) {
 			})
 		}()
 
+		if job.Admission != nil && !job.Admission.claimExecutor() {
+			// No ExecuteFn defer will run for a job discarded at this gate. Drop
+			// its reservation here so a canceled queued attempt does not retain
+			// its context and admission entry for the life of the dispatcher.
+			d.ReleaseAdmission(job.RunID, job.Admission)
+			<-d.starting
+			d.startingCount.Add(-1)
+			d.activeCount.Add(-1)
+			continue
+		}
 		go d.runJob(job)
 	}
 }
@@ -410,6 +638,9 @@ func (d *Dispatcher) discardPickedJob(job *Job) {
 	if job == nil {
 		return
 	}
+	if job.Admission != nil {
+		d.ReleaseAdmission(job.RunID, job.Admission)
+	}
 	d.queueDepth.Add(-1)
 	d.activeCount.Add(-1)
 }
@@ -423,6 +654,9 @@ func (d *Dispatcher) drainQueueOnClose() {
 		case job := <-d.queue:
 			if job == nil {
 				continue
+			}
+			if job.Admission != nil {
+				d.ReleaseAdmission(job.RunID, job.Admission)
 			}
 			d.queueDepth.Add(-1)
 			d.activeCount.Add(-1)

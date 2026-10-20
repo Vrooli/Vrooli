@@ -190,11 +190,12 @@ func TestSQLiteCalendarManifestRetainsAllAcceptedFixtureIdentities(t *testing.T)
 	if len(manifest.Events) != 21 {
 		t.Fatalf("accepted calendar manifest has %d identities, want 21", len(manifest.Events))
 	}
-	db, err := sql.Open("sqlite", "file:calendar-manifest-fixtures?mode=memory&cache=shared")
+	dbPath := filepath.Join(t.TempDir(), "calendar-manifest-fixtures.sqlite")
+	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	if _, err := db.Exec(Schema()); err != nil {
 		t.Fatal(err)
 	}
@@ -212,7 +213,34 @@ func TestSQLiteCalendarManifestRetainsAllAcceptedFixtureIdentities(t *testing.T)
 		if err != nil {
 			t.Fatalf("fixture %d (%s): %v", i, fixture.GoogleEventID, err)
 		}
-		want[fixture.GoogleEventID] = created
+		edited := created
+		edited.Notes = "fixture edit readback"
+		updated, err := repo.UpdateEvent(context.Background(), UpdateEventInput{Event: edited, ExpectedRevision: created.Revision})
+		if err != nil {
+			t.Fatalf("edit fixture %d (%s): %v", i, fixture.GoogleEventID, err)
+		}
+		if updated.ID != created.ID || updated.Revision != 2 || updated.Provider != created.Provider || updated.ProviderCalendarID != created.ProviderCalendarID || updated.ProviderEventID != created.ProviderEventID || updated.StartDate != created.StartDate || updated.EndDateExclusive != created.EndDateExclusive {
+			t.Fatalf("edit changed fixture identity or civil-date semantics: before=%#v after=%#v", created, updated)
+		}
+		want[fixture.GoogleEventID] = updated
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	db, err = sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Reopen from the isolated file before checking the durable IDs and edits.
+	repo = NewSQLiteRepository(db, schedule.NewFake(time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC))).(EventRepository)
+	for providerEventID, expected := range want {
+		got, err := repo.GetEvent(context.Background(), expected.ID)
+		if err != nil {
+			t.Fatalf("read back fixture %s by durable ID %s: %v", providerEventID, expected.ID, err)
+		}
+		if got.ID != expected.ID || got.Revision != 2 || got.Title != expected.Title || got.Notes != "fixture edit readback" || got.ProviderEventID != providerEventID || got.StartDate != expected.StartDate || got.EndDateExclusive != expected.EndDateExclusive || got.Subject != expected.Subject || got.Availability != expected.Availability {
+			t.Errorf("reopened fixture readback changed identity, revision, or semantics: %#v", got)
+		}
 	}
 	got, err := repo.ListEvents(context.Background(), "2026-10-01", "2026-12-02")
 	if err != nil {
@@ -223,7 +251,7 @@ func TestSQLiteCalendarManifestRetainsAllAcceptedFixtureIdentities(t *testing.T)
 	}
 	for _, event := range got {
 		original, ok := want[event.ProviderEventID]
-		if !ok || event.ID != original.ID || event.Revision != 1 || event.StartDate != original.StartDate || event.EndDateExclusive != original.EndDateExclusive || event.Subject != original.Subject || event.Availability != original.Availability {
+		if !ok || event.ID != original.ID || event.Revision != 2 || event.Title != original.Title || event.StartDate != original.StartDate || event.EndDateExclusive != original.EndDateExclusive || event.Subject != original.Subject || event.Availability != original.Availability {
 			t.Errorf("fixture identity or civil-date semantics changed: %#v", event)
 		}
 	}

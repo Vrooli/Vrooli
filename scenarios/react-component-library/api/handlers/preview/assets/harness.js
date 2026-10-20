@@ -272,7 +272,8 @@ const setHarnessState = (state) => {
   // overlay surfaces), so the root can have zero layout even while the
   // rendered preview is visibly ready. Mirror readiness onto the visible,
   // host-owned capture boundary so BAS waits on the thing it captures.
-  const surfaces = [harnessRoot, harnessRoot?.querySelector("[data-preview-sheet]")].filter(Boolean);
+  const captureBoundary = syncPortalCaptureBoundary();
+  const surfaces = [...new Set([harnessRoot, captureBoundary].filter(Boolean))];
   const status = harnessRoot?.dataset.rclStoryStatus;
   for (const surface of surfaces) {
     surface.dataset.experienceState = state;
@@ -282,7 +283,13 @@ const setHarnessState = (state) => {
   // preview sheet. BAS waits on the same semantic marker for both routes, so
   // use the root as the fallback capture boundary instead of silently
   // omitting readiness from every standalone story.
-  const boundary = surfaces.find((surface) => surface !== harnessRoot) || harnessRoot;
+  const boundary = captureBoundary || harnessRoot;
+  for (const surface of surfaces) {
+    if (surface === boundary) continue;
+    for (const staleMarker of surface.querySelectorAll("[data-preview-readiness-marker]")) {
+      staleMarker.remove();
+    }
+  }
   if (boundary) {
     let readiness = boundary.querySelector("[data-preview-readiness-marker]");
     if (!readiness) {
@@ -328,9 +335,11 @@ const showPreviewError = (message) => {
 const syncPortalCaptureBoundary = () => {
   const sheet = harnessRoot?.querySelector("[data-preview-sheet]");
   const portal = document.getElementById("rcl-layer-root");
-  const activePortal = portal && portal.children.length > 0;
+  const activePortal = portal && [...portal.children].some((child) => !child.hasAttribute("data-preview-readiness-marker"));
   if (activePortal) {
     sheet?.removeAttribute("data-preview-capture-boundary");
+    const staleMarker = sheet?.querySelector("[data-preview-readiness-marker]");
+    staleMarker?.remove();
     portal.dataset.previewCaptureBoundary = "component-sheet";
     portal.dataset.previewSheet = "portal";
     portal.style.minHeight = "100vh";
@@ -338,7 +347,11 @@ const syncPortalCaptureBoundary = () => {
     return portal;
   }
   portal?.removeAttribute("data-preview-capture-boundary");
-  if (portal) delete portal.dataset.previewSheet;
+  if (portal) {
+    delete portal.dataset.previewSheet;
+    const staleMarker = portal.querySelector("[data-preview-readiness-marker]");
+    staleMarker?.remove();
+  }
   if (sheet) sheet.dataset.previewCaptureBoundary = "component-sheet";
   return sheet || harnessRoot;
 };

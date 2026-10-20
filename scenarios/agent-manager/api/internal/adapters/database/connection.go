@@ -391,6 +391,13 @@ func (db *DB) initSchema() error {
 	// They must land before EnsureSchemas validates the existing table; otherwise
 	// SQLite's CREATE TABLE IF NOT EXISTS would make startup fail before the
 	// normal post-schema migration gets a chance to repair it.
+	if columns, err := db.tableColumns(ctx, "tasks"); err != nil {
+		return err
+	} else if len(columns) > 0 {
+		if err := db.migrateColumns(ctx, "tasks", []columnMigration{{column: "current_run_id", ddl: "ALTER TABLE tasks ADD COLUMN current_run_id TEXT"}}); err != nil {
+			return err
+		}
+	}
 	if columns, err := db.tableColumns(ctx, "runs"); err != nil {
 		return err
 	} else if len(columns) > 0 {

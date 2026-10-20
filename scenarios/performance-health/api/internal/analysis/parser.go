@@ -198,6 +198,13 @@ func summarizeFrames(events []traceEvent) FrameSummary {
 		out   FrameSummary
 	)
 	for _, e := range events {
+		// Chrome trace metadata events describe the trace process and have no
+		// meaningful timeline timestamp. Keep them out of both frame evidence
+		// and the timed-event envelope. Timestamp zero remains valid for timed
+		// events, so the phase—not a positive-timestamp heuristic—defines this.
+		if e.Ph == "M" {
+			continue
+		}
 		if !seen || e.Ts < minTs {
 			minTs = e.Ts
 		}

@@ -228,6 +228,9 @@ func (h *SettingsHandler) validateSettings(settings *services.Settings) error {
 	if err := validateDiskBands(settings); err != nil {
 		return err
 	}
+	if err := validateAlertSettings(settings); err != nil {
+		return err
+	}
 
 	// Validate reasonable ranges
 	if settings.MetricCollectionInterval > 3600 { // Max 1 hour
@@ -284,6 +287,31 @@ func validateCPUBands(settings *services.Settings) error {
 	}
 	if settings.CPUPressureThreshold < 0 || settings.CPUPressureThreshold > 100 {
 		return apierrors.Validation("cpu_pressure_threshold", "must be between 0 and 100")
+	}
+	return nil
+}
+
+// validateAlertSettings rejects alert-evaluation settings that cannot work.
+// Zero selects the documented default for every field.
+func validateAlertSettings(settings *services.Settings) error {
+	if settings.AlertSustainSeconds < 0 || settings.AlertSustainSeconds > 86400 {
+		return apierrors.Validation("alert_sustain_seconds", "must be between 0 (default) and 86400")
+	}
+	if settings.MemoryPressureSomeAvg60ElevatedPercent < 0 || settings.MemoryPressureSomeAvg60ElevatedPercent > 100 {
+		return apierrors.Validation("memory_pressure_some_avg60_elevated_percent", "must be between 0 and 100")
+	}
+	if settings.MemoryPressureFullAvg60CriticalPercent < 0 || settings.MemoryPressureFullAvg60CriticalPercent > 100 {
+		return apierrors.Validation("memory_pressure_full_avg60_critical_percent", "must be between 0 and 100")
+	}
+	if settings.MemoryPressureSwapInElevatedBytesPerSecond < 0 {
+		return apierrors.Validation("memory_pressure_swap_in_elevated_bytes_per_second", "must be non-negative")
+	}
+	if settings.MemoryPressureSwapInCriticalBytesPerSecond < 0 {
+		return apierrors.Validation("memory_pressure_swap_in_critical_bytes_per_second", "must be non-negative")
+	}
+	if settings.MemoryPressureSwapInElevatedBytesPerSecond > 0 && settings.MemoryPressureSwapInCriticalBytesPerSecond > 0 &&
+		settings.MemoryPressureSwapInElevatedBytesPerSecond >= settings.MemoryPressureSwapInCriticalBytesPerSecond {
+		return apierrors.Validation("memory_pressure_swap_in_critical_bytes_per_second", "must be greater than memory_pressure_swap_in_elevated_bytes_per_second")
 	}
 	return nil
 }

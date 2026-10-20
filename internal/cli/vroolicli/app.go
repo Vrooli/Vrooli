@@ -200,7 +200,7 @@ func RegisteredLeafPaths() ([]string, error) {
 			paths = append(paths, strings.TrimSpace(prefix+" "+name))
 		}
 	}
-	paths = append(paths, "agent launch", "agent list", "agent reap", "agent authorize", "agent authorization", "agent revoke-authorization", "hygiene", "lifecycle protect")
+	paths = append(paths, "agent launch", "agent list", "agent reap", "agent authorize", "agent authorization", "agent identity-binding", "agent revoke-authorization", "hygiene", "lifecycle protect")
 	paths = append(paths,
 		"cleanup orphans", "cleanup locks", "cleanup template-validation",
 		"orphans list", "orphans kill", "locks list", "locks clean",
@@ -914,6 +914,37 @@ func topLevelHandlerDefinitions() map[topcli.CommandID]rootcli.Handler[*AppConte
 		},
 		topcli.CommandUninstall: func(ctx *AppContext, args []string) error { return ctx.app.runUninstallCommand(ctx, args) },
 		topcli.CommandLifecycle: projectcli.LifecycleHandler(commandStdout, func(ctx *AppContext, args []string) error { return ctx.app.runLifecycleProtectCommand(ctx, args) }),
+		topcli.CommandCLIRefresh: func(ctx *AppContext, args []string) error {
+			if len(args) != 3 {
+				return fmt.Errorf("cli-refresh requires kind, name, and running executable")
+			}
+			if lifecycle.InSandbox() {
+				response, err := lifecycle.RunCLIRefresh(ctx.OperationContext(), lifecycle.CLIRefreshRequest{
+					Kind:              args[0],
+					Name:              args[1],
+					RunningExecutable: args[2],
+				})
+				if err != nil {
+					return err
+				}
+				if response.Stdout != "" {
+					_, _ = io.WriteString(commandStdout(ctx), response.Stdout)
+				}
+				if response.Stderr != "" {
+					_, _ = io.WriteString(ctx.Stderr, response.Stderr)
+				}
+				return nil
+			}
+			home, err := ctx.HomeDir()
+			if err != nil {
+				return err
+			}
+			manager, err := cliinstall.NewManager(ctx.Root, home)
+			if err != nil {
+				return err
+			}
+			return manager.RefreshCLI(ctx.OperationContext(), cliinstall.Kind(args[0]), args[1], args[2])
+		},
 	}
 }
 

@@ -516,6 +516,332 @@ func TestDispatcher_CloseDrainsPendingCounters(t *testing.T) {
 	}
 }
 
+func TestAdmissionCancellationBeforeDispatchPreventsExecutorStart(t *testing.T) {
+	d := New(Config{MaxStartingConcurrency: 1, QueueCapacity: 2})
+	defer d.Close()
+	blockerEntered := make(chan struct{})
+	releaseBlocker := make(chan struct{})
+	if err := d.Enqueue(makeJob(t, nil, func(started StartedFn) {
+		started()
+		close(blockerEntered)
+		<-releaseBlocker
+	})); err != nil {
+		t.Fatalf("enqueue blocker: %v", err)
+	}
+	<-blockerEntered
+
+	runID := uuid.New()
+	admission, err := d.ReserveAdmission(runID)
+	if err != nil {
+		t.Fatalf("reserve admission: %v", err)
+	}
+	executed := make(chan struct{}, 1)
+	if err := d.EnqueueAdmitted(&Job{RunID: runID, Fn: func(StartedFn) { executed <- struct{}{} }}, admission); err != nil {
+		t.Fatalf("enqueue admitted: %v", err)
+	}
+	if admitted, mayHaveStarted := d.PrepareCancelAdmission(runID); admitted != admission || mayHaveStarted {
+		t.Fatalf("queued admission prepare cancel = (%p, %t), want (%p, false)", admitted, mayHaveStarted, admission)
+	}
+	if mayHaveStarted := admission.CommitCancel(); mayHaveStarted {
+		t.Fatal("queued admission commit cancel reported an effect already started")
+	}
+	close(releaseBlocker)
+
+	awaitTrue(t, time.Second, "dispatcher counters drain", func() bool {
+		s := d.Stats()
+		return s.QueueDepth == 0 && s.ActiveCount == 0 && s.StartingCount == 0
+	})
+	select {
+	case <-executed:
+		t.Fatal("executor ran after cancellation won the admission gate")
+	default:
+	}
+	// The worker discarded this job without entering its Fn, so no executor
+	// defer could release the reservation. The same RunID can be reserved only
+	// after that discard cleanup has removed the old admission.
+	reused, err := d.ReserveAdmission(runID)
+	if err != nil {
+		t.Fatalf("canceled queued admission leaked its reservation: %v", err)
+	}
+	d.ReleaseAdmission(runID, reused)
+}
+
+func TestAdmissionCancellationAfterExecutorClaimCancelsContext(t *testing.T) {
+	d := New(Config{MaxStartingConcurrency: 1, QueueCapacity: 1})
+	defer d.Close()
+	runID := uuid.New()
+	admission, err := d.ReserveAdmission(runID)
+	if err != nil {
+		t.Fatalf("reserve admission: %v", err)
+	}
+	defer d.ReleaseAdmission(runID, admission)
+	entered := make(chan struct{})
+	finish := make(chan struct{})
+	if err := d.EnqueueAdmitted(&Job{RunID: runID, Fn: func(started StartedFn) {
+		started()
+		close(entered)
+		<-finish
+	}}, admission); err != nil {
+		t.Fatalf("enqueue admitted: %v", err)
+	}
+	<-entered
+	if !d.CancelAdmission(runID) {
+		t.Fatal("claimed executor was not reported as possibly active")
+	}
+	select {
+	case <-admission.Context().Done():
+	case <-time.After(time.Second):
+		t.Fatal("cancellation did not reach the admitted context")
+	}
+	close(finish)
+	awaitTrue(t, time.Second, "dispatcher counters drain", func() bool {
+		s := d.Stats()
+		return s.ActiveCount == 0 && s.StartingCount == 0
+	})
+}
+
+func TestDispatcherCloseReleasesQueuedAdmission(t *testing.T) {
+	d := New(Config{MaxStartingConcurrency: 1, QueueCapacity: 2})
+	gate := make(chan struct{})
+	if err := d.Enqueue(makeJob(t, nil, func(started StartedFn) {
+		<-gate
+		started()
+	})); err != nil {
+		t.Fatalf("enqueue blocker: %v", err)
+	}
+	awaitTrue(t, time.Second, "first job to occupy slot", func() bool {
+		return d.Stats().StartingCount == 1
+	})
+	runID := uuid.New()
+	admission, err := d.ReserveAdmission(runID)
+	if err != nil {
+		t.Fatalf("reserve admission: %v", err)
+	}
+	if err := d.EnqueueAdmitted(&Job{RunID: runID, Fn: func(StartedFn) {
+		t.Error("queued admitted job executed after dispatcher shutdown")
+	}}, admission); err != nil {
+		t.Fatalf("enqueue admitted: %v", err)
+	}
+	closed := make(chan struct{})
+	go func() {
+		d.Close()
+		close(closed)
+	}()
+	select {
+	case <-closed:
+	case <-time.After(time.Second):
+		t.Fatal("dispatcher did not close while an executor was in flight")
+	}
+	select {
+	case <-admission.Context().Done():
+	default:
+		t.Fatal("shutdown discard did not cancel the queued admission context")
+	}
+	close(gate)
+	awaitTrue(t, time.Second, "in-flight job to finish after close", func() bool {
+		return d.Stats().ActiveCount == 0
+	})
+}
+
+func TestDispatcherConcurrentCloseAndEnqueueDoesNotStrandAdmissions(t *testing.T) {
+	const attempts = 32
+	d := New(Config{MaxStartingConcurrency: 1, QueueCapacity: attempts + 1})
+	defer d.Close()
+	blockerGate := make(chan struct{})
+	var releaseBlocker sync.Once
+	defer releaseBlocker.Do(func() { close(blockerGate) })
+	if err := d.Enqueue(makeJob(t, nil, func(started StartedFn) {
+		<-blockerGate
+		started()
+	})); err != nil {
+		t.Fatalf("enqueue blocker: %v", err)
+	}
+	awaitTrue(t, time.Second, "blocker to hold the only starting slot", func() bool {
+		return d.Stats().StartingCount == 1
+	})
+
+	type result struct {
+		runID     uuid.UUID
+		admission *Admission
+		err       error
+	}
+	preRunID := uuid.New()
+	preAdmission, err := d.ReserveAdmission(preRunID)
+	if err != nil {
+		t.Fatalf("reserve pre-close admission: %v", err)
+	}
+	if err := d.EnqueueAdmitted(&Job{RunID: preRunID, Fn: func(StartedFn) {
+		t.Error("queued job executed after concurrent shutdown")
+	}}, preAdmission); err != nil {
+		t.Fatalf("enqueue pre-close admission: %v", err)
+	}
+	results := make(chan result, attempts)
+	start := make(chan struct{})
+	for i := 0; i < attempts; i++ {
+		runID := uuid.New()
+		admission, err := d.ReserveAdmission(runID)
+		if err != nil {
+			t.Fatalf("reserve admission %d: %v", i, err)
+		}
+		go func(admission *Admission, runID uuid.UUID) {
+			<-start
+			err := d.EnqueueAdmitted(&Job{RunID: runID, Fn: func(StartedFn) {
+				t.Error("queued job executed after concurrent shutdown")
+			}}, admission)
+			results <- result{runID: runID, admission: admission, err: err}
+		}(admission, runID)
+	}
+	closed := make(chan struct{})
+	go func() {
+		<-start
+		d.Close()
+		close(closed)
+	}()
+	close(start)
+
+	accepted := 1 // The pre-close item guarantees shutdown has queued work to drain.
+	collected := []result{{runID: preRunID, admission: preAdmission}}
+	for i := 0; i < attempts; i++ {
+		select {
+		case got := <-results:
+			collected = append(collected, got)
+			if got.err == nil {
+				accepted++
+			} else if errors.Is(got.err, ErrDispatcherClosed) {
+				d.ReleaseAdmission(got.runID, got.admission)
+			} else {
+				t.Fatalf("enqueue returned unexpected error: %v", got.err)
+			}
+		case <-time.After(3 * time.Second):
+			t.Fatal("concurrent enqueue did not return")
+		}
+	}
+	select {
+	case <-closed:
+	case <-time.After(3 * time.Second):
+		t.Fatal("dispatcher did not close")
+	}
+	releaseBlocker.Do(func() { close(blockerGate) })
+	awaitTrue(t, time.Second, "dispatcher counters and admissions to drain", func() bool {
+		s := d.Stats()
+		return s.QueueDepth == 0 && s.ActiveCount == 0 && s.StartingCount == 0
+	})
+	if accepted == 0 {
+		t.Fatal("concurrent enqueue race did not exercise an accepted job")
+	}
+	for _, got := range collected {
+		select {
+		case <-got.admission.Context().Done():
+		default:
+			t.Fatalf("admission %s remained live after enqueue result %v", got.runID, got.err)
+		}
+	}
+	d.admissionMu.Lock()
+	defer d.admissionMu.Unlock()
+	if len(d.admissions) != 0 {
+		t.Fatalf("%d admission reservations remained after close", len(d.admissions))
+	}
+}
+
+func TestDispatcherCloseSerializesWithEnqueueBeforeQueueSend(t *testing.T) {
+	clockArmed := atomic.Bool{}
+	clockEntered := make(chan struct{})
+	releaseClock := make(chan struct{})
+	var releaseClockOnce sync.Once
+	clock := func() time.Time {
+		if clockArmed.CompareAndSwap(true, false) {
+			close(clockEntered)
+			<-releaseClock
+		}
+		return time.Now()
+	}
+	d := New(Config{MaxStartingConcurrency: 1, QueueCapacity: 2, Clock: clock})
+	defer d.Close()
+	defer releaseClockOnce.Do(func() { close(releaseClock) })
+
+	blockerEntered := make(chan struct{})
+	blockerRelease := make(chan struct{})
+	var releaseBlockerOnce sync.Once
+	defer releaseBlockerOnce.Do(func() { close(blockerRelease) })
+	if err := d.Enqueue(makeJob(t, nil, func(started StartedFn) {
+		close(blockerEntered)
+		<-blockerRelease
+		started()
+	})); err != nil {
+		t.Fatalf("enqueue blocker: %v", err)
+	}
+	select {
+	case <-blockerEntered:
+	case <-time.After(time.Second):
+		t.Fatal("blocker did not enter")
+	}
+
+	runID := uuid.New()
+	admission, err := d.ReserveAdmission(runID)
+	if err != nil {
+		t.Fatalf("reserve admission: %v", err)
+	}
+	clockArmed.Store(true)
+	enqueueResult := make(chan error, 1)
+	go func() {
+		enqueueResult <- d.EnqueueAdmitted(&Job{RunID: runID, Fn: func(StartedFn) {
+			t.Error("accepted job ran after Close")
+		}}, admission)
+	}()
+	select {
+	case <-clockEntered:
+	case <-time.After(time.Second):
+		t.Fatal("enqueue did not reach the controlled pre-send clock boundary")
+	}
+	if d.admissionMu.TryLock() {
+		d.admissionMu.Unlock()
+		t.Fatal("enqueue did not hold the dispatcher acceptance lock across its pre-send boundary")
+	}
+
+	closeStarted := make(chan struct{})
+	closeDone := make(chan struct{})
+	go func() {
+		close(closeStarted)
+		d.Close()
+		close(closeDone)
+	}()
+	<-closeStarted
+	select {
+	case <-closeDone:
+		t.Fatal("Close returned while enqueue was inside its acceptance critical section")
+	default:
+	}
+	releaseClockOnce.Do(func() { close(releaseClock) })
+	select {
+	case err := <-enqueueResult:
+		if err != nil {
+			t.Fatalf("enqueue that acquired the acceptance lock was rejected: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("enqueue did not finish after releasing the controlled clock")
+	}
+	select {
+	case <-closeDone:
+	case <-time.After(time.Second):
+		t.Fatal("Close did not finish after enqueue released the acceptance lock")
+	}
+	releaseBlockerOnce.Do(func() { close(blockerRelease) })
+	awaitTrue(t, time.Second, "dispatcher counters to drain", func() bool {
+		stats := d.Stats()
+		return stats.QueueDepth == 0 && stats.ActiveCount == 0 && stats.StartingCount == 0
+	})
+	select {
+	case <-admission.Context().Done():
+	default:
+		t.Fatal("accepted queued admission was not released during shutdown")
+	}
+	d.admissionMu.Lock()
+	defer d.admissionMu.Unlock()
+	if len(d.admissions) != 0 {
+		t.Fatalf("%d admission reservations remained after close", len(d.admissions))
+	}
+}
+
 func TestDispatcher_RecoversPanickingJob(t *testing.T) {
 	t.Parallel()
 

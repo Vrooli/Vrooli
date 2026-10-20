@@ -97,6 +97,14 @@ recent threshold violation, the observation that caused the last band
 transition, and the most recent remediation result — everything needed to
 answer "is there pressure, and did anything act on it".
 
+The remediation result retains `run_id`, `status`, `reason`, and
+`stopped_because`. A pressure admission reports an observation with zero
+reclaimed bytes. The monitor waits once for that server-owned run in the
+background, then records its terminal byte receipt. A failed completion wait
+reports `status: unknown`; it does not claim that recovery succeeded or failed.
+Read storage-manager's typed recovery history for the authoritative result.
+An older completion cannot overwrite a newer run's status.
+
 ### The threshold loop
 
 `ThresholdScheduler` evaluates disk usage every `threshold_check_interval`

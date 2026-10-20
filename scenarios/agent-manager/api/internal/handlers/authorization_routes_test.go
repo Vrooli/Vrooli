@@ -3,8 +3,10 @@ package handlers
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
+	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/lifecycle"
 	"github.com/vrooli/api-core/owneridentity"
@@ -125,6 +127,48 @@ func TestDeclarationsPlanIsVerifiedAgentReadWithoutOpeningReconcileWrites(t *tes
 			w := httptest.NewRecorder()
 			h.ServeHTTP(w, req)
 			if w.Code != tc.wantStatus || reached != (tc.wantStatus == http.StatusNoContent) {
+				t.Fatalf("status=%d reached=%v want status=%d", w.Code, reached, tc.wantStatus)
+			}
+		})
+	}
+}
+
+func TestPolicyValidationAndPreviewReadsDoNotOpenMutationRoutes(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		path       string
+		wantStatus int
+	}{
+		{name: "role policy explain REST", path: "/api/v1/role-policy/explain", wantStatus: http.StatusNoContent},
+		{name: "role policy explain Connect", path: apiconnect.AgentManagerServiceExplainRolePolicyProcedure, wantStatus: http.StatusNoContent},
+		{name: "role policy validate REST", path: "/api/v1/role-policy/validate", wantStatus: http.StatusNoContent},
+		{name: "role policy validate Connect", path: apiconnect.AgentManagerServiceValidateRolePolicyCatalogProcedure, wantStatus: http.StatusNoContent},
+		{name: "permission policy validate REST", path: "/api/v1/permission-policy/validate", wantStatus: http.StatusNoContent},
+		{name: "permission policy validate Connect", path: apiconnect.AgentManagerServiceValidatePermissionPolicyCatalogProcedure, wantStatus: http.StatusNoContent},
+		{name: "permission policy plan REST", path: "/api/v1/permission-policy/plan", wantStatus: http.StatusNoContent},
+		{name: "permission policy plan Connect", path: apiconnect.AgentManagerServicePlanPermissionPolicyProcedure, wantStatus: http.StatusNoContent},
+		{name: "permission policy doctor REST", path: "/api/v1/permission-policy/doctor", wantStatus: http.StatusNoContent},
+		{name: "permission policy doctor Connect", path: apiconnect.AgentManagerServiceDoctorPermissionPolicyProcedure, wantStatus: http.StatusNoContent},
+		{name: "role policy reload REST stays protected", path: "/api/v1/role-policy/reload", wantStatus: http.StatusForbidden},
+		{name: "role policy reload Connect stays protected", path: apiconnect.AgentManagerServiceReloadRolePolicyCatalogProcedure, wantStatus: http.StatusForbidden},
+		{name: "permission policy reload REST stays protected", path: "/api/v1/permission-policy/reload", wantStatus: http.StatusForbidden},
+		{name: "permission policy reconcile REST stays protected", path: "/api/v1/permission-policy/reconcile", wantStatus: http.StatusForbidden},
+		{name: "permission policy reconcile Connect stays protected", path: apiconnect.AgentManagerServiceReconcilePermissionPolicyProcedure, wantStatus: http.StatusForbidden},
+		{name: "unknown route stays protected", path: "/api/v1/permission-policy/future", wantStatus: http.StatusForbidden},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			reached := false
+			principal := identity.Principal{Kind: identity.ActorAgent, Subject: "run-read", Verified: true}
+			h := AgentOperationMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				reached = true
+				w.WriteHeader(http.StatusNoContent)
+			}))
+			req := httptest.NewRequest(http.MethodPost, tc.path, strings.NewReader(`{"profile_id":"00000000-0000-4000-8000-000000000001"}`))
+			req = req.WithContext(identity.WithPrincipal(req.Context(), principal))
+			w := httptest.NewRecorder()
+			h.ServeHTTP(w, req)
+			wantReached := tc.wantStatus == http.StatusNoContent
+			if w.Code != tc.wantStatus || reached != wantReached {
 				t.Fatalf("status=%d reached=%v want status=%d", w.Code, reached, tc.wantStatus)
 			}
 		})
@@ -272,5 +316,47 @@ func TestOrchestratorRoutesReachTheirOwnHandlerChecks(t *testing.T) {
 		if reached != tc.want {
 			t.Fatalf("%s interactive=%v: reached=%v, want %v", tc.path, tc.interactive, reached, tc.want)
 		}
+	}
+}
+
+func TestVerifiedAgentCanWaitForWorkflowExecutionWithoutOpeningMutations(t *testing.T) {
+	paths := []string{
+		"/api/v1/workflow-executions/{id}/wait",
+		"/api/v1/workflow-executions/{id}/advance",
+		"/api/v1/workflow-executions/{id}/signals",
+		"/api/v1/workflow-executions/{id}/cancel",
+		"/api/v1/workflow-executions/{id}/retry",
+		"/api/v1/workflow-executions/{id}/resume",
+	}
+	for _, tc := range []struct {
+		name       string
+		path       string
+		grant      bool
+		wantStatus int
+	}{
+		{name: "wait is an ordinary verified-agent read", path: paths[0], wantStatus: http.StatusNoContent},
+		{name: "interactive grant does not open advance", path: paths[1], grant: true, wantStatus: http.StatusForbidden},
+		{name: "interactive grant does not open signals", path: paths[2], grant: true, wantStatus: http.StatusForbidden},
+		{name: "interactive grant does not open cancel", path: paths[3], grant: true, wantStatus: http.StatusForbidden},
+		{name: "interactive grant does not open retry", path: paths[4], grant: true, wantStatus: http.StatusForbidden},
+		{name: "interactive grant does not open resume", path: paths[5], grant: true, wantStatus: http.StatusForbidden},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			router := mux.NewRouter()
+			router.Handle(tc.path, AgentOperationMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(http.StatusNoContent)
+			}))).Methods(http.MethodPost)
+			p := identity.Principal{Kind: identity.ActorAgent, Subject: "run-1", Verified: true, Scopes: []string{"agent-manager:write"}}
+			if tc.grant {
+				p.Grant = &identity.OperationGrant{}
+			}
+			r := httptest.NewRequest(http.MethodPost, strings.Replace(tc.path, "{id}", "execution-1", 1), nil)
+			r = r.WithContext(identity.WithPrincipal(r.Context(), p))
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, r)
+			if w.Code != tc.wantStatus {
+				t.Fatalf("status=%d want %d body=%s", w.Code, tc.wantStatus, w.Body.String())
+			}
+		})
 	}
 }

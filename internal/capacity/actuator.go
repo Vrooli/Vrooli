@@ -92,20 +92,33 @@ func Actuate(ctx context.Context, plan EscalationPlan, store ClaimRepository, ex
 				outcome.Reason = "preempt requested but policy.preempt_enabled is false"
 				break
 			}
-			preempted, err := store.PreemptClaim(ctx, action.ClaimID, action.Reason)
+			claim, getErr := store.GetClaim(ctx, action.ClaimID)
+			if getErr != nil {
+				outcome.Err = getErr.Error()
+				outcome.Skipped = true
+				break
+			}
+			if !actuationTargetCurrent(claim, action) {
+				outcome.Skipped = true
+				outcome.Reason = "target changed or is no longer live, idle and unprotected"
+				break
+			}
+			_, err := store.PreemptClaim(ctx, action.ClaimID, action.Generation, action.Reason)
 			if err != nil {
 				outcome.Err = err.Error()
 				break
 			}
-			outcome.Applied = true
-			outcome.FreedBytes = preempted.AmountBytes
-			result.FreedBytes += preempted.AmountBytes
+			outcome.Reason = "preemption intent recorded; owner not stopped and no physical capacity reclaimed"
 		default: // ActionWarn or unknown
 			outcome.Skipped = true
 		}
 		result.Outcomes = append(result.Outcomes, outcome)
 	}
 	return result, nil
+}
+
+func actuationTargetCurrent(claim CapacityClaim, action EscalationAction) bool {
+	return action.Generation > 0 && claim.Generation == action.Generation && IsActiveClaimStatus(claim.Status) && claim.ActivityState == ActivityIdle && !claim.Protected
 }
 
 // actuateDegrade applies a single request-degrade action. It returns whether the
@@ -116,6 +129,11 @@ func actuateDegrade(ctx context.Context, store ClaimRepository, exec ApplyExecut
 	if err != nil {
 		outcome.Err = err.Error()
 		return false, nil // a vanished target is not fatal; the plan was stale
+	}
+	if !actuationTargetCurrent(claim, action) {
+		outcome.Skipped = true
+		outcome.Reason = "target changed before callback"
+		return false, nil
 	}
 	if claim.DegradeProfile == nil {
 		outcome.Skipped = true
@@ -193,7 +211,7 @@ func degradeReplacementClaim(ctx context.Context, store ClaimRepository, origina
 		return CapacityClaim{}, err
 	}
 	for _, candidate := range candidates {
-		if candidate.ClaimID == original.ClaimID ||
+		if candidate.ClaimID == original.ClaimID || candidate.ActivityState != ActivityIdle || candidate.Protected ||
 			candidate.PreferredBytes != original.PreferredBytes ||
 			candidate.FloorBytes != original.FloorBytes ||
 			candidate.GPUIndex == nil != (original.GPUIndex == nil) {
@@ -224,6 +242,11 @@ func actuateUpshift(ctx context.Context, store ClaimRepository, exec ApplyExecut
 	if err != nil {
 		outcome.Err = err.Error()
 		return false, nil // a vanished target is not fatal; the plan was stale
+	}
+	if !actuationTargetCurrent(claim, action) {
+		outcome.Skipped = true
+		outcome.Reason = "target changed before callback"
+		return false, nil
 	}
 	if claim.DegradeProfile == nil || !claim.DegradeProfile.Upshift {
 		outcome.Skipped = true
@@ -309,7 +332,17 @@ func EnforceReclaim(ctx context.Context, store ClaimRepository, requesterPriorit
 	if verdict.ReclaimBytes <= 0 {
 		return EscalationPlan{Satisfied: true}, ActuationResult{}, nil
 	}
-	plan := PlanEscalation(requesterPriority, verdict.ReclaimBytes, ledger, policy, now)
+	admitted := make(map[string]bool, len(verdict.ReclaimTargets))
+	for _, id := range verdict.ReclaimTargets {
+		admitted[id] = true
+	}
+	var cohort []CapacityClaim
+	for _, claim := range ledger {
+		if admitted[claim.ClaimID] {
+			cohort = append(cohort, claim)
+		}
+	}
+	plan := PlanEscalation(requesterPriority, verdict.ReclaimBytes, cohort, policy, now)
 	if enforce != EnforceOn {
 		return plan, ActuationResult{}, nil
 	}

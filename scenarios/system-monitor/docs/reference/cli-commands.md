@@ -13,9 +13,9 @@ The control plane installs the CLI from the Go module declared in `.vrooli/servi
 | Command | Description | API Endpoint |
 |---------|-------------|-------------|
 | `health` | Check API health and dependencies | `GET /health` |
-| `status` | Operational summary: health, thresholds, alerts, maintenance | `GET /api/v1/metrics/current`, `GET /api/v1/settings`, `GET /api/v1/maintenance/state` |
-| `alerts` | Active alerts from the current metrics snapshot | `GET /api/v1/metrics/current`, `GET /api/v1/settings` |
-| `watch` | Streaming live metrics + alert view | `GET /api/v1/metrics/current`, `GET /api/v1/settings`, `GET /api/v1/maintenance/state` |
+| `status` | Operational summary: overall status from server alerts, monitoring state, thresholds | `MetricsService.GetCurrentMetrics`, `SettingsService.GetSettings`, `SettingsService.GetMaintenanceState`, `AlertsService.ListAlerts` |
+| `alerts` | Server-evaluated alerts (active by default; `--all` adds resolved, `--events` adds threshold-violation/anomaly events, `--limit N`) plus rules that cannot evaluate | `AlertsService.ListAlerts` |
+| `watch` | Streaming live metrics + server alert view | `MetricsService.GetCurrentMetrics`, `SettingsService.GetSettings`, `SettingsService.GetMaintenanceState`, `AlertsService.ListAlerts` |
 | `dashboard` | Open or print the UI URL | None |
 | `metrics current` | Current metrics snapshot | `GET /api/v1/metrics/current` |
 | `metrics detailed` | Detailed CPU, memory, GPU, network, and dependency metrics | `GET /api/v1/metrics/detailed` |
@@ -83,3 +83,27 @@ system-monitor settings maintenance --state active
   - `system-monitor report weekly` maps to `system-monitor reports generate weekly`
   - `system-monitor metrics` maps to `system-monitor metrics current`
 - The old shell-only `simulate` command was removed because the referenced API endpoint does not exist.
+
+## Alerts and overall status
+
+The CLI never derives alerts from metric values. `status`, `alerts`, and
+`watch` read the API's `AlertsService`, whose evaluator owns every rule
+(CPU, memory %, TCP connections, GPU, memory pressure, orphaned agents,
+missing metrics snapshot). See
+[ARCHITECTURE.md § Alerting](../concepts/ARCHITECTURE.md#alerting).
+
+`overall_status` is computed from that server state:
+
+| Value | Meaning |
+|-------|---------|
+| `INACTIVE` | Monitoring is paused (`settings.active=false` or maintenance state `inactive`); alerts are not being evaluated |
+| `UNKNOWN` | Monitoring runs but the evaluator has not completed a pass yet |
+| `CRITICAL` / `WARNING` | The most severe active server alert |
+| `HEALTHY` | The evaluator ran and no alert is active |
+
+The maintenance state's wire value is the platform maintenance-orchestrator
+contract: `active` means monitoring is running, `inactive` means it is paused.
+It never means "under maintenance"; the CLI renders it as
+`Monitoring: running|paused` (`monitoring_state` in `--json`, with the raw
+`maintenance_state` kept for compatibility). Earlier CLIs showed `MAINTENANCE`
+whenever monitoring was running normally.

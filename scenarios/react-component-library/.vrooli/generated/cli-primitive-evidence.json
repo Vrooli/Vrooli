@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "react-component-library",
   "generator": "v1.0.0",
-  "manifest_hash": "4a7615f2514d761d193798d4d963ea98257c3530c786dee6079a9cde421dccb3",
+  "manifest_hash": "e099ef93f51c8fa00fe21ce23bb415f5259e8e8ab17600758e1c5f596d167555",
   "commands": [
     {
       "path": "adoptions link",
@@ -99,6 +99,14 @@
       "binding": "CatalogService.GetReadiness",
       "declared_primitive": "operational",
       "observed_primitive": "operational"
+    },
+    {
+      "path": "components check",
+      "group": "components",
+      "command": "check",
+      "binding": "ComponentsService.CheckComponentVersion",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
     },
     {
       "path": "components content-set",
@@ -201,6 +209,12 @@
       "binding": "PreviewService.GetPreviewBundle",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
+    },
+    {
+      "path": "preview capture",
+      "group": "preview",
+      "command": "capture",
+      "observed_primitive": "external_delegation"
     },
     {
       "path": "preview populate-store",

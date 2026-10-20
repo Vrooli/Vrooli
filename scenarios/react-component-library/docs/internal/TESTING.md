@@ -17,6 +17,11 @@ Only the specific current-behavior claims mapped below are asserted as checked. 
 | Current behavior | Enforcing check |
 | --- | --- |
 | Shared token values derive from BaseStyles; app values cannot collide | `ui/scripts/design-token-generate.mjs --check`; `ui/scripts/design-token-generate.test.mjs` |
+| Logically absent Presence subtrees relinquish input; callback updates preserve exit deadlines | `library/tests/remaining-press-lifecycle.test.tsx`; native hit testing in `docs/internal/PROBLEMS.md` |
+| Sidebar primary presses dismiss; closed mobile panels are inert; visible opening panels take focus once; desktop navigation retains input | `library/tests/remaining-press-lifecycle.test.tsx`; served Web Console browser evidence in `docs/internal/PROBLEMS.md` |
+| Focus returns only after a real close; closed mounts and ref identity changes do not steal focus | `library/tests/remaining-press-lifecycle.test.tsx`; Chromium and WebKitGTK fixtures in `docs/internal/PROBLEMS.md` |
+| Overlay swipes survive content rerenders; viewport changes and closing abort; cancelled drags preserve later pointer and keyboard activation | `library/tests/overlay-gesture-lifecycle.test.tsx` |
+| Exiting drawers, sheets, responsive dialogs, dialogs, alerts and command palettes relinquish input immediately and restore it on reopen | `library/tests/overlay-exit-composition.test.tsx`; live Web Console pointer-hit evidence in `docs/internal/PROBLEMS.md` |
 | Canonical library ID stamps retain separate legacy source-slot metadata | `ui/scripts/vite-plugin-asset-stamp.test.mjs` |
 | Consumer major/exact imports resolve through one implementation | `packages/react-component-library/tooling/resolve-specifier.test.mjs` |
 | A page capture joins its bounded DOM to real source and leaves unstamped nodes unstamped | `api/internal/pageinspect/service_test.go` |

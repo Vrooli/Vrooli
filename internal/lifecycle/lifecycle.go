@@ -26,7 +26,6 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 	"github.com/vrooli/envkit-go"
 	"github.com/vrooli/vrooli/internal/buildinfo"
-	"github.com/vrooli/vrooli/internal/capacity"
 	"github.com/vrooli/vrooli/internal/cliinstall"
 	credentialauthority "github.com/vrooli/vrooli/internal/credentialauthority"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
@@ -82,6 +81,10 @@ type Runner struct {
 	probeCache   *hostProbeCache
 	probeCacheMu sync.Mutex
 	deps         lifecycleDeps
+	// buildAdmissionFactory is an injectable ledger owner for stale component
+	// builds. Production opens the shared capacity ledger; tests use isolated
+	// temporary ledgers.
+	buildAdmissionFactory buildAdmissionBrokerFactory
 	// sinks are the progress-event consumers. Nil means "just the built-in
 	// text renderer" (the Runner itself implements ProgressSink); populated
 	// via WithProgressSink.
@@ -820,6 +823,11 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, sessio
 			return Result{}, cleanErr
 		}
 	}
+	if len(item.Manifest.Dependencies.Scenarios) > 0 {
+		if err := r.snapshotDependencyDemandLeases(branch.context(), item, branch); err != nil {
+			return Result{}, err
+		}
+	}
 	var failedDeps, failedResources []string
 	var err error
 	// An explicit restart promises interruption-first semantics. Defer
@@ -931,10 +939,13 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, sessio
 		if err := r.waitForInstanceReleased(opts.Context, item.Slug, item.Variant); err != nil {
 			return Result{}, err
 		}
-		// A restart may change the dependency graph. Release old dependency
-		// holds only after the owner-gated teardown has settled, before the new
-		// graph is bootstrapped.
-		if err := r.releaseDependencyLeasesForConsumer(opts.Context, item.Slug, item.Variant, "scenario restart"); err != nil {
+		// The dependency graph was bootstrapped before replacing a stale or
+		// unhealthy owner. Keep its current holds through the replacement, but
+		// release holds for dependencies removed from the new manifest.
+		consumerID := scenarioruntime.DependencyConsumerID(item.Slug, item.Variant)
+		branch.markDependencyConsumerStopped(consumerID)
+		currentLeases := branch.dependencyLeaseSetForConsumer(consumerID)
+		if err := r.releaseDependencyLeasesForConsumerExcept(opts.Context, item.Slug, item.Variant, "scenario restart", currentLeases); err != nil {
 			return Result{}, fmt.Errorf("release prior dependency demand: %w", err)
 		}
 	}
@@ -1206,10 +1217,6 @@ func credentialGapCounts(gaps []resourceenv.MissingCredential) (required, option
 	return required, optional
 }
 
-func (r *Runner) prepareScenarioEnvironment(ctx context.Context, item scenario.Scenario, runtimeSession runtimeRegistrySession) (ports.Environment, error) {
-	return r.prepareScenarioEnvironmentWithCleanup(ctx, item, runtimeSession, true)
-}
-
 func (r *Runner) prepareScenarioEnvironmentWithCleanup(ctx context.Context, item scenario.Scenario, runtimeSession runtimeRegistrySession, cleanup bool) (ports.Environment, error) {
 	if cleanup {
 		if err := r.cleanupFixedPortOrphans(item); err != nil {
@@ -1426,7 +1433,7 @@ func (r *Runner) cleanupScenarioRuntimeWithRegistryContext(ctx context.Context, 
 	if err := runtimeStop.finish(ctx); err != nil {
 		return err
 	}
-	if err := removePeerRecord(r.Home, key.Scenario); err != nil {
+	if err := removePeerRecord(r.Home, key.Slug()); err != nil {
 		return fmt.Errorf("remove scenario peer record: %w", err)
 	}
 	return nil
@@ -1600,37 +1607,7 @@ func (r *Runner) enforceResourceHostRequirements(resourceName string) error {
 		r.logError("Host requirements enforcement failed", err, logx.AttrDependency, resourceName)
 		return err
 	}
-	r.admitResourceCapacity(resourceName)
 	return nil
-}
-
-// admitResourceCapacity runs the advisory capacity broker admission for a
-// resource before it starts (plan §7 Phase 3). It is ALWAYS advisory in V1:
-// dormant unless the resource declares a `capacity` block in resource.json and
-// enforcement is enabled, and it NEVER blocks the start — any error is logged,
-// never propagated. Flag OFF (VROOLI_CAPACITY_ENFORCE=off) or no declared block
-// makes this a byte-identical no-op.
-func (r *Runner) admitResourceCapacity(resourceName string) {
-	result, err := capacity.AdmitResource(context.Background(), capacity.AdmitOptions{
-		Root:         r.Root,
-		ResourceName: resourceName,
-	})
-	if err != nil {
-		r.logWarn("Capacity admission skipped (advisory)", logx.AttrDependency, resourceName, "error", err.Error())
-		return
-	}
-	if result.Skipped {
-		return
-	}
-	r.logInfo("Capacity admission recorded",
-		logx.AttrDependency, resourceName,
-		"verdict", result.Verdict.Kind,
-		"granted_bytes", result.Verdict.GrantedBytes,
-		"enforce", result.Enforce,
-		"claim_id", result.ClaimID)
-	for _, warn := range result.Verdict.Warnings {
-		r.logWarn("Capacity admission warning", logx.AttrDependency, resourceName, "warning", warn)
-	}
 }
 
 func (r *Runner) logger() *slog.Logger {
@@ -1773,6 +1750,9 @@ func (r *Runner) admitVariantBuild(ctx context.Context, item scenario.Scenario) 
 	for _, instance := range instances {
 		other := scenarioruntime.InstanceKey{Scenario: instance.Scenario, Variant: instance.Variant}.Normalize()
 		if other.Variant != key.Variant {
+			if isolatedVariantBuild(item, instance.WorkingDir) {
+				continue
+			}
 			sharing = append(sharing, other.Slug())
 		}
 	}
@@ -1783,6 +1763,73 @@ func (r *Runner) admitVariantBuild(ctx context.Context, item scenario.Scenario) 
 	sharing = slices.Compact(sharing)
 	return fmt.Errorf("%s needs a rebuild, but it shares build outputs with running instance(s) %s; rebuilding would replace the files they serve. Restart %s first so the build is fresh, then start %s",
 		key.Slug(), strings.Join(sharing, ", "), item.Slug, key.Slug())
+}
+
+// An explicit --path can supply an independent component tree. Only admit
+// declarative builds confined to that tree; legacy setup scripts and unknown
+// serving roots retain the existing shared-output refusal. Resolve symlinks on
+// existing parents too: a not-yet-built artifact can still escape via its dir.
+func isolatedVariantBuild(item scenario.Scenario, servingRoot string) bool {
+	if len(item.Manifest.Components) == 0 || strings.TrimSpace(servingRoot) == "" {
+		return false
+	}
+	if setup, ok := lookupPhase(item.Manifest, phasesSetup); ok && len(setup.Steps) != 0 {
+		return false
+	}
+	root, err := filepath.EvalSymlinks(item.SourcePath())
+	if err != nil {
+		return false
+	}
+	serving, err := filepath.EvalSymlinks(servingRoot)
+	if err != nil || pathUnderRoot(root, serving) || pathUnderRoot(serving, root) {
+		return false
+	}
+	confined := func(path string) bool {
+		var tail []string
+		for {
+			resolved, err := filepath.EvalSymlinks(path)
+			if err == nil {
+				for i := len(tail) - 1; i >= 0; i-- {
+					resolved = filepath.Join(resolved, tail[i])
+				}
+				return pathUnderRoot(root, resolved)
+			}
+			if !errors.Is(err, fs.ErrNotExist) || filepath.Dir(path) == path {
+				return false
+			}
+			if info, statErr := os.Lstat(path); statErr == nil && info.Mode()&os.ModeSymlink != 0 {
+				return false // A dangling link is not a missing, confined child.
+			}
+			tail = append(tail, filepath.Base(path))
+			path = filepath.Dir(path)
+		}
+	}
+	for name, component := range item.Manifest.Components {
+		if component.Build.Kind == "" {
+			continue
+		}
+		spec, ok := builderRegistry[component.Build.Kind]
+		if !ok || spec.Reserved {
+			return false
+		}
+		dir := filepath.Join(root, component.Build.Dir)
+		if filepath.IsAbs(component.Build.Dir) {
+			dir = component.Build.Dir
+		}
+		if !confined(dir) || !confined(filepath.Join(dir, "node_modules")) {
+			return false
+		}
+		targets, err := componentBuildTargets(name, root, item.Slug, component, spec, "")
+		if err != nil {
+			return false
+		}
+		for _, target := range targets {
+			if !confined(target.Output) {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // applyVariantDependencies publishes the follow list to the instance. Discovery

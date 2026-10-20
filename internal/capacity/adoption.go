@@ -78,6 +78,7 @@ func AdoptObservedResidents(ctx context.Context, store ClaimRepository, snapshot
 			Protected:      req.Protected,
 			YieldWhenIdle:  req.YieldWhenIdle,
 			IdleUnloadTTL:  req.IdleUnloadTTL,
+			IdleGrace:      req.IdleGrace,
 			Status:         StatusGranted,
 			DegradeProfile: req.Profile,
 		}
@@ -90,27 +91,18 @@ func AdoptObservedResidents(ctx context.Context, store ClaimRepository, snapshot
 	return created, nil
 }
 
-// resolveDeclaredOwner finds the first attribution candidate (owner id,
-// container name, or normalized executable path) that names a resource
-// declaring a capacity block. Native model servers often appear in the GPU
-// snapshot as artifact paths rather than container names, so the process-owner
-// normalizer is part of this ownership seam.
+// resolveDeclaredOwner applies the shared canonical identity guard before
+// declaration lookup. Ledger/spec presence cannot arbitrate conflicting sources.
 func resolveDeclaredOwner(a Attribution, proc hostinventory.GPUProcess, loadSpec SpecLoader) (string, ResourceClaimSpec, bool) {
-	for _, cand := range []string{
-		a.OwnerID,
-		NormalizeOwnerName(a.ContainerName),
-		strings.TrimPrefix(a.ContainerName, "/"),
-		NormalizeProcessOwner(proc.ProcessName),
-	} {
-		cand = strings.TrimSpace(cand)
-		if cand == "" || cand == OwnerUnknown {
-			continue
+	candidates := ownerCandidates(a, proc)
+	if len(candidates) != 1 {
+		return "", ResourceClaimSpec{}, false
+	}
+	for name := range candidates {
+		spec, ok, err := loadSpec(name)
+		if err == nil && ok {
+			return name, spec, true
 		}
-		spec, ok, err := loadSpec(cand)
-		if err != nil || !ok {
-			continue
-		}
-		return cand, spec, true
 	}
 	return "", ResourceClaimSpec{}, false
 }

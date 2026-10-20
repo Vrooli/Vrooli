@@ -202,6 +202,7 @@ type Handler struct {
 	identity          IdentityRepository
 	promoted          func(context.Context, string, time.Time) error
 	authorize         func(context.Context) error
+	executeAuthorize  func(context.Context) error
 	readAuthorize     func(context.Context) error
 	actor             func(context.Context) (string, error)
 	recoveryAuthorize func(context.Context) error
@@ -209,6 +210,8 @@ type Handler struct {
 	alerts            AlertPublisher
 	signing           SigningExpiryLookup
 	durable           bool
+	decisionRaiser    ReleaseDecisionRaiser
+	gateLookup        ReleaseGateLookup
 }
 
 // WithReadinessLookup enables the exact candidate/artifact/target/channel
@@ -239,6 +242,25 @@ func (h *Handler) WithReadinessPromoter(promote func(context.Context, string, ti
 func (h *Handler) WithAuthorization(authorize func(context.Context) error) *Handler {
 	h.authorize = authorize
 	return h
+}
+
+// WithExecutionAuthorization separates executing an exact approved release
+// and collecting owner observations from making a release decision.
+func (h *Handler) WithExecutionAuthorization(authorize func(context.Context) error) *Handler {
+	h.executeAuthorize = authorize
+	return h
+}
+
+func (h *Handler) requireExecutionAuthorization(w http.ResponseWriter, r *http.Request) bool {
+	if h.executeAuthorize == nil {
+		return h.requireAuthorization(w, r)
+	}
+	if err := h.executeAuthorize(r.Context()); err != nil {
+		status, message := authorizationFailure(r.Context(), "verified release execution identity required", "approved release execution capability required")
+		shared.JSONError(w, message, status)
+		return false
+	}
+	return true
 }
 
 // WithReadAuthorization installs the verified read boundary for the REST
@@ -838,7 +860,7 @@ func hasCloudBundleIdentity(release *Release) bool {
 // Verify handles POST /api/v1/releases/{release_id}/verify. Re-runs the
 // verify call for every platform row and persists the outcome on the release.
 func (h *Handler) Verify(w http.ResponseWriter, r *http.Request) {
-	if !h.requireAuthorization(w, r) {
+	if !h.requireExecutionAuthorization(w, r) {
 		return
 	}
 	h.verifyAuthorized(w, r)
@@ -951,7 +973,7 @@ func (h *Handler) verifyAuthorized(w http.ResponseWriter, r *http.Request) {
 // release. It shares the verified observation path with reverify; the durable
 // release status is preserved when the observation cannot prove publication.
 func (h *Handler) Reconcile(w http.ResponseWriter, r *http.Request) {
-	if !h.requireAuthorization(w, r) {
+	if !h.requireExecutionAuthorization(w, r) {
 		return
 	}
 	if h.identity != nil {
@@ -1025,7 +1047,15 @@ func (h *Handler) reconcileOwnerObservation(w http.ResponseWriter, r *http.Reque
 // then drives the underlying orchestrator to completion. Returns 409 if a
 // release is already in flight for the profile.
 func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
-	if !h.requireAuthorization(w, r) {
+	principal, _ := identity.PrincipalFromContext(r.Context())
+	if principal.Kind == identity.ActorAgent {
+		if h.identity == nil || h.readiness == nil || !h.requireExecutionAuthorization(w, r) {
+			if h.identity == nil || h.readiness == nil {
+				shared.JSONError(w, "agent execution requires immutable identity and an approved readiness review", http.StatusForbidden)
+			}
+			return
+		}
+	} else if !h.requireAuthorization(w, r) {
 		return
 	}
 	profileID := mux.Vars(r)["id"]
@@ -1133,6 +1163,29 @@ func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
 		if reviewErr != nil || review == nil {
 			shared.JSONError(w, "approved readiness review was not found", http.StatusPreconditionFailed)
 			return
+		}
+		// Ask, don't block: an AGENT whose readiness review exists and matches the
+		// requested release identity but is NOT yet approved raises an operator
+		// decision and returns 202 pending instead of a 412 hard-refuse. The
+		// identity must still match exactly (an agent cannot ask to ship a
+		// different artifact than the review covers); only the human-approval gate
+		// is deferred. A genuine identity mismatch, or an agent without the raiser
+		// configured, keeps the prior precondition failure.
+		identityMatches := review.Key == body.ReadinessReviewKey && review.ProfileID == profileID && review.CandidateCommit == body.GitCommitHash && review.ArtifactDigest == body.ArtifactDigest && review.Channel == channel && sameStringSet(review.Targets, platforms)
+		durableMatches := h.identity == nil || (review.CandidateID == body.CandidateID && review.DestinationRevisionID == body.DestinationRevisionID && review.AuthorizationEpoch == body.AuthorizationEpoch)
+		notYetApproved := review.Status != "approved" || review.ApprovedAt == nil
+		if identityMatches && durableMatches && notYetApproved {
+			if outcome, status, msg := h.maybeRaiseReleaseDecision(r.Context(), profileID, body, channel, platforms, review); outcome.raised {
+				if status != 0 {
+					shared.JSONError(w, msg, status)
+					return
+				}
+				shared.JSONSuccess(w, pendingResponse(outcome.correlationID, body.ReadinessReviewKey), http.StatusAccepted)
+				return
+			} else if msg != "" {
+				shared.JSONError(w, msg, http.StatusInternalServerError)
+				return
+			}
 		}
 		if review.Key != body.ReadinessReviewKey || review.ProfileID != profileID || review.CandidateCommit != body.GitCommitHash || review.ArtifactDigest != body.ArtifactDigest || review.Channel != channel || !sameStringSet(review.Targets, platforms) || review.Status != "approved" || review.ApprovedAt == nil {
 			shared.JSONError(w, "release identity does not have an exact approved readiness review", http.StatusPreconditionFailed)

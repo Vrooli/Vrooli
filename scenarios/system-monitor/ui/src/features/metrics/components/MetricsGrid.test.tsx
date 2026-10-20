@@ -53,3 +53,19 @@ describe('MetricsGrid', () => {
     expect(screen.getAllByRole('article')).toHaveLength(5);
   });
 });
+
+describe('card alert badges', () => {
+  it('count only active server alerts whose rule belongs to the card', async () => {
+    const { cardAlertCount } = await import('./MetricsGrid');
+    const alerts = [
+      { id: '1', timestamp: '', severity: 'warning' as const, category: 'tcp_connections', message: 'TCP: climbing', resolved: false },
+      { id: '2', timestamp: '', severity: 'critical' as const, category: 'memory_pressure', message: 'pressure', resolved: false },
+      { id: '3', timestamp: '', severity: 'warning' as const, category: 'memory_usage', message: 'mem', resolved: true },
+    ];
+    expect(cardAlertCount('network', alerts)).toBe(1);
+    expect(cardAlertCount('memory', alerts)).toBe(1);
+    expect(cardAlertCount('cpu', alerts)).toBe(0);
+    // A busy host with many connections but no server alert shows no badge.
+    expect(cardAlertCount('network', [])).toBe(0);
+  });
+});

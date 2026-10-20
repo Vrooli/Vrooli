@@ -355,7 +355,8 @@ func TestExecuteInteractiveRun_TrackingPersistsSandboxAttribution(t *testing.T) 
 		t.Fatal(err)
 	}
 	svc := New(repos.Profiles, repos.Tasks, repos.Runs,
-		WithInteractiveSessions(sessions), WithSandbox(provider), WithRunners(registry), WithRunStateRoot(root), newCurrentModelPolicyFixtureOption(t))
+		WithInteractiveSessions(sessions), WithSandbox(provider), WithRunners(registry), WithRunStateRoot(root),
+		WithIdentitySecret([]byte("interactive-tracking-fixture-secret")), newCurrentModelPolicyFixtureOption(t))
 	task := interactiveTestTask(t, svc)
 
 	now := time.Now()

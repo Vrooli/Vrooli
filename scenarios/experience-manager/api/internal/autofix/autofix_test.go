@@ -1,6 +1,7 @@
 package autofix
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -38,6 +39,31 @@ func TestCaseScaffoldPreviewApplyAndIdempotency(t *testing.T) { // [REQ:EXPERIEN
 	}
 	if !strings.Contains(string(data), `"spec_entry_id": "home"`) || !strings.Contains(string(data), `[data-testid=\"primary-action\"]`) {
 		t.Fatalf("scaffolded case missing spec linkage or selector:\n%s", data)
+	}
+	var generated struct {
+		Metadata struct {
+			ExecutionMode string            `json:"execution_mode"`
+			Labels        map[string]string `json:"labels"`
+		} `json:"metadata"`
+		Nodes []struct {
+			ID string `json:"id"`
+		} `json:"nodes"`
+		Edges []struct {
+			Source string `json:"source"`
+			Target string `json:"target"`
+		} `json:"edges"`
+	}
+	if err := json.Unmarshal(data, &generated); err != nil {
+		t.Fatalf("decode scaffolded case: %v", err)
+	}
+	if generated.Metadata.ExecutionMode != "observer" {
+		t.Fatalf("generated read-only case execution_mode = %q, want observer", generated.Metadata.ExecutionMode)
+	}
+	if len(generated.Nodes) != 2 || len(generated.Edges) != 1 {
+		t.Fatalf("generated case graph has %d nodes and %d edges, want two nodes and one edge", len(generated.Nodes), len(generated.Edges))
+	}
+	if generated.Edges[0].Source != "navigate-home" || generated.Edges[0].Target != "wait-home-primary-binding" {
+		t.Fatalf("generated selector wait is not reachable from navigation: %+v", generated.Edges[0])
 	}
 	again, err := ApplySequential(reg, root, []string{RuleCaseScaffold})
 	if err != nil {

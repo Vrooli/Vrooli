@@ -28,6 +28,8 @@ type ListFilter struct {
 // RunListFilter extends ListFilter with run-specific filters.
 type RunListFilter struct {
 	ListFilter
+	// RunnerPIDs narrows owner checks to exact process IDs already observed in a peer ancestry.
+	RunnerPIDs []int
 	// NonTerminalOnly narrows lifecycle-owner lookups to statuses that can
 	// still own a live executor. It is used by security-sensitive peer/run
 	// binding and avoids paging historical terminal runs.
@@ -139,7 +141,6 @@ type TaskRepository interface {
 
 	// Update modifies an existing task.
 	Update(ctx context.Context, task *domain.Task) error
-
 	// Delete removes a task by ID.
 	Delete(ctx context.Context, id uuid.UUID) error
 }
@@ -150,8 +151,24 @@ type TaskRepository interface {
 
 // RunRepository provides persistence for Run entities.
 type RunRepository interface {
-	// Create stores a new run.
+	// Create stores a run that is not claiming a Task attempt (for example an import).
 	Create(ctx context.Context, run *domain.Run) error
+	// CreateTaskAttempt atomically claims the Task and inserts the Run/creation receipt.
+	// expectedCurrentRunID is nil for an unowned queued/legacy task with no live
+	// historical attempt, or the exact terminal current attempt being replaced.
+	CreateTaskAttempt(ctx context.Context, task *domain.Task, run *domain.Run, expectedCurrentRunID *uuid.UUID, expectedProjectRoot string) error
+	// CancelTaskAttempt atomically records explicit Task cancellation and fences
+	// the exact current Run. Pending Runs become terminal before recovery can
+	// enqueue them; active Runs receive the ordinary cancellation intent and
+	// must still be stopped through the existing StopRun path.
+	CancelTaskAttempt(ctx context.Context, taskID uuid.UUID, runID *uuid.UUID, activeMayHaveStarted bool, at time.Time) (domain.RunStatus, bool, error)
+	// EnsureCurrentRun accepts only the exact requested Run. A legacy NULL
+	// pointer is lazily bound only when no competing nonterminal Run exists.
+	EnsureCurrentRun(ctx context.Context, taskID, runID uuid.UUID, at time.Time) (bool, error)
+	// AdmitCurrentRun reactivates only the exact current Run while its owning
+	// Task remains nonterminal, preventing stale ResumeRun snapshots from
+	// resurrecting a canceled attempt.
+	AdmitCurrentRun(ctx context.Context, run *domain.Run, expectedStatus domain.RunStatus, at time.Time) (bool, error)
 
 	// Get retrieves a run by ID.
 	Get(ctx context.Context, id uuid.UUID) (*domain.Run, error)
@@ -202,8 +219,8 @@ type RunRepository interface {
 	// terminal, the streaming write no-ops instead of resurrecting it.
 	UpdateRunnerStreamState(ctx context.Context, run *domain.Run) (bool, error)
 
-	// Delete removes a run by ID.
-	Delete(ctx context.Context, id uuid.UUID) error
+	// Delete removes a terminal run only if the observed status and lifecycle version still match.
+	Delete(ctx context.Context, id uuid.UUID, expectedStatus domain.RunStatus, expectedLifecycleVersion int64) error
 
 	// CountByStatus returns the count of runs by status.
 	CountByStatus(ctx context.Context, status domain.RunStatus) (int, error)

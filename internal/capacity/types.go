@@ -306,7 +306,7 @@ type CapacityClaim struct {
 	UpdatedAt           time.Time
 	LastHeartbeatAt     *time.Time
 	HeartbeatDeadlineAt *time.Time
-	LastActiveAt        *time.Time
+	LastActiveAt        *time.Time // Last known active instant, including active-to-idle transition.
 	DegradeProfile      *DegradeProfile
 	// ObservedBytes is the latest sampled GPU usage attributed to this claim's
 	// owner (telemetry; never fed into Decide — contract C1).
@@ -391,6 +391,7 @@ type Finding struct {
 	ResourceKind      string `json:"resource_kind"`
 	GPUIndex          *int   `json:"gpu_index,omitempty"`
 	PID               int    `json:"pid,omitempty"`
+	PIDs              []int  `json:"pids,omitempty"`
 	ProcessName       string `json:"process_name,omitempty"`
 	ObservedBytes     int64  `json:"observed_bytes"`
 	ObservedPeakBytes int64  `json:"observed_peak_bytes,omitempty"`
@@ -399,6 +400,20 @@ type Finding struct {
 	Severity          string `json:"severity"` // info | warn
 	Message           string `json:"message"`
 }
+
+// ExpiryExclusions preserves claims whose absence has not been established.
+// Diagnostic only: exclusion does not authorize or block a ledger mutation.
+type ExpiryExclusions map[string]string
+
+func (e ExpiryExclusions) Contains(claimID string) bool { _, ok := e[claimID]; return ok }
+
+// AbsenceProof binds a complete process probe to one captured claim generation.
+// Repositories revalidate the CURRENT liveness boundary atomically at mutation.
+type AbsenceProof struct {
+	Generation int64
+	ObservedAt time.Time
+}
+type AbsenceProofs map[string]AbsenceProof
 
 // ClaimRepository is the per-concern repository for claim lifecycle (mirrors
 // scenarioruntime's LifecycleRepository split).
@@ -415,9 +430,9 @@ type ClaimRepository interface {
 	// right-sizing advisory reads.
 	ResizeClaim(ctx context.Context, claimID string, generation int64, amountBytes int64) (CapacityClaim, error)
 	ReleaseClaim(ctx context.Context, claimID string) (CapacityClaim, error)
-	PreemptClaim(ctx context.Context, claimID string, reason string) (CapacityClaim, error)
-	ExpireStaleClaims(ctx context.Context, at time.Time) ([]CapacityClaim, error)
-	RecordObserved(ctx context.Context, claimID string, observed, peak int64, at time.Time) (CapacityClaim, error)
+	PreemptClaim(ctx context.Context, claimID string, generation int64, reason string) (CapacityClaim, error)
+	ExpireStaleClaims(ctx context.Context, at time.Time, proofs AbsenceProofs) ([]CapacityClaim, error)
+	RecordObserved(ctx context.Context, claimID string, observed, peak int64, at time.Time, absence *AbsenceProof) (CapacityClaim, error)
 	GetClaim(ctx context.Context, claimID string) (CapacityClaim, error)
 	ListClaims(ctx context.Context, filter ClaimFilter) ([]CapacityClaim, error)
 }

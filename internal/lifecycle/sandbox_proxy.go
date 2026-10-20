@@ -38,6 +38,24 @@ type ScenarioResponse struct {
 	Error    string `json:"error,omitempty"`
 }
 
+// CLIRefreshRequest names one manager-declared CLI and the executable that
+// requested a refresh. The host revalidates that executable against the
+// canonical install target before it can build anything.
+type CLIRefreshRequest struct {
+	Kind              string `json:"kind"`
+	Name              string `json:"name"`
+	RunningExecutable string `json:"running_executable"`
+}
+
+// CLIRefreshResponse is the bounded result of a host-owned CLI refresh.
+type CLIRefreshResponse struct {
+	Success  bool   `json:"success"`
+	ExitCode int    `json:"exit_code"`
+	Stdout   string `json:"stdout,omitempty"`
+	Stderr   string `json:"stderr,omitempty"`
+	Error    string `json:"error,omitempty"`
+}
+
 func InSandbox() bool {
 	return strings.TrimSpace(os.Getenv("VROOLI_SANDBOX_MERGED")) != ""
 }
@@ -73,6 +91,45 @@ func RunScenario(ctx context.Context, req ScenarioRequest) (ScenarioResponse, er
 		}
 		if msg == "" {
 			msg = fmt.Sprintf("host lifecycle proxy exited with status %d", out.ExitCode)
+		}
+		return out, fmt.Errorf("%s", msg)
+	}
+	return out, nil
+}
+
+// RunCLIRefresh delegates a stale CLI refresh to the host. Protected sandboxes
+// mount the host artifact state read-only, so compilation and capacity
+// admission must stay on the host-owned cli-refresh path.
+func RunCLIRefresh(ctx context.Context, req CLIRefreshRequest) (CLIRefreshResponse, error) {
+	baseURL, err := workspaceSandboxBaseURL()
+	if err != nil {
+		return CLIRefreshResponse{}, err
+	}
+	payload, err := json.Marshal(req)
+	if err != nil {
+		return CLIRefreshResponse{}, err
+	}
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/api/v1/host/vrooli/cli-refresh", bytes.NewReader(payload))
+	if err != nil {
+		return CLIRefreshResponse{}, err
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(httpReq)
+	if err != nil {
+		return CLIRefreshResponse{}, fmt.Errorf("call workspace-sandbox host CLI refresh proxy: %w", err)
+	}
+	defer resp.Body.Close()
+	var out CLIRefreshResponse
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return CLIRefreshResponse{}, fmt.Errorf("decode workspace-sandbox host CLI refresh response: %w", err)
+	}
+	if resp.StatusCode >= 400 || !out.Success {
+		msg := strings.TrimSpace(out.Error)
+		if msg == "" {
+			msg = strings.TrimSpace(out.Stderr)
+		}
+		if msg == "" {
+			msg = fmt.Sprintf("host CLI refresh exited with status %d", out.ExitCode)
 		}
 		return out, fmt.Errorf("%s", msg)
 	}

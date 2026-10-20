@@ -39,7 +39,7 @@ func TestIndexer_DrawerShellDeclaresReusableHookDependencies(t *testing.T) {
 		LibraryID string `json:"libraryId"`
 		Version   string `json:"version"`
 		Observed  string `json:"observed"`
-	}{LibraryID: "react-component-library:BottomSheet", Observed: "1.2.11"})
+	}{LibraryID: "react-component-library:BottomSheet", Observed: "1.3.0"})
 }
 
 const buttonTSX = `/**

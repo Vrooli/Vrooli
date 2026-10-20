@@ -3,7 +3,6 @@ package services
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 )
 
@@ -39,13 +38,16 @@ func TestResolveInvestigationWorkingDirUsesContractScenarioRoot(t *testing.T) {
 	}
 }
 
+// repoRootForPathsTest anchors on the package directory, which `go test`
+// always uses as the working directory. runtime.Caller is not usable here:
+// under -trimpath (Test Genie's unit phase) it returns a module path.
 func repoRootForPathsTest(t *testing.T) string {
 	t.Helper()
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed")
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("resolve test working directory: %v", err)
 	}
-	return filepath.Clean(filepath.Join(filepath.Dir(filename), "..", "..", "..", "..", ".."))
+	return filepath.Clean(filepath.Join(wd, "..", "..", "..", "..", ".."))
 }
 
 func readLiveRepoContract(t *testing.T) string {

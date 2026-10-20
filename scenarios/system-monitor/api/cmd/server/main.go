@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os"
 
 	"github.com/vrooli/api-core/preflight"
 
@@ -10,14 +11,20 @@ import (
 )
 
 func main() {
-	// preflight.Run performs the staleness/rebuild check and the lifecycle
-	// guard (direct execution outside `vrooli scenario start` is rejected).
-	if preflight.Run(preflight.Config{ScenarioName: "system-monitor"}) {
-		return
-	}
+	os.Exit(run(preflight.Run, config.Load, server.Run))
+}
 
-	cfg := config.Load()
-	if err := server.Run(cfg); err != nil {
-		log.Fatalf("System Monitor API failed: %v", err)
+// run is main's testable body. preflight.Run performs the staleness/rebuild
+// check and the lifecycle guard (direct execution outside
+// `vrooli scenario start` is rejected); returning true means it already
+// handled the process, so the server must not start.
+func run(checkPreflight func(preflight.Config) bool, load func() *config.Config, serve func(*config.Config) error) int {
+	if checkPreflight(preflight.Config{ScenarioName: "system-monitor"}) {
+		return 0
 	}
+	if err := serve(load()); err != nil {
+		log.Printf("System Monitor API failed: %v", err)
+		return 1
+	}
+	return 0
 }

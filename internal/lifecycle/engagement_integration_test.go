@@ -221,7 +221,7 @@ func TestEngagedLiveBuildsFromFrozenSharedSources(t *testing.T) {
 	floorRoots := make([]baselinefloor.SharedRoot, 0, len(roots))
 	frozen := make([]string, 0, len(roots))
 	for _, root := range roots {
-		floorRoots = append(floorRoots, baselinefloor.SharedRoot{Path: root.Path, Reason: root.Reason})
+		floorRoots = append(floorRoots, baselinefloor.SharedRoot{Path: root.Path, Reason: root.Reason, KeepOutputs: root.KeepOutputs})
 		frozen = append(frozen, root.Path)
 	}
 	if !slices.Contains(frozen, "packages/shared") {
@@ -253,5 +253,49 @@ func TestEngagedLiveBuildsFromFrozenSharedSources(t *testing.T) {
 	}
 	if log := readFile(t, logPath); !strings.Contains(log, "serving-tree event=frozen-shared") || !strings.Contains(log, `capture_id="capture-1"`) {
 		t.Fatalf("frozen build did not skip repository regeneration or name its capture:\n%s", log)
+	}
+}
+
+// A legacy split captured only the scenario. A rebuild must not silently pair
+// it with current shared contracts or run setup steps against that mixture.
+func TestLegacyServingBuildRefusesUncapturedSharedContractsBeforeSetup(t *testing.T) {
+	root, home := t.TempDir(), t.TempDir()
+	writeLifecycleFixture(t, root, "alpha")
+	working := filepath.Join(root, "scenarios", "alpha")
+	if err := os.MkdirAll(filepath.Join(root, "packages", "shared"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(root, "packages", "shared", "go.mod"), "module example.com/shared\n\ngo 1.22\n")
+	writeFile(t, filepath.Join(root, "packages", "shared", "shared.go"), "package shared\nfunc Value() string{return \"new contract\"}\n")
+	writeFile(t, filepath.Join(working, "api", "go.mod"), "module fixture\n\ngo 1.22\nrequire example.com/shared v0.0.0\nreplace example.com/shared => ../../../packages/shared\n")
+	main := readFile(t, filepath.Join(working, "api", "main.go"))
+	main = strings.Replace(main, "import (\n", "import (\n _ \"example.com/shared\"\n", 1)
+	writeFile(t, filepath.Join(working, "api", "main.go"), main)
+	store := baselinefloor.NewStore(t.TempDir())
+	restore := store.RestorePointPath("alpha", "legacy")
+	if _, err := baselinefloor.Capture(working, restore, nil); err != nil {
+		t.Fatal(err)
+	}
+	serving, err := baselinefloor.MaterializeServing(store.ServingBasePath("alpha", "legacy"), baselinefloor.ServingSpec{Scenario: "alpha", RepoRoot: root, RestorePoint: restore, Generation: "legacy"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	runner := newLifecycleRunnerForTest(t, root, home, nil)
+	runner.Engagements = &materializingEngagementResolver{fakeEngagementResolver: fakeEngagementResolver{engaged: true, info: EngagementInfo{Slug: "legacy", Mode: "shadow", RestorePointDir: restore}}, dir: serving}
+	_, err = runner.RunPhaseDetailed("alpha", "setup", PhaseOptions{})
+	if err == nil || !strings.Contains(err.Error(), "uncaptured shared sources") || !strings.Contains(err.Error(), "baseline cycle") {
+		t.Fatalf("error=%v; want actionable refusal before setup", err)
+	}
+	if _, err := os.Stat(filepath.Join(serving, "api", "mock-api")); !os.IsNotExist(err) {
+		t.Fatalf("legacy serving artifact was built: %v", err)
+	}
+	// Preserve the separate, recorded operator opt-in for a new unfrozen
+	// capture. It remains degraded rather than being labeled frozen.
+	runner.Engagements.(*materializingEngagementResolver).info.CaptureID = "explicit-unfrozen-capture"
+	if _, err := runner.RunPhaseDetailed("alpha", "setup", PhaseOptions{}); err != nil {
+		t.Fatalf("recorded unfrozen capture lost its opt-in: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(serving, "api", "mock-api")); err != nil {
+		t.Fatalf("explicit unfrozen capture did not build: %v", err)
 	}
 }

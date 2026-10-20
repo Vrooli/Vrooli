@@ -152,15 +152,11 @@ func TestAuth01IndependentDelegationEffectsAndExactParentAdmission(t *testing.T)
 			if got != nil || !errors.Is(err, spawn.ErrDispatcherClosed) {
 				t.Fatalf("wanted closed disposable dispatcher, got run=%v err=%v", got, err)
 			}
-			if effects.reservations != 1 || effects.runWrites != 1 || effects.taskWrites != 0 || profiles.writes != 0 || sandboxes.writes != 0 {
-				t.Fatalf("unexpected admission effects: %+v profile=%d sandbox=%d", effects, profiles.writes, sandboxes.writes)
+			if effects.reservations != 1 || effects.runWrites != 0 || effects.taskWrites != 0 || profiles.writes != 0 || sandboxes.writes != 0 {
+				t.Fatalf("dispatcher was already closed before durable admission: effects=%+v profile=%d sandbox=%d", effects, profiles.writes, sandboxes.writes)
 			}
-			created := runs.created
-			if created == nil || created.ParentRunID == nil || *created.ParentRunID != baseRuns.parent.ID || created.ResolvedConfig.Admission.CreateCaller == nil || created.ResolvedConfig.Admission.CreateCaller.RunID != baseRuns.parent.ID || created.OwnerSubject != "owner-a" {
-				t.Fatal("exact-parent admission lost durable caller attribution")
-			}
-			if info, err := os.Stat(missing); err != nil || !info.IsDir() {
-				t.Fatalf("accepted admission did not prepare scope: %v", err)
+			if info, err := os.Stat(missing); !os.IsNotExist(err) {
+				t.Fatalf("pre-admission dispatcher refusal created scope: info=%v err=%v", info, err)
 			}
 		})
 	}

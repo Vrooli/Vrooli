@@ -26,6 +26,22 @@ export const Card = () => <div className={panel + " focus-visible:ring-app-prima
 	require.Equal(t, "variant", hits[0].Category)
 }
 
+func TestEmitsAnyDoesNotFollowTemplateTextIntoUnrelatedHandlerStrings(t *testing.T) {
+	source := `
+const collection = { onClick: (target: Element) => target.closest("[data-rcl-row-action]") }
+const className = "rcl-collection-list"
+export const List = () => <section className={` + "`rcl-collection-list ${className}`" + `} onClick={() => collection.onClick(document.body)} />
+`
+	require.Empty(t, EmitsAny(source))
+}
+
+func TestCategoryOfRequiresUtilityGrammarForArbitraryBrackets(t *testing.T) {
+	require.Empty(t, categoryOf("[data-rcl-virtual-list-row]"))
+	require.Equal(t, "arbitrary", categoryOf("[color:var(--text)]"))
+	require.Equal(t, "arbitrary", categoryOf("w-[var(--space-sm)]"))
+	require.Equal(t, "variant", categoryOf("hover:w-[var(--space-sm)]"))
+}
+
 func TestUndefinedInConsumerReportsOnlyMissingClasses(t *testing.T) {
 	hits := UndefinedInConsumer(`<div className="flex gap-2" />`, map[string]struct{}{"flex": {}})
 	require.Equal(t, []string{"gap-2"}, sortedClasses(hits))

@@ -1,6 +1,9 @@
 {
   "catalogId": "data-display.plan-summary",
-  "deprecatedVersions": [],
+  "deprecatedVersions": [
+    "0.1.1",
+    "0.1.2"
+  ],
   "designStyles": [
     {
       "affinity": "native",
@@ -10,8 +13,10 @@
   ],
   "draft": "",
   "evictedVersions": [
-    "0.1.0"
+    "0.1.0",
+    "0.1.1",
+    "0.1.2"
   ],
-  "latest": "0.1.1",
+  "latest": "0.1.3",
   "libraryId": "react-component-library:PlanSummary"
 }

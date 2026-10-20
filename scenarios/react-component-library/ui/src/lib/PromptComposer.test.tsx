@@ -1,8 +1,12 @@
 import { useState } from "react";
-import { fireEvent, render, screen, waitFor, act, cleanup } from "@testing-library/react";
+import { renderWithProviders } from "../test-utils/renderWithProviders";
+import { fireEvent, screen, waitFor, act, cleanup } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { PromptComposer, type PromptComposerProps } from "@vrooli/react-component-library/PromptComposer/1.0.2";
-import { ComposerAttachmentTray } from "@vrooli/react-component-library/ComposerAttachmentTray/1.0.2";
+import {
+  PromptComposer,
+  type PromptComposerProps,
+} from "../../../library/components/PromptComposer/versions/1.0.4/PromptComposer";
+import { ComposerAttachmentTray } from "@vrooli/react-component-library/ComposerAttachmentTray/1.0.4";
 
 afterEach(cleanup);
 function Harness(props: Omit<PromptComposerProps, "value" | "onValueChange">) {
@@ -12,14 +16,14 @@ function Harness(props: Omit<PromptComposerProps, "value" | "onValueChange">) {
 describe("conversation send contract", () => {
   it("reorders attachments through keyboard-accessible actions", () => {
     const onReorder = vi.fn();
-    render(<ComposerAttachmentTray items={[{ id: "first", name: "Brief.pdf" }, { id: "second", name: "Notes.md" }]} onReorder={onReorder} />);
+    renderWithProviders(<ComposerAttachmentTray items={[{ id: "first", name: "Brief.pdf" }, { id: "second", name: "Notes.md" }]} onReorder={onReorder} />);
     fireEvent.click(screen.getByRole("button", { name: "Move Notes.md earlier" }));
     expect(onReorder).toHaveBeenCalledWith(["second", "first"]);
     expect(screen.getByText("Notes.md moved to position 1 of 2.")).toHaveAttribute("role", "status");
   });
   it("retains the draft after failure and clears it only after an accepted retry", async () => {
     const onSend = vi.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true);
-    render(<Harness onSend={onSend} />);
+    renderWithProviders(<Harness onSend={onSend} />);
     fireEvent.click(screen.getByRole("button", { name: "Send message" }));
     await screen.findByText(/Couldn’t send/);
     expect(screen.getByRole("textbox")).toHaveValue("Please review the rollout.");
@@ -30,7 +34,7 @@ describe("conversation send contract", () => {
   it("does not erase newer typing when an earlier submission completes", async () => {
     let resolve!: (accepted: boolean) => void;
     const onSend = vi.fn(() => new Promise<boolean>(done => { resolve = done; }));
-    render(<Harness onSend={onSend} />);
+    renderWithProviders(<Harness onSend={onSend} />);
     const input = screen.getByRole("textbox");
     fireEvent.keyDown(input, { key: "Enter" });
     fireEvent.keyDown(input, { key: "Enter" });
@@ -41,7 +45,7 @@ describe("conversation send contract", () => {
   });
   it("keeps IME confirmation and newline entry separate from submission", () => {
     const onSend = vi.fn().mockResolvedValue(true);
-    render(<Harness onSend={onSend} />);
+    renderWithProviders(<Harness onSend={onSend} />);
     const input = screen.getByRole("textbox");
     fireEvent.keyDown(input, { key: "Enter", shiftKey: true });
     fireEvent.keyDown(input, { key: "Enter", isComposing: true });
@@ -50,7 +54,7 @@ describe("conversation send contract", () => {
   });
   it("explains offline state and keeps the draft editable", () => {
     const onSend = vi.fn();
-    render(<Harness onSend={onSend} offline />);
+    renderWithProviders(<Harness onSend={onSend} offline />);
     expect(screen.getByRole("button", { name: "Send message" })).toBeDisabled();
     expect(screen.getByText(/You’re offline/)).toHaveAttribute("role", "status");
     fireEvent.change(screen.getByRole("textbox"), { target: { value: "Still writing." } });
@@ -58,10 +62,32 @@ describe("conversation send contract", () => {
     expect(onSend).not.toHaveBeenCalled();
   });
   it("keeps failed and healthy attachments until the caller resolves them", () => {
-    render(<Harness onSend={vi.fn()} attachments={[{ id: "ok", name: "Brief.pdf", status: "success" }, { id: "failed", name: "Notes.md", status: "error" }]} onAttachmentRetry={vi.fn()} />);
+    renderWithProviders(<Harness onSend={vi.fn()} attachments={[{ id: "ok", name: "Brief.pdf", status: "success" }, { id: "failed", name: "Notes.md", status: "error" }]} onAttachmentRetry={vi.fn()} />);
     expect(screen.getByText("Brief.pdf")).toBeVisible();
     expect(screen.getByText("Notes.md")).toBeVisible();
     expect(screen.getByRole("button", { name: "Send message" })).toBeDisabled();
     expect(screen.getByText("Resolve unfinished attachments before sending.")).toBeVisible();
+  });
+  it("provides a named drop region and preserves both file attachment paths", () => {
+    const onFiles = vi.fn();
+    const droppedFile = new File(["draft"], "dropped.txt", { type: "text/plain" });
+    renderWithProviders(<Harness onSend={vi.fn()} onFiles={onFiles} />);
+
+    const dropRegion = screen.getByRole("region", { name: "Drop files to attach" });
+    fireEvent.dragOver(dropRegion, {
+      dataTransfer: { types: ["Files"], files: [droppedFile] },
+    });
+    expect(dropRegion).toHaveAttribute("data-dragging", "true");
+    fireEvent.drop(dropRegion, {
+      dataTransfer: { types: ["Files"], files: [droppedFile] },
+    });
+    expect(onFiles).toHaveBeenLastCalledWith([droppedFile]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Attach files" }));
+    const selectedFile = new File(["selection"], "selected.txt", { type: "text/plain" });
+    fireEvent.change(document.querySelector('input[type="file"]')!, {
+      target: { files: [selectedFile] },
+    });
+    expect(onFiles).toHaveBeenLastCalledWith([selectedFile]);
   });
 });

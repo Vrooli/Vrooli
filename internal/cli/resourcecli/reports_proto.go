@@ -231,9 +231,10 @@ func ResourceStopAllResponse(report control.StopReport) *cliv1.ResourceStopAllRe
 	return &cliv1.ResourceStopAllResponse{
 		Success: true,
 		Report: &cliv1.ResourceStopReport{
-			Stopped: controlResultItemMessages(report.Stopped),
-			Failed:  controlResultItemMessages(report.Failed),
-			Message: report.Message,
+			Stopped:  controlResultItemMessages(report.Stopped),
+			Observed: controlResultItemMessages(report.Observed),
+			Failed:   controlResultItemMessages(report.Failed),
+			Message:  report.Message,
 		},
 	}
 }

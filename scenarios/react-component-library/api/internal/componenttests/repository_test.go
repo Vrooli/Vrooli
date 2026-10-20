@@ -3,6 +3,7 @@ package componenttests
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -38,6 +39,37 @@ func TestSQLiteRepositoryPersistsNormalizedReportsNewestFirst(t *testing.T) {
 	require.Equal(t, []string{"ctr_new", "ctr_old"}, []string{list[0].ID, list[1].ID})
 }
 
+func TestSQLiteRepositorySaveKeepsExactIDThroughRetention(t *testing.T) {
+	database := db.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), database, apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(internalcomponents.Schema)))
+	for i := 0; i < 5; i++ {
+		_, err := database.ExecContext(context.Background(), `INSERT INTO component_test_reports (id, component_id, root_library_id, root_version, include_closure, created_at, verdict, results_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			fmt.Sprintf("newer-%d", i), "button", "rcl:Button", "1.0.0", false, time.Date(2026, 1, 2+i, 0, 0, 0, 0, time.UTC).Format(time.RFC3339), VerdictPassed, `{}`)
+		require.NoError(t, err)
+	}
+	_, err := database.ExecContext(context.Background(), `INSERT INTO component_version_test_rollup (library_id, version, first_pass_report_id) VALUES ('rcl:Button', '1.0.0', 'newer-0')`)
+	require.NoError(t, err)
+
+	// An older, large report is the sixth row for its version and exceeds the
+	// byte budget. Both retention passes used to be able to delete it in Save's
+	// transaction, despite Save returning nil.
+	report := Report{
+		ID: "late-old-report", RootComponentID: "button", RootLibraryID: "rcl:Button", RootVersion: "1.0.0",
+		CreatedAt: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), Verdict: VerdictBlocked,
+		Results: []Result{{Stage: StageEvidence, Verdict: VerdictBlocked, Message: strings.Repeat("large evidence ", 8)}},
+	}
+	repository := NewSQLiteRepository(database)
+	require.NoError(t, repository.saveWithPayloadCeiling(context.Background(), report, 1))
+
+	got, err := repository.Get(context.Background(), report.ID)
+	require.NoError(t, err, "a successful Save must leave its exact report ID readable")
+	require.Equal(t, report.ID, got.ID)
+	require.Equal(t, report.Results, got.Results)
+	var count int
+	require.NoError(t, database.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM component_test_reports`).Scan(&count))
+	require.Equal(t, 2, count, "the current write and pinned first-pass evidence survive; other old payloads remain prunable")
+}
+
 func TestSQLiteRepositoryReadsLegacyResultsArray(t *testing.T) {
 	database := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), database, apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(internalcomponents.Schema)))
@@ -66,7 +98,7 @@ INSERT INTO component_version_test_rollup (library_id, version, first_pass_repor
 	require.NoError(t, err)
 	tx, err := database.BeginTx(context.Background(), nil)
 	require.NoError(t, err)
-	require.NoError(t, enforceReportPayloadCeilingWithLimit(context.Background(), tx, 45))
+	require.NoError(t, enforceReportPayloadCeilingWithLimit(context.Background(), tx, 45, ""))
 	require.NoError(t, tx.Commit())
 	var count int
 	require.NoError(t, database.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM component_test_reports`).Scan(&count))

@@ -1,0 +1,121 @@
+[
+  {
+    "path": "scenarios/react-component-library/ui/src/features/components/ComponentEditor.test.tsx",
+    "observed_at": "2026-10-19T21:29:46.630544+00:00",
+    "bytes": 52595,
+    "sha256": "2960736b2588e385c9fb7cb883104e260a006c04e6f2cb36c52a0090fac38448"
+  },
+  {
+    "path": "scenarios/react-component-library/ui/src/features/components/ComponentEditor.tsx",
+    "observed_at": "2026-10-19T21:29:46.631240+00:00",
+    "absent": true
+  },
+  {
+    "path": "scenarios/react-component-library/ui/src/features/components/ComponentTestPanel.test.tsx",
+    "observed_at": "2026-10-19T21:29:46.631473+00:00",
+    "bytes": 19750,
+    "sha256": "992bf01d27a3afee4e214481282f22b6b0351e227ebefb37ea5bee1f298cd320"
+  },
+  {
+    "path": "scenarios/react-component-library/ui/src/features/components/ComponentTestPanel.tsx",
+    "observed_at": "2026-10-19T21:29:46.631747+00:00",
+    "bytes": 283,
+    "sha256": "653114763f96d695a5f95dff5b898b390a32890adc9000ab36b2c3846492cde1"
+  },
+  {
+    "path": "scenarios/react-component-library/ui/src/features/components/AdoptionFileTree.test.tsx",
+    "observed_at": "2026-10-19T21:29:46.631957+00:00",
+    "bytes": 7377,
+    "sha256": "d79ad768da711b4f33d59a5b4cb3709d66004b511bc9d58b300184c73bf69d67"
+  },
+  {
+    "path": "scenarios/react-component-library/ui/src/features/components/AdoptionFileTree.tsx",
+    "observed_at": "2026-10-19T21:29:46.632167+00:00",
+    "bytes": 9201,
+    "sha256": "372006a9ac671000cc8aed7ab46e5a7045be878a7ad91286d2dbf9061fddab8f"
+  },
+  {
+    "path": "scenarios/react-component-library/ui/src/components/SidebarShell.test.tsx",
+    "observed_at": "2026-10-19T21:29:46.632380+00:00",
+    "bytes": 6344,
+    "sha256": "78f07f3f3e47cde74cc0f2348566c2a7a80b50fe51e36b143fbc6a5e2f82ef9b"
+  },
+  {
+    "path": "scenarios/react-component-library/ui/src/components/SidebarShell.tsx",
+    "observed_at": "2026-10-19T21:29:46.632750+00:00",
+    "bytes": 131,
+    "sha256": "9ea3f062b4913f68a4cfe6c201a24ef169f407f1589baeebc61ecfaf34af5ad8"
+  },
+  {
+    "path": "scenarios/react-component-library/ui/src/hooks/useComponentStyles.test.tsx",
+    "observed_at": "2026-10-19T21:29:46.632987+00:00",
+    "bytes": 5593,
+    "sha256": "dbb3e3b6d756205401fd7711a16c601f5391990237dbe796647385ce55f13d2a"
+  },
+  {
+    "path": "scenarios/react-component-library/ui/src/hooks/useComponentStyles.ts",
+    "observed_at": "2026-10-19T21:29:46.633237+00:00",
+    "bytes": 3711,
+    "sha256": "6c25025647b75e1083b429ea5f628d5f62127df00373e6bb1aa0fee82bcb676b"
+  },
+  {
+    "path": "scenarios/react-component-library/ui/src/features/components/CreateComponentDialog.test.tsx",
+    "observed_at": "2026-10-19T21:29:46.633466+00:00",
+    "bytes": 5337,
+    "sha256": "c8616c9972f01ba7b182cb4b9cf06b3a4b6a8eab8ba57c682e957256d93766a1"
+  },
+  {
+    "path": "scenarios/react-component-library/ui/src/features/components/CreateComponentDialog.tsx",
+    "observed_at": "2026-10-19T21:29:46.633686+00:00",
+    "bytes": 8612,
+    "sha256": "253cc15f2fb2ab1438d8dc6874a1281234198c7df54379dec0fda208f704e3a5"
+  },
+  {
+    "path": "scenarios/react-component-library/ui/src/components/ActionLauncher.test.tsx",
+    "observed_at": "2026-10-19T21:29:46.634085+00:00",
+    "bytes": 5188,
+    "sha256": "e4c8f4a28f81afd1dd944bd86ecdcb8d51ae9917cc181f0d0c0e866e9a68ecd6"
+  },
+  {
+    "path": "scenarios/react-component-library/ui/src/components/ActionLauncher.tsx",
+    "observed_at": "2026-10-19T21:29:46.634313+00:00",
+    "bytes": 12217,
+    "sha256": "202f922be93ee037e5d4fb08b82a79175afbead1455437cc205cf33b2e1e046a"
+  },
+  {
+    "path": "scenarios/react-component-library/ui/src/features/components/EmulatorChrome.test.tsx",
+    "observed_at": "2026-10-19T21:29:46.634569+00:00",
+    "bytes": 4812,
+    "sha256": "8ea72c12e571524a0e0aefb27cc3f4df46a0f501103b5c414a4575a2967b1c66"
+  },
+  {
+    "path": "scenarios/react-component-library/ui/src/features/components/EmulatorChrome.tsx",
+    "observed_at": "2026-10-19T21:29:46.634785+00:00",
+    "bytes": 12609,
+    "sha256": "f085821da54abdeb68732d218025805953c10254b2e899730756dd0c3faea799"
+  },
+  {
+    "path": "scenarios/react-component-library/ui/src/App.test.tsx",
+    "observed_at": "2026-10-19T21:29:46.635017+00:00",
+    "bytes": 3201,
+    "sha256": "445cb97129ecf9cc163d3a1e2d23b2dcdbbf96ddb512e88530b6b02135a382ff"
+  },
+  {
+    "path": "scenarios/react-component-library/ui/src/App.tsx",
+    "observed_at": "2026-10-19T21:29:46.635239+00:00",
+    "bytes": 4037,
+    "sha256": "057c7392b54135c28d404c796b668d5236aef6818701e04b60e950f860f7813f"
+  },
+  {
+    "path": "scenarios/react-component-library/ui/src/lib/CopyIconButtonDraft.test.tsx",
+    "observed_at": "2026-10-19T21:29:46.635479+00:00",
+    "bytes": 2306,
+    "sha256": "dcdd80be5933823042b2578ae71274ed4405fb5b5979a5161164c4db64e3daad"
+  },
+  {
+    "path": "scenarios/react-component-library/ui/src/lib/CollectionList.test.tsx",
+    "observed_at": "2026-10-19T21:29:46.635738+00:00",
+    "bytes": 1625,
+    "sha256": "8e677cd465c9c146f7c9b23d26940cd70b2a737d1386776d729496b290c4944f"
+  }
+]

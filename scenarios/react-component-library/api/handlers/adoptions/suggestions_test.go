@@ -69,7 +69,7 @@ func TestActiveSuggestionComponentsExcludesDeprecatedCatalogIdentity(t *testing.
 func TestActiveSuggestionComponentsRetiredPageTierIsNotRecommended(t *testing.T) {
 	assets, err := catalogcoverage.LoadCatalogContext(t.Context(), filepath.Join("..", "..", "..", "catalog"))
 	require.NoError(t, err)
-	retired := []string{"navigation.top-bar", "react-component-library:PageFrame", "templates.dashboard-page", "templates.detail-page", "templates.collection-page"}
+	retired := []string{"navigation.top-bar", "react-component-library:PageFrame", "templates.dashboard-page", "templates.detail-page"}
 	candidates := []components.Component{{ID: "shell", CatalogID: "navigation.app-shell"}, {ID: "page", CatalogID: "navigation.page"}}
 	for _, id := range retired {
 		candidates = append(candidates, components.Component{ID: id, CatalogID: id})

@@ -13,7 +13,7 @@ import (
 	"github.com/vrooli/vrooli/internal/tuning"
 )
 
-const closureCacheVersion = 1
+const closureCacheVersion = 2
 
 // closureCache is the durable dependency-closure record for one Go component.
 // It lives beside the component's build output, not in a shared global cache,
@@ -50,6 +50,7 @@ func closureCachePath(dir string) string {
 
 func closureCacheKey(dir, repoRoot, toolchain string, inputs []string, deps hostProbeDeps) string {
 	h := sha256.New()
+	fmt.Fprintf(h, "component:%s\nrepository:%s\nsource:%s\n", filepath.Clean(dir), filepath.Clean(repoRoot), closureSourceDigest(dir, deps))
 	addFile := func(label, path string) {
 		read := deps.readFile
 		if read == nil {

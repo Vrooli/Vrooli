@@ -35,12 +35,13 @@ type AssembleBundleRequest struct {
 
 // ExportBundleRequest is the request body for bundle export endpoint.
 type ExportBundleRequest struct {
-	Scenario       string `json:"scenario"`
-	Tier           string `json:"tier"`
-	ProfileID      string `json:"profile_id,omitempty"`
-	IncludeSecrets *bool  `json:"include_secrets,omitempty"`
-	OutputDir      string `json:"output_dir,omitempty"`
-	StageBundle    *bool  `json:"stage_bundle,omitempty"`
+	Scenario          string `json:"scenario"`
+	Tier              string `json:"tier"`
+	ArtifactTrustMode string `json:"artifact_trust_mode,omitempty"`
+	ProfileID         string `json:"profile_id,omitempty"`
+	IncludeSecrets    *bool  `json:"include_secrets,omitempty"`
+	OutputDir         string `json:"output_dir,omitempty"`
+	StageBundle       *bool  `json:"stage_bundle,omitempty"`
 }
 
 // ExportBundleResponse is the response for bundle export endpoint.
@@ -67,11 +68,12 @@ type Handler struct {
 	profileRepo   profiles.Repository
 	signingRepo   codesigning.Repository
 	signingGen    generation.Generator
-	// exportAuthorize protects secret-bearing compatibility exports. The
+	// productionReleaseExportAuthorize protects production release exports
+	// that include secret plans. The
 	// handler remains usable in isolated domain tests without a transport
 	// policy; production wiring must install the verified service boundary.
-	exportAuthorize func(context.Context) error
-	log             func(string, map[string]interface{})
+	productionReleaseExportAuthorize func(context.Context) error
+	log                              func(string, map[string]interface{})
 }
 
 // NewHandler creates a new bundles handler.
@@ -95,19 +97,18 @@ func NewHandlerWithSigning(secretsClient *secrets.Client, profileRepo profiles.R
 	}
 }
 
-// WithExportAuthorization installs the authorization boundary for exports
-// that include secret plans. Secret-free exports remain available to the
-// compatibility consumer without requiring publisher credentials.
-func (h *Handler) WithExportAuthorization(authorize func(context.Context) error) *Handler {
-	h.exportAuthorize = authorize
+// WithProductionReleaseExportAuthorization installs the publisher boundary
+// for production release exports that include secret plans.
+func (h *Handler) WithProductionReleaseExportAuthorization(authorize func(context.Context) error) *Handler {
+	h.productionReleaseExportAuthorize = authorize
 	return h
 }
 
-func (h *Handler) authorizeSecretPlans(ctx context.Context) error {
-	if h.exportAuthorize == nil {
+func (h *Handler) authorizeProductionReleaseExport(ctx context.Context) error {
+	if h.productionReleaseExportAuthorize == nil {
 		return nil
 	}
-	return h.exportAuthorize(ctx)
+	return h.productionReleaseExportAuthorize(ctx)
 }
 
 // ValidateBundle validates a desktop bundle manifest.
@@ -148,11 +149,6 @@ func (h *Handler) MergeBundleSecrets(w http.ResponseWriter, r *http.Request) {
 	if req.Tier == "" {
 		req.Tier = "tier-2-desktop"
 	}
-	if err := h.authorizeSecretPlans(r.Context()); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"secret-bearing bundle operation is unauthorized","details":"%s"}`, err), http.StatusForbidden)
-		return
-	}
-
 	// Re-validate manifest before merging.
 	rawPayload, err := json.Marshal(req.Manifest)
 	if err != nil {
@@ -198,13 +194,6 @@ func (h *Handler) AssembleBundle(w http.ResponseWriter, r *http.Request) {
 	if req.IncludeSecrets != nil {
 		includeSecrets = *req.IncludeSecrets
 	}
-	if includeSecrets {
-		if err := h.authorizeSecretPlans(r.Context()); err != nil {
-			http.Error(w, fmt.Sprintf(`{"error":"secret-bearing bundle assembly is unauthorized","details":"%s"}`, err), http.StatusForbidden)
-			return
-		}
-	}
-
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 
@@ -307,9 +296,20 @@ func (h *Handler) ExportBundle(w http.ResponseWriter, r *http.Request) {
 		includeSecrets = *req.IncludeSecrets
 	}
 	if includeSecrets {
-		if err := h.authorizeSecretPlans(r.Context()); err != nil {
-			http.Error(w, fmt.Sprintf(`{"error":"secret-bearing bundle export is unauthorized","details":"%s"}`, err), http.StatusForbidden)
+		trustMode := strings.TrimSpace(req.ArtifactTrustMode)
+		if trustMode == "" {
+			// Older callers remain fail-closed at the production boundary.
+			trustMode = "production"
+		}
+		if trustMode != "production" && trustMode != "development-local" {
+			http.Error(w, `{"error":"artifact_trust_mode must be production or development-local for exports with secret plans"}`, http.StatusBadRequest)
 			return
+		}
+		if trustMode == "production" {
+			if err := h.authorizeProductionReleaseExport(r.Context()); err != nil {
+				http.Error(w, fmt.Sprintf(`{"error":"production release export with secret plans is unauthorized","details":"%s"}`, err), http.StatusForbidden)
+				return
+			}
 		}
 	}
 

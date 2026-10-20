@@ -3,6 +3,8 @@ package pipeline
 import (
 	"path/filepath"
 	"testing"
+
+	"scenario-to-desktop-api/generation"
 )
 
 func TestResolvePipelineOutputPaths_StagingUsesStorageRoot(t *testing.T) {
@@ -27,6 +29,20 @@ func TestResolvePipelineOutputPaths_StagingUsesStorageRoot(t *testing.T) {
 	}
 	if desktopPath != wantDesktop {
 		t.Fatalf("desktopPath = %q, want %q", desktopPath, wantDesktop)
+	}
+}
+
+func TestResolvePipelineOutputPathsUsesRegisteredStrategy(t *testing.T) {
+	config := &PipelineConfig{ScenarioName: "demo", StrategyID: generation.DefaultStrategyID}
+	_, path := resolvePipelineOutputPaths(config, "/scenarios/demo", "", config.StrategyID)
+	want := filepath.Join("/scenarios/demo", "platforms", "electron")
+	if path != want {
+		t.Fatalf("path=%q want %q", path, want)
+	}
+	config.StrategyID = "unregistered"
+	_, path = resolvePipelineOutputPaths(config, "/scenarios/demo", "", config.StrategyID)
+	if path != "" {
+		t.Fatalf("unregistered strategy path=%q", path)
 	}
 }
 

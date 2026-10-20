@@ -15,7 +15,9 @@ long Forecast) is in `archive/QUEUE-through-2026-10-06.md`.
   gap remains two Linux journeys plus E22 intended-player review and macOS
   qualification; these test-support slices do not close those gaps. Runtime
   inventory is 250,616; the line-count phase remains closed under BAS-FB-064.
-  BAS-FB-036 remains actionable.
+  E46's test-only fixture cleanup cannot affect runtime inventory; the worker's
+  latest prescribed G5 result is 251,599 (+983). No runtime-reduction slice
+  meeting the existing >=1,000-line estimate rule is currently evidenced.
 - E30 grouped J10/J12/J14 into one session-readiness and profile-continuity
   slice. J09/J11 remain parked on outside conditions; J21 is in scope under
   BAS-FB-067, with physical desktop/Android qualification separately waiting on
@@ -24,12 +26,16 @@ long Forecast) is in `archive/QUEUE-through-2026-10-06.md`.
 
 ## Needs operator
 
-- **Agent Manager interactive prompt delivery (E46)** — two same-task Luna-medium
-  attempts failed before initial prompt delivery with Web Console session `not_found`;
-  neither produced output or source changes. The maintenance owner must first provide
-  a lawful complete drain/adoption receipt for Agent Manager; then the BAS owner may
-  qualify the exact prompt-delivery route and resume E46. Until both conditions are
-  met, keep E46 parked. No alternate launcher is authorized.
+- **E46 G5 disposition** — E46's admitted scope changes only
+  `api/handlers/artifacts_test.go`, which the inventory classifies as test source;
+  its prescribed G5 result is therefore 251,599 against 250,616 (+983), with
+  zero runtime-line delta. The exact slice cannot pass G5 without unrelated
+  runtime changes. Recommendation: keep E46 unaccepted and parked; return when
+  the setpoint owner either supplies a new measured, in-scope runtime reduction
+  slice meeting the >=1,000-line admission estimate or explicitly revises the
+  G5 ceiling/metric against a fresh accepted baseline. No successor is admitted
+  and no unrelated runtime deletion is authorized by this disposition.
+
 
 - **Remaining Linux journey slots (J09, J11)** — either provide the authorized
   desktop/Android target and the shadow-safe AI gateway injection seam, or keep
@@ -37,26 +43,28 @@ long Forecast) is in `archive/QUEUE-through-2026-10-06.md`.
   keep them parked; neither has a safe Linux substitute. The available Linux
   preservation set now passes 23/23, including E34's J21 managed-session case.
 
-## Handoff
-
-- Changed: acknowledged SUP-FOLLOWUP-20261013 and SUP-OWNER-APPROVAL-20261013. Owner consent authorizes supported recovery for existing work within the accepted destination, budgets and safeguards. No product source changed and no worker dispatched.
-- Verified: original orchestrator run identity is valid. E46 remains the same queued task 2546080f-7c56-4f85-94cb-640b552c9250 after two failures before prompt delivery. Current Agent Manager maintenance status remains unqualified: revision 116, admission not closed, admitting=1, drained=false, remaining unknown, and executor scope unknown for run fc039e73-a1ab-4774-bb57-87459536472b (PID/group 1468386); status returned 503. Agent Manager is running but degraded by supervision liveness; Web Console is healthy. These checks do not prove prompt delivery or lawful source adoption.
-- Remaining: Agent Manager maintenance/control-plane owner must provide the lawful complete drain/adoption receipt and complete executor-scope exclusion. Then the BAS owner must qualify the exact existing interactive prompt route before any E46 dispatch. Keep E46 gates and all unavailable platform targets unchanged; retain J09/J11 and intended-player waits.
-- Unverified: maintenance receipt, exact route prompt delivery, E46 source work and gates, and unavailable platform targets.
-- Exact next action: on the complete maintenance receipt, qualify the existing AM/Web Console route for initial prompt delivery; only after that succeeds, resume E46 using the same queued task and original Luna-medium profile. Open feedback: SUP-FOLLOWUP-20261013, SUP-OWNER-APPROVAL-20261013, BAS-FB-036, BAS-FB-020–038, FINITE-RETURN-01a12df5.
-
 ## Next
 
-- E46 — parked after two early Agent Manager prompt-delivery failures; resume the same task only after route repair and verification. (`epochs/E46.md`)
+- E46 — retained task `2546080f-7c56-4f85-94cb-640b552c9250`; child
+  `37282362-007c-41d1-b499-3fc0b2ad6a91` is CANCELLED. The 43-line fixture-only
+  change is present at source hash `e66202f7…c0e681`; fixture names are absent.
+  Worker-reported G1–G4 pass; G5 remains 251,599 vs 250,616 (+983). Inventory
+  source excludes `_test.go` from runtime counts, so this exact slice has no
+  qualifying runtime reduction. Preserve the child evidence and keep E46
+  unaccepted; no build/test rerun or successor dispatch under the reliability
+  heavy-lane hold.
+  (`epochs/E46.md`)
 
 ## Waiting on others
 
 These never hold acceptance or other slices.
 
-- **E46 Agent Manager route repair** — return after the Agent Manager maintenance
-  owner provides a lawful complete drain/adoption receipt; then qualify that the
-  existing interactive launch path creates a valid Web Console session and delivers
-  the prompt. Resume task `2546080f-7c56-4f85-94cb-640b552c9250` with no gate changes.
+- **E46 G5 and completion** — return only when the setpoint owner supplies a
+  new measured in-scope runtime reduction slice meeting the >=1,000-line
+  admission estimate, or explicitly revises G5's ceiling/metric against a fresh
+  accepted baseline. Then reconcile the same E46 task/source and require every
+  original gate before acceptance. Reliability's heavy-lane hold remains in
+  force for builds/tests until its owner releases it.
 
 - **E22-R1** — intended-player review of capture
   `8ed37203-2ff7-49d7-9e1f-f953e1f0edc2`. Returns when QA bug
@@ -196,3 +204,11 @@ These never hold acceptance or other slices.
 - E1 — Dead code and diagnostics ownership. (`epochs/E1.md`)
 - E0 — Journey suite and local fixture site. (`epochs/E0.md`)
 - E01 — cleanup selectors, scheduler cancellation, AI navigation hook split (pre-epoch work; see the archived queue)
+
+## Handoff
+
+- Changed: reconciled the retained E46 task/child and its source/inventory evidence; classified E46's G5 overage as outside the fixture-only slice.
+- Verified: task `2546080f-7c56-4f85-94cb-640b552c9250` remains QUEUED; child `37282362-007c-41d1-b499-3fc0b2ad6a91` is CANCELLED. Current fixture file is 5,034 bytes, SHA-256 `e66202f7…c0e681`, with neither fixture name present. Worker messages report G1–G4 pass and G5 251,599/250,616 (+983); inventory source classifies `_test.go` as test and excludes it from runtime totals. No gates were rerun. E46 remains unaccepted.
+- Remaining: original G5 is unmet; full unified diff/independent active-test comparison and correlated tool receipts are unavailable. Preserve J09/J11, E22-R1/R2, intended-player review, and all platform return conditions. Reliability retains the heavy build/test lane.
+- Unverified: parent-side G1–G4 and G5 reruns, full diff reconstruction, and any fresh accepted inventory baseline.
+- Exact next action: park this retained effort pending the setpoint owner's decision to provide a measured, in-scope runtime reduction slice with >=1,000-line estimate or explicitly revise G5's ceiling/metric against a fresh accepted baseline. Do not dispatch a successor or alter unrelated runtime code. Keep the reliability heavy-lane hold until its owner releases it. Open feedback: RELIABILITY-NOTIFICATION-PRIORITY-20261017, RELIABILITY-E46-RETURN-20261017, RELIABILITY-PROMPT-RETURN-20261017, RELIABILITY-AM-RECEIVING-20261017, SUP-NATIVE-RESUME-20261014, SUP-OWNER-APPROVAL-20261013, SUP-FOLLOWUP-20261013, BAS-FB-036, BAS-FB-020–038, FINITE-RETURN-01a12df5.

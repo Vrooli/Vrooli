@@ -1,0 +1,280 @@
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/features/components/ComponentEditor.test.tsx > ComponentEditor > keeps frame experiments temporary until the author explicitly saves them
+TestingLibraryElementError: Unable to find role="option" and name "navigation.page"
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<section[39m
+      [33maria-label[39m=[32m"Editing lib:FrameSave"[39m
+      [33mclass[39m=[32m"relative flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden bg-app-background "[39m
+      [33mdata-testid[39m=[32m"components-editor-panel"[39m
+    [36m>[39m
+      [36m<header[39m
+        [33mclass[39m=[32m"rcl-workspace-header"[39m
+        [33mdata-rcl-workspace-header[39m=[32m"true"[39m
+        [33mdata-testid[39m=[32m"workspace-header"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"rcl-workspace-header__row"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"rcl-workspace-header__copy"[39m
+          [36m>[39m
+            [36m<h1[39m
+              [33mclass[39m=[32m"rcl-workspace-header__title"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33mdata-testid[39m=[32m"components-editor-title"[39m
+              [36m>[39m
+                [0mlib:FrameSave[0m
+              [36m</span>[39m
+            [36m</h1>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"rcl-workspace-header__description"[39m
+            [36m>[39m
+              [0mSource, preview, and viewport controls[0m
+            [36m</p>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"rcl-workspace-header__actions"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex items-center gap-space-2xs"[39m
+            [36m>[39m
+              [36m<button[39m
+                [33maria-label[39m=[32m"Split view"[39m
+                [33maria-pressed[39m=[32m"false"[39m
+                [33mclass[39m=[32m"hidden h-control-tight min-h-control-tight min-w-control-tight lg:inline-flex border border-app-border bg-app-surface"[39m
+                [33mdata-rcl-icon-button[39m=[32m""[39m
+                [33mdata-rcl-pending[39m=[32m"false"[39m
+                [33mdata-rcl-shape[39m=[32m"circle"[39m
+                [33mdata-rcl-size[39m=[32m"md"[39m
+                [33mdata-rcl-surface[39m=[32m"ghost"[39m
+                [33mdata-rcl-tap-target[39m=[32m"comfortable"[39m
+                [33mdata-testid[39m=[32m"components-editor-split-view-toggle"[39m
+                [33mstyle[39m=[32m"inline-size: var(--control-size-md); block-size: var(--control-size-md);"[39m
+                [33mtitle[39m=[32m"Split view"[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33mdata-rcl-icon-button-glyph[39m=[32m""[39m
+                  [33mstyle[39m=[32m"inline-size: var(--icon-size-md); block-size: var(--icon-size-md);"[39m
+                [36m>[39m
+                  [36m<span[39m
+                    [33maria-hidden[39m=[32m"true"[39m
+                    [33mdata-rcl-morphing-icon[39m=[32m""[39m
+                    [33mdata-rcl-technique[39m=[32m"idle"[39m
+                    [33mdata-rcl-transition-mode[39m=[32m"auto"[39m
+                    [33mdata-size[39m=[32m"md"[39m
+                    [33mdata-testid[39m=[32m"motion.morphing-icon"[39m
+                    [33mstyle[39m=[32m"inline-size: var(--icon-size-md); block-size: var(--icon-size-md);"[39m
+                  [36m>[39m
+                    [36m<span[39m
+                      [33mdata-rcl-morphing-icon-current[39m=[32m""[39m
+                    [36m>[39m
+                      [36m<svg[39m
+                        [33maria-hidden[39m=[32m"true"[39m
+                        [33mclass[39m=[32m"lucide lucide-columns3 h-icon-compact w-icon-compact"[39m
+                        [33mfill[39m=[32m"none"[39m
+                        [33mheight[39m=[32m"24"[39m
+                        [33mstroke[39m=[32m"currentColor"[39m
+                        [33mstroke-linecap[39m=[32m"round"[39m
+                        [33mstroke-linejoin[39m=[32m"round"[39m
+                        [33mstroke-width[39m=[32m"2"[39m
+                        [33mviewBox[39m=[32m"0 0 24 24"[39m
+                        [33mwidth[39m=[32m"24"[39m
+                        [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                      [36m>[39m
+                        [36m<rect[39m
+                          [33mheight[39m=[32m"18"[39m
+                          [33mrx[39m=[32m"2"[39m
+                          [33mwidth[39m=[32m"18"[39m
+                          [33mx[39m=[32m"3"[39m
+                          [33my[39m=[32m"3"[39m
+                        [36m/>[39m
+                        [36m<path[39m
+                          [33md[39m=[32m"M9 3v18"[39m
+                        [36m/>[39m
+                        [36m<path[39m
+                          [33md[39m=[32m"M15 3v18"[39m
+                        [36m/>[39m
+                      [36m</svg>[39m
+                    [36m</span>[39m
+                  [36m</span>[39m
+                [36m</span>[39m
+              [36m</button>[39m
+              [36m<button[39m
+                [33maria-label[39m=[32m"Back to list"[39m
+                [33mclass[39m=[32m"h-touch min-h-touch min-w-touch border border-app-border bg-app-surface"[39m
+                [33mdata-rcl-icon-button[39m=[32m""[39m
+                [33mdata-rcl-pending[39m=[32m"false"[39m
+                [33mdata-rcl-shape[39m=[32m"circle"[39m
+                [33mdata-rcl-size[39m=[32m"md"[39m
+                [33mdata-rcl-surface[39m=[32m"ghost"[39m
+                [33mdata-rcl-tap-target[39m=[32m"comfortable"[39m
+                [33mdata-testid[39m=[32m"components-editor-close-button"[39m
+                [33mstyle[39m=[32m"inline-size: var(--control-size-md); block-size: var(--control-size-md);"[39m
+                [33mtitle[39m=[32m"Back to list"[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33mdata-rcl-icon-button-glyph[39m=[32m""[39m
+                  [33mstyle[39m=[32m"inline-size: var(--icon-size-md); block-size: var(--icon-size-md);"[39m
+                [36m>[39m
+                  [36m<span[39m
+                    [33maria-hidden[39m=[32m"true"[39m
+                    [33mdata-rcl-morphing-icon[39m=[32m""[39m
+                    [33mdata-rcl-technique[39m=[32m"idle"[39m
+                    [33mdata-rcl-transition-mode[39m=[32m"auto"[39m
+                    [33mdata-size[39m=[32m"md"[39m
+                    [33mdata-testid[39m=[32m"motion.morphing-icon"[39m
+                    [33mstyle[39m=[32m"inline-size: var(--icon-size-md); block-size: var(--icon-size-md);"[39m
+                  [36m>[39m
+                    [36m<span[39m
+                      [33mdata-rcl-morphing-icon-current[39m=[32m""...
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<section[39m
+      [33maria-label[39m=[32m"Editing lib:FrameSave"[39m
+      [33mclass[39m=[32m"relative flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden bg-app-background "[39m
+      [33mdata-testid[39m=[32m"components-editor-panel"[39m
+    [36m>[39m
+      [36m<header[39m
+        [33mclass[39m=[32m"rcl-workspace-header"[39m
+        [33mdata-rcl-workspace-header[39m=[32m"true"[39m
+        [33mdata-testid[39m=[32m"workspace-header"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"rcl-workspace-header__row"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"rcl-workspace-header__copy"[39m
+          [36m>[39m
+            [36m<h1[39m
+              [33mclass[39m=[32m"rcl-workspace-header__title"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33mdata-testid[39m=[32m"components-editor-title"[39m
+              [36m>[39m
+                [0mlib:FrameSave[0m
+              [36m</span>[39m
+            [36m</h1>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"rcl-workspace-header__description"[39m
+            [36m>[39m
+              [0mSource, preview, and viewport controls[0m
+            [36m</p>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"rcl-workspace-header__actions"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex items-center gap-space-2xs"[39m
+            [36m>[39m
+              [36m<button[39m
+                [33maria-label[39m=[32m"Split view"[39m
+                [33maria-pressed[39m=[32m"false"[39m
+                [33mclass[39m=[32m"hidden h-control-tight min-h-control-tight min-w-control-tight lg:inline-flex border border-app-border bg-app-surface"[39m
+                [33mdata-rcl-icon-button[39m=[32m""[39m
+                [33mdata-rcl-pending[39m=[32m"false"[39m
+                [33mdata-rcl-shape[39m=[32m"circle"[39m
+                [33mdata-rcl-size[39m=[32m"md"[39m
+                [33mdata-rcl-surface[39m=[32m"ghost"[39m
+                [33mdata-rcl-tap-target[39m=[32m"comfortable"[39m
+                [33mdata-testid[39m=[32m"components-editor-split-view-toggle"[39m
+                [33mstyle[39m=[32m"inline-size: var(--control-size-md); block-size: var(--control-size-md);"[39m
+                [33mtitle[39m=[32m"Split view"[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33mdata-rcl-icon-button-glyph[39m=[32m""[39m
+                  [33mstyle[39m=[32m"inline-size: var(--icon-size-md); block-size: var(--icon-size-md);"[39m
+                [36m>[39m
+                  [36m<span[39m
+                    [33maria-hidden[39m=[32m"true"[39m
+                    [33mdata-rcl-morphing-icon[39m=[32m""[39m
+                    [33mdata-rcl-technique[39m=[32m"idle"[39m
+                    [33mdata-rcl-transition-mode[39m=[32m"auto"[39m
+                    [33mdata-size[39m=[32m"md"[39m
+                    [33mdata-testid[39m=[32m"motion.morphing-icon"[39m
+                    [33mstyle[39m=[32m"inline-size: var(--icon-size-md); block-size: var(--icon-size-md);"[39m
+                  [36m>[39m
+                    [36m<span[39m
+                      [33mdata-rcl-morphing-icon-current[39m=[32m""[39m
+                    [36m>[39m
+                      [36m<svg[39m
+                        [33maria-hidden[39m=[32m"true"[39m
+                        [33mclass[39m=[32m"lucide lucide-columns3 h-icon-compact w-icon-compact"[39m
+                        [33mfill[39m=[32m"none"[39m
+                        [33mheight[39m=[32m"24"[39m
+                        [33mstroke[39m=[32m"currentColor"[39m
+                        [33mstroke-linecap[39m=[32m"round"[39m
+                        [33mstroke-linejoin[39m=[32m"round"[39m
+                        [33mstroke-width[39m=[32m"2"[39m
+                        [33mviewBox[39m=[32m"0 0 24 24"[39m
+                        [33mwidth[39m=[32m"24"[39m
+                        [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                      [36m>[39m
+                        [36m<rect[39m
+                          [33mheight[39m=[32m"18"[39m
+                          [33mrx[39m=[32m"2"[39m
+                          [33mwidth[39m=[32m"18"[39m
+                          [33mx[39m=[32m"3"[39m
+                          [33my[39m=[32m"3"[39m
+                        [36m/>[39m
+                        [36m<path[39m
+                          [33md[39m=[32m"M9 3v18"[39m
+                        [36m/>[39m
+                        [36m<path[39m
+                          [33md[39m=[32m"M15 3v18"[39m
+                        [36m/>[39m
+                      [36m</svg>[39m
+                    [36m</span>[39m
+                  [36m</span>[39m
+                [36m</span>[39m
+              [36m</button>[39m
+              [36m<button[39m
+                [33maria-label[39m=[32m"Back to list"[39m
+                [33mclass[39m=[32m"h-touch min-h-touch min-w-touch border border-app-border bg-app-surface"[39m
+                [33mdata-rcl-icon-button[39m=[32m""[39m
+                [33mdata-rcl-pending[39m=[32m"false"[39m
+                [33mdata-rcl-shape[39m=[32m"circle"[39m
+                [33mdata-rcl-size[39m=[32m"md"[39m
+                [33mdata-rcl-surface[39m=[32m"ghost"[39m
+                [33mdata-rcl-tap-target[39m=[32m"comfortable"[39m
+                [33mdata-testid[39m=[32m"components-editor-close-button"[39m
+                [33mstyle[39m=[32m"inline-size: var(--control-size-md); block-size: var(--control-size-md);"[39m
+                [33mtitle[39m=[32m"Back to list"[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33mdata-rcl-icon-button-glyph[39m=[32m""[39m
+                  [33mstyle[39m=[32m"inline-size: var(--icon-size-md); block-size: var(--icon-size-md);"[39m
+                [36m>[39m
+                  [36m<span[39m
+                    [33maria-hidden[39m=[32m"true"[39m
+                    [33mdata-rcl-morphing-icon[39m=[32m""[39m
+                    [33mdata-rcl-technique[39m=[32m"idle"[39m
+                    [33mdata-rcl-transition-mode[39m=[32m"auto"[39m
+                    [33mdata-size[39m=[32m"md"[39m
+                    [33mdata-testid[39m=[32m"motion.morphing-icon"[39m
+                    [33mstyle[39m=[32m"inline-size: var(--icon-size-md); block-size: var(--icon-size-md);"[39m
+                  [36m>[39m
+                    [36m<span[39m
+                      [33mdata-rcl-morphing-icon-current[39m=[32m""...
+ ❯ waitForWrapper node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/features/components/ComponentEditor.test.tsx:961:40
+    959|     expect(persistPreviewFrame).not.toHaveBeenCalled();
+    960|     await userEvent.click(picker);
+    961|     await userEvent.click(await screen.findByRole("option", { name: "n…
+       |                                        ^
+    962|     const save = await screen.findByTestId("components-editor-frame-sa…
+    963|     await userEvent.click(save);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

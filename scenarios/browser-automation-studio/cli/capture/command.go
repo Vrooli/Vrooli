@@ -18,7 +18,9 @@ package capture
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -27,6 +29,7 @@ import (
 
 	"connectrpc.com/connect"
 
+	basebase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	capturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/capture"
 	captureconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/capture/captureconnect"
 
@@ -68,6 +71,8 @@ func captureArgSchema() cliapp.ArgSchema {
 			{Name: "device-scale-factor", Description: "CSS pixel ratio (0.5-4.0)"},
 			{Name: "wait-for", Description: "Readiness: CSS selector | 'networkidle' | timeout in ms"},
 			{Name: "screenshot-selector", Description: "CSS selector for the authoritative screenshot boundary"},
+			{Name: "routed-test-mode", Bool: true, Description: "Mark browser target requests as test-mode; caller must install the target SQL/file lease first"},
+			{Name: "interaction-flow-file", Description: "JSON interaction flow to execute after navigation; server validates the graph (at most 2 MiB)"},
 			{Name: "out", Description: "Output directory for artifact files; relative paths resolve under the scenario's captures storage root"},
 			{Name: "label", Description: "Label echoed into the artifact bundle"},
 			{Name: "inline-accessibility", Bool: true, Description: "Return the normalized accessibility-tree snapshot JSON inline (drives the AX capture; independent of --capture)"},
@@ -91,6 +96,8 @@ type captureFlags struct {
 	hasDeviceScale      bool
 	waitFor             string
 	screenshotSelector  string
+	routedTestMode      bool
+	interactionFlowFile string
 	outDir              string
 	label               string
 	inlineAccessibility bool
@@ -108,6 +115,8 @@ func flagsFromContext(rc cliapp.RunContext) (captureFlags, error) {
 		dimensions:          strings.ToLower(strings.TrimSpace(rc.Flag("dimensions"))),
 		waitFor:             rc.Flag("wait-for"),
 		screenshotSelector:  rc.Flag("screenshot-selector"),
+		interactionFlowFile: rc.Flag("interaction-flow-file"),
+		routedTestMode:      rc.BoolFlag("routed-test-mode"),
 		outDir:              rc.Flag("out"),
 		label:               rc.Flag("label"),
 		inlineAccessibility: rc.BoolFlag("inline-accessibility"),
@@ -196,6 +205,16 @@ func buildCaptureRequest(f captureFlags) (*capturev1.CaptureRequest, error) {
 		InlineDomTree:       f.inlineDOMTree,
 		Direction:           f.direction,
 	}
+	if f.routedTestMode {
+		req.BrowserProfile = &basebase.BrowserProfile{ExtraHeaders: map[string]string{"X-Vrooli-Test-Mode": "1"}}
+	}
+	if f.interactionFlowFile != "" {
+		flow, err := readInteractionFlow(f.interactionFlowFile)
+		if err != nil {
+			return nil, err
+		}
+		req.InteractionFlowJson = flow
+	}
 
 	for _, tok := range f.captures {
 		ct, err := parseCaptureType(tok)
@@ -240,6 +259,27 @@ func buildCaptureRequest(f captureFlags) (*capturev1.CaptureRequest, error) {
 	}
 
 	return req, nil
+}
+
+func readInteractionFlow(path string) (string, error) {
+	info, err := os.Stat(path)
+	if err != nil || !info.Mode().IsRegular() || info.Size() > 2<<20 {
+		return "", fmt.Errorf("--interaction-flow-file requires a regular JSON file of at most 2 MiB")
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		return "", fmt.Errorf("--interaction-flow-file: %w", err)
+	}
+	defer file.Close()
+	info, err = file.Stat()
+	if err != nil || !info.Mode().IsRegular() || info.Size() > 2<<20 {
+		return "", fmt.Errorf("--interaction-flow-file requires a regular JSON file of at most 2 MiB")
+	}
+	raw, err := io.ReadAll(io.LimitReader(file, (2<<20)+1))
+	if err != nil || len(raw) > 2<<20 || !json.Valid(raw) {
+		return "", fmt.Errorf("--interaction-flow-file requires valid JSON of at most 2 MiB")
+	}
+	return string(raw), nil
 }
 
 func parseDimensionsPreset(s string) (capturev1.DimensionsPreset, error) {

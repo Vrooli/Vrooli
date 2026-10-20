@@ -1,7 +1,7 @@
 import { type ReactNode } from "react";
 import { AmbientDisplayShell, type AmbientDisplayShellProps } from "./AmbientDisplayShell";
 import { ExperienceSurface } from "@vrooli/react-component-library/ExperienceSurface/1.0.3";
-import { INK_LABELS, InkSwatch } from "@vrooli/react-component-library/ProvenanceInk/0.1.2";
+import { INK_LABELS, InkSwatch } from "@vrooli/react-component-library/ProvenanceInk/0.1.3";
 import { useBoardController, useBoardProgress, type SamplesMode } from "../lib/boardContext";
 
 interface AmbientShellProps {

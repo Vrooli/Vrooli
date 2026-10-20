@@ -543,6 +543,16 @@ func (s *service) UpdateContentAt(ctx context.Context, id, path string, in Write
 	if err != nil {
 		return Content{}, err
 	}
+	// story.json is the active draft's indexed preview contract. Refresh only
+	// this selected manifest/version after its companion write so component-test
+	// discovery observes the same contract as the draft file and preview reader.
+	// Content-only test or embedding stores have no source root; keep that
+	// optional seam usable without attempting an index operation.
+	if path == "story.json" && s.source != nil {
+		if _, err := NewIndexer(s.repo, s.source.Root(), nil).IndexAuthoringManifest(ctx, c.ManifestPath, draftVersion); err != nil {
+			return Content{}, fmt.Errorf("refresh active draft index %s@%s: %w", c.LibraryID, draftVersion, err)
+		}
+	}
 	if s.listener != nil {
 		// Listener errors are non-fatal — the file is already written.
 		// Callers swallow + log at the handler edge.

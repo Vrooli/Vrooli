@@ -109,19 +109,28 @@ func (r *sqliteRepository) ListMilestones(ctx context.Context, goalID string) ([
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 	out := []Milestone{}
 	for rows.Next() {
 		var m Milestone
 		if err := rows.Scan(&m.ID, &m.GoalID, &m.Title, &m.Criteria, &m.DueDate, &m.Status, &m.Revision, &m.LinkedWorkItemID); err != nil {
-			return nil, err
-		}
-		if err := r.loadPrerequisites(ctx, &m); err != nil {
+			rows.Close()
 			return nil, err
 		}
 		out = append(out, m)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	for i := range out {
+		if err := r.loadPrerequisites(ctx, &out[i]); err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
 }
 
 func (r *sqliteRepository) CreateMilestone(ctx context.Context, m Milestone) (Milestone, error) {

@@ -557,6 +557,7 @@ func TestTaskStatus_IsValid(t *testing.T) {
 		{TaskStatusQueued, true},
 		{TaskStatusRunning, true},
 		{TaskStatusNeedsReview, true},
+		{TaskStatusCompleted, true},
 		{TaskStatusApproved, true},
 		{TaskStatusRejected, true},
 		{TaskStatusFailed, true},

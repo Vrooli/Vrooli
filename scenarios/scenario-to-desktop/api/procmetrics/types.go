@@ -36,36 +36,47 @@ const (
 	RoleScenarioService  ProcessRole = "scenario_service"
 	RoleLauncher         ProcessRole = "launcher"
 	RoleUnknown          ProcessRole = "unknown"
+	RoleShellMain        ProcessRole = "shell_main"
+	RoleWebviewRenderer  ProcessRole = "webview_renderer"
+	RoleWebviewGPU       ProcessRole = "webview_gpu"
+	RoleWebviewOther     ProcessRole = "webview_other"
+	RoleBackend          ProcessRole = "backend"
 )
 
 // ProcessInfo is one node in a sampled process tree.
 type ProcessInfo struct {
-	PID        int         `json:"pid"`
-	PPID       int         `json:"ppid"`
-	Command    string      `json:"command,omitempty"`
-	Cmdline    []string    `json:"cmdline,omitempty"`
-	Exe        string      `json:"exe,omitempty"`
-	Role       ProcessRole `json:"role"`
-	CPUJiffies int64       `json:"cpu_jiffies"`
-	RSSBytes   int64       `json:"rss_bytes"`
-	PeakBytes  int64       `json:"peak_bytes"`
-	Threads    int         `json:"threads"`
+	PID                  int         `json:"pid"`
+	PPID                 int         `json:"ppid"`
+	Command              string      `json:"command,omitempty"`
+	Cmdline              []string    `json:"cmdline,omitempty"`
+	Exe                  string      `json:"exe,omitempty"`
+	Role                 ProcessRole `json:"role"`
+	CPUJiffies           int64       `json:"cpu_jiffies"`
+	RSSBytes             int64       `json:"rss_bytes"`
+	PSSBytes             int64       `json:"pss_bytes,omitempty"`
+	USSBytes             int64       `json:"uss_bytes,omitempty"`
+	MemoryStatsAvailable bool        `json:"memory_stats_available"`
+	PeakBytes            int64       `json:"peak_bytes"`
+	Threads              int         `json:"threads"`
 }
 
 // RoleSummary aggregates unique process nodes. Unsupported roles remain
 // unavailable instead of becoming zero-valued measurements.
 type RoleSummary struct {
-	Role         ProcessRole `json:"role"`
-	Available    bool        `json:"available"`
-	Unsupported  bool        `json:"unsupported,omitempty"`
-	ProcessCount int         `json:"process_count"`
-	CPUPercent   float64     `json:"cpu_percent"`
-	PeakCPU      float64     `json:"peak_cpu_percent"`
-	RSSBytes     int64       `json:"rss_bytes"`
-	PeakRSSBytes int64       `json:"peak_rss_bytes"`
-	Threads      int         `json:"threads"`
-	DurationMs   int64       `json:"duration_ms"`
-	SampleCount  int         `json:"sample_count"`
+	Role                 ProcessRole `json:"role"`
+	Available            bool        `json:"available"`
+	Unsupported          bool        `json:"unsupported,omitempty"`
+	ProcessCount         int         `json:"process_count"`
+	CPUPercent           float64     `json:"cpu_percent"`
+	PeakCPU              float64     `json:"peak_cpu_percent"`
+	RSSBytes             int64       `json:"rss_bytes"`
+	PSSBytes             int64       `json:"pss_bytes,omitempty"`
+	USSBytes             int64       `json:"uss_bytes,omitempty"`
+	MemoryStatsAvailable bool        `json:"memory_stats_available"`
+	PeakRSSBytes         int64       `json:"peak_rss_bytes"`
+	Threads              int         `json:"threads"`
+	DurationMs           int64       `json:"duration_ms"`
+	SampleCount          int         `json:"sample_count"`
 }
 
 // ProcessTreeReport describes the attribution scope and role totals.
@@ -79,6 +90,25 @@ type ProcessTreeReport struct {
 // An empty name enables the conservative executable-path heuristic.
 type ProcessTreeOptions struct {
 	AppExecutableName string
+}
+
+// GenericProcessRole maps the current engine classifier onto the taxonomy
+// shared by desktop and future mobile shells.
+func GenericProcessRole(role ProcessRole) ProcessRole {
+	switch role {
+	case RoleElectronMain, RoleShellMain:
+		return RoleShellMain
+	case RoleElectronRender, RoleWebviewRenderer:
+		return RoleWebviewRenderer
+	case RoleElectronGPU, RoleWebviewGPU:
+		return RoleWebviewGPU
+	case RoleElectronUtility, RoleElectronCrashpad, RoleWebviewOther:
+		return RoleWebviewOther
+	case RoleBundledRuntime, RoleScenarioService, RoleBackend:
+		return RoleBackend
+	default:
+		return RoleUnknown
+	}
 }
 
 // StartupTiming records app startup in two phases:

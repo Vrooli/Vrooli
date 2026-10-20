@@ -39,8 +39,8 @@ describe("ActionLauncher", () => {
   it("starts extract-assist through the workflow dispatcher", async () => {
     const user = userEvent.setup();
     renderLauncher("extract");
-    await screen.findByRole("option", { name: "demo" });
-    await user.selectOptions(screen.getByLabelText("catalog.sourceScenario"), "demo");
+    await user.click(screen.getByRole("button", { name: "catalog.sourceScenario" }));
+    await user.click(await screen.findByRole("option", { name: "demo" }));
     await user.type(screen.getByLabelText("catalog.sourcePath"), "ui/src/Panel.tsx");
     await user.click(screen.getByRole("button", { name: "launcher.startExtract" }));
     await waitFor(() =>
@@ -57,9 +57,10 @@ describe("ActionLauncher", () => {
   it("starts one adopt-assist workflow for each target", async () => {
     const user = userEvent.setup();
     renderLauncher("adopt");
-    await screen.findByRole("option", { name: "Button" });
-    await user.selectOptions(screen.getByLabelText("launcher.asset"), "cmp-1");
-    await user.selectOptions(screen.getByLabelText("launcher.targets"), ["demo-a", "demo-b"]);
+    await user.click(screen.getByRole("button", { name: "launcher.asset" }));
+    await user.click(await screen.findByRole("option", { name: "Button" }));
+    await user.click(screen.getByRole("checkbox", { name: "demo-a" }));
+    await user.click(screen.getByRole("checkbox", { name: "demo-b" }));
     await user.click(screen.getByRole("button", { name: "launcher.startAdopt" }));
     await waitFor(() => expect(startWorkflow.mock.calls).toHaveLength(2));
     expect(startWorkflow).toHaveBeenCalledWith(
@@ -73,7 +74,7 @@ describe("ActionLauncher", () => {
   it("filters typed picker options before selection", async () => {
     const user = userEvent.setup();
     renderLauncher("extract");
-    await screen.findByRole("option", { name: "demo-a" });
+    await user.click(screen.getByRole("button", { name: "catalog.sourceScenario" }));
     await user.type(screen.getByRole("searchbox"), "demo-a");
     expect(screen.getByRole("option", { name: "demo-a" })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "demo-b" })).not.toBeInTheDocument();
@@ -100,8 +101,8 @@ describe("ActionLauncher", () => {
     startWorkflow.mockRejectedValueOnce(new Error("offline"));
     const user = userEvent.setup();
     renderLauncher("extract");
-    await screen.findByRole("option", { name: "demo" });
-    await user.selectOptions(screen.getByLabelText("catalog.sourceScenario"), "demo");
+    await user.click(screen.getByRole("button", { name: "catalog.sourceScenario" }));
+    await user.click(await screen.findByRole("option", { name: "demo" }));
     await user.type(screen.getByLabelText("catalog.sourcePath"), "ui/Button.tsx");
     await user.click(screen.getByRole("button", { name: "launcher.startExtract" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("launcher.startError");
@@ -111,9 +112,9 @@ describe("ActionLauncher", () => {
     startWorkflow.mockRejectedValueOnce(new Error("offline"));
     const user = userEvent.setup();
     renderLauncher("adopt");
-    await screen.findByRole("option", { name: "Button" });
-    await user.selectOptions(screen.getByLabelText("launcher.asset"), "cmp-1");
-    await user.selectOptions(screen.getByLabelText("launcher.targets"), "demo-a");
+    await user.click(screen.getByRole("button", { name: "launcher.asset" }));
+    await user.click(await screen.findByRole("option", { name: "Button" }));
+    await user.click(screen.getByRole("checkbox", { name: "demo-a" }));
     await user.click(screen.getByRole("button", { name: "launcher.startAdopt" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("launcher.startError");
   });

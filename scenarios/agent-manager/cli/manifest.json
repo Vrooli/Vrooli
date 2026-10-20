@@ -5131,6 +5131,70 @@
               "network:internal"
             ]
           }
+        },
+        {
+          "name": "feedback",
+          "description": "Write run-linked supervisor feedback and record its signal",
+          "flags": [
+            {
+              "name": "effort-ref",
+              "required": true,
+              "description": "Exact enrolled effort reference",
+              "local_only": true
+            },
+            {
+              "name": "run",
+              "required": true,
+              "description": "Run carrying the exact active effort reference",
+              "local_only": true
+            },
+            {
+              "name": "id",
+              "required": true,
+              "description": "Stable FEEDBACK entry ID",
+              "local_only": true
+            },
+            {
+              "name": "title",
+              "required": true,
+              "description": "Single-line feedback title",
+              "local_only": true
+            },
+            {
+              "name": "detail",
+              "required": true,
+              "description": "Feedback detail",
+              "local_only": true
+            },
+            {
+              "name": "json",
+              "bool": true,
+              "description": "Print file and signal status",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "positionals": [
+            {
+              "name": "action",
+              "required": true,
+              "description": "add"
+            },
+            {
+              "name": "goal-home",
+              "required": true,
+              "description": "Goal-home directory"
+            }
+          ]
         }
       ]
     },

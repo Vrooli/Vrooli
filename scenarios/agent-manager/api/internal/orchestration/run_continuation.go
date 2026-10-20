@@ -83,6 +83,9 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 	if err != nil {
 		return nil, err
 	}
+	if err := o.ensureCurrentTaskRun(ctx, run); err != nil {
+		return nil, err
+	}
 	if run.ExecutionMode.Normalized() == domain.ExecutionModeImported {
 		return nil, importedRunLifecycleError("continue")
 	}
@@ -161,6 +164,38 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 		return nil, err
 	}
 	return continued, nil
+}
+
+// ensureCurrentTaskRun fences all side-effecting continuation work against the
+// durable Task owner. A legacy NULL owner is associated only with this exact
+// requested Run and only when the repository can prove there is no competing
+// nonterminal attempt. No timestamp/list-order selection is allowed.
+func (o *Orchestrator) ensureCurrentTaskRun(ctx context.Context, run *domain.Run) error {
+	if run == nil || run.TaskID == uuid.Nil || o.runs == nil {
+		return domain.NewStateError("Task", "unknown", "continue run", "exact current Task/Run ownership could not be verified")
+	}
+	task, err := o.GetTask(ctx, run.TaskID)
+	if err != nil {
+		return err
+	}
+	switch task.Status {
+	case domain.TaskStatusCancelled, domain.TaskStatusApproved, domain.TaskStatusRejected:
+		return domain.NewStateError("Task", string(task.Status), "continue run", "terminal Task state refuses continuation")
+	}
+	if task.CurrentRunID != nil {
+		if *task.CurrentRunID != run.ID {
+			return domain.NewStateError("Task", "different_current_run", "continue run", "requested Run no longer owns the Task")
+		}
+		return nil
+	}
+	claimed, err := o.runs.EnsureCurrentRun(ctx, task.ID, run.ID, o.now())
+	if err != nil {
+		return err
+	}
+	if !claimed {
+		return domain.NewStateError("Task", "legacy_owner_unresolved", "continue run", "requested Run could not be safely bound as the sole current attempt")
+	}
+	return nil
 }
 
 func (o *Orchestrator) observeInteractiveRun(ctx context.Context, run *domain.Run) error {
@@ -664,6 +699,10 @@ func (o *Orchestrator) prepareContinuationSandbox(ctx context.Context, run *doma
 		// Terminal retention deliberately deletes successful sandboxes. A codec
 		// session still remains continuable because its home is run-scoped, so
 		// provision a fresh workspace rather than weakening the delete policy.
+		// Scope the create key to this deleted sandbox incarnation: retries of
+		// this replacement reuse one resource, while a later deleted replacement
+		// receives a new key instead of replaying its tombstone.
+		deletedSandboxID := *run.SandboxID
 		out, createErr := phases.SetupWorkspace(ctx, phases.SetupWorkspaceInput{
 			Deps: phases.Deps{
 				Runs:             o.runs,
@@ -676,7 +715,7 @@ func (o *Orchestrator) prepareContinuationSandbox(ctx context.Context, run *doma
 			Task:                     task,
 			Sandbox:                  o.sandbox,
 			RunStateRoot:             runStateRoot,
-			SandboxIdempotencySuffix: ":continuation:" + run.SessionID,
+			SandboxIdempotencySuffix: ":continuation:" + run.SessionID + ":" + deletedSandboxID.String(),
 		})
 		if createErr != nil {
 			return "", createErr

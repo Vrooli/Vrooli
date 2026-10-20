@@ -9,6 +9,8 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"runtime"
+	"sort"
 	"strings"
 	"time"
 
@@ -28,12 +30,36 @@ import (
 // demo app visible for screen recording.
 const DefaultDemoHoldMs = 30000
 
-func launchTracePath(smokeTestID, kind string) string {
-	return filepath.Join(os.TempDir(), "scenario-to-desktop", "launch-traces", smokeTestID+"-"+kind+".json")
+const measuredDemoHoldMs = 6 * 60 * 1000
+
+func demoHoldTiming(measured bool) (int, time.Duration) {
+	if measured {
+		return measuredDemoHoldMs, 7 * time.Minute
+	}
+	return DefaultDemoHoldMs, 90 * time.Second
+}
+
+func packagedLaunchPath(smokeTestID, kind string) string {
+	return filepath.Join(os.TempDir(), "scenario-to-desktop", "packaged-launches", smokeTestID+"-"+kind+".json")
 }
 
 func profileDirPath(smokeTestID, kind string) string {
 	return filepath.Join(os.TempDir(), "scenario-to-desktop", "profiles", smokeTestID+"-"+kind)
+}
+
+func measuredProfileDirPath(smokeTestID string) string {
+	return filepath.Join(os.TempDir(), "scenario-to-desktop", "profiles", smokeTestID+"-measured")
+}
+
+func measuredUserDataDirPath(smokeTestID, stage string, status *Status) string {
+	key := smokeTestID
+	// Cold protocol validation must not initialize the measured launch's user
+	// data. Warm measurement deliberately reuses protocol state for the second
+	// immediate launch.
+	if status != nil && status.Condition == "cold" {
+		key += "-" + stage
+	}
+	return filepath.Join(os.TempDir(), "scenario-to-desktop", "user-data", key)
 }
 
 // recordingState holds the active screen recording context during a smoke test.
@@ -97,6 +123,11 @@ func (s *DefaultService) PerformSmokeTestRequest(ctx context.Context, request Sm
 			status.DeploymentMode = request.DeploymentMode
 			status.ProxyURL = request.ProxyURL
 			status.PipelineID = request.PipelineID
+			status.Measured = request.Measured
+			status.Condition = request.Condition
+			status.Strategy = request.Strategy
+			status.ExperimentID = request.ExperimentID
+			status.ArtifactDigest = request.ArtifactDigest
 			if request.DeploymentMode == "bundled" {
 				status.ScreenContentSource = "unknown"
 			} else if request.DeploymentMode == "proxy" {
@@ -446,17 +477,27 @@ func (s *DefaultService) executeSmokeTest(ctx context.Context, smokeTestID, arti
 	if status, ok := s.store.Get(smokeTestID); ok {
 		smokeTimeout = s.config.TimeoutForDeploymentMode(status.DeploymentMode)
 		smokeTimeoutMS = s.config.TimeoutMSForDeploymentMode(status.DeploymentMode)
+		if status.Measured {
+			args = append(args, "--user-data-dir="+measuredUserDataDirPath(smokeTestID, "protocol", status))
+		}
 	}
 	// Build environment
 	uploadURL := telemetryIngestURL(s.port)
+	profile := profileDirPath(smokeTestID, "protocol")
+	if status, ok := s.store.Get(smokeTestID); ok && status.Measured {
+		profile = measuredProfileDirPath(smokeTestID)
+	}
 	env := []string{
 		"SMOKE_TEST=1",
 		fmt.Sprintf("SMOKE_TEST_TIMEOUT_MS=%d", smokeTimeoutMS),
 		fmt.Sprintf("SMOKE_TEST_UPLOAD_URL=%s", uploadURL),
 		fmt.Sprintf("SMOKE_TEST_RUN_ID=%s", smokeTestID),
-		fmt.Sprintf("S2D_TRACE_PATH=%s", launchTracePath(smokeTestID, "protocol")),
+		fmt.Sprintf("S2D_PACKAGED_LAUNCH_PATH=%s", packagedLaunchPath(smokeTestID, "protocol")),
 		fmt.Sprintf("S2D_PROFILE_MODE=%s", configuredProfileMode()),
-		fmt.Sprintf("S2D_PROFILE_DIR=%s", profileDirPath(smokeTestID, "protocol")),
+		fmt.Sprintf("S2D_PROFILE_DIR=%s", profile),
+	}
+	if status, ok := s.store.Get(smokeTestID); ok {
+		env = appendMeasuredLaunchEnvironment(env, status)
 	}
 	if status, ok := s.store.Get(smokeTestID); ok {
 		env = append(env, s.validationRendererEnvForStatus(ctx, status)...)
@@ -488,6 +529,11 @@ func (s *DefaultService) executeSmokeTest(ctx context.Context, smokeTestID, arti
 			status.LastStdout = truncateOutput(result.Stdout, 10000)
 			status.LastStderr = truncateOutput(result.Stderr, 10000)
 			status.OutputTruncated = result.Truncated
+			status.ProcessLifetimeChecks = append(status.ProcessLifetimeChecks, processLifetimeCheck("protocol", result, err))
+		})
+	} else {
+		s.store.Update(smokeTestID, func(status *Status) {
+			status.ProcessLifetimeChecks = append(status.ProcessLifetimeChecks, ProcessLifetimeCheck{Stage: "protocol", Assertion: "launch did not produce an execution result"})
 		})
 	}
 
@@ -524,28 +570,48 @@ func (s *DefaultService) executeDemoLaunch(ctx context.Context, smokeTestID, sce
 
 	// Strip --smoke-test from args so the app launches in normal mode
 	args = StripSmokeTestFlag(args)
+	if status, ok := s.store.Get(smokeTestID); ok && status.Measured {
+		args = append(args, "--user-data-dir="+measuredUserDataDirPath(smokeTestID, "demo", status))
+	}
 	releaseFile := filepath.Join(os.TempDir(), "scenario-to-desktop", "demo-release-"+smokeTestID)
 	_ = os.Remove(releaseFile)
 	_ = os.MkdirAll(filepath.Dir(releaseFile), 0o700)
+	measured := false
+	profile := profileDirPath(smokeTestID, "demo")
+	if status, ok := s.store.Get(smokeTestID); ok && status.Measured {
+		measured = true
+		profile = measuredProfileDirPath(smokeTestID)
+	}
+	holdMs, demoTimeout := demoHoldTiming(measured)
 
 	env := []string{
 		fmt.Sprintf("DISPLAY=%s", rec.displayID),
 		"SMOKE_TEST_DEMO=1",
-		fmt.Sprintf("SMOKE_TEST_DEMO_HOLD_MS=%d", DefaultDemoHoldMs),
+		fmt.Sprintf("SMOKE_TEST_DEMO_HOLD_MS=%d", holdMs),
 		fmt.Sprintf("SMOKE_TEST_RUN_ID=%s", smokeTestID),
-		fmt.Sprintf("S2D_TRACE_PATH=%s", launchTracePath(smokeTestID, "demo")),
+		fmt.Sprintf("S2D_PACKAGED_LAUNCH_PATH=%s", packagedLaunchPath(smokeTestID, "demo")),
 		fmt.Sprintf("S2D_PROFILE_MODE=%s", configuredProfileMode()),
-		fmt.Sprintf("S2D_PROFILE_DIR=%s", profileDirPath(smokeTestID, "demo")),
+		fmt.Sprintf("S2D_PROFILE_DIR=%s", profile),
 		fmt.Sprintf("S2D_BUNDLED_TARGET_PATH=%s", bundledTargetPath(smokeTestID)),
 		fmt.Sprintf("SMOKE_TEST_DEMO_RELEASE_FILE=%s", releaseFile),
 	}
 	if status, ok := s.store.Get(smokeTestID); ok {
+		env = appendMeasuredLaunchEnvironment(env, status)
 		env = append(env, s.validationRendererEnvForStatus(ctx, status)...)
+	}
+	if status, ok := s.store.Get(smokeTestID); ok && status.Measured && status.Condition == "cold" {
+		residency, evictErr := evictAndMeasureArtifactPageCache(artifactPath)
+		if evictErr != nil {
+			s.store.Update(smokeTestID, func(status *Status) { status.Error = fmt.Sprintf("cold page-cache eviction unavailable: %v", evictErr) })
+			return nil
+		}
+		s.store.Update(smokeTestID, func(status *Status) { status.ArtifactPageCacheResidencyPct = &residency })
 	}
 	var monitor procmetrics.Monitor
 	s.installMonitorHook(rec.displayID, rec.displayWidth, rec.displayHeight, func(m procmetrics.Monitor) { monitor = m })
 
-	demoTimeout := 90 * time.Second
+	// The measured hold includes readiness discovery, both required 60-second
+	// windows, the desktop journey, and its final shutdown observation.
 	resultCh := make(chan struct {
 		result *ExecutionResult
 		err    error
@@ -561,7 +627,49 @@ func (s *DefaultService) executeDemoLaunch(ctx context.Context, smokeTestID, sce
 		}{result: result, err: err}
 	}()
 
-	journey := s.runDesktopJourneyWithCapability(ctx, smokeTestID, scenarioName, platform, rec, journeyID)
+	if status, ok := s.store.Get(smokeTestID); ok && status.Measured {
+		mark, markErr := waitForPackagedMark(ctx, packagedLaunchPath(smokeTestID, "demo"), "app_interactive", 90*time.Second)
+		if markErr != nil {
+			s.logger.Warn("measured_interactive_mark_unavailable", "smoke_test_id", smokeTestID, "error", markErr)
+		} else {
+			interactiveAt := mark
+			if snapshotter, ok := monitor.(interface {
+				SnapshotAt(time.Time) (*procmetrics.ProcessTreeReport, bool)
+			}); ok {
+				if snapshot, available := snapshotter.SnapshotAt(interactiveAt); available {
+					s.store.Update(smokeTestID, func(status *Status) { status.InteractiveProcessTree = snapshot })
+				}
+			}
+			if err := waitUntil(ctx, interactiveAt.Add(60*time.Second)); err == nil {
+				if windower, ok := monitor.(interface {
+					Window(time.Time, time.Time) procmetrics.ProcessTreeWindow
+				}); ok {
+					window := windower.Window(interactiveAt, interactiveAt.Add(60*time.Second))
+					s.store.Update(smokeTestID, func(status *Status) { status.IdleCPUWindow = &window })
+				}
+			}
+		}
+	}
+	measureSteadyWindow := func() {
+		windowStarted := time.Now()
+		if waitUntil(ctx, windowStarted.Add(60*time.Second)) != nil {
+			return
+		}
+		if windower, ok := monitor.(interface {
+			Window(time.Time, time.Time) procmetrics.ProcessTreeWindow
+		}); ok {
+			window := windower.Window(windowStarted, windowStarted.Add(60*time.Second))
+			s.store.Update(smokeTestID, func(status *Status) { status.SteadyPSSWindow = &window })
+		}
+	}
+	journey := deliveryramp.JourneyResult{}
+	if status, ok := s.store.Get(smokeTestID); ok && status.Measured {
+		// The steady window follows all journey interactions and settles before
+		// the final quit step, so shutdown does not erase the measured process tree.
+		journey = s.runDesktopJourneyWithCapabilityBeforeQuit(ctx, smokeTestID, scenarioName, platform, rec, journeyID, measureSteadyWindow)
+	} else {
+		journey = s.runDesktopJourneyWithCapability(ctx, smokeTestID, scenarioName, platform, rec, journeyID)
+	}
 	// Give the final journey observation its normal settle window before
 	// releasing the demo. The desktop process remains bounded by demoTimeout.
 	select {
@@ -584,12 +692,26 @@ func (s *DefaultService) executeDemoLaunch(ctx context.Context, smokeTestID, sce
 	s.clearMonitorHook()
 	s.harvestDemoMonitor(monitor, smokeTestID)
 	result, err := completed.result, completed.err
+	if result != nil {
+		s.store.Update(smokeTestID, func(status *Status) {
+			status.ProcessLifetimeChecks = append(status.ProcessLifetimeChecks, processLifetimeCheck("demo", result, err))
+		})
+	} else {
+		s.store.Update(smokeTestID, func(status *Status) {
+			status.ProcessLifetimeChecks = append(status.ProcessLifetimeChecks, ProcessLifetimeCheck{Stage: "demo", Assertion: "launch did not produce an execution result"})
+		})
+	}
 
 	if err != nil {
 		s.logger.Warn("demo_launch_failed", "smoke_test_id", smokeTestID, "error", err.Error())
 		s.store.Update(smokeTestID, func(status *Status) {
 			status.Logs = append(status.Logs, fmt.Sprintf("Demo launch completion warning: %v", err))
 		})
+		if strings.Contains(err.Error(), "post-launch descendant assertion") {
+			journey.Disposition = deliveryramp.DispositionFailed
+			journey.DegradedReason = "post_launch_descendant_assertion_failed"
+			s.store.Update(smokeTestID, func(status *Status) { status.Error = err.Error() })
+		}
 	} else {
 		exitCode := 0
 		if result != nil {
@@ -601,6 +723,37 @@ func (s *DefaultService) executeDemoLaunch(ctx context.Context, smokeTestID, sce
 		})
 	}
 	return &journey
+}
+
+func processLifetimeCheck(stage string, result *ExecutionResult, err error) ProcessLifetimeCheck {
+	check := ProcessLifetimeCheck{Stage: stage}
+	if result != nil {
+		check.SessionID = result.ProcessSessionID
+		check.Remaining = append([]int(nil), result.RemainingDescendantPIDs...)
+	}
+	check.Passed = result != nil && check.SessionID != "" && len(check.Remaining) == 0 && (err == nil || !strings.Contains(err.Error(), "post-launch descendant assertion"))
+	if !check.Passed {
+		if err != nil {
+			check.Assertion = err.Error()
+		} else {
+			check.Assertion = "post-launch descendant assertion did not pass"
+		}
+	}
+	return check
+}
+
+func appendMeasuredLaunchEnvironment(env []string, status *Status) []string {
+	if status == nil || !status.Measured {
+		return env
+	}
+	env = append(env, "SMOKE_TEST_MEASURED=1")
+	return append(env,
+		fmt.Sprintf("SMOKE_TEST_CONDITION=%s", status.Condition),
+		fmt.Sprintf("S2D_SCENARIO=%s", status.ScenarioName),
+		fmt.Sprintf("S2D_STRATEGY=%s", status.Strategy),
+		fmt.Sprintf("S2D_EXPERIMENT_ID=%s", status.ExperimentID),
+		fmt.Sprintf("S2D_ARTIFACT_DIGEST=%s", status.ArtifactDigest),
+	)
 }
 
 func (s *DefaultService) attachProviderJourney(ctx context.Context, journey *deliveryramp.JourneyResult, smokeTestID, scenarioName, artifactPath, platform, journeyID string) {
@@ -1086,7 +1239,7 @@ func (s *DefaultService) harvestMonitor(monitor procmetrics.Monitor, smokeTestID
 		status.ResourceSummary = report.Summary
 		status.ProtocolResourceSummary = report.Summary
 		status.ProtocolProcessTree = report.ProcessTree
-		status.ProtocolTracePath = launchTracePath(smokeTestID, "protocol")
+		status.ProtocolTracePath = packagedLaunchPath(smokeTestID, "protocol")
 		status.ProtocolProfileDir = profileDirPath(smokeTestID, "protocol")
 		refreshPerformanceStatus(status)
 	})
@@ -1106,8 +1259,192 @@ func (s *DefaultService) harvestDemoMonitor(monitor procmetrics.Monitor, smokeTe
 		status.DemoProcessTree = report.ProcessTree
 		status.SplashDurationMs = report.Startup.SplashDurationMs
 		status.ReadyDurationMs = report.Startup.ReadyMs
-		status.DemoTracePath = launchTracePath(smokeTestID, "demo")
+		status.DemoTracePath = packagedLaunchPath(smokeTestID, "demo")
 		status.DemoProfileDir = profileDirPath(smokeTestID, "demo")
 		refreshPerformanceStatus(status)
 	})
+	if status, ok := s.store.Get(smokeTestID); ok && status.Measured {
+		if err := enrichPackagedLaunch(status); err != nil {
+			s.logger.Warn("packaged_launch_enrichment_failed", "smoke_test_id", smokeTestID, "error", err)
+			s.store.Update(smokeTestID, func(status *Status) { status.Error = err.Error() })
+		}
+	}
+}
+
+func enrichPackagedLaunch(status *Status) error {
+	if status == nil || status.DemoTracePath == "" {
+		return fmt.Errorf("measured packaged-launch path is missing")
+	}
+	sample, err := ReadPackagedLaunch(status.DemoTracePath)
+	if err != nil {
+		return err
+	}
+	sample.Scenario = status.ScenarioName
+	sample.Ramp = "desktop"
+	sample.Strategy = status.Strategy
+	sample.Platform = status.Platform
+	sample.ExperimentID = status.ExperimentID
+	sample.ArtifactDigest = status.ArtifactDigest
+	sample.Condition = status.Condition
+	sample.Display = "xvfb"
+	sample.HostFingerprint = localHostFingerprint()
+	if sample.AppInteractiveSource == "" {
+		sample.AppInteractiveSource = "unavailable"
+	}
+	// Packaged launch memory is defined at the renderer's interactive mark.
+	// The final whole-run process-tree report is useful diagnostics but is not a
+	// substitute for a timestamp-aligned observation.
+	processTree := status.InteractiveProcessTree
+	if processTree != nil {
+		sample.ProcessRoles = mergePackagedProcessRoles(sample.ProcessRoles, processTree)
+		var pss, uss int64
+		memoryComplete := true
+		for _, summary := range processTree.Roles {
+			if summary.ProcessCount == 0 {
+				continue
+			}
+			if !summary.MemoryStatsAvailable {
+				memoryComplete = false
+			}
+			if summary.MemoryStatsAvailable {
+				pss += summary.PSSBytes
+				uss += summary.USSBytes
+			}
+		}
+		setPackagedMetric(&sample, "tree_pss_mb", float64(pss)/1048576, "MB", memoryComplete, "PSS is summed across the process tree by role at app_interactive", "process smaps_rollup was unavailable")
+		setPackagedMetric(&sample, "tree_uss_mb", float64(uss)/1048576, "MB", memoryComplete, "USS is summed across the process tree by role at app_interactive", "process smaps_rollup was unavailable")
+	}
+	if status.ArtifactPath != "" {
+		if info, statErr := os.Stat(status.ArtifactPath); statErr == nil {
+			setPackagedMetric(&sample, "artifact_bytes", float64(info.Size()), "bytes", true, "built AppImage file size", "")
+			setPackagedMetric(&sample, "installed_bytes", 0, "bytes", false, "", "AppImage contents were not extracted, so installed tree size was not measured")
+		}
+	}
+	if status.IdleCPUWindow != nil {
+		window := status.IdleCPUWindow
+		setPackagedMetric(&sample, "idle_cpu_pct", window.AverageCPUPercent, "%", window.CPUAvailable, window.Reason, window.Reason)
+	} else {
+		setPackagedMetric(&sample, "idle_cpu_pct", 0, "%", false, "", "the required 60-second no-input window was not collected")
+	}
+	if status.SteadyPSSWindow != nil {
+		window := status.SteadyPSSWindow
+		setPackagedMetric(&sample, "steady_pss_mb", float64(window.PSSBytes)/1048576, "MB", window.MemoryAvailable, window.Reason, window.Reason)
+	} else {
+		setPackagedMetric(&sample, "steady_pss_mb", 0, "MB", false, "", "the required post-journey 60-second PSS window was not collected")
+	}
+	setPackagedMetric(&sample, "update_bytes", 0, "bytes", false, "", "this strategy does not provide a delta update artifact")
+	if status.Condition == "cold" && status.ArtifactPageCacheResidencyPct != nil {
+		sample.PlatformDetail = &PackagedPlatformDetail{LinuxDesktop: &LinuxDesktopDetail{ArtifactPageCacheResidencyPct: *status.ArtifactPageCacheResidencyPct}}
+	}
+	if err := sample.Validate(); err != nil {
+		return fmt.Errorf("validate enriched packaged launch: %w", err)
+	}
+	data, err := json.MarshalIndent(sample, "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode enriched packaged launch: %w", err)
+	}
+	tmpPath := status.DemoTracePath + ".enriched.tmp"
+	if err := os.WriteFile(tmpPath, append(data, '\n'), 0o600); err != nil {
+		return fmt.Errorf("persist enriched packaged launch: %w", err)
+	}
+	if err := os.Rename(tmpPath, status.DemoTracePath); err != nil {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("publish enriched packaged launch: %w", err)
+	}
+	return nil
+}
+
+func mergePackagedProcessRoles(existing []PackagedProcessRole, tree *procmetrics.ProcessTreeReport) []PackagedProcessRole {
+	if tree == nil || !tree.Supported {
+		return existing
+	}
+	roles := make([]procmetrics.ProcessRole, 0, len(tree.Roles))
+	for role := range tree.Roles {
+		roles = append(roles, role)
+	}
+	sort.Slice(roles, func(i, j int) bool { return roles[i] < roles[j] })
+	merged := make([]PackagedProcessRole, 0, len(roles))
+	for _, role := range roles {
+		summary := tree.Roles[role]
+		available := summary.ProcessCount == 0 || summary.MemoryStatsAvailable
+		reason := "Linux process census observed no process for this role"
+		if summary.ProcessCount > 0 {
+			reason = "smaps_rollup supplied PSS and USS for every process"
+			if !summary.MemoryStatsAvailable {
+				reason = "one or more processes did not expose smaps_rollup PSS/USS"
+			}
+		}
+		merged = append(merged, PackagedProcessRole{
+			Role: string(role), GenericRole: string(procmetrics.GenericProcessRole(role)),
+			ProcessCount: int32(summary.ProcessCount), RSSMB: float64(summary.RSSBytes) / 1048576,
+			PSSMB: float64(summary.PSSBytes) / 1048576, USSMB: float64(summary.USSBytes) / 1048576,
+			Availability: LaunchAvailability{State: availabilityState(available), Reason: reason},
+		})
+	}
+	return merged
+}
+
+func waitForPackagedMark(ctx context.Context, path, name string, timeout time.Duration) (time.Time, error) {
+	deadline := time.NewTimer(timeout)
+	defer deadline.Stop()
+	ticker := time.NewTicker(200 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		if sample, err := ReadPackagedLaunch(path); err == nil {
+			if mark, ok := sample.Mark(name); ok && mark.Availability.State == "available" {
+				return sample.CapturedAt.Add(time.Duration(mark.ElapsedNs)), nil
+			}
+		}
+		select {
+		case <-ctx.Done():
+			return time.Time{}, ctx.Err()
+		case <-deadline.C:
+			return time.Time{}, fmt.Errorf("timed out waiting for %s mark", name)
+		case <-ticker.C:
+		}
+	}
+}
+
+func waitUntil(ctx context.Context, target time.Time) error {
+	delay := time.Until(target)
+	if delay <= 0 {
+		return nil
+	}
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
+}
+
+func availabilityState(available bool) string {
+	if available {
+		return "available"
+	}
+	return "unavailable"
+}
+
+func setPackagedMetric(sample *PackagedLaunchSample, name string, value float64, unit string, available bool, availableReason, unavailableReason string) {
+	reason := unavailableReason
+	if available {
+		reason = availableReason
+	}
+	metric := PackagedLaunchMetric{Name: name, Value: value, Unit: unit, Availability: LaunchAvailability{State: availabilityState(available), Reason: reason}}
+	for i := range sample.Metrics {
+		if sample.Metrics[i].Name == name {
+			sample.Metrics[i] = metric
+			return
+		}
+	}
+	sample.Metrics = append(sample.Metrics, metric)
+}
+
+func localHostFingerprint() string {
+	hostname, _ := os.Hostname()
+	identity := strings.Join([]string{runtime.GOOS, runtime.GOARCH, hostname}, "|")
+	digest := sha256.Sum256([]byte(identity))
+	return "sha256:" + hex.EncodeToString(digest[:])
 }

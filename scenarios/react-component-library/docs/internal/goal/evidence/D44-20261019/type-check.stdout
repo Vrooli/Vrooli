@@ -1,0 +1,57 @@
+
+> react-component-library-ui@1.0.0 type-check /home/matthalloran8/Vrooli/scenarios/react-component-library/ui
+> pnpm strings:check && pnpm run catalog:check
+
+
+> react-component-library-ui@1.0.0 strings:check /home/matthalloran8/Vrooli/scenarios/react-component-library/ui
+> node scripts/gen-strings.mjs --check
+
+✓ src/consts/strings.generated.ts is in sync with en.json
+
+> react-component-library-ui@1.0.0 catalog:check /home/matthalloran8/Vrooli/scenarios/react-component-library/ui
+> pnpm tokens:check && pnpm run exports:check && pnpm run type-check:catalog && pnpm run lint:catalog
+
+
+> react-component-library-ui@1.0.0 tokens:check /home/matthalloran8/Vrooli/scenarios/react-component-library/ui
+> node scripts/design-token-generate.mjs --check
+
+Token check passed: 219 library defaults, 25 app-local tokens; source library/foundations/BaseStyles/versions/1.3.0/BaseStyles.ts.
+
+> react-component-library-ui@1.0.0 exports:check /home/matthalloran8/Vrooli/scenarios/react-component-library/ui
+> node ../../../packages/react-component-library/tooling/sync-exports.mjs --check
+
+{"assets":270,"versionedExports":369,"exports":915,"sideMapEntries":914,"brokenVersionImports":0,"checked":true,"outputPackage":"/home/matthalloran8/Vrooli/packages/react-component-library/package.json"}
+
+> react-component-library-ui@1.0.0 type-check:catalog /home/matthalloran8/Vrooli/scenarios/react-component-library/ui
+> node scripts/catalog-conformance.mjs type-check
+
+[catalog-conformance] tsc is still running
+
+> react-component-library-ui@1.0.0 lint:catalog /home/matthalloran8/Vrooli/scenarios/react-component-library/ui
+> node scripts/catalog-conformance.mjs lint
+
+[catalog-conformance] eslint.js is still running
+[catalog-conformance] eslint.js is still running
+
+/home/matthalloran8/Vrooli/scenarios/react-component-library/library/foundations/ClassMerge/versions/1.0.3/ClassMerge.tsx
+  44:7   warning  Unsafe argument of type `any` assigned to a parameter of type `ReactNode`   @typescript-eslint/no-unsafe-argument
+  44:31  warning  Unsafe member access .children on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  44:65  warning  Unsafe argument of type `any` assigned to a parameter of type `ReactNode`   @typescript-eslint/no-unsafe-argument
+  47:9   warning  Unsafe assignment of an `any` value                                         @typescript-eslint/no-unsafe-assignment
+  47:38  warning  Unsafe member access .className on an `any` value                           @typescript-eslint/no-unsafe-member-access
+  47:74  warning  Unsafe member access .className on an `any` value                           @typescript-eslint/no-unsafe-member-access
+  48:45  warning  Unsafe argument of type `any` assigned to a parameter of type `ClassValue`  @typescript-eslint/no-unsafe-argument
+  59:7   warning  Unsafe argument of type `any` assigned to a parameter of type `ReactNode`   @typescript-eslint/no-unsafe-argument
+  59:31  warning  Unsafe member access .children on an `any` value                            @typescript-eslint/no-unsafe-member-access
+  60:23  warning  Unsafe return of a value of type `any`                                      @typescript-eslint/no-unsafe-return
+  61:29  warning  Unsafe argument of type `any` assigned to a parameter of type `ReactNode`   @typescript-eslint/no-unsafe-argument
+
+/home/matthalloran8/Vrooli/scenarios/react-component-library/library/hooks/useLocale/versions/1.1.2/useLocale.ts
+  39:71  warning  Unsafe argument of type `any` assigned to a parameter of type `ArrayLike<string> | { [s: string]: string; }`  @typescript-eslint/no-unsafe-argument
+  39:77  warning  Unsafe member access .defaults on an `any` value                                                              @typescript-eslint/no-unsafe-member-access
+
+/home/matthalloran8/Vrooli/scenarios/react-component-library/library/primitives/MorphingIcon/versions/3.1.3/MorphingIcon.tsx
+  293:5  warning  React Hook useMemo has missing dependencies: 'content' and 'key'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+✖ 14 problems (0 errors, 14 warnings)
+

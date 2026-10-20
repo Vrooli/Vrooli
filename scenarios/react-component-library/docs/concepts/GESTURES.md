@@ -68,6 +68,35 @@ that tracks a finger, and per-frame state rerenders every subscriber.
 started and never performs an armed action. A short gesture that simply fails a
 threshold is a return, not an abort.
 
+A content rerender does not end a pointer stream. Closing the surface or changing
+its viewport geometry cancels the stream and clears its imperative drag state.
+A cancelled drag can emit no click: click suppression must expire at the next
+pointerdown, and keyboard activation must remain available.
+
+An overlay retained for its exit animation no longer owns input after it closes.
+Presentations must forward the shared root props, including `inert`, so the
+exiting panel and backdrop cannot intercept a press on the application beneath.
+Reopening restores input ownership. `Presence` must apply the same inertness to
+all logically absent content: pointer-events on its wrapper alone is insufficient
+when a child explicitly opts into pointer events. A changed completion callback
+must not restart an exit deadline. Backdrop dismissal starts with the primary
+pointer press; it must not depend on a compatibility click that the browser can
+cancel. Keyboard activation remains available. Opening a mobile drawer transfers focus
+from the active field to the dialog once, including edge-swipe opening; content
+updates do not repeat the transfer or steal focus from a drawer field. The first
+transfer waits for the opening frame so a visibility transition cannot reject
+focus. Return focus only after an open-to-closed transition, never on a closed
+mount or because a ref object changed. Capture the opener once and restore with
+`preventScroll` so focus restoration does not pan the viewport.
+
+Nested links and controls own their native press and context menu. A containing
+row must not start its own tap/long-press recognizer on those targets. Renderers
+must keep React component types stable when callback props change, so an active
+press, focus, and selection retain their DOM nodes.
+
+See the overlay lifecycle and exit composition checks in the
+[behavior claim register](../internal/TESTING.md#behavior-claim-register).
+
 ## Safe polygon
 
 When a submenu trigger loses the pointer toward an open child, the safe region

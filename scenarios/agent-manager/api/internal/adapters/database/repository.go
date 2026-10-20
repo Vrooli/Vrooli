@@ -356,6 +356,7 @@ type taskRow struct {
 	PhasePromptIDs     UUIDSlice              `db:"phase_prompt_ids"`
 	ContextAttachments ContextAttachmentSlice `db:"context_attachments"`
 	Status             string                 `db:"status"`
+	CurrentRunID       NullableUUID           `db:"current_run_id"`
 	CreatedBy          string                 `db:"created_by"`
 	CreatedAt          SQLiteTime             `db:"created_at"`
 	UpdatedAt          SQLiteTime             `db:"updated_at"`
@@ -371,6 +372,7 @@ func (row *taskRow) toDomain() *domain.Task {
 		PhasePromptIDs:     row.PhasePromptIDs,
 		ContextAttachments: row.ContextAttachments,
 		Status:             domain.TaskStatus(row.Status),
+		CurrentRunID:       row.CurrentRunID.ToPtr(),
 		CreatedBy:          row.CreatedBy,
 		CreatedAt:          row.CreatedAt.Time(),
 		UpdatedAt:          row.UpdatedAt.Time(),
@@ -387,6 +389,7 @@ func taskFromDomain(t *domain.Task) *taskRow {
 		PhasePromptIDs:     t.PhasePromptIDs,
 		ContextAttachments: t.ContextAttachments,
 		Status:             string(t.Status),
+		CurrentRunID:       NewNullableUUID(t.CurrentRunID),
 		CreatedBy:          t.CreatedBy,
 		CreatedAt:          SQLiteTime(t.CreatedAt),
 		UpdatedAt:          SQLiteTime(t.UpdatedAt),
@@ -394,7 +397,7 @@ func taskFromDomain(t *domain.Task) *taskRow {
 }
 
 const taskColumns = `id, title, description, scope_path, project_root,
-	phase_prompt_ids, context_attachments, status, created_by, created_at, updated_at`
+	phase_prompt_ids, context_attachments, status, current_run_id, created_by, created_at, updated_at`
 
 func (r *taskRepository) Create(ctx context.Context, task *domain.Task) error {
 	if task.ID == uuid.Nil {
@@ -406,9 +409,9 @@ func (r *taskRepository) Create(ctx context.Context, task *domain.Task) error {
 
 	row := taskFromDomain(task)
 	query := `INSERT INTO tasks (id, title, description, scope_path, project_root,
-		phase_prompt_ids, context_attachments, status, created_by, created_at, updated_at)
+		phase_prompt_ids, context_attachments, status, current_run_id, created_by, created_at, updated_at)
 		VALUES (:id, :title, :description, :scope_path, :project_root,
-		:phase_prompt_ids, :context_attachments, :status, :created_by, :created_at, :updated_at)`
+		:phase_prompt_ids, :context_attachments, :status, :current_run_id, :created_by, :created_at, :updated_at)`
 
 	_, err := r.db.NamedExecContext(ctx, query, row)
 	if err != nil {
@@ -472,7 +475,7 @@ func (r *taskRepository) Update(ctx context.Context, task *domain.Task) error {
 	query := `UPDATE tasks SET title = :title, description = :description,
 		scope_path = :scope_path, project_root = :project_root,
 		phase_prompt_ids = :phase_prompt_ids, context_attachments = :context_attachments,
-		status = :status, created_by = :created_by, updated_at = :updated_at
+		updated_at = :updated_at
 		WHERE id = :id`
 
 	_, err := r.db.NamedExecContext(ctx, query, row)
@@ -483,12 +486,224 @@ func (r *taskRepository) Update(ctx context.Context, task *domain.Task) error {
 }
 
 func (r *taskRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	query := `DELETE FROM tasks WHERE id = ?`
-	_, err := r.db.ExecContext(ctx, query, id)
+	query := `DELETE FROM tasks WHERE id = ? AND status = ? AND NOT EXISTS (
+		SELECT 1 FROM runs WHERE runs.task_id = tasks.id AND runs.status NOT IN (?, ?, ?))`
+	result, err := r.db.ExecContext(ctx, query, id, string(domain.TaskStatusCancelled), string(domain.RunStatusComplete), string(domain.RunStatusFailed), string(domain.RunStatusCancelled))
 	if err != nil {
 		return wrapDBError("delete", "Task", id.String(), err)
 	}
+	deleted, err := result.RowsAffected()
+	if err != nil {
+		return wrapDBError("delete_rows", "Task", id.String(), err)
+	}
+	if deleted != 1 {
+		return domain.NewStateErrorWithID("Task", id.String(), "changed", "delete", "only a cancelled task with terminal attached runs can be deleted")
+	}
 	return nil
+}
+
+// CreateTaskAttempt atomically claims the Task projection and records the new
+// Run plus its idempotency receipt. expectedCurrentRunID is nil for an
+// unowned queued/legacy task with no live historical attempt, and otherwise
+// must name the exact terminal attempt being replaced.
+func (r *runRepository) CreateTaskAttempt(ctx context.Context, task *domain.Task, run *domain.Run, expectedCurrentRunID *uuid.UUID, expectedProjectRoot string) error {
+	if task == nil || run == nil || run.TaskID == uuid.Nil || run.TaskID != task.ID {
+		return fmt.Errorf("task attempt requires a matching task and run")
+	}
+	prepareRunForInsert(run)
+	now := SQLiteTime(run.CreatedAt)
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return wrapDBError("claim_task_attempt", "Task", task.ID.String(), err)
+	}
+	defer tx.Rollback()
+	query := `UPDATE tasks SET status = ?, current_run_id = ?, project_root = ?, updated_at = ? WHERE id = ? AND project_root = ?`
+	args := []any{string(domain.TaskStatusRunning), run.ID.String(), task.ProjectRoot, now, task.ID, expectedProjectRoot}
+	if expectedCurrentRunID == nil {
+		query += ` AND current_run_id IS NULL AND status IN (?, ?, ?) AND NOT EXISTS (
+			SELECT 1 FROM runs WHERE runs.task_id = tasks.id AND runs.status IN (?, ?, ?, ?, ?))`
+		args = append(args, string(domain.TaskStatusQueued), string(domain.TaskStatusCompleted), string(domain.TaskStatusFailed), string(domain.RunStatusPending), string(domain.RunStatusStarting), string(domain.RunStatusRunning), string(domain.RunStatusNeedsReview), string(domain.RunStatusParked))
+	} else {
+		query += ` AND current_run_id = ? AND status IN (?, ?) AND EXISTS (
+			SELECT 1 FROM runs WHERE runs.id = ? AND runs.task_id = tasks.id AND runs.status IN (?, ?, ?))`
+		args = append(args, expectedCurrentRunID.String(), string(domain.TaskStatusCompleted), string(domain.TaskStatusFailed), expectedCurrentRunID.String(), string(domain.RunStatusComplete), string(domain.RunStatusFailed), string(domain.RunStatusCancelled))
+	}
+	result, err := tx.ExecContext(ctx, query, args...)
+	if err != nil {
+		return wrapDBError("claim_task_attempt", "Task", task.ID.String(), err)
+	}
+	claimed, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if claimed != 1 {
+		return domain.NewStateErrorWithID("Task", task.ID.String(), string(task.Status), "start run", "task attempt changed or is not eligible; no run was admitted")
+	}
+	if err := r.insertRun(ctx, tx, run); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return wrapDBError("claim_task_attempt", "Task", task.ID.String(), err)
+	}
+	task.Status = domain.TaskStatusRunning
+	id := run.ID
+	task.CurrentRunID = &id
+	task.UpdatedAt = run.UpdatedAt
+	return nil
+}
+
+// CancelTaskAttempt atomically fences a Task's exact current Run before the
+// orchestration layer cancels its in-memory dispatcher admission or invokes
+// StopRun. Pending work is terminalized in the same transaction so startup
+// recovery cannot enqueue a canceled attempt after process restart.
+func (r *runRepository) CancelTaskAttempt(ctx context.Context, taskID uuid.UUID, runID *uuid.UUID, activeMayHaveStarted bool, at time.Time) (domain.RunStatus, bool, error) {
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return "", false, wrapDBError("cancel_task_attempt", "Task", taskID.String(), err)
+	}
+	defer tx.Rollback()
+
+	var runStatus domain.RunStatus
+	var runExists bool
+	if runID != nil {
+		if err := tx.QueryRowContext(ctx, `SELECT status FROM runs WHERE id = ? AND task_id = ?`, runID.String(), taskID).Scan(&runStatus); err != nil {
+			if !errors.Is(err, sql.ErrNoRows) {
+				return "", false, wrapDBError("cancel_task_attempt_read_run", "Run", runID.String(), err)
+			}
+			return "", false, domain.NewStateErrorWithID("Task", taskID.String(), "unknown", "cancel", "current Run association could not be verified")
+		}
+		runExists = true
+	}
+
+	taskQuery := `UPDATE tasks SET status = ?, updated_at = ? WHERE id = ? AND status = ? AND current_run_id IS NULL
+		AND NOT EXISTS (SELECT 1 FROM runs WHERE runs.task_id = tasks.id AND runs.status IN (?, ?, ?, ?, ?))`
+	taskArgs := []any{string(domain.TaskStatusCancelled), SQLiteTime(at), taskID, string(domain.TaskStatusQueued),
+		string(domain.RunStatusPending), string(domain.RunStatusStarting), string(domain.RunStatusRunning), string(domain.RunStatusNeedsReview), string(domain.RunStatusParked)}
+	if runID != nil {
+		taskQuery = `UPDATE tasks SET status = ?, updated_at = ? WHERE id = ? AND status IN (?, ?) AND current_run_id = ?`
+		taskArgs = []any{
+			string(domain.TaskStatusCancelled), SQLiteTime(at), taskID,
+			string(domain.TaskStatusQueued), string(domain.TaskStatusRunning), runID.String(),
+		}
+	}
+	result, err := tx.ExecContext(ctx, taskQuery, taskArgs...)
+	if err != nil {
+		return "", false, wrapDBError("cancel_task_attempt", "Task", taskID.String(), err)
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return "", false, err
+	}
+	if changed != 1 {
+		return runStatus, false, nil
+	}
+	if runExists {
+		runResult, err := tx.ExecContext(ctx, `UPDATE runs SET
+			lifecycle_version = lifecycle_version + 1,
+			status = CASE WHEN status = ? AND ? = 0 THEN ? ELSE status END,
+			phase = CASE WHEN status = ? AND ? = 0 THEN ? ELSE phase END,
+			ended_at = CASE WHEN status = ? AND ? = 0 THEN ? ELSE ended_at END,
+			cancel_requested_at = CASE WHEN status IN (?, ?) OR (status = ? AND ? = 1) THEN COALESCE(cancel_requested_at, ?) ELSE cancel_requested_at END,
+			updated_at = ?
+			WHERE id = ? AND task_id = ? AND status IN (?, ?, ?, ?)`,
+			string(domain.RunStatusPending), boolInt(activeMayHaveStarted), string(domain.RunStatusCancelled),
+			string(domain.RunStatusPending), boolInt(activeMayHaveStarted), string(domain.RunPhaseCompleted),
+			string(domain.RunStatusPending), boolInt(activeMayHaveStarted), SQLiteTime(at),
+			string(domain.RunStatusStarting), string(domain.RunStatusRunning), string(domain.RunStatusPending), boolInt(activeMayHaveStarted), SQLiteTime(at), SQLiteTime(at),
+			runID, taskID, string(domain.RunStatusPending), string(domain.RunStatusStarting), string(domain.RunStatusRunning), string(domain.RunStatusParked))
+		if err != nil {
+			return "", false, wrapDBError("cancel_task_attempt_fence_run", "Run", runID.String(), err)
+		}
+		fenced, err := runResult.RowsAffected()
+		if err != nil {
+			return "", false, err
+		}
+		if fenced != 1 {
+			return "", false, fmt.Errorf("task cancellation committed without fencing exact current run %s", runID)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return "", false, wrapDBError("cancel_task_attempt_commit", "Task", taskID.String(), err)
+	}
+	return runStatus, true, nil
+}
+
+func boolInt(value bool) int {
+	if value {
+		return 1
+	}
+	return 0
+}
+
+// EnsureCurrentRun lazily associates a legacy Task with the exact Run named by
+// the caller. It never chooses by timestamp or list order and refuses when a
+// different current Run or any competing nonterminal historical Run exists.
+func (r *runRepository) EnsureCurrentRun(ctx context.Context, taskID, runID uuid.UUID, at time.Time) (bool, error) {
+	result, err := r.db.ExecContext(ctx, `UPDATE tasks SET current_run_id = ?, updated_at = ?
+		WHERE id = ? AND status NOT IN (?, ?, ?)
+		AND EXISTS (SELECT 1 FROM runs target WHERE target.id = ? AND target.task_id = tasks.id)
+		AND (current_run_id = ? OR (current_run_id IS NULL AND NOT EXISTS (
+			SELECT 1 FROM runs other WHERE other.task_id = tasks.id AND other.id != ?
+			AND other.status IN (?, ?, ?, ?, ?))))`,
+		runID.String(), SQLiteTime(at), taskID,
+		string(domain.TaskStatusCancelled), string(domain.TaskStatusApproved), string(domain.TaskStatusRejected),
+		runID, runID.String(), runID,
+		string(domain.RunStatusPending), string(domain.RunStatusStarting), string(domain.RunStatusRunning), string(domain.RunStatusNeedsReview), string(domain.RunStatusParked))
+	if err != nil {
+		return false, wrapDBError("ensure_current_run", "Task", taskID.String(), err)
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	return changed == 1, nil
+}
+
+func (r *runRepository) AdmitCurrentRun(ctx context.Context, run *domain.Run, expectedStatus domain.RunStatus, at time.Time) (bool, error) {
+	if run == nil || run.TaskID == uuid.Nil {
+		return false, fmt.Errorf("admit current run requires an exact task/run")
+	}
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return false, wrapDBError("admit_current_run", "Run", run.ID.String(), err)
+	}
+	defer tx.Rollback()
+	var lifecycleVersion int64
+	err = tx.QueryRowContext(ctx, `UPDATE runs SET status = ?, updated_at = ?,
+		lifecycle_version = lifecycle_version + CASE WHEN status <> ? THEN 1 ELSE 0 END
+		WHERE id = ? AND task_id = ? AND status = ? AND lifecycle_version = ? AND cancel_requested_at IS NULL
+		AND EXISTS (SELECT 1 FROM tasks WHERE tasks.id = runs.task_id
+			AND tasks.current_run_id = runs.id AND tasks.status NOT IN (?, ?, ?))
+		RETURNING lifecycle_version`,
+		string(domain.RunStatusRunning), SQLiteTime(at), string(domain.RunStatusRunning), run.ID, run.TaskID, string(expectedStatus), run.LifecycleVersion,
+		string(domain.TaskStatusCancelled), string(domain.TaskStatusApproved), string(domain.TaskStatusRejected)).Scan(&lifecycleVersion)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, wrapDBError("admit_current_run", "Run", run.ID.String(), err)
+	}
+	taskResult, err := tx.ExecContext(ctx, `UPDATE tasks SET status = ?, updated_at = ?
+		WHERE id = ? AND current_run_id = ? AND status IN (?, ?, ?, ?, ?)`,
+		string(domain.TaskStatusRunning), SQLiteTime(at), run.TaskID, run.ID,
+		string(domain.TaskStatusQueued), string(domain.TaskStatusRunning), string(domain.TaskStatusNeedsReview), string(domain.TaskStatusCompleted), string(domain.TaskStatusFailed))
+	if err != nil {
+		return false, wrapDBError("project_admitted_current_run", "Task", run.TaskID.String(), err)
+	}
+	projected, err := taskResult.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	if projected != 1 {
+		return false, fmt.Errorf("admitted Run %s lost its exact Task projection", run.ID)
+	}
+	if err := tx.Commit(); err != nil {
+		return false, wrapDBError("admit_current_run_commit", "Run", run.ID.String(), err)
+	}
+	run.Status = domain.RunStatusRunning
+	run.UpdatedAt = at
+	run.LifecycleVersion = lifecycleVersion
+	return true, nil
 }
 
 // ============================================================================

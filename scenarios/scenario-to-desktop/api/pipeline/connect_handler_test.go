@@ -171,6 +171,25 @@ func TestConnectServiceRunRejectsMissingScenario(t *testing.T) {
 	}
 }
 
+func TestConnectServiceRunAcceptsFlatGovernedProfileSelectors(t *testing.T) {
+	orchestrator := &mockOrchestrator{runResult: &Status{PipelineID: "profile-pipeline"}}
+	service := NewConnectService(NewHandler(WithOrchestrator(orchestrator)))
+	_, err := service.Run(context.Background(), connect.NewRequest(&pipelinev1.PipelineRunRequest{
+		ScenarioName: "hello-desktop", StrategyId: "electron-optimized",
+		SharedRuntimeReadiness: true, ElectronFuses: true, SkipSmokeTest: true,
+	}))
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	config := orchestrator.runConfig
+	if config == nil || config.ScenarioName != "hello-desktop" || config.StrategyID != "electron-optimized" || !config.SkipSmokeTest {
+		t.Fatalf("flat selectors not mapped to pipeline config: %+v", config)
+	}
+	if config.OptimizationProfile == nil || !config.OptimizationProfile.SharedRuntimeReadiness || !config.OptimizationProfile.ElectronFuses || config.OptimizationProfile.SecureCustomSchemeUI || config.OptimizationProfile.V8SnapshotCodeCache {
+		t.Fatalf("toggle profile not independently mapped: %+v", config.OptimizationProfile)
+	}
+}
+
 func TestConnectServiceRunRejectsUnknownFrameworkEnum(t *testing.T) {
 	service := NewConnectService(NewHandler(WithOrchestrator(&mockOrchestrator{})))
 	_, err := service.Run(context.Background(), connect.NewRequest(&pipelinev1.PipelineRunRequest{Config: &pipelinev1.PipelineConfig{

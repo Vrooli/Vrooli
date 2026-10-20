@@ -262,6 +262,32 @@ func (o *Orchestrator) ProbeRunner(ctx context.Context, runnerType domain.Runner
 	}, nil
 }
 
+// purgePartialResult preserves committed counts when a later owner CAS fails.
+// A nil result remains appropriate when the operation has made no mutation.
+func purgePartialResult(result *PurgeResult) *PurgeResult {
+	if result == nil || result.Deleted == (PurgeCounts{}) {
+		return nil
+	}
+	return result
+}
+
+// cleanupDeletedTaskRunSidecars removes external event/search projections after
+// the database has atomically deleted a cancelled Task and its terminal Runs.
+func (o *Orchestrator) cleanupDeletedTaskRunSidecars(ctx context.Context, taskID uuid.UUID, runs []*domain.Run) error {
+	for _, run := range runs {
+		if run == nil {
+			continue
+		}
+		o.notifyConversationSearch(ctx, "delete_run", run.ID.String(), "")
+		if o.events != nil {
+			if err := o.events.Delete(ctx, run.ID); err != nil {
+				return fmt.Errorf("task %s and its attached runs were deleted, but event cleanup failed at run %s; later sidecars, if any, were not attempted: %w", taskID, run.ID, err)
+			}
+		}
+	}
+	return nil
+}
+
 // PurgeData deletes profiles, tasks, or runs matching a regex pattern.
 func (o *Orchestrator) PurgeData(ctx context.Context, req PurgeRequest) (*PurgeResult, error) {
 	pattern := strings.TrimSpace(req.Pattern)
@@ -302,7 +328,7 @@ func (o *Orchestrator) PurgeData(ctx context.Context, req PurgeRequest) (*PurgeR
 		}
 	}
 
-	var taskIDs []uuid.UUID
+	var taskIDs []*domain.Task
 	if targets[PurgeTargetTasks] {
 		tasks, err := o.tasks.List(ctx, repository.ListFilter{})
 		if err != nil {
@@ -311,12 +337,12 @@ func (o *Orchestrator) PurgeData(ctx context.Context, req PurgeRequest) (*PurgeR
 		for _, task := range tasks {
 			if re.MatchString(task.Title) {
 				result.Matched.Tasks++
-				taskIDs = append(taskIDs, task.ID)
+				taskIDs = append(taskIDs, task)
 			}
 		}
 	}
 
-	var runIDs []uuid.UUID
+	var runIDs []*domain.Run
 	if targets[PurgeTargetRuns] {
 		runs, err := o.runs.List(ctx, repository.RunListFilter{})
 		if err != nil {
@@ -325,7 +351,7 @@ func (o *Orchestrator) PurgeData(ctx context.Context, req PurgeRequest) (*PurgeR
 		for _, run := range runs {
 			if re.MatchString(run.GetTag()) {
 				result.Matched.Runs++
-				runIDs = append(runIDs, run.ID)
+				runIDs = append(runIDs, run)
 			}
 		}
 	}
@@ -333,35 +359,74 @@ func (o *Orchestrator) PurgeData(ctx context.Context, req PurgeRequest) (*PurgeR
 	if req.DryRun {
 		return result, nil
 	}
-
-	for _, id := range runIDs {
-		if o.events != nil {
-			if err := o.events.Delete(ctx, id); err != nil {
-				return nil, err
-			}
+	// Validate every selected owner before mutating any dependent records.
+	for _, run := range runIDs {
+		if allowed, reason := domain.CanDeleteRun(run); !allowed {
+			return nil, domain.NewStateErrorWithID("Run", run.ID.String(), string(run.Status), "purge", reason)
 		}
-		if o.checkpoints != nil {
-			if err := o.checkpoints.Delete(ctx, id); err != nil {
-				return nil, err
-			}
+	}
+	attachedByTask := make(map[uuid.UUID][]*domain.Run, len(taskIDs))
+	for _, task := range taskIDs {
+		if task.Status != domain.TaskStatusCancelled {
+			return nil, domain.NewStateErrorWithID("Task", task.ID.String(), string(task.Status), "purge", "only cancelled tasks can be deleted")
 		}
-		if err := o.runs.Delete(ctx, id); err != nil {
+		attached, err := o.runs.ListByTask(ctx, task.ID, repository.ListFilter{})
+		if err != nil {
 			return nil, err
 		}
-		o.notifyConversationSearch(ctx, "delete_run", id.String(), "")
-		result.Deleted.Runs++
+		for _, run := range attached {
+			if allowed, reason := domain.CanDeleteRun(run); !allowed {
+				return nil, domain.NewStateErrorWithID("Run", run.ID.String(), string(run.Status), "purge task", reason)
+			}
+		}
+		attachedByTask[task.ID] = attached
 	}
 
-	for _, id := range taskIDs {
-		if err := o.tasks.Delete(ctx, id); err != nil {
-			return nil, err
+	deletedRunIDs := make(map[uuid.UUID]bool, len(runIDs))
+	cleanedEventRunIDs := make(map[uuid.UUID]bool, len(runIDs))
+	for _, run := range runIDs {
+		if err := o.runs.Delete(ctx, run.ID, run.Status, run.LifecycleVersion); err != nil {
+			return purgePartialResult(result), fmt.Errorf("delete run %s during purge: %w", run.ID, err)
+		}
+		deletedRunIDs[run.ID] = true
+		// The run and its checkpoints are now committed gone. Count that durable
+		// effect before touching the separately stored event sidecar.
+		result.Deleted.Runs++
+		o.notifyConversationSearch(ctx, "delete_run", run.ID.String(), "")
+		if o.events != nil {
+			if err := o.events.Delete(ctx, run.ID); err != nil {
+				return result, fmt.Errorf("run %s was deleted but event cleanup failed: %w", run.ID, err)
+			}
+			cleanedEventRunIDs[run.ID] = true
+		}
+	}
+	for _, task := range taskIDs {
+		if err := o.tasks.Delete(ctx, task.ID); err != nil {
+			return purgePartialResult(result), fmt.Errorf("delete task %s during purge: %w", task.ID, err)
 		}
 		result.Deleted.Tasks++
+		// Task deletion cascades its terminal Run and checkpoint rows in the
+		// run-model database. Their event rows live separately, so account for
+		// each cascade and clean those sidecars only after the Task CAS succeeds.
+		var cascadeSidecars []*domain.Run
+		for _, run := range attachedByTask[task.ID] {
+			if !deletedRunIDs[run.ID] {
+				deletedRunIDs[run.ID] = true
+				result.Deleted.Runs++
+			}
+			if !cleanedEventRunIDs[run.ID] {
+				cascadeSidecars = append(cascadeSidecars, run)
+				cleanedEventRunIDs[run.ID] = true
+			}
+		}
+		if err := o.cleanupDeletedTaskRunSidecars(ctx, task.ID, cascadeSidecars); err != nil {
+			return result, err
+		}
 	}
 
 	for _, id := range profileIDs {
 		if err := o.profiles.Delete(ctx, id); err != nil {
-			return nil, err
+			return purgePartialResult(result), fmt.Errorf("delete profile %s during purge: %w", id, err)
 		}
 		result.Deleted.Profiles++
 	}

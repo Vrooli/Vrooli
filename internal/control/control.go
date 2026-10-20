@@ -15,9 +15,11 @@ type StartReport struct {
 }
 
 type StopReport struct {
-	Stopped []ResultItem `json:"stopped"`
-	Failed  []ResultItem `json:"failed"`
-	Message string       `json:"message"`
+	// Observed carries diagnostics, recommendations and non-stop effects.
+	Observed []ResultItem `json:"observed,omitempty"`
+	Stopped  []ResultItem `json:"stopped"`
+	Failed   []ResultItem `json:"failed"`
+	Message  string       `json:"message"`
 }
 
 func Started(name, message string) ResultItem {

@@ -99,7 +99,6 @@ var skippedDirs = map[string]struct{}{
 	".git":                            {},
 	repocontractmeta.ProjectConfigDir: {},
 	"build":                           {},
-	"coverage":                        {},
 	"dist":                            {},
 	"node_modules":                    {},
 	"tmp":                             {},

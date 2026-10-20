@@ -562,14 +562,19 @@ func (s *runtimeRegistrySession) fail(ctx context.Context, cause error) error {
 	if !s.enabled || s.store == nil {
 		return nil
 	}
-	if _, err := s.store.ReleaseActivePortClaimsForInstance(ctx, s.instance.InstanceID); err != nil {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), buildAdmissionCleanupTimeout)
+	defer cancel()
+	if _, err := s.store.ReleaseActivePortClaimsForInstance(cleanupCtx, s.instance.InstanceID); err != nil {
 		return fmt.Errorf("release scenario runtime claims after failure: %w", err)
 	}
-	if _, err := s.store.UpdateInstanceStatus(ctx, s.instance.InstanceID, s.instance.Generation, scenarioruntime.StatusFailed, s.instance.Phase); err != nil {
+	if _, err := s.store.UpdateInstanceStatus(cleanupCtx, s.instance.InstanceID, s.instance.Generation, scenarioruntime.StatusFailed, s.instance.Phase); err != nil {
 		return fmt.Errorf("mark scenario runtime failed: %w", err)
 	}
 	details, _ := json.Marshal(map[string]string{"error": cause.Error()})
-	if _, err := s.store.RecordEvent(ctx, scenarioruntime.Event{
+	if _, err := s.store.RecordEvent(cleanupCtx, scenarioruntime.Event{
 		InstanceID:  s.instance.InstanceID,
 		Scenario:    s.instance.Scenario,
 		EventType:   "start_failed",

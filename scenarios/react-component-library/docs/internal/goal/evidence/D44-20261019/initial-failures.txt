@@ -1,0 +1,20 @@
+src/features/components/ComponentEditor.test.tsx > ComponentEditor > keeps frame experiments temporary until the author explicitly saves them
+src/features/components/ComponentTestPanel.test.tsx > ComponentTestPanel > defaults to the review sheet, exposes each captured story, and renders results once
+src/features/components/AdoptionFileTree.test.tsx > AdoptionFileTree > offers a template <select> and reports the choice when multiple templates exist
+src/components/SidebarShell.test.tsx > SidebarShell > declares the responsive desktop override that keeps a closed drawer visible
+src/hooks/useComponentStyles.test.tsx > useComponentStyles > real components > emits one sheet for five StatusBadge instances
+src/hooks/useComponentStyles.test.tsx > useComponentStyles > real components > shares nothing between different components
+src/features/components/CreateComponentDialog.test.tsx > CreateComponentDialog > closes after a successful initialization that does not return a routeable component 1045ms
+src/features/components/CreateComponentDialog.test.tsx > CreateComponentDialog > prevents a duplicate submission while initialization is pending 1069ms
+src/components/ActionLauncher.test.tsx > ActionLauncher > starts extract-assist through the workflow dispatcher 1019ms
+src/components/ActionLauncher.test.tsx > ActionLauncher > starts one adopt-assist workflow for each target 1018ms
+src/components/ActionLauncher.test.tsx > ActionLauncher > filters typed picker options before selection 1014ms
+src/components/ActionLauncher.test.tsx > ActionLauncher > shows a dispatch failure without leaving the overlay 1017ms
+src/components/ActionLauncher.test.tsx > ActionLauncher > keeps an adopt workflow error in the guided picker surface 1017ms
+src/features/components/EmulatorChrome.test.tsx > EmulatorChrome > persists viewport selections and applies zoom as a visual transform
+src/App.test.tsx > App composition > mounts the shell and unified catalog on /
+src/App.test.tsx > App composition > renders the catalog workspace at /catalog 1032ms
+src/App.test.tsx > App composition > resolves the components route to the catalog workspace 1030ms
+src/lib/CopyIconButtonDraft.test.tsx > CopyIconButton draft clipboard compatibility > keeps the gesture-bound legacy copy fallback when the clipboard API is missing
+src/lib/CollectionList.test.tsx > keeps the open detail distinct from keyboard navigation and bulk selection
+src/lib/CollectionList.test.tsx > does not substitute another current item when the open record is filtered out

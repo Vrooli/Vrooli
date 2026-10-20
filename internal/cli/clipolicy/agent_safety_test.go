@@ -33,13 +33,10 @@ func TestClassifyAgentCommandBlocksDestructiveMaintenance(t *testing.T) {
 	env := []string{"VROOLI_SANDBOX_ID=sbx-1"}
 	tests := [][]string{
 		{"vrooli", "cleanup", "orphans"},
-		{"vrooli", "cleanup", "locks"},
 		{"vrooli", "orphans", "kill"},
-		{"vrooli", "locks", "clean"},
 		{"/usr/bin/env", "vrooli", "cleanup", "orphans"},
 		{"/usr/bin/env", "PATH=/usr/bin", "vrooli", "cleanup", "orphans"},
 		{"bash", "-lc", "vrooli cleanup orphans &> /tmp/o.txt; tail -10 /tmp/o.txt"},
-		{"sh", "-c", "vrooli locks clean"},
 		{"vrooli", "stop"},
 		{"vrooli", "scenario", "stop-all"},
 		{"vrooli", "resource", "stop-all"},
@@ -49,6 +46,41 @@ func TestClassifyAgentCommandBlocksDestructiveMaintenance(t *testing.T) {
 			decision := ClassifyAgentCommand(argv, env)
 			if decision.Allowed {
 				t.Fatalf("ClassifyAgentCommand(%v) allowed destructive command", argv)
+			}
+			if decision.Code != CodeDestructiveVrooliMaintenanceBlocked {
+				t.Fatalf("code = %q, want %q", decision.Code, CodeDestructiveVrooliMaintenanceBlocked)
+			}
+		})
+	}
+}
+
+func TestClassifyAgentCommandAllowsExactProofBasedLockCleanup(t *testing.T) {
+	env := []string{"VROOLI_AGENT_IDENTITY_TOKEN=present"}
+	for _, argv := range [][]string{
+		{"vrooli", "cleanup", "locks"},
+		{"vrooli", "locks", "clean"},
+		{"vrooli", "--json", "cleanup", "locks"},
+		{"env", "VROOLI_AGENT_IDENTITY_TOKEN=present", "vrooli", "locks", "clean"},
+		{"bash", "-lc", "vrooli cleanup locks"},
+	} {
+		t.Run(argv[1], func(t *testing.T) {
+			if decision := ClassifyAgentCommand(argv, env); !decision.Allowed {
+				t.Fatalf("ClassifyAgentCommand(%v) denied canonical stale-lock maintenance: %+v", argv, decision)
+			}
+		})
+	}
+}
+
+func TestClassifyAgentCommandKeepsExtendedLockCleanupGuarded(t *testing.T) {
+	env := []string{"VROOLI_SANDBOX_ID=sbx-1"}
+	for _, argv := range [][]string{
+		{"vrooli", "cleanup", "locks", "--force"},
+		{"vrooli", "locks", "clean", "--all"},
+	} {
+		t.Run(argv[1], func(t *testing.T) {
+			decision := ClassifyAgentCommand(argv, env)
+			if decision.Allowed {
+				t.Fatalf("ClassifyAgentCommand(%v) allowed an extended cleanup form", argv)
 			}
 			if decision.Code != CodeDestructiveVrooliMaintenanceBlocked {
 				t.Fatalf("code = %q, want %q", decision.Code, CodeDestructiveVrooliMaintenanceBlocked)

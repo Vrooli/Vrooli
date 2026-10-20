@@ -10,15 +10,17 @@ import (
 
 func pendingRequest(id, subject string, now time.Time) *domain.PendingAuthorizationRequest {
 	return &domain.PendingAuthorizationRequest{
-		ID:                id,
-		Subject:           subject,
-		Operation:         "run.create",
-		Target:            "agent-manager:*",
-		Kind:              domain.PendingAuthorizationKindStanding,
-		MaxConcurrentRuns: 3,
-		State:             domain.PendingAuthorizationPending,
-		RaisedAt:          now,
-		ExpiresAt:         now.Add(24 * time.Hour),
+		ID:                       id,
+		Subject:                  subject,
+		Operation:                "run.create",
+		Target:                   "agent-manager:*",
+		Kind:                     domain.PendingAuthorizationKindStanding,
+		MaxConcurrentRuns:        3,
+		DecisionBigPicture:       "A verified caller requests a bounded grant.",
+		DecisionTechnicalDetails: "Operation: run.create; target: agent-manager:*.",
+		State:                    domain.PendingAuthorizationPending,
+		RaisedAt:                 now,
+		ExpiresAt:                now.Add(24 * time.Hour),
 	}
 }
 
@@ -42,7 +44,7 @@ func TestPendingAuthorizationStorePutGetAndCount(t *testing.T) {
 		t.Fatalf("put: %v", err)
 	}
 	got, err := repo.Get(ctx, "auth-1")
-	if err != nil || got == nil || got.Subject != "prompt-manager" || got.MaxConcurrentRuns != 3 || got.State != domain.PendingAuthorizationPending || got.EventID != p.EventID || got.PublishedAt == nil || !got.PublishedAt.Equal(publishedAt) {
+	if err != nil || got == nil || got.Subject != "prompt-manager" || got.MaxConcurrentRuns != 3 || got.DecisionBigPicture != p.DecisionBigPicture || got.DecisionTechnicalDetails != p.DecisionTechnicalDetails || got.State != domain.PendingAuthorizationPending || got.EventID != p.EventID || got.PublishedAt == nil || !got.PublishedAt.Equal(publishedAt) {
 		t.Fatalf("get round-trip lost fields: %+v %v", got, err)
 	}
 

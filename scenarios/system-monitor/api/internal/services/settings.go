@@ -62,6 +62,19 @@ type Settings struct {
 	// consume 100 GB in minutes, and debounce must not stall that response.
 	DiskFastFillJumpPercent float64 `json:"disk_fast_fill_jump_percent"`
 
+	// AlertSustainSeconds is how long an alert condition must hold before
+	// the evaluator opens an alert, and how long it must stay clear before the
+	// alert resolves.
+	AlertSustainSeconds int `json:"alert_sustain_seconds"`
+
+	// Linux memory-pressure level boundaries (see collectors
+	// DeriveMemoryPressureLevel). The swap-in boundaries may also raise a
+	// macOS native level.
+	MemoryPressureSomeAvg60ElevatedPercent     float64 `json:"memory_pressure_some_avg60_elevated_percent"`
+	MemoryPressureFullAvg60CriticalPercent     float64 `json:"memory_pressure_full_avg60_critical_percent"`
+	MemoryPressureSwapInElevatedBytesPerSecond float64 `json:"memory_pressure_swap_in_elevated_bytes_per_second"`
+	MemoryPressureSwapInCriticalBytesPerSecond float64 `json:"memory_pressure_swap_in_critical_bytes_per_second"`
+
 	// Metrics lifecycle
 	MetricsRetentionDays          int  `json:"metrics_retention_days"`
 	RetentionCheckIntervalSeconds int  `json:"retention_check_interval_seconds"`
@@ -123,6 +136,13 @@ var defaultSettings = Settings{
 	DiskEscalationDebounceTicks:   2,
 	DiskFastFillJumpPercent:       5.0,
 
+	AlertSustainSeconds: 300,
+
+	MemoryPressureSomeAvg60ElevatedPercent:     10,
+	MemoryPressureFullAvg60CriticalPercent:     5,
+	MemoryPressureSwapInElevatedBytesPerSecond: 10 * 1024 * 1024,
+	MemoryPressureSwapInCriticalBytesPerSecond: 50 * 1024 * 1024,
+
 	MetricsRetentionDays:          30,   // keep 30 days of metrics history
 	RetentionCheckIntervalSeconds: 3600, // re-check retention hourly
 	RetentionRunOnStartup:         true, // prune stale data without waiting an hour
@@ -173,6 +193,9 @@ func sanitizeSettings(settings Settings) (Settings, bool) {
 	if sanitizeDiskBands(&settings) {
 		changed = true
 	}
+	if sanitizeAlertSettings(&settings) {
+		changed = true
+	}
 
 	// A non-positive retention window means the lifecycle block is unset
 	// (legacy file or fresh defaults); apply the full retention default set,
@@ -221,6 +244,38 @@ func sanitizeCPUBands(settings *Settings) bool {
 		settings.CPUThreshold = defaultSettings.CPUThreshold
 		settings.CPUHighPercent = defaultSettings.CPUHighPercent
 		settings.CPUCriticalPercent = defaultSettings.CPUCriticalPercent
+		changed = true
+	}
+	return changed
+}
+
+// sanitizeAlertSettings restores unset alert-evaluation settings to their
+// defaults and repairs memory-pressure boundaries that do not ascend.
+func sanitizeAlertSettings(settings *Settings) bool {
+	changed := false
+	if settings.AlertSustainSeconds <= 0 {
+		settings.AlertSustainSeconds = defaultSettings.AlertSustainSeconds
+		changed = true
+	}
+	if settings.MemoryPressureSomeAvg60ElevatedPercent <= 0 {
+		settings.MemoryPressureSomeAvg60ElevatedPercent = defaultSettings.MemoryPressureSomeAvg60ElevatedPercent
+		changed = true
+	}
+	if settings.MemoryPressureFullAvg60CriticalPercent <= 0 {
+		settings.MemoryPressureFullAvg60CriticalPercent = defaultSettings.MemoryPressureFullAvg60CriticalPercent
+		changed = true
+	}
+	if settings.MemoryPressureSwapInElevatedBytesPerSecond <= 0 {
+		settings.MemoryPressureSwapInElevatedBytesPerSecond = defaultSettings.MemoryPressureSwapInElevatedBytesPerSecond
+		changed = true
+	}
+	if settings.MemoryPressureSwapInCriticalBytesPerSecond <= 0 {
+		settings.MemoryPressureSwapInCriticalBytesPerSecond = defaultSettings.MemoryPressureSwapInCriticalBytesPerSecond
+		changed = true
+	}
+	if settings.MemoryPressureSwapInElevatedBytesPerSecond >= settings.MemoryPressureSwapInCriticalBytesPerSecond {
+		settings.MemoryPressureSwapInElevatedBytesPerSecond = defaultSettings.MemoryPressureSwapInElevatedBytesPerSecond
+		settings.MemoryPressureSwapInCriticalBytesPerSecond = defaultSettings.MemoryPressureSwapInCriticalBytesPerSecond
 		changed = true
 	}
 	return changed

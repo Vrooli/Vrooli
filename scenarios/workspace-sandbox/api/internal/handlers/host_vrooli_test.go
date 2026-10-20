@@ -42,3 +42,25 @@ func TestHostLifecycleEnvStripsSandboxIdentity(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateHostVrooliCLIRefreshRequest(t *testing.T) {
+	for _, kind := range []string{"scenario", "resource"} {
+		valid := hostVrooliCLIRefreshRequest{
+			Kind: kind, Name: "scenario-qa", RunningExecutable: "/home/agent/.vrooli/bin/scenario-qa",
+		}
+		if err := validateHostVrooliCLIRefreshRequest(valid); err != nil {
+			t.Fatalf("valid %s request rejected: %v", kind, err)
+		}
+	}
+	valid := hostVrooliCLIRefreshRequest{Kind: "scenario", Name: "scenario-qa", RunningExecutable: "/home/agent/.vrooli/bin/scenario-qa"}
+	for _, req := range []hostVrooliCLIRefreshRequest{
+		{Kind: "arbitrary", Name: "scenario-qa", RunningExecutable: valid.RunningExecutable},
+		{Kind: "scenario", Name: "../scenario-qa", RunningExecutable: valid.RunningExecutable},
+		{Kind: "scenario", Name: "scenario-qa", RunningExecutable: "relative/scenario-qa"},
+		{Kind: "scenario", Name: "scenario-qa", RunningExecutable: "/tmp/../scenario-qa"},
+	} {
+		if err := validateHostVrooliCLIRefreshRequest(req); err == nil {
+			t.Fatalf("invalid request accepted: %+v", req)
+		}
+	}
+}

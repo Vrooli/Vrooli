@@ -211,6 +211,35 @@ func TestEffortParkLiveChildUsesChildrenBackstop(t *testing.T) {
 	}
 }
 
+func TestEffortParkExcludesReviewChildrenButKeepsExecutionChildren(t *testing.T) {
+	const run = "70dd81be-0c15-4ef3-9b05-e18aa6ca7ccb"
+	home := copyBASGoalHome(t, nil)
+
+	reviewOnly, reviewServer := parkServer(t, `{"id":"e8c322ca-72e7-434c-9d37-1d2cf853961f","status":"RUN_STATUS_NEEDS_REVIEW"}`)
+	output, code := runEffort(t, reviewOnly, "park", home, "--run", run, "--timeout", "12h")
+	if code != exitRefused || !strings.Contains(output, "admissible-slice") || strings.Contains(output, "live-child") || parkRequests(reviewServer) != 0 {
+		t.Fatalf("a review-only child must not trigger the live-child backstop (exit %d): %s", code, output)
+	}
+
+	for _, tc := range []struct {
+		name   string
+		status string
+	}{
+		{name: "pending", status: "RUN_STATUS_PENDING"},
+		{name: "starting", status: "RUN_STATUS_STARTING"},
+		{name: "running", status: "RUN_STATUS_RUNNING"},
+		{name: "parked", status: "RUN_STATUS_PARKED"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			app, server := parkServer(t, `{"id":"a69af561-e4c7-4852-b53a-19f87a880041","status":"`+tc.status+`"}`)
+			output, code := runEffort(t, app, "park", home, "--run", run, "--timeout", "12h")
+			if code != exitRefused || !strings.Contains(output, "exceeds the 1h0m0s maximum (live-child)") || parkRequests(server) != 0 {
+				t.Fatalf("%s child must retain the live-child backstop (exit %d): %s", tc.name, code, output)
+			}
+		})
+	}
+}
+
 func TestEffortBoardPrintsGoalHomeFactsAndUnknowns(t *testing.T) {
 	target, weighted := 24.0, 450000.0
 	board := &pb.EffortBoard{Rows: []*pb.EffortBoardRow{{Enrollment: &pb.EffortEnrollment{EffortRef: "effort:bas"}, GoalHome: &pb.EffortGoalHome{

@@ -67,10 +67,11 @@ export function TodayTimelineViewToggle({ view, onChange }: { view: TodayTimelin
 
 export function TodayTimelineBlock({ item, startHour, span, open, onOpen, onClose }: { item: TodayTimelineItem; startHour: number; span: number; open: boolean; onOpen: () => void; onClose: () => void }) {
   const compact = item.width < 1;
+  const durationLabel = compact ? item.detail.replace(/\s+min$/, "m") : item.detail;
   return <Popover open={open} onOpenChange={(next) => next ? onOpen() : onClose()} placement="bottom-start" responsive="auto">
     <PopoverParts.Trigger asChild aria-label={`${item.label}, ${item.startLabel}, ${item.detail}${item.owner ? `, ${item.owner}` : ""}`}>
       <div role="button" tabIndex={0} data-full-title={item.label} title={item.label} className={`time-block ${item.tone}${compact ? " compact" : ""}`} style={{ left: `${((item.start - startHour) / span) * 100}%`, width: `${(item.width / span) * 100}%`, top: `calc(2rem + ${item.lane} * 6.2rem)` }} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onOpen(); } }}>
-        <span className="time-block-time">{item.startLabel}</span><strong>{compact ? item.detail.replace(/\s+min$/, "m") : item.label}</strong><span>{item.detail}</span>{item.owner && <small><span className="source-dot" />{item.owner}</small>}
+        <span className="time-block-time">{item.startLabel}</span><strong className="time-block-title">{item.label}</strong><span className="time-block-duration">{durationLabel}</span>{item.owner && <small><span className="source-dot" />{item.owner}</small>}
       </div>
     </PopoverParts.Trigger>
     <PopoverParts.Content className="timeline-detail" aria-label="Timeline item details" initialFocus="first">

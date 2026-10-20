@@ -450,6 +450,21 @@ func TestAuthorizationCredentialReadsAvoidDerivedRunProjection(t *testing.T) {
 	stored.ResolvedConfig = domain.DefaultRunConfig()
 	stored.ResolvedConfig.Until = "retain this interactive goal"
 	stored.WebConsoleSessionID = "projection-must-not-resolve"
+	// A legitimate interactive baseline must match the persisted session. Keep
+	// this projection test on a valid pair rather than bypassing that binding.
+	claims, err := runidentity.VerifyToken(baselineToken, []byte(pairTestSecret))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if claims.Meta == nil {
+		claims.Meta = make(map[string]string)
+	}
+	claims.Meta["web_console_session_id"] = stored.WebConsoleSessionID
+	baselineToken, err = runidentity.GenerateToken(claims, []byte(pairTestSecret))
+	if err != nil {
+		t.Fatal(err)
+	}
+	stored.IdentityTokenHash = runidentity.HashToken(baselineToken)
 	if err := o.runs.Update(ctx, stored); err != nil {
 		t.Fatalf("prepare interactive authorization fixture: %v", err)
 	}

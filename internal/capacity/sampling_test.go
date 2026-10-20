@@ -71,6 +71,8 @@ func TestSampleObservedUsagePersistsAndDecays(t *testing.T) {
 	// but the peak only decays — it must not be erased by the idle reading.
 	idleSnap := snapshotWithProcs()
 	later := t0.Add(policy.ObservedPeakHalflife) // one half-life on
+	clk.Advance(policy.ObservedPeakHalflife)
+	idleSnap.FieldProvenance = map[string]hostinventory.Provenance{"gpu_processes": {ObservedAt: later}}
 	SampleObservedUsage(ctx, store, []CapacityClaim{got}, idleSnap, attr, policy, later)
 	got2, _ := store.GetClaim(ctx, created.ClaimID)
 	if got2.ObservedBytes != 0 {
@@ -89,4 +91,38 @@ func abs(x int64) int64 {
 		return -x
 	}
 	return x
+}
+
+func TestSamplingDoesNotInventOperationBindingOrDuplicateMeasurements(t *testing.T) {
+	ctx := context.Background()
+	clk := testenv.NewClock(time.Date(2026, 10, 17, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) { return NewSQLiteStore(ctx, Config{DBPath: path, Clock: clk}) })
+	c := residentClaim("model")
+	resource, err := store.CreateClaim(ctx, c, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.OwnerKind = OwnerKindOp
+	c.OwnerID = "model:job1"
+	op, err := store.CreateClaim(ctx, c, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	snap := snapshotWithProcs(hostinventory.GPUProcess{GPUIndex: 0, PID: 1, UsedBytes: uint64(2 * gib)})
+	SampleObservedUsage(ctx, store, []CapacityClaim{resource, op}, snap, fakeAttributor{1: {OwnerID: "model"}}, DefaultPolicy(), clk.Now())
+	a, _ := store.GetClaim(ctx, resource.ClaimID)
+	b, _ := store.GetClaim(ctx, op.ClaimID)
+	if a.ObservedBytes != 2*gib || b.ObservedAt != nil {
+		t.Fatalf("same worker duplicated or unknown job zero-sampled: resource=%+v operation=%+v", a, b)
+	}
+	duplicate, err := store.CreateClaim(ctx, residentClaim("model"), time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	SampleObservedUsage(ctx, store, []CapacityClaim{a, duplicate}, snap, fakeAttributor{1: {OwnerID: "model"}}, DefaultPolicy(), clk.Now().Add(time.Minute))
+	a2, _ := store.GetClaim(ctx, a.ClaimID)
+	d, _ := store.GetClaim(ctx, duplicate.ClaimID)
+	if !a2.ObservedAt.Equal(*a.ObservedAt) || d.ObservedAt != nil {
+		t.Fatalf("ambiguous claims were assigned measurements: %+v / %+v", a2, d)
+	}
 }

@@ -1,3 +1,67 @@
+## RELIABILITY-NOTIFICATION-PRIORITY-20261017 — ACKNOWLEDGED 2026-10-17T21:46:01Z
+
+The operator has prioritized Notification Hub read access and missing visible phone delivery. The coordinator now reclaims the single heavy lane for those repairs. E46's worker reports its prescribed tests/build finished, with G1–G4 passing and G5 failing at251599 vs250616. Preserve the implemented fixture-only delta and exact baselines; no additional BAS heavy command, test/build rerun or successor dispatch until the coordinator releases the lane again. This is a coordinator scheduling hold, not a human-permission blocker.
+
+On the worker's native return, reconcile its actual report and current source without rerunning heavy gates. Keep E46 unaccepted while G5 is unmet; do not expand scope to remove unrelated runtime code or re-run unchanged inventory indefinitely. Record the precise remaining evidence and normal same-owner return condition. A124 is checking native blocked-worker observation so that the same original parent receives the bounded result.
+
+Receiving acknowledgment: child `37282362-007c-41d1-b499-3fc0b2ad6a91` returned CANCELLED at 21:46:01.638Z. Its retained messages report G1-G4 pass and G5 fail at 251599 (983 above 250616). Current source is 5034 bytes, SHA-256 `e66202f71299abcd9e1bd567770783191297f90a04fe9e5e9f4ce3ebacc0e681`, and parent search finds no fixture references under `api`. No heavy gates were rerun. E46 remains unaccepted; do not dispatch a successor or run heavy commands until the coordinator releases the lane. The original source snapshot and A119 archive contents were unavailable for parent-side unified diff reconstruction, so active-test equality remains worker-reported rather than independently rechecked.
+
+Receiving disposition 2026-10-18: reconciled the exact retained task and cancelled child. Source review of `docs/internal/refactor_inventory.py` confirms `_test.go` files are classified as tests and excluded from runtime totals; the fixture-only edit has zero runtime-line effect and cannot make this E46 slice pass G5. The existing worker G5 result remains 251599/250616 (+983); G1-G4 remain worker-reported passes. E46 stays unaccepted with no successor. The reliability heavy-lane hold remains intact. QUEUE.md now records the precise return condition: a newly measured in-scope runtime slice meeting the existing >=1,000-line estimate rule, or an explicit setpoint-owner revision to the G5 ceiling/metric against a fresh accepted baseline. J09/J11, E22 review, intended-player and platform return conditions remain unchanged.
+
+## RELIABILITY-E46-RETURN-20261017 — ACKNOWLEDGED 2026-10-17T21:10:40Z
+
+The coordinator releases the single heavy build/test lane exclusively to original BAS E46 after AM API run20261017-210502-950fd52a passed. Reuse retained orchestrator9871d148-a9b0-418f-98e2-dac5b43bc24a (Luna, CODEC_PIPE, native can_continue=true); no replacement leader. Same route-only childd2e88109 reached native goal event62 at21:03:14Z, final67 and persisted COMPLETE21:03:16Z on adopted A114 buildcce1b23a. Initial prompt delivery and terminal return are now qualified for that route only. Your prior turn closed20:08Z; it did not accept E46.
+
+Reconcile the current QUEUE and E46 directives with these changed inputs. Resume the original E46 task2546080f-7c56-4f85-94cb-640b552c9250 through its existing Luna-medium worker profile and supported owner route, checking current task runs before any dispatch. The completed route-only worker did no product work. Preserve the E46 scope and all five gates: remove only unused MockStorageWithInfo fixture/banner/imports, keep active tests/assertions, run the prescribed handlers test/build, confirm names absent and exact runtime inventory<=250616. Capture exact immediate prewrite source bytes/hash for the accepted delta; root has also archived artifacts_test.go under A119-bas-e46-return.
+
+You own the heavy lane for this bounded slice only: GOMAXPROCS=2 GOFLAGS=-p=1; no concurrent heavy jobs, broad suites, dependency installation or BAS restart. Required validation may finish coherent work beyond advisory token targets; stopping caps stay off. Independently review the worker delta and real gate outputs before recording E46 accepted. Keep all whole-product journey/player/platform holds. Record receiving acknowledgement and return condition; distinguish root scheduling holds from actual operator decisions. Ordinary authorized maintenance needs no invented permission.
+
+Receiving acknowledgment: reconciled the exact E46 task, completed route-only child, original worker profile, and explicit heavy-lane release. Implementation run `37282362-007c-41d1-b499-3fc0b2ad6a91` is native RUNNING with prompt delivery verified; no product diff or gate result has yet been observed. The same owner is parking on that child. Remaining return condition: child completion, followed by independent diff review, prescribed G1–G5 verification, and mechanical acceptance with every external hold preserved.
+
+### RELIABILITY-PROMPT-RETURN-20261017 — reliability coordinator — OPEN
+
+Changed input: normal AM A94 adoption completed 2026-10-17T19:37:43Z. Settled native status is healthy and maintenance inventory is complete (16 retained work rows, no unknowns). Current-build native INTERACTIVE run `afe095ec-8b69-4814-9513-63de5e8f9690` launched through existing approved run.create authority without a new permission; model Luna/medium, WC session `9de23948-4766-56df-b307-541ed854388f`, provider session `01a14b62-3920-7ea2-be40-8c3b38a762a9`. `goal_delivery=native_verified`; provider assistant/tool events consumed the supplied bounded supervisor prompt at19:41:48–19:41:58. Evidence: docs/internal/delivery-reliability-research/sources/A94-supervisor-running-readback.stdout.json and A94-supervisor-initial-events.stdout.json. This proves that shared current-build initial interactive prompt route for that run; it does not establish E46 prompt delivery or any product gate.
+
+On your existing retained owner9871, acknowledge this changed input and reconcile the current top of your QUEUE/hold/next action rather than merely appending conflicting handoffs. Preserve historical evidence. Qualify your exact existing E46 task2546080f-7c56-4f85-94cb-640b552c9250 through the supported owner route only after fresh no-effect/duplicate checks. No replacement leader or uncertain-effect replay. Keep all acceptance/platform/journey/player gates. Heavy lane is currently reserved by the coordinator for Unit Health diagnosis then scoped AM/PM API validation: no builds/tests/lifecycle changes yet. Record exact receiving result/remaining condition and park if the exact E46 route still lacks qualification. Ordinary maintenance needs no invented grant; only explicitly governed actions use grants.
+
+### RELIABILITY-AM-RECEIVING-20261017 — 2026-10-17T19:07:01.889309+00:00 — reliability coordinator — OPEN
+
+The infrastructure return inputs have changed. Normal supported Agent Manager
+adoption completed18:58:03Z, serving ea631ea962a982d3e11d15c1155cf94f5ffd59dd654035d6083f1e8f15844f39.
+Settled health19:02:47Z is healthy/readiness=true. Ordinary canonical owner-proof
+cleanup19:05:14Z expired only positively dead attached leases; native maintenance
+now returns200 with16retainedwork,9identifiedexecutors,unknown=[]. Its gate is
+open (closed=false), admitting0, remaining16/drained=false because retained work
+exists; this does not mean the completed native adoption failed. The exact old
+fc039 executor is identified alive in the native inventory. No new grant, forced
+drain, process signal or prepared-team activation was used.
+
+Evidence: docs/internal/delivery-reliability-research/sources/
+A86-A89-agent-manager-start.receipt.json,
+A91-post-cleanup-maintenance.stdout.json and A91-native-cleanup.receipt.json.
+The adopted build includes A75/A83 current-peer approval transport, A80 durable
+host output, A84 pure declaration preview, A86 bounded same-turn final handoff,
+and A89 startup readiness repair. These source/adoption witnesses do not qualify
+E46 initial prompt delivery or any product gate.
+
+Reconcile this changed native receipt against the original E46 infrastructure
+hold through this same original owner9871d148-a9b0-418f-98e2-dac5b43bc24a; retain
+same task2546080f-7c56-4f85-94cb-640b552c9250, Luna-medium and unchanged gates.
+First inspect exact prior attempts/children and current task. If safe to resume,
+qualify the supported existing interactive prompt/session route; do not repeat
+uncertain effects, use an alternate launcher or create another leader. Preserve
+J09/J11, E22 review and all platform return conditions.
+
+For this first receiving pass, acknowledge this exact feedback and reconcile the
+remaining precise route condition. The reliability commission currently holds
+one heavy test/build lane for PM admission retry validation: do not start builds,
+broad suites or product tests until the coordinator releases that lane. A bounded
+native prompt-delivery read/qualification may proceed without those operations.
+Keep source/test/adoption/receiver acknowledgement and E46 acceptance separate.
+If a fresh concrete operation fails, record its actual typed failure and owner,
+not a guessed maintenance permission. No epoch criterion or drain safety rule is
+waived by this feedback.
+
 ### SUP-NATIVE-RESUME-20261014 — 2026-10-14T02:31:47.011876+00:00 — supervisor — OPEN
 
 Authenticated native consent is approved at 2026-10-14T02:25:08.912246603Z; grant `3b2a027a-a32a-431c-94d9-da4bc68b9149` expires 2026-10-15T02:25:08.912246643Z. Existing-run agent.manage/agent.investigate only; original budgets, acceptance and future-team gates remain. The existing leader successfully resumed through its retained run/session (see credential-free package receipt `docs/internal/delivery-operations/2026-10-12/sources/execution-evidence/2026-10-13/native-resume-receipts.json`). This supersedes earlier pending/expired supervisor transport statements; it does not close them retrospectively or establish receiver acknowledgment. Read and acknowledge SUP-FOLLOWUP-20261013 and SUP-OWNER-APPROVAL-20261013; Nooch also SUP-STORAGE-RECOVERY-20261013. Continue only through the existing owner, preserving original acceptance. Planner's fresh current-code qualification is authorized independently of retained F8 NEEDS_REWORK. Do not infer manual approval from this grant.
@@ -53,6 +117,7 @@ broad evidence cycles, and make qualification serve delivery.
 
 | IDs | Disposition |
 | --- | --- |
+| RELIABILITY-NOTIFICATION-PRIORITY-20261017 | 2026-10-18, reconciled the retained E46 child and source/inventory evidence without heavy commands. E46's test-only cleanup cannot affect runtime G5; retained result remains 251599/250616 (+983), G1-G4 worker-reported pass, unaccepted. QUEUE.md now holds the exact setpoint-owner return condition; reliability's heavy-lane hold and all product/platform/journey/player waits remain intact. |
 | DPF-FB-F1-001 | 2026-10-09, E33 accepted the canonical BAS Electron shell regeneration and comparison seam. Its retained audit reports the canonical vanilla tree identity `39b80f517004d3cc282b1a095761944f0c4de8682f97533d858357e2413bc283`, processed/generated BAS Electron `src` identity `f68cb1804f0f18a2faa3aa3ff9593d9258ceb669ea62f6e13aa647da4e91f3d1`, main/preload identities, and passing owner comparison/build gates. Proposal `gctp-95f0216fa761` contains the accepted result; F1 can recheck those identities. |
 | BAS-FB-070 | 2026-10-09, admitted and accepted E35 for BAS-FB-036: 10/24 work units, 0 runtime lines, −53 test/support lines (7,506→7,453), all amended gates met, proposal `gctp-07020a97e979` open for operator review. The E34 GCT retry failed because five paths were unchanged; exact error remains in WORKAROUNDS.md. J09/J11 remain parked on outside conditions. |
 | BAS-FB-067 | 2026-10-08, set destination to all 25 requirements journeys; prepared E34 for Linux managed-session J21 coverage; parked physical desktop/Android qualification on an authorized target; removed GCT review from the exact next action. E34 dispatch is separately tracked against the Agent Manager run-create issue. |

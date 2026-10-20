@@ -140,9 +140,8 @@ func (s *sqliteRepository) UpdateEstimate(ctx context.Context, id string, minute
 }
 
 func (s *sqliteRepository) Complete(ctx context.Context, id string) error {
-	var original, remaining int
 	var status string
-	if err := s.db.QueryRowContext(ctx, `SELECT original_estimate_minutes,remaining_minutes,status FROM work_items WHERE id=?`, id).Scan(&original, &remaining, &status); errors.Is(err, sql.ErrNoRows) {
+	if err := s.db.QueryRowContext(ctx, `SELECT status FROM work_items WHERE id=?`, id).Scan(&status); errors.Is(err, sql.ErrNoRows) {
 		return ErrWorkItemNotFound{id}
 	} else if err != nil {
 		return fmt.Errorf("read work item %q for completion: %w", id, err)
@@ -160,13 +159,8 @@ func (s *sqliteRepository) Complete(ctx context.Context, id string) error {
 	} else if count != 1 {
 		return ErrWorkItemNotFound{id}
 	}
-	actual := original - remaining
-	if actual < 0 {
-		actual = 0
-	}
-	if _, err := s.db.ExecContext(ctx, `INSERT INTO work_item_completion_history(id,work_item_id,original_estimate_minutes,final_actual_minutes,variance_minutes,created_date,completed_date) VALUES (?,?,?,?,?,?,?)`, s.idGenerator(), id, original, actual, actual-original, now.Format("2006-01-02"), now.Format("2006-01-02")); err != nil {
-		return fmt.Errorf("record completion history for %q: %w", id, err)
-	}
+	// Completing an item does not provide a measured actual. The estimate and
+	// remaining estimate cannot be used to manufacture actual time or variance.
 	if _, err := s.db.ExecContext(ctx, `UPDATE milestones SET status='complete',completed_date=?,updated_at=?,revision=revision+1 WHERE id IN (SELECT l.milestone_id FROM milestone_work_links l WHERE l.work_item_id=?) AND status<>'complete' AND NOT EXISTS (SELECT 1 FROM milestone_prerequisites p JOIN milestones prerequisite ON prerequisite.id=p.prerequisite_milestone_id WHERE p.milestone_id=milestones.id AND prerequisite.status<>'complete')`, now.Format("2006-01-02"), now.Unix(), id); err != nil {
 		return fmt.Errorf("advance linked milestones for %q: %w", id, err)
 	}

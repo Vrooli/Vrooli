@@ -28,6 +28,10 @@ type PressureReporter interface {
 	ReportPressure(ctx context.Context, report cleanupmanager.Report) (cleanupmanager.Outcome, error)
 }
 
+type recoveryWaiter interface {
+	WaitRecovery(context.Context, string) (cleanupmanager.Recovery, error)
+}
+
 // DiskUsageSource supplies the disk measurement the threshold loop evaluates.
 // Production reads a real filesystem; tests inject a controllable source, which
 // is the only way to prove the loop fires under pressure without filling a real
@@ -91,6 +95,10 @@ type RemediationResult struct {
 	ProvidersApplied  []string  `json:"providers_applied,omitempty"`
 	ProvidersWithheld []string  `json:"providers_withheld,omitempty"`
 	Error             string    `json:"error,omitempty"`
+	RunID             string    `json:"run_id,omitempty"`
+	Status            string    `json:"status,omitempty"`
+	Reason            string    `json:"reason,omitempty"`
+	StoppedBecause    string    `json:"stopped_because,omitempty"`
 }
 
 // ThresholdScheduler evaluates disk pressure against the configured threshold
@@ -118,26 +126,27 @@ type ThresholdScheduler struct {
 	log           *slog.Logger
 	clock         Clock
 
-	mu             sync.Mutex
-	bands          bandTracker
-	hasRun         bool
-	lastRunAt      time.Time
-	lastErr        error
-	lastUsage      collectors.DiskUsage
-	lastWriters    []WriterSnapshot
-	lastViolation  *models.ThresholdViolation
-	violations     int64
-	previousValue  float64
-	hasPrevious    bool
-	previousBytes  int64
-	previousAt     time.Time
-	fillWindow     *fillRateWindow
-	lastBand       PressureBand
-	lastRemedy     *RemediationResult
-	cpuConsecutive int
-	cpuLastBand    PressureBand
-	cpuLastEmit    time.Time
-	hotEpisodes    map[string]bool
+	mu              sync.Mutex
+	bands           bandTracker
+	hasRun          bool
+	lastRunAt       time.Time
+	lastErr         error
+	lastUsage       collectors.DiskUsage
+	lastWriters     []WriterSnapshot
+	lastViolation   *models.ThresholdViolation
+	violations      int64
+	previousValue   float64
+	hasPrevious     bool
+	previousBytes   int64
+	previousAt      time.Time
+	fillWindow      *fillRateWindow
+	lastBand        PressureBand
+	lastRemedy      *RemediationResult
+	waitingRecovery map[string]bool
+	cpuConsecutive  int
+	cpuLastBand     PressureBand
+	cpuLastEmit     time.Time
+	hotEpisodes     map[string]bool
 
 	// evaluated is signalled after every completed evaluation when non-nil.
 	// Tests use it to synchronise with the loop rather than sleeping.
@@ -526,6 +535,11 @@ func (s *ThresholdScheduler) escalate(ctx context.Context, decision bandDecision
 		result.ProvidersApplied = outcome.ProvidersApplied
 		result.ProvidersWithheld = outcome.ProvidersWithheld
 		result.BugReference = outcome.BugReference
+		result.RunID = outcome.RunID
+		result.Reason = outcome.Reason
+		if outcome.RunID != "" {
+			result.Status = "running"
+		}
 		s.log.Info("disk pressure escalated to storage-manager",
 			"band", decision.Band.String(),
 			"action", outcome.Action,
@@ -536,7 +550,40 @@ func (s *ThresholdScheduler) escalate(ctx context.Context, decision bandDecision
 
 	s.mu.Lock()
 	s.lastRemedy = result
+	waiter, canWait := s.reporter.(recoveryWaiter)
+	watch := canWait && result.RunID != "" && !s.waitingRecovery[result.RunID]
+	if watch {
+		if s.waitingRecovery == nil {
+			s.waitingRecovery = make(map[string]bool)
+		}
+		s.waitingRecovery[result.RunID] = true
+	}
 	s.mu.Unlock()
+	if watch {
+		go s.waitRecovery(ctx, waiter, result.RunID)
+	}
+}
+
+func (s *ThresholdScheduler) waitRecovery(ctx context.Context, waiter recoveryWaiter, runID string) {
+	receipt, err := waiter.WaitRecovery(ctx, runID)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.waitingRecovery, runID)
+	if s.lastRemedy == nil || s.lastRemedy.RunID != runID {
+		return
+	}
+	// Status readers receive immutable snapshots, including during completion.
+	result := *s.lastRemedy
+	if err != nil {
+		result.Status = "unknown"
+		result.Error = "recovery completion unavailable: " + err.Error()
+	} else {
+		result.Status, result.Reason, result.StoppedBecause = receipt.Status, receipt.Reason, receipt.StoppedBecause
+		result.Action = receipt.Action
+		result.PlanID = receipt.PlanID
+		result.EstimatedBytes, result.ReclaimedBytes = receipt.EstimatedBytes, receipt.ReclaimedBytes
+	}
+	s.lastRemedy = &result
 }
 
 func hasHotWriter(snapshots []WriterSnapshot) bool {

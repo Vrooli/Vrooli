@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"deployment-manager/internal/authz"
 	"deployment-manager/secrets"
 )
 
@@ -98,8 +99,12 @@ func TestHandleExportBundle(t *testing.T) {
 	t.Setenv("SECRETS_MANAGER_URL", secretsServer.URL)
 
 	handler := NewHandler(secrets.NewClient(), nil, func(msg string, fields map[string]interface{}) {})
+	handler.WithProductionReleaseExportAuthorization(func(context.Context) error {
+		t.Fatal("development-local export invoked production release authorization")
+		return nil
+	})
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/bundles/export", strings.NewReader(`{"scenario":"export-test-app","tier":"tier-2-desktop"}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/bundles/export", strings.NewReader(`{"scenario":"export-test-app","tier":"tier-2-desktop","artifact_trust_mode":"development-local"}`))
 	rec := httptest.NewRecorder()
 
 	handler.ExportBundle(rec, req)
@@ -150,25 +155,26 @@ func TestHandleExportBundle(t *testing.T) {
 	}
 }
 
-func TestHandleExportBundleSecretBearingExportRequiresAuthorization(t *testing.T) {
+func TestHandleExportBundleProductionReleaseWithSecretPlansRequiresPrincipal(t *testing.T) {
 	handler := NewHandler(secrets.NewClient(), nil, func(string, map[string]interface{}) {})
-	handler.WithExportAuthorization(func(context.Context) error {
-		return errors.New("service identity required")
-	})
+	handler.WithProductionReleaseExportAuthorization(authz.RequireProductionReleasePreparation)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/bundles/export", strings.NewReader(`{"scenario":"export-test-app","include_secrets":true}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/bundles/export", strings.NewReader(`{"scenario":"export-test-app","include_secrets":true,"artifact_trust_mode":"production"}`))
 	rec := httptest.NewRecorder()
 	handler.ExportBundle(rec, req)
 
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("status = %d, want %d: %s", rec.Code, http.StatusForbidden, rec.Body.String())
 	}
+	if !strings.Contains(rec.Body.String(), "verified deployment-manager production release service required") {
+		t.Fatalf("production refusal missing principal requirement: %s", rec.Body.String())
+	}
 }
 
 func TestHandleExportBundleInvalidRequestDoesNotInvokeAuthorization(t *testing.T) {
 	handler := NewHandler(secrets.NewClient(), nil, func(string, map[string]interface{}) {})
 	called := false
-	handler.WithExportAuthorization(func(context.Context) error {
+	handler.WithProductionReleaseExportAuthorization(func(context.Context) error {
 		called = true
 		return errors.New("must not be called")
 	})
@@ -354,8 +360,9 @@ func TestHandleExportBundleFiltersInfrastructureSecrets(t *testing.T) {
 	t.Setenv("SECRETS_MANAGER_URL", secretsServer.URL)
 
 	handler := NewHandler(secrets.NewClient(), nil, func(msg string, fields map[string]interface{}) {})
+	handler.WithProductionReleaseExportAuthorization(authz.RequireProductionReleasePreparation)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/bundles/export", strings.NewReader(`{"scenario":"filter-test"}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/bundles/export", strings.NewReader(`{"scenario":"filter-test","artifact_trust_mode":"development-local"}`))
 	rec := httptest.NewRecorder()
 
 	handler.ExportBundle(rec, req)

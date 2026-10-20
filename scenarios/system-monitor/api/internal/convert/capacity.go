@@ -54,6 +54,10 @@ func CapacityClaimsToProto(claims []capacityapp.ClaimView) []*capacitypb.Capacit
 
 // CapacityFindingToProto converts an engine reconciliation finding to the API message.
 func CapacityFindingToProto(f engine.Finding) *capacitypb.CapacityFinding {
+	pids := make([]int32, len(f.PIDs))
+	for i, pid := range f.PIDs {
+		pids[i] = int32(pid)
+	}
 	return &capacitypb.CapacityFinding{
 		Class:         f.Class,
 		OwnerId:       f.OwnerID,
@@ -61,6 +65,7 @@ func CapacityFindingToProto(f engine.Finding) *capacitypb.CapacityFinding {
 		ResourceKind:  f.ResourceKind,
 		GpuIndex:      optionalInt32(f.GPUIndex),
 		Pid:           int32(f.PID),
+		Pids:          pids,
 		ProcessName:   f.ProcessName,
 		ObservedBytes: f.ObservedBytes,
 		ClaimedBytes:  f.ClaimedBytes,

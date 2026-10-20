@@ -23,6 +23,8 @@ import (
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
+	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 // sharedHandler turns the catalog suite into a Test Genie provider phase.
@@ -37,6 +39,7 @@ type sharedHandler struct {
 	evidence   *catalogcoverage.EvidenceStore
 	fixture    GeneratedFixtureValidator
 	probe      func(context.Context) error
+	inspect    func(context.Context) (domain.BASProviderInspection, error)
 }
 
 // The catalog suite is transport-bound: Test Genie keeps the validation RPC
@@ -82,22 +85,64 @@ func (h *sharedHandler) DescribeProvider(context.Context, *connect.Request[scena
 func (h *sharedHandler) ValidateScenario(ctx context.Context, req *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
 	collector := metrics.Start()
 	allVersions := domain.FullVersionAuditRequested(req.Msg.GetCapabilitySubset())
-	if h.probe != nil {
+	var nativeDetail *anypb.Any
+	var inspection *domain.BASProviderInspection
+	var probeErr error
+	if h.inspect != nil {
 		probeCtx, cancelProbe := context.WithTimeout(ctx, 5*time.Second)
-		probeErr := h.probe(probeCtx)
+		result, err := h.inspect(probeCtx)
 		cancelProbe()
-		if probeErr != nil {
-			collector.Gauge("component_test_runner_available", 0)
-			details := map[string]string{"component-test-runner": "COMPONENT_TEST_RUNNER_UNAVAILABLE: " + probeErr.Error()}
-			assessment := componentTestsAssessment(req.Msg.GetScenario(), false, []string{"component-test-runner"}, details)
-			return connect.NewResponse(&scenariovalidationv1.ValidateScenarioResponse{
-				Scenario:   req.Msg.GetScenario(),
-				Status:     scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED,
-				Assessment: assessment,
-				Metrics:    collector.Stop(),
-			}), nil
+		inspection = &result
+		probeErr = err
+		var detailErr error
+		nativeDetail, detailErr = basInspectionNativeDetail(result, !req.Msg.GetIncludeExecution(), req.Msg.GetIncludeExecution())
+		if detailErr != nil {
+			return nil, connect.NewError(connect.CodeInternal, detailErr)
 		}
+	} else if h.probe != nil {
+		probeCtx, cancelProbe := context.WithTimeout(ctx, 5*time.Second)
+		probeErr = h.probe(probeCtx)
+		cancelProbe()
+	}
+	if probeErr != nil {
+		message := probeErr.Error()
+		if inspection != nil {
+			message = "BAS health check is " + inspection.HealthStatus
+			if inspection.FailureClass != "" {
+				message += " (" + inspection.FailureClass + ")"
+			}
+			if inspection.HTTPStatusCode != 0 {
+				message += fmt.Sprintf(" (HTTP %d)", inspection.HTTPStatusCode)
+			}
+		}
+		collector.Gauge("component_test_runner_available", 0)
+		details := map[string]string{"component-test-runner": "COMPONENT_TEST_RUNNER_UNAVAILABLE: " + message}
+		assessment := componentTestsAssessment(req.Msg.GetScenario(), false, []string{"component-test-runner"}, details)
+		return connect.NewResponse(&scenariovalidationv1.ValidateScenarioResponse{
+			Scenario:     req.Msg.GetScenario(),
+			Status:       scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED,
+			Assessment:   assessment,
+			NativeDetail: nativeDetail,
+			Metrics:      collector.Stop(),
+		}), nil
+	}
+	if inspection != nil {
 		collector.Gauge("component_test_runner_available", 1)
+	}
+	if h.inspect == nil && h.probe != nil {
+		// Legacy prober implementations do not expose route detail, but retain
+		// their existing probe result and error reporting behavior.
+		collector.Gauge("component_test_runner_available", 1)
+	}
+	if !req.Msg.GetIncludeExecution() {
+		assessment := componentTestsInspectionAssessment(req.Msg.GetScenario())
+		return connect.NewResponse(&scenariovalidationv1.ValidateScenarioResponse{
+			Scenario:     req.Msg.GetScenario(),
+			Status:       scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_SKIPPED,
+			Assessment:   assessment,
+			NativeDetail: nativeDetail,
+			Metrics:      collector.Stop(),
+		}), nil
 	}
 	catalogFindings, err := h.validateCatalog()
 	if err != nil {
@@ -240,11 +285,64 @@ func (h *sharedHandler) ValidateScenario(ctx context.Context, req *connect.Reque
 		assessment.Presentation = canonicalComponentTestsPresentation(assessment)
 	}
 	return connect.NewResponse(&scenariovalidationv1.ValidateScenarioResponse{
-		Scenario:   req.Msg.GetScenario(),
-		Status:     status,
-		Assessment: assessment,
-		Metrics:    collector.Stop(),
+		Scenario:     req.Msg.GetScenario(),
+		Status:       status,
+		Assessment:   assessment,
+		NativeDetail: nativeDetail,
+		Metrics:      collector.Stop(),
 	}), nil
+}
+
+func basInspectionNativeDetail(inspection domain.BASProviderInspection, inspectionOnly, executionRequested bool) (*anypb.Any, error) {
+	fields := map[string]any{
+		"bas_base_url":        inspection.BASBaseURL,
+		"capture_path":        inspection.CapturePath,
+		"resolved_at":         "",
+		"health_status":       inspection.HealthStatus,
+		"selection_exact":     inspection.SelectionExact,
+		"failure_class":       inspection.FailureClass,
+		"inspection_only":     inspectionOnly,
+		"execution_requested": executionRequested,
+	}
+	if !inspection.ResolvedAt.IsZero() {
+		fields["resolved_at"] = inspection.ResolvedAt.UTC().Format(time.RFC3339Nano)
+	}
+	if inspection.HTTPStatusCode != 0 {
+		fields["http_status_code"] = inspection.HTTPStatusCode
+	}
+	message, err := structpb.NewStruct(fields)
+	if err != nil {
+		return nil, fmt.Errorf("encode BAS inspection detail: %w", err)
+	}
+	packed, err := anypb.New(message)
+	if err != nil {
+		return nil, fmt.Errorf("pack BAS inspection detail: %w", err)
+	}
+	return packed, nil
+}
+
+// componentTestsInspectionAssessment reports that the BAS route is available
+// while making clear that catalog contracts were not evaluated. SKIPPED is
+// the response status; this assessment deliberately carries no failed-test
+// finding or clean/pass claim.
+func componentTestsInspectionAssessment(scenario string) *commonv1.MaturityAssessment {
+	assessment := componentTestsAssessment(scenario, true, nil)
+	const message = "Inspection only: BAS readiness was checked; component catalog contracts were not evaluated."
+	assessment.Local.CurrentLevel = "L0"
+	assessment.Local.NextLevel = "L1"
+	assessment.Local.Clean = false
+	assessment.Local.BlockingFindingCodes = nil
+	capability := assessment.Capabilities[0]
+	capability.CurrentLevel = "L0"
+	capability.NextLevel = "L1"
+	capability.CurrentSummary = message
+	capability.NextUnlock = "Request execution to validate the component catalog."
+	capability.Clean = false
+	assessment.HighestPriorityCapability.CurrentLevel = "L0"
+	assessment.HighestPriorityCapability.NextLevel = "L1"
+	assessment.HighestPriorityCapability.Reason = "execution was not requested"
+	assessment.Presentation = canonicalComponentTestsPresentation(assessment)
+	return assessment
 }
 
 func (h *sharedHandler) coverageReport(ctx context.Context) (*catalogcoverage.Report, error) {

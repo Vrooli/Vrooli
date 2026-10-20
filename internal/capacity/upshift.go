@@ -100,6 +100,7 @@ func PlanUpshift(c CapacityClaim, freeHeadroom int64, policy Policy, _ time.Time
 	}
 	return EscalationAction{
 		ClaimID:    c.ClaimID,
+		Generation: c.Generation,
 		OwnerID:    c.OwnerID,
 		Action:     ActionRequestUpshift,
 		ToStep:     target.Label,

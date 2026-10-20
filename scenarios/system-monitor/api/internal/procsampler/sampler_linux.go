@@ -125,6 +125,7 @@ func (s *linuxSampler) readProcess(pid int) (ProcessSample, bool) {
 	sample.PID = pid
 	sample.MetricsStatus = "measured"
 	sample.MetricsReason = "Linux /proc stat and status"
+	sample.FaultCounter = "linux /proc/<pid>/stat majflt"
 
 	// cmdline: nul-separated args; the comm in stat is already the short name.
 	if cmdRaw, err := s.fs.ReadFile(pid, "cmdline"); err == nil {
@@ -132,7 +133,9 @@ func (s *linuxSampler) readProcess(pid int) (ProcessSample, bool) {
 	}
 	if statusRaw, err := s.fs.ReadFile(pid, "status"); err == nil {
 		sample.SwapKB = parseStatusKB(string(statusRaw), "VmSwap")
+		sample.SwapStatus = "measured"
 	} else {
+		sample.SwapStatus = "unsupported"
 		sample.MetricsStatus = "unsupported"
 		sample.MetricsReason = "Linux /proc status unavailable: " + err.Error()
 	}

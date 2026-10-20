@@ -105,8 +105,8 @@ func TestNewApp_AllSubcommandGroupsRegistered(t *testing.T) {
 	}
 
 	subgroups := domains.SubcommandGroups(app.dependencies())
-	if len(subgroups) != 15 {
-		t.Errorf("NewApp subcommand callback returned %d groups, want 15", len(subgroups))
+	if len(subgroups) != 16 {
+		t.Errorf("NewApp subcommand callback returned %d groups, want 16", len(subgroups))
 	}
 
 	expectedNames := map[string]int{
@@ -125,6 +125,7 @@ func TestNewApp_AllSubcommandGroupsRegistered(t *testing.T) {
 		"wine":          3,
 		"targets":       1,
 		"validation":    2,
+		"strategies":    2,
 	}
 	for _, sg := range subgroups {
 		expectedCount, ok := expectedNames[sg.Name]

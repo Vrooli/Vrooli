@@ -48,6 +48,19 @@ type capturingService struct {
 	lastConfig *generation.DesktopConfig
 }
 
+func TestBuildDesktopConfigCarriesStrategyOverride(t *testing.T) {
+	analyzer := &mockAnalyzer{metadata: &generation.ScenarioMetadata{Name: "test-app", DisplayName: "Test App", HasUI: true}}
+	stage := NewGenerateStage(WithScenarioAnalyzer(analyzer))
+	input := &StageInput{Config: &PipelineConfig{ScenarioName: "test-app", DeploymentMode: DeploymentModeProxy, StrategyID: generation.DefaultStrategyID}}
+	config, err := stage.buildDesktopConfig(input, analyzer.metadata, &StageResult{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if config.StrategyID != generation.DefaultStrategyID {
+		t.Fatalf("strategy_id=%q", config.StrategyID)
+	}
+}
+
 func (s *capturingService) Generate(buildID string, config *generation.DesktopConfig) {
 	// No-op for tests
 }

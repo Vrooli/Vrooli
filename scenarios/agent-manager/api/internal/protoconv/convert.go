@@ -406,6 +406,8 @@ func TaskStatusToProto(s domain.TaskStatus) pb.TaskStatus {
 		return pb.TaskStatus_TASK_STATUS_RUNNING
 	case domain.TaskStatusNeedsReview:
 		return pb.TaskStatus_TASK_STATUS_NEEDS_REVIEW
+	case domain.TaskStatusCompleted:
+		return pb.TaskStatus_TASK_STATUS_COMPLETED
 	case domain.TaskStatusApproved:
 		return pb.TaskStatus_TASK_STATUS_APPROVED
 	case domain.TaskStatusRejected:
@@ -428,6 +430,8 @@ func TaskStatusFromProto(s pb.TaskStatus) domain.TaskStatus {
 		return domain.TaskStatusRunning
 	case pb.TaskStatus_TASK_STATUS_NEEDS_REVIEW:
 		return domain.TaskStatusNeedsReview
+	case pb.TaskStatus_TASK_STATUS_COMPLETED:
+		return domain.TaskStatusCompleted
 	case pb.TaskStatus_TASK_STATUS_APPROVED:
 		return domain.TaskStatusApproved
 	case pb.TaskStatus_TASK_STATUS_REJECTED:

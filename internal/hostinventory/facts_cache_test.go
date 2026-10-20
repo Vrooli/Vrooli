@@ -105,3 +105,109 @@ func TestHostFactsReaderCrossProcessLockWaitsAndReusesRefresh(t *testing.T) {
 		t.Fatalf("probe calls = %d, want one shared refresh", calls)
 	}
 }
+
+func TestHostFactsFutureFetchIsNeverCacheFresh(t *testing.T) {
+	for _, mode := range []string{"initial", "after-lock"} {
+		t.Run(mode, func(t *testing.T) {
+			now := time.Unix(100, 0)
+			calls := 0
+			r := &hostFactsReader{Path: t.TempDir() + "/facts.json", TTL: map[string]time.Duration{"gpu": time.Minute}, BootID: func() string { return "boot" }, Now: func() time.Time { return now }, Probe: func(context.Context, string) (json.RawMessage, error) {
+				calls++
+				return json.RawMessage(`{"current":true}`), nil
+			}}
+			future := hostFactsEntry{Schema: hostFactsSchemaVersion, BootID: "boot", FetchedAt: now.Add(time.Hour), Class: "gpu", Value: json.RawMessage(`{"future":true}`)}
+			if mode == "initial" {
+				if err := r.store("gpu", future); err != nil {
+					t.Fatal(err)
+				}
+			} else {
+				r.AcquireLock = func(context.Context, string) (func(), error) {
+					if err := r.store("gpu", future); err != nil {
+						t.Fatal(err)
+					}
+					return func() {}, nil
+				}
+			}
+			got, err := r.Read(context.Background(), "gpu")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if calls != 1 || string(got) != `{"current":true}` {
+				t.Fatalf("future cache accepted mode=%s calls=%d value=%s", mode, calls, got)
+			}
+		})
+	}
+}
+
+func TestHostFactsReaderRechecksClockAfterLockWait(t *testing.T) {
+	now := time.Unix(100, 0)
+	calls := 0
+	r := &hostFactsReader{Path: t.TempDir() + "/facts.json", TTL: map[string]time.Duration{"gpu": time.Minute}, BootID: func() string { return "boot" }, Now: func() time.Time { return now }, Probe: func(context.Context, string) (json.RawMessage, error) {
+		calls++
+		return json.RawMessage(`{"extra_probe":true}`), nil
+	}}
+	r.AcquireLock = func(context.Context, string) (func(), error) {
+		now = now.Add(10 * time.Second)
+		if err := r.store("gpu", hostFactsEntry{Schema: hostFactsSchemaVersion, BootID: "boot", FetchedAt: now, Class: "gpu", Value: json.RawMessage(`{"refreshed_while_waiting":true}`)}); err != nil {
+			t.Fatal(err)
+		}
+		return func() {}, nil
+	}
+	value, err := r.Read(context.Background(), "gpu")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if calls != 0 || string(value) != `{"refreshed_while_waiting":true}` {
+		t.Fatalf("real waiter refresh was mistaken for future cache: probes=%d value=%s", calls, value)
+	}
+}
+
+func TestHostFactsReaderRechecksClockAfterLocalMutexWait(t *testing.T) {
+	for _, mode := range []string{"expired", "refreshed"} {
+		t.Run(mode, func(t *testing.T) {
+			var seconds atomic.Int64
+			seconds.Store(100)
+			reachedBeforeMutex := make(chan struct{})
+			probes, locks := 0, 0
+			r := &hostFactsReader{Path: t.TempDir() + "/facts.json", TTL: map[string]time.Duration{"gpu": time.Minute}, Now: func() time.Time { return time.Unix(seconds.Load(), 0) }, BootID: func() string { close(reachedBeforeMutex); return "boot" }, Probe: func(context.Context, string) (json.RawMessage, error) {
+				probes++
+				return json.RawMessage(`{"current":true}`), nil
+			}, AcquireLock: func(context.Context, string) (func(), error) { locks++; return func() {}, nil }}
+			entry := hostFactsEntry{Schema: hostFactsSchemaVersion, BootID: "boot", FetchedAt: time.Unix(100, 0), Class: "gpu", Value: json.RawMessage(`{"expired_after_wait":true}`)}
+			if err := r.store("gpu", entry); err != nil {
+				t.Fatal(err)
+			}
+			r.mu.Lock()
+			type result struct {
+				value json.RawMessage
+				err   error
+			}
+			done := make(chan result, 1)
+			go func() { value, err := r.Read(context.Background(), "gpu"); done <- result{value, err} }()
+			// The reader has captured its pre-wait instant and cannot acquire the mutex.
+			<-reachedBeforeMutex
+			seconds.Store(220)
+			if mode == "refreshed" {
+				entry.FetchedAt = time.Unix(220, 0)
+				entry.Value = json.RawMessage(`{"refreshed_while_waiting":true}`)
+				if err := r.store("gpu", entry); err != nil {
+					r.mu.Unlock()
+					<-done
+					t.Fatal(err)
+				}
+			}
+			r.mu.Unlock()
+			got := <-done
+			if got.err != nil {
+				t.Fatal(got.err)
+			}
+			if mode == "expired" {
+				if probes != 1 || locks != 1 || string(got.value) != `{"current":true}` {
+					t.Fatalf("expired local-wait data reused: probes=%d locks=%d value=%s", probes, locks, got.value)
+				}
+			} else if probes != 0 || locks != 0 || string(got.value) != `{"refreshed_while_waiting":true}` {
+				t.Fatalf("fresh local-wait refresh not reused: probes=%d locks=%d value=%s", probes, locks, got.value)
+			}
+		})
+	}
+}

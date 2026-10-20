@@ -165,7 +165,7 @@ func (b *Builder) buildGo(ctx context.Context, config *BuildConfig, platform Pla
 	}
 
 	// Build command
-	args := []string{"build", "-o", outputPath}
+	args := []string{"build", "-buildvcs=false", "-o", outputPath}
 
 	// Add CGO_ENABLED=0 for static binaries by default
 	env := os.Environ()

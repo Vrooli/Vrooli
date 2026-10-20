@@ -522,3 +522,19 @@ func TestPlacementUsesCurrentProcessObservationInsteadOfPreSpawnCachedRows(t *te
 		t.Fatalf("static simulation contract changed: %+v %v", got, err)
 	}
 }
+
+func TestServingSupervisorWithExplicitIdleEvidenceIsNotCPUDrift(t *testing.T) {
+	snapshot := hostWithCUDA()
+	// A different tenant on the GPU must not turn an idle supervisor into a CPU workload.
+	snapshot.GPUProcesses = []hostinventory.GPUProcess{{PID: 9999, UsedBytes: 1024}}
+	target := accel.HostProcess{PID: 4242, Name: "songgen", Serving: true, WorkloadAbsent: true}
+	placement, err := verifierFor(snapshot, nil).VerifyPlacement(t.Context(), "songgen", target, accel.BackendCUDA)
+	if err != nil || placement.State != accel.StateUndetermined || placement.Observed != "" {
+		t.Fatalf("idle placement=%+v err=%v", placement, err)
+	}
+	snapshot.GPUProcesses = []hostinventory.GPUProcess{{PID: 4242, UsedBytes: 1024}}
+	placement, err = verifierFor(snapshot, nil).VerifyPlacement(t.Context(), "songgen", target, accel.BackendCUDA)
+	if err != nil || placement.State != accel.StateOK || placement.Observed != accel.BackendCUDA {
+		t.Fatalf("resident placement=%+v err=%v", placement, err)
+	}
+}

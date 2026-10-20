@@ -4,12 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
-	"os/signal"
 	"strings"
-	"syscall"
 	"time"
 
 	"deployment-manager/build"
@@ -26,6 +23,7 @@ import (
 	internalEvidence "deployment-manager/internal/evidence"
 	"deployment-manager/internal/modules"
 	internalReadiness "deployment-manager/internal/readiness"
+	internalReleaseDecision "deployment-manager/internal/releasedecision"
 	internalReleases "deployment-manager/internal/releases"
 	transport "deployment-manager/internal/transport"
 	"deployment-manager/migrationtasks"
@@ -36,7 +34,6 @@ import (
 	"deployment-manager/swaps"
 	"deployment-manager/telemetry"
 
-	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/authn"
@@ -44,6 +41,8 @@ import (
 	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/eventbus"
 	"github.com/vrooli/api-core/filerouting"
+	"github.com/vrooli/api-core/operatordecision"
+	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	evidenceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/evidence/evidencev1connect"
@@ -84,6 +83,7 @@ type Server struct {
 	ConnectRoutes            []transport.Route
 	Orchestrator             *deployments.Orchestrator
 	Handler                  http.Handler
+	DecisionWebhookHandler   http.Handler
 
 	// Repositories
 	ProfilesRepo      profiles.Repository
@@ -288,7 +288,7 @@ func New() (*Server, error) {
 		if err := authz.RequireWrite(ctx); err != nil {
 			return "", err
 		}
-		principal, err := authn.RequireHuman(ctx)
+		principal, err := authn.RequireCapability(ctx, authz.WriteCapability)
 		if err != nil {
 			return "", err
 		}
@@ -352,8 +352,8 @@ func New() (*Server, error) {
 		DependenciesHandler: dependencies.NewHandler(logFn),
 		SwapsHandler:        swaps.NewHandler(profilesRepo, logFn),
 		DeploymentsHandler:  deployments.NewHandler(logFn),
-		BundlesHandler: bundles.NewHandlerWithSigning(secrets.NewClient(), profilesRepo, signingRepo, logFn).WithExportAuthorization(func(ctx context.Context) error {
-			return authz.RequireReleasePreparation(ctx)
+		BundlesHandler: bundles.NewHandlerWithSigning(secrets.NewClient(), profilesRepo, signingRepo, logFn).WithProductionReleaseExportAuthorization(func(ctx context.Context) error {
+			return authz.RequireProductionReleasePreparation(ctx)
 		}),
 		ProfilesHandler:          profiles.NewHandler(profilesRepo, logFn),
 		SigningHandler:           codesigning.NewHandler(signingRepo, logFn),
@@ -401,11 +401,13 @@ func New() (*Server, error) {
 	srv.ReleasesHandler = releases.NewHandler(
 		releasesRepo, lpbsConfigRepo, releasesVerifierAdapter{inner: lpbsClient}, srv.Orchestrator, logFn,
 	).WithAuthorization(func(ctx context.Context) error {
+		return authz.RequireReleaseDecision(ctx)
+	}).WithExecutionAuthorization(func(ctx context.Context) error {
 		return authz.RequireWrite(ctx)
 	}).WithRecoveryAuthorization(func(ctx context.Context) error {
 		return authz.RequireDestructive(ctx)
 	}).WithActorResolver(func(ctx context.Context) (string, error) {
-		principal, err := authn.RequireHuman(ctx)
+		principal, err := authn.RequireCapability(ctx, authz.WriteCapability)
 		if err != nil {
 			return "", err
 		}
@@ -457,7 +459,7 @@ func New() (*Server, error) {
 	}).WithClientUpdateReceiptAuthorization(func(ctx context.Context) error {
 		return authz.RequireClientUpdateReceipt(ctx)
 	}).WithReleasePreparationAuthorization(func(ctx context.Context) error {
-		return authz.RequireReleasePreparation(ctx)
+		return authz.RequireProductionReleasePreparation(ctx)
 	}).WithReadAuthorization(func(ctx context.Context) error {
 		return authz.RequireRead(ctx)
 	}).WithReleaseIdentityRepository(releasesRepo)
@@ -467,6 +469,51 @@ func New() (*Server, error) {
 	})
 	readinessPath, readinessHandler := readinessconnect.NewReadinessServiceHandler(readinessDomainHandler)
 	srv.ConnectRoutes = append(srv.ConnectRoutes, transport.Route{Path: readinessPath, Handler: readinessHandler})
+
+	// Ask, don't block: an agent asking to ship a release with no approved
+	// readiness review raises an operator decision through the shared
+	// operatordecision rail instead of a hard-refuse. The pending-ask store makes
+	// the raise idempotent and flood-capped; the resolution webhook re-validates
+	// the durable review and records the approval under the verified human.
+	decisionStore := internalReleaseDecision.NewSQLStore(routedDB)
+	decisionRaiser := operatordecision.Raiser{
+		Source:         readinesshandler.ReleaseDecisionSource,
+		Kind:           readinesshandler.ReleaseDecisionKind,
+		Store:          decisionStore,
+		Publisher:      eventbus.NewDiscoveredClient(context.Background()),
+		Clock:          systemDecisionClock{},
+		MaxOutstanding: 3,
+		Window:         24 * time.Hour,
+	}
+	srv.ReleasesHandler.WithReleaseDecisionRaiser(decisionRaiser).WithReleaseGateLookup(releaseGateLookup(approvalsRepo))
+	releaseDecisionResolver := readinesshandler.NewReleaseDecisionResolver(readinessDomainHandler, decisionStore, approvalsRepo, logFn)
+	// The resolution webhook verifies an HMAC signature before any effect runs, so
+	// it is only safe to mount with a non-empty shared secret. Prefer the explicit
+	// env override; otherwise resolve (or mint) the shared vrooli-events secret
+	// through the credential authority — the SAME value the sender signs with.
+	webhookSecret, secretErr := resolveEventsWebhookSecret()
+	if !shouldMountDecisionWebhook(webhookSecret, secretErr) {
+		fields := map[string]interface{}{}
+		if secretErr != nil {
+			fields["error"] = secretErr.Error()
+		}
+		logFn("release decision webhook secret unavailable; webhook not mounted and answered releases will not be delivered", fields)
+	} else {
+		srv.DecisionWebhookHandler = readinesshandler.DecisionResolvedWebhook(webhookSecret, releaseDecisionResolver)
+		// Deliveries only reach the webhook when a vrooli-events subscription routes
+		// notification-hub ask resolutions to it. Reconcile it in the background so a
+		// missing subscription does not block startup.
+		if port := strings.TrimSpace(os.Getenv("API_PORT")); port != "" {
+			target := "http://127.0.0.1:" + port + readinesshandler.DecisionEventWebhookPath
+			go func() {
+				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+				defer cancel()
+				if err := reconcileDecisionEventSubscription(ctx, target); err != nil {
+					logFn("release decision answer subscription reconciliation failed", map[string]interface{}{"error": err.Error()})
+				}
+			}()
+		}
+	}
 
 	srv.setupRoutes()
 	rootMux := http.NewServeMux()
@@ -478,6 +525,38 @@ func New() (*Server, error) {
 		return nil, fmt.Errorf("resume release operations: %w", err)
 	}
 	return srv, nil
+}
+
+// systemDecisionClock is the wall-clock the release-decision Raiser uses. A
+// dedicated type keeps the operatordecision.Clock dependency explicit at the
+// wiring site.
+type systemDecisionClock struct{}
+
+func (systemDecisionClock) Now() time.Time { return time.Now() }
+
+// releaseGateLookup adapts the approvals repository's CheckReleaseGate into the
+// releases.ReleaseGateLookup closure, flattening the per-target gate status into
+// the string-map shape the operator Ask note renders. A lookup error is returned
+// so the handler notes the gate as unavailable rather than silently recommending.
+func releaseGateLookup(repo deployments.ApprovalsRepository) releases.ReleaseGateLookup {
+	return func(ctx context.Context, profileID, commit string) (bool, string, []map[string]string, error) {
+		gate, err := repo.CheckReleaseGate(ctx, profileID, commit)
+		if err != nil {
+			return false, "", nil, err
+		}
+		if gate == nil {
+			return false, "no release gate status is available for this commit", nil, nil
+		}
+		perTarget := make([]map[string]string, 0, len(gate.Targets))
+		for _, t := range gate.Targets {
+			perTarget = append(perTarget, map[string]string{
+				"target":               t.Target.Ramp,
+				"evidence_disposition": t.EvidenceDisposition,
+				"approval_status":      t.ApprovalStatus,
+			})
+		}
+		return gate.Ready, gate.Reason, perTarget, nil
+	}
 }
 
 type signingExpiryLookup struct {
@@ -552,34 +631,21 @@ func (s *Server) Start() error {
 		"port":    s.Config.Port,
 	})
 
-	httpServer := &http.Server{
-		Addr:         fmt.Sprintf(":%s", s.Config.Port),
-		Handler:      handlers.RecoveryHandler()(s.Handler),
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 30 * time.Second,
-		IdleTimeout:  120 * time.Second,
-	}
-
-	go func() {
-		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			LogStructured("server startup failed", map[string]interface{}{"error": err.Error()})
-			log.Fatal(err)
-		}
-	}()
-
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	if err := httpServer.Shutdown(shutdownCtx); err != nil {
-		return fmt.Errorf("server shutdown failed: %w", err)
-	}
-
-	LogStructured("server stopped", nil)
-	return nil
+	return apiserver.Run(apiserver.Config{
+		Port:            s.Config.Port,
+		Handler:         s.Handler,
+		ReadTimeout:     30 * time.Second,
+		WriteTimeout:    30 * time.Second,
+		IdleTimeout:     120 * time.Second,
+		ShutdownTimeout: 10 * time.Second,
+		Cleanup: func(context.Context) error {
+			cancel()
+			if s.DB != nil {
+				return s.DB.Close()
+			}
+			return nil
+		},
+	})
 }
 
 // WriteJSON sends a JSON response with the given status code.

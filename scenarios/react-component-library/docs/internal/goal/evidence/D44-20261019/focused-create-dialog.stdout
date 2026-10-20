@@ -1,0 +1,450 @@
+
+ RUN  v2.1.9 /home/matthalloran8/Vrooli/scenarios/react-component-library/ui
+
+ ✓ src/features/components/CreateComponentDialog.test.tsx > CreateComponentDialog > submits the authored component metadata with normalized tags
+ × src/features/components/CreateComponentDialog.test.tsx > CreateComponentDialog > keeps the dialog open and explains an initialization failure 1042ms
+   → Unable to find an element by: [data-testid="components-create-error"]
+
+Ignored nodes: comments, script, style
+[36m<body[39m
+  [33mstyle[39m=[32m"overflow: hidden; position: fixed; top: 0px; width: 100%; padding-right: 1024px;"[39m
+[36m>[39m
+  [36m<div[39m
+    [33maria-hidden[39m=[32m"true"[39m
+  [36m/>[39m
+  [36m<div[39m
+    [33mdata-rcl-layer-root[39m=[32m""[39m
+    [33mid[39m=[32m"rcl-layer-root"[39m
+  [36m>[39m
+    [36m<div[39m
+      [33maria-labelledby[39m=[32m":r2:-title"[39m
+      [33maria-modal[39m=[32m"true"[39m
+      [33mclass[39m=[32m"rcl-dialog max-w-2xl"[39m
+      [33mdata-rcl-dialog[39m=[32m"true"[39m
+      [33mdata-state[39m=[32m"open"[39m
+      [33mrole[39m=[32m"dialog"[39m
+      [33mstyle[39m=[32m"--rcl-viewport-width: 1024px; --rcl-viewport-height: 768px; --rcl-viewport-offset-left: 0px; --rcl-viewport-offset-top: 0px; --rcl-keyboard-inset: 0px; --rcl-safe-bottom: env(safe-area-inset-bottom, 0px);"[39m
+    [36m>[39m
+      [36m<button[39m
+        [33maria-label[39m=[32m"Cancel"[39m
+        [33mclass[39m=[32m"rcl-dialog__backdrop"[39m
+        [33mdata-rcl-asset[39m=[32m"react-component-library:Dialog"[39m
+        [33mdata-rcl-selector[39m=[32m"overlays.dialog.backdrop"[39m
+        [33mdata-rcl-source-slot[39m=[32m"overlays.dialog"[39m
+        [33mdata-rcl-stamp[39m=[32m"vite"[39m
+        [33mdata-rcl-version[39m=[32m"1.3.9"[39m
+        [33mdata-testid[39m=[32m"overlays.dialog.backdrop"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"rcl-dialog__surface"[39m
+        [33mdata-testid[39m=[32m"overlays.dialog"[39m
+      [36m>[39m
+        [36m<header[39m
+          [33mclass[39m=[32m"rcl-dialog__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"rcl-dialog__heading"[39m
+          [36m>[39m
+            [36m<h2[39m
+              [33mclass[39m=[32m"rcl-dialog__title"[39m
+              [33mid[39m=[32m":r2:-title"[39m
+            [36m>[39m
+              [0mCreate component[0m
+            [36m</h2>[39m
+          [36m</div>[39m
+          [36m<button[39m
+            [33maria-label[39m=[32m"Cancel"[39m
+            [33mclass[39m=[32m"rcl-dialog__close"[39m
+            [33mdata-rcl-selector[39m=[32m"overlays.dialog.close"[39m
+            [33mdata-testid[39m=[32m"overlays.dialog.close"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-x"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"20"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"20"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M18 6 6 18"[39m
+              [36m/>[39m
+              [36m<path[39m
+                [33md[39m=[32m"m6 6 12 12"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+          [36m</button>[39m
+        [36m</header>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"rcl-dialog__body"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mdata-testid[39m=[32m"components-create-dialog"[39m
+          [36m>[39m
+            [36m<form[39m
+              [33mclass[39m=[32m"grid gap-space-xs"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"grid grid-cols-1 gap-space-2xs md:grid-cols-2"[39m
+              [36m>[39m
+                [36m<label[39m
+                  [33mclass[39m=[32m"block text-xs text-app-muted-foreground"[39m
+                [36m>[39m
+                  [0mSlug[0m
+                  [36m<input[39m
+                    [33mclass[39m=[32m"shadow-[var(--elev-raised)] mt-space-3xs"[39m
+                    [33mdata-rcl-asset[39m=[32m"react-component-library:Input"[39m
+                    [33mdata-rcl-input[39m=[32m"true"[39m
+                    [33mdata-rcl-source-slot[39m=[32m"forms.input"[39m
+                    [33mdata-rcl-stamp[39m=[32m"vite"[39m
+                    [33mdata-rcl-version[39m=[32m"1.3.6"[39m
+                    [33mdata-testid[39m=[32m"components-create-slug"[39m
+                    [33mrequired[39m=[32m""[39m
+                    [33mvalue[39m=[32m""[39m
+                  [36m/>[39m
+                [36m</label>[39m
+                [36m<label[39m
+                  [33mclass[39m=[32m"block text-xs text-app-muted-foreground"[39m
+                [36m>[39m
+                  [0mLibrary ID[0m
+                  [36m<input[39m
+                    [33mclass[39m=[32m"shadow-[var(--elev-raised)] mt-space-3xs"[39m
+                    [33mdata-rcl-asset[39m=[32m"react-component-library:Input"[39m
+                    [33mdata-rcl-input[39m=[32m"true"[39m
+                    [33mdata-rcl-source-slot[39m=[32m"forms.input"[39m
+                    [33mdata-rcl-stamp[39m=[32m"vite"[39m
+                    [33mdata-rcl-version[39m=[32m"1.3.6"[39m
+                    [33mdata-testid[39m=[32m"components-create-library-id"[39m
+                    [33mplaceholder[39m=[32m"react-component-library:Header"[39m
+                    [33mvalue[39m=[32m""[39m
+                  [36m/>[39m
+                [36m</label>[39m
+                [36m<label[39m
+                  [33mclass[39m=[32m"block text-xs text-app-muted-foreground"[39m
+                [36m>[39m
+                  [0mDisplay name[0m
+                  [36m<input[39m
+                    [33mclass[39m=[32m"shadow-[var(--elev-raised)] mt-space-3xs"[39m
+                    [33mdata-rcl-asset[39m=[32m"react-component-library:Input"[39m
+                    [33mdata-rcl-input[39m=[32m"true"[39m
+                    [33mdata-rcl-source-slot[39m=[32m"forms.input"[39m
+                    [33mdata-rcl-stamp[39m=[32m"vite"[39m
+                    [33mdata-rcl-version[39m=[32m"1.3.6"[39m
+                    [33mdata-testid[39m=[32m"components-create-display-name"[39m
+                    [33mvalue[39m=[32m""[39m
+                  [36m/>[39m
+                [36m</label>[39m
+                [36m<label[39m
+                  [33mclass[39m=[32m"block text-xs text-app-muted-foreground"[39m
+                [36m>[39m
+                  [0mInitial version[0m
+                  [36m<input[39m
+                    [33mclass[39m=[32m"shadow-[var(--elev-raised)] mt-space-3xs"[39m
+                    [33mdata-rcl-asset[39m=[32m"react-component-library:Input"[39m
+                    [33mdata-rcl-inpu...
+
+Ignored nodes: comments, script, style
+[36m<body[39m
+  [33mstyle[39m=[32m"overflow: hidden; position: fixed; top: 0px; width: 100%; padding-right: 1024px;"[39m
+[36m>[39m
+  [36m<div[39m
+    [33maria-hidden[39m=[32m"true"[39m
+  [36m/>[39m
+  [36m<div[39m
+    [33mdata-rcl-layer-root[39m=[32m""[39m
+    [33mid[39m=[32m"rcl-layer-root"[39m
+  [36m>[39m
+    [36m<div[39m
+      [33maria-labelledby[39m=[32m":r2:-title"[39m
+      [33maria-modal[39m=[32m"true"[39m
+      [33mclass[39m=[32m"rcl-dialog max-w-2xl"[39m
+      [33mdata-rcl-dialog[39m=[32m"true"[39m
+      [33mdata-state[39m=[32m"open"[39m
+      [33mrole[39m=[32m"dialog"[39m
+      [33mstyle[39m=[32m"--rcl-viewport-width: 1024px; --rcl-viewport-height: 768px; --rcl-viewport-offset-left: 0px; --rcl-viewport-offset-top: 0px; --rcl-keyboard-inset: 0px; --rcl-safe-bottom: env(safe-area-inset-bottom, 0px);"[39m
+    [36m>[39m
+      [36m<button[39m
+        [33maria-label[39m=[32m"Cancel"[39m
+        [33mclass[39m=[32m"rcl-dialog__backdrop"[39m
+        [33mdata-rcl-asset[39m=[32m"react-component-library:Dialog"[39m
+        [33mdata-rcl-selector[39m=[32m"overlays.dialog.backdrop"[39m
+        [33mdata-rcl-source-slot[39m=[32m"overlays.dialog"[39m
+        [33mdata-rcl-stamp[39m=[32m"vite"[39m
+        [33mdata-rcl-version[39m=[32m"1.3.9"[39m
+        [33mdata-testid[39m=[32m"overlays.dialog.backdrop"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"rcl-dialog__surface"[39m
+        [33mdata-testid[39m=[32m"overlays.dialog"[39m
+      [36m>[39m
+        [36m<header[39m
+          [33mclass[39m=[32m"rcl-dialog__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"rcl-dialog__heading"[39m
+          [36m>[39m
+            [36m<h2[39m
+              [33mclass[39m=[32m"rcl-dialog__title"[39m
+              [33mid[39m=[32m":r2:-title"[39m
+            [36m>[39m
+              [0mCreate component[0m
+            [36m</h2>[39m
+          [36m</div>[39m
+          [36m<button[39m
+            [33maria-label[39m=[32m"Cancel"[39m
+            [33mclass[39m=[32m"rcl-dialog__close"[39m
+            [33mdata-rcl-selector[39m=[32m"overlays.dialog.close"[39m
+            [33mdata-testid[39m=[32m"overlays.dialog.close"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-x"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"20"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"20"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M18 6 6 18"[39m
+              [36m/>[39m
+              [36m<path[39m
+                [33md[39m=[32m"m6 6 12 12"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+          [36m</button>[39m
+        [36m</header>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"rcl-dialog__body"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mdata-testid[39m=[32m"components-create-dialog"[39m
+          [36m>[39m
+            [36m<form[39m
+              [33mclass[39m=[32m"grid gap-space-xs"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"grid grid-cols-1 gap-space-2xs md:grid-cols-2"[39m
+              [36m>[39m
+                [36m<label[39m
+                  [33mclass[39m=[32m"block text-xs text-app-muted-foreground"[39m
+                [36m>[39m
+                  [0mSlug[0m
+                  [36m<input[39m
+                    [33mclass[39m=[32m"shadow-[var(--elev-raised)] mt-space-3xs"[39m
+                    [33mdata-rcl-asset[39m=[32m"react-component-library:Input"[39m
+                    [33mdata-rcl-input[39m=[32m"true"[39m
+                    [33mdata-rcl-source-slot[39m=[32m"forms.input"[39m
+                    [33mdata-rcl-stamp[39m=[32m"vite"[39m
+                    [33mdata-rcl-version[39m=[32m"1.3.6"[39m
+                    [33mdata-testid[39m=[32m"components-create-slug"[39m
+                    [33mrequired[39m=[32m""[39m
+                    [33mvalue[39m=[32m""[39m
+                  [36m/>[39m
+                [36m</label>[39m
+                [36m<label[39m
+                  [33mclass[39m=[32m"block text-xs text-app-muted-foreground"[39m
+                [36m>[39m
+                  [0mLibrary ID[0m
+                  [36m<input[39m
+                    [33mclass[39m=[32m"shadow-[var(--elev-raised)] mt-space-3xs"[39m
+                    [33mdata-rcl-asset[39m=[32m"react-component-library:Input"[39m
+                    [33mdata-rcl-input[39m=[32m"true"[39m
+                    [33mdata-rcl-source-slot[39m=[32m"forms.input"[39m
+                    [33mdata-rcl-stamp[39m=[32m"vite"[39m
+                    [33mdata-rcl-version[39m=[32m"1.3.6"[39m
+                    [33mdata-testid[39m=[32m"components-create-library-id"[39m
+                    [33mplaceholder[39m=[32m"react-component-library:Header"[39m
+                    [33mvalue[39m=[32m""[39m
+                  [36m/>[39m
+                [36m</label>[39m
+                [36m<label[39m
+                  [33mclass[39m=[32m"block text-xs text-app-muted-foreground"[39m
+                [36m>[39m
+                  [0mDisplay name[0m
+                  [36m<input[39m
+                    [33mclass[39m=[32m"shadow-[var(--elev-raised)] mt-space-3xs"[39m
+                    [33mdata-rcl-asset[39m=[32m"react-component-library:Input"[39m
+                    [33mdata-rcl-input[39m=[32m"true"[39m
+                    [33mdata-rcl-source-slot[39m=[32m"forms.input"[39m
+                    [33mdata-rcl-stamp[39m=[32m"vite"[39m
+                    [33mdata-rcl-version[39m=[32m"1.3.6"[39m
+                    [33mdata-testid[39m=[32m"components-create-display-name"[39m
+                    [33mvalue[39m=[32m""[39m
+                  [36m/>[39m
+                [36m</label>[39m
+                [36m<label[39m
+                  [33mclass[39m=[32m"block text-xs text-app-muted-foreground"[39m
+                [36m>[39m
+                  [0mInitial version[0m
+                  [36m<input[39m
+                    [33mclass[39m=[32m"shadow-[var(--elev-raised)] mt-space-3xs"[39m
+                    [33mdata-rcl-asset[39m=[32m"react-component-library:Input"[39m
+                    [33mdata-rcl-inpu...
+ × src/features/components/CreateComponentDialog.test.tsx > CreateComponentDialog > closes after a successful initialization that does not return a routeable component 1050ms
+   → expected "spy" to be called once, but got 0 times
+
+Ignored nodes: comments, script, style
+[36m<html[39m
+  [33mdata-resolved-theme[39m=[32m"light"[39m
+  [33mdir[39m=[32m"ltr"[39m
+  [33mlang[39m=[32m"en"[39m
+[36m>[39m
+  [36m<head />[39m
+  [36m<body[39m
+    [33mstyle[39m=[32m"overflow: hidden; position: fixed; top: 0px; width: 100%; padding-right: 1024px;"[39m
+  [36m>[39m
+    [36m<div[39m
+      [33maria-hidden[39m=[32m"true"[39m
+    [36m/>[39m
+    [36m<div[39m
+      [33mdata-rcl-layer-root[39m=[32m""[39m
+      [33mid[39m=[32m"rcl-layer-root"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33maria-labelledby[39m=[32m":r4:-title"[39m
+        [33maria-modal[39m=[32m"true"[39m
+        [33mclass[39m=[32m"rcl-dialog max-w-2xl"[39m
+        [33mdata-rcl-dialog[39m=[32m"true"[39m
+        [33mdata-state[39m=[32m"open"[39m
+        [33mrole[39m=[32m"dialog"[39m
+        [33mstyle[39m=[32m"--rcl-viewport-width: 1024px; --rcl-viewport-height: 768px; --rcl-viewport-offset-left: 0px; --rcl-viewport-offset-top: 0px; --rcl-keyboard-inset: 0px; --rcl-safe-bottom: env(safe-area-inset-bottom, 0px);"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33maria-label[39m=[32m"Cancel"[39m
+          [33mclass[39m=[32m"rcl-dialog__backdrop"[39m
+          [33mdata-rcl-asset[39m=[32m"react-component-library:Dialog"[39m
+          [33mdata-rcl-selector[39m=[32m"overlays.dialog.backdrop"[39m
+          [33mdata-rcl-source-slot[39m=[32m"overlays.dialog"[39m
+          [33mdata-rcl-stamp[39m=[32m"vite"[39m
+          [33mdata-rcl-version[39m=[32m"1.3.9"[39m
+          [33mdata-testid[39m=[32m"overlays.dialog.backdrop"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m/>[39m
+        [36m<section[39m
+          [33mclass[39m=[32m"rcl-dialog__surface"[39m
+          [33mdata-testid[39m=[32m"overlays.dialog"[39m
+        [36m>[39m
+          [36m<header[39m
+            [33mclass[39m=[32m"rcl-dialog__header"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"rcl-dialog__heading"[39m
+            [36m>[39m
+              [36m<h2[39m
+                [33mclass[39m=[32m"rcl-dialog__title"[39m
+                [33mid[39m=[32m":r4:-title"[39m
+              [36m>[39m
+                [0mCreate component[0m
+              [36m</h2>[39m
+            [36m</div>[39m
+            [36m<button[39m
+              [33maria-label[39m=[32m"Cancel"[39m
+              [33mclass[39m=[32m"rcl-dialog__close"[39m
+              [33mdata-rcl-selector[39m=[32m"overlays.dialog.close"[39m
+              [33mdata-testid[39m=[32m"overlays.dialog.close"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-x"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"20"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"20"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M18 6 6 18"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"m6 6 12 12"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+            [36m</button>[39m
+          [36m</header>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"rcl-dialog__body"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mdata-testid[39m=[32m"components-create-dialog"[39m
+            [36m>[39m
+              [36m<form[39m
+                [33mclass[39m=[32m"grid gap-space-xs"[39m
+              [36m>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"grid grid-cols-1 gap-space-2xs md:grid-cols-2"[39m
+                [36m>[39m
+                  [36m<label[39m
+                    [33mclass[39m=[32m"block text-xs text-app-muted-foreground"[39m
+                  [36m>[39m
+                    [0mSlug[0m
+                    [36m<input[39m
+                      [33mclass[39m=[32m"shadow-[var(--elev-raised)] mt-space-3xs"[39m
+                      [33mdata-rcl-asset[39m=[32m"react-component-library:Input"[39m
+                      [33mdata-rcl-input[39m=[32m"true"[39m
+                      [33mdata-rcl-source-slot[39m=[32m"forms.input"[39m
+                      [33mdata-rcl-stamp[39m=[32m"vite"[39m
+                      [33mdata-rcl-version[39m=[32m"1.3.6"[39m
+                      [33mdata-testid[39m=[32m"components-create-slug"[39m
+                      [33mrequired[39m=[32m""[39m
+                      [33mvalue[39m=[32m"n"[39m
+                    [36m/>[39m
+                  [36m</label>[39m
+                  [36m<label[39m
+                    [33mclass[39m=[32m"block text-xs text-app-muted-foreground"[39m
+                  [36m>[39m
+                    [0mLibrary ID[0m
+                    [36m<input[39m
+                      [33mclass[39m=[32m"shadow-[var(--elev-raised)] mt-space-3xs"[39m
+                      [33mdata-rcl-asset[39m=[32m"react-component-library:Input"[39m
+                      [33mdata-rcl-input[39m=[32m"true"[39m
+                      [33mdata-rcl-source-slot[39m=[32m"forms.input"[39m
+                      [33mdata-rcl-stamp[39m=[32m"vite"[39m
+                      [33mdata-rcl-version[39m=[32m"1.3.6"[39m
+                      [33mdata-testid[39m=[32m"components-create-library-id"[39m
+                      [33mplaceholder[39m=[32m"react-component-library:Header"[39m
+                      [33mvalue[39m=[32m""[39m
+                    [36m/>[39m
+                  [36m</label>[39m
+                  [36m<label[39m
+                    [33mclass[39m=[32m"block text-xs text-app-muted-foreground"[39m
+                  [36m>[39m
+                    [0mDisplay name[0m
+                    [36m<input[39m
+                      [33mclass[39m=[32m"shadow-[var(--elev-raised)] mt-space-3xs"[39m
+                      [33mdata-rcl-asset[39m=[32m"react-component-library:Input"[39m
+                      [33mdata-rcl-input[39m=[32m"true"[39m
+                      [33mdata-rcl-source-slot[39m=[32m"forms.input"[39m
+                      [33mdata-rcl-stamp[39m=[32m"vite"[39m
+                      [33mdata-rcl-version[39m=[32m"1.3.6"[39m
+                      [33mdata-testid[39m=[32m"components-create-display-name"[39m
+                      [33mvalue[39m=[32m""[39m
+                    [36m/>[39m
+                  [36m</label>[39m
+    ...
+ ✓ src/features/components/CreateComponentDialog.test.tsx > CreateComponentDialog > prevents a duplicate submission while initialization is pending
+ ✓ src/features/components/CreateComponentDialog.test.tsx > CreateComponentDialog > closes without creating when cancelled
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 3 passed (5)
+   Start at  17:33:58
+   Duration  3.61s (transform 409ms, setup 295ms, collect 533ms, tests 2.28s, environment 250ms, prepare 32ms)
+

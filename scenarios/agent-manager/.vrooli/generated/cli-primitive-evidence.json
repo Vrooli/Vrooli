@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "agent-manager",
   "generator": "v1.0.0",
-  "manifest_hash": "0f4cf73ba183f1cfbdbbf10c585c8bbb41f0883afc35cf8540e59b8ec1213c18",
+  "manifest_hash": "51fcc316d3a9109442fa4fb8d01d45c11432efc5cc99d732c53c45887a9c7d0c",
   "commands": [
     {
       "path": "conversation context",
@@ -87,6 +87,12 @@
       "path": "effort exact-setup",
       "group": "effort",
       "command": "exact-setup",
+      "binding": "."
+    },
+    {
+      "path": "effort feedback",
+      "group": "effort",
+      "command": "feedback",
       "binding": "."
     },
     {

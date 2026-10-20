@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/discovery"
-	serviceauth "scenario-to-desktop-api/shared/auth"
+	"github.com/vrooli/vrooli/packages/resource-deployment"
 	sharedpath "scenario-to-desktop-api/shared/path"
 )
 
@@ -71,11 +71,12 @@ func NewDeploymentManagerGenerator(opts ...DeploymentManagerGeneratorOption) *De
 
 // bundleExportRequest is the request payload for deployment-manager export.
 type bundleExportRequest struct {
-	Scenario       string `json:"scenario"`
-	Tier           string `json:"tier"`
-	IncludeSecrets *bool  `json:"include_secrets,omitempty"`
-	OutputDir      string `json:"output_dir,omitempty"`
-	StageBundle    bool   `json:"stage_bundle"`
+	Scenario          string `json:"scenario"`
+	Tier              string `json:"tier"`
+	ArtifactTrustMode string `json:"artifact_trust_mode,omitempty"`
+	IncludeSecrets    *bool  `json:"include_secrets,omitempty"`
+	OutputDir         string `json:"output_dir,omitempty"`
+	StageBundle       bool   `json:"stage_bundle"`
 }
 
 // bundleExportResponse is the response from deployment-manager export.
@@ -89,7 +90,7 @@ type bundleExportResponse struct {
 }
 
 // GenerateManifest creates a bundle manifest by calling deployment-manager.
-func (g *DeploymentManagerGenerator) GenerateManifest(ctx context.Context, scenarioName, outputDir string) (string, error) {
+func (g *DeploymentManagerGenerator) GenerateManifest(ctx context.Context, scenarioName, outputDir string, trustMode resourcedeployment.ArtifactTrustMode) (string, error) {
 	if g.logger != nil {
 		g.logger.Info("generating bundle manifest", "scenario", scenarioName, "output_dir", outputDir)
 	}
@@ -108,11 +109,12 @@ func (g *DeploymentManagerGenerator) GenerateManifest(ctx context.Context, scena
 		return "", err
 	}
 	req := bundleExportRequest{
-		Scenario:       scenarioName,
-		Tier:           "tier-2-desktop",
-		IncludeSecrets: &includeSecrets,
-		OutputDir:      outputDir,
-		StageBundle:    false,
+		Scenario:          scenarioName,
+		Tier:              "tier-2-desktop",
+		ArtifactTrustMode: string(trustMode),
+		IncludeSecrets:    &includeSecrets,
+		OutputDir:         outputDir,
+		StageBundle:       false,
 	}
 
 	payload, err := json.Marshal(req)
@@ -128,10 +130,6 @@ func (g *DeploymentManagerGenerator) GenerateManifest(ctx context.Context, scena
 		return "", fmt.Errorf("failed to create request: %w", err)
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
-	if token := serviceauth.DeploymentManagerServiceToken(); token != "" {
-		httpReq.Header.Set("Authorization", "Bearer "+token)
-	}
-
 	resp, err := g.client.Do(httpReq)
 	if err != nil {
 		return "", fmt.Errorf("deployment-manager export failed: %w", err)

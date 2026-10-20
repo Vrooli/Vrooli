@@ -390,8 +390,9 @@ func TestWorkflowChildLauncherStartsRoleBasedRunWithWorkflowProvenance(t *testin
 
 func TestWorkflowChildLauncherPersistsNodeAuthorityAndReplaysWithoutWidening(t *testing.T) {
 	o, repos := newWorkflowChildOrchestrator(t)
-	// Persist admission without running a model or a background executor.
-	o.dispatcher.Close()
+	// Persist admission without running a model. Close only after the durable
+	// prompt event so this exercises refusal after admission.
+	o.events = &closeDispatcherAfterAppendStore{Store: mocks.NewFakeEventStore(), after: o.dispatcher.Close}
 	profile, err := o.CreateProfile(t.Context(), &domain.AgentProfile{
 		Name: "workflow-worker", ProfileKey: "fixture/worker", RoleRef: "code.default",
 		MaxTurns: 8, Timeout: time.Minute, NetworkAccess: domain.NetworkAccessFull,
@@ -403,7 +404,7 @@ func TestWorkflowChildLauncherPersistsNodeAuthorityAndReplaysWithoutWidening(t *
 	off := false
 	req := workflowruntime.ChildRequest{
 		ExecutionID: uuid.New(), AttemptID: uuid.New(), NodeID: "worker", ProfileKey: profile.ProfileKey,
-		IdempotencyKey: "workflow-fixed-authority", ScopePath: ".",
+		IdempotencyKey: "workflow-fixed-authority", ScopePath: ".", Prompt: "persisted workflow prompt",
 		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected,
 			NetworkMode: domain.NetworkAccessNone, ManualReview: true, AutoApply: &off, ApplyOnFailure: &off,
 			WritePolicy: &domain.WorkspaceWritePolicy{Paths: []string{"src"}}},
@@ -455,10 +456,10 @@ func TestWorkflowChildLauncherKeepsProfileCommandNetworkSeparateFromOuterTranspo
 	if err != nil {
 		t.Fatal(err)
 	}
-	o.dispatcher.Close()
+	o.events = &closeDispatcherAfterAppendStore{Store: mocks.NewFakeEventStore(), after: o.dispatcher.Close}
 	req := workflowruntime.ChildRequest{
 		ExecutionID: uuid.New(), AttemptID: uuid.New(), NodeID: "worker", ProfileKey: profile.ProfileKey,
-		IdempotencyKey: "workflow-network-split", ScopePath: ".",
+		IdempotencyKey: "workflow-network-split", ScopePath: ".", Prompt: "persisted workflow prompt",
 		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected,
 			NetworkMode: domain.NetworkAccessLocalhost, WritePolicy: &domain.WorkspaceWritePolicy{}},
 	}

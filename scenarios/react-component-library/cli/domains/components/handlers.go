@@ -54,22 +54,45 @@ func (h *handlers) testCall(ctx cliapp.OperationContext) (*componenttestsv1.RunC
 	if err != nil {
 		return nil, cliapp.WrapAPIError("run component test", err, nil)
 	}
-	if resp == nil || resp.Msg == nil || resp.Msg.Report == nil {
-		return nil, fmt.Errorf("server returned no component test report")
+	if resp == nil || resp.Msg == nil {
+		return nil, fmt.Errorf("server returned no component test response")
 	}
 	return resp.Msg, nil
 }
 
 func (h *handlers) testReport(_ cliapp.OperationContext, msg *componenttestsv1.RunComponentTestResponse) cliapp.MutationReport {
-	label := "Component test completed."
-	if msg.Reused {
-		label = fmt.Sprintf("Component test reused revision %s since report %s.", shortRevision(msg.SourceRevision), msg.Report.Id)
+	if msg == nil || msg.GetReport() == nil {
+		return cliapp.MutationReport{Result: []string{"Component test response contained no report."}}
 	}
-	changes := make([]string, 0, len(msg.Report.Results))
-	for _, result := range msg.Report.Results {
+	report := msg.GetReport()
+	label := "Component test " + report.GetVerdict() + "."
+	if msg.Reused {
+		label = fmt.Sprintf("Component test reused revision %s since report %s (%s).", shortRevision(msg.SourceRevision), report.GetId(), report.GetVerdict())
+	}
+	changes := make([]string, 0, len(report.Results))
+	for _, result := range report.Results {
 		changes = append(changes, fmt.Sprintf("%s\t%s@%s\t%s", result.Stage, result.AssetLibraryId, result.Version, result.Verdict))
 	}
-	return cliapp.MutationReport{Result: []string{label}, Changes: changes, NextCommand: []string{"`components test-show " + msg.Report.Id + "` — retrieve this durable report"}}
+	reportView := cliapp.MutationReport{Result: []string{label}, Changes: changes}
+	if report.GetId() != "" {
+		reportView.NextCommand = []string{"`components test-show " + report.GetId() + "` — retrieve this durable report"}
+	}
+	return reportView
+}
+
+func testOutcome(msg *componenttestsv1.RunComponentTestResponse) error {
+	if msg == nil || msg.GetReport() == nil {
+		return fmt.Errorf("server returned no component test report")
+	}
+	report := msg.GetReport()
+	switch report.GetVerdict() {
+	case "passed":
+		return nil
+	case "failed", "blocked":
+		return fmt.Errorf("component test %s: report %s", report.GetVerdict(), report.GetId())
+	default:
+		return fmt.Errorf("component test report %s has unrecognized verdict %q", report.GetId(), report.GetVerdict())
+	}
 }
 
 func shortRevision(revision string) string {
@@ -497,35 +520,43 @@ func (h *handlers) versionBeginReport(_ cliapp.OperationContext, msg *components
 	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Began %s draft %s.", msg.Component.LibraryId, msg.Version.Version)}, Changes: results, NextCommand: []string{fmt.Sprintf("`components check %s --version %s` — run the focused preflight", msg.Component.LibraryId, msg.Version.Version)}}
 }
 
-func (h *handlers) versionCheck(ctx cliapp.RunContext) error {
+func (h *handlers) versionCheckCall(ctx cliapp.OperationContext) (*componentsv1.CheckComponentVersionResponse, error) {
 	resp, err := h.client.CheckComponentVersion(context.Background(), connect.NewRequest(&componentsv1.CheckComponentVersionRequest{
 		Component: ctx.Positional("component"),
 		Version:   ctx.Flag("version"),
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError("check component version", err, nil)
+		return nil, cliapp.WrapAPIError("check component version", err, nil)
 	}
 	if resp == nil || resp.Msg == nil || resp.Msg.Component == nil {
-		return fmt.Errorf("server returned no component check")
+		return nil, fmt.Errorf("server returned no component check")
 	}
-	results := make([]string, 0, len(resp.Msg.Checks)+1)
-	for _, check := range resp.Msg.Checks {
+	return resp.Msg, nil
+}
+
+func (h *handlers) versionCheckReport(_ cliapp.OperationContext, msg *componentsv1.CheckComponentVersionResponse) cliapp.ListReport {
+	results := make([]string, 0, len(msg.Checks)+1)
+	for _, check := range msg.Checks {
 		line := fmt.Sprintf("%s\t%s\t%s", check.Stage, check.Verdict, check.Message)
 		if check.Remediation != "" {
 			line += "\t" + check.Remediation
 		}
 		results = append(results, line)
 	}
-	results = append(results, "Preview: "+resp.Msg.PreviewPath)
+	results = append(results, "Preview: "+msg.PreviewPath)
 	summary := "Component preflight passed."
-	if !resp.Msg.Passed {
+	if !msg.Passed {
 		summary = "Component preflight failed."
 	}
-	if err := cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{summary}, ResultsHeading: "Checks", Results: results}); err != nil {
-		return err
+	return cliapp.ListReport{Summary: []string{summary}, ResultsHeading: "Checks", Results: results}
+}
+
+func versionCheckOutcome(msg *componentsv1.CheckComponentVersionResponse) error {
+	if msg == nil || msg.Component == nil {
+		return fmt.Errorf("server returned no component check")
 	}
-	if !resp.Msg.Passed {
-		return fmt.Errorf("component preflight failed for %s@%s", resp.Msg.Component.LibraryId, resp.Msg.Version)
+	if !msg.Passed {
+		return fmt.Errorf("component preflight failed for %s@%s", msg.Component.LibraryId, msg.Version)
 	}
 	return nil
 }

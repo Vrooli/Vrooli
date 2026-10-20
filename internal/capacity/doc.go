@@ -51,7 +51,7 @@
 //	updated_at            TIMESTAMP
 //	last_heartbeat_at     TIMESTAMP
 //	heartbeat_deadline_at TIMESTAMP         # liveness; a dead owner's claim is swept to "expired"
-//	last_active_at        TIMESTAMP NULL    # last time activity_state transitioned to/refreshed "active"
+//	last_active_at        TIMESTAMP NULL    # last instant known active, including transition to idle
 //	degrade_profile       TEXT(json)        # see 8.2
 //
 // Liveness is heartbeat_deadline_at: a claim whose deadline has elapsed is
@@ -261,24 +261,30 @@
 //
 // # 8.7 Resident-claim lifecycle (wired via the lifecycle, not the shell)
 //
-// Resident model servers (whisper, kyutai-stt, reranker, speaker-verification)
-// declare a `capacity` block in resource.json; the broker — not the resource's
-// shell — owns their claim lifecycle, because the managed-service driver starts
-// them with `docker compose up` directly and never calls lib/docker.sh:
-//   - CLAIM on start: the lifecycle admission hook (internal/lifecycle
-//     admitResourceCapacity → AdmitResource) records the claim when the resource
-//     is started as a dependency. IDEMPOTENT: if an active claim for this
-//     (resource owner, resource_kind) already exists it is heartbeat-renewed and
-//     reused — a restart/re-admit must not stack or leak a second claim.
-//   - LIVENESS while running: the §8.6 sweep presence-refreshes the claim from
-//     the GPU snapshot (the container cannot heartbeat itself). The 6h
-//     ttl_seconds stopgap is therefore REMOVED — claims fall back to
-//     default_heartbeat_ttl, kept alive by the sweep.
-//   - RELEASE on stop: when the container disappears its claim is no longer
-//     observed on the GPU, so the sweep expires it once the deadline lapses
-//     ("killing the container expires it", §10). The explicit
-//     `vrooli capacity release --claim-id <id>` verb remains available for
-//     op-scoped/manual owners and is a no-op when already released.
+// Resident resources declare acceleration.claim in resource.json. Canonical
+// Controller dispatch admits starts from standalone, batch and scenario callers;
+// managed-service admission occurs INSIDE its lifecycle lock, before migration,
+// verification and CPU-first model loading. An operation-scoped keeper renews
+// the exact returned claim ID/generation at one third of its effective TTL and
+// joins on completion/cancellation. A final renewal hands residency to the
+// already-started companion. Advisory errors are observable but never replace
+// the driver's result. Cancellation/readiness failure does not prove the process
+// stopped, so it never releases a potentially live claim.
+//
+// Activity-edge companions immediately renew an existing resource-owned claim,
+// then renew at canonical default TTL/3 (normally 10s). Their CLI heartbeat uses
+// the canonical default TTL (normally 30s), independently of a resource's initial
+// admission TTL, and preserves active/idle state. The separate alive log remains
+// diagnostic only. No companion creates/resizes a claim to hide missing admission.
+// Presence-based sweep remains a fallback for resources without such a companion.
+//
+// Verified explicit managed stop captures only that owner's active claim IDs
+// under the lifecycle lock and releases them AFTER supervisor-confirmed stop.
+// Restart does not release the reused claim. An old edge's shutdown/parent death
+// only ends its renewal: it cannot release a replacement resource's reused claim.
+// Unexpected death is reconciled by presence observation and bounded TTL expiry,
+// not an immediate instance-bound release. Global advisory/enforcement policy is
+// unchanged; a declared receipt profile is not proof of continuous live admission.
 //
 // # 8.8 Degrade actuator + escalation executor (enforce mode only)
 //
@@ -380,3 +386,21 @@
 // enables actuation (§8.8). The divergence is recorded here and in the original
 // plan's note.
 package capacity
+
+// Correctness refinements (2026-10 owner repair): idle dwell starts at the
+// active-to-idle edge and is unchanged by repeated idle reports or heartbeats.
+// Incomplete process probes and ambiguous ownership defer resident expiry and
+// zero sampling; independent operation TTLs still expire. Exact, unique process
+// assignment is shared across presence, aggregate reconciliation and sampling.
+// An operation family prefix is not a job identity. Escalation actions carry
+// the planned generation and revalidate liveness, idleness and protection before
+// effects; activity during an external callback still requires adopter drain
+// fencing. Footprint source follows the winning peak, and seeds do not count
+// as measurements. Existing contaminated history requires explicit evidence
+// recovery rather than automatic relabeling. Advisory policy is unchanged.
+
+// Absence freshness: a successful process list can expire a resident or replace
+// its sample with zero only with gpu_processes provenance at/before evaluation,
+// within DefaultHeartbeatTTL, and at/after its creation/update/heartbeat/active
+// boundary. Unknown, stale or pre-liveness absence defers; operation TTL remains
+// independent. Sensing callers evaluate their clock after Snapshot completes.

@@ -1,4 +1,4 @@
-import { resolveReading } from "@vrooli/react-component-library/ProvenanceInk/0.1.2";
+import { resolveReading } from "@vrooli/react-component-library/ProvenanceInk/0.1.3";
 import type { Constellation, Reading } from "./api";
 
 /** Where one signal stands, decided by the one ink resolver: measured, or the reason it is not. */

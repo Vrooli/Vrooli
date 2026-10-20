@@ -681,13 +681,28 @@ func (row *listRunLiteRow) toDomain() *domain.Run {
 }
 
 func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
+	prepareRunForInsert(run)
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return wrapDBError("create", "Run", run.ID.String(), err)
+	}
+	defer tx.Rollback()
+	if err := r.insertRun(ctx, tx, run); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func prepareRunForInsert(run *domain.Run) {
 	if run.ID == uuid.Nil {
 		run.ID = uuid.New()
 	}
 	now := time.Now()
 	run.CreatedAt = now
 	run.UpdatedAt = now
+}
 
+func (r *runRepository) insertRun(ctx context.Context, tx *Tx, run *domain.Run) error {
 	row := runFromDomain(run)
 	query := `INSERT INTO runs (id, lifecycle_version, owner_identity, owner_epoch, task_id, agent_profile_id, tag, label, label_source, subject, owner_subject, owner_expires_at, owner_scopes, requested_scopes, work_references, workload_kind, workload_key, workload_instance, billing_snapshot, sandbox_id, run_mode,
 			execution_mode, harness_kind, harness_session_id, goal_delivery, terminal_class, stop_reason, last_handoff, web_console_session_id, status,
@@ -713,24 +728,17 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 			:last_await_key, :last_await_result, :last_await_resolved_at, :last_wake_seq, :same_key_park_streak,
 			:requested_model, :actual_model, :canary_arm,
 			:created_at, :updated_at)`
-
-	tx, err := r.db.BeginTxx(ctx, nil)
-	if err != nil {
-		return wrapDBError("create", "Run", run.ID.String(), err)
-	}
-	defer tx.Rollback()
-	_, err = tx.NamedExecContext(ctx, query, row)
+	_, err := tx.NamedExecContext(ctx, query, row)
 	if err != nil {
 		r.log.WithError(err).Error("Failed to create run")
 		return wrapDBError("create", "Run", run.ID.String(), err)
 	}
 	if run.IdempotencyKey != "" {
-		_, err = tx.ExecContext(ctx, `INSERT INTO run_creation_receipts (idempotency_key, run_id, task_id, owner_subject, created_at) VALUES (?, ?, ?, ?, ?)`, run.IdempotencyKey, run.ID, row.TaskID, row.OwnerSubject, row.CreatedAt)
-		if err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO run_creation_receipts (idempotency_key, run_id, task_id, owner_subject, created_at) VALUES (?, ?, ?, ?, ?)`, run.IdempotencyKey, run.ID, row.TaskID, row.OwnerSubject, row.CreatedAt); err != nil {
 			return wrapDBError("record_creation", "Run", run.ID.String(), err)
 		}
 	}
-	return tx.Commit()
+	return nil
 }
 
 func (r *runRepository) Get(ctx context.Context, id uuid.UUID) (*domain.Run, error) {
@@ -756,6 +764,18 @@ func (r *runRepository) List(ctx context.Context, filter repository.RunListFilte
 			string(domain.RunStatusPending), string(domain.RunStatusStarting), string(domain.RunStatusRunning),
 			string(domain.RunStatusNeedsReview), string(domain.RunStatusParked),
 		)
+	}
+
+	if len(filter.RunnerPIDs) > 0 {
+		placeholders := make([]string, len(filter.RunnerPIDs))
+		for i, pid := range filter.RunnerPIDs {
+			if pid <= 1 {
+				return nil, fmt.Errorf("invalid runner PID filter")
+			}
+			placeholders[i] = "?"
+			args = append(args, pid)
+		}
+		conditions = append(conditions, "runs.runner_pid IN ("+strings.Join(placeholders, ",")+")")
 	}
 
 	if filter.TaskID != nil {
@@ -907,14 +927,53 @@ func (r *runRepository) Update(ctx context.Context, run *domain.Run) error {
 	if err != nil {
 		return wrapDBError("update", "Run", run.ID.String(), err)
 	}
-	err = r.db.QueryRowContext(ctx, bound, args...).Scan(&run.LifecycleVersion)
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return wrapDBError("update", "Run", run.ID.String(), err)
+	}
+	defer tx.Rollback()
+	var nextLifecycleVersion int64
+	err = tx.QueryRowContext(ctx, bound, args...).Scan(&nextLifecycleVersion)
 	if errors.Is(err, sql.ErrNoRows) {
 		return domain.NewStateErrorWithID("Run", run.ID.String(), "superseded", "update", "run lifecycle changed or was consumed by fresh recovery; writer refused")
 	}
 	if err != nil {
 		return wrapDBError("update", "Run", run.ID.String(), err)
 	}
+	if run.TaskID != uuid.Nil {
+		if status, ok := taskProjectionForRunStatus(run.Status); ok {
+			_, err := tx.ExecContext(ctx, `UPDATE tasks SET status = ?,
+				updated_at = CASE WHEN status <> ? THEN ? ELSE updated_at END
+				WHERE id = ? AND current_run_id = ? AND status IN (?, ?, ?, ?, ?)`,
+				string(status), string(status), SQLiteTime(run.UpdatedAt), run.TaskID, run.ID,
+				string(domain.TaskStatusQueued), string(domain.TaskStatusRunning), string(domain.TaskStatusNeedsReview), string(domain.TaskStatusCompleted), string(domain.TaskStatusFailed))
+			if err != nil {
+				return wrapDBError("project_run_status", "Task", run.TaskID.String(), err)
+			}
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return wrapDBError("update", "Run", run.ID.String(), err)
+	}
+	run.LifecycleVersion = nextLifecycleVersion
 	return nil
+}
+
+func taskProjectionForRunStatus(status domain.RunStatus) (domain.TaskStatus, bool) {
+	switch status {
+	case domain.RunStatusPending, domain.RunStatusStarting, domain.RunStatusRunning, domain.RunStatusParked:
+		return domain.TaskStatusRunning, true
+	case domain.RunStatusNeedsReview:
+		return domain.TaskStatusNeedsReview, true
+	case domain.RunStatusComplete:
+		return domain.TaskStatusCompleted, true
+	case domain.RunStatusFailed, domain.RunStatusCancelled:
+		// Run cancellation is an execution outcome, not the explicit Task cancel
+		// operation. Keep TaskStatusCancelled reserved for that operator action.
+		return domain.TaskStatusFailed, true
+	default:
+		return "", false
+	}
 }
 
 // UpdateRunLabel updates only the two label columns. It is used by the
@@ -976,15 +1035,16 @@ func (r *runRepository) TouchHeartbeat(ctx context.Context, id uuid.UUID, at tim
 }
 
 // RequestCancellation atomically stamps the durable cancellation intent
-// (cancel_requested_at) on a run that is still actively executing. It returns
-// true when the intent was newly recorded and false when it was already stamped
-// or the run is no longer active. The status guard is applied in SQL using the
-// same race discipline as TouchHeartbeat: a stale caller cannot stamp a run
-// that has already reached a terminal state. The intent is monotonic — a repeat
-// stop request is a no-op rather than a second terminal write.
+// (cancel_requested_at) on a pending or actively executing run. The first stamp
+// also advances lifecycle_version, fencing full-row writers that read the run
+// before cancellation was requested. It returns true when the intent was newly
+// recorded and false when it was already stamped or the run is no longer
+// cancellable. The status guard is applied in SQL so a stale caller cannot stamp
+// a run that has already reached a terminal state. A repeated stop request is a
+// no-op and does not consume another lifecycle version.
 func (r *runRepository) RequestCancellation(ctx context.Context, id uuid.UUID, at time.Time) (bool, error) {
-	const query = `UPDATE runs SET cancel_requested_at = ?, updated_at = ?
-		WHERE id = ? AND cancel_requested_at IS NULL AND status IN (?, ?)`
+	const query = `UPDATE runs SET cancel_requested_at = ?, updated_at = ?, lifecycle_version = lifecycle_version + 1
+		WHERE id = ? AND cancel_requested_at IS NULL AND status IN (?, ?, ?)`
 	stamp, err := NullableTime{Time: at, Valid: true}.Value()
 	if err != nil {
 		return false, wrapDBError("request_cancellation", "Run", id.String(), err)
@@ -994,7 +1054,7 @@ func (r *runRepository) RequestCancellation(ctx context.Context, id uuid.UUID, a
 		return false, wrapDBError("request_cancellation", "Run", id.String(), err)
 	}
 	res, err := r.db.ExecContext(ctx, query, stamp, now, id,
-		string(domain.RunStatusRunning), string(domain.RunStatusStarting))
+		string(domain.RunStatusPending), string(domain.RunStatusRunning), string(domain.RunStatusStarting))
 	if err != nil {
 		return false, wrapDBError("request_cancellation", "Run", id.String(), err)
 	}
@@ -1350,10 +1410,30 @@ func (r *runRepository) ListByWebConsoleSessionIDs(ctx context.Context, sessionI
 	return runs, nil
 }
 
-func (r *runRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	query := `DELETE FROM runs WHERE id = ?`
-	_, err := r.db.ExecContext(ctx, query, id)
+func (r *runRepository) Delete(ctx context.Context, id uuid.UUID, expectedStatus domain.RunStatus, expectedLifecycleVersion int64) error {
+	if expectedStatus != domain.RunStatusComplete && expectedStatus != domain.RunStatusFailed && expectedStatus != domain.RunStatusCancelled {
+		return domain.NewValidationError("status", "only complete, failed, or cancelled runs can be deleted")
+	}
+	tx, err := r.db.BeginTxx(ctx, nil)
 	if err != nil {
+		return wrapDBError("delete", "Run", id.String(), err)
+	}
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(ctx, `UPDATE tasks SET current_run_id = NULL WHERE current_run_id = ?`, id.String()); err != nil {
+		return wrapDBError("clear_task_attempt", "Run", id.String(), err)
+	}
+	result, err := tx.ExecContext(ctx, `DELETE FROM runs WHERE id = ? AND status = ? AND lifecycle_version = ?`, id, string(expectedStatus), expectedLifecycleVersion)
+	if err != nil {
+		return wrapDBError("delete", "Run", id.String(), err)
+	}
+	deleted, err := result.RowsAffected()
+	if err != nil {
+		return wrapDBError("delete_rows", "Run", id.String(), err)
+	}
+	if deleted != 1 {
+		return domain.NewStateErrorWithID("Run", id.String(), string(expectedStatus), "delete", "run lifecycle changed before deletion; reload and retry")
+	}
+	if err := tx.Commit(); err != nil {
 		return wrapDBError("delete", "Run", id.String(), err)
 	}
 	return nil
@@ -1375,188 +1455,4 @@ func (r *runRepository) CountCapacityByStatus(ctx context.Context, status domain
 		return 0, wrapDBError("count_capacity_by_status", "Run", string(status), err)
 	}
 	return count, nil
-}
-
-// ============================================================================
-// EventRepository Implementation
-// ============================================================================
-
-type eventRepository struct {
-	db  *DB
-	log *logrus.Logger
-}
-
-var _ repository.EventRepository = (*eventRepository)(nil)
-
-// eventRow is the database row representation for run_events.
-type eventRow struct {
-	ID        uuid.UUID  `db:"id"`
-	RunID     uuid.UUID  `db:"run_id"`
-	Sequence  int64      `db:"sequence"`
-	EventType string     `db:"event_type"`
-	Timestamp SQLiteTime `db:"timestamp"`
-	Data      []byte     `db:"data"`
-}
-
-func (e *eventRow) toDomain() (*domain.RunEvent, error) {
-	evt := &domain.RunEvent{
-		ID:        e.ID,
-		RunID:     e.RunID,
-		Sequence:  e.Sequence,
-		EventType: domain.RunEventType(e.EventType),
-		Timestamp: e.Timestamp.Time(),
-	}
-
-	payload, err := domain.DecodeEventPayload(evt.EventType, e.Data)
-	if err != nil {
-		return nil, &domain.DatabaseError{Operation: "decode_event", EntityType: "RunEvent", EntityID: e.ID.String(), Cause: err}
-	}
-	evt.Data = payload
-	return evt, nil
-}
-
-const eventColumns = `id, run_id, sequence, event_type, timestamp, data`
-
-func (r *eventRepository) Append(ctx context.Context, runID uuid.UUID, events ...*domain.RunEvent) error {
-	if len(events) == 0 {
-		return nil
-	}
-
-	// Get the next sequence number
-	var maxSeq int64
-	query := `SELECT COALESCE(MAX(sequence), -1) FROM run_events WHERE run_id = ?`
-	if err := r.db.GetContext(ctx, &maxSeq, query, runID); err != nil {
-		return wrapDBError("get_max_sequence", "RunEvent", runID.String(), err)
-	}
-
-	for _, evt := range events {
-		maxSeq++
-		evt.RunID = runID
-		evt.Sequence = maxSeq
-		if evt.ID == uuid.Nil {
-			evt.ID = uuid.New()
-		}
-		if evt.Timestamp.IsZero() {
-			evt.Timestamp = time.Now()
-		}
-
-		data, err := json.Marshal(evt.Data)
-		if err != nil {
-			return wrapDBError("marshal_event", "RunEvent", runID.String(), err)
-		}
-
-		schemaVersion := evt.SchemaVersion
-		if schemaVersion == 0 {
-			schemaVersion = 1
-		}
-
-		insertQuery := `INSERT INTO run_events (id, run_id, sequence, event_type, timestamp, schema_version, data)
-			VALUES (:id, :run_id, :sequence, :event_type, :timestamp, :schema_version, :data)`
-
-		row := struct {
-			ID            uuid.UUID  `db:"id"`
-			RunID         uuid.UUID  `db:"run_id"`
-			Sequence      int64      `db:"sequence"`
-			EventType     string     `db:"event_type"`
-			Timestamp     SQLiteTime `db:"timestamp"`
-			SchemaVersion int        `db:"schema_version"`
-			Data          []byte     `db:"data"`
-		}{
-			ID:            evt.ID,
-			RunID:         evt.RunID,
-			Sequence:      evt.Sequence,
-			EventType:     string(evt.EventType),
-			Timestamp:     SQLiteTime(evt.Timestamp),
-			SchemaVersion: schemaVersion,
-			Data:          data,
-		}
-
-		if _, err := r.db.NamedExecContext(ctx, insertQuery, row); err != nil {
-			return wrapDBError("insert_event", "RunEvent", runID.String(), err)
-		}
-	}
-
-	return nil
-}
-
-func (r *eventRepository) Get(ctx context.Context, runID uuid.UUID, afterSequence int64, limit int) ([]*domain.RunEvent, error) {
-	base := fmt.Sprintf("SELECT %s FROM run_events WHERE run_id = ? AND sequence > ? ORDER BY sequence ASC", eventColumns)
-	queryWithLimit := base
-	args := []interface{}{runID, afterSequence}
-	if limit > 0 {
-		queryWithLimit += " LIMIT ?"
-		args = append(args, limit)
-	}
-	query := queryWithLimit
-
-	var rows []eventRow
-	if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
-		return nil, wrapDBError("get_events", "RunEvent", runID.String(), err)
-	}
-
-	result := make([]*domain.RunEvent, len(rows))
-	for i, row := range rows {
-		evt, err := row.toDomain()
-		if err != nil {
-			return nil, err
-		}
-		result[i] = evt
-	}
-	return result, nil
-}
-
-func (r *eventRepository) GetByType(ctx context.Context, runID uuid.UUID, types []domain.RunEventType, limit int) ([]*domain.RunEvent, error) {
-	if len(types) == 0 {
-		return []*domain.RunEvent{}, nil
-	}
-
-	typeStrs := make([]interface{}, len(types))
-	placeholders := make([]string, len(types))
-	for i, t := range types {
-		typeStrs[i] = string(t)
-		placeholders[i] = "?"
-	}
-
-	base := fmt.Sprintf("SELECT %s FROM run_events WHERE run_id = ? AND event_type IN (%s) ORDER BY sequence ASC",
-		eventColumns, strings.Join(placeholders, ","))
-	args := append([]interface{}{runID}, typeStrs...)
-
-	if limit > 0 {
-		base += " LIMIT ?"
-		args = append(args, limit)
-	}
-	query := base
-
-	var rows []eventRow
-	if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
-		return nil, wrapDBError("get_events_by_type", "RunEvent", runID.String(), err)
-	}
-
-	result := make([]*domain.RunEvent, len(rows))
-	for i, row := range rows {
-		evt, err := row.toDomain()
-		if err != nil {
-			return nil, err
-		}
-		result[i] = evt
-	}
-	return result, nil
-}
-
-func (r *eventRepository) Count(ctx context.Context, runID uuid.UUID) (int64, error) {
-	query := `SELECT COUNT(*) FROM run_events WHERE run_id = ?`
-	var count int64
-	if err := r.db.GetContext(ctx, &count, query, runID); err != nil {
-		return 0, wrapDBError("count_events", "RunEvent", runID.String(), err)
-	}
-	return count, nil
-}
-
-func (r *eventRepository) Delete(ctx context.Context, runID uuid.UUID) error {
-	query := `DELETE FROM run_events WHERE run_id = ?`
-	_, err := r.db.ExecContext(ctx, query, runID)
-	if err != nil {
-		return wrapDBError("delete_events", "RunEvent", runID.String(), err)
-	}
-	return nil
 }

@@ -10,9 +10,7 @@
   ],
   "draft": "",
   "entry": "AmbientShell.tsx",
-  "evictedVersions": [
-    "0.1.0"
-  ],
+  "evictedVersions": [],
   "latest": "0.1.2",
   "libraryId": "react-component-library:AmbientDisplayShell"
 }

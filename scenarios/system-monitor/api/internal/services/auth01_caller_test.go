@@ -2,12 +2,13 @@ package services
 
 import (
 	"context"
-	"github.com/vrooli/api-core/owneridentity"
-	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/agentmanager"
-	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/services/mocks"
 	"net/http"
 	"testing"
 	"time"
+
+	"github.com/vrooli/api-core/owneridentity"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/agentmanager"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/services/mocks"
 )
 
 func TestAuth01InvestigationRejectsBeforeRepositoryAvailabilityOrWorker(t *testing.T) {
@@ -22,9 +23,10 @@ type auth01FixtureVerifier struct{}
 func (auth01FixtureVerifier) Validate(context.Context, string) (owneridentity.Identity, error) {
 	return owneridentity.Identity{Subject: "fixture", Scopes: []string{"agent-manager:write"}, ExpiresAt: time.Now().Add(time.Hour)}, nil
 }
+
 func auth01FixtureCaller(t *testing.T, ctx context.Context) context.Context {
 	t.Helper()
-	out, err := owneridentity.AuthorizeCreateRunCaller(ctx, http.Header{"Authorization": []string{"Bearer fixture-owner"}}, auth01FixtureVerifier{}, time.Now())
+	out, err := owneridentity.AuthorizeCreateRunCaller(ctx, http.Header{"Authorization": []string{"Bearer fixture-owner"}}, auth01FixtureVerifier{}, time.Now(), true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -37,9 +39,10 @@ type auth01WorkerSpy struct {
 }
 
 func (s *auth01WorkerSpy) Execute(ctx context.Context, _ agentmanager.ExecuteRequest) (*agentmanager.ExecuteResult, error) {
-	s.received <- owneridentity.RequireCreateRunCaller(ctx, time.Now())
+	s.received <- owneridentity.RequireCreateRunCaller(ctx, time.Now(), true)
 	return &agentmanager.ExecuteResult{Success: true, Output: "fixture"}, nil
 }
+
 func TestAuth01ManualInvestigationWorkerRetainsQualifiedCaller(t *testing.T) {
 	svc := newTestInvestigationService(t, RealClock{})
 	defer svc.Shutdown()

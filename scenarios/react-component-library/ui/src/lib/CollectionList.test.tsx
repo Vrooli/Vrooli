@@ -1,11 +1,12 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, screen } from "@testing-library/react";
+import { renderWithProviders } from "../test-utils/renderWithProviders";
 import { afterEach, expect, it, vi } from "vitest";
 import { CollectionList } from "@vrooli/react-component-library/CollectionList/1.3.0";
 afterEach(cleanup);
 const items = [{ id: "support", title: "Support" }, { id: "triage", title: "Triage" }];
 it("keeps the open detail distinct from keyboard navigation and bulk selection", () => {
   const onOpen = vi.fn();
-  const { rerender } = render(<CollectionList items={items} label="Conversations" currentKey="triage" onOpen={onOpen} />);
+  const { rerender } = renderWithProviders(<CollectionList items={items} label="Conversations" currentKey="triage" onOpen={onOpen} />);
   const rows = screen.getAllByRole("listitem");
   expect(rows[0]!).not.toHaveAttribute("aria-current");
   expect(rows[1]!).toHaveAttribute("aria-current", "true");
@@ -20,6 +21,6 @@ it("keeps the open detail distinct from keyboard navigation and bulk selection",
   expect(updatedRows[1]!).not.toHaveAttribute("aria-current");
 });
 it("does not substitute another current item when the open record is filtered out", () => {
-  render(<CollectionList items={items.slice(0, 1)} label="Conversations" currentKey="triage" />);
+  renderWithProviders(<CollectionList items={items.slice(0, 1)} label="Conversations" currentKey="triage" />);
   expect(screen.getByRole("listitem")).not.toHaveAttribute("aria-current");
 });

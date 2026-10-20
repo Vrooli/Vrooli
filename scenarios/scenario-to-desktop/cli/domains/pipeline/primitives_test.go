@@ -91,6 +91,7 @@ func TestPipelineConfigFromContext_BuildsTypedReleaseRequest(t *testing.T) {
 			"platforms":              "windows-x64, macos-arm64, linux",
 			"stages":                 "bundle, preflight, smoketest",
 			"deployment-mode":        "proxy",
+			"strategy":               "electron-sidecar",
 			"proxy-url":              "http://127.0.0.1:24965",
 			"location-mode":          "staging",
 			"resource-artifact-root": "/verified/artifacts",
@@ -112,6 +113,9 @@ func TestPipelineConfigFromContext_BuildsTypedReleaseRequest(t *testing.T) {
 	}
 	if config.GetScenarioName() != "calculator" {
 		t.Errorf("scenarioName = %q, want calculator", config.GetScenarioName())
+	}
+	if config.GetStrategyId() != "electron-sidecar" {
+		t.Fatalf("strategy_id=%q", config.GetStrategyId())
 	}
 	if got, want := config.GetPlatforms(), []sharedv1.Platform{sharedv1.Platform_PLATFORM_WIN, sharedv1.Platform_PLATFORM_MAC, sharedv1.Platform_PLATFORM_LINUX}; !equalPlatforms(got, want) {
 		t.Errorf("platforms = %v, want %v", got, want)

@@ -1,5 +1,5 @@
 import type { Reading } from "../lib/api";
-import { qualify, resolveReading } from "@vrooli/react-component-library/ProvenanceInk/0.1.2";
+import { qualify, resolveReading } from "@vrooli/react-component-library/ProvenanceInk/0.1.3";
 
 const verdict = (value?: string): string => (value ?? "").replace(/^EXPERIMENT_VERDICT_/, "").replace(/_/g, " ") || "INSUFFICIENT DATA";
 

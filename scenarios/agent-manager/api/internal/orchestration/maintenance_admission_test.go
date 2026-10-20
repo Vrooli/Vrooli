@@ -85,8 +85,10 @@ func TestMaintenanceKeepsAcceptedRunAndContinuationReplays(t *testing.T) {
 		t.Fatal(err)
 	}
 	req := ContinueRunRequest{RunID: run.ID, Message: "already accepted", IdempotencyKey: "continued"}
-	if _, err := repos.Idempotency.Reserve(t.Context(), req.IdempotencyKey, time.Hour); err != nil {
-		t.Fatal(err)
+	// Continuation receipts bind both the run and request terms; a generic
+	// run-creation reservation cannot stand in for an accepted continuation.
+	if _, acquired, err := o.reserveContinuationReceipt(t.Context(), req); err != nil || !acquired {
+		t.Fatalf("reserve accepted continuation: acquired=%t err=%v", acquired, err)
 	}
 	if err := o.completeContinuationReceipt(t.Context(), req); err != nil {
 		t.Fatal(err)

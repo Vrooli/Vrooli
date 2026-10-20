@@ -7,6 +7,7 @@ import (
 
 // mockOrchestrator implements the domain seam consumed by ConnectService.
 type mockOrchestrator struct {
+	runConfig     *PipelineConfig
 	runResult     *Status
 	runError      error
 	getResult     *Status
@@ -23,7 +24,8 @@ type mockOrchestrator struct {
 	updateError   error
 }
 
-func (m *mockOrchestrator) RunPipeline(_ context.Context, _ *PipelineConfig) (*Status, error) {
+func (m *mockOrchestrator) RunPipeline(_ context.Context, config *PipelineConfig) (*Status, error) {
+	m.runConfig = config
 	return m.runResult, m.runError
 }
 

@@ -63,21 +63,21 @@
   "packageManager": "pnpm@9.12.1",
   "private": true,
   "scripts": {
+    "build": "pnpm theme:generate \u0026\u0026 pnpm selector:manifest \u0026\u0026 pnpm slots:check \u0026\u0026 vite build",
+    "build:profile": "pnpm selector:manifest \u0026\u0026 vite build --mode profile",
     "dev": "vrooli lifecycle protect -- vite",
-    "build": "pnpm theme:generate && pnpm selector:manifest && pnpm slots:check && vite build",
-    "build:profile": "pnpm selector:manifest && vite build --mode profile",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "preview": "vite preview",
     "selector:check": "node scripts/generate-selector-manifest.mjs --check",
     "selector:manifest": "node scripts/generate-selector-manifest.mjs",
     "slots:check": "vitest run src/scenes/slotManifests.test.ts",
-    "verify-room-bindings": "node scripts/verify-room-bindings.mjs",
-    "visual:baseline": "node scripts/verify-visual-baseline.mjs",
-    "theme:generate": "node scripts/generate-theme-css.mjs",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "type-check": "tsc --noEmit"
+    "theme:generate": "node scripts/generate-theme-css.mjs",
+    "type-check": "tsc --noEmit",
+    "verify-room-bindings": "node scripts/verify-room-bindings.mjs",
+    "visual:baseline": "node scripts/verify-visual-baseline.mjs"
   },
   "type": "module",
   "version": "1.0.0"

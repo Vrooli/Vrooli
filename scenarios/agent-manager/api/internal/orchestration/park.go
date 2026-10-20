@@ -235,6 +235,13 @@ func (o *Orchestrator) WakeRun(ctx context.Context, in WakeRunInput) (_ *domain.
 	if err := o.validateContinuationSession(ctx, run); err != nil {
 		return nil, err
 	}
+	// Parked legacy runs may predate the Task.current_run_id projection. Bind
+	// only this exact requested Run, and only when no competing nonterminal
+	// attempt exists, before cancelling the waiter or continuing the runner.
+	// This also fences cancelled Tasks and Tasks now owned by another Run.
+	if err := o.ensureCurrentTaskRun(ctx, run); err != nil {
+		return nil, err
+	}
 	effectsPossible = true
 
 	// Cancel the background watcher before resuming. When wake is driven by the

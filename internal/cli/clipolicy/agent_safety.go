@@ -163,14 +163,21 @@ func destructiveVrooliArgs(args []string) bool {
 		}
 		switch args[1] {
 		case "locks":
-			return true
+			// Stale-lock cleanup is the narrowly scoped, proof-based owner
+			// maintenance operation. Permit only its exact public form from an
+			// agent context; malformed/extended forms remain guarded.
+			return len(args) != agentSafetyParameterA
 		case "orphans":
 			return !hasFlag(args[2:], "--dry-run")
 		}
 	case "orphans":
 		return len(args) > 1 && args[1] == "kill" && !hasFlag(args[2:], "--dry-run")
 	case "locks":
-		return len(args) > 1 && args[1] == "clean"
+		if len(args) > 1 && args[1] == "clean" {
+			// `locks clean` is the alias for `cleanup locks`; do not extend the
+			// allowance to any extra arguments or future command variants.
+			return len(args) != agentSafetyParameterA
+		}
 	case "stop", agentSafetyStopAll:
 		return true
 	case "scenario":

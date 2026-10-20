@@ -257,6 +257,65 @@ func TestValidateManifestIdentityRejectsOmittedCatalogID(t *testing.T) {
 	}
 }
 
+func TestValidateManifestMetadataAcceptsLibraryIdentityFallbackAndRetainsRealDefects(t *testing.T) {
+	tests := []struct {
+		name        string
+		manifest    string
+		catalog     string
+		wantCount   int
+		wantFinding string
+	}{
+		{
+			name:     "library identity fallback",
+			manifest: `{"libraryId":"react-component-library:Fixture","catalogId":"react-component-library:Fixture"}`,
+		},
+		{
+			name:      "mismatched library-prefixed identity",
+			manifest:  `{"libraryId":"react-component-library:Fixture","catalogId":"react-component-library:Other"}`,
+			wantCount: 1,
+		},
+		{
+			name:        "empty actual catalog description",
+			manifest:    `{"libraryId":"react-component-library:Fixture","catalogId":"controls.fixture"}`,
+			catalog:     `{"kind":"catalog-asset","asset":{"id":"controls.fixture","description":""}}`,
+			wantCount:   1,
+			wantFinding: "catalog description is empty",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := t.TempDir()
+			manifestDir := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "Fixture")
+			if err := os.MkdirAll(manifestDir, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(manifestDir, "component.json"), []byte(test.manifest), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if test.catalog != "" {
+				catalogDir := filepath.Join(root, "scenarios", "react-component-library", "catalog", "assets", "controls")
+				if err := os.MkdirAll(catalogDir, 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(catalogDir, "fixture.json"), []byte(test.catalog), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			result, err := ValidateManifestMetadata(Scope{Root: root})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(result.Findings) != test.wantCount {
+				t.Fatalf("metadata result = %+v, want %d findings", result, test.wantCount)
+			}
+			if test.wantFinding != "" && !strings.Contains(result.Findings[0].Message, test.wantFinding) {
+				t.Fatalf("metadata result = %+v, want finding containing %q", result, test.wantFinding)
+			}
+		})
+	}
+}
+
 func TestValidateManifestMetadataLiveCorpus(t *testing.T) {
 	root, err := filepath.Abs("../../../../../")
 	if err != nil {

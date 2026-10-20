@@ -1,6 +1,6 @@
 import { forwardRef, type CSSProperties } from "react";
 import type { Reading } from "../lib/api";
-import { InkMark, qualify, resolveReading } from "@vrooli/react-component-library/ProvenanceInk/0.1.2";
+import { InkMark, qualify, resolveReading } from "@vrooli/react-component-library/ProvenanceInk/0.1.3";
 import { lastOpening, ladderOf, openedBy, statusLabel, type LadderReading, type UnlockKind } from "../lib/ladder";
 import { AutoScroll } from "./AutoScroll";
 

@@ -1,7 +1,6 @@
 // vrooli:library-selectors start
 export const librarySelectors = {
   "data-display.provenance-ink": {
-    "root": "data-display.provenance-ink"
   },
   "data-display.rolling-number": {
     "root": "data-display.rolling-number"

@@ -43,6 +43,10 @@ type SharedRoot struct {
 	// Path is repo-relative and slash-separated (packages/api-core/storage,
 	// go.mod, ...).
 	Path string `json:"path"`
+	// KeepOutputs names root-relative build-output prefixes that survive VCS
+	// ignore rules. Dependency/cache exclusions and floor private-state rules
+	// still apply. The build owner supplies these from its output declarations.
+	KeepOutputs []string `json:"keepOutputs,omitempty"`
 	// Reason names the reference that requires it (go:<module dir>,
 	// file:<package>, alias:<config file>, requires:<package>).
 	Reason string `json:"reason"`
@@ -144,7 +148,6 @@ func (s *Store) ReadCaptureRecord(scenario, slug string) (CaptureRecord, bool, e
 var sharedSourceExcludes = map[string]struct{}{
 	"node_modules":            {},
 	".git":                    {},
-	"coverage":                {},
 	".turbo":                  {},
 	".next":                   {},
 	"__pycache__":             {},
@@ -174,7 +177,6 @@ func CaptureSharedSources(repoRoot, dest string, roots []SharedRoot, reflink boo
 	ordered := append([]SharedRoot(nil), roots...)
 	sort.Slice(ordered, func(i, j int) bool { return ordered[i].Path < ordered[j].Path })
 	var total int64
-	opts := CopyOptions{Exclude: sharedSourceExcludes, Ignore: floorIgnorer, Reflink: reflink}
 	for i, root := range ordered {
 		rel, err := cleanRepoRel(root.Path)
 		if err != nil {
@@ -188,6 +190,22 @@ func CaptureSharedSources(repoRoot, dest string, roots []SharedRoot, reflink boo
 		}
 		var bytes int64
 		if info.IsDir() {
+			kept := make([]string, 0, len(root.KeepOutputs))
+			for _, output := range root.KeepOutputs {
+				clean, err := cleanRepoRel(output)
+				if err != nil {
+					return nil, 0, fmt.Errorf("baselinefloor: shared source %s output: %w", rel, err)
+				}
+				kept = append(kept, clean)
+			}
+			ignore := NewIgnoreMatcher(IgnoreSpec{
+				RepoRoot:   repoRoot,
+				TreeRoot:   src,
+				NestedRoot: src,
+				Patterns:   floorIgnorePatterns,
+			})
+			outputIgnore := sharedOutputIgnorer{vcs: ignore, private: NewIgnoreMatcher(IgnoreSpec{Patterns: floorIgnorePatterns}), kept: kept}
+			opts := CopyOptions{Exclude: sharedSourceExcludes, Ignore: outputIgnore, Reflink: reflink}
 			stats, err := CopyTree(src, dst, opts)
 			if err != nil {
 				return nil, 0, fmt.Errorf("baselinefloor: copy shared source %s: %w", rel, err)
@@ -215,6 +233,26 @@ func CaptureSharedSources(repoRoot, dest string, roots []SharedRoot, reflink boo
 	}
 	keepStaging = true
 	return ordered, total, nil
+}
+
+// Build outputs are not necessarily versioned, but are required by a frozen
+// consumer. Preserve only the owner's declared output prefixes and ancestors;
+// unrelated ignored files and the floor's private-state rules still apply.
+type sharedOutputIgnorer struct {
+	vcs, private Ignorer
+	kept         []string
+}
+
+func (m sharedOutputIgnorer) Ignored(rel string, isDir bool) bool {
+	if m.private.Ignored(rel, isDir) {
+		return true
+	}
+	for _, output := range m.kept {
+		if rel == output || strings.HasPrefix(rel, output+"/") || (isDir && strings.HasPrefix(output, rel+"/")) {
+			return false
+		}
+	}
+	return m.vcs.Ignored(rel, isDir)
 }
 
 // replaceDir moves staging into place at dest, removing any previous dest.

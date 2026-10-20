@@ -1,7 +1,6 @@
 package resourcehandlers
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"maps"
@@ -13,7 +12,6 @@ import (
 
 	"github.com/vrooli/cli-core/upstreamcheck"
 	resourceapp "github.com/vrooli/vrooli/internal/app/resource"
-	"github.com/vrooli/vrooli/internal/capacity"
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/cli/resourcecli"
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
@@ -542,6 +540,9 @@ func orUnknown(value string) string {
 
 func buildResourceAcquisitionCommandTable[C any](deps rootcli.HandlerDeps[C]) []commandtree.Spec[rootcli.ResourceHandler[C]] {
 	return []commandtree.Spec[rootcli.ResourceHandler[C]]{
+		{Name: string(resourcecli.AcquisitionCommandComposeCandidate), Summary: "Prepare an uninstalled composed candidate", Args: resourcecli.AcquisitionComposeCandidateArgs(), Handler: resourceComposeCandidateHandler(deps)},
+		{Name: string(resourcecli.AcquisitionCommandDataGroup), Summary: "Acquire one declared data group", Args: resourcecli.AcquisitionDataGroupArgs(), Handler: resourceDataGroupHandler(deps)},
+		{Name: string(resourcecli.AcquisitionCommandModelCache), Summary: "Preview or apply owner-fenced model-cache retention", Args: resourcecli.AcquisitionModelCacheArgs(), Handler: resourceModelCacheHandler(deps)},
 		{Name: string(resourcecli.AcquisitionCommandInspectData), Summary: "Inspect bounded upstream data with pinned Git identity", Args: resourcecli.AcquisitionInspectDataArgs(), Handler: resourceInspectDataHandler(deps)},
 		{
 			Name:    string(resourcecli.AcquisitionCommandExplain),
@@ -783,53 +784,10 @@ func singleResourceControlHandler[C any](deps rootcli.HandlerDeps[C], action str
 		if err := operationCtx.Err(); err != nil {
 			return err
 		}
-		// Admit before launching the resource so a declared companion can find
-		// the manifest-derived claim on its first heartbeat. Admission is
-		// advisory and non-blocking; controller.Run remains the authority for
-		// the actual lifecycle action.
-		admitResourceCapacityCLI(operationCtx, controller.Root, args[0], action, deps.Stderr(ctx))
 		if err := controller.RunContext(operationCtx, args[0], []string{action}, deps.Stdout(ctx), deps.Stderr(ctx)); err != nil {
 			return err
 		}
 		return nil
-	}
-}
-
-// actionsAdmittingCapacity enumerates the standalone CLI actions that bring a
-// resource onto the host's contended capacity (GPU VRAM / RAM) and so should
-// record an advisory capacity claim.
-var actionsAdmittingCapacity = map[string]struct{}{
-	"start":   {},
-	"restart": {},
-}
-
-// admitResourceCapacityCLI runs the advisory capacity broker admission after a
-// standalone `vrooli resource start|restart` brings a resource up, mirroring the
-// lifecycle Runner's admitResourceCapacity for the dependency-start path. It is
-// ALWAYS advisory and non-fatal: a resource with no `capacity` block, disabled
-// enforcement, or any operational error is a silent no-op (AdmitResource returns
-// before touching the ledger), so the command's behaviour and exit code are
-// unchanged. Only warnings surface (to stderr); a clean claim is silent.
-func admitResourceCapacityCLI(parent context.Context, root, name, action string, stderr io.Writer) {
-	if _, ok := actionsAdmittingCapacity[action]; !ok {
-		return
-	}
-	if parent == nil {
-		parent = context.Background()
-	}
-	result, err := capacity.AdmitResource(parent, capacity.AdmitOptions{
-		Root:         root,
-		ResourceName: name,
-	})
-	if err != nil {
-		fmt.Fprintf(stderr, "capacity admission skipped (advisory): %v\n", err)
-		return
-	}
-	if result.Skipped {
-		return
-	}
-	for _, warn := range result.Verdict.Warnings {
-		fmt.Fprintf(stderr, "capacity admission warning (%s): %s\n", name, warn)
 	}
 }
 

@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     phase_prompt_ids TEXT DEFAULT '[]',
     context_attachments TEXT DEFAULT '[]',
     status TEXT DEFAULT 'queued',
+    current_run_id TEXT,
     created_by TEXT,
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now'))

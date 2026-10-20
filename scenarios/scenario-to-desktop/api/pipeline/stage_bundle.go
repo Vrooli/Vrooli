@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"scenario-to-desktop-api/bundle"
+	"scenario-to-desktop-api/generation"
 	"scenario-to-desktop-api/shared/errors"
 
 	sharedpath "scenario-to-desktop-api/shared/path"
@@ -105,16 +106,19 @@ func (s *BundleStage) Execute(ctx context.Context, input *StageInput) *StageResu
 	}
 
 	// Determine framework (default to electron)
-	framework := input.Config.Framework
-	if framework == "" {
-		framework = "electron"
+	strategyID := input.Config.StrategyID
+	if strategyID == "" {
+		strategyID = generation.DefaultStrategyID
 	}
-	outputRoot, desktopPath := resolvePipelineOutputPaths(input.Config, scenarioPath, input.PipelineID, framework)
+	strategy, _ := generation.PackagingStrategies().Resolve(strategyID)
+	framework := strategy.Shell
+	outputName, _ := generation.StrategyOutputName(strategyID)
+	outputRoot, desktopPath := resolvePipelineOutputPaths(input.Config, scenarioPath, input.PipelineID, strategyID)
 
 	if input.Config != nil && input.Config.Clean {
 		// Clean outputs without deleting source/config (in "proper" location mode).
 		// In staging/temp mode, removing the whole framework dir is safe.
-		if desktopPath != "" && strings.Contains(desktopPath, filepath.Join("platforms", framework)) {
+		if desktopPath != "" && strings.Contains(desktopPath, filepath.Join("platforms", outputName)) {
 			appendInfo(result, "Cleaning desktop outputs under: %s", desktopPath)
 			if err := cleanDesktopOutputs(desktopPath, input.Config.LocationMode); err != nil {
 				failStage(result, s.timeProvider, errors.ErrBundlePackagingFailed(err, scenarioPath))
@@ -200,7 +204,7 @@ func (s *BundleStage) resolveManifest(ctx context.Context, result *StageResult, 
 	if s.manifestGenerator != nil {
 		appendInfo(result, "Generating manifest via deployment-manager...")
 		outputDir := filepath.Dir(manifestPath)
-		generatedPath, genErr := s.manifestGenerator.GenerateManifest(ctx, config.ScenarioName, outputDir)
+		generatedPath, genErr := s.manifestGenerator.GenerateManifest(ctx, config.ScenarioName, outputDir, config.ArtifactTrustMode)
 		if genErr != nil {
 			return "", errors.ErrBundleManifestGeneration(genErr)
 		}

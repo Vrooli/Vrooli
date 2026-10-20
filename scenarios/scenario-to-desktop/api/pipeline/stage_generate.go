@@ -205,6 +205,8 @@ func (s *GenerateStage) buildDesktopConfig(input *StageInput, metadata *generati
 
 	// Apply pipeline config overrides
 	desktopConfig.DeploymentMode = input.Config.GetDeploymentMode()
+	desktopConfig.StrategyID = input.Config.StrategyID
+	desktopConfig.OptimizationProfile = cloneOptimizationProfile(input.Config.OptimizationProfile)
 	desktopConfig.Platforms = input.Config.Platforms
 	desktopConfig.NativeExtension = input.Config.NativeExtension
 	if err := desktopConfig.ValidateNativeExtension(); err != nil {
@@ -259,6 +261,14 @@ func (s *GenerateStage) buildDesktopConfig(input *StageInput, metadata *generati
 	return desktopConfig, nil
 }
 
+func cloneOptimizationProfile(profile *generation.ElectronOptimizationProfile) *generation.ElectronOptimizationProfile {
+	if profile == nil {
+		return nil
+	}
+	copy := *profile
+	return &copy
+}
+
 // applyBundleConfig applies bundle-related configuration from BundleResult to the desktop config.
 func (s *GenerateStage) applyBundleConfig(input *StageInput, desktopConfig *generation.DesktopConfig, result *StageResult) {
 	if input.BundleResult == nil {
@@ -304,14 +314,14 @@ func (s *GenerateStage) resolveOutputPaths(input *StageInput, desktopConfig *gen
 		if input.BundleResult != nil && input.BundleResult.BundleDir != "" {
 			resolvedDesktopPath = filepath.Dir(input.BundleResult.BundleDir)
 		} else {
-			_, resolvedDesktopPath = resolvePipelineOutputPaths(input.Config, scenarioPath, input.PipelineID, desktopConfig.Framework)
+			_, resolvedDesktopPath = resolvePipelineOutputPaths(input.Config, scenarioPath, input.PipelineID, desktopConfig.StrategyID)
 		}
 		if resolvedDesktopPath != "" {
 			desktopConfig.OutputPath = resolvedDesktopPath
 			result.Logs = append(result.Logs, fmt.Sprintf("Staging output path: %s", resolvedDesktopPath))
 		}
 	} else {
-		_, resolvedDesktopPath = resolvePipelineOutputPaths(input.Config, scenarioPath, input.PipelineID, desktopConfig.Framework)
+		_, resolvedDesktopPath = resolvePipelineOutputPaths(input.Config, scenarioPath, input.PipelineID, desktopConfig.StrategyID)
 	}
 
 	// Clean thin-client outputs here (bundle stage is skipped).

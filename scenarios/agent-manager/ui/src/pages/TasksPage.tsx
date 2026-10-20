@@ -61,6 +61,8 @@ const taskStatusLabel = (status: TaskStatus): string => {
       return "queued";
     case TaskStatus.RUNNING:
       return "running";
+    case TaskStatus.COMPLETED:
+      return "completed";
     case TaskStatus.NEEDS_REVIEW:
       return "needs_review";
     case TaskStatus.APPROVED:
@@ -72,13 +74,14 @@ const taskStatusLabel = (status: TaskStatus): string => {
     case TaskStatus.CANCELLED:
       return "cancelled";
     default:
-      return "queued";
+      return "unknown";
   }
 };
 
 const STATUS_FILTER_OPTIONS = [
   { value: String(TaskStatus.QUEUED), label: "Queued" },
   { value: String(TaskStatus.RUNNING), label: "Running" },
+  { value: String(TaskStatus.COMPLETED), label: "Completed" },
   { value: String(TaskStatus.NEEDS_REVIEW), label: "Needs Review" },
   { value: String(TaskStatus.APPROVED), label: "Approved" },
   { value: String(TaskStatus.REJECTED), label: "Rejected" },
@@ -95,11 +98,13 @@ const SORT_OPTIONS: SortOption[] = [
 type TaskStatusBadgeVariant =
   | "queued"
   | "running"
+  | "completed"
   | "needs_review"
   | "approved"
   | "rejected"
   | "failed"
-  | "cancelled";
+  | "cancelled"
+  | "secondary";
 
 interface TaskListRowProps {
   task: Task;
@@ -120,7 +125,7 @@ const TaskListRow = memo(function TaskListRow({
       onClick={() => onSelect(task.id)}
       icon={<FolderOpen className="h-4 w-4 text-muted-foreground flex-shrink-0" />}
       actions={
-        <Badge variant={statusLabel as TaskStatusBadgeVariant}>
+        <Badge variant={statusLabel === "unknown" ? "secondary" : statusLabel as TaskStatusBadgeVariant}>
           {statusLabel.replace("_", " ")}
         </Badge>
       }

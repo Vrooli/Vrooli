@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	alertspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/alerts"
+	alertsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/alerts/alertsconnect"
 	metricspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/metrics"
 	metricsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/metrics/metricsconnect"
 	settingspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/settings"
@@ -38,7 +40,7 @@ func Register(core *cliapp.ScenarioApp) cliapp.CommandGroup {
 			{
 				Name:        "alerts",
 				NeedsAPI:    true,
-				Description: "Show active alerts from the current metrics snapshot",
+				Description: "Show server-evaluated alerts (active by default)",
 				Run: func(args []string) error {
 					return runAlerts(h, args)
 				},
@@ -65,6 +67,7 @@ func Register(core *cliapp.ScenarioApp) cliapp.CommandGroup {
 type handlers struct {
 	metrics  metricsconnect.MetricsServiceClient
 	settings settingsconnect.SettingsServiceClient
+	alerts   alertsconnect.AlertsServiceClient
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
@@ -72,6 +75,7 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	return &handlers{
 		metrics:  metricsconnect.NewMetricsServiceClient(httpClient, baseURL),
 		settings: settingsconnect.NewSettingsServiceClient(httpClient, baseURL),
+		alerts:   alertsconnect.NewAlertsServiceClient(httpClient, baseURL),
 	}
 }
 
@@ -80,7 +84,71 @@ type statusReport struct {
 	OverallStatus            string `json:"overall_status"`
 	CPUThreshold             string `json:"cpu_threshold"`
 	MemoryThreshold          string `json:"memory_threshold"`
-	MaintenanceState         string `json:"maintenance_state"`
+	// MaintenanceState is the raw maintenance-orchestrator wire value
+	// ("active" = monitoring running). MonitoringState is its plain reading.
+	MaintenanceState string `json:"maintenance_state"`
+	MonitoringState  string `json:"monitoring_state"`
+	ActiveAlerts     int    `json:"active_alerts"`
+}
+
+// buildStatusReport assembles the status view from server state only; no
+// alert is derived client-side.
+func buildStatusReport(metrics *metricspb.MetricsResponse, settings *settingspb.SystemSettings, maintenanceState string, alerts *alertspb.ListAlertsResponse) statusReport {
+	cpuThreshold, memoryThreshold, _ := support.MetricThresholds(settings)
+	monitoring := support.MonitoringActive(settings, maintenanceState)
+	overall := support.OverallStatus(monitoring, alerts)
+	alertItems := support.AlertLines(alerts.GetAlerts())
+	if !monitoring {
+		alertItems = append([]string{"Monitoring is paused; alerts are not being evaluated."}, alertItems...)
+	}
+	alertItems = append(alertItems, support.RuleLines(alerts.GetRules())...)
+	return statusReport{
+		OperationalReport: cliapp.OperationalReport{
+			Status: []string{
+				fmt.Sprintf("Overall status: %s", overall),
+				fmt.Sprintf("Snapshot time: %s", support.FormatTimestamp(metrics.GetTimestamp())),
+				fmt.Sprintf("CPU: %s", support.FormatPercent(metrics.GetCpuUsage())),
+				fmt.Sprintf("Memory: %s", support.FormatPercent(metrics.GetMemoryUsage())),
+				fmt.Sprintf("TCP connections: %d", metrics.GetTcpConnections()),
+				fmt.Sprintf("GPU: %s", support.FormatMaybePercent(metrics.GpuUsage)),
+			},
+			Triage: []cliapp.TriageGroup{
+				{
+					Heading: "Monitoring",
+					Items: []string{
+						fmt.Sprintf("Monitoring: %s", support.MonitoringStateLabel(monitoring)),
+						fmt.Sprintf("Metric interval: %ds", settings.GetMetricCollectionInterval()),
+						fmt.Sprintf("Anomaly interval: %ds", settings.GetAnomalyDetectionInterval()),
+						fmt.Sprintf("Cooldown: %ds", settings.GetCooldownPeriodSeconds()),
+						fmt.Sprintf("Alert sustain: %ds", alerts.GetSustainSeconds()),
+					},
+				},
+				{
+					Heading: "Thresholds",
+					Items: []string{
+						fmt.Sprintf("CPU threshold: %.1f%%", cpuThreshold),
+						fmt.Sprintf("Memory threshold: %.1f%%", memoryThreshold),
+					},
+				},
+				{
+					Heading: "Alerts",
+					Items:   alertItems,
+				},
+			},
+			NextSteps: []string{
+				"system-monitor metrics detailed",
+				"system-monitor alerts",
+				"system-monitor dashboard",
+				"system-monitor --auto-start investigations trigger --note \"describe the issue\"",
+			},
+		},
+		OverallStatus:    overall,
+		CPUThreshold:     fmt.Sprintf("%.1f%%", cpuThreshold),
+		MemoryThreshold:  fmt.Sprintf("%.1f%%", memoryThreshold),
+		MaintenanceState: support.FormatMaybeString(maintenanceState, "inactive"),
+		MonitoringState:  support.MonitoringStateLabel(monitoring),
+		ActiveAlerts:     len(alerts.GetAlerts()),
+	}
 }
 
 func runStatus(h *handlers, args []string) error {
@@ -103,57 +171,12 @@ func runStatus(h *handlers, args []string) error {
 	if err != nil {
 		return err
 	}
-
-	cpuThreshold, memoryThreshold, _ := support.MetricThresholds(settings)
-	alerts := support.DeriveAlerts(metrics, settings)
-	maintenanceState := maintenance.GetMaintenanceState()
-	overall := support.OverallStatus(metrics, settings, maintenanceState)
-	report := statusReport{
-		OperationalReport: cliapp.OperationalReport{
-			Status: []string{
-				fmt.Sprintf("Overall status: %s", overall),
-				fmt.Sprintf("Snapshot time: %s", support.FormatTimestamp(metrics.GetTimestamp())),
-				fmt.Sprintf("CPU: %s", support.FormatPercent(metrics.GetCpuUsage())),
-				fmt.Sprintf("Memory: %s", support.FormatPercent(metrics.GetMemoryUsage())),
-				fmt.Sprintf("TCP connections: %d", metrics.GetTcpConnections()),
-				fmt.Sprintf("GPU: %s", support.FormatMaybePercent(metrics.GpuUsage)),
-			},
-			Triage: []cliapp.TriageGroup{
-				{
-					Heading: "Monitoring",
-					Items: []string{
-						fmt.Sprintf("Active: %s", support.BoolString(settings.GetActive(), "yes", "no")),
-						fmt.Sprintf("Maintenance state: %s", support.FormatMaybeString(maintenanceState, "inactive")),
-						fmt.Sprintf("Metric interval: %ds", settings.GetMetricCollectionInterval()),
-						fmt.Sprintf("Anomaly interval: %ds", settings.GetAnomalyDetectionInterval()),
-						fmt.Sprintf("Cooldown: %ds", settings.GetCooldownPeriodSeconds()),
-					},
-				},
-				{
-					Heading: "Thresholds",
-					Items: []string{
-						fmt.Sprintf("CPU threshold: %.1f%%", cpuThreshold),
-						fmt.Sprintf("Memory threshold: %.1f%%", memoryThreshold),
-					},
-				},
-				{
-					Heading: "Alerts",
-					Items:   support.AlertLines(alerts),
-				},
-			},
-			NextSteps: []string{
-				"system-monitor metrics detailed",
-				"system-monitor alerts",
-				"system-monitor dashboard",
-				"system-monitor --auto-start investigations trigger --note \"describe the issue\"",
-			},
-		},
-		OverallStatus:    overall,
-		CPUThreshold:     fmt.Sprintf("%.1f%%", cpuThreshold),
-		MemoryThreshold:  fmt.Sprintf("%.1f%%", memoryThreshold),
-		MaintenanceState: support.FormatMaybeString(maintenanceState, "inactive"),
+	alerts, err := h.fetchAlerts(&alertspb.ListAlertsRequest{})
+	if err != nil {
+		return err
 	}
 
+	report := buildStatusReport(metrics, settings, maintenance.GetMaintenanceState(), alerts)
 	if *jsonOutput {
 		return cliapp.PrintReportJSON(os.Stdout, report)
 	}
@@ -162,50 +185,59 @@ func runStatus(h *handlers, args []string) error {
 
 type alertsReport struct {
 	cliapp.ListReport `json:",inline"`
-	Alerts            []support.Alert `json:"alerts"`
+	Alerts            []*alertspb.Alert     `json:"alerts"`
+	Rules             []*alertspb.RuleState `json:"rules"`
 }
 
 func runAlerts(h *handlers, args []string) error {
 	fs := support.NewFlagSet("alerts")
-	fresh := fs.Bool("fresh", false, "Collect a fresh metrics snapshot")
+	all := fs.Bool("all", false, "Include resolved alerts")
+	events := fs.Bool("events", false, "Include point-in-time events (threshold violations, anomalies)")
+	limit := fs.Int("limit", 50, "Maximum alerts to return")
 	jsonOutput := cliutil.JSONFlag(fs)
 	if err := support.ParseFlags(fs, args); err != nil {
 		return err
 	}
 
-	metrics, err := h.fetchCurrentMetrics(*fresh)
+	req := &alertspb.ListAlertsRequest{IncludeEvents: *events, Limit: int32(*limit)}
+	if *all {
+		req.Status = "all"
+	}
+	alerts, err := h.fetchAlerts(req)
 	if err != nil {
 		return err
 	}
-	settings, err := h.fetchSettings()
-	if err != nil {
-		return err
+	if *jsonOutput {
+		return cliapp.PrintProtoJSON(os.Stdout, alerts)
 	}
+	return cliapp.RenderListReport(os.Stdout, buildAlertsReport(alerts).ListReport)
+}
 
-	alerts := support.DeriveAlerts(metrics, settings)
-	report := alertsReport{
+func buildAlertsReport(alerts *alertspb.ListAlertsResponse) alertsReport {
+	evaluated := "never (evaluator has not run)"
+	if alerts.GetEvaluatedAt() != nil {
+		evaluated = support.FormatTimestamp(alerts.GetEvaluatedAt())
+	}
+	summary := []string{
+		fmt.Sprintf("Evaluated: %s", evaluated),
+		fmt.Sprintf("Monitoring: %s", support.MonitoringStateLabel(alerts.GetMonitoringActive())),
+		fmt.Sprintf("Sustain: %ds before an alert opens or resolves", alerts.GetSustainSeconds()),
+	}
+	summary = append(summary, support.RuleLines(alerts.GetRules())...)
+	return alertsReport{
 		ListReport: cliapp.ListReport{
-			Summary: []string{
-				fmt.Sprintf("Snapshot time: %s", support.FormatTimestamp(metrics.GetTimestamp())),
-				fmt.Sprintf("CPU: %s", support.FormatPercent(metrics.GetCpuUsage())),
-				fmt.Sprintf("Memory: %s", support.FormatPercent(metrics.GetMemoryUsage())),
-				fmt.Sprintf("TCP connections: %d", metrics.GetTcpConnections()),
-			},
+			Summary:        summary,
 			ResultsHeading: "Alerts",
-			Results:        support.AlertLines(alerts),
+			Results:        support.AlertLines(alerts.GetAlerts()),
 			RetrievalHints: []string{
+				"system-monitor alerts --all --events",
 				"system-monitor status",
-				"system-monitor metrics current --fresh",
-				"system-monitor investigations trigger --note \"investigate the current alert state\"",
+				"system-monitor metrics detailed",
 			},
 		},
-		Alerts: alerts,
+		Alerts: alerts.GetAlerts(),
+		Rules:  alerts.GetRules(),
 	}
-
-	if *jsonOutput {
-		return cliapp.PrintReportJSON(os.Stdout, report)
-	}
-	return cliapp.RenderListReport(os.Stdout, report.ListReport)
 }
 
 func runWatch(h *handlers, args []string) error {
@@ -247,18 +279,24 @@ func runWatch(h *handlers, args []string) error {
 		}
 		maintenanceState := maintenance.GetMaintenanceState()
 
+		alerts, err := h.fetchAlerts(&alertspb.ListAlertsRequest{})
+		if err != nil {
+			return err
+		}
+		monitoring := support.MonitoringActive(settings, maintenanceState)
+
 		fmt.Print("\033[H\033[2J")
 		fmt.Println("System Monitor Watch")
 		fmt.Printf("Time: %s\n", time.Now().Format("2006-01-02 15:04:05 MST"))
-		fmt.Printf("Overall: %s\n", support.OverallStatus(metrics, settings, maintenanceState))
+		fmt.Printf("Overall: %s\n", support.OverallStatus(monitoring, alerts))
 		fmt.Printf("CPU: %s\n", support.FormatPercent(metrics.GetCpuUsage()))
 		fmt.Printf("Memory: %s\n", support.FormatPercent(metrics.GetMemoryUsage()))
 		fmt.Printf("TCP Connections: %d\n", metrics.GetTcpConnections())
 		fmt.Printf("GPU: %s\n", support.FormatMaybePercent(metrics.GpuUsage))
-		fmt.Printf("Maintenance: %s\n", support.FormatMaybeString(maintenanceState, "inactive"))
+		fmt.Printf("Monitoring: %s\n", support.MonitoringStateLabel(monitoring))
 		fmt.Println()
 		fmt.Println("Alerts:")
-		for _, line := range support.AlertLines(support.DeriveAlerts(metrics, settings)) {
+		for _, line := range support.AlertLines(alerts.GetAlerts()) {
 			fmt.Printf("  %s\n", line)
 		}
 
@@ -317,6 +355,17 @@ func (h *handlers) fetchCurrentMetrics(fresh bool) (*metricspb.MetricsResponse, 
 		return nil, fmt.Errorf("server returned no current metrics")
 	}
 	return resp.Msg.GetMetrics(), nil
+}
+
+func (h *handlers) fetchAlerts(req *alertspb.ListAlertsRequest) (*alertspb.ListAlertsResponse, error) {
+	resp, err := h.alerts.ListAlerts(context.Background(), connect.NewRequest(req))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("list alerts", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return nil, fmt.Errorf("server returned no alert state")
+	}
+	return resp.Msg, nil
 }
 
 func (h *handlers) fetchSettings() (*settingspb.SystemSettings, error) {

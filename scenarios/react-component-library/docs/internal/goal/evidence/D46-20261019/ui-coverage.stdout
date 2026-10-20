@@ -1,0 +1,662 @@
+
+> react-component-library-ui@1.0.0 test:coverage /home/matthalloran8/Vrooli/scenarios/react-component-library/ui
+> vitest run --coverage --reporter=verbose
+
+
+ RUN  v2.1.9 /home/matthalloran8/Vrooli/scenarios/react-component-library/ui
+      Coverage enabled with v8
+
+ ✓ src/features/components/ComponentEditor.test.tsx > ComponentEditor > fetches and renders source content with the library id in the title
+ ✓ src/features/components/ComponentEditor.test.tsx > ComponentEditor > keeps the default workspace to one pane and enables a resizable desktop split view
+ ✓ src/features/components/ComponentEditor.test.tsx > ComponentEditor > provides a viewport-sized preview fallback when native fullscreen is unavailable
+ ✓ src/features/components/ComponentEditor.test.tsx > ComponentEditor > opens the Files diff tab when a comparison arrives from Details
+ ✓ src/features/components/ComponentEditor.test.tsx > ComponentEditor > keeps Monaco syntax diagnostics while disabling misleading semantic diagnostics
+ ✓ src/features/components/ComponentEditor.test.tsx > ComponentEditor > loads a selected historical version read-only instead of current source
+ ✓ src/features/components/ComponentEditor.test.tsx > ComponentEditor > disables Save until the buffer is dirty and forwards expectedSha256
+ ✓ src/features/components/ComponentEditor.test.tsx > ComponentEditor > renders the story sheet with harness URLs using a sha-based cache-buster
+ ✓ src/features/components/ComponentEditor.test.tsx > ComponentEditor > renders the selected named state in the story sheet
+ ✓ src/features/components/ComponentEditor.test.tsx > ComponentEditor > applies a changed deep-link story over an existing valid selection
+ ✓ src/features/components/ComponentEditor.test.tsx > ComponentEditor > preserves the mounted active story when the deep-link query is removed
+ ✓ src/features/components/ComponentEditor.test.tsx > ComponentEditor > falls back to the first story when a deep-link id is invalid
+ ✓ src/features/components/ComponentEditor.test.tsx > ComponentEditor > uses the manifest latest version when history lists a draft first
+ ✓ src/features/components/ComponentEditor.test.tsx > ComponentEditor > loads the selected version-local companion file instead of a shared runtime alias
+ ✓ src/features/components/ComponentEditor.test.tsx > ComponentEditor > shows a structural source skeleton while the file request is pending
+ ✓ src/features/components/ComponentEditor.test.tsx > ComponentEditor > shows preview events newest-first and clears the active story log
+ ✓ src/features/components/ComponentEditor.test.tsx > ComponentEditor > caps the active preview event stream at 200 entries
+ ✓ src/features/components/ComponentEditor.test.tsx > ComponentEditor > exposes the preview gallery as a semantic readiness surface
+ ✓ src/features/components/ComponentEditor.test.tsx > ComponentEditor > keeps frame experiments temporary until the author explicitly saves them
+ ✓ src/features/components/ComponentEditor.test.tsx > ComponentEditor > sends a temporary props override to the visible selected state
+ ✓ src/features/components/ComponentEditor.test.tsx > ComponentEditor > keeps state, story sheet, and controls together without a playground mode
+ ✓ src/features/components/ComponentEditor.test.tsx > ComponentEditor > does not mount the resizable preview tools panel on a narrow viewport
+ ✓ src/features/components/ComponentEditor.test.tsx > ComponentEditor > keeps the story sheet tied to the loaded sha256
+ ✓ src/features/components/ComponentEditor.test.tsx > ComponentEditor > isolates a harness failure to its specimen
+ ✓ src/features/components/ComponentEditor.test.tsx > ComponentEditor > reports loading, ready, and partial preview states to the asset-page readiness contract
+ ✓ src/features/components/ComponentEditor.test.tsx > ComponentEditor > renders every story in the story sheet without canvas controls
+ ✓ src/features/components/ComponentEditor.test.tsx > ComponentEditor > marks the preview ready and posts the resolved theme on the desktop side-by-side layout
+ ✓ src/features/components/ComponentEditor.test.tsx > ComponentEditor > uses a single unheaded pane until split view is explicitly enabled
+ ✓ src/features/components/ComponentEditor.test.tsx > ComponentEditor > posts the resolved theme to a story specimen once it loads
+ ✓ src/features/components/ComponentEditor.test.tsx > ComponentEditor > renders structural previews in the deterministic story sheet
+ ✓ src/features/components/ComponentEditor.test.tsx > ComponentEditor > keeps gallery previews fluid instead of sizing the gallery as a device
+ ✓ src/features/components/ComponentEditor.test.tsx > ComponentEditor > invokes onClose when the Back-to-list button is clicked
+ ✓ src/pages/DesignPage.test.tsx > Design workspace > reopens an archived candidate without selecting it as the current page
+ ✓ src/pages/DesignPage.test.tsx > Design workspace > keeps the rendered workflow order aligned with the brief-to-adoption journey
+ ✓ src/pages/DesignPage.test.tsx > Design workspace > keeps workflow chrome usable at short landscape heights
+ ✓ src/pages/DesignPage.test.tsx > Design workspace > keeps image-less reference revisions visible for honest comparison
+ ✓ src/pages/DesignPage.test.tsx > Design workspace > restores the saved brief and writes a durable brief revision
+ ✓ src/pages/DesignPage.test.tsx > Design workspace > requires confirmation for displaced occupants after template preview 363ms
+ ✓ src/pages/DesignPage.test.tsx > Design workspace > previews import before publishing against the current revision
+ ✓ src/pages/DesignPage.test.tsx > Design workspace > acknowledges adoption before a slow post-write refresh completes 318ms
+ ✓ src/pages/DesignPage.test.tsx > Design workspace > marks verification stale after a saved revision changes
+ ✓ src/pages/DesignPage.test.tsx > Design workspace > shows authored semantic regions even before a sketch is composed
+ ✓ src/pages/DesignPage.test.tsx > Design workspace > lists real scenarios as reachable design links
+ ✓ src/pages/DesignPage.test.tsx > Design workspace > ranks declared work first and makes empty scenarios available on request
+ ✓ src/pages/DesignPage.test.tsx > Design workspace > preserves a note after a conflict and sends the loaded revision
+ ✓ src/pages/DesignPage.test.tsx > Design workspace > keeps historical revisions read only
+ ✓ src/pages/DesignPage.test.tsx > Design workspace > does not present source verification as visual acceptance
+ ✓ src/pages/DesignPage.test.tsx > renders the exact revision and hides stale appearance evidence
+ ✓ src/pages/DesignPage.test.tsx > proposes from typed intent and only writes after draft selection 331ms
+ ✓ src/pages/DesignPage.test.tsx > previews an immutable candidate without selecting the current draft 727ms
+ ✓ src/pages/DesignPage.test.tsx > lets an unconfigured proposal enter candidate review with an honest render boundary
+ ✓ src/pages/DesignPage.test.tsx > surfaces authored regions for explicit candidate port mapping
+ ✓ src/pages/DesignPage.test.tsx > restores a capture receipt when reopening the same rendered candidate
+ ✓ src/pages/DesignPage.test.tsx > creates a new linked capture intent and reuses it after a lost acknowledgement 674ms
+ ✓ src/pages/DesignPage.test.tsx > lists exact-render reviews and rejects mismatched review detail 1069ms
+ ✓ src/pages/DesignPage.test.tsx > renders and captures the selected declared preview state 775ms
+ ✓ src/pages/DesignPage.test.tsx > locks and separately unlocks a region against the current revision
+ ✓ src/pages/DesignPage.test.tsx > compares two exact candidates without changing the open candidate or page 664ms
+ ✓ src/pages/DesignPage.test.tsx > rejects a comparison response for another candidate
+ ✓ src/features/components/ComponentTestPanel.test.tsx > ComponentTestPanel > keeps evidence classification and artifact URL helpers deterministic
+ ✓ src/features/components/ComponentTestPanel.test.tsx > ComponentTestPanel > bounds streamed evidence before a large performance trace can freeze the workspace
+ ✓ src/features/components/ComponentTestPanel.test.tsx > ComponentTestPanel > defaults to the selected version and renders durable remediation
+ ✓ src/features/components/ComponentTestPanel.test.tsx > ComponentTestPanel > provides a deep link for historical durable evidence
+ ✓ src/features/components/ComponentTestPanel.test.tsx > ComponentTestPanel > shows a structural loading skeleton while history is being retrieved
+ ✓ src/features/components/ComponentTestPanel.test.tsx > ComponentTestPanel > explains when history cannot be retrieved instead of presenting an empty history
+ ✓ src/features/components/ComponentTestPanel.test.tsx > ComponentTestPanel > surfaces BAS artifacts as readable evidence states
+ ✓ src/features/components/ComponentTestPanel.test.tsx > ComponentTestPanel > defaults to the review sheet, exposes each captured story, and renders results once
+ ✓ src/features/components/ComponentTestPanel.test.tsx > ComponentTestPanel > explains when the embedded screenshot artifact cannot be loaded
+ ✓ src/features/components/ComponentTestPanel.test.tsx > ComponentTestPanel > reviews measured claims and structured evidence without rendering the raw trace
+ ✓ src/features/components/ComponentTestPanel.test.tsx > ComponentTestPanel > covers bounded evidence responses without a stream and rejects oversized headers
+ ✓ src/features/components/ComponentTestPanel.test.tsx > ComponentTestPanel > renders an explicit empty capture workspace and reports run failures
+ ✓ src/features/components/ComponentTestPanel.test.tsx > ComponentTestPanel > keeps selected-report failures and malformed structured artifacts legible
+ ✓ src/features/components/ComponentTestPanel.test.tsx > ComponentTestPanel > shows the bounded empty state for a captured performance trace
+ ✓ src/features/versions/VersionsCard.test.tsx > VersionsCard > renders empty state when no versions are recorded
+ ✓ src/features/versions/VersionsCard.test.tsx > VersionsCard > renders a row per version with version/sha/recorded labels
+ ✓ src/features/versions/VersionsCard.test.tsx > VersionsCard > labels an evicted version and materializes it on request
+ ✓ src/features/versions/VersionsCard.test.tsx > VersionsCard > forwards from/to into diffVersions and renders the response rows
+ ✓ src/features/versions/VersionsCard.test.tsx > VersionsCard > hands a completed comparison to the enclosing Files workspace
+ ✓ src/features/versions/VersionsCard.test.tsx > VersionsCard > run button is disabled until both sides are chosen
+ ✓ src/features/versions/VersionsCard.test.tsx > VersionsCard > selects a historical version for the enclosing detail view
+ ✓ src/features/versions/VersionsCard.test.tsx > VersionsCard > renders the ledger contract, unknown test health, and required-token findings
+ ✓ src/features/versions/VersionsCard.test.tsx > VersionsCard > joins reports and adopters into an expanded version row
+ ✓ src/features/versions/VersionsCard.test.tsx > VersionsCard > surfaces retire candidates and keeps the undo action available
+ ✓ src/features/catalog/compositionInvariants.test.ts > composition invariants > type-scale monotonicity > catches a tab label rendering larger than the title above it
+ ✓ src/features/catalog/compositionInvariants.test.ts > composition invariants > type-scale monotonicity > stays silent when the heading is the largest text in its region
+ ✓ src/features/catalog/compositionInvariants.test.ts > composition invariants > type-scale monotonicity > ignores text hidden from the rendered page
+ ✓ src/features/catalog/compositionInvariants.test.ts > composition invariants > label uniqueness > catches a page drawing its own header beside a component that renders one
+ ✓ src/features/catalog/compositionInvariants.test.ts > composition invariants > label uniqueness > allows repeated labels inside an ARIA tree built from divs
+ ✓ src/features/catalog/compositionInvariants.test.ts > composition invariants > label uniqueness > ignores purely numeric metric cells, which are values rather than labels
+ ✓ src/features/catalog/compositionInvariants.test.ts > composition invariants > label uniqueness > allows repeated labels inside a list, where repetition is the point
+ ✓ src/features/catalog/compositionInvariants.test.ts > composition invariants > label uniqueness > does not count an sr-only announcement paired with its visible label
+ ✓ src/features/catalog/compositionInvariants.test.ts > composition invariants > label uniqueness > does not count a wrapper repeating its own child's text
+ ✓ src/features/catalog/compositionInvariants.test.ts > composition invariants > spacing quantization > catches padding outside the ramp's range entirely
+ ✓ src/features/catalog/compositionInvariants.test.ts > composition invariants > spacing quantization > allows fluid spacing interpolated between two ramp steps
+ ✓ src/features/catalog/compositionInvariants.test.ts > composition invariants > spacing quantization > catches spacing smaller than the smallest published step
+ ✓ src/features/catalog/compositionInvariants.test.ts > composition invariants > spacing quantization > accepts every published ramp step
+ ✓ src/features/catalog/compositionInvariants.test.ts > composition invariants > spacing quantization > ignores zero, which is the absence of spacing rather than an off-ramp amount
+ ✓ src/features/catalog/compositionInvariants.test.ts > composition invariants > provided-chrome duplication > catches a page header duplicating a component's provided title
+ ✓ src/features/catalog/compositionInvariants.test.ts > composition invariants > provided-chrome duplication > reports the innermost part once when parts nest
+ ✓ src/features/catalog/compositionInvariants.test.ts > composition invariants > provided-chrome duplication > catches a duplicated brand whose text sits in the part's children
+ ✓ src/features/catalog/compositionInvariants.test.ts > composition invariants > provided-chrome duplication > does not treat a whole rendered region as a part label
+ ✓ src/features/catalog/compositionInvariants.test.ts > composition invariants > provided-chrome duplication > stays silent when the page lets the component own its chrome
+ ✓ src/features/catalog/compositionInvariants.test.ts > composition invariants > provided-chrome duplication > ignores the styles marker, which renders nothing
+ ✓ src/features/catalog/compositionInvariants.test.ts > composition invariants > provided-chrome duplication > does not reach past the bounded scope to unrelated page regions
+ ✓ src/pages/ComponentDetailPage.test.tsx > ComponentDetailPage > renders the editor for the component resolved by route id
+ ✓ src/pages/ComponentDetailPage.test.tsx > ComponentDetailPage > shows declared behavior, evidence tier, verdict, and capture link
+ ✓ src/pages/ComponentDetailPage.test.tsx > ComponentDetailPage > exposes the durable test evidence panel from the Test tab
+ ✓ src/pages/ComponentDetailPage.test.tsx > ComponentDetailPage > renders a missing-id message when the route has no component id
+ ✓ src/pages/ComponentDetailPage.test.tsx > ComponentDetailPage > switches the information panel between overview and versions
+ ✓ src/pages/ComponentDetailPage.test.tsx > ComponentDetailPage > shows version and adoption totals in the detail tab notification bubbles
+ ✓ src/pages/ComponentDetailPage.test.tsx > ComponentDetailPage > links a component's shared hook dependencies from its overview
+ ✓ src/pages/ComponentDetailPage.test.tsx > ComponentDetailPage > restores an asset's saved tab and story when the URL has neither
+ ✓ src/pages/ComponentDetailPage.test.tsx > ComponentDetailPage > opens hooks in Overview and omits the render preview tab
+ ✓ src/pages/ComponentDetailPage.test.tsx > ComponentDetailPage > renders loading while the component lookup is pending
+ ✓ src/pages/ComponentDetailPage.test.tsx > ComponentDetailPage > resolves a bare slug through the catalog when direct lookups miss
+ ✓ src/pages/ComponentDetailPage.test.tsx > ComponentDetailPage > renders an error when the component lookup returns no component
+ ✓ src/components/data-table.test.tsx > DataTable > renders every row and defaults to ascending sort on the first sortable column
+ ✓ src/components/data-table.test.tsx > DataTable > toggles sort direction on the active column and resets to asc on a new column
+ ✓ src/components/data-table.test.tsx > DataTable > uses a custom sortLabel formatter for sortable column buttons
+ ✓ src/components/data-table.test.tsx > DataTable > searches by an explicit searchValue and by the rendered-content fallback
+ ✓ src/components/data-table.test.tsx > DataTable > applies the selected filter predicate
+ ✓ src/components/data-table.test.tsx > DataTable > shows the empty message when nothing matches
+ ✓ src/components/data-table.test.tsx > DataTable > labels the filter group via filterGroupLabel, overriding filterLabel
+ ✓ src/components/data-table.test.tsx > DataTable > extracts searchable text from mixed accessor nodes (arrays, elements, and empties)
+ ✓ src/components/data-table.test.tsx > DataTable > renders with all optional props defaulted (no filters, labels, or test id)
+ ✓ src/components/data-table.test.tsx > DataTable > returns empty searchable text for element accessors with no children
+ ✓ src/components/data-table.test.tsx > DataTable > supports selection, density, row actions, and bounded pagination
+ ✓ src/components/data-table.test.tsx > DataTable > renders permission and retry states without pretending the table loaded
+ ✓ src/components/data-table.test.tsx > DataTable > maps loading to the corresponding async surface
+ ✓ src/components/data-table.test.tsx > DataTable > maps refreshing to the corresponding async surface
+ ✓ src/components/data-table.test.tsx > DataTable > maps stale to the corresponding async surface
+ ✓ src/components/data-table.test.tsx > DataTable > maps partial to the corresponding async surface
+ ✓ src/components/data-table.test.tsx > DataTable > maps offline to the corresponding async surface
+ ✓ src/components/data-table.test.tsx > DataTable > maps empty to the corresponding async surface
+ ✓ src/components/data-table.test.tsx > DataTable > maps success to the corresponding async surface
+ ✓ src/components/data-table.test.tsx > DataTable > switches to the card presentation for a narrow measured surface
+ ✓ src/components/adopted-foundations.test.tsx > adopted foundation entry points > contains focus when a portal assigns the surface ref after the trap effect starts
+ ✓ src/components/adopted-foundations.test.tsx > adopted foundation entry points > expose the shared semantics and state transitions
+ ✓ src/components/adopted-foundations.test.tsx > adopted foundation entry points > keeps the drawer content available for minimal consumers
+ ✓ src/components/adopted-foundations.test.tsx > adopted foundation entry points > collapses an expanded drawer before a second downward swipe dismisses it
+ ✓ src/components/adopted-foundations.test.tsx > raw interactive element adoption > finds the composition layer it is supposed to police
+ ✓ src/components/adopted-foundations.test.tsx > raw interactive element adoption > lets no composition hand-roll an interactive element without a written reason
+ ✓ src/components/adopted-foundations.test.tsx > raw interactive element adoption > keeps every justification live, so the exemption list cannot rot
+ ✓ src/components/adopted-foundations.test.tsx > raw interactive element adoption > holds every justification to a real explanation
+ ✓ src/features/components/ComponentsCard.test.tsx > ComponentsCard > renders the empty state when the registry has no components
+ ✓ src/features/components/ComponentsCard.test.tsx > ComponentsCard > opens creation from either empty-state entry point and keeps re-index available
+ ✓ src/features/components/ComponentsCard.test.tsx > ComponentsCard > renders indexed components with libraryId, displayName, version, tags
+ ✓ src/features/components/ComponentsCard.test.tsx > ComponentsCard > forwards search + tag filters to listComponents
+ ✓ src/features/components/ComponentsCard.test.tsx > ComponentsCard > forwards multi-tag (comma-split) + category to listComponents
+ ✓ src/features/components/ComponentsCard.test.tsx > ComponentsCard > forwards style and affinity filters to listComponents
+ ✓ src/features/components/ComponentsCard.test.tsx > ComponentsCard > uses the routed editor as the sole item entry point
+ ✓ src/features/components/ComponentsCard.test.tsx > ComponentsCard > keeps all server filters inside one collapsed filter control
+ ✓ src/features/components/ComponentsCard.test.tsx > ComponentsCard > invokes indexComponents when re-index is clicked
+ ✓ src/components/ApplicationShell.test.tsx > AppShell > renders one shell navigation and the child route content
+ ✓ src/components/ApplicationShell.test.tsx > AppShell > keeps the skip link in the viewport geometry and targets the main region
+ ✓ src/components/ApplicationShell.test.tsx > AppShell > does not wrap content in a centered card or eyebrow text
+ ✓ src/components/ApplicationShell.test.tsx > AppShell > collapses desktop navigation and exposes the header hamburger to restore it
+ ✓ src/components/ApplicationShell.test.tsx > AppShell > uses the full-bleed main layout for component detail routes
+ ✓ src/components/ApplicationShell.test.tsx > AppShell > keeps catalog content full-width inside the vertical workspace column
+ ✓ src/components/ApplicationShell.test.tsx > AppShell > keeps mobile destinations and settings reachable through the shell
+ ✓ src/components/ApplicationShell.test.tsx > AppShell > opens the shared main-actions menu and exposes all three guided actions
+ ✓ src/components/ApplicationShell.test.tsx > AppShell > opens the requested action from a PWA deep link
+ ✓ src/components/ApplicationShell.test.tsx > AppShell > routes the coverage operator view through the shared workspace header
+ ✓ src/components/ApplicationShell.test.tsx > AppShell > routes the capabilities operator view through the shared workspace header
+ ✓ src/components/ApplicationShell.test.tsx > AppShell > does not place the catalog mutation launcher on preferences
+ ✓ src/components/ApplicationShell.test.tsx > AppShell > submits catalog search and opens create from the single action launcher
+ ✓ src/features/adoptions/AdoptionsCard.test.tsx > AdoptionsCard > renders empty state when there are no adoptions
+ ✓ src/features/adoptions/AdoptionsCard.test.tsx > AdoptionsCard > renders one row per status with a non-color status label
+ ✓ src/features/adoptions/AdoptionsCard.test.tsx > AdoptionsCard > forwards the scenario filter to listAdoptions
+ ✓ src/features/adoptions/AdoptionsCard.test.tsx > AdoptionsCard > invokes refreshAdoptions when the refresh button is clicked
+ ✓ src/features/adoptions/AdoptionsCard.test.tsx > AdoptionsCard > invokes deleteAdoption with the row id
+ ✓ src/features/adoptions/AdoptionsCard.test.tsx > AdoptionsCard > labels discovery suggestions as heuristic candidates
+ ✓ src/features/adoptions/AdoptionsCard.test.tsx > AdoptionsCard > routes suggestion adoption through the prefilled guided launcher flow
+ ✓ src/features/adoptions/AdoptionsCard.test.tsx > AdoptionsCard > routes standard adoption entry points through the guided launcher and keeps local re-link explicit
+ ✓ src/features/adoptions/AdoptionsCard.test.tsx > AdoptionsCard > filters the adoption table by current, behind, and modified status
+ ✓ src/features/adoptions/CreateAdoptionDialog.test.tsx > CreateAdoptionDialog > OK verdict enables confirm and creates the adoption 303ms
+ ✓ src/features/adoptions/CreateAdoptionDialog.test.tsx > CreateAdoptionDialog > requires explicit overwrite confirmation after target conflict
+ ✓ src/features/adoptions/CreateAdoptionDialog.test.tsx > CreateAdoptionDialog > BLOCK verdict requires acknowledgement and forwards the server-side override 321ms
+ ✓ src/features/adoptions/CreateAdoptionDialog.test.tsx > CreateAdoptionDialog > WARN verdict requires ack before enabling confirm 304ms
+ ✓ src/features/adoptions/CreateAdoptionDialog.test.tsx > CreateAdoptionDialog > style WARN verdict also requires ack before enabling confirm
+ ✓ scripts/vite-plugin-asset-stamp.test.mjs > shared asset-stamp contract > stamps the owned root and removes forged authored markers
+ ✓ scripts/vite-plugin-asset-stamp.test.mjs > shared asset-stamp contract > skips a provider and a style element to reach the owned root
+ ✓ scripts/vite-plugin-asset-stamp.test.mjs > shared asset-stamp contract > stamps a dynamic createElement root through its props object
+ ✓ scripts/vite-plugin-asset-stamp.test.mjs > shared asset-stamp contract > does not let an earlier style helper hide the component root
+ ✓ scripts/vite-plugin-asset-stamp.test.mjs > shared asset-stamp contract > searches past a conditional fragment for an owned root
+ ✓ scripts/vite-plugin-asset-stamp.test.mjs > shared asset-stamp contract > stamps a self-closing owned root without breaking the tag
+ ✓ scripts/vite-plugin-asset-stamp.test.mjs > shared asset-stamp contract > skips forwardRef type arguments to stamp the rendered root
+ ✓ scripts/vite-plugin-asset-stamp.test.mjs > shared asset-stamp contract > emits syntactically valid output for every fixture
+ ✓ scripts/vite-plugin-asset-stamp.test.mjs > resolver chain > resolves a library entry through component.json
+ ✓ scripts/vite-plugin-asset-stamp.test.mjs > resolver chain > resolves both canonical and transitional adopted shims to library IDs
+ ✓ scripts/vite-plugin-asset-stamp.test.mjs > resolver chain > emits canonical identity and a separate legacy slot on JSX and dynamic roots
+ ✓ scripts/vite-plugin-asset-stamp.test.mjs > resolver chain > does not classify a package-backed re-export as a copied adoption
+ ✓ scripts/vite-plugin-asset-stamp.test.mjs > resolver chain > indexes only re-export shims, never files that merely import an asset
+ ✓ scripts/vite-plugin-asset-stamp.test.mjs > resolver chain > gives every indexed adopted implementation a unique library identity
+ ✓ scripts/vite-plugin-asset-stamp.test.mjs > exemption policy > classifies every exemption as permanent or backlog
+ ✓ scripts/vite-plugin-asset-stamp.test.mjs > exemption policy > keeps backlog reasons specific rather than boilerplate
+ ✓ scripts/vite-plugin-asset-stamp.test.mjs > stamp report > separates unbundled assets from exempt ones
+ ✓ scripts/vite-plugin-asset-stamp.test.mjs > stamp report > reports a declared, non-exempt asset that no build reached as unbundled
+ ✓ src/features/components/PropsExperimentPanel.test.tsx > PropsExperimentPanel > shows indexed props and applies only a valid JSON object
+ ✓ src/features/components/PropsExperimentPanel.test.tsx > PropsExperimentPanel > keeps JSON diagnostics closed until explicitly requested
+ ✓ src/features/components/PropsExperimentPanel.test.tsx > PropsExperimentPanel > starts each named story with schema defaults plus that story's overrides
+ ✓ src/features/components/PropsExperimentPanel.test.tsx > PropsExperimentPanel > offers only declared environment fixture options and applies the selected state
+ ✓ src/features/components/PropsExperimentPanel.test.tsx > PropsExperimentPanel > resets through the provided session-only callback
+ ✓ src/features/components/PropsExperimentPanel.test.tsx > PropsExperimentPanel > supports scalar control kinds and reports invalid advanced JSON
+ ✓ src/features/components/PropsExperimentPanel.test.tsx > PropsExperimentPanel > renders object, array, and structured fields as editable JSON controls
+ ✓ src/features/components/PropsExperimentPanel.test.tsx > PropsExperimentPanel > degrades malformed and unsupported story schemas to a safe empty control set
+ ✓ src/features/components/PropsExperimentPanel.test.tsx > PropsExperimentPanel > does not expose environment inputs for malformed fixture declarations
+ ✓ src/features/components/PropsExperimentPanel.test.tsx > PropsExperimentPanel > falls back to explicit initial args when the selected story has invalid args
+ ✓ src/features/components/AdoptionFileTree.test.tsx > AdoptionFileTree > renders the DrawerShell files at their template-resolved target paths
+ ✓ src/features/components/AdoptionFileTree.test.tsx > AdoptionFileTree > opens the entry file as the current buffer (empty selection) and companions by basename
+ ✓ src/features/components/AdoptionFileTree.test.tsx > AdoptionFileTree > falls back to the flat file-tab row when no manifest resolves
+ ✓ src/features/components/AdoptionFileTree.test.tsx > AdoptionFileTree > shows the template as a static label when only one template is available
+ ✓ src/features/components/AdoptionFileTree.test.tsx > AdoptionFileTree > offers an accessible template picker and reports the choice when multiple templates exist
+ ✓ src/features/components/AdoptionFileTree.test.tsx > AdoptionFileTree > switches files from the flat fallback tabs, mapping the entry to the current buffer
+ ✓ src/components/control-base-geometry.test.ts > ControlBase documented geometry > keeps every documented rung backed by its matching size token
+ ✓ src/components/control-base-geometry.test.ts > ControlBase documented geometry > keeps the direct-child icon scale monotonic and tokenized
+ ✓ src/components/control-base-geometry.test.ts > ControlBase documented geometry > states each rung's pixels once and derives the tap-target marking from them
+ ✓ src/components/control-base-geometry.test.ts > ControlBase documented geometry > never reads bundler-injected environment
+ ✓ src/components/control-base-geometry.test.ts > ControlBase documented geometry > marks dense rungs in the DOM without blocking rendering
+ ✓ src/components/control-base-geometry.test.ts > ControlBase documented geometry > leaves comfortable rungs unmarked
+ ✓ src/components/control-base-geometry.test.ts > ControlBase documented geometry > keeps density as an internal gap choice
+ ✓ src/components/control-base-geometry.test.ts > ControlBase documented geometry > keeps library defaults above resets and consumer classes overridable
+ ✓ src/i18n/locales/locales.test.ts > locale catalogs > LOCALE_CODES matches the locale JSON files on disk
+ ✓ src/i18n/locales/locales.test.ts > locale catalogs > every locale shares the same logical key shape (plural variants stripped)
+ ✓ src/i18n/locales/locales.test.ts > locale catalogs > every logical key uses the same interpolation tokens across locales
+ ✓ src/i18n/locales/locales.test.ts > locale catalogs > no string is empty in any locale
+ ✓ src/i18n/locales/locales.test.ts > locale catalogs > every locale's strings are actual strings (not arrays/objects/null)
+ ✓ src/components/SidebarShell.test.tsx > SidebarShell > renders a persistent desktop sidebar and applies the supplied width
+ ✓ src/components/SidebarShell.test.tsx > SidebarShell > renders an open mobile dialog as a full-width safe-area sheet
+ ✓ src/components/SidebarShell.test.tsx > SidebarShell > calls onMobileClose from backdrop, close button, and Escape
+ ✓ src/components/SidebarShell.test.tsx > SidebarShell > renders resize handle props on desktop
+ ✓ src/components/SidebarShell.test.tsx > SidebarShell > can force overlay mode at any viewport width
+ ✓ src/components/SidebarShell.test.tsx > SidebarShell > can force persistent mode and suppress mobile drawer chrome
+ ✓ src/components/SidebarShell.test.tsx > SidebarShell > declares the responsive desktop override that keeps a closed drawer visible
+ ✓ src/catalog-draft-story-behavior.test.tsx > governed component draft specimens > renders CardShell empty and overflow args through each story's authored composition
+ ✓ src/catalog-draft-story-behavior.test.tsx > governed component draft specimens > resolves and opens the declared empty, loading, error, and overflow drawer specimens
+ ✓ src/catalog-draft-story-behavior.test.tsx > governed component draft specimens > renders ComposerAttachmentTray boundary stories from their declared specimen and item args
+ ✓ src/features/components/IngestComponentForm.test.tsx > IngestComponentForm > submits trimmed non-empty tags and surfaces the draft success message
+ ✓ src/features/components/IngestComponentForm.test.tsx > IngestComponentForm > forwards the accept-behavior-loss override and reports accepted losses
+ ✓ src/features/components/IngestComponentForm.test.tsx > IngestComponentForm > shows read-only promotion blockers after a successful ingest
+ ✓ src/features/components/IngestComponentForm.test.tsx > IngestComponentForm > skips the accepted-losses notice when the response has no parity report
+ ✓ src/features/components/IngestComponentForm.test.tsx > IngestComponentForm > renders the error message when ingest fails
+ ✓ src/hooks/useDeviceEmulation.test.ts > useDeviceEmulation > defaults to Desktop 1280 with zoom 1 and no rotation
+ ✓ src/hooks/useDeviceEmulation.test.ts > useDeviceEmulation > exposes every preset listed in the spec
+ ✓ src/hooks/useDeviceEmulation.test.ts > useDeviceEmulation > changes display dimensions when preset is selected
+ ✓ src/hooks/useDeviceEmulation.test.ts > useDeviceEmulation > responsive dimensions can be edited and become the active preset
+ ✓ src/hooks/useDeviceEmulation.test.ts > useDeviceEmulation > clamps zoom into [0.1, 2.0]
+ ✓ src/hooks/useDeviceEmulation.test.ts > useDeviceEmulation > zoomIn / zoomOut step by 0.1 and clamp
+ ✓ src/hooks/useDeviceEmulation.test.ts > useDeviceEmulation > resetZoom returns to 1.0 without touching preset or rotation
+ ✓ src/hooks/useDeviceEmulation.test.ts > useDeviceEmulation > rotate swaps width and height
+ ✓ src/hooks/useDeviceEmulation.test.ts > useDeviceEmulation > reset returns to defaults
+ ✓ src/hooks/useDeviceEmulation.test.ts > useDeviceEmulation > scaledWidth / scaledHeight reflect zoom multiplier
+ ✓ src/hooks/useDeviceEmulation.test.ts > useDeviceEmulation > persists state to localStorage under the namespaced key
+ ✓ src/hooks/useDeviceEmulation.test.ts > useDeviceEmulation > restores persisted state on a fresh mount
+ ✓ src/hooks/useDeviceEmulation.test.ts > useDeviceEmulation > tolerates schema drift — unknown presetId falls back to default
+ ✓ src/hooks/useDeviceEmulation.test.ts > useDeviceEmulation > tolerates corrupt payload
+ ✓ src/test-utils/asyncPanel.test.tsx > AsyncPanel > renders the loading fallback
+ ✓ src/test-utils/asyncPanel.test.tsx > AsyncPanel > renders the empty fallback
+ ✓ src/test-utils/asyncPanel.test.tsx > AsyncPanel > renders children for the ready state
+ ✓ src/test-utils/asyncPanel.test.tsx > AsyncPanel > renders children for the static state
+ ✓ src/test-utils/asyncPanel.test.tsx > AsyncPanel > uses authored content for empty and partial states
+ ✓ src/test-utils/asyncPanel.test.tsx > AsyncPanel > preserves semantic lifecycle telemetry for partial content
+ ✓ src/test-utils/asyncPanel.test.tsx > AsyncPanel > provides a retry affordance for its fallback error state
+ ✓ src/test-utils/asyncPanel.test.tsx > AsyncPanel > renders authored error content without a retry button
+ ✓ src/test-utils/asyncPanel.test.tsx > AsyncPanel > keeps the adopted AsyncPanel copy's lifecycle contract intact
+ ✓ src/test-utils/asyncPanel.test.tsx > AsyncPanel > keeps the adopted AsyncPanel copy's lifecycle contract intact
+ ✓ src/test-utils/asyncPanel.test.tsx > AsyncPanel > keeps the adopted AsyncPanel copy's lifecycle contract intact
+ ✓ src/test-utils/asyncPanel.test.tsx > AsyncPanel > keeps optional shell actions and toolbars accessible
+ ✓ src/hooks/useComponentStyles.test.tsx > useComponentStyles > injects one stylesheet however many instances ask for it
+ ✓ src/hooks/useComponentStyles.test.tsx > useComponentStyles > keeps the stylesheet count constant for 1 instances
+ ✓ src/hooks/useComponentStyles.test.tsx > useComponentStyles > keeps the stylesheet count constant for 3 instances
+ ✓ src/hooks/useComponentStyles.test.tsx > useComponentStyles > keeps the stylesheet count constant for 10 instances
+ ✓ src/hooks/useComponentStyles.test.tsx > useComponentStyles > uses a real stylesheet element in document.head, not an inline JSX style tag
+ ✓ src/hooks/useComponentStyles.test.tsx > useComponentStyles > places library rules before consumer head styles
+ ✓ src/hooks/useComponentStyles.test.tsx > useComponentStyles > keeps the sheet while any instance is still mounted
+ ✓ src/hooks/useComponentStyles.test.tsx > useComponentStyles > does not leak across repeated mount/unmount cycles
+ ✓ src/hooks/useComponentStyles.test.tsx > useComponentStyles > keeps distinct ids as distinct sheets
+ ✓ src/hooks/useComponentStyles.test.tsx > useComponentStyles > re-attaches a sheet whose element was detached behind its back
+ ✓ src/hooks/useComponentStyles.test.tsx > useComponentStyles > real components > emits one sheet for five StatusBadge instances
+ ✓ src/hooks/useComponentStyles.test.tsx > useComponentStyles > real components > shares nothing between different components
+ ✓ src/features/components/CreateComponentDialog.test.tsx > CreateComponentDialog > submits the authored component metadata with normalized tags
+ ✓ src/features/components/CreateComponentDialog.test.tsx > CreateComponentDialog > keeps the dialog open and explains an initialization failure
+ ✓ src/features/components/CreateComponentDialog.test.tsx > CreateComponentDialog > closes after a successful initialization that does not return a routeable component
+ ✓ src/features/components/CreateComponentDialog.test.tsx > CreateComponentDialog > prevents a duplicate submission while initialization is pending
+ ✓ src/features/components/CreateComponentDialog.test.tsx > CreateComponentDialog > closes without creating when cancelled
+ ✓ src/components/ActionLauncher.test.tsx > ActionLauncher > starts extract-assist through the workflow dispatcher
+ ✓ src/components/ActionLauncher.test.tsx > ActionLauncher > starts one adopt-assist workflow for each target
+ ✓ src/components/ActionLauncher.test.tsx > ActionLauncher > filters typed picker options before selection
+ ✓ src/components/ActionLauncher.test.tsx > ActionLauncher > routes each menu action through its URL action state
+ ✓ src/components/ActionLauncher.test.tsx > ActionLauncher > shows a dispatch failure without leaving the overlay
+ ✓ src/components/ActionLauncher.test.tsx > ActionLauncher > keeps an adopt workflow error in the guided picker surface
+ ✓ src/lib/PromptComposer.test.tsx > conversation send contract > reorders attachments through keyboard-accessible actions
+ ✓ src/lib/PromptComposer.test.tsx > conversation send contract > retains the draft after failure and clears it only after an accepted retry
+ ✓ src/lib/PromptComposer.test.tsx > conversation send contract > does not erase newer typing when an earlier submission completes
+ ✓ src/lib/PromptComposer.test.tsx > conversation send contract > keeps IME confirmation and newline entry separate from submission
+ ✓ src/lib/PromptComposer.test.tsx > conversation send contract > explains offline state and keeps the draft editable
+ ✓ src/lib/PromptComposer.test.tsx > conversation send contract > keeps failed and healthy attachments until the caller resolves them
+ ✓ src/lib/PromptComposer.test.tsx > conversation send contract > provides a named drop region and preserves both file attachment paths
+ ✓ src/components/async-boundary.test.tsx > AsyncBoundary > delays the first-load skeleton and announces pending content
+ ✓ src/components/async-boundary.test.tsx > AsyncBoundary > preserves children in refreshing state
+ ✓ src/components/async-boundary.test.tsx > AsyncBoundary > preserves children in stale state
+ ✓ src/components/async-boundary.test.tsx > AsyncBoundary > preserves children in partial-error state
+ ✓ src/components/async-boundary.test.tsx > AsyncBoundary > renders an error retry action and waits for the async retry
+ ✓ src/components/async-boundary.test.tsx > AsyncBoundary > honors explicit offline state and can render an alternate pending surface
+ ✓ src/components/async-boundary.test.tsx > AsyncBoundary > renders the empty and failure surfaces without optional content
+ ✓ src/components/async-boundary.test.tsx > AsyncBoundary > keeps the supplied content hidden when preservation is disabled
+ ✓ src/components/async-boundary.test.tsx > AsyncBoundary > clamps a negative pending delay and accepts a custom loading surface
+ ✓ src/components/async-boundary.test.tsx > AsyncBoundary > describes success and offline fallback states without duplicate announcements
+ ✓ src/pages/CoveragePage.test.tsx > CoveragePage > exposes maturity, ranked next work, and searchable coverage rows
+ ✓ src/pages/CoveragePage.test.tsx > CoveragePage > shows a recoverable empty state when the coverage service is unavailable
+ ✓ src/pages/CoveragePage.test.tsx > CoveragePage > exercises coverage table search and sorting
+ ✓ src/pages/CoveragePage.test.tsx > CoveragePage > does not report an empty work queue when ranking failed
+ ✓ src/pages/CoveragePage.test.tsx > CoveragePage > shows independent loading and empty-table states
+ ✓ src/features/components/EmulatorChrome.test.tsx > EmulatorChrome > uses a compact Viewport trigger and keeps dimensions hidden until Responsive
+ ✓ src/features/components/EmulatorChrome.test.tsx > EmulatorChrome > allows responsive dimensions only after explicitly selecting Responsive
+ ✓ src/features/components/EmulatorChrome.test.tsx > EmulatorChrome > persists viewport selections and applies zoom as a visual transform
+ ✓ src/features/components/EmulatorChrome.test.tsx > EmulatorChrome > fits the declared viewport to the available emulator frame
+ ✓ src/features/components/EmulatorChrome.test.tsx > EmulatorChrome > returns focus to Viewport after Escape
+ ✓ src/features/components/EmulatorChrome.test.tsx > EmulatorChrome > keeps visual filter application independent of the viewport menu
+ ✓ src/test-utils/voiceInputButton.test.tsx > VoiceInputButton > renders exactly one control in every state
+ ✓ src/test-utils/voiceInputButton.test.tsx > VoiceInputButton > does not make unavailable voice input actionable
+ ✓ src/test-utils/voiceInputButton.test.tsx > VoiceInputButton > keeps web-console mic presentation and pointer semantics without scenario coupling
+ ✓ src/test-utils/voiceInputButton.test.tsx > VoiceInputButton > allows a host to request a borderless rounded toolbar surface
+ ✓ src/test-utils/voiceInputButton.test.tsx > VoiceInputButton > uses the web-console cyan listening treatment for always-on audio level
+ ✓ src/test-utils/voiceInputButton.test.tsx > VoiceInputButton > forwards pointer cancellation without adding a recovery surface
+ ✓ src/features/components/ComponentExperiencePanel.test.tsx > ComponentExperiencePanel > renders measured, failed, skipped, stale, URL, and artifact evidence states
+ ✓ src/features/components/ComponentExperiencePanel.test.tsx > ComponentExperiencePanel > renders a warning summary when evidence exists but is unavailable
+ ✓ src/features/components/ComponentExperiencePanel.test.tsx > ComponentExperiencePanel > uses the server message for a not-configured contract
+ ✓ src/features/components/ComponentExperiencePanel.test.tsx > ComponentExperiencePanel > renders the translated not-configured state when no experience is returned
+ ✓ src/test-utils/renderWithProviders.test.tsx > renderWithProviders default QueryClient > disables query retries
+ ✓ src/test-utils/renderWithProviders.test.tsx > renderWithProviders default QueryClient > disables mutation retries
+ ✓ src/test-utils/renderWithProviders.test.tsx > renderWithProviders default QueryClient > fails a query immediately rather than retrying on rejection
+ ✓ src/test-utils/renderWithProviders.test.tsx > renderWithProviders default QueryClient > fails a mutation immediately rather than retrying on rejection
+ ✓ src/test-utils/renderWithProviders.test.tsx > renderWithProviders QueryClient identity > returns the QueryClient that the rendered tree used
+ ✓ src/test-utils/renderWithProviders.test.tsx > renderWithProviders QueryClient identity > honors a custom queryClient option
+ ✓ src/test-utils/renderWithProviders.test.tsx > renderWithProviders I18nextProvider wiring > binds I18nextProvider to the singleton (cimode echoes the key path)
+ ✓ src/components/markdown-harvest/MarkdownRenderer.test.tsx > MarkdownRenderer > renders GFM tables and blockquotes
+ ✓ src/components/markdown-harvest/MarkdownRenderer.test.tsx > MarkdownRenderer > delegates entity and file inline-code seams
+ ✓ src/components/markdown-harvest/MarkdownRenderer.test.tsx > MarkdownRenderer > keeps an unresolved token semantic inline code
+ ✓ src/components/markdown-harvest/MarkdownRenderer.test.tsx > MarkdownRenderer > supports inline rendering and ordinary markdown links
+ ✓ src/components/markdown-harvest/MarkdownRenderer.test.tsx > MarkdownRenderer > does not render an empty markdown value
+ ✓ src/components/markdown-harvest/MarkdownRenderer.test.tsx > MarkdownRenderer > renders fenced code and Mermaid blocks through their specialized surfaces
+ ✓ src/components/markdown-harvest/MarkdownRenderer.test.tsx > MarkdownRenderer > keeps ordinary links usable when no navigation callback is supplied
+ ✓ src/components/markdown-harvest/MarkdownRenderer.test.tsx > MarkdownRenderer > keeps inline-code content bounded to text and numeric children
+ ✓ src/components/markdown-harvest/MarkdownRenderer.test.tsx > MarkdownRenderer > renders resolved and file-reference inline tokens without optional callbacks
+ ✓ src/features/components/InspectorPanel.test.tsx > InspectorPanel > shows empty state and idle status by default
+ ✓ src/features/components/InspectorPanel.test.tsx > InspectorPanel > toggle button calls startInspect when idle, stopInspect when active
+ ✓ src/features/components/InspectorPanel.test.tsx > InspectorPanel > renders selected element details + ancestor breadcrumb
+ ✓ src/features/components/InspectorPanel.test.tsx > InspectorPanel > shows active status when inspector is active
+ ✓ src/hooks/useComponentInspector.test.ts > useComponentInspector > startInspect posts the START command on the iframe contentWindow
+ ✓ src/hooks/useComponentInspector.test.ts > useComponentInspector > reflects INSPECT_STATE active=true messages
+ ✓ src/hooks/useComponentInspector.test.ts > useComponentInspector > stores INSPECT_HOVER payload as `hover` and exposes via `selected`
+ ✓ src/hooks/useComponentInspector.test.ts > useComponentInspector > INSPECT_RESULT clears hover, sets result, flips active false
+ ✓ src/hooks/useComponentInspector.test.ts > useComponentInspector > ignores messages without v:1 or unknown t
+ ✓ src/hooks/useComponentInspector.test.ts > useComponentInspector > stopInspect is a no-op when not active
+ ✓ src/components/theme/ThemeProvider.test.tsx > ThemeProvider > fails loudly when the hook is used without its provider
+ ✓ src/components/theme/ThemeProvider.test.tsx > ThemeProvider > defaults to system and resolves to OS preference
+ ✓ src/components/theme/ThemeProvider.test.tsx > ThemeProvider > honors an explicit URL theme for deterministic preview captures
+ ✓ src/components/theme/ThemeProvider.test.tsx > ThemeProvider > setTheme writes the dark class on <html>
+ ✓ src/components/theme/ThemeProvider.test.tsx > ThemeProvider > system mode tracks OS toggles
+ ✓ src/components/theme/ThemeProvider.test.tsx > ThemeProvider > persists to localStorage for first-paint cache
+ ✓ src/components/ErrorBoundary.test.tsx > ErrorBoundary > renders children when no error is thrown
+ ✓ src/components/ErrorBoundary.test.tsx > ErrorBoundary > renders the default fallback when a child throws
+ ✓ src/components/ErrorBoundary.test.tsx > ErrorBoundary > invokes onError with the thrown error
+ ✓ src/components/ErrorBoundary.test.tsx > ErrorBoundary > renders a custom fallback when provided
+ ✓ src/components/ErrorBoundary.test.tsx > ErrorBoundary > recovers when retry is clicked and children stop throwing
+ ✓ src/consts/selectors.test.ts > selectors registry — literal selectors > exposes the raw test ID at the runtime path
+ ✓ src/consts/selectors.test.ts > selectors registry — literal selectors > emits manifest entries with both testId and wrapped selector
+ ✓ src/consts/selectors.test.ts > selectors registry — literal selectors > supports nested literal trees with dotted manifest keys
+ ✓ src/consts/selectors.test.ts > selectors registry — dynamic selectors > interpolates string params into the selector pattern
+ ✓ src/consts/selectors.test.ts > selectors registry — dynamic selectors > interpolates numeric params via testIdPattern (returns raw ID)
+ ✓ src/consts/selectors.test.ts > selectors registry — dynamic selectors > accepts enum values from the declared set
+ ✓ src/consts/selectors.test.ts > selectors registry — dynamic selectors > throws when a required parameter is missing
+ ✓ src/consts/selectors.test.ts > selectors registry — dynamic selectors > throws when an unknown parameter is provided
+ ✓ src/consts/selectors.test.ts > selectors registry — dynamic selectors > throws when a numeric param receives a non-number
+ ✓ src/consts/selectors.test.ts > selectors registry — dynamic selectors > throws when an enum param is outside the declared set
+ ✓ src/consts/selectors.test.ts > selectors registry — dynamic selectors > emits dynamic manifest entries with description and params
+ ✓ src/features/components/libraryImportProviders.test.ts > library import Monaco providers > shows rich hover metadata for a resolvable import
+ ✓ src/features/components/libraryImportProviders.test.ts > library import Monaco providers > returns a version-pinned definition in the same Monaco viewer
+ ✓ src/features/components/libraryImportProviders.test.ts > library import Monaco providers > explains an unresolved library import instead of hiding it
+ ✓ src/features/components/libraryImportProviders.test.ts > library import Monaco providers > keeps relative imports explicit and does not offer a catalog definition
+ ✓ src/features/catalog/CatalogBrowser.test.tsx > CatalogBrowser > shows direct adoption counts for components and effective counts only for hooks
+ ✓ src/features/catalog/CatalogBrowser.test.tsx > CatalogBrowser > reports the primary catalog lifecycle without instrumenting the sidebar variant
+ ✓ src/features/catalog/CatalogBrowser.test.tsx > CatalogBrowser > aggregates tree adoption counts and changes presentation without changing assets
+ ✓ src/features/catalog/CatalogBrowser.test.tsx > CatalogBrowser > leaves creation to the workspace action launcher
+ ✓ src/i18n/format.test.ts > locale-aware Intl formatters > formatNumber > uses Intl defaults when called from cimode (pseudo-locale)
+ ✓ src/i18n/format.test.ts > locale-aware Intl formatters > formatNumber > respects an explicit locale override
+ ✓ src/i18n/format.test.ts > locale-aware Intl formatters > formatNumber > switches output when i18n.language changes
+ ✓ src/i18n/format.test.ts > locale-aware Intl formatters > formatNumber > forwards Intl.NumberFormatOptions to the constructor
+ ✓ src/i18n/format.test.ts > locale-aware Intl formatters > formatCurrency > formats USD in en-US with the leading dollar sign
+ ✓ src/i18n/format.test.ts > locale-aware Intl formatters > formatCurrency > formats JPY without fractional digits in ja-JP
+ ✓ src/i18n/format.test.ts > locale-aware Intl formatters > formatDate > produces locale-shaped output for en vs de
+ ✓ src/i18n/format.test.ts > locale-aware Intl formatters > formatRelativeTime > formats negative offsets as past in en-US
+ ✓ src/i18n/format.test.ts > locale-aware Intl formatters > formatRelativeTime > formats positive offsets as future in en-US
+ ✓ src/i18n/format.test.ts > locale-aware Intl formatters > formatList > uses 'and' in English
+ ✓ src/i18n/format.test.ts > locale-aware Intl formatters > formatList > uses Japanese conjunctions in ja-JP
+ ✓ src/i18n/format.test.ts > locale-aware Intl formatters > formatList > handles single-item and empty lists
+ ✓ src/lib/ApprovalPrompt.test.tsx > approval decisions > preserves readable consent text in compact mode
+ ✓ src/lib/ApprovalPrompt.test.tsx > approval decisions > requires an actual decision handler
+ ✓ src/lib/ApprovalPrompt.test.tsx > approval decisions > records a declined decision once and closes decision controls
+ ✓ src/lib/ApprovalPrompt.test.tsx > approval decisions > retries the failed decline without granting permission
+ ✓ src/lib/ApprovalPrompt.test.tsx > approval decisions > does not turn an access request into approval
+ ✓ src/lib/ApprovalPrompt.test.tsx > approval decisions > rejects an expired request on first render
+ ✓ src/lib/ApprovalPrompt.test.tsx > approval decisions > checks the deadline at activation between refresh ticks
+ ✓ src/lib/ApprovalPrompt.test.tsx > approval decisions > keeps recorded decisions after the request deadline
+ ✓ src/features/components/ThemeSwitcher.test.tsx > ThemeSwitcher > changes the kit without sending a token overlay
+ ✓ src/features/components/ThemeSwitcher.test.tsx > ThemeSwitcher > renders kits returned by the design-style registry
+ ✓ src/features/components/ThemeSwitcher.test.tsx > ThemeSwitcher > keeps light and dark as the explicit mode controls
+ ✓ src/features/components/ThemeSwitcher.test.tsx > ThemeSwitcher > portals the appearance panel above the preview dock
+ ✓ src/lib/PreviewCaptureBoundary.test.ts > preview capture boundary > does not keep an unmounted dialog active via its readiness marker
+ ✓ src/components/TreeView.version.test.tsx > released TreeView 1.0.0 > renders the empty state and legacy string nodes
+ ✓ src/components/TreeView.version.test.tsx > released TreeView 1.0.0 > supports default expansion, custom labels, icons, and selection
+ ✓ src/components/TreeView.version.test.tsx > released TreeView 1.0.0 > opens and closes folders through disclosure and arrow keys
+ ✓ src/components/TreeView.version.test.tsx > released TreeView 1.0.0 > supports keyboard traversal, activation, and disabled nodes
+ ✓ src/features/catalog/RelationshipsPanel.test.tsx > RelationshipsPanel > renders a purposeful loading state
+ ✓ src/features/catalog/RelationshipsPanel.test.tsx > RelationshipsPanel > renders an error state
+ ✓ src/features/catalog/RelationshipsPanel.test.tsx > RelationshipsPanel > renders an empty state
+ ✓ src/features/catalog/RelationshipsPanel.test.tsx > RelationshipsPanel > renders rung-labelled relationships and stable relationship links
+ ✓ src/features/versions/ProgressionPanel.test.tsx > ProgressionPanel > keeps a retired version on the chart and labels it
+ ✓ src/features/versions/ProgressionPanel.test.tsx > ProgressionPanel > reports loading while the provider is pending
+ ✓ src/features/versions/ProgressionPanel.test.tsx > ProgressionPanel > reports loading while the provider is pending
+ ✓ src/features/versions/ProgressionPanel.test.tsx > ProgressionPanel > reports provider failures
+ ✓ src/components/tabs.test.tsx > Tabs > supports labeled items, badges, and roving keyboard selection
+ ✓ src/components/tabs.test.tsx > Tabs > supports string items, panels, custom ids, and Home/End navigation
+ ✓ src/components/tabs.test.tsx > Tabs > selects the requested tab and announces the active tab
+ ✓ src/components/tabs.test.tsx > Tabs > keeps controlled selection controlled while reporting keyboard changes
+ ✓ src/App.test.tsx > App composition > mounts the shell and unified catalog on /
+ ✓ src/App.test.tsx > App composition > renders the catalog workspace at /catalog
+ ✓ src/App.test.tsx > App composition > resolves the components route to the catalog workspace
+ ✓ src/App.test.tsx > App composition > renders the settings stub at /settings
+ ✓ src/App.test.tsx > App composition > falls back to the not-found stub for unknown routes
+ ✓ src/App.test.tsx > App composition > relays unhandled host keyboard shortcuts
+ ✓ src/components/tree-view.test.tsx > TreeView > expands default folders when async data arrives after the initial render
+ ✓ src/components/tree-view.test.tsx > TreeView > supports disclosure and selection with the keyboard
+ ✓ src/components/tree-view.test.tsx > TreeView > supports legacy string nodes, explicit defaults, disabled nodes, and collapse navigation
+ ✓ src/components/style-delivery.test.ts > component stylesheet delivery > finds component sources to check
+ ✓ src/components/style-delivery.test.ts > component stylesheet delivery > has no component rendering <style dangerouslySetInnerHTML>
+ ✓ src/components/style-delivery.test.ts > component stylesheet delivery > only exempts files that still exist
+ ✓ src/components/style-delivery.test.ts > component stylesheet delivery > requires a reason on every exemption
+ ✓ src/components/style-delivery.test.ts > package-backed style delivery > does not retain legacy vendored foundation copies
+ ✓ src/test-utils/factories.test.ts > makeHealthResponse > returns a healthy default with non-empty service/version/timestamp
+ ✓ src/test-utils/factories.test.ts > makeHealthResponse > default timestamp is parseable as a Date
+ ✓ src/test-utils/factories.test.ts > makeHealthResponse > merges overrides field-by-field, leaving unset fields at defaults
+ ✓ src/test-utils/factories.test.ts > makeHealthResponse > round-trips through proto JSON encode + decode byte-identically
+ ✓ src/components/input.test.tsx > Input > emits the base className chunk so the cn() merge contract holds
+ ✓ src/components/input.test.tsx > Input > merges a custom className with the base classes via cn()
+ ✓ src/components/input.test.tsx > Input > forwards ref to the underlying HTMLInputElement
+ ✓ src/components/input.test.tsx > Input > passes through arbitrary input attributes (type, placeholder, disabled)
+ ✓ src/components/input.test.tsx > Input > registers user typing through the native input value
+ ✓ src/features/versions/VersionCleanupPanel.test.tsx > VersionCleanupPanel > previews an asset cleanup and requires acknowledgement before applying it
+ ✓ src/features/versions/VersionCleanupPanel.test.tsx > VersionCleanupPanel > offers the same workflow without an asset scope for library cleanup
+ ✓ src/hooks/useDeviceFilters.test.ts > useDeviceFilters > defaults to system / none / 0px
+ ✓ src/hooks/useDeviceFilters.test.ts > useDeviceFilters > persists state across remounts
+ ✓ src/hooks/useDeviceFilters.test.ts > useDeviceFilters > clamps blur to [0, 10]
+ ✓ src/hooks/useDeviceFilters.test.ts > useDeviceFilters > reset returns to defaults and reset clears subsequent reads
+ ✓ src/hooks/useDeviceFilters.test.ts > useDeviceFilters > sanitizes bogus persisted shape to defaults
+ ✓ src/hooks/useDeviceFilters.test.ts > useDeviceFilters > filterCSS chains url() and blur() when both are active
+ ✓ src/lib/useHoverIntentDraft.test.tsx > useHoverIntent draft story behavior > opens after the configured mouse delay and closes after pointer leave
+ ✓ src/lib/useHoverIntentDraft.test.tsx > useHoverIntent draft story behavior > ignores touch pointer entry
+ ✓ src/components/BottomNav.test.tsx > BottomNav > renders link items with active page state
+ ✓ src/components/BottomNav.test.tsx > BottomNav > routes selection through onItemSelect
+ ✓ src/components/BottomNav.test.tsx > BottomNav > suppresses selection for disabled items
+ ✓ src/components/navigation-assets.test.tsx > adopted navigation assets > renders the default desktop navigation and marks the current route
+ ✓ src/components/navigation-assets.test.tsx > adopted navigation assets > supports mobile mode and caller-owned navigation content
+ ✓ src/components/navigation-assets.test.tsx > adopted navigation assets > renders the default tree and allows a composed tree slot
+ ✓ src/components/navigation-assets.test.tsx > adopted navigation assets > renders NavLink state, optional icon, and description
+ ✓ src/lib/ComposerAttachmentTrayDraft.test.tsx > ComposerAttachmentTray draft > keeps keyboard reorder actions and position announcements
+ ✓ src/lib/ComposerAttachmentTrayDraft.test.tsx > ComposerAttachmentTray draft > retains the failed attachment error and retry action
+ ✓ src/lib/ComposerAttachmentTrayDraft.test.tsx > ComposerAttachmentTray draft > moves focus to the remaining attachment after removing the focused card
+ ✓ src/hooks/useMediaQuery.test.ts > useMediaQuery > returns the current match value
+ ✓ src/hooks/useMediaQuery.test.ts > useMediaQuery > updates when the media query changes
+ ✓ src/hooks/useMediaQuery.test.ts > useMediaQuery > desktop helper resolves separately from mobile
+ ✓ src/page-stories.test.tsx > page story API state > supplies declared responses and prevents undeclared mutations
+ ✓ src/page-stories.test.tsx > page story API state > runs the CoveragePage contract through the shared evaluator
+ ✓ src/page-stories.test.tsx > page story API state > rejects a story requested on the wrong route before mounting
+ ✓ src/pages/CapabilitiesPage.test.tsx > CapabilitiesPage > makes availability and recovery guidance readable without the CLI
+ ✓ src/pages/CapabilitiesPage.test.tsx > CapabilitiesPage > explains when no capabilities are declared
+ ✓ src/pages/CapabilitiesPage.test.tsx > CapabilitiesPage > distinguishes available and unknown states with dependency fallback copy
+ ✓ src/lib/CopyIconButtonDraft.test.tsx > CopyIconButton draft clipboard compatibility > uses the asynchronous clipboard when available
+ ✓ src/lib/CopyIconButtonDraft.test.tsx > CopyIconButton draft clipboard compatibility > keeps the gesture-bound legacy copy fallback when the clipboard API is missing
+ ✓ src/lib/CopyIconButtonDraft.test.tsx > CopyIconButton draft clipboard compatibility > keeps the gesture-bound legacy copy fallback when the clipboard API is denied
+ ✓ src/api/componentTests.test.ts > api/componentTests > posts a test request and returns its report
+ ✓ src/api/componentTests.test.ts > api/componentTests > returns a saved report and normalizes an empty report collection
+ ✓ src/api/componentTests.test.ts > api/componentTests > rejects responses that omit a required report
+ ✓ src/api/componentTests.test.ts > api/componentTests > surfaces transport errors and missing saved reports
+ ✓ src/api/client.test.ts > api/client REST helpers > throws ApiError with the typed envelope on non-2xx responses
+ ✓ src/api/client.test.ts > api/client REST helpers > falls back to an internal envelope when the error body is malformed
+ ✓ src/api/client.test.ts > api/client REST helpers > posts multipart form data through the REST helper
+ ✓ src/api/client.test.ts > api/client REST helpers > turns an unresponsive request into a typed timeout
+ ✓ src/components/card.test.tsx > Card primitives > renders each part with its base classes merged with a custom className
+ ✓ src/components/card.test.tsx > Card primitives > passes arbitrary DOM props through to the underlying element
+ ✓ src/api/components.test.ts > api/components catalog helpers > forwards catalog and story reads to the generated Components client
+ ✓ src/api/components.test.ts > api/components catalog helpers > returns experience data and rejects a response with no experience contract
+ ✓ src/components/textarea.test.tsx > Textarea > emits the base className chunk so the cn() merge contract holds
+ ✓ src/components/textarea.test.tsx > Textarea > merges a custom className with the base classes via cn()
+ ✓ src/components/textarea.test.tsx > Textarea > forwards ref to the underlying HTMLTextAreaElement
+ ✓ src/components/textarea.test.tsx > Textarea > registers user typing through the native textarea value
+ ✓ src/api/catalog.test.ts > api/catalog helpers > reads coverage and ranked next work through the generated Connect client
+ ✓ src/api/catalog.test.ts > api/catalog helpers > reports missing coverage and capability registry failures
+ ✓ src/test-utils/interp.test.ts > interp > substitutes a single placeholder with a string value
+ ✓ src/test-utils/interp.test.ts > interp > substitutes multiple placeholders in a single template
+ ✓ src/test-utils/interp.test.ts > interp > coerces numeric values via String()
+ ✓ src/test-utils/interp.test.ts > interp > returns templates without placeholders unchanged
+ ✓ src/test-utils/interp.test.ts > interp > throws when a referenced placeholder has no value
+ ✓ src/test-utils/interp.test.ts > interp > ignores braces whose contents don't match \w+
+ ✓ src/test-utils/interp.test.ts > interp > substitutes the same placeholder name in multiple positions
+ ✓ src/routes.test.ts > workspace route contract > owns the route patterns used by the application shell
+ ✓ src/routes.test.ts > workspace route contract > encodes asset identities and produces a stable test-evidence deep link
+ ✓ src/routes.test.ts > workspace route contract > normalizes tab state and keeps removed legacy tabs out of the workspace
+ ✓ src/features/dashboard/StructurePanel.test.tsx > StructurePanel > renders loading and success states
+ ✓ src/features/dashboard/StructurePanel.test.tsx > StructurePanel > renders error and empty states
+ ✓ src/services/live-announcer.test.tsx > LiveAnnouncer > queues announcements, exposes priority, and clears the queue
+ ✓ src/services/live-announcer.test.tsx > LiveAnnouncer > uses the document fallback when no provider is mounted
+ ✓ src/test-utils/archetypeLayouts.test.tsx > archetype lifecycle layouts > keeps asset preview and metadata usable when supporting activity is partial
+ ✓ src/test-utils/archetypeLayouts.test.tsx > archetype lifecycle layouts > keeps the primary canvas available when the inspector is empty
+ ✓ src/components/markdown-harvest/MermaidDiagram.test.tsx > MermaidDiagram > renders a diagram and exposes source, copy, and open actions
+ ✓ src/components/markdown-harvest/MermaidDiagram.test.tsx > MermaidDiagram > renders safely when no external open action is provided
+ ✓ src/test-utils/commandCenterShell.test.tsx > CommandCenterShell > keeps operational context visible while its primary region reports a partial lifecycle
+ ✓ src/test-utils/commandCenterShell.test.tsx > CommandCenterShell > renders optional controls, metric details, and primary content
+ ✓ src/lib/FilePathDraft.test.tsx > FilePath draft > keeps its gesture-bound fallback when the asynchronous clipboard is unavailable
+ ✓ src/components/ApplicationShell.a11y.test.tsx > AppShell accessibility > renders without axe violations 484ms
+ ✓ src/test-utils/experienceSurface.test.tsx > ExperienceSurface > exposes the stable semantic lifecycle contract without prescribing layout
+ ✓ src/test-utils/experienceSurface.test.tsx > ExperienceSurface > announces transient and failure state only when a message is declared
+ ✓ src/test-utils/experienceSurface.test.tsx > ExperienceSurface > marks loading surfaces busy for assistive technology
+ × src/lib/CollectionList.test.tsx > keeps the open detail distinct from keyboard navigation and bulk selection
+   → Unexpected console output during test:
+console.error: [react-component-library] stylesheet key collision for react-component-library-cardshell-1.0.2: an unknown mounted owner and react-component-library:CardShell@1.0.2 provide different CSS.
+console.error: [react-component-library] stylesheet key collision for react-component-library-cardshell-1.0.2: react-component-library:CardShell@1.0.2 and react-component-library:CardShell@1.0.2 provide different CSS.
+console.error: [react-component-library] stylesheet key collision for react-component-library-cardshell-1.0.2: react-component-library:CardShell@1.0.2 and react-component-library:CardShell@1.0.2 provide different CSS.
+console.error: [react-component-library] stylesheet key collision for react-component-library-cardshell-1.0.2: react-component-library:CardShell@1.0.2 and react-component-library:CardShell@1.0.2 provide different CSS.
+ × src/lib/CollectionList.test.tsx > does not substitute another current item when the open record is filtered out
+   → Unexpected console output during test:
+console.error: [react-component-library] stylesheet key collision for react-component-library-cardshell-1.0.2: react-component-library:CardShell@1.0.2 and react-component-library:CardShell@1.0.2 provide different CSS.
+ ✓ src/api/versionLedger.test.ts > api/versionLedger > reads version rows through the lifecycle endpoint
+ ✓ src/api/versionLedger.test.ts > api/versionLedger > returns an empty list when the response omits rows and decodes failures
+ ✓ src/features/components/ComponentExperiencePanel.a11y.test.tsx > ComponentExperiencePanel accessibility > labels the contract summary and claim list
+ ✓ src/features/components/ComponentExperiencePanel.a11y.test.tsx > ComponentExperiencePanel accessibility > announces a live-evidence loading failure without presenting it as no contract
+ ✓ src/components/table.test.tsx > Table > renders an empty table surface when no rows are supplied
+ ✓ src/components/table.test.tsx > Table > renders captioned object rows and preserves values
+ ✓ src/components/table.test.tsx > Table > uses supplied children instead of generating an object table
+ ✓ src/lib/CollectionKeyboard.test.tsx > moves real focus with the keyboard cursor and reveals the destination
+ ✓ src/lib/CollectionKeyboard.test.tsx > does not steal arrow keys from an embedded editor
+ ✓ src/api/workflows.test.ts > api/workflows > normalizes an absent workflows field to an empty list
+ ✓ src/api/workflows.test.ts > api/workflows > forwards workflow mutations and promotion reads through the Connect client
+ ✓ src/lib/FilterBar.test.tsx > applies immediate query edits and resets query and filters in one coherent update
+ ✓ src/lib/FilterBar.test.tsx > retains explicit submit behavior by default
+ ✓ src/hooks/useHostShortcutRelay.test.ts > useHostShortcutRelay > relays modified shortcuts and ignores ordinary key presses
+ ✓ src/hooks/useHostShortcutRelay.test.ts > useHostShortcutRelay > does not relay events already handled or targeted at editable controls
+ ✓ src/test-utils/mocks/api.test.ts > makeApiMocks > returns a fresh surface on every call (no shared state)
+ ✓ src/test-utils/mocks/api.test.ts > makeApiMocks > default fetchHealth resolves to a healthy HealthResponse
+ ✓ src/test-utils/mocks/api.test.ts > makeApiMocks > fetchHealth is a vi.fn so per-test overrides work
+ ✓ src/lib/errorMessage.test.ts > errorMessage > maps Connect errors to Connect code i18n keys
+ ✓ src/lib/errorMessage.test.ts > errorMessage > maps REST ApiError codes through the same error catalog
+ ✓ src/lib/errorMessage.test.ts > errorMessage > falls back to ordinary error messages
+ ✓ src/lib/errorMessage.test.ts > errorMessage > maps unknown REST ApiError codes to the generic error message
+ ✓ src/lib/errorMessage.test.ts > errorMessage > stringifies non-error values
+ ✓ src/components/Sidebar.test.tsx > SidebarContent > renders the brand without a redundant route list
+ ✓ src/components/Sidebar.test.tsx > SidebarContent > renders header and inventory slots when provided
+ ✓ src/components/CartesianCharts.test.tsx > CartesianCharts > renders an accessible empty state
+ ✓ src/components/CartesianCharts.test.tsx > CartesianCharts > renders a point without requiring detail text
+ ✓ src/services/selection-store.test.tsx > selection store > updates subscribers for keyed writes and range selection
+ ✓ src/services/selection-store.test.tsx > selection store > toggles items and publishes selected state
+ ✓ src/components/markdown-harvest/CodeBlock.test.tsx > CodeBlock > shows a language label, upgrades to highlighted HTML, and copies source
+ ✓ src/pages/SettingsPage.test.tsx > SettingsPage > renders theme and language segmented controls
+ ✓ src/pages/SettingsPage.test.tsx > SettingsPage > flips the theme selection when a button is clicked
+ ✓ src/lib/profiler.test.ts > onProfilerRender > emits a user_timing measure aligned to the commit window
+ ✓ src/lib/profiler.test.ts > onProfilerRender > never throws when performance.measure rejects the object form
+ ✓ src/api/health.test.ts > api/health.fetchHealth > requests /health with cache: 'no-store'
+ ✓ src/api/health.test.ts > api/health.fetchHealth > throws decoded API errors for non-ok responses
+ ✓ src/components/markdown-harvest/useCodeCopy.test.tsx > useCodeCopy > reports a copied state after a successful clipboard write
+ ✓ src/components/markdown-harvest/useCodeCopy.test.tsx > useCodeCopy > leaves copied false when the clipboard rejects
+ ✓ src/story-evaluator.test.ts > shared preview story evaluator > uses Testing Library role/name queries and skips layout in jsdom
+ ✓ src/features/catalog/StyleSheetCollisionFixture.test.tsx > StyleSheetCollisionFixture > mounts one stylesheet per exact MessageList version
+ ✓ src/features/components/libraryStrings.test.tsx > library strings seam > uses the declared English default without a provider
+ ✓ src/features/components/libraryStrings.test.tsx > library strings seam > allows a provider to translate a declared key
+ ✓ src/hooks/useMediaQuery.test.tsx > useMediaQuery helpers > subscribes to media-query changes and removes the listener
+ ✓ src/components/BottomNav.a11y.test.tsx > BottomNav accessibility > renders without axe violations
+ ✓ src/components/SidebarShell.a11y.test.tsx > SidebarShell accessibility > renders the open mobile dialog without axe violations
+ ✓ src/lib/IntegrationCardDraft.test.tsx > IntegrationCard draft > retains visible defaults when identity and status props are omitted
+ ✓ src/components/markdown-harvest/languageDetection.test.ts > markdown language detection > normalizes aliases and malformed language values
+ ✓ src/components/markdown-harvest/languageDetection.test.ts > markdown language detection > provides readable labels and an inert prose plugin
+ ✓ src/lib/MessageListStoryDraft.test.tsx > MessageList story draft > preserves rich React content when adding streaming detail
+ ✓ src/pages/NotFoundPage.test.tsx > NotFoundPage > renders title, description, and a back-to-dashboard link
+ ✓ src/components/Sidebar.a11y.test.tsx > SidebarContent accessibility > renders without axe violations
+ ✓ src/api/themes.test.ts > themes API client > exports the generated client used by theme controls
+
+ Test Files  1 failed | 108 passed (109)
+      Tests  2 failed | 575 passed (577)
+   Start at  18:31:37
+   Duration  35.78s (transform 3.21s, setup 1.39s, collect 4.94s, tests 24.02s, environment 480ms, prepare 52ms)
+
+ % Coverage report from v8
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+-------------------|---------|----------|---------|---------|-------------------
+All files          |   94.59 |    81.58 |   92.68 |   94.59 |                   
+ src               |   96.19 |    83.33 |   92.85 |   96.19 |                   
+  App.tsx          |   96.03 |      100 |     100 |   96.03 | 12,16,22,25,31    
+  page-stories.ts  |     100 |    66.66 |     100 |     100 | ...54,58,61,66,86 
+  routes.ts        |    91.8 |       96 |   85.71 |    91.8 | 56-60             
+ src/api           |   53.67 |       85 |   77.77 |   53.67 |                   
+  client.ts        |     100 |    89.47 |    87.5 |     100 | 35,43             
+  sketch.ts        |       0 |        0 |       0 |       0 | 1-100             
+ src/components    |   95.59 |    85.22 |   86.48 |   95.59 |                   
+  ...nLauncher.tsx |   98.63 |    91.93 |     100 |   98.63 | 64,265,286,339    
+  BottomNav.tsx    |     100 |      100 |     100 |     100 |                   
+  BrandMark.tsx    |     100 |      100 |     100 |     100 |                   
+  Button.tsx       |     100 |      100 |     100 |     100 |                   
+  Card.tsx         |     100 |      100 |     100 |     100 |                   
+  DataTable.tsx    |     100 |      100 |     100 |     100 |                   
+  Dialog.tsx       |       0 |        0 |       0 |       0 | 1-2               
+  EmptyState.tsx   |     100 |      100 |     100 |     100 |                   
+  ...rBoundary.tsx |     100 |      100 |     100 |     100 |                   
+  Icon.tsx         |     100 |      100 |     100 |     100 |                   
+  IconButton.tsx   |     100 |      100 |     100 |     100 |                   
+  Input.tsx        |     100 |      100 |     100 |     100 |                   
+  Pressable.tsx    |       0 |        0 |       0 |       0 | 1-2               
+  Select.tsx       |     100 |      100 |     100 |     100 |                   
+  ...ionContext.ts |     100 |      100 |      50 |     100 |                   
+  Sidebar.tsx      |   89.65 |       50 |     100 |   89.65 | 36-37,61-68       
+  SidebarShell.tsx |     100 |      100 |     100 |     100 |                   
+  StatusBadge.tsx  |       0 |        0 |       0 |       0 | 1-2               
+  Text.tsx         |       0 |        0 |       0 |       0 | 1-2               
+  Textarea.tsx     |     100 |      100 |     100 |     100 |                   
+ ...mponents/theme |   93.75 |       75 |     100 |   93.75 |                   
+  ...eProvider.tsx |   92.59 |    72.72 |     100 |   92.59 | 22,34-35,72       
+  theme-context.ts |     100 |      100 |     100 |     100 |                   
+  useTheme.ts      |     100 |      100 |     100 |     100 |                   
+ src/components/ui |   95.77 |     87.5 |    87.5 |   95.77 |                   
+  ...tionShell.tsx |   95.77 |     87.5 |    87.5 |   95.77 | 38-41,56,69       
+ src/consts        |     100 |      100 |     100 |     100 |                   
+  ...rs.library.ts |     100 |      100 |     100 |     100 |                   
+  selectors.ts     |     100 |      100 |     100 |     100 |                   
+  strings.ts       |     100 |      100 |     100 |     100 |                   
+ src/hooks         |   96.28 |    75.87 |     100 |   96.28 |                   
+  ...tInspector.ts |   94.62 |       75 |     100 |   94.62 | ...35,150-151,162 
+  ...nentStyles.ts |     100 |    78.57 |     100 |     100 | 30,58-61          
+  ...eEmulation.ts |   95.78 |    78.12 |     100 |   95.78 | ...62-164,194-196 
+  ...iceFilters.ts |   96.96 |    82.35 |     100 |   96.96 | 76-77,86          
+  ...rtcutRelay.ts |     100 |    81.48 |     100 |     100 | 6-8,16,18         
+  useMediaQuery.ts |     100 |    69.23 |     100 |     100 | 15-16,24-25       
+  viewportAxis.ts  |   89.28 |    36.36 |     100 |   89.28 | 32,35-36          
+ src/i18n          |     100 |    91.17 |     100 |     100 |                   
+  format.ts        |     100 |     90.9 |     100 |     100 | 27                
+  index.ts         |     100 |     91.3 |     100 |     100 | 61,69             
+  locales.ts       |     100 |      100 |     100 |     100 |                   
+ src/lib           |     100 |      100 |     100 |     100 |                   
+  errorMessage.ts  |     100 |      100 |     100 |     100 |                   
+  profiler.ts      |     100 |      100 |     100 |     100 |                   
+  utils.ts         |     100 |      100 |     100 |     100 |                   
+ src/styles        |     100 |      100 |     100 |     100 |                   
+  breakpoints.ts   |     100 |      100 |     100 |     100 |                   
+-------------------|---------|----------|---------|---------|-------------------
+ ELIFECYCLE  Command failed with exit code 1.

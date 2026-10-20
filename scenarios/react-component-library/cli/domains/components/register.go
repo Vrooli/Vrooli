@@ -20,11 +20,14 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"ComponentsService.GetComponent":            cliapp.ProtoList(h.getCall, h.getReport),
 		"ComponentsService.IngestComponent":         cliapp.ProtoMutation(h.ingestCall, h.ingestReport),
 		"ComponentsService.BeginComponentVersion":   cliapp.ProtoMutation(h.versionBeginCall, h.versionBeginReport),
+		"ComponentsService.CheckComponentVersion":   cliapp.ProtoListOutcome(h.versionCheckCall, h.versionCheckReport, versionCheckOutcome),
 		"ComponentsService.PublishComponentVersion": cliapp.ProtoMutation(h.versionPublishCall, h.versionPublishReport),
 		"ComponentsService.UpdateComponentContent":  cliapp.ProtoMutation(h.contentSetCall, h.contentSetReport),
 		"ComponentsService.UpdateComponentManifest": cliapp.ProtoMutation(h.manifestUpdateCall, h.manifestUpdateReport),
-		"ComponentTestsService.RunComponentTest":    cliapp.ProtoMutation(h.testCall, h.testReport),
-		"index":                                     {Run: h.index},
+		"ComponentTestsService.RunComponentTest": cliapp.ProtoMutationOutcome(h.testCall, h.testReport, func(_ cliapp.OperationContext, resp *componenttestsv1.RunComponentTestResponse) error {
+			return testOutcome(resp)
+		}),
+		"index": {Run: h.index},
 		"ComponentTestsService.SweepComponentTests": cliapp.ProtoListOutcome(h.sweepCall, h.sweepReport, func(resp *componenttestsv1.SweepComponentTestsResponse) error {
 			if resp.Blocked > 0 || !resp.Complete {
 				return fmt.Errorf("component sweep is not complete: %d blocked result(s), %d error(s)", resp.Blocked, len(resp.Errors))

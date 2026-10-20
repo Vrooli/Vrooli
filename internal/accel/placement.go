@@ -32,6 +32,9 @@ type HostProcess struct {
 	// surface. An accelerator host with a serving process and no resident GPU
 	// row is therefore an observed CPU placement, not an absent workload.
 	Serving bool
+	// WorkloadAbsent is an explicit resource observation, never inferred from
+	// an empty device table. GPU process evidence still takes precedence.
+	WorkloadAbsent bool
 	// Name is the process name, used only in messages.
 	Name string
 	// ExecutablePrefix is the directory the resource's own executables live
@@ -348,6 +351,9 @@ func observeCUDAProcess(snapshot hostinventory.Snapshot, process HostProcess) (B
 	}
 	if len(snapshot.GPUs) == 0 {
 		return BackendCPU, AccessUnknown, "the host reports no CUDA device", nil
+	}
+	if process.WorkloadAbsent {
+		return "", AccessUnknown, noWorkloadReason(process), nil
 	}
 	if len(snapshot.GPUProcesses) == 0 {
 		if process.Serving {

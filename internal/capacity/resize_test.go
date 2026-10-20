@@ -49,7 +49,7 @@ func TestResizeClaimKeepsIdentityAndObservedHistory(t *testing.T) {
 	// Given a granted claim with a recorded observed peak
 	store := newResizeStore(t)
 	claim := grantedVRAMClaim(t, store, "ollama", 4<<30)
-	observed, err := store.RecordObserved(context.Background(), claim.ClaimID, 600<<20, 900<<20, time.Date(2026, 8, 21, 6, 0, 0, 0, time.UTC))
+	observed, err := store.RecordObserved(context.Background(), claim.ClaimID, 600<<20, 900<<20, time.Date(2026, 8, 21, 6, 0, 0, 0, time.UTC), nil)
 	if err != nil {
 		t.Fatalf("RecordObserved: %v", err)
 	}

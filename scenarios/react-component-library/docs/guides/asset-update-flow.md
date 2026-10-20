@@ -29,7 +29,7 @@ Use the returned component identity and draft source path. Record the digest bef
 
 ## 4. Validate only the changed asset
 
-Run `react-component-library components test <library-id> --version <draft-version> --json` for the edited story subject, and the named catalog gate relevant to the change. A zero-input or unmeasured result is not a behavioral pass. `asset check <catalog-id>` provides the broader aggregate when needed; historical corpus failures must be dispositioned rather than hidden by exemptions.
+Before publishing, run `RCL_CATALOG_ASSETS=<asset-directory> pnpm run type-check:catalog` and `RCL_CATALOG_ASSETS=<asset-directory> pnpm run lint:catalog`, retaining their structured reports. Confirm the active draft version is among the compiler inputs and has no diagnostics; a failure from another inspected version must remain visible and be resolved separately, not mistaken for a clean draft compile. Then run `react-component-library components test <library-id> --version <draft-version> --json` for the exact edited draft. A zero-input or unmeasured result is not a behavioral pass. `asset check <catalog-id>` provides the broader aggregate when needed; historical corpus failures must be dispositioned rather than hidden by exemptions.
 
 ## 5. Publish
 

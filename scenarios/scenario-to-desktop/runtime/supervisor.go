@@ -154,6 +154,7 @@ type Supervisor struct {
 
 	// Runtime state.
 	serviceStatus   map[string]ServiceStatus
+	statusChanges   chan struct{}
 	procs           map[string]*serviceProcess
 	migrations      MigrationsState
 	gpuStatus       GPUStatus
@@ -205,6 +206,7 @@ func NewSupervisor(opts Options) (*Supervisor, error) {
 		appData:       appData,
 		peerHome:      opts.PeerHomeDir,
 		serviceStatus: make(map[string]ServiceStatus),
+		statusChanges: make(chan struct{}, 1),
 		procs:         make(map[string]*serviceProcess),
 		instanceID:    newInstanceID(),
 		manifestHash:  hashManifest(opts.Manifest),
@@ -213,7 +215,12 @@ func NewSupervisor(opts Options) (*Supervisor, error) {
 		envRenderer: env.NewRenderer(appData, opts.BundlePath, deps.portAllocator, deps.envReader),
 	}
 
-	s.healthChecker = resolveHealthChecker(opts, deps, appData, s.getStatus)
+	s.healthChecker = resolveHealthChecker(opts, deps, appData, s.getStatus, func(serviceID string, attempt int, success bool, at time.Time) {
+		_ = s.recordTelemetry("service_health_probe", map[string]interface{}{
+			"service_id": serviceID, "attempt": attempt, "success": success,
+			"observed_at": at.UTC().Format(time.RFC3339Nano),
+		})
+	})
 	if s.authModes, err = newAuthenticationModeManager(s.fs, s.clock, s.appData, opts.Manifest.Authentication); err != nil {
 		return nil, err
 	}
@@ -292,11 +299,11 @@ func resolveDependencies(opts Options, appData string) runtimeDependencies {
 	return deps
 }
 
-func resolveHealthChecker(opts Options, deps runtimeDependencies, appData string, statusGetter func(string) (health.Status, bool)) HealthChecker {
+func resolveHealthChecker(opts Options, deps runtimeDependencies, appData string, statusGetter func(string) (health.Status, bool), onReadinessProbe func(string, int, bool, time.Time)) HealthChecker {
 	if opts.HealthChecker != nil {
 		return opts.HealthChecker
 	}
-	return health.NewMonitor(health.MonitorConfig{Manifest: opts.Manifest, Ports: deps.portAllocator, Dialer: deps.dialer, CmdRunner: deps.cmdRunner, FS: deps.fileSystem, Clock: deps.clock, AppData: appData, StatusGetter: statusGetter})
+	return health.NewMonitor(health.MonitorConfig{Manifest: opts.Manifest, Ports: deps.portAllocator, Dialer: deps.dialer, CmdRunner: deps.cmdRunner, FS: deps.fileSystem, Clock: deps.clock, AppData: appData, StatusGetter: statusGetter, OnReadinessProbe: onReadinessProbe})
 }
 
 // Start initializes the supervisor and begins service orchestration.

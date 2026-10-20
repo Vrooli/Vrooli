@@ -7,9 +7,11 @@
     "labels": {
       "reset": "none",
       "spec_entry_id": "plan",
-      "surface": "experience-plan"
+      "surface": "experience-plan",
+      "routed_isolation": "true",
+      "requires_confirmation": "true"
     },
-    "execution_mode": "observer"
+    "execution_mode": "mutating"
   },
   "settings": {
     "viewport_width": 1280,
@@ -27,7 +29,9 @@
           "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
           "timeout_ms": 30000
         },
-        "metadata": { "label": "Open plan" }
+        "metadata": {
+          "label": "Open plan"
+        }
       }
     },
     {
@@ -39,8 +43,35 @@
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 15000
         },
-        "metadata": { "label": "plan page visible" }
+        "metadata": {
+          "label": "plan page visible"
+        }
       }
+    },
+    {
+      "id": "measure-plan-navigation-paint",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => {\n  const nav = performance.getEntriesByType('navigation')[0];\n  const paints = Object.fromEntries(\n    performance.getEntriesByType('paint').map(entry => [entry.name, entry.startTime])\n  );\n  return {\n    sample_point: 'after_page_selector_visible',\n    route: location.pathname,\n    navigation_ms: {\n      dom_content_loaded: nav ? nav.domContentLoadedEventEnd : null,\n      load_event: nav ? nav.loadEventEnd : null\n    },\n    paint_ms: paints\n  };\n})()",
+          "store_result": "planner_page_performance"
+        },
+        "metadata": {
+          "label": "Record navigation and paint timing after page becomes visible"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-plan-navigate-to-visible",
+      "source": "navigate-plan",
+      "target": "wait-plan-page"
+    },
+    {
+      "id": "edge-plan-visible-to-measure",
+      "source": "wait-plan-page",
+      "target": "measure-plan-navigation-paint"
     }
   ]
 }

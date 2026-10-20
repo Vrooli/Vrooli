@@ -2,7 +2,6 @@ package render
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"math"
 	"net/url"
@@ -13,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/browser-automation-studio/services/media"
 	exportsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/exports"
 	"google.golang.org/protobuf/proto"
 )
@@ -25,46 +25,11 @@ func PrepareRecordedVideoSpec(ctx context.Context, incoming *ReplayMovieSpec, pa
 	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
 		return nil, fmt.Errorf("recorded video requires an execution-owned HTTP asset URL")
 	}
-	meta, err := probeRecordedVideo(ctx, path)
+	meta, err := media.ProbeVideo(ctx, path)
 	if err != nil {
 		return nil, err
 	}
-	return recordedVideoSpec(incoming, sourceURL, meta.durationMs, meta.width, meta.height)
-}
-
-// recordedMetadata is measured from media, never inferred from its filename.
-type recordedMetadata struct {
-	width, height, durationMs int32
-	format                    string
-}
-
-func probeRecordedVideo(ctx context.Context, path string) (recordedMetadata, error) {
-	probeCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(probeCtx, "ffprobe", "-v", "error", "-threads", "1", "-select_streams", "v:0", "-show_entries", "stream=width,height:format=duration,format_name", "-of", "json", path)
-	cmd.WaitDelay = 2 * time.Second
-	data, err := cmd.Output()
-	if err != nil {
-		return recordedMetadata{}, fmt.Errorf("probe recorded video: %w", err)
-	}
-	var meta struct {
-		Streams []struct {
-			Width  int32 `json:"width"`
-			Height int32 `json:"height"`
-		} `json:"streams"`
-		Format struct {
-			Duration string `json:"duration"`
-			Name     string `json:"format_name"`
-		} `json:"format"`
-	}
-	if err = json.Unmarshal(data, &meta); err != nil {
-		return recordedMetadata{}, err
-	}
-	seconds, err := strconv.ParseFloat(meta.Format.Duration, 64)
-	if err != nil || math.IsNaN(seconds) || math.IsInf(seconds, 0) || seconds <= 0 || seconds > 600 || len(meta.Streams) != 1 || meta.Streams[0].Width < 1 || meta.Streams[0].Height < 1 {
-		return recordedMetadata{}, fmt.Errorf("recorded video must have a measured raster and duration within 600 seconds")
-	}
-	return recordedMetadata{width: meta.Streams[0].Width, height: meta.Streams[0].Height, durationMs: int32(math.Round(seconds * 1000)), format: meta.Format.Name}, nil
+	return recordedVideoSpec(incoming, sourceURL, meta.DurationMs, meta.Width, meta.Height)
 }
 
 func recordedVideoSpec(incoming *ReplayMovieSpec, sourceURL string, duration, width, height int32) (*ReplayMovieSpec, error) {

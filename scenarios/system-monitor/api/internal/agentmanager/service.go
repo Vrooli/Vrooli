@@ -3,11 +3,12 @@ package agentmanager
 import (
 	"context"
 	"fmt"
-	"github.com/vrooli/api-core/owneridentity"
 	"log"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/vrooli/api-core/owneridentity"
 
 	"github.com/vrooli/api-core/scenario"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
@@ -24,6 +25,8 @@ type AgentService struct {
 	profileID   string
 	mu          sync.RWMutex
 	enabled     bool
+	// pollInterval is how often Execute polls for run completion.
+	pollInterval time.Duration
 }
 
 // AgentServiceConfig contains configuration for the agent service.
@@ -38,10 +41,11 @@ type AgentServiceConfig struct {
 func NewAgentService(cfg AgentServiceConfig) *AgentService {
 	client := NewClient(cfg.Timeout)
 	return &AgentService{
-		client:      client,
-		profileName: cfg.ProfileName,
-		profileKey:  cfg.ProfileKey,
-		enabled:     cfg.Enabled,
+		client:       client,
+		profileName:  cfg.ProfileName,
+		profileKey:   cfg.ProfileKey,
+		enabled:      cfg.Enabled,
+		pollInterval: 2 * time.Second,
 	}
 }
 
@@ -135,7 +139,7 @@ type ExecuteResult struct {
 
 // Execute starts an agent run and waits for completion.
 func (s *AgentService) Execute(ctx context.Context, req ExecuteRequest) (*ExecuteResult, error) {
-	if err := owneridentity.RequireCreateRunCaller(ctx, time.Now()); err != nil {
+	if err := owneridentity.RequireCreateRunCaller(ctx, time.Now(), true); err != nil {
 		return nil, err
 	}
 	if !s.enabled {
@@ -177,7 +181,7 @@ func (s *AgentService) Execute(ctx context.Context, req ExecuteRequest) (*Execut
 	}
 
 	// Wait for run to complete
-	completedRun, err := s.client.WaitForRun(ctx, run.Id, 2*time.Second)
+	completedRun, err := s.client.WaitForRun(ctx, run.Id, s.pollInterval)
 	if err != nil {
 		return nil, fmt.Errorf("wait for run: %w", err)
 	}
@@ -217,7 +221,7 @@ func (s *AgentService) Execute(ctx context.Context, req ExecuteRequest) (*Execut
 // ExecuteAsync starts an agent run without waiting for completion.
 // Returns the run ID for tracking.
 func (s *AgentService) ExecuteAsync(ctx context.Context, req ExecuteRequest) (string, error) {
-	if err := owneridentity.RequireCreateRunCaller(ctx, time.Now()); err != nil {
+	if err := owneridentity.RequireCreateRunCaller(ctx, time.Now(), true); err != nil {
 		return "", err
 	}
 	if !s.enabled {

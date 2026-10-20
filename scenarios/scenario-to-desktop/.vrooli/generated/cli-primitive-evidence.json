@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "scenario-to-desktop",
   "generator": "v1.0.0",
-  "manifest_hash": "cbf77303c6b019065a150b0b0fbe18c423e0b07fadb3c7f904e972f207207887",
+  "manifest_hash": "df85bbca128ae5d0f25e71294523ea378c590afdf9682ddfa80817bff6e407cd",
   "commands": [
     {
       "path": "build get",
@@ -368,6 +368,18 @@
       "group": "state",
       "command": "get",
       "binding": "StateService.LoadScenarioState",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "strategies explain",
+      "group": "strategies",
+      "command": "explain",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "strategies list",
+      "group": "strategies",
+      "command": "list",
       "observed_primitive": "proto_list"
     },
     {

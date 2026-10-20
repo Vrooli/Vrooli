@@ -1,6 +1,7 @@
 package lifecycle
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/vrooli/vrooli/internal/logx"
@@ -204,17 +205,31 @@ func (r *Runner) withSourceLayout(item scenario.Scenario) (scenario.Scenario, er
 	return item, nil
 }
 
-// frozenServingSources reports whether item builds from a serving tree whose
-// capture froze the shared sources. Only an instance routed away from the
-// working tree (SourceDir set) qualifies; the answer comes from the same
-// engagement fact the layout decision used.
-func (r *Runner) frozenServingSources(item scenario.Scenario) (EngagementInfo, bool) {
+// servingBuildSources resolves the capture before setup can mutate packages or
+// artifacts. Legacy captures have no shared-source record: they can rebuild a
+// self-contained app, but cannot silently pair frozen app code with moving
+// repository dependencies. New explicit --allow-unfrozen captures retain their
+// recorded opt-in; they do not acquire a frozen/coherent qualification here.
+func (r *Runner) servingBuildSources(ctx context.Context, item scenario.Scenario) (EngagementInfo, bool, error) {
 	if r.Engagements == nil || item.SourceDir == "" || item.SourceDir == item.Path {
-		return EngagementInfo{}, false
+		return EngagementInfo{}, false, nil
 	}
 	info, engaged, err := r.Engagements.Engagement(item.Slug)
-	if err != nil || !engaged || !info.SharedSourcesFrozen {
-		return EngagementInfo{}, false
+	if err != nil {
+		return EngagementInfo{}, false, fmt.Errorf("resolve serving build capture for %q: %w", item.Slug, err)
 	}
-	return info, true
+	if !engaged {
+		return EngagementInfo{}, false, nil
+	}
+	if !info.SharedSourcesFrozen && info.CaptureID == "" {
+		roots, resolveErr := SharedSourceRoots(ctx, r.Root, item)
+		if resolveErr != nil || len(roots) != 0 {
+			detail := fmt.Sprintf("%d shared source root(s)", len(roots))
+			if resolveErr != nil {
+				detail = resolveErr.Error()
+			}
+			return info, false, fmt.Errorf("legacy engagement %s/%s has uncaptured shared sources (%s); setup did not modify packages or artifacts; use git-control-tower baseline cycle --scenario %s --name %s to promote through the normal gates and capture a coherent baseline", item.Slug, info.Slug, detail, item.Slug, info.Slug)
+		}
+	}
+	return info, info.SharedSourcesFrozen, nil
 }

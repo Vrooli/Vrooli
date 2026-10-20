@@ -177,6 +177,10 @@ func (s *DefaultService) PerformScenarioDesktopBuild(buildID, scenarioName, desk
 			return
 		}
 	}
+	if _, err := os.Stat(filepath.Join(desktopPath, "wails-strategy.json")); err == nil {
+		s.buildWailsProject(buildID, scenarioName, desktopPath, platforms)
+		return
+	}
 
 	// Phase 1: Common build steps (install, compile)
 	if failed := s.executeCommonBuildSteps(buildID, scenarioName, desktopPath, platforms); failed {
@@ -185,6 +189,115 @@ func (s *DefaultService) PerformScenarioDesktopBuild(buildID, scenarioName, desk
 
 	// Phase 2: Build each platform independently
 	s.buildAllPlatforms(buildID, scenarioName, desktopPath, platforms)
+}
+
+func (s *DefaultService) buildWailsProject(buildID, scenarioName, desktopPath string, platforms []string) {
+	if len(platforms) == 0 {
+		platforms = []string{"linux"}
+	}
+	hasLinuxTarget := false
+	for _, platform := range platforms {
+		if platform == "linux" || strings.HasPrefix(platform, "linux-") {
+			hasLinuxTarget = true
+			continue
+		}
+		s.store.UpdatePlatform(buildID, platform, func(_ *Status, result *PlatformResult) {
+			result.Status = "failed"
+			result.ErrorLog = append(result.ErrorLog, "Wails in-process currently supports Linux packaging only")
+			completed := time.Now()
+			result.CompletedAt = &completed
+		})
+	}
+	if !hasLinuxTarget {
+		s.store.Update(buildID, func(status *Status) {
+			status.Status = "failed"
+			completed := time.Now()
+			status.CompletedAt = &completed
+		})
+		return
+	}
+	if err := os.RemoveAll(filepath.Join(desktopPath, "bin")); err != nil {
+		s.store.Update(buildID, func(status *Status) {
+			status.Status = "failed"
+			status.ErrorLog = append(status.ErrorLog, fmt.Sprintf("clear previous Wails artifacts: %v", err))
+			completed := time.Now()
+			status.CompletedAt = &completed
+		})
+		return
+	}
+	dependencyCommand := "scenario-dependency-analyzer deps install go/github.com/wailsapp/wails/v3@v3.0.0-beta.27 --scenario " + shellQuote(scenarioName) + " --surface platforms/wails-inprocess --apply"
+	dependencyOutput, dependencyErr := s.runner.Run(filepath.Dir(filepath.Dir(desktopPath)), dependencyCommand)
+	if dependencyErr != nil {
+		s.store.Update(buildID, func(status *Status) {
+			status.Status = "failed"
+			status.ErrorLog = append(status.ErrorLog, "Scenario Dependency Analyzer could not install the pinned Wails module", string(dependencyOutput))
+			completed := time.Now()
+			status.CompletedAt = &completed
+		})
+		return
+	}
+	for _, platform := range platforms {
+		started := time.Now()
+		if platform != "linux" && !strings.HasPrefix(platform, "linux-") {
+			continue
+		}
+		s.store.UpdatePlatform(buildID, platform, func(_ *Status, result *PlatformResult) {
+			result.Status = "building"
+			result.StartedAt = &started
+		})
+		output, err := s.runner.RunWithEnv(desktopPath, "go run github.com/wailsapp/wails/v3/cmd/wails3 package GOOS=linux", map[string]string{"EXTRA_TAGS": "gtk3"})
+		outputStr := string(output)
+		artifactPath := filepath.Join(desktopPath, "bin", scenarioName)
+		info, statErr := os.Stat(artifactPath)
+		if err == nil && statErr != nil {
+			err = fmt.Errorf("Wails package command succeeded but expected Linux application binary %s: %w", artifactPath, statErr)
+		}
+		s.store.Update(buildID, func(status *Status) {
+			result, ok := status.PlatformResults[platform]
+			if !ok {
+				result = &PlatformResult{Platform: platform}
+				status.PlatformResults[platform] = result
+			}
+			completed := time.Now()
+			result.CompletedAt = &completed
+			status.BuildLog = append(status.BuildLog, formatStepLog("wails-package", "go run github.com/wailsapp/wails/v3/cmd/wails3 package GOOS=linux (EXTRA_TAGS=gtk3)", outputStr, err))
+			if err != nil {
+				result.Status = "failed"
+				result.ErrorLog = append(result.ErrorLog, err.Error(), outputStr)
+				status.ErrorLog = append(status.ErrorLog, fmt.Sprintf("Wails package failed for %s", platform))
+				return
+			}
+			result.Status = "ready"
+			result.Artifact = artifactPath
+			result.FileSize = info.Size()
+			status.Artifacts[platform] = artifactPath
+		})
+	}
+	s.store.Update(buildID, func(status *Status) {
+		ready, failed := 0, 0
+		for _, result := range status.PlatformResults {
+			switch result.Status {
+			case "ready":
+				ready++
+			case "failed":
+				failed++
+			}
+		}
+		switch {
+		case ready > 0 && failed == 0:
+			status.Status = "ready"
+		case ready > 0:
+			status.Status = "partial"
+		default:
+			status.Status = "failed"
+		}
+		completed := time.Now()
+		status.CompletedAt = &completed
+	})
+}
+
+func shellQuote(value string) string {
+	return "'" + strings.ReplaceAll(value, "'", "'\\''") + "'"
 }
 
 // cleanBuildOutputs removes common build output directories. Returns true if

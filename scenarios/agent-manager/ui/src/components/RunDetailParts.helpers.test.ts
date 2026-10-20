@@ -16,7 +16,8 @@ test("run detail helpers normalize every status, mode, phase, and task status", 
   assert.equal(isInteractiveRun(ExecutionMode.INTERACTIVE), true);
   assert.equal(isInteractiveRun(ExecutionMode.CODEC_PIPE), false);
   for (const [phase, label] of [[RunPhase.QUEUED, "queued"], [RunPhase.INITIALIZING, "initializing"], [RunPhase.SANDBOX_CREATING, "sandbox_creating"], [RunPhase.RUNNER_ACQUIRING, "runner_acquiring"], [RunPhase.EXECUTING, "executing"], [RunPhase.COLLECTING_RESULTS, "collecting_results"], [RunPhase.AWAITING_REVIEW, "awaiting_review"], [RunPhase.APPLYING, "applying"], [RunPhase.CLEANING_UP, "cleaning_up"], [RunPhase.COMPLETED, "completed"]] as const) assert.equal(runPhaseLabel(phase), label);
-  for (const [status, label] of [[TaskStatus.QUEUED, "queued"], [TaskStatus.RUNNING, "running"], [TaskStatus.NEEDS_REVIEW, "needs_review"], [TaskStatus.APPROVED, "approved"], [TaskStatus.REJECTED, "rejected"], [TaskStatus.FAILED, "failed"], [TaskStatus.CANCELLED, "cancelled"]] as const) assert.equal(taskStatusLabel(status), label);
+  assert.equal(taskStatusLabel(999 as TaskStatus), "unknown");
+  for (const [status, label] of [[TaskStatus.QUEUED, "queued"], [TaskStatus.RUNNING, "running"], [8 as TaskStatus, "completed"], [TaskStatus.NEEDS_REVIEW, "needs_review"], [TaskStatus.APPROVED, "approved"], [TaskStatus.REJECTED, "rejected"], [TaskStatus.FAILED, "failed"], [TaskStatus.CANCELLED, "cancelled"]] as const) assert.equal(taskStatusLabel(status), label);
 });
 
 test("getCostTotals only folds valid cost events and preserves model/tier provenance", () => {

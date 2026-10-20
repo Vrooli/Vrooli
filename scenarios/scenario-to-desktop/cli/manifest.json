@@ -64,9 +64,8 @@
               "required": true,
               "description": "Scenario name",
               "bind": {
-                "field": "config"
-              },
-              "bind_waiver": "The pipeline primitive intentionally converts the positional scenario into PipelineConfig.scenario_name before invoking PipelineService.Run."
+                "field": "scenario_name"
+              }
             }
           ],
           "binding": {
@@ -75,6 +74,12 @@
             "method": "Run"
           },
           "flags": [
+            {"name": "strategy", "description": "Registered packaging strategy override", "bind": {"field": "strategy_id"}},
+            {"name": "shared-runtime-readiness", "description": "Enable dependency-aware parallel runtime startup", "bool": true, "bind": {"field": "shared_runtime_readiness"}},
+            {"name": "secure-custom-scheme-ui", "description": "Enable the secure custom-scheme UI path", "bool": true, "bind": {"field": "secure_custom_scheme_ui"}},
+            {"name": "v8-snapshot-code-cache", "description": "Enable the V8 snapshot and code-cache path", "bool": true, "bind": {"field": "v8_snapshot_code_cache"}},
+            {"name": "electron-fuses", "description": "Enable Electron fuse hardening", "bool": true, "bind": {"field": "electron_fuses"}},
+            {"name": "skip-smoke-test", "description": "Skip the pipeline smoke-test stage", "bool": true, "bind": {"field": "skip_smoke_test"}},
             {
               "name": "journey",
               "description": "Provider/platform journey capability or catalog journey id",

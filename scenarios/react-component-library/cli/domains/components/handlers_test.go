@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -64,6 +65,8 @@ type componentsService struct {
 	versionResp    *componentsv1.CreateComponentVersionResponse
 	beginResp      *componentsv1.BeginComponentVersionResponse
 	checkResp      *componentsv1.CheckComponentVersionResponse
+	checkErr       error
+	checkReqs      []*componentsv1.CheckComponentVersionRequest
 	publishResp    *componentsv1.PublishComponentVersionResponse
 	manifestResp   *componentsv1.UpdateComponentManifestResponse
 	storiesResp    *componentsv1.ListComponentStoriesResponse
@@ -211,6 +214,12 @@ func (s *componentsService) BeginComponentVersion(_ context.Context, req *connec
 }
 
 func (s *componentsService) CheckComponentVersion(_ context.Context, req *connect.Request[componentsv1.CheckComponentVersionRequest]) (*connect.Response[componentsv1.CheckComponentVersionResponse], error) {
+	s.mu.Lock()
+	s.checkReqs = append(s.checkReqs, req.Msg)
+	s.mu.Unlock()
+	if s.checkErr != nil {
+		return nil, s.checkErr
+	}
 	if s.checkResp == nil {
 		s.checkResp = &componentsv1.CheckComponentVersionResponse{Component: sampleComponent(), Version: req.Msg.Version, Passed: true}
 	}
@@ -788,5 +797,70 @@ func TestRetireCommandForwardsApplyAndPreservesFailureReceipt(t *testing.T) {
 		msg.SnapshotPath = "/archive/snapshot.json"
 		require.Error(t, retireOutcome(ctx, msg))
 		require.Contains(t, h.retireReport(ctx, msg).Changes, "/archive/snapshot.json")
+	}
+}
+
+func TestComponentsCheckCommandTransportsAndPreservesPassOrFailJSON(t *testing.T) {
+	manifest, err := os.ReadFile(filepath.Join("..", "..", "manifest.json"))
+	require.NoError(t, err)
+
+	for _, tc := range []struct {
+		name        string
+		passed      bool
+		verdict     string
+		message     string
+		remediation string
+		wantErr     bool
+	}{
+		{name: "pass", passed: true, verdict: "passed", message: "default story resolves"},
+		{name: "fail", passed: false, verdict: "failed", message: "default story is missing", remediation: "add the default story", wantErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			const componentID = "lib:CollectionPage"
+			const version = "0.1.0"
+			component := sampleComponent()
+			component.LibraryId = componentID
+			svc := &componentsService{checkResp: &componentsv1.CheckComponentVersionResponse{
+				Component: component, Version: version, Passed: tc.passed,
+				Checks: []*componentsv1.ComponentVersionCheck{{
+					Stage: "experience-contract", Verdict: tc.verdict, Message: tc.message, Remediation: tc.remediation,
+				}}, PreviewPath: "ui/src/components/CollectionPage.preview.tsx",
+			}}
+			core := clitest.NewTestApp(t, connectAPI(t, svc))
+			group, err := Register(core, manifest)
+			require.NoError(t, err)
+			var check cliapp.Command
+			for _, command := range group.Subcommands {
+				if command.Name == "check" {
+					check = command
+					break
+				}
+			}
+			require.NotNil(t, check.RunCtx, "manifest check command must be bound")
+			ctx, out := cliapptest.NewCapturedRunContext(core, check.Args, cliapptest.TestRunContextOptions{
+				Positionals: map[string]string{"component": componentID},
+				Flags:       map[string]string{"version": version},
+				JSON:        true,
+			})
+			err = check.RunCtx(ctx)
+			if tc.wantErr {
+				require.ErrorContains(t, err, "component preflight failed for "+componentID+"@"+version)
+			} else {
+				require.NoError(t, err)
+			}
+
+			var got componentsv1.CheckComponentVersionResponse
+			require.NoError(t, protojson.Unmarshal(out.Bytes(), &got))
+			require.Equal(t, tc.passed, got.Passed)
+			require.Equal(t, version, got.Version)
+			require.Len(t, got.Checks, 1)
+			require.Equal(t, "experience-contract", got.Checks[0].Stage)
+			require.Equal(t, tc.verdict, got.Checks[0].Verdict)
+			require.Equal(t, tc.message, got.Checks[0].Message)
+			require.Equal(t, tc.remediation, got.Checks[0].Remediation)
+			require.Len(t, svc.checkReqs, 1)
+			require.Equal(t, componentID, svc.checkReqs[0].Component)
+			require.Equal(t, version, svc.checkReqs[0].Version)
+		})
 	}
 }

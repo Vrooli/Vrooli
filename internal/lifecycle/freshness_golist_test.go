@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/cli-core/cliutil"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
 
@@ -454,5 +455,41 @@ func TestPathUnderRoot(t *testing.T) {
 		if got := pathUnderRoot(c.root, c.target); got != c.want {
 			t.Errorf("pathUnderRoot(%q,%q)=%v want %v", c.root, c.target, got, c.want)
 		}
+	}
+}
+
+func TestGoClosureTracksIndependentComponentSourceOutsideRepo(t *testing.T) {
+	repo, component := t.TempDir(), t.TempDir()
+	dependency := filepath.Join(repo, "packages", "shared")
+	if err := os.MkdirAll(dependency, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	source := filepath.Join(component, "main.go")
+	for path, data := range map[string]string{source: "package main\nfunc main(){}\n", filepath.Join(component, "go.mod"): "module independent\n", filepath.Join(dependency, "shared.go"): "package shared\n"} {
+		if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	payload := []byte(fmt.Sprintf("{\"Dir\":%q,\"Module\":{\"GoMod\":%q}}\n{\"Dir\":%q}\n", component, filepath.Join(component, "go.mod"), dependency))
+	deps := cannedGoList(payload, nil, true)
+	deps.readFile = os.ReadFile
+	inputs, ok := goListFreshnessInputs(component, repo, deps)
+	if !ok {
+		t.Fatal("closure unavailable")
+	}
+	spec := cliutil.FreshnessSpec{SourceRoot: component, ContextRoot: repo, Inputs: inputs}
+	before, err := cliutil.ComputeFreshnessFingerprint(spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(source, []byte("package main\nfunc main(){ println(1) }\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	after, err := cliutil.ComputeFreshnessFingerprint(spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if before == after {
+		t.Fatal("independent component source changed but fingerprint stayed fresh")
 	}
 }

@@ -430,11 +430,11 @@ func (h *HarnessHandler) serveStorySheet(w http.ResponseWriter, r *http.Request,
 		body.WriteString(`">`)
 		body.WriteString(html.EscapeString(tile.Role))
 		body.WriteString(`</span> · <span data-story-size>measuring</span>`)
-		body.WriteString(`</p><iframe title="`)
+		body.WriteString(`</p><div class="story-tile__viewport" data-story-viewport><iframe width="1280" height="320" title="`)
 		body.WriteString(html.EscapeString(tile.Label))
 		body.WriteString(` story" src="`)
 		body.WriteString(html.EscapeString(tile.Source))
-		body.WriteString(`" loading="eager"></iframe></article>`)
+		body.WriteString(`" loading="eager"></iframe></div></article>`)
 	}
 	body.WriteString(`</section><p class="story-sheet__footer">Source: version-pinned RCL story contracts.`)
 	body.WriteString(` Individual story captures remain authoritative.</p>`)

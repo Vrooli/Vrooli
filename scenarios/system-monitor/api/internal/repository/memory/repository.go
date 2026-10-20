@@ -716,9 +716,35 @@ func (r *MemoryRepository) ListAlerts(ctx context.Context, filter repository.Ale
 		if filter.Severity != "" && alert.Severity != filter.Severity {
 			continue
 		}
+		if filter.MetricName != "" && alert.MetricName != filter.MetricName {
+			continue
+		}
+		switch filter.Status {
+		case "active":
+			if alert.ResolvedAt != nil {
+				continue
+			}
+		case "resolved":
+			if alert.ResolvedAt == nil {
+				continue
+			}
+		case "acknowledged":
+			if alert.AckedAt == nil {
+				continue
+			}
+		}
 		results = append(results, alert)
 	}
-
+	sort.SliceStable(results, func(i, j int) bool { return results[i].Timestamp.After(results[j].Timestamp) })
+	if filter.Offset > 0 {
+		if filter.Offset >= len(results) {
+			return nil, nil
+		}
+		results = results[filter.Offset:]
+	}
+	if filter.Limit > 0 && len(results) > filter.Limit {
+		results = results[:filter.Limit]
+	}
 	return results, nil
 }
 

@@ -1,7 +1,7 @@
 import type { PanelRow, Reading } from "../lib/api";
 import { RollingNumber } from "@vrooli/react-component-library/RollingNumber/0.1.6";
 import { AutoScroll } from "./AutoScroll";
-import { qualify, resolveReading, figureValue } from "@vrooli/react-component-library/ProvenanceInk/0.1.2";
+import { qualify, resolveReading, figureValue } from "@vrooli/react-component-library/ProvenanceInk/0.1.3";
 import { panelEmptyMessage } from "../lib/panelEmptyState";
 
 type Props = { reading: Reading; maxRows?: number };

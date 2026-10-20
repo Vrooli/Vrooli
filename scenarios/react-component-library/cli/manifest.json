@@ -532,6 +532,39 @@
           }
         },
         {
+          "name": "check",
+          "description": "Refresh the selected component index and run version checks before publication",
+          "positionals": [
+            {
+              "name": "component",
+              "required": true,
+              "description": "Stable libraryId or catalog UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "version",
+              "description": "Draft or released version; defaults to the active draft or latest release"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ComponentsService",
+            "method": "CheckComponentVersion"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
           "name": "draft-publish",
           "description": "Validate and atomically publish the active component draft",
           "positionals": [
@@ -2499,11 +2532,6 @@
       "service": "ComponentsService",
       "method": "InitializeComponent",
       "reason": "Initialization is an internal setup operation."
-    },
-    {
-      "service": "ComponentsService",
-      "method": "CheckComponentVersion",
-      "reason": "Version checks are composed by draft-publish and asset check."
     },
     {
       "service": "ComponentsService",

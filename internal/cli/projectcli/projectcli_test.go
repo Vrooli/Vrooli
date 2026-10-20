@@ -316,3 +316,39 @@ func TestParseLocksRequestRejectsAllWithClean(t *testing.T) {
 		t.Fatalf("req = %#v", req)
 	}
 }
+
+func TestStopAndLocksReportPreserveObservationsWithoutStoppedClaim(t *testing.T) {
+	report := control.StopReport{Observed: []control.ResultItem{{Name: "model", Message: "skipped idle-unload: target changed"}}, Message: control.StopSummary(0, 0)}
+	for _, mode := range []string{"stop", "locks"} {
+		for _, format := range []cliout.Format{cliout.FormatJSON, cliout.FormatHuman} {
+			t.Run(mode+"/"+string(format), func(t *testing.T) {
+				var out bytes.Buffer
+				var err error
+				if mode == "stop" {
+					err = RenderStopReport(&out, format, report)
+				} else {
+					err = RenderLocksResponse(&out, format, LocksResponse{CleanReport: &report})
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
+				if format == cliout.FormatJSON {
+					var payload struct {
+						Data struct {
+							Stopped  []any                            `json:"stopped"`
+							Observed []struct{ Name, Message string } `json:"observed"`
+						}
+					}
+					if err := json.Unmarshal(out.Bytes(), &payload); err != nil {
+						t.Fatal(err)
+					}
+					if len(payload.Data.Stopped) != 0 || len(payload.Data.Observed) != 1 || payload.Data.Observed[0].Message != report.Observed[0].Message {
+						t.Fatalf("observation dropped/misclassified: %s", out.String())
+					}
+				} else if !strings.Contains(out.String(), "Observed model: skipped idle-unload: target changed") || strings.Contains(out.String(), "Stopped model") || strings.Contains(out.String(), "No stale registry state") {
+					t.Fatalf("misleading human report: %s", out.String())
+				}
+			})
+		}
+	}
+}

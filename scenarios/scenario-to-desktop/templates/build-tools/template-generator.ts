@@ -8,6 +8,7 @@
  */
 
 import * as fs from 'fs/promises';
+import { existsSync } from 'fs';
 import * as path from 'path';
 import { execSync } from 'child_process';
 import { NativeExtension, validateNativeExtension } from './native-extension';
@@ -53,6 +54,13 @@ interface DesktopConfig {
 
     // Template configuration
     framework: 'electron';
+    strategy_id?: string;
+    optimization_profile?: {
+        shared_runtime_readiness: boolean;
+        secure_custom_scheme_ui: boolean;
+        v8_snapshot_code_cache: boolean;
+        electron_fuses: boolean;
+    };
     template_type: 'basic' | 'universal' | 'advanced' | 'kiosk' | 'multi_window';
 
     native_extension?: NativeExtension;
@@ -144,12 +152,27 @@ class DesktopTemplateGenerator {
     private outputPath: string;
     
     constructor(config: DesktopConfig) {
+        const strategyID = config.strategy_id || 'electron-sidecar';
+        if (strategyID !== 'electron-sidecar' && strategyID !== 'electron-optimized') {
+            throw new Error(`Unsupported packaging strategy: ${strategyID}`);
+        }
+        if (strategyID === 'electron-optimized' && (!config.optimization_profile || !Object.values(config.optimization_profile).some(Boolean))) {
+            throw new Error('electron-optimized requires at least one explicit optimization toggle');
+        }
+        if (strategyID === 'electron-sidecar' && config.optimization_profile && Object.values(config.optimization_profile).some(Boolean)) {
+            throw new Error('optimization toggles require the electron-optimized strategy');
+        }
+        config.strategy_id = strategyID;
         validateNativeExtension(config.native_extension, config.framework, config.platforms);
         this.config = config;
-        // SECURITY: __dirname is controlled by the build system (not user input).
-        // This path traversal is safe as it navigates from build-tools/dist/ to templates/.
-        // The path.resolve() ensures this becomes an absolute path without traversal.
-        this.templateBasePath = path.resolve(__dirname, '../../');
+        // Source tests run from build-tools/, while packaged invocations run
+        // from build-tools/dist/. Resolve the canonical template root in both.
+        const templateRoots = [path.resolve(__dirname, '..'), path.resolve(__dirname, '../..')];
+        const templateRoot = templateRoots.find((candidate) => existsSync(path.join(candidate, 'vanilla', 'main.ts')));
+        if (!templateRoot) {
+            throw new Error(`Unable to locate canonical desktop templates from ${__dirname}`);
+        }
+        this.templateBasePath = templateRoot;
 
         // Determine output path - default to standard platforms/electron/ location
         let outputPath: string;
@@ -162,7 +185,7 @@ class DesktopTemplateGenerator {
                 'scenarios',
                 config.app_name,
                 'platforms',
-                'electron'
+                (strategyID === 'electron-sidecar' ? 'electron' : strategyID)
             );
             console.log(`📁 Using standard location: ${outputPath}`);
         } else {
@@ -243,7 +266,15 @@ class DesktopTemplateGenerator {
 
         try {
             const configContent = await fs.readFile(templateConfigPath, 'utf-8');
-            return JSON.parse(configContent);
+            const config = JSON.parse(configContent);
+            config.strategy_id = this.config.strategy_id;
+            config.optimization_profile = this.config.optimization_profile || {
+                shared_runtime_readiness: false,
+                secure_custom_scheme_ui: false,
+                v8_snapshot_code_cache: false,
+                electron_fuses: false,
+            };
+            return config;
         } catch (error) {
             throw new Error(`Failed to load template configuration: ${templateConfigPath}`);
         }
@@ -260,17 +291,35 @@ class DesktopTemplateGenerator {
     }
     
     private async processTemplateFiles(templateConfig: any): Promise<void> {
-        const vanillaPath = path.join(this.templateBasePath, 'vanilla');
-        const files = await this.getTemplateFiles(vanillaPath);
+        const strategyPath = path.join(this.templateBasePath, 'strategies', templateConfig.strategy_id || 'electron-sidecar');
+        const canonicalPath = path.join(this.templateBasePath, 'vanilla');
+        const files = await this.getTemplateFiles(canonicalPath, canonicalPath);
+        if (existsSync(strategyPath)) {
+            files.push(...await this.getTemplateFiles(strategyPath, strategyPath));
+        }
         
         for (const file of files) {
             await this.processTemplateFile(file, templateConfig);
         }
+
+        if (this.config.optimization_profile?.v8_snapshot_code_cache !== true) {
+            // These outputs are conditional generated files. Remove them when a
+            // destination is regenerated with the snapshot toggle disabled.
+            await fs.rm(path.join(this.outputPath, 'scripts/build-v8-snapshot.js'), { force: true });
+            await fs.rm(path.join(this.outputPath, 'scripts/v8-startup-snapshot.js'), { force: true });
+            await fs.rm(path.join(this.outputPath, 'snapshot-output'), { recursive: true, force: true });
+        }
     }
     
-    private async getTemplateFiles(dirPath: string): Promise<TemplateFile[]> {
+    private async getTemplateFiles(dirPath: string, strategyRoot: string = dirPath): Promise<TemplateFile[]> {
         const files: TemplateFile[] = [];
-        const entries = await fs.readdir(dirPath, { withFileTypes: true });
+        let entries;
+        try {
+            entries = await fs.readdir(dirPath, { withFileTypes: true });
+        } catch (error) {
+            if ((error as NodeJS.ErrnoException).code === 'ENOENT') return files;
+            throw error;
+        }
 
         // Files that are dev-only and should NOT be copied to generated projects.
         // These files exist in templates/vanilla/ for developing and testing the template itself,
@@ -300,11 +349,11 @@ class DesktopTemplateGenerator {
                 if (devOnlyDirs.has(entry.name)) {
                     continue;
                 }
-                const subFiles = await this.getTemplateFiles(fullPath);
+                const subFiles = await this.getTemplateFiles(fullPath, strategyRoot);
                 files.push(...subFiles);
             } else {
                 // Skip dev-only files at the root of vanilla/
-                const relativePath = path.relative(path.join(this.templateBasePath, 'vanilla'), fullPath);
+                const relativePath = path.relative(strategyRoot, fullPath);
                 if (devOnlyFiles.has(entry.name) && !relativePath.includes(path.sep)) {
                     continue;
                 }
@@ -328,6 +377,8 @@ class DesktopTemplateGenerator {
                 const isTemplateByExtension = templateExtensions.some(ext => entry.name.endsWith(ext));
                 const isTemplateByName = entry.name.includes('.template') || entry.name.includes('{{');
 
+                const isSnapshotAsset = ['scripts/build-v8-snapshot.js', 'scripts/v8-startup-snapshot.js'].includes(targetPath);
+                if (isSnapshotAsset && this.config.optimization_profile?.v8_snapshot_code_cache !== true) continue;
                 files.push({
                     sourcePath: fullPath,
                     targetPath,
@@ -384,14 +435,20 @@ class DesktopTemplateGenerator {
     
     private buildTemplateVariables(templateConfig: any): Record<string, any> {
         const currentYear = new Date().getFullYear();
+        const templateVariables = templateConfig.template_variables ?? {};
         
         const variables: Record<string, any> = {
+            // Keep template-only capabilities, while derived identity/security
+            // values below remain authoritative. Configurable presentation
+            // fields use explicit caller > selected template > safe fallback.
+            ...templateVariables,
             NATIVE_EXTENSION_CONFIG: JSON.stringify(JSON.stringify(this.config.native_extension ?? null)).slice(1, -1),
             // Basic app info
             APP_NAME: this.config.app_name,
             APP_DISPLAY_NAME: this.config.app_display_name,
             APP_DESCRIPTION: this.config.app_description,
             VERSION: this.config.version,
+            PACKAGING_STRATEGY: this.config.strategy_id || 'electron-sidecar',
             AUTHOR: this.config.author,
             AUTHOR_EMAIL: this.config.author_email || 'noreply@vrooli.com',
             HOMEPAGE: this.config.homepage || this.config.app_url || 'https://vrooli.com',
@@ -435,25 +492,46 @@ class DesktopTemplateGenerator {
             BUNDLED_RUNTIME_UI_SERVICE: this.config.bundle_ui_service_id || '',
             BUNDLED_RUNTIME_UI_PORT_NAME: this.config.bundle_ui_port_name || 'http',
             BUNDLED_RUNTIME_TELEMETRY_UPLOAD_URL: this.config.bundle_telemetry_upload_url || '',
+            OPT_SHARED_RUNTIME_READINESS: this.config.optimization_profile?.shared_runtime_readiness === true,
+            OPT_SECURE_CUSTOM_SCHEME_UI: this.config.optimization_profile?.secure_custom_scheme_ui === true,
+            OPT_V8_SNAPSHOT_CODE_CACHE: this.config.optimization_profile?.v8_snapshot_code_cache === true,
+            OPT_ELECTRON_FUSES: this.config.optimization_profile?.electron_fuses === true,
+            ELECTRON_FUSES: JSON.stringify(this.config.optimization_profile?.electron_fuses === true || this.config.optimization_profile?.v8_snapshot_code_cache === true ? {
+                runAsNode: false,
+                enableNodeOptionsEnvironmentVariable: false,
+                enableNodeCliInspectArguments: false,
+                enableEmbeddedAsarIntegrityValidation: true,
+                onlyLoadAppFromAsar: true,
+                grantFileProtocolExtraPrivileges: false,
+                ...(this.config.optimization_profile?.v8_snapshot_code_cache === true ? { loadBrowserProcessSpecificV8Snapshot: true } : {}),
+            } : null),
+            ELECTRON_MKSNAPSHOT_DEPENDENCY: this.config.optimization_profile?.v8_snapshot_code_cache === true
+                ? '"electron-mksnapshot": "44.7.2",'
+                : '',
+            V8_SNAPSHOT_BEFORE_PACK: this.config.optimization_profile?.v8_snapshot_code_cache === true ? '"scripts/build-v8-snapshot.js"' : 'null',
+            EXTRA_RESOURCES: JSON.stringify([
+                { from: this.config.scenario_dist_path || '../ui/dist', to: this.config.scenario_dist_path || '../ui/dist', filter: ['**/*'] },
+                ...(this.config.optimization_profile?.v8_snapshot_code_cache === true ? [{ from: 'snapshot-output/browser_v8_context_snapshot.bin', to: 'browser_v8_context_snapshot.bin' }] : []),
+            ], null, 2),
             
             // Window config (use optional chaining for safety)
-            WINDOW_WIDTH: this.config.window?.width || 1200,
-            WINDOW_HEIGHT: this.config.window?.height || 800,
-            WINDOW_BACKGROUND: this.config.window?.background || '#f5f5f5',
+            WINDOW_WIDTH: this.config.window?.width || templateVariables.WINDOW_WIDTH || 1200,
+            WINDOW_HEIGHT: this.config.window?.height || templateVariables.WINDOW_HEIGHT || 800,
+            WINDOW_BACKGROUND: this.config.window?.background || templateVariables.WINDOW_BACKGROUND || '#f5f5f5',
 
             // Features (boolean values) (use optional chaining for safety)
-            ENABLE_SPLASH: this.config.features?.splash ?? true,
-            ENABLE_MENU: this.config.features?.menu ?? true,
-            ENABLE_SYSTEM_TRAY: this.config.features?.systemTray ?? false,
-            ENABLE_AUTO_UPDATER: this.config.features?.autoUpdater ?? true,
-            ENABLE_SINGLE_INSTANCE: this.config.features?.singleInstance ?? true,
-            ENABLE_DEV_TOOLS: this.config.features?.devTools ?? true,
+            ENABLE_SPLASH: this.config.features?.splash ?? templateVariables.ENABLE_SPLASH ?? true,
+            ENABLE_MENU: this.config.features?.menu ?? templateVariables.ENABLE_MENU ?? true,
+            ENABLE_SYSTEM_TRAY: this.config.features?.systemTray ?? templateVariables.ENABLE_SYSTEM_TRAY ?? false,
+            ENABLE_AUTO_UPDATER: this.config.features?.autoUpdater ?? templateVariables.ENABLE_AUTO_UPDATER ?? true,
+            ENABLE_SINGLE_INSTANCE: this.config.features?.singleInstance ?? templateVariables.ENABLE_SINGLE_INSTANCE ?? true,
+            ENABLE_DEV_TOOLS: this.config.features?.devTools ?? templateVariables.ENABLE_DEV_TOOLS ?? true,
             
             // Styling
-            SPLASH_BACKGROUND_START: this.config.styling?.splashBackgroundStart || '#4a90e2',
-            SPLASH_BACKGROUND_END: this.config.styling?.splashBackgroundEnd || '#357abd',
-            SPLASH_TEXT_COLOR: this.config.styling?.splashTextColor || '#ffffff',
-            SPLASH_ACCENT_COLOR: this.config.styling?.splashAccentColor || '#64b5f6',
+            SPLASH_BACKGROUND_START: this.config.styling?.splashBackgroundStart || templateVariables.SPLASH_BACKGROUND_START || '#4a90e2',
+            SPLASH_BACKGROUND_END: this.config.styling?.splashBackgroundEnd || templateVariables.SPLASH_BACKGROUND_END || '#357abd',
+            SPLASH_TEXT_COLOR: this.config.styling?.splashTextColor || templateVariables.SPLASH_TEXT_COLOR || '#ffffff',
+            SPLASH_ACCENT_COLOR: this.config.styling?.splashAccentColor || templateVariables.SPLASH_ACCENT_COLOR || '#64b5f6',
             APP_ICON_PATH: 'assets/icon.png',
             
             // Distribution
@@ -487,11 +565,6 @@ class DesktopTemplateGenerator {
             ),
         };
 
-        // Merge template-specific variables
-        if (templateConfig.template_variables) {
-            Object.assign(variables, templateConfig.template_variables);
-        }
-
         return variables;
     }
 
@@ -504,8 +577,9 @@ class DesktopTemplateGenerator {
         const ports = this.config.ports || {};
         const result: Record<string, { envVar: string; port: number }> = {};
 
-        for (const [portKey, portDef] of Object.entries(ports)) {
-            if (portDef.env_var) {
+        for (const portKey of Object.keys(ports).sort()) {
+            const portDef = ports[portKey];
+            if (portDef?.env_var) {
                 result[portKey] = {
                     envVar: portDef.env_var,
                     port: portDef.port || 0,

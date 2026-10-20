@@ -48,32 +48,35 @@ type Monitor struct {
 	appData  string
 
 	// StatusGetter provides access to service status from the orchestrator.
-	StatusGetter func(id string) (Status, bool)
+	StatusGetter     func(id string) (Status, bool)
+	OnReadinessProbe func(serviceID string, attempt int, success bool, at time.Time)
 }
 
 // MonitorConfig holds the dependencies for Monitor.
 type MonitorConfig struct {
-	Manifest     *manifest.Manifest
-	Ports        ports.Allocator
-	Dialer       infra.NetworkDialer
-	CmdRunner    infra.CommandRunner
-	FS           infra.FileSystem
-	Clock        infra.Clock
-	AppData      string
-	StatusGetter func(id string) (Status, bool)
+	Manifest         *manifest.Manifest
+	Ports            ports.Allocator
+	Dialer           infra.NetworkDialer
+	CmdRunner        infra.CommandRunner
+	FS               infra.FileSystem
+	Clock            infra.Clock
+	AppData          string
+	StatusGetter     func(id string) (Status, bool)
+	OnReadinessProbe func(serviceID string, attempt int, success bool, at time.Time)
 }
 
 // NewMonitor creates a new Monitor with the given dependencies.
 func NewMonitor(cfg MonitorConfig) *Monitor {
 	return &Monitor{
-		manifest:     cfg.Manifest,
-		ports:        cfg.Ports,
-		dialer:       cfg.Dialer,
-		cmd:          cfg.CmdRunner,
-		fs:           cfg.FS,
-		clock:        cfg.Clock,
-		appData:      cfg.AppData,
-		StatusGetter: cfg.StatusGetter,
+		manifest:         cfg.Manifest,
+		ports:            cfg.Ports,
+		dialer:           cfg.Dialer,
+		cmd:              cfg.CmdRunner,
+		fs:               cfg.FS,
+		clock:            cfg.Clock,
+		appData:          cfg.AppData,
+		StatusGetter:     cfg.StatusGetter,
+		OnReadinessProbe: cfg.OnReadinessProbe,
 	}
 }
 
@@ -132,7 +135,11 @@ func (m *Monitor) pollReadinessHealth(ctx context.Context, svc manifest.Service)
 			return ctx.Err()
 		default:
 		}
-		if m.checkHealthOnce(ctx, svc, 2*time.Second) {
+		ok := m.checkHealthOnce(ctx, svc, 2*time.Second)
+		if m.OnReadinessProbe != nil {
+			m.OnReadinessProbe(svc.ID, attempt+1, ok, m.clock.Now())
+		}
+		if ok {
 			return nil
 		}
 		m.clock.Sleep(interval)

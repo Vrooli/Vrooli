@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import type { Reading } from "../lib/api";
-import { qualify, resolveReading } from "@vrooli/react-component-library/ProvenanceInk/0.1.2";
+import { qualify, resolveReading } from "@vrooli/react-component-library/ProvenanceInk/0.1.3";
 import { ladderOf, nextRung, statusLabel, stillIdeas } from "../lib/ladder";
 import { TileQualifier } from "./TileQualifier";
 

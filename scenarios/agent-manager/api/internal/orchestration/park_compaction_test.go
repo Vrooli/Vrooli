@@ -9,6 +9,7 @@ import (
 	"agent-manager/internal/adapters/database"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/identity"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/orchestration/testutil"
 )
@@ -75,10 +76,28 @@ func (f *compactionFixture) parkCodexRun(t *testing.T, mode domain.ExecutionMode
 	run := newParkableRun(t, ctx, f.svc, f.repos)
 	run.ResolvedConfig = &domain.RunConfig{RunnerType: domain.RunnerTypeCodex}
 	run.ExecutionMode = mode
+	if mode == domain.ExecutionModeInteractive {
+		run.WebConsoleSessionID = "compaction-fixture-" + run.ID.String()
+	}
 	if err := f.repos.Runs.Update(ctx, run); err != nil {
 		t.Fatalf("update run: %v", err)
 	}
 	token := activateToken(t, ctx, f.repos, run)
+	if mode == domain.ExecutionModeInteractive {
+		claims, err := identity.VerifyToken(token, parkFromAgentSecret)
+		if err != nil {
+			t.Fatal(err)
+		}
+		claims.Meta = map[string]string{"web_console_session_id": run.WebConsoleSessionID}
+		token, err = identity.GenerateToken(claims, parkFromAgentSecret)
+		if err != nil {
+			t.Fatal(err)
+		}
+		run.IdentityTokenHash = identity.HashToken(token)
+		if err := f.repos.Runs.Update(ctx, run); err != nil {
+			t.Fatal(err)
+		}
+	}
 	if _, err := f.svc.ParkRunFromAgent(ctx, orchestration.ParkRunFromAgentRequest{
 		RunID: run.ID, Producer: orchestration.ProducerChildren, Key: run.ID.String(), IdentityToken: token,
 	}); err != nil {

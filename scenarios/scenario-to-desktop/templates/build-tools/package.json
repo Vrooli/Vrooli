@@ -10,7 +10,9 @@
     "build": "tsc && node write-build-stamp.js",
     "typecheck": "tsc --noEmit",
     "dev": "vrooli lifecycle protect -- ts-node template-generator.ts",
-    "test": "jest --passWithNoTests",
+    "test": "node --test test/build-stamp.test.cjs && jest --passWithNoTests",
+    "test:stamp": "node --test test/build-stamp.test.cjs",
+    "verify:build": "node write-build-stamp.js --check",
     "clean": "rimraf dist"
   },
   "dependencies": {

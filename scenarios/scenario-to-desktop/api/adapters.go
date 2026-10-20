@@ -202,21 +202,31 @@ func (a *generationRecordStoreAdapter) Upsert(record *generation.DesktopAppRecor
 	}
 	// Convert generation.DesktopAppRecord to records.DesktopAppRecord
 	r := &records.DesktopAppRecord{
-		ID:              record.ID,
-		BuildID:         record.BuildID,
-		ScenarioName:    record.ScenarioName,
-		AppDisplayName:  record.AppDisplayName,
-		TemplateType:    record.TemplateType,
-		Framework:       record.Framework,
-		LocationMode:    record.LocationMode,
-		OutputPath:      record.OutputPath,
-		DestinationPath: record.DestinationPath,
-		StagingPath:     record.StagingPath,
-		CustomPath:      record.CustomPath,
-		DeploymentMode:  record.DeploymentMode,
-		Icon:            record.Icon,
+		ID:                  record.ID,
+		BuildID:             record.BuildID,
+		ScenarioName:        record.ScenarioName,
+		AppDisplayName:      record.AppDisplayName,
+		TemplateType:        record.TemplateType,
+		Framework:           record.Framework,
+		StrategyID:          record.StrategyID,
+		OptimizationProfile: optimizationProfileMap(record.OptimizationProfile),
+		Selection:           record.Selection,
+		LocationMode:        record.LocationMode,
+		OutputPath:          record.OutputPath,
+		DestinationPath:     record.DestinationPath,
+		StagingPath:         record.StagingPath,
+		CustomPath:          record.CustomPath,
+		DeploymentMode:      record.DeploymentMode,
+		Icon:                record.Icon,
 	}
 	return a.store.Upsert(r)
+}
+
+func optimizationProfileMap(profile *generation.ElectronOptimizationProfile) map[string]bool {
+	if profile == nil {
+		return nil
+	}
+	return map[string]bool{"shared_runtime_readiness": profile.SharedRuntimeReadiness, "secure_custom_scheme_ui": profile.SecureCustomSchemeUI, "v8_snapshot_code_cache": profile.V8SnapshotCodeCache, "electron_fuses": profile.ElectronFuses}
 }
 
 // scenarioRecordStoreAdapter adapts records.FileStore to scenario.RecordStore interface

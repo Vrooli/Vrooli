@@ -1,5 +1,5 @@
 /** @vrooliComponentSource overlays.dialog */
-import { FormEvent, KeyboardEvent, useState } from "react";
+import { FormEvent, KeyboardEvent, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
@@ -22,6 +22,7 @@ export function CreateComponentDialog({ onClose }: CreateComponentDialogProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const slugInputRef = useRef<HTMLInputElement>(null);
   const [slug, setSlug] = useState("");
   const [libraryId, setLibraryId] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -91,6 +92,7 @@ export function CreateComponentDialog({ onClose }: CreateComponentDialogProps) {
       closeLabel={t(strings.components.create.cancel)}
       title={t(strings.components.create.title)}
       className="max-w-2xl"
+      initialFocusRef={slugInputRef}
     >
       <div data-testid={selectors.components.create.dialog}>
         <form onSubmit={submit} className="grid gap-space-xs">
@@ -98,6 +100,7 @@ export function CreateComponentDialog({ onClose }: CreateComponentDialogProps) {
             <label className="block text-xs text-app-muted-foreground">
               {t(strings.components.create.slug)}
               <Input
+                ref={slugInputRef}
                 data-testid={selectors.components.create.slug}
                 value={slug}
                 onChange={(e) => setSlug(e.target.value)}

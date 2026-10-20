@@ -235,7 +235,7 @@ func TestCatalogSelectorResolvesThroughRealImportedSource(t *testing.T) {
 	}
 	for _, result := range results {
 		if result.Region == "catalog-results" {
-			if result.LibraryAsset != "experience-surface" || result.LibraryVersion != "1.0.2" || !result.Proven || result.JoinRule != "binding-selector" || result.FilePath != "ui/src/App.tsx" {
+			if result.LibraryAsset != "experience-surface" || result.LibraryVersion != "1.0.3" || !result.Proven || result.JoinRule != "binding-selector" || result.FilePath != "ui/src/App.tsx" {
 				t.Fatalf("catalog binding not proved: %#v", result)
 			}
 			return

@@ -35,8 +35,31 @@ func TestProbeResultMirrorCoversSource(t *testing.T) {
 	assertMirrorCoversSource(t, orchestration.ProbeResult{}, protoconv.ProbeResult{})
 }
 
-func TestDiffResultMirrorCoversSource(t *testing.T) {
-	assertMirrorCoversSource(t, sandbox.DiffResult{}, protoconv.DiffResult{})
+func TestDiffResultMirrorCoversConversionFields(t *testing.T) {
+	// PatchSHA256 and EvidenceComplete are sandbox-provider evidence used by
+	// orchestration. They intentionally stop before this conversion mirror and
+	// the public RunDiff wire projection; FileCountVerified is the public review
+	// assurance bit copied by this conversion.
+	source := reflect.TypeOf(sandbox.DiffResult{})
+	mirror := reflect.TypeOf(protoconv.DiffResult{})
+	intentionalProviderOnly := map[string]string{
+		"PatchSHA256":      "exact provider patch evidence is not part of public RunDiff",
+		"EvidenceComplete": "provider completeness proof is internal-only",
+	}
+	for i := 0; i < source.NumField(); i++ {
+		field := source.Field(i)
+		if _, ok := mirror.FieldByName(field.Name); ok {
+			continue
+		}
+		if reason, ok := intentionalProviderOnly[field.Name]; ok && reason != "" {
+			delete(intentionalProviderOnly, field.Name)
+			continue
+		}
+		t.Errorf("%s does not mirror conversion field %s.%s", mirror.Name(), source.Name(), field.Name)
+	}
+	for field, reason := range intentionalProviderOnly {
+		t.Errorf("documented provider-only field %s was removed or renamed (%s)", field, reason)
+	}
 }
 
 func TestFileChangeMirrorCoversSource(t *testing.T) {

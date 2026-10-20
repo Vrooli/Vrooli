@@ -1,11 +1,11 @@
 {
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "react-component-library.capture-story",
-  "version": "1",
+  "version": "2",
   "helpers": {
     "program": "1"
   },
-  "purpose": "Capture one immutable library asset across its story, viewport, and theme matrix through the governed Browser Automation Studio owner, retaining a stable first-capture baseline.",
+  "purpose": "Capture each requested immutable story directly in RCL’s isolated Browser Automation Studio harness at the requested viewport and theme.",
   "inputs": {
     "asset_id": {
       "type": "string",
@@ -19,7 +19,7 @@
     "stories": {
       "type": "array",
       "default": [],
-      "description": "Story ids; defaults to every story in the versioned story contract."
+      "description": "Exact story ids to execute in the isolated version-pinned harness; defaults to every story in the versioned story contract."
     },
     "viewports": {
       "type": "array",
@@ -39,17 +39,23 @@
     }
   },
   "assumptions": [
-    "The selected immutable version has one validated story contract.",
+    "The selected immutable version has one validated story contract and its component manifest has a libraryId.",
+    "The current RCL API port is read from vrooli/scenario/status; a missing or invalid port prevents capture.",
     "browser-automation-studio owns navigation, readiness, durable screenshots, and computed DOM evidence.",
-    "The first successful combination is the baseline; later runs compare normalized status, route, and findings rather than volatile artifact ids."
+    "Story captures use an isolated harness and a versioned baseline namespace distinct from historical full-sheet images."
   ],
   "invariants": [
-    "Every requested story x viewport x theme combination is represented in the envelope.",
+    "Every requested story x viewport x theme combination is represented in the envelope and targets exactly one isolated story harness.",
+    "A combination is ok only when its readiness marker is passed and captured DOM confirms the requested story id.",
     "A failed or partial capture is never stored as a baseline.",
     "The envelope is printed exactly once.",
     "The command does not mutate library source or version content."
   ],
   "bindings": [
+    {
+      "id": "vrooli/scenario/status",
+      "effect": "read"
+    },
     {
       "id": "browser-automation-studio/capture/capture",
       "effect": "write",
@@ -76,7 +82,8 @@
     "signals": {
       "asset_id": "requested catalog asset",
       "version": "captured immutable version",
-      "combinations": "one result per story x viewport x theme",
+      "target": "isolated_story_harness",
+      "combinations": "one isolated story result per story x viewport x theme",
       "baseline_count": "new baseline count",
       "changed_count": "later combinations whose normalized result changed"
     },
@@ -86,6 +93,9 @@
         "asset_not_found",
         "story_not_found",
         "scenario_unreachable",
+        "invalid_component",
+        "story_identity_mismatch",
+        "story_not_passed",
         "capture_failed",
         "binding_error",
         "kernel_runtime",
@@ -93,7 +103,7 @@
         "no_governed_binding"
       ]
     },
-    "evidence": "BAS capture envelopes and baseline keys"
+    "evidence": "BAS execution identity, requested harness URL, story readiness/result identity, screenshot/DOM artifacts, and isolated-story baseline keys"
   },
   "budget": {
     "wall_ms": 120000,

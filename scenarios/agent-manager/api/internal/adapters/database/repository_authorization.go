@@ -25,6 +25,7 @@ type authorizationRecord struct {
 	NotificationSnapshot    *domain.AuthorizationNotificationSnapshot `json:"notification_snapshot,omitempty"`
 	NotificationPublishedAt *time.Time                                `json:"notification_published_at,omitempty"`
 	NotificationUnreached   string                                    `json:"notification_unreached,omitempty"`
+	RequesterContext        *domain.AuthorizationRequesterContext     `json:"requester_context,omitempty"`
 }
 
 func encodeAuthorization(g *domain.AuthorizationGrant) ([]byte, error) {
@@ -35,6 +36,7 @@ func encodeAuthorization(g *domain.AuthorizationGrant) ([]byte, error) {
 		NotificationSnapshot:    g.NotificationSnapshot,
 		NotificationPublishedAt: g.NotificationPublishedAt,
 		NotificationUnreached:   g.NotificationUnreached,
+		RequesterContext:        g.RequesterContext,
 	})
 }
 func decodeAuthorization(body string) (*domain.AuthorizationGrant, error) {
@@ -49,6 +51,7 @@ func decodeAuthorization(body string) (*domain.AuthorizationGrant, error) {
 	record.Grant.NotificationSnapshot = record.NotificationSnapshot
 	record.Grant.NotificationPublishedAt = record.NotificationPublishedAt
 	record.Grant.NotificationUnreached = record.NotificationUnreached
+	record.Grant.RequesterContext = record.RequesterContext
 	return record.Grant, nil
 }
 func (r *authorizationRepository) Create(ctx context.Context, g *domain.AuthorizationGrant) error {
@@ -135,6 +138,7 @@ func (r *authorizationRepository) Replace(ctx context.Context, g *domain.Authori
 		g.NotificationSnapshot = current.NotificationSnapshot
 		g.NotificationPublishedAt = current.NotificationPublishedAt
 		g.NotificationUnreached = current.NotificationUnreached
+		g.RequesterContext = current.RequesterContext
 		body, err := encodeAuthorization(g)
 		if err != nil {
 			return false, err
@@ -156,6 +160,13 @@ func (r *authorizationRepository) Replace(ctx context.Context, g *domain.Authori
 // same pending grant body is current. Comparing the full encoded wrapper makes
 // this a generation-safe CAS without allowing a receipt to overwrite approval,
 // revocation, or supersession.
+func sameRequesterContext(a, b *domain.AuthorizationRequesterContext) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return a.BigPicture == b.BigPicture && a.TechnicalDetails == b.TechnicalDetails
+}
+
 func (r *authorizationRepository) UpdateNotification(ctx context.Context, expected, next *domain.AuthorizationGrant) (bool, error) {
 	if expected == nil || next == nil || expected.ID == uuid.Nil || next.ID != expected.ID || expected.State != domain.AuthorizationPending || next.State != domain.AuthorizationPending {
 		return false, errors.New("notification update requires one pending authorization generation")
@@ -168,7 +179,7 @@ func (r *authorizationRepository) UpdateNotification(ctx context.Context, expect
 	if err != nil {
 		return false, err
 	}
-	if string(expectedPublic) != string(nextPublic) || expected.ClaimsJSON != next.ClaimsJSON || expected.TokenHash != next.TokenHash {
+	if string(expectedPublic) != string(nextPublic) || expected.ClaimsJSON != next.ClaimsJSON || expected.TokenHash != next.TokenHash || !sameRequesterContext(expected.RequesterContext, next.RequesterContext) {
 		return false, errors.New("notification update cannot change authorization terms or authority")
 	}
 	expectedBody, err := encodeAuthorization(expected)

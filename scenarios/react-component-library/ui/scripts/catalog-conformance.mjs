@@ -221,6 +221,7 @@ function catalogFiles() {
     .flatMap((assetRoot) =>
       readdirSync(assetRoot, { withFileTypes: true })
         .filter((entry) => entry.isDirectory() && entry.name !== "shared")
+        .filter((entry) => existsSync(path.join(assetRoot, entry.name, "component.json")))
         .filter((entry) => scopedAssets.size === 0 || scopedAssets.has(entry.name))
         .flatMap((entry) => versionPaths(path.join(assetRoot, entry.name, "component.json"))),
     )

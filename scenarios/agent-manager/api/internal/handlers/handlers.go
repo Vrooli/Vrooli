@@ -512,6 +512,7 @@ func parseTaskStatus(raw string) (domain.TaskStatus, bool) {
 	case domain.TaskStatusQueued,
 		domain.TaskStatusRunning,
 		domain.TaskStatusNeedsReview,
+		domain.TaskStatusCompleted,
 		domain.TaskStatusApproved,
 		domain.TaskStatusRejected,
 		domain.TaskStatusFailed,

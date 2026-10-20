@@ -1,5 +1,5 @@
 import { forwardRef } from "react";
-import { InkMark } from "@vrooli/react-component-library/ProvenanceInk/0.1.2";
+import { InkMark } from "@vrooli/react-component-library/ProvenanceInk/0.1.3";
 import { RollingNumber } from "@vrooli/react-component-library/RollingNumber/0.1.6";
 import type { Constellation } from "../lib/api";
 import { displayFormat } from "../lib/format";

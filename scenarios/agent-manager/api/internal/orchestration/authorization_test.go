@@ -5,16 +5,21 @@ package orchestration
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
+
+	"github.com/google/uuid"
 	"time"
 
 	"agent-manager/internal/adapters/database"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration/testutil"
+	"agent-manager/internal/repository"
 
 	"github.com/vrooli/api-core/authn"
 	requestidentity "github.com/vrooli/api-core/identity"
@@ -236,5 +241,149 @@ func TestAuthorizationReviewAllowsDaysAwayAndStartsAuthorityAtApproval(t *testin
 				t.Fatal("time awaiting review consumed the approved permission lifetime")
 			}
 		})
+	}
+}
+
+func TestLocalOwnerEligibilityBrokerExcludesActiveRunPeers(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		mode domain.ExecutionMode
+	}{
+		{name: "attached exact root", mode: domain.ExecutionModeAttached},
+		{name: "managed exact root", mode: domain.ExecutionModeCodecPipe},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			db, cleanup := testutil.SetupTestDB(t)
+			t.Cleanup(cleanup)
+			repos, events, _ := testutil.SetupTestReposWithDB(t, db)
+			run := &domain.Run{ID: uuid.New(), Status: domain.RunStatusRunning, Phase: domain.RunPhaseExecuting, RunnerPID: os.Getpid(), ExecutionMode: tc.mode, ApprovalState: domain.ApprovalStateNone}
+			if err := repos.Runs.Create(ctx, run); err != nil {
+				t.Fatal(err)
+			}
+			o := New(nil, nil, repos.Runs, WithEvents(events), WithIdentitySecret([]byte("local-owner-test-secret")))
+			response := localOwnerEligibilityResponse(t, o, ctx)
+			if response.StatusCode != http.StatusForbidden {
+				t.Fatalf("active %s peer eligibility status=%d, want refusal", tc.mode, response.StatusCode)
+			}
+			response.Body.Close()
+		})
+	}
+
+	t.Run("unbound ordinary process gets explicit empty result", func(t *testing.T) {
+		ctx := context.Background()
+		db, cleanup := testutil.SetupTestDB(t)
+		t.Cleanup(cleanup)
+		repos, events, _ := testutil.SetupTestReposWithDB(t, db)
+		o := New(nil, nil, repos.Runs, WithEvents(events), WithIdentitySecret([]byte("local-owner-test-secret")))
+		response := localOwnerEligibilityResponse(t, o, ctx)
+		defer response.Body.Close()
+		if response.StatusCode != http.StatusNoContent {
+			t.Fatalf("unbound ordinary process eligibility status=%d, want explicit 204", response.StatusCode)
+		}
+	})
+
+	t.Run("managed root refuses descendant peer", func(t *testing.T) {
+		ctx := context.Background()
+		db, cleanup := testutil.SetupTestDB(t)
+		t.Cleanup(cleanup)
+		repos, events, _ := testutil.SetupTestReposWithDB(t, db)
+		run := &domain.Run{ID: uuid.New(), Status: domain.RunStatusRunning, Phase: domain.RunPhaseExecuting, RunnerPID: os.Getpid(), ExecutionMode: domain.ExecutionModeCodecPipe, ApprovalState: domain.ApprovalStateNone}
+		if err := repos.Runs.Create(ctx, run); err != nil {
+			t.Fatal(err)
+		}
+		o := New(nil, nil, repos.Runs, WithEvents(events), WithIdentitySecret([]byte("local-owner-test-secret")))
+		dir, err := os.MkdirTemp("", "am-local-owner-child-")
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = os.RemoveAll(dir) })
+		if err := os.Chmod(dir, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		socket := filepath.Join(dir, "identity.sock")
+		stop, err := o.startAuthorizationBrokerAt(socket)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = stop() })
+		cmd := exec.Command(os.Args[0], "-test.run=^TestLocalOwnerEligibilityBrokerChild$")
+		cmd.Env = append(os.Environ(), "AM_LOCAL_OWNER_CHILD_SOCKET="+socket)
+		if _, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("managed descendant did not fail closed: %v", err)
+		}
+	})
+
+	t.Run("run lookup failure is not absence", func(t *testing.T) {
+		ctx := context.Background()
+		db, cleanup := testutil.SetupTestDB(t)
+		t.Cleanup(cleanup)
+		repos, events, _ := testutil.SetupTestReposWithDB(t, db)
+		o := New(nil, nil, failingRunList{RunRepository: repos.Runs}, WithEvents(events), WithIdentitySecret([]byte("local-owner-test-secret")))
+		response := localOwnerEligibilityResponse(t, o, ctx)
+		defer response.Body.Close()
+		if response.StatusCode != http.StatusForbidden {
+			t.Fatalf("unavailable run lookup eligibility status=%d, want refusal", response.StatusCode)
+		}
+	})
+}
+
+type failingRunList struct{ repository.RunRepository }
+
+func (f failingRunList) List(context.Context, repository.RunListFilter) ([]*domain.Run, error) {
+	return nil, errors.New("run registry unavailable")
+}
+
+func localOwnerEligibilityResponse(t *testing.T, o *Orchestrator, ctx context.Context) *http.Response {
+	t.Helper()
+	dir, err := os.MkdirTemp("", "am-local-owner-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	if err := os.Chmod(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	socket := filepath.Join(dir, "identity.sock")
+	stop, err := o.startAuthorizationBrokerAt(socket)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = stop() })
+	transport := &http.Transport{DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+		return (&net.Dialer{}).DialContext(ctx, "unix", socket)
+	}}
+	t.Cleanup(transport.CloseIdleConnections)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://local-agent-manager/credential?purpose=local_owner_eligibility", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response, err := (&http.Client{Transport: transport}).Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return response
+}
+
+func TestLocalOwnerEligibilityBrokerChild(t *testing.T) {
+	socket := os.Getenv("AM_LOCAL_OWNER_CHILD_SOCKET")
+	if socket == "" {
+		return
+	}
+	transport := &http.Transport{DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+		return (&net.Dialer{}).DialContext(ctx, "unix", socket)
+	}}
+	defer transport.CloseIdleConnections()
+	req, err := http.NewRequest(http.MethodGet, "http://local-agent-manager/credential?purpose=local_owner_eligibility", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := (&http.Client{Transport: transport}).Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("child peer eligibility status=%d, want refusal", resp.StatusCode)
 	}
 }

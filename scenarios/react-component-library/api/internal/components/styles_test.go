@@ -24,6 +24,16 @@ func TestLoadDesignStylesSkipsReservedSharedDirectories(t *testing.T) {
 	require.Equal(t, "demo", styles[0].ID)
 }
 
+func TestLoadDesignStylesRejectsMalformedMetadata(t *testing.T) {
+	root := t.TempDir()
+	designDirectory := filepath.Join(root, "broken")
+	require.NoError(t, os.MkdirAll(designDirectory, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(designDirectory, "metadata.json"), []byte("{"), 0o644))
+
+	_, err := components.LoadDesignStyles(context.Background(), root)
+	require.ErrorContains(t, err, `parse design metadata "broken"`)
+}
+
 func TestLoadDesignStylesLoadsCanonicalTemplates(t *testing.T) {
 	styles, err := components.LoadDesignStyles(context.Background(), "../../../../../templates/design")
 	require.NoError(t, err)
@@ -35,10 +45,38 @@ func TestLoadDesignStylesLoadsCanonicalTemplates(t *testing.T) {
 		require.NotEmpty(t, style.Supports)
 	}
 	require.ElementsMatch(t, []string{
+		"switchboard-console",
 		"vrooli-command-display",
 		"vrooli-conversion-landing",
 		"vrooli-default",
 	}, ids)
+}
+
+func TestListDesignStylesFindsCanonicalTemplatesFromNestedWorkingDirectory(t *testing.T) {
+	originalWorkingDirectory, err := os.Getwd()
+	require.NoError(t, err)
+	temporaryDirectory, err := os.MkdirTemp(originalWorkingDirectory, ".trimpath-design-root-*")
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, os.RemoveAll(temporaryDirectory))
+	})
+	t.Cleanup(func() {
+		require.NoError(t, os.Chdir(originalWorkingDirectory))
+	})
+	nestedWorkingDirectory := filepath.Join(temporaryDirectory, "one", "two", "three", "four", "five")
+	require.NoError(t, os.MkdirAll(nestedWorkingDirectory, 0o755))
+	require.NoError(t, os.Chdir(nestedWorkingDirectory))
+
+	styles, err := components.NewService(nil).ListDesignStyles(context.Background())
+	require.NoError(t, err)
+	var hasDefaultStyle bool
+	for _, style := range styles {
+		if style.ID == "vrooli-default" {
+			hasDefaultStyle = true
+			break
+		}
+	}
+	require.True(t, hasDefaultStyle)
 }
 
 func TestServiceValidateDesignStyleRejectsUnknownID(t *testing.T) {

@@ -8,4 +8,14 @@
 
 **Delivery.** Orchestrated epochs per `large-effort-orchestration`: Luna-high orchestrator, one Luna-medium worker per epoch, rare Sol supervision. Refactor epochs replace and delete whole duplicate concepts; feature growth needs an admission budget. Never trade away correctness, accessibility or recovery for a green metric.
 
+For an implementation assignment, keep the coherent change, focused self-validation
+and handoff in one worker goal when the required lane is available. Independent
+review and epoch acceptance remain separate. If an external lane is held, record
+the exact pending check and return condition, preserve the worker's source/evidence
+handoff, and resume that same work when practical instead of issuing a fresh goal
+only to repeat context or run one deferred command. Source-only completion remains
+a bounded task result, not a claim that the epoch is delivered or accepted. Judge
+short goals by useful output, validation, handoff cost and parent use—not duration.
+No minimum session or token target applies.
+
 **Acceptance and design.** [TARGETS.md](TARGETS.md) owns scope, journeys, evidence and closeout. [QUEUE.md](QUEUE.md) owns delivery state. [FEEDBACK.md](FEEDBACK.md), [WORKAROUNDS.md](WORKAROUNDS.md), [INSTALLS.md](INSTALLS.md), [epochs/](epochs/) support execution. [History](HISTORY.md) preserves the prior campaign. Requirements: `requirements/25-rehabilitation/module.json`; design intent: [DESIGN.md](../../../DESIGN.md).

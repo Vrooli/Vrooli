@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, screen } from "@testing-library/react";
+import { cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
+import { componentsClient } from "../../api/components";
 import { renderWithProviders } from "../../test-utils";
 import { ThemeSwitcher, type PreviewKit } from "./ThemeSwitcher";
 import { selectors } from "../../consts/selectors";
@@ -64,18 +65,26 @@ describe("ThemeSwitcher", () => {
     const user = userEvent.setup();
     renderWithProviders(<Harness setKit={setKit} />);
     await user.click(screen.getByTestId(selectors.components.themeSwitcher.appearanceToggle));
-    await user.selectOptions(
-      screen.getByTestId(selectors.components.themeSwitcher.kitSelect),
-      "vrooli-command-display",
-    );
+    await user.click(screen.getByTestId(selectors.components.themeSwitcher.kitSelect));
+    const commandDisplay = await screen.findByRole("option", { name: "Vrooli Command Display" });
+    await user.click(commandDisplay);
     expect(setKit).toHaveBeenCalledWith("vrooli-command-display");
   });
 
   it("renders kits returned by the design-style registry", async () => {
+    const setKit = vi.fn();
     const user = userEvent.setup();
-    renderWithProviders(<Harness />);
+    renderWithProviders(<Harness setKit={setKit} />);
     await user.click(screen.getByTestId(selectors.components.themeSwitcher.appearanceToggle));
-    expect(await screen.findByRole("option", { name: "Registry Fixture" })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(componentsClient.listDesignStyles).toHaveBeenCalledWith({});
+    });
+    await user.click(screen.getByTestId(selectors.components.themeSwitcher.kitSelect));
+    const registryFixture = await screen.findByRole("option", { name: "Registry Fixture" });
+    expect(registryFixture).toBeInTheDocument();
+    await user.click(registryFixture);
+
+    expect(setKit).toHaveBeenCalledWith("registry-fixture");
   });
 
   it("keeps light and dark as the explicit mode controls", async () => {

@@ -159,6 +159,7 @@ func (o *Orchestrator) RaiseAuthorizationApproval(ctx context.Context, req Autho
 		RaisedAt:          now.UTC(),
 		ExpiresAt:         now.Add(pendingAuthorizationWindow).UTC(),
 	}
+	pending.DecisionBigPicture, pending.DecisionTechnicalDetails = authorizationDecisionContext(pending)
 	pending.EventID = operatordecision.EventID(o.authorizationDecisionEvent(ctx, pending))
 	if err := o.pendingAuthorizations.Put(ctx, pending); err != nil {
 		return false, err
@@ -192,6 +193,27 @@ func (o *Orchestrator) publishAuthorizationDecision(ctx context.Context, pending
 // without raising another operator notification.
 var ErrAuthorizationFlood = fmt.Errorf("too many outstanding authorization requests for this subject")
 
+// authorizationDecisionContext explains the effect and exact bounds available
+// from the durable request. It does not invent a caller-specific business reason.
+func authorizationDecisionContext(p *domain.PendingAuthorizationRequest) (string, string) {
+	if p == nil {
+		return "", ""
+	}
+	bigPicture := "The verified caller lacks a covering grant for this operation. Approval creates only the permission described here; it does not execute the requested operation. Rejection issues no grant from this request; existing grants are unaffected."
+	concurrency := "no concurrency limit"
+	if p.MaxConcurrentRuns > 0 {
+		concurrency = fmt.Sprintf("at most %d concurrent runs", p.MaxConcurrentRuns)
+	}
+	technical := fmt.Sprintf(
+		"Subject: %s\nOperation: %s\nTarget: %s\nGrant kind: %s\nGrant lifetime: %s\nConcurrency: %s\nApproval is explicit, owner-attributed, and revocable; no answer issues no grant.",
+		p.Subject, p.Operation, p.Target, p.Kind, humanizeGrantTTL(p.GrantTTL), concurrency,
+	)
+	if p.SessionID != "" {
+		technical += "\nGrant scope: session-scoped."
+	}
+	return bigPicture, technical
+}
+
 // authorizationDecisionEvent builds the operator Ask. The question states
 // exactly what a one-tap approve grants — the grant KIND, subject, bounds and
 // expiry — so the operator can never approve more than they can see.
@@ -217,8 +239,10 @@ func (o *Orchestrator) authorizationDecisionEvent(ctx context.Context, p *domain
 	}
 
 	facts := operatordecision.Facts{
-		Subject:  subjectLine,
-		Question: question,
+		Subject:          subjectLine,
+		Question:         question,
+		BigPicture:       p.DecisionBigPicture,
+		TechnicalDetails: p.DecisionTechnicalDetails,
 		Options: []operatordecision.Option{
 			{Key: "approve", Label: "Approve grant"},
 			{Key: "reject", Label: "Reject"},

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"react-component-library/internal/librarywalk"
 )
@@ -26,11 +27,12 @@ func ValidateDependencyRank(scope Scope) (Result, error) {
 		}
 		var manifest struct {
 			LibraryID string `json:"libraryId"`
+			AssetKind string `json:"assetKind"`
 		}
 		if err := json.Unmarshal(raw, &manifest); err != nil {
 			return Result{}, err
 		}
-		kind := filepath.Base(filepath.Dir(filepath.Dir(manifestPath)))
+		kind := rankKindForManifest(manifestPath, manifest.AssetKind)
 		byLibraryID[manifest.LibraryID] = assetRank{rank: rankByKind[kind], kind: kind}
 	}
 	locks, _ := librarywalk.Glob(filepath.Join(libraryRoot, "*", "*", "versions", "*", "dependencies.json"))
@@ -91,4 +93,15 @@ func ValidateDependencyRank(scope Scope) (Result, error) {
 		}
 	}
 	return nonEmpty(result, "dependency-rank"), nil
+}
+
+func rankKindForManifest(manifestPath, declaredKind string) string {
+	storageKind := filepath.Base(filepath.Dir(filepath.Dir(manifestPath)))
+	// GestureTokens is an explicitly declared foundation retained in the
+	// components root during its migration. The indexer honors this declared
+	// kind; composition rank must use the same semantic classification.
+	if storageKind == "components" && strings.EqualFold(strings.TrimSpace(declaredKind), "foundation") {
+		return "foundations"
+	}
+	return storageKind
 }

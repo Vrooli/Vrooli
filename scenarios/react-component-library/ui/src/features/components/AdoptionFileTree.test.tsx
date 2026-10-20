@@ -157,7 +157,7 @@ describe("AdoptionFileTree", () => {
     expect(seam).toHaveTextContent("react-vite");
   });
 
-  it("offers a template <select> and reports the choice when multiple templates exist", async () => {
+  it("offers an accessible template picker and reports the choice when multiple templates exist", async () => {
     vi.mocked(adoptionsClient.resolveAdoptionPath).mockResolvedValue(drawerShellResolved as never);
     const onSelectTemplate = vi.fn();
     renderTree({
@@ -172,10 +172,11 @@ describe("AdoptionFileTree", () => {
     // the initial fallback and resolved tree each render the seam.
     await screen.findByTestId(selectors.components.editor.fileTree);
     const seam = await screen.findByTestId(selectors.components.editor.templateSelect);
-    expect(seam.tagName).toBe("SELECT");
+    expect(seam.tagName).toBe("BUTTON");
 
     const user = userEvent.setup();
-    await user.selectOptions(seam, "next-app");
+    await user.click(seam);
+    await user.click(await screen.findByRole("option", { name: "next-app" }));
     expect(onSelectTemplate).toHaveBeenCalledWith("next-app");
   });
 

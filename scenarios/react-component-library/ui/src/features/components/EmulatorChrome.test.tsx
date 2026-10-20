@@ -75,8 +75,9 @@ describe("EmulatorChrome", () => {
     const user = userEvent.setup();
     renderWithProviders(<Harness />);
     await openViewport(user);
-    const zoom = screen.getByTestId<HTMLSelectElement>(selectors.components.emulator.zoomValue);
-    await user.selectOptions(zoom, "0.9");
+    const zoom = screen.getByTestId(selectors.components.emulator.zoomValue);
+    await user.click(zoom);
+    await user.click(await screen.findByRole("option", { name: /90%/ }));
     expect(window.localStorage.getItem(DEVICE_EMULATION_STORAGE_KEY)).toContain("0.9");
     expect(screen.getByTestId(selectors.components.emulator.viewport).style.transform).toContain(
       "scale(0.9)",

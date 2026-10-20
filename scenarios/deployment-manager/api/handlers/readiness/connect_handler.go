@@ -222,23 +222,39 @@ func (h *ConnectHandler) ApproveReview(ctx context.Context, req *connect.Request
 	if req == nil || req.Msg == nil || req.Msg.Identity == nil || req.Msg.ReviewKey == "" {
 		return nil, invalid(errors.New("review_key and identity are required"))
 	}
-	review, err := h.repo.Get(ctx, req.Msg.ReviewKey)
-	if err != nil {
-		return nil, internal(err)
+	if err := h.approveReviewCore(ctx, req.Msg.ReviewKey, toDomainIdentity(req.Msg.Identity), actor); err != nil {
+		return nil, err
 	}
-	identity := toDomainIdentity(req.Msg.Identity)
-	canonical, err := identity.Canonical()
+	return h.response(ctx, req.Msg.ReviewKey)
+}
+
+// approveReviewCore is the artifact-bound re-validation + approval path shared by
+// the synchronous ApproveReview RPC and the ask-don't-block resolution webhook.
+// It re-reads the stored review, refuses unless the supplied identity canonically
+// hashes to exactly that review (so a replay or artifact mismatch cannot ship a
+// different artifact), re-runs the current-evidence + goal-closure validation,
+// and only then records the approval under approvedBy — the VERIFIED HUMAN
+// subject, never the requesting agent. Returned errors are already connect-coded.
+func (h *ConnectHandler) approveReviewCore(ctx context.Context, reviewKey string, requestIdentity readiness.ReviewIdentity, approvedBy string) error {
+	review, err := h.repo.Get(ctx, reviewKey)
+	if err != nil {
+		return internal(err)
+	}
+	if review == nil {
+		return failed(errors.New("readiness review was not found"))
+	}
+	canonical, err := requestIdentity.Canonical()
 	canonicalKey, keyErr := canonical.Key()
 	if err != nil || keyErr != nil || canonicalKey != review.Key {
-		return nil, failed(errors.New("approval identity does not exactly match the stored review"))
+		return failed(errors.New("approval identity does not exactly match the stored review"))
 	}
 	if err := h.revalidate(ctx, review); err != nil {
-		return nil, failed(err)
+		return failed(err)
 	}
-	if err := h.repo.Approve(ctx, review.Key, canonical, actor, h.now().UTC()); err != nil {
-		return nil, failed(err)
+	if err := h.repo.Approve(ctx, review.Key, canonical, approvedBy, h.now().UTC()); err != nil {
+		return failed(err)
 	}
-	return h.response(ctx, review.Key)
+	return nil
 }
 
 func (h *ConnectHandler) CreateWaiver(ctx context.Context, req *connect.Request[readinessv1.CreateWaiverRequest]) (*connect.Response[readinessv1.ReviewResponse], error) {

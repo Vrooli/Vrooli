@@ -700,7 +700,14 @@ func TestContinueRun_ResumeFailureDoesNotMarkRunRunning(t *testing.T) {
 		EndedAt:        &now,
 		ResolvedConfig: &domain.RunConfig{
 			RunnerType:    domain.RunnerTypeClaudeCode,
-			SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected},
+			Model:         "mock-model",
+			RoleRef:       "code.default",
+			NetworkAccess: domain.NetworkAccessNone,
+			SandboxConfig: &domain.SandboxConfig{
+				Mode:        domain.SandboxModeProtected,
+				NetworkMode: domain.NetworkAccessNone,
+				WritePolicy: &domain.WorkspaceWritePolicy{Paths: []string{"src"}},
+			},
 		},
 		ApprovalState: domain.ApprovalStateNone,
 		CreatedAt:     now,
@@ -756,4 +763,150 @@ func waitForStatusEvents(t *testing.T, ctx context.Context, store event.Store, r
 	}
 	t.Fatalf("expected %d status events, got %d", count, len(events))
 	return nil
+}
+
+func TestContinueRun_ReplacesEachDeletedSandboxIncarnation(t *testing.T) {
+	ctx := context.Background()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+
+	oldSandboxID := uuid.New()
+	firstReplacementID := uuid.New()
+	secondReplacementID := uuid.New()
+	statuses := map[uuid.UUID]sandbox.SandboxStatus{
+		oldSandboxID: sandbox.SandboxStatusDeleted,
+	}
+	createdByKey := map[string]*sandbox.Sandbox{}
+	provider := mocks.NewFakeSandboxProvider()
+	provider.GetFunc = func(_ context.Context, id uuid.UUID) (*sandbox.Sandbox, error) {
+		return &sandbox.Sandbox{ID: id, Status: statuses[id], WorkDir: "/tmp/sandbox/" + id.String() + "/merged"}, nil
+	}
+	provider.CreateFunc = func(_ context.Context, req sandbox.CreateRequest) (*sandbox.Sandbox, error) {
+		if existing := createdByKey[req.IdempotencyKey]; existing != nil {
+			// Model the provider's authoritative current status on idempotent
+			// replay. A deleted resource remains deleted; the stale object stored
+			// at initial Create must not make a tombstone look active.
+			existing.Status = statuses[existing.ID]
+			return existing, nil
+		}
+		var id uuid.UUID
+		switch len(createdByKey) {
+		case 0:
+			id = firstReplacementID
+		case 1:
+			id = secondReplacementID
+		default:
+			t.Fatalf("unexpected extra replacement create for key %q", req.IdempotencyKey)
+		}
+		created := &sandbox.Sandbox{ID: id, Status: sandbox.SandboxStatusActive, WorkDir: "/tmp/sandbox/" + id.String() + "/merged"}
+		createdByKey[req.IdempotencyKey] = created
+		statuses[id] = sandbox.SandboxStatusActive
+		return created, nil
+	}
+
+	continueSandboxIDs := make(chan uuid.UUID, 2)
+	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	mockRunner.SetAvailable(true, "available")
+	mockRunner.SetCapabilities(runner.Capabilities{
+		SupportsContinuation: true,
+		SupportedModels:      []string{"mock-model"},
+	})
+	mockRunner.ContinueFunc = func(_ context.Context, req runner.ContinueRequest) (*runner.ExecuteResult, error) {
+		if req.SandboxID == nil {
+			return nil, errors.New("sandboxed continuation lost its sandbox ID")
+		}
+		continueSandboxIDs <- *req.SandboxID
+		return &runner.ExecuteResult{Success: true, ExitCode: 0, SessionID: "session-incarnation"}, nil
+	}
+	registry := runner.NewRegistry()
+	mustRegisterRunner(t, registry, mockRunner)
+
+	svc := orchestration.New(
+		repos.Profiles,
+		repos.Tasks,
+		repos.Runs,
+		orchestration.WithEvents(eventStore),
+		orchestration.WithRunners(registry),
+		orchestration.WithSandbox(provider),
+		orchestration.WithRunStateRoot(t.TempDir()),
+		newTestRolePolicyOption(t),
+	)
+	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
+		Name:          "deleted-sandbox-continuation-profile",
+		ProfileKey:    "deleted-sandbox-continuation-" + uuid.New().String()[:8],
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected}, RoleRef: "code.default",
+	})
+	task := mustCreateTask(t, svc, ctx, &domain.Task{
+		Title: "deleted sandbox continuation task", ScopePath: "src/", ProjectRoot: t.TempDir(),
+	})
+	now := time.Now()
+	runID := uuid.New()
+	run := &domain.Run{
+		ID: runID, TaskID: task.ID, AgentProfileID: &profile.ID, Tag: runID.String(),
+		RunMode: domain.RunModeSandboxed, SandboxID: &oldSandboxID,
+		Status: domain.RunStatusComplete, Phase: domain.RunPhaseCompleted,
+		SessionID: "session-incarnation", StartedAt: &now, EndedAt: &now,
+		ResolvedConfig: &domain.RunConfig{
+			RunnerType:    domain.RunnerTypeClaudeCode,
+			Model:         "mock-model",
+			RoleRef:       "code.default",
+			NetworkAccess: domain.NetworkAccessNone,
+			SandboxConfig: &domain.SandboxConfig{
+				Mode:        domain.SandboxModeProtected,
+				NetworkMode: domain.NetworkAccessNone,
+				WritePolicy: &domain.WorkspaceWritePolicy{Paths: []string{"src"}},
+			},
+		},
+		ApprovalState: domain.ApprovalStateNone, CreatedAt: now, UpdatedAt: now,
+	}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatalf("create run: %v", err)
+	}
+
+	continueOnce := func(wantSandboxID uuid.UUID, wantStatusEvents int) {
+		t.Helper()
+		if _, err := svc.ContinueRun(ctx, orchestration.ContinueRunRequest{RunID: runID, Message: "continue safely"}); err != nil {
+			t.Fatalf("ContinueRun: %v", err)
+		}
+		select {
+		case got := <-continueSandboxIDs:
+			if got != wantSandboxID {
+				t.Fatalf("runner sandbox ID = %s, want %s", got, wantSandboxID)
+			}
+		case <-time.After(10 * time.Second):
+			t.Fatal("runner continuation was not dispatched")
+		}
+		waitForStatusEvents(t, ctx, eventStore, runID, wantStatusEvents)
+		deadline := time.Now().Add(2 * time.Second)
+		var current *domain.Run
+		var err error
+		for time.Now().Before(deadline) {
+			current, err = repos.Runs.Get(ctx, runID)
+			if err != nil {
+				t.Fatalf("read run after continuation: %v", err)
+			}
+			if current.FinalizationStatus == domain.RunFinalizationStatusSucceeded || current.FinalizationStatus == domain.RunFinalizationStatusSkipped {
+				break
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+		if current == nil || (current.FinalizationStatus != domain.RunFinalizationStatusSucceeded && current.FinalizationStatus != domain.RunFinalizationStatusSkipped) {
+			t.Fatalf("continuation finalization = %q, want succeeded or skipped", current.FinalizationStatus)
+		}
+		if current.Status != domain.RunStatusComplete || current.SandboxID == nil || *current.SandboxID != wantSandboxID {
+			t.Fatalf("run after continuation = status %s sandbox %v; want complete on %s", current.Status, current.SandboxID, wantSandboxID)
+		}
+	}
+
+	continueOnce(firstReplacementID, 2)
+	statuses[firstReplacementID] = sandbox.SandboxStatusDeleted
+	continueOnce(secondReplacementID, 4)
+
+	requests := provider.CreateRequests()
+	if len(requests) != 2 {
+		t.Fatalf("sandbox create requests = %d, want 2", len(requests))
+	}
+	if requests[0].IdempotencyKey == "" || requests[1].IdempotencyKey == "" || requests[0].IdempotencyKey == requests[1].IdempotencyKey {
+		t.Fatalf("successive deleted sandbox incarnations must use distinct non-empty create keys: %q %q", requests[0].IdempotencyKey, requests[1].IdempotencyKey)
+	}
 }

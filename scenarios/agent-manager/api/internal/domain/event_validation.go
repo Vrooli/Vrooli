@@ -128,6 +128,18 @@ func validateMetricEvent(evt *RunEvent) {
 	log.Printf("[WARN] metric event has unexpected data type: %T (runID=%s)", evt.Data, evt.RunID)
 }
 
+// IsOperationalErrorEvent reports whether an error-typed event represents an
+// operational failure. Provider quota frames below 100% are observations, not
+// failures; exhausted and unquantified rate-limit events retain their existing
+// error meaning.
+func IsOperationalErrorEvent(evt *RunEvent) bool {
+	if evt == nil || evt.EventType != EventTypeError {
+		return false
+	}
+	quota, isQuota := evt.Data.(*RateLimitEventData)
+	return !isQuota || quota == nil || quota.UsedPercent == nil || *quota.UsedPercent >= 100
+}
+
 // EventValidationStats tracks validation statistics for a set of events.
 type EventValidationStats struct {
 	TotalEvents     int
@@ -185,7 +197,7 @@ func ValidateEvents(events []*RunEvent) EventValidationStats {
 			// for compatibility. A provider-reported percentage below 100 is
 			// an observation frame, not throttling; exhausted/amount-unknown
 			// limit events retain their historical error classification.
-			if quota, quotaObservation := evt.Data.(*RateLimitEventData); !quotaObservation || quota.UsedPercent == nil || *quota.UsedPercent >= 100 {
+			if IsOperationalErrorEvent(evt) {
 				stats.ErrorCount++
 			}
 		case EventTypeLog:

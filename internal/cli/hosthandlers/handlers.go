@@ -473,15 +473,30 @@ func runHostInventory(runCtx cliapp.RunContext, parent *rootcli.CommandContext) 
 }
 
 func runDesktopSession(runCtx cliapp.RunContext, parent *rootcli.CommandContext) error {
-	peerPID := 0
-	if raw := runCtx.Flag("peer-pid"); raw != "" {
-		value, err := strconv.Atoi(raw)
-		if err != nil || value < 0 {
-			return fmt.Errorf("peer-pid must be a non-negative integer")
-		}
-		peerPID = value
+	sessionID := strings.TrimSpace(runCtx.Flag("session-id"))
+	if sessionID == "" {
+		return rootcli.UsageErrorf("host desktop-session", "--session-id is required")
 	}
-	facts, err := (hostapp.Service{}).InspectDesktopSession(parent.OperationContext(), runCtx.Flag("session-id"), peerPID)
+	peerRaw, displayRaw := strings.TrimSpace(runCtx.Flag("peer-pid")), strings.TrimSpace(runCtx.Flag("display"))
+	if (peerRaw == "") == (displayRaw == "") {
+		return rootcli.UsageErrorf("host desktop-session", "exactly one of --peer-pid or --display is required")
+	}
+	var facts hostinventory.DesktopSessionFacts
+	var err error
+	service := hostapp.Service{}
+	if displayRaw != "" {
+		display, parseErr := strconv.ParseUint(displayRaw, 10, 16)
+		if parseErr != nil {
+			return rootcli.UsageErrorf("host desktop-session", "--display must be an integer from 0 through 65535")
+		}
+		facts, err = service.InspectDesktopSessionDisplay(parent.OperationContext(), sessionID, uint16(display))
+	} else {
+		peerPID, parseErr := strconv.Atoi(peerRaw)
+		if parseErr != nil || peerPID <= 0 {
+			return rootcli.UsageErrorf("host desktop-session", "--peer-pid must be a positive integer")
+		}
+		facts, err = service.InspectDesktopSession(parent.OperationContext(), sessionID, peerPID)
+	}
 	if err != nil {
 		return err
 	}

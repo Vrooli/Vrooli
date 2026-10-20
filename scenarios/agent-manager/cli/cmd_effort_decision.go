@@ -296,6 +296,9 @@ func (a *App) decisionAnswer(args []string) error {
 	}
 	service := a.services.Watches
 	if *localOwner {
+		if err := cliutil.ConfirmLocalOwnerEligible(context.Background()); err != nil {
+			return fmt.Errorf("local owner caller authority unavailable: %w", err)
+		}
 		login, err := authn.ExchangeLocalMachinePrincipal(context.Background())
 		if err != nil {
 			return fmt.Errorf("local owner exchange unavailable: %w", err)

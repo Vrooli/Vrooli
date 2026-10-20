@@ -154,3 +154,7 @@ NICE-TO-HAVE:
 ```
 
 **Verdict**: All CRITICAL items pass. The scenario is **archive-ready** for spec purposes. Remaining gaps are test coverage (IMPORTANT) and doc-code cross-references (NICE-TO-HAVE).
+
+## 2026-10-08 — Disk recovery handoff reliability
+
+Pressure admission retains the recovery run identity and reason and does not claim an effect. The monitor waits once in the background for the terminal receipt; failed waits remain unknown and stale completions cannot overwrite newer runs. Fixed investigation profile-init dependency capture and shutdown cancellation, and corrected four CLI flag bindings. Both contracts and unit phases passed as `20261008-154900-02217b4f`; services passed under the race detector. Final validation receipts are retained in `~/.vrooli/plan-artifacts/disk-investigation-20261008/`.

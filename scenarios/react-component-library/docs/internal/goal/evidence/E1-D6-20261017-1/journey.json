@@ -1,0 +1,858 @@
+{
+  "attempt": "RCL-E1-D6-20261017-1",
+  "run_id": "b3620fb0-f047-47c4-8da1-461ce68bdff0",
+  "task_id": "40a2dcc0-58c1-4fee-9af2-85f90bc04cc9",
+  "browser": "Google Chrome via Playwright Python; ephemeral non-persistent context; 1440x1000 viewport",
+  "ordinary_entry": "http://localhost:23906/",
+  "home_http_status": 200,
+  "heading_result": {
+    "href": "/assets/58114a41-cfee-4299-9947-4a2ef800e769",
+    "text": "Preview pending\nHeading\n1 adoptions"
+  },
+  "final_url": "http://localhost:23906/assets/58114a41-cfee-4299-9947-4a2ef800e769?tab=overview&story=semantic-heading",
+  "detail_tabs": [
+    "Preview",
+    "Overview",
+    "Files",
+    "Versions\n2",
+    "Experience",
+    "Tests",
+    "Relationships"
+  ],
+  "observed_boundary": {
+    "before": "Preview selected and keyboard-focused",
+    "key": "ArrowRight",
+    "after": "Overview selected; focus remains on Preview",
+    "selected_tab_index": "0",
+    "focus_after_arrow": {
+      "tag": "button",
+      "text": "Preview",
+      "role": "tab",
+      "aria": null,
+      "href": null,
+      "placeholder": null,
+      "tabIndex": -1,
+      "focusVisible": true,
+      "outlineStyle": "solid",
+      "outlineWidth": "2px",
+      "outlineColor": "rgb(37, 99, 235)",
+      "boxShadow": "none",
+      "borderColor": "rgb(229, 231, 235)"
+    },
+    "next_tab_focus": {
+      "tag": "button",
+      "text": "Overview",
+      "role": "tab",
+      "aria": null,
+      "href": null,
+      "placeholder": null,
+      "tabIndex": 0,
+      "focusVisible": true,
+      "outlineStyle": "solid",
+      "outlineWidth": "2px",
+      "outlineColor": "rgb(37, 99, 235)",
+      "boxShadow": "none",
+      "borderColor": "rgb(229, 231, 235)"
+    },
+    "shift_tab_focus": {
+      "tag": "button",
+      "text": "Back to list",
+      "role": null,
+      "aria": "Back to list",
+      "href": null,
+      "placeholder": null,
+      "tabIndex": 0,
+      "focusVisible": true,
+      "outlineStyle": "solid",
+      "outlineWidth": "2px",
+      "outlineColor": "rgb(37, 99, 235)",
+      "boxShadow": "none",
+      "borderColor": "rgb(37, 99, 235)"
+    },
+    "conclusion": "No keyboard focus reached Experience; stop without using direct route, DOM focus injection, pointer, or CaptureService."
+  },
+  "focus_events": [
+    {
+      "key": "Tab",
+      "at": "2026-10-17T14:41:13.180747+00:00",
+      "url": "http://localhost:23906/",
+      "selected_tab": "Components",
+      "focus": {
+        "tag": "input",
+        "text": "",
+        "role": null,
+        "aria": null,
+        "href": null,
+        "placeholder": "Search assets",
+        "tabIndex": 0,
+        "focusVisible": true,
+        "outlineStyle": "solid",
+        "outlineWidth": "2px",
+        "outlineColor": "color(srgb 0.145098 0.388235 0.921569 / 0.3)",
+        "boxShadow": "rgba(9, 18, 22, 0.06) 0px 1px 2px 0px, rgba(9, 18, 22, 0.1) 0px 1px 3px 0px",
+        "borderColor": "rgb(37, 99, 235)"
+      }
+    },
+    {
+      "key": "type Heading in Search",
+      "at": "2026-10-17T14:41:13.414121+00:00",
+      "url": "http://localhost:23906/",
+      "selected_tab": "Components",
+      "focus": {
+        "tag": "input",
+        "text": "Heading",
+        "role": null,
+        "aria": null,
+        "href": null,
+        "placeholder": "Search assets",
+        "tabIndex": 0,
+        "focusVisible": true,
+        "outlineStyle": "solid",
+        "outlineWidth": "2px",
+        "outlineColor": "color(srgb 0.145098 0.388235 0.921569 / 0.3)",
+        "boxShadow": "rgba(9, 18, 22, 0.06) 0px 1px 2px 0px, rgba(9, 18, 22, 0.1) 0px 1px 3px 0px",
+        "borderColor": "rgb(37, 99, 235)"
+      }
+    },
+    {
+      "key": "Tab",
+      "at": "2026-10-17T14:41:13.730018+00:00",
+      "url": "http://localhost:23906/",
+      "selected_tab": "Components",
+      "focus": {
+        "tag": "button",
+        "text": "tree",
+        "role": null,
+        "aria": "tree",
+        "href": null,
+        "placeholder": null,
+        "tabIndex": 0,
+        "focusVisible": true,
+        "outlineStyle": "solid",
+        "outlineWidth": "2px",
+        "outlineColor": "rgb(37, 99, 235)",
+        "boxShadow": "oklab(0 0 0 / 0) 0px 0px 0px 0px",
+        "borderColor": "rgba(0, 0, 0, 0)"
+      }
+    },
+    {
+      "key": "Tab",
+      "at": "2026-10-17T14:41:13.736717+00:00",
+      "url": "http://localhost:23906/",
+      "selected_tab": "Components",
+      "focus": {
+        "tag": "button",
+        "text": "list",
+        "role": null,
+        "aria": "list",
+        "href": null,
+        "placeholder": null,
+        "tabIndex": 0,
+        "focusVisible": true,
+        "outlineStyle": "solid",
+        "outlineWidth": "2px",
+        "outlineColor": "rgb(37, 99, 235)",
+        "boxShadow": "oklab(0 0 0 / 0) 0px 0px 0px 0px",
+        "borderColor": "rgba(0, 0, 0, 0)"
+      }
+    },
+    {
+      "key": "Tab",
+      "at": "2026-10-17T14:41:13.742276+00:00",
+      "url": "http://localhost:23906/",
+      "selected_tab": "Components",
+      "focus": {
+        "tag": "button",
+        "text": "cards",
+        "role": null,
+        "aria": "cards",
+        "href": null,
+        "placeholder": null,
+        "tabIndex": 0,
+        "focusVisible": true,
+        "outlineStyle": "solid",
+        "outlineWidth": "2px",
+        "outlineColor": "rgb(37, 99, 235)",
+        "boxShadow": "oklab(0 0 0 / 0) 0px 0px 0px 0px",
+        "borderColor": "rgb(203, 213, 225)"
+      }
+    },
+    {
+      "key": "Tab",
+      "at": "2026-10-17T14:41:13.752413+00:00",
+      "url": "http://localhost:23906/",
+      "selected_tab": "Components",
+      "focus": {
+        "tag": "a",
+        "text": "FormSection\n0 adoptions",
+        "role": null,
+        "aria": null,
+        "href": "http://localhost:23906/assets/6fc13a99-ba85-4977-8d12-c4c99a28922b",
+        "placeholder": null,
+        "tabIndex": 0,
+        "focusVisible": true,
+        "outlineStyle": "solid",
+        "outlineWidth": "3px",
+        "outlineColor": "rgb(15, 23, 42)",
+        "boxShadow": "none",
+        "borderColor": "rgb(203, 213, 225)"
+      }
+    },
+    {
+      "key": "Tab",
+      "at": "2026-10-17T14:41:13.759339+00:00",
+      "url": "http://localhost:23906/",
+      "selected_tab": "Components",
+      "focus": {
+        "tag": "a",
+        "text": "Preview pending\nHeading\n1 adoptions",
+        "role": null,
+        "aria": null,
+        "href": "http://localhost:23906/assets/58114a41-cfee-4299-9947-4a2ef800e769",
+        "placeholder": null,
+        "tabIndex": 0,
+        "focusVisible": true,
+        "outlineStyle": "solid",
+        "outlineWidth": "3px",
+        "outlineColor": "rgb(15, 23, 42)",
+        "boxShadow": "none",
+        "borderColor": "rgb(203, 213, 225)"
+      }
+    },
+    {
+      "key": "Enter activates Heading result",
+      "at": "2026-10-17T14:41:13.781953+00:00",
+      "url": "http://localhost:23906/assets/58114a41-cfee-4299-9947-4a2ef800e769",
+      "selected_tab": "Components",
+      "focus": {
+        "tag": "a",
+        "text": "Preview pending\nHeading\n1 adoptions",
+        "role": null,
+        "aria": null,
+        "href": "http://localhost:23906/assets/58114a41-cfee-4299-9947-4a2ef800e769",
+        "placeholder": null,
+        "tabIndex": 0,
+        "focusVisible": true,
+        "outlineStyle": "solid",
+        "outlineWidth": "3px",
+        "outlineColor": "rgb(15, 23, 42)",
+        "boxShadow": "none",
+        "borderColor": "rgb(203, 213, 225)"
+      }
+    },
+    {
+      "key": "Tab",
+      "at": "2026-10-17T14:41:14.143988+00:00",
+      "url": "http://localhost:23906/assets/58114a41-cfee-4299-9947-4a2ef800e769?story=semantic-heading",
+      "selected_tab": "Preview",
+      "focus": {
+        "tag": "button",
+        "text": "Split view",
+        "role": null,
+        "aria": "Split view",
+        "href": null,
+        "placeholder": null,
+        "tabIndex": 0,
+        "focusVisible": true,
+        "outlineStyle": "solid",
+        "outlineWidth": "2px",
+        "outlineColor": "rgb(37, 99, 235)",
+        "boxShadow": "none",
+        "borderColor": "rgb(37, 99, 235)"
+      }
+    },
+    {
+      "key": "Tab",
+      "at": "2026-10-17T14:41:14.151744+00:00",
+      "url": "http://localhost:23906/assets/58114a41-cfee-4299-9947-4a2ef800e769?story=semantic-heading",
+      "selected_tab": "Preview",
+      "focus": {
+        "tag": "button",
+        "text": "Back to list",
+        "role": null,
+        "aria": "Back to list",
+        "href": null,
+        "placeholder": null,
+        "tabIndex": 0,
+        "focusVisible": true,
+        "outlineStyle": "solid",
+        "outlineWidth": "2px",
+        "outlineColor": "rgb(37, 99, 235)",
+        "boxShadow": "none",
+        "borderColor": "rgb(37, 99, 235)"
+      }
+    },
+    {
+      "key": "Tab",
+      "at": "2026-10-17T14:41:14.157497+00:00",
+      "url": "http://localhost:23906/assets/58114a41-cfee-4299-9947-4a2ef800e769?story=semantic-heading",
+      "selected_tab": "Preview",
+      "focus": {
+        "tag": "button",
+        "text": "Preview",
+        "role": "tab",
+        "aria": null,
+        "href": null,
+        "placeholder": null,
+        "tabIndex": 0,
+        "focusVisible": true,
+        "outlineStyle": "solid",
+        "outlineWidth": "2px",
+        "outlineColor": "rgb(37, 99, 235)",
+        "boxShadow": "none",
+        "borderColor": "rgb(229, 231, 235)"
+      }
+    },
+    {
+      "key": "ArrowRight from focused Preview",
+      "at": "2026-10-17T14:41:14.191579+00:00",
+      "url": "http://localhost:23906/assets/58114a41-cfee-4299-9947-4a2ef800e769?tab=overview&story=semantic-heading",
+      "selected_tab": "Overview",
+      "focus": {
+        "tag": "button",
+        "text": "Preview",
+        "role": "tab",
+        "aria": null,
+        "href": null,
+        "placeholder": null,
+        "tabIndex": -1,
+        "focusVisible": true,
+        "outlineStyle": "solid",
+        "outlineWidth": "2px",
+        "outlineColor": "rgb(37, 99, 235)",
+        "boxShadow": "none",
+        "borderColor": "rgb(229, 231, 235)"
+      }
+    },
+    {
+      "key": "Tab after ArrowRight",
+      "at": "2026-10-17T14:41:14.273132+00:00",
+      "url": "http://localhost:23906/assets/58114a41-cfee-4299-9947-4a2ef800e769?tab=overview&story=semantic-heading",
+      "selected_tab": "Overview",
+      "focus": {
+        "tag": "button",
+        "text": "Overview",
+        "role": "tab",
+        "aria": null,
+        "href": null,
+        "placeholder": null,
+        "tabIndex": 0,
+        "focusVisible": true,
+        "outlineStyle": "solid",
+        "outlineWidth": "2px",
+        "outlineColor": "rgb(37, 99, 235)",
+        "boxShadow": "none",
+        "borderColor": "rgb(229, 231, 235)"
+      }
+    },
+    {
+      "key": "Shift+Tab from next focusable",
+      "at": "2026-10-17T14:41:14.338142+00:00",
+      "url": "http://localhost:23906/assets/58114a41-cfee-4299-9947-4a2ef800e769?tab=overview&story=semantic-heading",
+      "selected_tab": "Overview",
+      "focus": {
+        "tag": "button",
+        "text": "Back to list",
+        "role": null,
+        "aria": "Back to list",
+        "href": null,
+        "placeholder": null,
+        "tabIndex": 0,
+        "focusVisible": true,
+        "outlineStyle": "solid",
+        "outlineWidth": "2px",
+        "outlineColor": "rgb(37, 99, 235)",
+        "boxShadow": "none",
+        "borderColor": "rgb(37, 99, 235)"
+      }
+    }
+  ],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/"
+    },
+    {
+      "method": "GET",
+      "path": "/assets/index-DCMb9V7y.js"
+    },
+    {
+      "method": "GET",
+      "path": "/assets/index-D1tnGYFk.css"
+    },
+    {
+      "method": "GET",
+      "path": "/assets/App-CU2QuMXK.js"
+    },
+    {
+      "method": "GET",
+      "path": "/assets/ErrorBoundary-Dge3OmKv.js"
+    },
+    {
+      "method": "GET",
+      "path": "/assets/ErrorBoundary-Dzk4X0yo.css"
+    },
+    {
+      "method": "GET",
+      "path": "/assets/chunk-62JRHF6Z-B0dUa9Ch.js"
+    },
+    {
+      "method": "GET",
+      "path": "/assets/App-tXefM3-R.css"
+    },
+    {
+      "method": "GET",
+      "path": "/assets/index-QoAwsoTC.js"
+    },
+    {
+      "method": "GET",
+      "path": "/assets/ThemeProvider-BSPF60nk.js"
+    },
+    {
+      "method": "GET",
+      "path": "/assets/theme-context-CV8rv_07.js"
+    },
+    {
+      "method": "GET",
+      "path": "/assets/profiler-D7qAmvGi.js"
+    },
+    {
+      "method": "GET",
+      "path": "/rcl-mark.svg"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListComponents"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ListScenarios"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListComponents"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListComponents"
+    },
+    {
+      "method": "GET",
+      "path": "/preview/react-component-library%3ACollectionPage/preview.png"
+    },
+    {
+      "method": "GET",
+      "path": "/preview/react-component-library%3ACopyIconButton/preview.png"
+    },
+    {
+      "method": "GET",
+      "path": "/preview/react-component-library%3Amarkdown-renderer/preview.png"
+    },
+    {
+      "method": "GET",
+      "path": "/preview/react-component-library%3APromptComposer/preview.png"
+    },
+    {
+      "method": "GET",
+      "path": "/preview/react-component-library%3AComposerAttachmentTray/preview.png"
+    },
+    {
+      "method": "GET",
+      "path": "/preview/react-component-library%3AMessageList/preview.png"
+    },
+    {
+      "method": "GET",
+      "path": "/preview/react-component-library%3APlanSummary/preview.png"
+    },
+    {
+      "method": "GET",
+      "path": "/preview/react-component-library%3ARunLadder/preview.png"
+    },
+    {
+      "method": "GET",
+      "path": "/preview/react-component-library%3ACollectionList/preview.png"
+    },
+    {
+      "method": "GET",
+      "path": "/preview/react-component-library%3ACardShell/preview.png"
+    },
+    {
+      "method": "GET",
+      "path": "/preview/react-component-library%3AButton/preview.png"
+    },
+    {
+      "method": "GET",
+      "path": "/preview/react-component-library%3ATrendSpark/preview.png"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListComponents"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListComponents"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListComponents"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListComponents"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListComponents"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListComponents"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListComponents"
+    },
+    {
+      "method": "GET",
+      "path": "/preview/react-component-library%3AFormSection/preview.png"
+    },
+    {
+      "method": "GET",
+      "path": "/preview/react-component-library%3AHeading/preview.png"
+    },
+    {
+      "method": "GET",
+      "path": "/preview/react-component-library%3AHeading/preview.png"
+    },
+    {
+      "method": "GET",
+      "path": "/assets/ComponentDetailPage-D1A-Xwtj.js"
+    },
+    {
+      "method": "GET",
+      "path": "/assets/index-D1tnGYFk.css"
+    },
+    {
+      "method": "GET",
+      "path": "/assets/StatusBadge-D9DZ5dq-.js"
+    },
+    {
+      "method": "GET",
+      "path": "/assets/ComponentEditorController-4zqsiqxQ.js"
+    },
+    {
+      "method": "GET",
+      "path": "/assets/useTheme-CrA9H89f.js"
+    },
+    {
+      "method": "GET",
+      "path": "/assets/EmptyState-SIs2lrYs.js"
+    },
+    {
+      "method": "GET",
+      "path": "/assets/catalog_pb-BQoXIhyW.js"
+    },
+    {
+      "method": "GET",
+      "path": "/assets/EmptyState-DxuafZJ7.css"
+    },
+    {
+      "method": "GET",
+      "path": "/assets/DataTable-B91pozov.js"
+    },
+    {
+      "method": "GET",
+      "path": "/assets/ComponentDetailPage-E9Mik1KP.css"
+    },
+    {
+      "method": "GET",
+      "path": "/assets/rcl-mark.svg"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/GetComponent"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListComponentVersions"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/GetComponentContent"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListComponentStories"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListPreviewFrames"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/GetComponent"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.react_component_library.v1.versions.VersionsService/ListVersions"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListDesignStyles"
+    },
+    {
+      "method": "GET",
+      "path": "/preview/58114a41-cfee-4299-9947-4a2ef800e769/harness.html"
+    },
+    {
+      "method": "GET",
+      "path": "/preview/58114a41-cfee-4299-9947-4a2ef800e769/harness.html"
+    },
+    {
+      "method": "GET",
+      "path": "/preview/58114a41-cfee-4299-9947-4a2ef800e769/harness.html"
+    },
+    {
+      "method": "GET",
+      "path": "/assets/rcl-mark.svg"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListPreviewFrames"
+    },
+    {
+      "method": "GET",
+      "path": "/preview/runtime/npm/@testing-library/dom@10.4.1/index.js"
+    },
+    {
+      "method": "GET",
+      "path": "/preview/runtime/react-dom@18.3.1/client.js"
+    },
+    {
+      "method": "GET",
+      "path": "/preview/runtime/react@18.3.1/index.js"
+    },
+    {
+      "method": "GET",
+      "path": "/preview/runtime/npm/lucide-react@0.424.0/index.js"
+    },
+    {
+      "method": "GET",
+      "path": "/preview/runtime/npm/clsx@2.1.1/index.js"
+    },
+    {
+      "method": "GET",
+      "path": "/preview/runtime/npm/tailwind-merge@2.6.1/index.js"
+    },
+    {
+      "method": "GET",
+      "path": "/preview/runtime/react@18.3.1/jsx-runtime.js"
+    },
+    {
+      "method": "GET",
+      "path": "/preview/runtime/npm/@testing-library/dom@10.4.1/index.js"
+    },
+    {
+      "method": "GET",
+      "path": "/preview/runtime/npm/@testing-library/dom@10.4.1/index.js"
+    },
+    {
+      "method": "GET",
+      "path": "/preview/runtime/react-dom@18.3.1/client.js"
+    },
+    {
+      "method": "GET",
+      "path": "/preview/runtime/react@18.3.1/index.js"
+    },
+    {
+      "method": "GET",
+      "path": "/preview/runtime/npm/lucide-react@0.424.0/index.js"
+    },
+    {
+      "method": "GET",
+      "path": "/preview/runtime/react-dom@18.3.1/client.js"
+    },
+    {
+      "method": "GET",
+      "path": "/preview/runtime/react@18.3.1/index.js"
+    },
+    {
+      "method": "GET",
+      "path": "/preview/runtime/npm/lucide-react@0.424.0/index.js"
+    },
+    {
+      "method": "GET",
+      "path": "/preview/runtime/npm/clsx@2.1.1/index.js"
+    },
+    {
+      "method": "GET",
+      "path": "/preview/runtime/npm/tailwind-merge@2.6.1/index.js"
+    },
+    {
+      "method": "GET",
+      "path": "/preview/runtime/react@18.3.1/jsx-runtime.js"
+    },
+    {
+      "method": "GET",
+      "path": "/preview/runtime/npm/clsx@2.1.1/index.js"
+    },
+    {
+      "method": "GET",
+      "path": "/preview/runtime/npm/tailwind-merge@2.6.1/index.js"
+    },
+    {
+      "method": "GET",
+      "path": "/preview/runtime/react@18.3.1/jsx-runtime.js"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/GetComponent"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/GetComponentContent"
+    },
+    {
+      "method": "GET",
+      "path": "/assets/rcl-mark.svg"
+    }
+  ],
+  "non_read_http_requests": [
+    {
+      "method": "POST",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListComponents"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ListScenarios"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListComponents"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListComponents"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListComponents"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListComponents"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListComponents"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListComponents"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListComponents"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListComponents"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListComponents"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/GetComponent"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListComponentVersions"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/GetComponentContent"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListComponentStories"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListPreviewFrames"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/GetComponent"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.react_component_library.v1.versions.VersionsService/ListVersions"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListDesignStyles"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListPreviewFrames"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/GetComponent"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/GetComponentContent"
+    }
+  ],
+  "storage_before": {
+    "cookie_count": 0,
+    "origins": []
+  },
+  "storage_after": {
+    "cookie_count": 0,
+    "origins": [
+      {
+        "origin": "http://localhost:23906",
+        "local_storage_keys": [
+          "rcl.asset-navigation.58114a41-cfee-4299-9947-4a2ef800e769",
+          "rcl.component-editor.split-view.v1",
+          "rcl.preview.frame",
+          "rcl.preview.kit",
+          "react-component-library.emulator.v1",
+          "react-component-library.filters.v1"
+        ]
+      }
+    ]
+  },
+  "persistence": "Only search/filter state and in-page tab state changed in a newly created ephemeral browser context. No saved workflow, adoption, or user-data control was activated; context closed after capture. Storage values excluded. Inspect non-GET calls below as reads or writes before asserting backend mutation status.",
+  "screenshots": [
+    {
+      "path": "scenarios/react-component-library/docs/internal/goal/evidence/E1-D6-20261017-1/01-home-search-focused.png",
+      "bytes": 65651,
+      "sha256": "071bbf361eb372018962907442a4ca5ec0cdc130fb721f2c35abd292914d29b9"
+    },
+    {
+      "path": "scenarios/react-component-library/docs/internal/goal/evidence/E1-D6-20261017-1/02-heading-result-focused.png",
+      "bytes": 68099,
+      "sha256": "4becbd1c998785a00a52f0546135c9190a6c68819952af3b55acdfb8ece9ae6a"
+    },
+    {
+      "path": "scenarios/react-component-library/docs/internal/goal/evidence/E1-D6-20261017-1/03-heading-detail-focused.png",
+      "bytes": 64053,
+      "sha256": "30d7b91f99a356bd5d11fc2573429352385fa9959450dd981953b275c684d58c"
+    },
+    {
+      "path": "scenarios/react-component-library/docs/internal/goal/evidence/E1-D6-20261017-1/04-arrow-focus-stall.png",
+      "bytes": 75770,
+      "sha256": "8156a5c704fe7a55f374aea5fb72223b37cec3c66d187973b2d8eb18d60c41aa"
+    },
+    {
+      "path": "scenarios/react-component-library/docs/internal/goal/evidence/E1-D6-20261017-1/05-tab-focus-boundary.png",
+      "bytes": 75845,
+      "sha256": "416bd685c206d6aebb3144eccc4fef8281a3ef60e0583dde7f706c603da12387"
+    }
+  ]
+}

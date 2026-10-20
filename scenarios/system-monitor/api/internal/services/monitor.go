@@ -263,6 +263,22 @@ func (s *MonitorService) ApplySettings(settings Settings) {
 	s.mu.Lock()
 	s.metricInterval = time.Duration(settings.MetricCollectionInterval) * time.Second
 	s.mu.Unlock()
+	if collector, ok := s.collectors.Get("pressure"); ok {
+		if pressure, ok := collector.(*collectors.PressureCollector); ok {
+			pressure.SetMemoryPressureThresholds(MemoryPressureThresholdsFromSettings(settings))
+		}
+	}
+}
+
+// MemoryPressureThresholdsFromSettings maps settings onto the collector's
+// level boundaries.
+func MemoryPressureThresholdsFromSettings(settings Settings) collectors.MemoryPressureThresholds {
+	return collectors.MemoryPressureThresholds{
+		SomeAvg60ElevatedPercent:     settings.MemoryPressureSomeAvg60ElevatedPercent,
+		FullAvg60CriticalPercent:     settings.MemoryPressureFullAvg60CriticalPercent,
+		SwapInElevatedBytesPerSecond: settings.MemoryPressureSwapInElevatedBytesPerSecond,
+		SwapInCriticalBytesPerSecond: settings.MemoryPressureSwapInCriticalBytesPerSecond,
+	}
 }
 
 // EffectiveCollectionInterval returns the current baseline collection interval.
@@ -963,6 +979,9 @@ func (s *MonitorService) GetDetailedMetrics(ctx context.Context) (*models.Detail
 
 	populateCPUDetails(detailed, cpuData, processData, topCPUProcs, topCPUSecondsProcs)
 	populateMemoryDetails(detailed, memData, diskData, pressureData, topMemProcs, topPagingProcs)
+	if memoryPressure, err := s.GetMemoryPressure(ctx); err == nil {
+		detailed.MemoryDetails.MemoryPressure = memoryPressure
+	}
 	if pressureData != nil {
 		detailed.CPUDetails.StallSomeAvg10 = pressureState(pressureData, "cpu_psi_some_avg10", "cpu_psi_status", "cpu_psi_reason")
 		detailed.CPUDetails.StallFullAvg10 = pressureState(pressureData, "cpu_psi_full_avg10", "cpu_psi_status", "cpu_psi_reason")
@@ -1250,12 +1269,16 @@ func populatePressureDetails(memory *models.MemoryMetrics, data *collectors.Metr
 	if data == nil {
 		return
 	}
+	// Cross-platform aliases published by the paging seam: Linux maps
+	// pswpin/pswpout/pgmajfault/pgfault, macOS maps host_statistics64
+	// swapins/swapouts/faults, and an alias a platform cannot measure
+	// carries an explicit unsupported status.
 	memory.Paging = models.PagingMetrics{
-		SwapInPerSecond:           pressureState(data, "pswpin_per_second", "pswpin_rate_status", "pswpin_rate_reason"),
-		SwapOutPerSecond:          pressureState(data, "pswpout_per_second", "pswpout_rate_status", "pswpout_rate_reason"),
+		SwapInPerSecond:           pressureState(data, "swap_in_per_second", "", ""),
+		SwapOutPerSecond:          pressureState(data, "swap_out_per_second", "", ""),
 		SwapTrafficPagesPerSecond: pressureState(data, "swap_traffic_pages_per_second", "swap_traffic_rate_status", "swap_traffic_rate_reason"),
-		MajorFaultsPerSecond:      pressureState(data, "pgmajfault_per_second", "pgmajfault_rate_status", "pgmajfault_rate_reason"),
-		PageFaultsPerSecond:       pressureState(data, "pgfault_per_second", "pgfault_rate_status", "pgfault_rate_reason"),
+		MajorFaultsPerSecond:      pressureState(data, "major_faults_per_second", "", ""),
+		PageFaultsPerSecond:       pressureState(data, "page_faults_per_second", "", ""),
 	}
 	fragmentation := models.FragmentationMetrics{
 		MaxFreeOrder:           pressureState(data, "fragmentation_max_free_order", "fragmentation_status", "fragmentation_reason"),

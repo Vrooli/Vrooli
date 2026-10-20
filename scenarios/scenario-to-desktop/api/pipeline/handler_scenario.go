@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"scenario-to-desktop-api/generation"
 	sharedpath "scenario-to-desktop-api/shared/path"
 )
 
@@ -17,12 +18,13 @@ type bundleCleanResult struct {
 	Removed      bool
 }
 
-func (h *Handler) cleanBundle(scenarioName, framework, locationMode, pipelineID string) (*bundleCleanResult, error) {
-	if framework == "" {
-		framework = FrameworkElectron
+func (h *Handler) cleanBundle(scenarioName, strategyID, locationMode, pipelineID string) (*bundleCleanResult, error) {
+	if strategyID == "" {
+		strategyID = generation.DefaultStrategyID
 	}
-	if framework != FrameworkElectron {
-		return nil, fmt.Errorf("unsupported framework %q: only %q is supported", framework, FrameworkElectron)
+	outputName, err := generation.StrategyOutputName(strategyID)
+	if err != nil {
+		return nil, err
 	}
 	if locationMode == "" {
 		locationMode = "proper"
@@ -31,9 +33,9 @@ func (h *Handler) cleanBundle(scenarioName, framework, locationMode, pipelineID 
 		return nil, fmt.Errorf("pipeline_id is required for staging/temp location_mode")
 	}
 	scenarioPath := sharedpath.ResolveScenarioRoot(scenarioName)
-	config := &PipelineConfig{ScenarioName: scenarioName, LocationMode: locationMode, Framework: framework}
-	_, desktopPath := resolvePipelineOutputPaths(config, scenarioPath, pipelineID, framework)
-	if desktopPath == "" || !strings.Contains(desktopPath, filepath.Join("platforms", framework)) {
+	config := &PipelineConfig{ScenarioName: scenarioName, LocationMode: locationMode, StrategyID: strategyID}
+	_, desktopPath := resolvePipelineOutputPaths(config, scenarioPath, pipelineID, strategyID)
+	if desktopPath == "" || !strings.Contains(desktopPath, filepath.Join("platforms", outputName)) {
 		return nil, fmt.Errorf("refusing to clean: computed output path is unsafe")
 	}
 	bundlePath := filepath.Join(desktopPath, "bundle")

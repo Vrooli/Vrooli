@@ -7,14 +7,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/vrooli/api-core/discovery"
-	"github.com/vrooli/api-core/owneridentity"
 	"io"
 	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/owneridentity"
 
 	"connectrpc.com/connect"
 	investigationspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/investigations"
@@ -38,6 +39,12 @@ type InvestigationHandler struct {
 }
 
 func (h *InvestigationHandler) SetRunHistory(history InvestigationRunHistory) { h.runHistory = history }
+
+// SetRunCallerValidator replaces the verifier that proves a manual
+// investigation's caller before it may start an Agent Manager run.
+func (h *InvestigationHandler) SetRunCallerValidator(v owneridentity.Validator) {
+	h.runCallerValidator = v
+}
 
 // NewInvestigationHandler creates a new investigation handler
 func NewInvestigationHandler(cfg *config.Config, investigationSvc InvestigationManager, scriptSvc ScriptRunner, log *slog.Logger) *InvestigationHandler {
@@ -901,5 +908,5 @@ func (h *InvestigationHandler) authorizeCreateRunCaller(ctx context.Context, hea
 	if verifier == nil {
 		verifier = owneridentity.NewClient(owneridentity.Config{Resolver: discovery.NewResolver(discovery.ResolverConfig{})})
 	}
-	return owneridentity.AuthorizeCreateRunCaller(ctx, headers, verifier, time.Now())
+	return owneridentity.AuthorizeCreateRunCaller(ctx, headers, verifier, time.Now(), true)
 }

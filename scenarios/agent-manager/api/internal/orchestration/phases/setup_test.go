@@ -12,6 +12,7 @@ import (
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration/testutil/fixtures"
 	"agent-manager/internal/orchestration/testutil/mocks"
+	"agent-manager/internal/repository"
 
 	"github.com/google/uuid"
 )
@@ -144,5 +145,63 @@ func TestSetupWorkspace_ExistingSandboxDoesNotEnsureDependency(t *testing.T) {
 	}
 	if ensurer.CallCount() != 0 {
 		t.Fatalf("expected no ensure call for existing sandbox, got %d", ensurer.CallCount())
+	}
+}
+
+type updateCountingRunRepo struct {
+	repository.RunRepository
+	calls int
+}
+
+func (r *updateCountingRunRepo) Update(context.Context, *domain.Run) error {
+	r.calls++
+	return nil
+}
+
+func TestCreateSandboxWorkspace_RejectsNonActiveCreateBeforeBindingRun(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		status    sandbox.SandboxStatus
+		nilResult bool
+	}{
+		{name: "nil create result", nilResult: true},
+		{name: "deleted idempotent tombstone", status: sandbox.SandboxStatusDeleted},
+		{name: "checkpointed resource", status: sandbox.SandboxStatusCheckpointed},
+		{name: "empty status"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			run, task, profile := setupWorkspaceFixture(t)
+			oldID := uuid.New()
+			run.SandboxID = &oldID
+			workspacePathCalls := 0
+			provider := mocks.NewFakeSandboxProvider()
+			provider.CreateFunc = func(context.Context, sandbox.CreateRequest) (*sandbox.Sandbox, error) {
+				if tc.nilResult {
+					return nil, nil
+				}
+				return &sandbox.Sandbox{ID: uuid.New(), Status: tc.status}, nil
+			}
+			provider.GetWorkspacePathFn = func(context.Context, uuid.UUID) (string, error) {
+				workspacePathCalls++
+				return "/tmp/unusable", nil
+			}
+
+			repo := &updateCountingRunRepo{}
+			_, err := CreateSandboxWorkspace(context.Background(), SetupWorkspaceInput{
+				Deps: Deps{Levers: config.DefaultLevers(), Runs: repo}, Run: run, Task: task, Profile: profile, Sandbox: provider,
+			})
+			if err == nil {
+				t.Fatal("expected non-active sandbox creation result to fail")
+			}
+			if run.SandboxID == nil || *run.SandboxID != oldID {
+				t.Fatalf("failed create changed Run.SandboxID to %v", run.SandboxID)
+			}
+			if repo.calls != 0 {
+				t.Fatalf("run persistence called %d times for unusable sandbox", repo.calls)
+			}
+			if workspacePathCalls != 0 {
+				t.Fatalf("workspace path was queried %d times for unusable sandbox", workspacePathCalls)
+			}
+		})
 	}
 }

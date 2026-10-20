@@ -245,6 +245,10 @@ message Run {
   optional google.protobuf.Timestamp observed_goal_at = 59;
   // Last retained provider message/tool event, separate from last_heartbeat.
   optional google.protobuf.Timestamp provider_activity_at = 60;
+
+  // Persisted parent run that admitted this child; absent on root runs.
+  // @format uuid
+  optional string parent_run_id = 61 [(buf.validate.field).string.uuid = true];
 }
 
 // FinalOutputSelectionStatus describes whether provider evidence identifies a

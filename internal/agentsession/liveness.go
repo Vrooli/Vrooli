@@ -62,6 +62,7 @@ var ErrProcessGone = errors.New("agentsession: process not running")
 
 // WebConsoleSession is what web-console reports about a live session.
 type WebConsoleSession struct {
+	ID     string
 	Origin string
 	Owner  string
 }

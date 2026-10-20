@@ -149,6 +149,7 @@ func (r *Runner) ensureDependency(ctx context.Context, item scenario.Scenario, o
 	default:
 	}
 	dependency := item.Manifest.Dependencies.Scenarios[dependencyName]
+	consumerID := scenarioruntime.DependencyConsumerID(item.Slug, item.Variant)
 	decision := resolveDependencyDecision(dependency, opts.BestEffort)
 	var cancelDependency context.CancelFunc
 	if decision.continueOnFailure {
@@ -160,10 +161,6 @@ func (r *Runner) ensureDependency(ctx context.Context, item scenario.Scenario, o
 		return "", nil
 	}
 
-	if session.isReady(dependencyName) {
-		r.logDebug("Dependency already ready", logx.AttrScenario, item.Slug, logx.AttrDependency, dependencyName)
-		return "", nil
-	}
 	if session.contains(dependencyName) {
 		if decision.continueOnFailure {
 			r.logWarn("Deferring optional dependency already being started by an ancestor", logx.AttrScenario, item.Slug, logx.AttrDependency, dependencyName)
@@ -183,6 +180,28 @@ func (r *Runner) ensureDependency(ctx context.Context, item scenario.Scenario, o
 			return dependencyName, nil
 		}
 		return "", err
+	}
+	// Readiness is shared across this recursive start graph, but demand is
+	// owned by each consumer. A sibling may already have started this runtime;
+	// that lets us skip freshness/start arbitration, not the consumer's lease.
+	if session.isReady(dependencyName) {
+		leaseID, leaseErr := r.acquireDependencyDemandLease(ctx, item, dependencyItem)
+		if leaseErr != nil {
+			if decision.continueOnFailure {
+				r.logWarn("Could not retain already-ready optional dependency; continuing in best-effort mode",
+					logx.AttrScenario, item.Slug,
+					logx.AttrDependency, dependencyName,
+					logx.AttrOperation, "retain_ready_dependency",
+					"error", leaseErr.Error(),
+				)
+				return dependencyName, nil
+			}
+			return "", leaseErr
+		}
+		session.recordDependencyLease(consumerID, leaseID)
+		r.publish(ProgressEvent{Kind: EventDependencyReused, Scenario: item.Slug, Dependency: dependencyName, Index: index + 1, Total: total})
+		r.logDebug("Dependency already ready; retained demand for this consumer", logx.AttrScenario, item.Slug, logx.AttrDependency, dependencyName)
+		return "", nil
 	}
 
 	dependencyView, err := r.lookupRegistryRuntime(ctx, dependencyItem)
@@ -209,7 +228,7 @@ func (r *Runner) ensureDependency(ctx context.Context, item scenario.Scenario, o
 			}
 			return "", leaseErr
 		}
-		session.recordDependencyLease(leaseID)
+		session.recordDependencyLease(consumerID, leaseID)
 		r.publish(ProgressEvent{Kind: EventDependencyReused, Scenario: item.Slug, Dependency: dependencyName, Index: index + 1, Total: total})
 		r.logDebug("Explicit restart reusing healthy dependency without freshness arbitration", logx.AttrScenario, item.Slug, logx.AttrDependency, dependencyName)
 		session.markReady(dependencyName)
@@ -227,7 +246,7 @@ func (r *Runner) ensureDependency(ctx context.Context, item scenario.Scenario, o
 			}
 			return "", leaseErr
 		}
-		session.recordDependencyLease(leaseID)
+		session.recordDependencyLease(consumerID, leaseID)
 		r.publish(ProgressEvent{Kind: EventDependencyReused, Scenario: item.Slug, Dependency: dependencyName, Index: index + 1, Total: total})
 		r.logDebug("Optional dependency already running and healthy; reusing without freshness arbitration", logx.AttrScenario, item.Slug, logx.AttrDependency, dependencyName)
 		session.markReady(dependencyName)
@@ -268,7 +287,7 @@ func (r *Runner) ensureDependency(ctx context.Context, item scenario.Scenario, o
 			}
 			return "", leaseErr
 		}
-		session.recordDependencyLease(leaseID)
+		session.recordDependencyLease(consumerID, leaseID)
 		r.publish(ProgressEvent{Kind: EventDependencyReused, Scenario: item.Slug, Dependency: dependencyName, Index: index + 1, Total: total})
 		r.logDebug("Dependency already running and healthy", logx.AttrScenario, item.Slug, logx.AttrDependency, dependencyName)
 		session.markReady(dependencyName)
@@ -300,7 +319,7 @@ func (r *Runner) ensureDependency(ctx context.Context, item scenario.Scenario, o
 				}
 				return "", leaseErr
 			}
-			session.recordDependencyLease(leaseID)
+			session.recordDependencyLease(consumerID, leaseID)
 			session.markReady(dependencyName)
 			return "", nil
 		}
@@ -387,7 +406,7 @@ func (r *Runner) ensureDependency(ctx context.Context, item scenario.Scenario, o
 			}
 			return "", leaseErr
 		}
-		session.recordDependencyLease(leaseID)
+		session.recordDependencyLease(consumerID, leaseID)
 		r.publish(ProgressEvent{Kind: EventDependencyReused, Scenario: item.Slug, Dependency: dependencyName, AfterLockWait: true, Index: index + 1, Total: total})
 		session.markReady(dependencyName)
 		return "", nil
@@ -403,7 +422,7 @@ func (r *Runner) ensureDependency(ctx context.Context, item scenario.Scenario, o
 			}
 			return "", leaseErr
 		}
-		session.recordDependencyLease(leaseID)
+		session.recordDependencyLease(consumerID, leaseID)
 		session.markReady(dependencyName)
 		return "", nil
 	}
@@ -418,7 +437,7 @@ func (r *Runner) ensureDependency(ctx context.Context, item scenario.Scenario, o
 	}
 	_, depErr := r.startScenario(dependencyItem, dependencyOpts, session.withContext(ctx))
 	if err := depErr; err != nil {
-		_ = r.releaseDemandLease(ctx, leaseID, "dependency start failed")
+		_ = r.releaseDependencyDemandIfCandidate(ctx, session, item, leaseID, "dependency start failed")
 		_ = r.releaseNewStartSessionDemand(ctx, session, beforeLeases, "dependency start failed")
 		if decision.continueOnFailure {
 			r.logWarn("Dependency failed to start; continuing in best-effort mode",
@@ -431,7 +450,7 @@ func (r *Runner) ensureDependency(ctx context.Context, item scenario.Scenario, o
 		}
 		return "", err
 	}
-	session.recordDependencyLease(leaseID)
+	session.recordDependencyLease(consumerID, leaseID)
 	session.markReady(dependencyName)
 	return "", nil
 }

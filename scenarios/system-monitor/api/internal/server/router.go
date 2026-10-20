@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/pprof"
 
+	alertsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/alerts/alertsconnect"
 	capacityconnect "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/capacity/capacityconnect"
 	devicegraphconnect "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/devicegraph/devicegraphconnect"
 	healthconnect "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/health/healthconnect"
@@ -20,10 +21,10 @@ import (
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/handlers"
 )
 
-func buildRouter(cfg *config.Config, health *handlers.HealthHandler, metrics *handlers.MetricsHandler, investigation *handlers.InvestigationHandler, report *handlers.ReportHandler, settings *handlers.SettingsHandler, maintenance *handlers.MaintenanceHandler, capacity *handlers.CapacityHandler, forensicsH *handlers.ForensicsHandler, logsH *handlers.LogsHandler, diskPressure *handlers.DiskPressureHandler, deviceGraph *handlers.DeviceGraphHandler) http.Handler {
+func buildRouter(cfg *config.Config, health *handlers.HealthHandler, metrics *handlers.MetricsHandler, investigation *handlers.InvestigationHandler, report *handlers.ReportHandler, settings *handlers.SettingsHandler, maintenance *handlers.MaintenanceHandler, capacity *handlers.CapacityHandler, forensicsH *handlers.ForensicsHandler, logsH *handlers.LogsHandler, diskPressure *handlers.DiskPressureHandler, deviceGraph *handlers.DeviceGraphHandler, alerts *handlers.AlertsHandler) http.Handler {
 	r := http.NewServeMux()
 	mountDebugRoutes(cfg, r)
-	mountConnectRoutes(r, health, metrics, report, settings, capacity, maintenance, investigation, deviceGraph)
+	mountConnectRoutes(r, health, metrics, report, settings, capacity, maintenance, investigation, deviceGraph, alerts)
 
 	// Keep the unprefixed probe literal explicit for lifecycle validators and
 	// external supervisors; the versioned route remains an API alias.
@@ -70,7 +71,7 @@ func buildRouter(cfg *config.Config, health *handlers.HealthHandler, metrics *ha
 	return r
 }
 
-func mountConnectRoutes(r *http.ServeMux, health *handlers.HealthHandler, metrics *handlers.MetricsHandler, report *handlers.ReportHandler, settings *handlers.SettingsHandler, capacity *handlers.CapacityHandler, maintenance *handlers.MaintenanceHandler, investigation *handlers.InvestigationHandler, deviceGraph *handlers.DeviceGraphHandler) {
+func mountConnectRoutes(r *http.ServeMux, health *handlers.HealthHandler, metrics *handlers.MetricsHandler, report *handlers.ReportHandler, settings *handlers.SettingsHandler, capacity *handlers.CapacityHandler, maintenance *handlers.MaintenanceHandler, investigation *handlers.InvestigationHandler, deviceGraph *handlers.DeviceGraphHandler, alerts *handlers.AlertsHandler) {
 	healthPath, healthHandler := healthconnect.NewHealthServiceHandler(health)
 	r.Handle(healthPath, healthHandler)
 	metricsPath, metricsHandler := metricsconnect.NewMetricsServiceHandler(metrics)
@@ -89,6 +90,10 @@ func mountConnectRoutes(r *http.ServeMux, health *handlers.HealthHandler, metric
 	r.Handle(scriptsPath, scriptsHandler)
 	deviceGraphPath, deviceGraphHandler := devicegraphconnect.NewDeviceGraphServiceHandler(deviceGraph)
 	r.Handle(deviceGraphPath, deviceGraphHandler)
+	if alerts != nil {
+		alertsPath, alertsHandler := alertsconnect.NewAlertsServiceHandler(alerts)
+		r.Handle(alertsPath, alertsHandler)
+	}
 }
 
 func mountDebugRoutes(cfg *config.Config, r *http.ServeMux) {

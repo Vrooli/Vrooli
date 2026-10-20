@@ -52,6 +52,23 @@ func TestCaptureSharedSourcesKeepsGeneratedOutputsAndDropsDependencies(t *testin
 	}
 }
 
+func TestCaptureSharedSourcesUsesScopedCoverageIgnoreRules(t *testing.T) {
+	repo := t.TempDir()
+	writeFile(t, repo, ".gitignore", "packages/module/coverage/\n", 0o644)
+	writeFile(t, repo, "packages/module/coverage/index.html", "report", 0o644)
+	writeFile(t, repo, "packages/module/api/internal/checks/coverage/check.go", "package coverage\nconst Value = 1\n", 0o644)
+	dest := filepath.Join(t.TempDir(), "shared-sources")
+	if _, _, err := CaptureSharedSources(repo, dest, []SharedRoot{{Path: "packages/module", Reason: "go:module"}}, false); err != nil {
+		t.Fatalf("CaptureSharedSources: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dest, "packages/module/coverage")); !os.IsNotExist(err) {
+		t.Fatalf("scoped generated coverage output was copied (err=%v)", err)
+	}
+	if got, err := os.ReadFile(filepath.Join(dest, "packages/module/api/internal/checks/coverage/check.go")); err != nil || string(got) != "package coverage\nconst Value = 1\n" {
+		t.Fatalf("authored Go coverage package was not copied: %q err=%v", got, err)
+	}
+}
+
 // A failed capture leaves the previous snapshot in place.
 func TestCaptureSharedSourcesFailureKeepsPreviousSnapshot(t *testing.T) {
 	repo := t.TempDir()
@@ -106,5 +123,28 @@ func TestStoreCleanRemovesReadOnlyTrees(t *testing.T) {
 	}
 	if _, err := os.Stat(store.EngagementDir("demo", "goal")); !os.IsNotExist(err) {
 		t.Fatalf("engagement remains (err=%v)", err)
+	}
+}
+
+func TestCaptureSharedSourcesPreservesDeclaredIgnoredOutputsWithoutRuntimeState(t *testing.T) {
+	repo := t.TempDir()
+	writeFile(t, repo, ".gitignore", "dist/\nbundles/\npackages/widget/coverage/\n.private-key\n", 0644)
+	for _, path := range []string{"dist/export.mjs", "bundles/runtime/index.js", "coverage/report.html", ".private-key", "dist/.vrooli/secrets.json", "dist/node_modules/leak/index.js"} {
+		writeFile(t, repo, "packages/widget/"+path, path, 0644)
+	}
+	dest := filepath.Join(t.TempDir(), "shared")
+	_, _, err := CaptureSharedSources(repo, dest, []SharedRoot{{Path: "packages/widget", KeepOutputs: []string{"dist", "bundles/runtime"}}}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, rel := range []string{"dist/export.mjs", "bundles/runtime/index.js"} {
+		if _, err := os.Stat(filepath.Join(dest, "packages/widget", rel)); err != nil {
+			t.Errorf("declared output %s missing: %v", rel, err)
+		}
+	}
+	for _, rel := range []string{"coverage/report.html", ".private-key", "dist/.vrooli/secrets.json", "dist/node_modules/leak/index.js"} {
+		if _, err := os.Stat(filepath.Join(dest, "packages/widget", rel)); !os.IsNotExist(err) {
+			t.Errorf("excluded state %s copied: %v", rel, err)
+		}
 	}
 }

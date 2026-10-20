@@ -737,3 +737,72 @@ func TestEffortLegacyAdapterBoundsAndManifestFailureAreNotBypassed(t *testing.T)
 		})
 	}
 }
+
+func TestEffortRunRegistryRotationPersistsOffsetAndFiltersReferences(t *testing.T) {
+	s, repo, controller := effortFixture(t)
+	ctx := context.Background()
+	const targetRef = "effort:rotated-worker"
+	runs := make([]*domain.Run, 105)
+	for i := range runs {
+		id := uuid.New()
+		runs[i] = &domain.Run{ID: id, Status: domain.RunStatusRunning}
+		controller.runs[id] = runs[i]
+	}
+	work := func(id, relationship string, verified bool, visibility eventpb.WorkReferenceVisibility, state eventpb.WorkReferenceState) *eventpb.WorkReference {
+		return &eventpb.WorkReference{Kind: "effort", Id: id, Relationship: relationship, Verified: verified, Visibility: visibility, State: state}
+	}
+	// These references are on the page after the first 100 canonical runs, but
+	// must not become enrollments because their authority or state is ineligible.
+	runs[100].WorkReferences = []*eventpb.WorkReference{work("effort:unverified", "worker", false, eventpb.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PUBLIC, eventpb.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE)}
+	runs[101].WorkReferences = []*eventpb.WorkReference{work("effort:private", "worker", true, eventpb.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PRIVATE, eventpb.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE)}
+	runs[102].WorkReferences = []*eventpb.WorkReference{work("effort:expired", "worker", true, eventpb.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PUBLIC, eventpb.WorkReferenceState_WORK_REFERENCE_STATE_EXPIRED)}
+	targetID := runs[104].ID
+	runs[104].WorkReferences = []*eventpb.WorkReference{work(targetRef, "worker", true, eventpb.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PUBLIC, eventpb.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE)}
+	s.SetRunRegistry(effortRegistryFixture{runs: runs})
+
+	first, err := s.ReconcileDiscovery(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !first.Partial {
+		t.Fatalf("first registry page should be bounded and incomplete; discovery=%+v", first)
+	}
+	if _, _, err := repo.GetEffort(ctx, targetRef); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("worker outside the first registry page was visible before rotation; err=%v", err)
+	}
+	if offset, err := repo.EffortRegistryOffset(ctx); err != nil || offset != 100 {
+		t.Fatalf("persisted next registry offset=%d, err=%v; want 100", offset, err)
+	}
+
+	// A new service instance must resume from the durable offset, not restart at
+	// the first page or rely on in-memory cursor state.
+	restarted := NewEffortService(repo, controller, s.config)
+	restarted.now = s.now
+	restarted.SetRunRegistry(effortRegistryFixture{runs: runs})
+	second, err := restarted.ReconcileDiscovery(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if second.Partial {
+		t.Fatalf("final registry page unexpectedly remained partial: %+v", second)
+	}
+	if offset, err := repo.EffortRegistryOffset(ctx); err != nil || offset != 0 {
+		t.Fatalf("completed registry rotation offset=%d, err=%v; want reset to 0", offset, err)
+	}
+	for _, ref := range []string{"effort:unverified", "effort:private", "effort:expired"} {
+		if _, _, err := repo.GetEffort(ctx, ref); !errors.Is(err, ErrNotFound) {
+			t.Fatalf("ineligible reference %q was enrolled; err=%v", ref, err)
+		}
+	}
+	board, err := restarted.Board(ctx, &pb.GetEffortBoardRequest{EffortRef: targetRef})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(board.Rows) != 1 || len(board.Rows[0].Assignments) != 1 {
+		t.Fatalf("rotated worker did not project as one effort assignment: %+v", board.Rows)
+	}
+	assignment := board.Rows[0].Assignments[0]
+	if assignment.GetSubject().GetRunId() != targetID.String() || assignment.GetRuntimeState() != "running" {
+		t.Fatalf("rotated verified worker projection=%+v; want exact run %s running", assignment, targetID)
+	}
+}

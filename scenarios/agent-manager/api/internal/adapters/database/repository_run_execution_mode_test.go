@@ -117,7 +117,7 @@ func TestOwnedRunDeletionRetainsReplayEvidence(t *testing.T) {
 			if mode == "task-cascade" {
 				err = repos.Tasks.Delete(ctx, task.ID)
 			} else {
-				err = repos.Runs.Delete(ctx, run.ID)
+				err = repos.Runs.Delete(ctx, run.ID, run.Status, run.LifecycleVersion)
 			}
 			if err != nil {
 				t.Fatal("deletion should retain a receipt, not prohibit cleanup", err)
@@ -187,7 +187,7 @@ func TestRunCreationReceiptSchemaAdoptsExistingRunWithoutReplacingIdentity(t *te
 			t.Fatal("schema adoption lost the original acceptance", err)
 		}
 	}
-	if err := repos.Runs.Delete(ctx, run.ID); err != nil {
+	if err := repos.Runs.Delete(ctx, run.ID, run.Status, run.LifecycleVersion); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := db.ExecContext(ctx, runmodel.Schema()); err != nil {
@@ -445,6 +445,8 @@ func TestMigrateRunColumnsAddsMissingColumns(t *testing.T) {
 	if _, err := sqlDB.ExecContext(ctx, `CREATE TABLE runs (
 		id TEXT PRIMARY KEY,
 		tag TEXT,
+		created_at TEXT NOT NULL DEFAULT '',
+		status TEXT DEFAULT 'pending',
 		run_mode TEXT DEFAULT 'sandboxed'
 	)`); err != nil {
 		t.Fatalf("create legacy table: %v", err)

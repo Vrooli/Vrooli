@@ -1,0 +1,284 @@
+{
+  "metadata": {
+    "name": "r27-six-route-profile",
+    "description": "Assertion-free six-route navigation trace at the observed 1440x900 desktop viewport. Uses visible sidebar links and waits for each route surface; the flow settings are descriptive because the performance capture request controls the actual viewport.",
+    "labels": {
+      "intent": "performance",
+      "reset": "none"
+    },
+    "version": "1",
+    "execution_mode": "EXECUTION_MODE_OBSERVER"
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "open-today",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "personal-planner",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open Today"
+        }
+      }
+    },
+    {
+      "id": "wait-today",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid=\"page-today\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Wait for Today"
+        }
+      }
+    },
+    {
+      "id": "click-plan",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "[data-testid=\"layout-nav-plan\"]"
+        },
+        "metadata": {
+          "label": "Open Plan route"
+        }
+      }
+    },
+    {
+      "id": "wait-plan",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid=\"page-plan\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Wait for Plan route"
+        }
+      }
+    },
+    {
+      "id": "click-goals",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "[data-testid=\"layout-nav-goals\"]"
+        },
+        "metadata": {
+          "label": "Open Goals route"
+        }
+      }
+    },
+    {
+      "id": "wait-goals",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid=\"page-goals\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Wait for Goals route"
+        }
+      }
+    },
+    {
+      "id": "click-focus",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "[data-testid=\"layout-nav-focus\"]"
+        },
+        "metadata": {
+          "label": "Open Focus route"
+        }
+      }
+    },
+    {
+      "id": "wait-focus",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid=\"page-focus\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Wait for Focus route"
+        }
+      }
+    },
+    {
+      "id": "click-review",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "[data-testid=\"layout-nav-review\"]"
+        },
+        "metadata": {
+          "label": "Open Review route"
+        }
+      }
+    },
+    {
+      "id": "wait-review",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid=\"page-review\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Wait for Review route"
+        }
+      }
+    },
+    {
+      "id": "click-settings",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "[data-testid=\"layout-nav-settings\"]"
+        },
+        "metadata": {
+          "label": "Open Settings route"
+        }
+      }
+    },
+    {
+      "id": "wait-settings",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid=\"page-settings\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Wait for Settings route"
+        }
+      }
+    },
+    {
+      "id": "click-dashboard",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "[data-testid=\"layout-nav-dashboard\"]"
+        },
+        "metadata": {
+          "label": "Open Dashboard route"
+        }
+      }
+    },
+    {
+      "id": "wait-dashboard",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid=\"page-today\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Wait for Dashboard route"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-open-today-wait-today",
+      "source": "open-today",
+      "target": "wait-today",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-wait-today-click-plan",
+      "source": "wait-today",
+      "target": "click-plan",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-click-plan-wait-plan",
+      "source": "click-plan",
+      "target": "wait-plan",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-wait-plan-click-goals",
+      "source": "wait-plan",
+      "target": "click-goals",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-click-goals-wait-goals",
+      "source": "click-goals",
+      "target": "wait-goals",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-wait-goals-click-focus",
+      "source": "wait-goals",
+      "target": "click-focus",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-click-focus-wait-focus",
+      "source": "click-focus",
+      "target": "wait-focus",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-wait-focus-click-review",
+      "source": "wait-focus",
+      "target": "click-review",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-click-review-wait-review",
+      "source": "click-review",
+      "target": "wait-review",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-wait-review-click-settings",
+      "source": "wait-review",
+      "target": "click-settings",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-click-settings-wait-settings",
+      "source": "click-settings",
+      "target": "wait-settings",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-wait-settings-click-dashboard",
+      "source": "wait-settings",
+      "target": "click-dashboard",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-click-dashboard-wait-dashboard",
+      "source": "click-dashboard",
+      "target": "wait-dashboard",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

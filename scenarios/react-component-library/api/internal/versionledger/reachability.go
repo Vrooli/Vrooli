@@ -8,9 +8,9 @@ import (
 
 // BuildReachability constructs the only graph used by retention. It unions
 // source imports, generated locks, mirrored locks, adoption edges, and then
-// computes a fixpoint from every live latest version. External exact pins are
-// already represented by the workbench/adoption scanners; callers do not get
-// to select a weaker edge source.
+// computes a fixpoint from every live latest version and retained draft.
+// External exact pins are already represented by the workbench/adoption
+// scanners; callers do not get to select a weaker edge source.
 func (r *Repository) BuildReachability(ctx context.Context) (Reachability, error) {
 	source, unreadable, err := r.sourceReferencesDetailed(ctx)
 	if err != nil {
@@ -30,7 +30,16 @@ func (r *Repository) BuildReachability(ctx context.Context) (Reachability, error
 
 	roots := map[string]struct{}{}
 	if r.db != nil {
-		rows, queryErr := r.db.QueryContext(ctx, `SELECT library_id, latest_version FROM components WHERE trim(latest_version) <> ''`)
+		rows, queryErr := r.db.QueryContext(ctx, `
+			SELECT library_id, latest_version
+			FROM components
+			WHERE trim(latest_version) <> ''
+			UNION
+			SELECT c.library_id, v.version
+			FROM components c
+			JOIN component_versions v ON v.component_id = c.id
+			WHERE lower(v.status) <> 'retired'
+			  AND (v.version = c.draft_version OR lower(v.status) LIKE '%draft%')`)
 		if queryErr == nil {
 			defer rows.Close()
 			for rows.Next() {

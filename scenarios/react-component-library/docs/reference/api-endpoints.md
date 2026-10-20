@@ -49,6 +49,23 @@ client.
 curl "http://localhost:${API_PORT}/health"
 ```
 
+### `POST /vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario`
+
+The provider validation response includes a provider-owned `native_detail`
+snapshot for the BAS boundary when available. It reports the sanitized BAS
+base URL and CaptureService route selected by the same executor used for
+component evidence, the resolution timestamp, and the `/health` result. The
+inspection itself performs a BAS health GET and never starts a browser capture.
+With `include_execution=false`, `ValidateScenario` returns `SKIPPED` after this
+readiness check and does not inspect the catalog, write test reports, invoke the
+generated fixture, or call CaptureService. The response assessment and
+`native_detail` mark this as inspection-only, not a catalog pass. Set
+`include_execution=true` to validate catalog contracts; that path may issue
+CaptureService requests for uncached component evidence. `DescribeProvider`
+remains target-independent and does not report a runtime BAS selection. In
+discovered mode, the executor resolves BAS again for each operation, so this
+timestamped observation does not pin the endpoint for a later capture.
+
 The proto type lives at `packages/proto/schemas/react-component-library/v1/health/health.proto`
 and mirrors `api-core/health.Response` field-for-field.
 

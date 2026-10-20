@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/darwinsys"
 	"golang.org/x/sys/unix"
 )
 
@@ -36,7 +37,7 @@ func (s *darwinSampler) Sample(ctx context.Context) ([]ProcessSample, error) {
 			return nil, err
 		}
 		comm := strings.TrimRight(string(proc.Proc.P_comm[:]), "\x00")
-		samples = append(samples, ProcessSample{
+		sample := ProcessSample{
 			PID:           int(proc.Proc.P_pid),
 			PPID:          int(proc.Eproc.Ppid),
 			Comm:          comm,
@@ -46,10 +47,10 @@ func (s *darwinSampler) Sample(ctx context.Context) ([]ProcessSample, error) {
 			RSSKB:         int64(proc.Eproc.Xrssize) * int64(unix.Getpagesize()/1024),
 			utime:         proc.Proc.P_uticks,
 			stime:         proc.Proc.P_sticks,
-		})
-		if proc.Proc.P_ru != nil {
-			samples[len(samples)-1].MajorFaults = uint64(proc.Proc.P_ru.Majflt)
 		}
+		info, rusageErr := darwinsys.ProcPIDRusage(sample.PID)
+		applyDarwinRusage(&sample, info, rusageErr)
+		samples = append(samples, sample)
 	}
 	s.sortAndDelta(samples)
 	return samples, nil

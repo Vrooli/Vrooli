@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 )
@@ -128,14 +127,16 @@ func TestFilesClosureIncludesLockedDependencies(t *testing.T) {
 }
 
 func TestTraversalPrimitiveIsCentralized(t *testing.T) {
-	_, thisFile, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed")
+	// Go runs package tests with the package directory as the working directory.
+	// Use that stable location instead of runtime.Caller, whose path is rewritten
+	// by -trimpath and may become relative to the process working directory.
+	apiRoot, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
 	}
-	apiRoot := filepath.Clean(filepath.Join(filepath.Dir(thisFile), "..", ".."))
 	count := 0
 	var owners []string
-	err := filepath.WalkDir(apiRoot, func(path string, entry os.DirEntry, err error) error {
+	err = filepath.WalkDir(apiRoot, func(path string, entry os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -156,7 +157,7 @@ func TestTraversalPrimitiveIsCentralized(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if count != 1 || len(owners) != 1 || owners[0] != filepath.Join(filepath.Dir(thisFile), "walk.go") {
+	if count != 1 || len(owners) != 1 || owners[0] != filepath.Join(apiRoot, "internal", "librarywalk", "walk.go") {
 		t.Fatalf("filepath.WalkDir owners = %v (count %d), want only librarywalk/walk.go", owners, count)
 	}
 }

@@ -199,3 +199,49 @@ func TestAuthorizationNotificationUpdateCannotChangeGrantTerms(t *testing.T) {
 		t.Fatalf("rejected notification update changed grant: %+v", stored)
 	}
 }
+
+func TestAuthorizationRepositoryKeepsRequesterContextPrivateAndGenerationStable(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	t.Cleanup(cleanup)
+	repo := NewAuthorizationRepository(db)
+	ctx := context.Background()
+	grant := authorizationGrantFixture(time.Now())
+	grant.RequesterContext = &domain.AuthorizationRequesterContext{BigPicture: "Explain the purpose", TechnicalDetails: "Requester context\nwith readable line breaks"}
+	if err := repo.Create(ctx, grant); err != nil {
+		t.Fatal(err)
+	}
+	stored, err := repo.Get(ctx, grant.ID)
+	if err != nil || stored.RequesterContext == nil || stored.RequesterContext.BigPicture != grant.RequesterContext.BigPicture || stored.RequesterContext.TechnicalDetails != grant.RequesterContext.TechnicalDetails {
+		t.Fatalf("private context did not survive storage: grant=%+v err=%v", stored, err)
+	}
+	publicJSON, err := json.Marshal(stored)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, private := range []string{"Explain the purpose", "Requester context", "requester_context", "requester_big_picture", "requester_technical_details"} {
+		if strings.Contains(string(publicJSON), private) {
+			t.Fatalf("public grant leaked requester context %q: %s", private, publicJSON)
+		}
+	}
+
+	before := *stored
+	withSnapshot := *stored
+	withSnapshot.NotificationSnapshot = authorizationNotificationSnapshot(stored)
+	if changed, err := repo.UpdateNotification(ctx, &before, &withSnapshot); err != nil || !changed {
+		t.Fatalf("store snapshot with unchanged context: changed=%v err=%v", changed, err)
+	}
+	changedContext := withSnapshot
+	changedContext.RequesterContext = &domain.AuthorizationRequesterContext{BigPicture: "rewritten after request"}
+	if changed, err := repo.UpdateNotification(ctx, &withSnapshot, &changedContext); err == nil || changed {
+		t.Fatalf("notification receipt rewrote request context: changed=%v err=%v", changed, err)
+	}
+	transition := *stored
+	transition.State = domain.AuthorizationSuperseded
+	if changed, err := repo.Replace(ctx, &transition, domain.AuthorizationPending); err != nil || !changed {
+		t.Fatalf("transition pending request: changed=%v err=%v", changed, err)
+	}
+	after, err := repo.Get(ctx, grant.ID)
+	if err != nil || after.RequesterContext == nil || after.RequesterContext.BigPicture != grant.RequesterContext.BigPicture || after.RequesterContext.TechnicalDetails != grant.RequesterContext.TechnicalDetails {
+		t.Fatalf("state transition lost frozen requester context: grant=%+v err=%v", after, err)
+	}
+}

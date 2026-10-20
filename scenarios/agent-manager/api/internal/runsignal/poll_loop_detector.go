@@ -79,8 +79,12 @@ func hasStateTransition(events []*domain.RunEvent, after, before time.Time) bool
 			continue
 		}
 		switch event.EventType {
-		case domain.EventTypeMessage, domain.EventTypeStatus, domain.EventTypeArtifact, domain.EventTypeError, domain.EventTypeLifecycle:
+		case domain.EventTypeMessage, domain.EventTypeStatus, domain.EventTypeArtifact, domain.EventTypeLifecycle:
 			return true
+		case domain.EventTypeError:
+			if domain.IsOperationalErrorEvent(event) {
+				return true
+			}
 		}
 	}
 	return false

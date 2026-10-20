@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { create } from "@bufbuild/protobuf";
 import {
@@ -100,6 +100,53 @@ import { selectors } from "../../consts/selectors";
 import { setLocale } from "../../i18n";
 
 const originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
+
+async function mockStoryRouteContract() {
+  const { listComponentStories } = await import("../../api/components");
+  vi.mocked(listComponentStories).mockResolvedValue({
+    stories: [
+      {
+        id: "contract",
+        componentId: "cmp-story-route",
+        libraryId: "lib:StoryRoute",
+        version: "1.0.0",
+        schemaVersion: 2,
+        kind: "component",
+        title: "",
+        argsJson: '{"fields":[]}',
+        environmentJson: '{"fixtures":[]}',
+        storiesJson:
+          '[{"id":"primary","name":"Primary","args":{}},{"id":"disabled","name":"Disabled","args":{}}]',
+        contractJson: "{}",
+        sourcePath: "story.json",
+      },
+    ],
+  });
+}
+
+function storyRouteEditor(
+  selectedStory?: string,
+  onSelectedStoryChange?: (story: string) => void,
+) {
+  return (
+    <ComponentEditor
+      id="cmp-story-route"
+      libraryId="lib:StoryRoute"
+      onClose={() => {}}
+      activePane="preview"
+      selectedStory={selectedStory}
+      onSelectedStoryChange={onSelectedStoryChange}
+    />
+  );
+}
+
+function storyRouteCard(storyId: string) {
+  const card = screen.getAllByTestId(selectors.components.editor.exampleCard).find(
+    (candidate) => candidate.getAttribute("data-story") === storyId,
+  );
+  if (!card) throw new Error(`Missing story card ${storyId}`);
+  return card;
+}
 
 describe("ComponentEditor", () => {
   beforeEach(async () => {
@@ -420,6 +467,47 @@ describe("ComponentEditor", () => {
     // Each gallery frame posts the resolved theme once it loads.
     if (frames[0]) fireEvent.load(frames[0]);
     expect(screen.queryByTestId(selectors.components.editor.previewError)).not.toBeInTheDocument();
+  });
+
+  it("applies a changed deep-link story over an existing valid selection", async () => {
+    await mockStoryRouteContract();
+    const { rerender } = renderWithProviders(storyRouteEditor("primary"), { withoutRouter: true });
+
+    await waitFor(() => expect(storyRouteCard("primary")).toHaveClass("ring-1"));
+    rerender(storyRouteEditor("disabled"));
+    await waitFor(() => {
+      expect(storyRouteCard("disabled")).toHaveClass("ring-1");
+      expect(storyRouteCard("primary")).not.toHaveClass("ring-1");
+    });
+  });
+
+  it("preserves the mounted active story when the deep-link query is removed", async () => {
+    await mockStoryRouteContract();
+    const { rerender } = renderWithProviders(storyRouteEditor("disabled"), { withoutRouter: true });
+
+    await waitFor(() => expect(storyRouteCard("disabled")).toHaveClass("ring-1"));
+    rerender(storyRouteEditor());
+    await waitFor(() => {
+      const activeCard = storyRouteCard("disabled");
+      expect(activeCard).toHaveClass("ring-1");
+      expect(within(activeCard).getByTestId(selectors.components.editor.previewFrame))
+        .toHaveAttribute("src", expect.stringContaining("story=disabled"));
+      expect(storyRouteCard("primary")).not.toHaveClass("ring-1");
+    });
+  });
+
+  it("falls back to the first story when a deep-link id is invalid", async () => {
+    await mockStoryRouteContract();
+    const onSelectedStoryChange = vi.fn();
+
+    renderWithProviders(storyRouteEditor("missing-story", onSelectedStoryChange), {
+      withoutRouter: true,
+    });
+    await waitFor(() => {
+      expect(storyRouteCard("primary")).toHaveClass("ring-1");
+      expect(storyRouteCard("disabled")).not.toHaveClass("ring-1");
+      expect(onSelectedStoryChange).toHaveBeenCalledWith("primary");
+    });
   });
 
   it("uses the manifest latest version when history lists a draft first", async () => {
@@ -833,7 +921,7 @@ describe("ComponentEditor", () => {
         },
       ],
     });
-    vi.mocked(listPreviewFrames).mockResolvedValueOnce({
+    vi.mocked(listPreviewFrames).mockResolvedValue({
       candidates: [
         {
           asset: "navigation.page",
@@ -867,9 +955,10 @@ describe("ComponentEditor", () => {
       />,
     );
 
-    const picker = await screen.findByTestId<HTMLSelectElement>("components-editor-frame-picker");
+    const picker = await screen.findByTestId("components-editor-frame-picker");
     expect(persistPreviewFrame).not.toHaveBeenCalled();
-    await userEvent.selectOptions(picker, "navigation.page");
+    await userEvent.click(picker);
+    await userEvent.click(await screen.findByRole("option", { name: /navigation\.page/ }));
     const save = await screen.findByTestId("components-editor-frame-save");
     await userEvent.click(save);
     await waitFor(() => expect(persistPreviewFrame).toHaveBeenCalledTimes(1));

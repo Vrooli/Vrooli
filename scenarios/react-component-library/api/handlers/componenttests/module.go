@@ -119,7 +119,11 @@ func ModuleWithExecutorAndFixture(db *sql.DB, assets components.Service, sourceR
 	if prober, ok := executor.(domain.ExecutorProber); ok {
 		probe = prober.Probe
 	}
-	sharedPath, shared := scenariovalidationconnect.NewScenarioValidationServiceHandler(&sharedHandler{service: svc, assets: assets, sourceRoot: sourceRoot, logger: logger, evidence: catalogcoverage.NewEvidenceStore(db), fixture: fixture, probe: probe})
+	var inspect func(context.Context) (domain.BASProviderInspection, error)
+	if inspector, ok := executor.(domain.ExecutorInspector); ok {
+		inspect = inspector.InspectProvider
+	}
+	sharedPath, shared := scenariovalidationconnect.NewScenarioValidationServiceHandler(&sharedHandler{service: svc, assets: assets, sourceRoot: sourceRoot, logger: logger, evidence: catalogcoverage.NewEvidenceStore(db), fixture: fixture, probe: probe, inspect: inspect})
 	return module.Module{Name: "component-tests", Mount: func(r *mux.Router) {
 		connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: handler})
 		connectx.RegisterServices(r, connectx.ServiceMount{Path: sharedPath, Handler: shared})

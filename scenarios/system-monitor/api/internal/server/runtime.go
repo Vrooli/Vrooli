@@ -69,7 +69,9 @@ func Run(cfg *config.Config) error {
 		return fmt.Errorf("load investigation catalog: %w", err)
 	}
 	scriptSvc := services.NewCatalogScriptService(catalog, services.ResolveRuntimeStateBasePath())
-	scriptSvc.SetNativeRunner(services.NewNativeInvestigator())
+	nativeInvestigator := services.NewNativeInvestigator()
+	nativeInvestigator.SetMemoryPressureSource(monitorSvc.GetMemoryPressure)
+	scriptSvc.SetNativeRunner(nativeInvestigator)
 	var runHistory *investigations.Service
 	if sqliteRepo, ok := repo.(*sqliterepo.Repository); ok {
 		runRepo := investigations.NewSQLiteRepository(sqliteRepo.RoutedDB())
@@ -109,6 +111,14 @@ func Run(cfg *config.Config) error {
 		services.WithCPUObservationSource(monitorSvc))
 	thresholdScheduler.Start()
 
+	// Server-owned alert state: every rule (CPU, memory, TCP, GPU, memory
+	// pressure, orphaned agents) is evaluated here and persisted with
+	// sustain/dedup/auto-resolve. Clients read it; none derive alerts.
+	alertEvaluator := services.NewAlertEvaluator(settingsMgr, monitorSvc, repo, alertSvc, apiLog.With("service", "alerts"),
+		services.WithAdditionalAlertRules(services.NewOrphanedAgentsRule(services.NewCLIAgentInventory(nil, nil), nil)),
+		services.WithAlertEscalator(services.NewAnomalyEscalator(alertSvc, scriptSvc, nil)))
+	alertEvaluator.Start()
+
 	healthHandler := handlers.NewHealthHandler(cfg, monitorSvc, settingsMgr)
 	metricsHandler := handlers.NewMetricsHandler(cfg, monitorSvc, apiLog.With("handler", "metrics"))
 	investigationHandler := handlers.NewInvestigationHandler(cfg, investigationSvc, scriptSvc, apiLog.With("handler", "investigations"))
@@ -131,9 +141,11 @@ func Run(cfg *config.Config) error {
 
 	// The device-graph read verb serves from the monitor service's shared
 	// cached provider, the same one the 60s collector uses.
+	alertsHandler := handlers.NewAlertsHandler(alertEvaluator, repo, apiLog.With("handler", "alerts"))
+
 	deviceGraphHandler := handlers.NewDeviceGraphHandler(monitorSvc.DeviceGraphs(), apiLog.With("handler", "device-graph"))
 
-	router := buildRouter(cfg, healthHandler, metricsHandler, investigationHandler, reportHandler, settingsHandler, maintenanceHandler, capacityHandler, forensicsHandler, logsHandler, diskPressureHandler, deviceGraphHandler)
+	router := buildRouter(cfg, healthHandler, metricsHandler, investigationHandler, reportHandler, settingsHandler, maintenanceHandler, capacityHandler, forensicsHandler, logsHandler, diskPressureHandler, deviceGraphHandler, alertsHandler)
 	rootMux := http.NewServeMux()
 	if routedDB != nil && fileRoots != nil {
 		devrouting.RegisterWithFileRoots(rootMux, routedDB, fileRoots)
@@ -162,7 +174,7 @@ func Run(cfg *config.Config) error {
 		}
 	}()
 
-	waitForShutdown(monitorSvc, investigationSvc, retentionScheduler, thresholdScheduler, srv, closer)
+	waitForShutdown(monitorSvc, investigationSvc, retentionScheduler, thresholdScheduler, alertEvaluator, srv, closer)
 	return nil
 }
 

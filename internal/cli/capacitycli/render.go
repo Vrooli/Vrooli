@@ -3,6 +3,8 @@ package capacitycli
 import (
 	"fmt"
 	"io"
+	"sort"
+	"strconv"
 	"strings"
 
 	capacityapp "github.com/vrooli/vrooli/internal/app/capacity"
@@ -80,9 +82,17 @@ func RenderReconcile(w io.Writer, format cliout.Format, resp capacityapp.Reconci
 			if f.Severity == "warn" {
 				marker = "⚠"
 			}
+			pidContext := fmt.Sprintf("pid=%d", f.PID)
+			if len(f.PIDs) > 1 {
+				values := make([]string, len(f.PIDs))
+				for i, pid := range f.PIDs {
+					values[i] = strconv.Itoa(pid)
+				}
+				pidContext = "pids=" + strings.Join(values, ",")
+			}
 			rows = append(rows, []string{
 				marker + " " + strings.ToUpper(f.Class), f.OwnerID, f.Message,
-				fmt.Sprintf("pid=%d", f.PID), "observed=" + humanBytes(f.ObservedBytes),
+				pidContext, "observed=" + humanBytes(f.ObservedBytes),
 			})
 		}
 		return cliout.WriteSection(w, cliout.Section{Empty: "no GPU consumers above tracking threshold", Rows: rows})
@@ -93,6 +103,14 @@ func RenderReconcile(w io.Writer, format cliout.Format, resp capacityapp.Reconci
 func RenderSweep(w io.Writer, format cliout.Format, resp capacityapp.SweepOutput) error {
 	return cliout.RenderJSONOr(w, format, func(w io.Writer) error { return cliout.WriteJSON(w, resp) }, func(w io.Writer) error {
 		rows := make([][]string, 0, len(resp.Refreshed)+len(resp.Adopted)+len(resp.Expired)+len(resp.IdleUnloadCandidates))
+		deferred := make([]string, 0, len(resp.Deferred))
+		for id := range resp.Deferred {
+			deferred = append(deferred, id)
+		}
+		sort.Strings(deferred)
+		for _, id := range deferred {
+			rows = append(rows, []string{"expiry deferred", id, resp.Deferred[id]})
+		}
 		for _, c := range resp.Refreshed {
 			rows = append(rows, []string{"refreshed", c.OwnerID, c.ClaimID})
 		}

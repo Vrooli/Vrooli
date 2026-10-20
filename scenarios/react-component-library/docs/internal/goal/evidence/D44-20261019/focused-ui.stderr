@@ -1,0 +1,576 @@
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/features/components/ComponentEditor.test.tsx > ComponentEditor > keeps frame experiments temporary until the author explicitly saves them
+TestingLibraryElementError: Unable to find role="option" and name "navigation.page"
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<section[39m
+      [33maria-label[39m=[32m"Editing lib:FrameSave"[39m
+      [33mclass[39m=[32m"relative flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden bg-app-background "[39m
+      [33mdata-testid[39m=[32m"components-editor-panel"[39m
+    [36m>[39m
+      [36m<header[39m
+        [33mclass[39m=[32m"rcl-workspace-header"[39m
+        [33mdata-rcl-workspace-header[39m=[32m"true"[39m
+        [33mdata-testid[39m=[32m"workspace-header"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"rcl-workspace-header__row"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"rcl-workspace-header__copy"[39m
+          [36m>[39m
+            [36m<h1[39m
+              [33mclass[39m=[32m"rcl-workspace-header__title"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33mdata-testid[39m=[32m"components-editor-title"[39m
+              [36m>[39m
+                [0mlib:FrameSave[0m
+              [36m</span>[39m
+            [36m</h1>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"rcl-workspace-header__description"[39m
+            [36m>[39m
+              [0mSource, preview, and viewport controls[0m
+            [36m</p>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"rcl-workspace-header__actions"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex items-center gap-space-2xs"[39m
+            [36m>[39m
+              [36m<button[39m
+                [33maria-label[39m=[32m"Split view"[39m
+                [33maria-pressed[39m=[32m"false"[39m
+                [33mclass[39m=[32m"hidden h-control-tight min-h-control-tight min-w-control-tight lg:inline-flex border border-app-border bg-app-surface"[39m
+                [33mdata-rcl-icon-button[39m=[32m""[39m
+                [33mdata-rcl-pending[39m=[32m"false"[39m
+                [33mdata-rcl-shape[39m=[32m"circle"[39m
+                [33mdata-rcl-size[39m=[32m"md"[39m
+                [33mdata-rcl-surface[39m=[32m"ghost"[39m
+                [33mdata-rcl-tap-target[39m=[32m"comfortable"[39m
+                [33mdata-testid[39m=[32m"components-editor-split-view-toggle"[39m
+                [33mstyle[39m=[32m"inline-size: var(--control-size-md); block-size: var(--control-size-md);"[39m
+                [33mtitle[39m=[32m"Split view"[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33mdata-rcl-icon-button-glyph[39m=[32m""[39m
+                  [33mstyle[39m=[32m"inline-size: var(--icon-size-md); block-size: var(--icon-size-md);"[39m
+                [36m>[39m
+                  [36m<span[39m
+                    [33maria-hidden[39m=[32m"true"[39m
+                    [33mdata-rcl-morphing-icon[39m=[32m""[39m
+                    [33mdata-rcl-technique[39m=[32m"idle"[39m
+                    [33mdata-rcl-transition-mode[39m=[32m"auto"[39m
+                    [33mdata-size[39m=[32m"md"[39m
+                    [33mdata-testid[39m=[32m"motion.morphing-icon"[39m
+                    [33mstyle[39m=[32m"inline-size: var(--icon-size-md); block-size: var(--icon-size-md);"[39m
+                  [36m>[39m
+                    [36m<span[39m
+                      [33mdata-rcl-morphing-icon-current[39m=[32m""[39m
+                    [36m>[39m
+                      [36m<svg[39m
+                        [33maria-hidden[39m=[32m"true"[39m
+                        [33mclass[39m=[32m"lucide lucide-columns3 h-icon-compact w-icon-compact"[39m
+                        [33mfill[39m=[32m"none"[39m
+                        [33mheight[39m=[32m"24"[39m
+                        [33mstroke[39m=[32m"currentColor"[39m
+                        [33mstroke-linecap[39m=[32m"round"[39m
+                        [33mstroke-linejoin[39m=[32m"round"[39m
+                        [33mstroke-width[39m=[32m"2"[39m
+                        [33mviewBox[39m=[32m"0 0 24 24"[39m
+                        [33mwidth[39m=[32m"24"[39m
+                        [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                      [36m>[39m
+                        [36m<rect[39m
+                          [33mheight[39m=[32m"18"[39m
+                          [33mrx[39m=[32m"2"[39m
+                          [33mwidth[39m=[32m"18"[39m
+                          [33mx[39m=[32m"3"[39m
+                          [33my[39m=[32m"3"[39m
+                        [36m/>[39m
+                        [36m<path[39m
+                          [33md[39m=[32m"M9 3v18"[39m
+                        [36m/>[39m
+                        [36m<path[39m
+                          [33md[39m=[32m"M15 3v18"[39m
+                        [36m/>[39m
+                      [36m</svg>[39m
+                    [36m</span>[39m
+                  [36m</span>[39m
+                [36m</span>[39m
+              [36m</button>[39m
+              [36m<button[39m
+                [33maria-label[39m=[32m"Back to list"[39m
+                [33mclass[39m=[32m"h-touch min-h-touch min-w-touch border border-app-border bg-app-surface"[39m
+                [33mdata-rcl-icon-button[39m=[32m""[39m
+                [33mdata-rcl-pending[39m=[32m"false"[39m
+                [33mdata-rcl-shape[39m=[32m"circle"[39m
+                [33mdata-rcl-size[39m=[32m"md"[39m
+                [33mdata-rcl-surface[39m=[32m"ghost"[39m
+                [33mdata-rcl-tap-target[39m=[32m"comfortable"[39m
+                [33mdata-testid[39m=[32m"components-editor-close-button"[39m
+                [33mstyle[39m=[32m"inline-size: var(--control-size-md); block-size: var(--control-size-md);"[39m
+                [33mtitle[39m=[32m"Back to list"[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33mdata-rcl-icon-button-glyph[39m=[32m""[39m
+                  [33mstyle[39m=[32m"inline-size: var(--icon-size-md); block-size: var(--icon-size-md);"[39m
+                [36m>[39m
+                  [36m<span[39m
+                    [33maria-hidden[39m=[32m"true"[39m
+                    [33mdata-rcl-morphing-icon[39m=[32m""[39m
+                    [33mdata-rcl-technique[39m=[32m"idle"[39m
+                    [33mdata-rcl-transition-mode[39m=[32m"auto"[39m
+                    [33mdata-size[39m=[32m"md"[39m
+                    [33mdata-testid[39m=[32m"motion.morphing-icon"[39m
+                    [33mstyle[39m=[32m"inline-size: var(--icon-size-md); block-size: var(--icon-size-md);"[39m
+                  [36m>[39m
+                    [36m<span[39m
+                      [33mdata-rcl-morphing-icon-current[39m=[32m""...
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<section[39m
+      [33maria-label[39m=[32m"Editing lib:FrameSave"[39m
+      [33mclass[39m=[32m"relative flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden bg-app-background "[39m
+      [33mdata-testid[39m=[32m"components-editor-panel"[39m
+    [36m>[39m
+      [36m<header[39m
+        [33mclass[39m=[32m"rcl-workspace-header"[39m
+        [33mdata-rcl-workspace-header[39m=[32m"true"[39m
+        [33mdata-testid[39m=[32m"workspace-header"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"rcl-workspace-header__row"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"rcl-workspace-header__copy"[39m
+          [36m>[39m
+            [36m<h1[39m
+              [33mclass[39m=[32m"rcl-workspace-header__title"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33mdata-testid[39m=[32m"components-editor-title"[39m
+              [36m>[39m
+                [0mlib:FrameSave[0m
+              [36m</span>[39m
+            [36m</h1>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"rcl-workspace-header__description"[39m
+            [36m>[39m
+              [0mSource, preview, and viewport controls[0m
+            [36m</p>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"rcl-workspace-header__actions"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex items-center gap-space-2xs"[39m
+            [36m>[39m
+              [36m<button[39m
+                [33maria-label[39m=[32m"Split view"[39m
+                [33maria-pressed[39m=[32m"false"[39m
+                [33mclass[39m=[32m"hidden h-control-tight min-h-control-tight min-w-control-tight lg:inline-flex border border-app-border bg-app-surface"[39m
+                [33mdata-rcl-icon-button[39m=[32m""[39m
+                [33mdata-rcl-pending[39m=[32m"false"[39m
+                [33mdata-rcl-shape[39m=[32m"circle"[39m
+                [33mdata-rcl-size[39m=[32m"md"[39m
+                [33mdata-rcl-surface[39m=[32m"ghost"[39m
+                [33mdata-rcl-tap-target[39m=[32m"comfortable"[39m
+                [33mdata-testid[39m=[32m"components-editor-split-view-toggle"[39m
+                [33mstyle[39m=[32m"inline-size: var(--control-size-md); block-size: var(--control-size-md);"[39m
+                [33mtitle[39m=[32m"Split view"[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33mdata-rcl-icon-button-glyph[39m=[32m""[39m
+                  [33mstyle[39m=[32m"inline-size: var(--icon-size-md); block-size: var(--icon-size-md);"[39m
+                [36m>[39m
+                  [36m<span[39m
+                    [33maria-hidden[39m=[32m"true"[39m
+                    [33mdata-rcl-morphing-icon[39m=[32m""[39m
+                    [33mdata-rcl-technique[39m=[32m"idle"[39m
+                    [33mdata-rcl-transition-mode[39m=[32m"auto"[39m
+                    [33mdata-size[39m=[32m"md"[39m
+                    [33mdata-testid[39m=[32m"motion.morphing-icon"[39m
+                    [33mstyle[39m=[32m"inline-size: var(--icon-size-md); block-size: var(--icon-size-md);"[39m
+                  [36m>[39m
+                    [36m<span[39m
+                      [33mdata-rcl-morphing-icon-current[39m=[32m""[39m
+                    [36m>[39m
+                      [36m<svg[39m
+                        [33maria-hidden[39m=[32m"true"[39m
+                        [33mclass[39m=[32m"lucide lucide-columns3 h-icon-compact w-icon-compact"[39m
+                        [33mfill[39m=[32m"none"[39m
+                        [33mheight[39m=[32m"24"[39m
+                        [33mstroke[39m=[32m"currentColor"[39m
+                        [33mstroke-linecap[39m=[32m"round"[39m
+                        [33mstroke-linejoin[39m=[32m"round"[39m
+                        [33mstroke-width[39m=[32m"2"[39m
+                        [33mviewBox[39m=[32m"0 0 24 24"[39m
+                        [33mwidth[39m=[32m"24"[39m
+                        [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                      [36m>[39m
+                        [36m<rect[39m
+                          [33mheight[39m=[32m"18"[39m
+                          [33mrx[39m=[32m"2"[39m
+                          [33mwidth[39m=[32m"18"[39m
+                          [33mx[39m=[32m"3"[39m
+                          [33my[39m=[32m"3"[39m
+                        [36m/>[39m
+                        [36m<path[39m
+                          [33md[39m=[32m"M9 3v18"[39m
+                        [36m/>[39m
+                        [36m<path[39m
+                          [33md[39m=[32m"M15 3v18"[39m
+                        [36m/>[39m
+                      [36m</svg>[39m
+                    [36m</span>[39m
+                  [36m</span>[39m
+                [36m</span>[39m
+              [36m</button>[39m
+              [36m<button[39m
+                [33maria-label[39m=[32m"Back to list"[39m
+                [33mclass[39m=[32m"h-touch min-h-touch min-w-touch border border-app-border bg-app-surface"[39m
+                [33mdata-rcl-icon-button[39m=[32m""[39m
+                [33mdata-rcl-pending[39m=[32m"false"[39m
+                [33mdata-rcl-shape[39m=[32m"circle"[39m
+                [33mdata-rcl-size[39m=[32m"md"[39m
+                [33mdata-rcl-surface[39m=[32m"ghost"[39m
+                [33mdata-rcl-tap-target[39m=[32m"comfortable"[39m
+                [33mdata-testid[39m=[32m"components-editor-close-button"[39m
+                [33mstyle[39m=[32m"inline-size: var(--control-size-md); block-size: var(--control-size-md);"[39m
+                [33mtitle[39m=[32m"Back to list"[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33mdata-rcl-icon-button-glyph[39m=[32m""[39m
+                  [33mstyle[39m=[32m"inline-size: var(--icon-size-md); block-size: var(--icon-size-md);"[39m
+                [36m>[39m
+                  [36m<span[39m
+                    [33maria-hidden[39m=[32m"true"[39m
+                    [33mdata-rcl-morphing-icon[39m=[32m""[39m
+                    [33mdata-rcl-technique[39m=[32m"idle"[39m
+                    [33mdata-rcl-transition-mode[39m=[32m"auto"[39m
+                    [33mdata-size[39m=[32m"md"[39m
+                    [33mdata-testid[39m=[32m"motion.morphing-icon"[39m
+                    [33mstyle[39m=[32m"inline-size: var(--icon-size-md); block-size: var(--icon-size-md);"[39m
+                  [36m>[39m
+                    [36m<span[39m
+                      [33mdata-rcl-morphing-icon-current[39m=[32m""...
+ ❯ waitForWrapper node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/features/components/ComponentEditor.test.tsx:961:40
+    959|     expect(persistPreviewFrame).not.toHaveBeenCalled();
+    960|     await userEvent.click(picker);
+    961|     await userEvent.click(await screen.findByRole("option", { name: "n…
+       |                                        ^
+    962|     const save = await screen.findByTestId("components-editor-frame-sa…
+    963|     await userEvent.click(save);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/features/components/ComponentTestPanel.test.tsx > ComponentTestPanel > defaults to the review sheet, exposes each captured story, and renders results once
+TestingLibraryElementError: Unable to find role="option" and name "Secondary"
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<section[39m
+      [33maria-label[39m=[32m"Component tests"[39m
+      [33mclass[39m=[32m"space-y-space-sm text-sm text-app-foreground"[39m
+      [33mdata-testid[39m=[32m"component-test-panel"[39m
+    [36m>[39m
+      [36m<header[39m
+        [33mclass[39m=[32m"flex flex-wrap items-start justify-between gap-space-xs rounded-panel border border-app-border bg-app-surface-muted p-space-sm"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs font-semibold uppercase tracking-wide text-app-primary"[39m
+          [36m>[39m
+            [0mQuality evidence[0m
+          [36m</p>[39m
+          [36m<h3[39m
+            [33mclass[39m=[32m"mt-space-3xs text-lg font-semibold"[39m
+          [36m>[39m
+            [0mComponent tests[0m
+          [36m</h3>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"mt-space-3xs max-w-xl text-xs text-app-muted-foreground"[39m
+          [36m>[39m
+            [0mValidate declared behavior for version [0m
+            [0m2.2.0[0m
+            [0m, including the pinned dependency closure. Each run is retained as reviewable evidence.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+        [36m<label[39m
+          [33mclass[39m=[32m"flex items-center gap-space-2xs text-xs text-app-muted-foreground"[39m
+        [36m>[39m
+          [36m<input[39m
+            [33mtype[39m=[32m"checkbox"[39m
+          [36m/>[39m
+          [0mInclude dependency closure[0m
+        [36m</label>[39m
+        [36m<button[39m
+          [33mdata-control-below-tap-target[39m=[32m"true"[39m
+          [33mdata-control-density[39m=[32m"comfortable"[39m
+          [33mdata-control-shape[39m=[32m"pill"[39m
+          [33mdata-control-size[39m=[32m"sm"[39m
+          [33mdata-control-variant[39m=[32m"primary"[39m
+          [33mdata-rcl-button[39m=[32m"true"[39m
+          [33mdata-rcl-control[39m=[32m"true"[39m
+          [33mdata-rcl-pending[39m=[32m"false"[39m
+          [33mdata-rcl-pressable[39m=[32m"true"[39m
+          [33mdata-testid[39m=[32m"controls.button"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mdata-rcl-pressable-content[39m=[32m"true"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33maria-hidden[39m=[32m"false"[39m
+              [33mdata-rcl-asset[39m=[32m"react-component-library:Pressable"[39m
+              [33mdata-rcl-pressable-label[39m=[32m"true"[39m
+              [33mdata-rcl-source-slot[39m=[32m"controls.pressable"[39m
+              [33mdata-rcl-stamp[39m=[32m"vite"[39m
+              [33mdata-rcl-version[39m=[32m"1.0.4"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33mdata-rcl-button-content[39m=[32m"true"[39m
+                [33mstyle[39m=[32m"display: inline-flex; align-items: center; gap: var(--space-xs); min-width: 0; max-width: 100%;"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33mdata-control-slot[39m=[32m"label"[39m
+                  [33mdata-rcl-asset[39m=[32m"react-component-library:Button"[39m
+                  [33mdata-rcl-source-slot[39m=[32m"controls.button"[39m
+                  [33mdata-rcl-stamp[39m=[32m"vite"[39m
+                  [33mdata-rcl-version[39m=[32m"2.2.12"[39m
+                  [33mdata-testid[39m=[32m"button-label"[39m
+                  [33mstyle[39m=[32m"display: inline-flex; align-items: center; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"[39m
+                [36m>[39m
+                  [36m<svg[39m
+                    [33maria-hidden[39m=[32m"true"[39m
+                    [33mclass[39m=[32m"lucide lucide-play h-icon-sm w-icon-sm"[39m
+                    [33mfill[39m=[32m"none"[39m
+                    [33mheight[39m=[32m"24"[39m
+                    [33mstroke[39m=[32m"currentColor"[39m
+                    [33mstroke-linecap[39m=[32m"round"[39m
+                    [33mstroke-linejoin[39m=[32m"round"[39m
+                    [33mstroke-width[39m=[32m"2"[39m
+                    [33mviewBox[39m=[32m"0 0 24 24"[39m
+                    [33mwidth[39m=[32m"24"[39m
+                    [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                  [36m>[39m
+                    [36m<polygon[39m
+                      [33mpoints[39m=[32m"6 3 20 12 6 21 6 3"[39m
+                    [36m/>[39m
+                  [36m</svg>[39m
+                  [0mRun component tests[0m
+                [36m</span>[39m
+              [36m</span>[39m
+            [36m</span>[39m
+            [36m<span[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33maria-live[39m=[32m"polite"[39m
+              [33mdata-rcl-pressable-pending[39m=[32m"true"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mdata-rcl-pressable-spinner[39m=[32m"true"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"rcl-visually-hidden"[39m
+              [36m>[39m
+                [0mWorking…[0m
+              [36m</span>[39m
+            [36m</span>[39m
+          [36m</span>[39m
+        [36m</button>[39m
+      [36m</header>[39m
+      [36m<section[39m
+        [33maria-label[39m=[32m"Claim overlay and evidence"[39m
+        [33mclass[39m=[32m"overflow-hidden rounded-panel border border-app-border bg-app-surface"[39m
+        [33mdata-testid[39m=[32m"claim-overlay-panel"[39m
+      [36m>[39m
+        [36m<header[39m
+          [33mclass[39m=[32m"flex flex-wrap items-start justify-between gap-space-xs border-b border-app-border bg-app-surface-muted p-space-sm"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex items-start gap-space-xs"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"flex h-control-md w-control-md shrink-0 items-center justify-center rounded-control bg-app-primary/10 text-app-primary"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-scan-search h-icon-md w-icon-md"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"24"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"24"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m...
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<section[39m
+      [33maria-label[39m=[32m"Component tests"[39m
+      [33mclass[39m=[32m"space-y-space-sm text-sm text-app-foreground"[39m
+      [33mdata-testid[39m=[32m"component-test-panel"[39m
+    [36m>[39m
+      [36m<header[39m
+        [33mclass[39m=[32m"flex flex-wrap items-start justify-between gap-space-xs rounded-panel border border-app-border bg-app-surface-muted p-space-sm"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs font-semibold uppercase tracking-wide text-app-primary"[39m
+          [36m>[39m
+            [0mQuality evidence[0m
+          [36m</p>[39m
+          [36m<h3[39m
+            [33mclass[39m=[32m"mt-space-3xs text-lg font-semibold"[39m
+          [36m>[39m
+            [0mComponent tests[0m
+          [36m</h3>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"mt-space-3xs max-w-xl text-xs text-app-muted-foreground"[39m
+          [36m>[39m
+            [0mValidate declared behavior for version [0m
+            [0m2.2.0[0m
+            [0m, including the pinned dependency closure. Each run is retained as reviewable evidence.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+        [36m<label[39m
+          [33mclass[39m=[32m"flex items-center gap-space-2xs text-xs text-app-muted-foreground"[39m
+        [36m>[39m
+          [36m<input[39m
+            [33mtype[39m=[32m"checkbox"[39m
+          [36m/>[39m
+          [0mInclude dependency closure[0m
+        [36m</label>[39m
+        [36m<button[39m
+          [33mdata-control-below-tap-target[39m=[32m"true"[39m
+          [33mdata-control-density[39m=[32m"comfortable"[39m
+          [33mdata-control-shape[39m=[32m"pill"[39m
+          [33mdata-control-size[39m=[32m"sm"[39m
+          [33mdata-control-variant[39m=[32m"primary"[39m
+          [33mdata-rcl-button[39m=[32m"true"[39m
+          [33mdata-rcl-control[39m=[32m"true"[39m
+          [33mdata-rcl-pending[39m=[32m"false"[39m
+          [33mdata-rcl-pressable[39m=[32m"true"[39m
+          [33mdata-testid[39m=[32m"controls.button"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mdata-rcl-pressable-content[39m=[32m"true"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33maria-hidden[39m=[32m"false"[39m
+              [33mdata-rcl-asset[39m=[32m"react-component-library:Pressable"[39m
+              [33mdata-rcl-pressable-label[39m=[32m"true"[39m
+              [33mdata-rcl-source-slot[39m=[32m"controls.pressable"[39m
+              [33mdata-rcl-stamp[39m=[32m"vite"[39m
+              [33mdata-rcl-version[39m=[32m"1.0.4"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33mdata-rcl-button-content[39m=[32m"true"[39m
+                [33mstyle[39m=[32m"display: inline-flex; align-items: center; gap: var(--space-xs); min-width: 0; max-width: 100%;"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33mdata-control-slot[39m=[32m"label"[39m
+                  [33mdata-rcl-asset[39m=[32m"react-component-library:Button"[39m
+                  [33mdata-rcl-source-slot[39m=[32m"controls.button"[39m
+                  [33mdata-rcl-stamp[39m=[32m"vite"[39m
+                  [33mdata-rcl-version[39m=[32m"2.2.12"[39m
+                  [33mdata-testid[39m=[32m"button-label"[39m
+                  [33mstyle[39m=[32m"display: inline-flex; align-items: center; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"[39m
+                [36m>[39m
+                  [36m<svg[39m
+                    [33maria-hidden[39m=[32m"true"[39m
+                    [33mclass[39m=[32m"lucide lucide-play h-icon-sm w-icon-sm"[39m
+                    [33mfill[39m=[32m"none"[39m
+                    [33mheight[39m=[32m"24"[39m
+                    [33mstroke[39m=[32m"currentColor"[39m
+                    [33mstroke-linecap[39m=[32m"round"[39m
+                    [33mstroke-linejoin[39m=[32m"round"[39m
+                    [33mstroke-width[39m=[32m"2"[39m
+                    [33mviewBox[39m=[32m"0 0 24 24"[39m
+                    [33mwidth[39m=[32m"24"[39m
+                    [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                  [36m>[39m
+                    [36m<polygon[39m
+                      [33mpoints[39m=[32m"6 3 20 12 6 21 6 3"[39m
+                    [36m/>[39m
+                  [36m</svg>[39m
+                  [0mRun component tests[0m
+                [36m</span>[39m
+              [36m</span>[39m
+            [36m</span>[39m
+            [36m<span[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33maria-live[39m=[32m"polite"[39m
+              [33mdata-rcl-pressable-pending[39m=[32m"true"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mdata-rcl-pressable-spinner[39m=[32m"true"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"rcl-visually-hidden"[39m
+              [36m>[39m
+                [0mWorking…[0m
+              [36m</span>[39m
+            [36m</span>[39m
+          [36m</span>[39m
+        [36m</button>[39m
+      [36m</header>[39m
+      [36m<section[39m
+        [33maria-label[39m=[32m"Claim overlay and evidence"[39m
+        [33mclass[39m=[32m"overflow-hidden rounded-panel border border-app-border bg-app-surface"[39m
+        [33mdata-testid[39m=[32m"claim-overlay-panel"[39m
+      [36m>[39m
+        [36m<header[39m
+          [33mclass[39m=[32m"flex flex-wrap items-start justify-between gap-space-xs border-b border-app-border bg-app-surface-muted p-space-sm"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex items-start gap-space-xs"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"flex h-control-md w-control-md shrink-0 items-center justify-center rounded-control bg-app-primary/10 text-app-primary"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-scan-search h-icon-md w-icon-md"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"24"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"24"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m...
+ ❯ waitForWrapper node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/features/components/ComponentTestPanel.test.tsx:221:40
+    219| 
+    220|     await userEvent.click(storyPicker);
+    221|     await userEvent.click(await screen.findByRole("option", { name: "S…
+       |                                        ^
+    222|     expect(storyPicker).toHaveTextContent("Secondary");
+    223|     expect(await screen.findByRole("tab", { name: "Screenshot: Capture…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+

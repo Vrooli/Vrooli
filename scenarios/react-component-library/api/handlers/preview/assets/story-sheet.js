@@ -30,6 +30,7 @@
         const state = harness?.getAttribute("data-experience-state");
         const status = harness?.getAttribute("data-rcl-story-status");
         const tile = frame.closest("[data-story-id]");
+        const viewport = tile?.querySelector("[data-story-viewport]");
         const meta = tile?.querySelector("[data-story-meta]");
         const size = tile?.querySelector("[data-story-size]");
         const paintedNodes = Number(harness?.getAttribute("data-rcl-painted-nodes") || 0);
@@ -38,6 +39,11 @@
         if (size) size.textContent = renderedWidth && renderedHeight ? `${renderedWidth} × ${renderedHeight}px` : "no visible content";
         if (meta && paintedNodes === 0 && status === "passed") meta.dataset.emptyRender = "true";
         if (renderedHeight > 0) frame.style.height = `${Math.min(1200, Math.max(96, renderedHeight + 32))}px`;
+        if (viewport && frame.offsetWidth > 0) {
+          const scale = Math.min(1, viewport.clientWidth / 1280);
+          frame.style.transform = `scale(${scale})`;
+          viewport.style.height = `${Math.ceil(frame.offsetHeight * scale) + 2}px`;
+        }
         if (state === "error" || status === "failed") failed += 1;
         if (state === "ready" && status === "passed") ready += 1;
       } catch (_) {

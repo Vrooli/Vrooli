@@ -197,6 +197,59 @@ func TestService_UpdateContentTargetsActiveDraftAndPreservesRelease(t *testing.T
 	require.Contains(t, string(draftSource), "draft")
 }
 
+func TestService_UpdateContentAtReindexesActiveDraftStoryContract(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	root := t.TempDir()
+	svc := components.NewServiceWithContent(repo, components.NewFSContentStore(root))
+	created, err := svc.InitializeComponent(context.Background(), components.InitializeComponentInput{
+		LibraryID: "react-component-library:Button", Slug: "Button", DisplayName: "Button",
+		InitialVersion: "1.0.0", InitialSource: "export function Button() { return <button />; }",
+		ScaffoldExamples: true,
+	})
+	require.NoError(t, err)
+	authoring := svc.(components.AuthoringService)
+	draft, err := authoring.BeginComponentVersion(context.Background(), components.BeginComponentVersionInput{
+		Component: "react-component-library:Button", Bump: "patch",
+	})
+	require.NoError(t, err)
+
+	releaseBefore, err := repo.GetVersion(context.Background(), created.Component.ID, "1.0.0")
+	require.NoError(t, err)
+	releaseStoryPath := filepath.Join(root, "components", "Button", "versions", "1.0.0", "story.json")
+	releaseStoryBefore, err := os.ReadFile(releaseStoryPath)
+	require.NoError(t, err)
+	writer := svc.(interface {
+		UpdateContentAt(context.Context, string, string, components.WriteContentInput) (components.Content, error)
+	})
+	written, err := writer.UpdateContentAt(context.Background(), "react-component-library:Button", "story.json", components.WriteContentInput{
+		Body: `{"schemaVersion":5,"kind":"component","stories":[{"id":"rendered","name":"Rendered"},{"id":"empty-state","name":"Empty state"}]}`,
+	})
+	require.NoError(t, err)
+	require.Contains(t, written.SourcePath, draft.Version.Version)
+
+	stories, err := svc.ListStories(context.Background(), components.StoryQuery{
+		ComponentID: created.Component.ID,
+		Version:     draft.Version.Version,
+	})
+	require.NoError(t, err)
+	require.Len(t, stories, 1)
+	contract, diagnostics := components.ParseStoryContract([]byte(stories[0].ContractJSON))
+	require.Empty(t, components.StoryContractErrors(diagnostics))
+	var gotIDs []string
+	for _, story := range contract.Stories {
+		gotIDs = append(gotIDs, story.ID)
+	}
+	require.Equal(t, []string{"rendered", "empty-state"}, gotIDs, "story-list projection must match the active draft contract written by content-set")
+
+	releaseAfter, err := repo.GetVersion(context.Background(), created.Component.ID, "1.0.0")
+	require.NoError(t, err)
+	releaseStoryAfter, err := os.ReadFile(releaseStoryPath)
+	require.NoError(t, err)
+	require.Equal(t, releaseBefore.Files, releaseAfter.Files, "refreshing a draft story must leave released file records unchanged")
+	require.Equal(t, releaseStoryBefore, releaseStoryAfter, "refreshing a draft story must leave released story.json bytes unchanged")
+	require.Equal(t, "1.0.0", releaseAfter.Version)
+}
+
 func TestService_UpdateVersionContentAtRefusesReleasedVersion(t *testing.T) {
 	repo := mocks.NewFakeRepository()
 	root := t.TempDir()

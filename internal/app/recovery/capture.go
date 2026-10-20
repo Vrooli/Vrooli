@@ -87,7 +87,7 @@ func (s Service) freezeSharedSources(req CaptureRequest, item scenario.Scenario)
 	}
 	floorRoots := make([]baselinefloor.SharedRoot, 0, len(roots))
 	for _, root := range roots {
-		floorRoots = append(floorRoots, baselinefloor.SharedRoot{Path: root.Path, Reason: root.Reason})
+		floorRoots = append(floorRoots, baselinefloor.SharedRoot{Path: root.Path, Reason: root.Reason, KeepOutputs: root.KeepOutputs})
 	}
 	dest := s.Store.SharedSourcesPath(req.Scenario, req.Slug)
 	copied, total, err := baselinefloor.CaptureSharedSources(s.Root, dest, floorRoots, !req.NoReflink)

@@ -498,10 +498,7 @@ func NewStateErrorWithID(entityType, entityID, currentState, operation, reason s
 func isTerminalState(entityType, state string) bool {
 	switch entityType {
 	case "Task":
-		return state == string(TaskStatusApproved) ||
-			state == string(TaskStatusRejected) ||
-			state == string(TaskStatusFailed) ||
-			state == string(TaskStatusCancelled)
+		return TaskStatus(state).IsTerminal()
 	case "Run":
 		return state == string(RunStatusComplete) ||
 			state == string(RunStatusFailed) ||

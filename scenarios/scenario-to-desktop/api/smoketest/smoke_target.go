@@ -124,6 +124,8 @@ func resolveBundledTarget(ctx context.Context, smokeTestID string) (JourneyTarge
 	if strings.TrimSpace(smokeTestID) == "" {
 		return JourneyTarget{}, fmt.Errorf("bundled_private_target_unavailable")
 	}
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
 	path := bundledTargetPath(smokeTestID)
 	for {
 		raw, err := os.ReadFile(path)

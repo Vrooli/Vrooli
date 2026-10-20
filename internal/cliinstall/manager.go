@@ -242,6 +242,40 @@ func (m *Manager) EnsureResourceCLI(name string) error {
 	return m.ensure(context.Background(), item)
 }
 
+// RefreshCLI forces one manager-discovered Go CLI install after verifying that
+// the caller's currently running executable is the canonical target for the
+// declared scenario/resource. It intentionally does not accept build argv or
+// arbitrary output paths.
+func (m *Manager) RefreshCLI(ctx context.Context, kind Kind, name, runningExecutable string) error {
+	if m == nil {
+		return fmt.Errorf("CLI manager is unavailable")
+	}
+	var item InstallableCLI
+	var err error
+	switch kind {
+	case KindScenario:
+		item, err = m.DiscoverScenarioCLI(name)
+	case KindResource:
+		item, err = m.DiscoverResourceCLI(name)
+	default:
+		return fmt.Errorf("unsupported CLI refresh kind %q", kind)
+	}
+	if err != nil {
+		return fmt.Errorf("discover declared %s CLI %q: %w", kind, name, err)
+	}
+	if item.CLI == nil || item.CLI.Adapter.Kind != installationGoModule {
+		return fmt.Errorf("declared %s CLI %q is not a Go-module install", kind, name)
+	}
+	canonical := m.InstalledBinaryPath(item)
+	if !sameInstallPath(canonical, runningExecutable) {
+		return fmt.Errorf("running CLI path does not match declared %s CLI %q target", kind, name)
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return m.install(ctx, item)
+}
+
 func (m *Manager) DiscoverScenarioCLI(name string) (InstallableCLI, error) {
 	contract, err := repocontract.LoadDefault(m.Root)
 	if err != nil {

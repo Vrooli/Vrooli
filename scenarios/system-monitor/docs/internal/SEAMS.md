@@ -17,9 +17,30 @@
   interface.
 
 - **Platform paging seam** (`api/internal/collectors/platform_paging_*.go`):
-  exposes native cumulative paging counters to the pressure collector. The
-  collector owns counter-to-rate conversion and emits explicit degraded state
-  when a backend cannot measure a counter.
+  exposes native cumulative paging counters, their stable consumer aliases,
+  and instantaneous memory-pressure gauges (native level, paging-file usage,
+  commit charge) to the pressure collector. Linux reads `/proc/vmstat`, macOS
+  `host_statistics64` plus `kern.memorystatus_vm_pressure_level`, Windows PDH,
+  `GlobalMemoryStatusEx`, and the low-memory notification. Pure mappings
+  (`paging_*_parse.go`) are untagged so recorded fixtures for every platform
+  run on any host. The collector owns counter-to-rate conversion and emits
+  explicit degraded state when a backend cannot measure a counter.
+
+- **macOS native binding** (`api/internal/darwinsys/`): cgo-free libSystem
+  trampolines for `host_statistics64` and `proc_pid_rusage`; non-darwin builds
+  return `ErrUnsupported`.
+
+- **Alert evaluator seam** (`api/internal/services/alert_evaluator.go`):
+  `AlertRule` implementations judge one `AlertSnapshot`; `AlertSnapshotSource`
+  (satisfied by `*MonitorService`), `AlertEscalator`, `AlertRepository`, and
+  `Clock` are injected, so sustain/dedup/resolve logic is tested with a stub
+  clock and the in-memory repository.
+
+- **Agent inventory seam** (`api/internal/services/orphan_agents.go`):
+  `AgentInventorySource` reads the control plane's agent listing; production
+  execs `vrooli agent list --json` through `CommandRunner` at most every five
+  minutes. The rule reads the control plane's `orphaned` classification and
+  owner and never infers ownership itself.
 
 - **Platform fragmentation seam** (`api/internal/collectors/platform_fragmentation_*.go`):
   exposes Linux buddyinfo and compaction evidence while non-Linux builds

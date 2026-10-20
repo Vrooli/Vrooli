@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/api-core/owneridentity"
+
 	"connectrpc.com/connect"
 	capacityapp "github.com/vrooli/vrooli/internal/app/capacity"
 	engine "github.com/vrooli/vrooli/internal/capacity"
@@ -79,7 +81,7 @@ func TestMountConnectRoutesHealth(t *testing.T) {
 	capacity := handlers.NewCapacityHandler(newFakeCapacityProvider(), nil)
 	maintenance := handlers.NewMaintenanceHandler(newFakeMaintenanceProvider(), nil)
 	investigation := handlers.NewInvestigationHandler(&config.Config{}, newFakeInvestigationManager(), newFakeScriptRunner(), nil)
-	mountConnectRoutes(r, health, metrics, reports, settings, capacity, maintenance, investigation, handlers.NewDeviceGraphHandler(stubDeviceGraphProvider{}, nil))
+	mountConnectRoutes(r, health, metrics, reports, settings, capacity, maintenance, investigation, handlers.NewDeviceGraphHandler(stubDeviceGraphProvider{}, nil), nil)
 
 	server := httptest.NewServer(r)
 	defer server.Close()
@@ -120,7 +122,7 @@ func TestMountConnectRoutesMetrics(t *testing.T) {
 	capacity := handlers.NewCapacityHandler(newFakeCapacityProvider(), nil)
 	maintenance := handlers.NewMaintenanceHandler(newFakeMaintenanceProvider(), nil)
 	investigation := handlers.NewInvestigationHandler(&config.Config{}, newFakeInvestigationManager(), newFakeScriptRunner(), nil)
-	mountConnectRoutes(r, health, metrics, reports, settings, capacity, maintenance, investigation, handlers.NewDeviceGraphHandler(stubDeviceGraphProvider{}, nil))
+	mountConnectRoutes(r, health, metrics, reports, settings, capacity, maintenance, investigation, handlers.NewDeviceGraphHandler(stubDeviceGraphProvider{}, nil), nil)
 
 	server := httptest.NewServer(r)
 	defer server.Close()
@@ -150,7 +152,7 @@ func TestMountConnectRoutesReports(t *testing.T) {
 	capacity := handlers.NewCapacityHandler(newFakeCapacityProvider(), nil)
 	maintenance := handlers.NewMaintenanceHandler(newFakeMaintenanceProvider(), nil)
 	investigation := handlers.NewInvestigationHandler(&config.Config{}, newFakeInvestigationManager(), newFakeScriptRunner(), nil)
-	mountConnectRoutes(r, health, metrics, reports, settings, capacity, maintenance, investigation, handlers.NewDeviceGraphHandler(stubDeviceGraphProvider{}, nil))
+	mountConnectRoutes(r, health, metrics, reports, settings, capacity, maintenance, investigation, handlers.NewDeviceGraphHandler(stubDeviceGraphProvider{}, nil), nil)
 
 	server := httptest.NewServer(r)
 	defer server.Close()
@@ -180,7 +182,7 @@ func TestMountConnectRoutesSettings(t *testing.T) {
 	capacity := handlers.NewCapacityHandler(newFakeCapacityProvider(), nil)
 	maintenance := handlers.NewMaintenanceHandler(newFakeMaintenanceProvider(), nil)
 	investigation := handlers.NewInvestigationHandler(&config.Config{}, newFakeInvestigationManager(), newFakeScriptRunner(), nil)
-	mountConnectRoutes(r, health, metrics, reports, settings, capacity, maintenance, investigation, handlers.NewDeviceGraphHandler(stubDeviceGraphProvider{}, nil))
+	mountConnectRoutes(r, health, metrics, reports, settings, capacity, maintenance, investigation, handlers.NewDeviceGraphHandler(stubDeviceGraphProvider{}, nil), nil)
 
 	server := httptest.NewServer(r)
 	defer server.Close()
@@ -210,7 +212,7 @@ func TestMountConnectRoutesCapacity(t *testing.T) {
 	capacity := handlers.NewCapacityHandler(newFakeCapacityProvider(), nil)
 	maintenance := handlers.NewMaintenanceHandler(newFakeMaintenanceProvider(), nil)
 	investigation := handlers.NewInvestigationHandler(&config.Config{}, newFakeInvestigationManager(), newFakeScriptRunner(), nil)
-	mountConnectRoutes(r, health, metrics, reports, settings, capacity, maintenance, investigation, handlers.NewDeviceGraphHandler(stubDeviceGraphProvider{}, nil))
+	mountConnectRoutes(r, health, metrics, reports, settings, capacity, maintenance, investigation, handlers.NewDeviceGraphHandler(stubDeviceGraphProvider{}, nil), nil)
 
 	server := httptest.NewServer(r)
 	defer server.Close()
@@ -243,7 +245,7 @@ func TestMountConnectRoutesMaintenance(t *testing.T) {
 	capacity := handlers.NewCapacityHandler(newFakeCapacityProvider(), nil)
 	maintenance := handlers.NewMaintenanceHandler(newFakeMaintenanceProvider(), nil)
 	investigation := handlers.NewInvestigationHandler(&config.Config{}, newFakeInvestigationManager(), newFakeScriptRunner(), nil)
-	mountConnectRoutes(r, health, metrics, reports, settings, capacity, maintenance, investigation, handlers.NewDeviceGraphHandler(stubDeviceGraphProvider{}, nil))
+	mountConnectRoutes(r, health, metrics, reports, settings, capacity, maintenance, investigation, handlers.NewDeviceGraphHandler(stubDeviceGraphProvider{}, nil), nil)
 
 	server := httptest.NewServer(r)
 	defer server.Close()
@@ -276,7 +278,7 @@ func TestMountConnectRoutesScripts(t *testing.T) {
 	capacity := handlers.NewCapacityHandler(newFakeCapacityProvider(), nil)
 	maintenance := handlers.NewMaintenanceHandler(newFakeMaintenanceProvider(), nil)
 	investigation := handlers.NewInvestigationHandler(&config.Config{}, newFakeInvestigationManager(), newFakeScriptRunner(), nil)
-	mountConnectRoutes(r, health, metrics, reports, settings, capacity, maintenance, investigation, handlers.NewDeviceGraphHandler(stubDeviceGraphProvider{}, nil))
+	mountConnectRoutes(r, health, metrics, reports, settings, capacity, maintenance, investigation, handlers.NewDeviceGraphHandler(stubDeviceGraphProvider{}, nil), nil)
 
 	server := httptest.NewServer(r)
 	defer server.Close()
@@ -309,7 +311,8 @@ func TestMountConnectRoutesInvestigations(t *testing.T) {
 	capacity := handlers.NewCapacityHandler(newFakeCapacityProvider(), nil)
 	maintenance := handlers.NewMaintenanceHandler(newFakeMaintenanceProvider(), nil)
 	investigation := handlers.NewInvestigationHandler(&config.Config{Server: config.ServerConfig{APIPort: "16914"}}, newFakeInvestigationManager(), newFakeScriptRunner(), nil)
-	mountConnectRoutes(r, health, metrics, reports, settings, capacity, maintenance, investigation, handlers.NewDeviceGraphHandler(stubDeviceGraphProvider{}, nil))
+	investigation.SetRunCallerValidator(routerOwnerVerifier{})
+	mountConnectRoutes(r, health, metrics, reports, settings, capacity, maintenance, investigation, handlers.NewDeviceGraphHandler(stubDeviceGraphProvider{}, nil), nil)
 
 	server := httptest.NewServer(r)
 	defer server.Close()
@@ -323,7 +326,9 @@ func TestMountConnectRoutesInvestigations(t *testing.T) {
 		t.Fatalf("investigation id = %q, want inv-1", got)
 	}
 
-	triggerResp, err := client.TriggerInvestigation(context.Background(), connect.NewRequest(&investigationspb.TriggerInvestigationRequest{AutoFix: true, Note: "check CPU"}))
+	triggerReq := connect.NewRequest(&investigationspb.TriggerInvestigationRequest{AutoFix: true, Note: "check CPU"})
+	triggerReq.Header().Set("Authorization", "Bearer router-owner")
+	triggerResp, err := client.TriggerInvestigation(context.Background(), triggerReq)
 	if err != nil {
 		t.Fatalf("TriggerInvestigation Connect call failed: %v", err)
 	}
@@ -736,7 +741,7 @@ func TestDeviceGraphConnectRouteServesGradedRungs(t *testing.T) {
 	maintenance := handlers.NewMaintenanceHandler(newFakeMaintenanceProvider(), nil)
 	investigation := handlers.NewInvestigationHandler(&config.Config{}, newFakeInvestigationManager(), newFakeScriptRunner(), nil)
 	mountConnectRoutes(r, health, metrics, reports, settings, capacity, maintenance, investigation,
-		handlers.NewDeviceGraphHandler(stubDeviceGraphProvider{}, nil))
+		handlers.NewDeviceGraphHandler(stubDeviceGraphProvider{}, nil), nil)
 
 	server := httptest.NewServer(r)
 	defer server.Close()
@@ -819,4 +824,12 @@ func TestDeviceGraphRefusesRatherThanServingAnEmptyGraph(t *testing.T) {
 	if connect.CodeOf(err) != connect.CodeFailedPrecondition {
 		t.Fatalf("code = %v, want FailedPrecondition", connect.CodeOf(err))
 	}
+}
+
+// routerOwnerVerifier proves the mounted route forwards a verified human
+// caller; caller-rejection behavior is covered in the handlers package.
+type routerOwnerVerifier struct{}
+
+func (routerOwnerVerifier) Validate(context.Context, string) (owneridentity.Identity, error) {
+	return owneridentity.Identity{Subject: "router-owner", Scopes: []string{"agent-manager:write"}, ExpiresAt: time.Now().Add(time.Hour)}, nil
 }

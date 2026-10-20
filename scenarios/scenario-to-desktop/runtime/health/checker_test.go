@@ -84,11 +84,28 @@ func TestWaitForReadiness_HealthSuccess(t *testing.T) {
 
 	clock := testutil.NewMockClock(time.Now())
 	hm := testMonitor(m, map[string]map[string]int{"api": {"http": port}}, clock, nil, nil, nil)
+	var probes []struct {
+		service string
+		attempt int
+		success bool
+		at      time.Time
+	}
+	hm.OnReadinessProbe = func(service string, attempt int, success bool, at time.Time) {
+		probes = append(probes, struct {
+			service string
+			attempt int
+			success bool
+			at      time.Time
+		}{service, attempt, success, at})
+	}
 
 	ctx := context.Background()
 	err := hm.WaitForReadiness(ctx, "api")
 	if err != nil {
 		t.Errorf("WaitForReadiness() error = %v", err)
+	}
+	if len(probes) != 1 || probes[0].service != "api" || probes[0].attempt != 1 || !probes[0].success || probes[0].at.IsZero() {
+		t.Fatalf("readiness probes = %+v, want the first successful health probe", probes)
 	}
 }
 

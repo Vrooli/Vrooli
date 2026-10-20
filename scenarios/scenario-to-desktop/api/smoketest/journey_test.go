@@ -60,6 +60,7 @@ func TestSurfaceEvidenceFailsClosed(t *testing.T) {
 type journeyTestDriver struct {
 	geometry *procmetrics.WindowGeometry
 	title    string
+	events   *[]string
 }
 
 func (d *journeyTestDriver) IsAvailable(context.Context) bool { return true }
@@ -83,6 +84,9 @@ func (d *journeyTestDriver) MoveWindow(context.Context, string, int, int) error 
 func (d *journeyTestDriver) Click(context.Context, string, int, int, int) error     { return nil }
 func (d *journeyTestDriver) KeyPress(_ context.Context, _ string, key string) error {
 	if key == "alt+F4" {
+		if d.events != nil {
+			*d.events = append(*d.events, "quit")
+		}
 		return nil
 	}
 	return nil
@@ -207,6 +211,21 @@ func TestDesktopJourney_RegisteredFixtureProducesReviewableTimeline(t *testing.T
 	}
 	if waiter.waitCount != len(result.Steps) || waiter.settleCount != len(result.Steps) {
 		t.Fatalf("wait/settle calls = %d/%d, want %d/%d", waiter.waitCount, waiter.settleCount, len(result.Steps), len(result.Steps))
+	}
+}
+
+func TestMeasuredJourneyCollectsSteadyWindowBeforeQuit(t *testing.T) {
+	events := []string{}
+	driver := &journeyTestDriver{geometry: &procmetrics.WindowGeometry{Width: 1280, Height: 720}, events: &events}
+	service := &DefaultService{journeyDriver: driver, journeyClock: RealClock{}, journeyWaiter: &journeyTestWaiter{}, journeyCapture: &journeyTestCapture{}, journeyAPI: journeyTestAPI{}}
+	result := service.runDesktopJourneyWithCapabilityBeforeQuit(context.Background(), "measured-1", "hello-desktop", "linux", recordingState{
+		captureID: "recording", displayID: ":99", displayWidth: 1280, displayHeight: 720, windowManager: "openbox", titlebar: true,
+	}, "hello-desktop", func() { events = append(events, "steady-window") })
+	if result.Disposition != deliveryramp.DispositionPass {
+		t.Fatalf("journey disposition = %q, want pass", result.Disposition)
+	}
+	if len(events) != 2 || events[0] != "steady-window" || events[1] != "quit" {
+		t.Fatalf("measured teardown order = %v, want steady window before quit", events)
 	}
 }
 

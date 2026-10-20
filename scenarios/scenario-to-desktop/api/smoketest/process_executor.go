@@ -3,6 +3,8 @@ package smoketest
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -123,7 +125,18 @@ func (e *DefaultProcessExecutor) ExecuteWithResult(ctx context.Context, workDir,
 	return e.waitForProcess(execCtx, cmd, timeout, result)
 }
 
-type executionCapture struct{ stdout, stderr, combined *limitedWriter }
+type executionCapture struct {
+	stdout, stderr, combined *limitedWriter
+	processSessionID         string
+}
+
+func newProcessSessionID() string {
+	var raw [16]byte
+	if _, err := rand.Read(raw[:]); err != nil {
+		return fmt.Sprintf("%d-%d", os.Getpid(), time.Now().UnixNano())
+	}
+	return hex.EncodeToString(raw[:])
+}
 
 func normalizedTimeout(timeout time.Duration) time.Duration {
 	if timeout <= 0 {
@@ -136,10 +149,12 @@ func (e *DefaultProcessExecutor) executionCommand(workDir, command string, args,
 	cmd := exec.Command(command, args...)
 	cmd.Dir = workDir
 	configureProcessGroup(cmd)
+	sessionID := newProcessSessionID()
+	env = append(env, "S2D_PROCESS_SESSION="+sessionID)
 	if len(env) > 0 {
 		cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env(env))
 	}
-	capture := executionCapture{newLimitedWriter(e.maxOutputBytes), newLimitedWriter(e.maxOutputBytes), newLimitedWriter(e.maxOutputBytes)}
+	capture := executionCapture{stdout: newLimitedWriter(e.maxOutputBytes), stderr: newLimitedWriter(e.maxOutputBytes), combined: newLimitedWriter(e.maxOutputBytes), processSessionID: sessionID}
 	cmd.Stdout = io.MultiWriter(capture.stdout, capture.combined)
 	cmd.Stderr = io.MultiWriter(capture.stderr, capture.combined)
 	return cmd, capture
@@ -147,7 +162,7 @@ func (e *DefaultProcessExecutor) executionCommand(workDir, command string, args,
 
 func (c executionCapture) result(duration time.Duration, cmd *exec.Cmd, waitCompleted bool) *ExecutionResult {
 	truncated := c.stdout.truncatedBytes + c.stderr.truncatedBytes
-	result := &ExecutionResult{Stdout: c.stdout.String(), Stderr: c.stderr.String(), Combined: c.combined.String(), ExitCode: -1, Duration: duration, Truncated: truncated > 0, TruncatedBytes: truncated}
+	result := &ExecutionResult{Stdout: c.stdout.String(), Stderr: c.stderr.String(), Combined: c.combined.String(), ExitCode: -1, Duration: duration, Truncated: truncated > 0, TruncatedBytes: truncated, ProcessSessionID: c.processSessionID}
 	if waitCompleted && cmd.ProcessState != nil {
 		result.ExitCode = cmd.ProcessState.ExitCode()
 	}
@@ -186,16 +201,45 @@ func (e *DefaultProcessExecutor) waitForProcess(ctx context.Context, cmd *exec.C
 		// Electron-launched runtime) survives in its dedicated process group.
 		// Success is not a cleanup exemption: the smoke test owns that group.
 		e.cleanupExitedProcessGroup(cmd.Process.Pid)
-		return result(true), err
+		checked, leakErr := e.assertNoSessionDescendants(result(true))
+		if leakErr != nil {
+			return checked, leakErr
+		}
+		return checked, err
 	case <-ctx.Done():
 		e.terminateProcess(cmd)
 	}
 	select {
 	case <-completed:
-		return result(true), commandContextError(ctx.Err(), timeout)
+		checked, leakErr := e.assertNoSessionDescendants(result(true))
+		if leakErr != nil {
+			return checked, leakErr
+		}
+		return checked, commandContextError(ctx.Err(), timeout)
 	case <-e.clock.After(e.killGracePeriod):
-		return result(false), commandContextError(ctx.Err(), timeout)
+		checked, leakErr := e.assertNoSessionDescendants(result(false))
+		if leakErr != nil {
+			return checked, leakErr
+		}
+		return checked, commandContextError(ctx.Err(), timeout)
 	}
+}
+
+func (e *DefaultProcessExecutor) assertNoSessionDescendants(result *ExecutionResult) (*ExecutionResult, error) {
+	if result == nil || result.ProcessSessionID == "" {
+		return result, fmt.Errorf("post-launch descendant assertion unavailable: launch session marker missing")
+	}
+	remaining, err := cleanupProcessSession(result.ProcessSessionID, e.killGracePeriod)
+	if err != nil {
+		result.RemainingDescendantPIDs = []int{-1}
+		result.Stderr += fmt.Sprintf("\npost-launch descendant assertion unavailable: %v", err)
+		return result, fmt.Errorf("post-launch descendant assertion unavailable: %w", err)
+	}
+	result.RemainingDescendantPIDs = remaining
+	if len(remaining) > 0 {
+		return result, fmt.Errorf("post-launch descendant assertion failed: launch session %s still has processes %v", result.ProcessSessionID, remaining)
+	}
+	return result, nil
 }
 
 func (e *DefaultProcessExecutor) cleanupExitedProcessGroup(pid int) {

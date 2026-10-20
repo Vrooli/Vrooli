@@ -93,8 +93,9 @@ func TestRunConfigFieldLivenessRegistryIsComplete(t *testing.T) {
 		"SkipPermissionPrompt": "BuildArgs", "Features": "BuildArgs", "ExtraFlags": "BuildArgs", "NetworkAccess": "BuildArgs", "SandboxConfig": "DeriveRunMode", "AllowedPaths": "CreateSandbox", "DeniedPaths": "CreateSandbox", "ManifestIndexSnapshot": "ImportTranscript", "TranscriptCodec": "ImportTranscript", "TranscriptCodecScore": "ImportTranscript",
 		"PreambleInjectedTokens": "ProjectRun", "PreambleTokenBasis": "ProjectRun",
 		"MaxToolCalls": "runDurable", "AllowedEffects": "dependentExecutionPermissionsError", "RequireEffectContainment": "PickFor",
-		"MaxWeightedTokens": "tokenCapFor",
-		"SkillPack":         "ProjectProfileSkills", "SkillExperimentID": "ProjectProfileSkillsAssigned", "Admission": "dependentDelegationAdmissionError",
+		"MaxWeightedTokens":       "tokenCapFor",
+		"InteractiveContinuation": "interactiveContinuationRecoveryOptions",
+		"SkillPack":               "ProjectProfileSkills", "SkillExperimentID": "ProjectProfileSkillsAssigned", "Admission": "dependentDelegationAdmissionError",
 	}
 	assertFieldRegistry(t, reflect.TypeOf(domain.RunConfig{}), "RunConfig", registry)
 }

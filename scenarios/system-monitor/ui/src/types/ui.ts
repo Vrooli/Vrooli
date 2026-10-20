@@ -1,7 +1,7 @@
 // UI-specific types for React components
 import type { InvestigationScript, ScriptExecution, DiskInfo, StorageIOInfo, GPUMetrics } from './api';
 
-export type AlertSeverity = 'low' | 'medium' | 'high' | 'critical';
+export type AlertSeverity = 'low' | 'medium' | 'warning' | 'high' | 'critical';
 
 export type CardType = 'cpu' | 'memory' | 'network' | 'disk' | 'gpu';
 
@@ -30,7 +30,6 @@ export interface DashboardState {
   expandedPanels: Set<PanelType>;
   terminalVisible: boolean;
   unreadErrorCount: number;
-  alerts: Alert[];
 }
 
 export interface ModalState {

@@ -428,6 +428,8 @@ const (
 	TaskStatus_TASK_STATUS_FAILED TaskStatus = 6
 	// Task was cancelled before completion.
 	TaskStatus_TASK_STATUS_CANCELLED TaskStatus = 7
+	// The current execution attempt completed without implying destination approval.
+	TaskStatus_TASK_STATUS_COMPLETED TaskStatus = 8
 )
 
 // Enum value maps for TaskStatus.
@@ -441,6 +443,7 @@ var (
 		5: "TASK_STATUS_REJECTED",
 		6: "TASK_STATUS_FAILED",
 		7: "TASK_STATUS_CANCELLED",
+		8: "TASK_STATUS_COMPLETED",
 	}
 	TaskStatus_value = map[string]int32{
 		"TASK_STATUS_UNSPECIFIED":  0,
@@ -451,6 +454,7 @@ var (
 		"TASK_STATUS_REJECTED":     5,
 		"TASK_STATUS_FAILED":       6,
 		"TASK_STATUS_CANCELLED":    7,
+		"TASK_STATUS_COMPLETED":    8,
 	}
 )
 
@@ -1869,7 +1873,7 @@ const file_agent_manager_v1_domain_types_proto_rawDesc = "" +
 	"\x18SANDBOX_MODE_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15SANDBOX_MODE_TRACKING\x10\x01\x12\x1a\n" +
 	"\x16SANDBOX_MODE_PROTECTED\x10\x02\x12\x14\n" +
-	"\x10SANDBOX_MODE_OFF\x10\x03*\xdf\x01\n" +
+	"\x10SANDBOX_MODE_OFF\x10\x03*\xfa\x01\n" +
 	"\n" +
 	"TaskStatus\x12\x1b\n" +
 	"\x17TASK_STATUS_UNSPECIFIED\x10\x00\x12\x16\n" +
@@ -1879,7 +1883,8 @@ const file_agent_manager_v1_domain_types_proto_rawDesc = "" +
 	"\x14TASK_STATUS_APPROVED\x10\x04\x12\x18\n" +
 	"\x14TASK_STATUS_REJECTED\x10\x05\x12\x16\n" +
 	"\x12TASK_STATUS_FAILED\x10\x06\x12\x19\n" +
-	"\x15TASK_STATUS_CANCELLED\x10\a*\x86\x02\n" +
+	"\x15TASK_STATUS_CANCELLED\x10\a\x12\x19\n" +
+	"\x15TASK_STATUS_COMPLETED\x10\b*\x86\x02\n" +
 	"\tRunStatus\x12\x1a\n" +
 	"\x16RUN_STATUS_UNSPECIFIED\x10\x00\x12\x16\n" +
 	"\x12RUN_STATUS_PENDING\x10\x01\x12\x17\n" +

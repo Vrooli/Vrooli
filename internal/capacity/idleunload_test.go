@@ -119,3 +119,45 @@ func TestRunIdleUnloadAdvisoryVsEnforce(t *testing.T) {
 		t.Errorf("after enforce unload: status=%s amount=%d, want degraded/2GiB", got.Status, got.AmountBytes)
 	}
 }
+
+func TestIdleDwellStartsWhenWorkEnds(t *testing.T) {
+	ctx := context.Background()
+	clk := testenv.NewClock(time.Date(2026, 10, 17, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) { return NewSQLiteStore(ctx, Config{DBPath: path, Clock: clk}) })
+	c := idleLadderClaim(t, store, "working", PriorityService)
+	c, err := store.ReportActivity(ctx, c.ClaimID, c.Generation, ActivityActive)
+	if err != nil {
+		t.Fatal(err)
+	}
+	clk.Advance(30 * time.Minute)
+	c, err = store.ReportActivity(ctx, c.ClaimID, c.Generation, ActivityIdle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ended := clk.Now()
+	p := DefaultPolicy()
+	p.DefaultIdleUnloadTTL = 5 * time.Minute
+	if isReclaimEligible(c, p.IdleGrace, clk.Now()) || IdleUnloadEligible(c, p, clk.Now()) {
+		t.Fatal("work ending must begin a fresh idle dwell")
+	}
+	clk.Advance(30 * time.Second)
+	c, err = store.ReportActivity(ctx, c.ClaimID, c.Generation, ActivityIdle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err = store.HeartbeatClaim(ctx, c.ClaimID, c.Generation, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.LastActiveAt == nil || !c.LastActiveAt.Equal(ended) {
+		t.Fatalf("idle boundary moved or was not recorded: %+v, want %v", c.LastActiveAt, ended)
+	}
+	clk.Advance(30 * time.Second)
+	if !isReclaimEligible(c, p.IdleGrace, clk.Now()) || IdleUnloadEligible(c, p, clk.Now()) {
+		t.Fatal("grace and unload boundaries must remain independent")
+	}
+	clk.Advance(4 * time.Minute)
+	if !IdleUnloadEligible(c, p, clk.Now()) {
+		t.Fatal("unload must become eligible at the original idle boundary plus TTL")
+	}
+}

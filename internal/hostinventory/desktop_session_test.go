@@ -59,3 +59,70 @@ func TestDesktopSessionRejectsInvalidIDsWithoutProbing(t *testing.T) {
 		}
 	}
 }
+
+func TestDisplayPeerIsBoundToExactHostVerifierIdentity(t *testing.T) {
+	cases := []struct {
+		name        string
+		facts       DesktopSessionFacts
+		wantMatched bool
+		wantReason  string
+		peerUID     uint32
+		rootPeer    bool
+	}{
+		{name: "matched peer", facts: DesktopSessionFacts{SessionID: "2", UID: 1000, PeerPID: 42, PeerUID: 1000, Matched: true, Reason: "session_peer_matched", sessionUIDVerified: true}, wantMatched: true, wantReason: "session_peer_matched"},
+		{name: "matched root peer uid zero", facts: DesktopSessionFacts{SessionID: "2", UID: 0, PeerPID: 42, PeerUID: 0, Matched: true, Reason: "session_peer_matched", sessionUIDVerified: true}, wantMatched: true, wantReason: "session_peer_matched", peerUID: 0, rootPeer: true},
+		{name: "fresh locked negative gets kernel uid", facts: DesktopSessionFacts{SessionID: "2", UID: 1000, PeerPID: 42, Reason: "locked", sessionUIDVerified: true}, wantReason: "locked"},
+		{name: "early negative reason preserved", facts: DesktopSessionFacts{SessionID: "2", PeerPID: 42, Reason: "session_unavailable"}, wantReason: "session_unavailable"},
+		{name: "claimed match without host peer uid", facts: DesktopSessionFacts{SessionID: "2", UID: 1000, PeerPID: 42, Matched: true, sessionUIDVerified: true}, wantReason: "peer_user_mismatch"},
+		{name: "conflicting observed peer uid", facts: DesktopSessionFacts{SessionID: "2", UID: 1000, PeerPID: 42, PeerUID: 2000, Reason: "locked", sessionUIDVerified: true}, wantReason: "peer_user_mismatch"},
+		{name: "session uid differs", facts: DesktopSessionFacts{SessionID: "2", UID: 2000, PeerPID: 42, Reason: "locked", sessionUIDVerified: true}, wantReason: "peer_user_mismatch"},
+		{name: "wrong pid", facts: DesktopSessionFacts{SessionID: "2", UID: 1000, PeerPID: 43, Reason: "locked"}, wantReason: "session_facts_unverified"},
+		{name: "wrong session", facts: DesktopSessionFacts{SessionID: "3", UID: 1000, PeerPID: 42, Reason: "locked"}, wantReason: "session_facts_unverified"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			calledPID := 0
+			peerUID := tc.peerUID
+			if !tc.rootPeer {
+				peerUID = 1000
+			}
+			facts, err := inspectDesktopSessionPeer(context.Background(), "2", desktopPeer{PID: 42, UID: peerUID}, func(_ context.Context, session string, pid int) (DesktopSessionFacts, error) {
+				if session != "2" {
+					t.Fatalf("session passed to verifier = %q", session)
+				}
+				calledPID = pid
+				return tc.facts, nil
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if calledPID != 42 {
+				t.Fatalf("verifier PID = %d, want exact kernel peer PID 42", calledPID)
+			}
+			if facts.Matched != tc.wantMatched || facts.Reason != tc.wantReason {
+				t.Fatalf("facts = %+v", facts)
+			}
+			if (tc.name == "fresh locked negative gets kernel uid" || tc.name == "early negative reason preserved") && facts.PeerUID != peerUID {
+				t.Fatalf("negative observation peer UID = %d, want %d", facts.PeerUID, peerUID)
+			}
+		})
+	}
+}
+
+func TestDisplayInspectionRejectsInvalidSessionBeforePeerLookup(t *testing.T) {
+	c := Collector{GOOS: "linux"}
+	for _, id := range []string{"", "../2"} {
+		_, err := c.InspectDesktopSessionOnDisplay(context.Background(), id, 0)
+		if err == nil || !strings.Contains(err.Error(), "invalid desktop session identity") {
+			t.Fatalf("session %q error = %v", id, err)
+		}
+	}
+}
+
+func TestDisplayInspectionIsUnsupportedOffLinux(t *testing.T) {
+	c := Collector{GOOS: "darwin"}
+	facts, err := c.InspectDesktopSessionOnDisplay(context.Background(), "2", 0)
+	if err != nil || facts.Reason != "unsupported_platform" || facts.Matched {
+		t.Fatalf("facts=%+v err=%v", facts, err)
+	}
+}

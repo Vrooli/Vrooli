@@ -2,6 +2,8 @@
 
 package collectors
 
+import "os"
+
 func readPlatformPaging(vmstat map[string]uint64) pagingReading {
-	return pagingReading{counters: vmstat, supported: true, provenance: "/proc/vmstat"}
+	return linuxPagingReading(vmstat, uint64(os.Getpagesize()))
 }

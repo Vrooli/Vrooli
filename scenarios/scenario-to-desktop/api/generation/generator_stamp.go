@@ -34,7 +34,7 @@ func templateGeneratorInputFiles(root string) ([]string, error) {
 			files = append(files, path)
 			return nil
 		}
-		if path == filepath.Join(root, "package.json") || path == filepath.Join(root, "tsconfig.json") {
+		if path == filepath.Join(root, "package.json") || path == filepath.Join(root, "tsconfig.json") || path == filepath.Join(root, "write-build-stamp.js") {
 			files = append(files, path)
 		}
 		return nil

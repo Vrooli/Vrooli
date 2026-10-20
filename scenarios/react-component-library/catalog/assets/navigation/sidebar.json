@@ -34,7 +34,7 @@
         "reason": "The resize seam uses the governed resize handle."
       },
       {
-        "asset": "react-component-library:StyleSheet",
+        "asset": "foundations.style-sheet",
         "reason": "Sidebar styles are injected through the library stylesheet foundation."
       },
       {

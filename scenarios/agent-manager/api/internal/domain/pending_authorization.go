@@ -46,9 +46,14 @@ type PendingAuthorizationRequest struct {
 	// GrantTTL is the lifetime the issued grant will carry on approval.
 	GrantTTL time.Duration `json:"grant_ttl"`
 	// MaxConcurrentRuns is the concurrency bound the issued grant will carry.
-	MaxConcurrentRuns int       `json:"max_concurrent_runs,omitempty"`
-	State             string    `json:"state"`
-	RaisedAt          time.Time `json:"raised_at"`
+	MaxConcurrentRuns int `json:"max_concurrent_runs,omitempty"`
+	// Decision context is frozen with this pending generation so a publication
+	// retry or restart rebuilds the exact same event. Legacy rows omit these
+	// fields and therefore retain their original event payload and EventID.
+	DecisionBigPicture       string    `json:"decision_big_picture,omitempty"`
+	DecisionTechnicalDetails string    `json:"decision_technical_details,omitempty"`
+	State                    string    `json:"state"`
+	RaisedAt                 time.Time `json:"raised_at"`
 	// ExpiresAt bounds how long this ask stays outstanding before it ages out of
 	// the anti-flood count and can be re-raised.
 	ExpiresAt time.Time `json:"expires_at"`

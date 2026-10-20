@@ -38,11 +38,10 @@ export {
 } from "./uploader";
 
 export {
-    createLaunchTraceRecorder,
-    sha256File,
-    LAUNCH_TRACE_SCHEMA_VERSION,
-    type LaunchTraceRecorder,
+    createPackagedLaunchRecorder,
+    PACKAGED_LAUNCH_SCHEMA_VERSION,
+    type PackagedLaunchRecorder,
     type LaunchEventName,
-} from "./launch-trace";
+} from "./packaged-launch";
 
 export { createLaunchProfiler, type LaunchProfiler, type ProfileArtifact, type ProfileMode } from "./profiling";

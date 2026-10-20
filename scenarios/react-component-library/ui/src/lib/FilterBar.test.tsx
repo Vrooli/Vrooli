@@ -1,10 +1,11 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, screen } from "@testing-library/react";
+import { renderWithProviders } from "../test-utils/renderWithProviders";
 import { afterEach, expect, it, vi } from "vitest";
 import { FilterBar } from "@vrooli/react-component-library/FilterBar/1.3.0";
 afterEach(cleanup);
 it("applies immediate query edits and resets query and filters in one coherent update", () => {
  const onApply = vi.fn();
- render(<FilterBar presentation="inline" applyMode="immediate" onApply={onApply} defaultActiveFilterIds={["open"]} />);
+ renderWithProviders(<FilterBar presentation="inline" applyMode="immediate" onApply={onApply} defaultActiveFilterIds={["open"]} />);
  fireEvent.change(screen.getByRole("searchbox"), { target: { value: "incident" } });
  expect(onApply).toHaveBeenLastCalledWith({query:"incident",activeFilterIds:["open"]});
  onApply.mockClear();
@@ -15,7 +16,7 @@ it("applies immediate query edits and resets query and filters in one coherent u
  expect(screen.queryByRole("button",{name:"Reset"})).toBeNull();
 });
 it("retains explicit submit behavior by default", () => {
- const onApply=vi.fn();render(<FilterBar onApply={onApply} />);
+ const onApply=vi.fn();renderWithProviders(<FilterBar onApply={onApply} />);
  fireEvent.change(screen.getByRole("searchbox"),{target:{value:"incident"}});
  expect(onApply).not.toHaveBeenCalled();
  fireEvent.click(screen.getByRole("button",{name:"Apply filters"}));

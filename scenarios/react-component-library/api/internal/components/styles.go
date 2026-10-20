@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strings"
 )
@@ -84,29 +83,37 @@ func LoadDesignStyles(_ context.Context, root string) ([]DesignStyle, error) {
 }
 
 func defaultDesignRoot() (string, error) {
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		return "", fmt.Errorf("resolve design root: runtime caller unavailable")
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("resolve design root: get working directory: %w", err)
 	}
-	candidates := []string{
-		filepath.Join(filepath.Dir(file), "..", "..", "..", "..", "..", "templates", "design"),
-		filepath.Join("..", "..", "templates", "design"),
-	}
-	if cwd, err := os.Getwd(); err == nil {
-		candidates = append(candidates,
-			filepath.Join(cwd, "templates", "design"),
-			filepath.Join(cwd, "..", "..", "templates", "design"),
-			filepath.Join(cwd, "..", "..", "..", "templates", "design"),
-		)
-	}
-	for _, candidate := range candidates {
-		candidate = filepath.Clean(candidate)
-		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
-			absolute, err := filepath.Abs(candidate)
-			if err == nil {
-				return absolute, nil
+	for depth, dir := 0, filepath.Clean(cwd); depth < 12; depth++ {
+		candidate := filepath.Join(dir, "templates", "design")
+		marker := filepath.Join(candidate, "vrooli-default", "metadata.json")
+		raw, err := os.ReadFile(marker)
+		if err == nil {
+			var metadata struct {
+				ID string `json:"id"`
 			}
+			if err := json.Unmarshal(raw, &metadata); err != nil {
+				return "", fmt.Errorf("parse default design marker %q: %w", marker, err)
+			}
+			metadataID := strings.TrimSpace(metadata.ID)
+			if metadataID == "" {
+				return "", fmt.Errorf("default design marker %q: id required", marker)
+			}
+			if metadataID == "vrooli-default" {
+				return candidate, nil
+			}
+		} else if !os.IsNotExist(err) {
+			return "", fmt.Errorf("read default design marker %q: %w", marker, err)
 		}
+
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
 	}
-	return filepath.Abs(filepath.Clean(candidates[0]))
+	return "", fmt.Errorf("resolve design root: canonical templates/design with vrooli-default/metadata.json not found within 12 parent directories of %q", cwd)
 }

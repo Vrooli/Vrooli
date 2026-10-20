@@ -3,6 +3,7 @@ package resourcecli
 import (
 	"bytes"
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/cliout"
@@ -263,5 +264,37 @@ func TestWriteBlueprintSearchJSONContract(t *testing.T) {
 	}
 	if _, ok := got["blueprints"].([]any); !ok {
 		t.Errorf("blueprints missing: %v", got["blueprints"])
+	}
+}
+
+func TestResourceStopReportPreservesObservedJSONAndHuman(t *testing.T) {
+	report := control.StopReport{Observed: []control.ResultItem{{Name: "model", Message: "upshifted claim to medium"}}, Message: control.StopSummary(0, 0)}
+	for _, pointer := range []bool{false, true} {
+		for _, format := range []cliout.Format{cliout.FormatJSON, cliout.FormatHuman} {
+			var value any = report
+			if pointer {
+				value = &report
+			}
+			var out bytes.Buffer
+			if err := WriteControlReport(&out, format, "report", "Stopped", value, report.Stopped, report.Failed); err != nil {
+				t.Fatal(err)
+			}
+			if format == cliout.FormatJSON {
+				var payload struct {
+					Report struct {
+						Stopped  []any                            `json:"stopped"`
+						Observed []struct{ Name, Message string } `json:"observed"`
+					}
+				}
+				if err := json.Unmarshal(out.Bytes(), &payload); err != nil {
+					t.Fatal(err)
+				}
+				if len(payload.Report.Stopped) != 0 || len(payload.Report.Observed) != 1 || payload.Report.Observed[0].Message != report.Observed[0].Message {
+					t.Fatalf("observation dropped/misclassified: %s", out.String())
+				}
+			} else if !strings.Contains(out.String(), "Observed model: upshifted claim to medium") || strings.Contains(out.String(), "Stopped model") {
+				t.Fatalf("upshift called stop: %s", out.String())
+			}
+		}
 	}
 }

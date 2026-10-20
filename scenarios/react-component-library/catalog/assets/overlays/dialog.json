@@ -26,16 +26,20 @@
         "reason": "Dialog class composition uses the shared Tailwind conflict resolver."
       },
       {
-        "asset": "react-component-library:Portal",
+        "asset": "services.layer-manager",
         "reason": "The dialog surface is mounted through the shared portal boundary."
       },
       {
-        "asset": "react-component-library:StyleSheet",
+        "asset": "foundations.style-sheet",
         "reason": "Dialog styles use the shared stylesheet registry."
       },
       {
-        "asset": "react-component-library:useOverlaySurface",
-        "reason": "The shared overlay substrate owns focus, dismissal, presence, and scroll behavior."
+        "asset": "hooks.use-outside-interaction",
+        "reason": "The shared outside-interaction hook owns pointer, focus, nested-layer, and portal-aware dismissal."
+      },
+      {
+        "asset": "motion.presence",
+        "reason": "The shared presence primitive owns mount and unmount, exit, interruption, and reduced-motion behavior."
       }
     ]
   },

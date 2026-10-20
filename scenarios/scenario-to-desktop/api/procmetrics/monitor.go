@@ -48,7 +48,30 @@ type DefaultMonitor struct {
 	treeSeen           map[ProcessRole]map[int]struct{}
 	treeCPUAccum       map[ProcessRole]float64
 	treeCPUSamples     map[ProcessRole]int
+	treeWindowPoints   []treeWindowPoint
 	processTreeOptions ProcessTreeOptions
+}
+
+type treeWindowPoint struct {
+	at              time.Time
+	cpuPercent      float64
+	cpuAvailable    bool
+	pssBytes        int64
+	ussBytes        int64
+	memoryAvailable bool
+	roles           map[ProcessRole]RoleSummary
+}
+
+// ProcessTreeWindow is a bounded aggregate for a requested interval.
+type ProcessTreeWindow struct {
+	AverageCPUPercent float64
+	PSSBytes          int64
+	USSBytes          int64
+	Samples           int
+	Available         bool
+	CPUAvailable      bool
+	MemoryAvailable   bool
+	Reason            string
 }
 
 // NewDefaultMonitor creates a monitor with the given dependencies.
@@ -148,6 +171,74 @@ func (m *DefaultMonitor) Report() *Report {
 	return &r
 }
 
+// Window returns idle CPU averaged over the requested interval and the final
+// process-tree PSS/USS point captured inside it. Sparse or missing observations
+// remain unavailable rather than being represented as zero.
+func (m *DefaultMonitor) Window(start, end time.Time) ProcessTreeWindow {
+	if m == nil || !end.After(start) {
+		return ProcessTreeWindow{Reason: "a positive process-tree window is required"}
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var cpuTotal float64
+	cpuSamples := 0
+	var final treeWindowPoint
+	var firstAt time.Time
+	var lastAt time.Time
+	for _, point := range m.treeWindowPoints {
+		if point.at.Before(start) || point.at.After(end) {
+			continue
+		}
+		if point.cpuAvailable {
+			cpuTotal += point.cpuPercent
+			cpuSamples++
+			if firstAt.IsZero() {
+				firstAt = point.at
+			}
+			lastAt = point.at
+		}
+		if point.memoryAvailable {
+			final = point
+		}
+	}
+	cpuAvailable := cpuSamples >= 2 && firstAt.Sub(start) <= 2*resourcePollInterval && end.Sub(lastAt) <= 2*resourcePollInterval
+	memoryAvailable := !final.at.IsZero() && end.Sub(final.at) <= 2*resourcePollInterval
+	if !cpuAvailable && !memoryAvailable {
+		return ProcessTreeWindow{Samples: cpuSamples, Reason: "process-tree observations do not cover the requested window"}
+	}
+	return ProcessTreeWindow{AverageCPUPercent: cpuTotal / float64(max(cpuSamples, 1)), PSSBytes: final.pssBytes, USSBytes: final.ussBytes, Samples: cpuSamples, Available: cpuAvailable && memoryAvailable, CPUAvailable: cpuAvailable, MemoryAvailable: memoryAvailable, Reason: "process-tree observations cover the requested window"}
+}
+
+// SnapshotAt returns the closest process-tree observation to the requested
+// mark when the observation is within two resource polling intervals.
+func (m *DefaultMonitor) SnapshotAt(at time.Time) (*ProcessTreeReport, bool) {
+	if m == nil || at.IsZero() {
+		return nil, false
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var closest *treeWindowPoint
+	var distance time.Duration
+	for i := range m.treeWindowPoints {
+		point := &m.treeWindowPoints[i]
+		candidate := point.at.Sub(at)
+		if candidate < 0 {
+			candidate = -candidate
+		}
+		if closest == nil || candidate < distance {
+			closest, distance = point, candidate
+		}
+	}
+	if closest == nil || distance > 2*resourcePollInterval || !closest.memoryAvailable {
+		return nil, false
+	}
+	report := &ProcessTreeReport{Supported: true, Scope: "linux:/proc", Roles: make(map[ProcessRole]RoleSummary, len(closest.roles))}
+	for role, summary := range closest.roles {
+		report.Roles[role] = summary
+	}
+	return report, true
+}
+
 // Done returns a channel that closes when monitoring has finished.
 func (m *DefaultMonitor) Done() <-chan struct{} {
 	return m.done
@@ -196,11 +287,17 @@ func (m *DefaultMonitor) pollResources(ctx context.Context, pid int) {
 						setBaseline(samplePID)
 					}
 				}
+				// The launcher tree remains the attribution boundary even when
+				// no single application PID can be resolved (or that process exits).
+				m.collectTreeSample(pid)
 			}
 			if samplePID == 0 {
 				continue
 			}
 			if !m.proc.IsAlive(samplePID) {
+				if hasIdentity {
+					continue
+				}
 				return
 			}
 
@@ -210,7 +307,9 @@ func (m *DefaultMonitor) pollResources(ctx context.Context, pid int) {
 				m.report.Samples = append(m.report.Samples, *sample)
 				m.mu.Unlock()
 			}
-			m.collectTreeSample(pid)
+			if !hasIdentity {
+				m.collectTreeSample(pid)
+			}
 		}
 	}
 }
@@ -257,7 +356,7 @@ func newProcessTreeReport(supported bool) *ProcessTreeReport {
 	if supported {
 		result.Scope = "linux:/proc"
 	}
-	for _, role := range []ProcessRole{RoleElectronMain, RoleElectronRender, RoleElectronGPU, RoleElectronUtility, RoleElectronCrashpad, RoleBundledRuntime, RoleScenarioService, RoleLauncher} {
+	for _, role := range []ProcessRole{RoleElectronMain, RoleElectronRender, RoleElectronGPU, RoleElectronUtility, RoleElectronCrashpad, RoleBundledRuntime, RoleScenarioService, RoleLauncher, RoleShellMain, RoleWebviewRenderer, RoleWebviewGPU, RoleWebviewOther, RoleBackend} {
 		result.Roles[role] = RoleSummary{Role: role, Unsupported: !supported}
 	}
 	return result
@@ -288,6 +387,9 @@ func (m *DefaultMonitor) collectTreeSample(rootPID int) {
 		m.treeStartedAt = now
 	}
 	currentRSS := make(map[ProcessRole]int64)
+	currentPSS := make(map[ProcessRole]int64)
+	currentUSS := make(map[ProcessRole]int64)
+	currentMemoryComplete := make(map[ProcessRole]bool)
 	currentThreads := make(map[ProcessRole]int)
 	currentCPU := make(map[ProcessRole]float64)
 	currentCPUSamples := make(map[ProcessRole]int)
@@ -308,6 +410,15 @@ func (m *DefaultMonitor) collectTreeSample(rootPID int) {
 			summary.ProcessCount++
 		}
 		currentRSS[role] += process.RSSBytes
+		if _, initialized := currentMemoryComplete[role]; !initialized {
+			currentMemoryComplete[role] = true
+		}
+		if process.MemoryStatsAvailable {
+			currentPSS[role] += process.PSSBytes
+			currentUSS[role] += process.USSBytes
+		} else {
+			currentMemoryComplete[role] = false
+		}
 		currentThreads[role] += process.Threads
 		if previous, ok := m.treePrev[process.PID]; ok {
 			elapsed := now.Sub(m.treeAt).Seconds()
@@ -325,6 +436,14 @@ func (m *DefaultMonitor) collectTreeSample(rootPID int) {
 	for role, rss := range currentRSS {
 		summary := m.report.ProcessTree.Roles[role]
 		summary.RSSBytes = rss
+		summary.MemoryStatsAvailable = currentMemoryComplete[role]
+		if summary.MemoryStatsAvailable {
+			summary.PSSBytes = currentPSS[role]
+			summary.USSBytes = currentUSS[role]
+		} else {
+			summary.PSSBytes = 0
+			summary.USSBytes = 0
+		}
 		if rss > summary.PeakRSSBytes {
 			summary.PeakRSSBytes = rss
 		}
@@ -340,6 +459,27 @@ func (m *DefaultMonitor) collectTreeSample(rootPID int) {
 		}
 		m.report.ProcessTree.Roles[role] = summary
 	}
+	var totalCPU float64
+	cpuAvailable := false
+	for role, value := range currentCPU {
+		totalCPU += value
+		cpuAvailable = cpuAvailable || currentCPUSamples[role] > 0
+	}
+	var totalPSS, totalUSS int64
+	memoryAvailable := len(currentRSS) > 0
+	for role := range currentRSS {
+		if !currentMemoryComplete[role] {
+			memoryAvailable = false
+			break
+		}
+		totalPSS += currentPSS[role]
+		totalUSS += currentUSS[role]
+	}
+	m.treeWindowPoints = append(m.treeWindowPoints, treeWindowPoint{
+		at: now, cpuPercent: totalCPU, cpuAvailable: cpuAvailable,
+		pssBytes: totalPSS, ussBytes: totalUSS, memoryAvailable: memoryAvailable,
+		roles: currentRoleSummaries(m.report.ProcessTree.Roles),
+	})
 	if !m.treeStartedAt.IsZero() {
 		for role, summary := range m.report.ProcessTree.Roles {
 			summary.DurationMs = now.Sub(m.treeStartedAt).Milliseconds()
@@ -347,6 +487,16 @@ func (m *DefaultMonitor) collectTreeSample(rootPID int) {
 		}
 	}
 	m.treeAt = now
+}
+
+func currentRoleSummaries(roles map[ProcessRole]RoleSummary) map[ProcessRole]RoleSummary {
+	result := make(map[ProcessRole]RoleSummary)
+	for role, summary := range roles {
+		if summary.ProcessCount > 0 {
+			result[role] = summary
+		}
+	}
+	return result
 }
 
 // detectWindow polls for visible X11 windows in two phases:

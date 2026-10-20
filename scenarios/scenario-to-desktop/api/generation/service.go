@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"log/slog"
@@ -23,17 +24,18 @@ import (
 
 // DefaultService is the default implementation of the generation Service.
 type DefaultService struct {
-	stagingRoot    func() (string, error)
-	vrooliRoot     string
-	templateDir    string
-	builds         BuildStore
-	records        RecordStore
-	analyzer       ScenarioAnalyzer
-	iconSyncer     IconSyncer
-	bundlePackager BundlePackager
-	signingStore   signingStore
-	defaultSigning func(context.Context, string) (*signing.SigningConfig, error)
-	logger         *slog.Logger
+	removeTemplateSnapshot func(string) error
+	stagingRoot            func() (string, error)
+	vrooliRoot             string
+	templateDir            string
+	builds                 BuildStore
+	records                RecordStore
+	analyzer               ScenarioAnalyzer
+	iconSyncer             IconSyncer
+	bundlePackager         BundlePackager
+	signingStore           signingStore
+	defaultSigning         func(context.Context, string) (*signing.SigningConfig, error)
+	logger                 *slog.Logger
 }
 
 // signingStore is the read/write seam for a scenario's signing.json.
@@ -49,19 +51,22 @@ type RecordStore interface {
 
 // DesktopAppRecord represents a persisted desktop generation record.
 type DesktopAppRecord struct {
-	ID              string
-	BuildID         string
-	ScenarioName    string
-	AppDisplayName  string
-	TemplateType    string
-	Framework       string
-	LocationMode    string
-	OutputPath      string
-	DestinationPath string
-	StagingPath     string
-	CustomPath      string
-	DeploymentMode  string
-	Icon            string
+	ID                  string
+	BuildID             string
+	ScenarioName        string
+	AppDisplayName      string
+	TemplateType        string
+	Framework           string
+	StrategyID          string
+	Selection           *PackagingSelectionRecord
+	OptimizationProfile *ElectronOptimizationProfile
+	LocationMode        string
+	OutputPath          string
+	DestinationPath     string
+	StagingPath         string
+	CustomPath          string
+	DeploymentMode      string
+	Icon                string
 }
 
 // BundlePackager packages bundles for bundled deployment mode.
@@ -200,6 +205,39 @@ func (s *DefaultService) QueueBuild(config *DesktopConfig, metadata *ScenarioMet
 	// worker ownership of the request so callers can safely reuse or release
 	// their request object while the build is running.
 	config = cloneDesktopConfigForExecution(config)
+	explicitStrategy := config.StrategyID != ""
+	if config.StrategyID == "" {
+		config.StrategyID = DefaultStrategyID
+	}
+	if err := validateOptimizationProfile(config.StrategyID, config.OptimizationProfile); err != nil {
+		return &BuildStatus{Status: "failed", ErrorLog: []string{err.Error()}, Metadata: map[string]interface{}{}}
+	}
+	strategy, strategyOK := PackagingStrategies().Resolve(config.StrategyID)
+	if !strategyOK {
+		return &BuildStatus{Status: "failed", ErrorLog: []string{fmt.Sprintf("unknown packaging strategy %q", config.StrategyID)}, Metadata: map[string]interface{}{}}
+	}
+	platforms := config.Platforms
+	if len(platforms) == 0 {
+		platforms = []string{"linux-x64"}
+	}
+	for _, platform := range platforms {
+		if err := ValidateSelectedStrategyHostTools(config.StrategyID, platform); err != nil {
+			return &BuildStatus{Status: "failed", ErrorLog: []string{err.Error()}, Metadata: map[string]interface{}{}}
+		}
+	}
+	if config.Framework != "" && config.Framework != strategy.Shell {
+		return &BuildStatus{Status: "failed", ErrorLog: []string{fmt.Sprintf("framework %q conflicts with strategy %q", config.Framework, config.StrategyID)}, Metadata: map[string]interface{}{}}
+	}
+	config.Framework = strategy.Shell
+	override := ""
+	if explicitStrategy {
+		override = config.StrategyID
+	}
+	selection, selectionErr := ResolvePackagingSelection(s.ScenarioRoot(config.AppName), override, "")
+	if selectionErr != nil {
+		return &BuildStatus{Status: "failed", ErrorLog: []string{selectionErr.Error()}, Metadata: map[string]interface{}{}}
+	}
+	config.Selection = selection
 	buildID := uuid.New().String()
 
 	outputPath, destinationPath, pathErr := s.resolveOutputPath(config, buildID)
@@ -234,6 +272,11 @@ func (s *DefaultService) QueueBuild(config *DesktopConfig, metadata *ScenarioMet
 	} else if includeMetadata {
 		buildStatus.Metadata["auto_detected"] = true
 	}
+	buildStatus.Metadata["strategy_selection"] = config.Selection
+	if config.OptimizationProfile != nil {
+		buildStatus.Metadata["optimization_profile"] = config.OptimizationProfile
+		buildStatus.Metadata["optimization_profile_identity"] = config.OptimizationProfile.Identity()
+	}
 	if config.LocationMode != "" {
 		buildStatus.Metadata["location_mode"] = config.LocationMode
 	}
@@ -256,17 +299,20 @@ func (s *DefaultService) QueueBuild(config *DesktopConfig, metadata *ScenarioMet
 	// Persist record
 	if s.records != nil {
 		record := &DesktopAppRecord{
-			ID:              buildID,
-			BuildID:         buildID,
-			ScenarioName:    config.AppName,
-			AppDisplayName:  config.AppDisplayName,
-			TemplateType:    config.TemplateType,
-			Framework:       config.Framework,
-			LocationMode:    config.LocationMode,
-			OutputPath:      outputPath,
-			DestinationPath: destinationPath,
-			DeploymentMode:  config.DeploymentMode,
-			Icon:            config.Icon,
+			ID:                  buildID,
+			BuildID:             buildID,
+			ScenarioName:        config.AppName,
+			AppDisplayName:      config.AppDisplayName,
+			TemplateType:        config.TemplateType,
+			Framework:           config.Framework,
+			StrategyID:          config.StrategyID,
+			Selection:           config.Selection,
+			OptimizationProfile: config.OptimizationProfile,
+			LocationMode:        config.LocationMode,
+			OutputPath:          outputPath,
+			DestinationPath:     destinationPath,
+			DeploymentMode:      config.DeploymentMode,
+			Icon:                config.Icon,
 		}
 		switch config.LocationMode {
 		case "temp", "staging":
@@ -284,6 +330,16 @@ func (s *DefaultService) QueueBuild(config *DesktopConfig, metadata *ScenarioMet
 	return buildStatus
 }
 
+func validateOptimizationProfile(strategyID string, profile *ElectronOptimizationProfile) error {
+	if strategyID == OptimizedStrategyID && (profile == nil || profile.Empty()) {
+		return fmt.Errorf("electron-optimized requires at least one explicit optimization toggle")
+	}
+	if strategyID != OptimizedStrategyID && profile != nil && !profile.Empty() {
+		return fmt.Errorf("optimization toggles require the electron-optimized strategy")
+	}
+	return nil
+}
+
 func cloneDesktopConfigForExecution(config *DesktopConfig) *DesktopConfig {
 	if config == nil {
 		return nil
@@ -292,6 +348,10 @@ func cloneDesktopConfigForExecution(config *DesktopConfig) *DesktopConfig {
 	clone.Platforms = append([]string(nil), config.Platforms...)
 	clone.Features = cloneInterfaceMap(config.Features)
 	clone.Window = cloneInterfaceMap(config.Window)
+	if config.OptimizationProfile != nil {
+		profile := *config.OptimizationProfile
+		clone.OptimizationProfile = &profile
+	}
 	clone.Styling = cloneInterfaceMap(config.Styling)
 	if config.Ports != nil {
 		clone.Ports = make(map[string]PortConfig, len(config.Ports))
@@ -450,11 +510,26 @@ func (s *DefaultService) writeConfigFile(buildID string, config *DesktopConfig) 
 		})
 		return "", err
 	}
+	digest := sha256.Sum256(configJSON)
+	s.updateBuildStatus(buildID, func(status *BuildStatus) {
+		if status.Artifacts == nil {
+			status.Artifacts = make(map[string]string)
+		}
+		// The file is removed after this generation attempt. Retain its exact
+		// byte identity without advertising a dead path or persisting its values.
+		delete(status.Artifacts, "config_path")
+		status.Artifacts["derived_config_sha256"] = fmt.Sprintf("%x", digest)
+		status.Artifacts["derived_config_status"] = "ephemeral-not-retained"
+	})
 	return configPath, nil
 }
 
 // runTemplateGenerator executes the Node template generator and processes the result.
 func (s *DefaultService) runTemplateGenerator(buildID string, config *DesktopConfig, configPath string) {
+	if config.StrategyID == WailsStrategyID {
+		s.runWailsProjectGenerator(buildID, config)
+		return
+	}
 	if err := verifyTemplateGeneratorStamp(s.templateDir); err != nil {
 		s.updateBuildStatus(buildID, func(status *BuildStatus) {
 			now := time.Now()
@@ -464,7 +539,6 @@ func (s *DefaultService) runTemplateGenerator(buildID string, config *DesktopCon
 		})
 		return
 	}
-	snapshotDir := filepath.Join(filepath.Dir(configPath), "template-snapshot")
 	originalHash, err := templateTreeHash(s.templateDir)
 	if err != nil {
 		s.updateBuildStatus(buildID, func(status *BuildStatus) {
@@ -474,14 +548,41 @@ func (s *DefaultService) runTemplateGenerator(buildID string, config *DesktopCon
 		})
 		return
 	}
-	if err := os.RemoveAll(snapshotDir); err != nil {
+	snapshotDir, err := os.MkdirTemp(filepath.Dir(configPath), "template-snapshot-")
+	if err != nil {
 		s.updateBuildStatus(buildID, func(status *BuildStatus) {
 			status.Status = "failed"
-			status.ErrorLog = append(status.ErrorLog, fmt.Sprintf("clear template snapshot failed: %v", err))
+			status.ErrorLog = append(status.ErrorLog, fmt.Sprintf("create template snapshot failed: %v", err))
 			status.CompletedAt = ptrTime(time.Now())
 		})
 		return
 	}
+	snapshotCleaned := false
+	cleanupSnapshot := func() error {
+		if snapshotCleaned {
+			return nil
+		}
+		snapshotCleaned = true
+		remove := s.removeTemplateSnapshot
+		if remove == nil {
+			remove = os.RemoveAll
+		}
+		if err := remove(snapshotDir); err != nil {
+			return fmt.Errorf("template snapshot cleanup failed: %w", err)
+		}
+		return nil
+	}
+	// Early failures still retire their private input. Normal completion settles
+	// cleanup before publishing a terminal state that a pipeline can consume.
+	defer func() {
+		if err := cleanupSnapshot(); err != nil {
+			s.updateBuildStatus(buildID, func(status *BuildStatus) {
+				status.Status = "failed"
+				status.ErrorLog = append(status.ErrorLog, err.Error())
+				status.CompletedAt = ptrTime(time.Now())
+			})
+		}
+	}()
 	if err := copyTemplateTree(s.templateDir, snapshotDir); err != nil {
 		s.updateBuildStatus(buildID, func(status *BuildStatus) {
 			status.Status = "failed"
@@ -499,6 +600,12 @@ func (s *DefaultService) runTemplateGenerator(buildID string, config *DesktopCon
 		})
 		return
 	}
+	s.updateBuildStatus(buildID, func(status *BuildStatus) {
+		if status.Artifacts == nil {
+			status.Artifacts = make(map[string]string)
+		}
+		status.Artifacts["template_snapshot_hash"] = snapshotHash
+	})
 	templateGeneratorPath := filepath.Join(snapshotDir, "build-tools", "dist", "template-generator.js")
 	cmd := exec.Command("node", templateGeneratorPath, configPath)
 
@@ -510,6 +617,8 @@ func (s *DefaultService) runTemplateGenerator(buildID string, config *DesktopCon
 		err = fmt.Errorf("template tree changed during generation (snapshot %s; current %s)", snapshotHash, currentHash)
 	}
 
+	err = errors.Join(err, cleanupSnapshot())
+
 	s.updateBuildStatus(buildID, func(status *BuildStatus) {
 		status.BuildLog = append(status.BuildLog, outputStr)
 
@@ -519,9 +628,7 @@ func (s *DefaultService) runTemplateGenerator(buildID string, config *DesktopCon
 			status.ErrorLog = append(status.ErrorLog, outputStr)
 		} else {
 			status.Status = "ready"
-			status.Artifacts["config_path"] = configPath
 			status.Artifacts["output_path"] = config.OutputPath
-			status.Artifacts["template_snapshot_hash"] = snapshotHash
 			s.postGenerateSteps(config, status)
 		}
 
@@ -533,7 +640,15 @@ func (s *DefaultService) runTemplateGenerator(buildID string, config *DesktopCon
 func ptrTime(value time.Time) *time.Time { return &value }
 
 func copyTemplateTree(source, destination string) error {
-	return fs.WalkDir(os.DirFS(source), ".", func(path string, entry fs.DirEntry, err error) error {
+	resolvedRoot, err := filepath.EvalSymlinks(source)
+	if err != nil {
+		return err
+	}
+	return copyTemplateTreeContents(resolvedRoot, destination, resolvedRoot)
+}
+
+func copyTemplateTreeContents(source, destination, allowedRoot string) error {
+	return filepath.WalkDir(source, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -541,13 +656,44 @@ func copyTemplateTree(source, destination string) error {
 			return fs.SkipDir
 		}
 		if entry.Type()&os.ModeSymlink != 0 {
-			return nil
+			resolved, resolveErr := filepath.EvalSymlinks(path)
+			if resolveErr != nil {
+				return resolveErr
+			}
+			rel, relErr := filepath.Rel(allowedRoot, resolved)
+			if relErr != nil || !filepath.IsLocal(rel) {
+				return fmt.Errorf("template symlink %q resolves outside template root", path)
+			}
+			info, statErr := os.Stat(resolved)
+			if statErr != nil {
+				return statErr
+			}
+			relative, relErr := filepath.Rel(source, path)
+			if relErr != nil {
+				return relErr
+			}
+			target := filepath.Join(destination, relative)
+			if info.IsDir() {
+				return copyTemplateTreeContents(resolved, target, allowedRoot)
+			}
+			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+				return err
+			}
+			data, err := os.ReadFile(resolved)
+			if err != nil {
+				return err
+			}
+			return os.WriteFile(target, data, 0o644)
 		}
-		target := filepath.Join(destination, filepath.FromSlash(path))
+		relative, err := filepath.Rel(source, path)
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(destination, relative)
 		if entry.IsDir() {
 			return os.MkdirAll(target, 0o755)
 		}
-		data, err := os.ReadFile(filepath.Join(source, filepath.FromSlash(path)))
+		data, err := os.ReadFile(path)
 		if err != nil {
 			return err
 		}
@@ -630,7 +776,15 @@ func (s *DefaultService) GetAnalyzer() ScenarioAnalyzer {
 
 // StandardOutputPath returns the canonical electron output path for a scenario.
 func (s *DefaultService) StandardOutputPath(appName string) string {
-	return filepath.Join(s.vrooliRoot, "scenarios", appName, "platforms", "electron")
+	return s.StandardStrategyOutputPath(appName, DefaultStrategyID)
+}
+
+func (s *DefaultService) StandardStrategyOutputPath(appName, strategyID string) string {
+	name, err := StrategyOutputName(strategyID)
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(s.vrooliRoot, "scenarios", appName, "platforms", name)
 }
 
 // ScenarioRoot returns the absolute path to a scenario directory.
@@ -648,7 +802,10 @@ func (s *DefaultService) updateBuildStatus(buildID string, fn func(status *Build
 
 // resolveOutputPath determines where to write the generated app.
 func (s *DefaultService) resolveOutputPath(config *DesktopConfig, buildID string) (string, string, error) {
-	destinationPath := s.StandardOutputPath(config.AppName)
+	destinationPath := s.StandardStrategyOutputPath(config.AppName, config.StrategyID)
+	if destinationPath == "" {
+		return "", "", fmt.Errorf("cannot resolve strategy output path for %q", config.StrategyID)
+	}
 	mode := config.LocationMode
 	if mode == "" {
 		mode = "proper"

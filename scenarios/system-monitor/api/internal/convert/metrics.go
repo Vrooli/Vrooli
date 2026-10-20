@@ -264,6 +264,41 @@ func memoryMetricsToProto(m models.MemoryMetrics) *metricspb.MemoryMetrics {
 		DiskUsage:          diskInfoToProto(m.DiskUsage),
 		Paging:             pagingMetricsToProto(m.Paging),
 		Fragmentation:      fragmentationMetricsToProto(m.Fragmentation),
+		MemoryPressure:     MemoryPressureToProto(m.MemoryPressure),
+	}
+	return pb
+}
+
+// MemoryPressureToProto projects the memory-pressure reading. Every signal
+// keeps its state; unsupported signals never become zero.
+func MemoryPressureToProto(m *models.MemoryPressure) *metricspb.MemoryPressureReading {
+	if m == nil {
+		return nil
+	}
+	pb := &metricspb.MemoryPressureReading{
+		Level:              m.Level,
+		LevelSource:        m.LevelSource,
+		LevelReason:        m.LevelReason,
+		Signals:            metricStateMapToProto(m.Signals),
+		ContributorsStatus: m.ContributorsStatus,
+		ContributorsReason: m.ContributorsReason,
+		Platform:           m.Platform,
+	}
+	if !m.ObservedAt.IsZero() {
+		pb.ObservedAt = timestamppb.New(m.ObservedAt)
+	}
+	for _, c := range m.Contributors {
+		pb.Contributors = append(pb.Contributors, &metricspb.MemoryPressureContributor{
+			Pid:                  int32(c.PID),
+			Name:                 c.Name,
+			Owner:                c.Owner,
+			MajorFaultsPerSecond: c.MajorFaultsPerSecond,
+			FaultStatus:          c.FaultStatus,
+			FaultCounter:         c.FaultCounter,
+			SwapKb:               c.SwapKB,
+			SwapStatus:           c.SwapStatus,
+			RssKb:                c.RSSKB,
+		})
 	}
 	return pb
 }

@@ -10,6 +10,7 @@ import (
 	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration/phases"
+	"agent-manager/internal/orchestration/spawn"
 	"agent-manager/internal/repository"
 
 	"github.com/google/uuid"
@@ -120,7 +121,7 @@ func (o *Orchestrator) DeleteRun(ctx context.Context, id uuid.UUID) error {
 	if allowed, reason := domain.CanDeleteRun(run); !allowed {
 		return domain.NewStateError("Run", string(run.Status), "delete", reason)
 	}
-	if err := o.runs.Delete(ctx, id); err != nil {
+	if err := o.runs.Delete(ctx, id, run.Status, run.LifecycleVersion); err != nil {
 		return err
 	}
 	o.notifyConversationSearch(ctx, "delete_run", id.String(), "")
@@ -209,6 +210,71 @@ func (o *Orchestrator) StopRun(ctx context.Context, id uuid.UUID) error {
 	return o.stopRun(ctx, id, "")
 }
 
+// stopPendingRun cancels a pending run through its admitted owner context. A
+// pending Run has no process that Terminator can safely stop. The durable
+// cancellation intent and the Admission gate prevent a queued or claimed
+// executor from proceeding; readback decides whether the Run stayed pending
+// (finalize it directly) or advanced into the ordinary process-stop path.
+func (o *Orchestrator) stopPendingRun(ctx context.Context, id uuid.UUID, stopReason domain.RunStopReason) error {
+	var admission *spawn.Admission
+	if o.dispatcher != nil {
+		admission, _ = o.dispatcher.PrepareCancelAdmission(id)
+	}
+	abortAdmission := func() {
+		if admission != nil {
+			admission.AbortCancel()
+		}
+	}
+
+	if o.runs == nil {
+		abortAdmission()
+		return domain.NewConfigMissingError("runs", "pending run cancellation requires the run lifecycle owner", nil)
+	}
+	intentRecorded, err := o.runs.RequestCancellation(ctx, id, o.now())
+	if err != nil {
+		abortAdmission()
+		return err
+	}
+
+	// A false result can mean the intent was already recorded or that the run
+	// left Pending concurrently. Read before committing the local gate so a
+	// still-pending row without durable intent does not become locally stranded.
+	if !intentRecorded {
+		current, readErr := o.GetRun(ctx, id)
+		if readErr != nil {
+			abortAdmission()
+			return fmt.Errorf("pending run cancellation was not newly recorded and state could not be confirmed: %w", readErr)
+		}
+		if current.Status == domain.RunStatusPending && current.CancelRequestedAt == nil {
+			abortAdmission()
+			return domain.NewStateErrorWithID("Run", id.String(), "pending", "stop", "run changed before cancellation intent was recorded; retry from a fresh read")
+		}
+	}
+
+	if admission != nil {
+		admission.CommitCancel()
+	}
+	current, err := o.GetRun(ctx, id)
+	if err != nil {
+		return fmt.Errorf("run cancellation intent is durable but current state could not be read back: %w", err)
+	}
+	if current.Status == domain.RunStatusCancelled {
+		return nil
+	}
+	if current.Status == domain.RunStatusPending {
+		if current.CancelRequestedAt == nil {
+			return domain.NewStateErrorWithID("Run", id.String(), "pending", "stop", "durable cancellation intent is missing; run was left pending")
+		}
+		_, err = o.finalizeRunCancellation(ctx, id, "Pending run cancelled before runner start", stopReason)
+		return err
+	}
+
+	// If the dispatcher crossed the executor claim and the run became active,
+	// use the existing terminator path. Other lifecycle changes retain the
+	// existing StopRun state validation and error semantics.
+	return o.stopRun(ctx, id, stopReason)
+}
+
 // stopRun stops a run. A non-empty stopReason is written with the cancelled
 // status in the same update on the parked and process paths; the interactive
 // path and a process exit that finalizes first leave it to the caller.
@@ -232,6 +298,13 @@ func (o *Orchestrator) stopRun(ctx context.Context, id uuid.UUID, stopReason dom
 
 	if allowed, reason := domain.CanStopRun(run); !allowed {
 		return domain.NewStateError("Run", string(run.Status), "stop", reason)
+	}
+
+	// Pending runs have not reached the runner lifecycle. Close their exact
+	// dispatcher admission and persist cancellation intent before cancelling
+	// the cooperative context; never invoke a process terminator for this state.
+	if run.Status == domain.RunStatusPending {
+		return o.stopPendingRun(ctx, id, stopReason)
 	}
 
 	// Interactive runs have no local process to signal — the CLI lives in a

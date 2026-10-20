@@ -42,6 +42,11 @@ func TestStageBundledResourceArtifactsStagesVerifiedArtifactsAndPlan(t *testing.
 			checksums = append(checksums, hex.EncodeToString(sum[:])+"  "+file)
 		}
 	}
+	unusedName := "resource-unused_linux_amd64"
+	unusedBody := []byte("valid but not selected by the deployment plan")
+	mustWriteFile(t, filepath.Join(artifactRoot, unusedName), unusedBody, 0o755)
+	unusedSum := sha256.Sum256(unusedBody)
+	checksums = append(checksums, hex.EncodeToString(unusedSum[:])+"  "+unusedName)
 	checksumData := []byte(strings.Join(checksums, "\n") + "\n")
 	mustWriteFile(t, filepath.Join(artifactRoot, "SHA256SUMS"), checksumData, 0o644)
 	writeTestReleaseSignature(t, root, artifactRoot, checksumData)
@@ -57,9 +62,100 @@ func TestStageBundledResourceArtifactsStagesVerifiedArtifactsAndPlan(t *testing.
 	for _, suffix := range []string{"", ".manifest.json", ".build.json"} {
 		mustPathExist(t, filepath.Join(bundleDir, "resources", "openrouter", "resource-openrouter_linux_amd64"+suffix))
 	}
+	if _, err := os.Stat(filepath.Join(bundleDir, "resources", "unused", unusedName)); !os.IsNotExist(err) {
+		t.Fatalf("artifact outside ResourceDeploymentPlan was staged; stat error=%v", err)
+	}
+	if _, err := os.Stat(filepath.Join(bundleDir, "resources", "openrouter", "resource-openrouter_linux_arm64")); !os.IsNotExist(err) {
+		t.Fatalf("artifact for platform outside ResourceDeploymentPlan was staged; stat error=%v", err)
+	}
 	planData, err := os.ReadFile(filepath.Join(bundleDir, "resource-deployment-plan.json"))
 	if err != nil || !strings.Contains(string(planData), "resource-openrouter_linux_amd64") {
 		t.Fatalf("read plan: %v; content=%s", err, planData)
+	}
+}
+
+func TestCopyArtifactPreservesRegularFilePermissions(t *testing.T) {
+	source := filepath.Join(t.TempDir(), "source")
+	if err := os.MkdirAll(filepath.Join(source, "etc"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	privatePath := filepath.Join(source, "etc", ".pwd.lock")
+	if err := os.WriteFile(privatePath, []byte("lock"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	executablePath := filepath.Join(source, "etc", "postgres")
+	if err := os.WriteFile(executablePath, []byte("binary"), 0o751); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(executablePath, 0o751); err != nil {
+		t.Fatal(err)
+	}
+
+	destination := filepath.Join(t.TempDir(), "destination")
+	if err := os.MkdirAll(filepath.Join(destination, "etc"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	staleLock := filepath.Join(destination, "etc", ".pwd.lock")
+	if err := os.WriteFile(staleLock, []byte("stale"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(staleLock, 0); err != nil {
+		t.Fatal(err)
+	}
+	if err := copyArtifact(source, destination); err != nil {
+		t.Fatalf("copyArtifact: %v", err)
+	}
+	for _, item := range []struct {
+		path string
+		want os.FileMode
+	}{
+		{path: filepath.Join(destination, "etc", ".pwd.lock"), want: 0o600},
+		{path: filepath.Join(destination, "etc", "postgres"), want: 0o751},
+	} {
+		info, err := os.Stat(item.path)
+		if err != nil {
+			t.Fatalf("stat %s: %v", item.path, err)
+		}
+		if got := info.Mode().Perm(); got != item.want {
+			t.Errorf("mode for %s = %04o, want %04o", item.path, got, item.want)
+		}
+	}
+}
+
+func TestCopyArtifactAcceptsExistingIdenticalSymlink(t *testing.T) {
+	root := t.TempDir()
+	source := filepath.Join(root, "source")
+	if err := os.MkdirAll(filepath.Join(source, "usr", "bin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(source, "usr", "bin", "postgres"), []byte("binary"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("usr/bin", filepath.Join(source, "bin")); err != nil {
+		t.Fatal(err)
+	}
+
+	destination := filepath.Join(root, "destination")
+	if err := os.MkdirAll(destination, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("usr/bin", filepath.Join(destination, "bin")); err != nil {
+		t.Fatal(err)
+	}
+	if err := copyArtifact(source, destination); err != nil {
+		t.Fatalf("copyArtifact: %v", err)
+	}
+	if got, err := os.Readlink(filepath.Join(destination, "bin")); err != nil || got != "usr/bin" {
+		t.Fatalf("destination bin symlink = %q, %v; want usr/bin", got, err)
+	}
+	if err := os.Remove(filepath.Join(source, "bin")); err != nil {
+		t.Fatal(err)
+	}
+	if err := copyArtifact(source, destination); err != nil {
+		t.Fatalf("copyArtifact after source tree changed: %v", err)
+	}
+	if _, err := os.Lstat(filepath.Join(destination, "bin")); !os.IsNotExist(err) {
+		t.Fatalf("stale destination symlink remains after tree replacement (err %v)", err)
 	}
 }
 
@@ -87,7 +183,7 @@ func TestStageBundledServiceStagesSeparatelyPinnedServer(t *testing.T) {
 	serverName, serverBody := "vault_linux_amd64", []byte("verified server")
 	mustWriteFile(t, filepath.Join(artifactRoot, serverName), serverBody, 0o755)
 	serverSum := sha256.Sum256(serverBody)
-	resource := `{"cli":{"distribution":{"kind":"prebuilt_artifact","artifact_name":"resource-vault_${os}_${arch}"}},"managed_service":{"provider_policy":{"target_defaults":{"control-plane":"managed-shared","desktop-bundle":"managed-private"},"allowed_modes":["managed-private","managed-shared"],"shared_reuse_requires_consent":true},"artifact":{"path":"bin/vault","version":"1.17.6","bundle_artifact":"vault_${os}_${arch}","sha256":"` + hex.EncodeToString(serverSum[:]) + `"}},"ports":[{"name":"http","host":8200}],"health_checks":[{"type":"http","target":"http://127.0.0.1:${RESOURCE_PORT_HTTP}/v1/sys/health","expected_status":[200,501],"timeout_seconds":5}],"deployment":{"profiles":{"desktop":{"linux":{"support":"supported","mode":"bundled-service","architectures":["amd64"],"limitations":["test"],"evidence":["test"]},"macos":{"support":"unsupported","mode":"bundled-service","reason":"test"},"windows":{"support":"unsupported","mode":"bundled-service","reason":"test"}}}}}`
+	resource := `{"cli":{"distribution":{"kind":"prebuilt_artifact","artifact_name":"resource-vault_${os}_${arch}"}},"managed_service":{"provider_policy":{"target_defaults":{"control-plane":"managed-shared","desktop-bundle":"managed-private"},"allowed_modes":["managed-private","managed-shared"],"shared_reuse_requires_consent":true},"artifact":{"path":"bin/vault","version":"1.17.6","bundle_artifact":"vault_${os}_${arch}","sha256":"` + hex.EncodeToString(serverSum[:]) + `"},"acquisition":{"kind":"oci-image","targets":[{"when":{"os":"linux","arch":"amd64"},"image":"registry.example/vault@sha256:abc","runtime_env":{"LD_PRELOAD":"${RESOURCE_ARTIFACT_DIR}/lib/libfixture.so"}}]}},"ports":[{"name":"http","host":8200}],"health_checks":[{"type":"http","target":"http://127.0.0.1:${RESOURCE_PORT_HTTP}/v1/sys/health","expected_status":[200,501],"timeout_seconds":5}],"deployment":{"profiles":{"desktop":{"linux":{"support":"supported","mode":"bundled-service","architectures":["amd64"],"limitations":["test"],"evidence":["test"]},"macos":{"support":"unsupported","mode":"bundled-service","reason":"test"},"windows":{"support":"unsupported","mode":"bundled-service","reason":"test"}}}}}`
 	resourceDir := filepath.Join(root, "resources", "vault")
 	mustMkdirAll(t, resourceDir)
 	mustWriteFile(t, filepath.Join(resourceDir, "resource.json"), []byte(resource), 0o644)
@@ -108,6 +204,9 @@ func TestStageBundledServiceStagesSeparatelyPinnedServer(t *testing.T) {
 	item := plan.Resources[0]
 	if item.Service == nil || item.Service.Artifact != serverName || len(item.Service.Files) != 1 {
 		t.Fatalf("bundled service plan = %#v", item.Service)
+	}
+	if got := item.Service.Environment["LD_PRELOAD"]; got != "${RESOURCE_ARTIFACT_DIR}/lib/libfixture.so" {
+		t.Fatalf("bundled service runtime environment = %#v", item.Service.Environment)
 	}
 	if item.Service.ProviderPolicy.TargetDefaults[resourcedeployment.ProviderTargetControlPlane] != resourcedeployment.ProviderManagedShared || item.Service.ProviderPolicy.TargetDefaults[resourcedeployment.ProviderTargetDesktopBundle] != resourcedeployment.ProviderManagedPrivate || !item.Service.ProviderPolicy.SharedReuseRequiresConsent {
 		t.Fatalf("bundled service provider policy = %#v", item.Service.ProviderPolicy)

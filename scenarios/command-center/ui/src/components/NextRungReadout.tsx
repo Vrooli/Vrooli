@@ -1,6 +1,6 @@
 import { forwardRef } from "react";
 import type { Reading } from "../lib/api";
-import { InkMark, qualify, resolveReading } from "@vrooli/react-component-library/ProvenanceInk/0.1.2";
+import { InkMark, qualify, resolveReading } from "@vrooli/react-component-library/ProvenanceInk/0.1.3";
 import { finishLabel, ladderOf, nextRung, rungsAfterNext, statusLabel, type LadderRung, type LadderWork } from "../lib/ladder";
 import { AutoScroll } from "./AutoScroll";
 

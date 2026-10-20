@@ -30,8 +30,8 @@ func TestFootprintIsMonotonicAndIsolatedByTunablesKey(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(rows) != 1 || rows[0].PeakBytes != 11<<30 || rows[0].Source != FootprintSourceMeasured {
-		t.Fatalf("num_parallel=2 rows = %+v, want monotonic 11 GiB measured row", rows)
+	if len(rows) != 1 || rows[0].PeakBytes != 11<<30 || rows[0].Source != FootprintSourceManifestDefault {
+		t.Fatalf("num_parallel=2 rows = %+v, want monotonic 11 GiB declared estimate; smaller sample does not measure that peak", rows)
 	}
 	if rows[0].LastSeenAt.Sub(rows[0].FirstSeenAt) != time.Hour {
 		t.Fatalf("footprint did not outlive sampling half-life: %+v", rows[0])
@@ -83,5 +83,36 @@ func TestResetFootprintsCanTargetOneResource(t *testing.T) {
 	rows, err := store.ListFootprints(ctx, FootprintFilter{})
 	if err != nil || len(rows) != 1 || rows[0].Resource != "reranker" {
 		t.Fatalf("remaining footprints = %+v, %v; want reranker only", rows, err)
+	}
+}
+
+func TestFootprintSourceDescribesWinningPeak(t *testing.T) {
+	ctx := context.Background()
+	store := testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) { return NewSQLiteStore(ctx, Config{DBPath: path}) })
+	at := time.Date(2026, 10, 17, 12, 0, 0, 0, time.UTC)
+	record := func(bytes int64, source string) Footprint {
+		t.Helper()
+		f, err := store.RecordFootprint(ctx, FootprintObservation{Resource: "model", Rung: "gpu", Bytes: bytes, Source: source, ObservedAt: at})
+		if err != nil {
+			t.Fatal(err)
+		}
+		at = at.Add(time.Minute)
+		return f
+	}
+	seeded := record(12*gib, FootprintSourceManifestDefault)
+	if seeded.Samples != 0 {
+		t.Fatalf("manifest seed counted as measurement: %+v", seeded)
+	}
+	small := record(4*gib, FootprintSourceMeasured)
+	if small.PeakBytes != 12*gib || small.Source != FootprintSourceManifestDefault || small.Samples != 1 {
+		t.Fatalf("small sample relabeled unmeasured peak: %+v", small)
+	}
+	tie := record(12*gib, FootprintSourceMeasured)
+	if tie.Source != FootprintSourceMeasured || tie.Samples != 2 {
+		t.Fatalf("measured peak not recognized: %+v", tie)
+	}
+	laterSeed := record(11*gib, FootprintSourceManifestDefault)
+	if laterSeed.Source != FootprintSourceMeasured || laterSeed.Samples != 2 {
+		t.Fatalf("losing seed changed measured evidence: %+v", laterSeed)
 	}
 }

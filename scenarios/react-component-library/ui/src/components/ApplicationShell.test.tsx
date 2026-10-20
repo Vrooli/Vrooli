@@ -182,7 +182,7 @@ describe("AppShell", () => {
     );
     expect(screen.getByRole("dialog", { name: "launcher.adopt" })).toBeInTheDocument();
     expect(screen.getByDisplayValue("cmp-1")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("demo")).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "demo" })).toBeChecked();
   });
 
   it("routes the coverage operator view through the shared workspace header", () => {

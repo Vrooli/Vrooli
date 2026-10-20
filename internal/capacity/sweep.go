@@ -2,7 +2,6 @@ package capacity
 
 import (
 	"context"
-	"strings"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/hostinventory"
@@ -19,7 +18,8 @@ type SweepResult struct {
 	Expired []CapacityClaim `json:"expired"`
 	// Sampled is how many active VRAM claims had their observed usage / decaying
 	// peak refreshed this pass (§Phase 2 telemetry).
-	Sampled int `json:"sampled"`
+	Sampled  int              `json:"sampled"`
+	Deferred ExpiryExclusions `json:"deferred,omitempty"`
 }
 
 // Sweep is the resident-claim heartbeat driver (plan §7 engine gap).
@@ -56,12 +56,24 @@ func SweepWithFootprints(ctx context.Context, store ClaimRepository, snapshot ho
 		return SweepResult{}, err
 	}
 
+	usage := observeClaimUsage(ctx, active, snapshot, attr)
 	var result SweepResult
+	result.Deferred = ExpiryExclusions{}
+	proofs := AbsenceProofs{}
 	for _, claim := range active {
 		if !claimRefreshable(claim) {
 			continue
 		}
-		if !claimObserved(ctx, claim, snapshot, attr) {
+		if usage.uncertain.Contains(claim.ClaimID) {
+			result.Deferred[claim.ClaimID] = usage.uncertain[claim.ClaimID]
+			continue
+		}
+		if len(usage.assigned[claim.ClaimID]) == 0 {
+			if !gpuProcessAbsenceVerified(snapshot, claim, now) {
+				result.Deferred[claim.ClaimID] = "GPU process absence is unverified"
+			} else {
+				proofs[claim.ClaimID] = AbsenceProof{Generation: claim.Generation, ObservedAt: snapshot.FieldProvenance["gpu_processes"].ObservedAt}
+			}
 			continue
 		}
 		// Heartbeat at the claim's current generation. Heartbeat does not bump the
@@ -75,7 +87,7 @@ func SweepWithFootprints(ctx context.Context, store ClaimRepository, snapshot ho
 		result.Refreshed = append(result.Refreshed, refreshed)
 	}
 
-	expired, err := store.ExpireStaleClaims(ctx, now)
+	expired, err := store.ExpireStaleClaims(ctx, now, proofs)
 	if err != nil {
 		return result, err
 	}
@@ -86,7 +98,7 @@ func SweepWithFootprints(ctx context.Context, store ClaimRepository, snapshot ho
 	// never bumps generation and only writes active claims, so a just-expired claim
 	// in `active` is a silent no-op. Piggybacks the snapshot the sweep already
 	// holds (no extra nvidia-smi).
-	result.Sampled = SampleObservedUsageWithFootprints(ctx, store, active, snapshot, attr, policy, now, resolve)
+	result.Sampled = sampleClaimUsage(ctx, store, active, snapshot, usage, policy, now, resolve)
 	return result, nil
 }
 
@@ -136,11 +148,15 @@ func SweepIfDue(ctx context.Context, store SweepCursorStore, snapshot hostinvent
 // (a failed snapshot must NEVER drive expiry, or a transient hiccup would
 // falsely expire a live resident). Any error is returned for the caller to log;
 // it is never fatal to the host operation the sweep rides on.
-func MaybeSweep(ctx context.Context, store ClaimRepository, source CapacitySource, attr Attributor, policy Policy, now time.Time) (SweepResult, bool, error) {
-	return MaybeSweepWithFootprints(ctx, store, source, attr, policy, now, nil)
+func MaybeSweep(ctx context.Context, store ClaimRepository, source CapacitySource, attr Attributor, policy Policy, clockNow func() time.Time) (SweepResult, bool, error) {
+	return MaybeSweepWithFootprints(ctx, store, source, attr, policy, clockNow, nil)
 }
 
-func MaybeSweepWithFootprints(ctx context.Context, store ClaimRepository, source CapacitySource, attr Attributor, policy Policy, now time.Time, resolve FootprintResolver) (SweepResult, bool, error) {
+func MaybeSweepWithFootprints(ctx context.Context, store ClaimRepository, source CapacitySource, attr Attributor, policy Policy, clockNow func() time.Time, resolve FootprintResolver) (SweepResult, bool, error) {
+	if clockNow == nil {
+		clockNow = time.Now
+	}
+	now := clockNow()
 	cursor, ok := store.(SweepCursorStore)
 	if !ok || source == nil {
 		return SweepResult{}, false, nil
@@ -163,6 +179,7 @@ func MaybeSweepWithFootprints(ctx context.Context, store ClaimRepository, source
 	if attr == nil {
 		attr = NewDockerAttributor()
 	}
+	now = clockNow() // Evaluate provenance after sensing, never against a pre-probe clock.
 	result, err := SweepWithFootprints(ctx, cursor, snapshot, attr, policy, now, resolve)
 	if err != nil {
 		return SweepResult{}, false, err
@@ -186,29 +203,36 @@ func claimRefreshable(c CapacityClaim) bool {
 	return c.ResourceKind == ResourceKindVRAM
 }
 
-// claimObserved reports whether any observed GPU process on the claim's GPU
-// attributes to the claim's owner (loose match, mirroring reconcile's
-// matchClaim).
-func claimObserved(ctx context.Context, claim CapacityClaim, snapshot hostinventory.Snapshot, attr Attributor) bool {
-	owner := strings.TrimSpace(claim.OwnerID)
-	if owner == "" {
+// completeGPUProcessProbe distinguishes a successful empty process list from
+// unknown or partial sensing. Missing status is not evidence of absence.
+func completeGPUProcessProbe(snapshot hostinventory.Snapshot) bool {
+	return snapshot.ProbeStatuses["nvidia_gpu"] == "ok" && snapshot.ProbeStatuses["nvidia_gpu_processes"] == "ok"
+}
+
+// gpuProcessAbsenceVerified requires a complete, recent observation at or after
+// this claim's known liveness/activity boundary. The default heartbeat TTL is
+// also the maximum accepted absence-observation age (30s by default); changing
+// policy sweep cadence cannot silently expand this safety bound.
+func gpuProcessAbsenceVerified(snapshot hostinventory.Snapshot, claim CapacityClaim, now time.Time) bool {
+	if !completeGPUProcessProbe(snapshot) {
 		return false
 	}
-	for _, proc := range snapshot.GPUProcesses {
-		idx := proc.GPUIndex
-		if !sameGPU(claim.GPUIndex, &idx) {
-			continue
-		}
-		a := attr.Attribute(ctx, proc.PID)
-		for _, cand := range []string{a.OwnerID, NormalizeOwnerName(a.ContainerName), strings.TrimPrefix(a.ContainerName, "/"), NormalizeProcessOwner(proc.ProcessName)} {
-			cand = strings.TrimSpace(cand)
-			if cand == "" || cand == OwnerUnknown {
-				continue
-			}
-			if ownerMatches(owner, cand) {
-				return true
-			}
+	return (AbsenceProof{Generation: claim.Generation, ObservedAt: snapshot.FieldProvenance["gpu_processes"].ObservedAt}).validFor(claim, now)
+}
+
+func (proof AbsenceProof) validFor(claim CapacityClaim, now time.Time) bool {
+	observed := proof.ObservedAt
+	if proof.Generation <= 0 || proof.Generation != claim.Generation || observed.IsZero() || observed.After(now) || now.Sub(observed) > DefaultHeartbeatTTL {
+		return false
+	}
+	boundary := claim.CreatedAt
+	if claim.UpdatedAt.After(boundary) {
+		boundary = claim.UpdatedAt
+	}
+	for _, at := range []*time.Time{claim.LastHeartbeatAt, claim.LastActiveAt} {
+		if at != nil && at.After(boundary) {
+			boundary = *at
 		}
 	}
-	return false
+	return !observed.Before(boundary)
 }

@@ -62,21 +62,27 @@ func (s *windowsSampler) Sample(ctx context.Context) ([]ProcessSample, error) {
 			MetricsStatus: "unsupported",
 			MetricsReason: "GetProcessMemoryInfo/GetProcessTimes unavailable",
 		}
-		handle, openErr := windows.OpenProcess(windows.PROCESS_QUERY_LIMITED_INFORMATION, false, entry.ProcessID)
+		sample.FaultCounter = "windows PageFaultCount (hard and soft faults)"
+		sample.FaultStatus = FaultUnsupported
+		sample.FaultReason = "OpenProcess/GetProcessMemoryInfo was refused (protected or exited process)"
+		sample.SwapStatus = "unsupported"
+		// proc is the per-process handle; the snapshot handle above must stay
+		// untouched because Process32Next walks it.
+		proc, openErr := windows.OpenProcess(windows.PROCESS_QUERY_LIMITED_INFORMATION, false, entry.ProcessID)
 		if openErr == nil {
 			var creation, exit, kernel, user windows.Filetime
-			timeErr := windows.GetProcessTimes(handle, &creation, &exit, &kernel, &user)
+			timeErr := windows.GetProcessTimes(proc, &creation, &exit, &kernel, &user)
 			counters := processMemoryCounters{CB: uint32(unsafe.Sizeof(processMemoryCounters{}))}
-			ret, _, _ := getProcessMemoryInfo.Call(uintptr(handle), uintptr(unsafe.Pointer(&counters)), uintptr(unsafe.Sizeof(counters)))
-			_ = windows.CloseHandle(handle)
+			ret, _, _ := getProcessMemoryInfo.Call(uintptr(proc), uintptr(unsafe.Pointer(&counters)), uintptr(unsafe.Sizeof(counters)))
+			_ = windows.CloseHandle(proc)
 			if timeErr == nil && ret != 0 {
-				sample.utime = uint64(user.Nanoseconds() / 1e7)
-				sample.stime = uint64(kernel.Nanoseconds() / 1e7)
-				sample.RSSKB = int64(counters.WorkingSetSize / 1024)
-				sample.SwapKB = int64(counters.PagefileUsage / 1024)
-				sample.MajorFaults = uint64(counters.PageFaultCount)
-				sample.MetricsStatus = "measured"
-				sample.MetricsReason = "Windows GetProcessTimes/GetProcessMemoryInfo"
+				applyWindowsMemoryCounters(&sample, windowsProcessCounters{
+					UserTime100ns:   uint64(user.Nanoseconds() / 100),
+					KernelTime100ns: uint64(kernel.Nanoseconds() / 100),
+					WorkingSetSize:  uint64(counters.WorkingSetSize),
+					PagefileUsage:   uint64(counters.PagefileUsage),
+					PageFaultCount:  counters.PageFaultCount,
+				})
 			}
 		}
 		samples = append(samples, sample)

@@ -9,13 +9,14 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/baselinefloor"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
 
 const buildIdentityEnv = "VROOLI_BUILD_IDENTITY"
 
 var buildIdentityIgnoredDirectories = map[string]struct{}{
-	".git": {}, ".vrooli": {}, ".cache": {}, "coverage": {}, "data": {},
+	".git": {}, ".vrooli": {}, ".cache": {}, "data": {},
 	"dist": {}, "logs": {}, "node_modules": {}, "tmp": {}, ".vite": {},
 }
 
@@ -54,6 +55,7 @@ func scenarioBuildIdentity(item scenario.Scenario) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	coverageOutputs := scenarioCoverageOutputMatcher(item, root)
 	err = filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
@@ -70,6 +72,9 @@ func scenarioBuildIdentity(item scenario.Scenario) (string, error) {
 				return filepath.SkipDir
 			}
 			if generatedOutputs.contains(filepath.ToSlash(relative)) {
+				return filepath.SkipDir
+			}
+			if entry.Name() == "coverage" && coverageOutputs.Ignored(filepath.ToSlash(relative), true) {
 				return filepath.SkipDir
 			}
 			return nil
@@ -136,6 +141,34 @@ func scenarioBuildIdentity(item scenario.Scenario) (string, error) {
 		}
 	}
 	return fmt.Sprintf("sha256:%x", hash.Sum(nil)), nil
+}
+
+// scenarioCoverageOutputMatcher applies the existing repository and scenario
+// ignore rules only to directories named coverage. A coverage directory is a
+// generated output when its owner ignores it; the same basename inside an
+// authored Go package remains part of the build identity unless the owner has
+// explicitly ignored that source path.
+func scenarioCoverageOutputMatcher(item scenario.Scenario, sourceRoot string) *baselinefloor.IgnoreMatcher {
+	treeRoot := item.Path
+	if strings.TrimSpace(treeRoot) == "" {
+		treeRoot = sourceRoot
+	}
+	repoRoot := filepath.Clean(treeRoot)
+	for current := repoRoot; ; current = filepath.Dir(current) {
+		if _, err := os.Stat(filepath.Join(current, ".vrooli", "repo-contract.json")); err == nil {
+			repoRoot = current
+			break
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			break
+		}
+	}
+	return baselinefloor.NewIgnoreMatcher(baselinefloor.IgnoreSpec{
+		RepoRoot:   repoRoot,
+		TreeRoot:   treeRoot,
+		NestedRoot: sourceRoot,
+	})
 }
 
 type buildIdentityExclusions map[string]struct{}

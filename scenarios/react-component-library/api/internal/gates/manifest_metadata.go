@@ -53,8 +53,8 @@ func ValidateManifestMetadata(scope Scope) (Result, error) {
 				result.Findings = append(result.Findings, Finding{Code: "catalog.manifest_metadata", AssetID: assetID, File: repoRel(root, manifest), Message: "manifest carries x-supplementalJustification", Remediation: "Register the asset against its catalog projection or remove the transitional justification.", DocsRef: "docs/reference/overlay-selection.md"})
 			case catalogIDs[assetID] && strings.TrimSpace(catalogDescriptions[assetID]) == "":
 				result.Findings = append(result.Findings, Finding{Code: "catalog.manifest_metadata", AssetID: assetID, File: repoRel(root, manifest), Message: "catalog description is empty or catalog projection is missing", Remediation: "Add the asset's user-visible responsibility to its catalog declaration before indexing the library projection.", DocsRef: "docs/concepts/ARCHITECTURE.md#catalog-graph-projection"})
-			case strings.HasPrefix(strings.TrimSpace(doc.CatalogID), "react-component-library:") && !catalogIDs[assetID]:
-				result.Findings = append(result.Findings, Finding{Code: "catalog.manifest_metadata", AssetID: doc.CatalogID, File: repoRel(root, manifest), Message: "manifest uses a self-referential catalogId", Remediation: "Use the stable domain catalog id, or clear catalogId when no projection exists.", DocsRef: "docs/concepts/ARCHITECTURE.md#catalog-graph-projection"})
+			case strings.HasPrefix(strings.TrimSpace(doc.CatalogID), "react-component-library:") && doc.CatalogID != doc.LibraryID && !catalogIDs[assetID]:
+				result.Findings = append(result.Findings, Finding{Code: "catalog.manifest_metadata", AssetID: doc.CatalogID, File: repoRel(root, manifest), Message: "manifest uses a mismatched library-prefixed catalogId", Remediation: "Use the matching libraryId fallback or a registered stable domain catalog id.", DocsRef: "docs/concepts/ARCHITECTURE.md#catalog-graph-projection"})
 			}
 		}
 	}

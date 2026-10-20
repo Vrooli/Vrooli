@@ -263,15 +263,25 @@ func TestThresholdScheduler_PersistsViolationOnCrossing(t *testing.T) {
 	}
 
 	// The alert path must have been exercised too, not just persistence.
-	alerts, err := h.repo.GetActiveAlerts(context.Background())
+	// A violation is a band-transition event: it is recorded (and notified)
+	// but created resolved, because the open/resolved lifecycle belongs to
+	// condition alerts. An unresolved violation would never close.
+	alerts, err := h.repo.ListAlerts(context.Background(), repository.AlertFilter{Type: "threshold_violation"})
 	if err != nil {
-		t.Fatalf("GetActiveAlerts: %v", err)
+		t.Fatalf("ListAlerts: %v", err)
 	}
 	if len(alerts) == 0 {
 		t.Fatal("threshold crossing produced no alert; the alert service is not wired")
 	}
-	if alerts[0].Type != "threshold_violation" {
-		t.Errorf("alert Type = %q, want threshold_violation", alerts[0].Type)
+	if alerts[0].ResolvedAt == nil {
+		t.Error("threshold violation event was left open; it would never resolve")
+	}
+	active, err := h.repo.GetActiveAlerts(context.Background())
+	if err != nil {
+		t.Fatalf("GetActiveAlerts: %v", err)
+	}
+	if len(active) != 0 {
+		t.Errorf("active alerts = %d after a violation event, want 0", len(active))
 	}
 }
 
@@ -369,6 +379,52 @@ func (f *fakeReporter) snapshot() []cleanupmanager.Report {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return append([]cleanupmanager.Report(nil), f.reports...)
+}
+
+type receiptWaiter struct {
+	receipt cleanupmanager.Recovery
+	err     error
+	calls   int
+}
+
+func (w *receiptWaiter) WaitRecovery(context.Context, string) (cleanupmanager.Recovery, error) {
+	w.calls++
+	return w.receipt, w.err
+}
+
+func TestThresholdSchedulerRecordsAdmissionAndTerminalRecoverySeparately(t *testing.T) {
+	h := newThresholdHarness(t, 20, 80)
+	h.scheduler.reporter = &fakeReporter{outcome: cleanupmanager.Outcome{Action: "PRESSURE_ACTION_OBSERVED", RunID: "run-1", Reason: "recovery run started; wait for terminal result"}}
+	h.scheduler.escalate(context.Background(), bandDecision{Band: BandHigh}, collectors.DiskUsage{UsedPercent: 92}, nil)
+	before := h.scheduler.Status().LastRemediation
+	if before == nil || before.RunID != "run-1" || before.Status != "running" || before.ReclaimedBytes != 0 {
+		t.Fatalf("admission=%#v", before)
+	}
+	waiter := &receiptWaiter{receipt: cleanupmanager.Recovery{RunID: "run-1", Status: "complete", Action: "applied", ReclaimedBytes: 4096, Reason: "target_met"}}
+	h.scheduler.waitRecovery(context.Background(), waiter, "run-1")
+	after := h.scheduler.Status().LastRemediation
+	if after.Status != "complete" || after.ReclaimedBytes != 4096 || after.Reason != "target_met" {
+		t.Fatalf("completion=%#v", after)
+	}
+	if before.Status != "running" || before.ReclaimedBytes != 0 {
+		t.Fatalf("previous status snapshot mutated: %#v", before)
+	}
+	if waiter.calls != 1 {
+		t.Fatalf("wait calls=%d", waiter.calls)
+	}
+}
+
+func TestThresholdSchedulerDoesNotOverwriteNewerRecovery(t *testing.T) {
+	h := newThresholdHarness(t, 20, 80)
+	h.scheduler.lastRemedy = &RemediationResult{RunID: "new", Status: "running"}
+	h.scheduler.waitRecovery(context.Background(), &receiptWaiter{receipt: cleanupmanager.Recovery{RunID: "old", Status: "complete", ReclaimedBytes: 100}}, "old")
+	if got := h.scheduler.Status().LastRemediation; got.RunID != "new" || got.ReclaimedBytes != 0 {
+		t.Fatalf("stale completion overwrote status: %#v", got)
+	}
+	h.scheduler.waitRecovery(context.Background(), &receiptWaiter{err: errors.New("connection refused")}, "new")
+	if got := h.scheduler.Status().LastRemediation; got.Status != "unknown" || got.Error == "" {
+		t.Fatalf("lost completion reported success: %#v", got)
+	}
 }
 
 // TestThresholdScheduler_ForwardsWarningHighAndCritical asserts every emitted

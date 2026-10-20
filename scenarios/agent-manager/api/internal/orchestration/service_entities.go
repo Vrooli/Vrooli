@@ -3,6 +3,7 @@ package orchestration
 
 import (
 	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration/spawn"
 	"agent-manager/internal/repository"
 	"context"
 	"github.com/google/uuid"
@@ -167,6 +168,9 @@ func (o *Orchestrator) CreateTask(ctx context.Context, task *domain.Task) (*doma
 		task.ID = uuid.New()
 	}
 	task.Status = domain.TaskStatusQueued
+	// A Task is not admitted to a Run by caller-supplied projection fields.
+	// Only CreateTaskAttempt may establish this owner pointer.
+	task.CurrentRunID = nil
 	task.CreatedAt = o.now()
 	task.UpdatedAt = task.CreatedAt
 
@@ -224,6 +228,17 @@ func (o *Orchestrator) UpdateTask(ctx context.Context, task *domain.Task) (*doma
 }
 
 func (o *Orchestrator) CancelTask(ctx context.Context, id uuid.UUID) error {
+	// ContinueRun and WakeRun hold this existing owner gate across their
+	// side-effecting handoff. Serializing explicit cancellation here makes the
+	// operation that wins first observable and prevents a typed prompt racing a
+	// cancellation that already committed.
+	o.wakeMu.Lock()
+	wakeLocked := true
+	defer func() {
+		if wakeLocked {
+			o.wakeMu.Unlock()
+		}
+	}()
 	task, err := o.GetTask(ctx, id)
 	if err != nil {
 		return err
@@ -232,10 +247,49 @@ func (o *Orchestrator) CancelTask(ctx context.Context, id uuid.UUID) error {
 	if task.Status != domain.TaskStatusQueued && task.Status != domain.TaskStatusRunning {
 		return domain.NewStateError("Task", string(task.Status), "cancel", "can only cancel queued or running tasks")
 	}
-
-	task.Status = domain.TaskStatusCancelled
-	task.UpdatedAt = o.now()
-	return o.tasks.Update(ctx, task)
+	if o.runs == nil {
+		return domain.NewConfigMissingError("runs", "task cancellation requires the current-run owner", nil)
+	}
+	if task.Status == domain.TaskStatusRunning && task.CurrentRunID == nil {
+		return domain.NewStateError("Task", string(task.Status), "cancel", "legacy running task has no verified current Run; cancellation requires owner reconciliation")
+	}
+	var admission *spawn.Admission
+	activeMayHaveStarted := false
+	if task.CurrentRunID != nil && o.dispatcher != nil {
+		admission, activeMayHaveStarted = o.dispatcher.PrepareCancelAdmission(*task.CurrentRunID)
+	}
+	priorRunStatus, changed, err := o.runs.CancelTaskAttempt(ctx, task.ID, task.CurrentRunID, activeMayHaveStarted, o.now())
+	if err != nil {
+		if admission != nil {
+			admission.AbortCancel()
+		}
+		return err
+	}
+	if !changed {
+		if admission != nil {
+			admission.AbortCancel()
+		}
+		return domain.NewStateError("Task", "changed", "cancel", "task changed concurrently or legacy Run ownership is unresolved; refresh and resolve the exact current Run before retrying")
+	}
+	if task.CurrentRunID == nil {
+		return nil
+	}
+	// Durable cancellation above fences restart recovery and stale projection.
+	// The dispatcher gate prevents queued work from starting; StopRun owns any
+	// active process/session termination and reports unresolved effects.
+	if admission != nil {
+		activeMayHaveStarted = admission.CommitCancel()
+	}
+	shouldStop := activeMayHaveStarted || priorRunStatus == domain.RunStatusStarting || priorRunStatus == domain.RunStatusRunning || priorRunStatus == domain.RunStatusParked
+	// The durable cancellation and dispatcher admission commit above fence future
+	// continuations. Do not hold the global wake serialization lock across the
+	// potentially slow runner/provider termination performed by StopRun.
+	o.wakeMu.Unlock()
+	wakeLocked = false
+	if shouldStop {
+		return o.StopRun(ctx, *task.CurrentRunID)
+	}
+	return nil
 }
 
 func (o *Orchestrator) DeleteTask(ctx context.Context, id uuid.UUID) error {
@@ -247,8 +301,19 @@ func (o *Orchestrator) DeleteTask(ctx context.Context, id uuid.UUID) error {
 	if task.Status != domain.TaskStatusCancelled {
 		return domain.NewStateError("Task", string(task.Status), "delete", "can only delete cancelled tasks")
 	}
-
-	return o.tasks.Delete(ctx, id)
+	attached, err := o.runs.ListByTask(ctx, id, repository.ListFilter{})
+	if err != nil {
+		return err
+	}
+	for _, run := range attached {
+		if allowed, reason := domain.CanDeleteRun(run); !allowed {
+			return domain.NewStateErrorWithID("Run", run.ID.String(), string(run.Status), "delete task", reason)
+		}
+	}
+	if err := o.tasks.Delete(ctx, id); err != nil {
+		return err
+	}
+	return o.cleanupDeletedTaskRunSidecars(ctx, id, attached)
 }
 
 // -----------------------------------------------------------------------------

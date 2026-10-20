@@ -54,6 +54,21 @@ type authenticationModeRuntime struct {
 	selected string
 }
 
+type readinessEventRuntime struct {
+	*mockRuntime
+	changes  chan struct{}
+	ready    atomic.Bool
+	statuses map[string]health.Status
+}
+
+func (m *readinessEventRuntime) StatusChanges() <-chan struct{} { return m.changes }
+func (m *readinessEventRuntime) ServiceStatuses() map[string]health.Status {
+	if m.statuses != nil {
+		return m.statuses
+	}
+	return map[string]health.Status{"api": {Ready: m.ready.Load()}}
+}
+
 func (m *authenticationModeRuntime) AuthenticationStatus() map[string]interface{} {
 	return map[string]interface{}{"mode": m.selected, "state": "offline_ready"}
 }
@@ -312,6 +327,86 @@ func TestHandleReady(t *testing.T) {
 			t.Errorf("handleReady() ready = %v, want false", body["ready"])
 		}
 	})
+}
+
+func TestHandleReadyWaitReturnsOnStatusNotification(t *testing.T) {
+	base := testRuntime(t, nil)
+	rt := &readinessEventRuntime{mockRuntime: base, changes: make(chan struct{}, 1)}
+	server := NewServer(rt, "test-token")
+	mux := http.NewServeMux()
+	server.RegisterHandlers(mux)
+	req := httptest.NewRequest(http.MethodGet, "/readyz/wait?timeout_ms=1000", nil)
+	w := httptest.NewRecorder()
+
+	go func() {
+		time.Sleep(20 * time.Millisecond)
+		rt.ready.Store(true)
+		rt.changes <- struct{}{}
+	}()
+	mux.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200: %s", w.Code, w.Body.String())
+	}
+	var body map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode readiness response: %v", err)
+	}
+	if body["ready"] != true {
+		t.Fatalf("ready = %v, want true", body["ready"])
+	}
+}
+
+func TestHandleReadyWaitValidatesTimeout(t *testing.T) {
+	base := testRuntime(t, nil)
+	rt := &readinessEventRuntime{mockRuntime: base, changes: make(chan struct{}, 1)}
+	server := NewServer(rt, "test-token")
+	mux := http.NewServeMux()
+	server.RegisterHandlers(mux)
+	for _, raw := range []string{"0", "120001", "invalid"} {
+		req := httptest.NewRequest(http.MethodGet, "/readyz/wait?timeout_ms="+raw, nil)
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, req)
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("timeout_ms=%q status=%d, want 400", raw, w.Code)
+		}
+	}
+}
+
+func TestHandleReadyWaitCanReturnWhenCriticalServicesAreReady(t *testing.T) {
+	critical := true
+	noncritical := false
+	base := testRuntime(t, &manifest.Manifest{
+		SchemaVersion: "desktop.v0.1", Target: "desktop", App: manifest.App{Name: "test-app", Version: "1.0.0"},
+		Services: []manifest.Service{{ID: "api", Critical: &critical}, {ID: "worker", Critical: &noncritical}},
+	})
+	rt := &readinessEventRuntime{mockRuntime: base, changes: make(chan struct{}, 1), statuses: map[string]health.Status{
+		"api": {Ready: true}, "worker": {Ready: false, Message: "still starting"},
+	}}
+	server := NewServer(rt, "test-token")
+	mux := http.NewServeMux()
+	server.RegisterHandlers(mux)
+
+	criticalReq := httptest.NewRequest(http.MethodGet, "/readyz/wait?timeout_ms=100&critical_only=true", nil)
+	criticalResp := httptest.NewRecorder()
+	mux.ServeHTTP(criticalResp, criticalReq)
+	var criticalBody map[string]interface{}
+	if err := json.Unmarshal(criticalResp.Body.Bytes(), &criticalBody); err != nil {
+		t.Fatalf("decode critical readiness: %v", err)
+	}
+	if criticalBody["ready"] != true {
+		t.Fatalf("critical ready = %v, want true", criticalBody["ready"])
+	}
+
+	fullReq := httptest.NewRequest(http.MethodGet, "/readyz", nil)
+	fullResp := httptest.NewRecorder()
+	mux.ServeHTTP(fullResp, fullReq)
+	var fullBody map[string]interface{}
+	if err := json.Unmarshal(fullResp.Body.Bytes(), &fullBody); err != nil {
+		t.Fatalf("decode full readiness: %v", err)
+	}
+	if fullBody["ready"] != false {
+		t.Fatalf("all-services ready = %v, want false", fullBody["ready"])
+	}
 }
 
 func TestHandleStatus(t *testing.T) {

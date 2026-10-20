@@ -11,6 +11,7 @@ import (
 	"scenario-to-desktop/cli/domains/preflight"
 	"scenario-to-desktop/cli/domains/signing"
 	"scenario-to-desktop/cli/domains/state"
+	"scenario-to-desktop/cli/domains/strategies"
 	"scenario-to-desktop/cli/domains/system"
 	"scenario-to-desktop/cli/domains/targets"
 	"scenario-to-desktop/cli/domains/tasks"
@@ -36,6 +37,7 @@ func SubcommandGroups(deps support.Dependencies) []cliapp.SubcommandGroup {
 		deploytarget.Register(deps),
 		evidence.Register(deps),
 		signing.Register(deps),
+		strategies.Register(deps),
 		state.Register(deps),
 		tasks.Register(deps),
 		telemetry.Register(deps),

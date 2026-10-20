@@ -6,6 +6,8 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -182,5 +184,61 @@ func TestRunCaptureRC_FailedRPCReturnsCommandError(t *testing.T) {
 	}
 	if got := err.Error(); !strings.Contains(got, "driver session capacity reached") {
 		t.Fatalf("capture error must retain the server failure, got %q", got)
+	}
+}
+
+func TestCaptureInteractionFlowFileUsesNativeRequest(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "take.json")
+	raw := `{"nodes":[{"id":"hold","action":{"type":"ACTION_TYPE_WAIT","wait":{"duration_ms":500}}}]}`
+	if err := os.WriteFile(path, []byte(raw), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	rc, err := cliapp.NewTestRunContextFromArgs(captureArgSchema(), []string{"--url", "http://localhost:24233", "--interaction-flow-file", path}, nil, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	flags, err := flagsFromContext(rc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request, err := buildCaptureRequest(flags)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if request.GetInteractionFlowJson() != raw {
+		t.Fatal("interaction flow was not forwarded intact")
+	}
+}
+
+func TestInteractionFlowFileRejectsInvalidAndOversizedInput(t *testing.T) {
+	for _, raw := range []string{"", "not json", strings.Repeat(" ", 2<<20) + "{}"} {
+		path := filepath.Join(t.TempDir(), "take.json")
+		if err := os.WriteFile(path, []byte(raw), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := readInteractionFlow(path); err == nil {
+			t.Fatal("invalid interaction input accepted")
+		}
+	}
+	if _, err := readInteractionFlow(t.TempDir()); err == nil {
+		t.Fatal("directory accepted as interaction flow")
+	}
+}
+
+func TestCaptureRoutedModeMarksTargetTrafficOnly(t *testing.T) {
+	rc, err := cliapp.NewTestRunContextFromArgs(captureArgSchema(), []string{"--url", "http://localhost:24233", "--routed-test-mode"}, nil, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	flags, err := flagsFromContext(rc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request, err := buildCaptureRequest(flags)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if request.GetBrowserProfile().GetExtraHeaders()["X-Vrooli-Test-Mode"] != "1" {
+		t.Fatal("target browser requests lost routed test mode")
 	}
 }

@@ -1,0 +1,8 @@
+{"ImportPath":"react-component-library/handlers/componenttests_test [react-component-library/handlers/componenttests.test]","Action":"build-output","Output":"# react-component-library/handlers/componenttests_test [react-component-library/handlers/componenttests.test]\n"}
+{"ImportPath":"react-component-library/handlers/componenttests_test [react-component-library/handlers/componenttests.test]","Action":"build-output","Output":"handlers/componenttests/module_test.go:108:67: not enough arguments in call to anypb.UnmarshalTo\n"}
+{"ImportPath":"react-component-library/handlers/componenttests_test [react-component-library/handlers/componenttests.test]","Action":"build-output","Output":"\thave (*anypb.Any, *structpb.Struct)\n"}
+{"ImportPath":"react-component-library/handlers/componenttests_test [react-component-library/handlers/componenttests.test]","Action":"build-output","Output":"\twant (*anypb.Any, proto.Message, proto.UnmarshalOptions)\n"}
+{"ImportPath":"react-component-library/handlers/componenttests_test [react-component-library/handlers/componenttests.test]","Action":"build-fail"}
+{"Time":"2026-10-17T09:41:28.590990955-04:00","Action":"start","Package":"react-component-library/handlers/componenttests"}
+{"Time":"2026-10-17T09:41:28.591042775-04:00","Action":"output","Package":"react-component-library/handlers/componenttests","Output":"FAIL\treact-component-library/handlers/componenttests [build failed]\n"}
+{"Time":"2026-10-17T09:41:28.591064985-04:00","Action":"fail","Package":"react-component-library/handlers/componenttests","Elapsed":0,"FailedBuild":"react-component-library/handlers/componenttests_test [react-component-library/handlers/componenttests.test]"}

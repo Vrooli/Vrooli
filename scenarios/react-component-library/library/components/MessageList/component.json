@@ -13,6 +13,6 @@
   "evictedVersions": [
     "0.1.0"
   ],
-  "latest": "1.1.2",
+  "latest": "1.1.4",
   "libraryId": "react-component-library:MessageList"
 }

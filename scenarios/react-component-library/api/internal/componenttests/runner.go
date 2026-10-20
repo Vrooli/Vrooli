@@ -144,6 +144,13 @@ type ExecutorProber interface {
 	Probe(context.Context) error
 }
 
+// ExecutorInspector is an optional read-only provider diagnostic for an
+// executor whose route can be selected dynamically. The returned observation
+// must come from the same executor instance used for capture.
+type ExecutorInspector interface {
+	InspectProvider(context.Context) (BASProviderInspection, error)
+}
+
 // StorySheetExecutor is an optional capability of the production BAS
 // executor. Individual story captures remain authoritative; sheets are
 // bounded review accelerators and therefore never replace StoryExecutor.

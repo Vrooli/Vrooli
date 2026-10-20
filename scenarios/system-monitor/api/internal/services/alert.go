@@ -84,23 +84,44 @@ func (s *AlertService) CreateAlert(ctx context.Context, alert *models.Alert) err
 	return nil
 }
 
-// SendAnomaly sends an alert for an anomaly
+// OpenConditionAlert persists a lifecycle-managed condition alert and sends
+// notifications. Unlike CreateAlert it applies no per-metric cooldown: the
+// evaluator already guarantees one open alert per rule/key, and a cooldown
+// here would silently drop the record the evaluator then believes is open.
+func (s *AlertService) OpenConditionAlert(ctx context.Context, alert *models.Alert) error {
+	if err := s.repo.CreateAlert(ctx, alert); err != nil {
+		return fmt.Errorf("failed to create alert: %w", err)
+	}
+	if s.shouldNotify(alert) {
+		go s.sendNotifications(alert)
+	}
+	return nil
+}
+
+// SendAnomaly records an anomaly as a point-in-time event alert. Event
+// records are created resolved: the open/resolved lifecycle belongs to the
+// condition alert that raised the anomaly, not to the event.
 func (s *AlertService) SendAnomaly(ctx context.Context, anomaly *models.Anomaly) error {
+	at := anomaly.DetectedAt
 	alert := &models.Alert{
-		ID:         fmt.Sprintf("alert_%s_%d", anomaly.Type, s.clock.Now().Unix()),
+		ID:         fmt.Sprintf("alert_%s_%d", anomaly.Type, s.clock.Now().UnixNano()),
 		Type:       "anomaly",
 		Severity:   anomaly.Severity,
 		Message:    anomaly.Description,
 		MetricName: anomaly.Type,
 		Details:    anomaly.MetricData,
 		Timestamp:  anomaly.DetectedAt,
+		ResolvedAt: &at,
 	}
-
-	return s.CreateAlert(ctx, alert)
+	// No per-metric cooldown: an anomaly is raised once per escalated
+	// condition alert, and the cooldown map is keyed by metric names that
+	// threshold events share.
+	return s.OpenConditionAlert(ctx, alert)
 }
 
 // SendThresholdViolation sends an alert for a threshold violation
 func (s *AlertService) SendThresholdViolation(ctx context.Context, violation *models.ThresholdViolation) error {
+	resolvedAt := violation.Timestamp
 	alert := &models.Alert{
 		ID:          fmt.Sprintf("alert_threshold_%s_%d", violation.MetricName, s.clock.Now().Unix()),
 		Type:        "threshold_violation",
@@ -114,6 +135,11 @@ func (s *AlertService) SendThresholdViolation(ctx context.Context, violation *mo
 			"duration":       violation.Duration,
 		},
 		Timestamp: violation.Timestamp,
+		// A violation is a band-transition event, not an open condition;
+		// condition alerts (AlertEvaluator) own the open/resolved lifecycle.
+		// Recording it resolved keeps event history without leaving rows
+		// that never close.
+		ResolvedAt: &resolvedAt,
 	}
 
 	return s.CreateAlert(ctx, alert)
@@ -139,6 +165,7 @@ func (s *AlertService) shouldNotify(alert *models.Alert) bool {
 	// Check minimum severity
 	severityMap := map[string]int{
 		"low":      1,
+		"warning":  2,
 		"medium":   2,
 		"high":     3,
 		"critical": 4,

@@ -39,6 +39,11 @@ type SmokeTestRequest struct {
 	ProxyURL       string
 	PipelineID     string
 	JourneyID      string
+	Measured       bool
+	Condition      string
+	Strategy       string
+	ExperimentID   string
+	ArtifactDigest string
 }
 
 type requestService interface {
@@ -101,6 +106,14 @@ type Logger interface {
 
 // ExecutionResult contains the detailed output from command execution.
 type ExecutionResult struct {
+	// ProcessSessionID identifies this launch in descendant environments so
+	// cleanup and the post-launch assertion still find children moved to scopes.
+	ProcessSessionID string `json:"process_session_id,omitempty"`
+
+	// RemainingDescendantPIDs is populated when the post-launch assertion finds
+	// processes carrying ProcessSessionID after cleanup has completed.
+	RemainingDescendantPIDs []int `json:"remaining_descendant_pids,omitempty"`
+
 	// Stdout contains the standard output from the command.
 	Stdout string
 

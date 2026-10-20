@@ -286,6 +286,12 @@ func viewClaim(c engine.CapacityClaim, policy engine.Policy, now time.Time) Clai
 		ObservedBytes:     c.ObservedBytes,
 		ObservedPeakBytes: c.ObservedPeakBytes,
 	}
+	// Nil VRAM indexes are the core default GPU0, including lifecycle rows.
+	// Emit that canonical identity explicitly; consumers must not guess it.
+	if c.ResourceKind == engine.ResourceKindVRAM && v.GPUIndex == nil {
+		zero := 0
+		v.GPUIndex = &zero
+	}
 	if c.LastActiveAt != nil {
 		ts := c.LastActiveAt.UTC().Format(time.RFC3339)
 		v.LastActiveAt = &ts
@@ -315,11 +321,7 @@ func idleReclaimState(c engine.CapacityClaim, grace time.Duration, now time.Time
 	if c.ActivityState != engine.ActivityIdle {
 		return "active"
 	}
-	since := c.LastActiveAt
-	if since == nil {
-		since = &c.CreatedAt
-	}
-	if grace > 0 && now.Before(since.Add(grace)) {
+	if grace > 0 && now.Before(engine.IdleSince(c).Add(grace)) {
 		return "warm_idle"
 	}
 	return "cold_idle"
@@ -400,16 +402,28 @@ func (s Service) Claim(ctx context.Context, req ClaimRequest) (ClaimOutput, erro
 	// but we surface the sensing failure as a warning via a deny-ish verdict.
 	var verdict engine.Verdict
 	var ledger []engine.CapacityClaim
+	var admissionWarnings []string
 	if snapErr != nil {
 		verdict = engine.Verdict{Kind: engine.VerdictGrant, GrantedBytes: req.PreferredBytes, Warnings: []string{"capacity sensing unavailable: " + snapErr.Error()}}
 	} else {
+		swept, sweepErr := engine.Sweep(ctx, store, snapshot, s.attributor(), policy, s.now())
+		if sweepErr != nil {
+			return ClaimOutput{}, sweepErr
+		}
+		if len(swept.Deferred) > 0 {
+			admissionWarnings = append(admissionWarnings, fmt.Sprintf("preserved %d resident claim(s) whose GPU presence is unverified", len(swept.Deferred)))
+		}
 		var listErr error
 		ledger, listErr = store.ListClaims(ctx, engine.ClaimFilter{ResourceKind: req.ResourceKind, Statuses: engine.ActiveClaimStatuses()})
 		if listErr != nil {
 			return ClaimOutput{}, listErr
 		}
 		verdict = engine.Decide(engReq, snapshot, ledger, policy, s.now())
+		if len(snapshot.GPUs) > 0 && (snapshot.ProbeStatuses["nvidia_gpu"] != "ok" || snapshot.ProbeStatuses["nvidia_gpu_processes"] != "ok") {
+			verdict.Warnings = append(verdict.Warnings, "GPU process absence is unverified; resident claims were preserved")
+		}
 	}
+	verdict.Warnings = append(verdict.Warnings, admissionWarnings...)
 	// A CLI claim is a broker admission too, not merely a ledger insert. In
 	// enforce mode, execute the declared adopter callbacks before recording the
 	// requester so a grant that depends on reclaiming idle capacity is real.
@@ -594,7 +608,7 @@ func (s Service) List(ctx context.Context, req ListRequest) (ListOutput, error) 
 	// presence-refreshed/expired claims during active periods. Best-effort: a
 	// sensing failure or cursor-less store is a silent no-op.
 	if policy, perr := store.GetPolicy(ctx); perr == nil {
-		_, _, _ = engine.MaybeSweepWithFootprints(ctx, store, s.source(), s.attributor(), policy, s.now(), s.footprintResolver(ctx))
+		_, _, _ = engine.MaybeSweepWithFootprints(ctx, store, s.source(), s.attributor(), policy, s.now, s.footprintResolver(ctx))
 	}
 	filter := engine.ClaimFilter{OwnerID: req.OwnerID}
 	if req.ActiveOnly || !req.AllHistory {
@@ -687,9 +701,10 @@ type SweepView struct {
 
 // SweepOutput reports the presence-driven sweep result.
 type SweepOutput struct {
-	Refreshed []SweepView `json:"refreshed"`
-	Expired   []SweepView `json:"expired"`
-	Adopted   []SweepView `json:"adopted,omitempty"`
+	Deferred  engine.ExpiryExclusions `json:"deferred,omitempty"`
+	Refreshed []SweepView             `json:"refreshed"`
+	Expired   []SweepView             `json:"expired"`
+	Adopted   []SweepView             `json:"adopted,omitempty"`
 	// IdleUnloadCandidates are claims idle beyond their idle_unload_ttl that the
 	// broker WOULD autonomously unload (advisory). The CLI sweep verb only reports
 	// them — actuation happens solely in the always-on maintenance pass under
@@ -723,6 +738,7 @@ func (s Service) Sweep(ctx context.Context) (SweepOutput, error) {
 		return SweepOutput{}, err
 	}
 	out := SweepOutput{
+		Deferred:  result.Deferred,
 		Refreshed: make([]SweepView, 0, len(result.Refreshed)),
 		Expired:   make([]SweepView, 0, len(result.Expired)),
 	}
@@ -839,7 +855,7 @@ func (s Service) Recommend(ctx context.Context, req RecommendRequest) (Recommend
 		return RecommendOutput{}, err
 	}
 	// Best-effort fresh sample before reading peaks (cursor-backed + sensing only).
-	_, _, _ = engine.MaybeSweepWithFootprints(ctx, store, s.source(), s.attributor(), policy, s.now(), s.footprintResolver(ctx))
+	_, _, _ = engine.MaybeSweepWithFootprints(ctx, store, s.source(), s.attributor(), policy, s.now, s.footprintResolver(ctx))
 	filter := engine.ClaimFilter{OwnerID: req.OwnerID, Statuses: engine.ActiveClaimStatuses()}
 	claims, err := store.ListClaims(ctx, filter)
 	if err != nil {

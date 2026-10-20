@@ -193,7 +193,7 @@ func categoryOf(token string) string {
 		return ""
 	}
 	base := token
-	if colon := strings.LastIndex(base, ":"); colon >= 0 {
+	if colon := lastTopLevelColon(base); colon >= 0 {
 		base = strings.TrimPrefix(base[colon+1:], "!")
 		if base == "" {
 			return ""
@@ -202,8 +202,24 @@ func categoryOf(token string) string {
 			return "variant"
 		}
 	}
-	if strings.Contains(base, "[") && strings.Contains(base, "]") {
-		return "arbitrary"
+	if open := strings.IndexByte(base, '['); open >= 0 && strings.HasSuffix(base, "]") {
+		if open == 0 {
+			// A bare attribute selector such as [data-rcl-row] is not a
+			// utility class. Tailwind's bare arbitrary-property form carries
+			// a property/value separator, for example [color:var(--text)].
+			if strings.Contains(base[1:len(base)-1], ":") {
+				return "arbitrary"
+			}
+			return ""
+		}
+		// Arbitrary values belong to a utility prefix (w-[...], bg-[...]),
+		// not to any arbitrary token that merely contains square brackets.
+		prefix := base[:open]
+		for _, item := range utilityPrefixes {
+			if strings.HasPrefix(prefix, item.prefix) {
+				return "arbitrary"
+			}
+		}
 	}
 	if category, ok := exactUtilities[base]; ok {
 		return category
@@ -214,6 +230,28 @@ func categoryOf(token string) string {
 		}
 	}
 	return ""
+}
+
+// lastTopLevelColon finds a variant separator without treating colons inside
+// an arbitrary-property/value expression as separators.
+func lastTopLevelColon(value string) int {
+	depth := 0
+	last := -1
+	for index := 0; index < len(value); index++ {
+		switch value[index] {
+		case '[':
+			depth++
+		case ']':
+			if depth > 0 {
+				depth--
+			}
+		case ':':
+			if depth == 0 {
+				last = index
+			}
+		}
+	}
+	return last
 }
 
 func declarations(source string) map[string]literal {
@@ -363,6 +401,28 @@ func identifiers(source string) []string {
 	seen := map[string]bool{}
 	var result []string
 	for index := 0; index < len(source); {
+		if strings.HasPrefix(source[index:], "//") {
+			if newline := strings.IndexByte(source[index:], '\n'); newline >= 0 {
+				index += newline + 1
+				continue
+			}
+			break
+		}
+		if strings.HasPrefix(source[index:], "/*") {
+			if end := strings.Index(source[index+2:], "*/"); end >= 0 {
+				index += end + 4
+				continue
+			}
+			break
+		}
+		if isQuote(source[index]) {
+			if source[index] != '`' {
+				_, index = quoted(source, index)
+				continue
+			}
+			index = templateIdentifiers(source, index, seen, &result)
+			continue
+		}
 		r := rune(source[index])
 		if !(unicode.IsLetter(r) || r == '_' || r == '$') {
 			index++
@@ -383,6 +443,32 @@ func identifiers(source string) []string {
 		}
 	}
 	return result
+}
+
+// templateIdentifiers skips template text but follows identifiers inside
+// `${...}` expressions, where JavaScript actually evaluates their values.
+func templateIdentifiers(source string, start int, seen map[string]bool, result *[]string) int {
+	for index := start + 1; index < len(source); index++ {
+		if source[index] == '\\' {
+			index++
+			continue
+		}
+		if source[index] == '`' {
+			return index + 1
+		}
+		if source[index] != '$' || index+1 >= len(source) || source[index+1] != '{' {
+			continue
+		}
+		expression, end := balanced(source, index+1)
+		for _, identifier := range identifiers(expression) {
+			if !seen[identifier] {
+				seen[identifier] = true
+				*result = append(*result, identifier)
+			}
+		}
+		index = end - 1
+	}
+	return len(source)
 }
 
 func isQuote(character byte) bool {

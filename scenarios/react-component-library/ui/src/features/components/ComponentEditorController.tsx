@@ -237,6 +237,7 @@ export function ComponentEditorImpl({
   const [specimenErrors, setSpecimenErrors] = useState<Record<string, string>>({});
   const [specimenRetries, setSpecimenRetries] = useState<Record<string, number>>({});
   const [activeSpecimen, setActiveSpecimen] = useState<SpecimenIdentity | null>(null);
+  const lastSelectedStoryRef = useRef<string | undefined>(undefined);
   const [previewToolsCollapsed, setPreviewToolsCollapsed] = useState(true);
   const [previewFullscreen, setPreviewFullscreen] = useState(false);
   const [specimenOverrides, setSpecimenOverrides] = useState<
@@ -367,17 +368,25 @@ export function ComponentEditorImpl({
   useEffect(() => {
     // A transient loading/fallback specimen can outlive the story query when
     // the editor is entered through client-side catalog navigation. Reconcile
-    // by identity against the settled contract instead of treating any
-    // non-null value as a valid selection.
-    if (
-      examples.length === 0 ||
-      (activeSpecimen && examples.some((example) => specimenIdentity(example) === activeSpecimen))
-    )
+    // against the settled contract, and treat a changed URL story as a new
+    // selection request without replaying that request after ordinary state
+    // changes while the URL stays the same.
+    if (examples.length === 0) return;
+
+    const activeIsValid =
+      activeSpecimen !== null &&
+      examples.some((example) => specimenIdentity(example) === activeSpecimen);
+    const requestedStoryChanged = selectedStory !== lastSelectedStoryRef.current;
+    lastSelectedStoryRef.current = selectedStory;
+
+    if (selectedStory && (requestedStoryChanged || !activeIsValid)) {
+      const requested = examples.find((example) => example.storyId === selectedStory);
+      activateSpecimen(specimenIdentity(requested ?? examples[0]));
       return;
-    const restored = selectedStory
-      ? examples.find((example) => example.storyId === selectedStory)
-      : undefined;
-    activateSpecimen(specimenIdentity(restored ?? examples[0]));
+    }
+
+    if (activeIsValid) return;
+    activateSpecimen(specimenIdentity(examples[0]));
   }, [activeSpecimen, activateSpecimen, examples, selectedStory]);
 
   useEffect(() => {

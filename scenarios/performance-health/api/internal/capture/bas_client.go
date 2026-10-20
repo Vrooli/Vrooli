@@ -28,9 +28,9 @@ const componentMark = "⚛"
 // web-vitals (Tier 0), then inspects the returned trace for ⚛ component marks
 // (Tier 1). BAS stays a dumb mechanism — tier meaning is derived here.
 //
-// A capture that returns no usable trace (no browser available / unavailable
-// artifact) yields empty Artifacts with a nil error, which the orchestrator
-// treats as a clean skip.
+// An unavailable artifact retains BAS's reason for the orchestrator to classify.
+// Operation errors retain their native cause; only service/discovery
+// unavailability is classified as an unavailable capture mechanism.
 type BASConnectClient struct {
 	// Resolve maps the BAS scenario slug → its API base URL; nil uses the
 	// discovery resolver.
@@ -46,8 +46,8 @@ type BASConnectClient struct {
 
 var _ BASClient = (*BASConnectClient)(nil)
 
-// BASRequestError means BAS was reachable and rejected the capture request.
-// It is a caller/workflow problem, not a missing capture mechanism.
+// BASRequestError retains a capture operation failure returned by BAS.
+// An operation failure does not establish a missing capture mechanism.
 type BASRequestError struct {
 	Code connect.Code
 	Err  error
@@ -55,9 +55,9 @@ type BASRequestError struct {
 
 func (e BASRequestError) Error() string {
 	if e.Err == nil {
-		return fmt.Sprintf("browser-automation-studio rejected capture request: %s", e.Code)
+		return fmt.Sprintf("browser-automation-studio capture operation failed: %s", e.Code)
 	}
-	return fmt.Sprintf("browser-automation-studio rejected capture request: %s: %v", e.Code, e.Err)
+	return fmt.Sprintf("browser-automation-studio capture operation failed: %s: %v", e.Code, e.Err)
 }
 
 func (e BASRequestError) Unwrap() error {
@@ -75,9 +75,9 @@ func (c *BASConnectClient) CapturePerf(ctx context.Context, url, interactionFlow
 
 	baseURL, err := c.resolve(ctx)
 	if err != nil {
-		// BAS unreachable → UNAVAILABLE (the capture mechanism is absent), not a
-		// silent success. The orchestrator surfaces it loudly, distinct from N/A.
-		return Artifacts{}, ErrCaptureUnavailable
+		// Discovery could not locate the capture service. Retain that cause;
+		// this alone does not establish that the browser is absent.
+		return Artifacts{}, fmt.Errorf("%w: resolve browser-automation-studio: %w", ErrCaptureUnavailable, err)
 	}
 
 	client := captureconnect.NewCaptureServiceClient(c.httpClient(), baseURL)
@@ -88,16 +88,14 @@ func (c *BASConnectClient) CapturePerf(ctx context.Context, url, interactionFlow
 		InteractionFlowJson: interactionFlowJSON,
 	}))
 	if err != nil {
-		if code := connect.CodeOf(err); code == connect.CodeInvalidArgument || code == connect.CodeFailedPrecondition {
-			return Artifacts{}, BASRequestError{Code: code, Err: err}
+		code := connect.CodeOf(err)
+		if code == connect.CodeUnavailable {
+			return Artifacts{}, fmt.Errorf("%w: %w", ErrCaptureUnavailable, err)
 		}
-		// A transport/exec failure (e.g. no browser in the env) is an UNAVAILABLE
-		// mechanism, not a clean skip — performance-health degrades visibly
-		// headless instead of reading the degradation as success.
-		return Artifacts{}, ErrCaptureUnavailable
+		return Artifacts{}, BASRequestError{Code: code, Err: err}
 	}
 	if resp == nil || resp.Msg == nil {
-		return Artifacts{}, ErrCaptureUnavailable
+		return Artifacts{}, errors.New("browser-automation-studio returned an empty capture response")
 	}
 
 	return c.artifactsFromResponse(resp.Msg), nil

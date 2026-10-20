@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"scenario-to-desktop-api/generation"
 	"scenario-to-desktop-api/shared/packaging"
 	"scenario-to-desktop-api/shared/validation"
 
@@ -93,7 +94,16 @@ func (h *Handler) HandleDownload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Find built package
-	distPath := filepath.Join(h.scenarioRoot, scenarioName, "platforms", "electron", "dist-electron")
+	strategyID := strings.TrimSpace(r.URL.Query().Get("strategy"))
+	if strategyID == "" {
+		strategyID = generation.DefaultStrategyID
+	}
+	outputName, err := generation.StrategyOutputName(strategyID)
+	if err != nil {
+		httputil.WriteBadRequest(w, err.Error())
+		return
+	}
+	distPath := filepath.Join(h.scenarioRoot, scenarioName, "platforms", outputName, "dist-electron")
 	packageFile, err := packaging.FindBuiltPackage(distPath, platform)
 	if err != nil {
 		httputil.WriteNotFound(w, fmt.Sprintf("Built package not found: %s. Build the desktop app first.", err))

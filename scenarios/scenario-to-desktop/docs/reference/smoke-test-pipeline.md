@@ -256,11 +256,12 @@ Release-bound generated desktop updates use `DEPLOYMENT_MANAGER_RELEASE_ID`,
 `DEPLOYMENT_MANAGER_CANDIDATE_ID`, `DEPLOYMENT_MANAGER_TARGET_ID`, and the
 narrow `DEPLOYMENT_MANAGER_RECEIPT_TOKEN` to submit the installed-client
 receipt after successor relaunch and health verification. The receipt token is
-separate from `DEPLOYMENT_MANAGER_SERVICE_TOKEN`; publisher and owner service
-credentials must remain in the scenario-to-desktop process and must not be
-passed to the generated desktop client. If any release binding is present but
-the receipt route is incomplete, the updater keeps its recovery intent and
-fails closed instead of clearing the update as healthy.
+separate from publisher identity. Production release authentication is deferred
+until a production release ships and should use machine-bound operator identity.
+No publisher credential is passed to the generated desktop client. If any
+release binding is present but the receipt route is incomplete, the updater
+keeps its recovery intent and fails closed instead of clearing the update as
+healthy.
 | `S2D_JOURNEY_CAPABILITY` | Optional registered capability | Selects a behavior fixture such as bundled-private or shared-resource |
 | `S2D_JOURNEY_PROFILE` | `normal-review`, `fast-ci`, or `diagnostic-slow` | Selects bounded journey pacing; unknown profiles fail closed |
 | `VROOLI_GIT_COMMIT` | Optional exact commit hash | Binds the evidence report to the reviewed source |

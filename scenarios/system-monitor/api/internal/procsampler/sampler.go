@@ -43,8 +43,19 @@ type ProcessSample struct {
 	Threads              int
 	MajorFaults          uint64
 	MajorFaultsPerSecond float64
-	MetricsStatus        string
-	MetricsReason        string
+	// FaultCounter names the native counter behind MajorFaults, because the
+	// platforms do not count the same thing (Linux majflt, macOS ri_pageins,
+	// Windows PageFaultCount which includes soft faults).
+	FaultCounter string
+	// FaultStatus is the state of MajorFaultsPerSecond: measured,
+	// not_yet_sampled, or unsupported (the counter could not be read).
+	FaultStatus string
+	FaultReason string
+	// SwapStatus is measured when SwapKB is a real reading, unsupported when
+	// the platform keeps no per-process swap accounting.
+	SwapStatus    string
+	MetricsStatus string
+	MetricsReason string
 	// UTime/STime are the raw cumulative CPU ticks read this cycle; retained so
 	// the sampler can compute the next cycle's delta. Not persisted.
 	utime uint64
@@ -131,10 +142,18 @@ type cpuDeltaTracker struct {
 }
 
 type cpuTicks struct {
-	utime       uint64
-	stime       uint64
-	majorFaults uint64
+	utime          uint64
+	stime          uint64
+	majorFaults    uint64
+	faultsReadable bool
 }
+
+// Fault-rate states for ProcessSample.FaultStatus.
+const (
+	FaultMeasured      = "measured"
+	FaultNotYetSampled = "not_yet_sampled"
+	FaultUnsupported   = "unsupported"
+)
 
 func newCPUDeltaTracker() *cpuDeltaTracker {
 	return &cpuDeltaTracker{prev: make(map[int]cpuTicks)}
@@ -148,8 +167,12 @@ func (t *cpuDeltaTracker) apply(samples []ProcessSample, now time.Time) {
 	next := make(map[int]cpuTicks, len(samples))
 	for i := range samples {
 		s := &samples[i]
-		cur := cpuTicks{utime: s.utime, stime: s.stime, majorFaults: s.MajorFaults}
+		cur := cpuTicks{utime: s.utime, stime: s.stime, majorFaults: s.MajorFaults, faultsReadable: s.FaultStatus != FaultUnsupported}
 		next[s.PID] = cur
+		faultsReadable := s.FaultStatus != FaultUnsupported
+		if faultsReadable {
+			s.FaultStatus = FaultNotYetSampled
+		}
 		if elapsed <= 0 {
 			s.CPUSecondsStatus = "not_yet_sampled"
 			s.CPUSecondsReason = "sample interval is not positive"
@@ -173,8 +196,9 @@ func (t *cpuDeltaTracker) apply(samples []ProcessSample, now time.Time) {
 		s.CPUSeconds = deltaTicks / clockTicksPerSec
 		s.CPUSecondsStatus = "measured"
 		s.CPUPct = (deltaTicks / clockTicksPerSec) / elapsed * 100.0
-		if cur.majorFaults >= prior.majorFaults {
+		if faultsReadable && prior.faultsReadable && cur.majorFaults >= prior.majorFaults {
 			s.MajorFaultsPerSecond = float64(cur.majorFaults-prior.majorFaults) / elapsed
+			s.FaultStatus = FaultMeasured
 		}
 	}
 	t.prev = next

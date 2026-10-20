@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 import { ExperienceSurface, type ExperienceSurfaceState } from "@vrooli/react-component-library/ExperienceSurface/1.0.3";
-import { resolveReading } from "@vrooli/react-component-library/ProvenanceInk/0.1.2";
+import { resolveReading } from "@vrooli/react-component-library/ProvenanceInk/0.1.3";
 import { AmbientCanvas } from "./AmbientCanvas";
 import { HeroReadout } from "./HeroReadout";
 import { ReadingTile } from "./ReadingTile";

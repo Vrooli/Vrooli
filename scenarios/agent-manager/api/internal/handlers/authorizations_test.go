@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -17,11 +19,15 @@ import (
 )
 
 type authorizationFake struct {
-	approvals int
-	policy    string
+	approvals        int
+	policy           string
+	bigPicture       string
+	technicalDetails string
+	request          *orchestration.AuthorizationRequest
 }
 
-func (*authorizationFake) RequestAuthorization(context.Context, orchestration.AuthorizationRequest) (*domain.AuthorizationGrant, error) {
+func (f *authorizationFake) RequestAuthorization(_ context.Context, request orchestration.AuthorizationRequest) (*domain.AuthorizationGrant, error) {
+	f.request = &request
 	return &domain.AuthorizationGrant{ID: uuid.New(), State: "pending"}, nil
 }
 
@@ -30,7 +36,7 @@ func (f *authorizationFake) GetAuthorization(context.Context, uuid.UUID) (*domai
 	if policy == "" {
 		policy = "effort-metadata"
 	}
-	return &domain.AuthorizationGrant{State: "pending", Policy: policy, Targets: []string{"agent-manager:effort/bas"}, DurationSeconds: 3600, RequestExpiresAt: time.Now().Add(time.Hour)}, nil
+	return &domain.AuthorizationGrant{State: "pending", Policy: policy, Targets: []string{"agent-manager:effort/bas"}, DurationSeconds: 3600, RequestExpiresAt: time.Now().Add(time.Hour), RequesterContext: &domain.AuthorizationRequesterContext{BigPicture: f.bigPicture, TechnicalDetails: f.technicalDetails}}, nil
 }
 
 func (*authorizationFake) ListAuthorizations(context.Context, int) ([]*domain.AuthorizationGrant, error) {
@@ -104,6 +110,45 @@ func TestAgentOperationBoundaryDoesNotAdmitGlobalOrAnonymousMutations(t *testing
 	}
 }
 
+func TestAgentOperationBoundaryDelegatesExactWorkflowStartToTriggerPolicy(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		grant *identity.OperationGrant
+	}{
+		{name: "verified identity without a coarse grant"},
+		{name: "unrelated interactive grant", grant: &identity.OperationGrant{ID: "unrelated", Rules: []identity.OperationRule{{Operations: []string{"effort.reconcile"}, Targets: []string{"agent-manager:effort/bas"}}}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			passed := 0
+			next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				passed++
+				w.WriteHeader(http.StatusNoContent)
+			})
+			principal := identity.Principal{Kind: identity.ActorAgent, Subject: "verified-run", Verified: true, Scopes: []string{"agent-manager:write"}, Grant: tc.grant}
+
+			invoke := func(method, path string) int {
+				req := httptest.NewRequest(method, path, nil)
+				req = req.WithContext(identity.WithPrincipal(req.Context(), principal))
+				rec := httptest.NewRecorder()
+				AgentOperationMiddleware(next).ServeHTTP(rec, req)
+				return rec.Code
+			}
+
+			if status := invoke(http.MethodPost, "/api/v1/workflow-executions"); status != http.StatusNoContent || passed != 1 {
+				t.Fatalf("exact workflow start did not reach its trigger-policy owner: status=%d passed=%d", status, passed)
+			}
+			for _, path := range []string{
+				"/api/v1/workflow-executions/123/signals",
+				"/api/v1/workflow-executions-extra",
+			} {
+				if status := invoke(http.MethodPost, path); status != http.StatusForbidden || passed != 1 {
+					t.Fatalf("adjacent workflow mutation %s was admitted: status=%d passed=%d", path, status, passed)
+				}
+			}
+		})
+	}
+}
+
 func TestBrowserConsentShowsReadablePagesNotJSON(t *testing.T) {
 	router := mux.NewRouter()
 	RegisterAuthorizations(router, &authorizationFake{})
@@ -153,5 +198,58 @@ func TestBrowserConsentListsMissingCapabilitiesBeforeConfirmation(t *testing.T) 
 	router.ServeHTTP(rec, req)
 	if !strings.Contains(rec.Body.String(), "Confirm approve") || f.approvals != 0 {
 		t.Fatal("eligible pending request lacks independent confirmation")
+	}
+}
+
+func TestBrowserConsentRendersRequesterContextAsUntrustedEscapedText(t *testing.T) {
+	f := &authorizationFake{bigPicture: "Reconcile <backlog> & keep the run scoped", technicalDetails: "First line\n<script>alert(1)</script> & second line"}
+	router := mux.NewRouter()
+	RegisterAuthorizations(router, f)
+	t.Setenv("AGENT_MANAGER_AUTHORIZATION_URL", "https://agent-manager.example.test")
+	p := identity.Principal{Kind: identity.ActorHuman, Subject: "owner", Source: identity.SourceCloudflareAccess, Verified: true, Scopes: []string{"agent-manager:read", "agent-manager:write"}, ExpiresAt: time.Now().Add(time.Hour)}
+	path := "/api/v1/authorizations/" + uuid.NewString() + "/approve"
+	req := httptest.NewRequest(http.MethodGet, "http://backend.local"+path, nil)
+	req = req.WithContext(identity.WithPrincipal(req.Context(), p))
+	req.Header.Set("Origin", "https://agent-manager.example.test")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	body := rec.Body.String()
+	bigPictureAt := strings.Index(body, `<details open><summary>Big picture</summary>`)
+	technicalDetailsAt := strings.Index(body, `<details open><summary>Technical details</summary>`)
+	if rec.Code != http.StatusOK || bigPictureAt < 0 || technicalDetailsAt < 0 || bigPictureAt >= technicalDetailsAt {
+		t.Fatalf("consent page lacks two ordered native disclosure controls: status=%d body=%s", rec.Code, body)
+	}
+	bigPictureEnd := strings.Index(body[bigPictureAt:], `</details>`)
+	technicalDetailsEnd := strings.Index(body[technicalDetailsAt:], `</details>`)
+	if bigPictureEnd < 0 || technicalDetailsEnd < 0 || strings.Contains(body, `<details open name=`) || !strings.Contains(body[bigPictureAt:bigPictureAt+bigPictureEnd], "&lt;backlog&gt; &amp;") || !strings.Contains(body[technicalDetailsAt:technicalDetailsAt+technicalDetailsEnd], "&lt;script&gt;alert(1)&lt;/script&gt;") || !strings.Contains(body, "Requester-provided explanation") || !strings.Contains(body, "Requester-provided context") || strings.Contains(body, "<script>alert(1)</script>") {
+		t.Fatalf("consent page failed to safely display independent requester disclosures: status=%d body=%s", rec.Code, body)
+	}
+
+	f.bigPicture, f.technicalDetails = "", ""
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if !strings.Contains(rec.Body.String(), "No additional requester explanation was supplied") {
+		t.Fatal("legacy request without explanation lacks honest fallback")
+	}
+}
+
+func TestAuthorizationRequestAcceptsExistingRequesterContextCodePointLimits(t *testing.T) {
+	f := &authorizationFake{}
+	router := mux.NewRouter()
+	RegisterAuthorizations(router, f)
+	body, err := json.Marshal(orchestration.AuthorizationRequest{
+		PID: os.Getpid(), HarnessKind: "codex", HarnessSession: "context-body",
+		DurationSeconds: 3600, Policy: "swarm-bookkeeping", Targets: []string{"swarm-manager:backlog/item"},
+		BigPicture: strings.Repeat("界", 4000), TechnicalDetails: strings.Repeat("界", 12000),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "http://127.0.0.1/api/v1/authorizations/requests", strings.NewReader(string(body)))
+	req.RemoteAddr = "127.0.0.1:43123"
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated || f.request == nil || f.request.BigPicture != strings.Repeat("界", 4000) || f.request.TechnicalDetails != strings.Repeat("界", 12000) {
+		t.Fatalf("valid bounded Unicode context was rejected or changed: status=%d request=%+v body=%s", rec.Code, f.request, rec.Body.String())
 	}
 }

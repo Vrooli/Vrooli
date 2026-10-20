@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"context"
+	"github.com/vrooli/vrooli/packages/resource-deployment"
 	"os"
 	"path/filepath"
 	"strings"
@@ -116,7 +117,7 @@ func TestBundleStage(t *testing.T) {
 
 type manifestGeneratorFunc func(context.Context, string, string) (string, error)
 
-func (f manifestGeneratorFunc) GenerateManifest(ctx context.Context, scenarioName, outputDir string) (string, error) {
+func (f manifestGeneratorFunc) GenerateManifest(ctx context.Context, scenarioName, outputDir string, trustMode resourcedeployment.ArtifactTrustMode) (string, error) {
 	return f(ctx, scenarioName, outputDir)
 }
 

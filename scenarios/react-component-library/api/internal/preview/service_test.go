@@ -21,6 +21,7 @@ type fakeComponentsService struct {
 	getFn               func(ctx context.Context, id string) (components.Component, error)
 	listFn              func(ctx context.Context, q components.SearchQuery) ([]components.Component, error)
 	getContentFn        func(ctx context.Context, id string) (components.Content, error)
+	getVersionFn        func(ctx context.Context, id, version string) (components.ComponentVersion, error)
 	getVersionContentFn func(ctx context.Context, id, version string) (components.Content, error)
 }
 
@@ -66,8 +67,11 @@ func (f *fakeComponentsService) ListVersions(context.Context, string, int) ([]co
 	panic("not called")
 }
 
-func (f *fakeComponentsService) GetVersion(context.Context, string, string) (components.ComponentVersion, error) {
-	panic("not called")
+func (f *fakeComponentsService) GetVersion(ctx context.Context, id, version string) (components.ComponentVersion, error) {
+	if f.getVersionFn != nil {
+		return f.getVersionFn(ctx, id, version)
+	}
+	return components.ComponentVersion{ComponentID: id, Version: version, DependencyLockPresent: true}, nil
 }
 
 func (f *fakeComponentsService) GetVersionContent(ctx context.Context, id, version string) (components.Content, error) {

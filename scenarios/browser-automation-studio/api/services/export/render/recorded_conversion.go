@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/vrooli/browser-automation-studio/services/media"
 )
 
 // ConvertRecordedMedia owns its temporary conversion and preserves original bytes.
@@ -116,11 +118,11 @@ func validateRecordedMedia(ctx context.Context, input string) error {
 	if extension == ".mp4" && detected != "video/mp4" || extension == ".webm" && detected != "video/webm" {
 		return fmt.Errorf("recorded container does not match %s source extension", extension)
 	}
-	meta, err := probeRecordedVideo(ctx, input)
+	meta, err := media.ProbeVideo(ctx, input)
 	if err != nil {
 		return err
 	}
-	if extension == ".mp4" && !strings.Contains(meta.format, "mp4") || extension == ".webm" && !strings.Contains(meta.format, "webm") {
+	if extension == ".mp4" && !strings.Contains(meta.Format, "mp4") || extension == ".webm" && !strings.Contains(meta.Format, "webm") {
 		return fmt.Errorf("recorded container does not match source extension")
 	}
 	decodeCtx, cancel := context.WithTimeout(ctx, 90*time.Second)

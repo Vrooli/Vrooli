@@ -41,7 +41,31 @@ func (s *ConnectService) Run(ctx context.Context, req *connect.Request[pipelinev
 	if err := s.requireOrchestrator(); err != nil {
 		return nil, err
 	}
-	config, err := configFromProto(req.Msg.GetConfig())
+	requestConfig := req.Msg.GetConfig()
+	if requestConfig == nil {
+		requestConfig = &pipelinev1.PipelineConfig{}
+	} else {
+		requestConfig = proto.Clone(requestConfig).(*pipelinev1.PipelineConfig)
+	}
+	if req.Msg.GetScenarioName() != "" {
+		requestConfig.ScenarioName = req.Msg.GetScenarioName()
+	}
+	if req.Msg.GetStrategyId() != "" {
+		requestConfig.StrategyId = req.Msg.GetStrategyId()
+	}
+	if req.Msg.GetSharedRuntimeReadiness() || req.Msg.GetSecureCustomSchemeUi() || req.Msg.GetV8SnapshotCodeCache() || req.Msg.GetElectronFuses() {
+		requestConfig.OptimizationProfile = &pipelinev1.ElectronOptimizationProfile{
+			SharedRuntimeReadiness: req.Msg.GetSharedRuntimeReadiness(),
+			SecureCustomSchemeUi:   req.Msg.GetSecureCustomSchemeUi(),
+			V8SnapshotCodeCache:    req.Msg.GetV8SnapshotCodeCache(),
+			ElectronFuses:          req.Msg.GetElectronFuses(),
+		}
+	}
+	if req.Msg.GetSkipSmokeTest() {
+		skip := true
+		requestConfig.SkipSmokeTest = &skip
+	}
+	config, err := configFromProto(requestConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -297,7 +321,7 @@ func (s *ConnectService) CleanBundle(_ context.Context, req *connect.Request[pip
 	if s.handler == nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("pipeline handler is not configured"))
 	}
-	result, err := s.handler.cleanBundle(req.Msg.GetScenarioName(), FrameworkElectron, req.Msg.GetLocationMode(), req.Msg.GetPipelineId())
+	result, err := s.handler.cleanBundle(req.Msg.GetScenarioName(), generation.DefaultStrategyID, req.Msg.GetLocationMode(), req.Msg.GetPipelineId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
@@ -349,8 +373,11 @@ func configFromProto(value *pipelinev1.PipelineConfig) (*PipelineConfig, error) 
 	if value == nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("config is required"))
 	}
-	if framework := value.GetFramework(); framework != sharedv1.Framework_FRAMEWORK_UNSPECIFIED && framework != sharedv1.Framework_FRAMEWORK_ELECTRON {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unsupported framework %q: only %q is supported", framework, sharedv1.Framework_FRAMEWORK_ELECTRON))
+	if value.GetFramework() != sharedv1.Framework_FRAMEWORK_UNSPECIFIED {
+		framework := frameworkFromProto(value.GetFramework())
+		if _, ok := generation.StrategyForShell(framework); !ok {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unsupported framework %q; no registered strategy provides that shell", value.GetFramework()))
+		}
 	}
 	for _, platform := range value.GetPlatforms() {
 		if platformFromProto(platform) == "" {
@@ -368,6 +395,8 @@ func configFromProto(value *pipelinev1.PipelineConfig) (*PipelineConfig, error) 
 	}
 	config := &PipelineConfig{
 		ScenarioName:            value.GetScenarioName(),
+		StrategyID:              value.GetStrategyId(),
+		OptimizationProfile:     optimizationProfileFromProto(value.GetOptimizationProfile()),
 		JourneyID:               value.GetJourneyId(),
 		Platforms:               platformsFromProto(value.GetPlatforms()),
 		DeploymentMode:          deploymentModeFromProto(value.GetDeploymentMode()),
@@ -411,6 +440,18 @@ func configFromProto(value *pipelinev1.PipelineConfig) (*PipelineConfig, error) 
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("scenario_name is required"))
 	}
 	return config, nil
+}
+
+func optimizationProfileFromProto(value *pipelinev1.ElectronOptimizationProfile) *generation.ElectronOptimizationProfile {
+	if value == nil {
+		return nil
+	}
+	return &generation.ElectronOptimizationProfile{
+		SharedRuntimeReadiness: value.GetSharedRuntimeReadiness(),
+		SecureCustomSchemeUI:   value.GetSecureCustomSchemeUi(),
+		V8SnapshotCodeCache:    value.GetV8SnapshotCodeCache(),
+		ElectronFuses:          value.GetElectronFuses(),
+	}
 }
 
 func applyOptionalConfigFromProto(config *PipelineConfig, value *pipelinev1.PipelineConfig) {
@@ -742,7 +783,7 @@ func configToProto(config *PipelineConfig) *pipelinev1.PipelineConfig {
 	if config == nil {
 		return nil
 	}
-	result := &pipelinev1.PipelineConfig{ScenarioName: config.ScenarioName, Platforms: platformsToProto(config.Platforms), DeploymentMode: deploymentModeToProto(config.DeploymentMode), Framework: frameworkToProto(config.Framework), TemplateType: templateTypeToProto(config.TemplateType), PreflightSecrets: config.PreflightSecrets, Stages: stagesToProto(config.Stages)}
+	result := &pipelinev1.PipelineConfig{ScenarioName: config.ScenarioName, StrategyId: config.StrategyID, Platforms: platformsToProto(config.Platforms), DeploymentMode: deploymentModeToProto(config.DeploymentMode), Framework: frameworkToProto(config.Framework), TemplateType: templateTypeToProto(config.TemplateType), PreflightSecrets: config.PreflightSecrets, Stages: stagesToProto(config.Stages)}
 	if ext := config.NativeExtension; ext != nil {
 		result.NativeExtension = &domainv1.NativeExtension{Version: ext.Version, Module: ext.Module, Permissions: ext.Permissions, Platforms: ext.Platforms, ActivationShortcut: ext.ActivationShortcut}
 		for _, provider := range ext.HelperProviders {

@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/assets"
@@ -87,6 +88,13 @@ func (s *Supervisor) launchServices(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("dependency sort: %w", err)
 	}
+	// The optimized Electron profile opts into concurrent launch of independent
+	// services. WaitForDependencies still gates each service on its declared
+	// dependency health, so only independent branches overlap. Keep the default
+	// serial path stable for sidecar and existing bundles.
+	if strings.EqualFold(os.Getenv("VROOLI_DESKTOP_PARALLEL_START"), "true") {
+		return s.launchServicesParallel(ctx, order)
+	}
 
 	for _, id := range order {
 		select {
@@ -137,6 +145,48 @@ func (s *Supervisor) launchServices(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+func (s *Supervisor) launchServicesParallel(ctx context.Context, order []string) error {
+	var wg sync.WaitGroup
+	for _, id := range order {
+		svc := deps.FindService(s.opts.Manifest.Services, id)
+		if svc == nil {
+			continue
+		}
+		wg.Add(1)
+		go func(svc manifest.Service) {
+			defer wg.Done()
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+			if skip, reason := s.shouldSkipAuthenticationService(svc); skip {
+				s.setStatus(svc.ID, ServiceStatus{Ready: false, Skipped: true, Message: reason})
+				return
+			}
+			if skip, reason := shouldSkipService(svc); skip {
+				message := "skipped: on-demand service"
+				if reason != "" {
+					message = fmt.Sprintf("skipped: %s", reason)
+				}
+				s.setStatus(svc.ID, ServiceStatus{Ready: false, Skipped: true, Message: message})
+				return
+			}
+			if err := s.healthChecker.WaitForDependencies(ctx, &svc); err != nil {
+				s.setStatus(svc.ID, ServiceStatus{Ready: false, Message: err.Error()})
+				_ = s.recordTelemetry("service_blocked", map[string]interface{}{"service_id": svc.ID, "reason": err.Error()})
+				return
+			}
+			if err := s.startService(ctx, svc); err != nil {
+				s.setStatus(svc.ID, ServiceStatus{Ready: false, Message: err.Error()})
+				_ = s.recordTelemetry("service_start_failed", map[string]interface{}{"service_id": svc.ID, "error": err.Error()})
+			}
+		}(*svc)
+	}
+	wg.Wait()
+	return ctx.Err()
 }
 
 // shouldSkipAuthenticationService keeps an optional local authenticator

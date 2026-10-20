@@ -3,10 +3,28 @@ package authz
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/identity"
 )
+
+func TestApprovedAgentCanPrepareDeploymentButCannotApproveReleaseOrAttestEvidence(t *testing.T) {
+	p := identity.Principal{Kind: identity.ActorAgent, Subject: "run", Owner: "owner", Verified: true, Scopes: []string{WriteCapability, DestructiveCapability}, Grant: &identity.OperationGrant{ID: "grant", Approver: "owner", Operations: []string{"deployment.manage"}, Targets: []string{"deployment-manager:*"}, ExpiresAt: time.Now().Add(time.Hour)}}
+	ctx := identity.WithPrincipal(context.Background(), p)
+	if err := RequireWrite(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := RequireDestructive(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := RequireReleaseDecision(ctx); err == nil {
+		t.Fatal("deployment operation grant approved a release")
+	}
+	if err := RequireReadinessEvidence(ctx); err == nil {
+		t.Fatal("deployment operation grant attested producer evidence")
+	}
+}
 
 func TestRequireWriteNeedsHumanAndCapability(t *testing.T) {
 	base := identity.Principal{Kind: identity.ActorHuman, Subject: "operator", Verified: true}
@@ -45,6 +63,22 @@ func TestRequireClientUpdateReceiptNeedsServiceAndCapability(t *testing.T) {
 	human := identity.Principal{Kind: identity.ActorHuman, Subject: "operator", Verified: true, Scopes: []string{ClientReceiptCapability}}
 	if err := RequireClientUpdateReceipt(identity.WithPrincipal(context.Background(), human)); err == nil {
 		t.Fatal("human principal unexpectedly admitted to owner receipt route")
+	}
+}
+
+func TestRequireProductionReleasePreparationKeepsServiceAndCapabilityBoundaries(t *testing.T) {
+	service := identity.Principal{Kind: identity.ActorService, Subject: "service:deployment-manager:preparation", Verified: true, Audience: "scenario-authenticator:deployment-manager", Scopes: []string{WriteCapability}}
+	if err := RequireProductionReleasePreparation(identity.WithPrincipal(context.Background(), service)); err != nil {
+		t.Fatalf("prepared service token rejected: %v", err)
+	}
+	service.Scopes = []string{"deployment-manager:read"}
+	if err := RequireProductionReleasePreparation(identity.WithPrincipal(context.Background(), service)); err == nil {
+		t.Fatal("service without write capability passed release preparation")
+	}
+	service.Scopes = []string{WriteCapability}
+	service.Kind = identity.ActorHuman
+	if err := RequireProductionReleasePreparation(identity.WithPrincipal(context.Background(), service)); err == nil {
+		t.Fatal("human principal passed service-only release preparation")
 	}
 }
 

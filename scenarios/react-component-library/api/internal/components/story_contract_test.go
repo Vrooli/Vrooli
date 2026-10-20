@@ -4,18 +4,14 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 )
 
 func TestPublishedSchemasAgreeWithContractStructSurface(t *testing.T) {
-	_, sourceFile, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller did not return the test source path")
-	}
+	repoRoot := repositoryRootWithMarker(t, filepath.Join(".vrooli", "schemas", "story-contract.schema.json"))
 	readSchema := func(name string) map[string]any {
-		raw, err := os.ReadFile(filepath.Join(filepath.Dir(sourceFile), "../../../../../.vrooli/schemas", name))
+		raw, err := os.ReadFile(filepath.Join(repoRoot, ".vrooli", "schemas", name))
 		if err != nil {
 			t.Fatalf("read published schema %s: %v", name, err)
 		}
@@ -50,6 +46,27 @@ func TestPublishedSchemasAgreeWithContractStructSurface(t *testing.T) {
 	if _, ok := manifestProperties["requiredTokens"]; ok {
 		t.Fatal("derived requiredTokens must not be an authored manifest field")
 	}
+}
+
+func repositoryRootWithMarker(t *testing.T, marker string) string {
+	t.Helper()
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working directory: %v", err)
+	}
+	for dir := filepath.Clean(cwd); ; dir = filepath.Dir(dir) {
+		if _, err := os.Stat(filepath.Join(dir, marker)); err == nil {
+			return dir
+		} else if !os.IsNotExist(err) {
+			t.Fatalf("stat repository marker %q: %v", filepath.Join(dir, marker), err)
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+	}
+	t.Fatalf("repository marker %q not found above %q", marker, cwd)
+	return ""
 }
 
 func TestParseStoryContractAcceptsV4Composition(t *testing.T) {

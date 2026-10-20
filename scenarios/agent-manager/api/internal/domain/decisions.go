@@ -39,23 +39,27 @@ var taskTransitions = map[TaskStatus][]TaskStatus{
 	},
 	TaskStatusRunning: {
 		TaskStatusNeedsReview,
+		TaskStatusCompleted,
 		TaskStatusFailed,
 		TaskStatusCancelled,
 	},
 	TaskStatusNeedsReview: {
+		TaskStatusCompleted,
 		TaskStatusApproved,
 		TaskStatusRejected,
 	},
+	// A completed task can be explicitly continued on the same current Run.
+	TaskStatusCompleted: {TaskStatusRunning},
 	// Terminal states - no transitions allowed
 	TaskStatusApproved:  {},
 	TaskStatusRejected:  {},
-	TaskStatusFailed:    {},
+	TaskStatusFailed:    {TaskStatusRunning}, // only the fenced fresh-recovery owner may use this edge
 	TaskStatusCancelled: {},
 }
 
 func taskTransitionDenialReason(from, to TaskStatus) string {
 	switch from {
-	case TaskStatusApproved, TaskStatusRejected, TaskStatusFailed, TaskStatusCancelled:
+	case TaskStatusApproved, TaskStatusRejected, TaskStatusCancelled:
 		return "task is in terminal state"
 	default:
 		return "transition not allowed from " + string(from) + " to " + string(to)

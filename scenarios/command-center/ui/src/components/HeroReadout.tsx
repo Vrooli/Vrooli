@@ -1,6 +1,6 @@
 import { forwardRef } from "react";
 import type { Reading } from "../lib/api";
-import { InkMark, figureValue, isIllustrative, qualify, resolveReading } from "@vrooli/react-component-library/ProvenanceInk/0.1.2";
+import { InkMark, figureValue, isIllustrative, qualify, resolveReading } from "@vrooli/react-component-library/ProvenanceInk/0.1.3";
 import { RollingNumber } from "@vrooli/react-component-library/RollingNumber/0.1.6";
 import { FreshnessArc } from "@vrooli/react-component-library/FreshnessArc/0.1.2";
 import { displayFormat } from "../lib/format";

@@ -556,7 +556,10 @@ func goListFreshnessInputsContext(ctx context.Context, binaryDir, repoRoot strin
 			return
 		}
 		clean := repoCanonicalPath(cleanRepo, filepath.Clean(abs))
-		if !pathUnderRoot(cleanRepo, clean) {
+		// --path and serving copies may place the component outside the
+		// repository. Its own sources still belong to the build closure;
+		// continue excluding unrelated module-cache packages outside both.
+		if !pathUnderRoot(cleanRepo, clean) && !pathUnderRoot(filepath.Clean(binaryDir), clean) {
 			return
 		}
 		rel := relUnder(cleanRepo, clean)

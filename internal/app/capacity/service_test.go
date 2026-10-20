@@ -2,12 +2,14 @@ package capacity
 
 import (
 	"context"
+	"encoding/json"
 	"path/filepath"
 	"testing"
 	"time"
 
 	engine "github.com/vrooli/vrooli/internal/capacity"
 	"github.com/vrooli/vrooli/internal/hostinventory"
+	"github.com/vrooli/vrooli/packages/capacity/companion"
 )
 
 func testService(t *testing.T, snap hostinventory.Snapshot, attr engine.Attributor) Service {
@@ -333,4 +335,159 @@ func (s stubAttributor) Attribute(_ context.Context, pid int) engine.Attribution
 		return a
 	}
 	return engine.Attribution{PID: pid, OwnerID: engine.OwnerUnknown}
+}
+
+func TestServiceClaimMaintainsStaleLeasesBeforeDeciding(t *testing.T) {
+	ctx := context.Background()
+	db := filepath.Join(t.TempDir(), "capacity.db")
+	now := time.Date(2026, 10, 17, 12, 0, 0, 0, time.UTC)
+	svc := Service{OpenStore: func(ctx context.Context) (Store, error) {
+		return engine.NewSQLiteStore(ctx, engine.Config{DBPath: db, Clock: clockFunc(func() time.Time { return now })})
+	}, Source: engine.StaticSource{Inventory: hostinventory.Snapshot{GPUs: gpuSnapshot(16, 0).GPUs, ProbeStatuses: map[string]string{"nvidia_gpu": "ok", "nvidia_gpu_processes": "ok"}}}, Clock: func() time.Time { return now }}
+	store, err := svc.openStore(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	old, err := store.CreateClaim(ctx, engine.CapacityClaim{OwnerKind: engine.OwnerKindOp, OwnerID: "dead-job", ResourceKind: engine.ResourceKindVRAM, AmountBytes: gib(12), PreferredBytes: gib(12)}, time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store.Close()
+	now = now.Add(2 * time.Minute)
+	got, err := svc.Claim(ctx, ClaimRequest{OwnerKind: engine.OwnerKindOp, OwnerID: "new-job", ResourceKind: engine.ResourceKindVRAM, PreferredBytes: gib(8), FloorBytes: gib(8), TTL: time.Hour})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Verdict.Kind != engine.VerdictGrant {
+		t.Fatalf("stale lease blocked direct admission: %+v", got)
+	}
+	store, err = svc.openStore(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	expired, err := store.GetClaim(ctx, old.ClaimID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if expired.Status != engine.StatusExpired {
+		t.Fatalf("prior stale row was not expired: %+v", expired)
+	}
+}
+
+type claimCountingSource struct {
+	snapshot hostinventory.Snapshot
+	calls    int
+}
+
+func (s *claimCountingSource) Snapshot(context.Context) (hostinventory.Snapshot, error) {
+	s.calls++
+	return s.snapshot, nil
+}
+
+func TestServiceClaimUsesPresenceBeforeResidentExpiry(t *testing.T) {
+	for _, mode := range []string{"observed", "absent", "incomplete"} {
+		t.Run(mode, func(t *testing.T) {
+			ctx := context.Background()
+			now := time.Date(2026, 10, 17, 12, 0, 0, 0, time.UTC)
+			db := filepath.Join(t.TempDir(), "capacity.db")
+			snap := gpuSnapshot(16, 0)
+			snap.ProbeStatuses = map[string]string{"nvidia_gpu": "ok", "nvidia_gpu_processes": "ok"}
+			if mode == "observed" {
+				snap.GPUProcesses = []hostinventory.GPUProcess{{GPUIndex: 0, PID: 1, ProcessName: "/tmp/artifacts/whisper/runtime/bin/python", UsedBytes: 3 << 30}}
+			}
+			if mode == "incomplete" {
+				snap.ProbeStatuses["nvidia_gpu_processes"] = "incomplete"
+			}
+			source := &claimCountingSource{snapshot: snap}
+			svc := Service{OpenStore: func(ctx context.Context) (Store, error) {
+				return engine.NewSQLiteStore(ctx, engine.Config{DBPath: db, Clock: clockFunc(func() time.Time { return now })})
+			}, Source: source, Clock: func() time.Time { return now }}
+			store, err := svc.openStore(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			old, err := store.CreateClaim(ctx, engine.CapacityClaim{OwnerKind: engine.OwnerKindResource, OwnerID: "whisper", ResourceKind: engine.ResourceKindVRAM, AmountBytes: gib(12), PreferredBytes: gib(12)}, time.Minute)
+			store.Close()
+			if err != nil {
+				t.Fatal(err)
+			}
+			now = now.Add(2 * time.Minute)
+			source.snapshot.FieldProvenance = map[string]hostinventory.Provenance{"gpu_processes": {ObservedAt: now}}
+			got, err := svc.Claim(ctx, ClaimRequest{OwnerKind: engine.OwnerKindOp, OwnerID: "new", ResourceKind: engine.ResourceKindVRAM, PreferredBytes: gib(8), FloorBytes: gib(8)})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if source.calls != 1 {
+				t.Fatalf("captured %d snapshots, want one shared reading", source.calls)
+			}
+			store, err = svc.openStore(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer store.Close()
+			after, err := store.GetClaim(ctx, old.ClaimID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if mode == "absent" {
+				if after.Status != engine.StatusExpired || got.Verdict.Kind != engine.VerdictGrant {
+					t.Fatalf("confirmed stale resident blocked claim: %+v / %+v", after, got)
+				}
+			} else if after.Status != engine.StatusGranted || got.Verdict.Kind != engine.VerdictDeny {
+				t.Fatalf("resident must remain committed: %+v / %+v", after, got)
+			}
+		})
+	}
+}
+
+func TestDefaultVRAMClaimNativeJSONSupportsExactCompanionSelection(t *testing.T) {
+	ctx := context.Background()
+	svc := testService(t, gpuSnapshot(16, 0), nil)
+	out, err := svc.Claim(ctx, ClaimRequest{OwnerKind: "resource", OwnerID: "model", ResourceKind: "vram", PreferredBytes: gib(4), FloorBytes: gib(4)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	store, err := svc.openStore(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stored, err := store.GetClaim(ctx, out.Claim.ClaimID)
+	store.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.GPUIndex != nil {
+		t.Fatal("fixture must exercise real lifecycle-compatible nil device row")
+	}
+	list, err := svc.List(ctx, ListRequest{OwnerID: "model", ActiveOnly: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	wire, err := json.Marshal(list)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reporter := companion.Reporter{Resource: "model", Exec: func(_ context.Context, _ string, args ...string) ([]byte, error) {
+		if args[1] != "list" {
+			t.Fatalf("unexpected mutation: %v", args)
+		}
+		return wire, nil
+	}}
+	selected, ok := reporter.ActiveClaim(ctx)
+	if !ok || selected.ClaimID != out.Claim.ClaimID || selected.GPUIndex == nil || *selected.GPUIndex != 0 {
+		t.Fatalf("actual native default GPU row refused by exact companion: selected=%+v ok=%v json=%s", selected, ok, wire)
+	}
+	if out.Claim.GPUIndex == nil || *out.Claim.GPUIndex != 0 {
+		t.Fatalf("claim mutation projection omitted canonical device: %+v", out.Claim)
+	}
+	for _, kind := range []string{"ram", "cpu"} {
+		if got := viewClaim(engine.CapacityClaim{ResourceKind: kind}, engine.DefaultPolicy(), time.Now()); got.GPUIndex != nil {
+			t.Fatalf("%s unexpectedly gained GPU: %+v", kind, got)
+		}
+	}
+	one := 1
+	if got := viewClaim(engine.CapacityClaim{ResourceKind: "vram", GPUIndex: &one}, engine.DefaultPolicy(), time.Now()); got.GPUIndex == nil || *got.GPUIndex != 1 {
+		t.Fatalf("explicit device changed: %+v", got)
+	}
 }

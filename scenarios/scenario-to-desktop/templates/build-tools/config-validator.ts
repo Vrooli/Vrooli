@@ -197,12 +197,9 @@ export class DesktopConfigValidator {
     }
     
     private validateFeatures(config: any, errors: ValidationError[], sanitized: any): void {
-        // Ensure features object exists
-        sanitized.features = config.features || {};
-        
         // Set feature defaults based on template type
         const featureDefaults = this.getFeatureDefaults(config.templateType);
-        Object.assign(sanitized.features, featureDefaults, sanitized.features);
+        sanitized.features = { ...featureDefaults, ...(config.features || {}) };
         
         // Validate feature combinations
         if (sanitized.features.systemTray && config.templateType === 'kiosk') {
@@ -258,16 +255,13 @@ export class DesktopConfigValidator {
     }
     
     private validateWindowConfig(config: any, errors: ValidationError[], sanitized: any): void {
-        // Ensure window object exists
-        sanitized.window = config.window || {};
-        
         // Set defaults
         const windowDefaults = {
             width: 1200,
             height: 800,
             background: '#f5f5f5'
         };
-        Object.assign(sanitized.window, windowDefaults, sanitized.window);
+        sanitized.window = { ...windowDefaults, ...(config.window || {}) };
         
         // Validate dimensions
         if (sanitized.window.width < 320) {

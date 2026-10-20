@@ -44,6 +44,27 @@ func TestJourneyTargetRecordsIsolatedInstanceSource(t *testing.T) {
 	}
 }
 
+func TestLoopbackJourneyAPIRetriesGreetingUntilFixturePublishesResult(t *testing.T) {
+	requests := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/test/last-greeting" || r.URL.Query().Get("name") != "Ada" {
+			t.Fatalf("unexpected greeting request: %s", r.URL.String())
+		}
+		requests++
+		if requests == 1 {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write([]byte(`{"name":"Ada","message":"Hello, Ada!"}`))
+	}))
+	defer server.Close()
+
+	message, err := (loopbackJourneyAPI{target: JourneyTarget{APIURL: server.URL}}).Greet(context.Background(), "Ada")
+	if err != nil || message != "Hello, Ada!" || requests != 2 {
+		t.Fatalf("Greet = %q, err=%v, requests=%d; want greeting after one transient 404", message, err, requests)
+	}
+}
+
 func TestStartIsolatedSmokeInstanceUsesRequestContextForTimeout(t *testing.T) {
 	if client := newControlPlaneHTTPClient(); client.Timeout != 0 {
 		t.Fatalf("control-plane client timeout = %s, want request-context-owned timeout", client.Timeout)

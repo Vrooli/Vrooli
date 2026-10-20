@@ -8,6 +8,7 @@ import (
 	"sort"
 
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/collectors"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/procsampler"
 )
 
@@ -20,7 +21,14 @@ type NativeInvestigationRunner interface {
 }
 
 type NativeInvestigator struct {
-	sampler procsampler.Sampler
+	sampler        procsampler.Sampler
+	memoryPressure func(ctx context.Context) (*models.MemoryPressure, error)
+}
+
+// SetMemoryPressureSource wires the monitor's memory-pressure read into the
+// "memory-pressure" native investigation.
+func (n *NativeInvestigator) SetMemoryPressureSource(source func(ctx context.Context) (*models.MemoryPressure, error)) {
+	n.memoryPressure = source
 }
 
 func NewNativeInvestigator() *NativeInvestigator {
@@ -42,6 +50,12 @@ func (n *NativeInvestigator) RunNative(ctx context.Context, query string) ([]byt
 	case "disk":
 		data, err := collectors.NewDiskCollector().Collect(ctx)
 		return marshalNative(data, err)
+	case "memory-pressure":
+		if n.memoryPressure == nil {
+			return nil, fmt.Errorf("memory-pressure source is not configured")
+		}
+		reading, err := n.memoryPressure(ctx)
+		return marshalNative(map[string]any{"investigation": query, "memory_pressure": reading}, err)
 	case "process-genealogy":
 		return n.processGenealogy(ctx)
 	case "zombies":

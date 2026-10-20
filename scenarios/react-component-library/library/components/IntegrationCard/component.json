@@ -3,6 +3,13 @@
   "deprecatedVersions": [
     "0.1.0"
   ],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
   "draft": "",
   "evictedVersions": [
     "0.1.0",
@@ -10,7 +17,7 @@
     "0.1.2",
     "0.1.1"
   ],
-  "latest": "0.1.4",
+  "latest": "0.1.5",
   "libraryId": "react-component-library:IntegrationCard",
   "supplemental": true
 }

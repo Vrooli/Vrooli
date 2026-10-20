@@ -33,6 +33,7 @@ import (
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 	"github.com/vrooli/vrooli/internal/values"
+	publiccapacity "github.com/vrooli/vrooli/packages/capacity"
 )
 
 const (
@@ -139,6 +140,32 @@ func (r *Runner) RunPhaseDetailed(name, phaseName string, opts PhaseOptions) (Ph
 	return r.runPhaseDetailed(name, phaseName, opts, false)
 }
 
+// agentManagerUIOnlySetup recognizes the one bounded setup selection that
+// builds only the declared UI component. It is safe to prepare the UI bundle
+// without taking the execution owner's API maintenance fence: no API component
+// or authored setup command can run from this filtered manifest. All other
+// Agent Manager setup selections retain the owner fence.
+func agentManagerUIOnlySetup(original, selected scenario.Scenario) bool {
+	if original.Slug != "agent-manager" || len(selected.Manifest.Components) != 1 || len(original.Manifest.Components) <= len(selected.Manifest.Components) {
+		return false
+	}
+	ui, ok := selected.Manifest.Components["ui"]
+	if !ok || ui.Role != "ui" {
+		return false
+	}
+	api, ok := original.Manifest.Components["api"]
+	if !ok || api.Role != "api" {
+		return false
+	}
+	phase, _ := lookupPhase(original.Manifest, phasesSetup)
+	for _, step := range declaredPhaseSteps(original.Manifest, phasesSetup, phase.Steps) {
+		if len(step.Exec) > 0 {
+			return false
+		}
+	}
+	return true
+}
+
 // RunSetupIfStopped admits setup only when no variant has a starting, running,
 // or stopping registry instance. Admission and setup share the lifecycle lock,
 // so a concurrent start cannot invalidate the decision before setup finishes.
@@ -190,9 +217,16 @@ func (r *Runner) runPhaseDetailed(name, phaseName string, opts PhaseOptions, sto
 		}
 	}
 
+	setupItem := item
 	if phaseName == phasesSetup {
-		if _, err := r.requireOwnerMaintenance(ctx, item, 0); err != nil {
+		setupItem, err = setupComponentSelection(item, nil)
+		if err != nil {
 			return PhaseResult{}, err
+		}
+		if !agentManagerUIOnlySetup(item, setupItem) {
+			if _, err := r.requireOwnerMaintenance(ctx, item, 0); err != nil {
+				return PhaseResult{}, err
+			}
 		}
 	}
 	if phaseRequiresBootstrap(phaseName) {
@@ -209,7 +243,10 @@ func (r *Runner) runPhaseDetailed(name, phaseName string, opts PhaseOptions, sto
 			return PhaseResult{}, err
 		}
 	} else {
-		envResult, err = r.prepareScenarioEnvironment(ctx, item, disabledRuntimeRegistrySession())
+		// A standalone phase does not own the scenario's listener lifecycle.
+		// Fixed-port orphan cleanup belongs to executeStart, after start
+		// arbitration, and must not terminate a currently serving instance.
+		envResult, err = r.prepareScenarioEnvironmentWithCleanup(ctx, item, disabledRuntimeRegistrySession(), false)
 		if err != nil {
 			return PhaseResult{}, err
 		}
@@ -240,7 +277,7 @@ func (r *Runner) runPhaseDetailed(name, phaseName string, opts PhaseOptions, sto
 	logPath, _ := process.ScenarioLifecycleLogPath(r.Home, instanceLogName(item))
 	meta, runErr := r.runWithLifecycleLog(lifecycleLogContext{Scenario: instanceLogName(item), Operation: "phase", Phase: phaseName, RunID: strings.TrimSpace(opts.RunID)}, func(logWriter, childWriter io.Writer) error {
 		var executeErr error
-		result, executeErr = r.executePhaseDetailed(ctx, item, phaseName, env, logWriter, childWriter, false)
+		result, executeErr = r.executePhaseDetailed(ctx, setupItem, phaseName, env, logWriter, childWriter, false)
 		return executeErr
 	})
 	result.RunID = meta.RunID
@@ -330,7 +367,11 @@ func (r *Runner) executePhaseDetailed(ctx context.Context, item scenario.Scenari
 		// the repository's: regenerating the repository from working-tree
 		// schemas would neither help it nor be safe (a broken candidate
 		// schema would fail the live start).
-		if frozen, ok := r.frozenServingSources(item); ok {
+		frozen, frozenSources, sourceErr := r.servingBuildSources(ctx, item)
+		if sourceErr != nil {
+			return result, sourceErr
+		}
+		if frozenSources {
 			_, _ = fmt.Fprintf(logWriter, "serving-tree event=frozen-shared engagement=%q capture_id=%q proto_artifact_id=%q source_dir=%q\n", frozen.Slug, frozen.CaptureID, frozen.ProtoArtifactID, item.SourcePath())
 		} else if err := ProvisionGeneratedPackages(r.Root, r.Home, childWriter, logWriter); err != nil {
 			return result, fmt.Errorf("provision repository-generated packages: %w", err)
@@ -677,6 +718,7 @@ func sortComponentNames(names []string, components map[string]scenario.Component
 // proportional lifecycle boundary.
 func (r *Runner) buildDeclaredComponents(ctx context.Context, item scenario.Scenario, env map[string]string, writer io.Writer, forceSetup bool, verdicts map[string]artifactVerdict) (int, error) {
 	names := orderedComponentNames(item.Manifest.Components)
+	admissionSession := r.newBuildAdmissionSession()
 	reservations := make([]int64, 0, len(names))
 	registry := BuilderRegistry()
 	for _, name := range names {
@@ -712,7 +754,7 @@ func (r *Runner) buildDeclaredComponents(ctx context.Context, item scenario.Scen
 			one := item
 			one.Manifest.Components = map[string]scenario.Component{name: item.Manifest.Components[name]}
 			componentLogMuWriter := lockedWriter{mu: &logMu, writer: writer, prefix: "[" + name + "] "}
-			count, err := r.buildDeclaredComponentsSerial(workerCtx, one, env, componentLogMuWriter, forceSetup, verdicts)
+			count, err := r.buildDeclaredComponentsSerial(workerCtx, one, env, componentLogMuWriter, forceSetup, verdicts, admissionSession)
 			resultMu.Lock()
 			executed += count
 			if err != nil && firstErr == nil {
@@ -735,8 +777,12 @@ func (r *Runner) buildDeclaredComponents(ctx context.Context, item scenario.Scen
 	}
 	close(jobs)
 	wg.Wait()
+	closeErr := admissionSession.close()
 	if firstErr != nil {
-		return executed, firstErr
+		return executed, errors.Join(firstErr, closeErr)
+	}
+	if closeErr != nil {
+		return executed, fmt.Errorf("close build capacity broker: %w", closeErr)
 	}
 	return executed, workerCtx.Err()
 }
@@ -763,7 +809,7 @@ func (w lockedWriter) Write(p []byte) (int, error) {
 }
 
 //nolint:gocyclo // component construction handles the manifest declared phase/component combinations.
-func (r *Runner) buildDeclaredComponentsSerial(ctx context.Context, item scenario.Scenario, env map[string]string, writer io.Writer, forceSetup bool, verdicts map[string]artifactVerdict) (int, error) {
+func (r *Runner) buildDeclaredComponentsSerial(ctx context.Context, item scenario.Scenario, env map[string]string, writer io.Writer, forceSetup bool, verdicts map[string]artifactVerdict, admissionSession *buildAdmissionSession) (int, error) {
 	executed := 0
 	deps := r.hostProbeDeps()
 	registry := BuilderRegistry()
@@ -820,106 +866,117 @@ func (r *Runner) buildDeclaredComponentsSerial(ctx context.Context, item scenari
 				return executed, fmt.Errorf("component %s dependency drift: package.json and pnpm-lock.yaml diverge for %s; run scenario-dependency-analyzer deps resync --scenario %s --surface %s", name, strings.Join(drift, ", "), item.Slug, name)
 			}
 		}
-		commandIndex := 0
-		if install {
-			replacer := strings.NewReplacer("{dir}", component.Build.Dir, "{scenario}", item.Slug, "{component}", name)
-			argv := make([]string, len(spec.Install))
-			for index, value := range spec.Install {
-				argv[index] = replacer.Replace(value)
-			}
-			stepEnv := cloneStringMap(spec.Environment)
-			step := scenario.PhaseStep{
-				Name: fmt.Sprintf("build-%s-%d", name, commandIndex+1),
-				Exec: argv,
-				CWD:  filepath.ToSlash(component.Build.Dir),
-				Env:  stepEnv,
-			}
-			if err := r.runForegroundStep(ctx, item, phasesSetup, step, env, writer); err != nil {
-				return executed, fmt.Errorf("build component %s: %w", name, err)
-			}
-			if err := recordInstallDigest(r.Root, item.SourcePath(), component, spec, &deps); err != nil {
-				return executed, fmt.Errorf("component %s install digest: %w", name, err)
-			}
-			executed++
-			commandIndex++
-		}
-		for _, buildTarget := range targets {
-			buildArgv := spec.BuildArgv(buildMode)
-			if spec.Kind == "go_module" {
-				buildArgv, err = goModuleBuildArgvForItem(r.Root, item)
-				if err != nil {
-					return executed, fmt.Errorf("load Go build flag policy: %w", err)
+		builtCount, admissionErr := r.withBuildAdmissionSessionAtInterval(ctx, admissionSession, item.Slug, name, "", spec.MemoryReservationBytes, publiccapacity.RecommendedLeaseHeartbeatInterval(), func(buildCtx context.Context) (int, error) {
+			executed := 0
+			commandIndex := 0
+			if install {
+				replacer := strings.NewReplacer("{dir}", component.Build.Dir, "{scenario}", item.Slug, "{component}", name)
+				argv := make([]string, len(spec.Install))
+				for index, value := range spec.Install {
+					argv[index] = replacer.Replace(value)
 				}
-			}
-			target := buildTarget.Output
-			publishTarget := componentPublishTarget(target, spec.StageDirectory)
-			var stagedOutput string
-			var cleanupStage func()
-			if spec.StagedOutput {
-				_, stagedOutput, cleanupStage, err = stageArtifact(publishTarget, spec.StageDirectory)
-				if err != nil {
-					return executed, fmt.Errorf("stage component %s output: %w", name, err)
+				stepEnv := cloneStringMap(spec.Environment)
+				step := scenario.PhaseStep{
+					Name: fmt.Sprintf("build-%s-%d", name, commandIndex+1),
+					Exec: argv,
+					CWD:  filepath.ToSlash(component.Build.Dir),
+					Env:  stepEnv,
 				}
-			}
-			stageDir := stagedOutput
-			if !spec.StageDirectory && stagedOutput != "" {
-				stageDir = filepath.Dir(stagedOutput)
-			}
-			buildOutput := target
-			if spec.StagedOutput {
-				buildOutput = stagedOutput
-			}
-			replacer := strings.NewReplacer(
-				"{dir}", component.Build.Dir,
-				"{scenario}", item.Slug,
-				"{component}", name,
-				"{entry}", buildTarget.Entry,
-				"{output}", buildOutput,
-				"{stage_output_dir}", stageDir,
-			)
-			if spec.StagedOutput {
-				buildArgv = append(buildArgv, spec.StageArgs...)
-			}
-			template := buildArgv
-			if len(template) == 0 {
-				if cleanupStage != nil {
-					cleanupStage()
+				if err := r.runForegroundStep(buildCtx, item, phasesSetup, step, env, writer); err != nil {
+					return executed, fmt.Errorf("build component %s: %w", name, err)
 				}
-				continue
-			}
-			argv := make([]string, len(template))
-			for index, value := range template {
-				argv[index] = replacer.Replace(value)
-			}
-			stepEnv := cloneStringMap(spec.Environment)
-			step := scenario.PhaseStep{
-				Name: fmt.Sprintf("build-%s-%d", name, commandIndex+1),
-				Exec: argv,
-				CWD:  filepath.ToSlash(component.Build.Dir),
-				Env:  stepEnv,
-			}
-			if err := r.runForegroundStep(ctx, item, phasesSetup, step, env, writer); err != nil {
-				if cleanupStage != nil {
-					cleanupStage()
+				if err := recordInstallDigest(r.Root, item.SourcePath(), component, spec, &deps); err != nil {
+					return executed, fmt.Errorf("component %s install digest: %w", name, err)
 				}
-				return executed, fmt.Errorf("build component %s: %w", name, err)
+				executed++
+				commandIndex++
 			}
-			if spec.StagedOutput {
-				if err := swapArtifact(stagedOutput, publishTarget); err != nil {
+			for _, buildTarget := range targets {
+				buildArgv := spec.BuildArgv(buildMode)
+				if spec.Kind == "go_module" {
+					buildArgv, err = goModuleBuildArgvForItem(r.Root, item)
+					if err != nil {
+						return executed, fmt.Errorf("load Go build flag policy: %w", err)
+					}
+				}
+				target := buildTarget.Output
+				publishTarget := componentPublishTarget(target, spec.StageDirectory)
+				var stagedOutput string
+				var cleanupStage func()
+				if spec.StagedOutput {
+					_, stagedOutput, cleanupStage, err = stageArtifact(publishTarget, spec.StageDirectory)
+					if err != nil {
+						return executed, fmt.Errorf("stage component %s output: %w", name, err)
+					}
+				}
+				stageDir := stagedOutput
+				if !spec.StageDirectory && stagedOutput != "" {
+					stageDir = filepath.Dir(stagedOutput)
+				}
+				buildOutput := target
+				if spec.StagedOutput {
+					buildOutput = stagedOutput
+				}
+				replacer := strings.NewReplacer(
+					"{dir}", component.Build.Dir,
+					"{scenario}", item.Slug,
+					"{component}", name,
+					"{entry}", buildTarget.Entry,
+					"{output}", buildOutput,
+					"{stage_output_dir}", stageDir,
+				)
+				if spec.StagedOutput {
+					buildArgv = append(buildArgv, spec.StageArgs...)
+				}
+				template := buildArgv
+				if len(template) == 0 {
 					if cleanupStage != nil {
 						cleanupStage()
 					}
-					return executed, fmt.Errorf("publish component %s output: %w", name, err)
+					continue
 				}
+				argv := make([]string, len(template))
+				for index, value := range template {
+					argv[index] = replacer.Replace(value)
+				}
+				stepEnv := cloneStringMap(spec.Environment)
+				step := scenario.PhaseStep{
+					Name: fmt.Sprintf("build-%s-%d", name, commandIndex+1),
+					Exec: argv,
+					CWD:  filepath.ToSlash(component.Build.Dir),
+					Env:  stepEnv,
+				}
+				if err := r.runForegroundStep(buildCtx, item, phasesSetup, step, env, writer); err != nil {
+					if cleanupStage != nil {
+						cleanupStage()
+					}
+					return executed, fmt.Errorf("build component %s: %w", name, err)
+				}
+				if spec.StagedOutput {
+					if err := swapArtifact(stagedOutput, publishTarget); err != nil {
+						if cleanupStage != nil {
+							cleanupStage()
+						}
+						return executed, fmt.Errorf("publish component %s output: %w", name, err)
+					}
+				}
+				if cleanupStage != nil {
+					cleanupStage()
+				}
+				executed++
+				commandIndex++
 			}
-			if cleanupStage != nil {
-				cleanupStage()
+			if err := buildCtx.Err(); err != nil {
+				return executed, fmt.Errorf("component %s build canceled before freshness stamp: %w", name, err)
 			}
-			executed++
-			commandIndex++
-		}
-		if err := r.stampComponentFreshness(item, name); err != nil {
-			return executed, err
+			if err := r.stampComponentFreshness(item, name); err != nil {
+				return executed, err
+			}
+			return executed, nil
+		})
+		executed += builtCount
+		if admissionErr != nil {
+			return executed, admissionErr
 		}
 	}
 	return executed, nil

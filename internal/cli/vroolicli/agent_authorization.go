@@ -32,6 +32,8 @@ func (app *App) runAgentAuthorization(ctx *AppContext, action string, args []str
 	fs.SetOutput(ctx.Stderr)
 	duration := fs.Duration("expires-in", 24*time.Hour, "grant lifetime (at most 168h; ends early when the session or run ends)")
 	approvalBase := fs.String("approval-base", strings.TrimSpace(os.Getenv("AGENT_MANAGER_AUTHORIZATION_URL")), "authenticated Agent Manager browser URL")
+	reason := fs.String("reason", "", "requester-provided explanation shown to the human reviewer; not proof or authority")
+	technicalDetails := fs.String("technical-details", "", "requester-provided technical context shown to the human reviewer; do not include secrets")
 	rules := &authorizationRules{}
 	fs.Var(authorizationPolicyFlag{rules}, "policy", "reviewed interactive policy (default swarm-bookkeeping); repeat to ask for several in one consent, each followed by its own --target")
 	fs.Var(authorizationTargetFlag{rules}, "target", "explicit domain:object or domain:* for the preceding --policy (repeatable)")
@@ -128,6 +130,7 @@ func (app *App) runAgentAuthorization(ctx *AppContext, action string, args []str
 	if lease.Owner.Kind == "agent-manager-run" {
 		body["run_id"] = lease.Owner.Ref
 	}
+	addAuthorizationContextFields(body, *reason, *technicalDetails)
 	data, err := authorizationRequest(client, http.MethodPost, base+"/api/v1/authorizations/requests", body)
 	if err != nil {
 		return err
@@ -273,4 +276,16 @@ func authorizationRequest(client *http.Client, method, url string, body any) ([]
 		return nil, cliutil.ParseAPIError(response.StatusCode, data)
 	}
 	return data, nil
+}
+
+// addAuthorizationContextFields includes only optional, nonblank requester
+// explanations. The server validates the established code-point limits; these
+// values are displayed as untrusted context and never confer authority.
+func addAuthorizationContextFields(body map[string]any, reason, technicalDetails string) {
+	if strings.TrimSpace(reason) != "" {
+		body["big_picture"] = reason
+	}
+	if strings.TrimSpace(technicalDetails) != "" {
+		body["technical_details"] = technicalDetails
+	}
 }

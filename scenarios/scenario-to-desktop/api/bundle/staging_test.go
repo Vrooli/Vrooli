@@ -21,6 +21,29 @@ func testCLIStager(t *testing.T) *defaultCLIStager {
 }
 
 func TestDefaultCLIStagerStage(t *testing.T) {
+	t.Run("replaces a copied vrooli cli with the shim", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		cliDir := filepath.Join(tmpDir, "cli")
+		if err := os.MkdirAll(cliDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(cliDir, "vrooli"), []byte("copied cli"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := testCLIStager(t).Stage(tmpDir, "linux"); err != nil {
+			t.Fatalf("stage with colliding copied CLI: %v", err)
+		}
+		shimPath := filepath.Join(tmpDir, "bin", "vrooli")
+		content, err := os.ReadFile(shimPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(content) == "copied cli" {
+			t.Fatal("copied CLI still occupies shim destination")
+		}
+	})
+
 	t.Run("creates bin directory", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		stager := testCLIStager(t)

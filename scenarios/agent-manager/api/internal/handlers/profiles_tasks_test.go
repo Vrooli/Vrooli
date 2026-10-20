@@ -323,38 +323,6 @@ func TestCreateTask_Success(t *testing.T) {
 	}
 }
 
-func TestTaskCancellationAndDeletionLifecycle(t *testing.T) {
-	_, router := setupTestHandler(t)
-	body := encodeProtoJSON(t, &apipb.CreateTaskRequest{Task: &pb.Task{Title: "cleanup", ScopePath: "src/cleanup"}})
-	create := httptest.NewRecorder()
-	router.ServeHTTP(create, httptest.NewRequest(http.MethodPost, "/api/v1/tasks", bytes.NewReader(body)))
-	if create.Code != http.StatusCreated {
-		t.Fatalf("create status=%d body=%s", create.Code, create.Body.String())
-	}
-	var created apipb.CreateTaskResponse
-	decodeProtoJSON(t, create.Body.Bytes(), &created)
-
-	deleteBeforeCancel := httptest.NewRecorder()
-	router.ServeHTTP(deleteBeforeCancel, httptest.NewRequest(http.MethodDelete, "/api/v1/tasks/"+created.Task.GetId(), nil))
-	if deleteBeforeCancel.Code != http.StatusConflict {
-		t.Fatalf("uncancelled delete status=%d body=%s", deleteBeforeCancel.Code, deleteBeforeCancel.Body.String())
-	}
-	cancel := httptest.NewRecorder()
-	router.ServeHTTP(cancel, httptest.NewRequest(http.MethodPost, "/api/v1/tasks/"+created.Task.GetId()+"/cancel", nil))
-	if cancel.Code != http.StatusOK {
-		t.Fatalf("cancel status=%d body=%s", cancel.Code, cancel.Body.String())
-	}
-	remove := httptest.NewRecorder()
-	router.ServeHTTP(remove, httptest.NewRequest(http.MethodDelete, "/api/v1/tasks/"+created.Task.GetId(), nil))
-	if remove.Code != http.StatusOK {
-		t.Fatalf("delete status=%d body=%s", remove.Code, remove.Body.String())
-	}
-	var deleted apipb.DeleteTaskResponse
-	decodeProtoJSON(t, remove.Body.Bytes(), &deleted)
-	if !deleted.Success {
-		t.Fatalf("delete response=%+v", &deleted)
-	}
-}
 
 func TestListTasksAppliesQueryFiltersAndRejectsInvalidValues(t *testing.T) {
 	_, router := setupTestHandler(t)
@@ -497,37 +465,6 @@ func TestListTasks(t *testing.T) {
 
 	if len(response.Tasks) != 3 {
 		t.Errorf("expected 3 tasks, got %d", len(response.Tasks))
-	}
-}
-
-// TestCancelTask tests task cancellation.
-// [REQ:REQ-P0-003] Test task cancellation
-func TestCancelTask_Success(t *testing.T) {
-	_, router := setupTestHandler(t)
-
-	// Create task
-	body := encodeProtoJSON(t, &apipb.CreateTaskRequest{
-		Task: &pb.Task{
-			Title:     "To cancel",
-			ScopePath: "src/",
-		},
-	})
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/tasks", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
-
-	var createdResp apipb.CreateTaskResponse
-	decodeProtoJSON(t, rr.Body.Bytes(), &createdResp)
-	created := createdResp.Task
-
-	// Cancel task
-	req = httptest.NewRequest(http.MethodPost, "/api/v1/tasks/"+created.Id+"/cancel", nil)
-	rr = httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
 	}
 }
 

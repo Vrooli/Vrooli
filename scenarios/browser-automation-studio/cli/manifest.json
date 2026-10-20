@@ -83,6 +83,17 @@
               "bool": true,
               "description": "Send X-Dry-Run header; server validates without producing artifacts",
               "local_only": true
+            },
+            {
+              "name": "interaction-flow-file",
+              "description": "JSON interaction flow executed after navigation (at most 2 MiB)",
+              "bind_waiver": "CLI reads the file into CaptureRequest.interaction_flow_json; the server owns graph validation."
+            },
+            {
+              "name": "routed-test-mode",
+              "bool": true,
+              "description": "Mark browser target requests as test-mode after caller installs target SQL/file lease",
+              "bind_waiver": "Sets BrowserProfile.extra_headers X-Vrooli-Test-Mode for target traffic, not BAS control-plane persistence."
             }
           ],
           "binding": {

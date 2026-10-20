@@ -30,7 +30,7 @@
         "reason": "The meter layout uses the governed stack primitive."
       },
       {
-        "asset": "react-component-library:StyleSheet",
+        "asset": "foundations.style-sheet",
         "reason": "The component injects its governed stylesheet through the library foundation."
       },
       {

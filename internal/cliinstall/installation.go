@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"slices"
@@ -14,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	platform "github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tuning"
 
@@ -29,6 +31,7 @@ import (
 
 const (
 	installationGoModule = "go_module"
+	cliBuildGroupProbe   = 25 * time.Millisecond
 )
 
 func (m *Manager) install(ctx context.Context, item InstallableCLI) error {
@@ -251,7 +254,9 @@ func (GoInstaller) Install(ctx context.Context, item InstallableCLI, installDir 
 		}
 		switch item.CLI.Adapter.Kind {
 		case installationGoModule:
-			return runGoModuleInstaller(ctx, item, installDir)
+			return withCLIInstallAdmission(ctx, string(item.Kind)+"-"+item.Name, func(buildCtx context.Context) error {
+				return runGoModuleInstaller(buildCtx, item, installDir)
+			})
 		default:
 			return fmt.Errorf("unsupported scenario CLI adapter kind %q", item.CLI.Adapter.Kind)
 		}
@@ -261,7 +266,9 @@ func (GoInstaller) Install(ctx context.Context, item InstallableCLI, installDir 
 		}
 		switch item.CLI.Adapter.Kind {
 		case installationGoModule:
-			return runGoModuleInstaller(ctx, item, installDir)
+			return withCLIInstallAdmission(ctx, string(item.Kind)+"-"+item.Name, func(buildCtx context.Context) error {
+				return runGoModuleInstaller(buildCtx, item, installDir)
+			})
 		default:
 			return fmt.Errorf("unsupported resource CLI adapter kind %q", item.CLI.Adapter.Kind)
 		}
@@ -289,7 +296,94 @@ func runGoModuleInstaller(ctx context.Context, item InstallableCLI, installDir s
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
-	return cmd.Run()
+	return runOwnedCLICommand(ctx, cmd)
+}
+
+func runOwnedCLICommand(ctx context.Context, cmd *exec.Cmd) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if cmd == nil {
+		return fmt.Errorf("owned CLI build command is nil")
+	}
+	if err := platform.ConfigureCommand(cmd, platform.ProcessOptions{Detached: true}); err != nil {
+		return fmt.Errorf("configure owned CLI build process group: %w", err)
+	}
+	cmd.Cancel = func() error { return platform.GracefulStopProcess(cmd.Process) }
+	cmd.WaitDelay = cliBuildStopGrace
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	// DetachedProcessAttrs creates a new session/process group whose identity
+	// is the child PID on Unix. Capture that identity while the child is alive;
+	// looking it up after Wait can fail once a short-lived root exits.
+	groupID := cmd.Process.Pid
+	runErr := cmd.Wait()
+	if ctx.Err() != nil {
+		cleanupErr := terminateAndWaitCLIProcessGroup(ctx, groupID)
+		if errors.Is(cleanupErr, platform.ErrUnsupported) {
+			// Preserve the pre-admission cross-platform behavior when the native
+			// backend cannot verify descendants. The root command has exited, but
+			// this path does not claim that its child processes have.
+			return errors.Join(runErr, ctx.Err(), errors.New("descendant cleanup could not be verified on this platform"))
+		}
+		return errors.Join(runErr, ctx.Err(), cleanupErr)
+	}
+
+	// A successful root process is not sufficient evidence that its compiler
+	// descendants exited. The installer owns this process group, so keep the
+	// admission until the whole group is empty. If a descendant outlives a
+	// successful root, stop the exact group and fail this install.
+	waitCtx, cancelWait := context.WithTimeout(context.Background(), cliBuildCleanupTimeout)
+	waitErr := platform.WaitProcessGroupContext(waitCtx, groupID, cliBuildGroupPollInterval)
+	waitTimedOut := errors.Is(waitErr, context.DeadlineExceeded)
+	cancelWait()
+	if waitErr == nil {
+		return runErr
+	}
+	if errors.Is(waitErr, platform.ErrUnsupported) {
+		// On unsupported hosts, keep the existing install result after the root
+		// exits. Descendant completion is explicitly outside this guarantee.
+		return runErr
+	}
+
+	cleanupErr := terminateAndWaitCLIProcessGroup(context.Background(), groupID)
+	if cleanupErr != nil {
+		return errors.Join(runErr, fmt.Errorf("owned CLI build descendants could not be verified after root exit: %w", waitErr), cleanupErr)
+	}
+	if waitTimedOut {
+		return errors.Join(runErr, fmt.Errorf("owned CLI build descendants remained after root exit and were stopped"))
+	}
+	return errors.Join(runErr, fmt.Errorf("owned CLI build process-group verification failed and the group was stopped: %w", waitErr))
+}
+
+func terminateAndWaitCLIProcessGroup(ctx context.Context, groupID int) error {
+	probeCtx, cancelProbe := context.WithTimeout(context.WithoutCancel(ctx), cliBuildGroupProbe)
+	probeErr := platform.WaitProcessGroupContext(probeCtx, groupID, cliBuildGroupPollInterval)
+	cancelProbe()
+	if probeErr == nil {
+		return nil
+	}
+	if errors.Is(probeErr, platform.ErrUnsupported) {
+		return errors.Join(errCLIProcessGroupCleanupUnverified, fmt.Errorf("verify owned CLI build process group %d before stopping it: %w", groupID, probeErr))
+	}
+	if !errors.Is(probeErr, context.DeadlineExceeded) {
+		return errors.Join(errCLIProcessGroupCleanupUnverified, fmt.Errorf("inspect owned CLI build process group %d before stopping it: %w", groupID, probeErr))
+	}
+	signalErr := platform.SignalProcessGroup(groupID, true)
+	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), cliBuildCleanupTimeout)
+	defer cancel()
+	if err := platform.WaitProcessGroupContext(cleanupCtx, groupID, cliBuildGroupPollInterval); err != nil {
+		waitErr := fmt.Errorf("wait for owned CLI build process group %d to exit: %w", groupID, err)
+		if signalErr != nil {
+			return errors.Join(errCLIProcessGroupCleanupUnverified, fmt.Errorf("force-stop owned CLI build process group %d: %w", groupID, signalErr), waitErr)
+		}
+		return errors.Join(errCLIProcessGroupCleanupUnverified, waitErr)
+	}
+	return nil
 }
 
 func findInstallerRepoRoot(start string) (string, bool) {

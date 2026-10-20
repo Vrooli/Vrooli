@@ -46,8 +46,9 @@ type Config struct {
 // It mirrors internal/scenarioruntime.SQLiteStore's patterns (single conn, WAL,
 // busy_timeout, withRetryableTx) without importing it.
 type SQLiteStore struct {
-	db    *sql.DB
-	clock clock.Clock
+	db     *sql.DB
+	clock  clock.Clock
+	dbPath string
 }
 
 // DefaultDBPath resolves the capacity ledger SQLite path. It lives beside the
@@ -70,13 +71,10 @@ func DefaultDBPath(homeDir string) (string, error) {
 	return filepath.Join(stateDir, "capacity.db"), nil
 }
 
-// NewSQLiteStore opens (and lazily creates + stamps) the capacity ledger.
-func NewSQLiteStore(ctx context.Context, cfg Config) (*SQLiteStore, error) {
-	clk := cfg.Clock
-	if clk == nil {
-		clk = clock.Real{}
-	}
-
+// ResolveConfiguredDBPath validates isolation before resolving a default ledger
+// path. Constructors must call it before taking file locks or opening SQLite.
+// Canonical file identity is established separately by NewSQLiteStore.
+func ResolveConfiguredDBPath(cfg Config) (string, error) {
 	// Hard test-isolation seam (plan §Phase 1): under `go test`, opening the
 	// ledger without an explicit DBPath would silently resolve to (and write) the
 	// LIVE ~/.vrooli/state/capacity.db — VROOLI_HOME does NOT isolate it, the very
@@ -85,21 +83,52 @@ func NewSQLiteStore(ctx context.Context, cfg Config) (*SQLiteStore, error) {
 	// stores (cfg.HomeDir set) are still allowed for tests that fully redirect the
 	// home root.
 	if testing.Testing() && strings.TrimSpace(cfg.DBPath) == "" && strings.TrimSpace(cfg.HomeDir) == "" {
-		return nil, fmt.Errorf("capacity ledger: tests must pass an explicit Config.DBPath (or HomeDir); refusing to open the live ledger at the default path")
+		return "", fmt.Errorf("capacity ledger: tests must pass an explicit Config.DBPath (or HomeDir); refusing to open the live ledger at the default path")
 	}
+	if strings.TrimSpace(cfg.DBPath) == "" {
+		return DefaultDBPath(cfg.HomeDir)
+	}
+	return cfg.DBPath, nil
+}
 
-	dbPath := cfg.DBPath
-	if strings.TrimSpace(dbPath) == "" {
-		resolved, err := DefaultDBPath(cfg.HomeDir)
+// NewSQLiteStore opens (and lazily creates + stamps) the capacity ledger.
+func NewSQLiteStore(ctx context.Context, cfg Config) (*SQLiteStore, error) {
+	clk := cfg.Clock
+	if clk == nil {
+		clk = clock.Real{}
+	}
+	dbPath, err := ResolveConfiguredDBPath(cfg)
+	if err != nil {
+		return nil, err
+	}
+	// Bind path interpretation to this open, rather than a later broker's cwd.
+	// The non-file identity remains special and must not acquire a disk lock.
+	if dbPath != ":memory:" {
+		absolute, err := filepath.Abs(dbPath)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("resolve capacity ledger absolute path: %w", err)
 		}
-		dbPath = resolved
+		dbPath = absolute
 	}
 	readOnly := cfg.ReadOnly || strings.TrimSpace(os.Getenv("VROOLI_SANDBOX_MERGED")) != ""
-	if !readOnly {
+	if !readOnly && dbPath != ":memory:" {
 		if _, err := config.EnsureOwnedDir(filepath.Dir(dbPath)); err != nil {
 			return nil, fmt.Errorf("prepare capacity ledger directory: %w", err)
+		}
+	}
+	if dbPath != ":memory:" {
+		if canonical, err := filepath.EvalSymlinks(dbPath); err == nil {
+			dbPath = canonical
+		} else if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("resolve capacity ledger file identity: %w", err)
+		} else {
+			// A new ledger has no leaf yet; its existing parent still has one
+			// canonical identity, including runtime-home directory symlinks.
+			parent, err := filepath.EvalSymlinks(filepath.Dir(dbPath))
+			if err != nil {
+				return nil, fmt.Errorf("resolve capacity ledger parent identity: %w", err)
+			}
+			dbPath = filepath.Join(parent, filepath.Base(dbPath))
 		}
 	}
 
@@ -113,7 +142,7 @@ func NewSQLiteStore(ctx context.Context, cfg Config) (*SQLiteStore, error) {
 	}
 	db.SetMaxOpenConns(1)
 
-	store := &SQLiteStore{db: db, clock: clk}
+	store := &SQLiteStore{db: db, clock: clk, dbPath: dbPath}
 	if !readOnly {
 		if err := store.ensureSchema(ctx); err != nil {
 			db.Close()
@@ -121,6 +150,17 @@ func NewSQLiteStore(ctx context.Context, cfg Config) (*SQLiteStore, error) {
 		}
 	}
 	return store, nil
+}
+
+// DBPath returns the path identity this store opened. It is exposed for
+// adapters that must coordinate mutations across processes using the same
+// ledger. In-memory SQLite stores return their configured in-memory identity;
+// callers should not treat separate in-memory handles as shared storage.
+func (s *SQLiteStore) DBPath() string {
+	if s == nil {
+		return ""
+	}
+	return s.dbPath
 }
 
 // Close releases the underlying database handle.
@@ -222,16 +262,20 @@ func (s *SQLiteStore) HeartbeatClaim(ctx context.Context, claimID string, genera
 	if strings.TrimSpace(claimID) == "" {
 		return CapacityClaim{}, fmt.Errorf("%w: claim_id is required", ErrInvalidClaim)
 	}
-	now := s.now()
-	deadline := now.Add(normalizeTTL(ttl, DefaultHeartbeatTTL))
 	var out CapacityClaim
 	err := s.withRetryableTx(ctx, func(tx *sql.Tx) error {
+		if err := acquireClaimWriteAuthority(ctx, tx); err != nil {
+			return err
+		}
+		now := s.now()
+		deadline := now.Add(normalizeTTL(ttl, DefaultHeartbeatTTL))
 		result, execErr := tx.ExecContext(ctx, `
 UPDATE capacity_claims
 SET last_heartbeat_at = ?, heartbeat_deadline_at = ?, updated_at = ?
-WHERE claim_id = ? AND generation = ? AND status IN (?, ?, ?)`,
+WHERE claim_id = ? AND generation = ? AND status IN (?, ?, ?)
+  AND (owner_kind != ? OR heartbeat_deadline_at > ?)`,
 			formatTime(now), formatTime(deadline), formatTime(now),
-			claimID, generation, StatusReserved, StatusGranted, StatusDegraded)
+			claimID, generation, StatusReserved, StatusGranted, StatusDegraded, OwnerKindOp, formatTime(now))
 		if execErr != nil {
 			return fmt.Errorf("heartbeat capacity claim: %w", execErr)
 		}
@@ -269,8 +313,10 @@ func (s *SQLiteStore) ReportActivity(ctx context.Context, claimID string, genera
 		}
 		lastActive := formatOptionalTime(prior.LastActiveAt)
 		protected := prior.Protected
-		if state == ActivityActive {
+		if state == ActivityActive || prior.ActivityState == ActivityActive {
 			lastActive = formatTime(now)
+		}
+		if state == ActivityActive {
 			if prior.Priority >= PriorityInteractive {
 				protected = true
 			}
@@ -398,11 +444,21 @@ func (s *SQLiteStore) ReleaseClaim(ctx context.Context, claimID string) (Capacit
 	return s.terminate(ctx, claimID, StatusReleased)
 }
 
-// PreemptClaim forcibly terminates a claim (the last escalation rung). By claim
-// ID with no generation guard — preemption is an authoritative broker action.
-func (s *SQLiteStore) PreemptClaim(ctx context.Context, claimID string, reason string) (CapacityClaim, error) {
+// PreemptClaim records preemption intent only for the planned idle generation.
+// It does not stop the owner or establish that physical memory was released.
+func (s *SQLiteStore) PreemptClaim(ctx context.Context, claimID string, generation int64, reason string) (CapacityClaim, error) {
 	_ = reason
-	return s.terminate(ctx, claimID, StatusPreempted)
+	var out CapacityClaim
+	err := s.withRetryableTx(ctx, func(tx *sql.Tx) error {
+		result, err := tx.ExecContext(ctx, `UPDATE capacity_claims SET status = ?, generation = generation + 1, updated_at = ?
+WHERE claim_id = ? AND generation = ? AND status IN (?, ?, ?) AND activity_state = ? AND protected = 0`,
+			StatusPreempted, formatTime(s.now()), claimID, generation, StatusReserved, StatusGranted, StatusDegraded, ActivityIdle)
+		if err != nil {
+			return fmt.Errorf("preempt idle capacity claim: %w", err)
+		}
+		return finishMutation(ctx, tx, result, claimID, &out)
+	})
+	return out, err
 }
 
 func (s *SQLiteStore) terminate(ctx context.Context, claimID, status string) (CapacityClaim, error) {
@@ -444,42 +500,48 @@ WHERE claim_id = ? AND status IN (?, ?, ?)`,
 
 // ExpireStaleClaims sweeps active claims whose heartbeat deadline has elapsed to
 // status=expired, returning the expired set.
-func (s *SQLiteStore) ExpireStaleClaims(ctx context.Context, at time.Time) ([]CapacityClaim, error) {
-	now := s.now()
+func (s *SQLiteStore) ExpireStaleClaims(ctx context.Context, at time.Time, proofs AbsenceProofs) ([]CapacityClaim, error) {
 	var expired []CapacityClaim
 	err := s.withRetryableTx(ctx, func(tx *sql.Tx) error {
-		rows, queryErr := tx.QueryContext(ctx, claimSelectSQL+`
-WHERE status IN (?, ?, ?) AND heartbeat_deadline_at IS NOT NULL AND heartbeat_deadline_at <= ?
-ORDER BY created_at ASC`,
-			StatusReserved, StatusGranted, StatusDegraded, formatTime(at.UTC()))
-		if queryErr != nil {
-			return fmt.Errorf("list stale capacity claims: %w", queryErr)
+		if err := acquireClaimWriteAuthority(ctx, tx); err != nil {
+			return err
 		}
-		var scanErr error
-		expired, scanErr = scanClaims(rows)
+		rows, err := tx.QueryContext(ctx, claimSelectSQL+`
+WHERE status IN (?, ?, ?) AND heartbeat_deadline_at IS NOT NULL AND heartbeat_deadline_at <= ?
+ORDER BY created_at ASC`, StatusReserved, StatusGranted, StatusDegraded, formatTime(at.UTC()))
+		if err != nil {
+			return fmt.Errorf("list stale capacity claims: %w", err)
+		}
+		candidates, scanErr := scanClaims(rows)
 		if closeErr := rows.Close(); closeErr != nil && scanErr == nil {
 			scanErr = closeErr
 		}
 		if scanErr != nil {
 			return scanErr
 		}
-		for _, claim := range expired {
-			if _, execErr := tx.ExecContext(ctx, `
+		expired = nil
+		for _, claim := range candidates {
+			// The scan or earlier rows can age an absence witness. Validate at this
+			// row's mutation boundary while retaining exclusive SQLite write authority.
+			now := s.now()
+			if claim.ResourceKind == ResourceKindVRAM && claim.OwnerKind != OwnerKindOp && !proofs[claim.ClaimID].validFor(claim, now) {
+				continue
+			}
+			if _, err := tx.ExecContext(ctx, `
 UPDATE capacity_claims
 SET status = ?, generation = generation + 1, updated_at = ?
-WHERE claim_id = ? AND status IN (?, ?, ?)`,
-				StatusExpired, formatTime(now), claim.ClaimID, StatusReserved, StatusGranted, StatusDegraded); execErr != nil {
-				return fmt.Errorf("expire capacity claim %s: %w", claim.ClaimID, execErr)
+WHERE claim_id = ? AND status IN (?, ?, ?)`, StatusExpired, formatTime(now), claim.ClaimID, StatusReserved, StatusGranted, StatusDegraded); err != nil {
+				return fmt.Errorf("expire capacity claim %s: %w", claim.ClaimID, err)
 			}
+			claim.Status = StatusExpired
+			claim.Generation++
+			claim.UpdatedAt = now
+			expired = append(expired, claim)
 		}
 		return nil
 	})
 	if err != nil {
 		return nil, err
-	}
-	for i := range expired {
-		expired[i].Status = StatusExpired
-		expired[i].UpdatedAt = now
 	}
 	return expired, nil
 }
@@ -525,12 +587,24 @@ WHERE status NOT IN (?, ?, ?) AND updated_at < ?`,
 // activity report or arbitration decision) and only writes active claims (a
 // terminal claim is never resurrected). Observed usage NEVER feeds Decide
 // (contract C1).
-func (s *SQLiteStore) RecordObserved(ctx context.Context, claimID string, observed, peak int64, at time.Time) (CapacityClaim, error) {
+func (s *SQLiteStore) RecordObserved(ctx context.Context, claimID string, observed, peak int64, at time.Time, absence *AbsenceProof) (CapacityClaim, error) {
 	if strings.TrimSpace(claimID) == "" {
 		return CapacityClaim{}, fmt.Errorf("%w: claim_id is required", ErrInvalidClaim)
 	}
 	var out CapacityClaim
 	err := s.withRetryableTx(ctx, func(tx *sql.Tx) error {
+		if observed == 0 {
+			if err := acquireClaimWriteAuthority(ctx, tx); err != nil {
+				return err
+			}
+			current, err := getClaimTx(ctx, tx, claimID)
+			if err != nil {
+				return err
+			}
+			if absence == nil || !absence.validFor(current, s.now()) {
+				return nil
+			}
+		}
 		result, execErr := tx.ExecContext(ctx, `
 UPDATE capacity_claims
 SET observed_bytes = ?, observed_peak_bytes = ?, observed_at = ?
@@ -574,14 +648,16 @@ func (s *SQLiteStore) RecordFootprint(ctx context.Context, observation Footprint
 	err := s.withRetryableTx(ctx, func(tx *sql.Tx) error {
 		_, err := tx.ExecContext(ctx, `
 INSERT INTO capacity_footprints(resource, rung, tunables_key, gpu_index, peak_bytes, samples, first_seen_at, last_seen_at, source)
-VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?)
+VALUES (?, ?, ?, ?, ?, CASE WHEN ? = 'measured' THEN 1 ELSE 0 END, ?, ?, ?)
 ON CONFLICT(resource, rung, tunables_key, gpu_index) DO UPDATE SET
   peak_bytes = MAX(capacity_footprints.peak_bytes, excluded.peak_bytes),
   samples = capacity_footprints.samples + CASE WHEN excluded.source = 'measured' THEN 1 ELSE 0 END,
   last_seen_at = excluded.last_seen_at,
-  source = CASE WHEN capacity_footprints.source = 'measured' OR excluded.source = 'measured' THEN 'measured' ELSE 'manifest_default' END`,
+  source = CASE WHEN excluded.peak_bytes > capacity_footprints.peak_bytes THEN excluded.source
+    WHEN excluded.peak_bytes = capacity_footprints.peak_bytes AND excluded.source = 'measured' THEN 'measured'
+    ELSE capacity_footprints.source END`,
 			observation.Resource, observation.Rung, observation.TunablesKey, observation.GPUIndex,
-			observation.Bytes, formatTime(at), formatTime(at), observation.Source)
+			observation.Bytes, observation.Source, formatTime(at), formatTime(at), observation.Source)
 		if err != nil {
 			return fmt.Errorf("record capacity footprint: %w", err)
 		}
@@ -837,6 +913,18 @@ ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.upd
 }
 
 // --- transaction + scan helpers (mirror scenarioruntime) ---
+
+// acquireClaimWriteAuthority prevents database waits from making a claim's
+// mutation-time clock stale. BeginTx is deferred and does not suffice: UPDATE
+// may still wait behind another writer. This no-row write changes no claim or
+// trigger, and existing retries reacquire authority before checking fresh time.
+// Only the three time-sensitive claim mutations use this owner-local boundary.
+func acquireClaimWriteAuthority(ctx context.Context, tx *sql.Tx) error {
+	if _, err := tx.ExecContext(ctx, "UPDATE capacity_claims SET claim_id=claim_id WHERE 0"); err != nil {
+		return fmt.Errorf("acquire capacity claim write authority: %w", err)
+	}
+	return nil
+}
 
 func (s *SQLiteStore) withTx(ctx context.Context, fn func(*sql.Tx) error) error {
 	tx, err := s.db.BeginTx(ctx, nil)

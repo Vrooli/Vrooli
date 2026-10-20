@@ -1,25 +1,14 @@
 {
-  "name": "scenario-to-desktop-templates-dev",
-  "version": "1.0.0",
-  "private": true,
-  "description": "Development tooling for templates (NOT for generated projects)",
-  "type": "module",
-  "scripts": {
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
-    "typecheck": "tsc --noEmit -p tsconfig.dev.json",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
-    "test:ui": "vitest --ui",
-    "check": "npm run typecheck && npm run lint && npm run test"
+  "dependencies": {
+    "electron-mksnapshot": "44.7.2"
   },
+  "description": "Development tooling for templates (NOT for generated projects)",
   "devDependencies": {
     "@eslint/js": "^9.0.0",
     "@types/node": "^20.0.0",
     "@vitest/coverage-v8": "^2.0.0",
     "@vitest/ui": "^2.0.0",
-    "electron": "^33.0.0",
+    "electron": "44.7.2",
     "eslint": "^9.0.0",
     "globals": "^15.0.0",
     "tsx": "^4.0.0",

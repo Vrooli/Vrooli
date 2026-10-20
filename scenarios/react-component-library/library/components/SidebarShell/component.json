@@ -19,17 +19,20 @@
   ],
   "designStyles": [
     {
-      "styleId": "vrooli-default",
       "affinity": "native",
-      "reason": "token-native operational-console baseline"
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
     }
   ],
   "draft": "",
   "evictedVersions": [
     "2.7.1",
     "2.7.0",
-    "2.6.3"
+    "2.6.3",
+    "2.7.5",
+    "2.7.4",
+    "2.7.3"
   ],
-  "latest": "2.7.2",
+  "latest": "2.7.7",
   "libraryId": "react-component-library:SidebarShell"
 }

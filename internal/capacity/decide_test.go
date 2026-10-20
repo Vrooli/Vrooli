@@ -257,3 +257,16 @@ func TestDecideGrantedHelper(t *testing.T) {
 		t.Error("queue/deny should not report Granted()")
 	}
 }
+
+func TestDecideCannotReclaimAnotherGPU(t *testing.T) {
+	now := time.Date(2026, 10, 17, 12, 0, 0, 0, time.UTC)
+	other := idleClaim("other-device", PriorityBatch, 8*gib, time.Hour, now)
+	other.GPUIndex = gpu(1)
+	snap := snapshotWith(16, 16)
+	snap.GPUs = append(snap.GPUs, hostinventory.GPU{Index: 1, VRAMBytes: uint64(16 * gib)})
+	req := CapacityRequest{ResourceKind: ResourceKindVRAM, GPUIndex: gpu(0), PreferredBytes: 4 * gib, FloorBytes: 4 * gib, Priority: PriorityInteractive}
+	got := Decide(req, snap, []CapacityClaim{other}, DefaultPolicy(), now)
+	if got.Kind != VerdictDeny || len(got.ReclaimTargets) != 0 {
+		t.Fatalf("wrong-GPU reclaim changed verdict: %+v", got)
+	}
+}

@@ -428,8 +428,10 @@ func TestRunReviewNoticeRetryBackoffSuccessSuppressionAndRestartReplay(t *testin
 	}
 
 	rec.syncReviewRuns(ctx, &stats)
-	if len(publisher.events) != 2 || diffCalls != 2 {
-		t.Fatalf("successful notice was not suppressed: notice calls=%d diff reads=%d", len(publisher.events), diffCalls)
+	// A published Ask must still be checked for a now-empty patch. The extra
+	// fresh diff read is required; suppression applies to publication only.
+	if len(publisher.events) != 2 || diffCalls != 3 {
+		t.Fatalf("successful notice was republished or skipped its fresh empty check: notice calls=%d diff reads=%d", len(publisher.events), diffCalls)
 	}
 
 	// A new process has no in-memory success map. It reconstructs from the
@@ -439,7 +441,7 @@ func TestRunReviewNoticeRetryBackoffSuccessSuppressionAndRestartReplay(t *testin
 		WithWebConsoleUIBase("http://localhost:21238"))
 	restartedRec := attachRunReviewReconciler(restarted, repos, provider, &now)
 	restartedRec.syncReviewRuns(ctx, &stats)
-	if len(publisher.events) != 3 || diffCalls != 3 {
+	if len(publisher.events) != 3 || diffCalls != 4 {
 		t.Fatalf("restart replay calls=%d diff reads=%d, want one durable reconstruction", len(publisher.events), diffCalls)
 	}
 	if got := operatordecision.EventID(publisher.events[2]); got != firstID {

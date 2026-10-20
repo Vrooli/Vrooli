@@ -209,7 +209,7 @@ func TestReleaseAndPreemptAreTerminal(t *testing.T) {
 	}
 
 	b, _ := store.CreateClaim(ctx, sampleClaim(), 0)
-	preempted, err := store.PreemptClaim(ctx, b.ClaimID, "higher priority workload")
+	preempted, err := store.PreemptClaim(ctx, b.ClaimID, b.Generation, "higher priority workload")
 	if err != nil {
 		t.Fatalf("PreemptClaim() error = %v", err)
 	}
@@ -229,7 +229,7 @@ func TestExpireStaleClaimsSweep(t *testing.T) {
 	stale, _ := store.CreateClaim(ctx, sampleClaim(), 10*time.Second)
 
 	clk.Advance(30 * time.Second)
-	expired, err := store.ExpireStaleClaims(ctx, clk.Now())
+	expired, err := store.ExpireStaleClaims(ctx, clk.Now(), AbsenceProofs{stale.ClaimID: {Generation: stale.Generation, ObservedAt: clk.Now()}})
 	if err != nil {
 		t.Fatalf("ExpireStaleClaims() error = %v", err)
 	}

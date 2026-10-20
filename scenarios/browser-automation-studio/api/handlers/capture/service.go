@@ -21,6 +21,7 @@ import (
 
 	"github.com/vrooli/browser-automation-studio/automation/compiler"
 	"github.com/vrooli/browser-automation-studio/config"
+	"github.com/vrooli/browser-automation-studio/services/media"
 	"github.com/vrooli/browser-automation-studio/services/retention"
 	"github.com/vrooli/browser-automation-studio/services/workflow"
 	"github.com/vrooli/browser-automation-studio/viewport"
@@ -93,7 +94,7 @@ func (s *service) Capture(
 
 	releaseEvidence := retention.BeginEvidenceActivity(filepath.Clean(plan.outDir))
 	defer releaseEvidence()
-	adhocReq, domNodeIDs, err := buildAdhocRequest(plan.resolvedURL, msg, plan.width, plan.height, s.deps.InlineDom.Expression)
+	adhocReq, domNodeIDs, err := buildAdhocRequest(plan.resolvedURL, msg, plan.width, plan.height, plan.interaction, s.deps.InlineDom.Expression)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
@@ -129,6 +130,7 @@ type capturePlan struct {
 	width       int32
 	height      int32
 	outDir      string
+	interaction *workflowsv1.WorkflowDefinitionV2
 }
 
 type captureReadiness struct {
@@ -174,7 +176,11 @@ func (s *service) prepareCapture(ctx context.Context, msg *capturev1.CaptureRequ
 	if err != nil {
 		return capturePlan{}, err
 	}
-	width, height, err := resolveDimensions(msg.GetDimensions())
+	interaction, err := parseInteractionFlow(msg.GetInteractionFlowJson())
+	if err != nil {
+		return capturePlan{}, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	width, height, err := s.resolveEffectiveDimensions(msg, interaction)
 	if err != nil {
 		return capturePlan{}, err
 	}
@@ -182,7 +188,39 @@ func (s *service) prepareCapture(ctx context.Context, msg *capturev1.CaptureRequ
 	if err != nil {
 		return capturePlan{}, err
 	}
-	return capturePlan{resolvedURL: resolvedURL, captures: captures, width: width, height: height, outDir: outDir}, nil
+	return capturePlan{resolvedURL: resolvedURL, captures: captures, width: width, height: height, outDir: outDir, interaction: interaction}, nil
+}
+
+func (s *service) resolveEffectiveDimensions(msg *capturev1.CaptureRequest, interaction *workflowsv1.WorkflowDefinitionV2) (int32, int32, error) {
+	requested := msg.GetDimensions()
+	if requested != nil && (requested.Width != nil || requested.Height != nil || requested.Preset != capturev1.DimensionsPreset_DIMENSIONS_PRESET_UNSPECIFIED) {
+		return resolveDimensions(requested)
+	}
+	settings := interaction.GetSettings()
+	if settings == nil || (settings.ViewportWidth == nil && settings.ViewportHeight == nil) {
+		return resolveDimensions(requested)
+	}
+	if settings.ViewportWidth == nil || settings.ViewportHeight == nil {
+		return 0, 0, connect.NewError(connect.CodeInvalidArgument, errors.New("interaction_flow_json settings.viewport_width and settings.viewport_height must be set together"))
+	}
+
+	effective := &capturev1.Dimensions{
+		Width:  settings.ViewportWidth,
+		Height: settings.ViewportHeight,
+	}
+	if requested != nil && requested.DeviceScaleFactor != nil {
+		effective.DeviceScaleFactor = requested.DeviceScaleFactor
+	}
+	effectiveRequest := proto.Clone(msg).(*capturev1.CaptureRequest)
+	effectiveRequest.Dimensions = effective
+	if err := s.validator.Validate(effectiveRequest); err != nil {
+		var invalid *protovalidate.ValidationError
+		if errors.As(err, &invalid) {
+			return 0, 0, connect.NewError(connect.CodeInvalidArgument, err)
+		}
+		return 0, 0, connect.NewError(connect.CodeInternal, fmt.Errorf("validate inherited workflow dimensions: %w", err))
+	}
+	return resolveDimensions(effective)
 }
 
 func resolveCaptureOutDir(capturesRoot, requested string) (string, error) {
@@ -324,6 +362,8 @@ func (s *service) materializeCaptureArtifacts(ctx context.Context, msg *capturev
 			return nil, captureInlineResults{}, connect.NewError(connect.CodeInternal, fmt.Errorf("write DOM-tree artifact: %w", err))
 		}
 	}
+	width, height, _ := resolveDimensions(msg.GetDimensions()) // validated by prepareCapture
+	measureCaptureVideos(ctx, msg, width, height, artifacts, media.ProbeVideo)
 	attachArtifactReferences(execution.id, artifacts)
 	if err := s.publishCaptureArtifacts(ctx, execution, artifacts); err != nil {
 		return nil, captureInlineResults{}, err
@@ -374,7 +414,7 @@ func (s *service) publishCaptureArtifacts(ctx context.Context, execution capture
 		}
 		stored, err := s.deps.Storage.StoreArtifactFromFile(ctx, execution.uuid,
 			"capture/"+strings.ToLower(strings.TrimPrefix(artifact.GetType().String(), "CAPTURE_TYPE_")),
-			artifact.GetPath(), mime.TypeByExtension(filepath.Ext(artifact.GetPath())))
+			artifact.GetPath(), captureContentType(artifact.GetType(), artifact.GetPath()))
 		if err != nil {
 			if s.deps.Logger != nil {
 				s.deps.Logger.WithError(err).WithField("artifact", artifact.GetPath()).Warn("capture artifact URL publication failed")
@@ -676,6 +716,7 @@ func buildAdhocRequest(
 	resolvedURL string,
 	msg *capturev1.CaptureRequest,
 	width, height int32,
+	interaction *workflowsv1.WorkflowDefinitionV2,
 	inlineDomExpression string,
 ) (*basexecution.ExecuteAdhocRequest, inlineDomNodeIDs, error) {
 	navigateNode := &workflowsv1.WorkflowNodeV2{
@@ -724,8 +765,8 @@ func buildAdhocRequest(
 	// Compose the interaction at the compiler's outer boundaries. Its original
 	// branch and loop edges decide the path; every outer terminal reaches the
 	// requested postlude, independently of declaration order.
-	if raw := strings.TrimSpace(msg.GetInteractionFlowJson()); raw != "" {
-		spliced, err := spliceInteractionFlow(predecessorIDs[0], raw)
+	if interaction != nil {
+		spliced, err := spliceInteractionFlow(predecessorIDs[0], interaction)
 		if err != nil {
 			return nil, inlineDomNodeIDs{}, err
 		}
@@ -843,24 +884,28 @@ type splicedFlow struct {
 	terminals []string
 }
 
-// spliceInteractionFlow parses a raw bas/flows-shape JSON body (a
-// WorkflowDefinitionV2 protojson) and returns its nodes/edges plus a single
-// edge linking the supplied predecessor to the flow's actual entry. The
-// flow's own internal edges sequence the rest. Malformed JSON or an empty
-// node set is a typed error.
-func spliceInteractionFlow(navigateNodeID, raw string) (splicedFlow, error) {
-	// Apply the same compat normalization the `execute-adhoc --flow-file` path
-	// uses so a raw bas/flows body (short-form execution_mode and viewport
-	// settings) parses identically here.
+func parseInteractionFlow(raw string) (*workflowsv1.WorkflowDefinitionV2, error) {
+	if strings.TrimSpace(raw) == "" {
+		return nil, nil
+	}
 	normalized, err := workflow.NormalizeWorkflowDefinitionV2Bytes([]byte(raw))
 	if err != nil {
-		return splicedFlow{}, fmt.Errorf("interaction_flow_json is not valid JSON: %w", err)
+		return nil, fmt.Errorf("interaction_flow_json is not valid JSON: %w", err)
 	}
 	var def workflowsv1.WorkflowDefinitionV2
 	if err := protojson.Unmarshal(normalized, &def); err != nil {
-		return splicedFlow{}, fmt.Errorf("interaction_flow_json is not a valid WorkflowDefinitionV2: %w", err)
+		return nil, fmt.Errorf("interaction_flow_json is not a valid WorkflowDefinitionV2: %w", err)
 	}
-	entry, terminals, err := compiler.WorkflowBoundaries(&def)
+	return &def, nil
+}
+
+// spliceInteractionFlow wires an already normalized interaction flow after
+// the supplied predecessor without parsing the same body again.
+func spliceInteractionFlow(navigateNodeID string, def *workflowsv1.WorkflowDefinitionV2) (splicedFlow, error) {
+	if def == nil {
+		return splicedFlow{}, nil
+	}
+	entry, terminals, err := compiler.WorkflowBoundaries(def)
 	if err != nil {
 		return splicedFlow{}, fmt.Errorf("interaction_flow_json: %w", err)
 	}

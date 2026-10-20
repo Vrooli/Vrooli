@@ -64,6 +64,57 @@ func TestGoalHomeParkPolicyReportsByDefaultAndRefusesWhenEnforced(t *testing.T) 
 	}
 }
 
+func TestLiveDirectChildrenTracksExecutionNotApprovalStatus(t *testing.T) {
+	repos, _, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	ctx := context.Background()
+	task := fixtures.NewTask(t)
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatal(err)
+	}
+	parent := fixtures.NewRun(t, task.ID, uuid.Nil, fixtures.WithRunStatus(domain.RunStatusRunning))
+	if err := repos.Runs.Create(ctx, parent); err != nil {
+		t.Fatal(err)
+	}
+	parentID := parent.ID
+	cases := []struct {
+		status   domain.RunStatus
+		wantLive bool
+	}{
+		{status: domain.RunStatusNeedsReview, wantLive: false},
+		{status: domain.RunStatusPending, wantLive: true},
+		{status: domain.RunStatusStarting, wantLive: true},
+		{status: domain.RunStatusRunning, wantLive: true},
+		{status: domain.RunStatusParked, wantLive: true},
+	}
+	want := make(map[string]bool, len(cases))
+	for _, tc := range cases {
+		child := fixtures.NewRun(t, task.ID, uuid.Nil, fixtures.WithRunStatus(tc.status))
+		child.ParentRunID = &parentID
+		if err := repos.Runs.Create(ctx, child); err != nil {
+			t.Fatal(err)
+		}
+		want[child.ID.String()] = tc.wantLive
+	}
+	o := New(repos.Profiles, repos.Tasks, repos.Runs)
+	live, err := o.liveDirectChildren(ctx, parent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := make(map[string]bool, len(live))
+	for _, id := range live {
+		got[id] = true
+	}
+	if len(got) != 4 {
+		t.Fatalf("execution cohort should contain exactly four children, got %v", live)
+	}
+	for id, expected := range want {
+		if got[id] != expected {
+			t.Fatalf("child %s live=%t, want %t", id, got[id], expected)
+		}
+	}
+}
+
 // parkPolicyMessages returns the run's log messages that contain text.
 func parkPolicyMessages(t *testing.T, o *Orchestrator, runID uuid.UUID, text string) []string {
 	t.Helper()

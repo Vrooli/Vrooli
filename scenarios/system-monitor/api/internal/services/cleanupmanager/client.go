@@ -27,6 +27,59 @@ import (
 // no dependency on the storage-manager module.
 const reportPressureProcedure = "/vrooli.cleanup_manager.v1.cleanup.CleanupService/ReportPressure"
 
+const waitRecoveryProcedure = "/vrooli.cleanup_manager.v1.cleanup.CleanupService/WaitRecovery"
+
+// Recovery is the terminal receipt returned by the server-owned wait endpoint.
+type Recovery struct {
+	RunID          string `json:"runId"`
+	Status         string `json:"status"`
+	Action         string `json:"action"`
+	PlanID         string `json:"planId"`
+	EstimatedBytes int64  `json:"estimatedBytes,string"`
+	ReclaimedBytes int64  `json:"reclaimedBytes,string"`
+	Reason         string `json:"reason"`
+	StoppedBecause string `json:"stoppedBecause"`
+}
+
+// WaitRecovery blocks once. Its timeout covers the bounded recovery lifetime;
+// the caller's context still cancels the wait on monitor shutdown.
+func (c *Client) WaitRecovery(ctx context.Context, runID string) (Recovery, error) {
+	if c == nil || strings.TrimSpace(runID) == "" {
+		return Recovery{}, fmt.Errorf("recovery run id and client are required")
+	}
+	base, err := c.resolveURL(ctx)
+	if err != nil {
+		return Recovery{}, err
+	}
+	body, err := json.Marshal(map[string]string{"runId": runID})
+	if err != nil {
+		return Recovery{}, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, base+waitRecoveryProcedure, bytes.NewReader(body))
+	if err != nil {
+		return Recovery{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	client := *c.httpClient
+	client.Timeout = 25 * time.Minute
+	resp, err := client.Do(req)
+	if err != nil {
+		return Recovery{}, fmt.Errorf("wait for storage recovery: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return Recovery{}, fmt.Errorf("storage recovery wait returned HTTP %d", resp.StatusCode)
+	}
+	var receipt Recovery
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&receipt); err != nil {
+		return Recovery{}, fmt.Errorf("decode recovery receipt: %w", err)
+	}
+	if receipt.RunID != runID || (receipt.Status != "complete" && receipt.Status != "failed") {
+		return Recovery{}, fmt.Errorf("storage recovery returned an invalid terminal receipt")
+	}
+	return receipt, nil
+}
+
 // Band names the escalation band being reported. These strings are the proto
 // enum names; an unrecognised value is rejected by storage-manager rather than
 // defaulted, so they must match exactly.
@@ -87,8 +140,7 @@ type Client struct {
 
 // NewClient builds a Client.
 //
-// The default timeout is generous because a critical-band report runs an
-// estimate, a preview, and an apply on the far side before responding.
+// Pressure admission returns promptly; terminal recovery uses WaitRecovery.
 func NewClient(cfg Config) *Client {
 	timeout := cfg.Timeout
 	if timeout == 0 {

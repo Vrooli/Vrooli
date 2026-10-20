@@ -15,6 +15,7 @@ import { ConnectionStatusBanner } from './shared/components/ConnectionStatusBann
 import { LoadingSkeleton } from './shared/components/LoadingSkeleton';
 import { ThemeProvider } from './shared/theme/ThemeProvider';
 import { useSystemMonitor } from './features/monitoring/hooks/useSystemMonitor';
+import { useServerAlerts } from './features/monitoring/hooks/useServerAlerts';
 import { useInvestigationAgents } from './features/investigations/hooks/useInvestigationAgents';
 import { useScriptExecution } from './features/investigations/hooks/useScriptExecution';
 import { IncidentTimeline, type TimelineEntry } from './features/monitoring/components/IncidentTimeline';
@@ -93,8 +94,7 @@ function AppContent() {
     expandedCards: new Set(),
     expandedPanels: new Set(),
     terminalVisible: false,
-    unreadErrorCount: 0,
-    alerts: []
+    unreadErrorCount: 0
   });
 
   const [systemSettingsModalOpen, setSystemSettingsModalOpen] = useState(false);
@@ -120,6 +120,10 @@ function AppContent() {
   const { range, paused } = useTimeRange();
   const selectedMachine = machines.find(machine => machine.id === selectedMachineID);
   const viewingRemote = Boolean(selectedMachineID);
+  // Alerts are evaluated and persisted by the API; the dashboard only reads
+  // them. They describe the local host, so they are not fetched for a remote
+  // subject.
+  const serverAlerts = useServerAlerts(!viewingRemote && !paused);
 
   const openAddMachine = () => {
     // Bridge owns pairing approval and the pending-request words. Keep this
@@ -170,6 +174,9 @@ function AppContent() {
     refreshHealth,
     refresh
   } = useSystemMonitor(range.seconds, { enabled: !paused, node: selectedMachineID || undefined });
+  useEffect(() => {
+    if (!isLoading && !performance.getEntriesByName("app-interactive").length) performance.mark("app-interactive");
+  }, [isLoading]);
 
   // While a remote subject is silent, every panel below is showing the same
   // frozen moment. Dimming the whole region says so once, instead of leaving
@@ -376,6 +383,7 @@ function AppContent() {
                           storageIO={infrastructureData?.storageIo}
                           diskLastUpdated={infrastructureData?.timestamp ? timestampDate(infrastructureData.timestamp)?.toISOString() : undefined}
                           onOpenDetail={openDetailPage}
+                          serverAlerts={viewingRemote ? [] : serverAlerts.alerts}
                         />
                       </ErrorBoundary>
                     </section>
@@ -400,7 +408,7 @@ function AppContent() {
                     {/* Alert Panel */}
                     {!viewingRemote && (
                       <section className="mb-lg">
-                        <AlertPanel alerts={dashboardState.alerts} />
+                        <AlertPanel alerts={serverAlerts.alerts} feed={serverAlerts.feed} />
                       </section>
                     )}
 

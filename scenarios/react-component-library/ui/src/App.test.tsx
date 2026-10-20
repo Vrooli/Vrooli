@@ -52,20 +52,22 @@ describe("App composition", () => {
     await waitFor(() => {
       expect(screen.getByTestId("app-shell")).toBeInTheDocument();
     });
-    expect(screen.getAllByTestId("catalog-browser")).toHaveLength(2);
+    expect(screen.getAllByTestId("catalog-browser")).toHaveLength(1);
   });
 
   it("renders the catalog workspace at /catalog", async () => {
     renderWithProviders(<App />, { routerEntries: ["/catalog"] });
     await waitFor(() => {
-      expect(screen.getAllByTestId("catalog-browser")).toHaveLength(2);
+      expect(screen.getAllByTestId("catalog-browser")).toHaveLength(1);
+      expect(screen.getByTestId("app-shell")).toBeInTheDocument();
     });
   });
 
   it("resolves the components route to the catalog workspace", async () => {
     renderWithProviders(<App />, { routerEntries: ["/components"] });
     await waitFor(() => {
-      expect(screen.getAllByTestId("catalog-browser")).toHaveLength(2);
+      expect(screen.getAllByTestId("catalog-browser")).toHaveLength(1);
+      expect(screen.getByTestId("app-shell")).toBeInTheDocument();
     });
   });
 

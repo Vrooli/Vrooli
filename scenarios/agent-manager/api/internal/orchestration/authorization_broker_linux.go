@@ -114,6 +114,23 @@ func (o *Orchestrator) startAuthorizationBrokerAt(path string) (func() error, er
 				}
 				purpose = values[0]
 			}
+			if purpose == "local_owner_eligibility" {
+				if baselineToken != "" {
+					localOwnerEligibilityRefusal(w, "agent_identity_present")
+					return
+				}
+				owned, err := activeRunOwnsPeer(r.Context(), o.runs, peer.pid)
+				if err != nil {
+					localOwnerEligibilityRefusal(w, "local_owner_binding_unavailable")
+					return
+				}
+				if owned {
+					localOwnerEligibilityRefusal(w, "agent_run_peer")
+					return
+				}
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
 			var credentials AuthorizationCredentials
 			var err error
 			switch purpose {
@@ -158,4 +175,13 @@ func (o *Orchestrator) startAuthorizationBrokerAt(path string) (func() error, er
 
 func (o *Orchestrator) logAuthorizationBrokerFailure(err error) {
 	fmt.Fprintln(os.Stderr, "agent authorization broker stopped:", err)
+}
+
+func localOwnerEligibilityRefusal(w http.ResponseWriter, code string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusForbidden)
+	_ = json.NewEncoder(w).Encode(map[string]string{
+		"code":     code,
+		"recovery": "use the original agent identity or retry after local caller binding is available",
+	})
 }

@@ -371,6 +371,207 @@ func TestStopRun_Parked_CancelsAndClearsHandle(t *testing.T) {
 	}
 }
 
+func TestWakeRunBindsExactLegacyTaskBeforeContinuation(t *testing.T) {
+	ctx := context.Background()
+	db, cleanup := testutil.SetupTestDB(t)
+	t.Cleanup(cleanup)
+	repos, eventStore, _ := testutil.SetupTestReposWithDB(t, db)
+	mockRunner, _, _, _ := newContinuationRunner(t)
+	started := make(chan struct{})
+	release := make(chan struct{})
+	done := make(chan struct{})
+	var releaseOnce sync.Once
+	releaseRunner := func() { releaseOnce.Do(func() { close(release) }) }
+	mockRunner.ContinueFunc = func(ctx context.Context, req runner.ContinueRequest) (*runner.ExecuteResult, error) {
+		close(started)
+		<-release
+		close(done)
+		return &runner.ExecuteResult{Success: true, SessionID: req.SessionID}, nil
+	}
+	registry := runner.NewRegistry()
+	if err := registry.Register(mockRunner); err != nil {
+		t.Fatal(err)
+	}
+	svc := orchestration.New(repos.Profiles, repos.Tasks, repos.Runs,
+		orchestration.WithEvents(eventStore), orchestration.WithRunners(registry),
+		orchestration.WithRunStateRoot(t.TempDir()), newTestRolePolicyOption(t))
+	run := newParkableRun(t, ctx, svc, repos)
+	initialTask, err := repos.Tasks.Get(ctx, run.TaskID)
+	if err != nil || initialTask.Status != domain.TaskStatusQueued || initialTask.CurrentRunID != nil {
+		t.Fatalf("legacy Task precondition = %+v err=%v, want queued and unowned", initialTask, err)
+	}
+	if _, err := svc.ParkRun(ctx, orchestration.ParkRunInput{RunID: run.ID, Producer: "test-genie", Key: "legacy-wake"}); err != nil {
+		t.Fatalf("ParkRun: %v", err)
+	}
+	if _, err := svc.WakeRun(ctx, orchestration.WakeRunInput{RunID: run.ID, Result: "resume exact run"}); err != nil {
+		t.Fatalf("WakeRun: %v", err)
+	}
+	t.Cleanup(func() {
+		releaseRunner()
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			t.Error("blocked runner did not release during cleanup")
+			return
+		}
+		// The mock's done signal fires before the orchestration goroutine has
+		// persisted its terminal Run result. Wait for the durable transition so
+		// the test database is not closed under the result handler.
+		completed, err := waitForRunCompletion(t, ctx, svc, run.ID, 3*time.Second)
+		if err != nil {
+			t.Errorf("wait for durable run completion: %v", err)
+			return
+		}
+		if completed.Status != domain.RunStatusComplete {
+			t.Errorf("durable run status = %s, want complete", completed.Status)
+		}
+	})
+	select {
+	case <-started:
+	case <-time.After(5 * time.Second):
+		t.Fatal("runner continuation did not start")
+	}
+	task, err := repos.Tasks.Get(ctx, run.TaskID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if task.Status != domain.TaskStatusRunning || task.CurrentRunID == nil || *task.CurrentRunID != run.ID {
+		t.Fatalf("wake Task projection = status %s currentRunID %v, want running and exact Run %s", task.Status, task.CurrentRunID, run.ID)
+	}
+	releaseRunner()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("runner continuation did not finish")
+	}
+}
+
+func newWakeOwnershipGuardRunner(t *testing.T) (runner.Registry, *atomic.Int32) {
+	t.Helper()
+	mockRunner, _, _, _ := newContinuationRunner(t)
+	calls := &atomic.Int32{}
+	mockRunner.ContinueFunc = func(context.Context, runner.ContinueRequest) (*runner.ExecuteResult, error) {
+		calls.Add(1)
+		return &runner.ExecuteResult{Success: true}, nil
+	}
+	registry := runner.NewRegistry()
+	if err := registry.Register(mockRunner); err != nil {
+		t.Fatal(err)
+	}
+	return registry, calls
+}
+
+func TestWakeRunRefusesAmbiguousLegacyTaskOwner(t *testing.T) {
+	ctx := context.Background()
+	db, cleanup := testutil.SetupTestDB(t)
+	t.Cleanup(cleanup)
+	repos, eventStore, _ := testutil.SetupTestReposWithDB(t, db)
+	registry, calls := newWakeOwnershipGuardRunner(t)
+	svc := orchestration.New(repos.Profiles, repos.Tasks, repos.Runs, orchestration.WithEvents(eventStore), orchestration.WithRunners(registry), orchestration.WithRunStateRoot(t.TempDir()), newTestRolePolicyOption(t))
+	run := newParkableRun(t, ctx, svc, repos)
+	competitor := *run
+	competitor.ID = uuid.New()
+	competitor.Tag = competitor.ID.String()
+	competitor.Status = domain.RunStatusPending
+	competitor.Phase = domain.RunPhaseQueued
+	competitor.AwaitHandle = nil
+	competitor.SessionID = "competitor-" + uuid.NewString()
+	if err := repos.Runs.Create(ctx, &competitor); err != nil {
+		t.Fatalf("create competing nonterminal Run: %v", err)
+	}
+	if _, err := svc.ParkRun(ctx, orchestration.ParkRunInput{RunID: run.ID, Producer: "test-genie", Key: "ambiguous-wake"}); err != nil {
+		t.Fatalf("ParkRun: %v", err)
+	}
+	if _, err := svc.WakeRun(ctx, orchestration.WakeRunInput{RunID: run.ID, Result: "must refuse"}); err == nil || !domain.IsPreEffectRefusal(err) || !strings.Contains(err.Error(), "could not be safely bound") {
+		t.Fatalf("ambiguous legacy wake error = %v, want exact-owner pre-effect refusal", err)
+	}
+	if calls.Load() != 0 {
+		t.Fatalf("ambiguous wake invoked continuation %d times", calls.Load())
+	}
+	task, err := repos.Tasks.Get(ctx, run.TaskID)
+	if err != nil || task.Status != domain.TaskStatusQueued || task.CurrentRunID != nil {
+		t.Fatalf("ambiguous wake changed Task ownership: task=%+v err=%v", task, err)
+	}
+	parked, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil || parked.Status != domain.RunStatusParked || parked.AwaitHandle == nil {
+		t.Fatalf("ambiguous wake changed parked Run: run=%+v err=%v", parked, err)
+	}
+}
+
+func TestWakeRunRefusesCancelledTaskAndDifferentCurrentOwner(t *testing.T) {
+	ctx := context.Background()
+	t.Run("cancelled task", func(t *testing.T) {
+		db, cleanup := testutil.SetupTestDB(t)
+		t.Cleanup(cleanup)
+		repos, eventStore, _ := testutil.SetupTestReposWithDB(t, db)
+		registry, calls := newWakeOwnershipGuardRunner(t)
+		svc := orchestration.New(repos.Profiles, repos.Tasks, repos.Runs, orchestration.WithEvents(eventStore), orchestration.WithRunners(registry), orchestration.WithRunStateRoot(t.TempDir()), newTestRolePolicyOption(t))
+		run := newParkableRun(t, ctx, svc, repos)
+		if _, err := svc.ParkRun(ctx, orchestration.ParkRunInput{RunID: run.ID, Producer: "test-genie", Key: "cancelled-wake"}); err != nil {
+			t.Fatalf("ParkRun: %v", err)
+		}
+		if claimed, err := repos.Runs.EnsureCurrentRun(ctx, run.TaskID, run.ID, time.Now()); err != nil || !claimed {
+			t.Fatalf("bind exact parked Run for cancellation: claimed=%v err=%v", claimed, err)
+		}
+		if _, changed, err := repos.Runs.CancelTaskAttempt(ctx, run.TaskID, &run.ID, true, time.Now()); err != nil || !changed {
+			t.Fatalf("cancel exact parked Task attempt: changed=%v err=%v", changed, err)
+		}
+		if _, err := svc.WakeRun(ctx, orchestration.WakeRunInput{RunID: run.ID, Result: "must refuse"}); err == nil || !domain.IsPreEffectRefusal(err) || !strings.Contains(err.Error(), "terminal Task state refuses continuation") {
+			t.Fatalf("cancelled Task wake error = %v, want exact terminal-owner refusal", err)
+		}
+		if calls.Load() != 0 {
+			t.Fatalf("cancelled Task wake invoked continuation %d times", calls.Load())
+		}
+		task, err := repos.Tasks.Get(ctx, run.TaskID)
+		if err != nil || task.Status != domain.TaskStatusCancelled || task.CurrentRunID == nil || *task.CurrentRunID != run.ID {
+			t.Fatalf("cancelled Task changed after wake refusal: task=%+v err=%v", task, err)
+		}
+		parked, err := repos.Runs.Get(ctx, run.ID)
+		if err != nil || parked.Status != domain.RunStatusParked || parked.AwaitHandle == nil {
+			t.Fatalf("cancelled Task wake changed parked Run: run=%+v err=%v", parked, err)
+		}
+	})
+	t.Run("different current owner", func(t *testing.T) {
+		db, cleanup := testutil.SetupTestDB(t)
+		t.Cleanup(cleanup)
+		repos, eventStore, _ := testutil.SetupTestReposWithDB(t, db)
+		registry, calls := newWakeOwnershipGuardRunner(t)
+		svc := orchestration.New(repos.Profiles, repos.Tasks, repos.Runs, orchestration.WithEvents(eventStore), orchestration.WithRunners(registry), orchestration.WithRunStateRoot(t.TempDir()), newTestRolePolicyOption(t))
+		task := mustCreateTask(t, svc, ctx, &domain.Task{Title: "wake owner", Description: "current owner fence", ScopePath: "src/"})
+		owner := &domain.Run{ID: uuid.New(), TaskID: task.ID, Status: domain.RunStatusPending, Phase: domain.RunPhaseQueued, Tag: "current-owner", RunMode: domain.RunModeInPlace, ApprovalState: domain.ApprovalStateNone}
+		if err := repos.Runs.CreateTaskAttempt(ctx, task, owner, nil, task.ProjectRoot); err != nil {
+			t.Fatalf("create exact current attempt: %v", err)
+		}
+		old := time.Now().Add(-time.Minute)
+		orphan := &domain.Run{
+			ID: uuid.New(), TaskID: task.ID, Tag: "legacy-parked-orphan", RunMode: domain.RunModeInPlace,
+			Status: domain.RunStatusRunning, Phase: domain.RunPhaseExecuting, SessionID: "orphan-" + uuid.NewString(),
+			StartedAt: &old, LastHeartbeat: &old, ResolvedConfig: &domain.RunConfig{RunnerType: domain.RunnerTypeClaudeCode},
+			ApprovalState: domain.ApprovalStateNone, CreatedAt: old, UpdatedAt: old,
+		}
+		if err := repos.Runs.Create(ctx, orphan); err != nil {
+			t.Fatalf("create named legacy Run: %v", err)
+		}
+		if _, err := svc.ParkRun(ctx, orchestration.ParkRunInput{RunID: orphan.ID, Producer: "test-genie", Key: "different-owner"}); err != nil {
+			t.Fatalf("ParkRun: %v", err)
+		}
+		if _, err := svc.WakeRun(ctx, orchestration.WakeRunInput{RunID: orphan.ID, Result: "must refuse"}); err == nil || !domain.IsPreEffectRefusal(err) || !strings.Contains(err.Error(), "requested Run no longer owns the Task") {
+			t.Fatalf("different-owner wake error = %v, want exact current-owner refusal", err)
+		}
+		if calls.Load() != 0 {
+			t.Fatalf("different-owner wake invoked continuation %d times", calls.Load())
+		}
+		got, err := repos.Tasks.Get(ctx, task.ID)
+		if err != nil || got.CurrentRunID == nil || *got.CurrentRunID != owner.ID || got.Status != domain.TaskStatusRunning {
+			t.Fatalf("wake displaced current owner: task=%+v err=%v", got, err)
+		}
+		parked, err := repos.Runs.Get(ctx, orphan.ID)
+		if err != nil || parked.Status != domain.RunStatusParked || parked.AwaitHandle == nil {
+			t.Fatalf("different-owner wake changed parked Run: run=%+v err=%v", parked, err)
+		}
+	})
+}
+
 // TestWakeRun_Idempotent verifies replay-safety: waking a run that is not parked
 // (already woken, or cancelled) is a no-op that returns the current run rather
 // than re-resuming it — so a waiter double-resolve cannot double-wake.

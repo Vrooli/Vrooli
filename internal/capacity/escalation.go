@@ -18,6 +18,7 @@ const (
 // EscalationAction is one planned step against a reclaim target.
 type EscalationAction struct {
 	ClaimID    string `json:"claim_id"`
+	Generation int64  `json:"generation"`
 	OwnerID    string `json:"owner_id"`
 	Action     string `json:"action"`
 	ToStep     string `json:"to_step,omitempty"` // for request-degrade
@@ -72,7 +73,7 @@ func PlanEscalation(requesterPriority int, deficit int64, candidates []CapacityC
 		if eligible[i].Priority != eligible[j].Priority {
 			return eligible[i].Priority < eligible[j].Priority
 		}
-		return idleSince(eligible[i]).Before(idleSince(eligible[j]))
+		return IdleSince(eligible[i]).Before(IdleSince(eligible[j]))
 	})
 
 	for _, c := range eligible {
@@ -89,6 +90,7 @@ func PlanEscalation(requesterPriority int, deficit int64, candidates []CapacityC
 		if policy.PreemptEnabled {
 			plan.Actions = append(plan.Actions, EscalationAction{
 				ClaimID:    c.ClaimID,
+				Generation: c.Generation,
 				OwnerID:    c.OwnerID,
 				Action:     ActionPreempt,
 				FreesBytes: c.AmountBytes,
@@ -146,6 +148,7 @@ func degradeAction(c CapacityClaim, need int64) (EscalationAction, bool) {
 	frees := c.AmountBytes - chosen.amount
 	return EscalationAction{
 		ClaimID:    c.ClaimID,
+		Generation: c.Generation,
 		OwnerID:    c.OwnerID,
 		Action:     ActionRequestDegrade,
 		ToStep:     chosen.label,
@@ -154,7 +157,8 @@ func degradeAction(c CapacityClaim, need int64) (EscalationAction, bool) {
 	}, true
 }
 
-func idleSince(c CapacityClaim) time.Time {
+// IdleSince is the durable beginning of the current idle dwell.
+func IdleSince(c CapacityClaim) time.Time {
 	if c.LastActiveAt != nil {
 		return *c.LastActiveAt
 	}

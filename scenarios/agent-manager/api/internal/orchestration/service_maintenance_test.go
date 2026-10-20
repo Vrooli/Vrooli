@@ -49,6 +49,12 @@ func TestPurgeDataDryRunThenDeletesMatchingDurableRecords(t *testing.T) {
 	if err := eventStore.Append(ctx, removeRun.ID, fixtures.NewRunEvent(t, removeRun.ID)); err != nil {
 		t.Fatalf("append removable event: %v", err)
 	}
+	if err := o.StopRun(ctx, removeRun.ID); err != nil {
+		t.Fatalf("terminalize removable run through lifecycle owner: %v", err)
+	}
+	if err := o.CancelTask(ctx, removeTask.ID); err != nil {
+		t.Fatalf("terminalize removable task through lifecycle owner: %v", err)
+	}
 
 	req := PurgeRequest{Pattern: "^remove", Targets: []PurgeTarget{PurgeTargetProfiles, PurgeTargetTasks, PurgeTargetRuns}, DryRun: true}
 	dryRun, err := o.PurgeData(ctx, req)

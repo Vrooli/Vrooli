@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+
 	"personal-planner/cli/domains"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -51,6 +53,12 @@ func NewApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+	core.HTTPClient.SetHeaderSource(func() map[string]string {
+		if os.Getenv("PERSONAL_PLANNER_TEST_MODE") != "1" {
+			return nil
+		}
+		return map[string]string{"X-Vrooli-Test-Mode": "1"}
+	})
 	app.core = core
 	return app, nil
 }

@@ -65,6 +65,46 @@ func TestFileTraceLoaderParsesFixture(t *testing.T) {
 	}
 }
 
+func TestSummarizeFramesExcludesMetadataFromTimedEnvelope(t *testing.T) {
+	frames := summarizeFrames([]traceEvent{
+		{Ph: "M", Name: "process_name", Ts: 0},
+		{Ph: "M", Name: "DrawFrame", Ts: 0},
+		{Ph: "X", Name: "BeginFrame", Ts: 4_099_363_685_560, Dur: 1000},
+		{Ph: "X", Name: "DrawFrame", Ts: 4_099_366_560_151, Dur: 1000},
+		{Ph: "X", Name: "DroppedFrame", Ts: 4_099_366_561_151, Dur: 1000},
+	})
+	if frames.BeginFrameCount != 1 || frames.DrawnFrameCount != 1 || frames.DroppedFrameCount != 1 {
+		t.Fatalf("frame summary counted metadata or lost timed frames: %#v", frames)
+	}
+	if frames.TraceDurationMs != 2876.6 || frames.ApproxDrawnFPS != 0.3 {
+		t.Fatalf("frame duration/rate used metadata timestamp: %#v", frames)
+	}
+	if frames.DroppedFrameRate != 0.5 {
+		t.Fatalf("dropped-frame rate changed: %#v", frames)
+	}
+}
+
+func TestSummarizeFramesKeepsTimedZeroTimestamp(t *testing.T) {
+	frames := summarizeFrames([]traceEvent{
+		{Ph: "M", Name: "process_name", Ts: 0},
+		{Ph: "X", Name: "BeginFrame", Ts: 0, Dur: 1000},
+		{Ph: "X", Name: "DrawFrame", Ts: 16000, Dur: 1000},
+	})
+	if frames.TraceDurationMs != 17 || frames.ApproxDrawnFPS != 58.8 {
+		t.Fatalf("valid timed event at zero must remain the interval origin: %#v", frames)
+	}
+}
+
+func TestSummarizeFramesWithoutTimedEventsHasNoDuration(t *testing.T) {
+	frames := summarizeFrames([]traceEvent{
+		{Ph: "M", Name: "process_name", Ts: 0},
+		{Ph: "M", Name: "thread_name", Ts: 0},
+	})
+	if frames.TraceDurationMs != 0 || frames.ApproxDrawnFPS != 0 {
+		t.Fatalf("metadata-only trace must not imply a timed frame interval: %#v", frames)
+	}
+}
+
 // [REQ:PH-ANALYSIS-001] A Tier-0 trace (no ⚛ marks) yields an empty component
 // table and never errors; web-vitals are still parsed.
 func TestFileTraceLoaderTier0NoComponentMarks(t *testing.T) {

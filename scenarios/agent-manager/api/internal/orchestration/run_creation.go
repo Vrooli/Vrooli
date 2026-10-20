@@ -180,8 +180,8 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 
 	// Normalize a copy; rejected admission must not update task storage.
 	taskCopy := *task
+	expectedProjectRoot := taskCopy.ProjectRoot
 	task = &taskCopy
-	taskRootChanged := false
 	// Resolve relative project root to absolute (workspace-sandbox requires absolute paths).
 	// Fall back to DefaultProjectRoot when the task has no project root set.
 	if pr := strings.TrimSpace(task.ProjectRoot); pr == "" || !filepath.IsAbs(pr) {
@@ -196,7 +196,6 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 		}
 		if resolved != task.ProjectRoot {
 			task.ProjectRoot = resolved
-			taskRootChanged = true
 		}
 	}
 
@@ -324,7 +323,8 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 			failCreation()
 			return nil, domain.NewValidationError("spawnPolicy", "selected runner is unavailable: "+err.Error())
 		}
-		resolution, err := ResolveSpawnPolicy(profile.SpawnPolicy, selected.Capabilities())
+		constraints := spawnPolicyConstraintsForRequest(req)
+		resolution, err := ResolveSpawnPolicyWithConstraints(profile.SpawnPolicy, selected.Capabilities(), constraints)
 		if err != nil {
 			failCreation()
 			return nil, domain.NewValidationError("spawnPolicy", err.Error())
@@ -532,23 +532,6 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 		}
 	}
 	reserved = true
-	if err := o.preflightScopePath(task, runMode, req.ExistingSandboxID); err != nil {
-		failCreation()
-		return nil, err
-	}
-	if sandboxToStart != nil {
-		if err := o.sandbox.Start(ctx, *sandboxToStart); err != nil {
-			failCreation()
-			return nil, err
-		}
-	}
-	if taskRootChanged && o.tasks != nil {
-		task.UpdatedAt = o.now()
-		if err := o.tasks.Update(ctx, task); err != nil {
-			failCreation()
-			return nil, err
-		}
-	}
 	run := &domain.Run{
 		ID:                       runID,
 		TaskID:                   task.ID,
@@ -611,11 +594,69 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 	if req.ExistingSandboxID != nil {
 		run.SandboxID = req.ExistingSandboxID
 	}
-
-	if err := o.runs.Create(ctx, run); err != nil {
+	// Reserve the dispatcher-owned cancellation fence before the durable Task
+	// claim. Cancellation can close this local gate while the atomic owner
+	// transaction decides whether this attempt was admitted.
+	admission, err := o.dispatcher.ReserveAdmission(run.ID)
+	if err != nil {
 		failCreation()
 		return nil, err
 	}
+	admissionHandedOff := false
+	defer func() {
+		if !admissionHandedOff {
+			o.dispatcher.ReleaseAdmission(run.ID, admission)
+		}
+	}()
+
+	// Atomically persist the current attempt and its Run receipt before any
+	// sandbox start or runner dispatch. The repository CAS accepts only a
+	// queued unowned task or a terminal exact current attempt; ambiguous legacy
+	// histories remain refused rather than selecting a latest Run.
+	if o.runs == nil {
+		failCreation()
+		return nil, domain.NewConfigMissingError("runs", "repository not configured", nil)
+	}
+	if err := o.runs.CreateTaskAttempt(ctx, task, run, task.CurrentRunID, expectedProjectRoot); err != nil {
+		failCreation()
+		return nil, err
+	}
+	reserved = false
+	o.markIdempotencyComplete(ctx, req.IdempotencyKey, run.ID, "Run")
+	failAdmittedRun := func(cause error) error {
+		run.Status = domain.RunStatusFailed
+		run.ErrorMsg = cause.Error()
+		endedAt := o.now()
+		run.EndedAt = &endedAt
+		if persistErr := o.runs.Update(context.WithoutCancel(ctx), run); persistErr != nil {
+			return fmt.Errorf("%v; persist admitted run failure: %w", cause, persistErr)
+		}
+		return cause
+	}
+	if err := o.preflightScopePath(task, runMode, req.ExistingSandboxID); err != nil {
+		return nil, failAdmittedRun(err)
+	}
+	if sandboxToStart != nil {
+		if !admission.BeginExternalStart() {
+			return nil, failAdmittedRun(domain.NewStateError("Task", string(task.Status), "start run", "task attempt was cancelled before sandbox startup"))
+		}
+		err := o.sandbox.Start(admission.Context(), *sandboxToStart)
+		admission.EndExternalStart()
+		if err != nil {
+			if admission.Cancelled() {
+				stopErr := o.StopRun(context.WithoutCancel(ctx), run.ID)
+				return nil, domain.NewStateError("Run", "start_uncertain", "create", fmt.Sprintf("sandbox start returned after task cancellation; provider effect may have occurred (start=%v stop=%v)", err, stopErr))
+			}
+			return nil, failAdmittedRun(err)
+		}
+		if admission.Cancelled() {
+			if stopErr := o.StopRun(context.WithoutCancel(ctx), run.ID); stopErr != nil {
+				return nil, domain.NewStateError("Run", "start_uncertain", "create", fmt.Sprintf("sandbox started while task cancellation won; exact run stop failed: %v", stopErr))
+			}
+			return nil, domain.NewStateError("Run", "start_uncertain", "create", "task was cancelled during sandbox startup; the exact Run was stopped but the provider sandbox may remain active")
+		}
+	}
+
 	if o.toolRestrictionIsAdvisory(resolvedConfig) && o.events != nil {
 		declared := "allowedTools"
 		if len(resolvedConfig.AllowedTools) == 0 {
@@ -634,9 +675,6 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 			}
 		}
 	}
-
-	// Mark idempotency as complete
-	o.markIdempotencyComplete(ctx, req.IdempotencyKey, run.ID, "Run")
 
 	// Sandbox-default rollout adoption metrics (Phase D of
 	// agent-sandbox-audit-foundation). Three labels capture the rollout
@@ -702,6 +740,9 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 			obs.Component("orchestrator").Warn("failed to append initial user message", obs.KeyRunID, run.ID.String(), "eventType", "message", obs.KeyError, err.Error())
 		}
 	}
+	if admission.Cancelled() {
+		return nil, domain.NewStateError("Task", string(domain.TaskStatusCancelled), "create run", "task was cancelled before the dispatcher claim; the admitted Run will not start")
+	}
 
 	// Hand the executor body to the spawn dispatcher. Enqueue is the
 	// only path through which a run begins — direct goroutine spawning
@@ -711,25 +752,26 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 	// immediately after enqueue, while the dispatcher may start execution at
 	// once. The asynchronous executor must not copy that record concurrently.
 	executionRun := *run
-	if err := o.dispatcher.Enqueue(&spawn.Job{
+	if err := o.dispatcher.EnqueueAdmitted(&spawn.Job{
 		RunID:      run.ID,
 		RunMode:    run.RunMode,
 		RunnerType: runnerTypeOrEmpty(run),
 		Sink:       o.dispatcherSink(run.ID),
 		Fn: func(started spawn.StartedFn) {
+			defer o.dispatcher.ReleaseAdmission(run.ID, admission)
 			defer obs.RecoverToFailure("run execution dispatch", func(failure obs.PanicFailure) {
 				o.recoverPanickedRun(run, failure)
 			})
 			executionRunCopy := executionRun
-			o.executeRun(context.WithoutCancel(ctx), &executionRunCopy, task, profile, userMessage, systemPrompt, existingSandboxWorkDir, imageAttachments, req.Environment, started)
+			o.executeRun(admission.Context(), &executionRunCopy, task, profile, userMessage, systemPrompt, existingSandboxWorkDir, imageAttachments, req.Environment, started)
 		},
 		OnPanic: func(failure obs.PanicFailure) {
 			o.recoverPanickedRun(run, failure)
 		},
-	}); err != nil {
-		failCreation()
-		return nil, err
+	}, admission); err != nil {
+		return nil, failAdmittedRun(err)
 	}
+	admissionHandedOff = true
 
 	return o.attachRunActions(ctx, run), nil
 }
@@ -832,4 +874,18 @@ func (o *Orchestrator) markIdempotencyComplete(ctx context.Context, key string, 
 	if err := o.idempotency.Complete(ctx, key, entityID, entityType, nil); err != nil {
 		obs.Component("orchestrator").Warn("failed to mark idempotency key complete", "idempotencyKey", key, "entityId", entityID.String(), "entityType", entityType, obs.KeyError, err.Error())
 	}
+}
+
+// spawnPolicyConstraintsForRequest captures caller-selected axes before the
+// profile preference resolver can choose among runner capabilities.
+func spawnPolicyConstraintsForRequest(req CreateRunRequest) SpawnPolicyConstraints {
+	constraints := SpawnPolicyConstraints{
+		ExecutionMode: string(req.ExecutionMode),
+		ForceInPlace:  req.ForceInPlace,
+	}
+	if req.SandboxConfig != nil && req.SandboxConfig.Mode != domain.SandboxModeUnspecified {
+		constraints.SandboxMode = string(req.SandboxConfig.Mode)
+	}
+	constraints.RunMode = req.RunMode
+	return constraints
 }

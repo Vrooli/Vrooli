@@ -14,107 +14,152 @@ import (
 // 2). It only observes and classifies — no enforcement. UNCLAIMED and
 // OVER_CLAIM are warn-level; CLAIMED is info.
 func Reconcile(ctx context.Context, snapshot hostinventory.Snapshot, ledger []CapacityClaim, attr Attributor, policy Policy) []Finding {
-	if attr == nil {
-		attr = unknownAttributor{}
-	}
-	active := make([]CapacityClaim, 0, len(ledger))
-	for _, c := range ledger {
-		if IsActiveClaimStatus(c.Status) && c.ResourceKind == ResourceKindVRAM {
-			active = append(active, c)
-		}
-	}
-
+	observations := observeClaimUsage(ctx, ledger, snapshot, attr)
 	var findings []Finding
-	for _, proc := range snapshot.GPUProcesses {
-		observed := int64(proc.UsedBytes)
+	// A reservation covers the aggregate, not each worker independently.
+	for _, c := range ledger {
+		workers := observations.assigned[c.ClaimID]
+		if len(workers) == 0 {
+			continue
+		}
+		var observed int64
+		var pids []int
+		for _, proc := range workers {
+			observed += int64(proc.UsedBytes)
+			pids = append(pids, proc.PID)
+		}
 		if observed < policy.TrackingThreshold {
 			continue
 		}
-		a := attr.Attribute(ctx, proc.PID)
-		idx := proc.GPUIndex
-		finding := Finding{
-			ResourceKind:  ResourceKindVRAM,
-			GPUIndex:      &idx,
-			PID:           proc.PID,
-			ProcessName:   proc.ProcessName,
-			ObservedBytes: observed,
-			OwnerID:       observedOwnerLabel(a, proc),
+		idx := gpuIndexOf(c)
+		f := Finding{Class: FindingClaimed, OwnerID: c.OwnerID, OwnerKind: c.OwnerKind, ResourceKind: ResourceKindVRAM, GPUIndex: &idx, ClaimID: c.ClaimID, ClaimedBytes: c.AmountBytes, ObservedBytes: observed, ObservedPeakBytes: c.ObservedPeakBytes, Severity: "info", PIDs: pids}
+		if len(workers) == 1 {
+			f.PID = workers[0].PID
+			f.ProcessName = workers[0].ProcessName
 		}
-
-		claim, matched := matchClaim(active, a, proc)
-		if !matched {
-			finding.Class = FindingUnclaimed
-			finding.Severity = ActionWarn
-			finding.Message = fmt.Sprintf("unclaimed GPU consumer %q (pid %d) using %s on gpu %d holds no capacity claim",
-				finding.OwnerID, proc.PID, humanBytes(observed), proc.GPUIndex)
-			findings = append(findings, finding)
+		if observed > c.AmountBytes+policy.ReconcileWarnThreshold {
+			f.Class = FindingOverClaim
+			f.Severity = ActionWarn
+			f.Message = fmt.Sprintf("owner %q workers %v use %s on gpu %d but reserve %s (aggregate drift > %s)", c.OwnerID, pids, humanBytes(observed), idx, humanBytes(c.AmountBytes), humanBytes(policy.ReconcileWarnThreshold))
+		} else {
+			f.Message = fmt.Sprintf("owner %q claim %s covers workers %v using %s on gpu %d", c.OwnerID, c.ClaimID, pids, humanBytes(observed), idx)
+		}
+		findings = append(findings, f)
+	}
+	for _, unbound := range observations.unbound {
+		proc := unbound.proc
+		if int64(proc.UsedBytes) < policy.TrackingThreshold {
 			continue
 		}
-
-		finding.ClaimID = claim.ClaimID
-		finding.ClaimedBytes = claim.AmountBytes
-		finding.ObservedPeakBytes = claim.ObservedPeakBytes
-		finding.OwnerKind = claim.OwnerKind
-		finding.OwnerID = claim.OwnerID
-		if observed > claim.AmountBytes+policy.ReconcileWarnThreshold {
-			finding.Class = FindingOverClaim
-			finding.Severity = ActionWarn
-			finding.Message = fmt.Sprintf("owner %q uses %s on gpu %d but claimed only %s (over-claim drift > %s)",
-				claim.OwnerID, humanBytes(observed), proc.GPUIndex, humanBytes(claim.AmountBytes), humanBytes(policy.ReconcileWarnThreshold))
-		} else {
-			finding.Class = FindingClaimed
-			finding.Severity = "info"
-			finding.Message = fmt.Sprintf("owner %q claim %s covers %s on gpu %d",
-				claim.OwnerID, claim.ClaimID, humanBytes(observed), proc.GPUIndex)
-		}
-		findings = append(findings, finding)
+		idx := proc.GPUIndex
+		findings = append(findings, Finding{Class: FindingUnclaimed, OwnerID: observedOwnerLabel(unbound.attr, proc), ResourceKind: ResourceKindVRAM, GPUIndex: &idx, PID: proc.PID, ProcessName: proc.ProcessName, ObservedBytes: int64(proc.UsedBytes), Severity: ActionWarn, Message: fmt.Sprintf("GPU consumer pid %d has no unique capacity claim association: %s", proc.PID, unbound.reason)})
 	}
 	return findings
 }
 
-// matchClaim finds an active claim on the same GPU whose owner matches the
-// attribution. Matching is intentionally loose (exact, or either name contains
-// the other) because container names and declared owner ids use different
-// conventions.
-func matchClaim(active []CapacityClaim, a Attribution, proc hostinventory.GPUProcess) (CapacityClaim, bool) {
-	candidates := []string{a.OwnerID, NormalizeOwnerName(a.ContainerName), strings.TrimPrefix(a.ContainerName, "/"), NormalizeProcessOwner(proc.ProcessName)}
-	for _, c := range active {
-		if !sameGPU(c.GPUIndex, &proc.GPUIndex) {
-			continue
-		}
-		owner := strings.TrimSpace(c.OwnerID)
-		if owner == "" {
-			continue
-		}
-		for _, cand := range candidates {
-			cand = strings.TrimSpace(cand)
-			if cand == "" || cand == OwnerUnknown {
+type (
+	unboundProcess struct {
+		proc   hostinventory.GPUProcess
+		attr   Attribution
+		reason string
+	}
+	claimUsage struct {
+		assigned  map[string][]hostinventory.GPUProcess
+		uncertain ExpiryExclusions
+		unbound   []unboundProcess
+	}
+)
+
+// observeClaimUsage assigns each physical process once against the full active
+// cohort. Exact normalized identities are evidence; family/prefix names are not
+// an operation identity. Ambiguity is unknown presence, never proven absence.
+func observeClaimUsage(ctx context.Context, claims []CapacityClaim, snapshot hostinventory.Snapshot, attr Attributor) claimUsage {
+	if attr == nil {
+		attr = unknownAttributor{}
+	}
+	result := claimUsage{assigned: map[string][]hostinventory.GPUProcess{}, uncertain: ExpiryExclusions{}}
+	for _, proc := range snapshot.GPUProcesses {
+		a := attr.Attribute(ctx, proc.PID)
+		ids := ownerCandidates(a, proc)
+		matches := []CapacityClaim{}
+		for _, c := range claims {
+			if !IsActiveClaimStatus(c.Status) || c.ResourceKind != ResourceKindVRAM || !sameGPU(c.GPUIndex, &proc.GPUIndex) {
 				continue
 			}
-			if ownerMatches(owner, cand) {
-				return c, true
+			if ids[strings.TrimSpace(c.OwnerID)] {
+				matches = append(matches, c)
 			}
 		}
+		for _, c := range claims {
+			if c.OwnerKind == OwnerKindOp && IsActiveClaimStatus(c.Status) && sameGPU(c.GPUIndex, &proc.GPUIndex) {
+				if colon := strings.IndexByte(c.OwnerID, ':'); colon > 0 && ids[c.OwnerID[:colon]] && !ids[c.OwnerID] {
+					result.uncertain[c.ClaimID] = "resource family does not identify an operation"
+				}
+			}
+		}
+		if len(ids) > 1 {
+			reason := "conflicting canonical owner identities"
+			for _, c := range matches {
+				result.uncertain[c.ClaimID] = reason
+			}
+			result.unbound = append(result.unbound, unboundProcess{proc: proc, attr: a, reason: reason})
+			continue
+		}
+		if len(matches) == 1 {
+			c := matches[0]
+			result.assigned[c.ClaimID] = append(result.assigned[c.ClaimID], proc)
+			continue
+		}
+		reason := "no exact owner binding"
+		if len(matches) > 1 {
+			reason = "ambiguous owner binding"
+			for _, c := range matches {
+				result.uncertain[c.ClaimID] = reason
+			}
+		}
+		if len(ids) == 0 {
+			reason = "process ownership is unknown"
+			for _, c := range claims {
+				if claimRefreshable(c) && sameGPU(c.GPUIndex, &proc.GPUIndex) {
+					result.uncertain[c.ClaimID] = reason
+				}
+			}
+		}
+		result.unbound = append(result.unbound, unboundProcess{proc: proc, attr: a, reason: reason})
 	}
-	return CapacityClaim{}, false
+	return result
 }
 
-// ownerMatches compares a claim owner id against an attributed candidate. An
-// op-scoped owner ("image-tools:job-123") matches its scenario prefix
-// ("image-tools").
-func ownerMatches(claimOwner, candidate string) bool {
-	if claimOwner == candidate {
-		return true
+func ownerCandidates(a Attribution, proc hostinventory.GPUProcess) map[string]bool {
+	result := map[string]bool{}
+	for _, id := range []string{a.OwnerID, NormalizeOwnerName(a.ContainerName), NormalizeProcessOwner(proc.ProcessName)} {
+		id = strings.TrimSpace(id)
+		if id != "" && id != OwnerUnknown {
+			result[id] = true
+		}
 	}
-	base := claimOwner
-	if i := strings.IndexByte(base, ':'); i > 0 {
-		base = base[:i]
-	}
-	if base == candidate {
-		return true
-	}
-	return strings.Contains(candidate, base) || strings.Contains(base, candidate)
+	return result
 }
+
+// matchClaim also serves declared-resident adoption; ambiguity must not select
+// an arbitrary existing row. Sampling and sweep use one full-cohort assignment.
+func matchClaim(active []CapacityClaim, a Attribution, proc hostinventory.GPUProcess) (CapacityClaim, bool) {
+	ids := ownerCandidates(a, proc)
+	if len(ids) != 1 {
+		return CapacityClaim{}, false
+	}
+	var found CapacityClaim
+	count := 0
+	for _, c := range active {
+		if IsActiveClaimStatus(c.Status) && sameGPU(c.GPUIndex, &proc.GPUIndex) && ids[strings.TrimSpace(c.OwnerID)] {
+			found = c
+			count++
+		}
+	}
+	return found, count == 1
+}
+
+func ownerMatches(claimOwner, candidate string) bool { return claimOwner == candidate }
 
 func observedOwnerLabel(a Attribution, proc hostinventory.GPUProcess) string {
 	if a.OwnerID != "" && a.OwnerID != OwnerUnknown {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"testing"
+	"time"
 
 	"github.com/vrooli/api-core/schedule"
 	_ "modernc.org/sqlite"
@@ -15,6 +16,7 @@ func TestSQLiteMilestonePrerequisitesBlockCompletionAndRollUpProgress(t *testing
 		t.Fatal(err)
 	}
 	defer db.Close()
+	db.SetMaxOpenConns(1)
 	if _, err := db.Exec(schemaSQL); err != nil {
 		t.Fatal(err)
 	}
@@ -49,7 +51,9 @@ func TestSQLiteMilestonePrerequisitesBlockCompletionAndRollUpProgress(t *testing
 	if len(goals) != 1 || goals[0].ProgressBasisPoints != 10000 {
 		t.Fatalf("goals=%#v", goals)
 	}
-	milestones, err := repo.ListMilestones(context.Background(), "goal-1")
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	milestones, err := repo.ListMilestones(ctx, "goal-1")
 	if err != nil || len(milestones) != 2 || len(milestones[1].PrerequisiteMilestoneIDs) != 1 {
 		t.Fatalf("milestones=%#v err=%v", milestones, err)
 	}

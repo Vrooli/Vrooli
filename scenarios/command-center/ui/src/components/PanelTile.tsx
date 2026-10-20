@@ -1,5 +1,5 @@
 import type { PanelRow, Reading } from "../lib/api";
-import { qualify, resolveReading } from "@vrooli/react-component-library/ProvenanceInk/0.1.2";
+import { qualify, resolveReading } from "@vrooli/react-component-library/ProvenanceInk/0.1.3";
 import { TileQualifier } from "./TileQualifier";
 import { panelEmptyMessage } from "../lib/panelEmptyState";
 

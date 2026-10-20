@@ -9,7 +9,9 @@ import (
 	"testing"
 	"time"
 
+	"deployment-manager/internal/authz"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/authn"
 	apiidentity "github.com/vrooli/api-core/identity"
 )
 
@@ -22,24 +24,29 @@ type identityRepoFake struct {
 func (f *identityRepoFake) RegisterCandidate(context.Context, Candidate) (*CandidateRecord, error) {
 	return f.candidate, nil
 }
+
 func (f *identityRepoFake) GetCandidate(context.Context, string) (*CandidateRecord, error) {
 	if f.candidate == nil {
 		return nil, errors.New("candidate not found")
 	}
 	return f.candidate, nil
 }
+
 func (f *identityRepoFake) RegisterDestinationRevision(context.Context, DestinationRevision) (*DestinationRevisionRecord, error) {
 	return f.destination, nil
 }
+
 func (f *identityRepoFake) GetDestinationRevision(context.Context, string) (*DestinationRevisionRecord, error) {
 	if f.destination == nil {
 		return nil, errors.New("destination not found")
 	}
 	return f.destination, nil
 }
+
 func (f *identityRepoFake) RegisterReview(context.Context, string, ReviewBinding, string, *time.Time) (*ReviewRecord, error) {
 	return f.review, nil
 }
+
 func (f *identityRepoFake) GetReview(context.Context, string) (*ReviewRecord, error) {
 	if f.review == nil {
 		return nil, errors.New("review not found")
@@ -48,6 +55,14 @@ func (f *identityRepoFake) GetReview(context.Context, string) (*ReviewRecord, er
 }
 
 func TestStartRequiresDurableIdentityBindingBeforeOrchestration(t *testing.T) {
+	testStartDurableIdentityBinding(t, false)
+}
+
+func TestAuthorizedAgentExecutesExactApprovedReleaseWithoutBecomingApprover(t *testing.T) {
+	testStartDurableIdentityBinding(t, true)
+}
+
+func testStartDurableIdentityBinding(t *testing.T, delegated bool) {
 	candidate := Candidate{
 		SourceRevision:       "commit-1",
 		ProfileRevision:      "profile-1",
@@ -92,7 +107,19 @@ func TestStartRequiresDurableIdentityBindingBeforeOrchestration(t *testing.T) {
 		WithAuthorization(func(context.Context) error { return nil }).
 		WithReadinessLookup(func(context.Context, string) (*ReadinessApproval, error) { return approval, nil }).
 		WithIdentityRepository(identity)
+	if delegated {
+		handler.WithAuthorization(func(ctx context.Context) error { _, err := authn.RequireHuman(ctx); return err }).WithExecutionAuthorization(authz.RequireWrite)
+	}
 	router := mux.NewRouter()
+	if delegated {
+		grant := &apiidentity.OperationGrant{ID: "grant", Approver: "human-owner", Operations: []string{"deployment.manage"}, Targets: []string{"deployment-manager:*"}, ExpiresAt: time.Now().Add(time.Hour)}
+		principal := apiidentity.Principal{Kind: apiidentity.ActorAgent, Subject: "executor-run", Owner: "human-owner", Source: apiidentity.SourceAgentProvenance, Verified: true, Scopes: []string{"deployment-manager:write"}, Grant: grant}
+		router.Use(func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				next.ServeHTTP(w, r.WithContext(apiidentity.WithPrincipal(r.Context(), principal)))
+			})
+		})
+	}
 	router.HandleFunc("/api/v1/profiles/{id}/releases/start", handler.Start).Methods(http.MethodPost)
 
 	request := httptest.NewRequest(http.MethodPost, "/api/v1/profiles/p1/releases/start", strings.NewReader(`{"git_commit_hash":"commit-1","artifact_digest":"`+manifestDigest+`","candidate_id":"`+candidateID+`","destination_revision_id":"`+destinationID+`","authorization_epoch":1,"readiness_review_key":"review-1","release_version":"1.0.0","channel":"stable","platforms":["linux-x64"]}`))

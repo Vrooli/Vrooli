@@ -402,3 +402,72 @@ VALUES ('fork-1', 'react-component-library:Input', '1.1.0', 'ui/src/Input.tsx');
 	require.Len(t, candidates, 1, "an explicitly ejected fork owns its bytes and must not pin the upstream materialization")
 	require.Equal(t, "1.1.0", candidates[0].Version)
 }
+
+func TestRetainedDraftDependencyClosureKeepsExactOldPinsLive(t *testing.T) {
+	database := databasetest.NewSQLite(t)
+	root := t.TempDir()
+	_, err := database.ExecContext(context.Background(), `
+CREATE TABLE components (id TEXT PRIMARY KEY, library_id TEXT NOT NULL, latest_version TEXT NOT NULL, draft_version TEXT NOT NULL, manifest_path TEXT NOT NULL DEFAULT '');
+CREATE TABLE component_versions (id TEXT PRIMARY KEY, component_id TEXT NOT NULL, library_id TEXT NOT NULL, version TEXT NOT NULL, status TEXT NOT NULL, source_path TEXT NOT NULL, presence TEXT NOT NULL DEFAULT 'materialized', created_at TEXT NOT NULL, released_at TEXT NOT NULL);
+CREATE TABLE adoption_records (id TEXT, component_id TEXT, library_id TEXT, adopted_version TEXT, mode TEXT NOT NULL DEFAULT 'copied', scenario TEXT NOT NULL DEFAULT '', adopted_path TEXT NOT NULL DEFAULT '');
+CREATE TABLE adoption_files (adoption_id TEXT, source_library_id TEXT, source_version TEXT, adopted_path TEXT NOT NULL DEFAULT '');
+CREATE TABLE component_asset_dependencies (library_id TEXT, version TEXT);
+`)
+	require.NoError(t, err)
+	type versionFixture struct {
+		componentID, libraryID, version, status, sourcePath string
+		dependencies                                       []struct{ libraryID, version string }
+	}
+	versions := []versionFixture{
+		{componentID: "root", libraryID: "react-component-library:DraftRoot", version: "2.0.0", status: "released", sourcePath: "components/DraftRoot/versions/2.0.0/DraftRoot.tsx"},
+		{componentID: "root", libraryID: "react-component-library:DraftRoot", version: "2.1.0-draft.1", status: "draft", sourcePath: "components/DraftRoot/versions/2.1.0-draft.1/DraftRoot.tsx", dependencies: []struct{ libraryID, version string }{{"react-component-library:Direct", "1.0.0"}}},
+		{componentID: "direct", libraryID: "react-component-library:Direct", version: "1.0.0", status: "released", sourcePath: "components/Direct/versions/1.0.0/Direct.tsx", dependencies: []struct{ libraryID, version string }{{"react-component-library:Transitive", "1.0.0"}}},
+		{componentID: "direct", libraryID: "react-component-library:Direct", version: "1.1.0", status: "released", sourcePath: "components/Direct/versions/1.1.0/Direct.tsx"},
+		{componentID: "transitive", libraryID: "react-component-library:Transitive", version: "1.0.0", status: "released", sourcePath: "components/Transitive/versions/1.0.0/Transitive.tsx"},
+		{componentID: "transitive", libraryID: "react-component-library:Transitive", version: "1.1.0", status: "released", sourcePath: "components/Transitive/versions/1.1.0/Transitive.tsx"},
+		{componentID: "orphan", libraryID: "react-component-library:Orphan", version: "1.0.0", status: "released", sourcePath: "components/Orphan/versions/1.0.0/Orphan.tsx"},
+		{componentID: "orphan", libraryID: "react-component-library:Orphan", version: "1.1.0", status: "released", sourcePath: "components/Orphan/versions/1.1.0/Orphan.tsx"},
+	}
+	for _, version := range versions {
+		versionDir := filepath.Join(root, filepath.Dir(filepath.FromSlash(version.sourcePath)))
+		require.NoError(t, os.MkdirAll(versionDir, 0o755))
+		lockDependencies := make([]map[string]string, 0, len(version.dependencies))
+		for _, dependency := range version.dependencies {
+			lockDependencies = append(lockDependencies, map[string]string{"libraryId": dependency.libraryID, "version": dependency.version})
+		}
+		lock, marshalErr := json.Marshal(map[string]any{"libraryId": version.libraryID, "version": version.version, "dependencies": lockDependencies})
+		require.NoError(t, marshalErr)
+		require.NoError(t, os.WriteFile(filepath.Join(versionDir, filepath.Base(version.sourcePath)), []byte("export const Fixture = true;"), 0o600))
+		require.NoError(t, os.WriteFile(filepath.Join(versionDir, "dependencies.json"), lock, 0o600))
+		_, insertErr := database.ExecContext(context.Background(), `INSERT INTO component_versions (id, component_id, library_id, version, status, source_path, created_at, released_at) VALUES (?, ?, ?, ?, ?, ?, '2025-01-01T00:00:00Z', '2025-01-02T00:00:00Z')`, version.componentID+"-"+version.version, version.componentID, version.libraryID, version.version, version.status, version.sourcePath)
+		require.NoError(t, insertErr)
+	}
+	for _, component := range []struct{ id, libraryID, latest, draft string }{
+		{"root", "react-component-library:DraftRoot", "2.0.0", "2.1.0-draft.1"},
+		{"direct", "react-component-library:Direct", "1.1.0", ""},
+		{"transitive", "react-component-library:Transitive", "1.1.0", ""},
+		{"orphan", "react-component-library:Orphan", "1.1.0", ""},
+	} {
+		_, insertErr := database.ExecContext(context.Background(), `INSERT INTO components (id, library_id, latest_version, draft_version) VALUES (?, ?, ?, ?)`, component.id, component.libraryID, component.latest, component.draft)
+		require.NoError(t, insertErr)
+	}
+
+	items, _, err := NewRepository(database, root).PlanCleanup(context.Background(), CleanupScope{})
+	require.NoError(t, err)
+	byVersion := make(map[string]CleanupItem, len(items))
+	for _, item := range items {
+		byVersion[item.Candidate.LibraryID+"@"+item.Candidate.Version] = item
+	}
+	draft := byVersion["react-component-library:DraftRoot@2.1.0-draft.1"]
+	require.False(t, draft.Eligible)
+	require.Equal(t, "active draft", draft.Reason)
+	for _, exactPin := range []string{"react-component-library:Direct@1.0.0", "react-component-library:Transitive@1.0.0"} {
+		item, ok := byVersion[exactPin]
+		require.True(t, ok, "cleanup plan should include %s", exactPin)
+		require.False(t, item.Eligible, "%s is reachable from a retained draft's exact pin", exactPin)
+		require.Equal(t, "referenced by source import", item.Reason)
+	}
+	unreachable := byVersion["react-component-library:Orphan@1.0.0"]
+	require.True(t, unreachable.Eligible, "unreferenced released history should remain evictable")
+	require.Equal(t, "safe to retire", unreachable.Reason)
+}

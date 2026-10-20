@@ -30,6 +30,47 @@ func TestBASCaptureExecutorProbeRequiresHealthyBoundary(t *testing.T) {
 	require.Error(t, executor.Probe(context.Background()))
 }
 
+func TestAppendURLPathPreservesEscapedBasePathPrefix(t *testing.T) {
+	got, err := appendURLPath("https://bas.example/api%2Fv1/", basCaptureServicePath)
+	require.NoError(t, err)
+	require.Equal(t, "https://bas.example/api%2Fv1"+basCaptureServicePath, got)
+}
+
+func TestBASInspectionUsesJoinedHealthRequestPath(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		basePath string
+		wantPath string
+	}{
+		{name: "root", wantPath: "/health"},
+		{name: "slash prefix", basePath: "/api/v1/", wantPath: "/api/v1/health"},
+		{name: "escaped prefix", basePath: "/api%2Fv1/", wantPath: "/api%2Fv1/health"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			var gotPath string
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				gotPath = r.RequestURI
+				w.WriteHeader(http.StatusOK)
+			}))
+			defer server.Close()
+
+			executor := BASCaptureExecutor{BASBaseURL: server.URL + test.basePath, HTTPClient: server.Client()}
+			_, err := executor.InspectProvider(context.Background())
+			require.NoError(t, err)
+			require.Equal(t, test.wantPath, gotPath)
+		})
+	}
+}
+
+func TestSanitizedBASBaseURLRedactsCredentialAndRequestComponents(t *testing.T) {
+	got, exact := sanitizedBASBaseURL("https://operator:secret@example.test/prefix?token=hidden#private")
+	require.Equal(t, "https://example.test/prefix", got)
+	require.False(t, exact, "a redacted URL must not be claimed as the exact selected endpoint")
+	require.NotContains(t, got, "secret")
+	require.NotContains(t, got, "hidden")
+	require.NotContains(t, got, "private")
+}
+
 func TestBASCaptureExecutorParsesStoryAndEvidence(t *testing.T) {
 	var request basCaptureRequest
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -61,8 +102,11 @@ func TestBASCaptureExecutorParsesStoryAndEvidence(t *testing.T) {
 	if !request.InlineDOM || !request.InlineAccessibility || !request.InlineComputedStyle {
 		t.Fatalf("capture request did not request structured evidence: %+v", request)
 	}
-	if request.ScreenshotSelector != "[data-preview-sheet]" {
+	if request.ScreenshotSelector != `[data-preview-capture-boundary="component-sheet"]` {
 		t.Fatalf("screenshot selector = %q", request.ScreenshotSelector)
+	}
+	if request.Dimensions != (basDimensions{Width: 1280, Height: 800}) {
+		t.Fatalf("individual story dimensions = %+v", request.Dimensions)
 	}
 	if !strings.Contains(request.WaitFor.Selector, "data-preview-readiness-marker") || !strings.Contains(request.WaitFor.Selector, "data-preview-ready") || !strings.Contains(request.WaitFor.Selector, "data-rcl-story-status") {
 		t.Fatalf("wait selector = %q", request.WaitFor.Selector)
@@ -91,9 +135,25 @@ func TestBASCaptureExecutorCapturesBoundedStorySheet(t *testing.T) {
 	if result.Artifacts[0].Kind != "bas-story-sheet" || result.Artifacts[0].StoryID != "review-sheet:primary,error-retry" {
 		t.Fatalf("sheet artifact identity = %+v", result.Artifacts[0])
 	}
-	if !strings.Contains(request.URL, "stories=primary%2Cerror-retry") || strings.Contains(request.URL, "story=") {
+	parsedURL, err := url.Parse(request.URL)
+	require.NoError(t, err)
+	if got := parsedURL.Query().Get("stories"); got != "primary,error-retry" {
 		t.Fatalf("sheet URL = %q", request.URL)
 	}
+	if parsedURL.Query().Has("story") {
+		t.Fatalf("sheet URL unexpectedly has a single-story selector: %q", request.URL)
+	}
+	if request.Dimensions != (basDimensions{Width: 1280, Height: 800, DeviceScaleFactor: basStorySheetDeviceScaleFactor}) {
+		t.Fatalf("story-sheet dimensions = %+v", request.Dimensions)
+	}
+	if request.ScreenshotSelector != `[data-preview-capture-boundary="component-sheet"]` {
+		t.Fatalf("story-sheet screenshot selector = %q", request.ScreenshotSelector)
+	}
+	require.Equal(t, []string{
+		"CAPTURE_TYPE_SCREENSHOT", "CAPTURE_TYPE_DOM", "CAPTURE_TYPE_CONSOLE_LOGS",
+		"CAPTURE_TYPE_NETWORK", "CAPTURE_TYPE_PERFORMANCE", "CAPTURE_TYPE_ACCESSIBILITY",
+	}, request.Captures)
+	require.True(t, request.InlineDOM && request.InlineAccessibility && request.InlineComputedStyle)
 }
 
 func TestBrowserVisibleBASArtifactPathUsesRCLEmbeddedProxy(t *testing.T) {
@@ -137,6 +197,28 @@ func TestBASArtifactsKeepStorySheetBoundToItsScreenshot(t *testing.T) {
 	if got := byKind["bas-story-sheet"].Reference; got != "/embedded/browser-automation-studio/api/v1/artifacts/sheet.png" {
 		t.Fatalf("story sheet reference = %q", got)
 	}
+}
+
+func TestPageStoryCaptureKeepsPageOwnedScreenshotBoundary(t *testing.T) {
+	var request basCaptureRequest
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Fatal(err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"domHtml":"<main data-preview-sheet><pre id=\"rcl-story-result\">{\"passed\":true}</pre></main>","artifacts":[]}`))
+	}))
+	defer server.Close()
+
+	root := t.TempDir()
+	dir := filepath.Join(root, "ui", "src", "pages")
+	require.NoError(t, os.MkdirAll(dir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "Design.tsx"), []byte("export function Design() { return null }"), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "Design.story.json"), []byte(`{"schemaVersion":5,"kind":"page","route":"/design","environment":{"fixtures":[]},"stories":[{"id":"detail","name":"Detail","route":"/design/demo/page","role":"anatomy","expect":[{"kind":"text","value":"Design"}]}]}`), 0644))
+	executor := BASCaptureExecutor{RCLBaseURL: "http://rcl.test", BASBaseURL: server.URL, HTTPClient: server.Client(), PageSourceRoot: root, PageUIBaseURL: "http://ui.test"}
+	_, err := executor.ExecuteStory(context.Background(), "page:Design", "workspace", "detail")
+	require.NoError(t, err)
+	require.Equal(t, "[data-preview-sheet]", request.ScreenshotSelector)
 }
 
 func TestPageStoryURLUsesConcreteStoryRoute(t *testing.T) {

@@ -22,13 +22,33 @@ type SpawnResolution struct {
 
 type SpawnPreferenceSkip struct{ ExecutionMode, SandboxMode, Reason string }
 
+// SpawnPolicyConstraints carries caller-selected axes that a profile's
+// declaration-only preferences may rank around but never replace.
+type SpawnPolicyConstraints struct {
+	ExecutionMode string
+	SandboxMode   string
+	RunMode       *domain.RunMode
+	ForceInPlace  bool
+}
+
 // ResolveSpawnPolicy intersects declared profile preferences with facts
 // published by the selected runner. It ranks combinations lexicographically
 // by the profile's axisOrder, so no substrate or sandbox is chosen by a
 // runner-specific branch.
 func ResolveSpawnPolicy(policy *domain.SpawnPolicy, capabilities runner.Capabilities) (SpawnResolution, error) {
+	return ResolveSpawnPolicyWithConstraints(policy, capabilities, SpawnPolicyConstraints{})
+}
+
+// ResolveSpawnPolicyWithConstraints ranks only combinations that satisfy the
+// caller's explicit execution, sandbox, and run-mode constraints. Profile
+// preferences rank the remaining feasible combinations; they cannot silently
+// weaken an explicit caller request.
+func ResolveSpawnPolicyWithConstraints(policy *domain.SpawnPolicy, capabilities runner.Capabilities, constraints SpawnPolicyConstraints) (SpawnResolution, error) {
 	if policy == nil || len(policy.AxisOrder) == 0 {
 		return SpawnResolution{}, fmt.Errorf("spawn policy is required")
+	}
+	if err := validateSpawnPolicyConstraints(constraints); err != nil {
+		return SpawnResolution{}, err
 	}
 	allowed := make(map[string]bool)
 	for _, required := range policy.Require {
@@ -52,6 +72,9 @@ func ResolveSpawnPolicy(policy *domain.SpawnPolicy, capabilities runner.Capabili
 			if len(allowed) > 0 && !allowed[capability.ExecutionMode+"\x00"+sandbox] {
 				continue
 			}
+			if !matchesSpawnPolicyConstraints(capability.ExecutionMode, sandbox, constraints) {
+				continue
+			}
 			score := make([]int, len(policy.AxisOrder))
 			valid := true
 			for i, axis := range policy.AxisOrder {
@@ -59,8 +82,14 @@ func ResolveSpawnPolicy(policy *domain.SpawnPolicy, capabilities runner.Capabili
 				var value string
 				switch axis {
 				case "executionMode":
+					if constraints.ExecutionMode != "" {
+						continue
+					}
 					values, value = policy.ExecutionMode.Prefer, capability.ExecutionMode
 				case "sandboxMode":
+					if constraints.SandboxMode != "" {
+						continue
+					}
 					values, value = policy.SandboxMode.Prefer, sandbox
 				default:
 					valid = false
@@ -85,18 +114,39 @@ func ResolveSpawnPolicy(policy *domain.SpawnPolicy, capabilities runner.Capabili
 			return SpawnResolution{}, fmt.Errorf("spawn policy has no feasible executionMode/sandboxMode combination")
 		}
 		if len(capabilities.SpawnCapabilities) == 0 {
+			if hasSpawnPolicyConstraints(constraints) {
+				return SpawnResolution{}, fmt.Errorf("runner declared no spawn capability satisfying explicit caller constraints")
+			}
 			// A runner with no declarations retains the launcher's historical
-			// codec-pipe default. The sandbox preference is still applied as a
-			// policy preference, but is not treated as a capability claim.
+			// codec-pipe default only when the caller supplied no explicit selector.
 			return SpawnResolution{ExecutionMode: "codec_pipe", SandboxMode: fallbackSandboxMode(policy)}, nil
 		}
-		fallback := capabilities.SpawnCapabilities[0]
-		if len(fallback.SandboxModes) == 0 {
-			return SpawnResolution{}, fmt.Errorf("runner declared spawn capability without a sandbox mode: executionMode=%s", fallback.ExecutionMode)
+		if !hasSpawnPolicyConstraints(constraints) && len(capabilities.SpawnCapabilities[0].SandboxModes) == 0 {
+			return SpawnResolution{}, fmt.Errorf("runner declared spawn capability without a sandbox mode: executionMode=%s", capabilities.SpawnCapabilities[0].ExecutionMode)
+		}
+		var fallback *candidate
+		for _, capability := range capabilities.SpawnCapabilities {
+			for _, sandbox := range capability.SandboxModes {
+				if len(allowed) > 0 && !allowed[capability.ExecutionMode+"\x00"+sandbox] {
+					continue
+				}
+				if !matchesSpawnPolicyConstraints(capability.ExecutionMode, sandbox, constraints) {
+					continue
+				}
+				item := candidate{SpawnCapability: runner.SpawnCapability{ExecutionMode: capability.ExecutionMode, SandboxModes: []string{sandbox}, NativeObjective: capability.NativeObjective}}
+				fallback = &item
+				break
+			}
+			if fallback != nil {
+				break
+			}
+		}
+		if fallback == nil {
+			return SpawnResolution{}, fmt.Errorf("runner declared no spawn capability satisfying explicit caller constraints")
 		}
 		// No preferred combination was feasible. This is allowed only because
-		// require is empty and the runner declared a capability; record it as a
-		// visible fallback rather than choosing silently.
+		// require is empty and the runner declared a compatible capability; record
+		// it as a visible fallback rather than choosing silently.
 		resolution := SpawnResolution{
 			ExecutionMode:   fallback.ExecutionMode,
 			SandboxMode:     fallback.SandboxModes[0],
@@ -105,13 +155,16 @@ func ResolveSpawnPolicy(policy *domain.SpawnPolicy, capabilities runner.Capabili
 		}
 		for _, capability := range capabilities.SpawnCapabilities {
 			for _, sandbox := range capability.SandboxModes {
-				if capability.ExecutionMode == resolution.ExecutionMode && sandbox == resolution.SandboxMode {
+				if len(allowed) > 0 && !allowed[capability.ExecutionMode+"\x00"+sandbox] {
+					continue
+				}
+				if !matchesSpawnPolicyConstraints(capability.ExecutionMode, sandbox, constraints) || (capability.ExecutionMode == resolution.ExecutionMode && sandbox == resolution.SandboxMode) {
 					continue
 				}
 				resolution.Skipped = append(resolution.Skipped, SpawnPreferenceSkip{
 					ExecutionMode: capability.ExecutionMode,
 					SandboxMode:   sandbox,
-					Reason:        "no preferred spawn combination was feasible; declared capability used as fallback",
+					Reason:        "no preferred spawn combination was feasible; declared compatible capability used as fallback",
 				})
 			}
 		}
@@ -131,6 +184,57 @@ func ResolveSpawnPolicy(policy *domain.SpawnPolicy, capabilities runner.Capabili
 		resolution.Skipped = append(resolution.Skipped, SpawnPreferenceSkip{ExecutionMode: item.ExecutionMode, SandboxMode: item.SandboxModes[0], Reason: "declared combination ranked below the selected feasible preference"})
 	}
 	return resolution, nil
+}
+
+func validateSpawnPolicyConstraints(constraints SpawnPolicyConstraints) error {
+	if constraints.ForceInPlace && constraints.RunMode != nil && *constraints.RunMode != domain.RunModeInPlace {
+		return fmt.Errorf("forceInPlace conflicts with explicit runMode=%s", *constraints.RunMode)
+	}
+	if constraints.RunMode == nil {
+		return nil
+	}
+	switch *constraints.RunMode {
+	case domain.RunModeSandboxed:
+		if constraints.SandboxMode == string(domain.SandboxModeOff) {
+			return fmt.Errorf("explicit sandbox mode off conflicts with runMode=sandboxed")
+		}
+	case domain.RunModeInPlace:
+		if constraints.SandboxMode != "" && constraints.SandboxMode != string(domain.SandboxModeOff) {
+			return fmt.Errorf("explicit sandbox mode %s conflicts with runMode=in_place", constraints.SandboxMode)
+		}
+	default:
+		return fmt.Errorf("unsupported explicit runMode=%s", *constraints.RunMode)
+	}
+	return nil
+}
+
+func hasSpawnPolicyConstraints(constraints SpawnPolicyConstraints) bool {
+	return constraints.ExecutionMode != "" || constraints.SandboxMode != "" || constraints.RunMode != nil || constraints.ForceInPlace
+}
+
+func matchesSpawnPolicyConstraints(executionMode, sandboxMode string, constraints SpawnPolicyConstraints) bool {
+	if constraints.ExecutionMode != "" && executionMode != constraints.ExecutionMode {
+		return false
+	}
+	if constraints.SandboxMode != "" && sandboxMode != constraints.SandboxMode {
+		return false
+	}
+	if constraints.ForceInPlace && sandboxMode != string(domain.SandboxModeOff) {
+		return false
+	}
+	if constraints.RunMode != nil {
+		switch *constraints.RunMode {
+		case domain.RunModeInPlace:
+			if sandboxMode != string(domain.SandboxModeOff) {
+				return false
+			}
+		case domain.RunModeSandboxed:
+			if sandboxMode == string(domain.SandboxModeOff) {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func fallbackSandboxMode(policy *domain.SpawnPolicy) string {

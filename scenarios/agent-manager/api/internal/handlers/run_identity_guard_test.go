@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -18,6 +19,7 @@ import (
 	"github.com/gorilla/mux"
 	requestidentity "github.com/vrooli/api-core/identity"
 	"github.com/vrooli/cli-core/cliutil"
+	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 )
@@ -260,11 +262,15 @@ type quiesceRuns struct {
 	lineageRuns
 	delay time.Duration
 	calls *int
+	force *bool
 }
 
 func (f quiesceRuns) QuiesceScenario(ctx context.Context, opts orchestration.QuiesceOptions) (*orchestration.QuiesceResult, error) {
 	if f.calls != nil {
 		*f.calls++
+	}
+	if f.force != nil {
+		*f.force = opts.Force
 	}
 	select {
 	case <-time.After(f.delay):
@@ -272,6 +278,103 @@ func (f quiesceRuns) QuiesceScenario(ctx context.Context, opts orchestration.Qui
 		return nil, ctx.Err()
 	}
 	return &orchestration.QuiesceResult{Scenario: opts.Scenario, Drained: true, Reason: "drained"}, nil
+}
+
+func TestQuiesceReadAdmissionAndForcedDrainBoundary(t *testing.T) {
+	profileID, orchestratorID, workerID := uuid.New(), uuid.New(), uuid.New()
+	refs := []*eventpb.WorkReference{{Kind: "effort", Id: "effort:bas", Relationship: "orchestrator", Verified: true, State: eventpb.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE}}
+	runs := map[uuid.UUID]*domain.Run{
+		orchestratorID: {ID: orchestratorID, Status: domain.RunStatusRunning, AgentProfileID: &profileID, WorkReferences: refs},
+		workerID:       {ID: workerID, Status: domain.RunStatusRunning},
+	}
+	profiles := lineageProfiles{profiles: map[uuid.UUID]*domain.AgentProfile{
+		profileID: {ID: profileID, DeclaredScopes: []string{OrchestrateScope}},
+	}}
+	enrollments := fakeEffortEnrollments{"effort:bas": {EffortRef: "effort:bas", DestinationRef: "scenario:browser-automation-studio"}}
+	validResult := func(id uuid.UUID) *orchestration.IdentityVerifyResult {
+		return &orchestration.IdentityVerifyResult{Valid: true, Claims: &identity.Claims{RunID: id}}
+	}
+	serve := func(t *testing.T, principal requestidentity.Principal, result *orchestration.IdentityVerifyResult, token string, force bool) (int, int, bool, string) {
+		t.Helper()
+		calls, forceSeen := 0, false
+		h := New(orchestration.HandlerServices{
+			IdentityService: guardIdentityService{result: result},
+			RunService:      quiesceRuns{lineageRuns: lineageRuns{runs: runs}, calls: &calls, force: &forceSeen},
+			ProfileService:  profiles,
+		}, WithEffortEnrollments(enrollments))
+		router := mux.NewRouter()
+		router.Handle("/api/v1/runs/quiesce", http.HandlerFunc(h.QuiesceScenario)).Methods(http.MethodPost)
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/runs/quiesce", strings.NewReader(fmt.Sprintf(`{"scenario":"browser-automation-studio","force":%t}`, force)))
+		if principal.Kind != "" {
+			req = req.WithContext(requestidentity.WithPrincipal(req.Context(), principal))
+		}
+		if token != "" {
+			req.Header.Set(cliutil.HeaderAgentIdentityToken, token)
+		}
+		rr := httptest.NewRecorder()
+		AgentOperationMiddleware(router).ServeHTTP(rr, req)
+		return rr.Code, calls, forceSeen, rr.Body.String()
+	}
+	agent := requestidentity.Principal{Kind: requestidentity.ActorAgent, Subject: "ordinary-run", Verified: true, Scopes: []string{"agent-manager:write"}}
+	grantAgent := agent
+	grantAgent.Grant = &requestidentity.OperationGrant{Operations: []string{"agent.manage"}, Targets: []string{"agent-manager:*"}}
+	for _, tc := range []struct {
+		name      string
+		principal requestidentity.Principal
+		result    *orchestration.IdentityVerifyResult
+		token     string
+		force     bool
+		want      int
+		calls     int
+		wantForce bool
+	}{
+		{name: "ordinary verified agent may drain without a management grant", principal: agent, want: http.StatusOK, calls: 1},
+		{name: "valid ordinary run identity may use the non-forced read drain", principal: agent, result: validResult(workerID), token: "worker-token", want: http.StatusOK, calls: 1},
+		{name: "unrelated management grant does not change read admission", principal: grantAgent, want: http.StatusOK, calls: 1},
+		{name: "presented invalid run credential is refused", principal: agent, result: &orchestration.IdentityVerifyResult{Valid: false}, token: "invalid", want: http.StatusUnauthorized},
+		{name: "agent cannot force without run identity", principal: agent, force: true, want: http.StatusForbidden},
+		{name: "ordinary run cannot force-cancel", principal: agent, result: validResult(workerID), token: "worker-token", force: true, want: http.StatusForbidden},
+		{name: "effort orchestrator retains forced drain authority", principal: agent, result: validResult(orchestratorID), token: "owner-token", force: true, want: http.StatusOK, calls: 1, wantForce: true},
+		{name: "verified human operator retains forced drain path", principal: requestidentity.Principal{Kind: requestidentity.ActorHuman, Subject: "operator", Verified: true, Scopes: []string{"agent-manager:write"}}, force: true, want: http.StatusOK, calls: 1, wantForce: true},
+		{name: "anonymous caller is still refused", want: http.StatusUnauthorized},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			status, calls, forceSeen, body := serve(t, tc.principal, tc.result, tc.token, tc.force)
+			if status != tc.want || calls != tc.calls || forceSeen != tc.wantForce {
+				t.Fatalf("status=%d calls=%d forceSeen=%t body=%s; want status=%d calls=%d forceSeen=%t", status, calls, forceSeen, body, tc.want, tc.calls, tc.wantForce)
+			}
+		})
+	}
+	service := requestidentity.Principal{Kind: requestidentity.ActorService, Subject: "qa-service", Verified: true}
+	if status, calls, _, body := serve(t, service, nil, "", false); status != http.StatusForbidden || calls != 0 {
+		t.Fatalf("service principal must not inherit operator drain authority: status=%d calls=%d body=%s", status, calls, body)
+	}
+
+	// Keep admission exact to the implemented REST POST; do not expose an
+	// unimplemented Connect RPC or similarly named paths through this exception.
+	router := mux.NewRouter()
+	router.Handle("/api/v1/runs/quiesce", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })).Methods(http.MethodPost)
+	wrapped := AgentOperationMiddleware(router)
+	for _, tc := range []struct {
+		name   string
+		method string
+		path   string
+		want   int
+	}{
+		{name: "implemented POST", method: http.MethodPost, path: "/api/v1/runs/quiesce", want: http.StatusNoContent},
+		{name: "wrong method", method: http.MethodGet, path: "/api/v1/runs/quiesce", want: http.StatusMethodNotAllowed},
+		{name: "unimplemented Connect procedure", method: http.MethodPost, path: apiconnect.AgentManagerServiceQuiesceScenarioProcedure, want: http.StatusForbidden},
+		{name: "unknown adjacent REST path", method: http.MethodPost, path: "/api/v1/runs/quiesce/all", want: http.StatusForbidden},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(tc.method, tc.path, nil).WithContext(requestidentity.WithPrincipal(context.Background(), agent))
+			rr := httptest.NewRecorder()
+			wrapped.ServeHTTP(rr, req)
+			if rr.Code != tc.want {
+				t.Fatalf("status=%d want=%d body=%s", rr.Code, tc.want, rr.Body.String())
+			}
+		})
+	}
 }
 
 type fakeEffortEnrollments map[string]*pb.EffortEnrollment
@@ -283,7 +386,7 @@ func (f fakeEffortEnrollments) EffortEnrollment(_ context.Context, ref string) (
 	return nil, errors.New("not found")
 }
 
-func TestQuiesceAdmitsOnlyTheTargetEffortsRunningOrchestrator(t *testing.T) {
+func TestForcedQuiesceAdmitsOnlyTheTargetEffortsRunningOrchestrator(t *testing.T) {
 	orchestratorProfile, workerProfile := uuid.New(), uuid.New()
 	effortRef := func(id string) []*eventpb.WorkReference {
 		return []*eventpb.WorkReference{{
@@ -315,7 +418,7 @@ func TestQuiesceAdmitsOnlyTheTargetEffortsRunningOrchestrator(t *testing.T) {
 			RunService:      quiesceRuns{lineageRuns: lineageRuns{runs: runs}, calls: &calls},
 			ProfileService:  lineageProfiles{profiles: profiles},
 		}, WithEffortEnrollments(enrollments))
-		req := httptest.NewRequest(http.MethodPost, "/api/v1/runs/quiesce", strings.NewReader(`{"scenario":"`+scenario+`"}`))
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/runs/quiesce", strings.NewReader(`{"scenario":"`+scenario+`","force":true}`))
 		if result != nil {
 			req.Header.Set(cliutil.HeaderAgentIdentityToken, "run-token")
 		}
@@ -388,28 +491,24 @@ func TestEffortDestinationScenario(t *testing.T) {
 }
 
 func TestRunIdentityManagementGrantIsObjectBoundAndCannotApprove(t *testing.T) {
+	now := time.Now()
 	target := uuid.NewString()
-	grant := &requestidentity.OperationGrant{ID: "approval", Approver: "owner", Operations: []string{"agent.manage"}, Targets: []string{"agent-manager:run/" + target}, ExpiresAt: time.Now().Add(time.Hour)}
-	raw, _ := json.Marshal(grant)
-	h := New(orchestration.HandlerServices{IdentityService: guardIdentityService{result: &orchestration.IdentityVerifyResult{Valid: true, Claims: &identity.Claims{RunID: uuid.New(), Scopes: []string{"agent-manager:write"}, Meta: map[string]string{"operation_grant": string(raw)}}}}})
-	for _, tc := range []struct {
-		operation, target string
-		denied            bool
-	}{
-		{"stop-run", target, false},
-		{"continue-run", target, false},
-		{"wake-run", target, false},
-		{"recover-run", target, false},
-		{"stop-run", uuid.NewString(), true},
-		{"approve-run", target, true},
-		{"stop-all", "", true},
-		{"create-run", target, true},
-	} {
-		req := mux.SetURLVars(httptest.NewRequest(http.MethodPost, "/api/v1/runs/"+tc.target, nil), map[string]string{"id": tc.target})
-		req.Header.Set(cliutil.HeaderAgentIdentityToken, "approved-agent")
-		if got := h.denyRunInitiatedLifecycleOperation(httptest.NewRecorder(), req, tc.operation); got != tc.denied {
-			t.Fatalf("%s target=%s denied=%v", tc.operation, tc.target, got)
-		}
+	runID := uuid.New()
+	grant := managementGrantFixture(now, managementRuleFixture(
+		"agent-management", []string{"agent.manage"}, []string{"agent-manager:run/" + target},
+	))
+	baseline := managementClaimsFixture(t, runID, []string{"agent-manager:read"}, nil, now.Add(time.Hour))
+	operation := managementClaimsFixture(t, runID, []string{"agent-manager:read", "agent-manager:write"}, grant, now.Add(time.Hour))
+
+	if !managementGuardAllows(t, baseline, operation, "stop-run", target, true) {
+		t.Fatal("matching exact agent.manage grant should allow its target")
+	}
+	otherTarget := uuid.NewString()
+	if managementGuardAllows(t, baseline, operation, "stop-run", otherTarget, true) {
+		t.Fatal("run management grant allowed a different run target")
+	}
+	if managementGuardAllows(t, baseline, operation, "approve-run", target, true) {
+		t.Fatal("agent.manage grant must not authorize approval decisions")
 	}
 }
 

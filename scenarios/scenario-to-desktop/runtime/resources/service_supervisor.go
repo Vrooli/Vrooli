@@ -175,7 +175,7 @@ func (s *ServiceSupervisor) startOne(ctx context.Context, item Item) error {
 		launchPath = filepath.Join(artifactPath, filepath.FromSlash(service.EntryPath))
 		workingDir = artifactPath
 	}
-	environmentMap, arguments := launch.environment(service, servicePorts)
+	environmentMap, arguments := launch.environment(service, servicePorts, artifactPath)
 	if err := writeServiceConfig(service.Config, launch.configDir, environmentMap); err != nil {
 		logFile.Close()
 		return fmt.Errorf("write bundled service config: %w", err)
@@ -238,8 +238,8 @@ func (s *ServiceSupervisor) prepareLaunch(item Item) (serviceLaunchDirectories, 
 	return dirs, nil
 }
 
-func (dirs serviceLaunchDirectories) environment(service *Service, ports map[string]int) (map[string]string, []string) {
-	overrides := map[string]string{"VROOLI_RESOURCE_DATA_DIR": dirs.dataDir, "VROOLI_RESOURCE_CONFIG_DIR": dirs.configDir, "VROOLI_RESOURCE_LOGS_DIR": dirs.logDir, "RESOURCE_DATA_DIR": dirs.dataDir, "RESOURCE_CONFIG_DIR": dirs.configDir, "RESOURCE_LOGS_DIR": dirs.logDir, "VROOLI_MANAGED_PROVIDER": "managed-private"}
+func (dirs serviceLaunchDirectories) environment(service *Service, ports map[string]int, artifactRoot string) (map[string]string, []string) {
+	overrides := map[string]string{"VROOLI_RESOURCE_DATA_DIR": dirs.dataDir, "VROOLI_RESOURCE_CONFIG_DIR": dirs.configDir, "VROOLI_RESOURCE_LOGS_DIR": dirs.logDir, "RESOURCE_DATA_DIR": dirs.dataDir, "RESOURCE_CONFIG_DIR": dirs.configDir, "RESOURCE_LOGS_DIR": dirs.logDir, "RESOURCE_ARTIFACT_DIR": artifactRoot, "VROOLI_MANAGED_PROVIDER": "managed-private"}
 	for key, value := range service.Environment {
 		overrides[key] = value
 	}

@@ -16,10 +16,13 @@ import (
 	"testing"
 	"time"
 
+	internalcapacity "github.com/vrooli/vrooli/internal/capacity"
+	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/packagegov"
 	packagefixture "github.com/vrooli/vrooli/internal/packagegov/packagegovtest"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/values"
+	publiccapacity "github.com/vrooli/vrooli/packages/capacity"
 )
 
 type fakeAuthenticationBindingResolver struct {
@@ -52,9 +55,10 @@ func installTestBuilder(t *testing.T) {
 	t.Helper()
 	previous, existed := builderRegistry["test_builder"]
 	builderRegistry["test_builder"] = BuilderSpec{
-		Kind:          "test_builder",
-		DefaultOutput: "{dir}/{component}.artifact",
-		Build:         []string{"cp", "/etc/hosts", "{output}"},
+		Kind:                   "test_builder",
+		DefaultOutput:          "{dir}/{component}.artifact",
+		MemoryReservationBytes: 1,
+		Build:                  []string{"cp", "/etc/hosts", "{output}"},
 	}
 	t.Cleanup(func() {
 		if existed {
@@ -98,12 +102,34 @@ func runBuildLedgerTest(t *testing.T, item scenario.Scenario, force bool, stale 
 	for _, name := range stale {
 		verdicts[name] = artifactVerdict{Target: name, Stale: true}
 	}
-	runner := &Runner{Root: item.Path, Home: t.TempDir()}
+	runner := testBuildRunner(t, item.Path, filepath.Join(t.TempDir(), "capacity.db"))
 	count, err := runner.buildDeclaredComponents(context.Background(), item, nil, io.Discard, force, verdicts)
 	if err != nil {
 		t.Fatalf("buildDeclaredComponents: %v", err)
 	}
 	return count
+}
+
+func testBuildRunner(t *testing.T, root, ledgerPath string) *Runner {
+	return testBuildRunnerWithCapacity(t, root, ledgerPath, 1<<62)
+}
+
+func testBuildRunnerWithCapacity(t *testing.T, root, ledgerPath string, available uint64) *Runner {
+	t.Helper()
+	return &Runner{
+		Root: root,
+		Home: t.TempDir(),
+		buildAdmissionFactory: func(ctx context.Context, _ string) (buildAdmissionBroker, error) {
+			store, err := internalcapacity.NewSQLiteStore(ctx, internalcapacity.Config{DBPath: ledgerPath})
+			if err != nil {
+				return nil, err
+			}
+			source := internalcapacity.StaticSource{Inventory: hostinventory.Snapshot{
+				Memory: hostinventory.Memory{TotalBytes: available, AvailableBytes: available},
+			}}
+			return publiccapacity.NewBrokerWithSource(store, source), nil
+		},
+	}
 }
 
 func TestBuildDeclaredComponents_SkipsFreshComponents(t *testing.T) {
@@ -158,7 +184,8 @@ func TestBuildDeclaredComponents_BudgetOfOneSerialises(t *testing.T) {
 
 func TestBuildDeclaredComponents_FailureCancelsSiblings(t *testing.T) {
 	installTimedTestBuilder(t, 1, true)
-	_, err := (&Runner{Root: t.TempDir(), Home: t.TempDir()}).buildDeclaredComponents(context.Background(), testBuildScenario(t), nil, io.Discard, false, map[string]artifactVerdict{"api": {Stale: true}, "ui": {Stale: true}})
+	item := testBuildScenario(t)
+	_, err := testBuildRunner(t, item.Path, filepath.Join(t.TempDir(), "capacity.db")).buildDeclaredComponents(context.Background(), item, nil, io.Discard, false, map[string]artifactVerdict{"api": {Stale: true}, "ui": {Stale: true}})
 	if err == nil || !strings.Contains(err.Error(), "component api") {
 		t.Fatalf("error = %v, want component api failure", err)
 	}

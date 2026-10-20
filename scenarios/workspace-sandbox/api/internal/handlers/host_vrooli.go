@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -31,6 +32,20 @@ type hostVrooliScenarioResponse struct {
 	Success  bool   `json:"success"`
 	Action   string `json:"action"`
 	Name     string `json:"name"`
+	ExitCode int    `json:"exit_code"`
+	Stdout   string `json:"stdout,omitempty"`
+	Stderr   string `json:"stderr,omitempty"`
+	Error    string `json:"error,omitempty"`
+}
+
+type hostVrooliCLIRefreshRequest struct {
+	Kind              string `json:"kind"`
+	Name              string `json:"name"`
+	RunningExecutable string `json:"running_executable"`
+}
+
+type hostVrooliCLIRefreshResponse struct {
+	Success  bool   `json:"success"`
 	ExitCode int    `json:"exit_code"`
 	Stdout   string `json:"stdout,omitempty"`
 	Stderr   string `json:"stderr,omitempty"`
@@ -98,6 +113,72 @@ func (h *Handlers) HostVrooliScenario(w http.ResponseWriter, r *http.Request) {
 		status = http.StatusBadGateway
 	}
 	writeHostJSON(w, status, resp)
+}
+
+// HostVrooliCLIRefresh runs the existing root-owned cli-refresh command. It
+// accepts only a declared CLI identity and its claimed executable path; the
+// root manager remains responsible for canonical-target validation and the
+// installer retains shared capacity admission.
+func (h *Handlers) HostVrooliCLIRefresh(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	var req hostVrooliCLIRefreshRequest
+	if err := decoder.Decode(&req); err != nil {
+		writeHostCLIRefreshJSON(w, http.StatusBadRequest, hostVrooliCLIRefreshResponse{Error: "invalid JSON request: " + err.Error()})
+		return
+	}
+	var trailing any
+	if err := decoder.Decode(&trailing); err != io.EOF {
+		writeHostCLIRefreshJSON(w, http.StatusBadRequest, hostVrooliCLIRefreshResponse{Error: "request must contain exactly one JSON object"})
+		return
+	}
+	if err := validateHostVrooliCLIRefreshRequest(req); err != nil {
+		writeHostCLIRefreshJSON(w, http.StatusBadRequest, hostVrooliCLIRefreshResponse{Error: err.Error()})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Minute)
+	defer cancel()
+	result, err := process.Run(ctx, h.Starter, process.StartOpts{
+		Path:        "vrooli",
+		Args:        []string{"cli-refresh", req.Kind, req.Name, req.RunningExecutable},
+		Dir:         hostLifecycleDir(),
+		Env:         hostLifecycleEnv(os.Environ()),
+		SysProcAttr: process.NewProcessGroupSysProcAttr(),
+	})
+	resp := hostVrooliCLIRefreshResponse{
+		Success:  err == nil && result.Exit.ExitCode == 0,
+		ExitCode: result.Exit.ExitCode,
+		Stdout:   string(result.Stdout),
+		Stderr:   string(result.Stderr),
+	}
+	if err != nil {
+		resp.Error = err.Error()
+	}
+	status := http.StatusOK
+	if !resp.Success {
+		status = http.StatusBadGateway
+	}
+	writeHostCLIRefreshJSON(w, status, resp)
+}
+
+func writeHostCLIRefreshJSON(w http.ResponseWriter, status int, resp hostVrooliCLIRefreshResponse) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(resp)
+}
+
+func validateHostVrooliCLIRefreshRequest(req hostVrooliCLIRefreshRequest) error {
+	if req.Kind != "scenario" && req.Kind != "resource" {
+		return fmt.Errorf("unsupported CLI kind %q", req.Kind)
+	}
+	if !hostScenarioNamePattern.MatchString(req.Name) {
+		return fmt.Errorf("invalid CLI name %q", req.Name)
+	}
+	if !filepath.IsAbs(req.RunningExecutable) || filepath.Clean(req.RunningExecutable) != req.RunningExecutable || strings.ContainsRune(req.RunningExecutable, '\x00') {
+		return fmt.Errorf("running executable must be a clean absolute path")
+	}
+	return nil
 }
 
 func writeHostJSON(w http.ResponseWriter, status int, resp hostVrooliScenarioResponse) {

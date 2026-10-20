@@ -446,9 +446,10 @@ func TestExactSetupCLIUsesExistingOperatorAndTypedActions(t *testing.T) {
 // host credential provider, installed command or native account mutation.
 type exactSetupOwnerFixture struct {
 	accountsconnect.UnimplementedAccountsServiceHandler
-	calls   atomic.Int32
-	refusal connect.Code
-	empty   bool
+	calls      atomic.Int32
+	refusal    connect.Code
+	empty      bool
+	brokerMode string
 }
 
 func (f *exactSetupOwnerFixture) ExchangeMachinePrincipal(_ context.Context, req *connect.Request[accountsv1.ExchangeMachinePrincipalRequest]) (*connect.Response[accountsv1.LoginResponse], error) {
@@ -482,6 +483,11 @@ func newExactSetupOwnerApp(t *testing.T, fixture *exactSetupOwnerFixture, handle
 	}
 	t.Cleanup(func() { _ = os.RemoveAll(socketDir) })
 	t.Setenv("TMPDIR", socketDir)
+	brokerMode := fixture.brokerMode
+	if brokerMode == "" {
+		brokerMode = "broker-empty"
+	}
+	serveExactSetupBroker(t, brokerMode)
 	socket := filepath.Join(socketDir, "owner.sock")
 	t.Setenv("VROOLI_AUTH_SOCKET", socket)
 	listener, err := net.Listen("unix", socket)
@@ -549,6 +555,10 @@ func serveExactSetupBroker(t *testing.T, mode string) {
 		if mode == "broker-refused" {
 			w.WriteHeader(http.StatusForbidden)
 			fmt.Fprint(w, "{\"code\":\"synthetic-refusal\"}")
+			return
+		}
+		if mode == "broker-empty" {
+			w.WriteHeader(http.StatusNoContent)
 			return
 		}
 		fmt.Fprint(w, "{\"token\":\"synthetic-broker-agent\"}")
@@ -629,9 +639,14 @@ func TestExactSetupLocalOwnerTopLevelTransport(t *testing.T) {
 }
 
 func TestExactSetupLocalOwnerTopLevelRefusals(t *testing.T) {
+	// A local-owner exchange requires a live broker's explicit 204 no-agent
+	// response; an unavailable broker is not interpreted as an ordinary shell.
 	for _, mode := range []string{"identified", "broker-identified", "broker-refused", "broker-unavailable", "permission-refused", "missing-access", "api-refused"} {
 		t.Run(mode, func(t *testing.T) {
 			fixture := &exactSetupOwnerFixture{empty: mode == "missing-access"}
+			if strings.HasPrefix(mode, "broker-") {
+				fixture.brokerMode = mode
+			}
 			if mode == "permission-refused" {
 				fixture.refusal = connect.CodePermissionDenied
 			}
@@ -642,9 +657,6 @@ func TestExactSetupLocalOwnerTopLevelRefusals(t *testing.T) {
 			}))
 			if mode == "identified" {
 				t.Setenv(cliutil.EnvIdentityToken, "synthetic-agent-leaf")
-			}
-			if strings.HasPrefix(mode, "broker-") {
-				serveExactSetupBroker(t, mode)
 			}
 			output, err := runExactSetupOwner(t, app, base, exactSetupOwnerArgs(t, "stage"))
 			wantExchange, wantCalls := int32(1), int32(0)

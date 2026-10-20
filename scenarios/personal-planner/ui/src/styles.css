@@ -360,9 +360,9 @@ input[type="checkbox"], input[type="radio"] {
 .time-block:hover, .time-block:focus-visible { transform: translateY(-2px); box-shadow: var(--elev-overlay); }
 .time-block strong { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; align-items: flex-start; gap: .35rem; min-inline-size: 0; font-family: Georgia, serif; font-size: .98rem; font-weight: 400; line-height: 1.2; overflow: hidden; overflow-wrap: normal; word-break: normal; }
 .time-block.compact strong { white-space: nowrap; text-overflow: ellipsis; }
-.time-block.compact > span:not(.time-block-time), .time-block.compact small { display: none; }
+.time-block.compact > .time-block-title, .time-block.compact small { display: none; }
 .time-block.compact { padding-inline: .2rem; align-items: center; justify-content: center; }
-.time-block.compact strong { overflow: visible; text-overflow: clip; font-size: .82rem; }
+.time-block.compact > .time-block-duration { color: var(--color-foreground); font: .82rem/1.2 Georgia, serif; overflow: visible; text-overflow: clip; white-space: nowrap; }
 .time-block-time { display: none; }
 .time-block > span { font-size: .8rem; color: var(--color-muted-foreground); }
 .time-block small { margin-top: auto; min-inline-size: 0; color: var(--color-primary); font-size: .8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -434,12 +434,14 @@ input[type="checkbox"], input[type="radio"] {
   .time-ruler { display: none; }
   .timeline { display: grid; min-width: 0; height: auto; gap: .65rem; border-bottom: 0; background: none; }
   .now-line { display: none; }
-  /* Mobile cards are a compact preview; tapping opens the full title and
-     provenance in the shared popover. Keeping the preview bounded prevents
-     long work names from turning the day into a stack of oversized rows. */
+  /* Mobile cards use their available width to identify the work while
+     keeping the time and short duration visible. */
   .time-block { position: relative; inset: auto !important; min-width: 0; width: auto !important; height: 4.25rem; max-height: 4.25rem; min-height: 4.25rem; padding: .55rem .9rem; }
   .time-block-time { display: block; color: var(--color-muted-foreground); font-size: .75rem; letter-spacing: .04em; }
   .time-block strong { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }
+  .time-block.compact { gap: .1rem; padding: .4rem .9rem; align-items: flex-start; justify-content: center; }
+  .time-block.compact > .time-block-title { display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .98rem; }
+  .time-block.compact > .time-block-duration { color: var(--color-muted-foreground); font-family: inherit; font-size: .8rem; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .time-block small { display: none; }
   .day-plan { min-block-size: 23.25rem; overflow: visible; }
   .day-plan-heading { align-items: start; }

@@ -101,6 +101,17 @@ func TestExpandServiceTemplatePreservesUnknownValues(t *testing.T) {
 	}
 }
 
+func TestServiceLaunchEnvironmentResolvesArtifactScopedRuntimeEnvironment(t *testing.T) {
+	artifactRoot := filepath.Join(t.TempDir(), "postgres")
+	directories := serviceLaunchDirectories{dataDir: "/private/data", configDir: "/private/config", logDir: "/private/logs"}
+	service := &Service{Environment: map[string]string{"LD_PRELOAD": "${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libicuuc.so.76"}}
+	environment, _ := directories.environment(service, nil, artifactRoot)
+	want := filepath.Join(artifactRoot, "usr", "lib", "x86_64-linux-gnu", "libicuuc.so.76")
+	if environment["LD_PRELOAD"] != want {
+		t.Fatalf("LD_PRELOAD = %q, want %q", environment["LD_PRELOAD"], want)
+	}
+}
+
 type testSharedResolver struct {
 	binding SharedServiceBinding
 	err     error

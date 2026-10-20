@@ -2,6 +2,13 @@
 
 package collectors
 
+import (
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/darwinsys"
+	"golang.org/x/sys/unix"
+)
+
 func readPlatformPaging(_ map[string]uint64) pagingReading {
-	return pagingReading{supported: false, reason: "host_statistics64 paging backend is not available in this build", provenance: "host_statistics64"}
+	stats, statsErr := darwinsys.HostStatistics64()
+	level, levelErr := unix.SysctlUint32("kern.memorystatus_vm_pressure_level")
+	return darwinPagingReading(stats, statsErr, level, levelErr, uint64(unix.Getpagesize()))
 }

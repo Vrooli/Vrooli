@@ -4,13 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/clock"
+	"github.com/vrooli/vrooli/internal/tuning"
 )
 
 // ResourceClaimSpec is the optional `capacity` block a resource declares in its
@@ -95,6 +98,8 @@ type AdmitOptions struct {
 	Exec      ApplyExecutor
 	OpenStore func(ctx context.Context) (AdmitStore, error)
 	Clock     func() time.Time
+	// Log receives advisory admission/lease errors. nil discards diagnostics.
+	Log io.Writer
 }
 
 // AdmissionResult reports what admission did. Skipped=true means no claim was
@@ -138,7 +143,6 @@ func AdmitResource(ctx context.Context, opts AdmitOptions) (AdmissionResult, err
 	}
 	defer store.Close()
 
-	now := admitNow(opts)
 	policy, err := store.GetPolicy(ctx)
 	if err != nil {
 		return AdmissionResult{}, err
@@ -191,6 +195,7 @@ func AdmitResource(ctx context.Context, opts AdmitOptions) (AdmissionResult, err
 	}
 	var ledger []CapacityClaim
 	snapshot, snapErr := source.Snapshot(ctx)
+	now := admitNow(opts) // Decision clock follows sensing so provenance cannot appear future-dated.
 	if snapErr != nil {
 		// Sensing unavailable: do NOT expire — a presence miss must never strand a
 		// live resident. Decide on the optimistic preferred grant.
@@ -327,3 +332,143 @@ func admitNow(opts AdmitOptions) time.Time {
 type clockAdapter func() time.Time
 
 func (c clockAdapter) Now() time.Time { return c() }
+
+// WithResourceAdmission keeps the exact manifest-derived claim alive throughout
+// a bounded start/restart operation, including CPU-only verification/loading.
+// It preserves advisory semantics: ledger failures never replace run's outcome.
+// Completion hands residency to the resource companion with one final renewal.
+// Failure/cancellation does not mean the supervised process stopped, so it never
+// releases the claim. Explicit verified stop owns release.
+func WithResourceAdmission(ctx context.Context, opts AdmitOptions, run func(context.Context) error) error {
+	return withResourceAdmissionTicks(ctx, opts, nil, run)
+}
+
+func withResourceAdmissionTicks(ctx context.Context, opts AdmitOptions, ticks <-chan time.Time, run func(context.Context) error) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	runOwner := func() error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		return run(ctx)
+	}
+	result, err := AdmitResource(ctx, opts)
+	if err != nil {
+		admissionLog(opts, "admission: %v", err)
+		return runOwner()
+	}
+	for _, warning := range result.Verdict.Warnings {
+		admissionLog(opts, "admission: %s", warning)
+	}
+	if result.Skipped || result.ClaimID == "" {
+		return runOwner()
+	}
+	store, err := openAdmitStore(ctx, opts)
+	if err != nil {
+		admissionLog(opts, "open startup lease: %v", err)
+		return runOwner()
+	}
+	defer store.Close()
+	spec, _, err := LoadResourceClaimSpec(opts.Root, opts.ResourceName)
+	if err != nil {
+		admissionLog(opts, "read startup lease: %v", err)
+		return runOwner()
+	}
+	ttl := normalizeAdmitTTL(time.Duration(spec.TTLSeconds) * time.Second)
+	interval := ttl / 3
+	if interval <= 0 {
+		interval = time.Nanosecond
+	}
+	if ticks == nil {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		ticks = ticker.C
+	}
+	renew := func(parent context.Context) {
+		callCtx, cancel := context.WithTimeout(parent, interval)
+		defer cancel()
+		current, getErr := store.GetClaim(callCtx, result.ClaimID)
+		if getErr == nil && (current.OwnerKind != OwnerKindResource || current.OwnerID != opts.ResourceName) {
+			getErr = fmt.Errorf("claim identity no longer matches resource")
+		}
+		if getErr == nil {
+			_, getErr = store.HeartbeatClaim(callCtx, current.ClaimID, current.Generation, ttl)
+		}
+		if getErr != nil && parent.Err() == nil {
+			admissionLog(opts, "renew startup claim %s: %v", result.ClaimID, getErr)
+		}
+	}
+	leaseCtx, cancel := context.WithCancel(ctx)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for {
+			select {
+			case <-leaseCtx.Done():
+				return
+			case <-ticks:
+				renew(leaseCtx)
+			}
+		}
+	}()
+	// Join before closing the store; no stranded renewal goroutine after return.
+	var once sync.Once
+	stop := func() { once.Do(func() { cancel(); <-done }) }
+	defer stop()
+	runErr := runOwner()
+	stop()
+	if ctx.Err() == nil {
+		renew(ctx)
+	}
+	return runErr
+}
+
+// ReleaseResourceAdmissionAfterStop captures this owner's active claims before
+// a stop performed under the caller's lifecycle lock. Only a successful verified
+// terminal stop releases those IDs. Restart and uncertain stop never call this.
+func ReleaseResourceAdmissionAfterStop(ctx context.Context, opts AdmitOptions, stop func() error) error {
+	_, declared, err := LoadResourceClaimSpec(opts.Root, opts.ResourceName)
+	if err != nil {
+		admissionLog(opts, "read stop claims: %v", err)
+	}
+	if !declared || err != nil {
+		return stop()
+	}
+	store, err := openAdmitStore(ctx, opts)
+	if err != nil {
+		admissionLog(opts, "open stop claims: %v", err)
+		return stop()
+	}
+	defer store.Close()
+	claims, err := store.ListClaims(ctx, ClaimFilter{OwnerKind: OwnerKindResource, OwnerID: opts.ResourceName, Statuses: ActiveClaimStatuses()})
+	if err != nil {
+		admissionLog(opts, "capture stop claims: %v", err)
+	}
+	if stopErr := stop(); stopErr != nil {
+		return stopErr
+	}
+	// A successful stop may finish escalation after caller cancellation. Ledger
+	// cleanup is bounded and retains normal stop authority, not a new model task.
+	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), tuning.CredentialServiceTimeout())
+	defer cancel()
+	for _, claim := range claims {
+		current, getErr := store.GetClaim(cleanupCtx, claim.ClaimID)
+		if getErr == nil && (current.OwnerKind != OwnerKindResource || current.OwnerID != opts.ResourceName) {
+			getErr = fmt.Errorf("claim identity no longer matches resource")
+		}
+		if getErr == nil {
+			_, getErr = store.ReleaseClaim(cleanupCtx, claim.ClaimID)
+		}
+		if getErr != nil {
+			admissionLog(opts, "release stopped claim %s: %v", claim.ClaimID, getErr)
+		}
+	}
+	return nil
+}
+
+func admissionLog(opts AdmitOptions, format string, args ...any) {
+	if opts.Log != nil {
+		fmt.Fprintf(opts.Log, "capacity (%s): "+format+"\n", append([]any{opts.ResourceName}, args...)...)
+	}
+}

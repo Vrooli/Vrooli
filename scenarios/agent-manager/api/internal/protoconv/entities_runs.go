@@ -55,6 +55,11 @@ func RunToProto(r *domain.Run) *pb.Run {
 		WorkReferences:        r.WorkReferences,
 	}
 
+	if r.ParentRunID != nil {
+		parentID := r.ParentRunID.String()
+		run.ParentRunId = &parentID
+	}
+
 	if r.AgentProfileID != nil {
 		s := r.AgentProfileID.String()
 		run.AgentProfileId = &s
@@ -262,6 +267,7 @@ func RunFromProto(r *pb.Run) *domain.Run {
 		run.AwaitHandle = AwaitHandleFromProto(r.AwaitHandle)
 	}
 
+	run.ParentRunID = OptionalStringToUUID(r.ParentRunId)
 	run.AgentProfileID = OptionalStringToUUID(r.AgentProfileId)
 	run.SandboxID = OptionalStringToUUID(r.SandboxId)
 	run.LastCheckpointID = OptionalStringToUUID(r.LastCheckpointId)

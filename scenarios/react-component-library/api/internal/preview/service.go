@@ -76,10 +76,11 @@ type Service interface {
 }
 
 type service struct {
-	components components.Service
-	bundler    Bundler
-	deps       deps.Service
-	repoRoot   string
+	components   components.Service
+	materializer components.Materializer
+	bundler      Bundler
+	deps         deps.Service
+	repoRoot     string
 }
 
 // sourceLedgerReader keeps preview closure validation aligned with the
@@ -178,15 +179,20 @@ func sourceVersionDirectory(repoRoot, sourcePath, version string) string {
 // NewService wires the components service (for resolution + content)
 // and the bundler. Both are required — there is no degraded mode.
 func NewService(comp components.Service, bundler Bundler) Service {
-	return &service{components: comp, bundler: bundler}
+	return &service{components: comp, materializer: materializerFor(comp), bundler: bundler}
 }
 
 func NewServiceWithDeps(comp components.Service, bundler Bundler, depsSvc deps.Service) Service {
-	return &service{components: comp, bundler: bundler, deps: depsSvc}
+	return &service{components: comp, materializer: materializerFor(comp), bundler: bundler, deps: depsSvc}
 }
 
 func NewServiceWithDepsAtRoot(comp components.Service, bundler Bundler, depsSvc deps.Service, repoRoot string) Service {
-	return &service{components: comp, bundler: bundler, deps: depsSvc, repoRoot: strings.TrimSpace(repoRoot)}
+	return &service{components: comp, materializer: materializerFor(comp), bundler: bundler, deps: depsSvc, repoRoot: strings.TrimSpace(repoRoot)}
+}
+
+func materializerFor(comp components.Service) components.Materializer {
+	materializer, _ := comp.(components.Materializer)
+	return materializer
 }
 
 func (s *service) GetBundle(ctx context.Context, id string) (Bundle, error) {
@@ -341,6 +347,21 @@ func appendUniqueDeclarations(base, extra []deps.Declaration) []deps.Declaration
 	return base
 }
 
+func (s *service) materializeEvictedClosure(ctx context.Context, closure []components.ResolvedAsset) error {
+	for _, resolved := range closure { // dependency-first order from ResolveDependencyClosure
+		if !strings.EqualFold(strings.TrimSpace(resolved.Version.Presence), "evicted") {
+			continue
+		}
+		if s.materializer == nil {
+			return fmt.Errorf("cannot preview pinned asset %s@%s: version is evicted and materializer is not configured", resolved.Asset.LibraryID, resolved.Version.Version)
+		}
+		if _, err := s.materializer.EnsureMaterialized(ctx, resolved.Asset.ID, resolved.Version.Version, ""); err != nil {
+			return fmt.Errorf("materialize pinned preview asset %s@%s: %w", resolved.Asset.LibraryID, resolved.Version.Version, err)
+		}
+	}
+	return nil
+}
+
 func (s *service) GetBundleVersion(ctx context.Context, id, version string) (Bundle, error) {
 	version = strings.TrimSpace(version)
 	asset, err := s.components.Get(ctx, id)
@@ -352,11 +373,17 @@ func (s *service) GetBundleVersion(ctx context.Context, id, version string) (Bun
 	// prevents previewing a component whose declared hook/component closure is
 	// missing or cyclic.
 	var closure []components.ResolvedAsset
-	if len(asset.Dependencies) > 0 {
+	// The component dependency projection can be empty or lag the immutable
+	// latest-version lock. Resolve the selected latest version whenever one is
+	// indexed so cold pins in that lock are still restored before bundling.
+	if len(asset.Dependencies) > 0 || version != "" || strings.TrimSpace(asset.LatestVersion) != "" || strings.TrimSpace(asset.Version) != "" {
 		var closureErr error
 		closure, closureErr = components.ResolveDependencyClosure(ctx, sourceLedgerReader{Service: s.components, repoRoot: s.repoRoot}, id, version)
 		if closureErr != nil {
 			return Bundle{}, closureErr
+		}
+		if err := s.materializeEvictedClosure(ctx, closure); err != nil {
+			return Bundle{}, err
 		}
 	}
 	var (

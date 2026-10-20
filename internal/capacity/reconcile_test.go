@@ -23,8 +23,9 @@ func (f fakeAttributor) Attribute(_ context.Context, pid int) Attribution {
 
 func snapshotWithProcs(procs ...hostinventory.GPUProcess) hostinventory.Snapshot {
 	return hostinventory.Snapshot{
-		GPUs:         []hostinventory.GPU{{Index: 0, Name: "Test", Source: "nvidia-smi", VRAMBytes: 16 * uint64(gib)}},
-		GPUProcesses: procs,
+		GPUs:          []hostinventory.GPU{{Index: 0, Name: "Test", Source: "nvidia-smi", VRAMBytes: 16 * uint64(gib)}},
+		GPUProcesses:  procs,
+		ProbeStatuses: map[string]string{"nvidia_gpu": "ok", "nvidia_gpu_processes": "ok"},
 	}
 }
 
@@ -70,13 +71,13 @@ func TestReconcileFlagsOverClaim(t *testing.T) {
 	snap := snapshotWithProcs(hostinventory.GPUProcess{GPUIndex: 0, PID: 1000, ProcessName: "sd", UsedBytes: 8 * uint64(gib)})
 	attr := fakeAttributor{1000: {ContainerName: "/image-tools", OwnerID: "image-tools"}}
 	ledger := []CapacityClaim{{
-		ClaimID: "clm-it", OwnerID: "image-tools:job-1", OwnerKind: OwnerKindOp, ResourceKind: ResourceKindVRAM,
+		ClaimID: "clm-it", OwnerID: "image-tools", OwnerKind: OwnerKindOp, ResourceKind: ResourceKindVRAM,
 		GPUIndex: gpu(0), AmountBytes: 2 * gib, Status: StatusGranted,
 	}}
 
 	findings := Reconcile(ctx, snap, ledger, attr, DefaultPolicy())
 	if len(findings) != 1 || findings[0].Class != FindingOverClaim {
-		t.Fatalf("findings = %+v, want over_claim (op-owner should match scenario prefix)", findings)
+		t.Fatalf("findings = %+v, want over_claim for exact operation identity", findings)
 	}
 	if findings[0].Severity != "warn" {
 		t.Errorf("over_claim severity = %q, want warn", findings[0].Severity)
@@ -227,5 +228,71 @@ func TestDeclaredUnclaimedSkipsResourcesThatAreNotInstalled(t *testing.T) {
 	}
 	if len(all) != 2 {
 		t.Fatalf("findings without a predicate = %+v, want both declarations", all)
+	}
+}
+
+func TestReconcileAggregatesWorkersAndRejectsAmbiguousOwnership(t *testing.T) {
+	ctx := context.Background()
+	snap := snapshotWithProcs(hostinventory.GPUProcess{PID: 1, GPUIndex: 0, UsedBytes: uint64(2 * gib)}, hostinventory.GPUProcess{PID: 2, GPUIndex: 0, UsedBytes: uint64(3 * gib)})
+	attr := fakeAttributor{1: {OwnerID: "model"}, 2: {OwnerID: "model"}}
+	c := CapacityClaim{ClaimID: "owned", OwnerKind: OwnerKindResource, OwnerID: "model", ResourceKind: ResourceKindVRAM, Status: StatusGranted, AmountBytes: 4 * gib}
+	got := Reconcile(ctx, snap, []CapacityClaim{c}, attr, DefaultPolicy())
+	if len(got) != 1 || got[0].Class != FindingOverClaim || got[0].ObservedBytes != 5*gib {
+		t.Fatalf("aggregate drift was missed: %+v", got)
+	}
+	for _, owners := range [][]string{{"model-a"}, {"model:job1", "model:job2"}, {"model", "model"}} {
+		claims := []CapacityClaim{}
+		for i, owner := range owners {
+			cc := c
+			cc.OwnerID = owner
+			cc.ClaimID = string(rune('a' + i))
+			claims = append(claims, cc)
+		}
+		findings := Reconcile(ctx, snap, claims, attr, DefaultPolicy())
+		for _, f := range findings {
+			if f.ClaimID != "" {
+				t.Fatalf("lookalike/ambiguous process was assigned: owners=%v finding=%+v", owners, f)
+			}
+		}
+	}
+}
+
+func TestReconcileAggregatesBeforeThresholdAndDoesNotBindOperationFamily(t *testing.T) {
+	ctx := context.Background()
+	snap := snapshotWithProcs(hostinventory.GPUProcess{PID: 1, GPUIndex: 0, UsedBytes: 128 << 20}, hostinventory.GPUProcess{PID: 2, GPUIndex: 0, UsedBytes: 128 << 20}, hostinventory.GPUProcess{PID: 3, GPUIndex: 0, UsedBytes: 128 << 20})
+	attr := fakeAttributor{1: {OwnerID: "model"}, 2: {OwnerID: "model"}, 3: {OwnerID: "model"}}
+	c := CapacityClaim{ClaimID: "resource", OwnerID: "model", OwnerKind: OwnerKindResource, ResourceKind: ResourceKindVRAM, Status: StatusGranted, AmountBytes: gib}
+	op := c
+	op.ClaimID = "operation"
+	op.OwnerKind = OwnerKindOp
+	op.OwnerID = "model:job1"
+	got := Reconcile(ctx, snap, []CapacityClaim{c, op}, attr, DefaultPolicy())
+	if len(got) != 1 || got[0].ObservedBytes != 384<<20 || got[0].ClaimID != c.ClaimID || len(got[0].PIDs) != 3 {
+		t.Fatalf("aggregation/context is wrong: %+v", got)
+	}
+	got = Reconcile(ctx, snap, []CapacityClaim{op}, attr, DefaultPolicy())
+	for _, f := range got {
+		if f.ClaimID != "" {
+			t.Fatalf("family name invented operation identity: %+v", f)
+		}
+	}
+}
+
+func TestConflictingOwnerEvidenceCannotBindByLedgerPresence(t *testing.T) {
+	c := residentClaim("model-b")
+	c.ClaimID = "b"
+	c.Status = StatusGranted
+	snap := snapshotWithProcs(hostinventory.GPUProcess{PID: 1, GPUIndex: 0, ProcessName: "/tmp/artifacts/model-b/runtime/bin/python", UsedBytes: 3 << 30})
+	attr := fakeAttributor{1: {OwnerID: "model-a"}}
+	findings := Reconcile(context.Background(), snap, []CapacityClaim{c}, attr, DefaultPolicy())
+	if len(findings) != 1 || findings[0].Class != "unclaimed" {
+		t.Fatalf("conflicting identity accepted because one owner had a row: %+v", findings)
+	}
+	usage := observeClaimUsage(context.Background(), []CapacityClaim{c}, snap, attr)
+	if len(usage.assigned[c.ClaimID]) != 0 || !usage.uncertain.Contains(c.ClaimID) {
+		t.Fatalf("conflicting identity measured/treated absent: %+v", usage)
+	}
+	if _, ok := matchClaim([]CapacityClaim{c}, attr[1], snap.GPUProcesses[0]); ok {
+		t.Fatal("adoption accepted conflicting evidence")
 	}
 }

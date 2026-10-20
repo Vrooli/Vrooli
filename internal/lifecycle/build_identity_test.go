@@ -96,6 +96,56 @@ func TestScenarioBuildIdentityTracksAuthoredInputsAndIgnoresRuntimeOutputs(t *te
 	}
 }
 
+func TestScenarioBuildIdentityKeepsIgnoredCoverageSourceAndSkipsDeclaredCoverageOutputs(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".vrooli"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".vrooli", "service.json"), []byte(`{"service":{"name":"alpha"}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	ignore := "coverage/\nui/coverage/\n!api/internal/coverage/\n!api/internal/coverage/**\n"
+	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte(ignore), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	write := func(rel, content string) {
+		t.Helper()
+		path := filepath.Join(root, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("api/internal/coverage/check.go", "package coverage\nconst Value = 1\n")
+	write("coverage/index.html", "old report")
+	write("ui/coverage/index.html", "old ui report")
+	item := scenario.Scenario{Slug: "alpha", Path: root}
+
+	first, err := scenarioBuildIdentity(item)
+	if err != nil {
+		t.Fatalf("scenarioBuildIdentity: %v", err)
+	}
+	write("coverage/index.html", "new report")
+	write("ui/coverage/index.html", "new ui report")
+	outputsChanged, err := scenarioBuildIdentity(item)
+	if err != nil {
+		t.Fatalf("scenarioBuildIdentity after report churn: %v", err)
+	}
+	if outputsChanged != first {
+		t.Fatal("ignored coverage reports changed scenario build identity")
+	}
+	write("api/internal/coverage/check.go", "package coverage\nconst Value = 2\n")
+	sourceChanged, err := scenarioBuildIdentity(item)
+	if err != nil {
+		t.Fatalf("scenarioBuildIdentity after source edit: %v", err)
+	}
+	if sourceChanged == first {
+		t.Fatal("authored Go source under a coverage package was omitted from build identity")
+	}
+}
+
 func TestRegistryRuntimeHealthRejectsStaleBuildIdentity(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "main.go"), []byte("package main\n"), 0o644); err != nil {

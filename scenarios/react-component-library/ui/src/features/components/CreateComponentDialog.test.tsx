@@ -87,7 +87,9 @@ describe("CreateComponentDialog", () => {
     const user = userEvent.setup();
     renderWithProviders(<CreateComponentDialog onClose={onClose} />);
 
-    await user.type(screen.getByTestId(selectors.components.create.slug), "notice");
+    const slug = screen.getByTestId(selectors.components.create.slug);
+    await user.type(slug, "notice");
+    expect(slug).toHaveValue("notice");
     await user.click(screen.getByTestId(selectors.components.create.submit));
 
     expect(await screen.findByTestId(selectors.components.create.error)).toHaveTextContent(
@@ -102,7 +104,9 @@ describe("CreateComponentDialog", () => {
     const user = userEvent.setup();
     renderWithProviders(<CreateComponentDialog onClose={onClose} />);
 
-    await user.type(screen.getByTestId(selectors.components.create.slug), "notice");
+    const slug = screen.getByTestId(selectors.components.create.slug);
+    await user.type(slug, "notice");
+    expect(slug).toHaveValue("notice");
     await user.click(screen.getByTestId(selectors.components.create.submit));
 
     await waitFor(() => expect(onClose).toHaveBeenCalledOnce());

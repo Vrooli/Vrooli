@@ -5,13 +5,16 @@ import (
 	"errors"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
+	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/runner/codecs"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration/spawn"
+	"github.com/google/uuid"
 )
 
 // launchInfoStub satisfies runner.AgentLaunchInfo and
@@ -41,6 +44,20 @@ func (s *launchInfoStub) RuntimeVersion(context.Context) (string, error) {
 	return s.runtimeVersion, s.runtimeVersionE
 }
 
+type closeDispatcherAfterAppendStore struct {
+	event.Store
+	after func()
+	once  sync.Once
+}
+
+func (s *closeDispatcherAfterAppendStore) Append(ctx context.Context, runID uuid.UUID, events ...*domain.RunEvent) error {
+	if err := s.Store.Append(ctx, runID, events...); err != nil {
+		return err
+	}
+	s.once.Do(s.after)
+	return nil
+}
+
 func TestCreateRunAdmissionUsesFinalSandboxConfig(t *testing.T) {
 	ctx := context.Background()
 	o := newDeclarationOrchestrator(t)
@@ -53,11 +70,12 @@ func TestCreateRunAdmissionUsesFinalSandboxConfig(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	// Creation persists admission before enqueue. Closing dispatch lets us
-	// inspect that real creation path without launching a model or goroutine.
-	o.dispatcher.Close()
+	// Persist the real admission, then close dispatch immediately after the
+	// first durable prompt event. This exercises a late enqueue failure without
+	// modeling a run that was never admitted.
+	o.events = &closeDispatcherAfterAppendStore{Store: o.events, after: o.dispatcher.Close}
 	task, err := o.CreateTask(ctx, &domain.Task{
-		Title: "sandbox admission", ScopePath: ".", ProjectRoot: t.TempDir(),
+		Title: "sandbox admission", Description: "persisted prompt for post-admission close", ScopePath: ".", ProjectRoot: t.TempDir(),
 	})
 	if err != nil {
 		t.Fatal(err)

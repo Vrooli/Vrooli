@@ -146,7 +146,9 @@ type PipelineConfig struct {
 	ExpectedArtifactDigests map[string]string `json:"expected_artifact_digests,omitempty"`
 	ArtifactManifestDigest  string            `json:"artifact_manifest_digest,omitempty"`
 	// ScenarioName is the name of the scenario to deploy (required).
-	ScenarioName string `json:"scenario_name" validate:"required"`
+	ScenarioName        string                                  `json:"scenario_name" validate:"required"`
+	StrategyID          string                                  `json:"strategy_id,omitempty"`
+	OptimizationProfile *generation.ElectronOptimizationProfile `json:"optimization_profile,omitempty"`
 
 	// Platforms to build for. Empty input is normalized to the concrete current
 	// OS/architecture before resource deployment resolution.
@@ -164,7 +166,7 @@ type PipelineConfig struct {
 	// DeploymentMode is "proxy" or "bundled". Default: "bundled".
 	DeploymentMode string `json:"deployment_mode,omitempty"`
 
-	// Framework is the target desktop framework. Default: "electron".
+	// Framework is retained for historical clients; StrategyID is canonical.
 	Framework string `json:"framework,omitempty"`
 
 	// TemplateType is the Electron template type. Default: "basic".
@@ -259,10 +261,18 @@ func (c *PipelineConfig) GetArtifactTrustMode() resourcedeployment.ArtifactTrust
 // ValidateFramework rejects framework values that the generation pipeline does
 // not implement. An empty value is valid because Electron is the default.
 func (c *PipelineConfig) ValidateFramework() error {
-	if c.Framework == "" || c.Framework == FrameworkElectron {
-		return nil
+	strategyID := c.StrategyID
+	if strategyID == "" {
+		strategyID = generation.DefaultStrategyID
 	}
-	return fmt.Errorf("unsupported framework %q: only %q is supported", c.Framework, FrameworkElectron)
+	strategy, ok := generation.PackagingStrategies().Resolve(strategyID)
+	if !ok {
+		return fmt.Errorf("unsupported packaging strategy %q", strategyID)
+	}
+	if c.Framework != "" && c.Framework != strategy.Shell {
+		return fmt.Errorf("framework %q conflicts with strategy %q", c.Framework, strategyID)
+	}
+	return nil
 }
 
 // DeployConfig configures the deploy stage for LPBS deployment.

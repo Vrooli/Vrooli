@@ -51,10 +51,10 @@
       "action": {
         "type": "ACTION_TYPE_CLICK",
         "click": {
-          "selector": "@selector/calendarMonth.nextMonth"
+          "selector": "@selector/calendarMonth.previousMonth"
         },
         "metadata": {
-          "label": "Navigate to the next month, outside the preceding case's event month"
+          "label": "Navigate to an empty prior month outside the seeded DST-event month"
         }
       }
     },
@@ -81,7 +81,7 @@
       "action": {
         "type": "ACTION_TYPE_CLICK",
         "click": {
-          "selector": "@selector/calendarMonth.previousMonth"
+          "selector": "@selector/calendarMonth.nextMonth"
         },
         "metadata": {
           "label": "Return to the current month before creating journey events"
@@ -229,7 +229,7 @@
       "action": {
         "type": "ACTION_TYPE_CLICK",
         "click": {
-          "selector": "@selector/calendarMonth.event"
+          "selector": "@selector/calendarMonth.eventByTitle(title=\"E1 multiday synthetic\")"
         },
         "metadata": {
           "label": "Reopen the persisted multiday event"
@@ -326,7 +326,7 @@
       "action": {
         "type": "ACTION_TYPE_CLICK",
         "click": {
-          "selector": "@selector/calendarMonth.event"
+          "selector": "@selector/calendarMonth.eventByTitle(title=\"E1 multiday revised\")"
         },
         "metadata": {
           "label": "Reopen the same event after month navigation"
@@ -476,7 +476,7 @@
       "action": {
         "type": "ACTION_TYPE_CLICK",
         "click": {
-          "selector": "@selector/calendarMonth.timedEvent"
+          "selector": "[data-testid=\"calendar-timed-event\"][data-event-title=\"E1 DST fold synthetic\"]"
         },
         "metadata": {
           "label": "Reopen the timed event from the month grid"

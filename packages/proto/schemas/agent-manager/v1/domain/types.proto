@@ -276,6 +276,9 @@ enum TaskStatus {
 
   // Task was cancelled before completion.
   TASK_STATUS_CANCELLED = 7;
+
+  // The current execution attempt completed without implying destination approval.
+  TASK_STATUS_COMPLETED = 8;
 }
 
 // =============================================================================

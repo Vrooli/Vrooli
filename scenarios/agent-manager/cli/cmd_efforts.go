@@ -43,6 +43,8 @@ func (a *App) cmdEffort(args []string) error {
 		return a.effortSignals(args[1:])
 	case "signal":
 		return a.effortSignal(args[1:])
+	case "feedback":
+		return a.effortFeedback(args[1:])
 	case "decision":
 		return a.effortDecision(args[1:])
 	}
@@ -125,6 +127,9 @@ func (a *App) cmdEffort(args []string) error {
 		}
 		if scoped, ok := request.(interface{ GetAuthority() pb.WatchAuthority }); ok && scoped.GetAuthority() != pb.WatchAuthority_WATCH_AUTHORITY_OPERATOR {
 			return fmt.Errorf("--local-owner requires operator authority")
+		}
+		if err := cliutil.ConfirmLocalOwnerEligible(context.Background()); err != nil {
+			return fmt.Errorf("local owner caller authority unavailable: %w", err)
 		}
 		login, err := authn.ExchangeLocalMachinePrincipal(context.Background())
 		if err != nil {

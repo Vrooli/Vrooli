@@ -156,7 +156,18 @@ func TestFreshRecoveryReceiptSurvivesCacheExpiryAndReplacementDeletion(t *testin
 	if _, err := restarted.FreshRecoveryAccepted(t.Context(), prior.ID, "different context"); err == nil {
 		t.Fatal("receipt accepted a different request")
 	}
-	if err := repos.Runs.Delete(t.Context(), recovered.ID); err != nil {
+	recovered.Status = domain.RunStatusFailed
+	recovered.Phase = domain.RunPhaseCompleted
+	endedAt := time.Now()
+	recovered.EndedAt = &endedAt
+	if err := repos.Runs.Update(t.Context(), recovered); err != nil {
+		t.Fatal(err)
+	}
+	observed, err := repos.Runs.Get(t.Context(), recovered.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := repos.Runs.Delete(t.Context(), recovered.ID, observed.Status, observed.LifecycleVersion); err != nil {
 		t.Fatal(err)
 	}
 	if accepted, err := restarted.FreshRecoveryAccepted(t.Context(), prior.ID, req.CustomContext); accepted != nil || domain.IsPreEffectRefusal(err) {

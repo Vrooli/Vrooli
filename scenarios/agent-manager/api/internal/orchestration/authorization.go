@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/identity"
@@ -18,6 +19,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/authn"
 	requestidentity "github.com/vrooli/api-core/identity"
+	"github.com/vrooli/api-core/operatordecision"
 	"github.com/vrooli/api-core/scopecatalog"
 	"github.com/vrooli/cli-core/cliutil"
 )
@@ -31,8 +33,10 @@ type AuthorizationRequest struct {
 	Targets        []string  `json:"targets"`
 	// Rules asks for several reviewed policies in one consent, each with its
 	// own targets. It replaces Policy/Targets; the two forms are exclusive.
-	Rules           []domain.AuthorizationRule `json:"rules,omitempty"`
-	DurationSeconds int64                      `json:"duration_seconds"`
+	Rules            []domain.AuthorizationRule `json:"rules,omitempty"`
+	DurationSeconds  int64                      `json:"duration_seconds"`
+	BigPicture       string                     `json:"big_picture,omitempty"`
+	TechnicalDetails string                     `json:"technical_details,omitempty"`
 }
 
 // maxAuthorizationRules bounds one consent to what an owner can review.
@@ -338,9 +342,34 @@ func (o *Orchestrator) ListStandingGrantsForApprover(ctx context.Context, approv
 	return o.standingGrants.ListForApprover(ctx, approver, limit)
 }
 
+func requesterContext(bigPicture, technicalDetails string) *domain.AuthorizationRequesterContext {
+	if bigPicture == "" && technicalDetails == "" {
+		return nil
+	}
+	return &domain.AuthorizationRequesterContext{BigPicture: bigPicture, TechnicalDetails: technicalDetails}
+}
+
+func sameRequesterContext(current *domain.AuthorizationRequesterContext, bigPicture, technicalDetails string) bool {
+	if current == nil {
+		return bigPicture == "" && technicalDetails == ""
+	}
+	return current.BigPicture == bigPicture && current.TechnicalDetails == technicalDetails
+}
+
 func (o *Orchestrator) RequestAuthorization(ctx context.Context, req AuthorizationRequest) (*domain.AuthorizationGrant, error) {
 	if o.authorizations == nil || len(o.identitySecret) == 0 {
 		return nil, errors.New("authorization authority is not configured")
+	}
+	if !utf8.ValidString(req.BigPicture) || !utf8.ValidString(req.TechnicalDetails) {
+		return nil, domain.NewValidationError("requester_context", "must be valid UTF-8")
+	}
+	req.BigPicture = strings.TrimSpace(req.BigPicture)
+	req.TechnicalDetails = strings.TrimSpace(req.TechnicalDetails)
+	if utf8.RuneCountInString(req.BigPicture) > operatordecision.MaxBigPictureCodePoints {
+		return nil, domain.NewValidationError("big_picture", "requester explanation is too long")
+	}
+	if utf8.RuneCountInString(req.TechnicalDetails) > operatordecision.MaxTechnicalDetailsCodePoints {
+		return nil, domain.NewValidationError("technical_details", "requester explanation is too long")
 	}
 	rules, err := req.normalizedRules()
 	if err != nil {
@@ -381,7 +410,7 @@ func (o *Orchestrator) RequestAuthorization(ctx context.Context, req Authorizati
 		if grant.Binding != binding || grant.EffectiveState(o.now()) != domain.AuthorizationPending {
 			continue
 		}
-		if grant.RunID == req.RunID && grant.DurationSeconds == req.DurationSeconds && grant.HarnessKind == req.HarnessKind && grant.HarnessSession == req.HarnessSession && slices.EqualFunc(grant.PolicyRules(), rules, func(a, b domain.AuthorizationRule) bool {
+		if grant.RunID == req.RunID && grant.DurationSeconds == req.DurationSeconds && grant.HarnessKind == req.HarnessKind && grant.HarnessSession == req.HarnessSession && sameRequesterContext(grant.RequesterContext, req.BigPicture, req.TechnicalDetails) && slices.EqualFunc(grant.PolicyRules(), rules, func(a, b domain.AuthorizationRule) bool {
 			return a.Policy == b.Policy && slices.Equal(a.Targets, b.Targets)
 		}) {
 			if grant.NotificationPublishedAt == nil {
@@ -393,7 +422,7 @@ func (o *Orchestrator) RequestAuthorization(ctx context.Context, req Authorizati
 	}
 	now := o.now().UTC()
 	policyName, targets := ruleSummary(rules)
-	grant := &domain.AuthorizationGrant{ID: uuid.New(), RunID: req.RunID, State: domain.AuthorizationPending, Policy: policyName, Targets: targets, DurationSeconds: req.DurationSeconds, Binding: binding, HarnessKind: req.HarnessKind, HarnessSession: req.HarnessSession, CreatedAt: now, RequestExpiresAt: now.Add(AuthorizationReviewWindow)}
+	grant := &domain.AuthorizationGrant{ID: uuid.New(), RunID: req.RunID, State: domain.AuthorizationPending, Policy: policyName, Targets: targets, DurationSeconds: req.DurationSeconds, Binding: binding, HarnessKind: req.HarnessKind, HarnessSession: req.HarnessSession, RequesterContext: requesterContext(req.BigPicture, req.TechnicalDetails), CreatedAt: now, RequestExpiresAt: now.Add(AuthorizationReviewWindow)}
 	if len(rules) > 1 {
 		grant.Rules = rules
 	}

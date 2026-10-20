@@ -23,7 +23,8 @@ import (
 // DeployDesktopRequest is the request for orchestrated desktop deployment.
 type DeployDesktopRequest struct {
 	// ProfileID is the profile to deploy (required)
-	ProfileID string `json:"profile_id"`
+	ProfileID  string `json:"profile_id"`
+	StrategyID string `json:"strategy_id,omitempty"`
 	// OutputDir is where to place the bundle manifest and binaries
 	OutputDir string `json:"output_dir,omitempty"`
 	// Platforms to build for (optional, defaults to all)
@@ -845,6 +846,7 @@ func (o *Orchestrator) deployGenerateWrapper(ds *deployState) {
 		DeploymentMode:     ds.deploymentMode,
 		BundleManifestPath: ds.response.ManifestPath,
 		Platforms:          ds.installerTargets,
+		StrategyID:         resolvePackagingStrategy(ds.req.StrategyID, ds.profile.Settings),
 	}
 
 	genResp, err := desktopClient.QuickGenerate(packCtx, genReq)

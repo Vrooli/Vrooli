@@ -166,6 +166,35 @@ func TestRaiseAuthorizationApprovalIsIdempotent(t *testing.T) {
 	}
 }
 
+func TestLegacyPendingAuthorizationRetryKeepsOriginalEventBytes(t *testing.T) {
+	now := time.Date(2026, 10, 18, 8, 0, 0, 0, time.UTC)
+	pending := newCapturingPending()
+	pub := &capturingAuthPublisher{}
+	o := phase4Orchestrator(pending, &capturingStandingGrants{}, pub, now)
+	req := standingAskRequest()
+	legacy := &domain.PendingAuthorizationRequest{
+		ID:      authorizationCorrelationID(req.Subject, req.Operation, req.Target),
+		Subject: req.Subject, Operation: req.Operation, Target: req.Target,
+		Kind: domain.PendingAuthorizationKindStanding, GrantTTL: standingGrantIssueTTL,
+		MaxConcurrentRuns: req.MaxConcurrentRuns, State: domain.PendingAuthorizationPending,
+		RaisedAt: now, ExpiresAt: now.Add(pendingAuthorizationWindow),
+	}
+	legacy.EventID = operatordecision.EventID(o.authorizationDecisionEvent(context.Background(), legacy))
+	if err := pending.Put(context.Background(), legacy); err != nil {
+		t.Fatal(err)
+	}
+	if raised, err := o.RaiseAuthorizationApproval(context.Background(), req); err != nil || !raised {
+		t.Fatalf("retry legacy pending request: raised=%v err=%v", raised, err)
+	}
+	if len(pub.events) != 1 || operatordecision.EventID(pub.events[0]) != legacy.EventID {
+		t.Fatalf("legacy retry changed the pending EventID: events=%d stored=%q", len(pub.events), legacy.EventID)
+	}
+	facts := pub.events[0].Payload
+	if facts["big_picture"] != nil || facts["technical_details"] != nil {
+		t.Fatalf("legacy retry must preserve the original context-free payload: %#v", pub.events[0].Payload)
+	}
+}
+
 func TestRaiseAuthorizationApprovalRetriesFailedPublication(t *testing.T) {
 	now := time.Now().UTC()
 	pending := newCapturingPending()
@@ -187,8 +216,71 @@ func TestRaiseAuthorizationApprovalRetriesFailedPublication(t *testing.T) {
 	if len(pub.events) != 1 || operatordecision.EventID(pub.events[0]) != firstID || pending.byID[id].PublishedAt == nil {
 		t.Fatalf("retry did not publish the same event and persist receipt: events=%d row=%+v", len(pub.events), pending.byID[id])
 	}
+	facts := pub.events[0].Payload
+	bigPicture, _ := facts["big_picture"].(string)
+	technical, _ := facts["technical_details"].(string)
+	if facts == nil || bigPicture != pending.byID[id].DecisionBigPicture || technical != pending.byID[id].DecisionTechnicalDetails {
+		t.Fatalf("new context was not persisted and published from the same pending generation: payload=%#v row=%+v", pub.events[0].Payload, pending.byID[id])
+	}
+	for _, required := range []string{
+		"verified caller", "does not execute the requested operation", "Rejection issues no grant", "existing grants are unaffected",
+	} {
+		if !strings.Contains(bigPicture, required) {
+			t.Fatalf("big picture omitted effect boundary %q: %s", required, bigPicture)
+		}
+	}
+	for _, required := range []string{
+		"Operation: run.create", "Target: agent-manager:*", "Grant kind: standing",
+		"Grant lifetime: 30-day", "Concurrency: at most 3 concurrent runs", "revocable",
+	} {
+		if !strings.Contains(technical, required) {
+			t.Fatalf("technical details omitted request bound %q: %s", required, technical)
+		}
+	}
 	if _, err := o.RaiseAuthorizationApproval(context.Background(), req); err != nil || len(pub.events) != 1 {
 		t.Fatalf("successful publication must suppress repeat: events=%d err=%v", len(pub.events), err)
+	}
+}
+
+func TestAuthorizationDecisionContextStatesOneTimeSessionBounds(t *testing.T) {
+	now := time.Now().UTC()
+	pending := newCapturingPending()
+	pub := &capturingAuthPublisher{}
+	o := phase4Orchestrator(pending, &capturingStandingGrants{}, pub, now)
+	req := AuthorizationApprovalRequest{
+		Subject: "web-console-session", Operation: "run.create", Target: "agent-manager:task-123",
+		Kind: domain.PendingAuthorizationKindOneTime, SessionID: "opaque-session-id-must-not-be-published",
+		MaxConcurrentRuns: 1,
+	}
+	if raised, err := o.RaiseAuthorizationApproval(context.Background(), req); err != nil || !raised {
+		t.Fatalf("raise one-time ask: raised=%v err=%v", raised, err)
+	}
+	if len(pub.events) != 1 {
+		t.Fatalf("expected one event, got %d", len(pub.events))
+	}
+	facts := pub.events[0].Payload
+	if facts == nil {
+		t.Fatalf("unexpected event payload: %#v", pub.events[0].Payload)
+	}
+	bigPicture, _ := facts["big_picture"].(string)
+	technical, _ := facts["technical_details"].(string)
+	for _, required := range []string{
+		"verified caller", "does not execute the requested operation", "Rejection issues no grant",
+	} {
+		if !strings.Contains(bigPicture, required) {
+			t.Fatalf("big picture omitted effect boundary %q: %s", required, bigPicture)
+		}
+	}
+	for _, required := range []string{
+		"Operation: run.create", "Target: agent-manager:task-123", "Grant kind: one-time",
+		"Grant lifetime: 1-hour", "Concurrency: at most 1 concurrent runs", "Grant scope: session-scoped",
+	} {
+		if !strings.Contains(technical, required) {
+			t.Fatalf("technical details omitted request bound %q: %s", required, technical)
+		}
+	}
+	if strings.Contains(technical, req.SessionID) {
+		t.Fatalf("technical details leaked the opaque session identifier: %s", technical)
 	}
 }
 

@@ -10,7 +10,7 @@ import (
 	"os/exec"
 	"strings"
 
-	metricspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/metrics"
+	alertspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/alerts"
 	settingspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/settings"
 
 	"github.com/vrooli/cli-core/cliutil"
@@ -25,11 +25,6 @@ const (
 	DefaultDiskThreshold   = 85.0
 	DefaultUIPort          = "36232"
 )
-
-type Alert struct {
-	Severity string `json:"severity"`
-	Message  string `json:"message"`
-}
 
 type DashboardResult struct {
 	URL    string `json:"url"`
@@ -146,59 +141,83 @@ func MetricThresholds(settings *settingspb.SystemSettings) (cpu float64, memory 
 	return cpu, memory, disk
 }
 
-func DeriveAlerts(metrics *metricspb.MetricsResponse, settings *settingspb.SystemSettings) []Alert {
-	if metrics == nil {
-		return []Alert{{Severity: "critical", Message: "No metrics snapshot is available."}}
+// MonitoringActive reports whether monitoring is running. The
+// maintenance_state wire value is the platform maintenance-orchestrator
+// contract: "active" means monitoring is running normally and "inactive"
+// means it has been paused. It never means "in maintenance".
+func MonitoringActive(settings *settingspb.SystemSettings, maintenanceState string) bool {
+	if settings != nil && !settings.GetActive() {
+		return false
 	}
-
-	cpuThreshold, memoryThreshold, _ := MetricThresholds(settings)
-	alerts := make([]Alert, 0, 4)
-	if metrics.GetCpuUsage() >= cpuThreshold+10 {
-		alerts = append(alerts, Alert{Severity: "critical", Message: fmt.Sprintf("CPU usage is %s against a %.1f%% threshold.", FormatPercent(metrics.GetCpuUsage()), cpuThreshold)})
-	} else if metrics.GetCpuUsage() >= cpuThreshold {
-		alerts = append(alerts, Alert{Severity: "warning", Message: fmt.Sprintf("CPU usage is %s against a %.1f%% threshold.", FormatPercent(metrics.GetCpuUsage()), cpuThreshold)})
-	}
-	if metrics.GetMemoryUsage() >= memoryThreshold+5 {
-		alerts = append(alerts, Alert{Severity: "critical", Message: fmt.Sprintf("Memory usage is %s against a %.1f%% threshold.", FormatPercent(metrics.GetMemoryUsage()), memoryThreshold)})
-	} else if metrics.GetMemoryUsage() >= memoryThreshold {
-		alerts = append(alerts, Alert{Severity: "warning", Message: fmt.Sprintf("Memory usage is %s against a %.1f%% threshold.", FormatPercent(metrics.GetMemoryUsage()), memoryThreshold)})
-	}
-	if metrics.GetTcpConnections() >= 300 {
-		alerts = append(alerts, Alert{Severity: "warning", Message: fmt.Sprintf("TCP connections are elevated at %d.", metrics.GetTcpConnections())})
-	}
-	if metrics.GpuUsage != nil && metrics.GetGpuUsage() >= 90 {
-		alerts = append(alerts, Alert{Severity: "warning", Message: fmt.Sprintf("GPU usage is %s.", FormatPercent(metrics.GetGpuUsage()))})
-	}
-	return alerts
+	return !strings.EqualFold(strings.TrimSpace(maintenanceState), "inactive")
 }
 
-func OverallStatus(metrics *metricspb.MetricsResponse, settings *settingspb.SystemSettings, maintenance string) string {
-	maintenance = strings.ToLower(strings.TrimSpace(maintenance))
-	if maintenance == "active" {
-		return "MAINTENANCE"
+// MonitoringStateLabel renders the maintenance-orchestrator state in words
+// that cannot be misread as "under maintenance".
+func MonitoringStateLabel(active bool) string {
+	if active {
+		return "running"
 	}
-	if settings != nil && !settings.GetActive() {
+	return "paused"
+}
+
+// OverallStatus summarizes server-owned alert state. A paused monitor is
+// INACTIVE (its alert list is not a statement about the host); a monitor
+// whose evaluator has not completed a pass is UNKNOWN; otherwise the most
+// severe active alert decides.
+func OverallStatus(monitoringActive bool, alerts *alertspb.ListAlertsResponse) string {
+	if !monitoringActive {
 		return "INACTIVE"
 	}
-	alerts := DeriveAlerts(metrics, settings)
-	for _, alert := range alerts {
-		switch strings.ToLower(strings.TrimSpace(alert.Severity)) {
+	if alerts == nil || alerts.GetEvaluatedAt() == nil {
+		return "UNKNOWN"
+	}
+	status := "HEALTHY"
+	for _, alert := range alerts.GetAlerts() {
+		if alert.GetResolvedAt() != nil {
+			continue
+		}
+		switch strings.ToLower(strings.TrimSpace(alert.GetSeverity())) {
 		case "critical":
 			return "CRITICAL"
-		case "warning":
-			return "WARNING"
+		case "warning", "high", "medium":
+			status = "WARNING"
 		}
 	}
-	return "HEALTHY"
+	return status
 }
 
-func AlertLines(alerts []Alert) []string {
+// AlertLines renders server alerts for terminal output.
+func AlertLines(alerts []*alertspb.Alert) []string {
 	if len(alerts) == 0 {
-		return []string{"No active alerts from the current snapshot."}
+		return []string{"No active alerts."}
 	}
 	lines := make([]string, 0, len(alerts))
 	for _, alert := range alerts {
-		lines = append(lines, fmt.Sprintf("[%s] %s", strings.ToUpper(alert.Severity), alert.Message))
+		line := fmt.Sprintf("[%s] %s", strings.ToUpper(alert.GetSeverity()), alert.GetMessage())
+		if rule := alert.GetRuleId(); rule != "" {
+			line = fmt.Sprintf("[%s] %s: %s", strings.ToUpper(alert.GetSeverity()), rule, alert.GetMessage())
+		}
+		if opened := alert.GetOpenedAt(); opened != nil {
+			line += " (since " + FormatTimestamp(opened) + ")"
+		}
+		if alert.GetEscalated() {
+			line += " [escalated: " + alert.GetAnomalyId() + "]"
+		}
+		lines = append(lines, line)
+	}
+	return lines
+}
+
+// RuleLines reports rules that could not evaluate, so an unsupported rule is
+// visible rather than silently counted as healthy.
+func RuleLines(rules []*alertspb.RuleState) []string {
+	lines := make([]string, 0)
+	for _, rule := range rules {
+		if rule.GetStatus() == "supported" {
+			continue
+		}
+		lines = append(lines, fmt.Sprintf("%s: %s (%s)", rule.GetRuleId(), rule.GetStatus(), rule.GetReason()))
 	}
 	return lines
 }

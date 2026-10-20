@@ -1,3 +1,4 @@
+// Identity-renewal responsibility: prove an attached session binding before rotating its ordinary identity.
 package orchestration
 
 import (

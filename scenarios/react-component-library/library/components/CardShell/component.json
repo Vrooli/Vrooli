@@ -10,11 +10,17 @@
       "styleId": "vrooli-default"
     }
   ],
-  "draft": "",
+  "draft": "1.0.10-draft.1",
   "evictedVersions": [
     "1.0.4",
-    "1.0.3"
+    "1.0.3",
+    "1.0.6",
+    "1.0.5",
+    "1.0.2"
   ],
-  "latest": "1.0.7",
-  "libraryId": "react-component-library:CardShell"
+  "latest": "1.0.9",
+  "libraryId": "react-component-library:CardShell",
+  "displayName": "CardShell",
+  "description": "Row chrome for scenario-owned cards with selection, disabled, cursor, focus, and press states.",
+  "tags": []
 }

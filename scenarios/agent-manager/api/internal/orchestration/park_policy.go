@@ -83,7 +83,7 @@ func (o *Orchestrator) liveDirectChildren(ctx context.Context, run *domain.Run) 
 	}
 	var live []string
 	for _, child := range children {
-		if child != nil && !child.Status.IsTerminal() {
+		if child != nil && isParkExecutionChild(child.Status) {
 			live = append(live, child.ID.String())
 		}
 	}
@@ -97,4 +97,11 @@ func (o *Orchestrator) appendParkPolicyEvent(ctx context.Context, run *domain.Ru
 	if err := o.appendAndBroadcastEvents(ctx, run.ID, domain.NewLogEvent(run.ID, "warn", message)); err != nil {
 		obs.Component("park-policy").Warn("park policy event append failed", obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
 	}
+}
+
+// isParkExecutionChild tracks runs that can still consume execution time.
+// Needs-review runs remain nonterminal for approval/continuation, but their
+// worker has exited; parked runs remain resumable and keep the backstop.
+func isParkExecutionChild(status domain.RunStatus) bool {
+	return status.IsActive() || status == domain.RunStatusParked
 }

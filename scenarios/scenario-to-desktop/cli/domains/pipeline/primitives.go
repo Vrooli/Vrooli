@@ -327,6 +327,22 @@ func positiveInt32(value, name string) (int32, error) {
 
 func pipelineConfigFromContext(ctx cliapp.OperationContext) (*pipelinev1.PipelineConfig, error) {
 	config := &pipelinev1.PipelineConfig{ScenarioName: strings.TrimSpace(ctx.Positional("scenario"))}
+	if value := strings.TrimSpace(ctx.Flag("strategy")); value != "" {
+		config.StrategyId = value
+	}
+	profile := &pipelinev1.ElectronOptimizationProfile{
+		SharedRuntimeReadiness: ctx.BoolFlag("shared-runtime-readiness"),
+		SecureCustomSchemeUi:   ctx.BoolFlag("secure-custom-scheme-ui"),
+		V8SnapshotCodeCache:    ctx.BoolFlag("v8-snapshot-code-cache"),
+		ElectronFuses:          ctx.BoolFlag("electron-fuses"),
+	}
+	if profile.GetSharedRuntimeReadiness() || profile.GetSecureCustomSchemeUi() || profile.GetV8SnapshotCodeCache() || profile.GetElectronFuses() {
+		config.OptimizationProfile = profile
+	}
+	if ctx.BoolFlag("skip-smoke-test") {
+		skip := true
+		config.SkipSmokeTest = &skip
+	}
 	if value := strings.TrimSpace(ctx.Flag("journey")); value != "" {
 		config.JourneyId = value
 	}

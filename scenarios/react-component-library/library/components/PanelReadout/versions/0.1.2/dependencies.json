@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 2,
+  "libraryId": "react-component-library:PanelReadout",
+  "version": "0.1.2",
+  "resolvedAt": "2026-10-19T20:22:37Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:ClassMerge",
+      "major": 1,
+      "observed": "1.0.3",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:StyleSheet",
+      "major": 1,
+      "observed": "1.0.2",
+      "rank": 1
+    }
+  ]
+}

@@ -80,7 +80,7 @@ func TestMaybeSweepSkipsSnapshotWhenDebounced(t *testing.T) {
 		t.Fatalf("CreateClaim() error = %v", err)
 	}
 
-	if _, due, err := MaybeSweep(ctx, store, src, attr, policy, clk.Now()); err != nil || !due {
+	if _, due, err := MaybeSweep(ctx, store, src, attr, policy, clk.Now); err != nil || !due {
 		t.Fatalf("first MaybeSweep() due=%v err=%v, want due", due, err)
 	}
 	if src.calls != 1 {
@@ -89,7 +89,7 @@ func TestMaybeSweepSkipsSnapshotWhenDebounced(t *testing.T) {
 	// Three debounced calls within the interval: none should sense.
 	for i := 0; i < 3; i++ {
 		clk.Advance(time.Second)
-		if _, due, err := MaybeSweep(ctx, store, src, attr, policy, clk.Now()); err != nil || due {
+		if _, due, err := MaybeSweep(ctx, store, src, attr, policy, clk.Now); err != nil || due {
 			t.Fatalf("debounced MaybeSweep() due=%v err=%v, want not-due", due, err)
 		}
 	}
@@ -113,7 +113,7 @@ func TestMaybeSweepSensingDownNeverExpires(t *testing.T) {
 	clk.Advance(4 * DefaultHeartbeatTTL) // well past the deadline
 
 	src := &countingSource{err: errSensing}
-	if _, due, err := MaybeSweep(ctx, store, src, fakeAttributor{}, DefaultPolicy(), clk.Now()); err != nil || due {
+	if _, due, err := MaybeSweep(ctx, store, src, fakeAttributor{}, DefaultPolicy(), clk.Now); err != nil || due {
 		t.Fatalf("MaybeSweep() due=%v err=%v, want skipped no-op", due, err)
 	}
 	got, err := store.GetClaim(ctx, created.ClaimID)
@@ -168,7 +168,9 @@ func TestSweepKeepsResidentAliveAcrossManyTicks(t *testing.T) {
 	// Once the owner disappears and a tick passes the (now lapsed) deadline, it
 	// expires — liveness is real, not permanent.
 	clk.Advance(2 * DefaultHeartbeatTTL)
-	result, err := Sweep(ctx, store, snapshotWithProcs(), fakeAttributor{}, DefaultPolicy(), clk.Now())
+	absent := snapshotWithProcs()
+	absent.FieldProvenance = map[string]hostinventory.Provenance{"gpu_processes": {ObservedAt: clk.Now()}}
+	result, err := Sweep(ctx, store, absent, fakeAttributor{}, DefaultPolicy(), clk.Now())
 	if err != nil {
 		t.Fatalf("final Sweep() error = %v", err)
 	}
@@ -182,3 +184,57 @@ var errSensing = sensingError("nvidia-smi unavailable")
 type sensingError string
 
 func (e sensingError) Error() string { return string(e) }
+
+// advancingProbe models a real collect finishing after the caller starts it.
+// Its observation is deliberately later than the pre-probe decision clock.
+type advancingProbe struct{ clock *testenv.Clock }
+
+func (p advancingProbe) Snapshot(context.Context) (hostinventory.Snapshot, error) {
+	p.clock.Advance(2 * time.Second)
+	snap := snapshotWithProcs()
+	snap.FieldProvenance = map[string]hostinventory.Provenance{"gpu_processes": {ObservedAt: p.clock.Now()}}
+	return snap, nil
+}
+
+func TestAdmissionAndMaybeSweepEvaluateClockAfterSensing(t *testing.T) {
+	for _, mode := range []string{"admission", "maybe-sweep"} {
+		t.Run(mode, func(t *testing.T) {
+			ctx := context.Background()
+			clk := testenv.NewClock(time.Date(2026, 10, 17, 12, 0, 0, 0, time.UTC))
+			path := t.TempDir() + "/capacity.db"
+			store, err := NewSQLiteStore(ctx, Config{DBPath: path, Clock: clk})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer store.Close()
+			old, err := store.CreateClaim(ctx, residentClaim("gone"), time.Second)
+			if err != nil {
+				t.Fatal(err)
+			}
+			clk.Advance(2 * time.Second)
+			source := advancingProbe{clk}
+			if mode == "maybe-sweep" {
+				result, due, err := MaybeSweep(ctx, store, source, fakeAttributor{}, DefaultPolicy(), clk.Now)
+				if err != nil || !due || len(result.Expired) != 1 {
+					t.Fatalf("sensing completion did not advance sweep clock: %+v due=%v err=%v", result, due, err)
+				}
+			} else {
+				root := t.TempDir()
+				writeResourceManifest(t, root, "new", "{\"acceleration\":{\"claim\":{\"resource_kind\":\"vram\",\"default_preferred_bytes\":1073741824,\"floor_bytes\":1073741824}}}")
+				_, err := AdmitResource(ctx, AdmitOptions{Root: root, ResourceName: "new", Source: source, Attributor: fakeAttributor{}, Clock: clk.Now, EnforceEnv: EnforceAdvisory, OpenStore: func(ctx context.Context) (AdmitStore, error) {
+					return NewSQLiteStore(ctx, Config{DBPath: path, Clock: clk})
+				}})
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+			got, err := store.GetClaim(ctx, old.ClaimID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.Status != StatusExpired {
+				t.Fatalf("fresh post-sensing observation treated as future: %+v", got)
+			}
+		})
+	}
+}

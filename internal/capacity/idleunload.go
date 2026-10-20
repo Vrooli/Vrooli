@@ -42,7 +42,7 @@ func IdleUnloadEligible(c CapacityClaim, policy Policy, now time.Time) bool {
 	if c.ActivityState != ActivityIdle {
 		return false
 	}
-	if now.Before(idleSince(c).Add(ttl)) {
+	if now.Before(IdleSince(c).Add(ttl)) {
 		return false
 	}
 	_, ok := idleUnloadAction(c)
@@ -67,6 +67,7 @@ func idleUnloadAction(c CapacityClaim) (EscalationAction, bool) {
 	}
 	return EscalationAction{
 		ClaimID:    c.ClaimID,
+		Generation: c.Generation,
 		OwnerID:    c.OwnerID,
 		Action:     ActionRequestDegrade,
 		ToStep:     floor.Label,

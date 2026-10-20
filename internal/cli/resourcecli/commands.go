@@ -47,9 +47,12 @@ const (
 )
 
 const (
-	AcquisitionCommandExplain     AcquisitionCommandID = "explain"
-	AcquisitionCommandInspectData AcquisitionCommandID = "inspect-data"
-	AcquisitionCommandPrune       AcquisitionCommandID = "prune"
+	AcquisitionCommandExplain          AcquisitionCommandID = "explain"
+	AcquisitionCommandInspectData      AcquisitionCommandID = "inspect-data"
+	AcquisitionCommandComposeCandidate AcquisitionCommandID = "compose-candidate"
+	AcquisitionCommandPrune            AcquisitionCommandID = "prune"
+	AcquisitionCommandModelCache       AcquisitionCommandID = "model-cache"
+	AcquisitionCommandDataGroup        AcquisitionCommandID = "data"
 )
 
 // AccelerationCommandID names a subcommand of `vrooli resource acceleration`.
@@ -155,9 +158,12 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 
 func AcquisitionCommandSpecs() []commandtree.Spec[AcquisitionCommandID] {
 	return []commandtree.Spec[AcquisitionCommandID]{
+		{Name: string(AcquisitionCommandComposeCandidate), Summary: "Prepare an uninstalled composed artifact candidate and actual digest", Args: AcquisitionComposeCandidateArgs(), Handler: AcquisitionCommandComposeCandidate},
 		{Name: string(AcquisitionCommandInspectData), Summary: "Verify bounded pinned upstream metadata and report its SHA-256 (never admit execution)", Args: AcquisitionInspectDataArgs(), Handler: AcquisitionCommandInspectData},
 		{Name: string(AcquisitionCommandExplain), Summary: "Explain host-fact acquisition target selection", Args: nameArgSchema("name"), Handler: AcquisitionCommandExplain},
 		{Name: string(AcquisitionCommandPrune), Summary: "Remove superseded managed-resource artifact versions", Args: commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "name"}}}, Handler: AcquisitionCommandPrune},
+		{Name: string(AcquisitionCommandDataGroup), Summary: "Acquire one explicitly declared data group", Args: AcquisitionDataGroupArgs(), Handler: AcquisitionCommandDataGroup},
+		{Name: string(AcquisitionCommandModelCache), Summary: "Preview or apply owner-fenced model-cache retention", Args: AcquisitionModelCacheArgs(), Handler: AcquisitionCommandModelCache},
 	}
 }
 
@@ -273,4 +279,20 @@ func AcquisitionInspectDataArgs() commandtree.ArgSchema {
 		{Name: "--logical-id", ValueName: "identity", Description: "Resource-declared credential identity"},
 		{Name: "--field", ValueName: "field", Description: "Resource-declared credential field"},
 	}}
+}
+
+func AcquisitionComposeCandidateArgs() commandtree.ArgSchema {
+	return commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "name", Required: true}}, Options: []commandtree.OptionArg{{Name: "--out", ValueName: "new-directory", Description: "New candidate bundle; never overwrite"}}}
+}
+
+func AcquisitionModelCacheArgs() commandtree.ArgSchema {
+	return commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "name", Required: true}}, Options: []commandtree.OptionArg{
+		{Name: "--entry", ValueName: "entry", Description: "Declared storage entry (default models)"},
+		{Name: "--apply-preview", ValueName: "file", Description: "Apply one exact saved preview; never stop a resource"},
+		{Name: "--pin", ValueName: "true|false", Description: "Pin or unpin the resource's model bundle"},
+	}}
+}
+
+func AcquisitionDataGroupArgs() commandtree.ArgSchema {
+	return commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "name", Required: true}}, Options: []commandtree.OptionArg{{Name: "--group", ValueName: "group", Description: "Exact declared data group; never start a resource"}}}
 }

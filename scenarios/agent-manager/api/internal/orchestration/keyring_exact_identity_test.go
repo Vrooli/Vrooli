@@ -77,10 +77,16 @@ func TestKeyringExactOneApprovalActualParentChildLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	task, err := o.CreateTask(ctx, &domain.Task{Title: "isolated native lifecycle", Description: "synthetic in-process only", ScopePath: root, ProjectRoot: root})
-	if err != nil {
-		t.Fatal(err)
+	newTask := func(title string) *domain.Task {
+		t.Helper()
+		created, err := o.CreateTask(ctx, &domain.Task{Title: title, Description: "synthetic in-process only", ScopePath: root, ProjectRoot: root})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return created
 	}
+	parentTask := newTask("isolated native parent")
+	childTask := newTask("isolated native child")
 	wait := func() launched {
 		select {
 		case got := <-starts:
@@ -109,7 +115,7 @@ func TestKeyringExactOneApprovalActualParentChildLifecycle(t *testing.T) {
 		{Kind: "effort", Id: "effort:worker", Relationship: "worker", Verified: true, Visibility: eventpb.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PUBLIC, State: eventpb.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE},
 	}
 	parent, err := o.CreateRun(ownerCtx, CreateRunRequest{
-		TaskID: task.ID, AgentProfileID: &profile.ID, PreferredRunner: "claude-code", OwnerToken: "disposable-native-owner-fixture",
+		TaskID: parentTask.ID, AgentProfileID: &profile.ID, PreferredRunner: "claude-code", OwnerToken: "disposable-native-owner-fixture",
 		IdempotencyKey: "keyring-real-parent", WorkReferences: append([]*eventpb.WorkReference{parentEffort}, parentReferenceControls...),
 	})
 	if err != nil {
@@ -124,8 +130,16 @@ func TestKeyringExactOneApprovalActualParentChildLifecycle(t *testing.T) {
 	if err != nil || !parentVerified.Valid || parentVerified.Claims.RunID != parent.ID || parentVerified.RunStatus != domain.RunStatusRunning {
 		t.Fatal("actual parent custody/lifecycle", err)
 	}
+	persistedParent, err := o.runs.Get(ctx, parent.ID)
+	if err != nil || persistedParent == nil || persistedParent.OwnerSubject != owner.Subject || persistedParent.ResolvedConfig == nil || persistedParent.ResolvedConfig.Admission == nil || persistedParent.ResolvedConfig.Admission.CreateCaller == nil {
+		t.Fatalf("parent admission caller was not durably retained: run=%+v err=%v", persistedParent, err)
+	}
+	parentCaller := persistedParent.ResolvedConfig.Admission.CreateCaller
+	if parentCaller.Kind != "human" || parentCaller.Subject != owner.Subject || parentCaller.RunID != uuid.Nil {
+		t.Fatalf("parent admission caller attribution mismatch: %+v", parentCaller)
+	}
 	child, err := o.CreateRun(ctx, CreateRunRequest{
-		TaskID: task.ID, AgentProfileID: &profile.ID, PreferredRunner: "claude-code", ParentRunID: &parent.ID,
+		TaskID: childTask.ID, AgentProfileID: &profile.ID, PreferredRunner: "claude-code", ParentRunID: &parent.ID,
 		RunIdentityToken: parentLaunch.token, RequestedScopes: []string{"agent-manager:read"}, IdempotencyKey: "keyring-real-child",
 		WorkReferences: []*eventpb.WorkReference{
 			{Kind: "effort", Id: parentEffort.Id, Relationship: "worker"},
@@ -134,6 +148,14 @@ func TestKeyringExactOneApprovalActualParentChildLifecycle(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatal("genuine child admission", err)
+	}
+	persistedChild, err := o.runs.Get(ctx, child.ID)
+	if err != nil || persistedChild == nil || persistedChild.ParentRunID == nil || *persistedChild.ParentRunID != parent.ID || persistedChild.OwnerSubject != owner.Subject || persistedChild.ResolvedConfig == nil || persistedChild.ResolvedConfig.Admission == nil || persistedChild.ResolvedConfig.Admission.CreateCaller == nil {
+		t.Fatalf("exact parent attribution was not durably retained: run=%+v err=%v", persistedChild, err)
+	}
+	childCaller := persistedChild.ResolvedConfig.Admission.CreateCaller
+	if childCaller.Kind != "run" || childCaller.RunID != parent.ID {
+		t.Fatalf("child caller is not bound to the exact parent: %+v", childCaller)
 	}
 	var inherited *eventpb.WorkReference
 	var retainedIssue *eventpb.WorkReference
@@ -171,13 +193,14 @@ func TestKeyringExactOneApprovalActualParentChildLifecycle(t *testing.T) {
 	// Validate the merged persisted contract, not only the caller's input bound:
 	// one inherited parent effort plus 100 explicit declarations exceeds the
 	// existing maximum and must fail before a run or idempotency record is kept.
+	overflowTask := newTask("overflow child")
 	tooManyRefs := make([]*eventpb.WorkReference, maxWorkReferenceDeclarations)
 	for i := range tooManyRefs {
 		tooManyRefs[i] = &eventpb.WorkReference{Kind: "issue", Id: fmt.Sprintf("ISSUE-OVERFLOW-%d", i), Relationship: "tracks"}
 	}
 	overflowKey := "keyring-merged-reference-overflow"
 	if _, err := o.CreateRun(ctx, CreateRunRequest{
-		TaskID: task.ID, AgentProfileID: &profile.ID, PreferredRunner: "claude-code", ParentRunID: &parent.ID,
+		TaskID: overflowTask.ID, AgentProfileID: &profile.ID, PreferredRunner: "claude-code", ParentRunID: &parent.ID,
 		RunIdentityToken: parentLaunch.token, RequestedScopes: []string{"agent-manager:read"}, IdempotencyKey: overflowKey,
 		WorkReferences: tooManyRefs,
 	}); err == nil || !strings.Contains(err.Error(), "at most 100 declarations") {
@@ -206,8 +229,9 @@ func TestKeyringExactOneApprovalActualParentChildLifecycle(t *testing.T) {
 		{Kind: "effort", Id: parentEffort.Id, Relationship: "worker", Revision: "stale-revision"},
 	} {
 		key := "keyring-conflicting-child-" + uuid.NewString()
+		conflictTask := newTask("conflicting child")
 		_, err := o.CreateRun(ctx, CreateRunRequest{
-			TaskID: task.ID, AgentProfileID: &profile.ID, PreferredRunner: "claude-code", ParentRunID: &parent.ID,
+			TaskID: conflictTask.ID, AgentProfileID: &profile.ID, PreferredRunner: "claude-code", ParentRunID: &parent.ID,
 			RunIdentityToken: parentLaunch.token, RequestedScopes: []string{"agent-manager:read"}, IdempotencyKey: key,
 			WorkReferences: []*eventpb.WorkReference{ref},
 		})
@@ -221,16 +245,18 @@ func TestKeyringExactOneApprovalActualParentChildLifecycle(t *testing.T) {
 
 	// Parentless effort attribution is not invented for a parent with no
 	// eligible effort declaration; explicit generic references remain intact.
+	noEffortParentTask := newTask("no-effort parent")
 	noEffortParent, err := o.CreateRun(ownerCtx, CreateRunRequest{
-		TaskID: task.ID, AgentProfileID: &profile.ID, PreferredRunner: "claude-code", OwnerToken: "disposable-native-owner-fixture",
+		TaskID: noEffortParentTask.ID, AgentProfileID: &profile.ID, PreferredRunner: "claude-code", OwnerToken: "disposable-native-owner-fixture",
 		IdempotencyKey: "keyring-no-effort-parent",
 	})
 	if err != nil {
 		t.Fatal("no-effort parent admission", err)
 	}
 	noEffortParentLaunch := wait()
+	noEffortChildTask := newTask("no-effort child")
 	noEffortChild, err := o.CreateRun(ctx, CreateRunRequest{
-		TaskID: task.ID, AgentProfileID: &profile.ID, PreferredRunner: "claude-code", ParentRunID: &noEffortParent.ID,
+		TaskID: noEffortChildTask.ID, AgentProfileID: &profile.ID, PreferredRunner: "claude-code", ParentRunID: &noEffortParent.ID,
 		RunIdentityToken: noEffortParentLaunch.token, RequestedScopes: []string{"agent-manager:read"},
 		IdempotencyKey: "keyring-no-effort-child", WorkReferences: []*eventpb.WorkReference{{Kind: "issue", Id: "ISSUE-8", Relationship: "tracks"}},
 	})
@@ -244,8 +270,9 @@ func TestKeyringExactOneApprovalActualParentChildLifecycle(t *testing.T) {
 
 	foreignParentID := uuid.New()
 	foreignKey := "keyring-foreign-parent-" + uuid.NewString()
+	foreignTask := newTask("foreign parent child")
 	if _, err = o.CreateRun(ctx, CreateRunRequest{
-		TaskID: task.ID, AgentProfileID: &profile.ID, PreferredRunner: "claude-code", ParentRunID: &foreignParentID,
+		TaskID: foreignTask.ID, AgentProfileID: &profile.ID, PreferredRunner: "claude-code", ParentRunID: &foreignParentID,
 		RunIdentityToken: parentLaunch.token, RequestedScopes: []string{"agent-manager:read"}, IdempotencyKey: foreignKey,
 	}); err == nil {
 		t.Fatal("child request with a foreign parent identity was accepted")

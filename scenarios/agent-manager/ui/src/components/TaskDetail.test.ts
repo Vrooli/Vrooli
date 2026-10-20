@@ -37,3 +37,10 @@ test("TaskDetail falls back for missing description and offers deletion for canc
   await user.click(screen.getByRole("button", { name: "Delete" }));
   assert.deepEqual(onDelete.mock.calls, [[task.id]]);
 });
+
+
+test("TaskDetail identifies a legacy running task with no current run association", () => {
+  const task = makeTask({ status: TaskStatus.RUNNING, currentRunId: "" });
+  renderWithProviders(createElement(TaskDetail, { task, onEdit: vi.fn(), onRun: vi.fn(), onCancel: vi.fn(), onDelete: vi.fn() }));
+  assert.ok(screen.getByRole("note").textContent?.includes("no recorded current run"));
+});

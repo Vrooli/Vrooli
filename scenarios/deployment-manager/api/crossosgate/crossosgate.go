@@ -4,6 +4,14 @@
 // deployment-manager OWNS the resulting production-readiness verdict that gates
 // promotion.
 //
+// Cross-OS ownership is intentionally split as follows:
+//   - host facts, toolchains, graphical sessions, and native execution: the
+//     target control plane/node agent;
+//   - artifact placement and node dispatch: vrooli-bridge;
+//   - journey semantics and target evidence: the scenario/provider that owns
+//     the journey;
+//   - aggregate validation gate and promotion decision: deployment-manager.
+//
 // This is the consumer side of bridge's gate seam: a narrow typed client over
 // bridge's GateService Connect/JSON contract, so deployment-manager gains
 // cross-OS readiness WITHOUT importing bridge's internals or proto module — it

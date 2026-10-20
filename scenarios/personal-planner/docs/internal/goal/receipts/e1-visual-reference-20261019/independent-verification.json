@@ -1,0 +1,330 @@
+{
+  "schema_version": 1,
+  "verified_at": "2026-10-19",
+  "scope": "read-only verification of retained E1 visual and seed artifacts; no native or lifecycle operation",
+  "workflow": {
+    "run_id": "e73c0ca8-e1b5-44ba-8d6c-0ee57ecec4b9",
+    "target": "personal-planner@shadow",
+    "build_identity": "sha256:701de714370b0018b4c56dafafc0db303327e66fd97e03688bf8b1092f819049",
+    "terminal": {
+      "state": "SUCCEEDED",
+      "selected": 2,
+      "executed": 2,
+      "passed": 2,
+      "failed": 0,
+      "refused": 0,
+      "skipped": 0,
+      "duration_seconds": 14.225
+    },
+    "selected_cases": [
+      {
+        "path": "bas/cases/calendar/visual-reference-desktop.json",
+        "bas_execution_id": "203d6144-0775-46b7-b4b1-9b0f45055cad",
+        "status": "passed",
+        "viewport_css_px": "1280x800",
+        "capture_pixel_dimensions": "2560x1600",
+        "routes": [
+          "/plan?appearance=day",
+          "/plan?appearance=night"
+        ],
+        "state": "Month view; routed lease data appeared empty (empty-state copy present, no event cards)"
+      },
+      {
+        "path": "bas/cases/calendar/visual-reference-mobile.json",
+        "bas_execution_id": "5a5a236e-2a9f-43a3-adbf-22e1b82721b6",
+        "status": "passed",
+        "viewport_css_px": "390x844",
+        "capture_pixel_dimensions": "780x1688",
+        "routes": [
+          "/plan?appearance=day",
+          "/plan?appearance=night"
+        ],
+        "state": "Month view via compact More menu; routed lease data appeared empty (empty-state copy present, no event cards)"
+      }
+    ],
+    "isolation": {
+      "lease_id": "e73c0ca8-e1b5-44ba-8d6c-0ee57ecec4b9",
+      "installed": true,
+      "test_pool_requests": 78,
+      "primary_during_test_mode_requests": 0,
+      "primary_root_writes_during_test_mode": 0,
+      "test_root_writes": 0,
+      "install_error": "",
+      "heartbeat_error": "",
+      "clear_error": ""
+    },
+    "timelines": [
+      {
+        "path": "/home/matthalloran8/.vrooli/state/vrooli/workflow-health/run-artifacts/personal-planner/runs/e73c0ca8-e1b5-44ba-8d6c-0ee57ecec4b9/personal-planner-bas-cases-calendar-visual-reference-desktop.json/timeline.json",
+        "sha256": "61e40a98c88ae01f47b1613e1910afba01cc10efa6449978f5a26b559cb625ac",
+        "entry_count": 8,
+        "degraded_screenshot_notes": [
+          {
+            "requested": "viewport",
+            "actual": "viewport",
+            "media": "image/jpeg"
+          },
+          {
+            "requested": "viewport",
+            "actual": "viewport",
+            "media": "image/jpeg"
+          },
+          {
+            "requested": "full_page",
+            "actual": "full_page",
+            "media": "image/jpeg"
+          },
+          {
+            "requested": "viewport",
+            "actual": "viewport",
+            "media": "image/jpeg"
+          },
+          {
+            "requested": "viewport",
+            "actual": "viewport",
+            "media": "image/jpeg"
+          },
+          {
+            "requested": "full_page",
+            "actual": "full_page",
+            "media": "image/jpeg"
+          }
+        ],
+        "actual_dpr_field_present": false
+      },
+      {
+        "path": "/home/matthalloran8/.vrooli/state/vrooli/workflow-health/run-artifacts/personal-planner/runs/e73c0ca8-e1b5-44ba-8d6c-0ee57ecec4b9/personal-planner-bas-cases-calendar-visual-reference-mobile.json/timeline.json",
+        "sha256": "80ed334e015b61665797dfc5f7b801c6b41033d648707dae59c0ea560f89426c",
+        "entry_count": 10,
+        "degraded_screenshot_notes": [
+          {
+            "requested": "viewport",
+            "actual": "viewport",
+            "media": "image/jpeg"
+          },
+          {
+            "requested": "viewport",
+            "actual": "viewport",
+            "media": "image/jpeg"
+          },
+          {
+            "requested": "full_page",
+            "actual": "full_page",
+            "media": "image/jpeg"
+          },
+          {
+            "requested": "viewport",
+            "actual": "viewport",
+            "media": "image/jpeg"
+          },
+          {
+            "requested": "viewport",
+            "actual": "viewport",
+            "media": "image/jpeg"
+          },
+          {
+            "requested": "full_page",
+            "actual": "full_page",
+            "media": "image/jpeg"
+          }
+        ],
+        "actual_dpr_field_present": false
+      }
+    ]
+  },
+  "source_art": [
+    {
+      "path": "mockups/source-art/plan-starchart-desktop-day.greenscreen.png",
+      "sha256": "b7bfff11a88591133c959e761e9d4a38706c75d6e7479135dc45e73b9cb64b15",
+      "bytes": 2386459,
+      "dimensions_px": [
+        1672,
+        941
+      ],
+      "format": "PNG",
+      "matches_receipt": true
+    },
+    {
+      "path": "mockups/source-art/landscape-lake-day.panorama.png",
+      "sha256": "4bfe6e1b51330cdec71bf1b7b5142e9e16489d618fbab2c8bf11df93a72e19a8",
+      "bytes": 3226532,
+      "dimensions_px": [
+        1672,
+        940
+      ],
+      "format": "PNG",
+      "matches_receipt": true
+    },
+    {
+      "path": "mockups/source-art/plan-starchart-desktop-night.greenscreen.png",
+      "sha256": "81eef44161cbe31eb586556931ee7ba4fee5afe86b15f7f5533ab72c12df994b",
+      "bytes": 1814937,
+      "dimensions_px": [
+        1672,
+        941
+      ],
+      "format": "PNG",
+      "matches_receipt": true
+    },
+    {
+      "path": "mockups/source-art/landscape-lake-night.greenscreen-sky.png",
+      "sha256": "3c0738ed643181d8599cfc3359e6df853adde3f3533e9b466435d81ec99e3113",
+      "bytes": 2033711,
+      "dimensions_px": [
+        1672,
+        941
+      ],
+      "format": "PNG",
+      "matches_receipt": true
+    },
+    {
+      "path": "mockups/source-art/plan-starchart-mobile-day.greenscreen.png",
+      "sha256": "3306dc0e4f7e41cf2ceb93eba5767d911542d044b3e3067b22d565972b610764",
+      "bytes": 3673983,
+      "dimensions_px": [
+        941,
+        1672
+      ],
+      "format": "PNG",
+      "matches_receipt": true
+    },
+    {
+      "path": "mockups/source-art/plan-starchart-mobile-night.greenscreen.png",
+      "sha256": "61263a265fc4ccc1c69c5c7efbc4a60bbb94112e23d5e789487db8d4dd1168da",
+      "bytes": 3120637,
+      "dimensions_px": [
+        941,
+        1672
+      ],
+      "format": "PNG",
+      "matches_receipt": true
+    }
+  ],
+  "screenshots": [
+    {
+      "case": "bas/cases/calendar/visual-reference-desktop.json",
+      "artifact_id": "0e40d704-0177-4e8d-898f-56882ccd956a",
+      "file": "internal/goal/receipts/e1-visual-reference-20261019/plan-month-desktop-day.jpg",
+      "sha256": "29b5993133abcbe9acd696ed969cd19a354afba46be300052946ae52551ca874",
+      "bytes": 213579,
+      "dimensions_px": [
+        2560,
+        1600
+      ],
+      "format": "JPEG",
+      "css_viewport": "1280x800",
+      "matches_receipt": true,
+      "receipt_degraded": true,
+      "requested_extent": "full_page",
+      "actual_extent": "full_page"
+    },
+    {
+      "case": "bas/cases/calendar/visual-reference-desktop.json",
+      "artifact_id": "6c8d4da2-e152-4d39-b666-abd7a24a2138",
+      "file": "internal/goal/receipts/e1-visual-reference-20261019/plan-month-desktop-night.jpg",
+      "sha256": "4b3c3beaa51c6b640f81b28823356c9a88d3ec9a71099e9bd4bdae83e3a2848a",
+      "bytes": 178570,
+      "dimensions_px": [
+        2560,
+        1600
+      ],
+      "format": "JPEG",
+      "css_viewport": "1280x800",
+      "matches_receipt": true,
+      "receipt_degraded": true,
+      "requested_extent": "full_page",
+      "actual_extent": "full_page"
+    },
+    {
+      "case": "bas/cases/calendar/visual-reference-mobile.json",
+      "artifact_id": "95bb5904-c745-4127-ba0d-474a34b0360d",
+      "file": "internal/goal/receipts/e1-visual-reference-20261019/plan-month-narrow-day.jpg",
+      "sha256": "3402f462ec52e57b2de57ed7ccf30edfb388cde5d06bb4fea4a95a68933c3e15",
+      "bytes": 127417,
+      "dimensions_px": [
+        780,
+        1688
+      ],
+      "format": "JPEG",
+      "css_viewport": "390x844",
+      "matches_receipt": true,
+      "receipt_degraded": true,
+      "requested_extent": "full_page",
+      "actual_extent": "full_page"
+    },
+    {
+      "case": "bas/cases/calendar/visual-reference-mobile.json",
+      "artifact_id": "98b943a9-ce03-4d68-887b-1c600b31a7ae",
+      "file": "internal/goal/receipts/e1-visual-reference-20261019/plan-month-narrow-night.jpg",
+      "sha256": "fbc5b9bf2ca363d28eb3b150e96bd683730f34623464bd373a5d63cde8b5a01a",
+      "bytes": 110399,
+      "dimensions_px": [
+        780,
+        1688
+      ],
+      "format": "JPEG",
+      "css_viewport": "390x844",
+      "matches_receipt": true,
+      "receipt_degraded": true,
+      "requested_extent": "full_page",
+      "actual_extent": "full_page"
+    }
+  ],
+  "screenshot_interpretation": {
+    "all_degraded": true,
+    "all_timeline_degraded_notes_present": true,
+    "fallback_source": "scenarios/browser-automation-studio/playwright-driver/src/telemetry/screenshot.ts",
+    "fallback_behavior": "screenshot_degraded=true is set when oversized initial PNG uses compressed JPEG fallback; full_page extent metadata can remain full_page",
+    "effective_runtime_limit": "unknown; SCREENSHOT_MAX_SIZE can override 512000-byte source default",
+    "output_to_css_pixel_ratio": "2x by recorded dimensions only",
+    "actual_browser_dpr_observed": false,
+    "capture_content_note": "screens visually show empty month; first ~3 desktop rows/four narrow cells before fixed navigation; no claim that all inner scroll content is shown"
+  },
+  "seed": {
+    "run_id": "46cdbec3-73f2-463f-bf0e-c41f186a680e",
+    "apply_status": "seeded",
+    "cleanup_status": "cleaned",
+    "apply_cleanup_run_id_match": true,
+    "receipt_token_match": true,
+    "token_value_recorded": false,
+    "private_outputs": [
+      {
+        "name": "apply.stdout",
+        "mode_octal": "0o600",
+        "bytes": 139,
+        "symlink": false
+      },
+      {
+        "name": "apply.stderr",
+        "mode_octal": "0o600",
+        "bytes": 0,
+        "symlink": false
+      },
+      {
+        "name": "cleanup.stdout",
+        "mode_octal": "0o600",
+        "bytes": 88,
+        "symlink": false
+      },
+      {
+        "name": "cleanup.stderr",
+        "mode_octal": "0o600",
+        "bytes": 0,
+        "symlink": false
+      }
+    ],
+    "stderr_empty": true,
+    "numeric_seed_counters_exposed": false
+  },
+  "original_criterion_status": {
+    "F1_six_source_images_opened_and_hash_matched": true,
+    "F1_current_four_capture_set_present": true,
+    "F1_actual_viewport_and_dpr_recorded": false,
+    "F1_implementation_evidence": "visual direction is coherent; empty data is recorded as truthful state; no obvious scene mismatch; see independent-visual-review.md",
+    "E1_accepted": false
+  },
+  "sha256": {
+    "receipt_json": "8572868d17d56263a81978a416278cfecbed65630be12982c16a130639347bde",
+    "source_manifest": "e7978155ffe7dee58c1d5650534e143cbf2e8fba1bb20eede16627fddb2ba06c"
+  }
+}

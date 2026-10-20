@@ -139,9 +139,18 @@ func CreateSandboxWorkspace(ctx context.Context, in SetupWorkspaceInput) (SetupW
 		}
 	}
 
+	if sbx == nil || sbx.Status != sandbox.SandboxStatusActive {
+		status := "missing"
+		if sbx != nil {
+			status = string(sbx.Status)
+		}
+		return SetupWorkspaceOutput{}, domain.NewStateError("Sandbox", status, "create", "provider did not return an active workspace")
+	}
+
 	in.Run.SandboxID = &sbx.ID
 	if in.Deps.Runs != nil {
 		if err := in.Deps.Runs.Update(ctx, in.Run); err != nil {
+			cleanupFreshSandboxAfterCancelledRun(ctx, in, sbx)
 			return SetupWorkspaceOutput{}, &domain.DatabaseError{
 				Operation:   "update",
 				EntityType:  "Run",
@@ -168,6 +177,42 @@ func CreateSandboxWorkspace(ctx context.Context, in SetupWorkspaceInput) (SetupW
 		SandboxID: &sbx.ID,
 		WorkDir:   workDir,
 	}, nil
+}
+
+// cleanupFreshSandboxAfterCancelledRun handles the narrow case where the
+// provider returned a newly created sandbox but persisting its ID lost to a
+// concurrent cancellation. It never acts on a reused ExistingSandboxID or on
+// an uncertain provider result. The returned metadata is the ownership proof;
+// the bounded reread proves cancellation advanced the same-owner exact run after this snapshot.
+func cleanupFreshSandboxAfterCancelledRun(ctx context.Context, in SetupWorkspaceInput, created *sandbox.Sandbox) {
+	if in.Deps.Runs == nil || in.Run == nil || created == nil || created.ID == uuid.Nil ||
+		created.Metadata[sandbox.AgentManagerRunIDMetadataKey] != in.Run.ID.String() {
+		return
+	}
+
+	readTimeout := in.Deps.Levers.Heartbeat.TeardownTimeout
+	if readTimeout <= 0 {
+		return
+	}
+	readCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), readTimeout)
+	defer cancel()
+	current, err := in.Deps.Runs.Get(readCtx, in.Run.ID)
+	if err != nil || current == nil || current.ID != in.Run.ID || current.TaskID != in.Run.TaskID ||
+		current.OwnerEpoch != in.Run.OwnerEpoch || current.LifecycleVersion <= in.Run.LifecycleVersion ||
+		(current.Status != domain.RunStatusCancelled && current.CancelRequestedAt == nil) ||
+		(current.SandboxID != nil && *current.SandboxID != created.ID) {
+		return
+	}
+
+	// ApplySandboxLifecycle owns the existing stop/delete/preserve policy and
+	// uses its bounded detached teardown context. Keep the cancellation snapshot
+	// local: never write a sandbox ID back over the winning cancellation row.
+	cleanupRun := *current
+	cleanupRun.SandboxID = &created.ID
+	ApplySandboxLifecycle(readCtx, ApplySandboxLifecycleInput{
+		Deps: in.Deps, Run: &cleanupRun, SandboxID: &created.ID, Sandbox: in.Sandbox,
+		Event: domain.SandboxLifecycleRunCancelled, Reason: "fresh sandbox persistence lost to run cancellation",
+	})
 }
 
 func createSandboxWithRetry(ctx context.Context, in SetupWorkspaceInput, req sandbox.CreateRequest) (*sandbox.Sandbox, error) {

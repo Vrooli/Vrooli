@@ -116,6 +116,9 @@ func projectStopReport(report control.StopReport) *cliv1.ProjectStopReport {
 	for _, item := range report.Failed {
 		out.Failed = append(out.Failed, projectStopItem(item))
 	}
+	for _, item := range report.Observed {
+		out.Observed = append(out.Observed, projectStopItem(item))
+	}
 	return out
 }
 

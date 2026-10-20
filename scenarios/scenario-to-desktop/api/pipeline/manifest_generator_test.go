@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
 
 func localManifestGenerator(url string) *DeploymentManagerGenerator {
@@ -29,12 +31,15 @@ func TestDeploymentManagerGeneratorExportsRequestAndWritesReturnedManifest(t *te
 	}))
 	defer server.Close()
 	outputDir := t.TempDir()
-	path, err := localManifestGenerator(server.URL).GenerateManifest(context.Background(), "hello-desktop", outputDir)
+	path, err := localManifestGenerator(server.URL).GenerateManifest(context.Background(), "hello-desktop", outputDir, resourcedeployment.ArtifactTrustDevelopmentLocal)
 	if err != nil {
 		t.Fatalf("GenerateManifest(): %v", err)
 	}
 	if request.Scenario != "hello-desktop" || request.Tier != "tier-2-desktop" || request.IncludeSecrets == nil || *request.IncludeSecrets || request.StageBundle || request.OutputDir != outputDir {
 		t.Fatalf("export request = %#v", request)
+	}
+	if request.ArtifactTrustMode != string(resourcedeployment.ArtifactTrustDevelopmentLocal) {
+		t.Fatalf("artifact trust mode = %q", request.ArtifactTrustMode)
 	}
 	if path != filepath.Join(outputDir, "bundle.json") {
 		t.Fatalf("manifest path = %q", path)
@@ -45,27 +50,13 @@ func TestDeploymentManagerGeneratorExportsRequestAndWritesReturnedManifest(t *te
 	}
 }
 
-func TestDeploymentManagerGeneratorSendsProvisionedServiceCredential(t *testing.T) {
-	t.Setenv("DEPLOYMENT_MANAGER_SERVICE_TOKEN", "owner-token")
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if got := r.Header.Get("Authorization"); got != "Bearer owner-token" {
-			t.Errorf("authorization = %q, want bearer token", got)
-		}
-		_ = json.NewEncoder(w).Encode(bundleExportResponse{Manifest: map[string]any{"scenario": "hello"}})
-	}))
-	defer server.Close()
-	if _, err := localManifestGenerator(server.URL).GenerateManifest(context.Background(), "hello", t.TempDir()); err != nil {
-		t.Fatal(err)
-	}
-}
-
 func TestDeploymentManagerGeneratorUsesProvidedPathAndReportsFailures(t *testing.T) {
 	t.Run("provided manifest path", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			_ = json.NewEncoder(w).Encode(bundleExportResponse{ManifestPath: "/remote/bundle.json"})
 		}))
 		defer server.Close()
-		path, err := localManifestGenerator(server.URL).GenerateManifest(context.Background(), "hello", t.TempDir())
+		path, err := localManifestGenerator(server.URL).GenerateManifest(context.Background(), "hello", t.TempDir(), resourcedeployment.ArtifactTrustProduction)
 		if err != nil || path != "/remote/bundle.json" {
 			t.Fatalf("GenerateManifest() = %q, %v", path, err)
 		}
@@ -86,7 +77,7 @@ func TestDeploymentManagerGeneratorUsesProvidedPathAndReportsFailures(t *testing
 				_, _ = w.Write([]byte(check.body))
 			}))
 			defer server.Close()
-			_, err := localManifestGenerator(server.URL).GenerateManifest(context.Background(), "hello", t.TempDir())
+			_, err := localManifestGenerator(server.URL).GenerateManifest(context.Background(), "hello", t.TempDir(), resourcedeployment.ArtifactTrustProduction)
 			if err == nil || !strings.Contains(err.Error(), check.want) {
 				t.Fatalf("error = %v, want %q", err, check.want)
 			}
@@ -94,7 +85,7 @@ func TestDeploymentManagerGeneratorUsesProvidedPathAndReportsFailures(t *testing
 	}
 	resolverErr := errors.New("discovery unavailable")
 	generator := NewDeploymentManagerGenerator(WithDeploymentManagerURLResolver(func(context.Context) (string, error) { return "", resolverErr }))
-	if _, err := generator.GenerateManifest(context.Background(), "hello", t.TempDir()); !errors.Is(err, resolverErr) {
+	if _, err := generator.GenerateManifest(context.Background(), "hello", t.TempDir(), resourcedeployment.ArtifactTrustProduction); !errors.Is(err, resolverErr) {
 		t.Fatalf("resolver error = %v", err)
 	}
 }

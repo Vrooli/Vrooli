@@ -15,6 +15,7 @@ import { InvestigationSchema, TriggerConfigSchema, CooldownStatusSchema, GetTrig
 import { SystemSettingsSchema, GetSettingsResponseSchema, UpdateSettingsResponseSchema, ResetSettingsResponseSchema, GetMaintenanceStateResponseSchema, SetMaintenanceStateResponseSchema } from "@vrooli/proto-types/system-monitor/v1/settings/settings_pb";
 import { ListScriptsResponseSchema, GetScriptResponseSchema, ExecuteScriptResponseSchema, InvestigationScriptSchema, ScriptExecutionSchema, ListRunsResponseSchema } from "@vrooli/proto-types/system-monitor/v1/scripts/scripts_pb";
 import { EnhancedSystemReportSchema, ListReportsResponseSchema, GenerateReportResponseSchema } from "@vrooli/proto-types/system-monitor/v1/reports/reports_pb";
+import { ListAlertsResponseSchema } from "@vrooli/proto-types/system-monitor/v1/alerts/alerts_pb";
 import { GetCapacityOverviewResponseSchema, ListCapacityClaimsResponseSchema, ReconcileCapacityResponseSchema, GetCapacityPolicyResponseSchema, SetCapacityPolicyResponseSchema } from "@vrooli/proto-types/system-monitor/v1/capacity/capacity_pb";
 
 // Domain schemas — investigations
@@ -73,6 +74,14 @@ export function parseMetricsTimelineResponse(data: unknown): MessageShape<typeof
 
 export function parseDiskDetailResponse(data: unknown): MessageShape<typeof DiskDetailResponseSchema> {
   return fromJson(DiskDetailResponseSchema, data as JsonValue, PROTO_JSON_OPTIONS);
+}
+
+// ---------------------------------------------------------------------------
+// Parse helpers — alerts
+// ---------------------------------------------------------------------------
+
+export function parseListAlertsResponse(data: unknown): MessageShape<typeof ListAlertsResponseSchema> {
+  return fromJson(ListAlertsResponseSchema, data as JsonValue, PROTO_JSON_OPTIONS);
 }
 
 // ---------------------------------------------------------------------------

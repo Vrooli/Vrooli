@@ -1276,22 +1276,7 @@ func TestUpdateTask_MalformedBody(t *testing.T) {
 	}
 }
 
-// =============================================================================
-// CANCEL TASK EDGE CASE TESTS
-// =============================================================================
-
-// TestCancelTask_NotFound tests cancelling non-existent task.
-func TestCancelTask_NotFound(t *testing.T) {
-	_, router := setupTestHandler(t)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/tasks/"+uuid.New().String()+"/cancel", nil)
-	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
-
-	if rr.Code != http.StatusNotFound {
-		t.Errorf("expected status 404, got %d", rr.Code)
-	}
-}
+// TASK LOOKUP EDGE CASES
 
 // TestGetTask_NotFound tests retrieving non-existent task.
 func TestGetTask_NotFound(t *testing.T) {

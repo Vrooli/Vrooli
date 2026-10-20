@@ -161,6 +161,7 @@ func TaskToProto(t *domain.Task) *pb.Task {
 		PhasePromptIds:     phasePromptIDs,
 		ContextAttachments: attachments,
 		Status:             TaskStatusToProto(t.Status),
+		CurrentRunId:       UUIDToString(optionalUUIDValue(t.CurrentRunID)),
 		CreatedBy:          t.CreatedBy,
 		CreatedAt:          TimestampToProto(t.CreatedAt),
 		UpdatedAt:          TimestampToProto(t.UpdatedAt),
@@ -204,10 +205,29 @@ func TaskFromProto(t *pb.Task) *domain.Task {
 		PhasePromptIDs:     phasePromptIDs,
 		ContextAttachments: attachments,
 		Status:             TaskStatusFromProto(t.Status),
+		CurrentRunID:       optionalUUIDFromString(t.CurrentRunId),
 		CreatedBy:          t.CreatedBy,
 		CreatedAt:          TimestampFromProto(t.CreatedAt),
 		UpdatedAt:          TimestampFromProto(t.UpdatedAt),
 	}
+}
+
+func optionalUUIDValue(id *uuid.UUID) uuid.UUID {
+	if id == nil {
+		return uuid.Nil
+	}
+	return *id
+}
+
+func optionalUUIDFromString(value string) *uuid.UUID {
+	if value == "" {
+		return nil
+	}
+	id, err := uuid.Parse(value)
+	if err != nil {
+		return nil
+	}
+	return &id
 }
 
 // TasksToProto converts a slice of domain Task to proto.

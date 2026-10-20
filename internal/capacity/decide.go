@@ -76,7 +76,7 @@ func Decide(req CapacityRequest, snapshot hostinventory.Snapshot, ledger []Capac
 	var reclaimTargets []string
 	aheadCount := 0
 	for _, c := range ledger {
-		if !IsActiveClaimStatus(c.Status) {
+		if !IsActiveClaimStatus(c.Status) || c.ResourceKind != req.ResourceKind || (req.ResourceKind == ResourceKindVRAM && !sameGPU(req.GPUIndex, c.GPUIndex)) {
 			continue
 		}
 		if potentialReclaimEligibleFor(c, req.Priority, policy) {
@@ -368,12 +368,7 @@ func isReclaimEligible(c CapacityClaim, grace time.Duration, now time.Time) bool
 	if c.ActivityState != ActivityIdle {
 		return false
 	}
-	since := c.LastActiveAt
-	if since == nil {
-		// Never reported active: idle since creation.
-		since = &c.CreatedAt
-	}
-	return !now.Before(since.Add(grace))
+	return !now.Before(IdleSince(c).Add(grace))
 }
 
 func potentialReclaimable(req CapacityRequest, ledger []CapacityClaim, policy Policy) []CapacityClaim {

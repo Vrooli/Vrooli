@@ -88,6 +88,32 @@ func TestOneConsentCarriesSeveralPoliciesWithoutCrossingTargets(t *testing.T) {
 	}
 }
 
+func TestTeamManagementConsentPreservesExactQATarget(t *testing.T) {
+	now := time.Now().UTC()
+	o := authorizationFixture(t, &now)
+	requested, err := o.RequestAuthorization(context.Background(), AuthorizationRequest{
+		PID: os.Getpid(), HarnessKind: "codex", HarnessSession: "qa-team-management", DurationSeconds: 16 * 60 * 60,
+		Policy: "team-management", Targets: []string{"prompt-manager:team/scenario-qa"},
+	})
+	if err != nil {
+		t.Fatalf("request exact QA team-management rule: %v", err)
+	}
+	if requested.Policy != "team-management" || len(requested.Targets) != 1 || requested.Targets[0] != "prompt-manager:team/scenario-qa" {
+		t.Fatalf("request widened its target: %+v", requested)
+	}
+	owner := ownerContext(now)
+	ownerPrincipal, _ := requestidentity.PrincipalFromContext(owner)
+	ownerPrincipal.Scopes = append(ownerPrincipal.Scopes, "prompt-manager:read", "prompt-manager:write")
+	owner = requestidentity.WithPrincipal(context.Background(), ownerPrincipal)
+	approved, err := o.ApproveAuthorization(owner, requested.ID)
+	if err != nil {
+		t.Fatalf("approve fixture exact rule: %v", err)
+	}
+	if approved.Grant == nil || !approved.Grant.Allows("team.manage", "prompt-manager:team/scenario-qa", now) || approved.Grant.Allows("team.manage", "prompt-manager:team/other", now) || approved.Grant.Allows("team.prepare", "prompt-manager:team/scenario-qa", now) {
+		t.Fatalf("approved grant escaped its operation/target: %+v", approved.Grant)
+	}
+}
+
 func TestAuthorizationRequestValidationRefusesMixedAndDuplicateRules(t *testing.T) {
 	now := time.Now().UTC()
 	o := authorizationFixture(t, &now)
@@ -231,5 +257,69 @@ func TestApprovedLifetimeOutlastsTheApproversLogin(t *testing.T) {
 	}
 	if want := now.Add(24 * time.Hour); !approved.Grant.ExpiresAt.Equal(want) {
 		t.Fatalf("grant expires %s, want the approved 24h (%s)", approved.Grant.ExpiresAt, want)
+	}
+}
+
+func TestRequesterContextIsBoundToPendingAuthorizationGeneration(t *testing.T) {
+	now := time.Now().UTC()
+	o := authorizationFixture(t, &now)
+	t.Setenv("AGENT_MANAGER_AUTHORIZATION_URL", "https://agent-manager.example.test")
+	publisher := &capturingAuthPublisher{}
+	o.approvalPublisher = publisher
+	ctx := context.Background()
+	base := AuthorizationRequest{PID: os.Getpid(), HarnessKind: "claude-code", HarnessSession: "context-generation", DurationSeconds: 3600, Policy: "agent-management", Targets: []string{"agent-manager:run/context"}, BigPicture: "Need to reconcile the run", TechnicalDetails: "Request only metadata; no execution starts."}
+	first, err := o.RequestAuthorization(ctx, base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstStored, err := o.GetAuthorization(ctx, first.ID)
+	if err != nil || firstStored.NotificationSnapshot == nil {
+		t.Fatalf("first request did not freeze its notification snapshot: grant=%+v err=%v", firstStored, err)
+	}
+	retry, err := o.RequestAuthorization(ctx, base)
+	if err != nil || retry.ID != first.ID || retry.RequesterContext == nil || retry.RequesterContext.BigPicture != base.BigPicture || retry.RequesterContext.TechnicalDetails != base.TechnicalDetails || retry.NotificationSnapshot == nil || retry.NotificationSnapshot.EventID != firstStored.NotificationSnapshot.EventID {
+		t.Fatalf("identical retry did not preserve its pending generation/context: grant=%+v err=%v", retry, err)
+	}
+	changed := base
+	changed.TechnicalDetails = "Changed explanation creates a new reviewed request."
+	second, err := o.RequestAuthorization(ctx, changed)
+	if err != nil || second == nil {
+		t.Fatalf("changed context request failed: grant=%+v err=%v", second, err)
+	}
+	secondStored, storedErr := o.GetAuthorization(ctx, second.ID)
+	if storedErr != nil || second.ID == first.ID || second.RequesterContext == nil || second.RequesterContext.TechnicalDetails != changed.TechnicalDetails || secondStored.NotificationSnapshot == nil || secondStored.NotificationSnapshot.EventID == firstStored.NotificationSnapshot.EventID {
+		t.Fatalf("changed context did not create its own generation: grant=%+v stored=%+v storedErr=%v", second, secondStored, storedErr)
+	}
+	if len(publisher.events) != 2 || strings.Contains(publisher.events[0].Payload["body"].(string), base.BigPicture) || strings.Contains(publisher.events[1].Payload["body"].(string), changed.TechnicalDetails) {
+		t.Fatalf("requester context leaked into push preview or duplicate publication occurred: events=%+v", publisher.events)
+	}
+	old, err := o.GetAuthorization(ctx, first.ID)
+	if err != nil || old.State != domain.AuthorizationSuperseded || old.RequesterContext == nil || old.RequesterContext.TechnicalDetails != base.TechnicalDetails {
+		t.Fatalf("superseded request context was rewritten: grant=%+v err=%v", old, err)
+	}
+}
+
+func TestRequesterContextUsesOperatorDecisionLimitsAndValidUTF8(t *testing.T) {
+	now := time.Now().UTC()
+	o := authorizationFixture(t, &now)
+	base := AuthorizationRequest{PID: os.Getpid(), HarnessKind: "claude-code", HarnessSession: "context-limits", DurationSeconds: 3600, Policy: "agent-management", Targets: []string{"agent-manager:run/context"}}
+	for name, req := range map[string]AuthorizationRequest{
+		"big picture too long": func() AuthorizationRequest {
+			r := base
+			r.BigPicture = strings.Repeat("界", operatordecision.MaxBigPictureCodePoints+1)
+			return r
+		}(),
+		"technical details too long": func() AuthorizationRequest {
+			r := base
+			r.TechnicalDetails = strings.Repeat("界", operatordecision.MaxTechnicalDetailsCodePoints+1)
+			return r
+		}(),
+		"invalid UTF-8": func() AuthorizationRequest { r := base; r.BigPicture = string([]byte{0xff}); return r }(),
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := o.RequestAuthorization(context.Background(), req); err == nil {
+				t.Fatal("invalid requester context was accepted")
+			}
+		})
 	}
 }

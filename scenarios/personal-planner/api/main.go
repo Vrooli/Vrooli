@@ -19,6 +19,7 @@ import (
 	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/projectmeta"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
@@ -33,6 +34,7 @@ import (
 	reviewH "personal-planner/handlers/review"
 	workH "personal-planner/handlers/work"
 	workspaceH "personal-planner/handlers/workspace"
+	testfixtures "personal-planner/internal/testfixtures"
 )
 
 // scenarioStorageRoots resolves all filesystem storage classes once at
@@ -103,6 +105,9 @@ func main() {
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
 	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
+	if testfixtures.Enabled(projectmeta.IsDevelopment(), os.Getenv(apihttp.TestModeForceEnableEnv) == "1") {
+		rootMux.Handle(testfixtures.ReferenceScaleV1Path, testfixtures.ReferenceScaleHandler(db))
+	}
 
 	rootMux.Handle("/", srv.Handler())
 	authConfig, err := authn.FromEnvironment(os.Getenv)

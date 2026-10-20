@@ -1,6 +1,11 @@
 package capture
 
-import capturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/capture"
+import (
+	capturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/capture"
+	"mime"
+	"path/filepath"
+	"strings"
+)
 
 // captureTypeMeta is the single source of truth for everything a
 // CaptureType "is" on the handler side: its human/file label, on-disk
@@ -86,4 +91,13 @@ func metaFor(c capturev1.CaptureType) captureTypeMeta {
 func canonicalFileName(c capturev1.CaptureType) string {
 	m := metaFor(c)
 	return m.shortName + m.ext
+}
+
+// Some host MIME databases map .webm to audio/webm. The capture kind is the
+// authority for continuous browser video, so playback must receive video/webm.
+func captureContentType(kind capturev1.CaptureType, path string) string {
+	if kind == capturev1.CaptureType_CAPTURE_TYPE_VIDEO && strings.EqualFold(filepath.Ext(path), ".webm") {
+		return "video/webm"
+	}
+	return mime.TypeByExtension(filepath.Ext(path))
 }

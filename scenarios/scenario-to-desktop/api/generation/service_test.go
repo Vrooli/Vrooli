@@ -1,8 +1,10 @@
 package generation
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -152,6 +154,10 @@ func TestQueueBuild_SavesBuildToStore(t *testing.T) {
 	if stored.BuildID != result.BuildID {
 		t.Errorf("stored build ID %q doesn't match result %q", stored.BuildID, result.BuildID)
 	}
+	selection, ok := result.Metadata["strategy_selection"].(*PackagingSelectionRecord)
+	if !ok || selection.Selected.StrategyID != DefaultStrategyID || selection.Selected.Override {
+		t.Fatalf("default strategy selection not recorded: %#v", result.Metadata["strategy_selection"])
+	}
 }
 
 func TestQueueBuild_SetsOutputPath(t *testing.T) {
@@ -265,6 +271,26 @@ func TestQueueBuild_PersistsRecord(t *testing.T) {
 	}
 	if record.AppDisplayName != "Test Application" {
 		t.Errorf("expected display name 'Test Application', got %q", record.AppDisplayName)
+	}
+	if record.StrategyID != DefaultStrategyID || record.Selection == nil || record.Selection.Selected.StrategyID != DefaultStrategyID {
+		t.Fatalf("strategy selection not persisted: %+v", record)
+	}
+}
+
+func TestQueueBuildRecordsExplicitStrategyOverride(t *testing.T) {
+	recordStore := newMockRecordStore()
+	service := NewService(WithVrooliRoot("/tmp/vrooli"), WithRecordStore(recordStore))
+	result := service.QueueBuild(&DesktopConfig{AppName: "test-app", StrategyID: DefaultStrategyID}, nil, false)
+	if result.Status != "building" {
+		t.Fatalf("build status=%+v", result)
+	}
+	selection, ok := result.Metadata["strategy_selection"].(*PackagingSelectionRecord)
+	if !ok || !selection.Selected.Override || selection.Selected.StrategyID != DefaultStrategyID {
+		t.Fatalf("build selection=%#v", result.Metadata["strategy_selection"])
+	}
+	record := recordStore.records[result.BuildID]
+	if record == nil || record.Selection == nil || !record.Selection.Selected.Override {
+		t.Fatalf("persisted record=%+v", record)
 	}
 }
 
@@ -481,6 +507,17 @@ func TestWriteConfigFileProducesInspectableJSON(t *testing.T) {
 	if filepath.Base(path) != "desktop-config-build.json" {
 		t.Fatalf("config path = %q", path)
 	}
+	status, ok := builds.Get("build")
+	if !ok {
+		t.Fatal("build status missing")
+	}
+	wantDigest := fmt.Sprintf("%x", sha256.Sum256(data))
+	if status.Artifacts["derived_config_sha256"] != wantDigest || status.Artifacts["derived_config_status"] != "ephemeral-not-retained" {
+		t.Fatalf("derived config evidence = %#v, want actual-byte digest %s and ephemeral disposition", status.Artifacts, wantDigest)
+	}
+	if _, exists := status.Artifacts["config_path"]; exists {
+		t.Fatal("temporary config advertised as a reusable artifact")
+	}
 }
 
 func TestGenerateRecordsTemplateGeneratorSuccessAndFailure(t *testing.T) {
@@ -521,6 +558,15 @@ func TestGenerateRecordsTemplateGeneratorSuccessAndFailure(t *testing.T) {
 	if !ok || status.Status != "ready" || status.Artifacts["output_path"] != output || status.CompletedAt == nil || iconSyncer.calls != 1 {
 		t.Fatalf("successful generation status = %#v; icon calls=%d", status, iconSyncer.calls)
 	}
+	if _, exists := status.Artifacts["config_path"]; exists {
+		t.Fatal("completed generation retained a dead temporary input path")
+	}
+	if status.Artifacts["derived_config_status"] != "ephemeral-not-retained" || len(status.Artifacts["derived_config_sha256"]) != 64 {
+		t.Fatalf("derived input evidence missing: %#v", status.Artifacts)
+	}
+	if _, err := os.Stat(filepath.Join(os.TempDir(), "desktop-config-success.json")); !os.IsNotExist(err) {
+		t.Fatalf("temporary input was not retired: %v", err)
+	}
 	if !strings.Contains(strings.Join(status.BuildLog, "\n"), "generated") {
 		t.Fatalf("generator output was not retained: %#v", status.BuildLog)
 	}
@@ -534,6 +580,13 @@ func TestGenerateRecordsTemplateGeneratorSuccessAndFailure(t *testing.T) {
 	if !ok || status.Status != "failed" || status.CompletedAt == nil || len(status.ErrorLog) < 2 || !strings.Contains(strings.Join(status.ErrorLog, "\n"), "generator-failed") {
 		t.Fatalf("failed generation status = %#v", status)
 	}
+	if _, exists := status.Artifacts["config_path"]; exists {
+		t.Fatal("failed generation retained a dead input path")
+	}
+	if status.Artifacts["derived_config_status"] != "ephemeral-not-retained" || len(status.Artifacts["derived_config_sha256"]) != 64 {
+		t.Fatalf("failed generation lost input identity: %#v", status.Artifacts)
+	}
+
 }
 
 func TestGenerateSigningArtifactsIsNoOpWhenDisabledAndWritesMacOSFiles(t *testing.T) {

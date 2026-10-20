@@ -14,8 +14,8 @@
     "protected_routes": ["/api"],
     "capabilities": [
       {"id": "deployment-manager:read", "effect": "read", "agent_eligible": true},
-      {"id": "deployment-manager:write", "effect": "write", "agent_eligible": false},
-      {"id": "deployment-manager:destructive", "effect": "destructive", "agent_eligible": false}
+      {"id": "deployment-manager:write", "effect": "write", "agent_eligible": true},
+      {"id": "deployment-manager:destructive", "effect": "destructive", "agent_eligible": true}
     ],
     "requires_authenticator": true
   },

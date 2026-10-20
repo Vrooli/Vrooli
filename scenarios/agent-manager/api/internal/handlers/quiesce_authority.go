@@ -12,6 +12,7 @@ import (
 	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
+	requestidentity "github.com/vrooli/api-core/identity"
 	"github.com/vrooli/cli-core/cliutil"
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
@@ -32,17 +33,27 @@ func WithEffortEnrollments(reader EffortEnrollmentReader) HandlerOption {
 	}
 }
 
-const quiesceRunAuthorityHint = "quiesce drains other agents' runs, so a run may call it only as the running root orchestrator " +
+const quiesceRunAuthorityHint = "forced quiesce cancels other agents' runs, so a run may call it only as the running root orchestrator " +
 	"(profile scope " + OrchestrateScope + ") of an effort whose destination is that scenario; otherwise ask the operator or the coordinating session"
 
-// denyRunInitiatedQuiesce keeps quiesce an operator drain, with one exception:
-// the running orchestrator of an effort may drain the scenario its effort
-// targets, so its own baseline promote can run. Operator requests carry no run
-// identity and continue unchanged. A presented but unverified credential is
-// refused, never treated as absence. A refusal names the failed condition.
-func (h *Handler) denyRunInitiatedQuiesce(w http.ResponseWriter, r *http.Request, scenario string) bool {
+// denyRunInitiatedQuiesce lets verified callers use the default read/wait drain
+// while retaining operator and effort-orchestrator checks for forced cancel.
+// A presented but unverified run credential is refused, never treated as
+// absence. A refusal names the failed condition.
+func (h *Handler) denyRunInitiatedQuiesce(w http.ResponseWriter, r *http.Request, scenario string, force bool) bool {
 	token := strings.TrimSpace(r.Header.Get(cliutil.HeaderAgentIdentityToken))
 	if token == "" {
+		principal, present := requestidentity.PrincipalFromContext(r.Context())
+		if present && !principal.IsVerified() {
+			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "verified caller required"})
+			return true
+		}
+		// Human operator requests retain the existing no-run-token path. An
+		// agent/service principal cannot turn that absence into forced cancellation.
+		if force && present && principal.Kind != requestidentity.ActorHuman {
+			writeJSON(w, http.StatusForbidden, map[string]string{"error": "forced quiesce requires the running effort orchestrator"})
+			return true
+		}
 		return false
 	}
 	verified, err := h.svc.VerifyIdentityToken(r.Context(), token)
@@ -55,6 +66,12 @@ func (h *Handler) denyRunInitiatedQuiesce(w http.ResponseWriter, r *http.Request
 			"error": "run identity is invalid or unavailable",
 		})
 		return true
+	}
+	// Non-forced quiesce is the reviewed read/wait path. Verifying a presented
+	// run credential is still mandatory; only Force=true reaches the existing
+	// effort-orchestrator authorization below.
+	if !force {
+		return false
 	}
 	runID := verified.Claims.RunID
 	cause := h.effortQuiesceRefusal(r.Context(), runID, scenario)

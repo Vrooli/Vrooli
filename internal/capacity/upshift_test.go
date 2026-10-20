@@ -192,7 +192,7 @@ func TestActuateUpshiftRestoresClaim(t *testing.T) {
 
 	exec := newFakeExecutor()
 	plan := EscalationPlan{Actions: []EscalationAction{{
-		ClaimID: degraded.ClaimID, OwnerID: "whisper", Action: ActionRequestUpshift, ToStep: "large-v3",
+		ClaimID: degraded.ClaimID, Generation: degraded.Generation, OwnerID: "whisper", Action: ActionRequestUpshift, ToStep: "large-v3",
 	}}}
 	res, err := Actuate(ctx, plan, store, exec, DefaultPolicy(), clk.Now())
 	if err != nil {
@@ -236,7 +236,7 @@ func TestActuateUpshiftFailureLeavesClaim(t *testing.T) {
 	exec := newFakeExecutor()
 	exec.failOn["whisper"] = true
 	plan := EscalationPlan{Actions: []EscalationAction{{
-		ClaimID: degraded.ClaimID, OwnerID: "whisper", Action: ActionRequestUpshift, ToStep: "large-v3",
+		ClaimID: degraded.ClaimID, Generation: degraded.Generation, OwnerID: "whisper", Action: ActionRequestUpshift, ToStep: "large-v3",
 	}}}
 	res, err := Actuate(ctx, plan, store, exec, DefaultPolicy(), clk.Now())
 	if err != nil {
@@ -269,7 +269,7 @@ func TestActuateUpshiftDebounced(t *testing.T) {
 
 	exec := newFakeExecutor()
 	plan := EscalationPlan{Actions: []EscalationAction{{
-		ClaimID: degraded.ClaimID, OwnerID: "whisper", Action: ActionRequestUpshift, ToStep: "large-v3",
+		ClaimID: degraded.ClaimID, Generation: degraded.Generation, OwnerID: "whisper", Action: ActionRequestUpshift, ToStep: "large-v3",
 	}}}
 	res, err := Actuate(ctx, plan, store, exec, DefaultPolicy(), clk.Now())
 	if err != nil {

@@ -321,7 +321,27 @@ func missingTools(tools []string) string {
 	return "required tools unavailable: " + strings.Join(missing, ", ")
 }
 
-func (s *ScriptService) executeCatalogScript(ctx context.Context, id, contentOverride string) (result ScriptExecution, err error) {
+func (s *ScriptService) executeCatalogScript(ctx context.Context, id, contentOverride string) (ScriptExecution, error) {
+	return s.executeCatalogScriptTagged(ctx, id, contentOverride, runTags{})
+}
+
+// runTags links a persisted investigation run to the anomaly that caused it.
+type runTags struct {
+	anomalyID string
+	findings  []catalogpkg.Finding
+}
+
+// ExecuteForAnomaly runs a catalog investigation on behalf of an escalated
+// alert and persists the run with the anomaly identifier and findings, so
+// run-history readers can join the run to the anomaly that raised it.
+func (s *ScriptService) ExecuteForAnomaly(ctx context.Context, entryID, anomalyID string, findings []catalogpkg.Finding) (ScriptExecution, error) {
+	if s.catalog == nil {
+		return ScriptExecution{}, apierrors.Unavailable("investigation catalog")
+	}
+	return s.executeCatalogScriptTagged(ctx, entryID, "", runTags{anomalyID: anomalyID, findings: findings})
+}
+
+func (s *ScriptService) executeCatalogScriptTagged(ctx context.Context, id, contentOverride string, tags runTags) (result ScriptExecution, err error) {
 	entry, ok := s.catalog.Get(id)
 	if !ok {
 		return ScriptExecution{}, apierrors.NotFound("script", id)
@@ -333,7 +353,7 @@ func (s *ScriptService) executeCatalogScript(ctx context.Context, id, contentOve
 		if s.runRepo == nil {
 			return
 		}
-		run := catalogpkg.Run{ID: result.ExecutionID, EntryID: result.ScriptID, ExecutionMode: result.ExecutionMode, Status: result.Status, SkipReason: result.SkipReason, ExitCode: result.ExitCode, TimedOut: result.TimedOut, StartedAt: result.StartedAt, CompletedAt: result.CompletedAt, DurationSeconds: result.DurationSeconds, HostOS: runtime.GOOS, HostArch: runtime.GOARCH, ResultJSON: result.Stdout, StderrTail: result.Stderr}
+		run := catalogpkg.Run{ID: result.ExecutionID, EntryID: result.ScriptID, ExecutionMode: result.ExecutionMode, Status: result.Status, SkipReason: result.SkipReason, ExitCode: result.ExitCode, TimedOut: result.TimedOut, StartedAt: result.StartedAt, CompletedAt: result.CompletedAt, DurationSeconds: result.DurationSeconds, HostOS: runtime.GOOS, HostArch: runtime.GOARCH, ResultJSON: result.Stdout, StderrTail: result.Stderr, AnomalyID: tags.anomalyID, Findings: tags.findings}
 		if saveErr := s.runRepo.SaveRun(ctx, run); saveErr != nil && err == nil {
 			err = fmt.Errorf("persist investigation run: %w", saveErr)
 		}

@@ -766,8 +766,11 @@ type Task struct {
 	// Context attachments (files, links, notes)
 	ContextAttachments []ContextAttachment `json:"contextAttachments,omitempty" db:"context_attachments"`
 
-	// Status tracking
-	Status TaskStatus `json:"status" db:"status"`
+	// Status tracking. CurrentRunID is the exact execution attempt whose lifecycle
+	// currently projects onto this task; nil on legacy rows is unresolved when
+	// historical runs exist. It is never inferred from run timestamps.
+	Status       TaskStatus `json:"status" db:"status"`
+	CurrentRunID *uuid.UUID `json:"currentRunId,omitempty" db:"current_run_id"`
 
 	// Ownership
 	CreatedBy string    `json:"createdBy,omitempty" db:"created_by"`
@@ -786,6 +789,7 @@ const (
 	TaskStatusRejected    TaskStatus = "rejected"
 	TaskStatusFailed      TaskStatus = "failed"
 	TaskStatusCancelled   TaskStatus = "cancelled"
+	TaskStatusCompleted   TaskStatus = "completed"
 )
 
 // ContextAttachment represents additional context for a task.

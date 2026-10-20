@@ -253,26 +253,41 @@ func (api loopbackJourneyAPI) Greet(ctx context.Context, expectedName string) (s
 	if err != nil {
 		return "", err
 	}
-	response, err := (&http.Client{Timeout: 3 * time.Second}).Do(request) // #nosec G704 -- request target is validated loopback-only.
-	if err != nil {
-		return "", fmt.Errorf("semantic bridge request: %w", err)
+	deadline := time.Now().Add(2 * time.Second)
+	client := &http.Client{Timeout: 3 * time.Second}
+	for {
+		response, err := client.Do(request) // #nosec G704 -- request target is restricted to loopback HTTP.
+		if err != nil {
+			return "", fmt.Errorf("semantic bridge request: %w", err)
+		}
+		if response.StatusCode == http.StatusNotFound && time.Now().Before(deadline) {
+			response.Body.Close()
+			select {
+			case <-ctx.Done():
+				return "", ctx.Err()
+			case <-time.After(100 * time.Millisecond):
+				continue
+			}
+		}
+		if response.StatusCode != http.StatusOK {
+			response.Body.Close()
+			return "", fmt.Errorf("semantic bridge returned HTTP %d", response.StatusCode)
+		}
+		var payload struct {
+			Name    string `json:"name"`
+			Message string `json:"message"`
+		}
+		decodeErr := json.NewDecoder(response.Body).Decode(&payload)
+		response.Body.Close()
+		if decodeErr != nil {
+			return "", fmt.Errorf("decode semantic bridge response: %w", decodeErr)
+		}
+		expectedMessage := "Hello, " + expectedName + "!"
+		if payload.Name != expectedName || payload.Message != expectedMessage {
+			return payload.Message, fmt.Errorf("semantic assertion mismatch: got %q, want %q", payload.Message, expectedMessage)
+		}
+		return payload.Message, nil
 	}
-	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("semantic bridge returned HTTP %d", response.StatusCode)
-	}
-	var payload struct {
-		Name    string `json:"name"`
-		Message string `json:"message"`
-	}
-	if err := json.NewDecoder(response.Body).Decode(&payload); err != nil {
-		return "", fmt.Errorf("decode semantic bridge response: %w", err)
-	}
-	expectedMessage := "Hello, " + expectedName + "!"
-	if payload.Name != expectedName || payload.Message != expectedMessage {
-		return payload.Message, fmt.Errorf("semantic assertion mismatch: got %q, want %q", payload.Message, expectedMessage)
-	}
-	return payload.Message, nil
 }
 
 func (api loopbackJourneyAPI) Probe(ctx context.Context, operation string) (JourneyOperationResult, error) {
@@ -323,6 +338,15 @@ func (s *DefaultService) runDesktopJourney(ctx context.Context, smokeTestID, sce
 }
 
 func (s *DefaultService) runDesktopJourneyWithCapability(ctx context.Context, smokeTestID, scenarioName, platform string, rec recordingState, requestedCapability string) deliveryramp.JourneyResult {
+	return s.runDesktopJourneyWithCapabilityBeforeQuit(ctx, smokeTestID, scenarioName, platform, rec, requestedCapability, nil)
+}
+
+type journeyBeforeQuitKey struct{}
+
+func (s *DefaultService) runDesktopJourneyWithCapabilityBeforeQuit(ctx context.Context, smokeTestID, scenarioName, platform string, rec recordingState, requestedCapability string, beforeQuit func()) deliveryramp.JourneyResult {
+	if beforeQuit != nil {
+		ctx = context.WithValue(ctx, journeyBeforeQuitKey{}, beforeQuit)
+	}
 	capability := strings.TrimSpace(requestedCapability)
 	if capability == "" {
 		capability = strings.TrimSpace(s.journeyCapability)
@@ -480,9 +504,14 @@ func (s *DefaultService) runDesktopJourneyCapabilityLegacy(ctx context.Context, 
 		return *earlyResult
 	}
 	base := setup.base
+	beforeQuit, _ := ctx.Value(journeyBeforeQuitKey{}).(func())
 	cleanupNeeded := true
 	defer func() {
 		if cleanupNeeded {
+			if beforeQuit != nil {
+				beforeQuit()
+				beforeQuit = nil
+			}
 			cleanupCtx, cancel := context.WithTimeout(context.Background(), journeyStepTimeout)
 			if cleanupErr := setup.driver.KeyPress(cleanupCtx, rec.displayID, "alt+F4"); cleanupErr != nil {
 				base.Disposition = deliveryramp.DispositionFailed
@@ -497,6 +526,10 @@ func (s *DefaultService) runDesktopJourneyCapabilityLegacy(ctx context.Context, 
 	}()
 
 	for index, spec := range setup.plan.Steps {
+		if spec.Action == "quit_app" && beforeQuit != nil {
+			beforeQuit()
+			beforeQuit = nil
+		}
 		if err := ctx.Err(); err != nil {
 			base.Disposition = deliveryramp.DispositionFailed
 			base.DegradedReason = "context_" + err.Error()

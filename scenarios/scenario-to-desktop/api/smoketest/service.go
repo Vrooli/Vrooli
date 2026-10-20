@@ -285,6 +285,9 @@ type EvidenceManifestInput struct {
 	ProtocolProcessTree     *procmetrics.ProcessTreeReport
 	DemoResourceSummary     *procmetrics.Summary
 	DemoProcessTree         *procmetrics.ProcessTreeReport
+	InteractiveProcessTree  *procmetrics.ProcessTreeReport
+	IdleCPUWindow           *procmetrics.ProcessTreeWindow
+	SteadyPSSWindow         *procmetrics.ProcessTreeWindow
 	ProtocolProfileDir      string
 	DemoProfileDir          string
 	ProfileMode             string

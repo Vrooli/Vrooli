@@ -132,19 +132,6 @@
         ]
       },
       {
-        "logical_id": "vrooli/deployment-manager",
-        "field": "service-token",
-        "env": "DEPLOYMENT_MANAGER_SERVICE_TOKEN",
-        "label": "Deployment Manager owner service token",
-        "description": "Short-lived scenario-to-desktop service credential with only the Deployment Manager preparation, readiness-evidence, and client-receipt scopes.",
-        "required": false,
-        "provisioning": "operator",
-        "obtain_url": "https://github.com/Vrooli/Vrooli/tree/master/scenarios/deployment-manager/docs",
-        "tiers": [
-          "tier-1-local"
-        ]
-      },
-      {
         "logical_id": "vrooli/scenario-to-desktop",
         "field": "windows-cert-password",
         "env": "CSC_KEY_PASSWORD",
@@ -261,7 +248,6 @@
     ],
     "consumers": [
       {"logical_id":"vrooli/landing-page-business-suite","field":"service-secret","kind":"authority","consumer":"LPBS deployment client","source_ref":"api/shared/env/secrets.go:46","required":true},
-      {"logical_id":"vrooli/deployment-manager","field":"service-token","kind":"environment","consumer":"Deployment Manager client","source_ref":"api/shared/auth/service_token.go:17","required":false},
       {"logical_id":"vrooli/scenario-to-desktop","field":"windows-cert-password","kind":"environment","consumer":"Electron Windows signer","source_ref":"api/signing/generation/electron_builder.go:23","required":false},
       {"logical_id":"vrooli/scenario-to-desktop","field":"windows-certificate-file","kind":"external","consumer":"Electron Windows signer","source_ref":"api/signing/generation/electron_builder.go:21","required":false},
       {"logical_id":"vrooli/scenario-to-desktop","field":"apple-id","kind":"environment","consumer":"Electron macOS notarizer","source_ref":"api/signing/generation/notarize_script.go:139","required":false},
@@ -356,6 +342,32 @@
       ],
       "reason": "Detect and inspect visible X11 windows during desktop smoke tests",
       "required": false,
+      "when": [
+        "setup",
+        "develop"
+      ]
+    },
+    {
+      "name": "webkitgtk",
+      "required": false,
+      "reason": "Optional host capability used only when the Wails in-process strategy is selected",
+      "notes": "Wails strategy preflight checks GTK3, WebKit2GTK 4.1, and libsoup 3.0 through pkg-config. Requires operator opt-in through sudo vrooli setup; never install from an agent session.",
+      "platforms": [
+        "linux"
+      ],
+      "when": [
+        "setup",
+        "develop"
+      ]
+    },
+    {
+      "name": "webkit2gtk-driver",
+      "required": false,
+      "reason": "Optional host capability used only for Wails WebKitGTK journeys",
+      "notes": "Wails strategy preflight checks WebKitWebDriver only when that strategy is selected. Requires operator opt-in through sudo vrooli setup; never install from an agent session.",
+      "platforms": [
+        "linux"
+      ],
       "when": [
         "setup",
         "develop"

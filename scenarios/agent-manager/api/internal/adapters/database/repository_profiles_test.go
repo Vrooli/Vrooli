@@ -424,10 +424,14 @@ func TestTaskCRUD(t *testing.T) {
 		t.Fatalf("expected 1 task, got %d", len(tasks))
 	}
 
-	// ListByStatus
-	task.Status = domain.TaskStatusRunning
-	if err := repos.Tasks.Update(ctx, task); err != nil {
-		t.Fatalf("Update status: %v", err)
+	// ListByStatus follows the lifecycle owner, not a caller metadata write.
+	run := &domain.Run{ID: uuid.New(), TaskID: task.ID, RunMode: domain.RunModeSandboxed, Status: domain.RunStatusPending, Phase: domain.RunPhaseQueued}
+	if err := repos.Runs.CreateTaskAttempt(ctx, task, run, nil, task.ProjectRoot); err != nil {
+		t.Fatalf("claim first task attempt: %v", err)
+	}
+	currentTask, err := repos.Tasks.Get(ctx, task.ID)
+	if err != nil || currentTask == nil {
+		t.Fatalf("read claimed task: %v", err)
 	}
 
 	runningTasks, err := repos.Tasks.ListByStatus(ctx, domain.TaskStatusRunning, repository.ListFilter{Limit: 10})
@@ -447,9 +451,9 @@ func TestTaskCRUD(t *testing.T) {
 	}
 
 	// Update
-	task.Title = "Updated Task Title"
-	if err := repos.Tasks.Update(ctx, task); err != nil {
-		t.Fatalf("Update: %v", err)
+	currentTask.Title = "Updated Task Title"
+	if err := repos.Tasks.Update(ctx, currentTask); err != nil {
+		t.Fatalf("metadata Update: %v", err)
 	}
 
 	got, err = repos.Tasks.Get(ctx, task.ID)
@@ -458,6 +462,13 @@ func TestTaskCRUD(t *testing.T) {
 	}
 	if got.Title != "Updated Task Title" {
 		t.Errorf("expected updated title, got %q", got.Title)
+	}
+	if got.Status != domain.TaskStatusRunning || got.CurrentRunID == nil || *got.CurrentRunID != run.ID {
+		t.Fatalf("metadata update altered lifecycle ownership: %+v", got)
+	}
+
+	if _, changed, err := repos.Runs.CancelTaskAttempt(ctx, task.ID, &run.ID, false, time.Now().UTC()); err != nil || !changed {
+		t.Fatalf("cancel exact pending attempt before deletion: changed=%v err=%v", changed, err)
 	}
 
 	// Delete

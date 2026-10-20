@@ -35,7 +35,7 @@ import (
 // IsValid returns whether this is a valid TaskStatus.
 func (s TaskStatus) IsValid() bool {
 	switch s {
-	case TaskStatusQueued, TaskStatusRunning, TaskStatusNeedsReview,
+	case TaskStatusQueued, TaskStatusRunning, TaskStatusNeedsReview, TaskStatusCompleted,
 		TaskStatusApproved, TaskStatusRejected, TaskStatusFailed, TaskStatusCancelled:
 		return true
 	default:
@@ -43,10 +43,11 @@ func (s TaskStatus) IsValid() bool {
 	}
 }
 
-// IsTerminal returns whether this is a terminal status (no further transitions allowed).
+// IsTerminal returns whether this task cannot move to another execution or
+// decision state without an explicit reopen path.
 func (s TaskStatus) IsTerminal() bool {
 	switch s {
-	case TaskStatusApproved, TaskStatusRejected, TaskStatusFailed, TaskStatusCancelled:
+	case TaskStatusApproved, TaskStatusRejected, TaskStatusCancelled:
 		return true
 	default:
 		return false

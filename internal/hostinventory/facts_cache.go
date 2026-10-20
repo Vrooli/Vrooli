@@ -63,10 +63,7 @@ func (r *hostFactsReader) Read(ctx context.Context, class string) (json.RawMessa
 	if class == "" {
 		return nil, errors.New("host facts class is required")
 	}
-	now := time.Now()
-	if r.Now != nil {
-		now = r.Now()
-	}
+	now := r.now()
 	boot := ""
 	if r.BootID != nil {
 		boot = r.BootID()
@@ -77,7 +74,9 @@ func (r *hostFactsReader) Read(ctx context.Context, class string) (json.RawMessa
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if entry, ok := r.load(class); ok && entry.Schema == hostFactsSchemaVersion && entry.BootID == boot && now.Sub(entry.FetchedAt) < ttl {
+	// Another local reader can hold the mutex longer than the cache TTL.
+	now = r.now()
+	if entry, ok := r.load(class); ok && entry.Schema == hostFactsSchemaVersion && entry.BootID == boot && hostFactsFresh(entry.FetchedAt, now, ttl) {
 		return append([]byte(nil), entry.Value...), nil
 	}
 	if err := os.MkdirAll(filepath.Dir(r.Path), tuning.PermPrivateDir); err != nil {
@@ -93,7 +92,9 @@ func (r *hostFactsReader) Read(ctx context.Context, class string) (json.RawMessa
 	}
 	defer release()
 	// Another process may have refreshed the class while this one waited.
-	if entry, ok := r.load(class); ok && entry.Schema == hostFactsSchemaVersion && entry.BootID == boot && now.Sub(entry.FetchedAt) < ttl {
+	// Compare against the post-wait clock so a real refresh is not future data.
+	now = r.now()
+	if entry, ok := r.load(class); ok && entry.Schema == hostFactsSchemaVersion && entry.BootID == boot && hostFactsFresh(entry.FetchedAt, now, ttl) {
 		return append([]byte(nil), entry.Value...), nil
 	}
 	value, err := r.Probe(ctx, class)
@@ -155,4 +156,16 @@ func (r *hostFactsReader) readFile() (hostFactsFile, bool) {
 		return hostFactsFile{}, false
 	}
 	return cached, true
+}
+
+// A future timestamp is unknown, never evidence that cached facts are fresh.
+func hostFactsFresh(fetchedAt, now time.Time, ttl time.Duration) bool {
+	return !fetchedAt.IsZero() && !fetchedAt.After(now) && now.Sub(fetchedAt) < ttl
+}
+
+func (r *hostFactsReader) now() time.Time {
+	if r.Now != nil {
+		return r.Now()
+	}
+	return time.Now()
 }

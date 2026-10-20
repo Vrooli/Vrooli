@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   appendDiskPoints: vi.fn(),
   appendDiskUsagePoint: vi.fn(),
   fetchMetricsTimeline: vi.fn(),
+  clearHistory: vi.fn(),
   showApiError: vi.fn(),
 }));
 
@@ -37,6 +38,7 @@ vi.mock('./useMetricHistory', () => ({
   useMetricHistory: () => ({
     metricHistory: { windowSeconds: 60, sampleIntervalSeconds: 5, cpu: [], memory: [], network: [] },
     fetchMetricsTimeline: mocks.fetchMetricsTimeline,
+    clearHistory: mocks.clearHistory,
     appendGpuPoint: mocks.appendGpuPoint,
     appendDiskPoints: mocks.appendDiskPoints,
     appendDiskUsagePoint: mocks.appendDiskUsagePoint,
@@ -175,4 +177,28 @@ describe('useSystemMonitor', () => {
     expect(result.current.subsystemErrors).toEqual({});
     expect(mocks.appendDiskPoints).not.toHaveBeenCalled();
   });
+
+  it('reads a remote node through the relay and skips host-local readings', async () => {
+    mocks.protoFetch.mockImplementation((url: string) => {
+      if (url.includes('/metrics/current')) return Promise.reject(new Error('relay unavailable'));
+      return Promise.resolve({});
+    });
+    const { result } = renderHook(() => useSystemMonitor(120, { node: 'minimouse' }));
+
+    await waitFor(() => { expect(result.current.isLoading).toBe(false); });
+    act(() => { result.current.refresh(); });
+
+    await waitFor(() => {
+      expect(mocks.protoFetch.mock.calls.some(([url]) => url === '/metrics/current?node=minimouse')).toBe(true);
+    });
+    const requested = mocks.protoFetch.mock.calls.map(([url]) => String(url));
+    for (const localOnly of ['/metrics/detailed', '/metrics/processes', '/metrics/infrastructure', '/investigations']) {
+      expect(requested.some(url => url.startsWith(localOnly))).toBe(false);
+    }
+    // The remote identity strip reports the failure persistently; no toast repeats it.
+    await waitFor(() => { expect(result.current.error?.error).toBe('relay unavailable'); });
+    expect(mocks.showApiError).not.toHaveBeenCalled();
+    expect(mocks.clearHistory).toHaveBeenCalled();
+  });
 });
+

@@ -48,7 +48,17 @@ func (s *Supervisor) setStatus(id string, status ServiceStatus) {
 	}
 	status.UpdatedAt = now
 	s.serviceStatus[id] = status
+	if s.statusChanges != nil {
+		select {
+		case s.statusChanges <- struct{}{}:
+		default:
+		}
+	}
 }
+
+// StatusChanges notifies control API waiters when a service status changes.
+// The buffered channel coalesces bursts; clients always re-read the full status map.
+func (s *Supervisor) StatusChanges() <-chan struct{} { return s.statusChanges }
 
 // getStatus retrieves the status for a service.
 func (s *Supervisor) getStatus(id string) (ServiceStatus, bool) {

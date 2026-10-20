@@ -59,6 +59,7 @@ import (
 	"github.com/vrooli/api-core/operatorsession"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
+	"github.com/vrooli/cli-core/cliutil"
 	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
 	validationmatrix "github.com/vrooli/vrooli/packages/delivery-ramp-go/validationmatrix"
 	_ "modernc.org/sqlite"
@@ -685,6 +686,7 @@ func (s *Server) registerDomainHandlers() {
 		Handler()
 	s.router.HandleFunc("/health", healthHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
+	s.router.Handle("/api/v1/measured-launch", smoketest.NewMeasuredLaunchHandler(s.smokeTestService, s.smokeTestStore)).Methods(http.MethodPost)
 	capabilities.NewHandler(capabilities.NewRegistry()).RegisterRoutes(s.router)
 	if s.targetInventoryHandler != nil {
 		s.router.Handle("/api/v1/validation/targets", s.targetInventoryHandler).Methods(http.MethodGet)
@@ -696,6 +698,17 @@ func (s *Server) registerDomainHandlers() {
 
 	// Build domain: /api/v1/desktop/download/*, /api/v1/desktop/webhook/*
 	s.buildHandler.RegisterRoutes(s.router)
+	performanceHealthURL := strings.TrimRight(strings.TrimSpace(os.Getenv("PERFORMANCE_HEALTH_API_URL")), "/")
+	if performanceHealthURL == "" {
+		if port, err := strconv.Atoi(cliutil.DetectPortFromVrooli("performance-health", "API_PORT")()); err == nil && port > 0 {
+			performanceHealthURL = fmt.Sprintf("http://127.0.0.1:%d", port)
+		}
+	}
+	if performanceHealthURL != "" {
+		generation.RegisterStrategyRoutes(s.router, filepath.Join(detectVrooliRoot(), "scenarios"), generation.NewPackagedEvidenceProvider(performanceHealthURL))
+	} else {
+		generation.RegisterStrategyRoutes(s.router, filepath.Join(detectVrooliRoot(), "scenarios"))
+	}
 
 	// Telemetry raw export remains HTTP; all domain operations are Connect RPCs.
 	s.telemetryHandler.RegisterDownloadRoute(s.router)
@@ -856,6 +869,10 @@ func main() {
 	if err := server.Run(server.Config{
 		Handler: srv.Router(),
 		Port:    strconv.Itoa(port),
+		// A measured launch includes process startup, a bounded desktop journey,
+		// and 60-second idle and steady-state windows. Keep the response open for
+		// that owner operation instead of api-core's 30-second default.
+		WriteTimeout: time.Hour,
 	}); err != nil {
 		globalLogger.Error("server failed", "error", err)
 		return

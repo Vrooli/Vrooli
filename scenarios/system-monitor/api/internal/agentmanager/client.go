@@ -11,10 +11,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/vrooli/api-core/owneridentity"
 	"io"
 	"net/http"
 	"time"
+
+	"github.com/vrooli/api-core/owneridentity"
 
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/discovery"
@@ -136,7 +137,7 @@ func (c *Client) GetTask(ctx context.Context, taskID string) (*domainpb.Task, er
 
 // CreateRun starts a new run for a task.
 func (c *Client) CreateRun(ctx context.Context, req *apipb.CreateRunRequest) (*domainpb.Run, error) {
-	if err := owneridentity.RequireCreateRunCaller(ctx, time.Now()); err != nil {
+	if err := owneridentity.RequireCreateRunCaller(ctx, time.Now(), true); err != nil {
 		return nil, err
 	}
 	var result apipb.CreateRunResponse

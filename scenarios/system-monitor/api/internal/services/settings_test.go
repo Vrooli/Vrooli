@@ -34,6 +34,13 @@ func TestSettingsManager_RoundTrip(t *testing.T) {
 		DiskEscalationCooldownSeconds: 1800,
 		DiskEscalationDebounceTicks:   2,
 		DiskFastFillJumpPercent:       5,
+		AlertSustainSeconds:           120,
+
+		MemoryPressureSomeAvg60ElevatedPercent:     15,
+		MemoryPressureFullAvg60CriticalPercent:     7,
+		MemoryPressureSwapInElevatedBytesPerSecond: 8 * 1024 * 1024,
+		MemoryPressureSwapInCriticalBytesPerSecond: 40 * 1024 * 1024,
+
 		MetricsRetentionDays:          14,
 		RetentionCheckIntervalSeconds: 1800,
 		RetentionRunOnStartup:         false,

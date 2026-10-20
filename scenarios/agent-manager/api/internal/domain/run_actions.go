@@ -106,15 +106,22 @@ func CanDeleteRun(run *Run) (bool, string) {
 		return false, "run not found"
 	}
 	switch run.Status {
-	case RunStatusPending, RunStatusStarting, RunStatusRunning:
-		return false, "stop the run before deleting it"
-	default:
+	case RunStatusComplete, RunStatusFailed, RunStatusCancelled:
 		return true, ""
+	case RunStatusParked:
+		return false, "stop the parked run first so its await handle is cancelled"
+	case RunStatusNeedsReview:
+		return false, "resolve the pending review before deleting the run"
+	default:
+		return false, "only terminal runs can be deleted"
 	}
 }
 
 // CanStopRun returns whether a run can be stopped.
 //
+// pending is stoppable when the dispatcher has crossed its executor claim but
+// durable task cancellation raced the executor's status update. A pending run
+// without such an admission is terminalized by the Task transaction instead.
 // parked is stoppable: a parked run has no live process, but stopping it must
 // still cancel the await-handle's waiter and move the run to a terminal state
 // (cancelled) rather than leaving it suspended forever. The orchestrator's
@@ -124,7 +131,7 @@ func CanStopRun(run *Run) (bool, string) {
 		return false, "run not found"
 	}
 	switch run.Status {
-	case RunStatusRunning, RunStatusStarting, RunStatusParked:
+	case RunStatusPending, RunStatusRunning, RunStatusStarting, RunStatusParked:
 		return true, ""
 	default:
 		return false, "can only stop running, starting, or parked runs"

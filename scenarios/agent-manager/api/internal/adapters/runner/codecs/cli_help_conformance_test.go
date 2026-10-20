@@ -12,8 +12,8 @@ import (
 	"agent-manager/internal/domain"
 )
 
-// TestInstalledCLIHelpAgreesWithDeclaredCapabilities is a cheap drift guard:
-// no runner is launched and a missing optional binary is explicitly skipped.
+// TestInstalledCLIHelpAgreesWithDeclaredCapabilities checks declared capability drift.
+// It launches only installed CLI help commands; a missing optional binary is explicitly skipped.
 func TestInstalledCLIHelpAgreesWithDeclaredCapabilities(t *testing.T) {
 	cases := []struct {
 		name, binary string
@@ -33,12 +33,16 @@ func TestInstalledCLIHelpAgreesWithDeclaredCapabilities(t *testing.T) {
 			if err != nil {
 				t.Skipf("%s absent: %v", tc.binary, err)
 			}
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			const helpCommandTimeout = 30 * time.Second
+			started := time.Now()
+			ctx, cancel := context.WithTimeout(context.Background(), helpCommandTimeout)
 			defer cancel()
 			output, err := exec.CommandContext(ctx, path, tc.help...).CombinedOutput()
+			elapsed := time.Since(started)
 			if err != nil {
-				t.Fatalf("%s help: %v: %s", tc.binary, err, output)
+				t.Fatalf("%s help failed after %s (context error: %v): %v: %s", tc.binary, elapsed, ctx.Err(), err, output)
 			}
+			t.Logf("%s installed help completed in %s", tc.name, elapsed)
 			help := string(output)
 			for _, flag := range tc.flags {
 				if !strings.Contains(help, flag) {

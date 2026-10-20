@@ -120,8 +120,27 @@ These live in the same settings file and are read live on each cycle.
 | `anomaly_detection_interval` | `30` | Seconds between anomaly detection passes. |
 | `threshold_check_interval` | `20` | Seconds between disk-pressure evaluations (min 5). |
 | `cooldown_period_seconds` | `300` | Minimum gap between investigations of the same condition. |
-| `cpu_threshold` | `85.0` | CPU usage percentage treated as elevated. |
-| `memory_threshold` | `90.0` | Memory usage percentage treated as elevated. |
+| `cpu_threshold` | `85.0` | CPU usage percentage treated as elevated. The `cpu_usage` alert rule warns at this value and is critical at `+10`. |
+| `memory_threshold` | `90.0` | Memory usage percentage treated as elevated. The `memory_usage` alert rule warns at this value and is critical at `+5`. |
+
+## Alert Evaluation and Memory Pressure
+
+The alert evaluator runs on `threshold_check_interval` and is the only alert
+source (see [ARCHITECTURE.md § Alerting](../concepts/ARCHITECTURE.md#alerting)).
+All values below are live; `0` selects the default.
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `alert_sustain_seconds` | `300` | A condition must hold this long before an alert opens, and stay clear this long before it resolves. Critical severity (and escalation) needs the critical condition itself to hold this long. |
+| `memory_pressure_some_avg60_elevated_percent` | `10` | Linux: memory PSI `some avg60` at or above this is `elevated`. |
+| `memory_pressure_full_avg60_critical_percent` | `5` | Linux: memory PSI `full avg60` at or above this is `critical`. |
+| `memory_pressure_swap_in_elevated_bytes_per_second` | `10485760` (10 MiB/s) | Swap-in rate that is `elevated` on Linux, and that raises a macOS native level. |
+| `memory_pressure_swap_in_critical_bytes_per_second` | `52428800` (50 MiB/s) | Swap-in rate that is `critical`. Must exceed the elevated rate. |
+
+Fixed rule boundaries (not settings): `tcp_connections` warns at 5,000 and on a
+sustained leak-shaped climb and is critical at 20,000; `gpu_usage` warns at 90%;
+`orphaned_agents` warns on an `orphaned` session older than 1 h and is critical
+at ≥ 2 GiB orphaned memory+swap or a session reapable for 1 h.
 
 ## Disk Pressure Escalation
 

@@ -185,8 +185,9 @@ describe("Observatory Today", () => {
     expect(first).toHaveStyle({ top: "calc(2rem + 0 * 6.2rem)" });
     expect(second).toHaveStyle({ top: "calc(2rem + 1 * 6.2rem)" });
     expect(third).toHaveStyle({ top: "calc(2rem + 0 * 6.2rem)" });
-    expect(second.querySelector("strong")).toHaveTextContent("45m");
-    expect(first.querySelector("strong")).toHaveTextContent("First block");
+    expect(second.querySelector(".time-block-title")).toHaveTextContent("Overlapping block");
+    expect(second.querySelector(".time-block-duration")).toHaveTextContent("45m");
+    expect(first.querySelector(".time-block-title")).toHaveTextContent("First block");
     await userEvent.click(screen.getByRole("button", { name: "Focus" }));
     expect(screen.getByRole("list", { name: /Timeline from/ })).toHaveAttribute("aria-label", "Timeline from 09:00 to 13:00");
     await userEvent.click(screen.getByRole("button", { name: "Day" }));

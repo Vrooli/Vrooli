@@ -146,7 +146,16 @@ func TestFreshRecoveryClaimReleaseCannotForgetAcceptance(t *testing.T) {
 			if err := repos.Runs.Create(t.Context(), replacement); err != nil {
 				t.Fatal(err)
 			}
-			if err := repos.Runs.Delete(t.Context(), replacement.ID); err != nil {
+			replacement.Status = domain.RunStatusFailed
+			replacement.Phase = domain.RunPhaseCompleted
+			if err := repos.Runs.Update(t.Context(), replacement); err != nil {
+				t.Fatal(err)
+			}
+			observed, err := repos.Runs.Get(t.Context(), replacement.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := repos.Runs.Delete(t.Context(), replacement.ID, observed.Status, observed.LifecycleVersion); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -214,7 +223,11 @@ func TestRecoveryAttachmentRepairsOnlyCurrentTurnMetadata(t *testing.T) {
 		t.Fatal(err)
 	}
 	if changed, err := attacher.AttachRecovery(ctx, run.ID, run.LifecycleVersion, now); err != nil || changed {
-		t.Fatalf("cancelled ownership was reattached: %v %v", changed, err)
+		t.Fatalf("stale pre-cancellation ownership was reattached: %v %v", changed, err)
+	}
+	got, err = repos.Runs.Get(ctx, run.ID)
+	if err != nil || got == nil {
+		t.Fatalf("read cancellation-fenced run: %v", err)
 	}
 	got.Status = domain.RunStatusFailed
 	if err := repos.Runs.Update(ctx, got); err != nil {
@@ -339,8 +352,12 @@ func TestRunLifecycleFencesOldAttemptWriters(t *testing.T) {
 	if _, err := repos.Runs.RequestCancellation(ctx, run.ID, stamp); err != nil {
 		t.Fatal(err)
 	}
-	run.Label = "metadata"
-	if err := repos.Runs.Update(ctx, run); err != nil {
+	current, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil || current == nil {
+		t.Fatalf("read cancellation-fenced run: %v", err)
+	}
+	current.Label = "metadata"
+	if err := repos.Runs.Update(ctx, current); err != nil {
 		t.Fatal(err)
 	}
 	got, _ = repos.Runs.Get(ctx, run.ID)

@@ -3,7 +3,7 @@
  * Tests all actions and state mutations.
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { act } from "@testing-library/react";
 import { create } from "@bufbuild/protobuf";
 import { ProbeEndpointsResponseSchema } from "@vrooli/proto-types/scenario-to-desktop/v1/domain/operations_pb";
@@ -24,6 +24,31 @@ beforeEach(() => {
 });
 
 describe("formStore", () => {
+  it("uses the runtime API endpoint when the desktop shell provides one", async () => {
+    const previousConfig = Object.getOwnPropertyDescriptor(
+      window,
+      "__VROOLI_CONFIG__",
+    );
+    Object.defineProperty(window, "__VROOLI_CONFIG__", {
+      configurable: true,
+      value: { localApiEndpoint: "http://127.0.0.1:43123/api" },
+    });
+
+    try {
+      vi.resetModules();
+      const { DEFAULT_LOCAL_API_ENDPOINT } = await import("./formTypes");
+      expect(DEFAULT_LOCAL_API_ENDPOINT).toBe("http://127.0.0.1:43123/api");
+    } finally {
+      if (previousConfig) {
+        Object.defineProperty(window, "__VROOLI_CONFIG__", previousConfig);
+      } else {
+        delete (window as Window & { __VROOLI_CONFIG__?: unknown })
+          .__VROOLI_CONFIG__;
+      }
+      vi.resetModules();
+    }
+  });
+
   describe("initial state", () => {
     it("starts with correct default values", () => {
       const state = useFormStore.getState();

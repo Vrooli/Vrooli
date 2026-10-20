@@ -133,7 +133,7 @@ func AgentOperationMiddleware(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		if r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodOptions || r.URL.Path == "/api/v1/identity/verify" || (r.Method == http.MethodPost && agentReadRPC[r.URL.Path]) {
+		if r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodOptions || r.URL.Path == "/api/v1/identity/verify" || (r.Method == http.MethodPost && agentReadPOSTRoute[r.URL.Path]) {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -248,6 +248,18 @@ func agentOperationRoute(r *http.Request, interactive bool) bool {
 	switch r.URL.Path {
 	case ExactChallengePath, ExactReadChallengePath, ExactReceiptPath, "/api/v1/runs", "/api/v1/investigations", "/api/v1/runs/episode-cohort/compare":
 		return true
+	case "/api/v1/runs/quiesce":
+		// The default drain only observes active runs and waits; it does not
+		// change run state. The handler verifies any supplied run credential and
+		// retains the root-orchestrator fence for Force=true.
+		return true
+	case "/api/v1/workflow-executions":
+		// Starting a workflow has its own owner policy: the workflow definition's
+		// trigger policy is checked by StartWorkflowExecution before admission.
+		// Workflow child runs are dispatched through the admitted workflow
+		// lifecycle, not as public CreateRun calls. Keep every other workflow
+		// lifecycle route outside this exact start exception.
+		return true
 	case "/api/v1/runs/wake-by-key":
 		// The handler applies the single-run wake lineage rule to every
 		// parked run on the key (a worker waking its orchestrator).
@@ -287,6 +299,11 @@ func agentOperationRoute(r *http.Request, interactive bool) bool {
 	}
 	template, _ := route.GetPathTemplate()
 	switch template {
+	case "/api/v1/workflow-executions/{id}/wait":
+		// Waiting observes durable workflow state and never advances, signals, or
+		// cancels the execution. It is the REST counterpart of the read-only
+		// WaitWorkflowExecution Connect procedure. Keep adjacent POST actions gated.
+		return true
 	case "/api/v1/runs/{id}/stop", "/api/v1/runs/{id}/continue", "/api/v1/runs/{id}/wake", "/api/v1/runs/{id}/recover", "/api/v1/runs/{id}/park",
 		"/api/v1/tasks/{id}/cancel",
 		"/api/v1/investigations/{id}/wait", "/api/v1/investigations/{id}/result", "/api/v1/investigations/{id}/cancel", "/api/v1/investigations/{id}/learning-retry":
@@ -314,9 +331,20 @@ var localLoopbackOnlyRoute = map[string]bool{
 	"/api/v1/runs/external/tombstone": true,
 }
 
-// Reviewed read procedures from the current owner contract. Unknown RPCs
-// never inherit read authority merely from their method spelling.
-var agentReadRPC = map[string]bool{
+// Reviewed POST read routes from the current owner contract. Connect RPCs and
+// standalone REST reads are listed by their exact route; unknown operations do
+// not inherit read admission merely from their method or name.
+var agentReadPOSTRoute = map[string]bool{
+	"/api/v1/permission-policy/doctor":                                       true,
+	"/api/v1/permission-policy/plan":                                         true,
+	"/api/v1/permission-policy/validate":                                     true,
+	"/api/v1/role-policy/explain":                                            true,
+	"/api/v1/role-policy/validate":                                           true,
+	apiconnect.AgentManagerServiceExplainRolePolicyProcedure:                 true,
+	apiconnect.AgentManagerServiceDoctorPermissionPolicyProcedure:            true,
+	apiconnect.AgentManagerServicePlanPermissionPolicyProcedure:              true,
+	apiconnect.AgentManagerServiceValidatePermissionPolicyCatalogProcedure:   true,
+	apiconnect.AgentManagerServiceValidateRolePolicyCatalogProcedure:         true,
 	"/agent_manager.v1.AgentManagerService/GetCohortWatch":                   true,
 	"/agent_manager.v1.AgentManagerService/GetEffortBoard":                   true,
 	"/agent_manager.v1.AgentManagerService/GetInvestigation":                 true,

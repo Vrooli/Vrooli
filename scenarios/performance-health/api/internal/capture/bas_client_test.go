@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"net/http/httptest"
+	"performance-health/internal/readiness"
+	"strings"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -134,4 +136,55 @@ type captureHandlerFunc func(context.Context, *connect.Request[capturev1.Capture
 
 func (f captureHandlerFunc) Capture(ctx context.Context, req *connect.Request[capturev1.CaptureRequest]) (*connect.Response[capturev1.CaptureResponse], error) {
 	return f(ctx, req)
+}
+
+// A reachable capture operation failure must retain its code and explanation;
+// it must not claim the browser or BAS service was unreachable.
+func TestCapturePerfPreservesOperationFailureThroughAudit(t *testing.T) {
+	for _, code := range []connect.Code{connect.CodeInternal, connect.CodeDeadlineExceeded,
+		connect.CodePermissionDenied, connect.CodeUnauthenticated, connect.CodeCanceled,
+		connect.CodeUnknown, connect.CodeUnavailable} {
+		t.Run(code.String(), func(t *testing.T) {
+			const detail = "instruction click-plan: target element is not visible"
+			_, handler := captureconnect.NewCaptureServiceHandler(captureHandlerFunc(func(context.Context, *connect.Request[capturev1.CaptureRequest]) (*connect.Response[capturev1.CaptureResponse], error) {
+				return nil, connect.NewError(code, errors.New(detail))
+			}))
+			server := httptest.NewServer(handler)
+			t.Cleanup(server.Close)
+			client := &BASConnectClient{Resolve: func(context.Context) (string, error) { return server.URL, nil }, HTTPClient: server.Client()}
+			build := &fakeBuild{uiURL: "http://example.test"}
+			result, err := NewService(client, build).WithCaptureRetry(1, 0).Orchestrate(context.Background(), "demo", "", readiness.Tier1)
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := OutcomeFailed
+			if code == connect.CodeUnavailable {
+				want = OutcomeUnavailable
+			}
+			if result.Outcome != want {
+				t.Errorf("outcome=%v, want %v for %s", result.Outcome, want, code)
+			}
+			if !strings.Contains(result.Reason, detail) || !strings.Contains(result.Reason, code.String()) {
+				t.Errorf("capture cause lost: %q", result.Reason)
+			}
+			if strings.Contains(result.Reason, "unreachable") || strings.Contains(result.Reason, "no browser") {
+				t.Errorf("unproved mechanism claim: %q", result.Reason)
+			}
+			if build.restoreCalls != 1 {
+				t.Errorf("default restore calls=%d, want1", build.restoreCalls)
+			}
+		})
+	}
+}
+
+func TestCapturePerfPreservesDiscoveryFailureThroughAudit(t *testing.T) {
+	const detail = "scenario discovery registry is unavailable"
+	client := &BASConnectClient{Resolve: func(context.Context) (string, error) { return "", errors.New(detail) }}
+	result, err := NewService(client, &fakeBuild{uiURL: "http://example.test"}).WithCaptureRetry(1, 0).Orchestrate(context.Background(), "demo", "", readiness.Tier0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Outcome != OutcomeUnavailable || !strings.Contains(result.Reason, detail) {
+		t.Fatalf("discovery cause lost: %#v", result)
+	}
 }

@@ -373,24 +373,36 @@ func TestOwnerMaintenanceStillProtectsNonRestartLifecycleEffects(t *testing.T) {
 }
 
 func TestAgentManagerRestartDoesNotRequireOwnerMaintenance(t *testing.T) {
-	t.Setenv(cliutil.EnvIdentityToken, "")
-	root, home := t.TempDir(), t.TempDir()
-	writeLifecycleFixtureManifest(t, root, scenario.ServiceManifest{
-		Service:   scenario.ServiceMetadata{Name: "agent-manager"},
-		Lifecycle: scenario.Lifecycle{Develop: scenario.Phase{Steps: []scenario.PhaseStep{{Name: "develop", Exec: []string{"bash", "-c", "true"}}}}},
-	})
-	reads := 0
-	runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
-		deps.readOwnerMaintenance = func(context.Context, scenario.Scenario) (ownerMaintenanceStanding, error) {
-			reads++
-			return ownerMaintenanceStanding{}, errors.New("owner maintenance must not be consulted for Agent Manager restart")
-		}
-	})
-	if _, err := runner.Restart("agent-manager", StartOptions{}); err != nil {
-		t.Fatalf("Agent Manager restart: %v", err)
-	}
-	if reads != 0 {
-		t.Fatalf("owner maintenance reads=%d, want 0", reads)
+	for _, tc := range []struct {
+		name  string
+		token string
+		runID string
+	}{
+		{name: "unidentified"},
+		{name: "identified_executor", token: "identified-test-executor", runID: "run-123"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv(cliutil.EnvIdentityToken, tc.token)
+			t.Setenv("VROOLI_RUN_ID", tc.runID)
+			root, home := t.TempDir(), t.TempDir()
+			writeLifecycleFixtureManifest(t, root, scenario.ServiceManifest{
+				Service:   scenario.ServiceMetadata{Name: "agent-manager"},
+				Lifecycle: scenario.Lifecycle{Develop: scenario.Phase{Steps: []scenario.PhaseStep{{Name: "develop", Exec: []string{"bash", "-c", "true"}}}}},
+			})
+			reads := 0
+			runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
+				deps.readOwnerMaintenance = func(context.Context, scenario.Scenario) (ownerMaintenanceStanding, error) {
+					reads++
+					return ownerMaintenanceStanding{}, errors.New("owner maintenance must not be consulted for Agent Manager restart")
+				}
+			})
+			if _, err := runner.Restart("agent-manager", StartOptions{}); err != nil {
+				t.Fatalf("Agent Manager restart: %v", err)
+			}
+			if reads != 0 {
+				t.Fatalf("owner maintenance reads=%d, want 0", reads)
+			}
+		})
 	}
 }
 

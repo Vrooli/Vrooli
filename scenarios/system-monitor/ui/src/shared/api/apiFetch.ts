@@ -226,6 +226,7 @@ function buildConnectCall(rawPath: string, options?: RequestInit): ConnectCall |
   const capacity = '/vrooli.system_monitor.v1.capacity.CapacityService';
   const investigations = '/vrooli.system_monitor.v1.investigations.InvestigationsService';
   const scripts = '/vrooli.system_monitor.v1.scripts.ScriptsService';
+  const alerts = '/vrooli.system_monitor.v1.alerts.AlertsService';
 
   switch (path) {
     case '/metrics/current':
@@ -271,6 +272,16 @@ function buildConnectCall(rawPath: string, options?: RequestInit): ConnectCall |
         return { procedure: `${settings}/SetMaintenanceState`, body, unwrap: identity };
       }
       return { procedure: `${settings}/GetMaintenanceState`, body: {}, unwrap: identity };
+    case '/alerts':
+      return {
+        procedure: `${alerts}/ListAlerts`,
+        body: {
+          status: url.searchParams.get('status') ?? '',
+          includeEvents: boolParam(url.searchParams.get('include_events')),
+          limit: intParam(url.searchParams.get('limit')),
+        },
+        unwrap: identity,
+      };
     case '/reports':
       return { procedure: `${reports}/ListReports`, body: {}, unwrap: identity };
     case '/reports/generate':

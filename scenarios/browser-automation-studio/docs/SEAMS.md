@@ -1687,7 +1687,18 @@ Capture is the **first proto-first Connect-RPC handler in BAS**. The rest of the
 - `capture.Deps.Resolver` — exposes `ResolveScenarioURLDefault(ctx, slug) (string, error)`. Lets capture accept the `scenario=<slug>,path=<path>` shorthand without coupling to a specific lookup implementation.
 - `capture.Deps.Now` — clock injection for `duration_ms` so tests are deterministic.
 
-**Tests:** Seven cases in `service_test.go` cover happy path, multi-capture, dimensions preset, dimensions explicit override, scenario shorthand resolution, dry-run short-circuit, and validation errors (empty URL, half-set width/height, UNSPECIFIED capture type, malformed shorthand, shorthand without resolver).
+Capture viewport precedence is explicit request dimensions first, then a complete
+`settings.viewport_width`/`settings.viewport_height` pair from
+`interaction_flow_json`, then the existing 1440×900 capture default. The flow
+uses the same workflow normalizer as `execute-adhoc`, including the
+`executionViewport` compatibility form. A partial pair or an inherited value
+outside the CaptureRequest dimension bounds is InvalidArgument before executor
+effects. A request that supplies only device scale factor still inherits the
+flow's viewport and preserves that scale factor. Other interaction-flow
+settings remain outside this capture contract; the flow contributes only its
+viewport plus spliced nodes/edges.
+
+**Tests:** `service_test.go` covers the HTTP/Connect contract, explicit dimensions, inherited and aliased workflow viewports, fallback dimensions, invalid geometry before effects, scenario shorthand, dry-run, and flow normalization/splicing.
 
 **Status:** Strong (proto-first contract, deps interface, mock-friendly).
 

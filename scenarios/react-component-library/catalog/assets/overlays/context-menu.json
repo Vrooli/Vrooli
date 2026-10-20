@@ -22,7 +22,7 @@
   "dependencies": {
     "requires": [
       {
-        "asset": "react-component-library:Portal",
+        "asset": "services.layer-manager",
         "reason": "The menu is rendered in the shared overlay portal."
       }
     ]

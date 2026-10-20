@@ -199,7 +199,7 @@ func (a *App) runCommands() []cliapp.Command {
 		{"approve", "Approve run changes", "agent-manager run approve <id>", a.runApprove},
 		{"reject", "Reject run changes", "agent-manager run reject <id>", a.runReject},
 		{"diff", "Show sandbox diff", "agent-manager run diff <id> [--stat]", a.runDiff},
-		{"events", "Show run events", "agent-manager run events <id> [--stats] [--failed]", a.runEvents},
+		{"events", "Show or follow run events", "agent-manager run events <id> [--follow] [--stats] [--failed] [--after-sequence N] [--limit N] [--json]", a.runEvents},
 	}
 	commands := make([]cliapp.Command, 0, len(entries))
 	for _, item := range entries {

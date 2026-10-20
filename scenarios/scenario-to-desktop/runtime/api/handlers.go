@@ -177,6 +177,7 @@ func NewServer(rt Runtime, authToken string) *Server {
 func (s *Server) RegisterHandlers(mux *http.ServeMux) {
 	mux.HandleFunc("/healthz", s.handleHealth)
 	mux.HandleFunc("/readyz", s.handleReady)
+	mux.HandleFunc("/readyz/wait", s.handleReadyWait)
 	mux.HandleFunc("/ports", s.handlePorts)
 	mux.HandleFunc("/logs/tail", s.handleLogs)
 	mux.HandleFunc("/shutdown", s.handleShutdown)
@@ -469,10 +470,65 @@ func runtimeBuildVersion() string {
 
 // handleReady returns readiness status for all services.
 func (s *Server) handleReady(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, s.readinessSnapshot(false))
+}
+
+type readinessChangeSource interface{ StatusChanges() <-chan struct{} }
+
+// handleReadyWait holds one authenticated control request until the service
+// status publisher signals a change, avoiding repeated readiness polling.
+func (s *Server) handleReadyWait(w http.ResponseWriter, r *http.Request) {
+	source, ok := s.runtime.(readinessChangeSource)
+	if !ok || source.StatusChanges() == nil {
+		http.Error(w, "readiness event stream unavailable", http.StatusNotImplemented)
+		return
+	}
+	timeout := 30 * time.Second
+	if raw := strings.TrimSpace(r.URL.Query().Get("timeout_ms")); raw != "" {
+		ms, err := strconv.Atoi(raw)
+		if err != nil || ms < 1 || ms > 120000 {
+			http.Error(w, "timeout_ms must be between 1 and 120000", http.StatusBadRequest)
+			return
+		}
+		timeout = time.Duration(ms) * time.Millisecond
+	}
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	criticalOnly := strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("critical_only")), "true")
+	for {
+		snapshot := s.readinessSnapshot(criticalOnly)
+		if snapshot["ready"] == true {
+			writeJSON(w, http.StatusOK, snapshot)
+			return
+		}
+		select {
+		case <-r.Context().Done():
+			return
+		case <-timer.C:
+			writeJSON(w, http.StatusOK, s.readinessSnapshot(criticalOnly))
+			return
+		case <-source.StatusChanges():
+		}
+	}
+}
+
+func (s *Server) readinessSnapshot(criticalOnly bool) map[string]interface{} {
 	statuses := s.runtime.ServiceStatuses()
-	allReady := true
-	hasReadyCandidate := false
-	for _, st := range statuses {
+	allReady, hasReadyCandidate := true, false
+	criticalServices := map[string]bool{}
+	if manifestValue := s.runtime.Manifest(); manifestValue != nil {
+		for _, svc := range manifestValue.Services {
+			criticalServices[svc.ID] = svc.Critical == nil || *svc.Critical
+		}
+	}
+	for id, st := range statuses {
+		if criticalOnly {
+			// Noncritical manifest services may start after the optimized window
+			// appears. Unknown statuses (including resources) remain blocking.
+			if critical, known := criticalServices[id]; known && !critical {
+				continue
+			}
+		}
 		if st.Skipped {
 			continue
 		}
@@ -485,7 +541,6 @@ func (s *Server) handleReady(w http.ResponseWriter, r *http.Request) {
 	if !hasReadyCandidate {
 		allReady = false
 	}
-
 	gpuStatus := s.runtime.GPUStatus()
 	requirements := map[string]string{}
 	for _, svc := range s.runtime.Manifest().Services {
@@ -493,17 +548,9 @@ func (s *Server) handleReady(w http.ResponseWriter, r *http.Request) {
 			requirements[svc.ID] = req
 		}
 	}
-
-	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"ready":   allReady,
-		"details": statuses,
-		"gpu": map[string]interface{}{
-			"available":    gpuStatus.Available,
-			"method":       gpuStatus.Method,
-			"reason":       gpuStatus.Reason,
-			"requirements": requirements,
-		},
-	})
+	return map[string]interface{}{"ready": allReady, "details": statuses, "gpu": map[string]interface{}{
+		"available": gpuStatus.Available, "method": gpuStatus.Method, "reason": gpuStatus.Reason, "requirements": requirements,
+	}}
 }
 
 // handlePorts returns the current port allocation map.

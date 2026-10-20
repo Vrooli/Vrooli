@@ -4,6 +4,7 @@ import (
 	"context"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -148,6 +149,88 @@ func TestLaunchServices_DependencyOrder(t *testing.T) {
 	}
 	if dbIdx != -1 && apiIdx != -1 && dbIdx > apiIdx {
 		t.Error("launchServices() should start db before api")
+	}
+}
+
+type dependencyBarrierChecker struct {
+	mu      sync.Mutex
+	arrived chan string
+	release chan struct{}
+}
+
+func (c *dependencyBarrierChecker) WaitForReadiness(context.Context, string) error { return nil }
+func (c *dependencyBarrierChecker) CheckOnce(context.Context, string) bool         { return true }
+func (c *dependencyBarrierChecker) WaitForDependencies(ctx context.Context, svc *manifest.Service) error {
+	c.mu.Lock()
+	c.arrived <- svc.ID
+	c.mu.Unlock()
+	select {
+	case <-c.release:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func TestSharedRuntimeReadinessToggleControlsParallelIndependentStarts(t *testing.T) {
+	binKey := platformBinaryKey()
+	for _, test := range []struct {
+		name     string
+		enabled  bool
+		parallel bool
+	}{
+		{name: "optimized profile starts independent services concurrently", enabled: true, parallel: true},
+		{name: "sidecar default keeps serial startup", enabled: false, parallel: false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if test.enabled {
+				t.Setenv("VROOLI_DESKTOP_PARALLEL_START", "true")
+			} else {
+				t.Setenv("VROOLI_DESKTOP_PARALLEL_START", "false")
+			}
+			tmp := t.TempDir()
+			m := &manifest.Manifest{App: manifest.App{Name: "parallel-profile-test", Version: "1.0.0"}, Services: []manifest.Service{
+				{ID: "api", Binaries: map[string]manifest.Binary{binKey: {Path: "bin/api"}}},
+				{ID: "ui", Binaries: map[string]manifest.Binary{binKey: {Path: "bin/ui"}}},
+			}}
+			s := newTestSupervisor(t, testSupervisorConfig{manifest: m, bundlePath: tmp, appData: tmp})
+			checker := &dependencyBarrierChecker{arrived: make(chan string, 2), release: make(chan struct{})}
+			s.healthChecker = checker
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			done := make(chan error, 1)
+			go func() { done <- s.launchServices(ctx) }()
+
+			select {
+			case <-checker.arrived:
+			case <-ctx.Done():
+				t.Fatal("no independent service reached its dependency barrier")
+			}
+			if test.parallel {
+				select {
+				case <-checker.arrived:
+				case <-ctx.Done():
+					t.Fatal("optimized profile did not start both independent dependency checks concurrently")
+				}
+			} else {
+				select {
+				case service := <-checker.arrived:
+					t.Fatalf("sidecar started %s before the first dependency check completed", service)
+				case <-time.After(25 * time.Millisecond):
+				}
+			}
+			close(checker.release)
+			if !test.parallel {
+				select {
+				case <-checker.arrived:
+				case <-ctx.Done():
+					t.Fatal("sidecar did not continue serial startup after dependency completion")
+				}
+			}
+			if err := <-done; err != nil {
+				t.Fatalf("launchServices() error = %v", err)
+			}
+		})
 	}
 }
 

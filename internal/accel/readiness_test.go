@@ -22,7 +22,7 @@ func hostWithCUDA() hostinventory.Snapshot {
 	return hostinventory.Snapshot{
 		OS: "linux", Arch: "amd64",
 		RuntimeTools:  map[string]hostinventory.Tool{hostinventory.ToolNvidiaSMI: {Present: true}},
-		ProbeStatuses: map[string]string{"nvidia_gpu": "ok"},
+		ProbeStatuses: map[string]string{"nvidia_gpu": "ok", "nvidia_gpu_processes": "ok"},
 		GPUs: []hostinventory.GPU{
 			{Index: 0, Name: "NVIDIA RTX", CUDAComputeCapability: "8.9", VRAMBytes: 16 << 30, Source: hostinventory.SourceNvidiaSMI},
 		},

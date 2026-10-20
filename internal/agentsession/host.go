@@ -47,6 +47,18 @@ func (h *hostFacts) TTYActivity(tty string) (time.Time, error) { return ttyActiv
 
 func (h *hostFacts) ProcessMemory(pid int) (int64, int64, error) { return processMemory(pid) }
 
+// ScopeCgroupPath resolves one canonical agent session unit under the
+// current user's Vrooli agent slice. It is used to compare the kernel-observed
+// process cgroup with the exact unit whose membership was queried.
+func ScopeCgroupPath(scopeUnit string) (string, error) {
+	host := &hostFacts{}
+	ref, err := host.scopeRef(scopeUnit)
+	if err != nil {
+		return "", err
+	}
+	return ref.Path, nil
+}
+
 func (h *hostFacts) ScopeMembers(scopeUnit string) ([]int, error) {
 	ref, err := h.scopeRef(scopeUnit)
 	if err != nil {
@@ -242,7 +254,7 @@ func webConsoleGetSession(ctx context.Context, client *http.Client, base func(co
 	if got.Session.ID != "" && got.Session.ID != sessionID {
 		return WebConsoleSession{}, fmt.Errorf("web-console answered for session %s, not %s", got.Session.ID, sessionID)
 	}
-	return WebConsoleSession{Origin: originName(got.Session.Origin), Owner: got.Session.Owner}, nil
+	return WebConsoleSession{ID: got.Session.ID, Origin: originName(got.Session.Origin), Owner: got.Session.Owner}, nil
 }
 
 // originName maps the wire enum to the store's spelling; an absent origin is

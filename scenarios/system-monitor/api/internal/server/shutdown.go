@@ -11,7 +11,7 @@ import (
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/services"
 )
 
-func waitForShutdown(monitorSvc *services.MonitorService, investigationSvc *services.InvestigationService, retention *services.RetentionScheduler, thresholds *services.ThresholdScheduler, srv *http.Server, repo io.Closer) {
+func waitForShutdown(monitorSvc *services.MonitorService, investigationSvc *services.InvestigationService, retention *services.RetentionScheduler, thresholds *services.ThresholdScheduler, alertEvaluator *services.AlertEvaluator, srv *http.Server, repo io.Closer) {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
@@ -23,6 +23,9 @@ func waitForShutdown(monitorSvc *services.MonitorService, investigationSvc *serv
 	}
 	if thresholds != nil {
 		thresholds.Stop()
+	}
+	if alertEvaluator != nil {
+		alertEvaluator.Stop()
 	}
 	investigationSvc.Shutdown()
 	monitorSvc.Stop()

@@ -15,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -36,6 +37,35 @@ type BASCaptureExecutor struct {
 	PageSourceRoot string
 	PageUIBaseURL  string
 	discoverBAS    bool
+}
+
+// ReportFreshnessKey versions the BAS evidence policy that affects durable
+// component reports. Policy 2 also requires preview to hydrate its exact
+// pinned dependency closure before capture, so pre-hydration failures cannot
+// be reused as evidence for the repaired preview path.
+func (BASCaptureExecutor) ReportFreshnessKey() string {
+	return "bas-story-sheet-dsf=" + strconv.FormatFloat(basStorySheetDeviceScaleFactor, 'f', -1, 64) + ";policy=2"
+}
+
+const basCaptureServicePath = "/browser_automation_studio.v1.capture.CaptureService/Capture"
+
+// Story-sheet screenshots contain several rendered stories in one image, so
+// reduce only their raster scale to stay below BAS's fixed PNG payload cap.
+// Keeping the CSS viewport unchanged preserves the grouped sheet's layout;
+// individual story captures retain the standard review scale.
+const basStorySheetDeviceScaleFactor = 1.0
+
+// BASProviderInspection is the read-only observation of the BAS endpoint
+// selected by this executor. It intentionally contains no response body or
+// raw error string, which could include URL credentials or query parameters.
+type BASProviderInspection struct {
+	BASBaseURL     string
+	CapturePath    string
+	ResolvedAt     time.Time
+	HealthStatus   string
+	FailureClass   string
+	HTTPStatusCode int
+	SelectionExact bool
 }
 
 func NewBASCaptureExecutor() BASCaptureExecutor {
@@ -62,30 +92,93 @@ func NewBASCaptureExecutor() BASCaptureExecutor {
 // creates partial evidence. BAS owns this health endpoint; a capture failure
 // is not a reason to manufacture a blocked row for every remaining version.
 func (e BASCaptureExecutor) Probe(ctx context.Context) error {
+	_, err := e.InspectProvider(ctx)
+	return err
+}
+
+// InspectProvider resolves and health-checks the same BAS endpoint used by
+// capture operations, but never invokes CaptureService.
+func (e BASCaptureExecutor) InspectProvider(ctx context.Context) (BASProviderInspection, error) {
+	inspection := BASProviderInspection{
+		CapturePath:  basCaptureServicePath,
+		HealthStatus: "unavailable",
+	}
 	basBase, err := e.basBaseURL(ctx)
 	if err != nil {
-		return ExecutorUnavailableError{Err: err}
+		inspection.FailureClass = "resolution_failed"
+		return inspection, ExecutorUnavailableError{Err: err}
 	}
 	if strings.TrimSpace(e.BASBaseURL) == "" && !e.discoverBAS {
-		return ExecutorUnavailableError{Err: fmt.Errorf("BAS CaptureService base URL is required")}
+		inspection.FailureClass = "selection_missing"
+		return inspection, ExecutorUnavailableError{Err: fmt.Errorf("BAS CaptureService base URL is required")}
 	}
+	inspection.BASBaseURL, inspection.SelectionExact = sanitizedBASBaseURL(basBase)
+	inspection.ResolvedAt = time.Now().UTC()
 	client := e.HTTPClient
 	if client == nil {
 		client = &http.Client{Timeout: 5 * time.Second}
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, basBase+"/health", nil)
+	healthURL, err := appendURLPath(basBase, "/health")
 	if err != nil {
-		return ExecutorUnavailableError{Err: err}
+		inspection.FailureClass = "invalid_health_url"
+		return inspection, ExecutorUnavailableError{Err: err}
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, healthURL, nil)
+	if err != nil {
+		inspection.FailureClass = "invalid_health_url"
+		return inspection, ExecutorUnavailableError{Err: err}
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return ExecutorUnavailableError{Err: fmt.Errorf("BAS health probe: %w", err)}
+		inspection.FailureClass = "health_request_failed"
+		return inspection, ExecutorUnavailableError{Err: fmt.Errorf("BAS health probe: %w", err)}
 	}
 	defer resp.Body.Close()
+	inspection.HTTPStatusCode = resp.StatusCode
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-		return ExecutorUnavailableError{Err: fmt.Errorf("BAS health probe returned HTTP %d", resp.StatusCode)}
+		inspection.HealthStatus = "unhealthy"
+		inspection.FailureClass = "health_http_status"
+		return inspection, ExecutorUnavailableError{Err: fmt.Errorf("BAS health probe returned HTTP %d", resp.StatusCode)}
 	}
-	return nil
+	inspection.HealthStatus = "healthy"
+	return inspection, nil
+}
+
+func appendURLPath(base, suffix string) (string, error) {
+	parsed, err := url.Parse(strings.TrimSpace(base))
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		if err == nil {
+			err = fmt.Errorf("URL requires scheme and host")
+		}
+		return "", fmt.Errorf("invalid BAS endpoint URL: %w", err)
+	}
+	joinedSuffix := "/" + strings.TrimLeft(suffix, "/")
+	escapedBase := strings.TrimRight(parsed.EscapedPath(), "/")
+	parsed.Path = strings.TrimRight(parsed.Path, "/") + joinedSuffix
+	escapedPath := escapedBase + joinedSuffix
+	if escapedPath == parsed.Path {
+		parsed.RawPath = ""
+	} else {
+		parsed.RawPath = escapedPath
+	}
+	return parsed.String(), nil
+}
+
+// sanitizedBASBaseURL removes any credential-bearing or request-varying URL
+// components before an endpoint is reported to a caller. A redacted URL is
+// useful context but is explicitly not claimed to be an exact endpoint.
+func sanitizedBASBaseURL(raw string) (string, bool) {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return "", false
+	}
+	exact := parsed.User == nil && parsed.RawQuery == "" && parsed.Fragment == ""
+	parsed.User = nil
+	parsed.RawQuery = ""
+	parsed.ForceQuery = false
+	parsed.Fragment = ""
+	parsed.RawFragment = ""
+	return strings.TrimRight(parsed.String(), "/"), exact
 }
 
 // Resolve each operation through the shared bounded cache so a recovered or
@@ -114,8 +207,9 @@ type basCaptureRequest struct {
 }
 
 type basDimensions struct {
-	Width  int `json:"width"`
-	Height int `json:"height"`
+	Width             int     `json:"width"`
+	Height            int     `json:"height"`
+	DeviceScaleFactor float64 `json:"deviceScaleFactor,omitempty"`
 }
 
 type basWaitFor struct {
@@ -190,15 +284,23 @@ func (e BASCaptureExecutor) ExecuteStorySheet(ctx context.Context, libraryID, ve
 	query.Del("story")
 	query.Set("stories", strings.Join(storyIDs, ","))
 	parsed.RawQuery = query.Encode()
-	return e.executeCapture(ctx, parsed.String(), fmt.Sprintf("rcl:%s@%s:sheet:%s", libraryID, version, strings.Join(storyIDs, ",")), libraryID, version, "review-sheet:"+strings.Join(storyIDs, ","))
+	return e.executeCaptureAtDimensions(ctx, parsed.String(), fmt.Sprintf("rcl:%s@%s:sheet:%s", libraryID, version, strings.Join(storyIDs, ",")), libraryID, version, "review-sheet:"+strings.Join(storyIDs, ","), basDimensions{Width: 1280, Height: 800, DeviceScaleFactor: basStorySheetDeviceScaleFactor})
 }
 
 func (e BASCaptureExecutor) executeCapture(ctx context.Context, storyURL, label, libraryID, version, storyID string) (StoryExecution, error) {
+	return e.executeCaptureAtDimensions(ctx, storyURL, label, libraryID, version, storyID, basDimensions{Width: 1280, Height: 800})
+}
+
+func (e BASCaptureExecutor) executeCaptureAtDimensions(ctx context.Context, storyURL, label, libraryID, version, storyID string, dimensions basDimensions) (StoryExecution, error) {
 	ready := `[data-preview-readiness-marker][data-preview-ready="true"][data-rcl-story-status="passed"]`
+	screenshotSelector := `[data-preview-capture-boundary="component-sheet"]`
 	if strings.HasPrefix(libraryID, components.PageStoryPrefix) {
 		ready = `[data-preview-readiness-marker][data-preview-ready="true"]`
+		// Page stories mark the app-owned root with data-preview-sheet; they do
+		// not participate in the component harness capture-boundary contract.
+		screenshotSelector = `[data-preview-sheet]`
 	}
-	capture, err := e.captureURL(ctx, storyURL, label, ready, `[data-preview-sheet]`)
+	capture, err := e.captureURLAtDimensions(ctx, storyURL, label, ready, screenshotSelector, dimensions)
 	if err != nil {
 		return StoryExecution{}, err
 	}
@@ -229,6 +331,10 @@ func (e BASCaptureExecutor) CaptureURL(ctx context.Context, pageURL, label, read
 }
 
 func (e BASCaptureExecutor) captureURL(ctx context.Context, pageURL, label, readinessSelector, screenshotSelector string) (basCaptureResponse, error) {
+	return e.captureURLAtDimensions(ctx, pageURL, label, readinessSelector, screenshotSelector, basDimensions{Width: 1280, Height: 800})
+}
+
+func (e BASCaptureExecutor) captureURLAtDimensions(ctx context.Context, pageURL, label, readinessSelector, screenshotSelector string, dimensions basDimensions) (basCaptureResponse, error) {
 	basBase, err := e.basBaseURL(ctx)
 	if err != nil {
 		return basCaptureResponse{}, ExecutorUnavailableError{Err: err}
@@ -249,7 +355,7 @@ func (e BASCaptureExecutor) captureURL(ctx context.Context, pageURL, label, read
 			"CAPTURE_TYPE_PERFORMANCE",
 			"CAPTURE_TYPE_ACCESSIBILITY",
 		},
-		Dimensions:          basDimensions{Width: 1280, Height: 800},
+		Dimensions:          dimensions,
 		WaitFor:             basWaitFor{Selector: readinessSelector},
 		InlineDOM:           true,
 		InlineAccessibility: true,
@@ -261,7 +367,11 @@ func (e BASCaptureExecutor) captureURL(ctx context.Context, pageURL, label, read
 	if err != nil {
 		return basCaptureResponse{}, fmt.Errorf("encode BAS capture request: %w", err)
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, basBase+"/browser_automation_studio.v1.capture.CaptureService/Capture", strings.NewReader(string(body)))
+	captureURL, err := appendURLPath(basBase, basCaptureServicePath)
+	if err != nil {
+		return basCaptureResponse{}, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, captureURL, strings.NewReader(string(body)))
 	if err != nil {
 		return basCaptureResponse{}, fmt.Errorf("create BAS capture request: %w", err)
 	}

@@ -286,6 +286,11 @@ func caseStub(scenario string, page spec.PageDocument) map[string]any {
 		},
 		"settings": map[string]int{"viewport_width": 1280, "viewport_height": 800},
 		"nodes":    nodes,
+		"edges": []map[string]string{{
+			"id":     "edge-navigate-to-primary-binding-" + page.Page.ID,
+			"source": "navigate-" + page.Page.ID,
+			"target": "wait-" + page.Page.ID + "-primary-binding",
+		}},
 	}
 }
 

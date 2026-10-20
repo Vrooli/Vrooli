@@ -294,6 +294,16 @@ restarts. Kinds:
 `effort signals <ref> [--after N] [--limit 100] [--json]` reads the log after a
 cursor (RPC `ListEffortSignals`, response `{signals, latest_seq}`).
 
+`effort feedback add <goal-home> --effort-ref <ref> --run <run-id> --id <id>
+--title <text> --detail <text>` checks the run's exact public, verified, active
+effort reference, writes a supervisor entry before `## Resolved` using a
+compare-and-swap file update, then records a `feedback` signal with a stable
+per-entry dedupe key. The FEEDBACK entry and signal are separate stores: a
+signal failure reports a file-only partial result; retry the same ID and
+content to converge. A changed body under an existing ID and an already
+resolved entry are refused. This command records feedback only; it does not
+create an operator decision or claim that work was accepted.
+
 **Decisions (DL-5).** `effort decision raise <home> --id <id> --question <q>
 --option key=label … --recommend <key> [--why …] [--default <key> --reversible]
 [--deadline 24h] [--dry-run]` stores one record per (goal home, id), publishes
@@ -403,6 +413,18 @@ Canonical public, verified, active AM `WorkReferences` with `kind=effort` and ex
 effort ID automatically join owner runs. `relationship` supplies an observational
 role, not authority. Registry pages are bounded to 100 runs and each effort to
 100 subjects; incomplete accounting is explicit.
+
+### Supervisor feedback handoff
+
+`agent-manager effort feedback add <goal-home>` accepts only a run carrying exactly one
+public, verified, active supervisor/orchestrator reference for the requested effort. Before
+writing, it resolves the supplied directory and checks the existing effort board for the
+single current enrollment and its canonical goal-home path. A copied, stale, withdrawn, or
+ambiguous home is refused without changing `FEEDBACK.md` or signaling. Feedback IDs are
+idempotent only when the file has exactly one matching open entry with the same content;
+duplicate or resolved matches are conflicts. The file write and durable effort signal are
+separate operations, so a signal failure reports a file-only partial result and an identical
+retry reuses the same ID and signal dedupe key.
 
 ### Temporary-driver normalization
 

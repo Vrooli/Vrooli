@@ -16,7 +16,6 @@ export const createDashboardState = (overrides: Partial<DashboardState> = {}): D
   expandedPanels: new Set(),
   terminalVisible: false,
   unreadErrorCount: 0,
-  alerts: [],
   ...overrides,
 })
 

@@ -1,0 +1,3050 @@
+⎯⎯⎯⎯⎯⎯ Failed Tests 20 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/App.test.tsx > App composition > mounts the shell and unified catalog on /
+AssertionError: expected [ <section …(2)>…(6)</section> ] to have a length of 2 but got 1
+
+- Expected
++ Received
+
+- 2
++ 1
+
+ ❯ src/App.test.tsx:55:54
+     53|       expect(screen.getByTestId("app-shell")).toBeInTheDocument();
+     54|     });
+     55|     expect(screen.getAllByTestId("catalog-browser")).toHaveLength(2);
+       |                                                      ^
+     56|   });
+     57| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/20]⎯
+
+ FAIL  src/App.test.tsx > App composition > renders the catalog workspace at /catalog
+AssertionError: expected [ <section …(2)>…(6)</section> ] to have a length of 2 but got 1
+
+Ignored nodes: comments, script, style
+[36m<html[39m
+  [33mclass[39m=[32m""[39m
+  [33mdata-resolved-theme[39m=[32m"light"[39m
+  [33mdir[39m=[32m"ltr"[39m
+  [33mlang[39m=[32m"cimode"[39m
+[36m>[39m
+  [36m<head />[39m
+  [36m<body[39m
+    [33mstyle[39m=[32m""[39m
+  [36m>[39m
+    [36m<div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"h-dvh min-h-0 w-full overflow-hidden"[39m
+        [33mdata-density[39m=[32m"sidebar"[39m
+        [33mdata-main-mode[39m=[32m"scroll"[39m
+        [33mdata-mobile-nav[39m=[32m"tabs"[39m
+        [33mdata-rcl-app-shell[39m=[32m""[39m
+        [33mdata-testid[39m=[32m"app-shell"[39m
+      [36m>[39m
+        [36m<a[39m
+          [33mdata-rcl-app-shell-skip[39m=[32m""[39m
+          [33mdata-rcl-selector[39m=[32m"navigation.app-shell"[39m
+          [33mdata-testid[39m=[32m"app-shell-skip"[39m
+          [33mhref[39m=[32m"#app-shell-main"[39m
+        [36m>[39m
+          [0mSkip to content[0m
+        [36m</a>[39m
+        [36m<div[39m
+          [33mdata-rcl-app-shell-body[39m=[32m""[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mdata-rcl-app-shell-sidebar[39m=[32m""[39m
+          [36m>[39m
+            [36m<div[39m
+              [33maria-label[39m=[32m"nav.label"[39m
+              [33mclass[39m=[32m""[39m
+              [33mdata-collapsed[39m=[32m"false"[39m
+              [33mdata-edge[39m=[32m"left"[39m
+              [33mdata-mode[39m=[32m"persistent"[39m
+              [33mdata-open[39m=[32m"false"[39m
+              [33mdata-rcl-sidebar-shell[39m=[32m""[39m
+              [33mdata-testid[39m=[32m"app-shell-sidebar"[39m
+              [33mid[39m=[32m"rcl-resizable-panel-r1a3"[39m
+              [33mrole[39m=[32m"complementary"[39m
+              [33mstyle[39m=[32m"inline-size: var(--rcl-panel-size); --rcl-panel-size: 256px;"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"rcl-sidebar-shell__content"[39m
+              [36m>[39m
+                [36m<div[39m
+                  [33mdata-rcl-app-shell-column[39m=[32m""[39m
+                [36m>[39m
+                  [36m<a[39m
+                    [33mclass[39m=[32m"rcl-app-shell__brand"[39m
+                    [33mdata-discover[39m=[32m"true"[39m
+                    [33mdata-testid[39m=[32m"app-shell-brand"[39m
+                    [33mhref[39m=[32m"/"[39m
+                  [36m>[39m
+                    [36m<span[39m
+                      [33mdata-rcl-app-shell-brand-mark[39m=[32m""[39m
+                    [36m>[39m
+                      [36m<svg[39m
+                        [33maria-hidden[39m=[32m"true"[39m
+                        [33mclass[39m=[32m"lucide lucide-folder-tree"[39m
+                        [33mfill[39m=[32m"none"[39m
+                        [33mheight[39m=[32m"24"[39m
+                        [33mstroke[39m=[32m"currentColor"[39m
+                        [33mstroke-linecap[39m=[32m"round"[39m
+                        [33mstroke-linejoin[39m=[32m"round"[39m
+                        [33mstroke-width[39m=[32m"2"[39m
+                        [33mviewBox[39m=[32m"0 0 24 24"[39m
+                        [33mwidth[39m=[32m"24"[39m
+                        [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                      [36m>[39m
+                        [36m<path[39m
+                          [33md[39m=[32m"M20 10a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-2.5a1 1 0 0 1-.8-.4l-.9-1.2A1 1 0 0 0 15 3h-2a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1Z"[39m
+                        [36m/>[39m
+                        [36m<path[39m
+                          [33md[39m=[32m"M20 21a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1h-2.9a1 1 0 0 1-.88-.55l-.42-.85a1 1 0 0 0-.92-.6H13a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1Z"[39m
+                        [36m/>[39m
+                        [36m<path[39m
+                          [33md[39m=[32m"M3 5a2 2 0 0 0 2 2h3"[39m
+                        [36m/>[39m
+                        [36m<path[39m
+                          [33md[39m=[32m"M3 3v13a2 2 0 0 0 2 2h3"[39m
+                        [36m/>[39m
+                      [36m</svg>[39m
+                    [36m</span>[39m
+                    [36m<span[39m
+                      [33mdata-rcl-app-shell-brand-label[39m=[32m""[39m
+                    [36m>[39m
+                      [0mapp.brand[0m
+                    [36m</span>[39m
+                  [36m</a>[39m
+                  [36m<nav[39m
+                    [33maria-label[39m=[32m"nav.label"[39m
+                    [33mdata-testid[39m=[32m"app-shell-navigation"[39m
+                  [36m>[39m
+                    [36m<ul[39m
+                      [33mdata-rcl-app-shell-list[39m=[32m""[39m
+                      [33mdata-rcl-asset[39m=[32m"react-component-library:AppShell"[39m
+                      [33mdata-rcl-source-slot[39m=[32m"navigation.app-shell"[39m
+                      [33mdata-rcl-stamp[39m=[32m"vite"[39m
+                      [33mdata-rcl-version[39m=[32m"2.1.1"[39m
+                    [36m>[39m
+                      [36m<li>[39m
+                        [36m<a[39m
+                          [33mdata-discover[39m=[32m"true"[39m
+                          [33mdata-rcl-app-shell-link[39m=[32m""[39m
+                          [33mhref[39m=[32m"/design"[39m
+                        [36m>[39m
+                          [36m<span[39m
+                            [33maria-hidden[39m=[32m"true"[39m
+                            [33mdata-rcl-app-shell-link-icon[39m=[32m""[39m
+                          [36m>[39m
+                            [36m<svg[39m
+                              [33maria-hidden[39m=[32m"true"[39m
+                              [33mclass[39m=[32m"lucide lucide-sparkles"[39m
+                              [33mfill[39m=[32m"none"[39m
+                              [33mheight[39m=[32m"24"[39m
+                              [33mstroke[39m=[32m"currentColor"[39m
+                              [33mstroke-linecap[39m=[32m"round"[39m
+                              [33mstroke-linejoin[39m=[32m"round"[39m
+                              [33mstroke-width[39m=[32m"2"[39m
+                              [33mviewBox[39m=[32m"0 0 24 24"[39m
+                              [33mwidth[39m=[32m"24"[39m
+                              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                            [36m>[39m
+                              [36m<path[39m
+                                [33md[39m=[32m"M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"[39m
+                              [36m/>[39m
+                              [36m<p...
+
+- Expected
++ Received
+
+- 2
++ 1
+
+ ❯ src/App.test.tsx:61:56
+     59|     renderWithProviders(<App />, { routerEntries: ["/catalog"] });
+     60|     await waitFor(() => {
+     61|       expect(screen.getAllByTestId("catalog-browser")).toHaveLength(2);
+       |                                                        ^
+     62|     });
+     63|   });
+ ❯ runWithExpensiveErrorDiagnosticsDisabled node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:118:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/20]⎯
+
+ FAIL  src/App.test.tsx > App composition > resolves the components route to the catalog workspace
+AssertionError: expected [ <section …(2)>…(6)</section> ] to have a length of 2 but got 1
+
+Ignored nodes: comments, script, style
+[36m<html[39m
+  [33mclass[39m=[32m""[39m
+  [33mdata-resolved-theme[39m=[32m"light"[39m
+  [33mdir[39m=[32m"ltr"[39m
+  [33mlang[39m=[32m"cimode"[39m
+[36m>[39m
+  [36m<head />[39m
+  [36m<body[39m
+    [33mstyle[39m=[32m""[39m
+  [36m>[39m
+    [36m<div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"h-dvh min-h-0 w-full overflow-hidden"[39m
+        [33mdata-density[39m=[32m"sidebar"[39m
+        [33mdata-main-mode[39m=[32m"scroll"[39m
+        [33mdata-mobile-nav[39m=[32m"tabs"[39m
+        [33mdata-rcl-app-shell[39m=[32m""[39m
+        [33mdata-testid[39m=[32m"app-shell"[39m
+      [36m>[39m
+        [36m<a[39m
+          [33mdata-rcl-app-shell-skip[39m=[32m""[39m
+          [33mdata-rcl-selector[39m=[32m"navigation.app-shell"[39m
+          [33mdata-testid[39m=[32m"app-shell-skip"[39m
+          [33mhref[39m=[32m"#app-shell-main"[39m
+        [36m>[39m
+          [0mSkip to content[0m
+        [36m</a>[39m
+        [36m<div[39m
+          [33mdata-rcl-app-shell-body[39m=[32m""[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mdata-rcl-app-shell-sidebar[39m=[32m""[39m
+          [36m>[39m
+            [36m<div[39m
+              [33maria-label[39m=[32m"nav.label"[39m
+              [33mclass[39m=[32m""[39m
+              [33mdata-collapsed[39m=[32m"false"[39m
+              [33mdata-edge[39m=[32m"left"[39m
+              [33mdata-mode[39m=[32m"persistent"[39m
+              [33mdata-open[39m=[32m"false"[39m
+              [33mdata-rcl-sidebar-shell[39m=[32m""[39m
+              [33mdata-testid[39m=[32m"app-shell-sidebar"[39m
+              [33mid[39m=[32m"rcl-resizable-panel-r1aa"[39m
+              [33mrole[39m=[32m"complementary"[39m
+              [33mstyle[39m=[32m"inline-size: var(--rcl-panel-size); --rcl-panel-size: 256px;"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"rcl-sidebar-shell__content"[39m
+              [36m>[39m
+                [36m<div[39m
+                  [33mdata-rcl-app-shell-column[39m=[32m""[39m
+                [36m>[39m
+                  [36m<a[39m
+                    [33mclass[39m=[32m"rcl-app-shell__brand"[39m
+                    [33mdata-discover[39m=[32m"true"[39m
+                    [33mdata-testid[39m=[32m"app-shell-brand"[39m
+                    [33mhref[39m=[32m"/"[39m
+                  [36m>[39m
+                    [36m<span[39m
+                      [33mdata-rcl-app-shell-brand-mark[39m=[32m""[39m
+                    [36m>[39m
+                      [36m<svg[39m
+                        [33maria-hidden[39m=[32m"true"[39m
+                        [33mclass[39m=[32m"lucide lucide-folder-tree"[39m
+                        [33mfill[39m=[32m"none"[39m
+                        [33mheight[39m=[32m"24"[39m
+                        [33mstroke[39m=[32m"currentColor"[39m
+                        [33mstroke-linecap[39m=[32m"round"[39m
+                        [33mstroke-linejoin[39m=[32m"round"[39m
+                        [33mstroke-width[39m=[32m"2"[39m
+                        [33mviewBox[39m=[32m"0 0 24 24"[39m
+                        [33mwidth[39m=[32m"24"[39m
+                        [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                      [36m>[39m
+                        [36m<path[39m
+                          [33md[39m=[32m"M20 10a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-2.5a1 1 0 0 1-.8-.4l-.9-1.2A1 1 0 0 0 15 3h-2a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1Z"[39m
+                        [36m/>[39m
+                        [36m<path[39m
+                          [33md[39m=[32m"M20 21a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1h-2.9a1 1 0 0 1-.88-.55l-.42-.85a1 1 0 0 0-.92-.6H13a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1Z"[39m
+                        [36m/>[39m
+                        [36m<path[39m
+                          [33md[39m=[32m"M3 5a2 2 0 0 0 2 2h3"[39m
+                        [36m/>[39m
+                        [36m<path[39m
+                          [33md[39m=[32m"M3 3v13a2 2 0 0 0 2 2h3"[39m
+                        [36m/>[39m
+                      [36m</svg>[39m
+                    [36m</span>[39m
+                    [36m<span[39m
+                      [33mdata-rcl-app-shell-brand-label[39m=[32m""[39m
+                    [36m>[39m
+                      [0mapp.brand[0m
+                    [36m</span>[39m
+                  [36m</a>[39m
+                  [36m<nav[39m
+                    [33maria-label[39m=[32m"nav.label"[39m
+                    [33mdata-testid[39m=[32m"app-shell-navigation"[39m
+                  [36m>[39m
+                    [36m<ul[39m
+                      [33mdata-rcl-app-shell-list[39m=[32m""[39m
+                      [33mdata-rcl-asset[39m=[32m"react-component-library:AppShell"[39m
+                      [33mdata-rcl-source-slot[39m=[32m"navigation.app-shell"[39m
+                      [33mdata-rcl-stamp[39m=[32m"vite"[39m
+                      [33mdata-rcl-version[39m=[32m"2.1.1"[39m
+                    [36m>[39m
+                      [36m<li>[39m
+                        [36m<a[39m
+                          [33mdata-discover[39m=[32m"true"[39m
+                          [33mdata-rcl-app-shell-link[39m=[32m""[39m
+                          [33mhref[39m=[32m"/design"[39m
+                        [36m>[39m
+                          [36m<span[39m
+                            [33maria-hidden[39m=[32m"true"[39m
+                            [33mdata-rcl-app-shell-link-icon[39m=[32m""[39m
+                          [36m>[39m
+                            [36m<svg[39m
+                              [33maria-hidden[39m=[32m"true"[39m
+                              [33mclass[39m=[32m"lucide lucide-sparkles"[39m
+                              [33mfill[39m=[32m"none"[39m
+                              [33mheight[39m=[32m"24"[39m
+                              [33mstroke[39m=[32m"currentColor"[39m
+                              [33mstroke-linecap[39m=[32m"round"[39m
+                              [33mstroke-linejoin[39m=[32m"round"[39m
+                              [33mstroke-width[39m=[32m"2"[39m
+                              [33mviewBox[39m=[32m"0 0 24 24"[39m
+                              [33mwidth[39m=[32m"24"[39m
+                              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                            [36m>[39m
+                              [36m<path[39m
+                                [33md[39m=[32m"M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"[39m
+                              [36m/>[39m
+                              [36m<p...
+
+- Expected
++ Received
+
+- 2
++ 1
+
+ ❯ src/App.test.tsx:68:56
+     66|     renderWithProviders(<App />, { routerEntries: ["/components"] });
+     67|     await waitFor(() => {
+     68|       expect(screen.getAllByTestId("catalog-browser")).toHaveLength(2);
+       |                                                        ^
+     69|     });
+     70|   });
+ ❯ runWithExpensiveErrorDiagnosticsDisabled node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:118:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/20]⎯
+
+ FAIL  src/components/ActionLauncher.test.tsx > ActionLauncher > starts extract-assist through the workflow dispatcher
+TestingLibraryElementError: Unable to find role="option" and name "demo"
+
+Ignored nodes: comments, script, style
+[36m<body[39m
+  [33mstyle[39m=[32m"overflow: hidden; position: fixed; top: 0px; width: 100%; padding-right: 1024px;"[39m
+[36m>[39m
+  [36m<div[39m
+    [33maria-hidden[39m=[32m"true"[39m
+  [36m>[39m
+    [36m<button[39m
+      [33maria-label[39m=[32m"launcher.open"[39m
+      [33mclass[39m=[32m"rcl-action-launcher fixed end-6 z-40 h-control-2xl w-control-2xl rounded-full p-0 shadow-lg"[39m
+      [33mdata-control-below-tap-target[39m=[32m"true"[39m
+      [33mdata-control-density[39m=[32m"comfortable"[39m
+      [33mdata-control-shape[39m=[32m"pill"[39m
+      [33mdata-control-size[39m=[32m"icon"[39m
+      [33mdata-control-variant[39m=[32m"primary"[39m
+      [33mdata-rcl-button[39m=[32m"true"[39m
+      [33mdata-rcl-control[39m=[32m"true"[39m
+      [33mdata-rcl-pending[39m=[32m"false"[39m
+      [33mdata-rcl-pressable[39m=[32m"true"[39m
+      [33mdata-testid[39m=[32m"launcher-open"[39m
+      [33mtype[39m=[32m"button"[39m
+    [36m>[39m
+      [36m<span[39m
+        [33mdata-rcl-pressable-content[39m=[32m"true"[39m
+      [36m>[39m
+        [36m<span[39m
+          [33maria-hidden[39m=[32m"false"[39m
+          [33mdata-rcl-asset[39m=[32m"react-component-library:Pressable"[39m
+          [33mdata-rcl-pressable-label[39m=[32m"true"[39m
+          [33mdata-rcl-source-slot[39m=[32m"controls.pressable"[39m
+          [33mdata-rcl-stamp[39m=[32m"vite"[39m
+          [33mdata-rcl-version[39m=[32m"1.0.4"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mdata-rcl-button-content[39m=[32m"true"[39m
+            [33mstyle[39m=[32m"display: inline-flex; align-items: center; gap: var(--space-xs); min-width: 0; max-width: 100%;"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mdata-control-slot[39m=[32m"label"[39m
+              [33mdata-rcl-asset[39m=[32m"react-component-library:Button"[39m
+              [33mdata-rcl-source-slot[39m=[32m"controls.button"[39m
+              [33mdata-rcl-stamp[39m=[32m"vite"[39m
+              [33mdata-rcl-version[39m=[32m"2.2.12"[39m
+              [33mdata-testid[39m=[32m"button-label"[39m
+              [33mstyle[39m=[32m"display: inline-flex; align-items: center; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-plus h-icon-lg w-icon-lg"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"24"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"24"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M5 12h14"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M12 5v14"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+            [36m</span>[39m
+          [36m</span>[39m
+        [36m</span>[39m
+        [36m<span[39m
+          [33maria-hidden[39m=[32m"true"[39m
+          [33maria-live[39m=[32m"polite"[39m
+          [33mdata-rcl-pressable-pending[39m=[32m"true"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mdata-rcl-pressable-spinner[39m=[32m"true"[39m
+          [36m/>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"rcl-visually-hidden"[39m
+          [36m>[39m
+            [0mWorking…[0m
+          [36m</span>[39m
+        [36m</span>[39m
+      [36m</span>[39m
+    [36m</button>[39m
+  [36m</div>[39m
+  [36m<div[39m
+    [33mdata-rcl-layer-root[39m=[32m""[39m
+    [33mid[39m=[32m"rcl-layer-root"[39m
+  [36m>[39m
+    [36m<div[39m
+      [33maria-describedby[39m=[32m":r14j:-description"[39m
+      [33maria-labelledby[39m=[32m":r14j:-title"[39m
+      [33maria-modal[39m=[32m"true"[39m
+      [33mclass[39m=[32m"rcl-dialog"[39m
+      [33mdata-rcl-dialog[39m=[32m"true"[39m
+      [33mdata-state[39m=[32m"open"[39m
+      [33mrole[39m=[32m"dialog"[39m
+      [33mstyle[39m=[32m"--rcl-viewport-width: 1024px; --rcl-viewport-height: 768px; --rcl-viewport-offset-left: 0px; --rcl-viewport-offset-top: 0px; --rcl-keyboard-inset: 0px; --rcl-safe-bottom: env(safe-area-inset-bottom, 0px);"[39m
+    [36m>[39m
+      [36m<button[39m
+        [33maria-label[39m=[32m"common.close"[39m
+        [33mclass[39m=[32m"rcl-dialog__backdrop"[39m
+        [33mdata-rcl-asset[39m=[32m"react-component-library:Dialog"[39m
+        [33mdata-rcl-selector[39m=[32m"overlays.dialog.backdrop"[39m
+        [33mdata-rcl-source-slot[39m=[32m"overlays.dialog"[39m
+        [33mdata-rcl-stamp[39m=[32m"vite"[39m
+        [33mdata-rcl-version[39m=[32m"1.3.9"[39m
+        [33mdata-testid[39m=[32m"overlays.dialog.backdrop"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"rcl-dialog__surface"[39m
+        [33mdata-testid[39m=[32m"overlays.dialog"[39m
+      [36m>[39m
+        [36m<header[39m
+          [33mclass[39m=[32m"rcl-dialog__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"rcl-dialog__heading"[39m
+          [36m>[39m
+            [36m<h2[39m
+              [33mclass[39m=[32m"rcl-dialog__title"[39m
+              [33mid[39m=[32m":r14j:-title"[39m
+            [36m>[39m
+              [0mlauncher.extract[0m
+            [36m</h2>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"rcl-dialog__description"[39m
+              [33mid[39m=[32m":r14j:-description"[39m
+            [36m>[39m
+              [0mlauncher.extractDescription[0m
+            [36m</p>[39m
+          [36m</div>[39m
+          [36m<button[39m
+            [33maria-label[39m=[32m"common.close"[39m
+            [33mclass[39m=[32m"rcl-dialog__close"[39m
+            [33mdata-rcl-selector[39m=[32m"overlays.dialog.close"[39m
+            [33mdata-testid[39m=[32m"overlays.dialog.close"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-x"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"20"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"ro...
+
+Ignored nodes: comments, script, style
+[36m<body[39m
+  [33mstyle[39m=[32m"overflow: hidden; position: fixed; top: 0px; width: 100%; padding-right: 1024px;"[39m
+[36m>[39m
+  [36m<div[39m
+    [33maria-hidden[39m=[32m"true"[39m
+  [36m>[39m
+    [36m<button[39m
+      [33maria-label[39m=[32m"launcher.open"[39m
+      [33mclass[39m=[32m"rcl-action-launcher fixed end-6 z-40 h-control-2xl w-control-2xl rounded-full p-0 shadow-lg"[39m
+      [33mdata-control-below-tap-target[39m=[32m"true"[39m
+      [33mdata-control-density[39m=[32m"comfortable"[39m
+      [33mdata-control-shape[39m=[32m"pill"[39m
+      [33mdata-control-size[39m=[32m"icon"[39m
+      [33mdata-control-variant[39m=[32m"primary"[39m
+      [33mdata-rcl-button[39m=[32m"true"[39m
+      [33mdata-rcl-control[39m=[32m"true"[39m
+      [33mdata-rcl-pending[39m=[32m"false"[39m
+      [33mdata-rcl-pressable[39m=[32m"true"[39m
+      [33mdata-testid[39m=[32m"launcher-open"[39m
+      [33mtype[39m=[32m"button"[39m
+    [36m>[39m
+      [36m<span[39m
+        [33mdata-rcl-pressable-content[39m=[32m"true"[39m
+      [36m>[39m
+        [36m<span[39m
+          [33maria-hidden[39m=[32m"false"[39m
+          [33mdata-rcl-asset[39m=[32m"react-component-library:Pressable"[39m
+          [33mdata-rcl-pressable-label[39m=[32m"true"[39m
+          [33mdata-rcl-source-slot[39m=[32m"controls.pressable"[39m
+          [33mdata-rcl-stamp[39m=[32m"vite"[39m
+          [33mdata-rcl-version[39m=[32m"1.0.4"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mdata-rcl-button-content[39m=[32m"true"[39m
+            [33mstyle[39m=[32m"display: inline-flex; align-items: center; gap: var(--space-xs); min-width: 0; max-width: 100%;"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mdata-control-slot[39m=[32m"label"[39m
+              [33mdata-rcl-asset[39m=[32m"react-component-library:Button"[39m
+              [33mdata-rcl-source-slot[39m=[32m"controls.button"[39m
+              [33mdata-rcl-stamp[39m=[32m"vite"[39m
+              [33mdata-rcl-version[39m=[32m"2.2.12"[39m
+              [33mdata-testid[39m=[32m"button-label"[39m
+              [33mstyle[39m=[32m"display: inline-flex; align-items: center; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-plus h-icon-lg w-icon-lg"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"24"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"24"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M5 12h14"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M12 5v14"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+            [36m</span>[39m
+          [36m</span>[39m
+        [36m</span>[39m
+        [36m<span[39m
+          [33maria-hidden[39m=[32m"true"[39m
+          [33maria-live[39m=[32m"polite"[39m
+          [33mdata-rcl-pressable-pending[39m=[32m"true"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mdata-rcl-pressable-spinner[39m=[32m"true"[39m
+          [36m/>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"rcl-visually-hidden"[39m
+          [36m>[39m
+            [0mWorking…[0m
+          [36m</span>[39m
+        [36m</span>[39m
+      [36m</span>[39m
+    [36m</button>[39m
+  [36m</div>[39m
+  [36m<div[39m
+    [33mdata-rcl-layer-root[39m=[32m""[39m
+    [33mid[39m=[32m"rcl-layer-root"[39m
+  [36m>[39m
+    [36m<div[39m
+      [33maria-describedby[39m=[32m":r14j:-description"[39m
+      [33maria-labelledby[39m=[32m":r14j:-title"[39m
+      [33maria-modal[39m=[32m"true"[39m
+      [33mclass[39m=[32m"rcl-dialog"[39m
+      [33mdata-rcl-dialog[39m=[32m"true"[39m
+      [33mdata-state[39m=[32m"open"[39m
+      [33mrole[39m=[32m"dialog"[39m
+      [33mstyle[39m=[32m"--rcl-viewport-width: 1024px; --rcl-viewport-height: 768px; --rcl-viewport-offset-left: 0px; --rcl-viewport-offset-top: 0px; --rcl-keyboard-inset: 0px; --rcl-safe-bottom: env(safe-area-inset-bottom, 0px);"[39m
+    [36m>[39m
+      [36m<button[39m
+        [33maria-label[39m=[32m"common.close"[39m
+        [33mclass[39m=[32m"rcl-dialog__backdrop"[39m
+        [33mdata-rcl-asset[39m=[32m"react-component-library:Dialog"[39m
+        [33mdata-rcl-selector[39m=[32m"overlays.dialog.backdrop"[39m
+        [33mdata-rcl-source-slot[39m=[32m"overlays.dialog"[39m
+        [33mdata-rcl-stamp[39m=[32m"vite"[39m
+        [33mdata-rcl-version[39m=[32m"1.3.9"[39m
+        [33mdata-testid[39m=[32m"overlays.dialog.backdrop"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"rcl-dialog__surface"[39m
+        [33mdata-testid[39m=[32m"overlays.dialog"[39m
+      [36m>[39m
+        [36m<header[39m
+          [33mclass[39m=[32m"rcl-dialog__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"rcl-dialog__heading"[39m
+          [36m>[39m
+            [36m<h2[39m
+              [33mclass[39m=[32m"rcl-dialog__title"[39m
+              [33mid[39m=[32m":r14j:-title"[39m
+            [36m>[39m
+              [0mlauncher.extract[0m
+            [36m</h2>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"rcl-dialog__description"[39m
+              [33mid[39m=[32m":r14j:-description"[39m
+            [36m>[39m
+              [0mlauncher.extractDescription[0m
+            [36m</p>[39m
+          [36m</div>[39m
+          [36m<button[39m
+            [33maria-label[39m=[32m"common.close"[39m
+            [33mclass[39m=[32m"rcl-dialog__close"[39m
+            [33mdata-rcl-selector[39m=[32m"overlays.dialog.close"[39m
+            [33mdata-testid[39m=[32m"overlays.dialog.close"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-x"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"20"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"ro...
+ ❯ waitForWrapper node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/components/ActionLauncher.test.tsx:42:18
+     40|     const user = userEvent.setup();
+     41|     renderLauncher("extract");
+     42|     await screen.findByRole("option", { name: "demo" });
+       |                  ^
+     43|     await user.selectOptions(screen.getByLabelText("catalog.sourceScen…
+     44|     await user.type(screen.getByLabelText("catalog.sourcePath"), "ui/s…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/20]⎯
+
+ FAIL  src/components/ActionLauncher.test.tsx > ActionLauncher > starts one adopt-assist workflow for each target
+TestingLibraryElementError: Unable to find role="option" and name "Button"
+
+Ignored nodes: comments, script, style
+[36m<body[39m
+  [33mstyle[39m=[32m"overflow: hidden; position: fixed; top: 0px; width: 100%; padding-right: 1024px;"[39m
+[36m>[39m
+  [36m<div[39m
+    [33maria-hidden[39m=[32m"true"[39m
+  [36m>[39m
+    [36m<button[39m
+      [33maria-label[39m=[32m"launcher.open"[39m
+      [33mclass[39m=[32m"rcl-action-launcher fixed end-6 z-40 h-control-2xl w-control-2xl rounded-full p-0 shadow-lg"[39m
+      [33mdata-control-below-tap-target[39m=[32m"true"[39m
+      [33mdata-control-density[39m=[32m"comfortable"[39m
+      [33mdata-control-shape[39m=[32m"pill"[39m
+      [33mdata-control-size[39m=[32m"icon"[39m
+      [33mdata-control-variant[39m=[32m"primary"[39m
+      [33mdata-rcl-button[39m=[32m"true"[39m
+      [33mdata-rcl-control[39m=[32m"true"[39m
+      [33mdata-rcl-pending[39m=[32m"false"[39m
+      [33mdata-rcl-pressable[39m=[32m"true"[39m
+      [33mdata-testid[39m=[32m"launcher-open"[39m
+      [33mtype[39m=[32m"button"[39m
+    [36m>[39m
+      [36m<span[39m
+        [33mdata-rcl-pressable-content[39m=[32m"true"[39m
+      [36m>[39m
+        [36m<span[39m
+          [33maria-hidden[39m=[32m"false"[39m
+          [33mdata-rcl-asset[39m=[32m"react-component-library:Pressable"[39m
+          [33mdata-rcl-pressable-label[39m=[32m"true"[39m
+          [33mdata-rcl-source-slot[39m=[32m"controls.pressable"[39m
+          [33mdata-rcl-stamp[39m=[32m"vite"[39m
+          [33mdata-rcl-version[39m=[32m"1.0.4"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mdata-rcl-button-content[39m=[32m"true"[39m
+            [33mstyle[39m=[32m"display: inline-flex; align-items: center; gap: var(--space-xs); min-width: 0; max-width: 100%;"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mdata-control-slot[39m=[32m"label"[39m
+              [33mdata-rcl-asset[39m=[32m"react-component-library:Button"[39m
+              [33mdata-rcl-source-slot[39m=[32m"controls.button"[39m
+              [33mdata-rcl-stamp[39m=[32m"vite"[39m
+              [33mdata-rcl-version[39m=[32m"2.2.12"[39m
+              [33mdata-testid[39m=[32m"button-label"[39m
+              [33mstyle[39m=[32m"display: inline-flex; align-items: center; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-plus h-icon-lg w-icon-lg"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"24"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"24"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M5 12h14"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M12 5v14"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+            [36m</span>[39m
+          [36m</span>[39m
+        [36m</span>[39m
+        [36m<span[39m
+          [33maria-hidden[39m=[32m"true"[39m
+          [33maria-live[39m=[32m"polite"[39m
+          [33mdata-rcl-pressable-pending[39m=[32m"true"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mdata-rcl-pressable-spinner[39m=[32m"true"[39m
+          [36m/>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"rcl-visually-hidden"[39m
+          [36m>[39m
+            [0mWorking…[0m
+          [36m</span>[39m
+        [36m</span>[39m
+      [36m</span>[39m
+    [36m</button>[39m
+  [36m</div>[39m
+  [36m<div[39m
+    [33mdata-rcl-layer-root[39m=[32m""[39m
+    [33mid[39m=[32m"rcl-layer-root"[39m
+  [36m>[39m
+    [36m<div[39m
+      [33maria-describedby[39m=[32m":r14u:-description"[39m
+      [33maria-labelledby[39m=[32m":r14u:-title"[39m
+      [33maria-modal[39m=[32m"true"[39m
+      [33mclass[39m=[32m"rcl-dialog"[39m
+      [33mdata-rcl-dialog[39m=[32m"true"[39m
+      [33mdata-state[39m=[32m"open"[39m
+      [33mrole[39m=[32m"dialog"[39m
+      [33mstyle[39m=[32m"--rcl-viewport-width: 1024px; --rcl-viewport-height: 768px; --rcl-viewport-offset-left: 0px; --rcl-viewport-offset-top: 0px; --rcl-keyboard-inset: 0px; --rcl-safe-bottom: env(safe-area-inset-bottom, 0px);"[39m
+    [36m>[39m
+      [36m<button[39m
+        [33maria-label[39m=[32m"common.close"[39m
+        [33mclass[39m=[32m"rcl-dialog__backdrop"[39m
+        [33mdata-rcl-asset[39m=[32m"react-component-library:Dialog"[39m
+        [33mdata-rcl-selector[39m=[32m"overlays.dialog.backdrop"[39m
+        [33mdata-rcl-source-slot[39m=[32m"overlays.dialog"[39m
+        [33mdata-rcl-stamp[39m=[32m"vite"[39m
+        [33mdata-rcl-version[39m=[32m"1.3.9"[39m
+        [33mdata-testid[39m=[32m"overlays.dialog.backdrop"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"rcl-dialog__surface"[39m
+        [33mdata-testid[39m=[32m"overlays.dialog"[39m
+      [36m>[39m
+        [36m<header[39m
+          [33mclass[39m=[32m"rcl-dialog__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"rcl-dialog__heading"[39m
+          [36m>[39m
+            [36m<h2[39m
+              [33mclass[39m=[32m"rcl-dialog__title"[39m
+              [33mid[39m=[32m":r14u:-title"[39m
+            [36m>[39m
+              [0mlauncher.adopt[0m
+            [36m</h2>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"rcl-dialog__description"[39m
+              [33mid[39m=[32m":r14u:-description"[39m
+            [36m>[39m
+              [0mlauncher.adoptDescription[0m
+            [36m</p>[39m
+          [36m</div>[39m
+          [36m<button[39m
+            [33maria-label[39m=[32m"common.close"[39m
+            [33mclass[39m=[32m"rcl-dialog__close"[39m
+            [33mdata-rcl-selector[39m=[32m"overlays.dialog.close"[39m
+            [33mdata-testid[39m=[32m"overlays.dialog.close"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-x"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"20"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"...
+
+Ignored nodes: comments, script, style
+[36m<body[39m
+  [33mstyle[39m=[32m"overflow: hidden; position: fixed; top: 0px; width: 100%; padding-right: 1024px;"[39m
+[36m>[39m
+  [36m<div[39m
+    [33maria-hidden[39m=[32m"true"[39m
+  [36m>[39m
+    [36m<button[39m
+      [33maria-label[39m=[32m"launcher.open"[39m
+      [33mclass[39m=[32m"rcl-action-launcher fixed end-6 z-40 h-control-2xl w-control-2xl rounded-full p-0 shadow-lg"[39m
+      [33mdata-control-below-tap-target[39m=[32m"true"[39m
+      [33mdata-control-density[39m=[32m"comfortable"[39m
+      [33mdata-control-shape[39m=[32m"pill"[39m
+      [33mdata-control-size[39m=[32m"icon"[39m
+      [33mdata-control-variant[39m=[32m"primary"[39m
+      [33mdata-rcl-button[39m=[32m"true"[39m
+      [33mdata-rcl-control[39m=[32m"true"[39m
+      [33mdata-rcl-pending[39m=[32m"false"[39m
+      [33mdata-rcl-pressable[39m=[32m"true"[39m
+      [33mdata-testid[39m=[32m"launcher-open"[39m
+      [33mtype[39m=[32m"button"[39m
+    [36m>[39m
+      [36m<span[39m
+        [33mdata-rcl-pressable-content[39m=[32m"true"[39m
+      [36m>[39m
+        [36m<span[39m
+          [33maria-hidden[39m=[32m"false"[39m
+          [33mdata-rcl-asset[39m=[32m"react-component-library:Pressable"[39m
+          [33mdata-rcl-pressable-label[39m=[32m"true"[39m
+          [33mdata-rcl-source-slot[39m=[32m"controls.pressable"[39m
+          [33mdata-rcl-stamp[39m=[32m"vite"[39m
+          [33mdata-rcl-version[39m=[32m"1.0.4"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mdata-rcl-button-content[39m=[32m"true"[39m
+            [33mstyle[39m=[32m"display: inline-flex; align-items: center; gap: var(--space-xs); min-width: 0; max-width: 100%;"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mdata-control-slot[39m=[32m"label"[39m
+              [33mdata-rcl-asset[39m=[32m"react-component-library:Button"[39m
+              [33mdata-rcl-source-slot[39m=[32m"controls.button"[39m
+              [33mdata-rcl-stamp[39m=[32m"vite"[39m
+              [33mdata-rcl-version[39m=[32m"2.2.12"[39m
+              [33mdata-testid[39m=[32m"button-label"[39m
+              [33mstyle[39m=[32m"display: inline-flex; align-items: center; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-plus h-icon-lg w-icon-lg"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"24"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"24"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M5 12h14"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M12 5v14"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+            [36m</span>[39m
+          [36m</span>[39m
+        [36m</span>[39m
+        [36m<span[39m
+          [33maria-hidden[39m=[32m"true"[39m
+          [33maria-live[39m=[32m"polite"[39m
+          [33mdata-rcl-pressable-pending[39m=[32m"true"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mdata-rcl-pressable-spinner[39m=[32m"true"[39m
+          [36m/>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"rcl-visually-hidden"[39m
+          [36m>[39m
+            [0mWorking…[0m
+          [36m</span>[39m
+        [36m</span>[39m
+      [36m</span>[39m
+    [36m</button>[39m
+  [36m</div>[39m
+  [36m<div[39m
+    [33mdata-rcl-layer-root[39m=[32m""[39m
+    [33mid[39m=[32m"rcl-layer-root"[39m
+  [36m>[39m
+    [36m<div[39m
+      [33maria-describedby[39m=[32m":r14u:-description"[39m
+      [33maria-labelledby[39m=[32m":r14u:-title"[39m
+      [33maria-modal[39m=[32m"true"[39m
+      [33mclass[39m=[32m"rcl-dialog"[39m
+      [33mdata-rcl-dialog[39m=[32m"true"[39m
+      [33mdata-state[39m=[32m"open"[39m
+      [33mrole[39m=[32m"dialog"[39m
+      [33mstyle[39m=[32m"--rcl-viewport-width: 1024px; --rcl-viewport-height: 768px; --rcl-viewport-offset-left: 0px; --rcl-viewport-offset-top: 0px; --rcl-keyboard-inset: 0px; --rcl-safe-bottom: env(safe-area-inset-bottom, 0px);"[39m
+    [36m>[39m
+      [36m<button[39m
+        [33maria-label[39m=[32m"common.close"[39m
+        [33mclass[39m=[32m"rcl-dialog__backdrop"[39m
+        [33mdata-rcl-asset[39m=[32m"react-component-library:Dialog"[39m
+        [33mdata-rcl-selector[39m=[32m"overlays.dialog.backdrop"[39m
+        [33mdata-rcl-source-slot[39m=[32m"overlays.dialog"[39m
+        [33mdata-rcl-stamp[39m=[32m"vite"[39m
+        [33mdata-rcl-version[39m=[32m"1.3.9"[39m
+        [33mdata-testid[39m=[32m"overlays.dialog.backdrop"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"rcl-dialog__surface"[39m
+        [33mdata-testid[39m=[32m"overlays.dialog"[39m
+      [36m>[39m
+        [36m<header[39m
+          [33mclass[39m=[32m"rcl-dialog__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"rcl-dialog__heading"[39m
+          [36m>[39m
+            [36m<h2[39m
+              [33mclass[39m=[32m"rcl-dialog__title"[39m
+              [33mid[39m=[32m":r14u:-title"[39m
+            [36m>[39m
+              [0mlauncher.adopt[0m
+            [36m</h2>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"rcl-dialog__description"[39m
+              [33mid[39m=[32m":r14u:-description"[39m
+            [36m>[39m
+              [0mlauncher.adoptDescription[0m
+            [36m</p>[39m
+          [36m</div>[39m
+          [36m<button[39m
+            [33maria-label[39m=[32m"common.close"[39m
+            [33mclass[39m=[32m"rcl-dialog__close"[39m
+            [33mdata-rcl-selector[39m=[32m"overlays.dialog.close"[39m
+            [33mdata-testid[39m=[32m"overlays.dialog.close"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-x"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"20"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"...
+ ❯ waitForWrapper node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/components/ActionLauncher.test.tsx:60:18
+     58|     const user = userEvent.setup();
+     59|     renderLauncher("adopt");
+     60|     await screen.findByRole("option", { name: "Button" });
+       |                  ^
+     61|     await user.selectOptions(screen.getByLabelText("launcher.asset"), …
+     62|     await user.selectOptions(screen.getByLabelText("launcher.targets")…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/20]⎯
+
+ FAIL  src/components/ActionLauncher.test.tsx > ActionLauncher > filters typed picker options before selection
+TestingLibraryElementError: Unable to find role="option" and name "demo-a"
+
+Ignored nodes: comments, script, style
+[36m<body[39m
+  [33mstyle[39m=[32m"overflow: hidden; position: fixed; top: 0px; width: 100%; padding-right: 1024px;"[39m
+[36m>[39m
+  [36m<div[39m
+    [33maria-hidden[39m=[32m"true"[39m
+  [36m>[39m
+    [36m<button[39m
+      [33maria-label[39m=[32m"launcher.open"[39m
+      [33mclass[39m=[32m"rcl-action-launcher fixed end-6 z-40 h-control-2xl w-control-2xl rounded-full p-0 shadow-lg"[39m
+      [33mdata-control-below-tap-target[39m=[32m"true"[39m
+      [33mdata-control-density[39m=[32m"comfortable"[39m
+      [33mdata-control-shape[39m=[32m"pill"[39m
+      [33mdata-control-size[39m=[32m"icon"[39m
+      [33mdata-control-variant[39m=[32m"primary"[39m
+      [33mdata-rcl-button[39m=[32m"true"[39m
+      [33mdata-rcl-control[39m=[32m"true"[39m
+      [33mdata-rcl-pending[39m=[32m"false"[39m
+      [33mdata-rcl-pressable[39m=[32m"true"[39m
+      [33mdata-testid[39m=[32m"launcher-open"[39m
+      [33mtype[39m=[32m"button"[39m
+    [36m>[39m
+      [36m<span[39m
+        [33mdata-rcl-pressable-content[39m=[32m"true"[39m
+      [36m>[39m
+        [36m<span[39m
+          [33maria-hidden[39m=[32m"false"[39m
+          [33mdata-rcl-asset[39m=[32m"react-component-library:Pressable"[39m
+          [33mdata-rcl-pressable-label[39m=[32m"true"[39m
+          [33mdata-rcl-source-slot[39m=[32m"controls.pressable"[39m
+          [33mdata-rcl-stamp[39m=[32m"vite"[39m
+          [33mdata-rcl-version[39m=[32m"1.0.4"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mdata-rcl-button-content[39m=[32m"true"[39m
+            [33mstyle[39m=[32m"display: inline-flex; align-items: center; gap: var(--space-xs); min-width: 0; max-width: 100%;"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mdata-control-slot[39m=[32m"label"[39m
+              [33mdata-rcl-asset[39m=[32m"react-component-library:Button"[39m
+              [33mdata-rcl-source-slot[39m=[32m"controls.button"[39m
+              [33mdata-rcl-stamp[39m=[32m"vite"[39m
+              [33mdata-rcl-version[39m=[32m"2.2.12"[39m
+              [33mdata-testid[39m=[32m"button-label"[39m
+              [33mstyle[39m=[32m"display: inline-flex; align-items: center; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-plus h-icon-lg w-icon-lg"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"24"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"24"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M5 12h14"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M12 5v14"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+            [36m</span>[39m
+          [36m</span>[39m
+        [36m</span>[39m
+        [36m<span[39m
+          [33maria-hidden[39m=[32m"true"[39m
+          [33maria-live[39m=[32m"polite"[39m
+          [33mdata-rcl-pressable-pending[39m=[32m"true"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mdata-rcl-pressable-spinner[39m=[32m"true"[39m
+          [36m/>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"rcl-visually-hidden"[39m
+          [36m>[39m
+            [0mWorking…[0m
+          [36m</span>[39m
+        [36m</span>[39m
+      [36m</span>[39m
+    [36m</button>[39m
+  [36m</div>[39m
+  [36m<div[39m
+    [33mdata-rcl-layer-root[39m=[32m""[39m
+    [33mid[39m=[32m"rcl-layer-root"[39m
+  [36m>[39m
+    [36m<div[39m
+      [33maria-describedby[39m=[32m":r158:-description"[39m
+      [33maria-labelledby[39m=[32m":r158:-title"[39m
+      [33maria-modal[39m=[32m"true"[39m
+      [33mclass[39m=[32m"rcl-dialog"[39m
+      [33mdata-rcl-dialog[39m=[32m"true"[39m
+      [33mdata-state[39m=[32m"open"[39m
+      [33mrole[39m=[32m"dialog"[39m
+      [33mstyle[39m=[32m"--rcl-viewport-width: 1024px; --rcl-viewport-height: 768px; --rcl-viewport-offset-left: 0px; --rcl-viewport-offset-top: 0px; --rcl-keyboard-inset: 0px; --rcl-safe-bottom: env(safe-area-inset-bottom, 0px);"[39m
+    [36m>[39m
+      [36m<button[39m
+        [33maria-label[39m=[32m"common.close"[39m
+        [33mclass[39m=[32m"rcl-dialog__backdrop"[39m
+        [33mdata-rcl-asset[39m=[32m"react-component-library:Dialog"[39m
+        [33mdata-rcl-selector[39m=[32m"overlays.dialog.backdrop"[39m
+        [33mdata-rcl-source-slot[39m=[32m"overlays.dialog"[39m
+        [33mdata-rcl-stamp[39m=[32m"vite"[39m
+        [33mdata-rcl-version[39m=[32m"1.3.9"[39m
+        [33mdata-testid[39m=[32m"overlays.dialog.backdrop"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"rcl-dialog__surface"[39m
+        [33mdata-testid[39m=[32m"overlays.dialog"[39m
+      [36m>[39m
+        [36m<header[39m
+          [33mclass[39m=[32m"rcl-dialog__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"rcl-dialog__heading"[39m
+          [36m>[39m
+            [36m<h2[39m
+              [33mclass[39m=[32m"rcl-dialog__title"[39m
+              [33mid[39m=[32m":r158:-title"[39m
+            [36m>[39m
+              [0mlauncher.extract[0m
+            [36m</h2>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"rcl-dialog__description"[39m
+              [33mid[39m=[32m":r158:-description"[39m
+            [36m>[39m
+              [0mlauncher.extractDescription[0m
+            [36m</p>[39m
+          [36m</div>[39m
+          [36m<button[39m
+            [33maria-label[39m=[32m"common.close"[39m
+            [33mclass[39m=[32m"rcl-dialog__close"[39m
+            [33mdata-rcl-selector[39m=[32m"overlays.dialog.close"[39m
+            [33mdata-testid[39m=[32m"overlays.dialog.close"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-x"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"20"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"ro...
+
+Ignored nodes: comments, script, style
+[36m<body[39m
+  [33mstyle[39m=[32m"overflow: hidden; position: fixed; top: 0px; width: 100%; padding-right: 1024px;"[39m
+[36m>[39m
+  [36m<div[39m
+    [33maria-hidden[39m=[32m"true"[39m
+  [36m>[39m
+    [36m<button[39m
+      [33maria-label[39m=[32m"launcher.open"[39m
+      [33mclass[39m=[32m"rcl-action-launcher fixed end-6 z-40 h-control-2xl w-control-2xl rounded-full p-0 shadow-lg"[39m
+      [33mdata-control-below-tap-target[39m=[32m"true"[39m
+      [33mdata-control-density[39m=[32m"comfortable"[39m
+      [33mdata-control-shape[39m=[32m"pill"[39m
+      [33mdata-control-size[39m=[32m"icon"[39m
+      [33mdata-control-variant[39m=[32m"primary"[39m
+      [33mdata-rcl-button[39m=[32m"true"[39m
+      [33mdata-rcl-control[39m=[32m"true"[39m
+      [33mdata-rcl-pending[39m=[32m"false"[39m
+      [33mdata-rcl-pressable[39m=[32m"true"[39m
+      [33mdata-testid[39m=[32m"launcher-open"[39m
+      [33mtype[39m=[32m"button"[39m
+    [36m>[39m
+      [36m<span[39m
+        [33mdata-rcl-pressable-content[39m=[32m"true"[39m
+      [36m>[39m
+        [36m<span[39m
+          [33maria-hidden[39m=[32m"false"[39m
+          [33mdata-rcl-asset[39m=[32m"react-component-library:Pressable"[39m
+          [33mdata-rcl-pressable-label[39m=[32m"true"[39m
+          [33mdata-rcl-source-slot[39m=[32m"controls.pressable"[39m
+          [33mdata-rcl-stamp[39m=[32m"vite"[39m
+          [33mdata-rcl-version[39m=[32m"1.0.4"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mdata-rcl-button-content[39m=[32m"true"[39m
+            [33mstyle[39m=[32m"display: inline-flex; align-items: center; gap: var(--space-xs); min-width: 0; max-width: 100%;"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mdata-control-slot[39m=[32m"label"[39m
+              [33mdata-rcl-asset[39m=[32m"react-component-library:Button"[39m
+              [33mdata-rcl-source-slot[39m=[32m"controls.button"[39m
+              [33mdata-rcl-stamp[39m=[32m"vite"[39m
+              [33mdata-rcl-version[39m=[32m"2.2.12"[39m
+              [33mdata-testid[39m=[32m"button-label"[39m
+              [33mstyle[39m=[32m"display: inline-flex; align-items: center; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-plus h-icon-lg w-icon-lg"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"24"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"24"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M5 12h14"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M12 5v14"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+            [36m</span>[39m
+          [36m</span>[39m
+        [36m</span>[39m
+        [36m<span[39m
+          [33maria-hidden[39m=[32m"true"[39m
+          [33maria-live[39m=[32m"polite"[39m
+          [33mdata-rcl-pressable-pending[39m=[32m"true"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mdata-rcl-pressable-spinner[39m=[32m"true"[39m
+          [36m/>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"rcl-visually-hidden"[39m
+          [36m>[39m
+            [0mWorking…[0m
+          [36m</span>[39m
+        [36m</span>[39m
+      [36m</span>[39m
+    [36m</button>[39m
+  [36m</div>[39m
+  [36m<div[39m
+    [33mdata-rcl-layer-root[39m=[32m""[39m
+    [33mid[39m=[32m"rcl-layer-root"[39m
+  [36m>[39m
+    [36m<div[39m
+      [33maria-describedby[39m=[32m":r158:-description"[39m
+      [33maria-labelledby[39m=[32m":r158:-title"[39m
+      [33maria-modal[39m=[32m"true"[39m
+      [33mclass[39m=[32m"rcl-dialog"[39m
+      [33mdata-rcl-dialog[39m=[32m"true"[39m
+      [33mdata-state[39m=[32m"open"[39m
+      [33mrole[39m=[32m"dialog"[39m
+      [33mstyle[39m=[32m"--rcl-viewport-width: 1024px; --rcl-viewport-height: 768px; --rcl-viewport-offset-left: 0px; --rcl-viewport-offset-top: 0px; --rcl-keyboard-inset: 0px; --rcl-safe-bottom: env(safe-area-inset-bottom, 0px);"[39m
+    [36m>[39m
+      [36m<button[39m
+        [33maria-label[39m=[32m"common.close"[39m
+        [33mclass[39m=[32m"rcl-dialog__backdrop"[39m
+        [33mdata-rcl-asset[39m=[32m"react-component-library:Dialog"[39m
+        [33mdata-rcl-selector[39m=[32m"overlays.dialog.backdrop"[39m
+        [33mdata-rcl-source-slot[39m=[32m"overlays.dialog"[39m
+        [33mdata-rcl-stamp[39m=[32m"vite"[39m
+        [33mdata-rcl-version[39m=[32m"1.3.9"[39m
+        [33mdata-testid[39m=[32m"overlays.dialog.backdrop"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"rcl-dialog__surface"[39m
+        [33mdata-testid[39m=[32m"overlays.dialog"[39m
+      [36m>[39m
+        [36m<header[39m
+          [33mclass[39m=[32m"rcl-dialog__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"rcl-dialog__heading"[39m
+          [36m>[39m
+            [36m<h2[39m
+              [33mclass[39m=[32m"rcl-dialog__title"[39m
+              [33mid[39m=[32m":r158:-title"[39m
+            [36m>[39m
+              [0mlauncher.extract[0m
+            [36m</h2>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"rcl-dialog__description"[39m
+              [33mid[39m=[32m":r158:-description"[39m
+            [36m>[39m
+              [0mlauncher.extractDescription[0m
+            [36m</p>[39m
+          [36m</div>[39m
+          [36m<button[39m
+            [33maria-label[39m=[32m"common.close"[39m
+            [33mclass[39m=[32m"rcl-dialog__close"[39m
+            [33mdata-rcl-selector[39m=[32m"overlays.dialog.close"[39m
+            [33mdata-testid[39m=[32m"overlays.dialog.close"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-x"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"20"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"ro...
+ ❯ waitForWrapper node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/components/ActionLauncher.test.tsx:76:18
+     74|     const user = userEvent.setup();
+     75|     renderLauncher("extract");
+     76|     await screen.findByRole("option", { name: "demo-a" });
+       |                  ^
+     77|     await user.type(screen.getByRole("searchbox"), "demo-a");
+     78|     expect(screen.getByRole("option", { name: "demo-a" })).toBeInTheDo…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/20]⎯
+
+ FAIL  src/components/ActionLauncher.test.tsx > ActionLauncher > shows a dispatch failure without leaving the overlay
+TestingLibraryElementError: Unable to find role="option" and name "demo"
+
+Ignored nodes: comments, script, style
+[36m<body[39m
+  [33mstyle[39m=[32m"overflow: hidden; position: fixed; top: 0px; width: 100%; padding-right: 1024px;"[39m
+[36m>[39m
+  [36m<div[39m
+    [33maria-hidden[39m=[32m"true"[39m
+  [36m>[39m
+    [36m<button[39m
+      [33maria-label[39m=[32m"launcher.open"[39m
+      [33mclass[39m=[32m"rcl-action-launcher fixed end-6 z-40 h-control-2xl w-control-2xl rounded-full p-0 shadow-lg"[39m
+      [33mdata-control-below-tap-target[39m=[32m"true"[39m
+      [33mdata-control-density[39m=[32m"comfortable"[39m
+      [33mdata-control-shape[39m=[32m"pill"[39m
+      [33mdata-control-size[39m=[32m"icon"[39m
+      [33mdata-control-variant[39m=[32m"primary"[39m
+      [33mdata-rcl-button[39m=[32m"true"[39m
+      [33mdata-rcl-control[39m=[32m"true"[39m
+      [33mdata-rcl-pending[39m=[32m"false"[39m
+      [33mdata-rcl-pressable[39m=[32m"true"[39m
+      [33mdata-testid[39m=[32m"launcher-open"[39m
+      [33mtype[39m=[32m"button"[39m
+    [36m>[39m
+      [36m<span[39m
+        [33mdata-rcl-pressable-content[39m=[32m"true"[39m
+      [36m>[39m
+        [36m<span[39m
+          [33maria-hidden[39m=[32m"false"[39m
+          [33mdata-rcl-asset[39m=[32m"react-component-library:Pressable"[39m
+          [33mdata-rcl-pressable-label[39m=[32m"true"[39m
+          [33mdata-rcl-source-slot[39m=[32m"controls.pressable"[39m
+          [33mdata-rcl-stamp[39m=[32m"vite"[39m
+          [33mdata-rcl-version[39m=[32m"1.0.4"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mdata-rcl-button-content[39m=[32m"true"[39m
+            [33mstyle[39m=[32m"display: inline-flex; align-items: center; gap: var(--space-xs); min-width: 0; max-width: 100%;"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mdata-control-slot[39m=[32m"label"[39m
+              [33mdata-rcl-asset[39m=[32m"react-component-library:Button"[39m
+              [33mdata-rcl-source-slot[39m=[32m"controls.button"[39m
+              [33mdata-rcl-stamp[39m=[32m"vite"[39m
+              [33mdata-rcl-version[39m=[32m"2.2.12"[39m
+              [33mdata-testid[39m=[32m"button-label"[39m
+              [33mstyle[39m=[32m"display: inline-flex; align-items: center; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-plus h-icon-lg w-icon-lg"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"24"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"24"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M5 12h14"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M12 5v14"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+            [36m</span>[39m
+          [36m</span>[39m
+        [36m</span>[39m
+        [36m<span[39m
+          [33maria-hidden[39m=[32m"true"[39m
+          [33maria-live[39m=[32m"polite"[39m
+          [33mdata-rcl-pressable-pending[39m=[32m"true"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mdata-rcl-pressable-spinner[39m=[32m"true"[39m
+          [36m/>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"rcl-visually-hidden"[39m
+          [36m>[39m
+            [0mWorking…[0m
+          [36m</span>[39m
+        [36m</span>[39m
+      [36m</span>[39m
+    [36m</button>[39m
+  [36m</div>[39m
+  [36m<div[39m
+    [33mdata-rcl-layer-root[39m=[32m""[39m
+    [33mid[39m=[32m"rcl-layer-root"[39m
+  [36m>[39m
+    [36m<div[39m
+      [33maria-describedby[39m=[32m":r15n:-description"[39m
+      [33maria-labelledby[39m=[32m":r15n:-title"[39m
+      [33maria-modal[39m=[32m"true"[39m
+      [33mclass[39m=[32m"rcl-dialog"[39m
+      [33mdata-rcl-dialog[39m=[32m"true"[39m
+      [33mdata-state[39m=[32m"open"[39m
+      [33mrole[39m=[32m"dialog"[39m
+      [33mstyle[39m=[32m"--rcl-viewport-width: 1024px; --rcl-viewport-height: 768px; --rcl-viewport-offset-left: 0px; --rcl-viewport-offset-top: 0px; --rcl-keyboard-inset: 0px; --rcl-safe-bottom: env(safe-area-inset-bottom, 0px);"[39m
+    [36m>[39m
+      [36m<button[39m
+        [33maria-label[39m=[32m"common.close"[39m
+        [33mclass[39m=[32m"rcl-dialog__backdrop"[39m
+        [33mdata-rcl-asset[39m=[32m"react-component-library:Dialog"[39m
+        [33mdata-rcl-selector[39m=[32m"overlays.dialog.backdrop"[39m
+        [33mdata-rcl-source-slot[39m=[32m"overlays.dialog"[39m
+        [33mdata-rcl-stamp[39m=[32m"vite"[39m
+        [33mdata-rcl-version[39m=[32m"1.3.9"[39m
+        [33mdata-testid[39m=[32m"overlays.dialog.backdrop"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"rcl-dialog__surface"[39m
+        [33mdata-testid[39m=[32m"overlays.dialog"[39m
+      [36m>[39m
+        [36m<header[39m
+          [33mclass[39m=[32m"rcl-dialog__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"rcl-dialog__heading"[39m
+          [36m>[39m
+            [36m<h2[39m
+              [33mclass[39m=[32m"rcl-dialog__title"[39m
+              [33mid[39m=[32m":r15n:-title"[39m
+            [36m>[39m
+              [0mlauncher.extract[0m
+            [36m</h2>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"rcl-dialog__description"[39m
+              [33mid[39m=[32m":r15n:-description"[39m
+            [36m>[39m
+              [0mlauncher.extractDescription[0m
+            [36m</p>[39m
+          [36m</div>[39m
+          [36m<button[39m
+            [33maria-label[39m=[32m"common.close"[39m
+            [33mclass[39m=[32m"rcl-dialog__close"[39m
+            [33mdata-rcl-selector[39m=[32m"overlays.dialog.close"[39m
+            [33mdata-testid[39m=[32m"overlays.dialog.close"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-x"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"20"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"ro...
+
+Ignored nodes: comments, script, style
+[36m<body[39m
+  [33mstyle[39m=[32m"overflow: hidden; position: fixed; top: 0px; width: 100%; padding-right: 1024px;"[39m
+[36m>[39m
+  [36m<div[39m
+    [33maria-hidden[39m=[32m"true"[39m
+  [36m>[39m
+    [36m<button[39m
+      [33maria-label[39m=[32m"launcher.open"[39m
+      [33mclass[39m=[32m"rcl-action-launcher fixed end-6 z-40 h-control-2xl w-control-2xl rounded-full p-0 shadow-lg"[39m
+      [33mdata-control-below-tap-target[39m=[32m"true"[39m
+      [33mdata-control-density[39m=[32m"comfortable"[39m
+      [33mdata-control-shape[39m=[32m"pill"[39m
+      [33mdata-control-size[39m=[32m"icon"[39m
+      [33mdata-control-variant[39m=[32m"primary"[39m
+      [33mdata-rcl-button[39m=[32m"true"[39m
+      [33mdata-rcl-control[39m=[32m"true"[39m
+      [33mdata-rcl-pending[39m=[32m"false"[39m
+      [33mdata-rcl-pressable[39m=[32m"true"[39m
+      [33mdata-testid[39m=[32m"launcher-open"[39m
+      [33mtype[39m=[32m"button"[39m
+    [36m>[39m
+      [36m<span[39m
+        [33mdata-rcl-pressable-content[39m=[32m"true"[39m
+      [36m>[39m
+        [36m<span[39m
+          [33maria-hidden[39m=[32m"false"[39m
+          [33mdata-rcl-asset[39m=[32m"react-component-library:Pressable"[39m
+          [33mdata-rcl-pressable-label[39m=[32m"true"[39m
+          [33mdata-rcl-source-slot[39m=[32m"controls.pressable"[39m
+          [33mdata-rcl-stamp[39m=[32m"vite"[39m
+          [33mdata-rcl-version[39m=[32m"1.0.4"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mdata-rcl-button-content[39m=[32m"true"[39m
+            [33mstyle[39m=[32m"display: inline-flex; align-items: center; gap: var(--space-xs); min-width: 0; max-width: 100%;"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mdata-control-slot[39m=[32m"label"[39m
+              [33mdata-rcl-asset[39m=[32m"react-component-library:Button"[39m
+              [33mdata-rcl-source-slot[39m=[32m"controls.button"[39m
+              [33mdata-rcl-stamp[39m=[32m"vite"[39m
+              [33mdata-rcl-version[39m=[32m"2.2.12"[39m
+              [33mdata-testid[39m=[32m"button-label"[39m
+              [33mstyle[39m=[32m"display: inline-flex; align-items: center; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-plus h-icon-lg w-icon-lg"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"24"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"24"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M5 12h14"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M12 5v14"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+            [36m</span>[39m
+          [36m</span>[39m
+        [36m</span>[39m
+        [36m<span[39m
+          [33maria-hidden[39m=[32m"true"[39m
+          [33maria-live[39m=[32m"polite"[39m
+          [33mdata-rcl-pressable-pending[39m=[32m"true"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mdata-rcl-pressable-spinner[39m=[32m"true"[39m
+          [36m/>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"rcl-visually-hidden"[39m
+          [36m>[39m
+            [0mWorking…[0m
+          [36m</span>[39m
+        [36m</span>[39m
+      [36m</span>[39m
+    [36m</button>[39m
+  [36m</div>[39m
+  [36m<div[39m
+    [33mdata-rcl-layer-root[39m=[32m""[39m
+    [33mid[39m=[32m"rcl-layer-root"[39m
+  [36m>[39m
+    [36m<div[39m
+      [33maria-describedby[39m=[32m":r15n:-description"[39m
+      [33maria-labelledby[39m=[32m":r15n:-title"[39m
+      [33maria-modal[39m=[32m"true"[39m
+      [33mclass[39m=[32m"rcl-dialog"[39m
+      [33mdata-rcl-dialog[39m=[32m"true"[39m
+      [33mdata-state[39m=[32m"open"[39m
+      [33mrole[39m=[32m"dialog"[39m
+      [33mstyle[39m=[32m"--rcl-viewport-width: 1024px; --rcl-viewport-height: 768px; --rcl-viewport-offset-left: 0px; --rcl-viewport-offset-top: 0px; --rcl-keyboard-inset: 0px; --rcl-safe-bottom: env(safe-area-inset-bottom, 0px);"[39m
+    [36m>[39m
+      [36m<button[39m
+        [33maria-label[39m=[32m"common.close"[39m
+        [33mclass[39m=[32m"rcl-dialog__backdrop"[39m
+        [33mdata-rcl-asset[39m=[32m"react-component-library:Dialog"[39m
+        [33mdata-rcl-selector[39m=[32m"overlays.dialog.backdrop"[39m
+        [33mdata-rcl-source-slot[39m=[32m"overlays.dialog"[39m
+        [33mdata-rcl-stamp[39m=[32m"vite"[39m
+        [33mdata-rcl-version[39m=[32m"1.3.9"[39m
+        [33mdata-testid[39m=[32m"overlays.dialog.backdrop"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"rcl-dialog__surface"[39m
+        [33mdata-testid[39m=[32m"overlays.dialog"[39m
+      [36m>[39m
+        [36m<header[39m
+          [33mclass[39m=[32m"rcl-dialog__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"rcl-dialog__heading"[39m
+          [36m>[39m
+            [36m<h2[39m
+              [33mclass[39m=[32m"rcl-dialog__title"[39m
+              [33mid[39m=[32m":r15n:-title"[39m
+            [36m>[39m
+              [0mlauncher.extract[0m
+            [36m</h2>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"rcl-dialog__description"[39m
+              [33mid[39m=[32m":r15n:-description"[39m
+            [36m>[39m
+              [0mlauncher.extractDescription[0m
+            [36m</p>[39m
+          [36m</div>[39m
+          [36m<button[39m
+            [33maria-label[39m=[32m"common.close"[39m
+            [33mclass[39m=[32m"rcl-dialog__close"[39m
+            [33mdata-rcl-selector[39m=[32m"overlays.dialog.close"[39m
+            [33mdata-testid[39m=[32m"overlays.dialog.close"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-x"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"20"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"ro...
+ ❯ waitForWrapper node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/components/ActionLauncher.test.tsx:103:18
+    101|     const user = userEvent.setup();
+    102|     renderLauncher("extract");
+    103|     await screen.findByRole("option", { name: "demo" });
+       |                  ^
+    104|     await user.selectOptions(screen.getByLabelText("catalog.sourceScen…
+    105|     await user.type(screen.getByLabelText("catalog.sourcePath"), "ui/B…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/20]⎯
+
+ FAIL  src/components/ActionLauncher.test.tsx > ActionLauncher > keeps an adopt workflow error in the guided picker surface
+TestingLibraryElementError: Unable to find role="option" and name "Button"
+
+Ignored nodes: comments, script, style
+[36m<body[39m
+  [33mstyle[39m=[32m"overflow: hidden; position: fixed; top: 0px; width: 100%; padding-right: 1024px;"[39m
+[36m>[39m
+  [36m<div[39m
+    [33maria-hidden[39m=[32m"true"[39m
+  [36m>[39m
+    [36m<button[39m
+      [33maria-label[39m=[32m"launcher.open"[39m
+      [33mclass[39m=[32m"rcl-action-launcher fixed end-6 z-40 h-control-2xl w-control-2xl rounded-full p-0 shadow-lg"[39m
+      [33mdata-control-below-tap-target[39m=[32m"true"[39m
+      [33mdata-control-density[39m=[32m"comfortable"[39m
+      [33mdata-control-shape[39m=[32m"pill"[39m
+      [33mdata-control-size[39m=[32m"icon"[39m
+      [33mdata-control-variant[39m=[32m"primary"[39m
+      [33mdata-rcl-button[39m=[32m"true"[39m
+      [33mdata-rcl-control[39m=[32m"true"[39m
+      [33mdata-rcl-pending[39m=[32m"false"[39m
+      [33mdata-rcl-pressable[39m=[32m"true"[39m
+      [33mdata-testid[39m=[32m"launcher-open"[39m
+      [33mtype[39m=[32m"button"[39m
+    [36m>[39m
+      [36m<span[39m
+        [33mdata-rcl-pressable-content[39m=[32m"true"[39m
+      [36m>[39m
+        [36m<span[39m
+          [33maria-hidden[39m=[32m"false"[39m
+          [33mdata-rcl-asset[39m=[32m"react-component-library:Pressable"[39m
+          [33mdata-rcl-pressable-label[39m=[32m"true"[39m
+          [33mdata-rcl-source-slot[39m=[32m"controls.pressable"[39m
+          [33mdata-rcl-stamp[39m=[32m"vite"[39m
+          [33mdata-rcl-version[39m=[32m"1.0.4"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mdata-rcl-button-content[39m=[32m"true"[39m
+            [33mstyle[39m=[32m"display: inline-flex; align-items: center; gap: var(--space-xs); min-width: 0; max-width: 100%;"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mdata-control-slot[39m=[32m"label"[39m
+              [33mdata-rcl-asset[39m=[32m"react-component-library:Button"[39m
+              [33mdata-rcl-source-slot[39m=[32m"controls.button"[39m
+              [33mdata-rcl-stamp[39m=[32m"vite"[39m
+              [33mdata-rcl-version[39m=[32m"2.2.12"[39m
+              [33mdata-testid[39m=[32m"button-label"[39m
+              [33mstyle[39m=[32m"display: inline-flex; align-items: center; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-plus h-icon-lg w-icon-lg"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"24"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"24"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M5 12h14"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M12 5v14"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+            [36m</span>[39m
+          [36m</span>[39m
+        [36m</span>[39m
+        [36m<span[39m
+          [33maria-hidden[39m=[32m"true"[39m
+          [33maria-live[39m=[32m"polite"[39m
+          [33mdata-rcl-pressable-pending[39m=[32m"true"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mdata-rcl-pressable-spinner[39m=[32m"true"[39m
+          [36m/>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"rcl-visually-hidden"[39m
+          [36m>[39m
+            [0mWorking…[0m
+          [36m</span>[39m
+        [36m</span>[39m
+      [36m</span>[39m
+    [36m</button>[39m
+  [36m</div>[39m
+  [36m<div[39m
+    [33mdata-rcl-layer-root[39m=[32m""[39m
+    [33mid[39m=[32m"rcl-layer-root"[39m
+  [36m>[39m
+    [36m<div[39m
+      [33maria-describedby[39m=[32m":r162:-description"[39m
+      [33maria-labelledby[39m=[32m":r162:-title"[39m
+      [33maria-modal[39m=[32m"true"[39m
+      [33mclass[39m=[32m"rcl-dialog"[39m
+      [33mdata-rcl-dialog[39m=[32m"true"[39m
+      [33mdata-state[39m=[32m"open"[39m
+      [33mrole[39m=[32m"dialog"[39m
+      [33mstyle[39m=[32m"--rcl-viewport-width: 1024px; --rcl-viewport-height: 768px; --rcl-viewport-offset-left: 0px; --rcl-viewport-offset-top: 0px; --rcl-keyboard-inset: 0px; --rcl-safe-bottom: env(safe-area-inset-bottom, 0px);"[39m
+    [36m>[39m
+      [36m<button[39m
+        [33maria-label[39m=[32m"common.close"[39m
+        [33mclass[39m=[32m"rcl-dialog__backdrop"[39m
+        [33mdata-rcl-asset[39m=[32m"react-component-library:Dialog"[39m
+        [33mdata-rcl-selector[39m=[32m"overlays.dialog.backdrop"[39m
+        [33mdata-rcl-source-slot[39m=[32m"overlays.dialog"[39m
+        [33mdata-rcl-stamp[39m=[32m"vite"[39m
+        [33mdata-rcl-version[39m=[32m"1.3.9"[39m
+        [33mdata-testid[39m=[32m"overlays.dialog.backdrop"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"rcl-dialog__surface"[39m
+        [33mdata-testid[39m=[32m"overlays.dialog"[39m
+      [36m>[39m
+        [36m<header[39m
+          [33mclass[39m=[32m"rcl-dialog__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"rcl-dialog__heading"[39m
+          [36m>[39m
+            [36m<h2[39m
+              [33mclass[39m=[32m"rcl-dialog__title"[39m
+              [33mid[39m=[32m":r162:-title"[39m
+            [36m>[39m
+              [0mlauncher.adopt[0m
+            [36m</h2>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"rcl-dialog__description"[39m
+              [33mid[39m=[32m":r162:-description"[39m
+            [36m>[39m
+              [0mlauncher.adoptDescription[0m
+            [36m</p>[39m
+          [36m</div>[39m
+          [36m<button[39m
+            [33maria-label[39m=[32m"common.close"[39m
+            [33mclass[39m=[32m"rcl-dialog__close"[39m
+            [33mdata-rcl-selector[39m=[32m"overlays.dialog.close"[39m
+            [33mdata-testid[39m=[32m"overlays.dialog.close"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-x"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"20"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"...
+
+Ignored nodes: comments, script, style
+[36m<body[39m
+  [33mstyle[39m=[32m"overflow: hidden; position: fixed; top: 0px; width: 100%; padding-right: 1024px;"[39m
+[36m>[39m
+  [36m<div[39m
+    [33maria-hidden[39m=[32m"true"[39m
+  [36m>[39m
+    [36m<button[39m
+      [33maria-label[39m=[32m"launcher.open"[39m
+      [33mclass[39m=[32m"rcl-action-launcher fixed end-6 z-40 h-control-2xl w-control-2xl rounded-full p-0 shadow-lg"[39m
+      [33mdata-control-below-tap-target[39m=[32m"true"[39m
+      [33mdata-control-density[39m=[32m"comfortable"[39m
+      [33mdata-control-shape[39m=[32m"pill"[39m
+      [33mdata-control-size[39m=[32m"icon"[39m
+      [33mdata-control-variant[39m=[32m"primary"[39m
+      [33mdata-rcl-button[39m=[32m"true"[39m
+      [33mdata-rcl-control[39m=[32m"true"[39m
+      [33mdata-rcl-pending[39m=[32m"false"[39m
+      [33mdata-rcl-pressable[39m=[32m"true"[39m
+      [33mdata-testid[39m=[32m"launcher-open"[39m
+      [33mtype[39m=[32m"button"[39m
+    [36m>[39m
+      [36m<span[39m
+        [33mdata-rcl-pressable-content[39m=[32m"true"[39m
+      [36m>[39m
+        [36m<span[39m
+          [33maria-hidden[39m=[32m"false"[39m
+          [33mdata-rcl-asset[39m=[32m"react-component-library:Pressable"[39m
+          [33mdata-rcl-pressable-label[39m=[32m"true"[39m
+          [33mdata-rcl-source-slot[39m=[32m"controls.pressable"[39m
+          [33mdata-rcl-stamp[39m=[32m"vite"[39m
+          [33mdata-rcl-version[39m=[32m"1.0.4"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mdata-rcl-button-content[39m=[32m"true"[39m
+            [33mstyle[39m=[32m"display: inline-flex; align-items: center; gap: var(--space-xs); min-width: 0; max-width: 100%;"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mdata-control-slot[39m=[32m"label"[39m
+              [33mdata-rcl-asset[39m=[32m"react-component-library:Button"[39m
+              [33mdata-rcl-source-slot[39m=[32m"controls.button"[39m
+              [33mdata-rcl-stamp[39m=[32m"vite"[39m
+              [33mdata-rcl-version[39m=[32m"2.2.12"[39m
+              [33mdata-testid[39m=[32m"button-label"[39m
+              [33mstyle[39m=[32m"display: inline-flex; align-items: center; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-plus h-icon-lg w-icon-lg"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"24"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"24"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M5 12h14"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M12 5v14"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+            [36m</span>[39m
+          [36m</span>[39m
+        [36m</span>[39m
+        [36m<span[39m
+          [33maria-hidden[39m=[32m"true"[39m
+          [33maria-live[39m=[32m"polite"[39m
+          [33mdata-rcl-pressable-pending[39m=[32m"true"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mdata-rcl-pressable-spinner[39m=[32m"true"[39m
+          [36m/>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"rcl-visually-hidden"[39m
+          [36m>[39m
+            [0mWorking…[0m
+          [36m</span>[39m
+        [36m</span>[39m
+      [36m</span>[39m
+    [36m</button>[39m
+  [36m</div>[39m
+  [36m<div[39m
+    [33mdata-rcl-layer-root[39m=[32m""[39m
+    [33mid[39m=[32m"rcl-layer-root"[39m
+  [36m>[39m
+    [36m<div[39m
+      [33maria-describedby[39m=[32m":r162:-description"[39m
+      [33maria-labelledby[39m=[32m":r162:-title"[39m
+      [33maria-modal[39m=[32m"true"[39m
+      [33mclass[39m=[32m"rcl-dialog"[39m
+      [33mdata-rcl-dialog[39m=[32m"true"[39m
+      [33mdata-state[39m=[32m"open"[39m
+      [33mrole[39m=[32m"dialog"[39m
+      [33mstyle[39m=[32m"--rcl-viewport-width: 1024px; --rcl-viewport-height: 768px; --rcl-viewport-offset-left: 0px; --rcl-viewport-offset-top: 0px; --rcl-keyboard-inset: 0px; --rcl-safe-bottom: env(safe-area-inset-bottom, 0px);"[39m
+    [36m>[39m
+      [36m<button[39m
+        [33maria-label[39m=[32m"common.close"[39m
+        [33mclass[39m=[32m"rcl-dialog__backdrop"[39m
+        [33mdata-rcl-asset[39m=[32m"react-component-library:Dialog"[39m
+        [33mdata-rcl-selector[39m=[32m"overlays.dialog.backdrop"[39m
+        [33mdata-rcl-source-slot[39m=[32m"overlays.dialog"[39m
+        [33mdata-rcl-stamp[39m=[32m"vite"[39m
+        [33mdata-rcl-version[39m=[32m"1.3.9"[39m
+        [33mdata-testid[39m=[32m"overlays.dialog.backdrop"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m/>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"rcl-dialog__surface"[39m
+        [33mdata-testid[39m=[32m"overlays.dialog"[39m
+      [36m>[39m
+        [36m<header[39m
+          [33mclass[39m=[32m"rcl-dialog__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"rcl-dialog__heading"[39m
+          [36m>[39m
+            [36m<h2[39m
+              [33mclass[39m=[32m"rcl-dialog__title"[39m
+              [33mid[39m=[32m":r162:-title"[39m
+            [36m>[39m
+              [0mlauncher.adopt[0m
+            [36m</h2>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"rcl-dialog__description"[39m
+              [33mid[39m=[32m":r162:-description"[39m
+            [36m>[39m
+              [0mlauncher.adoptDescription[0m
+            [36m</p>[39m
+          [36m</div>[39m
+          [36m<button[39m
+            [33maria-label[39m=[32m"common.close"[39m
+            [33mclass[39m=[32m"rcl-dialog__close"[39m
+            [33mdata-rcl-selector[39m=[32m"overlays.dialog.close"[39m
+            [33mdata-testid[39m=[32m"overlays.dialog.close"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-x"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"20"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"...
+ ❯ waitForWrapper node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/components/ActionLauncher.test.tsx:114:18
+    112|     const user = userEvent.setup();
+    113|     renderLauncher("adopt");
+    114|     await screen.findByRole("option", { name: "Button" });
+       |                  ^
+    115|     await user.selectOptions(screen.getByLabelText("launcher.asset"), …
+    116|     await user.selectOptions(screen.getByLabelText("launcher.targets")…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/20]⎯
+
+ FAIL  src/components/SidebarShell.test.tsx > SidebarShell > declares the responsive desktop override that keeps a closed drawer visible
+AssertionError: expected null not to be null
+ ❯ src/components/SidebarShell.test.tsx:175:24
+    173|     // than rendered inline per instance; the rules it must declare ar…
+    174|     const styles = document.head.querySelector('style[data-rcl-sheet="…
+    175|     expect(styles).not.toBeNull();
+       |                        ^
+    176|     expect(styles?.textContent).toContain(
+    177|       '[data-rcl-sidebar-shell][data-mode="responsive"][data-open="fal…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/20]⎯
+
+ FAIL  src/lib/CollectionList.test.tsx > keeps the open detail distinct from keyboard navigation and bulk selection
+Error: Unexpected console output during test:
+console.error: [react-component-library] stylesheet key collision for react-component-library-cardshell-1.0.2: an unknown mounted owner and react-component-library:CardShell@1.0.2 provide different CSS.
+console.error: [react-component-library] stylesheet key collision for react-component-library-cardshell-1.0.2: react-component-library:CardShell@1.0.2 and react-component-library:CardShell@1.0.2 provide different CSS.
+console.error: [react-component-library] stylesheet key collision for react-component-library-cardshell-1.0.2: react-component-library:CardShell@1.0.2 and react-component-library:CardShell@1.0.2 provide different CSS.
+console.error: [react-component-library] stylesheet key collision for react-component-library-cardshell-1.0.2: react-component-library:CardShell@1.0.2 and react-component-library:CardShell@1.0.2 provide different CSS.
+ ❯ src/test-setup.ts:111:11
+    109|       ...warnCalls.map((args) => `console.warn: ${args.map(String).joi…
+    110|     ].join("\n");
+    111|     throw new Error(`Unexpected console output during test:\n${formatt…
+       |           ^
+    112|   }
+    113| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/20]⎯
+
+ FAIL  src/lib/CollectionList.test.tsx > does not substitute another current item when the open record is filtered out
+Error: Unexpected console output during test:
+console.error: [react-component-library] stylesheet key collision for react-component-library-cardshell-1.0.2: react-component-library:CardShell@1.0.2 and react-component-library:CardShell@1.0.2 provide different CSS.
+ ❯ src/test-setup.ts:111:11
+    109|       ...warnCalls.map((args) => `console.warn: ${args.map(String).joi…
+    110|     ].join("\n");
+    111|     throw new Error(`Unexpected console output during test:\n${formatt…
+       |           ^
+    112|   }
+    113| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/20]⎯
+
+ FAIL  src/lib/CopyIconButtonDraft.test.tsx > CopyIconButton draft clipboard compatibility > keeps the gesture-bound legacy copy fallback when the clipboard API is missing
+AssertionError: expected "spy" to be called 1 times, but got 0 times
+ ❯ src/lib/CopyIconButtonDraft.test.tsx:55:27
+     53| 
+     54|       await expect(writeClipboardText("copy me")).resolves.toBe(true);
+     55|       expect(execCommand).toHaveBeenCalledTimes(1);
+       |                           ^
+     56|       expect(document.querySelector('textarea[readonly]')).toBeNull();
+     57|     },
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/20]⎯
+
+ FAIL  src/hooks/useComponentStyles.test.tsx > useComponentStyles > real components > emits one sheet for five StatusBadge instances
+AssertionError: expected [] to have a length of 1 but got +0
+
+- Expected
++ Received
+
+- 1
++ 0
+
+ ❯ src/hooks/useComponentStyles.test.tsx:152:45
+    150|       // blocks inline in the tree; now it is one sheet in <head>.
+    151|       expect(container.querySelectorAll("style")).toHaveLength(0);
+    152|       expect(librarySheets("status-badge")).toHaveLength(1);
+       |                                             ^
+    153|     });
+    154| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/20]⎯
+
+ FAIL  src/hooks/useComponentStyles.test.tsx > useComponentStyles > real components > shares nothing between different components
+AssertionError: expected [] to have a length of 1 but got +0
+
+- Expected
++ Received
+
+- 1
++ 0
+
+ ❯ src/hooks/useComponentStyles.test.tsx:163:45
+    161|       );
+    162| 
+    163|       expect(librarySheets("status-badge")).toHaveLength(1);
+       |                                             ^
+    164|       expect(librarySheets("card-1-2-1")).toHaveLength(1);
+    165|     });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/20]⎯
+
+ FAIL  src/features/components/AdoptionFileTree.test.tsx > AdoptionFileTree > offers a template <select> and reports the choice when multiple templates exist
+AssertionError: expected 'BUTTON' to be 'SELECT' // Object.is equality
+
+Expected: "SELECT"
+Received: "BUTTON"
+
+ ❯ src/features/components/AdoptionFileTree.test.tsx:175:26
+    173|     await screen.findByTestId(selectors.components.editor.fileTree);
+    174|     const seam = await screen.findByTestId(selectors.components.editor…
+    175|     expect(seam.tagName).toBe("SELECT");
+       |                          ^
+    176| 
+    177|     const user = userEvent.setup();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/20]⎯
+
+ FAIL  src/features/components/ComponentEditor.test.tsx > ComponentEditor > keeps frame experiments temporary until the author explicitly saves them
+TestingLibraryElementError: Value "navigation.page" not found in options
+
+Ignored nodes: comments, script, style
+[36m<button[39m
+  [33maria-expanded[39m=[32m"false"[39m
+  [33maria-haspopup[39m=[32m"listbox"[39m
+  [33maria-labelledby[39m=[32m"select-r4m-label"[39m
+  [33mclass[39m=[32m"h-full min-h-touch max-w-[12rem] bg-transparent text-app-foreground outline-none"[39m
+  [33mdata-rcl-popover-trigger[39m=[32m"true"[39m
+  [33mdata-rcl-popover-trigger-as-child[39m=[32m"true"[39m
+  [33mdata-rcl-select[39m=[32m"true"[39m
+  [33mdata-rcl-select-trigger[39m=[32m"true"[39m
+  [33mdata-testid[39m=[32m"components-editor-frame-picker"[39m
+  [33mid[39m=[32m"popover-trigger-r4n"[39m
+  [33mtype[39m=[32m"button"[39m
+[36m>[39m
+  [36m<span[39m
+    [33mdata-rcl-select-value[39m=[32m"true"[39m
+  [36m>[39m
+    [0mStory frame[0m
+  [36m</span>[39m
+  [36m<span[39m
+    [33maria-hidden[39m=[32m"true"[39m
+    [33mdata-rcl-select-chevron[39m=[32m"true"[39m
+  [36m/>[39m
+[36m</button>[39m
+ ❯ Object.getElementError node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ node_modules/.pnpm/@testing-library+user-event@14.6.1_@testing-library+dom@10.4.1/node_modules/@testing-library/user-event/dist/esm/utility/selectOptions.js:37:35
+ ❯ Object.selectOptionsBase node_modules/.pnpm/@testing-library+user-event@14.6.1_@testing-library+dom@10.4.1/node_modules/@testing-library/user-event/dist/esm/utility/selectOptions.js:29:38
+ ❯ Object.selectOptions node_modules/.pnpm/@testing-library+user-event@14.6.1_@testing-library+dom@10.4.1/node_modules/@testing-library/user-event/dist/esm/utility/selectOptions.js:16:30
+ ❯ node_modules/.pnpm/@testing-library+user-event@14.6.1_@testing-library+dom@10.4.1/node_modules/@testing-library/user-event/dist/esm/setup/setup.js:83:35
+ ❯ Object.asyncWrapper node_modules/.pnpm/@testing-library+react@16.3.2_@testing-library+dom@10.4.1_@types+react-dom@18.3.7_@types+reac_spm2j6wuon27jfezwgjvqbbvgm/node_modules/@testing-library/react/dist/pure.js:87:28
+ ❯ wrapAsync node_modules/.pnpm/@testing-library+user-event@14.6.1_@testing-library+dom@10.4.1/node_modules/@testing-library/user-event/dist/esm/setup/wrapAsync.js:6:24
+ ❯ Object.method [as selectOptions] node_modules/.pnpm/@testing-library+user-event@14.6.1_@testing-library+dom@10.4.1/node_modules/@testing-library/user-event/dist/esm/setup/setup.js:83:16
+ ❯ Object.selectOptions node_modules/.pnpm/@testing-library+user-event@14.6.1_@testing-library+dom@10.4.1/node_modules/@testing-library/user-event/dist/esm/setup/directApi.js:36:37
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/20]⎯
+
+ FAIL  src/features/components/ComponentTestPanel.test.tsx > ComponentTestPanel > defaults to the review sheet, exposes each captured story, and renders results once
+TestingLibraryElementError: Unable to find an accessible element with the role "combobox" and name "Captured story"
+
+Here are the accessible roles:
+
+  region:
+
+  Name "Component tests":
+  [36m<section[39m
+    [33maria-label[39m=[32m"Component tests"[39m
+    [33mclass[39m=[32m"space-y-space-sm text-sm text-app-foreground"[39m
+    [33mdata-testid[39m=[32m"component-test-panel"[39m
+  [36m/>[39m
+
+  Name "Claim overlay and evidence":
+  [36m<section[39m
+    [33maria-label[39m=[32m"Claim overlay and evidence"[39m
+    [33mclass[39m=[32m"overflow-hidden rounded-panel border border-app-border bg-app-surface"[39m
+    [33mdata-testid[39m=[32m"claim-overlay-panel"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<section[39m
+    [33maria-labelledby[39m=[32m"capture-inspector-heading-empty"[39m
+  [36m/>[39m
+
+  Name "Captured story sheets":
+  [36m<section[39m
+    [33maria-label[39m=[32m"Captured story sheets"[39m
+    [33mclass[39m=[32m"space-y-space-2xs rounded-control border border-app-border bg-app-surface-muted p-space-xs"[39m
+    [33mdata-testid[39m=[32m"captured-story-sheet-gallery"[39m
+  [36m/>[39m
+
+  Name "Evidence workspace":
+  [36m<section[39m
+    [33maria-label[39m=[32m"Evidence workspace"[39m
+    [33mclass[39m=[32m"rcl-evidence-carousel"[39m
+    [33mdata-rcl-evidence-carousel[39m=[32m"true"[39m
+    [33mdata-testid[39m=[32m"visualization-evidence-carousel"[39m
+  [36m/>[39m
+
+  Name "Test categories":
+  [36m<section[39m
+    [33maria-label[39m=[32m"Test categories"[39m
+    [33mclass[39m=[32m"grid gap-space-xs md:grid-cols-2"[39m
+    [33mdata-testid[39m=[32m"tests-category-views"[39m
+  [36m/>[39m
+
+  Name "Show all results (2)":
+  [36m<section[39m
+    [33maria-labelledby[39m=[32m"test-results-heading"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  banner:
+
+  Name "":
+  [36m<header[39m
+    [33mclass[39m=[32m"flex flex-wrap items-start justify-between gap-space-xs rounded-panel border border-app-border bg-app-surface-muted p-space-sm"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<header[39m
+    [33mclass[39m=[32m"flex flex-wrap items-start justify-between gap-space-xs border-b border-app-border bg-app-surface-muted p-space-sm"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<header[39m
+    [33mclass[39m=[32m"border-b p-space-sm border-app-warning/30 bg-app-warning/5"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  paragraph:
+
+  Name "":
+  [36m<p[39m
+    [33mclass[39m=[32m"text-xs font-semibold uppercase tracking-wide text-app-primary"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<p[39m
+    [33mclass[39m=[32m"mt-space-3xs max-w-xl text-xs text-app-muted-foreground"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<p[39m
+    [33mclass[39m=[32m"mt-space-3xs max-w-2xl text-xs text-app-muted-foreground"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<p[39m
+    [33mclass[39m=[32m"text-sm font-medium"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<p[39m
+    [33mclass[39m=[32m"mt-space-3xs text-xs text-app-muted-foreground"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<p[39m
+    [33mclass[39m=[32m"mt-space-3xs text-xs text-app-muted-foreground"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<p[39m
+    [33mclass[39m=[32m"text-sm font-semibold"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<p[39m
+    [33mclass[39m=[32m"mt-space-3xs text-xs text-app-muted-foreground"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<p[39m
+    [33mclass[39m=[32m"mt-space-2xs text-xs text-app-muted-foreground"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<p[39m
+    [33mclass[39m=[32m"mt-space-2xs text-xs text-app-muted-foreground"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<p[39m
+    [33mclass[39m=[32m"mt-space-2xs text-xs text-app-muted-foreground"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<p[39m
+    [33mclass[39m=[32m"mt-space-2xs text-xs text-app-muted-foreground"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<p[39m
+    [33mclass[39m=[32m"mt-space-3xs text-xs text-app-muted-foreground"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<p[39m
+    [33mclass[39m=[32m"mt-space-2xs rounded-control border border-app-warning/30 bg-app-warning/10 px-space-2xs py-space-2xs text-xs text-app-foreground"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<p[39m
+    [33mclass[39m=[32m"mt-space-3xs text-xs text-app-muted-foreground"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  heading:
+
+  Name "Component tests":
+  [36m<h3[39m
+    [33mclass[39m=[32m"mt-space-3xs text-lg font-semibold"[39m
+  [36m/>[39m
+
+  Name "Experience evidence":
+  [36m<h3[39m
+    [33mclass[39m=[32m"text-sm font-semibold"[39m
+  [36m/>[39m
+
+  Name "All story sheets":
+  [36m<h4[39m
+    [33mclass[39m=[32m"text-xs font-semibold uppercase tracking-wide"[39m
+  [36m/>[39m
+
+  Name "integrity":
+  [36m<h4[39m
+    [33mclass[39m=[32m"text-sm font-semibold capitalize"[39m
+  [36m/>[39m
+
+  Name "behavior":
+  [36m<h4[39m
+    [33mclass[39m=[32m"text-sm font-semibold capitalize"[39m
+  [36m/>[39m
+
+  Name "experience":
+  [36m<h4[39m
+    [33mclass[39m=[32m"text-sm font-semibold capitalize"[39m
+  [36m/>[39m
+
+  Name "cost":
+  [36m<h4[39m
+    [33mclass[39m=[32m"text-sm font-semibold capitalize"[39m
+  [36m/>[39m
+
+  Name "contract validation":
+  [36m<h5[39m
+    [33mclass[39m=[32m"font-medium capitalize"[39m
+  [36m/>[39m
+
+  Name "declared behavior":
+  [36m<h5[39m
+    [33mclass[39m=[32m"font-medium capitalize"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  checkbox:
+
+  Name "Include dependency closure":
+  [36m<input[39m
+    [33mtype[39m=[32m"checkbox"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  button:
+
+  Name "Run component tests":
+  [36m<button[39m
+    [33mdata-control-below-tap-target[39m=[32m"true"[39m
+    [33mdata-control-density[39m=[32m"comfortable"[39m
+    [33mdata-control-shape[39m=[32m"pill"[39m
+    [33mdata-control-size[39m=[32m"sm"[39m
+    [33mdata-control-variant[39m=[32m"primary"[39m
+    [33mdata-rcl-button[39m=[32m"true"[39m
+    [33mdata-rcl-control[39m=[32m"true"[39m
+    [33mdata-rcl-pending[39m=[32m"false"[39m
+    [33mdata-rcl-pressable[39m=[32m"true"[39m
+    [33mdata-testid[39m=[32m"controls.button"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Captured story":
+  [36m<button[39m
+    [33maria-expanded[39m=[32m"false"[39m
+    [33maria-haspopup[39m=[32m"listbox"[39m
+    [33maria-labelledby[39m=[32m"select-rlt-label"[39m
+    [33mclass[39m=[32m"min-w-0 rounded-control border border-app-border bg-app-surface px-space-xs py-space-2xs text-app-foreground"[39m
+    [33mdata-rcl-popover-trigger[39m=[32m"true"[39m
+    [33mdata-rcl-popover-trigger-as-child[39m=[32m"true"[39m
+    [33mdata-rcl-select[39m=[32m"true"[39m
+    [33mdata-rcl-select-trigger[39m=[32m"true"[39m
+    [33mdata-testid[39m=[32m"forms.select"[39m
+    [33mid[39m=[32m"popover-trigger-rlu"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  figure:
+
+  Name "":
+  [36m<figure[39m
+    [33mclass[39m=[32m"overflow-hidden rounded-control border border-app-border bg-app-surface"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  status:
+
+  Name "":
+  [36m<div[39m
+    [33mclass[39m=[32m"absolute inset-0 flex items-center justify-center text-xs text-app-muted-foreground"[39m
+    [33mrole[39m=[32m"status"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<div[39m
+    [33mclass[39m=[32m"absolute inset-0 flex items-center justify-center text-xs text-app-muted-foreground"[39m
+    [33mrole[39m=[32m"status"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  img:
+
+  Name "Captured story sheet: Review sheet · primary, secondary":
+  [36m<img[39m
+    [33malt[39m=[32m"Captured story sheet: Review sheet · primary, secondary"[39m
+    [33mclass[39m=[32m"max-h-[42rem] max-w-full object-contain opacity-0"[39m
+    [33msrc[39m=[32m"http://localhost:3000/embedded/browser-automation-studio/api/v1/artifacts/sheet.png"[39m
+  [36m/>[39m
+
+  Name "Captured component screenshot":
+  [36m<img[39m
+    [33malt[39m=[32m"Captured component screenshot"[39m
+    [33mclass[39m=[32m"max-h-[42rem] max-w-full object-contain opacity-0"[39m
+    [33msrc[39m=[32m"http://localhost:3000/embedded/browser-automation-studio/api/v1/artifacts/sheet.png"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  tablist:
+
+  Name "Evidence types":
+  [36m<div[39m
+    [33maria-label[39m=[32m"Evidence types"[39m
+    [33mclass[39m=[32m"rcl-evidence-carousel__tabs"[39m
+    [33mrole[39m=[32m"tablist"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  tab:
+
+  Name "Story sheet: Captured":
+  [36m<button[39m
+    [33maria-controls[39m=[32m"evidence-panel-story-sheet"[39m
+    [33maria-label[39m=[32m"Story sheet: Captured"[39m
+    [33maria-selected[39m=[32m"true"[39m
+    [33mclass[39m=[32m"rcl-evidence-carousel__tab"[39m
+    [33mdata-selected[39m=[32m"true"[39m
+    [33mdata-status[39m=[32m"available"[39m
+    [33mdata-testid[39m=[32m"visualization.evidence-carousel"[39m
+    [33mrole[39m=[32m"tab"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Screenshot: Not captured":
+  [36m<button[39m
+    [33maria-controls[39m=[32m"evidence-panel-screenshot"[39m
+    [33maria-label[39m=[32m"Screenshot: Not captured"[39m
+    [33maria-selected[39m=[32m"false"[39m
+    [33mclass[39m=[32m"rcl-evidence-carousel__tab"[39m
+    [33mdata-selected[39m=[32m"false"[39m
+    [33mdata-status[39m=[32m"missing"[39m
+    [33mdata-testid[39m=[32m"visualization.evidence-carousel"[39m
+    [33mrole[39m=[32m"tab"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Accessibility Tree: Not captured":
+  [36m<button[39m
+    [33maria-controls[39m=[32m"evidence-panel-accessibility-tree"[39m
+    [33maria-label[39m=[32m"Accessibility Tree: Not captured"[39m
+    [33maria-selected[39m=[32m"false"[39m
+    [33mclass[39m=[32m"rcl-evidence-carousel__tab"[39m
+    [33mdata-selected[39m=[32m"false"[39m
+    [33mdata-status[39m=[32m"missing"[39m
+    [33mdata-testid[39m=[32m"visualization.evidence-carousel"[39m
+    [33mrole[39m=[32m"tab"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Computed Styles: Not captured":
+  [36m<button[39m
+    [33maria-controls[39m=[32m"evidence-panel-computed-style"[39m
+    [33maria-label[39m=[32m"Computed Styles: Not captured"[39m
+    [33maria-selected[39m=[32m"false"[39m
+    [33mclass[39m=[32m"rcl-evidence-carousel__tab"[39m
+    [33mdata-selected[39m=[32m"false"[39m
+    [33mdata-status[39m=[32m"missing"[39m
+    [33mdata-testid[39m=[32m"visualization.evidence-carousel"[39m
+    [33mrole[39m=[32m"tab"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Layout Box: Not captured":
+  [36m<button[39m
+    [33maria-controls[39m=[32m"evidence-panel-layout-box"[39m
+    [33maria-label[39m=[32m"Layout Box: Not captured"[39m
+    [33maria-selected[39m=[32m"false"[39m
+    [33mclass[39m=[32m"rcl-evidence-carousel__tab"[39m
+    [33mdata-selected[39m=[32m"false"[39m
+    [33mdata-status[39m=[32m"missing"[39m
+    [33mdata-testid[39m=[32m"visualization.evidence-carousel"[39m
+    [33mrole[39m=[32m"tab"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Console: Not captured":
+  [36m<button[39m
+    [33maria-controls[39m=[32m"evidence-panel-console"[39m
+    [33maria-label[39m=[32m"Console: Not captured"[39m
+    [33maria-selected[39m=[32m"false"[39m
+    [33mclass[39m=[32m"rcl-evidence-carousel__tab"[39m
+    [33mdata-selected[39m=[32m"false"[39m
+    [33mdata-status[39m=[32m"missing"[39m
+    [33mdata-testid[39m=[32m"visualization.evidence-carousel"[39m
+    [33mrole[39m=[32m"tab"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Performance: Not captured":
+  [36m<button[39m
+    [33maria-controls[39m=[32m"evidence-panel-performance"[39m
+    [33maria-label[39m=[32m"Performance: Not captured"[39m
+    [33maria-selected[39m=[32m"false"[39m
+    [33mclass[39m=[32m"rcl-evidence-carousel__tab"[39m
+    [33mdata-selected[39m=[32m"false"[39m
+    [33mdata-status[39m=[32m"missing"[39m
+    [33mdata-testid[39m=[32m"visualization.evidence-carousel"[39m
+    [33mrole[39m=[32m"tab"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  tabpanel:
+
+  Name "Story sheet":
+  [36m<div[39m
+    [33maria-label[39m=[32m"Story sheet"[39m
+    [33mid[39m=[32m"evidence-panel-story-sheet"[39m
+    [33mrole[39m=[32m"tabpanel"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  article:
+
+  Name "":
+  [36m<article[39m
+    [33mclass[39m=[32m"overflow-hidden rounded-panel border border-app-border bg-app-surface shadow-sm"[39m
+    [33mdata-testid[39m=[32m"component-test-report"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  strong:
+
+  Name "":
+  [36m<strong[39m
+    [33mclass[39m=[32m"text-app-foreground"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<strong[39m
+    [33mclass[39m=[32m"text-app-foreground"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<strong[39m
+    [33mclass[39m=[32m"text-app-foreground"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<strong[39m
+    [33mclass[39m=[32m"text-app-foreground"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<strong[39m
+    [33mclass[39m=[32m"text-app-foreground"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  group:
+
+  Name "":
+  [36m<details />[39m
+
+  --------------------------------------------------
+  list:
+
+  Name "":
+  [36m<ul[39m
+    [33mclass[39m=[32m"mt-space-2xs space-y-space-2xs"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  listitem:
+
+  Name "":
+  [36m<li[39m
+    [33mclass[39m=[32m"grid gap-space-2xs rounded-control border border-app-border bg-app-background p-space-xs sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-start"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<li[39m
+    [33mclass[39m=[32m"grid gap-space-2xs rounded-control border border-app-border bg-app-background p-space-xs sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-start"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<section[39m
+      [33maria-label[39m=[32m"Component tests"[39m
+      [33mclass[39m=[32m"space-y-space-sm text-sm text-app-foreground"[39m
+      [33mdata-testid[39m=[32m"component-test-panel"[39m
+    [36m>[39m
+      [36m<header[39m
+        [33mclass[39m=[32m"flex flex-wrap items-start justify-between gap-space-xs rounded-panel border border-app-border bg-app-surface-muted p-space-sm"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs font-semibold uppercase tracking-wide text-app-primary"[39m
+          [36m>[39m
+            [0mQuality evidence[0m
+          [36m</p>[39m
+          [36m<h3[39m
+            [33mclass[39m=[32m"mt-space-3xs text-lg font-semibold"[39m
+          [36m>[39m
+            [0mComponent tests[0m
+          [36m</h3>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"mt-space-3xs max-w-xl text-xs text-app-muted-foreground"[39m
+          [36m>[39m
+            [0mValidate declared behavior for version [0m
+            [0m2.2.0[0m
+            [0m, including the pinned dependency closure. Each run is retained as reviewable evidence.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+        [36m<label[39m
+          [33mclass[39m=[32m"flex items-center gap-space-2xs text-xs text-app-muted-foreground"[39m
+        [36m>[39m
+          [36m<input[39m
+            [33mtype[39m=[32m"checkbox"[39m
+          [36m/>[39m
+          [0mInclude dependency closure[0m
+        [36m</label>[39m
+        [36m<button[39m
+          [33mdata-control-below-tap-target[39m=[32m"true"[39m
+          [33mdata-control-density[39m=[32m"comfortable"[39m
+          [33mdata-control-shape[39m=[32m"pill"[39m
+          [33mdata-control-size[39m=[32m"sm"[39m
+          [33mdata-control-variant[39m=[32m"primary"[39m
+          [33mdata-rcl-button[39m=[32m"true"[39m
+          [33mdata-rcl-control[39m=[32m"true"[39m
+          [33mdata-rcl-pending[39m=[32m"false"[39m
+          [33mdata-rcl-pressable[39m=[32m"true"[39m
+          [33mdata-testid[39m=[32m"controls.button"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mdata-rcl-pressable-content[39m=[32m"true"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33maria-hidden[39m=[32m"false"[39m
+              [33mdata-rcl-asset[39m=[32m"react-component-library:Pressable"[39m
+              [33mdata-rcl-pressable-label[39m=[32m"true"[39m
+              [33mdata-rcl-source-slot[39m=[32m"controls.pressable"[39m
+              [33mdata-rcl-stamp[39m=[32m"vite"[39m
+              [33mdata-rcl-version[39m=[32m"1.0.4"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33mdata-rcl-button-content[39m=[32m"true"[39m
+                [33mstyle[39m=[32m"display: inline-flex; align-items: center; gap: var(--space-xs); min-width: 0; max-width: 100%;"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33mdata-control-slot[39m=[32m"label"[39m
+                  [33mdata-rcl-asset[39m=[32m"react-component-library:Button"[39m
+                  [33mdata-rcl-source-slot[39m=[32m"controls.button"[39m
+                  [33mdata-rcl-stamp[39m=[32m"vite"[39m
+                  [33mdata-rcl-version[39m=[32m"2.2.12"[39m
+                  [33mdata-testid[39m=[32m"button-label"[39m
+                  [33mstyle[39m=[32m"display: inline-flex; align-items: center; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"[39m
+                [36m>[39m
+                  [36m<svg[39m
+                    [33maria-hidden[39m=[32m"true"[39m
+                    [33mclass[39m=[32m"lucide lucide-play h-icon-sm w-icon-sm"[39m
+                    [33mfill[39m=[32m"none"[39m
+                    [33mheight[39m=[32m"24"[39m
+                    [33mstroke[39m=[32m"currentColor"[39m
+                    [33mstroke-linecap[39m=[32m"round"[39m
+                    [33mstroke-linejoin[39m=[32m"round"[39m
+                    [33mstroke-width[39m=[32m"2"[39m
+                    [33mviewBox[39m=[32m"0 0 24 24"[39m
+                    [33mwidth[39m=[32m"24"[39m
+                    [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                  [36m>[39m
+                    [36m<polygon[39m
+                      [33mpoints[39m=[32m"6 3 20 12 6 21 6 3"[39m
+                    [36m/>[39m
+                  [36m</svg>[39m
+                  [0mRun component tests[0m
+                [36m</span>[39m
+              [36m</span>[39m
+            [36m</span>[39m
+            [36m<span[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33maria-live[39m=[32m"polite"[39m
+              [33mdata-rcl-pressable-pending[39m=[32m"true"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mdata-rcl-pressable-spinner[39m=[32m"true"[39m
+              [36m/>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"rcl-visually-hidden"[39m
+              [36m>[39m
+                [0mWorking…[0m
+              [36m</span>[39m
+            [36m</span>[39m
+          [36m</span>[39m
+        [36m</button>[39m
+      [36m</header>[39m
+      [36m<section[39m
+        [33maria-label[39m=[32m"Claim overlay and evidence"[39m
+        [33mclass[39m=[32m"overflow-hidden rounded-panel border border-app-border bg-app-surface"[39m
+        [33mdata-testid[39m=[32m"claim-overlay-panel"[39m
+      [36m>[39m
+        [36m<header[39m
+          [33mclass[39m=[32m"flex flex-wrap items-start justify-between gap-space-xs border-b border-app-border bg-app-surface-muted p-space-sm"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex items-start gap-space-xs"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"flex h-control-md w-control-md shrink-0 items-center justify-center rounded-control bg-app-primary/10 text-app-primary"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-scan-search h-icon-md w-icon-md"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"24"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"24"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m...
+ ❯ Object.getElementError node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ src/features/components/ComponentTestPanel.test.tsx:215:32
+    213|       expect.stringContaining("/embedded/browser-automation-studio/api…
+    214|     );
+    215|     const storyPicker = screen.getByRole("combobox", { name: "Captured…
+       |                                ^
+    216|     expect(storyPicker).toHaveValue("review-sheet:primary,secondary");
+    217|     expect(screen.getAllByText("contract failure")).toHaveLength(1);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/20]⎯
+
+ FAIL  src/features/components/CreateComponentDialog.test.tsx > CreateComponentDialog > closes after a successful initialization that does not return a routeable component
+AssertionError: expected "spy" to be called once, but got 0 times
+
+Ignored nodes: comments, script, style
+[36m<html[39m
+  [33mclass[39m=[32m""[39m
+  [33mdata-resolved-theme[39m=[32m"light"[39m
+  [33mdir[39m=[32m"ltr"[39m
+  [33mlang[39m=[32m"en"[39m
+[36m>[39m
+  [36m<head />[39m
+  [36m<body[39m
+    [33mstyle[39m=[32m"overflow: hidden; position: fixed; top: 0px; width: 100%; padding-right: 1024px;"[39m
+  [36m>[39m
+    [36m<div[39m
+      [33maria-hidden[39m=[32m"true"[39m
+    [36m/>[39m
+    [36m<div[39m
+      [33mdata-rcl-layer-root[39m=[32m""[39m
+      [33mid[39m=[32m"rcl-layer-root"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33maria-labelledby[39m=[32m":r141:-title"[39m
+        [33maria-modal[39m=[32m"true"[39m
+        [33mclass[39m=[32m"rcl-dialog max-w-2xl"[39m
+        [33mdata-rcl-dialog[39m=[32m"true"[39m
+        [33mdata-state[39m=[32m"open"[39m
+        [33mrole[39m=[32m"dialog"[39m
+        [33mstyle[39m=[32m"--rcl-viewport-width: 1024px; --rcl-viewport-height: 768px; --rcl-viewport-offset-left: 0px; --rcl-viewport-offset-top: 0px; --rcl-keyboard-inset: 0px; --rcl-safe-bottom: env(safe-area-inset-bottom, 0px);"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33maria-label[39m=[32m"Cancel"[39m
+          [33mclass[39m=[32m"rcl-dialog__backdrop"[39m
+          [33mdata-rcl-asset[39m=[32m"react-component-library:Dialog"[39m
+          [33mdata-rcl-selector[39m=[32m"overlays.dialog.backdrop"[39m
+          [33mdata-rcl-source-slot[39m=[32m"overlays.dialog"[39m
+          [33mdata-rcl-stamp[39m=[32m"vite"[39m
+          [33mdata-rcl-version[39m=[32m"1.3.9"[39m
+          [33mdata-testid[39m=[32m"overlays.dialog.backdrop"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m/>[39m
+        [36m<section[39m
+          [33mclass[39m=[32m"rcl-dialog__surface"[39m
+          [33mdata-testid[39m=[32m"overlays.dialog"[39m
+        [36m>[39m
+          [36m<header[39m
+            [33mclass[39m=[32m"rcl-dialog__header"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"rcl-dialog__heading"[39m
+            [36m>[39m
+              [36m<h2[39m
+                [33mclass[39m=[32m"rcl-dialog__title"[39m
+                [33mid[39m=[32m":r141:-title"[39m
+              [36m>[39m
+                [0mCreate component[0m
+              [36m</h2>[39m
+            [36m</div>[39m
+            [36m<button[39m
+              [33maria-label[39m=[32m"Cancel"[39m
+              [33mclass[39m=[32m"rcl-dialog__close"[39m
+              [33mdata-rcl-selector[39m=[32m"overlays.dialog.close"[39m
+              [33mdata-testid[39m=[32m"overlays.dialog.close"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-x"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"20"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"20"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M18 6 6 18"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"m6 6 12 12"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+            [36m</button>[39m
+          [36m</header>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"rcl-dialog__body"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mdata-testid[39m=[32m"components-create-dialog"[39m
+            [36m>[39m
+              [36m<form[39m
+                [33mclass[39m=[32m"grid gap-space-xs"[39m
+              [36m>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"grid grid-cols-1 gap-space-2xs md:grid-cols-2"[39m
+                [36m>[39m
+                  [36m<label[39m
+                    [33mclass[39m=[32m"block text-xs text-app-muted-foreground"[39m
+                  [36m>[39m
+                    [0mSlug[0m
+                    [36m<input[39m
+                      [33mclass[39m=[32m"shadow-[var(--elev-raised)] mt-space-3xs"[39m
+                      [33mdata-rcl-asset[39m=[32m"react-component-library:Input"[39m
+                      [33mdata-rcl-input[39m=[32m"true"[39m
+                      [33mdata-rcl-source-slot[39m=[32m"forms.input"[39m
+                      [33mdata-rcl-stamp[39m=[32m"vite"[39m
+                      [33mdata-rcl-version[39m=[32m"1.3.6"[39m
+                      [33mdata-testid[39m=[32m"components-create-slug"[39m
+                      [33mrequired[39m=[32m""[39m
+                      [33mvalue[39m=[32m""[39m
+                    [36m/>[39m
+                  [36m</label>[39m
+                  [36m<label[39m
+                    [33mclass[39m=[32m"block text-xs text-app-muted-foreground"[39m
+                  [36m>[39m
+                    [0mLibrary ID[0m
+                    [36m<input[39m
+                      [33mclass[39m=[32m"shadow-[var(--elev-raised)] mt-space-3xs"[39m
+                      [33mdata-rcl-asset[39m=[32m"react-component-library:Input"[39m
+                      [33mdata-rcl-input[39m=[32m"true"[39m
+                      [33mdata-rcl-source-slot[39m=[32m"forms.input"[39m
+                      [33mdata-rcl-stamp[39m=[32m"vite"[39m
+                      [33mdata-rcl-version[39m=[32m"1.3.6"[39m
+                      [33mdata-testid[39m=[32m"components-create-library-id"[39m
+                      [33mplaceholder[39m=[32m"react-component-library:Header"[39m
+                      [33mvalue[39m=[32m""[39m
+                    [36m/>[39m
+                  [36m</label>[39m
+                  [36m<label[39m
+                    [33mclass[39m=[32m"block text-xs text-app-muted-foreground"[39m
+                  [36m>[39m
+                    [0mDisplay name[0m
+                    [36m<input[39m
+                      [33mclass[39m=[32m"shadow-[var(--elev-raised)] mt-space-3xs"[39m
+                      [33mdata-rcl-asset[39m=[32m"react-component-library:Input"[39m
+                      [33mdata-rcl-input[39m=[32m"true"[39m
+                      [33mdata-rcl-source-slot[39m=[32m"forms.input"[39m
+                      [33mdata-rcl-stamp[39m=[32m"vite"[39m
+                      [33mdata-rcl-version[39m=[32m"1.3.6"[39m
+                      [33mdata-testid[39m=[32m"components-create-display-name"[39m
+                      [33mvalue[39m=[32m""[39m
+                    [36m/>[39m
+       ...
+ ❯ src/features/components/CreateComponentDialog.test.tsx:108:41
+    106|     await user.click(screen.getByTestId(selectors.components.create.su…
+    107| 
+    108|     await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+       |                                         ^
+    109|   });
+    110| 
+ ❯ runWithExpensiveErrorDiagnosticsDisabled node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:118:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[18/20]⎯
+
+ FAIL  src/features/components/CreateComponentDialog.test.tsx > CreateComponentDialog > prevents a duplicate submission while initialization is pending
+Error: expect(element).toBeDisabled()
+
+Received element is not disabled:
+  <button
+  data-control-below-tap-target="true"
+  data-control-density="comfortable"
+  data-control-shape="pill"
+  data-control-size="md"
+  data-control-variant="primary"
+  data-rcl-button="true"
+  data-rcl-control="true"
+  data-rcl-pending="false"
+  data-rcl-pressable="true"
+  data-testid="components-create-submit"
+  type="submit"
+/>
+
+Ignored nodes: comments, script, style
+[36m<html[39m
+  [33mclass[39m=[32m""[39m
+  [33mdata-resolved-theme[39m=[32m"light"[39m
+  [33mdir[39m=[32m"ltr"[39m
+  [33mlang[39m=[32m"en"[39m
+[36m>[39m
+  [36m<head />[39m
+  [36m<body[39m
+    [33mstyle[39m=[32m"overflow: hidden; position: fixed; top: 0px; width: 100%; padding-right: 1024px;"[39m
+  [36m>[39m
+    [36m<div[39m
+      [33maria-hidden[39m=[32m"true"[39m
+    [36m/>[39m
+    [36m<div[39m
+      [33mdata-rcl-layer-root[39m=[32m""[39m
+      [33mid[39m=[32m"rcl-layer-root"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33maria-labelledby[39m=[32m":r143:-title"[39m
+        [33maria-modal[39m=[32m"true"[39m
+        [33mclass[39m=[32m"rcl-dialog max-w-2xl"[39m
+        [33mdata-rcl-dialog[39m=[32m"true"[39m
+        [33mdata-state[39m=[32m"open"[39m
+        [33mrole[39m=[32m"dialog"[39m
+        [33mstyle[39m=[32m"--rcl-viewport-width: 1024px; --rcl-viewport-height: 768px; --rcl-viewport-offset-left: 0px; --rcl-viewport-offset-top: 0px; --rcl-keyboard-inset: 0px; --rcl-safe-bottom: env(safe-area-inset-bottom, 0px);"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33maria-label[39m=[32m"Cancel"[39m
+          [33mclass[39m=[32m"rcl-dialog__backdrop"[39m
+          [33mdata-rcl-asset[39m=[32m"react-component-library:Dialog"[39m
+          [33mdata-rcl-selector[39m=[32m"overlays.dialog.backdrop"[39m
+          [33mdata-rcl-source-slot[39m=[32m"overlays.dialog"[39m
+          [33mdata-rcl-stamp[39m=[32m"vite"[39m
+          [33mdata-rcl-version[39m=[32m"1.3.9"[39m
+          [33mdata-testid[39m=[32m"overlays.dialog.backdrop"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m/>[39m
+        [36m<section[39m
+          [33mclass[39m=[32m"rcl-dialog__surface"[39m
+          [33mdata-testid[39m=[32m"overlays.dialog"[39m
+        [36m>[39m
+          [36m<header[39m
+            [33mclass[39m=[32m"rcl-dialog__header"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"rcl-dialog__heading"[39m
+            [36m>[39m
+              [36m<h2[39m
+                [33mclass[39m=[32m"rcl-dialog__title"[39m
+                [33mid[39m=[32m":r143:-title"[39m
+              [36m>[39m
+                [0mCreate component[0m
+              [36m</h2>[39m
+            [36m</div>[39m
+            [36m<button[39m
+              [33maria-label[39m=[32m"Cancel"[39m
+              [33mclass[39m=[32m"rcl-dialog__close"[39m
+              [33mdata-rcl-selector[39m=[32m"overlays.dialog.close"[39m
+              [33mdata-testid[39m=[32m"overlays.dialog.close"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-x"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"20"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"20"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M18 6 6 18"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"m6 6 12 12"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+            [36m</button>[39m
+          [36m</header>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"rcl-dialog__body"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mdata-testid[39m=[32m"components-create-dialog"[39m
+            [36m>[39m
+              [36m<form[39m
+                [33mclass[39m=[32m"grid gap-space-xs"[39m
+              [36m>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"grid grid-cols-1 gap-space-2xs md:grid-cols-2"[39m
+                [36m>[39m
+                  [36m<label[39m
+                    [33mclass[39m=[32m"block text-xs text-app-muted-foreground"[39m
+                  [36m>[39m
+                    [0mSlug[0m
+                    [36m<input[39m
+                      [33mclass[39m=[32m"shadow-[var(--elev-raised)] mt-space-3xs"[39m
+                      [33mdata-rcl-asset[39m=[32m"react-component-library:Input"[39m
+                      [33mdata-rcl-input[39m=[32m"true"[39m
+                      [33mdata-rcl-source-slot[39m=[32m"forms.input"[39m
+                      [33mdata-rcl-stamp[39m=[32m"vite"[39m
+                      [33mdata-rcl-version[39m=[32m"1.3.6"[39m
+                      [33mdata-testid[39m=[32m"components-create-slug"[39m
+                      [33mrequired[39m=[32m""[39m
+                      [33mvalue[39m=[32m"notice"[39m
+                    [36m/>[39m
+                  [36m</label>[39m
+                  [36m<label[39m
+                    [33mclass[39m=[32m"block text-xs text-app-muted-foreground"[39m
+                  [36m>[39m
+                    [0mLibrary ID[0m
+                    [36m<input[39m
+                      [33mclass[39m=[32m"shadow-[var(--elev-raised)] mt-space-3xs"[39m
+                      [33mdata-rcl-asset[39m=[32m"react-component-library:Input"[39m
+                      [33mdata-rcl-input[39m=[32m"true"[39m
+                      [33mdata-rcl-source-slot[39m=[32m"forms.input"[39m
+                      [33mdata-rcl-stamp[39m=[32m"vite"[39m
+                      [33mdata-rcl-version[39m=[32m"1.3.6"[39m
+                      [33mdata-testid[39m=[32m"components-create-library-id"[39m
+                      [33mplaceholder[39m=[32m"react-component-library:Header"[39m
+                      [33mvalue[39m=[32m""[39m
+                    [36m/>[39m
+                  [36m</label>[39m
+                  [36m<label[39m
+                    [33mclass[39m=[32m"block text-xs text-app-muted-foreground"[39m
+                  [36m>[39m
+                    [0mDisplay name[0m
+                    [36m<input[39m
+                      [33mclass[39m=[32m"shadow-[var(--elev-raised)] mt-space-3xs"[39m
+                      [33mdata-rcl-asset[39m=[32m"react-component-library:Input"[39m
+                      [33mdata-rcl-input[39m=[32m"true"[39m
+                      [33mdata-rcl-source-slot[39m=[32m"forms.input"[39m
+                      [33mdata-rcl-stamp[39m=[32m"vite"[39m
+                      [33mdata-rcl-version[39m=[32m"1.3.6"[39m
+                      [33mdata-testid[39m=[32m"components-create-display-name"[39m
+                      [33mvalue[39m=[32m""[39m
+                    [36m/>[39m
+ ...
+ ❯ src/features/components/CreateComponentDialog.test.tsx:126:40
+    124|     await user.click(submit);
+    125| 
+    126|     await waitFor(() => expect(submit).toBeDisabled());
+       |                                        ^
+    127|     resolveInitialization(makeInitializeResponse());
+    128|   });
+ ❯ runWithExpensiveErrorDiagnosticsDisabled node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:118:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[19/20]⎯
+
+ FAIL  src/features/components/EmulatorChrome.test.tsx > EmulatorChrome > persists viewport selections and applies zoom as a visual transform
+TestingLibraryElementError: Value "0.9" not found in options
+
+Ignored nodes: comments, script, style
+[36m<button[39m
+  [33maria-expanded[39m=[32m"false"[39m
+  [33maria-haspopup[39m=[32m"listbox"[39m
+  [33mclass[39m=[32m"mt-space-3xs h-control-sm min-h-control-sm text-xs"[39m
+  [33mdata-rcl-popover-trigger[39m=[32m"true"[39m
+  [33mdata-rcl-popover-trigger-as-child[39m=[32m"true"[39m
+  [33mdata-rcl-select[39m=[32m"true"[39m
+  [33mdata-rcl-select-trigger[39m=[32m"true"[39m
+  [33mdata-testid[39m=[32m"components-emulator-zoom-value"[39m
+  [33mid[39m=[32m"popover-trigger-r17f"[39m
+  [33mtype[39m=[32m"button"[39m
+[36m>[39m
+  [36m<span[39m
+    [33mdata-rcl-select-value[39m=[32m"true"[39m
+  [36m>[39m
+    [0m100%[0m
+  [36m</span>[39m
+  [36m<span[39m
+    [33maria-hidden[39m=[32m"true"[39m
+    [33mdata-rcl-select-chevron[39m=[32m"true"[39m
+  [36m/>[39m
+[36m</button>[39m
+ ❯ Object.getElementError node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ node_modules/.pnpm/@testing-library+user-event@14.6.1_@testing-library+dom@10.4.1/node_modules/@testing-library/user-event/dist/esm/utility/selectOptions.js:37:35
+ ❯ Object.selectOptionsBase node_modules/.pnpm/@testing-library+user-event@14.6.1_@testing-library+dom@10.4.1/node_modules/@testing-library/user-event/dist/esm/utility/selectOptions.js:29:38
+ ❯ Object.selectOptions node_modules/.pnpm/@testing-library+user-event@14.6.1_@testing-library+dom@10.4.1/node_modules/@testing-library/user-event/dist/esm/utility/selectOptions.js:16:30
+ ❯ node_modules/.pnpm/@testing-library+user-event@14.6.1_@testing-library+dom@10.4.1/node_modules/@testing-library/user-event/dist/esm/setup/setup.js:83:35
+ ❯ Object.asyncWrapper node_modules/.pnpm/@testing-library+react@16.3.2_@testing-library+dom@10.4.1_@types+react-dom@18.3.7_@types+reac_spm2j6wuon27jfezwgjvqbbvgm/node_modules/@testing-library/react/dist/pure.js:87:28
+ ❯ wrapAsync node_modules/.pnpm/@testing-library+user-event@14.6.1_@testing-library+dom@10.4.1/node_modules/@testing-library/user-event/dist/esm/setup/wrapAsync.js:6:24
+ ❯ Object.method [as selectOptions] node_modules/.pnpm/@testing-library+user-event@14.6.1_@testing-library+dom@10.4.1/node_modules/@testing-library/user-event/dist/esm/setup/setup.js:83:16
+ ❯ src/features/components/EmulatorChrome.test.tsx:79:16
+     77|     await openViewport(user);
+     78|     const zoom = screen.getByTestId<HTMLSelectElement>(selectors.compo…
+     79|     await user.selectOptions(zoom, "0.9");
+       |                ^
+     80|     expect(window.localStorage.getItem(DEVICE_EMULATION_STORAGE_KEY)).…
+     81|     expect(screen.getByTestId(selectors.components.emulator.viewport).…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[20/20]⎯
+
+ERROR: Coverage for functions (82.78%) does not meet global threshold (85%)
+ERROR: Coverage for branches (80.04%) does not meet global threshold (85%)

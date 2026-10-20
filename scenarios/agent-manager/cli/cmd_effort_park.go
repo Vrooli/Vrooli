@@ -16,7 +16,7 @@ import (
 
 // effortPark is `agent-manager effort park <goal home> --run <id> [--timeout D]`:
 // the orchestrator's park, with its length chosen by goal state
-// (goalhome.DecidePark). It allows up to 1h while a direct child run is live,
+// (goalhome.DecidePark). It allows up to 1h while a direct child can still execute,
 // up to 72h while ## Needs operator holds an item, and otherwise refuses with
 // exit 4. It parks through the same server call as `run park` (producer
 // children, keyed by the run). The server applies the same goalhome.DecidePark
@@ -54,7 +54,7 @@ func (a *App) effortPark(args []string) error {
 	}
 	var live []string
 	for _, child := range children {
-		if child.Status != domainpb.RunStatus_RUN_STATUS_UNSPECIFIED && !isTerminalRunStatus(child.Status) {
+		if child != nil && isParkExecutionChildStatus(child.Status) {
 			live = append(live, child.Id)
 		}
 	}
@@ -105,4 +105,19 @@ func printParkResult(result any, exit error) error {
 	}
 	cliutil.PrintJSON(data)
 	return exit
+}
+
+// isParkExecutionChildStatus identifies children whose executor may still hang.
+// NEEDS_REVIEW remains nonterminal for approval and continuation, but its
+// worker has exited and must not trigger the live-child park backstop.
+func isParkExecutionChildStatus(status domainpb.RunStatus) bool {
+	switch status {
+	case domainpb.RunStatus_RUN_STATUS_PENDING,
+		domainpb.RunStatus_RUN_STATUS_STARTING,
+		domainpb.RunStatus_RUN_STATUS_RUNNING,
+		domainpb.RunStatus_RUN_STATUS_PARKED:
+		return true
+	default:
+		return false
+	}
 }

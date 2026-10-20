@@ -19,11 +19,13 @@ type AuthorizationGrant struct {
 	Targets []string  `json:"targets"`
 	// Rules holds each reviewed policy with its own targets when one consent
 	// covers several. Empty means the single Policy/Targets pair.
-	Rules                  []AuthorizationRule             `json:"rules,omitempty"`
-	DurationSeconds        int64                           `json:"duration_seconds"`
-	Binding                cliutil.ProcessBinding          `json:"binding"`
-	HarnessKind            string                          `json:"harness_kind"`
-	HarnessSession         string                          `json:"harness_session"`
+	Rules           []AuthorizationRule    `json:"rules,omitempty"`
+	DurationSeconds int64                  `json:"duration_seconds"`
+	Binding         cliutil.ProcessBinding `json:"binding"`
+	HarnessKind     string                 `json:"harness_kind"`
+	HarnessSession  string                 `json:"harness_session"`
+	// RequesterContext is private review material, never public grant metadata.
+	RequesterContext       *AuthorizationRequesterContext  `json:"-"`
 	CreatedAt              time.Time                       `json:"created_at"`
 	RequestExpiresAt       time.Time                       `json:"request_expires_at"`
 	Grant                  *requestidentity.OperationGrant `json:"grant,omitempty"`
@@ -43,6 +45,13 @@ type AuthorizationGrant struct {
 	NotificationSnapshot    *AuthorizationNotificationSnapshot `json:"-"`
 	NotificationPublishedAt *time.Time                         `json:"-"`
 	NotificationUnreached   string                             `json:"-"`
+}
+
+// AuthorizationRequesterContext is the optional requester-authored explanation
+// shown only on the native consent page.
+type AuthorizationRequesterContext struct {
+	BigPicture       string `json:"big_picture,omitempty"`
+	TechnicalDetails string `json:"technical_details,omitempty"`
 }
 
 // AuthorizationNotificationSnapshot is the immutable event payload and

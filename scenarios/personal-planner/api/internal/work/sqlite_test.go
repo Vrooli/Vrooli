@@ -48,7 +48,7 @@ func TestSQLiteSnoozeHidesUntilDateAndRecordsReason(t *testing.T) {
 	}
 }
 
-func TestSQLiteCompleteRecordsHistoryAndAdvancesLinkedGoal(t *testing.T) {
+func TestSQLiteCompleteLeavesActualUnknownAndAdvancesLinkedGoal(t *testing.T) {
 	db, err := sql.Open("sqlite", "file:work-complete-test?mode=memory&cache=shared")
 	if err != nil {
 		t.Fatal(err)
@@ -84,9 +84,9 @@ func TestSQLiteCompleteRecordsHistoryAndAdvancesLinkedGoal(t *testing.T) {
 	if err := db.QueryRow(`SELECT status FROM goals WHERE id='goal-1'`).Scan(&goalStatus); err != nil || goalStatus != "complete" {
 		t.Fatalf("goal status=%q err=%v", goalStatus, err)
 	}
-	var historyID string
-	if err := db.QueryRow(`SELECT id FROM work_item_completion_history WHERE work_item_id='work-1'`).Scan(&historyID); err != nil || historyID != "completion-1" {
-		t.Fatalf("completion history=%q err=%v", historyID, err)
+	var historyRows int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM work_item_completion_history WHERE work_item_id='work-1'`).Scan(&historyRows); err != nil || historyRows != 0 {
+		t.Fatalf("unknown actual produced %d completion-history rows, err=%v", historyRows, err)
 	}
 }
 

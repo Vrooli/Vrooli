@@ -226,6 +226,15 @@ func LaunchPhaseDurations(trace smoketest.LaunchTrace) []deliveryramp.PhaseDurat
 	return result
 }
 
+func PackagedLaunchPhaseDurations(sample smoketest.PackagedLaunchSample) []deliveryramp.PhaseDuration {
+	phases := smoketest.PackagedLaunchPhases(sample)
+	result := make([]deliveryramp.PhaseDuration, 0, len(phases))
+	for _, phase := range phases {
+		result = append(result, deliveryramp.PhaseDuration{Name: phase.Name, Available: phase.Available, DurationMs: phase.DurationMs, Reason: phase.Reason})
+	}
+	return result
+}
+
 // Distribution is the deterministic summary used by baseline comparisons.
 type Distribution struct {
 	Count  int     `json:"count"`

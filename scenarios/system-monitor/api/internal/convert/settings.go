@@ -35,6 +35,12 @@ func SettingsToProto(s *services.Settings) *settingspb.SystemSettings {
 		DiskEscalationCooldownSeconds: int32(s.DiskEscalationCooldownSeconds),
 		DiskEscalationDebounceTicks:   int32(s.DiskEscalationDebounceTicks),
 		DiskFastFillJumpPercent:       s.DiskFastFillJumpPercent,
+
+		AlertSustainSeconds:                        int32(s.AlertSustainSeconds),
+		MemoryPressureSomeAvg60ElevatedPercent:     s.MemoryPressureSomeAvg60ElevatedPercent,
+		MemoryPressureFullAvg60CriticalPercent:     s.MemoryPressureFullAvg60CriticalPercent,
+		MemoryPressureSwapInElevatedBytesPerSecond: s.MemoryPressureSwapInElevatedBytesPerSecond,
+		MemoryPressureSwapInCriticalBytesPerSecond: s.MemoryPressureSwapInCriticalBytesPerSecond,
 	}
 }
 
@@ -68,5 +74,11 @@ func ProtoToSettings(pb *settingspb.SystemSettings) *services.Settings {
 		DiskEscalationCooldownSeconds: int(pb.DiskEscalationCooldownSeconds),
 		DiskEscalationDebounceTicks:   int(pb.DiskEscalationDebounceTicks),
 		DiskFastFillJumpPercent:       pb.DiskFastFillJumpPercent,
+
+		AlertSustainSeconds:                        int(pb.AlertSustainSeconds),
+		MemoryPressureSomeAvg60ElevatedPercent:     pb.MemoryPressureSomeAvg60ElevatedPercent,
+		MemoryPressureFullAvg60CriticalPercent:     pb.MemoryPressureFullAvg60CriticalPercent,
+		MemoryPressureSwapInElevatedBytesPerSecond: pb.MemoryPressureSwapInElevatedBytesPerSecond,
+		MemoryPressureSwapInCriticalBytesPerSecond: pb.MemoryPressureSwapInCriticalBytesPerSecond,
 	}
 }

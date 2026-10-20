@@ -948,7 +948,27 @@ func (r *Repository) ListAlerts(ctx context.Context, filter repository.AlertFilt
 		query += " AND severity = ?"
 		args = append(args, filter.Severity)
 	}
+	switch filter.Status {
+	case "active":
+		query += " AND resolved_at IS NULL"
+	case "resolved":
+		query += " AND resolved_at IS NOT NULL"
+	case "acknowledged":
+		query += " AND acked_at IS NOT NULL"
+	}
+	if filter.MetricName != "" {
+		query += " AND metric_name = ?"
+		args = append(args, filter.MetricName)
+	}
 	query += " ORDER BY timestamp DESC"
+	if filter.Limit > 0 {
+		query += " LIMIT ?"
+		args = append(args, filter.Limit)
+		if filter.Offset > 0 {
+			query += " OFFSET ?"
+			args = append(args, filter.Offset)
+		}
+	}
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {

@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -212,12 +213,13 @@ describe("ComponentTestPanel", () => {
       "src",
       expect.stringContaining("/embedded/browser-automation-studio/api/v1/artifacts/sheet.png"),
     );
-    const storyPicker = screen.getByRole("combobox", { name: "Captured story" });
-    expect(storyPicker).toHaveValue("review-sheet:primary,secondary");
+    const storyPicker = screen.getByRole("button", { name: "Captured story" });
+    expect(storyPicker).toHaveTextContent("Review sheet · primary, secondary");
     expect(screen.getAllByText("contract failure")).toHaveLength(1);
 
-    fireEvent.change(storyPicker, { target: { value: "secondary" } });
-    expect(storyPicker).toHaveValue("secondary");
+    await userEvent.click(storyPicker);
+    await userEvent.click(await screen.findByRole("option", { name: "secondary" }));
+    expect(storyPicker).toHaveTextContent("secondary");
     expect(await screen.findByRole("tab", { name: "Screenshot: Captured" })).toBeInTheDocument();
   });
 

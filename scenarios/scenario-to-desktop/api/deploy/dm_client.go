@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/discovery"
-	serviceauth "scenario-to-desktop-api/shared/auth"
 )
 
 // DMClient calls deployment-manager approval endpoints.
@@ -162,10 +161,6 @@ func (c *DMClient) request(ctx context.Context, method, path string, payload int
 	if payload != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	if token := serviceauth.DeploymentManagerServiceToken(); token != "" {
-		req.Header.Set("Authorization", "Bearer "+token)
-	}
-
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, 0, fmt.Errorf("request %s %s: %w", method, path, err)

@@ -243,6 +243,23 @@ func appendPerformanceArtifacts(manifest *deliveryramp.Manifest, input smoketest
 		if strings.TrimSpace(tracePath.path) == "" {
 			continue
 		}
+		if sample, err := smoketest.ReadPackagedLaunch(tracePath.path); err == nil {
+			artifact, artifactErr := performanceArtifact(tracePath.path, recordingPathFor(manifest.Artifacts))
+			if artifactErr != nil {
+				manifest.Performance.Status, manifest.Performance.Reason = "degraded", artifactErr.Error()
+				continue
+			}
+			artifact.Kind = strings.TrimSuffix(tracePath.kind, "_launch_trace") + "_packaged_launch"
+			manifest.Artifacts = append(manifest.Artifacts, artifact)
+			manifest.Performance.TraceRefs = append(manifest.Performance.TraceRefs, artifact.ImmutableRef)
+			phases := PackagedLaunchPhaseDurations(sample)
+			if tracePath.runKind == smoketest.LaunchRunProtocol {
+				manifest.Performance.ProtocolPhases = phases
+			} else {
+				manifest.Performance.DemoPhases = phases
+			}
+			continue
+		}
 		trace, err := readValidatedLaunchTrace(tracePath.path, tracePath.runKind)
 		if err != nil {
 			manifest.Performance.Status, manifest.Performance.Reason = "degraded", err.Error()

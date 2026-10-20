@@ -3,6 +3,7 @@ package server
 import (
 	"net/http"
 
+	readinesshandler "deployment-manager/handlers/readiness"
 	"deployment-manager/readiness"
 
 	"github.com/gorilla/mux"
@@ -59,6 +60,12 @@ func (s *Server) setupRoutes() {
 	// wired so the consumer no longer receives a 404.
 	if s.ReleasesRepo != nil {
 		registerReadinessStateCompatibilityRoute(s.Router, readiness.StateHandler(s.ReleasesRepo))
+	}
+	// The notification-hub ask-resolution webhook delivers operator decisions for
+	// the ask-don't-block release path. The shared operatordecision.Webhook inside
+	// the handler verifies the HMAC signature before any effect runs.
+	if s.DecisionWebhookHandler != nil {
+		s.Router.Handle(readinesshandler.DecisionEventWebhookPath, s.DecisionWebhookHandler).Methods(http.MethodPost)
 	}
 	s.Router.HandleFunc("/health", s.HealthHandler.Health).Methods("GET")
 }

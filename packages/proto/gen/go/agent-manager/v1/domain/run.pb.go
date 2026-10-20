@@ -355,8 +355,11 @@ type Run struct {
 	ObservedGoalAt     *timestamppb.Timestamp `protobuf:"bytes,59,opt,name=observed_goal_at,json=observedGoalAt,proto3,oneof" json:"observed_goal_at,omitempty"`
 	// Last retained provider message/tool event, separate from last_heartbeat.
 	ProviderActivityAt *timestamppb.Timestamp `protobuf:"bytes,60,opt,name=provider_activity_at,json=providerActivityAt,proto3,oneof" json:"provider_activity_at,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// Persisted parent run that admitted this child; absent on root runs.
+	// @format uuid
+	ParentRunId   *string `protobuf:"bytes,61,opt,name=parent_run_id,json=parentRunId,proto3,oneof" json:"parent_run_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Run) Reset() {
@@ -793,6 +796,13 @@ func (x *Run) GetProviderActivityAt() *timestamppb.Timestamp {
 		return x.ProviderActivityAt
 	}
 	return nil
+}
+
+func (x *Run) GetParentRunId() string {
+	if x != nil && x.ParentRunId != nil {
+		return *x.ParentRunId
+	}
+	return ""
 }
 
 // FinalOutputCandidate is one assistant message considered by the resolver.
@@ -4007,7 +4017,7 @@ var File_agent_manager_v1_domain_run_proto protoreflect.FileDescriptor
 
 const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\n" +
-	"!agent-manager/v1/domain/run.proto\x12\x10agent_manager.v1\x1a%agent-manager/v1/domain/profile.proto\x1a#agent-manager/v1/domain/types.proto\x1a&vrooli-events/v1/domain/envelope.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa9\x18\n" +
+	"!agent-manager/v1/domain/run.proto\x12\x10agent_manager.v1\x1a%agent-manager/v1/domain/profile.proto\x1a#agent-manager/v1/domain/types.proto\x1a&vrooli-events/v1/domain/envelope.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xee\x18\n" +
 	"\x03Run\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\atask_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x06taskId\x12-\n" +
@@ -4078,7 +4088,8 @@ const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\flast_handoff\x189 \x01(\tR\vlastHandoff\x120\n" +
 	"\x14observed_goal_status\x18: \x01(\tR\x12observedGoalStatus\x12I\n" +
 	"\x10observed_goal_at\x18; \x01(\v2\x1a.google.protobuf.TimestampH\x0eR\x0eobservedGoalAt\x88\x01\x01\x12Q\n" +
-	"\x14provider_activity_at\x18< \x01(\v2\x1a.google.protobuf.TimestampH\x0fR\x12providerActivityAt\x88\x01\x01B\x13\n" +
+	"\x14provider_activity_at\x18< \x01(\v2\x1a.google.protobuf.TimestampH\x0fR\x12providerActivityAt\x88\x01\x01\x121\n" +
+	"\rparent_run_id\x18= \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x10R\vparentRunId\x88\x01\x01B\x13\n" +
 	"\x11_agent_profile_idB\r\n" +
 	"\v_sandbox_idB\r\n" +
 	"\v_started_atB\v\n" +
@@ -4096,7 +4107,8 @@ const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\a_resultB\x0e\n" +
 	"\f_imported_atB\x13\n" +
 	"\x11_observed_goal_atB\x17\n" +
-	"\x15_provider_activity_atJ\x04\b-\x10.\"\xf5\x03\n" +
+	"\x15_provider_activity_atB\x10\n" +
+	"\x0e_parent_run_idJ\x04\b-\x10.\"\xf5\x03\n" +
 	"\x14FinalOutputCandidate\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
 	"\bevent_id\x18\x02 \x01(\tR\aeventId\x12\x1a\n" +

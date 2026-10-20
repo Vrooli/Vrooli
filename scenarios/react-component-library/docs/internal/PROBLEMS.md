@@ -634,3 +634,150 @@ component-harness failures.
 ## Work ladder — rehabilitation amendment (2026-09-30)
 
 Highest broken rung for campaign setup: W0 contract. Historical UX acceptance was being read as broader RCL maturity, while the current goal omitted selected-core, normal-entry studio, real consumer evolution and maintainability gates. Operator-authorized repair updates PRD/DESIGN and the goal home first; new W1 obligations remain unimplemented, W2 evidence is unearned and W3 implementation is outside this amendment. Missing readiness evidence is not proof of universal behavioral failure. Next delivery admission establishes exact IDs/versions, runtime baseline and executable journey gates. Prior campaign evidence is preserved in its workspace archive; no product completion is claimed here.
+
+## 2026-10-16 — Missed presses and cancelled drawer gestures (W3)
+
+Rung: **W3**, scoped implementation repair; work shape: bounded task.
+The operator reported intermittent
+second-press activation in Web Console and drawers snapping back during swipes.
+Expected behavior: one deliberate press activates its control; a swipe remains
+owned until release or an explicit cancellation. Prior recall found related
+nested-layer registration work; its stable registration is already present.
+No W0–W2 readiness claim is made.
+
+Hypotheses and experiments:
+
+1. An exiting overlay intercepts input after logical closure. In the original
+   live Web Console, close Machines with Escape and immediately press the view
+   toggle. Native Chromium touch events hit `machines-drawer.backdrop` with
+   `data-state=closed`; the first press leaves Terminal unchanged and the next
+   press opens Messages. This confirms a shared presentation/input lifetime bug.
+2. Content rendering cancels an otherwise valid swipe. `useOverlaySurface`
+   allocated `viewportStyle` on every render and depended on its identity in the
+   cancellation effect. A regression against 1.4.5 loses a 50px drag on a content
+   update; source inspection identifies that unconditional effect. Fresh-browser
+   toggles and simulated keyboard contraction worked, so neither a permanently
+   broken toggle handler nor keyboard geometry alone explains the observed miss.
+3. A cancelled drag poisons its next activation. The original boolean click
+   suppression survives when the browser emits no trailing click. Regressions
+   confirm that the next pointer press and keyboard activation can be swallowed.
+
+Published `useOverlaySurface` 1.4.6/1.4.7: memoize viewport style, cancel across
+close/reopen, reject new disabled swipe streams, reset drag click suppression at
+the next pointerdown, preserve keyboard activation, and make closed roots inert
+for the retained exit animation. Dialog 1.3.9, AlertDialog 2.0.11 and CommandPalette
+1.1.11 now forward shared root props; current sheets, drawers, responsive dialogs
+and context menus already did. Published sources remain immutable.
+
+Evidence: **18 focused library tests PASS**. Original kernel fails four of six
+lifecycle cases, and original Dialog/AlertDialog/CommandPalette fail all three
+exit-composition cases. Named type/lifecycle/composition gates and the
+package/declaration build pass. Verified artifact:
+`sha256:2a3754fa7c334becf715138158914f592be91eb855afffd818d41818ea3d6d65`.
+Dialog story report `ctr_a4762c723784e292` and CommandPalette report
+`ctr_e9384bf994531c68` pass. Kernel and AlertDialog live examples pass; their
+placeholder pinned examples/review sheets fail browser capture. Retained reports
+`ctr_cd2b2042420ae770` and `ctr_a563ddbb6724cc78`; capture defect filed as
+`knw-1792204422313129557`. These failures were not waived into a whole-asset pass.
+
+The installed consumer copy initially remained on 1.4.5. The governed Web Console
+restart refreshed it to 1.4.7 and completed healthy. Final served-app Chromium
+checks pass at 390px touch and 1440px desktop: ten immediate view toggles, first-
+press navigation during exit, a 50px swipe retained across a live fleet refresh,
+release-only dismissal, cancellation restoring position, and the next tap closing
+normally. No page errors. This establishes an application cause across browser
+input modes; physical iPhone Safari remains unmeasured. Evidence:
+`/tmp/wc-interaction-final-proof.json`, `/tmp/wc-dismiss-click-red.json`,
+`/tmp/wc-swipe-refresh-red.json`, `/tmp/wc-overlay-published-final.log`, and
+`/tmp/wc-rcl-package-final.log`. Scenario phase receipts are terminal: Web Console had a Unit Health ownership
+timeout, and RCL reported four command failures plus render-policy drift. Their
+attribution remains unverified; the full details and opaque artifact reference
+are retained in Web Console's repair entry. Reports: `knw-1792205023824743132`
+and `knw-1792205024296433128`. The scoped interaction repair is verified; no
+passing whole-scenario verdict is claimed.
+
+Work record: `48bdf6ca-8689-4f37-9bf8-39dc965bb64a`.
+
+## 2026-10-17 — Follow-up input ownership across retained content (W3)
+
+Bounded continuation of the missed-press repair. Web Console still reports
+sidebar-backdrop, markdown-link and view-toggle misses. Prior overlay-hook fixes
+remain valid; the sidebar does not use that hook. Its click-only backdrop can
+receive pointerdown and then pointercancel without a click. Native Chromium
+traces reproduce this with movement during the press; changing touch-action
+alone removes pointercancel but still does not restore activation. Align the
+backdrop with shared overlays' pointerdown dismissal, retaining keyboard click.
+
+A second shared boundary remains: Presence only writes pointer-events:none on
+its exiting wrapper. Descendants explicitly using pointer-events:auto can still
+intercept input. PopoverContent is one such consumer and does not forward
+useOverlaySurface's inert root. Acceptance: logically absent Presence subtrees
+immediately become inert, retain exit painting, and regain input on interruption;
+test a real popover as well as the primitive. Preserve cancelled-gesture and
+keyboard contracts. Native iPhone recurrence remains unmeasured; WebKitGTK is
+available locally but its WebDriver touch input is delivered as mouse events,
+so it cannot be presented as native iOS evidence.
+
+Follow-up focus requirement: opening the mobile sidebar must release an editable
+field. SidebarShell 2.7.4 transfers focus to its non-editable dialog once on each
+open, including an edge-swipe open. Updates while open preserve a chosen drawer
+field; persistent desktop navigation does not steal focus. The focus regression
+failed before repair. Presence 1.0.6 supplies inert exit ownership and a stable
+exit deadline; SidebarShell 2.7.3 supplies primary-press backdrop dismissal.
+
+Focused cohort: 21 passing checks, including the real popover composition. Native
+Chromium retained-content hit testing changed from `retained`/zero activations to
+`underlying`/one activation during exit. WebKitGTK 2.52.6 also hits and activates
+the underlying control while retained exit content remains mounted; this is mouse
+input evidence, not a native iPhone test. Named types, lifecycle and composition
+gates ran; their planted calibration defects were detected.
+
+Served-app focus validation caught a gap not visible in jsdom: calling focus in
+an ordinary effect while the sidebar starts its visibility transition leaves
+focus on the menu trigger. Focusing the now-visible panel later succeeds. Defer
+the initial focus to an animation frame and cancel that request on close.
+
+A further shared lifecycle defect is in useFocusReturn 1.1.1: it focuses an
+explicit return target even on an initially closed mount. Changing the ref
+object also retriggers restoration while closed or recaptures an inner element
+while open. This can steal focus without the operator opening a surface. Repair
+restoration to occur only on an actual open-to-closed transition, capture the
+opener once per lifetime, read the latest return target, and prevent scrolling
+when returning focus. Focus lifecycle regressions must fail before this change.
+
+Final sidebar correction (2.7.6): native tracing showed the first animation
+frame still reports `visibility:hidden`, so a single deferred focus call is
+insufficient. Retry only the opening transition, for at most eight frames, until
+the panel is visible. A regression holds the first frame hidden, verifies the
+previous field retains focus, then verifies focus transfers once visible.
+
+Sidebar exit input also remained outside the shared overlay substrate. Native
+hit testing after Escape hit `button-label` within the departing sidebar instead
+of the underlying menu trigger. Closed mobile panels are now inert immediately.
+The shared media-query hook distinguishes responsive desktop navigation, which
+remains interactive and complementary even if a prior mobile open flag survives
+a viewport change. Three exit/responsive regressions failed against the prior
+release; the final focused shared cohort contains 28 passing checks.
+
+Final follow-up artifact: `sha256:f691c4a0afd09bdbbdb8764161880a20c337dbbbddfec27494e8212994c0df73`.
+Governed releases: Presence 1.0.6, useFocusReturn 1.1.2, SidebarShell 2.7.6.
+Web Console rebuilt through the control plane and is healthy; its installed
+consumer cohort passes 97 checks and the shared cohort passes 28. Served native
+touch evidence passes eleven immediate view toggles, backdrop primary presses,
+menu/edge-opening focus transfer and zero page errors. The controlled exit hit
+test confirms inertness moves the hit from the departing panel to the menu
+underneath, permitting immediate reopening. Evidence:
+`/tmp/wc-followup-served-proof.json`, `/tmp/wc-sidebar-exit-hit-proof.json`.
+
+Current SidebarShell story report `ctr_e9e9687a4d7f6875` retains a review-sheet
+readiness timeout; its live cases pass. useFocusReturn draft story
+`ctr_3665e38b537bc30f` passes. Presence retains pinned capture failures. Named
+gates and publication/package verification completed; no capture failure is
+waived. Scoped units remain terminal FAIL (RCL `20261017-132539-b05b24db`,
+Web Console `20261017-132752-eec15c57`) and precede the last refinements.
+Command-failure attribution is unverified because the returned logs have findings
+without diagnostic excerpts. Earlier RCL command/policy and capture reports are
+reused; the new Web Console observation is `knw-1792244510179589499`. Physical
+iPhone behavior is not certified by Chromium touch or WebKitGTK mouse evidence.
+
+Follow-up work record: `7484dde7-c00d-4054-af17-819e82ea70de`.

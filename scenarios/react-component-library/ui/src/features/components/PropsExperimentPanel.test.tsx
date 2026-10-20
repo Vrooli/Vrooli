@@ -41,7 +41,7 @@ describe("PropsExperimentPanel", () => {
         onReset={vi.fn()}
       />,
     );
-    const field = screen.getByLabelText("title");
+    const field = screen.getByRole("textbox");
     fireEvent.change(field, { target: { value: "A much longer temporary value" } });
     await user.click(screen.getByTestId(selectors.components.editor.propsApply));
     expect(onApply).toHaveBeenCalledWith({ title: "A much longer temporary value" });
@@ -70,8 +70,8 @@ describe("PropsExperimentPanel", () => {
         onReset={vi.fn()}
       />,
     );
-    expect(screen.getByLabelText("title")).toHaveValue("Story title");
-    expect(screen.getByLabelText("enabled")).toBeChecked();
+    expect(screen.getByRole("textbox")).toHaveValue("Story title");
+    expect(screen.getByRole("checkbox")).toBeChecked();
   });
 
   it("offers only declared environment fixture options and applies the selected state", async () => {
@@ -90,7 +90,8 @@ describe("PropsExperimentPanel", () => {
         onReset={vi.fn()}
       />,
     );
-    await user.selectOptions(screen.getByLabelText("voiceInput"), "permission-denied");
+    await user.click(screen.getByRole("button", { name: /voiceInput/ }));
+    await user.click(screen.getByRole("option", { name: /permission-denied/ }));
     await user.click(screen.getByTestId(selectors.components.editor.propsApply));
     expect(onApply).toHaveBeenCalledWith({ title: "Short" }, { voiceInput: "permission-denied" });
   });
@@ -119,9 +120,10 @@ describe("PropsExperimentPanel", () => {
         onReset={vi.fn()}
       />,
     );
-    fireEvent.change(screen.getByLabelText("count"), { target: { value: "3" } });
-    await user.click(screen.getByLabelText("enabled"));
-    await user.selectOptions(screen.getByLabelText("tone"), "danger");
+    fireEvent.change(screen.getByRole("spinbutton"), { target: { value: "3" } });
+    await user.click(screen.getByRole("checkbox"));
+    await user.click(screen.getByRole("button", { name: /tone/ }));
+    await user.click(screen.getByRole("option", { name: /danger/ }));
     await user.click(screen.getByRole("button", { name: "Advanced JSON" }));
     fireEvent.change(screen.getByTestId(selectors.components.editor.propsDraft), {
       target: { value: "{" },
@@ -154,9 +156,10 @@ describe("PropsExperimentPanel", () => {
         onReset={vi.fn()}
       />,
     );
-    expect(screen.getByLabelText("metadata")).toHaveValue('{\n  "tone": "info"\n}');
-    expect(screen.getByLabelText("items")).toHaveValue('[\n  "one",\n  "two"\n]');
-    expect(screen.getByLabelText("content")).toHaveValue('{\n  "$text": "Hello"\n}');
+    const jsonFields = screen.getAllByRole("textbox");
+    expect(jsonFields[0]).toHaveValue('{\n  "tone": "info"\n}');
+    expect(jsonFields[1]).toHaveValue('[\n  "one",\n  "two"\n]');
+    expect(jsonFields[2]).toHaveValue('{\n  "$text": "Hello"\n}');
   });
 
   it("degrades malformed and unsupported story schemas to a safe empty control set", () => {
@@ -167,9 +170,9 @@ describe("PropsExperimentPanel", () => {
         onReset={vi.fn()}
       />,
     );
-    expect(
-      screen.getByText("This story declares no configurable scalar arguments."),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.components.editor.propsPanel)).toHaveTextContent(
+      /no configurable scalar arguments/i,
+    );
     rerender(
       <PropsExperimentPanel
         storyContract={{
@@ -180,9 +183,9 @@ describe("PropsExperimentPanel", () => {
         onReset={vi.fn()}
       />,
     );
-    expect(
-      screen.getByText("This story declares no configurable scalar arguments."),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.components.editor.propsPanel)).toHaveTextContent(
+      /no configurable scalar arguments/i,
+    );
   });
 
   it("does not expose environment inputs for malformed fixture declarations", () => {
@@ -193,7 +196,9 @@ describe("PropsExperimentPanel", () => {
         onReset={vi.fn()}
       />,
     );
-    expect(screen.queryByText("Environment")).not.toBeInTheDocument();
+    expect(
+      screen.getByTestId(selectors.components.editor.propsPanel).querySelector("select"),
+    ).not.toBeInTheDocument();
     rerender(
       <PropsExperimentPanel
         storyContract={{
@@ -205,7 +210,9 @@ describe("PropsExperimentPanel", () => {
         onReset={vi.fn()}
       />,
     );
-    expect(screen.queryByText("Environment")).not.toBeInTheDocument();
+    expect(
+      screen.getByTestId(selectors.components.editor.propsPanel).querySelector("select"),
+    ).not.toBeInTheDocument();
   });
 
   it("falls back to explicit initial args when the selected story has invalid args", () => {
@@ -218,6 +225,6 @@ describe("PropsExperimentPanel", () => {
         onReset={vi.fn()}
       />,
     );
-    expect(screen.getByLabelText("title")).toHaveValue("Fallback");
+    expect(screen.getByRole("textbox")).toHaveValue("Fallback");
   });
 });

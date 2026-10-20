@@ -73,3 +73,16 @@ func TestAuthorizationRulesPairTargetsWithTheirPolicy(t *testing.T) {
 		t.Fatal("a policy without targets was accepted")
 	}
 }
+
+func TestAuthorizationContextFieldsAreOptionalAndRequesterSupplied(t *testing.T) {
+	body := map[string]any{"pid": 42}
+	addAuthorizationContextFields(body, "Need to reconcile the selected backlog", "One request per pending batch\nNo automatic execution")
+	if body["big_picture"] != "Need to reconcile the selected backlog" || body["technical_details"] != "One request per pending batch\nNo automatic execution" {
+		t.Fatalf("requester context was not forwarded: %#v", body)
+	}
+	withoutContext := map[string]any{"pid": 42}
+	addAuthorizationContextFields(withoutContext, "  \t", "")
+	if len(withoutContext) != 1 {
+		t.Fatalf("blank optional context changed the request: %#v", withoutContext)
+	}
+}

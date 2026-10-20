@@ -24,17 +24,20 @@ func TestTaskStatus_CanTransitionTo(t *testing.T) {
 		{"queued to running", TaskStatusQueued, TaskStatusRunning, true, ""},
 		{"queued to cancelled", TaskStatusQueued, TaskStatusCancelled, true, ""},
 		{"running to needs_review", TaskStatusRunning, TaskStatusNeedsReview, true, ""},
+		{"running to completed", TaskStatusRunning, TaskStatusCompleted, true, ""},
 		{"running to failed", TaskStatusRunning, TaskStatusFailed, true, ""},
 		{"running to cancelled", TaskStatusRunning, TaskStatusCancelled, true, ""},
+		{"needs_review to completed", TaskStatusNeedsReview, TaskStatusCompleted, true, ""},
 		{"needs_review to approved", TaskStatusNeedsReview, TaskStatusApproved, true, ""},
 		{"needs_review to rejected", TaskStatusNeedsReview, TaskStatusRejected, true, ""},
+		{"completed to new explicit run", TaskStatusCompleted, TaskStatusRunning, true, ""},
+		{"failed to new explicit run", TaskStatusFailed, TaskStatusRunning, true, ""},
 
 		// Invalid transitions
 		{"queued to approved", TaskStatusQueued, TaskStatusApproved, false, "transition not allowed"},
 		{"running to approved", TaskStatusRunning, TaskStatusApproved, false, "transition not allowed"},
 		{"approved to running", TaskStatusApproved, TaskStatusRunning, false, "terminal state"},
 		{"rejected to running", TaskStatusRejected, TaskStatusRunning, false, "terminal state"},
-		{"failed to running", TaskStatusFailed, TaskStatusRunning, false, "terminal state"},
 		{"cancelled to running", TaskStatusCancelled, TaskStatusRunning, false, "terminal state"},
 	}
 

@@ -5,10 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"github.com/vrooli/browser-automation-studio/internal/testutil"
+	"github.com/vrooli/browser-automation-studio/storage"
 	"math"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -144,7 +146,7 @@ func TestCaptureReadinessDiagnosticsCarriesNavigationAndWaitTiming(t *testing.T)
 
 func TestBuildAdhocRequest_AppliesDirectionAfterReadiness(t *testing.T) {
 	direction := "rtl"
-	req, _, err := buildAdhocRequest("https://example.com", &capturev1.CaptureRequest{Direction: direction}, 1440, 900, "document.documentElement.outerHTML")
+	req, _, err := buildAdhocRequest("https://example.com", &capturev1.CaptureRequest{Direction: direction}, 1440, 900, nil, "document.documentElement.outerHTML")
 	require.NoError(t, err)
 	require.Len(t, req.FlowDefinition.Nodes, 3)
 	require.Equal(t, actionsv1.ActionType_ACTION_TYPE_EVALUATE, req.FlowDefinition.Nodes[1].GetAction().GetType())
@@ -185,7 +187,7 @@ func TestBuildAdhocRequest_CaptureDeviceScale(t *testing.T) {
 				original := proto.Clone(msg)
 				width, height, err := resolveDimensions(dimensions)
 				require.NoError(t, err)
-				req, _, err := buildAdhocRequest("https://fixture.test", msg, width, height, "document.documentElement.outerHTML")
+				req, _, err := buildAdhocRequest("https://fixture.test", msg, width, height, nil, "document.documentElement.outerHTML")
 				require.NoError(t, err)
 				require.True(t, proto.Equal(original, msg), "capture translation must not mutate the caller's profile")
 				got := req.GetParameters().GetBrowserProfile()
@@ -233,7 +235,7 @@ func TestCapture_ReadinessWaitsFollowNavigation(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req, _, err := buildAdhocRequest("https://example.com", &capturev1.CaptureRequest{WaitFor: tt.wait}, 1440, 900, "document.documentElement.outerHTML")
+			req, _, err := buildAdhocRequest("https://example.com", &capturev1.CaptureRequest{WaitFor: tt.wait}, 1440, 900, nil, "document.documentElement.outerHTML")
 			require.NoError(t, err)
 			nodes := req.GetFlowDefinition().GetNodes()
 			require.Len(t, nodes, 3)
@@ -248,7 +250,7 @@ func TestCapture_ReadinessWaitsFollowNavigation(t *testing.T) {
 }
 
 func TestCapture_NetworkIdleIsADeclaredPostNavigationWait(t *testing.T) {
-	req, _, err := buildAdhocRequest("https://example.com", &capturev1.CaptureRequest{WaitFor: &capturev1.WaitFor{Spec: &capturev1.WaitFor_Networkidle{Networkidle: true}}}, 1440, 900, "document.documentElement.outerHTML")
+	req, _, err := buildAdhocRequest("https://example.com", &capturev1.CaptureRequest{WaitFor: &capturev1.WaitFor{Spec: &capturev1.WaitFor_Networkidle{Networkidle: true}}}, 1440, 900, nil, "document.documentElement.outerHTML")
 	require.NoError(t, err)
 	nodes := req.GetFlowDefinition().GetNodes()
 	require.Len(t, nodes, 2)
@@ -256,7 +258,7 @@ func TestCapture_NetworkIdleIsADeclaredPostNavigationWait(t *testing.T) {
 }
 
 func TestAppendPostNavigationWaitInsertsProfileReadinessBeforeFollowers(t *testing.T) {
-	req, _, err := buildAdhocRequest("https://example.com", &capturev1.CaptureRequest{InlineDom: true}, 1440, 900, "document.documentElement.outerHTML")
+	req, _, err := buildAdhocRequest("https://example.com", &capturev1.CaptureRequest{InlineDom: true}, 1440, 900, nil, "document.documentElement.outerHTML")
 	require.NoError(t, err)
 	appendPostNavigationWait(req, &actionsv1.WaitParams{WaitFor: &actionsv1.WaitParams_Selector{Selector: "[data-testid=results]"}})
 	flow := req.GetFlowDefinition()
@@ -280,7 +282,7 @@ func TestAppendPostNavigationWaitInsertsProfileReadinessBeforeFollowers(t *testi
 }
 
 func TestAppendPostNavigationWaitsChainsEveryDeclaredSurface(t *testing.T) {
-	req, _, err := buildAdhocRequest("https://example.com", &capturev1.CaptureRequest{InlineDom: true}, 1440, 900, "document.documentElement.outerHTML")
+	req, _, err := buildAdhocRequest("https://example.com", &capturev1.CaptureRequest{InlineDom: true}, 1440, 900, nil, "document.documentElement.outerHTML")
 	require.NoError(t, err)
 	appendPostNavigationWaits(req, []*actionsv1.WaitParams{
 		{WaitFor: &actionsv1.WaitParams_Selector{Selector: "[data-testid=summary]"}},
@@ -772,6 +774,116 @@ func TestCapture_InteractionFlow_ShortFormMetadataNormalized(t *testing.T) {
 	require.NotNil(t, exec.LastReq)
 	require.Len(t, exec.LastReq.FlowDefinition.Nodes, 2)
 	require.NotNil(t, exec.LastReq.FlowDefinition.Nodes[1].GetAction().GetScroll())
+	require.EqualValues(t, 1440, exec.LastReq.FlowDefinition.GetSettings().GetViewportWidth())
+	require.EqualValues(t, 900, exec.LastReq.FlowDefinition.GetSettings().GetViewportHeight())
+}
+
+func TestCapture_InteractionFlowViewportInheritanceAndOverride(t *testing.T) {
+	flow := `{
+	  "metadata": {"name": "mobile-interaction"},
+	  "settings": {"viewport_width": 390, "viewport_height": 844},
+	  "nodes": [{"id": "scroll", "action": {"type": "ACTION_TYPE_SCROLL", "scroll": {"delta_y": 120}}}]
+	}`
+	assertViewport := func(t *testing.T, exec *fakeExecutor, width, height int32) {
+		t.Helper()
+		require.NotNil(t, exec.LastReq)
+		require.Equal(t, width, exec.LastReq.GetParameters().GetViewportWidth())
+		require.Equal(t, height, exec.LastReq.GetParameters().GetViewportHeight())
+		require.Equal(t, width, exec.LastReq.GetFlowDefinition().GetSettings().GetViewportWidth())
+		require.Equal(t, height, exec.LastReq.GetFlowDefinition().GetSettings().GetViewportHeight())
+	}
+
+	t.Run("inherits mobile viewport from workflow", func(t *testing.T) {
+		exec := &fakeExecutor{}
+		client, _ := newTestServer(t, Deps{Executor: exec})
+		_, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{
+			Url: "https://example.com", InteractionFlowJson: flow,
+		}))
+		require.NoError(t, err)
+		assertViewport(t, exec, 390, 844)
+	})
+
+	t.Run("workflow without viewport keeps capture default", func(t *testing.T) {
+		exec := &fakeExecutor{}
+		client, _ := newTestServer(t, Deps{Executor: exec})
+		flowWithoutViewport := `{"metadata":{"name":"default-viewport"},"nodes":[{"id":"scroll","action":{"type":"ACTION_TYPE_SCROLL","scroll":{"delta_y":120}}}]}`
+		_, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{
+			Url: "https://example.com", InteractionFlowJson: flowWithoutViewport,
+		}))
+		require.NoError(t, err)
+		assertViewport(t, exec, 1440, 900)
+	})
+
+	t.Run("explicit request viewport overrides workflow", func(t *testing.T) {
+		exec := &fakeExecutor{}
+		client, _ := newTestServer(t, Deps{Executor: exec})
+		width, height := int32(1280), int32(800)
+		_, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{
+			Url: "https://example.com", InteractionFlowJson: flow,
+			Dimensions: &capturev1.Dimensions{Width: &width, Height: &height},
+		}))
+		require.NoError(t, err)
+		assertViewport(t, exec, 1280, 800)
+	})
+
+	t.Run("explicit preset overrides workflow viewport", func(t *testing.T) {
+		exec := &fakeExecutor{}
+		client, _ := newTestServer(t, Deps{Executor: exec})
+		_, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{
+			Url: "https://example.com", InteractionFlowJson: flow,
+			Dimensions: &capturev1.Dimensions{Preset: capturev1.DimensionsPreset_DIMENSIONS_PRESET_DESKTOP},
+		}))
+		require.NoError(t, err)
+		assertViewport(t, exec, 1440, 900)
+	})
+
+	t.Run("scale-only request inherits workflow viewport", func(t *testing.T) {
+		exec := &fakeExecutor{}
+		client, _ := newTestServer(t, Deps{Executor: exec})
+		scale := 2.0
+		_, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{
+			Url: "https://example.com", InteractionFlowJson: flow,
+			Dimensions: &capturev1.Dimensions{DeviceScaleFactor: &scale},
+		}))
+		require.NoError(t, err)
+		assertViewport(t, exec, 390, 844)
+		profile := exec.LastReq.GetParameters().GetBrowserProfile()
+		require.NotNil(t, profile.GetFingerprint())
+		require.Equal(t, scale, profile.GetFingerprint().GetDeviceScaleFactor())
+	})
+
+	t.Run("executionViewport alias is inherited", func(t *testing.T) {
+		exec := &fakeExecutor{}
+		client, _ := newTestServer(t, Deps{Executor: exec})
+		aliasFlow := strings.Replace(flow, `"viewport_width": 390, "viewport_height": 844`, `"executionViewport": {"width": 390, "height": 844}`, 1)
+		_, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{
+			Url: "https://example.com", InteractionFlowJson: aliasFlow,
+		}))
+		require.NoError(t, err)
+		assertViewport(t, exec, 390, 844)
+	})
+}
+
+func TestCapture_InteractionFlowViewportInvalidBeforeExecutor(t *testing.T) {
+	for name, settings := range map[string]string{
+		"partial pair":    `{"viewport_width": 390}`,
+		"invalid range":   `{"viewport_width": 99, "viewport_height": 844}`,
+		"malformed width": `{"viewport_width":"wide", "viewport_height":844}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			exec := &fakeExecutor{}
+			readiness := &fakeReadinessResolver{}
+			client, _ := newTestServer(t, Deps{Executor: exec, ReadinessResolver: readiness})
+			flow := fmt.Sprintf(`{"settings":%s,"nodes":[{"id":"scroll","action":{"type":"ACTION_TYPE_SCROLL","scroll":{"delta_y":120}}}]}`, settings)
+			_, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{
+				Url: "https://example.com", InteractionFlowJson: flow,
+			}))
+			require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), "error: %v", err)
+			require.Zero(t, exec.Calls)
+			require.Zero(t, exec.ExportCalls)
+			require.Zero(t, readiness.Calls)
+		})
+	}
 }
 
 func TestCapture_EmptyInteractionFlow_PreservesNavigateOnly(t *testing.T) {
@@ -864,7 +976,9 @@ func TestCapture_InteractionBoundariesFollowEdges(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			req, domIDs, err := buildAdhocRequest("https://example.com", &capturev1.CaptureRequest{InteractionFlowJson: tc.flow, InlineDomTree: true}, 640, 480, "document.documentElement.outerHTML")
+			interaction, err := parseInteractionFlow(tc.flow)
+			require.NoError(t, err)
+			req, domIDs, err := buildAdhocRequest("https://example.com", &capturev1.CaptureRequest{InlineDomTree: true}, 640, 480, interaction, "document.documentElement.outerHTML")
 			require.NoError(t, err)
 			flow := req.GetFlowDefinition()
 			var entries, terminals []string
@@ -896,4 +1010,43 @@ func TestCapture_RejectsAmbiguousInteractionBeforeEffects(t *testing.T) {
 			require.Zero(t, exec.Calls)
 		})
 	}
+}
+
+// Exercise the HTTP response after real media harvesting and publication. A
+// requested DPR must not become invented geometry or host-dependent MIME data.
+func TestCaptureVideoPublishesMeasuredMediaThroughHTTP(t *testing.T) {
+	for _, tool := range []string{"ffmpeg", "ffprobe"} {
+		if _, err := exec.LookPath(tool); err != nil {
+			t.Skip(tool + " unavailable")
+		}
+	}
+	executor := &fakeExecutor{ExportFunc: func(_ *fakeExecutor, outputDir string) error {
+		dir := filepath.Join(outputDir, "videos")
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return err
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		out, err := exec.CommandContext(ctx, "ffmpeg", "-v", "error", "-f", "lavfi", "-i", "color=black:s=64x48:r=10:d=0.5", "-c:v", "libvpx-vp9", "-threads", "1", filepath.Join(dir, "page.webm")).CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("encode fixture: %w: %s", err, out)
+		}
+		return nil
+	}}
+	store, err := storage.NewFileStorage(t.TempDir(), logrus.New())
+	require.NoError(t, err)
+	client, _ := newTestServer(t, Deps{Executor: executor, Storage: store})
+	response, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{
+		Url: "https://example.com", Captures: []capturev1.CaptureType{capturev1.CaptureType_CAPTURE_TYPE_VIDEO},
+		Dimensions: &capturev1.Dimensions{Width: proto.Int32(1280), Height: proto.Int32(720), DeviceScaleFactor: proto.Float64(2)},
+	}))
+	require.NoError(t, err)
+	require.Len(t, response.Msg.Artifacts, 1)
+	video := response.Msg.Artifacts[0]
+	require.Equal(t, "video/webm", video.Metadata["content_type"])
+	require.Equal(t, "measured", video.Metadata["measurement_status"])
+	require.Equal(t, "64", video.Metadata["measured_width"])
+	require.Equal(t, "48", video.Metadata["measured_height"])
+	require.Equal(t, "1280", video.Metadata["requested_css_width"])
+	require.Equal(t, "2", video.Metadata["requested_device_scale_factor"])
 }

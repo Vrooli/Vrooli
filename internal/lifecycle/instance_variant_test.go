@@ -2,6 +2,8 @@ package lifecycle
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -213,6 +215,38 @@ func TestVariantBuildRefusedWhileLiveServesSharedOutputs(t *testing.T) {
 	}
 }
 
+func TestVariantBuildAdmitsIndependentSourceTree(t *testing.T) {
+	root, home := t.TempDir(), t.TempDir()
+	writeLifecycleFixture(t, root, "alpha")
+	runner := newLifecycleRunnerForTest(t, root, home, nil)
+	if _, err := runner.Start("alpha", StartOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	cleanupRunner(t, runner, "alpha", StopOptions{})
+	copyRoot := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(copyRoot, "api"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	item := scenario.Scenario{Slug: "alpha", Variant: "presentation", Path: copyRoot,
+		Manifest: scenario.ServiceManifest{Components: map[string]scenario.Component{
+			"api": {Build: scenario.ComponentBuild{Kind: "go_module", Dir: "api"}},
+		}}}
+	if err := runner.admitVariantBuild(context.Background(), item); err != nil {
+		t.Fatalf("independent --path tree rejected: %v", err)
+	}
+	// A renamed source tree is not isolation if its build directory still
+	// resolves into the serving source tree.
+	if err := os.Remove(filepath.Join(copyRoot, "api")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(root, "scenarios", "alpha"), filepath.Join(copyRoot, "api")); err != nil {
+		t.Fatal(err)
+	}
+	if err := runner.admitVariantBuild(context.Background(), item); err == nil {
+		t.Fatal("symlink into serving tree admitted")
+	}
+}
+
 // TestApplyVariantDependenciesPublishesFollowList covers the #4 routing switch:
 // a non-live instance publishes the list discovery reads, a live instance
 // refuses it, and an undeclared dependency is rejected before start.
@@ -246,5 +280,38 @@ func TestApplyVariantDependenciesPublishesFollowList(t *testing.T) {
 	empty := map[string]string{}
 	if err := applyVariantDependencies(item, nil, empty); err != nil || len(empty) != 0 {
 		t.Errorf("no list should publish nothing: err=%v env=%v", err, empty)
+	}
+}
+
+func TestIndependentBuildRejectsEscapingOutputsAndInstallTrees(t *testing.T) {
+	for _, mode := range []string{"absolute-output", "install-link", "dangling-build-link", "unknown-serving-root"} {
+		t.Run(mode, func(t *testing.T) {
+			root, serving := t.TempDir(), t.TempDir()
+			if err := os.Mkdir(filepath.Join(root, "api"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			component := scenario.Component{Build: scenario.ComponentBuild{Kind: "go_module", Dir: "api"}}
+			switch mode {
+			case "absolute-output":
+				component.Build.Output = filepath.Join(serving, "api")
+			case "install-link":
+				if err := os.Symlink(serving, filepath.Join(root, "api", "node_modules")); err != nil {
+					t.Fatal(err)
+				}
+			case "dangling-build-link":
+				if err := os.Remove(filepath.Join(root, "api")); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Symlink(filepath.Join(serving, "missing"), filepath.Join(root, "api")); err != nil {
+					t.Fatal(err)
+				}
+			case "unknown-serving-root":
+				serving = ""
+			}
+			item := scenario.Scenario{Slug: "alpha", Variant: "presentation", Path: root, Manifest: scenario.ServiceManifest{Components: map[string]scenario.Component{"api": component}}}
+			if isolatedVariantBuild(item, serving) {
+				t.Fatal("unsafe independent build admitted")
+			}
+		})
 	}
 }

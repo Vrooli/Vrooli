@@ -45,7 +45,7 @@ func (a *agentArgs) Set(value string) error {
 
 func (app *App) runAgentCommand(ctx *AppContext, args []string) error {
 	if len(args) == 0 || strings.TrimSpace(args[0]) == "" {
-		return clipolicy.UsageErrorf("agent", "an agent subcommand is required (supported: launch, exec, list, reap, recover, thaw, authorize, authorization, revoke-authorization)")
+		return clipolicy.UsageErrorf("agent", "an agent subcommand is required (supported: launch, exec, list, reap, recover, thaw, identity-binding, authorize, authorization, revoke-authorization)")
 	}
 	if args[0] == "authorize" || args[0] == "authorization" || args[0] == "revoke-authorization" {
 		return app.runAgentAuthorization(ctx, args[0], args[1:])
@@ -65,8 +65,11 @@ func (app *App) runAgentCommand(ctx *AppContext, args []string) error {
 	if args[0] == "reap" {
 		return app.runAgentReap(ctx, args[1:])
 	}
+	if args[0] == "identity-binding" {
+		return app.runAgentIdentityBinding(ctx, args[1:])
+	}
 	if args[0] != "launch" {
-		return clipolicy.UsageErrorf("agent", "unsupported agent subcommand %q (supported: launch, exec, list, reap, recover, thaw, authorize, authorization, revoke-authorization)", args[0])
+		return clipolicy.UsageErrorf("agent", "unsupported agent subcommand %q (supported: launch, exec, list, reap, recover, thaw, identity-binding, authorize, authorization, revoke-authorization)", args[0])
 	}
 
 	fs := commandtree.NewFlagSet("vrooli agent launch")
