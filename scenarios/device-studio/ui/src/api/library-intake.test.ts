@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   uploadFile: vi.fn(),
   getFile: vi.fn(),
   decodeApiError: vi.fn(async (response: Response) => new Error(`HTTP ${response.status}`)),
+  fileURL: vi.fn((path: string) => `http://device-studio.test/api/v1${path}`),
 }));
 
 vi.mock("@connectrpc/connect", () => ({
@@ -14,6 +15,7 @@ vi.mock("@connectrpc/connect", () => ({
 }));
 vi.mock("./client", () => ({
   decodeApiError: mocks.decodeApiError,
+  fileURL: mocks.fileURL,
   getFile: mocks.getFile,
   PROTO_READ_OPTIONS: { ignoreUnknownFields: true },
   transport: {},
@@ -25,6 +27,8 @@ import {
   importLocalGeometryCandidate,
   listLocalGeometryCandidates,
   MAX_LOCAL_GEOMETRY_BYTES,
+  correctLocalGeometryMaterial,
+  getLocalGeometryMaterials,
 } from "./library-intake";
 
 const candidateJSON = (overrides: Record<string, unknown> = {}) => ({
@@ -125,5 +129,26 @@ describe("library intake API client boundaries", () => {
 
     mocks.getFile.mockResolvedValueOnce(byteResponse(new TextEncoder().encode("xyz")));
     await expect(downloadLocalGeometryCandidate(candidate as never)).rejects.toThrow(/digest differs/);
+  });
+
+  it("binds material inventory to the exact candidate revision and digest", async () => {
+    const candidate = candidateJSON();
+    mocks.getFile.mockResolvedValue(new Response(JSON.stringify({ candidate_id: "candidate-1", revision: 1, revision_sha256: "revision-hash", glb_sha256: candidate.originalSha256, materials: [] }), { status: 200 }));
+    await getLocalGeometryMaterials(candidate as never);
+    expect(mocks.getFile).toHaveBeenCalledWith("/library/intake-candidates/candidate-1/revisions/1/materials?revision_sha256=revision-hash");
+    mocks.getFile.mockResolvedValue(new Response(JSON.stringify({ candidate_id: "candidate-1", revision: 1, revision_sha256: "different", glb_sha256: candidate.originalSha256, materials: [] }), { status: 200 }));
+    await expect(getLocalGeometryMaterials(candidate as never)).rejects.toThrow(/exact imported candidate revision/);
+  });
+
+  it("posts one exact local correction request and refuses a promoted or mismatched child", async () => {
+    const request = { parent_candidate_id: "candidate-1", parent_revision: 1, parent_revision_sha256: "revision-hash", child_candidate_id: "child-1", material_index: 0, material_name: "shell", roughness_factor: 0.2 };
+    const result = { candidate: { id: "child-1", revision: 1, revision_sha256: "child-revision", original_sha256: "child-glb", review_status: "unreviewed", render_status: "not_reviewed", parent_candidate_id: "candidate-1", parent_revision: 1, parent_sha256: "revision-hash", import_method: "local_material_correction" } };
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(result), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const corrected = await correctLocalGeometryMaterial(request);
+    expect(corrected.id).toBe("child-1");
+    expect(fetchMock).toHaveBeenCalledWith("http://device-studio.test/api/v1/library/intake-candidates/candidate-1/revisions/1/material-corrections", expect.objectContaining({ method: "POST", body: JSON.stringify(request) }));
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ candidate: { ...result.candidate, parent_sha256: "other" } }), { status: 200 }));
+    await expect(correctLocalGeometryMaterial(request)).rejects.toThrow(/expected unreviewed child candidate/);
   });
 });

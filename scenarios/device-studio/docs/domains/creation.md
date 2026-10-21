@@ -130,6 +130,60 @@ uncertain-charge reconciliation contracts are integrated. Public references
 can be recorded locally without remote upload; external media remains opt-in
 and `external_ai_upload` is not an import right.
 
+### E5-C: deterministic imported-model material correction
+
+E5-C adds a local deterministic edit to an already imported GLB. It does not
+call AI, launch an agent, fetch a URL, or execute content from the model. The
+operator first reads a bounded material inventory from the exact candidate
+revision, then selects a material by both its observed index and name and
+supplies one or more supported PBR values: `baseColorFactor` (four finite
+components), `metallicFactor`, `roughnessFactor`, or `emissiveFactor` (three
+finite components). Values are bounded to 0..1. Unknown fields, malformed or
+oversized JSON, non-finite values, out-of-range values, mismatched material
+identity, and no-op edits are refused.
+
+The request binds the exact parent candidate ID, revision and revision digest,
+plus a caller-stable child candidate ID. An exact retry of the same child ID
+and canonical request returns the same child; a different request under that
+ID conflicts. A correction reads and verifies the parent's retained GLB bytes,
+parses only the bounded GLB JSON and embedded BIN chunks, and changes only the
+selected PBR fields. GLB BIN bytes remain byte-identical, and geometry,
+accessor, node, mesh, buffer, and buffer-view JSON values remain unchanged
+(the GLB JSON chunk may be reserialized); no external URI is fetched or resolved, and any
+unsupported material extension prevents editing that material. The result is
+inspected before it is committed as a new immutable child candidate. The parent
+is never replaced or deleted.
+
+The child retains the exact parent digest, selected material identity, a
+field-level before/after change log, whole-GLB before/after SHA-256 values, and
+the unchanged embedded BIN SHA-256. It inherits the parent's unverified rights
+claims as claims only. The child remains `unreviewed` and `not_reviewed`; this
+edit does not create a Library bundle, review binding, render grant, geometry
+qualification, or product-fidelity claim. The workbench labels this as a local
+deterministic material edit and displays the lineage and hashes. The CLI
+exposes the same exact-parent and material-edit operation. Focused checks must
+prove bounds and selector validation, exact replay/conflict behavior,
+byte-stable BIN and geometry, immutable parent bytes, and unreviewed child
+status through API, CLI and UI owners.
+
+The implementation uses the existing Library intake revision and blob owners,
+with exact-parent material inventory/correction REST routes and equivalent
+`library intake-materials` / `library intake-material-correct` CLI commands.
+The panel stores a pending exact correction request in browser storage before
+dispatch and reuses it after an uncertain response or remount. The child
+persists a typed material-change lineage; the existing Connect metadata
+projection stays compatible, while REST correction and material inventory
+responses expose that lineage. Focused owner, handler, CLI, panel and API-client
+checks are the source checkpoint; root owns the live import/correction and
+before/after native review.
+
+The implementation's corrected gross runtime/config census is 1,028 lines,
+128 above the originally admitted 900-line cap. This includes the authored
+English, Japanese, and Arabic locale JSON; generated strings, tests, and docs
+are counted separately. An earlier 848-line receipt omitted those locale
+files and was superseded without raising the cap. Focused checks pass, while
+live correction and native visual review remain pending.
+
 ### E5-A UI correction and next owner decision — 2026-10-20
 
 The focused workbench correction now resets the browser file input after a
@@ -275,6 +329,35 @@ includes explicit dimension facts and screen-face locks where known. Attach
 images to the typed Gateway call only after verifying the expected bytes and
 digest. Keep user-supplied claims separate from extracted facts.
 
+For construction inference, include explicit geometry guidance in the fixed
+system instruction: center the housing at `[0,0,0]`, keep every rotated part's
+full extents within `[-W/2,+W/2] × [-H/2,+H/2] × [-D/2,+D/2]`, and bind the
+screen to a planar face of its display part with the required stand-off inside
+that same envelope. Do not rely on generated output to restate these constraints.
+Immediately after a typed Gateway response, persist the exact returned JSON
+value bytes in the private job workspace before semantic recipe validation,
+provided the value is at most 1 MiB. Bind the sidecar to those bytes with SHA-256
+and byte count. If it exceeds the retention bound, preserve only its digest and
+size with an explicit `omitted_over_limit` disposition; never truncate and
+present a partial value as exact. The retained value is inert evidence and is
+never executed. Invalid recipes remain inspectable for an explicit later
+correction; the worker does not retry or modify them automatically. A
+recognized envelope validation failure records only a typed safe issue
+(validated part ID, axis enum, issue code and bounded explanation) beside the
+exact retained response. After the native operation stops, the existing
+render-jobs owner verifies and stores that exact recipe as an attempt-bound
+artifact referenced by native outcome evidence. The failed job's evidence
+digest remains the authority for reading it; no host path is exposed. A
+correction read returns the prior recipe only after checking job, attempt,
+outcome, artifact size and digest. Missing, corrupt or unsupported evidence is
+reported unavailable without reconstructing a response.
+
+The UI may present that verified recipe and semantic envelope issue in an
+explicit correction draft. It preserves the original project references and
+funding route, but creates new operation identities and resets the required
+AI confirmation. The operator reviews and submits the new draft. Status reads
+never dispatch, and failure handling never retries or submits automatically.
+
 The new geometry owner is a pure, deterministic recipe-to-GLB compiler in
 Device Studio's geometry domain. It triangulates the three allowed primitive
 kinds; `rounded_box` uses an 8-segment rounded-cuboid profile (not a chamfer),
@@ -316,6 +399,19 @@ completed job persists an unreviewed intake candidate plus recipe, reference,
 provider, model, call and usage lineage. This is source and fake-provider test
 evidence until a new lifecycle build and live local inference/native review.
 
+Create replay resolves an existing idempotency key before reading current
+reference metadata or pinning the current executable. It returns the existing
+job only when the normalized project, candidate ID, exact brief, locked
+dimensions and ordered reference media IDs match the stored canonical subject.
+The old worker and source digests remain pinned across application rebuilds;
+they are never silently replaced by current bytes. A changed or deleted
+reference may make a still-queued historical job fail its pinned-source
+verification, but it does not turn a same-key retry into a new operation. A
+semantically different request, non-geometry key owner, invalid stored subject,
+or route mismatch remains a conflict or refusal. On a concurrent insert
+conflict, the coordinator performs one same-key readback and applies this
+comparison; it never submits twice.
+
 Before POST, the browser must durably persist the immutable request identity.
 If local persistence is unavailable, the UI refuses to dispatch and explains
 that it cannot safely recover an uncertain submit. After an accepted submit or
@@ -347,6 +443,13 @@ retain any result blob already referenced. Do not claim a hard paid cap for a
 future hosted path: provider charge is not a hard in-flight reservation. Keep
 hosted inference unavailable until there is an enforceable operation-level
 spend ceiling and cancellation/reconciliation across all work.
+
+The geometry-construction worker runs under an allowlisted environment. It
+receives the operator's resolved `HOME`, the canonical `VROOLI_BIN` path, and
+attempt-private `TMPDIR`; it does not inherit the API server's environment or
+secrets. This is required because `api-core/discovery` resolves the local-only
+AI Gateway endpoint through the runtime home and canonical scenario-port
+owner. Blender-specific settings are not part of the geometry worker profile.
 
 Agent Manager is the canonical owner only if a later workflow requires tool use
 or delegated, multi-step work. Its declared workflow/run path carries verified
@@ -406,3 +509,126 @@ For cancellation after native work was stopped, the persisted quiescence record
 may bind a complete canonical response sidecar. An absent, partial or identity-
 mismatched sidecar is recorded as not bound and never prevents cancellation;
 that state makes no claim about whether the provider returned a response.
+
+For a supported envelope rejection, the worker adds a bounded semantic issue
+to that sidecar and the native outcome owner stores the exact retained recipe
+as a digest-bound job artifact. The creation read verifies the routed job,
+attempt, outcome digest, artifact owner and exact bytes before returning it; an
+unavailable or corrupt artifact yields no recipe. The UI presents a new draft
+using that verified recipe and issue, preserves references and funding choice,
+resets AI confirmation, and waits for an explicit user submission with fresh
+operation identity. Focused worker, artifact binding, API, panel and type checks
+pass. Source/config growth is 624 gross lines against the original 550-line
+slice cap (74 over); the separately admitted 80-line correctness allowance
+covers atomic outcome replacement and its regression coverage. No live
+correction inference or native quality result is claimed.
+
+### E5-D: explicit local photographic scene generation
+
+The existing Image Tools AI, jobs and blob owners are the only inference and
+job authorities for this slice. Device Studio resolves the Image Tools API
+through `api-core/discovery`; the adapter submits one `text_to_image` request
+and forwards job lifecycle/content operations through the existing owner APIs. It does not execute a
+model, queue a shadow job, or create a provider fallback path.
+
+The accepted local selection is the installed `sd-1.5` model (local weights
+SHA-256 `6ce0161689b3853acaa03779ec93eafe75a02f4ced659bee03f50797806fa2fa`,
+4,265,146,304 bytes). Its current explain route is local GPU through Diffusers
+because stable-diffusion.cpp is unavailable. This is a readiness fact, not an
+inference or quality result. Requests must force that model with
+`fallback_policy=local_only`, `allow_byok=false`, `allow_reclaim=false`, one
+variation, prompt <= 800 UTF-8 bytes, and one of the two source dimensions
+768x512 or 512x768. No hosted retry, account, wallet or paid path is part of
+this slice. The UI states that the prompt is sent to the local Image Tools
+service and that the output is model-created; an unavailable local model is a
+truthful unavailable/error state.
+
+Image Tools persists an optional caller operation ID and server-computed
+request fingerprint in its existing jobs domain. A repeated operation ID and
+identical fingerprint resolves to the original durable job; a changed
+fingerprint is a conflict. Device Studio writes the operation ID and exact
+request to browser persistence before dispatch, and after reload it reads the
+owner status DTO by ID. It never automatically repeats a request. An explicit
+retry sends the same request under the same owner idempotency key. Status
+refresh reads an owner snapshot; the explicit wait action uses the existing
+block-once job verb. Cancellation displays the returned owner state and does
+not claim that a running job has already stopped.
+
+For these idempotent photographic requests, the Image Tools job owner enforces
+a 30-minute execution timeout after a lane worker starts the job. Queue wait is
+not included in that execution limit.
+
+A successful owner result must have a safe managed `out/` blob ref, PNG MIME,
+<= 12 MiB bytes, and the requested dimensions. Device Studio copies that
+verified byte stream into the existing project media import with
+`device-studio-generated-{job-id}.png` as its filename. This binds the source
+media row to a durable Image Tools job ID without presenting a generated
+image as reviewed geometry or licensed public content. The source digest and
+owner job/model/tier are shown as provenance; absent facts remain unknown.
+The saved image can be selected in the existing photographic still workflow.
+Users must adjust any screen-entry geometry or mask manually; generation does
+not calculate calibration. This contract does not qualify pixel accuracy or
+photographic appearance. Root owns the real local generation, resource,
+output review and native rendering proof.
+
+### E6 admitted slice: explicit funding for geometry chat
+
+Geometry construction may expose three caller-selected routes: the existing
+local-only route, a BYOK route owned by the OpenRouter resource credential
+authority, and a Vrooli-credits route owned by LPBS metered inference. The
+selected route is immutable job input and participates in idempotent replay;
+each remote route resolves to exactly one provider candidate and one provider
+call, with no cross-funding fallback or automatic retry. Remote submission
+requires a separate project-level disclosure and confirmation that selected
+reference images and the geometry brief will be sent to that provider. The
+Device Studio browser never receives credentials or session tokens.
+
+OpenRouter credentials remain configured through the OpenRouter resource
+owner. LPBS credit access requires an explicit desktop-owner action to share
+the signed-in LPBS refresh credential with the Gateway credential authority;
+the desktop entitlement lease is not an inference credential. Clearing the
+shared credential is local owner state and does not claim remote revocation of
+already-issued access tokens. Account, funding, or network unavailability
+must leave the local route usable and must not trigger a hidden fallback.
+Photographic scene generation remains explicitly local-only until a metered
+media owner contract exists; this geometry-chat route does not fund it.
+
+#### E6 spend-ceiling continuation: owner-enforced admission
+
+The remote geometry route accepts one explicit total ceiling in USD micro-units
+as immutable job input. It is an upper bound, not an estimate or an instruction
+to spend that amount. Gateway admission derives a finite prompt-token bound from
+the selected model's declared context window and output cap, and bounds attached
+images by their existing request count. If any of these limits, the current
+price snapshot, a required price class, or the provider's request cap cannot be
+established, the request is refused before provider dispatch.
+
+For BYOK, the OpenRouter owner resolves one pinned model and a bounded set of
+eligible endpoints. It applies `require_parameters`, disables implicit
+fallbacks, restricts the allowed endpoint set, and sends `provider.max_price`
+for prompt, completion, per-request, and per-image prices. Those four caps are
+budget allocations whose worst-case aggregate (bounded prompt tokens times
+prompt price, output cap times completion price, image count times image price,
+and one request fee) cannot exceed the user's ceiling. The underlying provider
+filter is documented by OpenRouter's [Provider Routing reference](https://github.com/OpenRouterTeam/docs/blob/main/guides/routing/provider-selection.mdx#max-price).
+No static historical price may substitute for the current owner snapshot. If
+an endpoint exposes an unsupported fee class or a price is missing, stale, or
+not enforceable by the owner, BYOK refuses before dispatch.
+
+For Vrooli credits, LPBS owns USD-to-credit conversion and reservation. The
+request carries a USD ceiling, never a caller-computed credit amount. LPBS
+resolves the authenticated account's applicable cost-based limit and current
+`cost_multiplier`, reserves the ceiling before calling OpenRouter, applies the
+same enforceable provider price limits, and settles only against provider-
+reported actual USD cost. A provider error releases the reservation only when
+the owner proves no billable dispatch occurred. A dispatched request with
+unknown cost keeps its reservation pending for reconciliation; it is never
+reported as zero-cost or silently charged above the ceiling.
+
+The durable Device Studio job reports the chosen route and ceiling, the owner
+quote/price freshness when available (otherwise `Unknown`), reservation status,
+and usage provenance. Queued/running work shows `pending`; a provider-reported
+cost is `known`; a dispatched operation without authoritative cost is `unknown`
+and retains its applicable hold. This accounting stays visible after reload and
+does not expose credentials. Local generation remains available offline and
+does not acquire, reserve, or settle a remote funding route.

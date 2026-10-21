@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "device-studio",
   "generator": "v1.0.0",
-  "manifest_hash": "1d3eac119067e081bac65c7cd2e762f73979c1a68fa70e9468447ad583e0e167",
+  "manifest_hash": "6cea6abb09aff1f375f9be163a20b96844633244a5bb633ec8276fa1593f071b",
   "commands": [
     {
       "path": "creation cancel",
@@ -100,6 +100,18 @@
       "binding": "LibraryCatalogService.ListIntakeCandidates",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
+    },
+    {
+      "path": "library intake-material-correct",
+      "group": "library",
+      "command": "intake-material-correct",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "library intake-materials",
+      "group": "library",
+      "command": "intake-materials",
+      "observed_primitive": "action"
     },
     {
       "path": "library list",

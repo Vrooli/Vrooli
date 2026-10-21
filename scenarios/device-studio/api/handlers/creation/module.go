@@ -18,6 +18,7 @@ import (
 type coordinator interface {
 	SubmitGeometryCreation(context.Context, renderjobs.GeometryCreationRequest) (jobs.Job, bool, error)
 	FindGeometryCreationByKey(context.Context, string, string) (jobs.Job, error)
+	OpenGeometryCorrection(context.Context, string) (renderjobs.GeometryCorrectionDetails, error)
 	Cancel(context.Context, string, int64) (jobs.Job, error)
 }
 type jobReader interface {
@@ -25,12 +26,17 @@ type jobReader interface {
 }
 type RouteActivator interface{ ActivateTestRoute(context.Context) error }
 type createBody struct {
-	CandidateID       string     `json:"candidate_id"`
-	IdempotencyKey    string     `json:"idempotency_key"`
-	Brief             string     `json:"brief"`
-	EnvelopeMM        [3]float64 `json:"envelope_mm"`
-	ReferenceMediaIDs []string   `json:"reference_media_ids"`
-	ConfirmLocalAI    bool       `json:"confirm_local_ai"`
+	CandidateID            string     `json:"candidate_id"`
+	IdempotencyKey         string     `json:"idempotency_key"`
+	Brief                  string     `json:"brief"`
+	EnvelopeMM             [3]float64 `json:"envelope_mm"`
+	ReferenceMediaIDs      []string   `json:"reference_media_ids"`
+	FundingRoute           string     `json:"funding_route,omitempty"`
+	ConfirmLocalAI         bool       `json:"confirm_local_ai"`
+	ConfirmRemoteAI        bool       `json:"confirm_remote_ai"`
+	CorrectionSourceJobID  string     `json:"correction_source_job_id,omitempty"`
+	CorrectionRecipeSHA256 string     `json:"correction_recipe_sha256,omitempty"`
+	CorrectionFeedback     string     `json:"correction_feedback,omitempty"`
 }
 type cancelBody struct {
 	Version int64 `json:"version"`
@@ -56,8 +62,24 @@ func ModuleWithCoordinator(c coordinator, j jobReader, activator RouteActivator)
 		r.HandleFunc("/api/v1/projects/{project_id}/geometry-creations", createHandler(c, activator)).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/projects/{project_id}/geometry-creations/operations/{operation_key}", operationHandler(c)).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/geometry-creations/{job_id}", statusHandler(j)).Methods(http.MethodGet)
+		r.HandleFunc("/api/v1/geometry-creations/{job_id}/correction", correctionHandler(c)).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/geometry-creations/{job_id}/cancel", cancelHandler(c, j, activator)).Methods(http.MethodPost)
 	}}
+}
+
+func correctionHandler(c coordinator) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		details, err := c.OpenGeometryCorrection(r.Context(), strings.TrimSpace(mux.Vars(r)["job_id"]))
+		if err != nil {
+			status := http.StatusConflict
+			if errors.Is(err, jobs.ErrNotFound) {
+				status = http.StatusNotFound
+			}
+			writeJSON(w, status, map[string]string{"error": "verified correction details are unavailable for this job state"})
+			return
+		}
+		writeJSON(w, http.StatusOK, details)
+	}
 }
 
 func operationHandler(c coordinator) http.HandlerFunc {
@@ -79,11 +101,20 @@ func createHandler(c coordinator, activator RouteActivator) http.HandlerFunc {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid creation request"})
 			return
 		}
-		if !body.ConfirmLocalAI {
+		fundingRoute := renderjobs.NormalizeGeometryFundingRoute(body.FundingRoute)
+		if fundingRoute == "" {
+			writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": "select a supported AI funding route"})
+			return
+		}
+		if fundingRoute == renderjobs.GeometryFundingLocal && !body.ConfirmLocalAI {
 			writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": "confirm the disclosed local-only AI request before starting"})
 			return
 		}
-		job, created, err := c.SubmitGeometryCreation(r.Context(), renderjobs.GeometryCreationRequest{ProjectID: projectID, CandidateID: body.CandidateID, IdempotencyKey: body.IdempotencyKey, Brief: body.Brief, EnvelopeMM: body.EnvelopeMM, ReferenceMediaIDs: body.ReferenceMediaIDs})
+		if fundingRoute != renderjobs.GeometryFundingLocal && !body.ConfirmRemoteAI {
+			writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": "confirm that the selected images and brief will be sent to the chosen remote provider"})
+			return
+		}
+		job, created, err := c.SubmitGeometryCreation(r.Context(), renderjobs.GeometryCreationRequest{ProjectID: projectID, CandidateID: body.CandidateID, IdempotencyKey: body.IdempotencyKey, Brief: body.Brief, EnvelopeMM: body.EnvelopeMM, ReferenceMediaIDs: body.ReferenceMediaIDs, FundingRoute: fundingRoute, CorrectionSourceJobID: body.CorrectionSourceJobID, CorrectionRecipeSHA256: body.CorrectionRecipeSHA256, CorrectionFeedback: body.CorrectionFeedback})
 		if err != nil {
 			writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": safeCreationError(err)})
 			return
@@ -95,10 +126,19 @@ func createHandler(c coordinator, activator RouteActivator) http.HandlerFunc {
 			}
 		}
 		status := http.StatusAccepted
+		message := "AI request queued. The result remains unreviewed."
+		if fundingRoute == renderjobs.GeometryFundingLocal {
+			message = "Local-only AI request queued. The result remains unreviewed."
+		} else if fundingRoute == renderjobs.GeometryFundingBYOK {
+			message = "BYOK-only AI request queued; no other funding route will be used. The result remains unreviewed."
+		} else {
+			message = "Vrooli-credits-only AI request queued; no other funding route will be used. The result remains unreviewed."
+		}
 		if !created {
 			status = http.StatusOK
+			message = "Existing request state: " + string(job.State) + "; no second operation was created."
 		}
-		writeJSON(w, status, project(job, "Local-only AI request queued. The result remains unreviewed."))
+		writeJSON(w, status, project(job, message))
 	}
 }
 func statusHandler(j jobReader) http.HandlerFunc {

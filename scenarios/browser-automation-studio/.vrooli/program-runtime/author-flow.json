@@ -1,7 +1,7 @@
 {
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "browser-automation-studio.author-flow",
-  "version": "4",
+  "version": "5",
   "helpers": {
     "program": "1"
   },
@@ -10,6 +10,10 @@
     "flow": {
       "type": "object",
       "description": "Typed V2 candidate with explicit outcome assertions."
+    },
+    "parameters": {
+      "type": "object",
+      "description": "Optional ExecutionParameters object forwarded unchanged to the one ad hoc candidate execution. Omit it to use BAS workflow defaults."
     },
     "name": {
       "type": "string",
@@ -39,6 +43,7 @@
   ],
   "invariants": [
     "One execution; persist only after completed execution with an evidence ID",
+    "When supplied, caller execution parameters are forwarded unchanged to the ad hoc execution; omission preserves workflow defaults",
     "Repair preserves assertions, settings and metadata; update uses expected_version",
     "A pending or failed candidate never replaces a saved workflow",
     "One bounded envelope on every path",

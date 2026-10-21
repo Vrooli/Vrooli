@@ -62,27 +62,28 @@ type IntakeInspection struct {
 type IntakeInspector func(context.Context, []byte) (IntakeInspection, error)
 
 type IntakeCandidate struct {
-	ID             string           `json:"id"`
-	Revision       uint32           `json:"revision"`
-	RevisionSHA256 string           `json:"revision_sha256"`
-	DisplayName    string           `json:"display_name"`
-	OriginalName   string           `json:"original_filename"`
-	OriginalSHA256 string           `json:"original_sha256"`
-	SizeBytes      int64            `json:"size_bytes"`
-	MIME           string           `json:"mime"`
-	ImportedAt     time.Time        `json:"imported_at"`
-	ImportMethod   string           `json:"import_method"`
-	SourceLabel    string           `json:"source_label"`
-	LicenseClaim   string           `json:"license_claim"`
-	Attribution    string           `json:"attribution"`
-	DeclaredUses   []string         `json:"declared_uses,omitempty"`
-	ParentID       string           `json:"parent_candidate_id,omitempty"`
-	ParentRevision uint32           `json:"parent_revision,omitempty"`
-	ParentSHA256   string           `json:"parent_sha256,omitempty"`
-	Inspection     IntakeInspection `json:"inspection"`
-	ReviewStatus   string           `json:"review_status"`
-	RenderStatus   string           `json:"render_status"`
-	Creation       *CreationLineage `json:"creation_lineage,omitempty"`
+	ID             string                     `json:"id"`
+	Revision       uint32                     `json:"revision"`
+	RevisionSHA256 string                     `json:"revision_sha256"`
+	DisplayName    string                     `json:"display_name"`
+	OriginalName   string                     `json:"original_filename"`
+	OriginalSHA256 string                     `json:"original_sha256"`
+	SizeBytes      int64                      `json:"size_bytes"`
+	MIME           string                     `json:"mime"`
+	ImportedAt     time.Time                  `json:"imported_at"`
+	ImportMethod   string                     `json:"import_method"`
+	SourceLabel    string                     `json:"source_label"`
+	LicenseClaim   string                     `json:"license_claim"`
+	Attribution    string                     `json:"attribution"`
+	DeclaredUses   []string                   `json:"declared_uses,omitempty"`
+	ParentID       string                     `json:"parent_candidate_id,omitempty"`
+	ParentRevision uint32                     `json:"parent_revision,omitempty"`
+	ParentSHA256   string                     `json:"parent_sha256,omitempty"`
+	Inspection     IntakeInspection           `json:"inspection"`
+	ReviewStatus   string                     `json:"review_status"`
+	RenderStatus   string                     `json:"render_status"`
+	Creation       *CreationLineage           `json:"creation_lineage,omitempty"`
+	Correction     *MaterialCorrectionLineage `json:"material_correction_lineage,omitempty"`
 }
 
 // CreationLineage records model-generated inputs without granting review,
@@ -102,6 +103,17 @@ type CreationLineage struct {
 	CostProvenance         inferencev1.UsageProvenance `json:"cost_provenance"`
 	AppliedSettings        *sharedv1.AppliedSettings   `json:"applied_settings"`
 	InferenceOutcomeSHA256 string                      `json:"inference_outcome_sha256"`
+	CorrectionSource       *CreationCorrectionSource   `json:"correction_source,omitempty"`
+}
+
+type CreationCorrectionSource struct {
+	JobID            string `json:"job_id"`
+	InputFingerprint string `json:"input_fingerprint"`
+	BriefSHA256      string `json:"brief_sha256"`
+	RecipeSHA256     string `json:"recipe_sha256"`
+	IssueCode        string `json:"issue_code"`
+	PartID           string `json:"part_id"`
+	Axis             string `json:"axis"`
 }
 
 type intakeRecord struct {

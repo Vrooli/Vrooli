@@ -4,8 +4,10 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
-	contractvalues "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"strings"
+
+	contractvalues "github.com/vrooli/browser-automation-studio/automation/contracts"
+	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 )
 
 // NormalizeExecuteAdhocRequest applies V2 schema-native short-form
@@ -33,8 +35,9 @@ func NormalizeExecuteAdhocRequest(body []byte) ([]byte, error) {
 
 	// 1. Normalize execution parameters (move unknown fields to initial_params)
 	if params, ok := raw["parameters"].(map[string]any); ok && params != nil {
+		normalizeExecutionParameterAliases(params)
 		NormalizeExecutionParameters(params)
-		contractvalues.NormalizeJsonValueMaps(params, "initial_params", "initial_store", "env")
+		contractvalues.NormalizeJsonValueMaps(params, "initial_params", "initialParams", "initial_store", "initialStore", "env")
 	}
 
 	// 2. Normalize workflow definition fields for proto compatibility
@@ -45,27 +48,41 @@ func NormalizeExecuteAdhocRequest(body []byte) ([]byte, error) {
 		NormalizeWorkflowDefinitionV2(flowDef)
 	}
 
-	// 3. Ensure protojson-compatible field names (lowerCamelCase)
-	raw = normalizeProtoJSONKeys(raw).(map[string]any)
-
 	return json.Marshal(raw)
 }
 
-// knownExecutionParamFields is the set of fields that are part of the ExecutionParameters proto.
-var knownExecutionParamFields = map[string]bool{
-	"initial_params":          true,
-	"initialParams":           true,
-	"initial_store":           true,
-	"initialStore":            true,
-	"env":                     true,
-	"projectRoot":             true,
-	"project_root":            true,
-	"startUrl":                true,
-	"start_url":               true,
-	"session_profile_id":      true,
-	"sessionProfileId":        true,
-	"save_session_profile_id": true,
-	"saveSessionProfileId":    true,
+// executionParameterFieldNames is derived from the canonical descriptor so
+// normalization cannot silently drift behind ExecutionParameters additions.
+// Both proto field names and ProtoJSON names are accepted at ingress.
+var executionParameterFieldNames = func() map[string]string {
+	fields := (&basexecution.ExecutionParameters{}).ProtoReflect().Descriptor().Fields()
+	names := make(map[string]string, fields.Len()*2)
+	for i := 0; i < fields.Len(); i++ {
+		field := fields.Get(i)
+		jsonName := field.JSONName()
+		names[string(field.Name())] = jsonName
+		names[jsonName] = jsonName
+	}
+	return names
+}()
+
+// normalizeExecutionParameterAliases resolves snake_case/proto-JSON aliases
+// before the JsonValue wrappers are rebuilt. If both spellings are supplied,
+// the ProtoJSON JSON-name spelling wins.
+func normalizeExecutionParameterAliases(params map[string]any) {
+	for name, jsonName := range executionParameterFieldNames {
+		if name == jsonName {
+			continue
+		}
+		value, exists := params[name]
+		if !exists {
+			continue
+		}
+		if _, alreadyPresent := params[jsonName]; !alreadyPresent {
+			params[jsonName] = value
+		}
+		delete(params, name)
+	}
 }
 
 // NormalizeExecutionParameters moves unknown fields in params to initial_params.
@@ -84,7 +101,7 @@ func NormalizeExecutionParameters(params map[string]any) {
 	// Find unknown fields
 	unknownFields := make(map[string]any)
 	for key, value := range params {
-		if !knownExecutionParamFields[key] {
+		if _, known := executionParameterFieldNames[key]; !known {
 			unknownFields[key] = value
 		}
 	}
@@ -95,10 +112,12 @@ func NormalizeExecutionParameters(params map[string]any) {
 	}
 
 	// Move unknown fields to initial_params
+	initialParamsKey := "initial_params"
 	var initialParams map[string]any
-	if ip, ok := params["initial_params"].(map[string]any); ok {
+	if ip, ok := params["initialParams"].(map[string]any); ok {
 		initialParams = ip
-	} else if ip, ok := params["initialParams"].(map[string]any); ok {
+		initialParamsKey = "initialParams"
+	} else if ip, ok := params["initial_params"].(map[string]any); ok {
 		initialParams = ip
 	}
 	if initialParams == nil {
@@ -113,7 +132,7 @@ func NormalizeExecutionParameters(params map[string]any) {
 		delete(params, key)
 	}
 
-	params["initial_params"] = initialParams
+	params[initialParamsKey] = initialParams
 }
 
 // NormalizeWorkflowSettings normalizes UI-oriented settings in a workflow definition
@@ -141,8 +160,8 @@ var executionModeMapping = map[string]string{
 }
 
 // NormalizeWorkflowDefinitionV2Bytes applies concise V2 schema field forms
-// (short-form execution_mode, viewport settings, lowerCamelCase keys) to a
-// STANDALONE WorkflowDefinitionV2 JSON body, returning protojson-ready bytes. Used by the
+// (short-form execution_mode and viewport settings) to a STANDALONE
+// WorkflowDefinitionV2 JSON body, returning protojson-ready bytes. Used by the
 // capture path, which splices a raw bas/flows body that must parse identically
 // to one fed through `execute-adhoc --flow-file`.
 func NormalizeWorkflowDefinitionV2Bytes(body []byte) ([]byte, error) {
@@ -157,11 +176,7 @@ func NormalizeWorkflowDefinitionV2Bytes(body []byte) ([]byte, error) {
 		return nil, err
 	}
 	NormalizeWorkflowDefinitionV2(doc)
-	normalized, ok := normalizeProtoJSONKeys(doc).(map[string]any)
-	if !ok {
-		return json.Marshal(doc)
-	}
-	return json.Marshal(normalized)
+	return json.Marshal(doc)
 }
 
 // RejectLegacyWorkflowNodes makes the V2-only workflow boundary explicit.
@@ -207,8 +222,8 @@ func NormalizeWorkflowDefinitionV2(doc map[string]any) {
 		// Remove non-proto metadata fields (used by test-genie/playbooks metadata)
 		delete(metadata, "reset")
 
-		// Map short-form execution_mode to proto enum name.
-		// Check both snake_case and camelCase since normalizeProtoJSONKeys runs later.
+		// Map short-form execution_mode to proto enum name while preserving
+		// the caller's field spelling; protojson accepts both proto and JSON names.
 		for _, key := range []string{"execution_mode", "executionMode"} {
 			if val, ok := metadata[key].(string); ok {
 				if mapped, found := executionModeMapping[val]; found {
@@ -337,51 +352,4 @@ func normalizeViewportSettings(settings map[string]any) {
 		delete(settings, "executionViewport")
 	}
 	delete(settings, "defaultStepTimeoutMs")
-}
-
-func normalizeProtoJSONKeys(value any) any {
-	switch v := value.(type) {
-	case map[string]any:
-		out := make(map[string]any, len(v))
-		for key, raw := range v {
-			normalizedKey := toLowerCamel(key)
-			normalizedVal := normalizeProtoJSONKeys(raw)
-			if _, exists := out[normalizedKey]; exists && normalizedKey != key {
-				// Preserve existing key if both snake_case and camelCase are present.
-				continue
-			}
-			out[normalizedKey] = normalizedVal
-		}
-		return out
-	case []any:
-		for i := range v {
-			v[i] = normalizeProtoJSONKeys(v[i])
-		}
-		return v
-	default:
-		return value
-	}
-}
-
-func toLowerCamel(input string) string {
-	if !strings.ContainsRune(input, '_') {
-		return input
-	}
-	parts := strings.Split(input, "_")
-	if len(parts) == 0 {
-		return input
-	}
-	var b strings.Builder
-	b.WriteString(parts[0])
-	for i := 1; i < len(parts); i++ {
-		part := parts[i]
-		if part == "" {
-			continue
-		}
-		b.WriteString(strings.ToUpper(part[:1]))
-		if len(part) > 1 {
-			b.WriteString(part[1:])
-		}
-	}
-	return b.String()
 }

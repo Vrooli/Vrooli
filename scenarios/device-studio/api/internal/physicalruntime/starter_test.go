@@ -99,6 +99,10 @@ func TestReviewedStarterInitializesOnlyOnMatchingPinnedTestRoutes(t *testing.T) 
 	if err != nil {
 		t.Fatalf("exact replay: %v", err)
 	}
+	phoneDefault, err := owners.InitializePhysicalStarter(testCtx, "")
+	if err != nil || phoneDefault.PresetID != first.Preset.PresetID || phoneDefault.Revision != first.Preset.Revision || phoneDefault.SHA256 != first.Preset.SHA256 {
+		t.Fatalf("empty starter ID must preserve the exact phone default preset: preset=%+v err=%v", phoneDefault, err)
+	}
 	secondLaptop, err := owners.InitializeReviewedLaptopStarter(testCtx)
 	if err != nil {
 		t.Fatalf("laptop replay: %v", err)
@@ -233,6 +237,10 @@ func TestReviewedStarterInitializesOnlyOnMatchingPinnedTestRoutes(t *testing.T) 
 	ipadReplay, err := owners.InitializeReviewedIPadStarter(testCtx)
 	if err != nil {
 		t.Fatalf("replay DatSketch iPad candidate: %v", err)
+	}
+	ipadOriented, err := owners.InitializeReviewedIPadOrientedStarter(testCtx)
+	if err != nil || ipadOriented.Preset.PresetID != "ipad-screen-uv-oriented-180-review-still-v1" || ipadOriented.Preset.Setup.GetDevice().GetSha256() != ipadOriented.Device.SHA256 || ipadOriented.Preset.Setup.GetScene().GetSha256() != ipadOriented.Scene.SHA256 {
+		t.Fatalf("oriented iPad starter must save a preset pinned to its exact candidates: preset=%+v err=%v", ipadOriented.Preset, err)
 	}
 	if ipad.Bundle.ManifestSHA256 == "" || ipad.Bundle.ReviewSHA256 == "" || ipad.Bundle.Review.ID != "device-studio-e3-starter-local-render-review-v1-ipad-uv-normalized" || len(ipad.Bundle.Manifest.Artifacts) != 1 || ipad.Bundle.Manifest.Artifacts[0].SHA256 != ipadDerivativeSHA256 {
 		t.Fatalf("iPad bytes were not published through the reviewed Library owner: %+v", ipad.Bundle)

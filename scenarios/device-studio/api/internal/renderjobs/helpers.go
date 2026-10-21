@@ -81,7 +81,24 @@ type nativeOutcomeEvidence struct {
 	ObservedAt             time.Time                           `json:"observed_at"`
 	InferenceOutcome       *rendering.GeometryInferenceOutcome `json:"inference_outcome,omitempty"`
 	InferenceOutcomeSHA256 string                              `json:"inference_outcome_sha256,omitempty"`
+	RejectedRecipe         *rejectedGeometryRecipeArtifact     `json:"rejected_recipe,omitempty"`
+	RejectedRecipeStatus   string                              `json:"rejected_recipe_status,omitempty"`
 }
+
+type rejectedGeometryRecipeArtifact struct {
+	Version          int    `json:"version"`
+	JobID            string `json:"job_id"`
+	AttemptID        string `json:"attempt_id"`
+	InputFingerprint string `json:"input_fingerprint"`
+	OutcomeSHA256    string `json:"outcome_sha256"`
+	OwnerID          string `json:"owner_id"`
+	ScopeID          string `json:"scope_id"`
+	ArtifactID       string `json:"artifact_id"`
+	SHA256           string `json:"sha256"`
+	SizeBytes        int64  `json:"size_bytes"`
+}
+
+const geometryRejectedRecipeScope = "geometry-rejected-recipe"
 
 type completedRenderEvidence struct {
 	Version              int       `json:"version"`
@@ -317,20 +334,53 @@ func operationSpecFor(mode operationMode, workerPath, manifestPath, workspace st
 		if err != nil {
 			return platform.OperationSpec{}, err
 		}
+	} else if mode == operationGeometryCreate {
+		env, err = geometryWorkerEnvironment(workspace)
+		if err != nil {
+			return platform.OperationSpec{}, err
+		}
 	}
 	return platform.OperationSpec{Path: workerPath, Args: []string{command, "--manifest", manifestPath}, Env: env, Dir: workspace,
 		Limits: platform.OperationLimits{MemoryMaxBytes: memory, TasksMax: 128, CPUWeight: 100, WallTime: wallTime}}, nil
 }
 
 func physicalWorkerEnvironment(workspace string) ([]string, error) {
-	ownerHome, err := os.UserHomeDir()
-	if err != nil || !filepath.IsAbs(ownerHome) || filepath.Clean(ownerHome) != ownerHome {
-		return nil, errors.New("renderjobs: runtime owner home is unavailable for governed tool-profile resolution")
+	ownerHome, err := runtimeOwnerHome()
+	if err != nil {
+		return nil, err
 	}
 	return physicalWorkerEnvironmentFor(ownerHome, workspace, os.Getenv(cliinvoke.BinaryEnvVar))
 }
 
 func physicalWorkerEnvironmentFor(ownerHome, workspace, configuredCLI string) ([]string, error) {
+	env, err := geometryWorkerEnvironmentFor(ownerHome, workspace, configuredCLI)
+	if err != nil {
+		return nil, err
+	}
+	return append(env,
+		"XDG_CONFIG_HOME="+filepath.Join(workspace, "config"),
+		"XDG_CACHE_HOME="+filepath.Join(workspace, "cache"),
+		"BLENDER_USER_CONFIG="+filepath.Join(workspace, "config", "blender"),
+		"BLENDER_USER_SCRIPTS="+filepath.Join(workspace, "scripts"),
+		"BLENDER_USER_DATAFILES="+filepath.Join(workspace, "datafiles"),
+		"PYTHONPYCACHEPREFIX="+filepath.Join(workspace, "pycache"),
+		"PYTHONDONTWRITEBYTECODE=1",
+		"OMP_NUM_THREADS=2",
+	), nil
+}
+
+func geometryWorkerEnvironment(workspace string) ([]string, error) {
+	ownerHome, err := runtimeOwnerHome()
+	if err != nil {
+		return nil, err
+	}
+	return geometryWorkerEnvironmentFor(ownerHome, workspace, os.Getenv(cliinvoke.BinaryEnvVar))
+}
+
+func geometryWorkerEnvironmentFor(ownerHome, workspace, configuredCLI string) ([]string, error) {
+	if strings.TrimSpace(workspace) == "" || !filepath.IsAbs(workspace) || filepath.Clean(workspace) != workspace {
+		return nil, errors.New("renderjobs: geometry worker workspace must be absolute and clean")
+	}
 	cliPath, err := resolvePhysicalWorkerCLI(ownerHome, configuredCLI)
 	if err != nil {
 		return nil, err
@@ -339,15 +389,15 @@ func physicalWorkerEnvironmentFor(ownerHome, workspace, configuredCLI string) ([
 		"HOME=" + ownerHome,
 		cliinvoke.BinaryEnvVar + "=" + cliPath,
 		"TMPDIR=" + filepath.Join(workspace, "tmp"),
-		"XDG_CONFIG_HOME=" + filepath.Join(workspace, "config"),
-		"XDG_CACHE_HOME=" + filepath.Join(workspace, "cache"),
-		"BLENDER_USER_CONFIG=" + filepath.Join(workspace, "config", "blender"),
-		"BLENDER_USER_SCRIPTS=" + filepath.Join(workspace, "scripts"),
-		"BLENDER_USER_DATAFILES=" + filepath.Join(workspace, "datafiles"),
-		"PYTHONPYCACHEPREFIX=" + filepath.Join(workspace, "pycache"),
-		"PYTHONDONTWRITEBYTECODE=1",
-		"OMP_NUM_THREADS=2",
 	}, nil
+}
+
+func runtimeOwnerHome() (string, error) {
+	ownerHome, err := os.UserHomeDir()
+	if err != nil || !filepath.IsAbs(ownerHome) || filepath.Clean(ownerHome) != ownerHome {
+		return "", errors.New("renderjobs: runtime owner home is unavailable for canonical runtime discovery")
+	}
+	return ownerHome, nil
 }
 
 func resolvePhysicalWorkerCLI(ownerHome, configuredCLI string) (string, error) {

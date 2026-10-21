@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"device-studio/internal/geometry"
 	"device-studio/internal/jobs"
 	"device-studio/internal/renderjobs"
 	"github.com/gorilla/mux"
@@ -21,6 +22,10 @@ type fakeCoordinator struct {
 	cancelVersion int64
 	submitErr     error
 	cancelErr     error
+	replay        bool
+	replayState   jobs.State
+	correction    renderjobs.GeometryCorrectionDetails
+	correctionErr error
 }
 
 func (f *fakeCoordinator) SubmitGeometryCreation(_ context.Context, r renderjobs.GeometryCreationRequest) (jobs.Job, bool, error) {
@@ -29,13 +34,24 @@ func (f *fakeCoordinator) SubmitGeometryCreation(_ context.Context, r renderjobs
 	if f.submitErr != nil {
 		return jobs.Job{}, false, f.submitErr
 	}
-	return sampleJob(), true, nil
+	job := sampleJob()
+	if f.replay {
+		job.State = f.replayState
+		return job, false, nil
+	}
+	return job, true, nil
 }
 func (f *fakeCoordinator) FindGeometryCreationByKey(_ context.Context, projectID, key string) (jobs.Job, error) {
 	if projectID != "project-1" || key != "request-1" {
 		return jobs.Job{}, jobs.ErrNotFound
 	}
 	return sampleJob(), nil
+}
+func (f *fakeCoordinator) OpenGeometryCorrection(_ context.Context, jobID string) (renderjobs.GeometryCorrectionDetails, error) {
+	if jobID != "job-1" {
+		return renderjobs.GeometryCorrectionDetails{}, jobs.ErrNotFound
+	}
+	return f.correction, f.correctionErr
 }
 func (f *fakeCoordinator) Cancel(_ context.Context, id string, v int64) (jobs.Job, error) {
 	f.cancelVersion = v
@@ -87,6 +103,26 @@ func TestCreateRequiresExplicitLocalAIDisclosureAndPinsProjectRoute(t *testing.T
 	}
 }
 
+func TestRemoteCreateRequiresSeparateProviderDisclosureAndPinsFundingChoice(t *testing.T) {
+	c := &fakeCoordinator{}
+	h := createHandler(c, nil)
+	request := func(body string) *httptest.ResponseRecorder {
+		r := httptest.NewRequest(http.MethodPost, "/api/v1/projects/project-1/geometry-creations", strings.NewReader(body))
+		r = mux.SetURLVars(r, map[string]string{"project_id": "project-1"})
+		w := httptest.NewRecorder()
+		h(w, r)
+		return w
+	}
+	body := `{"candidate_id":"candidate-1","idempotency_key":"request-1","brief":"field device","envelope_mm":[80,150,12],"reference_media_ids":["media-1"],"funding_route":"byok"}`
+	if w := request(body); w.Code != http.StatusUnprocessableEntity || c.calls != 0 {
+		t.Fatalf("remote request without explicit disclosure dispatched: status=%d calls=%d", w.Code, c.calls)
+	}
+	body = strings.TrimSuffix(body, "}") + `,"confirm_remote_ai":true}`
+	if w := request(body); w.Code != http.StatusAccepted || c.calls != 1 || c.request.FundingRoute != renderjobs.GeometryFundingBYOK {
+		t.Fatalf("confirmed remote request route=%q status=%d calls=%d", c.request.FundingRoute, w.Code, c.calls)
+	}
+}
+
 func TestAcceptedCreateActivatesExactRequestContextAndRejectedCreateDoesNot(t *testing.T) {
 	type routeKey struct{}
 	c := &fakeCoordinator{}
@@ -110,6 +146,10 @@ func TestAcceptedCreateActivatesExactRequestContextAndRejectedCreateDoesNot(t *t
 	c.submitErr = errors.New("invalid request")
 	if w := request(ctx); w.Code != http.StatusUnprocessableEntity || activator.calls != 1 {
 		t.Fatalf("refused create status=%d must not activate pump; calls=%d", w.Code, activator.calls)
+	}
+	c.submitErr, c.replay, c.replayState = nil, true, jobs.Cancelled
+	if w := request(ctx); w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "state: cancelled") || strings.Contains(w.Body.String(), "queued") || activator.calls != 2 {
+		t.Fatalf("terminal same-key replay status=%d must report unchanged terminal state and activate reconciliation: calls=%d body=%s", w.Code, activator.calls, w.Body.String())
 	}
 }
 
@@ -150,6 +190,25 @@ func TestCreationStatusAndCancelExposeOnlyBoundedProjection(t *testing.T) {
 	cancelHandler(cancelOwner, reader, nil)(body, cancel)
 	if body.Code != http.StatusAccepted || cancelOwner.cancelVersion != 3 {
 		t.Fatalf("cancel status=%d version=%d body=%s", body.Code, cancelOwner.cancelVersion, body.Body.String())
+	}
+}
+
+func TestCorrectionReadReturnsOnlyOwnerVerifiedBoundedDetails(t *testing.T) {
+	c := &fakeCoordinator{correction: renderjobs.GeometryCorrectionDetails{JobID: "job-1", AttemptID: "attempt-1", Disposition: "available", Issue: &geometry.SemanticIssue{Code: "part_outside_envelope", PartID: "housing", Axis: "y", Message: "part exceeds the locked envelope"}, PriorRecipeJSON: `{"version":"device_geometry_recipe.v1"}`, RecipeSHA256: strings.Repeat("a", 64), RecipeBytes: 42, EnvelopeMM: [3]float64{900, 645.45, 194.82}}}
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodGet, "/api/v1/geometry-creations/job-1/correction", nil)
+	r = mux.SetURLVars(r, map[string]string{"job_id": "job-1"})
+	correctionHandler(c)(w, r)
+	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"axis":"y"`) || !strings.Contains(w.Body.String(), `"prior_recipe_json"`) || strings.Contains(w.Body.String(), "workspace") {
+		t.Fatalf("verified correction projection status=%d body=%s", w.Code, w.Body.String())
+	}
+	c.correctionErr = errors.New("job is active")
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest(http.MethodGet, "/api/v1/geometry-creations/job-1/correction", nil)
+	r = mux.SetURLVars(r, map[string]string{"job_id": "job-1"})
+	correctionHandler(c)(w, r)
+	if w.Code != http.StatusConflict || strings.Contains(w.Body.String(), "prior_recipe_json") {
+		t.Fatalf("active job correction read was not refused: status=%d body=%s", w.Code, w.Body.String())
 	}
 }
 

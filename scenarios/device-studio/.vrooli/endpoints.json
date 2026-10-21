@@ -192,6 +192,93 @@
       }
     },
     {
+      "id": "photographic_submit",
+      "path": "/api/v1/projects/{project_id}/photographic-scenes",
+      "method": "POST",
+      "summary": "Submit one local photographic scene generation",
+      "description": "Browser-owned request adapter to Image Tools; local-only owner job execution remains authoritative.",
+      "category": "projects",
+      "request": {
+        "type": "object",
+        "properties": {
+          "height": "512 or 768",
+          "operation_id": "UUID",
+          "prompt": "string (<=800 UTF-8 bytes)",
+          "width": "768 or 512"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "job_id": "string",
+          "model_id": "string",
+          "state": "string",
+          "tier": "string"
+        }
+      },
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The project workbench needs a bounded JSON/browser action; Image Tools remains the sole generation and job owner."
+      }
+    },
+    {
+      "id": "photographic_read",
+      "path": "/api/v1/projects/{project_id}/photographic-scenes/operations/{operation_id}",
+      "method": "GET",
+      "summary": "Read local generation status",
+      "description": "Reads an Image Tools operation record without submitting work.",
+      "category": "projects",
+      "response": {
+        "type": "object",
+        "properties": {
+          "job_id": "string",
+          "progress": "integer",
+          "result_ref": "string",
+          "state": "string"
+        }
+      },
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The browser reads a caller-key status DTO; the durable record remains owned by Image Tools."
+      }
+    },
+    {
+      "id": "photographic_wait",
+      "path": "/api/v1/projects/{project_id}/photographic-scenes/operations/{operation_id}/wait",
+      "method": "POST",
+      "summary": "Wait once for local generation",
+      "description": "Uses the Image Tools block-once WaitJob verb.",
+      "category": "projects",
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The browser invokes one block-once owner wait through its project API origin."
+      }
+    },
+    {
+      "id": "photographic_cancel",
+      "path": "/api/v1/projects/{project_id}/photographic-scenes/operations/{operation_id}/cancel",
+      "method": "POST",
+      "summary": "Request local generation cancellation",
+      "description": "Forwards cancellation to the Image Tools job owner and returns its current state.",
+      "category": "projects",
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The browser invokes the owner cancellation through its project API origin."
+      }
+    },
+    {
+      "id": "photographic_content",
+      "path": "/api/v1/projects/{project_id}/photographic-scenes/operations/{operation_id}/content",
+      "method": "GET",
+      "summary": "Read verified generated PNG",
+      "description": "Copies a successful managed Image Tools PNG after checking type, size, and requested dimensions.",
+      "category": "projects",
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "Binary owner content is verified and proxied through the project API; callers cannot provide filesystem paths."
+      }
+    },
+    {
       "id": "devices_candidate_save",
       "path": "/vrooli.device_studio.v1.devices.DevicesService/SaveDeviceCandidate",
       "method": "POST",
@@ -328,6 +415,78 @@
       "category": "library"
     },
     {
+      "id": "library_intake_candidate_list",
+      "path": "/vrooli.device_studio.v1.library.LibraryCatalogService/ListIntakeCandidates",
+      "method": "POST",
+      "summary": "List local geometry intake candidates",
+      "description": "Returns bounded local GLB intake metadata, user claims, and inspector observations; candidates remain unreviewed and unavailable for rendering.",
+      "category": "library"
+    },
+    {
+      "id": "library_intake_candidate_get",
+      "path": "/vrooli.device_studio.v1.library.LibraryCatalogService/GetIntakeCandidate",
+      "method": "POST",
+      "summary": "Get local geometry intake metadata",
+      "description": "Returns one immutable intake candidate revision without exposing its routed storage key or source bytes.",
+      "category": "library"
+    },
+    {
+      "id": "library_intake_candidate_import",
+      "path": "/api/v1/library/intake-candidates",
+      "method": "POST",
+      "summary": "Import a local GLB candidate",
+      "description": "Streams one bounded GLB with a protobuf-JSON IntakeCandidateClaims metadata part. Import records claims and inspection facts only; it does not publish rights or make the candidate renderable.",
+      "category": "library",
+      "rest_exception": {
+        "reason": "multipart_upload",
+        "note": "Multipart contains metadata and one GLB file; the response is proto-JSON GetIntakeCandidateResponse.",
+        "proto_payloads": {
+          "request": {
+            "proto_full_name": "vrooli.device_studio.v1.library.IntakeCandidateClaims",
+            "transport": "multipart/form-data",
+            "conformance": "transport_only"
+          },
+          "response": {
+            "proto_full_name": "vrooli.device_studio.v1.library.GetIntakeCandidateResponse",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.device_studio.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "library_intake_candidate_content",
+      "path": "/api/v1/library/intake-candidates/{candidate_id}/revisions/{revision}/content",
+      "method": "GET",
+      "summary": "Fetch verified original GLB bytes",
+      "description": "Streams digest-verified original bytes from a pinned intake candidate revision.",
+      "category": "library",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "The owner verifies the full byte count and SHA-256 before publishing the final byte.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "error": {
+            "proto_full_name": "vrooli.device_studio.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
       "id": "physical_starter_initialize",
       "path": "/vrooli.device_studio.v1.physical.PhysicalStarterService/InitializeReviewedStarter",
       "method": "POST",
@@ -397,6 +556,46 @@
       "method": "POST",
       "summary": "Validate shot draft",
       "description": "Validates typed shot fields without persisting a revision.",
+      "category": "shots"
+    },
+    {
+      "id": "physical_setup_preset_save",
+      "path": "/vrooli.device_studio.v1.shots.ShotsService/SavePhysicalShotPreset",
+      "method": "POST",
+      "summary": "Save physical setup preset",
+      "description": "Appends an immutable setup join after resolving exact candidate revisions and current render rights.",
+      "category": "shots"
+    },
+    {
+      "id": "physical_setup_preset_get",
+      "path": "/vrooli.device_studio.v1.shots.ShotsService/GetPhysicalShotPreset",
+      "method": "POST",
+      "summary": "Get physical setup preset revision",
+      "description": "Returns one immutable physical setup join without assets or qualification claims.",
+      "category": "shots"
+    },
+    {
+      "id": "physical_setup_preset_head",
+      "path": "/vrooli.device_studio.v1.shots.ShotsService/GetPhysicalShotPresetHead",
+      "method": "POST",
+      "summary": "Get physical setup preset head",
+      "description": "Returns the current immutable setup preset revision.",
+      "category": "shots"
+    },
+    {
+      "id": "physical_setup_preset_list",
+      "path": "/vrooli.device_studio.v1.shots.ShotsService/ListPhysicalShotPresets",
+      "method": "POST",
+      "summary": "List physical setup preset heads",
+      "description": "Returns a bounded stable-ID page of physical shot setup joins.",
+      "category": "shots"
+    },
+    {
+      "id": "physical_setup_preset_revisions",
+      "path": "/vrooli.device_studio.v1.shots.ShotsService/ListPhysicalShotPresetRevisions",
+      "method": "POST",
+      "summary": "List physical setup preset revisions",
+      "description": "Returns a bounded page of immutable setup preset revisions.",
       "category": "shots"
     },
     {

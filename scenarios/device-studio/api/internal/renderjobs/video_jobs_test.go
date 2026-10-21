@@ -573,6 +573,45 @@ func TestMakeVideoClosureProducesWorkerValidCompositorProfile(t *testing.T) {
 	if err := rendering.ValidateVideoManifest(cameraClosure.Manifest); err != nil {
 		t.Fatalf("camera closure is rejected by worker contract: %v", err)
 	}
+	for _, tc := range []struct {
+		name          string
+		width, height uint32
+		wantW, wantH  int
+	}{
+		{name: "landscape-3-by-2", width: 1536, height: 1024, wantW: 1920, wantH: 1080},
+		{name: "portrait-2-by-3", width: 1024, height: 1536, wantW: 1080, wantH: 1920},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			resolved.Revision.Plate.WidthPixels, resolved.Revision.Plate.HeightPixels = tc.width, tc.height
+			scene := proto.Clone(resolved.Revision.Snapshot.GetScene()).(*shotsv1.PhotographicScene)
+			scene.PlateQuad = &shotsv1.PlateQuad{
+				TopLeft: &shotsv1.ShotPoint{X: 0, Y: 0}, TopRight: &shotsv1.ShotPoint{X: float64(tc.width), Y: 0},
+				BottomRight: &shotsv1.ShotPoint{X: float64(tc.width), Y: float64(tc.height)}, BottomLeft: &shotsv1.ShotPoint{X: 0, Y: float64(tc.height)},
+			}
+			resolved.Revision.Snapshot.Scene = scene
+			resolved.Revision.Snapshot.CameraMotion = &shotsv1.PhotographicCameraMotion{
+				ProfileId: shots.CameraMotionProfileID, ProfileVersion: shots.CameraMotionProfileVersion,
+				DurationOutputFrames: 24, MatteRgb: &shotsv1.PresentationRGB{Red: 32, Green: 34, Blue: 38},
+			}
+			resolved.Revision.Snapshot.VideoTiming.VideoCompositionProfileId = shots.VideoProfileScreenEntry
+			fitted, err := c.makeVideoClosure(ctx, route, request, resolved, workerKey, workerSHA)
+			if err != nil {
+				t.Fatalf("make closure for approved %dx%d plate: %v", tc.width, tc.height, err)
+			}
+			fitted.Manifest.JobID, fitted.Manifest.AttemptID = "fitted-video-job", "fitted-video-attempt"
+			fitted.Manifest.InputFingerprint = digestBytes([]byte("fitted video input"))
+			fitted.Manifest.WorkerSHA256 = workerSHA
+			if fitted.Manifest.Width != tc.wantW || fitted.Manifest.Height != tc.wantH || fitted.Manifest.Scene.PlateWidth != int(tc.width) || fitted.Manifest.Scene.PlateHeight != int(tc.height) {
+				t.Fatalf("fitted output/immutable input dimensions = %dx%d / %dx%d", fitted.Manifest.Width, fitted.Manifest.Height, fitted.Manifest.Scene.PlateWidth, fitted.Manifest.Scene.PlateHeight)
+			}
+			if fitted.Manifest.TrimStartPTS != 0 || fitted.Manifest.TrimEndPTS != 90 || fitted.Manifest.Scene.Quad[2] != (rendering.Corner{X: float64(tc.width), Y: float64(tc.height)}) {
+				t.Fatalf("plate fit changed source clock or quad: trim=%d..%d quad=%+v", fitted.Manifest.TrimStartPTS, fitted.Manifest.TrimEndPTS, fitted.Manifest.Scene.Quad)
+			}
+			if err := rendering.ValidateVideoManifest(fitted.Manifest); err != nil {
+				t.Fatalf("fitted %s manifest invalid: %v", tc.name, err)
+			}
+		})
+	}
 }
 
 func validPreparedVideoManifest(t *testing.T, sourceSHA string, sourceSize int64, manifestSHA string, manifestSize int64, receiptSHA string, receiptSize int64, clockSHA string, clockSize int64, plateSHA string, plateSize int64, activeSHA string, activeSize int64) rendering.VideoManifest {

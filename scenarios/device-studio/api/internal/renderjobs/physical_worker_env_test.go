@@ -1,13 +1,74 @@
 package renderjobs
 
 import (
+	"context"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
+	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/repo-contract-go/cliinvoke"
 )
+
+func TestGeometryWorkerEnvironmentResolvesCanonicalScenarioPortWithNoAmbientEnvironment(t *testing.T) {
+	if os.Getenv("DEVICE_STUDIO_GEOMETRY_DISCOVERY_CHILD") == "1" {
+		url, err := discovery.ResolveScenarioURLDefault(context.Background(), "fixture-gateway")
+		if err != nil {
+			t.Fatal(err)
+		}
+		fmt.Print(url)
+		return
+	}
+	if runtime.GOOS != "linux" {
+		t.Skip("the constrained child process fixture uses a POSIX test CLI")
+	}
+
+	root := t.TempDir()
+	home := filepath.Join(root, "operator-home")
+	workspace := filepath.Join(root, "attempt")
+	cli := filepath.Join(root, "vrooli-fixture")
+	if err := os.MkdirAll(filepath.Join(workspace, "tmp"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(cli, []byte("#!/bin/sh\nprintf '{\"port\":19349}\\n'\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	env, err := geometryWorkerEnvironmentFor(home, workspace, cli)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(env) != 3 {
+		t.Fatalf("geometry worker environment has %d entries, want only HOME, VROOLI_BIN and TMPDIR: %v", len(env), env)
+	}
+
+	executable, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(executable, "-test.run=^TestGeometryWorkerEnvironmentResolvesCanonicalScenarioPortWithNoAmbientEnvironment$")
+	cmd.Dir = repositoryRootForTest(t)
+	cmd.Env = append(env, "DEVICE_STUDIO_GEOMETRY_DISCOVERY_CHILD=1")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("constrained child discovery failed: %v\n%s", err, output)
+	}
+	if !strings.Contains(string(output), "http://localhost:19349") {
+		t.Fatalf("canonical discovery output = %q, want the fixture gateway API URL", output)
+	}
+}
+
+func repositoryRootForTest(t *testing.T) string {
+	t.Helper()
+	_, source, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("resolve test source path")
+	}
+	return filepath.Clean(filepath.Join(filepath.Dir(source), "../../../../../.."))
+}
 
 func TestPhysicalWorkerEnvironmentPassesOnlyResolvedControlPlaneCLIAndPrivateScratch(t *testing.T) {
 	root := t.TempDir()

@@ -44,6 +44,53 @@ mid-run. The shadow, daily qualification and unavailable targets are described
 once, in [TARGETS.md](goal/TARGETS.md). Never weaken an assertion or count a
 local diagnostic as proof.
 
+## Owner-bound evidence-completeness qualification
+
+The Test Genie evidence producer `evidence-completeness` is a separate,
+explicitly admitted source qualification. It runs these four owner assertions
+against the checked-out source, and records the managed BAS build identity
+before and after the command:
+
+- `api/automation/execution-writer/file_writer_test.go`:
+  `TestScreenshotAndOutcomeWriteFailuresBothSurvive` and
+  `TestInlineTelemetryRemainsAttributableWhenSnapshotStorageFails`.
+- `api/automation/execution-writer/external_artifacts_test.go`:
+  `TestExternalArtifactsRejectMissingOrUncommittedEvidence`.
+- `api/services/retention/retention_test.go`:
+  `TestActiveEvidenceRefusesDeletionUntilExportFinishes`.
+
+The declared source map is exactly those three test files and their owners
+`api/automation/execution-writer/{file_writer.go,external_artifacts.go}` and
+`api/services/{evidence/policy.go,evidence/har.go,retention/retention.go,retention/activity.go,retention/fs.go}`,
+plus `api/go.mod`, `api/go.sum`,
+`api/cmd/evidence-completeness-cohort/qualification.mjs`,
+`.vrooli/test-genie.json`, and this document.
+The map is an explicit qualification input set, not a claim that it captures
+every transitive build input. The producer records the managed API's `/health`
+`build_identity` before and after the checks; a missing or changed identity fails
+the qualification. Test Genie independently pins the candidate source identity
+through producer completion. The Go assertions exercise checked-out source, not
+the serving binary, and this health check does not claim that the two identity
+formats are equivalent.
+
+The bounded producer command is:
+
+```bash
+go test -json ./automation/execution-writer ./services/retention \
+  -run '^(TestScreenshotAndOutcomeWriteFailuresBothSurvive|TestInlineTelemetryRemainsAttributableWhenSnapshotStorageFails|TestExternalArtifactsRejectMissingOrUncommittedEvidence|TestActiveEvidenceRefusesDeletionUntilExportFinishes)$' \
+  -count=1
+```
+
+Its owner wrapper streams stdout and stderr into the declared private output
+directory while enforcing the declaration's aggregate output ceiling. It
+records the selected test outcomes, source-map digest, and before/after live
+build identities there. It does not use globs, `latest` files, test discovery,
+caller-provided paths, or a second evidence store. Test Genie retains and
+catalogs the resulting bounded output; later qualification must consume the
+exact retained evidence set through the existing typed handoff. A source test
+result alone is not a joined producer-to-consumer qualification or product
+acceptance.
+
 
 ## UI project and coverage contract
 

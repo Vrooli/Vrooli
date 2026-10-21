@@ -10,12 +10,12 @@ import { CaptureArea, CompiledShotSchema, ComponentRevisionRefSchema, MotionMode
 import { renderWithProviders } from "../../test-utils";
 import { i18n, setLocale } from "../../i18n";
 import { strings } from "../../consts/strings";
-import { getBundleRevisionMetadata, getReviewedPhysicalStarter, listDeviceCandidates, listMotionCandidates, listPhysicalShotPresets, listSceneCandidates, motionsClient, resolvePhysicalShotPreset } from "../../api/physical";
+import { getBundleRevisionMetadata, getReviewedPhysicalStarter, initializePhysicalStarter, listDeviceCandidates, listMotionCandidates, listPhysicalShotPresets, listSceneCandidates, motionsClient, resolvePhysicalShotPreset } from "../../api/physical";
 import { getSourceMediaContent, projectsClient, verifySourceMediaContent } from "../../api/projects";
 import { shotsClient } from "../../api/shots";
 import { NewPhysicalShot, PhysicalShotEditor } from "./PhysicalShotWorkspace";
 
-vi.mock("../../api/physical", () => ({ getReviewedPhysicalStarter: vi.fn(), getBundleRevisionMetadata: vi.fn(), listDeviceCandidates: vi.fn(), listSceneCandidates: vi.fn(), motionsClient: { getMotionRevision: vi.fn() }, listMotionCandidates: vi.fn(), listPhysicalShotPresets: vi.fn(), resolvePhysicalShotPreset: vi.fn() }));
+vi.mock("../../api/physical", () => ({ getReviewedPhysicalStarter: vi.fn(), initializePhysicalStarter: vi.fn(), physicalStarterChoices: [{ id: "phone-default", label: "Phone study setup" }, { id: "laptop-screen-upright-180", label: "Laptop screen upright · candidate only · unqualified" }], getBundleRevisionMetadata: vi.fn(), listDeviceCandidates: vi.fn(), listSceneCandidates: vi.fn(), motionsClient: { getMotionRevision: vi.fn() }, listMotionCandidates: vi.fn(), listPhysicalShotPresets: vi.fn(), resolvePhysicalShotPreset: vi.fn() }));
 vi.mock("../../api/projects", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/projects")>();
   return { ...actual, projectsClient: { ...actual.projectsClient, listSourceMedia: vi.fn(), getSourceMediaClockPage: vi.fn() }, getSourceMediaContent: vi.fn(), verifySourceMediaContent: vi.fn((blob: Blob) => Promise.resolve(blob)) };
@@ -106,6 +106,19 @@ describe("physical still setup", () => {
     await user.click(await screen.findByRole("button", { name: i18n.t(strings.physical.cancel) }));
     expect(onCancel).toHaveBeenCalledTimes(1);
     expect(shotsClient.createShot).not.toHaveBeenCalled();
+  });
+
+  it("initializes an unqualified laptop candidate and selects its exact refreshed preset", async () => {
+    const user = userEvent.setup();
+    vi.mocked(initializePhysicalStarter).mockResolvedValue({ refs: {} as never, preset: { $typeName: "vrooli.device_studio.v1.physical.ComponentRevisionRef", id: "laptop-upright-still", revision: 2, sha256: "a".repeat(64) } });
+    vi.mocked(listPhysicalShotPresets).mockResolvedValue({ presets: [savedPreset.preset, { ...savedPreset.preset, presetId: "laptop-upright-still", revision: 2, sha256: "a".repeat(64), name: "Laptop · candidate only" }] } as never);
+    renderWithProviders(<NewPhysicalShot projectId="project-1" onCreated={vi.fn()} onCancel={vi.fn()} />);
+    const select = await screen.findByRole("combobox", { name: i18n.t(strings.physical.initializeStarter) });
+    await user.selectOptions(select, "laptop-screen-upright-180");
+    await user.click(screen.getByRole("button", { name: i18n.t(strings.physical.initializeStarter) }));
+    await waitFor(() => expect(initializePhysicalStarter).toHaveBeenCalledWith("laptop-screen-upright-180"));
+    await waitFor(() => expect(screen.getByRole("combobox", { name: i18n.t(strings.physical.selectSavedSetup) })).toHaveValue("laptop-upright-still"));
+    expect(resolvePhysicalShotPreset).toHaveBeenCalledWith("laptop-upright-still", 2);
   });
 
   it("creates a candidate-only physical shot from exact reviewed revisions and verified screen bytes", async () => {
@@ -357,18 +370,51 @@ describe("physical still setup", () => {
     expect(snapshot?.physicalBinding?.motionOutput).toMatchObject({ profileId: "device-studio-physical-motion-1080p-v2", profileVersion: 2, frameCount: 240 });
   });
 
-  it("rejects an already-composed image whose raster does not match the reviewed display", async () => {
-    const wrongAspect = create(SourceMediaSchema, { ...media, width: 444, height: 1000 });
-    vi.mocked(projectsClient.listSourceMedia).mockResolvedValue({ sourceMedia: [wrongAspect], nextPageToken: "" } as never);
+  it("keeps the aspect of an already-composed screenshot and lets the compositor fit it to the display", async () => {
+    const composed = create(SourceMediaSchema, { ...media, width: 1440, height: 800 });
+    vi.mocked(projectsClient.listSourceMedia).mockResolvedValue({ sourceMedia: [composed], nextPageToken: "" } as never);
     const user = userEvent.setup();
     renderWithProviders(<NewPhysicalShot projectId="project-1" onCreated={vi.fn()} onCancel={vi.fn()} />);
     await user.click(await screen.findByRole("button", { name: i18n.t(strings.physical.continue) }));
     await user.click(screen.getByRole("button", { name: i18n.t(strings.physical.continue) }));
-    await user.selectOptions(screen.getByLabelText(i18n.t(strings.physical.sourceSelect)), wrongAspect.id);
-    expect(await screen.findByRole("alert")).toHaveTextContent(i18n.t(strings.physical.aspectIssue));
+    await user.selectOptions(screen.getByLabelText(i18n.t(strings.physical.sourceSelect)), composed.id);
     await user.click(screen.getByRole("button", { name: i18n.t(strings.physical.continue) }));
     await user.click(screen.getByRole("button", { name: i18n.t(strings.physical.continue) }));
-    expect(screen.getByRole("button", { name: i18n.t(strings.physical.create) })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: i18n.t(strings.physical.create) }));
+    await waitFor(() => expect(shotsClient.createShot).toHaveBeenCalledTimes(1));
+    const snapshot = vi.mocked(shotsClient.createShot).mock.calls[0]?.[0].snapshot;
+    expect(snapshot?.physicalBinding?.screenWidthPixels).toBe(1440);
+    expect(snapshot?.physicalBinding?.screenHeightPixels).toBe(800);
+    expect(snapshot?.presentation?.captureArea).toBe(CaptureArea.ALREADY_COMPOSED);
+  });
+
+  it("composes an app-only laptop raster in browser chrome using the saved display aspect", async () => {
+    const app = create(SourceMediaSchema, { ...media, width: 1440, height: 800 });
+    const laptopPreset = {
+      ...savedPreset,
+      device: { ...savedPreset.device, candidate: { ...savedPreset.device.candidate, definition: { ...savedPreset.device.candidate.definition, displays: [{ id: "main_display", coordinateMetric: { widthMm: 160, heightMm: 100 } }] } } },
+    };
+    vi.mocked(resolvePhysicalShotPreset).mockResolvedValue(laptopPreset as never);
+    vi.mocked(projectsClient.listSourceMedia).mockResolvedValue({ sourceMedia: [app], nextPageToken: "" } as never);
+    const user = userEvent.setup();
+    renderWithProviders(<NewPhysicalShot projectId="project-1" onCreated={vi.fn()} onCancel={vi.fn()} />);
+    await user.click(await screen.findByRole("button", { name: i18n.t(strings.physical.continue) }));
+    await user.click(screen.getByRole("button", { name: i18n.t(strings.physical.continue) }));
+    await user.selectOptions(screen.getByLabelText(i18n.t(strings.physical.sourceSelect)), app.id);
+    await user.selectOptions(screen.getAllByLabelText(i18n.t(strings.shot.captureArea))[0]!, String(CaptureArea.APP_ONLY));
+    await user.selectOptions(screen.getAllByLabelText(i18n.t(strings.shot.presentationKind))[1]!, String(PresentationKind.BROWSER_DESKTOP));
+    await user.click(screen.getByText(i18n.t(strings.shot.browserChrome)));
+    await user.type(screen.getByLabelText(i18n.t(strings.shot.windowTitle)), "Studio preview");
+    await user.type(screen.getByLabelText(i18n.t(strings.shot.addressText)), "app.example.test");
+    await user.click(screen.getByLabelText(i18n.t(strings.shot.menuBar)));
+    await user.click(screen.getByLabelText(i18n.t(strings.shot.dock)));
+    await user.click(screen.getByRole("button", { name: i18n.t(strings.physical.continue) }));
+    await user.click(screen.getByRole("button", { name: i18n.t(strings.physical.continue) }));
+    await user.click(screen.getByRole("button", { name: i18n.t(strings.physical.create) }));
+    await waitFor(() => expect(shotsClient.createShot).toHaveBeenCalledTimes(1));
+    const snapshot = vi.mocked(shotsClient.createShot).mock.calls[0]?.[0].snapshot;
+    expect(snapshot?.physicalBinding).toMatchObject({ screenWidthPixels: 1440, screenHeightPixels: 900 });
+    expect(snapshot?.presentation).toMatchObject({ sourceMediaId: app.id, captureArea: CaptureArea.APP_ONLY, kind: PresentationKind.BROWSER_DESKTOP, fitMode: ScreenFitMode.CONTAIN, browserDesktopChrome: { windowTitle: "Studio preview", addressText: "app.example.test", showMenuBar: true, showDock: true } });
   });
 
   it("does not offer a recording when its accepted receipt belongs to different source bytes", async () => {
@@ -523,13 +569,17 @@ describe("physical still setup", () => {
   it("preserves saved presentation settings when editing a physical shot", async () => {
     const user = userEvent.setup();
     const binding = create(PhysicalShotBindingSchema, { device: create(ComponentRevisionRefSchema, { id: "device-phone", revision: 1, sha256: "b".repeat(64) }), backend: PhysicalRenderBackend.OPTIX });
-    const presentation = create(ScreenPresentationSchema, { sourceMediaId: "screen-source", captureArea: CaptureArea.ALREADY_COMPOSED, kind: PresentationKind.PLAIN, fitMode: ScreenFitMode.COVER, viewportWidthPixels: 111, viewportHeightPixels: 222 });
+    const presentation = create(ScreenPresentationSchema, { sourceMediaId: "screen-source", captureArea: CaptureArea.ALREADY_COMPOSED, kind: PresentationKind.BROWSER_DESKTOP, fitMode: ScreenFitMode.COVER, viewportWidthPixels: 111, viewportHeightPixels: 222, browserDesktopChrome: { windowTitle: "Existing title", addressText: "old.example.test", showToolbar: true } });
     const snapshot = create(ShotSnapshotSchema, { motionMode: MotionMode.FIXED, physicalBinding: binding, presentation });
     const head = create(ShotRevisionSchema, { shotId: "physical-shot", revision: 2n, name: "Phone", snapshot, issues: [] });
     vi.mocked(shotsClient.getShot).mockResolvedValue({ shot: create(ShotSchema, { id: "physical-shot", projectId: "project-1", name: "Phone", headRevision: 2n }), head } as never);
     vi.mocked(shotsClient.saveShot).mockResolvedValue({ revision: create(ShotRevisionSchema, { ...head, revision: 3n }) } as never);
     renderWithProviders(<PhysicalShotEditor projectId="project-1" shotId="physical-shot" />);
     await screen.findByTestId("physical-shot-editor");
+    await user.click(screen.getByText(i18n.t(strings.shot.browserChrome)));
+    await user.clear(screen.getByLabelText(i18n.t(strings.shot.addressText)));
+    await user.type(screen.getByLabelText(i18n.t(strings.shot.addressText)), "new.example.test");
+    await user.click(screen.getByLabelText(i18n.t(strings.shot.dock)));
     await user.clear(screen.getByLabelText(i18n.t(strings.shot.nameLabel)));
     await user.type(screen.getByLabelText(i18n.t(strings.shot.nameLabel)), "Renamed");
     await user.click(screen.getByRole("button", { name: i18n.t(strings.physical.saveRevision) }));
@@ -539,6 +589,7 @@ describe("physical still setup", () => {
     expect(saved?.fitMode).toBe(ScreenFitMode.COVER);
     expect(saved?.viewportWidthPixels).toBe(111);
     expect(saved?.viewportHeightPixels).toBe(222);
+    expect(saved?.browserDesktopChrome).toMatchObject({ windowTitle: "Existing title", addressText: "new.example.test", showDock: true });
   });
 
   it("saves edited physical placement, exact sample tick, backend, and still profile", async () => {

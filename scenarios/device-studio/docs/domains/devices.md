@@ -27,6 +27,10 @@ Each exact device records manufacturer/model/generation/size/variant and measure
 
 Parts have stable names/local frames; joints declare parent/child, axis/pivot, range and rest pose. Attachments declare mating interfaces and constraints. Motion qualification examines the full swept envelope, not just endpoints. Folds can have several independently mapped displays and screen-state handoff; a deforming mesh requires UV/deformation calibration, not four-corner homography.
 
+## Public revision projection
+
+Device, scene and motion revisions are immutable owner snapshots exposed through typed Connect messages. Their public messages must round-trip every defined owner field, including optional display primitive/material indices, without dropping metadata or confusing an absent value with zero. The public physical-starter initializer, its preset, and every pinned component revision must remain readable through their owner APIs with the same IDs, revisions and digests. Exercise this path through the Connect clients when adding a family; direct store tests do not prove the public contract.
+
 Placement preserves real scale. Support solves contacts including laptop feet or phone camera bump; cosmetic floating gaps cannot conceal unsupported poses. Static support geometry under an assumed center of mass is not measured dynamic stability. Wall compatibility requires an actual mount chain and clearance, not a boolean inferred from a flat back.
 
 ## Source and rights policy

@@ -1066,7 +1066,21 @@ Scenario: DS-INTEGRATION-LAUNCH
 
 **Evidence to retain after execution:** The case inputs/revisions, actual actions and observed result versus the Then/counterexample oracle, plus applicable records from the rules above. No evidence has been collected for this product requirement.
 
-**Planned automation:** Real consumer/API replay and resulting film-segment review.
+**Planned automation:** Invoke `device-studio.launch-video-shot` through Program
+Runtime with an existing project, saved shot ID, expected head revision, typed
+snapshot and stable render idempotency key. Retain the program execution ID,
+exact saved revision and reopen response, render job ID/status and the export
+metadata. When the job succeeds, run the returned public
+`device-studio renders export` command to a new path and retain its verified
+download result plus artifact SHA-256. A queued or running job is observed again
+by its exact project/job IDs; cancel only through the owner's expected-version
+operation. Compose the exported segment in Launch Video/HyperFrames and review
+the actual complete film, which keeps audio and CTA outside Device Studio.
+Use the approved photographic phone plate and an authentic app recording for
+the source-continuous screen-entry recipe; verify the final decoded frame shows
+the active app viewport at the source-clock position declared by the saved
+revision. The approved still does not approve future scene craft, and the
+synthetic P7 camera calibration output is not photographic craft evidence.
 
 ### DS-INTEGRATION-DELIVERY
 

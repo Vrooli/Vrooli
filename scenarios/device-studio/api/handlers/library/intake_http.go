@@ -3,6 +3,7 @@ package library
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"log"
@@ -26,6 +27,11 @@ const maxIntakeMultipartBytes int64 = domain.MaxGeometryBytes + (1 << 20)
 type intakeOperations interface {
 	BeginImport(context.Context, domain.IntakeClaims, string, int64, io.Reader) (domain.StagedIntakeImport, error)
 	Open(context.Context, string, uint32) (domain.IntakeCandidate, io.ReadCloser, error)
+}
+
+type materialIntakeOperations interface {
+	MaterialInventory(context.Context, string, uint32, string) (domain.IntakeMaterialInventory, error)
+	CorrectMaterial(context.Context, domain.MaterialCorrectionRequest) (domain.IntakeCandidate, error)
 }
 
 type intakeHTTPHandler struct {
@@ -78,6 +84,85 @@ func newIntakeContentHandler(service intakeOperations, db *database.RoutedDB, ro
 			panic(http.ErrAbortHandler)
 		}
 	})
+}
+
+func newIntakeMaterialsHandler(service materialIntakeOperations, db *database.RoutedDB, roots *filerouting.RoutedRoots, logger *log.Logger) http.Handler {
+	if logger == nil {
+		logger = log.Default()
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if service == nil {
+			httpx.WriteError(w, http.StatusServiceUnavailable, httpx.CodeInternal, "material correction is unavailable")
+			return
+		}
+		ctx, err := pinIntakeRoute(r.Context(), db, roots)
+		if err != nil {
+			httpx.WriteError(w, http.StatusServiceUnavailable, httpx.CodeInternal, "routed intake storage is unavailable")
+			return
+		}
+		id := mux.Vars(r)["candidate_id"]
+		revision, err := parseIntakeRevision(mux.Vars(r)["revision"])
+		if err != nil {
+			httpx.WriteError(w, http.StatusBadRequest, httpx.CodeInvalidRequest, "candidate revision is invalid")
+			return
+		}
+		inventory, err := service.MaterialInventory(ctx, id, revision, r.URL.Query().Get("revision_sha256"))
+		if err != nil {
+			writeIntakeHTTPError(w, logger, err)
+			return
+		}
+		writeIntakeJSON(w, http.StatusOK, inventory)
+	})
+}
+
+func newIntakeMaterialCorrectionHandler(service materialIntakeOperations, db *database.RoutedDB, roots *filerouting.RoutedRoots, logger *log.Logger) http.Handler {
+	if logger == nil {
+		logger = log.Default()
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if service == nil {
+			httpx.WriteError(w, http.StatusServiceUnavailable, httpx.CodeInternal, "material correction is unavailable")
+			return
+		}
+		ctx, err := pinIntakeRoute(r.Context(), db, roots)
+		if err != nil {
+			httpx.WriteError(w, http.StatusServiceUnavailable, httpx.CodeInternal, "routed intake storage is unavailable")
+			return
+		}
+		var req domain.MaterialCorrectionRequest
+		decoder := json.NewDecoder(io.LimitReader(r.Body, 64<<10+1))
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&req); err != nil {
+			httpx.WriteError(w, http.StatusBadRequest, httpx.CodeInvalidRequest, "material correction request is invalid")
+			return
+		}
+		var extra any
+		if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) {
+			httpx.WriteError(w, http.StatusBadRequest, httpx.CodeInvalidRequest, "material correction request has trailing data")
+			return
+		}
+		pathID := mux.Vars(r)["candidate_id"]
+		pathRevision, err := parseIntakeRevision(mux.Vars(r)["revision"])
+		if err != nil || req.ParentCandidateID != pathID || req.ParentRevision != pathRevision {
+			httpx.WriteError(w, http.StatusBadRequest, httpx.CodeInvalidRequest, "request parent must match the exact candidate revision in the route")
+			return
+		}
+		candidate, err := service.CorrectMaterial(ctx, req)
+		if err != nil {
+			writeIntakeHTTPError(w, logger, err)
+			return
+		}
+		writeIntakeJSON(w, http.StatusOK, map[string]any{"candidate": candidate, "material_correction_lineage": candidate.Correction})
+	})
+}
+
+func writeIntakeJSON(w http.ResponseWriter, status int, value any) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(status)
+	if err := json.NewEncoder(w).Encode(value); err != nil {
+		panic(http.ErrAbortHandler)
+	}
 }
 
 func (h *intakeHTTPHandler) upload(w http.ResponseWriter, r *http.Request) {
@@ -192,6 +277,10 @@ func readIntakeClaims(part *multipart.Part) (domain.IntakeClaims, error) {
 }
 
 func candidateProto(candidate domain.IntakeCandidate) (*v1.IntakeCandidateRevision, error) {
+	// The generated metadata message predates deterministic edit lineage. Keep
+	// its stable projection valid; lineage is available in the JSON REST result
+	// and exact material inventory endpoint.
+	candidate.Correction = nil
 	out := &v1.IntakeCandidateRevision{}
 	if err := revisionapi.Encode(candidate, out); err != nil {
 		return nil, err

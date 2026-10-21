@@ -114,3 +114,74 @@ func (o Owners) InitializeReviewedStarter(ctx context.Context) (StarterState, er
 	}
 	return phone, nil
 }
+
+// InitializePhysicalStarter opts into one existing candidate initializer and
+// returns its immutable setup preset. Empty starter IDs are the legacy phone.
+func (o Owners) InitializePhysicalStarter(ctx context.Context, starterID string) (shots.PhysicalPresetRevision, error) {
+	switch starterID {
+	case "", "phone-default":
+		state, err := o.InitializeReviewedStarter(ctx)
+		return state.Preset, err
+	case "laptop-screen-upright-180":
+		state, err := o.InitializeReviewedLaptopScreenUpright(ctx)
+		return state.Preset, err
+	case "laptop-screen-vflip":
+		state, err := o.InitializeReviewedLaptopScreenVFlip(ctx)
+		return state.Preset, err
+	case "ipad-screen-uv-oriented-180":
+		state, err := o.InitializeReviewedIPadOrientedStarter(ctx)
+		return state.Preset, err
+	case "monitor-screen-mapped-v2":
+		if o.Starter == nil {
+			return shots.PhysicalPresetRevision{}, errors.New("monitor candidate initializer is unavailable")
+		}
+		pinned, err := o.Starter.pinRoute(ctx)
+		if err != nil {
+			return shots.PhysicalPresetRevision{}, err
+		}
+		phone, err := o.Starter.initializePinned(pinned)
+		if err != nil {
+			return shots.PhysicalPresetRevision{}, err
+		}
+		laptop, err := o.Starter.initializeLaptopCandidatePinned(pinned)
+		if err != nil {
+			return shots.PhysicalPresetRevision{}, err
+		}
+		state, err := o.Starter.initializeMonitorScreenMappedCandidatePinned(pinned, laptop.FramedScene, phone.Motion)
+		return state.Preset, err
+	case "generic-round-watch":
+		state, err := o.InitializeReviewedWatchCandidate(ctx)
+		return state.Preset, err
+	case "generic-round-smartwatch-source":
+		state, err := o.InitializeReviewedRoundWatchCandidate(ctx)
+		return state.Preset, err
+	case "generic-television-concept":
+		state, err := o.InitializeReviewedTelevisionCandidate(ctx)
+		return state.Preset, err
+	case "generic-book-fold":
+		state, err := o.InitializeReviewedFoldableCandidate(ctx)
+		return state.Preset, err
+	case "generic-smart-display-concept":
+		state, err := o.InitializeReviewedSmartDisplayCandidate(ctx)
+		return state.Preset, err
+	case "generic-digital-frame-concept":
+		state, err := o.InitializeReviewedDigitalFrameCandidate(ctx)
+		return state.Preset, err
+	case "generic-digital-frame-wall":
+		state, err := o.InitializeReviewedDigitalFrameWallCandidate(ctx)
+		return state.Preset, err
+	case "generic-vehicle-center-stack-concept":
+		state, err := o.InitializeReviewedVehicleCenterStackCandidate(ctx)
+		return state.Preset, err
+	case "generic-vehicle-center-stack-carplay-sim":
+		state, err := o.InitializeReviewedVehicleCenterStackProfile(ctx, "carplay_simulated")
+		return state.Preset, err
+	case "generic-vehicle-center-stack-android-auto-sim":
+		state, err := o.InitializeReviewedVehicleCenterStackProfile(ctx, "android_auto_simulated")
+		return state.Preset, err
+	default:
+		return shots.PhysicalPresetRevision{}, ErrUnknownStarterID
+	}
+}
+
+var ErrUnknownStarterID = errors.New("unknown physical starter ID")

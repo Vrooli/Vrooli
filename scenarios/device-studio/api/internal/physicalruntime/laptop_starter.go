@@ -13,6 +13,7 @@ import (
 	"device-studio/internal/physical"
 	"device-studio/internal/rendering"
 	"device-studio/internal/scenes"
+	"device-studio/internal/shots"
 )
 
 const (
@@ -55,6 +56,7 @@ type LaptopStarterState struct {
 	Motion          motions.Revision
 	Placement       LaptopCandidatePlacement
 	FramedPlacement LaptopCandidatePlacement
+	Preset          shots.PhysicalPresetRevision
 }
 
 type LaptopCandidatePlacement struct {

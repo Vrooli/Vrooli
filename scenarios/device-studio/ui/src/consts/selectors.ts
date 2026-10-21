@@ -78,6 +78,10 @@ const literalSelectors = {
   settingsPage: {
     themeSelect: "page-settings-theme",
     localeSelect: "page-settings-locale",
+    accountPanel: "page-settings-account",
+    accountStatus: "page-settings-account-status",
+    accountConnect: "page-settings-account-connect",
+    accountDisconnect: "page-settings-account-disconnect",
   },
   pages: {
     dashboard: "page-dashboard",

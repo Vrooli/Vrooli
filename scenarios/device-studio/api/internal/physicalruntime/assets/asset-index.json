@@ -17,6 +17,19 @@
       "rights": "Vrooli-authored procedural interpretation; neutral display only, no private screen pixels; not manufacturer CAD or endorsed."
     },
     {
+      "catalog_key": "vrooli-generic-book-fold-concept-glb-v2",
+      "path": "foldable/foldable-concept.glb",
+      "media_type": "model/gltf-binary",
+      "size_bytes": 22480,
+      "sha256": "90e1e5195ee88018e37b98d8d08af4d1407d8161e6216cf3fb699921d77ce4ac",
+      "role": "device_model",
+      "status": "candidate_only_unqualified",
+      "allowed_use": [
+        "internal_candidate_review"
+      ],
+      "rights": "Vrooli-authored AGPL-3.0-only generic dual-rigid book-fold concept v2 with beveled housings, segmented concept hinge, and neutral inner/outer glass; Fold6 open envelope informs proportions only. No product identity or manufacturer geometry. See foldable/asset-manifest.json."
+    },
+    {
       "catalog_key": "phone-table-scene",
       "path": "phone-table/phone-table-scene.glb",
       "media_type": "model/gltf-binary",
@@ -243,6 +256,76 @@
       "rights": "Generic rectangular smartwatch-style source derivative; neutral screen replaces branded image. SDC PERFORMANCE attribution and bharathsrk13 base-model attribution retained; no manufacturer endorsement or trademark clearance.",
       "license": "CC BY 4.0",
       "provenance": "See watch/asset-manifest.json and retained source/creator records; source scale and unknown variant are preserved. Not a round-watch family claim."
+    },
+    {
+      "catalog_key": "laptop-screen-vflip-v1",
+      "path": "laptop/laptop-neutral-rig-screen-vflip-v1.glb",
+      "media_type": "model/gltf-binary",
+      "size_bytes": 4638984,
+      "sha256": "1d833e3d08d0722952ecd9b6616cf933af11fca5716cfe4bc67aa110850272bd",
+      "role": "device_model",
+      "status": "candidate_only_unqualified",
+      "allowed_use": [
+        "internal_candidate_review"
+      ],
+      "rights": "Jack Baeten CC BY 4.0; candidate-only source preserving UV derivative flips V only. See laptop/screen-vflip-v1.json.",
+      "license": "CC BY 4.0"
+    },
+    {
+      "catalog_key": "generic-wedge-smart-display-concept-v1",
+      "path": "smart-display/generic-wedge-smart-display.glb",
+      "media_type": "model/gltf-binary",
+      "size_bytes": 25088,
+      "sha256": "1b1364a137fc99545080dca69104c4f4d2a6b8821ad4ebc709981da4df89830f",
+      "role": "device_model",
+      "status": "candidate_only_unqualified",
+      "allowed_use": [
+        "internal_candidate_review"
+      ],
+      "rights": "Vrooli-authored AGPL-3.0-only unqualified wedge display concept; 180 x 125 x 90 mm authored envelope, not Nest Hub geometry or measured dimensions.",
+      "license": "AGPL-3.0-only"
+    },
+    {
+      "catalog_key": "innerscene-digital-frame-tabletop-v2",
+      "path": "digital-frame/innerscene-frame-tabletop-v2.glb",
+      "media_type": "model/gltf-binary",
+      "size_bytes": 789152,
+      "sha256": "bc6b22fb722672b0601dc2ea4424517e6bed589e3ebf40de9ecd0257d20fb4f4",
+      "role": "device_model",
+      "status": "candidate_only_unqualified",
+      "allowed_use": [
+        "internal_candidate_review"
+      ],
+      "rights": "Innerscene source CC0-1.0 plus Vrooli neutral screen UV/material adaptation; candidate tabletop use only. See digital-frame/asset-manifest-v2.json.",
+      "license": "CC0-1.0"
+    },
+    {
+      "catalog_key": "innerscene-digital-frame-wall-v3",
+      "path": "digital-frame/innerscene-frame-wall-v3.glb",
+      "media_type": "model/gltf-binary",
+      "size_bytes": 790472,
+      "sha256": "86c216e9bc574ac076bc78231107cb53b4c178bdea4121239df43ca8963e17bf",
+      "role": "device_model",
+      "status": "candidate_only_unqualified",
+      "allowed_use": [
+        "internal_candidate_review"
+      ],
+      "rights": "Innerscene source CC0-1.0 plus Vrooli neutral screen and rear cleat; active easel nodes removed. Candidate wall pose only, no load rating. See digital-frame/asset-manifest-v3.json.",
+      "license": "CC0-1.0"
+    },
+    {
+      "catalog_key": "generic-vehicle-center-stack-concept-v1",
+      "path": "vehicle-center-stack/generic-center-stack.glb",
+      "media_type": "model/gltf-binary",
+      "size_bytes": 18504,
+      "sha256": "37fc41e26e5c5f616f78fe68dfbd88cbbce6bfb0038754a65a20783684239ce9",
+      "role": "device_model",
+      "status": "candidate_only_unqualified",
+      "allowed_use": [
+        "internal_candidate_review"
+      ],
+      "rights": "Vrooli-authored AGPL-3.0-only generic center-stack concept; 380 x 250 x 120 mm authored envelope. CarPlay/Android Auto labels are simulated screen-use profiles only; no compatibility or safety claim.",
+      "license": "AGPL-3.0-only"
     }
   ],
   "package_manifests": [
@@ -292,7 +375,31 @@
     },
     {
       "path": "watch/asset-manifest.json",
-      "sha256": "a02481d03ffb051e900b3bd548d973871e54a891adf82adeb92f2c4b9552d7f9"
+      "sha256": "1018fa932072caa8a7b926286d8339ca4c5c3659b3d1a155fe5c14b496a9a2fd"
+    },
+    {
+      "path": "foldable/asset-manifest.json",
+      "sha256": "8e6164c2d4d9476c8721ba63a78bb06e6feac701ce79631d00284466bb5da15d"
+    },
+    {
+      "path": "laptop/screen-vflip-v1.json",
+      "sha256": "8e66d2f30d7e82eb66ce273588d336472071b0b9ea78f1d7ce2baad2749afc40"
+    },
+    {
+      "path": "smart-display/asset-manifest.json",
+      "sha256": "f7f89637e53ba8e2b900466b008d5e52b11185552a6fe537c169f6f71cee7380"
+    },
+    {
+      "path": "digital-frame/asset-manifest-v2.json",
+      "sha256": "0bd8c2af563201c7244cfbd17aadfb5150c297dade066f78c32666f98c27decd"
+    },
+    {
+      "path": "digital-frame/asset-manifest-v3.json",
+      "sha256": "d7458aa8c2160fc9f3d06f06187fe15ed1ebf4c9359b963bd6955751878f6c10"
+    },
+    {
+      "path": "vehicle-center-stack/asset-manifest.json",
+      "sha256": "6f123070d68bd9021dbfb07ad01b34eb612a2ae1d4970847efb2bd6d278d84d5"
     }
   ],
   "provenance": "See each package manifest, retained source acquisition/license evidence, and exact owned-operation output receipts. Hashes here identify bytes only and are not Library artifact IDs or ReviewBindings."

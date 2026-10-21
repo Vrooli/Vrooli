@@ -1,0 +1,30 @@
+{
+  "edges": [
+    {"id":"e1","source":"wait-projects","target":"open-saved-project"},
+    {"id":"e2","source":"open-saved-project","target":"wait-shot"},
+    {"id":"e3","source":"wait-shot","target":"verify-before"},
+    {"id":"e4","source":"verify-before","target":"edit-name"},
+    {"id":"e5","source":"edit-name","target":"save-revision"},
+    {"id":"e6","source":"save-revision","target":"wait-saved"},
+    {"id":"e7","source":"wait-saved","target":"verify-after"}
+  ],
+  "metadata": {
+    "description": "Post-restart phase for the offline PNG round trip: reopen the existing saved project, verify the shot and previous render history, then edit and save a new revision.",
+    "execution_mode": "mutating",
+    "labels": {"desktop_target":"true","requires_confirmation":"true","reset":"none","routed_isolation":"true","surface":"projects","required":"true","network_profile":"offline"},
+    "name": "desktop-offline-png-roundtrip-resume",
+    "requirement": "DS-DESKTOP-PACKAGE",
+    "version": "1"
+  },
+  "nodes": [
+    {"id":"wait-projects","action":{"type":"ACTION_TYPE_WAIT","wait":{"selector":"article.studio-featured a[href^=\"/projects/\"]","state":"WAIT_STATE_VISIBLE","timeout_ms":30000}}},
+    {"id":"open-saved-project","action":{"type":"ACTION_TYPE_CLICK","click":{"selector":"article.studio-featured a[href^=\"/projects/\"]"}}},
+    {"id":"wait-shot","action":{"type":"ACTION_TYPE_WAIT","wait":{"selector":"[data-testid=\"shot-editor\"]","state":"WAIT_STATE_VISIBLE","timeout_ms":30000}}},
+    {"id":"verify-before","action":{"type":"ACTION_TYPE_EVALUATE","evaluate":{"expression":"(() => {const name=document.querySelector('[data-testid=\"shot-name-input\"]');const history=document.querySelectorAll('.shot-render-job').length;if(name?.value!=='Offline still')throw new Error('Expected saved shot did not reopen');if(history<1)throw new Error('Earlier render history did not reopen');return {shotName:name.value,renderHistoryCount:history};})()","store_result":"offline_png_reopened"}}},
+    {"id":"edit-name","action":{"type":"ACTION_TYPE_INPUT","input":{"selector":"[data-testid=\"shot-name-input\"]","value":"Offline still edited","clear_first":true}}},
+    {"id":"save-revision","action":{"type":"ACTION_TYPE_CLICK","click":{"selector":".shot-actions button.studio-primary"}}},
+    {"id":"wait-saved","action":{"type":"ACTION_TYPE_WAIT","wait":{"selector":"[role=\"status\"]:has-text(\"Saved revision\")","state":"WAIT_STATE_VISIBLE","timeout_ms":15000}}},
+    {"id":"verify-after","action":{"type":"ACTION_TYPE_EVALUATE","evaluate":{"expression":"(() => {const name=document.querySelector('[data-testid=\"shot-name-input\"]');const history=document.querySelectorAll('.shot-render-job').length;if(name?.value!=='Offline still edited'||history<1)throw new Error('New revision or original render history is missing');return {savedName:name.value,renderHistoryPreserved:history>0};})()","store_result":"offline_png_edited_after_restart"}}}
+  ],
+  "settings": {"viewport_width":1440,"viewport_height":900}
+}

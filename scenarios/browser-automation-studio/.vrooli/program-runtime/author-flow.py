@@ -3,6 +3,7 @@ raw_inputs = inputs
 inputs = inputs if isinstance(inputs, dict) else {}
 learn.task(scope="bas-usage", operation="browser-automation-studio.author-flow", key={"project_id": inputs.get("project_id", ""), "workflow_id": inputs.get("workflow_id", "")})
 flow = inputs.get("flow")
+parameters = inputs.get("parameters")
 project_id = inputs.get("project_id", "")
 workflow_id = inputs.get("workflow_id", "")
 expected_version = inputs.get("expected_version", 0)
@@ -10,7 +11,7 @@ name = str(inputs.get("name", "") or "candidate").strip()
 folder = str(inputs.get("folder", "") or "candidates").strip()
 
 envelope = {
-    "program": "browser-automation-studio.author-flow", "version": "4",
+    "program": "browser-automation-studio.author-flow", "version": "5",
     "status": "failed", "phase": "validate",
     "inputs": {"flow_nodes": len((flow or {}).get("nodes", [])) if isinstance(flow, dict) else None,
                "name": name, "folder": folder},
@@ -40,6 +41,8 @@ def classify_failure(text):
 def step_validate():
     if not isinstance(raw_inputs, dict) or not isinstance(project_id,str) or not isinstance(workflow_id,str):
         return fail("failed", "invalid_input", "Expected object inputs and string identities", "validate")
+    if "parameters" in raw_inputs and not isinstance(parameters, dict):
+        return fail("failed", "invalid_input", "parameters must be an ExecutionParameters object", "validate")
     if not project_id and not workflow_id:
         return fail("failed", "invalid_input", "project_id for promotion or workflow_id for repair is required", "validate")
     if workflow_id and (not isinstance(expected_version,int) or isinstance(expected_version,bool) or expected_version < 1):
@@ -86,8 +89,10 @@ def step_classify():  # CLASSIFY · valid drafts run; invalid drafts stop here
 def step_act():  # ACT · one ad hoc execution with wait
     envelope["phase"] = "act"
     try:
-        rows = browser_automation_studio.workflows.execute_adhoc(flow_definition=flow, wait_for_completion=True,
-                                                                 metadata={"name": name}).head(1)
+        kwargs = {"flow_definition": flow, "wait_for_completion": True, "metadata": {"name": name}}
+        if parameters is not None:
+            kwargs["parameters"] = parameters
+        rows = browser_automation_studio.workflows.execute_adhoc(**kwargs).head(1)
     except Exception as exc:
         status, klass = program.classify(exc)
         return fail(status, klass, exc, "act")

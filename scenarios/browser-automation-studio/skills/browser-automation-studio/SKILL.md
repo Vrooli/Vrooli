@@ -9,9 +9,9 @@ metadata:
   tags: ["automation", "workflow", "learning"]
   icon: "play"
   status: "active"
-  revision: 55
+  revision: 56
   createdAt: "2026-09-04T00:00:00Z"
-  updatedAt: "2026-10-16T00:00:00Z"
+  updatedAt: "2026-10-20T00:00:00Z"
   requires:
     scenarios: ["browser-automation-studio", "program-runtime", "vrooli-memory"]
     commands: ["browser-automation-studio", "program-runtime", "vrooli-memory"]
@@ -40,8 +40,8 @@ Read rows in order; the first matching row is the next step.
 | Have the authorized workflow UUID and exact revision | Run `browser-automation-studio.do-task` with task, workflow_id, version and declared parameters. **[S3]** |
 | Need to find a reusable flow | Run `browser-automation-studio.find-flows` with task and scenario when applicable. **[S3]** |
 | Search returned a candidate | Read `browser-automation-studio workflows get <workflow-id>`; verify project, definition, revision, parameters, and authority before selecting it. Relevance alone does not authorize execution. **[S1]** |
-| Have a new typed candidate with an explicit outcome assertion | Run `browser-automation-studio.author-flow` with flow, project_id and name. It validates, executes once, and saves only a candidate with complete passing assertion evidence. **[S3]** |
-| A saved workflow failed and a repair candidate is ready | Run `browser-automation-studio.author-flow` with flow, workflow_id and expected_version. Existing assertions, graph topology, metadata and settings must remain intact. **[S3]** |
+| Have a new typed candidate with an explicit outcome assertion | Run `browser-automation-studio.author-flow` with flow, project_id and name. It validates, executes once, and saves only a candidate with complete passing assertion evidence; pass optional `parameters` as the ExecutionParameters object for that run. **[S3]** |
+| A saved workflow failed and a repair candidate is ready | Run `browser-automation-studio.author-flow` with flow, workflow_id and expected_version. Existing assertions, graph topology, metadata and settings must remain intact; optional `parameters` reach the single candidate run unchanged. **[S3]** |
 | No reusable flow exists and an authorized browser session is available | Run `browser-automation-studio.navigate-intent` with session, prompt, selected model and max_steps. **[S3]** |
 | Navigation reached the goal and the task is safe to repeat | Re-run `browser-automation-studio.do-task` with `qualify=true` and the task `postconditions` so the candidate becomes a saved, independently verified revision the next run can reuse. Never on a send/purchase/delete task against a real account. **[S3]** |
 | Need a navigator before intent navigation | Read `browser-automation-studio vision-navigation list-navigators`; use its current route/model contract. **[S1]** |
@@ -60,8 +60,8 @@ Use these declared programs for reusable browser work and its bounded evidence:
 
 | Program | Purpose | Required inputs |
 |---|---|---|
-| `browser-automation-studio.author-flow` | Validate and save a typed workflow candidate | `flow`, `project_id`, `name` |
-| `browser-automation-studio.do-task` | Search and recommend, execute an authorized revision, author a candidate, navigate, or qualify a navigation into a durable revision | `task`; then `workflow_id`+`version`(+`advice_attempt_id`), or `flow`, or `session`+`model`, or `navigation_id`; add `qualify=true`+`postconditions` to persist and verify what navigation found |
+| `browser-automation-studio.author-flow` | Validate and save a typed workflow candidate | `flow`, `project_id`, `name`; optional `parameters` is the unchanged ExecutionParameters object for its one ad hoc run |
+| `browser-automation-studio.do-task` | Search and recommend, execute an authorized revision, author a candidate, navigate, or qualify a navigation into a durable revision | `task`; then `workflow_id`+`version`(+`advice_attempt_id`), or `flow`, or `session`+`model`, or `navigation_id`; optional `parameters` follows candidate authoring and qualification verification; add `qualify=true`+`postconditions` to persist and verify what navigation found |
 | `browser-automation-studio.find-flows` | Find reusable flows for a task | `task`, optional `scenario` |
 | `browser-automation-studio.learning-read` | Read comparable browser-task learning outcomes | `operation`, `context_key` |
 | `browser-automation-studio.navigate-intent` | Navigate an authorized session toward an intent, or resume one | `session`, `prompt`, `model`, `max_steps`, `wait_millis`; or `navigation_id` |
@@ -162,6 +162,9 @@ path is rediscovered every run and converges on nothing. `qualify=true` persists
 candidate with `author-flow` and then executes the *persisted revision* against the
 task's own `postconditions` with `smoke-flow`; only that second execution earns the
 `preference` note, so the evidence is comparable to what the reuse route produces.
+When the caller supplies `parameters`, do-task forwards that same ExecutionParameters
+object to candidate authoring and persisted-revision verification. Omitted parameters
+leave author-flow's ad hoc execution at BAS defaults.
 
 It costs one authored ad hoc run plus one execution of the saved revision, so it
 repeats the task's effects. Pass it only where that repeat is authorized and safe —

@@ -78,18 +78,21 @@ type PhysicalGLBPrimitive struct {
 }
 
 type PhysicalGLBMaterial struct {
-	Index          uint32     `json:"index"`
-	Name           string     `json:"name"`
-	AlphaMode      string     `json:"alpha_mode"`
-	BaseColor      [4]float64 `json:"base_color_factor"`
-	Metallic       float64    `json:"metallic_factor"`
-	Roughness      float64    `json:"roughness_factor"`
-	SpecularFactor float64    `json:"specular_factor"`
-	SpecularColor  [3]float64 `json:"specular_color_factor"`
-	Transmission   float64    `json:"transmission_factor"`
-	HasBaseMap     bool       `json:"has_base_color_texture"`
-	HasNormal      bool       `json:"has_normal_texture"`
-	NormalScale    float64    `json:"normal_texture_scale"`
+	Index              uint32     `json:"index"`
+	Name               string     `json:"name"`
+	AlphaMode          string     `json:"alpha_mode"`
+	BaseColor          [4]float64 `json:"base_color_factor"`
+	Metallic           float64    `json:"metallic_factor"`
+	Roughness          float64    `json:"roughness_factor"`
+	SpecularFactor     float64    `json:"specular_factor"`
+	SpecularColor      [3]float64 `json:"specular_color_factor"`
+	Transmission       float64    `json:"transmission_factor"`
+	Clearcoat          float64    `json:"clearcoat_factor"`
+	ClearcoatRoughness float64    `json:"clearcoat_roughness_factor"`
+	IOR                float64    `json:"ior"`
+	HasBaseMap         bool       `json:"has_base_color_texture"`
+	HasNormal          bool       `json:"has_normal_texture"`
+	NormalScale        float64    `json:"normal_texture_scale"`
 }
 
 // PhysicalScreenGeometryBinding is derived from the pinned GLB and candidate;
@@ -441,7 +444,7 @@ func InspectPhysicalGLB(data []byte) (PhysicalGLBInventory, error) {
 		if material.NormalTexture != nil && material.NormalTexture.Scale != nil {
 			normalScale = *material.NormalTexture.Scale
 		}
-		inventory.Materials[i] = PhysicalGLBMaterial{Index: uint32(i), Name: material.Name, AlphaMode: alpha, BaseColor: [4]float64{factors[0], factors[1], factors[2], factors[3]}, Metallic: metallic, Roughness: roughness, SpecularFactor: materialFacts.specularFactor, SpecularColor: materialFacts.specularColor, Transmission: materialFacts.transmission, HasBaseMap: material.PBR.BaseTexture != nil, HasNormal: material.NormalTexture != nil, NormalScale: normalScale}
+		inventory.Materials[i] = PhysicalGLBMaterial{Index: uint32(i), Name: material.Name, AlphaMode: alpha, BaseColor: [4]float64{factors[0], factors[1], factors[2], factors[3]}, Metallic: metallic, Roughness: roughness, SpecularFactor: materialFacts.specularFactor, SpecularColor: materialFacts.specularColor, Transmission: materialFacts.transmission, Clearcoat: materialFacts.clearcoat, ClearcoatRoughness: materialFacts.clearcoatRoughness, IOR: materialFacts.ior, HasBaseMap: material.PBR.BaseTexture != nil, HasNormal: material.NormalTexture != nil, NormalScale: normalScale}
 	}
 	return inventory, nil
 }
@@ -727,7 +730,7 @@ func splitGLBChunks(data []byte) ([][]byte, error) {
 }
 
 func validateGLBExtensions(used, required []string) error {
-	allowed := map[string]bool{"KHR_materials_transmission": true, "KHR_materials_specular": true}
+	allowed := map[string]bool{"KHR_materials_transmission": true, "KHR_materials_specular": true, "KHR_materials_clearcoat": true, "KHR_materials_ior": true}
 	seen := make(map[string]bool, len(used))
 	for _, ext := range used {
 		if !allowed[ext] || seen[ext] {
@@ -745,7 +748,7 @@ func validateGLBExtensions(used, required []string) error {
 
 func validateExtensionMap(extensions map[string]json.RawMessage) error {
 	for name, value := range extensions {
-		if name != "KHR_materials_transmission" && name != "KHR_materials_specular" {
+		if name != "KHR_materials_transmission" && name != "KHR_materials_specular" && name != "KHR_materials_clearcoat" && name != "KHR_materials_ior" {
 			return fmt.Errorf("GLB extension %q is unsupported", name)
 		}
 		var fields map[string]json.RawMessage
@@ -814,13 +817,18 @@ func validateGLBMaterials(materials []glbMaterial, textureCount uint32) error {
 }
 
 type glbMaterialFacts struct {
-	specularFactor float64
-	specularColor  [3]float64
-	transmission   float64
+	specularFactor     float64
+	specularColor      [3]float64
+	transmission       float64
+	clearcoat          float64
+	clearcoatRoughness float64
+	ior                float64
 }
 
 func inspectGLBMaterialExtensions(material glbMaterial, textureCount uint32) (glbMaterialFacts, error) {
 	facts := glbMaterialFacts{specularFactor: 1, specularColor: [3]float64{1, 1, 1}}
+	facts.clearcoatRoughness = 0
+	facts.ior = 1.5
 	if raw, ok := material.Extensions["KHR_materials_specular"]; ok {
 		var extension struct {
 			SpecularFactor      *float64  `json:"specularFactor,omitempty"`
@@ -866,6 +874,63 @@ func inspectGLBMaterialExtensions(material glbMaterial, textureCount uint32) (gl
 		}
 		if !unitValue(facts.transmission) || !validTextureInfo(extension.TransmissionTexture, textureCount) {
 			return facts, errors.New("KHR_materials_transmission factor or texture binding is invalid")
+		}
+	}
+	if raw, ok := material.Extensions["KHR_materials_ior"]; ok {
+		var extension struct {
+			IOR        *float64                   `json:"ior,omitempty"`
+			Extensions map[string]json.RawMessage `json:"extensions,omitempty"`
+			Extras     json.RawMessage            `json:"extras,omitempty"`
+		}
+		if err := decodeExtension(raw, &extension); err != nil {
+			return facts, fmt.Errorf("KHR_materials_ior: %w", err)
+		}
+		if extension.IOR != nil {
+			facts.ior = *extension.IOR
+		}
+		if err := validateExtensionMap(extension.Extensions); err != nil {
+			return facts, fmt.Errorf("KHR_materials_ior nested extension: %w", err)
+		}
+		if !finiteNumber(facts.ior) || facts.ior != 0 && facts.ior < 1 {
+			return facts, errors.New("KHR_materials_ior value must be zero or at least one")
+		}
+	}
+	if raw, ok := material.Extensions["KHR_materials_clearcoat"]; ok {
+		var extension struct {
+			Factor  *float64 `json:"clearcoatFactor,omitempty"`
+			Texture *struct {
+				Index    uint32 `json:"index"`
+				TexCoord uint32 `json:"texCoord,omitempty"`
+			} `json:"clearcoatTexture,omitempty"`
+			Roughness    *float64 `json:"clearcoatRoughnessFactor,omitempty"`
+			RoughnessMap *struct {
+				Index    uint32 `json:"index"`
+				TexCoord uint32 `json:"texCoord,omitempty"`
+			} `json:"clearcoatRoughnessTexture,omitempty"`
+			Normal *struct {
+				Index    uint32   `json:"index"`
+				TexCoord uint32   `json:"texCoord,omitempty"`
+				Scale    *float64 `json:"scale,omitempty"`
+			} `json:"clearcoatNormalTexture,omitempty"`
+			Extensions map[string]json.RawMessage `json:"extensions,omitempty"`
+			Extras     json.RawMessage            `json:"extras,omitempty"`
+		}
+		if err := decodeExtension(raw, &extension); err != nil {
+			return facts, fmt.Errorf("KHR_materials_clearcoat: %w", err)
+		}
+		if extension.Factor != nil {
+			facts.clearcoat = *extension.Factor
+		}
+		if extension.Roughness != nil {
+			facts.clearcoatRoughness = *extension.Roughness
+		}
+		if err := validateExtensionMap(extension.Extensions); err != nil {
+			return facts, fmt.Errorf("KHR_materials_clearcoat nested extension: %w", err)
+		}
+		if !unitValue(facts.clearcoat) || !unitValue(facts.clearcoatRoughness) ||
+			!validTextureInfo(extension.Texture, textureCount) || !validTextureInfo(extension.RoughnessMap, textureCount) ||
+			extension.Normal != nil && (extension.Normal.Index >= textureCount || extension.Normal.TexCoord > 0 || extension.Normal.Scale != nil && !finiteNumber(*extension.Normal.Scale)) {
+			return facts, errors.New("KHR_materials_clearcoat factors or texture bindings are invalid")
 		}
 	}
 	return facts, nil

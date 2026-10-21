@@ -19,7 +19,7 @@
     "size_bytes": 5905404
   },
   "derivation": {
-    "script_sha256": "2d16342d171c51996cc7a6510950a35a182d333fe37220e48d02219c061ae07c",
+    "script_sha256": "03be76fb36e5da654952f9e74c39ccbcd0ad59e6e38d35a228a6ee7199087ae7",
     "source_image_sha256": "bbdb946a84b0229752fef36683dc2c832a0b231c3eaa8cd970e7e13cb272754b",
     "neutral_png_sha256": "64b86ad58ad7608b48bc7443d281ac5f34122475efb1d41a48f9f00620a96cb5",
     "neutral_png_bytes": 11888,
@@ -101,7 +101,17 @@
     ],
     "source_scale_policy": "Preserve the exact source hierarchy including sceneview_root scale 0.643; no nominal-size fitting or scale normalization.",
     "variant": "unknown",
-    "measurement_limit": "GLB-derived source geometry under the glTF metre assumption; not independent physical measurement, not a 41 mm/45 mm variant, and the full model AABB is band-dominated."
+    "measurement_limit": "GLB-derived source geometry under the glTF metre assumption; not independent physical measurement, not a 41 mm/45 mm variant, and the full model AABB is band-dominated.",
+    "exact_source_position_measurements": {
+      "transformed_position_vertex_count": 161468,
+      "minimum_y_m": 0.0,
+      "display_center_vertex_count": 86,
+      "display_center_m": [
+        6.96531631227718e-06,
+        0.03194426510567318,
+        0.015982393424878862
+      ]
+    }
   },
   "rights_and_claims": {
     "adaptation_notice": "Replaced branded source image 0 with a generated neutral dark display image, normalized only the selected display TEXCOORD_0 chart, and changed only display material 11 to neutral replaceable-screen values.",

@@ -1,0 +1,34 @@
+{
+  "schema_version": "device-studio-authored-model/v1",
+  "asset": "scenarios/device-studio/api/internal/physicalruntime/assets/foldable/foldable-concept.glb",
+  "candidate_revision": "generic-dual-rigid-book-fold-concept-v2",
+  "derivation": "derive_foldable.py",
+  "rights": {
+    "creator": "Vrooli",
+    "license": "AGPL-3.0-only",
+    "use_scope": "Internal Device Studio candidate review; no manufacturer CAD, endorsement, or product identity."
+  },
+  "reference": {
+    "source": "https://www.samsung.com/ph/smartphones/galaxy-z-fold6/specs/",
+    "qualifier": "Open 132.6 x 153.5 mm body envelope used as a design-proportion reference only; no Fold6 geometry is copied."
+  },
+  "design": {
+    "identity": "Generic Vrooli-authored dual-rigid book-fold concept",
+    "nominal_open_envelope_mm": [132.6, 153.5, 5.6],
+    "panel_split_mm": [66.3, 153.5],
+    "hinge_axis_parent_frame": [0, 1, 0],
+    "hinge_pivot_m": [0, 0, 0],
+    "authored_joint_range_rad": [0, 3.141592653589793],
+    "housing_edge_bevel_mm": 0.55,
+    "hinge": "Seven separated metal barrel sections; authored concept geometry, not a measured mechanism.",
+    "display_finish": "Dark neutral glass with restrained emissive floor to remain readable in the review environment.",
+    "display_surfaces": ["inner-left", "inner-right", "outer-cover"],
+    "supported_candidate_states": ["open-flat", "folded-closed"],
+    "unsupported_claims": ["flexible-panel deformation", "crease geometry", "physical hinge limits", "product fit", "manufacturer dimensions validation", "mechanical clearance qualification"]
+  },
+  "reproduction": {
+    "command": "python3 scenarios/device-studio/assets/sources/foldable-concept/derive_foldable.py",
+    "expected_glb_sha256": "90e1e5195ee88018e37b98d8d08af4d1407d8161e6216cf3fb699921d77ce4ac",
+    "expected_glb_bytes": 22480
+  }
+}

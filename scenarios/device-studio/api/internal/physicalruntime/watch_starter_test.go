@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"math"
 	"os"
 	"path/filepath"
 	"testing"
@@ -17,6 +18,7 @@ import (
 	"device-studio/internal/jobs"
 	"device-studio/internal/library"
 	"device-studio/internal/motions"
+	"device-studio/internal/physical"
 	"device-studio/internal/projects"
 	"device-studio/internal/rendering"
 	"device-studio/internal/renderjobs"
@@ -105,6 +107,15 @@ func TestReviewedWatchCandidateIsOptInReplayableAndSourceBound(t *testing.T) {
 	if first.Scene.SceneID != watchSceneID || first.Scene.State != "candidate" || first.Placement.DeviceSupportID != watchSupportID || first.Placement.SceneSupportID != laptopTableSupportID || first.Placement.SceneSupportWorld.Translation.Y != .75 {
 		t.Fatalf("watch scene/table pose drifted: scene=%+v placement=%+v", first.Scene, first.Placement)
 	}
+	if len(first.Scene.Candidate.CameraFrames) != 1 {
+		t.Fatal("watch scene must retain its single fitted candidate camera")
+	}
+	camera := first.Scene.Candidate.CameraFrames[0]
+	displayCenter := physical.Vec3{X: watchDisplayCenter.X, Y: .75 + watchDisplayCenter.Y, Z: watchDisplayCenter.Z}
+	wantFocus, err := watchCameraAxisDistance(camera.Frame, displayCenter)
+	if err != nil || camera.Focus == nil || camera.Focus.Mode != scenes.FocusDistance || camera.Focus.DistanceM == nil || math.Abs(*camera.Focus.DistanceM-wantFocus) > 1e-9 {
+		t.Fatalf("candidate camera must focus at the source-hash-pinned display center: focus=%+v want=%0.12g err=%v", camera.Focus, wantFocus, err)
+	}
 	for _, part := range first.Scene.Candidate.Parts {
 		if part.NodeName == "TeaCup" || part.NodeName == "TeaCupHandle" || part.NodeName == "TeaSurface" {
 			t.Fatalf("watch candidate room unexpectedly includes tea prop %q", part.NodeName)
@@ -163,6 +174,63 @@ func TestReviewedWatchCandidateIsOptInReplayableAndSourceBound(t *testing.T) {
 	job, created, err := coordinator.Submit(testCtx, renderjobs.SubmitRequest{ProjectID: project.ID, ShotID: shot.ID, Revision: revision.Revision, IdempotencyKey: "watch-portable-closure-only", OutputProfile: renderjobs.OutputProfilePNG})
 	if err != nil || !created || job.State != jobs.Queued || len(job.Attempts) != 1 || job.Attempts[0].State != jobs.AttemptQueued || job.Attempts[0].Execution != nil || job.Attempts[0].StartedAt != nil {
 		t.Fatalf("portable watch render closure must save a queued attempt without worker dispatch: created=%v state=%s attempts=%+v err=%v", created, job.State, job.Attempts, err)
+	}
+}
+
+func TestWatchSourceMeasurementsCorrectAABBPlacementAndRun2Focus(t *testing.T) {
+	data, err := starterAssets.ReadFile("assets/watch/asset-manifest.json")
+	if err != nil || sha256Hex(data) != watchManifestSHA {
+		t.Fatalf("read pinned watch geometry manifest: err=%v sha256=%s", err, sha256Hex(data))
+	}
+	var manifest struct {
+		Source struct {
+			SHA string `json:"sha256"`
+		} `json:"source"`
+		Geometry struct {
+			Exact struct {
+				Vertices uint64    `json:"transformed_position_vertex_count"`
+				MinimumY float64   `json:"minimum_y_m"`
+				ScreenN  uint64    `json:"display_center_vertex_count"`
+				Center   []float64 `json:"display_center_m"`
+			} `json:"exact_source_position_measurements"`
+		} `json:"geometry"`
+	}
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		t.Fatal(err)
+	}
+	facts := manifest.Geometry.Exact
+	if manifest.Source.SHA != watchSourceSHA256 || facts.Vertices != 161468 || facts.MinimumY != watchSupportMinimumY || facts.ScreenN != 86 || len(facts.Center) != 3 || math.Abs(facts.Center[0]-watchDisplayCenter.X) > 1e-12 || math.Abs(facts.Center[1]-watchDisplayCenter.Y) > 1e-12 || math.Abs(facts.Center[2]-watchDisplayCenter.Z) > 1e-12 {
+		t.Fatalf("manifest geometry facts differ from pinned source measurements: %+v", facts)
+	}
+	glb, err := starterAssets.ReadFile(watchAssetFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	inventory, err := rendering.InspectPhysicalGLB(glb)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bounds, err := physicalGLBWorldBounds(inventory)
+	if err != nil || math.Abs(-bounds.min.Y-.007084853342457564) > 1e-9 || math.Abs(inventory.Nodes[28].Frame.Scale.Y-.6430670822618203) > 1e-9 {
+		t.Fatalf("run2 conservative AABB/root scale measurements changed: bounds=%+v err=%v", bounds, err)
+	}
+	placement := watchPlacement()
+	if placement.DeviceRootRest.Translation.Y != 0 || math.Abs(facts.MinimumY+placement.SceneSupportWorld.Translation.Y-.75) > 1e-9 {
+		t.Fatalf("pinned source vertex minimum must meet the saved table plane: facts=%+v placement=%+v", facts, placement)
+	}
+	run2Camera := physical.TRS{
+		Translation: physical.Vec3{X: .10808689186144864, Y: .8365183054057627, Z: .1828086931352243},
+		Rotation:    physical.QuatXYZW{X: -.13391219193216977, Y: .26336950432949446, Z: .03694414237501352, W: .9546408536121491},
+		Scale:       physical.Vec3{X: 1, Y: 1, Z: 1},
+	}
+	oldOffset := -bounds.min.Y
+	oldRootDepth, err := watchCameraAxisDistance(run2Camera, physical.Vec3{Y: .75 + oldOffset})
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldScreenDepth, err := watchCameraAxisDistance(run2Camera, physical.Vec3{X: watchDisplayCenter.X, Y: .75 + oldOffset + watchDisplayCenter.Y, Z: watchDisplayCenter.Z})
+	if err != nil || math.Abs(oldRootDepth-oldScreenDepth-.0219844478297902) > 1e-6 {
+		t.Fatalf("retained run2 pose must reproduce the 22 mm wrapper-focus error: root=%0.12g screen=%0.12g err=%v", oldRootDepth, oldScreenDepth, err)
 	}
 }
 

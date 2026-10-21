@@ -13,6 +13,7 @@ import (
 	"hash"
 	"image"
 	"image/color"
+	"image/draw"
 	"image/png"
 	"io"
 	"math"
@@ -53,7 +54,8 @@ const (
 	videoMaxReceiptBytes           = 128 << 10
 	videoMaxOutputBytes            = 160 << 20
 	videoMaxSeconds                = 10
-	videoMaxFrames                 = 300
+	videoScreenEntryMaxSeconds     = 12
+	videoMaxFrames                 = 360
 	videoMaxPixels                 = 1920 * 1080
 	videoMaxInputBytes             = 512 << 20
 	videoMaxWorkerBytes            = 256 << 20
@@ -62,6 +64,8 @@ const (
 	videoMaxStats                  = 4 << 20
 	videoMaxWall                   = 300 * time.Second
 )
+
+var videoLetterboxMatte = color.NRGBA{R: 32, G: 34, B: 38, A: 255}
 
 type VideoMode string
 
@@ -442,6 +446,7 @@ func sameRGB(a, b *presentations.RGB) bool {
 	}
 	return *a == *b
 }
+
 func videoTimingDigest(m VideoManifest) string {
 	legacy := struct {
 		Start, End       int64
@@ -564,7 +569,14 @@ func validateVideoDuration(m VideoManifest) error {
 	if err != nil {
 		return err
 	}
-	if duration.Cmp(big.NewRat(videoMaxSeconds, 1)) > 0 {
+	maxSeconds := videoMaxSeconds
+	if m.Camera != nil {
+		maxSeconds = videoScreenEntryMaxSeconds
+	}
+	if duration.Cmp(big.NewRat(int64(maxSeconds), 1)) > 0 {
+		if m.Camera != nil {
+			return errors.New("screen-entry video trim exceeds the 12-second profile bound")
+		}
 		return errors.New("video trim exceeds the fixed ten-second development profile")
 	}
 	if count <= 0 || count > videoMaxFrames {
@@ -942,7 +954,7 @@ func RunVideoManifest(ctx context.Context, manifestPath string) (retErr error) {
 					if composeErr != nil {
 						return fmt.Errorf("compose photographed video frame: %w", composeErr)
 					}
-					frame, e = resizeVideoFrame(deadline, composed.Image, manifest.Width, manifest.Height)
+					frame, e = resizeVideoFrameWithMatte(deadline, composed.Image, manifest.Width, manifest.Height, matte)
 					if e == nil {
 						to := cameraPath.quad(uint32(selected))
 						blend, fade := cameraPath.blend(uint32(selected))
@@ -1150,8 +1162,8 @@ func videoHardware(images []videoLoadedImage) image.Image {
 
 func validatePlateForVideo(ctx context.Context, plate image.Image, m VideoManifest) error {
 	b := plate.Bounds()
-	if b.Dx() < m.Width || b.Dy() < m.Height || int64(b.Dx())*int64(m.Height) != int64(b.Dy())*int64(m.Width) {
-		return errors.New("video plate must match output aspect and meet target dimensions")
+	if b.Dx() <= 0 || b.Dy() <= 0 {
+		return errors.New("video plate has empty dimensions")
 	}
 	for y := b.Min.Y; y < b.Max.Y; y++ {
 		if y&63 == 0 {
@@ -1210,23 +1222,48 @@ func expandRGB24(dst, src []byte) error {
 }
 
 func resizeVideoFrame(ctx context.Context, src image.Image, width, height int) (*image.RGBA64, error) {
+	return resizeVideoFrameWithMatte(ctx, src, width, height, videoLetterboxMatte)
+}
+
+type videoFit struct {
+	scale, offsetX, offsetY float64
+}
+
+func videoContainFit(source, target image.Point) (videoFit, error) {
+	if source.X <= 0 || source.Y <= 0 || target.X <= 0 || target.Y <= 0 {
+		return videoFit{}, errors.New("video fit dimensions must be positive")
+	}
+	fit := videoFit{scale: math.Min(float64(target.X)/float64(source.X), float64(target.Y)/float64(source.Y))}
+	if math.IsNaN(fit.scale) || math.IsInf(fit.scale, 0) || fit.scale <= 0 {
+		return videoFit{}, errors.New("video fit scale is invalid")
+	}
+	fit.offsetX = (float64(target.X) - float64(source.X)*fit.scale) / 2
+	fit.offsetY = (float64(target.Y) - float64(source.Y)*fit.scale) / 2
+	return fit, nil
+}
+
+func resizeVideoFrameWithMatte(ctx context.Context, src image.Image, width, height int, matte color.NRGBA) (*image.RGBA64, error) {
 	if src == nil || width <= 0 || height <= 0 || int64(width)*int64(height) > videoMaxPixels {
 		return nil, errors.New("video resample target exceeds profile")
 	}
 	b := src.Bounds()
-	if b.Dx() < width || b.Dy() < height || int64(b.Dx())*int64(height) != int64(b.Dy())*int64(width) {
-		return nil, errors.New("video resample must uniformly downscale an exact-aspect plate")
+	fit, err := videoContainFit(image.Pt(b.Dx(), b.Dy()), image.Pt(width, height))
+	if err != nil {
+		return nil, err
 	}
 	dst := image.NewRGBA64(image.Rect(0, 0, width, height))
-	sx := float64(b.Dx()) / float64(width)
-	sy := float64(b.Dy()) / float64(height)
+	draw.Draw(dst, dst.Bounds(), &image.Uniform{C: matte}, image.Point{}, draw.Src)
 	for y := 0; y < height; y++ {
 		if y&15 == 0 {
 			if err := ctx.Err(); err != nil {
 				return nil, err
 			}
 		}
-		fy := (float64(y)+0.5)*sy - 0.5
+		py := float64(y) + 0.5
+		if py < fit.offsetY || py >= fit.offsetY+float64(b.Dy())*fit.scale {
+			continue
+		}
+		fy := (py-fit.offsetY)/fit.scale - 0.5
 		y0 := int(math.Floor(fy))
 		wy := fy - float64(y0)
 		if y0 < 0 {
@@ -1238,7 +1275,11 @@ func resizeVideoFrame(ctx context.Context, src image.Image, width, height int) (
 			y1 = b.Dy() - 1
 		}
 		for x := 0; x < width; x++ {
-			fx := (float64(x)+0.5)*sx - 0.5
+			px := float64(x) + 0.5
+			if px < fit.offsetX || px >= fit.offsetX+float64(b.Dx())*fit.scale {
+				continue
+			}
+			fx := (px-fit.offsetX)/fit.scale - 0.5
 			x0 := int(math.Floor(fx))
 			wx := fx - float64(x0)
 			if x0 < 0 {
@@ -1677,9 +1718,11 @@ func (w *videoFileLimit) Write(p []byte) (int, error) {
 	w.written += int64(n)
 	return n, e
 }
+
 func startVideoEncoder(ctx context.Context, root *os.Root, tool *os.File, m VideoManifest, frameCount int) (*videoEncoder, error) {
 	return startVideoEncoderNamed(ctx, root, tool, m, frameCount, VideoOutputName)
 }
+
 func startVideoEncoderNamed(ctx context.Context, root *os.Root, tool *os.File, m VideoManifest, frameCount int, outputName string) (*videoEncoder, error) {
 	if !isSafePhysicalName(outputName) || outputName == "" {
 		return nil, errors.New("video encoder output name is invalid")
@@ -1712,6 +1755,7 @@ func startVideoEncoderNamed(ctx context.Context, root *os.Root, tool *os.File, m
 	}
 	return &videoEncoder{cmd: cmd, stdin: stdin, file: file, root: root, temporary: tmp, outputName: outputName, limit: limit, stderr: &stderr}, nil
 }
+
 func (e *videoEncoder) writeFrame(ctx context.Context, pixels []byte) error {
 	if e == nil || e.finished {
 		return errors.New("video encoder is not active")
@@ -1735,6 +1779,7 @@ func (e *videoEncoder) writeFrame(ctx context.Context, pixels []byte) error {
 	}
 	return nil
 }
+
 func (e *videoEncoder) finish(ctx context.Context) (int64, string, error) {
 	if e == nil || e.finished {
 		return 0, "", errors.New("video encoder is not active")
@@ -1790,6 +1835,7 @@ func (e *videoEncoder) finish(ctx context.Context) (int64, string, error) {
 	}
 	return n, sum, nil
 }
+
 func (e *videoEncoder) cleanup() {
 	if e == nil {
 		return
@@ -1830,6 +1876,7 @@ type videoProbeDoc struct {
 func verifyEncodedVideo(ctx context.Context, probe, ffmpeg *os.File, root *os.Root, m VideoManifest, expectedFrames int) (VideoNativeFacts, error) {
 	return verifyEncodedVideoNamed(ctx, probe, ffmpeg, root, m, expectedFrames, VideoOutputName)
 }
+
 func verifyEncodedVideoNamed(ctx context.Context, probe, ffmpeg *os.File, root *os.Root, m VideoManifest, expectedFrames int, outputName string) (VideoNativeFacts, error) {
 	var zero VideoNativeFacts
 	if !isSafePhysicalName(outputName) || outputName == "" {

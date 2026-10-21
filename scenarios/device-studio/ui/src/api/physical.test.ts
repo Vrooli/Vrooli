@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getBundleRevisionMetadata, getReviewedPhysicalStarter, getPhysicalShotPresetRevision, listDeviceCandidates, listMotionCandidates, listPhysicalShotPresets, listSceneCandidates, resolvePhysicalShotPreset } from "./physical";
+import { getBundleRevisionMetadata, getReviewedPhysicalStarter, getPhysicalShotPresetRevision, initializePhysicalStarter, listDeviceCandidates, listMotionCandidates, listPhysicalShotPresets, listSceneCandidates, resolvePhysicalShotPreset } from "./physical";
 
 const clients = vi.hoisted(() => ({
   starter: { initializeReviewedStarter: vi.fn() },
@@ -53,6 +53,25 @@ describe("getReviewedPhysicalStarter", () => {
     });
     clients.devices.getDeviceRevision.mockResolvedValue({ revision: { candidate: { deviceId: "device-1" }, sha256: "f".repeat(64) } });
     await expect(getReviewedPhysicalStarter()).rejects.toThrow("could not be verified against its pinned digest");
+  });
+});
+
+describe("initializePhysicalStarter", () => {
+  beforeEach(() => vi.clearAllMocks());
+  it("binds the requested candidate to the exact returned preset and preserves phone default", async () => {
+    clients.starter.initializeReviewedStarter.mockResolvedValue({ candidateOnly: true, selectedStarterId: "laptop-screen-upright-180", initializedPreset: { id: "laptop-upright-still", revision: 3, sha256: "a".repeat(64) } });
+    const result = await initializePhysicalStarter("laptop-screen-upright-180");
+    expect(clients.starter.initializeReviewedStarter).toHaveBeenCalledWith({ starterId: "laptop-screen-upright-180" });
+    expect(result.preset).toEqual({ id: "laptop-upright-still", revision: 3, sha256: "a".repeat(64) });
+    clients.starter.initializeReviewedStarter.mockResolvedValue({ candidateOnly: true, phoneStudyPreset: { id: "phone-study-hero", revision: 1, sha256: "b".repeat(64) } });
+    await expect(initializePhysicalStarter("phone-default")).resolves.toMatchObject({ preset: { id: "phone-study-hero", revision: 1 } });
+    expect(clients.starter.initializeReviewedStarter).toHaveBeenLastCalledWith({ starterId: "" });
+  });
+  it("rejects mismatched starter IDs and incomplete preset references", async () => {
+    clients.starter.initializeReviewedStarter.mockResolvedValue({ candidateOnly: true, selectedStarterId: "generic-book-fold", initializedPreset: { id: "preset", revision: 1, sha256: "a".repeat(64) } });
+    await expect(initializePhysicalStarter("laptop-screen-upright-180")).rejects.toThrow("different physical starter");
+    clients.starter.initializeReviewedStarter.mockResolvedValue({ candidateOnly: true, selectedStarterId: "laptop-screen-upright-180", initializedPreset: { id: "preset", revision: 1, sha256: "bad" } });
+    await expect(initializePhysicalStarter("laptop-screen-upright-180")).rejects.toThrow("exact candidate-only preset reference");
   });
 });
 

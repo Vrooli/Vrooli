@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"image"
 	"image/color"
 	"image/png"
@@ -359,7 +360,7 @@ func TestPhotographicCameraMotionValidationAndRecipePinning(t *testing.T) {
 		{"profile version", func(s *shotsv1.ShotSnapshot) { s.CameraMotion.ProfileVersion = 2 }},
 		{"profile id", func(s *shotsv1.ShotSnapshot) { s.CameraMotion.ProfileId = "unknown" }},
 		{"duration minimum", func(s *shotsv1.ShotSnapshot) { s.CameraMotion.DurationOutputFrames = 1 }},
-		{"duration maximum", func(s *shotsv1.ShotSnapshot) { s.CameraMotion.DurationOutputFrames = 121 }},
+		{"duration maximum", func(s *shotsv1.ShotSnapshot) { s.CameraMotion.DurationOutputFrames = 361 }},
 		{"duration exceeds schedule", func(s *shotsv1.ShotSnapshot) { s.CameraMotion.DurationOutputFrames = 11 }},
 	}
 	for _, test := range invalid {
@@ -392,10 +393,42 @@ func TestCropPushWithoutTimingRemainsExplicitlyIncomplete(t *testing.T) {
 	require.Contains(t, issueFields(revision), "camera_motion")
 }
 
-func TestCameraProfileRejectsSchedulesOverInitial120FrameBound(t *testing.T) {
+func TestCameraProfileAcceptsEightToTwelveSecondSchedulesAtBothRates(t *testing.T) {
+	for _, rate := range []int64{24, 30} {
+		for _, seconds := range []int64{8, 12} {
+			t.Run(fmt.Sprintf("%d-fps-%d-seconds", rate, seconds), func(t *testing.T) {
+				s, projectID, media := setup(t)
+				video := acceptedVideoSource(projectID)
+				endPTS := int64(15_000)
+				video.InspectionReceipt.SourceEndPTS = &endPTS
+				media.items[video.ID] = video
+
+				snapshot := validSnapshot()
+				snapshot.Presentation.SourceMediaId = video.ID
+				snapshot.VideoTiming = acceptedVideoTiming(video)
+				snapshot.VideoTiming.VideoCompositionProfileId = shots.VideoProfileScreenEntry
+				snapshot.VideoTiming.TrimStartPts = 0
+				snapshot.VideoTiming.TrimEndPts = seconds * 1000
+				snapshot.VideoTiming.OutputRateNum = uint32(rate)
+				snapshot.MotionMode = shotsv1.MotionMode_MOTION_MODE_CROP_PUSH
+				frames := uint32(seconds * rate)
+				snapshot.CameraMotion = &shotsv1.PhotographicCameraMotion{
+					ProfileId: shots.CameraMotionProfileID, ProfileVersion: shots.CameraMotionProfileVersion,
+					DurationOutputFrames: frames, MatteRgb: &shotsv1.PresentationRGB{},
+				}
+				_, revision, err := s.Create(context.Background(), projectID, "Screen entry duration", snapshot)
+				require.NoError(t, err)
+				require.True(t, revision.RenderEligible, "%+v", revision.Issues)
+				require.Equal(t, frames, revision.Snapshot.GetCameraMotion().GetDurationOutputFrames())
+			})
+		}
+	}
+}
+
+func TestCameraProfileRejectsSchedulesLongerThanTwelveSeconds(t *testing.T) {
 	s, projectID, media := setup(t)
 	video := acceptedVideoSource(projectID)
-	endPTS := int64(10_000)
+	endPTS := int64(15_000)
 	video.InspectionReceipt.SourceEndPTS = &endPTS
 	media.items[video.ID] = video
 
@@ -403,14 +436,15 @@ func TestCameraProfileRejectsSchedulesOverInitial120FrameBound(t *testing.T) {
 	snapshot.Presentation.SourceMediaId = video.ID
 	snapshot.VideoTiming = acceptedVideoTiming(video)
 	snapshot.VideoTiming.VideoCompositionProfileId = shots.VideoProfileScreenEntry
-	snapshot.VideoTiming.TrimEndPts = 6_100 // 144 output frames at 24 fps.
+	snapshot.VideoTiming.TrimStartPts = 0
+	snapshot.VideoTiming.TrimEndPts = 12_001 // 12.001 seconds: 289 frames at 24 fps.
 	snapshot.MotionMode = shotsv1.MotionMode_MOTION_MODE_CROP_PUSH
 	snapshot.CameraMotion = &shotsv1.PhotographicCameraMotion{
 		ProfileId: shots.CameraMotionProfileID, ProfileVersion: shots.CameraMotionProfileVersion,
-		DurationOutputFrames: 10, MatteRgb: &shotsv1.PresentationRGB{},
+		DurationOutputFrames: 120, MatteRgb: &shotsv1.PresentationRGB{},
 	}
 
-	_, revision, err := s.Create(context.Background(), projectID, "Long screen entry", snapshot)
+	_, revision, err := s.Create(context.Background(), projectID, "Overlong screen entry", snapshot)
 	require.NoError(t, err)
 	require.False(t, revision.RenderEligible)
 	var durationIssue *shotsv1.ShotIssue
@@ -421,8 +455,8 @@ func TestCameraProfileRejectsSchedulesOverInitial120FrameBound(t *testing.T) {
 		}
 	}
 	require.NotNil(t, durationIssue)
-	require.Contains(t, durationIssue.GetSummary(), "120 output frames")
-	require.Contains(t, durationIssue.GetRepair(), "Shorten the trim")
+	require.Contains(t, durationIssue.GetSummary(), "12 seconds")
+	require.Contains(t, durationIssue.GetRepair(), "12 seconds")
 }
 
 func acceptedVideoSource(projectID string) projects.SourceMedia {

@@ -25,7 +25,10 @@ vi.mock("../../api/shots", () => ({
   },
   shotConflict: (error: unknown) => error instanceof ConnectError ? error.findDetails(ShotConflictSchema)[0] : undefined,
 }));
-vi.mock("../../api/physical", () => ({ getReviewedPhysicalStarter: vi.fn().mockRejectedValue(new Error("starter unavailable in this test")) }));
+vi.mock("../../api/physical", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api/physical")>();
+  return { ...actual, getReviewedPhysicalStarter: vi.fn().mockRejectedValue(new Error("starter unavailable in this test")) };
+});
 import { shotsClient } from "../../api/shots";
 import { getSourceMediaContent, projectsClient, sourceMediaContentURL } from "../../api/projects";
 import { getRenderOutputContent, getVideoSampleBinding, rendersClient } from "../../api/renders";
@@ -341,7 +344,7 @@ describe("ShotWorkspace", () => {
       cameraMotion: create(PhotographicCameraMotionSchema, { profileId: "screen-entry-projective-contain-v1", profileVersion: 1, durationOutputFrames: 12, matteRgb: { red: 18, green: 52, blue: 86 } }),
     });
     const currentSnapshot = create(ShotSnapshotSchema, {
-      motionMode: MotionMode.CROP_PUSH, videoTiming: timing(150n, 30),
+      motionMode: MotionMode.CROP_PUSH, videoTiming: timing(400n, 30),
       cameraMotion: create(PhotographicCameraMotionSchema, { profileId: "screen-entry-projective-contain-v1", profileVersion: 1, durationOutputFrames: 75, matteRgb: { red: 171, green: 205, blue: 239 } }),
     });
     const head = revision(2n, "Current title", currentSnapshot);
@@ -355,6 +358,7 @@ describe("ShotWorkspace", () => {
     await user.click(await screen.findByRole("button", { name: /Current title/ }));
     expect(await screen.findByText(i18n.t(strings.shot.cameraDurationSummary, { frames: "75", seconds: "2.50", rate: "30" }))).toBeInTheDocument();
     expect(screen.getByText(i18n.t(strings.shot.cameraClipTooLong))).toBeInTheDocument();
+    expect(screen.getByLabelText(i18n.t(strings.shot.cameraDurationFrames))).toHaveAttribute("max", "360");
     await openShotHistory(user);
     await user.selectOptions(screen.getByLabelText(i18n.t(strings.shot.pinnedRevision)), "1");
     expect(await screen.findByText(i18n.t(strings.shot.cameraDurationSummary, { frames: "12", seconds: "0.50", rate: "24" }))).toBeInTheDocument();
@@ -504,11 +508,11 @@ describe("ShotWorkspace", () => {
       sourceMediaId: "accepted-video", sourceSha256: "a".repeat(64), sourceSizeBytes: 500n,
       inspectionJobId: "inspect-job", inspectionAttemptId: "inspect-attempt", inspectionReceiptId: "receipt-1", inspectionReceiptSha256: "c".repeat(64),
       clockArtifactId: "clock-1", clockSha256: "b".repeat(64), clockSizeBytes: 32n, selectedVideoStream: 0,
-      timeBaseNum: 1n, timeBaseDen: 24n, streamStartPts: 0n, sourceEndPts: 144n, lastFrameDurationTicks: 1n,
-      trimStartPts: 0n, trimEndPts: 144n, playbackRateNum: 1, playbackRateDen: 1, outputRateNum: 24, outputRateDen: 1,
+      timeBaseNum: 1n, timeBaseDen: 24n, streamStartPts: 0n, sourceEndPts: 312n, lastFrameDurationTicks: 1n,
+      trimStartPts: 0n, trimEndPts: 312n, playbackRateNum: 1, playbackRateDen: 1, outputRateNum: 24, outputRateDen: 1,
       eofPolicy: VideoEOFPolicy.VIDEO_EOF_POLICY_REJECT, videoCompositionProfileId: "device-studio-fixed-plate-video-v1", videoCompositionProfileVersion: 1,
       sampleBaseRecipeVersion: 1,
-      sampleBinding: create(VideoSampleBindingSchema, { jobId: "old-sample", sourceSha256: "a".repeat(64), clockSha256: "b".repeat(64), trimStartPts: 0n, trimEndPts: 144n, baseShotRevision: 1n, baseRecipeVersion: "device-studio-video-recipe-v1" }),
+      sampleBinding: create(VideoSampleBindingSchema, { jobId: "old-sample", sourceSha256: "a".repeat(64), clockSha256: "b".repeat(64), trimStartPts: 0n, trimEndPts: 312n, baseShotRevision: 1n, baseRecipeVersion: "device-studio-video-recipe-v1" }),
     });
     const savedSnapshot = create(ShotSnapshotSchema, {
       motionMode: MotionMode.FIXED, videoTiming: timing,
@@ -517,7 +521,7 @@ describe("ShotWorkspace", () => {
     const head = revision(1n, "Daylight", savedSnapshot);
     const video = create(SourceMediaSchema, {
       id: "accepted-video", projectId: "project-1", sha256: "a".repeat(64), sizeBytes: 500n, mediaType: "video/mp4", kind: SourceMediaKind.VIDEO, readiness: MediaReadiness.READY, originalFilename: "field-recording.mp4",
-      inspectionReceipt: create(MediaInspectionReceiptSchema, { id: "receipt-1", sha256: "c".repeat(64), classification: "accepted", clockSha256: "b".repeat(64), clockArtifactRef: "clock-1", clockArtifactSizeBytes: 32n, sourceSha256: "a".repeat(64), sourceSizeBytes: 500n, jobId: "inspect-job", attemptId: "inspect-attempt", videoStreamIndex: 0, timeBaseNumerator: 1n, timeBaseDenominator: 24n, streamStartPts: 0n, sourceEndPts: 144n, lastFrameDurationTicks: 1n }),
+      inspectionReceipt: create(MediaInspectionReceiptSchema, { id: "receipt-1", sha256: "c".repeat(64), classification: "accepted", clockSha256: "b".repeat(64), clockArtifactRef: "clock-1", clockArtifactSizeBytes: 32n, sourceSha256: "a".repeat(64), sourceSizeBytes: 500n, jobId: "inspect-job", attemptId: "inspect-attempt", videoStreamIndex: 0, timeBaseNumerator: 1n, timeBaseDenominator: 24n, streamStartPts: 0n, sourceEndPts: 312n, lastFrameDurationTicks: 1n }),
     });
     vi.mocked(shotsClient.listShots).mockResolvedValue(list() as never);
     vi.mocked(shotsClient.getShot).mockResolvedValue({ shot: shot(1n), head } as never);
@@ -533,7 +537,7 @@ describe("ShotWorkspace", () => {
     vi.mocked(projectsClient.listSourceMedia).mockResolvedValue({ sourceMedia: [video], nextPageToken: "" } as never);
     vi.mocked(projectsClient.getSourceMediaClockPage).mockResolvedValue(create(GetSourceMediaClockPageResponseSchema, {
       clockSha256: "b".repeat(64), timeBaseNumerator: 1n, timeBaseDenominator: 24n,
-      points: [create(SourceClockPointSchema, { ordinal: 0, pts: 0n }), create(SourceClockPointSchema, { ordinal: 1, pts: 48n }), create(SourceClockPointSchema, { ordinal: 2, pts: 144n })],
+      points: [create(SourceClockPointSchema, { ordinal: 0, pts: 0n }), create(SourceClockPointSchema, { ordinal: 1, pts: 48n }), create(SourceClockPointSchema, { ordinal: 2, pts: 312n })],
     }));
     renderWithProviders(<ShotWorkspace projectId="project-1" />);
     await screen.findByTestId("shot-editor");

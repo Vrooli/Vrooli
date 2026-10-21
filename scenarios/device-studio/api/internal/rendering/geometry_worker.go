@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -31,6 +32,8 @@ const (
 	GeometryOutputName           = "geometry-output.glb"
 	GeometryReceiptName          = "geometry-receipt.json"
 	GeometryInferenceOutcomeName = "geometry-inference-outcome.json"
+	GeometryResponseValueName    = "geometry-response-value.json"
+	geometryResponseValueMax     = 1 << 20
 	geometryImageTotalMax        = 10 << 20
 	geometryWorkerTimeout        = 4 * time.Minute
 )
@@ -43,15 +46,26 @@ type GeometryImageInput struct {
 	Height    uint32 `json:"height"`
 	SizeBytes int64  `json:"size_bytes"`
 }
+type GeometryCorrectionPrompt struct {
+	SourceJobID            string                 `json:"source_job_id"`
+	SourceInputFingerprint string                 `json:"source_input_fingerprint"`
+	SourceBriefSHA256      string                 `json:"source_brief_sha256"`
+	RecipeSHA256           string                 `json:"recipe_sha256"`
+	RecipeJSON             string                 `json:"recipe_json"`
+	Issue                  geometry.SemanticIssue `json:"issue"`
+	Feedback               string                 `json:"feedback"`
+}
 type GeometryWorkerManifest struct {
-	Version          int                  `json:"version"`
-	JobID            string               `json:"job_id"`
-	AttemptID        string               `json:"attempt_id"`
-	InputFingerprint string               `json:"input_fingerprint"`
-	WorkerSHA256     string               `json:"worker_sha256"`
-	Brief            string               `json:"brief"`
-	Envelope         [3]float64           `json:"envelope_mm"`
-	Images           []GeometryImageInput `json:"images"`
+	Version          int                       `json:"version"`
+	JobID            string                    `json:"job_id"`
+	AttemptID        string                    `json:"attempt_id"`
+	InputFingerprint string                    `json:"input_fingerprint"`
+	WorkerSHA256     string                    `json:"worker_sha256"`
+	Brief            string                    `json:"brief"`
+	Envelope         [3]float64                `json:"envelope_mm"`
+	FundingRoute     string                    `json:"funding_route,omitempty"`
+	Images           []GeometryImageInput      `json:"images"`
+	Correction       *GeometryCorrectionPrompt `json:"correction,omitempty"`
 }
 type GeometryWorkerReceipt struct {
 	Version                int                         `json:"version"`
@@ -64,6 +78,7 @@ type GeometryWorkerReceipt struct {
 	OutputBytes            int                         `json:"output_bytes"`
 	Provider               string                      `json:"provider,omitempty"`
 	Model                  string                      `json:"model,omitempty"`
+	FundingRoute           string                      `json:"funding_route,omitempty"`
 	ProviderCalls          int32                       `json:"provider_calls_made"`
 	InputTokens            int64                       `json:"input_tokens,omitempty"`
 	OutputTokens           int64                       `json:"output_tokens,omitempty"`
@@ -86,6 +101,7 @@ type GeometryInferenceOutcome struct {
 	WorkerSHA256     string                         `json:"worker_sha256"`
 	Provider         string                         `json:"provider,omitempty"`
 	Model            string                         `json:"model,omitempty"`
+	FundingRoute     string                         `json:"funding_route,omitempty"`
 	ProviderCalls    int32                          `json:"provider_calls_made"`
 	Applied          *sharedv1.AppliedSettings      `json:"applied_settings,omitempty"`
 	Usage            *inferencev1.Usage             `json:"usage"`
@@ -94,6 +110,9 @@ type GeometryInferenceOutcome struct {
 	ErrorConstruct   string                         `json:"error_construct,omitempty"`
 	ValueSHA256      string                         `json:"value_sha256"`
 	ValueBytes       int                            `json:"value_bytes"`
+	ValueDisposition string                         `json:"value_disposition"`
+	ValueFile        string                         `json:"value_file,omitempty"`
+	SemanticIssue    *geometry.SemanticIssue        `json:"semantic_issue,omitempty"`
 	ReceivedAt       time.Time                      `json:"received_at"`
 }
 
@@ -111,6 +130,63 @@ func RunGeometryWorkerCommand(args []string) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	return RunGeometryManifest(ctx, args[2], nil)
+}
+
+func geometryInferenceRoute(route string) (string, sharedv1.Profile, string, error) {
+	if route == "" { // Legacy manifests were local-only.
+		route = "local"
+	}
+	switch route {
+	case "local":
+		return "extract.structured", sharedv1.Profile_PROFILE_LOCAL_ONLY, "ollama", nil
+	case "byok":
+		return "device.geometry.byok", sharedv1.Profile_PROFILE_REMOTE_ONLY, "openrouter", nil
+	case "vrooli_credits":
+		return "device.geometry.vrooli_credits", sharedv1.Profile_PROFILE_REMOTE_ONLY, "lpbs", nil
+	default:
+		return "", sharedv1.Profile_PROFILE_UNSPECIFIED, "", errors.New("geometry manifest selects an unsupported funding route")
+	}
+}
+
+func ValidateGeometryCorrectionPrompt(correction *GeometryCorrectionPrompt) bool {
+	if correction == nil || !validGeometryJobID(correction.SourceJobID) || !validWorkerDigest(correction.SourceInputFingerprint) || !validWorkerDigest(correction.SourceBriefSHA256) || !validWorkerDigest(correction.RecipeSHA256) || len(correction.RecipeJSON) == 0 || len(correction.RecipeJSON) > geometry.MaxRecipeBytes || workerDigest([]byte(correction.RecipeJSON)) != correction.RecipeSHA256 || strings.TrimSpace(correction.Feedback) == "" || len(correction.Feedback) > 1200 || correction.Issue.PartID == "" || len(correction.Issue.PartID) > 48 || correction.Issue.Axis != "x" && correction.Issue.Axis != "y" && correction.Issue.Axis != "z" {
+		return false
+	}
+	for _, ch := range correction.SourceJobID {
+		if ch != '-' && (ch < '0' || ch > '9') && (ch < 'a' || ch > 'f') {
+			return false
+		}
+	}
+	for _, ch := range correction.Feedback {
+		if ch < 0x20 && ch != '\n' && ch != '\t' {
+			return false
+		}
+	}
+	issue, ok := geometry.IssueFromError(func() error {
+		_, _, err := geometry.Decode([]byte(correction.RecipeJSON))
+		return err
+	}())
+	return ok && issue == correction.Issue && (issue.Code == "part_outside_envelope" || issue.Code == "rotated_part_outside_envelope")
+}
+
+func validGeometryJobID(value string) bool {
+	if len(value) != 36 {
+		return false
+	}
+	for i, ch := range value {
+		if i == 8 || i == 13 || i == 18 || i == 23 {
+			if ch != '-' {
+				return false
+			}
+			continue
+		}
+		if ch < '0' || ch > '9' {
+			if ch < 'a' || ch > 'f' {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // RunGeometryManifest performs one disclosed local-only inference request,
@@ -141,13 +217,21 @@ func RunGeometryManifest(ctx context.Context, manifestPath string, client geomet
 	if !bytes.Equal(data, append(canonical, '\n')) || m.Version != 1 || m.JobID == "" || m.AttemptID == "" || !validWorkerDigest(m.InputFingerprint) || !validWorkerDigest(m.WorkerSHA256) || len(m.Images) < 1 || len(m.Images) > 4 || len(m.Brief) > 4000 {
 		return errors.New("geometry manifest is not canonical or exceeds fixed bounds")
 	}
+	fundingRoute := strings.TrimSpace(m.FundingRoute)
+	role, profile, expectedProvider, routeErr := geometryInferenceRoute(fundingRoute)
+	if routeErr != nil {
+		return routeErr
+	}
+	if fundingRoute == "" {
+		fundingRoute = "local"
+	}
 	if err := verifyCurrentExecutable(m.WorkerSHA256); err != nil {
 		return err
 	}
 	if client == nil {
 		base, resolveErr := discovery.ResolveScenarioURLDefault(ctx, "ai-gateway")
 		if resolveErr != nil || base == "" {
-			return errors.New("AI Gateway is unavailable for local-only creation")
+			return errors.New("AI Gateway is unavailable for the selected geometry funding route")
 		}
 		client = inferenceconnect.NewInferenceServiceClient(&http.Client{Timeout: geometryWorkerTimeout}, base)
 	}
@@ -172,7 +256,13 @@ func RunGeometryManifest(ctx context.Context, manifestPath string, client geomet
 	}
 	schema := geometry.SchemaJSON()
 	source := fmt.Sprintf("Create a device geometry recipe. Product brief: %s\nLocked outer envelope (millimeters, x width/y height/z depth): %.4f x %.4f x %.4f. Return only the schema-conforming recipe. Do not change the locked envelope.", m.Brief, m.Envelope[0], m.Envelope[1], m.Envelope[2])
-	request := &inferencev1.RunRequest{Source: source, SchemaJson: schema, Instruction: "Use the attached user-selected project reference images as visual evidence. Separate observed facts from uncertain inference. Output finite part geometry and an independently mapped screen. Use only the locked dimensions.", Role: "extract.structured", Attachments: attachments, Profile: sharedv1.Profile_PROFILE_LOCAL_ONLY, MaxOutputTokens: 4096, MaxProviderCalls: 1}
+	if m.Correction != nil {
+		if !ValidateGeometryCorrectionPrompt(m.Correction) {
+			return errors.New("geometry correction source is not bound to its verified prior recipe")
+		}
+		source += fmt.Sprintf("\n\nExplicit user-directed correction of failed job %s. Prior recipe (sha256 %s):\n%s\nVerified semantic issue: %s; part %s; axis %s. Keep every rotated part half-extent within the locked envelope centered at the origin. Operator feedback: %s", m.Correction.SourceJobID, m.Correction.RecipeSHA256, m.Correction.RecipeJSON, m.Correction.Issue.Code, m.Correction.Issue.PartID, m.Correction.Issue.Axis, m.Correction.Feedback)
+	}
+	request := &inferencev1.RunRequest{Source: source, SchemaJson: schema, Instruction: "Use the attached user-selected project reference images as visual evidence. Separate observed facts from uncertain inference. Output finite part geometry and an independently mapped screen. Center the housing at [0,0,0]. Keep each part's complete rotated half-extents within [-W/2,+W/2] x [-H/2,+H/2] x [-D/2,+D/2]. Put a rectangular screen only on a flat box display face, with its stand-off still inside that same locked envelope. Use only the locked dimensions.", Role: role, Attachments: attachments, Profile: profile, MaxOutputTokens: 4096, MaxProviderCalls: 1}
 	wrapped, callErr := client.Run(ctx, connect.NewRequest(request))
 	var response *inferencev1.RunResponse
 	if wrapped != nil {
@@ -182,6 +272,19 @@ func RunGeometryManifest(ctx context.Context, manifestPath string, client geomet
 	var outcomeSHA string
 	if response != nil {
 		outcome = geometryOutcome(m, response, time.Now().UTC())
+		value := []byte(response.GetValueJson())
+		if len(value) <= geometryResponseValueMax {
+			if writeErr := writeGeometryFile(root, GeometryResponseValueName, value); writeErr != nil {
+				return writeErr
+			}
+			if verifyErr := verifyGeometryResponseValue(root, outcome); verifyErr != nil {
+				return verifyErr
+			}
+			outcome.ValueDisposition = "retained_exact"
+			outcome.ValueFile = GeometryResponseValueName
+		} else {
+			outcome.ValueDisposition = "omitted_over_limit"
+		}
 		outcomeBytes, marshalErr := json.Marshal(outcome)
 		if marshalErr != nil {
 			return marshalErr
@@ -193,13 +296,16 @@ func RunGeometryManifest(ctx context.Context, manifestPath string, client geomet
 		outcomeSHA = workerDigest(outcomeBytes)
 	}
 	if callErr != nil {
-		return fmt.Errorf("local AI Gateway call failed: %w", callErr)
+		return fmt.Errorf("selected AI Gateway route failed: %w", callErr)
 	}
 	if response == nil || response.GetError() != nil || !response.GetValidated() || response.GetProviderCallsMade() > 1 {
-		return errors.New("local AI Gateway could not return one validated bounded recipe")
+		return errors.New("selected AI Gateway route could not return one validated bounded recipe")
 	}
 	if response.GetProviderCallsMade() != 1 {
-		return errors.New("local AI Gateway did not confirm a provider dispatch attempt")
+		return errors.New("selected AI Gateway route did not confirm a provider dispatch attempt")
+	}
+	if response.GetProvider() != expectedProvider {
+		return errors.New("AI Gateway response provider does not match the explicitly selected funding route")
 	}
 	if response.GetApplied() == nil || !validAppliedSettings(response.GetApplied()) || outcomeSHA == "" {
 		return errors.New("local AI Gateway response omitted trustworthy applied settings or outcome evidence")
@@ -210,6 +316,16 @@ func RunGeometryManifest(ctx context.Context, manifestPath string, client geomet
 	recipeBytes := []byte(response.GetValueJson())
 	recipe, canonicalRecipe, err := geometry.Decode(recipeBytes)
 	if err != nil {
+		if issue, ok := geometry.IssueFromError(err); ok {
+			outcome.SemanticIssue = &issue
+			outcomeBytes, marshalErr := json.Marshal(outcome)
+			if marshalErr != nil {
+				return marshalErr
+			}
+			if writeErr := replaceGeometryOutcome(root, append(outcomeBytes, '\n')); writeErr != nil {
+				return writeErr
+			}
+		}
 		return err
 	}
 	if recipe.Operation != "construct" {
@@ -238,7 +354,7 @@ func RunGeometryManifest(ctx context.Context, manifestPath string, client geomet
 		return err
 	}
 	usage := response.GetUsage()
-	r := GeometryWorkerReceipt{Version: 2, JobID: m.JobID, AttemptID: m.AttemptID, InputFingerprint: m.InputFingerprint, WorkerSHA256: m.WorkerSHA256, RecipeSHA256: workerDigest(canonicalRecipe), OutputSHA256: workerDigest(glb), OutputBytes: len(glb), Provider: response.GetProvider(), Model: response.GetModel(), ProviderCalls: response.GetProviderCallsMade(), InputTokens: usage.GetInputTokens(), OutputTokens: usage.GetOutputTokens(), CostMicros: usage.GetCostMicros(), InputProvenance: usage.GetInputTokensProvenance(), OutputProvenance: usage.GetOutputTokensProvenance(), CostProvenance: usage.GetCostProvenance(), Applied: response.GetApplied(), InferenceOutcomeSHA256: outcomeSHA, CompletedAt: time.Now().UTC()}
+	r := GeometryWorkerReceipt{Version: 2, JobID: m.JobID, AttemptID: m.AttemptID, InputFingerprint: m.InputFingerprint, WorkerSHA256: m.WorkerSHA256, RecipeSHA256: workerDigest(canonicalRecipe), OutputSHA256: workerDigest(glb), OutputBytes: len(glb), Provider: response.GetProvider(), Model: response.GetModel(), FundingRoute: fundingRoute, ProviderCalls: response.GetProviderCallsMade(), InputTokens: usage.GetInputTokens(), OutputTokens: usage.GetOutputTokens(), CostMicros: usage.GetCostMicros(), InputProvenance: usage.GetInputTokensProvenance(), OutputProvenance: usage.GetOutputTokensProvenance(), CostProvenance: usage.GetCostProvenance(), Applied: response.GetApplied(), InferenceOutcomeSHA256: outcomeSHA, CompletedAt: time.Now().UTC()}
 	receipt, err := json.Marshal(r)
 	if err != nil {
 		return err
@@ -269,6 +385,19 @@ func geometryOutcome(m GeometryWorkerManifest, response *inferencev1.RunResponse
 		errorConstruct = ""
 	}
 	return &GeometryInferenceOutcome{Version: 1, JobID: m.JobID, AttemptID: m.AttemptID, InputFingerprint: m.InputFingerprint, WorkerSHA256: m.WorkerSHA256, Provider: provider, Model: model, ProviderCalls: response.GetProviderCallsMade(), Applied: response.GetApplied(), Usage: usage, Validated: response.GetValidated(), ErrorCode: errorCode, ErrorConstruct: errorConstruct, ValueSHA256: workerDigest(value), ValueBytes: len(value), ReceivedAt: now}
+}
+
+func verifyGeometryResponseValue(root *os.Root, outcome *GeometryInferenceOutcome) error {
+	f, err := root.Open(GeometryResponseValueName)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	value, err := io.ReadAll(io.LimitReader(f, geometryResponseValueMax+1))
+	if err != nil || len(value) != outcome.ValueBytes || workerDigest(value) != outcome.ValueSHA256 {
+		return errors.New("geometry response value differs from outcome digest or size")
+	}
+	return nil
 }
 
 func validGatewayUsage(value *inferencev1.Usage) bool {
@@ -318,6 +447,33 @@ func writeGeometryFile(root *os.Root, name string, data []byte) error {
 		return errors.New("geometry worker could not write complete output")
 	}
 	return f.Sync()
+}
+func replaceGeometryOutcome(root *os.Root, data []byte) error {
+	const tempName = ".geometry-inference-outcome-update"
+	_ = root.Remove(tempName)
+	f, err := root.OpenFile(tempName, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		return err
+	}
+	if n, writeErr := f.Write(data); writeErr != nil || n != len(data) {
+		_ = f.Close()
+		_ = root.Remove(tempName)
+		return errors.New("geometry worker could not write complete outcome update")
+	}
+	if err := f.Sync(); err != nil {
+		_ = f.Close()
+		_ = root.Remove(tempName)
+		return err
+	}
+	if err := f.Close(); err != nil {
+		_ = root.Remove(tempName)
+		return err
+	}
+	if err := root.Rename(tempName, GeometryInferenceOutcomeName); err != nil {
+		_ = root.Remove(tempName)
+		return err
+	}
+	return nil
 }
 func validWorkerDigest(s string) bool {
 	if len(s) != 64 {

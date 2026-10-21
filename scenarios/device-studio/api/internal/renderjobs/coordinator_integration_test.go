@@ -51,6 +51,15 @@ func TestNativeOutcomeBindsTypedGeometryResponseOnSuccessAndFailure(t *testing.T
 				t.Fatal(err)
 			}
 			outcome := rendering.GeometryInferenceOutcome{Version: 1, JobID: running.ID, AttemptID: attempt.ID, InputFingerprint: running.InputFingerprint, WorkerSHA256: bindingDigest(running.Input, "worker_executable"), Provider: "ollama", Model: "local", ProviderCalls: 1, Usage: &inferencev1.Usage{InputTokensProvenance: inferencev1.UsageProvenance_USAGE_PROVENANCE_UNKNOWN, OutputTokensProvenance: inferencev1.UsageProvenance_USAGE_PROVENANCE_UNKNOWN, CostProvenance: inferencev1.UsageProvenance_USAGE_PROVENANCE_UNKNOWN}, Validated: exitCode == 0, ValueSHA256: digestBytes([]byte("value")), ValueBytes: 5, ReceivedAt: time.Now().UTC()}
+			var rejected []byte
+			if exitCode != 0 {
+				rejected = []byte(`{"version":"rejected"}`)
+				outcome.SemanticIssue = &geometry.SemanticIssue{Code: "part_outside_envelope", PartID: "housing", Axis: "y", Message: "part exceeds the locked envelope"}
+				outcome.ValueSHA256, outcome.ValueBytes, outcome.ValueDisposition, outcome.ValueFile = digestBytes(rejected), len(rejected), "retained_exact", rendering.GeometryResponseValueName
+				if err := os.WriteFile(filepath.Join(workspace, rendering.GeometryResponseValueName), rejected, 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
 			outcomeBytes, err := json.Marshal(outcome)
 			if err != nil {
 				t.Fatal(err)
@@ -75,6 +84,15 @@ func TestNativeOutcomeBindsTypedGeometryResponseOnSuccessAndFailure(t *testing.T
 			}
 			if evidence.InferenceOutcome == nil || evidence.InferenceOutcome.Validated != (exitCode == 0) || evidence.InferenceOutcomeSHA256 != digestBytes(outcomeBytes) || bytes.Contains(persisted, []byte(`"value":`)) {
 				t.Fatalf("native outcome did not bind the typed response for exit status %d: %+v", exitCode, evidence)
+			}
+			if exitCode != 0 {
+				if evidence.RejectedRecipeStatus != "available" || evidence.RejectedRecipe == nil || evidence.RejectedRecipe.OutcomeSHA256 != digestBytes(outcomeBytes) || evidence.RejectedRecipe.SHA256 != digestBytes(rejected) {
+					t.Fatalf("failed result did not bind the exact rejected recipe to its native outcome: %+v", evidence.RejectedRecipe)
+				}
+				got, err := c.readBlobForRoute(ctx, route, evidence.RejectedRecipe.ArtifactID, geometry.MaxRecipeBytes, evidence.RejectedRecipe.SHA256)
+				if err != nil || !bytes.Equal(got, rejected) {
+					t.Fatalf("bound correction response was not returned as exact bytes: %v", err)
+				}
 			}
 		})
 	}

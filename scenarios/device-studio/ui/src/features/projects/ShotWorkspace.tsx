@@ -4,20 +4,14 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tansta
 import { Button } from "@vrooli/react-component-library/Button/2";
 import { Card, CardContent, CardHeader, CardTitle } from "@vrooli/react-component-library/Card/1";
 import {
-  CaptureArea,
   CoordinateConvention,
   MotionMode,
   PhotographicCameraMotionSchema,
   PhotographicSceneSchema,
   PlateQuadSchema,
-  PhoneSystemChromeSchema,
-  BrowserDesktopChromeSchema,
   PresentationAppearance,
   PresentationRGBSchema,
-  PresentationRectSchema,
   PresentationKind,
-  ScreenFitMode,
-  ScreenPresentationSchema,
   ShotIssueCode,
   ShotSnapshotSchema,
   VideoEOFPolicy,
@@ -36,10 +30,11 @@ import { getSourceMediaContent, projectsClient, sourceMediaContentURL, verifySou
 import { shotConflict, shotsClient } from "../../api/shots";
 import { RenderControls, type FinalRenderOutput } from "./RenderControls";
 import { VideoTimingEditor } from "./VideoTimingEditor";
+import { ScreenPresentationEditor, emptyScreenPresentationDraft, screenPresentationDraftFromProto, screenPresentationDraftInvalid, screenPresentationFromDraft, type ScreenPresentationDraft } from "./ScreenPresentationEditor";
 import { NewPhysicalShot, PhysicalShotEditor } from "./PhysicalShotWorkspace";
 
 type PointDraft = { x: string; y: string };
-type ShotDraft = {
+type ShotDraft = ScreenPresentationDraft & {
   name: string;
   plateMediaId: string;
   activeMaskMediaId: string;
@@ -57,37 +52,6 @@ type ShotDraft = {
   cameraMatteColor: string;
   sourceMediaId: string;
   videoTiming?: VideoTiming;
-  captureArea: CaptureArea;
-  kind: PresentationKind;
-  fitMode: ScreenFitMode;
-  matteColor: string;
-  carrierText: string;
-  clockText: string;
-  batteryPercent: string;
-  showCellularIndicator: boolean;
-  showWifiIndicator: boolean;
-  showHomeIndicator: boolean;
-  showStatus: boolean;
-  showBatteryPercent: boolean;
-  phoneAppearance: PresentationAppearance;
-  topFill: string;
-  bottomFill: string;
-  statusInk: string;
-  homeInk: string;
-  windowTitle: string;
-  addressText: string;
-  showWindowControls: boolean;
-  showToolbar: boolean;
-  browserAppearance: PresentationAppearance;
-  windowX: string;
-  windowY: string;
-  windowWidth: string;
-  windowHeight: string;
-  showMenuBar: boolean;
-  showDock: boolean;
-  desktopColor: string;
-  windowColor: string;
-  chromeColor: string;
 };
 type ShotDraftBuffer = { draft: ShotDraft; baseRevision: bigint };
 
@@ -107,13 +71,7 @@ const emptyDraft = (name = "") : ShotDraft => ({
   displayWidthPixels: "", displayHeightPixels: "", topLeft: emptyPoint(), topRight: emptyPoint(), bottomRight: emptyPoint(), bottomLeft: emptyPoint(),
   depictionLabel: "", coordinateConvention: CoordinateConvention.PLATE_RASTER_EDGE_PIXELS_V1, motionMode: MotionMode.FIXED,
   cameraDurationOutputFrames: "24", cameraMatteColor: "#000000",
-  sourceMediaId: "", captureArea: CaptureArea.APP_ONLY, kind: PresentationKind.PLAIN, fitMode: ScreenFitMode.CONTAIN,
-  matteColor: "", carrierText: "", clockText: "9:41", batteryPercent: "84",
-  showCellularIndicator: true, showWifiIndicator: true, showHomeIndicator: true, windowTitle: "", addressText: "",
-  showStatus: true, showBatteryPercent: false, phoneAppearance: PresentationAppearance.AUTO, topFill: "", bottomFill: "", statusInk: "", homeInk: "",
-  showWindowControls: true, showToolbar: true, browserAppearance: PresentationAppearance.LIGHT,
-  windowX: "", windowY: "", windowWidth: "", windowHeight: "", showMenuBar: false, showDock: false,
-  desktopColor: "", windowColor: "", chromeColor: "",
+  ...emptyScreenPresentationDraft(), sourceMediaId: "",
 });
 
 function colorFromDraft(value: string) {
@@ -133,6 +91,11 @@ function plannedOutputFrames(timing?: VideoTiming): bigint | undefined {
   return (numerator + denominator - 1n) / denominator;
 }
 
+function cameraScheduleLimitFrames(timing?: VideoTiming): bigint | undefined {
+  if (!timing || timing.outputRateDen !== 1 || ![24, 30].includes(timing.outputRateNum)) return undefined;
+  return BigInt(timing.outputRateNum * 12);
+}
+
 function cameraDurationSeconds(frames: bigint, timing?: VideoTiming): string {
   if (!timing || timing.outputRateNum <= 0 || timing.outputRateDen <= 0) return "—";
   const numerator = frames * BigInt(timing.outputRateDen) * 100n;
@@ -150,24 +113,6 @@ function snapshotFromDraft(draft: ShotDraft) {
   const plateQuad = Object.values(quadPoints).some((value) => value !== undefined)
     ? create(PlateQuadSchema, quadPoints)
     : undefined;
-  const windowValues = [draft.windowX, draft.windowY, draft.windowWidth, draft.windowHeight];
-  const window = windowValues.every((value) => value !== "") ? create(PresentationRectSchema, {
-    x: Number(draft.windowX), y: Number(draft.windowY), width: Number(draft.windowWidth), height: Number(draft.windowHeight),
-  }) : undefined;
-  const phoneSystemChrome = create(PhoneSystemChromeSchema, {
-    carrierText: draft.carrierText, clockText: draft.clockText,
-    batteryPercent: Number(draft.batteryPercent || 0), showCellularIndicator: draft.showCellularIndicator,
-    showWifiIndicator: draft.showWifiIndicator, showHomeIndicator: draft.showHomeIndicator,
-    showStatus: draft.showStatus, showBatteryPercent: draft.showBatteryPercent, appearance: draft.phoneAppearance,
-    topFill: colorFromDraft(draft.topFill), bottomFill: colorFromDraft(draft.bottomFill),
-    statusInk: colorFromDraft(draft.statusInk), homeInk: colorFromDraft(draft.homeInk),
-  });
-  const browserDesktopChrome = create(BrowserDesktopChromeSchema, {
-    windowTitle: draft.windowTitle, addressText: draft.addressText,
-    showWindowControls: draft.showWindowControls, showToolbar: draft.showToolbar,
-    appearance: draft.browserAppearance, window, showMenuBar: draft.showMenuBar, showDock: draft.showDock,
-    desktopColor: colorFromDraft(draft.desktopColor), windowColor: colorFromDraft(draft.windowColor), chromeColor: colorFromDraft(draft.chromeColor),
-  });
   return create(ShotSnapshotSchema, {
     motionMode: draft.motionMode,
     cameraMotion: draft.motionMode === MotionMode.CROP_PUSH ? create(PhotographicCameraMotionSchema, {
@@ -181,13 +126,7 @@ function snapshotFromDraft(draft: ShotDraft) {
       displayWidthPixels: Number(draft.displayWidthPixels || 0), displayHeightPixels: Number(draft.displayHeightPixels || 0),
       plateQuad, coordinateConvention: draft.coordinateConvention, depictionLabel: draft.depictionLabel,
     }),
-    presentation: create(ScreenPresentationSchema, {
-      sourceMediaId: draft.sourceMediaId, captureArea: draft.captureArea, kind: draft.kind, fitMode: draft.fitMode,
-      viewportWidthPixels: 0, viewportHeightPixels: 0,
-      matte: colorFromDraft(draft.matteColor),
-      phoneSystemChrome: draft.kind === PresentationKind.PHONE_SYSTEM ? phoneSystemChrome : undefined,
-      browserDesktopChrome: draft.kind === PresentationKind.BROWSER_DESKTOP ? browserDesktopChrome : undefined,
-    }),
+    presentation: screenPresentationFromDraft(draft.sourceMediaId, draft),
     videoTiming: draft.videoTiming,
   });
 }
@@ -224,33 +163,8 @@ function draftFromRevision(name: string, revision: ShotRevision): ShotDraft {
     motionMode: revision.snapshot?.motionMode ?? MotionMode.FIXED,
     cameraDurationOutputFrames: revision.snapshot?.cameraMotion ? String(revision.snapshot.cameraMotion.durationOutputFrames) : "24",
     cameraMatteColor: colorToDraft(revision.snapshot?.cameraMotion?.matteRgb) || "#000000",
-    sourceMediaId: presentation?.sourceMediaId ?? "", captureArea: presentation?.captureArea ?? CaptureArea.APP_ONLY, kind: presentation?.kind ?? PresentationKind.PLAIN,
+    sourceMediaId: presentation?.sourceMediaId ?? "", ...screenPresentationDraftFromProto(presentation),
     videoTiming: revision.snapshot?.videoTiming,
-    fitMode: presentation?.fitMode ?? ScreenFitMode.CONTAIN,
-    matteColor: colorToDraft(presentation?.matte),
-    carrierText: presentation?.phoneSystemChrome?.carrierText ?? "", clockText: presentation?.phoneSystemChrome?.clockText ?? "9:41",
-    batteryPercent: String(presentation?.phoneSystemChrome?.batteryPercent ?? 84),
-    showCellularIndicator: presentation?.phoneSystemChrome?.showCellularIndicator ?? true,
-    showWifiIndicator: presentation?.phoneSystemChrome?.showWifiIndicator ?? true,
-    showHomeIndicator: presentation?.phoneSystemChrome?.showHomeIndicator ?? true,
-    showStatus: presentation?.phoneSystemChrome?.showStatus ?? true,
-    showBatteryPercent: presentation?.phoneSystemChrome?.showBatteryPercent ?? false,
-    phoneAppearance: presentation?.phoneSystemChrome?.appearance ?? PresentationAppearance.UNSPECIFIED,
-    topFill: colorToDraft(presentation?.phoneSystemChrome?.topFill), bottomFill: colorToDraft(presentation?.phoneSystemChrome?.bottomFill),
-    statusInk: colorToDraft(presentation?.phoneSystemChrome?.statusInk), homeInk: colorToDraft(presentation?.phoneSystemChrome?.homeInk),
-    windowTitle: presentation?.browserDesktopChrome?.windowTitle ?? "", addressText: presentation?.browserDesktopChrome?.addressText ?? "",
-    showWindowControls: presentation?.browserDesktopChrome?.showWindowControls ?? true,
-    showToolbar: presentation?.browserDesktopChrome?.showToolbar ?? true,
-    browserAppearance: presentation?.browserDesktopChrome?.appearance ?? PresentationAppearance.UNSPECIFIED,
-    windowX: presentation?.browserDesktopChrome?.window ? String(presentation.browserDesktopChrome.window.x) : "",
-    windowY: presentation?.browserDesktopChrome?.window ? String(presentation.browserDesktopChrome.window.y) : "",
-    windowWidth: presentation?.browserDesktopChrome?.window ? String(presentation.browserDesktopChrome.window.width) : "",
-    windowHeight: presentation?.browserDesktopChrome?.window ? String(presentation.browserDesktopChrome.window.height) : "",
-    showMenuBar: presentation?.browserDesktopChrome?.showMenuBar ?? false,
-    showDock: presentation?.browserDesktopChrome?.showDock ?? false,
-    desktopColor: colorToDraft(presentation?.browserDesktopChrome?.desktopColor),
-    windowColor: colorToDraft(presentation?.browserDesktopChrome?.windowColor),
-    chromeColor: colorToDraft(presentation?.browserDesktopChrome?.chromeColor),
   };
 }
 
@@ -504,17 +418,19 @@ function ShotEditor({ projectId, shotId, mediaQueryKey, draftCache, onDraftChang
     ...(draft.motionMode === MotionMode.CROP_PUSH ? [draft.cameraMatteColor] : [])].some((value) => value !== "" && !/^#?[\da-f]{6}$/i.test(value));
   const cameraFrames = Number(draft.cameraDurationOutputFrames);
   const clipFrames = plannedOutputFrames(draft.videoTiming);
-  const cameraDurationInvalid = draft.motionMode === MotionMode.CROP_PUSH && (!draft.videoTiming || !Number.isInteger(cameraFrames) || cameraFrames < 2 || cameraFrames > 120 || clipFrames === undefined || BigInt(cameraFrames) > clipFrames);
+  const cameraLimitFrames = cameraScheduleLimitFrames(draft.videoTiming);
+  const cameraDurationInvalid = draft.motionMode === MotionMode.CROP_PUSH && (!draft.videoTiming || !Number.isInteger(cameraFrames) || cameraFrames < 2 || cameraLimitFrames === undefined || BigInt(cameraFrames) > cameraLimitFrames || clipFrames === undefined || BigInt(cameraFrames) > clipFrames);
   const cameraMatteInvalid = draft.motionMode === MotionMode.CROP_PUSH && !/^#?[\da-f]{6}$/i.test(draft.cameraMatteColor);
   const displayCameraFrames = Number(displayDraft.cameraDurationOutputFrames);
   const displayClipFrames = plannedOutputFrames(displayDraft.videoTiming);
-  const displayCameraDurationInvalid = displayDraft.motionMode === MotionMode.CROP_PUSH && (!displayDraft.videoTiming || !Number.isInteger(displayCameraFrames) || displayCameraFrames < 2 || displayCameraFrames > 120 || displayClipFrames === undefined || BigInt(displayCameraFrames) > displayClipFrames);
-  const displayCameraClipInvalid = displayDraft.motionMode === MotionMode.CROP_PUSH && displayClipFrames !== undefined && displayClipFrames > 120n;
+  const displayCameraLimitFrames = cameraScheduleLimitFrames(displayDraft.videoTiming);
+  const displayCameraDurationInvalid = displayDraft.motionMode === MotionMode.CROP_PUSH && (!displayDraft.videoTiming || !Number.isInteger(displayCameraFrames) || displayCameraFrames < 2 || displayCameraLimitFrames === undefined || BigInt(displayCameraFrames) > displayCameraLimitFrames || displayClipFrames === undefined || BigInt(displayCameraFrames) > displayClipFrames);
+  const displayCameraClipInvalid = displayDraft.motionMode === MotionMode.CROP_PUSH && (displayClipFrames !== undefined && (displayCameraLimitFrames === undefined || displayClipFrames > displayCameraLimitFrames));
   const displayCameraMatteInvalid = displayDraft.motionMode === MotionMode.CROP_PUSH && !/^#?[\da-f]{6}$/i.test(displayDraft.cameraMatteColor);
   const displayCameraDurationStatus = displayDraft.motionMode === MotionMode.CROP_PUSH && Number.isInteger(displayCameraFrames) && displayCameraFrames >= 0
     ? t(strings.shot.cameraDurationSummary, { frames: displayCameraFrames.toString(), seconds: cameraDurationSeconds(BigInt(displayCameraFrames), displayDraft.videoTiming), rate: displayDraft.videoTiming?.outputRateNum.toString() ?? "—" })
     : "";
-  const presentationInvalid = draft.kind === PresentationKind.BROWSER_DESKTOP && draft.showWindowControls && !draft.showToolbar;
+  const presentationInvalid = screenPresentationDraftInvalid(draft);
   const numericInvalid = integerValues.some((value) => !Number.isFinite(value) || !Number.isInteger(value) || value < 0 || value > 4_294_967_295) || Number(draft.batteryPercent || 0) > 100 || rectPartial || rectOutOfBounds || rectNumeric.some((value) => value > 10000) || colorInvalid || partialPoint || coordinateOutOfRange || cameraDurationInvalid;
   const selectedMediaPending = Boolean((displayDraft.plateMediaId && !plate && plateMetadata.isLoading) || (displayDraft.sourceMediaId && !screenSource && sourceMetadata.isLoading));
   const availableMedia = [...media.filter((item) => isPreviewableImage(item)), ...(plate && !media.some((item) => item.id === plate.id) ? [plate] : [])];
@@ -594,7 +510,7 @@ function ShotEditor({ projectId, shotId, mediaQueryKey, draftCache, onDraftChang
               <p className="shot-help">{t(strings.shot.screenEntryContainHelp)}</p>
               {!displayDraft.videoTiming && <p role="alert">{t(strings.shot.cameraTimingRequired)}</p>}
               {displayCameraClipInvalid && <p role="alert">{t(strings.shot.cameraClipTooLong)}</p>}
-              <label className="shot-field"><span>{t(strings.shot.cameraDurationFrames)}</span><input type="number" min={2} max={displayClipFrames === undefined || displayClipFrames > 120n ? 120 : Number(displayClipFrames)} step={1} value={displayDraft.cameraDurationOutputFrames} disabled={historical} onChange={(event) => change("cameraDurationOutputFrames", event.target.value)} /></label>
+              <label className="shot-field"><span>{t(strings.shot.cameraDurationFrames)}</span><input type="number" min={2} max={displayClipFrames === undefined || displayCameraLimitFrames === undefined ? 360 : Number(displayClipFrames > displayCameraLimitFrames ? displayCameraLimitFrames : displayClipFrames)} step={1} value={displayDraft.cameraDurationOutputFrames} disabled={historical} onChange={(event) => change("cameraDurationOutputFrames", event.target.value)} /></label>
               {displayCameraDurationStatus && <p role="status">{displayCameraDurationStatus}</p>}
               {displayCameraDurationInvalid && displayDraft.videoTiming && <p role="alert">{t(strings.shot.cameraDurationInvalid)}</p>}
               {colorField(t(strings.shot.cameraMatte), displayDraft.cameraMatteColor, (value) => change("cameraMatteColor", value))}
@@ -612,36 +528,10 @@ function ShotEditor({ projectId, shotId, mediaQueryKey, draftCache, onDraftChang
             <div className="shot-quad-grid">{([ ["topLeft", t(strings.shot.topLeft)], ["topRight", t(strings.shot.topRight)], ["bottomRight", t(strings.shot.bottomRight)], ["bottomLeft", t(strings.shot.bottomLeft)] ] as ["topLeft" | "topRight" | "bottomRight" | "bottomLeft", string][]).map(pointFields)}</div>
             {issueList("scene")}
           </div></details>
-          <details><summary>{t(strings.shot.screenPresentation)}</summary><div className="shot-fields">
-            <label className="shot-field"><span>{t(strings.shot.captureArea)}</span><select value={displayDraft.captureArea} onChange={(event) => change("captureArea", Number(event.target.value))}><option value={CaptureArea.UNSPECIFIED}>{t(strings.shot.unspecified)}</option><option value={CaptureArea.APP_ONLY}>{t(strings.shot.appOnly)}</option><option value={CaptureArea.ALREADY_COMPOSED}>{t(strings.shot.alreadyComposed)}</option></select></label>
-            <label className="shot-field"><span>{t(strings.shot.presentationKind)}</span><select value={displayDraft.kind} onChange={(event) => change("kind", Number(event.target.value))}><option value={PresentationKind.UNSPECIFIED}>{t(strings.shot.unspecified)}</option><option value={PresentationKind.PLAIN}>{t(strings.shot.plainCapture)}</option><option value={PresentationKind.PHONE_SYSTEM}>{t(strings.shot.phoneSystem)}</option><option value={PresentationKind.BROWSER_DESKTOP}>{t(strings.shot.browserDesktop)}</option></select></label>
-            <label className="shot-field"><span>{t(strings.shot.fitMode)}</span><select value={displayDraft.fitMode} onChange={(event) => change("fitMode", Number(event.target.value))}><option value={ScreenFitMode.UNSPECIFIED}>{t(strings.shot.unspecified)}</option><option value={ScreenFitMode.CONTAIN}>{t(strings.shot.contain)}</option><option value={ScreenFitMode.COVER}>{t(strings.shot.cover)}</option></select></label>
-            <details><summary>{t(strings.shot.advancedPresentation)}</summary><div className="shot-fields">
-              {colorField(t(strings.shot.matteColor), displayDraft.matteColor, (value) => change("matteColor", value))}
-              <p className="shot-help">{t(strings.shot.optionalHexHelp)}</p>
-            </div></details>
-            {displayDraft.kind === PresentationKind.PHONE_SYSTEM && <details><summary>{t(strings.shot.phoneChrome)}</summary><div className="shot-fields">
-              <label className="shot-field"><span>{t(strings.shot.appearance)}</span><select value={displayDraft.phoneAppearance} onChange={(event) => change("phoneAppearance", Number(event.target.value))}><option value={PresentationAppearance.AUTO}>{t(strings.shot.appearanceAuto)}</option><option value={PresentationAppearance.UNSPECIFIED}>{t(strings.shot.appearanceDefault)}</option><option value={PresentationAppearance.LIGHT}>{t(strings.shot.appearanceLight)}</option><option value={PresentationAppearance.DARK}>{t(strings.shot.appearanceDark)}</option></select></label>
-              {([ ["showStatus", t(strings.shot.statusBar)], ["showBatteryPercent", t(strings.shot.batteryLabel)] ] as ["showStatus" | "showBatteryPercent", string][]).map(([key,label]) => <label className="shot-check" key={key}><input type="checkbox" checked={displayDraft[key]} onChange={(event) => change(key, event.target.checked)} />{label}</label>)}
-              <div className="shot-fields shot-fields--pair">{colorField(t(strings.shot.topFill), displayDraft.topFill, (value) => change("topFill", value))}{colorField(t(strings.shot.bottomFill), displayDraft.bottomFill, (value) => change("bottomFill", value))}</div>
-              <div className="shot-fields shot-fields--pair">{colorField(t(strings.shot.statusInk), displayDraft.statusInk, (value) => change("statusInk", value))}{colorField(t(strings.shot.homeInk), displayDraft.homeInk, (value) => change("homeInk", value))}</div>
-              <label className="shot-field"><span>{t(strings.shot.carrier)}</span><input value={displayDraft.carrierText} onChange={(event) => change("carrierText", event.target.value)} /></label>
-              <label className="shot-field"><span>{t(strings.shot.clock)}</span><input value={displayDraft.clockText} onChange={(event) => change("clockText", event.target.value)} /></label>
-              {numberField(t(strings.shot.battery), displayDraft.batteryPercent, (value) => change("batteryPercent", value))}
-              {([ ["showCellularIndicator", t(strings.shot.cellular)], ["showWifiIndicator", t(strings.shot.wifi)], ["showHomeIndicator", t(strings.shot.homeIndicator)] ] as ["showCellularIndicator" | "showWifiIndicator" | "showHomeIndicator", string][]).map(([key,label]) => <label className="shot-check" key={key}><input type="checkbox" checked={displayDraft[key]} onChange={(event) => change(key, event.target.checked)} />{label}</label>)}
-            </div></details>}
-            {displayDraft.kind === PresentationKind.BROWSER_DESKTOP && <details><summary>{t(strings.shot.browserChrome)}</summary><div className="shot-fields">
-              <label className="shot-field"><span>{t(strings.shot.appearance)}</span><select value={displayDraft.browserAppearance} onChange={(event) => change("browserAppearance", Number(event.target.value))}><option value={PresentationAppearance.UNSPECIFIED}>{t(strings.shot.appearanceDefault)}</option><option value={PresentationAppearance.LIGHT}>{t(strings.shot.appearanceLight)}</option><option value={PresentationAppearance.DARK}>{t(strings.shot.appearanceDark)}</option></select></label>
-              <div className="shot-fields shot-fields--pair">{numberField(t(strings.shot.windowX), displayDraft.windowX, (value) => change("windowX", value))}{numberField(t(strings.shot.windowY), displayDraft.windowY, (value) => change("windowY", value))}{numberField(t(strings.shot.windowWidth), displayDraft.windowWidth, (value) => change("windowWidth", value))}{numberField(t(strings.shot.windowHeight), displayDraft.windowHeight, (value) => change("windowHeight", value))}</div>
-              <p className="shot-help">{t(strings.shot.windowRectHelp)}</p>
-              <div className="shot-fields shot-fields--pair">{colorField(t(strings.shot.desktopColor), displayDraft.desktopColor, (value) => change("desktopColor", value))}{colorField(t(strings.shot.windowColor), displayDraft.windowColor, (value) => change("windowColor", value))}{colorField(t(strings.shot.chromeColor), displayDraft.chromeColor, (value) => change("chromeColor", value))}</div>
-              <label className="shot-field"><span>{t(strings.shot.windowTitle)}</span><input value={displayDraft.windowTitle} onChange={(event) => change("windowTitle", event.target.value)} /></label>
-              <label className="shot-field"><span>{t(strings.shot.addressText)}</span><input value={displayDraft.addressText} onChange={(event) => change("addressText", event.target.value)} /></label>
-              {([ ["showWindowControls", t(strings.shot.windowControls)], ["showToolbar", t(strings.shot.toolbar)], ["showMenuBar", t(strings.shot.menuBar)], ["showDock", t(strings.shot.dock)] ] as ["showWindowControls" | "showToolbar" | "showMenuBar" | "showDock", string][]).map(([key,label]) => <label className="shot-check" key={key}><input type="checkbox" checked={displayDraft[key]} onChange={(event) => change(key, event.target.checked)} />{label}</label>)}
-              {presentationInvalid && <p role="alert">{t(strings.shot.browserControlsRequireToolbar)}</p>}
-            </div></details>}
+          <details><summary>{t(strings.shot.screenPresentation)}</summary>
+            <ScreenPresentationEditor value={displayDraft} disabled={historical} onChange={(patch) => updateDraft((current) => ({ ...current, ...patch }))} />
             {issueList("presentation")}
-          </div></details>
+          </details>
           {issueList()}
           {numericInvalid && !historical && <p role="alert">{t(strings.shot.numericIssue)}</p>}
           {validate.error && <p role="alert">{errorMessage(validate.error, t)}</p>}

@@ -43,21 +43,83 @@ func TestCameraManifestValidatesPortraitAndLandscapeProfiles(t *testing.T) {
 	}
 }
 
-func TestCameraManifestEnforcesBoundedDurationAndPinnedPlate(t *testing.T) {
+func TestScreenEntryFitsThreeByTwoPhonePlateAndKeepsActiveViewportTarget(t *testing.T) {
+	m := cameraSampleManifest(1920, 1080, 1536, 1024, [4]Corner{{512, 128}, {1024, 128}, {1024, 896}, {512, 896}})
+	startPTS, endPTS := m.TrimStartPTS, m.TrimEndPTS
+	if err := ValidateVideoManifest(m); err != nil {
+		t.Fatalf("3:2 photographic phone plate should be contain-fitted: %v", err)
+	}
+	path, err := newVideoCameraPath(m, image.Rect(0, 0, 1536, 1024), nil)
+	if err != nil {
+		t.Fatalf("build fitted camera path: %v", err)
+	}
+	scale := 1080.0 / 1024.0
+	fitOffset := (1920 - 1536*scale) / 2
+	quad := [4]composition.Point{{X: 512*scale + fitOffset, Y: 128 * scale}, {X: 1024*scale + fitOffset, Y: 128 * scale}, {X: 1024*scale + fitOffset, Y: 896 * scale}, {X: 512*scale + fitOffset, Y: 896 * scale}}
+	viewport, err := presentations.BuildVideoViewport(image.Rect(0, 0, m.Inspection.Width, m.Inspection.Height), *m.Presentation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantFrom, err := composition.ProjectRasterRect(image.Pt(m.Scene.SurfaceWidth, m.Scene.SurfaceHeight), image.Pt(m.Width, m.Height), quad, image.Rect(0, 0, m.Scene.SurfaceWidth, m.Scene.SurfaceHeight), viewport)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if path.from != wantFrom || path.viewport != viewport {
+		t.Fatalf("initial camera mapping did not apply the contain transform to the same app viewport: from=%+v want=%+v viewport=%v want=%v", path.from, wantFrom, path.viewport, viewport)
+	}
+	if path.quad(path.duration-1) != path.target || path.target != containedViewportQuad(path.viewport, image.Pt(m.Width, m.Height)) {
+		t.Fatalf("screen-entry endpoint no longer targets the active app viewport: target=%+v viewport=%v", path.target, path.viewport)
+	}
+	if m.TrimStartPTS != startPTS || m.TrimEndPTS != endPTS {
+		t.Fatalf("plate fit changed source-clock trim: got %d..%d want %d..%d", m.TrimStartPTS, m.TrimEndPTS, startPTS, endPTS)
+	}
+}
+
+func TestScreenEntryManifestAcceptsTwelveSecondsAtBothRatesAndRejectsOverrun(t *testing.T) {
+	for _, rate := range []int64{24, 30} {
+		frames := uint32(12 * rate)
+		m := cameraSampleManifest(1920, 1080, 1920, 1080, [4]Corner{{720, 80}, {1200, 80}, {1200, 1040}, {720, 1040}})
+		m.Inspection.TimeBase = composition.Rational{Num: 1, Den: rate}
+		m.Inspection.SourceEndPTS = int64(frames + 1)
+		m.TrimEndPTS = int64(frames)
+		m.OutputRate.Num = rate
+		m.Camera.DurationOutputFrames = frames
+		if err := ValidateVideoManifest(m); err != nil {
+			t.Fatalf("12-second screen-entry manifest at %d fps rejected: %v", rate, err)
+		}
+		path, err := newVideoCameraPath(m, image.Rect(0, 0, m.Scene.PlateWidth, m.Scene.PlateHeight), nil)
+		if err != nil {
+			t.Fatalf("build %d-frame camera path: %v", frames, err)
+		}
+		if len(path.frames) != int(frames) || path.quad(frames-1) != path.target {
+			t.Fatalf("camera path endpoint not reached for %d-frame schedule", frames)
+		}
+	}
+
 	m := cameraSampleManifest(1920, 1080, 1920, 1080, [4]Corner{{720, 80}, {1200, 80}, {1200, 1040}, {720, 1040}})
-	m.TrimEndPTS = 121 // 121 output frames at 24fps.
-	if err := ValidateVideoManifest(m); err == nil || !strings.Contains(err.Error(), "120 output frames") {
-		t.Fatalf("camera clip above 120 frames error = %v", err)
+	m.TrimEndPTS = 289 // 12.04 seconds at 24 fps.
+	m.Inspection.SourceEndPTS = 300
+	if err := ValidateVideoManifest(m); err == nil || !strings.Contains(err.Error(), "12-second") {
+		t.Fatalf("camera clip above 12 seconds error = %v", err)
 	}
 	m = cameraSampleManifest(1920, 1080, 1920, 1080, [4]Corner{{720, 80}, {1200, 80}, {1200, 1040}, {720, 1040}})
-	m.Camera.DurationOutputFrames = 121
+	m.Camera.DurationOutputFrames = 361
 	if err := ValidateVideoManifest(m); err == nil {
-		t.Fatal("camera transition above 120 frames was accepted")
+		t.Fatal("camera transition above 360 frames was accepted")
 	}
 	m = cameraSampleManifest(1920, 1080, 1920, 1080, [4]Corner{{720, 80}, {1200, 80}, {1200, 1040}, {720, 1040}})
 	m.Scene.PlateWidth++
-	if err := ValidateVideoManifest(m); err == nil {
-		t.Fatal("camera manifest with mismatched pinned plate dimensions was accepted")
+	if _, err := newVideoCameraPath(m, image.Rect(0, 0, m.Scene.PlateWidth-1, m.Scene.PlateHeight), nil); err == nil {
+		t.Fatal("camera plate raster differing from pinned source dimensions was accepted")
+	}
+}
+
+func TestFixedPlateProfileKeepsTenSecondDurationLimit(t *testing.T) {
+	m := validManualLandscapeVideoManifest()
+	m.TrimEndPTS = 241 // 10.04 seconds at 24 fps.
+	m.Inspection.SourceEndPTS = 300
+	if err := ValidateVideoManifest(m); err == nil || !strings.Contains(err.Error(), "ten-second") {
+		t.Fatalf("fixed-plate duration above ten seconds error = %v", err)
 	}
 }
 

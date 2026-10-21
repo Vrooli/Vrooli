@@ -4,6 +4,8 @@ Broken or unsuitable shared infrastructure and how this goal routes around it
 (`large-effort-orchestration` §5). The supervisor owns repair. Format: date ·
 what failed · fallback in use · retry condition · status.
 
+- 2026-10-21 · Agent Manager CLI refresh refused `effort signals`, `run get`, and `run await-result` before execution because host memory PSI `some.avg10=10.94%` exceeded substrate/SB20's 10.00% admission maximum · use the already-read canonical goal-home feedback and retained E46 evidence only; signal sequence 2, run state beyond identity's `running` response, and the await handle remain unverified; do not infer them · retry owner reads and the required same-run park after host memory PSI is below 10.00% and CLI refresh is admitted · open.
+
 - 2026-10-17 · `agent-manager run park` and the documented fallback `agent-manager effort park` both returned HTTP 401 `verified agent caller required` while `run identity --json` reported this owner valid/running; identified-run local-owner exchange was unavailable · retained owner and child state were preserved; retry through the canonical run park after the supported Agent Manager API return · resolved 2026-10-17: `agent-manager run park 9871d148-a9b0-418f-98e2-dac5b43bc24a --producer children --key 9871d148-a9b0-418f-98e2-dac5b43bc24a --timeout 15m` returned the server-owned PARKED receipt after API run A114 restored the route.
 
 

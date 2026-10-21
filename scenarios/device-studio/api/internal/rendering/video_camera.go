@@ -11,7 +11,7 @@ import (
 const (
 	ScreenEntryCameraProfileID      = "screen-entry-projective-contain-v1"
 	ScreenEntryCameraProfileVersion = 1
-	videoCameraMaxFrames            = 120
+	videoCameraMaxFrames            = 360
 )
 
 // Camera pins the bounded photographic screen-entry motion. It contains no
@@ -38,18 +38,19 @@ func newVideoCameraPath(m VideoManifest, plateBounds image.Rectangle, layout *pr
 	if plateBounds.Dx() != m.Scene.PlateWidth || plateBounds.Dy() != m.Scene.PlateHeight {
 		return nil, errors.New("decoded camera plate dimensions differ from pinned scene metadata")
 	}
-	if int64(m.Scene.PlateWidth)*int64(m.Height) != int64(m.Scene.PlateHeight)*int64(m.Width) || m.Scene.PlateWidth < m.Width || m.Scene.PlateHeight < m.Height {
-		return nil, errors.New("camera plate must uniformly contain the output raster")
+	fit, err := videoContainFit(image.Pt(m.Scene.PlateWidth, m.Scene.PlateHeight), image.Pt(m.Width, m.Height))
+	if err != nil {
+		return nil, errors.New("camera plate cannot be fit into the output raster: " + err.Error())
 	}
 	frames, err := plannedVideoFrameCount(m)
 	if err != nil {
 		return nil, err
 	}
 	if frames > videoCameraMaxFrames {
-		return nil, errors.New("camera video is limited to 120 output frames pending profile performance qualification")
+		return nil, errors.New("screen-entry camera video is limited to 360 output frames")
 	}
-	if m.Camera.DurationOutputFrames < 2 || m.Camera.DurationOutputFrames > 120 || int64(m.Camera.DurationOutputFrames) > frames {
-		return nil, errors.New("camera transition duration must be 2..120 output frames and fit the clip")
+	if m.Camera.DurationOutputFrames < 2 || m.Camera.DurationOutputFrames > videoCameraMaxFrames || int64(m.Camera.DurationOutputFrames) > frames {
+		return nil, errors.New("camera transition duration must be 2..360 output frames and fit the clip")
 	}
 	if err := composition.ValidatePlateQuad(m.Scene.PlateWidth, m.Scene.PlateHeight, m.Scene.SurfaceWidth, m.Scene.SurfaceHeight, videoSceneQuad(m.Scene)); err != nil {
 		return nil, err
@@ -70,10 +71,9 @@ func newVideoCameraPath(m VideoManifest, plateBounds image.Rectangle, layout *pr
 	if viewport.Empty() || viewport.Min.X < 0 || viewport.Min.Y < 0 || viewport.Max.X > m.Scene.SurfaceWidth || viewport.Max.Y > m.Scene.SurfaceHeight {
 		return nil, errors.New("camera active viewport is outside the presentation raster")
 	}
-	scaleX, scaleY := float64(m.Width)/float64(m.Scene.PlateWidth), float64(m.Height)/float64(m.Scene.PlateHeight)
 	var outputQuad [4]composition.Point
 	for i, point := range videoSceneQuad(m.Scene) {
-		outputQuad[i] = composition.Point{X: point.X * scaleX, Y: point.Y * scaleY}
+		outputQuad[i] = composition.Point{X: point.X*fit.scale + fit.offsetX, Y: point.Y*fit.scale + fit.offsetY}
 	}
 	projected, err := composition.ProjectRasterRect(image.Pt(m.Scene.SurfaceWidth, m.Scene.SurfaceHeight), image.Pt(m.Width, m.Height), outputQuad, image.Rect(0, 0, m.Scene.SurfaceWidth, m.Scene.SurfaceHeight), viewport)
 	if err != nil {

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"io"
 	"mime"
 	"mime/multipart"
@@ -116,5 +117,47 @@ func TestLibraryIntakeCLIImportsAndReadsTypedCandidateMetadata(t *testing.T) {
 	}
 	if candidate == nil || candidate.ReviewStatus != "unreviewed" || candidate.RenderStatus != "not_reviewed" {
 		t.Fatalf("test endpoint fabricated a promoted candidate: %+v", candidate)
+	}
+}
+
+func TestLibraryMaterialCLIUsesExactParentAndStableChildRESTContract(t *testing.T) {
+	parentSHA := strings.Repeat("a", 64)
+	var mux http.ServeMux
+	mux.HandleFunc("/api/v1/library/intake-candidates/material-parent/revisions/1/materials", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Query().Get("revision_sha256") != parentSHA {
+			t.Errorf("unexpected material inventory request: %s %s", r.Method, r.URL.String())
+		}
+		_, _ = io.WriteString(w, `{"candidate_id":"material-parent","revision":1,"revision_sha256":"`+parentSHA+`","glb_sha256":"`+strings.Repeat("b", 64)+`","materials":[{"index":0,"name":"shell","base_color_factor":[1,1,1,1],"metallic_factor":0,"roughness_factor":0.8,"emissive_factor":[0,0,0],"editable":true}]}`)
+	})
+	mux.HandleFunc("/api/v1/library/intake-candidates/material-parent/revisions/1/material-corrections", func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Errorf("decode correction: %v", err)
+		}
+		if r.Method != http.MethodPost || body["parent_revision_sha256"] != parentSHA || body["child_candidate_id"] != "material-child" || body["material_name"] != "shell" || body["roughness_factor"] != 0.2 {
+			t.Errorf("unexpected correction request: %+v", body)
+		}
+		_, _ = io.WriteString(w, `{"candidate":{"id":"material-child","revision":1,"revision_sha256":"`+strings.Repeat("c", 64)+`","original_sha256":"`+strings.Repeat("d", 64)+`","review_status":"unreviewed","render_status":"not_reviewed","parent_candidate_id":"material-parent","parent_revision":1,"parent_sha256":"`+parentSHA+`","import_method":"local_material_correction"}}`)
+	})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/health" {
+			_, _ = io.WriteString(w, `{"status":"ok"}`)
+			return
+		}
+		mux.ServeHTTP(w, r)
+	}))
+	defer server.Close()
+	t.Setenv("DEVICE_STUDIO_API_BASE", server.URL)
+	t.Setenv("API_BASE_URL", "")
+	t.Setenv("VITE_API_BASE_URL", "")
+	app, err := NewApp()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := app.Run([]string{"library", "intake-materials", "material-parent", "--revision", "1", "--revision-sha256", parentSHA}); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.Run([]string{"library", "intake-material-correct", "material-parent", "--revision", "1", "--revision-sha256", parentSHA, "--child-candidate-id", "material-child", "--material-index", "0", "--material-name", "shell", "--roughness", "0.2"}); err != nil {
+		t.Fatal(err)
 	}
 }

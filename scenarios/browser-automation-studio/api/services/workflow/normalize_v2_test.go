@@ -4,6 +4,10 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+
+	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
+	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 func TestRejectLegacyWorkflowNodes(t *testing.T) {
@@ -97,16 +101,32 @@ func TestNormalizeExecuteAdhocRequest_WithExecutionMode(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	var parsed map[string]any
-	if err := json.Unmarshal(result, &parsed); err != nil {
-		t.Fatalf("failed to parse result: %v", err)
+	var parsed basexecution.ExecuteAdhocRequest
+	if err := protojson.Unmarshal(result, &parsed); err != nil {
+		t.Fatalf("normalized request failed ProtoJSON decoding: %v", err)
 	}
-
-	flowDef := parsed["flowDefinition"].(map[string]any)
-	metadata := flowDef["metadata"].(map[string]any)
-	got := metadata["executionMode"]
-	if got != "EXECUTION_MODE_OBSERVER" {
+	if parsed.GetFlowDefinition().GetMetadata().GetExecutionMode() != basworkflows.ExecutionMode_EXECUTION_MODE_OBSERVER {
+		got := parsed.GetFlowDefinition().GetMetadata().GetExecutionMode()
 		t.Errorf("executionMode: got %q, want %q", got, "EXECUTION_MODE_OBSERVER")
+	}
+}
+
+func TestNormalizeWorkflowDefinitionV2BytesPreservesDynamicSubflowArgumentKeys(t *testing.T) {
+	body := []byte(`{"metadata":{"execution_mode":"observer"},"nodes":[{"id":"subflow","action":{"type":"ACTION_TYPE_SUBFLOW","subflow":{"workflowPath":"fixtures/child","args":{"base_url":"http://fixture.invalid","custom_key":"kept"}}}}],"edges":[]}`)
+	normalized, err := NormalizeWorkflowDefinitionV2Bytes(body)
+	if err != nil {
+		t.Fatalf("NormalizeWorkflowDefinitionV2Bytes() error = %v", err)
+	}
+	var parsed basworkflows.WorkflowDefinitionV2
+	if err := protojson.Unmarshal(normalized, &parsed); err != nil {
+		t.Fatalf("normalized workflow failed ProtoJSON decoding: %v", err)
+	}
+	args := parsed.GetNodes()[0].GetAction().GetSubflow().GetArgs()
+	if got := args["base_url"].GetStringValue(); got != "http://fixture.invalid" {
+		t.Fatalf("base_url argument = %q, want original dynamic key and value", got)
+	}
+	if got := args["custom_key"].GetStringValue(); got != "kept" {
+		t.Fatalf("custom_key argument = %q, want original dynamic key and value", got)
 	}
 }
 

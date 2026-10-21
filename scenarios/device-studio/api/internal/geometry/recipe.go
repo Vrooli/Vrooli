@@ -21,6 +21,30 @@ const MaxRecipeBytes = 32 << 10
 
 var ErrInvalidRecipe = errors.New("geometry: invalid recipe")
 
+// SemanticIssue is safe user-facing feedback derived only from finite,
+// validated recipe fields. It never contains arbitrary provider text.
+type SemanticIssue struct {
+	Code    string `json:"code"`
+	PartID  string `json:"part_id,omitempty"`
+	Axis    string `json:"axis,omitempty"`
+	Message string `json:"message"`
+}
+
+type issueError struct {
+	issue SemanticIssue
+}
+
+func (e issueError) Error() string { return e.issue.Message }
+func (e issueError) Unwrap() error { return ErrInvalidRecipe }
+
+func IssueFromError(err error) (SemanticIssue, bool) {
+	var typed issueError
+	if !errors.As(err, &typed) {
+		return SemanticIssue{}, false
+	}
+	return typed.issue, true
+}
+
 type Recipe struct {
 	Version   string     `json:"version"`
 	Profile   string     `json:"profile"`
@@ -218,7 +242,7 @@ func Validate(r Recipe) error {
 				return bad("part dimensions are invalid")
 			}
 			if p.Center[i]-p.Size[i]/2 < -r.Envelope[i]/2-0.1 || p.Center[i]+p.Size[i]/2 > r.Envelope[i]/2+0.1 {
-				return bad("part exceeds locked envelope")
+				return issueError{issue: SemanticIssue{Code: "part_outside_envelope", PartID: p.ID, Axis: axisName(i), Message: "part exceeds the locked envelope"}}
 			}
 			if !rightAngle(p.Rotation[i]) {
 				return bad("rotation must use right angles")
@@ -227,7 +251,7 @@ func Validate(r Recipe) error {
 		rotated := rotatedSize(p.Size, p.Rotation)
 		for i := range rotated {
 			if math.Abs(p.Center[i])+rotated[i]/2 > r.Envelope[i]/2+0.1 {
-				return bad("rotated part exceeds locked envelope")
+				return issueError{issue: SemanticIssue{Code: "rotated_part_outside_envelope", PartID: p.ID, Axis: axisName(i), Message: "rotated part exceeds the locked envelope"}}
 			}
 		}
 		if p.Kind == "rounded_box" && p.Bevel*2 >= math.Min(p.Size[0], math.Min(p.Size[1], p.Size[2])) {
@@ -280,6 +304,10 @@ func Validate(r Recipe) error {
 		}
 	}
 	return nil
+}
+
+func axisName(axis int) string {
+	return [...]string{"x", "y", "z"}[axis]
 }
 
 func screenAxes(face string) (int, int) {

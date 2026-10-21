@@ -102,3 +102,32 @@ export async function getReviewedPhysicalStarter(): Promise<ReviewedPhysicalStar
   }
   return { refs, device, scene, motion };
 }
+
+export const physicalStarterChoices = [
+  { id: "phone-default", label: "Phone study setup" },
+  { id: "laptop-screen-upright-180", label: "Laptop screen upright · candidate only · unqualified" },
+  { id: "laptop-screen-vflip", label: "Laptop screen vertical flip · candidate only · unqualified" },
+  { id: "ipad-screen-uv-oriented-180", label: "iPad screen oriented · candidate only · unqualified" },
+  { id: "monitor-screen-mapped-v2", label: "Generic ultrawide monitor · candidate only · unqualified" },
+  { id: "generic-round-watch", label: "Generic watch · candidate only · unqualified" },
+  { id: "generic-round-smartwatch-source", label: "Generic round smartwatch · source-derived · candidate only · unqualified" },
+  { id: "generic-television-concept", label: "Generic television · authored concept · candidate only · unqualified" },
+  { id: "generic-book-fold", label: "Generic book-fold concept · candidate only · unqualified" },
+  { id: "generic-smart-display-concept", label: "Generic wedge smart display · authored concept · candidate only · unqualified" },
+  { id: "generic-digital-frame-concept", label: "Generic digital frame · tabletop candidate · unqualified" },
+  { id: "generic-digital-frame-wall", label: "Generic digital frame · wall candidate · unqualified" },
+  { id: "generic-vehicle-center-stack-carplay-sim", label: "Generic center stack · CarPlay-style simulation · unqualified" },
+  { id: "generic-vehicle-center-stack-android-auto-sim", label: "Generic center stack · Android Auto-style simulation · unqualified" },
+] as const;
+
+export async function initializePhysicalStarter(starterId: string) {
+  const choice = physicalStarterChoices.find((item) => item.id === starterId);
+  if (!choice) throw new Error("Choose a supported physical starter.");
+  const refs = await physicalStarterClient.initializeReviewedStarter({ starterId: starterId === "phone-default" ? "" : starterId });
+  const preset = starterId === "phone-default" ? refs.phoneStudyPreset : refs.initializedPreset;
+  if (starterId !== "phone-default" && refs.selectedStarterId !== starterId) throw new Error("The server returned a different physical starter than requested.");
+  if (!refs.candidateOnly || !preset?.id || !stableCatalogID(preset.id) || !Number.isSafeInteger(preset.revision) || preset.revision < 1 || !/^[a-f0-9]{64}$/i.test(preset.sha256)) {
+    throw new Error("The physical starter did not return an exact candidate-only preset reference.");
+  }
+  return { refs, preset };
+}

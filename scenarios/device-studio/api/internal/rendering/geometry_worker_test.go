@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -59,6 +60,9 @@ func TestGeometryWorkerCallsGatewayOnceLocalOnlyAndWritesInspectedGLB(t *testing
 	if fake.request.GetProfile() != sharedv1.Profile_PROFILE_LOCAL_ONLY || fake.request.GetRole() != "extract.structured" || fake.request.GetMaxProviderCalls() != 1 || fake.request.GetMaxOutputTokens() != 4096 {
 		t.Fatalf("unsafe or unbounded Gateway request: %+v", fake.request)
 	}
+	if !strings.Contains(fake.request.GetInstruction(), "[-W/2,+W/2]") || !strings.Contains(fake.request.GetInstruction(), "flat box display face") || !strings.Contains(fake.request.GetInstruction(), "stand-off") {
+		t.Fatalf("fixed geometry instruction must state the locked envelope and flat screen face: %s", fake.request.GetInstruction())
+	}
 	if len(fake.request.GetAttachments()) != 1 || string(fake.request.GetAttachments()[0].GetInlineBytes()) != string(image) {
 		t.Fatal("worker did not send exact pinned image bytes")
 	}
@@ -101,6 +105,52 @@ func TestGeometryWorkerCallsGatewayOnceLocalOnlyAndWritesInspectedGLB(t *testing
 	}
 }
 
+func TestGeometryWorkerFundingRoutesSelectOneProviderAndRejectProviderDrift(t *testing.T) {
+	for _, tc := range []struct {
+		route, role, provider string
+		profile               sharedv1.Profile
+	}{
+		{"", "extract.structured", "ollama", sharedv1.Profile_PROFILE_LOCAL_ONLY},
+		{"local", "extract.structured", "ollama", sharedv1.Profile_PROFILE_LOCAL_ONLY},
+		{"byok", "device.geometry.byok", "openrouter", sharedv1.Profile_PROFILE_REMOTE_ONLY},
+		{"vrooli_credits", "device.geometry.vrooli_credits", "lpbs", sharedv1.Profile_PROFILE_REMOTE_ONLY},
+	} {
+		t.Run(tc.route, func(t *testing.T) {
+			role, profile, provider, err := geometryInferenceRoute(tc.route)
+			if err != nil || role != tc.role || profile != tc.profile || provider != tc.provider {
+				t.Fatalf("route mapping=(%q,%v,%q,%v), want (%q,%v,%q,nil)", role, profile, provider, err, tc.role, tc.profile, tc.provider)
+			}
+		})
+	}
+	if _, _, _, err := geometryInferenceRoute("unexpected"); err == nil {
+		t.Fatal("unknown route must fail before Gateway dispatch")
+	}
+
+	workspace := t.TempDir()
+	image := []byte("pinned")
+	imageSHA := sha256.Sum256(image)
+	executable, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	exe, err := os.ReadFile(executable)
+	if err != nil {
+		t.Fatal(err)
+	}
+	exeSHA := sha256.Sum256(exe)
+	m := GeometryWorkerManifest{Version: 1, JobID: "job", AttemptID: "attempt", InputFingerprint: hex.EncodeToString(make([]byte, 32)), WorkerSHA256: hex.EncodeToString(exeSHA[:]), Brief: "device", Envelope: [3]float64{80, 150, 12}, FundingRoute: "local", Images: []GeometryImageInput{{Name: "ref.png", SHA256: hex.EncodeToString(imageSHA[:]), MediaType: "image/png", Width: 1, Height: 1, SizeBytes: int64(len(image))}}}
+	manifest, _ := json.Marshal(m)
+	_ = os.WriteFile(filepath.Join(workspace, "ref.png"), image, 0o600)
+	_ = os.WriteFile(filepath.Join(workspace, GeometryManifestName), append(manifest, '\n'), 0o600)
+	fake := &geometryGatewayFake{response: &inferencev1.RunResponse{ValueJson: `{}`, Validated: true, Provider: "openrouter", ProviderCallsMade: 1}}
+	if err := RunGeometryManifest(context.Background(), filepath.Join(workspace, GeometryManifestName), fake); err == nil || !strings.Contains(err.Error(), "does not match") {
+		t.Fatalf("provider drift must fail after one recorded response, got %v", err)
+	}
+	if fake.request.GetRole() != "extract.structured" || fake.request.GetProfile() != sharedv1.Profile_PROFILE_LOCAL_ONLY || fake.request.GetMaxProviderCalls() != 1 {
+		t.Fatalf("unexpected route request: %+v", fake.request)
+	}
+}
+
 func TestGeometryWorkerDoesNotRepairInvalidProviderRecipe(t *testing.T) {
 	workspace := t.TempDir()
 	executable, err := os.Executable()
@@ -117,7 +167,7 @@ func TestGeometryWorkerDoesNotRepairInvalidProviderRecipe(t *testing.T) {
 	manifest, _ := json.Marshal(m)
 	_ = os.WriteFile(filepath.Join(workspace, "ref.png"), []byte("x"), 0o600)
 	_ = os.WriteFile(filepath.Join(workspace, GeometryManifestName), append(manifest, '\n'), 0o600)
-	fake := &geometryGatewayFake{response: &inferencev1.RunResponse{ValueJson: `{"wrong":true}`, Validated: false, ProviderCallsMade: 1, Applied: geometryAppliedSettings(), Usage: &inferencev1.Usage{InputTokensProvenance: inferencev1.UsageProvenance_USAGE_PROVENANCE_UNKNOWN, OutputTokensProvenance: inferencev1.UsageProvenance_USAGE_PROVENANCE_UNKNOWN, CostProvenance: inferencev1.UsageProvenance_USAGE_PROVENANCE_UNKNOWN}}}
+	fake := &geometryGatewayFake{response: &inferencev1.RunResponse{ValueJson: `{"wrong":true}`, Validated: true, ProviderCallsMade: 1, Applied: geometryAppliedSettings(), Usage: &inferencev1.Usage{InputTokensProvenance: inferencev1.UsageProvenance_USAGE_PROVENANCE_UNKNOWN, OutputTokensProvenance: inferencev1.UsageProvenance_USAGE_PROVENANCE_UNKNOWN, CostProvenance: inferencev1.UsageProvenance_USAGE_PROVENANCE_UNKNOWN}}}
 	if err := RunGeometryManifest(context.Background(), filepath.Join(workspace, GeometryManifestName), fake); err == nil {
 		t.Fatal("invalid recipe must fail without hidden retry")
 	}
@@ -129,8 +179,62 @@ func TestGeometryWorkerDoesNotRepairInvalidProviderRecipe(t *testing.T) {
 	}
 	var outcome GeometryInferenceOutcome
 	data, err := os.ReadFile(filepath.Join(workspace, GeometryInferenceOutcomeName))
-	if err != nil || json.Unmarshal(data, &outcome) != nil || outcome.Validated || outcome.ValueSHA256 != workerDigest([]byte(`{"wrong":true}`)) {
+	if err != nil || json.Unmarshal(data, &outcome) != nil || !outcome.Validated || outcome.ValueSHA256 != workerDigest([]byte(`{"wrong":true}`)) || outcome.ValueDisposition != "retained_exact" || outcome.ValueFile != GeometryResponseValueName {
 		t.Fatalf("rejected typed response must leave bounded outcome evidence: %v", err)
+	}
+	if retained := mustRead(t, filepath.Join(workspace, GeometryResponseValueName)); string(retained) != `{"wrong":true}` {
+		t.Fatal("rejected recipe value must be retained byte-for-byte before semantic validation")
+	}
+}
+
+func TestGeometryWorkerRetainsTypedEnvelopeIssueForExplicitCorrection(t *testing.T) {
+	workspace := t.TempDir()
+	prior := geometry.Recipe{Version: "device_geometry_recipe.v1", Profile: "detailed_device_v1", Operation: "construct", Envelope: geometry.Dimensions{80, 150, 12}, Parts: []geometry.Part{{ID: "housing", Kind: "box", Role: "housing", Center: [3]float64{0, 370, 0}, Size: [3]float64{20, 20, 10}, Material: "matte_polymer"}, {ID: "display", Kind: "box", Role: "display", Center: [3]float64{0, 0, 5}, Size: [3]float64{10, 10, 1}, Material: "glass"}}, Screen: geometry.Screen{PartID: "display", Face: "front:+z", Center: [2]float64{.5, .5}, Size: [2]float64{.9, .9}}}
+	rejected, err := json.Marshal(prior)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := geometry.Decode(rejected); err == nil {
+		t.Fatal("fixture must violate the envelope")
+	} else if issue, ok := geometry.IssueFromError(err); !ok || issue.Axis != "y" {
+		t.Fatalf("fixture should produce typed envelope feedback: %+v %v", issue, err)
+	}
+	_, fake := geometryWorkerFixture(t, workspace, string(rejected))
+	runErr := RunGeometryManifest(context.Background(), filepath.Join(workspace, GeometryManifestName), fake)
+	if runErr == nil {
+		t.Fatal("a part outside the locked envelope must fail for review")
+	}
+	var outcome GeometryInferenceOutcome
+	if err := json.Unmarshal(mustRead(t, filepath.Join(workspace, GeometryInferenceOutcomeName)), &outcome); err != nil {
+		t.Fatal(err)
+	}
+	if outcome.SemanticIssue == nil || outcome.SemanticIssue.Code != "part_outside_envelope" || outcome.SemanticIssue.PartID != "housing" || outcome.SemanticIssue.Axis != "y" || outcome.SemanticIssue.Message != "part exceeds the locked envelope" {
+		t.Fatalf("expected bounded semantic feedback for the rejected part: %+v; outcome=%+v; err=%v", outcome.SemanticIssue, outcome, runErr)
+	}
+	if got := mustRead(t, filepath.Join(workspace, GeometryResponseValueName)); string(got) != string(rejected) || workerDigest(got) != outcome.ValueSHA256 {
+		t.Fatal("correction evidence must retain the exact rejected recipe bytes and digest")
+	}
+	if _, err := os.Stat(filepath.Join(workspace, GeometryOutputName)); !os.IsNotExist(err) {
+		t.Fatal("a rejected recipe must not produce a GLB")
+	}
+}
+
+func TestGeometryWorkerOmitsOversizedResponseWithoutTruncating(t *testing.T) {
+	workspace := t.TempDir()
+	oversized := strings.Repeat("x", geometryResponseValueMax+1)
+	_, fake := geometryWorkerFixture(t, workspace, oversized)
+	if err := RunGeometryManifest(context.Background(), filepath.Join(workspace, GeometryManifestName), fake); err == nil {
+		t.Fatal("oversized invalid model result must fail recipe validation")
+	}
+	var outcome GeometryInferenceOutcome
+	if err := json.Unmarshal(mustRead(t, filepath.Join(workspace, GeometryInferenceOutcomeName)), &outcome); err != nil {
+		t.Fatal(err)
+	}
+	if outcome.ValueBytes != len(oversized) || outcome.ValueSHA256 != workerDigest([]byte(oversized)) || outcome.ValueDisposition != "omitted_over_limit" || outcome.ValueFile != "" {
+		t.Fatalf("oversized value must retain exact digest and size without claiming a file: %+v", outcome)
+	}
+	if _, err := os.Stat(filepath.Join(workspace, GeometryResponseValueName)); !os.IsNotExist(err) {
+		t.Fatal("oversized response must not be truncated or retained as a partial file")
 	}
 }
 

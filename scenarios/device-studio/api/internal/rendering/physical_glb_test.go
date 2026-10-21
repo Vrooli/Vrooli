@@ -56,6 +56,45 @@ func TestInspectPhysicalGLBPreservesStandardNormalTextureScale(t *testing.T) {
 	}
 }
 
+func TestInspectPhysicalGLBValidatesStandardClearcoatAndIOR(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		ior       float64
+		coat      float64
+		wantError bool
+	}{
+		{name: "standard clearcoat and ior", ior: 1.45, coat: .6},
+		{name: "ior zero sentinel", ior: 0, coat: 1},
+		{name: "subunit nonzero ior", ior: .9, coat: .2, wantError: true},
+		{name: "clearcoat out of range", ior: 1.5, coat: 1.1, wantError: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			doc := physicalFixtureDocument()
+			doc["extensionsUsed"] = []any{"KHR_materials_ior", "KHR_materials_clearcoat"}
+			material := doc["materials"].([]any)[0].(map[string]any)
+			material["extensions"] = map[string]any{
+				"KHR_materials_ior":       map[string]any{"ior": tc.ior},
+				"KHR_materials_clearcoat": map[string]any{"clearcoatFactor": tc.coat, "clearcoatRoughnessFactor": .25},
+			}
+			data := encodePhysicalGLB(t, doc)
+			inventory, err := InspectPhysicalGLB(data)
+			if tc.wantError {
+				if err == nil {
+					t.Fatal("malformed standard material extension was accepted")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := inventory.Materials[0]
+			if got.IOR != tc.ior || got.Clearcoat != tc.coat || got.ClearcoatRoughness != .25 {
+				t.Fatalf("standard extension values were not retained: %+v", got)
+			}
+		})
+	}
+}
+
 func physicalFixtureWithNormalScale(t *testing.T, scale any) []byte {
 	t.Helper()
 	doc := physicalFixtureDocument()

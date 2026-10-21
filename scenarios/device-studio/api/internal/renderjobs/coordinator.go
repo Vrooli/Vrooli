@@ -19,6 +19,7 @@ import (
 	"strings"
 	"time"
 
+	"device-studio/internal/geometry"
 	"device-studio/internal/jobs"
 	"device-studio/internal/library"
 	"device-studio/internal/physical"
@@ -1343,6 +1344,13 @@ func (c *Coordinator) persistNativeOutcome(ctx context.Context, route routePin, 
 		if readErr == nil {
 			evidence.InferenceOutcome = outcome
 			evidence.InferenceOutcomeSHA256 = outcomeSHA
+			if outcome.SemanticIssue != nil {
+				evidence.RejectedRecipeStatus = "unavailable"
+				if ref := c.persistRejectedGeometryRecipe(ctx, route, workspace, j, a, outcome, outcomeSHA); ref != nil {
+					evidence.RejectedRecipe = ref
+					evidence.RejectedRecipeStatus = "available"
+				}
+			}
 		} else if !os.IsNotExist(readErr) {
 			return "", "", fmt.Errorf("renderjobs: read geometry inference outcome: %w", readErr)
 		}
@@ -1359,6 +1367,44 @@ func (c *Coordinator) persistNativeOutcome(ctx context.Context, route routePin, 
 	return key, sha, nil
 }
 
+func (c *Coordinator) persistRejectedGeometryRecipe(ctx context.Context, route routePin, workspace string, j jobs.Job, a jobs.Attempt, outcome *rendering.GeometryInferenceOutcome, outcomeSHA string) *rejectedGeometryRecipeArtifact {
+	if outcome == nil || outcome.SemanticIssue == nil || !validGeometrySemanticIssue(outcome.SemanticIssue) || outcome.ValueDisposition != "retained_exact" || outcome.ValueFile != rendering.GeometryResponseValueName || outcome.ValueBytes <= 0 || outcome.ValueBytes > geometry.MaxRecipeBytes || !validDigest(outcome.ValueSHA256) || !validDigest(outcomeSHA) {
+		return nil
+	}
+	data, err := readWorkspaceFile(workspace, rendering.GeometryResponseValueName, geometry.MaxRecipeBytes)
+	if err != nil || len(data) != outcome.ValueBytes || digestBytes(data) != outcome.ValueSHA256 || !json.Valid(data) {
+		return nil
+	}
+	key := operationEvidenceBlobPrefix + j.ID + "/" + a.ID + "/rejected-recipe-" + outcome.ValueSHA256 + ".json"
+	if err := c.putVerified(ctx, route, key, data, "application/json", outcome.ValueSHA256); err != nil {
+		return nil
+	}
+	return &rejectedGeometryRecipeArtifact{Version: 1, JobID: j.ID, AttemptID: a.ID, InputFingerprint: j.InputFingerprint, OutcomeSHA256: outcomeSHA, OwnerID: OwnerID, ScopeID: geometryRejectedRecipeScope, ArtifactID: key, SHA256: outcome.ValueSHA256, SizeBytes: int64(len(data))}
+}
+
+func validGeometrySemanticIssue(issue *geometry.SemanticIssue) bool {
+	if issue == nil || issue.PartID == "" || len(issue.PartID) > 48 || issue.Axis != "x" && issue.Axis != "y" && issue.Axis != "z" {
+		return false
+	}
+	for _, ch := range issue.PartID {
+		if ch < 'a' || ch > 'z' {
+			if ch < '0' || ch > '9' {
+				if ch != '_' && ch != '-' {
+					return false
+				}
+			}
+		}
+	}
+	switch issue.Code {
+	case "part_outside_envelope":
+		return issue.Message == "part exceeds the locked envelope"
+	case "rotated_part_outside_envelope":
+		return issue.Message == "rotated part exceeds the locked envelope"
+	default:
+		return false
+	}
+}
+
 func readGeometryInferenceOutcome(workspace string, j jobs.Job, a jobs.Attempt) (*rendering.GeometryInferenceOutcome, string, error) {
 	outcomeBytes, err := readWorkspaceFile(workspace, rendering.GeometryInferenceOutcomeName, 64<<10)
 	if err != nil {
@@ -1373,7 +1419,7 @@ func readGeometryInferenceOutcome(workspace string, j jobs.Job, a jobs.Attempt) 
 		return nil, "", err
 	}
 	usage := outcome.Usage
-	if !bytes.Equal(outcomeBytes, append(canonical, '\n')) || outcome.Version != 1 || outcome.JobID != j.ID || outcome.AttemptID != a.ID || outcome.InputFingerprint != j.InputFingerprint || outcome.WorkerSHA256 != bindingDigest(j.Input, "worker_executable") || outcome.ProviderCalls < 0 || outcome.ProviderCalls > 1 || !validDigest(outcome.ValueSHA256) || outcome.ValueBytes < 0 || outcome.ReceivedAt.IsZero() || len(outcome.Provider) > 256 || len(outcome.Model) > 256 || usage == nil || usage.GetInputTokens() < 0 || usage.GetOutputTokens() < 0 || usage.GetCostMicros() < 0 || !validGeometryUsageProvenance(usage.GetInputTokensProvenance()) || !validGeometryUsageProvenance(usage.GetOutputTokensProvenance()) || !validGeometryUsageProvenance(usage.GetCostProvenance()) {
+	if !bytes.Equal(outcomeBytes, append(canonical, '\n')) || outcome.Version != 1 || outcome.JobID != j.ID || outcome.AttemptID != a.ID || outcome.InputFingerprint != j.InputFingerprint || outcome.WorkerSHA256 != bindingDigest(j.Input, "worker_executable") || outcome.ProviderCalls < 0 || outcome.ProviderCalls > 1 || !validDigest(outcome.ValueSHA256) || outcome.ValueBytes < 0 || outcome.ReceivedAt.IsZero() || len(outcome.Provider) > 256 || len(outcome.Model) > 256 || usage == nil || usage.GetInputTokens() < 0 || usage.GetOutputTokens() < 0 || usage.GetCostMicros() < 0 || !validGeometryUsageProvenance(usage.GetInputTokensProvenance()) || !validGeometryUsageProvenance(usage.GetOutputTokensProvenance()) || !validGeometryUsageProvenance(usage.GetCostProvenance()) || outcome.SemanticIssue != nil && !validGeometrySemanticIssue(outcome.SemanticIssue) {
 		return nil, "", errors.New("renderjobs: geometry inference outcome does not match immutable attempt")
 	}
 	return &outcome, digestBytes(outcomeBytes), nil
@@ -1669,6 +1715,10 @@ func (c *Coordinator) readBlob(ctx context.Context, key string, limit int64, exp
 	if err != nil {
 		return nil, err
 	}
+	return c.readBlobForRoute(ctx, route, key, limit, expectedDigest)
+}
+
+func (c *Coordinator) readBlobForRoute(ctx context.Context, route routePin, key string, limit int64, expectedDigest string) ([]byte, error) {
 	if err := c.requireRoute(ctx, route); err != nil {
 		return nil, err
 	}
@@ -1683,6 +1733,9 @@ func (c *Coordinator) readBlob(ctx context.Context, key string, limit int64, exp
 	}
 	if len(data) == 0 || int64(len(data)) > limit || digestBytes(data) != expectedDigest {
 		return nil, errors.New("renderjobs: routed blob content failed size or digest verification")
+	}
+	if err := c.requireRoute(ctx, route); err != nil {
+		return nil, err
 	}
 	return data, nil
 }

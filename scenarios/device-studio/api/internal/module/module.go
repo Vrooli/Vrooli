@@ -48,4 +48,5 @@ const (
 	RESTReasonWebhookReceiver = endpoints.RESTReasonWebhookReceiver
 	RESTReasonThirdPartyShape = endpoints.RESTReasonThirdPartyShape
 	RESTReasonOpsProbe        = endpoints.RESTReasonOpsProbe
+	RESTReasonBrowserSurface  = endpoints.RESTReasonBrowserSurface
 )

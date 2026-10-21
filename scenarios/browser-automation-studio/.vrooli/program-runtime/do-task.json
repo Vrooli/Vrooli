@@ -60,7 +60,7 @@
     },
     "parameters": {
       "type": "object",
-      "description": "Typed execution parameters"
+      "description": "Optional ExecutionParameters passed unchanged to the selected execution. Candidate authoring and qualification preserve the same object through author-flow and smoke-flow; omission retains each workflow's defaults."
     },
     "navigation_id": {
       "type": "string",
@@ -120,6 +120,7 @@
   ],
   "invariants": [
     "One execution route, no speculative candidate execution or retry",
+    "When supplied, execution parameters reach candidate authoring and qualification verification unchanged; omitted parameters remain omitted for author-flow",
     "No raw screenshots in the envelope; bounded candidate flows and requested task output remain available to the caller",
     "Runtime owns one automatic outcome capture for the selected task",
     "A failed revision is noted as avoid so the next recommendation excludes it",

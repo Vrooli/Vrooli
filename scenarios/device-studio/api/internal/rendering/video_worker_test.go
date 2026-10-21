@@ -86,7 +86,7 @@ func TestExpandRGB24WritesOpaqueRGBAWithoutChannelShift(t *testing.T) {
 	}
 }
 
-func TestResizeVideoFrameUsesOffsetSourceBoundsAndUniformMapping(t *testing.T) {
+func TestResizeVideoFrameContainsArbitraryAspectWithNeutralMatte(t *testing.T) {
 	src := image.NewRGBA(image.Rect(9, -4, 11, -2))
 	src.SetRGBA(9, -4, color.RGBA{R: 0, A: 255})
 	src.SetRGBA(10, -4, color.RGBA{G: 255, A: 255})
@@ -100,8 +100,19 @@ func TestResizeVideoFrameUsesOffsetSourceBoundsAndUniformMapping(t *testing.T) {
 	if pix.R < 16000 || pix.R > 16800 || pix.G < 32000 || pix.G > 33500 || pix.B < 32000 || pix.B > 33500 || pix.A != 65535 {
 		t.Fatalf("centered downsample = %#v, want opaque 1/4,1/2,1/2 channel average", pix)
 	}
-	if _, err := resizeVideoFrame(context.Background(), src, 1, 2); err == nil {
-		t.Fatal("aspect-changing resize was accepted")
+	portrait, err := resizeVideoFrame(context.Background(), src, 1, 3)
+	if err != nil {
+		t.Fatalf("contain-fit landscape source into portrait output: %v", err)
+	}
+	wantR, wantG, wantB, wantA := videoLetterboxMatte.RGBA()
+	if got := portrait.RGBA64At(0, 0); uint32(got.R) != wantR || uint32(got.G) != wantG || uint32(got.B) != wantB || uint32(got.A) != wantA {
+		t.Fatalf("letterbox matte = %#v, want opaque neutral matte", got)
+	}
+	if got := portrait.RGBA64At(0, 1); got.A != 65535 || got.R == 0 && got.G == 0 && got.B == 0 {
+		t.Fatalf("contained source pixel = %#v, want opaque image content", got)
+	}
+	if got := portrait.RGBA64At(0, 2); uint32(got.R) != wantR || uint32(got.G) != wantG || uint32(got.B) != wantB || uint32(got.A) != wantA {
+		t.Fatalf("bottom letterbox matte = %#v, want opaque neutral matte", got)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()

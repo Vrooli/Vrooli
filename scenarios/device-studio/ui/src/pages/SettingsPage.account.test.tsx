@@ -1,0 +1,91 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+
+import { renderWithProviders } from "../test-utils";
+import { selectors } from "../consts/selectors";
+import { SettingsPage } from "./SettingsPage";
+
+const linked = {
+  state: "linked" as const,
+  localPrincipal: "local-principal-1",
+  businessAccountId: "business-account-7",
+  scopes: ["device-studio:read"],
+};
+
+describe("SettingsPage desktop account", () => {
+  afterEach(() => {
+    cleanup();
+    delete window.desktop;
+  });
+
+  it("keeps account linking and credit sharing unavailable in an ordinary browser", () => {
+    renderWithProviders(<SettingsPage />);
+
+    expect(screen.getByTestId(selectors.settingsPage.accountStatus)).toHaveTextContent("pages.settings.account.states.unavailable");
+    expect(screen.getByText("pages.settings.account.creditStates.unavailable")).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.settingsPage.accountConnect)).toBeDisabled();
+  });
+
+  it("shares the LPBS refresh session only after an explicit desktop-owner action", async () => {
+    const getCreditSessionShareStatus = vi.fn(async () => ({ state: "not_shared" as const }));
+    const setCreditSessionSharing = vi.fn(async (enabled: boolean) => enabled
+      ? { state: "shared" as const }
+      : { state: "not_shared" as const, localCleared: true, remoteRevocation: "uncertain" as const });
+    window.desktop = { auth: {
+      getDesktopLinkStatus: vi.fn(async () => linked),
+      connectDesktop: vi.fn(async () => linked),
+      disconnectDesktop: vi.fn(async () => ({ localCleared: true, remoteRevocation: "uncertain" as const })),
+      getCreditSessionShareStatus,
+      setCreditSessionSharing,
+    } };
+
+    renderWithProviders(<SettingsPage />);
+    await waitFor(() => expect(screen.getByText("pages.settings.account.creditStates.not_shared")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("pages.settings.account.creditShare"));
+    await waitFor(() => expect(setCreditSessionSharing).toHaveBeenCalledWith(true));
+    expect(screen.getByText("pages.settings.account.creditStates.shared")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("pages.settings.account.creditStop"));
+    await waitFor(() => expect(setCreditSessionSharing).toHaveBeenCalledWith(false));
+    expect(screen.getByRole("status")).toHaveTextContent("pages.settings.account.creditRemoteUncertain");
+  });
+
+  it("shows owner-confirmed account scopes and lets the user switch through browser PKCE", async () => {
+    const connectDesktop = vi.fn(async () => ({ ...linked, businessAccountId: "business-account-8" }));
+    const disconnectDesktop = vi.fn(async () => ({ localCleared: true, remoteRevocation: "confirmed" as const }));
+    window.desktop = { auth: {
+      getDesktopLinkStatus: vi.fn(async () => linked),
+      connectDesktop,
+      disconnectDesktop,
+    } };
+
+    renderWithProviders(<SettingsPage />);
+    await waitFor(() => expect(screen.getByTestId(selectors.settingsPage.accountStatus)).toHaveTextContent("pages.settings.account.states.linked"));
+    expect(screen.getByText("business-account-7")).toBeInTheDocument();
+    expect(screen.getByText("device-studio:read")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId(selectors.settingsPage.accountConnect));
+    await waitFor(() => expect(disconnectDesktop).toHaveBeenCalledWith({ resource: "device-studio" }));
+    await waitFor(() => expect(connectDesktop).toHaveBeenCalledWith({
+      resource: "device-studio",
+      audience: "scenario:device-studio",
+      scopes: ["device-studio:read"],
+    }));
+    await waitFor(() => expect(screen.getByText("business-account-8")).toBeInTheDocument());
+  });
+
+  it("reports uncertain remote revocation while keeping local clear and sign-out", async () => {
+    const disconnectDesktop = vi.fn(async () => ({ localCleared: true as const, remoteRevocation: "uncertain" as const }));
+    window.desktop = { auth: {
+      getDesktopLinkStatus: vi.fn(async () => linked),
+      connectDesktop: vi.fn(async () => linked),
+      disconnectDesktop,
+    } };
+
+    renderWithProviders(<SettingsPage />);
+    const button = await screen.findByTestId(selectors.settingsPage.accountDisconnect);
+    fireEvent.click(button);
+
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("pages.settings.account.remoteUncertain"));
+    expect(disconnectDesktop).toHaveBeenCalledWith({ resource: "device-studio" });
+  });
+});

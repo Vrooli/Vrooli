@@ -22,6 +22,7 @@ IMAGE_SHA = "bbdb946a84b0229752fef36683dc2c832a0b231c3eaa8cd970e7e13cb272754b"
 SOURCE_IMAGE_BYTES = 139751
 SCREEN_NODE, SCREEN_MESH, SCREEN_PRIMITIVE, SCREEN_MATERIAL = 27, 14, 0, 11
 ROOT_NODE, ROOT_NAME, ROOT_SCALE = 28, "sceneview_root", 0.6430670822618203
+MANIFEST_PREVIOUS_SHA = "9256b77a3d5cfc70ad3cc3525db8e2c73e7ea652c07019de82ce58b41f4ada9b"
 
 
 def sha(data: bytes) -> str:
@@ -91,6 +92,49 @@ def index_values(doc: dict, binary: bytes, index: int) -> list[int]:
     return list(struct.unpack_from(f"<{accessor['count']}{code}", binary, start))
 
 
+def exact_position_measurements(doc: dict, binary: bytes) -> dict:
+    parents = {child: parent for parent, node in enumerate(doc["nodes"]) for child in node.get("children", [])}
+
+    def world_point(node_index: int, point: tuple[float, ...]) -> tuple[float, float, float]:
+        while True:
+            node = doc["nodes"][node_index]
+            scale = node.get("scale", [1, 1, 1])
+            x, y, z = (point[i] * scale[i] for i in range(3))
+            qx, qy, qz, qw = node.get("rotation", [0, 0, 0, 1])
+            tx, ty, tz = 2 * (qy * z - qz * y), 2 * (qz * x - qx * z), 2 * (qx * y - qy * x)
+            x, y, z = (x + qw * tx + qy * tz - qz * ty,
+                       y + qw * ty + qz * tx - qx * tz,
+                       z + qw * tz + qx * ty - qy * tx)
+            translation = node.get("translation", [0, 0, 0])
+            point = (x + translation[0], y + translation[1], z + translation[2])
+            if node_index not in parents:
+                return point
+            node_index = parents[node_index]
+
+    minimum_y = math.inf
+    vertex_count = 0
+    screen_points = []
+    for node_index, node in enumerate(doc["nodes"]):
+        if "mesh" not in node:
+            continue
+        for primitive in doc["meshes"][node["mesh"]]["primitives"]:
+            positions = accessor_rows(doc, binary, primitive["attributes"]["POSITION"], "<fff", 12)
+            for row in positions:
+                point = world_point(node_index, row)
+                minimum_y = min(minimum_y, point[1])
+                vertex_count += 1
+                if node_index == SCREEN_NODE:
+                    screen_points.append(point)
+    if vertex_count == 0 or len(screen_points) != 86:
+        raise ValueError("pinned source support or display POSITION vertices are incomplete")
+    return {
+        "transformed_position_vertex_count": vertex_count,
+        "minimum_y_m": minimum_y,
+        "display_center_vertex_count": len(screen_points),
+        "display_center_m": [sum(point[axis] for point in screen_points) / len(screen_points) for axis in range(3)],
+    }
+
+
 def add_view(doc: dict, binary: bytearray, payload: bytes, target: int) -> int:
     binary.extend(b"\0" * ((-len(binary)) % 4))
     offset = len(binary)
@@ -99,12 +143,15 @@ def add_view(doc: dict, binary: bytearray, payload: bytes, target: int) -> int:
     return len(doc["bufferViews"]) - 1
 
 
-def write_exact(path: Path, data: bytes) -> None:
+def write_exact(path: Path, data: bytes, previous_sha: str = "") -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    if path.exists() and path.read_bytes() != data:
-        raise ValueError(f"refusing to overwrite a changed reviewed output: {path}")
-    if not path.exists():
-        path.write_bytes(data)
+    if path.exists():
+        current = path.read_bytes()
+        if current == data:
+            return
+        if not previous_sha or sha(current) != previous_sha:
+            raise ValueError(f"refusing to overwrite a changed reviewed output: {path}")
+    path.write_bytes(data)
 
 
 def derive() -> tuple[bytes, dict]:
@@ -112,6 +159,7 @@ def derive() -> tuple[bytes, dict]:
     if sha(source) != SOURCE_SHA or sha(creator) != CREATOR_SHA:
         raise ValueError("pinned Series 7 source GLB or creator record hash changed")
     doc, source_bin = load_glb(source)
+    position_measurements = exact_position_measurements(doc, source_bin)
     if len(doc["nodes"]) != 29 or len(doc["meshes"]) != 15 or len(doc["materials"]) != 12:
         raise ValueError("source node/mesh/material inventory differs from the retained review")
     root = doc["nodes"][ROOT_NODE]
@@ -249,6 +297,7 @@ def derive() -> tuple[bytes, dict]:
             "source_scale_policy": "Preserve the exact source hierarchy including sceneview_root scale 0.643; no nominal-size fitting or scale normalization.",
             "variant": "unknown",
             "measurement_limit": "GLB-derived source geometry under the glTF metre assumption; not independent physical measurement, not a 41 mm/45 mm variant, and the full model AABB is band-dominated.",
+            "exact_source_position_measurements": position_measurements,
         },
         "rights_and_claims": {
             "adaptation_notice": "Replaced branded source image 0 with a generated neutral dark display image, normalized only the selected display TEXCOORD_0 chart, and changed only display material 11 to neutral replaceable-screen values.",
@@ -263,7 +312,7 @@ def main() -> None:
     output, manifest = derive()
     write_exact(OUTPUT, output)
     encoded = (json.dumps(manifest, indent=2) + "\n").encode()
-    write_exact(MANIFEST, encoded)
+    write_exact(MANIFEST, encoded, MANIFEST_PREVIOUS_SHA)
     print(f"output={OUTPUT} bytes={len(output)} sha256={manifest['output']['sha256']}")
     print(f"manifest={MANIFEST} sha256={sha(encoded)}")
     print("screen=node27/mesh14/primitive0/material11; 30 triangles and 0.643 root scale preserved")

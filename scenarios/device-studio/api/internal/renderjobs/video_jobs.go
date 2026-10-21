@@ -224,9 +224,6 @@ func (c *Coordinator) makeVideoClosure(ctx context.Context, route routePin, req 
 	if rev.Plate.GetWidthPixels() < rev.Plate.GetHeightPixels() {
 		w, h = 1080, 1920
 	}
-	if int64(rev.Plate.GetWidthPixels())*int64(h) != int64(rev.Plate.GetHeightPixels())*int64(w) {
-		return videoClosure{}, ErrNotEligible
-	}
 	cfg, err := presentations.ConfigFromSavedVersion(image.Pt(int(scene.GetDisplayWidthPixels()), int(scene.GetDisplayHeightPixels())), snapshot.GetPresentation(), rev.PresentationVersion)
 	if err != nil {
 		return videoClosure{}, err

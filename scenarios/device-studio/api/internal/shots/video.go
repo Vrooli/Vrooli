@@ -22,9 +22,18 @@ const CameraMotionProfileID = "screen-entry-projective-contain-v1"
 // CameraMotionProfileVersion is the schema/behavior version of CameraMotionProfileID.
 const CameraMotionProfileVersion = 1
 
-// maxCameraOutputFrames is the initially qualified output schedule bound for
-// the screen-entry warp profile. It can be raised after runtime measurement.
-const maxCameraOutputFrames = 120
+// maxCameraOutputFrames bounds screen-entry motion allocation to 12 seconds
+// at the highest supported output rate, 30 frames per second.
+const maxCameraOutputFrames = 360
+
+const maxCameraDurationSeconds = 12
+
+func maxCameraScheduleFrames(t *shotsv1.VideoTiming) int64 {
+	if t == nil || t.GetOutputRateDen() != 1 || (t.GetOutputRateNum() != 24 && t.GetOutputRateNum() != 30) {
+		return 0
+	}
+	return int64(t.GetOutputRateNum()) * maxCameraDurationSeconds
+}
 
 // VideoProfileFixed identifies the byte-compatible fixed-plate video profile.
 const VideoProfileFixed = "device-studio-fixed-plate-video-v1"

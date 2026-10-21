@@ -19,24 +19,27 @@ import (
 )
 
 const (
-	watchAssetID       = "sceneview-series7-generic-neutral-watch-v1"
-	watchAssetFile     = "assets/watch/series7-generic-neutral-screen.glb"
-	watchAssetSHA256   = "929de3091a06c42dbded6c88312d3285d2ed73857fbecaf188cb94f1ae42b522"
-	watchBundleID      = "device-studio-starter-generic-rectangular-watch-v1"
-	watchDeviceID      = "generic-rectangular-smartwatch-source-candidate-v1"
-	watchSceneID       = "generic-rectangular-watch-study-no-cup-v1"
-	watchPresetID      = "generic-rectangular-watch-study-still-v1"
-	watchReviewID      = "device-studio-e4-series7-neutral-watch-candidate-v1"
-	watchDisplayID     = "main_display"
-	watchRootPartID    = "watch-root"
-	watchScreenPartID  = "watch-screen"
-	watchSupportID     = "watch-root-tabletop-candidate"
-	watchCameraID      = "watch-camera-full-source-bounds-v1"
-	watchManifestPath  = "scenarios/device-studio/api/internal/physicalruntime/assets/watch/asset-manifest.json"
-	watchManifestSHA   = "a02481d03ffb051e900b3bd548d973871e54a891adf82adeb92f2c4b9552d7f9"
-	watchSourceSHA256  = "ac3c33a32bc27c562e6655245e20327d17c77c988f11aab3016496d851e4e5e3"
-	watchCreatorSHA256 = "900a4e5d90c06106979b2c2bc8431f43e4311e0426df43cea65ce95b7f60051a"
+	watchAssetID         = "sceneview-series7-generic-neutral-watch-v1"
+	watchAssetFile       = "assets/watch/series7-generic-neutral-screen.glb"
+	watchAssetSHA256     = "929de3091a06c42dbded6c88312d3285d2ed73857fbecaf188cb94f1ae42b522"
+	watchBundleID        = "device-studio-starter-generic-rectangular-watch-v1"
+	watchDeviceID        = "generic-rectangular-smartwatch-source-candidate-v1"
+	watchSceneID         = "generic-rectangular-watch-study-no-cup-v1"
+	watchPresetID        = "generic-rectangular-watch-study-still-v1"
+	watchReviewID        = "device-studio-e4-series7-neutral-watch-candidate-v1"
+	watchDisplayID       = "main_display"
+	watchRootPartID      = "watch-root"
+	watchScreenPartID    = "watch-screen"
+	watchSupportID       = "watch-root-tabletop-candidate"
+	watchCameraID        = "watch-camera-full-source-bounds-v1"
+	watchManifestPath    = "scenarios/device-studio/api/internal/physicalruntime/assets/watch/asset-manifest.json"
+	watchManifestSHA     = "1018fa932072caa8a7b926286d8339ca4c5c3659b3d1a155fe5c14b496a9a2fd"
+	watchSourceSHA256    = "ac3c33a32bc27c562e6655245e20327d17c77c988f11aab3016496d851e4e5e3"
+	watchCreatorSHA256   = "900a4e5d90c06106979b2c2bc8431f43e4311e0426df43cea65ce95b7f60051a"
+	watchSupportMinimumY = 0.0
 )
+
+var watchDisplayCenter = physical.Vec3{X: 6.9653163122769475e-06, Y: 0.03194426510567318, Z: 0.015982393424878862}
 
 type WatchStarterState struct {
 	Bundle    library.BundleRevision
@@ -86,7 +89,7 @@ func (s *starterInitializer) initializeWatchCandidatePinned(ctx context.Context,
 	if err != nil {
 		return WatchStarterState{}, err
 	}
-	placement := watchPlacement(bounds)
+	placement := watchPlacement()
 	scene, err := s.saveWatchScene(ctx, room, device, bounds, placement)
 	if err != nil {
 		return WatchStarterState{}, err
@@ -232,23 +235,50 @@ func (s *starterInitializer) saveWatchScene(ctx context.Context, room scenes.Rev
 	camera := candidate.CameraFrames[0]
 	camera.ID = watchCameraID
 	camera.SensorFit = scenes.SensorFitHorizontal
-	camera.Focus = &scenes.FocusTarget{Mode: scenes.FocusSelectedDevice}
 	fitted, err := fitIPadPerspectiveCamera(bounds, identityTRS(), ReviewedIPadPlacement{SceneSupportWorld: placement.SceneSupportWorld, SupportPivotM: placement.SupportPivotM, DeviceRootRest: placement.DeviceRootRest}, camera, 16.0/9.0, .10)
 	if err != nil {
 		return scenes.Revision{}, fmt.Errorf("fit watch camera to conservative full-source bounds: %w", err)
 	}
 	camera.Frame = fitted
+	displayCenter := physical.Vec3{X: watchDisplayCenter.X, Y: placement.SceneSupportWorld.Translation.Y + watchDisplayCenter.Y, Z: watchDisplayCenter.Z}
+	focusDistance, err := watchCameraAxisDistance(camera.Frame, displayCenter)
+	if err != nil {
+		return scenes.Revision{}, fmt.Errorf("derive watch display focus depth: %w", err)
+	}
+	camera.Focus = &scenes.FocusTarget{Mode: scenes.FocusDistance, DistanceM: &focusDistance}
 	candidate.CameraFrames[0] = camera
 	return saveSceneCandidateIfUnchanged(ctx, s.scenes, candidate)
 }
 
-func watchPlacement(bounds physicalBounds) ReviewedWatchPlacement {
+func watchPlacement() ReviewedWatchPlacement {
 	identity := identityTRS()
-	identity.Translation.Y = -bounds.min.Y
+	if watchSupportMinimumY != 0 {
+		identity.Translation.Y = -watchSupportMinimumY
+	}
 	return ReviewedWatchPlacement{
 		DisplayID: watchDisplayID, DeviceSupportID: watchSupportID, SceneSupportID: laptopTableSupportID, CameraID: watchCameraID,
 		SceneSupportWorld: physical.TRS{Translation: physical.Vec3{Y: .75}, Rotation: identity.Rotation, Scale: identity.Scale}, DeviceRootRest: identity,
 	}
+}
+
+func watchCameraAxisDistance(frame physical.TRS, target physical.Vec3) (float64, error) {
+	matrix, err := frame.Matrix()
+	if err != nil {
+		return 0, err
+	}
+	origin, err := physical.TransformPoint(matrix, physical.Vec3{})
+	if err != nil {
+		return 0, err
+	}
+	forwardPoint, err := physical.TransformPoint(matrix, physical.Vec3{Z: -1})
+	if err != nil {
+		return 0, err
+	}
+	distance := dotVec(subVec(target, origin), normalize(subVec(forwardPoint, origin)))
+	if !positiveFinite(distance) {
+		return 0, errors.New("watch display focus plane is behind the fitted camera")
+	}
+	return distance, nil
 }
 
 func validateWatchPlacement(device devices.DeviceRevision, scene scenes.Revision, motion motions.Revision, placement ReviewedWatchPlacement) error {

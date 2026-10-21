@@ -8,6 +8,7 @@ import (
 	"device-studio/internal/library"
 	"device-studio/internal/physical"
 	domain "device-studio/internal/physicalruntime"
+	"device-studio/internal/shots"
 	physicalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-studio/v1/physical"
 )
 
@@ -19,9 +20,30 @@ type Handler struct{ service Service }
 
 func NewConnectHandler(service Service) *Handler { return &Handler{service: service} }
 
-func (h *Handler) InitializeReviewedStarter(ctx context.Context, _ *connect.Request[physicalv1.InitializeReviewedStarterRequest]) (*connect.Response[physicalv1.InitializeReviewedStarterResponse], error) {
+func (h *Handler) InitializeReviewedStarter(ctx context.Context, request *connect.Request[physicalv1.InitializeReviewedStarterRequest]) (*connect.Response[physicalv1.InitializeReviewedStarterResponse], error) {
 	if h.service == nil {
 		return nil, connect.NewError(connect.CodeInternal, errors.New("physical starter service is unavailable"))
+	}
+	starterID := request.Msg.GetStarterId()
+	if starterID != "" {
+		service, ok := h.service.(interface {
+			InitializePhysicalStarter(context.Context, string) (shots.PhysicalPresetRevision, error)
+		})
+		if !ok {
+			return nil, connect.NewError(connect.CodeUnimplemented, errors.New("candidate starter selection is unavailable"))
+		}
+		preset, err := service.InitializePhysicalStarter(ctx, starterID)
+		if errors.Is(err, domain.ErrUnknownStarterID) {
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		}
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, errors.New("candidate starter initialization failed"))
+		}
+		return connect.NewResponse(&physicalv1.InitializeReviewedStarterResponse{
+			SelectedStarterId: starterID,
+			CandidateOnly:     true,
+			InitializedPreset: componentRef(preset.PresetID, preset.Revision, preset.SHA256),
+		}), nil
 	}
 	state, err := h.service.InitializeReviewedStarter(ctx)
 	if err != nil {

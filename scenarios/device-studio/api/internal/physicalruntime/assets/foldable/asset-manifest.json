@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "status": "candidate_only_unqualified",
+  "artifact_id": "vrooli-generic-book-fold-concept-glb-v2",
+  "output": {
+    "path": "scenarios/device-studio/api/internal/physicalruntime/assets/foldable/foldable-concept.glb",
+    "sha256": "90e1e5195ee88018e37b98d8d08af4d1407d8161e6216cf3fb699921d77ce4ac",
+    "size_bytes": 22480
+  },
+  "authorship": {
+    "creator": "Vrooli",
+    "license": "AGPL-3.0-only",
+    "use_scope": "Internal candidate review; opt-in local Library candidate only.",
+    "product_identity": "Generic dual-rigid book-fold concept; no manufacturer CAD or endorsement."
+  },
+  "reference": {
+    "url": "https://www.samsung.com/ph/smartphones/galaxy-z-fold6/specs/",
+    "use": "Published open envelope informs proportions only; no product geometry copied.",
+    "nominal_open_body_mm": [132.6, 153.5, 5.6]
+  },
+  "geometry": {
+    "nodes": 8,
+    "meshes": 6,
+    "triangles": 622,
+    "housing_bevel_mm": 0.55,
+    "hinge_barrel_segments": 7,
+    "display_finish": "dark neutral glass, low-emission floor, and subdued metallic reflection",
+    "inner_displays": ["inner-left", "inner-right"],
+    "outer_display": "outer-cover",
+    "hinge_parent_node": "FoldConceptRoot",
+    "hinge_child_node": "MainHingePivot",
+    "hinge_axis_parent_frame": [0, 1, 0],
+    "hinge_pivot_m": [0, 0, 0],
+    "authored_angle_range_rad": [0, 3.141592653589793]
+  },
+  "reproduction": {
+    "command": "python3 scenarios/device-studio/assets/sources/foldable-concept/derive_foldable.py",
+    "script_sha256": "a190aa05fbde19bacf48e4de98e0ff4241512ad4eae32456c70ed7fc5c242b9f",
+    "source_manifest": "scenarios/device-studio/assets/sources/foldable-concept/foldable-manifest.json",
+    "source_manifest_sha256": "cd9bc7b43cf1a8ae3ce3a0ac76161fbcfde2a0d7b1712a92b1240bf29d4c6192"
+  },
+  "qualification_limits": [
+    "Authored concept proportions are not independent physical measurements.",
+    "The hinge axis and 0–180 degree interval are design assumptions, not Galaxy Z Fold6 mechanism facts.",
+    "No flexible panel deformation, crease, physical hinge clearance, product fit, or qualification is claimed.",
+    "Appearance and native still review remain pending."
+  ]
+}

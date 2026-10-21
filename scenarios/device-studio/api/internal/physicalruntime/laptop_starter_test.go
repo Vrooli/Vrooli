@@ -35,6 +35,7 @@ import (
 	physicalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-studio/v1/physical"
 	shotsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-studio/v1/shots"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 	_ "modernc.org/sqlite"
 )
 
@@ -102,6 +103,59 @@ func TestReviewedLaptopCandidateAndPhysicalClosure(t *testing.T) {
 	}
 	if laptop.FramedScene.SceneID != laptopFramedSceneID || laptop.FramedScene.State != "candidate" || laptop.FramedPlacement.CameraID != laptopFramedCameraID || laptop.FramedScene.SHA256 == laptop.Scene.SHA256 {
 		t.Fatalf("framed laptop scene must be a separate candidate with its own camera: scene=%+v placement=%+v", laptop.FramedScene, laptop.FramedPlacement)
+	}
+	oriented, err := owners.InitializeReviewedLaptopScreenUpright(testCtx)
+	if err != nil {
+		t.Fatalf("initialize display-only orientation candidate: %v", err)
+	}
+	orientedReplay, err := owners.InitializeReviewedLaptopScreenUpright(testCtx)
+	if err != nil {
+		t.Fatalf("replay display-only orientation candidate: %v", err)
+	}
+	if laptop.Device.SHA256 != replay.Device.SHA256 || oriented.Device.DeviceID != laptopOrientedDeviceID || oriented.Device.SHA256 != orientedReplay.Device.SHA256 || oriented.FramedScene.SHA256 != orientedReplay.FramedScene.SHA256 || oriented.Preset.SHA256 != orientedReplay.Preset.SHA256 {
+		t.Fatal("oriented candidate replay changed the original candidate or its own immutable references")
+	}
+	dispatchedPreset, err := owners.InitializePhysicalStarter(testCtx, "laptop-screen-upright-180")
+	if err != nil || dispatchedPreset.PresetID != oriented.Preset.PresetID || dispatchedPreset.Revision != oriented.Preset.Revision || dispatchedPreset.SHA256 != oriented.Preset.SHA256 {
+		t.Fatalf("public starter dispatch must resolve the exact oriented preset: preset=%+v err=%v", dispatchedPreset, err)
+	}
+	stillMotion, err := owners.Starter.saveStillMotion(testCtx)
+	if err != nil {
+		t.Fatalf("resolve exact shared identity still motion: %v", err)
+	}
+	if oriented.Device.Candidate.Definition.Qualification != "unqualified" || oriented.Device.Candidate.Definition.ModelCandidates[0].SourcePath != "" || oriented.Preset.Setup.Device.Id != oriented.Device.DeviceID || oriented.Preset.Setup.Scene.Id != oriented.FramedScene.SceneID || oriented.Preset.Setup.Motion.Id != stillMotion.MotionID || oriented.Preset.Setup.Motion.Sha256 != stillMotion.SHA256 || oriented.Motion.MotionID != laptopMotionID || oriented.Preset.PresetID != "laptop-screen-upright-180-review-still-v2" || oriented.Preset.Setup.CameraId != laptopOrientedCameraID {
+		t.Fatal("oriented still preset must bind the exact candidate/scene and identity motion while retaining the separate hinge motion")
+	}
+	orientedGLB, err := starterAssets.ReadFile(laptopOrientedAssetFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	orientedScreen, err := rendering.ResolvePhysicalScreenGeometry(orientedGLB, oriented.Device.Candidate, laptopDisplayID)
+	if err != nil || orientedScreen.NodeIndex != 5 || orientedScreen.PrimitiveIndex != 0 || orientedScreen.UVMin != [2]float64{0, 0} || orientedScreen.UVMax != [2]float64{1, 1} {
+		t.Fatalf("oriented screen binding did not pass the exact screen preflight: %+v err=%v", orientedScreen, err)
+	}
+	vertical, err := owners.InitializeReviewedLaptopScreenVFlip(testCtx)
+	if err != nil {
+		t.Fatalf("initialize vertical-only laptop screen candidate: %v", err)
+	}
+	verticalReplay, err := owners.InitializeReviewedLaptopScreenVFlip(testCtx)
+	if err != nil || vertical.Device.SHA256 != verticalReplay.Device.SHA256 || vertical.FramedScene.SHA256 != verticalReplay.FramedScene.SHA256 || vertical.Preset.SHA256 != verticalReplay.Preset.SHA256 {
+		t.Fatalf("vertical-only candidate replay changed its immutable refs: err=%v", err)
+	}
+	if vertical.Device.DeviceID == oriented.Device.DeviceID || vertical.Preset.PresetID != "laptop-screen-vflip-review-still-v1" || vertical.Device.Candidate.Definition.Qualification != "unqualified" || vertical.Device.Candidate.Geometry.SHA256 != "1d833e3d08d0722952ecd9b6616cf933af11fca5716cfe4bc67aa110850272bd" {
+		t.Fatal("vertical-only screen view must use a distinct, pinned, unqualified candidate revision")
+	}
+	verticalPreset, err := owners.InitializePhysicalStarter(testCtx, "laptop-screen-vflip")
+	if err != nil || verticalPreset.PresetID != vertical.Preset.PresetID || verticalPreset.SHA256 != vertical.Preset.SHA256 {
+		t.Fatalf("public selector did not return the exact vertical-flip preset: preset=%+v err=%v", verticalPreset, err)
+	}
+	verticalGLB, err := starterAssets.ReadFile("assets/laptop/laptop-neutral-rig-screen-vflip-v1.glb")
+	if err != nil {
+		t.Fatal(err)
+	}
+	verticalScreen, err := rendering.ResolvePhysicalScreenGeometry(verticalGLB, vertical.Device.Candidate, laptopDisplayID)
+	if err != nil || verticalScreen.NodeIndex != 5 || verticalScreen.PrimitiveIndex != 0 || verticalScreen.UVMin != [2]float64{0, 0} || verticalScreen.UVMax != [2]float64{1, 1} {
+		t.Fatalf("vertical-flip screen binding did not pass exact geometry preflight: %+v err=%v", verticalScreen, err)
 	}
 	textureBindings := map[string]bool{}
 	for _, artifact := range laptop.FramedScene.Candidate.Artifacts {
@@ -250,6 +304,56 @@ func TestReviewedLaptopCandidateAndPhysicalClosure(t *testing.T) {
 	}
 	if closure.Manifest.Output.Kind != "motion_mp4" || closure.Manifest.Output.FrameCount != 48 || len(closure.Manifest.Output.Samples) != 48 {
 		t.Fatalf("closure did not carry the full reviewed 48-frame hinge schedule: kind=%q frames=%d samples=%d", closure.Manifest.Output.Kind, closure.Manifest.Output.FrameCount, len(closure.Manifest.Output.Samples))
+	}
+	stillBinding := &shotsv1.PhysicalShotBinding{
+		Device:    proto.Clone(vertical.Preset.Setup.Device).(*shotsv1.ComponentRevisionRef),
+		Scene:     proto.Clone(vertical.Preset.Setup.Scene).(*shotsv1.ComponentRevisionRef),
+		Motion:    proto.Clone(vertical.Preset.Setup.Motion).(*shotsv1.ComponentRevisionRef),
+		DisplayId: vertical.Preset.Setup.DisplayId, DeviceSupportId: vertical.Preset.Setup.DeviceSupportId,
+		SceneSupportId: vertical.Preset.Setup.SceneSupportId, CameraId: vertical.Preset.Setup.CameraId,
+		SceneSupportWorld: proto.Clone(vertical.Preset.Setup.SceneSupportWorld).(*physicalv1.TRS), SupportPivotM: proto.Clone(vertical.Preset.Setup.SupportPivotM).(*physicalv1.Vec3),
+		DeviceRootRest: proto.Clone(vertical.Preset.Setup.DeviceRootRest).(*physicalv1.TRS), ScreenWidthPixels: 1644, ScreenHeightPixels: 1000,
+		RendererProfileId: rendering.PhysicalRendererProfile, RendererProfileVersion: 1,
+		OutputProfile:    shotsv1.PhysicalStillOutputProfile_PHYSICAL_STILL_OUTPUT_PROFILE_2560X1440_V1,
+		MotionSampleTick: &shotsv1.RationalTime{Numerator: 0, Denominator: 1}, Backend: shotsv1.PhysicalRenderBackend_PHYSICAL_RENDER_BACKEND_CPU,
+	}
+	stillSnapshot := &shotsv1.ShotSnapshot{PhysicalBinding: stillBinding, Presentation: &shotsv1.ScreenPresentation{SourceMediaId: screen.ID,
+		CaptureArea: shotsv1.CaptureArea_CAPTURE_AREA_ALREADY_COMPOSED, Kind: shotsv1.PresentationKind_PRESENTATION_KIND_PLAIN,
+		FitMode: shotsv1.ScreenFitMode_SCREEN_FIT_MODE_CONTAIN}, MotionMode: shotsv1.MotionMode_MOTION_MODE_FIXED}
+	stillShot, stillRevision, err := shotService.Create(testCtx, project.ID, "Laptop upright display still", stillSnapshot)
+	if err != nil || !stillRevision.RenderEligible {
+		t.Fatalf("create render-eligible still from exact identity-motion preset: shot=%+v revision=%+v err=%v", stillShot, stillRevision, err)
+	}
+	stillJob, stillCreated, err := coordinator.Submit(testCtx, renderjobs.SubmitRequest{ProjectID: project.ID, ShotID: stillShot.ID, Revision: stillRevision.Revision,
+		IdempotencyKey: "laptop-upright-identity-still-closure-v2", OutputProfile: renderjobs.OutputProfilePNG})
+	if err != nil || !stillCreated {
+		t.Fatalf("compile real still-render closure from upright candidate: created=%t err=%v", stillCreated, err)
+	}
+	var stillClosureKey string
+	for _, binding := range stillJob.Input.Bindings {
+		if binding.Role == "physical_closure" {
+			stillClosureKey = binding.ArtifactID
+		}
+	}
+	if stillClosureKey == "" {
+		t.Fatal("upright still render omitted its physical closure")
+	}
+	stillReader, _, err := renderBlobs.Get(testCtx, stillClosureKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stillBytes, readErr := io.ReadAll(stillReader)
+	if err := errors.Join(readErr, stillReader.Close()); err != nil {
+		t.Fatal(err)
+	}
+	var stillClosure struct {
+		Manifest rendering.PhysicalRenderManifest `json:"manifest"`
+	}
+	if err := json.Unmarshal(stillBytes, &stillClosure); err != nil {
+		t.Fatalf("decode upright still closure: %v", err)
+	}
+	if stillClosure.Manifest.Output.Kind != "still_png" || stillClosure.Manifest.Motion.CanonicalSHA != stillMotion.SHA256 {
+		t.Fatalf("upright still closure did not pin still-compatible identity motion: output=%+v motion=%+v", stillClosure.Manifest.Output, stillClosure.Manifest.Motion)
 	}
 	for ordinal, want := range map[int]float64{0: 0, 24: laptopClosedAngleRad / 2, 47: laptopClosedAngleRad} {
 		got := closure.Manifest.Output.Samples[ordinal].JointAngles[laptopJointID]

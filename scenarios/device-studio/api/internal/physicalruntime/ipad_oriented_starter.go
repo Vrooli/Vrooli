@@ -8,9 +8,13 @@ import (
 
 	"device-studio/internal/devices"
 	"device-studio/internal/library"
+	"device-studio/internal/motions"
 	"device-studio/internal/physical"
 	"device-studio/internal/rendering"
 	"device-studio/internal/scenes"
+	"device-studio/internal/shots"
+	shotsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-studio/v1/shots"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -81,7 +85,32 @@ func (o Owners) InitializeReviewedIPadOrientedStarter(ctx context.Context) (IPad
 	}
 	placement := v1.Placement
 	placement.SelectedCameraID = ipadOrientedCameraID
-	return IPadStarterState{Bundle: bundle, Device: device, Scene: scene, Motion: v1.Motion, Placement: placement}, nil
+	preset, err := o.Starter.ensureIPadOrientedPreset(ctx, device, scene, v1.Motion, placement)
+	if err != nil {
+		return IPadStarterState{}, err
+	}
+	return IPadStarterState{Bundle: bundle, Device: device, Scene: scene, Motion: v1.Motion, Placement: placement, Preset: preset}, nil
+}
+
+func (s *starterInitializer) ensureIPadOrientedPreset(ctx context.Context, device devices.DeviceRevision, scene scenes.Revision, motion motions.Revision, placement ReviewedIPadPlacement) (shots.PhysicalPresetRevision, error) {
+	setup := &shotsv1.PhysicalShotSetup{
+		Device:    &shotsv1.ComponentRevisionRef{Id: device.DeviceID, Revision: device.Revision, Sha256: device.SHA256},
+		Scene:     &shotsv1.ComponentRevisionRef{Id: scene.SceneID, Revision: scene.Revision, Sha256: scene.SHA256},
+		Motion:    &shotsv1.ComponentRevisionRef{Id: motion.MotionID, Revision: motion.Revision, Sha256: motion.SHA256},
+		DisplayId: placement.DisplayID, DeviceSupportId: placement.DeviceSupportID, SceneSupportId: placement.SceneSupportID, CameraId: placement.SelectedCameraID,
+		SceneSupportWorld: starterTRS(placement.SceneSupportWorld), SupportPivotM: starterVec3(placement.SupportPivotM), DeviceRootRest: starterTRS(placement.DeviceRootRest),
+		StillProfiles: []shotsv1.PhysicalStillOutputProfile{shotsv1.PhysicalStillOutputProfile_PHYSICAL_STILL_OUTPUT_PROFILE_2560X1440_V1},
+	}
+	const id = "ipad-screen-uv-oriented-180-review-still-v1"
+	if current, err := s.presets.Head(ctx, id); err == nil {
+		if proto.Equal(current.Setup, setup) {
+			return current, nil
+		}
+		return shots.PhysicalPresetRevision{}, shots.ErrPhysicalPresetConflict
+	} else if !errors.Is(err, shots.ErrPhysicalPresetNotFound) {
+		return shots.PhysicalPresetRevision{}, err
+	}
+	return s.presets.Save(ctx, id, 0, "iPad screen orientation review still", setup)
 }
 
 func (s *starterInitializer) publishIPadOrientedBundle(ctx context.Context) (library.BundleRevision, error) {

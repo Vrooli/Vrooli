@@ -13,6 +13,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -41,6 +42,142 @@ func intakeFixtureGLB() []byte {
 	copy(out[20:], jsonChunk)
 	return out
 }
+
+func intakeMaterialFixtureGLB() []byte {
+	jsonChunk := []byte(`{"asset":{"version":"2.0"},"buffers":[{"byteLength":4}],"bufferViews":[{"buffer":0,"byteLength":4}],"accessors":[{"bufferView":0,"componentType":5121,"count":4,"type":"SCALAR"}],"meshes":[{"primitives":[{"attributes":{"POSITION":0}}]}],"nodes":[{"mesh":0}],"materials":[{"name":"case","pbrMetallicRoughness":{"baseColorFactor":[0.4,0.4,0.4,1],"metallicFactor":0,"roughnessFactor":0.8}},{ "name" : "untouched", "pbrMetallicRoughness" : {"roughnessFactor":0.5} }]}`)
+	for len(jsonChunk)%4 != 0 {
+		jsonChunk = append(jsonChunk, ' ')
+	}
+	bin := []byte{1, 2, 3, 4}
+	out := make([]byte, 12+8+len(jsonChunk)+8+len(bin))
+	copy(out, "glTF")
+	binary.LittleEndian.PutUint32(out[4:8], 2)
+	binary.LittleEndian.PutUint32(out[8:12], uint32(len(out)))
+	binary.LittleEndian.PutUint32(out[12:16], uint32(len(jsonChunk)))
+	binary.LittleEndian.PutUint32(out[16:20], 0x4e4f534a)
+	copy(out[20:], jsonChunk)
+	position := 20 + len(jsonChunk)
+	binary.LittleEndian.PutUint32(out[position:position+4], uint32(len(bin)))
+	binary.LittleEndian.PutUint32(out[position+4:position+8], 0x004e4942)
+	copy(out[position+8:], bin)
+	return out
+}
+
+func TestIntakeMaterialCorrectionRequiresObservedParentAndPreservesGeometryBytes(t *testing.T) {
+	ctx, service, _, _ := setupIntake(t, func(context.Context, []byte) (IntakeInspection, error) {
+		return IntakeInspection{Profile: "test", ProfileVersion: 1, Supported: true, NodeCount: 3, MeshCount: 2, TriangleCount: 14}, nil
+	})
+	original := intakeMaterialFixtureGLB()
+	staged, err := service.BeginImport(ctx, intakeClaims("material-parent"), "source.glb", int64(len(original)), bytes.NewReader(original))
+	if err != nil {
+		t.Fatal(err)
+	}
+	parent, err := staged.Commit(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	inventory, err := service.MaterialInventory(ctx, parent.ID, parent.Revision, parent.RevisionSHA256)
+	if err != nil || len(inventory.Materials) != 2 || inventory.Materials[0].Name != "case" || inventory.Materials[0].RoughnessFactor != 0.8 {
+		t.Fatalf("inventory=%+v err=%v", inventory, err)
+	}
+	wrong := MaterialCorrectionRequest{ParentCandidateID: parent.ID, ParentRevision: parent.Revision, ParentRevisionSHA256: parent.RevisionSHA256, ChildCandidateID: "material-child", MaterialIndex: 0, MaterialName: "stale-name", RoughnessFactor: floatPointer(0.2)}
+	if _, err := service.CorrectMaterial(ctx, wrong); !errors.Is(err, ErrInvalidIntake) {
+		t.Fatalf("stale material selector error=%v", err)
+	}
+	wrong.MaterialName = "case"
+	wrong.MetallicFactor = floatPointer(1.1)
+	if _, err := service.CorrectMaterial(ctx, wrong); !errors.Is(err, ErrInvalidIntake) {
+		t.Fatalf("out-of-range factor error=%v", err)
+	}
+	wrong.MetallicFactor = nil
+	wrong.RoughnessFactor = floatPointer(0.2)
+	child, err := service.CorrectMaterial(ctx, wrong)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if child.ID != "material-child" || child.Revision != 1 || child.ParentID != parent.ID || child.ParentRevision != parent.Revision || child.ParentSHA256 != parent.RevisionSHA256 || child.ReviewStatus != "unreviewed" || child.RenderStatus != "not_reviewed" || child.Correction == nil || !child.Correction.GeometryUnchanged {
+		t.Fatalf("invalid correction child: %+v", child)
+	}
+	if child.Correction.BeforeGLBSHA256 != parent.OriginalSHA256 || child.Correction.AfterGLBSHA256 != child.OriginalSHA256 || !reflect.DeepEqual(child.Correction.BeforeBINChunksSHA256, child.Correction.AfterBINChunksSHA256) {
+		t.Fatalf("correction lineage lost hashes: %+v", child.Correction)
+	}
+	_, parentReader, err := service.Open(ctx, parent.ID, parent.Revision)
+	if err != nil {
+		t.Fatal(err)
+	}
+	retained, err := io.ReadAll(parentReader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = parentReader.Close()
+	if !bytes.Equal(retained, original) {
+		t.Fatal("parent GLB bytes changed")
+	}
+	_, childReader, err := service.Open(ctx, child.ID, child.Revision)
+	if err != nil {
+		t.Fatal(err)
+	}
+	childBytes, err := io.ReadAll(childReader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = childReader.Close()
+	parentDoc, _, _, err := decodeMaterialGLB(original)
+	if err != nil {
+		t.Fatal(err)
+	}
+	childDoc, _, _, err := decodeMaterialGLB(childBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var parentMaterials, childMaterials []json.RawMessage
+	if err := json.Unmarshal(parentDoc["materials"], &parentMaterials); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(childDoc["materials"], &childMaterials); err != nil {
+		t.Fatal(err)
+	}
+	var parentOther, childOther any
+	if err := json.Unmarshal(parentMaterials[1], &parentOther); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(childMaterials[1], &childOther); err != nil {
+		t.Fatal(err)
+	}
+	if len(parentMaterials) != 2 || len(childMaterials) != 2 || !reflect.DeepEqual(parentOther, childOther) {
+		t.Fatal("unselected material values changed")
+	}
+	for _, key := range []string{"buffers", "bufferViews", "accessors", "meshes", "nodes"} {
+		var parentValue, childValue any
+		if err := json.Unmarshal(parentDoc[key], &parentValue); err != nil {
+			t.Fatal(err)
+		}
+		if err := json.Unmarshal(childDoc[key], &childValue); err != nil {
+			t.Fatal(err)
+		}
+		if !reflect.DeepEqual(parentValue, childValue) {
+			t.Fatalf("geometry document field %s changed", key)
+		}
+	}
+	_, _, beforeBins, err := decodeMaterialGLB(original)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, afterBins, err := decodeMaterialGLB(childBytes)
+	if err != nil || !reflect.DeepEqual(beforeBins, afterBins) {
+		t.Fatalf("embedded BIN changed: before=%v after=%v err=%v", beforeBins, afterBins, err)
+	}
+	replayed, err := service.CorrectMaterial(ctx, wrong)
+	if err != nil || replayed.RevisionSHA256 != child.RevisionSHA256 {
+		t.Fatalf("exact operation replay=%+v err=%v", replayed, err)
+	}
+	wrong.RoughnessFactor = floatPointer(0.3)
+	if _, err := service.CorrectMaterial(ctx, wrong); !errors.Is(err, ErrIntakeConflict) {
+		t.Fatalf("child id reuse error=%v", err)
+	}
+}
+
+func floatPointer(v float64) *float64 { return &v }
 
 func setupIntake(t *testing.T, inspect IntakeInspector) (context.Context, *IntakeService, string, *sql.DB) {
 	return setupIntakeWithDB(t, inspect)

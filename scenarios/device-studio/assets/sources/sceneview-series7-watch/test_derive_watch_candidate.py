@@ -47,6 +47,16 @@ class WatchDerivativeTests(unittest.TestCase):
         self.assertEqual(output_doc["nodes"], source_doc["nodes"])
         self.assertEqual(output_doc["meshes"][14]["primitives"][0]["indices"], source_doc["meshes"][14]["primitives"][0]["indices"])
 
+    def test_exact_source_support_and_display_center_are_reproducible(self):
+        source_doc, source_bin = derive_watch_candidate.load_glb(derive_watch_candidate.SOURCE.read_bytes())
+        facts = derive_watch_candidate.exact_position_measurements(source_doc, source_bin)
+        self.assertEqual(derive_watch_candidate.sha(derive_watch_candidate.SOURCE.read_bytes()), derive_watch_candidate.SOURCE_SHA)
+        self.assertEqual(facts["transformed_position_vertex_count"], 161468)
+        self.assertEqual(facts["minimum_y_m"], 0.0)
+        self.assertEqual(facts["display_center_vertex_count"], 86)
+        for actual, expected in zip(facts["display_center_m"], [6.9653163122769475e-06, 0.03194426510567318, 0.015982393424878862]):
+            self.assertAlmostEqual(actual, expected, delta=1e-12)
+
     def test_referenced_screen_uvs_are_unit_rectangle_and_topology_is_unchanged(self):
         source = derive_watch_candidate.SOURCE.read_bytes()
         output, manifest = derive_watch_candidate.derive()

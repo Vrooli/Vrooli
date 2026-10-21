@@ -66,6 +66,8 @@ def finish(status, evidence=None, reused=None):
 def step_validate():
     if not task:
         return fail("failed", "invalid_input", "task must be a nonempty string", "validate")
+    if "parameters" in inputs and not isinstance(inputs["parameters"], dict):
+        return fail("failed", "invalid_input", "parameters must be an ExecutionParameters object", "validate")
     for field in ("workflow_id", "project_id", "session", "model", "scenario", "site", "url", "navigation_id", "advice_attempt_id"):
         if field in inputs and (not isinstance(inputs[field], str) or len(inputs[field]) > 512):
             return fail("failed", "invalid_input", "Invalid " + field, "validate")
@@ -148,11 +150,15 @@ def route_workflow():
 
 
 def route_candidate():
+    author_inputs = {
+        "flow": inputs["flow"], "project_id": inputs.get("project_id", ""),
+        "name": inputs.get("name", "candidate"), "workflow_id": inputs.get("repair_workflow_id", ""),
+        "expected_version": inputs.get("expected_version", 0),
+    }
+    if "parameters" in inputs:
+        author_inputs["parameters"] = inputs["parameters"]
     with learn.step("author") as step:
-        child = child_result(lib.browser_automation_studio.author_flow(
-            flow=inputs["flow"], project_id=inputs.get("project_id", ""),
-            name=inputs.get("name", "candidate"), workflow_id=inputs.get("repair_workflow_id", ""),
-            expected_version=inputs.get("expected_version", 0)))
+        child = child_result(lib.browser_automation_studio.author_flow(**author_inputs))
         step.outcome(child_outcome(child), child.get("evidence", []))
     adopt_child(child)
     signals = child.get("signals") or {}
@@ -174,11 +180,15 @@ def qualify_candidate(candidate):
     path uses in route_workflow, so a preference note earned here is comparable to one earned
     by reuse. Returns the qualified option id, or None with the reason recorded on the envelope.
     """
+    author_inputs = {
+        "flow": candidate, "project_id": inputs.get("project_id", ""),
+        "name": inputs.get("name", "") or ("task-" + task_digest),
+        "folder": inputs.get("folder", "candidates"),
+    }
+    if "parameters" in inputs:
+        author_inputs["parameters"] = inputs["parameters"]
     with learn.step("qualify-author") as step:
-        authored = child_result(lib.browser_automation_studio.author_flow(
-            flow=candidate, project_id=inputs.get("project_id", ""),
-            name=inputs.get("name", "") or ("task-" + task_digest),
-            folder=inputs.get("folder", "candidates")))
+        authored = child_result(lib.browser_automation_studio.author_flow(**author_inputs))
         step.outcome(child_outcome(authored), authored.get("evidence", []))
     signals = authored.get("signals") or {}
     workflow_id, version = signals.get("workflow_id"), signals.get("version")

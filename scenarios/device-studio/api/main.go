@@ -12,6 +12,7 @@ import (
 	"device-studio/internal/jobs"
 	librarydomain "device-studio/internal/library"
 	"device-studio/internal/modules"
+	photoowner "device-studio/internal/photographic"
 	"device-studio/internal/physicalruntime"
 	"device-studio/internal/projects"
 	"device-studio/internal/rendering"
@@ -24,6 +25,7 @@ import (
 	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
@@ -36,6 +38,7 @@ import (
 	healthH "device-studio/handlers/health"
 	libraryH "device-studio/handlers/library"
 	motionsH "device-studio/handlers/motions"
+	photographicH "device-studio/handlers/photographic"
 	physicalruntimeH "device-studio/handlers/physicalruntime"
 	projectsH "device-studio/handlers/projects"
 	renderjobsH "device-studio/handlers/renderjobs"
@@ -147,11 +150,13 @@ func main() {
 	if err != nil {
 		log.Fatalf("render jobs initialization failed: %v", err)
 	}
+	photoClient := photoowner.NewClient(discovery.ResolveScenarioURLDefault, nil)
 	srv := server.New(
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "device-studio-api", "1.0.0"),
 		capsH.Module(capabilities.NewRegistry()),
 		projectsH.ModuleWithRootsAndInspection(db, fileRoots, renderCoordinator, renderPump, log.Default()),
+		photographicH.Module(projectService, photoClient),
 		devicesH.ModuleWithService(physicalOwners.Devices),
 		scenesH.ModuleWithService(physicalOwners.Scenes),
 		motionsH.ModuleWithService(physicalOwners.Motions),

@@ -132,7 +132,27 @@
     "resources": {},
     "scenarios": {}
   },
-  "credentials": {},
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/lpbs-account",
+        "field": "entitlement-lease",
+        "label": "Vrooli desktop account link",
+        "description": "Signed, scoped desktop link lease stored by the credential owner; it is not an inference bearer token.",
+        "required": false,
+        "provisioning": "operator"
+      },
+      {
+        "logical_id": "vrooli/lpbs-account",
+        "field": "refresh-token",
+        "label": "Vrooli credits session for AI Gateway",
+        "description": "Only provisioned after an explicit desktop-owner choice to share the signed-in LPBS session with AI Gateway. The token is never exposed to the Device Studio renderer or API.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://github.com/Vrooli/Vrooli/tree/master/scenarios/landing-page-business-suite/docs/guides/CONFIGURATION_GUIDE.md"
+      }
+    ]
+  },
   "branding": {
     "brand": "device-studio",
     "targets": [

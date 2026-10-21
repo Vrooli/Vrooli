@@ -15,6 +15,7 @@ import (
 	"device-studio/internal/physical"
 	"device-studio/internal/rendering"
 	"device-studio/internal/scenes"
+	"device-studio/internal/shots"
 )
 
 const (
@@ -36,6 +37,7 @@ type IPadStarterState struct {
 	Scene     scenes.Revision
 	Motion    motions.Revision
 	Placement ReviewedIPadPlacement
+	Preset    shots.PhysicalPresetRevision
 }
 
 // ReviewedIPadPlacement is a candidate-only rest pose derived from the pinned

@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "purpose": "Offline desktop import, persistence, preview and PNG export fixture pair",
+  "files": [
+    {
+      "path": "scene-plate.png",
+      "role": "scene_plate",
+      "media_type": "image/png",
+      "width": 1920,
+      "height": 1080,
+      "size_bytes": 12681,
+      "sha256": "b0032138d0b72cffff1d13d231b3eb4f59b60ebdd86876e6b0b1cdcd0192728c",
+      "source": "accepted E2V p8-matrix browser-wide-plate fixture; copied byte-for-byte"
+    },
+    {
+      "path": "active-mask.png",
+      "role": "active_mask",
+      "media_type": "image/png",
+      "width": 1920,
+      "height": 1080,
+      "size_bytes": 4154,
+      "sha256": "dbff35d69126f031029546b9ed12421e6c7685c03c9a13035bd6ae9ba2c64f9c",
+      "source": "accepted E2V p8-matrix browser-wide-active fixture; copied byte-for-byte"
+    }
+  ],
+  "staging": {
+    "destination": "/tmp/device-studio-offline-roundtrip-fixtures",
+    "runtime_paths": [
+      "/tmp/device-studio-offline-roundtrip-fixtures/scene-plate.png",
+      "/tmp/device-studio-offline-roundtrip-fixtures/active-mask.png"
+    ],
+    "verify_sha256_before_run": true
+  }
+}

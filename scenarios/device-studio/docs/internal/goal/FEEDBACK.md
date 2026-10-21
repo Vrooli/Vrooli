@@ -21,3 +21,5 @@
 - F10 (2026-10-20): “Use these quality-first targets (recommended)”. Performance gates accepted: controls≤200ms,warm preview≤10s,high-resolution still≤60s,10s1080p3D export≤20min on this host. Exact measurement boundaries in PERFORMANCE.md; validation remains required.
 
 No unresolved UI concept checkpoint; implementation fidelity and functional validation remain required.
+
+- F11 (2026-10-21): Operator requests faster delivery and completion soon, citing the remaining-delivery map. Applied by prioritizing finished demonstrations, creation/correction and desktop journeys, parallelizing independent product slices, and avoiding optional mechanical/diagnostic detours. Existing release quality, local-only validation, preservation and zero-paid-call constraints remain. No invented ETA or acceptance waiver.

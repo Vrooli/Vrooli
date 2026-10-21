@@ -10,6 +10,7 @@ import (
 	"device-studio/internal/physical"
 	domain "device-studio/internal/physicalruntime"
 	"device-studio/internal/scenes"
+	"device-studio/internal/shots"
 	physicalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-studio/v1/physical"
 )
 
@@ -17,6 +18,12 @@ type starterServiceStub struct{ state domain.StarterState }
 
 func (s starterServiceStub) InitializeReviewedStarter(context.Context) (domain.StarterState, error) {
 	return s.state, nil
+}
+func (s starterServiceStub) InitializePhysicalStarter(_ context.Context, id string) (shots.PhysicalPresetRevision, error) {
+	if id == "unknown" {
+		return shots.PhysicalPresetRevision{}, domain.ErrUnknownStarterID
+	}
+	return shots.PhysicalPresetRevision{PresetID: "preset-candidate", Revision: 2, SHA256: "preset-sha"}, nil
 }
 
 func TestStarterResponsePlacementPinsReturnedCandidateRefs(t *testing.T) {
@@ -56,5 +63,24 @@ func TestStarterResponsePlacementPinsReturnedCandidateRefs(t *testing.T) {
 	}
 	if placement.GetSupportPivotM().GetY() != .0071073174476624 || placement.GetDeviceRootRest().GetRotationXyzw().GetY() != -.08161248882759843 {
 		t.Fatalf("starter placement transform changed: %+v", placement)
+	}
+}
+
+func TestCandidateStarterReturnsOnlyCandidatePresetAndRejectsUnknownID(t *testing.T) {
+	handler := NewConnectHandler(starterServiceStub{})
+	response, err := handler.InitializeReviewedStarter(context.Background(), connect.NewRequest(&physicalv1.InitializeReviewedStarterRequest{StarterId: "laptop-screen-upright-180"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	msg := response.Msg
+	if !msg.GetCandidateOnly() || msg.GetSelectedStarterId() != "laptop-screen-upright-180" || msg.GetInitializedPreset().GetId() != "preset-candidate" || msg.GetInitializedPreset().GetRevision() != 2 || msg.GetInitializedPreset().GetSha256() != "preset-sha" {
+		t.Fatalf("candidate starter did not return its pinned preset: %+v", msg)
+	}
+	if msg.GetPhoneDevice() != nil || len(msg.GetReviewedArtifacts()) != 0 {
+		t.Fatalf("candidate-only path leaked legacy phone/reviewed fields: %+v", msg)
+	}
+	_, err = handler.InitializeReviewedStarter(context.Background(), connect.NewRequest(&physicalv1.InitializeReviewedStarterRequest{StarterId: "unknown"}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("unknown starter status = %v, want invalid argument", err)
 	}
 }

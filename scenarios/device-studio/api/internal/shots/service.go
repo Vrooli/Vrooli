@@ -552,15 +552,15 @@ func (s *service) buildRevisionForVersion(ctx context.Context, projectID, shotID
 		if camera.GetMatteRgb() == nil || camera.GetMatteRgb().GetRed() > 255 || camera.GetMatteRgb().GetGreen() > 255 || camera.GetMatteRgb().GetBlue() > 255 {
 			return malformed("camera_motion.matte_rgb", "must be present with channels from 0 through 255")
 		}
-		if camera.GetDurationOutputFrames() < 2 || camera.GetDurationOutputFrames() > 120 {
-			return malformed("camera_motion.duration_output_frames", "must be between 2 and 120 output frames")
+		if camera.GetDurationOutputFrames() < 2 || camera.GetDurationOutputFrames() > maxCameraOutputFrames {
+			return malformed("camera_motion.duration_output_frames", "must be between 2 and 360 output frames")
 		}
 		if timing := canonical.GetVideoTiming(); timing != nil {
 			planned, countErr := plannedVideoFrameCount(timing)
 			if countErr != nil {
 				addIssue(shotsv1.ShotIssueCode_SHOT_ISSUE_CODE_DRAFT_INCOMPLETE, "camera_motion.duration_output_frames", "The video schedule cannot be bounded yet.", "Reload valid source timing before compiling camera motion.", true)
-			} else if planned > maxCameraOutputFrames {
-				addIssue(shotsv1.ShotIssueCode_SHOT_ISSUE_CODE_UNSUPPORTED_MOTION, "video_timing", "The screen-entry profile supports clips up to 120 output frames.", "Shorten the trim or lower the output rate to fit within 120 frames.", true)
+			} else if planned > maxCameraScheduleFrames(timing) {
+				addIssue(shotsv1.ShotIssueCode_SHOT_ISSUE_CODE_UNSUPPORTED_MOTION, "video_timing", "The screen-entry profile supports clips up to 12 seconds (288 frames at 24 fps or 360 at 30 fps).", "Shorten the trim to 12 seconds or less.", true)
 			} else if int64(camera.GetDurationOutputFrames()) > planned {
 				return malformed("camera_motion.duration_output_frames", "cannot exceed the planned output frame count")
 			}

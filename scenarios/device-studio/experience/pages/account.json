@@ -144,24 +144,24 @@
       "rationale": "Unimplemented design intent; runtime bindings, exact state setup, visual evidence and operator review remain required."
     }
   ],
-  "x-route-status": "planned-not-implemented",
+  "x-route-status": "partially-implemented",
   "x-design": {
-    "layout": "Local workspace identity first, optional Vrooli account card, funding/usage, provider connections and active session controls; no mandatory login wall for local work.",
+    "layout": "Keep local workspace identity and offline rendering first. Provide an optional desktop-owned Vrooli link card with separate local identity, verified link/account/scopes, remote availability and local disconnect state. Show provider funding and paid execution as unavailable until a supported delegation adapter exists.",
     "controls": [
-      "Sign in or connect desktop via supported scoped account path with callback/session status",
-      "Inspect selected account, authoritative balance/entitlements and pending reservations",
-      "Add/change/remove provider connection through existing secure credential owner; masked presence only",
-      "Inspect provider model availability and pricing freshness",
-      "Sign out/disconnect with running-job and local-project implications",
-      "Reauthenticate expired session; view sanitized support reference"
+      "Connect or switch the Vrooli business account through the desktop owner’s scoped browser PKCE flow; show cancellation and unavailable states",
+      "Refresh the owner-verified local link status for this installation and Device Studio audience",
+      "Disconnect locally through the declared local identity proof; report remote revocation only when its owner confirms it",
+      "Sign out of any website session separately from unlinking; preserve all local projects and shots",
+      "Show linked principal, selected business account, active verified link scopes, expiry/unavailable state, and funded AI as unavailable",
+      "Keep provider credentials, tokens, callbacks and account data out of shot JSON, localStorage and exported bundles"
     ],
     "details": [
-      "AccountSettingsSurface is currently a null placeholder, not reusable implemented account UI; working AuthClient and MonetizationAccount parts require audited integration.",
-      "Desktop account linking uses selected scoped lease/connection; generic website login alone is not proof of local paid-credit execution authority. Browser integration needs the corrected supported adapter path.",
-      "BYOK, credit-funded managed service, local execution and credits-only entitlement are distinct funding modes with explicit supported/unsupported state.",
-      "Sign-out clears/revokes the appropriate owner-held session without deleting local projects or silently canceling provider jobs; explain exact owner behavior when implemented.",
-      "Credentials, token storage, callbacks and logs use the canonical authentication/credential owner, never shot JSON, localStorage ad hoc secrets or exported bundles.",
-      "Connecting an account/key is not consent to upload project media or start AI calls."
+      "The account settings surface is being connected to the existing scenario-to-desktop auth IPC and LPBS desktop-link owner; no account success is inferred from a decoded lease or local UI state.",
+      "The LPBS local-link status endpoint is authoritative for the local-principal, installation, resource, account and scope relationship. The signed lease remains a separate credential and is not treated as ordinary bearer authorization.",
+      "Personal-local authoring and rendering remain usable offline and signed out. BYOK, credit-funded managed inference, local execution and credits-only entitlement stay distinct; this slice exposes no funded AI execution adapter.",
+      "Local disconnect clears the locally held lease even if remote revocation is unreachable. The UI must report remote revocation as uncertain unless the owner confirms it; it must never claim that local clearing revoked the remote link.",
+      "The desktop owner obtains local proof from the declared local identity provider, stores the durable installation identity in its existing private bootstrap state, and exposes only typed, sanitized status through trusted local IPC.",
+      "Connecting an account or key is not consent to upload project media or start AI calls."
     ]
   },
   "x-requirements": [

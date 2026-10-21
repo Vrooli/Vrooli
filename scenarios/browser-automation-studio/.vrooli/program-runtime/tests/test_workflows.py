@@ -159,6 +159,88 @@ class Programs(unittest.TestCase):
         r,calls=self.author('EXECUTION_STATUS_COMPLETED');self.assertEqual('partial',r['status']);self.assertEqual([],calls);self.assertEqual('candidate',r['signals']['qualification'])
         self.assertEqual('unknown',r['signals']['outcome'])
 
+    def test_author_flow_forwards_execution_parameters_to_adhoc(self):
+        parameters={'initialParams':{'baseUrl':'https://fixture.test'},'env':{'workspace':'qualification'}}
+        execution_calls=[]
+        good={'action':{'type':'ACTION_TYPE_ASSERT'},'aggregates':{'status':'STEP_STATUS_COMPLETED'},
+              'context':{'assertion':{'success':True}}}
+        api=NS(workflows=NS(validate=lambda **kw:Handle([{'result':{'valid':True}}]),
+                            execute_adhoc=lambda **kw:execution_calls.append(kw) or Handle([{'executionId':'evidence','status':'EXECUTION_STATUS_COMPLETED'}]),
+                            create=lambda **kw:Handle([{'workflow':{'id':'saved','version':1}}])),
+                 executions=NS(timeline=lambda **kw:Handle([good])))
+        result=self.run_program('author-flow',{'flow':{'nodes':[{'id':'assert'}]},'project_id':'project','parameters':parameters},api)
+        self.assertEqual('ok',result['status'])
+        self.assertEqual(1,len(execution_calls))
+        self.assertEqual(parameters,execution_calls[0]['parameters'])
+
+    def test_author_flow_preserves_omitted_execution_parameters(self):
+        execution_calls=[]
+        api=NS(workflows=NS(validate=lambda **kw:Handle([{'result':{'valid':True}}]),
+                            execute_adhoc=lambda **kw:execution_calls.append(kw) or Handle([{'executionId':'evidence','status':'EXECUTION_STATUS_COMPLETED'}])),
+                 executions=NS(timeline=lambda **kw:Handle([])))
+        result=self.run_program('author-flow',{'flow':{'nodes':[{'id':'assert'}]},'project_id':'project'},api)
+        self.assertEqual('partial',result['status'])
+        self.assertEqual(1,len(execution_calls))
+        self.assertNotIn('parameters',execution_calls[0])
+
+    def test_author_flow_rejects_non_object_parameters_before_bindings(self):
+        calls=[]
+        def binding(name):
+            def invoke(**kw): calls.append(name); return Handle([{'result':{'valid':True}}])
+            return invoke
+        api=NS(workflows=NS(validate=binding('validate'),execute_adhoc=binding('execute_adhoc'),create=binding('create')),
+                 executions=NS(timeline=binding('timeline')))
+        result=self.run_program('author-flow',{'flow':{'nodes':[{'id':'assert'}]},'project_id':'project','parameters':'/tmp/parameters.json'},api)
+        self.assertEqual('failed',result['status'])
+        self.assertEqual('invalid_input',result['errors'][0]['class'])
+        self.assertEqual([],calls)
+
+    def test_do_task_forwards_parameters_to_candidate_authoring(self):
+        parameters={'initialParams':{'baseUrl':'https://fixture.test'},'env':{'workspace':'qualification'}}
+        calls=[]
+        child={'status':'ok','signals':{'outcome':'verified_success','workflow_id':'saved','version':1},'evidence':['workflow:saved:1']}
+        result=self.run_program('do-task',{'task':'author the flow','flow':{'nodes':[{'id':'assert'}]},'project_id':'project','parameters':parameters},
+                                lib=NS(browser_automation_studio=NS(author_flow=lambda **kw:calls.append(kw) or Handle([child]))))
+        self.assertEqual('verified_success',result['signals']['outcome'])
+        self.assertEqual(parameters,calls[0]['parameters'])
+
+    def test_do_task_leaves_candidate_parameters_omitted_when_caller_omits_them(self):
+        calls=[]
+        child={'status':'partial','signals':{'outcome':'unknown'},'evidence':[]}
+        result=self.run_program('do-task',{'task':'author the flow','flow':{'nodes':[{'id':'assert'}]},'project_id':'project'},
+                                lib=NS(browser_automation_studio=NS(author_flow=lambda **kw:calls.append(kw) or Handle([child]))))
+        self.assertEqual('unknown',result['signals']['outcome'])
+        self.assertEqual(1,len(calls))
+        self.assertNotIn('parameters',calls[0])
+
+    def test_do_task_qualification_passes_parameters_to_author_and_verifier(self):
+        parameters={'initialParams':{'baseUrl':'https://fixture.test'},'env':{'workspace':'qualification'}}
+        author_calls=[]
+        verify_calls=[]
+        navigation={'status':'ok','signals':{'outcome':'reached','navigation_id':'nav','candidate_flow':{'nodes':[{'id':'assert'}]}},'evidence':['navigation:nav']}
+        authored={'status':'ok','signals':{'outcome':'verified_success','workflow_id':'saved','version':2},'evidence':['workflow:saved:2']}
+        verified={'status':'ok','signals':{'outcome':'verified_success'},'evidence':['execution:verified']}
+        lib=NS(browser_automation_studio=NS(
+            navigate_intent=lambda **kw:Handle([navigation]),
+            author_flow=lambda **kw:author_calls.append(kw) or Handle([authored]),
+            smoke_flow=lambda **kw:verify_calls.append(kw) or Handle([verified])))
+        result=self.run_program('do-task',{'task':'read the fixture','navigation_id':'nav','qualify':True,
+                                           'postconditions':[{'selector':'#ready','mode':'exists'}],'parameters':parameters},lib=lib)
+        self.assertEqual('verified_success',result['signals']['outcome'])
+        self.assertEqual(parameters,author_calls[0]['parameters'])
+        self.assertEqual(parameters,verify_calls[0]['parameters'])
+
+    def test_do_task_rejects_non_object_parameters_before_route_effects(self):
+        calls=[]
+        lib=NS(browser_automation_studio=NS(
+            author_flow=lambda **kw:calls.append('author'),
+            smoke_flow=lambda **kw:calls.append('smoke'),
+            navigate_intent=lambda **kw:calls.append('navigate')))
+        result=self.run_program('do-task',{'task':'read the fixture','navigation_id':'nav','parameters':'/tmp/parameters.json'},lib=lib)
+        self.assertEqual('failed',result['status'])
+        self.assertEqual('invalid_input',result['errors'][0]['class'])
+        self.assertEqual([],calls)
+
     def test_assertion_evidence_controls_author_and_smoke_outcome(self):
         good={'action':{'type':'ACTION_TYPE_ASSERT'},'aggregates':{'status':'STEP_STATUS_COMPLETED'},
               'context':{'assertion':{'success':True}}}

@@ -11,6 +11,7 @@ import { projectConflict, projectsClient } from "../../api/projects";
 import { SourceMediaPanel } from "./SourceMediaPanel";
 import { ShotWorkspace } from "./ShotWorkspace";
 import { GeometryCreationPanel } from "./GeometryCreationPanel";
+import { PhotographicScenePanel } from "./PhotographicScenePanel";
 
 export function ProjectDetailPage() {
   const { projectId = "" } = useParams();
@@ -48,6 +49,7 @@ function ProjectDetailEditor({ projectId }: { projectId: string }) {
       </header>}
       {project && <ShotWorkspace projectId={projectId} />}
       {project && <GeometryCreationPanel projectId={projectId} />}
+      {project && <PhotographicScenePanel projectId={projectId} />}
       {project && <details className="project-detail__management">
           <summary>{t(strings.project.editName)} · {t(strings.project.revision, { revision: project.revision.toString() })}</summary>
           <div className="pb-space-sm">

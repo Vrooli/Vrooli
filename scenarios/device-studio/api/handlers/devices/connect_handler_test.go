@@ -31,6 +31,9 @@ func TestDeviceCandidateConnectRevisionContract(t *testing.T) {
 	defer server.Close()
 	client := devicesconnect.NewDevicesServiceClient(server.Client(), server.URL)
 	candidate := validDeviceCandidate()
+	primitiveIndex, materialIndex := uint32(1), uint32(0)
+	candidate.DisplayBindings[0].ScreenPrimitiveIndex = &primitiveIndex
+	candidate.DisplayBindings[0].ScreenMaterialIndex = &materialIndex
 	message := &devicesv1.DeviceCandidate{}
 	require.NoError(t, revisionapi.Encode(candidate, message))
 	decoded, err := revisionapi.Decode[domain.DeviceCandidate](message)
@@ -44,6 +47,11 @@ func TestDeviceCandidateConnectRevisionContract(t *testing.T) {
 	got, err := client.GetDeviceRevision(ctx, connect.NewRequest(&devicesv1.GetDeviceRevisionRequest{DeviceId: candidate.Definition.ID, Revision: 1}))
 	require.NoError(t, err)
 	require.Equal(t, saved.Msg.Revision.Sha256, got.Msg.Revision.Sha256)
+	gotBinding := got.Msg.Revision.Candidate.DisplayBindings[0]
+	require.NotNil(t, gotBinding.ScreenPrimitiveIndex)
+	require.NotNil(t, gotBinding.ScreenMaterialIndex, "optional zero-valued material index must retain presence")
+	require.Equal(t, primitiveIndex, gotBinding.GetScreenPrimitiveIndex())
+	require.Equal(t, materialIndex, gotBinding.GetScreenMaterialIndex())
 	head, err := client.GetDeviceHead(ctx, connect.NewRequest(&devicesv1.GetDeviceHeadRequest{DeviceId: candidate.Definition.ID}))
 	require.NoError(t, err)
 	require.Equal(t, saved.Msg.Revision.Sha256, head.Msg.Revision.Sha256)

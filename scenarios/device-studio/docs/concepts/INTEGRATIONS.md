@@ -6,6 +6,28 @@ Contract updated during delivery. Project/photographic render integration is imp
 
 Separate source-verified shared code, proposed adoption and unresolved owner contracts. No listed optional service is a hidden local-start prerequisite.
 
+## Launch-video consumer operation
+
+`device-studio.launch-video-shot` is the governed consumer workflow for a saved
+shot. It uses Program Runtime's typed Device Studio bindings to save an explicit
+shot revision, reopen the returned immutable revision, submit one render with a
+caller-stable idempotency key, and read that job's current owner status. The
+program returns the exact project/shot/revision/job references, source and output
+provenance available from the owner, and the supported `device-studio renders
+export` command after success. That CLI command remains the byte-download owner:
+it checks the succeeded job, MIME, declared size and SHA-256, decodes PNG or
+checks the MP4 container, and publishes without replacing a destination. The
+program does not call a shell, wait in a private polling loop, or maintain a
+second job ledger. A queued/running job is resumed by observing the same job ID;
+cancellation uses the owner's expected version.
+
+The operation consumes a project and media that already exist in Device Studio.
+It does not package or import a project. Portable project bundles and six
+independently reopenable saved demonstrations remain separate delivery work.
+The launch-video skill owns the assembled film, audio mix, CTA and whole-film
+review; this operation supplies only the immutable device shot and its media
+receipt.
+
 ## Dependency Inventory
 
 | Dependency | Role | Required for | Current qualification |
