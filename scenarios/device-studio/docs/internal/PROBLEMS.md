@@ -16,10 +16,10 @@ Record concern, owner, desired behavior, observed evidence, impact, repair route
 
 | Concern | Owner / observed state | Required next proof |
 |---|---|---|
-| Product implementation | Device Studio: only scaffold/reference code exists | First real saved-shot UI/API/CLI flow and requirement evidence |
-| Professional 3D craft | Device Studio: v5 rejected; v6 photographic direction accepted | Actual-renderer still plus continuous phone spin/laptop hinge review |
-| Laptop articulation | Device adaptation: source meshes span lid/base | Mechanical parts/pivot/closed envelope and swept collision proof |
-| Blender GPU path | Control plane/tool owner: driver sees RTX; package lacks CUDA kernels/compiler | Governed qualified renderer payload and actual benchmark |
+| Product implementation | E1 project workspace and E2 photographic saved-shot journey implemented; physical shot integration active | Complete physical workflow, broad library, creation, accounts/desktop and final release evidence |
+| Professional 3D craft | Fixed photographic phone/laptop exports and native2560px phone hero approved;48-frame phone rotation verified | Physical saved-shot integration, operator motion review and laptop scene/articulation |
+| Laptop articulation | Exact face-preserving partition overview passed13views; hinge/clearance unqualified | Supported base/lid transforms, contact/closed envelope and clearance across the claimed motion scope |
+| Blender GPU path | Managed5.2.2LTS CPU/CUDA/OptiX probes and representative OptiX phone scene passed | Integrated profile/tool staging, long-clip performance and packaged-runtime proof |
 | Broad library | Device Studio: source leads and dimensions; only core source assets inspected | Acquired/authored reviewed assets and recipes per group |
 | Generic media publication | Asset Studio: resolvable byte/model/movie/provenance gaps | Owner adapter tests; pending release remains honest |
 | Provider metadata/cost | Image Tools/Gateway: controls/model identity/unknown-cost gaps | End-to-end receipt and bounded operation qualification |
@@ -38,8 +38,18 @@ Research details and source evidence are indexed in [research](../research/READM
 
 ## Architecture Drift
 
-The real home/design token implementation, first product domain and example removal remain open orientation gates by intent. Do not clear those gates by changing their checks. Planned experience routes remain draft; real template routes stay visible as template truth.
+The approved Light-table workspace and first project/shot domains are implemented, and the Notes example was removed through its owner. Library/creation/jobs/settings surfaces and complete experience-route qualification remain release work. Reconcile each orientation/experience gate through its owning check; a prior scaffold claim is not the current product state.
 
 ## Cross-references
 
 [PROGRESS.md](PROGRESS.md), [TESTING.md](TESTING.md), [INTEGRATIONS.md](../concepts/INTEGRATIONS.md), [DEPLOYMENT.md](../operations/DEPLOYMENT.md).
+
+
+### 2026-10-20: existing cross-domain shot foreign key
+
+Before adding the reviewed asset library, `storage-manager validate scenario
+device-studio` passed with one advisory: `api/internal/shots/schema.sql:3` has a
+hard foreign key to projects. The new library will use soft cross-domain IDs.
+Reconcile the existing shot/project lifecycle coupling during the release storage
+review; do not silently edit the live table definition without the existing-data
+conversion procedure. Receipt: `goal/evidence/E3/pre-library-storage.json`.

@@ -31,6 +31,20 @@
             "planned_automation": "Crash/restart persistence and state-machine tests.",
             "evidence_status": "not_run"
           }
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "api/internal/jobs/sqlite_test.go",
+          "notes": "Partial evidence only. Specific tagged test case(s): TestSubmitIsDurableAndIdempotentAcrossRepositoryReopen. This does not establish the full requirement."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "api/internal/renderjobs/coordinator_integration_test.go",
+          "notes": "Partial evidence only. Specific tagged test case(s): TestDispatchUsesPinnedExecutableAndNeverRedispatchesAmbiguousStart, TestSuccessPublishesVerifiedPNGAndTamperFailsAfterNativeQuiescence. This does not establish the full requirement."
         }
       ]
     },
@@ -59,6 +73,27 @@
             "planned_automation": "Ownership isolation, process cleanup and cancellation fault injection.",
             "evidence_status": "not_run"
           }
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "api/internal/jobs/sqlite_test.go",
+          "notes": "Partial evidence only. Specific tagged test case(s): TestCancelAndSuccessHaveOneSerializedWinner. This does not establish the full requirement."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "api/internal/renderjobs/coordinator_integration_test.go",
+          "notes": "Partial evidence only. Specific tagged test case(s): TestCancellationWinningCompletionRaceRetainsUnitUntilQuiescence. This does not establish the full requirement."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "api/internal/renderjobs/recovery_test.go",
+          "notes": "Partial evidence only. Specific tagged test case(s): TestCancelBeforeNativeStartUsesFreshClaimAndPersistsProof. This does not establish the full requirement."
         }
       ]
     },
@@ -87,6 +122,20 @@
             "planned_automation": "Disk/tool/output failure injection and checkpoint replay tests.",
             "evidence_status": "not_run"
           }
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "api/internal/jobs/sqlite_test.go",
+          "notes": "Partial evidence only. Specific tagged test case(s): TestRecoveryClassifiesQueuedLiveAndInterruptedWork, TestRecoveryDoesNotDispatchCheckpointWithoutPersistedQuiescenceProof. This does not establish the full requirement."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "api/internal/renderjobs/recovery_test.go",
+          "notes": "Partial evidence only. Specific tagged test case(s): TestTerminalJobRetriesExactUnitReleaseAfterRestart. This does not establish the full requirement."
         }
       ]
     },

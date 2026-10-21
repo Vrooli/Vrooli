@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
 	"device-studio/internal/httpc"
 	"device-studio/internal/testutil/mocks"
 

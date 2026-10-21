@@ -27,8 +27,10 @@ func NewSQLiteRepository(db SQLExecutor, now func() time.Time) Repository {
 	return &sqliteRepository{db: db, now: now}
 }
 
-const timeFormat = "2006-01-02T15:04:05.000000000Z07:00"
-const parseTimeFormat = time.RFC3339Nano
+const (
+	timeFormat      = "2006-01-02T15:04:05.000000000Z07:00"
+	parseTimeFormat = time.RFC3339Nano
+)
 
 // timestampOrderKey canonicalizes legacy RFC3339Nano values (which may have
 // variable fractional precision) for lexicographic ordering without rewriting
@@ -54,6 +56,7 @@ func (r *sqliteRepository) Create(ctx context.Context, p Project) (Project, erro
 	}
 	return p, nil
 }
+
 func (r *sqliteRepository) Get(ctx context.Context, id string) (Project, error) {
 	p, err := scan(r.db.QueryRowContext(ctx, `SELECT id,name,created_at,updated_at,revision FROM projects WHERE id=?`, id))
 	if errors.Is(err, sql.ErrNoRows) {
@@ -64,6 +67,7 @@ func (r *sqliteRepository) Get(ctx context.Context, id string) (Project, error) 
 	}
 	return p, nil
 }
+
 func (r *sqliteRepository) List(ctx context.Context, limit int, after *Project) ([]Project, error) {
 	createdAtKey := timestampOrderKey("created_at")
 	query := `SELECT id,name,created_at,updated_at,revision FROM projects ORDER BY ` + createdAtKey + ` DESC,id DESC LIMIT ?1`
@@ -90,6 +94,7 @@ func (r *sqliteRepository) List(ctx context.Context, limit int, after *Project) 
 	}
 	return out, nil
 }
+
 func (r *sqliteRepository) Rename(ctx context.Context, in RenameInput, name string, expected int64) (Project, error) {
 	now := r.now().UTC()
 	p, err := scan(r.db.QueryRowContext(ctx, `UPDATE projects SET name=?,updated_at=?,revision=revision+1 WHERE id=? AND revision=? RETURNING id,name,created_at,updated_at,revision`, name, now.Format(timeFormat), in.ID, expected))

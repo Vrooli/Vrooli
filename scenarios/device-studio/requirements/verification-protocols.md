@@ -507,20 +507,22 @@ Scenario: DS-SCREEN-CLOCKS
 
 ### DS-SCREEN-AUDIO
 
-Status: NOT EXECUTED. Committed first-release requirement.
+Status: PASSED for the specified known-audible-marker protocol and first-profile silent-audio contract. Full scenario release acceptance remains separate. See [the P9 evidence review](../docs/internal/goal/evidence/E2V/p8-matrix/audio/acceptance-review.md).
 
 ```gherkin
 Scenario: DS-SCREEN-AUDIO
-  Given A recording with a known audible timing marker
-  When Import, render the default shot and request an unsupported audio mode
-  Then Default output is silent; original source remains intact and unsupported audio policy is explained
+  Given A recording with a verified audible marker and inspected audio stream facts
+  When Import the recording, render the default shot, and request unsupported audio passthrough
+  Then The default output contains no audio stream, original bytes and source audio facts remain intact, and the unsupported policy has a typed actionable repair
 ```
 
 **Counterexample / rejection oracle:** Source audio cannot leak unexpectedly into a launch-film shot or trigger hidden AI audio.
 
-**Evidence to retain after execution:** The case inputs/revisions, actual actions and observed result versus the Then/counterexample oracle, plus applicable records from the rules above. No evidence has been collected for this product requirement.
+**Evidence retained:** `p8-matrix/audio/public/phone-landscape30-fixed-audio-marker/run-2/` records the case, source, revisions, jobs and exports. `verified-2/result.json` verifies the 1920×1080, 30 fps, 60-frame output, full decode, output PTS and no-audio profile; the export SHA-256 is `ee93652bc6b4a5a772d0183c9c592d1a6ce52f92d8f8c980e27f2402e8dfc63f`. The original 238,018-byte source is SHA-256 `656e98844e46ff2898b56799cf45ee920bd19205f1989ea1d151622961c42c10` before and after rendering. Inspection records audio stream index 1 as `pcm_s16le`; independent fixture qualification confirms the audible marker. `public-proof/live-run-1/` retains the typed `UNSUPPORTED_AUDIO_POLICY` issue, failed-precondition submit and unchanged render/job/attempt counts. `audio/ui-live/run-2/` contains the desktop repair interaction, successful post-save GetShot, and desktop/mobile read-only captures for the detected-audio and repaired states.
 
-**Planned automation:** Probe/decode and explicit audio-policy integration tests.
+**Implementation checks:** `TestVideoAudioPolicyIsExplicitAndBlocksUnsupportedRender` in `api/internal/shots/service_test.go`; `VideoTimingEditor.test.tsx` covers unreported, zero-stream and detected audio notices, the passthrough-only silent repair, and sample invalidation. Materials reports the focused eight-test VideoTimingEditor suite, UI type-check/string parity and changed-file ESLint passing.
+
+**Validation caveats:** The blocked-repair BAS execution `a31f565a-580d-4722-adc1-931c290f83a7` saved the silent revision, then failed its final DOM assertion because `button:has-text(...)` was passed to native `document.querySelector`. The subsequent GetShot confirms revision 2 is `SILENT`, render-eligible, with no issues; the repaired mobile read-only execution passed. The scoped Test Genie unit run `20261020-133906-431b9dc7` remains FAIL: unit-health reports `COMPANION_REIMPLEMENTED` for the delegating `trackingMediaRPCStub` wrapper and `MISSING_INJECTABLE_SEAM` warnings. Keep the failed BAS and unit receipts; neither is a green end-to-end/unit verdict. This synthetic fixture and output do not establish real-recording or audio-passthrough support.
 
 ## Reference-based AI creation and refinement
 

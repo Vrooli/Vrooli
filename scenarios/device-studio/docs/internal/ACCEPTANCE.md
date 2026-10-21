@@ -60,4 +60,7 @@ Operator accepted recommendations 1A, 2A, 3A, 4A after reviewing this release bo
 
 ### Approval and evidence standing
 
-Initial representative-look approval, later live-spend allowance and measured performance targets are pending inputs. Continue independent local implementation while those are pending. Missing credentials or upstream interfaces remain explicit unverified obligations, never simulated success. No automatic purchase, paid fallback, public deployment or commit is authorized by this agreement.
+Initial fixed-photographic representative-look approval is recorded for both exact phone/table and laptop/browser exports in [the operator approval receipt](goal/evidence/E2/presentations/fixed-photo-operator-approval.json). This approval covers their appearance; higher-resolution and physical3D motion remain separately validated. Live-spend allowance remains pending; numerical performance gates were accepted on2026-10-20 in PERFORMANCE.md. Continue independent local implementation while those are pending. Missing credentials or upstream interfaces remain explicit unverified obligations, never simulated success. No automatic purchase, paid fallback, public deployment or commit is authorized by this agreement.
+
+The initial physical3D phone/table hero is also operator-approved at its exact
+2560×1440 output hash; see [the 3D approval receipt](goal/evidence/E3/scene-studies/phone/operator-approval.json). Continuous motion, laptop art direction, physical asset qualification and public-app integration remain distinct obligations.

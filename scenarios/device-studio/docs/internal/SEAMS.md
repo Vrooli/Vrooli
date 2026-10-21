@@ -10,7 +10,7 @@ Public messages/services belong in the proto owner. The following interfaces are
 
 ## Current seams
 
-The scaffold contains its worked notes/database/clock/server seams. Product seams below are designed and not implemented.
+Projects, source media, immutable still shots and the shared jobs/native-operation adapter are implemented for the accepted E1/E2 slices. Recording inspection is live-qualified on the current host. Video rendering integration is in progress; the remaining creation, commerce and asset qualification seams below are planned.
 
 | Seam | Planned owner | Substitute | Essential adversarial cases |
 |---|---|---|---|
@@ -40,8 +40,26 @@ A private wallet, private host installer, copied provider router or second gener
 
 ## API contract manifest
 
-The scaffold endpoint manifest describes actual reference services only. Planned product operations live in [api-endpoints.md](../reference/api-endpoints.md) until proto/handlers/CLI bindings are implemented and generated.
+Proto, domain endpoint descriptors and the generated endpoint manifest own the implemented project/media/shot/render surface. [api-endpoints.md](../reference/api-endpoints.md) also retains planned operations; those are not implementation evidence.
 
 ## Cross-references
 
 [ARCHITECTURE.md](../concepts/ARCHITECTURE.md), [TESTING.md](TESTING.md), [PROBLEMS.md](PROBLEMS.md).
+
+## Video CLI transfer boundary
+
+The render CLI uses generated Connect clients for job metadata, modes and trusted
+sample bindings, and the existing cli-core HTTP client for the documented raw
+content route. That client supplies API-base selection, authentication and routed
+test headers. Exports stream at most the declared160MiB limit into a private
+same-directory temporary file; byte count, SHA256 and format are checked before
+publication. PNG additionally checks dimensions and complete decoding. MP4 codec
+and full-decode facts remain the server worker's responsibility. Atomic hard-link
+publication refuses an existing destination, including a destination created during
+transfer; unsupported filesystems fail explicitly. No video-sized memory buffer,
+private HTTP client or fallback overwrite is introduced. Temporary files are
+removed on normal success/failure; abrupt process termination can leave a clearly
+named unpublished temporary file.
+
+The `media clock` command reads digest-bound clock pages, and `renders sample-binding` retrieves a trusted AUTO phone claim for an explicit new revision.
+Manual/browser samples are previews and do not claim sampled-color provenance.

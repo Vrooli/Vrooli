@@ -57,211 +57,6 @@
       }
     },
     {
-      "id": "notes_list",
-      "path": "/vrooli.device_studio.v1.notes.NotesService/ListNotes",
-      "method": "POST",
-      "summary": "List notes",
-      "description": "Returns up to 100 notes ordered newest-first by created_at through the generated Connect-RPC Notes service.",
-      "category": "notes",
-      "response": {
-        "type": "object",
-        "properties": {
-          "notes": "array<Note>"
-        }
-      },
-      "errors": [
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "List notes",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.device_studio.v1.notes.NotesService/ListNotes -H 'Content-Type: application/json' -d '{}'"
-        }
-      ]
-    },
-    {
-      "id": "notes_create",
-      "path": "/vrooli.device_studio.v1.notes.NotesService/CreateNote",
-      "method": "POST",
-      "summary": "Create a note",
-      "description": "Persists a new note. Title is required and validated by notes.Service; body is optional.",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "body": "string",
-          "title": "string (required, non-whitespace)"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "note": "Note"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Missing or whitespace-only title"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository write failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Create note",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.device_studio.v1.notes.NotesService/CreateNote -H 'Content-Type: application/json' -d '{\"title\":\"first\",\"body\":\"hello\"}'"
-        }
-      ]
-    },
-    {
-      "id": "notes_get",
-      "path": "/vrooli.device_studio.v1.notes.NotesService/GetNote",
-      "method": "POST",
-      "summary": "Get a note by id",
-      "description": "Returns the note matching the request id through the generated Connect-RPC Notes service.",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "id": "string"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "note": "Note"
-        }
-      },
-      "errors": [
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No note with that id exists"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Get note",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.device_studio.v1.notes.NotesService/GetNote -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"
-        }
-      ]
-    },
-    {
-      "id": "notes_count",
-      "path": "/vrooli.device_studio.v1.notes.NotesService/CountNotes",
-      "method": "POST",
-      "summary": "Count notes in a time window",
-      "description": "Counts notes created within the requested canonical time window. Bound to the `notes count` measure (read-only, run-eligible) so search-hub can answer analytical questions like \"how many notes were created this week\".",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "window": "TimeWindow (vrooli.measures.v1; e.g. {\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"})"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "count": "int64 (notes created in the window)"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Unresolvable or malformed time window"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Count this week",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.device_studio.v1.notes.NotesService/CountNotes -H 'Content-Type: application/json' -d '{\"window\":{\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"}}'"
-        }
-      ]
-    },
-    {
-      "id": "notes_attach",
-      "path": "/api/v1/notes/{id}/attachments",
-      "method": "POST",
-      "summary": "Upload a note attachment",
-      "description": "Uploads opaque file bytes through the documented REST multipart exception and returns proto-typed attachment metadata.",
-      "category": "notes",
-      "request": {
-        "type": "multipart/form-data",
-        "properties": {
-          "file": "file (required)"
-        }
-      },
-      "response": {
-        "type": "UploadAttachmentResponse",
-        "properties": {
-          "attachment": "Attachment"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_request",
-          "description": "Missing file or invalid multipart upload"
-        },
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No note with that id exists"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "BlobStore or metadata persistence failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Attach file",
-          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/notes/abc123/attachments -F file=@./example.png"
-        }
-      ],
-      "rest_exception": {
-        "reason": "multipart_upload",
-        "note": "Multipart/form-data request transport cannot be expressed in proto. The response payload is still the proto-typed UploadAttachmentResponse message.",
-        "proto_payloads": {
-          "request": {
-            "transport": "multipart/form-data",
-            "conformance": "transport_only"
-          },
-          "response": {
-            "proto_full_name": "vrooli.device_studio.v1.notes.UploadAttachmentResponse",
-            "transport": "json",
-            "conformance": "protojson"
-          },
-          "error": {
-            "proto_full_name": "vrooli.device_studio.v1.shared.ErrorEnvelope",
-            "transport": "json",
-            "conformance": "protojson"
-          }
-        }
-      }
-    },
-    {
       "id": "projects_list",
       "path": "/vrooli.device_studio.v1.projects.ProjectsService/ListProjects",
       "method": "POST",
@@ -298,7 +93,7 @@
       "path": "/vrooli.device_studio.v1.projects.ProjectsService/ListSourceMedia",
       "method": "POST",
       "summary": "List project source media",
-      "description": "Returns a bounded page of imported source image metadata.",
+      "description": "Returns a bounded page of project-owned source image and recording metadata, including inspection readiness.",
       "category": "media"
     },
     {
@@ -306,7 +101,39 @@
       "path": "/vrooli.device_studio.v1.projects.ProjectsService/GetSourceMedia",
       "method": "POST",
       "summary": "Get project source media",
-      "description": "Returns typed metadata for one imported source image.",
+      "description": "Returns typed metadata and inspection readiness for one source media item.",
+      "category": "media"
+    },
+    {
+      "id": "projects_media_clock_page",
+      "path": "/vrooli.device_studio.v1.projects.ProjectsService/GetSourceMediaClockPage",
+      "method": "POST",
+      "summary": "Page inspected source clock",
+      "description": "Returns a bounded digest-bound page of exact video-clock frame ordinals and PTS values plus the inspected rational time base.",
+      "category": "media"
+    },
+    {
+      "id": "projects_media_inspection_ensure",
+      "path": "/vrooli.device_studio.v1.projects.ProjectsService/EnsureSourceMediaInspection",
+      "method": "POST",
+      "summary": "Ensure source media inspection",
+      "description": "Idempotently submits or recovers the one inspection job for immutable source media.",
+      "category": "media"
+    },
+    {
+      "id": "projects_media_inspection_retry",
+      "path": "/vrooli.device_studio.v1.projects.ProjectsService/RetrySourceMediaInspection",
+      "method": "POST",
+      "summary": "Retry source media inspection",
+      "description": "Explicitly retries a settled failed or cancelled inspection using the expected job version.",
+      "category": "media"
+    },
+    {
+      "id": "projects_media_inspection_cancel",
+      "path": "/vrooli.device_studio.v1.projects.ProjectsService/CancelSourceMediaInspection",
+      "method": "POST",
+      "summary": "Cancel source media inspection",
+      "description": "Cancels one project-owned inspection at its expected job version and reconciles the exact native operation.",
       "category": "media"
     },
     {
@@ -314,7 +141,7 @@
       "path": "/api/v1/projects/{project_id}/media",
       "method": "POST",
       "summary": "Import project source media",
-      "description": "Imports one locally uploaded PNG or JPEG and returns typed metadata.",
+      "description": "Streams one PNG, JPEG, MP4, QuickTime, WebM, or Matroska source and returns typed metadata; accepted recordings remain pending until inspected.",
       "category": "media",
       "rest_exception": {
         "reason": "multipart_upload",
@@ -341,12 +168,12 @@
       "id": "projects_media_content",
       "path": "/api/v1/projects/{project_id}/media/{media_id}/content",
       "method": "GET",
-      "summary": "Fetch source image bytes",
-      "description": "Serves a verified source image by opaque project and media ids for browser display.",
+      "summary": "Fetch source media bytes",
+      "description": "Serves digest-verified original source image or recording bytes by opaque project and media ids.",
       "category": "media",
       "rest_exception": {
         "reason": "ops_probe",
-        "note": "Serves opaque image bytes by identifiers; no generated client applies and content is digest-verified before response.",
+        "note": "Serves opaque source media bytes by identifiers; no generated client applies and content size and digest are verified while streaming.",
         "proto_payloads": {
           "request": {
             "transport": "none",
@@ -363,6 +190,150 @@
           }
         }
       }
+    },
+    {
+      "id": "devices_candidate_save",
+      "path": "/vrooli.device_studio.v1.devices.DevicesService/SaveDeviceCandidate",
+      "method": "POST",
+      "summary": "Save device candidate",
+      "description": "Appends an immutable device candidate revision at the expected head. Candidate state does not imply qualification.",
+      "category": "devices"
+    },
+    {
+      "id": "devices_revision_get",
+      "path": "/vrooli.device_studio.v1.devices.DevicesService/GetDeviceRevision",
+      "method": "POST",
+      "summary": "Get device revision",
+      "description": "Returns one immutable device candidate revision after verifying its canonical digest.",
+      "category": "devices"
+    },
+    {
+      "id": "devices_head_get",
+      "path": "/vrooli.device_studio.v1.devices.DevicesService/GetDeviceHead",
+      "method": "POST",
+      "summary": "Get device head",
+      "description": "Returns the current immutable device candidate revision.",
+      "category": "devices"
+    },
+    {
+      "id": "devices_revision_list",
+      "path": "/vrooli.device_studio.v1.devices.DevicesService/ListDeviceRevisions",
+      "method": "POST",
+      "summary": "List device revisions",
+      "description": "Returns a bounded ascending page of immutable device revisions.",
+      "category": "devices"
+    },
+    {
+      "id": "devices_candidate_list",
+      "path": "/vrooli.device_studio.v1.devices.DevicesService/ListDeviceCandidates",
+      "method": "POST",
+      "summary": "List device candidate heads",
+      "description": "Returns one latest immutable candidate revision per device in stable identifier order.",
+      "category": "devices"
+    },
+    {
+      "id": "scenes_candidate_save",
+      "path": "/vrooli.device_studio.v1.scenes.ScenesService/SaveSceneCandidate",
+      "method": "POST",
+      "summary": "Save scene candidate",
+      "description": "Appends an immutable scene candidate revision at the expected head; external artifacts remain soft references and are not qualified by save.",
+      "category": "scenes"
+    },
+    {
+      "id": "scenes_revision_get",
+      "path": "/vrooli.device_studio.v1.scenes.ScenesService/GetSceneRevision",
+      "method": "POST",
+      "summary": "Get scene revision",
+      "description": "Returns one immutable scene candidate revision after canonical digest verification.",
+      "category": "scenes"
+    },
+    {
+      "id": "scenes_head_get",
+      "path": "/vrooli.device_studio.v1.scenes.ScenesService/GetSceneHead",
+      "method": "POST",
+      "summary": "Get scene head",
+      "description": "Returns the current immutable scene candidate revision.",
+      "category": "scenes"
+    },
+    {
+      "id": "scenes_revision_list",
+      "path": "/vrooli.device_studio.v1.scenes.ScenesService/ListSceneRevisions",
+      "method": "POST",
+      "summary": "List scene revisions",
+      "description": "Returns a bounded ascending page of immutable scene revisions.",
+      "category": "scenes"
+    },
+    {
+      "id": "scenes_candidate_list",
+      "path": "/vrooli.device_studio.v1.scenes.ScenesService/ListSceneCandidates",
+      "method": "POST",
+      "summary": "List scene candidate heads",
+      "description": "Returns one latest immutable candidate revision per scene in stable identifier order.",
+      "category": "scenes"
+    },
+    {
+      "id": "motions_candidate_save",
+      "path": "/vrooli.device_studio.v1.motions.MotionsService/SaveMotionCandidate",
+      "method": "POST",
+      "summary": "Save motion candidate",
+      "description": "Appends an immutable motion candidate revision at the expected head; local validity does not resolve external targets or qualify motion.",
+      "category": "motions"
+    },
+    {
+      "id": "motions_revision_get",
+      "path": "/vrooli.device_studio.v1.motions.MotionsService/GetMotionRevision",
+      "method": "POST",
+      "summary": "Get motion revision",
+      "description": "Returns one immutable motion candidate revision after canonical digest verification.",
+      "category": "motions"
+    },
+    {
+      "id": "motions_head_get",
+      "path": "/vrooli.device_studio.v1.motions.MotionsService/GetMotionHead",
+      "method": "POST",
+      "summary": "Get motion head",
+      "description": "Returns the current immutable motion candidate revision.",
+      "category": "motions"
+    },
+    {
+      "id": "motions_revision_list",
+      "path": "/vrooli.device_studio.v1.motions.MotionsService/ListMotionRevisions",
+      "method": "POST",
+      "summary": "List motion revisions",
+      "description": "Returns a bounded ascending page of immutable motion revisions.",
+      "category": "motions"
+    },
+    {
+      "id": "motions_candidate_list",
+      "path": "/vrooli.device_studio.v1.motions.MotionsService/ListMotionCandidates",
+      "method": "POST",
+      "summary": "List motion candidate heads",
+      "description": "Returns one latest immutable candidate revision per motion in stable identifier order.",
+      "category": "motions"
+    },
+    {
+      "id": "library_bundle_revision_list",
+      "path": "/vrooli.device_studio.v1.library.LibraryCatalogService/ListBundleRevisions",
+      "method": "POST",
+      "summary": "List reviewed bundle revisions",
+      "description": "Returns bounded, validated bundle and review metadata without exposing artifact storage keys or bytes.",
+      "category": "library"
+    },
+    {
+      "id": "library_bundle_revision_get",
+      "path": "/vrooli.device_studio.v1.library.LibraryCatalogService/GetBundleRevision",
+      "method": "POST",
+      "summary": "Get a reviewed bundle revision",
+      "description": "Returns one immutable bundle manifest and its digest-bound review metadata without artifact bytes.",
+      "category": "library"
+    },
+    {
+      "id": "physical_starter_initialize",
+      "path": "/vrooli.device_studio.v1.physical.PhysicalStarterService/InitializeReviewedStarter",
+      "method": "POST",
+      "summary": "Initialize reviewed physical starter candidates",
+      "description": "Publishes the fixed locally reviewed starter bytes through the Library and creates immutable unqualified candidate revisions on the active storage route.",
+      "category": "physical"
     },
     {
       "id": "shots_create",
@@ -427,6 +398,73 @@
       "summary": "Validate shot draft",
       "description": "Validates typed shot fields without persisting a revision.",
       "category": "shots"
+    },
+    {
+      "id": "render_submit",
+      "path": "/vrooli.device_studio.v1.shots.RenderJobsService/SubmitRender",
+      "method": "POST",
+      "summary": "Submit a render",
+      "description": "Submits an immutable still render, video sample preview, or fixed-profile MP4 render to the shared durable local job ledger.",
+      "category": "renders"
+    },
+    {
+      "id": "render_sample_binding",
+      "path": "/vrooli.device_studio.v1.shots.RenderJobsService/GetVideoSampleBinding",
+      "method": "POST",
+      "summary": "Get verified phone video sample claim",
+      "description": "Returns a server-verified AUTO phone trim-start sample claim for saving into a new immutable shot revision; manual and browser previews do not produce saveable claims.",
+      "category": "renders"
+    },
+    {
+      "id": "render_get",
+      "path": "/vrooli.device_studio.v1.shots.RenderJobsService/GetRender",
+      "method": "POST",
+      "summary": "Get render job",
+      "description": "Reads a project-owned render job without advancing execution.",
+      "category": "renders"
+    },
+    {
+      "id": "render_list",
+      "path": "/vrooli.device_studio.v1.shots.RenderJobsService/ListRenders",
+      "method": "POST",
+      "summary": "List render jobs",
+      "description": "Returns a bounded project-scoped keyset page of render jobs.",
+      "category": "renders"
+    },
+    {
+      "id": "render_cancel",
+      "path": "/vrooli.device_studio.v1.shots.RenderJobsService/CancelRender",
+      "method": "POST",
+      "summary": "Cancel render job",
+      "description": "Requests cancellation using an expected job version.",
+      "category": "renders"
+    },
+    {
+      "id": "render_output_content",
+      "path": "/api/v1/projects/{project_id}/renders/{render_id}/content",
+      "method": "GET",
+      "summary": "Fetch rendered output",
+      "description": "Streams digest-verified PNG, sample PNG, or MP4 bytes for a succeeded project-owned render.",
+      "category": "renders",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Streams verified opaque output bytes by project and job id; no filesystem path is exposed.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "error": {
+            "proto_full_name": "vrooli.device_studio.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
     }
   ]
 }

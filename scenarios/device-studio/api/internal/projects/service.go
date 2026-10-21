@@ -26,6 +26,7 @@ func NewService(repo Repository, now func() time.Time) Service {
 	}
 	return &service{repo: repo, now: now}
 }
+
 func (s *service) Create(ctx context.Context, in CreateInput) (Project, error) {
 	name := strings.TrimSpace(in.Name)
 	if err := ValidateName(name); err != nil {
@@ -34,12 +35,14 @@ func (s *service) Create(ctx context.Context, in CreateInput) (Project, error) {
 	now := s.now().UTC()
 	return s.repo.Create(ctx, Project{Name: name, CreatedAt: now, UpdatedAt: now, Revision: 1})
 }
+
 func (s *service) Get(ctx context.Context, id string) (Project, error) {
 	if strings.TrimSpace(id) == "" {
 		return Project{}, ErrInvalidProject{Field: "id", Reason: "required"}
 	}
 	return s.repo.Get(ctx, id)
 }
+
 func (s *service) List(ctx context.Context, pageSize int32, token string) ([]Project, string, error) {
 	if pageSize <= 0 {
 		pageSize = 50

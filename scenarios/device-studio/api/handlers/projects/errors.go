@@ -1,11 +1,13 @@
 package projects
 
 import (
+	"errors"
+	"log"
+
 	"connectrpc.com/connect"
 	domain "device-studio/internal/projects"
-	"errors"
+
 	projectsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-studio/v1/projects"
-	"log"
 )
 
 func toConnectError(err error, logger *log.Logger) error {

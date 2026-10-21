@@ -31,6 +31,20 @@
             "planned_automation": "Aspect/crop/ROI property and image diagnostics.",
             "evidence_status": "not_run"
           }
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "api/internal/composition/composition_test.go",
+          "notes": "Partial evidence only. Specific tagged test case(s): TestComposeContainsSourceWithoutStretchOrCrop. This does not establish the full requirement."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "api/internal/presentations/presentations_test.go",
+          "notes": "Partial evidence only. Specific tagged test case(s): TestContainMappingUsesPixelEdgesAndExplicitLetterboxes. This does not establish the full requirement."
         }
       ]
     },
@@ -59,6 +73,13 @@
             "planned_automation": "Mask/UV/depth export diagnostics and visual review.",
             "evidence_status": "not_run"
           }
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "api/internal/composition/composition_test.go",
+          "notes": "Partial evidence only. Specific tagged test case(s): TestComposeActiveAndHardwareMasksProtectPlate, TestComposeProtectsLiteralZeroActiveMaskAcrossAntialiasBoundary, TestComposeProtectsFullyOccludedHardwarePixelAtAntialiasBoundary. This does not establish the full requirement."
         }
       ]
     },
@@ -87,6 +108,20 @@
             "planned_automation": "Presentation compositor fixtures and full-size review.",
             "evidence_status": "not_run"
           }
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "api/internal/shots/service_test.go",
+          "notes": "Partial evidence only. Specific tagged test case(s): TestChromePayloadMustMatchPresentationAndCapture. This does not establish the full requirement."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "api/internal/presentations/presentations_test.go",
+          "notes": "Partial evidence only. Specific tagged test case(s): TestPhoneRasterKeepsAppOutOfStatusAndHomeAndPreservesAspect, TestBrowserWindowAndLayoutRejectInvalidOrUnsafeGeometry. This does not establish the full requirement."
         }
       ]
     },
@@ -115,34 +150,62 @@
             "planned_automation": "Timestamp sampling/property and decode-order tests.",
             "evidence_status": "not_run"
           }
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "api/internal/composition/clock_test.go",
+          "notes": "Partial evidence only. Specific tagged test case(s): TestPlanFramesUsesLatestSourcePTSAtOrBeforeExactTarget, TestPlanFramesSupportsVFRRepeatedPTSAndRationalPlayback, TestPlanFramesRejectsTrimmedEOFAcrossEndUnlessHoldRequested. This does not establish the full requirement."
         }
       ]
     },
     {
       "id": "DS-SCREEN-AUDIO",
-      "title": "The compiler shall declare device-shot audio behavior.",
-      "description": "When imported media contains audio, the shot shall default to silent output, preserve source audio provenance and record any explicitly supported passthrough/timing policy without starting narration or music generation.",
+      "title": "The compiler shall preserve source audio facts and default video output to silent.",
+      "description": "When an imported recording contains audio, Device Studio shall default rendered video to silent, preserve the source bytes and inspected audio facts, and block unsupported passthrough with an actionable typed repair. It shall not generate narration or music as part of rendering.",
       "prd_ref": "OT-P0-006",
       "criticality": "P0",
       "delivery_scope": "committed",
-      "status": "not_implemented",
+      "status": "complete",
       "category": "presentations",
       "tags": [
         "accepted-first-release",
-        "unimplemented"
+        "bounded-protocol-verified"
       ],
       "validation": [
         {
           "type": "manual",
           "phase": "business",
-          "status": "planned",
+          "status": "implemented",
           "ref": "requirements/verification-protocols.md",
-          "notes": "NOT EXECUTED. Follow the named DS-SCREEN-AUDIO protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "notes": "P9 accepted the specified known-audible-marker protocol: unchanged source bytes and inspected facts, silent default output, typed blocked passthrough without a new job, and UI repair saved/read back. Exact evidence and retained BAS post-save selector failure and known Test Genie classifier failure are documented in docs/internal/goal/evidence/E2V/p8-matrix/audio/acceptance-review.md. This requirement completion is separate from full scenario release acceptance.",
           "metadata": {
             "protocol_id": "DS-SCREEN-AUDIO",
-            "planned_automation": "Probe/decode and explicit audio-policy integration tests.",
-            "evidence_status": "not_run"
+            "planned_automation": "Implemented probe/full-decode, policy and persistence regressions plus public marker journey; broader source diversity is separate qualification.",
+            "evidence_status": "passed"
           }
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/internal/shots/service_test.go",
+          "notes": "TestVideoAudioPolicyIsExplicitAndBlocksUnsupportedRender covers default/explicit silent policies, preserved unsupported passthrough, typed blocking issue, and unknown enum rejection. The scoped Test Genie run remains failed on the retained unit-health finding documented in the evidence review."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/internal/projects/media_test.go",
+          "notes": "TestAudioInspectionProjectionDistinguishesLegacyZeroAndDetected verifies presence-aware persisted projection of detected audio facts versus legacy unknown facts."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/internal/rendering/inspection_test.go",
+          "notes": "TestInspectionReceiptV2DistinguishesZeroAndObservedAudio and TestInspectionAudioFactsPreserveOriginalIndexesAndRejectMalformedCodec cover native presence-aware facts, original stream indexes and malformed codec rejection. Focused race log: docs/internal/goal/evidence/E2V/p8-matrix/audio/parent-race.log."
         }
       ]
     }

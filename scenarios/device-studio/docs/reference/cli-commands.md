@@ -2,15 +2,31 @@
 
 ## Availability and planned product commands
 
-Health/configuration, the E1 `projects` group, E2 `media` group, and Notes reference group are the executable CLI surface. Broader commands for devices, scenes, presentations, motions, shots, jobs, creations and reviews remain planned. The generated manifest is the executable authority; do not advertise those future groups as available.
+Health/configuration, `projects`, `media`, `shots`, `renders`, immutable `devices` / `scenes` / `motions` candidate revisions, and the reviewed `library starter` initializer are exposed through generated Connect clients. These component revisions remain candidates; saving or publishing bytes does not grant render qualification. Physical still, draft-preview and motion submit modes are available. Arbitrary bundle import and qualification review are not CLI operations. AI creation/review and accounts remain delivery work. The CLI manifest defines available commands; help alone does not establish full release acceptance. See `../internal/goal/QUEUE.md` for exact photographic and physical rendering evidence.
+
+## Immutable component candidates
+
+Each component family supports `save`, `get`, `head`, and `revisions`. For example:
+
+```text
+device-studio devices save --candidate device.json --expected-head 0
+device-studio devices head <device-id>
+device-studio devices get <device-id> --revision 1
+device-studio devices revisions <device-id> --after-revision 0 --page-size 50
+device-studio library starter
+```
+
+`save` accepts strict generated proto-JSON (unknown fields are rejected), from a
+file or stdin (`--candidate -`), with a 1 MiB input limit. `--expected-head 0`
+creates a candidate; otherwise it must equal the current head. A conflict is
+reported for explicit user review; the CLI never retries against a newer head.
+Revision pages default to 50 and are limited to 100. `library starter` only
+initializes the reviewed packaged candidate set and returns its exact revision
+references; it does not import arbitrary files or mark candidates qualified.
 
 Planned CLI operations must support noninteractive structured input and bounded JSON output, exact revision references and durable receipt/job IDs. Preview/compile are deterministic unless an explicit AI operation is requested. AI/agent submission must show provider/funding, data disclosure, maximum scope/spend and the authorized project policy before dispatch; CLI automation supplies the same explicit accepted envelope as the UI. No implicit remote fallback, raw secrets in output or hidden child agents. Cancellation returns execution and settlement state separately.
 
-The scenario CLI is a thin Go wrapper over the API. Every command
-calls a single API endpoint and renders the result; there is no
-business logic in the CLI. If a command needs to make a decision the
-API doesn't expose, the correct fix is to add the API endpoint —
-**not** to compute it locally.
+The CLI uses generated Connect clients for product decisions. The declared multipart upload and verified streaming export operations handle local file bytes; export obtains typed metadata before reading the content endpoint. Revision, inspection, composition and job-state decisions remain API-owned.
 
 The CLI binary is built from `cli/`, installed by `make setup` to
 `~/.vrooli/bin/device-studio`, and rebuilt automatically when its
@@ -52,7 +68,7 @@ not-yet-verified debt, a mismatch is a gating error, and a stale/missing artifac
 keeps declared primitives unverified. See the CLI architecture maturity
 reference (`path:scenarios/cli-health/docs/reference/cli-architecture-maturity.md`).
 
-Current scaffold observation: `.vrooli/generated/cli-primitive-evidence.json` is absent. The mechanism described above is not a claim that this artifact exists or that CLI L4 has been earned. Generate and validate it through the owning test/CLI Health workflow during implementation; do not synthesize a success receipt.
+The primitive evidence artifact exists and was refreshed through its owning test. Current scoped CLI Health passed; its receipt is retained in `../internal/goal/evidence/E2V/p6b-cli/cli-health-reviewed.json`. This describes CLI architecture checks, not full product certification.
 
 Per-domain tests use `cliapp.RequireProtoServiceCoverage` to assert
 that every RPC on the bound proto service either has a manifest command
@@ -65,11 +81,10 @@ The manifest's `governance` block (`effect`, `run_eligible`,
 to derive action certainty automatically; scenarios that adopt the
 manifest don't need hand-classified action-safety lists.
 
-`binding.kind` is currently `connect-rpc` only. REST-exception
-commands (for example, a multipart file-upload command whose request
-body carries opaque bytes) are appended to the loaded group outside the
-manifest path in the domain's `register.go` and documented in the
-manifest's `exceptions[]` array (command, class and reason). RPC coverage omissions remain in `omitted[]`.
+Connect RPC bindings cover typed operations. `renders export` is a declared
+local operation with `filesystem:write` and internal-network permissions, backed
+by a mutation primitive. Multipart `media import` remains a documented streaming
+exception. RPC coverage omissions live in `omitted[]`.
 
 For environment-variable precedence and CLI config-file shape, see
 [`configuration.md`](configuration.md).
@@ -118,72 +133,6 @@ Read values back without an argument:
 device-studio configure api_base
 ```
 
-## Scenario commands — `notes` (CRUD reference)
-
-Each product domain exposes its commands as a subcommand group
-(`device-studio <domain> <verb>`). Every command calls a single API
-endpoint and renders the result through one of the three output
-contracts below. Document your domain's commands here as you build
-them, one row/section per command, mirroring the endpoints they call
-in [`api-endpoints.md`](api-endpoints.md).
-
-The scaffold ships one fully worked CRUD command group as a copyable
-reference (see the fenced example below); `template-manager detemplate
-<scenario>` removes it once your real domains are green.
-
-<!-- EXAMPLE-DOMAIN:notes START -->
-### Example domain — `notes` (removed by `template-manager detemplate`)
-
-The `notes` domain is the canonical worked example. Copy its layout
-when adding the first non-trivial domain to your scenario, then remove
-it.
-
-#### `device-studio notes list`
-
-List notes, newest-first. Calls the generated Connect-RPC
-`NotesService/ListNotes` method. Uses the
-**data-retrieval contract**: `Summary → Results → Retrieval Hints`.
-
-```bash
-device-studio notes list
-device-studio notes list --json
-```
-
-#### `device-studio notes create --title <title> [--body <body>]`
-
-Create a note. Calls the generated Connect-RPC `NotesService/CreateNote` method. Uses the **mutation
-contract**: `Result → What Changed → Next Command`.
-
-```bash
-device-studio notes create --title "First note" --body "Hello world"
-```
-
-`--title` is required. `--body` is optional. Validation lives in the
-API service, so an empty title surfaces as an `invalid_argument`
-Connect error rather than a CLI-side check.
-
-#### `device-studio notes get <id>`
-
-Fetch a note by id. Calls the generated Connect-RPC `NotesService/GetNote` method.
-
-```bash
-device-studio notes get abc123
-```
-
-A non-existent id surfaces as `not_found`; the CLI translates the
-typed Connect code to an actionable error message.
-
-#### `device-studio notes attach <id> --file <path>`
-
-Attach a file to a note. This is the documented REST multipart
-exception because the request body contains opaque bytes. The response
-is proto-typed attachment metadata.
-
-```bash
-device-studio notes attach abc123 --file ./example.png
-```
-<!-- EXAMPLE-DOMAIN:notes END -->
-
 ## Projects commands
 
 - `device-studio projects list [--page-size <n>] [--page-token <token>]` lists a bounded page (default 50, maximum 100) and prints a next-page command when more projects remain.
@@ -191,13 +140,62 @@ device-studio notes attach abc123 --file ./example.png
 - `device-studio projects get <id>` opens a project by stable ID.
 - `device-studio projects rename <id> --name <name> --expected-revision <revision>` performs an optimistic rename. A stale revision returns the typed `ProjectConflict` Connect detail and leaves the current name intact.
 
-The initial source-image commands are bounded to PNG/JPEG metadata and original-byte intake:
+Media intake preserves original image or recording bytes. Recordings require explicit bounded inspection before use:
 
-- `device-studio media import <project-id> --file <path>` streams one local file through the typed multipart upload exception. The API validates the actual image bytes and does not trust the filename or client content type.
+- `device-studio media import <project-id> --file <path>` streams one local file through the typed multipart upload exception. The API classifies the content and does not trust the filename or client content type.
 - `device-studio media list <project-id> [--page-size <n>] [--page-token <token>]` lists a bounded metadata page.
-- `device-studio media get <project-id> <id>` returns typed metadata. Browser clients can fetch original bytes from `/api/v1/projects/{project_id}/media/{media_id}/content`; the API verifies size and SHA-256 before serving.
+- `device-studio media get <project-id> <id>` returns typed metadata. Browser clients can fetch original bytes from `/api/v1/projects/{project_id}/media/{media_id}/content`; the API verifies size and SHA-256 while serving, and aborts incomplete or corrupt streams.
 
 Names are required, trimmed, at most 120 Unicode characters, and cannot contain control characters. All validation and revision decisions live in the API.
+
+## Recording inspection and timing
+
+- `media inspect <project-id> <id>` ensures one inspection job; replay does not create another attempt.
+- `media retry-inspection <project-id> <id> --expected-version <n>` explicitly retries an eligible terminal inspection.
+- `media cancel-inspection <project-id> <id> --expected-version <n>` requests cancellation.
+- `media clock <project-id> <id> --expected-clock-sha256 <digest> [--page-size <n>] [--page-token <token>]` pages exact accepted frame timestamps.
+
+Use the accepted inspection receipt and clock to populate `videoTiming`; browser
+playback time is not the source of truth. The current fixed-scene video profile
+supports 24/30 fps, up to ten output seconds and 300 frames, with audio off.
+
+## Saved shots and outputs
+
+`shots create --project-id <id> --name <name> --snapshot <json-file>` creates a
+revision. `shots save <id> --expected-revision <n> --name <name> --snapshot
+<json-file>` appends one with optimistic conflict checks. `shots get`, `shots
+revisions`, `shots revision-get --revision <n>`, `shots compile --revision <n>`
+and `shots validate --project-id <id> --snapshot <json-file>` inspect the same
+saved contract. Scene display dimensions are input; presentation viewport
+dimensions are server-derived and must be omitted from authored snapshots.
+
+```sh
+device-studio renders submit --project-id <project> --shot-id <shot> --revision <n> --idempotency-key <key> --render-mode VIDEO_SAMPLE_PNG
+device-studio renders get <render> --project-id <project>
+device-studio renders sample-binding <render> --project-id <project> --shot-id <shot>
+device-studio renders export <render> --project-id <project> --out <new-file.png>
+```
+
+For AUTO phone colors, review the sample and save the server-returned binding in
+a new revision before submitting `--render-mode VIDEO_FINAL_MP4`. Manual phone
+and browser samples are previews of their explicit saved settings. Omitting
+`--render-mode` retains still-PNG behavior. `renders cancel <id> --project-id
+<project> --expected-version <n>` requests cancellation of an active job.
+
+For a saved physical shot, use `PHYSICAL_STILL_PNG` for its final still,
+`PHYSICAL_PREVIEW_PNG` for the distinct draft preview, or
+`PHYSICAL_FINAL_MP4` for its bound motion schedule. Previewing does not change
+the saved final-output profile. The API requires compatible saved bindings;
+these modes do not convert a photographic shot into a physical scene. Physical
+recording textures are under native qualification, and selected-frame recording
+previews remain unsupported at this checkpoint.
+
+Exports stream to a temporary file, verify size, digest and format, then publish
+the requested destination without overwriting an existing file. MP4 export
+verification relies on native render verification plus the independent download
+digest; the CLI does not run a second video decoder. Interrupted processes can
+leave an unpublished temporary file. Use `renders list --project-id <id>` to
+recover durable job IDs and reuse an idempotency key after uncertain submission.
 
 ## Output contracts
 
@@ -229,8 +227,7 @@ external delegation, durable runs) go in the manifest's top-level `exceptions[]`
 
 ## Adding a new command
 
-For a new domain, copy the worked CRUD command group in the fenced
-example above first, then replace it once your real domain is green.
+For a new domain, follow an existing product group and its manifest-backed primitive registrations.
 
 For a command inside an existing domain:
 
@@ -274,8 +271,7 @@ For a command inside an existing domain:
   `--help` is the goal.
 - **Positional for required, flags for optional.** `<domain> get <id>`
   not `<domain> get --id <id>`.
-- **One command per API endpoint.** If you find yourself making two
-  endpoint calls, the API is missing a use-case.
+- Keep product decisions in typed API operations. Document transport exceptions such as metadata plus verified streaming export.
 - **Error messages must be actionable.** "API unreachable" is bad;
   "API unreachable at http://localhost:15001 — try `--auto-start` or
   `vrooli scenario start device-studio`" is good.

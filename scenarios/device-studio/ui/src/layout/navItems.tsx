@@ -1,6 +1,5 @@
 import {
   Home,
-  NotebookPen, // EXAMPLE-DOMAIN:notes
   Settings,
 } from "lucide-react";
 import type { ReactNode } from "react";
@@ -19,7 +18,6 @@ export interface NavItem {
   /** Selector parameter; stable across locales. */
   key:
     | "dashboard"
-    | "notes" // EXAMPLE-DOMAIN:notes
     | "settings";
   /** Router path. */
   path: string;
@@ -33,7 +31,6 @@ export interface NavItem {
 
 export const NAV_ITEMS: readonly NavItem[] = [
   { key: "dashboard", path: "/", end: true, labelKey: strings.layout.nav.dashboard, icon: <Home aria-hidden="true" /> },
-  { key: "notes", path: "/notes", labelKey: strings.layout.nav.notes, icon: <NotebookPen aria-hidden="true" /> }, // EXAMPLE-DOMAIN:notes
   { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings, icon: <Settings aria-hidden="true" /> },
 ];
 

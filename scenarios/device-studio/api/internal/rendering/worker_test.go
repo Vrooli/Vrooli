@@ -14,6 +14,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"device-studio/internal/presentations"
 )
 
 type workerFixture struct {
@@ -149,12 +151,198 @@ func TestRunManifestComposesTypedInputsAndPublishesIdentityBoundPNGReceipt(t *te
 	}
 }
 
+func TestRunManifestV2ComposesRawPhoneCaptureAndRecordsLayoutReceipt(t *testing.T) { // [REQ:DS-CONTRACT-SHOT]
+	dir := t.TempDir()
+	plate := image.NewNRGBA(image.Rect(0, 0, 400, 800))
+	active := image.NewGray(image.Rect(0, 0, 400, 800))
+	screen := image.NewNRGBA(image.Rect(10, 20, 210, 420))
+	for y := 0; y < 800; y++ {
+		for x := 0; x < 400; x++ {
+			plate.SetNRGBA(x, y, color.NRGBA{R: 40, G: 50, B: 60, A: 255})
+			active.SetGray(x, y, color.Gray{Y: 255})
+		}
+	}
+	for y := screen.Bounds().Min.Y; y < screen.Bounds().Max.Y; y++ {
+		for x := screen.Bounds().Min.X; x < screen.Bounds().Max.X; x++ {
+			screen.SetNRGBA(x, y, color.NRGBA{R: 20, G: 190, B: 80, A: 255})
+		}
+	}
+	data := map[string][]byte{"plate.png": encodePNG(t, plate), "screen.png": encodePNG(t, screen), "active-mask.png": encodePNG(t, active)}
+	for name, content := range data {
+		if err := os.WriteFile(filepath.Join(dir, name), content, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	dark := &presentations.RGB{R: 10, G: 12, B: 18}
+	config := presentations.Config{Target: image.Pt(400, 800), Phone: &presentations.PhoneConfig{ShowStatus: true, ShowHome: true, Clock: "9:41", Carrier: "Meridian", BatteryPercent: 84, Cellular: true, WiFi: true, Appearance: presentations.AppearanceDark, TopFill: dark, BottomFill: dark}}
+	decodedScreen, _, err := decodeImage(data["screen.png"])
+	if err != nil {
+		t.Fatal(err)
+	}
+	pinnedLayout, err := presentations.BuildLayout(decodedScreen, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest := Manifest{Version: presentationVersion, JobID: "job-v2", AttemptID: "attempt-v2", InputFingerprint: strings.Repeat("b", 64), Profile: presentations.SimulatedCompositorProfile,
+		Plate: bind("plate.png", data["plate.png"]), Screen: bind("screen.png", data["screen.png"]), ActiveMask: bind("active-mask.png", data["active-mask.png"]),
+		SurfaceWidth: 400, SurfaceHeight: 800, Quad: [4]Corner{{0, 0}, {400, 0}, {400, 800}, {0, 800}}, Samples: 1, Presentation: &config, PresentationLayout: &pinnedLayout}
+	writeManifest(t, dir, manifest)
+	if err := RunManifest(context.Background(), filepath.Join(dir, ManifestName)); err != nil {
+		t.Fatal(err)
+	}
+	var receipt Receipt
+	receiptBytes, err := os.ReadFile(filepath.Join(dir, ReceiptName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(receiptBytes, &receipt); err != nil {
+		t.Fatal(err)
+	}
+	if receipt.Version != presentationVersion || receipt.Presentation == nil || receipt.Presentation.SemanticVersion != "device-studio-presentation-v2" || !digestPattern.MatchString(receipt.Presentation.DisplayRasterSHA256) || receipt.Presentation.Layout.ProfileID != presentations.PhoneProfileID {
+		t.Fatalf("presentation receipt is incomplete: %+v", receipt.Presentation)
+	}
+	outputBytes, err := os.ReadFile(filepath.Join(dir, OutputName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	output, err := png.Decode(bytes.NewReader(outputBytes))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !sameColor(output.At(200, 400), color.NRGBA{R: 20, G: 190, B: 80, A: 255}) {
+		t.Fatal("raw app pixels did not reach the photographic screen center")
+	}
+	if sameColor(output.At(200, 10), color.NRGBA{R: 20, G: 190, B: 80, A: 255}) {
+		t.Fatal("raw app pixels leaked into the phone status region")
+	}
+
+	// Phone presentation v3 is a profile change inside the unchanged v2
+	// manifest shape. The config and derived layout carry its immutable identity.
+	v3Dir := t.TempDir()
+	for name, content := range data {
+		if err := os.WriteFile(filepath.Join(v3Dir, name), content, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	v3Phone := *config.Phone
+	v3Phone.ProfileVersion = presentations.PhoneProfileVersionAuto
+	v3Phone.Appearance = presentations.AppearanceAuto
+	v3Phone.Carrier = ""
+	v3Config := presentations.Config{Target: config.Target, Phone: &v3Phone}
+	v3Layout, err := presentations.BuildLayout(decodedScreen, v3Config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v3Manifest := manifest
+	v3Manifest.JobID, v3Manifest.AttemptID = "job-v3", "attempt-v3"
+	v3Manifest.Presentation, v3Manifest.PresentationLayout = &v3Config, &v3Layout
+	writeManifest(t, v3Dir, v3Manifest)
+	if err := RunManifest(context.Background(), filepath.Join(v3Dir, ManifestName)); err != nil {
+		t.Fatal(err)
+	}
+	var v3Receipt Receipt
+	v3ReceiptBytes, err := os.ReadFile(filepath.Join(v3Dir, ReceiptName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(v3ReceiptBytes, &v3Receipt); err != nil {
+		t.Fatal(err)
+	}
+	if v3Receipt.Version != presentationVersion || v3Receipt.Presentation == nil || v3Receipt.Presentation.SemanticVersion != "device-studio-presentation-v3" || v3Receipt.Presentation.Layout.ProfileVersion != presentations.PhoneProfileVersionAuto || v3Receipt.Presentation.Layout.ResolvedStatusInk == nil || v3Receipt.Presentation.Layout.ResolvedHomeInk == nil {
+		t.Fatalf("phone v3 profile identity was not pinned in the v2 manifest receipt: %+v", v3Receipt.Presentation)
+	}
+	badV3Dir := t.TempDir()
+	for name, content := range data {
+		if err := os.WriteFile(filepath.Join(badV3Dir, name), content, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	badLayout := v3Layout
+	badLayout.ResolvedStatusInk = nil
+	badV3Manifest := v3Manifest
+	badV3Manifest.PresentationLayout = &badLayout
+	writeManifest(t, badV3Dir, badV3Manifest)
+	if err := RunManifest(context.Background(), filepath.Join(badV3Dir, ManifestName)); err == nil {
+		t.Fatal("worker accepted v3 manifest without its resolved contrast ink")
+	}
+	tamperDir := t.TempDir()
+	for name, content := range data {
+		if err := os.WriteFile(filepath.Join(tamperDir, name), content, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	tamperedLayout := pinnedLayout
+	tamperedLayout.FontSHA256 = strings.Repeat("f", 64)
+	tamperedManifest := manifest
+	tamperedManifest.PresentationLayout = &tamperedLayout
+	writeManifest(t, tamperDir, tamperedManifest)
+	if err := RunManifest(context.Background(), filepath.Join(tamperDir, ManifestName)); err == nil {
+		t.Fatal("worker accepted a pinned font identity that differed from the derived layout")
+	}
+	for _, name := range []string{OutputName, ReceiptName} {
+		if _, err := os.Lstat(filepath.Join(tamperDir, name)); !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("tampered layout published %q: %v", name, err)
+		}
+	}
+}
+
+func TestRetainedPhoneV2PublicManifestReplaysExactOutput(t *testing.T) { // [REQ:DS-PHOTO-REPLAY]
+	if os.Getenv("DEVICE_STUDIO_PRESENTATION_EVIDENCE") != "1" {
+		t.Skip("set DEVICE_STUDIO_PRESENTATION_EVIDENCE=1 to replay the retained public phone job")
+	}
+	evidence := filepath.Clean("../../../docs/internal/goal/evidence/E2")
+	oldAttempt := filepath.Join(evidence, "public-jobs/lease-9006c575-d26a-4c12-8675-7277281191ca/attempts/a9eb6ad9-ef86-404a-a460-56d2b4c1f125/164c8499-32bf-4e43-b818-fb11f8ba71e7")
+	manifestBytes, err := os.ReadFile(filepath.Join(oldAttempt, ManifestName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var manifest Manifest
+	if err := json.Unmarshal(manifestBytes, &manifest); err != nil {
+		t.Fatal(err)
+	}
+	sources := map[string]string{
+		"plate.image":       filepath.Join(evidence, "worker/v6-replay/plate.png"),
+		"screen.image":      "/home/matthalloran8/.vrooli/evidence/device-presentation-2026-10-18/v4/phone/source-frame84.png",
+		"active-mask.png":   filepath.Join(evidence, "worker/v6-replay/active-mask.png"),
+		"hardware-mask.png": "/home/matthalloran8/.vrooli/evidence/device-presentation-2026-10-18/v6/phone/physical-pill-mask.png",
+	}
+	bindings := []ImageBinding{manifest.Plate, manifest.Screen, manifest.ActiveMask}
+	if manifest.HardwareMask != nil {
+		bindings = append(bindings, *manifest.HardwareMask)
+	}
+	dir := t.TempDir()
+	for _, binding := range bindings {
+		data, err := os.ReadFile(sources[binding.Name])
+		if err != nil {
+			t.Fatalf("read pinned %s source: %v", binding.Name, err)
+		}
+		if int64(len(data)) != binding.SizeBytes || digest(data) != binding.SHA256 {
+			t.Fatalf("retained %s input binding changed", binding.Name)
+		}
+		if err := os.WriteFile(filepath.Join(dir, binding.Name), data, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeManifest(t, dir, manifest)
+	if err := RunManifest(context.Background(), filepath.Join(dir, ManifestName)); err != nil {
+		t.Fatal(err)
+	}
+	output, err := os.ReadFile(filepath.Join(dir, OutputName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := digest(output); got != "737ef41fc5ce47d1507748c85e03f1a21969823844bef3ee3931a80bb7f1e948" {
+		t.Fatalf("retained phone v2 output changed: got %s", got)
+	}
+}
+
 func TestWorkerRejectsMalformedManifestCasesWithoutSuccessReceipt(t *testing.T) {
 	tests := []struct {
 		name   string
 		mutate func(*Manifest)
 	}{
 		{"version", func(m *Manifest) { m.Version++ }},
+		{"legacy unexpected pinned presentation layout", func(m *Manifest) { m.PresentationLayout = &presentations.Layout{ProfileID: "unexpected"} }},
 		{"fingerprint", func(m *Manifest) { m.InputFingerprint = "not-a-digest" }},
 		{"profile", func(m *Manifest) { m.Profile = "ffmpeg-user-argv" }},
 		{"path traversal", func(m *Manifest) { m.Plate.Name = "../plate.png" }},
@@ -451,6 +639,9 @@ func TestV6PhoneWorkerFixture(t *testing.T) {
 	output, err := os.ReadFile(filepath.Join(cleanEvidence, OutputName))
 	if err != nil || digest(output) != receipt.OutputSHA256 {
 		t.Fatalf("worker output digest mismatch: %v", err)
+	}
+	if receipt.OutputSHA256 != "f9081747545de547731e0d03520e6b0eec61efb26c0a0580e4f063d0db6bebe5" {
+		t.Fatalf("legacy v1 output changed from the retained PNG fixture: %s", receipt.OutputSHA256)
 	}
 	report := map[string]any{
 		"fixture":         "v6 phone; plate and active mask are original fixture bytes; source-screen.png is the historical precomposed source frame, not a raw app capture",

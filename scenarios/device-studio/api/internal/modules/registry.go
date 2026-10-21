@@ -24,14 +24,27 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	devicesH "device-studio/handlers/devices"
 	healthH "device-studio/handlers/health"
-	notesH "device-studio/handlers/notes" // EXAMPLE-DOMAIN:notes
+	libraryH "device-studio/handlers/library"
+	motionsH "device-studio/handlers/motions"
+	physicalruntimeH "device-studio/handlers/physicalruntime"
 	projectsH "device-studio/handlers/projects"
+	renderjobsH "device-studio/handlers/renderjobs"
+	scenesH "device-studio/handlers/scenes"
 	shotsH "device-studio/handlers/shots"
 	localdb "device-studio/internal/database"
 
-	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-studio/v1/notes" // EXAMPLE-DOMAIN:notes
+	devicesdomain "device-studio/internal/devices"
+	librarydomain "device-studio/internal/library"
+	motionsdomain "device-studio/internal/motions"
+	scenesdomain "device-studio/internal/scenes"
+	devicesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-studio/v1/devices"
+	libraryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-studio/v1/library"
+	motionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-studio/v1/motions"
+	physicalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-studio/v1/physical"
 	projectsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-studio/v1/projects"
+	scenesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-studio/v1/scenes"
 	shotsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-studio/v1/shots"
 )
 
@@ -43,9 +56,14 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, capsH.Endpoints...)
-	out = append(out, notesH.Endpoints...) // EXAMPLE-DOMAIN:notes
 	out = append(out, projectsH.Endpoints...)
+	out = append(out, devicesH.Endpoints...)
+	out = append(out, scenesH.Endpoints...)
+	out = append(out, motionsH.Endpoints...)
+	out = append(out, libraryH.Endpoints...)
+	out = append(out, physicalruntimeH.Endpoints...)
 	out = append(out, shotsH.Endpoints...)
+	out = append(out, renderjobsH.Endpoints...)
 	return out
 }
 
@@ -72,9 +90,13 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
-		{Module: "notes", File: notesv1.File_device_studio_v1_notes_notes_proto}, // EXAMPLE-DOMAIN:notes
 		{Module: "projects", File: projectsv1.File_device_studio_v1_projects_projects_proto},
+		{Module: "devices", File: devicesv1.File_device_studio_v1_devices_devices_proto},
+		{Module: "scenes", File: scenesv1.File_device_studio_v1_scenes_scenes_proto},
+		{Module: "motions", File: motionsv1.File_device_studio_v1_motions_motions_proto},
+		{Module: "library", File: libraryv1.File_device_studio_v1_library_library_proto},
 		{Module: "shots", File: shotsv1.File_device_studio_v1_shots_shots_proto},
+		{Module: "physical", File: physicalv1.File_device_studio_v1_physical_physical_proto},
 	}
 }
 
@@ -89,8 +111,12 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
-		apidb.SchemaProviderFunc(notesH.Schema), // EXAMPLE-DOMAIN:notes
 		apidb.SchemaProviderFunc(projectsH.Schema),
+		apidb.SchemaProviderFunc(librarydomain.Schema),
+		apidb.SchemaProviderFunc(devicesdomain.Schema),
+		apidb.SchemaProviderFunc(scenesdomain.Schema),
+		apidb.SchemaProviderFunc(motionsdomain.Schema),
 		apidb.SchemaProviderFunc(shotsH.Schema),
+		apidb.SchemaProviderFunc(renderjobsH.Schema),
 	}
 }

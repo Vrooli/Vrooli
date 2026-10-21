@@ -23,29 +23,6 @@ const literalSelectors = {
   notifications: {
     summary: "notifications-summary",
   },
-  // EXAMPLE-DOMAIN:notes START
-  notes: {
-    surface: "notes-surface",
-    card: "notes-card",
-    list: "notes-list",
-    loading: "notes-loading",
-    empty: "notes-empty",
-    error: "notes-error",
-    createButton: "notes-create-button",
-    createdAt: "notes-created-at",
-    attachmentCount: "notes-attachment-count",
-    attachmentUpload: "notes-attachment-upload",
-    attachmentFile: "notes-attachment-file",
-    attachmentButton: "notes-attachment-button",
-    attachmentStatus: "notes-attachment-status",
-    measure: {
-      card: "notes-measure-card",
-      value: "notes-measure-value",
-      loading: "notes-measure-loading",
-      error: "notes-measure-error",
-    },
-  },
-  // EXAMPLE-DOMAIN:notes END
   projects: {
     surface: "projects-surface",
     loading: "projects-loading",
@@ -73,6 +50,20 @@ const literalSelectors = {
     loadMore: "project-source-media-load-more",
     preview: "project-source-media-preview",
     image: "project-source-media-image",
+    videoPreview: "project-source-media-video",
+  },
+  shot: {
+    videoTiming: "shot-video-timing",
+    videoSampleAccept: "shot-video-sample-accept",
+    videoFinalStage: "shot-video-final-stage",
+    videoSourcePreview: "shot-video-source-preview",
+  },
+  physical: {
+    create: "physical-shot-create",
+    editor: "physical-shot-editor",
+    source: "physical-shot-source",
+    backend: "physical-shot-backend",
+    compile: "physical-shot-compile",
   },
 
   layout: {
@@ -93,7 +84,6 @@ const literalSelectors = {
     dashboardHeader: "page-dashboard-header",
     dashboardPlaceholder: "page-dashboard-placeholder",
     project: "page-project",
-    notes: "page-notes", // EXAMPLE-DOMAIN:notes
     settings: "page-settings",
   },
   errorBoundary: {
@@ -119,7 +109,6 @@ const dynamicSelectorDefinitions = {
           type: "enum",
           values: [
             "dashboard",
-            "notes", // EXAMPLE-DOMAIN:notes
             "settings",
           ] as const,
         },
@@ -133,7 +122,6 @@ const dynamicSelectorDefinitions = {
           type: "enum",
           values: [
             "dashboard",
-            "notes", // EXAMPLE-DOMAIN:notes
             "settings",
           ] as const,
         },

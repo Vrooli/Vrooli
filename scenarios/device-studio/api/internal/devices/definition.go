@@ -14,10 +14,14 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"device-studio/internal/physical"
 )
 
-const CanonicalUnit = "m"
-const DimensionUnit = "mm"
+const (
+	CanonicalUnit = "m"
+	DimensionUnit = "mm"
+)
 
 type Group string
 
@@ -128,16 +132,13 @@ type DisplaySurface struct {
 	Evidence           []Evidence          `json:"evidence,omitempty"`
 }
 
-type Vector3 struct {
-	X float64 `json:"x"`
-	Y float64 `json:"y"`
-	Z float64 `json:"z"`
-}
+type Vector3 = physical.Vec3
 
 type Joint struct {
 	ID           string     `json:"id"`
 	ParentPart   string     `json:"parent_part"`
 	ChildPart    string     `json:"child_part"`
+	// Axis and PivotMeters use the ParentPart local frame in DeviceCandidate v1.
 	Axis         *Vector3   `json:"axis,omitempty"`
 	PivotMeters  *Vector3   `json:"pivot_m,omitempty"`
 	LowerRadians *float64   `json:"lower_rad,omitempty"`
@@ -821,6 +822,7 @@ func vecLength(v Vector3) float64 { return math.Sqrt(v.X*v.X + v.Y*v.Y + v.Z*v.Z
 func contains(outer, inner Rect) bool {
 	return inner.X >= outer.X && inner.Y >= outer.Y && inner.X+inner.Width <= outer.X+outer.Width && inner.Y+inner.Height <= outer.Y+outer.Height
 }
+
 func overlaps(a, b Rect) bool {
 	return a.X < b.X+b.Width && a.X+a.Width > b.X && a.Y < b.Y+b.Height && a.Y+a.Height > b.Y
 }

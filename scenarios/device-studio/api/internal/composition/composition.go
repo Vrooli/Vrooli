@@ -302,7 +302,8 @@ func sampleBilinear(src image.Image, bounds image.Rectangle, x, y float64) (uint
 
 func rgba16(c interface {
 	RGBA() (uint32, uint32, uint32, uint32)
-}) [4]uint16 {
+},
+) [4]uint16 {
 	r, g, b, a := c.RGBA()
 	return [4]uint16{uint16(r), uint16(g), uint16(b), uint16(a)}
 }
@@ -376,7 +377,8 @@ func clamp16(v float64) uint16 {
 
 func sameRGBA16(a, b interface {
 	RGBA() (uint32, uint32, uint32, uint32)
-}) bool {
+},
+) bool {
 	ar, ag, ab, aa := a.RGBA()
 	br, bg, bb, ba := b.RGBA()
 	return ar == br && ag == bg && ab == bb && aa == ba
@@ -384,7 +386,8 @@ func sameRGBA16(a, b interface {
 
 func writeRGBA16(h hash.Hash, c interface {
 	RGBA() (uint32, uint32, uint32, uint32)
-}) {
+},
+) {
 	r, g, b, a := c.RGBA()
 	_, _ = h.Write([]byte{byte(r >> 8), byte(r), byte(g >> 8), byte(g), byte(b >> 8), byte(b), byte(a >> 8), byte(a)})
 }

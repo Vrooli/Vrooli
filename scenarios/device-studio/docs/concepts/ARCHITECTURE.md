@@ -2,7 +2,7 @@
 
 ## Purpose Of This Document
 
-Foundation contract, 2026-10-19. Product behavior below is specified for implementation; the generated reference scaffold does not implement it. Research demonstrates individual techniques, not a released scenario.
+Foundation contract with implementation status updated 2026-10-20. The project workspace and photographic still workflow have retained product evidence; video, native motion and the broader release remain in development. Target behavior below is not a release-completion claim.
 
 Device Studio owns reproducible device presentation shots. It composes measured hardware, scenes, real application media, simulated presentation chrome and motion. It serves a direct UI, agent tools and CLI/Connect consumers. Its dominant ecosystem role is interface-enabler; deterministic shot compilation and shared revisions multiply future reuse.
 
@@ -54,8 +54,8 @@ Keep the template reference domain until the first real product slice passes, th
 | Area | Current | Completion evidence |
 |---|---|---|
 | Scaffold | Generated reference; lifecycle evidence in PROGRESS | Owner generation receipt and scoped checks |
-| Domain design | Specified; no product domain implementation | Requirement-linked tests and usable slice |
-| Photographic technique | v6 experiment accepted direction | Reproduced public API/CLI workflow and saved-project replay |
+| Domain design | Projects/media, immutable still shots and durable local render jobs implemented; broader domains remain specified | Narrow requirement-linked tests plus retained API/CLI/browser journeys |
+| Photographic technique | Fixed still projection and phone/browser chrome implemented; public workflow, cancellation and graceful restart replay verified in E2 | Higher-resolution still qualification and fixed-look approval remain open; video is E2V |
 | Full 3D | Prior scene finish rejected; motion unqualified | Reviewed actual-renderer still and continuous spin/hinge footage |
 | Desktop/account | Shared code inspected; gaps retained | Native packaged journeys and account-bound funded operation |
 
@@ -63,7 +63,7 @@ A green schema/document validator establishes structure only.
 
 ## Intentional Deviations
 
-The scenario is initialized before product implementation at the operator's request. All real product requirements remain unimplemented. Planned UX pages remain drafts. The experimental GLB viewer is inspection-only: it strips animations and replaces lighting, so it is not the shot stage. A full mesh/material-node editor, arbitrary reconstruction, 4K/HDR release and fully deforming fold animation are outside the initial completion boundary.
+The scenario was initialized before product implementation at the operator's request. Light-table Projects/Shot boards are approved and the still editor has runtime proof; remaining UX surfaces and broader requirements are unfinished. Requirement completion is earned through its validation owner, not inferred from these milestones. The experimental GLB viewer is inspection-only: it strips animations and replaces lighting, so it is not the shot stage. A full mesh/material-node editor, arbitrary reconstruction, 4K/HDR release and fully deforming fold animation are outside the initial completion boundary.
 
 ## Documentation Architecture
 
@@ -72,3 +72,7 @@ The scenario is initialized before product implementation at the operator's requ
 ## Cross-References
 
 [START-HERE](../START-HERE.md), [PRD](../../PRD.md), [research](../research/README.md), [decisions](../internal/DECISIONS.md).
+
+## E2V storage and execution decision
+
+This remains a pre-release app with development fixtures. Evolve one projects-owned source-media model for image and video rather than duplicating original-byte identity, paging and deduplication in per-format tables. Unknown inspected facts have explicit presence/readiness. Preserve existing local rows through the storage owner's greenfield-with-data conversion route at a coordinated lifecycle boundary; retain before/after evidence. No production migration framework is introduced by this development step. The shared jobs ledger and bounded pump own media-inspection attempts as explicit typed subjects; no dummy shot revision or second execution supervisor. Domain finalization must be retryable for success, rejection and cancellation without rerunning a terminal native attempt. Exact legacy still canonical bytes/hash remain a regression gate. These are admitted design constraints; video implementation and qualification remain pending.

@@ -8,9 +8,23 @@ import {
   type SourceMedia,
 } from "@vrooli/proto-types/device-studio/v1/projects/projects_pb";
 import { transport } from "./client";
-import { PROTO_READ_OPTIONS, decodeApiError, fromJson, getFile, makeApiError, uploadFile, type JsonValue } from "./client";
+import { PROTO_READ_OPTIONS, decodeApiError, fileURL, fromJson, getFile, makeApiError, uploadFile, type JsonValue } from "./client";
 
 export const projectsClient = createClient(ProjectsService, transport);
+
+export async function getSourceMediaClockPages(projectId: string, mediaId: string, clockSha256: string) {
+  const pages = [];
+  let pageToken = "";
+  do {
+    const page = await projectsClient.getSourceMediaClockPage({
+      projectId, mediaId, expectedClockSha256: clockSha256, pageSize: 256, pageToken,
+    });
+    if (page.clockSha256 !== clockSha256) throw makeApiError("data_loss", "The source clock changed while it was being read.");
+    pages.push(page);
+    pageToken = page.nextPageToken;
+  } while (pageToken);
+  return pages;
+}
 
 export function projectConflict(error: unknown) {
   if (!(error instanceof ConnectError)) return undefined;
@@ -31,6 +45,12 @@ export async function getSourceMediaContent(projectId: string, mediaId: string):
   const response = await getFile(`/projects/${encodeURIComponent(projectId)}/media/${encodeURIComponent(mediaId)}/content`);
   if (!response.ok) throw await decodeApiError(response);
   return response.blob();
+}
+
+// Native media elements stream from the routed content endpoint directly. Do
+// not fetch recordings into a Blob: videos may be hundreds of MiB.
+export function sourceMediaContentURL(projectId: string, mediaId: string): string {
+  return fileURL(`/projects/${encodeURIComponent(projectId)}/media/${encodeURIComponent(mediaId)}/content`);
 }
 
 // The content endpoint verifies stored SHA-256 before returning bytes. This client

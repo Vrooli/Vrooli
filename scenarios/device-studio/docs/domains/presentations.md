@@ -38,13 +38,70 @@ The first executable profiles are a generic tall-phone system presentation and a
 
 Use one pure presentation owner for layout and rasterization, consumed by compiler validation and the private worker. Extend the typed snapshot and private manifest together; do not precompose an untracked screen blob outside the pinned job closure. The raw screen source remains digest-bound input. The worker receipt adds presentation profile, resolved fills, font/rasterizer identities and app mapping; the composition profile version changes when pixel semantics change. A queued job pins its old executable and complete presentation input, so later UI changes cannot mutate it.
 
+The integration extends the existing typed chrome messages with appearance,
+optional RGB fill/matte values, phone status and battery-text visibility, and
+browser normalized window placement, colors and menu/dock visibility. Presence
+must distinguish an omitted color from explicit black, and omitted optional
+visibility from explicit false. Canonical defaults are versioned and persisted;
+browser window controls require a visible toolbar rather than being ignored.
+The first matte control applies to simulated presentation. Preserve the existing
+plain compositor's alpha/contain behavior under its old semantic version;
+reject unsupported plain-only configuration instead of silently discarding it.
+
+Compiler eligibility must validate profile geometry and supported text through
+the presentation owner. If source-dependent validation needs decoded pixels,
+open the bounded, digest-verified raw source through the existing media owner;
+do not infer opacity from PNG format or manufacture a fake opaque sample.
+Transparent simulated sources require a persisted matte. Missing controls may
+remain an incomplete draft, while unsupported or unsafe supplied values produce
+field-addressed issues. The worker repeats the input and profile checks before
+rendering. Its receipt carries the actual resolved fills and mapping.
+
+Submission freezes a versioned, canonical compiled closure with all source
+bytes/bindings, geometry, presentation configuration and semantic/profile/font
+identities, plus the exact worker bytes. Dispatch creates only attempt identity
+fields from the job ledger and stages that closure; it must not call the current
+shot compiler. Compose the display raster inside the private worker, then
+project it into the scene. Old saved plain revisions retain their stored
+semantics and pixel result; an explicit save may create a new version. Unknown
+versions fail with an actionable incompatibility. Do not silently upgrade a
+queued job or imply that historical jobs without a complete closure have the
+new replay guarantee.
+
+An idempotent retry identifies the original accepted request by project, shot,
+revision and output profile. It returns the existing job and its first pinned
+closure without resolving current media or executable bytes, including after
+an application upgrade. Reusing the key for a different request is a conflict.
+Concurrent first submissions still serialize through the existing job ledger;
+a lookup alone does not replace its atomic uniqueness check.
+
+The integrated editor renders an explicitly saved revision. Unsaved changes
+cannot silently enter the job, and the UI must state which revision is shown.
+Keep the calibration overlay distinct from a succeeded photographic PNG. Use
+the existing public job contract for status, cancellation, reopening and verified
+download, without a second preview-render engine or invented percent progress.
+
 Qualify both profiles with actual source captures: dark and light phone scenes, two configurable phone status variants, browser-on-desktop and plain capture. Check that no app pixels enter reserved bars, no simulated bars are duplicated, aspect is preserved, the physical pill remains protected, and changed title/clock/color modifies only the expected presentation regions before projection. Retain display rasters and photographic outputs for direct inspection. At least one exact replay must produce the same output bytes. Video edge sampling/smoothing and source-continuous screen entry remain E2V work.
+
+### Phone readability correction from live E2 evidence
+
+The first live dark-source phone render exposed two defects in the generic v2 defaults: LIGHT ink was nearly invisible against sampled dark fills, and the default carrier label occupied the physical pill region. Preserve those outputs as negative evidence. New phone saves will use `device-studio-presentation-v3` and phone profile version3; browser remains v2 and the photographic homography/compositor algorithm is unchanged.
+
+For new v3 phone revisions, persist AUTO appearance by default and an empty carrier. AUTO chooses between the declared near-black and near-white palettes using deterministic contrast against resolved top and bottom fills independently. Explicit LIGHT/DARK remain user overrides. Keep app-edge fills unchanged; do not recolor the system background to compensate for unreadable ink. Pin the contrast policy and resolved status/home inks in the v3 layout/receipt.
+
+All v3 appearances use profile-declared safe status regions. If supplied, carrier text must fit a separate bounded region clear of the central hardware exclusion area and required clock/connectivity indicators. Validate actual bundled-font metrics; an unfit label produces an actionable issue instead of clipped text beneath the pill. These are simulation-profile coordinates, not a claim of measured manufacturer OS metrics. Qualify them against the actual retained scene hardware mask.
+
+Stored v2 revisions retain their original missing-value defaults, geometry, serialized config/layout and output bytes. Do not reinterpret an absent legacy appearance as AUTO. New Create/Save may choose v3; read/compile/dispatch uses the stored semantic version. The private config must carry enough version identity for the worker to select the same phone layout. Newly added receipt fields stay absent in legacy v2 serialization. Browser AUTO is unsupported and must be rejected rather than silently treated as DARK.
 
 ## Timing and media contract
 
 Record source presentation timestamps, rational output frame rate, trim, playback rate, loop/hold and out-of-range policy. Decode variable-frame-rate media by timestamp; never assume frame index equals time or that 24 fps input maps one-for-one to 30 fps output. Evaluate source frame, simulated clock, device/joint pose and camera at the same canonical output time. Seek completion is verified before browser preview capture; native jobs pin decoded inputs or a qualified deterministic decoder.
 
 Screen media is visual-only by default; strip source audio from device-shot export unless an explicit qualified passthrough policy is selected. Final film narration/music/mixing belongs to launch-video. A passthrough option must preserve declared trim/rate and A/V sync and must never unexpectedly include microphone audio. Preserve original source bytes regardless of derived preview encoding.
+
+The first video profile supports silent output only. An absent/unspecified audio policy means silent without rewriting historical revision bytes; explicit SILENT is supported. A saved PASSTHROUGH request remains visible and produces an actionable `unsupported_audio_policy` render blocker before job creation. Unknown enum values are invalid input. The editor explains that output is silent and reports source audio as detected, absent, or unreported.
+
+New accepted inspection receipts use receipt version 2 with nested version-1 audio facts (original container stream index and codec). An empty list means observed zero audio streams. Legacy version-1 receipts remain byte-identical and valid with audio facts absent, meaning unreported. Rejected inspections do not fabricate audio facts. Manifest/protocol, source clock, and tool-profile identities stay at their current versions because their formats and timing rules do not change. The source digest and immutable receipt bind observed facts; no parallel audio ledger is needed.
 
 ## Photographic versus physical mapping
 

@@ -62,7 +62,7 @@ func TestComposeIdentityRetainsScreenPixels(t *testing.T) {
 	}
 }
 
-func TestComposePerspectiveQuadMapsCornersAndGrid(t *testing.T) {
+func TestComposePerspectiveQuadMapsCornersAndGrid(t *testing.T) { // [REQ:DS-PHOTO-CALIBRATION]
 	quad := [4]Point{{2, 1}, {18, 3}, {16, 18}, {4, 16}}
 	forward, inverse, err := homographyFromRect(4, 4, quad)
 	if err != nil {
@@ -118,7 +118,7 @@ func TestComposePerspectiveQuadMapsCornersAndGrid(t *testing.T) {
 	}
 }
 
-func TestComposeActiveAndHardwareMasksProtectPlate(t *testing.T) {
+func TestComposeActiveAndHardwareMasksProtectPlate(t *testing.T) { // [REQ:DS-SCREEN-MASKS]
 	plate := image.NewRGBA(image.Rect(0, 0, 8, 4))
 	for y := 0; y < 4; y++ {
 		for x := 0; x < 8; x++ {
@@ -153,7 +153,7 @@ func TestComposeActiveAndHardwareMasksProtectPlate(t *testing.T) {
 	}
 }
 
-func TestComposeProtectsLiteralZeroActiveMaskAcrossAntialiasBoundary(t *testing.T) {
+func TestComposeProtectsLiteralZeroActiveMaskAcrossAntialiasBoundary(t *testing.T) { // [REQ:DS-SCREEN-MASKS]
 	plate := image.NewRGBA(image.Rect(0, 0, 8, 3))
 	for y := 0; y < 3; y++ {
 		for x := 0; x < 8; x++ {
@@ -179,7 +179,7 @@ func TestComposeProtectsLiteralZeroActiveMaskAcrossAntialiasBoundary(t *testing.
 	}
 }
 
-func TestComposeProtectsFullyOccludedHardwarePixelAtAntialiasBoundary(t *testing.T) {
+func TestComposeProtectsFullyOccludedHardwarePixelAtAntialiasBoundary(t *testing.T) { // [REQ:DS-SCREEN-MASKS]
 	plate := solidRGBA(image.Rect(0, 0, 8, 3), color.RGBA{R: 90, B: 40, A: 255})
 	screen := solidRGBA(image.Rect(0, 0, 8, 3), color.RGBA{G: 240, A: 255})
 	active := solidMask(8, 3, 255)
@@ -220,7 +220,7 @@ func TestComposeMixedAlphaEdgeHasNoTransparentColorFringe(t *testing.T) {
 	}
 }
 
-func TestComposeContainsSourceWithoutStretchOrCrop(t *testing.T) {
+func TestComposeContainsSourceWithoutStretchOrCrop(t *testing.T) { // [REQ:DS-SCREEN-FIT]
 	plate := solidRGBA(image.Rect(0, 0, 4, 4), color.RGBA{R: 10, A: 255})
 	screen := solidRGBA(image.Rect(0, 0, 4, 2), color.RGBA{B: 240, A: 255})
 	result, err := Compose(context.Background(), Inputs{Plate: plate, Screen: screen, SurfaceSize: image.Pt(4, 4), Quad: rectangularQuad(0, 0, 4, 4), ActiveMask: solidMask(4, 4, 255), Samples: 1})

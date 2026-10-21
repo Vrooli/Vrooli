@@ -1,9 +1,26 @@
 # Progress — Device Studio
 
+Active product delivery is tracked in [goal/GOAL.md](goal/GOAL.md) and
+[goal/QUEUE.md](goal/QUEUE.md). E1 workspace and E2 bounded photographic stills
+are accepted. The operator approved the exact phone/table and laptop/browser
+exports as the fixed photographic visual standard. E2V now has a successful
+public fixed-video journey, full 1080p/24 frame and timestamp verification,
+actual FFmpeg cancellation, and byte-identical replay after restart. Those video
+checks use a synthetic calibration scene. Source-continuous screen entry now also
+passes public export, sampled endpoint/source checks, cancellation and restart replay.
+Six additional public aspect/rate/browser cases now pass complete decode and timestamp checks. A manual-browser final-render crash and browser corner remnants at the zoom endpoint were fixed and verified in fresh exports. The exact corrected MP4 also played in isolated Chrome 150. The audible-source workflow now preserves original audio, exports silent video, and offers a verified UI repair for unsupported passthrough. Realistic motion, the device library,
+creation/services and desktop release remain open. Delivered release groups:
+0/8. The foundation log below retains its original, narrower scope.
+
 ## Progress Log
 
 | Date | Change | Evidence / limit |
 |---|---|---|
+|2026-10-20 UTC| Managed Blender CPU/CUDA/OptiX diagnostic renders passed | `goal/evidence/E3/tool-profile/backend-qualification/parent-review.json`: exact profile, decoded PNGs, native exit/quiescence/release; detailed scenes and product motion remain pending |
+|2026-10-20 UTC| Silent-audio policy and repair passed bounded native/API/UI proof | `goal/evidence/E2V/p8-matrix/audio/`: original source retained, silent H.264 export, typed passthrough rejection with no job, saved UI repair, archived and cleared lease; one BAS assertion failed after successful save and is retained; Test Genie unit retains known companion-stub false positive |
+|2026-10-20 UTC| Browser endpoint correction and playback verified | `goal/evidence/E2V/p8-matrix/clean-viewport/` and `browser-playback/`: clean letterbox, exact frame0/sample parity, 60 frames/PTS, Chrome 150 playback, primary unchanged |
+|2026-10-20 UTC| Bounded screen-entry camera checkpoint passed | `goal/evidence/E2V/p7-camera/`: 120-frame 1080p24 full decode/PTS, exact fixed-frame0 parity, sampled app-only endpoint/source continuity, cancellation, restart/identical render and isolated cleanup; synthetic scene, broader matrix still open |
+|2026-10-20 UTC| Fixed photographic visual standard approved; public fixed-video pipeline validated | Exact appearance approval in `goal/evidence/E2/presentations/fixed-photo-operator-approval.json`; video/decode/cancel/restart evidence in `goal/evidence/E2V/p5-live/`; synthetic video fixture, full release remains open |
 |2026-10-18–19| Device/model/presentation/scene experiments and research | Original research root retained; v5 rejected appearance and v6 accepted photographic direction preserved |
 |2026-10-19| Seven decisions accepted, desktop/commerce/disclosure additions researched | v8 decision ledger and reports; no product code |
 |2026-10-20 UTC| Canonical foundation plan finalized before governed react-vite 5.0.0 generation | Plan ID 21e95997-2bcb-44d2-ad05-0645b9cba6c9, slug device-studio-foundation |

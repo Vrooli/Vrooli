@@ -115,6 +115,20 @@
             "planned_automation": "Repository/serialization and immutable-revision integration tests.",
             "evidence_status": "not_run"
           }
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "api/internal/shots/service_test.go",
+          "notes": "Partial evidence only. Specific tagged test case(s): TestCreateSaveConflictAndImmutableRevision, TestSemanticDigestsBindContentRatherThanMutableMediaIds. This does not establish the full requirement."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "api/internal/rendering/worker_test.go",
+          "notes": "Partial evidence only. Specific tagged test case(s): TestRunManifestV2ComposesRawPhoneCaptureAndRecordsLayoutReceipt. This does not establish the full requirement."
         }
       ]
     }

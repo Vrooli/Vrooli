@@ -2,6 +2,7 @@ package capabilities
 
 import (
 	"net/http"
+
 	"device-studio/internal/capabilities"
 	"device-studio/internal/module"
 

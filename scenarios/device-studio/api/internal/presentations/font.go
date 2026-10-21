@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"image"
 	"image/color"
+	"math"
 	"strconv"
 	"unicode/utf8"
 
@@ -50,6 +51,33 @@ func validateGlyphs(c Config) error {
 				return ErrUnsupportedGlyph
 			}
 		}
+	}
+	return nil
+}
+
+func validatePhoneCarrierFit(text string, target image.Point) error {
+	if text == "" {
+		return nil
+	}
+	sx, sy := float64(target.X)/phoneRefWidth, float64(target.Y)/phoneRefHeight
+	size := 11 * math.Min(sx, sy)
+	face, err := newPinnedFace(size)
+	if err != nil {
+		return err
+	}
+	defer face.Close()
+	for _, r := range text {
+		if _, ok := face.GlyphAdvance(r); !ok {
+			return ErrUnsupportedGlyph
+		}
+	}
+	drawer := font.Drawer{Face: face}
+	bounds, _ := drawer.BoundString(text)
+	maxWidth := int(math.Round(118 * sx))
+	baseline := int(math.Round(67 * sy))
+	safeTop, safeBottom := int(math.Round(52*sy)), int(math.Round(72*sy))
+	if maxWidth <= 0 || drawer.MeasureString(text).Ceil() > maxWidth || bounds.Min.X.Floor() < 0 || bounds.Max.X.Ceil() > maxWidth || baseline+bounds.Min.Y.Floor() < safeTop || baseline+bounds.Max.Y.Ceil() > safeBottom {
+		return ErrCarrierDoesNotFit
 	}
 	return nil
 }

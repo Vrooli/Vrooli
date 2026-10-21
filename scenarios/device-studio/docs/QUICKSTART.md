@@ -1,6 +1,6 @@
 # Quickstart — Device Studio
 
-Run the generated development scaffold locally. Product device editing and rendering are specified but not implemented. The lifecycle
+Run the local project and photographic-shot workbench. Bounded still rendering is implemented; recording/video integration is undergoing live qualification. Native 3D, AI creation, accounts and packaged desktop release remain later work. The lifecycle
 handles ports, environment variables, and dependencies — you should
 not need to set anything by hand.
 
@@ -60,8 +60,8 @@ automatically):
 
 ```bash
 device-studio status
-# Template reference only
-device-studio notes list
+device-studio projects list
+device-studio renders --help
 ```
 
 Or directly via HTTP:
@@ -71,23 +71,6 @@ DEVICE_STUDIO_API_PORT=$(vrooli scenario port device-studio API_PORT)
 curl -s "http://localhost:${DEVICE_STUDIO_API_PORT}/health"
 # Proto-typed calls hit /vrooli.device_studio.v1.<domain>.<Service>/<Method>
 ```
-
-<!-- EXAMPLE-DOMAIN:notes START -->
-The shipped worked-example `notes` domain illustrates the full shape —
-copy it, then remove it with `template-manager detemplate`:
-
-```bash
-device-studio notes list
-device-studio notes create --title "First note" --body "Hello"
-```
-
-```bash
-DEVICE_STUDIO_API_PORT=$(vrooli scenario port device-studio API_PORT)
-curl -s -X POST "http://localhost:${DEVICE_STUDIO_API_PORT}/vrooli.device_studio.v1.notes.NotesService/ListNotes" \
-  -H 'Content-Type: application/json' \
-  -d '{}'
-```
-<!-- EXAMPLE-DOMAIN:notes END -->
 
 ## 5 — Run the tests
 
@@ -108,7 +91,7 @@ coverage expectations live in `.vrooli/testing.json`,
 | `make logs` | Tail API + UI logs (or `vrooli scenario logs`) |
 | `make status` | Show running surfaces and their ports |
 | `make stop` | Shut everything down cleanly |
-| `make restart` | `stop` then `start` (preferred over manually restarting individual surfaces) |
+| `make restart` | Build replacement artifacts, then restart through the lifecycle owner |
 
 For scenario-specific commands beyond the lifecycle, use the scenario
 CLI (`device-studio --help`) — see

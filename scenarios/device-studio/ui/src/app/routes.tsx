@@ -7,7 +7,6 @@ import {
 
 import { AppShell } from "../layout/AppShell";
 import { DashboardPage } from "../pages/DashboardPage";
-import { NotesPage } from "../pages/NotesPage"; // EXAMPLE-DOMAIN:notes
 import { SettingsPage } from "../pages/SettingsPage";
 import { ProjectDetailPage } from "../features/projects/ProjectDetailPage";
 import { ThemeProvider } from "../theme/ThemeProvider";
@@ -26,7 +25,6 @@ export const routes: RouteObject[] = [
       { index: true, element: <DashboardPage /> },
       { path: "projects", element: <DashboardPage /> },
       { path: "projects/:projectId", element: <ProjectDetailPage /> },
-      { path: "notes", element: <NotesPage /> }, // EXAMPLE-DOMAIN:notes
       { path: "settings", element: <SettingsPage /> },
     ],
   },

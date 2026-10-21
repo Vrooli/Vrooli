@@ -42,12 +42,16 @@ func recoveryFixture(t *testing.T) (*Coordinator, context.Context, jobs.Service,
 	if err != nil {
 		t.Fatal(err)
 	}
-	in := jobs.Input{ProjectID: "p", ShotRevisionID: "shot:s:revision:1", ShotRevision: 1,
+	in := jobs.Input{
+		ProjectID: "p", ShotRevisionID: "shot:s:revision:1", ShotRevision: 1,
 		Bindings: []jobs.ArtifactBinding{
 			{Role: "shot_snapshot", ArtifactID: "shot:s:revision:1", RevisionID: "revision:1", SHA256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
-			{Role: "worker_executable", ArtifactID: workerBlobPrefix + "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd/device-studio-api", RevisionID: "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", SHA256: "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"}, routeBinding(route)},
+			{Role: "worker_executable", ArtifactID: workerBlobPrefix + "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd/device-studio-api", RevisionID: "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", SHA256: "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"},
+			routeBinding(route),
+		},
 		SourceClockDigest: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-		ToolProfileDigest: "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", RendererVersion: RendererVersion, OutputProfile: OutputProfilePNG}
+		ToolProfileDigest: "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", RendererVersion: RendererVersion, OutputProfile: OutputProfilePNG,
+	}
 	j, _, err := js.Submit(ctx, jobs.SubmitInput{IdempotencyKey: "k", Input: in})
 	if err != nil {
 		t.Fatal(err)
@@ -82,15 +86,19 @@ type absentOperations struct{ starts, lookups int }
 func (o absentOperations) NewIntent(owner, attempt string, spec platform.OperationSpec) (platform.OperationIntent, error) {
 	return platform.NewOperationIntent(owner, attempt, spec)
 }
+
 func (o absentOperations) Start(context.Context, platform.OperationIntent, platform.OperationSpec) (*platform.OwnedOperation, error) {
 	return nil, nil
 }
+
 func (o absentOperations) Lookup(context.Context, platform.OperationIntent) (platform.OperationRef, error) {
 	return platform.OperationRef{}, platform.ErrOperationNotFound
 }
+
 func (o absentOperations) Inspect(context.Context, platform.OperationRef) (platform.OperationObservation, error) {
 	return platform.OperationObservation{}, platform.ErrOperationNotFound
 }
+
 func (o absentOperations) Stop(context.Context, platform.OperationRef) (platform.OperationStopReceipt, error) {
 	return platform.OperationStopReceipt{}, platform.ErrOperationNotFound
 }
@@ -98,7 +106,7 @@ func (o absentOperations) Release(context.Context, platform.OperationRef) error 
 
 var _ OperationOwner = absentOperations{}
 
-func TestCancelBeforeNativeStartUsesFreshClaimAndPersistsProof(t *testing.T) {
+func TestCancelBeforeNativeStartUsesFreshClaimAndPersistsProof(t *testing.T) { // [REQ:DS-JOB-CANCEL]
 	c, ctx, js, running, intent, key := recoveryFixture(t)
 	route, _ := c.route(ctx)
 	cancelled, err := js.RequestCancel(ctx, running.ID, running.Version)
@@ -146,18 +154,23 @@ type retryReleaseOperations struct {
 func (o *retryReleaseOperations) NewIntent(owner, attempt string, spec platform.OperationSpec) (platform.OperationIntent, error) {
 	return platform.NewOperationIntent(owner, attempt, spec)
 }
+
 func (o *retryReleaseOperations) Start(context.Context, platform.OperationIntent, platform.OperationSpec) (*platform.OwnedOperation, error) {
 	return nil, nil
 }
+
 func (o *retryReleaseOperations) Lookup(context.Context, platform.OperationIntent) (platform.OperationRef, error) {
 	return o.ref, nil
 }
+
 func (o *retryReleaseOperations) Inspect(context.Context, platform.OperationRef) (platform.OperationObservation, error) {
 	return platform.OperationObservation{}, nil
 }
+
 func (o *retryReleaseOperations) Stop(context.Context, platform.OperationRef) (platform.OperationStopReceipt, error) {
 	return platform.OperationStopReceipt{}, nil
 }
+
 func (o *retryReleaseOperations) Release(_ context.Context, ref platform.OperationRef) error {
 	o.count++
 	if ref != o.ref {
@@ -169,7 +182,7 @@ func (o *retryReleaseOperations) Release(_ context.Context, ref platform.Operati
 	return nil
 }
 
-func TestTerminalJobRetriesExactUnitReleaseAfterRestart(t *testing.T) {
+func TestTerminalJobRetriesExactUnitReleaseAfterRestart(t *testing.T) { // [REQ:DS-JOB-RECOVERY]
 	c, ctx, js, running, intent, _ := recoveryFixture(t)
 	a, _ := currentAttempt(running)
 	failed, err := js.Fail(ctx, running.ID, a.ID, "test terminal evidence", running.Version)
@@ -195,5 +208,13 @@ func TestTerminalJobRetriesExactUnitReleaseAfterRestart(t *testing.T) {
 	}
 	if got.State != jobs.Failed || ops.count != 2 {
 		t.Fatalf("terminal state/release retries = %s/%d", got.State, ops.count)
+	}
+	version := got.Version
+	again, err := restarted.Reconcile(ctx, failed.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ops.count != 2 || again.Version != version {
+		t.Fatalf("already released attempt changed again: releases=%d version=%d want 2/%d", ops.count, again.Version, version)
 	}
 }

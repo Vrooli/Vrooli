@@ -1,0 +1,17 @@
+# Embedded physical-runtime starter assets
+
+This tree contains fixed, reviewed-at-source starter bytes used by the physical runtime bootstrap. The bootstrap must publish each asset through the existing Library owner and use the returned IDs in candidates; this index is a file/provenance catalog, not an `ArtifactRef`, review, Library bundle, or permission to publish. Candidate and review state is recorded separately by the owning Library/services.
+
+| Catalog key | File | Role | Rights / allowed use |
+|---|---|---|---|
+| `authored-phone-neutral` | `phone/authored-phone-neutral.glb` | Generic Vrooli-authored device model with neutral embedded display | Internal starter-candidate review only; not manufacturer CAD or endorsement. Research display pixels were removed. |
+| `phone-table-scene` | `phone-table/phone-table-scene.glb` | Vrooli-authored procedural table/cup geometry | Internal starter-candidate review only; not measured furniture or CAD. |
+| `travertine-color`, `travertine-normal-gl`, `travertine-roughness`, `travertine-height` | `phone-table/textures/*` | Material maps for a typed table material binding | ambientCG Travertine001, CC0-1.0; attribution and captured license are in `phone-table/LICENSE.md`. Height is used only as subtle bump, not displacement. |
+| `phone-study-environment` | `phone-study-environment/phone-study-environment.glb` | Static full-scene geometry candidate (table plus wall/window/frame) | Internal starter-candidate review only; no phone, camera, lights, or images. |
+| `datsketch-ipad-mini-6-neutral` | `ipad/ipad-mini-neutral-screen.glb` | Source-preserving neutral-screen adaptation for the iPad mini 6 model by DatSketch | CC BY 4.0 attribution required; candidate-only, unqualified, not manufacturer CAD or endorsement. Source screen pixels are excluded. |
+| `datsketch-ipad-mini-6-neutral-uv-normalized-v1` | `ipad/ipad-mini-screen-uv-normalized.glb` | Follow-on derivative with a private screen UV accessor normalized to the measured source chart bounds | CC BY 4.0 attribution required; candidate-only, unqualified. Existing geometry and embedded images are retained from the neutral derivative. |
+| `jack-baeten-macbook-pro-m3-16-neutral-derive16` | `laptop/laptop-neutral-rig.glb` | Neutral-screen creator model with candidate-only base/lid split and fitted hinge | Jack Baeten, CC BY 4.0 attribution required; source-preserving adaptation, not manufacturer CAD or endorsement; rear trim/underside and continuous clearance remain unresolved. |
+| `laptop-candidate-room-without-cup` | `laptop-study-environment/laptop-study-environment-no-cup.glb` | Vrooli-authored room/table candidate with cup subtree omitted from active scene | Internal candidate review only; not real desk/room CAD and not scene-qualified. |
+
+`asset-index.json` pins exact bytes and points to package manifests and retained native provenance. All entries currently remain unreviewed Library candidates. The environment GLB has no image references and does not bind the Travertine maps; use the sibling table map assets through an explicit typed material binding. Do not synthesize IDs or treat hashes as Library IDs.
+| `ipad-mini-6-environment-camera-v3` | `ipad-environment-v3/ipad-study-environment.glb` | iPad-specific room/table/cup scene candidate with separately bound camera v3 | Candidate-only and unqualified; scene and camera fit are not visual approval or physical measurement. Uses separate CC0-1.0 Travertine001 maps. See the package manifest and export6 receipt. |

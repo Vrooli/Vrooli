@@ -63,5 +63,9 @@ export async function getFile(path: string): Promise<Response> {
   return fetch(buildApiUrl(path, { baseUrl: REST_API_BASE }), { cache: "no-store" });
 }
 
+export function fileURL(path: string): string {
+  return buildApiUrl(path, { baseUrl: REST_API_BASE });
+}
+
 export { fromJson, PROTO_READ_OPTIONS };
 export type { ErrorEnvelope, JsonValue };

@@ -1,11 +1,12 @@
 package projects
 
 import (
-	"github.com/vrooli/cli-core/cliapp"
-	projectsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-studio/v1/projects"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/vrooli/cli-core/cliapp"
+	projectsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-studio/v1/projects"
 )
 
 func TestManifestCoversProjectsService(t *testing.T) {

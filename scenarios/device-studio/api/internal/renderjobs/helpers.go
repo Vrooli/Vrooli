@@ -16,11 +16,13 @@ import (
 	"time"
 
 	"device-studio/internal/jobs"
+	"device-studio/internal/presentations"
 	"device-studio/internal/rendering"
 	"device-studio/internal/shots"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/storage"
 	platform "github.com/vrooli/platform-go"
+	"github.com/vrooli/repo-contract-go/cliinvoke"
 	shotsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-studio/v1/shots"
 )
 
@@ -28,6 +30,11 @@ type routePin struct {
 	Root     string `json:"root"`
 	TestMode bool   `json:"test_mode"`
 }
+
+const (
+	inferenceOutcomeBound    = "bound"
+	inferenceOutcomeNotBound = "not_bound"
+)
 
 type persistedIntent struct {
 	Version          int                      `json:"version"`
@@ -39,33 +46,41 @@ type persistedIntent struct {
 	Spec             platform.OperationSpec   `json:"spec"`
 	ManifestSHA256   string                   `json:"manifest_sha256"`
 	WorkerSHA256     string                   `json:"worker_sha256"`
+	Mode             operationMode            `json:"mode,omitempty"`
 }
 
 type persistedQuiescence struct {
-	Version          int                           `json:"version"`
-	JobID            string                        `json:"job_id"`
-	AttemptID        string                        `json:"attempt_id"`
-	InputFingerprint string                        `json:"input_fingerprint"`
-	ClaimID          string                        `json:"execution_claim_id"`
-	IntentKey        string                        `json:"intent_key"`
-	Ref              platform.OperationRef         `json:"operation_ref"`
-	Route            routePin                      `json:"route"`
-	Stop             platform.OperationStopReceipt `json:"stop_receipt"`
-	NotDispatched    bool                          `json:"not_dispatched,omitempty"`
-	ObservedAt       time.Time                     `json:"observed_at"`
+	Version                int                                 `json:"version"`
+	JobID                  string                              `json:"job_id"`
+	AttemptID              string                              `json:"attempt_id"`
+	InputFingerprint       string                              `json:"input_fingerprint"`
+	ClaimID                string                              `json:"execution_claim_id"`
+	IntentKey              string                              `json:"intent_key"`
+	Ref                    platform.OperationRef               `json:"operation_ref"`
+	Route                  routePin                            `json:"route"`
+	Stop                   platform.OperationStopReceipt       `json:"stop_receipt"`
+	InferenceOutcomeStatus string                              `json:"inference_outcome_status,omitempty"`
+	InferenceOutcome       *rendering.GeometryInferenceOutcome `json:"inference_outcome,omitempty"`
+	InferenceOutcomeSHA256 string                              `json:"inference_outcome_sha256,omitempty"`
+	NotDispatched          bool                                `json:"not_dispatched,omitempty"`
+	Failure                string                              `json:"failure,omitempty"`
+	EvidenceSHA256         string                              `json:"evidence_sha256,omitempty"`
+	ObservedAt             time.Time                           `json:"observed_at"`
 }
 
 type nativeOutcomeEvidence struct {
-	Version          int                           `json:"version"`
-	JobID            string                        `json:"job_id"`
-	AttemptID        string                        `json:"attempt_id"`
-	InputFingerprint string                        `json:"input_fingerprint"`
-	ExecutionClaimID string                        `json:"execution_claim_id"`
-	Route            routePin                      `json:"route"`
-	Intent           platform.OperationIntent      `json:"operation_intent"`
-	Ref              platform.OperationRef         `json:"operation_ref"`
-	Observation      platform.OperationObservation `json:"terminal_observation"`
-	ObservedAt       time.Time                     `json:"observed_at"`
+	Version                int                                 `json:"version"`
+	JobID                  string                              `json:"job_id"`
+	AttemptID              string                              `json:"attempt_id"`
+	InputFingerprint       string                              `json:"input_fingerprint"`
+	ExecutionClaimID       string                              `json:"execution_claim_id"`
+	Route                  routePin                            `json:"route"`
+	Intent                 platform.OperationIntent            `json:"operation_intent"`
+	Ref                    platform.OperationRef               `json:"operation_ref"`
+	Observation            platform.OperationObservation       `json:"terminal_observation"`
+	ObservedAt             time.Time                           `json:"observed_at"`
+	InferenceOutcome       *rendering.GeometryInferenceOutcome `json:"inference_outcome,omitempty"`
+	InferenceOutcomeSHA256 string                              `json:"inference_outcome_sha256,omitempty"`
 }
 
 type completedRenderEvidence struct {
@@ -144,7 +159,7 @@ func validateSubmitRequest(req SubmitRequest) error {
 	if req.OutputProfile == "" {
 		req.OutputProfile = OutputProfilePNG
 	}
-	if req.OutputProfile != OutputProfilePNG {
+	if req.OutputProfile != OutputProfilePNG && req.OutputProfile != OutputProfileMP4 && req.OutputProfile != OutputProfilePhysicalPreviewPNG {
 		return fmt.Errorf("%w: output profile %q is unsupported", ErrInvalidRequest, req.OutputProfile)
 	}
 	return nil
@@ -161,8 +176,8 @@ func validateStillProfile(revision shots.Revision) error {
 	if !revision.RenderEligible {
 		return ErrNotEligible
 	}
-	if revision.CompositorProfile != rendering.CompositorProfile {
-		return fmt.Errorf("%w: compiled compositor profile %q is not supported by worker %q", ErrNotEligible, revision.CompositorProfile, rendering.CompositorProfile)
+	if revision.CompositorProfile != rendering.CompositorProfile && revision.CompositorProfile != presentations.SimulatedCompositorProfile {
+		return fmt.Errorf("%w: compiled compositor profile %q is not supported", ErrNotEligible, revision.CompositorProfile)
 	}
 	return nil
 }
@@ -240,15 +255,15 @@ func bindingDigest(in jobs.Input, role string) string { return bindingByRole(in,
 
 func stillClockDigest() string { return digestBytes([]byte("device-studio-still-source-clock-v1")) }
 
-func toolProfileDigest(workerDigest, profile string) (string, error) {
-	if !validDigest(workerDigest) || profile != OutputProfilePNG {
+func toolProfileDigest(workerDigest, outputProfile, compositorProfile string) (string, error) {
+	if !validDigest(workerDigest) || outputProfile != OutputProfilePNG || compositorProfile != rendering.CompositorProfile && compositorProfile != presentations.SimulatedCompositorProfile {
 		return "", errors.New("renderjobs: invalid worker digest or output profile")
 	}
 	data, err := json.Marshal(struct {
 		WorkerSHA256 string `json:"worker_sha256"`
 		Compositor   string `json:"compositor"`
 		Output       string `json:"output"`
-	}{workerDigest, rendering.CompositorProfile, profile})
+	}{workerDigest, compositorProfile, outputProfile})
 	if err != nil {
 		return "", err
 	}
@@ -256,14 +271,129 @@ func toolProfileDigest(workerDigest, profile string) (string, error) {
 }
 
 func operationSpec(workerPath, manifestPath, workspace string) platform.OperationSpec {
-	return platform.OperationSpec{
-		Path: workerPath, Args: []string{"render-worker", "--manifest", manifestPath}, Env: []string{}, Dir: workspace,
-		Limits: platform.OperationLimits{MemoryMaxBytes: 2 << 30, TasksMax: 128, CPUWeight: 100, WallTime: operationWallTime},
+	spec, _ := operationSpecFor(operationStillRender, workerPath, manifestPath, workspace)
+	return spec
+}
+
+func operationSpecFor(mode operationMode, workerPath, manifestPath, workspace string) (platform.OperationSpec, error) {
+	command := ""
+	wallTime := operationWallTime
+	switch mode {
+	case operationStillRender:
+		command = "render-worker"
+	case operationSourceInspect:
+		command = "inspect-worker"
+		wallTime = 5 * time.Minute
+	case operationVideoRender:
+		command = "video-render-worker"
+		wallTime = 5 * time.Minute
+	case operationPhysicalRender:
+		command = "physical-render-worker"
+		wallTime = 180 * time.Second
+	case operationPhysicalPreview:
+		command = "physical-render-worker"
+		wallTime = time.Duration(rendering.PhysicalPreviewWallTimeSeconds) * time.Second
+	case operationPhysicalMotion:
+		command = "physical-render-worker"
+		wallTime = time.Duration(rendering.PhysicalMotionWallTimeSeconds) * time.Second
+	case operationPhysicalMotionV2:
+		command = "physical-render-worker"
+		wallTime = time.Duration(rendering.PhysicalMotionV2WallTimeSeconds) * time.Second
+	case operationPhysicalRecording:
+		command = "physical-render-worker"
+		wallTime = time.Duration(rendering.PhysicalRecordingWallTimeSeconds) * time.Second
+	case operationGeometryCreate:
+		command = "geometry-construction-worker"
+		wallTime = 5 * time.Minute
+	default:
+		return platform.OperationSpec{}, errors.New("renderjobs: unsupported operation mode")
 	}
+	memory := int64(2 << 30)
+	env := []string{}
+	var err error
+	if isPhysicalOperation(mode) {
+		memory = 8 << 30
+		env, err = physicalWorkerEnvironment(workspace)
+		if err != nil {
+			return platform.OperationSpec{}, err
+		}
+	}
+	return platform.OperationSpec{Path: workerPath, Args: []string{command, "--manifest", manifestPath}, Env: env, Dir: workspace,
+		Limits: platform.OperationLimits{MemoryMaxBytes: memory, TasksMax: 128, CPUWeight: 100, WallTime: wallTime}}, nil
+}
+
+func physicalWorkerEnvironment(workspace string) ([]string, error) {
+	ownerHome, err := os.UserHomeDir()
+	if err != nil || !filepath.IsAbs(ownerHome) || filepath.Clean(ownerHome) != ownerHome {
+		return nil, errors.New("renderjobs: runtime owner home is unavailable for governed tool-profile resolution")
+	}
+	return physicalWorkerEnvironmentFor(ownerHome, workspace, os.Getenv(cliinvoke.BinaryEnvVar))
+}
+
+func physicalWorkerEnvironmentFor(ownerHome, workspace, configuredCLI string) ([]string, error) {
+	cliPath, err := resolvePhysicalWorkerCLI(ownerHome, configuredCLI)
+	if err != nil {
+		return nil, err
+	}
+	return []string{
+		"HOME=" + ownerHome,
+		cliinvoke.BinaryEnvVar + "=" + cliPath,
+		"TMPDIR=" + filepath.Join(workspace, "tmp"),
+		"XDG_CONFIG_HOME=" + filepath.Join(workspace, "config"),
+		"XDG_CACHE_HOME=" + filepath.Join(workspace, "cache"),
+		"BLENDER_USER_CONFIG=" + filepath.Join(workspace, "config", "blender"),
+		"BLENDER_USER_SCRIPTS=" + filepath.Join(workspace, "scripts"),
+		"BLENDER_USER_DATAFILES=" + filepath.Join(workspace, "datafiles"),
+		"PYTHONPYCACHEPREFIX=" + filepath.Join(workspace, "pycache"),
+		"PYTHONDONTWRITEBYTECODE=1",
+		"OMP_NUM_THREADS=2",
+	}, nil
+}
+
+func resolvePhysicalWorkerCLI(ownerHome, configuredCLI string) (string, error) {
+	if !filepath.IsAbs(ownerHome) || filepath.Clean(ownerHome) != ownerHome {
+		return "", errors.New("renderjobs: runtime owner home is not an absolute clean path")
+	}
+	path, err := cliinvoke.Resolve(cliinvoke.ResolveOptions{
+		Explicit: configuredCLI, RuntimeHome: ownerHome,
+		Getenv:   func(string) string { return "" },
+		LookPath: func(string) (string, error) { return "", os.ErrNotExist },
+	})
+	if err != nil {
+		return "", fmt.Errorf("renderjobs: resolve governed control-plane CLI for physical worker: %w", err)
+	}
+	if !filepath.IsAbs(path) || filepath.Clean(path) != path {
+		return "", errors.New("renderjobs: resolved control-plane CLI path must be absolute and clean")
+	}
+	info, err := os.Stat(path)
+	if err != nil || !info.Mode().IsRegular() {
+		return "", errors.New("renderjobs: resolved control-plane CLI is not a regular file")
+	}
+	return path, nil
 }
 
 func validateOperationSpec(env persistedIntent, workspace string) error {
-	want := operationSpec(filepath.Join(workspace, workerFileName), filepath.Join(workspace, rendering.ManifestName), workspace)
+	mode := env.Mode
+	if mode == "" {
+		mode = operationStillRender
+	}
+	manifestName := rendering.ManifestName
+	if mode == operationSourceInspect {
+		manifestName = "inspection-manifest.json"
+	}
+	if mode == operationVideoRender {
+		manifestName = "video-manifest.json"
+	}
+	if mode == operationGeometryCreate {
+		manifestName = rendering.GeometryManifestName
+	}
+	if isPhysicalOperation(mode) {
+		manifestName = rendering.PhysicalManifestName
+	}
+	want, err := operationSpecFor(mode, filepath.Join(workspace, workerFileName), filepath.Join(workspace, manifestName), workspace)
+	if err != nil {
+		return err
+	}
 	got, err := json.Marshal(env.Spec)
 	if err != nil {
 		return err
@@ -273,7 +403,7 @@ func validateOperationSpec(env persistedIntent, workspace string) error {
 		return err
 	}
 	if !bytes.Equal(got, wantBytes) || env.Intent.Owner != OwnerID || env.Intent.AttemptID != env.AttemptID || env.Intent.SpecDigest == "" {
-		return errors.New("renderjobs: persisted operation specification does not match fixed still profile")
+		return errors.New("renderjobs: persisted operation specification does not match its fixed subject profile")
 	}
 	verifiedIntent, err := platform.NewOperationIntent(OwnerID, env.AttemptID, env.Spec)
 	if err != nil || verifiedIntent.SpecDigest != env.Intent.SpecDigest {
@@ -325,7 +455,10 @@ func readWorkspaceFile(workspace, name string, max int64) ([]byte, error) {
 	}
 	defer root.Close()
 	entry, err := root.Lstat(name)
-	if err != nil || !entry.Mode().IsRegular() || entry.Mode()&os.ModeSymlink != 0 || entry.Size() <= 0 || entry.Size() > max {
+	if err != nil {
+		return nil, err
+	}
+	if !entry.Mode().IsRegular() || entry.Mode()&os.ModeSymlink != 0 || entry.Size() <= 0 || entry.Size() > max {
 		return nil, errors.New("renderjobs: workspace artifact is not a bounded regular file")
 	}
 	file, err := root.Open(name)
@@ -377,8 +510,38 @@ func verifyManifestInputs(workspace string, manifest rendering.Manifest) error {
 }
 
 func validateReceipt(receipt rendering.Receipt, manifest rendering.Manifest, manifestSHA string, j jobs.Job, a jobs.Attempt) error {
-	if receipt.Version != 1 || receipt.JobID != j.ID || receipt.AttemptID != a.ID || receipt.InputFingerprint != j.InputFingerprint || receipt.ManifestSHA256 != manifestSHA || receipt.Profile != rendering.CompositorProfile || receipt.Algorithm == "" || receipt.OutputName != rendering.OutputName || !validDigest(receipt.OutputSHA256) || receipt.OutputSizeBytes <= 0 || receipt.CompletedAt.IsZero() {
+	if receipt.Version != manifest.Version || receipt.JobID != j.ID || receipt.AttemptID != a.ID || receipt.InputFingerprint != j.InputFingerprint || receipt.ManifestSHA256 != manifestSHA || receipt.Profile != manifest.Profile || receipt.Algorithm == "" || receipt.OutputName != rendering.OutputName || !validDigest(receipt.OutputSHA256) || receipt.OutputSizeBytes <= 0 || receipt.CompletedAt.IsZero() {
 		return errors.New("renderjobs: worker receipt is incomplete or bound to another attempt")
+	}
+	if manifest.Version == 1 && receipt.Presentation != nil {
+		return errors.New("renderjobs: legacy worker receipt unexpectedly includes a presentation")
+	}
+	if manifest.Version == 2 {
+		presentation := receipt.Presentation
+		semantic := "device-studio-presentation-v2"
+		phoneV3 := manifest.Presentation != nil && manifest.Presentation.Phone != nil && manifest.Presentation.Phone.ProfileVersion == presentations.PhoneProfileVersionAuto
+		if phoneV3 {
+			semantic = "device-studio-presentation-v3"
+		}
+		if manifest.Presentation == nil || manifest.PresentationLayout == nil || presentation == nil || presentation.SemanticVersion != semantic || !validDigest(presentation.DisplayRasterSHA256) || !validDigest(presentation.Layout.ConfigSHA256) || !validDigest(presentation.Layout.FontSHA256) || presentation.Layout.Rasterizer == "" || presentation.Layout.FillPolicy == "" {
+			return errors.New("renderjobs: worker presentation receipt is incomplete or mismatched")
+		}
+		if !phoneV3 && (presentation.Layout.ResolvedStatusInk != nil || presentation.Layout.ResolvedHomeInk != nil || (presentation.Config.Phone != nil && presentation.Config.Phone.ProfileVersion != "")) {
+			return errors.New("renderjobs: v2 worker receipt contains v3 phone profile fields")
+		}
+		if phoneV3 && (presentation.Config.Phone == nil || presentation.Config.Phone.ProfileVersion != presentations.PhoneProfileVersionAuto || presentation.Layout.ResolvedStatusInk == nil || presentation.Layout.ResolvedHomeInk == nil || presentation.Layout.ProfileVersion != presentations.PhoneProfileVersionAuto) {
+			return errors.New("renderjobs: v3 worker receipt lacks the pinned phone v3 identity")
+		}
+		wanted, _ := json.Marshal(manifest.Presentation)
+		got, _ := json.Marshal(presentation.Config)
+		if !bytes.Equal(wanted, got) {
+			return errors.New("renderjobs: worker presentation receipt config differs from manifest")
+		}
+		wantLayout, _ := json.Marshal(manifest.PresentationLayout)
+		gotLayout, _ := json.Marshal(presentation.Layout)
+		if !bytes.Equal(wantLayout, gotLayout) {
+			return errors.New("renderjobs: worker presentation layout differs from pinned manifest")
+		}
 	}
 	if receipt.OutputSizeBytes > maxOutputBytes || int64(receipt.OutputWidth)*int64(receipt.OutputHeight) > maxOutputPixels || receipt.OutputWidth <= 0 || receipt.OutputHeight <= 0 || receipt.Composition.PlateWidth != receipt.OutputWidth || receipt.Composition.PlateHeight != receipt.OutputHeight {
 		return errors.New("renderjobs: worker receipt output dimensions exceed bounds")

@@ -34,6 +34,10 @@ const (
 	// identifier resolves to nothing rather than for "endpoint missing".
 	CodeNotFound = "not_found"
 
+	// CodeConflict identifies a request that conflicts with the current
+	// resource state, such as output requested before a render completes.
+	CodeConflict = "conflict"
+
 	// CodeInternal is the catch-all 500 code. Pair with a server-side
 	// log line carrying the underlying error; the wire message stays
 	// human-safe.

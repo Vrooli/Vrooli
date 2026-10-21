@@ -2,7 +2,7 @@
 
 ## Purpose Of This Document
 
-Foundation contract, 2026-10-19. Product behavior below is specified for implementation; the generated reference scaffold does not implement it. Research demonstrates individual techniques, not a released scenario.
+Foundation contract, 2026-10-19, with current implementation notes below. The E1 Projects surface and D3 saved-shot editor have scoped implementation/evidence; the broader product behavior remains design intent. Research and pure presentation examples do not establish a released or accepted renderer.
 
 The intended experience is specified in [DESIGN.md](../../DESIGN.md) and [experience/](../../experience/README.md). This document owns information architecture and primary surface rationale.
 
@@ -12,13 +12,13 @@ The interaction reference is a focused product-shot studio: the visible stage an
 
 ## E1 Project Surfaces
 
-The first implemented functional prototype creates a durable local project, lists and opens it by stable ID, and renames it against the revision observed by the user. It does not implement the shot workflow. The operator rejected its Studio Index visual proposal on 2026-10-20 as too basic and plain; the initial mockups and runtime captures are historical prototype evidence only.
+The E1 Projects surface creates, lists, opens and revision-safely renames durable local projects. The operator rejected the initial Studio Index visual proposal on 2026-10-20 as too basic and plain; that first design and its captures remain historical evidence only.
 
-The approved Light-table studio direction in DESIGN.md presents projects through their actual shot imagery and a strong resume action, then opens an immersive editor with contextual controls. The operator approved the Projects/Shot desktop/mobile boards under `../mockups/revision-2/`; the remaining boards extend that direction. These mockups do not prove live functionality. A new project still starts empty, and no imagery, render availability or successful job state is fabricated. The expanded product route inventory below remains draft except for E1 routes proven by implementation and their scoped evidence.
+The approved Light-table direction in DESIGN.md presents the actual project and offers a clear continuation action. The Projects/Shot boards under `../mockups/revision-2/` are implemented in the E1 surface, with scoped browser evidence. D3 adds a saved-shot editor with immutable revisions, source selection, scene calibration, presentation choices, validation, and same-context stale-revision conflict/reapply. The real plate plus calibration overlay is not a final render. New projects show an honest no-shot/no-preview state. The expanded route inventory below remains draft except for the scoped implementation annotations and evidence.
 
 ## The Primary Surface
 
-The shot builder keeps device/scene and real screen content visible while users select presentation, motion and output. Desktop uses a large stage, a library/selection region, contextual inspector and timeline. Advanced camera, lighting, calibration and numeric controls remain available. Mobile transforms into Stage/Controls/Timeline tabs with sequential fields and numeric alternatives rather than squeezing desktop panes.
+The current saved-shot editor keeps the selected scene plate visible beside contextual controls and exposes numeric calibration and presentation fields. It does not yet compose the final display raster in the shot editor or expose render/status/export actions. Future editor work retains the stage/inspector/timeline direction; mobile-specific timeline behavior, advanced camera/lighting and final render review remain unimplemented.
 
 Every asynchronous region distinguishes loading, empty, partial, stale, unsupported, failed and success. Preserve drafts when leaving or recovering. A preview labels its strategy and approximation; a final-look render is a separate action. AI/agent actions disclose funding, scope, budget and external data before launch. Local reuse and deterministic edits do not start hidden work.
 
@@ -32,7 +32,7 @@ A new user can find/import a capture, choose a compatible device/scene, understa
 
 ## Information Architecture
 
-Target route groups: project list/overview; searchable/filterable asset library/detail; import; creation workbench; review; shot builder; job queue/detail; result inspection/export; optional account/provider settings; project privacy/budget settings. [experience/index.json](../../experience/index.json) is the authoritative planned/actual route registry for this foundation. Current actual template routes are `/`, `/notes`, `/settings`; future product routes stay draft until reconciled against implementation.
+Target route groups: project list/overview; searchable/filterable asset library/detail; import; creation workbench; review; shot builder; job queue/detail; result inspection/export; optional account/provider settings; project privacy/budget settings. [experience/index.json](../../experience/index.json) is the route-contract registry. Current product routes include `/`, `/projects`, and `/projects/:projectId`, with Settings at `/settings`; route contracts remain draft and distinguish partial implementation. Notes was removed by the governed detemplate operation. Library, public render UI, results and account routes remain planned.
 
 ## Cross-References
 

@@ -38,28 +38,51 @@ func paintPhone(ctx context.Context, out *image.NRGBA, c Config, l Layout, matte
 		return err
 	}
 	if c.Phone.ShowStatus {
-		if err := drawPhoneIndicators(ctx, out, status, c.Phone); err != nil {
+		statusInkValue := colorFromRGB(fixedAppearanceInk(c.Phone.Appearance))
+		if l.ProfileVersion == PhoneProfileVersionAuto && l.ResolvedStatusInk != nil {
+			statusInkValue = colorFromRGB(*l.ResolvedStatusInk)
+		}
+		if err := drawPhoneIndicators(ctx, out, status, c.Phone, statusInkValue); err != nil {
 			return err
 		}
 		sx := float64(out.Bounds().Dx()) / phoneRefWidth
-		ink := statusInk(c.Phone.Appearance)
-		if c.Phone.Clock != "" {
+		sy := float64(out.Bounds().Dy()) / phoneRefHeight
+		ink := statusInkValue
+		if c.Phone.Clock != "" && l.ProfileVersion != PhoneProfileVersionAuto {
 			if err := drawPinnedText(ctx, out, c.Phone.Clock, int(math.Round(24*sx)), status.Min.Y+status.Dy()/2+int(math.Round(5*sx)), int(math.Round(50*sx)), 14*sx, ink); err != nil {
 				return err
 			}
 		}
-		if c.Phone.Carrier != "" {
+		if l.ProfileVersion == PhoneProfileVersionAuto {
+			s := math.Min(sx, sy)
+			if c.Phone.Clock != "" {
+				if err := drawPinnedText(ctx, out, c.Phone.Clock, int(math.Round(24*sx)), status.Min.Y+int(math.Round(43*sy)), int(math.Round(50*sx)), 14*s, ink); err != nil {
+					return err
+				}
+			}
+			if c.Phone.Carrier != "" {
+				if err := drawPinnedText(ctx, out, c.Phone.Carrier, int(math.Round(24*sx)), status.Min.Y+int(math.Round(67*sy)), int(math.Round(118*sx)), 11*s, ink); err != nil {
+					return err
+				}
+			}
+		} else if c.Phone.Carrier != "" {
 			x := int(math.Round(78 * sx))
 			if c.Phone.Clock != "" {
 				x += int(math.Round(48 * sx))
 			}
-			if err := drawPinnedText(ctx, out, c.Phone.Carrier, x, status.Min.Y+status.Dy()/2+int(math.Round(5*sx)), out.Bounds().Dx()-x-int(math.Round(176*sx)), 11*sx, ink); err != nil {
+			carrierSafeWidth := int(math.Round(200*sx)) - x
+			if err := drawPinnedText(ctx, out, c.Phone.Carrier, x, status.Min.Y+status.Dy()/2+int(math.Round(5*sx)), carrierSafeWidth, 11*sx, ink); err != nil {
 				return err
 			}
 		}
 	}
 	if c.Phone.ShowHome {
-		drawHomeIndicator(out, home, c.Phone.Appearance)
+		var resolvedInk *color.NRGBA
+		if l.ProfileVersion == PhoneProfileVersionAuto && l.ResolvedHomeInk != nil {
+			ink := colorFromRGB(*l.ResolvedHomeInk)
+			resolvedInk = &ink
+		}
+		drawHomeIndicator(out, home, c.Phone.Appearance, resolvedInk)
 	}
 	return nil
 }
@@ -91,22 +114,15 @@ func paintBrowser(ctx context.Context, out *image.NRGBA, c Config, l Layout) err
 		if err := fillRoundedOver(ctx, out, pill, 22*math.Min(sx, sy), color.NRGBA{R: 30, G: 36, B: 47, A: 232}); err != nil {
 			return err
 		}
-		drawDockIcons(out, y, sx, sy)
+		if err := drawDockIcons(ctx, out, y, sx, sy); err != nil {
+			return err
+		}
 	}
 	window, err := browserWindow(c.Target, b.Window)
 	if err != nil {
 		return err
 	}
-	windowColor := RGB{}
-	if b.WindowColor != nil {
-		windowColor = *b.WindowColor
-	} else {
-		if b.Appearance == AppearanceLight {
-			windowColor = RGB{R: 246, G: 247, B: 250}
-		} else {
-			windowColor = RGB{R: 23, G: 28, B: 38}
-		}
-	}
+	windowColor := browserWindowFill(b)
 	if err := fillRoundedOver(ctx, out, image.Rect(window.Min.X+4, window.Min.Y+8, window.Max.X+4, window.Max.Y+8), 14*math.Min(float64(out.Bounds().Dx())/browserRefWidth, float64(out.Bounds().Dy())/browserRefHeight), color.NRGBA{R: 0, G: 0, B: 0, A: 62}); err != nil {
 		return err
 	}
@@ -136,6 +152,16 @@ func paintBrowser(ctx context.Context, out *image.NRGBA, c Config, l Layout) err
 		}
 	}
 	return nil
+}
+
+func browserWindowFill(b *BrowserConfig) RGB {
+	if b.WindowColor != nil {
+		return *b.WindowColor
+	}
+	if b.Appearance == AppearanceLight {
+		return RGB{R: 246, G: 247, B: 250}
+	}
+	return RGB{R: 23, G: 28, B: 38}
 }
 
 func paintWallpaper(ctx context.Context, out *image.NRGBA, base RGB) error {
@@ -401,13 +427,13 @@ func strokeRect(dst *image.NRGBA, r image.Rectangle, c color.NRGBA) {
 		dst.SetNRGBA(r.Max.X-1, y, c)
 	}
 }
-func drawPhoneIndicators(ctx context.Context, dst *image.NRGBA, r image.Rectangle, p *PhoneConfig) error {
+
+func drawPhoneIndicators(ctx context.Context, dst *image.NRGBA, r image.Rectangle, p *PhoneConfig, ink color.NRGBA) error {
 	if r.Empty() {
 		return nil
 	}
 	s := math.Max(0.5, float64(dst.Bounds().Dx())/phoneRefWidth)
 	y := r.Min.Y + r.Dy()/2
-	ink := statusInk(p.Appearance)
 	right := r.Max.X - int(math.Round(18*s))
 	batteryX := right - int(math.Round(22*s))
 	drawBattery(dst, batteryX, y, ink, s, p.BatteryPercent)
@@ -428,7 +454,8 @@ func drawPhoneIndicators(ctx context.Context, dst *image.NRGBA, r image.Rectangl
 	}
 	return ctx.Err()
 }
-func drawHomeIndicator(dst *image.NRGBA, r image.Rectangle, a Appearance) {
+
+func drawHomeIndicator(dst *image.NRGBA, r image.Rectangle, a Appearance, resolvedInk *color.NRGBA) {
 	if r.Empty() {
 		return
 	}
@@ -436,11 +463,17 @@ func drawHomeIndicator(dst *image.NRGBA, r image.Rectangle, a Appearance) {
 	if a == AppearanceLight {
 		c = color.NRGBA{R: 35, G: 38, B: 44, A: 255}
 	}
+	if resolvedInk != nil {
+		c = *resolvedInk
+	}
 	w := min(int(math.Round(108*float64(dst.Bounds().Dx())/phoneRefWidth)), r.Dx()/3)
 	y := r.Min.Y + r.Dy()/2
 	h := max(1, int(math.Round(2*float64(dst.Bounds().Dy())/phoneRefHeight)))
 	fillFast(dst, image.Rect((dst.Bounds().Dx()-w)/2, y-h, (dst.Bounds().Dx()+w)/2, y+h), c)
 }
+
+func colorFromRGB(c RGB) color.NRGBA { return color.NRGBA{R: c.R, G: c.G, B: c.B, A: 255} }
+
 func drawSignal(dst *image.NRGBA, at image.Point, c color.NRGBA, scale float64) {
 	for i := 0; i < 4; i++ {
 		h := max(1, int(math.Round(float64(3+i*3)*scale)))
@@ -451,16 +484,16 @@ func drawSignal(dst *image.NRGBA, at image.Point, c color.NRGBA, scale float64) 
 		}
 	}
 }
+
 func drawWiFi(dst *image.NRGBA, at image.Point, c color.NRGBA, scale float64) {
 	line := max(1, int(math.Round(1.5*scale)))
-	base := at.Y + int(math.Round(10*scale))
+	centerY := at.Y + int(math.Round(3*scale))
 	for _, baseRadius := range []int{9, 6, 3} {
 		radius := max(2, int(math.Round(float64(baseRadius)*scale)))
 		prev := image.Point{}
-		for step := 0; step <= radius*2; step++ {
-			dx := step - radius
-			dy := int(math.Round(math.Sqrt(float64(radius*radius-dx*dx))))
-			pt := image.Pt(at.X+dx, base-dy)
+		for step := 0; step <= 24; step++ {
+			angle := (225 + float64(step)*90/24) * math.Pi / 180
+			pt := image.Pt(at.X+int(math.Round(math.Cos(angle)*float64(radius))), centerY+int(math.Round(math.Sin(angle)*float64(radius))))
 			if step > 0 {
 				drawLine(dst, prev, pt, c, line)
 			}
@@ -468,8 +501,9 @@ func drawWiFi(dst *image.NRGBA, at image.Point, c color.NRGBA, scale float64) {
 		}
 	}
 	dot := max(2, int(math.Round(2.2*scale)))
-	fillFast(dst, image.Rect(at.X-dot/2, base+1, at.X+(dot+1)/2, base+1+dot), c)
+	drawCircle(dst, image.Pt(at.X, centerY+int(math.Round(9*scale))), dot/2, c)
 }
+
 func drawBattery(dst *image.NRGBA, x, y int, c color.NRGBA, scale float64, percent uint8) {
 	w, h := max(1, int(math.Round(22*scale))), max(1, int(math.Round(6*scale)))
 	r := image.Rect(x, y-h, x+w, y+h)
@@ -481,26 +515,36 @@ func drawBattery(dst *image.NRGBA, x, y int, c color.NRGBA, scale float64, perce
 		fillFast(dst, image.Rect(left, y-max(1, h/2), left+fillWidth, y+max(1, h/2)), c)
 	}
 }
+
 func drawMenuMarks(ctx context.Context, dst *image.NRGBA, h int) error {
 	sx, sy := float64(dst.Bounds().Dx())/browserRefWidth, float64(dst.Bounds().Dy())/browserRefHeight
 	return drawPinnedText(ctx, dst, "File   Edit   View   Window   Help", int(math.Round(18*sx)), h/2+int(math.Round(5*sy)), dst.Bounds().Dx()-int(math.Round(36*sx)), 12*math.Min(sx, sy), color.NRGBA{R: 225, G: 230, B: 238, A: 255})
 }
-func drawDockIcons(dst *image.NRGBA, y int, sx, sy float64) {
+
+func drawDockIcons(ctx context.Context, dst *image.NRGBA, y int, sx, sy float64) error {
 	cx := dst.Bounds().Dx() / 2
 	s := math.Min(sx, sy)
 	spacing := int(math.Round(52 * sx))
 	size := max(12, int(math.Round(38*s)))
 	radius := math.Max(4, 9*s)
 	colors := []color.NRGBA{
-		{R: 54, G: 146, B: 224, A: 255}, {R: 236, G: 165, B: 55, A: 255},
-		{R: 79, G: 181, B: 139, A: 255}, {R: 219, G: 93, B: 102, A: 255},
-		{R: 130, G: 112, B: 220, A: 255}, {R: 52, G: 168, B: 196, A: 255},
+		{R: 54, G: 146, B: 224, A: 255},
+		{R: 236, G: 165, B: 55, A: 255},
+		{R: 79, G: 181, B: 139, A: 255},
+		{R: 219, G: 93, B: 102, A: 255},
+		{R: 130, G: 112, B: 220, A: 255},
+		{R: 52, G: 168, B: 196, A: 255},
 		{R: 104, G: 118, B: 145, A: 255},
 	}
 	for i := range colors {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		cx := cx + (i-3)*spacing
 		r := image.Rect(cx-size/2, y+int(math.Round(16*sy)), cx+(size+1)/2, y+int(math.Round(16*sy))+size)
-		fillRoundedWith(context.Background(), dst, r, radius, colors[i], false)
+		if err := fillRoundedWith(ctx, dst, r, radius, colors[i], false); err != nil {
+			return err
+		}
 		ink := color.NRGBA{R: 247, G: 249, B: 252, A: 255}
 		mark := max(2, int(math.Round(2*s)))
 		switch i {
@@ -512,7 +556,9 @@ func drawDockIcons(dst *image.NRGBA, y int, sx, sy float64) {
 				fillFast(dst, image.Rect(r.Min.X+size/4, r.Min.Y+size/3+k*mark*2, r.Max.X-size/4, r.Min.Y+size/3+k*mark*2+mark), ink)
 			}
 		case 2: // Messages.
-			fillRoundedWith(context.Background(), dst, image.Rect(r.Min.X+size/5, r.Min.Y+size/4, r.Max.X-size/5, r.Max.Y-size/4), radius/2, ink, false)
+			if err := fillRoundedWith(ctx, dst, image.Rect(r.Min.X+size/5, r.Min.Y+size/4, r.Max.X-size/5, r.Max.Y-size/4), radius/2, ink, false); err != nil {
+				return err
+			}
 		case 3: // Photos.
 			drawCircle(dst, image.Pt(cx, r.Min.Y+size/2), max(3, size/4), ink)
 		case 4: // Browser compass.
@@ -527,7 +573,9 @@ func drawDockIcons(dst *image.NRGBA, y int, sx, sy float64) {
 			drawCircle(dst, image.Pt(cx, r.Min.Y+size/2), max(1, size/8), colors[i])
 		}
 	}
+	return ctx.Err()
 }
+
 func drawToolbarMarks(ctx context.Context, dst *image.NRGBA, r image.Rectangle, b *BrowserConfig) error {
 	sx, sy := float64(dst.Bounds().Dx())/browserRefWidth, float64(dst.Bounds().Dy())/browserRefHeight
 	s := math.Min(sx, sy)
@@ -567,9 +615,11 @@ func drawToolbarMarks(ctx context.Context, dst *image.NRGBA, r image.Rectangle, 
 	if err := fillRounded(ctx, dst, addr, 12*s, field); err != nil {
 		return err
 	}
-	lockX, lockY := addr.Min.X+int(math.Round(13*sx)), addr.Min.Y+int(math.Round(14*sy))
-	strokeRect(dst, image.Rect(lockX, lockY, lockX+max(5, int(math.Round(8*s))), lockY+max(5, int(math.Round(7*s)))), muted)
-	drawCircle(dst, image.Pt(lockX+max(2, int(math.Round(4*s))), lockY), max(2, int(math.Round(3*s))), field)
+	lockX, lockY := addr.Min.X+int(math.Round(13*sx)), addr.Min.Y+int(math.Round(15*sy))
+	lockWidth, lockHeight := max(6, int(math.Round(9*s))), max(5, int(math.Round(7*s)))
+	shackleTop := lockY - max(3, int(math.Round(5*s)))
+	strokeRect(dst, image.Rect(lockX+max(1, int(math.Round(2*s))), shackleTop, lockX+lockWidth-max(1, int(math.Round(2*s))), lockY+1), muted)
+	strokeRect(dst, image.Rect(lockX, lockY, lockX+lockWidth, lockY+lockHeight), muted)
 	textX := lockX + int(math.Round(18*sx))
 	if b.Address != "" {
 		return drawPinnedText(ctx, dst, b.Address, textX, addr.Min.Y+int(math.Round(18*sy)), addr.Max.X-textX-int(math.Round(10*sx)), 12*s, muted)
@@ -584,9 +634,10 @@ func drawNavArrow(dst *image.NRGBA, p image.Point, back bool, c color.NRGBA, sca
 		dir = -1
 	}
 	thick := max(1, int(math.Round(1.6*scale)))
-	drawLine(dst, image.Pt(p.X-dir*delta, p.Y), image.Pt(p.X+dir*delta, p.Y), c, thick)
-	drawLine(dst, image.Pt(p.X-dir*delta, p.Y), image.Pt(p.X-dir*delta/2, p.Y-delta/2), c, thick)
-	drawLine(dst, image.Pt(p.X-dir*delta, p.Y), image.Pt(p.X-dir*delta/2, p.Y+delta/2), c, thick)
+	tip := p.X + dir*delta
+	drawLine(dst, image.Pt(p.X-dir*delta, p.Y), image.Pt(tip, p.Y), c, thick)
+	drawLine(dst, image.Pt(tip, p.Y), image.Pt(tip-dir*delta/2, p.Y-delta/2), c, thick)
+	drawLine(dst, image.Pt(tip, p.Y), image.Pt(tip-dir*delta/2, p.Y+delta/2), c, thick)
 }
 
 func drawReload(dst *image.NRGBA, p image.Point, c color.NRGBA, scale float64) {
@@ -601,12 +652,6 @@ func drawReload(dst *image.NRGBA, p image.Point, c color.NRGBA, scale float64) {
 	drawLine(dst, image.Pt(p.X+r-1, p.Y-r/2), image.Pt(p.X+r+1, p.Y-r/2+max(2, int(math.Round(3*scale)))), c, max(1, int(math.Round(scale))))
 }
 
-func statusInk(a Appearance) color.NRGBA {
-	if a == AppearanceLight {
-		return color.NRGBA{R: 30, G: 34, B: 42, A: 255}
-	}
-	return color.NRGBA{R: 236, G: 240, B: 247, A: 255}
-}
 func drawCircle(dst *image.NRGBA, center image.Point, r int, c color.NRGBA) {
 	if r <= 0 {
 		return
@@ -621,6 +666,7 @@ func drawCircle(dst *image.NRGBA, center image.Point, r int, c color.NRGBA) {
 		}
 	}
 }
+
 func drawCircleContext(ctx context.Context, dst *image.NRGBA, center image.Point, r int, c color.NRGBA) error {
 	if r <= 0 {
 		return nil
@@ -639,6 +685,7 @@ func drawCircleContext(ctx context.Context, dst *image.NRGBA, center image.Point
 	}
 	return nil
 }
+
 func fillFast(dst *image.NRGBA, r image.Rectangle, c color.NRGBA) {
 	r = r.Intersect(dst.Bounds())
 	for y := r.Min.Y; y < r.Max.Y; y++ {

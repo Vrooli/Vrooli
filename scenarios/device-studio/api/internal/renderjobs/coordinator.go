@@ -6,6 +6,8 @@ package renderjobs
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -18,49 +20,71 @@ import (
 	"time"
 
 	"device-studio/internal/jobs"
+	"device-studio/internal/library"
+	"device-studio/internal/physical"
 	"device-studio/internal/projects"
 	"device-studio/internal/rendering"
 	"device-studio/internal/shots"
 	"github.com/vrooli/api-core/blobstore"
 	"github.com/vrooli/api-core/filerouting"
 	platform "github.com/vrooli/platform-go"
+	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 )
 
 const (
-	OwnerID                                 = "device-studio"
-	OutputProfilePNG                        = "png-native-v1"
-	RendererVersion                         = "go-still-homography-v1"
-	workerBlobPrefix                        = "renderjobs/workers/"
-	intentBlobPrefix                        = "renderjobs/intents/"
-	operationEvidenceBlobPrefix             = "renderjobs/operation-evidence/"
-	outputBlobPrefix                        = "renderjobs/outputs/"
-	receiptBlobPrefix                       = "renderjobs/receipts/"
-	quiescenceBlobPrefix                    = "renderjobs/quiescence/"
-	workspaceRelativeRoot                   = "device-studio/renderjobs"
-	workerFileName                          = "worker"
-	manifestMode                os.FileMode = 0o600
-	workerMode                  os.FileMode = 0o700
-	maxWorkerBytes                          = 256 << 20
-	maxManifestBytes                        = 64 << 10
-	maxReceiptBytes                         = 64 << 10
-	maxOutputBytes                          = 160 << 20
-	maxOutputPixels                         = 16_000_000
-	maxWorkerInputBytes                     = 64 << 20
-	stageTimeout                            = 30 * time.Second
-	ownerCallTimeout                        = 15 * time.Second
-	operationWallTime                       = 10 * time.Minute
+	OwnerID          = "device-studio"
+	OutputProfilePNG = "png-native-v1"
+	// OutputProfileMP4 is the caller-selected media format. Physical motion
+	// jobs store a more specific immutable profile chosen by the shot revision.
+	OutputProfileMP4                              = "mp4-h264-sdr-v1"
+	OutputProfilePhysicalMotionMP4                = "physical-motion-mp4-h264-sdr-v1"
+	OutputProfilePhysicalMotionMP4V2              = "physical-motion-mp4-h264-sdr-v2"
+	OutputProfilePhysicalRecordingMP4             = "physical-recording-mp4-h264-sdr-v1"
+	OutputProfilePhysicalPreviewPNG               = "physical-preview-png-v1"
+	RendererVersion                               = "go-still-homography-v1"
+	workerBlobPrefix                              = "renderjobs/workers/"
+	intentBlobPrefix                              = "renderjobs/intents/"
+	closureBlobPrefix                             = "renderjobs/closures/"
+	inputBlobPrefix                               = "renderjobs/inputs/"
+	operationEvidenceBlobPrefix                   = "renderjobs/operation-evidence/"
+	outputBlobPrefix                              = "renderjobs/outputs/"
+	receiptBlobPrefix                             = "renderjobs/receipts/"
+	quiescenceBlobPrefix                          = "renderjobs/quiescence/"
+	workspaceRelativeRoot                         = "device-studio/renderjobs"
+	workerFileName                                = "worker"
+	manifestMode                      os.FileMode = 0o600
+	workerMode                        os.FileMode = 0o700
+	maxWorkerBytes                                = 256 << 20
+	maxManifestBytes                              = 64 << 10
+	maxReceiptBytes                               = 64 << 10
+	maxOutputBytes                                = 160 << 20
+	maxOutputPixels                               = 16_000_000
+	maxWorkerInputBytes               int64       = 64 << 20
+	maxInspectionInputBytes           int64       = 512 << 20
+	maxInspectionSidecarBytes         int64       = 64 << 10
+	maxPhysicalManifestBytes          int64       = 4 << 20
+	maxPhysicalClosureBytes           int64       = 5 << 20
+	stageTimeout                                  = 30 * time.Second
+	ownerCallTimeout                              = 15 * time.Second
+	operationWallTime                             = 10 * time.Minute
 )
 
 var (
-	ErrInvalidRequest = errors.New("renderjobs: invalid request")
-	ErrRouteMismatch  = errors.New("renderjobs: stored job belongs to a different storage route")
-	ErrUnknownOutcome = errors.New("renderjobs: operation outcome is unknown; automatic redispatch is forbidden")
-	ErrNotEligible    = errors.New("renderjobs: shot revision is not eligible for this still profile")
-	jobIDPattern      = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$`)
+	ErrInvalidRequest    = errors.New("renderjobs: invalid request")
+	ErrRouteMismatch     = errors.New("renderjobs: stored job belongs to a different storage route")
+	ErrUnknownOutcome    = errors.New("renderjobs: operation outcome is unknown; automatic redispatch is forbidden")
+	ErrNotEligible       = errors.New("renderjobs: shot revision is not eligible for this still profile")
+	ErrOutputUnavailable = errors.New("renderjobs: output is not available yet")
+	jobIDPattern         = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$`)
+	stageFilePattern     = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`)
 )
 
 type ShotResolver interface {
 	ResolveForRender(context.Context, string, int64) (shots.ResolvedShot, error)
+}
+
+type PhysicalArtifactResolver interface {
+	Resolve(context.Context, physical.ArtifactRef, library.Use) (library.ResolvedArtifact, error)
 }
 
 // OperationOwner is the narrow part of platform-go used by the coordinator.
@@ -79,42 +103,97 @@ type platformOperations struct{}
 func (platformOperations) NewIntent(owner, attempt string, spec platform.OperationSpec) (platform.OperationIntent, error) {
 	return platform.NewOperationIntent(owner, attempt, spec)
 }
+
 func (platformOperations) Start(ctx context.Context, intent platform.OperationIntent, spec platform.OperationSpec) (*platform.OwnedOperation, error) {
 	return platform.StartOwnedOperation(ctx, intent, spec)
 }
+
 func (platformOperations) Lookup(ctx context.Context, intent platform.OperationIntent) (platform.OperationRef, error) {
 	return platform.LookupOwnedOperation(ctx, intent)
 }
+
 func (platformOperations) Inspect(ctx context.Context, ref platform.OperationRef) (platform.OperationObservation, error) {
 	return platform.InspectOwnedOperation(ctx, ref)
 }
+
 func (platformOperations) Stop(ctx context.Context, ref platform.OperationRef) (platform.OperationStopReceipt, error) {
 	return platform.StopOwnedOperation(ctx, ref)
 }
+
 func (platformOperations) Release(ctx context.Context, ref platform.OperationRef) error {
 	return platform.ReleaseOwnedOperation(ctx, ref)
 }
 
 type Dependencies struct {
-	Shots ShotResolver
-	Media projects.SourceMediaService
-	Jobs  jobs.Service
-	Blobs blobstore.BlobStore
-	Roots *filerouting.RoutedRoots
-	Ops   OperationOwner
-	Exe   func() (string, error)
-	Now   func() time.Time
+	Shots             ShotResolver
+	Media             projects.SourceMediaService
+	Jobs              jobs.Service
+	Blobs             blobstore.BlobStore
+	Roots             *filerouting.RoutedRoots
+	Ops               OperationOwner
+	Exe               func() (string, error)
+	InspectionProfile func(context.Context) (*cliv1.RendererToolProfile, error)
+	PhysicalArtifacts PhysicalArtifactResolver
+	PhysicalProfile   func(context.Context) ([]byte, *cliv1.BlenderToolProfile, error)
+	PhysicalAdapter   func() []byte
+	GeneratedIntake   interface {
+		PersistGenerated(context.Context, library.IntakeClaims, string, library.CreationLineage, []byte) (library.IntakeCandidate, error)
+	}
+	Now func() time.Time
 }
 
 type Coordinator struct {
-	shots ShotResolver
-	media projects.SourceMediaService
-	jobs  jobs.Service
-	blobs blobstore.BlobStore
-	roots *filerouting.RoutedRoots
-	ops   OperationOwner
-	exe   func() (string, error)
-	now   func() time.Time
+	shots             ShotResolver
+	media             projects.SourceMediaService
+	jobs              jobs.Service
+	blobs             blobstore.BlobStore
+	roots             *filerouting.RoutedRoots
+	ops               OperationOwner
+	exe               func() (string, error)
+	now               func() time.Time
+	adapters          map[jobs.SubjectKind]subjectAdapter
+	inspectionProfile func(context.Context) (*cliv1.RendererToolProfile, error)
+	physicalArtifacts PhysicalArtifactResolver
+	physicalProfile   func(context.Context) ([]byte, *cliv1.BlenderToolProfile, error)
+	physicalAdapter   func() []byte
+	generatedIntake   interface {
+		PersistGenerated(context.Context, library.IntakeClaims, string, library.CreationLineage, []byte) (library.IntakeCandidate, error)
+	}
+}
+
+type operationMode string
+
+const (
+	operationStillRender       operationMode = "still-render-v1"
+	operationSourceInspect     operationMode = "source-inspect-v1"
+	operationVideoRender       operationMode = "video-render-v1"
+	operationPhysicalRender    operationMode = "physical-render-v1"
+	operationPhysicalMotion    operationMode = "physical-motion-render-v2"
+	operationPhysicalMotionV2  operationMode = "physical-motion-render-v3"
+	operationPhysicalPreview   operationMode = "physical-preview-render-v1"
+	operationPhysicalRecording operationMode = "physical-recording-render-v1"
+	operationGeometryCreate    operationMode = "geometry-create-local-v1"
+)
+
+type stagedFile struct {
+	Name     string
+	Data     []byte
+	BlobKey  string
+	SHA256   string
+	Size     int64
+	Mode     os.FileMode
+	Open     func(context.Context) (io.ReadCloser, error)
+	MaxBytes int64
+}
+
+// preparedOperation separates subject payloads from the one execution
+// lifecycle. Large immutable inputs can stay in routed blob storage and are
+// streamed into the private workspace with size and digest verification.
+type preparedOperation struct {
+	Mode          operationMode
+	ManifestBytes []byte
+	Files         []stagedFile
+	MaxInputBytes int64
 }
 
 type SubmitRequest struct {
@@ -123,6 +202,7 @@ type SubmitRequest struct {
 	Revision       int64
 	IdempotencyKey string
 	OutputProfile  string
+	VideoMode      rendering.VideoMode
 }
 
 // New rejects partial owner wiring so an incomplete route can never become a
@@ -140,7 +220,15 @@ func New(d Dependencies) (*Coordinator, error) {
 	if d.Now == nil {
 		d.Now = time.Now
 	}
-	return &Coordinator{shots: d.Shots, media: d.Media, jobs: d.Jobs, blobs: d.Blobs, roots: d.Roots, ops: d.Ops, exe: d.Exe, now: d.Now}, nil
+	if d.PhysicalProfile == nil {
+		d.PhysicalProfile = rendering.ResolvePhysicalBlenderProfile
+	}
+	if d.PhysicalAdapter == nil {
+		d.PhysicalAdapter = rendering.PhysicalAdapterBytes
+	}
+	c := &Coordinator{shots: d.Shots, media: d.Media, jobs: d.Jobs, blobs: d.Blobs, roots: d.Roots, ops: d.Ops, exe: d.Exe, now: d.Now, inspectionProfile: d.InspectionProfile, physicalArtifacts: d.PhysicalArtifacts, physicalProfile: d.PhysicalProfile, physicalAdapter: d.PhysicalAdapter, generatedIntake: d.GeneratedIntake}
+	c.adapters = map[jobs.SubjectKind]subjectAdapter{jobs.SubjectStillRender: stillSubjectAdapter{}, jobs.SubjectSourceInspection: sourceInspectionAdapter{}, jobs.SubjectVideoRender: videoSubjectAdapter{}, jobs.SubjectPhysicalRender: physicalSubjectAdapter{}, jobs.SubjectGeometryCreate: geometryCreationAdapter{}}
+	return c, nil
 }
 
 // Submit creates an immutable still job. It pins the exact running executable
@@ -149,17 +237,36 @@ func New(d Dependencies) (*Coordinator, error) {
 func (c *Coordinator) Submit(ctx context.Context, req SubmitRequest) (jobs.Job, bool, error) {
 	ctx, cancel := boundedDetached(ctx, stageTimeout)
 	defer cancel()
-	if req.OutputProfile == "" {
+	if req.OutputProfile == "" && req.VideoMode == "" {
 		req.OutputProfile = OutputProfilePNG
+	}
+	if req.OutputProfile == "" && req.VideoMode == rendering.VideoModeSample {
+		req.OutputProfile = videoSampleOutputProfile
+	}
+	if req.OutputProfile == "" && req.VideoMode == rendering.VideoModeFinal {
+		req.OutputProfile = videoFinalOutputProfile
+	}
+	if req.VideoMode != "" {
+		return c.submitVideo(ctx, req)
 	}
 	if err := validateSubmitRequest(req); err != nil {
 		return jobs.Job{}, false, err
 	}
+	spanStarted := time.Now()
 	route, err := c.route(ctx)
+	submitTimingSpan(ctx, "route", spanStarted)
 	if err != nil {
 		return jobs.Job{}, false, err
 	}
+	spanStarted = time.Now()
+	existing, found, lookupErr := c.findIdempotentSubmit(ctx, route, req)
+	submitTimingSpan(ctx, "idempotency", spanStarted)
+	if lookupErr != nil || found {
+		return existing, false, lookupErr
+	}
+	spanStarted = time.Now()
 	resolved, err := c.shots.ResolveForRender(ctx, req.ShotID, req.Revision)
+	submitTimingSpan(ctx, "shot_resolve", spanStarted)
 	if err != nil {
 		return jobs.Job{}, false, fmt.Errorf("resolve immutable shot: %w", err)
 	}
@@ -168,6 +275,12 @@ func (c *Coordinator) Submit(ctx context.Context, req SubmitRequest) (jobs.Job, 
 	}
 	if !resolved.Revision.RenderEligible {
 		return jobs.Job{}, false, fmt.Errorf("%w: %v", ErrNotEligible, resolved.Revision.Issues)
+	}
+	if resolved.Revision.Physical != nil {
+		return c.submitPhysical(ctx, route, req, resolved)
+	}
+	if req.OutputProfile != OutputProfilePNG {
+		return jobs.Job{}, false, fmt.Errorf("%w: this output profile requires an immutable physical motion shot", ErrInvalidRequest)
 	}
 	if err := validateStillProfile(resolved.Revision); err != nil {
 		return jobs.Job{}, false, err
@@ -180,28 +293,64 @@ func (c *Coordinator) Submit(ctx context.Context, req SubmitRequest) (jobs.Job, 
 	if err := c.putVerified(ctx, route, workerKey, workerBytes, "application/octet-stream", workerDigest); err != nil {
 		return jobs.Job{}, false, fmt.Errorf("pin private worker bytes: %w", err)
 	}
-	profileDigest, err := toolProfileDigest(workerDigest, req.OutputProfile)
+	profileDigest, err := toolProfileDigest(workerDigest, req.OutputProfile, resolved.Revision.CompositorProfile)
 	if err != nil {
 		return jobs.Job{}, false, err
+	}
+	closure, closureBytes, closureKey, err := c.freezeClosure(ctx, route, resolved, workerKey, workerDigest, workerBytes, req.OutputProfile)
+	if err != nil {
+		return jobs.Job{}, false, fmt.Errorf("freeze immutable render closure: %w", err)
 	}
 	bindings, err := bindingsForShot(resolved, route, workerKey, workerDigest)
 	if err != nil {
 		return jobs.Job{}, false, err
 	}
+	closureSHA := digestBytes(closureBytes)
+	bindings = append(bindings, closureBindings(closure, closureKey, closureSHA)...)
 	input := jobs.Input{
 		ProjectID:      req.ProjectID,
 		ShotRevisionID: shotRevisionID(req.ShotID, req.Revision), ShotRevision: req.Revision,
 		Bindings: bindings, SourceClockDigest: stillClockDigest(), ToolProfileDigest: profileDigest,
-		RendererVersion: RendererVersion, OutputProfile: req.OutputProfile,
+		RendererVersion: closure.RendererVersion, OutputProfile: req.OutputProfile,
 	}
 	if err := c.requireRoute(ctx, route); err != nil {
 		return jobs.Job{}, false, err
 	}
 	job, created, err := c.jobs.Submit(ctx, jobs.SubmitInput{IdempotencyKey: req.IdempotencyKey, Input: input})
 	if err != nil {
+		if errors.Is(err, jobs.ErrIdempotencyConflict) {
+			if existing, found, lookupErr := c.findIdempotentSubmit(ctx, route, req); lookupErr != nil || found {
+				return existing, false, lookupErr
+			}
+		}
 		return jobs.Job{}, false, err
 	}
 	return job, created, nil
+}
+
+func (c *Coordinator) findIdempotentSubmit(ctx context.Context, route routePin, req SubmitRequest) (jobs.Job, bool, error) {
+	existing, err := c.jobs.FindByIdempotencyKey(ctx, req.IdempotencyKey)
+	if errors.Is(err, jobs.ErrNotFound) {
+		return jobs.Job{}, false, nil
+	}
+	if err != nil {
+		return jobs.Job{}, false, err
+	}
+	if existing.Input.ProjectID != req.ProjectID || existing.Input.ShotRevisionID != shotRevisionID(req.ShotID, req.Revision) || existing.Input.ShotRevision != req.Revision || !idempotentOutputProfileMatches(existing.Input, req.OutputProfile) {
+		return jobs.Job{}, false, jobs.ErrIdempotencyConflict
+	}
+	if err := verifyJobRoute(existing, route); err != nil {
+		return jobs.Job{}, false, err
+	}
+	return existing, true, nil
+}
+
+func idempotentOutputProfileMatches(input jobs.Input, requested string) bool {
+	if input.OutputProfile == requested {
+		return true
+	}
+	return requested == OutputProfileMP4 && input.SubjectKind == jobs.SubjectPhysicalRender &&
+		(input.OutputProfile == OutputProfilePhysicalMotionMP4 || input.OutputProfile == OutputProfilePhysicalMotionMP4V2 || input.OutputProfile == OutputProfilePhysicalRecordingMP4)
 }
 
 // Advance performs one caller-requested progress step. A queued job stages and
@@ -291,44 +440,138 @@ func (c *Coordinator) OpenOutput(ctx context.Context, projectID, jobID string) (
 	ctx, cancel := boundedDetached(ctx, stageTimeout)
 	defer cancel()
 	route, err := c.route(ctx)
-	if err != nil { return jobs.Job{}, nil, err }
+	if err != nil {
+		return jobs.Job{}, nil, err
+	}
 	j, err := c.jobs.Get(ctx, jobID)
-	if err != nil { return jobs.Job{}, nil, err }
-	if err := verifyJobRoute(j, route); err != nil { return jobs.Job{}, nil, err }
-	if j.Input.ProjectID != projectID { return jobs.Job{}, nil, jobs.ErrNotFound }
-	if j.State != jobs.Succeeded || len(j.Attempts) == 0 { return jobs.Job{}, nil, errors.New("renderjobs: output is not available") }
+	if err != nil {
+		return jobs.Job{}, nil, err
+	}
+	if err := verifyJobRoute(j, route); err != nil {
+		return jobs.Job{}, nil, err
+	}
+	if j.Input.ProjectID != projectID {
+		return jobs.Job{}, nil, jobs.ErrNotFound
+	}
+	if !isPublicStillJob(j) {
+		return jobs.Job{}, nil, jobs.ErrNotFound
+	}
+	if j.State != jobs.Succeeded || len(j.Attempts) == 0 {
+		return jobs.Job{}, nil, ErrOutputUnavailable
+	}
 	a := j.Attempts[len(j.Attempts)-1]
-	if a.Completion == nil { return jobs.Job{}, nil, errors.New("renderjobs: completed job has no output evidence") }
+	if a.Completion == nil {
+		return jobs.Job{}, nil, ErrOutputUnavailable
+	}
 	var ref *jobs.OutputRef
-	for i := range a.Completion.Outputs { if a.Completion.Outputs[i].Kind == "still_png" { ref = &a.Completion.Outputs[i]; break } }
+	wantKind := "still_png"
+	if j.Input.SubjectKind == jobs.SubjectPhysicalRender {
+		wantKind = physicalOutputKind(j.Input.OutputProfile)
+	}
+	for i := range a.Completion.Outputs {
+		if a.Completion.Outputs[i].Kind == wantKind {
+			ref = &a.Completion.Outputs[i]
+			break
+		}
+	}
 	if ref == nil || ref.MIMEType != "image/png" || ref.SizeBytes <= 0 || !validDigest(ref.SHA256) || ref.Width <= 0 || ref.Height <= 0 || int64(ref.Width)*int64(ref.Height) > maxOutputPixels {
 		return jobs.Job{}, nil, errors.New("renderjobs: output metadata is invalid")
 	}
 	data, err := c.readBlob(ctx, ref.ArtifactID, maxOutputBytes, ref.SHA256)
-	if err != nil { return jobs.Job{}, nil, err }
-	if int64(len(data)) != ref.SizeBytes { return jobs.Job{}, nil, errors.New("renderjobs: output byte count changed") }
+	if err != nil {
+		return jobs.Job{}, nil, err
+	}
+	if int64(len(data)) != ref.SizeBytes {
+		return jobs.Job{}, nil, errors.New("renderjobs: output byte count changed")
+	}
 	config, err := png.DecodeConfig(bytes.NewReader(data))
-	if err != nil || config.Width != ref.Width || config.Height != ref.Height { return jobs.Job{}, nil, errors.New("renderjobs: stored output PNG metadata failed verification") }
-	if _, err := png.Decode(bytes.NewReader(data)); err != nil { return jobs.Job{}, nil, errors.New("renderjobs: stored output PNG failed full decode") }
-	if err := c.requireRoute(ctx, route); err != nil { return jobs.Job{}, nil, err }
+	if err != nil || config.Width != ref.Width || config.Height != ref.Height {
+		return jobs.Job{}, nil, errors.New("renderjobs: stored output PNG metadata failed verification")
+	}
+	if _, err := png.Decode(bytes.NewReader(data)); err != nil {
+		return jobs.Job{}, nil, errors.New("renderjobs: stored output PNG failed full decode")
+	}
+	if err := c.requireRoute(ctx, route); err != nil {
+		return jobs.Job{}, nil, err
+	}
 	return j, data, nil
 }
 
+func physicalOutputKind(profile string) string {
+	if profile == OutputProfilePhysicalPreviewPNG {
+		return "physical_preview_png"
+	}
+	if profile == OutputProfilePhysicalMotionMP4 || profile == OutputProfilePhysicalMotionMP4V2 || profile == OutputProfilePhysicalRecordingMP4 {
+		return "physical_motion_mp4"
+	}
+	return "physical_still_png"
+}
+
 func (c *Coordinator) GetProjectJob(ctx context.Context, projectID, jobID string) (jobs.Job, error) {
-	ctx, cancel := boundedDetached(ctx, ownerCallTimeout); defer cancel()
-	route, err := c.route(ctx); if err != nil { return jobs.Job{}, err }
-	j, err := c.jobs.Get(ctx, jobID); if err != nil { return jobs.Job{}, err }
-	if err := verifyJobRoute(j, route); err != nil { return jobs.Job{}, err }
-	if j.Input.ProjectID != projectID { return jobs.Job{}, jobs.ErrNotFound }
+	ctx, cancel := boundedDetached(ctx, ownerCallTimeout)
+	defer cancel()
+	route, err := c.route(ctx)
+	if err != nil {
+		return jobs.Job{}, err
+	}
+	j, err := c.jobs.Get(ctx, jobID)
+	if err != nil {
+		return jobs.Job{}, err
+	}
+	if err := verifyJobRoute(j, route); err != nil {
+		return jobs.Job{}, err
+	}
+	if j.Input.ProjectID != projectID {
+		return jobs.Job{}, jobs.ErrNotFound
+	}
+	if !isPublicRenderJob(j) {
+		return jobs.Job{}, jobs.ErrNotFound
+	}
 	return j, nil
 }
 
+func isPublicRenderJob(j jobs.Job) bool {
+	return j.Input.SubjectKind == "" || j.Input.SubjectKind == jobs.SubjectStillRender || j.Input.SubjectKind == jobs.SubjectVideoRender || j.Input.SubjectKind == jobs.SubjectPhysicalRender
+}
+
+func isPublicStillJob(j jobs.Job) bool {
+	return j.Input.SubjectKind == "" || j.Input.SubjectKind == jobs.SubjectStillRender || j.Input.SubjectKind == jobs.SubjectPhysicalRender
+}
+
 func (c *Coordinator) ListProjectJobs(ctx context.Context, projectID string, cursor jobs.Cursor, limit int) ([]jobs.Job, error) {
-	ctx, cancel := boundedDetached(ctx, ownerCallTimeout); defer cancel()
-	route, err := c.route(ctx); if err != nil { return nil, err }
-	rows, err := c.jobs.ListProject(ctx, projectID, cursor, limit); if err != nil { return nil, err }
-	for _, row := range rows { if err := verifyJobRoute(row, route); err != nil { return nil, err } }
-	return rows, nil
+	if limit < 1 || limit > 101 {
+		return nil, ErrInvalidRequest
+	}
+	ctx, cancel := boundedDetached(ctx, ownerCallTimeout)
+	defer cancel()
+	route, err := c.route(ctx)
+	if err != nil {
+		return nil, err
+	}
+	const scanPageSize = 100
+	visible := make([]jobs.Job, 0, limit)
+	for len(visible) < limit {
+		rows, err := c.jobs.ListProject(ctx, projectID, cursor, scanPageSize)
+		if err != nil {
+			return nil, err
+		}
+		for _, row := range rows {
+			if err := verifyJobRoute(row, route); err != nil {
+				return nil, err
+			}
+			cursor = jobs.Cursor{CreatedAt: row.CreatedAt, ID: row.ID}
+			if isPublicRenderJob(row) {
+				visible = append(visible, row)
+				if len(visible) == limit {
+					return visible, nil
+				}
+			}
+		}
+		if len(rows) < scanPageSize {
+			return visible, nil
+		}
+	}
+	return visible, nil
 }
 
 func (c *Coordinator) dispatch(ctx context.Context, route routePin, j jobs.Job) (jobs.Job, error) {
@@ -336,39 +579,75 @@ func (c *Coordinator) dispatch(ctx context.Context, route routePin, j jobs.Job) 
 	if !ok || a.State != jobs.AttemptQueued || a.Execution != nil {
 		return j, ErrUnknownOutcome
 	}
-	resolved, err := c.resolveJobShot(ctx, j)
+	adapter, err := c.adapterFor(j)
 	if err != nil {
-		return j, err
-	}
-	if err := validateStillProfile(resolved.Revision); err != nil {
 		return j, err
 	}
 	workspace, err := attemptWorkspace(route.Root, j.ID, a.ID)
 	if err != nil {
 		return j, err
 	}
-	prepared, err := c.prepareAttempt(ctx, route, j, a, resolved)
+	prepared, err := adapter.prepare(ctx, c, route, j, a)
 	if err != nil {
+		if errors.Is(err, errDeterministicPreparation) {
+			return c.rejectQueuedPreparation(ctx, route, j, a, err)
+		}
 		return j, err
 	}
-	manifest := prepared.Manifest
-	manifestBytes, err := json.Marshal(manifest)
-	if err != nil {
-		return j, err
+	workerSHA := bindingDigest(j.Input, "worker_executable")
+	manifestBytes := append([]byte(nil), prepared.ManifestBytes...)
+	if len(manifestBytes) == 0 || !json.Valid(bytes.TrimSpace(manifestBytes)) {
+		return j, errors.New("renderjobs: subject adapter returned an invalid manifest")
 	}
-	manifestBytes = append(manifestBytes, '\n')
-	if len(manifestBytes) > maxManifestBytes {
+	if manifestBytes[len(manifestBytes)-1] != '\n' {
+		manifestBytes = append(manifestBytes, '\n')
+	}
+	manifestLimit := int64(maxManifestBytes)
+	if modeForJob, modeErr := operationModeForJob(j.Input); modeErr == nil && isPhysicalOperation(modeForJob) {
+		manifestLimit = maxPhysicalManifestBytes
+	}
+	if int64(len(manifestBytes)) > manifestLimit {
 		return j, errors.New("renderjobs: manifest exceeds the worker limit")
 	}
 	manifestSHA := digestBytes(manifestBytes)
+	mode := prepared.Mode
+	expectedMode, err := operationModeForJob(j.Input)
+	if err != nil {
+		return j, err
+	}
+	if mode == "" {
+		mode = expectedMode
+	}
+	if mode != expectedMode {
+		return j, errors.New("renderjobs: subject adapter selected a mismatched operation mode")
+	}
+	manifestName := rendering.ManifestName
+	if mode == operationSourceInspect {
+		manifestName = "inspection-manifest.json"
+	}
+	if mode == operationVideoRender {
+		manifestName = "video-manifest.json"
+	}
+	if isPhysicalOperation(mode) {
+		manifestName = rendering.PhysicalManifestName
+	}
+	if mode == operationGeometryCreate {
+		manifestName = rendering.GeometryManifestName
+	}
 	workerPath := filepath.Join(workspace, workerFileName)
-	manifestPath := filepath.Join(workspace, rendering.ManifestName)
-	spec := operationSpec(workerPath, manifestPath, workspace)
+	manifestPath := filepath.Join(workspace, manifestName)
+	spec, err := operationSpecFor(mode, workerPath, manifestPath, workspace)
+	if err != nil {
+		return j, err
+	}
 	intent, err := c.ops.NewIntent(OwnerID, a.ID, spec)
 	if err != nil {
 		return j, fmt.Errorf("create operation intent: %w", err)
 	}
-	envelope := persistedIntent{Version: 1, JobID: j.ID, AttemptID: a.ID, InputFingerprint: j.InputFingerprint, Route: route, Intent: intent, Spec: spec, ManifestSHA256: manifestSHA, WorkerSHA256: bindingDigest(j.Input, "worker_executable")}
+	envelope := persistedIntent{Version: 1, JobID: j.ID, AttemptID: a.ID, InputFingerprint: j.InputFingerprint, Route: route, Intent: intent, Spec: spec, ManifestSHA256: manifestSHA, WorkerSHA256: workerSHA}
+	if mode != operationStillRender {
+		envelope.Mode = mode
+	}
 	intentBytes, err := json.Marshal(envelope)
 	if err != nil {
 		return j, err
@@ -391,27 +670,60 @@ func (c *Coordinator) dispatch(ctx context.Context, route routePin, j jobs.Job) 
 	if _, err := c.createAttemptWorkspace(ctx, route, j, a); err != nil {
 		return c.failBeforeNativeStart(ctx, route, started, a.ID, err)
 	}
-	for _, name := range []string{"worker", "plate.image", "screen.image", "active-mask.png", "hardware-mask.png"} {
-		data, ok := prepared.Files[name]
-		if !ok {
-			continue
-		}
-		mode := manifestMode
-		if name == workerFileName {
-			mode = workerMode
-		}
-		if err := c.writeWorkspaceFile(ctx, route, workspace, name, data, mode, true); err != nil {
-			return c.failBeforeNativeStart(ctx, route, started, a.ID, fmt.Errorf("stage %s after execution claim: %w", name, err))
+	if isPhysicalOperation(mode) {
+		if err := c.createPhysicalSandbox(ctx, route, workspace); err != nil {
+			return c.failBeforeNativeStart(ctx, route, started, a.ID, err)
 		}
 	}
-	if err := c.writeWorkspaceFile(ctx, route, workspace, rendering.ManifestName, manifestBytes, manifestMode, true); err != nil {
+	workerBinding := bindingByRole(j.Input, "worker_executable")
+	if workerBinding.ArtifactID == "" || workerBinding.SHA256 != workerSHA {
+		return c.failBeforeNativeStart(ctx, route, started, a.ID, errors.New("subject operation lacks its pinned worker binding"))
+	}
+	workerBytes, err := c.readBlob(ctx, workerBinding.ArtifactID, maxWorkerBytes, workerSHA)
+	if err != nil {
+		return c.failBeforeNativeStart(ctx, route, started, a.ID, fmt.Errorf("read pinned worker executable: %w", err))
+	}
+	if err := c.writeWorkspaceFile(ctx, route, workspace, workerFileName, workerBytes, workerMode, true); err != nil {
+		return c.failBeforeNativeStart(ctx, route, started, a.ID, fmt.Errorf("stage worker after execution claim: %w", err))
+	}
+	maxInputBytes := maxWorkerInputBytes
+	if mode == operationSourceInspect {
+		maxInputBytes = maxInspectionInputBytes
+	} else if mode == operationVideoRender {
+		maxInputBytes = maxVideoInputBytes
+	} else if isPhysicalOperation(mode) {
+		maxInputBytes = physicalWorkspaceInputMax
+	}
+	if prepared.MaxInputBytes != 0 && prepared.MaxInputBytes != maxInputBytes {
+		return c.failBeforeNativeStart(ctx, route, started, a.ID, errors.New("subject input limit does not match its operation mode"))
+	}
+	var stagedBytes int64
+	stagingLimit := maxInputBytes
+	if mode == operationSourceInspect {
+		stagingLimit += maxInspectionSidecarBytes
+	} else if mode == operationVideoRender {
+		stagingLimit = maxVideoWorkspaceInputBytes
+	} else if isPhysicalOperation(mode) {
+		stagingLimit = physicalWorkspaceInputMax + (1 << 20) + (64 << 10)
+	}
+	for _, file := range prepared.Files {
+		size := file.Size
+		if size == 0 {
+			size = int64(len(file.Data))
+		}
+		stagedBytes += size
+		if stagedBytes > stagingLimit {
+			return c.failBeforeNativeStart(ctx, route, started, a.ID, errors.New("subject input staging exceeds aggregate limit"))
+		}
+		if err := c.stagePreparedFile(ctx, route, workspace, j, file, maxInputBytes); err != nil {
+			return c.failBeforeNativeStart(ctx, route, started, a.ID, fmt.Errorf("stage %s after execution claim: %w", file.Name, err))
+		}
+	}
+	if err := c.writeWorkspaceFile(ctx, route, workspace, manifestName, manifestBytes, manifestMode, true); err != nil {
 		return c.failBeforeNativeStart(ctx, route, started, a.ID, fmt.Errorf("stage manifest after execution claim: %w", err))
 	}
 	if err := c.writeWorkspaceFile(ctx, route, workspace, "intent.json", intentBytes, manifestMode, true); err != nil {
 		return c.failBeforeNativeStart(ctx, route, started, a.ID, fmt.Errorf("stage intent after execution claim: %w", err))
-	}
-	if digestBytes(prepared.Files[workerFileName]) != envelope.WorkerSHA256 {
-		return c.failBeforeNativeStart(ctx, route, started, a.ID, errors.New("pinned worker changed before dispatch"))
 	}
 	if err := c.requireRoute(ctx, route); err != nil {
 		return started, err
@@ -445,6 +757,22 @@ func (c *Coordinator) dispatch(ctx context.Context, route routePin, j jobs.Job) 
 	return started, nil
 }
 
+func (c *Coordinator) rejectQueuedPreparation(ctx context.Context, route routePin, j jobs.Job, a jobs.Attempt, cause error) (jobs.Job, error) {
+	if err := c.requireRoute(ctx, route); err != nil {
+		return j, errors.Join(cause, err)
+	}
+	reason := boundedFailure("invalid immutable render manifest; revise the saved shot or regenerate its source inspection", 0)
+	failed, err := c.jobs.FailBeforeDispatch(ctx, j.ID, a.ID, reason, j.Version)
+	if err != nil {
+		latest, getErr := c.jobs.Get(ctx, j.ID)
+		if getErr == nil {
+			return latest, errors.Join(cause, err)
+		}
+		return j, errors.Join(cause, err, getErr)
+	}
+	return failed, cause
+}
+
 func (c *Coordinator) reconcile(ctx context.Context, route routePin, j jobs.Job) (jobs.Job, error) {
 	a, ok := currentAttempt(j)
 	if !ok || a.Execution == nil {
@@ -453,6 +781,26 @@ func (c *Coordinator) reconcile(ctx context.Context, route routePin, j jobs.Job)
 	envelope, intentKey, err := c.loadIntent(ctx, route, j, a)
 	if err != nil {
 		return j, err
+	}
+	if proof, proofKey, proofSHA, proofErr := c.loadNotDispatched(ctx, route, j, a, envelope, intentKey); proofErr == nil {
+		failure := proof.Failure
+		if failure == "" {
+			failure = "pre-dispatch staging failed"
+		}
+		if j.State == jobs.CancelRequested {
+			cancelled, cancelErr := c.jobs.ConfirmCancelled(ctx, j.ID, a.ID, jobs.QuiescenceProof{JobID: j.ID, AttemptID: a.ID, InputFingerprint: j.InputFingerprint, ExecutionClaimID: a.Execution.ID, OwnerID: OwnerID, ScopeID: envelope.Intent.InvocationID, ProofArtifactID: proofKey, ProofSHA256: proofSHA, ObservedAt: proof.ObservedAt, NoOwnedExecution: true, Reason: "persisted dispatch call proved native execution was never invoked"}, j.Version)
+			if cancelErr != nil {
+				return j, cancelErr
+			}
+			return c.jobs.RecordReleased(ctx, cancelled.ID, a.ID, cancelled.Version, proof.ObservedAt)
+		}
+		failed, failErr := c.jobs.Fail(ctx, j.ID, a.ID, failure, j.Version)
+		if failErr != nil {
+			return j, failErr
+		}
+		return c.jobs.RecordReleased(ctx, failed.ID, a.ID, failed.Version, proof.ObservedAt)
+	} else if !isMissingNotDispatchedProof(proofErr) {
+		return j, proofErr
 	}
 	ref, err := c.ops.Lookup(ctx, envelope.Intent)
 	if err != nil {
@@ -496,7 +844,11 @@ func (c *Coordinator) reconcile(ctx context.Context, route routePin, j jobs.Job)
 		}
 		return failed, nil
 	}
-	completion, err := c.validateAndPublish(ctx, route, j, a, envelope, nativeKey, nativeSHA)
+	adapter, adapterErr := c.adapterFor(j)
+	if adapterErr != nil {
+		return j, adapterErr
+	}
+	completion, err := adapter.validateCompletion(ctx, c, route, j, a, envelope, nativeKey, nativeSHA)
 	if err != nil {
 		reason := fmt.Sprintf("%s; native-evidence-sha256=%s", boundedFailure("verified output rejected: "+err.Error(), 0), nativeSHA)
 		failed, failErr := c.jobs.Fail(ctx, j.ID, a.ID, reason, j.Version)
@@ -555,6 +907,16 @@ func (c *Coordinator) cancelWithRef(ctx context.Context, route routePin, j jobs.
 		return j, platform.ErrOperationNotQuiescent
 	}
 	proof := persistedQuiescence{Version: 1, JobID: j.ID, AttemptID: a.ID, InputFingerprint: j.InputFingerprint, ClaimID: a.Execution.ID, IntentKey: intentKey, Ref: stop.Ref, Route: route, Stop: stop, ObservedAt: c.now().UTC()}
+	if j.Input.SubjectKind == jobs.SubjectGeometryCreate {
+		proof.InferenceOutcomeStatus = inferenceOutcomeNotBound
+		if workspace, workspaceErr := attemptWorkspace(route.Root, j.ID, a.ID); workspaceErr == nil {
+			if outcome, outcomeSHA, outcomeErr := readGeometryInferenceOutcome(workspace, j, a); outcomeErr == nil {
+				proof.InferenceOutcomeStatus = inferenceOutcomeBound
+				proof.InferenceOutcome = outcome
+				proof.InferenceOutcomeSHA256 = outcomeSHA
+			}
+		}
+	}
 	data, err := json.Marshal(proof)
 	if err != nil {
 		return j, err
@@ -638,8 +1000,107 @@ func (c *Coordinator) failBeforeNativeStart(ctx context.Context, route routePin,
 	if latest.State != jobs.Running {
 		return latest, errors.Join(cause, jobs.ErrInvalidTransition)
 	}
-	failed, failErr := c.jobs.Fail(ctx, latest.ID, attemptID, boundedFailure("pre-dispatch staging failed: "+cause.Error(), 0), latest.Version)
-	return failed, errors.Join(cause, failErr)
+	a, ok := currentAttempt(latest)
+	if !ok || a.ID != attemptID || a.Execution == nil {
+		return latest, errors.Join(cause, ErrUnknownOutcome)
+	}
+	env, intentKey, loadErr := c.loadIntent(ctx, route, latest, a)
+	if loadErr != nil {
+		return latest, errors.Join(cause, loadErr)
+	}
+	failure := boundedFailure("pre-dispatch staging failed: "+cause.Error(), 0)
+	_, proofKey, _, proofErr := c.persistNotDispatched(ctx, route, latest, a, env, intentKey, failure)
+	if proofErr != nil {
+		return latest, errors.Join(cause, proofErr)
+	}
+	failed, failErr := c.jobs.Fail(ctx, latest.ID, attemptID, failure, latest.Version)
+	if failErr != nil {
+		return failed, errors.Join(cause, failErr)
+	}
+	if err := c.requireRoute(ctx, route); err != nil {
+		return failed, errors.Join(cause, err)
+	}
+	released, releaseErr := c.jobs.RecordReleased(ctx, failed.ID, a.ID, failed.Version, c.now().UTC())
+	if releaseErr != nil {
+		return failed, errors.Join(cause, fmt.Errorf("record not-dispatched attempt release (%s): %w", proofKey, releaseErr))
+	}
+	return released, cause
+}
+
+const notDispatchedSuffix = "not-dispatched.json"
+
+var errNotDispatchedProofMissing = errors.New("renderjobs: no not-dispatched proof exists for attempt")
+
+func notDispatchedKey(jobID, attemptID string) string {
+	return quiescenceBlobPrefix + jobID + "/" + attemptID + "/" + notDispatchedSuffix
+}
+
+func (c *Coordinator) persistNotDispatched(ctx context.Context, route routePin, j jobs.Job, a jobs.Attempt, env persistedIntent, intentKey, failure string) (persistedQuiescence, string, string, error) {
+	if err := c.requireRoute(ctx, route); err != nil {
+		return persistedQuiescence{}, "", "", err
+	}
+	if a.Execution == nil || env.JobID != j.ID || env.AttemptID != a.ID || env.InputFingerprint != j.InputFingerprint || env.Route != route || intentKey != a.Execution.ArtifactID {
+		return persistedQuiescence{}, "", "", ErrUnknownOutcome
+	}
+	proof := persistedQuiescence{Version: 1, JobID: j.ID, AttemptID: a.ID, InputFingerprint: j.InputFingerprint, ClaimID: a.Execution.ID, IntentKey: intentKey, Route: route, NotDispatched: true, Failure: failure, ObservedAt: c.now().UTC()}
+	proof.EvidenceSHA256 = quiescenceEvidenceDigest(proof)
+	data, err := json.Marshal(proof)
+	if err != nil {
+		return persistedQuiescence{}, "", "", err
+	}
+	sha := digestBytes(data)
+	key := notDispatchedKey(j.ID, a.ID)
+	if err := c.putVerified(ctx, route, key, data, "application/json", sha); err != nil {
+		return persistedQuiescence{}, "", "", err
+	}
+	return proof, key, sha, nil
+}
+
+func (c *Coordinator) loadNotDispatched(ctx context.Context, route routePin, j jobs.Job, a jobs.Attempt, env persistedIntent, intentKey string) (persistedQuiescence, string, string, error) {
+	if err := c.requireRoute(ctx, route); err != nil {
+		return persistedQuiescence{}, "", "", err
+	}
+	key := notDispatchedKey(j.ID, a.ID)
+	r, _, err := c.blobs.Get(ctx, key)
+	if err != nil {
+		if isBlobNotFound(err) {
+			return persistedQuiescence{}, "", "", errNotDispatchedProofMissing
+		}
+		return persistedQuiescence{}, "", "", fmt.Errorf("read not-dispatched proof: %w", err)
+	}
+	defer r.Close()
+	data, err := io.ReadAll(io.LimitReader(r, maxReceiptBytes+1))
+	if err != nil || len(data) == 0 || len(data) > maxReceiptBytes {
+		return persistedQuiescence{}, "", "", errors.New("renderjobs: not-dispatched proof is unreadable")
+	}
+	var proof persistedQuiescence
+	if err := decodeJSON(data, &proof); err != nil || !proof.NotDispatched || proof.Version != 1 || proof.JobID != j.ID || proof.AttemptID != a.ID || proof.InputFingerprint != j.InputFingerprint || a.Execution == nil || proof.ClaimID != a.Execution.ID || proof.IntentKey != intentKey || proof.Route != route || env.JobID != j.ID || env.AttemptID != a.ID || env.InputFingerprint != j.InputFingerprint || proof.Failure == "" || proof.ObservedAt.IsZero() || proof.EvidenceSHA256 == "" || quiescenceEvidenceDigest(proof) != proof.EvidenceSHA256 || (j.State == jobs.Failed && proof.Failure != j.Failure) {
+		return persistedQuiescence{}, "", "", ErrUnknownOutcome
+	}
+	return proof, key, digestBytes(data), nil
+}
+
+func quiescenceEvidenceDigest(proof persistedQuiescence) string {
+	proof.EvidenceSHA256 = ""
+	data, _ := json.Marshal(proof)
+	return digestBytes(data)
+}
+
+func isMissingNotDispatchedProof(err error) bool {
+	return errors.Is(err, errNotDispatchedProofMissing)
+}
+
+func isBlobNotFound(err error) bool {
+	for current := err; current != nil; current = errors.Unwrap(current) {
+		if errors.Is(current, os.ErrNotExist) {
+			return true
+		}
+		message := current.Error()
+		if strings.HasPrefix(message, "blobstore: \"") && strings.HasSuffix(message, "\" not found") {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *Coordinator) release(ctx context.Context, route routePin, ref platform.OperationRef) error {
@@ -658,130 +1119,110 @@ func (c *Coordinator) releaseAttempt(ctx context.Context, route routePin, j jobs
 
 func (c *Coordinator) releaseTerminal(ctx context.Context, route routePin, j jobs.Job) (jobs.Job, error) {
 	a, ok := currentAttempt(j)
-	if !ok || a.Execution == nil {
-		return j, nil
-	}
-	env, _, err := c.loadIntent(ctx, route, j, a)
-	if err != nil {
-		return j, err
-	}
-	ref, err := c.ops.Lookup(ctx, env.Intent)
-	if errors.Is(err, platform.ErrOperationNotFound) {
-		return c.jobs.RecordReleased(ctx, j.ID, a.ID, j.Version, c.now().UTC())
-	}
-	if err != nil {
-		return j, err
-	}
-	return c.releaseAttempt(ctx, route, j, a, ref)
-}
-
-func (c *Coordinator) resolveJobShot(ctx context.Context, j jobs.Job) (shots.ResolvedShot, error) {
-	shotID, revision, err := parseShotRevision(j.Input)
-	if err != nil {
-		return shots.ResolvedShot{}, err
-	}
-	resolved, err := c.shots.ResolveForRender(ctx, shotID, revision)
-	if err != nil {
-		return shots.ResolvedShot{}, fmt.Errorf("resolve pinned shot revision: %w", err)
-	}
-	if err := validateResolved(j.Input.ProjectID, shotID, revision, resolved); err != nil {
-		return shots.ResolvedShot{}, err
-	}
-	if !resolved.Revision.RenderEligible {
-		return shots.ResolvedShot{}, ErrNotEligible
-	}
-	if err := validateStillProfile(resolved.Revision); err != nil {
-		return shots.ResolvedShot{}, err
-	}
-	bindings := bindingsByRole(j.Input)
-	if bindings["shot_snapshot"].SHA256 != resolved.Revision.RecipeSHA256 {
-		return shots.ResolvedShot{}, errors.New("renderjobs: pinned shot digest changed")
-	}
-	for role, media := range resolvedMedia(resolved.Revision) {
-		binding, ok := bindings[role]
-		if !ok || binding.ArtifactID != media.GetId() || binding.RevisionID != "sha256:"+media.GetSha256() || binding.SHA256 != media.GetSha256() {
-			return shots.ResolvedShot{}, fmt.Errorf("renderjobs: pinned %s media binding changed", role)
+	var releaseErr error
+	if ok && a.Execution != nil && a.ExecutionReleasedAt == nil {
+		var env persistedIntent
+		var intentKey string
+		env, intentKey, releaseErr = c.loadIntent(ctx, route, j, a)
+		if releaseErr == nil {
+			if j.State == jobs.Failed {
+				proof, _, _, proofErr := c.loadNotDispatched(ctx, route, j, a, env, intentKey)
+				if proofErr == nil {
+					j, releaseErr = c.jobs.RecordReleased(ctx, j.ID, a.ID, j.Version, proof.ObservedAt)
+					if releaseErr != nil {
+						return j, releaseErr
+					}
+					return j, c.finalizeTerminal(ctx, route, j)
+				}
+				if !isMissingNotDispatchedProof(proofErr) {
+					return j, fmt.Errorf("failed execution lacks verified dispatch-owned no-launch proof: %w", proofErr)
+				}
+			}
+			var ref platform.OperationRef
+			ref, releaseErr = c.ops.Lookup(ctx, env.Intent)
+			if errors.Is(releaseErr, platform.ErrOperationNotFound) {
+				j, releaseErr = c.jobs.RecordReleased(ctx, j.ID, a.ID, j.Version, c.now().UTC())
+			} else if releaseErr == nil {
+				j, releaseErr = c.releaseAttempt(ctx, route, j, a, ref)
+			}
 		}
 	}
-	return resolved, nil
+	// Subject projection is an independent retryable obligation. A native
+	// release failure must not prevent known terminal media state from settling.
+	return j, errors.Join(releaseErr, c.finalizeTerminal(ctx, route, j))
 }
 
-type preparedAttempt struct {
-	Manifest rendering.Manifest
-	Files    map[string][]byte
+type preparedAttempt = preparedOperation
+
+func (c *Coordinator) loadClosure(ctx context.Context, route routePin, j jobs.Job) (immutableClosure, error) {
+	if err := c.requireRoute(ctx, route); err != nil {
+		return immutableClosure{}, err
+	}
+	binding := bindingByRole(j.Input, "render_closure")
+	if binding.ArtifactID == "" || !strings.HasPrefix(binding.ArtifactID, closureBlobPrefix) || !validDigest(binding.SHA256) || binding.RevisionID != "sha256:"+binding.SHA256 {
+		return immutableClosure{}, errors.New("renderjobs: job does not bind an immutable render closure")
+	}
+	data, err := c.readBlob(ctx, binding.ArtifactID, maxManifestBytes, binding.SHA256)
+	if err != nil {
+		return immutableClosure{}, fmt.Errorf("read immutable render closure: %w", err)
+	}
+	closure, err := decodeClosure(data)
+	if err != nil {
+		return immutableClosure{}, err
+	}
+	if closure.ProjectID != j.Input.ProjectID || closure.ShotID == "" || j.Input.ShotRevisionID != shotRevisionID(closure.ShotID, closure.Revision) || j.Input.ShotRevision != closure.Revision || closure.RecipeSHA256 != bindingDigest(j.Input, "shot_snapshot") || closure.RendererVersion != j.Input.RendererVersion || closure.OutputProfile != j.Input.OutputProfile {
+		return immutableClosure{}, errors.New("renderjobs: closure identity differs from immutable job input")
+	}
+	workerBinding := bindingByRole(j.Input, "worker_executable")
+	if workerBinding.ArtifactID != closure.WorkerKey || workerBinding.SHA256 != closure.WorkerSHA256 || workerBinding.RevisionID != "sha256:"+closure.WorkerSHA256 || !strings.HasPrefix(workerBinding.ArtifactID, workerBlobPrefix) {
+		return immutableClosure{}, errors.New("renderjobs: closure worker binding differs from job input")
+	}
+	profileDigest, err := toolProfileDigest(closure.WorkerSHA256, closure.OutputProfile, closure.Profile)
+	if err != nil || profileDigest != j.Input.ToolProfileDigest {
+		return immutableClosure{}, errors.New("renderjobs: closure tool profile digest differs from job input")
+	}
+	for _, input := range closure.Inputs {
+		binding := bindingByRole(j.Input, "source_"+input.Role)
+		if binding.ArtifactID != input.BlobKey || binding.SHA256 != input.MediaSHA || binding.RevisionID != "sha256:"+input.MediaSHA || !validDigest(input.MediaSHA) || input.MediaSize <= 0 || input.MediaSize > maxWorkerInputBytes || input.BlobKey != inputBlobPrefix+input.MediaSHA+"/"+input.Role {
+			return immutableClosure{}, fmt.Errorf("renderjobs: closure %s source binding differs from job input", input.Role)
+		}
+	}
+	return closure, nil
 }
 
-func (c *Coordinator) prepareAttempt(ctx context.Context, route routePin, j jobs.Job, a jobs.Attempt, resolved shots.ResolvedShot) (preparedAttempt, error) {
+func (c *Coordinator) prepareAttemptFromClosure(ctx context.Context, route routePin, j jobs.Job, a jobs.Attempt, closure immutableClosure) (preparedAttempt, error) {
 	if err := c.requireRoute(ctx, route); err != nil {
 		return preparedAttempt{}, err
 	}
-	workerBinding := bindingByRole(j.Input, "worker_executable")
-	if workerBinding.ArtifactID == "" || !strings.HasPrefix(workerBinding.ArtifactID, workerBlobPrefix) {
-		return preparedAttempt{}, errors.New("renderjobs: job does not bind a pinned worker executable")
-	}
-	workerBytes, err := c.readBlob(ctx, workerBinding.ArtifactID, maxWorkerBytes, workerBinding.SHA256)
-	if err != nil {
-		return preparedAttempt{}, fmt.Errorf("read pinned worker executable: %w", err)
-	}
-
-	mediaByRole := resolvedMedia(resolved.Revision)
-	fileNames := map[string]string{"plate": "plate.image", "screen": "screen.image", "active_mask": "active-mask.png", "hardware_mask": "hardware-mask.png"}
-	imageBindings := make(map[string]rendering.ImageBinding, len(mediaByRole))
-	files := map[string][]byte{workerFileName: workerBytes}
+	files := make([]stagedFile, 0, len(closure.Inputs))
+	imageBindings := make(map[string]rendering.ImageBinding, len(closure.Inputs))
 	var totalBytes int64
-	for _, role := range []string{"plate", "screen", "active_mask", "hardware_mask"} {
-		media, ok := mediaByRole[role]
-		if !ok {
-			if role == "hardware_mask" {
-				continue
-			}
-			return preparedAttempt{}, fmt.Errorf("renderjobs: resolved shot is missing %s media", role)
-		}
+	for _, input := range closure.Inputs {
 		if err := c.requireRoute(ctx, route); err != nil {
 			return preparedAttempt{}, err
 		}
-		opened, reader, err := c.media.Open(ctx, j.Input.ProjectID, media.GetId())
-		if err != nil {
-			return preparedAttempt{}, fmt.Errorf("open project %s media: %w", role, err)
-		}
-		data, readErr := io.ReadAll(io.LimitReader(reader, maxWorkerInputBytes+1))
-		closeErr := reader.Close()
-		if readErr != nil {
-			return preparedAttempt{}, fmt.Errorf("read project %s media: %w", role, readErr)
-		}
-		if closeErr != nil {
-			return preparedAttempt{}, fmt.Errorf("close project %s media: %w", role, closeErr)
-		}
-		if len(data) == 0 || int64(len(data)) > maxWorkerInputBytes || int64(len(data)) != opened.SizeBytes || opened.SizeBytes != media.GetSizeBytes() || digestBytes(data) != media.GetSha256() || opened.SHA256 != media.GetSha256() || opened.ID != media.GetId() || opened.ProjectID != j.Input.ProjectID || opened.MediaType != media.GetMediaType() || opened.Width != media.GetWidthPixels() || opened.Height != media.GetHeightPixels() {
-			return preparedAttempt{}, fmt.Errorf("renderjobs: project %s media no longer matches its immutable binding", role)
-		}
-		totalBytes += int64(len(data))
+		totalBytes += input.MediaSize
 		if totalBytes > maxWorkerInputBytes {
 			return preparedAttempt{}, errors.New("renderjobs: aggregate source media exceeds staging limit")
 		}
-		name := fileNames[role]
-		files[name] = data
-		imageBindings[role] = rendering.ImageBinding{Name: name, SHA256: media.GetSha256(), SizeBytes: opened.SizeBytes}
+		files = append(files, stagedFile{Name: input.Name, BlobKey: input.BlobKey, SHA256: input.MediaSHA, Size: input.MediaSize, Mode: manifestMode})
+		imageBindings[input.Role] = rendering.ImageBinding{Name: input.Name, SHA256: input.MediaSHA, SizeBytes: input.MediaSize}
 	}
-
-	if err := c.requireRoute(ctx, route); err != nil {
-		return preparedAttempt{}, err
-	}
-	scene := resolved.Revision.Snapshot.GetScene()
-	quad := scene.GetPlateQuad()
-	points := [4]rendering.Corner{
-		{X: quad.GetTopLeft().GetX(), Y: quad.GetTopLeft().GetY()},
-		{X: quad.GetTopRight().GetX(), Y: quad.GetTopRight().GetY()},
-		{X: quad.GetBottomRight().GetX(), Y: quad.GetBottomRight().GetY()},
-		{X: quad.GetBottomLeft().GetX(), Y: quad.GetBottomLeft().GetY()},
+	version := 1
+	if closure.Presentation != nil {
+		version = 2
 	}
 	manifest := rendering.Manifest{
-		Version: 1, JobID: j.ID, AttemptID: a.ID, InputFingerprint: j.InputFingerprint,
-		Profile: rendering.CompositorProfile, Plate: imageBindings["plate"], Screen: imageBindings["screen"],
+		Version: version, JobID: j.ID, AttemptID: a.ID, InputFingerprint: j.InputFingerprint,
+		Profile: closure.Profile, Plate: imageBindings["plate"], Screen: imageBindings["screen"],
 		ActiveMask: imageBindings["active_mask"], HardwareMask: optionalImageBinding(imageBindings, "hardware_mask"),
-		SurfaceWidth: int(scene.GetDisplayWidthPixels()), SurfaceHeight: int(scene.GetDisplayHeightPixels()), Quad: points, Samples: 2,
+		SurfaceWidth: closure.SurfaceWidth, SurfaceHeight: closure.SurfaceHeight, Quad: closure.Quad, Samples: closure.Samples, Presentation: closure.Presentation, PresentationLayout: closure.PresentationLayout,
 	}
-	return preparedAttempt{Manifest: manifest, Files: files}, nil
+	manifestBytes, err := json.Marshal(manifest)
+	if err != nil {
+		return preparedAttempt{}, err
+	}
+	return preparedAttempt{Mode: operationStillRender, ManifestBytes: append(manifestBytes, '\n'), Files: files}, nil
 }
 
 func (c *Coordinator) validateAndPublish(ctx context.Context, route routePin, j jobs.Job, a jobs.Attempt, env persistedIntent, nativeKey, nativeSHA string) (jobs.CompletionEvidence, error) {
@@ -810,7 +1251,7 @@ func (c *Coordinator) validateAndPublish(ctx context.Context, route routePin, j 
 	if err := decodeCanonical(manifestBytes, &manifest); err != nil {
 		return jobs.CompletionEvidence{}, fmt.Errorf("decode staged manifest: %w", err)
 	}
-	if manifest.JobID != j.ID || manifest.AttemptID != a.ID || manifest.InputFingerprint != j.InputFingerprint || manifest.Profile != rendering.CompositorProfile {
+	if manifest.JobID != j.ID || manifest.AttemptID != a.ID || manifest.InputFingerprint != j.InputFingerprint || manifest.Profile != j.Input.RendererVersion {
 		return jobs.CompletionEvidence{}, errors.New("renderjobs: staged manifest identity does not match job attempt")
 	}
 	if err := verifyManifestInputs(workspace, manifest); err != nil {
@@ -893,6 +1334,19 @@ func (c *Coordinator) persistNativeOutcome(ctx context.Context, route routePin, 
 		return "", "", platform.ErrOperationNotQuiescent
 	}
 	evidence := nativeOutcomeEvidence{Version: 1, JobID: j.ID, AttemptID: a.ID, InputFingerprint: j.InputFingerprint, ExecutionClaimID: a.Execution.ID, Route: route, Intent: env.Intent, Ref: ref, Observation: obs, ObservedAt: c.now().UTC()}
+	if j.Input.SubjectKind == jobs.SubjectGeometryCreate {
+		workspace, workspaceErr := attemptWorkspace(route.Root, j.ID, a.ID)
+		if workspaceErr != nil {
+			return "", "", workspaceErr
+		}
+		outcome, outcomeSHA, readErr := readGeometryInferenceOutcome(workspace, j, a)
+		if readErr == nil {
+			evidence.InferenceOutcome = outcome
+			evidence.InferenceOutcomeSHA256 = outcomeSHA
+		} else if !os.IsNotExist(readErr) {
+			return "", "", fmt.Errorf("renderjobs: read geometry inference outcome: %w", readErr)
+		}
+	}
 	data, err := json.Marshal(evidence)
 	if err != nil {
 		return "", "", err
@@ -903,6 +1357,26 @@ func (c *Coordinator) persistNativeOutcome(ctx context.Context, route routePin, 
 		return "", "", err
 	}
 	return key, sha, nil
+}
+
+func readGeometryInferenceOutcome(workspace string, j jobs.Job, a jobs.Attempt) (*rendering.GeometryInferenceOutcome, string, error) {
+	outcomeBytes, err := readWorkspaceFile(workspace, rendering.GeometryInferenceOutcomeName, 64<<10)
+	if err != nil {
+		return nil, "", err
+	}
+	var outcome rendering.GeometryInferenceOutcome
+	if err := decodeJSON(outcomeBytes, &outcome); err != nil {
+		return nil, "", err
+	}
+	canonical, err := json.Marshal(outcome)
+	if err != nil {
+		return nil, "", err
+	}
+	usage := outcome.Usage
+	if !bytes.Equal(outcomeBytes, append(canonical, '\n')) || outcome.Version != 1 || outcome.JobID != j.ID || outcome.AttemptID != a.ID || outcome.InputFingerprint != j.InputFingerprint || outcome.WorkerSHA256 != bindingDigest(j.Input, "worker_executable") || outcome.ProviderCalls < 0 || outcome.ProviderCalls > 1 || !validDigest(outcome.ValueSHA256) || outcome.ValueBytes < 0 || outcome.ReceivedAt.IsZero() || len(outcome.Provider) > 256 || len(outcome.Model) > 256 || usage == nil || usage.GetInputTokens() < 0 || usage.GetOutputTokens() < 0 || usage.GetCostMicros() < 0 || !validGeometryUsageProvenance(usage.GetInputTokensProvenance()) || !validGeometryUsageProvenance(usage.GetOutputTokensProvenance()) || !validGeometryUsageProvenance(usage.GetCostProvenance()) {
+		return nil, "", errors.New("renderjobs: geometry inference outcome does not match immutable attempt")
+	}
+	return &outcome, digestBytes(outcomeBytes), nil
 }
 
 func (c *Coordinator) loadIntent(ctx context.Context, route routePin, j jobs.Job, a jobs.Attempt) (persistedIntent, string, error) {
@@ -920,7 +1394,12 @@ func (c *Coordinator) loadIntent(ctx context.Context, route routePin, j jobs.Job
 	if err := decodeJSON(data, &env); err != nil {
 		return persistedIntent{}, "", err
 	}
-	if env.Version != 1 || env.JobID != j.ID || env.AttemptID != a.ID || env.InputFingerprint != j.InputFingerprint || env.Route != route || env.Intent.Owner != OwnerID || env.Intent.AttemptID != a.ID || env.Intent.InvocationID != a.Execution.ScopeID || env.Intent.SpecDigest == "" || env.WorkerSHA256 != bindingDigest(j.Input, "worker_executable") {
+	wantMode, modeErr := operationModeForJob(j.Input)
+	storedMode := env.Mode
+	if storedMode == "" {
+		storedMode = operationStillRender
+	}
+	if modeErr != nil || storedMode != wantMode || env.Version != 1 || env.JobID != j.ID || env.AttemptID != a.ID || env.InputFingerprint != j.InputFingerprint || env.Route != route || env.Intent.Owner != OwnerID || env.Intent.AttemptID != a.ID || env.Intent.InvocationID != a.Execution.ScopeID || env.Intent.SpecDigest == "" || env.WorkerSHA256 != bindingDigest(j.Input, "worker_executable") {
 		return persistedIntent{}, "", ErrRouteMismatch
 	}
 	workspace, err := attemptWorkspace(route.Root, j.ID, a.ID)
@@ -987,7 +1466,100 @@ func (c *Coordinator) ensureDirectories(ctx context.Context, route routePin, dir
 	return validateDirectoryTree(dir)
 }
 
+func (c *Coordinator) createPhysicalSandbox(ctx context.Context, route routePin, workspace string) error {
+	for _, relative := range []string{"home", "tmp", "config", "cache", "config/blender", "scripts", "datafiles", "pycache"} {
+		if err := c.requireRoute(ctx, route); err != nil {
+			return err
+		}
+		path := filepath.Join(workspace, relative)
+		if !strings.HasPrefix(path, workspace+string(filepath.Separator)) || filepath.Clean(path) != path {
+			return errors.New("renderjobs: physical sandbox path escaped its attempt root")
+		}
+		if err := os.Mkdir(path, 0o700); err != nil {
+			if !os.IsExist(err) {
+				return err
+			}
+			info, statErr := os.Lstat(path)
+			if statErr != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+				return errors.New("renderjobs: physical sandbox contains an unsafe directory")
+			}
+		} else {
+			c.roots.RecordWrite(ctx)
+		}
+	}
+	return validateDirectoryTree(workspace)
+}
+
 func (c *Coordinator) writeWorkspaceFile(ctx context.Context, route routePin, workspace, name string, data []byte, mode os.FileMode, exclusive bool) error {
+	return c.writeWorkspaceReader(ctx, route, workspace, name, bytes.NewReader(data), int64(len(data)), digestBytes(data), mode, exclusive)
+}
+
+func (c *Coordinator) stagePreparedFile(ctx context.Context, route routePin, workspace string, job jobs.Job, file stagedFile, modeLimit int64) error {
+	if !stageFilePattern.MatchString(file.Name) || file.Name == workerFileName || file.Name == "intent.json" || file.Name == rendering.ManifestName || file.Name == rendering.PhysicalManifestName || file.Name == rendering.PhysicalReceiptName || file.Name == "inspection-manifest.json" || file.Name == "video-manifest.json" || strings.Contains(file.Name, "..") {
+		return errors.New("renderjobs: subject staged an unsafe filename")
+	}
+	if file.Size == 0 && len(file.Data) > 0 {
+		file.Size = int64(len(file.Data))
+	}
+	limit := modeLimit
+	if limit <= 0 {
+		limit = maxWorkerInputBytes
+	}
+	if file.MaxBytes > 0 && file.MaxBytes < limit {
+		limit = file.MaxBytes
+	}
+	if file.Size <= 0 || file.Size > limit {
+		return errors.New("renderjobs: subject file size is outside bounds")
+	}
+	if file.Mode == 0 {
+		file.Mode = manifestMode
+	}
+	if file.Open != nil {
+		if file.BlobKey != "" || len(file.Data) != 0 || !validDigest(file.SHA256) {
+			return errors.New("renderjobs: streamed input has conflicting source fields")
+		}
+		reader, err := file.Open(ctx)
+		if err != nil {
+			return err
+		}
+		writeErr := c.writeWorkspaceReader(ctx, route, workspace, file.Name, reader, file.Size, file.SHA256, file.Mode, true)
+		closeErr := reader.Close()
+		return errors.Join(writeErr, closeErr)
+	}
+	if file.BlobKey != "" {
+		if len(file.Data) != 0 || !validDigest(file.SHA256) {
+			return errors.New("renderjobs: blob input must have only a size and digest-bound reference")
+		}
+		bound := false
+		for _, b := range job.Input.Bindings {
+			if b.ArtifactID == file.BlobKey && b.SHA256 == file.SHA256 {
+				bound = true
+				break
+			}
+		}
+		if !bound {
+			return errors.New("renderjobs: staged blob is not bound by immutable job input")
+		}
+		if err := c.requireRoute(ctx, route); err != nil {
+			return err
+		}
+		reader, _, err := c.blobs.Get(ctx, file.BlobKey)
+		if err != nil {
+			return err
+		}
+		defer reader.Close()
+		return c.writeWorkspaceReader(ctx, route, workspace, file.Name, reader, file.Size, file.SHA256, file.Mode, true)
+	}
+	if file.SHA256 == "" {
+		file.SHA256 = digestBytes(file.Data)
+	}
+	if int64(len(file.Data)) != file.Size || digestBytes(file.Data) != file.SHA256 {
+		return errors.New("renderjobs: in-memory subject file differs from its size or digest")
+	}
+	return c.writeWorkspaceReader(ctx, route, workspace, file.Name, bytes.NewReader(file.Data), file.Size, file.SHA256, file.Mode, true)
+}
+
+func (c *Coordinator) writeWorkspaceReader(ctx context.Context, route routePin, workspace, name string, reader io.Reader, expectedSize int64, expectedSHA string, mode os.FileMode, exclusive bool) error {
 	if err := c.requireRoute(ctx, route); err != nil {
 		return err
 	}
@@ -1013,9 +1585,15 @@ func (c *Coordinator) writeWorkspaceFile(ctx context.Context, route routePin, wo
 			c.roots.RecordWrite(ctx)
 		}
 	}()
-	if _, err := file.Write(data); err != nil {
+	hasher := sha256.New()
+	written, err := io.Copy(io.MultiWriter(file, hasher), io.LimitReader(reader, expectedSize+1))
+	if err != nil {
 		_ = file.Close()
 		return err
+	}
+	if written != expectedSize || hex.EncodeToString(hasher.Sum(nil)) != expectedSHA {
+		_ = file.Close()
+		return errors.New("renderjobs: staged bytes differ from pinned size or digest")
 	}
 	if err := file.Sync(); err != nil {
 		_ = file.Close()
@@ -1056,6 +1634,14 @@ func (c *Coordinator) readCurrentExecutable() ([]byte, string, string, error) {
 func (c *Coordinator) putVerified(ctx context.Context, route routePin, key string, data []byte, mime, digest string) error {
 	if err := c.requireRoute(ctx, route); err != nil {
 		return err
+	}
+	if !validDigest(digest) || digestBytes(data) != digest {
+		return errors.New("renderjobs: blob payload differs from its immutable digest")
+	}
+	if contentAddressedInputKey(key, digest) {
+		if reused, err := c.reuseVerifiedBlob(ctx, route, key, int64(len(data)), mime, digest); err != nil || reused {
+			return err
+		}
 	}
 	if err := c.blobs.Put(ctx, key, bytes.NewReader(data), mime); err != nil {
 		return err

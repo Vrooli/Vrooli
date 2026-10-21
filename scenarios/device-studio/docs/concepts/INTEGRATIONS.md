@@ -2,7 +2,7 @@
 
 ## Purpose Of This Document
 
-Foundation contract, 2026-10-19. Product behavior below is specified for implementation; the generated reference scaffold does not implement it. Research demonstrates individual techniques, not a released scenario.
+Contract updated during delivery. Project/photographic render integration is implemented; physical-shot composition and optional creation/account/publication integrations remain in progress. Qualification below is scoped to actual evidence, not a released desktop claim.
 
 Separate source-verified shared code, proposed adoption and unresolved owner contracts. No listed optional service is a hidden local-start prerequisite.
 
@@ -12,8 +12,8 @@ Separate source-verified shared code, proposed adoption and unresolved owner con
 |---|---|---|---|
 | api-core/platform-go | Storage, identity, discovery and owned process lifecycle | Product core | Shared code exists; adoption and per-OS tests owed |
 | React Component Library | Shell/tokens/control primitives | UI build | Template adoption; full account surface is a placeholder |
-| FFmpeg/FFprobe | Decode, inspect, encode | Local video | Host tools observed; distributable pair unqualified |
-| Blender renderer pack | Physical 3D output | Local 3D | Host 4.0.2 lacks CUDA payload; governed pack owed |
+| FFmpeg/FFprobe | Decode, inspect, encode | Local video | Managed pair qualified for bounded current-host outputs; desktop redistribution remains separate |
+| Blender renderer pack | Physical 3D output | Local 3D | Managed5.2.2LTS with qualified current-host CPU/CUDA/OptiX studies; public job/desktop integration underway |
 | BAS | Authentic capture | Optional capture action | Import existing media remains independent |
 | Image Tools/AI Gateway | Generic raster/provider operations | Chosen inference route | Funded media not certified by text path |
 | Agent Manager | Bounded creation agent | Explicit agent action | Actual hard-cap/isolation capability must be checked |

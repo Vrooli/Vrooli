@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { create, toJson } from "@bufbuild/protobuf";
 import { SourceMediaSchema, UploadSourceMediaResponseSchema } from "@vrooli/proto-types/device-studio/v1/projects/projects_pb";
-import { getSourceMediaContent, uploadSourceMedia, verifySourceMediaContent } from "./projects";
+import { getSourceMediaContent, sourceMediaContentURL, uploadSourceMedia, verifySourceMediaContent } from "./projects";
 
 describe("project source media REST operations", () => {
   const fetchMock = vi.fn();
@@ -31,5 +31,11 @@ describe("project source media REST operations", () => {
     await expect(verifySourceMediaContent(result, metadata)).resolves.toBe(result);
     await expect(verifySourceMediaContent(new Blob(["x"], { type: "image/png" }), metadata)).rejects.toThrow(/size did not match/);
     await expect(verifySourceMediaContent(new Blob([new Uint8Array(result.size)], { type: "image/jpeg" }), metadata)).rejects.toThrow(/type did not match/);
+  });
+
+  it("builds a routed media URL for native video streaming without fetching a Blob", () => {
+    const url = sourceMediaContentURL("project/one", "recording id");
+    expect(url).toMatch(/\/api\/v1\/projects\/project%2Fone\/media\/recording%20id\/content$/);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

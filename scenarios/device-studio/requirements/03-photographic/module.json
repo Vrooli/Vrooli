@@ -31,6 +31,13 @@
             "planned_automation": "Perspective/mask fixtures and manual calibration review.",
             "evidence_status": "not_run"
           }
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "api/internal/composition/composition_test.go",
+          "notes": "Partial evidence only. Specific tagged test case(s): TestComposePerspectiveQuadMapsCornersAndGrid. This does not establish the full requirement."
         }
       ]
     },
@@ -59,6 +66,13 @@
             "planned_automation": "Strategy eligibility and negative API/UI tests.",
             "evidence_status": "not_run"
           }
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "api/internal/shots/service_test.go",
+          "notes": "Partial evidence only. Specific tagged test case(s): TestDraftUnsupportedAndMalformedGeometryPolicies. This does not establish the full requirement."
         }
       ]
     },
@@ -87,6 +101,20 @@
             "planned_automation": "Deterministic frame/receipt tests and reopen integration.",
             "evidence_status": "not_run"
           }
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "api/internal/rendering/worker_test.go",
+          "notes": "Partial evidence only. Specific tagged test case(s): TestRetainedPhoneV2PublicManifestReplaysExactOutput. This does not establish the full requirement."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "api/internal/renderjobs/coordinator_integration_test.go",
+          "notes": "Partial evidence only. Specific tagged test case(s): TestSuccessPublishesVerifiedPNGAndTamperFailsAfterNativeQuiescence. This does not establish the full requirement."
         }
       ]
     },

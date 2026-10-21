@@ -62,6 +62,7 @@ func (h *handlers) createCall(ctx cliapp.OperationContext) (*shotsv1.CreateShotR
 	}
 	return resp.Msg, nil
 }
+
 func (h *handlers) createReport(_ cliapp.OperationContext, msg *shotsv1.CreateShotResponse) cliapp.MutationReport {
 	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Created shot %s at revision %d.", msg.Shot.Id, msg.Revision.Revision)}, Changes: []string{formatRevision(msg.Revision)}, NextCommand: []string{fmt.Sprintf("`shots get %s` — inspect this shot", msg.Shot.Id)}}
 }
@@ -87,6 +88,7 @@ func (h *handlers) saveCall(ctx cliapp.OperationContext) (*shotsv1.SaveShotRespo
 	}
 	return resp.Msg, nil
 }
+
 func (h *handlers) saveReport(_ cliapp.OperationContext, msg *shotsv1.SaveShotResponse) cliapp.MutationReport {
 	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Saved shot %s at revision %d.", msg.Shot.Id, msg.Revision.Revision)}, Changes: []string{formatRevision(msg.Revision)}}
 }
@@ -106,6 +108,7 @@ func (h *handlers) listCall(ctx cliapp.OperationContext) (*shotsv1.ListShotsResp
 	}
 	return resp.Msg, nil
 }
+
 func (h *handlers) listReport(ctx cliapp.OperationContext, msg *shotsv1.ListShotsResponse) cliapp.ListReport {
 	rows := make([]string, 0, len(msg.Shots))
 	for _, s := range msg.Shots {
@@ -117,6 +120,7 @@ func (h *handlers) listReport(ctx cliapp.OperationContext, msg *shotsv1.ListShot
 	}
 	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d shot(s).", len(rows))}, ResultsHeading: "Shots", Results: rows, RetrievalHints: hints}
 }
+
 func (h *handlers) getCall(ctx cliapp.OperationContext) (*shotsv1.GetShotResponse, error) {
 	resp, err := h.client.GetShot(context.Background(), connect.NewRequest(&shotsv1.GetShotRequest{Id: ctx.Positional("id")}))
 	if err != nil {
@@ -127,6 +131,7 @@ func (h *handlers) getCall(ctx cliapp.OperationContext) (*shotsv1.GetShotRespons
 	}
 	return resp.Msg, nil
 }
+
 func (h *handlers) getReport(_ cliapp.OperationContext, msg *shotsv1.GetShotResponse) cliapp.ListReport {
 	return cliapp.ListReport{Summary: []string{"Opened shot."}, ResultsHeading: "Shot", Results: []string{formatShot(msg.Shot), formatRevision(msg.Head)}}
 }
@@ -146,6 +151,7 @@ func (h *handlers) revisionsCall(ctx cliapp.OperationContext) (*shotsv1.ListShot
 	}
 	return resp.Msg, nil
 }
+
 func (h *handlers) revisionsReport(_ cliapp.OperationContext, msg *shotsv1.ListShotRevisionsResponse) cliapp.ListReport {
 	rows := make([]string, 0, len(msg.Revisions))
 	for _, r := range msg.Revisions {
@@ -169,6 +175,7 @@ func (h *handlers) revisionCall(ctx cliapp.OperationContext) (*shotsv1.GetShotRe
 	}
 	return resp.Msg, nil
 }
+
 func (h *handlers) revisionReport(_ cliapp.OperationContext, msg *shotsv1.GetShotRevisionResponse) cliapp.ListReport {
 	return cliapp.ListReport{Summary: []string{"Loaded immutable revision."}, ResultsHeading: "Shot revision", Results: []string{formatRevision(msg.Revision)}}
 }
@@ -184,6 +191,7 @@ func (h *handlers) compileCall(ctx cliapp.OperationContext) (*shotsv1.CompileSho
 	}
 	return resp.Msg, nil
 }
+
 func (h *handlers) compileReport(_ cliapp.OperationContext, msg *shotsv1.CompileShotResponse) cliapp.ListReport {
 	if msg.Compiled == nil {
 		return cliapp.ListReport{Summary: []string{"Server returned no compiled shot."}}
@@ -210,6 +218,7 @@ func (h *handlers) validateCall(ctx cliapp.OperationContext) (*shotsv1.ValidateS
 	}
 	return resp.Msg, nil
 }
+
 func (h *handlers) validateReport(_ cliapp.OperationContext, msg *shotsv1.ValidateShotResponse) cliapp.ListReport {
 	state := "render eligible"
 	if !msg.RenderEligible {
@@ -234,18 +243,21 @@ func shotConflict(err error) (error, bool) {
 	}
 	return nil, false
 }
+
 func formatShot(s *shotsv1.Shot) string {
 	if s == nil {
 		return "(nil)"
 	}
 	return fmt.Sprintf("%s — %s [revision=%d]", s.Id, s.Name, s.HeadRevision)
 }
+
 func formatRevision(r *shotsv1.ShotRevision) string {
 	if r == nil {
 		return "(nil)"
 	}
 	return fmt.Sprintf("revision=%d name=%q eligible=%t recipe=%s", r.Revision, r.Name, r.RenderEligible, r.RecipeSha256)
 }
+
 func formatIssues(issues []*shotsv1.ShotIssue) string {
 	if len(issues) == 0 {
 		return "No blocking issues."

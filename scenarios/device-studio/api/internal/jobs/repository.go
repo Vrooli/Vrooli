@@ -10,6 +10,7 @@ import (
 // current state/version and commit all related attempt/job receipts atomically.
 type Repository interface {
 	Submit(context.Context, Job) (Job, bool, error)
+	FindByIdempotencyKey(context.Context, string) (Job, error)
 	Get(context.Context, string) (Job, error)
 	ListNonterminal(context.Context) ([]Job, error)
 	ListProject(context.Context, string, Cursor, int) ([]Job, error)
@@ -21,7 +22,11 @@ type Repository interface {
 	Checkpoint(context.Context, string, string, Checkpoint, QuiescenceProof, int64) (Job, error)
 	Complete(context.Context, string, string, CompletionEvidence, int64) (Job, error)
 	Fail(context.Context, string, string, string, int64, int64) (Job, error)
+	FailBeforeDispatch(context.Context, string, string, string, int64, int64) (Job, error)
 	RequestCancel(context.Context, string, int64, int64) (Job, error)
 	ConfirmCancelled(context.Context, string, string, QuiescenceProof, int64) (Job, error)
 	Settle(context.Context, string, SettlementState, int64, int64) (Job, error)
+	RetrySourceInspection(context.Context, string, int64, string, int64) (Job, bool, error)
+	PendingSubjectFinalization(context.Context, string) (SubjectFinalization, error)
+	CompleteSubjectFinalization(context.Context, string, string, SubjectKind) error
 }

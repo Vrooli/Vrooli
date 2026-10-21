@@ -14,18 +14,71 @@ import (
 )
 
 const (
-	phoneRefWidth, phoneRefHeight     = 430, 880
-	browserRefWidth, browserRefHeight = 1440, 900
+	phoneRefWidth, phoneRefHeight          = 430, 880
+	phoneMinWidthBasis, phoneMaxWidthBasis = 3600, 6200
+	browserRefWidth, browserRefHeight      = 1440, 900
 )
 
 func buildLayout(ctx context.Context, app image.Image, c Config) (Layout, error) {
 	if app == nil {
 		return Layout{}, ErrInvalidConfig
 	}
+	return buildLayoutForRaster(ctx, app.Bounds(), app, c)
+}
+
+// BuildLayoutForVideoRaster computes geometry for a decoded-video raster
+// without inventing source pixels. Video frame zero is decoded only by the
+// owned worker, so fills must already be explicit or sample-resolved.
+func BuildLayoutForVideoRaster(sourceBounds image.Rectangle, c Config) (Layout, error) {
+	if c.Phone != nil {
+		if c.Phone.TopFill == nil || c.Phone.BottomFill == nil {
+			return Layout{}, ErrVideoFillsRequired
+		}
+	} else if c.Browser != nil {
+		if c.Browser.DesktopColor == nil {
+			return Layout{}, ErrVideoFillsRequired
+		}
+	} else {
+		return Layout{}, ErrInvalidConfig
+	}
+	return buildLayoutForRaster(context.Background(), sourceBounds, nil, c)
+}
+
+// BuildVideoViewport returns only the profile-owned active viewport geometry.
+// Color-dependent layout fields produced internally for a nil app raster are
+// discarded; they are never evidence of source fill or raster appearance.
+// Camera validation uses this before native dispatch when AUTO colors have not
+// yet been resolved from the scheduled source frame.
+func BuildVideoViewport(sourceBounds image.Rectangle, c Config) (image.Rectangle, error) {
+	geometry := c
+	if c.Phone != nil {
+		phone := *c.Phone
+		if phone.TopFill == nil {
+			phone.TopFill = &RGB{}
+		}
+		if phone.BottomFill == nil {
+			phone.BottomFill = &RGB{}
+		}
+		geometry.Phone = &phone
+	}
+	if c.Browser != nil {
+		browser := *c.Browser
+		if browser.DesktopColor == nil {
+			browser.DesktopColor = &RGB{}
+		}
+		geometry.Browser = &browser
+	}
+	layout, err := buildLayoutForRaster(context.Background(), sourceBounds, nil, geometry)
+	if err != nil {
+		return image.Rectangle{}, err
+	}
+	return layout.AppViewport, nil
+}
+
+func buildLayoutForRaster(ctx context.Context, bounds image.Rectangle, app image.Image, c Config) (Layout, error) {
 	if (c.Phone == nil) == (c.Browser == nil) {
 		return Layout{}, ErrInvalidConfig
 	}
-	bounds := app.Bounds()
 	w64, h64 := int64(bounds.Max.X)-int64(bounds.Min.X), int64(bounds.Max.Y)-int64(bounds.Min.Y)
 	if bounds.Empty() || w64 <= 0 || h64 <= 0 || w64 > maxRasterSide || h64 > maxRasterSide || w64*h64 > maxSourcePixels {
 		return Layout{}, ErrInvalidConfig
@@ -33,17 +86,44 @@ func buildLayout(ctx context.Context, app image.Image, c Config) (Layout, error)
 	if c.Target.X <= 0 || c.Target.Y <= 0 || c.Target.X > maxRasterSide || c.Target.Y > maxRasterSide || int64(c.Target.X)*int64(c.Target.Y) > maxRasterPixels {
 		return Layout{}, ErrInvalidConfig
 	}
-	if err := validateAlphaAndMatte(ctx, app, c.Matte); err != nil {
-		return Layout{}, err
+	if c.Phone != nil {
+		aspectBasis := c.Target.X * BrowserRectBasis / c.Target.Y
+		if aspectBasis < phoneMinWidthBasis || aspectBasis > phoneMaxWidthBasis {
+			return Layout{}, ErrInvalidConfig
+		}
 	}
-	top, bottom, err := resolveFills(ctx, app, c)
-	if err != nil {
-		return Layout{}, err
+	var top, bottom RGB
+	if app == nil {
+		if c.Phone != nil {
+			top, bottom = *c.Phone.TopFill, *c.Phone.BottomFill
+		} else {
+			top, bottom = *c.Browser.DesktopColor, *c.Browser.DesktopColor
+		}
+	} else {
+		if err := validateAlphaAndMatte(ctx, app, c.Matte); err != nil {
+			return Layout{}, err
+		}
+		var err error
+		top, bottom, err = resolveFills(ctx, app, c)
+		if err != nil {
+			return Layout{}, err
+		}
 	}
 	var profile, version string
 	var viewport image.Rectangle
 	if c.Phone != nil {
 		if c.Phone.Appearance != "" && c.Phone.Appearance != AppearanceLight && c.Phone.Appearance != AppearanceDark {
+			if c.Phone.Appearance != AppearanceAuto || c.Phone.ProfileVersion != PhoneProfileVersionAuto {
+				return Layout{}, ErrInvalidConfig
+			}
+		}
+		if c.Phone.ProfileVersion != "" && c.Phone.ProfileVersion != PhoneProfileVersionAuto {
+			return Layout{}, ErrInvalidConfig
+		}
+		if c.Phone.ProfileVersion != PhoneProfileVersionAuto && (c.Phone.StatusInk != nil || c.Phone.HomeInk != nil) {
+			return Layout{}, ErrInvalidConfig
+		}
+		if c.Phone.ProfileVersion == PhoneProfileVersionAuto && c.Phone.Appearance == "" {
 			return Layout{}, ErrInvalidConfig
 		}
 		if c.Phone.BatteryPercent > 100 || len(c.Phone.Clock) > 8 || len(c.Phone.Carrier) > 32 {
@@ -56,6 +136,14 @@ func buildLayout(ctx context.Context, app image.Image, c Config) (Layout, error)
 			return Layout{}, ErrInvalidConfig
 		}
 		profile, version = PhoneProfileID, PhoneProfileVersion
+		if c.Phone.ProfileVersion == PhoneProfileVersionAuto {
+			version = PhoneProfileVersionAuto
+			if c.Phone.Carrier != "" {
+				if err := validatePhoneCarrierFit(c.Phone.Carrier, c.Target); err != nil {
+					return Layout{}, err
+				}
+			}
+		}
 		sy := float64(c.Target.Y) / phoneRefHeight
 		topInset := int(math.Round(74 * sy))
 		bottomInset := int(math.Round(34 * sy))
@@ -65,6 +153,9 @@ func buildLayout(ctx context.Context, app image.Image, c Config) (Layout, error)
 		}
 	} else {
 		b := c.Browser
+		if b.ShowWindowControls && !b.ShowToolbar {
+			return Layout{}, ErrInvalidConfig
+		}
 		if !validText(b.Title, 128) || !validText(b.Address, 2048) {
 			return Layout{}, ErrInvalidConfig
 		}
@@ -112,9 +203,59 @@ func buildLayout(ctx context.Context, app image.Image, c Config) (Layout, error)
 		return Layout{}, err
 	}
 	digest := sha256.Sum256(configBytes)
-	return Layout{ProfileID: profile, ProfileVersion: version, DisplaySize: c.Target, SourceBounds: bounds, AppViewport: viewport, FittedApp: fitted,
+	layout := Layout{
+		ProfileID: profile, ProfileVersion: version, DisplaySize: c.Target, SourceBounds: bounds, AppViewport: viewport, FittedApp: fitted,
 		SourceToDisplay: Transform{Scale: scale, TranslateX: float64(fitted.Min.X) - float64(bounds.Min.X)*scale, TranslateY: float64(fitted.Min.Y) - float64(bounds.Min.Y)*scale},
-		Letterbox:       letterbox, ResolvedTopFill: top, ResolvedBottomFill: bottom, FillPolicy: FillPolicyID, Rasterizer: RasterizerID, ConfigSHA256: hex.EncodeToString(digest[:]), FontSHA256: fontDigest()}, nil
+		Letterbox:       letterbox, ResolvedTopFill: top, ResolvedBottomFill: bottom, FillPolicy: FillPolicyID, Rasterizer: RasterizerID, ConfigSHA256: hex.EncodeToString(digest[:]), FontSHA256: fontDigest(),
+	}
+	if c.Phone != nil && version == PhoneProfileVersionAuto {
+		status, home := chooseContrastInk(top), chooseContrastInk(bottom)
+		if c.Phone.Appearance != AppearanceAuto {
+			status, home = fixedAppearanceInk(c.Phone.Appearance), fixedAppearanceInk(c.Phone.Appearance)
+		}
+		if c.Phone.StatusInk != nil {
+			status = *c.Phone.StatusInk
+		}
+		if c.Phone.HomeInk != nil {
+			home = *c.Phone.HomeInk
+		}
+		layout.ResolvedStatusInk, layout.ResolvedHomeInk = &status, &home
+	}
+	return layout, nil
+}
+
+func fixedAppearanceInk(a Appearance) RGB {
+	if a == AppearanceLight {
+		return RGB{R: 30, G: 34, B: 42}
+	}
+	return RGB{R: 236, G: 240, B: 247}
+}
+
+func chooseContrastInk(fill RGB) RGB {
+	dark, light := fixedAppearanceInk(AppearanceLight), fixedAppearanceInk(AppearanceDark)
+	if contrastRatio(fill, light) > contrastRatio(fill, dark) {
+		return light
+	}
+	return dark
+}
+
+func contrastRatio(a, b RGB) float64 {
+	la, lb := relativeLuminance(a), relativeLuminance(b)
+	if la < lb {
+		la, lb = lb, la
+	}
+	return (la + 0.05) / (lb + 0.05)
+}
+
+func relativeLuminance(c RGB) float64 {
+	linear := func(v uint8) float64 {
+		x := float64(v) / 255
+		if x <= 0.04045 {
+			return x / 12.92
+		}
+		return math.Pow((x+0.055)/1.055, 2.4)
+	}
+	return 0.2126*linear(c.R) + 0.7152*linear(c.G) + 0.0722*linear(c.B)
 }
 
 func browserWindow(target image.Point, b BasisRect) (image.Rectangle, error) {
@@ -198,7 +339,7 @@ func validateAlphaAndMatte(ctx context.Context, img image.Image, matte *RGB) err
 		for x := b.Min.X; x < b.Max.X; x++ {
 			_, _, _, a := img.At(x, y).RGBA()
 			if a != 0xffff && matte == nil {
-				return errors.New("presentations: transparent app requires an explicit matte")
+				return ErrMatteRequired
 			}
 		}
 	}
@@ -213,13 +354,9 @@ func resolveFills(ctx context.Context, app image.Image, c Config) (RGB, RGB, err
 	if c.Phone != nil {
 		if c.Phone.TopFill != nil {
 			top = *c.Phone.TopFill
-		} else if c.Phone.Appearance == AppearanceLight {
-			top = RGB{R: 246, G: 247, B: 250}
 		}
 		if c.Phone.BottomFill != nil {
 			bottom = *c.Phone.BottomFill
-		} else if c.Phone.Appearance == AppearanceLight {
-			bottom = RGB{R: 246, G: 247, B: 250}
 		}
 	}
 	if c.Browser != nil {

@@ -4,8 +4,135 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "device-studio",
   "generator": "v1.0.0",
-  "manifest_hash": "a88534657912051d6f83c29e79e0c4da218c3331496b42ac8b5241342dc04dd1",
+  "manifest_hash": "1d3eac119067e081bac65c7cd2e762f73979c1a68fa70e9468447ad583e0e167",
   "commands": [
+    {
+      "path": "creation cancel",
+      "group": "creation",
+      "command": "cancel",
+      "binding": ".",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "creation get",
+      "group": "creation",
+      "command": "get",
+      "binding": ".",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "creation start",
+      "group": "creation",
+      "command": "start",
+      "binding": ".",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "devices get",
+      "group": "devices",
+      "command": "get",
+      "binding": "DevicesService.GetDeviceRevision",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "devices head",
+      "group": "devices",
+      "command": "head",
+      "binding": "DevicesService.GetDeviceHead",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "devices list",
+      "group": "devices",
+      "command": "list",
+      "binding": "DevicesService.ListDeviceCandidates",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "devices revisions",
+      "group": "devices",
+      "command": "revisions",
+      "binding": "DevicesService.ListDeviceRevisions",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "devices save",
+      "group": "devices",
+      "command": "save",
+      "binding": "DevicesService.SaveDeviceCandidate",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "library get",
+      "group": "library",
+      "command": "get",
+      "binding": "LibraryCatalogService.GetBundleRevision",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "library intake-get",
+      "group": "library",
+      "command": "intake-get",
+      "binding": "LibraryCatalogService.GetIntakeCandidate",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "library intake-import",
+      "group": "library",
+      "command": "intake-import",
+      "declared_exception": "upload",
+      "observed_primitive": "upload"
+    },
+    {
+      "path": "library intake-list",
+      "group": "library",
+      "command": "intake-list",
+      "binding": "LibraryCatalogService.ListIntakeCandidates",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "library list",
+      "group": "library",
+      "command": "list",
+      "binding": "LibraryCatalogService.ListBundleRevisions",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "library starter",
+      "group": "library",
+      "command": "starter",
+      "binding": "PhysicalStarterService.InitializeReviewedStarter",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "media cancel-inspection",
+      "group": "media",
+      "command": "cancel-inspection",
+      "binding": "ProjectsService.CancelSourceMediaInspection",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "media clock",
+      "group": "media",
+      "command": "clock",
+      "binding": "ProjectsService.GetSourceMediaClockPage",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
     {
       "path": "media get",
       "group": "media",
@@ -22,6 +149,14 @@
       "observed_primitive": "upload"
     },
     {
+      "path": "media inspect",
+      "group": "media",
+      "command": "inspect",
+      "binding": "ProjectsService.EnsureSourceMediaInspection",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
       "path": "media list",
       "group": "media",
       "command": "list",
@@ -30,43 +165,92 @@
       "observed_primitive": "proto_list"
     },
     {
-      "path": "notes attach",
-      "group": "notes",
-      "command": "attach",
-      "declared_exception": "upload",
-      "observed_primitive": "upload"
-    },
-    {
-      "path": "notes count",
-      "group": "notes",
-      "command": "count",
-      "binding": "NotesService.CountNotes",
-      "declared_primitive": "proto_list",
-      "observed_primitive": "proto_list"
-    },
-    {
-      "path": "notes create",
-      "group": "notes",
-      "command": "create",
-      "binding": "NotesService.CreateNote",
+      "path": "media retry-inspection",
+      "group": "media",
+      "command": "retry-inspection",
+      "binding": "ProjectsService.RetrySourceMediaInspection",
       "declared_primitive": "proto_mutation",
       "observed_primitive": "proto_mutation"
     },
     {
-      "path": "notes get",
-      "group": "notes",
+      "path": "motions get",
+      "group": "motions",
       "command": "get",
-      "binding": "NotesService.GetNote",
+      "binding": "MotionsService.GetMotionRevision",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
     },
     {
-      "path": "notes list",
-      "group": "notes",
-      "command": "list",
-      "binding": "NotesService.ListNotes",
+      "path": "motions head",
+      "group": "motions",
+      "command": "head",
+      "binding": "MotionsService.GetMotionHead",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
+    },
+    {
+      "path": "motions list",
+      "group": "motions",
+      "command": "list",
+      "binding": "MotionsService.ListMotionCandidates",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "motions revisions",
+      "group": "motions",
+      "command": "revisions",
+      "binding": "MotionsService.ListMotionRevisions",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "motions save",
+      "group": "motions",
+      "command": "save",
+      "binding": "MotionsService.SaveMotionCandidate",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "physical-setups get",
+      "group": "physical-setups",
+      "command": "get",
+      "binding": "ShotsService.GetPhysicalShotPreset",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "physical-setups head",
+      "group": "physical-setups",
+      "command": "head",
+      "binding": "ShotsService.GetPhysicalShotPresetHead",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "physical-setups list",
+      "group": "physical-setups",
+      "command": "list",
+      "binding": "ShotsService.ListPhysicalShotPresets",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "physical-setups revisions",
+      "group": "physical-setups",
+      "command": "revisions",
+      "binding": "ShotsService.ListPhysicalShotPresetRevisions",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "physical-setups save",
+      "group": "physical-setups",
+      "command": "save",
+      "binding": "ShotsService.SavePhysicalShotPreset",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
     },
     {
       "path": "projects create",
@@ -97,6 +281,94 @@
       "group": "projects",
       "command": "rename",
       "binding": "ProjectsService.RenameProject",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "renders cancel",
+      "group": "renders",
+      "command": "cancel",
+      "binding": "RenderJobsService.CancelRender",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "renders export",
+      "group": "renders",
+      "command": "export",
+      "binding": ".",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "renders get",
+      "group": "renders",
+      "command": "get",
+      "binding": "RenderJobsService.GetRender",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "renders list",
+      "group": "renders",
+      "command": "list",
+      "binding": "RenderJobsService.ListRenders",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "renders sample-binding",
+      "group": "renders",
+      "command": "sample-binding",
+      "binding": "RenderJobsService.GetVideoSampleBinding",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "renders submit",
+      "group": "renders",
+      "command": "submit",
+      "binding": "RenderJobsService.SubmitRender",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "scenes get",
+      "group": "scenes",
+      "command": "get",
+      "binding": "ScenesService.GetSceneRevision",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "scenes head",
+      "group": "scenes",
+      "command": "head",
+      "binding": "ScenesService.GetSceneHead",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "scenes list",
+      "group": "scenes",
+      "command": "list",
+      "binding": "ScenesService.ListSceneCandidates",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "scenes revisions",
+      "group": "scenes",
+      "command": "revisions",
+      "binding": "ScenesService.ListSceneRevisions",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "scenes save",
+      "group": "scenes",
+      "command": "save",
+      "binding": "ScenesService.SaveSceneCandidate",
       "declared_primitive": "proto_mutation",
       "observed_primitive": "proto_mutation"
     },

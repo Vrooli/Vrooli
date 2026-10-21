@@ -18,29 +18,31 @@ var baseTime = time.Date(2026, 10, 19, 12, 0, 0, 0, time.UTC)
 
 func openRepo(t *testing.T, path string) (*sql.DB, jobs.Repository) {
 	t.Helper()
-	db, err := sql.Open("sqlite", path)
+	db, err := sql.Open("sqlite", "file:"+path+"?_pragma=busy_timeout(5000)")
 	if err != nil {
 		t.Fatal(err)
 	}
 	db.SetMaxOpenConns(8)
 	db.SetMaxIdleConns(8)
-	if _, err = db.Exec(`PRAGMA busy_timeout=5000;`); err != nil {
-		t.Fatal(err)
-	}
 	if _, err = db.Exec(jobs.Schema()); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = db.Close() })
 	return db, jobs.NewSQLiteRepository(db)
 }
+
 func newService(repo jobs.Repository) jobs.Service {
 	return jobs.NewService(repo, func() time.Time { return baseTime })
 }
+
 func input() jobs.Input {
-	return jobs.Input{ProjectID: "project-a", ShotRevisionID: "shot-rev-7", ShotRevision: 7,
+	return jobs.Input{
+		ProjectID: "project-a", ShotRevisionID: "shot-rev-7", ShotRevision: 7,
 		Bindings:          []jobs.ArtifactBinding{{Role: "plate", ArtifactID: "artifact-plate", RevisionID: "plate-r3", SHA256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}, {Role: "screen", ArtifactID: "artifact-screen", RevisionID: "screen-r2", SHA256: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}},
-		SourceClockDigest: "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", ToolProfileDigest: "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", RendererVersion: "compositor-v1", OutputProfile: "png-1536-srgb"}
+		SourceClockDigest: "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", ToolProfileDigest: "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", RendererVersion: "compositor-v1", OutputProfile: "png-1536-srgb",
+	}
 }
+
 func submit(t *testing.T, s jobs.Service) jobs.Job {
 	t.Helper()
 	j, created, err := s.Submit(context.Background(), jobs.SubmitInput{IdempotencyKey: "op-1", Input: input()})
@@ -52,17 +54,20 @@ func submit(t *testing.T, s jobs.Service) jobs.Job {
 	}
 	return j
 }
+
 func executionOwner(scope, attemptID string, attemptNumber int) jobs.ExecutionClaimInput {
 	return jobs.ExecutionClaimInput{AttemptID: attemptID, AttemptNumber: attemptNumber, OwnerID: "platform-go", ScopeID: scope, ArtifactID: "execution-claim-" + scope, SHA256: "1212121212121212121212121212121212121212121212121212121212121212"}
 }
+
 func proofFor(j jobs.Job, a jobs.Attempt, reason string) jobs.QuiescenceProof {
 	return jobs.QuiescenceProof{JobID: j.ID, AttemptID: a.ID, InputFingerprint: j.InputFingerprint, ExecutionClaimID: a.Execution.ID, OwnerID: a.Execution.OwnerID, ScopeID: a.Execution.ScopeID, ProofArtifactID: "quiescence-" + a.ID, ProofSHA256: "1313131313131313131313131313131313131313131313131313131313131313", ObservedAt: baseTime, NoOwnedExecution: true, Reason: reason}
 }
+
 func outputs() jobs.CompletionEvidence {
 	return jobs.CompletionEvidence{Outputs: []jobs.OutputRef{{Kind: "png", ArtifactID: "artifact-output", SHA256: "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", MIMEType: "image/png", SizeBytes: 4096}}, ReceiptArtifactID: "render-receipt", ReceiptSHA256: "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", CompletedAt: baseTime}
 }
 
-func TestSubmitIsDurableAndIdempotentAcrossRepositoryReopen(t *testing.T) {
+func TestSubmitIsDurableAndIdempotentAcrossRepositoryReopen(t *testing.T) { // [REQ:DS-JOB-DURABILITY]
 	path := filepath.Join(t.TempDir(), "jobs.db")
 	db, repo := openRepo(t, path)
 	svc := newService(repo)
@@ -81,12 +86,72 @@ func TestSubmitIsDurableAndIdempotentAcrossRepositoryReopen(t *testing.T) {
 	if retry.ID != first.ID || retry.InputFingerprint != first.InputFingerprint || len(retry.Attempts) != 1 {
 		t.Fatalf("reopened job differs: %#v", retry)
 	}
+	byKey, err := svc2.FindByIdempotencyKey(context.Background(), "op-1")
+	if err != nil || byKey.ID != first.ID || byKey.InputFingerprint != first.InputFingerprint {
+		t.Fatalf("lookup by durable idempotency key: job=%+v err=%v", byKey, err)
+	}
+	if _, err := svc2.FindByIdempotencyKey(context.Background(), "missing"); !errors.Is(err, jobs.ErrNotFound) {
+		t.Fatalf("missing idempotency key should be not found, got %v", err)
+	}
 	changed := input()
 	changed.Bindings[0].SHA256 = "1111111111111111111111111111111111111111111111111111111111111111"
 	if _, _, err = svc2.Submit(context.Background(), jobs.SubmitInput{IdempotencyKey: "op-1", Input: changed}); !errors.Is(err, jobs.ErrIdempotencyConflict) {
 		t.Fatalf("changed payload with same key: %v", err)
 	}
 }
+
+func TestProgressPagesAndReleaseReceiptSurviveReopen(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "release.db")
+	db, repo := openRepo(t, path)
+	svc := newService(repo)
+	j := submit(t, svc)
+	running, err := svc.Start(context.Background(), j.ID, executionOwner("scope-release", j.Attempts[0].ID, 1), j.Version)
+	if err != nil {
+		t.Fatal(err)
+	}
+	progress, err := svc.ListProgress(context.Background(), jobs.Cursor{}, 10)
+	if err != nil || len(progress) != 1 || progress[0].ID != j.ID {
+		t.Fatalf("claimed job missing from progress: rows=%#v err=%v", progress, err)
+	}
+	observed, err := svc.RecordObserved(context.Background(), j.ID, running.Attempts[0].ID, running.Version)
+	if err != nil || !observed.Attempts[0].ExecutionObserved {
+		t.Fatalf("explicit observation not persisted: job=%#v err=%v", observed, err)
+	}
+	completion := outputs()
+	completion.AttemptID = observed.Attempts[0].ID
+	completion.ExecutionClaimID = observed.Attempts[0].Execution.ID
+	completion.InputFingerprint = observed.InputFingerprint
+	terminal, err := svc.Complete(context.Background(), j.ID, observed.Attempts[0].ID, completion, observed.Version)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rows, err := svc.ListProgress(context.Background(), jobs.Cursor{}, 10); err != nil || len(rows) != 1 || rows[0].State != jobs.Succeeded {
+		t.Fatalf("terminal release-pending job was not discoverable: rows=%#v err=%v", rows, err)
+	}
+	if err = db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	db2, repo2 := openRepo(t, path)
+	defer db2.Close()
+	svc2 := newService(repo2)
+	rows, err := svc2.ListProgress(context.Background(), jobs.Cursor{}, 10)
+	if err != nil || len(rows) != 1 || rows[0].ID != terminal.ID {
+		t.Fatalf("release work did not survive repository reopen: rows=%#v err=%v", rows, err)
+	}
+	released, err := svc2.RecordReleased(context.Background(), terminal.ID, terminal.Attempts[0].ID, terminal.Version, baseTime.Add(time.Second))
+	if err != nil || released.Attempts[0].ExecutionReleasedAt == nil {
+		t.Fatalf("release receipt was not persisted: job=%#v err=%v", released, err)
+	}
+	rows, err = svc2.ListProgress(context.Background(), jobs.Cursor{}, 10)
+	if err != nil || len(rows) != 0 {
+		t.Fatalf("released terminal job remains in progress: rows=%#v err=%v", rows, err)
+	}
+	var count int
+	if err = db2.QueryRow(`SELECT COUNT(*) FROM render_job_release_receipts WHERE job_id=? AND attempt_id=?`, j.ID, running.Attempts[0].ID).Scan(&count); err != nil || count != 1 {
+		t.Fatalf("durable release receipt count=%d err=%v", count, err)
+	}
+}
+
 func TestSuccessRequiresValidatedWorkerEvidenceAndPersistsAttempt(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "jobs.db")
 	db, repo := openRepo(t, path)
@@ -127,7 +192,8 @@ func TestSuccessRequiresValidatedWorkerEvidenceAndPersistsAttempt(t *testing.T) 
 		t.Fatalf("terminal job accepted second completion: %v", err)
 	}
 }
-func TestCancelAndSuccessHaveOneSerializedWinner(t *testing.T) {
+
+func TestCancelAndSuccessHaveOneSerializedWinner(t *testing.T) { // [REQ:DS-JOB-CANCEL]
 	_, repo := openRepo(t, filepath.Join(t.TempDir(), "race.db"))
 	svc := newService(repo)
 	j := submit(t, svc)
@@ -182,6 +248,7 @@ func TestCancelAndSuccessHaveOneSerializedWinner(t *testing.T) {
 		t.Fatalf("race produced incoherent state: %s (complete=%v cancel=%v result=%#v)", final.State, completeErr, cancelErr, completed)
 	}
 }
+
 func TestCheckpointIdentityAndRecoveryClassification(t *testing.T) {
 	_, repo := openRepo(t, filepath.Join(t.TempDir(), "checkpoint.db"))
 	svc := newService(repo)
@@ -218,7 +285,14 @@ func TestCheckpointIdentityAndRecoveryClassification(t *testing.T) {
 	if len(recs) != 1 || recs[0].Class != jobs.RecoveryResume || recs[0].Checkpoint == nil {
 		t.Fatalf("checkpoint recovery not classified: %#v", recs)
 	}
-	resumed, err := svc.Start(context.Background(), j.ID, executionOwner("scope-2", "attempt-resumed-2", 2), checkpointed.Version)
+	if _, err = svc.Start(context.Background(), j.ID, executionOwner("scope-2", "attempt-resumed-2", 2), checkpointed.Version); !errors.Is(err, jobs.ErrReleasePending) {
+		t.Fatalf("new attempt admitted before prior execution release: %v", err)
+	}
+	releasedCheckpoint, err := svc.RecordReleased(context.Background(), j.ID, a.ID, checkpointed.Version, baseTime.Add(time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	resumed, err := svc.Start(context.Background(), j.ID, executionOwner("scope-2", "attempt-resumed-2", 2), releasedCheckpoint.Version)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -249,6 +323,7 @@ func TestCheckpointIdentityAndRecoveryClassification(t *testing.T) {
 		t.Fatalf("older attempt ID reused as a new attempt: %v", err)
 	}
 }
+
 func TestCancellationRequiresQuiescenceAndSettlementIsOrthogonal(t *testing.T) {
 	_, repo := openRepo(t, filepath.Join(t.TempDir(), "cancel.db"))
 	svc := newService(repo)
@@ -296,7 +371,8 @@ func TestCancellationRequiresQuiescenceAndSettlementIsOrthogonal(t *testing.T) {
 		t.Fatalf("settlement changed execution result: %#v", settled)
 	}
 }
-func TestRecoveryClassifiesQueuedLiveAndInterruptedWork(t *testing.T) {
+
+func TestRecoveryClassifiesQueuedLiveAndInterruptedWork(t *testing.T) { // [REQ:DS-JOB-RECOVERY]
 	_, repo := openRepo(t, filepath.Join(t.TempDir(), "recovery.db"))
 	svc := newService(repo)
 	queued := submit(t, svc)
@@ -324,6 +400,7 @@ func TestRecoveryClassifiesQueuedLiveAndInterruptedWork(t *testing.T) {
 		t.Fatalf("stale execution must reconcile, never blindly retry: %#v", classes)
 	}
 }
+
 func TestQueuedCancelIsTerminalWithoutClaimingProcessCleanup(t *testing.T) {
 	_, repo := openRepo(t, filepath.Join(t.TempDir(), "queued-cancel.db"))
 	svc := newService(repo)

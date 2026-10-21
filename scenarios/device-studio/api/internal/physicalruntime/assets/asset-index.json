@@ -1,0 +1,299 @@
+{
+  "schema_version": 1,
+  "catalog_id": "device-studio-physicalruntime-starter-assets-v1",
+  "status": "assets_only_unreviewed_no_library_ids",
+  "entries": [
+    {
+      "catalog_key": "authored-phone-neutral",
+      "path": "phone/authored-phone-neutral.glb",
+      "media_type": "model/gltf-binary",
+      "size_bytes": 2580196,
+      "sha256": "152c02883f75affc15185194f4347c256fef91cc83541262744678c40c761fca",
+      "role": "device_model",
+      "status": "unreviewed_candidate",
+      "allowed_use": [
+        "internal_candidate_review"
+      ],
+      "rights": "Vrooli-authored procedural interpretation; neutral display only, no private screen pixels; not manufacturer CAD or endorsed."
+    },
+    {
+      "catalog_key": "phone-table-scene",
+      "path": "phone-table/phone-table-scene.glb",
+      "media_type": "model/gltf-binary",
+      "size_bytes": 350488,
+      "sha256": "d03c288c1f6fa401d920c736e1361189066599b0c514f924b9fed8b50ba16587",
+      "role": "scene_geometry",
+      "status": "unreviewed_candidate",
+      "allowed_use": [
+        "internal_candidate_review"
+      ],
+      "rights": "Vrooli-authored procedural scene geometry; not measured furniture or CAD."
+    },
+    {
+      "catalog_key": "travertine-color",
+      "path": "phone-table/textures/travertine-color.jpg",
+      "media_type": "image/jpeg",
+      "size_bytes": 16152869,
+      "sha256": "e14668f66d61b73c1b1bd1df6150449244ea9c766af12908e3f522c6c93b09c8",
+      "role": "base_color_map",
+      "status": "unreviewed_candidate",
+      "allowed_use": [
+        "internal_candidate_review",
+        "CC0 reuse"
+      ],
+      "rights": "ambientCG Travertine001 texture; CC0-1.0.",
+      "license": "CC0-1.0"
+    },
+    {
+      "catalog_key": "travertine-normal-gl",
+      "path": "phone-table/textures/travertine-normal-gl.jpg",
+      "media_type": "image/jpeg",
+      "size_bytes": 5152752,
+      "sha256": "68419c7540b71608d34ef103d6ae839f7144128784b3b03af44c95b1db8b168b",
+      "role": "normal_map_gl",
+      "status": "unreviewed_candidate",
+      "allowed_use": [
+        "internal_candidate_review",
+        "CC0 reuse"
+      ],
+      "rights": "ambientCG Travertine001 texture; CC0-1.0.",
+      "license": "CC0-1.0"
+    },
+    {
+      "catalog_key": "travertine-roughness",
+      "path": "phone-table/textures/travertine-roughness.jpg",
+      "media_type": "image/jpeg",
+      "size_bytes": 5302649,
+      "sha256": "a8f053413e46dacce39e601d1ceb5ae615cd7f91e1f270db386e6c6470cf9b90",
+      "role": "roughness_map",
+      "status": "unreviewed_candidate",
+      "allowed_use": [
+        "internal_candidate_review",
+        "CC0 reuse"
+      ],
+      "rights": "ambientCG Travertine001 texture; CC0-1.0.",
+      "license": "CC0-1.0"
+    },
+    {
+      "catalog_key": "travertine-height",
+      "path": "phone-table/textures/travertine-height.jpg",
+      "media_type": "image/jpeg",
+      "size_bytes": 355941,
+      "sha256": "64001fed9f67bbf9af0fccdf079fccbb0e01cba369c9c0319009b3c9aa2cabaf",
+      "role": "height_bump_map",
+      "status": "unreviewed_candidate",
+      "allowed_use": [
+        "internal_candidate_review",
+        "CC0 reuse"
+      ],
+      "rights": "ambientCG Travertine001 texture; CC0-1.0; bump only, no geometric displacement.",
+      "license": "CC0-1.0"
+    },
+    {
+      "catalog_key": "phone-study-environment",
+      "path": "phone-study-environment/phone-study-environment.glb",
+      "media_type": "model/gltf-binary",
+      "size_bytes": 421404,
+      "sha256": "c0f1450af8cc83b237159f2c5208bd964c48fc5dc9fe7f2ac2b2ee5409447f4d",
+      "role": "scene_geometry",
+      "status": "unreviewed_candidate",
+      "allowed_use": [
+        "internal_candidate_review"
+      ],
+      "rights": "Vrooli-authored static environment interpretation; includes table, wall, window panel and frame, no embedded images, no camera/lights; not measured room or furniture CAD."
+    },
+    {
+      "catalog_key": "ipad-mini-6-environment-camera-v3",
+      "path": "ipad-environment-v3/ipad-study-environment.glb",
+      "media_type": "model/gltf-binary",
+      "size_bytes": 289224,
+      "sha256": "598c50a9bea67b56f9911c2601e3bed8d11428e171725315b0f382fa92462c5f",
+      "role": "scene_geometry",
+      "status": "candidate_only_unqualified",
+      "allowed_use": [
+        "internal_candidate_review"
+      ],
+      "rights": "Vrooli-authored iPad-specific scene geometry with regenerated 128-segment cup; separate Travertine001 maps are CC0-1.0. Not physical measurement or qualified scene.",
+      "license": "AGPL-3.0-only",
+      "provenance": "See ipad-environment-v3/asset-manifest.json and E3 export6 receipt; uses the existing oriented DatSketch iPad candidate only as projection input, not embedded."
+    },
+    {
+      "catalog_key": "datsketch-ipad-mini-6-neutral",
+      "path": "ipad/ipad-mini-neutral-screen.glb",
+      "media_type": "model/gltf-binary",
+      "size_bytes": 1938260,
+      "sha256": "8cd65349dcd38cb4f47fd897779db97dbbbf0fc7f6c81cd6c2ab05eaa6b47b5e",
+      "role": "tablet_model",
+      "status": "candidate_only_unqualified",
+      "allowed_use": [
+        "internal_candidate_review",
+        "CC BY 4.0 attribution required"
+      ],
+      "rights": "DatSketch iPad mini 6 2021 adaptation under CC BY 4.0; embedded screen image 1 replaced with a neutral placeholder. Not manufacturer CAD or endorsement.",
+      "license": "CC BY 4.0",
+      "provenance": "See ipad/asset-manifest.json and E4/free-models/sceneview-research/ipad-source-preserving/"
+    },
+    {
+      "catalog_key": "datsketch-ipad-mini-6-neutral-uv-normalized-v1",
+      "path": "ipad/ipad-mini-screen-uv-normalized.glb",
+      "media_type": "model/gltf-binary",
+      "size_bytes": 1938936,
+      "sha256": "16d88943240dffae0e14e4743beefa1ed61e7efb4b5aa6cb00ecf2ac4b63749c",
+      "role": "tablet_model",
+      "status": "candidate_only_unqualified",
+      "allowed_use": [
+        "internal_candidate_review",
+        "CC BY 4.0 attribution required"
+      ],
+      "rights": "DatSketch iPad mini 6 2021 adaptation under CC BY 4.0; source screen image replaced and display UV chart normalized. Not manufacturer CAD or endorsement.",
+      "license": "CC BY 4.0",
+      "provenance": "See ipad/asset-manifest-uv-normalized.json and E4/free-models/sceneview-research/ipad-screen-uv-normalization/"
+    },
+    {
+      "catalog_key": "datsketch-ipad-mini-6-neutral-uv-oriented-180-v2",
+      "path": "ipad/ipad-mini-screen-uv-oriented-180-v2.glb",
+      "media_type": "model/gltf-binary",
+      "size_bytes": 1939592,
+      "sha256": "0326fd47e7df4a065978eaae76e6789cb3027f54bab6f3f7fdef1bdfb867e52e",
+      "role": "tablet_model",
+      "status": "candidate_only_unqualified",
+      "allowed_use": [
+        "internal_candidate_review",
+        "CC BY 4.0 attribution required"
+      ],
+      "rights": "DatSketch iPad mini 6 2021 adaptation under CC BY 4.0; private embedded display image replaced by neutral raster. Screen UV chart is rotated 180 degrees based on native hero-4 observation. Not manufacturer CAD or endorsement.",
+      "license": "CC BY 4.0",
+      "provenance": "See ipad/asset-manifest-uv-oriented-180-v2.json and E4/free-models/sceneview-research/ipad-screen-uv-orientation/"
+    },
+    {
+      "catalog_key": "jack-baeten-macbook-pro-m3-16-neutral-derive16",
+      "path": "laptop/laptop-neutral-rig.glb",
+      "media_type": "model/gltf-binary",
+      "size_bytes": 4638060,
+      "sha256": "3005e1e8b12e2017565292712aaad20dfb35cda2c42519a937d2c74afb6f5925",
+      "role": "laptop_model",
+      "status": "candidate_only_unqualified",
+      "allowed_use": [
+        "internal_candidate_review",
+        "CC BY 4.0 attribution required"
+      ],
+      "rights": "Jack Baeten MacBook Pro M3 16 inch 2024 creator model adapted with neutral screen and candidate hinge roles; attribution required; not manufacturer CAD or endorsement.",
+      "license": "CC BY 4.0",
+      "provenance": "See laptop/asset-manifest.json; project-owned display raster replaces screen emission, and the exclusive screen UV0 chart is affine-normalized to [0,1]."
+    },
+    {
+      "catalog_key": "laptop-candidate-room-without-cup",
+      "path": "laptop-study-environment/laptop-study-environment-no-cup.glb",
+      "media_type": "model/gltf-binary",
+      "size_bytes": 420960,
+      "sha256": "68a8ad34f5af76f681e9aab7337ce80514221bda333c6713b58f624556660f56",
+      "role": "scene_geometry",
+      "status": "candidate_only_unqualified",
+      "allowed_use": [
+        "internal_candidate_review"
+      ],
+      "rights": "Vrooli-authored room/table environment derivative with TeaCup, TeaCupHandle, and TeaSurface omitted from active scene; not measured room/furniture CAD or scene-qualified.",
+      "license": "AGPL-3.0-only",
+      "provenance": "See laptop-study-environment/asset-manifest.json; cup leaf nodes are omitted from the active scene, while mesh/accessor/material arrays and BIN payload are retained."
+    },
+    {
+      "catalog_key": "innerscene-ultrawide-monitor-screen-uv-v1",
+      "path": "monitor/monitor-screen-uv-v1.glb",
+      "media_type": "model/gltf-binary",
+      "size_bytes": 109512,
+      "sha256": "eff6e9a20a4fd26003046e7f0c7b5d0ea737d83d4ce9adb66b1c118561155266",
+      "role": "device_model",
+      "status": "candidate_only_unqualified",
+      "allowed_use": [
+        "internal_candidate_review",
+        "CC0 reuse"
+      ],
+      "rights": "Innerscene Wide View - Ultrawide Monitor generic model; CC0-1.0 as stated by source; no manufacturer identity or endorsement.",
+      "license": "CC0-1.0",
+      "provenance": "See assets/monitor/asset-manifest.json and source package manifest SHA-256 507989d4027b4a31f18629b03fa67c12eaed5c30bdab5ef8246f716e40c10e54."
+    },
+    {
+      "catalog_key": "innerscene-ultrawide-monitor-screen-split-v2",
+      "path": "monitor/monitor-screen-split-v2.glb",
+      "media_type": "model/gltf-binary",
+      "size_bytes": 113844,
+      "sha256": "d077d0e5433f8058f0c7d09c7dfae423af6412ffdedeb6f2af34a2f7e766deb9",
+      "role": "device_model",
+      "status": "candidate_only_unqualified",
+      "allowed_use": [
+        "internal_candidate_review",
+        "CC0 reuse"
+      ],
+      "rights": "Innerscene Wide View - Ultrawide Monitor generic model; CC0-1.0 as stated by source; no manufacturer identity or endorsement.",
+      "license": "CC0-1.0",
+      "provenance": "See assets/monitor/asset-manifest-screen-split-v2.json and source split manifest SHA-256 d9718414b087fe098c6877bece031554e997ea8daa28f851fe446ca45ac1020a."
+    },
+    {
+      "catalog_key": "sceneview-series7-generic-neutral-watch-v1",
+      "path": "watch/series7-generic-neutral-screen.glb",
+      "media_type": "model/gltf-binary",
+      "size_bytes": 5905404,
+      "sha256": "929de3091a06c42dbded6c88312d3285d2ed73857fbecaf188cb94f1ae42b522",
+      "role": "device_model",
+      "status": "candidate_only_unqualified",
+      "allowed_use": [
+        "internal_candidate_review",
+        "CC BY 4.0 attribution required"
+      ],
+      "rights": "Generic rectangular smartwatch-style source derivative; neutral screen replaces branded image. SDC PERFORMANCE attribution and bharathsrk13 base-model attribution retained; no manufacturer endorsement or trademark clearance.",
+      "license": "CC BY 4.0",
+      "provenance": "See watch/asset-manifest.json and retained source/creator records; source scale and unknown variant are preserved. Not a round-watch family claim."
+    }
+  ],
+  "package_manifests": [
+    {
+      "path": "phone/asset-manifest.json",
+      "sha256": "d018bc65e63af66707d4ba7ddd2dfba4993330a6c0720c6f81045579ac0f3203"
+    },
+    {
+      "path": "phone-table/asset-manifest.json",
+      "sha256": "ddd003cb1560332896a801b0edef773ff15f06a004e62cae0f3d69f30e3aae34"
+    },
+    {
+      "path": "phone-study-environment/asset-manifest.json",
+      "sha256": "50e5be2464a6a3c58c01d90f26427240fa1f7db58d247de9cd6dab7e0f6f5ba8"
+    },
+    {
+      "path": "ipad/asset-manifest.json",
+      "sha256": "a338ae0d7718d1959e49c2b30f40b8ad16f30ae64d9cb08661643ca68d7c7b2e"
+    },
+    {
+      "path": "ipad/asset-manifest-uv-normalized.json",
+      "sha256": "11b5d4a0f1741be9d60c90c8693e6c85d708ff3121133f6754956723c04bead6"
+    },
+    {
+      "path": "ipad/asset-manifest-uv-oriented-180-v2.json",
+      "sha256": "95643b7076845b83bb2054ee502c0b300333fa99404f9cd9afbbde0bc5a5cdd0"
+    },
+    {
+      "path": "laptop/asset-manifest.json",
+      "sha256": "b60071501cd87b290e0bdaa308373bacdbc1c2f0bf4cb59d9ce819af893ed2e5"
+    },
+    {
+      "path": "laptop-study-environment/asset-manifest.json",
+      "sha256": "a4f5cab461b81c587fd7a55fe697f383688f9237ca653386f5951973d35b1ef6"
+    },
+    {
+      "path": "ipad-environment-v3/asset-manifest.json",
+      "sha256": "863b82c66d9f93913d51405783c4f22d5455bd66393e72aa86e699ef8ffa6ed4"
+    },
+    {
+      "path": "monitor/asset-manifest.json",
+      "sha256": "a8f8e030a76eea470dadf87e4f780cfb780b8f5e3191b3dab4dd7d2f21ce4c41"
+    },
+    {
+      "path": "monitor/asset-manifest-screen-split-v2.json",
+      "sha256": "c679b96c5ea1545ef5ea154a46309e812f47891b2d131a1821489535457b695f"
+    },
+    {
+      "path": "watch/asset-manifest.json",
+      "sha256": "a02481d03ffb051e900b3bd548d973871e54a891adf82adeb92f2c4b9552d7f9"
+    }
+  ],
+  "provenance": "See each package manifest, retained source acquisition/license evidence, and exact owned-operation output receipts. Hashes here identify bytes only and are not Library artifact IDs or ReviewBindings."
+}

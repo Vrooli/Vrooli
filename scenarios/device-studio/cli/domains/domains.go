@@ -1,9 +1,15 @@
 package domains
 
 import (
+	"device-studio/cli/domains/creation"
+	"device-studio/cli/domains/devices"
+	"device-studio/cli/domains/library"
 	"device-studio/cli/domains/media"
-	"device-studio/cli/domains/notes" // EXAMPLE-DOMAIN:notes
+	"device-studio/cli/domains/motions"
+	"device-studio/cli/domains/physicalsetups"
 	"device-studio/cli/domains/projects"
+	"device-studio/cli/domains/renders"
+	"device-studio/cli/domains/scenes"
 	"device-studio/cli/domains/shots"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -40,13 +46,6 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
 	groups := []cliapp.SubcommandGroup{}
-	// EXAMPLE-DOMAIN:notes START
-	notesGroup, err := notes.Register(core, manifest)
-	if err != nil {
-		return nil, err
-	}
-	groups = append(groups, notesGroup)
-	// EXAMPLE-DOMAIN:notes END
 	projectsGroup, err := projects.Register(core, manifest)
 	if err != nil {
 		return nil, err
@@ -62,5 +61,17 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		return nil, err
 	}
 	groups = append(groups, shotsGroup)
+	rendersGroup, err := renders.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, rendersGroup)
+	for _, register := range []func(*cliapp.ScenarioApp, []byte) (cliapp.SubcommandGroup, error){devices.Register, scenes.Register, motions.Register, physicalsetups.Register, library.Register, creation.Register} {
+		group, err := register(core, manifest)
+		if err != nil {
+			return nil, err
+		}
+		groups = append(groups, group)
+	}
 	return groups, nil
 }

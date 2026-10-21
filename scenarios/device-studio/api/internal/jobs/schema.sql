@@ -34,3 +34,13 @@ CREATE TABLE IF NOT EXISTS render_job_release_receipts (
   released_at INTEGER NOT NULL,
   PRIMARY KEY(job_id, attempt_id)
 );
+-- Typed subjects project known terminal job results into their owning domain.
+-- This marker is committed with the terminal transition and retried idempotently.
+CREATE TABLE IF NOT EXISTS render_job_subject_finalization_pending (
+  job_id TEXT NOT NULL REFERENCES render_jobs(id) ON DELETE CASCADE,
+  attempt_id TEXT NOT NULL REFERENCES render_job_attempts(id) ON DELETE CASCADE,
+  subject_kind TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY(job_id, attempt_id)
+);
+CREATE INDEX IF NOT EXISTS idx_render_job_subject_finalization_job ON render_job_subject_finalization_pending(job_id,attempt_id);

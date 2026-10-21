@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "package_id": "device-studio-starter-datsketch-ipad-mini-6-neutral-v1",
+  "status": "candidate_only_unqualified",
+  "asset": {
+    "path": "ipad-mini-neutral-screen.glb",
+    "media_type": "model/gltf-binary",
+    "size_bytes": 1938260,
+    "sha256": "8cd65349dcd38cb4f47fd897779db97dbbbf0fc7f6c81cd6c2ab05eaa6b47b5e",
+    "source_sha256": "a462088b7bd84b7752802c109beee04110047c3b1a4f355624c863f790e93d5e",
+    "source_model": "IPad Mini 6 2021",
+    "creator": "DatSketch",
+    "source_url": "https://sketchfab.com/3d-models/ipad-mini-6-2021-f363c2b1c74a462588db184bd4fb024e",
+    "license": "CC BY 4.0",
+    "attribution": "iPad mini 6 2021 by DatSketch, adapted under CC BY 4.0.",
+    "modification": "Embedded image 1 replaced with a neutral opaque 512x1024 sRGB PNG. All 16 non-target buffer-view payloads are byte-preserved; model geometry, UVs, materials, sampler bindings and node transforms remain unchanged.",
+    "display": {
+      "node_index": 14,
+      "mesh_index": 10,
+      "primitive_index": 0,
+      "material_index": 10,
+      "texture_index": 1,
+      "image_index": 1,
+      "screen_plane_mm": [117.281, 177.229]
+    },
+    "source_geometry_bounds_mm": [134.423, 195.0, 8.775],
+    "claims": "Source GLB measurements under the glTF metre assumption only. Not manufacturer CAD, independently measured device geometry, physical qualification, or Apple-endorsed. Whole-model depth includes protruding features; body-only depth is unknown.",
+    "derivation": {
+      "script_sha256": "9e6bee6de5072d59b4316f7f39b9928d13b854893e79314d016ef4466ae3eaf1",
+      "manifest_sha256": "61d6e7a3d7e8231c68ba26cfb1ef01a111dac6392170fc311bde059578267a87",
+      "receipt_sha256": "df7021da291bf2ba4c4972cac03c927bd404da318ed2d31cb0ec2889d25fe5ab"
+    }
+  }
+}

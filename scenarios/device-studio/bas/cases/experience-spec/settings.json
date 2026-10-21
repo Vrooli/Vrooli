@@ -1,46 +1,52 @@
 {
   "metadata": {
-    "name": "experience-settings-spec-smoke",
     "description": "Generated observer smoke for active experience page settings.",
-    "requirement": "OT-P0-001",
-    "version": "1",
+    "execution_mode": "mutating",
     "labels": {
+      "requires_confirmation": "true",
       "reset": "none",
+      "routed_isolation": "true",
       "spec_entry_id": "settings",
       "surface": "experience-settings"
     },
-    "execution_mode": "observer"
-  },
-  "settings": {
-    "viewport_width": 1280,
-    "viewport_height": 800
+    "name": "experience-settings-spec-smoke",
+    "requirement": "OT-P0-001",
+    "version": "1"
   },
   "nodes": [
     {
-      "id": "navigate-settings",
       "action": {
-        "type": "ACTION_TYPE_NAVIGATE",
+        "metadata": {
+          "label": "Open Settings"
+        },
         "navigate": {
           "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
           "scenario": "device-studio",
           "scenario_path": "/settings",
-          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
-          "timeout_ms": 30000
+          "timeout_ms": 30000,
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
         },
-        "metadata": { "label": "Open Settings" }
-      }
+        "type": "ACTION_TYPE_NAVIGATE"
+      },
+      "id": "navigate-settings"
     },
     {
-      "id": "wait-settings-page",
       "action": {
+        "metadata": {
+          "label": "Settings page visible"
+        },
         "type": "ACTION_TYPE_WAIT",
         "wait": {
           "selector": "@selector/pages.settings",
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 15000
-        },
-        "metadata": { "label": "Settings page visible" }
-      }
+        }
+      },
+      "id": "wait-settings-page"
     }
-  ]
+  ],
+  "settings": {
+    "viewport_height": 800,
+    "viewport_width": 1280
+  }
 }

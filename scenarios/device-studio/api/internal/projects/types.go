@@ -15,12 +15,14 @@ type Project struct {
 	Revision  int64
 }
 
-type CreateInput struct{ Name string }
-type RenameInput struct {
-	ID               string
-	Name             string
-	ExpectedRevision int64
-}
+type (
+	CreateInput struct{ Name string }
+	RenameInput struct {
+		ID               string
+		Name             string
+		ExpectedRevision int64
+	}
+)
 
 type ErrInvalidProject struct{ Field, Reason string }
 

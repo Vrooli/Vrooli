@@ -18,14 +18,6 @@
       "x-product-status": "not-implemented"
     },
     {
-      "id": "notes",
-      "path": "pages/notes.json",
-      "title": "Notes",
-      "status": "draft",
-      "x-route-status": "implemented-template",
-      "x-product-status": "not-implemented"
-    },
-    {
       "id": "settings",
       "path": "pages/settings.json",
       "title": "Settings",

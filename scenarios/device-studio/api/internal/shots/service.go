@@ -1,6 +1,7 @@
 package shots
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
@@ -8,6 +9,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"image"
+	_ "image/jpeg"
+	_ "image/png"
+	"io"
 	"math"
 	"strconv"
 	"strings"
@@ -15,6 +20,7 @@ import (
 	"unicode"
 
 	"device-studio/internal/composition"
+	"device-studio/internal/presentations"
 	"device-studio/internal/projects"
 	"github.com/google/uuid"
 	shotsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-studio/v1/shots"
@@ -41,12 +47,22 @@ type Service interface {
 type service struct {
 	repo     Repository
 	projects projects.Service
-	media    projects.SourceMediaRepository
+	media    projects.SourceMediaService
+	samples  VideoSampleVerifier
+	physical PhysicalResolver
 	now      func() time.Time
 	newID    func() string
 }
 
-func NewService(repo Repository, projectReader projects.Service, mediaReader projects.SourceMediaRepository, now func() time.Time, newID func() string) Service {
+type VideoSampleVerifier interface {
+	VerifyVideoSample(context.Context, string, string, int64, *shotsv1.ShotSnapshot, string, *shotsv1.VideoSampleBinding) error
+}
+
+type sampleVerifierSetter interface {
+	SetVideoSampleVerifier(VideoSampleVerifier)
+}
+
+func NewService(repo Repository, projectReader projects.Service, mediaReader projects.SourceMediaService, now func() time.Time, newID func() string) Service {
 	if now == nil {
 		now = time.Now
 	}
@@ -55,6 +71,26 @@ func NewService(repo Repository, projectReader projects.Service, mediaReader pro
 	}
 	return &service{repo: repo, projects: projectReader, media: mediaReader, now: now, newID: newID}
 }
+
+func SetVideoSampleVerifier(svc Service, verifier VideoSampleVerifier) {
+	if setter, ok := svc.(sampleVerifierSetter); ok {
+		setter.SetVideoSampleVerifier(verifier)
+	}
+}
+
+func (s *service) SetVideoSampleVerifier(verifier VideoSampleVerifier) { s.samples = verifier }
+
+type physicalResolverSetter interface {
+	SetPhysicalResolver(PhysicalResolver)
+}
+
+func SetPhysicalResolver(svc Service, resolver PhysicalResolver) {
+	if setter, ok := svc.(physicalResolverSetter); ok {
+		setter.SetPhysicalResolver(resolver)
+	}
+}
+
+func (s *service) SetPhysicalResolver(resolver PhysicalResolver) { s.physical = resolver }
 
 func (s *service) Create(ctx context.Context, projectID, name string, snapshot *shotsv1.ShotSnapshot) (Shot, Revision, error) {
 	projectID = strings.TrimSpace(projectID)
@@ -199,7 +235,7 @@ func (s *service) Compile(ctx context.Context, id string, revision int64) (Revis
 	if err != nil {
 		return Revision{}, err
 	}
-	current, err := s.buildRevision(ctx, shot.ProjectID, shot.ID, stored.Revision, stored.Name, stored.Snapshot, stored.CreatedAt)
+	current, err := s.buildRevisionForVersion(ctx, shot.ProjectID, shot.ID, stored.Revision, stored.Name, stored.Snapshot, stored.CreatedAt, stored.PresentationVersion)
 	if err != nil {
 		return Revision{}, err
 	}
@@ -238,6 +274,8 @@ func (s *service) ResolveForRender(ctx context.Context, id string, revision int6
 const (
 	sceneSemanticVersion        = "device-studio-scene-v1"
 	presentationSemanticVersion = "device-studio-presentation-v1"
+	presentationSemanticV2      = "device-studio-presentation-v2"
+	presentationSemanticV3      = "device-studio-presentation-v3"
 	maxRasterSide               = composition.StillMaxDimension
 	maxRasterPixels             = composition.StillMaxPixels
 	maxWorkerImageBytes         = composition.StillMaxImageBytes
@@ -250,17 +288,49 @@ const (
 )
 
 func (s *service) buildRevision(ctx context.Context, projectID, shotID string, revision int64, name string, snapshot *shotsv1.ShotSnapshot, createdAt time.Time) (Revision, error) {
+	return s.buildRevisionForVersion(ctx, projectID, shotID, revision, name, snapshot, createdAt, "")
+}
+
+func (s *service) buildRevisionForVersion(ctx context.Context, projectID, shotID string, revision int64, name string, snapshot *shotsv1.ShotSnapshot, createdAt time.Time, storedPresentationVersion string) (Revision, error) {
 	if snapshot == nil {
 		snapshot = &shotsv1.ShotSnapshot{}
 	}
 	canonical := proto.Clone(snapshot).(*shotsv1.ShotSnapshot)
-	result := Revision{ShotID: shotID, Revision: revision, CreatedAt: createdAt.UTC(), Name: name, Snapshot: canonical,
-		SceneVersion: sceneSemanticVersion, PresentationVersion: presentationSemanticVersion, CompositorProfile: composition.StillProfile}
+	if err := applySampledPhoneValues(canonical); err != nil {
+		return Revision{}, err
+	}
+	result := Revision{
+		ShotID: shotID, Revision: revision, CreatedAt: createdAt.UTC(), Name: name, Snapshot: canonical,
+		SceneVersion: sceneSemanticVersion, PresentationVersion: presentationSemanticVersion, CompositorProfile: composition.StillProfile,
+	}
+	presentationVersion, err := resolvePresentationVersion(canonical.GetPresentation(), storedPresentationVersion)
+	if err != nil {
+		return Revision{}, err
+	}
+	if canonical.GetPresentation() != nil && canonical.GetPresentation().GetFitMode() == shotsv1.ScreenFitMode_SCREEN_FIT_MODE_UNSPECIFIED {
+		canonical.Presentation.FitMode = shotsv1.ScreenFitMode_SCREEN_FIT_MODE_CONTAIN
+	}
+	if (presentationVersion == presentationSemanticV2 || presentationVersion == presentationSemanticV3) && canonical.GetPresentation() != nil {
+		if err := presentations.CanonicalizeSavedVersion(canonical.GetPresentation(), presentationVersion); err != nil {
+			return Revision{}, ErrInvalidShot{Field: "presentation", Reason: "contains an invalid simulated presentation value"}
+		}
+	}
+	if canonical.GetPhysicalBinding() != nil {
+		return s.buildPhysicalRevision(ctx, projectID, shotID, revision, name, canonical, createdAt, presentationVersion)
+	}
 	addIssue := func(code shotsv1.ShotIssueCode, field, summary, repair string, blocks bool) {
 		result.Issues = append(result.Issues, &shotsv1.ShotIssue{Code: code, FieldPath: field, Summary: summary, Repair: repair, BlocksRender: blocks})
 	}
 	malformed := func(field, reason string) (Revision, error) {
 		return Revision{}, ErrInvalidShot{Field: field, Reason: reason}
+	}
+	if timing := canonical.GetVideoTiming(); timing != nil {
+		if _, known := shotsv1.VideoAudioPolicy_name[int32(timing.GetAudioPolicy())]; !known {
+			return malformed("video_timing.audio_policy", "unknown audio policy")
+		}
+		if timing.GetAudioPolicy() == shotsv1.VideoAudioPolicy_VIDEO_AUDIO_POLICY_PASSTHROUGH {
+			addIssue(shotsv1.ShotIssueCode_SHOT_ISSUE_CODE_UNSUPPORTED_AUDIO_POLICY, "video_timing.audio_policy", "Source audio passthrough is not supported by this renderer.", "Select silent output. The original recording retains its audio.", true)
+		}
 	}
 	resolve := func(field, id string, required bool) (*shotsv1.ResolvedSourceMedia, projects.SourceMedia, error) {
 		if strings.TrimSpace(id) == "" {
@@ -272,7 +342,7 @@ func (s *service) buildRevision(ctx context.Context, projectID, shotID string, r
 		if s.media == nil {
 			return nil, projects.SourceMedia{}, ErrSourceMediaUnavailable{}
 		}
-		media, err := s.media.GetSourceMedia(ctx, projectID, strings.TrimSpace(id))
+		media, err := s.media.Get(ctx, projectID, strings.TrimSpace(id))
 		if err != nil {
 			var missing projects.ErrSourceMediaNotFound
 			if errors.As(err, &missing) {
@@ -281,11 +351,16 @@ func (s *service) buildRevision(ctx context.Context, projectID, shotID string, r
 			return nil, projects.SourceMedia{}, err
 		}
 		resolved := &shotsv1.ResolvedSourceMedia{Id: media.ID, Sha256: media.SHA256, SizeBytes: media.SizeBytes, MediaType: media.MediaType, WidthPixels: media.Width, HeightPixels: media.Height}
+		videoScreen := field == "presentation.source_media_id" && canonical.GetVideoTiming() != nil && media.Kind == projects.MediaKindVideo
 		pixels := int64(media.Width) * int64(media.Height)
-		if media.Width == 0 || media.Height == 0 || media.Width > maxRasterSide || media.Height > maxRasterSide || pixels <= 0 || pixels > maxRasterPixels || media.SizeBytes <= 0 || media.SizeBytes > maxWorkerImageBytes {
-			addIssue(shotsv1.ShotIssueCode_SHOT_ISSUE_CODE_UNSUPPORTED_SOURCE_MEDIA, field, "This image exceeds the still renderer's bounded input profile.", "Choose an image within the supported dimensions and byte limits.", true)
+		if videoScreen {
+			if media.Readiness != projects.ReadinessReady || media.InspectionReceipt == nil || media.InspectionReceipt.Classification != "accepted" {
+				addIssue(shotsv1.ShotIssueCode_SHOT_ISSUE_CODE_UNSUPPORTED_SOURCE_MEDIA, field, "The source video has not passed the pinned inspection profile.", "Wait for inspection or retry a rejected source.", true)
+			}
+		} else if media.Kind != projects.MediaKindImage || media.Readiness != projects.ReadinessReady || !media.RasterKnown || media.Width == 0 || media.Height == 0 || media.Width > maxRasterSide || media.Height > maxRasterSide || pixels <= 0 || pixels > maxRasterPixels || media.SizeBytes <= 0 || media.SizeBytes > maxWorkerImageBytes {
+			addIssue(shotsv1.ShotIssueCode_SHOT_ISSUE_CODE_UNSUPPORTED_SOURCE_MEDIA, field, "This source is not a ready image within the still renderer's bounded input profile.", "Choose a ready image within the supported dimensions and byte limits.", true)
 		}
-		if media.ColorProfileStatus != "srgb" && media.ColorProfileStatus != "unspecified" {
+		if !videoScreen && media.ColorProfileStatus != "srgb" && media.ColorProfileStatus != "unspecified" {
 			addIssue(shotsv1.ShotIssueCode_SHOT_ISSUE_CODE_UNSUPPORTED_PROFILE, field, "The source color profile is not supported by this compositor.", "Use an unprofiled or sRGB source image.", true)
 		}
 		return resolved, media, nil
@@ -368,12 +443,23 @@ func (s *service) buildRevision(ctx context.Context, projectID, shotID string, r
 		if presentation.GetCaptureArea() < shotsv1.CaptureArea_CAPTURE_AREA_UNSPECIFIED || presentation.GetCaptureArea() > shotsv1.CaptureArea_CAPTURE_AREA_ALREADY_COMPOSED || presentation.GetKind() < shotsv1.PresentationKind_PRESENTATION_KIND_UNSPECIFIED || presentation.GetKind() > shotsv1.PresentationKind_PRESENTATION_KIND_BROWSER_DESKTOP || presentation.GetFitMode() < shotsv1.ScreenFitMode_SCREEN_FIT_MODE_UNSPECIFIED || presentation.GetFitMode() > shotsv1.ScreenFitMode_SCREEN_FIT_MODE_COVER {
 			return malformed("presentation", "contains an unknown enum value")
 		}
-		result.Screen, _, err = resolve("presentation.source_media_id", presentation.GetSourceMediaId(), true)
+		var screenMedia projects.SourceMedia
+		result.Screen, screenMedia, err = resolve("presentation.source_media_id", presentation.GetSourceMediaId(), true)
 		if err != nil {
 			return Revision{}, err
 		}
 		if presentation.GetViewportWidthPixels() != 0 || presentation.GetViewportHeightPixels() != 0 {
 			return malformed("presentation.viewport", "render viewport is server-derived; caller dimensions are not accepted")
+		}
+		if timing := canonical.GetVideoTiming(); timing != nil {
+			if screenMedia.Kind != projects.MediaKindVideo || timing.GetSourceMediaId() != screenMedia.ID || timing.GetSourceSha256() != screenMedia.SHA256 || timing.GetSourceSizeBytes() != screenMedia.SizeBytes {
+				return malformed("video_timing.source_media_id", "must bind the selected source video and its immutable digest and size")
+			}
+			if issue := validateVideoTiming(timing, screenMedia, canonical.GetCameraMotion() != nil); issue != nil {
+				addIssue(issue.Code, issue.FieldPath, issue.Summary, issue.Repair, issue.BlocksRender)
+			}
+		} else if screenMedia.Kind == projects.MediaKindVideo {
+			addIssue(shotsv1.ShotIssueCode_SHOT_ISSUE_CODE_DRAFT_INCOMPLETE, "video_timing", "Video timing is required for a recording source.", "Set a trim range and output rate from the inspected source clock.", true)
 		}
 		if chrome := presentation.GetPhoneSystemChrome(); chrome != nil {
 			if !validBoundedText(chrome.GetCarrierText(), maxCarrierRunes) || !validBoundedText(chrome.GetClockText(), maxClockRunes) || chrome.GetBatteryPercent() > 100 {
@@ -394,11 +480,11 @@ func (s *service) buildRevision(ctx context.Context, projectID, shotID string, r
 		if presentation.GetCaptureArea() == shotsv1.CaptureArea_CAPTURE_AREA_UNSPECIFIED || presentation.GetKind() == shotsv1.PresentationKind_PRESENTATION_KIND_UNSPECIFIED {
 			addIssue(shotsv1.ShotIssueCode_SHOT_ISSUE_CODE_DRAFT_INCOMPLETE, "presentation", "Capture area and presentation kind are required.", "Choose a supported capture area and presentation.", true)
 		}
+		if presentationVersion == presentationSemanticVersion && presentation.GetMatte() != nil {
+			return malformed("presentation.matte", "matte is only supported by simulated presentation profiles")
+		}
 		if presentation.GetFitMode() != shotsv1.ScreenFitMode_SCREEN_FIT_MODE_UNSPECIFIED && presentation.GetFitMode() != shotsv1.ScreenFitMode_SCREEN_FIT_MODE_CONTAIN {
 			addIssue(shotsv1.ShotIssueCode_SHOT_ISSUE_CODE_UNSUPPORTED_FIT_MODE, "presentation.fit_mode", "This fit mode is not supported by the current compositor.", "Choose contain fit.", true)
-		}
-		if presentation.GetFitMode() == shotsv1.ScreenFitMode_SCREEN_FIT_MODE_UNSPECIFIED {
-			presentation.FitMode = shotsv1.ScreenFitMode_SCREEN_FIT_MODE_CONTAIN
 		}
 		if presentation.GetCaptureArea() == shotsv1.CaptureArea_CAPTURE_AREA_ALREADY_COMPOSED && presentation.GetKind() != shotsv1.PresentationKind_PRESENTATION_KIND_PLAIN {
 			addIssue(shotsv1.ShotIssueCode_SHOT_ISSUE_CODE_UNSUPPORTED_PRESENTATION, "presentation.kind", "Already-composed captures cannot receive additional simulated chrome.", "Use plain presentation for an already-composed image.", true)
@@ -406,19 +492,85 @@ func (s *service) buildRevision(ctx context.Context, projectID, shotID string, r
 		if presentation.GetCaptureArea() == shotsv1.CaptureArea_CAPTURE_AREA_ALREADY_COMPOSED && (presentation.GetPhoneSystemChrome() != nil || presentation.GetBrowserDesktopChrome() != nil) {
 			return malformed("presentation.chrome", "already-composed captures cannot include simulated chrome payloads")
 		}
-		if presentation.GetKind() == shotsv1.PresentationKind_PRESENTATION_KIND_PHONE_SYSTEM && presentation.GetPhoneSystemChrome() != nil || presentation.GetKind() == shotsv1.PresentationKind_PRESENTATION_KIND_BROWSER_DESKTOP && presentation.GetBrowserDesktopChrome() != nil {
-			addIssue(shotsv1.ShotIssueCode_SHOT_ISSUE_CODE_UNSUPPORTED_PRESENTATION, "presentation.kind", "Simulated chrome is not implemented by the still compositor.", "Use plain presentation until chrome rendering is available.", true)
+		if presentation.GetKind() == shotsv1.PresentationKind_PRESENTATION_KIND_PLAIN && (presentation.GetPhoneSystemChrome() != nil || presentation.GetBrowserDesktopChrome() != nil) {
+			return malformed("presentation.chrome", "simulated chrome payload requires its matching presentation kind")
 		}
-		if presentation.GetKind() != shotsv1.PresentationKind_PRESENTATION_KIND_PLAIN && presentation.GetKind() != shotsv1.PresentationKind_PRESENTATION_KIND_UNSPECIFIED {
-			addIssue(shotsv1.ShotIssueCode_SHOT_ISSUE_CODE_UNSUPPORTED_PRESENTATION, "presentation.kind", "This presentation kind is not implemented by the still compositor.", "Use plain presentation.", true)
+		if presentationVersion == presentationSemanticV2 || presentationVersion == presentationSemanticV3 {
+			result.CompositorProfile = presentations.SimulatedCompositorProfile
+			if presentation.GetCaptureArea() != shotsv1.CaptureArea_CAPTURE_AREA_APP_ONLY {
+				addIssue(shotsv1.ShotIssueCode_SHOT_ISSUE_CODE_UNSUPPORTED_PRESENTATION, "presentation.capture_area", "Simulated chrome can only be applied to an app-only capture.", "Choose app-only capture or use plain presentation for a composed image.", true)
+			} else if canonical.GetScene() == nil || canonical.GetScene().GetDisplayWidthPixels() == 0 || canonical.GetScene().GetDisplayHeightPixels() == 0 {
+				addIssue(shotsv1.ShotIssueCode_SHOT_ISSUE_CODE_DRAFT_INCOMPLETE, "presentation", "A target display size is required for simulated chrome.", "Set the scene display raster dimensions.", true)
+			} else if result.Screen == nil {
+				// The required source has already been recorded as an incomplete draft.
+			} else if screenMedia.Kind == projects.MediaKindImage && screenMedia.Readiness == projects.ReadinessReady && screenMedia.RasterKnown && screenMedia.SizeBytes > 0 && screenMedia.SizeBytes <= projects.MaxSourceImageBytes {
+				config, configErr := presentations.ConfigFromSavedVersion(image.Pt(int(canonical.GetScene().GetDisplayWidthPixels()), int(canonical.GetScene().GetDisplayHeightPixels())), presentation, presentationVersion)
+				if configErr == nil && config.Phone != nil && presentation.GetPhoneSystemChrome() != nil {
+					chrome := presentation.GetPhoneSystemChrome()
+					config.Phone.StatusInk = savedPresentationRGB(chrome.GetStatusInk())
+					config.Phone.HomeInk = savedPresentationRGB(chrome.GetHomeInk())
+				}
+				var source image.Image
+				if configErr == nil {
+					source, configErr = s.openPresentationSource(ctx, projectID, presentation.GetSourceMediaId(), screenMedia)
+				}
+				if configErr == nil {
+					configErr = presentations.ValidateConfig(source, config)
+				}
+				if errors.Is(configErr, presentations.ErrMatteRequired) {
+					addIssue(shotsv1.ShotIssueCode_SHOT_ISSUE_CODE_DRAFT_INCOMPLETE, "presentation.matte", "This source has transparency and needs a presentation matte.", "Choose a matte color before rendering.", true)
+				} else if errors.Is(configErr, presentations.ErrCarrierDoesNotFit) {
+					addIssue(shotsv1.ShotIssueCode_SHOT_ISSUE_CODE_UNSUPPORTED_PRESENTATION, "presentation.phone_system_chrome.carrier_text", "Carrier text does not fit the profile's safe status region.", "Shorten or remove the carrier label.", true)
+				} else if errors.Is(configErr, presentations.ErrUnsupportedGlyph) {
+					addIssue(shotsv1.ShotIssueCode_SHOT_ISSUE_CODE_UNSUPPORTED_PRESENTATION, "presentation.chrome", "Configured text includes a glyph outside the bundled presentation font.", "Use supported text or remove the unsupported characters.", true)
+				} else if configErr != nil {
+					return malformed("presentation.chrome", "configuration is invalid for the selected source and profile")
+				}
+			}
 		}
 	}
 	if canonical.GetMotionMode() < shotsv1.MotionMode_MOTION_MODE_UNSPECIFIED || canonical.GetMotionMode() > shotsv1.MotionMode_MOTION_MODE_CROP_PUSH {
 		return malformed("motion_mode", "unknown motion mode")
 	} else if canonical.GetMotionMode() == shotsv1.MotionMode_MOTION_MODE_UNSPECIFIED {
 		addIssue(shotsv1.ShotIssueCode_SHOT_ISSUE_CODE_DRAFT_INCOMPLETE, "motion_mode", "A motion mode is required.", "Choose fixed motion for a still composition.", true)
-	} else if canonical.GetMotionMode() != shotsv1.MotionMode_MOTION_MODE_FIXED {
+	} else if canonical.GetMotionMode() != shotsv1.MotionMode_MOTION_MODE_FIXED && canonical.GetMotionMode() != shotsv1.MotionMode_MOTION_MODE_CROP_PUSH {
 		addIssue(shotsv1.ShotIssueCode_SHOT_ISSUE_CODE_UNSUPPORTED_MOTION, "motion_mode", "This motion mode is not implemented by the still compositor.", "Choose fixed motion.", true)
+	}
+	camera := canonical.GetCameraMotion()
+	switch canonical.GetMotionMode() {
+	case shotsv1.MotionMode_MOTION_MODE_FIXED:
+		if camera != nil {
+			return malformed("camera_motion", "is only valid with crop-push motion")
+		}
+	case shotsv1.MotionMode_MOTION_MODE_CROP_PUSH:
+		if camera == nil {
+			return malformed("camera_motion", "is required for crop-push motion")
+		}
+		if camera.GetProfileId() != CameraMotionProfileID || camera.GetProfileVersion() != CameraMotionProfileVersion {
+			return malformed("camera_motion.profile", "is not a supported photographic screen-entry profile")
+		}
+		if camera.GetMatteRgb() == nil || camera.GetMatteRgb().GetRed() > 255 || camera.GetMatteRgb().GetGreen() > 255 || camera.GetMatteRgb().GetBlue() > 255 {
+			return malformed("camera_motion.matte_rgb", "must be present with channels from 0 through 255")
+		}
+		if camera.GetDurationOutputFrames() < 2 || camera.GetDurationOutputFrames() > 120 {
+			return malformed("camera_motion.duration_output_frames", "must be between 2 and 120 output frames")
+		}
+		if timing := canonical.GetVideoTiming(); timing != nil {
+			planned, countErr := plannedVideoFrameCount(timing)
+			if countErr != nil {
+				addIssue(shotsv1.ShotIssueCode_SHOT_ISSUE_CODE_DRAFT_INCOMPLETE, "camera_motion.duration_output_frames", "The video schedule cannot be bounded yet.", "Reload valid source timing before compiling camera motion.", true)
+			} else if planned > maxCameraOutputFrames {
+				addIssue(shotsv1.ShotIssueCode_SHOT_ISSUE_CODE_UNSUPPORTED_MOTION, "video_timing", "The screen-entry profile supports clips up to 120 output frames.", "Shorten the trim or lower the output rate to fit within 120 frames.", true)
+			} else if int64(camera.GetDurationOutputFrames()) > planned {
+				return malformed("camera_motion.duration_output_frames", "cannot exceed the planned output frame count")
+			}
+		} else {
+			addIssue(shotsv1.ShotIssueCode_SHOT_ISSUE_CODE_DRAFT_INCOMPLETE, "camera_motion", "Crop-push needs an inspected video timing schedule.", "Choose a video source, trim, playback rate and output rate.", true)
+		}
+	default:
+		if camera != nil {
+			return malformed("camera_motion", "is only valid with crop-push motion")
+		}
 	}
 	totalInputBytes := int64(0)
 	for _, source := range []*shotsv1.ResolvedSourceMedia{result.Plate, result.Screen, result.ActiveMask, result.HardwareMask} {
@@ -470,8 +622,8 @@ func (s *service) buildRevision(ctx context.Context, projectID, shotID string, r
 		Version      string
 		Presentation *shotsv1.ScreenPresentation
 		Screen       any
-	}{presentationSemanticVersion, presentationSemantics, identity(result.Screen)}
-	var err error
+	}{presentationVersion, presentationSemantics, identity(result.Screen)}
+	result.PresentationVersion = presentationVersion
 	if result.SceneSHA256, err = semanticHash(sceneValue); err != nil {
 		return Revision{}, err
 	}
@@ -486,7 +638,101 @@ func (s *service) buildRevision(ctx context.Context, projectID, shotID string, r
 	if result.RecipeSHA256, err = semanticHash(recipe); err != nil {
 		return Revision{}, err
 	}
+	if timing := canonical.GetVideoTiming(); timing != nil && timing.GetSampleBinding() != nil {
+		baseSHA, baseErr := videoBaseRecipeSHA(canonical)
+		if baseErr != nil {
+			return Revision{}, baseErr
+		}
+		binding := timing.GetSampleBinding()
+		if timing.GetSampleBaseRecipeVersion() != 1 || binding.GetBaseRecipeVersion() != videoBaseRecipeVersion || binding.GetBaseRecipeSha256() != baseSHA || binding.GetBaseShotRevision() <= 0 || binding.GetBaseShotRevision() >= revision {
+			return malformed("video_timing.sample_binding", "does not match the complete saved base recipe")
+		}
+		if s.samples == nil {
+			return Revision{}, ErrVideoSampleUnavailable
+		}
+		if err := s.samples.VerifyVideoSample(ctx, projectID, shotID, revision, canonical, baseSHA, binding); err != nil {
+			return Revision{}, err
+		}
+	}
 	return result, nil
+}
+
+func resolvePresentationVersion(p *shotsv1.ScreenPresentation, stored string) (string, error) {
+	kind := shotsv1.PresentationKind_PRESENTATION_KIND_UNSPECIFIED
+	if p != nil {
+		kind = p.GetKind()
+	}
+	version := stored
+	if version == "" {
+		switch kind {
+		case shotsv1.PresentationKind_PRESENTATION_KIND_PHONE_SYSTEM, shotsv1.PresentationKind_PRESENTATION_KIND_BROWSER_DESKTOP:
+			if kind == shotsv1.PresentationKind_PRESENTATION_KIND_PHONE_SYSTEM {
+				version = presentationSemanticV3
+			} else {
+				version = presentationSemanticV2
+			}
+		default:
+			version = presentationSemanticVersion
+		}
+	}
+	switch version {
+	case presentationSemanticVersion:
+		if p != nil && kind != shotsv1.PresentationKind_PRESENTATION_KIND_UNSPECIFIED && kind != shotsv1.PresentationKind_PRESENTATION_KIND_PLAIN {
+			return "", ErrUnsupportedPresentationVersion{Version: version}
+		}
+	case presentationSemanticV2:
+		if kind != shotsv1.PresentationKind_PRESENTATION_KIND_PHONE_SYSTEM && kind != shotsv1.PresentationKind_PRESENTATION_KIND_BROWSER_DESKTOP {
+			return "", ErrUnsupportedPresentationVersion{Version: version}
+		}
+	case presentationSemanticV3:
+		if kind != shotsv1.PresentationKind_PRESENTATION_KIND_PHONE_SYSTEM {
+			return "", ErrUnsupportedPresentationVersion{Version: version}
+		}
+	default:
+		return "", ErrUnsupportedPresentationVersion{Version: version}
+	}
+	return version, nil
+}
+
+func (s *service) openPresentationSource(ctx context.Context, projectID, mediaID string, expected projects.SourceMedia) (image.Image, error) {
+	if s.media == nil {
+		return nil, ErrSourceMediaUnavailable{}
+	}
+	if expected.Kind != projects.MediaKindImage || expected.Readiness != projects.ReadinessReady || !expected.RasterKnown || expected.SizeBytes <= 0 || expected.SizeBytes > projects.MaxSourceImageBytes || expected.Width == 0 || expected.Height == 0 {
+		return nil, ErrInvalidShot{Field: "presentation.source_media_id", Reason: "simulated presentation requires a ready bounded image source"}
+	}
+	media, reader, err := s.media.Open(ctx, projectID, mediaID)
+	if err != nil {
+		return nil, err
+	}
+	if media.Kind != projects.MediaKindImage || media.Readiness != projects.ReadinessReady || !media.RasterKnown || media.SizeBytes <= 0 || media.SizeBytes > projects.MaxSourceImageBytes {
+		_ = reader.Close()
+		return nil, ErrInvalidShot{Field: "presentation.source_media_id", Reason: "source is not a ready bounded image"}
+	}
+	data, readErr := io.ReadAll(io.LimitReader(reader, projects.MaxSourceImageBytes+1))
+	closeErr := reader.Close()
+	if err := errors.Join(readErr, closeErr); err != nil {
+		return nil, err
+	}
+	if int64(len(data)) == 0 || int64(len(data)) > projects.MaxSourceImageBytes || media.SHA256 != expected.SHA256 || media.SizeBytes != expected.SizeBytes {
+		return nil, ErrInvalidShot{Field: "presentation.source_media_id", Reason: "source bytes do not match the resolved media metadata"}
+	}
+	config, format, err := image.DecodeConfig(bytes.NewReader(data))
+	if err != nil {
+		return nil, ErrInvalidShot{Field: "presentation.source_media_id", Reason: "source must be a decodable PNG or JPEG image"}
+	}
+	pixels := int64(config.Width) * int64(config.Height)
+	if config.Width <= 0 || config.Height <= 0 || config.Width != int(expected.Width) || config.Height != int(expected.Height) || config.Width > projects.MaxSourceMediaSide || config.Height > projects.MaxSourceMediaSide || pixels <= 0 || pixels > projects.MaxSourceMediaPixels {
+		return nil, ErrInvalidShot{Field: "presentation.source_media_id", Reason: "decoded dimensions do not match bounded source metadata"}
+	}
+	if format != "png" && format != "jpeg" || (format == "png" && media.MediaType != "image/png") || (format == "jpeg" && media.MediaType != "image/jpeg") {
+		return nil, ErrInvalidShot{Field: "presentation.source_media_id", Reason: "source encoding does not match its declared media type"}
+	}
+	decoded, decodedFormat, err := image.Decode(bytes.NewReader(data))
+	if err != nil || decodedFormat != format {
+		return nil, ErrInvalidShot{Field: "presentation.source_media_id", Reason: "source image could not be decoded consistently"}
+	}
+	return decoded, nil
 }
 
 type shotCursor struct {
@@ -569,6 +815,13 @@ func validBoundedText(value string, maxRunes int) bool {
 		}
 	}
 	return true
+}
+
+func savedPresentationRGB(value *shotsv1.PresentationRGB) *presentations.RGB {
+	if value == nil || value.GetRed() > 255 || value.GetGreen() > 255 || value.GetBlue() > 255 {
+		return nil
+	}
+	return &presentations.RGB{R: uint8(value.GetRed()), G: uint8(value.GetGreen()), B: uint8(value.GetBlue())}
 }
 
 func quadPoints(q *shotsv1.PlateQuad) ([4]composition.Point, bool) {

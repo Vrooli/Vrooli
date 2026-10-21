@@ -35,7 +35,7 @@ constraints:
 
 # Device Studio design contract
 
-**Status: functional project prototype implemented; replacement Light-table studio direction and Projects/Shot paired mockups approved, runtime adaptation pending.** Project creation, listing, opening and revision-safe renaming exist; Notes remains a removable example and Settings retains template preferences/diagnostics. No shot builder, library, account integration, renderer or creation workflow exists in that UI. `experience/index.json` records real template routes separately from proposed product routes; every entry remains draft. Schema validation proves contract structure, not accessibility, beauty, renderer quality or completed journeys.
+**Status: approved Light-table direction implemented for the E1 Projects surface, with E1 and D3 scoped evidence; no product acceptance is implied.** Project creation, listing, opening and revision-safe renaming are implemented. The saved-shot workspace supports source media, immutable revisions, calibration, presentation selections and typed conflict/reapply behavior. Its stage is a scene plate with calibration overlay, not the final rendered composite. The governed detemplate operation removed the Notes example; Settings still provides template preferences/diagnostics. Library, accounts, creation workflow and final render/export UI remain unimplemented. `experience/index.json` retains draft contract status and distinguishes partially implemented product routes from remaining planned routes. Structural validation does not prove whole-product accessibility, visual quality or renderer acceptance.
 
 ## Intent
 
@@ -47,12 +47,12 @@ This document defines intended behavior. Read `docs/START-HERE.md`, `PRD.md`, `d
 
 | Surface | Route truth now | Product/evidence truth |
 |---|---|---|
-| Projects prototype | `/` and `/projects/:projectId` exist | Functional create/list/open/rename journey; rejected visual direction, broader product acceptance pending |
-| Notes | `/notes` exists | Removable worked example, not a Device Studio domain |
+| Projects | `/` and `/projects` list; `/projects/:projectId` detail | Light-table Projects surface and saved-shot editor; E1/D3 scoped evidence, whole product acceptance pending |
+| Notes | Removed by governed detemplate | No longer a product or template route |
 | Settings | `/settings` exists | Template preferences; not implemented account, privacy or worker settings |
-| Product surfaces below | Proposed routes only | Draft design intent; no runtime selectors, state setup hooks, captures or attestations |
+| Library, jobs, render result, accounts and creation | Planned routes | Draft design intent; no runtime implementation or acceptance |
 
-Retain the example spec and real Notes binding until the governed detemplate operation removes its UI. Do not mark a planned route active because a document names it. The initial paired E1 project mockups at `docs/mockups/projects-desktop.svg` and `docs/mockups/projects-mobile.svg` are retained as rejected evidence. Neither internal review nor functional implementation supplied human visual ratification. The operator ratified the Light-table studio concept and Projects/Shot desktop/mobile mockups in `docs/mockups/revision-2/` with “Looks great! I like this design direction. Please continue”. Runtime fidelity and the remaining maturity evidence still require validation. This visual frontier is separate from experience-manager's parser/reference capability levels; a clean draft contract does not raise visual or runtime maturity.
+The Notes example has been removed by the governed detemplate operation. Do not mark planned routes active because a document names them. The initial paired E1 project mockups remain rejected historical evidence. The operator ratified the Light-table concept and Projects/Shot desktop/mobile mockups in `docs/mockups/revision-2/`. E1 and D3 implement and evidence bounded parts of that direction, but do not prove final rendering, library, jobs, accounts or full product acceptance. This visual frontier is separate from experience-manager's parser/reference capability levels; a clean draft contract does not raise visual or runtime maturity.
 
 ## Information architecture and task hierarchy
 

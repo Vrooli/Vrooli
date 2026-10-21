@@ -31,6 +31,34 @@
             "planned_automation": "API/CLI contract, auth and parity journeys.",
             "evidence_status": "not_run"
           }
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "api/handlers/projects/connect_handler_test.go",
+          "notes": "Partial evidence only. Specific tagged test case(s): TestProjectConnectJourneyAndTypedRevisionConflict. This does not establish the full requirement."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "api/handlers/shots/connect_handler_test.go",
+          "notes": "Partial evidence only. Specific tagged test case(s): TestRevisionConflictIsTypedAndRedacted. This does not establish the full requirement."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "cli/domains/renders/handlers_test.go",
+          "notes": "Partial evidence only. Specific tagged test case(s): TestSubmitReportUsesActualReusedJobStatus. This does not establish the full requirement."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "ui/src/features/projects/RenderControls.test.tsx",
+          "notes": "Partial evidence only. Specific tagged test case(s): [REQ:DS-JOB-DURABILITY][REQ:DS-INTEGRATION-OPERATIONS] reopens project jobs and keeps each verified PNG attached only to its selected job. This does not establish the full requirement."
         }
       ]
     },

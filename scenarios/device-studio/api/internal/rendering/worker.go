@@ -25,43 +25,49 @@ import (
 	"unicode/utf8"
 
 	"device-studio/internal/composition"
+	"device-studio/internal/presentations"
 	"device-studio/internal/sourceimage"
 )
 
 const (
-	ManifestName       = "render-manifest.json"
-	OutputName         = "output.png"
-	ReceiptName        = "receipt.json"
-	FailureName        = "worker-error.json"
-	CompositorProfile  = composition.StillProfile
-	manifestVersion    = 1
-	maxManifestBytes   = 64 << 10
-	maxImageBytes      = composition.StillMaxImageBytes
-	maxTotalImageBytes = composition.StillMaxInputBytes
-	maxImageSide       = composition.StillMaxDimension
-	maxImagePixels     = composition.StillMaxPixels
-	maxOutputBytes     = 160 << 20
-	maxReceiptBytes    = 64 << 10
-	maxDiagnosticBytes = 2 << 10
+	ManifestName        = "render-manifest.json"
+	OutputName          = "output.png"
+	ReceiptName         = "receipt.json"
+	FailureName         = "worker-error.json"
+	CompositorProfile   = composition.StillProfile
+	manifestVersion     = 1
+	presentationVersion = 2
+	maxManifestBytes    = 64 << 10
+	maxImageBytes       = composition.StillMaxImageBytes
+	maxTotalImageBytes  = composition.StillMaxInputBytes
+	maxImageSide        = composition.StillMaxDimension
+	maxImagePixels      = composition.StillMaxPixels
+	maxOutputBytes      = 160 << 20
+	maxReceiptBytes     = 64 << 10
+	maxDiagnosticBytes  = 2 << 10
 )
 
-var identifierPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$`)
-var digestPattern = regexp.MustCompile(`^[a-f0-9]{64}$`)
+var (
+	identifierPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$`)
+	digestPattern     = regexp.MustCompile(`^[a-f0-9]{64}$`)
+)
 
 type Manifest struct {
-	Version          int           `json:"version"`
-	JobID            string        `json:"job_id"`
-	AttemptID        string        `json:"attempt_id"`
-	InputFingerprint string        `json:"input_fingerprint"`
-	Profile          string        `json:"profile"`
-	Plate            ImageBinding  `json:"plate"`
-	Screen           ImageBinding  `json:"screen"`
-	ActiveMask       ImageBinding  `json:"active_mask"`
-	HardwareMask     *ImageBinding `json:"hardware_mask,omitempty"`
-	SurfaceWidth     int           `json:"surface_width"`
-	SurfaceHeight    int           `json:"surface_height"`
-	Quad             [4]Corner     `json:"quad"`
-	Samples          int           `json:"samples_per_axis"`
+	Version            int                   `json:"version"`
+	JobID              string                `json:"job_id"`
+	AttemptID          string                `json:"attempt_id"`
+	InputFingerprint   string                `json:"input_fingerprint"`
+	Profile            string                `json:"profile"`
+	Plate              ImageBinding          `json:"plate"`
+	Screen             ImageBinding          `json:"screen"`
+	ActiveMask         ImageBinding          `json:"active_mask"`
+	HardwareMask       *ImageBinding         `json:"hardware_mask,omitempty"`
+	SurfaceWidth       int                   `json:"surface_width"`
+	SurfaceHeight      int                   `json:"surface_height"`
+	Quad               [4]Corner             `json:"quad"`
+	Samples            int                   `json:"samples_per_axis"`
+	Presentation       *presentations.Config `json:"presentation,omitempty"`
+	PresentationLayout *presentations.Layout `json:"presentation_layout,omitempty"`
 }
 
 type ImageBinding struct {
@@ -83,21 +89,29 @@ type InputReceipt struct {
 }
 
 type Receipt struct {
-	Version          int                 `json:"version"`
-	JobID            string              `json:"job_id"`
-	AttemptID        string              `json:"attempt_id"`
-	InputFingerprint string              `json:"input_fingerprint"`
-	ManifestSHA256   string              `json:"manifest_sha256"`
-	Profile          string              `json:"profile"`
-	Algorithm        string              `json:"algorithm"`
-	Inputs           []InputReceipt      `json:"inputs"`
-	OutputName       string              `json:"output_name"`
-	OutputSHA256     string              `json:"output_sha256"`
-	OutputSizeBytes  int64               `json:"output_size_bytes"`
-	OutputWidth      int                 `json:"output_width"`
-	OutputHeight     int                 `json:"output_height"`
-	Composition      composition.Receipt `json:"composition"`
-	CompletedAt      time.Time           `json:"completed_at"`
+	Version          int                  `json:"version"`
+	JobID            string               `json:"job_id"`
+	AttemptID        string               `json:"attempt_id"`
+	InputFingerprint string               `json:"input_fingerprint"`
+	ManifestSHA256   string               `json:"manifest_sha256"`
+	Profile          string               `json:"profile"`
+	Algorithm        string               `json:"algorithm"`
+	Inputs           []InputReceipt       `json:"inputs"`
+	OutputName       string               `json:"output_name"`
+	OutputSHA256     string               `json:"output_sha256"`
+	OutputSizeBytes  int64                `json:"output_size_bytes"`
+	OutputWidth      int                  `json:"output_width"`
+	OutputHeight     int                  `json:"output_height"`
+	Composition      composition.Receipt  `json:"composition"`
+	Presentation     *PresentationReceipt `json:"presentation,omitempty"`
+	CompletedAt      time.Time            `json:"completed_at"`
+}
+
+type PresentationReceipt struct {
+	SemanticVersion     string               `json:"semantic_version"`
+	Config              presentations.Config `json:"config"`
+	Layout              presentations.Layout `json:"layout"`
+	DisplayRasterSHA256 string               `json:"display_raster_sha256"`
 }
 
 type failureDiagnostic struct {
@@ -232,6 +246,23 @@ func RunManifest(ctx context.Context, manifestPath string) (retErr error) {
 	for i, point := range manifest.Quad {
 		quad[i] = composition.Point{X: point.X, Y: point.Y}
 	}
+	var presentationReceipt *PresentationReceipt
+	if manifest.Version == presentationVersion {
+		presented, err := presentations.Compose(ctx, screen, *manifest.Presentation)
+		if err != nil {
+			return fmt.Errorf("compose saved screen presentation: %w", err)
+		}
+		if !sameJSON(presented.Layout, *manifest.PresentationLayout) {
+			return errors.New("compose saved screen presentation: derived layout differs from pinned closure")
+		}
+		displayDigest := sha256.Sum256(presented.Raster.Pix)
+		semantic := "device-studio-presentation-v2"
+		if manifest.Presentation.Phone != nil && manifest.Presentation.Phone.ProfileVersion == presentations.PhoneProfileVersionAuto {
+			semantic = "device-studio-presentation-v3"
+		}
+		presentationReceipt = &PresentationReceipt{SemanticVersion: semantic, Config: *manifest.Presentation, Layout: presented.Layout, DisplayRasterSHA256: hex.EncodeToString(displayDigest[:])}
+		screen = presented.Raster
+	}
 	composed, err := composition.Compose(ctx, composition.Inputs{
 		Plate: plate, Screen: screen, ActiveMask: active, HardwareMask: hardware,
 		SurfaceSize: image.Pt(manifest.SurfaceWidth, manifest.SurfaceHeight), Quad: quad, Samples: manifest.Samples,
@@ -268,12 +299,12 @@ func RunManifest(ctx context.Context, manifestPath string) (retErr error) {
 		return fmt.Errorf("publish output PNG: %w", err)
 	}
 	receipt := Receipt{
-		Version: manifestVersion, JobID: manifest.JobID, AttemptID: manifest.AttemptID,
+		Version: manifest.Version, JobID: manifest.JobID, AttemptID: manifest.AttemptID,
 		InputFingerprint: manifest.InputFingerprint, ManifestSHA256: manifestSHA, Profile: manifest.Profile,
 		Algorithm: composed.Receipt.Algorithm, Inputs: inputReceipts(inputs),
 		OutputName: OutputName, OutputSHA256: outputSHA, OutputSizeBytes: int64(len(outputBytes)),
 		OutputWidth: composed.Image.Bounds().Dx(), OutputHeight: composed.Image.Bounds().Dy(),
-		Composition: composed.Receipt, CompletedAt: time.Now().UTC(),
+		Composition: composed.Receipt, Presentation: presentationReceipt, CompletedAt: time.Now().UTC(),
 	}
 	receiptBytes, err := json.MarshalIndent(receipt, "", "  ")
 	if err != nil {
@@ -293,7 +324,7 @@ func RunManifest(ctx context.Context, manifestPath string) (retErr error) {
 }
 
 func validateManifest(m Manifest) error {
-	if m.Version != manifestVersion {
+	if m.Version != manifestVersion && m.Version != presentationVersion {
 		return fmt.Errorf("unsupported worker manifest version %d", m.Version)
 	}
 	if !identifierPattern.MatchString(m.JobID) || !identifierPattern.MatchString(m.AttemptID) {
@@ -302,8 +333,38 @@ func validateManifest(m Manifest) error {
 	if !digestPattern.MatchString(m.InputFingerprint) {
 		return errors.New("worker manifest input fingerprint is invalid")
 	}
-	if m.Profile != CompositorProfile {
-		return errors.New("worker manifest compositor profile is unsupported")
+	if m.Version == manifestVersion {
+		if m.Profile != CompositorProfile || m.Presentation != nil || m.PresentationLayout != nil {
+			return errors.New("legacy worker manifest profile or presentation fields are invalid")
+		}
+	} else {
+		if m.Profile != presentations.SimulatedCompositorProfile || m.Presentation == nil || m.PresentationLayout == nil || m.Presentation.Target != image.Pt(m.SurfaceWidth, m.SurfaceHeight) {
+			return errors.New("presentation worker manifest profile or target dimensions are invalid")
+		}
+		profileVersion := ""
+		if m.Presentation.Phone != nil {
+			profileVersion = m.Presentation.Phone.ProfileVersion
+			if profileVersion != "" && profileVersion != presentations.PhoneProfileVersionAuto {
+				return errors.New("presentation worker manifest phone profile version is unsupported")
+			}
+		}
+		layout := m.PresentationLayout
+		wantProfileVersion := presentations.PhoneProfileVersion
+		if m.Presentation.Browser != nil {
+			wantProfileVersion = presentations.BrowserProfileVersion
+		}
+		if profileVersion == presentations.PhoneProfileVersionAuto {
+			wantProfileVersion = presentations.PhoneProfileVersionAuto
+		}
+		if layout.ProfileID == "" || layout.ProfileVersion != wantProfileVersion || layout.DisplaySize != m.Presentation.Target || !digestPattern.MatchString(layout.ConfigSHA256) || !digestPattern.MatchString(layout.FontSHA256) || layout.Rasterizer == "" || layout.FillPolicy == "" {
+			return errors.New("presentation worker manifest pinned layout identity is incomplete")
+		}
+		if profileVersion == presentations.PhoneProfileVersionAuto && (layout.ResolvedStatusInk == nil || layout.ResolvedHomeInk == nil) {
+			return errors.New("v3 presentation worker manifest omits resolved phone inks")
+		}
+		if profileVersion != presentations.PhoneProfileVersionAuto && (layout.ResolvedStatusInk != nil || layout.ResolvedHomeInk != nil) {
+			return errors.New("v2 presentation worker manifest includes v3 phone layout fields")
+		}
 	}
 	if m.SurfaceWidth <= 0 || m.SurfaceHeight <= 0 || m.SurfaceWidth > maxImageSide || m.SurfaceHeight > maxImageSide || int64(m.SurfaceWidth)*int64(m.SurfaceHeight) > maxImagePixels {
 		return errors.New("worker surface dimensions exceed limits")
@@ -336,6 +397,15 @@ func validateManifest(m Manifest) error {
 		}
 	}
 	return nil
+}
+
+func sameJSON(a, b any) bool {
+	left, err := json.Marshal(a)
+	if err != nil {
+		return false
+	}
+	right, err := json.Marshal(b)
+	return err == nil && bytes.Equal(left, right)
 }
 
 func validateBinding(b ImageBinding) error {

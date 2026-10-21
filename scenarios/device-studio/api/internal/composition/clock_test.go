@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestPlanFramesUsesLatestSourcePTSAtOrBeforeExactTarget(t *testing.T) {
+func TestPlanFramesUsesLatestSourcePTSAtOrBeforeExactTarget(t *testing.T) { // [REQ:DS-SCREEN-CLOCKS]
 	plan, err := PlanFrames(context.Background(), FrameClock{
 		SourcePTS: []int64{0, 2, 4}, SourceTimeBase: Rational{Num: 1, Den: 10}, SourceEndPTS: 6,
 		TrimStartPTS: 0, TrimEndPTS: 6, PlaybackRate: Rational{Num: 1, Den: 1}, OutputRate: Rational{Num: 10, Den: 1},
@@ -33,7 +33,7 @@ func TestPlanFramesUsesLatestSourcePTSAtOrBeforeExactTarget(t *testing.T) {
 	}
 }
 
-func TestPlanFramesSupportsVFRRepeatedPTSAndRationalPlayback(t *testing.T) {
+func TestPlanFramesSupportsVFRRepeatedPTSAndRationalPlayback(t *testing.T) { // [REQ:DS-SCREEN-CLOCKS]
 	plan, err := PlanFrames(context.Background(), FrameClock{
 		SourcePTS: []int64{0, 0, 3, 7, 10}, SourceTimeBase: Rational{Num: 1, Den: 10}, SourceEndPTS: 12,
 		TrimStartPTS: 0, TrimEndPTS: 10, PlaybackRate: Rational{Num: 2, Den: 1}, OutputRate: Rational{Num: 5, Den: 1},
@@ -53,9 +53,11 @@ func TestPlanFramesSupportsVFRRepeatedPTSAndRationalPlayback(t *testing.T) {
 	}
 }
 
-func TestPlanFramesRejectsTrimmedEOFAcrossEndUnlessHoldRequested(t *testing.T) {
-	clock := FrameClock{SourcePTS: []int64{0, 4}, SourceTimeBase: Rational{Num: 1, Den: 10}, SourceEndPTS: 6,
-		TrimStartPTS: 4, TrimEndPTS: 9, PlaybackRate: Rational{Num: 1, Den: 1}, OutputRate: Rational{Num: 10, Den: 1}}
+func TestPlanFramesRejectsTrimmedEOFAcrossEndUnlessHoldRequested(t *testing.T) { // [REQ:DS-SCREEN-CLOCKS]
+	clock := FrameClock{
+		SourcePTS: []int64{0, 4}, SourceTimeBase: Rational{Num: 1, Den: 10}, SourceEndPTS: 6,
+		TrimStartPTS: 4, TrimEndPTS: 9, PlaybackRate: Rational{Num: 1, Den: 1}, OutputRate: Rational{Num: 10, Den: 1},
+	}
 	if _, err := PlanFrames(context.Background(), clock); err == nil {
 		t.Fatal("expected explicit EOF policy to be required")
 	}
@@ -70,8 +72,10 @@ func TestPlanFramesRejectsTrimmedEOFAcrossEndUnlessHoldRequested(t *testing.T) {
 }
 
 func TestPlanFramesRequiresExplicitUnderflowPolicy(t *testing.T) {
-	clock := FrameClock{SourcePTS: []int64{2, 4}, SourceTimeBase: Rational{Num: 1, Den: 10}, SourceEndPTS: 6,
-		TrimStartPTS: 0, TrimEndPTS: 2, PlaybackRate: Rational{Num: 1, Den: 1}, OutputRate: Rational{Num: 10, Den: 1}}
+	clock := FrameClock{
+		SourcePTS: []int64{2, 4}, SourceTimeBase: Rational{Num: 1, Den: 10}, SourceEndPTS: 6,
+		TrimStartPTS: 0, TrimEndPTS: 2, PlaybackRate: Rational{Num: 1, Den: 1}, OutputRate: Rational{Num: 10, Den: 1},
+	}
 	if _, err := PlanFrames(context.Background(), clock); err == nil {
 		t.Fatal("expected underflow refusal")
 	}
@@ -86,8 +90,10 @@ func TestPlanFramesRequiresExplicitUnderflowPolicy(t *testing.T) {
 }
 
 func TestPlanFramesRejectsInvalidAndUnboundedInputs(t *testing.T) {
-	base := FrameClock{SourcePTS: []int64{0, 4}, SourceTimeBase: Rational{Num: 1, Den: 10}, SourceEndPTS: 6,
-		TrimStartPTS: 0, TrimEndPTS: 4, PlaybackRate: Rational{Num: 1, Den: 1}, OutputRate: Rational{Num: 10, Den: 1}}
+	base := FrameClock{
+		SourcePTS: []int64{0, 4}, SourceTimeBase: Rational{Num: 1, Den: 10}, SourceEndPTS: 6,
+		TrimStartPTS: 0, TrimEndPTS: 4, PlaybackRate: Rational{Num: 1, Den: 1}, OutputRate: Rational{Num: 10, Den: 1},
+	}
 	cases := []struct {
 		name   string
 		mutate func(*FrameClock)
@@ -119,8 +125,10 @@ func TestPlanFramesRejectsInvalidAndUnboundedInputs(t *testing.T) {
 func TestPlanFramesHonorsCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	clock := FrameClock{SourcePTS: []int64{0}, SourceTimeBase: Rational{Num: 1, Den: 24}, SourceEndPTS: 24,
-		TrimStartPTS: 0, TrimEndPTS: 24, PlaybackRate: Rational{Num: 1, Den: 1}, OutputRate: Rational{Num: 24, Den: 1}}
+	clock := FrameClock{
+		SourcePTS: []int64{0}, SourceTimeBase: Rational{Num: 1, Den: 24}, SourceEndPTS: 24,
+		TrimStartPTS: 0, TrimEndPTS: 24, PlaybackRate: Rational{Num: 1, Den: 1}, OutputRate: Rational{Num: 24, Den: 1},
+	}
 	if _, err := PlanFrames(ctx, clock); !errors.Is(err, context.Canceled) {
 		t.Fatalf("PlanFrames error = %v, want context.Canceled", err)
 	}

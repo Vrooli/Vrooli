@@ -3,6 +3,7 @@
 package jobs
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -53,6 +54,7 @@ var (
 	ErrCheckpointMismatch   = errors.New("checkpoint identity does not match the pinned job and attempt")
 	ErrInvalid              = errors.New("invalid job input")
 	ErrConcurrentTransition = errors.New("job changed during transition")
+	ErrReleasePending       = errors.New("previous execution claim has not been released")
 )
 
 type ArtifactBinding struct {
@@ -62,19 +64,32 @@ type ArtifactBinding struct {
 	SHA256     string `json:"sha256"`
 }
 
+type SubjectKind string
+
+const (
+	SubjectStillRender      SubjectKind = "still_render.v1"
+	SubjectSourceInspection SubjectKind = "source_media_inspection.v1"
+	SubjectVideoRender      SubjectKind = "shot_video_render.v1"
+	SubjectPhysicalRender   SubjectKind = "shot_physical_render.v1"
+	SubjectGeometryCreate   SubjectKind = "device_geometry_create.v1"
+)
+
 // Input is the immutable execution closure. Binary bytes remain in the blob
 // owner; every referenced artifact is bound by revision and digest here.
 type Input struct {
 	ProjectID             string            `json:"project_id"`
-	ShotRevisionID        string            `json:"shot_revision_id"`
-	ShotRevision          int64             `json:"shot_revision"`
+	ShotRevisionID        string            `json:"shot_revision_id,omitempty"`
+	ShotRevision          int64             `json:"shot_revision,omitempty"`
 	Bindings              []ArtifactBinding `json:"bindings"`
-	SourceClockDigest     string            `json:"source_clock_digest"`
+	SourceClockDigest     string            `json:"source_clock_digest,omitempty"`
 	ToolProfileDigest     string            `json:"tool_profile_digest"`
 	RendererVersion       string            `json:"renderer_version"`
 	OutputProfile         string            `json:"output_profile"`
 	AccountingOperationID string            `json:"accounting_operation_id,omitempty"`
 	AccountingRequired    bool              `json:"accounting_required"`
+	SubjectKind           SubjectKind       `json:"subject_kind,omitempty"`
+	SubjectID             string            `json:"subject_id,omitempty"`
+	SubjectData           json.RawMessage   `json:"subject_data,omitempty"`
 }
 
 type Job struct {
@@ -92,9 +107,19 @@ type Job struct {
 	Settlement        SettlementState  `json:"settlement"`
 	Attempts          []Attempt        `json:"attempts"`
 }
+
+// SubjectFinalization is a durable retry marker written in the same SQLite
+// transaction as a typed subject's known terminal transition.
+type SubjectFinalization struct {
+	JobID, AttemptID string
+	Kind             SubjectKind
+	State            State
+	Failure          string
+}
 type Attempt struct {
 	ID                   string              `json:"id"`
 	Number               int                 `json:"number"`
+	RetryFromVersion     int64               `json:"retry_from_version,omitempty"`
 	State                AttemptState        `json:"state"`
 	CreatedAt            time.Time           `json:"created_at"`
 	StartedAt            *time.Time          `json:"started_at,omitempty"`
@@ -219,10 +244,43 @@ type SubmitInput struct {
 func CanonicalInput(in Input) (Input, string, error) {
 	in.ProjectID = strings.TrimSpace(in.ProjectID)
 	in.ShotRevisionID = strings.TrimSpace(in.ShotRevisionID)
+	in.SubjectID = strings.TrimSpace(in.SubjectID)
 	in.RendererVersion = strings.TrimSpace(in.RendererVersion)
 	in.OutputProfile = strings.TrimSpace(in.OutputProfile)
-	if in.ProjectID == "" || in.ShotRevisionID == "" || in.ShotRevision <= 0 || in.RendererVersion == "" || in.OutputProfile == "" {
-		return Input{}, "", fmt.Errorf("%w: project, shot revision, renderer and output profile are required", ErrInvalid)
+	if in.ProjectID == "" || in.RendererVersion == "" || in.OutputProfile == "" {
+		return Input{}, "", fmt.Errorf("%w: project, renderer and output profile are required", ErrInvalid)
+	}
+	switch in.SubjectKind {
+	case "": // The empty tag is the byte-compatible legacy still subject.
+		if in.ShotRevisionID == "" || in.ShotRevision <= 0 || strings.TrimSpace(in.SourceClockDigest) == "" {
+			return Input{}, "", fmt.Errorf("%w: legacy still input requires a shot revision and source clock", ErrInvalid)
+		}
+	case SubjectSourceInspection:
+		if in.SubjectID == "" || in.ShotRevisionID != "" || in.ShotRevision != 0 || in.SourceClockDigest != "" {
+			return Input{}, "", fmt.Errorf("%w: source inspection requires a subject id and no shot or source clock", ErrInvalid)
+		}
+	case SubjectVideoRender:
+		if in.SubjectID == "" || in.ShotRevisionID == "" || in.ShotRevision <= 0 || strings.TrimSpace(in.SourceClockDigest) == "" {
+			return Input{}, "", fmt.Errorf("%w: video render requires an immutable shot and source clock", ErrInvalid)
+		}
+	case SubjectPhysicalRender:
+		if in.SubjectID == "" || in.ShotRevisionID == "" || in.ShotRevision <= 0 || in.SourceClockDigest != "" {
+			return Input{}, "", fmt.Errorf("%w: physical render requires an immutable shot and no video source clock", ErrInvalid)
+		}
+	case SubjectGeometryCreate:
+		if in.SubjectID == "" || in.ShotRevisionID != "" || in.ShotRevision != 0 || in.SourceClockDigest != "" || len(in.SubjectData) == 0 || len(in.SubjectData) > 64<<10 {
+			return Input{}, "", fmt.Errorf("%w: geometry creation requires a subject id and bounded subject data without shot or clock bindings", ErrInvalid)
+		}
+		var compact bytes.Buffer
+		if !json.Valid(in.SubjectData) || json.Compact(&compact, in.SubjectData) != nil {
+			return Input{}, "", fmt.Errorf("%w: geometry creation subject data must be valid JSON", ErrInvalid)
+		}
+		in.SubjectData = append(json.RawMessage(nil), compact.Bytes()...)
+	default:
+		return Input{}, "", fmt.Errorf("%w: unsupported job subject %q", ErrInvalid, in.SubjectKind)
+	}
+	if in.SubjectKind != SubjectGeometryCreate && len(in.SubjectData) != 0 {
+		return Input{}, "", fmt.Errorf("%w: subject data is only supported for geometry creation", ErrInvalid)
 	}
 	if in.AccountingRequired && strings.TrimSpace(in.AccountingOperationID) == "" {
 		return Input{}, "", fmt.Errorf("%w: accounting operation id is required when settlement is tracked", ErrInvalid)
@@ -231,8 +289,10 @@ func CanonicalInput(in Input) (Input, string, error) {
 		return Input{}, "", fmt.Errorf("%w: accounting operation requires settlement tracking", ErrInvalid)
 	}
 	in.AccountingOperationID = strings.TrimSpace(in.AccountingOperationID)
-	if err := validDigest(in.SourceClockDigest); err != nil {
-		return Input{}, "", fmt.Errorf("%w: source clock digest: %v", ErrInvalid, err)
+	if in.SourceClockDigest != "" {
+		if err := validDigest(in.SourceClockDigest); err != nil {
+			return Input{}, "", fmt.Errorf("%w: source clock digest: %v", ErrInvalid, err)
+		}
 	}
 	if err := validDigest(in.ToolProfileDigest); err != nil {
 		return Input{}, "", fmt.Errorf("%w: tool profile digest: %v", ErrInvalid, err)
@@ -264,6 +324,7 @@ func CanonicalInput(in Input) (Input, string, error) {
 	sum := sha256.Sum256(data)
 	return in, hex.EncodeToString(sum[:]), nil
 }
+
 func validDigest(s string) error {
 	if len(s) != 64 {
 		return errors.New("must be 64 lowercase hexadecimal characters")
@@ -277,12 +338,14 @@ func validDigest(s string) error {
 	}
 	return nil
 }
+
 func validateExecutionClaim(j Job, a Attempt, c ExecutionClaim) error {
 	if c.ID == "" || c.JobID != j.ID || c.AttemptID != a.ID || c.AttemptNumber != a.Number || c.InputFingerprint != j.InputFingerprint || c.ToolProfileDigest != j.Input.ToolProfileDigest || c.SourceClockDigest != j.Input.SourceClockDigest || c.OwnerID == "" || c.ScopeID == "" || c.ArtifactID == "" || validDigest(c.SHA256) != nil || c.ClaimedAt.IsZero() {
 		return ErrInvalid
 	}
 	return nil
 }
+
 func validateQuiescence(j Job, a Attempt, p QuiescenceProof) error {
 	if !p.NoOwnedExecution || p.JobID != j.ID || p.AttemptID != a.ID || p.InputFingerprint != j.InputFingerprint || p.ScopeID == "" || p.OwnerID == "" || p.Reason == "" || p.ObservedAt.IsZero() {
 		return fmt.Errorf("%w: quiescence proof is not bound to this attempt", ErrInvalid)
@@ -298,12 +361,14 @@ func validateQuiescence(j Job, a Attempt, p QuiescenceProof) error {
 	}
 	return nil
 }
+
 func validateCheckpoint(j Job, a Attempt, c Checkpoint) error {
 	if c.AttemptID != a.ID || c.AttemptNumber != a.Number || c.ExecutionClaimID == "" || a.Execution == nil || c.ExecutionClaimID != a.Execution.ID || c.InputFingerprint != j.InputFingerprint || c.ToolProfileDigest != j.Input.ToolProfileDigest || c.SourceClockDigest != j.Input.SourceClockDigest || c.Unit < 0 || c.ArtifactID == "" || validDigest(c.SHA256) != nil || c.CreatedAt.IsZero() {
 		return ErrCheckpointMismatch
 	}
 	return nil
 }
+
 func validateCompletion(j Job, a Attempt, c CompletionEvidence) error {
 	if a.Execution == nil || c.AttemptID != a.ID || c.ExecutionClaimID != a.Execution.ID || c.InputFingerprint != j.InputFingerprint || c.CompletedAt.IsZero() || c.ReceiptArtifactID == "" || validDigest(c.ReceiptSHA256) != nil || len(c.Outputs) == 0 {
 		return fmt.Errorf("%w: completion evidence is incomplete or bound to another execution", ErrInvalid)

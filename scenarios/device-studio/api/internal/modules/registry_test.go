@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+
 	"device-studio/internal/modules"
 
 	db "github.com/vrooli/api-core/databasetest"

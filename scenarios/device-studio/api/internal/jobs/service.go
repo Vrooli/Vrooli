@@ -11,6 +11,7 @@ import (
 
 type Service interface {
 	Submit(context.Context, SubmitInput) (Job, bool, error)
+	FindByIdempotencyKey(context.Context, string) (Job, error)
 	Get(context.Context, string) (Job, error)
 	ListProject(context.Context, string, Cursor, int) ([]Job, error)
 	ListProgress(context.Context, Cursor, int) ([]Job, error)
@@ -21,10 +22,14 @@ type Service interface {
 	SaveCheckpoint(context.Context, string, string, Checkpoint, QuiescenceProof, int64) (Job, error)
 	Complete(context.Context, string, string, CompletionEvidence, int64) (Job, error)
 	Fail(context.Context, string, string, string, int64) (Job, error)
+	FailBeforeDispatch(context.Context, string, string, string, int64) (Job, error)
 	RequestCancel(context.Context, string, int64) (Job, error)
 	ConfirmCancelled(context.Context, string, string, QuiescenceProof, int64) (Job, error)
 	Settle(context.Context, string, SettlementState, int64) (Job, error)
+	RetrySourceInspection(context.Context, string, int64) (Job, bool, error)
 	Recoveries(context.Context, time.Duration) ([]Recovery, error)
+	PendingSubjectFinalization(context.Context, string) (SubjectFinalization, error)
+	CompleteSubjectFinalization(context.Context, string, string, SubjectKind) error
 }
 type service struct {
 	repo Repository
@@ -58,33 +63,47 @@ func (s *service) Submit(ctx context.Context, in SubmitInput) (Job, bool, error)
 	}(), Attempts: []Attempt{{ID: uuid.NewString(), Number: 1, State: AttemptQueued, CreatedAt: now}}}
 	return s.repo.Submit(ctx, j)
 }
+
 func (s *service) Get(ctx context.Context, id string) (Job, error) {
 	if strings.TrimSpace(id) == "" {
 		return Job{}, fmt.Errorf("%w: job id required", ErrInvalid)
 	}
 	return s.repo.Get(ctx, id)
 }
+
+func (s *service) FindByIdempotencyKey(ctx context.Context, key string) (Job, error) {
+	key = strings.TrimSpace(key)
+	if key == "" || len(key) > 200 {
+		return Job{}, fmt.Errorf("%w: idempotency key required and limited to 200 bytes", ErrInvalid)
+	}
+	return s.repo.FindByIdempotencyKey(ctx, key)
+}
+
 func (s *service) ListProject(ctx context.Context, projectID string, cursor Cursor, limit int) ([]Job, error) {
-	if strings.TrimSpace(projectID) == "" || limit < 1 || limit > 100 {
-		return nil, fmt.Errorf("%w: project and page size 1..100 are required", ErrInvalid)
+	if strings.TrimSpace(projectID) == "" || limit < 1 || limit > 101 {
+		return nil, fmt.Errorf("%w: project and page size 1..101 are required", ErrInvalid)
 	}
 	return s.repo.ListProject(ctx, projectID, cursor, limit)
 }
+
 func (s *service) ListProgress(ctx context.Context, cursor Cursor, limit int) ([]Job, error) {
 	if limit < 1 || limit > 100 {
 		return nil, fmt.Errorf("%w: progress page size 1..100 is required", ErrInvalid)
 	}
 	return s.repo.ListProgress(ctx, cursor, limit)
 }
+
 func (s *service) RecordObserved(ctx context.Context, id, attempt string, version int64) (Job, error) {
 	return s.repo.RecordObserved(ctx, id, attempt, version)
 }
+
 func (s *service) RecordReleased(ctx context.Context, id, attempt string, version int64, at time.Time) (Job, error) {
 	if at.IsZero() {
 		at = s.now().UTC()
 	}
 	return s.repo.RecordReleased(ctx, id, attempt, version, at.UTC())
 }
+
 func (s *service) Start(ctx context.Context, id string, owner ExecutionClaimInput, version int64) (Job, error) {
 	j, err := s.repo.Get(ctx, id)
 	if err != nil {
@@ -117,9 +136,11 @@ func (s *service) Start(ctx context.Context, id string, owner ExecutionClaimInpu
 	claim := ExecutionClaim{ID: uuid.NewString(), JobID: j.ID, AttemptID: owner.AttemptID, AttemptNumber: owner.AttemptNumber, InputFingerprint: j.InputFingerprint, ToolProfileDigest: j.Input.ToolProfileDigest, SourceClockDigest: j.Input.SourceClockDigest, OwnerID: strings.TrimSpace(owner.OwnerID), ScopeID: strings.TrimSpace(owner.ScopeID), ArtifactID: strings.TrimSpace(owner.ArtifactID), SHA256: owner.SHA256, ClaimedAt: now}
 	return s.repo.Start(ctx, claim, now.UnixNano(), version)
 }
+
 func (s *service) Heartbeat(ctx context.Context, id, attempt string, version int64) (Job, error) {
 	return s.repo.Heartbeat(ctx, id, attempt, s.now().UTC().UnixNano(), version)
 }
+
 func (s *service) SaveCheckpoint(ctx context.Context, id, attempt string, c Checkpoint, proof QuiescenceProof, version int64) (Job, error) {
 	if c.CreatedAt.IsZero() {
 		c.CreatedAt = s.now().UTC()
@@ -129,12 +150,14 @@ func (s *service) SaveCheckpoint(ctx context.Context, id, attempt string, c Chec
 	}
 	return s.repo.Checkpoint(ctx, id, attempt, c, proof, version)
 }
+
 func (s *service) Complete(ctx context.Context, id, attempt string, c CompletionEvidence, version int64) (Job, error) {
 	if c.CompletedAt.IsZero() {
 		c.CompletedAt = s.now().UTC()
 	}
 	return s.repo.Complete(ctx, id, attempt, c, version)
 }
+
 func (s *service) Fail(ctx context.Context, id, attempt, reason string, version int64) (Job, error) {
 	reason = strings.TrimSpace(reason)
 	if reason == "" {
@@ -142,9 +165,19 @@ func (s *service) Fail(ctx context.Context, id, attempt, reason string, version 
 	}
 	return s.repo.Fail(ctx, id, attempt, reason, s.now().UTC().UnixNano(), version)
 }
+
+func (s *service) FailBeforeDispatch(ctx context.Context, id, attempt, reason string, version int64) (Job, error) {
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		return Job{}, fmt.Errorf("%w: failure reason required", ErrInvalid)
+	}
+	return s.repo.FailBeforeDispatch(ctx, id, attempt, reason, s.now().UTC().UnixNano(), version)
+}
+
 func (s *service) RequestCancel(ctx context.Context, id string, version int64) (Job, error) {
 	return s.repo.RequestCancel(ctx, id, s.now().UTC().UnixNano(), version)
 }
+
 func (s *service) ConfirmCancelled(ctx context.Context, id, attempt string, p QuiescenceProof, version int64) (Job, error) {
 	if p.ObservedAt.IsZero() {
 		p.ObservedAt = s.now().UTC()
@@ -154,12 +187,30 @@ func (s *service) ConfirmCancelled(ctx context.Context, id, attempt string, p Qu
 	}
 	return s.repo.ConfirmCancelled(ctx, id, attempt, p, version)
 }
+
 func (s *service) Settle(ctx context.Context, id string, state SettlementState, version int64) (Job, error) {
 	if state != SettlementSettled && state != SettlementReconciliation {
 		return Job{}, fmt.Errorf("%w: settlement must be settled or reconciliation_required", ErrInvalid)
 	}
 	return s.repo.Settle(ctx, id, state, s.now().UTC().UnixNano(), version)
 }
+
+func (s *service) RetrySourceInspection(ctx context.Context, id string, expectedVersion int64) (Job, bool, error) {
+	id = strings.TrimSpace(id)
+	if id == "" || expectedVersion <= 0 {
+		return Job{}, false, fmt.Errorf("%w: job id and positive expected version are required", ErrInvalid)
+	}
+	return s.repo.RetrySourceInspection(ctx, id, expectedVersion, uuid.NewString(), s.now().UTC().UnixNano())
+}
+
+func (s *service) PendingSubjectFinalization(ctx context.Context, id string) (SubjectFinalization, error) {
+	return s.repo.PendingSubjectFinalization(ctx, id)
+}
+
+func (s *service) CompleteSubjectFinalization(ctx context.Context, id, attempt string, kind SubjectKind) error {
+	return s.repo.CompleteSubjectFinalization(ctx, id, attempt, kind)
+}
+
 func (s *service) Recoveries(ctx context.Context, lease time.Duration) ([]Recovery, error) {
 	if lease <= 0 {
 		return nil, fmt.Errorf("%w: recovery lease must be positive", ErrInvalid)
@@ -175,6 +226,7 @@ func (s *service) Recoveries(ctx context.Context, lease time.Duration) ([]Recove
 	}
 	return out, nil
 }
+
 func classify(j Job, now time.Time, lease time.Duration) Recovery {
 	r := Recovery{JobID: j.ID}
 	switch j.State {
@@ -205,6 +257,7 @@ func classify(j Job, now time.Time, lease time.Duration) Recovery {
 	}
 	return r
 }
+
 func executionScopeExists(j Job, scope string) bool {
 	for _, a := range j.Attempts {
 		if a.Execution != nil && a.Execution.ScopeID == scope {
@@ -213,6 +266,7 @@ func executionScopeExists(j Job, scope string) bool {
 	}
 	return false
 }
+
 func attemptIDExists(j Job, id string) bool {
 	for _, a := range j.Attempts {
 		if a.ID == id {
@@ -221,6 +275,7 @@ func attemptIDExists(j Job, id string) bool {
 	}
 	return false
 }
+
 func currentAttempt(j Job) (Attempt, bool) {
 	if len(j.Attempts) == 0 {
 		return Attempt{}, false

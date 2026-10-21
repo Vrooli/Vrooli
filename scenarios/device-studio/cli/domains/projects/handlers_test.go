@@ -10,9 +10,9 @@ import (
 func TestProjectConflictPreservesTypedRevisionDetails(t *testing.T) {
 	err := connect.NewError(connect.CodeAborted, nil)
 	detail, detailErr := connect.NewErrorDetail(&projectsv1.ProjectConflict{
-		ProjectId:       "project-1",
+		ProjectId:        "project-1",
 		ExpectedRevision: 4,
-		CurrentRevision: 5,
+		CurrentRevision:  5,
 	})
 	if detailErr != nil {
 		t.Fatalf("NewErrorDetail() error = %v", detailErr)

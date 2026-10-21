@@ -2,7 +2,7 @@
   "schema_version": "device-definition/v1",
   "id": "apple-watch-series-9-45mm",
   "group": "watch",
-  "kind": "round_watch",
+  "kind": "rectangular_smartwatch",
   "identity_status": "documented_product",
   "manufacturer": "Apple",
   "model": "Apple Watch Series 9, 45 mm case",

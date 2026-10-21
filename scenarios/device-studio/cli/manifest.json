@@ -1,134 +1,8 @@
 {
   "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "device-studio",
-  "description": "Device Studio CLI for local project workspace and the notes reference domain.",
+  "description": "Device Studio CLI for projects, media, immutable shots and local renders.",
   "groups": [
-    {
-      "name": "notes",
-      "description": "Manage notes (CRUD reference)",
-      "commands": [
-        {
-          "name": "list",
-          "description": "List all notes",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "ListNotes"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          }
-        },
-        {
-          "name": "create",
-          "description": "Create a note",
-          "flags": [
-            {
-              "name": "title",
-              "required": true,
-              "description": "Note title"
-            },
-            {
-              "name": "body",
-              "description": "Note body"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "CreateNote"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_mutation"
-          }
-        },
-        {
-          "name": "get",
-          "description": "Get a note by id",
-          "positionals": [
-            {
-              "name": "id",
-              "required": true,
-              "description": "Note id"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "GetNote"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          }
-        },
-        {
-          "name": "count",
-          "description": "Count notes created in a time window (the reference measure)",
-          "flags": [
-            {
-              "name": "window",
-              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "CountNotes"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          },
-          "measure": {
-            "intent": "How many notes were created in a given time window.",
-            "questions": [
-              "how many notes were created this week",
-              "notes created last month",
-              "how many notes did we add in the last 7 days"
-            ],
-            "params": {
-              "window": {
-                "type": "time_window",
-                "default": "this_week"
-              }
-            },
-            "result": {
-              "kind": "scalar",
-              "value_field": "count",
-              "unit": "notes",
-              "summary_template": "{count} notes created ({window})"
-            }
-          }
-        }
-      ]
-    },
     {
       "name": "projects",
       "description": "Manage local Device Studio projects",
@@ -256,11 +130,11 @@
     },
     {
       "name": "media",
-      "description": "Import and inspect project source images",
+      "description": "Import and inspect project images and recordings",
       "commands": [
         {
           "name": "list",
-          "description": "List a bounded page of source images",
+          "description": "List a bounded page of source media and inspection status",
           "positionals": [
             {
               "name": "project-id",
@@ -296,7 +170,7 @@
         },
         {
           "name": "get",
-          "description": "Get source image metadata",
+          "description": "Read source media metadata and current inspection status",
           "positionals": [
             {
               "name": "project-id",
@@ -313,6 +187,183 @@
             "kind": "connect-rpc",
             "service": "ProjectsService",
             "method": "GetSourceMedia"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "inspect",
+          "description": "Start or recover local inspection; does not retry terminal jobs",
+          "positionals": [
+            {
+              "name": "project-id",
+              "required": true,
+              "description": "Project id"
+            },
+            {
+              "name": "id",
+              "required": true,
+              "description": "Source media id",
+              "bind": {
+                "field": "media_id",
+                "kind": "raw_string"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProjectsService",
+            "method": "EnsureSourceMediaInspection"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "retry-inspection",
+          "description": "Explicitly retry a settled failed or cancelled inspection",
+          "positionals": [
+            {
+              "name": "project-id",
+              "required": true,
+              "description": "Project id"
+            },
+            {
+              "name": "id",
+              "required": true,
+              "description": "Source media id",
+              "bind": {
+                "field": "media_id",
+                "kind": "raw_string"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProjectsService",
+            "method": "RetrySourceMediaInspection"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
+          "flags": [
+            {
+              "name": "expected-version",
+              "required": true,
+              "description": "Current inspection job version from media get",
+              "bind": {
+                "field": "expected_job_version",
+                "kind": "raw_string"
+              }
+            }
+          ]
+        },
+        {
+          "name": "cancel-inspection",
+          "description": "Cancel the current inspection through its operation owner",
+          "positionals": [
+            {
+              "name": "project-id",
+              "required": true,
+              "description": "Project id"
+            },
+            {
+              "name": "id",
+              "required": true,
+              "description": "Source media id",
+              "bind": {
+                "field": "media_id",
+                "kind": "raw_string"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProjectsService",
+            "method": "CancelSourceMediaInspection"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
+          "flags": [
+            {
+              "name": "expected-version",
+              "required": true,
+              "description": "Current inspection job version from media get",
+              "bind": {
+                "field": "expected_job_version",
+                "kind": "raw_string"
+              }
+            }
+          ]
+        },
+        {
+          "name": "clock",
+          "description": "Read one bounded page of the accepted source frame clock",
+          "positionals": [
+            {
+              "name": "project-id",
+              "required": true,
+              "description": "Project id"
+            },
+            {
+              "name": "id",
+              "required": true,
+              "description": "Media id",
+              "bind": {
+                "field": "media_id",
+                "kind": "raw_string"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "expected-clock-sha256",
+              "required": true,
+              "description": "Accepted inspection clock digest"
+            },
+            {
+              "name": "page-size",
+              "description": "Maximum points (default 100, max 256)"
+            },
+            {
+              "name": "page-token",
+              "description": "Next page token from the same clock"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProjectsService",
+            "method": "GetSourceMediaClockPage"
           },
           "governance": {
             "effect": "read",
@@ -348,7 +399,11 @@
             {
               "name": "snapshot",
               "required": true,
-              "description": "Typed ShotSnapshot proto-JSON file path or - for stdin"
+              "description": "Typed ShotSnapshot proto-JSON file path or - for stdin",
+              "bind": {
+                "field": "snapshot",
+                "kind": "json_file"
+              }
             }
           ],
           "binding": {
@@ -384,14 +439,22 @@
             {
               "name": "snapshot",
               "required": true,
-              "description": "Typed ShotSnapshot proto-JSON file path or - for stdin"
+              "description": "Typed ShotSnapshot proto-JSON file path or - for stdin",
+              "bind": {
+                "field": "snapshot",
+                "kind": "json_file"
+              }
             }
           ],
           "positionals": [
             {
               "name": "id",
               "required": true,
-              "description": "Shot id"
+              "description": "Shot id",
+              "bind": {
+                "field": "shot_id",
+                "kind": "raw_string"
+              }
             }
           ],
           "binding": {
@@ -491,7 +554,11 @@
             {
               "name": "id",
               "required": true,
-              "description": "Shot id"
+              "description": "Shot id",
+              "bind": {
+                "field": "shot_id",
+                "kind": "raw_string"
+              }
             }
           ],
           "binding": {
@@ -524,7 +591,11 @@
             {
               "name": "id",
               "required": true,
-              "description": "Shot id"
+              "description": "Shot id",
+              "bind": {
+                "field": "shot_id",
+                "kind": "raw_string"
+              }
             }
           ],
           "binding": {
@@ -557,7 +628,11 @@
             {
               "name": "id",
               "required": true,
-              "description": "Shot id"
+              "description": "Shot id",
+              "bind": {
+                "field": "shot_id",
+                "kind": "raw_string"
+              }
             }
           ],
           "binding": {
@@ -588,7 +663,11 @@
             {
               "name": "snapshot",
               "required": true,
-              "description": "Typed ShotSnapshot proto-JSON file path or - for stdin"
+              "description": "Typed ShotSnapshot proto-JSON file path or - for stdin",
+              "bind": {
+                "field": "snapshot",
+                "kind": "json_file"
+              }
             }
           ],
           "binding": {
@@ -608,27 +687,1115 @@
           }
         }
       ]
+    },
+    {
+      "name": "renders",
+      "description": "Submit, inspect and export local still and video renders",
+      "commands": [
+        {
+          "name": "submit",
+          "description": "Submit a saved immutable still, video sample or final MP4 render",
+          "flags": [
+            {
+              "name": "project-id",
+              "required": true,
+              "description": "Project id"
+            },
+            {
+              "name": "shot-id",
+              "required": true,
+              "description": "Shot id"
+            },
+            {
+              "name": "revision",
+              "required": true,
+              "description": "Immutable shot revision"
+            },
+            {
+              "name": "idempotency-key",
+              "required": true,
+              "description": "Stable key for retrying this exact request"
+            },
+            {
+              "name": "render-mode",
+              "description": "STILL (default), VIDEO_SAMPLE_PNG, VIDEO_FINAL_MP4, PHYSICAL_STILL_PNG, PHYSICAL_FINAL_MP4 or PHYSICAL_PREVIEW_PNG"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RenderJobsService",
+            "method": "SubmitRender"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "get",
+          "description": "Read a project-owned render job",
+          "flags": [
+            {
+              "name": "project-id",
+              "required": true,
+              "description": "Project id"
+            }
+          ],
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Render job id",
+              "bind": {
+                "field": "render_id",
+                "kind": "raw_string"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RenderJobsService",
+            "method": "GetRender"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "list",
+          "description": "List one bounded page of project render jobs",
+          "flags": [
+            {
+              "name": "project-id",
+              "required": true,
+              "description": "Project id"
+            },
+            {
+              "name": "page-size",
+              "required": false,
+              "description": "Page size (default 50, max 100)"
+            },
+            {
+              "name": "page-token",
+              "required": false,
+              "description": "Next page token"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RenderJobsService",
+            "method": "ListRenders"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "cancel",
+          "description": "Request cancellation of a render job",
+          "flags": [
+            {
+              "name": "project-id",
+              "required": true,
+              "description": "Project id"
+            },
+            {
+              "name": "expected-version",
+              "required": true,
+              "description": "Current render job version"
+            }
+          ],
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Render job id",
+              "bind": {
+                "field": "render_id",
+                "kind": "raw_string"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RenderJobsService",
+            "method": "CancelRender"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "sample-binding",
+          "description": "Get verified AUTO phone sample values for a new shot revision",
+          "flags": [
+            {
+              "name": "project-id",
+              "required": true,
+              "description": "Project id"
+            },
+            {
+              "name": "shot-id",
+              "required": true,
+              "description": "Shot id"
+            }
+          ],
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Succeeded sample render id",
+              "bind": {
+                "field": "render_id",
+                "kind": "raw_string"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RenderJobsService",
+            "method": "GetVideoSampleBinding"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "export",
+          "description": "Stream a verified PNG or MP4 to a new local file without overwriting",
+          "needs_api": true,
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Succeeded render job id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "project-id",
+              "required": true,
+              "description": "Project id"
+            },
+            {
+              "name": "out",
+              "required": true,
+              "description": "New output file path; existing files are never replaced"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "devices",
+      "description": "Immutable device candidate revisions",
+      "commands": [
+        {
+          "name": "save",
+          "description": "Save an immutable device candidate revision using the observed head",
+          "flags": [
+            {
+              "name": "candidate",
+              "required": true,
+              "description": "Strict typed DeviceCandidate proto-JSON file path or - for stdin",
+              "bind": {
+                "field": "candidate",
+                "kind": "json_file"
+              }
+            },
+            {
+              "name": "expected-head",
+              "required": true,
+              "description": "Head revision observed before editing; use 0 to create"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DevicesService",
+            "method": "SaveDeviceCandidate"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get one immutable device candidate revision",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Device id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "revision",
+              "required": true,
+              "description": "Immutable revision number"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DevicesService",
+            "method": "GetDeviceRevision"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "head",
+          "description": "Get the current device candidate head",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Device id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DevicesService",
+            "method": "GetDeviceHead"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "revisions",
+          "description": "List a bounded page of immutable device revisions",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Device id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "after-revision",
+              "required": false,
+              "description": "Return revisions after this number"
+            },
+            {
+              "name": "page-size",
+              "required": false,
+              "description": "Maximum results (default 50, max 100)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DevicesService",
+            "method": "ListDeviceRevisions"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "list",
+          "description": "List a bounded page of current device candidate heads; qualification is separate",
+          "flags": [
+            {
+              "name": "page-size",
+              "description": "Page size (default 50, max 100)"
+            },
+            {
+              "name": "after-id",
+              "description": "Return candidate IDs after this stable ID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DevicesService",
+            "method": "ListDeviceCandidates"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    },
+    {
+      "name": "scenes",
+      "description": "Immutable scene candidate revisions",
+      "commands": [
+        {
+          "name": "save",
+          "description": "Save an immutable scene candidate revision using the observed head",
+          "flags": [
+            {
+              "name": "candidate",
+              "required": true,
+              "description": "Strict typed SceneCandidate proto-JSON file path or - for stdin",
+              "bind": {
+                "field": "candidate",
+                "kind": "json_file"
+              }
+            },
+            {
+              "name": "expected-head",
+              "required": true,
+              "description": "Head revision observed before editing; use 0 to create"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenesService",
+            "method": "SaveSceneCandidate"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get one immutable scene candidate revision",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Scene id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "revision",
+              "required": true,
+              "description": "Immutable revision number"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenesService",
+            "method": "GetSceneRevision"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "head",
+          "description": "Get the current scene candidate head",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Scene id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenesService",
+            "method": "GetSceneHead"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "revisions",
+          "description": "List a bounded page of immutable scene revisions",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Scene id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "after-revision",
+              "required": false,
+              "description": "Return revisions after this number"
+            },
+            {
+              "name": "page-size",
+              "required": false,
+              "description": "Maximum results (default 50, max 100)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenesService",
+            "method": "ListSceneRevisions"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "list",
+          "description": "List a bounded page of current scene candidate heads; qualification is separate",
+          "flags": [
+            {
+              "name": "page-size",
+              "description": "Page size (default 50, max 100)"
+            },
+            {
+              "name": "after-id",
+              "description": "Return candidate IDs after this stable ID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenesService",
+            "method": "ListSceneCandidates"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    },
+    {
+      "name": "motions",
+      "description": "Immutable motion candidate revisions",
+      "commands": [
+        {
+          "name": "save",
+          "description": "Save an immutable motion candidate revision using the observed head",
+          "flags": [
+            {
+              "name": "candidate",
+              "required": true,
+              "description": "Strict typed MotionCandidate proto-JSON file path or - for stdin",
+              "bind": {
+                "field": "candidate",
+                "kind": "json_file"
+              }
+            },
+            {
+              "name": "expected-head",
+              "required": true,
+              "description": "Head revision observed before editing; use 0 to create"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MotionsService",
+            "method": "SaveMotionCandidate"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get one immutable motion candidate revision",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Motion id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "revision",
+              "required": true,
+              "description": "Immutable revision number"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MotionsService",
+            "method": "GetMotionRevision"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "head",
+          "description": "Get the current motion candidate head",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Motion id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MotionsService",
+            "method": "GetMotionHead"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "revisions",
+          "description": "List a bounded page of immutable motion revisions",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Motion id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "after-revision",
+              "required": false,
+              "description": "Return revisions after this number"
+            },
+            {
+              "name": "page-size",
+              "required": false,
+              "description": "Maximum results (default 50, max 100)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MotionsService",
+            "method": "ListMotionRevisions"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "list",
+          "description": "List a bounded page of current motion candidate heads; qualification is separate",
+          "flags": [
+            {
+              "name": "page-size",
+              "description": "Page size (default 50, max 100)"
+            },
+            {
+              "name": "after-id",
+              "description": "Return candidate IDs after this stable ID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MotionsService",
+            "method": "ListMotionCandidates"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    },
+    {
+      "name": "physical-setups",
+      "description": "Save and browse immutable component joins for physical shots",
+      "commands": [
+        {
+          "name": "save",
+          "description": "Append an immutable physical setup revision with compare-and-swap",
+          "positionals": [
+            {
+              "name": "preset-id",
+              "required": true,
+              "description": "Stable physical setup ID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "expected-revision",
+              "required": true,
+              "description": "Observed setup head revision; use 0 to create"
+            },
+            {
+              "name": "name",
+              "required": true,
+              "description": "Human-readable setup name"
+            },
+            {
+              "name": "setup",
+              "required": true,
+              "description": "Strict PhysicalShotSetup proto-JSON file path or - for stdin",
+              "bind": {
+                "field": "setup",
+                "kind": "json_file"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ShotsService",
+            "method": "SavePhysicalShotPreset"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "get",
+          "description": "Read one immutable physical setup revision",
+          "positionals": [
+            {
+              "name": "preset-id",
+              "required": true,
+              "description": "Stable physical setup ID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "revision",
+              "required": true,
+              "description": "Immutable revision"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ShotsService",
+            "method": "GetPhysicalShotPreset"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "head",
+          "description": "Read the current physical setup revision",
+          "positionals": [
+            {
+              "name": "preset-id",
+              "required": true,
+              "description": "Stable physical setup ID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ShotsService",
+            "method": "GetPhysicalShotPresetHead"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "list",
+          "description": "List bounded immutable physical setup heads",
+          "flags": [
+            {
+              "name": "after-preset-id",
+              "description": "Preset ID cursor from the prior page"
+            },
+            {
+              "name": "page-size",
+              "description": "Page size (default 50, maximum 100)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ShotsService",
+            "method": "ListPhysicalShotPresets"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "revisions",
+          "description": "List bounded revisions of one physical setup",
+          "positionals": [
+            {
+              "name": "preset-id",
+              "required": true,
+              "description": "Stable physical setup ID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "after-revision",
+              "description": "Revision cursor from the prior page"
+            },
+            {
+              "name": "page-size",
+              "description": "Page size (default 50, maximum 100)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ShotsService",
+            "method": "ListPhysicalShotPresetRevisions"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    },
+    {
+      "name": "library",
+      "description": "Browse immutable reviewed bundle metadata and initialize local reviewed starters",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List a bounded page of immutable bundle revisions and review metadata; artifact bytes are not included",
+          "flags": [
+            {
+              "name": "after-bundle-id",
+              "description": "Bundle ID cursor from the previous page"
+            },
+            {
+              "name": "after-revision",
+              "description": "Revision cursor paired with after-bundle-id"
+            },
+            {
+              "name": "page-size",
+              "description": "Page size (default 50, max 100)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LibraryCatalogService",
+            "method": "ListBundleRevisions"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "get",
+          "description": "Read one immutable bundle manifest and digest-bound review",
+          "positionals": [
+            {
+              "name": "bundle-id",
+              "required": true,
+              "description": "Stable library bundle ID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "revision",
+              "required": true,
+              "description": "Immutable bundle revision"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LibraryCatalogService",
+            "method": "GetBundleRevision"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "intake-list",
+          "description": "List bounded local geometry intake metadata; candidates remain unreviewed",
+          "flags": [
+            {"name": "after-candidate-id", "description": "Candidate ID cursor from the previous page"},
+            {"name": "page-size", "description": "Page size (default 50, max 100)"}
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LibraryCatalogService",
+            "method": "ListIntakeCandidates"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          },
+          "architecture": {"primitive": "proto_list"}
+        },
+        {
+          "name": "intake-get",
+          "description": "Read one immutable local geometry intake candidate revision",
+          "positionals": [
+            {"name": "candidate-id", "required": true, "description": "Candidate ID"}
+          ],
+          "flags": [
+            {"name": "revision", "required": true, "description": "Immutable candidate revision"}
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LibraryCatalogService",
+            "method": "GetIntakeCandidate"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          },
+          "architecture": {"primitive": "proto_list"}
+        },
+        {
+          "name": "starter",
+          "description": "Initialize or retrieve the reviewed physical-render starter candidates",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PhysicalStarterService",
+            "method": "InitializeReviewedStarter"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "creation",
+      "description": "Build bounded local geometry drafts from project reference images",
+      "commands": [
+        {
+          "name": "start",
+          "description": "Start a disclosed local-only geometry job; output remains unreviewed",
+          "flags": [
+            {"name": "project-id", "required": true, "description": "Project containing the selected local images"},
+            {"name": "brief", "required": true, "description": "Requested device construction, maximum 4000 characters"},
+            {"name": "width-mm", "required": true, "description": "Locked device width in millimeters, 0 to 1000"},
+            {"name": "height-mm", "required": true, "description": "Locked device height in millimeters, 0 to 1000"},
+            {"name": "depth-mm", "required": true, "description": "Locked device depth in millimeters, 0 to 1000"},
+            {"name": "reference-media-ids", "required": true, "description": "One to four comma-separated project image IDs; total size is limited to 10 MiB"},
+            {"name": "confirm-local-ai", "bool": true, "description": "Required consent: send selected images and brief to the configured local model only, with no hosted fallback"}
+          ],
+          "binding": {"kind": "local", "handler": "start"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "action"}
+        },
+        {
+          "name": "get",
+          "description": "Read durable local geometry job status and unreviewed candidate identity",
+          "positionals": [{"name": "job-id", "required": true, "description": "Geometry creation job ID"}],
+          "binding": {"kind": "local", "handler": "get"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "action"}
+        },
+        {
+          "name": "cancel",
+          "description": "Request cancellation using the observed durable job version",
+          "positionals": [{"name": "job-id", "required": true, "description": "Geometry creation job ID"}],
+          "flags": [{"name": "expected-version", "required": true, "description": "Current job version from creation get"}],
+          "binding": {"kind": "local", "handler": "cancel"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "action"}
+        }
+      ]
     }
   ],
   "measures": {
-    "domains": [
-      {
-        "domain": "notes",
-        "stateful": true,
-        "reason": "Notes are countable persisted rows; the notes count measure covers this domain at full tier."
-      }
-    ]
+    "domains": []
   },
   "exceptions": [
     {
-      "command": "notes attach",
-      "class": "upload",
-      "reason": "Multipart file upload is exposed through the notes REST attachment endpoint, while cli-manifest/v1 only models Connect-RPC bindings."
-    },
-    {
       "command": "media import",
       "class": "upload",
-      "reason": "Multipart image bytes use the typed-response project media REST exception because Connect cannot carry multipart streaming."
+      "reason": "Multipart image and recording bytes use the typed-response project media REST upload exception."
+    },
+    {
+      "command": "library intake-import",
+      "class": "upload",
+      "reason": "Multipart GLB bytes use the typed-response local geometry intake endpoint."
     }
   ],
   "omitted": []

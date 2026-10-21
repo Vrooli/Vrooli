@@ -1,8 +1,0 @@
-Captured before private still-worker implementation writes.
-2026-10-20
-
-sha256 5dc59133c09a5c15a5c575ea4efa07977096526ee4828ae7de7b2c3accc1f0f0 scenarios/device-studio/api/main.go
-ABSENT scenarios/device-studio/api/internal/rendering/**
-ABSENT scenarios/device-studio/docs/internal/goal/evidence/E2/worker/** (except this baseline record)
-
-The api/main.go file was untracked at capture time and belonged to the active E1 media implementation. Workspace_e1 confirmed its E2 media module injection/registration was complete and granted a narrow early worker-mode branch edit; it will avoid further edits until notified of stability.

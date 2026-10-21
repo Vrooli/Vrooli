@@ -1,46 +1,52 @@
 {
   "metadata": {
-    "name": "experience-dashboard-spec-smoke",
     "description": "Generated observer smoke for active experience page dashboard.",
-    "requirement": "OT-P0-001",
-    "version": "1",
+    "execution_mode": "mutating",
     "labels": {
+      "requires_confirmation": "true",
       "reset": "none",
+      "routed_isolation": "true",
       "spec_entry_id": "dashboard",
       "surface": "experience-dashboard"
     },
-    "execution_mode": "observer"
-  },
-  "settings": {
-    "viewport_width": 1280,
-    "viewport_height": 800
+    "name": "experience-dashboard-spec-smoke",
+    "requirement": "OT-P0-001",
+    "version": "1"
   },
   "nodes": [
     {
-      "id": "navigate-dashboard",
       "action": {
-        "type": "ACTION_TYPE_NAVIGATE",
+        "metadata": {
+          "label": "Open Dashboard"
+        },
         "navigate": {
           "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
           "scenario": "device-studio",
           "scenario_path": "/",
-          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
-          "timeout_ms": 30000
+          "timeout_ms": 30000,
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
         },
-        "metadata": { "label": "Open Dashboard" }
-      }
+        "type": "ACTION_TYPE_NAVIGATE"
+      },
+      "id": "navigate-dashboard"
     },
     {
-      "id": "wait-dashboard-page",
       "action": {
+        "metadata": {
+          "label": "Dashboard page visible"
+        },
         "type": "ACTION_TYPE_WAIT",
         "wait": {
           "selector": "@selector/pages.dashboard",
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 15000
-        },
-        "metadata": { "label": "Dashboard page visible" }
-      }
+        }
+      },
+      "id": "wait-dashboard-page"
     }
-  ]
+  ],
+  "settings": {
+    "viewport_height": 800,
+    "viewport_width": 1280
+  }
 }

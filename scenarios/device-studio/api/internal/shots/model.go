@@ -33,6 +33,7 @@ type Revision struct {
 	Screen              *shotsv1.ResolvedSourceMedia
 	RenderEligible      bool
 	Issues              []*shotsv1.ShotIssue
+	Physical            *PhysicalResolution
 }
 
 type Page struct {

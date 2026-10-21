@@ -31,6 +31,13 @@
             "planned_automation": "Accessible end-to-end happy/empty/error/reopen journeys.",
             "evidence_status": "not_run"
           }
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "ui/src/features/projects/ShotWorkspace.test.tsx",
+          "notes": "Partial evidence only. Specific tagged test case(s): [REQ:DS-EDIT-GUIDED][REQ:DS-CONTRACT-SHOT] creates and opens a shot using the typed incomplete draft contract. This does not establish the full requirement."
         }
       ]
     },

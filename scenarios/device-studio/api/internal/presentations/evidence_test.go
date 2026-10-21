@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"image"
+	"image/draw"
 	"image/png"
 	"os"
 	"path/filepath"
@@ -38,10 +39,12 @@ func TestRawCapturePresentationEvidence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	lightPhoneFill := RGB{R: 246, G: 247, B: 250}
 	phoneLightConfig := phoneConfig
 	phoneLightConfig.Phone = &PhoneConfig{
 		ShowStatus: true, ShowHome: true, Clock: "9:41", Carrier: "Vrooli", BatteryPercent: 38,
 		ShowBatteryPercent: true, Cellular: true, WiFi: true, Appearance: AppearanceLight,
+		TopFill: &lightPhoneFill, BottomFill: &lightPhoneFill,
 	}
 	phoneLightResult, err := Compose(context.Background(), phone, phoneLightConfig)
 	if err != nil {
@@ -57,36 +60,34 @@ func TestRawCapturePresentationEvidence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	phoneOut, phoneOutputHash := encodeEvidencePNG(t, evidenceDir, "phone-dark-1206x2622.png", phoneResult.Raster)
-	phoneLightOut, phoneLightOutputHash := encodeEvidencePNG(t, evidenceDir, "phone-light-1206x2622.png", phoneLightResult.Raster)
-	desktopOut, desktopOutputHash := encodeEvidencePNG(t, evidenceDir, "desktop-2560x1440.png", desktopResult.Raster)
-	_ = phoneOut
-	_ = phoneLightOut
-	_ = desktopOut
+	assertPinnedV2Golden(t, evidenceDir, phoneHash, "phone", phoneResult, phoneConfig)
+	assertPinnedV2Golden(t, evidenceDir, phoneHash, "phone_light", phoneLightResult, phoneLightConfig)
+	assertPinnedV2Golden(t, evidenceDir, desktopHash, "desktop", desktopResult, browserConfig)
+	phoneV3Config := Config{Target: image.Pt(1206, 2622), Phone: &PhoneConfig{
+		ProfileVersion: PhoneProfileVersionAuto, ShowStatus: true, ShowHome: true,
+		Clock: "9:41", BatteryPercent: 84, ShowBatteryPercent: true,
+		Cellular: true, WiFi: true, Appearance: AppearanceAuto,
+	}}
+	phoneV3Result, err := Compose(context.Background(), phone, phoneV3Config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, phoneV3OutputHash := encodeEvidencePNG(t, evidenceDir, "phone-v3-auto-1206x2622.png", phoneV3Result.Raster)
 	receipt := map[string]any{
 		"schema_version": 1,
-		"provenance":     "illustrative pure-package raster proof from immutable raw app captures; no photo projection or product route",
-		"font_sha256":    fontDigest(),
-		"phone": map[string]any{
-			"source_role": "raw phone app capture (app content only)", "source_sha256": phoneHash,
-			"output": "phone-dark-1206x2622.png", "output_sha256": phoneOutputHash,
-			"profile_id": phoneResult.Layout.ProfileID, "profile_version": phoneResult.Layout.ProfileVersion,
-			"rasterizer": phoneResult.Layout.Rasterizer, "config_sha256": phoneResult.Layout.ConfigSHA256,
-			"display_size": phoneResult.Layout.DisplaySize, "app_viewport": phoneResult.Layout.AppViewport,
+		"provenance":     "illustrative phone presentation v3 raster over an immutable raw app capture; this is not photo projection or a product route",
+		"source": map[string]string{
+			"role": "raw phone app capture (app content only)", "sha256": phoneHash,
 		},
-		"phone_light": map[string]any{
-			"source_role": "raw phone app capture (app content only)", "source_sha256": phoneHash,
-			"output": "phone-light-1206x2622.png", "output_sha256": phoneLightOutputHash,
-			"profile_id": phoneLightResult.Layout.ProfileID, "profile_version": phoneLightResult.Layout.ProfileVersion,
-			"rasterizer": phoneLightResult.Layout.Rasterizer, "config_sha256": phoneLightResult.Layout.ConfigSHA256,
-			"display_size": phoneLightResult.Layout.DisplaySize, "app_viewport": phoneLightResult.Layout.AppViewport,
+		"font_sha256": fontDigest(),
+		"profile": map[string]string{
+			"semantic_version": "device-studio-presentation-v3",
+			"profile_id":       PhoneProfileID, "profile_version": PhoneProfileVersionAuto,
+			"rasterizer": RasterizerID, "fill_policy": FillPolicyID,
 		},
-		"desktop": map[string]any{
-			"source_role": "raw laptop app capture (1440x800); not the derived bare-app reference", "source_sha256": desktopHash,
-			"output": "desktop-2560x1440.png", "output_sha256": desktopOutputHash,
-			"profile_id": desktopResult.Layout.ProfileID, "profile_version": desktopResult.Layout.ProfileVersion,
-			"rasterizer": desktopResult.Layout.Rasterizer, "config_sha256": desktopResult.Layout.ConfigSHA256,
-			"display_size": desktopResult.Layout.DisplaySize, "app_viewport": desktopResult.Layout.AppViewport,
+		"output": map[string]any{
+			"name": "phone-v3-auto-1206x2622.png", "sha256": phoneV3OutputHash,
+			"config": phoneV3Config, "layout": phoneV3Result.Layout,
 		},
 	}
 	data, err := json.MarshalIndent(receipt, "", "  ")
@@ -94,8 +95,82 @@ func TestRawCapturePresentationEvidence(t *testing.T) {
 		t.Fatal(err)
 	}
 	data = append(data, '\n')
-	if err := os.WriteFile(filepath.Join(evidenceDir, "raw-capture-replay.json"), data, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(evidenceDir, "phone-v3-auto-replay.json"), data, 0o644); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func assertPinnedV2Golden(t *testing.T, dir, sourceSHA, key string, result Result, config Config) {
+	t.Helper()
+	var receipt struct {
+		Phone struct {
+			Config Config `json:"config"`
+			Layout Layout `json:"layout"`
+			Output string `json:"output"`
+			SHA    string `json:"output_sha256"`
+			Source string `json:"source_sha256"`
+		} `json:"phone"`
+		PhoneLight struct {
+			Config Config `json:"config"`
+			Layout Layout `json:"layout"`
+			Output string `json:"output"`
+			SHA    string `json:"output_sha256"`
+			Source string `json:"source_sha256"`
+		} `json:"phone_light"`
+		Desktop struct {
+			Config Config `json:"config"`
+			Layout Layout `json:"layout"`
+			Output string `json:"output"`
+			SHA    string `json:"output_sha256"`
+			Source string `json:"source_sha256"`
+		} `json:"desktop"`
+	}
+	data, err := os.ReadFile(filepath.Join(dir, "raw-capture-replay.json"))
+	if err != nil {
+		t.Fatalf("read retained v2 receipt: %v", err)
+	}
+	if err := json.Unmarshal(data, &receipt); err != nil {
+		t.Fatalf("decode retained v2 receipt: %v", err)
+	}
+	var oldConfig Config
+	var oldLayout Layout
+	var outputName, outputSHA, oldSource string
+	switch key {
+	case "phone":
+		oldConfig, oldLayout, outputName, outputSHA, oldSource = receipt.Phone.Config, receipt.Phone.Layout, receipt.Phone.Output, receipt.Phone.SHA, receipt.Phone.Source
+	case "phone_light":
+		oldConfig, oldLayout, outputName, outputSHA, oldSource = receipt.PhoneLight.Config, receipt.PhoneLight.Layout, receipt.PhoneLight.Output, receipt.PhoneLight.SHA, receipt.PhoneLight.Source
+	case "desktop":
+		oldConfig, oldLayout, outputName, outputSHA, oldSource = receipt.Desktop.Config, receipt.Desktop.Layout, receipt.Desktop.Output, receipt.Desktop.SHA, receipt.Desktop.Source
+	default:
+		t.Fatalf("unknown v2 golden key %q", key)
+	}
+	if oldSource != sourceSHA || outputName == "" || oldLayout.ProfileVersion != PhoneProfileVersion && key != "desktop" {
+		t.Fatalf("retained %s v2 receipt identity changed: source=%s layout=%s output=%s", key, oldSource, oldLayout.ProfileVersion, outputName)
+	}
+	oldConfigBytes, _ := json.Marshal(oldConfig)
+	configBytes, _ := json.Marshal(config)
+	oldLayoutBytes, _ := json.Marshal(oldLayout)
+	layoutBytes, _ := json.Marshal(result.Layout)
+	if !bytes.Equal(oldConfigBytes, configBytes) || !bytes.Equal(oldLayoutBytes, layoutBytes) {
+		t.Fatalf("retained %s v2 config/layout changed", key)
+	}
+	outputBytes, err := os.ReadFile(filepath.Join(dir, outputName))
+	if err != nil {
+		t.Fatalf("read retained %s v2 output: %v", key, err)
+	}
+	sum := sha256.Sum256(outputBytes)
+	if hex.EncodeToString(sum[:]) != outputSHA {
+		t.Fatalf("retained %s v2 output hash differs from receipt", key)
+	}
+	oldRaster, err := png.Decode(bytes.NewReader(outputBytes))
+	if err != nil {
+		t.Fatalf("decode retained %s v2 output: %v", key, err)
+	}
+	oldNRGBA := image.NewNRGBA(oldRaster.Bounds())
+	draw.Draw(oldNRGBA, oldNRGBA.Bounds(), oldRaster, oldRaster.Bounds().Min, draw.Src)
+	if !equalRaster(oldNRGBA, result.Raster) {
+		t.Fatalf("retained %s v2 raster pixels changed", key)
 	}
 }
 

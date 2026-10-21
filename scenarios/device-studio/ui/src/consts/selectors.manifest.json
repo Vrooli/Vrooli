@@ -41,74 +41,6 @@
       "testId": "notifications-summary",
       "selector": "[data-testid=\"notifications-summary\"]"
     },
-    "notes.surface": {
-      "testId": "notes-surface",
-      "selector": "[data-testid=\"notes-surface\"]"
-    },
-    "notes.card": {
-      "testId": "notes-card",
-      "selector": "[data-testid=\"notes-card\"]"
-    },
-    "notes.list": {
-      "testId": "notes-list",
-      "selector": "[data-testid=\"notes-list\"]"
-    },
-    "notes.loading": {
-      "testId": "notes-loading",
-      "selector": "[data-testid=\"notes-loading\"]"
-    },
-    "notes.empty": {
-      "testId": "notes-empty",
-      "selector": "[data-testid=\"notes-empty\"]"
-    },
-    "notes.error": {
-      "testId": "notes-error",
-      "selector": "[data-testid=\"notes-error\"]"
-    },
-    "notes.createButton": {
-      "testId": "notes-create-button",
-      "selector": "[data-testid=\"notes-create-button\"]"
-    },
-    "notes.createdAt": {
-      "testId": "notes-created-at",
-      "selector": "[data-testid=\"notes-created-at\"]"
-    },
-    "notes.attachmentCount": {
-      "testId": "notes-attachment-count",
-      "selector": "[data-testid=\"notes-attachment-count\"]"
-    },
-    "notes.attachmentUpload": {
-      "testId": "notes-attachment-upload",
-      "selector": "[data-testid=\"notes-attachment-upload\"]"
-    },
-    "notes.attachmentFile": {
-      "testId": "notes-attachment-file",
-      "selector": "[data-testid=\"notes-attachment-file\"]"
-    },
-    "notes.attachmentButton": {
-      "testId": "notes-attachment-button",
-      "selector": "[data-testid=\"notes-attachment-button\"]"
-    },
-    "notes.attachmentStatus": {
-      "testId": "notes-attachment-status",
-      "selector": "[data-testid=\"notes-attachment-status\"]"
-    },
-    "notes.measure.card": {
-      "testId": "notes-measure-card",
-      "selector": "[data-testid=\"notes-measure-card\"]"
-    },
-    "notes.measure.value": {
-      "testId": "notes-measure-value",
-      "selector": "[data-testid=\"notes-measure-value\"]"
-    },
-    "notes.measure.loading": {
-      "testId": "notes-measure-loading",
-      "selector": "[data-testid=\"notes-measure-loading\"]"
-    },
-    "notes.measure.error": {
-      "testId": "notes-measure-error",
-      "selector": "[data-testid=\"notes-measure-error\"]"
-    },
     "projects.surface": {
       "testId": "projects-surface",
       "selector": "[data-testid=\"projects-surface\"]"
@@ -205,6 +137,46 @@
       "testId": "project-source-media-image",
       "selector": "[data-testid=\"project-source-media-image\"]"
     },
+    "media.videoPreview": {
+      "testId": "project-source-media-video",
+      "selector": "[data-testid=\"project-source-media-video\"]"
+    },
+    "shot.videoTiming": {
+      "testId": "shot-video-timing",
+      "selector": "[data-testid=\"shot-video-timing\"]"
+    },
+    "shot.videoSampleAccept": {
+      "testId": "shot-video-sample-accept",
+      "selector": "[data-testid=\"shot-video-sample-accept\"]"
+    },
+    "shot.videoFinalStage": {
+      "testId": "shot-video-final-stage",
+      "selector": "[data-testid=\"shot-video-final-stage\"]"
+    },
+    "shot.videoSourcePreview": {
+      "testId": "shot-video-source-preview",
+      "selector": "[data-testid=\"shot-video-source-preview\"]"
+    },
+    "physical.create": {
+      "testId": "physical-shot-create",
+      "selector": "[data-testid=\"physical-shot-create\"]"
+    },
+    "physical.editor": {
+      "testId": "physical-shot-editor",
+      "selector": "[data-testid=\"physical-shot-editor\"]"
+    },
+    "physical.source": {
+      "testId": "physical-shot-source",
+      "selector": "[data-testid=\"physical-shot-source\"]"
+    },
+    "physical.backend": {
+      "testId": "physical-shot-backend",
+      "selector": "[data-testid=\"physical-shot-backend\"]"
+    },
+    "physical.compile": {
+      "testId": "physical-shot-compile",
+      "selector": "[data-testid=\"physical-shot-compile\"]"
+    },
     "layout.shell": {
       "testId": "layout-shell",
       "selector": "[data-testid=\"layout-shell\"]"
@@ -253,10 +225,6 @@
       "testId": "page-project",
       "selector": "[data-testid=\"page-project\"]"
     },
-    "pages.notes": {
-      "testId": "page-notes",
-      "selector": "[data-testid=\"page-notes\"]"
-    },
     "pages.settings": {
       "testId": "page-settings",
       "selector": "[data-testid=\"page-settings\"]"
@@ -292,7 +260,6 @@
           "type": "enum",
           "values": [
             "dashboard",
-            "notes",
             "settings"
           ]
         }
@@ -308,7 +275,6 @@
           "type": "enum",
           "values": [
             "dashboard",
-            "notes",
             "settings"
           ]
         }
@@ -328,6 +294,6 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "b59c9936b32366ad576ac2f7b9f9690194df4834f034ef71efa4836e71883eda",
-    "ui/src/consts/selectors.ts": "0f9e8fa15fa0d9c1ba243526ad19bc079c8101ed0d3f81cbce006306d3780e06"
+    "ui/src/consts/selectors.ts": "dd990729997866ddb8819d999389ad873beaa4a393d9a4834af31fc8cbdd7eaa"
   }
 }

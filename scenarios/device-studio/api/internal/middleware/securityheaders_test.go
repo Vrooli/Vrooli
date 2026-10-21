@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
 	"device-studio/internal/middleware"
 
 	"github.com/stretchr/testify/require"

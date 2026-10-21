@@ -1,8 +1,9 @@
 package main
 
 import (
-	"device-studio/cli/domains"
 	"os"
+
+	"device-studio/cli/domains"
 
 	"github.com/vrooli/cli-core/cliapp"
 )

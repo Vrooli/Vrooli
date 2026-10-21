@@ -10,6 +10,7 @@ import { errorMessage } from "../../lib/errorMessage";
 import { projectConflict, projectsClient } from "../../api/projects";
 import { SourceMediaPanel } from "./SourceMediaPanel";
 import { ShotWorkspace } from "./ShotWorkspace";
+import { GeometryCreationPanel } from "./GeometryCreationPanel";
 
 export function ProjectDetailPage() {
   const { projectId = "" } = useParams();
@@ -46,6 +47,7 @@ function ProjectDetailEditor({ projectId }: { projectId: string }) {
         <Link to="/">{t(strings.project.back)}</Link><span aria-hidden="true">/</span><h1>{project.name}</h1>
       </header>}
       {project && <ShotWorkspace projectId={projectId} />}
+      {project && <GeometryCreationPanel projectId={projectId} />}
       {project && <details className="project-detail__management">
           <summary>{t(strings.project.editName)} · {t(strings.project.revision, { revision: project.revision.toString() })}</summary>
           <div className="pb-space-sm">

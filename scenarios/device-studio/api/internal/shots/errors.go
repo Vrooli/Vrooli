@@ -46,6 +46,18 @@ type ErrSourceMediaUnavailable struct{}
 
 func (ErrSourceMediaUnavailable) Error() string { return "shot source media is unavailable" }
 
+type ErrInvalidPhysicalBinding struct{ Reason string }
+
+func (e ErrInvalidPhysicalBinding) Error() string {
+	return fmt.Sprintf("invalid physical shot binding: %s", e.Reason)
+}
+
+type ErrUnsupportedPresentationVersion struct{ Version string }
+
+func (e ErrUnsupportedPresentationVersion) Error() string {
+	return fmt.Sprintf("unsupported saved presentation semantic version %q", e.Version)
+}
+
 func (e ErrRenderBlocked) Error() string {
 	return fmt.Sprintf("shot %q revision %d is not eligible for rendering", e.ShotID, e.Revision)
 }

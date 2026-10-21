@@ -2,14 +2,17 @@
 
 This registry is the implementation-facing claim for the wizard-authored PRD.
 Each operational target imports a numbered module through index.json.
-Every current product requirement is **not_implemented**; every validation is
-**planned**, with evidence **not_run**. None of the historical experiments or
-generated example code proves Device Studio product behavior.
+Some requirements now point to passing E1/E2 tests and retained current-host
+still-work evidence. Those references cover specific slices only; the committed
+P0 release remains incomplete. In particular, physical-device qualification,
+full-resolution readability, motion/video, rights, AI, desktop packaging and
+other unqualified obligations remain open.
 
-P0 delivery_scope is committed and includes the entire accepted first release.
-The initial photographic slice does not satisfy the remaining P0 scope.
-P1/P2 delivery_scope is roadmap and is explicitly outside that commitment.
-The not_implemented status is a truthful initial state, not a cancellation.
+Manual verification protocols remain planned and have no manual attestations.
+A linked test, screenshot, or live journey is not by itself proof of the full
+requirement. Requirement and validation statuses are earned through the owner
+sync from executed evidence; do not force them or edit generated snapshots.
+P1/P2 delivery_scope is roadmap and is explicitly outside the P0 commitment.
 
 [verification-protocols.md](verification-protocols.md) provides actual written
 Given/When/Then procedures, counterexamples and required evidence for each ID.

@@ -11,6 +11,8 @@ import (
 
 func TestManifestCoversShotsService(t *testing.T) {
 	manifest, err := os.ReadFile(filepath.Join("..", "..", "manifest.json"))
-	if err != nil { t.Fatal(err) }
+	if err != nil {
+		t.Fatal(err)
+	}
 	cliapp.RequireProtoServiceCoverage(t, manifest, shotsv1.File_device_studio_v1_shots_shots_proto, "ShotsService")
 }

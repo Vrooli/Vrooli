@@ -1,7 +1,0 @@
-[
-  {
-    "path": "scenarios/device-studio/bas/seeds/migrations/sqlite/001_projects.sql",
-    "observed_at": "2026-10-20T02:35:32.917977+00:00",
-    "absent": true
-  }
-]

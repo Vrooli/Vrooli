@@ -1,5 +1,5 @@
 import { create } from "@bufbuild/protobuf";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@vrooli/react-component-library/Button/2";
 import { Card, CardContent, CardHeader, CardTitle } from "@vrooli/react-component-library/Card/1";
@@ -7,22 +7,36 @@ import {
   CaptureArea,
   CoordinateConvention,
   MotionMode,
+  PhotographicCameraMotionSchema,
   PhotographicSceneSchema,
   PlateQuadSchema,
   PhoneSystemChromeSchema,
   BrowserDesktopChromeSchema,
+  PresentationAppearance,
+  PresentationRGBSchema,
+  PresentationRectSchema,
   PresentationKind,
   ScreenFitMode,
   ScreenPresentationSchema,
   ShotIssueCode,
   ShotSnapshotSchema,
+  VideoEOFPolicy,
+  VideoTimingSchema,
   type ShotRevision,
+  type ShotSnapshot,
+  type VideoTiming,
+  type VideoSampleBinding,
 } from "@vrooli/proto-types/device-studio/v1/shots/shots_pb";
+import { MediaReadiness, SourceMediaKind } from "@vrooli/proto-types/device-studio/v1/projects/projects_pb";
 import { strings } from "../../consts/strings";
+import { selectors } from "../../consts/selectors";
 import { useTranslation } from "../../i18n";
 import { errorMessage } from "../../lib/errorMessage";
-import { getSourceMediaContent, projectsClient, verifySourceMediaContent, type SourceMedia } from "../../api/projects";
+import { getSourceMediaContent, projectsClient, sourceMediaContentURL, verifySourceMediaContent, type SourceMedia } from "../../api/projects";
 import { shotConflict, shotsClient } from "../../api/shots";
+import { RenderControls, type FinalRenderOutput } from "./RenderControls";
+import { VideoTimingEditor } from "./VideoTimingEditor";
+import { NewPhysicalShot, PhysicalShotEditor } from "./PhysicalShotWorkspace";
 
 type PointDraft = { x: string; y: string };
 type ShotDraft = {
@@ -39,33 +53,93 @@ type ShotDraft = {
   depictionLabel: string;
   coordinateConvention: CoordinateConvention;
   motionMode: MotionMode;
+  cameraDurationOutputFrames: string;
+  cameraMatteColor: string;
   sourceMediaId: string;
+  videoTiming?: VideoTiming;
   captureArea: CaptureArea;
   kind: PresentationKind;
   fitMode: ScreenFitMode;
+  matteColor: string;
   carrierText: string;
   clockText: string;
   batteryPercent: string;
   showCellularIndicator: boolean;
   showWifiIndicator: boolean;
   showHomeIndicator: boolean;
+  showStatus: boolean;
+  showBatteryPercent: boolean;
+  phoneAppearance: PresentationAppearance;
+  topFill: string;
+  bottomFill: string;
+  statusInk: string;
+  homeInk: string;
   windowTitle: string;
   addressText: string;
   showWindowControls: boolean;
   showToolbar: boolean;
+  browserAppearance: PresentationAppearance;
+  windowX: string;
+  windowY: string;
+  windowWidth: string;
+  windowHeight: string;
+  showMenuBar: boolean;
+  showDock: boolean;
+  desktopColor: string;
+  windowColor: string;
+  chromeColor: string;
 };
 type ShotDraftBuffer = { draft: ShotDraft; baseRevision: bigint };
+
+function isPreviewableImage(media: SourceMedia | undefined): media is SourceMedia & { width: number; height: number } {
+  return Boolean(media && media.kind === SourceMediaKind.IMAGE && media.readiness === MediaReadiness.READY &&
+    media.width !== undefined && media.height !== undefined && Number.isInteger(media.width) && Number.isInteger(media.height) &&
+    media.width > 0 && media.height > 0);
+}
+
+function isReadyInspectedVideo(media: SourceMedia | undefined): media is SourceMedia {
+  return Boolean(media && media.kind === SourceMediaKind.VIDEO && media.readiness === MediaReadiness.READY && videoTimingFromMedia(media));
+}
 
 const emptyPoint = (): PointDraft => ({ x: "", y: "" });
 const emptyDraft = (name = "") : ShotDraft => ({
   name, plateMediaId: "", activeMaskMediaId: "", hardwareMaskMediaId: "",
   displayWidthPixels: "", displayHeightPixels: "", topLeft: emptyPoint(), topRight: emptyPoint(), bottomRight: emptyPoint(), bottomLeft: emptyPoint(),
   depictionLabel: "", coordinateConvention: CoordinateConvention.PLATE_RASTER_EDGE_PIXELS_V1, motionMode: MotionMode.FIXED,
+  cameraDurationOutputFrames: "24", cameraMatteColor: "#000000",
   sourceMediaId: "", captureArea: CaptureArea.APP_ONLY, kind: PresentationKind.PLAIN, fitMode: ScreenFitMode.CONTAIN,
-  carrierText: "", clockText: "9:41", batteryPercent: "100",
+  matteColor: "", carrierText: "", clockText: "9:41", batteryPercent: "84",
   showCellularIndicator: true, showWifiIndicator: true, showHomeIndicator: true, windowTitle: "", addressText: "",
-  showWindowControls: true, showToolbar: true,
+  showStatus: true, showBatteryPercent: false, phoneAppearance: PresentationAppearance.AUTO, topFill: "", bottomFill: "", statusInk: "", homeInk: "",
+  showWindowControls: true, showToolbar: true, browserAppearance: PresentationAppearance.LIGHT,
+  windowX: "", windowY: "", windowWidth: "", windowHeight: "", showMenuBar: false, showDock: false,
+  desktopColor: "", windowColor: "", chromeColor: "",
 });
+
+function colorFromDraft(value: string) {
+  const match = /^#?([\da-f]{2})([\da-f]{2})([\da-f]{2})$/i.exec(value.trim());
+  return match ? create(PresentationRGBSchema, { red: Number.parseInt(match[1] ?? "", 16), green: Number.parseInt(match[2] ?? "", 16), blue: Number.parseInt(match[3] ?? "", 16) }) : undefined;
+}
+
+function colorToDraft(value?: { red: number; green: number; blue: number }) {
+  return value ? `#${[value.red, value.green, value.blue].map((channel) => channel.toString(16).padStart(2, "0")).join("")}` : "";
+}
+
+function plannedOutputFrames(timing?: VideoTiming): bigint | undefined {
+  if (!timing || timing.trimEndPts <= timing.trimStartPts || timing.timeBaseNum <= 0n || timing.timeBaseDen <= 0n ||
+      timing.playbackRateNum <= 0 || timing.playbackRateDen <= 0 || timing.outputRateNum <= 0 || timing.outputRateDen <= 0) return undefined;
+  const numerator = (timing.trimEndPts - timing.trimStartPts) * timing.timeBaseNum * BigInt(timing.playbackRateDen) * BigInt(timing.outputRateNum);
+  const denominator = timing.timeBaseDen * BigInt(timing.playbackRateNum) * BigInt(timing.outputRateDen);
+  return (numerator + denominator - 1n) / denominator;
+}
+
+function cameraDurationSeconds(frames: bigint, timing?: VideoTiming): string {
+  if (!timing || timing.outputRateNum <= 0 || timing.outputRateDen <= 0) return "—";
+  const numerator = frames * BigInt(timing.outputRateDen) * 100n;
+  const denominator = BigInt(timing.outputRateNum);
+  const hundredths = (numerator + denominator / 2n) / denominator;
+  return `${hundredths / 100n}.${(hundredths % 100n).toString().padStart(2, "0")}`;
+}
 
 function snapshotFromDraft(draft: ShotDraft) {
   const point = (value: PointDraft) => value.x !== "" && value.y !== "" ? { x: Number(value.x), y: Number(value.y) } : undefined;
@@ -76,17 +150,31 @@ function snapshotFromDraft(draft: ShotDraft) {
   const plateQuad = Object.values(quadPoints).some((value) => value !== undefined)
     ? create(PlateQuadSchema, quadPoints)
     : undefined;
+  const windowValues = [draft.windowX, draft.windowY, draft.windowWidth, draft.windowHeight];
+  const window = windowValues.every((value) => value !== "") ? create(PresentationRectSchema, {
+    x: Number(draft.windowX), y: Number(draft.windowY), width: Number(draft.windowWidth), height: Number(draft.windowHeight),
+  }) : undefined;
   const phoneSystemChrome = create(PhoneSystemChromeSchema, {
     carrierText: draft.carrierText, clockText: draft.clockText,
     batteryPercent: Number(draft.batteryPercent || 0), showCellularIndicator: draft.showCellularIndicator,
     showWifiIndicator: draft.showWifiIndicator, showHomeIndicator: draft.showHomeIndicator,
+    showStatus: draft.showStatus, showBatteryPercent: draft.showBatteryPercent, appearance: draft.phoneAppearance,
+    topFill: colorFromDraft(draft.topFill), bottomFill: colorFromDraft(draft.bottomFill),
+    statusInk: colorFromDraft(draft.statusInk), homeInk: colorFromDraft(draft.homeInk),
   });
   const browserDesktopChrome = create(BrowserDesktopChromeSchema, {
     windowTitle: draft.windowTitle, addressText: draft.addressText,
     showWindowControls: draft.showWindowControls, showToolbar: draft.showToolbar,
+    appearance: draft.browserAppearance, window, showMenuBar: draft.showMenuBar, showDock: draft.showDock,
+    desktopColor: colorFromDraft(draft.desktopColor), windowColor: colorFromDraft(draft.windowColor), chromeColor: colorFromDraft(draft.chromeColor),
   });
   return create(ShotSnapshotSchema, {
     motionMode: draft.motionMode,
+    cameraMotion: draft.motionMode === MotionMode.CROP_PUSH ? create(PhotographicCameraMotionSchema, {
+      profileId: "screen-entry-projective-contain-v1", profileVersion: 1,
+      durationOutputFrames: Number(draft.cameraDurationOutputFrames),
+      matteRgb: colorFromDraft(draft.cameraMatteColor) ?? create(PresentationRGBSchema, { red: 0, green: 0, blue: 0 }),
+    }) : undefined,
     scene: create(PhotographicSceneSchema, {
       plateMediaId: draft.plateMediaId, activeMaskMediaId: draft.activeMaskMediaId,
       hardwareMaskMediaId: draft.hardwareMaskMediaId,
@@ -96,9 +184,30 @@ function snapshotFromDraft(draft: ShotDraft) {
     presentation: create(ScreenPresentationSchema, {
       sourceMediaId: draft.sourceMediaId, captureArea: draft.captureArea, kind: draft.kind, fitMode: draft.fitMode,
       viewportWidthPixels: 0, viewportHeightPixels: 0,
+      matte: colorFromDraft(draft.matteColor),
       phoneSystemChrome: draft.kind === PresentationKind.PHONE_SYSTEM ? phoneSystemChrome : undefined,
       browserDesktopChrome: draft.kind === PresentationKind.BROWSER_DESKTOP ? browserDesktopChrome : undefined,
     }),
+    videoTiming: draft.videoTiming,
+  });
+}
+
+function videoTimingFromMedia(source: SourceMedia): VideoTiming | undefined {
+  const receipt = source.inspectionReceipt;
+  if (source.kind !== SourceMediaKind.VIDEO || source.readiness !== MediaReadiness.READY || !receipt || receipt.classification !== "accepted" ||
+      receipt.timeBaseNumerator === undefined || receipt.timeBaseDenominator === undefined || receipt.streamStartPts === undefined || receipt.sourceEndPts === undefined ||
+      receipt.lastFrameDurationTicks === undefined || receipt.lastFrameDurationTicks <= 0n || receipt.videoStreamIndex === undefined || !receipt.clockSha256 || !receipt.clockArtifactRef || receipt.clockArtifactSizeBytes <= 0n) return undefined;
+  return create(VideoTimingSchema, {
+    sourceMediaId: source.id, sourceSha256: source.sha256, sourceSizeBytes: source.sizeBytes,
+    inspectionJobId: receipt.jobId, inspectionAttemptId: receipt.attemptId, inspectionReceiptId: receipt.id,
+    inspectionReceiptSha256: receipt.sha256, clockArtifactId: receipt.clockArtifactRef, clockSha256: receipt.clockSha256,
+    clockSizeBytes: receipt.clockArtifactSizeBytes, selectedVideoStream: receipt.videoStreamIndex,
+    timeBaseNum: receipt.timeBaseNumerator, timeBaseDen: receipt.timeBaseDenominator,
+    streamStartPts: receipt.streamStartPts, sourceEndPts: receipt.sourceEndPts,
+    lastFrameDurationTicks: receipt.lastFrameDurationTicks, trimStartPts: receipt.streamStartPts,
+    trimEndPts: receipt.sourceEndPts, playbackRateNum: 1, playbackRateDen: 1,
+    outputRateNum: 24, outputRateDen: 1, eofPolicy: VideoEOFPolicy.VIDEO_EOF_POLICY_REJECT,
+    videoCompositionProfileId: "device-studio-fixed-plate-video-v1", videoCompositionProfileVersion: 1,
   });
 }
 
@@ -113,25 +222,46 @@ function draftFromRevision(name: string, revision: ShotRevision): ShotDraft {
     topRight: point(scene?.plateQuad?.topRight), bottomRight: point(scene?.plateQuad?.bottomRight), bottomLeft: point(scene?.plateQuad?.bottomLeft),
     depictionLabel: scene?.depictionLabel ?? "", coordinateConvention: scene?.coordinateConvention ?? CoordinateConvention.UNSPECIFIED,
     motionMode: revision.snapshot?.motionMode ?? MotionMode.FIXED,
+    cameraDurationOutputFrames: revision.snapshot?.cameraMotion ? String(revision.snapshot.cameraMotion.durationOutputFrames) : "24",
+    cameraMatteColor: colorToDraft(revision.snapshot?.cameraMotion?.matteRgb) || "#000000",
     sourceMediaId: presentation?.sourceMediaId ?? "", captureArea: presentation?.captureArea ?? CaptureArea.APP_ONLY, kind: presentation?.kind ?? PresentationKind.PLAIN,
+    videoTiming: revision.snapshot?.videoTiming,
     fitMode: presentation?.fitMode ?? ScreenFitMode.CONTAIN,
+    matteColor: colorToDraft(presentation?.matte),
     carrierText: presentation?.phoneSystemChrome?.carrierText ?? "", clockText: presentation?.phoneSystemChrome?.clockText ?? "9:41",
-    batteryPercent: presentation?.phoneSystemChrome ? String(presentation.phoneSystemChrome.batteryPercent) : "100",
+    batteryPercent: String(presentation?.phoneSystemChrome?.batteryPercent ?? 84),
     showCellularIndicator: presentation?.phoneSystemChrome?.showCellularIndicator ?? true,
     showWifiIndicator: presentation?.phoneSystemChrome?.showWifiIndicator ?? true,
     showHomeIndicator: presentation?.phoneSystemChrome?.showHomeIndicator ?? true,
+    showStatus: presentation?.phoneSystemChrome?.showStatus ?? true,
+    showBatteryPercent: presentation?.phoneSystemChrome?.showBatteryPercent ?? false,
+    phoneAppearance: presentation?.phoneSystemChrome?.appearance ?? PresentationAppearance.UNSPECIFIED,
+    topFill: colorToDraft(presentation?.phoneSystemChrome?.topFill), bottomFill: colorToDraft(presentation?.phoneSystemChrome?.bottomFill),
+    statusInk: colorToDraft(presentation?.phoneSystemChrome?.statusInk), homeInk: colorToDraft(presentation?.phoneSystemChrome?.homeInk),
     windowTitle: presentation?.browserDesktopChrome?.windowTitle ?? "", addressText: presentation?.browserDesktopChrome?.addressText ?? "",
     showWindowControls: presentation?.browserDesktopChrome?.showWindowControls ?? true,
     showToolbar: presentation?.browserDesktopChrome?.showToolbar ?? true,
+    browserAppearance: presentation?.browserDesktopChrome?.appearance ?? PresentationAppearance.UNSPECIFIED,
+    windowX: presentation?.browserDesktopChrome?.window ? String(presentation.browserDesktopChrome.window.x) : "",
+    windowY: presentation?.browserDesktopChrome?.window ? String(presentation.browserDesktopChrome.window.y) : "",
+    windowWidth: presentation?.browserDesktopChrome?.window ? String(presentation.browserDesktopChrome.window.width) : "",
+    windowHeight: presentation?.browserDesktopChrome?.window ? String(presentation.browserDesktopChrome.window.height) : "",
+    showMenuBar: presentation?.browserDesktopChrome?.showMenuBar ?? false,
+    showDock: presentation?.browserDesktopChrome?.showDock ?? false,
+    desktopColor: colorToDraft(presentation?.browserDesktopChrome?.desktopColor),
+    windowColor: colorToDraft(presentation?.browserDesktopChrome?.windowColor),
+    chromeColor: colorToDraft(presentation?.browserDesktopChrome?.chromeColor),
   };
 }
 
 function bytes(value: bigint) { return `${(Number(value) / 1024 / 1024).toFixed(2)} MiB`; }
+function draftFingerprint(value: unknown) { return JSON.stringify(value, (_key, item: unknown) => typeof item === "bigint" ? item.toString() : item); }
 
 export function ShotWorkspace({ projectId }: { projectId: string }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [selectedShotId, setSelectedShotId] = useState("");
+  const [creatingPhysical, setCreatingPhysical] = useState(false);
   const [newName, setNewName] = useState("");
   const [drafts, setDrafts] = useState<Record<string, ShotDraftBuffer>>({});
   const cacheDraft = useCallback((buffer?: ShotDraftBuffer) => setDrafts((current) => { const next: Record<string, ShotDraftBuffer> = {}; for (const [id, value] of Object.entries(current)) if (id !== selectedShotId) next[id] = value; if (buffer) next[selectedShotId] = buffer; return next; }), [selectedShotId]);
@@ -155,7 +285,7 @@ export function ShotWorkspace({ projectId }: { projectId: string }) {
   return <section className="shot-workspace" data-testid="shot-workspace" aria-labelledby="shot-workspace-title">
     {shots.error && <p role="alert">{errorMessage(shots.error, t)}</p>}
     {createShot.error && <p role="alert">{errorMessage(createShot.error, t)}</p>}
-    {selectedShotId ? <ShotEditor key={selectedShotId} projectId={projectId} shotId={selectedShotId} mediaQueryKey={["project-source-media", projectId]} draftCache={drafts[selectedShotId]} onDraftChange={cacheDraft} /> :
+    {creatingPhysical ? <NewPhysicalShot projectId={projectId} onCancel={() => setCreatingPhysical(false)} onCreated={(shotId) => { setCreatingPhysical(false); setSelectedShotId(shotId); }} /> : selectedShotId ? <ShotEditor key={selectedShotId} projectId={projectId} shotId={selectedShotId} mediaQueryKey={["project-source-media", projectId]} draftCache={drafts[selectedShotId]} onDraftChange={cacheDraft} /> :
       <p className="shot-workspace__empty">{records.length ? t(strings.shot.chooseSaved) : t(strings.shot.empty)}</p>}
     <details className="shot-management" open={shots.data !== undefined && records.length === 0}>
       <summary>{t(strings.shot.savedShots)} · {records.length}</summary>
@@ -164,6 +294,7 @@ export function ShotWorkspace({ projectId }: { projectId: string }) {
           <label className="sr-only" htmlFor="new-shot-name">{t(strings.shot.nameLabel)}</label>
           <input id="new-shot-name" data-testid="new-shot-name" value={newName} onChange={(event) => setNewName(event.target.value)} placeholder={t(strings.shot.newNamePlaceholder)} maxLength={120} />
           <Button type="submit" className="studio-primary min-h-11" disabled={!newName.trim() || createShot.isPending}>{t(strings.shot.create)}</Button>
+          <Button type="button" variant="outline" className="min-h-11" onClick={() => setCreatingPhysical(true)}>{t(strings.physical.newButton)}</Button>
         </form>
         {records.length > 0 && <nav className="shot-list" aria-label={t(strings.shot.savedShots)}>{records.map((shot) =>
           <button key={shot.id} type="button" aria-pressed={selectedShotId === shot.id} onClick={() => setSelectedShotId(shot.id)}>{shot.name}<span>{t(strings.shot.revision, { revision: shot.headRevision.toString() })}</span></button>
@@ -180,6 +311,20 @@ function ShotEditor({ projectId, shotId, mediaQueryKey, draftCache, onDraftChang
   const [draft, setDraft] = useState<ShotDraft | undefined>(draftCache?.draft);
   const [baseRevision, setBaseRevision] = useState<bigint | undefined>(draftCache?.baseRevision);
   const [selectedHistoricalRevision, setSelectedHistoricalRevision] = useState<bigint>();
+  const [finalOutput, setFinalOutput] = useState<FinalRenderOutput>();
+  const [showFinalPreview, setShowFinalPreview] = useState(false);
+  const [sourcePlaybackFailed, setSourcePlaybackFailed] = useState(false);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const onFinalOutputChange = useCallback((output?: FinalRenderOutput) => setFinalOutput(output), []);
+  useEffect(() => {
+    if (!showFinalPreview) return;
+    const stage = stageRef.current;
+    if (stage) {
+      const scrollIntoView = Reflect.get(stage, "scrollIntoView");
+      if (typeof scrollIntoView === "function") Reflect.apply(scrollIntoView, stage, [{ behavior: "smooth", block: "start" }]);
+    }
+    stageRef.current?.focus();
+  }, [showFinalPreview]);
   const [issues, setIssues] = useState<Array<{ code: ShotIssueCode; fieldPath: string; summary: string; repair: string; blocksRender: boolean }>>([]);
   const shotQuery = useQuery({ queryKey: ["shot", shotId], queryFn: () => shotsClient.getShot({ id: shotId }) });
   const revisions = useInfiniteQuery({ queryKey: ["shot-revisions", shotId], initialPageParam: "", queryFn: ({ pageParam }) => shotsClient.listShotRevisions({ shotId, pageSize: 50, pageToken: pageParam }), getNextPageParam: (page) => page.nextPageToken || undefined });
@@ -202,24 +347,35 @@ function ShotEditor({ projectId, shotId, mediaQueryKey, draftCache, onDraftChang
   });
   const selectedRevision = selectedHistoricalRevision === undefined ? head : selectedRevisionQuery.data?.revision;
   const historical = selectedHistoricalRevision !== undefined;
+  const pinnedRevisionQuery = useQuery({
+    queryKey: ["shot-revision", shotId, "saved-for-render", baseRevision?.toString()],
+    queryFn: () => shotsClient.getShotRevision({ shotId, revision: baseRevision ?? 0n }),
+    enabled: !historical && baseRevision !== undefined && head !== undefined && baseRevision !== head.revision,
+  });
+  const renderRevision = historical ? selectedRevision : baseRevision === head?.revision ? head : pinnedRevisionQuery.data?.revision;
   const viewDraft = historical && selectedRevision ? draftFromRevision(selectedRevision.name, selectedRevision) : draft;
   const sources = useInfiniteQuery({ queryKey: mediaQueryKey, initialPageParam: "", queryFn: ({ pageParam }) => projectsClient.listSourceMedia({ projectId, pageSize: 25, pageToken: pageParam }), getNextPageParam: (page) => page.nextPageToken || undefined });
   const media = sources.data?.pages.flatMap((page) => page.sourceMedia) ?? [];
   const listedPlate = media.find((item) => item.id === viewDraft?.plateMediaId);
   const plateMetadata = useQuery({ queryKey: ["project-source-media-item", projectId, viewDraft?.plateMediaId], queryFn: () => projectsClient.getSourceMedia({ projectId, id: viewDraft?.plateMediaId ?? "" }), enabled: Boolean(viewDraft?.plateMediaId && !listedPlate), gcTime: 0 });
-  const plate = listedPlate ?? plateMetadata.data?.sourceMedia;
+  const plateCandidate = listedPlate ?? plateMetadata.data?.sourceMedia;
+  const plate = isPreviewableImage(plateCandidate) ? plateCandidate : undefined;
   const listedSource = media.find((item) => item.id === viewDraft?.sourceMediaId);
   const sourceMetadata = useQuery({ queryKey: ["project-source-media-item", projectId, viewDraft?.sourceMediaId], queryFn: () => projectsClient.getSourceMedia({ projectId, id: viewDraft?.sourceMediaId ?? "" }), enabled: Boolean(viewDraft?.sourceMediaId && !listedSource), gcTime: 0 });
-  const screenSource = listedSource ?? sourceMetadata.data?.sourceMedia;
+  const screenCandidate = listedSource ?? sourceMetadata.data?.sourceMedia;
+  const screenSource = isPreviewableImage(screenCandidate) || isReadyInspectedVideo(screenCandidate) ? screenCandidate : undefined;
+  const screenImage = isPreviewableImage(screenSource) ? screenSource : undefined;
+  const screenVideo = isReadyInspectedVideo(screenSource) ? screenSource : undefined;
+  useEffect(() => { setSourcePlaybackFailed(false); }, [screenVideo?.id, screenVideo?.sha256]);
   const plateBytes = useQuery({
     queryKey: ["shot-plate-content", projectId, plate?.id, plate?.sha256],
     queryFn: async () => { if (!plate) throw new Error("No scene plate selected"); return verifySourceMediaContent(await getSourceMediaContent(projectId, plate.id), plate); },
     enabled: Boolean(plate), gcTime: 0, retry: false,
   });
   const screenBytes = useQuery({
-    queryKey: ["shot-screen-content", projectId, screenSource?.id, screenSource?.sha256],
-    queryFn: async () => { if (!screenSource) throw new Error("No screen source selected"); return verifySourceMediaContent(await getSourceMediaContent(projectId, screenSource.id), screenSource); },
-    enabled: Boolean(screenSource), gcTime: 0, retry: false,
+    queryKey: ["shot-screen-content", projectId, screenImage?.id, screenImage?.sha256],
+    queryFn: async () => { if (!screenImage) throw new Error("No screen source selected"); return verifySourceMediaContent(await getSourceMediaContent(projectId, screenImage.id), screenImage); },
+    enabled: Boolean(screenImage), gcTime: 0, retry: false,
   });
   const [plateUrl, setPlateUrl] = useState("");
   const [screenUrl, setScreenUrl] = useState("");
@@ -232,29 +388,83 @@ function ShotEditor({ projectId, shotId, mediaQueryKey, draftCache, onDraftChang
     const url = URL.createObjectURL(screenBytes.data); setScreenUrl(url); return () => URL.revokeObjectURL(url);
   }, [screenBytes.data]);
   const draftSnapshot = useMemo(() => draft ? snapshotFromDraft(draft) : undefined, [draft]);
+  const hasUnsavedChanges = Boolean(draft && renderRevision && draftFingerprint(draft) !== draftFingerprint(draftFromRevision(renderRevision.name, renderRevision)));
   const validate = useMutation({
     mutationFn: () => { if (!draftSnapshot) throw new Error("Shot is not loaded"); return shotsClient.validateShot({ projectId, snapshot: draftSnapshot }); },
     onSuccess: (result) => setIssues(result.issues),
   });
   const save = useMutation({
-    mutationFn: () => { if (!draftSnapshot || baseRevision === undefined || !draft) throw new Error("Shot revision is not loaded"); return shotsClient.saveShot({ shotId, expectedRevision: baseRevision, name: draft.name, snapshot: draftSnapshot }); },
-    onSuccess: async (result) => {
-      if (result.revision && draft) { setBaseRevision(result.revision.revision); setSelectedHistoricalRevision(undefined); setIssues(result.revision.issues); onDraftChange({ draft, baseRevision: result.revision.revision }); }
+    mutationFn: (submitted: { expectedRevision: bigint; name: string; snapshot: ShotSnapshot; draft: ShotDraft }) => shotsClient.saveShot({ shotId, expectedRevision: submitted.expectedRevision, name: submitted.name, snapshot: submitted.snapshot }),
+    onSuccess: async (result, submitted) => {
+      if (result.revision) {
+        setBaseRevision(result.revision.revision);
+        setSelectedHistoricalRevision(undefined);
+        setIssues(result.revision.issues);
+        const current = draftRef.current;
+        const unchangedSinceSubmit = current !== undefined && draftFingerprint(current) === draftFingerprint(submitted.draft);
+        const reconciled = unchangedSinceSubmit ? draftFromRevision(result.shot?.name ?? submitted.name, result.revision) : current ?? submitted.draft;
+        setDraft(reconciled);
+        onDraftChange({ draft: reconciled, baseRevision: result.revision.revision });
+      }
       if (result.shot) queryClient.setQueryData(["shot", shotId], { shot: result.shot, head: result.revision });
       await queryClient.invalidateQueries({ queryKey: ["project-shots", projectId] });
       await queryClient.invalidateQueries({ queryKey: ["shot-revisions", shotId] });
     },
   });
+  const acceptVideoSample = async (binding: VideoSampleBinding) => {
+    const current = draftRef.current;
+    const saved = renderRevision ? draftFromRevision(renderRevision.name, renderRevision) : undefined;
+    if (!current || !current.videoTiming || !saved || baseRevision === undefined || historical || baseRevision !== renderRevision?.revision ||
+        draftFingerprint({ ...current, name: "" }) !== draftFingerprint({ ...saved, name: "" }) || binding.baseShotRevision !== baseRevision ||
+        binding.sourceSha256 !== current.videoTiming.sourceSha256 || binding.clockSha256 !== current.videoTiming.clockSha256 ||
+        binding.trimStartPts !== current.videoTiming.trimStartPts || binding.trimEndPts !== current.videoTiming.trimEndPts) {
+      throw new Error(t(strings.shot.videoSampleStale));
+    }
+    const sampled: ShotDraft = {
+      ...current,
+      videoTiming: create(VideoTimingSchema, { ...current.videoTiming, sampleBinding: binding, sampleBaseRecipeVersion: 1 }),
+      topFill: binding.topFillSourceResolved ? colorToDraft({ red: binding.resolvedTopFillRed, green: binding.resolvedTopFillGreen, blue: binding.resolvedTopFillBlue }) : current.topFill,
+      bottomFill: binding.bottomFillSourceResolved ? colorToDraft({ red: binding.resolvedBottomFillRed, green: binding.resolvedBottomFillGreen, blue: binding.resolvedBottomFillBlue }) : current.bottomFill,
+      statusInk: binding.statusInkSourceResolved ? colorToDraft({ red: binding.resolvedStatusInkRed, green: binding.resolvedStatusInkGreen, blue: binding.resolvedStatusInkBlue }) : current.statusInk,
+      homeInk: binding.homeInkSourceResolved ? colorToDraft({ red: binding.resolvedHomeInkRed, green: binding.resolvedHomeInkGreen, blue: binding.resolvedHomeInkBlue }) : current.homeInk,
+    };
+    draftRef.current = sampled;
+    setDraft(sampled);
+    onDraftChange({ draft: sampled, baseRevision });
+    await save.mutateAsync({ expectedRevision: baseRevision, name: sampled.name, snapshot: snapshotFromDraft(sampled), draft: sampled });
+  };
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
   const conflict = shotConflict(save.error);
   const updateDraft = (changeDraft: (current: ShotDraft) => ShotDraft) => {
     if (!draft) return;
-    const next = changeDraft(draft);
+    let next = changeDraft(draft);
+    const currentRecipe = { ...draft, name: "", videoTiming: draft.videoTiming ? { ...draft.videoTiming, sampleBinding: undefined, sampleBaseRecipeVersion: 0 } : undefined };
+    const nextRecipe = { ...next, name: "", videoTiming: next.videoTiming ? { ...next.videoTiming, sampleBinding: undefined, sampleBaseRecipeVersion: 0 } : undefined };
+    if (draft.videoTiming?.sampleBinding && draftFingerprint(currentRecipe) !== draftFingerprint(nextRecipe)) {
+      const claim = draft.videoTiming.sampleBinding;
+      next = {
+        ...next,
+        videoTiming: next.videoTiming ? create(VideoTimingSchema, { ...next.videoTiming, sampleBinding: undefined, sampleBaseRecipeVersion: 0 }) : undefined,
+        topFill: claim.topFillSourceResolved && next.topFill === draft.topFill ? "" : next.topFill,
+        bottomFill: claim.bottomFillSourceResolved && next.bottomFill === draft.bottomFill ? "" : next.bottomFill,
+        statusInk: claim.statusInkSourceResolved && next.statusInk === draft.statusInk ? "" : next.statusInk,
+        homeInk: claim.homeInkSourceResolved && next.homeInk === draft.homeInk ? "" : next.homeInk,
+      };
+    }
+    draftRef.current = next;
     setDraft(next);
     if (baseRevision !== undefined) onDraftChange({ draft: next, baseRevision });
     setIssues([]);
     validate.reset();
   };
-  const change = <K extends keyof ShotDraft>(key: K, value: ShotDraft[K]) => updateDraft((current) => ({ ...current, [key]: value }));
+  const change = <K extends keyof ShotDraft>(key: K, value: ShotDraft[K]) => updateDraft((current) => ({
+    ...current,
+    [key]: value,
+    ...(key === "kind" && value === PresentationKind.PHONE_SYSTEM && current.phoneAppearance === PresentationAppearance.UNSPECIFIED
+      ? { phoneAppearance: PresentationAppearance.AUTO }
+      : {}),
+  }));
   const changePoint = (key: "topLeft" | "topRight" | "bottomRight" | "bottomLeft", axis: "x" | "y", value: string) => updateDraft((current) => ({ ...current, [key]: { ...current[key], [axis]: value } }));
   const reapplyDraftOnLatest = async () => {
     const result = await shotQuery.refetch();
@@ -275,8 +485,9 @@ function ShotEditor({ projectId, shotId, mediaQueryKey, draftCache, onDraftChang
     return <p role="status">{t(strings.shot.loading)}</p>;
   }
   if (historical && !selectedRevision) return <p role="status">{t(strings.shot.loading)}</p>;
+  if (head.snapshot?.physicalBinding) return <PhysicalShotEditor projectId={projectId} shotId={shotId} />;
   const displayDraft = viewDraft ?? draft;
-  const integerValues = [draft.displayWidthPixels, draft.displayHeightPixels, draft.batteryPercent].filter(Boolean).map(Number);
+  const integerValues = [draft.displayWidthPixels, draft.displayHeightPixels, draft.batteryPercent, draft.windowX, draft.windowY, draft.windowWidth, draft.windowHeight].filter(Boolean).map(Number);
   const pointDrafts = [draft.topLeft, draft.topRight, draft.bottomRight, draft.bottomLeft];
   const partialPoint = pointDrafts.some((point) => (point.x === "") !== (point.y === ""));
   const coordinateOutOfRange = pointDrafts.some((point) => [point.x, point.y].some((raw, axis) => {
@@ -284,26 +495,73 @@ function ShotEditor({ projectId, shotId, mediaQueryKey, draftCache, onDraftChang
     const value = Number(raw);
     return !Number.isFinite(value) || Math.abs(value) > Number.MAX_SAFE_INTEGER || value < 0 || Boolean(plate && value > (axis === 0 ? plate.width : plate.height));
   }));
-  const numericInvalid = integerValues.some((value) => !Number.isFinite(value) || !Number.isInteger(value) || value < 0 || value > 4_294_967_295) || Number(draft.batteryPercent || 0) > 100 || partialPoint || coordinateOutOfRange;
+  const rectValues = [draft.windowX, draft.windowY, draft.windowWidth, draft.windowHeight];
+  const rectPartial = rectValues.some(Boolean) && !rectValues.every(Boolean);
+  const rectNumeric = rectValues.map((value) => Number(value || 0));
+  const [rectX = 0, rectY = 0, rectWidth = 0, rectHeight = 0] = rectNumeric;
+  const rectOutOfBounds = rectValues.every(Boolean) && (rectX + rectWidth > 10000 || rectY + rectHeight > 10000 || rectWidth <= 0 || rectHeight <= 0);
+  const colorInvalid = [draft.matteColor, draft.topFill, draft.bottomFill, draft.desktopColor, draft.windowColor, draft.chromeColor,
+    ...(draft.motionMode === MotionMode.CROP_PUSH ? [draft.cameraMatteColor] : [])].some((value) => value !== "" && !/^#?[\da-f]{6}$/i.test(value));
+  const cameraFrames = Number(draft.cameraDurationOutputFrames);
+  const clipFrames = plannedOutputFrames(draft.videoTiming);
+  const cameraDurationInvalid = draft.motionMode === MotionMode.CROP_PUSH && (!draft.videoTiming || !Number.isInteger(cameraFrames) || cameraFrames < 2 || cameraFrames > 120 || clipFrames === undefined || BigInt(cameraFrames) > clipFrames);
+  const cameraMatteInvalid = draft.motionMode === MotionMode.CROP_PUSH && !/^#?[\da-f]{6}$/i.test(draft.cameraMatteColor);
+  const displayCameraFrames = Number(displayDraft.cameraDurationOutputFrames);
+  const displayClipFrames = plannedOutputFrames(displayDraft.videoTiming);
+  const displayCameraDurationInvalid = displayDraft.motionMode === MotionMode.CROP_PUSH && (!displayDraft.videoTiming || !Number.isInteger(displayCameraFrames) || displayCameraFrames < 2 || displayCameraFrames > 120 || displayClipFrames === undefined || BigInt(displayCameraFrames) > displayClipFrames);
+  const displayCameraClipInvalid = displayDraft.motionMode === MotionMode.CROP_PUSH && displayClipFrames !== undefined && displayClipFrames > 120n;
+  const displayCameraMatteInvalid = displayDraft.motionMode === MotionMode.CROP_PUSH && !/^#?[\da-f]{6}$/i.test(displayDraft.cameraMatteColor);
+  const displayCameraDurationStatus = displayDraft.motionMode === MotionMode.CROP_PUSH && Number.isInteger(displayCameraFrames) && displayCameraFrames >= 0
+    ? t(strings.shot.cameraDurationSummary, { frames: displayCameraFrames.toString(), seconds: cameraDurationSeconds(BigInt(displayCameraFrames), displayDraft.videoTiming), rate: displayDraft.videoTiming?.outputRateNum.toString() ?? "—" })
+    : "";
+  const presentationInvalid = draft.kind === PresentationKind.BROWSER_DESKTOP && draft.showWindowControls && !draft.showToolbar;
+  const numericInvalid = integerValues.some((value) => !Number.isFinite(value) || !Number.isInteger(value) || value < 0 || value > 4_294_967_295) || Number(draft.batteryPercent || 0) > 100 || rectPartial || rectOutOfBounds || rectNumeric.some((value) => value > 10000) || colorInvalid || partialPoint || coordinateOutOfRange || cameraDurationInvalid;
   const selectedMediaPending = Boolean((displayDraft.plateMediaId && !plate && plateMetadata.isLoading) || (displayDraft.sourceMediaId && !screenSource && sourceMetadata.isLoading));
-  const availableMedia = [...media, ...(plate && !media.some((item) => item.id === plate.id) ? [plate] : []), ...(screenSource && !media.some((item) => item.id === screenSource.id) && screenSource.id !== plate?.id ? [screenSource] : [])];
-  const select = (label: string, value: string, onChange: (value: string) => void, options: SourceMedia[], emptyLabel: string) => <label className="shot-field"><span>{label}</span><select value={value} onChange={(event) => onChange(event.target.value)}><option value="">{emptyLabel}</option>{options.map((item) => <option key={item.id} value={item.id}>{item.originalFilename} · {item.width} × {item.height}</option>)}</select></label>;
+  const availableMedia = [...media.filter((item) => isPreviewableImage(item)), ...(plate && !media.some((item) => item.id === plate.id) ? [plate] : [])];
+  const screenMediaOptions = [...media.filter((item) => isPreviewableImage(item) || isReadyInspectedVideo(item)), ...(screenSource && !media.some((item) => item.id === screenSource.id) ? [screenSource] : [])];
+  const select = (label: string, value: string, onChange: (value: string) => void, options: SourceMedia[], emptyLabel: string) => <label className="shot-field"><span>{label}</span><select value={value} onChange={(event) => onChange(event.target.value)}><option value="">{emptyLabel}</option>{options.map((item) => <option key={item.id} value={item.id}>{item.originalFilename}{item.width !== undefined && item.height !== undefined ? ` · ${item.width} × ${item.height}` : ` · ${item.mediaType}`}</option>)}</select></label>;
+  const chooseScreenSource = (id: string) => {
+    const source = screenMediaOptions.find((item) => item.id === id);
+    updateDraft((current) => current.sourceMediaId === id ? current : ({ ...current, sourceMediaId: id, videoTiming: source && isReadyInspectedVideo(source) ? videoTimingFromMedia(source) : undefined }));
+  };
+  const chooseMotionMode = (motionMode: MotionMode) => updateDraft((current) => {
+    const planned = plannedOutputFrames(current.videoTiming);
+    const suggestedFrames = planned === undefined || planned > 24n ? 24 : Math.max(2, Number(planned));
+    const currentFrames = Number(current.cameraDurationOutputFrames);
+    const exceedsClip = planned !== undefined && Number.isInteger(currentFrames) && BigInt(currentFrames) > planned;
+    return {
+      ...current,
+      motionMode,
+      cameraDurationOutputFrames: motionMode === MotionMode.CROP_PUSH && exceedsClip ? String(suggestedFrames) : current.cameraDurationOutputFrames,
+      cameraMatteColor: motionMode === MotionMode.CROP_PUSH && !current.cameraMatteColor ? "#000000" : current.cameraMatteColor,
+    };
+  });
   const numberField = (label: string, value: string, onChange: (value: string) => void, testId?: string) => <label className="shot-field"><span>{label}</span><input data-testid={testId} type="number" inputMode="decimal" value={value} onChange={(event) => onChange(event.target.value)} /></label>;
+  const colorField = (label: string, value: string, onChange: (value: string) => void) => <label className="shot-field"><span>{label}</span><input type="text" inputMode="text" autoCapitalize="characters" maxLength={7} placeholder={t(strings.shot.hexPlaceholder)} value={value} onChange={(event) => onChange(event.target.value)} aria-invalid={value !== "" && !/^#?[\da-f]{6}$/i.test(value)} /></label>;
   const activeIssues = historical ? selectedRevision?.issues ?? [] : issues;
   const issuesFor = (path: string) => activeIssues.filter((issue) => !path || issue.fieldPath.toLowerCase().includes(path.toLowerCase()));
   const issueList = (path = "") => { const rows = path ? issuesFor(path) : activeIssues.filter((issue) => !issue.fieldPath.startsWith("scene.") && !issue.fieldPath.startsWith("presentation.")); return rows.length ? <ul className="shot-issues" aria-live="polite">{rows.map((issue, index) => <li key={`${issue.code}-${issue.fieldPath}-${index}`}><span>{issue.summary}</span>{issue.repair && <small>{issue.repair}</small>}<details><summary>{t(strings.shot.issueDetails)}</summary><code>{issue.fieldPath}</code><span>{ShotIssueCode[issue.code].replace(/_/g, " ")}</span></details></li>)}</ul> : null; };
   const pointFields = ([key, label]: ["topLeft" | "topRight" | "bottomRight" | "bottomLeft", string]) => <fieldset key={key} className="shot-point"><legend>{label}</legend>{numberField(t(strings.shot.plateX), displayDraft[key].x, (value) => changePoint(key, "x", value), `plate-x-${key}`)}{numberField(t(strings.shot.plateY), displayDraft[key].y, (value) => changePoint(key, "y", value), `plate-y-${key}`)}{issueList(`plate_quad.${key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`)}`)}</fieldset>;
+  const saveDraft = () => {
+    if (!draftSnapshot || baseRevision === undefined) return;
+    save.mutate({ expectedRevision: baseRevision, name: draft.name, snapshot: draftSnapshot, draft });
+  };
 
   return <div className="shot-editor" data-testid="shot-editor">
-    <header className="shot-editor__title"><div><span className="studio-eyebrow">{t(strings.shot.workspaceEyebrow).toLocaleUpperCase()}</span><h2 id="shot-workspace-title"><label><span className="sr-only">{t(strings.shot.nameLabel)}</span><input className="shot-title-input" data-testid="shot-name-input" value={displayDraft.name} maxLength={120} onChange={(event) => change("name", event.target.value)} disabled={historical} /></label></h2><p>{t(strings.shot.revision, { revision: head.revision.toString() })}{historical ? ` · ${t(strings.shot.viewingRevision, { revision: selectedHistoricalRevision.toString() })}` : ""}</p></div>
+  <header className="shot-editor__title"><div><span className="studio-eyebrow">{t(strings.shot.workspaceEyebrow).toLocaleUpperCase()}</span><h2 id="shot-workspace-title"><label><span className="sr-only">{t(strings.shot.nameLabel)}</span><input className="shot-title-input" data-testid="shot-name-input" value={displayDraft.name} maxLength={120} onChange={(event) => change("name", event.target.value)} disabled={historical} /></label></h2><p>{t(strings.shot.revision, { revision: head.revision.toString() })}{historical ? ` · ${t(strings.shot.viewingRevision, { revision: selectedHistoricalRevision.toString() })}` : ""}</p></div>
       <details className="shot-history"><summary>{t(strings.shot.pinnedRevision)} · {selectedHistoricalRevision === undefined ? head.revision.toString() : selectedHistoricalRevision.toString()}</summary><label className="shot-field"><span>{t(strings.shot.pinnedRevision)}</span><select aria-label={t(strings.shot.pinnedRevision)} value={selectedHistoricalRevision === undefined ? head.revision.toString() : selectedHistoricalRevision.toString()} onChange={(event) => chooseRevision(BigInt(event.target.value))}>{(revisions.data?.pages.flatMap((page) => page.revisions) ?? [head]).map((revision) => <option key={revision.revision.toString()} value={revision.revision.toString()}>{t(strings.shot.revision, { revision: revision.revision.toString() })} · {revision.name}</option>)}</select></label></details>
     </header>
+    {!historical && pinnedRevisionQuery.error && <p role="alert">{errorMessage(pinnedRevisionQuery.error, t)} <Button variant="outline" className="min-h-11" onClick={() => void pinnedRevisionQuery.refetch()}>{t(strings.media.retry)}</Button></p>}
     {historical && <p className="shot-readonly" role="status">{t(strings.shot.historicalReadonly)}</p>}
     {shotQuery.error && <p role="alert">{errorMessage(shotQuery.error, t)}</p>}
     <div className="shot-editor__body">
+      <div ref={stageRef} tabIndex={-1} className="shot-stage-focus">
       <Card className="shot-plate-stage">
-        <CardHeader><CardTitle as="h3">{t(strings.shot.scenePlate)}</CardTitle><p>{plate ? `${plate.originalFilename} · ${plate.width} × ${plate.height}` : t(strings.shot.choosePlate)}</p></CardHeader>
+        <CardHeader><CardTitle as="h3">{showFinalPreview ? t(finalOutput?.isSample ? strings.shot.renderSampleLabel : finalOutput?.isVideo ? strings.shot.renderVideoFinal : strings.shot.renderFinalTitle, { revision: (finalOutput?.revision ?? renderRevision?.revision ?? 0n).toString() }) : t(strings.shot.scenePlate)}</CardTitle><p>{showFinalPreview && finalOutput ? `${finalOutput.metadata.widthPixels} × ${finalOutput.metadata.heightPixels} px` : plate ? `${plate.originalFilename} · ${plate.width} × ${plate.height}` : t(strings.shot.choosePlate)}</p>
+          {showFinalPreview && <Button variant="outline" className="min-h-11" onClick={() => { setShowFinalPreview(false); setFinalOutput(undefined); }}>{t(strings.shot.renderHideOutput)}</Button>}
+        </CardHeader>
         <CardContent>
+          {showFinalPreview && !finalOutput ? <p role="status">{t(strings.shot.renderVerifyingOutput)}</p> : showFinalPreview && finalOutput ? <div className="shot-final-stage" data-testid={selectors.shot.videoFinalStage}>{finalOutput.isVideo ? <video src={finalOutput.url} aria-label={t(strings.shot.renderVideoOutputAlt, { revision: finalOutput.revision.toString() })} controls playsInline preload="metadata"><track kind="captions" srcLang="en" label={t(strings.shot.videoNoCaptions)} src="data:text/vtt,WEBVTT%0A%0ANOTE%20Captions%20are%20not%20available%20for%20this%20preview." /></video> : <img src={finalOutput.url} alt={t(finalOutput.isSample ? strings.shot.renderSampleOutputAlt : strings.shot.renderOutputAlt, { revision: finalOutput.revision.toString() })} />}</div> : <>
           {sources.error && <p role="alert">{errorMessage(sources.error, t)}</p>}
           {plateBytes.error && <p role="alert">{errorMessage(plateBytes.error, t)}</p>}
           {plate && plateUrl ? <div className="shot-plate-image" data-testid="shot-plate-preview"><div className="shot-plate-canvas" style={{ aspectRatio: `${plate.width} / ${plate.height}` }}><img src={plateUrl} alt={t(strings.shot.plateAlt, { name: plate.originalFilename })} />
@@ -314,22 +572,42 @@ function ShotEditor({ projectId, shotId, mediaQueryKey, draftCache, onDraftChang
             </div><span>{t(strings.shot.calibrationOverlay)}</span>
           </div> : <div className="shot-plate-empty"><p>{t(strings.shot.choosePlate)}</p><p>{t(strings.shot.plateStageHelp)}</p></div>}
           {plate && <p className="shot-source-caption">{t(strings.shot.originalImage)} · {plate.mediaType} · {bytes(plate.sizeBytes)}</p>}
+          </>}
         </CardContent>
       </Card>
+      </div>
       <aside className="shot-inspector" aria-label={t(strings.shot.inspector)}>
         <Card><CardHeader><CardTitle as="h3">{t(strings.shot.scene)}</CardTitle></CardHeader><CardContent className="shot-fields"><fieldset disabled={historical}>
           {plateMetadata.error && <p role="alert">{errorMessage(plateMetadata.error, t)}</p>}
           {sourceMetadata.error && <p role="alert">{errorMessage(sourceMetadata.error, t)}</p>}
           {select(t(strings.shot.scenePlate), displayDraft.plateMediaId, (value) => change("plateMediaId", value), availableMedia, t(strings.shot.chooseSource))}
-          {select(t(strings.shot.screenSource), displayDraft.sourceMediaId, (value) => change("sourceMediaId", value), availableMedia, t(strings.shot.chooseSource))}
-          <p className="shot-help">{t(strings.shot.motionMode)}: {MotionMode[displayDraft.motionMode].replace(/_/g, " ") || t(strings.shot.fixedMotion)}. {displayDraft.motionMode === MotionMode.FIXED ? t(strings.shot.fixedModeHelp) : t(strings.shot.unsupportedMotion)}</p>
+          {select(t(strings.shot.screenSource), displayDraft.sourceMediaId, chooseScreenSource, screenMediaOptions, t(strings.shot.chooseSource))}
+          {screenVideo && displayDraft.videoTiming && <VideoTimingEditor projectId={projectId} source={screenVideo} timing={displayDraft.videoTiming} disabled={historical} onChange={(timing) => updateDraft((current) => ({ ...current, videoTiming: timing }))} />}
+          <div className="shot-fields">
+            <label className="shot-field"><span>{t(strings.shot.motionMode)}</span><select value={displayDraft.motionMode} disabled={historical} onChange={(event) => chooseMotionMode(Number(event.target.value))}>
+              {displayDraft.motionMode !== MotionMode.FIXED && displayDraft.motionMode !== MotionMode.CROP_PUSH && <option value={displayDraft.motionMode} disabled>{t(strings.shot.unsupportedMotion)}</option>}
+              <option value={MotionMode.FIXED}>{t(strings.shot.fixedMotion)}</option>
+              <option value={MotionMode.CROP_PUSH} disabled={!displayDraft.videoTiming && displayDraft.motionMode !== MotionMode.CROP_PUSH}>{t(strings.shot.screenEntry)}</option>
+            </select></label>
+            {displayDraft.motionMode === MotionMode.FIXED && <p className="shot-help">{t(strings.shot.fixedModeHelp)}</p>}
+            {displayDraft.motionMode === MotionMode.CROP_PUSH && <>
+              <p className="shot-help">{t(strings.shot.screenEntryContainHelp)}</p>
+              {!displayDraft.videoTiming && <p role="alert">{t(strings.shot.cameraTimingRequired)}</p>}
+              {displayCameraClipInvalid && <p role="alert">{t(strings.shot.cameraClipTooLong)}</p>}
+              <label className="shot-field"><span>{t(strings.shot.cameraDurationFrames)}</span><input type="number" min={2} max={displayClipFrames === undefined || displayClipFrames > 120n ? 120 : Number(displayClipFrames)} step={1} value={displayDraft.cameraDurationOutputFrames} disabled={historical} onChange={(event) => change("cameraDurationOutputFrames", event.target.value)} /></label>
+              {displayCameraDurationStatus && <p role="status">{displayCameraDurationStatus}</p>}
+              {displayCameraDurationInvalid && displayDraft.videoTiming && <p role="alert">{t(strings.shot.cameraDurationInvalid)}</p>}
+              {colorField(t(strings.shot.cameraMatte), displayDraft.cameraMatteColor, (value) => change("cameraMatteColor", value))}
+              {displayCameraMatteInvalid && <p role="alert">{t(strings.shot.cameraMatteInvalid)}</p>}
+            </>}
+          </div>
           <details><summary>{t(strings.shot.masksAndGeometry)}</summary><div className="shot-fields">
             {select(t(strings.shot.activeMask), displayDraft.activeMaskMediaId, (value) => change("activeMaskMediaId", value), availableMedia, t(strings.shot.noMask))}
             {select(t(strings.shot.hardwareMask), displayDraft.hardwareMaskMediaId, (value) => change("hardwareMaskMediaId", value), availableMedia, t(strings.shot.noMask))}
             <label className="shot-field"><span>{t(strings.shot.coordinateConvention)}</span><select value={displayDraft.coordinateConvention} onChange={(event) => change("coordinateConvention", Number(event.target.value))}><option value={CoordinateConvention.UNSPECIFIED}>{t(strings.shot.unspecified)}</option><option value={CoordinateConvention.PLATE_RASTER_EDGE_PIXELS_V1}>{t(strings.shot.plateRasterEdge)}</option></select></label>
             {displayDraft.coordinateConvention === CoordinateConvention.UNSPECIFIED && <p role="status" className="shot-help">{t(strings.shot.coordinateWarning)}</p>}
             <label className="shot-field"><span>{t(strings.shot.depictionLabel)}</span><input value={displayDraft.depictionLabel} onChange={(event) => change("depictionLabel", event.target.value)} /></label>
-            <div className="shot-fields shot-fields--pair">{numberField(t(strings.shot.displayWidth), displayDraft.displayWidthPixels, (value) => change("displayWidthPixels", value))}{numberField(t(strings.shot.displayHeight), displayDraft.displayHeightPixels, (value) => change("displayHeightPixels", value))}</div>
+          <div className="shot-fields shot-fields--pair">{numberField(t(strings.shot.displayWidth), displayDraft.displayWidthPixels, (value) => change("displayWidthPixels", value))}{numberField(t(strings.shot.displayHeight), displayDraft.displayHeightPixels, (value) => change("displayHeightPixels", value))}</div>
             <p className="shot-help">{t(strings.shot.platePixelCoordinates)}</p>
             <div className="shot-quad-grid">{([ ["topLeft", t(strings.shot.topLeft)], ["topRight", t(strings.shot.topRight)], ["bottomRight", t(strings.shot.bottomRight)], ["bottomLeft", t(strings.shot.bottomLeft)] ] as ["topLeft" | "topRight" | "bottomRight" | "bottomLeft", string][]).map(pointFields)}</div>
             {issueList("scene")}
@@ -338,32 +616,47 @@ function ShotEditor({ projectId, shotId, mediaQueryKey, draftCache, onDraftChang
             <label className="shot-field"><span>{t(strings.shot.captureArea)}</span><select value={displayDraft.captureArea} onChange={(event) => change("captureArea", Number(event.target.value))}><option value={CaptureArea.UNSPECIFIED}>{t(strings.shot.unspecified)}</option><option value={CaptureArea.APP_ONLY}>{t(strings.shot.appOnly)}</option><option value={CaptureArea.ALREADY_COMPOSED}>{t(strings.shot.alreadyComposed)}</option></select></label>
             <label className="shot-field"><span>{t(strings.shot.presentationKind)}</span><select value={displayDraft.kind} onChange={(event) => change("kind", Number(event.target.value))}><option value={PresentationKind.UNSPECIFIED}>{t(strings.shot.unspecified)}</option><option value={PresentationKind.PLAIN}>{t(strings.shot.plainCapture)}</option><option value={PresentationKind.PHONE_SYSTEM}>{t(strings.shot.phoneSystem)}</option><option value={PresentationKind.BROWSER_DESKTOP}>{t(strings.shot.browserDesktop)}</option></select></label>
             <label className="shot-field"><span>{t(strings.shot.fitMode)}</span><select value={displayDraft.fitMode} onChange={(event) => change("fitMode", Number(event.target.value))}><option value={ScreenFitMode.UNSPECIFIED}>{t(strings.shot.unspecified)}</option><option value={ScreenFitMode.CONTAIN}>{t(strings.shot.contain)}</option><option value={ScreenFitMode.COVER}>{t(strings.shot.cover)}</option></select></label>
+            <details><summary>{t(strings.shot.advancedPresentation)}</summary><div className="shot-fields">
+              {colorField(t(strings.shot.matteColor), displayDraft.matteColor, (value) => change("matteColor", value))}
+              <p className="shot-help">{t(strings.shot.optionalHexHelp)}</p>
+            </div></details>
             {displayDraft.kind === PresentationKind.PHONE_SYSTEM && <details><summary>{t(strings.shot.phoneChrome)}</summary><div className="shot-fields">
+              <label className="shot-field"><span>{t(strings.shot.appearance)}</span><select value={displayDraft.phoneAppearance} onChange={(event) => change("phoneAppearance", Number(event.target.value))}><option value={PresentationAppearance.AUTO}>{t(strings.shot.appearanceAuto)}</option><option value={PresentationAppearance.UNSPECIFIED}>{t(strings.shot.appearanceDefault)}</option><option value={PresentationAppearance.LIGHT}>{t(strings.shot.appearanceLight)}</option><option value={PresentationAppearance.DARK}>{t(strings.shot.appearanceDark)}</option></select></label>
+              {([ ["showStatus", t(strings.shot.statusBar)], ["showBatteryPercent", t(strings.shot.batteryLabel)] ] as ["showStatus" | "showBatteryPercent", string][]).map(([key,label]) => <label className="shot-check" key={key}><input type="checkbox" checked={displayDraft[key]} onChange={(event) => change(key, event.target.checked)} />{label}</label>)}
+              <div className="shot-fields shot-fields--pair">{colorField(t(strings.shot.topFill), displayDraft.topFill, (value) => change("topFill", value))}{colorField(t(strings.shot.bottomFill), displayDraft.bottomFill, (value) => change("bottomFill", value))}</div>
+              <div className="shot-fields shot-fields--pair">{colorField(t(strings.shot.statusInk), displayDraft.statusInk, (value) => change("statusInk", value))}{colorField(t(strings.shot.homeInk), displayDraft.homeInk, (value) => change("homeInk", value))}</div>
               <label className="shot-field"><span>{t(strings.shot.carrier)}</span><input value={displayDraft.carrierText} onChange={(event) => change("carrierText", event.target.value)} /></label>
               <label className="shot-field"><span>{t(strings.shot.clock)}</span><input value={displayDraft.clockText} onChange={(event) => change("clockText", event.target.value)} /></label>
               {numberField(t(strings.shot.battery), displayDraft.batteryPercent, (value) => change("batteryPercent", value))}
               {([ ["showCellularIndicator", t(strings.shot.cellular)], ["showWifiIndicator", t(strings.shot.wifi)], ["showHomeIndicator", t(strings.shot.homeIndicator)] ] as ["showCellularIndicator" | "showWifiIndicator" | "showHomeIndicator", string][]).map(([key,label]) => <label className="shot-check" key={key}><input type="checkbox" checked={displayDraft[key]} onChange={(event) => change(key, event.target.checked)} />{label}</label>)}
             </div></details>}
             {displayDraft.kind === PresentationKind.BROWSER_DESKTOP && <details><summary>{t(strings.shot.browserChrome)}</summary><div className="shot-fields">
+              <label className="shot-field"><span>{t(strings.shot.appearance)}</span><select value={displayDraft.browserAppearance} onChange={(event) => change("browserAppearance", Number(event.target.value))}><option value={PresentationAppearance.UNSPECIFIED}>{t(strings.shot.appearanceDefault)}</option><option value={PresentationAppearance.LIGHT}>{t(strings.shot.appearanceLight)}</option><option value={PresentationAppearance.DARK}>{t(strings.shot.appearanceDark)}</option></select></label>
+              <div className="shot-fields shot-fields--pair">{numberField(t(strings.shot.windowX), displayDraft.windowX, (value) => change("windowX", value))}{numberField(t(strings.shot.windowY), displayDraft.windowY, (value) => change("windowY", value))}{numberField(t(strings.shot.windowWidth), displayDraft.windowWidth, (value) => change("windowWidth", value))}{numberField(t(strings.shot.windowHeight), displayDraft.windowHeight, (value) => change("windowHeight", value))}</div>
+              <p className="shot-help">{t(strings.shot.windowRectHelp)}</p>
+              <div className="shot-fields shot-fields--pair">{colorField(t(strings.shot.desktopColor), displayDraft.desktopColor, (value) => change("desktopColor", value))}{colorField(t(strings.shot.windowColor), displayDraft.windowColor, (value) => change("windowColor", value))}{colorField(t(strings.shot.chromeColor), displayDraft.chromeColor, (value) => change("chromeColor", value))}</div>
               <label className="shot-field"><span>{t(strings.shot.windowTitle)}</span><input value={displayDraft.windowTitle} onChange={(event) => change("windowTitle", event.target.value)} /></label>
               <label className="shot-field"><span>{t(strings.shot.addressText)}</span><input value={displayDraft.addressText} onChange={(event) => change("addressText", event.target.value)} /></label>
-              {([ ["showWindowControls", t(strings.shot.windowControls)], ["showToolbar", t(strings.shot.toolbar)] ] as ["showWindowControls" | "showToolbar", string][]).map(([key,label]) => <label className="shot-check" key={key}><input type="checkbox" checked={displayDraft[key]} onChange={(event) => change(key, event.target.checked)} />{label}</label>)}
+              {([ ["showWindowControls", t(strings.shot.windowControls)], ["showToolbar", t(strings.shot.toolbar)], ["showMenuBar", t(strings.shot.menuBar)], ["showDock", t(strings.shot.dock)] ] as ["showWindowControls" | "showToolbar" | "showMenuBar" | "showDock", string][]).map(([key,label]) => <label className="shot-check" key={key}><input type="checkbox" checked={displayDraft[key]} onChange={(event) => change(key, event.target.checked)} />{label}</label>)}
+              {presentationInvalid && <p role="alert">{t(strings.shot.browserControlsRequireToolbar)}</p>}
             </div></details>}
             {issueList("presentation")}
           </div></details>
           {issueList()}
-          {numericInvalid && <p role="alert">{t(strings.shot.numericIssue)}</p>}
+          {numericInvalid && !historical && <p role="alert">{t(strings.shot.numericIssue)}</p>}
           {validate.error && <p role="alert">{errorMessage(validate.error, t)}</p>}
           {save.error && <div role="alert" className="shot-conflict"><p>{conflict ? t(strings.shot.conflict) : errorMessage(save.error, t)}</p>{conflict && <Button variant="outline" className="min-h-11" onClick={() => void reapplyDraftOnLatest()}>{t(strings.shot.reloadKeepDraft)}</Button>}</div>}
           {save.data?.revision && <p role="status">{t(strings.shot.savedRevision, { revision: save.data.revision.revision.toString() })}</p>}
-          <div className="shot-actions"><Button variant="outline" className="min-h-11" disabled={validate.isPending || historical || numericInvalid || selectedMediaPending} onClick={() => validate.mutate()}>{validate.isPending ? t(strings.shot.checking) : t(strings.shot.checkDraft)}</Button><Button className="studio-primary min-h-11" disabled={save.isPending || historical || numericInvalid || selectedMediaPending || baseRevision === undefined || !draft.name.trim()} onClick={() => save.mutate()}>{save.isPending ? t(strings.shot.saving) : t(strings.shot.save)}</Button></div>
+          <div className="shot-actions"><Button variant="outline" className="min-h-11" disabled={validate.isPending || historical || numericInvalid || cameraMatteInvalid || presentationInvalid || selectedMediaPending} onClick={() => validate.mutate()}>{validate.isPending ? t(strings.shot.checking) : t(strings.shot.checkDraft)}</Button><Button className="studio-primary min-h-11" disabled={save.isPending || historical || numericInvalid || cameraMatteInvalid || presentationInvalid || selectedMediaPending || baseRevision === undefined || !draft.name.trim()} onClick={saveDraft}>{save.isPending ? t(strings.shot.saving) : t(strings.shot.save)}</Button></div>
         </fieldset></CardContent></Card>
         <Card><CardHeader><CardTitle as="h3">{t(strings.shot.screenSource)}</CardTitle></CardHeader><CardContent>
-          {screenSource ? <p className="shot-source-choice">{screenSource.originalFilename}<span>{screenSource.width} × {screenSource.height}</span></p> : <p className="shot-help">{t(strings.shot.noScreenSource)}</p>}
+          {screenSource ? <p className="shot-source-choice">{screenSource.originalFilename}<span>{screenSource.width !== undefined && screenSource.height !== undefined ? `${screenSource.width} × ${screenSource.height}` : screenSource.mediaType}</span></p> : <p className="shot-help">{t(strings.shot.noScreenSource)}</p>}
           {screenBytes.error && <p role="alert">{errorMessage(screenBytes.error, t)}</p>}
-          {screenUrl && screenSource && <img className="shot-source-thumb" data-testid="shot-screen-preview" src={screenUrl} alt={t(strings.shot.screenSourceAlt, { name: screenSource.originalFilename })} />}
+          {screenUrl && screenImage && <img className="shot-source-thumb" data-testid="shot-screen-preview" src={screenUrl} alt={t(strings.shot.screenSourceAlt, { name: screenImage.originalFilename })} />}
+          {screenVideo && <><video className="shot-source-thumb" data-testid={selectors.shot.videoSourcePreview} src={sourceMediaContentURL(projectId, screenVideo.id)} controls preload="metadata" playsInline muted aria-label={t(strings.media.videoPreviewAlt, { name: screenVideo.originalFilename })} onError={() => setSourcePlaybackFailed(true)} /><p className="shot-help">{t(strings.media.videoPreviewHelp)}</p>{sourcePlaybackFailed && <p role="alert">{t(strings.media.videoPreviewError)}</p>}</>}
           {sources.hasNextPage && <Button variant="outline" className="min-h-11" disabled={sources.isFetchingNextPage} onClick={() => void sources.fetchNextPage()}>{t(strings.projects.loadMore)}</Button>}
         </CardContent></Card>
+        <RenderControls projectId={projectId} shotId={shotId} revision={renderRevision} historical={historical} hasUnsavedChanges={hasUnsavedChanges} showOutput={showFinalPreview} onShowOutputChange={setShowFinalPreview} onFinalOutputChange={onFinalOutputChange} onAcceptVideoSample={acceptVideoSample} />
       </aside>
     </div>
   </div>;

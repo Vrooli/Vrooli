@@ -3,9 +3,7 @@ package projects
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,7 +11,6 @@ import (
 	_ "image/jpeg"
 	_ "image/png"
 	"io"
-	"runtime"
 	"strings"
 	"time"
 	"unicode"
@@ -24,29 +21,115 @@ import (
 )
 
 const (
-	MaxSourceMediaBytes         int64 = 24 << 20
+	MaxSourceImageBytes         int64 = 24 << 20
+	MaxSourceVideoBytes         int64 = 512 << 20
+	MaxSourceMediaBytes         int64 = MaxSourceVideoBytes
 	MaxSourceMediaPixels        int64 = 24_000_000
 	MaxSourceMediaSide                = 20_000
 	MaxSourceMediaFilenameRunes       = 128
+	mediaSniffPrefixBytes             = 4096
 	cleanupTimeout                    = 5 * time.Second
 )
 
+type MediaKind string
+
+const (
+	MediaKindImage MediaKind = "image"
+	MediaKindVideo MediaKind = "video"
+)
+
+type Readiness string
+
+const (
+	ReadinessReady                  Readiness = "ready"
+	ReadinessPending                Readiness = "pending"
+	ReadinessRejected               Readiness = "rejected"
+	ReadinessReconciliationRequired Readiness = "reconciliation_required"
+)
+
+type AudioInspectionFacts struct {
+	Version uint32            `json:"version"`
+	Streams []AudioStreamFact `json:"streams"`
+}
+
+type AudioStreamFact struct {
+	OriginalStreamIndex uint32 `json:"original_stream_index"`
+	Codec               string `json:"codec"`
+}
+
+type InspectionReceipt struct {
+	Audio                     *AudioInspectionFacts `json:"audio,omitempty"`
+	Version                   uint32                `json:"version"`
+	ID                        string                `json:"id"`
+	SHA256                    string                `json:"sha256"`
+	SourceSHA256              string                `json:"source_sha256"`
+	SourceSizeBytes           int64                 `json:"source_size_bytes"`
+	JobID                     string                `json:"job_id"`
+	AttemptID                 string                `json:"attempt_id"`
+	ToolProfileID             string                `json:"tool_profile_id"`
+	ToolProfileDigest         string                `json:"tool_profile_digest"`
+	InspectionProtocolVersion uint32                `json:"inspection_protocol_version"`
+	Classification            string                `json:"classification"`
+	IssueCode                 string                `json:"issue_code,omitempty"`
+	IssueMessage              string                `json:"issue_message,omitempty"`
+	Container                 string                `json:"container,omitempty"`
+	VideoStreamIndex          *int64                `json:"video_stream_index,omitempty"`
+	Codec                     string                `json:"codec,omitempty"`
+	CodedWidth                uint32                `json:"coded_width,omitempty"`
+	CodedHeight               uint32                `json:"coded_height,omitempty"`
+	VideoWidth                uint32                `json:"video_width,omitempty"`
+	VideoHeight               uint32                `json:"video_height,omitempty"`
+	SampleAspectNum           uint32                `json:"sample_aspect_num,omitempty"`
+	SampleAspectDen           uint32                `json:"sample_aspect_den,omitempty"`
+	RotationDegrees           int32                 `json:"rotation_degrees,omitempty"`
+	ColorPolicy               string                `json:"color_policy,omitempty"`
+	ColorPrimaries            string                `json:"color_primaries,omitempty"`
+	ColorTransfer             string                `json:"color_transfer,omitempty"`
+	ColorMatrix               string                `json:"color_matrix,omitempty"`
+	ColorRange                string                `json:"color_range,omitempty"`
+	TimeBaseNumerator         int64                 `json:"time_base_numerator,omitempty"`
+	TimeBaseDenominator       int64                 `json:"time_base_denominator,omitempty"`
+	StreamStartPTS            *int64                `json:"stream_start_pts,omitempty"`
+	SourceEndPTS              *int64                `json:"source_end_pts,omitempty"`
+	LastFrameDurationTicks    int64                 `json:"last_frame_duration_ticks,omitempty"`
+	DurationNumerator         int64                 `json:"duration_numerator,omitempty"`
+	DurationDenominator       int64                 `json:"duration_denominator,omitempty"`
+	FrameCount                uint32                `json:"frame_count,omitempty"`
+	StreamCount               uint32                `json:"stream_count,omitempty"`
+	EOFPolicy                 string                `json:"eof_policy,omitempty"`
+	ClockSHA256               string                `json:"clock_sha256,omitempty"`
+	ClockArtifactRef          string                `json:"clock_artifact_ref,omitempty"`
+	ClockArtifactSizeBytes    int64                 `json:"clock_artifact_size_bytes,omitempty"`
+}
+
 type SourceMedia struct {
-	ID                 string
-	ProjectID          string
-	SHA256             string
-	SizeBytes          int64
-	MediaType          string
-	Width              uint32
-	Height             uint32
-	Orientation        string
-	ColorModel         string
-	ColorProfileStatus string
-	OriginalFilename   string
-	ImportedAt         time.Time
-	ImportMethod       string
-	Decoder            string
-	storageKey         string
+	ID                     string
+	ProjectID              string
+	SHA256                 string
+	SizeBytes              int64
+	MediaType              string
+	Kind                   MediaKind
+	Readiness              Readiness
+	Width                  uint32
+	Height                 uint32
+	RasterKnown            bool
+	Orientation            string
+	OrientationKnown       bool
+	ColorModel             string
+	ColorModelKnown        bool
+	ColorProfileStatus     string
+	ColorProfileKnown      bool
+	InspectionJobID        string
+	InspectionAttemptID    string
+	InspectionIssueCode    string
+	InspectionIssueMessage string
+	InspectionReceipt      *InspectionReceipt
+	OriginalFilename       string
+	ImportedAt             time.Time
+	ImportMethod           string
+	Decoder                string
+	storageKey             string
+	inspectionReceiptKey   string
 }
 
 type SourceMediaRepository interface {
@@ -54,10 +137,19 @@ type SourceMediaRepository interface {
 	GetSourceMedia(context.Context, string, string) (SourceMedia, error)
 	GetSourceMediaByDigest(context.Context, string, string) (SourceMedia, error)
 	ListSourceMedia(context.Context, string, int, *SourceMedia) ([]SourceMedia, error)
+	BindInspectionJob(context.Context, string, string, string, string) (SourceMedia, error)
+	BindInspectionAttempt(context.Context, string, string, string, string, string, string) (SourceMedia, error)
+	ProjectInspection(context.Context, InspectionProjection) error
 }
 
 type SourceMediaService interface {
 	Import(context.Context, string, string, int64, io.Reader) (SourceMedia, error)
+	BeginImport(context.Context, string, string, int64, io.Reader) (StagedSourceMediaImport, error)
+	BindInspectionJob(context.Context, string, string, string, string) (SourceMedia, error)
+	BindInspectionAttempt(context.Context, string, string, string, string, string, string) (SourceMedia, error)
+	StoreInspectionArtifacts(context.Context, string, string, string, string, string, string, []byte, []byte) (string, string, error)
+	OpenInspectionArtifacts(context.Context, string, string, string, string, string, string) ([]byte, []byte, error)
+	ProjectInspection(context.Context, InspectionProjection) error
 	Get(context.Context, string, string) (SourceMedia, error)
 	Open(context.Context, string, string) (SourceMedia, io.ReadCloser, error)
 	List(context.Context, string, int32, string) ([]SourceMedia, string, error)
@@ -73,14 +165,15 @@ type SourceMediaDeps struct {
 }
 
 type SourceMediaLimits struct {
-	MaxBytes    int64
-	MaxPixels   int64
-	MaxSide     int
-	MaxFilename int
+	MaxBytes      int64
+	MaxVideoBytes int64
+	MaxPixels     int64
+	MaxSide       int
+	MaxFilename   int
 }
 
 func DefaultSourceMediaLimits() SourceMediaLimits {
-	return SourceMediaLimits{MaxBytes: MaxSourceMediaBytes, MaxPixels: MaxSourceMediaPixels, MaxSide: MaxSourceMediaSide, MaxFilename: MaxSourceMediaFilenameRunes}
+	return SourceMediaLimits{MaxBytes: MaxSourceImageBytes, MaxVideoBytes: MaxSourceVideoBytes, MaxPixels: MaxSourceMediaPixels, MaxSide: MaxSourceMediaSide, MaxFilename: MaxSourceMediaFilenameRunes}
 }
 
 type sourceMediaService struct {
@@ -102,6 +195,9 @@ func NewSourceMediaService(deps SourceMediaDeps) SourceMediaService {
 	defaults := DefaultSourceMediaLimits()
 	if deps.Limits.MaxBytes <= 0 {
 		deps.Limits.MaxBytes = defaults.MaxBytes
+	}
+	if deps.Limits.MaxVideoBytes <= 0 {
+		deps.Limits.MaxVideoBytes = defaults.MaxVideoBytes
 	}
 	if deps.Limits.MaxPixels <= 0 {
 		deps.Limits.MaxPixels = defaults.MaxPixels
@@ -136,105 +232,37 @@ func (e ErrSourceMediaDigestCollision) Error() string {
 }
 
 func (s *sourceMediaService) Import(ctx context.Context, projectID, filename string, declaredSize int64, body io.Reader) (SourceMedia, error) {
-	projectID = strings.TrimSpace(projectID)
-	if projectID == "" {
-		return SourceMedia{}, ErrInvalidSourceMedia{Reason: "project_id is required"}
-	}
-	if s.projects == nil || s.repo == nil || s.store == nil {
-		return SourceMedia{}, errors.New("source media service is not configured")
-	}
-	if _, err := s.projects.Get(ctx, projectID); err != nil {
-		return SourceMedia{}, err
-	}
-	if body == nil {
-		return SourceMedia{}, ErrInvalidSourceMedia{Reason: "file is required"}
-	}
-	if declaredSize <= 0 {
-		return SourceMedia{}, ErrInvalidSourceMedia{Reason: "file is empty"}
-	}
-	if declaredSize > s.limits.MaxBytes {
-		return SourceMedia{}, ErrSourceMediaTooLarge{Limit: s.limits.MaxBytes}
-	}
-	data, err := io.ReadAll(io.LimitReader(body, s.limits.MaxBytes+1))
-	if err != nil {
-		return SourceMedia{}, fmt.Errorf("read source media: %w", err)
-	}
-	if int64(len(data)) > s.limits.MaxBytes {
-		return SourceMedia{}, ErrSourceMediaTooLarge{Limit: s.limits.MaxBytes}
-	}
-	if int64(len(data)) != declaredSize {
-		return SourceMedia{}, ErrInvalidSourceMedia{Reason: "multipart file size did not match bytes read"}
-	}
-	info, err := inspectSourceImage(data, s.limits)
+	staged, err := s.BeginImport(ctx, projectID, filename, declaredSize, body)
 	if err != nil {
 		return SourceMedia{}, err
 	}
-	filename, err = sanitizeMediaFilename(filename, s.limits.MaxFilename)
-	if err != nil {
-		return SourceMedia{}, err
-	}
-	digest := sha256.Sum256(data)
-	id := s.newID()
-	if strings.TrimSpace(id) == "" {
-		return SourceMedia{}, errors.New("source media id source returned an empty id")
-	}
-	objectID := s.newID()
-	if strings.TrimSpace(objectID) == "" {
-		return SourceMedia{}, errors.New("source media object id source returned an empty id")
-	}
-	key := "projects/" + projectID + "/media/" + objectID
-	media := SourceMedia{
-		ID:                 id,
-		ProjectID:          projectID,
-		SHA256:             hex.EncodeToString(digest[:]),
-		SizeBytes:          int64(len(data)),
-		MediaType:          info.MediaType,
-		Width:              uint32(info.Width),
-		Height:             uint32(info.Height),
-		Orientation:        info.Orientation,
-		ColorModel:         info.ColorModel,
-		ColorProfileStatus: info.ColorProfileStatus,
-		OriginalFilename:   filename,
-		ImportedAt:         s.now().UTC(),
-		ImportMethod:       "local_upload",
-		Decoder:            "go-image/" + runtime.Version(),
-		storageKey:         key,
-	}
-	if err := s.store.Put(ctx, key, bytes.NewReader(data), media.MediaType); err != nil {
-		cleanupErr := s.cleanupObject(ctx, key)
-		return SourceMedia{}, errors.Join(fmt.Errorf("store source media bytes: %w", err), cleanupErr)
-	}
-	created, inserted, err := s.repo.CreateSourceMedia(ctx, media)
-	if err != nil {
-		cleanupErr := s.cleanupObject(ctx, key)
-		return SourceMedia{}, errors.Join(fmt.Errorf("persist source media metadata: %w", err), cleanupErr)
-	}
-	if inserted {
-		return created, nil
-	}
-	cleanup := func() error { return s.cleanupObject(ctx, key) }
-	reader, _, err := s.store.Get(ctx, created.storageKey)
-	if err != nil {
-		return SourceMedia{}, errors.Join(fmt.Errorf("read existing source media bytes: %w", err), cleanup())
-	}
-	winner, readErr := io.ReadAll(io.LimitReader(reader, s.limits.MaxBytes+1))
-	closeErr := reader.Close()
-	if readErr != nil || closeErr != nil {
-		return SourceMedia{}, errors.Join(fmt.Errorf("verify duplicate source media bytes: %w", errors.Join(readErr, closeErr)), cleanup())
-	}
-	if !bytes.Equal(data, winner) {
-		return SourceMedia{}, errors.Join(ErrSourceMediaDigestCollision{SHA256: media.SHA256}, cleanup())
-	}
-	if err := cleanup(); err != nil {
-		return SourceMedia{}, fmt.Errorf("remove duplicate staging bytes: %w", err)
-	}
-	return created, nil
+	return staged.Commit(ctx)
 }
 
 func (s *sourceMediaService) cleanupObject(ctx context.Context, key string) error {
 	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), cleanupTimeout)
 	defer cancel()
 	return s.store.Delete(cleanupCtx, key)
+}
+
+func (s *sourceMediaService) BindInspectionJob(ctx context.Context, projectID, mediaID, sourceSHA256, jobID string) (SourceMedia, error) {
+	if s.repo == nil {
+		return SourceMedia{}, errors.New("source media service is not configured")
+	}
+	if !validPathComponent(strings.TrimSpace(projectID)) || !validPathComponent(strings.TrimSpace(mediaID)) || !validPathComponent(strings.TrimSpace(jobID)) || !validSourceDigest(sourceSHA256) || strings.IndexFunc(projectID+mediaID+jobID, unicode.IsControl) >= 0 {
+		return SourceMedia{}, ErrInspectionInvalid
+	}
+	return s.repo.BindInspectionJob(ctx, projectID, mediaID, sourceSHA256, jobID)
+}
+
+func (s *sourceMediaService) ProjectInspection(ctx context.Context, result InspectionProjection) error {
+	if s.repo == nil {
+		return errors.New("source media service is not configured")
+	}
+	if err := validateInspectionProjection(result); err != nil {
+		return err
+	}
+	return s.repo.ProjectInspection(ctx, result)
 }
 
 func (s *sourceMediaService) Get(ctx context.Context, projectID, id string) (SourceMedia, error) {
@@ -256,19 +284,15 @@ func (s *sourceMediaService) Open(ctx context.Context, projectID, id string) (So
 	if err != nil {
 		return SourceMedia{}, nil, fmt.Errorf("read source media object: %w", err)
 	}
-	data, readErr := io.ReadAll(io.LimitReader(reader, s.limits.MaxBytes+1))
-	closeErr := reader.Close()
-	if err := errors.Join(readErr, closeErr); err != nil {
-		return SourceMedia{}, nil, fmt.Errorf("read source media object: %w", err)
+	maxBytes := s.limits.MaxBytes
+	if media.Kind == MediaKindVideo {
+		maxBytes = s.limits.MaxVideoBytes
 	}
-	if int64(len(data)) != media.SizeBytes || int64(len(data)) > s.limits.MaxBytes {
-		return SourceMedia{}, nil, errors.New("source media object size does not match metadata")
+	if media.SizeBytes <= 0 || media.SizeBytes > maxBytes || !validSourceDigest(media.SHA256) {
+		_ = reader.Close()
+		return SourceMedia{}, nil, errors.New("source media metadata has invalid size or digest")
 	}
-	digest := sha256.Sum256(data)
-	if hex.EncodeToString(digest[:]) != media.SHA256 {
-		return SourceMedia{}, nil, errors.New("source media object digest does not match metadata")
-	}
-	return media, io.NopCloser(bytes.NewReader(data)), nil
+	return media, &verifiedMediaReader{reader: reader, expectedSize: media.SizeBytes, expectedSHA: media.SHA256, maxBytes: maxBytes}, nil
 }
 
 func (s *sourceMediaService) List(ctx context.Context, projectID string, pageSize int32, token string) ([]SourceMedia, string, error) {

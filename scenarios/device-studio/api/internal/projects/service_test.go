@@ -2,16 +2,18 @@ package projects_test
 
 import (
 	"context"
-	domain "device-studio/internal/projects"
 	"errors"
-	"github.com/stretchr/testify/require"
-	apidb "github.com/vrooli/api-core/database"
-	db "github.com/vrooli/api-core/databasetest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	domain "device-studio/internal/projects"
+
+	"github.com/stretchr/testify/require"
+	apidb "github.com/vrooli/api-core/database"
+	db "github.com/vrooli/api-core/databasetest"
 )
 
 func TestRoutedPlaybooksSchemaMatchesRuntimeSchema(t *testing.T) {
@@ -36,6 +38,7 @@ func setup(t *testing.T) (domain.Service, domain.Repository) {
 	r := domain.NewSQLiteRepository(d, func() time.Time { return now })
 	return domain.NewService(r, func() time.Time { return now }), r
 }
+
 func TestCreateGetListAndPersistence(t *testing.T) {
 	s, r := setup(t)
 	ctx := context.Background()
@@ -51,6 +54,7 @@ func TestCreateGetListAndPersistence(t *testing.T) {
 	require.Empty(t, next)
 	require.Equal(t, []domain.Project{p}, rows)
 }
+
 func TestRenameRequiresCurrentRevision(t *testing.T) {
 	s, _ := setup(t)
 	ctx := context.Background()
@@ -65,6 +69,7 @@ func TestRenameRequiresCurrentRevision(t *testing.T) {
 	require.ErrorAs(t, err, &conflict)
 	require.EqualValues(t, 2, conflict.Current)
 }
+
 func TestListIsBoundedAndPaginated(t *testing.T) {
 	s, _ := setup(t)
 	ctx := context.Background()
@@ -81,6 +86,7 @@ func TestListIsBoundedAndPaginated(t *testing.T) {
 	require.Len(t, second, 1)
 	require.Empty(t, end)
 }
+
 func TestCreateRejectsBlankName(t *testing.T) {
 	s, _ := setup(t)
 	_, err := s.Create(context.Background(), domain.CreateInput{Name: " \n "})
