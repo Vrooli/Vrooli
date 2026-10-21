@@ -13,7 +13,7 @@ import { onProfilerRender } from "../lib/profiler";
 import { useSessionManager } from "../hooks/useSessionManager";
 import { useGlobalEventStream } from "../hooks/useGlobalEventStream";
 import { useConversationHydration } from "../hooks/useConversationHydration";
-import { useScenarioVoiceInput as useVoiceInput } from "../audio-integration";
+import { useRoutedVoiceInput as useVoiceInput } from "../hooks/useRoutedVoiceInput";
 import LaunchScreen from "./LaunchScreen";
 import { useTouchControls } from "../hooks/useTouchControls";
 import { useWakeLock } from "../hooks/useWakeLock";
@@ -53,6 +53,7 @@ import { useComposerAttachments } from "../hooks/useComposerAttachments";
 import { useComposerHotkey } from "../hooks/useComposerHotkey";
 import { useWindowKeyDown } from "../hooks/useKeyboardListeners";
 import BannerRegion from "./banners/BannerRegion";
+import VoiceModeMenu, { type VoiceInputMode } from "./VoiceModeMenu";
 import type { MaybeBanner } from "./banners/types";
 import {
   approvalsBanner,
@@ -1225,8 +1226,31 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   }, [composerOpen, composerDraft, handleSendToTerminal]);
 
   const voiceInput = useVoiceInput(handleVoiceTranscript);
+  const [voiceModeAnchor, setVoiceModeAnchor] = useState<HTMLElement | null>(null);
+  useEffect(() => { setVoiceModeAnchor(null); }, [workspace.activePane]);
+  const requestVoiceMode = useCallback((anchor: HTMLElement) => { setVoiceModeAnchor(anchor); }, []);
+  const agentVoiceConfigured = useWorkspaceStore((s) => s.agentVoiceConfigured);
+  const voiceEnabled = useWorkspaceStore((s) => s.voiceEnabled);
+  const setAgentVoiceMode = useWorkspaceStore((s) => s.setAgentVoiceMode);
+  const needsVoiceChoice = !agentVoiceConfigured;
+  const voiceModeRequest = needsVoiceChoice || voiceInput.native.error || voiceInput.needsRouteSelection ? requestVoiceMode : undefined;
+  const voiceSupported = voiceModeRequest ? voiceEnabled : voiceInput.supported;
+  const chooseVoiceMode = useCallback((mode: VoiceInputMode) => {
+    setAgentVoiceMode(mode);
+    setVoiceModeAnchor(null);
+    markAudioIntent();
+    stopActiveTts(workspace.activePane ?? undefined);
+    void voiceInput.startRecordingWithMode(mode, { vadEnabled: vadAutoStop });
+  }, [setAgentVoiceMode, workspace.activePane, voiceInput, markAudioIntent, stopActiveTts, vadAutoStop]);
+
 
   const handleVoiceStart = useCallback((opts?: { vadEnabled?: boolean }) => {
+    if (needsVoiceChoice) {
+      const microphones = Array.from(document.querySelectorAll<HTMLElement>("[data-rcl-voice-input]"));
+      const anchor = microphones.find((element) => element.getBoundingClientRect().width > 0);
+      if (anchor) requestVoiceMode(anchor);
+      return;
+    }
     markAudioIntent();
     // Always stop TTS before starting voice recording — the user wants to
     // speak, so any playing audio should yield.  This is unconditional
@@ -1235,10 +1259,9 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     // Set state).  Calling stop when nothing is playing is a no-op.
     stopActiveTts(workspace.activePane ?? undefined);
     void voiceInput.startRecording({ vadEnabled: vadAutoStop && opts?.vadEnabled });
-  }, [vadAutoStop, workspace.activePane, stopActiveTts, voiceInput, markAudioIntent]);
+  }, [needsVoiceChoice, requestVoiceMode, vadAutoStop, workspace.activePane, stopActiveTts, voiceInput, markAudioIntent]);
 
-  const startRecordingOnPane = voiceInput.startRecording;
-  const startVoiceOnPane = useCallback((opts?: { vadEnabled?: boolean }) => { void startRecordingOnPane(opts); }, [startRecordingOnPane]);
+  const startVoiceOnPane = handleVoiceStart;
 
   const handleVoiceStop = useCallback(() => {
     voiceInput.stopRecording();
@@ -2083,10 +2106,11 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         onOpenLauncher={openLauncher}
         onExpandComposer={openComposer}
         isCreating={isCreating}
-        voiceSupported={voiceInput.supported}
+        voiceSupported={voiceSupported}
+        onVoiceRequestMode={voiceModeRequest}
         voicePreparing={voiceInput.isPreparing}
         voiceRecording={voiceInput.isRecording}
-        voicePersistentMode={workspace.persistentMode}
+        voicePersistentMode={voiceInput.persistentMode}
         voiceListening={voiceInput.isListening}
         voicePassive={voiceInput.isPassive}
         voiceTranscribing={voiceInput.isTranscribing}
@@ -2532,10 +2556,11 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
           draft={composerDraft}
           onExpandComposer={openComposer}
           voice={{
-            supported: voiceInput.supported,
+            supported: voiceSupported,
+            onRequestVoiceMode: voiceModeRequest,
             preparing: voiceInput.isPreparing,
             recording: voiceInput.isRecording,
-            persistentMode: workspace.persistentMode,
+            persistentMode: voiceInput.persistentMode,
             listening: voiceInput.isListening,
             passive: voiceInput.isPassive,
             transcribing: voiceInput.isTranscribing,
@@ -2543,6 +2568,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
             level: voiceInput.audioLevel,
             activity: voiceInput.voiceActivity,
             partialTranscript: voiceInput.partialTranscript,
+            partialTranscriptRole: voiceInput.partialTranscriptRole,
             backend: voiceInput.backend,
             capabilityReason: voiceInput.capabilityReason,
             operatorCommand: voiceInput.operatorCommand,
@@ -2579,6 +2605,10 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         awaitOffset={handleAwaitInputOffset}
         onFocusTerminal={handleFocusTerminal}
         interimTranscript={voiceInput.partialTranscript}
+        interimTranscriptRole={voiceInput.partialTranscriptRole}
+        agentVoiceActive={voiceInput.backend === "agent" && voiceInput.isActive}
+        agentVoicePreparing={voiceInput.backend === "agent" && voiceInput.isPreparing}
+        onEndAgentVoice={handleVoiceStop}
         attachments={composerAttachments.attachments}
         onAttachFiles={composerAttachments.addFiles}
         onRemoveAttachment={composerAttachments.removeFile}
@@ -2587,10 +2617,11 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         mic={
           <VoiceMicButton
             testId="voice-mic-btn"
-            supported={voiceInput.supported}
+            supported={voiceSupported}
+            onRequestVoiceMode={voiceModeRequest}
             isPreparing={voiceInput.isPreparing}
             isRecording={voiceInput.isRecording}
-            persistentMode={workspace.persistentMode}
+            persistentMode={voiceInput.persistentMode}
             isListening={voiceInput.isListening}
             isPassive={voiceInput.isPassive}
             isTranscribing={voiceInput.isTranscribing}
@@ -2609,9 +2640,19 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
             // enlarged to suit the bigger button.
             className="flex min-w-[5.5rem]"
             buttonClassName="flex w-full items-center justify-center"
+            style={{ inlineSize: "100%", blockSize: "auto", alignSelf: "stretch" }}
             iconClassName="h-5 w-5"
           />
         }
+      />
+
+      <VoiceModeMenu
+        anchor={voiceModeAnchor}
+        nativeAvailable={voiceInput.native.capability.available}
+        nativeChecking={voiceInput.native.isChecking}
+        onChoose={chooseVoiceMode}
+        onClose={() => { setVoiceModeAnchor(null); }}
+        onReconnect={voiceInput.native.error || voiceInput.needsRouteSelection ? voiceInput.native.reconnect : undefined}
       />
 
       {/* Toolbar attach source menu — shown in place where the toolbar button

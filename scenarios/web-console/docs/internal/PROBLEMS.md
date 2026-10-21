@@ -1,5 +1,433 @@
 # Web Console — Known Problems and Risks
 
+## Work ladder — native agent voice implementation (2026-10-21)
+
+- Rung: scoped W3 implementation against the operator-approved research and
+  ARCHITECTURE.md's native agent voice contract. No whole-scenario W0–W2 claim.
+- Work shape: bounded implementation with convergence review; this section owns
+  checkpoints and validation evidence.
+- Harness handoff: Work until native Codex browser voice and Audio Tools
+  fallback satisfy the architecture contract. Prove focused Go/browser capture
+  and UI regressions, type/build checks, scoped Test Genie phases and served
+  browser behavior. Touch Web Console, shared browser audio and their declared
+  interface owners as needed; preserve unrelated shared-worktree edits. Resolve
+  understood blocking defects at their owner, otherwise file and continue.
+  Run two fresh reviews for correctness, failure cleanup, transcript duplication,
+  security and maintainability. Checkpoint changed, verified and unverified work
+  here before interruption. No agent upgrades, new credentials or host-wide
+  virtual audio devices. Physical-device evidence must remain explicitly
+  unverified when the device is unavailable.
+
+### UI correction from operator review
+
+The operator rejected the persistent voice status/route row in IMG_1780.jpeg.
+The approved interaction is a first-use menu anchored to the microphone, a
+one-line reminder that the choice can be changed in Settings, and direct mic
+activation afterward. The same compact anchored interaction applies on phone
+and desktop; it overlays the terminal rather than consuming workspace height.
+Native capability, routing and waveform behavior remain session-bound.
+
+### Voice follow-up from live operator use
+
+Bounded task: expose confirmed native coding handoffs in Messages, preserve the
+operator-approved live toolbar captions, hide the placeholder while captions are
+visible, and repair the first-use menu's icon/text spacing shown in IMG_1782.jpeg.
+A transcript alone must never claim that a coding turn started. Use the provider's
+recognized realtime delegation user message from managed events or rollout
+capture as the receipt, and persist its source classification. Validate ordinary
+and synthetic-tail exclusions, persistence, toolbar caption transitions and
+phone/desktop menu geometry. No permanent voice status bar is authorized.
+
+Implemented: provider delegation classification survives managed capture and
+terminal rollout decoding into `codex_voice_handoff`; Messages and its reader
+show “Sent to coding agent”, while native voice transcript rows show “Voice
+conversation” and the voice speaker is named separately. Recognition alone does
+not produce a handoff receipt. The receipt has its own duplicate-suppression
+scope, so an identical recent typed prompt cannot erase it. Historical rows
+whose capture already stripped the envelope are not retroactively inferred.
+The toolbar and full-screen composer hide their placeholder while captions are
+visible, retain an accessible input label, and restore the placeholder when
+captions clear without altering the draft. The menu places its icons and text
+inside one explicit flex row, with the icon aligned to the label.
+
+Evidence: 93 focused UI tests passed across the toolbar, composer captions,
+message rows/reader, source labels and first-use chooser (the reader fixture was
+corrected to use the suite's measured tall-row fixture and rerun successfully).
+The final placeholder/accessibility rerun passed all 58 tests in its two files.
+Go race regressions passed for provider classification, managed capture, the
+actual terminal-tail pipeline, handoff deduplication, voice protocol and the
+tailer engine. TypeScript, scoped ESLint and generated-owner preflight passed.
+Test Genie structure run `20261021-181125-deb84935` passed. Live served browser
+executions `f8887eda-c86f-4fb4-a276-8158abf40c2b` (390px) and
+`770a6e8b-a90a-4123-9602-3a9c6bac3744` (1280px) measured a consistent 12px
+icon/text gap, equal text-column positions, viewport bounds and no microphone
+capture; both screenshots were inspected. Browser-only fixture attempts for
+handoff labels did not establish an additional passing live receipt (one hit a
+restart window); the row/reader and backend receipts above are the verified
+handoff evidence. Physical iPhone testing remains unverified.
+
+### Startup availability and speaker preview correction
+
+The operator reported a disabled mic in newly created Codex session
+`4686fab2-2a20-453d-a675-845769538d33`, while native voice worked in the existing
+session. Read-only probes found the new session's existing 0.161.0 daemon and
+thread available later; no microphone or realtime start was requested. The
+original initial browser frame was not captured. Source inspection found a
+falsifiable startup failure: unavailable capabilities closed their observation
+socket and the browser never rediscovered them. Saved Agent voice then disabled
+the shared mic, so its recovery menu could not open.
+
+The API now distinguishes retryable startup/identity readiness from stable
+unsupported capability. The browser retries observation with bounded backoff,
+cancels pending retries on pane changes/unmount, and never restarts capture.
+Rapidly closing available sockets also stay bounded; only a stable connection
+resets the retry budget. A saved unavailable native route keeps the mic
+clickable for route selection and an explicit manual recheck, even after the
+startup retry budget expires. Global voice-disable settings remain respected.
+
+Provider transcript roles now survive the event parser, canonical item tracking
+and both composer previews. User speech uses the accent color; assistant voice
+uses secondary text. Completed captions clear their role; unknown roles are
+not guessed from their text. Native previews remain separate from the draft.
+
+Validation: the new discovery and role regressions failed before the fix.
+The final six-file UI run passed 121 tests, including bounded retries,
+unsupported-agent exclusion, no automatic microphone start, pane cancellation,
+route recovery, speaker changes and placeholder/draft preservation. Go race
+voice tests, TypeScript, scoped ESLint and generated-owner verification passed.
+Test Genie structure `20261021-184147-280994d9` passed. Served mobile observer
+execution `858e5f09-1b74-41c1-93a4-12083067cb5a` reproduced an unavailable native
+route, opened its recovery menu, reconnected the real observation socket and
+re-enabled native selection with zero microphone captures. It also verified
+user RGB(22,187,188) versus assistant RGB(194,196,199), an empty draft and no
+placeholder. The role frames in that browser check were synthetic local events;
+they were not submitted to the agent. A separate preview execution
+`ffd18708-e143-496f-8d0b-b3030492aba0` passed, and its screenshot was inspected.
+The final lifecycle restart completed successfully.
+
+### Mobile voice geometry and discovery follow-up
+
+Bounded task from IMG_1786.png and live operator feedback: keep the first-use
+menu anchored when keyboard visibility moves its trigger, distinguish pending
+native capability discovery from a confirmed unsupported session, and constrain
+the compose-drawer waveform to the microphone control. Repair shared positioning
+in a governed Popover draft; keep route choice and media permission separate.
+Validate visual-viewport resize/scroll, content resizing, listener cleanup,
+bounded loading completion and compose-button geometry. Physical iPhone keyboard
+behavior remains unverified until exercised on that device. No permanent voice
+status row is authorized. The operator subsequently approved live agent affordances: temporarily label
+the caption area as a live conversation that sends automatically, distinguish
+speakers, label the mic by route, and preserve the typed draft. Investigate
+long assistant captions using the preview’s own scroll geometry; native voice
+never populates the textarea whose scroll height was previously measured.
+
+Implemented and validated the mobile geometry and live-conversation follow-up:
+Popover 1.3.1 observes visual viewport resize/scroll and trigger/content resize,
+coalesces geometry reads into animation frames, clamps to the visible viewport,
+and removes observers/listeners on close. Web Console adopted the governed
+release. Discovery has an explicit checking state, including bounded retries
+and silent-handshake timeouts; it never starts the mic to check support. The
+composer mic explicitly fills both dimensions of its wrapper, and the waveform
+clips to the rounded control.
+
+Live native voice temporarily replaces the draft presentation inside the
+existing field with a labeled conversation preview. Route-specific mic labels
+and first-use descriptions distinguish automatic conversation from dictation.
+Connecting is distinct from live listening. The send location ends voice while
+native voice is active, preserving the hidden typed draft and staged attachments.
+Captions use their own scroll height, follow the live tail, respect a deliberate
+scroll back, and retain provider speaker colors. The previous textarea-based
+scroll measurement could not scroll native text because native text never
+entered that textarea. Dictation continues to use the draft mirror.
+
+Evidence: the initial focused regressions failed before the repair. Final UI
+validation passed 125 tests across seven files plus six selected workspace voice/
+composer tests. TypeScript and the selector-owner verifier passed after removing
+an accidental duplicate import introduced by the adoption tool. Focused lint on
+the new discovery/menu/preview modules passed; broader lint still reports existing
+issues in the legacy toolbar, composer and test files. The Popover 1.3.1 story
+contract passed. Final Test Genie structure run `20261021-191124-64ab6cf8` passed.
+Served mobile execution `27177147-ee74-432a-8d15-1583d843f40c` passed all checks;
+preceding successful execution `289d37bd-8b13-4272-be6d-1f2876079bbe` measured
+60px anchor movement versus 59.84px menu movement, a 1,475-character caption
+scrolled to its actual tail (857px of 901px with a 44px viewport), and matching
+88×38px mic/waveform bounds with 6px rounded clipping. Its toolbar and drawer
+screenshots were inspected. Browser media and native signaling were intercepted
+locally with synthetic audio; no native start/stop reached a user's agent and
+no physical microphone was requested. Physical iPhone keyboard behavior remains
+unverified. Delivery restart succeeded; a separate runtime health observation
+reported one projection without a continuity catalog, recorded for investigation.
+
+The adoption tool's extensionless import duplicated the app's existing `.js`
+selector import. Only its accidental addition to the authored registry was
+removed; the selector owner verified fresh and regenerated its manifest. Filed
+`knw-1792609779692462527` against the adoption owner via the report-bug skill.
+
+### Implementation checkpoint
+
+Native voice is implemented in the session-scoped agent-voice WebSocket,
+Codex 0.161.x adapter, shared browser duplex audio, and the existing microphone
+surfaces. First-use anchored Auto/Agent voice/Dictation selection, saved Settings
+preference, listening levels, microphone stop and reconnect,
+exclusive control, bounded media, canonical transcript identity, native/automatic
+TTS separation and failure/lifecycle cleanup are present. Claude/Grok/OpenCode
+retain Audio Tools; no host microphone forwarding or virtual audio device is used.
+Managed Codex observes its existing owner. Daemon attachment verifies a loaded
+thread before any resume; fresh unsaved threads use footer observation until an
+explicit realtime start attaches the provider listener. Managed recovery no longer
+classifies non-PTY owners as missing tmux sessions. WebRTC uses Codex sign-in;
+raw PCM reports this provider version's API-key restriction explicitly.
+
+Focused evidence includes 80 passing UI tests (79 workspace/routing/menu/mic
+regressions plus one native/TTS separation test), 14 shared audio tests,
+Go race regressions, eight real gateway WebSocket tests, TypeScript and builds.
+Live browser executions `f140f96e-e301-4ddf-9554-bd2f83d48c1a` (mobile managed,
+including restart) and `f91cc2f9-fa9e-4bde-b803-1696e9342d3c` (desktop fresh daemon)
+passed capture, listening, waveform, stop and transcript projection. UI correction
+executions `f644e9d7-a911-4729-9187-d4ffef84cd3f` (390px mobile) and
+`b3a0caa2-0243-4b82-8548-400ab4bc5147` (1280px desktop) passed first-use placement,
+zero capture before selection, persistence, immediate native connection, stop and
+direct second activation. Settings execution `a110dfad-e96b-4b89-97ae-e84a0f5e3788`
+loaded the saved route after a document navigation and saved a new route without
+capture. Screenshots were visually inspected on both viewports.
+
+Initial native return-audio probes received RTP but measured zero decoded energy.
+A controlled experiment attached the same remote stream to a hidden muted media
+element: execution `b75decd6-8655-4266-b32a-c3471ff5a799` passed with measured
+peak 0.29187 and 48,655 received bytes. This confirms the
+[Chromium remote-stream renderer issue](https://issues.chromium.org/issues/40094084)
+for this browser path. Shared duplex audio now retains that renderer and releases
+it on replacement/stop/failure; regression tests cover rejection and late failure
+from a replaced renderer. Final served-source execution `094ccb06-50d8-4d6a-90f9-efe7dcf4e380` passed
+without the experimental renderer injection: peak 0.27710, 22,706 received bytes,
+one muted renderer and no renderer after microphone stop. The lifecycle restart
+completed healthy.
+Physical iPhone Safari/PWA remains unverified.
+
+Two convergence reviews were completed. The transport review checked loaded-thread
+identity, observation without approval ownership, same-origin proxy boundaries,
+controller exclusivity, bounded media, uncertain-start cleanup and transcript
+identity. The UI/media review checked no first-use permission request, immediate
+choice routing without stale state, dismissal, all mic surfaces, pane/lifecycle
+release, native/TTS separation and renderer replacement. The latter identified and
+fixed late play-promise rejection incorrectly ending a replacement renderer.
+
+Test Genie run `20261021-163331-8a80c011` passed structure. Final scoped run
+`20261021-165155-fc6429be` passed dependencies; unit remained failed with
+3259 passing / four failing UI tests: approvals keyboard contract, approvals
+REST exception contract and two Arabic locale contracts. The two native-router
+Workspace failures from the first run are fixed. Whole-scenario function coverage
+also remains below its 85% gate (83.6% in the broad run); attribution of that
+shared-worktree gap is unverified. These are not passing certification receipts.
+The final focused checks cover later voice fixes beyond that admitted run.
+
+Unrelated findings were captured through report-bug as
+`knw-1792601992381054126` (unit contracts) and `knw-1792601429687889392`
+(BAS continuation after failed steps despite continue_on_error=false). Browser
+flows now guard the active disposable session before the microphone action.
+Historical research below describes the pre-implementation state.
+
+## 2026-10-21 — Native coding-agent voice is not connected to browser audio (investigation)
+
+**Scope and status:** research and recommendation only. The operator supplied
+`IMG_1779.png` from session `7e609252-f455-4d24-b65e-4109fc1e2930`:
+Codex 0.161.0 reports a started voice conversation and a listening footer,
+while Web Console's microphone control remains idle. No runtime code, agent
+configuration, dependencies, or serving processes were changed. There is no
+end-to-end browser/native-voice verification or implementation receipt yet.
+
+**Prior art:** recall found related Audio Tools capability-health and Web Console
+Messages activity work, not a demonstrated native-agent audio bridge. Search Hub
+returned results with degraded reranker providers. Source inspection confirms
+the existing separation: browser STT flows through Audio Tools, whereas agent
+activity uses structured events, hooks, decoded terminal text, and output clocks.
+
+### Findings and falsifiable hypotheses
+
+1. **Only a missing UI indicator:** rejected as a sufficient explanation. A
+   falsifying check is whether browser audio already reaches the native agent.
+   `api/voice_stream_proxy.go` forwards microphone frames to Audio Tools STT;
+   `ui/src/components/Workspace.tsx::handleVoiceTranscript` inserts resulting
+   text into the composer or terminal. Neither path supplies native-agent
+   audio. Updating a listening indicator alone cannot provide that transport.
+2. **Codex has no programmatic voice interface:** rejected. The installed
+   `codex-cli 0.161.0` exports experimental bindings through
+   `codex app-server generate-ts --experimental --out <temporary-directory>`.
+   Generated schemas include `thread/realtime/start`, `appendAudio`,
+   `appendText`, `appendSpeech`, `stop`, and `listVoices`; notifications include
+   `started`, `closed`, `error`, `sdp`, `outputAudio/delta`, transcript deltas
+   and finals, and canonical realtime item lifecycle. The actual methods use
+   the `thread/realtime/` prefix. `ThreadRealtimeStartTransport` supports
+   `websocket`, `webrtc` with an SDP offer, and `existingCall` with a call ID.
+   `ThreadRealtimeAudioChunk` carries data, sample rate, channel count,
+   samples-per-channel, and optional item identity. These types establish
+   protocol shape, not entitlement, codec behavior, or a successful voice call.
+3. **A terminal-launched Codex can only be observed through its screen:**
+   rejected for this session. `codex app-server daemon version` reports a
+   running 0.161.0 daemon with a session-local control socket. An HTTP WebSocket
+   upgrade on that Unix socket returned 101; `initialize` with
+   `capabilities.experimentalApi=true` succeeded; `thread/loaded/list` returned
+   live thread `01a15f1d-fd58-7fd2-bd1f-7a83b1a7d633`. This read-only probe did
+   not resume a thread, start a turn or voice call, capture audio, or request
+   model inference. Plain JSONL on this socket closed; it requires a WebSocket
+   handshake. Two bounded stdio-proxy probes returned no initialize response;
+   they do not establish the socket's unavailability. Direct WebSocket access
+   is verified. Subscription, realtime ownership with the TUI attached, mute
+   propagation, and switching an already-running voice transport remain open.
+
+`api/backends/codex/app_server.go::InitializeWithInfo` currently omits the
+experimental capability. `api/backends/codex/events.go::MapNotification` filters
+out realtime notifications. `api/managed_codex.go` and `managed_codex_ws.go`
+already own a native stdio integration, but have no voice control/media path.
+The current reader uses a bounded notification channel with a nonblocking send;
+a media integration must define backpressure and discontinuity reporting before
+carrying audio through that path.
+
+### Agent support as checked on 2026-10-21
+
+| Agent | Evidence | Recommended Web Console treatment |
+|---|---|---|
+| Codex | Installed 0.161.0 has native voice, experimental audio/transcript protocol, and a reachable daemon for this TUI. Public configuration documentation also identifies experimental CLI `/voice` and app-server voice sessions. | Add a version-qualified native adapter for managed owners and verified daemon-backed terminals. Retain Audio Tools for other launches or unavailable native capability. |
+| Claude Code | Installed 2.1.185. Current official docs describe `/voice` hold/tap dictation with server transcription, a Claude.ai sign-in requirement, and a local microphone requirement; SSH/cloud sessions are explicitly excluded. Reviewed hooks and SDK streaming-input docs establish no remote microphone injection interface. | Use Audio Tools for remote browser dictation. Do not advertise native audio from hooks, transcript files, or generic SDK message streaming. Revisit when an official remote audio interface exists. |
+| Grok Build | Installed 0.2.72. Upstream changelog introduces dictation in 0.2.80 and Linux support in 0.2.89; later versions improve it. This is xAI's official Grok Build, not the unrelated third-party grok-cli repository. No remote browser-to-TUI audio interface was established. | Keep Audio Tools as the supported route; evaluate a future native adapter against the installed version and official interface. An upgrade is separate work. |
+| OpenCode | Current official server docs expose session/message APIs and SSE events. Reviewed TUI/server docs do not establish a native microphone or duplex voice endpoint. | Audio Tools dictation and existing speech output; native capability remains unverified. |
+
+Cursor and Gemini CLI documentation was also surveyed. It did not establish a
+native remote live-audio interface for these CLI integrations. They are not
+currently registered Web Console agent types. Editor voice, accepted audio-file
+attachments, and a vendor's general voice API do not prove CLI voice support.
+
+### Proposed integration boundary and behavior
+
+- Web Console owns agent/thread identity, native-agent protocol adapters,
+  same-origin signaling and relay endpoints, capability routing, conversation
+  projection, and recovery UI. Audio Tools retains STT/TTS, voice processing,
+  and provider policy. Shared browser capture, microphone leases, audio levels,
+  and playback primitives belong in `packages/audio-capture-browser`. Native
+  Codex media should reach the Codex session without an STT/TTS round trip
+  through Audio Tools. Clarify this new transport seam in the architecture
+  contract before implementing it; do not make Audio Tools own agent sessions.
+- Resolve voice capability per live session: agent/version, launch and control
+  mode, verified owner/transport, input/output modality, and unavailable reason.
+  Keep user-selected Auto / Agent voice / Dictation separate from detected
+  native mode. In Auto, a verified supported native voice session takes the mic
+  route; otherwise use Audio Tools dictation with an accurate route label.
+  Native capability must not depend on Whisper/Kokoro availability.
+- Keep agent work activity and voice state independent: Codex can work while
+  listening. Maintain separate native-session, media-connection, mic-capture,
+  mute, and playback facts. Show listening only when the selected browser mic
+  is live and the media route is connected. A terminal footer alone means
+  native voice was observed, not that the phone microphone is connected.
+- Prefer authoritative native events, then a documented hook/IPC interface,
+  then a version-specific decoded-screen detector for mode discovery. Use the
+  existing emulator, not screenshot OCR. Anchor screen recognition to the
+  current footer, exclude history/quoted text, retain provenance/confidence,
+  and expire stale observations. Transcript files can recover finalized text;
+  they cannot carry audio or reliably prove current microphone state.
+- Spike Codex WebRTC signaling first, using its own app-server session and
+  credentials: browser SDP offer through Web Console, native `start`, SDP
+  notification back to the browser, bidirectional audio tracks and events.
+  Qualify a Web Console WebSocket/PCM relay using `appendAudio` and
+  `outputAudio/delta` as the alternate transport. Verify encoding, sample rate,
+  framing, queue limits, interruption, output flush, and network behavior from
+  the deployed version; do not infer them from generic Realtime API examples.
+- Reuse `VoiceMicButton` and its existing level-driven waveform. Feed it a
+  route-neutral voice controller. Extend the shared microphone ownership
+  registry/controller for native capture and preserve its cancellation,
+  page lifecycle, and track-release behavior. Bind capture to one session and
+  browser controller; pane switches or competing viewers must not retarget a
+  running stream. A browser-required activation gesture should produce a clear
+  connect action. Distinguish mute from ending a voice conversation.
+- Project native transcript items into Messages using native session/item
+  identity; update partials and commit finals once. Reconcile spoken text with
+  underlying Codex message items without duplicate turns or double speech.
+  Native transcripts are observations, not fresh text to submit again through
+  the composer, command parser, or terminal input gate. Let native audio and
+  Audio Tools automatic TTS have one selected output owner.
+- Preserve Audio Tools dictation for any agent with text input. Choose a
+  fallback before capture, or stop and offer dictation after native failure;
+  do not replay uncertain audio/text into both backends. For a standalone
+  TUI without attachable IPC, mode detection still does not provide audio
+  access. A private virtual microphone/output device would be separate,
+  session-isolated infrastructure work owned by the control plane, justified
+  only if exact native TUI audio becomes a requirement.
+
+**Next bounded experiment:** qualify native voice on one managed Codex thread
+and one existing daemon-backed TUI, including native `/voice` activation,
+browser audio both ways, synchronized mute/end, transcript reconciliation,
+and interruption of playback. Determine whether attaching browser media needs
+an explicit native voice restart. Then implement the shared route controller
+and UI projection. Validate rejected microphone permission, stale terminal
+markers, two viewers, pane switch, reconnect, unavailable native capability,
+Audio Tools outage, and real iPhone Safari/PWA background/foreground behavior.
+Implementation validation should use focused adapter/controller regressions
+and scoped Test Genie phases under `docs/TESTING.md`. No tests were added or
+suites run for this research-only change.
+
+Sources inspected:
+[Codex app-server and experimental opt-in](https://learn.chatgpt.com/docs/app-server),
+[Codex CLI transports](https://learn.chatgpt.com/docs/cli/reference),
+[Codex voice configuration](https://learn.chatgpt.com/docs/config-file/config-reference),
+[Claude dictation](https://code.claude.com/docs/en/voice-dictation),
+[Claude hooks](https://code.claude.com/docs/en/hooks),
+[Claude streaming input](https://code.claude.com/docs/en/agent-sdk/streaming-vs-single-mode),
+[Grok Build changelog](https://x.ai/changelog/build),
+[OpenCode server](https://opencode.ai/docs/server/), and the local installed
+Codex experimental schemas generated under `/tmp/web-console-voice-codex-0161`.
+
+## 2026-10-20 — New Terminal refused when owner verification failed (W3)
+
+The operator's New Terminal screenshot showed `[failed_precondition] verified
+session owner required: unavailable`. The Create adapter discarded the owner
+but then rejected every identity failure except `missing`, even though an
+ordinary UI Create with missing proof already opens an unattributed session.
+This is a localized W3 behavior defect; W0–W2 were not re-audited. Recall found
+prior stable-create identity work, which must retain its verified owner.
+
+Hypotheses: (1) the UI omitted the Create request; (2) the API's owner gate
+rejected a verifier outage; (3) the PTY launch failed. The exact error text
+locates the rejection in the adapter before launch, rejecting (1) and (3).
+A failing-before regression reproduced `FailureUnavailable`. Ordinary UI
+creates now continue with an empty owner for failed verification; no claimed
+owner is accepted from the request. Programmatic and reserved creates keep
+their verified-owner refusal. Focused regressions and the full sessions
+handler package pass. A live request with invalid proof created an unowned
+session through the served API, and the test session was deleted. Managed
+restart finished healthy; UI and API health returned HTTP 200. Scoped Test
+Genie unit run `20261020-041939-7950b762` is terminal FAIL with the same two
+unrelated UI-suite findings as the prior run: `test:coverage` execution failure
+and `UNIT_POLICY_PROJECTION_DRIFT` for direct Testing Library imports. It
+reports no sessions handler assertion failure. The focused Go regression and
+whole sessions handler package pass; the broad unit run is not a green
+scenario-wide receipt. The terminal result and findings are retained at
+`/tmp/wc-session-owner-{testgenie,findings}.json`.
+
+## 2026-10-19 — Local Markdown images in Messages show broken-image icons (W3)
+
+The reported iPhone screenshot showed question-mark icons under two mockup headings.
+The saved message at session `40e51337-7e7a-402d-a5b4-8ed3c42ecd53`, sequence
+366, contains Markdown image sources that are absolute host paths under
+`scenarios/device-studio/docs/mockups/revision-2/`; both PNG files exist. This is
+a localized implementation defect with established expected behavior, so W3 is
+the affected rung; W0–W2 were not re-audited.
+
+Hypotheses: (1) the browser receives host paths as image URLs and requests them
+from the web server; (2) the files are absent; (3) the Markdown parser strips the
+image source. The saved message and existing files reject (2). The failing
+renderer regression showed an `<img>` whose `src` was the original host path,
+confirming (1) and rejecting (3). The renderer now resolves local images through
+the session file-preview API and loads only previewable image blob URLs. Missing
+or refused images show a labeled file control. Message rows and the full reader
+pass their session context to the renderer. External HTTPS images retain their
+existing behavior. Focused renderer and Messages-pane regressions pass (54/54);
+TypeScript and scoped lint pass. Test Genie unit run
+`20261020-023731-3fa396eb` is terminal FAIL: its findings report UI
+`test:coverage` execution failure and a provider-policy projection drift for
+direct Testing Library imports elsewhere in the UI suite (two errors), plus
+69 warnings. The affected focused tests pass, but this run is not a green
+scenario-wide receipt. Artifacts and findings are retained at
+`/tmp/wc-message-images-{testgenie,artifacts,findings,evidence}.json`.
+
 ## 2026-10-18 — Imported GLB clearcoat/specular rejection (bounded W3 repair)
 
 Operator reports adapted-iphone15promax.glb still failing after the authored

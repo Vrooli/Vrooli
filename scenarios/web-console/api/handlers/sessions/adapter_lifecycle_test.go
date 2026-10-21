@@ -742,7 +742,7 @@ func TestAdapterRecoverableListingAndDismissal(t *testing.T) {
 	}
 }
 
-func TestAdapterCreateUsesCanonicalOwnerAndRejectsInvalidProofBeforeEffects(t *testing.T) {
+func TestAdapterCreateUsesCanonicalOwnerAndDropsInvalidUIOwner(t *testing.T) {
 	mgr := session.NewManagerWithFactory(ptyfake.NewFactory())
 	store := sessionstore.NewInMemory()
 	a := &Adapter{Manager: mgr, Store: store, Events: events.NewLogger(20), Metrics: metrics.New()}
@@ -757,11 +757,34 @@ func TestAdapterCreateUsesCanonicalOwnerAndRejectsInvalidProofBeforeEffects(t *t
 		t.Fatalf("owner = %q", created.Owner)
 	}
 	invalid := identity.WithStatus(context.Background(), identity.Status{FailureClass: identity.FailureInvalid})
-	if _, err := a.Create(invalid, CreateInput{Shell: "/bin/sh", Backend: "standard", Origin: "ui", Owner: "forged-owner"}); err == nil {
-		t.Fatal("invalid proof created a session")
+	unowned, err := a.Create(invalid, CreateInput{Shell: "/bin/sh", Backend: "standard", Origin: "ui", Owner: "forged-owner"})
+	if err != nil || unowned.Owner != "" {
+		t.Fatalf("invalid proof should create only an unattributed UI session: session=%+v, err=%v", unowned, err)
 	}
-	if len(mgr.List()) != 1 {
-		t.Fatal("rejected request performed a creation effect")
+	defer mgr.Delete(context.Background(), unowned.ID)
+	if _, err := a.Create(invalid, CreateInput{Shell: "/bin/sh", Backend: "standard", Origin: "programmatic"}); !errors.Is(err, ErrFailedPrecondition) {
+		t.Fatalf("invalid programmatic create = %v, want failed precondition", err)
+	}
+}
+
+func TestAdapterCreateUIContinuesWhenOwnerVerifierUnavailable(t *testing.T) {
+	mgr := session.NewManagerWithFactory(ptyfake.NewFactory())
+	store := sessionstore.NewInMemory()
+	a := &Adapter{Manager: mgr, Store: store, Events: events.NewLogger(20), Metrics: metrics.New()}
+	ctx := identity.WithStatus(context.Background(), identity.Status{FailureClass: identity.FailureUnavailable})
+	created, err := a.Create(ctx, CreateInput{Shell: "/bin/sh", Backend: "standard", Origin: "ui", Owner: "forged-owner"})
+	if err != nil {
+		t.Fatalf("UI session creation should continue without owner verification: %v", err)
+	}
+	defer mgr.Delete(context.Background(), created.ID)
+	if created.Owner != "" {
+		t.Fatalf("unverified owner was retained: %q", created.Owner)
+	}
+	if row, err := store.Get(context.Background(), created.ID); err != nil || row.Owner != "" {
+		t.Fatalf("durable unverified owner = %q, err=%v", row.Owner, err)
+	}
+	if _, err := a.Create(ctx, CreateInput{Shell: "/bin/sh", Backend: "standard", Origin: "programmatic"}); !errors.Is(err, ErrFailedPrecondition) {
+		t.Fatalf("programmatic create with unavailable verification = %v, want failed precondition", err)
 	}
 }
 
@@ -822,6 +845,7 @@ type refusedReservedSave struct{ sessionstore.Store }
 func (s refusedReservedSave) Save(context.Context, sessionstore.Metadata) error {
 	return errors.New("reserved owner save refused")
 }
+
 func TestAdapterReservedPersistenceFailureAndCancellation(t *testing.T) {
 	for _, cancelled := range []bool{false, true} {
 		t.Run(fmt.Sprint(cancelled), func(t *testing.T) {

@@ -159,8 +159,12 @@ func (s codexTranscriptSource) DecodeLine(_ string, line []byte) ([]tailer.Event
 	if text := codex.ExtractAssistantText(line); text != "" {
 		return []tailer.Event{{Role: "assistant", Text: text, Commit: true}}, nil
 	}
-	if text := codex.ExtractUserText(line); text != "" {
-		return []tailer.Event{{Role: "user", Text: text, Commit: true}}, nil
+	if input := codex.ExtractUserInput(line); input.Text != "" {
+		source := codexTailerSource
+		if input.VoiceHandoff {
+			source = codexVoiceHandoffSource
+		}
+		return []tailer.Event{{Role: "user", Text: input.Text, Source: source, Commit: true}}, nil
 	}
 	return nil, nil
 }
@@ -256,7 +260,11 @@ func newCodexTranscriptEngine(ct *CodexTailer) *tailer.Engine {
 		StaleTimeout: codexStaleTimeout,
 		Dispatch: func(event tailer.Event, sessionID string) bool {
 			if event.Role == "user" {
-				return ct.server.AppendUser(context.Background(), event.Text, sessionID, codexTailerSource).Appended
+				source := codexTailerSource
+				if event.Source == codexVoiceHandoffSource {
+					source = codexVoiceHandoffSource
+				}
+				return ct.server.AppendUser(context.Background(), event.Text, sessionID, source).Appended
 			} else {
 				return ct.server.AppendAssistant(context.Background(), event.Text, sessionID, codexTailerSource).Appended
 			}

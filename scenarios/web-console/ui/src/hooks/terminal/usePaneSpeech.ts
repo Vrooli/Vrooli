@@ -5,6 +5,7 @@ import { useConversationStore } from "../../stores/useConversationStore";
 import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
 import type { ConversationEvent } from "../../api/conversation";
 import { publishTransport } from "../../domains/tts-playback/transport";
+import { useAgentVoiceStore } from "../../stores/useAgentVoiceStore";
 
 const EMPTY_CONVERSATION_EVENTS: ConversationEvent[] = [];
 const EMPTY_CONVERSATION_CURSOR = { lastSeenSequence: 0, lastListenedSequence: 0 } as const;
@@ -74,6 +75,7 @@ export function usePaneSpeech(options: {
   sendConversationAck: (eventId: string, source: string, stage: string, message?: string, backend?: string) => void;
 }) {
   const { sessionId, onSpeakingEventChange, onTtsSpeakingChange, onNeedsUnlock, onConversationEventReceived, sendConversationAck } = options;
+  const nativeVoiceConnected = useAgentVoiceStore((state) => !!state.connected[sessionId]);
   const ttsVoice = useWorkspaceStore((state) => state.ttsVoice);
   const ttsRate = useWorkspaceStore((state) => state.ttsRate);
   const ttsPitch = useWorkspaceStore((state) => state.ttsPitch);
@@ -93,6 +95,10 @@ export function usePaneSpeech(options: {
     backendReason, supported, isSpeaking, needsUnlock, unlockAudio,
     currentTime, duration, isPaused, playbackRate, volume, isMuted, capabilities,
   } = useTextToSpeech(resolvedSettings, { source: "terminal_auto", sessionId });
+
+  useEffect(() => {
+    if (nativeVoiceConnected) stop();
+  }, [nativeVoiceConnected, stop]);
 
   // The provider's state changes on its own events (timeupdate, pause, rate,
   // volume, mute); publishing it here is what the playback pill follows.
@@ -151,7 +157,7 @@ export function usePaneSpeech(options: {
         break;
       }
     }
-    if (!latest) return;
+    if (!latest || latest.source === "codex_voice" || nativeVoiceConnected) return;
     const ageMs = Date.now() - new Date(latest.createdAt).getTime();
     if (Number.isFinite(ageMs) && ageMs > AUTO_TTS_MAX_AGE_MS) return;
     // Prime the local provider as soon as the assistant event arrives. The
@@ -165,16 +171,17 @@ export function usePaneSpeech(options: {
       sendConversationAck(latest.id, latest.source, stage, message, backend);
     },
     );
-  }, [activePane, conversationEvents, conversationHydrated, onConversationEventReceived, prewarmParagraphs, sendConversationAck, sessionId, supported]);
+  }, [activePane, conversationEvents, conversationHydrated, nativeVoiceConnected, onConversationEventReceived, prewarmParagraphs, sendConversationAck, sessionId, supported]);
 
   const speak = useCallback((text: string, paragraphs?: string[], speechOptions?: PaneSpeechOptions) => {
+    if (speechOptions?.initiatedBy === "auto" && useAgentVoiceStore.getState().connected[sessionId]) return Promise.resolve(undefined);
     if (speechOptions?.initiatedBy !== "auto") setMuted(false);
     stop();
     onSpeakingEventChangeRef.current?.(speechOptions?.eventId ?? null);
     return speakParagraphs(ensureSpeechChunks(paragraphs ?? [text]), speechOptions).finally(() => {
       onSpeakingEventChangeRef.current?.(null);
     });
-  }, [setMuted, speakParagraphs, stop]);
+  }, [sessionId, setMuted, speakParagraphs, stop]);
 
   const playback = useMemo<PaneSpeechPlaybackHandle>(() => ({
     stop: () => {

@@ -331,3 +331,21 @@ func TestEnsureConversationFTSBackfillsOnceAndIndexesNewAppends(t *testing.T) { 
 		}
 	}
 }
+
+func TestVoiceHandoffReceiptDoesNotCollapseIntoMatchingTypedPrompt(t *testing.T) {
+	store := NewConversationStore()
+	ctx := context.Background()
+	_, typed := store.AppendUserEvent(ctx, "session", "codex_tailer", "Run tests")
+	event, handoff := store.AppendUserEvent(ctx, "session", codexVoiceHandoffSource, "Run tests")
+	if !typed.Appended || !handoff.Appended || handoff.Duplicate || event.Source != codexVoiceHandoffSource {
+		t.Fatalf("typed=%+v handoff=%+v event=%+v", typed, handoff, event)
+	}
+	_, replay := store.AppendUserEvent(ctx, "session", codexVoiceHandoffSource, "Run tests")
+	if !replay.Duplicate {
+		t.Fatalf("handoff replay was not deduplicated: %+v", replay)
+	}
+	state := store.ListSession(ctx, "session")
+	if len(state.Events) != 2 {
+		t.Fatalf("events=%+v", state.Events)
+	}
+}

@@ -28,6 +28,9 @@ type FileRef struct {
 // durable cursor: a source can consume a complete line while holding the
 // checkpoint at the last complete turn boundary.
 type Event struct {
+	// Source optionally refines the capture classification; checkpoints remain
+	// owned by the engine's configured source. Dispatch validates refinements.
+	Source  string
 	Role    string
 	Text    string
 	Commit  bool

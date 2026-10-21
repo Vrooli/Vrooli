@@ -23,7 +23,7 @@ import {
 } from "./messageActions";
 import { MessageActionList, useMessageActions, type ActionsOrigin } from "./MessageActionList";
 import { messageOutline, messagePreview } from "./outline";
-import { speakerKey, timeLabel } from "./speaker";
+import { speakerKey, timeLabel, voiceReceiptKey } from "./speaker";
 
 // DOC: docs/internal/MESSAGES-VIEW-PROJECTION-UX.md#the-row-and-action-reveal
 
@@ -43,6 +43,7 @@ export interface PressHandlers {
 }
 
 interface MessageRowProps {
+  imageSessionId?: string;
   actionContext: MessageActionContext;
   fontSize: number;
   isFocused: boolean;
@@ -71,6 +72,7 @@ function isRowControl(target: EventTarget | null): boolean {
 }
 
 function MessageRowImpl({
+  imageSessionId,
   actionContext,
   fontSize,
   isFocused,
@@ -118,6 +120,7 @@ function MessageRowImpl({
   }, [event.text, isPlaintext, preview.truncated]);
 
   const isUser = event.role === "user";
+  const voiceReceipt = voiceReceiptKey(event);
   const isSpeaking = !isUser && isTtsSpeaking && activeSpeakingEventId === event.id;
   const outline = useMemo(() => (isTall ? messageOutline(event.text) : null), [event.text, isTall]);
   const summarizeError = getSummarizeError(event.id);
@@ -184,6 +187,7 @@ function MessageRowImpl({
         >
           {timeLabel(event.createdAt, new Date(), i18n.language)}
         </time>
+        {voiceReceipt && <span data-testid={`msg-voice-receipt-${event.id}`} className="truncate text-[11px] text-wc-accent">{t(voiceReceipt as never)}</span>}
         {showCluster && (
           <div data-testid="msg-actions-inline" className="flex shrink-0 items-center">
             {inline.map((action) => {
@@ -265,7 +269,7 @@ function MessageRowImpl({
             </pre>
           ) : (
             <>
-              <MarkdownRenderer content={preview.markdown} onLinkClick={onLinkClick} onFileReferenceClick={onFileReferenceClick} onMermaidOpen={onMermaidOpen} />
+              <MarkdownRenderer content={preview.markdown} imageSessionId={imageSessionId} onLinkClick={onLinkClick} onFileReferenceClick={onFileReferenceClick} onMermaidOpen={onMermaidOpen} />
               {preview.plainText && <pre className="whitespace-pre-wrap break-words [overflow-wrap:anywhere] font-mono">{preview.plainText}</pre>}
             </>
           )}

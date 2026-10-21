@@ -28,8 +28,9 @@ import (
 // xterm.js WebSocket bridge). They stay REST — multipart can't ride
 // Connect, and xterm.js needs a raw WS upgrade.
 type LegacyDeps struct {
-	Upload http.HandlerFunc
-	WS     http.HandlerFunc
+	Upload     http.HandlerFunc
+	WS         http.HandlerFunc
+	AgentVoice http.HandlerFunc
 }
 
 // Module wires the terminal domain (Connect-RPC TerminalService +
@@ -48,6 +49,9 @@ func Module(svc Service, legacy LegacyDeps, logger *log.Logger) module.Module {
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})
 			r.HandleFunc("/api/v1/sessions/{id}/upload", legacy.Upload).Methods("POST")
 			r.HandleFunc("/api/v1/sessions/{id}/ws", legacy.WS).Methods("GET")
+			if legacy.AgentVoice != nil {
+				r.HandleFunc("/api/v1/sessions/{id}/agent-voice", legacy.AgentVoice).Methods("GET")
+			}
 		},
 		Endpoints: Endpoints,
 	}

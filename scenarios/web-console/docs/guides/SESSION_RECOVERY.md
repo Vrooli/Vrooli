@@ -10,7 +10,7 @@ is lost or recreate it manually.
 There are three continuity modes:
 
 - **Normal restart recovery (automatic).** API restarts but the host and tmux server stay alive. `Recover()` re-attaches to surviving `wc-<id>` tmux sessions, status stays `live`, the user sees no interruption.
-- **Crash recovery (one CLI call).** Host reboot, tmux scope kill, OOM, or manual `tmux -L wc kill-server`. The tmux session is gone but the DB row is preserved with `status='awaiting_recovery'`, agent identity (`agent_type`, `agent_session_id`, `cwd`, `last_rollout_path`), and `orphaned_at`. Run `web-console session recover <id>` to spawn a fresh persistent pane, copy the per-session `CODEX_HOME`, carry over the prior conversation history, and paste the resume command.
+- **Crash recovery (one CLI call).** Host reboot, tmux scope kill, OOM, or manual `tmux -L wc kill-server`. The tmux session is gone but the DB row is preserved with `status='awaiting_recovery'`, agent identity (`agent_type`, `agent_session_id`, `cwd`, `last_rollout_path`), and `orphaned_at`. Run `web-console session recover <id>` to spawn a fresh persistent pane, copy the per-session `CODEX_HOME`, carry over the prior conversation history, and submit the resume command.
 - **Deliberate archive and reopen.** Closing a pane sets `archived_at`, stops its process, and preserves its row, pane identity, and conversation. The archive drawer searches retained messages and shows whether the entry is `Reopenable`, `Read-only`, or has `Nothing to restore`. Reopen uses the same recovery workflow and idempotency contract as crash recovery.
 
 This guide covers the supported (CLI-driven) flow. The legacy manual procedure lives in the appendix for the case where the API itself is broken.
@@ -172,7 +172,7 @@ The recovery endpoints rely on `agent_type` + `agent_session_id` being on the ro
 
 - **Codex tailer** — when `CodexTailer` first opens a rollout under a session's `CODEX_HOME`, it parses the `session_meta` first line and stores `agent_type=codex`, `agent_session_id=<payload.id>`, `cwd=<payload.cwd>`, `last_rollout_path`.
 - **Claude Stop hook** — `POST /api/v1/hooks/stop` carries `web_console_session_id`, `session_id` (claude's own UUID), and `cwd`. The handler stores `agent_type=claude`, `agent_session_id=<session_id>`, `cwd`.
-- **Launch metadata** — `CreateSessionRequest` accepts optional `launch_command` and `agent_type`. The UI launcher sends them when the user picks a shortcut; they populate the row up front (the tailer/hook will refine `agent_session_id` once the agent emits something). When Create sets `execute_launch_command=true`, the server pastes `launch_command` into the fresh session's stdin using the **same paste seam** recovery uses to resume an agent (a `{"type":"stdin","kind":"paste"}` write), so a programmatic caller can launch a command headlessly with no browser attached. Recovery's own resume path is unchanged.
+- **Launch metadata** — `CreateSessionRequest` accepts optional `launch_command` and `agent_type`. The UI launcher sends them when the user picks a shortcut; they populate the row up front (the tailer/hook will refine `agent_session_id` once the agent emits something). When Create sets `execute_launch_command=true`, the server types `launch_command` and a submitting newline into the fresh session's stdin through the same command-input path used by recovery, so a programmatic caller can launch a command headlessly with no browser attached. Clipboard paste remains bracketed; command launch uses keystroke semantics so Bash submits the newline.
 
 If a pane runs an agent we don't classify (custom command), `agent_type` stays `none` and the row appears in `list-recoverable` with `recoverable=false`. The on-disk state is still preserved; the row just can't be auto-resumed and the appendix below applies.
 
@@ -222,7 +222,7 @@ curl -sS -X PUT "$api/api/v1/workspace/panes/$new_id" \
   -d '{"name":"Restored Codex","supports_messages_view":true}' | jq
 ```
 
-### A.3 Paste the resume command
+### A.3 Submit the resume command
 
 The simplest path is a Python WebSocket client; see the script template at the end of this section. Codex resume:
 
@@ -234,14 +234,14 @@ echo "codex --yolo resume $codex_session"
 For Claude, prefer `claude --resume <id>` over `--continue` — guessing the latest project is unsafe.
 
 ```python
-# resume_paste.py
+# resume_command.py
 import json, websocket
 ws = websocket.create_connection(f"ws://127.0.0.1:{api_port}/api/v1/sessions/{new_id}/ws")
 while True:
     msg = json.loads(ws.recv())
     if msg.get("type") == "session_ready":
         break
-ws.send(json.dumps({"type": "stdin", "data": "codex --yolo resume <id>\n", "kind": "paste"}))
+ws.send(json.dumps({"type": "stdin", "data": "codex --yolo resume <id>\n"}))
 ws.close()
 ```
 

@@ -284,7 +284,11 @@ func (s *Server) captureManagedCodexEvent(sessionID string, native codex.NativeE
 	if role != "user" {
 		role = "assistant"
 	}
-	event, result := s.conversations.AppendNativeEvent(context.Background(), sessionID, "codex_app_server", role, native.Text, &NativeProvenance{
+	source := "codex_app_server"
+	if role == "user" && native.VoiceHandoff {
+		source = codexVoiceHandoffSource
+	}
+	event, result := s.conversations.AppendNativeEvent(context.Background(), sessionID, source, role, native.Text, &NativeProvenance{
 		Provider: "codex", SessionID: threadID, TurnID: native.TurnID, MessageID: native.MessageID, BoundaryID: native.BoundaryID, CompactionLineage: native.CompactionLineage,
 	})
 	if result.Appended && !result.Duplicate {
@@ -331,6 +335,10 @@ func (r *managedCodexRegistry) Recover(ctx context.Context) error {
 			version = ownerVersion
 		}
 		if r.register != nil && r.register(ctx, meta.ID, owner, version, meta.NativeTransport, meta.LaunchDescriptorJSON) != nil {
+			_ = owner.Close()
+			continue
+		}
+		if err := r.store.MarkLive(ctx, meta.ID); err != nil {
 			_ = owner.Close()
 			continue
 		}

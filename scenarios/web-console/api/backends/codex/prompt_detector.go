@@ -14,6 +14,38 @@ import (
 // testdata/prompts.
 type promptDetector struct{}
 
+// VoiceObservation is mode discovery only: a footer cannot prove browser audio
+// capture. Restrict it to the live input's neighboring rows, never scrollback.
+type VoiceObservation struct {
+	Active bool
+	Muted  bool
+}
+
+func ObserveVoice(view backend.ScreenView) VoiceObservation {
+	if view == nil {
+		return VoiceObservation{}
+	}
+	lines := strings.Split(view.PlainText(), "\n")
+	cursor := view.CursorRow()
+	if cursor < 0 || cursor >= len(lines) {
+		return VoiceObservation{}
+	}
+	input := strings.TrimSpace(lines[cursor])
+	if !strings.HasPrefix(input, "›") && !strings.HasPrefix(input, ">") {
+		return VoiceObservation{}
+	}
+	for i := max(0, cursor-6); i < cursor; i++ {
+		line := strings.ToLower(strings.TrimSpace(codexMainPaneText(lines[i])))
+		if !strings.HasPrefix(line, "voice ") || !strings.Contains(line, "/voice stop") {
+			continue
+		}
+		if strings.Contains(line, "listening") || strings.Contains(line, "muted") || strings.Contains(line, "connecting") {
+			return VoiceObservation{Active: true, Muted: strings.Contains(line, "muted")}
+		}
+	}
+	return VoiceObservation{}
+}
+
 // DefaultPromptDetector returns the Codex CLI screen detector.
 func DefaultPromptDetector() backend.PromptDetector { return promptDetector{} }
 

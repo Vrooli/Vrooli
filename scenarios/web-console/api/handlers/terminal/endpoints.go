@@ -14,6 +14,12 @@ import "web-console/internal/module"
 
 var Endpoints = []module.EndpointDescriptor{
 	{
+		ID: "terminal_agent_voice", Path: "/api/v1/sessions/{id}/agent-voice", Method: "GET",
+		Summary: "Session-bound native agent voice", Category: "terminal",
+		Description:   "WebSocket signaling and bounded audio relay to the verified native agent thread; reports capability without acquiring a microphone.",
+		RESTException: &module.RESTException{Reason: module.RESTReasonStreamUpgrade, Note: "Native audio and SDP signaling require a long-lived WebSocket upgrade.", ProtoPayloads: &module.RESTProtoPayloads{Request: module.RESTPayload{Transport: "none", Conformance: "none"}, Response: module.RESTPayload{Transport: "none", Conformance: "none"}, Error: module.RESTPayload{Transport: "none", Conformance: "none"}}},
+	},
+	{
 		ID:          "terminal_get_screen",
 		Path:        "/vrooli.web_console.v1.terminal.TerminalService/GetScreen",
 		Method:      "POST",

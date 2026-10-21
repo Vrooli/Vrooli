@@ -36,22 +36,25 @@ type RPCError struct {
 }
 
 type Client struct {
-	stdin         io.WriteCloser
-	stdout        io.Reader
-	cmd           *exec.Cmd
-	writeMu       sync.Mutex
-	pendingMu     sync.Mutex
-	pending       map[string]chan rpcResponse
-	orphan        map[string]Message
-	notifications chan Message
-	requests      chan Message
-	readDone      chan struct{}
-	readOnce      sync.Once
-	closeOnce     sync.Once
-	nextID        atomic.Uint64
-	closed        bool
-	closeErr      error
-	serverVersion string
+	stdin               io.WriteCloser
+	stdout              io.Reader
+	cmd                 *exec.Cmd
+	writeMu             sync.Mutex
+	pendingMu           sync.Mutex
+	pending             map[string]chan rpcResponse
+	orphan              map[string]Message
+	notifications       chan Message
+	requests            chan Message
+	readDone            chan struct{}
+	readOnce            sync.Once
+	closeOnce           sync.Once
+	nextID              atomic.Uint64
+	closed              bool
+	closeErr            error
+	serverVersion       string
+	subscribersMu       sync.Mutex
+	subscribers         map[chan Message]struct{}
+	notificationsClosed bool
 }
 
 type rpcResponse struct {
@@ -188,6 +191,13 @@ func (c *Client) Notify(method string, params any) error {
 
 func (c *Client) readLoop() {
 	defer func() {
+		c.subscribersMu.Lock()
+		c.notificationsClosed = true
+		for ch := range c.subscribers {
+			close(ch)
+			delete(c.subscribers, ch)
+		}
+		c.subscribersMu.Unlock()
 		close(c.notifications)
 		close(c.requests)
 		close(c.readDone)
@@ -207,6 +217,7 @@ func (c *Client) readLoop() {
 			continue
 		}
 		if len(msg.ID) == 0 {
+			c.broadcastNotification(msg)
 			select {
 			case c.notifications <- msg:
 			default:
@@ -310,7 +321,7 @@ type InitializeResult struct {
 
 func (c *Client) InitializeWithInfo(ctx context.Context, clientName, version string) (InitializeResult, error) {
 	var info InitializeResult
-	if err := c.Call(ctx, "initialize", map[string]any{"clientInfo": map[string]string{"name": clientName, "version": version}}, &info); err != nil {
+	if err := c.Call(ctx, "initialize", map[string]any{"clientInfo": map[string]string{"name": clientName, "version": version}, "capabilities": map[string]bool{"experimentalApi": true}}, &info); err != nil {
 		return info, err
 	}
 	c.serverVersion = info.UserAgent

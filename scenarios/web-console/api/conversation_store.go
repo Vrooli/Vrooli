@@ -361,6 +361,11 @@ func (s *ConversationStore) AppendUserEvent(ctx context.Context, sessionID, sour
 	}
 
 	dedupKey := conversationDedupKey(sessionID, ConversationRoleUser, cleanText)
+	// A confirmed voice handoff is a distinct delivery fact. A matching typed
+	// prompt must not swallow its receipt through cross-transport deduplication.
+	if source == codexVoiceHandoffSource {
+		dedupKey += "\nvoice_handoff"
+	}
 	if eventID, ok := s.dedup.seenRecently(dedupKey); ok {
 		return ConversationEvent{}, ConversationAppendResult{
 			Appended:  true,

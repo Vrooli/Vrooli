@@ -156,6 +156,9 @@ interface WorkspaceState {
    */
   audioIntent: boolean;
   voiceEnabled: boolean;
+  agentVoiceMode: "auto" | "agent" | "dictation";
+  agentVoiceConfigured: boolean;
+  agentVoiceTransport: "webrtc" | "websocket";
   voiceShortcut: string;
   vadAutoStop: boolean;
   /** Silence duration (ms) before VAD auto-stops recording. */
@@ -324,6 +327,8 @@ interface WorkspaceActions {
   /** Latch `audioIntent`. Idempotent — safe to call from every audio entry point. */
   markAudioIntent: () => void;
   setVoiceEnabled: (enabled: boolean) => void;
+  setAgentVoiceMode: (mode: "auto" | "agent" | "dictation") => void;
+  setAgentVoiceTransport: (transport: "webrtc" | "websocket") => void;
   setVoiceShortcut: (shortcut: string) => void;
   setVadAutoStop: (enabled: boolean) => void;
   setVadSilenceTimeoutMs: (ms: number) => void;
@@ -484,6 +489,9 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       aiSuggestActive: false,
       audioIntent: false,
       voiceEnabled: true,
+      agentVoiceMode: "auto",
+      agentVoiceConfigured: false,
+      agentVoiceTransport: "webrtc",
       voiceShortcut: "Ctrl+Shift+Space",
       vadAutoStop: true,
       vadSilenceTimeoutMs: VAD_FALLBACK_SILENCE_TIMEOUT_MS,
@@ -743,6 +751,8 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       // subscriber for a value that did not change.
       markAudioIntent: () => { if (!get().audioIntent) set({ audioIntent: true }); },
       setVoiceEnabled: (enabled) => set({ voiceEnabled: enabled }),
+      setAgentVoiceMode: (agentVoiceMode) => set({ agentVoiceMode, agentVoiceConfigured: true }),
+      setAgentVoiceTransport: (agentVoiceTransport) => set({ agentVoiceTransport }),
       setVoiceShortcut: (shortcut) => set({ voiceShortcut: shortcut }),
       setVadAutoStop: (enabled) => set({ vadAutoStop: enabled }),
       setVadSilenceTimeoutMs: (ms) => set({ vadSilenceTimeoutMs: ms }),
@@ -969,6 +979,9 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         displayMode: state.displayMode,
         toolbarPrefs: state.toolbarPrefs,
         voiceEnabled: state.voiceEnabled,
+        agentVoiceMode: state.agentVoiceMode,
+        agentVoiceConfigured: state.agentVoiceConfigured,
+        agentVoiceTransport: state.agentVoiceTransport,
         voiceShortcut: state.voiceShortcut,
         vadAutoStop: state.vadAutoStop,
         // vadSilenceTimeoutMs intentionally NOT persisted —

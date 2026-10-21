@@ -73,19 +73,19 @@
     "vitest": "^2.1.4"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": "\u003e=18.0.0"
   },
   "name": "web-console-ui",
   "packageManager": "pnpm@9.12.1",
   "private": true,
   "scripts": {
-    "build": "pnpm selector:manifest && vite build",
-    "build:profile": "pnpm selector:manifest && vite build --mode profile",
+    "build": "pnpm selector:manifest \u0026\u0026 vite build",
+    "build:profile": "pnpm selector:manifest \u0026\u0026 vite build --mode profile",
     "dev": "vrooli lifecycle protect -- vite",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
     "prebuild": "pnpm run selector:manifest",
-    "pretest": "pnpm run selector:manifest && pnpm run strings:gen",
+    "pretest": "pnpm run selector:manifest \u0026\u0026 pnpm run strings:gen",
     "preview": "vite preview",
     "selector:check": "node scripts/generate-selector-manifest.mjs --check",
     "selector:manifest": "node scripts/generate-selector-manifest.mjs",
@@ -93,7 +93,7 @@
     "strings:gen": "node scripts/gen-strings.mjs",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "type-check": "pnpm run strings:check && tsc --noEmit"
+    "type-check": "pnpm run strings:check \u0026\u0026 tsc --noEmit"
   },
   "type": "module",
   "version": "1.0.0"

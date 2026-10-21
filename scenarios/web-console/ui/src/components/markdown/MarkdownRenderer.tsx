@@ -1,4 +1,4 @@
-import { Component, createContext, memo, useContext, useMemo, type ComponentPropsWithoutRef, type MouseEvent, type ReactNode, type ErrorInfo } from "react";
+import { Component, createContext, memo, useContext, useEffect, useMemo, useState, type ComponentPropsWithoutRef, type MouseEvent, type ReactNode, type ErrorInfo } from "react";
 import ReactMarkdown, { defaultUrlTransform } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { remarkProsePaths } from "./utils/remarkProsePaths";
@@ -7,6 +7,9 @@ import { InlineCode } from "./components/InlineCode";
 import { MermaidDiagram } from "./components/MermaidDiagram";
 import { ResizableMarkdownTable } from "@vrooli/react-component-library/markdown-renderer/0";
 import { isExternalHref } from "../../lib/fileReferences";
+import { resolveFilePreview } from "../../api/filePreview";
+import { useTranslation } from "react-i18next";
+import { strings } from "../../consts/strings";
 
 // Schemes allowed in markdown links beyond react-markdown's built-in safe set
 // (http, https, irc(s), mailto, xmpp). `webapp:` is how an installed scenario
@@ -63,15 +66,50 @@ interface MarkdownRendererProps {
   onFileReferenceClick?: (path: string) => void;
   /** Open a Mermaid diagram in the full-screen zoomable viewer. */
   onMermaidOpen?: (code: string) => void;
+  /** Session whose local files can be resolved for inline message images. */
+  imageSessionId?: string;
 }
 
 // Renderer functions are React component types. Keep them stable across parent
 // updates so an in-flight press, focus, and selection keep their DOM nodes.
 // Context delivers the latest callbacks without replacing the rendered links.
-type MarkdownCallbacks = Pick<MarkdownRendererProps, "onLinkClick" | "onFileReferenceClick" | "onMermaidOpen">;
+type MarkdownCallbacks = Pick<MarkdownRendererProps, "onLinkClick" | "onFileReferenceClick" | "onMermaidOpen" | "imageSessionId">;
 const MarkdownCallbacksContext = createContext<MarkdownCallbacks>({});
 
+function MarkdownImage({ src, alt = "", title }: ComponentPropsWithoutRef<"img">) {
+  const { t } = useTranslation();
+  const { imageSessionId, onFileReferenceClick } = useContext(MarkdownCallbacksContext);
+  const localPath = imageSessionId && src && !/^https?:\/\//i.test(src) ? src : null;
+  const [image, setImage] = useState<{ path: string; href?: string; failed?: boolean } | null>(null);
+
+  useEffect(() => {
+    if (!localPath || !imageSessionId) return;
+    let active = true;
+    resolveFilePreview(imageSessionId, localPath, "message_link")
+      .then((preview) => {
+        if (!active) return;
+        if (preview.kind === "image" && preview.blobHref && preview.canPreview) {
+          setImage({ path: localPath, href: preview.blobHref });
+        } else {
+          setImage({ path: localPath, failed: true });
+        }
+      })
+      .catch(() => { if (active) setImage({ path: localPath, failed: true }); });
+    return () => { active = false; };
+  }, [imageSessionId, localPath]);
+
+  if (!localPath) return <img src={src} alt={alt} title={title} className="max-w-full h-auto" />;
+  if (image?.path === localPath && image.failed) return (
+    <button type="button" className="text-wc-accent underline break-all" onClick={() => { onFileReferenceClick?.(localPath); }}>
+      {alt || localPath} — {t(strings.messagesFileViewer.unavailable)}
+    </button>
+  );
+  if (image?.path !== localPath || !image.href) return <span role="status">{t(strings.messagesFileViewer.loadingPreview)} {alt || localPath}</span>;
+  return <img src={image.href} alt={alt} title={title} className="max-w-full h-auto" onError={() => { setImage({ path: localPath, failed: true }); }} />;
+}
+
 const markdownComponents = {
+  img: MarkdownImage,
   code: function MarkdownCode({
     inline,
     className: codeClassName,
@@ -180,9 +218,10 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
   onLinkClick,
   onFileReferenceClick,
   onMermaidOpen,
+  imageSessionId,
 }: MarkdownRendererProps) {
-  const callbacks = useMemo(() => ({ onLinkClick, onFileReferenceClick, onMermaidOpen }),
-    [onLinkClick, onFileReferenceClick, onMermaidOpen]);
+  const callbacks = useMemo(() => ({ onLinkClick, onFileReferenceClick, onMermaidOpen, imageSessionId }),
+    [onLinkClick, onFileReferenceClick, onMermaidOpen, imageSessionId]);
 
   if (!content) return null;
 
@@ -215,6 +254,7 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
     prevProps.onLinkClick === nextProps.onLinkClick &&
     prevProps.onFileReferenceClick === nextProps.onFileReferenceClick &&
     prevProps.onMermaidOpen === nextProps.onMermaidOpen
+    && prevProps.imageSessionId === nextProps.imageSessionId
   );
 });
 

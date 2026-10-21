@@ -173,6 +173,8 @@ type createBody struct {
 	TargetID             string         `json:"targetId,omitempty"`
 	WorkingDir           string         `json:"workingDir,omitempty"`
 	ExecuteLaunchCommand bool           `json:"executeLaunchCommand,omitempty"`
+	LaunchMode           string         `json:"launchMode,omitempty"`
+	LaunchDescriptorJSON string         `json:"launchDescriptorJson,omitempty"`
 	Extra                map[string]any `json:"-"`
 }
 
@@ -234,6 +236,8 @@ func (h *handlers) create(ctx cliapp.RunContext) error {
 		TargetId:             body.TargetID,
 		WorkingDir:           body.WorkingDir,
 		ExecuteLaunchCommand: body.ExecuteLaunchCommand,
+		LaunchMode:           body.LaunchMode,
+		LaunchDescriptorJson: body.LaunchDescriptorJSON,
 	})
 	if body.Policy != nil {
 		req.Msg.Policy = &sessionsv1.ExpirationPolicy{Mode: body.Policy.Mode, Duration: body.Policy.Duration}

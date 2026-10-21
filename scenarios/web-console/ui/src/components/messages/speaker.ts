@@ -6,6 +6,8 @@ import { strings } from "../../consts/strings";
 const SPEAKER_BY_SOURCE: Readonly<Record<string, string>> = {
   claude_hook: strings.messagesPane.speaker.claude,
   codex_tailer: strings.messagesPane.speaker.codex,
+  codex_app_server: strings.messagesPane.speaker.codex,
+  codex_voice: strings.agentVoice.voiceSpeaker,
   grok_tailer: strings.messagesPane.speaker.grok,
   opencode_api: strings.messagesPane.speaker.opencode,
 };
@@ -33,4 +35,12 @@ export function timeLabel(createdAt: string, now: Date = new Date(), locale?: st
     ? new Intl.DateTimeFormat(locale, { hour: "numeric", minute: "2-digit" })
     : new Intl.DateTimeFormat(locale, { month: "short", day: "numeric" });
   return format.format(at);
+}
+
+
+/** Receipts come from capture provenance, never from matching caption text. */
+export function voiceReceiptKey(event: Pick<ConversationEvent, "role" | "source">): string | null {
+  if (event.role === "user" && event.source === "codex_voice_handoff") return strings.agentVoice.handoffSent;
+  if (event.source === "codex_voice") return strings.agentVoice.voiceTranscript;
+  return null;
 }

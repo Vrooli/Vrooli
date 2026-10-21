@@ -61,6 +61,25 @@ func TestCodexIdlePromptIsAwaitingInput(t *testing.T) {
 	}
 }
 
+func TestCodexVoiceObservationUsesLiveFooter(t *testing.T) {
+	for _, test := range []struct {
+		text   string
+		cursor int
+		active bool
+	}{
+		{"Earlier: voice listening /voice stop\n\n› Ask Codex", 2, false},
+		{"voice ● listening    ^x mute    /voice stop\n mic ___ codex ___\n\n› Ask Codex", 3, true},
+		{"voice muted    /voice stop\n\n› Ask Codex", 2, true},
+		{"voice listening /voice stop\n\nquoted text", 2, false},
+		{"voice listening /voice stop\na\nb\nc\nd\ne\nf\n› Ask Codex", 7, false},
+	} {
+		got := ObserveVoice(stubView{text: test.text, cursor: test.cursor})
+		if got.Active != test.active {
+			t.Fatalf("voice observation=%+v for %q", got, test.text)
+		}
+	}
+}
+
 func TestCodexStreamingScreenIsNotIdle(t *testing.T) {
 	// [REQ:P0-017e] A live codex screen mid-turn (cursor off the input row).
 	got := DefaultPromptDetector().Analyze(loadFixture(t, "working.json"))

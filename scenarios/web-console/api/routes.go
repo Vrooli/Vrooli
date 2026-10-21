@@ -185,8 +185,9 @@ func (s *Server) setupRoutes() {
 	}))
 
 	terminalH.Module(&terminalH.Adapter{Manager: s.sessions, Replier: opencodeReplier{server: s}}, terminalH.LegacyDeps{
-		Upload: s.handleUpload,
-		WS:     s.handleTerminalWS,
+		Upload:     s.handleUpload,
+		WS:         s.handleTerminalWS,
+		AgentVoice: s.handleAgentVoiceWS,
 	}, nil).Mount(s.router)
 
 	workspaceH.Module(&workspaceH.Adapter{Store: s.workspace, Events: s.events}, nil).Mount(s.router)

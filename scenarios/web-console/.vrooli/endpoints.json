@@ -1777,6 +1777,32 @@
       ]
     },
     {
+      "id": "terminal_agent_voice",
+      "path": "/api/v1/sessions/{id}/agent-voice",
+      "method": "GET",
+      "summary": "Session-bound native agent voice",
+      "description": "WebSocket signaling and bounded audio relay to the verified native agent thread; reports capability without acquiring a microphone.",
+      "category": "terminal",
+      "rest_exception": {
+        "reason": "stream_upgrade",
+        "note": "Native audio and SDP signaling require a long-lived WebSocket upgrade.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "error": {
+            "transport": "none",
+            "conformance": "none"
+          }
+        }
+      }
+    },
+    {
       "id": "terminal_get_screen",
       "path": "/vrooli.web_console.v1.terminal.TerminalService/GetScreen",
       "method": "POST",

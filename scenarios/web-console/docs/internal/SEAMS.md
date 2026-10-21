@@ -242,6 +242,19 @@ maximum refresh while a client is connected.
 
 ## Responsibility Zones
 
+### Native agent voice transport
+
+`api/agent_voice.go` owns `GET /api/v1/sessions/{id}/agent-voice`, a
+`RESTReasonWSUpgrade` exception registered by `handlers/terminal`. The browser's
+`ui/src/api/agentVoice.ts` uses the existing session URL resolver; no media or
+control crosses terminal stdin. The bounded protocol carries capability,
+WebRTC SDP, PCM chunks and native lifecycle/item events. Native credentials
+remain with the existing Codex owner. `@vrooli/audio-capture-browser` owns
+duplex media, microphone leases, PCM resampling/playback and signal levels;
+`useAgentVoice` owns session signaling and projects completed native items to
+the conversation store. Audio Tools remains the Dictation provider. See the
+native agent voice contract in `docs/concepts/ARCHITECTURE.md`.
+
 ### Remote terminal federation
 
 `api/remote_terminal.go` is the server-side federation adapter for

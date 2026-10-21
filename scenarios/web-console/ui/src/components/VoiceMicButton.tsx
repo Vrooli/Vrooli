@@ -1,4 +1,6 @@
 import { useEffect, useRef, type CSSProperties } from "react";
+import { useTranslation } from "react-i18next";
+import { strings } from "../consts/strings";
 import { VoiceInputButton, type ButtonSize } from "@vrooli/react-component-library/VoiceInputButton/4";
 import type { StartRecordingOpts, VoiceActivitySnapshot } from "../audio-integration";
 
@@ -46,6 +48,8 @@ export interface VoiceMicButtonProps {
   onStop: () => void;
   onExitPassive?: () => void;
   onPrepare?: () => void;
+  /** First-use choice is an overlay owned by the workspace, not button chrome. */
+  onRequestVoiceMode?: (anchor: HTMLElement) => void;
   className?: string;
   buttonClassName?: string;
   iconClassName?: string;
@@ -82,12 +86,14 @@ export default function VoiceMicButton({
   onStop,
   onExitPassive,
   onPrepare,
+  onRequestVoiceMode,
   className,
   buttonClassName,
   iconClassName,
   style,
   testId,
 }: VoiceMicButtonProps) {
+  const { t } = useTranslation();
   const state = !supported ? "unavailable"
     : isTranscribing ? "transcribing"
       : isPreparing ? "preparing"
@@ -96,6 +102,7 @@ export default function VoiceMicButton({
             : error ? "error"
               : "idle";
   const active = state === "recording" || state === "recovering";
+  const controlLabel = !supported ? ["Voice input unavailable", capabilityReason, operatorCommand && `Fix: ${operatorCommand}`].filter(Boolean).join(" — ") : active && backend === "agent" ? t(strings.agentVoice.end) : state === "idle" ? t(backend === "agent" ? strings.agentVoice.talkToAgent : strings.agentVoice.dictateMessage) : undefined;
   const hostRef = useRef<HTMLDivElement>(null);
   const waveformRef = useRef<number[]>([]);
   const latestLevelRef = useRef(0);
@@ -157,11 +164,17 @@ export default function VoiceMicButton({
           minBlockSize: 0,
           ...style,
         }}
-        onStart={() => onStart?.()}
+        onStart={() => {
+          const anchor = hostRef.current?.querySelector("button");
+          if (onRequestVoiceMode && anchor) onRequestVoiceMode(anchor);
+          else onStart();
+        }}
         onStop={onStop}
-        onPrepare={onPrepare}
+        onPrepare={onRequestVoiceMode ? undefined : onPrepare}
+        aria-haspopup={onRequestVoiceMode ? "dialog" : undefined}
         data-testid={testId}
-        aria-label={!supported ? ["Voice input unavailable", capabilityReason, operatorCommand && `Fix: ${operatorCommand}`].filter(Boolean).join(" — ") : undefined}
+        aria-label={controlLabel}
+        title={controlLabel}
       />
       <svg
         data-voice-waveform

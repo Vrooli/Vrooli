@@ -72,5 +72,8 @@ export const librarySelectors = {
   },
   "react-component-library:useOverlaySurface": {
   },
+  "overlays.popover": {
+    "root": "overlays.popover",
+  },
 } as const;
 // vrooli:library-selectors end

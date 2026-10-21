@@ -23,20 +23,23 @@ type ContentItem struct {
 
 // ExtractUserText parses a rollout JSONL line and returns the user's
 // text prompt, or "" if this line isn't a user text message.
-func ExtractUserText(line []byte) string {
+func ExtractUserText(line []byte) string { return ExtractUserInput(line).Text }
+
+// ExtractUserInput retains the origin of a captured coding user message.
+func ExtractUserInput(line []byte) UserInput {
 	var rl RolloutLine
 	if err := json.Unmarshal(line, &rl); err != nil {
-		return ""
+		return UserInput{}
 	}
 	if rl.Type != "response_item" {
-		return ""
+		return UserInput{}
 	}
 	var payload ResponsePayload
 	if err := json.Unmarshal(rl.Payload, &payload); err != nil {
-		return ""
+		return UserInput{}
 	}
 	if payload.Role != "user" {
-		return ""
+		return UserInput{}
 	}
 	var result string
 	for _, item := range payload.Content {
@@ -44,7 +47,7 @@ func ExtractUserText(line []byte) string {
 			result += item.Text
 		}
 	}
-	return result
+	return ParseUserInput(result)
 }
 
 // ExtractAssistantText parses a rollout JSONL line and returns the assistant's

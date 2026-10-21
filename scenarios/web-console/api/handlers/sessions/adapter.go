@@ -337,7 +337,12 @@ func (a *Adapter) Create(ctx context.Context, in CreateInput) (Session, error) {
 		verifiedCaller = in.Owner != ""
 	} else if status, ok := identity.StatusFromContext(ctx); ok {
 		in.Owner = ""
-		if status.FailureClass != "" && status.FailureClass != identity.FailureMissing {
+		// A normal UI terminal can start without an owner, as it already does
+		// when no proof is presented. Failed proof never supplies the owner or
+		// stable-create identity. Reserved and programmatic creates retain their
+		// verified-owner boundary.
+		ordinaryUICreate := in.Origin == "ui" && in.RequestedSessionID == "" && in.AgentRunIdentityToken == ""
+		if status.FailureClass != "" && status.FailureClass != identity.FailureMissing && !ordinaryUICreate {
 			return Session{}, fmt.Errorf("verified session owner required: %s: %w", status.FailureClass, ErrFailedPrecondition)
 		}
 	}
@@ -557,15 +562,12 @@ func (a *Adapter) Create(ctx context.Context, in CreateInput) (Session, error) {
 		}
 	}
 
-	// Server-side launch execution: paste the launch command into the fresh
-	// PTY so it runs exactly once, mirroring the Recover paste seam (bracketed
-	// paste + trailing newline to execute). Best-effort — the session already
-	// exists and was returned to the caller, so a paste failure must not fail
-	// the create and orphan the pane; unlike Recover (where the resume paste is
-	// the whole point), the command here is a convenience the user can retype.
+	// Commands use keystroke semantics: a newline inside bracketed paste is
+	// literal text in Bash and does not submit the command. Clipboard input
+	// keeps paste semantics. Launch delivery remains best-effort.
 	if in.ExecuteLaunchCommand && in.LaunchCommand != "" {
-		if err := sess.SendInput(session.InputText(in.LaunchCommand + "\n").AsPaste().WithSource("launch")); err != nil {
-			a.logger().Printf("create-session[%s]: paste launch command: %v", sess.ID, err)
+		if err := sess.SendInput(session.InputText(in.LaunchCommand + "\n").WithSource("launch")); err != nil {
+			a.logger().Printf("create-session[%s]: execute launch command: %v", sess.ID, err)
 		}
 	}
 
@@ -1520,9 +1522,9 @@ func (a *Adapter) Recover(ctx context.Context, in RecoverInput) (res RecoverResu
 	}
 
 	cmd := intsessions.BuildResumeCommand(old)
-	if err := newSess.SendInput(session.InputText(cmd).AsPaste().WithSource("recover")); err != nil {
+	if err := newSess.SendInput(session.InputText(cmd).WithSource("recover")); err != nil {
 		a.logger().Printf("recover[%s -> %s]: SendInput: %v", oldID, newSess.ID, err)
-		return RecoverResult{}, fmt.Errorf("paste resume command: %v: %w", err, ErrInternal)
+		return RecoverResult{}, fmt.Errorf("execute resume command: %v: %w", err, ErrInternal)
 	}
 
 	if err := a.Store.MarkDismissed(ctx, oldID, newSess.ID); err != nil {

@@ -22,6 +22,7 @@ const (
 	claudeTailerSource       = "claude_tailer"
 	claudeTailerPollInterval = 2 * time.Second
 	codexTailerSource        = "codex_tailer"
+	codexVoiceHandoffSource  = "codex_voice_handoff"
 	codexPollInterval        = 2 * time.Second
 	codexTailInterval        = 500 * time.Millisecond
 	codexStaleTimeout        = time.Hour

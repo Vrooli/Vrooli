@@ -92,6 +92,20 @@ describe("messages reader", () => {
     vi.unstubAllGlobals();
   });
 
+  it("distinguishes captured handoffs from voice-only transcripts and preserves the receipt in the reader", () => {
+    seed([
+      { ...event("voice", 1, "The quick brown fox"), role: "user", source: "codex_voice" },
+      { ...event("long", 2, LONG), role: "user", source: "codex_voice_handoff" },
+      { ...event("typed", 3, "Typed coding request"), role: "user", source: "codex_tailer" },
+    ]);
+    render(<MessagesPane {...props} />);
+    expect(screen.getByTestId("msg-voice-receipt-voice")).toHaveTextContent(strings.agentVoice.voiceTranscript);
+    expect(screen.getByTestId("msg-voice-receipt-long")).toHaveTextContent(strings.agentVoice.handoffSent);
+    expect(screen.queryByTestId("msg-voice-receipt-typed")).toBeNull();
+    fireEvent.click(screen.getByTestId("msg-open-reader-long"));
+    expect(screen.getByTestId("reader-voice-receipt")).toHaveTextContent(strings.agentVoice.handoffSent);
+  });
+
   it("[REQ:P0-017d] ends a tall row in an outline footer and never expands it inline", () => {
     render(<MessagesPane {...props} />);
 

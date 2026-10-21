@@ -1,7 +1,7 @@
 // DOC: docs/reference/configuration.md#mobile-toolbar-keys
 // DOC: docs/internal/SEAMS.md#axis-2-toolbar-keys-key-combos-p0-007
 import { useCallback, useDeferredValue, useMemo, useRef, useState, useEffect, forwardRef, useImperativeHandle, type CSSProperties } from "react";
-import { Loader2, Maximize2, SendHorizontal } from "lucide-react";
+import { Loader2, Maximize2, SendHorizontal, Square } from "lucide-react";
 import { IconButton } from "@vrooli/react-component-library/IconButton";
 import { ContextMenu } from "@vrooli/react-component-library/ContextMenu/1";
 import { usePressGesture } from "../hooks/usePressGesture";
@@ -123,11 +123,13 @@ export interface MobileToolbarVoiceProps {
   level?: number;
   activity?: VoiceActivitySnapshot;
   partialTranscript?: string;
+  partialTranscriptRole?: "user" | "assistant" | null;
   backend?: string;
   capabilityReason?: string;
   operatorCommand?: string;
   onStart?: (opts?: StartRecordingOpts) => void;
   onPrepare?: () => void;
+  onRequestVoiceMode?: (anchor: HTMLElement) => void;
   onStop?: () => void;
   onExitPassive?: () => void;
   commandSuggestion?: CommandSuggestion | null;
@@ -230,11 +232,13 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
     level: voiceLevel,
     activity: voiceActivity,
     partialTranscript: voicePartialTranscript,
+    partialTranscriptRole: voicePartialTranscriptRole,
     backend: voiceBackend,
     capabilityReason: voiceCapabilityReason,
     operatorCommand: voiceOperatorCommand,
     onStart: onVoiceStart,
     onPrepare: onVoicePrepare,
+    onRequestVoiceMode,
     onStop: onVoiceStop,
     onExitPassive: onVoiceExitPassive,
     commandSuggestion: voiceCommandSuggestion,
@@ -270,6 +274,8 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   }, [aiSuggestActive, draft]);
 
   // Auto-resize the textarea to fit its content (up to MAX_TEXTAREA_HEIGHT).
+  const liveAgent = voiceBackend === "agent" && Boolean(voicePreparing || voiceRecording || voiceListening);
+
   // Reset to "auto" first so scrollHeight reflects the natural content height,
   // then only write back when it actually changed to avoid a redundant layout.
   const resizeTextarea = useCallback(() => {
@@ -597,6 +603,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
     capabilityReason: voiceCapabilityReason,
     operatorCommand: voiceOperatorCommand,
     onPrepare: onVoicePrepare,
+    onRequestVoiceMode,
     onStart: onVoiceStart,
     onStop: onVoiceStop,
     onExitPassive: onVoiceExitPassive,
@@ -604,7 +611,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
     voiceAvailable, voicePreparing, voiceRecording, voicePersistentMode, voiceListening,
     voicePassive, voiceTranscribing, voiceError, voiceLevel, voiceActivity, voiceBackend,
     voiceCapabilityReason, voiceOperatorCommand,
-    onVoicePrepare, onVoiceStart, onVoiceStop, onVoiceExitPassive,
+    onVoicePrepare, onVoiceStart, onVoiceStop, onVoiceExitPassive, onRequestVoiceMode,
   ]);
 
   /**
@@ -792,6 +799,9 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
               <InterimTranscriptOverlay
                 draft={draft}
                 interim={voicePartialTranscript ?? ""}
+                speakerRole={voicePartialTranscriptRole}
+                liveAgent={liveAgent}
+                connecting={voicePreparing}
                 textareaRef={textareaRef}
                 className="box-border text-base leading-5 text-wc-text-primary"
                 style={{
@@ -811,13 +821,18 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
                 autoCorrect="on"
                 spellCheck={false}
                 rows={1}
-                placeholder={t(strings.mobileToolbar.placeholder)}
+                aria-label={t(strings.mobileToolbar.placeholder)}
+                readOnly={liveAgent}
+                tabIndex={liveAgent ? -1 : undefined}
+                aria-hidden={liveAgent || undefined}
+                placeholder={liveAgent || voicePartialTranscript ? "" : t(strings.mobileToolbar.placeholder)}
                 // Border, background, radius and padding are the group's now.
                 // `text-base` stays: 16px is what stops iOS zooming the
                 // viewport on focus, and the group deliberately leaves `font`
                 // alone so this class still wins.
                 className={cn(
                   "relative z-10 text-base caret-wc-text-primary",
+                  liveAgent && "pointer-events-none opacity-0",
                   "overflow-y-auto overflow-x-hidden",
                   // Hand the glyphs to the mirror while a hypothesis is on
                   // screen so settled and unsettled text cannot double up.
@@ -826,6 +841,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
                 style={{
                   color: voicePartialTranscript ? "transparent" : "rgb(var(--wc-text-primary))",
                   lineHeight: `${LINE_HEIGHT_PX}px`,
+                  minHeight: liveAgent ? "4.75rem" : undefined,
                   maxHeight: `${MAX_TEXTAREA_HEIGHT}px`,
                 }}
               />
@@ -867,25 +883,25 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
                 ref={sendButtonRef}
                 type="button"
                 data-testid="mobile-command-submit"
-                aria-label={sendStatus === "sending" ? t(strings.mobileToolbar.statusSending) : t(strings.mobileToolbar.sendTitle)}
-                title={sendStatus === "sending" ? t(strings.mobileToolbar.statusSending) : t(strings.mobileToolbar.sendTitle)}
+                aria-label={liveAgent ? t(strings.agentVoice.end) : sendStatus === "sending" ? t(strings.mobileToolbar.statusSending) : t(strings.mobileToolbar.sendTitle)}
+                title={liveAgent ? t(strings.agentVoice.end) : sendStatus === "sending" ? t(strings.mobileToolbar.statusSending) : t(strings.mobileToolbar.sendTitle)}
                 tabIndex={-1}
                 shape="circle"
                 surface="solid"
                 size="sm"
                 onPointerDown={(e) => {
                   e.preventDefault();
-                  sendGesture.onPointerDown(e);
+                  if (!liveAgent) sendGesture.onPointerDown(e);
                 }}
                 onPointerCancel={sendGesture.onPointerCancel}
-                onContextMenu={sendGesture.onContextMenu}
-                onClick={handleSendClick}
+                onContextMenu={liveAgent ? (event) => { event.preventDefault(); } : sendGesture.onContextMenu}
+                onClick={liveAgent ? onVoiceStop : handleSendClick}
               >
                 {/* "sending" renders as an inline spinner in the button itself
                     rather than a label below the textarea — the label changed
                     the toolbar's height on every send, forcing a costly
                     terminal resize/reflow. */}
-                {sendStatus === "sending" ? (
+                {liveAgent ? <Square aria-hidden className="h-4 w-4" /> : sendStatus === "sending" ? (
                   <Loader2 data-testid="send-status-sending" aria-hidden className="h-4 w-4 animate-spin" />
                 ) : (
                   <SendHorizontal aria-hidden className="h-4 w-4" />

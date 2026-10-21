@@ -5,6 +5,7 @@ import (
 	"io"
 	"strings"
 	"testing"
+	"time"
 
 	"web-console/backends/codex"
 	sessionsH "web-console/handlers/sessions"
@@ -108,6 +109,11 @@ func TestCaptureManagedCodexEventUsesNativeIdentityAndSkipsDeltas(t *testing.T) 
 	if len(state.Events) != 1 || state.Events[0].Text != "complete" || state.Events[0].NativeProvenance.BoundaryID != "item-1" {
 		t.Fatalf("captured events = %+v", state.Events)
 	}
+	srv.captureManagedCodexEvent("session-1", codex.NativeEvent{Kind: "item/completed", ThreadID: "thread-1", TurnID: "turn-2", MessageID: "voice-input", BoundaryID: "voice-input", Role: "user", Text: "Run tests", VoiceHandoff: true})
+	state = srv.conversations.ListSession(context.Background(), "session-1")
+	if len(state.Events) != 2 || state.Events[1].Source != codexVoiceHandoffSource || state.Events[1].Role != ConversationRoleUser {
+		t.Fatalf("voice handoff receipt was not persisted: %+v", state.Events)
+	}
 }
 
 func TestManagedCodexRegistryCreatesAndPersistsNativeSession(t *testing.T) {
@@ -159,3 +165,32 @@ func sessionsCreateInputForManagedTest() sessionsH.CreateInput {
 type testWriteCloser struct{ io.Writer }
 
 func (testWriteCloser) Close() error { return nil }
+
+func TestManagedCodexRecoveryRestoresLiveStatus(t *testing.T) {
+	ctx := context.Background()
+	store := sessionstore.NewInMemory()
+	if err := store.Save(ctx, sessionstore.Metadata{ID: "session-1", AgentType: sessionstore.AgentCodex, LaunchMode: sessionstore.LaunchModeCodexAppServer, NativeThreadID: "thread-1", LaunchDescriptorJSON: `{"agent":"codex","launchMode":"codex_app_server"}`}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.MarkOrphaned(ctx, "session-1", time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	registry := newManagedCodexRegistry(store)
+	owner, err := codex.NewManagedOwner(codex.NewClient(testWriteCloser{io.Discard}, strings.NewReader("")), "owner", "thread-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	registry.resume = func(context.Context, string, string, string, string, string, string, []string, []string) (*codex.ManagedOwner, error) {
+		return owner, nil
+	}
+	if err := registry.Recover(ctx); err != nil {
+		t.Fatal(err)
+	}
+	meta, _ := store.Get(ctx, "session-1")
+	if meta.Status != sessionstore.StatusLive {
+		t.Fatalf("status = %s", meta.Status)
+	}
+	if _, err := registry.Get(ctx, "session-1"); err != nil {
+		t.Fatal(err)
+	}
+}

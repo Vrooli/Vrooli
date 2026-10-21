@@ -176,6 +176,7 @@ vi.mock("../audio-integration", () => ({
 
 // Mock workspace store
 const mockStoreState = {
+  agentVoiceConfigured: true,
   panes: [] as Array<{
     sessionId: string;
     name: string;

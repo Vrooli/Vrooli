@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { BookmarkPlus, History, Library, Loader2, Paperclip, SendHorizontal } from "lucide-react";
+import { BookmarkPlus, History, Library, Loader2, Paperclip, SendHorizontal, Square } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AlertDialog } from "@vrooli/react-component-library/AlertDialog/2";
 import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1";
@@ -45,6 +45,10 @@ interface FullScreenComposerProps {
    * draft like any other text.
    */
   interimTranscript?: string;
+  agentVoiceActive?: boolean;
+  agentVoicePreparing?: boolean;
+  onEndAgentVoice?: () => void;
+  interimTranscriptRole?: "user" | "assistant" | null;
 
   /** Staged attachments. */
   attachments?: ComposerAttachment[];
@@ -86,6 +90,10 @@ export default function FullScreenComposer({
   onFocusTerminal,
   mic,
   interimTranscript = "",
+  interimTranscriptRole = null,
+  agentVoiceActive = false,
+  agentVoicePreparing = false,
+  onEndAgentVoice,
   attachments = [],
   onAttachFiles,
   onRemoveAttachment,
@@ -207,7 +215,7 @@ export default function FullScreenComposer({
   );
 
   const handleSend = useCallback(async () => {
-    if (status === "sending" || status === "uploading") return;
+    if (agentVoiceActive || status === "sending" || status === "uploading") return;
     const text = draft.getValue();
     if (text.length === 0 && !hasAttachments) return;
     setErrorMsg(null);
@@ -273,6 +281,7 @@ export default function FullScreenComposer({
       finalizeSuccess();
     }
   }, [
+    agentVoiceActive,
     status,
     draft,
     hasAttachments,
@@ -353,6 +362,9 @@ export default function FullScreenComposer({
           <InterimTranscriptOverlay
             draft={draft}
             interim={interimTranscript}
+            speakerRole={interimTranscriptRole}
+            liveAgent={agentVoiceActive}
+            connecting={agentVoicePreparing}
             textareaRef={textareaRef}
             className="px-4 py-3 text-base text-wc-text-primary"
             testId="composer-interim-overlay"
@@ -367,13 +379,17 @@ export default function FullScreenComposer({
             autoComplete="off"
             autoCorrect="on"
             spellCheck
-            placeholder={t(strings.composer.placeholder)}
+            aria-label={t(strings.composer.placeholder)}
+            readOnly={agentVoiceActive}
+            tabIndex={agentVoiceActive ? -1 : undefined}
+            aria-hidden={agentVoiceActive || undefined}
+            placeholder={agentVoiceActive || interimTranscript ? "" : t(strings.composer.placeholder)}
             className={cn(
               "relative z-10 min-h-0 flex-1 resize-none bg-transparent px-4 py-3 text-base caret-wc-text-primary placeholder:text-wc-text-muted outline-none",
               // Hand the glyphs to the mirror while a hypothesis is on screen,
               // so settled and unsettled text are drawn by one element and
               // cannot double up. The caret keeps its own colour.
-              interimTranscript ? "text-transparent" : "text-wc-text-primary",
+              agentVoiceActive ? "pointer-events-none opacity-0" : interimTranscript ? "text-transparent" : "text-wc-text-primary",
             )}
           />
         </div>
@@ -447,17 +463,17 @@ export default function FullScreenComposer({
           <button
             type="button"
             data-testid="composer-send"
-            onClick={handleSend}
-            disabled={!canSend || isBusy}
+            onClick={agentVoiceActive ? onEndAgentVoice : handleSend}
+            disabled={agentVoiceActive ? !onEndAgentVoice : !canSend || isBusy}
             className="inline-flex shrink-0 items-center gap-1.5 rounded border border-wc-accent bg-wc-accent/20 px-4 py-2 text-sm font-medium text-wc-text-primary transition active:bg-wc-accent-active disabled:opacity-60"
-            title={isBusy ? t(strings.composer.sendingTitle) : t(strings.composer.sendTitle)}
+            title={agentVoiceActive ? t(strings.agentVoice.end) : isBusy ? t(strings.composer.sendingTitle) : t(strings.composer.sendTitle)}
           >
-            {isBusy ? (
+            {agentVoiceActive ? <Square className="h-4 w-4" /> : isBusy ? (
               <Loader2 data-testid="composer-sending" className="h-4 w-4 animate-spin" />
             ) : (
               <SendHorizontal className="h-4 w-4" />
             )}
-            <span>{t(strings.composer.sendTitle)}</span>
+            <span>{t(agentVoiceActive ? strings.agentVoice.end : strings.composer.sendTitle)}</span>
           </button>
         </div>
 

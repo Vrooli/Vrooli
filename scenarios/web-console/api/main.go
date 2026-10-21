@@ -99,6 +99,8 @@ type Server struct {
 	conversationControlMu sync.Mutex
 	conversationControl   *conversationControlState
 	managedCodex          *managedCodexRegistry
+	agentVoiceMu          sync.Mutex
+	agentVoiceControllers map[string]*agentVoiceLease
 	idempotency           *intsessions.IdempotencyCache // replay-safe session creation
 	capabilities          *capabilities.Registry
 	workspace             intworkspace.Store

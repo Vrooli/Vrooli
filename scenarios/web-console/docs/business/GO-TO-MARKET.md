@@ -1,85 +1,104 @@
-# Aquila: customer value and current offer boundaries
+# Aquila: get more from the coding agents you already have
 
-Aquila is a workspace for people who work with multiple coding agents. Its useful
-loop is: notice where attention is needed, read the answer, inspect the actual
-files, then carry the useful context into the next conversation. This positioning
-is based on operator daily-use feedback (2026-10-18) and the source surfaces below;
-it is not a measured conversion result or a promise that every deployment includes
-all integrations.
+Aquila is a shared workspace for coding-agent conversations, outputs and the
+next decision. Its primary audience is a developer or technical builder who
+already uses one or more coding agents and wants to use them together with less
+context switching. The positioning below incorporates operator daily use and
+product inspection on 2026-10-21. It is a marketing hypothesis with source-backed
+feature boundaries, not a measured savings or conversion result.
 
-## Audience and recurring job
+## Customer job and promise
 
-An individual developer or technical builder has several agent conversations in
-flight. Switching between raw transcripts, terminals, files and copied context
-makes it harder to find the next decision and review what an agent produced.
-Aquila brings those review and coordination tasks into one workspace. The value
-is control and clarity during ongoing work, not simply opening a terminal in a
-browser. Competitive superiority and quantified time savings remain unmeasured.
+**Get more from the coding agents you already have.** Keep their conversations
+organized, review what they made, and carry useful context into the next task.
 
-## Discoverable selling points
+A person may already pay for several coding-agent subscriptions, have capable
+local compute, or use API keys. Aquila makes those configured tools easier to
+work with through one interface. It helps the person choose and coordinate their
+existing tools; it does not merge vendor subscriptions, pool their quotas, move a
+native thread between providers, or prove that every task takes the cheapest route.
 
-| Capability | Useful outcome | Product evidence | Qualification |
-|---|---|---|---|
-| Sessions, groups, unread counts and sorting | Find conversations that deserve attention without opening each one | `ui/src/lib/workspaceNavigation.ts`, sidebar state and cursor handling | Unread is a reading signal; do not equate it with a verified approval queue or agent success |
-| Markdown messages, tables, diagrams and reader view | Review an answer as structured material rather than scanning terminal escape sequences | `ui/src/components/MessagesPane.tsx`, `MessageJumpList.tsx`, Markdown and reader components | Provider transcript availability and diagram rendering must work in the selected build |
-| File viewing across documents, workbooks, source, changes, HTML, media and folders | Check the deliverable while keeping its conversation close | `ui/src/components/file-preview/renderers/index.ts` and renderer implementations; README File inspection; `fixtures/file-preview/` | Format limits apply. Workbooks are read-only; saved formulas are not recalculated. DOCX layout can differ from Word. A UI demonstration does not certify every format |
-| Selected-message copying/export | Carry a useful handoff into another conversation with less manual assembly | `MessageJumpList.tsx`, `MessageExportDrawer.tsx`, export formatters | Copy/export is distinct from executing the destination agent or proving the next task succeeded |
-| Vrooli integration | Use the workspace alongside a growing set of local apps, services and agent capabilities | `docs/internal/BUNDLE_INTEGRATION.md`, `.vrooli/service.json`, provider/integration owners | Explain Vrooli as the surrounding collection of apps and local services. A standalone offer does not imply that the full ecosystem, models or paid inference are included |
-| Voice and audio | Speak input and use supported audio workflows | voice controls, audio-tools integration, file-preview audio renderer | Verify microphone permission, provider, service dependencies and selected target before advertising hands-free or turnkey voice |
-| Mobile access | Continue from a smaller device | responsive workspace, terminal keyboard and file viewers | Potentially valuable, but excluded from the present desktop-led offer story. Secure access/tunnel and home-screen setup require additional work |
+The useful loop is: choose a configured agent, notice where attention is needed,
+read the answer, open the files from that conversation, and carry selected context
+forward. This addresses cognitive overhead and avoidable switching as well as the
+possibility of better utilization of existing spend. Dollar savings require a
+buyer-specific baseline and evidence; convenience alone does not establish ROI.
 
-This table is a discovery aid, not approved commercial copy. Read actual workflows
-and tests when assessing a new build. Operator preferences can reveal overlooked
-value; they do not establish package readiness.
+## Who should care
 
-## Current desktop positioning
+Start with individual developers, technical founders and small teams who already
+coordinate several coding-agent conversations. A good demonstration answers:
+"Why use this instead of another terminal tab?" Show a cross-agent review and
+handoff, rich messages, file inspection and clear attention state. Explain the
+configured-provider and setup boundaries rather than suggesting Aquila replaces
+the underlying agents or includes every provider entitlement.
 
-Lead with **a workspace for your coding agents**. A coherent demonstration follows
-one project through unread conversations, a readable answer, linked files and a
-handoff. Show multiple file types where they contribute to review. Use real
-controls and source pixels. Fictional presentation data may demonstrate UI
-rendering and navigation; it cannot prove agent execution, persistence, installer
-success or setup speed.
+A trial should demonstrate a repeatable daily job before asking someone to pay.
+Measure whether people return to review outputs, recover a conversation and reuse
+a handoff. Treat willingness to subscribe, reduced switching and improved use of
+existing capacity as hypotheses to test. Do not invent a time or money saving.
 
-The Offer Desk snapshot read on 2026-10-18 lists web-console as a customer-facing,
-marketed deliverable (`82881311-e8bd-4a12-a268-868cf8942581`, `TRIGGER_MET`). Its
-desktop ramp (`7f935fe5-ecae-4aa1-9c55-5b6d4a2e4288`), developer audience
-(`b62b4783-e872-4f6d-98b4-ab98d96ba818`) and tier-1 variant
-(`54180a50-e4c4-49b6-9b11-0735fdb0b65e`) were `IDEA`. Commercial intent is not
-package certification. Resolve current Offer Desk, actual release/package evidence,
-Content Desk claims and the published landing route before each production.
+## Selling points and proof
 
-Do not headline phone use, effortless remote access, bundled model providers,
-automatic approval handling, full ecosystem installation, hands-free voice, or
-unverified download availability. These can become future angles when their
-specific delivery and setup evidence supports them. Preview/explore is a valid
-next action when a download is not verified.
+| Capability | Customer benefit | Evidence and limit |
+|---|---|---|
+| Configured coding-agent launch choices | Work with different tools from a consistent workspace | `api/shortcut_profiles.go`, provider/session adapters and the actual launcher. Installation, authentication, transcript support and native features vary by provider; a menu entry is not successful execution evidence |
+| Sessions, groups, unread state and customization | Spend less attention finding the next conversation | Sidebar/workspace navigation and native group/collapse captures. Unread means unread, not verified success or required approval |
+| Markdown, tables, diagrams and full reader | Review structured answers clearly | `ui/src/components/MessagesPane.tsx` and messages/reader components. Transcript/rendering availability is build-specific |
+| Linked files and multiple viewers | Inspect what the agent made without losing its conversation | `ui/src/components/file-preview/renderers/index.ts`; actual message → sidebar → expansion workflow. Format limits apply; workbooks are read-only and do not recalculate formulas |
+| Selected-message export/copy | Reuse decisions across conversations and agent choices | Message export drawer and formatters. This transfers selected text, not an entire native provider session or its hidden state |
+| Native agent voice or configured dictation | Use a suitable voice path without requiring the same service for every agent | `api/agent_voice.go`, `useAgentVoice.ts`, `useRoutedVoiceInput.ts`. Current browser-native adapter is Codex/version/session gated. Dictation is a separate Audio Tools path; microphone, provider, account and service readiness still matter |
+| Local, BYOK and Vrooli-assisted AI options | Use available resources and choose how supported assistance is funded | AI service/configuration and credential/billing owners. These are feature-specific routes, not universal coding-agent substitution or a guaranteed least-cost optimizer |
+| Vrooli ecosystem | Combine the workspace with deeper agent operations and local tools | Aquila handles daily interaction/review; Agent Manager handles supported orchestration, evidence and efficiency investigation. Bundling and account entitlements follow the actual offer |
 
-## Maintaining this brief
+## Voice and funding: explain the distinctions
 
-Keep customer jobs and evidence close to product changes. For each candidate,
-record value (observed, operator-reported or inferred) separately from availability
-(supported, conditional, excluded or unknown for the specific offer). Rank useful
-workflows after discovery and qualification. Preserve worthwhile unknown candidates
-for future offers. Recheck target, package, dependency and reliability assumptions
-when either the offer or product changes. The launch-video skill owns production
-selection and proof; Offer Desk owns commercial intent, and Content Desk and the
-published presentation retain their claim-approval boundaries.
+Native agent voice uses a supported agent's own live connection and eligibility.
+The inspected implementation currently supports qualified Codex sessions; do not
+advertise native voice for every agent. Auto mode attaches to eligible already
+active native voice; it is not a universal "subscription voice first" promise.
+An explicit Agent Voice choice and Dictation choice are available. Native failures
+report recovery rather than proving a transparent paid fallback occurred.
 
+Dictation, speech playback and AI command assistance are separate capabilities.
+Their local/BYOK/Vrooli routes have their own configuration, permissions, health
+and billing. Existing provider subscriptions do not automatically supply API-key
+credits. Do not imply that a Vrooli subscription includes unlimited third-party
+inference, that local compute has no cost, or that every route is interchangeable.
+See [Monetization](MONETIZATION.md) for funding boundaries.
 
-## Readiness evidence for production
+## Aquila and Agent Manager
 
-Read the feature owners before using a claim. `web-console capabilities` reports
-current dependency/provider state for the contacted host; renderer and workspace
-regressions plus native UI captures establish their narrower behavior. Neither
-surface certifies a different desktop bundle. Offer Desk owns the intended offer;
-Deployment Manager and the relevant ramp own target/build/package readiness.
-Keep those owner receipts beside the production brief, with observed build,
-product target and the specific benefit exercised. Unknown voice/provider setup
-and unverified mobile access remain visible candidates with unknown eligibility.
+Aquila is the daily workspace: choose, follow, review and hand off. Agent Manager
+(Mizar) is the deeper operational instrument: inspect supported workloads,
+recurring friction, outcomes, duration and attributed usage, then compare a change.
+This is a complementary efficiency story, not a claim that Aquila itself performs
+all analysis or that Agent Manager observes every external terminal session.
+See [Agent Manager positioning](../../../agent-manager/docs/business/GO-TO-MARKET.md).
 
-The launch-video brief's version-2 qualification joins these identities and
-separates UI, runtime, installation and integration promises. A `TRIGGER_MET`
-deliverable or an API boot result cannot qualify an unrelated integration or
-installer claim. Refresh the observed receipt when the build, target or relevant
-setup changes. This avoids maintaining a second product-readiness ledger here.
+## Future opportunity: provider limits and reset visibility
+
+A unified configured-agent usage/remaining-limit/reset view could help people
+choose which entitlement to use next. This is a discovery opportunity, not a
+current selling point or an implementation commitment in this update. First
+verify each provider's supported read path, account scope, freshness and terms.
+Keep unavailable values unknown, distinguish subscription allowances from API
+billing, and avoid auto-switching an active thread or disclosing credentials.
+Do not show a fictional quota dashboard as product evidence in a launch film.
+
+## Offer, availability and launch direction
+
+Offer Desk's 2026-10-21 release-path read ranks web-console first and marks it
+`TRIGGER_MET`, with AI Gateway and the landing-page suite still listed as blockers.
+That graph describes commercial intent, not installer or integration certification.
+Resolve current package/target and published claims before a new commercial export.
+Desktop remains the lead target. Mobile can be useful, but secure remote access,
+tunnel and home-screen setup prevent it from being the default turnkey promise.
+
+The launch film should establish the existing-agent problem, show the configured
+choice and daily review loop, explain eligible voice/assistance routes, and give
+one qualified next action. Deliberate browser/app framing and optional qualified
+Device Studio laptop footage should support readable native proof. Duration follows
+the necessary explanation and actual capture; the previous48-second cut is not a
+ceiling and90seconds is not a requirement. Keep rate-limit intelligence, quantified
+savings, effortless setup and unverified voice execution out of demonstrated claims.

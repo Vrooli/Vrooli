@@ -128,6 +128,16 @@ func TestCodexTailer_AttributesMidSessionRolloutToCorrectSession(t *testing.T) {
 		t.Fatalf("expected event session %s, got %s", sessA.ID, event.SessionID)
 	}
 
+	// A provider-confirmed coding request keeps its handoff receipt through
+	// rollout decoding, dispatch and durable conversation capture.
+	handoff := []byte(`{"type":"response_item","payload":{"role":"user","content":[{"type":"input_text","text":"<realtime_delegation><input>Run tests</input></realtime_delegation>"}]}}` + "\n")
+	if err := appendFile(rolloutPath, handoff); err != nil {
+		t.Fatal(err)
+	}
+	stateA := waitForEventCount(t, srv.conversations, sessA.ID, 2, 3*time.Second)
+	if stateA.Events[1].Source != codexVoiceHandoffSource || stateA.Events[1].Text != "Run tests" || stateA.Events[1].Role != ConversationRoleUser {
+		t.Fatalf("terminal voice handoff receipt = %+v", stateA.Events[1])
+	}
 	if stateB := srv.conversations.ListSession(context.Background(), sessB.ID); len(stateB.Events) != 0 {
 		t.Fatalf("expected session B to have 0 events, got %d (bleed between sessions)", len(stateB.Events))
 	}

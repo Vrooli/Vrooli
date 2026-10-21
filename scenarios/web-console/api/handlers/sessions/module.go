@@ -198,7 +198,7 @@ type CreateInput struct {
 	Policy             Policy
 	HasPolicy          bool
 	LaunchCommand      string
-	// ExecuteLaunchCommand, when true, pastes LaunchCommand into the new
+	// ExecuteLaunchCommand, when true, types LaunchCommand into the new
 	// pane's PTY server-side so the command runs exactly once without the
 	// client typing it after the WebSocket connects.
 	ExecuteLaunchCommand bool

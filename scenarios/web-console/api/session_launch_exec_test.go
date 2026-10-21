@@ -2,7 +2,10 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -11,14 +14,15 @@ import (
 
 	sessionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/sessions"
 
+	"web-console/internal/pty"
 	"web-console/internal/ptyfake"
 )
 
 // stdinCapture wires a FakePTY whose stdin writes are forwarded over a channel
-// so a test can observe exactly what the server pastes into a new pane. A
+// so a test can observe exactly what the server writes into a new pane. A
 // concurrent reader is mandatory: FakePTY.WriteInput writes to an io.Pipe,
 // which blocks until the bytes are read, so without draining stdin the Create
-// call (which pastes synchronously) would hang.
+// call (which writes synchronously) would hang.
 func stdinCapture(t *testing.T) (*ptyfake.FakePTY, <-chan []byte) {
 	t.Helper()
 	stdoutR, stdoutW := io.Pipe()
@@ -44,6 +48,63 @@ func stdinCapture(t *testing.T) (*ptyfake.FakePTY, <-chan []byte) {
 		_ = fake.Close()
 	})
 	return fake, inputCh
+}
+
+// A pasted newline is text in Bash's bracketed-paste mode. Observe a file
+// written by the shell; an echoed command in the pane does not prove execution.
+func TestCreateSession_ExecuteLaunchCommandRunsOnceInBash(t *testing.T) {
+	requireTmux(t)
+	dir := t.TempDir()
+	marker := filepath.Join(dir, "executed")
+	rc := filepath.Join(dir, "bashrc")
+	if err := os.WriteFile(rc, []byte("bind 'set enable-bracketed-paste on'\nPS1='WC_LAUNCH_READY> '\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	srv := newFakeTestServerWithFactory(func(spec pty.LaunchSpec) (pty.PTY, error) {
+		spec.Shell = fmt.Sprintf("/bin/bash --noprofile --rcfile %q -i", rc)
+		p, err := tmuxPTYFactory(spec)
+		if err == nil && !waitForPaneContent(t, tmuxSessionPrefix+spec.SessionID, "WC_LAUNCH_READY>", 3*time.Second) {
+			_ = p.Kill()
+			_ = p.Close()
+			return nil, fmt.Errorf("bash prompt did not become ready")
+		}
+		return p, err
+	})
+	handler := newSessionsConnectHandlerForServer(srv)
+	req := connect.NewRequest(&sessionsv1.CreateRequest{
+		Cols: 80, Rows: 24, LaunchCommand: fmt.Sprintf("printf x >> %q", marker),
+		ExecuteLaunchCommand: true,
+	})
+	req.Header().Set("X-Idempotency-Key", "launch-once")
+	resp, err := handler.Create(context.Background(), req)
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	sess := resp.Msg.GetSession()
+	t.Cleanup(func() { _ = srv.sessions.Delete(context.Background(), sess.GetId()) })
+	deadline := time.Now().Add(3 * time.Second)
+	for {
+		contents, err := os.ReadFile(marker)
+		if err == nil {
+			if string(contents) != "x" {
+				t.Fatalf("command did not execute exactly once: %q", contents)
+			}
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("launch did not execute without extra terminal input: %v", err)
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	repeated, err := handler.Create(context.Background(), req)
+	if err != nil || repeated.Msg.GetSession().GetId() != sess.GetId() {
+		t.Fatalf("repeated create did not return the same session: %v", err)
+	}
+	time.Sleep(100 * time.Millisecond)
+	contents, err := os.ReadFile(marker)
+	if err != nil || string(contents) != "x" {
+		t.Fatalf("command executed more than once: %q, %v", contents, err)
+	}
 }
 
 // waitForPTYInput accumulates stdin chunks until they contain want or the
@@ -80,7 +141,7 @@ func createWithLaunch(t *testing.T, srv *Server, launch string, execute bool) (*
 	return resp.Msg.GetSession(), nil
 }
 
-// TestCreateSession_ExecuteLaunchCommand asserts the server pastes the launch
+// TestCreateSession_ExecuteLaunchCommand asserts the server types the launch
 // command (with a trailing newline so it runs) into the fresh PTY exactly once
 // when execute_launch_command is set.
 func TestCreateSession_ExecuteLaunchCommand(t *testing.T) {
@@ -96,10 +157,10 @@ func TestCreateSession_ExecuteLaunchCommand(t *testing.T) {
 
 	got, ok := waitForPTYInput(t, inputCh, "codex --yolo\n", time.Second)
 	if !ok {
-		t.Fatalf("launch command not pasted into PTY; saw %q", got)
+		t.Fatalf("launch command not written to PTY; saw %q", got)
 	}
 	if strings.Count(got, "codex --yolo") != 1 {
-		t.Errorf("launch command should be pasted exactly once, saw %q", got)
+		t.Errorf("launch command should be written exactly once, saw %q", got)
 	}
 }
 

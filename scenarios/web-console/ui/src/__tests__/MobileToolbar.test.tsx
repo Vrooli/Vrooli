@@ -842,7 +842,51 @@ describe("MobileToolbar — modifiers and optional actions", () => {
 
     expect(screen.getByTestId("mobile-command-input")).toHaveClass("text-transparent");
     expect(screen.getByTestId("mobile-interim-overlay")).toHaveTextContent("draft words");
+    expect(screen.getByTestId("mobile-command-input")).toHaveAttribute("placeholder", "");
+    expect(screen.getByTestId("mobile-command-input")).toHaveAttribute("aria-label", i18n.t("mobileToolbar.placeholder"));
+    expect(screen.getByTestId("mobile-command-input")).toHaveValue("");
   });
+  it("distinguishes assistant voice previews from the user's speech without inserting a draft", () => {
+    const voice = { supported: true, onStart: vi.fn(), onStop: vi.fn(), partialTranscript: "Your question", partialTranscriptRole: "user" as const };
+    const { rerender, onInput } = renderToolbar({ voice });
+    expect(screen.getByTestId("mobile-interim-overlay-text")).toHaveAttribute("data-speaker", "user");
+    expect(screen.getByTestId("mobile-interim-overlay-text")).toHaveClass("text-wc-accent");
+    rerender(<MobileToolbar activeSessionId="sess-1" onInput={onInput} voice={{...voice, partialTranscript: "The voice reply", partialTranscriptRole: "assistant"}} />);
+    expect(screen.getByTestId("mobile-interim-overlay-text")).toHaveAttribute("data-speaker", "assistant");
+    expect(screen.getByTestId("mobile-interim-overlay-text")).toHaveClass("text-wc-text-secondary");
+    expect(screen.getByTestId("mobile-interim-overlay-text")).not.toHaveClass("text-wc-accent");
+    expect(screen.getByTestId("mobile-command-input")).toHaveValue("");
+    expect(screen.getByTestId("mobile-command-input")).toHaveAttribute("placeholder", "");
+    expect(onInput).not.toHaveBeenCalled();
+  });
+  it("presents native speech as live conversation and ends it instead of sending the hidden draft", () => {
+    const stop = vi.fn();
+    const voice = { supported: true, onStart: vi.fn(), onStop: stop, backend: "agent", listening: false, partialTranscript: "" };
+    const { rerender, onInput } = renderToolbar({ voice });
+    const input = screen.getByTestId("mobile-command-input") as HTMLTextAreaElement;
+    fireEvent.change(input, { target: { value: "Unsent typed message" } });
+    rerender(<MobileToolbar activeSessionId="sess-1" onInput={onInput} voice={{ ...voice, listening: true, partialTranscript: "A spoken reply", partialTranscriptRole: "assistant" }} />);
+    expect(screen.getByTestId("mobile-interim-overlay")).toHaveTextContent(i18n.t("agentVoice.liveAutomatic"));
+    expect(screen.getByTestId("mobile-interim-overlay")).not.toHaveTextContent("Unsent typed message");
+    expect(screen.getByTestId("mobile-command-submit")).toHaveAttribute("aria-label", i18n.t("agentVoice.end"));
+    fireEvent.click(screen.getByTestId("mobile-command-submit"));
+    expect(stop).toHaveBeenCalledOnce(); expect(onInput).not.toHaveBeenCalled();
+    expect(input).toHaveValue("Unsent typed message");
+    rerender(<MobileToolbar activeSessionId="sess-1" onInput={onInput} voice={voice} />);
+    expect(input).not.toHaveAttribute("readonly");
+    expect(input).toHaveValue("Unsent typed message");
+  });
+  it("restores the placeholder when captions clear without replacing the typed draft", () => {
+    const voice = { supported: true, onStart: vi.fn(), onStop: vi.fn(), partialTranscript: "live words" };
+    const { rerender, onInput } = renderToolbar({ voice });
+    fireEvent.change(screen.getByTestId("mobile-command-input"), { target: { value: "Keep this draft" } });
+    rerender(<MobileToolbar activeSessionId="sess-1" onInput={onInput} voice={{ ...voice, partialTranscript: "" }} />);
+    expect(screen.getByTestId("mobile-command-input")).toHaveAttribute("placeholder", i18n.t("mobileToolbar.placeholder"));
+    expect(screen.getByTestId("mobile-command-input")).toHaveValue("Keep this draft");
+    expect(screen.queryByTestId("mobile-interim-overlay")).toBeNull();
+    expect(onInput).not.toHaveBeenCalled();
+  });
+
 });
 
 describe("MobileToolbar — appendText (voice transcript insertion)", () => {

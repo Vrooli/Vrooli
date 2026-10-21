@@ -94,6 +94,7 @@ interface FloatingToolbarProps {
   voiceOperatorCommand?: string;
   onVoiceStart?: (opts?: StartRecordingOpts) => void;
   onVoicePrepare?: () => void;
+  onVoiceRequestMode?: (anchor: HTMLElement) => void;
   onVoiceStop?: () => void;
   /** Exit passive wake-word listening (tapping the passive mic button). */
   onVoiceExitPassive?: () => void;
@@ -129,6 +130,7 @@ export default function FloatingToolbar({
   voiceOperatorCommand,
   onVoiceStart,
   onVoicePrepare,
+  onVoiceRequestMode,
   onVoiceStop,
   onVoiceExitPassive,
 }: FloatingToolbarProps) {
@@ -399,6 +401,7 @@ export default function FloatingToolbar({
           capabilityReason={voiceCapabilityReason}
           operatorCommand={voiceOperatorCommand}
           onPrepare={onVoicePrepare}
+          onRequestVoiceMode={onVoiceRequestMode}
           onStart={onVoiceStart}
           onStop={onVoiceStop}
           onExitPassive={onVoiceExitPassive}

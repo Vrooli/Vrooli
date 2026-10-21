@@ -1200,6 +1200,10 @@
     "library.patterns.swipe-actions.lastAction": {
       "testId": "patterns.swipe-actions.last-action",
       "selector": "[data-testid=\"patterns.swipe-actions.last-action\"]"
+    },
+    "library.overlays.popover.root": {
+      "testId": "overlays.popover",
+      "selector": "[data-testid=\"overlays.popover\"]"
     }
   },
   "dynamicSelectors": {
@@ -1907,7 +1911,7 @@
     }
   },
   "sources": {
-    "ui/src/consts/selectors.library.ts": "783bebc443f6ed1e61b95336ffbcebf17c314ab77920d83e535e87e09340ce15",
+    "ui/src/consts/selectors.library.ts": "7fbb6bcdf526de6533f9d28d47bfb541a053b4fd793c1834696a13ad41fff1f8",
     "ui/src/consts/selectors.ts": "d6e2cc54625968139e4e3e7632d281de92d5a7a8d4d6f938bf8dfbe191381c67"
   }
 }

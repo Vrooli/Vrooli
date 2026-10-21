@@ -147,6 +147,11 @@ func (sm *Manager) Recover(ctx context.Context, store sessionstore.Store, regist
 	}
 	metaMap := make(map[string]sessionstore.Metadata, len(metaList))
 	for _, m := range metaList {
+		// Managed app-server sessions have no tmux process. Their native
+		// owner resumes them separately and owns their recovery status.
+		if m.LaunchMode == sessionstore.LaunchModeCodexAppServer {
+			continue
+		}
 		metaMap[m.ID] = m
 	}
 	sm.setRecoveryTotal(len(metaMap))

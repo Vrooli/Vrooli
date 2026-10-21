@@ -1353,3 +1353,16 @@ func TestSession_ReadLoop_ClosesOldPTY_OnReattach(t *testing.T) {
 		t.Error("old PTY was not closed after successful re-attach (fd leak)")
 	}
 }
+
+func TestRecover_ManagedCodexIsNotATmuxOrphan(t *testing.T) {
+	store := sessionstore.NewInMemory()
+	ctx := context.Background()
+	_ = store.Save(ctx, sessionstore.Metadata{ID: "managed", Backend: backend.Persistent, Detached: true, LaunchMode: sessionstore.LaunchModeCodexAppServer})
+	sm := NewManagerWithFactory(nil)
+	sm.tmuxDiscoverFunc = func() ([]string, error) { return nil, nil }
+	report := sm.Recover(ctx, store, backend.New())
+	got, _ := store.Get(ctx, "managed")
+	if report.AwaitingRecovery != 0 || got.Status != sessionstore.StatusLive {
+		t.Fatalf("managed session was classified by PTY recovery: report=%+v status=%s", report, got.Status)
+	}
+}

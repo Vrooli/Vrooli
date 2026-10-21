@@ -344,6 +344,70 @@ Client-side [CODE: ui/src/lib/errors.ts#APIError] parses these into typed errors
 
 ## Audio Ownership Map
 
+### Native agent voice
+
+Web Console owns the native-agent voice adapter and session-bound signaling;
+Audio Tools continues to own dictation and synthesis. Browser capture, media
+playback, microphone leases and levels use `@vrooli/audio-capture-browser`.
+Native audio goes to the existing Codex thread without an STT/TTS round trip.
+Remote WebRTC playback retains a hidden muted media renderer alongside the
+gesture-unlocked Web Audio output. This starts Chromium's remote-stream renderer
+without a second audible path; replacement, failure and stop release both.
+See [Chromium issue 40094084](https://issues.chromium.org/issues/40094084).
+
+The experimental native protocol is explicitly qualified for Codex 0.161.x;
+unknown protocol families report unavailable and retain Dictation. WebRTC v3
+uses the existing Codex sign-in. The optional raw PCM WebSocket transport in
+this provider version requires API-key authentication; it reports that native
+restriction without provisioning credentials or changing the agent's account.
+Stopping voice persists canonical transcript items without submitting a synthetic
+transcript-tail coding turn. Provider handoff envelopes project their display
+text rather than internal XML into Messages.
+
+The agent-voice WebSocket is a same-origin, session-scoped protocol: its first
+message reports capability and observed native mode; control messages select
+WebRTC SDP signaling or bounded PCM streaming. Only one browser controller may
+own voice for a session. Observers cannot send audio or stop another controller.
+The server verifies the Codex thread against the managed owner or the session's
+private daemon before subscribing. It never creates a second agent thread.
+Disconnect releases the browser-owned voice conversation. It never stops a
+pre-existing native voice conversation until the operator requests connection.
+
+The first microphone press opens a compact popover anchored to that microphone
+on desktop and mobile. No capture or permission request begins until a mode is
+chosen. Choosing a mode saves it and starts capture in that same user gesture;
+later presses start directly. Settings → Voice input owns subsequent preference
+changes. No persistent voice selector or status row occupies the workspace.
+The existing mic state and waveform represent preparation and live capture.
+
+Auto uses native voice when the native session is observed active; Agent voice
+explicitly starts native voice; Dictation uses Audio Tools. Native failures are
+visible and offer dictation, without replaying uncertain input. Voice activation,
+browser capture, mute, connection and agent work activity are independent facts.
+A detected footer means voice is observed, not that the browser mic is live.
+Microphone permission and browser audio activation remain tied to a user gesture.
+Pane changes, page lifecycle, failed setup and disconnection release capture.
+Native transcript events project into Messages once by session/item identity;
+they never become fresh input or trigger automatic TTS alongside native audio.
+Messages distinguishes a voice transcript from a confirmed coding handoff. Only a
+valid realtime delegation captured as a native coding user message receives the
+“Sent to coding agent” marker; recognition, ordinary conversation and voice
+transcript completion are not handoff receipts. Both managed events and terminal
+rollouts preserve this classification. The marker survives reload. Live captions
+may preview in the toolbar, without changing its draft or showing its placeholder.
+The first-use menu keeps an explicit gap between each icon and its text column.
+Voice capability discovery retries transient startup failures with bounded backoff;
+retrying observation never starts microphone capture. An unavailable saved native
+route keeps the microphone actionable for route selection and a manual recheck.
+Live caption previews retain the provider speaker role: user speech uses the accent
+color and assistant speech uses the secondary text color, in both composers.
+
+Acceptance includes managed and daemon-backed Codex, both media transports,
+duplicate/partial transcript reconciliation, competing viewers, lost connections,
+denied/late microphone permission, stale footer text, unsupported agents, Audio
+Tools unavailability and narrow/desktop browser presentation. Native iPhone
+Safari/PWA verification is reported separately from browser emulation.
+
 Web-console owns terminal/conversation glue and the same-origin adoption surface. `audio-tools` owns reusable audio capability behavior: STT, TTS, normalization, summarization, transcoding, provider mechanics, provider lifecycle, and provider recovery.
 
 This section is the current ownership contract. The service manifest declares `audio-tools` as optional with `startup_policy: "try_start"`: lifecycle should try to bring it up, but web-console must not fail terminal boot when it is absent.

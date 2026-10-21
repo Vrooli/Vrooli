@@ -916,6 +916,7 @@ export default function MessagesPane({
                   style={{ top: `${String(start)}px` }}
                 >
                   <MessageRow
+                    imageSessionId={sessionId}
                     actionContext={actionContextFor(event)}
                     fontSize={renderedMessagesFontSize}
                     isFocused={focusedEventId === event.id}
@@ -1054,6 +1055,7 @@ export default function MessagesPane({
 
       {readerEvent && (
         <MessagesReader
+          imageSessionId={sessionId}
           actionContext={{ ...actionContextFor(readerEvent), onOpenReader: undefined, onPlayMessage: readOnly ? undefined : onPlayEvent }}
           fontSize={readerFontSize}
           onFontSizeChange={setMessagesFontSize}

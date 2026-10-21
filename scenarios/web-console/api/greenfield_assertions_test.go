@@ -239,11 +239,25 @@ func TestGreenfield_TerminalHasOneWebSocketUpgrade(t *testing.T) {
 
 	routeRegistrations := 0
 	for _, file := range files {
-		data, err := os.ReadFile(file)
+		parsed, err := parser.ParseFile(token.NewFileSet(), file, nil, 0)
 		if err != nil {
 			t.Fatal(err)
 		}
-		routeRegistrations += strings.Count(string(data), "WS:     s.handleTerminalWS")
+		ast.Inspect(parsed, func(node ast.Node) bool {
+			entry, ok := node.(*ast.KeyValueExpr)
+			if !ok {
+				return true
+			}
+			key, ok := entry.Key.(*ast.Ident)
+			if !ok || key.Name != "WS" {
+				return true
+			}
+			value, ok := entry.Value.(*ast.SelectorExpr)
+			if ok && value.Sel.Name == "handleTerminalWS" {
+				routeRegistrations++
+			}
+			return true
+		})
 	}
 	if routeRegistrations != 1 {
 		t.Fatalf("terminal WebSocket route registrations = %d, want exactly one", routeRegistrations)

@@ -11,7 +11,7 @@ import { MarkdownRenderer } from "../markdown";
 import { FIND_HIGHLIGHT_CSS, paintMatches, rangesInElement } from "./findInText";
 import { MessageActionList, useMessageActions } from "./MessageActionList";
 import type { MessageActionContext } from "./messageActions";
-import { speakerKey, timeLabel } from "./speaker";
+import { speakerKey, timeLabel, voiceReceiptKey } from "./speaker";
 import { clampMessagesFont, useMessagesTypographyPinch } from "../../hooks/useMessagesTypographyPinch";
 
 // DOC: docs/internal/MESSAGES-VIEW-PROJECTION-UX.md#the-reader
@@ -20,6 +20,7 @@ import { clampMessagesFont, useMessagesTypographyPinch } from "../../hooks/useMe
 const READER_FONT_STEP = 2;
 
 interface MessagesReaderProps {
+  imageSessionId?: string;
   /** The message's actions as its row offers them, the reader itself excluded. */
   actionContext: MessageActionContext;
   fontSize: number;
@@ -45,6 +46,7 @@ interface MessagesReaderProps {
  * The list stays laid out and live underneath, out of reach until it returns.
  */
 export function MessagesReader({
+  imageSessionId,
   actionContext,
   fontSize,
   onFontSizeChange,
@@ -110,6 +112,7 @@ export function MessagesReader({
   };
   const hasQuery = query.trim() !== "";
   const speaker: string = t(speakerKey(event) as never);
+  const voiceReceipt = voiceReceiptKey(event);
 
   return (
     <section
@@ -206,6 +209,7 @@ export function MessagesReader({
         <div className="mx-auto max-w-3xl">
           <p data-testid="reader-meta" className="mb-3 flex flex-wrap items-baseline gap-x-2 text-xs">
             <span className="font-medium text-wc-text-secondary">{speaker}</span>
+            {voiceReceipt && <span data-testid="reader-voice-receipt" className="text-wc-accent">{t(voiceReceipt as never)}</span>}
             <span className="font-mono text-[11px] text-wc-text-faint">
               {timeLabel(event.createdAt, new Date(), i18n.language)} · #{event.sequence}
             </span>
@@ -219,7 +223,7 @@ export function MessagesReader({
             {isPlaintext ? (
               <pre className="whitespace-pre-wrap break-words [overflow-wrap:anywhere] font-mono">{event.text}</pre>
             ) : (
-              <MarkdownRenderer content={event.text} onLinkClick={onLinkClick} onFileReferenceClick={onFileReferenceClick} onMermaidOpen={onMermaidOpen} />
+              <MarkdownRenderer content={event.text} imageSessionId={imageSessionId} onLinkClick={onLinkClick} onFileReferenceClick={onFileReferenceClick} onMermaidOpen={onMermaidOpen} />
             )}
           </div>
         </div>

@@ -64,6 +64,10 @@ const LIFECYCLE_CANCEL_REASONS: ReadonlySet<MicReleaseReason> = new Set(["hidden
 export default function VoiceInputSection() {
   const { t } = useTranslation();
   const voiceEnabled = useWorkspaceStore((state) => state.voiceEnabled);
+  const agentVoiceMode = useWorkspaceStore((state) => state.agentVoiceMode);
+  const setAgentVoiceMode = useWorkspaceStore((state) => state.setAgentVoiceMode);
+  const agentVoiceTransport = useWorkspaceStore((state) => state.agentVoiceTransport);
+  const setAgentVoiceTransport = useWorkspaceStore((state) => state.setAgentVoiceTransport);
   const setVoiceEnabled = useWorkspaceStore((state) => state.setVoiceEnabled);
   const voiceShortcut = useWorkspaceStore((state) => state.voiceShortcut);
   const setVoiceShortcut = useWorkspaceStore((state) => state.setVoiceShortcut);
@@ -790,6 +794,24 @@ export default function VoiceInputSection() {
       />
 
       <SettingsList.Group>
+        <SettingsList.Row label={t(strings.agentVoice.route)} hint={t(strings.agentVoice.hint)} control="compact">
+          <select aria-label={t(strings.agentVoice.route)} value={agentVoiceMode} onChange={(event) => {
+            const value = event.target.value;
+            if (value === "auto" || value === "agent" || value === "dictation") setAgentVoiceMode(value);
+          }} className="rounded border border-wc-default bg-wc-surface-input px-2 py-1">
+            <option value="auto">{t(strings.agentVoice.auto)}</option>
+            <option value="agent">{t(strings.agentVoice.native)}</option>
+            <option value="dictation">{t(strings.agentVoice.dictation)}</option>
+          </select>
+        </SettingsList.Row>
+        {agentVoiceMode !== "dictation" && <SettingsList.Row label={t(strings.agentVoice.transport)} hint={t(strings.agentVoice.transportHint)} control="compact">
+          <select aria-label={t(strings.agentVoice.transport)} value={agentVoiceTransport} onChange={(event) => {
+            const value = event.target.value; if (value === "webrtc" || value === "websocket") setAgentVoiceTransport(value);
+          }} className="rounded border border-wc-default bg-wc-surface-input px-2 py-1">
+            <option value="webrtc">WebRTC</option>
+            <option value="websocket">WebSocket</option>
+          </select>
+        </SettingsList.Row>}
         <SettingsList.Row
           label={t(strings.settings.voiceInputSection.voiceInputLabel)}
           hint={t(strings.settings.voiceInputSection.voiceInputHint)} control="compact">{(

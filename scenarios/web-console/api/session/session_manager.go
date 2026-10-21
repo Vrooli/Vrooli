@@ -606,8 +606,8 @@ func (sm *Manager) createWithRemote(ctx context.Context, shell string, cols, row
 	go sess.readLoop()
 
 	if remote != nil && remote.ExecuteLaunchCommand && strings.TrimSpace(remote.LaunchCommand) != "" {
-		if err := sess.SendInput(InputText(remote.LaunchCommand + "\n").AsPaste().WithSource("launch")); err != nil {
-			log.Printf("remote session %s: paste launch command: %v", sess.ID, err)
+		if err := sess.SendInput(InputText(remote.LaunchCommand + "\n").WithSource("launch")); err != nil {
+			log.Printf("remote session %s: execute launch command: %v", sess.ID, err)
 		}
 	}
 
