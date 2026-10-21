@@ -1,6 +1,7 @@
 package rendering
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -37,6 +38,26 @@ func TestValidatePhysicalBlenderProfilePinsManagedArtifact(t *testing.T) {
 				t.Fatal("untrusted profile was accepted")
 			}
 		})
+	}
+}
+
+func TestUnavailablePinnedPhysicalBlenderProfileHasTypedRepairableState(t *testing.T) {
+	for _, state := range []cliv1.RendererToolProfileState{
+		cliv1.RendererToolProfileState_RENDERER_TOOL_PROFILE_STATE_MISSING,
+		cliv1.RendererToolProfileState_RENDERER_TOOL_PROFILE_STATE_UNSUPPORTED_PLATFORM,
+	} {
+		t.Run(state.String(), func(t *testing.T) {
+			profile := validPhysicalBlenderProfile()
+			profile.State = state
+			if err := validatePhysicalBlenderProfile(profile); !errors.Is(err, ErrPhysicalBlenderProfileUnavailable) {
+				t.Fatalf("known unavailable profile error = %v, want typed unavailable state", err)
+			}
+		})
+	}
+	profile := validPhysicalBlenderProfile()
+	profile.State = cliv1.RendererToolProfileState_RENDERER_TOOL_PROFILE_STATE_TAMPERED
+	if err := validatePhysicalBlenderProfile(profile); err == nil || errors.Is(err, ErrPhysicalBlenderProfileUnavailable) {
+		t.Fatalf("tampered profile must remain an unexpected trust failure, got %v", err)
 	}
 }
 

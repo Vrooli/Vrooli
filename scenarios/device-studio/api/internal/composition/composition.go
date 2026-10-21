@@ -287,10 +287,10 @@ func sampleBilinear(src image.Image, bounds image.Rectangle, x, y float64) (uint
 	x0, y0 := int(math.Floor(x)), int(math.Floor(y))
 	x1, y1 := min(x0+1, bounds.Dx()-1), min(y0+1, bounds.Dy()-1)
 	fx, fy := x-float64(x0), y-float64(y0)
-	c00 := rgba16(src.At(bounds.Min.X+x0, bounds.Min.Y+y0))
-	c10 := rgba16(src.At(bounds.Min.X+x1, bounds.Min.Y+y0))
-	c01 := rgba16(src.At(bounds.Min.X+x0, bounds.Min.Y+y1))
-	c11 := rgba16(src.At(bounds.Min.X+x1, bounds.Min.Y+y1))
+	c00 := rasterRGBA16At(src, bounds.Min.X+x0, bounds.Min.Y+y0)
+	c10 := rasterRGBA16At(src, bounds.Min.X+x1, bounds.Min.Y+y0)
+	c01 := rasterRGBA16At(src, bounds.Min.X+x0, bounds.Min.Y+y1)
+	c11 := rasterRGBA16At(src, bounds.Min.X+x1, bounds.Min.Y+y1)
 	var out [4]uint16
 	for i := range out {
 		top := float64(c00[i])*(1-fx) + float64(c10[i])*fx
@@ -298,6 +298,16 @@ func sampleBilinear(src image.Image, bounds image.Rectangle, x, y float64) (uint
 		out[i] = clamp16(top*(1-fy) + bottom*fy)
 	}
 	return out[0], out[1], out[2], out[3]
+}
+
+// RGBA64At avoids boxing a color interface for every bilinear tap while retaining
+// the standard library's exact premultiplied color conversion and subimage bounds.
+func rasterRGBA16At(src image.Image, x, y int) [4]uint16 {
+	if raster, ok := src.(image.RGBA64Image); ok {
+		c := raster.RGBA64At(x, y)
+		return [4]uint16{c.R, c.G, c.B, c.A}
+	}
+	return rgba16(src.At(x, y))
 }
 
 func rgba16(c interface {

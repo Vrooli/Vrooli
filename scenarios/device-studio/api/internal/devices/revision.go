@@ -79,9 +79,26 @@ type DeviceRevision struct {
 	canonical []byte
 }
 
+type QualificationReviewRequest struct {
+	ProjectID         string
+	DeviceID          string
+	CandidateRevision uint32
+	CandidateSHA256   string
+	ExpectedHead      uint32
+	Review            QualificationReview
+}
+
+type QualificationReviewResult struct {
+	Revision       DeviceRevision
+	PresetID       string
+	PresetRevision uint32
+	PresetSHA256   string
+}
+
 type DeviceRevisionState string
 
 const DeviceRevisionCandidate DeviceRevisionState = "candidate"
+const DeviceRevisionQualified DeviceRevisionState = "qualified"
 
 // CanonicalizeDeviceCandidate validates semantic references and normalizes
 // transforms/order before producing the immutable candidate digest.
@@ -89,7 +106,7 @@ func CanonicalizeDeviceCandidate(input DeviceCandidate) (DeviceCandidate, []byte
 	if input.Version != DeviceCandidateVersion {
 		return DeviceCandidate{}, nil, "", fmt.Errorf("unsupported device candidate version %q", input.Version)
 	}
-	if err := input.Definition.ValidateSeed(); err != nil {
+	if err := input.Definition.Validate(); err != nil {
 		return DeviceCandidate{}, nil, "", fmt.Errorf("device definition: %w", err)
 	}
 	if !library.IsValidStableID(input.Definition.ID) {

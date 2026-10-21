@@ -19,6 +19,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"unicode/utf8"
 
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 )
@@ -336,11 +337,28 @@ func ensurePhysicalBlenderDirectories(workspace string) error {
 }
 
 func physicalBlenderFailure(runErr, contextErr error, stderr string) error {
-	diagnostic := truncateUTF8(strings.TrimSpace(stderr), 2048)
+	diagnostic := truncateUTF8Tail(strings.TrimSpace(stderr), 2048)
 	if contextErr != nil {
 		return fmt.Errorf("physical Blender operation ended: %w: %s", contextErr, diagnostic)
 	}
 	return fmt.Errorf("physical Blender render failed: %w: %s", runErr, diagnostic)
+}
+
+// truncateUTF8Tail preserves the most recent part of a native diagnostic while
+// keeping the result within a byte bound and on a UTF-8 rune boundary.
+func truncateUTF8Tail(value string, maximum int) string {
+	if maximum <= 0 {
+		return ""
+	}
+	value = strings.ToValidUTF8(value, "\uFFFD")
+	if len(value) <= maximum {
+		return value
+	}
+	start := len(value) - maximum
+	for start < len(value) && !utf8.RuneStart(value[start]) {
+		start++
+	}
+	return value[start:]
 }
 
 func physicalBlenderEnvironment(workspace string) []string {

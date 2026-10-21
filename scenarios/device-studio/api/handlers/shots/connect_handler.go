@@ -101,6 +101,34 @@ func (h *handler) ValidateShot(ctx context.Context, req *connect.Request[shotsv1
 	return connect.NewResponse(&shotsv1.ValidateShotResponse{RenderEligible: revision.RenderEligible, Issues: revision.Issues, Compiled: compiledToProto(req.Msg.ProjectId, revision)}), nil
 }
 
+func (h *handler) ReviewOutputReadability(ctx context.Context, req *connect.Request[shotsv1.ReviewOutputReadabilityRequest]) (*connect.Response[shotsv1.ReviewOutputReadabilityResponse], error) {
+	review, err := h.deps.Service.ReviewOutputReadability(ctx, domain.ReviewReadabilityRequest{
+		ProjectID: req.Msg.ProjectId, ShotID: req.Msg.ShotId, ShotRevision: req.Msg.ShotRevision,
+		RenderID: req.Msg.RenderId, OutputSHA256: req.Msg.OutputSha256, Verdict: int32(req.Msg.Verdict),
+		Note: req.Msg.Note, ExplicitlyInspectedFinalSize: req.Msg.ExplicitlyInspectedFinalSize,
+	})
+	if err != nil {
+		return nil, toConnectError(err, h.deps.Logger)
+	}
+	return connect.NewResponse(&shotsv1.ReviewOutputReadabilityResponse{Review: readabilityReviewToProto(review)}), nil
+}
+
+func (h *handler) GetOutputReadabilityReview(ctx context.Context, req *connect.Request[shotsv1.GetOutputReadabilityReviewRequest]) (*connect.Response[shotsv1.GetOutputReadabilityReviewResponse], error) {
+	review, err := h.deps.Service.GetOutputReadabilityReview(ctx, req.Msg.ProjectId, req.Msg.ShotId, req.Msg.ShotRevision, req.Msg.RenderId, req.Msg.OutputSha256)
+	if err != nil {
+		return nil, toConnectError(err, h.deps.Logger)
+	}
+	return connect.NewResponse(&shotsv1.GetOutputReadabilityReviewResponse{Review: readabilityReviewToProto(review)}), nil
+}
+
+func readabilityReviewToProto(review domain.ReadabilityReview) *shotsv1.OutputReadabilityReview {
+	return &shotsv1.OutputReadabilityReview{Id: review.ID, ProjectId: review.ProjectID, ShotId: review.ShotID,
+		ShotRevision: review.ShotRevision, RenderId: review.RenderID, OutputSha256: review.OutputSHA256,
+		ProofSha256: review.ProofSHA256, Verdict: shotsv1.ReadabilityVerdict(review.Verdict), Note: review.Note,
+		OutputWidthPixels: review.OutputWidth, OutputHeightPixels: review.OutputHeight,
+		RegionWidthPixels: review.RegionWidth, RegionHeightPixels: review.RegionHeight, ReviewedAt: timestamppb.New(review.ReviewedAt)}
+}
+
 func (h *handler) SavePhysicalShotPreset(ctx context.Context, req *connect.Request[shotsv1.SavePhysicalShotPresetRequest]) (*connect.Response[shotsv1.SavePhysicalShotPresetResponse], error) {
 	if h.deps.Presets == nil {
 		return nil, connect.NewError(connect.CodeUnavailable, errors.New("physical setup presets are unavailable"))

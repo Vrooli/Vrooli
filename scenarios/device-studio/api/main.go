@@ -85,6 +85,9 @@ func dispatchOwnedWorker(args []string, render, inspect, video func([]string) er
 	if rendering.IsGeometryWorkerInvocation(args) {
 		return true, rendering.RunGeometryWorkerCommand(args)
 	}
+	if rendering.IsGeometryCompileWorkerInvocation(args) {
+		return true, rendering.RunGeometryCompileWorkerCommand(args)
+	}
 	return false, nil
 }
 
@@ -150,6 +153,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("render jobs initialization failed: %v", err)
 	}
+	qualificationOwner, err := physicalruntime.NewQualificationService(physicalOwners, renderCoordinator)
+	if err != nil {
+		log.Fatalf("physical qualification review owner failed: %v", err)
+	}
+	physicalOwners.Qualification = qualificationOwner
 	photoClient := photoowner.NewClient(discovery.ResolveScenarioURLDefault, nil)
 	srv := server.New(
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
@@ -157,7 +165,7 @@ func main() {
 		capsH.Module(capabilities.NewRegistry()),
 		projectsH.ModuleWithRootsAndInspection(db, fileRoots, renderCoordinator, renderPump, log.Default()),
 		photographicH.Module(projectService, photoClient),
-		devicesH.ModuleWithService(physicalOwners.Devices),
+		devicesH.ModuleWithService(physicalOwners.Devices, qualificationOwner),
 		scenesH.ModuleWithService(physicalOwners.Scenes),
 		motionsH.ModuleWithService(physicalOwners.Motions),
 		libraryH.ModuleWithIntake(physicalOwners.LibraryCatalog, intakeOwner, db, fileRoots),

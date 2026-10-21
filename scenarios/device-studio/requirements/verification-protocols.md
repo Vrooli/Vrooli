@@ -102,7 +102,7 @@ Scenario: DS-LIB-PHONE
 
 **Counterexample / rejection oracle:** A front beauty still cannot qualify unseen rear geometry or rotation.
 
-**Evidence to retain after execution:** The case inputs/revisions, actual actions and observed result versus the Then/counterexample oracle, plus applicable records from the rules above. No evidence has been collected for this product requirement.
+**Evidence to retain after execution:** The case inputs/revisions, actual actions and observed result versus the Then/counterexample oracle, plus applicable records from the rules above. Partial candidate, source, or scoped visual evidence exists and is mapped at [the remaining-delivery crosswalk](../docs/internal/goal/evidence/E3/production-continuation/final/remaining-delivery-map.md#library-and-review-evidence-crosswalk); this complete protocol, including its counterexample, remains NOT EXECUTED.
 
 **Planned automation:** Reference-comparison, mask and temporal acceptance suite.
 
@@ -119,7 +119,7 @@ Scenario: DS-LIB-LAPTOP
 
 **Counterexample / rejection oracle:** A static joined open mesh cannot inherit lid-motion approval.
 
-**Evidence to retain after execution:** The case inputs/revisions, actual actions and observed result versus the Then/counterexample oracle, plus applicable records from the rules above. No evidence has been collected for this product requirement.
+**Evidence to retain after execution:** The case inputs/revisions, actual actions and observed result versus the Then/counterexample oracle, plus applicable records from the rules above. Partial candidate, source, or scoped visual evidence exists and is mapped at [the remaining-delivery crosswalk](../docs/internal/goal/evidence/E3/production-continuation/final/remaining-delivery-map.md#library-and-review-evidence-crosswalk); this complete protocol, including its counterexample, remains NOT EXECUTED.
 
 **Planned automation:** Rig/clearance property tests plus final-profile continuous-motion review.
 
@@ -136,7 +136,7 @@ Scenario: DS-LIB-TABLET
 
 **Counterexample / rejection oracle:** A different generation or unsupported stand cannot pass by filename similarity.
 
-**Evidence to retain after execution:** The case inputs/revisions, actual actions and observed result versus the Then/counterexample oracle, plus applicable records from the rules above. No evidence has been collected for this product requirement.
+**Evidence to retain after execution:** The case inputs/revisions, actual actions and observed result versus the Then/counterexample oracle, plus applicable records from the rules above. Partial candidate, source, or scoped visual evidence exists and is mapped at [the remaining-delivery crosswalk](../docs/internal/goal/evidence/E3/production-continuation/final/remaining-delivery-map.md#library-and-review-evidence-crosswalk); this complete protocol, including its counterexample, remains NOT EXECUTED.
 
 **Planned automation:** Variant, mapping and attachment fixtures plus craft review.
 
@@ -153,13 +153,13 @@ Scenario: DS-LIB-FOLDABLE
 
 **Counterexample / rejection oracle:** Spanning content cannot paint a hinge or stretch one recording into a different captured app state.
 
-**Evidence to retain after execution:** The case inputs/revisions, actual actions and observed result versus the Then/counterexample oracle, plus applicable records from the rules above. No evidence has been collected for this product requirement.
+**Evidence to retain after execution:** The case inputs/revisions, actual actions and observed result versus the Then/counterexample oracle, plus applicable records from the rules above. Partial candidate, source, or scoped visual evidence exists and is mapped at [the remaining-delivery crosswalk](../docs/internal/goal/evidence/E3/production-continuation/final/remaining-delivery-map.md#library-and-review-evidence-crosswalk); this complete protocol, including its counterexample, remains NOT EXECUTED.
 
 **Planned automation:** Topology/state/handoff fixtures and visual state review.
 
 ### DS-LIB-WATCH
 
-Status: NOT EXECUTED. Committed first-release requirement.
+Status: PASSED for the declared front floating-body v4 protocol. Separate local shipped-starter delivery proof remains pending.
 
 ```gherkin
 Scenario: DS-LIB-WATCH
@@ -170,7 +170,7 @@ Scenario: DS-LIB-WATCH
 
 **Counterexample / rejection oracle:** Case diameter and square raster cannot be substituted for active circular geometry.
 
-**Evidence to retain after execution:** The case inputs/revisions, actual actions and observed result versus the Then/counterexample oracle, plus applicable records from the rules above. No evidence has been collected for this product requirement.
+**Evidence to retain after execution:** The case inputs/revisions, actual actions and observed result versus the Then/counterexample oracle, plus applicable records from the rules above. Actual predeclared circular-mask/readability oracle, source geometry/dimension/rights records, exact root review and PRIMARY package replay are retained in [the watch review](../docs/internal/goal/evidence/E5/qualification-review/live-watch-body-v4-lease30-1/README.md). No case-diameter substitution or full wearable claim.
 
 **Planned automation:** Mask/ROI diagnostics and declared-pose review.
 
@@ -187,7 +187,7 @@ Scenario: DS-LIB-MONITOR-TV
 
 **Counterexample / rejection oracle:** A hidden bracket cannot erase required mounting offset or cable clearance.
 
-**Evidence to retain after execution:** The case inputs/revisions, actual actions and observed result versus the Then/counterexample oracle, plus applicable records from the rules above. No evidence has been collected for this product requirement.
+**Evidence to retain after execution:** The case inputs/revisions, actual actions and observed result versus the Then/counterexample oracle, plus applicable records from the rules above. Partial candidate, source, or scoped visual evidence exists and is mapped at [the remaining-delivery crosswalk](../docs/internal/goal/evidence/E3/production-continuation/final/remaining-delivery-map.md#library-and-review-evidence-crosswalk); this complete protocol, including its counterexample, remains NOT EXECUTED.
 
 **Planned automation:** Attachment/clearance fixtures plus placement review.
 
@@ -204,7 +204,7 @@ Scenario: DS-LIB-SMART-DISPLAY
 
 **Counterexample / rejection oracle:** An ecosystem name such as Google Home cannot identify a screen-bearing hardware model.
 
-**Evidence to retain after execution:** The case inputs/revisions, actual actions and observed result versus the Then/counterexample oracle, plus applicable records from the rules above. No evidence has been collected for this product requirement.
+**Evidence to retain after execution:** The case inputs/revisions, actual actions and observed result versus the Then/counterexample oracle, plus applicable records from the rules above. Partial candidate, source, or scoped visual evidence exists and is mapped at [the remaining-delivery crosswalk](../docs/internal/goal/evidence/E3/production-continuation/final/remaining-delivery-map.md#library-and-review-evidence-crosswalk); this complete protocol, including its counterexample, remains NOT EXECUTED.
 
 **Planned automation:** Variant/support fixtures and final-look review.
 
@@ -221,7 +221,7 @@ Scenario: DS-LIB-VEHICLE
 
 **Counterexample / rejection oracle:** CarPlay or Android Auto names cannot establish hardware dimensions, cluster access or native availability.
 
-**Evidence to retain after execution:** The case inputs/revisions, actual actions and observed result versus the Then/counterexample oracle, plus applicable records from the rules above. No evidence has been collected for this product requirement.
+**Evidence to retain after execution:** The case inputs/revisions, actual actions and observed result versus the Then/counterexample oracle, plus applicable records from the rules above. Partial candidate, source, or scoped visual evidence exists and is mapped at [the remaining-delivery crosswalk](../docs/internal/goal/evidence/E3/production-continuation/final/remaining-delivery-map.md#library-and-review-evidence-crosswalk); this complete protocol, including its counterexample, remains NOT EXECUTED.
 
 **Planned automation:** Host/panel/app-window compatibility fixtures plus visual review.
 
@@ -626,7 +626,7 @@ Scenario: DS-REVIEW-RIGHTS
 
 **Counterexample / rejection oracle:** Free access or a model license cannot silently clear thumbnail, brand, third-party image or provider-upload rights.
 
-**Evidence to retain after execution:** The case inputs/revisions, actual actions and observed result versus the Then/counterexample oracle, plus applicable records from the rules above. No evidence has been collected for this product requirement.
+**Evidence to retain after execution:** The case inputs/revisions, actual actions and observed result versus the Then/counterexample oracle, plus applicable records from the rules above. Partial candidate, source, or scoped visual evidence exists and is mapped at [the remaining-delivery crosswalk](../docs/internal/goal/evidence/E3/production-continuation/final/remaining-delivery-map.md#library-and-review-evidence-crosswalk); this complete protocol, including its counterexample, remains NOT EXECUTED.
 
 **Planned automation:** Rights-policy decision fixtures and package attribution audit.
 
@@ -643,7 +643,7 @@ Scenario: DS-REVIEW-PHYSICAL
 
 **Counterexample / rejection oracle:** One width anchor, beautiful still or schema fixture cannot certify physical accuracy.
 
-**Evidence to retain after execution:** The case inputs/revisions, actual actions and observed result versus the Then/counterexample oracle, plus applicable records from the rules above. No evidence has been collected for this product requirement.
+**Evidence to retain after execution:** The case inputs/revisions, actual actions and observed result versus the Then/counterexample oracle, plus applicable records from the rules above. Partial candidate, source, or scoped visual evidence exists and is mapped at [the remaining-delivery crosswalk](../docs/internal/goal/evidence/E3/production-continuation/final/remaining-delivery-map.md#library-and-review-evidence-crosswalk); this complete protocol, including its counterexample, remains NOT EXECUTED.
 
 **Planned automation:** Reference/measurement and motion-sweep checks with attended verdict.
 
@@ -660,7 +660,7 @@ Scenario: DS-REVIEW-CRAFT
 
 **Counterexample / rejection oracle:** More samples, file admission or an accepted photographic plate cannot certify unrelated 3D quality.
 
-**Evidence to retain after execution:** The case inputs/revisions, actual actions and observed result versus the Then/counterexample oracle, plus applicable records from the rules above. No evidence has been collected for this product requirement.
+**Evidence to retain after execution:** The case inputs/revisions, actual actions and observed result versus the Then/counterexample oracle, plus applicable records from the rules above. Partial candidate, source, or scoped visual evidence exists and is mapped at [the remaining-delivery crosswalk](../docs/internal/goal/evidence/E3/production-continuation/final/remaining-delivery-map.md#library-and-review-evidence-crosswalk); this complete protocol, including its counterexample, remains NOT EXECUTED.
 
 **Planned automation:** Attended art-direction protocol with accepted/rejected comparison evidence.
 
@@ -677,7 +677,7 @@ Scenario: DS-REVIEW-PORTABLE
 
 **Counterexample / rejection oracle:** A clean standalone import cannot qualify depth, texture budget or lighting in every larger scene.
 
-**Evidence to retain after execution:** The case inputs/revisions, actual actions and observed result versus the Then/counterexample oracle, plus applicable records from the rules above. No evidence has been collected for this product requirement.
+**Evidence to retain after execution:** The case inputs/revisions, actual actions and observed result versus the Then/counterexample oracle, plus applicable records from the rules above. Partial candidate, source, or scoped visual evidence exists and is mapped at [the remaining-delivery crosswalk](../docs/internal/goal/evidence/E3/production-continuation/final/remaining-delivery-map.md#library-and-review-evidence-crosswalk); this complete protocol, including its counterexample, remains NOT EXECUTED.
 
 **Planned automation:** Export/reimport/target-admission tests and visual inspection.
 
@@ -694,7 +694,7 @@ Scenario: DS-REVIEW-PUBLICATION
 
 **Counterexample / rejection oracle:** Local acceptance cannot silently create an ungoverned shared release.
 
-**Evidence to retain after execution:** The case inputs/revisions, actual actions and observed result versus the Then/counterexample oracle, plus applicable records from the rules above. No evidence has been collected for this product requirement.
+**Evidence to retain after execution:** The case inputs/revisions, actual actions and observed result versus the Then/counterexample oracle, plus applicable records from the rules above. Partial candidate, source, or scoped visual evidence exists and is mapped at [the remaining-delivery crosswalk](../docs/internal/goal/evidence/E3/production-continuation/final/remaining-delivery-map.md#library-and-review-evidence-crosswalk); this complete protocol, including its counterexample, remains NOT EXECUTED.
 
 **Planned automation:** Owner-adapter and unavailable-state integration tests.
 
@@ -1103,7 +1103,7 @@ Scenario: DS-INTEGRATION-DELIVERY
 
 ### DS-OUTPUT-PROFILES
 
-Status: NOT EXECUTED. Committed first-release requirement.
+Status: PASSED for the four declared1080p SDR video profiles and supported native2560x1440 still. See [the executed matrix](../docs/internal/goal/evidence/E2V/output-profiles/lease28/README.md) and root manual attestation recorded2026-10-21; full release remains separate.
 
 ```gherkin
 Scenario: DS-OUTPUT-PROFILES
@@ -1114,7 +1114,7 @@ Scenario: DS-OUTPUT-PROFILES
 
 **Counterexample / rejection oracle:** A larger raster alone cannot certify native 4K detail or HDR support.
 
-**Evidence to retain after execution:** The case inputs/revisions, actual actions and observed result versus the Then/counterexample oracle, plus applicable records from the rules above. No evidence has been collected for this product requirement.
+**Evidence to retain after execution:** The case inputs/revisions, actual actions and observed result versus the Then/counterexample oracle, plus applicable records from the rules above. Actual public jobs, exact hashes, all-frame decode/PTS checks, declared color/range and root visual samples are retained in the linked matrix. Native smartv7 job8872318d-5f44-4663-b430-17db2953a619 supplies the supported2560x1440 still. The MP4s omit an explicit SAR field; the recorded square-pixel default interpretation is not an emitted-SAR claim. No 4K detail or HDR support is inferred.
 
 **Planned automation:** Probe/full-decode/color-chart and selected-profile tests.
 
@@ -1135,6 +1135,14 @@ Scenario: DS-OUTPUT-READABILITY
 **Evidence to retain after execution:** The case inputs/revisions, actual actions and observed result versus the Then/counterexample oracle, plus applicable records from the rules above. No evidence has been collected for this product requirement.
 
 **Planned automation:** ROI/source adequacy fixtures and attended proof-interval review.
+
+**Implementation target (2026-10-21):** Keep the proof declaration in the immutable
+shot snapshot and keep each attended verdict in a separate append-only record
+bound to shot revision, render job, output digest, and declared region. A successful
+render alone never creates acceptance. Existing preview/download behavior remains
+available for undeclared or rejected proofs. Final-size evidence must include
+inadequate and adequate landscape and portrait variants; source changes create a
+new shot revision and cannot reuse an earlier verdict.
 
 ### DS-OUTPUT-COLOR
 

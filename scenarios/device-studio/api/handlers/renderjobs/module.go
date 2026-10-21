@@ -50,7 +50,9 @@ func BuildWithCoordinatorAndPhysicalOwners(db *database.RoutedDB, roots *filerou
 	return BuildWithCoordinatorAndCreationOwners(db, roots, logger, physical, artifacts, profile, adapter, nil)
 }
 
-func BuildWithCoordinatorAndCreationOwners(db *database.RoutedDB, roots *filerouting.RoutedRoots, logger *log.Logger, physical shots.PhysicalResolver, artifacts renderjobs.PhysicalArtifactResolver, profile func(context.Context) ([]byte, *cliv1.BlenderToolProfile, error), adapter func() []byte, generatedIntake interface { PersistGenerated(context.Context, library.IntakeClaims, string, library.CreationLineage, []byte) (library.IntakeCandidate, error) }) (module.Module, *renderjobs.Pump, *renderjobs.Coordinator, error) {
+func BuildWithCoordinatorAndCreationOwners(db *database.RoutedDB, roots *filerouting.RoutedRoots, logger *log.Logger, physical shots.PhysicalResolver, artifacts renderjobs.PhysicalArtifactResolver, profile func(context.Context) ([]byte, *cliv1.BlenderToolProfile, error), adapter func() []byte, generatedIntake interface {
+	PersistGenerated(context.Context, library.IntakeClaims, string, library.CreationLineage, []byte) (library.IntakeCandidate, error)
+}) (module.Module, *renderjobs.Pump, *renderjobs.Coordinator, error) {
 	if logger == nil {
 		logger = log.Default()
 	}
@@ -63,12 +65,18 @@ func BuildWithCoordinatorAndCreationOwners(db *database.RoutedDB, roots *filerou
 	media := projects.NewSourceMediaService(projects.SourceMediaDeps{Projects: projectService, Repository: projectRepo.(projects.SourceMediaRepository), Store: mediaStore})
 	shotService := shots.NewService(shots.NewSQLiteRepository(db), projectService, media, nil, nil)
 	shots.SetPhysicalResolver(shotService, physical)
-	jobService := jobs.NewService(jobs.NewSQLiteRepository(db), nil)
+	jobRepo := jobs.NewSQLiteRepository(db)
+	jobService := jobs.NewService(jobRepo, nil)
+	scopeRepo, ok := jobRepo.(jobs.RunScopeRepository)
+	if !ok {
+		return module.Module{}, nil, nil, fmt.Errorf("render jobs repository does not support durable parent scopes")
+	}
+	scopeService := jobs.NewRunScopeService(scopeRepo, nil)
 	blobs, err := routedblobstore.New(roots, "renderjobs")
 	if err != nil {
 		return module.Module{}, nil, nil, fmt.Errorf("render output storage: %w", err)
 	}
-	coordinator, err := renderjobs.New(renderjobs.Dependencies{Shots: shotService, Media: media, Jobs: jobService, Blobs: blobs, Roots: roots, InspectionProfile: rendering.ResolveInspectionProfile, PhysicalArtifacts: artifacts, PhysicalProfile: profile, PhysicalAdapter: adapter,GeneratedIntake:generatedIntake})
+	coordinator, err := renderjobs.New(renderjobs.Dependencies{Shots: shotService, Media: media, Jobs: jobService, Scopes: scopeService, Blobs: blobs, Roots: roots, InspectionProfile: rendering.ResolveInspectionProfile, PhysicalArtifacts: artifacts, PhysicalProfile: profile, PhysicalAdapter: adapter, GeneratedIntake: generatedIntake})
 	if err != nil {
 		return module.Module{}, nil, nil, fmt.Errorf("render jobs coordinator: %w", err)
 	}

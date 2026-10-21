@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "module": "output",
-    "description": "Qualified output and renderer profiles. Fresh product contract; all behavior remains unimplemented.",
+    "description": "Qualified output and renderer profiles; evidence is linked per requirement and completion is derived by the owner.",
     "schema_version": "1.0.0",
     "auto_sync_enabled": true
   },
@@ -16,20 +16,24 @@
       "status": "not_implemented",
       "category": "output",
       "tags": [
-        "accepted-first-release",
-        "unimplemented"
+        "accepted-first-release"
       ],
       "validation": [
         {
           "type": "manual",
           "phase": "business",
           "status": "planned",
-          "ref": "requirements/verification-protocols.md",
-          "notes": "NOT EXECUTED. Follow the named DS-OUTPUT-PROFILES protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "ref": "docs/internal/goal/evidence/E2V/output-profiles/lease28/README.md",
+          "notes": "Executed public four-profile matrix, independent full decode/PTS/color metadata, root sample review, and supported native2560x1440 still. Root manual attestation recorded by business-health on2026-10-21. Absence of an emitted SAR field is explicitly documented as default square-pixel interpretation. No native4K detail, HDR, global color/readability or full release claim. Declared status awaits owner reconciliation.",
           "metadata": {
             "protocol_id": "DS-OUTPUT-PROFILES",
             "planned_automation": "Probe/full-decode/color-chart and selected-profile tests.",
-            "evidence_status": "not_run"
+            "evidence_status": "passed",
+            "supporting_refs": [
+              "docs/internal/goal/evidence/E2V/output-profiles/lease28/parent-visual-review.json",
+              "docs/internal/goal/evidence/E4/family-native-review/native-runs/lease29-smart-v7-1/render-receipt.json",
+              "docs/internal/goal/evidence/E5/qualification-review/live-smart-v7-lease29-1/after.json"
+            ]
           }
         }
       ]

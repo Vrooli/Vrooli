@@ -44,3 +44,29 @@ CREATE TABLE IF NOT EXISTS render_job_subject_finalization_pending (
   PRIMARY KEY(job_id, attempt_id)
 );
 CREATE INDEX IF NOT EXISTS idx_render_job_subject_finalization_job ON render_job_subject_finalization_pending(job_id,attempt_id);
+-- Durable parent scopes fence a bounded group of otherwise ordinary jobs.
+-- Domain policy stays as a pinned document; the jobs owner atomically counts
+-- admissions and checks scope state while claiming work.
+CREATE TABLE IF NOT EXISTS render_job_scopes (
+  id TEXT PRIMARY KEY,
+  owner_kind TEXT NOT NULL,
+  state TEXT NOT NULL CHECK (state IN ('active','closing','cancelled','completed')),
+  policy_json TEXT NOT NULL,
+  max_children INTEGER NOT NULL CHECK (max_children > 0),
+  max_provider_calls INTEGER NOT NULL CHECK (max_provider_calls >= 0),
+  children_admitted INTEGER NOT NULL DEFAULT 0 CHECK (children_admitted >= 0),
+  provider_calls_reserved INTEGER NOT NULL DEFAULT 0 CHECK (provider_calls_reserved >= 0),
+  version INTEGER NOT NULL CHECK (version > 0),
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS render_job_scope_children (
+  scope_id TEXT NOT NULL REFERENCES render_job_scopes(id),
+  job_id TEXT NOT NULL UNIQUE REFERENCES render_jobs(id) ON DELETE CASCADE,
+  input_fingerprint TEXT NOT NULL,
+  ordinal INTEGER NOT NULL CHECK (ordinal > 0),
+  provider_calls INTEGER NOT NULL CHECK (provider_calls >= 0),
+  PRIMARY KEY(scope_id, ordinal),
+  UNIQUE(scope_id, job_id)
+);
+CREATE INDEX IF NOT EXISTS idx_render_job_scope_children_scope ON render_job_scope_children(scope_id, ordinal);

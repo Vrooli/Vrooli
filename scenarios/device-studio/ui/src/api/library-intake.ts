@@ -33,6 +33,17 @@ export function listLocalGeometryCandidates(afterCandidateId = "") {
   return catalog.listIntakeCandidates({ afterCandidateId, pageSize: 100 });
 }
 
+export async function getLocalGeometryCreationLineage(candidateId: string, revision = 1) {
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(candidateId) || !Number.isSafeInteger(revision) || revision <= 0) {
+    throw new Error("The generated candidate identity must be stable and revisioned.");
+  }
+  const response = await catalog.getIntakeCandidate({ candidateId, revision });
+  if (!response.candidate || response.candidate.id !== candidateId || response.candidate.revision !== revision) {
+    throw new Error("The intake service returned a different generated candidate revision.");
+  }
+  return response.candidate.creationLineage;
+}
+
 export async function importLocalGeometryCandidate(file: File, claims: {
   candidateId: string; displayName: string; sourceLabel: string; licenseClaim: string; attribution: string;
 }): Promise<IntakeCandidateRevision> {

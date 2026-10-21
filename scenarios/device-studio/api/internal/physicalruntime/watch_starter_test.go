@@ -30,6 +30,7 @@ import (
 	"github.com/vrooli/api-core/storage"
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 	shotsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-studio/v1/shots"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	_ "modernc.org/sqlite"
 )
@@ -151,7 +152,11 @@ func TestReviewedWatchCandidateIsOptInReplayableAndSourceBound(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	profileBytes, profile, err := rendering.ResolvePhysicalBlenderProfile(ctx)
+	// This test verifies that the owner builds a closed, replayable job input;
+	// it does not execute Blender. Use the same valid pinned-profile fixture as
+	// the other closure tests instead of depending on a host installation.
+	profile := starterTestBlenderProfile()
+	profileBytes, err := protojson.Marshal(profile)
 	if err != nil {
 		t.Fatal(err)
 	}

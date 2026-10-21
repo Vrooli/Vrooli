@@ -42,16 +42,19 @@ type Service interface {
 	Compile(context.Context, string, int64) (Revision, error)
 	Validate(context.Context, string, *shotsv1.ShotSnapshot) (Revision, error)
 	ResolveForRender(context.Context, string, int64) (ResolvedShot, error)
+	ReviewOutputReadability(context.Context, ReviewReadabilityRequest) (ReadabilityReview, error)
+	GetOutputReadabilityReview(context.Context, string, string, int64, string, string) (ReadabilityReview, error)
 }
 
 type service struct {
-	repo     Repository
-	projects projects.Service
-	media    projects.SourceMediaService
-	samples  VideoSampleVerifier
-	physical PhysicalResolver
-	now      func() time.Time
-	newID    func() string
+	repo        Repository
+	projects    projects.Service
+	media       projects.SourceMediaService
+	samples     VideoSampleVerifier
+	physical    PhysicalResolver
+	readability ReadabilityOutputVerifier
+	now         func() time.Time
+	newID       func() string
 }
 
 type VideoSampleVerifier interface {
@@ -91,6 +94,18 @@ func SetPhysicalResolver(svc Service, resolver PhysicalResolver) {
 }
 
 func (s *service) SetPhysicalResolver(resolver PhysicalResolver) { s.physical = resolver }
+
+func SetReadabilityOutputVerifier(svc Service, verifier ReadabilityOutputVerifier) {
+	if setter, ok := svc.(interface {
+		SetReadabilityOutputVerifier(ReadabilityOutputVerifier)
+	}); ok {
+		setter.SetReadabilityOutputVerifier(verifier)
+	}
+}
+
+func (s *service) SetReadabilityOutputVerifier(verifier ReadabilityOutputVerifier) {
+	s.readability = verifier
+}
 
 func (s *service) Create(ctx context.Context, projectID, name string, snapshot *shotsv1.ShotSnapshot) (Shot, Revision, error) {
 	projectID = strings.TrimSpace(projectID)
@@ -296,6 +311,9 @@ func (s *service) buildRevisionForVersion(ctx context.Context, projectID, shotID
 		snapshot = &shotsv1.ShotSnapshot{}
 	}
 	canonical := proto.Clone(snapshot).(*shotsv1.ShotSnapshot)
+	if err := validateReadabilityProof(canonical.GetReadabilityProof(), snapshotHasVideoOutput(canonical)); err != nil {
+		return Revision{}, err
+	}
 	if err := applySampledPhoneValues(canonical); err != nil {
 		return Revision{}, err
 	}
@@ -303,7 +321,7 @@ func (s *service) buildRevisionForVersion(ctx context.Context, projectID, shotID
 		ShotID: shotID, Revision: revision, CreatedAt: createdAt.UTC(), Name: name, Snapshot: canonical,
 		SceneVersion: sceneSemanticVersion, PresentationVersion: presentationSemanticVersion, CompositorProfile: composition.StillProfile,
 	}
-	presentationVersion, err := resolvePresentationVersion(canonical.GetPresentation(), storedPresentationVersion)
+	presentationVersion, err := resolvePresentationVersion(canonical.GetPresentation(), storedPresentationVersion, canonical.GetPhysicalBinding() != nil)
 	if err != nil {
 		return Revision{}, err
 	}
@@ -657,7 +675,7 @@ func (s *service) buildRevisionForVersion(ctx context.Context, projectID, shotID
 	return result, nil
 }
 
-func resolvePresentationVersion(p *shotsv1.ScreenPresentation, stored string) (string, error) {
+func resolvePresentationVersion(p *shotsv1.ScreenPresentation, stored string, physical bool) (string, error) {
 	kind := shotsv1.PresentationKind_PRESENTATION_KIND_UNSPECIFIED
 	if p != nil {
 		kind = p.GetKind()
@@ -671,6 +689,12 @@ func resolvePresentationVersion(p *shotsv1.ScreenPresentation, stored string) (s
 			} else {
 				version = presentationSemanticV2
 			}
+		case shotsv1.PresentationKind_PRESENTATION_KIND_PLAIN:
+			if physical && p.GetCaptureArea() == shotsv1.CaptureArea_CAPTURE_AREA_APP_ONLY {
+				version = presentationSemanticV2
+			} else {
+				version = presentationSemanticVersion
+			}
 		default:
 			version = presentationSemanticVersion
 		}
@@ -680,8 +704,12 @@ func resolvePresentationVersion(p *shotsv1.ScreenPresentation, stored string) (s
 		if p != nil && kind != shotsv1.PresentationKind_PRESENTATION_KIND_UNSPECIFIED && kind != shotsv1.PresentationKind_PRESENTATION_KIND_PLAIN {
 			return "", ErrUnsupportedPresentationVersion{Version: version}
 		}
+		if physical && p != nil && kind == shotsv1.PresentationKind_PRESENTATION_KIND_PLAIN && p.GetCaptureArea() == shotsv1.CaptureArea_CAPTURE_AREA_APP_ONLY {
+			return "", ErrUnsupportedPresentationVersion{Version: version}
+		}
 	case presentationSemanticV2:
-		if kind != shotsv1.PresentationKind_PRESENTATION_KIND_PHONE_SYSTEM && kind != shotsv1.PresentationKind_PRESENTATION_KIND_BROWSER_DESKTOP {
+		plainPhysicalAppOnly := physical && p != nil && kind == shotsv1.PresentationKind_PRESENTATION_KIND_PLAIN && p.GetCaptureArea() == shotsv1.CaptureArea_CAPTURE_AREA_APP_ONLY
+		if kind != shotsv1.PresentationKind_PRESENTATION_KIND_PHONE_SYSTEM && kind != shotsv1.PresentationKind_PRESENTATION_KIND_BROWSER_DESKTOP && !plainPhysicalAppOnly {
 			return "", ErrUnsupportedPresentationVersion{Version: version}
 		}
 	case presentationSemanticV3:

@@ -55,6 +55,7 @@ var (
 	ErrInvalid              = errors.New("invalid job input")
 	ErrConcurrentTransition = errors.New("job changed during transition")
 	ErrReleasePending       = errors.New("previous execution claim has not been released")
+	ErrScopeAdmissionClosed = errors.New("workflow parent is closed or its shared budget is exhausted")
 )
 
 type ArtifactBinding struct {
@@ -78,6 +79,8 @@ const (
 // owner; every referenced artifact is bound by revision and digest here.
 type Input struct {
 	ProjectID             string            `json:"project_id"`
+	WorkflowScopeID       string            `json:"workflow_scope_id,omitempty"`
+	WorkflowProviderCalls int               `json:"workflow_provider_calls,omitempty"`
 	ShotRevisionID        string            `json:"shot_revision_id,omitempty"`
 	ShotRevision          int64             `json:"shot_revision,omitempty"`
 	Bindings              []ArtifactBinding `json:"bindings"`
@@ -241,14 +244,54 @@ type SubmitInput struct {
 	Input          Input
 }
 
+type RunScopeState string
+
+const (
+	RunScopeActive    RunScopeState = "active"
+	RunScopeClosing   RunScopeState = "closing"
+	RunScopeCancelled RunScopeState = "cancelled"
+	RunScopeCompleted RunScopeState = "completed"
+)
+
+// RunScope is a durable parent policy for a bounded set of ordinary jobs.
+// Policy is domain-owned JSON; this jobs layer enforces only the immutable
+// integer ceilings and state transition that fence admission/dispatch.
+type RunScope struct {
+	ID                    string          `json:"id"`
+	OwnerKind             string          `json:"owner_kind"`
+	State                 RunScopeState   `json:"state"`
+	Policy                json.RawMessage `json:"policy"`
+	MaxChildren           int             `json:"max_children"`
+	MaxProviderCalls      int             `json:"max_provider_calls"`
+	ChildrenAdmitted      int             `json:"children_admitted"`
+	ProviderCallsReserved int             `json:"provider_calls_reserved"`
+	Version               int64           `json:"version"`
+	CreatedAt             time.Time       `json:"created_at"`
+	UpdatedAt             time.Time       `json:"updated_at"`
+}
+
+type RunScopeChild struct {
+	JobID            string `json:"job_id"`
+	InputFingerprint string `json:"input_fingerprint"`
+	Ordinal          int    `json:"ordinal"`
+	ProviderCalls    int    `json:"provider_calls"`
+}
+
 func CanonicalInput(in Input) (Input, string, error) {
 	in.ProjectID = strings.TrimSpace(in.ProjectID)
+	in.WorkflowScopeID = strings.TrimSpace(in.WorkflowScopeID)
 	in.ShotRevisionID = strings.TrimSpace(in.ShotRevisionID)
 	in.SubjectID = strings.TrimSpace(in.SubjectID)
 	in.RendererVersion = strings.TrimSpace(in.RendererVersion)
 	in.OutputProfile = strings.TrimSpace(in.OutputProfile)
 	if in.ProjectID == "" || in.RendererVersion == "" || in.OutputProfile == "" {
 		return Input{}, "", fmt.Errorf("%w: project, renderer and output profile are required", ErrInvalid)
+	}
+	if len(in.WorkflowScopeID) > 128 {
+		return Input{}, "", fmt.Errorf("%w: workflow scope id exceeds limit", ErrInvalid)
+	}
+	if in.WorkflowProviderCalls < 0 || in.WorkflowProviderCalls > 64 || (in.WorkflowScopeID == "") != (in.WorkflowProviderCalls == 0) {
+		return Input{}, "", fmt.Errorf("%w: workflow-scoped jobs require an explicit bounded provider-call reservation", ErrInvalid)
 	}
 	switch in.SubjectKind {
 	case "": // The empty tag is the byte-compatible legacy still subject.

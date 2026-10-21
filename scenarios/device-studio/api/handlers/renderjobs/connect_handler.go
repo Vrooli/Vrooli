@@ -248,6 +248,8 @@ func (h *handler) connectError(op string, err error) error {
 		return connect.NewError(connect.CodeFailedPrecondition, errors.New("saved source media is unavailable for render validation"))
 	case errors.Is(err, domain.ErrOutputUnavailable):
 		return connect.NewError(connect.CodeFailedPrecondition, errors.New("render output or source-derived sample binding is not available"))
+	case errors.Is(err, rendering.ErrPhysicalBlenderProfileUnavailable):
+		return connect.NewError(connect.CodeFailedPrecondition, errors.New("managed Blender is unavailable for this render; inspect or repair the pinned tool through the control plane, then retry"))
 	case errors.Is(err, jobs.ErrIdempotencyConflict):
 		return connect.NewError(connect.CodeAlreadyExists, errors.New("idempotency key is already bound to a different render request"))
 	case errors.Is(err, domain.ErrInvalidRequest), errors.Is(err, jobs.ErrInvalid), errors.As(err, &invalidShot):

@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"sort"
+	"strings"
 	"time"
 
 	"device-studio/internal/library"
@@ -36,6 +38,9 @@ func NewDeviceRevisionService(repo DeviceRevisionRepository, now func() time.Tim
 // SaveCandidate stores a new immutable revision or returns the existing
 // revision for an exact canonical replay. expectedHead=0 creates the first.
 func (s *DeviceRevisionService) SaveCandidate(ctx context.Context, input DeviceCandidate, expectedHead uint32) (DeviceRevision, error) {
+	if err := input.Definition.ValidateSeed(); err != nil {
+		return DeviceRevision{}, fmt.Errorf("%w: %v", ErrInvalidCandidate, err)
+	}
 	candidate, data, digest, err := CanonicalizeDeviceCandidate(input)
 	if err != nil {
 		return DeviceRevision{}, fmt.Errorf("%w: %v", ErrInvalidCandidate, err)
@@ -49,6 +54,167 @@ func (s *DeviceRevisionService) SaveCandidate(ctx context.Context, input DeviceC
 		canonical: data,
 	}
 	return s.repo.SaveCandidate(ctx, revision, expectedHead)
+}
+
+// ApplyQualificationReview appends a review decision against an exact current
+// candidate revision. A pass creates a qualified revision; a rejection remains
+// an unqualified immutable revision. External owner bindings are validated by
+// the API composition before this domain transition.
+func (s *DeviceRevisionService) ApplyQualificationReview(ctx context.Context, id string, candidateRevision uint32, candidateSHA string, review QualificationReview, expectedHead uint32) (DeviceRevision, error) {
+	if candidateRevision == 0 || expectedHead != candidateRevision || !sha256Pattern.MatchString(candidateSHA) {
+		return DeviceRevision{}, fmt.Errorf("%w: review must target the current candidate revision and digest", ErrInvalidCandidate)
+	}
+	parent, err := s.repo.GetRevision(ctx, id, candidateRevision)
+	if err != nil {
+		return DeviceRevision{}, err
+	}
+	head, err := s.repo.GetHead(ctx, id)
+	if err != nil {
+		return DeviceRevision{}, err
+	}
+	if parent.SHA256 != candidateSHA || head.Revision != expectedHead || head.SHA256 != parent.SHA256 || parent.State != DeviceRevisionCandidate || parent.Candidate.Definition.Qualification != "unqualified" {
+		return DeviceRevision{}, ErrRevisionConflict
+	}
+	if review.CandidateRevision != candidateRevision || review.CandidateSHA256 != candidateSHA || review.SourceBundleID != parent.Candidate.Geometry.BundleID || review.SourceBundleRevision != parent.Candidate.Geometry.BundleRevision || review.SourceManifestSHA256 != parent.Candidate.Geometry.ManifestSHA256 || review.SourceReviewSHA256 != parent.Candidate.Geometry.ReviewSHA256 || review.SourceArtifactID != parent.Candidate.Geometry.ArtifactID || review.SourceArtifactSHA256 != parent.Candidate.Geometry.SHA256 {
+		return DeviceRevision{}, fmt.Errorf("%w: review is not bound to the exact candidate source", ErrInvalidCandidate)
+	}
+	if err := validateQualificationReview(review, review.Result == "passed"); err != nil {
+		return DeviceRevision{}, fmt.Errorf("%w: %v", ErrInvalidCandidate, err)
+	}
+	candidate := parent.Candidate
+	if review.Result == "passed" {
+		if err := validateQualificationScope(candidate, review); err != nil {
+			return DeviceRevision{}, fmt.Errorf("%w: %v", ErrInvalidCandidate, err)
+		}
+	}
+	review.SourceAllowedUses = sortedUnique(review.SourceAllowedUses)
+	review.DimensionStates = sortedUnique(review.DimensionStates)
+	review.DisplayIDs = sortedUnique(review.DisplayIDs)
+	review.AllowedMotionIDs = sortedUnique(review.AllowedMotionIDs)
+	review.SupportIDs = sortedUnique(review.SupportIDs)
+	candidate.Definition.QualificationReviews = append(append([]QualificationReview(nil), candidate.Definition.QualificationReviews...), review)
+	if review.Result == "passed" {
+		candidate.Definition.Qualification = "qualified"
+	} else {
+		candidate.Definition.Qualification = "unqualified"
+	}
+	canonical, data, digest, err := CanonicalizeDeviceCandidate(candidate)
+	if err != nil {
+		return DeviceRevision{}, fmt.Errorf("%w: %v", ErrInvalidCandidate, err)
+	}
+	state := DeviceRevisionCandidate
+	if review.Result == "passed" {
+		state = DeviceRevisionQualified
+	}
+	return s.repo.SaveCandidate(ctx, DeviceRevision{DeviceID: id, SHA256: digest, State: state, Candidate: canonical, CreatedAt: s.now().UTC(), canonical: data}, expectedHead)
+}
+
+func validateQualificationScope(candidate DeviceCandidate, review QualificationReview) error {
+	for _, state := range review.DimensionStates {
+		dimensions, ok := candidate.Definition.Dimensions[state]
+		if !ok {
+			return fmt.Errorf("dimension state %q is not on the candidate", state)
+		}
+		for name, measurement := range map[string]Measurement{"width": dimensions.Width, "height": dimensions.Height, "depth": dimensions.Depth} {
+			if !measurement.known() || measurement.Method == "design_assumption" {
+				return fmt.Errorf("dimension %s.%s lacks sourced finite dimensions", state, name)
+			}
+			if review.Scope == "physical_geometry" && measurement.Uncertainty.Status == "unknown" {
+				return fmt.Errorf("dimension %s.%s lacks known uncertainty for physical geometry review", state, name)
+			}
+		}
+	}
+	displays := make(map[string]DisplaySurface, len(candidate.Definition.Displays))
+	for _, display := range candidate.Definition.Displays {
+		displays[display.ID] = display
+	}
+	for _, id := range review.DisplayIDs {
+		display, ok := displays[id]
+		if !ok {
+			return fmt.Errorf("display %q is not on the candidate", id)
+		}
+		if review.Scope == "physical_geometry" && (display.PhysicalBoundary.Status != "qualified" || display.ActiveArea.Status != "qualified" || display.AppSafeArea.Status != "qualified") {
+			return fmt.Errorf("display %q physical/view regions are not qualified", id)
+		}
+	}
+	if review.Scope == "visual_setup" {
+		if !sameStringSet([]string{"static"}, review.AllowedMotionIDs) {
+			return errors.New("visual setup must explicitly scope motion as static")
+		}
+	} else {
+		if len(candidate.Definition.SupportedMotion) == 0 {
+			if !sameStringSet([]string{"static"}, review.AllowedMotionIDs) {
+				return errors.New("a static-only device must explicitly scope motion as static")
+			}
+		} else {
+			for _, id := range review.AllowedMotionIDs {
+				compat := CheckMotion(candidate.Definition, id)
+				if compat.Status != Compatible {
+					return fmt.Errorf("motion %q is not qualified: %s", id, strings.Join(compat.Reasons, "; "))
+				}
+			}
+		}
+	}
+	if len(candidate.SupportFrames) == 0 {
+		if !sameStringSet([]string{"none"}, review.SupportIDs) {
+			return errors.New("candidate without support frames must explicitly scope support as none")
+		}
+	} else {
+		frames := make(map[string]DeviceSupportFrame, len(candidate.SupportFrames))
+		for _, frame := range candidate.SupportFrames {
+			frames[frame.ID] = frame
+		}
+		for _, id := range review.SupportIDs {
+			frame, ok := frames[id]
+			if !ok {
+				return fmt.Errorf("support scope %q is not a candidate support frame", id)
+			}
+			if review.Scope == "physical_geometry" {
+				qualified := false
+				for _, support := range candidate.Definition.Supports {
+					if support.InterfaceID == frame.InterfaceID && support.Status == "qualified" && hasEvidence(support.Evidence) {
+						qualified = true
+						break
+					}
+				}
+				if !qualified {
+					return fmt.Errorf("support frame %q has no qualified evidenced support capability", id)
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func mapKeys[V any](items map[string]V) []string {
+	keys := make([]string, 0, len(items))
+	for key := range items {
+		keys = append(keys, key)
+	}
+	return keys
+}
+
+func sameStringSet(want, got []string) bool {
+	if len(want) != len(got) {
+		return false
+	}
+	seen := make(map[string]bool, len(want))
+	for _, value := range want {
+		seen[value] = true
+	}
+	for _, value := range got {
+		if !seen[value] {
+			return false
+		}
+		delete(seen, value)
+	}
+	return len(seen) == 0
+}
+
+func sortedUnique(values []string) []string {
+	result := append([]string(nil), values...)
+	sort.Strings(result)
+	return result
 }
 
 func (s *DeviceRevisionService) GetRevision(ctx context.Context, id string, revision uint32) (DeviceRevision, error) {
@@ -273,7 +439,11 @@ func decodeDeviceRow(id string, revision uint32, storedDigest string, data []byt
 	if err != nil || createdAt.IsZero() {
 		return DeviceRevision{}, fmt.Errorf("corrupt device revision %s/%d: invalid creation time", id, revision)
 	}
-	return DeviceRevision{DeviceID: id, Revision: revision, SHA256: digest, State: DeviceRevisionCandidate, Candidate: candidate, CreatedAt: createdAt.UTC(), canonical: append([]byte(nil), data...)}, nil
+	state := DeviceRevisionCandidate
+	if candidate.Definition.Qualification == "qualified" {
+		state = DeviceRevisionQualified
+	}
+	return DeviceRevision{DeviceID: id, Revision: revision, SHA256: digest, State: state, Candidate: candidate, CreatedAt: createdAt.UTC(), canonical: append([]byte(nil), data...)}, nil
 }
 
 var _ DeviceRevisionRepository = (*sqliteDeviceRevisionRepository)(nil)

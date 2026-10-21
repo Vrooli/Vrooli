@@ -3,8 +3,10 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tansta
 import { Code, ConnectError } from "@connectrpc/connect";
 import { Button } from "@vrooli/react-component-library/Button/2";
 import { Card, CardContent, CardHeader, CardTitle } from "@vrooli/react-component-library/Card/1";
-import { PresentationAppearance, PresentationKind, RenderJobStatus, RenderMode, RenderOutputProfile, type RenderJob, type RenderOutput, type ShotRevision, type VideoSampleBinding } from "@vrooli/proto-types/device-studio/v1/shots/shots_pb";
+import { create } from "@bufbuild/protobuf";
+import { PresentationAppearance, PresentationKind, ReadabilityProofSchema, ReadabilityVerdict, RenderJobStatus, RenderMode, RenderOutputProfile, type ReadabilityProof, type RenderJob, type RenderOutput, type ShotRevision, type VideoSampleBinding } from "@vrooli/proto-types/device-studio/v1/shots/shots_pb";
 import { rendersClient, getRenderOutputContent, getVideoSampleBinding, isRenderActive, isRenderCancellable, renderOutputContentURL, verifyRenderOutputContent } from "../../api/renders";
+import { shotsClient } from "../../api/shots";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
@@ -20,6 +22,7 @@ type Props = {
   onShowOutputChange: (show: boolean) => void;
   onFinalOutputChange?: (output?: FinalRenderOutput) => void;
   onAcceptVideoSample?: (binding: VideoSampleBinding) => Promise<void> | void;
+  onDeclareReadabilityProof?: (proof: ReadabilityProof) => Promise<void>;
 };
 
 export type FinalRenderOutput = { url: string; renderId: string; revision: bigint; metadata: RenderOutput; isVideo: boolean; isSample: boolean };
@@ -59,7 +62,7 @@ function statusLabel(status: RenderJobStatus, t: (key: StatusKey) => string): st
   return labels[status] ?? t(strings.shot.renderUnknown);
 }
 
-export function RenderControls({ projectId, shotId, revision, historical, hasUnsavedChanges, showOutput, onShowOutputChange, onFinalOutputChange, onAcceptVideoSample }: Props) {
+export function RenderControls({ projectId, shotId, revision, historical, hasUnsavedChanges, showOutput, onShowOutputChange, onFinalOutputChange, onAcceptVideoSample, onDeclareReadabilityProof }: Props) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [selectedJobId, setSelectedJobId] = useState("");
@@ -69,6 +72,15 @@ export function RenderControls({ projectId, shotId, revision, historical, hasUns
   const [viewedSampleIds, setViewedSampleIds] = useState<string[]>([]);
   const [acceptError, setAcceptError] = useState("");
   const [outputLinkError, setOutputLinkError] = useState("");
+  const [proofEditorOpen, setProofEditorOpen] = useState(false);
+  const [proofName, setProofName] = useState("Required screen text");
+  const [proofContent, setProofContent] = useState("The named headline and primary value");
+  const [proofCriteria, setProofCriteria] = useState("Every required character is distinguishable at the delivered image size.");
+  const [proofError, setProofError] = useState("");
+  const [reviewNote, setReviewNote] = useState("");
+  const [attestedOutputIdentity, setAttestedOutputIdentity] = useState("");
+  const snapshot = revision?.snapshot;
+  const videoProofMode = Boolean(snapshot?.videoTiming || snapshot?.physicalBinding?.motionOutput);
 
   const jobs = useInfiniteQuery({
     queryKey: ["renders", projectId],
@@ -127,6 +139,24 @@ export function RenderControls({ projectId, shotId, revision, historical, hasUns
     },
     onError: (error) => setAcceptError(errorMessage(error, t)),
   });
+  const declareProof = useMutation({
+    mutationFn: (form: HTMLFormElement) => {
+      if (!onDeclareReadabilityProof) throw new Error("Proof declaration editing is unavailable.");
+      const values = new FormData(form);
+      const n = (name: string) => Number(values.get(name));
+      const proof = create(ReadabilityProofSchema, {
+        regionName: proofName.trim(), requiredContent: proofContent.trim(), criteria: proofCriteria.trim(),
+        regionX: n("regionX"), regionY: n("regionY"), regionWidth: n("regionWidth"), regionHeight: n("regionHeight"),
+        minimumOutputWidthPixels: n("minimumOutputWidth"), minimumOutputHeightPixels: n("minimumOutputHeight"),
+        minimumRegionWidthPixels: n("minimumRegionWidth"), minimumRegionHeightPixels: n("minimumRegionHeight"),
+        proofStartMs: videoProofMode ? BigInt(n("proofStartMs")) : 0n,
+        proofEndMs: videoProofMode ? BigInt(n("proofEndMs")) : 0n,
+      });
+      return onDeclareReadabilityProof(proof);
+    },
+    onSuccess: () => { setProofError(""); setProofEditorOpen(false); },
+    onError: (error) => setProofError(errorMessage(error, t)),
+  });
 
   const allJobs = useMemo(() => {
     const rows = jobs.data?.pages.flatMap((page) => page.jobs) ?? [];
@@ -134,6 +164,28 @@ export function RenderControls({ projectId, shotId, revision, historical, hasUns
     return rows.filter((job) => job.shotId === shotId);
   }, [jobs.data, shotId, submittedJob]);
   const selectedJob = allJobs.find((job) => job.id === selectedJobId) ?? allJobs[0];
+  const readabilityProof = snapshot?.readabilityProof;
+  const selectedPNG = Boolean(selectedJob?.output?.mediaType.toLowerCase() === "image/png");
+  const selectedStillIsFinal = selectedJob?.renderMode === RenderMode.STILL || selectedJob?.renderMode === RenderMode.PHYSICAL_STILL_PNG;
+  const selectedVideoIsFinal = selectedJob?.renderMode === RenderMode.VIDEO_FINAL_MP4 || selectedJob?.renderMode === RenderMode.PHYSICAL_VIDEO_FINAL_MP4;
+  const readabilityOutputAvailable = Boolean(selectedJob && ((selectedPNG && selectedStillIsFinal) || (selectedJob.output?.mediaType.toLowerCase() === "video/mp4" && selectedVideoIsFinal)));
+  const readabilityReview = useQuery({
+    queryKey: ["output-readability-review", projectId, shotId, selectedJob?.shotRevision.toString(), selectedJob?.id, selectedJob?.output?.sha256],
+    queryFn: () => shotsClient.getOutputReadabilityReview({ projectId, shotId, shotRevision: selectedJob!.shotRevision, renderId: selectedJob!.id, outputSha256: selectedJob!.output!.sha256 }),
+    enabled: Boolean(readabilityProof && selectedJob?.status === RenderJobStatus.SUCCEEDED && readabilityOutputAvailable && selectedJob.shotId === shotId && selectedJob.shotRevision === revision?.revision),
+    retry: false,
+  });
+  const readabilityAdequate = Boolean(readabilityProof && selectedJob?.output &&
+    selectedJob.output.widthPixels >= readabilityProof.minimumOutputWidthPixels && selectedJob.output.heightPixels >= readabilityProof.minimumOutputHeightPixels &&
+    Math.floor(readabilityProof.regionWidth * selectedJob.output.widthPixels) >= readabilityProof.minimumRegionWidthPixels &&
+    Math.floor(readabilityProof.regionHeight * selectedJob.output.heightPixels) >= readabilityProof.minimumRegionHeightPixels);
+  const readabilityDecision = useMutation({
+    mutationFn: (verdict: ReadabilityVerdict) => shotsClient.reviewOutputReadability({
+      projectId, shotId, shotRevision: selectedJob!.shotRevision, renderId: selectedJob!.id,
+      outputSha256: selectedJob!.output!.sha256, verdict, note: reviewNote, explicitlyInspectedFinalSize: attestedOutputIdentity === outputIdentity,
+    }),
+    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ["output-readability-review", projectId, shotId] }); },
+  });
   useEffect(() => {
     if (!pendingPhysicalPreviewId) return;
     if (!revision || historical || hasUnsavedChanges) {
@@ -263,6 +315,41 @@ export function RenderControls({ projectId, shotId, revision, historical, hasUns
           <Button className="studio-primary min-h-11" disabled={!submitInput || submitBusyForCurrent} onClick={() => submitInput && submit.mutate(submitInput)}>{submitBusyForCurrent ? t(strings.shot.renderSubmitting) : t(strings.shot.renderVideoSample)}</Button>
           <Button variant="outline" className="min-h-11" disabled={!finalInput || submitBusyForCurrent} onClick={() => finalInput && submit.mutate(finalInput)}>{t(strings.shot.renderVideoFinal, { revision: revisionNumber })}</Button>
         </div>}
+        <section aria-label={t(strings.shot.readabilityTitle)} className="rounded border p-space-md">
+          <h4>{t(strings.shot.readabilityTitle)}</h4>
+          {readabilityProof && !proofEditorOpen ? <>
+            <p>{t(strings.shot.readabilityDeclared, { region: readabilityProof.regionName, content: readabilityProof.requiredContent })}</p>
+            <p className="shot-help">{readabilityProof.criteria}</p>
+            <Button variant="outline" className="min-h-11" disabled={historical || hasUnsavedChanges || declareProof.isPending} onClick={() => {
+              setProofName(readabilityProof.regionName); setProofContent(readabilityProof.requiredContent); setProofCriteria(readabilityProof.criteria); setProofEditorOpen(true);
+            }}>{t(strings.shot.readabilityEdit)}</Button>
+          </> : <form onSubmit={(event) => { event.preventDefault(); declareProof.mutate(event.currentTarget); }} className="grid gap-space-sm">
+            <label>{t(strings.shot.readabilityRegion)}<input value={proofName} onChange={(event) => setProofName(event.target.value)} required maxLength={80} /></label>
+            <label>{t(strings.shot.readabilityContent)}<textarea value={proofContent} onChange={(event) => setProofContent(event.target.value)} required maxLength={512} /></label>
+            <label>{t(strings.shot.readabilityCriteria)}<textarea value={proofCriteria} onChange={(event) => setProofCriteria(event.target.value)} required maxLength={1000} /></label>
+            <p className="shot-help">{t(strings.shot.readabilityROIHelp)}</p>
+            <div className="grid grid-cols-2 gap-space-sm">
+              <label>{t(strings.shot.readabilityX)}<input name="regionX" type="number" min="0" max="1" step="0.001" defaultValue={readabilityProof?.regionX ?? 0.05} required /></label>
+              <label>{t(strings.shot.readabilityY)}<input name="regionY" type="number" min="0" max="1" step="0.001" defaultValue={readabilityProof?.regionY ?? 0.1} required /></label>
+              <label>{t(strings.shot.readabilityWidth)}<input name="regionWidth" type="number" min="0.001" max="1" step="0.001" defaultValue={readabilityProof?.regionWidth ?? 0.9} required /></label>
+              <label>{t(strings.shot.readabilityHeight)}<input name="regionHeight" type="number" min="0.001" max="1" step="0.001" defaultValue={readabilityProof?.regionHeight ?? 0.25} required /></label>
+              <label>{t(strings.shot.readabilityMinOutputWidth)}<input name="minimumOutputWidth" type="number" min="1" max="16384" defaultValue={readabilityProof?.minimumOutputWidthPixels ?? 800} required /></label>
+              <label>{t(strings.shot.readabilityMinOutputHeight)}<input name="minimumOutputHeight" type="number" min="1" max="16384" defaultValue={readabilityProof?.minimumOutputHeightPixels ?? 800} required /></label>
+              <label>{t(strings.shot.readabilityMinRegionWidth)}<input name="minimumRegionWidth" type="number" min="1" max="16384" defaultValue={readabilityProof?.minimumRegionWidthPixels ?? 400} required /></label>
+              <label>{t(strings.shot.readabilityMinRegionHeight)}<input name="minimumRegionHeight" type="number" min="1" max="16384" defaultValue={readabilityProof?.minimumRegionHeightPixels ?? 80} required /></label>
+              {videoProofMode && <>
+                <label>{t(strings.shot.readabilityIntervalStart)}<input name="proofStartMs" type="number" min="0" step="1" defaultValue={Number(readabilityProof?.proofStartMs ?? 0n)} required /></label>
+                <label>{t(strings.shot.readabilityIntervalEnd)}<input name="proofEndMs" type="number" min="1" step="1" defaultValue={Number(readabilityProof?.proofEndMs ?? 5000n)} required /></label>
+              </>}
+            </div>
+            <p className="shot-help">{t(videoProofMode ? strings.shot.readabilityIntervalVideoHelp : strings.shot.readabilityIntervalStill)}</p>
+            {proofError && <p role="alert">{proofError}</p>}
+            <div className="flex gap-space-sm">
+              <Button className="min-h-11" type="submit" disabled={historical || hasUnsavedChanges || declareProof.isPending || !onDeclareReadabilityProof}>{t(declareProof.isPending ? strings.shot.readabilitySaving : strings.shot.readabilitySave)}</Button>
+              {readabilityProof && <Button variant="outline" className="min-h-11" type="button" onClick={() => setProofEditorOpen(false)}>{t(strings.shot.readabilityCancel)}</Button>}
+            </div>
+          </form>}
+        </section>
       </>}
 
       <h4>{t(strings.shot.renderJobs)}</h4>
@@ -287,6 +374,37 @@ export function RenderControls({ projectId, shotId, revision, historical, hasUns
         </div>
         {selectedIsVideoSample && autoPhone && outputUrl && showOutput && <div><Button data-testid={selectors.shot.videoSampleAccept} variant="outline" className="min-h-11" disabled={acceptSample.isPending || !onAcceptVideoSample} onClick={() => { setAcceptError(""); acceptSample.mutate({ projectId, shotId, revision: selectedJob.shotRevision, renderId: selectedJob.id }); }}>{acceptSample.isPending ? t(strings.shot.renderVerifyingOutput) : t(strings.shot.renderUseSample)}</Button>{visibleAcceptError && <p role="alert">{visibleAcceptError}</p>}</div>}
         {showOutput && outputUrl && <details><summary>{t(strings.shot.renderOutputDetails)}</summary><p>{t(strings.shot.renderOutputMetadata, { width: selectedJob.output.widthPixels, height: selectedJob.output.heightPixels, mediaType: selectedJob.output.mediaType, bytes: selectedJob.output.sizeBytes.toString() })}</p><code>{selectedJob.output.sha256}</code></details>}
+        {readabilityOutputAvailable && <div className="mt-space-md border-t pt-space-md" data-testid="readability-review">
+          <h4>{t(strings.shot.readabilityTitle)}</h4>
+          {!readabilityProof ? <p role="status">{t(strings.shot.readabilityNotDeclared)}</p> : readabilityReview.data?.review ? <p role="status">{readabilityReview.data.review.verdict === ReadabilityVerdict.ACCEPTED ? t(strings.shot.readabilityAccepted) : t(strings.shot.readabilityRejected)}</p> : <p role="status">{t(strings.shot.readabilityUnreviewed)}</p>}
+          {readabilityProof && readabilityReview.isError && !(readabilityReview.error instanceof ConnectError && readabilityReview.error.code === Code.NotFound) && <p role="alert">{errorMessage(readabilityReview.error, t)}</p>}
+          {selectedJob.shotRevision !== revision?.revision && <p role="alert">{t(strings.shot.readabilityOldRevision)}</p>}
+          {readabilityProof && showOutput && outputUrl && <div className="mt-space-sm max-h-[70vh] max-w-full overflow-auto border" data-testid="readability-native-size-view" aria-label={t(strings.shot.readabilityNativeSizeView, { width: selectedJob.output.widthPixels, height: selectedJob.output.heightPixels })}>
+            <div className="relative" style={{ width: `${selectedJob.output.widthPixels}px`, height: `${selectedJob.output.heightPixels}px` }}>
+              {outputIsVideo ? <video controls src={outputUrl} aria-label={t(strings.shot.readabilityReviewImage)} className="block" style={{ width: `${selectedJob.output.widthPixels}px`, height: `${selectedJob.output.heightPixels}px`, maxWidth: "none" }} onLoadedMetadata={(event) => { const start = Number(readabilityProof.proofStartMs) / 1000; if (start < event.currentTarget.duration) event.currentTarget.currentTime = start; }} /> : <img src={outputUrl} alt={t(strings.shot.readabilityReviewImage)} className="block" style={{ width: `${selectedJob.output.widthPixels}px`, height: `${selectedJob.output.heightPixels}px`, maxWidth: "none" }} />}
+              <div aria-label={readabilityProof.regionName} className="pointer-events-none absolute border-2 border-red-500" style={{ left: `${readabilityProof.regionX * 100}%`, top: `${readabilityProof.regionY * 100}%`, width: `${readabilityProof.regionWidth * 100}%`, height: `${readabilityProof.regionHeight * 100}%` }} />
+            </div>
+          </div>}
+          {readabilityProof && (readabilityProof.proofStartMs !== 0n || readabilityProof.proofEndMs !== 0n) ? <p>{t(strings.shot.readabilityVideoInterval, { start: Number(readabilityProof.proofStartMs) / 1000, end: Number(readabilityProof.proofEndMs) / 1000 })}</p> : readabilityProof ? <p>{t(strings.shot.readabilityDeclared, { region: readabilityProof.regionName, content: readabilityProof.requiredContent })}</p> : null}
+          {readabilityProof && showOutput && outputUrl && selectedJob.shotRevision === revision?.revision && !readabilityReview.data?.review && <>
+            <p>{readabilityProof.criteria}</p>
+            <label className="flex items-start gap-space-sm">
+              <input
+                type="checkbox"
+                aria-label={t(strings.shot.readabilityAttestation)}
+                checked={attestedOutputIdentity === outputIdentity}
+                onChange={(event) => setAttestedOutputIdentity(event.currentTarget.checked ? outputIdentity : "")}
+              />
+              <span>{t(strings.shot.readabilityAttestation)}</span>
+            </label>
+            <label>{t(strings.shot.readabilityReviewNote)}<textarea value={reviewNote} onChange={(event) => setReviewNote(event.target.value)} maxLength={1000} /></label>
+            <div className="flex gap-space-sm">
+              <Button className="min-h-11" disabled={readabilityDecision.isPending || !readabilityAdequate || attestedOutputIdentity !== outputIdentity} onClick={() => readabilityDecision.mutate(ReadabilityVerdict.ACCEPTED)}>{t(strings.shot.readabilityAccept)}</Button>
+              <Button variant="outline" className="min-h-11" disabled={readabilityDecision.isPending || attestedOutputIdentity !== outputIdentity} onClick={() => readabilityDecision.mutate(ReadabilityVerdict.REJECTED)}>{t(strings.shot.readabilityReject)}</Button>
+            </div>
+          </>}
+          {readabilityDecision.error && <p role="alert">{errorMessage(readabilityDecision.error, t)}</p>}
+        </div>}
       </section>}
       {jobs.hasNextPage && <Button variant="outline" className="min-h-11" disabled={jobs.isFetchingNextPage} onClick={() => void jobs.fetchNextPage()}>{jobs.isFetchingNextPage ? t(strings.shot.renderLoadingJobs) : t(strings.shot.renderLoadMore)}</Button>}
     </CardContent>

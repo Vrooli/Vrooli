@@ -420,8 +420,11 @@ func validatePhysicalRecordingPresentation(saved *shotsv1.ScreenPresentation, bi
 	if receipt == nil || receipt.Classification != string(rendering.InspectionAccepted) || receipt.VideoWidth == 0 || receipt.VideoHeight == 0 || receipt.VideoWidth > 3840 || receipt.VideoHeight > 3840 || uint64(receipt.VideoWidth)*uint64(receipt.VideoHeight) > 3840*2160 {
 		return errors.New("physical recording requires an accepted inspected video raster")
 	}
-	if saved == nil || saved.GetCaptureArea() != shotsv1.CaptureArea_CAPTURE_AREA_APP_ONLY || (saved.GetKind() != shotsv1.PresentationKind_PRESENTATION_KIND_PHONE_SYSTEM && saved.GetKind() != shotsv1.PresentationKind_PRESENTATION_KIND_BROWSER_DESKTOP) {
-		return errors.New("physical recording requires a supported app-only phone or browser presentation")
+	if saved == nil || saved.GetCaptureArea() != shotsv1.CaptureArea_CAPTURE_AREA_APP_ONLY || (saved.GetKind() != shotsv1.PresentationKind_PRESENTATION_KIND_PLAIN && saved.GetKind() != shotsv1.PresentationKind_PRESENTATION_KIND_PHONE_SYSTEM && saved.GetKind() != shotsv1.PresentationKind_PRESENTATION_KIND_BROWSER_DESKTOP) {
+		return errors.New("physical recording requires a supported app-only presentation")
+	}
+	if saved.GetFitMode() != shotsv1.ScreenFitMode_SCREEN_FIT_MODE_UNSPECIFIED && saved.GetFitMode() != shotsv1.ScreenFitMode_SCREEN_FIT_MODE_CONTAIN {
+		return errors.New("physical recording supports contain fit only")
 	}
 	_, err := presentations.ConfigFromSavedVersion(image.Pt(int(binding.GetScreenWidthPixels()), int(binding.GetScreenHeightPixels())), saved, version)
 	return err
@@ -447,9 +450,9 @@ func (r *ownedPhysicalResolver) composePhysicalScreen(ctx context.Context, proje
 	}
 	var raster *image.NRGBA
 	var configBytes, layoutBytes []byte
-	if saved.GetKind() == shotsv1.PresentationKind_PRESENTATION_KIND_PLAIN {
-		if saved.GetCaptureArea() != shotsv1.CaptureArea_CAPTURE_AREA_ALREADY_COMPOSED || source.Bounds().Dx() != width || source.Bounds().Dy() != height {
-			return nil, "", "", "", ErrInvalidPhysicalBinding{Reason: "plain physical screen input must be an already-composed image at the declared display raster"}
+	if saved.GetKind() == shotsv1.PresentationKind_PRESENTATION_KIND_PLAIN && saved.GetCaptureArea() == shotsv1.CaptureArea_CAPTURE_AREA_ALREADY_COMPOSED {
+		if source.Bounds().Dx() != width || source.Bounds().Dy() != height {
+			return nil, "", "", "", ErrInvalidPhysicalBinding{Reason: "plain already-composed physical input must match the declared display raster exactly"}
 		}
 		cfg := presentations.Config{Target: image.Pt(width, height)}
 		configBytes, _ = json.Marshal(cfg)
@@ -467,7 +470,10 @@ func (r *ownedPhysicalResolver) composePhysicalScreen(ctx context.Context, proje
 		}
 		result, composeErr := presentations.Compose(ctx, source, cfg)
 		if composeErr != nil {
-			return nil, "", "", "", composeErr
+			if ctx.Err() != nil {
+				return nil, "", "", "", ctx.Err()
+			}
+			return nil, "", "", "", ErrInvalidPhysicalBinding{Reason: fmt.Sprintf("physical screen presentation is invalid: %v", composeErr)}
 		}
 		raster = result.Raster
 		configBytes, _ = json.Marshal(cfg)
@@ -550,9 +556,18 @@ func physicalOutputHeight(binding *shotsv1.PhysicalShotBinding) uint32 {
 }
 
 func validatePhysicalPresentation(saved *shotsv1.ScreenPresentation, binding *shotsv1.PhysicalShotBinding, version string) error {
+	if saved.GetFitMode() != shotsv1.ScreenFitMode_SCREEN_FIT_MODE_UNSPECIFIED && saved.GetFitMode() != shotsv1.ScreenFitMode_SCREEN_FIT_MODE_CONTAIN {
+		return errors.New("physical presentation supports contain fit only")
+	}
 	if saved.GetKind() == shotsv1.PresentationKind_PRESENTATION_KIND_PLAIN {
-		if saved.GetCaptureArea() != shotsv1.CaptureArea_CAPTURE_AREA_ALREADY_COMPOSED {
-			return errors.New("plain physical presentation requires an already-composed screen image")
+		if saved.GetCaptureArea() == shotsv1.CaptureArea_CAPTURE_AREA_ALREADY_COMPOSED {
+			return nil
+		}
+		if saved.GetCaptureArea() != shotsv1.CaptureArea_CAPTURE_AREA_APP_ONLY {
+			return errors.New("plain physical presentation requires an app-only or already-composed screen image")
+		}
+		if _, err := presentations.ConfigFromSavedVersion(image.Pt(int(binding.GetScreenWidthPixels()), int(binding.GetScreenHeightPixels())), saved, version); err != nil {
+			return fmt.Errorf("physical screen presentation: %w", err)
 		}
 		return nil
 	}

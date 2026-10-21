@@ -36,6 +36,7 @@ type Spec struct {
 	RevisionFromSave                                                                  func(proto.Message) proto.Message
 	RevisionID                                                                        func(proto.Message) string
 	RevisionNumber                                                                    func(proto.Message) uint32
+	AdditionalHandlers                                                                map[string]cliapp.PrimitiveHandler
 }
 
 func Register(core *cliapp.ScenarioApp, manifest []byte, s Spec) (cliapp.SubcommandGroup, error) {
@@ -94,6 +95,15 @@ func Register(core *cliapp.ScenarioApp, manifest []byte, s Spec) (cliapp.Subcomm
 			}
 			return cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d current candidate head(s). Qualification is separate.", len(rows))}, ResultsHeading: s.CandidateName + " candidates", Results: formatted, RetrievalHints: hints}
 		})
+	}
+	for key, handler := range s.AdditionalHandlers {
+		if strings.TrimSpace(key) == "" {
+			return cliapp.SubcommandGroup{}, fmt.Errorf("%s: additional handler key is required", s.Group)
+		}
+		if _, exists := bindings[key]; exists {
+			return cliapp.SubcommandGroup{}, fmt.Errorf("%s: duplicate additional handler %q", s.Group, key)
+		}
+		bindings[key] = handler
 	}
 	g, err := cliapp.LoadFromManifestPrimitives(manifest, s.Group, bindings)
 	if err != nil {

@@ -75,6 +75,35 @@ func (r *sqliteRepository) Save(ctx context.Context, id string, expected int64, 
 	return shot, nil
 }
 
+func (r *sqliteRepository) AppendReadabilityReview(ctx context.Context, review ReadabilityReview) error {
+	_, err := r.db.ExecContext(ctx, `INSERT INTO output_readability_reviews(id,project_id,shot_id,shot_revision,render_id,output_sha256,proof_sha256,verdict,note,output_width,output_height,region_width,region_height,reviewed_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		review.ID, review.ProjectID, review.ShotID, review.ShotRevision, review.RenderID, review.OutputSHA256, review.ProofSHA256, review.Verdict, review.Note,
+		review.OutputWidth, review.OutputHeight, review.RegionWidth, review.RegionHeight, review.ReviewedAt.UTC().Format(timestampFormat))
+	if err != nil {
+		return fmt.Errorf("append readability review: %w", err)
+	}
+	return nil
+}
+
+func (r *sqliteRepository) GetReadabilityReview(ctx context.Context, shotID string, revision int64, renderID, outputSHA string) (ReadabilityReview, error) {
+	var review ReadabilityReview
+	var stamp string
+	err := r.db.QueryRowContext(ctx, `SELECT id,project_id,shot_id,shot_revision,render_id,output_sha256,proof_sha256,verdict,note,output_width,output_height,region_width,region_height,reviewed_at FROM output_readability_reviews WHERE shot_id=? AND shot_revision=? AND render_id=? AND output_sha256=? ORDER BY rowid DESC LIMIT 1`, shotID, revision, renderID, outputSHA).Scan(
+		&review.ID, &review.ProjectID, &review.ShotID, &review.ShotRevision, &review.RenderID, &review.OutputSHA256, &review.ProofSHA256, &review.Verdict, &review.Note,
+		&review.OutputWidth, &review.OutputHeight, &review.RegionWidth, &review.RegionHeight, &stamp)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ReadabilityReview{}, ErrReadabilityReviewNotFound
+	}
+	if err != nil {
+		return ReadabilityReview{}, fmt.Errorf("get readability review: %w", err)
+	}
+	review.ReviewedAt, err = time.Parse(timestampFormat, stamp)
+	if err != nil {
+		return ReadabilityReview{}, fmt.Errorf("parse readability review time: %w", err)
+	}
+	return review, nil
+}
+
 func insertRevision(ctx context.Context, tx *sql.Tx, revision Revision) error {
 	snapshot, err := proto.MarshalOptions{Deterministic: true}.Marshal(revision.Snapshot)
 	if err != nil {

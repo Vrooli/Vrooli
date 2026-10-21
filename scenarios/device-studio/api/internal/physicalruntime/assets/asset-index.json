@@ -17,120 +17,6 @@
       "rights": "Vrooli-authored procedural interpretation; neutral display only, no private screen pixels; not manufacturer CAD or endorsed."
     },
     {
-      "catalog_key": "vrooli-generic-book-fold-concept-glb-v2",
-      "path": "foldable/foldable-concept.glb",
-      "media_type": "model/gltf-binary",
-      "size_bytes": 22480,
-      "sha256": "90e1e5195ee88018e37b98d8d08af4d1407d8161e6216cf3fb699921d77ce4ac",
-      "role": "device_model",
-      "status": "candidate_only_unqualified",
-      "allowed_use": [
-        "internal_candidate_review"
-      ],
-      "rights": "Vrooli-authored AGPL-3.0-only generic dual-rigid book-fold concept v2 with beveled housings, segmented concept hinge, and neutral inner/outer glass; Fold6 open envelope informs proportions only. No product identity or manufacturer geometry. See foldable/asset-manifest.json."
-    },
-    {
-      "catalog_key": "phone-table-scene",
-      "path": "phone-table/phone-table-scene.glb",
-      "media_type": "model/gltf-binary",
-      "size_bytes": 350488,
-      "sha256": "d03c288c1f6fa401d920c736e1361189066599b0c514f924b9fed8b50ba16587",
-      "role": "scene_geometry",
-      "status": "unreviewed_candidate",
-      "allowed_use": [
-        "internal_candidate_review"
-      ],
-      "rights": "Vrooli-authored procedural scene geometry; not measured furniture or CAD."
-    },
-    {
-      "catalog_key": "travertine-color",
-      "path": "phone-table/textures/travertine-color.jpg",
-      "media_type": "image/jpeg",
-      "size_bytes": 16152869,
-      "sha256": "e14668f66d61b73c1b1bd1df6150449244ea9c766af12908e3f522c6c93b09c8",
-      "role": "base_color_map",
-      "status": "unreviewed_candidate",
-      "allowed_use": [
-        "internal_candidate_review",
-        "CC0 reuse"
-      ],
-      "rights": "ambientCG Travertine001 texture; CC0-1.0.",
-      "license": "CC0-1.0"
-    },
-    {
-      "catalog_key": "travertine-normal-gl",
-      "path": "phone-table/textures/travertine-normal-gl.jpg",
-      "media_type": "image/jpeg",
-      "size_bytes": 5152752,
-      "sha256": "68419c7540b71608d34ef103d6ae839f7144128784b3b03af44c95b1db8b168b",
-      "role": "normal_map_gl",
-      "status": "unreviewed_candidate",
-      "allowed_use": [
-        "internal_candidate_review",
-        "CC0 reuse"
-      ],
-      "rights": "ambientCG Travertine001 texture; CC0-1.0.",
-      "license": "CC0-1.0"
-    },
-    {
-      "catalog_key": "travertine-roughness",
-      "path": "phone-table/textures/travertine-roughness.jpg",
-      "media_type": "image/jpeg",
-      "size_bytes": 5302649,
-      "sha256": "a8f053413e46dacce39e601d1ceb5ae615cd7f91e1f270db386e6c6470cf9b90",
-      "role": "roughness_map",
-      "status": "unreviewed_candidate",
-      "allowed_use": [
-        "internal_candidate_review",
-        "CC0 reuse"
-      ],
-      "rights": "ambientCG Travertine001 texture; CC0-1.0.",
-      "license": "CC0-1.0"
-    },
-    {
-      "catalog_key": "travertine-height",
-      "path": "phone-table/textures/travertine-height.jpg",
-      "media_type": "image/jpeg",
-      "size_bytes": 355941,
-      "sha256": "64001fed9f67bbf9af0fccdf079fccbb0e01cba369c9c0319009b3c9aa2cabaf",
-      "role": "height_bump_map",
-      "status": "unreviewed_candidate",
-      "allowed_use": [
-        "internal_candidate_review",
-        "CC0 reuse"
-      ],
-      "rights": "ambientCG Travertine001 texture; CC0-1.0; bump only, no geometric displacement.",
-      "license": "CC0-1.0"
-    },
-    {
-      "catalog_key": "phone-study-environment",
-      "path": "phone-study-environment/phone-study-environment.glb",
-      "media_type": "model/gltf-binary",
-      "size_bytes": 421404,
-      "sha256": "c0f1450af8cc83b237159f2c5208bd964c48fc5dc9fe7f2ac2b2ee5409447f4d",
-      "role": "scene_geometry",
-      "status": "unreviewed_candidate",
-      "allowed_use": [
-        "internal_candidate_review"
-      ],
-      "rights": "Vrooli-authored static environment interpretation; includes table, wall, window panel and frame, no embedded images, no camera/lights; not measured room or furniture CAD."
-    },
-    {
-      "catalog_key": "ipad-mini-6-environment-camera-v3",
-      "path": "ipad-environment-v3/ipad-study-environment.glb",
-      "media_type": "model/gltf-binary",
-      "size_bytes": 289224,
-      "sha256": "598c50a9bea67b56f9911c2601e3bed8d11428e171725315b0f382fa92462c5f",
-      "role": "scene_geometry",
-      "status": "candidate_only_unqualified",
-      "allowed_use": [
-        "internal_candidate_review"
-      ],
-      "rights": "Vrooli-authored iPad-specific scene geometry with regenerated 128-segment cup; separate Travertine001 maps are CC0-1.0. Not physical measurement or qualified scene.",
-      "license": "AGPL-3.0-only",
-      "provenance": "See ipad-environment-v3/asset-manifest.json and E3 export6 receipt; uses the existing oriented DatSketch iPad candidate only as projection input, not embedded."
-    },
-    {
       "catalog_key": "datsketch-ipad-mini-6-neutral",
       "path": "ipad/ipad-mini-neutral-screen.glb",
       "media_type": "model/gltf-binary",
@@ -179,6 +65,266 @@
       "provenance": "See ipad/asset-manifest-uv-oriented-180-v2.json and E4/free-models/sceneview-research/ipad-screen-uv-orientation/"
     },
     {
+      "catalog_key": "generic-round-watch-v2",
+      "path": "roundwatch-v2/generic-roundwatch-v2.glb",
+      "media_type": "model/gltf-binary",
+      "size_bytes": 223684,
+      "sha256": "a609b435f5f4485504f1071e35cf74e95ba56095e5420aaa242255267c87750e",
+      "role": "device_model",
+      "status": "candidate_only_unqualified",
+      "allowed_use": [
+        "internal_candidate_review"
+      ],
+      "rights": "Vrooli-authored generic circular smartwatch concept; Samsung published dimensions/photos are comparison only. See roundwatch-v2/asset-manifest-v2.json.",
+      "license": "AGPL-3.0-only"
+    },
+    {
+      "catalog_key": "generic-round-watch-v3",
+      "path": "roundwatch-v3/generic-roundwatch-v3.glb",
+      "media_type": "model/gltf-binary",
+      "size_bytes": 224076,
+      "sha256": "faa7f39f305c77d77078080599cecdf2df4c2af3d28a06c2763c2707c1a7188c",
+      "role": "device_model",
+      "status": "candidate_only_unqualified",
+      "allowed_use": ["internal_candidate_review"],
+      "rights": "Vrooli-authored generic round-watch v3, derived from v2; only broad silicone strap cap normals are changed. See roundwatch-v3/asset-manifest-v3.json.",
+      "license": "AGPL-3.0-only"
+    },
+    {
+      "catalog_key": "generic-round-watch-body-v4-floating",
+      "path": "roundwatch-body-v4/generic-roundwatch-body-v4.glb",
+      "media_type": "model/gltf-binary",
+      "size_bytes": 223496,
+      "sha256": "d9631384327008b7a59fb78a3f5f29a42983582f7bbb3c4427fa2edc8767e03e",
+      "role": "device_model",
+      "status": "candidate_only_unqualified",
+      "allowed_use": ["internal_candidate_review"],
+      "rights": "Vrooli-authored generic floating watch-body v4 derived from v3; strap, lugs and buckle are omitted from the active hierarchy. Not a complete wearable. See roundwatch-body-v4/asset-manifest-body-v4.json.",
+      "license": "AGPL-3.0-only"
+    },
+    {
+      "catalog_key": "vehicle-neutral-studio-wall-v2",
+      "path": "vehicle-studio/vehicle-neutral-studio-wall-v2.glb",
+      "media_type": "model/gltf-binary",
+      "size_bytes": 420276,
+      "sha256": "d7ff2208f1ad185a1da19fb78c9c07536f36f28514771bb69f02e9282a6c4de1",
+      "role": "scene_model",
+      "status": "candidate_only_unqualified",
+      "allowed_use": ["internal_candidate_review"],
+      "rights": "Vrooli-authored AGPL-3.0-only neutral studio wall derived from the cup-free room. Only the wall node remains reachable; all source mesh/material/BIN records remain. Not a vehicle interior or fit claim.",
+      "license": "AGPL-3.0-only"
+    },
+    {
+      "catalog_key": "generic-smart-display-concept-v3",
+      "path": "smart-display-v3/generic-smart-display-v3.glb",
+      "media_type": "model/gltf-binary",
+      "size_bytes": 219856,
+      "sha256": "9890e82e4ded55f098fb2eb99548bb3d0331c1a599193ee2041c9773a338cf50",
+      "role": "device_model",
+      "status": "candidate_only_unqualified",
+      "allowed_use": [
+        "internal_candidate_review"
+      ],
+      "rights": "Vrooli-authored AGPL-3.0-only generic smart-display concept v3; official Google dimensions/images are comparison-only, not product CAD or included source media. See smart-display-v3/asset-manifest-v3.json."
+    },
+    {
+      "catalog_key": "generic-smart-display-concept-v4",
+      "path": "smart-display-v4/generic-smart-display-v4.glb",
+      "media_type": "model/gltf-binary",
+      "size_bytes": 219864,
+      "sha256": "7bf1f3b0c835f5817c592b12693d5b3d1deb6d289e06e727270ce245ebd75333",
+      "role": "device_model",
+      "status": "candidate_only_unqualified",
+      "allowed_use": [
+        "internal_candidate_review"
+      ],
+      "rights": "Vrooli-authored AGPL-3.0-only generic smart-display concept v4; source-preserving shell normal/material repair of v3. Official Google dimensions/images are comparison-only. See smart-display-v4/asset-manifest-v4.json."
+    },
+    {
+      "catalog_key": "generic-smart-display-concept-v5",
+      "path": "smart-display-v5/generic-smart-display-v5.glb",
+      "media_type": "model/gltf-binary",
+      "size_bytes": 337544,
+      "sha256": "3ee98ae0dd5ce505f0de566055fffe8134fa1cccdad9c4ababab40a5a1ec84c2",
+      "role": "device_model",
+      "status": "candidate_only_unqualified",
+      "allowed_use": [
+        "internal_candidate_review"
+      ],
+      "rights": "Vrooli-authored AGPL-3.0-only generic smart-display concept v5; its rear-shell contour uses higher tessellation to remove three-facet-per-corner geometry. Google reference dimensions/images are comparison-only. See smart-display-v5/asset-manifest-v5.json."
+    },
+    {
+      "catalog_key": "generic-television-thin-bezel-v3",
+      "path": "television-v3/television-thin-bezel-v3.glb",
+      "media_type": "model/gltf-binary",
+      "size_bytes": 126404,
+      "sha256": "bdf42b10916cffcc1bbdf540a91b80236db0fc1be3ff5658954b8bed132a16c3",
+      "role": "device_model",
+      "status": "candidate_only_unqualified",
+      "allowed_use": [
+        "internal_candidate_review"
+      ],
+      "rights": "Vrooli-authored generic thin-bezel 43-inch-class TV; Samsung reference dimensions/images are comparison only. See television-v3/asset-manifest-v3.json.",
+      "license": "AGPL-3.0-only"
+    },
+    {
+      "catalog_key": "generic-vehicle-center-stack-concept-v1",
+      "path": "vehicle-center-stack/generic-center-stack.glb",
+      "media_type": "model/gltf-binary",
+      "size_bytes": 18504,
+      "sha256": "37fc41e26e5c5f616f78fe68dfbd88cbbce6bfb0038754a65a20783684239ce9",
+      "role": "device_model",
+      "status": "candidate_only_unqualified",
+      "allowed_use": [
+        "internal_candidate_review"
+      ],
+      "rights": "Vrooli-authored AGPL-3.0-only generic center-stack concept; 380 x 250 x 120 mm authored envelope. CarPlay/Android Auto labels are simulated screen-use profiles only; no compatibility or safety claim.",
+      "license": "AGPL-3.0-only"
+    },
+    {
+      "catalog_key": "generic-wedge-smart-display-concept-v1",
+      "path": "smart-display/generic-wedge-smart-display.glb",
+      "media_type": "model/gltf-binary",
+      "size_bytes": 25088,
+      "sha256": "1b1364a137fc99545080dca69104c4f4d2a6b8821ad4ebc709981da4df89830f",
+      "role": "device_model",
+      "status": "candidate_only_unqualified",
+      "allowed_use": [
+        "internal_candidate_review"
+      ],
+      "rights": "Vrooli-authored AGPL-3.0-only unqualified wedge display concept; 180 x 125 x 90 mm authored envelope, not Nest Hub geometry or measured dimensions.",
+      "license": "AGPL-3.0-only"
+    },
+    {
+      "catalog_key": "grab3d-dashboard-neutral-screen-v1",
+      "path": "vehicle-center-stack/generic-dashboard-cc0-neutral-v1.glb",
+      "media_type": "model/gltf-binary",
+      "size_bytes": 1741092,
+      "sha256": "4f7dee2ca8790baab3c8f115f21e582af710e0ed2f16d976058a56814b431b26",
+      "role": "device_model",
+      "status": "candidate_only_unqualified",
+      "allowed_use": [
+        "internal_candidate_review",
+        "CC0 reuse"
+      ],
+      "rights": "Grab3D Car Dashboard CC0-1.0 derivative; retained source/license evidence and exact lineage in source packet and vehicle-center-stack/asset-manifest-v3-cc0.json.",
+      "license": "CC0-1.0"
+    },
+    {
+      "catalog_key": "innerscene-digital-frame-tabletop-v2",
+      "path": "digital-frame/innerscene-frame-tabletop-v2.glb",
+      "media_type": "model/gltf-binary",
+      "size_bytes": 789152,
+      "sha256": "bc6b22fb722672b0601dc2ea4424517e6bed589e3ebf40de9ecd0257d20fb4f4",
+      "role": "device_model",
+      "status": "candidate_only_unqualified",
+      "allowed_use": [
+        "internal_candidate_review"
+      ],
+      "rights": "Innerscene source CC0-1.0 plus Vrooli neutral screen UV/material adaptation; candidate tabletop use only. See digital-frame/asset-manifest-v2.json.",
+      "license": "CC0-1.0"
+    },
+    {
+      "catalog_key": "innerscene-digital-frame-tabletop-v4-glassless",
+      "path": "digital-frame/innerscene-frame-tabletop-v4-glassless.glb",
+      "media_type": "model/gltf-binary",
+      "size_bytes": 789196,
+      "sha256": "6aed89133cfe34d46ae0fb12badc9300bd0947ae87280c98e45e562eccd94af3",
+      "role": "device_model",
+      "status": "candidate_only_unqualified",
+      "allowed_use": [
+        "internal_candidate_review"
+      ],
+      "rights": "Innerscene source CC0-1.0 with Vrooli screen-visible digital-frame adaptation; protective glazing node omitted from active hierarchy while source mesh/material/BIN remain. Candidate only; see digital-frame/asset-manifest-v4.json."
+    },
+    {
+      "catalog_key": "innerscene-digital-frame-wall-v3",
+      "path": "digital-frame/innerscene-frame-wall-v3.glb",
+      "media_type": "model/gltf-binary",
+      "size_bytes": 790472,
+      "sha256": "86c216e9bc574ac076bc78231107cb53b4c178bdea4121239df43ca8963e17bf",
+      "role": "device_model",
+      "status": "candidate_only_unqualified",
+      "allowed_use": [
+        "internal_candidate_review"
+      ],
+      "rights": "Innerscene source CC0-1.0 plus Vrooli neutral screen and rear cleat; active easel nodes removed. Candidate wall pose only, no load rating. See digital-frame/asset-manifest-v3.json.",
+      "license": "CC0-1.0"
+    },
+    {
+      "catalog_key": "innerscene-digital-frame-wall-v4-glassless",
+      "path": "digital-frame/innerscene-frame-wall-v4-glassless.glb",
+      "media_type": "model/gltf-binary",
+      "size_bytes": 790500,
+      "sha256": "a555090d9896b2cbb89ce55b62a78ba80f077bc7b184ff1efe757c74f3074203",
+      "role": "device_model",
+      "status": "candidate_only_unqualified",
+      "allowed_use": [
+        "internal_candidate_review"
+      ],
+      "rights": "Innerscene source CC0-1.0 with Vrooli screen-visible digital-frame adaptation and rear cleat; protective glazing node omitted from active hierarchy while source mesh/material/BIN remain. Candidate only, no wall load rating; see digital-frame/asset-manifest-v4.json."
+    },
+    {
+      "catalog_key": "innerscene-digital-frame-wall-v5-mounted",
+      "path": "digital-frame/innerscene-frame-wall-v5-mounted.glb",
+      "media_type": "model/gltf-binary",
+      "size_bytes": 790488,
+      "sha256": "e9254d84025b8b3b3a371d10fa3bba970f31242790cbfce8f94f11110a72289b",
+      "role": "device_model",
+      "status": "candidate_only_unqualified",
+      "allowed_use": [
+        "internal_candidate_review"
+      ],
+      "rights": "Innerscene source CC0-1.0 with Vrooli AGPL-3.0-only visible-screen adaptation; only the Vrooli-authored wall-cleat transform changes from v4 to seat the cleat behind the frame rails. Candidate-only wall placement, no fastener or load rating; see digital-frame/asset-manifest-v5-wall-mounted.json."
+    },
+    {
+      "catalog_key": "innerscene-ultrawide-monitor-screen-split-v2",
+      "path": "monitor/monitor-screen-split-v2.glb",
+      "media_type": "model/gltf-binary",
+      "size_bytes": 113844,
+      "sha256": "d077d0e5433f8058f0c7d09c7dfae423af6412ffdedeb6f2af34a2f7e766deb9",
+      "role": "device_model",
+      "status": "candidate_only_unqualified",
+      "allowed_use": [
+        "internal_candidate_review",
+        "CC0 reuse"
+      ],
+      "rights": "Innerscene Wide View - Ultrawide Monitor generic model; CC0-1.0 as stated by source; no manufacturer identity or endorsement.",
+      "license": "CC0-1.0",
+      "provenance": "See assets/monitor/asset-manifest-screen-split-v2.json and source split manifest SHA-256 d9718414b087fe098c6877bece031554e997ea8daa28f851fe446ca45ac1020a."
+    },
+    {
+      "catalog_key": "innerscene-ultrawide-monitor-screen-uv-v1",
+      "path": "monitor/monitor-screen-uv-v1.glb",
+      "media_type": "model/gltf-binary",
+      "size_bytes": 109512,
+      "sha256": "eff6e9a20a4fd26003046e7f0c7b5d0ea737d83d4ce9adb66b1c118561155266",
+      "role": "device_model",
+      "status": "candidate_only_unqualified",
+      "allowed_use": [
+        "internal_candidate_review",
+        "CC0 reuse"
+      ],
+      "rights": "Innerscene Wide View - Ultrawide Monitor generic model; CC0-1.0 as stated by source; no manufacturer identity or endorsement.",
+      "license": "CC0-1.0",
+      "provenance": "See assets/monitor/asset-manifest.json and source package manifest SHA-256 507989d4027b4a31f18629b03fa67c12eaed5c30bdab5ef8246f716e40c10e54."
+    },
+    {
+      "catalog_key": "ipad-mini-6-environment-camera-v3",
+      "path": "ipad-environment-v3/ipad-study-environment.glb",
+      "media_type": "model/gltf-binary",
+      "size_bytes": 289224,
+      "sha256": "598c50a9bea67b56f9911c2601e3bed8d11428e171725315b0f382fa92462c5f",
+      "role": "scene_geometry",
+      "status": "candidate_only_unqualified",
+      "allowed_use": [
+        "internal_candidate_review"
+      ],
+      "rights": "Vrooli-authored iPad-specific scene geometry with regenerated 128-segment cup; separate Travertine001 maps are CC0-1.0. Not physical measurement or qualified scene.",
+      "license": "AGPL-3.0-only",
+      "provenance": "See ipad-environment-v3/asset-manifest.json and E3 export6 receipt; uses the existing oriented DatSketch iPad candidate only as projection input, not embedded."
+    },
+    {
       "catalog_key": "jack-baeten-macbook-pro-m3-16-neutral-derive16",
       "path": "laptop/laptop-neutral-rig.glb",
       "media_type": "model/gltf-binary",
@@ -210,36 +356,44 @@
       "provenance": "See laptop-study-environment/asset-manifest.json; cup leaf nodes are omitted from the active scene, while mesh/accessor/material arrays and BIN payload are retained."
     },
     {
-      "catalog_key": "innerscene-ultrawide-monitor-screen-uv-v1",
-      "path": "monitor/monitor-screen-uv-v1.glb",
+      "catalog_key": "laptop-screen-vflip-v1",
+      "path": "laptop/laptop-neutral-rig-screen-vflip-v1.glb",
       "media_type": "model/gltf-binary",
-      "size_bytes": 109512,
-      "sha256": "eff6e9a20a4fd26003046e7f0c7b5d0ea737d83d4ce9adb66b1c118561155266",
+      "size_bytes": 4638984,
+      "sha256": "1d833e3d08d0722952ecd9b6616cf933af11fca5716cfe4bc67aa110850272bd",
       "role": "device_model",
       "status": "candidate_only_unqualified",
       "allowed_use": [
-        "internal_candidate_review",
-        "CC0 reuse"
+        "internal_candidate_review"
       ],
-      "rights": "Innerscene Wide View - Ultrawide Monitor generic model; CC0-1.0 as stated by source; no manufacturer identity or endorsement.",
-      "license": "CC0-1.0",
-      "provenance": "See assets/monitor/asset-manifest.json and source package manifest SHA-256 507989d4027b4a31f18629b03fa67c12eaed5c30bdab5ef8246f716e40c10e54."
+      "rights": "Jack Baeten CC BY 4.0; candidate-only source preserving UV derivative flips V only. See laptop/screen-vflip-v1.json.",
+      "license": "CC BY 4.0"
     },
     {
-      "catalog_key": "innerscene-ultrawide-monitor-screen-split-v2",
-      "path": "monitor/monitor-screen-split-v2.glb",
+      "catalog_key": "phone-study-environment",
+      "path": "phone-study-environment/phone-study-environment.glb",
       "media_type": "model/gltf-binary",
-      "size_bytes": 113844,
-      "sha256": "d077d0e5433f8058f0c7d09c7dfae423af6412ffdedeb6f2af34a2f7e766deb9",
-      "role": "device_model",
-      "status": "candidate_only_unqualified",
+      "size_bytes": 421404,
+      "sha256": "c0f1450af8cc83b237159f2c5208bd964c48fc5dc9fe7f2ac2b2ee5409447f4d",
+      "role": "scene_geometry",
+      "status": "unreviewed_candidate",
       "allowed_use": [
-        "internal_candidate_review",
-        "CC0 reuse"
+        "internal_candidate_review"
       ],
-      "rights": "Innerscene Wide View - Ultrawide Monitor generic model; CC0-1.0 as stated by source; no manufacturer identity or endorsement.",
-      "license": "CC0-1.0",
-      "provenance": "See assets/monitor/asset-manifest-screen-split-v2.json and source split manifest SHA-256 d9718414b087fe098c6877bece031554e997ea8daa28f851fe446ca45ac1020a."
+      "rights": "Vrooli-authored static environment interpretation; includes table, wall, window panel and frame, no embedded images, no camera/lights; not measured room or furniture CAD."
+    },
+    {
+      "catalog_key": "phone-table-scene",
+      "path": "phone-table/phone-table-scene.glb",
+      "media_type": "model/gltf-binary",
+      "size_bytes": 350488,
+      "sha256": "d03c288c1f6fa401d920c736e1361189066599b0c514f924b9fed8b50ba16587",
+      "role": "scene_geometry",
+      "status": "unreviewed_candidate",
+      "allowed_use": [
+        "internal_candidate_review"
+      ],
+      "rights": "Vrooli-authored procedural scene geometry; not measured furniture or CAD."
     },
     {
       "catalog_key": "sceneview-series7-generic-neutral-watch-v1",
@@ -258,74 +412,125 @@
       "provenance": "See watch/asset-manifest.json and retained source/creator records; source scale and unknown variant are preserved. Not a round-watch family claim."
     },
     {
-      "catalog_key": "laptop-screen-vflip-v1",
-      "path": "laptop/laptop-neutral-rig-screen-vflip-v1.glb",
-      "media_type": "model/gltf-binary",
-      "size_bytes": 4638984,
-      "sha256": "1d833e3d08d0722952ecd9b6616cf933af11fca5716cfe4bc67aa110850272bd",
-      "role": "device_model",
-      "status": "candidate_only_unqualified",
+      "catalog_key": "travertine-color",
+      "path": "phone-table/textures/travertine-color.jpg",
+      "media_type": "image/jpeg",
+      "size_bytes": 16152869,
+      "sha256": "e14668f66d61b73c1b1bd1df6150449244ea9c766af12908e3f522c6c93b09c8",
+      "role": "base_color_map",
+      "status": "unreviewed_candidate",
       "allowed_use": [
-        "internal_candidate_review"
+        "internal_candidate_review",
+        "CC0 reuse"
       ],
-      "rights": "Jack Baeten CC BY 4.0; candidate-only source preserving UV derivative flips V only. See laptop/screen-vflip-v1.json.",
-      "license": "CC BY 4.0"
-    },
-    {
-      "catalog_key": "generic-wedge-smart-display-concept-v1",
-      "path": "smart-display/generic-wedge-smart-display.glb",
-      "media_type": "model/gltf-binary",
-      "size_bytes": 25088,
-      "sha256": "1b1364a137fc99545080dca69104c4f4d2a6b8821ad4ebc709981da4df89830f",
-      "role": "device_model",
-      "status": "candidate_only_unqualified",
-      "allowed_use": [
-        "internal_candidate_review"
-      ],
-      "rights": "Vrooli-authored AGPL-3.0-only unqualified wedge display concept; 180 x 125 x 90 mm authored envelope, not Nest Hub geometry or measured dimensions.",
-      "license": "AGPL-3.0-only"
-    },
-    {
-      "catalog_key": "innerscene-digital-frame-tabletop-v2",
-      "path": "digital-frame/innerscene-frame-tabletop-v2.glb",
-      "media_type": "model/gltf-binary",
-      "size_bytes": 789152,
-      "sha256": "bc6b22fb722672b0601dc2ea4424517e6bed589e3ebf40de9ecd0257d20fb4f4",
-      "role": "device_model",
-      "status": "candidate_only_unqualified",
-      "allowed_use": [
-        "internal_candidate_review"
-      ],
-      "rights": "Innerscene source CC0-1.0 plus Vrooli neutral screen UV/material adaptation; candidate tabletop use only. See digital-frame/asset-manifest-v2.json.",
+      "rights": "ambientCG Travertine001 texture; CC0-1.0.",
       "license": "CC0-1.0"
     },
     {
-      "catalog_key": "innerscene-digital-frame-wall-v3",
-      "path": "digital-frame/innerscene-frame-wall-v3.glb",
-      "media_type": "model/gltf-binary",
-      "size_bytes": 790472,
-      "sha256": "86c216e9bc574ac076bc78231107cb53b4c178bdea4121239df43ca8963e17bf",
-      "role": "device_model",
-      "status": "candidate_only_unqualified",
+      "catalog_key": "travertine-height",
+      "path": "phone-table/textures/travertine-height.jpg",
+      "media_type": "image/jpeg",
+      "size_bytes": 355941,
+      "sha256": "64001fed9f67bbf9af0fccdf079fccbb0e01cba369c9c0319009b3c9aa2cabaf",
+      "role": "height_bump_map",
+      "status": "unreviewed_candidate",
       "allowed_use": [
-        "internal_candidate_review"
+        "internal_candidate_review",
+        "CC0 reuse"
       ],
-      "rights": "Innerscene source CC0-1.0 plus Vrooli neutral screen and rear cleat; active easel nodes removed. Candidate wall pose only, no load rating. See digital-frame/asset-manifest-v3.json.",
+      "rights": "ambientCG Travertine001 texture; CC0-1.0; bump only, no geometric displacement.",
       "license": "CC0-1.0"
     },
     {
-      "catalog_key": "generic-vehicle-center-stack-concept-v1",
-      "path": "vehicle-center-stack/generic-center-stack.glb",
+      "catalog_key": "travertine-normal-gl",
+      "path": "phone-table/textures/travertine-normal-gl.jpg",
+      "media_type": "image/jpeg",
+      "size_bytes": 5152752,
+      "sha256": "68419c7540b71608d34ef103d6ae839f7144128784b3b03af44c95b1db8b168b",
+      "role": "normal_map_gl",
+      "status": "unreviewed_candidate",
+      "allowed_use": [
+        "internal_candidate_review",
+        "CC0 reuse"
+      ],
+      "rights": "ambientCG Travertine001 texture; CC0-1.0.",
+      "license": "CC0-1.0"
+    },
+    {
+      "catalog_key": "travertine-roughness",
+      "path": "phone-table/textures/travertine-roughness.jpg",
+      "media_type": "image/jpeg",
+      "size_bytes": 5302649,
+      "sha256": "a8f053413e46dacce39e601d1ceb5ae615cd7f91e1f270db386e6c6470cf9b90",
+      "role": "roughness_map",
+      "status": "unreviewed_candidate",
+      "allowed_use": [
+        "internal_candidate_review",
+        "CC0 reuse"
+      ],
+      "rights": "ambientCG Travertine001 texture; CC0-1.0.",
+      "license": "CC0-1.0"
+    },
+    {
+      "catalog_key": "vrooli-generic-book-fold-concept-glb-v2",
+      "path": "foldable/foldable-concept.glb",
       "media_type": "model/gltf-binary",
-      "size_bytes": 18504,
-      "sha256": "37fc41e26e5c5f616f78fe68dfbd88cbbce6bfb0038754a65a20783684239ce9",
+      "size_bytes": 22480,
+      "sha256": "90e1e5195ee88018e37b98d8d08af4d1407d8161e6216cf3fb699921d77ce4ac",
       "role": "device_model",
       "status": "candidate_only_unqualified",
       "allowed_use": [
         "internal_candidate_review"
       ],
-      "rights": "Vrooli-authored AGPL-3.0-only generic center-stack concept; 380 x 250 x 120 mm authored envelope. CarPlay/Android Auto labels are simulated screen-use profiles only; no compatibility or safety claim.",
-      "license": "AGPL-3.0-only"
+      "rights": "Vrooli-authored AGPL-3.0-only generic dual-rigid book-fold concept v2 with beveled housings, segmented concept hinge, and neutral inner/outer glass; Fold6 open envelope informs proportions only. No product identity or manufacturer geometry. See foldable/asset-manifest.json."
+    },
+    {
+      "catalog_key": "vrooli-generic-book-fold-concept-glb-v3-left-screen-vflip",
+      "path": "foldable-v3/foldable-concept-v3.glb",
+      "media_type": "model/gltf-binary",
+      "size_bytes": 22640,
+      "sha256": "5f16cb936cb7ed63e55be84cf00ab642c350d87479662b88e86515996498a6cb",
+      "role": "device_model",
+      "license": "AGPL-3.0-only",
+      "attribution": "Vrooli-authored generic book-fold concept; selected left display UV derivative.",
+      "status": "candidate_only",
+      "manifest": "foldable-v3/asset-manifest-v3.json"
+    },
+    {
+      "catalog_key": "vrooli-generic-smart-display-concept-v6",
+      "path": "smart-display-v6/generic-smart-display-v6.glb",
+      "media_type": "model/gltf-binary",
+      "size_bytes": 337656,
+      "sha256": "0b77cc12cf175c5c2d8640e0b81b3b1d5ac216233db3fc1fff4ba2d8b4f428e4",
+      "role": "device_model",
+      "license": "AGPL-3.0-only",
+      "attribution": "Vrooli-authored generic smart-display v6; v5 shell-contour and v4 smooth-normal combination.",
+      "status": "candidate_only",
+      "manifest": "smart-display-v6/asset-manifest-v6.json"
+    },
+    {
+      "catalog_key": "vrooli-generic-smart-display-concept-v7",
+      "path": "smart-display-v7/generic-smart-display-v7.glb",
+      "media_type": "model/gltf-binary",
+      "size_bytes": 346044,
+      "sha256": "e540c0dea92fe9217d2ac3833f3e89f0b77346e4ad22744d2e758b74566d4dd5",
+      "role": "device_model",
+      "license": "AGPL-3.0-only",
+      "attribution": "Vrooli-authored generic smart-display v7; only the coplanar rear-shell front cap is omitted.",
+      "status": "candidate_only",
+      "manifest": "smart-display-v7/asset-manifest-v7.json"
+    },
+    {
+      "catalog_key": "vehicle-neutral-studio-wall-v1",
+      "path": "vehicle-studio/vehicle-neutral-studio-wall-v1.glb",
+      "media_type": "model/gltf-binary",
+      "size_bytes": 421392,
+      "sha256": "389531d4e51bcea93cea6156e8096831d2ac000acb1b9831ac56df6bef2ef7e3",
+      "role": "scene_model",
+      "license": "AGPL-3.0-only",
+      "attribution": "Vrooli-authored neutral studio backdrop derived from the cup-free study room; table/window context inactive.",
+      "status": "candidate_only_unqualified",
+      "manifest": "vehicle-studio/asset-manifest-v1.json"
     }
   ],
   "package_manifests": [
@@ -400,6 +605,34 @@
     {
       "path": "vehicle-center-stack/asset-manifest.json",
       "sha256": "6f123070d68bd9021dbfb07ad01b34eb612a2ae1d4970847efb2bd6d278d84d5"
+    },
+    {
+      "path": "smart-display-v3/asset-manifest-v3.json",
+      "sha256": "ab862e6be2d30fea81dd166ddbd75e79b74f1ad3ff8e193d3ecb44d03f8787f8"
+    },
+    {
+      "path": "digital-frame/asset-manifest-v4.json",
+      "sha256": "0f1f189720a99964691e196b00e573c0cd231e5f41953443a56d2d45b5bea6f8"
+    },
+    {
+      "path": "smart-display-v4/asset-manifest-v4.json",
+      "sha256": "896e28ebe8c000949b0a0b6d3fa680e66d3ffdcc8ab2ca0dea122c56080cbb70"
+    },
+    {
+      "path": "roundwatch-v3/asset-manifest-v3.json",
+      "sha256": "d4333c2a6ccca78e4defbb9da41c681de7eb6dca6934853c87e1fc9d07451128"
+    },
+    {
+      "path": "roundwatch-body-v4/asset-manifest-body-v4.json",
+      "sha256": "1e24656b39af089b7017bf175b39af040f161c28ae00ababeb67ab84d5f919ef"
+    },
+    {
+      "path": "vehicle-studio/asset-manifest-v2.json",
+      "sha256": "309cb1e350967fbf8afab3ecefe02d928dfd4b9e1f94e04925c711392740361e"
+    },
+    {
+      "path": "vehicle-studio/asset-manifest-v1.json",
+      "sha256": "84e32e04a07b28db2a39fc4ff98696d06f3b0a85d6ac152a08292c6d24bb4ce4"
     }
   ],
   "provenance": "See each package manifest, retained source acquisition/license evidence, and exact owned-operation output receipts. Hashes here identify bytes only and are not Library artifact IDs or ReviewBindings."

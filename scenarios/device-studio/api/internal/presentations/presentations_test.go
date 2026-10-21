@@ -104,6 +104,43 @@ func TestContainMappingUsesPixelEdgesAndExplicitLetterboxes(t *testing.T) { // [
 	}
 }
 
+func TestPlainAppOnlyUsesUniformFullTargetContainAndMatte(t *testing.T) {
+	src := image.NewNRGBA(image.Rect(0, 0, 8, 4))
+	for y := 0; y < 4; y++ {
+		for x := 0; x < 8; x++ {
+			src.SetNRGBA(x, y, color.NRGBA{R: 240, G: 30, B: 20, A: 255})
+		}
+	}
+	matte := &RGB{R: 4, G: 9, B: 14}
+	config := Config{Target: image.Pt(4, 8), Matte: matte}
+	layout, err := BuildLayout(src, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if layout.ProfileID != PlainProfileID || layout.ProfileVersion != PlainProfileVersion || layout.AppViewport != image.Rect(0, 0, 4, 8) || layout.FittedApp != image.Rect(0, 3, 4, 5) {
+		t.Fatalf("plain profile did not contain the app across the full target: %+v", layout)
+	}
+	if layout.SourceToDisplay.Scale != 0.5 || layout.Letterbox[0] != image.Rect(0, 0, 4, 3) {
+		t.Fatalf("plain fit stretched pixels or lost its matte geometry: %+v", layout)
+	}
+	result, err := Compose(context.Background(), src, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, point := range []image.Point{image.Pt(0, 0), image.Pt(3, 7)} {
+		if got := result.Raster.NRGBAAt(point.X, point.Y); got != (color.NRGBA{R: 4, G: 9, B: 14, A: 255}) {
+			t.Fatalf("letterbox pixel %v = %#v, want the explicit matte", point, got)
+		}
+	}
+	if got := result.Raster.NRGBAAt(1, 3); got != (color.NRGBA{R: 240, G: 30, B: 20, A: 255}) {
+		t.Fatalf("contained source pixel = %#v, want source color without simulated chrome", got)
+	}
+	viewport, err := BuildVideoViewport(image.Rect(0, 0, 8, 4), config)
+	if err != nil || viewport != image.Rect(0, 0, 4, 8) {
+		t.Fatalf("plain recording viewport = %v, %v", viewport, err)
+	}
+}
+
 func TestBrowserWindowAndLayoutRejectInvalidOrUnsafeGeometry(t *testing.T) { // [REQ:DS-SCREEN-CHROME]
 	src := opaqueTestImage(image.Rect(0, 0, 10, 10))
 	c := Config{Target: image.Pt(1440, 900), Browser: &BrowserConfig{ShowToolbar: true, Window: BasisRect{X: 1000, Y: 1000, Width: 8000, Height: 8000}}}
@@ -648,4 +685,29 @@ func opaqueTestImage(bounds image.Rectangle) *image.NRGBA {
 		}
 	}
 	return img
+}
+
+type genericRaster struct{ image.Image }
+
+func TestBilinearConcreteRasterRetainsPremultipliedGenericPixels(t *testing.T) {
+	bounds := image.Rect(7, 11, 16, 20)
+	rasters := []interface {
+		image.Image
+		Set(int, int, color.Color)
+	}{image.NewRGBA(bounds), image.NewNRGBA(bounds), image.NewRGBA64(bounds), image.NewNRGBA64(bounds), image.NewGray(bounds), image.NewGray16(bounds), image.NewAlpha(bounds), image.NewAlpha16(bounds)}
+	for _, raster := range rasters {
+		for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+			for x := bounds.Min.X; x < bounds.Max.X; x++ {
+				raster.Set(x, y, color.NRGBA64{R: uint16(x * 3901), G: uint16(y * 2309), B: uint16((x + y) * 1297), A: uint16((x*17 + y*31) * 59)})
+			}
+		}
+		for _, point := range [][2]float64{{3, 12.1}, {7, 11}, {8.25, 14.75}, {15.9, 18.1}, {20, 25}} {
+			matte := color.NRGBA{R: 17, G: 89, B: 131, A: 255}
+			got := sampleBilinearOver(raster, bounds, point[0], point[1], matte)
+			want := sampleBilinearOver(genericRaster{raster}, bounds, point[0], point[1], matte)
+			if got != want {
+				t.Fatalf("%T at%v: got%v want%v", raster, point, got, want)
+			}
+		}
+	}
 }

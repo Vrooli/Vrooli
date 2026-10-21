@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"image/png"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -129,6 +130,7 @@ type Dependencies struct {
 	Shots             ShotResolver
 	Media             projects.SourceMediaService
 	Jobs              jobs.Service
+	Scopes            jobs.RunScopeService
 	Blobs             blobstore.BlobStore
 	Roots             *filerouting.RoutedRoots
 	Ops               OperationOwner
@@ -147,6 +149,7 @@ type Coordinator struct {
 	shots             ShotResolver
 	media             projects.SourceMediaService
 	jobs              jobs.Service
+	scopes            jobs.RunScopeService
 	blobs             blobstore.BlobStore
 	roots             *filerouting.RoutedRoots
 	ops               OperationOwner
@@ -227,7 +230,7 @@ func New(d Dependencies) (*Coordinator, error) {
 	if d.PhysicalAdapter == nil {
 		d.PhysicalAdapter = rendering.PhysicalAdapterBytes
 	}
-	c := &Coordinator{shots: d.Shots, media: d.Media, jobs: d.Jobs, blobs: d.Blobs, roots: d.Roots, ops: d.Ops, exe: d.Exe, now: d.Now, inspectionProfile: d.InspectionProfile, physicalArtifacts: d.PhysicalArtifacts, physicalProfile: d.PhysicalProfile, physicalAdapter: d.PhysicalAdapter, generatedIntake: d.GeneratedIntake}
+	c := &Coordinator{shots: d.Shots, media: d.Media, jobs: d.Jobs, scopes: d.Scopes, blobs: d.Blobs, roots: d.Roots, ops: d.Ops, exe: d.Exe, now: d.Now, inspectionProfile: d.InspectionProfile, physicalArtifacts: d.PhysicalArtifacts, physicalProfile: d.PhysicalProfile, physicalAdapter: d.PhysicalAdapter, generatedIntake: d.GeneratedIntake}
 	c.adapters = map[jobs.SubjectKind]subjectAdapter{jobs.SubjectStillRender: stillSubjectAdapter{}, jobs.SubjectSourceInspection: sourceInspectionAdapter{}, jobs.SubjectVideoRender: videoSubjectAdapter{}, jobs.SubjectPhysicalRender: physicalSubjectAdapter{}, jobs.SubjectGeometryCreate: geometryCreationAdapter{}}
 	return c, nil
 }
@@ -1383,7 +1386,7 @@ func (c *Coordinator) persistRejectedGeometryRecipe(ctx context.Context, route r
 }
 
 func validGeometrySemanticIssue(issue *geometry.SemanticIssue) bool {
-	if issue == nil || issue.PartID == "" || len(issue.PartID) > 48 || issue.Axis != "x" && issue.Axis != "y" && issue.Axis != "z" {
+	if issue == nil || issue.PartID == "" || len(issue.PartID) > 48 {
 		return false
 	}
 	for _, ch := range issue.PartID {
@@ -1397,12 +1400,18 @@ func validGeometrySemanticIssue(issue *geometry.SemanticIssue) bool {
 	}
 	switch issue.Code {
 	case "part_outside_envelope":
-		return issue.Message == "part exceeds the locked envelope"
+		return (issue.Axis == "x" || issue.Axis == "y" || issue.Axis == "z") && issue.BevelMM == 0 && issue.MinimumDimensionMM == 0 && issue.MaxBevelExclusiveMM == 0 && issue.Message == "part exceeds the locked envelope"
 	case "rotated_part_outside_envelope":
-		return issue.Message == "rotated part exceeds the locked envelope"
+		return (issue.Axis == "x" || issue.Axis == "y" || issue.Axis == "z") && issue.BevelMM == 0 && issue.MinimumDimensionMM == 0 && issue.MaxBevelExclusiveMM == 0 && issue.Message == "rotated part exceeds the locked envelope"
+	case "bevel_exceeds_part_dimensions":
+		return issue.Axis == "" && finitePositive(issue.BevelMM) && finitePositive(issue.MinimumDimensionMM) && finitePositive(issue.MaxBevelExclusiveMM) && issue.MaxBevelExclusiveMM == issue.MinimumDimensionMM/2 && issue.BevelMM >= issue.MaxBevelExclusiveMM && issue.Message == "bevel must be less than half the smallest part dimension"
 	default:
 		return false
 	}
+}
+
+func finitePositive(value float64) bool {
+	return value > 0 && !math.IsNaN(value) && !math.IsInf(value, 0)
 }
 
 func readGeometryInferenceOutcome(workspace string, j jobs.Job, a jobs.Attempt) (*rendering.GeometryInferenceOutcome, string, error) {

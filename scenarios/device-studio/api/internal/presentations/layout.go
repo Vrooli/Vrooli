@@ -38,8 +38,6 @@ func BuildLayoutForVideoRaster(sourceBounds image.Rectangle, c Config) (Layout, 
 		if c.Browser.DesktopColor == nil {
 			return Layout{}, ErrVideoFillsRequired
 		}
-	} else {
-		return Layout{}, ErrInvalidConfig
 	}
 	return buildLayoutForRaster(context.Background(), sourceBounds, nil, c)
 }
@@ -76,7 +74,7 @@ func BuildVideoViewport(sourceBounds image.Rectangle, c Config) (image.Rectangle
 }
 
 func buildLayoutForRaster(ctx context.Context, bounds image.Rectangle, app image.Image, c Config) (Layout, error) {
-	if (c.Phone == nil) == (c.Browser == nil) {
+	if c.Phone != nil && c.Browser != nil {
 		return Layout{}, ErrInvalidConfig
 	}
 	w64, h64 := int64(bounds.Max.X)-int64(bounds.Min.X), int64(bounds.Max.Y)-int64(bounds.Min.Y)
@@ -96,20 +94,29 @@ func buildLayoutForRaster(ctx context.Context, bounds image.Rectangle, app image
 	if app == nil {
 		if c.Phone != nil {
 			top, bottom = *c.Phone.TopFill, *c.Phone.BottomFill
-		} else {
+		} else if c.Browser != nil {
 			top, bottom = *c.Browser.DesktopColor, *c.Browser.DesktopColor
+		} else {
+			matte := opaqueMatte(c.Matte)
+			top, bottom = RGB{R: matte.R, G: matte.G, B: matte.B}, RGB{R: matte.R, G: matte.G, B: matte.B}
 		}
 	} else {
 		if err := validateAlphaAndMatte(ctx, app, c.Matte); err != nil {
 			return Layout{}, err
 		}
-		var err error
-		top, bottom, err = resolveFills(ctx, app, c)
-		if err != nil {
-			return Layout{}, err
+		if c.Phone == nil && c.Browser == nil {
+			matte := opaqueMatte(c.Matte)
+			top, bottom = RGB{R: matte.R, G: matte.G, B: matte.B}, RGB{R: matte.R, G: matte.G, B: matte.B}
+		} else {
+			var err error
+			top, bottom, err = resolveFills(ctx, app, c)
+			if err != nil {
+				return Layout{}, err
+			}
 		}
 	}
 	var profile, version string
+	fillPolicy := FillPolicyID
 	var viewport image.Rectangle
 	if c.Phone != nil {
 		if c.Phone.Appearance != "" && c.Phone.Appearance != AppearanceLight && c.Phone.Appearance != AppearanceDark {
@@ -151,7 +158,7 @@ func buildLayoutForRaster(ctx context.Context, bounds image.Rectangle, app image
 		if viewport.Dx() < 240 || viewport.Dy() < 300 {
 			return Layout{}, ErrInvalidConfig
 		}
-	} else {
+	} else if c.Browser != nil {
 		b := c.Browser
 		if b.ShowWindowControls && !b.ShowToolbar {
 			return Layout{}, ErrInvalidConfig
@@ -185,6 +192,9 @@ func buildLayoutForRaster(ctx context.Context, bounds image.Rectangle, app image
 		if viewport.Dx() < 240 || viewport.Dy() < 160 {
 			return Layout{}, ErrInvalidConfig
 		}
+	} else {
+		profile, version, fillPolicy = PlainProfileID, PlainProfileVersion, PlainFitPolicyID
+		viewport = image.Rect(0, 0, c.Target.X, c.Target.Y)
 	}
 	fitted, scale := fitContain(bounds, viewport)
 	if fitted.Empty() || scale <= 0 {
@@ -198,7 +208,7 @@ func buildLayoutForRaster(ctx context.Context, bounds image.Rectangle, app image
 		FillPolicy string `json:"fill_policy"`
 		Rasterizer string `json:"rasterizer"`
 		FontSHA256 string `json:"font_sha256"`
-	}{profile, version, c, FillPolicyID, RasterizerID, fontDigest()})
+	}{profile, version, c, fillPolicy, RasterizerID, fontDigest()})
 	if err != nil {
 		return Layout{}, err
 	}
@@ -206,7 +216,7 @@ func buildLayoutForRaster(ctx context.Context, bounds image.Rectangle, app image
 	layout := Layout{
 		ProfileID: profile, ProfileVersion: version, DisplaySize: c.Target, SourceBounds: bounds, AppViewport: viewport, FittedApp: fitted,
 		SourceToDisplay: Transform{Scale: scale, TranslateX: float64(fitted.Min.X) - float64(bounds.Min.X)*scale, TranslateY: float64(fitted.Min.Y) - float64(bounds.Min.Y)*scale},
-		Letterbox:       letterbox, ResolvedTopFill: top, ResolvedBottomFill: bottom, FillPolicy: FillPolicyID, Rasterizer: RasterizerID, ConfigSHA256: hex.EncodeToString(digest[:]), FontSHA256: fontDigest(),
+		Letterbox:       letterbox, ResolvedTopFill: top, ResolvedBottomFill: bottom, FillPolicy: fillPolicy, Rasterizer: RasterizerID, ConfigSHA256: hex.EncodeToString(digest[:]), FontSHA256: fontDigest(),
 	}
 	if c.Phone != nil && version == PhoneProfileVersionAuto {
 		status, home := chooseContrastInk(top), chooseContrastInk(bottom)

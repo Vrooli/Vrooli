@@ -18,6 +18,7 @@ import (
 	"device-studio/internal/httpx"
 	"device-studio/internal/jobs"
 	"device-studio/internal/projects"
+	"device-studio/internal/rendering"
 	domain "device-studio/internal/renderjobs"
 	"device-studio/internal/shots"
 	"github.com/vrooli/api-core/blobstore"
@@ -218,6 +219,21 @@ func TestConnectErrorMapsUnavailableOutputAndSampleClaimToFailedPrecondition(t *
 	}
 	if code := connect.CodeOf(h.connectError("render", errors.New("unexpected storage failure"))); code != connect.CodeInternal {
 		t.Fatalf("unrelated error code = %v, want internal", code)
+	}
+}
+
+func TestKnownUnavailableManagedBlenderProfileMapsToSafeRepairablePrecondition(t *testing.T) {
+	h := &handler{deps: Deps{Logger: log.New(io.Discard, "", 0)}}
+	got := h.connectError("submit render", rendering.ErrPhysicalBlenderProfileUnavailable)
+	if code := connect.CodeOf(got); code != connect.CodeFailedPrecondition {
+		t.Fatalf("unavailable managed renderer code = %v, want failed precondition", code)
+	}
+	var connectErr *connect.Error
+	if !errors.As(got, &connectErr) || connectErr.Message() != "managed Blender is unavailable for this render; inspect or repair the pinned tool through the control plane, then retry" {
+		t.Fatalf("unexpected safe repair guidance: %v", got)
+	}
+	if code := connect.CodeOf(h.connectError("submit render", errors.New("unexpected renderer lookup failure"))); code != connect.CodeInternal {
+		t.Fatalf("unexpected renderer failure was reclassified as %v, want internal", code)
 	}
 }
 

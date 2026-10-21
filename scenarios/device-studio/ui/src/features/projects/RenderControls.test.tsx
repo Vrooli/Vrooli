@@ -4,7 +4,7 @@ import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { create } from "@bufbuild/protobuf";
-import { PhysicalMotionOutputBindingSchema, PhysicalRenderBackend, PhysicalShotBindingSchema, PresentationKind, RenderJobSchema, RenderJobStatus, RenderMode, RenderOutputProfile, RenderOutputSchema, ScreenPresentationSchema, ShotRevisionSchema, ShotSnapshotSchema, VideoTimingSchema } from "@vrooli/proto-types/device-studio/v1/shots/shots_pb";
+import { PhysicalMotionOutputBindingSchema, PhysicalRenderBackend, PhysicalShotBindingSchema, PresentationKind, ReadabilityProofSchema, ReadabilityVerdict, RenderJobSchema, RenderJobStatus, RenderMode, RenderOutputProfile, RenderOutputSchema, ScreenPresentationSchema, ShotRevisionSchema, ShotSnapshotSchema, VideoTimingSchema } from "@vrooli/proto-types/device-studio/v1/shots/shots_pb";
 import { renderWithProviders } from "../../test-utils";
 import { i18n } from "../../i18n";
 import { strings } from "../../consts/strings";
@@ -19,8 +19,10 @@ vi.mock("../../api/renders", async (importOriginal) => {
     verifyRenderOutputContent: vi.fn(),
   };
 });
+vi.mock("../../api/shots", () => ({ shotsClient: { getOutputReadabilityReview: vi.fn(), reviewOutputReadability: vi.fn() } }));
 
 import { getRenderOutputContent, renderOutputContentURL, rendersClient, verifyRenderOutputContent } from "../../api/renders";
+import { shotsClient } from "../../api/shots";
 
 function job(id: string, revision: bigint, status: RenderJobStatus, overrides: Record<string, unknown> = {}) {
   return create(RenderJobSchema, { id, projectId: "project-1", shotId: "shot-1", shotRevision: revision, status, version: 4n, summary: "", ...overrides });
@@ -59,6 +61,8 @@ describe("saved shot rendering controls", () => {
     vi.mocked(rendersClient.listRenders).mockResolvedValue({ jobs: [], nextPageToken: "" } as never);
     vi.mocked(rendersClient.cancelRender).mockReset();
     vi.mocked(rendersClient.submitRender).mockReset();
+    vi.mocked(shotsClient.getOutputReadabilityReview).mockRejectedValue(new ConnectError("not found", Code.NotFound));
+    vi.mocked(shotsClient.reviewOutputReadability).mockReset();
   });
   afterEach(() => { cleanup(); vi.clearAllMocks(); vi.unstubAllGlobals(); });
 
@@ -387,5 +391,48 @@ describe("saved shot rendering controls", () => {
     await screen.findByText(i18n.t(strings.shot.renderCancelConflict));
     expect(rendersClient.cancelRender).toHaveBeenCalledWith({ projectId: "project-1", renderId: "render-queued", expectedVersion: 9n });
     expect(rendersClient.listRenders).toHaveBeenCalledTimes(2);
+  });
+
+  it("binds an attended readability acceptance to the displayed revision and exact final output", async () => {
+    const user = userEvent.setup();
+    const proof = create(ReadabilityProofSchema, { regionName: "Browser address", requiredContent: "example.test", criteria: "Text is legible at final size", regionX: 0.1, regionY: 0.1, regionWidth: 0.8, regionHeight: 0.2, minimumOutputWidthPixels: 1000, minimumOutputHeightPixels: 700, minimumRegionWidthPixels: 500, minimumRegionHeightPixels: 100 });
+    const revision = create(ShotRevisionSchema, { ...savedRevision(), snapshot: create(ShotSnapshotSchema, { readabilityProof: proof }) });
+    const output = create(RenderOutputSchema, { mediaType: "image/png", sizeBytes: 3n, widthPixels: 1600, heightPixels: 900, sha256: "a".repeat(64), contentUrl: "/api/v1/projects/project-1/renders/final-readable/content" });
+    vi.mocked(rendersClient.listRenders).mockResolvedValue({ jobs: [job("final-readable", 7n, RenderJobStatus.SUCCEEDED, { output, renderMode: RenderMode.STILL })], nextPageToken: "" } as never);
+    vi.mocked(getRenderOutputContent).mockResolvedValue(new Blob(["png"], { type: "image/png" }));
+    vi.mocked(verifyRenderOutputContent).mockResolvedValue(new Blob(["png"], { type: "image/png" }));
+    vi.stubGlobal("URL", { ...URL, createObjectURL: vi.fn(() => "blob:readability"), revokeObjectURL: vi.fn() });
+    vi.mocked(shotsClient.reviewOutputReadability).mockResolvedValue({ review: { verdict: ReadabilityVerdict.ACCEPTED } } as never);
+    renderWithProviders(<RenderControlsHarness projectId="project-1" shotId="shot-1" revision={revision} historical={false} hasUnsavedChanges={false} />);
+    await screen.findByText(i18n.t(strings.shot.readabilityUnreviewed));
+    await user.click(await screen.findByRole("button", { name: i18n.t(strings.shot.renderViewOutput) }));
+    await screen.findByRole("img", { name: i18n.t(strings.shot.readabilityReviewImage) });
+    const nativeView = screen.getByTestId("readability-native-size-view");
+    expect(nativeView.className).toContain("overflow-auto");
+    expect(screen.getByRole("img", { name: i18n.t(strings.shot.readabilityReviewImage) })).toHaveStyle({ width: "1600px", height: "900px", maxWidth: "none" });
+    const inspected = screen.getByRole("checkbox", { name: i18n.t(strings.shot.readabilityAttestation) });
+    expect(screen.getByRole("button", { name: i18n.t(strings.shot.readabilityAccept) })).toBeDisabled();
+    await user.click(inspected);
+    await user.click(screen.getByRole("button", { name: i18n.t(strings.shot.readabilityAccept) }));
+    await waitFor(() => expect(shotsClient.reviewOutputReadability).toHaveBeenCalledWith(expect.objectContaining({
+      projectId: "project-1", shotId: "shot-1", shotRevision: 7n, renderId: "final-readable", outputSha256: "a".repeat(64), verdict: ReadabilityVerdict.ACCEPTED, explicitlyInspectedFinalSize: true,
+    })));
+  });
+
+  it("does not allow an attended acceptance when the final image is below its declared pixel minimum", async () => {
+    const proof = create(ReadabilityProofSchema, { regionName: "Browser address", requiredContent: "example.test", criteria: "Text is legible at final size", regionX: 0.1, regionY: 0.1, regionWidth: 0.5, regionHeight: 0.1, minimumOutputWidthPixels: 1000, minimumOutputHeightPixels: 700, minimumRegionWidthPixels: 500, minimumRegionHeightPixels: 100 });
+    const revision = create(ShotRevisionSchema, { ...savedRevision(), snapshot: create(ShotSnapshotSchema, { readabilityProof: proof }) });
+    const output = create(RenderOutputSchema, { mediaType: "image/png", sizeBytes: 3n, widthPixels: 800, heightPixels: 600, sha256: "b".repeat(64), contentUrl: "/api/v1/projects/project-1/renders/too-small/content" });
+    vi.mocked(rendersClient.listRenders).mockResolvedValue({ jobs: [job("too-small", 7n, RenderJobStatus.SUCCEEDED, { output, renderMode: RenderMode.STILL })], nextPageToken: "" } as never);
+    const blob = new Blob(["png"], { type: "image/png" });
+    vi.mocked(getRenderOutputContent).mockResolvedValue(blob);
+    vi.mocked(verifyRenderOutputContent).mockResolvedValue(blob);
+    vi.stubGlobal("URL", { ...URL, createObjectURL: vi.fn(() => "blob:too-small"), revokeObjectURL: vi.fn() });
+    const user = userEvent.setup();
+    renderWithProviders(<RenderControlsHarness projectId="project-1" shotId="shot-1" revision={revision} historical={false} hasUnsavedChanges={false} />);
+    await user.click(await screen.findByRole("button", { name: i18n.t(strings.shot.renderViewOutput) }));
+    await user.click(await screen.findByRole("checkbox", { name: i18n.t(strings.shot.readabilityAttestation) }));
+    expect(await screen.findByRole("button", { name: i18n.t(strings.shot.readabilityAccept) })).toBeDisabled();
+    expect(shotsClient.reviewOutputReadability).not.toHaveBeenCalled();
   });
 });

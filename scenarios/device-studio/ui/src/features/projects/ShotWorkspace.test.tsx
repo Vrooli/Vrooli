@@ -29,9 +29,12 @@ vi.mock("../../api/physical", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/physical")>();
   return { ...actual, getReviewedPhysicalStarter: vi.fn().mockRejectedValue(new Error("starter unavailable in this test")) };
 });
+vi.mock("../../api/photographic-scene", () => ({ cancelPhotographicOperation: vi.fn(), getPhotographicPNG: vi.fn(), readPhotographicOperation: vi.fn().mockRejectedValue(new Error("no saved operation")), submitPhotographicScene: vi.fn(), waitPhotographicOperation: vi.fn() }));
 import { shotsClient } from "../../api/shots";
 import { getSourceMediaContent, projectsClient, sourceMediaContentURL } from "../../api/projects";
 import { getRenderOutputContent, getVideoSampleBinding, rendersClient } from "../../api/renders";
+import { submitPhotographicScene } from "../../api/photographic-scene";
+import { PhotographicScenePanel } from "./PhotographicScenePanel";
 
 const snapshot = create(ShotSnapshotSchema, {});
 const shot = (revision: bigint, name = "Daylight") => create(ShotSchema, { id: "shot-1", projectId: "project-1", name, headRevision: revision });
@@ -443,6 +446,38 @@ describe("ShotWorkspace", () => {
     expect(await screen.findByRole("img", { name: i18n.t(strings.shot.plateAlt, { name: "older-plate.png" }) })).toHaveAttribute("src", "blob:older-source");
     expect(await screen.findByTestId("shot-screen-preview")).toHaveAttribute("alt", i18n.t(strings.shot.screenSourceAlt, { name: "older-plate.png" }));
     expect(projectsClient.getSourceMedia).toHaveBeenCalledWith({ projectId: "project-1", id: source.id });
+  });
+
+  it("preserves the selected saved composition and render action when photo generation is unavailable", async () => {
+    const user = userEvent.setup();
+    const source = create(SourceMediaSchema, { id: "older-media-id", projectId: "project-1", sha256: "8f8cbb7dcf46e0bc7d53265749a6c17d116093a6ba95e442764060c76fd4a86c", sizeBytes: 3n, mediaType: "image/png", width: 1200, height: 800, kind: SourceMediaKind.IMAGE, readiness: MediaReadiness.READY, originalFilename: "older-plate.png" });
+    const savedSnapshot = create(ShotSnapshotSchema, { scene: create(PhotographicSceneSchema, { plateMediaId: source.id }), presentation: create(ScreenPresentationSchema, { sourceMediaId: source.id }) });
+    const savedRevision = create(ShotRevisionSchema, { shotId: "shot-1", revision: 1n, name: "Daylight", snapshot: savedSnapshot, renderEligible: true, issues: [] });
+    vi.mocked(shotsClient.listShots).mockResolvedValue(list() as never);
+    vi.mocked(shotsClient.getShot).mockResolvedValue({ shot: shot(1n), head: savedRevision } as never);
+    vi.mocked(shotsClient.listShotRevisions).mockResolvedValue({ revisions: [savedRevision], nextPageToken: "" } as never);
+    vi.mocked(projectsClient.listSourceMedia).mockResolvedValue({ sourceMedia: [], nextPageToken: "" } as never);
+    vi.mocked(projectsClient.getSourceMedia).mockResolvedValue({ sourceMedia: source } as never);
+    vi.mocked(getSourceMediaContent).mockResolvedValue(new Blob(["png"], { type: "image/png" }));
+    vi.mocked(submitPhotographicScene).mockRejectedValueOnce(new Error("Image Tools unavailable"));
+    vi.stubGlobal("URL", { ...URL, createObjectURL: vi.fn(() => "blob:older-source"), revokeObjectURL: vi.fn() });
+
+    renderWithProviders(<><ShotWorkspace projectId="project-1" /><PhotographicScenePanel projectId="project-1" /></>);
+    await openShotManagement(user);
+    await user.click(await screen.findByRole("button", { name: /Daylight/ }));
+    const plateSelect = await screen.findByLabelText(i18n.t(strings.shot.scenePlate));
+    expect(plateSelect).toHaveValue(source.id);
+    expect(await screen.findByRole("img", { name: i18n.t(strings.shot.plateAlt, { name: "older-plate.png" }) })).toHaveAttribute("src", "blob:older-source");
+    expect(await screen.findByTestId("shot-screen-preview")).toHaveAttribute("alt", i18n.t(strings.shot.screenSourceAlt, { name: "older-plate.png" }));
+
+    await user.type(await screen.findByLabelText("Describe the scene"), "A sunlit reading room");
+    await user.click(screen.getByRole("button", { name: "Generate one local image" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("submit outcome is unknown");
+    expect(plateSelect).toHaveValue(source.id);
+    expect(screen.getByRole("button", { name: i18n.t(strings.shot.renderRevisionAction, { revision: "1" }) })).toBeEnabled();
+    expect(shotsClient.saveShot).not.toHaveBeenCalled();
+    expect(projectsClient.getSourceMedia).toHaveBeenCalledTimes(1);
   });
 
   it("does not offer pending video or dimensionless media to image-only plate and source previews", async () => {

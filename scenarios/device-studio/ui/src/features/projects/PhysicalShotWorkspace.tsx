@@ -5,10 +5,11 @@ import { Button } from "@vrooli/react-component-library/Button/2";
 import { useMediaQuery } from "@vrooli/react-component-library/useMediaQuery/1.1.1";
 import { Card, CardContent, CardHeader, CardTitle } from "@vrooli/react-component-library/Card/1";
 import { MediaReadiness, SourceMediaKind, type SourceMedia } from "@vrooli/proto-types/device-studio/v1/projects/projects_pb";
-import { CaptureArea, ComponentRevisionRefSchema, MotionMode, PhysicalMotionOutputBindingSchema, PhysicalMotionOutputProfile, PhysicalRenderBackend, PhysicalShotBindingSchema, PhysicalStillOutputProfile, PresentationAppearance, PresentationKind, RationalTimeSchema, ShotSnapshotSchema, VideoAudioPolicy, VideoEOFPolicy, VideoTimingSchema, type PhysicalShotBinding, type VideoTiming } from "@vrooli/proto-types/device-studio/v1/shots/shots_pb";
+import { CaptureArea, ComponentRevisionRefSchema, MotionMode, PhysicalMotionOutputBindingSchema, PhysicalMotionOutputProfile, PhysicalRenderBackend, PhysicalShotBindingSchema, PhysicalStillOutputProfile, PresentationAppearance, PresentationKind, RationalTimeSchema, ShotSnapshotSchema, VideoAudioPolicy, VideoEOFPolicy, VideoTimingSchema, type PhysicalShotBinding, type PhysicalShotPresetRevision, type VideoTiming } from "@vrooli/proto-types/device-studio/v1/shots/shots_pb";
 import { QuatXYZWSchema, TRSSchema, Vec3Schema, type ArtifactRef } from "@vrooli/proto-types/device-studio/v1/physical/physical_pb";
 import type { MotionCandidate } from "@vrooli/proto-types/device-studio/v1/motions/motions_pb";
-import { getBundleRevisionMetadata, initializePhysicalStarter, listDeviceCandidates, listMotionCandidates, listPhysicalShotPresets, listSceneCandidates, motionsClient, physicalStarterChoices, resolvePhysicalShotPreset } from "../../api/physical";
+import { EvidenceSchema, QualificationReviewSchema, type DeviceCandidate } from "@vrooli/proto-types/device-studio/v1/devices/devices_pb";
+import { exportQualificationPackage, getBundleRevisionMetadata, importQualificationPackage, initializePhysicalStarter, listDeviceCandidates, listMotionCandidates, listPhysicalShotPresets, listSceneCandidates, motionsClient, physicalStarterChoices, resolvePhysicalShotPreset, reviewDeviceCandidate } from "../../api/physical";
 import { getSourceMediaContent, projectsClient, sourceMediaContentURL, verifySourceMediaContent } from "../../api/projects";
 import { shotConflict, shotsClient } from "../../api/shots";
 import { selectors } from "../../consts/selectors";
@@ -19,6 +20,7 @@ import { RenderControls, type FinalRenderOutput } from "./RenderControls";
 import { VideoTimingEditor } from "./VideoTimingEditor";
 import { LibraryIntakePanel } from "./LibraryIntakePanel";
 import { ScreenPresentationEditor, emptyScreenPresentationDraft, screenPresentationDraftFromProto, screenPresentationDraftInvalid, screenPresentationFromDraft, type ScreenPresentationDraft } from "./ScreenPresentationEditor";
+import { qualificationScopeStatus, type QualificationReviewScope, type SelectedQualificationSetup } from "./qualificationScope";
 
 const PAGE_SIZE = 100;
 const PHYSICAL_PROFILE_ID = "device-studio-physical-cycles-v1";
@@ -68,7 +70,7 @@ function plannedFrames(timing?: VideoTiming): number | undefined {
 }
 
 function derivedRenderHeight(sourceWidth: number, metric?: { widthMm?: number; heightMm?: number }) {
-  if (!metric || !Number.isFinite(metric.widthMm) || !Number.isFinite(metric.heightMm) || !metric.widthMm || !metric.heightMm || sourceWidth <= 0) return undefined;
+  if (!metric || typeof metric.widthMm !== "number" || typeof metric.heightMm !== "number" || !Number.isFinite(metric.widthMm) || !Number.isFinite(metric.heightMm) || metric.widthMm <= 0 || metric.heightMm <= 0 || sourceWidth <= 0) return undefined;
   const height = Math.round(sourceWidth * metric.heightMm / metric.widthMm);
   return Number.isSafeInteger(height) && height > 0 && height <= 4096 && sourceWidth <= 4096 ? height : undefined;
 }
@@ -102,8 +104,10 @@ function physicalBindingFromPreset(preset: Awaited<ReturnType<typeof resolvePhys
   const camera = preset.scene.candidate?.cameraFrames.find((item) => item.id === setup.cameraId);
   if (!display || !deviceSupport || !sceneSupport || !camera) throw new Error("The selected saved setup no longer resolves to its pinned display, support, and camera frames.");
   const recording = media.kind === SourceMediaKind.VIDEO;
-  const renderHeight = presentation.captureArea === CaptureArea.APP_ONLY ? derivedRenderHeight(raster.width, display.coordinateMetric) : raster.height;
-  if (!renderHeight) throw new Error("The selected setup does not provide a usable display aspect for this app-only source.");
+  const displayHeight = presentation.captureArea === CaptureArea.APP_ONLY
+    ? derivedRenderHeight(raster.width, display.coordinateMetric)
+    : raster.height;
+  if (!displayHeight) throw new Error("The selected setup does not provide a usable display aspect for this screen source.");
   if (recording && (!timing || !motionProfile || frames === undefined || frames < 1 || frames !== plannedFrames(timing) || !durationMatches(candidate, timing) || candidate.tracks.some((track) => track.target?.jointId))) throw new Error("Choose a source-clock-bounded trim matching a supported root/camera motion.");
   if (mode === "motion" && (!motionProfile || frames === undefined || frames < 1)) throw new Error("The saved setup does not list a compatible motion output profile.");
   const stillProfile = setup.stillProfiles.find((value) => value === PhysicalStillOutputProfile.PHYSICAL_STILL_OUTPUT_PROFILE_2560X1440_V1 || value === PhysicalStillOutputProfile.PHYSICAL_STILL_OUTPUT_PROFILE_3840X2160_V1);
@@ -121,7 +125,7 @@ function physicalBindingFromPreset(preset: Awaited<ReturnType<typeof resolvePhys
     supportPivotM: setup.supportPivotM,
     deviceRootRest: setup.deviceRootRest,
     screenWidthPixels: raster.width,
-    screenHeightPixels: renderHeight,
+    screenHeightPixels: displayHeight,
     rendererProfileId: PHYSICAL_PROFILE_ID,
     rendererProfileVersion: 1,
     outputProfile: mode === "motion" ? PhysicalStillOutputProfile.PHYSICAL_STILL_OUTPUT_PROFILE_UNSPECIFIED : stillProfile,
@@ -142,10 +146,7 @@ function makeSnapshot(binding: PhysicalShotBinding, sourceMediaId: string, prese
 
 function presentationForSource(source?: SourceMedia): ScreenPresentationDraft {
   const draft = emptyScreenPresentationDraft();
-  if (source?.kind !== SourceMediaKind.VIDEO) {
-    draft.captureArea = CaptureArea.ALREADY_COMPOSED;
-    return draft;
-  }
+  if (source?.kind !== SourceMediaKind.VIDEO) return draft;
   draft.captureArea = CaptureArea.APP_ONLY;
   draft.kind = PresentationKind.PHONE_SYSTEM;
   draft.phoneAppearance = PresentationAppearance.DARK;
@@ -245,7 +246,6 @@ export function NewPhysicalShot({ projectId, onCreated, onCancel }: { projectId:
     getNextPageParam: (page) => page.nextPageToken || undefined,
   });
   const sources = useMemo(() => media.data?.pages.flatMap((page) => page.sourceMedia).filter((item) => Boolean(sourceRaster(item))) ?? [], [media.data]);
-  const placementReady = Boolean(selectedPreset.data?.preset.candidateOnly && selectedPreset.data.preset.setup);
   const deviceRows = useMemo(() => (devices.data?.pages.flatMap((page) => page.candidates) ?? []).map((row) => ({ ref: { id: row.deviceId, revision: row.revision, sha256: row.sha256 }, state: row.state, name: row.candidate?.definition?.model || row.deviceId, candidate: row.candidate })), [devices.data]);
   const sceneRows = useMemo(() => (scenes.data?.pages.flatMap((page) => page.candidates) ?? []).map((row) => ({ ref: { id: row.sceneId, revision: row.revision, sha256: row.sha256 }, state: row.state, name: row.candidate?.sceneId || row.sceneId, candidate: row.candidate })), [scenes.data]);
   const motionRows = useMemo(() => (motions.data?.pages.flatMap((page) => page.candidates) ?? []).map((row) => ({ ref: { id: row.motionId, revision: row.revision, sha256: row.sha256 }, state: row.state, name: row.candidate?.motionId || row.motionId, candidate: row.candidate })), [motions.data]);
@@ -256,6 +256,20 @@ export function NewPhysicalShot({ projectId, onCreated, onCancel }: { projectId:
   const selectedScene = sceneRowsWithStarter.find((row) => revisionKey(row.ref) === sceneKey);
   const selectedMotion = motionRowsWithStarter.find((row) => revisionKey(row.ref) === motionKey);
   const setup = selectedPreset.data?.preset.setup;
+  const selectedQualificationSetup: SelectedQualificationSetup | undefined = selectedPreset.data?.preset && selectedDevice && selectedScene && selectedMotion && setup?.displayId && setup.deviceSupportId && setup.sceneSupportId && setup.cameraId ? {
+    device: selectedDevice.ref, scene: selectedScene.ref, motion: selectedMotion.ref,
+    preset: { id: selectedPreset.data.preset.presetId, revision: selectedPreset.data.preset.revision, sha256: selectedPreset.data.preset.sha256 },
+    displayId: setup.displayId, deviceSupportId: setup.deviceSupportId, sceneSupportId: setup.sceneSupportId, cameraId: setup.cameraId,
+  } : undefined;
+  const inheritedReview = selectedPreset.data?.inheritedVisualSetupReview;
+  const selectedQualification = selectedDevice?.candidate?.definition?.qualification === "qualified"
+    ? inheritedReview
+      ? { hasPassedReview: true, exactMatch: true, text: `Verified transferred visual setup review: parent device revision ${inheritedReview.candidateRevision}, preset ${inheritedReview.presetId}@${inheritedReview.presetRevision}; static visual setup only.` }
+      : qualificationScopeStatus((selectedDevice.candidate.definition.qualificationReviews ?? []) as QualificationReviewScope[], selectedQualificationSetup)
+    : undefined;
+  const placementReady = Boolean(selectedPreset.data?.preset.setup && selectedPreset.data.preset.candidateOnly);
+  const qualificationMotion = motionRowsWithStarter.find((row) => setup?.motion && revisionKey(row.ref) === revisionKey(setup.motion));
+  const qualificationMotionScope = qualificationMotion?.candidate?.tracks?.length ? [...new Set(qualificationMotion.candidate.tracks.map((track) => track.target?.deviceRoot ? "rigid_body" : track.target?.jointId ? "articulated" : track.target?.sceneCameraId ? "camera" : "").filter(Boolean))] : ["static"];
   const reviewedTuple = Boolean(setup?.device && setup.scene && deviceKey === revisionKey(setup.device) && sceneKey === revisionKey(setup.scene));
   const placementMismatch = Boolean(deviceKey && sceneKey && !reviewedTuple);
   const selected = sources.find((item) => item.id === sourceId);
@@ -281,8 +295,12 @@ export function NewPhysicalShot({ projectId, onCreated, onCancel }: { projectId:
   const outputFrames = plannedFrames(videoTiming);
   const placement = setup;
   const compatible = selected && selectedPreset.data?.device.candidate?.definition?.displays.find((item) => item.id === placement?.displayId)?.coordinateMetric;
-  const derivedAppHeight = selectedRaster && presentationDraft.captureArea === CaptureArea.APP_ONLY ? derivedRenderHeight(selectedRaster.width, compatible) : selectedRaster?.height;
-  const aspectValid = Boolean(selectedRaster && derivedAppHeight !== undefined);
+  const displayRasterHeight = selectedRaster ? derivedRenderHeight(selectedRaster.width, compatible) : undefined;
+  const sourceAspectMatchesDisplay = Boolean(selectedRaster && compatible && Number.isFinite(compatible.widthMm) && Number.isFinite(compatible.heightMm) && compatible.widthMm > 0 && compatible.heightMm > 0 &&
+    Math.abs(selectedRaster.width / selectedRaster.height / (compatible.widthMm / compatible.heightMm) - 1) <= 0.005);
+  const aspectValid = Boolean(selectedRaster && (presentationDraft.captureArea === CaptureArea.APP_ONLY
+    ? displayRasterHeight !== undefined
+    : sourceAspectMatchesDisplay));
   const presentationInvalid = screenPresentationDraftInvalid(presentationDraft);
   const selectedBytes = useQuery({ queryKey: ["physical-create-source", projectId, selected?.id, selected?.sha256], enabled: Boolean(selected && !selectedIsVideo), queryFn: async () => { if (!selected) throw new Error("No screen source selected"); return verifySourceMediaContent(await getSourceMediaContent(projectId, selected.id), selected); }, retry: false, gcTime: 0 });
   const [selectedUrl, setSelectedUrl] = useState("");
@@ -322,9 +340,9 @@ export function NewPhysicalShot({ projectId, onCreated, onCancel }: { projectId:
         {selectedPreset.isPending && selectedPresetHead && <p role="status">{t(strings.physical.loadingStarter)}</p>}
         {selectedPreset.error && <p role="alert">{t(strings.physical.candidatePlacementUnavailable)}</p>}
         {selectedPreset.data && <>
-          <p className="physical-shot__candidate">{t(strings.physical.candidateOnly)}</p>
+          <p className="physical-shot__candidate" data-testid="physical-setup-scope">{selectedPreset.data.preset.candidateOnly ? selectedQualification?.exactMatch ? `Reviewed visual setup · ${selectedPreset.data.preset.name}; this imported review covers a static setup only, and the preset remains a candidate.` : `${t(strings.physical.candidateOnly)} · ${selectedPreset.data.preset.name}` : selectedQualification?.exactMatch ? `Scoped visual setup · ${selectedPreset.data.preset.name}. Approval applies only to this exact setup and recorded motion scope.` : `Reviewed setup has no matching scoped approval · ${selectedPreset.data.preset.name}`}</p>
           {step === 0 && <><label>{t(strings.physical.selectSavedSetup)}<select className="physical-shot__input" value={presetID} onChange={(event) => { setPresetID(event.target.value); setDeviceKey(""); setSceneKey(""); setMotionKey(""); }} aria-label={t(strings.physical.selectSavedSetup)}>{presetHeads.map((preset) => <option key={preset.presetId} value={preset.presetId}>{preset.name} · {t(strings.physical.candidateState, { state: preset.state, revision: preset.revision })}</option>)}</select></label>{selectedPresetHead && <details><summary>{t(strings.physical.technicalRefs)}</summary><p>{selectedPresetHead.presetId} · {selectedPresetHead.revision} · {selectedPresetHead.sha256}</p></details>}<label>{t(strings.physical.selectSceneCandidate)}<select className="physical-shot__input" value={sceneKey} onChange={(event) => setSceneKey(event.target.value)}><option value="">{t(strings.physical.catalogLoading)}</option>{sceneRowsWithStarter.map((row) => <option key={revisionKey(row.ref)} value={revisionKey(row.ref)}>{row.name} · {t(strings.physical.candidateState, { state: row.state, revision: row.ref.revision })}</option>)}</select></label>{scenes.error && <p role="alert">{t(strings.physical.catalogUnavailable)}</p>}{scenes.hasNextPage && <Button type="button" variant="outline" className="min-h-11" disabled={scenes.isFetchingNextPage} onClick={() => void scenes.fetchNextPage()}>{t(strings.physical.loadMoreCandidates)}</Button>}{selectedScene && <><p className="physical-shot__candidate">{t(strings.physical.candidateOnly)} · {selectedScene.name}</p>{(selectedScene.candidate?.artifacts ?? []).slice(0, 8).map((item) => <BundleReviewSummary key={`${item.ref?.bundleId}:${item.ref?.bundleRevision}:${item.ref?.artifactId}`} reference={item.ref} />)}<details><summary>{t(strings.physical.technicalRefs)}</summary><p>{t(strings.physical.sceneChoice, { name: selectedScene.name, revision: selectedScene.ref.revision })}</p><p>{t(strings.physical.sceneSupport, { id: setup?.sceneSupportId ?? "—" })}</p></details></>}</>}
-          {step === 1 && <><label>{t(strings.physical.selectDeviceCandidate)}<select className="physical-shot__input" value={deviceKey} onChange={(event) => setDeviceKey(event.target.value)}><option value="">{t(strings.physical.catalogLoading)}</option>{deviceRowsWithStarter.map((row) => <option key={revisionKey(row.ref)} value={revisionKey(row.ref)}>{row.name} · {t(strings.physical.candidateState, { state: row.state, revision: row.ref.revision })}</option>)}</select></label>{devices.error && <p role="alert">{t(strings.physical.catalogUnavailable)}</p>}{devices.hasNextPage && <Button type="button" variant="outline" className="min-h-11" disabled={devices.isFetchingNextPage} onClick={() => void devices.fetchNextPage()}>{t(strings.physical.loadMoreCandidates)}</Button>}{selectedDevice && <><p className="physical-shot__candidate">{t(strings.physical.candidateOnly)} · {selectedDevice.name}</p><BundleReviewSummary reference={selectedDevice.candidate?.geometry} /><details><summary>{t(strings.physical.technicalRefs)}</summary><p>{t(strings.physical.deviceChoice, { name: selectedDevice.name, revision: selectedDevice.ref.revision })}</p><p>{t(strings.physical.displayChoice, { id: setup?.displayId ?? "—" })}</p></details></>}<LibraryIntakePanel /></>}
+          {step === 1 && <><label>{t(strings.physical.selectDeviceCandidate)}<select className="physical-shot__input" value={deviceKey} onChange={(event) => setDeviceKey(event.target.value)}><option value="">{t(strings.physical.catalogLoading)}</option>{deviceRowsWithStarter.map((row) => <option key={revisionKey(row.ref)} value={revisionKey(row.ref)}>{row.name} · {t(strings.physical.candidateState, { state: row.state === "qualified" ? "scoped review on file" : row.state, revision: row.ref.revision })}</option>)}</select></label>{devices.error && <p role="alert">{t(strings.physical.catalogUnavailable)}</p>}{devices.hasNextPage && <Button type="button" variant="outline" className="min-h-11" disabled={devices.isFetchingNextPage} onClick={() => void devices.fetchNextPage()}>{devices.isFetchingNextPage ? t(strings.physical.loadMoreCandidates) : t(strings.physical.loadMoreCandidates)}</Button>}{selectedDevice && <><p className="physical-shot__candidate">{selectedDevice.candidate?.definition?.qualification === "qualified" ? "Scoped review recorded; not a universal qualification." : `${t(strings.physical.candidateOnly)} · ${selectedDevice.name}`}</p>{selectedQualification && <p role="status" data-testid="qualification-scope-status">{selectedQualification.text}</p>}<BundleReviewSummary reference={selectedDevice.candidate?.geometry} /><details><summary>{t(strings.physical.technicalRefs)}</summary><p>{t(strings.physical.deviceChoice, { name: selectedDevice.name, revision: selectedDevice.ref.revision })}</p><p>{t(strings.physical.displayChoice, { id: setup?.displayId ?? "—" })}</p></details><QualificationPackagePanel projectId={projectId} deviceRef={selectedDevice.ref} qualified={selectedDevice.candidate?.definition?.qualification === "qualified"} onCompleted={async () => { await Promise.all([queryClient.invalidateQueries({ queryKey: ["physical-device-candidates"] }), queryClient.invalidateQueries({ queryKey: ["physical-shot-presets"] })]); }} />{selectedDevice.candidate && selectedDevice.state === "candidate" && selectedDevice.candidate.definition?.qualification === "unqualified" && selectedPreset.data?.preset && <QualificationReviewPanel key={`${revisionKey(selectedDevice.ref)}:${selectedPreset.data.preset.revision}`} projectId={projectId} candidateRef={selectedDevice.ref} candidate={selectedDevice.candidate} preset={selectedPreset.data.preset} motionScope={qualificationMotionScope} onCompleted={async () => { await Promise.all([queryClient.invalidateQueries({ queryKey: ["physical-device-candidates"] }), queryClient.invalidateQueries({ queryKey: ["physical-shot-presets"] })]); void selectedPreset.refetch(); }} />}</>}<LibraryIntakePanel /></>}
           {step === 2 && <><label>{t(strings.physical.sourceSelect)}<select className="physical-shot__input" value={sourceId} onChange={(event) => { const next = sources.find((item) => item.id === event.target.value); setSourceId(event.target.value); setVideoTiming(next?.kind === SourceMediaKind.VIDEO ? videoTimingFromMedia(next) : undefined); setPresentationDraft(presentationForSource(next)); }}><option value="">{t(strings.physical.sourcePlaceholder)}</option>{sources.map((item) => { const raster = sourceRaster(item); return <option key={item.id} value={item.id}>{item.originalFilename} · {item.kind === SourceMediaKind.VIDEO ? "video" : "image"} · {raster?.width} × {raster?.height}</option>; })}</select></label>{!selectedIsVideo && <label>{t(strings.physical.motion)}<select className="physical-shot__input" value={sourceMode} onChange={(event) => setSourceMode(event.target.value === "motion" ? "motion" : "still")}><option value="still">{t(strings.physical.renderStill)}</option><option value="motion">{t(strings.physical.renderMotion)}</option></select></label>}{selectedIsVideo && <><p>{t(strings.physical.appOnlyCapture)}</p><p>{t(strings.physical.derivedRenderRaster)}</p></>}{selectedIsVideo && videoTiming && <VideoTimingEditor projectId={projectId} source={selected} timing={videoTiming} disabled={false} onChange={setVideoTiming} />}<details open><summary>{t(strings.shot.screenPresentation)}</summary><ScreenPresentationEditor value={presentationDraft} disabled={false} onChange={(patch) => setPresentationDraft((current) => ({ ...current, ...patch }))} /></details></>}
           {selectedBytes.error && <p role="alert">{errorMessage(selectedBytes.error, t)}</p>}
           {selectedIsVideo && (!videoTiming || !motionChoiceCompatible) && <p role="alert">{t(strings.physical.recordingRangeLimit)}</p>}
@@ -332,7 +350,7 @@ export function NewPhysicalShot({ projectId, onCreated, onCancel }: { projectId:
           {step === 3 && <><label>{t(strings.physical.selectMotionCandidate)}<select className="physical-shot__input" value={motionKey} onChange={(event) => setMotionKey(event.target.value)}><option value="">{t(strings.physical.catalogLoading)}</option>{motionRowsWithStarter.map((row) => <option key={revisionKey(row.ref)} value={revisionKey(row.ref)}>{row.name} · {t(strings.physical.candidateState, { state: row.state, revision: row.ref.revision })}</option>)}</select></label>{motions.error && <p role="alert">{t(strings.physical.catalogUnavailable)}</p>}{motions.hasNextPage && <Button type="button" variant="outline" className="min-h-11" disabled={motions.isFetchingNextPage} onClick={() => void motions.fetchNextPage()}>{t(strings.physical.loadMoreCandidates)}</Button>}{selectedMotion && <><p className="physical-shot__candidate">{t(strings.physical.candidateOnly)} · {selectedMotion.name}</p><details><summary>{t(strings.physical.technicalRefs)}</summary><p>{t(strings.physical.motionChoice, { name: selectedMotion.name, revision: selectedMotion.ref.revision })}</p><p>{t(strings.physical.poseDescription)}</p></details></>}{selectedMotionCandidate && !motionChoiceCompatible && <p role="alert">{t(strings.physical.motionIncompatible)}</p>}{selectedMotionCandidate && motionChoiceCompatible && <p role="status">{selectedIsVideo ? `${plannedMotionFrames} frames at ${requestedRate} fps from the exact candidate duration and source-clock trim.` : activeMode === "motion" ? `${plannedMotionFrames} frames at 24 fps from the exact candidate duration.` : t(strings.physical.stillTick)}</p>}</>}
           {step === 4 && <><label>{t(strings.shot.nameLabel)}<input className="physical-shot__input" value={name} maxLength={120} onChange={(event) => setName(event.target.value)} /></label><label>{t(strings.physical.backend)}<select className="physical-shot__input" value={backend === PhysicalRenderBackend.OPTIX ? "OPTIX" : backend === PhysicalRenderBackend.CUDA ? "CUDA" : "CPU"} onChange={(event) => setBackend(event.target.value === "CUDA" ? PhysicalRenderBackend.CUDA : event.target.value === "CPU" ? PhysicalRenderBackend.CPU : PhysicalRenderBackend.OPTIX)}><option value="OPTIX">{t(strings.physical.backendOptix)}</option><option value="CUDA">{t(strings.physical.backendCuda)}</option><option value="CPU">{t(strings.physical.backendCpu)}</option></select></label><p>{t(strings.physical.noFallback)}</p></>}
           {media.error && <p role="alert">{errorMessage(media.error, t)}</p>}
-          {selected && !aspectValid && <p role="alert">{t(strings.physical.aspectIssue)}</p>}
+          {selected && !aspectValid && <><p role="alert">{t(strings.physical.aspectIssue)}</p><p>{t(strings.physical.derivedRenderRaster)}</p></>}
           {placementMismatch && <p role="alert" data-testid="physical-placement-unavailable">{t(strings.physical.candidatePlacementUnavailable)}</p>}
           {step === 4 && selectedMotionCandidate && !motionChoiceCompatible && <p role="alert">{t(strings.physical.motionIncompatible)}</p>}
           {createShot.error && <p role="alert">{errorMessage(createShot.error, t)}</p>}
@@ -341,6 +359,100 @@ export function NewPhysicalShot({ projectId, onCreated, onCancel }: { projectId:
       </CardContent></Card>
     </div>
   </section>;
+}
+
+function QualificationReviewPanel({ projectId, candidateRef, candidate, preset, motionScope, onCompleted }: {
+  projectId: string;
+  candidateRef: { id: string; revision: number; sha256: string };
+  candidate: DeviceCandidate;
+  preset: PhysicalShotPresetRevision;
+  motionScope: string[];
+  onCompleted: () => void;
+}) {
+  const { t } = useTranslation();
+  const geometry = candidate.geometry;
+  const setup = preset.setup;
+  const bundle = useQuery({ queryKey: ["qualification-source-review", geometry?.bundleId, geometry?.bundleRevision], enabled: Boolean(geometry?.bundleId && geometry.bundleRevision > 0), queryFn: () => getBundleRevisionMetadata(geometry!.bundleId, geometry!.bundleRevision), retry: false });
+  const [reviewer, setReviewer] = useState("");
+  const [reviewScope, setReviewScope] = useState<"visual_setup" | "physical_geometry">("visual_setup");
+  const [jobID, setJobID] = useState("");
+  const [outputSHA, setOutputSHA] = useState("");
+  const [outputKind, setOutputKind] = useState("physical_still_png");
+  const [notes, setNotes] = useState("");
+  const [rightsAcknowledged, setRightsAcknowledged] = useState(false);
+  const [dimensions, setDimensions] = useState<string[]>(Object.keys(candidate.definition?.dimensions ?? {}).slice(0, 1));
+  const [displays, setDisplays] = useState<string[]>(setup?.displayId ? [setup.displayId] : []);
+  const [motions, setMotions] = useState<string[]>(motionScope);
+  const [supports, setSupports] = useState<string[]>(setup?.deviceSupportId ? [setup.deviceSupportId] : []);
+  const [resultText, setResultText] = useState("");
+  const mutation = useMutation({ mutationFn: async () => {
+    if (!geometry || !setup?.device || !setup.scene || !setup.motion || !bundle.data?.review) throw new Error("Exact source review and saved preset metadata are required.");
+    if (setup.device.id !== candidateRef.id || setup.device.revision !== candidateRef.revision || setup.device.sha256 !== candidateRef.sha256) throw new Error("Select the saved setup pinned to this exact candidate before reviewing it.");
+    if (!reviewer.trim() || !jobID.trim() || !/^[a-f0-9]{64}$/i.test(outputSHA) || !rightsAcknowledged || dimensions.length === 0 || displays.length === 0 || motions.length === 0 || supports.length === 0) throw new Error("Provide reviewer, bounded review scope, completed render evidence, and the rights-claims acknowledgement.");
+    const now = new Date().toISOString();
+    const review = create(QualificationReviewSchema, {
+      scope: reviewScope, result: "passed", reviewer: reviewer.trim(),
+      evidence: [create(EvidenceSchema, { source: `render-job:${jobID.trim()}`, kind: outputKind, retrievedAt: now, qualifier: notes.trim() || "Operator reviewed the native result." })],
+      candidateRevision: candidateRef.revision, candidateSha256: candidateRef.sha256,
+      sourceBundleId: geometry.bundleId, sourceBundleRevision: geometry.bundleRevision, sourceManifestSha256: geometry.manifestSha256, sourceReviewSha256: geometry.reviewSha256, sourceArtifactId: geometry.artifactId, sourceArtifactSha256: geometry.sha256,
+      sourceAllowedUses: bundle.data.review.allowedUses.map(String), dimensionStates: dimensions, displayIds: displays, allowedMotionIds: motions, supportIds: supports,
+      presetId: preset.presetId, presetRevision: preset.revision, presetSha256: preset.sha256,
+      sceneId: setup.scene.id, sceneRevision: setup.scene.revision, sceneSha256: setup.scene.sha256,
+      motionId: setup.motion.id, motionRevision: setup.motion.revision, motionSha256: setup.motion.sha256,
+      nativeRenderJobId: jobID.trim(), nativeOutputSha256: outputSHA.toLowerCase(), nativeOutputKind: outputKind,
+      rightsClaimsAcknowledged: true, reviewedAt: now,
+    });
+    return reviewDeviceCandidate({ projectId, deviceId: candidateRef.id, candidateRevision: candidateRef.revision, candidateSha256: candidateRef.sha256, expectedHead: candidateRef.revision, review });
+  }, onSuccess: async (response) => { const reviewLabel = reviewScope === "visual_setup" ? "Visual setup review" : "Physical geometry review"; setResultText(`${reviewLabel} recorded on revision ${response.revision?.revision ?? "?"}; saved setup ${response.presetId}@${response.presetRevision}.`); await onCompleted(); } });
+  const toggle = (values: string[], setValues: (next: string[]) => void, value: string) => setValues(values.includes(value) ? values.filter((item) => item !== value) : [...values, value]);
+  const scopeOptions = [
+    { label: "Measured dimension states", values: Object.keys(candidate.definition?.dimensions ?? {}), selected: dimensions, set: setDimensions },
+    { label: reviewScope === "visual_setup" ? "Rendered display" : "Physical displays / view regions", values: (candidate.definition?.displays ?? []).map((item) => item.id), selected: displays, set: setDisplays },
+    { label: "Supported motion", values: motionScope, selected: motions, set: setMotions },
+    { label: "Device support frames", values: (candidate.supportFrames ?? []).map((item) => item.id), selected: supports, set: setSupports },
+  ];
+  const exactPreset = Boolean(setup?.device?.id === candidateRef.id && setup.device.revision === candidateRef.revision && setup.device.sha256 === candidateRef.sha256);
+  return <details className="physical-shot__qualification" data-testid="qualification-review-panel"><summary>Explicit scoped qualification review</summary>
+    <p>Visual setup review records only the exact rendered setup and leaves unknown dimensions and screen regions unqualified. Physical geometry review requires known dimension uncertainty and qualified display regions. Either review applies only to the exact saved preset, scene, motion, native job, and output. Rights are recorded source claims, not a legal guarantee. This action appends a new immutable revision; the source candidate is preserved.</p>
+    <label>Reviewer<input className="physical-shot__input" value={reviewer} onChange={(event) => setReviewer(event.target.value)} maxLength={120} /></label>
+    <label>Review scope<select className="physical-shot__input" value={reviewScope} onChange={(event) => setReviewScope(event.target.value === "physical_geometry" ? "physical_geometry" : "visual_setup")}><option value="visual_setup">Visual setup only</option><option value="physical_geometry">Physical geometry and display regions</option></select></label>
+    {scopeOptions.map((group) => <fieldset key={group.label}><legend>{reviewScope === "visual_setup" && group.label === "Measured dimension states" ? "Source dimension state (uncertainty retained)" : group.label}</legend>{group.values.map((value) => <label key={value}><input type="checkbox" checked={group.selected.includes(value)} onChange={() => toggle(group.selected, group.set, value)} />{value}</label>)}</fieldset>)}
+    <label>Completed native render job ID<input className="physical-shot__input" value={jobID} onChange={(event) => setJobID(event.target.value)} /></label>
+    <label>Native output SHA-256<input className="physical-shot__input" value={outputSHA} onChange={(event) => setOutputSHA(event.target.value)} pattern="[a-fA-F0-9]{64}" /></label>
+    <label>Output kind<select className="physical-shot__input" value={outputKind} onChange={(event) => setOutputKind(event.target.value)}><option value="physical_still_png">Physical still PNG</option><option value="physical_motion_mp4">Physical motion MP4</option></select></label>
+    <label>Review notes<textarea className="physical-shot__input" value={notes} onChange={(event) => setNotes(event.target.value)} maxLength={2000} /></label>
+    <label className="physical-shot__qualification-ack"><input type="checkbox" checked={rightsAcknowledged} onChange={(event) => setRightsAcknowledged(event.target.checked)} />I reviewed the source-use claims and understand they do not establish a legal guarantee.</label>
+    {!exactPreset && <p role="alert">The selected saved setup does not pin this exact candidate revision.</p>}
+    {bundle.isError && <p role="alert">Exact Library source review metadata is unavailable; qualification is blocked.</p>}
+    {mutation.error && <p role="alert">{errorMessage(mutation.error, t)}</p>}
+    {resultText && <p role="status">{resultText}</p>}
+    <Button type="button" className="studio-primary min-h-11" disabled={!exactPreset || !bundle.data?.review || mutation.isPending || !rightsAcknowledged} onClick={() => mutation.mutate()}>{mutation.isPending ? "Recording review…" : reviewScope === "visual_setup" ? "Record visual setup review" : "Record physical geometry review"}</Button>
+  </details>;
+}
+
+function QualificationPackagePanel({ projectId, deviceRef, qualified, onCompleted }: {
+  projectId: string;
+  deviceRef: { id: string; revision: number; sha256: string };
+  qualified: boolean;
+  onCompleted: () => void;
+}) {
+  const [message, setMessage] = useState("");
+  const exportMutation = useMutation({ mutationFn: () => exportQualificationPackage({ projectId, deviceId: deviceRef.id, qualifiedRevision: deviceRef.revision }), onSuccess: (bytes) => {
+    const copy = new ArrayBuffer(bytes.byteLength); new Uint8Array(copy).set(bytes);
+    const url = URL.createObjectURL(new Blob([copy], { type: "application/json" }));
+    const anchor = document.createElement("a");
+    anchor.href = url; anchor.download = `${deviceRef.id}-review-${deviceRef.revision}.qualification.json`; anchor.click();
+    URL.revokeObjectURL(url); setMessage("Scoped review package downloaded. Its hashes check integrity but do not authenticate its reviewer.");
+  } });
+  const importMutation = useMutation({ mutationFn: (file: File) => file.arrayBuffer().then((buffer) => importQualificationPackage(new Uint8Array(buffer), deviceRef.revision)), onSuccess: async (response) => {
+    setMessage(`Transferred scoped review appended as revision ${response.revision?.revision ?? "?"}.`); await onCompleted();
+  } });
+  const error = exportMutation.error ?? importMutation.error;
+  return <details className="physical-shot__qualification" data-testid="qualification-package-panel"><summary>Portable scoped review package</summary>
+    <p>Export while the source project and completed render job remain available. Import compares every referenced revision and source byte against this database. The package is a human review transfer; its hashes are not a digital signature.</p>
+    {qualified ? <Button type="button" variant="outline" className="min-h-11" disabled={exportMutation.isPending} onClick={() => exportMutation.mutate()}>{exportMutation.isPending ? "Preparing package…" : "Export scoped review package"}</Button> : <label>Import reviewed package<input className="physical-shot__input" type="file" accept="application/json,.json" disabled={importMutation.isPending} onChange={(event) => { const file = event.currentTarget.files?.[0]; if (file) importMutation.mutate(file); event.currentTarget.value = ""; }} /></label>}
+    {error && <p role="alert">{error.message}</p>}{message && <p role="status">{message}</p>}
+  </details>;
 }
 
 function copyBinding(binding: PhysicalShotBinding) {

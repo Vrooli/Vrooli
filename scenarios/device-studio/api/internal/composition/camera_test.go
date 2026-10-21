@@ -162,3 +162,91 @@ func abs(v float64) float64 {
 	}
 	return v
 }
+
+// opaqueImage exercises the generic image.Image path independently of concrete fast paths.
+type opaqueImage struct{ image.Image }
+
+func TestBilinearConcreteRasterMatchesGenericPixels(t *testing.T) {
+	bounds := image.Rect(7, 11, 16, 20)
+	rasters := []interface {
+		image.Image
+		Set(int, int, color.Color)
+	}{
+		image.NewRGBA(bounds), image.NewNRGBA(bounds), image.NewRGBA64(bounds), image.NewNRGBA64(bounds),
+		image.NewGray(bounds), image.NewGray16(bounds), image.NewAlpha(bounds), image.NewAlpha16(bounds),
+	}
+	for _, raster := range rasters {
+		for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+			for x := bounds.Min.X; x < bounds.Max.X; x++ {
+				raster.Set(x, y, color.NRGBA64{R: uint16(x * 3901), G: uint16(y * 2309), B: uint16((x + y) * 1297), A: uint16((x*17 + y*31) * 59)})
+			}
+		}
+		for _, p := range [][2]float64{{-3, 2.1}, {0, 0}, {1.25, 3.75}, {7.9, 7.1}, {12, 15}} {
+			r, g, b, a := sampleBilinear(raster, bounds, p[0], p[1])
+			gr, gg, gb, ga := sampleBilinear(opaqueImage{raster}, bounds, p[0], p[1])
+			if [4]uint16{r, g, b, a} != [4]uint16{gr, gg, gb, ga} {
+				t.Fatalf("%T at %v: concrete differs from generic", raster, p)
+			}
+		}
+	}
+}
+
+func BenchmarkBilinearRGBA64(b *testing.B) {
+	raster := image.NewRGBA64(image.Rect(0, 0, 1920, 1080))
+	bounds := raster.Bounds()
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		r, g, bl, a := sampleBilinear(raster, bounds, 100.25, 100.75)
+		if r|g|bl|a != 0 {
+			b.Fatal("unexpected pixel")
+		}
+	}
+}
+
+func TestCameraWarpConcreteAndGenericFramesArePixelIdentical(t *testing.T) {
+	scene := image.NewRGBA64(image.Rect(0, 0, 80, 64))
+	direct := image.NewNRGBA(image.Rect(3, 5, 23, 37))
+	for y := 0; y < 64; y++ {
+		for x := 0; x < 80; x++ {
+			scene.SetRGBA64(x, y, color.RGBA64{R: uint16(x * 701), G: uint16(y * 997), B: 3400, A: 65535})
+		}
+	}
+	for y := 5; y < 37; y++ {
+		for x := 3; x < 23; x++ {
+			direct.SetNRGBA(x, y, color.NRGBA{R: uint8(x * 9), G: uint8(y * 7), B: 210, A: uint8(100 + x*6)})
+		}
+	}
+	from := [4]Point{{22, 13}, {45, 11}, {48, 53}, {18, 55}}
+	to := [4]Point{{10, 5}, {65, 3}, {70, 60}, {8, 61}}
+	matte := color.NRGBA{R: 11, G: 32, B: 91, A: 255}
+	fast, err := RenderScreenEntry(context.Background(), scene, from, to, direct, matte, .45, .7)
+	if err != nil {
+		t.Fatal(err)
+	}
+	generic, err := RenderScreenEntry(context.Background(), opaqueImage{scene}, from, to, opaqueImage{direct}, matte, .45, .7)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for y := 0; y < 64; y++ {
+		for x := 0; x < 80; x++ {
+			if fast.RGBA64At(x, y) != generic.RGBA64At(x, y) {
+				t.Fatalf("camera pixel differs at%d,%d", x, y)
+			}
+		}
+	}
+}
+
+func BenchmarkScreenEntry1080p(b *testing.B) {
+	scene := image.NewRGBA64(image.Rect(0, 0, 1920, 1080))
+	direct := image.NewNRGBA(image.Rect(0, 0, 430, 880))
+	from := [4]Point{{700, 200}, {1100, 150}, {1150, 900}, {650, 950}}
+	to := [4]Point{{500, 100}, {1350, 50}, {1400, 1000}, {450, 1050}}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := RenderScreenEntry(context.Background(), scene, from, to, direct, color.NRGBA{A: 255}, .5, .5); err != nil {
+			b.Fatal(err)
+		}
+	}
+}

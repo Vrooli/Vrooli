@@ -26,6 +26,12 @@ func (s starterServiceStub) InitializePhysicalStarter(_ context.Context, id stri
 	return shots.PhysicalPresetRevision{PresetID: "preset-candidate", Revision: 2, SHA256: "preset-sha"}, nil
 }
 
+type qualifiedStarterStatusStub struct{ starterServiceStub }
+
+func (qualifiedStarterStatusStub) PhysicalStarterCandidateOnly(context.Context, shots.PhysicalPresetRevision) (bool, error) {
+	return false, nil
+}
+
 func TestStarterResponsePlacementPinsReturnedCandidateRefs(t *testing.T) {
 	state := domain.StarterState{
 		Phone:  devices.DeviceRevision{DeviceID: "phone", Revision: 2, SHA256: "device-sha"},
@@ -82,5 +88,16 @@ func TestCandidateStarterReturnsOnlyCandidatePresetAndRejectsUnknownID(t *testin
 	_, err = handler.InitializeReviewedStarter(context.Background(), connect.NewRequest(&physicalv1.InitializeReviewedStarterRequest{StarterId: "unknown"}))
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("unknown starter status = %v, want invalid argument", err)
+	}
+}
+
+func TestCandidateStarterReportsQualifiedRevisionStatus(t *testing.T) {
+	handler := NewConnectHandler(qualifiedStarterStatusStub{})
+	response, err := handler.InitializeReviewedStarter(context.Background(), connect.NewRequest(&physicalv1.InitializeReviewedStarterRequest{StarterId: "generic-smart-display-concept-v7"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response.Msg.GetCandidateOnly() || response.Msg.GetInitializedPreset().GetId() != "preset-candidate" {
+		t.Fatalf("starter response did not expose the initialized qualified scope: %+v", response.Msg)
 	}
 }

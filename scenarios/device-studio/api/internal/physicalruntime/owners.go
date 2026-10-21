@@ -27,6 +27,7 @@ type Owners struct {
 	LibraryCatalog library.Service
 	Starter        *starterInitializer
 	Presets        *shots.PhysicalPresetService
+	Qualification  *QualificationService
 }
 
 func New(db *database.RoutedDB, roots *filerouting.RoutedRoots, media projects.SourceMediaService) (Owners, error) {
@@ -155,20 +156,66 @@ func (o Owners) InitializePhysicalStarter(ctx context.Context, starterID string)
 	case "generic-round-smartwatch-source":
 		state, err := o.InitializeReviewedRoundWatchCandidate(ctx)
 		return state.Preset, err
+	case "generic-round-watch-v2":
+		state, err := o.InitializeReviewedRoundWatchV2Candidate(ctx)
+		return state.Preset, err
+	case "generic-round-watch-v3":
+		state, err := o.InitializeReviewedRoundWatchV3Candidate(ctx)
+		return state.Preset, err
+	case "generic-round-watch-body-v4-floating":
+		state, err := o.InitializeReviewedRoundWatchBodyV4Candidate(ctx)
+		return state.Preset, err
 	case "generic-television-concept":
 		state, err := o.InitializeReviewedTelevisionCandidate(ctx)
+		return state.Preset, err
+	case "generic-television-concept-v3":
+		state, err := o.InitializeReviewedTelevisionV3Candidate(ctx)
 		return state.Preset, err
 	case "generic-book-fold":
 		state, err := o.InitializeReviewedFoldableCandidate(ctx)
 		return state.Preset, err
+	case "generic-book-fold-v3-left-screen-vflip":
+		state, err := o.InitializeReviewedFoldableUVV3(ctx)
+		return state.Preset, err
+	case "generic-book-fold-v3-left-screen-vflip-static":
+		state, err := o.InitializeReviewedFoldableUVV3Static(ctx)
+		return state.Preset, err
 	case "generic-smart-display-concept":
 		state, err := o.InitializeReviewedSmartDisplayCandidate(ctx)
 		return state.Preset, err
+	case "generic-smart-display-concept-v3":
+		state, err := o.InitializeReviewedSmartDisplayV3Candidate(ctx)
+		return state.Preset, err
+	case "generic-smart-display-concept-v4":
+		state, err := o.InitializeReviewedSmartDisplayV4Candidate(ctx)
+		return state.Preset, err
+	case "generic-smart-display-concept-v5":
+		state, err := o.InitializeReviewedSmartDisplayV5Candidate(ctx)
+		return state.Preset, err
+	case "generic-smart-display-concept-v6":
+		state, err := o.InitializeReviewedSmartDisplayV6Candidate(ctx)
+		return state.Preset, err
+	case "generic-smart-display-concept-v7":
+		state, err := o.InitializeReviewedSmartDisplayV7Candidate(ctx)
+		return state.Preset, err
+	case reviewedSmartDisplayV7StarterID:
+		return o.installReviewedSmartDisplayV7(ctx)
+	case "generic-round-watch-body-v4-floating-reviewed", "generic-television-concept-v3-reviewed", "generic-digital-frame-concept-v4-glassless-reviewed", "generic-digital-frame-wall-v5-mounted-reviewed", "generic-book-fold-v3-left-screen-vflip-static-reviewed", "laptop-screen-vflip-reviewed":
+		return o.installEmbeddedReviewedStarter(ctx, starterID)
 	case "generic-digital-frame-concept":
 		state, err := o.InitializeReviewedDigitalFrameCandidate(ctx)
 		return state.Preset, err
 	case "generic-digital-frame-wall":
 		state, err := o.InitializeReviewedDigitalFrameWallCandidate(ctx)
+		return state.Preset, err
+	case "generic-digital-frame-concept-v4-glassless":
+		state, err := o.InitializeReviewedDigitalFrameV4Candidate(ctx)
+		return state.Preset, err
+	case "generic-digital-frame-wall-v4-glassless":
+		state, err := o.InitializeReviewedDigitalFrameWallV4Candidate(ctx)
+		return state.Preset, err
+	case "generic-digital-frame-wall-v5-mounted":
+		state, err := o.InitializeReviewedDigitalFrameWallV5Candidate(ctx)
 		return state.Preset, err
 	case "generic-vehicle-center-stack-concept":
 		state, err := o.InitializeReviewedVehicleCenterStackCandidate(ctx)
@@ -179,9 +226,40 @@ func (o Owners) InitializePhysicalStarter(ctx context.Context, starterID string)
 	case "generic-vehicle-center-stack-android-auto-sim":
 		state, err := o.InitializeReviewedVehicleCenterStackProfile(ctx, "android_auto_simulated")
 		return state.Preset, err
+	case "generic-vehicle-dashboard-carplay-sim":
+		state, err := o.InitializeReviewedVehicleDashboardCC0Profile(ctx, "carplay_simulated")
+		return state.Preset, err
+	case "generic-vehicle-dashboard-android-auto-sim":
+		state, err := o.InitializeReviewedVehicleDashboardCC0Profile(ctx, "android_auto_simulated")
+		return state.Preset, err
+	case "generic-vehicle-dashboard-carplay-studio-v1":
+		state, err := o.InitializeReviewedVehicleDashboardStudioProfile(ctx, "carplay_simulated")
+		return state.Preset, err
+	case "generic-vehicle-dashboard-android-auto-studio-v1":
+		state, err := o.InitializeReviewedVehicleDashboardStudioProfile(ctx, "android_auto_simulated")
+		return state.Preset, err
+	case "generic-vehicle-dashboard-carplay-studio-v2":
+		state, err := o.InitializeReviewedVehicleDashboardStudioV2Profile(ctx, "carplay_simulated")
+		return state.Preset, err
+	case "generic-vehicle-dashboard-android-auto-studio-v2":
+		state, err := o.InitializeReviewedVehicleDashboardStudioV2Profile(ctx, "android_auto_simulated")
+		return state.Preset, err
 	default:
 		return shots.PhysicalPresetRevision{}, ErrUnknownStarterID
 	}
+}
+
+// PhysicalStarterCandidateOnly reports the status of the exact device revision
+// pinned by a successfully initialized physical preset.
+func (o Owners) PhysicalStarterCandidateOnly(ctx context.Context, preset shots.PhysicalPresetRevision) (bool, error) {
+	if o.Devices == nil || preset.Setup == nil || preset.Setup.Device == nil || preset.Setup.Device.Id == "" || preset.Setup.Device.Revision == 0 {
+		return true, errors.New("physical starter preset does not pin an inspectable device revision")
+	}
+	device, err := o.Devices.GetRevision(ctx, preset.Setup.Device.Id, preset.Setup.Device.Revision)
+	if err != nil {
+		return true, err
+	}
+	return device.State != devices.DeviceRevisionQualified || device.Candidate.Definition.Qualification != "qualified", nil
 }
 
 var ErrUnknownStarterID = errors.New("unknown physical starter ID")

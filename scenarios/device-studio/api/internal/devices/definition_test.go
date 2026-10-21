@@ -242,12 +242,25 @@ func TestQualifiedStatusRequiresIndependentReviewEvidence(t *testing.T) {
 		t.Fatal("qualified status without a review receipt must be rejected")
 	}
 	d.QualificationReviews = []QualificationReview{{Scope: "physical_geometry", Result: "passed", Reviewer: "reviewer-1", Evidence: []Evidence{{Source: "review://physical-geometry/1", Kind: "human_review"}}}}
+	if err := d.Validate(); err == nil {
+		t.Fatal("a reviewer name alone must not qualify a candidate without source, preset, native output, and scope bindings")
+	}
+	d.QualificationReviews[0] = completeQualificationReview()
 	if err := d.Validate(); err != nil {
 		t.Fatalf("qualified definition with review evidence should validate: %v", err)
 	}
 	if got := d.PhysicalQualification(); got.Status != Compatible {
 		t.Fatalf("qualified fully-specified fixture should pass physical check, got %+v", got)
 	}
+}
+
+func completeQualificationReview() QualificationReview {
+	digest := strings.Repeat("a", 64)
+	return QualificationReview{Scope: "physical_geometry", Result: "passed", Reviewer: "reviewer-1", Evidence: []Evidence{{Source: "native-review:job-1", Kind: "human_review"}},
+		CandidateRevision: 1, CandidateSHA256: digest, SourceBundleID: "source-bundle", SourceBundleRevision: 1, SourceManifestSHA256: digest, SourceReviewSHA256: digest, SourceArtifactID: "device-glb", SourceArtifactSHA256: digest,
+		SourceAllowedUses: []string{"render"}, DimensionStates: []string{"default"}, DisplayIDs: []string{"front"}, AllowedMotionIDs: []string{"static"}, SupportIDs: []string{"none"},
+		PresetID: "preset", PresetRevision: 1, PresetSHA256: digest, SceneID: "scene", SceneRevision: 1, SceneSHA256: digest, MotionID: "motion", MotionRevision: 1, MotionSHA256: digest,
+		NativeRenderJobID: "render-job", NativeOutputSHA256: digest, NativeOutputKind: "physical_still_png", RightsClaimsAcknowledged: true, ReviewedAt: "2026-10-21T00:00:00Z"}
 }
 
 func TestMeasurementRequiresFiniteValueAndUsableEvidence(t *testing.T) {

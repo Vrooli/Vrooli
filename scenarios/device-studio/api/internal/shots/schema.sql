@@ -32,6 +32,28 @@ CREATE TABLE IF NOT EXISTS shot_revisions (
 CREATE INDEX IF NOT EXISTS idx_shot_revisions_shot_revision
   ON shot_revisions(shot_id, revision DESC);
 
+CREATE TABLE IF NOT EXISTS output_readability_reviews (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  shot_id TEXT NOT NULL,
+  shot_revision INTEGER NOT NULL,
+  render_id TEXT NOT NULL,
+  output_sha256 TEXT NOT NULL CHECK (length(output_sha256) = 64),
+  proof_sha256 TEXT NOT NULL CHECK (length(proof_sha256) = 64),
+  verdict INTEGER NOT NULL CHECK (verdict IN (1, 2)),
+  note TEXT NOT NULL,
+  output_width INTEGER NOT NULL CHECK (output_width > 0),
+  output_height INTEGER NOT NULL CHECK (output_height > 0),
+  region_width INTEGER NOT NULL CHECK (region_width > 0),
+  region_height INTEGER NOT NULL CHECK (region_height > 0),
+  reviewed_at TEXT NOT NULL,
+  FOREIGN KEY (shot_id, shot_revision) REFERENCES shot_revisions(shot_id, revision)
+);
+CREATE INDEX IF NOT EXISTS idx_output_readability_binding
+  ON output_readability_reviews(shot_id, shot_revision, render_id, reviewed_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_output_readability_one_verdict_per_output
+  ON output_readability_reviews(shot_id, shot_revision, render_id, output_sha256);
+
 CREATE TABLE IF NOT EXISTS physical_shot_preset_revisions (
   preset_id TEXT NOT NULL,
   revision INTEGER NOT NULL CHECK (revision > 0),

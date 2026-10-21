@@ -229,3 +229,8 @@ output was shown or reused. The handler used 1.4234s, including worker pin
 This is one bounded current-host observation, not a percentile guarantee. The
 fresh-worker case and historical failures remain recorded. Evidence:
 `goal/evidence/E3/physical-preview/runs/uiTiming3Warm/parent-review.json`.
+
+
+## Camera-entry CPU investigation — 2026-10-21
+
+The actual ten-second photographic entry job `042de6c5-048a-48e9-a51f-b0295c8e9604` failed at its fixed300-second worker deadline while rendering the camera warp. Its sample passed appearance review; there is no completed-video claim. Preserve the existing supersampling, interpolation and protected-pixel rules. Investigate generic `image.Image.At` allocations in composition/presentation bilinear hot paths and avoid rasterizing discarded system chrome after the clean-viewport endpoint; require exact pixel equivalence for concrete and generic raster types before any replay. Root admission: at most100 runtime and150 test lines, no lifecycle or GPU changes. Microbenchmarks do not close the end-to-end gate. Evidence: `goal/evidence/E3/final-demos/phone-screen-entry-2/cpu-optimization/`.

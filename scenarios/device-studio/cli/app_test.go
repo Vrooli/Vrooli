@@ -239,7 +239,7 @@ func TestComponentCommandsAppearInRegisteredHelp(t *testing.T) {
 	if readErr != nil {
 		t.Fatal(readErr)
 	}
-	for _, want := range []string{"save", "get", "head", "revisions", "list"} {
+	for _, want := range []string{"save", "get", "head", "revisions", "list", "review"} {
 		if !strings.Contains(string(data), want) {
 			t.Fatalf("registered device help missing %q:\n%s", want, data)
 		}
@@ -264,6 +264,28 @@ func TestComponentCommandsAppearInRegisteredHelp(t *testing.T) {
 	for _, want := range []string{"--candidate", "--expected-head"} {
 		if !strings.Contains(string(data), want) {
 			t.Fatalf("registered device save help missing %q:\n%s", want, data)
+		}
+	}
+	old = os.Stdout
+	r, w, err = os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stdout = w
+	runErr = app.Run([]string{"devices", "review", "--help"})
+	_ = w.Close()
+	os.Stdout = old
+	data, readErr = io.ReadAll(r)
+	_ = r.Close()
+	if runErr != nil {
+		t.Fatal(runErr)
+	}
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	for _, want := range []string{"--review-file", "--project-id", "--expected-head"} {
+		if !strings.Contains(string(data), want) {
+			t.Fatalf("registered device review help missing %q:\n%s", want, data)
 		}
 	}
 }

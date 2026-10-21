@@ -9,4 +9,6 @@ type Repository interface {
 	List(context.Context, string, int, *Shot) ([]Shot, error)
 	GetRevision(context.Context, string, int64) (Revision, error)
 	ListRevisions(context.Context, string, int, int64) ([]Revision, error)
+	AppendReadabilityReview(context.Context, ReadabilityReview) error
+	GetReadabilityReview(context.Context, string, int64, string, string) (ReadabilityReview, error)
 }

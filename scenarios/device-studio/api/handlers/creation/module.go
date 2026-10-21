@@ -32,9 +32,11 @@ type createBody struct {
 	EnvelopeMM             [3]float64 `json:"envelope_mm"`
 	ReferenceMediaIDs      []string   `json:"reference_media_ids"`
 	FundingRoute           string     `json:"funding_route,omitempty"`
+	MaxCostMicros          int64      `json:"max_cost_micros,omitempty"`
 	ConfirmLocalAI         bool       `json:"confirm_local_ai"`
 	ConfirmRemoteAI        bool       `json:"confirm_remote_ai"`
 	CorrectionSourceJobID  string     `json:"correction_source_job_id,omitempty"`
+	CorrectionMode         string     `json:"correction_mode,omitempty"`
 	CorrectionRecipeSHA256 string     `json:"correction_recipe_sha256,omitempty"`
 	CorrectionFeedback     string     `json:"correction_feedback,omitempty"`
 }
@@ -60,11 +62,133 @@ func Module(c coordinator, j jobReader) module.Module {
 func ModuleWithCoordinator(c coordinator, j jobReader, activator RouteActivator) module.Module {
 	return module.Module{Name: "creation", Mount: func(r *mux.Router) {
 		r.HandleFunc("/api/v1/projects/{project_id}/geometry-creations", createHandler(c, activator)).Methods(http.MethodPost)
+		r.HandleFunc("/api/v1/projects/{project_id}/geometry-creation-sessions", createSessionHandler(c, activator)).Methods(http.MethodPost)
+		r.HandleFunc("/api/v1/geometry-creation-sessions/{session_id}", sessionHandler(c)).Methods(http.MethodGet)
+		r.HandleFunc("/api/v1/geometry-creation-sessions/{session_id}/refinements", refineSessionHandler(c, activator)).Methods(http.MethodPost)
+		r.HandleFunc("/api/v1/geometry-creation-sessions/{session_id}/cancel", cancelSessionHandler(c, activator)).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/projects/{project_id}/geometry-creations/operations/{operation_key}", operationHandler(c)).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/geometry-creations/{job_id}", statusHandler(j)).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/geometry-creations/{job_id}/correction", correctionHandler(c)).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/geometry-creations/{job_id}/cancel", cancelHandler(c, j, activator)).Methods(http.MethodPost)
 	}}
+}
+
+type sessionCoordinator interface {
+	CreateGeometrySession(context.Context, renderjobs.GeometrySessionRequest) (renderjobs.GeometrySessionSnapshot, error)
+	GetGeometrySession(context.Context, string) (renderjobs.GeometrySessionSnapshot, error)
+	RefineGeometrySession(context.Context, string, renderjobs.GeometrySessionRefinementRequest) (renderjobs.GeometrySessionSnapshot, error)
+	CancelGeometrySession(context.Context, string, int64) (renderjobs.GeometrySessionSnapshot, error)
+}
+
+func requireSessionCoordinator(c coordinator) (sessionCoordinator, bool) {
+	sc, ok := c.(sessionCoordinator)
+	return sc, ok
+}
+
+func createSessionHandler(c coordinator, activator RouteActivator) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		sc, ok := requireSessionCoordinator(c)
+		if !ok {
+			writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "bounded creation sessions are unavailable"})
+			return
+		}
+		var body renderjobs.GeometrySessionRequest
+		if err := decodeBody(w, r, &body, 16<<10); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid bounded creation session request"})
+			return
+		}
+		body.ProjectID = strings.TrimSpace(mux.Vars(r)["project_id"])
+		snapshot, err := sc.CreateGeometrySession(r.Context(), body)
+		if err != nil {
+			writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": safeCreationError(err)})
+			return
+		}
+		if activator != nil {
+			if err := activator.ActivateTestRoute(r.Context()); err != nil {
+				writeJSON(w, http.StatusServiceUnavailable, snapshot)
+				return
+			}
+		}
+		writeJSON(w, http.StatusAccepted, snapshot)
+	}
+}
+
+func sessionHandler(c coordinator) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		sc, ok := requireSessionCoordinator(c)
+		if !ok {
+			writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "bounded creation sessions are unavailable"})
+			return
+		}
+		snapshot, err := sc.GetGeometrySession(r.Context(), strings.TrimSpace(mux.Vars(r)["session_id"]))
+		if err != nil {
+			writeJSON(w, http.StatusNotFound, map[string]string{"error": "creation session not found"})
+			return
+		}
+		writeJSON(w, http.StatusOK, snapshot)
+	}
+}
+
+func refineSessionHandler(c coordinator, activator RouteActivator) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		sc, ok := requireSessionCoordinator(c)
+		if !ok {
+			writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "bounded creation sessions are unavailable"})
+			return
+		}
+		var body renderjobs.GeometrySessionRefinementRequest
+		if err := decodeBody(w, r, &body, 20<<10); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid creation refinement request"})
+			return
+		}
+		if body.ProjectID != "" {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "project scope is pinned by the session"})
+			return
+		}
+		snapshot, err := sc.RefineGeometrySession(r.Context(), strings.TrimSpace(mux.Vars(r)["session_id"]), body)
+		if err != nil {
+			writeJSON(w, http.StatusConflict, map[string]string{"error": safeCreationError(err)})
+			return
+		}
+		if snapshot.NeedsConfirmation {
+			writeJSON(w, http.StatusConflict, snapshot)
+			return
+		}
+		if activator != nil {
+			if err := activator.ActivateTestRoute(r.Context()); err != nil {
+				writeJSON(w, http.StatusServiceUnavailable, snapshot)
+				return
+			}
+		}
+		writeJSON(w, http.StatusAccepted, snapshot)
+	}
+}
+
+func cancelSessionHandler(c coordinator, activator RouteActivator) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		sc, ok := requireSessionCoordinator(c)
+		if !ok {
+			writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "bounded creation sessions are unavailable"})
+			return
+		}
+		var body cancelBody
+		if err := decodeBody(w, r, &body, 1024); err != nil || body.Version <= 0 {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "a current session version is required"})
+			return
+		}
+		snapshot, err := sc.CancelGeometrySession(r.Context(), strings.TrimSpace(mux.Vars(r)["session_id"]), body.Version)
+		if err != nil {
+			writeJSON(w, http.StatusConflict, map[string]string{"error": "creation session cancellation is still unresolved; reload its durable state"})
+			return
+		}
+		if activator != nil {
+			if err := activator.ActivateTestRoute(r.Context()); err != nil {
+				writeJSON(w, http.StatusServiceUnavailable, snapshot)
+				return
+			}
+		}
+		writeJSON(w, http.StatusAccepted, snapshot)
+	}
 }
 
 func correctionHandler(c coordinator) http.HandlerFunc {
@@ -114,7 +238,7 @@ func createHandler(c coordinator, activator RouteActivator) http.HandlerFunc {
 			writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": "confirm that the selected images and brief will be sent to the chosen remote provider"})
 			return
 		}
-		job, created, err := c.SubmitGeometryCreation(r.Context(), renderjobs.GeometryCreationRequest{ProjectID: projectID, CandidateID: body.CandidateID, IdempotencyKey: body.IdempotencyKey, Brief: body.Brief, EnvelopeMM: body.EnvelopeMM, ReferenceMediaIDs: body.ReferenceMediaIDs, FundingRoute: fundingRoute, CorrectionSourceJobID: body.CorrectionSourceJobID, CorrectionRecipeSHA256: body.CorrectionRecipeSHA256, CorrectionFeedback: body.CorrectionFeedback})
+		job, created, err := c.SubmitGeometryCreation(r.Context(), renderjobs.GeometryCreationRequest{ProjectID: projectID, CandidateID: body.CandidateID, IdempotencyKey: body.IdempotencyKey, Brief: body.Brief, EnvelopeMM: body.EnvelopeMM, ReferenceMediaIDs: body.ReferenceMediaIDs, FundingRoute: fundingRoute, MaxCostMicros: body.MaxCostMicros, CorrectionSourceJobID: body.CorrectionSourceJobID, CorrectionMode: body.CorrectionMode, CorrectionRecipeSHA256: body.CorrectionRecipeSHA256, CorrectionFeedback: body.CorrectionFeedback})
 		if err != nil {
 			writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": safeCreationError(err)})
 			return

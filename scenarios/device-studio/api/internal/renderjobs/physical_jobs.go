@@ -48,6 +48,106 @@ type physicalClosure struct {
 	Manifest             rendering.PhysicalRenderManifest `json:"manifest"`
 }
 
+// QualificationRenderEvidence is the owner-verified native result and the
+// exact component/view binding read back from its immutable render closure.
+type QualificationRenderEvidence struct {
+	DeviceID, SceneID, MotionID                          string
+	DeviceRevision, SceneRevision, MotionRevision        uint32
+	DeviceSHA256, SceneSHA256, MotionSHA256              string
+	DisplayID, DeviceSupportID, SceneSupportID, CameraID string
+	OutputSHA256, OutputKind                             string
+	DeviceRootRest                                       physical.TRS
+	SceneSupportWorld                                    physical.TRS
+	SupportPivot                                         physical.Vec3
+}
+
+// ExportQualificationRender returns owner-verified evidence and the exact
+// completed output bytes for an explicit qualification handoff package.
+// Exporting preserves the original job identity as provenance; it creates no
+// render job in the destination store.
+func (c *Coordinator) ExportQualificationRender(ctx context.Context, projectID, jobID string) (QualificationRenderEvidence, []byte, error) {
+	proof, err := c.VerifyQualificationRender(ctx, projectID, jobID)
+	if err != nil {
+		return QualificationRenderEvidence{}, nil, err
+	}
+	job, err := c.GetProjectJob(ctx, projectID, jobID)
+	if err != nil {
+		return QualificationRenderEvidence{}, nil, err
+	}
+	var output *jobs.OutputRef
+	for i := len(job.Attempts) - 1; i >= 0 && output == nil; i-- {
+		if completion := job.Attempts[i].Completion; completion != nil {
+			for j := range completion.Outputs {
+				if completion.Outputs[j].SHA256 == proof.OutputSHA256 && completion.Outputs[j].Kind == proof.OutputKind {
+					output = &completion.Outputs[j]
+					break
+				}
+			}
+		}
+	}
+	if output == nil || output.SizeBytes <= 0 || output.SizeBytes > 64<<20 {
+		return QualificationRenderEvidence{}, nil, errors.New("renderjobs: qualification output is missing or exceeds package limit")
+	}
+	reader, _, err := c.blobs.Get(ctx, output.ArtifactID)
+	if err != nil {
+		return QualificationRenderEvidence{}, nil, err
+	}
+	defer reader.Close()
+	data, err := io.ReadAll(io.LimitReader(reader, (64<<20)+1))
+	if err != nil || int64(len(data)) != output.SizeBytes || digestBytes(data) != output.SHA256 {
+		return QualificationRenderEvidence{}, nil, errors.New("renderjobs: qualification output bytes do not match the completed render record")
+	}
+	return proof, data, nil
+}
+
+// VerifyQualificationRender reads the canonical closed render job, rather than
+// accepting a caller-supplied job/output digest as proof of native completion.
+func (c *Coordinator) VerifyQualificationRender(ctx context.Context, projectID, jobID string) (QualificationRenderEvidence, error) {
+	job, err := c.GetProjectJob(ctx, projectID, jobID)
+	if err != nil {
+		return QualificationRenderEvidence{}, err
+	}
+	if job.State != jobs.Succeeded || job.Input.SubjectKind != jobs.SubjectPhysicalRender || len(job.Attempts) == 0 {
+		return QualificationRenderEvidence{}, errors.New("renderjobs: qualification requires a succeeded physical render")
+	}
+	var output *jobs.OutputRef
+	for i := len(job.Attempts) - 1; i >= 0 && output == nil; i-- {
+		completion := job.Attempts[i].Completion
+		if completion == nil {
+			continue
+		}
+		for j := range completion.Outputs {
+			if completion.Outputs[j].Kind == "physical_still_png" || completion.Outputs[j].Kind == "physical_motion_mp4" {
+				output = &completion.Outputs[j]
+				break
+			}
+		}
+	}
+	if output == nil {
+		return QualificationRenderEvidence{}, errors.New("renderjobs: successful job has no qualified native output reference")
+	}
+	route, err := c.route(ctx)
+	if err != nil {
+		return QualificationRenderEvidence{}, err
+	}
+	closure, err := c.loadPhysicalClosure(ctx, route, job)
+	if err != nil {
+		return QualificationRenderEvidence{}, err
+	}
+	manifest := closure.Manifest
+	return QualificationRenderEvidence{
+		DeviceID: manifest.Device.ID, DeviceRevision: manifest.Device.Revision, DeviceSHA256: manifest.Device.CanonicalSHA,
+		SceneID: manifest.Scene.ID, SceneRevision: manifest.Scene.Revision, SceneSHA256: manifest.Scene.CanonicalSHA,
+		MotionID: manifest.Motion.ID, MotionRevision: manifest.Motion.Revision, MotionSHA256: manifest.Motion.CanonicalSHA,
+		DisplayID: manifest.Screen.DisplayID, DeviceSupportID: manifest.Placement.DeviceSupportID,
+		SceneSupportID: manifest.Placement.SceneSupportID, CameraID: manifest.Placement.SelectedCameraID,
+		OutputSHA256: output.SHA256, OutputKind: output.Kind,
+		DeviceRootRest:    manifest.Placement.DeviceRootRest,
+		SceneSupportWorld: manifest.Placement.SceneSupportWorld,
+		SupportPivot:      manifest.Placement.SupportPivot,
+	}, nil
+}
+
 func (c *Coordinator) submitPhysical(ctx context.Context, route routePin, req SubmitRequest, resolved shots.ResolvedShot) (jobs.Job, bool, error) {
 	if c.physicalArtifacts == nil || c.physicalProfile == nil || c.physicalAdapter == nil || resolved.Revision.Physical == nil {
 		return jobs.Job{}, false, errors.New("renderjobs: physical still owners are unavailable")

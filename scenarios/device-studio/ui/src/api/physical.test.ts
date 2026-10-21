@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getBundleRevisionMetadata, getReviewedPhysicalStarter, getPhysicalShotPresetRevision, initializePhysicalStarter, listDeviceCandidates, listMotionCandidates, listPhysicalShotPresets, listSceneCandidates, resolvePhysicalShotPreset } from "./physical";
+import { exportQualificationPackage, getBundleRevisionMetadata, getReviewedPhysicalStarter, getPhysicalShotPresetRevision, importQualificationPackage, initializePhysicalStarter, listDeviceCandidates, listMotionCandidates, listPhysicalShotPresets, listSceneCandidates, physicalStarterChoices, resolvePhysicalShotPreset, reviewDeviceCandidate } from "./physical";
 
 const clients = vi.hoisted(() => ({
   starter: { initializeReviewedStarter: vi.fn() },
-  devices: { getDeviceRevision: vi.fn(), listDeviceCandidates: vi.fn() },
+  devices: { getDeviceRevision: vi.fn(), listDeviceCandidates: vi.fn(), reviewDeviceCandidate: vi.fn(), exportQualificationPackage: vi.fn(), importQualificationPackage: vi.fn() },
   scenes: { getSceneRevision: vi.fn(), listSceneCandidates: vi.fn() },
   motions: { getMotionRevision: vi.fn(), listMotionCandidates: vi.fn() },
   library: { getBundleRevision: vi.fn() },
@@ -67,11 +67,44 @@ describe("initializePhysicalStarter", () => {
     await expect(initializePhysicalStarter("phone-default")).resolves.toMatchObject({ preset: { id: "phone-study-hero", revision: 1 } });
     expect(clients.starter.initializeReviewedStarter).toHaveBeenLastCalledWith({ starterId: "" });
   });
+
+  it("accepts the explicitly selected embedded reviewed smart-display starter", async () => {
+    clients.starter.initializeReviewedStarter.mockResolvedValue({ candidateOnly: false, selectedStarterId: "generic-smart-display-concept-v7-reviewed", initializedPreset: { id: "generic-smart-display-tabletop-still-v7", revision: 2, sha256: "a".repeat(64) } });
+    const result = await initializePhysicalStarter("generic-smart-display-concept-v7-reviewed");
+    expect(clients.starter.initializeReviewedStarter).toHaveBeenCalledWith({ starterId: "generic-smart-display-concept-v7-reviewed" });
+    expect(result.preset).toMatchObject({ id: "generic-smart-display-tabletop-still-v7", revision: 2 });
+    expect(result.refs.candidateOnly).toBe(false);
+  });
+  it.each([
+    "generic-round-watch-body-v4-floating-reviewed",
+    "generic-television-concept-v3-reviewed",
+    "generic-digital-frame-concept-v4-glassless-reviewed",
+    "generic-digital-frame-wall-v5-mounted-reviewed",
+    "generic-book-fold-v3-left-screen-vflip-static-reviewed",
+    "laptop-screen-vflip-reviewed",
+  ])("accepts the explicitly selected scoped reviewed starter %s", async (starterId) => {
+    clients.starter.initializeReviewedStarter.mockResolvedValue({ candidateOnly: false, selectedStarterId: starterId, initializedPreset: { id: "reviewed-preset", revision: 2, sha256: "a".repeat(64) } });
+    const result = await initializePhysicalStarter(starterId);
+    expect(result.refs.candidateOnly).toBe(false);
+    expect(result.preset.revision).toBe(2);
+  });
   it("rejects mismatched starter IDs and incomplete preset references", async () => {
     clients.starter.initializeReviewedStarter.mockResolvedValue({ candidateOnly: true, selectedStarterId: "generic-book-fold", initializedPreset: { id: "preset", revision: 1, sha256: "a".repeat(64) } });
     await expect(initializePhysicalStarter("laptop-screen-upright-180")).rejects.toThrow("different physical starter");
     clients.starter.initializeReviewedStarter.mockResolvedValue({ candidateOnly: true, selectedStarterId: "laptop-screen-upright-180", initializedPreset: { id: "preset", revision: 1, sha256: "bad" } });
     await expect(initializePhysicalStarter("laptop-screen-upright-180")).rejects.toThrow("exact candidate-only preset reference");
+  });
+});
+
+describe("physical starter choice labels", () => {
+  it("distinguishes historical rectangular watch sources from the new circular candidate and simulation-only vehicle hosts", () => {
+    const labels = new Map(physicalStarterChoices.map(({ id, label }) => [id, label]));
+    expect(labels.get("generic-round-watch")).toContain("Rectangular");
+    expect(labels.get("generic-round-watch-v2")).toContain("circular smartwatch");
+    expect(labels.get("generic-round-watch-body-v4-floating")).toContain("floating, no strap");
+    expect(labels.get("generic-smart-display-concept-v7-reviewed")).toContain("visual setup only");
+    expect(labels.get("generic-vehicle-dashboard-carplay-sim")).toContain("simulated screen");
+    expect(labels.get("generic-vehicle-dashboard-android-auto-sim")).toContain("simulated screen");
   });
 });
 
@@ -88,6 +121,27 @@ describe("physical component catalog clients", () => {
     expect(clients.devices.listDeviceCandidates).toHaveBeenCalledWith({ afterDeviceId: "device-cursor", pageSize: 100 });
     expect(clients.scenes.listSceneCandidates).toHaveBeenCalledWith({ afterSceneId: "scene-cursor", pageSize: 100 });
     expect(clients.motions.listMotionCandidates).toHaveBeenCalledWith({ afterMotionId: "motion-cursor", pageSize: 100 });
+  });
+
+  it("submits an explicit review only with exact project, candidate digest, and observed head", async () => {
+    const review = { scope: "physical_geometry" } as never;
+    clients.devices.reviewDeviceCandidate.mockResolvedValue({ revision: { deviceId: "device-1", revision: 3 } });
+    await reviewDeviceCandidate({ projectId: "project-1", deviceId: "device-1", candidateRevision: 2, candidateSha256: "a".repeat(64), expectedHead: 2, review });
+    expect(clients.devices.reviewDeviceCandidate).toHaveBeenCalledWith({ projectId: "project-1", deviceId: "device-1", candidateRevision: 2, candidateSha256: "a".repeat(64), expectedHead: 2, review });
+    await expect(reviewDeviceCandidate({ projectId: "../project", deviceId: "device-1", candidateRevision: 2, candidateSha256: "a".repeat(64), expectedHead: 2, review })).rejects.toThrow(/project, exact candidate/);
+    expect(clients.devices.reviewDeviceCandidate).toHaveBeenCalledTimes(1);
+  });
+
+  it("exports and imports bounded qualification packages through the owner API", async () => {
+    const bytes = new Uint8Array([1, 2, 3]);
+    clients.devices.exportQualificationPackage.mockResolvedValue({ packageJson: bytes });
+    await expect(exportQualificationPackage({ projectId: "project-1", deviceId: "device-1", qualifiedRevision: 3 })).resolves.toEqual(bytes);
+    expect(clients.devices.exportQualificationPackage).toHaveBeenCalledWith({ projectId: "project-1", deviceId: "device-1", qualifiedRevision: 3 });
+    clients.devices.importQualificationPackage.mockResolvedValue({ revision: { revision: 4 } });
+    await expect(importQualificationPackage(bytes, 2)).resolves.toMatchObject({ revision: { revision: 4 } });
+    expect(clients.devices.importQualificationPackage).toHaveBeenCalledWith({ packageJson: bytes, expectedHead: 2 });
+    await expect(importQualificationPackage(new Uint8Array(), 2)).rejects.toThrow("bounded qualification package");
+    await expect(exportQualificationPackage({ projectId: "../project", deviceId: "device-1", qualifiedRevision: 3 })).rejects.toThrow("project and exact qualified");
   });
 
   it("requires exact immutable bundle metadata and rejects invalid lookup keys", async () => {
@@ -119,6 +173,39 @@ describe("physical component catalog clients", () => {
     expect(clients.devices.getDeviceRevision).toHaveBeenCalledWith({ deviceId: "device-1", revision: 2 });
   });
 
+  it("recognizes only a transferred visual review whose immutable parent setup matches the qualified child", async () => {
+    const review = {
+      scope: "visual_setup", result: "passed", candidateRevision: 1, candidateSha256: "d".repeat(64),
+      presetId: "setup-1", presetRevision: 1, presetSha256: "e".repeat(64),
+      sceneId: "scene-1", sceneRevision: 3, sceneSha256: "b".repeat(64),
+      motionId: "motion-1", motionRevision: 4, motionSha256: "c".repeat(64),
+      displayIds: ["display-1"], supportIds: ["device-support"], allowedMotionIds: ["static"],
+      sourceBundleId: "bundle-1", sourceBundleRevision: 1, sourceManifestSha256: "1".repeat(64), sourceReviewSha256: "2".repeat(64),
+      sourceArtifactId: "model.glb", sourceArtifactSha256: "3".repeat(64), sourceAllowedUses: ["render"], dimensionStates: ["source_geometry_envelope"],
+    };
+    const geometry = { bundleId: "bundle-1", bundleRevision: 1, manifestSha256: "1".repeat(64), reviewSha256: "2".repeat(64), artifactId: "model.glb", sha256: "3".repeat(64) };
+    const parentSetup = {
+      device: { id: "device-1", revision: 1, sha256: "d".repeat(64) }, scene: { id: "scene-1", revision: 3, sha256: "b".repeat(64) },
+      motion: { id: "motion-1", revision: 4, sha256: "c".repeat(64) }, displayId: "display-1", deviceSupportId: "device-support", sceneSupportId: "table", cameraId: "camera-1",
+    };
+    const childSetup = { ...parentSetup, device: { id: "device-1", revision: 2, sha256: "a".repeat(64) } };
+    const child = { deviceId: "device-1", revision: 2, sha256: "a".repeat(64), state: "qualified", candidate: { geometry, definition: { qualification: "qualified", qualificationReviews: [review] } } };
+    const parent = { deviceId: "device-1", revision: 1, sha256: "d".repeat(64), state: "candidate", candidate: { geometry, definition: { qualification: "unqualified" } } };
+    const scene = { sceneId: "scene-1", revision: 3, sha256: "b".repeat(64), state: "candidate", candidate: { sceneId: "scene-1" } };
+    const motion = { motionId: "motion-1", revision: 4, sha256: "c".repeat(64), state: "candidate", candidate: { motionId: "motion-1" } };
+    const childPreset = { presetId: "setup-1", revision: 2, sha256: "f".repeat(64), candidateOnly: true, setup: childSetup };
+    const parentPreset = { presetId: "setup-1", revision: 1, sha256: "e".repeat(64), setup: parentSetup };
+    clients.presets.getPhysicalShotPreset.mockResolvedValue({ revision: childPreset });
+    clients.devices.getDeviceRevision.mockImplementation(({ revision }) => Promise.resolve({ revision: revision === 2 ? child : parent }));
+    clients.presets.getPhysicalShotPreset.mockImplementation(({ revision }) => Promise.resolve({ revision: revision === 2 ? childPreset : parentPreset }));
+    clients.scenes.getSceneRevision.mockResolvedValue({ revision: scene });
+    clients.motions.getMotionRevision.mockResolvedValue({ revision: motion });
+    await expect(resolvePhysicalShotPreset("setup-1", 2)).resolves.toMatchObject({ inheritedVisualSetupReview: review });
+
+    clients.presets.getPhysicalShotPreset.mockImplementation(({ revision }) => Promise.resolve({ revision: revision === 2 ? childPreset : { ...parentPreset, setup: { ...parentSetup, cameraId: "different-camera" } } }));
+    await expect(resolvePhysicalShotPreset("setup-1", 2)).resolves.toMatchObject({ inheritedVisualSetupReview: undefined });
+  });
+
   it("rejects preset revisions that are not candidate-only or whose component digest changed", async () => {
     clients.presets.getPhysicalShotPreset.mockResolvedValue({ revision: { presetId: "setup-1", revision: 1, candidateOnly: false, setup: {} } });
     await expect(getPhysicalShotPresetRevision("setup-1", 1)).rejects.toThrow("candidate-only physical setup");
@@ -130,4 +217,5 @@ describe("physical component catalog clients", () => {
     clients.motions.getMotionRevision.mockResolvedValue({ revision: { candidate: {}, sha256: "c".repeat(64) } });
     await expect(resolvePhysicalShotPreset("setup-1", 1)).rejects.toThrow("pinned digests");
   });
+
 });

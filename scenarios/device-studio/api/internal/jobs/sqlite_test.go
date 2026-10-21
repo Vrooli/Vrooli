@@ -185,8 +185,22 @@ func TestSuccessRequiresValidatedWorkerEvidenceAndPersistsAttempt(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.State != jobs.Succeeded || got.Attempts[0].Completion == nil || got.Attempts[0].Completion.Outputs[0].ArtifactID != "artifact-output" {
+	if got.State != jobs.Succeeded || got.InputFingerprint != j.InputFingerprint || got.Input.SourceClockDigest != j.Input.SourceClockDigest ||
+		got.Attempts[0].Completion == nil || len(got.Attempts[0].Completion.Outputs) != 1 ||
+		got.Attempts[0].Completion.Outputs[0].ArtifactID != good.Outputs[0].ArtifactID || got.Attempts[0].Completion.Outputs[0].SHA256 != good.Outputs[0].SHA256 {
 		t.Fatalf("completion receipt did not survive reopen: %#v", got)
+	}
+	replayed, created, err := svc2.Submit(context.Background(), jobs.SubmitInput{IdempotencyKey: "op-1", Input: j.Input})
+	if err != nil || created || replayed.ID != j.ID || replayed.State != jobs.Succeeded || replayed.Attempts[0].Completion == nil {
+		t.Fatalf("same render request did not replay its accepted result after reopen: created=%v job=%+v err=%v", created, replayed, err)
+	}
+	rerender, created, err := svc2.Submit(context.Background(), jobs.SubmitInput{IdempotencyKey: "op-1-explicit-rerender", Input: j.Input})
+	if err != nil || !created || rerender.ID == j.ID || rerender.State != jobs.Queued || rerender.InputFingerprint != j.InputFingerprint || rerender.Input.SourceClockDigest != j.Input.SourceClockDigest || rerender.Attempts[0].Completion != nil {
+		t.Fatalf("explicit rerender should create a fresh job over the same immutable source clock: created=%v job=%+v err=%v", created, rerender, err)
+	}
+	stillAccepted, err := svc2.Get(context.Background(), j.ID)
+	if err != nil || stillAccepted.State != jobs.Succeeded || stillAccepted.Attempts[0].Completion == nil || stillAccepted.Attempts[0].Completion.Outputs[0].SHA256 != good.Outputs[0].SHA256 {
+		t.Fatalf("new rerender changed the previous accepted output: job=%+v err=%v", stillAccepted, err)
 	}
 	if _, err = svc2.Complete(context.Background(), j.ID, running.Attempts[0].ID, good, got.Version); !errors.Is(err, jobs.ErrInvalidTransition) {
 		t.Fatalf("terminal job accepted second completion: %v", err)

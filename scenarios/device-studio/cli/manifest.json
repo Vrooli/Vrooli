@@ -1102,6 +1102,47 @@
           "architecture": {
             "primitive": "proto_list"
           }
+        },
+        {
+          "name": "review",
+          "description": "Append an explicit scoped physical qualification review using a complete evidence receipt",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Exact device candidate ID" }
+          ],
+          "flags": [
+            { "name": "revision", "required": true, "description": "Exact candidate revision" },
+            { "name": "sha256", "required": true, "description": "Exact candidate digest" },
+            { "name": "expected-head", "required": true, "description": "Observed device head revision" },
+            { "name": "project-id", "required": true, "description": "Project owning the native render evidence" },
+            { "name": "review-file", "required": true, "description": "Complete QualificationReview proto-JSON file" }
+          ],
+          "binding": { "kind": "local", "handler": "review" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "action" }
+        },
+        {
+          "name": "export-qualification-package",
+          "description": "Export an accepted scoped review while its source native job is available",
+          "positionals": [{ "name": "id", "required": true, "description": "Exact qualified device ID" }],
+          "flags": [
+            { "name": "revision", "required": true, "description": "Exact qualified device revision" },
+            { "name": "project-id", "required": true, "description": "Project owning the completed native render job" },
+            { "name": "output-file", "required": true, "description": "Destination JSON package path" }
+          ],
+          "binding": { "kind": "local", "handler": "export-qualification-package" },
+          "governance": { "effect": "read", "run_eligible": false, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "action" }
+        },
+        {
+          "name": "import-qualification-package",
+          "description": "Operator-authorized transfer of an exact scoped human review package",
+          "flags": [
+            { "name": "package-file", "required": true, "description": "Qualification package JSON file" },
+            { "name": "expected-head", "required": true, "description": "Observed destination device head revision" }
+          ],
+          "binding": { "kind": "local", "handler": "import-qualification-package" },
+          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "action" }
         }
       ]
     },

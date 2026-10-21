@@ -1,5 +1,5 @@
 import { createClient } from "@connectrpc/connect";
-import { DevicesService, type DeviceRevision } from "@vrooli/proto-types/device-studio/v1/devices/devices_pb";
+import { DevicesService, type DeviceRevision, type QualificationReview } from "@vrooli/proto-types/device-studio/v1/devices/devices_pb";
 import { ScenesService, type SceneRevision } from "@vrooli/proto-types/device-studio/v1/scenes/scenes_pb";
 import { MotionsService, type MotionRevision } from "@vrooli/proto-types/device-studio/v1/motions/motions_pb";
 import { PhysicalStarterService, type InitializeReviewedStarterResponse } from "@vrooli/proto-types/device-studio/v1/physical/physical_pb";
@@ -33,6 +33,52 @@ export async function getPhysicalShotPresetRevision(presetId: string, revision: 
   return preset;
 }
 
+function stableJSON(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableJSON).join(",")}]`;
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${stableJSON(record[key])}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function sameSetupExceptDevice(left: PhysicalShotPresetRevision["setup"], right: PhysicalShotPresetRevision["setup"]): boolean {
+  if (!left || !right) return false;
+  const { device: _leftDevice, ...leftRest } = left;
+  const { device: _rightDevice, ...rightRest } = right;
+  return stableJSON(leftRest) === stableJSON(rightRest);
+}
+
+async function findInheritedVisualSetupReview(preset: PhysicalShotPresetRevision, device: DeviceRevision, scene: SceneRevision, motion: MotionRevision): Promise<QualificationReview | undefined> {
+  const currentSetup = preset.setup;
+  const candidate = device.candidate;
+  if (!currentSetup || !candidate || device.state !== "qualified" || candidate.definition?.qualification !== "qualified") return undefined;
+  const geometry = candidate.geometry;
+  for (const review of candidate.definition.qualificationReviews ?? []) {
+    if (review.scope !== "visual_setup" || review.result !== "passed" || review.candidateRevision + 1 !== device.revision || review.presetId !== preset.presetId || review.presetRevision + 1 !== preset.revision || review.allowedMotionIds.length !== 1 || review.allowedMotionIds[0] !== "static") continue;
+    if (review.sceneId !== scene.sceneId || review.sceneRevision !== scene.revision || review.sceneSha256 !== scene.sha256 ||
+      review.motionId !== motion.motionId || review.motionRevision !== motion.revision || review.motionSha256 !== motion.sha256 ||
+      !currentSetup.displayId || !review.displayIds.includes(currentSetup.displayId) || !currentSetup.deviceSupportId || !review.supportIds.includes(currentSetup.deviceSupportId) ||
+      !geometry || review.sourceBundleId !== geometry.bundleId || review.sourceBundleRevision !== geometry.bundleRevision || review.sourceManifestSha256 !== geometry.manifestSha256 || review.sourceReviewSha256 !== geometry.reviewSha256 || review.sourceArtifactId !== geometry.artifactId || review.sourceArtifactSha256 !== geometry.sha256 || !review.sourceAllowedUses.includes("render")) continue;
+
+    const [parentDeviceResponse, parentPresetResponse] = await Promise.all([
+      devicesClient.getDeviceRevision({ deviceId: device.deviceId, revision: review.candidateRevision }),
+      physicalShotPresetsClient.getPhysicalShotPreset({ presetId: review.presetId, revision: review.presetRevision }),
+    ]);
+    const parentDevice = parentDeviceResponse.revision;
+    const parentPreset = parentPresetResponse.revision;
+    if (!parentDevice?.candidate || parentDevice.state !== "candidate" || parentDevice.sha256 !== review.candidateSha256 ||
+      parentDevice.candidate.definition?.qualification !== "unqualified" || stableJSON(parentDevice.candidate.geometry) !== stableJSON(candidate.geometry) ||
+      !parentPreset?.setup || parentPreset.sha256 !== review.presetSha256 || parentPreset.presetId !== preset.presetId ||
+      parentPreset.setup.device?.id !== device.deviceId || parentPreset.setup.device.revision !== review.candidateRevision || parentPreset.setup.device.sha256 !== review.candidateSha256 ||
+      parentPreset.setup.scene?.id !== review.sceneId || parentPreset.setup.scene.revision !== review.sceneRevision || parentPreset.setup.scene.sha256 !== review.sceneSha256 ||
+      parentPreset.setup.motion?.id !== review.motionId || parentPreset.setup.motion.revision !== review.motionRevision || parentPreset.setup.motion.sha256 !== review.motionSha256 ||
+      !sameSetupExceptDevice(parentPreset.setup, currentSetup) || currentSetup.device?.id !== device.deviceId || currentSetup.device.revision !== device.revision || currentSetup.device.sha256 !== device.sha256) continue;
+    return review;
+  }
+  return undefined;
+}
+
 export async function resolvePhysicalShotPreset(presetId: string, revision: number) {
   const preset = await getPhysicalShotPresetRevision(presetId, revision);
   const setup = preset.setup;
@@ -51,11 +97,35 @@ export async function resolvePhysicalShotPreset(presetId: string, revision: numb
       motion.motionId !== setup.motion.id || motion.revision !== setup.motion.revision || motion.sha256 !== setup.motion.sha256) {
     throw new Error("The saved setup's component revisions do not match their pinned digests.");
   }
-  return { preset, device, scene, motion };
+  const inheritedVisualSetupReview = await findInheritedVisualSetupReview(preset, device, scene, motion);
+  return { preset, device, scene, motion, inheritedVisualSetupReview };
 }
 
 export function listDeviceCandidates(afterDeviceId = "") {
   return devicesClient.listDeviceCandidates({ afterDeviceId, pageSize: 100 });
+}
+
+export async function reviewDeviceCandidate(input: { projectId: string; deviceId: string; candidateRevision: number; candidateSha256: string; expectedHead: number; review: QualificationReview }) {
+  if (!stableCatalogID(input.deviceId) || !stableCatalogID(input.projectId) || !Number.isSafeInteger(input.candidateRevision) || input.candidateRevision < 1 || !Number.isSafeInteger(input.expectedHead) || input.expectedHead < 0 || !/^[a-f0-9]{64}$/i.test(input.candidateSha256)) {
+    throw new Error("A project, exact candidate revision/digest, and observed head are required for physical review.");
+  }
+  return devicesClient.reviewDeviceCandidate(input);
+}
+
+export async function exportQualificationPackage(input: { projectId: string; deviceId: string; qualifiedRevision: number }) {
+  if (!stableCatalogID(input.projectId) || !stableCatalogID(input.deviceId) || !Number.isSafeInteger(input.qualifiedRevision) || input.qualifiedRevision < 1) {
+    throw new Error("A project and exact qualified device revision are required to export a scoped review package.");
+  }
+  const response = await devicesClient.exportQualificationPackage(input);
+  if (!response.packageJson.length || response.packageJson.length > 128 * 1024 * 1024) throw new Error("The qualification package is empty or exceeds the 128 MiB limit.");
+  return response.packageJson;
+}
+
+export async function importQualificationPackage(packageJson: Uint8Array, expectedHead: number) {
+  if (!packageJson.length || packageJson.length > 128 * 1024 * 1024 || !Number.isSafeInteger(expectedHead) || expectedHead < 0) {
+    throw new Error("A bounded qualification package and observed device head are required.");
+  }
+  return devicesClient.importQualificationPackage({ packageJson, expectedHead });
 }
 
 export function listSceneCandidates(afterSceneId = "") {
@@ -109,15 +179,42 @@ export const physicalStarterChoices = [
   { id: "laptop-screen-vflip", label: "Laptop screen vertical flip · candidate only · unqualified" },
   { id: "ipad-screen-uv-oriented-180", label: "iPad screen oriented · candidate only · unqualified" },
   { id: "monitor-screen-mapped-v2", label: "Generic ultrawide monitor · candidate only · unqualified" },
-  { id: "generic-round-watch", label: "Generic watch · candidate only · unqualified" },
-  { id: "generic-round-smartwatch-source", label: "Generic round smartwatch · source-derived · candidate only · unqualified" },
+  { id: "generic-round-watch", label: "Rectangular smartwatch source · historical candidate · unqualified" },
+  { id: "generic-round-smartwatch-source", label: "Square-faced source smartwatch · historical candidate · unqualified" },
+  { id: "generic-round-watch-v2", label: "Generic circular smartwatch v2 · authored candidate · unqualified" },
+  { id: "generic-round-watch-v3", label: "Generic circular smartwatch v3 · corrected strap cap shading · candidate only · unqualified" },
+  { id: "generic-round-watch-body-v4-floating", label: "Generic round-watch body v4 · floating, no strap · candidate only · unqualified" },
+  { id: "generic-round-watch-body-v4-floating-reviewed", label: "Reviewed round-watch body v4 · floating, no strap · static visual setup only" },
   { id: "generic-television-concept", label: "Generic television · authored concept · candidate only · unqualified" },
+  { id: "generic-television-concept-v3", label: "Generic thin-bezel 43-inch television v3 · authored candidate · unqualified" },
+  { id: "generic-television-concept-v3-reviewed", label: "Reviewed generic television v3 · static visual setup only" },
   { id: "generic-book-fold", label: "Generic book-fold concept · candidate only · unqualified" },
+  { id: "generic-book-fold-v3-left-screen-vflip", label: "Generic book-fold concept v3 · left-screen UV review · candidate only" },
+  { id: "generic-book-fold-v3-left-screen-vflip-static", label: "Generic book-fold concept v3 · static still review · candidate only" },
+  { id: "generic-book-fold-v3-left-screen-vflip-static-reviewed", label: "Reviewed generic book-fold v3 · left-screen static visual setup only" },
   { id: "generic-smart-display-concept", label: "Generic wedge smart display · authored concept · candidate only · unqualified" },
-  { id: "generic-digital-frame-concept", label: "Generic digital frame · tabletop candidate · unqualified" },
-  { id: "generic-digital-frame-wall", label: "Generic digital frame · wall candidate · unqualified" },
+  { id: "generic-smart-display-concept-v3", label: "Generic smart display v3 · original appearance candidate · unqualified" },
+  { id: "generic-smart-display-concept-v4", label: "Generic smart display v4 · smoothed shell candidate · unqualified" },
+  { id: "generic-smart-display-concept-v5", label: "Generic smart display v5 · higher-resolution rounded shell · candidate only · unqualified" },
+  { id: "generic-smart-display-concept-v6", label: "Generic smart display v6 · continuous rounded-shell normals · candidate only" },
+  { id: "generic-smart-display-concept-v7", label: "Generic smart display v7 · coplanar bezel-cap repair · candidate only · unqualified" },
+  { id: "generic-smart-display-concept-v7-reviewed", label: "Reviewed generic smart display v7 · visual setup only · unknown dimensions retained" },
+  { id: "generic-digital-frame-concept", label: "Generic digital frame · tabletop · original candidate · unqualified" },
+  { id: "generic-digital-frame-wall", label: "Generic digital frame · wall · original candidate · unqualified" },
+  { id: "generic-digital-frame-concept-v4-glassless", label: "Generic digital frame v4 · tabletop · protective glass omitted for screen visibility · candidate only · unqualified" },
+  { id: "generic-digital-frame-concept-v4-glassless-reviewed", label: "Reviewed generic digital frame v4 · tabletop · static visual setup only · glass omitted" },
+  { id: "generic-digital-frame-wall-v4-glassless", label: "Generic digital frame v4 · wall · protective glass omitted for screen visibility · candidate only · unqualified" },
+  { id: "generic-digital-frame-wall-v5-mounted", label: "Generic digital frame v5 · wall cleat seated behind frame · candidate only · unqualified" },
+  { id: "generic-digital-frame-wall-v5-mounted-reviewed", label: "Reviewed generic digital frame v5 · wall mounted · static visual setup only" },
+  { id: "laptop-screen-vflip-reviewed", label: "Reviewed laptop screen vflip · static visual setup only · CC BY source attribution retained" },
   { id: "generic-vehicle-center-stack-carplay-sim", label: "Generic center stack · CarPlay-style simulation · unqualified" },
   { id: "generic-vehicle-center-stack-android-auto-sim", label: "Generic center stack · Android Auto-style simulation · unqualified" },
+  { id: "generic-vehicle-dashboard-carplay-sim", label: "Grab3D generic dashboard · CarPlay-style simulated screen · unqualified" },
+  { id: "generic-vehicle-dashboard-android-auto-sim", label: "Grab3D generic dashboard · Android Auto-style simulated screen · unqualified" },
+  { id: "generic-vehicle-dashboard-carplay-studio-v1", label: "Generic dashboard host · neutral studio wall · CarPlay-style screen simulation · candidate only" },
+  { id: "generic-vehicle-dashboard-android-auto-studio-v1", label: "Generic dashboard host · neutral studio wall · Android Auto-style screen simulation · candidate only" },
+  { id: "generic-vehicle-dashboard-carplay-studio-v2", label: "Generic dashboard host · neutral studio wall v2 · CarPlay-style screen simulation · candidate only" },
+  { id: "generic-vehicle-dashboard-android-auto-studio-v2", label: "Generic dashboard host · neutral studio wall v2 · Android Auto-style screen simulation · candidate only" },
 ] as const;
 
 export async function initializePhysicalStarter(starterId: string) {
@@ -126,8 +223,14 @@ export async function initializePhysicalStarter(starterId: string) {
   const refs = await physicalStarterClient.initializeReviewedStarter({ starterId: starterId === "phone-default" ? "" : starterId });
   const preset = starterId === "phone-default" ? refs.phoneStudyPreset : refs.initializedPreset;
   if (starterId !== "phone-default" && refs.selectedStarterId !== starterId) throw new Error("The server returned a different physical starter than requested.");
-  if (!refs.candidateOnly || !preset?.id || !stableCatalogID(preset.id) || !Number.isSafeInteger(preset.revision) || preset.revision < 1 || !/^[a-f0-9]{64}$/i.test(preset.sha256)) {
-    throw new Error("The physical starter did not return an exact candidate-only preset reference.");
+  const mayReturnScopedQualified = new Set([
+    "generic-smart-display-concept-v7", "generic-smart-display-concept-v7-reviewed",
+    "generic-round-watch-body-v4-floating-reviewed", "generic-television-concept-v3-reviewed",
+    "generic-digital-frame-concept-v4-glassless-reviewed", "generic-digital-frame-wall-v5-mounted-reviewed",
+    "generic-book-fold-v3-left-screen-vflip-static-reviewed", "laptop-screen-vflip-reviewed",
+  ]).has(starterId);
+  if ((!refs.candidateOnly && !mayReturnScopedQualified) || !preset?.id || !stableCatalogID(preset.id) || !Number.isSafeInteger(preset.revision) || preset.revision < 1 || !/^[a-f0-9]{64}$/i.test(preset.sha256)) {
+    throw new Error("The physical starter did not return an exact candidate-only preset reference or explicitly reviewed preset reference.");
   }
   return { refs, preset };
 }

@@ -98,6 +98,8 @@ type CreationLineage struct {
 	InputTokens            int64                       `json:"input_tokens,omitempty"`
 	OutputTokens           int64                       `json:"output_tokens,omitempty"`
 	CostMicros             int64                       `json:"cost_micros,omitempty"`
+	CreditsCharged         *int64                      `json:"credits_charged,omitempty"`
+	AccountingStatus       string                      `json:"accounting_status,omitempty"`
 	InputTokensProvenance  inferencev1.UsageProvenance `json:"input_tokens_provenance"`
 	OutputTokensProvenance inferencev1.UsageProvenance `json:"output_tokens_provenance"`
 	CostProvenance         inferencev1.UsageProvenance `json:"cost_provenance"`
@@ -107,6 +109,8 @@ type CreationLineage struct {
 }
 
 type CreationCorrectionSource struct {
+	Mode             string `json:"mode,omitempty"`
+	Feedback         string `json:"feedback,omitempty"`
 	JobID            string `json:"job_id"`
 	InputFingerprint string `json:"input_fingerprint"`
 	BriefSHA256      string `json:"brief_sha256"`

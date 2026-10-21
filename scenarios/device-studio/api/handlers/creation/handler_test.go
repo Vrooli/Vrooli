@@ -28,6 +28,28 @@ type fakeCoordinator struct {
 	correctionErr error
 }
 
+type fakeSessionCoordinator struct {
+	*fakeCoordinator
+	request  renderjobs.GeometrySessionRequest
+	refine   renderjobs.GeometrySessionRefinementRequest
+	snapshot renderjobs.GeometrySessionSnapshot
+}
+
+func (f *fakeSessionCoordinator) CreateGeometrySession(_ context.Context, r renderjobs.GeometrySessionRequest) (renderjobs.GeometrySessionSnapshot, error) {
+	f.request = r
+	return f.snapshot, nil
+}
+func (f *fakeSessionCoordinator) GetGeometrySession(context.Context, string) (renderjobs.GeometrySessionSnapshot, error) {
+	return f.snapshot, nil
+}
+func (f *fakeSessionCoordinator) RefineGeometrySession(_ context.Context, _ string, r renderjobs.GeometrySessionRefinementRequest) (renderjobs.GeometrySessionSnapshot, error) {
+	f.refine = r
+	return f.snapshot, nil
+}
+func (f *fakeSessionCoordinator) CancelGeometrySession(context.Context, string, int64) (renderjobs.GeometrySessionSnapshot, error) {
+	return f.snapshot, nil
+}
+
 func (f *fakeCoordinator) SubmitGeometryCreation(_ context.Context, r renderjobs.GeometryCreationRequest) (jobs.Job, bool, error) {
 	f.calls++
 	f.request = r
@@ -100,6 +122,30 @@ func TestCreateRequiresExplicitLocalAIDisclosureAndPinsProjectRoute(t *testing.T
 	}
 	if c.request.ProjectID != "project-1" || c.request.CandidateID != "candidate-1" || len(c.request.ReferenceMediaIDs) != 1 {
 		t.Fatalf("project-scoped request changed: %+v", c.request)
+	}
+}
+
+func TestSessionEndpointsPinProjectAndReturnScopeConfirmationWithoutActivation(t *testing.T) {
+	f := &fakeSessionCoordinator{fakeCoordinator: &fakeCoordinator{}, snapshot: renderjobs.GeometrySessionSnapshot{SessionID: "session-1", State: jobs.RunScopeActive, Version: 1}}
+	create := httptest.NewRequest(http.MethodPost, "/api/v1/projects/project-1/geometry-creation-sessions", strings.NewReader(`{"candidate_id":"candidate-1","idempotency_key":"session-key","brief":"field device","envelope_mm":[80,150,12],"reference_media_ids":["media-1"],"confirm_local_ai":true}`))
+	create = mux.SetURLVars(create, map[string]string{"project_id": "project-1"})
+	created := httptest.NewRecorder()
+	createSessionHandler(f, nil)(created, create)
+	if created.Code != http.StatusAccepted || f.request.ProjectID != "project-1" || !f.request.ConfirmLocalAI {
+		t.Fatalf("session create did not bind the route project and explicit consent: status=%d request=%#v", created.Code, f.request)
+	}
+
+	f.snapshot.NeedsConfirmation, f.snapshot.ChangedScope = true, []string{"reference_media_ids"}
+	activator := &routeActivatorStub{}
+	refine := httptest.NewRequest(http.MethodPost, "/api/v1/geometry-creation-sessions/session-1/refinements", strings.NewReader(`{"candidate_id":"candidate-2","idempotency_key":"refine-key","brief":"field device","envelope_mm":[80,150,12],"reference_media_ids":["media-2"],"confirm_local_ai":true}`))
+	refine = mux.SetURLVars(refine, map[string]string{"session_id": "session-1"})
+	response := httptest.NewRecorder()
+	refineSessionHandler(f, activator)(response, refine)
+	if response.Code != http.StatusConflict || activator.calls != 0 {
+		t.Fatalf("unconfirmed scope expansion must not activate or dispatch: status=%d activations=%d", response.Code, activator.calls)
+	}
+	if f.refine.ProjectID != "" || f.refine.ConfirmScopeExpansion {
+		t.Fatalf("refinement accepted a caller-supplied project or implicit scope expansion: %#v", f.refine)
 	}
 }
 

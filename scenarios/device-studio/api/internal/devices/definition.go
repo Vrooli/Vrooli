@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"device-studio/internal/physical"
 )
@@ -135,9 +136,9 @@ type DisplaySurface struct {
 type Vector3 = physical.Vec3
 
 type Joint struct {
-	ID           string     `json:"id"`
-	ParentPart   string     `json:"parent_part"`
-	ChildPart    string     `json:"child_part"`
+	ID         string `json:"id"`
+	ParentPart string `json:"parent_part"`
+	ChildPart  string `json:"child_part"`
 	// Axis and PivotMeters use the ParentPart local frame in DeviceCandidate v1.
 	Axis         *Vector3   `json:"axis,omitempty"`
 	PivotMeters  *Vector3   `json:"pivot_m,omitempty"`
@@ -178,10 +179,37 @@ type SupportCapability struct {
 }
 
 type QualificationReview struct {
-	Scope    string     `json:"scope"`
-	Result   string     `json:"result"` // passed, rejected
-	Reviewer string     `json:"reviewer"`
-	Evidence []Evidence `json:"evidence"`
+	Scope                    string     `json:"scope"`
+	Result                   string     `json:"result"` // passed, rejected
+	Reviewer                 string     `json:"reviewer"`
+	Evidence                 []Evidence `json:"evidence"`
+	CandidateRevision        uint32     `json:"candidate_revision"`
+	CandidateSHA256          string     `json:"candidate_sha256"`
+	SourceBundleID           string     `json:"source_bundle_id"`
+	SourceBundleRevision     uint32     `json:"source_bundle_revision"`
+	SourceManifestSHA256     string     `json:"source_manifest_sha256"`
+	SourceReviewSHA256       string     `json:"source_review_sha256"`
+	SourceArtifactID         string     `json:"source_artifact_id"`
+	SourceArtifactSHA256     string     `json:"source_artifact_sha256"`
+	SourceAllowedUses        []string   `json:"source_allowed_uses"`
+	DimensionStates          []string   `json:"dimension_states"`
+	DisplayIDs               []string   `json:"display_ids"`
+	AllowedMotionIDs         []string   `json:"allowed_motion_ids"`
+	SupportIDs               []string   `json:"support_ids"`
+	PresetID                 string     `json:"preset_id"`
+	PresetRevision           uint32     `json:"preset_revision"`
+	PresetSHA256             string     `json:"preset_sha256"`
+	SceneID                  string     `json:"scene_id"`
+	SceneRevision            uint32     `json:"scene_revision"`
+	SceneSHA256              string     `json:"scene_sha256"`
+	MotionID                 string     `json:"motion_id"`
+	MotionRevision           uint32     `json:"motion_revision"`
+	MotionSHA256             string     `json:"motion_sha256"`
+	NativeRenderJobID        string     `json:"native_render_job_id"`
+	NativeOutputSHA256       string     `json:"native_output_sha256"`
+	NativeOutputKind         string     `json:"native_output_kind"`
+	RightsClaimsAcknowledged bool       `json:"rights_claims_acknowledged"`
+	ReviewedAt               string     `json:"reviewed_at"`
 }
 
 type ModelCandidate struct {
@@ -293,8 +321,8 @@ func (d Definition) Validate() error {
 	if d.Qualification != "unqualified" && d.Qualification != "qualified" {
 		return fmt.Errorf("%s: invalid qualification status %q", d.ID, d.Qualification)
 	}
-	if d.Qualification == "qualified" && !hasPassedReview(d, "physical_geometry") {
-		return fmt.Errorf("%s: qualified status requires a passed physical_geometry review with reviewer and evidence", d.ID)
+	if d.Qualification == "qualified" && !hasPassedReview(d, "physical_geometry") && !hasPassedReview(d, "visual_setup") {
+		return fmt.Errorf("%s: qualified status requires a passed scoped review with reviewer and evidence", d.ID)
 	}
 	for _, source := range d.Provenance {
 		if strings.TrimSpace(source.Source) == "" || strings.TrimSpace(source.Kind) == "" {
@@ -302,8 +330,8 @@ func (d Definition) Validate() error {
 		}
 	}
 	for _, review := range d.QualificationReviews {
-		if review.Scope == "" || (review.Result != "passed" && review.Result != "rejected") {
-			return fmt.Errorf("%s: invalid qualification review", d.ID)
+		if err := validateQualificationReview(review, d.Qualification == "qualified"); err != nil {
+			return fmt.Errorf("%s: invalid qualification review: %w", d.ID, err)
 		}
 	}
 	if len(d.Dimensions) == 0 {
@@ -473,6 +501,40 @@ func (d Definition) Validate() error {
 		}
 		if a.Status != "candidate_only" && a.Status != "not_acquired" && a.Status != "not_inspected" {
 			return fmt.Errorf("%s model %s: invalid candidate status %q", d.ID, a.ID, a.Status)
+		}
+	}
+	return nil
+}
+
+func validateQualificationReview(review QualificationReview, requireComplete bool) error {
+	if (review.Scope != "physical_geometry" && review.Scope != "visual_setup") || (review.Result != "passed" && review.Result != "rejected") || strings.TrimSpace(review.Reviewer) == "" || !hasEvidence(review.Evidence) {
+		return errors.New("scope, decision, reviewer, and evidence are required")
+	}
+	if !requireComplete && review.Result == "rejected" {
+		return nil
+	}
+	if review.Result != "passed" || review.CandidateRevision == 0 || !sha256Pattern.MatchString(review.CandidateSHA256) ||
+		review.SourceBundleID == "" || review.SourceBundleRevision == 0 || !sha256Pattern.MatchString(review.SourceManifestSHA256) || !sha256Pattern.MatchString(review.SourceReviewSHA256) ||
+		review.SourceArtifactID == "" || !sha256Pattern.MatchString(review.SourceArtifactSHA256) || !review.RightsClaimsAcknowledged ||
+		review.PresetID == "" || review.PresetRevision == 0 || !sha256Pattern.MatchString(review.PresetSHA256) ||
+		review.SceneID == "" || review.SceneRevision == 0 || !sha256Pattern.MatchString(review.SceneSHA256) ||
+		review.MotionID == "" || review.MotionRevision == 0 || !sha256Pattern.MatchString(review.MotionSHA256) ||
+		review.NativeRenderJobID == "" || !sha256Pattern.MatchString(review.NativeOutputSHA256) || review.NativeOutputKind == "" {
+		return errors.New("passed review needs exact source, scope, preset, scene/motion, native output and rights bindings")
+	}
+	if _, err := time.Parse(time.RFC3339, review.ReviewedAt); err != nil {
+		return errors.New("reviewed_at must be an RFC3339 timestamp")
+	}
+	for label, values := range map[string][]string{"source_allowed_uses": review.SourceAllowedUses, "dimension_states": review.DimensionStates, "display_ids": review.DisplayIDs, "allowed_motion_ids": review.AllowedMotionIDs, "support_ids": review.SupportIDs} {
+		if len(values) == 0 {
+			return fmt.Errorf("%s must explicitly list reviewed scope", label)
+		}
+		seen := make(map[string]bool, len(values))
+		for _, value := range values {
+			if strings.TrimSpace(value) == "" || seen[value] {
+				return fmt.Errorf("%s contains an empty or duplicate item", label)
+			}
+			seen[value] = true
 		}
 	}
 	return nil

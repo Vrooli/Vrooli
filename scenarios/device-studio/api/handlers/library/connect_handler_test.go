@@ -112,3 +112,43 @@ func TestCatalogPageBoundAndMissingRevisionErrors(t *testing.T) {
 	require.ErrorAs(t, err, &connectErr)
 	require.Equal(t, connect.CodeNotFound, connectErr.Code())
 }
+
+type correctionIntakeStub struct{ candidate domain.IntakeCandidate }
+
+func (s correctionIntakeStub) Get(context.Context, string, uint32) (domain.IntakeCandidate, error) {
+	return s.candidate, nil
+}
+
+func (correctionIntakeStub) List(context.Context, string, int) ([]domain.IntakeCandidate, error) {
+	return nil, nil
+}
+
+func TestGetIntakeCandidateProjectsExactCreationCorrectionLineage(t *testing.T) {
+	correction := &domain.CreationCorrectionSource{
+		Mode:             "visual_refinement",
+		Feedback:         "Keep the authored envelope and refine the bezel.",
+		JobID:            "source-job",
+		InputFingerprint: "input-fingerprint",
+		BriefSHA256:      "brief-digest",
+		RecipeSHA256:     "recipe-digest",
+	}
+	candidate := domain.IntakeCandidate{
+		ID:       "creation-candidate",
+		Revision: 3,
+		Creation: &domain.CreationLineage{CorrectionSource: correction},
+	}
+	response, err := NewConnectHandlerWithIntake(nil, correctionIntakeStub{candidate: candidate}).GetIntakeCandidate(
+		context.Background(),
+		connect.NewRequest(&v1.GetIntakeCandidateRequest{CandidateId: candidate.ID, Revision: candidate.Revision}),
+	)
+	require.NoError(t, err)
+	require.NotNil(t, response.Msg.Candidate.CreationLineage)
+	got := response.Msg.Candidate.CreationLineage.CorrectionSource
+	require.NotNil(t, got)
+	require.Equal(t, correction.Mode, got.Mode)
+	require.Equal(t, correction.Feedback, got.Feedback)
+	require.Equal(t, correction.JobID, got.JobId)
+	require.Equal(t, correction.InputFingerprint, got.InputFingerprint)
+	require.Equal(t, correction.BriefSHA256, got.BriefSha256)
+	require.Equal(t, correction.RecipeSHA256, got.RecipeSha256)
+}

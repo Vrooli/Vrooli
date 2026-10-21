@@ -130,6 +130,22 @@ uncertain-charge reconciliation contracts are integrated. Public references
 can be recorded locally without remote upload; external media remains opt-in
 and `external_ai_upload` is not an import right.
 
+### Explicit physical qualification workflow
+
+Qualification is a separate operator action over an exact immutable device
+candidate revision. The review records the source bundle manifest/review/artifact
+digests and permitted uses, rights claims, dimensions and uncertainty, display
+views/masks, motion and pose scope, mount/support interfaces, and an inspected
+native-output job and SHA-256. The shared device revision owner validates the
+evidence and appends a qualified revision bound to the candidate's exact parent
+revision and digest. Any stale or changed input, missing evidence, incompatible
+rights/use, or unsupported scope blocks promotion. Rejection is retained as a
+review decision without changing or deleting the candidate. Import, deterministic
+correction, starter initialization, AI generation, and renderer success do not
+promote automatically. The action is available through the same public owner API,
+CLI, and workbench, and does not make a legal rights guarantee or bypass Library
+review.
+
 ### E5-C: deterministic imported-model material correction
 
 E5-C adds a local deterministic edit to an already imported GLB. It does not
@@ -598,37 +614,66 @@ media owner contract exists; this geometry-chat route does not fund it.
 The remote geometry route accepts one explicit total ceiling in USD micro-units
 as immutable job input. It is an upper bound, not an estimate or an instruction
 to spend that amount. Gateway admission derives a finite prompt-token bound from
-the selected model's declared context window and output cap, and bounds attached
-images by their existing request count. If any of these limits, the current
-price snapshot, a required price class, or the provider's request cap cannot be
-established, the request is refused before provider dispatch.
+current owner-resolved endpoint context metadata and the output cap, and bounds
+attached images by their existing request count. If any of these limits, a
+required provider price class, or the provider's request cap cannot be
+enforced, the request is refused before provider dispatch.
 
-For BYOK, the OpenRouter owner resolves one pinned model and a bounded set of
-eligible endpoints. It applies `require_parameters`, disables implicit
-fallbacks, restricts the allowed endpoint set, and sends `provider.max_price`
-for prompt, completion, per-request, and per-image prices. Those four caps are
-budget allocations whose worst-case aggregate (bounded prompt tokens times
-prompt price, output cap times completion price, image count times image price,
-and one request fee) cannot exceed the user's ceiling. The underlying provider
+For BYOK, the OpenRouter owner resolves a pinned model and a bounded set of
+eligible endpoints immediately before dispatch, then builds a short-lived
+cap authorization bound to the exact immutable input fingerprint, reference
+SHA-256 set, funding route, configured credential authority/account identity,
+model/provider policy, input-token bound, image count and output cap. This is a
+hard-cap authorization, not a priced quote. The UI may show `Maximum spend: known`,
+`Estimated price: Unknown`, and `Current pricing: unavailable`; it must not
+invent a quote. The owner authorization is checked at dispatch and rejected if
+the bound inputs or endpoint context limits changed. It applies
+`require_parameters`, disables implicit fallbacks, restricts the allowed
+endpoint set, and sends `provider.max_price` for prompt, completion,
+per-request, and per-image prices. Those four caps are budget
+allocations whose worst-case aggregate (bounded prompt tokens times prompt
+price, output cap times completion price, image count times image price, and
+one request fee) cannot exceed the user's ceiling. The underlying provider
 filter is documented by OpenRouter's [Provider Routing reference](https://github.com/OpenRouterTeam/docs/blob/main/guides/routing/provider-selection.mdx#max-price).
-No static historical price may substitute for the current owner snapshot. If
-an endpoint exposes an unsupported fee class or a price is missing, stale, or
-not enforceable by the owner, BYOK refuses before dispatch.
+Endpoint prompt/completion rates arrive in USD per token while OpenRouter's
+corresponding `max_price` values are USD per million tokens; request and image
+caps remain per unit. Endpoints without separate request/image fees receive
+explicit zero caps for those categories. A lower input-cache-read rate is
+accepted only when it does not exceed the prompt rate; unknown/additive fee
+classes, non-finite prices, and unbounded context metadata exclude that
+endpoint before dispatch.
+Current model context limits must come from owner-resolved endpoint metadata;
+stale local policy alone cannot establish the input bound. OpenRouter's own
+`max_price` filter enforces the unit limits and excludes endpoints whose
+required price categories are unavailable. If an endpoint has an unsupported
+fee class or cannot be restricted by all four caps, the remote route refuses
+before dispatch.
 
 For Vrooli credits, LPBS owns USD-to-credit conversion and reservation. The
 request carries a USD ceiling, never a caller-computed credit amount. LPBS
 resolves the authenticated account's applicable cost-based limit and current
-`cost_multiplier`, reserves the ceiling before calling OpenRouter, applies the
-same enforceable provider price limits, and settles only against provider-
-reported actual USD cost. A provider error releases the reservation only when
-the owner proves no billable dispatch occurred. A dispatched request with
-unknown cost keeps its reservation pending for reconciliation; it is never
-reported as zero-cost or silently charged above the ceiling.
+`cost_multiplier`, creates the same exact-input-bound cap authorization,
+reserves the ceiling before calling OpenRouter, applies the
+same enforceable provider price limits, and settles only against
+provider-reported actual USD cost. Authorization is bound to the authenticated
+account and the current limit conversion used for reservation. A provider error releases the
+reservation only when the owner proves no billable dispatch occurred. A
+dispatched request with unknown cost keeps its reservation pending for
+reconciliation; it is never reported as zero-cost or silently charged above
+the ceiling. Actual usage above the ceiling becomes an owner
+reconciliation error; it must not increase the user's charge.
 
-The durable Device Studio job reports the chosen route and ceiling, the owner
-quote/price freshness when available (otherwise `Unknown`), reservation status,
-and usage provenance. Queued/running work shows `pending`; a provider-reported
-cost is `known`; a dispatched operation without authoritative cost is `unknown`
-and retains its applicable hold. This accounting stays visible after reload and
-does not expose credentials. Local generation remains available offline and
-does not acquire, reserve, or settle a remote funding route.
+The durable Device Studio job binds the selected route, USD ceiling, operation
+and exact source references in its immutable fingerprint. It reports the
+owner cap-authorization identity, current context snapshot/freshness, applied
+cap policy, and reservation status after dispatch; current price may remain
+unavailable. Queued work shows estimate `Unknown`, cost `pending`; a
+provider-reported cost is `known`; a dispatched operation without authoritative
+cost is `known`; a dispatched operation whose owner status is
+`pending_reconciliation` stays visibly pending; missing or unrecognized
+accounting remains `unknown` and retains its applicable hold. Settled Vrooli
+credits use an optional lineage value so an observed zero remains distinct
+from absent accounting. This accounting stays
+visible after reload and does not expose credentials. Local generation remains
+available offline and does not acquire, reserve, or settle a remote funding
+route.

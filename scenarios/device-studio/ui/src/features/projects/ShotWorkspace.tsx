@@ -8,6 +8,7 @@ import {
   MotionMode,
   PhotographicCameraMotionSchema,
   PhotographicSceneSchema,
+  type ReadabilityProof,
   PlateQuadSchema,
   PresentationAppearance,
   PresentationRGBSchema,
@@ -52,6 +53,7 @@ type ShotDraft = ScreenPresentationDraft & {
   cameraMatteColor: string;
   sourceMediaId: string;
   videoTiming?: VideoTiming;
+  readabilityProof?: ReadabilityProof;
 };
 type ShotDraftBuffer = { draft: ShotDraft; baseRevision: bigint };
 
@@ -128,6 +130,7 @@ function snapshotFromDraft(draft: ShotDraft) {
     }),
     presentation: screenPresentationFromDraft(draft.sourceMediaId, draft),
     videoTiming: draft.videoTiming,
+    readabilityProof: draft.readabilityProof,
   });
 }
 
@@ -165,6 +168,7 @@ function draftFromRevision(name: string, revision: ShotRevision): ShotDraft {
     cameraMatteColor: colorToDraft(revision.snapshot?.cameraMotion?.matteRgb) || "#000000",
     sourceMediaId: presentation?.sourceMediaId ?? "", ...screenPresentationDraftFromProto(presentation),
     videoTiming: revision.snapshot?.videoTiming,
+    readabilityProof: revision.snapshot?.readabilityProof,
   };
 }
 
@@ -346,6 +350,17 @@ function ShotEditor({ projectId, shotId, mediaQueryKey, draftCache, onDraftChang
     setDraft(sampled);
     onDraftChange({ draft: sampled, baseRevision });
     await save.mutateAsync({ expectedRevision: baseRevision, name: sampled.name, snapshot: snapshotFromDraft(sampled), draft: sampled });
+  };
+
+  const declareReadabilityProof = async (proof: ReadabilityProof) => {
+    const current = draftRef.current;
+    if (!current || !renderRevision || baseRevision === undefined || historical || hasUnsavedChanges || baseRevision !== renderRevision.revision) {
+      throw new Error("Save or discard current shot edits before changing its readability proof.");
+    }
+    const next = { ...current, readabilityProof: proof };
+    draftRef.current = next;
+    setDraft(next);
+    await save.mutateAsync({ expectedRevision: baseRevision, name: next.name, snapshot: snapshotFromDraft(next), draft: next });
   };
   const draftRef = useRef(draft);
   draftRef.current = draft;
@@ -546,7 +561,7 @@ function ShotEditor({ projectId, shotId, mediaQueryKey, draftCache, onDraftChang
           {screenVideo && <><video className="shot-source-thumb" data-testid={selectors.shot.videoSourcePreview} src={sourceMediaContentURL(projectId, screenVideo.id)} controls preload="metadata" playsInline muted aria-label={t(strings.media.videoPreviewAlt, { name: screenVideo.originalFilename })} onError={() => setSourcePlaybackFailed(true)} /><p className="shot-help">{t(strings.media.videoPreviewHelp)}</p>{sourcePlaybackFailed && <p role="alert">{t(strings.media.videoPreviewError)}</p>}</>}
           {sources.hasNextPage && <Button variant="outline" className="min-h-11" disabled={sources.isFetchingNextPage} onClick={() => void sources.fetchNextPage()}>{t(strings.projects.loadMore)}</Button>}
         </CardContent></Card>
-        <RenderControls projectId={projectId} shotId={shotId} revision={renderRevision} historical={historical} hasUnsavedChanges={hasUnsavedChanges} showOutput={showFinalPreview} onShowOutputChange={setShowFinalPreview} onFinalOutputChange={onFinalOutputChange} onAcceptVideoSample={acceptVideoSample} />
+        <RenderControls projectId={projectId} shotId={shotId} revision={renderRevision} historical={historical} hasUnsavedChanges={hasUnsavedChanges} showOutput={showFinalPreview} onShowOutputChange={setShowFinalPreview} onFinalOutputChange={onFinalOutputChange} onAcceptVideoSample={acceptVideoSample} onDeclareReadabilityProof={declareReadabilityProof} />
       </aside>
     </div>
   </div>;

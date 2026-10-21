@@ -1,0 +1,298 @@
+{
+  "schema": "device-studio-examples/v1",
+  "prefix": "Device Studio demo — ",
+  "source_policy": "Every copied input is pinned by SHA-256. Reference outputs remain at their original evidence paths and are never attributed to a new project, shot, revision, or render job.",
+  "assets": {
+    "laptop_plate": {
+      "path": "assets/source/laptop-photo-plate.png",
+      "sha256": "1d1d7327f430c6949b194170a3fce2dd0225ebab9007cd4959072a97188f7ff2",
+      "origin": "/home/matthalloran8/.vrooli/evidence/device-presentation-2026-10-18/v2/photographic/plate.png",
+      "rights": "built-in image_gen output; no external photo source; retained source manifest and prompt in v2/photographic",
+      "media_type": "image/png"
+    },
+    "laptop_mask": {
+      "path": "assets/source/laptop-screen-mask.png",
+      "sha256": "441c5e1aaae96d758d2a210a9121c438c97cc1ad523710acdfc01a322858b6de",
+      "origin": "/home/matthalloran8/.vrooli/evidence/device-presentation-2026-10-18/v6/laptop/screen-mask.png",
+      "rights": "authored screen mask derived for the retained laptop photographic scene",
+      "media_type": "image/png"
+    },
+    "laptop_app": {
+      "path": "assets/source/laptop-app-capture.png",
+      "sha256": "70ecddd6cfd3db8e32438a09f1c58d249fe83735bf28b99b7aa6e187461e389d",
+      "origin": "/home/matthalloran8/.vrooli/evidence/device-presentation-2026-10-18/v3/imported-laptop/source/app-capture.png",
+      "rights": "authentic local capture of fictional Vrooli UI fixtures; app-only 1440x800",
+      "media_type": "image/png"
+    },
+    "phone_plate": {
+      "path": "assets/source/phone-photo-plate.png",
+      "sha256": "9d1c223677a610b9e63c13ccba51c8a5d44f87d0d087fc5e977e58897ceccf4a",
+      "origin": "/home/matthalloran8/.vrooli/evidence/device-presentation-2026-10-18/v6/phone/plate.png",
+      "rights": "built-in image_gen output; no external photo source; retained prompt and generation record in v6/phone",
+      "media_type": "image/png"
+    },
+    "phone_active_mask": {
+      "path": "assets/source/phone-active-mask.png",
+      "sha256": "63b8751df790f9ad2145a1ee7fc9320473d8da682025c7ab5636c421a553dcf2",
+      "origin": "/home/matthalloran8/.vrooli/evidence/device-presentation-2026-10-18/v6/phone/active-mask.png",
+      "rights": "authored active-screen mask for the retained phone photographic scene",
+      "media_type": "image/png"
+    },
+    "phone_hardware_mask": {
+      "path": "assets/source/phone-hardware-mask.png",
+      "sha256": "a122e0ec5193cb45a7cb3660715d0fbec04938bb69f64ce5bdf942c3b5260470",
+      "origin": "/home/matthalloran8/.vrooli/evidence/device-presentation-2026-10-18/v6/phone/physical-pill-mask.png",
+      "rights": "authored hardware/pill occlusion mask for the retained phone photographic scene",
+      "media_type": "image/png"
+    },
+    "phone_recording": {
+      "path": "assets/source/phone-authentic-recording.mp4",
+      "sha256": "425db180fd4552b01c193f8631b03c56c80ed95b2454cd30f30013932702480e",
+      "origin": "scenarios/device-studio/docs/internal/goal/evidence/E2V/p4b-rendering/pipe-qualification/tail-moov-phone/authentic-phone-tail-moov-v2.mp4",
+      "rights": "authentic portrait app recording retained as local evidence; 430x880, 30fps, 16.266667s",
+      "media_type": "video/mp4"
+    },
+    "phone_frame0": {
+      "path": "assets/source/phone-app-capture-frame0.png",
+      "sha256": "e21792cedc1ae20fa43db029ab722730c99400a3854ef6c7429c901603244261",
+      "origin": "frame 0 extracted without scaling from phone_recording",
+      "rights": "authentic app-only frame; contains no simulated phone hardware or system chrome",
+      "media_type": "image/png"
+    }
+  },
+  "examples": [
+    {
+      "id": "laptop-photo",
+      "project": "Device Studio demo — Laptop browser and OS",
+      "shot": "Browser window on laptop desk",
+      "type": "fixed_photo",
+      "source_assets": [
+        "laptop_plate",
+        "laptop_mask",
+        "laptop_app"
+      ],
+      "reference": "fixed_laptop"
+    },
+    {
+      "id": "phone-photo",
+      "project": "Device Studio demo — Phone system areas",
+      "shot": "Phone system chrome on photo plate",
+      "type": "fixed_photo",
+      "source_assets": [
+        "phone_plate",
+        "phone_active_mask",
+        "phone_hardware_mask",
+        "phone_frame0"
+      ],
+      "reference": "fixed_phone"
+    },
+    {
+      "id": "phone-rotation",
+      "project": "Device Studio demo — Physical phone rotation",
+      "shot": "Ten second phone yaw",
+      "type": "physical_motion",
+      "source_assets": [
+        "phone_frame0"
+      ],
+      "starter_id": "phone-default",
+      "motion_input": "inputs/phone-yaw-motion.json",
+      "motion_input_sha256": "124dfdadaed50a3ffa315a0920570ab89fc19d8684f4db415cd77648304433af",
+      "motion_id": "phone-yaw-long30-api3long30-v2",
+      "motion_revision": 1,
+      "motion_sha256": "0550652057f17b47d82cfb9b6464171b59bb2ce5f8e1af38654c0b4267909247",
+      "reference": "phone_rotation"
+    },
+    {
+      "id": "laptop-lid",
+      "project": "Device Studio demo — Laptop lid opening and closure",
+      "shot": "Ten second laptop lid motion",
+      "type": "physical_motion",
+      "source_assets": [
+        "laptop_app"
+      ],
+      "starter_id": "laptop-screen-vflip",
+      "motion_input": "inputs/laptop-lid-motion.json",
+      "motion_input_sha256": "6d900677197162bce2d95629118af50b5f1c34aef5f82447e65e8097f85446b3",
+      "motion_id": "laptop-lid-vflip-reviewed-10s-v1",
+      "motion_revision": 1,
+      "motion_sha256": "21c94a3a27cf0fdfbc63765fd23f3ba59fd036c40fc8ca231e65a3b4a2fa81d5",
+      "reference": "laptop_lid"
+    },
+    {
+      "id": "camera-entry",
+      "project": "Device Studio demo — Camera entry to active app",
+      "shot": "Ten second entry ending on live app viewport",
+      "type": "video_entry",
+      "source_assets": [
+        "phone_plate",
+        "phone_active_mask",
+        "phone_hardware_mask",
+        "phone_recording"
+      ],
+      "reference": "camera_entry"
+    },
+    {
+      "id": "family-showcase",
+      "project": "Device Studio demo — Remaining family showcase",
+      "type": "candidate_showcase",
+      "source_assets": [
+        "phone_frame0",
+        "laptop_app"
+      ],
+      "qualification": "candidate-only; these ten exact public owner routes do not qualify eight device families and cannot close the library obligation before native review",
+      "starter_ids": [
+        "ipad-screen-uv-oriented-180",
+        "generic-book-fold",
+        "generic-round-watch-v2",
+        "monitor-screen-mapped-v2",
+        "generic-television-concept-v3",
+        "generic-smart-display-concept-v4",
+        "generic-digital-frame-concept-v4-glassless",
+        "generic-digital-frame-wall-v4-glassless",
+        "generic-vehicle-dashboard-carplay-sim",
+        "generic-vehicle-dashboard-android-auto-sim"
+      ],
+      "source_assignments": {
+        "ipad-screen-uv-oriented-180": "phone_frame0",
+        "generic-book-fold": "phone_frame0",
+        "generic-round-watch-v2": "phone_frame0",
+        "monitor-screen-mapped-v2": "laptop_app",
+        "generic-television-concept-v3": "laptop_app",
+        "generic-smart-display-concept-v4": "laptop_app",
+        "generic-digital-frame-concept-v4-glassless": "laptop_app",
+        "generic-digital-frame-wall-v4-glassless": "laptop_app",
+        "generic-vehicle-dashboard-carplay-sim": "laptop_app",
+        "generic-vehicle-dashboard-android-auto-sim": "laptop_app"
+      }
+    }
+  ],
+  "archived_reference_outputs": {
+    "fixed_phone": {
+      "path": "scenarios/device-studio/docs/internal/goal/evidence/E2/presentations/phone-v3-live-run/outputs/auto-defaults.png",
+      "sha256": "792dfecef11b572154dad2619955832198cb3a0a0b24fb86d38e88e2d37fa221",
+      "project_id": "76a0d275-f317-4acc-8802-91f2b5f1ca24",
+      "shot_id": "01244d39-5381-4e85-8d11-bb3b9199e090",
+      "shot_revision": 1,
+      "render_job_id": "f37897d2-b229-4f12-a489-4e2baf46dc0a",
+      "source_manifest": "scenarios/device-studio/docs/internal/goal/evidence/E2/presentations/phone-v3-live-run/live-proof-manifest.json",
+      "claim": "verified original still output from its archived job; reference only"
+    },
+    "fixed_laptop": {
+      "path": "scenarios/device-studio/docs/internal/goal/evidence/E2/public-jobs/laptop-browser-revision3-output.png",
+      "sha256": "305164d04c88c36cd745981bf4eea331b2f6a8a948ff9ad2ac45eeca41fc37d4",
+      "project_id": "a78e9e7d-2d0c-4320-8c67-5d755d209ca3",
+      "shot_id": "9760650e-69f2-484b-8015-3d39ff512fd5",
+      "shot_revision": 3,
+      "render_job_id": "6a91e6e5-8ccc-4d9f-a7fb-fa1d59790104",
+      "source_manifest": "scenarios/device-studio/docs/internal/goal/evidence/E2/public-jobs/lease-9006c575-d26a-4c12-8675-7277281191ca/source-bindings/manifest.json",
+      "claim": "verified original still output from its archived job; reference only"
+    },
+    "phone_rotation": {
+      "path": "scenarios/device-studio/docs/internal/goal/evidence/E3/physical-motion-public/runs/api3long30/phone-yaw-app-export.mp4",
+      "sha256": "6873b1ffd3bb52a347d61f5c3f4074203a07b438af798b03301e5c41310f7dbe",
+      "project_id": "e3441811-c2d8-4f7a-9993-c053d776cb58",
+      "shot_id": "92790465-7796-4940-8e2a-2d6352fe62fc",
+      "shot_revision": 1,
+      "render_job_id": "4874f9dc-a1a3-4a07-9737-724e4b0846ed",
+      "source_manifest": "scenarios/device-studio/docs/internal/goal/evidence/E3/physical-motion-public/runs/api3long30/physical_manifest.json",
+      "claim": "verified original physical job output; reference only"
+    },
+    "laptop_lid": {
+      "path": "scenarios/device-studio/docs/internal/goal/evidence/E3/final-demos/laptop-lid-vflip-10s-3/laptop-lid-10s.mp4",
+      "sha256": "9e6d9047e1425e0dd54f6516af070318d95f5248e66f4688265748291842d314",
+      "project_id": "be160ed2-08ac-4a90-95f0-569962d8bea2",
+      "shot_id": "a2e0756a-fbe6-4442-a153-ca20f2165872",
+      "shot_revision": 2,
+      "render_job_id": "e1cb98b3-46a6-41dc-acf1-3c0200e03d1d",
+      "claim": "verified original physical job output; reference only",
+      "source_manifest_files": [
+        "scenarios/device-studio/docs/internal/goal/evidence/E3/final-demos/laptop-lid-vflip-10s-3/parent-review.json",
+        "scenarios/device-studio/docs/internal/goal/evidence/E3/final-demos/laptop-lid-vflip-10s-3/render-verification.json"
+      ]
+    },
+    "camera_entry": {
+      "path": "scenarios/device-studio/docs/internal/goal/evidence/E3/final-demos/phone-screen-entry-3/final/phone-screen-entry-10s.mp4",
+      "sha256": "fc7a9d5f260ab7d5f9ee22ebc7edfa144463df665ee9fc842c58610ccb31fd06",
+      "project_id": "404f5b37-2773-4c27-bf5d-635fdd411282",
+      "shot_id": "3a790159-35a4-49f1-93f0-8e4a680c841d",
+      "shot_revision": 2,
+      "render_job_id": "56600ac0-9823-4573-a345-70e179b823e2",
+      "source_manifest": "scenarios/device-studio/docs/internal/goal/evidence/E3/final-demos/phone-screen-entry-3/final/proof.json",
+      "claim": "verified original video job output; reference only"
+    }
+  },
+  "provenance_files": [
+    {
+      "path": "assets/provenance/laptop-plate/manifest.json",
+      "sha256": "b0beddebd96a039e5469d0ca410fa6443e8771795e7c2dae7e283c34719972fe",
+      "origin": "/home/matthalloran8/.vrooli/evidence/device-presentation-2026-10-18/v2/photographic/manifest.json"
+    },
+    {
+      "path": "assets/provenance/laptop-plate/imagegen-receipt.json",
+      "sha256": "cbf16c405dc686fe62d3dfb6a10b2845f1352ca4e45e8d2050dcfb48e35244e5",
+      "origin": "/home/matthalloran8/.vrooli/evidence/device-presentation-2026-10-18/v2/photographic/imagegen-receipt.json"
+    },
+    {
+      "path": "assets/provenance/laptop-plate/prompt.txt",
+      "sha256": "2cc6ea13ea855c2e5182768b95c04826789073d0be8b1726e4e50362fc3f3d4a",
+      "origin": "/home/matthalloran8/.vrooli/evidence/device-presentation-2026-10-18/v2/photographic/prompt.txt"
+    },
+    {
+      "path": "assets/provenance/phone-plate/manifest.json",
+      "sha256": "f7579c6fc5475ee2420a68b9c6629c14df9e73e99a3ff4dfce4f91cd71e140dd",
+      "origin": "/home/matthalloran8/.vrooli/evidence/device-presentation-2026-10-18/v6/phone/manifest.json"
+    },
+    {
+      "path": "assets/provenance/phone-plate/prompt.txt",
+      "sha256": "5b21b0345fc1573579c8760324b4e768e341e11bddaedcf79ecdfd5d61890a5b",
+      "origin": "/home/matthalloran8/.vrooli/evidence/device-presentation-2026-10-18/v6/phone/prompt.txt"
+    },
+    {
+      "path": "assets/provenance/laptop-composite/manifest.json",
+      "sha256": "14851291df1667380947a8b00696e178af50fd15b1dee89351e0e42e30034012",
+      "origin": "/home/matthalloran8/.vrooli/evidence/device-presentation-2026-10-18/v6/laptop/manifest.json"
+    },
+    {
+      "path": "assets/provenance/laptop-composite/parent-review.json",
+      "sha256": "4aaf98d83c59882e82546685e214240ab4ea009c229fbb7b1c0161f05811822e",
+      "origin": "scenarios/device-studio/docs/internal/goal/evidence/E3/final-demos/laptop-lid-vflip-10s-3/parent-review.json"
+    },
+    {
+      "path": "assets/provenance/laptop-composite/render-verification.json",
+      "sha256": "97085290cd868d30c734aa961b071b27bca5950cc27e9f27d8655d6bbf78d456",
+      "origin": "scenarios/device-studio/docs/internal/goal/evidence/E3/final-demos/laptop-lid-vflip-10s-3/render-verification.json"
+    },
+    {
+      "path": "assets/provenance/laptop-composite/source-revision-1.json",
+      "sha256": "f2f7e3d3206f93ddad435b624fe25749ca9fdaef5286a8f7f18c0563a46e5680",
+      "origin": "scenarios/device-studio/docs/internal/goal/evidence/E3/final-demos/laptop-lid-vflip-10s-3/source-revision-1.json"
+    }
+  ],
+  "archived_source_manifests": [
+    {
+      "demo": "fixed_phone",
+      "path": "scenarios/device-studio/docs/internal/goal/evidence/E2/presentations/phone-v3-live-run/live-proof-manifest.json",
+      "sha256": "04a7ba775a3e0c36916fa3efd7003d4358029e102e618920972fb52d11e87e60"
+    },
+    {
+      "demo": "fixed_laptop",
+      "path": "scenarios/device-studio/docs/internal/goal/evidence/E2/public-jobs/lease-9006c575-d26a-4c12-8675-7277281191ca/source-bindings/manifest.json",
+      "sha256": "600c35647bc05053ff4415c6fa18a4fa3fe65c5aec5dfcdbd16e2672b26cc8f9"
+    },
+    {
+      "demo": "phone_rotation",
+      "path": "scenarios/device-studio/docs/internal/goal/evidence/E3/physical-motion-public/runs/api3long30/physical_manifest.json",
+      "sha256": "841110956657725a4ff424691f992918e4be70d5e38890a64e0936a5e03ccf78"
+    },
+    {
+      "demo": "laptop_lid",
+      "path": "scenarios/device-studio/docs/internal/goal/evidence/E3/final-demos/laptop-lid-vflip-10s-3/render-verification.json",
+      "sha256": "97085290cd868d30c734aa961b071b27bca5950cc27e9f27d8655d6bbf78d456"
+    },
+    {
+      "demo": "camera_entry",
+      "path": "scenarios/device-studio/docs/internal/goal/evidence/E3/final-demos/phone-screen-entry-3/final/proof.json",
+      "sha256": "5299c17058f275960afca25e06b561c06c90d2e8ffec8e2d2892e06dbf1df0a8"
+    }
+  ]
+}

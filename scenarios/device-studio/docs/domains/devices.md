@@ -33,6 +33,56 @@ Device, scene and motion revisions are immutable owner snapshots exposed through
 
 Placement preserves real scale. Support solves contacts including laptop feet or phone camera bump; cosmetic floating gaps cannot conceal unsupported poses. Static support geometry under an assumed center of mass is not measured dynamic stability. Wall compatibility requires an actual mount chain and clearance, not a boolean inferred from a flat back.
 
+## Explicit physical qualification review
+
+Qualification is a human-triggered, revisioned decision. Candidate creation, import,
+AI output, starter initialization, and render success never qualify a device. The
+review action names the exact candidate revision and SHA-256, exact source bundle
+manifest/review/artifact digests and allowed uses, rights/attribution claims,
+dimension states and uncertainty, display/view and mask evidence, supported poses
+and motions, mount/support interfaces, and an actual native render output/job
+digest that the reviewer inspected. Missing or mismatched evidence blocks approval.
+Rights are recorded as reviewed claims and allowed uses; this action is not a legal
+guarantee or an expansion of the source Library review.
+
+An accepted review appends an immutable qualified device revision whose review
+record binds its parent candidate revision and digest. It does not edit or replace
+the candidate. A stale head, changed candidate/source digest, incompatible allowed
+uses, unsupported motion/support claim, or malformed evidence refuses promotion.
+Reviewers may record a rejection against the exact revision; rejection preserves
+the candidate and does not create a qualified revision. Each supported scope is
+explicitly listed; callers cannot infer qualification beyond the recorded scopes.
+The public API, CLI, and workbench all use this same owner operation. Qualified
+family counts remain zero until an operator actually performs and records these
+reviews after source and native checks.
+
+The review scope is explicit. `physical_geometry` remains strict: each included
+dimension needs known uncertainty, and each included display needs qualified
+physical boundary, active area, and app-safe region. `visual_setup` records one
+exact verified native setup (preset, display, support, motion, and dimension
+state) without certifying hardware dimensions or display masks. It may include
+finite, evidence-backed derived or image-estimated dimensions whose uncertainty
+is unknown; that unknown status remains unchanged and the physical qualification
+compatibility check continues to report it as needing review. Design assumptions
+and missing dimension evidence are refused in either scope. A visual-setup review
+must never be described as physical geometry qualification.
+
+### Portable scoped review transfer
+
+An accepted review can be exported as a bounded version-2 package while its
+source project and completed native render job remain available. The package
+contains the exact candidate and scene/motion/preset revisions, every Library
+manifest/review and artifact byte referenced by the candidate geometry or
+scene, the scoped review, native render evidence and inspected output bytes.
+Import requires those exact immutable revisions and source bytes to already
+exist in the destination. It rejects missing, duplicate, extra, stale, or
+changed references, then reuses the existing qualification checks and
+idempotent revision append. Import creates no render job, imports no Library
+review, and does not broaden the reviewed dimensions, display, motion, support,
+scene, or preset scope. Package hashes check integrity only; they do not
+authenticate the reviewer or source owner. Import is an explicit operator
+trust decision for transferring the recorded human review.
+
 ## Source and rights policy
 
 Use zero-purchase assets. Prefer CC0 or properly attributed CC BY for an editable bundled library, after checking exact acquired dependency closure. A public download label is a lead, not acquisition/quality proof. Retain original bytes, source/author/license evidence, access method, dates, hashes, adaptation log and attribution text. Render-only rights are separate from source redistribution, editable export, preview reuse and external-AI upload. Never infer wallpaper/font/logo/image rights from the model's top-level license.

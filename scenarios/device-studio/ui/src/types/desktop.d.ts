@@ -13,6 +13,15 @@ declare global {
     localCleared?: boolean;
     remoteRevocation?: "uncertain";
   }
+  interface DeviceStudioCreditBalance {
+    state: "available" | "stale" | "signed_out" | "unavailable";
+    balanceCredits?: string;
+    displayCreditsLabel?: string;
+    displayCreditsMultiplier?: number;
+    walletUpdatedAt?: string;
+    fetchedAt?: string;
+    source?: "LPBS";
+  }
 
   interface Window {
     desktop?: {
@@ -22,6 +31,7 @@ declare global {
         getDesktopLinkStatus(options: { resource: string }): Promise<DeviceStudioDesktopLinkStatus>;
         disconnectDesktop(options: { resource: string }): Promise<{ localCleared: boolean; remoteRevocation: "confirmed" | "uncertain" }>;
         getCreditSessionShareStatus?(): Promise<DeviceStudioCreditSessionStatus>;
+        getCreditBalance?(): Promise<DeviceStudioCreditBalance>;
         setCreditSessionSharing?(enabled: boolean): Promise<DeviceStudioCreditSessionStatus>;
       };
     };

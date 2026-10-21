@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   listIntakeCandidates: vi.fn(),
+  getIntakeCandidate: vi.fn(),
   uploadFile: vi.fn(),
   getFile: vi.fn(),
   decodeApiError: vi.fn(async (response: Response) => new Error(`HTTP ${response.status}`)),
@@ -11,7 +12,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@connectrpc/connect", () => ({
-  createClient: () => ({ listIntakeCandidates: mocks.listIntakeCandidates }),
+  createClient: () => ({ listIntakeCandidates: mocks.listIntakeCandidates, getIntakeCandidate: mocks.getIntakeCandidate }),
 }));
 vi.mock("./client", () => ({
   decodeApiError: mocks.decodeApiError,
@@ -29,6 +30,7 @@ import {
   MAX_LOCAL_GEOMETRY_BYTES,
   correctLocalGeometryMaterial,
   getLocalGeometryMaterials,
+  getLocalGeometryCreationLineage,
 } from "./library-intake";
 
 const candidateJSON = (overrides: Record<string, unknown> = {}) => ({
@@ -109,6 +111,15 @@ describe("library intake API client boundaries", () => {
     expect(mocks.listIntakeCandidates).toHaveBeenCalledWith({ afterCandidateId: "candidate-1", pageSize: 100 });
     expect(() => listLocalGeometryCandidates("../private" )).toThrow(/stable candidate ID/);
     expect(mocks.listIntakeCandidates).toHaveBeenCalledTimes(1);
+  });
+
+  it("reads accounting only from the exact generated candidate revision", async () => {
+    const creationLineage = { costMicros: 10_000n, costProvenance: 2, creditsCharged: 0n };
+    mocks.getIntakeCandidate.mockResolvedValueOnce({ candidate: { id: "candidate-1", revision: 1, creationLineage } });
+    await expect(getLocalGeometryCreationLineage("candidate-1", 1)).resolves.toEqual(creationLineage);
+    expect(mocks.getIntakeCandidate).toHaveBeenCalledWith({ candidateId: "candidate-1", revision: 1 });
+    mocks.getIntakeCandidate.mockResolvedValueOnce({ candidate: { id: "other", revision: 1, creationLineage } });
+    await expect(getLocalGeometryCreationLineage("candidate-1", 1)).rejects.toThrow(/different generated candidate/);
   });
 
   it("returns downloaded bytes only after exact size and SHA-256 verification", async () => {

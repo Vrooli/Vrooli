@@ -155,7 +155,7 @@ func runPhysicalBlenderFrameStream(ctx context.Context, workspace, blender strin
 			if ctx.Err() != nil {
 				return fmt.Errorf("physical Blender frame stream ended: %w", ctx.Err())
 			}
-			return fmt.Errorf("physical Blender frame stream ended before ordinal %d: %w (%v): %s", ordinal, readErr, waitErr, truncateUTF8(stderr.data.String(), 1024))
+			return fmt.Errorf("physical Blender frame stream ended before ordinal %d: %w (%v): %s", ordinal, readErr, waitErr, truncateUTF8Tail(stderr.data.String(), 1024))
 		}
 		if gotOrdinal != ordinal {
 			_ = cmd.Process.Kill()

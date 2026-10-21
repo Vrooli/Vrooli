@@ -39,9 +39,18 @@ func (h *Handler) InitializeReviewedStarter(ctx context.Context, request *connec
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInternal, errors.New("candidate starter initialization failed"))
 		}
+		candidateOnly := true
+		if statusOwner, ok := h.service.(interface {
+			PhysicalStarterCandidateOnly(context.Context, shots.PhysicalPresetRevision) (bool, error)
+		}); ok {
+			candidateOnly, err = statusOwner.PhysicalStarterCandidateOnly(ctx, preset)
+			if err != nil {
+				return nil, connect.NewError(connect.CodeInternal, errors.New("candidate starter status lookup failed"))
+			}
+		}
 		return connect.NewResponse(&physicalv1.InitializeReviewedStarterResponse{
 			SelectedStarterId: starterID,
-			CandidateOnly:     true,
+			CandidateOnly:     candidateOnly,
 			InitializedPreset: componentRef(preset.PresetID, preset.Revision, preset.SHA256),
 		}), nil
 	}

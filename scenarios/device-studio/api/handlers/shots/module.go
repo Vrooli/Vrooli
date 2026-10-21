@@ -36,9 +36,13 @@ func ModuleWithPhysicalResolver(db *database.RoutedDB, roots *filerouting.Routed
 	presetRepo, presetErr := shotdomain.NewSQLitePhysicalPresetRepository(db)
 	var presets *shotdomain.PhysicalPresetService
 	if presetErr == nil {
-		if validator, ok := physical.(shotdomain.PhysicalPresetValidator); ok { presets, presetErr = shotdomain.NewPhysicalPresetService(presetRepo, validator, nil, nil) }
+		if validator, ok := physical.(shotdomain.PhysicalPresetValidator); ok {
+			presets, presetErr = shotdomain.NewPhysicalPresetService(presetRepo, validator, nil, nil)
+		}
 	}
-	if presetErr != nil && logger != nil { logger.Printf("physical preset service unavailable: %v", presetErr) }
+	if presetErr != nil && logger != nil {
+		logger.Printf("physical preset service unavailable: %v", presetErr)
+	}
 	return moduleWithRepositoryAndDependencies(shotdomain.NewSQLiteRepository(db), domain.NewService(repo, nil), media, verifier, physical, presets, logger)
 }
 
@@ -46,7 +50,12 @@ func ModuleWithPhysicalOwners(db *database.RoutedDB, roots *filerouting.RoutedRo
 	repo := domain.NewSQLiteRepository(db, nil)
 	mediaRepo := repo.(domain.SourceMediaRepository)
 	mediaStore, err := routedblobstore.New(roots, "media")
-	if err != nil { if logger == nil { logger = log.Default() }; logger.Fatalf("shot media storage: %v", err) }
+	if err != nil {
+		if logger == nil {
+			logger = log.Default()
+		}
+		logger.Fatalf("shot media storage: %v", err)
+	}
 	media := domain.NewSourceMediaService(domain.SourceMediaDeps{Projects: domain.NewService(repo, nil), Repository: mediaRepo, Store: mediaStore})
 	return moduleWithRepositoryAndDependencies(shotdomain.NewSQLiteRepository(db), domain.NewService(repo, nil), media, verifier, physical, presets, logger)
 }
@@ -70,6 +79,9 @@ func moduleWithRepositoryAndDependencies(repo shotdomain.Repository, projectRead
 	service := shotdomain.NewService(repo, projectReader, media, nil, nil)
 	shotdomain.SetVideoSampleVerifier(service, verifier)
 	shotdomain.SetPhysicalResolver(service, physical)
+	if outputVerifier, ok := verifier.(shotdomain.ReadabilityOutputVerifier); ok {
+		shotdomain.SetReadabilityOutputVerifier(service, outputVerifier)
+	}
 	path, handler := shotsconnect.NewShotsServiceHandler(NewConnectHandler(Deps{Service: service, Presets: presets, Logger: logger}))
 	return module.Module{Name: "shots", Mount: func(r *mux.Router) {
 		connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: handler})

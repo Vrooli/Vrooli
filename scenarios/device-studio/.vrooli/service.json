@@ -18,6 +18,72 @@
     ],
     "class": "interface-enabler"
   },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 15000
+    }
+  },
+  "dependencies": {
+    "resources": {},
+    "scenarios": {
+      "audio-tools": {
+        "required": false,
+        "startup_policy": "try_start",
+        "degraded_behavior": "Availability is inferred from source evidence; verify this scenario's capability contract before relying on it.",
+        "versionRange": ">=0.0.1",
+        "description": "Auto-detected dependency via vrooli_cli"
+      },
+      "ai-gateway": {
+        "required": false,
+        "startup_policy": "try_start",
+        "degraded_behavior": "Availability is inferred from source evidence; verify this scenario's capability contract before relying on it.",
+        "versionRange": ">=0.0.1",
+        "description": "Auto-detected dependency via scenario_url_discovery"
+      },
+      "workspace-sandbox": {
+        "required": false,
+        "startup_policy": "try_start",
+        "degraded_behavior": "Availability is inferred from source evidence; verify this scenario's capability contract before relying on it.",
+        "versionRange": ">=0.0.1",
+        "description": "Auto-detected dependency via scenario_url_discovery"
+      }
+    }
+  },
   "generation": {
     "template": {
       "id": "react-vite",
@@ -57,18 +123,6 @@
       ]
     }
   },
-  "ports": {
-    "api": {
-      "env_var": "API_PORT",
-      "description": "Go API server",
-      "range": "15000-19999"
-    },
-    "ui": {
-      "env_var": "UI_PORT",
-      "description": "React UI",
-      "range": "20000-24999"
-    }
-  },
   "components": {
     "api": {
       "role": "api",
@@ -99,38 +153,6 @@
         "port": "ui"
       }
     }
-  },
-  "lifecycle": {
-    "version": "2.0.0",
-    "health": {
-      "description": "Standard API/UI health checks",
-      "endpoints": {
-        "api": "/health",
-        "ui": "/health"
-      },
-      "checks": [
-        {
-          "name": "api_endpoint",
-          "type": "http",
-          "target": "http://localhost:${API_PORT}/health",
-          "critical": true,
-          "timeout": 10000,
-          "interval": 30000
-        },
-        {
-          "name": "ui_endpoint",
-          "type": "http",
-          "target": "http://localhost:${UI_PORT}/health",
-          "timeout": 5000,
-          "interval": 30000
-        }
-      ],
-      "startup_grace_period": 15000
-    }
-  },
-  "dependencies": {
-    "resources": {},
-    "scenarios": {}
   },
   "credentials": {
     "descriptors": [

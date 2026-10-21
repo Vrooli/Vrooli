@@ -43,6 +43,12 @@ func toConnectError(err error, logger *log.Logger) error {
 	if errors.As(err, &missing) {
 		return connect.NewError(connect.CodeNotFound, errors.New("shot not found"))
 	}
+	if errors.Is(err, domain.ErrReadabilityReviewNotFound) {
+		return connect.NewError(connect.CodeNotFound, errors.New("readability review not found for this exact revision and output"))
+	}
+	if errors.Is(err, domain.ErrReadabilityAlreadyReviewed) {
+		return connect.NewError(connect.CodeAlreadyExists, errors.New("this exact render output already has a readability verdict; revise the shot before reviewing again"))
+	}
 	if errors.Is(err, domain.ErrPhysicalPresetNotFound) {
 		return connect.NewError(connect.CodeNotFound, errors.New("physical setup preset revision not found"))
 	}

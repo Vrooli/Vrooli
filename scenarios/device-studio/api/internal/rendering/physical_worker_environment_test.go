@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 func TestPhysicalBlenderEnvironmentKeepsChildHomePrivate(t *testing.T) {
@@ -54,6 +55,19 @@ func TestPhysicalBlenderDiagnosticsStayBounded(t *testing.T) {
 	}
 	if !errors.Is(got, nativeErr) {
 		t.Fatal("worker error did not retain the native exit error")
+	}
+}
+
+func TestPhysicalBlenderFailureKeepsFinalExceptionAfterVerbosePreamble(t *testing.T) {
+	const final = "RuntimeError: final-frame-material-binding-failed"
+	stderr := strings.Repeat("DeprecationWarning: verbose Blender startup warning café\n", 80) + final
+	got := truncateUTF8Tail(stderr, 2048)
+	if len(got) > 2048 || !utf8.ValidString(got) || !strings.Contains(got, final) {
+		t.Fatalf("bounded stderr tail lost its final UTF-8 diagnostic: bytes=%d valid=%v tail=%q", len(got), utf8.ValidString(got), got)
+	}
+	failure := physicalBlenderFailure(errors.New("exit status 17"), nil, stderr)
+	if !strings.Contains(failure.Error(), final) {
+		t.Fatalf("physical Blender error omitted final exception token: %v", failure)
 	}
 }
 

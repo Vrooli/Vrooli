@@ -18,9 +18,77 @@ type Service interface {
 	ListHeads(context.Context, string, int) ([]domain.DeviceRevision, error)
 }
 
-type Handler struct{ service Service }
+type QualificationReviewer interface {
+	ReviewCandidate(context.Context, domain.QualificationReviewRequest) (domain.QualificationReviewResult, error)
+}
 
-func NewConnectHandler(service Service) *Handler { return &Handler{service: service} }
+type QualificationPackageOwner interface {
+	ExportReviewPackage(context.Context, string, string, uint32) ([]byte, error)
+	ImportReviewPackage(context.Context, []byte, uint32) (domain.QualificationReviewResult, error)
+}
+
+type Handler struct {
+	service  Service
+	reviewer QualificationReviewer
+	packages QualificationPackageOwner
+}
+
+func NewConnectHandler(service Service, reviewers ...QualificationReviewer) *Handler {
+	var reviewer QualificationReviewer
+	if len(reviewers) > 0 {
+		reviewer = reviewers[0]
+	}
+	packages, _ := reviewer.(QualificationPackageOwner)
+	return &Handler{service: service, reviewer: reviewer, packages: packages}
+}
+
+func (h *Handler) ExportQualificationPackage(ctx context.Context, req *connect.Request[devicesv1.ExportQualificationPackageRequest]) (*connect.Response[devicesv1.ExportQualificationPackageResponse], error) {
+	if h.packages == nil || req.Msg.ProjectId == "" || req.Msg.DeviceId == "" || req.Msg.QualifiedRevision == 0 {
+		return nil, revisionapi.InvalidCandidate()
+	}
+	data, err := h.packages.ExportReviewPackage(ctx, req.Msg.ProjectId, req.Msg.DeviceId, req.Msg.QualifiedRevision)
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return connect.NewResponse(&devicesv1.ExportQualificationPackageResponse{PackageJson: data}), nil
+}
+
+func (h *Handler) ImportQualificationPackage(ctx context.Context, req *connect.Request[devicesv1.ImportQualificationPackageRequest]) (*connect.Response[devicesv1.ReviewDeviceCandidateResponse], error) {
+	if h.packages == nil || len(req.Msg.PackageJson) == 0 {
+		return nil, revisionapi.InvalidCandidate()
+	}
+	result, err := h.packages.ImportReviewPackage(ctx, req.Msg.PackageJson, req.Msg.ExpectedHead)
+	if err != nil {
+		return nil, mapError(err)
+	}
+	revision := &devicesv1.DeviceRevision{}
+	if err := revisionapi.Encode(result.Revision, revision); err != nil {
+		return nil, revisionapi.Internal()
+	}
+	return connect.NewResponse(&devicesv1.ReviewDeviceCandidateResponse{Revision: revision, PresetId: result.PresetID, PresetRevision: result.PresetRevision, PresetSha256: result.PresetSHA256}), nil
+}
+
+func (h *Handler) ReviewDeviceCandidate(ctx context.Context, req *connect.Request[devicesv1.ReviewDeviceCandidateRequest]) (*connect.Response[devicesv1.ReviewDeviceCandidateResponse], error) {
+	if h.service == nil || h.reviewer == nil {
+		return nil, revisionapi.Internal()
+	}
+	if req.Msg.Review == nil {
+		return nil, revisionapi.InvalidCandidate()
+	}
+	review, err := revisionapi.Decode[domain.QualificationReview](req.Msg.Review)
+	if err != nil {
+		return nil, revisionapi.InvalidCandidate()
+	}
+	result, err := h.reviewer.ReviewCandidate(ctx, domain.QualificationReviewRequest{ProjectID: req.Msg.ProjectId, DeviceID: req.Msg.DeviceId, CandidateRevision: req.Msg.CandidateRevision, CandidateSHA256: req.Msg.CandidateSha256, ExpectedHead: req.Msg.ExpectedHead, Review: review})
+	if err != nil {
+		return nil, mapError(err)
+	}
+	revision := &devicesv1.DeviceRevision{}
+	if err := revisionapi.Encode(result.Revision, revision); err != nil {
+		return nil, revisionapi.Internal()
+	}
+	return connect.NewResponse(&devicesv1.ReviewDeviceCandidateResponse{Revision: revision, PresetId: result.PresetID, PresetRevision: result.PresetRevision, PresetSha256: result.PresetSHA256}), nil
+}
 
 func (h *Handler) SaveDeviceCandidate(ctx context.Context, req *connect.Request[devicesv1.SaveDeviceCandidateRequest]) (*connect.Response[devicesv1.SaveDeviceCandidateResponse], error) {
 	if h.service == nil {

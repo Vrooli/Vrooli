@@ -12,11 +12,23 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
 	"device-studio/internal/presentations"
 )
+
+type noSpaceWriter struct{}
+
+func (noSpaceWriter) Write([]byte) (int, error) { return 0, syscall.ENOSPC }
+
+func TestWriteContextPropagatesENOSPC(t *testing.T) {
+	err := writeContext(context.Background(), noSpaceWriter{}, []byte("output"))
+	if !errors.Is(err, syscall.ENOSPC) {
+		t.Fatalf("disk-full write error = %v, want ENOSPC", err)
+	}
+}
 
 type workerFixture struct {
 	dir      string
@@ -516,6 +528,27 @@ func TestWorkerCancellationAndPublicationFailuresNeverCreateSuccessReceipt(t *te
 		if _, err := os.Lstat(filepath.Join(fixture.dir, ReceiptName)); !errors.Is(err, os.ErrNotExist) {
 			t.Fatalf("failure produced success receipt: %v", err)
 		}
+	})
+	t.Run("output temporary write reservation failure", func(t *testing.T) {
+		fixture := newWorkerFixture(t)
+		reserved := []byte("owned by another writer")
+		if err := os.WriteFile(filepath.Join(fixture.dir, OutputName+".tmp"), reserved, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := RunManifest(context.Background(), filepath.Join(fixture.dir, ManifestName)); err == nil {
+			t.Fatal("worker reported success when exclusive output publication was unavailable")
+		}
+		got, err := os.ReadFile(filepath.Join(fixture.dir, OutputName+".tmp"))
+		if err != nil || !bytes.Equal(got, reserved) {
+			t.Fatalf("reserved temporary output changed: %q err=%v", got, err)
+		}
+		if _, err := os.Lstat(filepath.Join(fixture.dir, OutputName)); !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("failed output publication left a final output: %v", err)
+		}
+		if _, err := os.Lstat(filepath.Join(fixture.dir, ReceiptName)); !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("failed output publication created a success receipt: %v", err)
+		}
+		assertFailureDiagnostic(t, fixture.dir)
 	})
 	t.Run("receipt publication conflict leaves no success receipt", func(t *testing.T) {
 		fixture := newWorkerFixture(t)

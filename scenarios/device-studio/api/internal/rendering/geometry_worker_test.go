@@ -1,10 +1,12 @@
 package rendering
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -54,7 +56,7 @@ func TestGeometryWorkerCallsGatewayOnceLocalOnlyAndWritesInspectedGLB(t *testing
 		t.Fatal(err)
 	}
 	fake := &geometryGatewayFake{response: &inferencev1.RunResponse{ValueJson: string(recipe), Validated: true, Provider: "ollama", Model: "local-model", ProviderCallsMade: 1, Applied: geometryAppliedSettings(), Usage: &inferencev1.Usage{InputTokens: 12, OutputTokens: 24, InputTokensProvenance: inferencev1.UsageProvenance_USAGE_PROVENANCE_GATEWAY_ESTIMATE, OutputTokensProvenance: inferencev1.UsageProvenance_USAGE_PROVENANCE_PROVIDER_REPORTED, CostProvenance: inferencev1.UsageProvenance_USAGE_PROVENANCE_UNKNOWN}}}
-	if err := RunGeometryManifest(context.Background(), filepath.Join(workspace, GeometryManifestName), fake); err != nil {
+	if err := runGeometryManifestForTest(context.Background(), filepath.Join(workspace, GeometryManifestName), fake); err != nil {
 		t.Fatal(err)
 	}
 	if fake.request.GetProfile() != sharedv1.Profile_PROFILE_LOCAL_ONLY || fake.request.GetRole() != "extract.structured" || fake.request.GetMaxProviderCalls() != 1 || fake.request.GetMaxOutputTokens() != 4096 {
@@ -105,6 +107,47 @@ func TestGeometryWorkerCallsGatewayOnceLocalOnlyAndWritesInspectedGLB(t *testing
 	}
 }
 
+func TestGeometryWorkerRejectsScriptAndArchiveManifestExtensionsBeforeDispatch(t *testing.T) {
+	for _, field := range []string{"script", "archive_ref"} {
+		t.Run(field, func(t *testing.T) {
+			workspace := t.TempDir()
+			image := []byte("pinned")
+			imageSHA := sha256.Sum256(image)
+			if err := os.WriteFile(filepath.Join(workspace, "reference.png"), image, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			executable, err := os.Executable()
+			if err != nil {
+				t.Fatal(err)
+			}
+			exe, err := os.ReadFile(executable)
+			if err != nil {
+				t.Fatal(err)
+			}
+			exeSHA := sha256.Sum256(exe)
+			manifest, err := json.Marshal(GeometryWorkerManifest{Version: 1, JobID: "job-1", AttemptID: "attempt-1", InputFingerprint: hex.EncodeToString(make([]byte, 32)), WorkerSHA256: hex.EncodeToString(exeSHA[:]), Brief: "bounded device", Envelope: [3]float64{80, 150, 12}, Images: []GeometryImageInput{{Name: "reference.png", SHA256: hex.EncodeToString(imageSHA[:]), MediaType: "image/png", Width: 1, Height: 1, SizeBytes: int64(len(image))}}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			payload := append(append([]byte(nil), manifest[:len(manifest)-1]...), []byte(`,"`+field+`":"../../tmp/untrusted.py"}`)...)
+			if err := os.WriteFile(filepath.Join(workspace, GeometryManifestName), append(payload, '\n'), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			fake := &geometryGatewayFake{}
+			err = runGeometryManifestForTest(context.Background(), filepath.Join(workspace, GeometryManifestName), fake)
+			if err == nil {
+				t.Fatal("unsupported executable or archive manifest input was accepted")
+			}
+			if fake.request != nil {
+				t.Fatal("invalid manifest reached the inference owner")
+			}
+			if _, err := os.Stat(filepath.Join(workspace, GeometryOutputName)); !os.IsNotExist(err) {
+				t.Fatalf("invalid manifest produced geometry output: stat err=%v", err)
+			}
+		})
+	}
+}
+
 func TestGeometryWorkerFundingRoutesSelectOneProviderAndRejectProviderDrift(t *testing.T) {
 	for _, tc := range []struct {
 		route, role, provider string
@@ -143,7 +186,7 @@ func TestGeometryWorkerFundingRoutesSelectOneProviderAndRejectProviderDrift(t *t
 	_ = os.WriteFile(filepath.Join(workspace, "ref.png"), image, 0o600)
 	_ = os.WriteFile(filepath.Join(workspace, GeometryManifestName), append(manifest, '\n'), 0o600)
 	fake := &geometryGatewayFake{response: &inferencev1.RunResponse{ValueJson: `{}`, Validated: true, Provider: "openrouter", ProviderCallsMade: 1}}
-	if err := RunGeometryManifest(context.Background(), filepath.Join(workspace, GeometryManifestName), fake); err == nil || !strings.Contains(err.Error(), "does not match") {
+	if err := runGeometryManifestForTest(context.Background(), filepath.Join(workspace, GeometryManifestName), fake); err == nil || !strings.Contains(err.Error(), "does not match") {
 		t.Fatalf("provider drift must fail after one recorded response, got %v", err)
 	}
 	if fake.request.GetRole() != "extract.structured" || fake.request.GetProfile() != sharedv1.Profile_PROFILE_LOCAL_ONLY || fake.request.GetMaxProviderCalls() != 1 {
@@ -168,7 +211,7 @@ func TestGeometryWorkerDoesNotRepairInvalidProviderRecipe(t *testing.T) {
 	_ = os.WriteFile(filepath.Join(workspace, "ref.png"), []byte("x"), 0o600)
 	_ = os.WriteFile(filepath.Join(workspace, GeometryManifestName), append(manifest, '\n'), 0o600)
 	fake := &geometryGatewayFake{response: &inferencev1.RunResponse{ValueJson: `{"wrong":true}`, Validated: true, ProviderCallsMade: 1, Applied: geometryAppliedSettings(), Usage: &inferencev1.Usage{InputTokensProvenance: inferencev1.UsageProvenance_USAGE_PROVENANCE_UNKNOWN, OutputTokensProvenance: inferencev1.UsageProvenance_USAGE_PROVENANCE_UNKNOWN, CostProvenance: inferencev1.UsageProvenance_USAGE_PROVENANCE_UNKNOWN}}}
-	if err := RunGeometryManifest(context.Background(), filepath.Join(workspace, GeometryManifestName), fake); err == nil {
+	if err := runGeometryManifestForTest(context.Background(), filepath.Join(workspace, GeometryManifestName), fake); err == nil {
 		t.Fatal("invalid recipe must fail without hidden retry")
 	}
 	if fake.request.GetMaxProviderCalls() != 1 {
@@ -200,7 +243,7 @@ func TestGeometryWorkerRetainsTypedEnvelopeIssueForExplicitCorrection(t *testing
 		t.Fatalf("fixture should produce typed envelope feedback: %+v %v", issue, err)
 	}
 	_, fake := geometryWorkerFixture(t, workspace, string(rejected))
-	runErr := RunGeometryManifest(context.Background(), filepath.Join(workspace, GeometryManifestName), fake)
+	runErr := runGeometryManifestForTest(context.Background(), filepath.Join(workspace, GeometryManifestName), fake)
 	if runErr == nil {
 		t.Fatal("a part outside the locked envelope must fail for review")
 	}
@@ -223,7 +266,7 @@ func TestGeometryWorkerOmitsOversizedResponseWithoutTruncating(t *testing.T) {
 	workspace := t.TempDir()
 	oversized := strings.Repeat("x", geometryResponseValueMax+1)
 	_, fake := geometryWorkerFixture(t, workspace, oversized)
-	if err := RunGeometryManifest(context.Background(), filepath.Join(workspace, GeometryManifestName), fake); err == nil {
+	if err := runGeometryManifestForTest(context.Background(), filepath.Join(workspace, GeometryManifestName), fake); err == nil {
 		t.Fatal("oversized invalid model result must fail recipe validation")
 	}
 	var outcome GeometryInferenceOutcome
@@ -242,7 +285,7 @@ func TestGeometryWorkerRefusesCorrectionWithoutParentLineage(t *testing.T) {
 	workspace := t.TempDir()
 	corrective := geometryRecipeJSON(t, "correct")
 	_, fake := geometryWorkerFixture(t, workspace, string(corrective))
-	if err := RunGeometryManifest(context.Background(), filepath.Join(workspace, GeometryManifestName), fake); err == nil {
+	if err := runGeometryManifestForTest(context.Background(), filepath.Join(workspace, GeometryManifestName), fake); err == nil {
 		t.Fatal("the construction endpoint must not persist a correction without pinned parent lineage")
 	}
 	if _, err := os.Stat(filepath.Join(workspace, GeometryInferenceOutcomeName)); err != nil {
@@ -306,4 +349,35 @@ func mustRead(t *testing.T, name string) []byte {
 		t.Fatal(err)
 	}
 	return data
+}
+
+func runGeometryManifestForTest(ctx context.Context, path string, client geometryInference) error {
+	return runGeometryManifest(ctx, path, client, func(ctx context.Context, workspace string, manifest GeometryWorkerManifest) error {
+		root, err := os.OpenRoot(workspace)
+		if err != nil {
+			return err
+		}
+		defer root.Close()
+		data, err := readGeometryFile(ctx, root, GeometryRecipeName, geometry.MaxRecipeBytes)
+		if err != nil {
+			return err
+		}
+		if len(data) > 0 && data[len(data)-1] == '\n' {
+			data = data[:len(data)-1]
+		}
+		recipe, canonical, err := geometry.Decode(data)
+		if err != nil || !bytes.Equal(data, canonical) || recipe.Operation != "construct" {
+			return errors.New("test compile received invalid recipe")
+		}
+		for i := range manifest.Envelope {
+			if recipe.Envelope[i] != manifest.Envelope[i] {
+				return errors.New("test compile changed locked envelope")
+			}
+		}
+		glb, err := geometry.Compile(recipe)
+		if err != nil {
+			return err
+		}
+		return writeGeometryFile(root, GeometryOutputName, glb)
+	})
 }

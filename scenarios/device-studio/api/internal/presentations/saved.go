@@ -14,8 +14,9 @@ const (
 
 // ConfigFromSaved maps persisted protobuf choices to the pinned D6a raster
 // profile. Defaults are explicit here so later workers do not consult UI or
-// current compiler defaults. Plain/already-composed presentations use the
-// legacy homography path and must not call this adapter.
+// current compiler defaults. Plain app-only presentations use the same
+// uniform contain/matte adapter; plain already-composed captures keep their
+// legacy exact-raster path.
 func ConfigFromSaved(target image.Point, p *shotsv1.ScreenPresentation) (Config, error) {
 	return ConfigFromSavedVersion(target, p, SemanticVersionV2)
 }
@@ -24,6 +25,9 @@ func ConfigFromSaved(target image.Point, p *shotsv1.ScreenPresentation) (Config,
 // semantics selected by its immutable presentation version.
 func ConfigFromSavedVersion(target image.Point, p *shotsv1.ScreenPresentation, version string) (Config, error) {
 	if p == nil || target.X <= 0 || target.Y <= 0 {
+		return Config{}, ErrInvalidConfig
+	}
+	if p.GetKind() == shotsv1.PresentationKind_PRESENTATION_KIND_PLAIN && version != SemanticVersionV2 {
 		return Config{}, ErrInvalidConfig
 	}
 	if (p.GetKind() == shotsv1.PresentationKind_PRESENTATION_KIND_PHONE_SYSTEM && version != SemanticVersionV2 && version != SemanticVersionV3) ||
@@ -40,6 +44,11 @@ func ConfigFromSavedVersion(target image.Point, p *shotsv1.ScreenPresentation, v
 	}
 	c := Config{Target: target, Matte: savedRGB(p.GetMatte())}
 	switch p.GetKind() {
+	case shotsv1.PresentationKind_PRESENTATION_KIND_PLAIN:
+		if p.GetCaptureArea() != shotsv1.CaptureArea_CAPTURE_AREA_APP_ONLY || p.GetPhoneSystemChrome() != nil || p.GetBrowserDesktopChrome() != nil ||
+			p.GetFitMode() != shotsv1.ScreenFitMode_SCREEN_FIT_MODE_UNSPECIFIED && p.GetFitMode() != shotsv1.ScreenFitMode_SCREEN_FIT_MODE_CONTAIN {
+			return Config{}, ErrInvalidConfig
+		}
 	case shotsv1.PresentationKind_PRESENTATION_KIND_PHONE_SYSTEM:
 		v := p.GetPhoneSystemChrome()
 		var status, home, batteryLabel, cellular, wifi *bool
@@ -114,6 +123,11 @@ func CanonicalizeSavedVersion(p *shotsv1.ScreenPresentation, version string) err
 		return ErrInvalidConfig
 	}
 	switch p.GetKind() {
+	case shotsv1.PresentationKind_PRESENTATION_KIND_PLAIN:
+		if version != SemanticVersionV2 || p.GetCaptureArea() != shotsv1.CaptureArea_CAPTURE_AREA_APP_ONLY || p.GetPhoneSystemChrome() != nil || p.GetBrowserDesktopChrome() != nil ||
+			p.GetFitMode() != shotsv1.ScreenFitMode_SCREEN_FIT_MODE_UNSPECIFIED && p.GetFitMode() != shotsv1.ScreenFitMode_SCREEN_FIT_MODE_CONTAIN {
+			return ErrInvalidConfig
+		}
 	case shotsv1.PresentationKind_PRESENTATION_KIND_PHONE_SYSTEM:
 		v := p.GetPhoneSystemChrome()
 		if v == nil {

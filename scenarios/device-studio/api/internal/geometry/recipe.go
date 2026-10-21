@@ -14,7 +14,7 @@ import (
 
 // SchemaJSON is the strict Gateway schema sent with the user's bounded task.
 func SchemaJSON() string {
-	return `{"type":"object","additionalProperties":false,"required":["version","profile","operation","envelope_mm","parts","screen"],"properties":{"version":{"const":"device_geometry_recipe.v1"},"profile":{"const":"detailed_device_v1"},"operation":{"enum":["construct","correct"]},"envelope_mm":{"type":"array","items":{"type":"number","exclusiveMinimum":0,"maximum":1000},"minItems":3,"maxItems":3},"parts":{"type":"array","minItems":1,"maxItems":32,"items":{"type":"object","additionalProperties":false,"required":["id","kind","role","center_mm","size_mm","rotation_deg","bevel_mm","material"],"properties":{"id":{"type":"string","minLength":1,"maxLength":48,"pattern":"^[a-z0-9_-]+$"},"kind":{"enum":["box","rounded_box","cylinder"]},"role":{"enum":["housing","bezel","display","button","camera","port","speaker","control","detail"]},"center_mm":{"type":"array","items":{"type":"number"},"minItems":3,"maxItems":3},"size_mm":{"type":"array","items":{"type":"number","exclusiveMinimum":0},"minItems":3,"maxItems":3},"rotation_deg":{"type":"array","items":{"enum":[0,90,180,270]},"minItems":3,"maxItems":3},"bevel_mm":{"type":"number","minimum":0},"material":{"enum":["matte_polymer","gloss_polymer","rubber","glass","anodized_metal","neutral_metal"]}}}},"screen":{"type":"object","additionalProperties":false,"required":["part_id","face","center_uv","size_uv","rotation_deg"],"properties":{"part_id":{"type":"string"},"face":{"enum":["front:+z","back:-z","left:-x","right:+x","top:+y","bottom:-y"]},"center_uv":{"type":"array","items":{"type":"number","minimum":0,"maximum":1},"minItems":2,"maxItems":2},"size_uv":{"type":"array","items":{"type":"number","exclusiveMinimum":0,"maximum":1},"minItems":2,"maxItems":2},"rotation_deg":{"enum":[0,90,180,270]}}}}}`
+	return `{"type":"object","additionalProperties":false,"required":["version","profile","operation","envelope_mm","parts","screen"],"properties":{"version":{"const":"device_geometry_recipe.v1"},"profile":{"const":"detailed_device_v1"},"operation":{"enum":["construct","correct"]},"envelope_mm":{"type":"array","items":{"type":"number","exclusiveMinimum":0,"maximum":1000},"minItems":3,"maxItems":3},"parts":{"type":"array","minItems":1,"maxItems":32,"items":{"type":"object","additionalProperties":false,"required":["id","kind","role","center_mm","size_mm","rotation_deg","bevel_mm","material"],"properties":{"id":{"type":"string","minLength":1,"maxLength":48,"pattern":"^[a-z0-9_-]+$"},"kind":{"enum":["box","rounded_box","cylinder"]},"role":{"enum":["housing","bezel","display","button","camera","port","speaker","control","detail"]},"center_mm":{"type":"array","items":{"type":"number"},"minItems":3,"maxItems":3},"size_mm":{"type":"array","items":{"type":"number","exclusiveMinimum":0},"minItems":3,"maxItems":3},"rotation_deg":{"type":"array","items":{"enum":[0,90,180,270]},"minItems":3,"maxItems":3},"bevel_mm":{"type":"number","minimum":0,"description":"For rounded_box, must be strictly less than half the smallest size_mm dimension. For box and cylinder, it must be zero."},"material":{"enum":["matte_polymer","gloss_polymer","rubber","glass","anodized_metal","neutral_metal"]}}}},"screen":{"type":"object","additionalProperties":false,"required":["part_id","face","center_uv","size_uv","rotation_deg"],"properties":{"part_id":{"type":"string"},"face":{"enum":["front:+z","back:-z","left:-x","right:+x","top:+y","bottom:-y"]},"center_uv":{"type":"array","items":{"type":"number","minimum":0,"maximum":1},"minItems":2,"maxItems":2},"size_uv":{"type":"array","items":{"type":"number","exclusiveMinimum":0,"maximum":1},"minItems":2,"maxItems":2},"rotation_deg":{"enum":[0,90,180,270]}}}}}`
 }
 
 const MaxRecipeBytes = 32 << 10
@@ -24,10 +24,13 @@ var ErrInvalidRecipe = errors.New("geometry: invalid recipe")
 // SemanticIssue is safe user-facing feedback derived only from finite,
 // validated recipe fields. It never contains arbitrary provider text.
 type SemanticIssue struct {
-	Code    string `json:"code"`
-	PartID  string `json:"part_id,omitempty"`
-	Axis    string `json:"axis,omitempty"`
-	Message string `json:"message"`
+	Code                string  `json:"code"`
+	PartID              string  `json:"part_id,omitempty"`
+	Axis                string  `json:"axis,omitempty"`
+	BevelMM             float64 `json:"bevel_mm,omitempty"`
+	MinimumDimensionMM  float64 `json:"minimum_dimension_mm,omitempty"`
+	MaxBevelExclusiveMM float64 `json:"max_bevel_exclusive_mm,omitempty"`
+	Message             string  `json:"message"`
 }
 
 type issueError struct {
@@ -254,8 +257,19 @@ func Validate(r Recipe) error {
 				return issueError{issue: SemanticIssue{Code: "rotated_part_outside_envelope", PartID: p.ID, Axis: axisName(i), Message: "rotated part exceeds the locked envelope"}}
 			}
 		}
-		if p.Kind == "rounded_box" && p.Bevel*2 >= math.Min(p.Size[0], math.Min(p.Size[1], p.Size[2])) {
-			return bad("bevel exceeds part dimensions")
+		if p.Kind == "rounded_box" {
+			minimumDimension := math.Min(p.Size[0], math.Min(p.Size[1], p.Size[2]))
+			maxBevelExclusive := minimumDimension / 2
+			if p.Bevel >= maxBevelExclusive {
+				return issueError{issue: SemanticIssue{
+					Code:                "bevel_exceeds_part_dimensions",
+					PartID:              p.ID,
+					BevelMM:             p.Bevel,
+					MinimumDimensionMM:  minimumDimension,
+					MaxBevelExclusiveMM: maxBevelExclusive,
+					Message:             "bevel must be less than half the smallest part dimension",
+				}}
+			}
 		}
 	}
 	if displays != 1 || !ids[r.Screen.PartID] {

@@ -45,17 +45,38 @@ describe("geometry creation API boundary", () => {
 
   it("does not accept successful responses that promote generated geometry", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ job_id: "job", project_id: "p", candidate_id: "c", state: "succeeded", version: 2, review_status: "approved" }), { status: 202 })));
-    await expect(startGeometryCreation("p", { candidateId: "c", idempotencyKey: "k", brief: "device", envelopeMM: [80, 150, 12], referenceMediaIDs: ["m"], fundingRoute: "byok" })).rejects.toThrow("incomplete job status");
+    await expect(startGeometryCreation("p", { candidateId: "c", idempotencyKey: "k", brief: "device", envelopeMM: [80, 150, 12], referenceMediaIDs: ["m"], fundingRoute: "byok", maxCostMicros: 250_000 })).rejects.toThrow("incomplete job status");
+  });
+
+  it("refuses remote requests without a positive explicit ceiling before network dispatch", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(startGeometryCreation("p", { candidateId: "c", idempotencyKey: "k", brief: "device", envelopeMM: [80, 150, 12], referenceMediaIDs: ["m"], fundingRoute: "vrooli_credits" })).rejects.toThrow(/positive maximum spend/);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("accepts only the exact job-bound retained correction response and rejects altered bytes", async () => {
     const recipe = '{"version":"device_geometry_recipe.v1"}';
     const digest = [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(recipe)))].map((value) => value.toString(16).padStart(2, "0")).join("");
-    const details = { job_id: "job-1", project_id: "p", disposition: "available", issue: { code: "part_outside_envelope", part_id: "housing", axis: "y", message: "part exceeds the locked envelope" }, envelope_mm: [80, 150, 12], prior_recipe_json: recipe, recipe_sha256: digest, recipe_bytes: new TextEncoder().encode(recipe).length };
+    const details = { job_id: "job-1", project_id: "p", disposition: "available", issue: { code: "part_outside_envelope", part_id: "housing", axis: "y", message: "part exceeds the locked envelope" }, envelope_mm: [80, 150, 12], reference_media_ids: ["image-1"], prior_recipe_json: recipe, recipe_sha256: digest, recipe_bytes: new TextEncoder().encode(recipe).length };
     mocks.getFile.mockResolvedValueOnce(new Response(JSON.stringify(details), { status: 200 }));
     await expect(getGeometryCorrection("job-1")).resolves.toMatchObject({ recipe_sha256: digest, prior_recipe_json: recipe });
     expect(mocks.getFile).toHaveBeenCalledWith("/geometry-creations/job-1/correction");
     mocks.getFile.mockResolvedValueOnce(new Response(JSON.stringify({ ...details, prior_recipe_json: recipe.replace("device", "Device") }), { status: 200 }));
     await expect(getGeometryCorrection("job-1")).rejects.toThrow("digest differs");
+  });
+
+  it("accepts a source-bound bevel issue only with the exact strict numeric limit", async () => {
+    const recipe = '{"version":"device_geometry_recipe.v1"}';
+    const digest = [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(recipe)))].map((value) => value.toString(16).padStart(2, "0")).join("");
+    const details = {
+      job_id: "job-bevel", project_id: "p", disposition: "available", mode: "semantic_repair",
+      issue: { code: "bevel_exceeds_part_dimensions", part_id: "thin_bezel", bevel_mm: 1, minimum_dimension_mm: 2, max_bevel_exclusive_mm: 1, message: "bevel must be less than half the smallest part dimension" },
+      envelope_mm: [80, 150, 12], reference_media_ids: ["image-1"], prior_recipe_json: recipe, recipe_sha256: digest, recipe_bytes: new TextEncoder().encode(recipe).length,
+    };
+    mocks.getFile.mockResolvedValueOnce(new Response(JSON.stringify(details), { status: 200 }));
+    await expect(getGeometryCorrection("job-bevel")).resolves.toMatchObject({ issue: { code: "bevel_exceeds_part_dimensions", max_bevel_exclusive_mm: 1 } });
+    mocks.getFile.mockResolvedValueOnce(new Response(JSON.stringify({ ...details, issue: { ...details.issue, max_bevel_exclusive_mm: 1.01 } }), { status: 200 }));
+    await expect(getGeometryCorrection("job-bevel")).rejects.toThrow("Verified prior geometry response is incomplete");
   });
 });

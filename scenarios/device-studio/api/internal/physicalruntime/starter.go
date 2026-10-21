@@ -223,6 +223,7 @@ type starterFile struct {
 	ID, File, MIME, SHA, License, Attribution string
 	Role                                      library.ArtifactRole
 	Provenance                                library.ArtifactProvenance
+	Data                                      []byte
 }
 
 func (s *starterInitializer) publishPhoneBundle(ctx context.Context) (library.BundleRevision, error) {
@@ -269,9 +270,13 @@ func (s *starterInitializer) buildManifest(ctx context.Context, bundleID string,
 		if !strings.HasPrefix(file.File, "assets/") || path.Clean(file.File) != file.File {
 			return library.BundleManifest{}, nil, errors.New("starter asset path is not a fixed embedded path")
 		}
-		data, err := fs.ReadFile(s.fs, file.File)
-		if err != nil {
-			return library.BundleManifest{}, nil, fmt.Errorf("read embedded starter asset %s: %w", file.ID, err)
+		data := file.Data
+		if data == nil {
+			var err error
+			data, err = fs.ReadFile(s.fs, file.File)
+			if err != nil {
+				return library.BundleManifest{}, nil, fmt.Errorf("read embedded starter asset %s: %w", file.ID, err)
+			}
 		}
 		sum := sha256.Sum256(data)
 		if hex.EncodeToString(sum[:]) != file.SHA {

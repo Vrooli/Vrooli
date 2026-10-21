@@ -76,6 +76,24 @@ func (r *sqliteRepository) Submit(ctx context.Context, j Job) (out Job, created 
 		if e = insertJob(ctx, c, j); e != nil {
 			return fmt.Errorf("insert render job: %w", e)
 		}
+		if scopeID := j.Input.WorkflowScopeID; scopeID != "" {
+			var state string
+			var admitted, reserved, maxChildren, maxCalls int
+			if e = c.QueryRowContext(ctx, `SELECT state,children_admitted,provider_calls_reserved,max_children,max_provider_calls FROM render_job_scopes WHERE id=?`, scopeID).Scan(&state, &admitted, &reserved, &maxChildren, &maxCalls); e != nil {
+				return fmt.Errorf("workflow scope admission: %w", e)
+			}
+			calls := j.Input.WorkflowProviderCalls
+			if state != string(RunScopeActive) || admitted >= maxChildren || reserved+calls > maxCalls {
+				return ErrScopeAdmissionClosed
+			}
+			ordinal := admitted + 1
+			if _, e = c.ExecContext(ctx, `INSERT INTO render_job_scope_children(scope_id,job_id,input_fingerprint,ordinal,provider_calls) VALUES(?,?,?,?,?)`, scopeID, j.ID, j.InputFingerprint, ordinal, calls); e != nil {
+				return e
+			}
+			if _, e = c.ExecContext(ctx, `UPDATE render_job_scopes SET children_admitted=children_admitted+1,provider_calls_reserved=provider_calls_reserved+?,version=version+1,updated_at=? WHERE id=? AND state='active'`, calls, j.CreatedAt.UnixNano(), scopeID); e != nil {
+				return e
+			}
+		}
 		out = j
 		created = true
 		return nil
@@ -218,7 +236,18 @@ func (r *sqliteRepository) RecordReleased(ctx context.Context, id, attempt strin
 }
 
 func (r *sqliteRepository) Start(ctx context.Context, claim ExecutionClaim, now, expected int64) (Job, error) {
-	return r.mutate(ctx, claim.JobID, now, expected, func(j *Job) error {
+	return r.mutateChecked(ctx, claim.JobID, now, expected, func(c *sql.Conn, j *Job) error {
+		if scopeID := j.Input.WorkflowScopeID; scopeID != "" {
+			var state string
+			if err := c.QueryRowContext(ctx, `SELECT state FROM render_job_scopes WHERE id=?`, scopeID).Scan(&state); err != nil {
+				return err
+			}
+			if state != string(RunScopeActive) {
+				return ErrScopeAdmissionClosed
+			}
+		}
+		return nil
+	}, func(j *Job) error {
 		if j.State != Queued && j.State != Checkpointed {
 			return transitionErr(j, "start")
 		}
@@ -556,6 +585,10 @@ func (r *sqliteRepository) RetrySourceInspection(ctx context.Context, id string,
 }
 
 func (r *sqliteRepository) mutate(ctx context.Context, id string, now, expected int64, fn func(*Job) error) (out Job, err error) {
+	return r.mutateChecked(ctx, id, now, expected, nil, fn)
+}
+
+func (r *sqliteRepository) mutateChecked(ctx context.Context, id string, now, expected int64, check func(*sql.Conn, *Job) error, fn func(*Job) error) (out Job, err error) {
 	err = r.withImmediate(ctx, func(c *sql.Conn) error {
 		j, e := loadJob(ctx, c, id)
 		if e != nil {
@@ -563,6 +596,11 @@ func (r *sqliteRepository) mutate(ctx context.Context, id string, now, expected 
 		}
 		if j.Version != expected {
 			return ErrConcurrentTransition
+		}
+		if check != nil {
+			if e = check(c, &j); e != nil {
+				return e
+			}
 		}
 		oldState := j.State
 		if e = fn(&j); e != nil {

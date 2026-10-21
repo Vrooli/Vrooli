@@ -36,6 +36,19 @@ type Revision struct {
 	Physical            *PhysicalResolution
 }
 
+type ReadabilityOutput struct {
+	Width, Height     int
+	SHA256, MediaType string
+}
+
+type ReadabilityReview struct {
+	ID, ProjectID, ShotID, RenderID, OutputSHA256, ProofSHA256, Note string
+	ShotRevision                                                     int64
+	Verdict                                                          int32
+	OutputWidth, OutputHeight, RegionWidth, RegionHeight             uint32
+	ReviewedAt                                                       time.Time
+}
+
 type Page struct {
 	Items []Shot
 	Next  string

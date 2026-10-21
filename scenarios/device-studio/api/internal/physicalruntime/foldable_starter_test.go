@@ -1,10 +1,12 @@
 package physicalruntime
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"errors"
 	"math"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -141,5 +143,43 @@ func TestReviewedFoldableCandidateIsOptInReplayableAndDualRigid(t *testing.T) {
 	}
 	if definition.ModelCandidates[0].SourcePath != "" || definition.ModelCandidates[0].Author != "Vrooli" || definition.ModelCandidates[0].License != "AGPL-3.0-only" {
 		t.Fatalf("candidate provenance claims an external source: %+v", definition.ModelCandidates[0])
+	}
+	uvV3, err := owners.InitializeReviewedFoldableUVV3(testCtx)
+	if err != nil {
+		t.Fatalf("initialize foldable UV v3: %v", err)
+	}
+	if uvV3.Device.DeviceID != foldUVDeviceID || uvV3.Bundle.Manifest.BundleID != foldUVBundleID || uvV3.Preset.PresetID != foldUVPresetID || uvV3.Scene.SceneID != first.Scene.SceneID || uvV3.Motion.MotionID != first.Motion.MotionID || uvV3.Preset.Setup.DisplayId != "inner-left" {
+		t.Fatalf("foldable v3 did not preserve compatible scene/motion while versioning its device/preset: %+v", uvV3)
+	}
+	staticV3, err := owners.InitializeReviewedFoldableUVV3Static(testCtx)
+	if err != nil {
+		t.Fatalf("initialize foldable v3 static still preset: %v", err)
+	}
+	if staticV3.Preset.PresetID != foldUVStaticPresetID || staticV3.Preset.Setup.Motion.Id != "phone-still-identity" || staticV3.Motion.MotionID != "phone-still-identity" {
+		t.Fatalf("fold v3 still preset must bind static still motion: preset=%+v motion=%s", staticV3.Preset, staticV3.Motion.MotionID)
+	}
+}
+
+func TestFoldableV3FlipsOnlySelectedLeftDisplayUV(t *testing.T) {
+	source, err := os.ReadFile("assets/foldable/foldable-concept.glb")
+	if err != nil {
+		t.Fatal(err)
+	}
+	derived, err := flipScreenUVV(source, "LeftInnerDisplay", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pinned, err := os.ReadFile("assets/foldable-v3/foldable-concept-v3.glb")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(derived, pinned) {
+		t.Fatal("v3 GLB is not the deterministic selected-display V-flip derivative")
+	}
+	if got := sha256Hex(derived); got != "5f16cb936cb7ed63e55be84cf00ab642c350d87479662b88e86515996498a6cb" {
+		t.Fatalf("v3 digest changed: %s", got)
+	}
+	if got := sha256Hex(source); got != foldAssetSHA {
+		t.Fatalf("source v2 bytes changed: %s", got)
 	}
 }

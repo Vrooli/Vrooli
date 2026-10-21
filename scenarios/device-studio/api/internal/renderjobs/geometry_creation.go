@@ -37,13 +37,16 @@ var creationCandidateID = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$
 
 type GeometryCreationRequest struct {
 	ProjectID              string     `json:"project_id"`
+	WorkflowScopeID        string     `json:"workflow_scope_id,omitempty"`
 	CandidateID            string     `json:"candidate_id"`
 	IdempotencyKey         string     `json:"idempotency_key"`
 	Brief                  string     `json:"brief"`
 	EnvelopeMM             [3]float64 `json:"envelope_mm"`
 	ReferenceMediaIDs      []string   `json:"reference_media_ids"`
 	FundingRoute           string     `json:"funding_route,omitempty"`
+	MaxCostMicros          int64      `json:"max_cost_micros,omitempty"`
 	CorrectionSourceJobID  string     `json:"correction_source_job_id,omitempty"`
+	CorrectionMode         string     `json:"correction_mode,omitempty"`
 	CorrectionRecipeSHA256 string     `json:"correction_recipe_sha256,omitempty"`
 	CorrectionFeedback     string     `json:"correction_feedback,omitempty"`
 }
@@ -55,15 +58,17 @@ type GeometryCorrectionDetails struct {
 	SourceInputFingerprint string                  `json:"source_input_fingerprint,omitempty"`
 	SourceBriefSHA256      string                  `json:"source_brief_sha256,omitempty"`
 	Disposition            string                  `json:"disposition"`
+	Mode                   string                  `json:"mode,omitempty"`
 	Issue                  *geometry.SemanticIssue `json:"issue,omitempty"`
 	PriorRecipeJSON        string                  `json:"prior_recipe_json,omitempty"`
 	RecipeSHA256           string                  `json:"recipe_sha256,omitempty"`
 	RecipeBytes            int64                   `json:"recipe_bytes,omitempty"`
 	EnvelopeMM             [3]float64              `json:"envelope_mm"`
+	ReferenceMediaIDs      []string                `json:"reference_media_ids,omitempty"`
 }
 
-// OpenGeometryCorrection reads only a failed job's verified, attempt-bound
-// recipe artifact. It never returns a workspace path or advances the job.
+// OpenGeometryCorrection reads only a failed rejected recipe or a succeeded
+// accepted recipe whose bytes are pinned to its completed attempt. It never advances a job.
 func (c *Coordinator) OpenGeometryCorrection(ctx context.Context, jobID string) (GeometryCorrectionDetails, error) {
 	ctx, cancel := boundedDetached(ctx, ownerCallTimeout)
 	defer cancel()
@@ -82,8 +87,8 @@ func (c *Coordinator) openGeometryCorrection(ctx context.Context, route routePin
 	if err := verifyJobRoute(job, route); err != nil || job.Input.SubjectKind != jobs.SubjectGeometryCreate {
 		return GeometryCorrectionDetails{}, jobs.ErrNotFound
 	}
-	if job.State != jobs.Failed {
-		return GeometryCorrectionDetails{}, errors.New("geometry correction details require a failed job")
+	if job.State != jobs.Failed && job.State != jobs.Succeeded {
+		return GeometryCorrectionDetails{}, errors.New("geometry refinement requires a terminal geometry job")
 	}
 	details := GeometryCorrectionDetails{JobID: job.ID, ProjectID: job.Input.ProjectID, SourceInputFingerprint: job.InputFingerprint, Disposition: "unavailable"}
 	var subject geometrySubjectData
@@ -97,12 +102,25 @@ func (c *Coordinator) openGeometryCorrection(ctx context.Context, route routePin
 		return details, nil
 	}
 	details.EnvelopeMM = subject.EnvelopeMM
+	for _, ref := range subject.References {
+		details.ReferenceMediaIDs = append(details.ReferenceMediaIDs, ref.MediaID)
+	}
 	details.SourceBriefSHA256 = digestBytes([]byte(subject.Brief))
 	attempt, ok := currentAttempt(job)
-	if !ok || attempt.State != jobs.AttemptFailed || attempt.Execution == nil || attempt.ExecutionReleasedAt == nil {
+	if !ok || attempt.Execution == nil || attempt.ExecutionReleasedAt == nil {
 		return details, nil
 	}
 	details.AttemptID = attempt.ID
+	if job.State == jobs.Succeeded {
+		if attempt.State != jobs.AttemptSucceeded {
+			return details, nil
+		}
+		return c.openAcceptedGeometryRecipe(ctx, route, job, attempt, subject, details)
+	}
+	details.Mode = "semantic_repair"
+	if attempt.State != jobs.AttemptFailed {
+		return details, nil
+	}
 	nativeSHA := failureEvidenceDigest(job.Failure)
 	if nativeSHA == "" {
 		return details, nil
@@ -133,6 +151,65 @@ func (c *Coordinator) openGeometryCorrection(ctx context.Context, route routePin
 	details.PriorRecipeJSON = string(recipeBytes)
 	details.RecipeSHA256 = ref.SHA256
 	details.RecipeBytes = ref.SizeBytes
+	return details, nil
+}
+
+type acceptedGeometryRecipeEvidence struct {
+	Version          int    `json:"version"`
+	JobID            string `json:"job_id"`
+	AttemptID        string `json:"attempt_id"`
+	InputFingerprint string `json:"input_fingerprint"`
+	OwnerID          string `json:"owner_id"`
+	ScopeID          string `json:"scope_id"`
+	ArtifactID       string `json:"artifact_id"`
+	SHA256           string `json:"sha256"`
+	SizeBytes        int64  `json:"size_bytes"`
+}
+
+const geometryAcceptedRecipeScope = "geometry-accepted-recipe"
+
+func (c *Coordinator) openAcceptedGeometryRecipe(ctx context.Context, route routePin, job jobs.Job, attempt jobs.Attempt, subject geometrySubjectData, details GeometryCorrectionDetails) (GeometryCorrectionDetails, error) {
+	completion := attempt.Completion
+	if job.State != jobs.Succeeded || attempt.State != jobs.AttemptSucceeded || completion == nil || completion.AttemptID != attempt.ID || completion.InputFingerprint != job.InputFingerprint || attempt.Execution == nil || completion.ExecutionClaimID != attempt.Execution.ID {
+		return details, nil
+	}
+	var recipeRef, evidenceRef *jobs.OutputRef
+	for i := range completion.Outputs {
+		output := &completion.Outputs[i]
+		switch output.Kind {
+		case "accepted_geometry_recipe":
+			if recipeRef != nil {
+				return details, nil
+			}
+			recipeRef = output
+		case "accepted_geometry_recipe_evidence":
+			if evidenceRef != nil {
+				return details, nil
+			}
+			evidenceRef = output
+		}
+	}
+	if recipeRef == nil || evidenceRef == nil || !validDigest(recipeRef.SHA256) || recipeRef.SizeBytes <= 0 || recipeRef.SizeBytes > geometry.MaxRecipeBytes || recipeRef.MIMEType != "application/json" || recipeRef.ArtifactID != operationEvidenceBlobPrefix+job.ID+"/"+attempt.ID+"/accepted-recipe-"+recipeRef.SHA256+".json" || evidenceRef.MIMEType != "application/json" || evidenceRef.ArtifactID != operationEvidenceBlobPrefix+job.ID+"/"+attempt.ID+"/accepted-recipe-evidence-"+evidenceRef.SHA256+".json" || evidenceRef.SizeBytes <= 0 || evidenceRef.SizeBytes > 4096 || !validDigest(evidenceRef.SHA256) {
+		return details, nil
+	}
+	evidenceBytes, err := c.readBlobForRoute(ctx, route, evidenceRef.ArtifactID, 4096, evidenceRef.SHA256)
+	if err != nil || int64(len(evidenceBytes)) != evidenceRef.SizeBytes {
+		return details, nil
+	}
+	var evidence acceptedGeometryRecipeEvidence
+	if decodeJSON(evidenceBytes, &evidence) != nil || evidence.Version != 1 || evidence.JobID != job.ID || evidence.AttemptID != attempt.ID || evidence.InputFingerprint != job.InputFingerprint || evidence.OwnerID != OwnerID || evidence.ScopeID != geometryAcceptedRecipeScope || evidence.ArtifactID != recipeRef.ArtifactID || evidence.SHA256 != recipeRef.SHA256 || evidence.SizeBytes != recipeRef.SizeBytes {
+		return details, nil
+	}
+	recipeBytes, err := c.readBlobForRoute(ctx, route, recipeRef.ArtifactID, geometry.MaxRecipeBytes, recipeRef.SHA256)
+	if err != nil || int64(len(recipeBytes)) != recipeRef.SizeBytes {
+		return details, nil
+	}
+	recipe, canonical, err := geometry.Decode(recipeBytes)
+	if err != nil || recipe.Operation != "construct" || !bytes.Equal(canonical, recipeBytes) || recipe.Envelope != geometry.Dimensions(subject.EnvelopeMM) {
+		return details, nil
+	}
+	details.Disposition, details.Mode = "available", "visual_refinement"
+	details.PriorRecipeJSON, details.RecipeSHA256, details.RecipeBytes = string(recipeBytes), recipeRef.SHA256, recipeRef.SizeBytes
 	return details, nil
 }
 
@@ -217,18 +294,20 @@ type geometryReference struct {
 	Height    uint32 `json:"height"`
 }
 type geometrySubjectData struct {
-	Version      int                                 `json:"version"`
-	Brief        string                              `json:"brief"`
-	EnvelopeMM   [3]float64                          `json:"envelope_mm"`
-	References   []geometryReference                 `json:"references"`
-	FundingRoute string                              `json:"funding_route,omitempty"`
-	Correction   *rendering.GeometryCorrectionPrompt `json:"correction,omitempty"`
+	Version         int                                 `json:"version"`
+	Brief           string                              `json:"brief"`
+	EnvelopeMM      [3]float64                          `json:"envelope_mm"`
+	References      []geometryReference                 `json:"references"`
+	FundingRoute    string                              `json:"funding_route,omitempty"`
+	MaxCostMicros   int64                               `json:"max_cost_micros,omitempty"`
+	Correction      *rendering.GeometryCorrectionPrompt `json:"correction,omitempty"`
+	WorkflowScopeID string                              `json:"workflow_scope_id,omitempty"`
 }
 
 func (c *Coordinator) SubmitGeometryCreation(ctx context.Context, req GeometryCreationRequest) (jobs.Job, bool, error) {
 	ctx, cancel := boundedDetached(ctx, stageTimeout)
 	defer cancel()
-	req.ProjectID, req.CandidateID, req.IdempotencyKey, req.Brief = strings.TrimSpace(req.ProjectID), strings.TrimSpace(req.CandidateID), strings.TrimSpace(req.IdempotencyKey), strings.TrimSpace(req.Brief)
+	req.ProjectID, req.CandidateID, req.IdempotencyKey, req.Brief, req.WorkflowScopeID = strings.TrimSpace(req.ProjectID), strings.TrimSpace(req.CandidateID), strings.TrimSpace(req.IdempotencyKey), strings.TrimSpace(req.Brief), strings.TrimSpace(req.WorkflowScopeID)
 	req.FundingRoute = NormalizeGeometryFundingRoute(req.FundingRoute)
 	if req.ProjectID == "" || !creationCandidateID.MatchString(req.CandidateID) || req.IdempotencyKey == "" || len(req.IdempotencyKey) > 200 || req.Brief == "" || len(req.Brief) > 4000 || len(req.ReferenceMediaIDs) < 1 || len(req.ReferenceMediaIDs) > 4 {
 		return jobs.Job{}, false, errors.New("renderjobs: geometry creation requires project, candidate, brief, and 1..4 selected project images")
@@ -236,8 +315,15 @@ func (c *Coordinator) SubmitGeometryCreation(ctx context.Context, req GeometryCr
 	if req.FundingRoute == "" {
 		return jobs.Job{}, false, errors.New("renderjobs: unsupported geometry funding route")
 	}
-	if (req.CorrectionSourceJobID == "") != (req.CorrectionRecipeSHA256 == "") || (req.CorrectionSourceJobID == "") != (strings.TrimSpace(req.CorrectionFeedback) == "") || len(req.CorrectionFeedback) > 1200 || !validCorrectionFeedback(req.CorrectionFeedback) {
-		return jobs.Job{}, false, errors.New("renderjobs: correction source and bounded operator feedback must be supplied together")
+	if req.WorkflowScopeID != "" && (c.scopes == nil || req.FundingRoute != GeometryFundingLocal || req.MaxCostMicros != 0) {
+		return jobs.Job{}, false, errors.New("renderjobs: bounded creation sessions support only the explicitly confirmed local route")
+	}
+	if req.CorrectionSourceJobID == "" {
+		if req.CorrectionRecipeSHA256 != "" || strings.TrimSpace(req.CorrectionFeedback) != "" || req.CorrectionMode != "" {
+			return jobs.Job{}, false, errors.New("renderjobs: correction fields require a source job")
+		}
+	} else if req.CorrectionRecipeSHA256 == "" || strings.TrimSpace(req.CorrectionFeedback) == "" || req.CorrectionMode != "" && req.CorrectionMode != "semantic_repair" && req.CorrectionMode != "visual_refinement" || len(req.CorrectionFeedback) > 1200 || !validCorrectionFeedback(req.CorrectionFeedback) {
+		return jobs.Job{}, false, errors.New("renderjobs: correction requires a source recipe, bounded feedback, and a supported mode")
 	}
 	for _, v := range req.EnvelopeMM {
 		if v <= 0 || v > 1000 {
@@ -264,16 +350,28 @@ func (c *Coordinator) SubmitGeometryCreation(ctx context.Context, req GeometryCr
 	} else if found {
 		return existing, false, nil
 	}
+	if req.FundingRoute == GeometryFundingLocal && req.MaxCostMicros != 0 || req.FundingRoute != GeometryFundingLocal && req.MaxCostMicros <= 0 {
+		return jobs.Job{}, false, errors.New("renderjobs: remote geometry requests require a positive USD micro-ceiling; local requests must not carry one")
+	}
 	var correction *rendering.GeometryCorrectionPrompt
 	if req.CorrectionSourceJobID != "" {
 		if !validGeometryCreationJobID(req.CorrectionSourceJobID) || !validDigest(req.CorrectionRecipeSHA256) {
 			return jobs.Job{}, false, errors.New("renderjobs: correction source identity is invalid")
 		}
 		details, correctionErr := c.openGeometryCorrection(ctx, route, req.CorrectionSourceJobID)
-		if correctionErr != nil || details.Disposition != "available" || details.ProjectID != req.ProjectID || details.RecipeSHA256 != req.CorrectionRecipeSHA256 || details.Issue == nil {
-			return jobs.Job{}, false, errors.New("renderjobs: verified failed recipe is unavailable for correction")
+		if correctionErr != nil || details.Disposition != "available" || details.ProjectID != req.ProjectID || details.RecipeSHA256 != req.CorrectionRecipeSHA256 {
+			return jobs.Job{}, false, errors.New("renderjobs: verified source recipe is unavailable for correction")
 		}
-		correction = &rendering.GeometryCorrectionPrompt{SourceJobID: details.JobID, SourceInputFingerprint: details.SourceInputFingerprint, SourceBriefSHA256: details.SourceBriefSHA256, RecipeSHA256: details.RecipeSHA256, RecipeJSON: details.PriorRecipeJSON, Issue: *details.Issue, Feedback: strings.TrimSpace(req.CorrectionFeedback)}
+		if req.EnvelopeMM != details.EnvelopeMM || !sameStrings(req.ReferenceMediaIDs, details.ReferenceMediaIDs) || digestBytes([]byte(req.Brief)) != details.SourceBriefSHA256 {
+			return jobs.Job{}, false, errors.New("renderjobs: refinement must keep the source brief, envelope, and reference images locked")
+		}
+		if req.CorrectionMode == "" && details.Mode == "semantic_repair" {
+			req.CorrectionMode = details.Mode
+		}
+		if req.CorrectionMode != details.Mode || details.Mode == "semantic_repair" && details.Issue == nil || details.Mode == "visual_refinement" && details.Issue != nil {
+			return jobs.Job{}, false, errors.New("renderjobs: source disposition does not match the requested correction mode")
+		}
+		correction = &rendering.GeometryCorrectionPrompt{Mode: details.Mode, SourceJobID: details.JobID, SourceInputFingerprint: details.SourceInputFingerprint, SourceBriefSHA256: details.SourceBriefSHA256, RecipeSHA256: details.RecipeSHA256, RecipeJSON: details.PriorRecipeJSON, Issue: details.Issue, Feedback: strings.TrimSpace(req.CorrectionFeedback)}
 	}
 	references := make([]geometryReference, 0, len(req.ReferenceMediaIDs))
 	var total int64
@@ -291,7 +389,7 @@ func (c *Coordinator) SubmitGeometryCreation(ctx context.Context, req GeometryCr
 		}
 		references = append(references, geometryReference{MediaID: m.ID, SHA256: m.SHA256, SizeBytes: m.SizeBytes, MediaType: m.MediaType, Width: m.Width, Height: m.Height})
 	}
-	subjectData, err := json.Marshal(geometrySubjectData{Version: 1, Brief: req.Brief, EnvelopeMM: req.EnvelopeMM, References: references, FundingRoute: req.FundingRoute, Correction: correction})
+	subjectData, err := json.Marshal(geometrySubjectData{Version: 1, Brief: req.Brief, EnvelopeMM: req.EnvelopeMM, References: references, FundingRoute: req.FundingRoute, MaxCostMicros: req.MaxCostMicros, Correction: correction, WorkflowScopeID: req.WorkflowScopeID})
 	if err != nil {
 		return jobs.Job{}, false, err
 	}
@@ -310,7 +408,12 @@ func (c *Coordinator) SubmitGeometryCreation(ctx context.Context, req GeometryCr
 	for i, ref := range references {
 		bindings = append(bindings, jobs.ArtifactBinding{Role: fmt.Sprintf("reference_%d", i), ArtifactID: "source-media:" + ref.MediaID, RevisionID: "sha256:" + ref.SHA256, SHA256: ref.SHA256})
 	}
-	in := jobs.Input{ProjectID: req.ProjectID, Bindings: bindings, ToolProfileDigest: profileDigest, RendererVersion: geometryRendererVersion, OutputProfile: GeometryOutputProfile, SubjectKind: jobs.SubjectGeometryCreate, SubjectID: req.CandidateID, SubjectData: subjectData}
+	in := jobs.Input{ProjectID: req.ProjectID, WorkflowScopeID: req.WorkflowScopeID, WorkflowProviderCalls: func() int {
+		if req.WorkflowScopeID != "" {
+			return 1
+		}
+		return 0
+	}(), Bindings: bindings, ToolProfileDigest: profileDigest, RendererVersion: geometryRendererVersion, OutputProfile: GeometryOutputProfile, SubjectKind: jobs.SubjectGeometryCreate, SubjectID: req.CandidateID, SubjectData: subjectData}
 	if err = c.requireRoute(ctx, route); err != nil {
 		return jobs.Job{}, false, err
 	}
@@ -329,6 +432,18 @@ func (c *Coordinator) SubmitGeometryCreation(ctx context.Context, req GeometryCr
 		return jobs.Job{}, false, jobs.ErrIdempotencyConflict
 	}
 	return job, created, nil
+}
+
+func sameStrings(left, right []string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for i := range left {
+		if left[i] != right[i] {
+			return false
+		}
+	}
+	return true
 }
 
 // readGeometryReplay returns an existing job only when its immutable subject
@@ -366,6 +481,9 @@ func sameGeometryCreationRequest(job jobs.Job, req GeometryCreationRequest) bool
 		input.OutputProfile != GeometryOutputProfile || input.AccountingRequired || input.AccountingOperationID != "" {
 		return false
 	}
+	if input.WorkflowScopeID != req.WorkflowScopeID || (input.WorkflowScopeID == "") != (input.WorkflowProviderCalls == 0) || input.WorkflowProviderCalls > 1 {
+		return false
+	}
 	if len(input.Bindings) != len(req.ReferenceMediaIDs)+2 {
 		return false
 	}
@@ -386,8 +504,8 @@ func sameGeometryCreationRequest(job jobs.Job, req GeometryCreationRequest) bool
 	canonical, err := json.Marshal(subject)
 	if err != nil || !bytes.Equal(canonical, input.SubjectData) || subject.Version != 1 ||
 		subject.Brief != req.Brief || subject.EnvelopeMM != req.EnvelopeMM ||
-		subject.FundingRoute != NormalizeGeometryFundingRoute(req.FundingRoute) ||
-		len(subject.References) != len(req.ReferenceMediaIDs) || subject.Brief == "" || len(subject.Brief) > 4000 {
+		subject.FundingRoute != NormalizeGeometryFundingRoute(req.FundingRoute) || subject.MaxCostMicros != req.MaxCostMicros ||
+		len(subject.References) != len(req.ReferenceMediaIDs) || subject.Brief == "" || len(subject.Brief) > 4000 || subject.WorkflowScopeID != req.WorkflowScopeID {
 		return false
 	}
 	if req.CorrectionSourceJobID == "" {
@@ -396,11 +514,11 @@ func sameGeometryCreationRequest(job jobs.Job, req GeometryCreationRequest) bool
 		}
 	} else {
 		correction := subject.Correction
-		if correction == nil || correction.SourceJobID != req.CorrectionSourceJobID || correction.RecipeSHA256 != req.CorrectionRecipeSHA256 || correction.Feedback != strings.TrimSpace(req.CorrectionFeedback) || !validDigest(correction.SourceInputFingerprint) || !validDigest(correction.SourceBriefSHA256) || len(correction.RecipeJSON) == 0 || len(correction.RecipeJSON) > geometry.MaxRecipeBytes || digestBytes([]byte(correction.RecipeJSON)) != correction.RecipeSHA256 || !validGeometrySemanticIssue(&correction.Issue) {
-			return false
+		mode := req.CorrectionMode
+		if mode == "" {
+			mode = "semantic_repair"
 		}
-		issue, ok := geometry.IssueFromError(func() error { _, _, err := geometry.Decode([]byte(correction.RecipeJSON)); return err }())
-		if !ok || issue != correction.Issue {
+		if correction == nil || correction.Mode != mode || correction.SourceJobID != req.CorrectionSourceJobID || correction.RecipeSHA256 != req.CorrectionRecipeSHA256 || correction.Feedback != strings.TrimSpace(req.CorrectionFeedback) || !validDigest(correction.SourceInputFingerprint) || !validDigest(correction.SourceBriefSHA256) || !rendering.ValidateGeometryCorrectionPrompt(correction) {
 			return false
 		}
 	}
@@ -463,7 +581,7 @@ func (geometryCreationAdapter) prepare(ctx context.Context, c *Coordinator, rout
 	if subject.Correction != nil && !rendering.ValidateGeometryCorrectionPrompt(subject.Correction) {
 		return preparedOperation{}, errDeterministicPreparation
 	}
-	manifest := rendering.GeometryWorkerManifest{Version: 1, JobID: job.ID, AttemptID: attempt.ID, InputFingerprint: job.InputFingerprint, WorkerSHA256: bindingDigest(job.Input, "worker_executable"), Brief: subject.Brief, Envelope: subject.EnvelopeMM, FundingRoute: fundingRoute, Images: make([]rendering.GeometryImageInput, 0, len(subject.References)), Correction: subject.Correction}
+	manifest := rendering.GeometryWorkerManifest{Version: 1, JobID: job.ID, AttemptID: attempt.ID, InputFingerprint: job.InputFingerprint, WorkerSHA256: bindingDigest(job.Input, "worker_executable"), Brief: subject.Brief, Envelope: subject.EnvelopeMM, FundingRoute: fundingRoute, MaxCostMicros: subject.MaxCostMicros, Images: make([]rendering.GeometryImageInput, 0, len(subject.References)), Correction: subject.Correction}
 	files := make([]stagedFile, 0, len(subject.References))
 	for i, ref := range subject.References {
 		ref := ref
@@ -517,7 +635,7 @@ func (geometryCreationAdapter) validateCompletion(ctx context.Context, c *Coordi
 		return jobs.CompletionEvidence{}, err
 	}
 	canonical, _ := json.Marshal(receipt)
-	if !bytes.Equal(receiptBytes, append(canonical, '\n')) || receipt.Version != 2 || receipt.JobID != job.ID || receipt.AttemptID != attempt.ID || receipt.InputFingerprint != job.InputFingerprint || receipt.WorkerSHA256 != bindingDigest(job.Input, "worker_executable") || receipt.ProviderCalls != 1 || !validDigest(receipt.RecipeSHA256) || !validDigest(receipt.OutputSHA256) || !validDigest(receipt.InferenceOutcomeSHA256) || !validGeometryAppliedSettings(receipt.Applied) || !validGeometryUsageProvenance(receipt.InputProvenance) || !validGeometryUsageProvenance(receipt.OutputProvenance) || !validGeometryUsageProvenance(receipt.CostProvenance) {
+	if !bytes.Equal(receiptBytes, append(canonical, '\n')) || receipt.Version != 2 || receipt.JobID != job.ID || receipt.AttemptID != attempt.ID || receipt.InputFingerprint != job.InputFingerprint || receipt.WorkerSHA256 != bindingDigest(job.Input, "worker_executable") || receipt.ProviderCalls != 1 || !validDigest(receipt.RecipeSHA256) || !validDigest(receipt.OutputSHA256) || !validDigest(receipt.InferenceOutcomeSHA256) || !validGeometryAppliedSettings(receipt.Applied) || !validGeometryUsageProvenance(receipt.InputProvenance) || !validGeometryUsageProvenance(receipt.OutputProvenance) || !validGeometryUsageProvenance(receipt.CostProvenance) || !validGeometryAccountingStatus(receipt.AccountingStatus, receipt.CreditsCharged) {
 		return jobs.CompletionEvidence{}, errors.New("renderjobs: geometry receipt does not match immutable one-call job")
 	}
 	outcomeBytes, err := readWorkspaceFile(workspace, rendering.GeometryInferenceOutcomeName, 64<<10)
@@ -532,7 +650,7 @@ func (geometryCreationAdapter) validateCompletion(ctx context.Context, c *Coordi
 	if err != nil {
 		return jobs.CompletionEvidence{}, err
 	}
-	if !bytes.Equal(outcomeBytes, append(outcomeCanonical, '\n')) || digestBytes(outcomeBytes) != receipt.InferenceOutcomeSHA256 || outcome.JobID != job.ID || outcome.AttemptID != attempt.ID || outcome.InputFingerprint != job.InputFingerprint || outcome.WorkerSHA256 != receipt.WorkerSHA256 || outcome.ProviderCalls != receipt.ProviderCalls || !outcome.Validated || outcome.ErrorCode != inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_UNSPECIFIED || !sameJSON(outcome.Applied, receipt.Applied) || !sameJSON(outcome.Usage, &inferencev1.Usage{InputTokens: receipt.InputTokens, OutputTokens: receipt.OutputTokens, CostMicros: receipt.CostMicros, InputTokensProvenance: receipt.InputProvenance, OutputTokensProvenance: receipt.OutputProvenance, CostProvenance: receipt.CostProvenance}) {
+	if !bytes.Equal(outcomeBytes, append(outcomeCanonical, '\n')) || digestBytes(outcomeBytes) != receipt.InferenceOutcomeSHA256 || outcome.JobID != job.ID || outcome.AttemptID != attempt.ID || outcome.InputFingerprint != job.InputFingerprint || outcome.WorkerSHA256 != receipt.WorkerSHA256 || outcome.ProviderCalls != receipt.ProviderCalls || !outcome.Validated || outcome.ErrorCode != inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_UNSPECIFIED || !sameJSON(outcome.Applied, receipt.Applied) || !sameJSON(outcome.Usage, &inferencev1.Usage{InputTokens: receipt.InputTokens, OutputTokens: receipt.OutputTokens, CostMicros: receipt.CostMicros, CreditsCharged: receipt.CreditsCharged, AccountingStatus: receipt.AccountingStatus, InputTokensProvenance: receipt.InputProvenance, OutputTokensProvenance: receipt.OutputProvenance, CostProvenance: receipt.CostProvenance}) {
 		return jobs.CompletionEvidence{}, errors.New("renderjobs: geometry response outcome differs from successful receipt")
 	}
 	nativeBytes, err := c.readBlob(ctx, nativeKey, 64<<10, nativeSHA)
@@ -587,11 +705,30 @@ func (geometryCreationAdapter) validateCompletion(ctx context.Context, c *Coordi
 	for _, ref := range subject.References {
 		refs = append(refs, ref.SHA256)
 	}
+	acceptedSHA := digestBytes(canonicalRecipe)
+	acceptedKey := operationEvidenceBlobPrefix + job.ID + "/" + attempt.ID + "/accepted-recipe-" + acceptedSHA + ".json"
+	if err := c.putVerified(ctx, route, acceptedKey, canonicalRecipe, "application/json", acceptedSHA); err != nil {
+		return jobs.CompletionEvidence{}, err
+	}
+	evidence := acceptedGeometryRecipeEvidence{Version: 1, JobID: job.ID, AttemptID: attempt.ID, InputFingerprint: job.InputFingerprint, OwnerID: OwnerID, ScopeID: geometryAcceptedRecipeScope, ArtifactID: acceptedKey, SHA256: acceptedSHA, SizeBytes: int64(len(canonicalRecipe))}
+	evidenceBytes, err := json.Marshal(evidence)
+	if err != nil {
+		return jobs.CompletionEvidence{}, err
+	}
+	evidenceBytes = append(evidenceBytes, '\n')
+	evidenceSHA := digestBytes(evidenceBytes)
+	evidenceKey := operationEvidenceBlobPrefix + job.ID + "/" + attempt.ID + "/accepted-recipe-evidence-" + evidenceSHA + ".json"
+	if err := c.putVerified(ctx, route, evidenceKey, evidenceBytes, "application/json", evidenceSHA); err != nil {
+		return jobs.CompletionEvidence{}, err
+	}
 	claims := library.IntakeClaims{CandidateID: job.Input.SubjectID, DisplayName: geometryCandidateDisplayName(subject.Brief), SourceLabel: "Device Studio local AI construction", LicenseClaim: "unknown"}
-	lineage := library.CreationLineage{JobID: job.ID, RecipeSHA256: receipt.RecipeSHA256, ReferenceSHA256: refs, Provider: receipt.Provider, Model: receipt.Model, ProviderCalls: receipt.ProviderCalls, InputTokens: receipt.InputTokens, OutputTokens: receipt.OutputTokens, CostMicros: receipt.CostMicros, InputTokensProvenance: receipt.InputProvenance, OutputTokensProvenance: receipt.OutputProvenance, CostProvenance: receipt.CostProvenance, AppliedSettings: receipt.Applied, InferenceOutcomeSHA256: receipt.InferenceOutcomeSHA256}
+	lineage := library.CreationLineage{JobID: job.ID, RecipeSHA256: receipt.RecipeSHA256, ReferenceSHA256: refs, Provider: receipt.Provider, Model: receipt.Model, ProviderCalls: receipt.ProviderCalls, InputTokens: receipt.InputTokens, OutputTokens: receipt.OutputTokens, CostMicros: receipt.CostMicros, CreditsCharged: receipt.CreditsCharged, AccountingStatus: receipt.AccountingStatus, InputTokensProvenance: receipt.InputProvenance, OutputTokensProvenance: receipt.OutputProvenance, CostProvenance: receipt.CostProvenance, AppliedSettings: receipt.Applied, InferenceOutcomeSHA256: receipt.InferenceOutcomeSHA256}
 	if subject.Correction != nil {
 		correction := subject.Correction
-		lineage.CorrectionSource = &library.CreationCorrectionSource{JobID: correction.SourceJobID, InputFingerprint: correction.SourceInputFingerprint, BriefSHA256: correction.SourceBriefSHA256, RecipeSHA256: correction.RecipeSHA256, IssueCode: correction.Issue.Code, PartID: correction.Issue.PartID, Axis: correction.Issue.Axis}
+		lineage.CorrectionSource = &library.CreationCorrectionSource{JobID: correction.SourceJobID, InputFingerprint: correction.SourceInputFingerprint, BriefSHA256: correction.SourceBriefSHA256, RecipeSHA256: correction.RecipeSHA256, Mode: correction.Mode, Feedback: correction.Feedback}
+		if correction.Issue != nil {
+			lineage.CorrectionSource.IssueCode, lineage.CorrectionSource.PartID, lineage.CorrectionSource.Axis = correction.Issue.Code, correction.Issue.PartID, correction.Issue.Axis
+		}
 	}
 	candidate, err := c.generatedIntake.PersistGenerated(ctx, claims, job.ID, lineage, glb)
 	if err != nil {
@@ -600,7 +737,21 @@ func (geometryCreationAdapter) validateCompletion(ctx context.Context, c *Coordi
 	if candidate.ID != job.Input.SubjectID || candidate.ReviewStatus != "unreviewed" || candidate.RenderStatus != "not_reviewed" || candidate.OriginalSHA256 != receipt.OutputSHA256 {
 		return jobs.CompletionEvidence{}, errors.New("renderjobs: generated intake did not retain exact unreviewed GLB")
 	}
-	return jobs.CompletionEvidence{AttemptID: attempt.ID, ExecutionClaimID: attempt.Execution.ID, InputFingerprint: job.InputFingerprint, Outputs: []jobs.OutputRef{{Kind: "unreviewed_geometry_candidate", ArtifactID: "intake-candidate:" + candidate.ID + "/revision:1", SHA256: candidate.OriginalSHA256, MIMEType: "model/gltf-binary", SizeBytes: candidate.SizeBytes}}, ReceiptArtifactID: "geometry-receipt:" + job.ID, ReceiptSHA256: digestBytes(receiptBytes), CompletedAt: time.Now().UTC()}, nil
+	outputs := []jobs.OutputRef{{Kind: "unreviewed_geometry_candidate", ArtifactID: "intake-candidate:" + candidate.ID + "/revision:1", SHA256: candidate.OriginalSHA256, MIMEType: "model/gltf-binary", SizeBytes: candidate.SizeBytes}, {Kind: "accepted_geometry_recipe", ArtifactID: acceptedKey, SHA256: acceptedSHA, MIMEType: "application/json", SizeBytes: int64(len(canonicalRecipe))}, {Kind: "accepted_geometry_recipe_evidence", ArtifactID: evidenceKey, SHA256: evidenceSHA, MIMEType: "application/json", SizeBytes: int64(len(evidenceBytes))}}
+	return jobs.CompletionEvidence{AttemptID: attempt.ID, ExecutionClaimID: attempt.Execution.ID, InputFingerprint: job.InputFingerprint, Outputs: outputs, ReceiptArtifactID: "geometry-receipt:" + job.ID, ReceiptSHA256: digestBytes(receiptBytes), CompletedAt: time.Now().UTC()}, nil
+}
+
+func validGeometryAccountingStatus(status string, credits *int64) bool {
+	switch status {
+	case "":
+		return credits == nil
+	case "pending_reconciliation":
+		return credits == nil
+	case "settled":
+		return credits != nil && *credits >= 0
+	default:
+		return false
+	}
 }
 
 func geometryCandidateDisplayName(brief string) string {

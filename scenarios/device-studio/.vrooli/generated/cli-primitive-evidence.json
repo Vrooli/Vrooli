@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "device-studio",
   "generator": "v1.0.0",
-  "manifest_hash": "6cea6abb09aff1f375f9be163a20b96844633244a5bb633ec8276fa1593f071b",
+  "manifest_hash": "19e8a0de422f28bb3d21bdb115cd94666c680ce04212cb4c362dcc5a518fd979",
   "commands": [
     {
       "path": "creation cancel",
@@ -53,6 +53,14 @@
       "binding": "DevicesService.ListDeviceCandidates",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
+    },
+    {
+      "path": "devices review",
+      "group": "devices",
+      "command": "review",
+      "binding": ".",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
     },
     {
       "path": "devices revisions",

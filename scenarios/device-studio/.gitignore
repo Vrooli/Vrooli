@@ -54,3 +54,12 @@ __pycache__/
 *.pyc
 *.blend1
 *.blend2
+
+# Private ground-truth photo/page captures; source URLs and digests remain in manifests.
+/assets/sources/*/references/
+
+# Local IDs and resumable state created by opt-in demonstration curation.
+/examples/demos/run-state*.json*
+
+# Generated test-run state contains host-local project and revision identities.
+/coverage/runtime/

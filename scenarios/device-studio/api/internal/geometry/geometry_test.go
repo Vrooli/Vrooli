@@ -41,6 +41,25 @@ func TestDecodeRejectsUnknownFieldsAndInvalidLocks(t *testing.T) {
 	}
 }
 
+func TestBevelAtHalfSmallestDimensionStaysRejectedAndBecomesTyped(t *testing.T) {
+	r := validRecipe()
+	r.Parts[0].Size[2] = 2
+	r.Parts[0].Bevel = 1
+	err := Validate(r)
+	if err == nil {
+		t.Fatal("bevel equal to half the smallest dimension must remain invalid")
+	}
+	issue, ok := IssueFromError(err)
+	want := SemanticIssue{Code: "bevel_exceeds_part_dimensions", PartID: "housing", BevelMM: 1, MinimumDimensionMM: 2, MaxBevelExclusiveMM: 1, Message: "bevel must be less than half the smallest part dimension"}
+	if !ok || issue != want {
+		t.Fatalf("expected bounded exact bevel issue %+v, got %+v (typed=%v, err=%v)", want, issue, ok, err)
+	}
+	r.Parts[0].Bevel = 0.999
+	if err := Validate(r); err != nil {
+		t.Fatalf("a positive bevel strictly below half the smallest dimension should remain valid: %v", err)
+	}
+}
+
 func TestDecodeRequiresExactTuplesAndRejectsDuplicateKeys(t *testing.T) {
 	base := `{"version":"device_geometry_recipe.v1","profile":"detailed_device_v1","operation":"construct","envelope_mm":[80,150,12],"parts":[{"id":"housing","kind":"box","role":"housing","center_mm":[0,0,0],"size_mm":[78,148,10],"rotation_deg":[0,0,0],"bevel_mm":0,"material":"matte_polymer"},{"id":"display","kind":"box","role":"display","center_mm":[0,0,5],"size_mm":[64,124,1],"rotation_deg":[0,0,0],"bevel_mm":0,"material":"glass"}],"screen":{"part_id":"display","face":"front:+z","center_uv":[0.5,0.5],"size_uv":[0.9,0.9],"rotation_deg":0}}`
 	for name, value := range map[string]string{"short tuple": strings.Replace(base, `"envelope_mm":[80,150,12]`, `"envelope_mm":[80,150]`, 1), "long tuple": strings.Replace(base, `"envelope_mm":[80,150,12]`, `"envelope_mm":[80,150,12,1]`, 1), "duplicate key": strings.Replace(base, `"profile":"detailed_device_v1"`, `"profile":"detailed_device_v1","profile":"detailed_device_v1"`, 1), "missing required": strings.Replace(base, `"bevel_mm":0,`, "", 1)} {

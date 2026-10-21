@@ -28,7 +28,7 @@ The first executable profiles are a generic tall-phone system presentation and a
 
 | Configuration | First executable contract |
 |---|---|
-| Capture | App-only or already-composed. Already-composed uses plain presentation and does not receive additional chrome. |
+| Capture | App-only or already-composed. Plain app-only uses a full-target uniform contain fit and matte without simulated chrome. Already-composed uses the identity path and receives no additional chrome. |
 | Phone | Clock/carrier text, battery percentage, cellular/Wi-Fi/home visibility, status visibility, light/dark appearance, and explicit optional top/bottom RGB overrides. Profile owns status/home insets and icon layout. Hiding icons does not silently reclaim a physical unsafe region. |
 | Default fills | Named fixed edge-mode policy: sample a bounded top/bottom source strip, quantize colors, choose the modal bin with deterministic tie-breaking, then choose its representative color. Pin policy/version and resolved colors. Do not average text into the background. Transparent sources require an explicit matte before sampling. |
 | Browser desktop | Title/address, toolbar/window-control visibility, light/dark chrome, versioned normalized window rectangle, desktop colors, and optional menu/dock visibility. Use authored neutral wallpaper geometry and generic icons with retained provenance. |
@@ -44,9 +44,11 @@ browser normalized window placement, colors and menu/dock visibility. Presence
 must distinguish an omitted color from explicit black, and omitted optional
 visibility from explicit false. Canonical defaults are versioned and persisted;
 browser window controls require a visible toolbar rather than being ignored.
-The first matte control applies to simulated presentation. Preserve the existing
-plain compositor's alpha/contain behavior under its old semantic version;
-reject unsupported plain-only configuration instead of silently discarding it.
+The first matte control applies to simulated presentation. Preserve existing
+plain/already-composed revisions under their old semantic version. New
+plain/app-only physical revisions use the shared contain/matte profile and a
+separate immutable semantic version; reject unsupported plain-only values
+instead of silently discarding them.
 
 Compiler eligibility must validate profile geometry and supported text through
 the presentation owner. If source-dependent validation needs decoded pixels,
@@ -118,3 +120,8 @@ Declare source transfer/primaries/range, display texture interpretation, view tr
 ## Cross-References
 
 [rendering](rendering.md), [acceptance](../internal/ACCEPTANCE.md), [data](../concepts/DATA.md), [requirements protocols](../../requirements/verification-protocols.md).
+
+
+## Plain physical app-only fitting — live integration repair
+
+Public family review exposed that physical Plain currently requires a precomposed source at the exact display raster. That prevents placing ordinary app captures on arbitrary screen families without adding phone/browser chrome. Plain now accepts explicit APP_ONLY and composes it with the existing uniform contain/matte configuration into the chosen device raster. This reuses `presentations.Config{Target: ...}`: full-target viewport, centered uniform fit and letterbox, with no added chrome and no pixel stretching. Physical Plain APP_ONLY is pinned as presentation v2; historical Plain ALREADY_COMPOSED stays v1 and retains exact-raster validation and direct-pixel identity. Do not infer phone system areas on watches, TVs, frames or vehicle displays. Still and already supported recording paths use the same rule; unsupported joint/recording combinations remain blocked. Invalid supported-presentation configuration must produce a useful invalid-argument result, not generic500. Repair admission150runtime/150tests, no new schema or parallel fitter. Current family harness failures and upside-down outputs remain retained; actual qualified outputs await corrected source review.

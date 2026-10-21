@@ -24,6 +24,26 @@ describe("SettingsPage desktop account", () => {
     expect(screen.getByTestId(selectors.settingsPage.accountStatus)).toHaveTextContent("pages.settings.account.states.unavailable");
     expect(screen.getByText("pages.settings.account.creditStates.unavailable")).toBeInTheDocument();
     expect(screen.getByTestId(selectors.settingsPage.accountConnect)).toBeDisabled();
+    expect(screen.getByTestId("settings-credit-balance")).toHaveTextContent("pages.settings.account.balanceUnavailable");
+  });
+
+  it("shows the fresh LPBS balance with its source and preserves it as stale after a failed refresh", async () => {
+    const getCreditBalance = vi.fn()
+      .mockResolvedValueOnce({ state: "available" as const, balanceCredits: "875", displayCreditsLabel: "credits", displayCreditsMultiplier: 1, source: "LPBS" as const, fetchedAt: "2026-10-20T12:00:00.000Z", walletUpdatedAt: "2026-10-19T12:00:00.000Z" })
+      .mockResolvedValueOnce({ state: "unavailable" as const });
+    window.desktop = { auth: {
+      getCreditBalance,
+      getDesktopLinkStatus: vi.fn(async () => ({ state: "unlinked" as const, scopes: [] })),
+      connectDesktop: vi.fn(async () => ({ state: "unlinked" as const, scopes: [] })),
+      disconnectDesktop: vi.fn(async () => ({ localCleared: true, remoteRevocation: "confirmed" as const })),
+    } };
+
+    renderWithProviders(<SettingsPage />);
+    await waitFor(() => expect(screen.getByTestId("settings-credit-balance")).toHaveTextContent("875 credits"));
+    expect(screen.getByTestId("settings-credit-balance")).toHaveTextContent("LPBS");
+    fireEvent.click(screen.getByRole("button", { name: "pages.settings.account.balanceRefresh" }));
+    await waitFor(() => expect(screen.getByText("pages.settings.account.balanceStale")).toBeInTheDocument());
+    expect(screen.getByTestId("settings-credit-balance")).toHaveTextContent("875 credits");
   });
 
   it("shares the LPBS refresh session only after an explicit desktop-owner action", async () => {
@@ -46,7 +66,7 @@ describe("SettingsPage desktop account", () => {
     expect(screen.getByText("pages.settings.account.creditStates.shared")).toBeInTheDocument();
     fireEvent.click(screen.getByText("pages.settings.account.creditStop"));
     await waitFor(() => expect(setCreditSessionSharing).toHaveBeenCalledWith(false));
-    expect(screen.getByRole("status")).toHaveTextContent("pages.settings.account.creditRemoteUncertain");
+    expect(screen.getByText("pages.settings.account.creditRemoteUncertain")).toBeInTheDocument();
   });
 
   it("shows owner-confirmed account scopes and lets the user switch through browser PKCE", async () => {

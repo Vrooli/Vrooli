@@ -183,8 +183,33 @@ func TestGeometryCompletionKeepsLongMultilinePromptAndUsesSafeDisplayTitle(t *te
 		t.Fatal(err)
 	}
 	c.generatedIntake = &capturingGeneratedIntake{}
-	if _, err := (geometryCreationAdapter{}).validateCompletion(ctx, c, route, job, attempt, env, nativeKey, nativeSHA); err != nil {
+	completion, err := (geometryCreationAdapter{}).validateCompletion(ctx, c, route, job, attempt, env, nativeKey, nativeSHA)
+	if err != nil {
 		t.Fatalf("long/multiline prompt should complete as an unreviewed candidate: %v", err)
+	}
+	if len(completion.Outputs) != 3 || completion.Outputs[1].Kind != "accepted_geometry_recipe" || completion.Outputs[2].Kind != "accepted_geometry_recipe_evidence" {
+		t.Fatalf("success must pin the accepted recipe and binding evidence in completion outputs: %+v", completion.Outputs)
+	}
+	attempt.State, attempt.Completion = jobs.AttemptSucceeded, &completion
+	attempt.ExecutionReleasedAt = &completion.CompletedAt
+	job.State = jobs.Succeeded
+	opened, err := c.openAcceptedGeometryRecipe(ctx, route, job, attempt, geometrySubjectData{EnvelopeMM: [3]float64{80, 150, 12}}, GeometryCorrectionDetails{JobID: job.ID, ProjectID: job.Input.ProjectID})
+	if err != nil || opened.Disposition != "available" || opened.Mode != "visual_refinement" || opened.RecipeSHA256 != completion.Outputs[1].SHA256 || opened.PriorRecipeJSON == "" {
+		t.Fatalf("successful geometry must expose its exact accepted recipe for explicit refinement: %+v err=%v", opened, err)
+	}
+	for _, mutate := range []func(*jobs.Attempt){
+		func(a *jobs.Attempt) { a.Completion.InputFingerprint = digestBytes([]byte("wrong input")) },
+		func(a *jobs.Attempt) { a.Completion.Outputs[1].SHA256 = digestBytes([]byte("wrong recipe")) },
+	} {
+		bad := attempt
+		copied := completion
+		copied.Outputs = append([]jobs.OutputRef(nil), completion.Outputs...)
+		bad.Completion = &copied
+		mutate(&bad)
+		result, err := c.openAcceptedGeometryRecipe(ctx, route, job, bad, geometrySubjectData{EnvelopeMM: [3]float64{80, 150, 12}}, GeometryCorrectionDetails{JobID: job.ID})
+		if err != nil || result.Disposition == "available" {
+			t.Fatalf("mismatched completion binding must keep accepted recipe unavailable: %+v err=%v", result, err)
+		}
 	}
 	capture := c.generatedIntake.(*capturingGeneratedIntake)
 	var stored geometrySubjectData
@@ -362,6 +387,7 @@ type integrationOps struct {
 	mu           sync.Mutex
 	starts       int
 	deferRun     bool
+	exitStatus   int
 	lastSpec     platform.OperationSpec
 	lookups      int
 	stagedWorker []byte
@@ -511,7 +537,11 @@ func (o *integrationOps) Lookup(_ context.Context, intent platform.OperationInte
 func (o *integrationOps) Inspect(_ context.Context, ref platform.OperationRef) (platform.OperationObservation, error) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	return platform.OperationObservation{Ref: ref, State: platform.OperationStoppedOutcomeKnown, Result: "success", ExecMainCode: 1, ExecMainStatus: 0, ExitKnown: true}, nil
+	result := "success"
+	if o.exitStatus != 0 {
+		result = "failure"
+	}
+	return platform.OperationObservation{Ref: ref, State: platform.OperationStoppedOutcomeKnown, Result: result, ExecMainCode: 1, ExecMainStatus: o.exitStatus, ExitKnown: true}, nil
 }
 
 func (o *integrationOps) Stop(_ context.Context, ref platform.OperationRef) (platform.OperationStopReceipt, error) {
@@ -1224,5 +1254,33 @@ func TestSuccessPublishesVerifiedPNGAndTamperFailsAfterNativeQuiescence(t *testi
 				t.Fatalf("verified output not completed: %#v", got)
 			}
 		})
+	}
+}
+
+func TestWorkerExitFailureNeverAcceptsOutputOrChangesPinnedSourceClock(t *testing.T) { // [REQ:DS-JOB-RECOVERY][REQ:DS-JOB-DURABILITY]
+	ops := &integrationOps{exitStatus: 17}
+	c, ctx, _ := integrationCoordinator(t, ops, false)
+	job := submitIntegrationJob(t, c, ctx)
+	fingerprint, sourceClock := job.InputFingerprint, job.Input.SourceClockDigest
+	running, err := c.Advance(ctx, job.ID)
+	if err != nil || running.State != jobs.Running {
+		t.Fatalf("worker dispatch state=%s err=%v, want running before terminal observation", running.State, err)
+	}
+	workspace, err := attemptWorkspace(func() string { route, _ := c.route(ctx); return route.Root }(), job.ID, running.Attempts[0].ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(workspace, rendering.OutputName)); err != nil {
+		t.Fatalf("test requires a real worker-produced file before the failed exit observation: %v", err)
+	}
+	failed, err := c.Reconcile(ctx, job.ID)
+	if err != nil || failed.State != jobs.Failed {
+		t.Fatalf("known nonzero worker exit state=%s err=%v, want failed", failed.State, err)
+	}
+	if failed.InputFingerprint != fingerprint || failed.Input.SourceClockDigest != sourceClock || failed.Attempts[0].Completion != nil {
+		t.Fatalf("failed worker changed immutable input or accepted output: fingerprint=%q source-clock=%q completion=%+v", failed.InputFingerprint, failed.Input.SourceClockDigest, failed.Attempts[0].Completion)
+	}
+	if _, _, err := c.OpenOutput(ctx, "project", job.ID); err == nil {
+		t.Fatal("output from a worker that exited nonzero was exposed as an accepted render")
 	}
 }

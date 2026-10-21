@@ -149,6 +149,56 @@ describe("physical still setup", () => {
     expect(verifySourceMediaContent).toHaveBeenCalledWith(expect.any(Blob), media);
   });
 
+  it("opens an imported qualified child through its exact transferred visual setup review", async () => {
+    const user = userEvent.setup();
+    const review = {
+      scope: "visual_setup", result: "passed", candidateRevision: 1, candidateSha256: "b".repeat(64),
+      presetId: "phone-study-hero", presetRevision: 1, presetSha256: "f".repeat(64),
+      sceneId: "scene-phone", sceneRevision: 1, sceneSha256: "c".repeat(64),
+      motionId: "motion-still", motionRevision: 1, motionSha256: "d".repeat(64),
+      displayIds: ["main_display"], supportIds: ["device-support"], allowedMotionIds: ["static"],
+      dimensionStates: ["source_geometry_envelope"],
+    };
+    const childSetup = { ...savedPreset.preset.setup, device: { id: "device-phone", revision: 2, sha256: "9".repeat(64) } };
+    vi.mocked(resolvePhysicalShotPreset).mockResolvedValue({
+      ...savedPreset,
+      preset: { ...savedPreset.preset, revision: 2, sha256: "8".repeat(64), candidateOnly: true, setup: childSetup },
+      device: { ...savedPreset.device, revision: 2, sha256: "9".repeat(64), state: "qualified", candidate: { ...savedPreset.device.candidate, definition: { ...savedPreset.device.candidate.definition, qualification: "qualified", qualificationReviews: [review] } } },
+      inheritedVisualSetupReview: review,
+    } as never);
+    renderWithProviders(<NewPhysicalShot projectId="project-1" onCreated={vi.fn()} onCancel={vi.fn()} />);
+    expect(await screen.findByTestId("physical-setup-scope")).toHaveTextContent("Reviewed visual setup");
+    await user.click(screen.getByRole("button", { name: i18n.t(strings.physical.continue) }));
+    expect(await screen.findByTestId("qualification-scope-status")).toHaveTextContent("Verified transferred visual setup review");
+    await user.click(screen.getByRole("button", { name: i18n.t(strings.physical.continue) }));
+    await user.selectOptions(screen.getByLabelText(i18n.t(strings.physical.sourceSelect)), "screen-source");
+    await user.click(screen.getByRole("button", { name: i18n.t(strings.physical.continue) }));
+    await user.click(screen.getByRole("button", { name: i18n.t(strings.physical.continue) }));
+    await user.click(screen.getByRole("button", { name: i18n.t(strings.physical.create) }));
+    await waitFor(() => expect(shotsClient.createShot).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(shotsClient.createShot).mock.calls[0]?.[0].snapshot?.physicalBinding).toMatchObject({
+      device: { id: "device-phone", sha256: "9".repeat(64) }, scene: { id: "scene-phone", sha256: "c".repeat(64) }, motion: { id: "motion-still", sha256: "d".repeat(64) },
+    });
+
+    cleanup();
+    vi.clearAllMocks();
+    vi.mocked(resolvePhysicalShotPreset).mockResolvedValue({
+      ...savedPreset,
+      preset: { ...savedPreset.preset, revision: 2, sha256: "8".repeat(64), setup: { ...savedPreset.preset.setup, device: { id: "device-phone", revision: 2, sha256: "9".repeat(64) } } },
+      device: { ...savedPreset.device, revision: 2, sha256: "9".repeat(64), state: "qualified", candidate: { ...savedPreset.device.candidate, definition: { ...savedPreset.device.candidate.definition, qualification: "qualified", qualificationReviews: [{ ...review, supportIds: ["different-support"] }] } } },
+    } as never);
+    renderWithProviders(<NewPhysicalShot projectId="project-1" onCreated={vi.fn()} onCancel={vi.fn()} />);
+    expect(await screen.findByTestId("physical-setup-scope")).toHaveTextContent("Candidate only");
+    await user.click(screen.getByRole("button", { name: i18n.t(strings.physical.continue) }));
+    expect(screen.queryByText(/Verified transferred visual setup review/)).not.toBeInTheDocument();
+    expect(await screen.findByTestId("qualification-scope-status")).toHaveTextContent("Current selected setup is unreviewed");
+    await user.click(screen.getByRole("button", { name: i18n.t(strings.physical.continue) }));
+    await user.selectOptions(screen.getByLabelText(i18n.t(strings.physical.sourceSelect)), "screen-source");
+    await user.click(screen.getByRole("button", { name: i18n.t(strings.physical.continue) }));
+    await user.click(screen.getByRole("button", { name: i18n.t(strings.physical.continue) }));
+    expect(screen.getByRole("button", { name: i18n.t(strings.physical.create) })).toBeEnabled();
+  });
+
   it("creates 10-second motion from an exact candidate revision using only the setup-listed V2 profile", async () => {
     const user = userEvent.setup();
     const motion = create(MotionCandidateSchema, {
@@ -370,7 +420,26 @@ describe("physical still setup", () => {
     expect(snapshot?.physicalBinding?.motionOutput).toMatchObject({ profileId: "device-studio-physical-motion-1080p-v2", profileVersion: 2, frameCount: 240 });
   });
 
-  it("keeps the aspect of an already-composed screenshot and lets the compositor fit it to the display", async () => {
+  it("fits a mismatched app-only source into a raster derived from the candidate display", async () => {
+    const app = create(SourceMediaSchema, { ...media, width: 1440, height: 800 });
+    vi.mocked(projectsClient.listSourceMedia).mockResolvedValue({ sourceMedia: [app], nextPageToken: "" } as never);
+    const user = userEvent.setup();
+    renderWithProviders(<NewPhysicalShot projectId="project-1" onCreated={vi.fn()} onCancel={vi.fn()} />);
+    await user.click(await screen.findByRole("button", { name: i18n.t(strings.physical.continue) }));
+    await user.click(screen.getByRole("button", { name: i18n.t(strings.physical.continue) }));
+    await user.selectOptions(screen.getByLabelText(i18n.t(strings.physical.sourceSelect)), app.id);
+    await user.click(screen.getByRole("button", { name: i18n.t(strings.physical.continue) }));
+    await user.click(screen.getByRole("button", { name: i18n.t(strings.physical.continue) }));
+    await user.click(screen.getByRole("button", { name: i18n.t(strings.physical.create) }));
+    await waitFor(() => expect(shotsClient.createShot).toHaveBeenCalledTimes(1));
+    const snapshot = vi.mocked(shotsClient.createShot).mock.calls[0]?.[0].snapshot;
+    expect(snapshot?.physicalBinding?.screenWidthPixels).toBe(1440);
+    expect(snapshot?.physicalBinding?.screenHeightPixels).toBe(3130);
+    expect(snapshot?.presentation?.captureArea).toBe(CaptureArea.APP_ONLY);
+    expect(snapshot?.presentation?.fitMode).toBe(ScreenFitMode.CONTAIN);
+  });
+
+  it("blocks a mismatched already-composed source and offers the APP_ONLY fitting path", async () => {
     const composed = create(SourceMediaSchema, { ...media, width: 1440, height: 800 });
     vi.mocked(projectsClient.listSourceMedia).mockResolvedValue({ sourceMedia: [composed], nextPageToken: "" } as never);
     const user = userEvent.setup();
@@ -378,13 +447,30 @@ describe("physical still setup", () => {
     await user.click(await screen.findByRole("button", { name: i18n.t(strings.physical.continue) }));
     await user.click(screen.getByRole("button", { name: i18n.t(strings.physical.continue) }));
     await user.selectOptions(screen.getByLabelText(i18n.t(strings.physical.sourceSelect)), composed.id);
+    await user.selectOptions(screen.getAllByLabelText(i18n.t(strings.shot.captureArea))[0]!, String(CaptureArea.ALREADY_COMPOSED));
+    expect(await screen.findByRole("alert")).toHaveTextContent(i18n.t(strings.physical.aspectIssue));
+    expect(screen.getByText(i18n.t(strings.physical.derivedRenderRaster))).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: i18n.t(strings.physical.continue) }));
+    await user.click(screen.getByRole("button", { name: i18n.t(strings.physical.continue) }));
+    expect(screen.getByRole("button", { name: i18n.t(strings.physical.create) })).toBeDisabled();
+    expect(shotsClient.createShot).not.toHaveBeenCalled();
+  });
+
+  it("preserves exact-raster identity for a matching already-composed source", async () => {
+    vi.mocked(projectsClient.listSourceMedia).mockResolvedValue({ sourceMedia: [media], nextPageToken: "" } as never);
+    const user = userEvent.setup();
+    renderWithProviders(<NewPhysicalShot projectId="project-1" onCreated={vi.fn()} onCancel={vi.fn()} />);
+    await user.click(await screen.findByRole("button", { name: i18n.t(strings.physical.continue) }));
+    await user.click(screen.getByRole("button", { name: i18n.t(strings.physical.continue) }));
+    await user.selectOptions(screen.getByLabelText(i18n.t(strings.physical.sourceSelect)), media.id);
+    await user.selectOptions(screen.getAllByLabelText(i18n.t(strings.shot.captureArea))[0]!, String(CaptureArea.ALREADY_COMPOSED));
     await user.click(screen.getByRole("button", { name: i18n.t(strings.physical.continue) }));
     await user.click(screen.getByRole("button", { name: i18n.t(strings.physical.continue) }));
     await user.click(screen.getByRole("button", { name: i18n.t(strings.physical.create) }));
     await waitFor(() => expect(shotsClient.createShot).toHaveBeenCalledTimes(1));
     const snapshot = vi.mocked(shotsClient.createShot).mock.calls[0]?.[0].snapshot;
-    expect(snapshot?.physicalBinding?.screenWidthPixels).toBe(1440);
-    expect(snapshot?.physicalBinding?.screenHeightPixels).toBe(800);
+    expect(snapshot?.physicalBinding?.screenWidthPixels).toBe(media.width);
+    expect(snapshot?.physicalBinding?.screenHeightPixels).toBe(media.height);
     expect(snapshot?.presentation?.captureArea).toBe(CaptureArea.ALREADY_COMPOSED);
   });
 

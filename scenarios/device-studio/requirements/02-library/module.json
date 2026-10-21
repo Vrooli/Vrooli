@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "module": "library",
-    "description": "Qualified representative library. Fresh product contract; all behavior remains unimplemented.",
+    "description": "Representative device library: scoped native reviews and source custody are implemented; complete family acceptance follows exact protocol evidence.",
     "schema_version": "1.0.0",
     "auto_sync_enabled": true
   },
@@ -135,13 +135,18 @@
         {
           "type": "manual",
           "phase": "business",
-          "status": "planned",
-          "ref": "requirements/verification-protocols.md",
-          "notes": "NOT EXECUTED. Follow the named DS-LIB-WATCH protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "status": "passed",
+          "ref": "docs/internal/goal/evidence/E5/qualification-review/live-watch-body-v4-lease30-1/README.md",
+          "notes": "Root executed declared floating-body front-view circular-mask/readable12:48 diagnostic, exact source/dimensions and scope review, and complete package PRIMARY replay. Local shipped starter live proof remains separately pending. No wearable or manufacturer claim.",
           "metadata": {
             "protocol_id": "DS-LIB-WATCH",
             "planned_automation": "Mask/ROI diagnostics and declared-pose review.",
-            "evidence_status": "not_run"
+            "evidence_status": "passed_declared_protocol",
+            "supporting_refs": [
+              "docs/internal/goal/evidence/E4/family-native-review/watch-diagnostic/declared-oracle.json",
+              "docs/internal/goal/evidence/E5/qualification-review/live-watch-body-v4-lease30-1/after.json",
+              "docs/internal/goal/evidence/E5/qualification-review/live-watch-body-v4-lease30-1/primary-import-route-receipt.json"
+            ]
           }
         }
       ]

@@ -14,10 +14,12 @@ func rasterize(ctx context.Context, app image.Image, c Config, layout Layout) (R
 		if err := paintPhone(ctx, out, c, layout, matte); err != nil {
 			return Result{}, err
 		}
-	} else {
+	} else if c.Browser != nil {
 		if err := paintBrowser(ctx, out, c, layout); err != nil {
 			return Result{}, err
 		}
+	} else if err := fill(ctx, out, out.Bounds(), matte); err != nil {
+		return Result{}, err
 	}
 	if err := compositeContain(ctx, out, app, layout, matte); err != nil {
 		return Result{}, err
@@ -229,7 +231,7 @@ func sampleBilinearOver(src image.Image, bounds image.Rectangle, x, y float64, m
 			}
 			sx := min(max(x0+dx, bounds.Min.X), bounds.Max.X-1)
 			weight := wx * wy
-			r, g, b, a := src.At(sx, sy).RGBA()
+			r, g, b, a := rasterRGBAAt(src, sx, sy)
 			channels[0] += float64(r) * weight
 			channels[1] += float64(g) * weight
 			channels[2] += float64(b) * weight
@@ -241,6 +243,15 @@ func sampleBilinearOver(src image.Image, bounds image.Rectangle, x, y float64, m
 	g := channels[1] + float64(matte.G)*257*remaining/65535
 	b := channels[2] + float64(matte.B)*257*remaining/65535
 	return color.NRGBA{R: uint8(math.Round(r / 257)), G: uint8(math.Round(g / 257)), B: uint8(math.Round(b / 257)), A: 255}
+}
+
+// Use the standard exact premultiplied conversion without allocating color interfaces.
+func rasterRGBAAt(src image.Image, x, y int) (uint32, uint32, uint32, uint32) {
+	if raster, ok := src.(image.RGBA64Image); ok {
+		c := raster.RGBA64At(x, y)
+		return uint32(c.R), uint32(c.G), uint32(c.B), uint32(c.A)
+	}
+	return src.At(x, y).RGBA()
 }
 
 func over(src color.Color, matte color.NRGBA) color.NRGBA {

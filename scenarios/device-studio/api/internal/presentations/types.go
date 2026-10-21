@@ -16,6 +16,9 @@ const (
 	PhoneProfileVersionAuto    = "3"
 	BrowserProfileID           = "generic-browser-desktop"
 	BrowserProfileVersion      = "2"
+	PlainProfileID             = "plain-app-contain"
+	PlainProfileVersion        = "1"
+	PlainFitPolicyID           = "uniform-contain-opaque-matte-v1"
 	SimulatedCompositorProfile = "go-still-presentation-v2"
 	FillPolicyID               = "fixed-edge-mode-5bit-v1"
 	RasterizerID               = "device-studio-bilinear-gofont-v1"
@@ -43,9 +46,9 @@ const (
 
 type RGB struct{ R, G, B uint8 }
 
-// Config selects exactly one simulated presentation kind and the target
-// display raster supplied by the compiled scene. Layout geometry remains
-// profile-owned; Browser.Window is the only normalized placement control.
+// Config selects either a plain full-target contain fit or exactly one
+// simulated profile. Layout geometry remains profile-owned; Browser.Window
+// is the only normalized placement control.
 type Config struct {
 	Target  image.Point
 	Matte   *RGB

@@ -23,19 +23,20 @@ import (
 )
 
 const (
-	televisionAssetID       = "vrooli-authored-generic-television-concept-v1"
-	televisionBundleID      = "device-studio-starter-authored-generic-television-v1"
-	televisionDeviceID      = "authored-generic-television-candidate-v1"
-	televisionSceneID       = "authored-generic-television-study-candidate-v1"
-	televisionPresetID      = "authored-generic-television-study-stand-v1"
-	televisionReviewID      = "device-studio-e4-authored-generic-television-candidate-v1"
+	televisionAssetID       = "vrooli-authored-generic-television-concept-v2-screen-vflip"
+	televisionBundleID      = "device-studio-starter-authored-generic-television-v2-screen-vflip"
+	televisionDeviceID      = "authored-generic-television-candidate-v2-screen-vflip"
+	televisionSceneID       = "authored-generic-television-study-candidate-v2-screen-vflip"
+	televisionPresetID      = "authored-generic-television-study-stand-v2-screen-vflip"
+	televisionReviewID      = "device-studio-e4-authored-generic-television-candidate-v2-screen-vflip"
 	televisionDisplayID     = "main_display"
 	televisionRootPartID    = "television-root"
 	televisionDisplayPartID = "television-screen"
 	televisionSupportID     = "television-stand-support-candidate"
 	televisionWallSupportID = "television-wall-mount-candidate"
 	televisionCameraID      = "television-camera-full-bounds-v1"
-	televisionAssetSHA      = "d1a8507fe9cd524f4aad5fbdef2dd7533f0ba83d9f1b4bdddb82f00bda712dce"
+	televisionSourceSHA     = "d1a8507fe9cd524f4aad5fbdef2dd7533f0ba83d9f1b4bdddb82f00bda712dce"
+	televisionAssetSHA      = "137638c936842757e33d763d930e663140479083ccd3e82f339a64b8db89c554"
 )
 
 type TelevisionStarterState struct {
@@ -86,8 +87,45 @@ func televisionRecipe() geometry.Recipe {
 	}
 }
 
+// televisionThinBezelRecipe is a separate immutable v3 design. The v2 recipe
+// remains byte-pinned for its retained rejection evidence.
+func televisionThinBezelRecipe() geometry.Recipe {
+	return geometry.Recipe{Version: "device_geometry_recipe.v1", Profile: "detailed_device_v1", Operation: "construct", Envelope: geometry.Dimensions{970, 700, 300},
+		Parts: []geometry.Part{
+			{ID: "housing", Kind: "rounded_box", Role: "housing", Center: [3]float64{0, 0, 0}, Size: [3]float64{965, 559, 36}, Bevel: 12, Material: "matte_polymer"},
+			{ID: "bezel", Kind: "rounded_box", Role: "bezel", Center: [3]float64{0, 0, 20}, Size: [3]float64{957, 551, 3}, Bevel: 1.2, Material: "anodized_metal"},
+			{ID: "display", Kind: "box", Role: "display", Center: [3]float64{0, 0, 22.2}, Size: [3]float64{951, 536, 1}, Material: "glass"},
+			{ID: "stand_neck", Kind: "rounded_box", Role: "control", Center: [3]float64{0, -290, -26}, Size: [3]float64{84, 100, 44}, Bevel: 10, Material: "anodized_metal"},
+			{ID: "stand_leg_left", Kind: "rounded_box", Role: "detail", Center: [3]float64{-285, -285, -32}, Size: [3]float64{22, 100, 24}, Bevel: 5, Material: "anodized_metal"},
+			{ID: "stand_leg_right", Kind: "rounded_box", Role: "detail", Center: [3]float64{285, -285, -32}, Size: [3]float64{22, 100, 24}, Bevel: 5, Material: "anodized_metal"},
+			{ID: "stand_foot_left", Kind: "rounded_box", Role: "detail", Center: [3]float64{-285, -335, -45}, Size: [3]float64{250, 18, 160}, Bevel: 8, Material: "anodized_metal"},
+			{ID: "stand_foot_right", Kind: "rounded_box", Role: "detail", Center: [3]float64{285, -335, -45}, Size: [3]float64{250, 18, 160}, Bevel: 8, Material: "anodized_metal"},
+			{ID: "wall_mount_plate", Kind: "rounded_box", Role: "detail", Center: [3]float64{0, 0, -23}, Size: [3]float64{200, 200, 8}, Bevel: 3, Material: "neutral_metal"},
+			{ID: "mount_pad_ul", Kind: "box", Role: "detail", Center: [3]float64{-80, 80, -30}, Size: [3]float64{18, 18, 6}, Material: "neutral_metal"},
+			{ID: "mount_pad_ur", Kind: "box", Role: "detail", Center: [3]float64{80, 80, -30}, Size: [3]float64{18, 18, 6}, Material: "neutral_metal"},
+			{ID: "mount_pad_ll", Kind: "box", Role: "detail", Center: [3]float64{-80, -80, -30}, Size: [3]float64{18, 18, 6}, Material: "neutral_metal"},
+			{ID: "mount_pad_lr", Kind: "box", Role: "detail", Center: [3]float64{80, -80, -30}, Size: [3]float64{18, 18, 6}, Material: "neutral_metal"},
+		},
+		Screen: geometry.Screen{PartID: "display", Face: "front:+z", Center: [2]float64{.5, .5}, Size: [2]float64{.997, .997}},
+	}
+}
+
 func compileTelevisionAsset() ([]byte, string, error) {
-	recipe := televisionRecipe()
+	data, digest, err := compileTelevisionRecipe(televisionRecipe())
+	if err != nil {
+		return nil, "", err
+	}
+	if digest != televisionAssetSHA {
+		return nil, "", fmt.Errorf("authored television bytes changed without a versioned source update: %s", digest)
+	}
+	return data, digest, nil
+}
+
+func compileTelevisionV3Asset() ([]byte, string, error) {
+	return compileTelevisionRecipe(televisionThinBezelRecipe())
+}
+
+func compileTelevisionRecipe(recipe geometry.Recipe) ([]byte, string, error) {
 	if err := geometry.Validate(recipe); err != nil {
 		return nil, "", fmt.Errorf("validate authored television recipe: %w", err)
 	}
@@ -95,11 +133,12 @@ func compileTelevisionAsset() ([]byte, string, error) {
 	if err != nil {
 		return nil, "", fmt.Errorf("compile authored television: %w", err)
 	}
+	data, err = flipScreenUVV(data, "display", 1)
+	if err != nil {
+		return nil, "", fmt.Errorf("derive television screen-only UV view: %w", err)
+	}
 	sum := sha256.Sum256(data)
 	digest := hex.EncodeToString(sum[:])
-	if digest != televisionAssetSHA {
-		return nil, "", fmt.Errorf("authored television bytes changed without a versioned candidate ID: %s", digest)
-	}
 	return data, digest, nil
 }
 
@@ -134,7 +173,7 @@ func (s *starterInitializer) publishTelevisionBundle(ctx context.Context, data [
 	manifest := library.BundleManifest{Version: library.ManifestVersion, BundleID: televisionBundleID, Revision: 1, Artifacts: []library.Artifact{{
 		ID: televisionAssetID, Role: library.RoleGeometryGLB, MIME: "model/gltf-binary", SizeBytes: int64(len(data)), SHA256: digest, LicenseID: "AGPL-3.0-only",
 		Attribution: "Vrooli-authored generic television concept; not a manufacturer model or CAD.",
-		Provenance:  library.ArtifactProvenance{Kind: library.ProvenanceAuthored, SourceLabel: "Deterministic finite generic-television geometry recipe in television_starter.go; includes separate front screen, tabletop stand, and candidate-only rear plate/pads. Samsung DU8000 dimensions are comparison-only; no product identity or VESA compliance is claimed."},
+		Provenance:  library.ArtifactProvenance{Kind: library.ProvenanceAdapted, SourceLabel: "Deterministic finite generic-television geometry recipe in television_starter.go; includes separate front screen, tabletop stand, and candidate-only rear plate/pads.", SourceSHA256: televisionSourceSHA, Adaptation: "Versioned screen-only UV derivative: a private TEXCOORD_0 accessor flips V for display primitive 1; source geometry and other BIN bytes are retained. Samsung DU8000 dimensions are comparison-only; no product identity or VESA compliance is claimed."},
 		Rights:      []library.Use{library.UseEdit, library.UseRender},
 	}}}
 	sources := map[string]io.Reader{televisionAssetID: bytes.NewReader(data)}

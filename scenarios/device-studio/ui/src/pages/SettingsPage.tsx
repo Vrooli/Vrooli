@@ -33,6 +33,24 @@ export function SettingsPage() {
   const [creditStatus, setCreditStatus] = useState<DeviceStudioCreditSessionStatus | null>(null);
   const [creditBusy, setCreditBusy] = useState(false);
   const [creditNotice, setCreditNotice] = useState<string | null>(null);
+  const [creditBalance, setCreditBalance] = useState<DeviceStudioCreditBalance | null>(null);
+  const [balanceBusy, setBalanceBusy] = useState(false);
+
+  async function refreshCreditBalance() {
+    if (!desktopAuth?.getCreditBalance) {
+      setCreditBalance({ state: "unavailable" });
+      return;
+    }
+    setBalanceBusy(true);
+    try {
+      const next = await desktopAuth.getCreditBalance();
+      setCreditBalance(next.state === "available" || creditBalance?.state !== "available"
+        ? next : { ...creditBalance, state: "stale" });
+    } catch {
+      setCreditBalance(creditBalance?.state === "available" ? { ...creditBalance, state: "stale" } : { state: "unavailable" });
+    }
+    finally { setBalanceBusy(false); }
+  }
 
   useEffect(() => {
     let active = true;
@@ -45,6 +63,8 @@ export function SettingsPage() {
       .catch(() => { if (active) setAccountState({ state: "unavailable", scopes: [] }); });
     return () => { active = false; };
   }, [desktopAuth]);
+
+  useEffect(() => { void refreshCreditBalance(); }, [desktopAuth]);
 
   useEffect(() => {
     let active = true;
@@ -203,6 +223,21 @@ export function SettingsPage() {
           <p className="text-sm text-muted-foreground">{t(strings.pages.settings.account.creditDescription)}</p>
         </div>
         <p aria-live="polite"><span className="font-medium">{t(strings.pages.settings.account.creditStatusLabel)}: </span>{creditStateLabel}</p>
+        <div className="grid gap-space-xs text-sm" aria-live="polite" data-testid="settings-credit-balance">
+          <p><span className="font-medium">{t(strings.pages.settings.account.balanceLabel)}: </span>{creditBalance && (creditBalance.state === "available" || creditBalance.state === "stale")
+            ? `${creditBalance.balanceCredits} ${creditBalance.displayCreditsLabel}`
+            : creditBalance === null ? t(strings.pages.settings.account.balanceChecking) : creditBalance.state === "signed_out" ? t(strings.pages.settings.account.balanceSignedOut) : t(strings.pages.settings.account.balanceUnavailable)}</p>
+          {creditBalance && (creditBalance.state === "available" || creditBalance.state === "stale") && <>
+            {creditBalance.state === "stale" && <p role="status">{t(strings.pages.settings.account.balanceStale)}</p>}
+            <p><span className="font-medium">{t(strings.pages.settings.account.balanceMultiplier)}: </span>{creditBalance.displayCreditsMultiplier}</p>
+            <p><span className="font-medium">{t(strings.pages.settings.account.balanceSource)}: </span>{creditBalance.source}</p>
+            <p><span className="font-medium">{t(strings.pages.settings.account.balanceFetched)}: </span>{new Date(creditBalance.fetchedAt!).toLocaleString()}</p>
+            {creditBalance.walletUpdatedAt && <p><span className="font-medium">{t(strings.pages.settings.account.balanceWalletUpdated)}: </span>{new Date(creditBalance.walletUpdatedAt).toLocaleString()}</p>}
+          </>}
+        </div>
+        <button type="button" disabled={!desktopAuth?.getCreditBalance || balanceBusy} onClick={() => void refreshCreditBalance()}>
+          {balanceBusy ? t(strings.pages.settings.account.balanceRefreshing) : t(strings.pages.settings.account.balanceRefresh)}
+        </button>
         {creditNotice && <p role="status" aria-live="polite">{creditNotice}</p>}
         <div className="flex flex-wrap gap-space-sm">
           {creditStatus?.state === "signed_out" && <button type="button" disabled={!desktopAuth?.signIn || creditBusy} onClick={() => void signInForCredits()}>{t(strings.pages.settings.account.creditSignIn)}</button>}

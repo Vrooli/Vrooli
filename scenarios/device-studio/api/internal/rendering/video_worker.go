@@ -926,7 +926,15 @@ func RunVideoManifest(ctx context.Context, manifestPath string) (retErr error) {
 			if err := expandRGB24(app.Pix, rgb); err != nil {
 				return err
 			}
-			presented, e := presentations.Compose(deadline, app, *manifest.Presentation)
+			var presented presentations.Result
+			var e error
+			if cameraPath != nil && uint32(selected) >= cameraPath.duration-1 {
+				// At the endpoint only the clean active viewport is rendered. Keep
+				// validating the layout; avoid rasterizing discarded system chrome.
+				presented.Layout, e = presentations.BuildLayout(app, *manifest.Presentation)
+			} else {
+				presented, e = presentations.Compose(deadline, app, *manifest.Presentation)
+			}
 			if e != nil {
 				return fmt.Errorf("compose frame presentation: %w", e)
 			}

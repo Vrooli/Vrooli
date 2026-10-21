@@ -22,6 +22,8 @@ const (
 	physicalProfileErrorMax  = 8 << 10
 )
 
+var ErrPhysicalBlenderProfileUnavailable = errors.New("rendering: pinned Blender profile is unavailable")
+
 type physicalProfileBuffer struct {
 	data  bytes.Buffer
 	limit int
@@ -91,8 +93,14 @@ func resolvePhysicalBlenderCLI(getenv func(string) string, home string) (string,
 }
 
 func validatePhysicalBlenderProfile(profile *cliv1.BlenderToolProfile) error {
-	if profile == nil || profile.GetSchemaVersion() != 1 || profile.GetProfileId() != PhysicalBlenderProfileID ||
-		profile.GetState() != cliv1.RendererToolProfileState_RENDERER_TOOL_PROFILE_STATE_ARTIFACT_PRESENT ||
+	if profile == nil || profile.GetSchemaVersion() != 1 || profile.GetProfileId() != PhysicalBlenderProfileID {
+		return errors.New("managed Blender profile is missing, stale, or outside the pinned Linux/amd64 artifact")
+	}
+	if profile.GetState() == cliv1.RendererToolProfileState_RENDERER_TOOL_PROFILE_STATE_MISSING ||
+		profile.GetState() == cliv1.RendererToolProfileState_RENDERER_TOOL_PROFILE_STATE_UNSUPPORTED_PLATFORM {
+		return fmt.Errorf("%w: control-plane state %s", ErrPhysicalBlenderProfileUnavailable, profile.GetState())
+	}
+	if profile.GetState() != cliv1.RendererToolProfileState_RENDERER_TOOL_PROFILE_STATE_ARTIFACT_PRESENT ||
 		profile.GetArtifactIdentity() != PhysicalBlenderArtifact || profile.GetExpectedTreeSha256() != PhysicalBlenderTreeSHA ||
 		profile.GetOs() != "linux" || profile.GetArchitecture() != "amd64" {
 		return errors.New("managed Blender profile is missing, stale, or outside the pinned Linux/amd64 artifact")
