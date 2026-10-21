@@ -233,8 +233,10 @@ export function createVoiceApi(client: AudioToolsClient) {
           params.set("test_mode", "1");
           params.set("test_fault", fault);
         }
-        const engine = pageParams.get("stt_engine_id");
+			const engine = pageParams.get("stt_engine_id");
 			if (engine) params.set("engine_id", engine);
+			const strategy = pageParams.get("stt_strategy");
+			if (strategy) params.set("strategy", strategy);
 			if (pageParams.get("stt_test_mode") === "1" && pageParams.get("stt_capture_source") === "virtual") {
 				params.set("test_mode", "1");
 				params.set("capture_source", "virtual");

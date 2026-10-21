@@ -1,4 +1,4 @@
-# Audio Tools
+# Pan (audio-tools scenario)
 
 Shared speech-to-text, text-to-speech, summarization, audio processing, and
 provider routing for Vrooli applications. The Go API, Go CLI, React UI, and

@@ -224,7 +224,7 @@ func (h *connectHandler) TranscribeStream(
 			}
 			segmentOrdinal++
 			ev.Segment.Generation = start.Generation
-			if _, commitErr := ledger.Commit(session.Segment{ID: ev.Segment.SegmentID, Text: ev.Segment.Text, StartSample: ev.Segment.StartSample, EndSample: ev.Segment.EndSample}); commitErr != nil {
+			if _, commitErr := ledger.Commit(session.Segment{ID: ev.Segment.SegmentID, Text: ev.Segment.Text, StartSample: ev.Segment.StartSample, EndSample: ev.Segment.EndSample, SpeakerPolicy: ev.Segment.SpeakerPolicy}); commitErr != nil {
 				ledger.Fail(session.TerminalReason("commit_conflict"))
 				return connect.NewError(connect.CodeInternal, commitErr)
 			}

@@ -44,6 +44,17 @@ func TestQualificationEvidenceFromProto_RequiresKnownFaultAndArtifact(t *testing
 	require.ErrorContains(t, err, "artifact_ref is required")
 }
 
+func TestQualificationEvidenceFromProto_RetainsCorpusQualityKind(t *testing.T) {
+	got, err := qualificationEvidenceFromProto(&experimentv1.QualificationEvidence{
+		EngineId: "whisper-local", ModelId: "whisper-medium", Strategy: "vad_segment",
+		Kind:        experimentv1.QualificationEvidenceKind_QUALIFICATION_EVIDENCE_KIND_CORPUS_QUALITY,
+		ArtifactRef: "experiment-quality:test", MachineJson: `{}`,
+	})
+	require.NoError(t, err)
+	require.Equal(t, "corpus_quality", got.Kind)
+	require.Equal(t, experimentv1.QualificationEvidenceKind_QUALIFICATION_EVIDENCE_KIND_CORPUS_QUALITY, qualificationKindToProto(got.Kind))
+}
+
 func TestQualificationEvidenceFromProto_RequiresExplicitDeliveryAccounting(t *testing.T) {
 	valid := &experimentv1.QualificationEvidence{
 		EngineId: "kyutai", ModelId: "kyutai/stt-1b-en_fr", Strategy: "passthrough",

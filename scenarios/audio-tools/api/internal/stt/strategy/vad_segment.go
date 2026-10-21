@@ -58,7 +58,10 @@ type VADSegmenter struct {
 	SampleRate int
 
 	// SilenceRMS is the RMS amplitude threshold below which a frame is
-	// considered silent. Default 250 (≈0.7% of int16 max).
+	// considered silent. Default 64. The browser capture path treats samples
+	// above 256 as signal, but host-device loopback can attenuate voiced frames
+	// substantially before they reach the server; 64 preserves a wide silence
+	// margin while allowing the preview lane to run on those valid frames.
 	SilenceRMS float64
 
 	// FrameMs is the frame size used for RMS evaluation. Default 20 ms.
@@ -138,8 +141,8 @@ func (v *VADSegmenter) Run(
 	if logger == nil {
 		logger = logx.Std{}
 	}
-	logger.Printf("[stt-vad] session start: silence_ms=%d silence_rms=%.0f sample_rate=%d frame_ms=%d preroll_ms=%d trailing_pad_ms=%d",
-		v.SilenceMs, v.SilenceRMS, v.SampleRate, v.FrameMs, v.PreRollMs, v.TrailingPadMs)
+	logger.Printf("[stt-vad] session start: silence_ms=%d silence_rms=%.0f sample_rate=%d frame_ms=%d preroll_ms=%d trailing_pad_ms=%d preview_interval_ms=%d preview_window_ms=%d",
+		v.SilenceMs, v.SilenceRMS, v.SampleRate, v.FrameMs, v.PreRollMs, v.TrailingPadMs, v.PreviewIntervalMs, v.PreviewWindowMs)
 	defer logger.Printf("[stt-vad] session end")
 
 	const sampleBytes = 2
@@ -189,12 +192,14 @@ func (v *VADSegmenter) Run(
 	var lastProviderID, lastModelID string
 	var totalLatencyMs float64
 	var lastPreviewEnd int
+	chunkCount := 0
 
 	var (
 		tickSeq           uint64
 		lastEmitFrameIdx  int
 		lastEmittedVoiced bool
 		anyTickEmitted    bool
+		firstVoicedLogged bool
 	)
 	clk := v.Clock
 	if clk == nil {
@@ -338,14 +343,25 @@ func (v *VADSegmenter) Run(
 	// detection by its own latency and make the auto-stop boundary drift.
 	var previewWG sync.WaitGroup
 	previewSlot := make(chan struct{}, 1)
+	// An empty preview is not useful evidence, but waiting for the normal
+	// cadence before trying again adds a full interval to first-text latency.
+	// The retry signal is consumed by the chunk loop so the next request uses
+	// fresh audio without racing the segment buffer.
+	previewRetry := make(chan struct{}, 1)
 	previewIntervalBytes := v.SampleRate * v.PreviewIntervalMs / 1000 * sampleBytes
 	previewWindowBytes := v.SampleRate * v.PreviewWindowMs / 1000 * sampleBytes
 	maybePreview := func() {
-		if v.PreviewIntervalMs <= 0 || !hasVoiced {
+		if v.PreviewIntervalMs <= 0 {
 			return
 		}
 		end := len(buf)
-		if end-lastPreviewEnd < previewIntervalBytes {
+		retry := false
+		select {
+		case <-previewRetry:
+			retry = true
+		default:
+		}
+		if !retry && end-lastPreviewEnd < previewIntervalBytes {
 			return
 		}
 		select {
@@ -375,11 +391,15 @@ func (v *VADSegmenter) Run(
 			Language:                start.Language,
 			InitialPrompt:           prompt,
 			SkipSpeakerVerification: start.SkipSpeakerVerification,
-			VADFilter:               start.VADFilter,
-			BYOKProvider:            start.BYOKProvider,
-			BYOKKey:                 start.BYOKKey,
-			LPBSToken:               start.LPBSToken,
-			UserIdentity:            start.UserIdentity,
+			// A preview is a short, still-growing speech window. Applying the
+			// backend silence filter here can discard the initial voiced slice
+			// and return an empty result, forcing the user to wait for the next
+			// preview. Final/committed requests retain the operator's VAD policy.
+			VADFilter:    false,
+			BYOKProvider: start.BYOKProvider,
+			BYOKKey:      start.BYOKKey,
+			LPBSToken:    start.LPBSToken,
+			UserIdentity: start.UserIdentity,
 		}
 
 		previewWG.Add(1)
@@ -392,6 +412,10 @@ func (v *VADSegmenter) Run(
 			}
 			text := strings.TrimSpace(res.Text)
 			if text == "" {
+				select {
+				case previewRetry <- struct{}{}:
+				default:
+				}
 				return
 			}
 			select {
@@ -427,6 +451,10 @@ func (v *VADSegmenter) Run(
 			}
 
 			currentFrameIdx := nextFrame / frameBytes
+			if !isSilent && !firstVoicedLogged {
+				firstVoicedLogged = true
+				logger.Printf("[stt-vad] first voiced frame sample=%d rms=%.0f", currentFrameIdx*v.SampleRate*v.FrameMs/1000, rms)
+			}
 			voicedNow := !isSilent
 			silenceElapsedMs := int64(silentFrames) * int64(v.FrameMs)
 			timedOut := silentFrames >= silenceFramesNeeded
@@ -530,6 +558,10 @@ func (v *VADSegmenter) Run(
 				emitDone()
 				return nil
 			}
+			chunkCount++
+			if chunkCount <= 8 {
+				logger.Printf("[stt-vad] chunk_received n=%d bytes=%d buffered_bytes=%d", chunkCount, len(ch.Audio), len(buf)+len(ch.Audio))
+			}
 			cursor.Observe(ch)
 			buf = append(buf, ch.Audio...)
 			scan()
@@ -564,15 +596,15 @@ func (v *VADSegmenter) applyDefaults() {
 		v.SilenceMs = 1200
 	}
 	if v.SilenceRMS == 0 {
-		v.SilenceRMS = 250
+		v.SilenceRMS = 64
 	}
 	if v.FrameMs == 0 {
 		v.FrameMs = 20
 	}
 	if v.PreviewWindowMs == 0 {
-		// Long enough for Whisper to have real context, short enough that a
-		// preview costs about the same at minute 60 as at minute 1.
-		v.PreviewWindowMs = 8000
+		// Long enough for Whisper to have useful context while keeping the
+		// first preview responsive and the per-call cost bounded.
+		v.PreviewWindowMs = 3000
 	}
 	if v.MaxSegmentMs == 0 {
 		// Keep the native batch request comfortably below Whisper's fixed

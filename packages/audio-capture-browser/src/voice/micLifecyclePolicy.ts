@@ -110,6 +110,9 @@ export interface StaleLeaseInput {
 export function selectStaleLeases(input: StaleLeaseInput): Array<{ id: string; owner: MicOwner }> {
   const { leases, voiceState, passiveListenerActive } = input;
   return leases.filter(({ owner }) => {
+    // Duplex capture has its own controller/state. An idle dictation hook must
+    // not revoke another live audio workflow's microphone lease.
+    if (owner === "agent-voice") return false;
     if (isActiveRecordingOwner(owner)) return voiceState === "idle";
     if (owner === "passive-wake-word") return !passiveListenerActive;
     return false;

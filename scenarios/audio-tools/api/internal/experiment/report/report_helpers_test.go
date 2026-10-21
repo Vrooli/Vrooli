@@ -200,6 +200,9 @@ func TestExperimentProgressAndWorkUnitsCoverDefaults(t *testing.T) {
 	if got := cellExperimentWorkUnits(clips, []*experimentv1.EvaluationCell{nil, {RepeatCount: 0}, {RepeatCount: 3}}); got != 6 {
 		t.Fatalf("cell work units = %d, want 6", got)
 	}
+	if got := cellRecipeWorkUnits(2, []*experimentv1.EvaluationCell{{ReplayLane: experimentv1.ReplayLane_REPLAY_LANE_REALTIME, RepeatCount: 1}}); got != 4 {
+		t.Fatalf("realtime cell recipe work units = %d, want 4", got)
+	}
 }
 
 func TestExperimentHelperEdgesAreExplicit(t *testing.T) {

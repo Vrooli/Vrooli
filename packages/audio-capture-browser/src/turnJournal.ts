@@ -93,28 +93,32 @@ export class TurnJournal {
   }
 
   async append(chunk: JournalChunk): Promise<void> {
-    if (chunk.endSample < chunk.startSample || chunk.audio.byteLength === 0) {
-      throw new Error("journal chunk must contain a non-empty non-negative sample range");
-    }
-    if (chunk.sequence !== this.snapshot.nextSequence || chunk.startSample !== this.snapshot.nextSample) {
-      throw new Error(
-        `journal chunks must have contiguous sequence identities (expected sequence ${this.snapshot.nextSequence.toString()} at sample ${this.snapshot.nextSample.toString()}, got sequence ${chunk.sequence.toString()} at sample ${chunk.startSample.toString()})`,
-      );
-    }
-    if (this.snapshot.retainedBytes + chunk.audio.byteLength > this.maxBytes) {
-      throw new Error("journal quota exhausted before capture; audio was not discarded");
-    }
     const storedChunk = { ...chunk, audio: chunk.audio.slice(0), sha256: chunk.sha256.slice(0) };
-    this.snapshot.chunks.push(storedChunk);
-    this.snapshot.retainedBytes += chunk.audio.byteLength;
-    this.snapshot.nextSequence = chunk.sequence + 1n;
-    this.snapshot.nextSample = chunk.endSample;
-    await this.persist({ kind: "append", chunk: storedChunk });
+    await this.serialize(async () => {
+      if (storedChunk.endSample < storedChunk.startSample || storedChunk.audio.byteLength === 0) {
+        throw new Error("journal chunk must contain a non-empty non-negative sample range");
+      }
+      if (storedChunk.sequence !== this.snapshot.nextSequence || storedChunk.startSample !== this.snapshot.nextSample) {
+        throw new Error(`journal chunks must have contiguous sequence identities (expected sequence ${this.snapshot.nextSequence.toString()} at sample ${this.snapshot.nextSample.toString()}, got sequence ${storedChunk.sequence.toString()} at sample ${storedChunk.startSample.toString()})`);
+      }
+      if (this.snapshot.retainedBytes + storedChunk.audio.byteLength > this.maxBytes) {
+        throw new Error("journal quota exhausted before capture; audio was not discarded");
+      }
+      const next = { ...this.snapshot, chunks: [...this.snapshot.chunks, storedChunk],
+        retainedBytes: this.snapshot.retainedBytes + storedChunk.audio.byteLength,
+        nextSequence: storedChunk.sequence + 1n, nextSample: storedChunk.endSample };
+      await this.persist({ kind: "append", chunk: storedChunk }, next);
+      this.snapshot = next;
+    });
   }
 
   async acknowledgeProcessed(sequence: bigint): Promise<void> {
-    this.compactInMemory(sequence);
-    await this.persist({ kind: "ack", sequence });
+    await this.serialize(async () => {
+      const chunks = this.snapshot.chunks.filter((chunk) => chunk.sequence > sequence);
+      const next = { ...this.snapshot, chunks, retainedBytes: chunks.reduce((n, chunk) => n + chunk.audio.byteLength, 0) };
+      await this.persist({ kind: "ack", sequence }, next);
+      this.snapshot = next;
+    });
   }
 
   replayAfter(sequence: bigint): JournalChunk[] {
@@ -158,10 +162,12 @@ export class TurnJournal {
   }
 
   async discard(): Promise<void> {
-    await this.store.remove(TurnJournal.key(this.snapshot.sessionId, this.snapshot.generation));
-    this.snapshot.chunks = [];
-    this.snapshot.retainedBytes = 0;
-    this.pendingRecords = 0;
+    await this.serialize(async () => {
+      await this.store.remove(TurnJournal.key(this.snapshot.sessionId, this.snapshot.generation));
+      this.snapshot.chunks = [];
+      this.snapshot.retainedBytes = 0;
+      this.pendingRecords = 0;
+    });
   }
 
   private compactInMemory(sequence: bigint): void {
@@ -182,27 +188,27 @@ export class TurnJournal {
     }
   }
 
-  private async persist(record: JournalRecord): Promise<void> {
-    const operation = this.persistenceQueue.then(async () => {
-      const key = TurnJournal.key(this.snapshot.sessionId, this.snapshot.generation);
-      const incremental = this.store as Partial<IncrementalTurnJournalStore>;
-      if (incremental.appendRecord && incremental.compactRecords) {
-        await incremental.appendRecord(key, record);
-        this.pendingRecords += 1;
-        if (this.pendingRecords >= TurnJournal.COMPACTION_RECORDS) {
-          await incremental.compactRecords(key, this.read());
-          this.pendingRecords = 0;
-        }
-        return;
-      }
-      await this.store.save(key, this.read());
-    });
-    // A failed operation must not poison every later append/ack. The caller
-    // still observes this operation's failure, while subsequent persistence
-    // attempts get a usable chain for diagnostics and recovery.
-    this.persistenceQueue = operation.catch(() => undefined);
-    await operation;
+  private async serialize(operation: () => Promise<void>): Promise<void> {
+    const pending = this.persistenceQueue.then(operation);
+    this.persistenceQueue = pending.catch(() => undefined);
+    await pending;
   }
+
+  private async persist(record: JournalRecord, next: JournalSnapshot): Promise<void> {
+    const key = TurnJournal.key(next.sessionId, next.generation);
+    const incremental = this.store as Partial<IncrementalTurnJournalStore>;
+    if (incremental.appendRecord && incremental.compactRecords) {
+      await incremental.appendRecord(key, record);
+      this.pendingRecords += 1;
+      if (this.pendingRecords >= TurnJournal.COMPACTION_RECORDS) {
+        await incremental.compactRecords(key, next);
+        this.pendingRecords = 0;
+      }
+      return;
+    }
+    await this.store.save(key, next);
+  }
+
 }
 
 export class MemoryTurnJournalStore implements TurnJournalStore {
@@ -253,6 +259,7 @@ export class IndexedDBTurnJournalStore implements TurnJournalStore {
       };
       request.onerror = () => reject(request.error ?? new Error("remove IndexedDB journal records"));
       transaction.oncomplete = () => resolve();
+      transaction.onabort = () => reject(transaction.error ?? new Error("IndexedDB journal transaction aborted"));
       transaction.onerror = () => reject(transaction.error ?? new Error("remove IndexedDB journal transaction"));
     });
   }
@@ -280,7 +287,9 @@ export class IndexedDBTurnJournalStore implements TurnJournalStore {
     return new Promise<T>((resolve, reject) => {
       const transaction = database.transaction(storeName, mode);
       const request = operation(transaction.objectStore(storeName));
-      request.onsuccess = () => resolve(request.result);
+      // A successful request is provisional until its transaction commits.
+      transaction.oncomplete = () => resolve(request.result);
+      transaction.onabort = () => reject(transaction.error ?? new Error("IndexedDB journal transaction aborted"));
       request.onerror = () => reject(request.error ?? new Error("IndexedDB journal operation failed"));
       transaction.onerror = () => reject(transaction.error ?? new Error("IndexedDB journal transaction failed"));
     });
@@ -295,7 +304,9 @@ export class IndexedDBTurnJournalStore implements TurnJournalStore {
     return new Promise((resolve, reject) => {
       const transaction = database.transaction("turnRecords", "readonly");
       const request = transaction.objectStore("turnRecords").getAll();
-      request.onsuccess = () => resolve((request.result as Array<{ key: string; record: JournalRecord }>).filter((entry) => entry.key === key).map((entry) => entry.record));
+      transaction.oncomplete = () => resolve((request.result as Array<{ key: string; record: JournalRecord }>).filter((entry) => entry.key === key).map((entry) => entry.record));
+      transaction.onabort = () => reject(transaction.error ?? new Error("load IndexedDB journal transaction aborted"));
+      transaction.onerror = () => reject(transaction.error ?? new Error("load IndexedDB journal transaction failed"));
       request.onerror = () => reject(request.error ?? new Error("load IndexedDB journal records"));
     });
   }
@@ -320,6 +331,7 @@ export class IndexedDBTurnJournalStore implements TurnJournalStore {
       };
       request.onerror = () => reject(request.error ?? new Error("compact IndexedDB journal records"));
       transaction.oncomplete = () => resolve();
+      transaction.onabort = () => reject(transaction.error ?? new Error("IndexedDB journal transaction aborted"));
       transaction.onerror = () => reject(transaction.error ?? new Error("compact IndexedDB journal transaction"));
     });
   }

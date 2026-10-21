@@ -22,6 +22,8 @@ import (
 	"audio-tools/cli/domains/stt"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
+	experimentv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/experiment"
+	experimentconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/experiment/experiment_v1connect"
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
 	sttconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt/stt_v1connect"
 	ttsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts"
@@ -119,6 +121,77 @@ func (h *handlers) runExpensive(ctx cliapp.RunContext) error {
 		evidencePath = filepath.Join(requirementsDir, "evidence", evidenceFileName)
 	}
 	return h.runAndRecord(context.Background(), requirementsDir, evidencePath, time.Duration(minutes)*time.Minute, ctx.Stdout(), ctx.JSON())
+}
+
+func (h *handlers) runSimulated(ctx cliapp.RunContext) error {
+	result := runSimulatedQualification()
+	if err := result.validate(); err != nil {
+		return err
+	}
+	if h.core == nil {
+		return errors.New("audio-tools simulated qualification requires the scenario CLI core")
+	}
+	httpClient, baseURL := cliapp.NewConnectHTTPClient(h.core)
+	client := experimentconnect.NewExperimentServiceClient(httpClient, baseURL)
+	build := strings.TrimSpace(h.getenv("AUDIO_TOOLS_SOURCE_IDENTITY"))
+	if build == "" {
+		build = "simulated-policy-v1"
+	}
+	deviceProfile := strings.TrimSpace(ctx.Flag("device-profile"))
+	if deviceProfile == "" {
+		deviceProfile = strings.TrimSpace(h.getenv("AUDIO_TOOLS_DEVICE_PROFILE"))
+	}
+	if deviceProfile == "" {
+		// This is the observed host context, not a native qualification claim.
+		// The execution_lane below remains simulated and the receipt is limited
+		// to the policy/adapter rows exercised by this command.
+		deviceProfile = "D1"
+	}
+	machine, err := json.Marshal(map[string]any{
+		"execution_lane":               "simulated",
+		"simulated_as_native":          false,
+		"supported_rows":               result.Details["supported_rows"],
+		"all_intervals_accounted":      true,
+		"duplicate_committed_segments": 0,
+		"silent_terminal_outcomes":     0,
+		"target_revision":              "portable-voice-v1",
+		"method":                       "audio-tools-acceptance-v1",
+		"cohort":                       "voice-pilot-en-v1",
+		"build":                        build,
+		"device_profile":               deviceProfile,
+		"policy_revision":              "policy-v1",
+		"corpus_revision":              "voice-pilot-en-v1",
+		"provider_cell": map[string]string{
+			"engine_id": "simulated-policy",
+			"model_id":  "simulation-v1",
+			"strategy":  "simulation",
+		},
+		"acceptance": result.Claims,
+		"details":    result.Details,
+	})
+	if err != nil {
+		return fmt.Errorf("encode simulated qualification receipt: %w", err)
+	}
+	artifact := "audio-tools:simulated-qualification:" + h.now().UTC().Format("20060102T150405.000000000Z")
+	_, err = client.RecordQualificationEvidence(context.Background(), connect.NewRequest(&experimentv1.RecordQualificationEvidenceRequest{Evidence: &experimentv1.QualificationEvidence{
+		EngineId:      "simulated-policy",
+		ModelId:       "simulation-v1",
+		Strategy:      "simulation",
+		PolicyProfile: "policy-v1",
+		Kind:          experimentv1.QualificationEvidenceKind_QUALIFICATION_EVIDENCE_KIND_INTERVAL_ACCOUNTING,
+		Passed:        true,
+		ArtifactRef:   artifact,
+		Notes:         "local policy/adapter qualification; simulated lane only, not hosted inference, corpus quality, or wall-clock latency",
+		MachineJson:   string(machine),
+	}}))
+	if err != nil {
+		return cliapp.WrapAPIError("record simulated qualification", err, nil)
+	}
+	if ctx.JSON() {
+		return json.NewEncoder(ctx.Stdout()).Encode(map[string]any{"passed": true, "target_acceptance": false, "supported_rows": result.Details["supported_rows"], "artifact_ref": artifact, "checks": result.Checks})
+	}
+	fmt.Fprintf(ctx.Stdout(), "simulated qualification checks passed: %s (%d checks; target acceptance not established)\n", artifact, len(result.Checks))
+	return nil
 }
 
 func (h *handlers) runAndRecord(ctx context.Context, requirementsDir, evidencePath string, duration time.Duration, out io.Writer, asJSON bool) error {
@@ -271,8 +344,13 @@ func runDictationQualification(ctx context.Context, client sttconnect.STTService
 		for {
 			event, err := stream.Receive()
 			if err != nil {
-				if errors.Is(err, io.EOF) || errors.Is(err, context.Canceled) {
+				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 					receiveErr <- nil
+				} else if errors.Is(err, io.EOF) {
+					// EOF before the qualification context expires is an early
+					// provider/transport termination, not a successful duration
+					// result. Keep the long-form evidence producer fail-closed.
+					receiveErr <- errors.New("STT stream ended before qualification deadline")
 				} else {
 					receiveErr <- err
 				}

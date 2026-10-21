@@ -42,13 +42,19 @@ func (h *connectHandler) CreateClip(ctx context.Context, req *connect.Request[co
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("audio bytes are required"))
 	}
 	clip, err := svc.CreateClip(ctx, intcorpus.CreateClipInput{
-		Audio:         m.GetAudio(),
-		ReferenceText: m.GetReferenceText(),
-		Tags:          m.GetTags(),
-		DurationMs:    m.GetDurationMs(),
-		SampleRateHz:  int(m.GetSampleRateHz()),
-		Format:        m.GetFormat(),
-		Source:        sourceFromProto(m.GetSource()),
+		Audio:            m.GetAudio(),
+		ReferenceText:    m.GetReferenceText(),
+		Tags:             m.GetTags(),
+		DurationMs:       m.GetDurationMs(),
+		SampleRateHz:     int(m.GetSampleRateHz()),
+		Format:           m.GetFormat(),
+		Source:           sourceFromProto(m.GetSource()),
+		CorpusRevision:   m.GetCorpusRevision(),
+		LicenseReference: m.GetLicenseReference(),
+		SpeakerPseudonym: m.GetSpeakerPseudonym(),
+		Split:            splitFromProto(m.GetSplit()),
+		NoiseCondition:   noiseConditionFromProto(m.GetNoiseCondition()),
+		SNRDB:            m.GetSnrDb(),
 	})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)

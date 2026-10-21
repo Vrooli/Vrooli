@@ -1,6 +1,7 @@
 package bootstrap
 
 import (
+	lpbsclients "audio-tools/integrations/lpbs/clients"
 	"audio-tools/internal/ai/chains"
 	"audio-tools/internal/ai/sttchain"
 	"audio-tools/internal/ai/summarizechain"
@@ -31,6 +32,13 @@ func BuildChains(
 	byokRegistries byok.Registries,
 	logger logx.Logger,
 ) Chains {
+	// Keep the owned hosted tier in the same composition root as Local and
+	// BYOK. The clients currently report unavailable until the shared gateway
+	// contract is deployed, but wiring them here makes that state observable
+	// and prevents the enable flag from becoming a dead configuration knob.
+	lpbsSTT := sttchain.NewVrooliProvider(lpbsclients.NewSTTClient(env.LPBSBaseURL))
+	lpbsTTS := ttschain.NewVrooliProvider(lpbsclients.NewTTSClient(env.LPBSBaseURL))
+	lpbsSummarize := summarizechain.NewVrooliProvider(lpbsclients.NewSummarizeClient(env.LPBSBaseURL))
 	// Local-tier engines share the Local tier but are distinct providers
 	// resolved per-session by StreamStart.EngineID. Whisper (batch) also
 	// serves the unary path; Kyutai (streaming) is selectable only on the
@@ -59,6 +67,7 @@ func BuildChains(
 		LocalFirst:     true,
 		EnableBYOK:     env.EnableBYOK,
 		EnableVrooli:   env.EnableVrooli,
+		Vrooli:         lpbsSTT,
 		AvailTTLByOK:   env.AvailTTLBYOK,
 		AvailTTLVrooli: env.AvailTTLVrooli,
 		Logx:           logger,
@@ -70,6 +79,7 @@ func BuildChains(
 		LocalFirst:     true,
 		EnableBYOK:     env.EnableBYOK,
 		EnableVrooli:   env.EnableVrooli,
+		Vrooli:         lpbsTTS,
 		AvailTTLByOK:   env.AvailTTLBYOK,
 		AvailTTLVrooli: env.AvailTTLVrooli,
 		Logx:           logger,
@@ -80,6 +90,7 @@ func BuildChains(
 		EnableLocal:    env.EnableLocal,
 		EnableBYOK:     env.EnableBYOK,
 		EnableVrooli:   env.EnableVrooli,
+		Vrooli:         lpbsSummarize,
 		AvailTTLByOK:   env.AvailTTLBYOK,
 		AvailTTLVrooli: env.AvailTTLVrooli,
 		Logx:           logger,

@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -169,6 +170,28 @@ func TestRunReport_RealtimeProducesLatencySamples(t *testing.T) {
 	require.True(t, rep.LatencyMeasured)
 	require.Len(t, rep.PerStrategy[0].PerClip, 1)
 	require.Len(t, rep.PerStrategy[0].PerClip[0].LatencySamplesMs, 3, "one latency sample per real-time repeat")
+}
+
+func TestReplay_RealtimeCapturesEndOfFeedBeforeImmediateDone(t *testing.T) {
+	clip := Clip{ID: "immediate-done", PCM: testaudio.SilenceSamplesAtRate(16000, 300), SampleRate: 16000}
+	var ticks atomic.Int64
+	result := Replay(context.Background(), clip, ReplayOptions{
+		Mode: ModeRealtime,
+		ChunkMs: 100,
+		Sleep: func(time.Duration) {},
+		Now: func() time.Time {
+			return time.Unix(0, ticks.Add(1)*int64(time.Millisecond))
+		},
+	}, func(ctx context.Context, chunks <-chan sttchain.AudioChunk, events chan<- sttchain.StreamEvent) error {
+		for range chunks {
+		}
+		events <- sttchain.StreamEvent{Kind: sttchain.StreamEventDone, Done: &sttchain.DoneEvent{}}
+		close(events)
+		return nil
+	})
+
+	require.NoError(t, result.Err)
+	require.Greater(t, result.FinalizationLatency, time.Duration(0), "immediate Done must retain a measured end-of-feed timestamp")
 }
 
 func TestReplay_ContextDeadlineReturnsWhenSessionDoesNotCloseEvents(t *testing.T) {

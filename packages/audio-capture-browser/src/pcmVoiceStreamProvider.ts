@@ -1,4 +1,4 @@
-import { concatInt16, encodeWavFromPcm16, frameToCanonicalPcm16, TARGET_SAMPLE_RATE } from "./pcm";
+import { concatInt16, encodeWavFromPcm16, StreamingPcm16Resampler, TARGET_SAMPLE_RATE } from "./pcm";
 import { createCanonicalPcmCapture, type PcmCapture } from "./pcmCapture";
 import { digestAudio, encodeAudioFrame, newSessionIdentity } from "./protocol";
 import { IndexedDBTurnJournalStore, MemoryTurnJournalStore, TurnJournal } from "./turnJournal";
@@ -30,6 +30,8 @@ export interface SharedPcmVoiceStreamProviderOptions {
   readonly retainStream?: boolean;
   /** Optional qualification-only wire batch size; production defaults to 100 ms. */
   readonly wireBatchSamples?: number;
+  /** Send a small first frame to reduce time-to-first-token on native streams. */
+  readonly fastFirstWireBatch?: boolean;
   /** Optional test seam; production retains the fixed bounded recovery budget. */
   readonly maxRetainedTurnAudioBytes?: number;
 }
@@ -37,8 +39,16 @@ export interface SharedPcmVoiceStreamProviderOptions {
 export const MAX_CONSECUTIVE_RECONNECTS = 5;
 export const RECONNECT_BACKOFF_MS = [1_000, 2_000, 4_000, 8_000, 8_000] as const;
 export const PCM_WIRE_BATCH_SAMPLES = 1_600; // approximately 100 ms at 16 kHz
+// Send the first voiced audio promptly so the native decoder can begin while
+// the normal 100 ms batching policy continues to control steady-state wire
+// overhead. This is intentionally a transport optimization, not a quality
+// shortcut: the server still receives every sample with exact cursors.
+export const PCM_FIRST_WIRE_BATCH_SAMPLES = 320; // approximately 20 ms at 16 kHz
 export const PCM_WIRE_BATCH_FLUSH_MS = 100;
 export const FALLBACK_MIN_DELAY_MS = 10_000;
+// Keep a permission-warmed socket alive until the user actually starts a
+// turn. This sends no audio and does not reserve provider capacity.
+const PRECONNECT_KEEPALIVE_MS = 4_000;
 /**
  * Whole-turn audio is retained only for the bounded unary recovery/retry path.
  * The streaming journal has the same 16 MiB ceiling; keeping a second,
@@ -68,18 +78,26 @@ export class PcmStreamWriteError extends Error {
 export class PcmVoiceStreamProvider {
   private readonly options: SharedPcmVoiceStreamProviderOptions;
   private readonly wireBatchSamples: number;
+  private readonly fastFirstWireBatch: boolean;
   private readonly maxRetainedTurnAudioBytes: number;
   private transport: VoiceTransport;
   language = "en";
   private ws: WebSocket | null = null;
+  // Claims the socket slot before the asynchronous open callback. This is
+  // separate from `ws`, which remains null until the socket is actually open
+  // so capture frames stay queued while a connection is handshaking.
+  private activeSocket: WebSocket | null = null;
   private capture: PcmCapture | null = null;
   private stream: MediaStream | null = null;
   private lease: MicLease | null = null;
   private journal: TurnJournal | null = null;
   private writes: Promise<void> = Promise.resolve();
+  private captureGeneration = 0;
+  private queuedBytes = 0;
   private journalAcks: Promise<void> = Promise.resolve();
   private pendingWriteCount = 0;
-  private pending: ArrayBuffer[] = [];
+  private pending: Array<{ sequence: bigint; frame: ArrayBuffer }> = [];
+  private replaying = false;
   private batchSamples: Int16Array[] = [];
   private batchSampleCount = 0;
   private batchStartSample = 0n;
@@ -101,7 +119,9 @@ export class PcmVoiceStreamProvider {
   private tailDropArmed = false;
   private lastTurn: LastTurnAudio | null = null;
   private diagnostic = new StreamDiagnosticRecorder();
+  private readonly pcmResampler = new StreamingPcm16Resampler();
   private preconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private preconnectKeepaliveTimer: ReturnType<typeof setInterval> | null = null;
   private serverAckTimer: ReturnType<typeof setTimeout> | null = null;
   private finalPendingTimer: ReturnType<typeof setTimeout> | null = null;
   private fallbackTimer: ReturnType<typeof setTimeout> | null = null;
@@ -123,7 +143,7 @@ export class PcmVoiceStreamProvider {
   onStatus: ((status: VoiceTransportStatus) => void) | null = null;
   onDiagnostic: ((diagnostic: StreamTurnDiagnostic) => void) | null = null;
   onPartial: ((text: string) => void) | null = null;
-  onSegmentFinal: ((text: string, index: number) => void) | null = null;
+	onSegmentFinal: ((text: string, index: number, speakerPolicy?: string) => void) | null = null;
   onSegmentAccepted: ((segmentIndex: number, score: number, threshold: number) => void) | null = null;
   onSegmentRejected: ((segmentIndex: number, score: number, threshold: number) => void) | null = null;
   onSpeakerStatus: ((enabled: boolean, profileConfigured: boolean) => void) | null = null;
@@ -134,6 +154,7 @@ export class PcmVoiceStreamProvider {
     this.wireBatchSamples = Number.isSafeInteger(options.wireBatchSamples) && (options.wireBatchSamples ?? 0) > 0
       ? options.wireBatchSamples!
       : PCM_WIRE_BATCH_SAMPLES;
+    this.fastFirstWireBatch = options.fastFirstWireBatch ?? false;
     this.maxRetainedTurnAudioBytes = Number.isSafeInteger(options.maxRetainedTurnAudioBytes) && (options.maxRetainedTurnAudioBytes ?? 0) > 0
       ? options.maxRetainedTurnAudioBytes!
       : MAX_RETAINED_TURN_AUDIO_BYTES;
@@ -152,6 +173,11 @@ export class PcmVoiceStreamProvider {
   }
 
   getStream(): MediaStream | null { return this.stream; }
+
+  /** True when the permission-warmed stream socket can accept capture frames. */
+  isStreamConnected(): boolean {
+    return this.ws?.readyState === WebSocket.OPEN;
+  }
 
   getDiagnostic(): StreamTurnDiagnostic { return this.diagnostic.read(); }
   exportDiagnostic(): string { return this.diagnostic.exportJSON(); }
@@ -191,6 +217,9 @@ export class PcmVoiceStreamProvider {
     if (this.terminalFailure) return;
     const typed = error instanceof PcmStreamWriteError ? error : new PcmStreamWriteError(error);
     this.terminalFailure = true;
+    this.capture?.stop();
+    this.capture = null;
+    this.releaseOwnStream("manual-stop");
     this.diagnostic.error(typed.code);
     // Keep the public diagnostic metadata-only, but retain the browser error
     // class so qualification can distinguish quota, transaction, and
@@ -246,7 +275,7 @@ export class PcmVoiceStreamProvider {
     const journal = this.journal;
     this.journal = null;
     if (!journal) return;
-    void Promise.all([this.writes, this.journalAcks])
+	void Promise.all([this.writes, this.journalAcks])
       .then(() => journal.discard())
       .catch(() => {
         // The transcript is already committed, so this cannot change the
@@ -351,11 +380,20 @@ export class PcmVoiceStreamProvider {
   }
 
   private async makeCapture(stream: MediaStream): Promise<PcmCapture> {
-    return this.captureFactory(stream, (samples, rate) => this.queue(frameToCanonicalPcm16(samples, rate)));
+    const generation = this.captureGeneration;
+    return this.captureFactory(stream, (samples, rate) => {
+      if (generation !== this.captureGeneration) return;
+      this.diagnostic.captureRate(rate);
+      this.queue(this.pcmResampler.process(samples, rate));
+    });
   }
 
   private queue(samples: Int16Array): void {
-    if (this.tailDropArmed) return;
+    if (this.tailDropArmed || this.terminalFailure || this.stopped) return;
+    if (this.queuedBytes + this.batchSampleCount * 2 + samples.byteLength + (this.journal?.read().retainedBytes ?? 0) > MAX_RETAINED_TURN_AUDIO_BYTES) {
+      this.handleWriteFailure(new Error("journal quota exhausted before capture; audio was not discarded"));
+      return;
+    }
     const startSample = this.sample;
     this.sample += BigInt(samples.length);
 		this.retainPcm(samples);
@@ -370,12 +408,12 @@ export class PcmVoiceStreamProvider {
 		if (this.batchSampleCount === 0) this.batchStartSample = startSample;
     let offset = 0;
     while (offset < samples.length) {
-      const room = this.wireBatchSamples - this.batchSampleCount;
+      const room = this.wireBatchLimit() - this.batchSampleCount;
       const take = Math.min(room, samples.length - offset);
       this.batchSamples.push(samples.slice(offset, offset + take));
       this.batchSampleCount += take;
       offset += take;
-      if (this.batchSampleCount === this.wireBatchSamples) this.flushBatch();
+      if (this.batchSampleCount === this.wireBatchLimit()) this.flushBatch();
     }
     if (this.batchSampleCount > 0 && this.batchTimer === null) {
       this.batchTimer = setTimeout(() => {
@@ -407,102 +445,130 @@ export class PcmVoiceStreamProvider {
     this.batchStartSample = endSample;
     const bytes = new Uint8Array(audio.byteLength);
     bytes.set(new Uint8Array(audio.buffer, audio.byteOffset, audio.byteLength));
+    const generation = this.captureGeneration;
+    const journal = this.journal;
+    this.queuedBytes += bytes.byteLength;
     this.pendingWriteCount += 1;
     this.writes = this.writes.then(async () => {
-      let sha256: ArrayBuffer | null = null;
-      let frame: ArrayBuffer | null = null;
       try {
-        sha256 = await digestAudio(bytes.buffer);
-        frame = encodeAudioFrame({ sequence, startSample, endSample, audio, sha256: new Uint8Array(sha256) });
-        await this.journal?.append({ sequence, startSample, endSample, audio: bytes.buffer, sha256 });
+        if (generation !== this.captureGeneration || this.terminalFailure || !journal) return;
+    const preparedFrame = digestAudio(bytes.buffer).then((sha256) => ({
+      sha256,
+      frame: encodeAudioFrame({ sequence, startSample, endSample, audio, sha256: new Uint8Array(sha256) }),
+    }));
+        const { sha256, frame } = await preparedFrame;
+        if (generation !== this.captureGeneration || this.terminalFailure) return;
+        const chunk = { sequence, startSample, endSample, audio: bytes.buffer, sha256 };
+        try {
+          await (this.journal ?? journal).append(chunk);
+        } catch (error) {
+          if (generation !== this.captureGeneration || this.terminalFailure) return;
+          const reduced = this.downgradePersistentJournal();
+          if (!reduced) throw error;
+          await reduced.append(chunk);
+        }
+        if (generation !== this.captureGeneration || this.terminalFailure) return;
         this.diagnostic.retained(this.journal?.read().retainedBytes ?? 0);
-        if (this.ws?.readyState === WebSocket.OPEN && this.pending.length === 0) {
+        if (this.ws?.readyState === WebSocket.OPEN && !this.replaying && this.pending.length === 0) {
           this.ws.send(frame);
           this.diagnostic.sent(sequence);
           this.publishDiagnostic();
-        } else this.pending.push(frame);
-      } catch (error: unknown) {
-        const reducedJournal = sha256 !== null && frame !== null ? this.downgradePersistentJournal() : null;
-        if (reducedJournal && sha256 !== null && frame !== null) {
-          try {
-            const snapshot = reducedJournal.read();
-            if (snapshot.nextSequence === sequence) {
-              await reducedJournal.append({ sequence, startSample, endSample, audio: bytes.buffer, sha256 });
-            }
-            this.diagnostic.retained(reducedJournal.read().retainedBytes);
-            if (this.ws?.readyState === WebSocket.OPEN && this.pending.length === 0) {
-              this.ws.send(frame);
-              this.diagnostic.sent(sequence);
-              this.publishDiagnostic();
-            } else {
-              this.pending.push(frame);
-            }
-          } catch (recoveryError: unknown) {
-            const recoveryMessage = recoveryError instanceof Error ? recoveryError.message : String(recoveryError);
-            const cursorRepair = recoveryMessage.match(/expected sequence (\d+) at sample \d+, got sequence (\d+) at sample \d+/i);
-            if (cursorRepair && cursorRepair[1] === sequence.toString() && cursorRepair[2] === sequence.toString()) {
-              try {
-                reducedJournal.rebaseNextSample(startSample);
-                await reducedJournal.append({ sequence, startSample, endSample, audio: bytes.buffer, sha256 });
-                this.diagnostic.retained(reducedJournal.read().retainedBytes);
-                if (this.ws?.readyState === WebSocket.OPEN && this.pending.length === 0) {
-                  this.ws.send(frame);
-                  this.diagnostic.sent(sequence);
-                  this.publishDiagnostic();
-                } else {
-                  this.pending.push(frame);
-                }
-                this.status("durability_reduced", "Recovery journal cursor was repaired in bounded memory; the active turn remains recoverable.");
-              } catch (repairError: unknown) {
-                this.handleWriteFailure(repairError);
-              }
-            } else {
-              this.handleWriteFailure(recoveryError);
-            }
-          }
         } else {
-          this.handleWriteFailure(error);
+          this.pending.push({ sequence, frame });
         }
+      } catch (error) {
+        if (generation === this.captureGeneration) this.handleWriteFailure(error);
       } finally {
-        this.pendingWriteCount = Math.max(0, this.pendingWriteCount - 1);
+        if (generation === this.captureGeneration) {
+          this.queuedBytes -= bytes.byteLength;
+          this.pendingWriteCount = Math.max(0, this.pendingWriteCount - 1);
+        }
       }
     });
   }
 
+  private wireBatchLimit(): number {
+    return this.fastFirstWireBatch && this.sequence === 0n
+      ? Math.min(this.wireBatchSamples, PCM_FIRST_WIRE_BATCH_SAMPLES)
+      : this.wireBatchSamples;
+  }
+
   private install(ws: WebSocket, replay: boolean): void {
-    ws.onopen = () => {
-      this.ws = ws; this.reconnects = 0;
-      this.flushBatch();
+    const generation = this.captureGeneration;
+	ws.onopen = () => {
+		if (generation !== this.captureGeneration || this.terminalFailure || this.activeSocket !== ws) {
+			ws.close();
+			return;
+		}
+		// A reconnect can race with a late close/open callback from the prior
+		// socket. Only the socket that owns the current transport may become the
+		// provider's active socket; a stale connection must not take ownership
+		// or create a second replay stream.
+		if (this.ws && this.ws !== ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
+			ws.close();
+			return;
+		}
+		this.ws = ws; this.reconnects = 0;
+      if (replay) this.replaying = true;
+      else this.flushBatch();
       this.serverAcknowledged = false;
       if (this.serverAckTimer) clearTimeout(this.serverAckTimer);
       this.serverAckTimer = setTimeout(() => {
         if (!this.serverAcknowledged && !this.finalReceived) this.status("server_ack_pending", "Waiting for the speech backend to acknowledge the stream.");
       }, 1_000);
-      void this.writes.then(() => {
-        if (ws.readyState !== WebSocket.OPEN) return;
-        if (replay) {
+		if (replay) {
+			// Reconnect replay must wait for the journal writer so the replay
+			// cursor includes every frame durably accepted before the outage.
+			void this.writes.then(() => {
+				if (generation !== this.captureGeneration || this.terminalFailure || ws !== this.activeSocket || ws.readyState !== WebSocket.OPEN) return;
+          const replayFloor = this.journal?.read().nextSequence ?? this.sequence;
+          this.pending = this.pending.filter((item) => item.sequence >= replayFloor);
           for (const chunk of this.journal?.replayAfter(-1n) ?? []) {
             ws.send(encodeAudioFrame({ sequence: chunk.sequence, startSample: chunk.startSample, endSample: chunk.endSample, audio: new Uint8Array(chunk.audio), sha256: new Uint8Array(chunk.sha256) }));
             this.diagnostic.sent(chunk.sequence);
           }
-        } else {
-          for (const frame of this.pending) ws.send(frame);
+				this.replaying = false;
+          for (const item of this.pending.sort((a, b) => Number(a.sequence - b.sequence))) {
+            if (ws.readyState !== WebSocket.OPEN) break;
+            ws.send(item.frame);
+            this.diagnostic.sent(item.sequence);
+          }
+				this.pending = [];
+				this.publishDiagnostic();
+				if (this.stopped && !this.doneSent) {
+					void this.writes.then(() => {
+						if (generation !== this.captureGeneration || this.terminalFailure || ws !== this.activeSocket || ws.readyState !== WebSocket.OPEN || this.doneSent) return;
+						ws.send(JSON.stringify({ type: "done" }));
+						this.doneSent = true;
+						this.diagnostic.done();
+						this.publishDiagnostic();
+					});
+				}
+			});
+		} else {
+			// Pending frames have already passed their selected journal acceptance barrier.
+          for (const item of this.pending) ws.send(item.frame);
           if (this.pending.length > 0) {
             this.diagnostic.sent(this.sequence - 1n);
           }
-        }
-        this.publishDiagnostic();
-        this.pending = [];
-        if (this.stopped && !this.doneSent) {
-          ws.send(JSON.stringify({ type: "done" }));
-          this.doneSent = true;
-          this.diagnostic.done();
-          this.publishDiagnostic();
-        }
-      });
+			this.publishDiagnostic();
+			this.pending = [];
+			if (this.stopped && !this.doneSent) {
+				void this.writes.then(() => {
+					if (generation !== this.captureGeneration || this.terminalFailure || ws !== this.activeSocket || ws.readyState !== WebSocket.OPEN || this.doneSent) return;
+					ws.send(JSON.stringify({ type: "done" }));
+					this.doneSent = true;
+					this.diagnostic.done();
+					this.publishDiagnostic();
+				});
+			}
+		}
+		this.pending = [];
       this.status(replay ? "replaying" : "stream_connected", replay ? "Replaying retained audio after reconnect." : "Streaming transcription connected.");
     };
-    ws.onmessage = (event) => dispatchStreamMessage(event.data, {
+	ws.onmessage = (event) => {
+		if (generation !== this.captureGeneration || this.activeSocket !== ws) return;
+		dispatchStreamMessage(event.data, {
       onPartial: (text) => {
         this.diagnostic.partial();
         this.publishDiagnostic();
@@ -530,13 +596,17 @@ export class PcmVoiceStreamProvider {
           // journal append completed; chaining onto the entire future capture
           // queue would let an hour of pending appends hit the quota before
           // the first acknowledgement could compact anything.
+          const journal = this.journal;
           this.journalAcks = this.journalAcks
             .then(async () => {
-              await this.journal?.acknowledgeProcessed(processed);
+              if (generation !== this.captureGeneration || this.terminalFailure || !journal) return;
+              await journal.acknowledgeProcessed(processed);
+              if (generation !== this.captureGeneration || this.terminalFailure) return;
               this.diagnostic.retained(this.journal?.read().retainedBytes ?? 0);
               this.publishDiagnostic();
             })
             .catch(() => {
+              if (generation !== this.captureGeneration) return;
               this.status("durability_reduced", "Audio recovery acknowledgement could not be persisted.");
             });
         }
@@ -544,15 +614,26 @@ export class PcmVoiceStreamProvider {
       },
       onFinal: (text) => {
         if (this.terminalFailure) return;
-        // A terminal final while capture is still active is not a successful
-        // turn. It means the backend ended its stream before the user stopped
-        // recording (including an empty final), so accepting it would discard
-        // the retained PCM and bypass reconnect/HTTP recovery.
         if (!this.stopped) {
           this.status("backend_degraded", "The speech backend ended the stream while recording; recovering retained audio.");
           ws.close();
           return;
         }
+        void this.writes.then(() => {
+        if (generation !== this.captureGeneration || this.terminalFailure || this.finalReceived) return;
+        // Native non-segmenting streams (for example Kyutai passthrough) have
+        // no segment-final event. Their terminal final is the committed tail,
+        // so expose the same stop-to-final timing used by segmenting routes.
+        // Never overwrite a segment commit measurement with terminal timing.
+        if (this.diagnostic.read().committedTextLagMs === null) {
+          this.diagnostic.committed();
+          this.publishDiagnostic();
+        }
+        // A terminal final while capture is still active is not a successful
+        // turn. It means the backend ended its stream before the user stopped
+        // recording (including an empty final), so accepting it would discard
+        // the retained PCM and bypass reconnect/HTTP recovery.
+
         // A stopped turn with captured PCM but an empty terminal frame is not
         // a successful transcription. The transport may have closed during
         // recovery and emitted its empty drain frame; preserve the captured
@@ -583,6 +664,7 @@ export class PcmVoiceStreamProvider {
         this.publishDiagnostic();
         this.discardJournalAfterTerminal();
         forgetUnfinishedSession();
+        });
       },
       onError: (code, text) => {
         // A deterministic/backend restart is a recoverable transport event.
@@ -601,8 +683,15 @@ export class PcmVoiceStreamProvider {
         if (code === "incomplete_coverage") this.terminalFailure = true;
         this.onError?.(this.cleanServerError(text));
       },
-    }, this.deliveredSegments);
+		}, this.deliveredSegments);
+	};
 	ws.onclose = () => {
+		// A stale socket may close after a newer reconnect has taken ownership.
+		// Its callback must be inert; otherwise it schedules a second reconnect
+		// and the two sockets split the replayed journal, producing short backend
+		// streams and a browser-side processed-sequence timeout.
+		if (generation !== this.captureGeneration || this.activeSocket !== ws) return;
+		if (this.ws === ws) this.ws = null;
 		this.flushBatch();
 		if (this.stopped || this.finalReceived || this.terminalFailure || !this.capture) {
 			// The backend may close the socket just before the user presses
@@ -623,24 +712,42 @@ export class PcmVoiceStreamProvider {
       const delay = RECONNECT_BACKOFF_MS[this.reconnects] ?? RECONNECT_BACKOFF_MS.at(-1)!;
       this.reconnects += 1;
       this.status("reconnecting", "Connection interrupted; replaying retained audio.");
-      setTimeout(() => this.connect(true), delay);
+      setTimeout(() => { if (generation === this.captureGeneration && !this.terminalFailure && !this.stopped) this.connect(true); }, delay);
     };
   }
 
-  private connect(replay: boolean): void { const ws = new WebSocket(this.wsUrl); this.install(ws, replay); }
+	private connect(replay: boolean): void {
+		const ws = new WebSocket(this.wsUrl);
+		// Claim ownership before the asynchronous open callback. A failed
+		// replacement socket must still be the current socket so its close can
+		// advance the bounded reconnect state; stale sockets remain inert.
+		this.activeSocket = ws;
+		this.install(ws, replay);
+	}
 
   preConnect(language: string): void {
     if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) return;
+    if (this.preconnectKeepaliveTimer) clearInterval(this.preconnectKeepaliveTimer);
     this.language = language;
     this.sessionId = newSessionIdentity();
     this.resumeToken = newSessionIdentity();
     rememberUnfinishedSession({ sessionId: this.sessionId, resumeToken: this.resumeToken });
     this.wsUrl = this.transport.buildStreamUrl(this.language, this.sessionId, this.resumeToken);
     this.connect(false);
+    this.preconnectKeepaliveTimer = setInterval(() => {
+      if (this.capture || !this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+      // The server treats this as a no-op, while the read refreshes its
+      // inactivity deadline and preserves the warm transport.
+      this.ws.send(JSON.stringify({ type: "keepalive" }));
+    }, PRECONNECT_KEEPALIVE_MS);
     this.preconnectTimer = setTimeout(() => {
       if (!this.capture) {
         this.ws?.close();
         this.ws = null;
+        if (this.preconnectKeepaliveTimer) {
+          clearInterval(this.preconnectKeepaliveTimer);
+          this.preconnectKeepaliveTimer = null;
+        }
         forgetUnfinishedSession();
       }
     }, 30_000);
@@ -658,6 +765,7 @@ export class PcmVoiceStreamProvider {
 
 	private async fallback(): Promise<void> {
 		if (this.finalReceived || this.terminalFailure) return;
+    const generation = this.captureGeneration;
 		if (this.fallbackTimer) clearTimeout(this.fallbackTimer);
 		this.fallbackTimer = null;
 	this.stopped = true;
@@ -665,6 +773,13 @@ export class PcmVoiceStreamProvider {
     this.capture = null;
     this.unbindTracks();
 		this.releaseOwnStream("provider-error");
+		// Make bounded recovery an explicit lifecycle state immediately. The
+		// native stream can have acknowledged every captured interval while its
+		// empty terminal is being recovered through the configured batch engine;
+		// leaving the diagnostic in recording hides processed coverage and makes
+		// the voice control appear stuck during a legitimate recovery.
+		this.diagnostic.state("recovering");
+		this.publishDiagnostic();
 		if (!this.hasRetainedTurnAudio()) {
 			this.failWithoutRetainedAudio(
 				this.retainedAudioOverflow ? "retained_audio_budget_exceeded" : "no_recoverable_audio",
@@ -675,6 +790,9 @@ export class PcmVoiceStreamProvider {
 			return;
 		}
     try {
+      this.flushBatch();
+      await this.writes;
+      if (generation !== this.captureGeneration || this.terminalFailure) return;
       this.status("buffered_recovery", "Streaming degraded; recovering retained audio through bounded batch transcription.");
       const pcm = this.recoveryPcm();
       if (!pcm || pcm.length === 0) {
@@ -691,18 +809,33 @@ export class PcmVoiceStreamProvider {
       const recovered = this.transport.transcribeRetainedWithIdentity
         ? await this.transport.transcribeRetainedWithIdentity(retained, this.language)
         : { text: await this.transport.transcribeRetained(retained, this.language) };
-      this.diagnostic.providerIdentity(recovered.providerIdentity?.providerId, recovered.providerIdentity?.modelId);
+      if (generation !== this.captureGeneration || this.terminalFailure) return;
+      // Keep the identity of the primary streaming route. A bounded batch
+      // fallback may use a different provider to recover final text, but that
+      // recovery must not relabel the provider cell measured by diagnostics.
+      const primaryIdentity = this.diagnostic.read();
+      if (!primaryIdentity.providerId && !primaryIdentity.modelId) {
+        this.diagnostic.providerIdentity(recovered.providerIdentity?.providerId, recovered.providerIdentity?.modelId);
+      }
       const transcript = recovered.text;
       const provider = recovered.providerIdentity?.providerId;
       const model = recovered.providerIdentity?.modelId;
       const identity = provider || model ? ` with ${provider ?? "unknown provider"}${model ? ` (${model})` : ""}` : "";
       this.status("buffered_recovery_completed", `Buffered recovery completed${identity}.`);
+      // Bounded HTTP recovery is itself the terminal text commit for routes
+      // that never emit a streaming final. Record the same stop-to-result lag
+      // as the native terminal path before publishing the terminal state.
+      if (this.diagnostic.read().committedTextLagMs === null) {
+        this.diagnostic.committed();
+        this.publishDiagnostic();
+      }
       this.onResult?.(transcript.trim());
       this.diagnostic.terminal("completed", "http_fallback");
       this.publishDiagnostic();
       this.discardJournalAfterTerminal();
       forgetUnfinishedSession();
     } catch {
+      if (generation !== this.captureGeneration) return;
       this.diagnostic.error("http_fallback_failed");
       this.diagnostic.terminal("failed", "http_fallback_failed");
       this.publishDiagnostic();
@@ -711,15 +844,22 @@ export class PcmVoiceStreamProvider {
   }
 
   async start(prewarmed?: MediaStream): Promise<void> {
+    this.captureGeneration += 1;
     if (this.preconnectTimer) clearTimeout(this.preconnectTimer);
     if (this.serverAckTimer) clearTimeout(this.serverAckTimer);
     if (this.finalPendingTimer) clearTimeout(this.finalPendingTimer);
     if (this.fallbackTimer) clearTimeout(this.fallbackTimer);
-	const preconnected = this.ws !== null
-		&& (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)
+    if (this.preconnectKeepaliveTimer) {
+      clearInterval(this.preconnectKeepaliveTimer);
+      this.preconnectKeepaliveTimer = null;
+    }
+	const warmedSocket = this.activeSocket;
+	const preconnected = warmedSocket !== null
+		&& (warmedSocket.readyState === WebSocket.OPEN || warmedSocket.readyState === WebSocket.CONNECTING)
 		&& this.sessionId !== ""
 		&& this.resumeToken !== "";
-	this.stopped = false; this.finalReceived = false; this.terminalFailure = false; this.doneSent = false; this.reconnects = 0; this.micRecoveryAttempted = false; this.pending = []; this.batchSamples = []; this.batchSampleCount = 0; this.batchStartSample = 0n; this.journalAcks = Promise.resolve(); this.pendingWriteCount = 0; this.allPcm = []; this.allPcmBytes = 0; this.retainedAudioOverflow = false;
+	this.stopped = false; this.finalReceived = false; this.terminalFailure = false; this.doneSent = false; this.reconnects = 0; this.micRecoveryAttempted = false; this.pending = []; this.replaying = false; this.batchSamples = []; this.batchSampleCount = 0; this.batchStartSample = 0n; this.journalAcks = Promise.resolve(); this.writes = Promise.resolve(); this.queuedBytes = 0; this.pendingWriteCount = 0; this.allPcm = []; this.allPcmBytes = 0; this.retainedAudioOverflow = false;
+	this.pcmResampler.reset();
 	if (!preconnected) {
 		this.sessionId = "";
 		this.resumeToken = "";
@@ -752,6 +892,11 @@ export class PcmVoiceStreamProvider {
     this.stream = this.lease.stream; this.bindTracks(this.stream);
     this.tailDropArmed = false;
     this.allStartedAt = Date.now();
+    // Keep the exported turn diagnostic aligned with the recorder lifecycle.
+    // Hosts use this state to distinguish an acknowledged, fully drained turn
+    // from a stream that is still preparing; omitting it leaves processed
+    // readiness hidden even when every wire batch has been acknowledged.
+    this.diagnostic.state("recording");
     this.diagnostic.captureStarted();
     this.publishDiagnostic();
     const persistent = this.options.journalFactory?.() ?? new TurnJournal(new IndexedDBTurnJournalStore(), this.sessionId, 0n, this.maxRetainedTurnAudioBytes, "persistent");
@@ -766,7 +911,11 @@ export class PcmVoiceStreamProvider {
     // the preconnected socket orphaned. A preconnected socket already uses
     // the restored session identity, so only connect when there is no usable
     // transport (or when the preconnect was closed before capture began).
-    if (!this.ws || (this.ws.readyState !== WebSocket.OPEN && this.ws.readyState !== WebSocket.CONNECTING)) {
+    if (preconnected && warmedSocket) {
+      // The warmed transport joins this capture generation after restoration.
+      this.install(warmedSocket, this.sequence > 0n);
+      if (warmedSocket.readyState === WebSocket.OPEN) warmedSocket.onopen?.(new Event("open"));
+    } else {
       this.connect(this.sequence > 0n);
     }
     this.capture = await this.makeCapture(this.stream);
@@ -789,9 +938,10 @@ export class PcmVoiceStreamProvider {
     // here can overtake the final frame when the encoder callback and stop
     // button land in the same turn. Drain the write chain first so the server
     // can account for every captured chunk before it evaluates coverage.
+    const generation = this.captureGeneration;
     if (this.ws?.readyState === WebSocket.OPEN) {
       void this.writes.then(() => {
-        if (this.ws?.readyState !== WebSocket.OPEN || this.doneSent) return;
+        if (generation !== this.captureGeneration || this.terminalFailure || this.ws?.readyState !== WebSocket.OPEN || this.doneSent) return;
         this.ws.send(JSON.stringify({ type: "done" }));
         this.doneSent = true;
         this.diagnostic.done();
@@ -806,9 +956,12 @@ export class PcmVoiceStreamProvider {
   }
   dispose(): void {
     this.stop();
+    this.captureGeneration += 1;
     if (this.serverAckTimer) clearTimeout(this.serverAckTimer);
     if (this.finalPendingTimer) clearTimeout(this.finalPendingTimer);
     if (this.fallbackTimer) clearTimeout(this.fallbackTimer);
+    if (this.preconnectKeepaliveTimer) clearInterval(this.preconnectKeepaliveTimer);
+    this.preconnectKeepaliveTimer = null;
     this.unbindTracks();
     if (this.batchTimer) clearTimeout(this.batchTimer);
     this.batchTimer = null;

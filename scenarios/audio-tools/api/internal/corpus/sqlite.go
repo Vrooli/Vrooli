@@ -40,10 +40,10 @@ const clipTimeFormat = time.RFC3339Nano
 
 const (
 	insertClipSQL = `
-INSERT INTO corpus_clips (id, reference_text, tags, duration_ms, sample_rate_hz, format, blob_key, source, created_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO corpus_clips (id, reference_text, tags, duration_ms, sample_rate_hz, format, blob_key, source, corpus_revision, license_reference, speaker_pseudonym, split, noise_condition, snr_db, content_sha256, created_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
-	selectClipColumns = `id, reference_text, tags, duration_ms, sample_rate_hz, format, blob_key, source, created_at`
+	selectClipColumns = `id, reference_text, tags, duration_ms, sample_rate_hz, format, blob_key, source, corpus_revision, license_reference, speaker_pseudonym, split, noise_condition, snr_db, content_sha256, created_at`
 	selectClipByIDSQL = `SELECT ` + selectClipColumns + ` FROM corpus_clips WHERE id = ?`
 	deleteClipSQL     = `DELETE FROM corpus_clips WHERE id = ?`
 )
@@ -64,7 +64,7 @@ func (s *sqliteRepository) Create(ctx context.Context, c Clip) (Clip, error) {
 		return Clip{}, err
 	}
 	if _, err := s.db.ExecContext(ctx, insertClipSQL,
-		c.ID, c.ReferenceText, tags, c.DurationMs, c.SampleRateHz, c.Format, c.BlobKey, string(c.Source),
+		c.ID, c.ReferenceText, tags, c.DurationMs, c.SampleRateHz, c.Format, c.BlobKey, string(c.Source), c.CorpusRevision, c.LicenseReference, c.SpeakerPseudonym, string(c.Split), string(c.NoiseCondition), c.SNRDB, c.ContentSHA256,
 		c.CreatedAt.Format(clipTimeFormat),
 	); err != nil {
 		return Clip{}, fmt.Errorf("insert clip %q: %w", c.ID, err)
@@ -154,13 +154,16 @@ type rowScanner interface {
 
 func scanClip(sc rowScanner) (Clip, error) {
 	var (
-		c          Clip
-		tagsRaw    string
-		sourceRaw  string
-		createdRaw string
+		c                                                  Clip
+		tagsRaw                                            string
+		sourceRaw                                          string
+		corpusRevision, licenseReference, speakerPseudonym string
+		splitRaw, noiseRaw, contentHash                    string
+		snrDB                                              float64
+		createdRaw                                         string
 	)
 	if err := sc.Scan(&c.ID, &c.ReferenceText, &tagsRaw, &c.DurationMs, &c.SampleRateHz,
-		&c.Format, &c.BlobKey, &sourceRaw, &createdRaw,
+		&c.Format, &c.BlobKey, &sourceRaw, &corpusRevision, &licenseReference, &speakerPseudonym, &splitRaw, &noiseRaw, &snrDB, &contentHash, &createdRaw,
 	); err != nil {
 		return Clip{}, err
 	}
@@ -170,6 +173,13 @@ func scanClip(sc rowScanner) (Clip, error) {
 		}
 	}
 	c.Source = Source(sourceRaw).Normalize()
+	c.CorpusRevision = corpusRevision
+	c.LicenseReference = licenseReference
+	c.SpeakerPseudonym = speakerPseudonym
+	c.Split = Split(splitRaw)
+	c.NoiseCondition = NoiseCondition(noiseRaw)
+	c.SNRDB = snrDB
+	c.ContentSHA256 = contentHash
 	created, err := time.Parse(clipTimeFormat, createdRaw)
 	if err != nil {
 		return Clip{}, fmt.Errorf("parse created_at %q: %w", createdRaw, err)

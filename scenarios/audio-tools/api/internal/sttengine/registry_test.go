@@ -117,6 +117,21 @@ func TestLiveResolverCachesControlPlaneFacts(t *testing.T) {
 	require.Equal(t, 4, calls)
 }
 
+func TestLiveResolverAcceptsHealthyLifecycleStatusWhenStatusCodeIsAbsent(t *testing.T) {
+	calls := 0
+	r := NewLiveResolver(func(_ context.Context, args ...string) ([]byte, error) {
+		calls++
+		if args[0] == "resource" && args[1] == "acceleration" {
+			return []byte(`{"selected":"cuda","placement":{"state":"ok"}}`), nil
+		}
+		return []byte(`{"installed":true,"running":true,"healthy":true,"status":"healthy","resource":{"observed_mode":"cuda"}}`), nil
+	}, time.Minute)
+	registry := New(Manifest{Engines: []Engine{{ID: "engine", Kind: KindLocalResource, Resource: "resource", Strategies: []string{"passthrough"}}}})
+	resolution, err := r.Resolve(context.Background(), registry)
+	require.NoError(t, err)
+	require.Equal(t, "engine", resolution.Selected)
+}
+
 func TestResolverSourceDoesNotBranchOnEngineIdentifiers(t *testing.T) {
 	raw, err := os.ReadFile("registry.go")
 	require.NoError(t, err)

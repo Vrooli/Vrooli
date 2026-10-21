@@ -69,6 +69,7 @@ func protoForEvent(ev sttchain.StreamEvent) *sttv1.TranscribeStreamEvent {
 					StartSample:      ev.Segment.StartSample,
 					EndSample:        ev.Segment.EndSample,
 					AlignmentQuality: ev.Segment.AlignmentQuality,
+					SpeakerPolicy:    ev.Segment.SpeakerPolicy,
 				},
 			},
 		}

@@ -2,6 +2,8 @@ package corpus
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -30,13 +32,19 @@ func NewService(repo Repository, blobs blobbytes.Store, clk schedule.Clock) *Ser
 // CreateClipInput is the create payload: the raw audio bytes plus the
 // metadata. The service generates the id + blob key.
 type CreateClipInput struct {
-	Audio         []byte
-	ReferenceText string
-	Tags          []string
-	DurationMs    int64
-	SampleRateHz  int
-	Format        string
-	Source        Source
+	Audio            []byte
+	ReferenceText    string
+	Tags             []string
+	DurationMs       int64
+	SampleRateHz     int
+	Format           string
+	Source           Source
+	CorpusRevision   string
+	LicenseReference string
+	SpeakerPseudonym string
+	Split            Split
+	NoiseCondition   NoiseCondition
+	SNRDB            float64
 }
 
 // CreateClip writes the audio to the blob store, then the metadata row. On
@@ -52,16 +60,24 @@ func (s *Service) CreateClip(ctx context.Context, in CreateClipInput) (Clip, err
 	if err := s.blobs.Put(ctx, key, in.Audio, mimeForFormat(in.Format)); err != nil {
 		return Clip{}, fmt.Errorf("corpus: store audio: %w", err)
 	}
+	digest := sha256.Sum256(in.Audio)
 	clip := Clip{
-		ID:            id,
-		ReferenceText: in.ReferenceText,
-		Tags:          in.Tags,
-		DurationMs:    in.DurationMs,
-		SampleRateHz:  in.SampleRateHz,
-		Format:        in.Format,
-		BlobKey:       key,
-		Source:        in.Source.Normalize(),
-		CreatedAt:     now,
+		ID:               id,
+		ReferenceText:    in.ReferenceText,
+		Tags:             in.Tags,
+		DurationMs:       in.DurationMs,
+		SampleRateHz:     in.SampleRateHz,
+		Format:           in.Format,
+		BlobKey:          key,
+		Source:           in.Source.Normalize(),
+		CorpusRevision:   in.CorpusRevision,
+		LicenseReference: in.LicenseReference,
+		SpeakerPseudonym: in.SpeakerPseudonym,
+		Split:            in.Split,
+		NoiseCondition:   in.NoiseCondition,
+		SNRDB:            in.SNRDB,
+		ContentSHA256:    hex.EncodeToString(digest[:]),
+		CreatedAt:        now,
 	}
 	saved, err := s.repo.Create(ctx, clip)
 	if err != nil {

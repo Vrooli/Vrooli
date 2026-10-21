@@ -7,7 +7,8 @@ export interface StreamMessage {
   providerId?: string;
   modelId?: string;
   segmentId?: string;
-  segmentIndex?: number;
+	segmentIndex?: number;
+	speakerPolicy?: "applied" | "degraded" | "rejected" | string;
   score?: number;
   threshold?: number;
   enabled?: boolean;
@@ -34,7 +35,7 @@ export const STREAM_MESSAGE_TYPES = {
 export interface StreamMessageHandlers {
   onStatus(code: string, text: string, processedSequence?: bigint, providerIdentity?: { providerId?: string; modelId?: string }): void;
   onPartial(text: string): void;
-  onSegmentFinal(text: string, index: number): void;
+	onSegmentFinal(text: string, index: number, speakerPolicy?: string): void;
   onSegmentAccepted(index: number, score: number, threshold: number): void;
   onSegmentRejected(index: number, score: number, threshold: number): void;
   onSpeakerStatus(enabled: boolean, profileConfigured: boolean): void;
@@ -80,7 +81,11 @@ export function dispatchStreamMessage(raw: unknown, handlers: StreamMessageHandl
       if (message.text === undefined) return;
       if (message.segmentId && deliveredSegmentIDs.has(message.segmentId)) return;
       if (message.segmentId) deliveredSegmentIDs.add(message.segmentId);
-      handlers.onSegmentFinal(message.text, message.segmentIndex ?? 0);
+      if (message.speakerPolicy !== undefined) {
+        handlers.onSegmentFinal(message.text, message.segmentIndex ?? 0, message.speakerPolicy);
+      } else {
+        handlers.onSegmentFinal(message.text, message.segmentIndex ?? 0);
+      }
       return;
     case "segment-accepted":
       handlers.onSegmentAccepted(message.segmentIndex ?? 0, message.score ?? 0, message.threshold ?? 0);

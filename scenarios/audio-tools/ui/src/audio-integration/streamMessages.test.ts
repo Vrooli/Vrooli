@@ -37,6 +37,16 @@ describe("dispatchStreamMessage", () => {
     );
   });
 
+  it("forwards explicit native speaker policy on durable segments", () => {
+    const target = handlers();
+    dispatchStreamMessage(
+      JSON.stringify({ type: "segment-final", text: "degraded text", segmentIndex: 1, speakerPolicy: "degraded" }),
+      target,
+      new Set(),
+    );
+    expect(target.onSegmentFinal).toHaveBeenCalledWith("degraded text", 1, "degraded");
+  });
+
   it("[REQ:ATD-P0-001] de-duplicates a durable segment identity across replay", () => {
     const target = handlers();
     const delivered = new Set<string>();

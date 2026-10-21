@@ -59,3 +59,58 @@ func TestResolveEvidencePathPreservesExplicitAbsoluteExport(t *testing.T) {
 		t.Fatalf("path = %q, want %q", got, expected)
 	}
 }
+
+func TestDefaultFeedMSSeparatesVirtualAndRealtimeLanes(t *testing.T) {
+	if got := defaultFeedMS("accelerated"); got != 50 {
+		t.Fatalf("accelerated default feed = %d, want 50ms", got)
+	}
+	if got := defaultFeedMS("realtime"); got != 4000 {
+		t.Fatalf("realtime default feed = %d, want 4000ms", got)
+	}
+}
+
+func TestValidateSoakDriverHealthAllowsFreshSessionAlongsideForeignSession(t *testing.T) {
+	err := validateSoakDriverHealth(soakDriverHealthDocument{
+		Ready:    true,
+		Sessions: 1,
+		Capacity: 10,
+	}, "http://bas")
+	if err != nil {
+		t.Fatalf("fresh isolated session should be admitted with spare capacity: %v", err)
+	}
+}
+
+func TestValidateSoakDriverHealthReadsNestedCapacity(t *testing.T) {
+	health := soakDriverHealthDocument{Ready: true, Sessions: 1}
+	health.Summary.Capacity = 10
+	if health.Capacity == 0 {
+		health.Capacity = health.Summary.Capacity
+	}
+	if err := validateSoakDriverHealth(health, "http://bas"); err != nil {
+		t.Fatalf("nested driver capacity should admit a fresh session: %v", err)
+	}
+}
+
+func TestValidateSoakDriverHealthRejectsExhaustedCapacity(t *testing.T) {
+	err := validateSoakDriverHealth(soakDriverHealthDocument{
+		Ready:    true,
+		Sessions: 10,
+		Capacity: 10,
+	}, "http://bas")
+	if err == nil || !strings.Contains(err.Error(), "reached session capacity") {
+		t.Fatalf("error = %v, want exhausted-capacity refusal", err)
+	}
+}
+
+func TestValidateSoakDriverHealthAllowsLegacyHealthWithoutCapacity(t *testing.T) {
+	if err := validateSoakDriverHealth(soakDriverHealthDocument{Ready: true, Sessions: 1}, "http://bas"); err != nil {
+		t.Fatalf("legacy BAS health without capacity should defer admission to session start: %v", err)
+	}
+}
+
+func TestValidateSoakDriverHealthRejectsNegativeCapacity(t *testing.T) {
+	err := validateSoakDriverHealth(soakDriverHealthDocument{Ready: true, Capacity: -1}, "http://bas")
+	if err == nil || !strings.Contains(err.Error(), "invalid session capacity") {
+		t.Fatalf("error = %v, want invalid-capacity refusal", err)
+	}
+}

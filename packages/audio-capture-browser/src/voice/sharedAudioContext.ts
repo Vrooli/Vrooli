@@ -33,6 +33,19 @@
 
 let _sharedCtx: AudioContext | null = null;
 let _idleSuspendTimer: ReturnType<typeof setTimeout> | null = null;
+const _audioHolds = new Set<symbol>();
+
+/** Protect continuous duplex playback from unrelated dictation idle timers.
+ * Page-background suspension remains unconditional; the owner releases its
+ * hold when capture ends. */
+export function holdSharedAudioContext(): () => void {
+  const token = Symbol("audio-owner");
+  _audioHolds.add(token);
+  keepAudioContextAwake();
+  return () => {
+    if (_audioHolds.delete(token) && _audioHolds.size === 0) armIdleSuspend();
+  };
+}
 
 /** Delay before an idle context is suspended, long enough for a stop cue
  *  (~150ms) to finish playing so we never clip it. */
@@ -50,6 +63,10 @@ export function getSharedAudioContext(): AudioContext {
   // Chrome cases after audio-device changes) is a terminal state that resume()
   // cannot reliably recover; reusing it leaves the level meter permanently dead.
   if (!_sharedCtx || _sharedCtx.state === "closed" || (_sharedCtx.state as string) === "interrupted") {
+    // Let the browser select the device-native graph rate. The capture seam
+    // performs one stateful, canonical conversion to 16 kHz after the graph;
+    // forcing a second device-side conversion can destabilize host-device
+    // qualification on browsers that report a 48 kHz microphone track.
     _sharedCtx = new AudioContext();
   }
   return _sharedCtx;
@@ -123,11 +140,11 @@ export function suspendSharedAudioContext(): void {
  */
 export function armIdleSuspend(delayMs: number = IDLE_SUSPEND_DELAY_MS): void {
   keepAudioContextAwake();
-  if (!_sharedCtx || _sharedCtx.state !== "running") return;
+  if (_audioHolds.size > 0 || !_sharedCtx || _sharedCtx.state !== "running") return;
   _idleSuspendTimer = setTimeout(() => {
     _idleSuspendTimer = null;
     // Re-check state: a new session may have started (and will keep it awake).
-    if (_sharedCtx && _sharedCtx.state === "running") {
+    if (_audioHolds.size === 0 && _sharedCtx && _sharedCtx.state === "running") {
       _sharedCtx.suspend().catch(() => {});
     }
   }, delayMs);
@@ -139,6 +156,7 @@ export function armIdleSuspend(delayMs: number = IDLE_SUSPEND_DELAY_MS): void {
  */
 export function closeSharedAudioContext(): void {
   keepAudioContextAwake();
+  _audioHolds.clear();
   if (_sharedCtx && _sharedCtx.state !== "closed") {
     _sharedCtx.close().catch(() => {});
   }

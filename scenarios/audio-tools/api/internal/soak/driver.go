@@ -19,6 +19,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -56,18 +57,21 @@ type Options struct {
 	FeedMS           int              `json:"feed_ms"`
 	Fault            string           `json:"fault,omitempty"`
 	Reference        string           `json:"reference_text,omitempty"`
+	ReferenceCycleMS int              `json:"reference_cycle_ms,omitempty"`
 	EngineID         string           `json:"engine_id"`
 	ModelID          string           `json:"model_id"`
 	Strategy         string           `json:"strategy"`
 	Policy           string           `json:"policy"`
 	Shape            string           `json:"shape,omitempty"`
 	SimulatedMinutes int              `json:"simulated_minutes,omitempty"`
+	MobileRecovery   bool             `json:"mobile_recovery,omitempty"`
 	fixtureSamples   int64
 }
 
 type driver struct {
-	client *http.Client
-	opt    Options
+	client               *http.Client
+	opt                  Options
+	mobileRecoveryPassed bool
 }
 
 type streamConfigResponse struct {
@@ -104,10 +108,11 @@ func PersistEvidence(run conformance.Run) (string, error) {
 }
 
 type sessionStart struct {
-	SessionID           string               `json:"session_id"`
-	LeaseID             string               `json:"lease_id"`
-	AudioDeviceEvidence *AudioDeviceEvidence `json:"audio_device_evidence,omitempty"`
-	ExecutionID         string               `json:"-"`
+	SessionID            string               `json:"session_id"`
+	LeaseID              string               `json:"lease_id"`
+	AudioDeviceEvidence  *AudioDeviceEvidence `json:"audio_device_evidence,omitempty"`
+	AudioPlaybackFailure string               `json:"audio_playback_failure,omitempty"`
+	ExecutionID          string               `json:"-"`
 }
 
 // AudioDeviceEvidence is the metadata returned by BAS when a realtime soak
@@ -124,8 +129,9 @@ type AudioDeviceEvidence struct {
 // qualification records. The HTTP endpoint serializes only Run; the records
 // are written through the existing experiment service.
 type Result struct {
-	Run                 conformance.Run
-	AudioDeviceEvidence *AudioDeviceEvidence
+	Run                  conformance.Run
+	AudioDeviceEvidence  *AudioDeviceEvidence
+	MobileRecoveryPassed bool
 }
 
 type instructionResponse struct {
@@ -153,10 +159,17 @@ type diagnostic struct {
 	State                 string   `json:"state"`
 	CapturedSequence      int64    `json:"capturedSequence"`
 	CapturedSamples       int64    `json:"capturedSamples"`
+	CaptureSampleRate     float64  `json:"captureSampleRate"`
 	SentSequence          int64    `json:"sentSequence"`
 	ProcessedSequence     int64    `json:"processedSequence"`
 	RetainedBytes         int64    `json:"retainedBytes"`
 	SignalObserved        bool     `json:"signalObserved"`
+	CaptureStartedAtMS    *float64 `json:"captureStartedAtMs"`
+	FirstCaptureAtMS      *float64 `json:"firstCaptureAtMs"`
+	LastCaptureAtMS       *float64 `json:"lastCaptureAtMs"`
+	FirstSignalAtMS       *float64 `json:"firstSignalAtMs"`
+	FirstSentAtMS         *float64 `json:"firstSentAtMs"`
+	FirstPartialAtMS      *float64 `json:"firstPartialAtMs"`
 	FirstPartialLatencyMS *float64 `json:"firstPartialLatencyMs"`
 	CommittedTextLagMS    *float64 `json:"committedTextLagMs"`
 	ProviderID            string   `json:"providerId"`
@@ -168,9 +181,12 @@ type diagnostic struct {
 }
 
 type pageObservation struct {
-	Diagnostic any    `json:"diag"`
-	Transcript string `json:"final"`
-	Interim    string `json:"interim"`
+	Diagnostic             any    `json:"diag"`
+	Transcript             string `json:"final"`
+	Interim                string `json:"interim"`
+	CoverageVisible        bool   `json:"coverage_visible"`
+	ExportAvailable        bool   `json:"export_available"`
+	DiagnosticMetadataOnly bool   `json:"diagnostic_metadata_only"`
 }
 
 // Run drives the real Dictation Studio page and returns the same conformance
@@ -234,7 +250,15 @@ func RunWithEvidence(ctx context.Context, opt Options, ledgers *session.Registry
 	if err != nil {
 		return Result{Run: failedRunWithID(opt, runID, started, err)}, err
 	}
-	defer func() { _ = d.close(context.Background(), start) }()
+	// Cleanup must not hold a completed owner open forever when the browser
+	// driver has a stale session or a background audio page. The conformance
+	// result is assembled before this deferred cleanup runs, so bound cleanup
+	// independently of the evidence request's potentially long timeout.
+	defer func() {
+		closeCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		_ = d.close(closeCtx, start)
+	}()
 
 	if err = d.step(ctx, start.SessionID, 0, "navigate", map[string]any{"navigate": map[string]any{"url": d.pageURL()}}); err != nil {
 		runErr = err
@@ -251,6 +275,18 @@ func RunWithEvidence(ctx context.Context, opt Options, ledgers *session.Registry
 		interimSampleCount := 0
 		interimVisibleSamples := 0
 		timingSamples := make([]*diagnostic, 0, feedChunks)
+		if opt.Lane == conformance.LaneRealtime && strings.TrimSpace(opt.Fault) == "" {
+			// BAS playback is deferred, so arm the fixture immediately before the
+			// gesture. This prevents the recorder from accumulating a multi-second
+			// leading-silence prefix while getUserMedia becomes ready.
+			if err = d.post(ctx, "/session/"+start.SessionID+"/audio/restart", map[string]string{
+				"execution_id": start.ExecutionID,
+				"lease_id":     start.LeaseID,
+			}, nil); err != nil {
+				runErr = err
+				break
+			}
+		}
 		if err = d.step(ctx, start.SessionID, base+2, "start", map[string]any{"click": map[string]any{"selector": d.productSelector("ready")}}); err != nil {
 			runErr = err
 			break
@@ -282,11 +318,19 @@ func RunWithEvidence(ctx context.Context, opt Options, ledgers *session.Registry
 			runErr = err
 			break
 		}
+		if opt.Lane == conformance.LaneRealtime && strings.TrimSpace(opt.Fault) == "" {
+			if err = d.post(ctx, "/session/"+start.SessionID+"/audio/stop", map[string]string{
+				"execution_id": start.ExecutionID,
+				"lease_id":     start.LeaseID,
+			}, nil); err != nil {
+				runErr = err
+				break
+			}
+		}
 		tailBase := base + 5 + feedChunks
-		// The WebSocket handler removes a terminal ledger immediately after
-		// delivering the terminal event. Capture the metadata-only server
-		// snapshot before clicking Stop so the qualification observes the live
-		// ledger without keeping terminal sessions resident after the turn.
+		// Capture an initial metadata-only server snapshot before clicking Stop.
+		// The post-stop snapshot below is authoritative when available because
+		// it includes the decoder's final drain and committed tail.
 		var serverSnapshot session.Snapshot
 		serverSeen := false
 		var beforeStop pageObservation
@@ -349,10 +393,14 @@ func RunWithEvidence(ctx context.Context, opt Options, ledgers *session.Registry
 			}
 		}
 		if strings.TrimSpace(opt.Fault) == "" {
-			captureTimeoutMS := 15000
-			if opt.Lane == conformance.LaneAccelerated || normalizeSurface(opt.Surface) == "swarm-manager" {
-				captureTimeoutMS = 60000
-			}
+			// Native Kyutai can finish its stream promptly and then enter the
+			// bounded retained-audio Whisper recovery path. That recovery is
+			// still a valid product terminal, but on a saturated host its batch
+			// request can exceed the old 15-second browser observation window.
+			// Keep the wait finite while allowing the owner recovery contract to
+			// settle instead of misclassifying an in-flight recovery as a lost
+			// turn.
+			captureTimeoutMS := 60000
 			// Whole-turn replay is intentionally bounded in the browser. A long
 			// clean stream can therefore finish with an explicit recoverable
 			// retention failure after the server has processed every interval.
@@ -371,6 +419,36 @@ func RunWithEvidence(ctx context.Context, opt Options, ledgers *session.Registry
 		if err = d.evaluate(ctx, start.SessionID, tailBase+5, &page); err != nil {
 			runErr = err
 			break
+		}
+		// Stop/final-drain can commit segments after the pre-stop observation.
+		// Read the owner ledger again after the browser has exposed its terminal
+		// state so quality and settlement grade the complete turn rather than a
+		// prefix that happened to be committed while capture was still active.
+		if observed := decodeDiagnostic(page.Diagnostic); observed != nil && ledgers != nil {
+			if settled, ok := ledgers.Snapshot(observed.SessionID); ok &&
+				(!serverSeen || len(settled.Committed) >= len(serverSnapshot.Committed)) {
+				serverSnapshot, serverSeen = settled, true
+			}
+		}
+		if opt.MobileRecovery {
+			if err = d.step(ctx, start.SessionID, tailBase+6, "open-mobile-coverage", map[string]any{"click": map[string]any{"selector": "[data-testid=\"dictation-turn-details\"] summary"}}); err != nil {
+				runErr = err
+				break
+			}
+			if err = d.step(ctx, start.SessionID, tailBase+7, "export-mobile-diagnostic", map[string]any{"click": map[string]any{"selector": "[data-testid=\"dictation-export-diagnostic\"]"}}); err != nil {
+				runErr = err
+				break
+			}
+			var mobilePage pageObservation
+			if err = d.evaluate(ctx, start.SessionID, tailBase+8, &mobilePage); err != nil {
+				runErr = err
+				break
+			}
+			if !mobilePage.CoverageVisible || !mobilePage.ExportAvailable || !mobilePage.DiagnosticMetadataOnly {
+				runErr = fmt.Errorf("mobile recovery evidence incomplete: coverage_visible=%t export_available=%t metadata_only=%t", mobilePage.CoverageVisible, mobilePage.ExportAvailable, mobilePage.DiagnosticMetadataOnly)
+				break
+			}
+			d.mobileRecoveryPassed = true
 		}
 		obs := turnObservation{
 			Transcript:            page.Transcript,
@@ -405,9 +483,9 @@ func RunWithEvidence(ctx context.Context, opt Options, ledgers *session.Registry
 
 	run := buildRun(opt, runID, started, observations, maxHeapDelta)
 	if runErr != nil {
-		return Result{Run: failedRunWithIDAndCode(opt, runID, started, runErr, run.Code), AudioDeviceEvidence: start.AudioDeviceEvidence}, runErr
+		return Result{Run: failedRunWithIDAndCode(opt, runID, started, runErr, run.Code), AudioDeviceEvidence: start.AudioDeviceEvidence, MobileRecoveryPassed: d.mobileRecoveryPassed}, runErr
 	}
-	return Result{Run: run, AudioDeviceEvidence: start.AudioDeviceEvidence}, nil
+	return Result{Run: run, AudioDeviceEvidence: start.AudioDeviceEvidence, MobileRecoveryPassed: d.mobileRecoveryPassed}, nil
 }
 
 // stableHeapAlloc measures live Go heap rather than allocator high-water mark.
@@ -482,7 +560,11 @@ func requestTimeout(opt Options) time.Duration {
 		return base
 	}
 	capture := time.Duration(opt.FeedMS) * time.Duration(opt.Turns) * time.Millisecond
-	withHeadroom := capture + 5*time.Minute
+	// Long-form browser runs need enough time for the final browser action,
+	// diagnostic collection, lease teardown, and receipt persistence. Five
+	// minutes was insufficient at the sixty-minute qualification boundary and
+	// caused BAS to return a context deadline before the run could be scored.
+	withHeadroom := capture + 10*time.Minute
 	if withHeadroom > base {
 		return withHeadroom
 	}
@@ -534,6 +616,9 @@ func (d *driver) pageURL() string {
 	}
 	page := strings.TrimRight(d.opt.UIURL, "/") + "/dictation-studio"
 	page += "?stt_engine_id=" + d.opt.EngineID
+	if strings.TrimSpace(d.opt.Strategy) != "" {
+		page += "&stt_strategy=" + url.QueryEscape(strings.TrimSpace(d.opt.Strategy))
+	}
 	if d.opt.Lane == conformance.LaneAccelerated {
 		page += "&stt_test_mode=1&stt_capture_source=virtual&stt_capture_shape=" + url.QueryEscape(normalizeShape(d.opt.Shape))
 		page += "&stt_virtual_samples=" + strconv.FormatInt(targetSamplesPerTurn(d.opt), 10)
@@ -642,6 +727,9 @@ func realtimeShape(o Options) string {
 }
 
 func realtimePlaybackPauseMS(o Options) int {
+	// A short pause keeps repeated fixture cycles acoustically separable. Without
+	// it, the native decoder merges the boundary and consistently turns the
+	// second "a quick" into "the quick", which is a real product-quality error.
 	if realtimeShape(o) == "realistic" {
 		return 250
 	}
@@ -658,9 +746,18 @@ func (d *driver) start(ctx context.Context, executionID string) (sessionStart, e
 		"base_url":     d.opt.UIURL,
 		"permissions":  []string{"microphone"},
 	}
+	if d.opt.MobileRecovery {
+		request["viewport"] = map[string]int{"width": 390, "height": 844}
+	}
 	if d.opt.Lane == conformance.LaneRealtime {
 		request["fake_media"] = map[string]string{"microphone_wav": d.opt.Fixture}
 		request["audio_playback_pause_ms"] = realtimePlaybackPauseMS(d.opt)
+		request["audio_playback_defer_start"] = true
+		// The owner starts a ready playback handle once the session is created;
+		// the driver rewinds it only after each turn reaches the recording state.
+		// Do not add a delay after that rewind: the recorder is already live, so
+		// the first captured interval should begin at the fixture boundary.
+		request["audio_playback_start_delay_ms"] = 0
 		// The WAV remains the qualification corpus, but the browser must receive
 		// it through BAS's user-owned PipeWire source rather than Chromium's fake
 		// media device. This is an explicit per-session opt-in so ordinary BAS
@@ -668,6 +765,9 @@ func (d *driver) start(ctx context.Context, executionID string) (sessionStart, e
 		request["audio_device_evidence"] = true
 	}
 	err := d.post(ctx, "/session/start", request, &out)
+	if err == nil && strings.TrimSpace(out.AudioPlaybackFailure) != "" {
+		err = fmt.Errorf("browser audio playback failed during session start: %s", out.AudioPlaybackFailure)
+	}
 	if err == nil && (out.SessionID == "" || out.LeaseID == "") {
 		err = errors.New("playwright driver returned no session lease")
 	}
@@ -752,7 +852,7 @@ func (d *driver) evaluationExpression() string {
 	if normalizeSurface(d.opt.Surface) == "swarm-manager" {
 		return `(function(){const interim=document.querySelector('[data-testid="captures-quick-composer-interim"]');const style=interim?window.getComputedStyle(interim):null;const rendered=!!interim&&!!style&&style.display!=="none"&&style.visibility!=="hidden"&&interim.getClientRects().length>0;return {diag:window.__VROOLI_AUDIO_STREAM_DIAGNOSTIC__?.latest||null,final:document.querySelector('[data-testid="captures-quick-input-submit"]')?.value||'',interim:rendered?(interim.textContent||''):''};})()`
 	}
-	return `(function(){const interim=document.querySelector('[data-testid="dictation-interim-transcript"]');const style=interim?window.getComputedStyle(interim):null;const rendered=!!interim&&!!style&&style.display!=="none"&&style.visibility!=="hidden"&&interim.getClientRects().length>0;return {diag:window.__VROOLI_AUDIO_STREAM_DIAGNOSTIC__?.latest||null,final:document.querySelector('[data-testid="dictation-final-transcript"]')?.textContent||'',interim:rendered?(interim.textContent||''):''};})()`
+	return `(function(){const interim=document.querySelector('[data-testid="dictation-interim-transcript"]');const style=interim?window.getComputedStyle(interim):null;const rendered=!!interim&&!!style&&style.display!=="none"&&style.visibility!=="hidden"&&interim.getClientRects().length>0;const diag=window.__VROOLI_AUDIO_STREAM_DIAGNOSTIC__?.latest||null;const details=document.querySelector('[data-testid="dictation-turn-details"]');return {diag:diag,final:document.querySelector('[data-testid="dictation-final-transcript"]')?.textContent||'',interim:rendered?(interim.textContent||''):'',coverage_visible:!!details&&!!details.querySelector('[data-testid="dictation-turn-processed-status"]'),export_available:!!details&&!!details.querySelector('[data-testid="dictation-export-diagnostic"]'),diagnostic_metadata_only:!!diag&&!('audio' in diag)&&!('transcript' in diag)};})()`
 }
 
 func mergeAction(typ string, params map[string]any) map[string]any {
@@ -850,7 +950,7 @@ func buildRun(opt Options, runID string, started time.Time, observations []turnO
 	} else {
 		// The transcript is intentionally held only in memory during this
 		// function; quality details contain rates, never transcript text.
-		run.Assertions = append(run.Assertions, qualityAcrossTurns(opt.Reference, observations, opt.Lane, opt.fixtureSamples)...)
+		run.Assertions = append(run.Assertions, qualityAcrossTurns(opt.Reference, observations, opt.Lane, opt.fixtureSamples, opt.ReferenceCycleMS, opt.FeedMS, realtimePlaybackPauseMS(opt))...)
 	}
 	return run
 }
@@ -922,21 +1022,53 @@ func totalInterimVisibleSamples(observations []turnObservation) int {
 	return total
 }
 
-func qualityAcrossTurns(reference string, observations []turnObservation, lane conformance.Lane, fixtureSamples int64) []conformance.Assertion {
+func qualityAcrossTurns(reference string, observations []turnObservation, lane conformance.Lane, fixtureSamples int64, referenceCycleMS int, feedMS int, playbackPauseMS int) []conformance.Assertion {
 	const names = 3
 	passed := [names]bool{true, true, true}
 	details := [names][]string{}
 	for index, observation := range observations {
 		turnReference := reference
-		if lane == conformance.LaneRealtime && fixtureSamples > 0 && observation.Diagnostic != nil && observation.Diagnostic.CapturedSamples > 0 {
-			repetitions := int(math.Round(float64(observation.Diagnostic.CapturedSamples) / float64(fixtureSamples)))
+		cycleSamples := fixtureSamples
+		if referenceCycleMS > 0 {
+			cycleSamples = int64(referenceCycleMS) * canonicalSampleRate / 1000
+		}
+		if lane == conformance.LaneRealtime && playbackPauseMS > 0 {
+			// Realistic BAS playback inserts silence between fixture cycles. The
+			// silence consumes the feed window but contributes no reference words,
+			// so the oracle must count a full speech-plus-pause cycle.
+			cycleSamples += int64(playbackPauseMS) * canonicalSampleRate / 1000
+		}
+		if cycleSamples > 0 && observation.Diagnostic != nil && observation.Diagnostic.CapturedSamples > 0 {
+			// Realtime capture includes the browser's recorder setup and terminal
+			// drain around the playback window. Those intervals are intentionally
+			// not speech references: use the declared source playback duration,
+			// while transport coverage still grades every captured interval.
+			referenceSamples := observation.Diagnostic.CapturedSamples
+			if lane == conformance.LaneRealtime && feedMS > 0 {
+				referenceSamples = int64(feedMS) * canonicalSampleRate / 1000
+			}
+			repetitions := int(math.Round(float64(referenceSamples) / float64(cycleSamples)))
 			if repetitions < 1 {
 				repetitions = 1
 			}
 			turnReference = repeatReference(reference, repetitions)
 		}
-		measured := conformance.MeasureQuality(conformance.QualityObservation{Reference: turnReference, Hypothesis: observation.Transcript, MaxWER: 0.25, MinPunctuationRate: 0, MinCapitalisationRate: 0})
+		hypothesis := observation.Transcript
+		if committed := committedTranscript(observation.Server.Committed); committed != "" {
+			// The server ledger is the owner-backed settlement source. The UI
+			// final field may intentionally expose only the latest native-provider
+			// result, while committed segments represent the complete turn.
+			hypothesis = committed
+		}
+		// The browser product lane uses the same adopted clean-speech floor as
+		// the held-out corpus: WER must be <= 10%. A looser diagnostic threshold
+		// would let a long-form receipt feed provider-parity despite missing the
+		// published quality target.
+		measured := conformance.MeasureQuality(conformance.QualityObservation{Reference: turnReference, Hypothesis: hypothesis, MaxWER: 0.10, MinPunctuationRate: 0, MinCapitalisationRate: 0})
 		for metric, assertion := range measured {
+			if metric == 0 && observation.ServerSeen {
+				assertion.Detail = fmt.Sprintf("%s server_received_sequence=%d server_processed_sequence=%d committed_segments=%d", assertion.Detail, observation.Server.ReceivedSequence, observation.Server.ProcessedSequence, len(observation.Server.Committed))
+			}
 			passed[metric] = passed[metric] && assertion.Outcome == conformance.OutcomePassed
 			details[metric] = append(details[metric], fmt.Sprintf("turn %d: %s", index+1, assertion.Detail))
 		}
@@ -953,6 +1085,16 @@ func qualityAcrossTurns(reference string, observations []turnObservation, lane c
 		conformance.Measured("punctuation_rate_recorded", passed[1], strings.Join(details[1], "; ")),
 		conformance.Measured("capitalisation_rate_recorded", passed[2], strings.Join(details[2], "; ")),
 	}
+}
+
+func committedTranscript(segments []session.Segment) string {
+	parts := make([]string, 0, len(segments))
+	for _, segment := range segments {
+		if text := strings.TrimSpace(segment.Text); text != "" {
+			parts = append(parts, text)
+		}
+	}
+	return strings.TrimSpace(strings.Join(parts, " "))
 }
 
 func repeatReference(reference string, repetitions int) string {
@@ -1145,6 +1287,9 @@ func invariant(name string, observations []turnObservation, heapDelta int64, fee
 			minRate, maxRate := float64(0), float64(0)
 			for _, o := range observations {
 				seconds := float64(feedMS) / 1000
+				if o.Diagnostic.FirstCaptureAtMS != nil && o.Diagnostic.LastCaptureAtMS != nil && *o.Diagnostic.LastCaptureAtMS > *o.Diagnostic.FirstCaptureAtMS {
+					seconds = (*o.Diagnostic.LastCaptureAtMS - *o.Diagnostic.FirstCaptureAtMS) / 1000
+				}
 				if lane == conformance.LaneAccelerated {
 					seconds = float64(o.Diagnostic.CapturedSamples) / canonicalSampleRate
 				}
@@ -1209,6 +1354,26 @@ func realtimeTimingObservations(observations []turnObservation) []turnObservatio
 			for _, sample := range observation.TimingSamples {
 				out = append(out, turnObservation{Diagnostic: sample})
 			}
+			// A non-segmenting provider may expose committed-tail lag only in
+			// its terminal diagnostic. Use it when no periodic sample carries
+			// that metric; retain the existing rule that genuine periodic
+			// samples exclude the terminal flush from drift comparisons.
+			if observation.Diagnostic != nil && observation.Diagnostic.CommittedTextLagMS != nil {
+				hasPeriodicCommittedLag := false
+				for _, sample := range observation.TimingSamples {
+					if sample != nil && sample.CommittedTextLagMS != nil {
+						hasPeriodicCommittedLag = true
+						break
+					}
+				}
+				if !hasPeriodicCommittedLag {
+					out = append(out, turnObservation{Diagnostic: observation.Diagnostic})
+				}
+			}
+			continue
+		}
+		if observation.Diagnostic != nil && observation.Diagnostic.CommittedTextLagMS != nil {
+			out = append(out, turnObservation{Diagnostic: observation.Diagnostic})
 			continue
 		}
 		for index := range observation.Samples {
@@ -1224,6 +1389,12 @@ func realtimeAssertion(name string, observations []turnObservation, value func(*
 	measured := false
 	for _, o := range observations {
 		if o.Diagnostic == nil {
+			if name == "committed_text_lag_stable" {
+				// Commit lag is undefined before the first committed result in
+				// each turn. Periodic snapshots therefore legitimately carry a
+				// null value while capture is still being processed.
+				continue
+			}
 			if measured {
 				return conformance.NotMeasured(name, "the product path stopped exposing this timing after it was measured")
 			}
@@ -1231,6 +1402,9 @@ func realtimeAssertion(name string, observations []turnObservation, value func(*
 		}
 		v := value(o.Diagnostic)
 		if v == nil {
+			if name == "committed_text_lag_stable" {
+				continue
+			}
 			if measured {
 				return conformance.NotMeasured(name, "the product path stopped exposing this timing after it was measured")
 			}
@@ -1248,9 +1422,19 @@ func realtimeAssertion(name string, observations []turnObservation, value func(*
 	bound := ""
 	switch name {
 	case "first_partial_latency_stable":
+		p95 := percentile(values, 0.95)
+		const targetMS = 1_000.0
+		if p95 > targetMS {
+			decomposition := ""
+			if len(observations) > 0 && observations[0].Diagnostic != nil {
+				d := observations[0].Diagnostic
+				decomposition = fmt.Sprintf("; first milestones capture_start=%s first_capture=%s first_signal=%s first_sent=%s first_partial=%s", formatMillis(d.CaptureStartedAtMS), formatMillis(d.FirstCaptureAtMS), formatMillis(d.FirstSignalAtMS), formatMillis(d.FirstSentAtMS), formatMillis(d.FirstPartialAtMS))
+			}
+			return conformance.Measured(name, false, fmt.Sprintf("%s exceeded approved speech-to-visible-partial p95: p95=%.2fms target<=%.0fms across %d realtime turns; first=%.2fms last=%.2fms%s", name, p95, targetMS, len(values), first, last, decomposition))
+		}
 		limit := first * 1.2
 		passed = last <= limit
-		bound = fmt.Sprintf("last <= first*1.2 (%.2fms)", limit)
+		bound = fmt.Sprintf("p95 <= 1000ms (%.2fms); last <= first*1.2 (%.2fms)", p95, limit)
 	case "committed_text_lag_stable":
 		// Committed lag is reported in millisecond-resolution snapshots. A
 		// small increase can therefore be scheduler/measurement jitter rather
@@ -1265,6 +1449,33 @@ func realtimeAssertion(name string, observations []turnObservation, value func(*
 		return conformance.NotMeasured(name, "driver has no stability bound for this timing")
 	}
 	return conformance.Measured(name, passed, fmt.Sprintf("%s observed across %d realtime turns; first=%.2fms last=%.2fms; %s", name, len(values), first, last, bound))
+}
+
+func formatMillis(value *float64) string {
+	if value == nil {
+		return "unobserved"
+	}
+	return fmt.Sprintf("%.0f", *value)
+}
+
+// percentile returns the nearest-rank percentile from a copy so the input
+// order remains the turn order used by the stability check. The acceptance
+// protocol uses p95 over all paced attempts, including failures handled by
+// the caller as missing telemetry.
+func percentile(values []float64, fraction float64) float64 {
+	if len(values) == 0 {
+		return 0
+	}
+	ordered := append([]float64(nil), values...)
+	sort.Float64s(ordered)
+	rank := int(math.Ceil(fraction*float64(len(ordered)))) - 1
+	if rank < 0 {
+		rank = 0
+	}
+	if rank >= len(ordered) {
+		rank = len(ordered) - 1
+	}
+	return ordered[rank]
 }
 
 func captureFingerprint() string {

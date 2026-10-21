@@ -75,6 +75,17 @@ func TestProtoForEvent_SpeakerRejectionCarriesScore(t *testing.T) {
 	require.InDelta(t, 0.7, sr.SpeakerRejection.GetThreshold(), 1e-9)
 }
 
+func TestProtoForEvent_SegmentCarriesSpeakerPolicy(t *testing.T) {
+	got := protoForEvent(sttchain.StreamEvent{
+		Kind:    sttchain.StreamEventSegment,
+		Segment: &sttchain.SegmentEvent{Text: "verified", SpeakerPolicy: "degraded"},
+	})
+	require.NotNil(t, got)
+	segment, ok := got.Event.(*sttv1.TranscribeStreamEvent_Segment)
+	require.True(t, ok)
+	require.Equal(t, "degraded", segment.Segment.GetSpeakerPolicy())
+}
+
 func TestProtoForEvent_MapsAllTranscriptEventKinds(t *testing.T) {
 	cases := []sttchain.StreamEvent{
 		{Kind: sttchain.StreamEventPartial, Partial: &sttchain.PartialEvent{Text: "partial"}},

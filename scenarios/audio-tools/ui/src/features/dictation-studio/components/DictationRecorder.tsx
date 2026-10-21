@@ -1,7 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { RotateCcw, X } from "lucide-react";
 
-import { PcmVoiceStreamProvider, MicReadinessIndicator } from "../../../audio-integration";
+import {
+  PcmVoiceStreamProvider,
+  MicReadinessIndicator,
+  getSharedAudioContext,
+  keepAudioContextAwake,
+  preloadCanonicalPcmCapture,
+} from "../../../audio-integration";
 import { VoiceInputButton } from "@vrooli/react-component-library/VoiceInputButton/4";
 import { Button } from "../../../components/ui/button";
 import { useTranslation } from "../../../i18n";
@@ -194,14 +200,15 @@ export function DictationRecorder({ onCaptured, onTranscript }: Props) {
     if (providerRef.current === null) {
       const virtual = virtualCaptureConfig();
       const p = new PcmVoiceStreamProvider(virtual ? {
+        fastFirstWireBatch: true,
         getUserMedia: async () => emptyMediaStream(),
         captureFactory: (_stream, onFrame) => createVirtualCapture(virtual, onFrame),
         // The accelerated source is not a realtime/device claim. Preserve
         // exact sample-range accounting while reducing browser persistence
         // overhead from 100 ms to 1 s wire batches. Real microphone and BAS
-        // fake-media runs retain the package's production default.
+        // fake-media runs use the audio-tools host's responsive 50 ms cadence.
         wireBatchSamples: 16_000,
-      } : undefined);
+      } : { wireBatchSamples: 800 });
       p.onResult = (text) => {
         setPartial("");
         // Passthrough providers may commit durable segments before sending
@@ -250,13 +257,20 @@ export function DictationRecorder({ onCaptured, onTranscript }: Props) {
     };
   }, []);
 
+  // Keep the standalone Dictation Studio recorder on the same warm path as
+  // the diagnostics voice hook. Once permission is granted, opening the
+  // transport ahead of the click removes WebSocket negotiation from the
+  // user's first spoken turn. The provider now reuses this socket in start().
+  useEffect(() => {
+    if (micPermission === "granted") ensureProvider().preConnect("en");
+  }, [micPermission]);
+
   const start = async () => {
     if (state === "preparing" || state === "recording" || state === "transcribing") return;
     setError("");
     // Surface the attempt immediately. Some backends emit their first status
     // only after media negotiation, but the UI must not look inert while that
     // negotiation is in progress.
-    setStreamStatus("Connecting to speech stream…");
     setPartial("");
     setFinalText("");
     committedTextRef.current = "";
@@ -265,8 +279,35 @@ export function DictationRecorder({ onCaptured, onTranscript }: Props) {
     setNoAudioDetected(false);
     setDiagnostic(null);
     setState("preparing");
+
+    // This handler is still running in the microphone-button gesture. Resume
+    // the shared context and start loading the capture worklet before the
+    // first await below. If this is deferred until provider.start() reaches
+    // makeCapture(), mobile browsers can lose the gesture activation and the
+    // first voiced frame pays the full context/worklet startup cost.
+    try {
+      keepAudioContextAwake();
+      const context = getSharedAudioContext();
+      if (context.state !== "running") void context.resume().catch(() => undefined);
+      void preloadCanonicalPcmCapture(context).catch(() => undefined);
+    } catch {
+      // Capture still has the ScriptProcessor fallback when the browser does
+      // not expose AudioContext or AudioWorklet.
+    }
     try {
       const provider = ensureProvider();
+      // Permission may still be unknown on the first press, so the readiness
+      // effect above cannot always warm the transport in time. Start the
+      // handshake in parallel with getUserMedia; preConnect only admits the
+      // stream transport and does not transmit or reserve audio capacity.
+      provider.preConnect("en");
+      // A permission-warmed socket may already be open before the button
+      // press. Do not overwrite its connected status with the initial
+      // connecting label; doing so made the voice button look stalled even
+      // though the transport was ready and capture had begun.
+      if (typeof provider.isStreamConnected !== "function" || !provider.isStreamConnected()) {
+        setStreamStatus("Connecting to speech stream…");
+      }
       await provider.start();
       startLevelMonitor(provider.getStream());
       setState("recording");

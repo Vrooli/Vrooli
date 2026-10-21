@@ -53,8 +53,11 @@ credit conversion, or paid-test allowance is granted here.
 
 ## Proposed voice billing policy v1
 
-Status: proposed for product and shared-monetization-owner review, not deployed
-behavior. This policy covers owned hosted STT first. TTS and summarization require
+Status: on 2026-09-13 the operator adopted this policy as the development and
+simulation target for OT-P0-007. It is proven only on LPBS routed fixtures with a
+fake provider, and it is not deployed behavior. The open sub-parameters listed
+below the table are proposed by the development agent and flagged for review,
+not fixed silently. This policy covers owned hosted STT first. TTS and summarization require
 their own reviewed meters before sale; copying the STT duration meter is invalid.
 
 | Decision | Proposed rule | Required proof before adoption / launch |
@@ -112,12 +115,14 @@ boundary. Live provider calls need an explicit spending grant.
 
 ## Current Status
 
-Source inspected on 2026-09-08: the three provider chains have local/BYOK wiring,
-but hosted delivery is not merely a completed feature behind a disabled flag.
-`BuildChains` supplies no Vrooli provider; the LPBS STT, TTS, and summarization
-clients return “gateway endpoint not implemented,” and shared availability is false.
-A user without local capability or usable BYOK therefore cannot rely on an owned
-hosted fallback today.
+Source inspected on 2026-09-16: the three provider chains now include explicit
+LPBS/Vrooli client composition, and the usage reporter posts authenticated,
+idempotent reports to the shared usage endpoint. Hosted delivery is still not a
+completed feature behind a disabled flag: the LPBS STT, TTS, and summarization
+clients intentionally return unavailable until the shared gateway endpoints
+ship, and the fresh setpoint read remains acceptance-ineligible. A user without
+local capability or usable BYOK therefore cannot rely on an owned hosted fallback
+today.
 
 The [integration inventory](../concepts/INTEGRATIONS.md#scenario-dependencies)
 owns those source references. The [problem register](../internal/PROBLEMS.md)

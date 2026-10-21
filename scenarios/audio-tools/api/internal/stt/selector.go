@@ -184,13 +184,14 @@ func Defaults() StreamConfig {
 		VADPreRollMs:           800,
 		VADTrailingPadMs:       200,
 		VADInitialPromptWords:  20,
-		// Preview every 1.5 s of new speech over an 8 s trailing window.
-		// One extra provider call per 1.5 s of continuous speech is the price
-		// of live text on hosts with no streaming engine; the window bound
-		// keeps that price constant no matter how long the operator talks.
+		// Preview every 250 ms of new speech over a 3 s trailing window. This
+		// keeps the first visible Whisper result near the interactive-latency
+		// target instead of waiting for a VAD silence boundary. The single-flight
+		// gate bounds provider load when inference is slower than the cadence,
+		// while the shorter window keeps each request responsive.
 		// Set VADPreviewIntervalMs to 0 to trade live text back for load.
-		VADPreviewIntervalMs:       1500,
-		VADPreviewWindowMs:         8000,
+		VADPreviewIntervalMs:       250,
+		VADPreviewWindowMs:         3000,
 		HallucinationFilterEnabled: true,
 		VADFilterEnabled:           true,
 		// faster-whisper defaults: a segment is "no speech" when

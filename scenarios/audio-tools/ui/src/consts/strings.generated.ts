@@ -12,12 +12,6 @@
 // function takes as its first argument.
 
 export const strings = {
-  $schema: "$schema",
-  $text: "$text",
-  "@vrooli/audio-capture-browser": "@vrooli/audio-capture-browser",
-  adapter: "adapter",
-  alert: "alert",
-  "animate-spin": "animate-spin",
   apiError: {
     loadFailedTitle: "apiError.loadFailedTitle",
     unimplementedDescription: "apiError.unimplementedDescription",
@@ -29,12 +23,6 @@ export const strings = {
     title: "app.title",
     versionTag: "app.versionTag",
   },
-  "aria-label": "aria-label",
-  axis: "axis",
-  background: "background",
-  "bg-app-primary/60": "bg-app-primary/60",
-  "border-app-info bg-app-info/20 text-app-info": "border-app-info bg-app-info/20 text-app-info",
-  clsx: "clsx",
   common: {
     creditsSuffix: "common.creditsSuffix",
     dash: "common.dash",
@@ -77,9 +65,6 @@ export const strings = {
     toggleVrooli: "config.toggleVrooli",
     vrooliHeader: "config.vrooliHeader",
   },
-  default: "default",
-  density: "density",
-  description: "description",
   diagnostics: {
     audioFileLabel: "diagnostics.audioFileLabel",
     description: "diagnostics.description",
@@ -431,7 +416,6 @@ export const strings = {
     notFoundTitle: "docs.notFoundTitle",
     title: "docs.title",
   },
-  error: "error",
   errorBoundary: {
     message: "errorBoundary.message",
     retry: "errorBoundary.retry",
@@ -455,21 +439,9 @@ export const strings = {
     unimplemented: "errors.unimplemented",
     unknown: "errors.unknown",
   },
-  example: "example",
-  "exit-passive": "exit-passive",
-  export: "export",
-  format: "format",
-  "h-5 w-5": "h-5 w-5",
-  id: "id",
-  key: "key",
-  kind: "kind",
-  label: "label",
   locale: {
     switcherLabel: "locale.switcherLabel",
   },
-  mode: "mode",
-  module: "module",
-  name: "name",
   nav: {
     configure: "nav.configure",
     diagnostics: "nav.diagnostics",
@@ -498,14 +470,6 @@ export const strings = {
     summaryProviderTiers: "overview.summaryProviderTiers",
     summaryRecent: "overview.summaryRecent",
   },
-  path: "path",
-  provenance: "provenance",
-  purpose: "purpose",
-  react: "react",
-  role: "role",
-  schema: "schema",
-  schemaVersion: "schemaVersion",
-  selector: "selector",
   settings: {
     fontScaleComfortable: "settings.fontScaleComfortable",
     fontScaleCompact: "settings.fontScaleCompact",
@@ -518,7 +482,6 @@ export const strings = {
     themeLight: "settings.themeLight",
     themeSystem: "settings.themeSystem",
   },
-  shape: "shape",
   shell: {
     closeSettings: "shell.closeSettings",
     mainContent: "shell.mainContent",
@@ -527,7 +490,6 @@ export const strings = {
     primaryNav: "shell.primaryNav",
     settingsTitle: "shell.settingsTitle",
   },
-  size: "size",
   speakerAdmin: {
     clipsEmpty: "speakerAdmin.clipsEmpty",
     clipsTitle: "speakerAdmin.clipsTitle",
@@ -575,8 +537,6 @@ export const strings = {
     unbindButton: "speakerAdmin.unbindButton",
     viewClipsButton: "speakerAdmin.viewClipsButton",
   },
-  state: "state",
-  statement: "statement",
   status: {
     actionPullModel: "status.actionPullModel",
     actionRestart: "status.actionRestart",
@@ -624,7 +584,6 @@ export const strings = {
     stateUnavailable: "status.stateUnavailable",
     stateUnknown: "status.stateUnknown",
   },
-  storyRef: "storyRef",
   streamConfigAdmin: {
     badgeBatch: "streamConfigAdmin.badgeBatch",
     badgeNativeStreaming: "streamConfigAdmin.badgeNativeStreaming",
@@ -657,15 +616,10 @@ export const strings = {
     switchSafeToStop: "streamConfigAdmin.switchSafeToStop",
     switchSuccess: "streamConfigAdmin.switchSuccess",
   },
-  "tailwind-merge": "tailwind-merge",
-  testid: "testid",
-  tier: "tier",
-  title: "title",
   toast: {
     dismiss: "toast.dismiss",
     viewDefault: "toast.viewDefault",
   },
-  type: "type",
   usage: {
     colCapability: "usage.colCapability",
     colCredits: "usage.colCredits",
@@ -686,10 +640,6 @@ export const strings = {
     recentTitle: "usage.recentTitle",
     title: "usage.title",
   },
-  "var(--radius-pill)": "var(--radius-pill)",
-  "var(--space-3xs)": "var(--space-3xs)",
-  variant: "variant",
-  voiceInput: "voiceInput",
   voices: {
     canonicalHeader: "voices.canonicalHeader",
     description: "voices.description",

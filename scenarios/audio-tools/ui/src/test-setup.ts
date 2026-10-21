@@ -26,6 +26,40 @@ import "@testing-library/jest-dom/vitest";
 import { afterEach, beforeEach, vi } from "vitest";
 import { i18n } from "./i18n";
 
+// jsdom does not implement matchMedia. The shared VoiceInputButton and the
+// application preference hooks both use it, so keep the browser contract
+// available to every component test instead of duplicating local stubs.
+if (typeof window.matchMedia !== "function") {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: (query: string): MediaQueryList => {
+      let matches = false;
+      type MatchMediaListener = (event: MediaQueryListEvent) => void;
+      const listeners = new Set<MatchMediaListener>();
+      return {
+        get matches() {
+          return matches;
+        },
+        media: query,
+        onchange: null,
+        addEventListener: (_type: string, listener: EventListenerOrEventListenerObject | null) => {
+          if (typeof listener === "function") listeners.add(listener as MatchMediaListener);
+        },
+        removeEventListener: (_type: string, listener: EventListenerOrEventListenerObject | null) => {
+          if (typeof listener === "function") listeners.delete(listener as MatchMediaListener);
+        },
+        addListener: (listener: MatchMediaListener) => listeners.add(listener),
+        removeListener: (listener: MatchMediaListener) => listeners.delete(listener),
+        dispatchEvent: (event) => {
+          matches = Boolean((event as MediaQueryListEvent).matches);
+          for (const listener of listeners) listener(event as MediaQueryListEvent);
+          return true;
+        },
+      };
+    },
+  });
+}
+
 let consoleError: ReturnType<typeof vi.spyOn>;
 let consoleWarn: ReturnType<typeof vi.spyOn>;
 

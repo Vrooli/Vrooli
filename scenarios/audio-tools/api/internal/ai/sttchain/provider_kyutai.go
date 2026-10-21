@@ -370,19 +370,21 @@ func (p *KyutaiProvider) TranscribeStreaming(ctx context.Context, start StreamSt
 			}
 		}()
 
-		// Pump: first chunk (which triggered the lazy dial), then remaining inbound
-		// PCM chunks -> WS binary frames. On clean close enqueue end so the server
-		// flushes its tail. On ctx cancel the watcher owns end + bounded drain.
+		// Pump: forward the first chunk as soon as the validated start header is
+		// on the wire. The resource reads it from its bounded websocket receive
+		// buffer while it completes admission, removing a readiness round-trip
+		// from first-token latency. Hold all subsequent chunks until ready so a
+		// queued session never accumulates unbounded audio at the resource.
 		go func(ctx context.Context) {
+			recordAudio(first)
+			if !send(websocket.BinaryMessage, first.Audio, true) {
+				return
+			}
 			select {
 			case <-readyForAudio:
 			case <-ctx.Done():
 				return
 			case <-streamDone:
-				return
-			}
-			recordAudio(first)
-			if !send(websocket.BinaryMessage, first.Audio, true) {
 				return
 			}
 			for {

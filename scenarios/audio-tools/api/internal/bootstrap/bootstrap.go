@@ -12,6 +12,7 @@ import (
 	sttchain "audio-tools/internal/ai/sttchain"
 	"audio-tools/internal/audioformat"
 	"audio-tools/internal/blobbytes"
+	"audio-tools/internal/buildidentity"
 	"audio-tools/internal/byok"
 	"audio-tools/internal/capabilities"
 	intcorpus "audio-tools/internal/corpus"
@@ -327,6 +328,14 @@ func BuildWithDeps(ctx context.Context) (*server.Server, *Deps, func() error, er
 				if err != nil {
 					return intexp.RunResult{}, err
 				}
+				var qualityEvidence []intexp.QualificationEvidence
+				if corpusSvc != nil {
+					clips, listErr := corpusSvc.ListClips(runCtx, intcorpus.ListFilter{})
+					if listErr != nil {
+						return intexp.RunResult{}, fmt.Errorf("load corpus provenance for quality evidence: %w", listErr)
+					}
+					qualityEvidence = expreport.QualityEvidenceForReport(clips, report, buildidentity.SourceIdentity)
+				}
 				recipeJSON, err := protojson.Marshal(recipe)
 				if err != nil {
 					return intexp.RunResult{}, fmt.Errorf("marshal realized recipe: %w", err)
@@ -341,7 +350,7 @@ func BuildWithDeps(ctx context.Context) (*server.Server, *Deps, func() error, er
 					return intexp.RunResult{}, err
 				}
 				emit(95, "storing report")
-				return intexp.RunResult{Report: reportJSON, ReportMIME: "application/json", Runs: runs, RecipeJSON: recipeJSON}, nil
+				return intexp.RunResult{Report: reportJSON, ReportMIME: "application/json", Runs: runs, RecipeJSON: recipeJSON, QualificationEvidence: qualityEvidence}, nil
 			},
 		})
 		if err := experimentMgr.Start(ctx); err != nil {

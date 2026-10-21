@@ -59,6 +59,65 @@
               "filesystem:read"
             ]
           }
+        },
+        {
+          "name": "run-simulated",
+          "description": "Run local policy and adapter qualification and persist a labelled simulated receipt",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "run-speaker-policy",
+          "description": "Exercise live batch/native speaker policy and fail-closed controls, then record owner evidence",
+          "flags": [
+            {
+              "name": "file",
+              "description": "WAV fixture used for the owner-backed policy probe"
+            },
+            {
+              "name": "device-profile",
+              "description": "Observed host profile for the receipt (defaults to D1)"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "run-host-portability",
+          "description": "Measure D1 CPU/accelerator routes and record explicit D2 unavailable evidence",
+          "binding": {"kind": "local"},
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "run-acceptance-join",
+          "description": "Validate fresh owner receipts and persist one provenance-preserving acceptance join",
+          "binding": {"kind": "local"},
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
         }
       ]
     },
@@ -77,14 +136,16 @@
             {"name": "lane", "description": "accelerated or realtime"},
             {"name": "profile", "description": "realistic or continuous"},
             {"name": "turns", "description": "Number of product turns"},
-            {"name": "feed-ms", "description": "Wall-clock fixture feed time per turn"},
+            {"name": "feed-ms", "description": "Wall-clock fixture feed time per turn (default: 50ms accelerated, 4000ms realtime)"},
             {"name": "fault", "description": "Optional leased fault profile"},
             {"name": "reference-text", "description": "Reference transcript for realtime quality assertions"},
+            {"name": "reference-cycle-ms", "description": "Optional repeated reference-cycle duration for looped long-form fixtures"},
             {"name": "engine-id", "description": "Exact provider engine id"},
             {"name": "model-id", "description": "Exact provider model id"},
             {"name": "strategy", "description": "Streaming strategy"},
             {"name": "policy", "description": "Dictation policy profile"},
             {"name": "shape", "description": "Accelerated virtual corpus shape: burst or chunked; realtime shape: realistic or continuous"},
+            {"name": "mobile-recovery", "description": "true|false — run the emulated 390x844 retained-coverage and metadata-only diagnostic export proof"},
             {"name": "evidence-path", "description": "Evidence JSON path (defaults to coverage/<run-id>.json)"}
           ],
           "binding": {"kind": "local"},
@@ -1126,6 +1187,30 @@
               "name": "scripted",
               "bool": true,
               "description": "Mark the clip as a scripted-prompt reading (default free-form)"
+            },
+            {
+              "name": "corpus-revision",
+              "description": "Version/revision identifier for the corpus release"
+            },
+            {
+              "name": "license-reference",
+              "description": "License or provenance reference for the audio/transcript"
+            },
+            {
+              "name": "speaker-pseudonym",
+              "description": "Stable non-identifying speaker label used for subgroup accounting"
+            },
+            {
+              "name": "split",
+              "description": "Corpus split: dev or held_out"
+            },
+            {
+              "name": "noise-condition",
+              "description": "Noise cohort: clean or noisy"
+            },
+            {
+              "name": "snr-db",
+              "description": "Measured signal-to-noise ratio for a noisy clip"
             }
           ],
           "binding": {

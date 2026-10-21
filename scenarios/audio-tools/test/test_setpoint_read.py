@@ -26,8 +26,11 @@ class Handle:
     def meta(self):
         return self.value
 
+    def raw(self):
+        return self.value
 
-def run_board(inputs=None, engines=None, health=None, report=None, errors=None):
+
+def run_board(inputs=None, engines=None, health=None, evidence=None, report=None, errors=None):
     calls = []
     errors = errors or {}
 
@@ -42,7 +45,9 @@ def run_board(inputs=None, engines=None, health=None, report=None, errors=None):
     api = SimpleNamespace(
         stt=SimpleNamespace(engines=binding("engines", engines if engines is not None else [{"id": "local", "available": True, "nativeStreaming": True}])),
         health=SimpleNamespace(show=binding("health", health if health is not None else [{"capability": "CAPABILITY_STT", "effectiveState": "PROVIDER_STATE_AVAILABLE"}])),
-        experiment=SimpleNamespace(report=binding("report", report)),
+        experiment=SimpleNamespace(
+            list_evidence=binding("evidence", evidence if evidence is not None else []),
+            report=binding("report", report)),
     )
     output = io.StringIO()
     with contextlib.redirect_stdout(output):
@@ -88,15 +93,180 @@ class EvidenceBoardTests(unittest.TestCase):
         board, calls = run_board()
         self.assertEqual(board["status"], "ok")
         self.assertEqual(board["signals"]["acceptance"], "unknown")
-        self.assertEqual({c[0] for c in calls}, {"engines", "health"})
+        self.assertEqual({c[0] for c in calls}, {"engines", "health", "evidence"})
         self.assertEqual(board["signals"]["target_revision"], "portable-voice-v1")
         self.assertEqual(len(board["signals"]["rows"]), 15)
         for row in board["signals"]["rows"]:
-            self.assertTrue(row["unavailable"])
-            self.assertIsNone(row["reading"])
-            self.assertIsNone(row["in_band"])
+            if row["row"] in {"shared-voice-capabilities", "device-qualification"}:
+                self.assertEqual(row["reason"], "excluded:mandate_scope")
+                self.assertFalse(row["unavailable"])
+            else:
+                self.assertTrue(row["unavailable"])
+                self.assertIsNone(row["reading"])
+                self.assertIsNone(row["in_band"])
         self.assertIsNotNone(board["signals"]["rows"][0]["target"])
         self.assertTrue(all(row["target"] for row in board["signals"]["rows"]))
+
+    def test_owner_receipt_join_resolves_all_required_rows_from_one_build(self):
+        required = {
+            "dictation-trust", "provider-parity", "speaker-policy", "provider-evidence",
+            "mobile-recovery", "interactive-latency", "corpus-quality", "owned-settlement",
+            "explicit-routing", "host-portability", "private-lifecycle", "acceptance-integrity",
+            "adapter-maintainability",
+        }
+        evidence = [{
+            "engineId": "local", "modelId": "model-1", "strategy": "native", "kind": "fault",
+            "artifactRef": "qualification:portable-voice-v1:build-1", "passed": True,
+            "machineJson": json.dumps({
+                "host": "runner", "goos": "linux", "goarch": "amd64",
+                "target_revision": "portable-voice-v1", "method": "audio-tools-acceptance-v1",
+                "cohort": "voice-pilot-en-v1", "build": "build-1", "device_profile": "D1",
+                "policy_revision": "policy-v1", "corpus_revision": "corpus-v1",
+                "acceptance": {name: {"in_band": True, "negative_controls_passed": True} for name in required},
+            }),
+        }]
+        board, _ = run_board(evidence=evidence)
+        self.assertEqual(board["signals"]["acceptance"], "in_band")
+        self.assertTrue(board["signals"]["acceptance_join"]["in_band"])
+        self.assertEqual(board["signals"]["acceptance_join"]["resolved_rows"], len(required))
+        for row in board["signals"]["rows"]:
+            if row["row"] in required:
+                self.assertTrue(row["in_band"], row)
+                self.assertIsInstance(row["reading"], dict)
+            else:
+                self.assertEqual(row["reason"], "excluded:mandate_scope")
+
+    def test_owner_receipt_join_rejects_stale_and_mixed_build_claims(self):
+        claim = {"in_band": True, "negative_controls_passed": True}
+        stale = {"target_revision": "portable-voice-v1", "method": "audio-tools-acceptance-v1",
+                 "cohort": "c", "build": "old", "device_profile": "D1", "policy_revision": "p", "corpus_revision": "c1",
+                 "stale": True, "acceptance": {"dictation-trust": claim}}
+        mixed = {"target_revision": "portable-voice-v1", "method": "audio-tools-acceptance-v1",
+                 "cohort": "c", "build": "new", "device_profile": "D1", "policy_revision": "p", "corpus_revision": "c1",
+                 "acceptance": {"dictation-trust": claim}}
+        evidence = []
+        for i, machine in enumerate((stale, mixed)):
+            evidence.append({"engineId": "local", "modelId": "m", "strategy": "s", "kind": "fault",
+                              "artifactRef": f"a-{i}", "passed": True, "machineJson": json.dumps(machine)})
+        board, _ = run_board(evidence=evidence)
+        trust = next(item for item in board["signals"]["rows"] if item["row"] == "dictation-trust")
+        self.assertTrue(trust["in_band"])
+        self.assertEqual(trust["reading"]["build"], "new")
+        self.assertFalse(board["signals"]["acceptance_join"]["in_band"])
+
+    def test_simulated_receipt_cannot_certify_unmeasured_rows(self):
+        required = {
+            "dictation-trust", "provider-parity", "speaker-policy", "provider-evidence",
+            "mobile-recovery", "interactive-latency", "corpus-quality", "owned-settlement",
+            "explicit-routing", "host-portability", "private-lifecycle", "acceptance-integrity",
+            "adapter-maintainability",
+        }
+        broad_simulation = {
+            "target_revision": "portable-voice-v1", "method": "audio-tools-acceptance-v1",
+            "cohort": "voice-pilot-en-v1", "build": "simulated-policy-v1", "device_profile": "SIMULATED",
+            "policy_revision": "policy-v1", "corpus_revision": "voice-pilot-en-v1",
+            "execution_lane": "simulated",
+            "details": {"execution_lane": "simulated"},
+            "acceptance": {name: {"in_band": True, "negative_controls_passed": True} for name in required},
+        }
+        board, _ = run_board(evidence=[{"engineId": "simulated", "modelId": "v1", "strategy": "simulation",
+                                        "kind": "fault", "artifactRef": "simulated-broad", "passed": True,
+                                        "machineJson": json.dumps(broad_simulation)}])
+        self.assertEqual(board["signals"]["acceptance"], "unknown")
+        self.assertEqual(board["signals"]["acceptance_join"]["resolved_rows"], 0)
+
+    def test_simulated_receipt_resolves_only_the_rows_it_exercised(self):
+        supported = {"explicit-routing", "owned-settlement", "private-lifecycle",
+                     "acceptance-integrity", "adapter-maintainability"}
+        receipt = {
+            "target_revision": "portable-voice-v1", "method": "audio-tools-acceptance-v1",
+            "cohort": "voice-pilot-en-v1", "build": "simulated-policy-v1", "device_profile": "D1",
+            "policy_revision": "policy-v1", "corpus_revision": "voice-pilot-en-v1",
+            "execution_lane": "simulated", "supported_rows": sorted(supported),
+            "acceptance": {name: {"in_band": True, "negative_controls_passed": True}
+                           for name in supported},
+        }
+        board, _ = run_board(evidence=[{"engineId": "simulated", "modelId": "v1", "strategy": "simulation",
+                                        "kind": "fault", "artifactRef": "simulated-policy", "passed": True,
+                                        "machineJson": json.dumps(receipt)}])
+        self.assertEqual(board["signals"]["acceptance"], "unknown")
+        self.assertEqual(board["signals"]["acceptance_join"]["resolved_rows"], len(supported))
+        for item in board["signals"]["rows"]:
+            if item["row"] in supported:
+                self.assertTrue(item["in_band"], item)
+            elif item["row"] not in {"shared-voice-capabilities", "device-qualification"}:
+                self.assertIsNone(item["in_band"], item)
+
+    def test_owner_receipts_with_mixed_context_cannot_be_combined(self):
+        required = {
+            "dictation-trust", "provider-parity", "speaker-policy", "provider-evidence",
+            "mobile-recovery", "interactive-latency", "corpus-quality", "owned-settlement",
+            "explicit-routing", "host-portability", "private-lifecycle", "acceptance-integrity",
+            "adapter-maintainability",
+        }
+        def receipt(context, names):
+            return json.dumps({"target_revision": "portable-voice-v1", "method": "audio-tools-acceptance-v1",
+                               "cohort": "c", "build": "b", "device_profile": "D1",
+                               "policy_revision": context, "corpus_revision": "corpus",
+                               "acceptance": {name: {"in_band": True, "negative_controls_passed": True} for name in names}})
+        evidence = [
+            {"engineId": "local", "modelId": "m", "strategy": "s", "kind": "fault", "artifactRef": "a1",
+             "passed": True, "machineJson": receipt("policy-a", required - {"corpus-quality"})},
+            {"engineId": "local", "modelId": "m", "strategy": "s", "kind": "fault", "artifactRef": "a2",
+             "passed": True, "machineJson": receipt("policy-b", {"corpus-quality"})},
+        ]
+        board, _ = run_board(evidence=evidence)
+        self.assertFalse(board["signals"]["acceptance_join"]["in_band"])
+        self.assertTrue(next(item for item in board["signals"]["rows"] if item["row"] == "corpus-quality")["in_band"])
+
+    def test_out_of_band_owner_claim_is_visible_as_failure(self):
+        evidence = [{"engineId": "local", "modelId": "m", "strategy": "s", "kind": "fault",
+                     "artifactRef": "a", "passed": True, "machineJson": json.dumps({
+                         "target_revision": "portable-voice-v1", "method": "audio-tools-acceptance-v1",
+                         "cohort": "c", "build": "b", "device_profile": "D1", "policy_revision": "p",
+                         "corpus_revision": "c1", "acceptance": {
+                             "dictation-trust": {"in_band": False, "negative_controls_passed": True}}})}]
+        board, _ = run_board(evidence=evidence)
+        trust = next(item for item in board["signals"]["rows"] if item["row"] == "dictation-trust")
+        self.assertEqual(trust["reason"], "failed:receipt_claim_out_of_band")
+
+    def test_failed_target_aware_receipt_is_not_ignored_by_the_join(self):
+        evidence = [{"engineId": "local", "modelId": "m", "strategy": "s", "kind": "fault",
+                     "artifactRef": "failed-artifact", "passed": False, "machineJson": json.dumps({
+                         "target_revision": "portable-voice-v1", "method": "audio-tools-acceptance-v1",
+                         "cohort": "c", "build": "b", "device_profile": "D1", "policy_revision": "p",
+                         "corpus_revision": "c1", "acceptance": {
+                             "dictation-trust": {"in_band": True, "negative_controls_passed": True}}})}]
+        board, _ = run_board(evidence=evidence)
+        trust = next(item for item in board["signals"]["rows"] if item["row"] == "dictation-trust")
+        self.assertEqual(trust["reason"], "failed:receipt_claim_out_of_band")
+        self.assertEqual(board["signals"]["acceptance_join"]["resolved_rows"], 0)
+
+    def test_repeated_evidence_rows_use_raw_response_projection(self):
+        evidence = [{"engineId": "local", "modelId": "m", "strategy": "s", "kind": "fault",
+                     "artifactRef": "artifact", "passed": False}]
+        board, calls = run_board(evidence=evidence)
+        self.assertEqual(board["signals"]["evidence_integrity"]["receipt_count"], 1)
+        self.assertIn(("evidence", {}), calls)
+
+    def test_acceptance_claim_after_legacy_history_is_not_lost_at_old_bound(self):
+        legacy = [{"engineId": "local", "modelId": "m", "strategy": "s", "kind": "fault",
+                   "artifactRef": f"legacy-{i}", "passed": True} for i in range(64)]
+        required = {
+            "dictation-trust", "provider-parity", "speaker-policy", "provider-evidence",
+            "mobile-recovery", "interactive-latency", "corpus-quality", "owned-settlement",
+            "explicit-routing", "host-portability", "private-lifecycle", "acceptance-integrity",
+            "adapter-maintainability",
+        }
+        receipt = {"target_revision": "portable-voice-v1", "method": "audio-tools-acceptance-v1",
+                   "cohort": "c", "build": "b", "device_profile": "D1", "policy_revision": "p",
+                   "corpus_revision": "c1", "acceptance": {
+                       name: {"in_band": True, "negative_controls_passed": True} for name in required}}
+        legacy.append({"engineId": "local", "modelId": "m", "strategy": "s", "kind": "fault",
+                       "artifactRef": "current", "passed": True, "machineJson": json.dumps(receipt)})
+        board, _ = run_board(evidence=legacy)
+        self.assertEqual(board["signals"]["acceptance"], "in_band")
+        self.assertEqual(board["signals"]["acceptance_join"]["inspected_receipts"], 65)
 
     def test_invalid_input_never_invokes_bindings(self):
         for values in ({"experiment_id": "../secret"}, {"experiment_id": 4}, {"experiment_id": "x" * 129}, {"unknown": True}, []):
@@ -105,6 +275,41 @@ class EvidenceBoardTests(unittest.TestCase):
                 self.assertEqual(board["status"], "failed")
                 self.assertEqual(board["errors"][0]["class"], "invalid_input")
                 self.assertEqual(calls, [])
+
+    def test_empty_owner_receipts_remain_unqualified(self):
+        board, _ = run_board(evidence=[])
+        self.assertEqual(board["signals"]["evidence_integrity"]["receipt_count"], 0)
+        self.assertFalse(board["signals"]["evidence_integrity"]["in_band"])
+        self.assertIn("no_owner_receipts", board["signals"]["evidence_integrity"]["reason"])
+
+    def test_missing_repeated_evidence_field_is_not_coerced_to_empty_telemetry(self):
+        board, _ = run_board(evidence={"metadata": {"source": "owner"}})
+        integrity = board["signals"]["evidence_integrity"]
+        self.assertIsNone(integrity["receipt_count"])
+        self.assertIn("shape_or_bound", integrity["reason"])
+        self.assertFalse(integrity["in_band"])
+        self.assertTrue(all(item["in_band"] is None for item in board["signals"]["rows"]
+                            if item["reason"] != "excluded:mandate_scope"))
+
+    def test_failed_owner_receipt_is_negative_evidence(self):
+        evidence = [{"engineId": "local", "modelId": "model-1", "strategy": "native",
+                     "kind": "fault", "artifactRef": "bas:run-1", "passed": False}]
+        board, _ = run_board(evidence=evidence)
+        integrity = board["signals"]["evidence_integrity"]
+        self.assertEqual(integrity["failed_receipts"], 1)
+        self.assertFalse(integrity["in_band"])
+        self.assertIn("negative_control", integrity["reason"])
+
+    def test_retained_failed_attempt_does_not_corrupt_valid_owner_audit(self):
+        positive = {"engineId": "local", "modelId": "model-1", "strategy": "native",
+                    "kind": "fault", "artifactRef": "good-artifact", "passed": True}
+        failed = {"engineId": "local", "modelId": "model-1", "strategy": "native",
+                  "kind": "fault", "artifactRef": "failed-artifact", "passed": False}
+        board, _ = run_board(evidence=[positive, failed])
+        integrity = board["signals"]["evidence_integrity"]
+        self.assertTrue(integrity["in_band"])
+        self.assertEqual(integrity["failed_receipts"], 1)
+        self.assertEqual(integrity["reason"], "retained_failed_attempts")
 
     def test_partial_failure_preserves_other_measurements_and_redacts_error(self):
         board, _ = run_board(errors={"engines": RuntimeError("connection refused secret-transcript")})

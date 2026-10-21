@@ -8,3 +8,7 @@
 /embed/dist/
 /embed/node_modules/
 /.build-fingerprint.json
+# Oversized dictation soak fixture (~112 MiB) — exceeds the 100 MiB push limit
+# and is unreferenced by any test. Keep large/generated audio fixtures local;
+# the small curated fixtures beside it stay tracked.
+/bas/fixtures/dictation-reference-long.wav

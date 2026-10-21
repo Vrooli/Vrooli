@@ -27,6 +27,7 @@
 
 /** Every code path in web-console UI that can open a browser mic stream. */
 export type MicOwner =
+  | "agent-voice"
   | "voice-stream"
   | "whisper"
   | "passive-wake-word"
@@ -62,7 +63,7 @@ export type MicLeaseMetadata = Record<string, string | number | boolean | undefi
 /** Active-recording owners keep the mic open by user intent; passive / prewarm /
  *  settings owners must release on tab-hidden. */
 export function isActiveRecordingOwner(owner: MicOwner): boolean {
-  return owner === "voice-stream" || owner === "whisper";
+  return owner === "voice-stream" || owner === "whisper" || owner === "agent-voice";
 }
 
 export interface MicLease {

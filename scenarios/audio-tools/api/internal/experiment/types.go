@@ -106,6 +106,10 @@ type RunResult struct {
 	ReportMIME string
 	Runs       []Run
 	RecipeJSON []byte
+	// QualificationEvidence is persisted with a successful report. Failed
+	// qualification rows are retained too, so a producer cannot turn an
+	// unqualified run into an apparently clean history by omission.
+	QualificationEvidence []QualificationEvidence
 }
 
 // ProgressEvent is one in-memory lifecycle update for StreamExperimentEvents.

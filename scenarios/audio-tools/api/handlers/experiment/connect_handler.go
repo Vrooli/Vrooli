@@ -32,11 +32,11 @@ const (
 	experimentRuntimeMinSlack      = 2 * time.Minute
 	experimentRuntimeUnknown       = 30 * time.Minute
 	// A single provider-cell qualification may intentionally reach the trust
-	// floor's 60-minute rung, but ad-hoc recipe multiplication must not turn
-	// into an accidental multi-hour worker reservation. Split broader matrices
-	// into explicit persisted cells so their progress and cancellation remain
-	// observable.
-	experimentMaxEstimatedSeconds int32 = 60 * 60
+	// floor's 60-minute rung. Corpus-quality cells can exceed one hour of
+	// wall-clock decode because the selected held-out cohort contains paired
+	// noise variants; keep a two-hour ceiling while still rejecting accidental
+	// multi-cell recipe multiplication.
+	experimentMaxEstimatedSeconds int32 = 2 * 60 * 60
 )
 
 // ExperimentManager is the handler-owned seam over internal/experiment.Manager.
@@ -155,17 +155,32 @@ func (h *connectHandler) estimateExperimentSeconds(ctx context.Context, recipe *
 		}
 		return clientOverride, nil
 	}
+	conditions := estimatedConditionCount(recipe)
 	// Cells are independent provider/strategy/lane work units. Their
 	// repeat_count must contribute to admission cost; counting only the number
 	// of cells would let a repeated real-time recipe understate its duration.
-	cellRuns := int64(0)
+	var total int64
 	if cells := recipe.GetCells(); len(cells) > 0 {
 		for _, cell := range cells {
 			repeats := cell.GetRepeatCount()
 			if repeats < 1 {
 				repeats = 1
 			}
-			cellRuns += int64(repeats)
+			// Realtime cells always run a fast deterministic quality pass before
+			// their paced latency repeats. Reserve the measured unpaced quality
+			// allowance separately: using a second full audio-duration pass
+			// overstates native streaming cost enough to reject the required
+			// held-out cohort at the qualification ceiling, while omitting it
+			// kills valid owners with an understated runtime budget.
+			if cell.GetReplayLane() == experimentv1.ReplayLane_REPLAY_LANE_REALTIME {
+				qualitySeconds := int64(durationSeconds) / 4
+				if qualitySeconds < 1 {
+					qualitySeconds = 1
+				}
+				total += (int64(durationSeconds)*int64(repeats) + qualitySeconds) * int64(conditions)
+			} else {
+				total += int64(durationSeconds) * int64(repeats) * int64(conditions)
+			}
 		}
 	} else {
 		strategies := len(recipe.GetStrategies())
@@ -176,10 +191,8 @@ func (h *connectHandler) estimateExperimentSeconds(ctx context.Context, recipe *
 		if repeats < 1 {
 			repeats = 1
 		}
-		cellRuns = int64(strategies * repeats)
+		total = int64(durationSeconds) * int64(strategies*repeats) * int64(conditions)
 	}
-	conditions := estimatedConditionCount(recipe)
-	total := int64(durationSeconds) * cellRuns * int64(conditions)
 	if total < 1 {
 		total = 1
 	}

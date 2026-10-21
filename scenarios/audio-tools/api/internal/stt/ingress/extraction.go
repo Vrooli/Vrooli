@@ -6,13 +6,20 @@ import (
 	"audio-tools/internal/ai/sttchain"
 )
 
-// DefaultExtractionWindowBytes is ~3 s of canonical PCM (16 kHz · mono · s16le
-// = 32_000 bytes/s). Target-speaker separation models operate on a window of
-// audio, not a continuous frame stream, so the enhancer buffers the incoming
-// PCM into utterance-sized windows before each Extract call. Three seconds
-// balances separation quality against added latency; true frame-level streaming
-// extraction is an explicit non-goal (see docs/reference/configuration.md).
-const DefaultExtractionWindowBytes = 16000 * 2 * 3
+// DefaultExtractionWindowBytes is ~800 ms of canonical PCM (16 kHz · mono · s16le
+// = 32_000 bytes/s) for steady-state extraction. Target-speaker separation
+// models operate on a window of audio, not a continuous frame stream, so the
+// enhancer buffers incoming PCM before each Extract call. The first window is
+// intentionally shorter to reduce startup latency; subsequent windows retain
+// the useful 800 ms separator context. Longer windows remain available to
+// callers through WindowBytes; true frame-level streaming extraction is an
+// explicit non-goal (see docs/reference/configuration.md).
+const DefaultExtractionWindowBytes = 16000 * 2 * 800 / 1000
+
+// DefaultInitialExtractionWindowBytes is ~500 ms of canonical PCM. It applies
+// only to the first extraction window of a stream; steady-state windows use
+// DefaultExtractionWindowBytes so extraction load and context remain bounded.
+const DefaultInitialExtractionWindowBytes = 16000 * 2 * 500 / 1000
 
 // TargetExtractor isolates the enrolled speaker's voice from a window of
 // canonical PCM (s16le / 16 kHz / mono) and returns cleaned canonical PCM of
@@ -83,6 +90,7 @@ func (e ExtractionEnhancer) Process(ctx context.Context, in <-chan sttchain.Audi
 	go func() {
 		defer close(out)
 		var buf []byte
+		firstWindow := true
 		for {
 			select {
 			case c, ok := <-in:
@@ -93,13 +101,21 @@ func (e ExtractionEnhancer) Process(ctx context.Context, in <-chan sttchain.Audi
 					return
 				}
 				buf = append(buf, c.Audio...)
-				for len(buf) >= windowBytes {
-					window := make([]byte, windowBytes)
-					copy(window, buf[:windowBytes])
+				for {
+					currentWindowBytes := windowBytes
+					if firstWindow && e.WindowBytes <= 0 {
+						currentWindowBytes = DefaultInitialExtractionWindowBytes
+					}
+					if len(buf) < currentWindowBytes {
+						break
+					}
+					window := make([]byte, currentWindowBytes)
+					copy(window, buf[:currentWindowBytes])
 					if !emit(window) {
 						return
 					}
-					buf = buf[windowBytes:]
+					buf = buf[currentWindowBytes:]
+					firstWindow = false
 				}
 			case <-nctx.Done():
 				return

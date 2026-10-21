@@ -15,6 +15,7 @@ interface FakeProvider {
   onDiagnostic: ((value: { state: string; durability: string; capturedSequence: number; sentSequence: number; processedSequence: number; retainedBytes: number; firstPartialLatencyMs: number | null; committedTextLagMs: number | null; terminalReason?: string }) => void) | null;
   lastTurn: { blob: Blob; mimeType: string; durationMs: number; capturedAt: number } | null;
   start: ReturnType<typeof vi.fn>;
+  preConnect: ReturnType<typeof vi.fn>;
   stop: ReturnType<typeof vi.fn>;
   dispose: ReturnType<typeof vi.fn>;
   getStream: () => MediaStream | null;
@@ -51,6 +52,7 @@ vi.mock("../../audio-integration", () => ({
       const stream = await this.options.getUserMedia?.();
       if (stream) await this.options.captureFactory?.(stream, () => {});
     });
+    preConnect = vi.fn();
     stop = vi.fn();
     dispose = vi.fn();
     getStream = vi.fn(() => fakeStream);
@@ -93,6 +95,12 @@ afterEach(() => {
 });
 
 describe("DictationRecorder", () => {
+  it("preconnects the stream after microphone permission is granted", async () => {
+    renderWithProviders(<DictationRecorder onCaptured={() => {}} />);
+
+    await waitFor(() => expect(constructed[0]!.preConnect).toHaveBeenCalledWith("en"));
+  });
+
   it("does not activate an AudioContext before the provider acquires the microphone", async () => {
     const resume = vi.fn().mockResolvedValue(undefined);
     class SuspendedAudioContext {
@@ -117,6 +125,17 @@ describe("DictationRecorder", () => {
       expect(screen.getByRole("button", { name: new RegExp(strings.dictationStudio.recordStop, "i") })).toBeInTheDocument(),
     );
     expect(constructed[0]!.start).toHaveBeenCalledTimes(1);
+  });
+
+  it("starts the transport handshake before microphone startup on the first press", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<DictationRecorder onCaptured={() => {}} />);
+    await user.click(screen.getByTestId(selectors.dictationStudio.recordStart));
+
+    await waitFor(() => expect(constructed[0]!.start).toHaveBeenCalledOnce());
+    expect(constructed[0]!.preConnect.mock.invocationCallOrder[1]).toBeLessThan(
+      constructed[0]!.start.mock.invocationCallOrder[0]!,
+    );
   });
 
   it("keeps unsettled interim text visible while a turn remains recording", async () => {

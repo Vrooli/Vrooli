@@ -3,7 +3,7 @@ import {
   type AppShellLinkProps,
   type AppShellNavItem,
 } from "@vrooli/react-component-library/AppShell/2";
-import { Settings, Waves } from "lucide-react";
+import { Settings } from "lucide-react";
 import { useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 
@@ -66,7 +66,7 @@ export function AppShell() {
     <>
       <LibraryAppShell
         brand={t(strings.app.title)}
-        brandMark={<Waves aria-hidden className="h-4 w-4" />}
+        brandMark={<img src="/public/logo.svg" alt="" aria-hidden className="h-5 w-5" />}
         brandHref="/"
         items={items}
         renderLink={renderLink}

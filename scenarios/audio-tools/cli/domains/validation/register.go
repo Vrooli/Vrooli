@@ -42,6 +42,37 @@ func Register(core *cliapp.ScenarioApp, now func() time.Time, newTicker func(tim
 				}},
 				RunCtx: newHandlersWithDependencies(core, now, newTicker, getenv, getwd).checkFreshness,
 			},
+			{
+				Name:        "run-simulated",
+				Description: "Run local policy and adapter qualification and persist a labelled simulated receipt",
+				NeedsAPI:    true,
+				Args: cliapp.ArgSchema{Flags: []cliapp.Flag{
+					{Name: "device-profile", Description: "Observed host profile for the simulated receipt (for example D1 or D2)"},
+				}},
+				RunCtx: newHandlersWithDependencies(core, now, newTicker, getenv, getwd).runSimulated,
+			},
+			{
+				Name:        "run-speaker-policy",
+				Description: "Exercise live batch/native speaker policy and fail-closed controls, then record owner evidence",
+				NeedsAPI:    true,
+				Args: cliapp.ArgSchema{Flags: []cliapp.Flag{
+					{Name: "file", Description: "WAV fixture used for the owner-backed policy probe"},
+					{Name: "device-profile", Description: "Observed host profile for the receipt (defaults to D1)"},
+				}},
+				RunCtx: newHandlersWithDependencies(core, now, newTicker, getenv, getwd).runSpeakerPolicy,
+			},
+			{
+				Name:        "run-host-portability",
+				Description: "Measure D1 CPU/accelerator routes and record explicit D2 unavailable evidence",
+				NeedsAPI:    true,
+				RunCtx:      newHandlersWithDependencies(core, now, newTicker, getenv, getwd).runHostPortability,
+			},
+			{
+				Name:        "run-acceptance-join",
+				Description: "Validate fresh owner receipts and persist one provenance-preserving acceptance join",
+				NeedsAPI:    true,
+				RunCtx:      newHandlersWithDependencies(core, now, newTicker, getenv, getwd).runAcceptanceJoin,
+			},
 		},
 	}
 }

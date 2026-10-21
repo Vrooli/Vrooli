@@ -35,7 +35,7 @@ func (s *verification) Evaluate(ctx context.Context, audio []byte) egress.Speake
 	if !s.state.HasEvidence() {
 		score = decision.Score
 	}
-	verdict := egress.SpeakerVerdict{Allowed: allowed, Score: score, Threshold: s.cfg.Threshold}
+	verdict := egress.SpeakerVerdict{Allowed: allowed, Applied: decision.Applied, Score: score, Threshold: s.cfg.Threshold}
 	if !allowed {
 		if reason == "" {
 			reason = sttpipeline.FormatSpeakerDecisionError(decision)

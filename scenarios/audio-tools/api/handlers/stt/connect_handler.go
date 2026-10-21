@@ -2,6 +2,7 @@
 package stt
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -126,13 +127,31 @@ func (h *connectHandler) Transcribe(ctx context.Context, req *connect.Request[st
 		LPBSToken:               env.LPBSToken,
 		UserIdentity:            env.UserIdentity,
 	}
+	var speakerBatch *batchSpeakerOutcome
+	if !req.Msg.SkipSpeakerVerification {
+		var policyErr error
+		chainReq.Audio, speakerBatch, policyErr = h.applyBatchSpeakerPolicy(ctx, chainReq.Audio, speakerCodec(chainReq.Format))
+		if policyErr != nil {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, policyErr)
+		}
+		if speakerBatch != nil {
+			chainReq.Format = audioformat.CodecPCMS16LE.String()
+		}
+		if speakerBatch != nil && !speakerBatch.Allowed {
+			response := connect.NewResponse(&sttv1.TranscribeResponse{Filtered: true, FilterReason: speakerBatch.Reason})
+			h.addBatchSpeakerPolicy(response.Msg, speakerBatch)
+			return response, nil
+		}
+	}
 	opID := req.Header().Get("X-Audio-Operation-ID")
 	if opID == "" {
 		opID = uuid.NewString()
 	}
 	start := h.deps.Clock.Now()
 	resp := connect.NewResponse(&sttv1.TranscribeResponse{})
+	fallbackReason := ""
 	ctx = tiered.WithOnFallback(ctx, func(ev tiered.FallbackEvent) {
+		fallbackReason = fmt.Sprintf("%s_to_%s:%s", ev.From.String(), ev.To.String(), ev.Reason)
 		resp.Header().Set("x-audio-tools-fallback",
 			fmt.Sprintf("from=%s;to=%s;reason=%s", ev.From.String(), ev.To.String(), ev.Reason))
 	})
@@ -156,11 +175,118 @@ func (h *connectHandler) Transcribe(ctx context.Context, req *connect.Request[st
 	row.ProviderID = res.ProviderID
 	row.ModelID = res.ModelID
 	row.AudioDurationSeconds = res.DurationSeconds
+	row.FallbackReason = fallbackReason
 	if h.deps.Usage != nil {
 		h.deps.Usage.Enqueue(row)
 	}
-	resp.Msg = h.responseFromResult(ctx, res, req.Msg.Audio, cfg)
+	resp.Msg = h.responseFromResult(ctx, res, chainReq.Audio, cfg)
+	if speakerBatch != nil {
+		h.addBatchSpeakerPolicy(resp.Msg, speakerBatch)
+	}
 	return resp, nil
+}
+
+func speakerCodec(format string) audioformat.Codec {
+	switch strings.ToLower(strings.TrimSpace(format)) {
+	case "pcm", "pcm_s16le":
+		return audioformat.CodecPCMS16LE
+	case "wav":
+		return audioformat.CodecWAV
+	case "mp3":
+		return audioformat.CodecMP3
+	case "flac":
+		return audioformat.CodecFLAC
+	case "ogg":
+		return audioformat.CodecOGG
+	case "webm":
+		return audioformat.CodecWebM
+	case "opus":
+		return audioformat.CodecOpus
+	case "aac":
+		return audioformat.CodecAAC
+	default:
+		return audioformat.CodecUnknown
+	}
+}
+
+// batchSpeakerOutcome is the batch equivalent of the per-segment streaming
+// speaker gate. Keeping this result explicit prevents batch transcription from
+// silently bypassing an enabled policy and gives clients an honest applied vs
+// degraded state.
+type batchSpeakerOutcome struct {
+	Allowed      bool
+	Applied      bool
+	FallbackUsed bool
+	Extracted    bool
+	Reason       string
+	Score        float64
+	Threshold    float64
+}
+
+func (h *connectHandler) applyBatchSpeakerPolicy(ctx context.Context, audio []byte, format audioformat.Codec) ([]byte, *batchSpeakerOutcome, error) {
+	isolation := currentSpeakerIsolation(h.deps)
+	extractor := currentSpeakerExtraction(h.deps)
+	if isolation == nil && extractor == nil {
+		return audio, nil, nil
+	}
+	engine := h.deps.Engine
+	if engine == nil {
+		engine = audioformat.New()
+	}
+	pcm, err := engine.Normalize(ctx, format, audio)
+	if err != nil {
+		return nil, nil, fmt.Errorf("normalize audio for speaker policy: %w", err)
+	}
+	out := &batchSpeakerOutcome{Allowed: true}
+	if extractor != nil {
+		cleaned, extractErr := extractor.Extract(ctx, pcm)
+		if extractErr != nil {
+			// Extraction is a degraded-but-recoverable path; verification below
+			// still decides whether required policy can emit text.
+			out.Reason = "speaker extraction degraded: " + extractErr.Error()
+		} else if len(cleaned) > 0 {
+			out.Extracted = !bytes.Equal(cleaned, pcm)
+			pcm = cleaned
+		}
+	}
+	if isolation != nil {
+		verdict := isolation.Evaluate(ctx, pcm)
+		out.Allowed = verdict.Allowed
+		out.Applied = verdict.Applied
+		out.FallbackUsed = verdict.FallbackUsed
+		out.Reason = verdict.Reason
+		out.Score = verdict.Score
+		out.Threshold = verdict.Threshold
+	}
+	// Once the batch has been normalized, keep the canonical PCM fast path for
+	// recognition. This is also the format the extraction and verification
+	// adapters measure, avoiding a second decode or a container mismatch.
+	return pcm, out, nil
+}
+
+func (h *connectHandler) addBatchSpeakerPolicy(resp *sttv1.TranscribeResponse, outcome *batchSpeakerOutcome) {
+	if resp == nil || outcome == nil {
+		return
+	}
+	if resp.PolicyDetails == nil {
+		resp.PolicyDetails = map[string]string{}
+	}
+	state := "applied"
+	if outcome.FallbackUsed || (outcome.Reason != "" && !outcome.Applied) {
+		state = "degraded"
+	}
+	if !outcome.Allowed && outcome.Reason != "" {
+		state = "rejected"
+	}
+	resp.PolicyDetails["speaker_policy"] = state
+	resp.PolicyDetails["speaker_verification_applied"] = fmt.Sprintf("%t", outcome.Applied)
+	resp.PolicyDetails["speaker_extraction_applied"] = fmt.Sprintf("%t", outcome.Extracted)
+	resp.PolicyDetails["speaker_fallback_used"] = fmt.Sprintf("%t", outcome.FallbackUsed)
+	resp.PolicyDetails["speaker_score"] = fmt.Sprintf("%g", outcome.Score)
+	resp.PolicyDetails["speaker_threshold"] = fmt.Sprintf("%g", outcome.Threshold)
+	if outcome.Reason != "" {
+		resp.PolicyDetails["speaker_policy_reason"] = outcome.Reason
+	}
 }
 
 func (h *connectHandler) responseFromResult(ctx context.Context, res *sttchain.Result, audio []byte, cfg sttpkg.StreamConfig) *sttv1.TranscribeResponse {

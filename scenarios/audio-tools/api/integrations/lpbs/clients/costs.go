@@ -4,9 +4,10 @@
 // they are not env-overridable. Operators who want different pricing run
 // their own LPBS instance with different rates.
 //
-// Status: implementations stubbed pending `execute/lpbs-audio-gateway-endpoints`
-// landing on the LPBS side. Today AUDIO_AI_ENABLE_VROOLI defaults to false;
-// the chains skip the Vrooli tier entirely.
+// Status: capability clients remain unavailable pending
+// `execute/lpbs-audio-gateway-endpoints` landing on the LPBS side. The
+// composition root wires the Vrooli tier, while AUDIO_AI_ENABLE_VROOLI
+// defaults to false until hosted delivery is qualified.
 package clients
 
 // Operation cost constants in credits.

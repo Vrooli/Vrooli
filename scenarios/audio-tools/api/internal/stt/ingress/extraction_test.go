@@ -13,6 +13,29 @@ import (
 	"audio-tools/internal/stt/ingress/mocks"
 )
 
+func TestDefaultExtractionWindowIsInteractiveSized(t *testing.T) {
+	// Canonical PCM is 32,000 bytes per second. The default must not recreate
+	// the old ~3 s first-text stall when extraction is enabled for dictation.
+	require.Equal(t, 25_600, ingress.DefaultExtractionWindowBytes)
+	require.Equal(t, 16_000, ingress.DefaultInitialExtractionWindowBytes)
+}
+
+func TestExtractionEnhancer_UsesShortInitialWindowThenSteadyState(t *testing.T) {
+	ext := &mocks.FakeTargetExtractor{}
+	enh := ingress.ExtractionEnhancer{Extractor: ext}
+
+	pcm := make([]byte, ingress.DefaultInitialExtractionWindowBytes+ingress.DefaultExtractionWindowBytes)
+	out, cleanup, err := enh.Process(context.Background(), feed(pcm))
+	require.NoError(t, err)
+	defer cleanup()
+	drain(t, out)
+
+	require.Equal(t, [][]byte{
+		make([]byte, ingress.DefaultInitialExtractionWindowBytes),
+		make([]byte, ingress.DefaultExtractionWindowBytes),
+	}, ext.Windows)
+}
+
 // TestExtractionEnhancer_WindowsAndPassesThroughCleaned proves the enhancer
 // chops the stream into fixed windows, runs each through the extractor, flushes
 // a short final tail on close, and forwards the cleaned PCM.

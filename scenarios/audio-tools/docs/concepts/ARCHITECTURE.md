@@ -227,8 +227,9 @@ under `audio-tools provider {list,start,stop,restart,pull-model,logs}`.
 
 The existing chain fallback mechanism emits two signals when STT, TTS, or
 Summarize serves a different eligible tier. This describes observability, not
-consent enforcement. Hosted Vrooli delivery is not wired in the inspected
-bootstrap; a hypothetical BYOK-to-owned fallback is not a working route.
+consent enforcement. Hosted Vrooli delivery is composed in bootstrap, but its
+gateway client is currently unavailable; a hypothetical BYOK-to-owned fallback
+is not a working route.
 The target requires prior policy authorization before any data-transfer or
 paid fallback. A post-response toast cannot supply that authorization.
 

@@ -21,6 +21,22 @@ const (
 	SourceScripted Source = "scripted"
 )
 
+type Split string
+
+const (
+	SplitUnspecified Split = ""
+	SplitDev         Split = "dev"
+	SplitHeldOut     Split = "held_out"
+)
+
+type NoiseCondition string
+
+const (
+	NoiseUnspecified NoiseCondition = ""
+	NoiseClean       NoiseCondition = "clean"
+	NoiseNoisy       NoiseCondition = "noisy"
+)
+
 // Valid reports whether s is a known source. The empty string is treated
 // as free_form by Normalize.
 func (s Source) Valid() bool { return s == SourceFreeForm || s == SourceScripted }
@@ -36,15 +52,22 @@ func (s Source) Normalize() Source {
 // Clip is one corpus item's metadata. The audio bytes are NOT here — they
 // live in the blob store under BlobKey.
 type Clip struct {
-	ID            string
-	ReferenceText string
-	Tags          []string
-	DurationMs    int64
-	SampleRateHz  int
-	Format        string
-	BlobKey       string
-	Source        Source
-	CreatedAt     time.Time
+	ID               string
+	ReferenceText    string
+	Tags             []string
+	DurationMs       int64
+	SampleRateHz     int
+	Format           string
+	BlobKey          string
+	Source           Source
+	CorpusRevision   string
+	LicenseReference string
+	SpeakerPseudonym string
+	Split            Split
+	NoiseCondition   NoiseCondition
+	SNRDB            float64
+	ContentSHA256    string
+	CreatedAt        time.Time
 }
 
 // ListFilter narrows a List query. TagContains matches clips whose tags

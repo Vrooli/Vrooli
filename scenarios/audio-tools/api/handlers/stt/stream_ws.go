@@ -105,7 +105,10 @@ type wsCoalescingWriter struct {
 	partial *wsMessage
 	vad     *wsMessage
 	status  *wsMessage
-	closed  bool
+	// Processed coverage is a monotonic cursor; retain only its newest
+	// snapshot so long turns cannot queue one status frame per wire batch.
+	processed *wsMessage
+	closed    bool
 	// finished records that run() has returned, so no goroutine is draining the
 	// queue any more. Producers other than the events loop (notably the reader
 	// goroutine's deterministic fault paths) can still enqueue after that, and
@@ -145,7 +148,11 @@ func (w *wsCoalescingWriter) enqueue(m wsMessage) {
 		case wsMsgVadState:
 			w.vad = &mm
 		case wsMsgStatus:
-			w.status = &mm
+			if m.Code == "processed_acknowledgement" {
+				w.processed = &mm
+			} else {
+				w.status = &mm
+			}
 		default:
 			// Keep the classifier and the slot mapping fail-safe if a new
 			// progress message is introduced without a dedicated slot.
@@ -156,6 +163,12 @@ func (w *wsCoalescingWriter) enqueue(m wsMessage) {
 			w.partial = nil
 			w.vad = nil
 			w.status = nil
+			// Send the newest coverage cursor before committed/terminal text;
+			// intermediate cursors are redundant.
+			if w.processed != nil {
+				w.durable = append(w.durable, *w.processed)
+				w.processed = nil
+			}
 		}
 		if w.finished {
 			// run() is gone, so nothing will ever drain this. Write it here
@@ -177,12 +190,9 @@ func (w *wsCoalescingWriter) enqueue(m wsMessage) {
 // transient status updates are snapshots, not lossless commitments; keeping
 // them durable would let a high-rate status source grow an unbounded queue.
 func wsMessageDeliveryClass(m wsMessage) sttchain.DeliveryClass {
-	// Provider identity is durable qualification evidence: it must survive
-	// terminal final/done delivery or the browser cannot prove which provider
-	// cell actually handled the turn. Processed acknowledgements are server-
-	// side ledger bookkeeping and are intentionally not sent to the browser;
-	// emitting one per PCM batch creates transport backpressure without adding
-	// user-visible information.
+	// Provider identity is durable evidence. Processed acknowledgements are a
+	// monotonic cursor: the newest value is coalesced and promoted before a
+	// terminal message, preserving coverage without an unbounded queue.
 	if m.Type == wsMsgStatus && m.Code == "provider_identity" {
 		return sttchain.DeliveryDurable
 	}
@@ -210,6 +220,9 @@ func (w *wsCoalescingWriter) run() {
 				has = true
 			case w.vad != nil:
 				next, w.vad = *w.vad, nil
+				has = true
+			case w.processed != nil:
+				next, w.processed = *w.processed, nil
 				has = true
 			case w.status != nil:
 				next, w.status = *w.status, nil
@@ -259,6 +272,7 @@ type wsMessage struct {
 	// or "provider_failure" so the UI can distinguish retryable backend states.
 	Code              string  `json:"code,omitempty"`
 	SegmentIndex      int     `json:"segmentIndex,omitempty"`
+	SpeakerPolicy     string  `json:"speakerPolicy,omitempty"`
 	ReceivedSequence  int64   `json:"receivedSequence,omitempty"`
 	ProcessedSequence int64   `json:"processedSequence,omitempty"`
 	ProviderID        string  `json:"providerId,omitempty"`
@@ -367,6 +381,9 @@ func StreamWSHandler(d Deps) http.Handler {
 				writer.close(wsWriterDrainTimeout)
 				return
 			}
+			if fault.enabled() && d.Logger != nil {
+				d.Logger.Printf("voice-ws: qualification session opened session=%s resumed=%t received_sequence=%d", start.SessionID, resumed, ledger.Snapshot().ReceivedSequence)
+			}
 			// A deterministic transport fault belongs to one logical browser
 			// session, not to every reconnect handshake. Re-arming a close fault
 			// on a resumed session creates an artificial infinite recovery loop
@@ -376,6 +393,14 @@ func StreamWSHandler(d Deps) http.Handler {
 			}
 		}
 		cfg := resolveStreamPipelineConfigFromDeps(ctx, d)
+		// A browser qualification session may select a strategy for this one
+		// stream. Keep that override request-scoped: changing the persisted
+		// operator config around a soak would race ordinary users and make the
+		// resulting receipt impossible to attribute. Normal product pages omit
+		// this parameter and continue to use the persisted config.
+		if strategy := requestStrategyPreference(r); strategy != "" {
+			cfg.StrategyPreference = strategy
+		}
 		// Resolve the default on the server boundary. The browser deliberately
 		// sends no engine id, and every other WebSocket client must receive the
 		// same accelerated default without having to duplicate this policy.
@@ -462,6 +487,8 @@ func StreamWSHandler(d Deps) http.Handler {
 		go func() {
 			defer close(chunks)
 			receivedChunks := 0
+			firstChunkLogged := false
+			lastLedgerPersist := time.Now()
 			for {
 				_ = conn.SetReadDeadline(time.Now().Add(idle))
 				mt, data, err := conn.ReadMessage()
@@ -474,6 +501,12 @@ func StreamWSHandler(d Deps) http.Handler {
 					return
 				}
 				if mt == websocket.BinaryMessage {
+					if !firstChunkLogged {
+						firstChunkLogged = true
+						if d.Logger != nil {
+							d.Logger.Printf("voice-ws: first_audio_frame duration_ms=%d bytes=%d engine=%s", time.Since(streamStartedAt).Milliseconds(), len(data), start.EngineID)
+						}
+					}
 					chunk := sttchain.AudioChunk{Audio: data}
 					if start.ProtocolVersion == 2 {
 						parsed, parseErr := decodeWSV2AudioFrame(data)
@@ -485,13 +518,13 @@ func StreamWSHandler(d Deps) http.Handler {
 						}
 						result, receiveErr := ledger.Receive(session.Chunk{Sequence: parsed.Sequence, StartSample: parsed.StartSample, EndSample: parsed.EndSample, Audio: parsed.Audio})
 						if receiveErr != nil {
+							if d.Logger != nil {
+								state := ledger.Snapshot()
+								d.Logger.Printf("voice-ws: receive_failed session=%s resumed=%t sequence=%d start_sample=%d end_sample=%d bytes=%d received_sequence=%d processed_sequence=%d reason=%v", start.SessionID, resumed, parsed.Sequence, parsed.StartSample, parsed.EndSample, len(parsed.Audio), state.ReceivedSequence, state.ProcessedSequence, receiveErr)
+							}
 							ledger.Fail(session.TerminalReason("receive_failed"))
 							_ = ledgers.PersistContext(ctx, ledger)
 							readerErr <- receiveErr
-							return
-						}
-						if err := ledgers.PersistContext(ctx, ledger); err != nil {
-							readerErr <- err
 							return
 						}
 						if shouldSkipReceivedDuplicate(result, resumed) {
@@ -505,7 +538,21 @@ func StreamWSHandler(d Deps) http.Handler {
 						readerErr <- ctx.Err()
 						return
 					}
+					// Forward audio without making every 100 ms frame wait for a
+					// disk-backed ledger append. The browser's private journal is
+					// the immediate recovery owner; the server ledger is coalesced
+					// at a bounded cadence and is flushed again on terminal paths.
+					if start.ProtocolVersion == 2 && time.Since(lastLedgerPersist) >= time.Second {
+						if err := ledgers.PersistContext(ctx, ledger); err != nil {
+							readerErr <- err
+							return
+						}
+						lastLedgerPersist = time.Now()
+					}
 					receivedChunks++
+					if receivedChunks <= 40 && d.Logger != nil {
+						d.Logger.Printf("voice-ws: audio_frame_received n=%d duration_ms=%d bytes=%d", receivedChunks, time.Since(streamStartedAt).Milliseconds(), len(chunk.Audio))
+					}
 					if fault.terminateAfterChunks > 0 && receivedChunks >= fault.terminateAfterChunks {
 						if ledger != nil {
 							ledger.Fail(session.TerminalReason(fault.terminateCode))
@@ -537,6 +584,22 @@ func StreamWSHandler(d Deps) http.Handler {
 						// durably received the chunk. The resumed handler feeds the retained
 						// duplicate back into its fresh segmenter, while the browser replays
 						// the same journal entry against the same session.
+						// The normal ledger cadence is intentionally one second, but this
+						// fault fires immediately after the first chunk. Persist now or the
+						// reconnect will look like a brand-new session and re-arm the same
+						// one-shot fault forever.
+						if start.ProtocolVersion == 2 && ledger != nil && ledgers != nil {
+							if err := ledgers.PersistContext(ctx, ledger); err != nil {
+								if d.Logger != nil {
+									d.Logger.Printf("voice-ws: recoverable fault ledger persist failed session=%s: %v", start.SessionID, err)
+								}
+								readerErr <- err
+								return
+							}
+							if d.Logger != nil {
+								d.Logger.Printf("voice-ws: recoverable fault ledger persisted session=%s received_sequence=%d", start.SessionID, ledger.Snapshot().ReceivedSequence)
+							}
+						}
 						if fault.profile == "backend_restart" {
 							// A backend restart is a recoverable transport interruption,
 							// not a terminal ledger outcome. Keep the session open so the
@@ -591,7 +654,7 @@ func StreamWSHandler(d Deps) http.Handler {
 				return committed[i].ID < committed[j].ID
 			})
 			for _, segment := range committed {
-				writer.enqueue(wsMessage{Type: wsMsgSegmentFinal, Text: segment.Text, SegmentID: segment.ID, Generation: start.Generation, SegmentIndex: segIdx})
+				writer.enqueue(wsMessage{Type: wsMsgSegmentFinal, Text: segment.Text, SegmentID: segment.ID, Generation: start.Generation, SegmentIndex: segIdx, SpeakerPolicy: segment.SpeakerPolicy})
 				segIdx++
 			}
 		}
@@ -600,8 +663,22 @@ func StreamWSHandler(d Deps) http.Handler {
 		var modelID string
 		providerCloseReason := "provider_done"
 		partialCount := 0
+		firstPartialLogged := false
 		durabilityReduced := false
 		lastAckPersist := time.Time{}
+		lastWireProcessedAck := int64(-1)
+		enqueueProcessedAck := func(received, processed int64) {
+			if processed < 0 || processed <= lastWireProcessedAck {
+				return
+			}
+			writer.enqueue(wsMessage{
+				Type:              wsMsgStatus,
+				Code:              "processed_acknowledgement",
+				ReceivedSequence:  received,
+				ProcessedSequence: processed,
+			})
+			lastWireProcessedAck = processed
+		}
 		markDurabilityReduced := func(code string) {
 			if durabilityReduced {
 				return
@@ -635,12 +712,24 @@ func StreamWSHandler(d Deps) http.Handler {
 					writer.enqueue(wsMessage{Type: wsMsgError, Code: "processed_ack_failed", Text: "Unable to preserve processed audio coverage."})
 					continue
 				}
+				// The browser's retention journal must advance from the same
+				// durable cursor as the server ledger. Without this wire marker,
+				// the server can finish with complete coverage while the product
+				// remains stuck waiting for processed audio and cannot expose its
+				// recovery/qualification state.
+				enqueueProcessedAck(ack.ReceivedSequence, ack.ProcessedSequence)
 				if lastAckPersist.IsZero() || time.Since(lastAckPersist) >= time.Second {
 					persistAck()
 				}
 			case sttchain.StreamEventPartial:
 				if ev.Partial != nil {
 					partialCount++
+					if !firstPartialLogged {
+						firstPartialLogged = true
+						if d.Logger != nil {
+							d.Logger.Printf("voice-ws: first_partial duration_ms=%d engine=%s provider=%s model=%s", time.Since(streamStartedAt).Milliseconds(), start.EngineID, providerID, modelID)
+						}
+					}
 					writer.enqueue(wsMessage{Type: wsMsgPartial, Text: voicepipeline.NormalizeTranscriptText(ev.Partial.Text)})
 				}
 			case sttchain.StreamEventSegment:
@@ -660,7 +749,7 @@ func StreamWSHandler(d Deps) http.Handler {
 					segmentOrdinal++
 					emitSegment := true
 					if ledger != nil {
-						isNew, commitErr := ledger.Commit(session.Segment{ID: segmentID, Text: segmentText, StartSample: ev.Segment.StartSample, EndSample: ev.Segment.EndSample})
+						isNew, commitErr := ledger.Commit(session.Segment{ID: segmentID, Text: segmentText, StartSample: ev.Segment.StartSample, EndSample: ev.Segment.EndSample, SpeakerPolicy: ev.Segment.SpeakerPolicy})
 						if commitErr != nil {
 							// A ledger collision must not silence the user's words. Give
 							// the degraded wire event a fresh identity and continue;
@@ -677,7 +766,7 @@ func StreamWSHandler(d Deps) http.Handler {
 						}
 					}
 					if emitSegment {
-						writer.enqueue(wsMessage{Type: wsMsgSegmentFinal, Text: segmentText, SegmentID: segmentID, Generation: start.Generation, SegmentIndex: segIdx})
+						writer.enqueue(wsMessage{Type: wsMsgSegmentFinal, Text: segmentText, SegmentID: segmentID, Generation: start.Generation, SegmentIndex: segIdx, SpeakerPolicy: ev.Segment.SpeakerPolicy})
 						segIdx++
 					}
 					if fault.closeAfterCommits > 0 && segIdx >= fault.closeAfterCommits {
@@ -751,6 +840,12 @@ func StreamWSHandler(d Deps) http.Handler {
 			emitStreamDeliveryTelemetryDetailed(d, start.EngineID, providerID, modelID, partialCount, segIdx, false, readerCloseErr, "recoverable_transport_boundary", streamStartedAt, "")
 			return
 		}
+		// Provider identity is durable session metadata. Queue it before the
+		// processed acknowledgement so browser consumers that stop sampling at
+		// acknowledgement cannot miss the exact provider/model cell.
+		if providerID != "" || modelID != "" {
+			writer.enqueue(wsMessage{Type: wsMsgStatus, Code: "provider_identity", ProviderID: providerID, ModelID: modelID, Text: "Streaming provider identity observed."})
+		}
 		// The Done event carries `committed` — the full concatenation of
 		// every segment-final emitted this session. Re-sending it as
 		// wsMsgFinal duplicates text the client already appended (the
@@ -781,6 +876,9 @@ func StreamWSHandler(d Deps) http.Handler {
 					} else if err := ledger.Complete(); err != nil && !errors.Is(err, session.ErrTerminal) {
 						ledger.Fail(session.TerminalIncompleteCoverage)
 					}
+					if state = ledger.Snapshot(); state.TerminalReason == "" || state.ProcessedSequence >= 0 {
+						enqueueProcessedAck(state.ReceivedSequence, state.ProcessedSequence)
+					}
 				}
 			}
 			if err := ledgers.PersistContext(ctx, ledger); err != nil {
@@ -788,9 +886,6 @@ func StreamWSHandler(d Deps) http.Handler {
 			}
 			state = ledger.Snapshot()
 			terminalReason = state.TerminalReason
-		}
-		if providerID != "" || modelID != "" {
-			writer.enqueue(wsMessage{Type: wsMsgStatus, Code: "provider_identity", ProviderID: providerID, ModelID: modelID, Text: "Streaming provider identity observed."})
 		}
 		if segIdx > 0 {
 			writer.enqueue(wsMessage{Type: wsMsgFinal, Text: ""})
@@ -917,6 +1012,21 @@ func buildStreamStart(r *http.Request) sttchain.StreamStart {
 		BYOKKey:      env.Key,
 		LPBSToken:    env.LPBSToken,
 		UserIdentity: env.UserIdentity,
+	}
+}
+
+func requestStrategyPreference(r *http.Request) sttpkg.StrategyPreference {
+	switch strings.ToLower(strings.TrimSpace(r.URL.Query().Get("strategy"))) {
+	case string(sttpkg.PreferenceAuto):
+		return sttpkg.PreferenceAuto
+	case string(sttpkg.PreferenceVAD):
+		return sttpkg.PreferenceVAD
+	case string(sttpkg.PreferenceOverlap):
+		return sttpkg.PreferenceOverlap
+	case string(sttpkg.PreferencePassthrough):
+		return sttpkg.PreferencePassthrough
+	default:
+		return ""
 	}
 }
 

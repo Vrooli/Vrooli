@@ -105,13 +105,13 @@ describe("createScriptProcessorPcmCapture", () => {
 
     await createCanonicalPcmCapture(makeFakeStream(), vi.fn());
 
-    expect(ctx.createScriptProcessor).toHaveBeenCalledWith(4096, 1, 1);
+    expect(ctx.createScriptProcessor).toHaveBeenCalledWith(1024, 1, 1);
   });
 
   it("falls back to ScriptProcessor when AudioWorklet is unavailable", async () => {
     const capture = await createCanonicalPcmCapture(makeFakeStream(), vi.fn());
     expect(capture.stop).toBeTypeOf("function");
-    expect(ctx.createScriptProcessor).toHaveBeenCalledWith(4096, 1, 1);
+    expect(ctx.createScriptProcessor).toHaveBeenCalledWith(1024, 1, 1);
   });
 
   it("falls back when an advertised AudioWorklet module load never settles", async () => {
@@ -130,7 +130,7 @@ describe("createScriptProcessorPcmCapture", () => {
 
     expect(addModule).toHaveBeenCalledOnce();
     expect(capture.stop).toBeTypeOf("function");
-    expect(ctx.createScriptProcessor).toHaveBeenCalledWith(4096, 1, 1);
+    expect(ctx.createScriptProcessor).toHaveBeenCalledWith(1024, 1, 1);
   });
 
   it("returns a PcmCapture with a stop() function", () => {
@@ -145,9 +145,9 @@ describe("createScriptProcessorPcmCapture", () => {
     expect(ctx.createMediaStreamSource).toHaveBeenCalledWith(stream);
   });
 
-  it("creates a ScriptProcessorNode with buffer size 4096", () => {
+  it("creates a ScriptProcessorNode with buffer size 1024", () => {
     createScriptProcessorPcmCapture(makeFakeStream(), vi.fn());
-    expect(ctx.createScriptProcessor).toHaveBeenCalledWith(4096, 1, 1);
+    expect(ctx.createScriptProcessor).toHaveBeenCalledWith(1024, 1, 1);
   });
 
   it("creates a gain node for silent keep-alive path", () => {

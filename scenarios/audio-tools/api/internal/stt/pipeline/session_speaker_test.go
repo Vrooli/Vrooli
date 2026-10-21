@@ -59,6 +59,22 @@ func TestSessionSpeakerState_InsufficientIgnored(t *testing.T) {
 	}
 }
 
+func TestSessionSpeakerState_UnavailableVerifierFailsClosed(t *testing.T) {
+	s := NewSessionSpeakerState(SpeakerConfig{Mode: "filter", Threshold: 0.5})
+	allowed, _, reason := s.Observe(SpeakerDecision{
+		Enabled:      true,
+		Allowed:      false,
+		Sufficient:   true,
+		ErrorMessage: "speaker verification resource is not configured",
+	})
+	if allowed {
+		t.Fatal("unavailable verifier must reject when fallback is disabled")
+	}
+	if reason == "" {
+		t.Fatal("fail-closed decision must preserve a rejection reason")
+	}
+}
+
 func TestSessionSpeakerState_AdvisoryNeverRejects(t *testing.T) {
 	s := NewSessionSpeakerState(SpeakerConfig{Mode: "advisory", Threshold: 0.9, MinDecisionSeconds: 0.1, ScoreSmoothing: 1.0})
 	allowed, _, _ := s.Observe(applied(0.01, 5.0))

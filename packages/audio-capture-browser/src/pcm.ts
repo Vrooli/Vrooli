@@ -34,6 +34,65 @@ export function frameToCanonicalPcm16(frame: Float32Array, captureRate: number):
   return floatTo16BitPCM(captureRate === TARGET_SAMPLE_RATE ? frame : downsample(frame, captureRate, TARGET_SAMPLE_RATE));
 }
 
+/**
+ * Stateful linear downsampler for browser callback frames. Audio callbacks do
+ * not generally end on a resampling phase boundary; resetting `downsample()`
+ * for every callback duplicates/omits samples and introduces discontinuities
+ * at each boundary. The stream transport owns one instance per turn so the
+ * wire remains a continuous canonical PCM sequence.
+ */
+export class StreamingPcm16Resampler {
+  private captureRate = TARGET_SAMPLE_RATE;
+  private ratio = 1;
+  private pending = new Float32Array(0);
+  private position = 0;
+
+  reset(): void {
+    this.captureRate = TARGET_SAMPLE_RATE;
+    this.ratio = 1;
+    this.pending = new Float32Array(0);
+    this.position = 0;
+  }
+
+  process(frame: Float32Array, captureRate: number): Int16Array {
+    if (!Number.isFinite(captureRate) || captureRate <= 0 || captureRate < TARGET_SAMPLE_RATE) {
+      throw new Error(`Unsupported capture sample rate: ${captureRate}`);
+    }
+    if (captureRate === TARGET_SAMPLE_RATE) {
+      if (this.pending.length > 0) this.reset();
+      return floatTo16BitPCM(frame);
+    }
+    if (captureRate !== this.captureRate) {
+      this.reset();
+      this.captureRate = captureRate;
+      this.ratio = captureRate / TARGET_SAMPLE_RATE;
+    }
+
+    const joined = new Float32Array(this.pending.length + frame.length);
+    joined.set(this.pending);
+    joined.set(frame, this.pending.length);
+    const output: number[] = [];
+    while (this.position + 1 < joined.length) {
+      const floor = Math.floor(this.position);
+      const fraction = this.position - floor;
+      output.push(joined[floor]! * (1 - fraction) + joined[floor + 1]! * fraction);
+      this.position += this.ratio;
+    }
+    // Keep the final source sample used by the next interpolation. The raw
+    // phase can advance beyond the current callback after emitting its last
+    // complete pair, but the next callback must begin from that retained
+    // endpoint rather than from a reset phase.
+    const consumed = Math.min(Math.floor(this.position), Math.max(0, joined.length - 1));
+    if (consumed > 0) {
+      this.pending = joined.slice(consumed);
+      this.position -= consumed;
+    } else {
+      this.pending = joined;
+    }
+    return floatTo16BitPCM(Float32Array.from(output));
+  }
+}
+
 export function concatInt16(chunks: Int16Array[]): Int16Array {
   let length = 0;
   for (const chunk of chunks) length += chunk.length;

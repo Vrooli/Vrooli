@@ -102,6 +102,33 @@ func (h *handlers) importClip(ctx cliapp.RunContext) error {
 	if ctx.Flag("scripted") == "true" {
 		source = corpusv1.ClipSource_CLIP_SOURCE_SCRIPTED
 	}
+	split := corpusv1.CorpusSplit_CORPUS_SPLIT_UNSPECIFIED
+	switch strings.TrimSpace(ctx.Flag("split")) {
+	case "", "unspecified":
+	case "dev":
+		split = corpusv1.CorpusSplit_CORPUS_SPLIT_DEV
+	case "held_out":
+		split = corpusv1.CorpusSplit_CORPUS_SPLIT_HELD_OUT
+	default:
+		return fmt.Errorf("--split must be dev or held_out")
+	}
+	noise := corpusv1.NoiseCondition_NOISE_CONDITION_UNSPECIFIED
+	switch strings.TrimSpace(ctx.Flag("noise-condition")) {
+	case "", "unspecified":
+	case "clean":
+		noise = corpusv1.NoiseCondition_NOISE_CONDITION_CLEAN
+	case "noisy":
+		noise = corpusv1.NoiseCondition_NOISE_CONDITION_NOISY
+	default:
+		return fmt.Errorf("--noise-condition must be clean or noisy")
+	}
+	var snrDB float64
+	if v := strings.TrimSpace(ctx.Flag("snr-db")); v != "" {
+		snrDB, err = strconv.ParseFloat(v, 64)
+		if err != nil || snrDB < 0 {
+			return fmt.Errorf("--snr-db must be a non-negative number: %q", v)
+		}
+	}
 	var tags []string
 	if t := strings.TrimSpace(ctx.Flag("tags")); t != "" {
 		for _, tag := range strings.Split(t, ",") {
@@ -117,13 +144,19 @@ func (h *handlers) importClip(ctx cliapp.RunContext) error {
 	}
 
 	resp, err := h.client.CreateClip(context.Background(), connect.NewRequest(&corpusv1.CreateClipRequest{
-		Audio:         audio,
-		ReferenceText: reference,
-		Tags:          tags,
-		DurationMs:    durationMs,
-		SampleRateHz:  int32(sampleRate),
-		Format:        format,
-		Source:        source,
+		Audio:            audio,
+		ReferenceText:    reference,
+		Tags:             tags,
+		DurationMs:       durationMs,
+		SampleRateHz:     int32(sampleRate),
+		Format:           format,
+		Source:           source,
+		CorpusRevision:   ctx.Flag("corpus-revision"),
+		LicenseReference: ctx.Flag("license-reference"),
+		SpeakerPseudonym: ctx.Flag("speaker-pseudonym"),
+		Split:            split,
+		NoiseCondition:   noise,
+		SnrDb:            snrDB,
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("create-clip", err, nil)

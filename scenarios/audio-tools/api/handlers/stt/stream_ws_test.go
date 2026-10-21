@@ -44,6 +44,17 @@ func TestBuildStreamStartPreservesExplicitEngineSelection(t *testing.T) {
 	require.Equal(t, "whisper-local", start.EngineID)
 }
 
+func TestRequestStrategyPreferenceIsRequestScoped(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/voice/stream?strategy=VAD", nil)
+	require.Equal(t, sttpkg.PreferenceVAD, requestStrategyPreference(req))
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/voice/stream?strategy=passthrough", nil)
+	require.Equal(t, sttpkg.PreferencePassthrough, requestStrategyPreference(req))
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/voice/stream?strategy=unsafe", nil)
+	require.Empty(t, requestStrategyPreference(req))
+}
+
 // TestStreamWS_UpgradeRejectedWithoutChain asserts that when the chain
 // is not wired the handler returns 503 instead of upgrading. This
 // exercises the early-return guard path.
@@ -227,7 +238,7 @@ func TestStreamWS_EmitsInitialStatus(t *testing.T) {
 	require.NotEmpty(t, m.Text)
 }
 
-func TestWSMessageDeliveryClass_ProcessedAcknowledgementIsProgressOnly(t *testing.T) {
+func TestWSMessageDeliveryClass_ProcessedAcknowledgementIsCoalescedProgress(t *testing.T) {
 	require.Equal(t, sttchain.DeliveryProgress, wsMessageDeliveryClass(wsMessage{
 		Type: wsMsgStatus,
 		Code: "stream_connected",
@@ -244,6 +255,27 @@ func TestWSMessageDeliveryClass_ProcessedAcknowledgementIsProgressOnly(t *testin
 		ProviderID: "kyutai",
 		ModelID:    "kyutai/stt-1b-en_fr",
 	}))
+}
+
+func TestWSCoalescingWriterKeepsLatestProcessedCursorBeforeTerminal(t *testing.T) {
+	writer := &wsCoalescingWriter{signal: make(chan struct{}, 1)}
+	for sequence := int64(0); sequence < 1200; sequence++ {
+		writer.enqueue(wsMessage{Type: wsMsgStatus, Code: "processed_acknowledgement", ProcessedSequence: sequence})
+	}
+
+	writer.mu.Lock()
+	require.Empty(t, writer.durable, "monotonic processed cursors must not create an unbounded durable queue")
+	require.NotNil(t, writer.processed)
+	require.Equal(t, int64(1199), writer.processed.ProcessedSequence)
+	writer.mu.Unlock()
+
+	writer.enqueue(wsMessage{Type: wsMsgFinal})
+	writer.mu.Lock()
+	require.Len(t, writer.durable, 2, "latest coverage must be delivered before terminal text")
+	require.Equal(t, int64(1199), writer.durable[0].ProcessedSequence)
+	require.Equal(t, wsMsgFinal, writer.durable[1].Type)
+	require.Nil(t, writer.processed)
+	writer.mu.Unlock()
 }
 
 func TestWSCoalescingWriterWakeSignalsAnIdleWriter(t *testing.T) {
@@ -592,7 +624,7 @@ func TestStreamWS_EmitsProcessedAcknowledgementFromCoverageCursor(t *testing.T) 
 			sawDone = true
 		}
 	}
-	require.False(t, sawAck, "processed acknowledgements are server-side ledger bookkeeping")
+	require.True(t, sawAck, "processed acknowledgements must advance the browser retention journal")
 }
 
 func TestStreamWS_IgnoresCoverageAcknowledgementWithoutV2Ledger(t *testing.T) {

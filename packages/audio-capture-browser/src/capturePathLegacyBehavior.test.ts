@@ -135,7 +135,7 @@ describe("ported capture-path behavior", () => {
     pushFrame(1_600);
     await settle();
 
-    expect(onError).toHaveBeenCalledWith(expect.stringContaining("could not be saved safely"));
+    await vi.waitFor(() => expect(onError).toHaveBeenCalledWith(expect.stringContaining("could not be saved safely")));
     expect(provider.getDiagnostic()).toMatchObject({ state: "failed", terminalReason: "capture_write_failed" });
     expect(provider.getDiagnostic().errorCodes).toContain("capture_write_failed");
     expect(onDiagnostic).toHaveBeenCalled();
@@ -167,7 +167,7 @@ describe("ported capture-path behavior", () => {
     await settle();
 
     expect(provider.getDiagnostic()).toMatchObject({ durability: "reduced" });
-    expect(onStatus).toHaveBeenCalledWith(expect.objectContaining({ code: "durability_reduced" }));
+    await vi.waitFor(() => expect(onStatus).toHaveBeenCalledWith(expect.objectContaining({ code: "durability_reduced" })));
     expect(onError).not.toHaveBeenCalled();
 
     pushFrame(1_600);
@@ -287,7 +287,7 @@ describe("ported capture-path behavior", () => {
     socket.onmessage?.({ data: JSON.stringify({ type: "final", text: "committed" }) });
     await settle();
 
-    expect(provider.getDiagnostic()).toMatchObject({ state: "completed", terminalReason: "final" });
+    await vi.waitFor(() => expect(provider.getDiagnostic()).toMatchObject({ state: "completed", terminalReason: "final" }));
     expect(loadUnfinishedSession()).toBeNull();
     socket.readyState = FakeWebSocket.CLOSED;
     socket.onclose?.();
@@ -305,8 +305,8 @@ describe("ported capture-path behavior", () => {
     socket.onmessage?.({ data: JSON.stringify({ type: "final", text: "" }) });
     await settle();
 
-    expect(result).toHaveBeenCalledWith("");
-    expect(provider.getDiagnostic()).toMatchObject({ state: "completed", terminalReason: "final" });
+    await vi.waitFor(() => expect(result).toHaveBeenCalledWith(""));
+    await vi.waitFor(() => expect(provider.getDiagnostic()).toMatchObject({ state: "completed", terminalReason: "final" }));
     expect(transcribeRetained).not.toHaveBeenCalled();
   });
 

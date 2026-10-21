@@ -152,7 +152,15 @@ func (s *Segmenter) Run(
 	// Whisper, the latter's native provider decodes for itself).
 	pcmChunks := chunks
 	var timeline *AudioTimeline
-	if s.requiresPCM(selection.Kind, engineID) {
+	// A browser PCM stream already satisfies the manifest's
+	// `requires.pcm16kMono` contract. Avoid inserting even the otherwise cheap
+	// identity decoder: its extra goroutine/channel boundary delays the first
+	// chunk reaching a native streaming provider. Non-canonical formats and
+	// PCM-consuming VAD/overlap strategies still use the normal normalizer.
+	normalizeInput := shouldNormalizeInput(selection.Kind, start.InputFormat, s, engineID)
+	fmt.Printf("[stt-segmenter] selection kind=%s input_format=%q normalize=%t engine=%s\n", selection.Kind, start.InputFormat, normalizeInput, engineID)
+	if normalizeInput {
+		fmt.Printf("[stt-segmenter] normalize kind=%s input_format=%q engine=%s\n", selection.Kind, start.InputFormat, engineID)
 		normalized, nstart, cleanup, nerr := s.normalizeChunks(ctx, start, chunks, events)
 		if nerr != nil {
 			return nerr // error + Done already emitted
@@ -204,6 +212,18 @@ func (s *Segmenter) Run(
 	close(inner)
 	<-forwardDone
 	return err
+}
+
+func shouldNormalizeInput(kind sttchain.StrategyKind, inputFormat string, s *Segmenter, engineID string) bool {
+	if !s.requiresPCM(kind, engineID) {
+		return false
+	}
+	// The browser voice provider declares canonical 16 kHz mono PCM. Re-running
+	// that stream through ffmpeg adds a buffering boundary and can delay the
+	// first VAD frame by seconds. The requirement gate above still controls
+	// non-canonical formats and engine manifests; canonical input is already
+	// satisfied for every PCM-consuming strategy.
+	return !audioformat.CodecFromString(inputFormat).IsCanonicalPCM()
 }
 
 // buildIngress constructs the per-session pre-recognition enhancement pipeline,
@@ -291,6 +311,7 @@ func runEgress(ctx context.Context, gate *egress.Gate, timeline *AudioTimeline, 
 			default: // Emit
 				// Strip gate-only fields so they never reach the wire.
 				seg.Text = dec.Text
+				seg.SpeakerPolicy = dec.SpeakerPolicy
 				seg.Confidence = nil
 				seg.Audio = nil
 				finalParts = append(finalParts, seg.Text)

@@ -128,8 +128,13 @@ func Replay(ctx context.Context, clip Clip, opts ReplayOptions, session Session)
 	chunks := make(chan sttchain.AudioChunk, 4)
 	events := make(chan sttchain.StreamEvent, 64)
 
-	var lastFedAt time.Time
+	// The feeder and event reader run concurrently. Keep the end-of-feed
+	// timestamp on a channel rather than sharing a mutable time.Time; otherwise
+	// a provider that emits Done immediately after chunks close can race the
+	// assignment and produce a false zero-latency sample.
+	feedDone := make(chan time.Time, 1)
 	go func() {
+		defer func() { feedDone <- opts.now() }()
 		defer close(chunks)
 		for off := 0; off < len(clip.PCM); off += chunkBytes {
 			end := off + chunkBytes
@@ -140,7 +145,6 @@ func Replay(ctx context.Context, clip Clip, opts ReplayOptions, session Session)
 			copy(cp, clip.PCM[off:end])
 			select {
 			case <-ctx.Done():
-				lastFedAt = opts.now()
 				return
 			case chunks <- sttchain.AudioChunk{Audio: cp}:
 			}
@@ -148,7 +152,6 @@ func Replay(ctx context.Context, clip Clip, opts ReplayOptions, session Session)
 				opts.sleep(time.Duration(float64(end-off) / float64(clip.bytesPerSecond()) * float64(time.Second)))
 			}
 		}
-		lastFedAt = opts.now()
 	}()
 
 	sessionDone := make(chan error, 1)
@@ -212,6 +215,7 @@ eventsDrained:
 	if err := <-sessionDone; err != nil && res.Err == nil {
 		res.Err = err
 	}
+	lastFedAt := <-feedDone
 	if !doneAt.IsZero() && !lastFedAt.IsZero() && doneAt.After(lastFedAt) {
 		res.FinalizationLatency = doneAt.Sub(lastFedAt)
 	}
@@ -339,9 +343,10 @@ func (o EvalOptions) realtimeConcurrency() int {
 }
 
 // RunReport replays every clip through every strategy spec and assembles the
-// comparison report. The deterministic pass (when QualityPass) yields the
-// reproducible WER/compute columns; RealtimeRepeats real-time passes feed
-// the per-clip latency samples that aggregate into p50/p95.
+// comparison report. Batch-oriented strategies use the deterministic pass for
+// reproducible WER/compute columns. Native passthrough providers are real-time
+// decoders, so their quality pass is paced at 1x; burst-feeding them is not a
+// valid operating condition and can produce model-state hallucinations.
 func RunReport(ctx context.Context, clips []Clip, specs []StrategySpec, opts EvalOptions) EvalReport {
 	report := EvalReport{
 		QualityMeasured: opts.QualityPass,
@@ -361,8 +366,12 @@ func RunReport(ctx context.Context, clips []Clip, specs []StrategySpec, opts Eva
 			var cr ClipResult
 			if opts.QualityPass {
 				session, meter := spec.BuildSession(clip)
+				qualityMode := ModeDeterministic
+				if spec.Kind == sttchain.StrategyPassthrough {
+					qualityMode = ModeRealtime
+				}
 				cr = EvalClip(ctx, clip, meter, ReplayOptions{
-					Mode: ModeDeterministic, ChunkMs: opts.ChunkMs, Sleep: opts.Sleep, Now: opts.Now, DroppedSpanThresholdWords: opts.DroppedSpanThresholdWords,
+					Mode: qualityMode, ChunkMs: opts.ChunkMs, Sleep: opts.Sleep, Now: opts.Now, DroppedSpanThresholdWords: opts.DroppedSpanThresholdWords,
 				}, session)
 				opts.emitProgress(EvalProgress{
 					Scope:         opts.ProgressScope,

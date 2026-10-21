@@ -21,8 +21,8 @@
   ],
   "invariants": [
     "No audio, transcript, credential, raw provider error, inference request, or mutation appears in output or is initiated by this program.",
-    "All 15 portable-voice-v1 target rows remain unknown until owner-backed acceptance sensors exist. Target text summarizes published scope, not approved numeric bands or billing details. Status ok only means collection succeeded.",
-    "Each binding failure is isolated and reported; no missing read becomes a zero or a passing band.",
+    "Portable-voice-v1 target rows are resolved only by the owner-backed acceptance receipt join. Generic qualification evidence is never accepted merely because it exists; excluded rows remain explicitly excluded. Target text summarizes published scope, not approved numeric bands or billing details. Status ok only means collection succeeded.",
+    "Each binding failure is isolated and reported; no missing read becomes a zero or a passing band. Malformed, failed, and empty owner receipts remain visible as negative evidence.",
     "Engine and health inventories use a sentinel above their bounds; oversized inventories are declined, never silently truncated into exact counts.",
     "A selected experiment must match identity and have succeeded before exposing its bounded replay metrics; zero reference words, missing metrics, and nonfinite values are not quality evidence.",
     "The program prints one standard JSON envelope on every path."
@@ -35,6 +35,11 @@
     {
       "id": "audio-tools/health/show",
       "effect": "read"
+    },
+    {
+      "id": "audio-tools/experiment/list-evidence",
+      "effect": "read",
+      "note": "Owner-backed transcript-free qualification receipts; empty or failed receipts never qualify a row."
     },
     {
       "id": "audio-tools/experiment/report",
@@ -65,11 +70,13 @@
       ]
     },
     "signals": {
-      "method": "audio-tools-evidence-board-v2",
+      "method": "audio-tools-evidence-board-v3",
       "target_revision": "portable-voice-v1",
-      "acceptance": "Always unknown in v2; target enumeration and collection are not product acceptance.",
-      "rows": "Fifteen {row,reading,target,in_band,unavailable,reason} outcome rows, one per published PRD target. Target strings are scope summaries, not adopted numeric SLOs. Readings and in_band remain null; owner-backed receipt joins are not implemented. Existing nine row IDs are preserved and six are added; use row identity, not list position or a cached row count.",
+      "acceptance": "unknown until every required row is resolved by the owner-backed receipt join; excluded rows are explicit.",
+      "rows": "Fifteen {row,reading,target,in_band,unavailable,reason} outcome rows, one per published PRD target. Required readings contain the matching cohort/build and receipt references only after strict revision and negative-control checks. Existing nine row IDs are preserved and six are added; use row identity, not list position or a cached row count.",
       "diagnostics": "At most three inventory rows, never banded as outcome proof.",
+      "evidence_integrity": "Owner receipt count, valid/failed/invalid counts, and a typed reason. Failed attempts remain visible and are excluded from acceptance joins; malformed or identity-invalid receipts fail the structural audit. A missing or retyped repeated evidence field is malformed, not empty telemetry. The raw evidence response is bounded at 512 rows.",
+      "acceptance_join": "Required-row count, resolved-row count, distinct receipt cohorts, bounded inspected-receipt count, and aggregate in_band verdict from current owner receipt claims. Failed target-aware artifacts remain negative evidence even when their payload contains an optimistic claim.",
       "readable": "Count of measured diagnostic rows.",
       "unavailable": "Count of unknown outcome and diagnostic rows.",
       "experiment": "Selection presence and ID, status, finished_at, acceptance_eligible=false, and evidence limitation; never recipe transcripts.",

@@ -56,17 +56,28 @@ func TestConnectHandler_ClipRoundTrip(t *testing.T) {
 	h := newHandler(t)
 
 	created, err := h.CreateClip(ctx, connect.NewRequest(&corpusv1.CreateClipRequest{
-		Audio:         []byte{1, 2, 3, 4},
-		ReferenceText: "hello world",
-		Tags:          []string{"smoke"},
-		SampleRateHz:  16000,
-		Format:        "pcm_s16le",
-		Source:        corpusv1.ClipSource_CLIP_SOURCE_SCRIPTED,
+		Audio:            []byte{1, 2, 3, 4},
+		ReferenceText:    "hello world",
+		Tags:             []string{"smoke"},
+		SampleRateHz:     16000,
+		Format:           "pcm_s16le",
+		Source:           corpusv1.ClipSource_CLIP_SOURCE_SCRIPTED,
+		CorpusRevision:   "voice-pilot-en-v1",
+		LicenseReference: "license-1",
+		SpeakerPseudonym: "speaker-01",
+		Split:            corpusv1.CorpusSplit_CORPUS_SPLIT_HELD_OUT,
+		NoiseCondition:   corpusv1.NoiseCondition_NOISE_CONDITION_NOISY,
+		SnrDb:            10,
 	}))
 	require.NoError(t, err)
 	id := created.Msg.GetClip().GetId()
 	require.NotEmpty(t, id)
 	require.Equal(t, corpusv1.ClipSource_CLIP_SOURCE_SCRIPTED, created.Msg.GetClip().GetSource())
+	require.Equal(t, "voice-pilot-en-v1", created.Msg.GetClip().GetCorpusRevision())
+	require.Equal(t, corpusv1.CorpusSplit_CORPUS_SPLIT_HELD_OUT, created.Msg.GetClip().GetSplit())
+	require.Equal(t, corpusv1.NoiseCondition_NOISE_CONDITION_NOISY, created.Msg.GetClip().GetNoiseCondition())
+	require.Equal(t, float64(10), created.Msg.GetClip().GetSnrDb())
+	require.Len(t, created.Msg.GetClip().GetContentSha256(), 64)
 
 	list, err := h.ListClips(ctx, connect.NewRequest(&corpusv1.ListClipsRequest{}))
 	require.NoError(t, err)

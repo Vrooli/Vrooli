@@ -115,7 +115,18 @@ func RunReportForCells(ctx context.Context, deps RunnerDeps, clips []Clip, cells
 				reports = append(reports, RunReport(ctx, clips, repeatSpecs, cellOpts))
 			}
 		case experimentv1.ReplayLane_REPLAY_LANE_REALTIME:
-			cellOpts.QualityPass, cellOpts.RealtimeRepeats = false, int(cell.GetRepeatCount())
+			// A realtime provider cell must retain both measurements: the
+			// deterministic pass supplies recognition quality, while the paced
+			// repeats supply wall-clock latency. Disabling QualityPass here made
+			// a successful D1 run incapable of producing the required corpus
+			// acceptance receipt.
+			cellOpts.QualityPass, cellOpts.RealtimeRepeats = true, int(cell.GetRepeatCount())
+			// Native local engines commonly own one decoder/model session. The
+			// generic harness default of eight concurrent replays can leave a
+			// provider-side FIFO wedged while the experiment waits for all
+			// workers. Provider cells therefore serialize paced sessions; the
+			// owner still records one independent latency attempt per clip.
+			cellOpts.RealtimeConcurrency = 1
 			reports = append(reports, RunReport(ctx, clips, specs, cellOpts))
 		default:
 			return EvalReport{}, fmt.Errorf("%w: cells[%d] has unsupported replay lane", errEvalInvalidRequest, i)
@@ -196,6 +207,11 @@ func (h reportRunner) buildSpecs(requested []*evalv1.EvalStrategy) ([]StrategySp
 		}
 	}
 	specs := make([]StrategySpec, 0, len(wanted))
+	// Legacy strategy requests predate explicit provider cells, but their
+	// reports still need a truthful provider identity before they can be used
+	// by any provider-neutral evidence producer.
+	const legacyEngineID = "whisper-local"
+	legacyModelID := h.legacyModelID(legacyEngineID)
 	for _, wanted := range wanted {
 		label := wanted.label
 		if label == "" {
@@ -203,16 +219,33 @@ func (h reportRunner) buildSpecs(requested []*evalv1.EvalStrategy) ([]StrategySp
 		}
 		switch wanted.kind {
 		case "batch", "buffered", "buffered_fallback":
-			specs = append(specs, h.spec(sttchain.StrategyBuffered, label, stt.PreferenceAuto, true, "", StreamConfigAdjust{}))
+			specs = append(specs, h.spec(sttchain.StrategyBuffered, label, stt.PreferenceAuto, true, legacyEngineID, StreamConfigAdjust{}))
 		case "vad_segment", "vad":
-			specs = append(specs, h.spec(sttchain.StrategyVADSegment, label, stt.PreferenceVAD, false, "", StreamConfigAdjust{VADSilenceMs: wanted.vad}))
+			specs = append(specs, h.spec(sttchain.StrategyVADSegment, label, stt.PreferenceVAD, false, legacyEngineID, StreamConfigAdjust{VADSilenceMs: wanted.vad}))
 		case "overlap_agree", "overlap":
-			specs = append(specs, h.spec(sttchain.StrategyOverlapAgree, label, stt.PreferenceOverlap, false, "", StreamConfigAdjust{OverlapMaxStallRejects: wanted.stall, OverlapWindowMs: wanted.win, OverlapCommitRuns: wanted.runs, OverlapMaxWindowMs: wanted.max}))
+			specs = append(specs, h.spec(sttchain.StrategyOverlapAgree, label, stt.PreferenceOverlap, false, legacyEngineID, StreamConfigAdjust{OverlapMaxStallRejects: wanted.stall, OverlapWindowMs: wanted.win, OverlapCommitRuns: wanted.runs, OverlapMaxWindowMs: wanted.max}))
 		default:
 			return nil, fmt.Errorf("unknown strategy kind %q (want batch|vad_segment|overlap_agree)", wanted.kind)
 		}
 	}
+	for i := range specs {
+		specs[i].ModelID = legacyModelID
+	}
 	return specs, nil
+}
+
+func (h reportRunner) legacyModelID(engineID string) string {
+	var provider sttchain.Provider
+	if h.deps.NewProviderForEngine != nil {
+		provider = h.deps.NewProviderForEngine(engineID)
+	}
+	if provider == nil && h.deps.NewProvider != nil {
+		provider = h.deps.NewProvider()
+	}
+	if provider == nil || strings.TrimSpace(provider.Model()) == "" {
+		return "whisper-unknown"
+	}
+	return provider.Model()
 }
 
 type StreamConfigAdjust struct{ VADSilenceMs, OverlapMaxStallRejects, OverlapWindowMs, OverlapCommitRuns, OverlapMaxWindowMs int }
@@ -297,7 +330,14 @@ func (h reportRunner) segmenterSession(meter *MeteredProvider, cfg stt.StreamCon
 		deps.SpeakerExtraction = h.deps.NewSpeakerExtraction()
 	}
 	seg := segmenter.New(deps)
-	start := sttchain.StreamStart{InputFormat: "pcm_s16le", InputSampleRate: protoint.FromInt(clip.SampleRate), EngineID: engineID}
+	// The portable-voice cohort is English. Keep the evaluation stream
+	// metadata aligned with the browser/CLI product path; an empty language
+	// hint lets Kyutai select a non-English token stream and can turn a valid
+	// English clip into a catastrophic hallucination.
+	start := sttchain.StreamStart{
+		InputFormat: "pcm_s16le", InputSampleRate: protoint.FromInt(clip.SampleRate),
+		Language: "en", EngineID: engineID,
+	}
 	return func(ctx context.Context, chunks <-chan sttchain.AudioChunk, events chan<- sttchain.StreamEvent) error {
 		return seg.Run(ctx, start, cfg, chunks, events)
 	}

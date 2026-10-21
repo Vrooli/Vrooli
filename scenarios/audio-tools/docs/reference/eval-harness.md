@@ -457,6 +457,13 @@ job; explicit operator cancellation remains `canceled`. The Dictation Studio lab
 subscribes to that stream and falls back to `GetExperiment` polling only when
 the browser transport cannot stream.
 
+For explicit realtime cells, the estimate reserves one paced duration for each
+realtime repeat and a bounded allowance for the unpaced quality pass that
+produces transcript/WER evidence. Native local sessions execute with one active
+realtime stream per provider so FIFO-backed engines cannot interleave chunks
+from separate sessions; serialized latency work remains reported per clip and
+per repeat.
+
 ## Why the corpus can't ride CI
 
 The audio is personal, machine-local, and git-ignored, so it can't be a
@@ -474,6 +481,12 @@ diagnostic and server ledger, and emits one `conformance.Run` document. The
 provider cell is mandatory and is checked against identity delivered by the
 stream itself; provider identity is durable transport evidence, not a CLI
 label.
+
+The soak asks BAS for `reuse_mode: fresh`, which gives the run an isolated
+browser context. Its preflight therefore checks BAS readiness and available
+session capacity; unrelated active sessions and foreign leases are not reasons
+to stop or wait for a zero-session state. Only exhausted capacity or an
+unready driver is a retryable admission condition.
 
 Example bounded realtime run:
 
@@ -502,10 +515,21 @@ explicit sample target. `burst` and `chunked` shapes both traverse the real
 browser provider, WebSocket, ledger, strategy, and composer. Quality is
 measured against the independent reference on both lanes; only latency remains
 realtime-only. The canonical fixture says `the quick brown fox jumps.`; for a
-realtime turn longer than one fixture cycle, the driver expands that reference
-by the observed captured-cycle count before calculating WER. This prevents a
-looped fixture from being incorrectly graded against only its first 1.95-second
-phrase while retaining a strict independent quality oracle.
+turn longer than one fixture cycle on either lane, the driver expands that
+reference by the observed captured-cycle count before calculating WER. This
+prevents a looped fixture from being incorrectly graded against only its first
+1.95-second phrase while retaining a strict independent quality oracle.
+
+When `--feed-ms` is omitted, the CLI uses a 50 ms per-turn feed for the
+accelerated lane and 4000 ms for realtime. The accelerated feed still exercises
+the browser lifecycle, while virtual capture advances the declared sample
+duration independently of wall-clock pacing; pass `--feed-ms` explicitly when
+testing a different pacing budget.
+
+The first realtime turn is retained as a cold-start observation. A healthy
+resource readiness response does not by itself qualify first-visible latency;
+the owner probe must include repeated turns so a first-session decoder outlier
+cannot be hidden by warm-session averages.
 
 For realtime runs, `--profile realistic|continuous` selects the host-device
 shape: realistic inserts the existing 250 ms sub-timeout inter-clip pause,

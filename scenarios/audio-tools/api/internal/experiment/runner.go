@@ -313,6 +313,8 @@ func (m *Manager) execute(e *entry) {
 					if updateErr := m.service.repo.UpdateExperiment(m.baseCtx, final); updateErr != nil {
 						m.logger.Printf("experiment %s: persist result-failure status: %v", final.ID, updateErr)
 					}
+				} else {
+					m.persistQualificationEvidence(final, result.QualificationEvidence)
 				}
 			}
 		} else {
@@ -323,6 +325,8 @@ func (m *Manager) execute(e *entry) {
 				if updateErr := m.service.repo.UpdateExperiment(m.baseCtx, final); updateErr != nil {
 					m.logger.Printf("experiment %s: persist result-failure status: %v", final.ID, updateErr)
 				}
+			} else {
+				m.persistQualificationEvidence(final, result.QualificationEvidence)
 			}
 		}
 	} else {
@@ -331,6 +335,17 @@ func (m *Manager) execute(e *entry) {
 		}
 	}
 	m.finalizeEntry(e, final)
+}
+
+func (m *Manager) persistQualificationEvidence(exp Experiment, items []QualificationEvidence) {
+	for _, item := range items {
+		if item.ArtifactRef == "" {
+			item.ArtifactRef = "experiment:" + exp.ID
+		}
+		if _, err := m.service.RecordQualificationEvidence(m.baseCtx, item); err != nil {
+			m.logger.Printf("experiment %s: persist qualification evidence %q: %v", exp.ID, item.Kind, err)
+		}
+	}
 }
 
 func (m *Manager) finalizeEntry(e *entry, final Experiment) {

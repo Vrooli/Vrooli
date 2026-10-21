@@ -121,6 +121,14 @@ describe("shared PCM long-session recovery harness", () => {
     vi.useRealTimers();
   });
 
+  it("publishes recording state once capture is ready", async () => {
+    await provider.start();
+    await settle();
+
+    expect(provider.getDiagnostic().state).toBe("recording");
+    expect(readStreamDiagnosticTelemetry()?.latest.state).toBe("recording");
+  });
+
   it("resets the reconnect budget after six successful opens", async () => {
     await provider.start();
     await settle();
@@ -140,6 +148,9 @@ describe("shared PCM long-session recovery harness", () => {
     provider.preConnect("en");
     await settle();
     expect(FakeWebSocket.instances).toHaveLength(1);
+
+    await vi.advanceTimersByTimeAsync(4_000);
+    expect(FakeWebSocket.instances[0]?.send).toHaveBeenCalledWith(JSON.stringify({ type: "keepalive" }));
 
     await provider.start();
     await settle();
@@ -183,7 +194,7 @@ describe("shared PCM long-session recovery harness", () => {
     await settle();
     expect(status).toHaveBeenCalledWith(expect.objectContaining({ code: "reconnect_exhausted" }));
     expect(transcribeRetained).toHaveBeenCalledOnce();
-    expect(result).toHaveBeenCalledWith("recovered");
+    await vi.waitFor(() => expect(result).toHaveBeenCalledWith("recovered"));
   });
 
   it("recovers the unacknowledged journal tail after the bounded full-turn copy overflows", async () => {
@@ -236,6 +247,74 @@ describe("shared PCM long-session recovery harness", () => {
     expect(status).toHaveBeenCalledWith(expect.objectContaining({ code: "reconnect_exhausted" }));
     expect(transcribeRetained).toHaveBeenCalledOnce();
     expect(result).toHaveBeenCalledWith("recovered from journal tail");
+  });
+
+  it("keeps the primary streaming provider identity when fallback uses another provider", async () => {
+    provider.dispose();
+    const transcribeRetainedWithIdentity = vi.fn(async () => ({
+      text: "recovered by fallback",
+      providerIdentity: { providerId: "whisper-local", modelId: "whisper-medium" },
+    }));
+    provider = new PcmVoiceStreamProvider({
+      getUserMedia,
+      transport: {
+        buildStreamUrl: () => "ws://voice.test/stream?protocol_version=2",
+        transcribeRetained,
+        transcribeRetainedWithIdentity,
+      },
+      captureFactory: async (_stream, onFrame) => {
+        captureOnFrame = onFrame;
+        return { stop: vi.fn() };
+      },
+      journalFactory: () => new TurnJournal(new MemoryTurnJournalStore(), "provider-identity", 0n, 16 * 1024 * 1024, "memory"),
+    });
+    provider.onResult = result;
+
+    await provider.start();
+    await settle();
+    const socket = FakeWebSocket.instances.at(-1)!;
+    socket.onmessage?.({ data: JSON.stringify({
+      type: "status",
+      code: "provider_identity",
+      providerId: "kyutai",
+      modelId: "kyutai/stt-1b-en_fr",
+    }) });
+    captureOnFrame?.(new Float32Array(128).fill(0.5), 16_000);
+    await settle();
+
+    FakeWebSocket.autoOpen = false;
+    for (const delay of [1_000, 2_000, 4_000, 8_000, 8_000]) {
+      const active = FakeWebSocket.instances.at(-1)!;
+      active.readyState = FakeWebSocket.CLOSED;
+      active.onclose?.();
+      await vi.advanceTimersByTimeAsync(delay);
+      await settle();
+    }
+    const exhausted = FakeWebSocket.instances.at(-1)!;
+    exhausted.readyState = FakeWebSocket.CLOSED;
+    exhausted.onclose?.();
+    await settleLong();
+
+    expect(transcribeRetainedWithIdentity).toHaveBeenCalledOnce();
+    expect(result).toHaveBeenCalledWith("recovered by fallback");
+    expect(provider.getDiagnostic()).toMatchObject({
+      providerId: "kyutai",
+      modelId: "kyutai/stt-1b-en_fr",
+    });
+  });
+
+  it("measures terminal-tail lag for a non-segmenting streaming route", async () => {
+    await provider.start();
+    await settle();
+    const socket = FakeWebSocket.instances.at(-1)!;
+    captureOnFrame?.(new Float32Array(128).fill(0.5), 16_000);
+    await settle();
+    provider.stop();
+    socket.onmessage?.({ data: JSON.stringify({ type: "final", text: "terminal tail" }) });
+    await settle();
+
+    await vi.waitFor(() => expect(provider.getDiagnostic().committedTextLagMs).not.toBeNull());
+    expect(result).toHaveBeenCalledWith("terminal tail");
   });
 
   it("deletes durable journal data after a committed terminal final", async () => {
@@ -309,6 +388,30 @@ describe("shared PCM long-session recovery harness", () => {
     expect(FakeWebSocket.instances).toHaveLength(2);
   });
 
+  it("ignores a late close from a stale socket after reconnect ownership moves", async () => {
+    await provider.start();
+    await settle();
+    const first = FakeWebSocket.instances[0]!;
+    captureOnFrame?.(new Float32Array(128).fill(0.5), 16_000);
+    await settle();
+
+    first.readyState = FakeWebSocket.CLOSED;
+    first.onclose?.();
+    await vi.advanceTimersByTimeAsync(1_000);
+    await settle();
+
+    expect(FakeWebSocket.instances).toHaveLength(2);
+    const second = FakeWebSocket.instances[1]!;
+    expect(second.readyState).toBe(FakeWebSocket.OPEN);
+
+    // A browser can deliver the old socket's close callback after the
+    // replacement has opened. It must not schedule a third replay socket.
+    first.onclose?.();
+    await vi.advanceTimersByTimeAsync(1_000);
+    await settle();
+    expect(FakeWebSocket.instances).toHaveLength(2);
+  });
+
   it("does not reacquire a track after an intentional final", async () => {
     await provider.start();
     await settle();
@@ -351,7 +454,7 @@ describe("shared PCM long-session recovery harness", () => {
     provider.stop();
     await settle();
     socket.onmessage?.({ data: JSON.stringify({ type: "final", text: "   " }) });
-		expect(result).toHaveBeenCalledWith("");
+		await vi.waitFor(() => expect(result).toHaveBeenCalledWith(""));
 	});
 
   it("recovers retained PCM when the socket closes after stop", async () => {
@@ -379,7 +482,7 @@ describe("shared PCM long-session recovery harness", () => {
     socket.onmessage?.({ data: JSON.stringify({ type: "final", text: "" }) });
     await settle();
     expect(transcribeRetained).toHaveBeenCalledOnce();
-    expect(result).toHaveBeenCalledWith("recovered");
+    await vi.waitFor(() => expect(result).toHaveBeenCalledWith("recovered"));
   });
 
   it("announces bounded recovery before using the retained-audio path", async () => {
@@ -396,7 +499,7 @@ describe("shared PCM long-session recovery harness", () => {
       code: "buffered_recovery",
       message: "Streaming degraded; recovering retained audio through bounded batch transcription.",
     }));
-    expect(result).toHaveBeenCalledWith("recovered");
+    await vi.waitFor(() => expect(result).toHaveBeenCalledWith("recovered"));
   });
 
   it("clears the final-pending notice when the final arrives", async () => {
@@ -541,6 +644,9 @@ describe("shared PCM long-session recovery harness", () => {
     const frame = new Float32Array(BASELINE_FRAME_SAMPLES).fill(0.25);
     for (let index = 0; index < BASELINE_SIMULATED_SECONDS / BASELINE_FRAME_SECONDS; index += 1) {
       captureOnFrame?.(frame, 16_000);
+      // Pace each virtual minute through its real journal/transport chain.
+      // A synchronous 115 MiB burst is outside bounded capture support.
+      await (provider as unknown as { writes: Promise<void> }).writes;
     }
     const internals = provider as unknown as { writes: Promise<void> };
     await internals.writes;

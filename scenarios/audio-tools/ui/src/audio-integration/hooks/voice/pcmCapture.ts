@@ -33,7 +33,8 @@ const CANONICAL_CAPTURE_START_TIMEOUT_MS = 1_000;
  * AudioContext. ScriptProcessor is deprecated but universally supported;
  * the codebase already uses it for passive wake-word capture
  * (audioUtils.createPassiveCapturePipeline) for the same reason. A
- * 4096-sample buffer is ~85 ms at 48 kHz — low callback overhead.
+ * The shared implementation uses a 1024-sample buffer for this compatibility
+ * path so fake-media and older browsers do not add a large first-batch delay.
  *
  * The node must be connected to the context destination (through a silent
  * gain) or Chrome stops rendering the subgraph as a power-saving measure.

@@ -59,7 +59,9 @@ func (h *connectHandler) Summarize(ctx context.Context, req *connect.Request[sum
 	}
 	start := h.now()
 	resp := connect.NewResponse(&summv1.SummarizeResponse{})
+	fallbackReason := ""
 	ctx = tiered.WithOnFallback(ctx, func(ev tiered.FallbackEvent) {
+		fallbackReason = fmt.Sprintf("%s_to_%s:%s", ev.From.String(), ev.To.String(), ev.Reason)
 		resp.Header().Set("x-audio-tools-fallback",
 			fmt.Sprintf("from=%s;to=%s;reason=%s", ev.From.String(), ev.To.String(), ev.Reason))
 	})
@@ -84,6 +86,7 @@ func (h *connectHandler) Summarize(ctx context.Context, req *connect.Request[sum
 	row.ModelID = res.ModelID
 	row.PromptTokens = protoint.FromInt64(int64(res.PromptTokens))
 	row.OutputTokens = protoint.FromInt64(int64(res.OutputTokens))
+	row.FallbackReason = fallbackReason
 	if h.deps.Usage != nil {
 		h.deps.Usage.Enqueue(row)
 	}

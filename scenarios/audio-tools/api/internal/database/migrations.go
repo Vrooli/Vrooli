@@ -34,6 +34,13 @@ var forwardOnlyAlters = []string{
 	`ALTER TABLE qualification_evidence ADD COLUMN model_id TEXT NOT NULL DEFAULT ''`,
 	`DROP INDEX IF EXISTS idx_qualification_evidence_cell`,
 	`CREATE INDEX IF NOT EXISTS idx_qualification_evidence_cell ON qualification_evidence(engine_id, model_id, strategy, policy_profile, observed_at DESC)`,
+	`ALTER TABLE corpus_clips ADD COLUMN corpus_revision TEXT NOT NULL DEFAULT ''`,
+	`ALTER TABLE corpus_clips ADD COLUMN license_reference TEXT NOT NULL DEFAULT ''`,
+	`ALTER TABLE corpus_clips ADD COLUMN speaker_pseudonym TEXT NOT NULL DEFAULT ''`,
+	`ALTER TABLE corpus_clips ADD COLUMN split TEXT NOT NULL DEFAULT ''`,
+	`ALTER TABLE corpus_clips ADD COLUMN noise_condition TEXT NOT NULL DEFAULT ''`,
+	`ALTER TABLE corpus_clips ADD COLUMN snr_db REAL NOT NULL DEFAULT 0`,
+	`ALTER TABLE corpus_clips ADD COLUMN content_sha256 TEXT NOT NULL DEFAULT ''`,
 }
 
 // ApplyMigrations runs the forward-only ALTERs against db. It is idempotent:

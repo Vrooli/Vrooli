@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createCanonicalPcmCapture } from "./pcmCapture";
+import { createCanonicalPcmCapture, preloadCanonicalPcmCapture } from "./pcmCapture";
 
 describe("canonical PCM capture", () => {
   afterEach(() => {
@@ -27,5 +27,20 @@ describe("canonical PCM capture", () => {
     expect(context.createScriptProcessor).toHaveBeenCalledOnce();
     expect(addModule).not.toHaveBeenCalled();
     capture.stop();
+  });
+
+  it("preloads the worklet module for a real voice gesture", async () => {
+    const addModule = vi.fn(async () => {});
+    const context = { audioWorklet: { addModule } } as unknown as AudioContext;
+    vi.stubGlobal("AudioWorkletNode", class {});
+    vi.stubGlobal("URL", {
+      createObjectURL: vi.fn(() => "blob:test-vrooli-pcm-capture"),
+      revokeObjectURL: vi.fn(),
+    });
+
+    await preloadCanonicalPcmCapture(context);
+
+    expect(addModule).toHaveBeenCalledOnce();
+    vi.unstubAllGlobals();
   });
 });

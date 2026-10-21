@@ -2,7 +2,10 @@ package lpbs
 
 import (
 	"context"
-	"sync"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -21,13 +24,16 @@ func TestReporter_SubmitAcceptsWithoutStart(t *testing.T) {
 	// Did not panic, did not block: contract satisfied.
 }
 
-// TestReporter_StartDrainsQueue asserts Start consumes Submitted
-// reports. We can't observe delivery (the HTTP gateway is stubbed),
-// so we observe channel depth dropping to zero.
+// TestReporter_StartDrainsQueue asserts Start consumes and delivers
+// authenticated reports.
 func TestReporter_StartDrainsQueue(t *testing.T) {
-	r := NewRemoteReporter("http://lpbs.invalid")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(server.Close)
+	r := NewRemoteReporter(server.URL)
 	for i := 0; i < 10; i++ {
-		r.Submit(UsageReport{OperationID: "op", LimitKey: "ai_credits", Amount: 1, AppBundleKey: "audio-tools"})
+		r.Submit(UsageReport{LPBSToken: "access-token", OperationID: fmt.Sprintf("op-%d", i), LimitKey: "ai_credits", Amount: 1, AppBundleKey: "audio-tools"})
 	}
 	require.Equal(t, 10, len(r.queue), "all 10 enqueued before Start")
 
@@ -59,27 +65,36 @@ func TestReporter_StopIsIdempotentlySafe(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("Stop blocked longer than 2s — worker did not honour the done signal")
 	}
+	// Shutdown can be reached from both request teardown and process teardown;
+	// repeating it must not panic or deadlock.
+	r.Stop()
 }
 
-// TestDeliver_ReturnsNilOnStubbedAttempt locks the current behaviour
-// of deliver: the stubbed attemptOnce never errors, so the first
-// attempt succeeds without sleeping through the backoff sequence.
-//
-// TODO: replace with a real httptest.Server + fake-clock test of the
-// 500ms/1s/2s backoff + idempotency-key dedup when the LPBS gateway
-// HTTP wiring lands (see remote_reporter.go::attemptOnce).
-func TestDeliver_ReturnsNilOnStubbedAttempt(t *testing.T) {
-	r := NewRemoteReporter("http://lpbs.invalid")
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
-	defer cancel()
+// TODO: add a fake-clock test for the 500ms/1s/2s backoff and an
+// idempotency replay assertion when the LPBS endpoint is exercised end to end.
+func TestDeliver_PostsAuthenticatedReport(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, http.MethodPost, r.Method)
+		require.Equal(t, "Bearer access-token", r.Header.Get("Authorization"))
+		require.Equal(t, "op-1", r.Header.Get("Idempotency-Key"))
+		var reports []UsageReport
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&reports))
+		require.Len(t, reports, 1)
+		require.Equal(t, "op-1", reports[0].OperationID)
+		require.Empty(t, reports[0].LPBSToken)
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(server.Close)
 
-	var wg sync.WaitGroup
-	wg.Add(1)
-	var err error
-	go func() {
-		defer wg.Done()
-		err = r.deliver(ctx, UsageReport{OperationID: "op-1", LimitKey: "ai_credits", Amount: 1})
-	}()
-	wg.Wait()
+	r := NewRemoteReporter(server.URL)
+	err := r.deliver(context.Background(), UsageReport{
+		LPBSToken: "access-token", OperationID: "op-1", LimitKey: "ai_credits", Amount: 1,
+	})
 	require.NoError(t, err)
+}
+
+func TestDeliver_RequiresAccessToken(t *testing.T) {
+	r := NewRemoteReporter("http://lpbs.invalid")
+	err := r.deliver(context.Background(), UsageReport{OperationID: "op-1", LimitKey: "ai_credits", Amount: 1})
+	require.ErrorContains(t, err, "access token is required")
 }

@@ -32,8 +32,8 @@ Deployment surfaces include the Audio Tools UI, CLI, Connect and WebSocket APIs,
 
 ### 🟠 P1 – Should have post-launch
 
-- [ ] OT-P1-001 | Provider-neutral evidence | When operators compare experiments, Dictation Studio should expose persisted provider-neutral metrics and promotion verdicts by provider, strategy, policy, fault, and replay cell.
-- [ ] OT-P1-002 | Mobile recovery and diagnostics | When a mobile turn is degraded or interrupted, users should be able to inspect coverage, recover retained audio, and export metadata-only diagnostics without developer tools.
+- [x] OT-P1-001 | Provider-neutral evidence | When operators compare experiments, Dictation Studio should expose persisted provider-neutral metrics and promotion verdicts by provider, strategy, policy, fault, and replay cell.
+- [x] OT-P1-002 | Mobile recovery and diagnostics | When a mobile turn is degraded or interrupted, users should be able to inspect coverage, recover retained audio, and export metadata-only diagnostics without developer tools.
 - [ ] OT-P1-003 | Replaceable maintainable adapters | When providers or device technology change, maintainers should extend versioned capability and host adapters with shared conformance tests without duplicating capture, recovery, routing, or billing rules in consumers.
 - [ ] OT-P1-004 | Consistent shared voice capabilities | When TTS or transcript summarization is enabled in a consuming app, it should use the same explicit route, capability, privacy, and usage boundaries as STT, with operation-specific delivery, quality, and billing acceptance.
 

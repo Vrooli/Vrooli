@@ -18,6 +18,10 @@ type SpeakerVerdict struct {
 	// FallbackWithoutVerification semantics — surfaced so the consumer knows
 	// the gate did not truly verify.
 	FallbackUsed bool
+	// Applied is true only when the verifier actually evaluated usable audio.
+	// An allowed result can still be degraded when policy intentionally allows
+	// emission without a verification decision.
+	Applied bool
 	// Score is the best cosine-similarity the active profiles produced for this
 	// segment (0 when verification could not run). Threshold is the configured
 	// match cutoff. Both are surfaced on the rejection event so the UI banner
@@ -74,10 +78,12 @@ func (s SpeakerStage) Apply(ctx context.Context, in SegmentDecision) SegmentDeci
 	if len(in.Audio) == 0 {
 		if policy, ok := s.Isolation.(MissingAudioPolicy); ok && policy.AllowMissingAudio() {
 			in.FallbackUsed = true
+			in.SpeakerPolicy = "degraded"
 			return in
 		}
 		in.Outcome = Reject
 		in.Reason = "speaker verification required but recognition audio is unavailable"
+		in.SpeakerPolicy = "rejected"
 		return in
 	}
 	v := s.Isolation.Evaluate(ctx, in.Audio)
@@ -85,10 +91,18 @@ func (s SpeakerStage) Apply(ctx context.Context, in SegmentDecision) SegmentDeci
 	in.Threshold = v.Threshold
 	if v.Allowed {
 		in.FallbackUsed = v.FallbackUsed
+		in.SpeakerPolicy = "degraded"
+		if v.Applied && !v.FallbackUsed {
+			in.SpeakerPolicy = "applied"
+		}
+		if v.FallbackUsed || !v.Applied {
+			in.SpeakerPolicy = "degraded"
+		}
 		return in
 	}
 	in.Outcome = Reject
 	in.Reason = v.Reason
 	in.FallbackUsed = v.FallbackUsed
+	in.SpeakerPolicy = "rejected"
 	return in
 }

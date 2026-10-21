@@ -464,7 +464,7 @@ func TestKyutaiProvider_MapsAdmissionLifecycleAndApproximateSpan(t *testing.T) {
 	require.Equal(t, "approximate", segment.AlignmentQuality)
 }
 
-func TestKyutaiProvider_DoesNotSendPCMBeforeAdmissionReady(t *testing.T) {
+func TestKyutaiProvider_SendsOnlyFirstPCMBeforeAdmissionReady(t *testing.T) {
 	up := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
 	preReadyAudio := make(chan bool, 1)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -473,8 +473,9 @@ func TestKyutaiProvider_DoesNotSendPCMBeforeAdmissionReady(t *testing.T) {
 			return
 		}
 		defer conn.Close()
-		// Start is allowed while queued. Any PCM before ready violates the
-		// resource admission contract and bypasses retained replay coverage.
+		// Start is allowed while queued. The adapter may send one bounded first
+		// batch so the resource can receive it while admission completes, but it
+		// must not stream the rest of the turn before ready.
 		type inbound struct {
 			mt  int
 			err error
@@ -499,8 +500,9 @@ func TestKyutaiProvider_DoesNotSendPCMBeforeAdmissionReady(t *testing.T) {
 			preReadyAudio <- false
 		}
 		_ = conn.WriteMessage(websocket.TextMessage, []byte(vendorws.EncodeJSON(map[string]any{"type": "ready"})))
-		// Drain the released PCM and terminal control before completing.
-		for i := 0; i < 2; i++ {
+		// Drain the remaining terminal control before completing; the first PCM
+		// batch was consumed by the bounded pre-ready probe above.
+		for i := 0; i < 1; i++ {
 			if frame := <-inboundFrames; frame.err != nil {
 				return
 			}
@@ -518,7 +520,7 @@ func TestKyutaiProvider_DoesNotSendPCMBeforeAdmissionReady(t *testing.T) {
 	require.NoError(t, err)
 	for range events {
 	}
-	require.False(t, <-preReadyAudio, "PCM must remain retained until the resource declares ready")
+	require.True(t, <-preReadyAudio, "the first bounded PCM batch should overlap backend admission")
 }
 
 func TestKyutaiProvider_SendsStartHeaderThenPCM(t *testing.T) {

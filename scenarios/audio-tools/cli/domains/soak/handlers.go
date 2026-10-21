@@ -34,6 +34,10 @@ type soakDriverHealthDocument struct {
 	Ready            bool `json:"ready"`
 	Sessions         int  `json:"sessions"`
 	ActiveRecordings int  `json:"active_recordings"`
+	Capacity         int  `json:"capacity"`
+	Summary          struct {
+		Capacity int `json:"capacity"`
+	} `json:"summary"`
 }
 
 func (h *handlers) run(ctx cliapp.RunContext) error {
@@ -68,18 +72,22 @@ func (h *handlers) run(ctx cliapp.RunContext) error {
 		return err
 	}
 
+	lane := firstNonEmpty(ctx.Flag("lane"), "realtime")
 	turns, err := positiveInt(ctx.Flag("turns"), 3)
 	if err != nil {
 		return fmt.Errorf("--turns: %w", err)
 	}
-	feedMS, err := positiveInt(ctx.Flag("feed-ms"), 4000)
+	feedMS, err := positiveInt(ctx.Flag("feed-ms"), defaultFeedMS(lane))
 	if err != nil {
 		return fmt.Errorf("--feed-ms: %w", err)
 	}
-	lane := firstNonEmpty(ctx.Flag("lane"), "realtime")
 	simulatedMinutes, err := positiveInt(ctx.Flag("simulated-minutes"), 0)
 	if err != nil {
 		return fmt.Errorf("--simulated-minutes: %w", err)
+	}
+	referenceCycleMS, err := positiveInt(ctx.Flag("reference-cycle-ms"), 0)
+	if err != nil {
+		return fmt.Errorf("--reference-cycle-ms: %w", err)
 	}
 	if lane == "accelerated" && simulatedMinutes == 0 {
 		simulatedMinutes = 60
@@ -90,17 +98,19 @@ func (h *handlers) run(ctx cliapp.RunContext) error {
 		"surface": firstNonEmpty(ctx.Flag("surface"), "audio-tools"),
 		"lane":    lane, "profile": profile, "turns": turns, "feed_ms": feedMS,
 		"fault": ctx.Flag("fault"), "reference_text": ctx.Flag("reference-text"),
-		"engine_id":         engineID,
-		"model_id":          modelID,
-		"strategy":          firstNonEmpty(ctx.Flag("strategy"), "product"),
-		"policy":            firstNonEmpty(ctx.Flag("policy"), "default"),
-		"shape":             firstNonEmpty(ctx.Flag("shape"), "burst"),
-		"simulated_minutes": simulatedMinutes,
+		"reference_cycle_ms": referenceCycleMS,
+		"engine_id":          engineID,
+		"model_id":           modelID,
+		"strategy":           firstNonEmpty(ctx.Flag("strategy"), "product"),
+		"policy":             firstNonEmpty(ctx.Flag("policy"), "default"),
+		"shape":              firstNonEmpty(ctx.Flag("shape"), "burst"),
+		"simulated_minutes":  simulatedMinutes,
+		"mobile_recovery":    strings.EqualFold(strings.TrimSpace(ctx.Flag("mobile-recovery")), "true"),
 	}
 	requestTimeout := 10 * time.Minute
 	if lane == "realtime" {
 		captureBudget := time.Duration(feedMS) * time.Duration(turns) * time.Millisecond
-		if candidate := captureBudget + 5*time.Minute; candidate > requestTimeout {
+		if candidate := captureBudget + 10*time.Minute; candidate > requestTimeout {
 			requestTimeout = candidate
 		}
 	}
@@ -161,6 +171,17 @@ func (h *handlers) run(ctx cliapp.RunContext) error {
 	return nil
 }
 
+func defaultFeedMS(lane string) int {
+	if strings.EqualFold(strings.TrimSpace(lane), "accelerated") {
+		// Virtual capture advances the qualification corpus independently of
+		// wall-clock feed time. Keep the browser lifecycle exercised, but do not
+		// spend four real seconds per virtual turn and then fail the declared
+		// accelerated <=60s budget.
+		return 50
+	}
+	return 4000
+}
+
 func (h *handlers) resolveEvidencePath(raw string) (string, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
@@ -210,10 +231,11 @@ func (h *handlers) scenarioRoot() (string, error) {
 	return "", fmt.Errorf("audio-tools scenario root not found from %q", directory)
 }
 
-// verifySoakDriver prevents admission while another browser qualification (or
-// an orphaned session from one) still occupies the shared BAS driver. This is
-// deliberately a cheap capacity check: a long run must not discover a
-// non-isolated browser state only after it has consumed its capture window.
+// verifySoakDriver validates readiness and capacity for the fresh, isolated
+// session requested by the soak. BAS sessions are isolated execution
+// contexts; an unrelated active session is not an admission blocker. The old
+// zero-session check incorrectly serialized independent runs and turned a
+// foreign lease into a false infrastructure blocker.
 func verifySoakDriver(driverURL string) error {
 	base := strings.TrimRight(driverURL, "/")
 	client := &http.Client{Timeout: 10 * time.Second}
@@ -229,11 +251,26 @@ func verifySoakDriver(driverURL string) error {
 	if err := json.NewDecoder(response.Body).Decode(&health); err != nil {
 		return fmt.Errorf("soak preflight: decode BAS health response from %s: %w", base, err)
 	}
+	if health.Capacity == 0 {
+		health.Capacity = health.Summary.Capacity
+	}
+	if err := validateSoakDriverHealth(health, base); err != nil {
+		return err
+	}
+	return nil
+}
+
+func validateSoakDriverHealth(health soakDriverHealthDocument, base string) error {
 	if !health.Ready {
 		return fmt.Errorf("soak preflight: BAS %s is not ready; wait for the driver to become ready", base)
 	}
-	if health.Sessions != 0 || health.ActiveRecordings != 0 {
-		return fmt.Errorf("soak preflight: BAS %s has %d active session(s) and %d active recording(s); close or reconcile them before starting a qualification", base, health.Sessions, health.ActiveRecordings)
+	if health.Capacity < 0 {
+		return fmt.Errorf("soak preflight: BAS %s reported invalid session capacity %d", base, health.Capacity)
+	}
+	// Older BAS health contracts do not expose capacity. In that case the
+	// session-start admission endpoint remains the authoritative capacity gate.
+	if health.Capacity > 0 && health.Sessions >= health.Capacity {
+		return fmt.Errorf("soak preflight: BAS %s has reached session capacity (%d/%d); retry when capacity is available", base, health.Sessions, health.Capacity)
 	}
 	return nil
 }

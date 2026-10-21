@@ -2,6 +2,7 @@ export * from "./protocol";
 export * from "./turnJournal";
 export * from "./pcm";
 export * from "./pcmCapture";
+export * from "./duplexAudio";
 export * from "./sessionIdentity";
 export * from "./streamDiagnostic";
 export * from "./streamMessages";

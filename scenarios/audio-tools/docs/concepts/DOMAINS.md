@@ -43,7 +43,7 @@ belong in [`DATA.md`](DATA.md).
 
 ### stt
 
-- Purpose: convert spoken audio to text through configured policy-permitted tiers (speech currently prefers Local → BYOK → Vrooli; hosted delivery is not wired); support batch unary + bidi streaming with segmenter-strategy decoupling (VAD, overlap-agree, passthrough).
+- Purpose: convert spoken audio to text through configured policy-permitted tiers (speech currently prefers Local → BYOK → Vrooli; the LPBS/Vrooli client is composed but hosted delivery remains unavailable until the shared gateway ships); support batch unary + bidi streaming with segmenter-strategy decoupling (VAD, overlap-agree, passthrough).
 - Primary archetype: streaming / chain-routed.
 - Secondary traits: WS browser transport, wakeword admin, speaker enrollment + verification.
 - Owns: segmenter, strategy selector, streaming strategies, STT chain providers, STT admin (stream config / wakeword / speaker) handlers.

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { PcmVoiceStreamProvider } from "./pcmVoiceStreamProvider";
+import { preloadCanonicalPcmCapture } from "./pcmCapture";
 import { buildVoiceActivitySnapshot, IDLE_VOICE_ACTIVITY, voiceActivitySnapshotsEqual, VAD_AUTO_STOP_VISUAL_GRACE_MS } from "./voice/activity";
 import { createVadRefs, createVadRefsFromCache, extractCacheableFloor, loadNoiseFloorCache, saveNoiseFloorCache, vadTick, VAD_FLOOR_CACHE_MAX_AGE_MS, VAD_MIN_SILENCE_THRESHOLD } from "./voice/vad";
 import { advanceMeterEnvelope, LEVEL_ANALYSER_FFT_SIZE, LEVEL_TICK_MS, meterLevelFromEnvelope } from "./voice/audioUtils";
@@ -925,6 +926,18 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     let cancelled = false;
     let bgRefreshInterval: ReturnType<typeof setInterval> | null = null;
 
+    // Warm the streaming transport immediately. This creates no microphone
+    // lease and sends no audio; it only opens the provider's control socket so
+    // a slow capability probe cannot sit between the user's press and the
+    // first streaming batch. The probe below still decides whether the host
+    // advertises streaming and remains the source of capability truth.
+    controller.ensure(() => new services.PcmVoiceStreamProvider());
+    if (isStreamingProvider(providerRef.current)) {
+      const currentLanguage = voiceLanguageRef.current;
+      const lang = currentLanguage === "auto" ? "" : (currentLanguage.split("-")[0] ?? "en");
+      providerRef.current.preConnect(lang);
+    }
+
     (async () => {
       try {
         const mountCapStart = Date.now();
@@ -940,7 +953,6 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
           // the mic button, eliminating 10-100ms of connection latency.
           // DOC: docs/internal/VOICE-LATENCY.md#websocket-pre-connection
           if (streamingAvailableRef.current) {
-            controller.ensure(() => new services.PcmVoiceStreamProvider());
             if (isStreamingProvider(providerRef.current)) {
               const currentLanguage = voiceLanguageRef.current;
               const lang = currentLanguage === "auto" ? "" : (currentLanguage.split("-")[0] ?? "en");
@@ -1079,6 +1091,11 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
         console.info("[voice] S%d Resuming AudioContext (state=%s) in gesture context", sessionCountRef.current, ctx.state);
         ctx.resume().catch(() => {});
       }
+      // Begin the AudioWorklet module load while getUserMedia, journal restore,
+      // and transport startup proceed. This is gesture-scoped and creates no
+      // microphone lease or audio graph; createCanonicalPcmCapture reuses the
+      // same in-flight load when the stream is ready.
+      void preloadCanonicalPcmCapture(ctx).catch(() => {});
     } catch { /* AudioContext unavailable */ }
 
     // Determine the mode for this session. Persistent mode is an explicit

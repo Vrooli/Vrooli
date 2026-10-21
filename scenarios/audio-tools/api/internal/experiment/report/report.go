@@ -36,7 +36,11 @@ func RunExperimentReport(ctx context.Context, evalDeps inteval.RunnerDeps, corpu
 		return inteval.EvalReport{}, nil, fmt.Errorf("provider-neutral evaluation cells with augmentation or speaker ablation are not executable yet; do not relabel the legacy Whisper runner as provider-neutral")
 	}
 	if !longFormEnabled && !augmentationEnabled && !speakerEnabled {
-		progress := newExperimentProgress(evalWorkUnits(len(recipe.GetClipIds()), recipe.GetStrategies(), recipe.GetRealtimeRepeats()), emit)
+		progressUnits := evalWorkUnits(len(recipe.GetClipIds()), recipe.GetStrategies(), recipe.GetRealtimeRepeats())
+		if len(recipe.GetCells()) > 0 {
+			progressUnits = cellRecipeWorkUnits(len(recipe.GetClipIds()), recipe.GetCells())
+		}
+		progress := newExperimentProgress(progressUnits, emit)
 		opts := inteval.EvalOptions{
 			DroppedSpanThresholdWords: int(safetyThreshold(recipe)),
 			LatencyTailSeconds:        int(recipe.GetLatencyTailSeconds()),
@@ -312,6 +316,24 @@ func cellExperimentWorkUnits(clips []inteval.Clip, cells []*experimentv1.Evaluat
 			continue
 		}
 		total += int64(len(clips)) * int64(cell.GetRepeatCount())
+	}
+	return total
+}
+
+func cellRecipeWorkUnits(clipCount int, cells []*experimentv1.EvaluationCell) int64 {
+	if clipCount <= 0 || len(cells) == 0 {
+		return 0
+	}
+	var total int64
+	for _, cell := range cells {
+		if cell == nil || cell.GetRepeatCount() < 1 {
+			continue
+		}
+		units := int64(cell.GetRepeatCount())
+		if cell.GetReplayLane() == experimentv1.ReplayLane_REPLAY_LANE_REALTIME {
+			units++ // deterministic quality pass plus paced latency repeats
+		}
+		total += int64(clipCount) * units
 	}
 	return total
 }

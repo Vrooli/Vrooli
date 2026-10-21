@@ -25,8 +25,9 @@ audio-tools validation check-freshness
 
 The intended command duration is at least 60 minutes. Its historical artifact
 and freshness check do not prove that each STT/TTS branch ran for that duration:
-the September investigation found early-EOF and branch-duration gaps. Before
-using it for qualification, repair and prove minimum input/sample counts,
+the September investigation found early-EOF and branch-duration gaps. The
+current producer fails closed if the STT stream reaches EOF before the deadline.
+Before using it for qualification, repair and prove minimum input/sample counts,
 per-branch elapsed duration, child failure propagation, and final-tail assertions
 under [TESTING.md](../docs/internal/TESTING.md). Synthetic PCM can validate
 transport behavior, not recognition quality or native microphones. A recent

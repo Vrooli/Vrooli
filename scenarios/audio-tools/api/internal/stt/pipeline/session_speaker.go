@@ -53,6 +53,13 @@ func NewSessionSpeakerState(cfg SpeakerConfig) *SessionSpeakerState {
 func (s *SessionSpeakerState) Observe(d SpeakerDecision) (bool, float64, string) {
 	// Undetermined evidence: do not update the estimate, never reject.
 	if !d.Applied || !d.Sufficient {
+		// A verifier outage or missing resource is not undetermined when the
+		// policy explicitly disables fallback. Preserve that fail-closed
+		// decision instead of turning every non-applied result into a warm-up
+		// passthrough. Insufficient audio remains an intentional passthrough.
+		if !d.Allowed && d.ErrorMessage != "" {
+			return false, s.emaScore, d.ErrorMessage
+		}
 		return true, s.emaScore, ""
 	}
 

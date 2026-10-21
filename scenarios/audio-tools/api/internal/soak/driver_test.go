@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"audio-tools/internal/conformance"
+	"audio-tools/internal/stt/session"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -23,7 +24,41 @@ func TestQualityAcrossTurnsExpandsLoopedRealtimeFixtureReference(t *testing.T) {
 		Diagnostic: &diagnostic{CapturedSamples: 32_000},
 		Transcript: "the quick brown fox jumps. the quick brown fox jumps.",
 	}}
-	assertions := qualityAcrossTurns("the quick brown fox jumps.", observations, conformance.LaneRealtime, 16_000)
+	assertions := qualityAcrossTurns("the quick brown fox jumps.", observations, conformance.LaneRealtime, 16_000, 0, 2_000, 0)
+	for _, assertion := range assertions {
+		require.Equal(t, conformance.OutcomePassed, assertion.Outcome, assertion.Name+": "+assertion.Detail)
+	}
+}
+
+func TestQualityAcrossTurnsUsesExplicitReferenceCycleForLongFixture(t *testing.T) {
+	observations := []turnObservation{{
+		Diagnostic: &diagnostic{CapturedSamples: 32_000},
+		Transcript: "the quick brown fox jumps. the quick brown fox jumps.",
+	}}
+	assertions := qualityAcrossTurns("the quick brown fox jumps.", observations, conformance.LaneRealtime, 60*16_000, 1_000, 2_000, 0)
+	for _, assertion := range assertions {
+		require.Equal(t, conformance.OutcomePassed, assertion.Outcome, assertion.Name+": "+assertion.Detail)
+	}
+}
+
+func TestQualityAcrossTurnsUsesOwnerCommittedTranscript(t *testing.T) {
+	observations := []turnObservation{{
+		Diagnostic: &diagnostic{CapturedSamples: 32_000},
+		Transcript: "ui latest segment only",
+		Server:     session.Snapshot{Committed: []session.Segment{{Text: "the quick brown fox jumps. the quick brown fox jumps."}}},
+	}}
+	assertions := qualityAcrossTurns("the quick brown fox jumps.", observations, conformance.LaneRealtime, 16_000, 0, 2_000, 0)
+	for _, assertion := range assertions {
+		require.Equal(t, conformance.OutcomePassed, assertion.Outcome, assertion.Name+": "+assertion.Detail)
+	}
+}
+
+func TestQualityAcrossTurnsExpandsLoopedAcceleratedFixtureReference(t *testing.T) {
+	observations := []turnObservation{{
+		Diagnostic: &diagnostic{CapturedSamples: 960_000},
+		Transcript: strings.Repeat("the quick brown fox jumps. ", 30),
+	}}
+	assertions := qualityAcrossTurns("the quick brown fox jumps.", observations, conformance.LaneAccelerated, 32_000, 0, 0, 0)
 	for _, assertion := range assertions {
 		require.Equal(t, conformance.OutcomePassed, assertion.Outcome, assertion.Name+": "+assertion.Detail)
 	}
@@ -66,6 +101,18 @@ func TestRealtimeAssertionRejectsTimingTelemetryDisappearance(t *testing.T) {
 	require.Contains(t, assertion.Detail, "stopped exposing")
 }
 
+func TestRealtimeAssertionRejectsSpeechLatencyAboveApprovedP95(t *testing.T) {
+	observations := []turnObservation{
+		{Diagnostic: &diagnostic{FirstPartialLatencyMS: float64Ptr(1_001)}},
+		{Diagnostic: &diagnostic{FirstPartialLatencyMS: float64Ptr(900)}},
+		{Diagnostic: &diagnostic{FirstPartialLatencyMS: float64Ptr(950)}},
+	}
+	assertion := realtimeAssertion("first_partial_latency_stable", observations, func(d *diagnostic) *float64 { return d.FirstPartialLatencyMS })
+	require.Equal(t, conformance.OutcomeFailed, assertion.Outcome)
+	require.Contains(t, assertion.Detail, "p95")
+	require.Contains(t, assertion.Detail, "target<=1000ms")
+}
+
 func TestRealtimeTimingObservationsExcludeTerminalFlushFromDrift(t *testing.T) {
 	periodicFirst := &diagnostic{CommittedTextLagMS: float64Ptr(2)}
 	periodicLast := &diagnostic{CommittedTextLagMS: float64Ptr(2)}
@@ -73,6 +120,21 @@ func TestRealtimeTimingObservationsExcludeTerminalFlushFromDrift(t *testing.T) {
 	observations := []turnObservation{{
 		Diagnostic:    terminalFlush,
 		TimingSamples: []*diagnostic{periodicFirst, periodicLast},
+	}}
+
+	timing := realtimeTimingObservations(observations)
+	require.Len(t, timing, 2)
+	assertion := realtimeAssertion("committed_text_lag_stable", timing, func(d *diagnostic) *float64 {
+		return d.CommittedTextLagMS
+	})
+	require.Equal(t, conformance.OutcomePassed, assertion.Outcome, assertion.Detail)
+}
+
+func TestRealtimeTimingObservationsUseTerminalLagWhenPeriodicSamplesOmitIt(t *testing.T) {
+	terminal := &diagnostic{CommittedTextLagMS: float64Ptr(117)}
+	observations := []turnObservation{{
+		Diagnostic:    terminal,
+		TimingSamples: []*diagnostic{{FirstPartialLatencyMS: float64Ptr(720)}},
 	}}
 
 	timing := realtimeTimingObservations(observations)
@@ -191,6 +253,8 @@ func TestRunUsesOneBrowserSessionAndEmitsConformanceAssertions(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(map[string]string{"session_id": "browser-session", "lease_id": "lease-1"})
 		case strings.HasSuffix(r.URL.Path, "/close"):
 			_ = json.NewEncoder(w).Encode(map[string]any{"success": true})
+		case strings.HasSuffix(r.URL.Path, "/audio/restart"), strings.HasSuffix(r.URL.Path, "/audio/stop"):
+			_ = json.NewEncoder(w).Encode(map[string]any{"success": true})
 		case strings.HasSuffix(r.URL.Path, "/run"):
 			var body struct {
 				Instruction struct {
@@ -246,6 +310,19 @@ func TestStepFailsWhenBASReportsPlaybackFailure(t *testing.T) {
 	require.ErrorContains(t, err, "pw-cat exited 1")
 }
 
+func TestStartFailsWhenBASReportsPlaybackFailure(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"success":true,"session_id":"session","lease_id":"lease","audio_playback_failure":"pw-loopback exited 1"}`))
+	}))
+	defer server.Close()
+
+	d := &driver{client: server.Client(), opt: Options{DriverURL: server.URL}}
+	_, err := d.start(context.Background(), "execution")
+	require.ErrorContains(t, err, "browser audio playback failed during session start")
+	require.ErrorContains(t, err, "pw-loopback exited 1")
+}
+
 func TestFeedSplitsLongBrowserWaitsWithoutEndingTheTurn(t *testing.T) {
 	require.Equal(t, 1, feedChunkCount(60_000))
 	require.Equal(t, 3, feedChunkCount(120_001))
@@ -259,6 +336,8 @@ func TestFeedSplitsLongBrowserWaitsWithoutEndingTheTurn(t *testing.T) {
 		case r.URL.Path == "/session/start":
 			_ = json.NewEncoder(w).Encode(map[string]string{"session_id": "browser-session", "lease_id": "lease-1"})
 		case strings.HasSuffix(r.URL.Path, "/close"):
+			_ = json.NewEncoder(w).Encode(map[string]any{"success": true})
+		case strings.HasSuffix(r.URL.Path, "/audio/restart"), strings.HasSuffix(r.URL.Path, "/audio/stop"):
 			_ = json.NewEncoder(w).Encode(map[string]any{"success": true})
 		case strings.HasSuffix(r.URL.Path, "/run"):
 			var body struct {
@@ -342,7 +421,7 @@ func TestValidateOptionsRequiresIndependentReferenceForAcceleratedLane(t *testin
 
 func TestRunTimeoutIncludesRealtimeCaptureAndHeadroom(t *testing.T) {
 	got := RunTimeout(Options{Lane: conformance.LaneRealtime, Turns: 1, FeedMS: 6 * 60 * 1000})
-	require.Equal(t, 11*time.Minute, got)
+	require.Equal(t, 16*time.Minute, got)
 	require.Equal(t, 10*time.Minute, RunTimeout(Options{Lane: conformance.LaneAccelerated, Turns: 3, FeedMS: 60 * 1000}))
 }
 

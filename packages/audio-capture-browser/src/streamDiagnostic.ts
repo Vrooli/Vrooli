@@ -17,8 +17,17 @@ export interface StreamTurnDiagnostic {
   state: "preparing" | "recording" | "reconnecting" | "recovering" | "completed" | "failed" | "cancelled";
   capturedSequence: number;
   capturedSamples: number;
+  /** Sample rate reported by the browser capture graph for this turn. */
+  captureSampleRate?: number;
   /** True once a captured frame contains non-trivial PCM amplitude. */
   signalObserved?: boolean;
+  /** Metadata-only wall-clock milestones used to decompose startup latency. */
+  captureStartedAtMs?: number | null;
+  firstCaptureAtMs?: number | null;
+  lastCaptureAtMs?: number | null;
+  firstSignalAtMs?: number | null;
+  firstSentAtMs?: number | null;
+  firstPartialAtMs?: number | null;
   sentSequence: number;
   processedSequence: number;
   retainedBytes: number;
@@ -135,7 +144,14 @@ export class StreamDiagnosticRecorder {
       state: "preparing",
       capturedSequence: -1,
       capturedSamples: 0,
+      captureSampleRate: undefined,
       signalObserved: false,
+      captureStartedAtMs: null,
+      firstCaptureAtMs: null,
+      lastCaptureAtMs: null,
+      firstSignalAtMs: null,
+      firstSentAtMs: null,
+      firstPartialAtMs: null,
       sentSequence: -1,
       processedSequence: -1,
       retainedBytes: 0,
@@ -169,13 +185,21 @@ export class StreamDiagnosticRecorder {
     this.snapshot.capturedSamples = Number(samples);
   }
 
+  captureRate(rate: number): void {
+    if (Number.isFinite(rate) && rate > 0) this.snapshot.captureSampleRate = rate;
+  }
+
   signalObserved(): void {
     this.snapshot.signalObserved = true;
-    if (this.firstSignalAtMs === 0) this.firstSignalAtMs = Date.now();
+    if (this.firstSignalAtMs === 0) {
+      this.firstSignalAtMs = Date.now();
+      this.snapshot.firstSignalAtMs = this.firstSignalAtMs;
+    }
   }
 
   sent(sequence: bigint): void {
     this.snapshot.sentSequence = Math.max(this.snapshot.sentSequence, Number(sequence));
+    if (this.snapshot.firstSentAtMs === null) this.snapshot.firstSentAtMs = Date.now();
   }
 
   processed(sequence: bigint): void {
@@ -200,6 +224,7 @@ export class StreamDiagnosticRecorder {
     this.snapshot.firstPartialLatencyMs = speechStartedAt > 0
       ? Math.max(0, Date.now() - speechStartedAt)
       : null;
+    this.snapshot.firstPartialAtMs = Date.now();
   }
 
   committed(): void {
@@ -214,13 +239,18 @@ export class StreamDiagnosticRecorder {
   }
 
   captureStarted(): void {
+    this.snapshot.captureStartedAtMs = Date.now();
     this.event("state", "capture_started");
   }
 
   captureObserved(): void {
     const now = Date.now();
-    if (this.firstCaptureAtMs === 0) this.firstCaptureAtMs = now;
+    if (this.firstCaptureAtMs === 0) {
+      this.firstCaptureAtMs = now;
+      this.snapshot.firstCaptureAtMs = now;
+    }
     this.lastCaptureAtMs = now;
+    this.snapshot.lastCaptureAtMs = now;
     this.event("state", "captured");
   }
 

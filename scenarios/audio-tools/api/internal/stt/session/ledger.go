@@ -53,10 +53,11 @@ type Chunk struct {
 }
 
 type Segment struct {
-	ID          string
-	Text        string
-	StartSample int64
-	EndSample   int64
+	ID            string
+	Text          string
+	StartSample   int64
+	EndSample     int64
+	SpeakerPolicy string
 }
 
 type Snapshot struct {

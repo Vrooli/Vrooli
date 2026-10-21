@@ -12,8 +12,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"sync/atomic"
 
+	"audio-tools/internal/acceptance"
 	"audio-tools/internal/conformance"
 	intexp "audio-tools/internal/experiment"
 	"audio-tools/internal/modulekit"
@@ -30,12 +30,7 @@ type Deps struct {
 	TestIsolationActive func() bool
 }
 
-// qualificationActive is process-local because the soak owns the one shared
-// BAS/browser and PipeWire qualification lane. The CLI performs a capacity
-// preflight for operator feedback, but admission must also be guarded here so
-// direct API callers cannot start concurrent server-owned runs between that
-// check and the POST.
-var qualificationActive atomic.Bool
+const requiredRealtimeTrustRuns = 3
 
 func Module(d Deps) modulekit.Module {
 	return modulekit.Module{
@@ -109,15 +104,12 @@ func serve(w http.ResponseWriter, r *http.Request, d Deps) {
 		writeError(w, http.StatusPreconditionFailed, "faulted soak runs require an active test-genie isolation lease")
 		return
 	}
-	if !qualificationActive.CompareAndSwap(false, true) {
-		writeError(w, http.StatusConflict, "a server-owned audio qualification is already running; wait for it to finish before starting another")
-		return
-	}
-	defer qualificationActive.Store(false)
-	// The qualification is server-owned. A CLI disconnect, PTY timeout, or
-	// orchestration cancellation must not close the browser lease halfway
-	// through a valid long-form capture. RunTimeout still bounds the detached
-	// work, and scenario stop remains the operator-level abort mechanism.
+	// The qualification is server-owned. BAS owns admission and capacity for
+	// isolated browser sessions; unrelated foreign sessions must not serialize
+	// this scenario's work. A CLI disconnect, PTY timeout, or orchestration
+	// cancellation must not close the browser lease halfway through a valid
+	// long-form capture. RunTimeout still bounds the detached work, and scenario
+	// stop remains the operator-level abort mechanism.
 	runCtx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), soak.RunTimeout(opt))
 	defer cancel()
 	result, runErr := soak.RunWithEvidence(runCtx, opt, d.Ledgers)
@@ -159,23 +151,53 @@ func persistQualificationEvidence(ctx context.Context, service *intexp.Service, 
 		"browser":              "playwright-driver",
 		"browser_product_path": true,
 	}
+	// The generic browser artifact remains useful for diagnostics. Add the
+	// target-aware envelope only when the run itself proves the narrow claim;
+	// this keeps the board join owner-backed without promoting virtual replay,
+	// short runs, or failed conformance documents.
+	deviceProfile := "D2"
+	if result.Run.Lane == "realtime" {
+		deviceProfile = "D1"
+	}
+	claims, claimsErr := acceptanceClaimsForRun(ctx, service, opt, result.Run)
+	if claimsErr != nil {
+		return fmt.Errorf("resolve realtime acceptance cohort: %w", claimsErr)
+	}
+	if opt.MobileRecovery && result.MobileRecoveryPassed && runErr == nil {
+		if claims == nil {
+			claims = map[string]any{}
+		}
+		claims["mobile-recovery"] = map[string]any{"in_band": true, "negative_controls_passed": true}
+	}
+	if claims != nil {
+		acceptanceMachine, acceptanceErr := acceptance.MachineJSON(result.Run, deviceProfile, acceptance.Cohort, acceptance.Policy, claims)
+		if acceptanceErr != nil {
+			return fmt.Errorf("encode acceptance evidence: %w", acceptanceErr)
+		}
+		var acceptance map[string]any
+		if err := json.Unmarshal(acceptanceMachine, &acceptance); err != nil {
+			return fmt.Errorf("decode acceptance evidence: %w", err)
+		}
+		for key, value := range acceptance {
+			machine[key] = value
+		}
+	}
+	if opt.MobileRecovery {
+		machine["mobile_emulation"] = map[string]any{"viewport_width": 390, "viewport_height": 844, "native": false, "diagnostic_export": result.MobileRecoveryPassed}
+	}
 	machineJSON, err := json.Marshal(machine)
 	if err != nil {
 		return fmt.Errorf("encode machine evidence: %w", err)
 	}
-	// Browser-product-path evidence answers whether the browser/ledger/product
-	// route completed. Recognition quality is a separate conformance assertion
-	// and must not erase proof that this route was exercised.
-	// A completed HTTP request is not the same thing as a qualified run. The
-	// driver returns a conformance document even when an assertion fails so
-	// callers can inspect the evidence; persisted trust-floor rows must mirror
-	// that verdict and never turn a partial run into a passing product/device
-	// record.
-	passed := qualificationRunPassed(result.Run, runErr)
+	// Browser-product-path evidence is target-aware: its Passed bit must match
+	// the independent acceptance claims carried in machine_json. Recognition
+	// quality is a separate conformance assertion and must not erase proof that
+	// the transport/provider obligations were exercised and passed.
+	passed := acceptanceClaimsPassed(claims, runErr)
 	if _, err := service.RecordQualificationEvidence(ctx, intexp.QualificationEvidence{
 		EngineID: opt.EngineID, ModelID: opt.ModelID, Strategy: opt.Strategy, PolicyProfile: opt.Policy,
 		Kind: trustfloor.QualificationBrowserProductPath, Passed: passed, ArtifactRef: artifactRef,
-		Notes:       "automated BAS browser product-path qualification; pass requires the complete conformance run",
+		Notes:       "automated BAS browser product-path qualification; Passed is scoped to the target-aware acceptance claims in machine_json",
 		MachineJSON: machineJSON,
 	}); err != nil {
 		return fmt.Errorf("record browser_product_path: %w", err)
@@ -217,7 +239,17 @@ func persistQualificationEvidence(ctx context.Context, service *intexp.Service, 
 		machine["audio_device_evidence"] = device
 		machine["device_path"] = "pipewire-host-device"
 	}
-	machineJSON, err = json.Marshal(machine)
+	// Device evidence is a separate qualification kind. Do not copy the
+	// browser acceptance envelope into it: a failed device row would otherwise
+	// look like a contradictory negative acceptance receipt to the board.
+	deviceMachine := make(map[string]any, len(machine))
+	for key, value := range machine {
+		deviceMachine[key] = value
+	}
+	for _, key := range []string{"target_revision", "method", "cohort", "build", "device_profile", "policy_revision", "corpus_revision", "acceptance"} {
+		delete(deviceMachine, key)
+	}
+	machineJSON, err = json.Marshal(deviceMachine)
 	if err != nil {
 		return fmt.Errorf("encode device evidence: %w", err)
 	}
@@ -237,6 +269,189 @@ func persistQualificationEvidence(ctx context.Context, service *intexp.Service, 
 
 func qualificationRunPassed(run conformance.Run, runErr error) bool {
 	return runErr == nil && run.Evaluate().Qualified
+}
+
+func acceptanceClaimsForRun(ctx context.Context, service *intexp.Service, opt soak.Options, run conformance.Run) (map[string]any, error) {
+	claims := acceptance.ClaimsForRealtimeRun(run)
+	if len(claims) == 0 {
+		return nil, nil
+	}
+	filter := intexp.QualificationEvidenceFilter{EngineID: opt.EngineID, ModelID: opt.ModelID, Strategy: opt.Strategy, PolicyProfile: opt.Policy}
+	history, err := service.ListQualificationEvidence(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	// Corpus-quality producers intentionally have no product policy profile;
+	// they qualify the held-out recognition cell independently of the browser's
+	// default policy. Keep the exact cell filter for the repeated product-trust
+	// gate, but use an engine/model-only view for the composite parity gate.
+	parityHistory, err := service.ListQualificationEvidence(ctx, intexp.QualificationEvidenceFilter{
+		EngineID: opt.EngineID, ModelID: opt.ModelID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	priorTrustRuns := 0
+	seenRuns := make(map[string]struct{})
+	for _, item := range history {
+		if !item.Passed || item.Kind != trustfloor.QualificationBrowserProductPath {
+			continue
+		}
+		var envelope map[string]any
+		if err := json.Unmarshal(item.MachineJSON, &envelope); err != nil {
+			continue
+		}
+		if envelope["target_revision"] != acceptance.TargetRevision || envelope["method"] != acceptance.Method ||
+			envelope["cohort"] != acceptance.Cohort || envelope["policy_revision"] != acceptance.Policy {
+			continue
+		}
+		runID, _ := envelope["run_id"].(string)
+		if strings.TrimSpace(runID) == "" {
+			continue
+		}
+		acceptanceMap, _ := envelope["acceptance"].(map[string]any)
+		// Older receipts may have been persisted before the trust claim was
+		// eligible. Count them when their owned run artifact independently
+		// proves the transport cohort; otherwise the claim gate deadlocks at
+		// the first receipt and can never reach the required repetition count.
+		if !claimInBand(acceptanceMap["dictation-trust"]) || !claimInBand(acceptanceMap["provider-evidence"]) {
+			if !realtimeTransportArtifactPassed(item.ArtifactRef) {
+				continue
+			}
+		}
+		if _, duplicate := seenRuns[runID]; duplicate {
+			continue
+		}
+		seenRuns[runID] = struct{}{}
+		priorTrustRuns++
+	}
+	if providerParityEligible(run, parityHistory) {
+		claims["provider-parity"] = map[string]any{"in_band": true, "negative_controls_passed": true, "attempts": run.Turns}
+	}
+	return claimsAfterTrustCohort(claims, priorTrustRuns), nil
+}
+
+// providerParityEligible is deliberately a composite owner gate. A stable
+// engine must have a complete long-form product-path run, paced interactive
+// evidence, a passing speaker-policy receipt, and a passing held-out corpus
+// receipt for the same provider cell. Inventory availability and a single
+// successful browser click are not parity evidence.
+func providerParityEligible(run conformance.Run, history []intexp.QualificationEvidence) bool {
+	if run.Lane != conformance.LaneRealtime || run.DurationMs < 60*60*1000 || run.Turns < 30 {
+		return false
+	}
+	if !transportAssertionsPassed(run,
+		"interval_accounting_exactly_once", "capture_signal_observed",
+		"browser_retention_bounded", "server_retention_bounded",
+		"per_frame_cost_constant", "zero_duplicate_committed_segments",
+		"zero_silent_terminal_outcomes", "provider_cell_identity",
+		"wire_rate_within_budget", "first_partial_latency_stable",
+		"committed_text_lag_stable", "continuous_interim_text_visible",
+		"word_error_rate_stable") {
+		return false
+	}
+	speakerPolicy, corpusQuality := false, false
+	for _, item := range history {
+		if !item.Passed || item.EngineID != run.Cell.EngineID || item.ModelID != run.Cell.ModelID {
+			continue
+		}
+		var envelope map[string]any
+		if err := json.Unmarshal(item.MachineJSON, &envelope); err != nil {
+			continue
+		}
+		if envelope["target_revision"] != acceptance.TargetRevision || envelope["method"] != acceptance.Method ||
+			envelope["cohort"] != acceptance.Cohort || envelope["policy_revision"] != acceptance.Policy ||
+			envelope["corpus_revision"] != acceptance.Cohort {
+			continue
+		}
+		providerCell, _ := envelope["provider_cell"].(map[string]any)
+		if len(providerCell) > 0 && (providerCell["engine_id"] != run.Cell.EngineID || providerCell["model_id"] != run.Cell.ModelID) {
+			continue
+		}
+		acceptanceMap, _ := envelope["acceptance"].(map[string]any)
+		if claimInBand(acceptanceMap["speaker-policy"]) {
+			speakerPolicy = true
+		}
+		if claimInBand(acceptanceMap["corpus-quality"]) {
+			corpusQuality = true
+		}
+	}
+	return speakerPolicy && corpusQuality
+}
+
+func realtimeTransportArtifactPassed(artifactRef string) bool {
+	if strings.TrimSpace(artifactRef) == "" {
+		return false
+	}
+	payload, err := os.ReadFile(artifactRef)
+	if err != nil {
+		return false
+	}
+	var run conformance.Run
+	if err := json.Unmarshal(payload, &run); err != nil {
+		return false
+	}
+	if run.Lane != conformance.LaneRealtime || run.DurationMs < 60*60*1000 || strings.TrimSpace(run.Fault) != "" {
+		return false
+	}
+	return transportAssertionsPassed(run,
+		"interval_accounting_exactly_once", "capture_signal_observed",
+		"browser_retention_bounded", "server_retention_bounded",
+		"per_frame_cost_constant", "zero_duplicate_committed_segments",
+		"zero_silent_terminal_outcomes", "provider_cell_identity",
+		"wire_rate_within_budget",
+	)
+}
+
+func transportAssertionsPassed(run conformance.Run, names ...string) bool {
+	byName := make(map[string]conformance.Assertion, len(run.Assertions))
+	for _, assertion := range run.Assertions {
+		byName[assertion.Name] = assertion
+	}
+	for _, name := range names {
+		assertion, ok := byName[name]
+		if !ok || assertion.Outcome != conformance.OutcomePassed {
+			return false
+		}
+	}
+	return true
+}
+
+func claimsAfterTrustCohort(claims map[string]any, priorTrustRuns int) map[string]any {
+	if len(claims) == 0 {
+		return nil
+	}
+	out := make(map[string]any, len(claims))
+	for name, claim := range claims {
+		if (name == "dictation-trust" || name == "provider-evidence") && priorTrustRuns+1 < requiredRealtimeTrustRuns {
+			continue
+		}
+		out[name] = claim
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+func claimInBand(raw any) bool {
+	claim, ok := raw.(map[string]any)
+	return ok && claim["in_band"] == true && claim["negative_controls_passed"] == true
+}
+
+func acceptanceClaimsPassed(claims map[string]any, runErr error) bool {
+	if runErr != nil {
+		return false
+	}
+	if len(claims) == 0 {
+		return false
+	}
+	for _, raw := range claims {
+		if !claimInBand(raw) {
+			return false
+		}
+	}
+	return true
 }
 
 func writeError(w http.ResponseWriter, status int, message string) {

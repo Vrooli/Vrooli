@@ -13,6 +13,13 @@ CREATE TABLE IF NOT EXISTS corpus_clips (
   format         TEXT NOT NULL DEFAULT '',
   blob_key       TEXT NOT NULL,
   source         TEXT NOT NULL DEFAULT 'free_form',
+  corpus_revision TEXT NOT NULL DEFAULT '',
+  license_reference TEXT NOT NULL DEFAULT '',
+  speaker_pseudonym TEXT NOT NULL DEFAULT '',
+  split          TEXT NOT NULL DEFAULT '',
+  noise_condition TEXT NOT NULL DEFAULT '',
+  snr_db         REAL NOT NULL DEFAULT 0,
+  content_sha256 TEXT NOT NULL DEFAULT '',
   created_at     TEXT NOT NULL
 );
 

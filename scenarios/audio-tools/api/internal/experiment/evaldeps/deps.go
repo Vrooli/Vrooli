@@ -24,6 +24,9 @@ func New(logger logx.Logger, corpusSvc *intcorpus.Service, providerForEngine fun
 			if corpusSvc == nil {
 				return nil, fmt.Errorf("eval corpus service is not configured")
 			}
+			if logger != nil {
+				logger.Printf("experiment corpus load started: requested_clip_count=%d", len(ids))
+			}
 			metas := make([]intcorpus.Clip, 0, len(ids))
 			if len(ids) == 0 {
 				all, err := corpusSvc.ListClips(ctx, intcorpus.ListFilter{})
@@ -31,6 +34,9 @@ func New(logger logx.Logger, corpusSvc *intcorpus.Service, providerForEngine fun
 					return nil, err
 				}
 				metas = all
+				if logger != nil {
+					logger.Printf("experiment corpus metadata loaded: clip_count=%d", len(metas))
+				}
 			} else {
 				for _, id := range ids {
 					clip, err := corpusSvc.GetClip(ctx, id)
@@ -41,7 +47,10 @@ func New(logger logx.Logger, corpusSvc *intcorpus.Service, providerForEngine fun
 				}
 			}
 			clips := make([]inteval.Clip, 0, len(metas))
-			for _, meta := range metas {
+			for index, meta := range metas {
+				if err := ctx.Err(); err != nil {
+					return nil, fmt.Errorf("load corpus canceled before clip %q (%d/%d): %w", meta.ID, index+1, len(metas), err)
+				}
 				audio, _, err := corpusSvc.GetClipAudio(ctx, meta.ID)
 				if err != nil {
 					return nil, fmt.Errorf("load audio for clip %q: %w", meta.ID, err)
@@ -51,6 +60,14 @@ func New(logger logx.Logger, corpusSvc *intcorpus.Service, providerForEngine fun
 					rate = 16000
 				}
 				clips = append(clips, inteval.Clip{ID: meta.ID, PCM: audio, SampleRate: rate, Reference: meta.ReferenceText, Format: meta.Format})
+				if (index+1)%10 == 0 || index+1 == len(metas) {
+					if logger != nil {
+						logger.Printf("experiment corpus audio loaded: clip_count=%d/%d", index+1, len(metas))
+					}
+				}
+			}
+			if logger != nil {
+				logger.Printf("experiment corpus load completed: clip_count=%d", len(clips))
 			}
 			return clips, nil
 		},

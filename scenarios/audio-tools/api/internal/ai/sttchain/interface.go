@@ -401,6 +401,9 @@ type SegmentEvent struct {
 	StartSample      int64
 	EndSample        int64
 	AlignmentQuality string
+	// SpeakerPolicy is populated by the egress gate for emitted segments so
+	// native streaming exposes applied vs degraded verification state.
+	SpeakerPolicy    string
 	DetectedLanguage string
 	// Per-segment trace; the chain may stamp these from the locked tier
 	// if the adapter doesn't fill them in.

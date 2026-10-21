@@ -28,13 +28,19 @@ func TestService_CreateGetAudioDelete(t *testing.T) {
 
 	audio := []byte{1, 2, 3, 4, 5, 6}
 	clip, err := svc.CreateClip(ctx, corpus.CreateClipInput{
-		Audio:         audio,
-		ReferenceText: "hello world",
-		Tags:          []string{"smoke"},
-		DurationMs:    320,
-		SampleRateHz:  16000,
-		Format:        "pcm_s16le",
-		Source:        corpus.SourceFreeForm,
+		Audio:            audio,
+		ReferenceText:    "hello world",
+		Tags:             []string{"smoke"},
+		DurationMs:       320,
+		SampleRateHz:     16000,
+		Format:           "pcm_s16le",
+		Source:           corpus.SourceFreeForm,
+		CorpusRevision:   "voice-pilot-en-v1",
+		LicenseReference: "fixture-license-1",
+		SpeakerPseudonym: "speaker-01",
+		Split:            corpus.SplitHeldOut,
+		NoiseCondition:   corpus.NoiseNoisy,
+		SNRDB:            20,
 	})
 	require.NoError(t, err)
 	require.NotEmpty(t, clip.BlobKey)
@@ -45,6 +51,13 @@ func TestService_CreateGetAudioDelete(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, audio, gotAudio, "audio round-trips byte-for-byte")
 	require.Equal(t, "hello world", gotClip.ReferenceText)
+	require.Equal(t, "voice-pilot-en-v1", gotClip.CorpusRevision)
+	require.Equal(t, "fixture-license-1", gotClip.LicenseReference)
+	require.Equal(t, "speaker-01", gotClip.SpeakerPseudonym)
+	require.Equal(t, corpus.SplitHeldOut, gotClip.Split)
+	require.Equal(t, corpus.NoiseNoisy, gotClip.NoiseCondition)
+	require.Equal(t, float64(20), gotClip.SNRDB)
+	require.Len(t, gotClip.ContentSHA256, 64, "stored clip must carry a content digest")
 
 	require.NoError(t, svc.DeleteClip(ctx, clip.ID))
 	require.Equal(t, 0, blobs.Count(), "delete removes the blob too")

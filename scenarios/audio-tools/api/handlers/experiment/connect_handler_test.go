@@ -327,6 +327,33 @@ func TestStartExperimentComputesEstimatedSecondsFromClipIDs(t *testing.T) {
 	require.Equal(t, 22, mgr.spec.EstimatedSeconds)
 }
 
+func TestStartExperimentRealtimeCellBudgetIncludesQualityPass(t *testing.T) {
+	mgr := &captureSubmitManager{}
+	h := NewConnectHandler(Deps{
+		Logger:  logx.Std{},
+		Manager: mgr,
+		Service: &intexp.Service{},
+		EstimateClipSeconds: func(_ context.Context, clipIDs []string) (int32, error) {
+			require.Len(t, clipIDs, 2)
+			return 11, nil
+		},
+	})
+
+	_, err := h.StartExperiment(context.Background(), connect.NewRequest(&experimentv1.StartExperimentRequest{
+		Name: "realtime-cell-budget",
+		Recipe: &experimentv1.ExperimentRecipe{
+			ClipIds: []string{"clip-a", "clip-b"},
+			Cells: []*experimentv1.EvaluationCell{{
+				EngineId: "kyutai", Strategy: "passthrough",
+				ReplayLane: experimentv1.ReplayLane_REPLAY_LANE_REALTIME, RepeatCount: 1,
+			}},
+		},
+	}))
+
+	require.NoError(t, err)
+	require.Equal(t, 13, mgr.spec.EstimatedSeconds, "11s paced duration plus the bounded unpaced quality allowance")
+}
+
 func TestStartExperimentEstimatedSecondsCannotUnderstateRecipe(t *testing.T) {
 	mgr := &captureSubmitManager{}
 	h := NewConnectHandler(Deps{
@@ -354,7 +381,7 @@ func TestStartExperimentRejectsExcessiveComputedDuration(t *testing.T) {
 	_, err := h.StartExperiment(context.Background(), connect.NewRequest(&experimentv1.StartExperimentRequest{
 		Recipe: &experimentv1.ExperimentRecipe{
 			Cells:    []*experimentv1.EvaluationCell{{EngineId: "kyutai", Strategy: "passthrough", ReplayLane: experimentv1.ReplayLane_REPLAY_LANE_REALTIME, RepeatCount: 2}},
-			LongForm: &experimentv1.LongFormRecipe{Enabled: true, TargetDurationSeconds: 1_801},
+			LongForm: &experimentv1.LongFormRecipe{Enabled: true, TargetDurationSeconds: 3_601},
 		},
 	}))
 	require.Error(t, err)

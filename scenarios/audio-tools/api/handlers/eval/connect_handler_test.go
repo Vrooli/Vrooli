@@ -82,7 +82,10 @@ func TestRunReportForCells_HonorsRealtimeLaneAndRepeatCount(t *testing.T) {
 	require.Len(t, report.PerStrategy, 1)
 	require.Len(t, report.PerStrategy[0].PerClip[0].LatencySamplesMs, 2)
 	require.Equal(t, "realtime", report.PerStrategy[0].ReplayLane)
-	require.EqualValues(t, 2, calls.Load(), "a realtime cell must not prepend an unpaced deterministic pass")
+	// Realtime cells intentionally retain one deterministic quality pass plus
+	// the requested paced latency repeats. The report keeps those measurements
+	// separate while the provider call count proves both lanes executed.
+	require.EqualValues(t, 3, calls.Load(), "a realtime cell must retain its deterministic quality pass and paced repeats")
 }
 
 func TestRunReportForCells_RejectsUnearnedEvidenceLanes(t *testing.T) {

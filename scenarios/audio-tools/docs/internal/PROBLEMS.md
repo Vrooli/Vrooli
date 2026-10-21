@@ -7,6 +7,246 @@ re-discovering the same constraint.
 This file ships empty in newly generated scenarios. Append entries as
 they appear.
 
+The 2026-09-16 50 ms PCM wire-batch experiment is rejected. Focused package
+tests showed duplicate replay frames after reconnect and a simulated-hour wire
+rate of 20/s against the 15/s bound. The production batch remains 1,600
+samples (about 100 ms); startup p95 must be repaired at the decoder/admission
+owner rather than by increasing transport event pressure.
+
+### 2026-09-17 — Long-turn recovery exceeded the browser terminal wait
+
+The fresh managed Kyutai real-duration cohort completed 29 long turns with
+normal provider closure, bounded retention, and visible partials. Its final
+turn entered the intended bounded Whisper recovery after Kyutai's empty native
+terminal; Whisper completed in 16.3 s, just beyond the product soak driver's
+15 s `captured` wait. The browser therefore reported the turn as unmeasured
+even though recovery was still progressing. Falsifiable intervention: give
+realtime terminal observation a bounded 60 s recovery window while retaining
+the separate provider/recovery diagnostics; do not classify a known in-flight
+recovery as a transport loss. Re-run the long-tail product path and retain any
+actual recovery failure.
+
+The 60-second observation window was verified by a fresh 120-second tail check:
+the turn reached a terminal state, but its quality remained out of band
+(WER 0.7419) and first-partial latency was 1,048 ms. The managed 0.30-second
+delayed-stream override therefore does not qualify as a replacement for the
+checkpoint's 0.5-second setting: the short smoke was green, but the long-form
+quality and latency evidence was not materially better than the accepted
+baseline. Revert the override and keep the terminal-wait repair independently.
+
+### 2026-09-16 — Long cohort startup p95 still has cold spikes
+
+The required receipt `browser-soak-1789596734079721301` passed capture,
+terminal, retention, provider identity, interim visibility, and committed-lag
+assertions for all 30 turns. First-partial p95 remained 1,286 ms, with a small
+number of 2.7 s startup spikes; long-turn fallback WER also varied widely.
+Falsifiable startup intervention: halve the shared PCM wire batch from 1,600
+to 800 samples so the decoder receives the first voiced batch about 50 ms
+earlier. Keep the 100 ms batch as the comparison and reject this change if
+focused timing or backpressure tests regress.
+
+### 2026-09-16 — Managed Kyutai segmentation must be explicit
+
+The isolated 120-second probe validated the terminal timing improvement but
+reported 96.7% WER because the managed Kyutai process still emitted no durable
+segments; the latest rolling partial was only a short tail. The source server
+defines a 48-frame continuous-speech force-commit policy, but the resource
+manifest did not explicitly pin that setting, leaving artifact/default drift
+unobservable. Falsifiable intervention: set
+`KYUTAI_STT_MAX_SEGMENT_FRAMES=48` in the managed resource environment and
+verify a long probe reports nonzero committed segments and quality before
+repeating the 30-turn acceptance cohort.
+
+The explicit managed setting was present in the built artifact, but the next
+120-second probe still produced zero API segments and nearly complete WER
+failure. Promoting the latest rolling partial is therefore not a valid
+long-form finalization strategy. The next intervention is to preserve the
+existing bounded Whisper recovery for an empty native terminal, but publish a
+`recovering` diagnostic state as soon as that fallback begins. This keeps
+processed coverage observable and prevents the voice button/harness from
+appearing stuck in `recording` while complete long-form text is recovered.
+
+### 2026-09-16 — Queued reconnects can strand Kyutai admission tickets
+
+The required 30-turn native browser cohort `browser-soak-1789591585701729803`
+entered repeated `provider_done` reconnects after a foreign stream occupied the
+local decoder. The resource log then showed an admission-timeout traceback
+while sending the timeout response to a client that had already disconnected.
+Inspection found that `FIFOAdmission.acquire` notified a queued client before
+entering its cancellation/timeout guard. A disconnect from that notification
+could therefore leave the future in the FIFO, consuming one of the eight
+bounded admission slots while the browser retried. The timeout response also
+treated a peer disconnect as an unexpected server error, obscuring the actual
+admission state.
+
+Falsifiable intervention: make queued notification part of the admission
+future's cancellation-safe region, and ensure the stream releases an acquired
+ticket exactly once on every post-admission failure. Add deterministic tests
+for notification failure and run a concurrent foreign-stream/reconnect probe;
+the long cohort must then complete its terminal/processed assertions without
+relaxing the 15-second harness timeout or any acceptance band.
+
+### 2026-09-16 — Long Kyutai passthrough turns fall into slow batch recovery
+
+The repaired admission path passed focused tests and a foreign-stream
+contention probe, but the fresh 30-turn cohort still failed 16 processed-ready
+assertions. The API logs show the common shape: a graceful 120-second Kyutai
+stream with hundreds of partials, all processed coverage acknowledged, zero
+segments, and an empty provider `Done` text. The browser correctly interpreted
+an empty terminal as incomplete native delivery and started bounded Whisper
+recovery; the 15-second harness timeout expired while that 5–15 second batch
+request was still running. This is a terminal-contract defect, not an
+admission-capacity result.
+
+Falsifiable intervention: retain the latest normalized passthrough partial in
+the API stream handler and use it as the terminal text when the provider emits
+an empty `Done` with no segments. This should keep complete native Kyutai turns
+on the streaming path, preserve the existing empty-audio recovery behavior,
+and make long-turn terminal delivery occur before the harness timeout. Add a
+handler regression test and rerun the required real-duration cohort.
+
+### 2026-09-16 — Preview-only VAD bypass is pending qualification
+
+Short, still-growing VAD preview windows were observed to return empty from
+Whisper before the next preview produced text. The preview request now bypasses
+the backend `vad_filter`; committed/final requests still use the configured
+operator policy. Strategy and validation tests pass, but deployment and a
+fresh paced browser cohort are required before attributing any latency change.
+
+**Owner:** Audio Tools STT preview strategy.
+
+### 2026-09-16 — Initial preview padding does not remove periodic latency spikes
+
+The VAD preview lane was tested with bounded trailing-silence padding for its
+first sub-second request, while final transcription remained unchanged. A
+fresh 30-turn browser cohort preserved capture, WER, interim visibility,
+retention, and provider invariants but still measured p95 first-partial latency
+of 1491 ms. The intervention is therefore not an acceptance fix and should not
+be reintroduced without a different empty-preview diagnosis.
+
+**Owner:** Audio Tools STT preview strategy.
+
+### 2026-09-16 — Kyutai product-path latency is backend-bound after capture
+
+Fresh D1 browser runs prove capture is not the startup bottleneck: the browser
+records its first accepted frame in roughly 27–48 ms and sends it within roughly
+125 ms. The API/resource path is correctly seated on `kyutai/stt-1b-en_fr` when
+the operator speaker filter is off, and native streaming emits visible partial
+text, but paced realtime first-partial latency remains 1.28–1.57 s p95 across
+three-turn cohorts, outside the approved 1 s band. A direct paced API probe with
+the same canonical fixture is roughly 0.73–0.83 s, so the remaining product
+variance is in browser/BAS pacing, resource admission/decoding, or the model's
+documented 0.5 s delayed-stream window—not microphone permission or
+AudioWorklet startup.
+
+The same runs exposed an independent policy interaction: with the persisted
+speaker filter enabled, the fixture is rejected by the enrolled profiles,
+Kyutai interim text is visible, and the browser correctly uses bounded Whisper
+recovery. That is valid speaker-policy behavior but cannot be reused as a
+Kyutai quality or provider-parity receipt. Keep speaker-off Kyutai runs labeled
+as controlled diagnostic cells until an approved matching speaker profile is
+available.
+
+**Refs:** `packages/audio-capture-browser/src/streamDiagnostic.ts`,
+`api/internal/soak/driver.go`, `resources/kyutai-stt/docs/OPERATIONS.md`.
+
+**Owner:** `execute/audio-tools-portable-voice-development`.
+
+### 2026-09-16 — Realtime qualification playback must be synchronized per turn
+
+The D1 browser soak uses a real host-visible PipeWire source. BAS previously
+started its looping WAV player during session construction, before navigation
+and the recording click. This allowed short fixtures to begin mid-utterance and
+made repeated turns observe different loop phases. A first repair added a
+bounded start delay; the stronger repair adds an owner-checked playback restart
+between turns while retaining the same browser/page session. The soak now
+requests this restart for every healthy realtime turn.
+
+Fresh synchronized evidence `browser-soak-1789553156986274094` passed provider
+identity, signal, interim visibility, terminal delivery, retention, and exact
+accounting. It still failed the approved latency p95 (1.17 s) and Kyutai WER
+(0.30–0.40), so no acceptance receipt was promoted. The delay and restart are
+qualification synchronization aids, not a relaxation of the D1 protocol.
+
+**Refs:** `scenarios/browser-automation-studio/playwright-driver/src/session/audio/device-evidence.ts`,
+`scenarios/browser-automation-studio/playwright-driver/src/routes/session-audio.ts`,
+`api/internal/soak/driver.go`.
+
+**Owner:** `execute/audio-tools-portable-voice-development` with BAS driver support.
+
+### 2026-09-16 — Reduced host-device loopback buffering; latency band still misses
+
+The BAS host-device qualification loopback used a fixed 100 ms PipeWire
+latency. The setting was reduced to 20 ms in the authorized BAS device-evidence
+owner and the driver was rebuilt and restarted. A fresh synchronized three-turn
+Kyutai cell (`browser-soak-1789553515207349738`) passed provider identity,
+capture, interim visibility, accounting, retention, memory, and wire-rate
+invariants. With the persisted speaker filter temporarily disabled for this
+controlled provider measurement, first-partial latency improved to 1,039 ms
+p95 (turns 740–996 ms), but remains just outside the approved 1,000 ms band;
+WER remained 0.20–0.30. The speaker filter was restored immediately afterward.
+
+The preceding run with the 100 ms loopback buffer was invalid for Kyutai
+latency because the configured speaker policy rejected the fixture and the
+browser correctly recovered through Whisper. The 20 ms change is retained as
+an infrastructure improvement, not as acceptance evidence.
+
+**Refs:** `scenarios/browser-automation-studio/playwright-driver/src/session/audio/device-evidence.ts`,
+`browser-soak-1789553515207349738`.
+
+**Owner:** `execute/audio-tools-portable-voice-development` with BAS driver support.
+
+### 2026-09-16 — Quality receipt producer omitted the evaluated safety gate
+
+The first fresh 180-clip `voice-pilot-en-v1` Kyutai report measured aggregate
+WER at 5.98%, but one clean clip produced a 27-word contiguous dropped span.
+The evaluation report correctly failed its safety gate; the quality-evidence
+producer only checked subgroup WER and emitted a passing target-aware
+`corpus-quality` receipt anyway. The producer now requires the report safety
+gate and has a regression proving that an in-band WER cannot override a safety
+failure. A replacement held-out run is in progress to emit the corrected
+negative receipt. Corpus quality remains unqualified until the clip-level
+safety failure is repaired and a fresh report passes.
+
+**Refs:** `api/internal/experiment/report/quality_evidence.go`,
+`api/internal/experiment/report/quality_evidence_test.go`.
+
+**Owner:** `execute/audio-tools-portable-voice-development`.
+
+### 2026-09-16 — Reconnect recovery can expose a stale sample cursor
+
+Fresh owner-backed realtime browser runs reached the reconnect/replay path after
+capturing more than one million samples. The persistent journal downgraded to
+bounded memory, then raised `capture_write_failed:sequence_mismatch`: the next
+frame sequence matched the journal cursor but its sample offset differed. This
+left the turn without a processed cursor or completed product result.
+
+The browser path now records bounded metadata-only cursor details and has a
+constrained reduced-durability repair for this exact next-sequence boundary.
+Unit coverage passes, but a fresh owner-backed run after the repair is still
+required before this problem can be closed or any dictation-trust claim can be
+promoted.
+
+### 2026-09-15 — Repeated microphone sessions can require refresh or restart
+
+Operator observation: a first speech-to-text session may work, while a later
+session in the same page can remain broken until the page is refreshed or the
+app is restarted. The self-improvement contract now requires at least five
+consecutive warm press/speak/transcribe/stop cycles in one page and browser
+context, with no refresh, restart, or manual recovery. Reproduce and instrument
+the lifecycle and transport reset path; keep this behavior unqualified until
+fresh owner-backed evidence passes every cycle.
+
+### 2026-09-15 — Microphone press-to-speech readiness is suspected above target
+
+Operator observation: after pressing the microphone control, the path can take
+several seconds before it accepts spoken input. The portable-voice interactive
+latency target already requires warm readiness p95 ≤500 ms; this entry clarifies
+that readiness ends at the first accepted voiced sample, not at button handling,
+permission resolution, stream creation, or a readiness banner. Reproduce this
+in the authorized browser cohorts, instrument each milestone, and repair the
+owner path. Keep the row unknown until current paced evidence proves the band.
+
 ### 2026-09-09 — Portable voice contract aligned; execution and qualification remain open
 
 The operator requested that Audio Tools documentation express the complete
@@ -259,6 +499,171 @@ continuous qualification that encountered the old failure remains non-credit.
 
 **Owner:** browser-automation-studio.
 
+### 2026-09-14 — Acceptance board join implemented; qualification receipts remain external
+
+**Symptom:** The live `audio-tools.setpoint-read` board sees persisted generic
+qualification records but has no target-aware owner-backed acceptance claims,
+so the 13 in-grant required rows remain unknown.
+
+**Root cause:** The experiment store previously exposed only generic provider
+qualification artifacts; it had no target-aware join for the adopted
+`portable-voice-v1` inventory. The required receipts themselves have not yet
+been produced by the D1/D2 product-path, corpus, route/settlement, lifecycle,
+and conformance qualifications.
+
+**Resolution:** The v3 read-only board now resolves rows only from explicit
+`audio-tools-acceptance-v1` receipt claims carrying the exact target revision,
+cohort, build, device, policy, and corpus identities, with passing negative
+controls. It rejects stale, malformed, mixed, failed, or simulated-as-native
+claims and reports the two excluded rows explicitly. Focused regression tests
+cover complete joins and stale/mixed-build rejection.
+
+**Remaining blocker:** A qualifying owner operation must produce current
+target-aware receipts. This requires the authorized D1/D2 qualification executions and
+their approved corpus/route/settlement evidence; the current workspace has no
+such receipts, live provider credentials, private corpus, physical native
+devices, or paid allowance. Until those owner artifacts exist, acceptance must
+remain unknown.
+
+**Owner:** Audio Tools qualification workflow and the named shared route,
+corpus, and settlement owners.
+
+**Refs:** `.vrooli/program-runtime/setpoint-read.py`, `docs/internal/TESTING.md`,
+`test/test_setpoint_read.py`.
+
+### 2026-09-14 — Target-aware receipt producer now guards the soak owner
+
+The server-owned soak path now builds the adopted acceptance envelope when a
+complete real-time 60-minute conformance run proves the narrow trust/evidence
+claims. Accelerated, short, failed, incomplete, or identity-less runs remain
+diagnostic-only. The envelope builder and negative controls are covered by
+`api/internal/acceptance` tests, and the soak owner package passes.
+
+This is producer plumbing, not qualification: the live board still reports 97
+generic receipts, zero target-aware claims, and 13 required rows unknown. The
+remaining rows require their own authorized D1/D2 local or simulated producers
+and current evidence; no receipt is manufactured from the existing generic
+history.
+
+**Refs:** `api/internal/acceptance/acceptance.go`,
+`api/handlers/soak/module.go`, Plan Manager execution
+`239232c2-26ef-4030-9b43-72b9f4d15af0`.
+
+### 2026-09-14 — Legacy experiment reports lacked provider identity
+
+The local experiment path was exercised after lifecycle restart and initially
+returned a successful clean-only report whose strategy row had empty
+`engine_id` and `model_id`. That made the measured WER unusable for any
+provider-neutral acceptance producer. Legacy strategy specs now resolve to the
+declared `whisper-local` engine and stamp the actual provider model (or the
+explicit `whisper-unknown` value) into every report row.
+
+Focused eval, report, acceptance and soak tests pass. A fresh live regression
+experiment `5358c131-7605-4480-92ce-bdbb14344a54` now reports
+`whisper-local`/`whisper-medium`/`vad_segment` with WER 0 for its one clean
+clip. This remains diagnostic: it is not a 60-utterance licensed held-out
+corpus, has no noisy cohorts, and does not produce an acceptance receipt.
+
+**Refs:** `api/internal/eval/runner.go`, `api/internal/eval/runner_test.go`.
+
+### 2026-09-16 — Kyutai 100 ms streaming resampling had a phase-reset defect
+
+**Symptom:** The held-out English clip decoded coherently with 1-second
+replay chunks but produced Vietnamese-like repeated text at the browser's
+100 ms cadence (WER 1.0). The live provider was healthy and receiving audio,
+so this was a correctness failure rather than a startup-only failure.
+
+**Root cause:** The Kyutai service independently applied
+`torch.interpolate(..., align_corners=False)` to every inbound 100 ms chunk.
+That reset the interpolation origin at each WebSocket boundary. The fix keeps
+one input/output cursor per stream and reproduces PyTorch's half-sample mapping
+across chunk boundaries, including the final clamped endpoint.
+
+**Evidence:** After a supported `vrooli resource install kyutai-stt
+--reacquire` and integrity-checked restart, experiment
+`1409ccb6-fb8c-4d29-b4d6-fe3689ec624d` ran the same held-out clip at 100 ms:
+WER 0.1591, zero dropped-span words, and the safety gate passed. This is a
+targeted regression result, not a cohort or acceptance receipt.
+
+**Refs:** `resources/kyutai-stt/server/server.py`,
+`resources/kyutai-stt/resource.json`.
+
+### 2026-09-16 — Kyutai server tests were importing the wrong module
+
+The resource Python tests inserted their own `test/` directory into
+`sys.path`, so `import server` could resolve an unrelated installed module
+instead of `resources/kyutai-stt/server/server.py`. The test seam now points
+explicitly at the resource server directory. The actual server state-machine,
+backpressure, and streaming-resampler suites pass 21/21; this closes a false
+green/false red measurement gap without changing runtime behavior.
+
+The resource quality entrypoint referenced the same incorrect `tests/` path.
+It now invokes the real `test/` suites, so `make test-python` is a working
+owner command rather than a dead measurement path.
+
+### 2026-09-14 — Corpus provenance was not representable
+
+The corpus service stored only transcript, tags, source, and audio shape. It
+could not prove a corpus revision, license/provenance reference, speaker
+subgroup, held-out split, clean/noisy condition, or content identity. A local
+clean-only corpus could therefore be mistaken for a quality cohort by a future
+producer.
+
+The corpus proto, SQLite schema/migration, service, RPC mapper, and import CLI
+now carry those fields; the service computes a SHA-256 content digest. A
+deterministic cohort assessor rejects missing or mismatched provenance,
+non-held-out clips, missing speakers/licenses/hashes, duplicate audio, fewer
+than 60 clips or 3,000 reference words, fewer than six speakers, and missing
+clean/20 dB/10 dB noisy cohorts.
+
+The live corpus was re-read after lifecycle restart and remains legacy
+diagnostic data (eight clean/scripted clips without the new metadata). The
+governed board remains `0/13` required rows resolved in
+`prog_f53863b7-d823-4c04-8eab-cae3f4995879`; no quality acceptance claim was
+manufactured.
+
+**Refs:** `packages/proto/schemas/audio-tools/v1/corpus/corpus.proto`,
+`api/internal/corpus/quality.go`, `api/internal/corpus/service.go`.
+
+### 2026-09-15 — Quality cohort gate is now an owner receipt producer
+
+The corpus assessor initially had no consumer. Completed server-owned
+experiments now emit one `corpus_quality` qualification artifact per strategy
+cell. The artifact contains a target-aware acceptance envelope, provider cell,
+cohort counts, subgroup WER measurements, and explicit failure reasons. The
+manager persists failed artifacts as well as passing artifacts. The experiment
+enum/mappers now preserve `corpus_quality` instead of serializing it as
+`UNSPECIFIED`.
+
+Live regression experiment
+`57282cfd-b9cc-4592-b552-8c7bbf3fbd45` produced receipt
+`6257686f-13e2-4ec7-9c95-a20acbbab823`: `passed=false`, eight legacy clips,
+167 reference words, zero speakers, no clean/noisy cohorts, and missing
+provenance. The fresh governed board
+`prog_34c73fee-38a5-4cf6-9beb-35d4e5f70e59` now explicitly reports
+`corpus-quality` as `failed:receipt_claim_out_of_band`, with one inspected
+target-aware receipt cohort and 0/13 required rows resolved.
+
+**Refs:** `api/internal/experiment/report/quality_evidence.go`,
+`api/internal/experiment/runner.go`,
+`packages/proto/schemas/audio-tools/v1/experiment/experiment.proto`.
+
+### 2026-09-15 — Latency claim lacked an attempt-count gate
+
+The target-aware soak producer could claim only the generic trust/provider
+rows, and the conformance run did not expose an explicit minimum-attempt gate
+for the adopted latency cohort. `ClaimsForRealtimeRun` now adds
+`interactive-latency` only for a qualified wall-clock run lasting at least 60
+minutes with `Turns >= 30`; accelerated, short, and single-turn runs remain
+ineligible.
+
+Focused acceptance, soak, and conformance tests pass. No live receipt was
+promoted by this code-only gate; the next eligible product-path run must still
+exercise the D1/D2 route/profile cohorts and provide the target-aware envelope.
+
+**Refs:** `api/internal/acceptance/acceptance.go`,
+`api/internal/acceptance/acceptance_test.go`.
+
 **Refs:** `playwright-driver/src/session/audio/device-evidence.ts`,
 `playwright-driver/tests/unit/session/audio-device-evidence.test.ts`.
 
@@ -361,6 +766,14 @@ live baseline transcription recorded in
 **Resolution (2026-05-27):** Implemented as a pre-recognition **ingress** stage, not an egress method (egress can only drop text; isolation must substitute audio). `resources/speaker-verification` `/v1/extract` now runs SepFormer source separation + ECAPA target-selection and returns the isolated 16 kHz mono s16le PCM. The Go side adds `ingress.TargetExtractor`/`ingress.ExtractionEnhancer` (`internal/stt/ingress/extraction.go`), the handler-layer adapter `speakerExtraction` + `currentSpeakerExtraction` (built only when `extraction_enabled` + a bound profile), wired in `Segmenter.buildIngress` (config-gated like denoise — no manifest flag) and reachable via `audio-tools stt speaker-config --extraction-enabled`. The orphaned `pipeline.ExtractTargetSpeaker` (egress-shaped, zero callers) was deleted. Tested with fakes: `internal/stt/ingress/extraction_test.go`, `internal/stt/segmenter/ingress_build_test.go`, `handlers/stt/speaker_extraction_test.go`; resource non-model paths in `test/integration-test.sh`.
 
 **Pending (environment-gated):** the separation-model spike — which SepFormer checkpoint + match threshold work best on real two-speaker audio, and CPU-vs-GPU latency — needs a GPU + model download + a live two-speaker A/B. Default OFF; degrades to passthrough if the resource/model is unavailable. See `resources/speaker-verification/docs/extraction.md`.
+
+**Interactive tuning (2026-09-16):** the initial implementation buffered ~3 s
+before the first extraction call, which made the browser voice button appear
+unresponsive whenever an operator had extraction enabled. The default ingress
+window is now ~800 ms (25,600 bytes at canonical 16 kHz mono s16le); callers that
+prioritize separation quality may still provide a larger `WindowBytes`. This is
+a latency/quality tuning change, not acceptance evidence; a fresh product-path
+cohort is still required.
 
 **Owner:** unassigned.
 
@@ -1371,13 +1784,26 @@ stale binary, so its reported docs pass is not current-source validation. Report
 **Remaining work:** Adopt the reviewed proposal through the product owner before
 changing the published PRD/requirements; nominate physical devices and authorized
 recordings; build and pin the proposed `voice-pilot-en-v1` corpus; resolve the
-shared billing policy decisions; implement authoritative current-receipt joins
-for the unknown outcome rows. The board is a working diagnostic instrument, not
+shared billing policy decisions; produce current target-aware receipts through
+the now-implemented authoritative current-receipt join for the unknown outcome
+rows. The board is a working diagnostic instrument, not
 a completed autonomous product-acceptance gate. Runtime streaming, soak,
 cross-device, BYOK and hosted monetization qualification remain untested by this
 setup pass. These limitations do not block authorized local diagnosis and repair.
 
 ## Cross-references
+
+### 2026-09-14 — Qualification producer is an in-scope mandate obligation
+
+The evidence board is intentionally read-only, but the active portable-voice
+mandate grants the local D1, constrained D2, open-licensed corpus, and simulated
+BYOK/owned lanes. Therefore the absence of a target-aware qualification
+producer or current receipt is a W3 implementation gap, not an external
+blocker. The campaign must build or repair the owner operation, run it, and
+join its receipts before returning an assessment. Private recordings, physical
+D3-D6 devices, live keys, and paid-provider access remain excluded decisions.
+This entry supersedes older wording in this register that describes all
+qualification receipts as external work; those entries remain historical.
 
 - [`PROGRESS.md`](PROGRESS.md) — lifecycle log (forward-looking)
 - [`SEAMS.md`](SEAMS.md) — boundary registry (load-bearing for tests)
@@ -1413,3 +1839,785 @@ Neither permits a claim that unread requirements or failed gates have passed.
   engines, 1 native-streaming engine, 4 capabilities); acceptance `unknown`. The
   board reads; owner-backed receipt joins remain unimplemented. This is an
   inventory read, not voice evidence.
+
+### 2026-09-13 — Findings carried over from archived Swarm items
+
+**Symptom:** Nine Swarm backlog items held diagnosed Audio Tools defects outside
+this register. They were archived (status `dropped`) because the single mandate
+item `execute/audio-tools-portable-voice-development` now owns every Audio Tools
+outcome. The claims below were last verified between 2026-07-06 and 2026-09-05.
+Re-check each against HEAD before acting; some may already be fixed.
+
+**Root cause (per item, as diagnosed then):**
+- **Dictation loss at the session deadline** (OT-P0-005; was
+  `fix/stt-stream-session-deadline-loss-proofing`). `api/handlers/stt/stream_ws.go:84`
+  set an absolute 5-minute `context.WithTimeout`. On expiry the final flush in
+  `vad_segment.go:336-342` ran on the dead context, so buffered audio was dropped
+  and the final text was empty. `backend_recovery.go:119` excluded deadline errors
+  from recovery. The raw error string reached the UI (`stream_ws.go:181`). The
+  web-console client discarded retained chunks instead of using
+  `attemptHttpFallback`. The operator lost minutes of dictation on 2026-07-05.
+  Intended fix: a sliding idle deadline, a fresh-context final flush, honest
+  error mapping, and client fallback.
+- **No incremental commit under continuous speech** (OT-P0-005; was
+  `execute/vad-segment-max-cut-incremental-commit`). VADSegment committed a segment
+  only after 1200 ms of silence (`vad_segment.go:308`), with no max-window cut.
+  Operator decision 2026-07-06: stay on VADSegment; no work on OverlapAgree.
+  Intended fix: a `VADMaxSegmentMs` forced cut, following OverlapAgree's
+  `MaxWindowMs` pattern. Validate its WER impact in Dictation Studio.
+- **Speaker verification inert** (OT-P0-003; was
+  `fix/speaker-verification-vad-device-mismatch`). Every `/v1/verify` call returned
+  HTTP 400 from 2026-05-28 (13,006 calls). `resources/speaker-verification/docker/vad.py:254`
+  moved Silero VAD to CUDA but `trim()` passed a CPU tensor. The verify error
+  meant `Applied=false`, which `session_speaker.go:55` treated as "never reject",
+  so the filter passed everything. New enrollments failed on the same path.
+  SepFormer extraction worked. Intended fix: correct the tensor device, rebuild
+  the container, and add a verify error-rate signal to `stt speaker-status`.
+- **Quality gates bypassed on the native-streaming path** (OT-P0-002/003; was
+  `execute/kyutai-path-speaker-gate`). The egress `SpeakerStage` short-circuited on
+  segments without PCM (`internal/stt/egress/speaker_stage.go`), so kyutai skipped
+  the speaker gate, the hallucination filter and confidence gating. Degraded-resource
+  behaviour (`fallback_without_verification:false`, `mode:filter`) was ambiguous.
+  Related plan: `speaker-verification-quality-overhaul-tiers-1-2`.
+- **Speaker calibration, rejection UX and enrollment reuse** (OT-P0-003; was
+  `execute/speaker-verification-polish-enrollment-reuse`). The runtime threshold was
+  0.4 against a server default of 0.5 (hybrid aggregation), and was never
+  calibrated. Dictation Studio clips are already 16 kHz mono s16le PCM. The
+  `speaker enroll --file` CLI needs only a WAV header wrap.
+- **No engine dimension in Dictation Studio** (OT-P1-001; was
+  `execute/dictation-studio-engine-dimension`). `EvalStrategy` (`eval.proto:24-35`)
+  had no engine selector, and the provider was hard-wired at `bootstrap.go:213`.
+  Kyutai serves one stream at a time (`capabilities.yaml:95`), and its capacity
+  degrade is a full unload.
+- **Broad test-suite failures** (was `chore/audio-tools-suite-green-up`). The
+  2026-07-05 full run failed on api 18, unit 62 and security 382 findings, mostly
+  pre-template conformance debt but including real security findings.
+- **Soak metrics not adopted** (was `fix/test-genie-audio-tools-metrics-adoption-regression`).
+  On 2026-09-05 Test Genie health reported `audio-tools/soak` `metricsAdopted=false`
+  (`metrics_missing`, `concurrency_declaration_missing`).
+- **Superseded plan still reading as open** (was `chore/audio-plan-records-hygiene`).
+  Plan `audio-tools-stt-experiment-lab-remediation-extensibility` is superseded:
+  its safety-winner and speaker-wiring phases shipped in commit `e2384cfb83`.
+
+**Workaround:** None recorded beyond each item's notes.
+
+**Real fix:** The mandate's improvement loop, prioritized by the setpoint board.
+Delete a bullet when its row reads in band or its defect is verified fixed.
+
+**Owner:** `execute/audio-tools-portable-voice-development`.
+
+### 2026-09-16 — Browser speech clock and paced-session qualification findings
+
+The browser stream diagnostic measured first partial from the first PCM callback,
+which included device warm-up/leading silence and did not match the adopted
+speech-to-visible-partial protocol. It now records the first non-trivial PCM
+sample separately and anchors the latency clock there. The approved p95 gate is
+also enforced by the owner soak harness; a 30-turn D1 Kyutai cohort measured
+first/last values of 1291/939 ms and is therefore not acceptance evidence for
+the <=1000 ms p95 target.
+
+A 50 ms wire-batch experiment changed one-turn first partial from 1189 ms to
+1175 ms, so it was rejected as non-material and the production default remains
+100 ms. A 30-turn run using a sparse 20 s fixture observed signal on only 13/30
+turns; a continuous speech-loop fixture produced signal and interim text on
+30/30 turns. The sparse-fixture result is retained as a harness/source finding,
+not a product success or quality receipt.
+
+**Refs:** `packages/audio-capture-browser/src/streamDiagnostic.ts`,
+`api/internal/soak/driver.go`, `api/internal/soak/driver_test.go`.
+
+**Owner:** `execute/audio-tools-portable-voice-development`.
+
+### 2026-09-14 — Legacy experiment reports lacked provider identity
+
+The local experiment path was exercised after lifecycle restart and initially
+returned a successful clean-only report whose strategy row had empty
+`engine_id` and `model_id`. That made the measured WER unusable for any
+provider-neutral acceptance producer. Legacy strategy specs now resolve to the
+declared `whisper-local` engine and stamp the actual provider model (or the
+explicit `whisper-unknown` value) into every report row.
+
+Focused eval, report, acceptance and soak tests pass. A fresh live regression
+experiment `5358c131-7605-4480-92ce-bdbb14344a54` now reports
+`whisper-local`/`whisper-medium`/`vad_segment` with WER 0 for its one clean
+clip. This remains diagnostic: it is not a 60-utterance licensed held-out
+corpus, has no noisy cohorts, and does not produce an acceptance receipt.
+
+**Refs:** `api/internal/eval/runner.go`, `api/internal/eval/runner_test.go`.
+
+**Refs:** Archived items above (history retained in Swarm Manager).
+
+### 2026-09-14 — Evidence envelope shape hardened
+
+**Symptom:** A malformed `ListQualificationEvidence` response could be
+interpreted as an empty owner receipt list by the board.
+
+**Root cause:** The program projected a missing repeated `evidence` field to
+`[]`, making transport/schema damage indistinguishable from measured empty
+telemetry.
+
+**Resolution:** The board now preserves malformed envelopes as shape failures;
+only an explicit empty repeated field is reported as empty telemetry. A focused
+regression covers the missing-field negative control.
+
+**Remaining:** The live owner store still has no target-aware
+`audio-tools-acceptance-v1` receipts, so the 13 required rows remain unknown.
+
+**Owner:** `execute/audio-tools-portable-voice-development`.
+### 2026-09-16 — First-batch admission overlap removes only a small startup bubble
+
+**Finding:** A fresh D1 Chromium one-turn Kyutai run after the managed resource
+reacquire measured speech-to-visible-partial at 1,292 ms with the API adapter
+waiting for Kyutai `ready` before forwarding the first PCM batch. The adapter
+was changed to forward exactly that first bounded batch after the validated
+`start` frame, while holding later batches until `ready`; the focused provider
+suite passes and the rebuilt API was verified by its new build identity.
+
+The matched browser rerun measured 1,261 ms (server owner log: first audio
+frame 220 ms; first partial 1,425 ms from stream start). This is a 31 ms
+improvement, but remains outside the approved speech-to-visible target of
+1,000 ms. The remaining delay is in Kyutai's first-token decode path, not the
+browser WebSocket handshake. The row remains unresolved until a current
+30-attempt paced cohort and the required quality/reliability protocols pass.
+### 2026-09-16 — Current 30-turn browser cohort confirms reliability but not latency
+
+Fresh owner-backed run `browser-soak-1789547720901983992` used the current
+Audio Tools API build `sha256:59df5d61fbb0718479eac9ce2e7536f87ea29a087cc1e1868d2b666d35fa35d2`,
+Kyutai `kyutai/stt-1b-en_fr`, D1 Chromium, realistic realtime pacing, and 30
+looped speech turns. All 30 turns observed non-silent signal, continuous
+interim text, exact interval coverage, bounded browser/server retention, unique
+committed segments, and terminal outcomes. The enforced latency assertion
+failed honestly: speech-to-visible first-partial p95 was 1,290 ms (first 1,068
+ms, last 1,074 ms), above the approved 1,000 ms target. The latency row remains
+out of band; the reliability observations are not a substitute for the
+required quality, repetition, or 60-minute protocols.
+### 2026-09-16 — Product-path latency decomposition and canonical PCM fast path
+
+Fresh owner-backed browser cohort `browser-soak-1789551294582746873` exposed
+metadata-only milestones: capture start → first capture 27ms, first voiced
+sample 48ms, first frame sent 125ms, but first visible partial 1330ms. Repeated
+same-framing API probes were 726–737ms, establishing that browser capture was
+not the bottleneck and that the product segmenter/stream path added roughly
+540ms.
+
+The segmenter was routing already-declared `pcm_s16le` Kyutai frames through an
+identity decoder relay even though the provider's `requires.pcm16kMono`
+requirement was already satisfied. The canonical `passthrough` path now skips
+that redundant relay; non-canonical formats and VAD/overlap strategies retain
+normalization. Focused segmenter/sttchain tests pass. The first post-deploy
+qualification attempt after this change was invalid for the Kyutai cell because
+the browser was seated on `whisper-local`; the engine-resolution state must be
+re-established before measuring the fast path. No latency or quality acceptance
+claim is made from that run.
+### 2026-09-16 — First real-browser voice start serialized AudioWorklet loading
+
+**Symptom:** The first real-browser voice turn could spend the full
+`AudioWorklet.addModule()` load after microphone acquisition and journal
+restoration, extending the button-to-first-PCM interval even though the stream
+transport was already preconnected.
+
+**Fix:** `useVoiceCore` now preloads the shared capture module from the explicit
+voice gesture. `createCanonicalPcmCapture` reuses the same per-context promise,
+so module loading overlaps device setup without holding an idle microphone or
+creating an audio graph before user intent. The webdriver fake-media path keeps
+its immediate ScriptProcessor fallback.
+
+**Evidence:** `packages/audio-capture-browser/src/pcmCapture.test.ts` covers the
+preload seam; the browser package build and focused capture/startup suite pass.
+### 2026-09-16 — Whisper browser soak routed through batch VAD but first text still waited for the silence boundary
+
+The corrected-port D1 browser cohort proved that capture, WebSocket delivery,
+Whisper selection, and VAD segmentation were healthy, but its first visible
+partial p95 was 2.934 seconds. The live log showed the first Whisper request
+arriving only at the 3-second persisted VAD silence threshold; the existing
+preview lane was too late to meet the interactive target on short browser
+turns. The production defaults now preview every 500 ms over a bounded 3-second
+tail, preserving single-flight/load and retention safeguards. A follow-up
+probe confirmed the setting is live, but the first effective server batch is
+still about 3 seconds in the BAS host-device path, so the latency target is
+not yet met. The failed 30-turn receipt is retained as the before measurement;
+the next intervention must measure browser-to-server batch cadence before
+another acceptance cohort is attempted.
+
+### 2026-09-16 — Preview-only VAD-filter bypass did not bring browser latency in band
+
+Fresh owner-backed cohort `browser-soak-1789569280493024710` ran after the
+preview-only VAD-filter change on API build
+`sha256:912d3e233f8dba7937cf683da862fd8b68d61c3e0d8736d512dc89894353fe96`.
+All capture, transport, retention, interim-text, terminal, and quality checks
+passed across 30 realtime turns. The enforced latency assertion still failed:
+speech-to-visible first-partial p95 was 1,500 ms (target <=1,000 ms; first
+929 ms, last 899 ms). The intervention is rejected for the latency target;
+the next investigation must explain the periodic product-path scheduling
+spikes rather than treating preview filtering as the bottleneck.
+
+### 2026-09-16 — Startup-only extraction window did not bring browser latency in band
+
+Fresh owner-backed cohort `browser-soak-1789571306035045389` on the startup
+short-window build measured speech-to-visible first-partial p95 at 2,151 ms
+(target <=1,000 ms). Capture, transport, retention, terminal, and interim
+visibility assertions passed, but the quality assertion had two outlier turns.
+Runtime logs showed that the 400 ms extracted window was not previewed until
+the 500 ms byte threshold was crossed by the following extraction batch. The
+intervention is rejected; the next controlled change is a 250 ms preview
+cadence.
+
+### 2026-09-16 — 250 ms preview cadence has no valid qualification yet
+
+The API build for the 250 ms preview-cadence intervention passed focused STT
+tests and reported source identity
+`53d3cd278c397b19febd6ecfa40e2d1777be75689706cd995f4b63e8c32b683e`. The first
+owner attempt was blocked by BAS's full 10-session pool; after lifecycle
+recovery, cohort `browser-soak-1789571977798893373` lost its page before the
+processed marker, so latency and quality were not measured. A subsequent
+attempt hung before issuing an API request while BAS had no active recording.
+This intervention remains unqualified and must not be treated as a pass or
+failure until a complete owner-backed cohort is obtained.
+
+### 2026-09-16 — 500 ms initial extraction reduced but did not close latency gap
+
+Complete cohort `browser-soak-1789572623397995018` passed capture, transport,
+retention, provider identity, interim visibility, terminal, and WER checks over
+30 turns. First-visible-partial p95 improved to 1,199 ms (target <=1,000 ms;
+first 539 ms, last 447 ms), but periodic Whisper responses of about 400 ms and
+occasional empty first previews kept the latency assertion out of band. The
+next controlled change is a host-qualified Whisper thread-count increase from
+12 to 16.
+
+### 2026-09-16 — Native Whisper 16-thread tuning worsened browser latency
+
+Owner-backed cohort `browser-soak-1789573069364112812` completed all 30 turns
+with Whisper running at `-t 16`. Functional, retention, provider, interim, and
+WER checks passed, but first-visible-partial p95 was 1,268 ms, worse than the
+12-thread baseline of 1,199 ms. The resource is restored to `-t 12`; this
+experiment is rejected.
+
+### 2026-09-16 — Whisper 16-thread tuning and preview timestamp omission were rejected
+
+The live resource is restored to its measured 12-thread baseline after
+`browser-soak-1789573069364112812` worsened first-visible p95 to 1,268 ms.
+The follow-up preview-only timestamp omission was also rejected by complete
+cohort `browser-soak-1789573650103329679`: p95 was 1,202 ms versus the
+1,199 ms baseline. All requests retain the existing timestamp contract.
+
+### 2026-09-16 — 250 ms cadence still has an empty-first-preview outlier
+
+Clean diagnostic cohort `browser-soak-1789572403274586838` passed product-path
+capture, transport, retention, provider identity, interim visibility, terminal,
+and WER checks across three turns. First-visible-partial p95 was 1,287 ms:
+two turns were 853/914 ms, while an empty first preview produced the outlier.
+This is diagnostic evidence only. The next controlled change increases the
+initial extraction window to 500 ms to reduce that empty-preview path.
+
+The complete owner-backed timestamp experiment
+`browser-soak-1789573650103329679` measured first-visible p95 1,202 ms,
+effectively unchanged from the 1,199 ms baseline. The experiment is rejected
+and the existing preview timestamp contract is restored.
+
+### 2026-09-16 — Provider identity was emitted after the processed acknowledgement
+
+The Kyutai product-path diagnostic selected the correct engine and reached a
+terminal server status with `provider=kyutai` and
+`model=kyutai/stt-1b-en_fr`, but the browser diagnostic sampled identity before
+that status because Audio Tools queued `provider_identity` after the processed
+acknowledgement. This made the provider-parity assertion observe blank/old
+identity. The wire order is being repaired so identity precedes the
+acknowledgement; no parity claim is promoted from the affected run.
+
+The browser recovery path also overwrote the primary Kyutai identity with the
+Whisper provider used for its bounded final-text fallback. The diagnostic
+recorder must preserve the first streaming identity; fallback execution is a
+separate recovery event and cannot relabel the qualified provider cell.
+
+### 2026-09-16 — Kyutai identity repair passed; steady-state latency is in band
+
+After the browser recovery fix and server identity-ordering fix were deployed,
+`browser-soak-1789574964544802940` observed
+`provider=kyutai`, `model=kyutai/stt-1b-en_fr` for all three turns. The short
+diagnostic still measured a cold-start first-partial p95 of 1,831 ms, so it is
+not qualification evidence. The complete 30-turn cohort
+`browser-soak-1789574998894105269` passed provider identity, interim visibility,
+WER, retention, memory, terminal, and wire-rate assertions; first-partial p95
+was 718 ms (first 802 ms, last 706 ms), inside the <=1,000 ms target. This
+separates a first-provider-activation bubble from the steady-state streaming
+path. The remaining qualification gap is the required target-aware 60-minute
+evidence, including committed-text lag.
+
+The follow-up instrumentation repair is scoped to the measurement seam: when a
+route emits no `segment-final` event, its terminal final supplies the
+stop-to-final-tail observation; when segment commits exist, terminal delivery
+does not overwrite their committed-lag measurement. The shared package
+regression covers this non-segmenting case before the next qualification run.
+
+### 2026-09-16 — Long-form soak expired at the server timeout boundary
+
+The target-aware 30-turn realtime cohort
+`browser-soak-1789575330195205848` ran for approximately 60 minutes but its
+single BAS execution request ended at the Audio Tools server's 65-minute
+context deadline. The resulting artifact contains only `not_measured`
+assertions and is rejected; it is not audio failure evidence. The producer
+timeout now allows ten minutes of post-capture headroom (70 minutes for this
+cohort), while accelerated runs retain their existing budget. Focused timeout
+regressions cover the revised contract. A fresh cohort is required.
+## 2026-09-16 — Processed readiness remained hidden behind stale diagnostic state
+
+The fresh realtime cohort `browser-soak-1789579561160178070` captured and sent
+1,936,720 samples through Kyutai, observed a 720 ms first partial and 117 ms
+terminal-tail lag, and received processed acknowledgement through sequence
+1217. Its browser step nevertheless timed out waiting for
+`dictation-turn-processed-ready`, leaving all 16 assertions `not_measured`.
+
+The exported diagnostic identified the cause: `DictationRecorder` changed its
+local React state to `recording`, but `PcmVoiceStreamProvider` never changed
+the shared diagnostic state from `preparing`. The readiness selector correctly
+excluded that stale state, so this was a product/harness observability defect,
+not evidence of slow backend transcription. The provider now marks the turn
+`recording` after capture setup, and a regression test covers the transition.
+
+## 2026-09-16 — Long-form cohort exposed terminal-lag and quality-source gaps
+
+Fresh target-aware cohort `browser-soak-1789582387294769051` completed all 30
+realtime turns in 3,879,005 ms. Thirteen assertions passed, while the approved
+latency p95 was 1,063 ms (target <=1,000 ms), committed-text lag was
+`not_measured`, and WER failed on every turn. The run is rejected for
+qualification and no threshold is changed.
+
+The evidence shows two measurement-seam defects: Kyutai's terminal diagnostic
+reported a 117 ms committed tail, but periodic snapshots carried no committed
+lag and the harness discarded the terminal fallback; and quality was scored
+from the UI's latest final field even though the Audio-owned server ledger
+contains the complete committed segments for the turn. The soak driver now
+uses terminal committed lag only when periodic lag is absent, and grades from
+the owner ledger when committed segments exist. Regression tests cover both
+paths. A fresh cohort is required after rebuild; the 1,063 ms latency result
+remains an open product performance failure.
+## 2026-09-16 — Long turns queued every processed cursor ahead of terminal delivery
+
+The fresh 30-turn realtime cohort `browser-soak-1789586966795218198` captured
+full processed coverage and low-level first-partial/committed-lag telemetry, but
+the browser timed out waiting for `dictation-turn-processed-ready`. The final
+diagnostic still showed `doneSent=true`, `processedSequence=1218`, and
+`final_pending`; the API log recorded a graceful completed stream. A 120-second
+turn therefore produced roughly 1,200 processed acknowledgement frames, all
+queued as durable egress messages ahead of terminal delivery. This is a real
+delivery/backpressure defect, not a threshold issue.
+
+The intervention coalesces processed acknowledgements to their newest monotonic
+cursor, promotes that cursor immediately before a committed/terminal message,
+and keeps provider identity plus terminal messages lossless. The new writer
+regression test exercises 1,200 acknowledgements and asserts a two-message
+coverage/terminal queue. The long-form qualification must be rerun after the
+owner deploys this source hash; the failed cohort remains rejected evidence.
+## 2026-09-16 — Kyutai startup warmup was too short for first-partial latency
+
+After the egress-queue fix, a fresh 120-second realtime turn completed, but its
+first visible partial was 3.34 s. A warm 4-second follow-up still measured
+1.92 s, while capture-to-wire was ~200 ms and committed-text lag was ~110 ms.
+The resource was CUDA-backed and healthy, so this isolated the delay to lazy
+decoder/kernel initialization rather than browser capture or WebSocket
+admission.
+
+The resource default warmup increased from 8 to 32 silent model-rate frames,
+and the managed-service environment was updated to pass the same value. After
+restarting the owner, the identical 4-second probe measured first-partial p95
+834 ms and passed all other realtime assertions. This remains a falsifiable
+short-probe result; the required 60-minute cohort is the next acceptance
+evidence.
+## 2026-09-16 — Long-form cohort hit Kyutai admission/reconnect failure after foreign stream
+
+The fresh owner-backed cohort `browser-soak-1789591585701729803` was rejected.
+After an unrelated 30-second stream, the cohort's logical session repeatedly
+reconnected with zero-duration provider closes. The resource then timed out
+queued admissions while the browser retained audio; the final diagnostic showed
+`processedSequence=304` versus `capturedSequence=1431`, `backend_degraded`,
+`reconnecting`, and bounded `http_fallback` recovery. The harness correctly
+marked 16 assertions failed or unmeasured; this receipt is not acceptance
+evidence.
+
+The resource log also records an admission-timeout client-disconnect traceback
+while attempting to send the timeout frame. This points to a cleanup/admission
+boundary defect or owner/resource routing contention, not a latency-band issue.
+The 32-frame warmup short probe remains valid, but the 30-turn cohort must be
+rerun after the admission/reconnect path is repaired and independently tested.
+
+## 2026-09-16 — Kyutai delayed-stream setting is the remaining warm start candidate
+
+Two fresh five-turn owner-backed cohorts (`browser-soak-1789600867470099420`
+and `browser-soak-1789600941182579767`) passed transport, terminal, retention,
+repeated-session, interim-visibility, and WER checks. Their first visible
+partials were 705–847 ms. Browser preconnect and first-audio timing are already
+instrumented; the live Kyutai resource still applies its model-configured
+`audio_delay_seconds=0.5`, so the remaining wait is in the delayed-stream
+decoder rather than the voice button or WebSocket handshake.
+
+Falsifiable intervention: make the delay an explicitly bounded resource
+setting and probe 250 ms. Accept the change only if speech-to-visible-partial
+improves materially while the clean-corpus WER, terminal tail, committed lag,
+and recovery checks remain in band. A quality or recovery regression rejects
+the setting and leaves the current 500 ms value in force.
+
+Result: rejected. The owner-backed five-turn probe
+`browser-soak-1789601834523620125` ran with the verified 250 ms setting and
+passed its transport, recovery, interim-text, lag, and WER checks, but first
+partials were still 706–811 ms. This is not a material improvement over the
+known 500 ms cohorts (705–847 ms), so the managed override was removed. The
+remaining delay is in first-token scheduling/decoder execution, not delayed-tail
+draining.
+
+The proposed one-shot 50 ms initial-batch follow-up was not retained. After
+the package deployment, the owner-backed harness observed a zero-partial
+read-error turn and stalled waiting for the cohort; no resource stream was
+reached, so this is not latency evidence. The production 100 ms batching path
+is restored. The batching experiment remains unqualified until an isolated
+browser/runtime deployment can prove the resource connection and full-turn
+wire-rate receipt.
+
+The handshake-overlap intervention was rejected. Unit coverage proved the
+intended ordering, but live receipt `browser-soak-1789602882634615702`
+produced repeated zero-duration provider closes, lost interim visibility, and
+WER 20–50%; the resource did not receive a stable stream. The original
+first-audio-before-dial sequencing is restored. This demonstrates that the
+resource connection lifecycle, not just the network handshake, is part of the
+latency contract and must be optimized with an admission-aware design.
+
+The acceptance producer also had an evidence-contract defect: one failed WER
+assertion suppressed otherwise independent transport and provider-evidence
+claims from a completed realtime run. The testing inventory explicitly
+separates recognition mistakes from interval loss and recovery. The producer
+must therefore gate each claim on its own passed assertions, retaining quality
+as a separate negative result.
+
+## 2026-09-16 — Browser qualification persistence used the wrong verdict scope
+
+The acceptance producer now emits transport/provider claims independently of
+WER, but the browser-product-path persistence layer still used the complete
+conformance verdict for its top-level `Passed` field. That would leave the
+claim envelope looking correct while the board resolver rejected the evidence
+row. The persistence layer now scopes `Passed` to the target-aware claims in
+`machine_json`; transport invariants and negative controls remain mandatory.
+Focused handler, acceptance, and conformance tests pass. No existing failed
+receipt is retroactively promoted; a fresh owner-backed long-form run is still
+required.
+
+## 2026-09-16 — Fresh Kyutai owner run still pays a cold first-stream decoder path
+
+Fresh owner-backed run `browser-soak-1789603669908940143` passed capture,
+transport, interim visibility, terminal delivery, committed-text lag, provider
+identity, and WER. It nevertheless measured first-visible p95 at 2,322 ms;
+the API trace shows the first stream at 2,521 ms while the next four streams
+settled near 1,003–1,008 ms. First audio arrived at 191 ms, so capture and
+WebSocket admission are not the dominant delay. The resource was healthy and
+already using its 32-frame startup warmup, which means readiness is still
+declaring before the first real-session decoder path is fully paid.
+
+The next falsifiable intervention raises only the managed startup warmup to 64
+model frames. Accept it only if a fresh multi-turn owner probe removes the cold
+first-stream outlier without changing WER, terminal-tail, recovery, or memory
+behavior. Revert it if startup cost grows materially without reducing the
+first-visible partial.
+
+Result: accepted for continued qualification. Managed warmup is now 64 frames;
+fresh owner run `browser-soak-1789603834481708139` passed all five turns with
+first-partial p95 799 ms (first 799 ms, last 695 ms), while committed lag,
+interim visibility, provider identity, terminal behavior, and WER remained in
+band. A 30-turn cohort and real-duration trust runs are still required.
+
+The required 30-turn cohort `browser-soak-1789603896951446874` then completed
+all 30 turns with first-partial p95 972 ms (first 790 ms, last 684 ms),
+committed lag, interim visibility, transport, provider identity, and memory
+passing. Turn 22 alone had WER 0.5, so the complete run remains rejected for
+quality. This confirms the latency improvement is durable across the adopted
+sample count while recognition quality remains an independent obligation.
+
+The first real-duration retry was rejected before capture because BAS returned
+`RESOURCE_LIMIT` with 10 stale sessions. Its zero-duration artifact is not
+evidence. The BAS cleanup endpoint reported those sessions as non-idle and its
+direct close route required execution/lease metadata not exposed by the health
+surface, so the owned BAS scenario was restarted to clear the bounded test
+pool. A clean retry is now running with one active session.
+
+## 2026-09-16 — Long-form receipt producer did not enforce the required three-run trust cohort
+
+The testing contract requires three real 60-minute sessions per claimed local
+engine/profile. The target-aware browser producer could emit `dictation-trust`
+and `provider-evidence` from the first qualifying long-form run, which was too
+weak for that protocol even though the run itself was valid. The persistence
+repair will count only prior current target-aware browser receipts for the same
+provider cell and identity tuple, emit no acceptance claims for runs one and
+two, and emit claims on run three only when the independent transport assertions
+pass. Failed or short runs remain visible history and never count toward the
+cohort.
+
+The producer now enforces this cohort in code: only distinct passed target-aware
+receipts for the same provider/context tuple count, and the third qualifying
+run is the first one allowed to carry the trust/provider claims. Focused soak,
+acceptance, and conformance tests pass. The live API must be rebuilt before
+subsequent runs can use the repair.
+
+## 2026-09-16 — Preconnected voice-input sockets expired before the user spoke
+
+The browser recorder preconnected its WebSocket after microphone permission, but
+the server's inactivity deadline also applied before the first audio frame. A
+socket left warm for more than the server timeout closed with a provider-failure
+diagnostic; the client retained the dead socket until its longer 30-second
+preconnect timer, so the next button press paid a fresh handshake and provider
+startup. This was a direct source of the perceived voice-button delay, separate
+from Kyutai's measured first-partial latency.
+
+The shared PCM provider now sends a four-second JSON keepalive only during the
+preconnect window. It sends no microphone data and stops the timer as soon as
+capture starts or the warm window expires. The long-session suite has a
+regression test for the keepalive and remains green at 30/30 tests. The server
+already ignores unknown text messages while refreshing its read deadline, so no
+provider is started by the keepalive.
+
+## 2026-09-17 — Trust-cohort receipt gate could not bootstrap from partial claims
+
+The fresh 30-turn owner run `browser-soak-1789616823554336388` completed the
+required long-form transport cohort: 30/30 turns had exact interval accounting,
+bounded retention, provider identity, continuous interim text, and terminal
+delivery; first-partial p95 was 738 ms across 90 observations. Its repeated
+fixture still failed WER, so the run was not a quality receipt. The persisted
+browser receipt correctly carried only `interactive-latency` because the trust
+repetition gate was not yet satisfied.
+
+Audit of the producer found a bootstrap defect: the three-run gate counted only
+prior receipts that already carried `dictation-trust` and `provider-evidence`.
+Runs one and two were intentionally withheld, so they could never contribute to
+run three. The producer now counts distinct passed target-aware browser
+receipts whose owned long-form artifact independently passes all transport
+assertions, while still requiring the configured three-run cohort before
+emitting trust/provider claims. A focused regression covers both the passing
+artifact and a transport assertion failure. The live API must be rebuilt before
+the next qualifying run uses this repair.
+
+## 2026-09-17 — Device companion receipts contradicted browser acceptance joins
+
+After the trust gate was repaired, the fresh browser receipt carried all three
+expected claims, but the setpoint board still rejected the tuple. The device
+companion row reused the browser acceptance envelope while its own `Passed` flag
+was false, so the resolver treated the same target tuple as both passing and
+failing. Device evidence is not an acceptance producer.
+
+The persistence path now strips target-aware acceptance fields from device
+metadata, and the board resolver ignores device-kind rows when building
+acceptance candidates while retaining simulated and corpus producers. The board
+now resolves dictation trust, provider evidence, interactive latency, corpus
+quality, and the existing policy/adapter rows; provider parity, speaker policy,
+mobile recovery, and host portability remain genuinely unmeasured.
+
+## 2026-09-17 — Native Kyutai first-visible-partial remains above the interactive target
+
+Fresh browser-product measurements after the transport warm-path repair show
+capture startup and first signal in roughly 20–40 ms, with the first PCM sent
+within roughly 55 ms after enabling the host-specific fast first wire batch.
+The native Kyutai route still produced its first visible partial at p95=1196 ms
+across six realtime turns, above the approved <=1000 ms target. The same route
+is about 523 ms from a burst-fed CLI stream, confirming that the remaining gap
+is realtime decoder/model behavior rather than microphone permission or UI
+rendering. The 20 ms first batch reduced the browser result from the prior
+1292 ms p95, but does not close the target. Do not mark interactive latency
+complete or claim the model delay is fixed until a fresh realtime cohort is in
+band; investigate a lower-latency native engine/model or a quality-preserving
+speculative path with paired WER evidence.
+
+The next fresh owner probes did not reproduce the earlier 1-second band: six
+realtime turns measured p95=1196 ms and ten turns measured p95=1286 ms. Both
+probes still passed capture, retention, terminal delivery, committed-text lag,
+and interim visibility, but failed the first-partial assertion (and the small
+fixture also failed its independent WER assertion). These failed runs remain
+diagnostic only; the latency receipt is not promoted. The speaker-policy
+validation completed independently with its fail-closed control passing.
+
+An isolated managed-resource experiment raised `KYUTAI_STT_WARMUP_FRAMES` from
+64 to 96. The owner remained healthy after startup, but a fresh five-turn
+probe measured first-partial p95=1194 ms and did not improve the 64-frame
+baseline. The change was reverted; 64 remains the adopted setting. The first
+probe briefly reported CPU mode during restart, then returned to healthy CUDA
+mode after the resource completed initialization.
+
+## 2026-09-17 — Reconnect replay ordering and warm-button status were product-path blockers
+
+The deterministic browser recovery workflow initially reconnected with a newly
+captured sequence (for example sequence 12) before replaying retained sequence 0.
+The server correctly rejected that gap and then retained a terminal
+receive_failed state. The browser transport now holds post-disconnect sends
+behind journal replay; the shared capture package test suite passes 192/192
+non-skipped tests.
+
+The Dictation Studio button also reset an already-open permission-warmed socket's
+visible status from Streaming transcription connected. back to
+Connecting to speech stream… during start(). The recorder now preserves the
+connected state when the warm socket is already open. The authored
+audio-tools workflow passed after rebuild, including the normal product smoke
+path and the injected backend-restart recovery path. The remaining
+Experience Manager warning about the VoiceInputButton 3.0.0 story specimen is
+catalog/readiness metadata, not a workflow failure.
+
+## 2026-09-17 — Lower Kyutai delayed-stream override rejected
+
+The documented KYUTAI_STT_AUDIO_DELAY_SECONDS seam was tested at 0.25
+seconds against a fresh five-turn realtime browser cohort. The owner remained
+healthy on CUDA and the independent fixture WER assertion passed, but
+speech-to-visible-partial p95 worsened to 1342 ms across 10 observations
+(target <=1000 ms). The override was reverted and the adopted managed-owner
+setting remains the checkpoint default of 0.5 seconds with 64 warmup frames.
+The failed receipt remains retained as diagnostic negative evidence and is not
+promoted.
+
+## 2026-09-17 — Kyutai text-path warmup and host wire cadence validated
+
+The audio-tools host now uses a 50 ms steady-state PCM wire cadence after its
+20 ms first batch; the shared package remains at 100 ms so its recovery-rate
+and journal tests retain their existing guarantees. Focused transport coverage
+remains green (192 passed, 1 skipped).
+
+The Kyutai owner previously warmed only silent decoder frames. It now evaluates
+eight bounded deterministic low-amplitude non-silent frames before `/ready`,
+then resets the acoustic and language-model streaming state. This exercises the
+text-producing CUDA path without allowing warmup text into a user session.
+
+After restart, a fresh one-turn product probe measured first-visible-partial
+latency at 705 ms, and a subsequent five-turn cohort measured p95=706 ms with
+interim text visible on every turn. The same cohort's supplied reference text
+was intentionally incorrect and produced WER=1.0; that receipt is diagnostic
+only and must not promote corpus-quality or provider-parity claims. A correct
+held-out reference cohort is still required before the latency improvement can
+participate in the shared acceptance join.
+
+The canonical four-second product cohort then used the fixture's actual
+reference, `a quick brown fox jumps.`. Latency stayed in band at p95=790 ms
+across 10 realtime observations and interim text was visible on every turn,
+but Kyutai WER remained 0.20–0.30 across five turns against the <=0.10 clean
+quality floor. This is retained as valid negative provider-quality evidence;
+Kyutai must not be promoted to provider parity until product-path settlement or
+model quality is repaired and a fresh paired latency/quality cohort passes.
+
+## 2026-09-17 — Full-duration Kyutai product cohort remains quality-negative
+
+The fresh 60-turn, 60-second-per-turn browser cohort
+`browser-soak-1789645783740086219` completed for 3,808,618 ms. Capture,
+settlement, retention, provider identity, interim visibility, committed lag,
+and first-partial stability all passed; first partial was 778 ms at p95, with
+the first cold turn at 1,996 ms. Recognition quality did not pass: 60/60 turns
+failed the adopted WER <=0.10 floor, measuring 0.1290 on most turns (0.1333 and
+0.1355 on three turns), dominated by deletions. The receipt is retained as
+negative product-quality evidence and cannot produce provider-parity. The
+remaining repair is the Kyutai long-form/product settlement quality path, not
+the browser transport or streaming-latency path.
+
+## 2026-09-17 — Fresh browser sessions started the looping fixture at arbitrary offsets
+
+The remaining one-turn variance was not a provider timing regression. The BAS
+fake-media source is continuous across page readiness, so a new browser session
+could begin in the middle of the looping reference fixture. That changed the
+first decoded words and made otherwise identical product probes appear to have
+unstable WER and latency. The existing between-turn rewind did not cover the
+first turn.
+
+The realtime soak owner now calls its leased `/audio/restart` endpoint after
+navigation and surface readiness, before the first turn, and continues to rewind
+between turns. The unit fixtures model that owner endpoint. After rebuilding,
+three fresh Kyutai product runs (`browser-soak-1789638954401080201`,
+`browser-soak-1789638972157226608`, and `browser-soak-1789638982625879332`)
+passed provider identity, capture/settlement, interim visibility, and WER at
+0.10. First-visible-partial latency was 716, 716, and 727 ms; committed-text
+lag was 95, 97, and 111 ms. These are fresh one-turn diagnostics and do not
+replace the required long-form trust cohort or held-out corpus-quality receipt.
+
+The canonical provider identity is `kyutai/stt-1b-en_fr`; supplying the shorter
+`stt-1b-en_fr` label correctly fails the identity assertion. A Whisper browser
+attempt (`browser-soak-1789639039469447936`) was retained as a failed negative
+control because the batch-only candidate cannot enter the realtime product
+path. Provider parity remains pending until the owner emits a target-aware
+receipt covering every engine actually offered as stable.
+
+The acceptance producer was also missing that composite decision. It now keeps
+provider parity unknown unless one full-duration, 30-attempt product receipt
+passes transport, latency, interim visibility, and product quality, while the
+same provider cell has independent passing native speaker-policy and held-out
+corpus receipts. The producer regression covers both the complete prerequisite
+set and a failed corpus prerequisite. This is a measurement repair, not a
+threshold change; the next fresh long-form receipt will determine whether the
+Kyutai cell can enter the parity join.
+
+The first fresh full-duration product attempt (`browser-soak-1789641692715615741`)
+passed all transport, provider identity, retention, interim, and latency
+assertions (p95 first partial 985 ms across 60 observations), but its repeated
+120-second fixture cohort measured WER 0.1148 on most turns. It is retained as
+negative product-quality evidence and cannot qualify parity. The browser
+quality assertion now uses the adopted <=10% clean floor instead of the older
+0.25 diagnostic ceiling; the next long-form attempt uses 60-second turns to
+separate fixture-cycle accumulation from the model quality gate.
+
+## 2026-09-17 — Host-device playback and realtime acceptance repaired
+
+Fresh host-device evidence isolated the remaining product-path failures to the
+qualification harness boundary. BAS playback previously began during session creation,
+so the recorder either missed the fixture prefix or accumulated a leading-silence prefix
+while `getUserMedia` initialized. Continuous playback also extended through the UI stop
+handoff. The owner seam now supports deferred playback, explicit turn-boundary restart,
+and explicit playback stop; the audio-tools driver arms the source immediately before
+the voice gesture and stops it at the feed boundary. Realtime reference expansion uses
+the declared playback window, while transport rate uses owner-reported capture timestamps.
+
+The fresh 30-turn host-device cohort `browser-soak-1789655221034534437` passed every
+assertion: 30/30 signal and settlement turns, interim text visible on 30/30 checkpoints,
+WER <=0.10 on every turn, wire rate 16,037–16,051 samples/s, first-partial p95 983 ms,
+stable committed lag, bounded retention, and exact provider identity. The fresh 60-second
+product cohort `browser-soak-1789655439380650035` also passed with WER 0.0452 (154/155
+words), 1,202 processed intervals, and 16,003 samples/s. Earlier negative receipts remain
+retained as historical evidence and are not overwritten.
+
+## 2026-09-17 — Long trust cohort exposed overlapping reconnect ownership
+
+The first fresh 30-turn, 120-second-per-turn trust attempt
+`browser-soak-1789655589625550196` is retained as a failed receipt. Turns 1–23
+closed normally, but a later backend interruption allowed a stale browser
+WebSocket close callback to schedule a second reconnect while the replacement
+socket was still taking ownership. Kyutai consequently observed short split
+streams (8 frames) while the browser reported `sentSequence` progress but no
+`processedSequence`; the UI remained in `recording` and the processed-ready
+wait timed out. This is a real lifecycle failure, not evidence to be hidden by
+loosening a timeout or excluding the turn.
+
+The browser capture provider now claims a socket before its asynchronous open
+callback, ignores messages and closes from sockets that are no longer the
+claimed transport, and clears the open socket before scheduling recovery. A
+regression test covers a late close after reconnect ownership moves. The full
+capture package suite passes (195 tests, 1 skipped). A new live smoke and the
+required long trust cohort are still required before this repair can produce
+target-aware acceptance evidence.
+
+## 2026-09-17 — Repaired transport survived 30 turns, but long-form quality and cold-start latency remain negative
+
+The fresh 30-turn, 120-second-per-turn cohort
+`browser-soak-1789659085062259477` completed all 30 turns and passed interval
+accounting, capture/settlement, bounded retention, duplicate protection,
+provider identity, wire rate, committed lag, and continuous interim visibility.
+It is not an acceptance pass: `first_partial_latency_stable` measured p95
+1,024 ms against the approved 1,000 ms ceiling (cold first partial 1,110 ms),
+and `word_error_rate_stable` failed on turns 1–3 (WER 0.6885, 0.9115, and
+1.2918) plus transient degradation on turns 22–24 (0.1115, 0.1049, 0.0721).
+The remaining turns were mostly 0.01–0.03 WER, so the failure is retained as
+evidence of cold-start/model stability rather than relabeled as transport
+success. No target threshold was loosened; a fresh quality/latency repair and
+cohort are still required before the acceptance join can resolve.
+
+## 2026-09-17 — Warm provider rerun clears cold latency, leaves a localized Kyutai quality dip
+
+After a passing five-turn warm-up (`browser-soak-1789662853577179789`, first
+partial p95 963 ms), the required 30-turn cohort
+`browser-soak-1789662896043329433` completed all turns with transport,
+settlement, retention, provider identity, latency, interim visibility, and
+processed coverage intact. The latency assertion passed. The WER assertion did
+not: turns 1–19 and 23–30 stayed at 0.0098–0.0328, while turns 20–22 rose to
+0.0918, 0.0951, and 0.1016, with 30–31 committed segments and exact server
+processed coverage. The receipt remains negative because the adopted per-turn
+WER floor is strict; warm-up is not being substituted for a product fix.
+
+This separates the remaining issue from the prior cold-start result: warming
+removes the 1,024 ms p95 latency failure, but Kyutai still has a localized
+long-form quality-stability dip under repeated product sessions. Provider
+parity and the acceptance join remain unresolved until a fresh cohort meets
+the quality floor without exclusions.

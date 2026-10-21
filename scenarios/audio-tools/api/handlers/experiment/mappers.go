@@ -212,6 +212,8 @@ func qualificationKindToProto(kind string) experimentv1.QualificationEvidenceKin
 		return experimentv1.QualificationEvidenceKind_QUALIFICATION_EVIDENCE_KIND_BROWSER_PRODUCT_PATH
 	case trustfloor.QualificationDevice:
 		return experimentv1.QualificationEvidenceKind_QUALIFICATION_EVIDENCE_KIND_DEVICE
+	case trustfloor.QualificationCorpusQuality:
+		return experimentv1.QualificationEvidenceKind_QUALIFICATION_EVIDENCE_KIND_CORPUS_QUALITY
 	default:
 		return experimentv1.QualificationEvidenceKind_QUALIFICATION_EVIDENCE_KIND_UNSPECIFIED
 	}
@@ -229,6 +231,8 @@ func qualificationKindFromProto(kind experimentv1.QualificationEvidenceKind) (st
 		return trustfloor.QualificationBrowserProductPath, nil
 	case experimentv1.QualificationEvidenceKind_QUALIFICATION_EVIDENCE_KIND_DEVICE:
 		return trustfloor.QualificationDevice, nil
+	case experimentv1.QualificationEvidenceKind_QUALIFICATION_EVIDENCE_KIND_CORPUS_QUALITY:
+		return trustfloor.QualificationCorpusQuality, nil
 	default:
 		return "", errors.New("qualification evidence kind is required")
 	}

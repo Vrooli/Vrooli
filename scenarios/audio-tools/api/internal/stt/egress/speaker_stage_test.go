@@ -32,7 +32,7 @@ func TestSpeakerStage_AllowEmitsRejectBlocks(t *testing.T) {
 // similarity numbers when a segment is allowed — advisory-mode annotations
 // rely on the score being present even when nothing is dropped.
 func TestSpeakerStage_StampsScoreOnAllow(t *testing.T) {
-	stage := egress.SpeakerStage{Isolation: &mocks.FakeSpeakerIsolation{Verdict: egress.SpeakerVerdict{Allowed: true, Score: 0.88, Threshold: 0.7}}}
+	stage := egress.SpeakerStage{Isolation: &mocks.FakeSpeakerIsolation{Verdict: egress.SpeakerVerdict{Allowed: true, Applied: true, Score: 0.88, Threshold: 0.7}}}
 	out := stage.Apply(context.Background(), egress.SegmentDecision{Text: "hi", Audio: []byte("pcm"), Outcome: egress.Emit})
 	require.Equal(t, egress.Emit, out.Outcome)
 	require.InDelta(t, 0.88, out.Score, 1e-9)
@@ -44,6 +44,7 @@ func TestSpeakerStage_FallbackFlagPropagates(t *testing.T) {
 	out := stage.Apply(context.Background(), egress.SegmentDecision{Text: "hi", Audio: []byte("pcm"), Outcome: egress.Emit})
 	require.Equal(t, egress.Emit, out.Outcome)
 	require.True(t, out.FallbackUsed)
+	require.Equal(t, "degraded", out.SpeakerPolicy)
 }
 
 // TestSpeakerStage_NoAudioOrNoIsolationIsNoOp proves the audio-domain stage

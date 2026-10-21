@@ -1,11 +1,5 @@
 {
-  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
-  "$text": "Pill",
-  "@vrooli/audio-capture-browser": "*",
   "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Audio Tools are uppercase-snake-case placeholders replaced by `vrooli scenario generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
-  "adapter": "voice-input",
-  "alert": "mic",
-  "animate-spin": "",
   "apiError": {
     "loadFailedTitle": "Couldn't load this view",
     "unimplementedDescription": "This view is wired to a Connect-RPC endpoint that the audio-tools API hasn't implemented yet. Track the wiring follow-up plan; the UI will populate automatically once the server returns data.",
@@ -14,15 +8,9 @@
   "app": {
     "description": "Shared audio capabilities — speech-to-text, text-to-speech, summarization, transcoding — with BYOK / Vrooli / Local provider routing.",
     "eyebrow": "Operator Console",
-    "title": "Audio Tools",
-    "versionTag": "Audio Tools · v1"
+    "title": "Pan",
+    "versionTag": "Pan · v1"
   },
-  "aria-label": "Icon action",
-  "axis": "mode",
-  "background": "#020617",
-  "bg-app-primary/60": "bg-app-warning/70",
-  "border-app-info bg-app-info/20 text-app-info": "border-app-danger bg-app-danger/20 text-app-danger",
-  "clsx": "^2.1.1",
   "common": {
     "creditsSuffix": "{{count}} credits",
     "dash": "—",
@@ -65,9 +53,6 @@
     "toggleVrooli": "Toggle Vrooli",
     "vrooliHeader": "Vrooli"
   },
-  "default": "comfortable",
-  "density": "compact",
-  "description": "The native icon button.",
   "diagnostics": {
     "audioFileLabel": "Audio file",
     "description": "Send a manual call and observe the provider trace. Verifies BYOK → Vrooli → Local routing end-to-end.",
@@ -419,7 +404,6 @@
     "notFoundTitle": "Document not found",
     "title": "Docs"
   },
-  "error": "Microphone permission was denied.",
   "errorBoundary": {
     "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
     "retry": "Try again",
@@ -443,21 +427,9 @@
     "unimplemented": "Not yet implemented.",
     "unknown": "An unknown error occurred."
   },
-  "example": "default",
-  "exit-passive": "stop",
-  "export": "DensityCompact",
-  "format": "renderable-text",
-  "h-5 w-5": "h-4 w-4",
-  "id": "density-compact",
-  "key": "voiceInput",
-  "kind": "role",
-  "label": "Disabled",
   "locale": {
     "switcherLabel": "Language"
   },
-  "mode": "pinned",
-  "module": "./story.tsx",
-  "name": "Compact",
   "nav": {
     "configure": "Configure",
     "diagnostics": "Diagnostics",
@@ -486,14 +458,6 @@
     "summaryProviderTiers": "Provider tiers",
     "summaryRecent": "Recent operations"
   },
-  "path": "disabled",
-  "provenance": "react-component-library/VoiceInputButton@3.0.0",
-  "purpose": "Provide an icon-only action with an explicit accessible name and the shared control size contract.",
-  "react": "^18",
-  "role": "button",
-  "schema": "scenario-experience-spec/v1",
-  "schemaVersion": "1.1.0",
-  "selector": "button",
   "settings": {
     "fontScaleComfortable": "Comfortable",
     "fontScaleCompact": "Compact",
@@ -506,7 +470,6 @@
     "themeLight": "Light",
     "themeSystem": "Match system"
   },
-  "shape": "pill",
   "shell": {
     "closeSettings": "Close settings",
     "mainContent": "Main content",
@@ -515,7 +478,6 @@
     "primaryNav": "Primary navigation",
     "settingsTitle": "Settings"
   },
-  "size": "icon",
   "speakerAdmin": {
     "clipsEmpty": "No clips.",
     "clipsTitle": "Clips",
@@ -563,8 +525,6 @@
     "unbindButton": "Unbind",
     "viewClipsButton": "Clips"
   },
-  "state": "idle",
-  "statement": "The icon button exposes a named action.",
   "status": {
     "actionPullModel": "Pull model",
     "actionRestart": "Restart",
@@ -612,7 +572,6 @@
     "stateUnavailable": "Unavailable",
     "stateUnknown": "Unknown"
   },
-  "storyRef": "../../library/components/IconButton/versions/2.0.0/story.json",
   "streamConfigAdmin": {
     "badgeBatch": "batch",
     "badgeNativeStreaming": "native-streaming",
@@ -645,15 +604,10 @@
     "switchSafeToStop": "No other scenario uses {{resource}}. You can stop it to reclaim compute — audio-tools will never stop it for you.",
     "switchSuccess": "Engine switched to {{engine}}."
   },
-  "tailwind-merge": "^2.3.0",
-  "testid": "voice-input-error-dismiss",
-  "tier": "machine",
-  "title": "IconButton 2.0",
   "toast": {
     "dismiss": "Dismiss",
     "viewDefault": "View"
   },
-  "type": "element-present",
   "usage": {
     "colCapability": "Capability",
     "colCredits": "Credits",
@@ -674,10 +628,6 @@
     "recentTitle": "Recent operations",
     "title": "Usage"
   },
-  "var(--radius-pill)": "var(--radius-control)",
-  "var(--space-3xs)": "var(--space-2xs)",
-  "variant": "danger",
-  "voiceInput": "permission-denied",
   "voices": {
     "canonicalHeader": "Canonical",
     "description": "Canonical voice tags and their per-adapter mappings. Adapters fall back to defaults when no override is set.",

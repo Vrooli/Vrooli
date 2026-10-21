@@ -74,3 +74,16 @@ func TestRunnerLegacyOverlapUsesResolvedEvaluationEngine(t *testing.T) {
 	// terminal batch call instead of exercising OverlapAgree.
 	require.GreaterOrEqual(t, meter.Snapshot().Calls, 2)
 }
+
+func TestRunnerLegacyStrategiesCarryProviderIdentity(t *testing.T) {
+	provider := mocks.NewFakeProvider(sttchain.TierLocal, sttchain.ProviderTraits{Batch: true})
+	runner := reportRunner{deps: RunnerDeps{
+		NewProvider: func() sttchain.Provider { return provider },
+	}}
+
+	specs, err := runner.buildSpecs([]*evalv1.EvalStrategy{{Kind: "vad_segment"}})
+	require.NoError(t, err)
+	require.Len(t, specs, 1)
+	require.Equal(t, "whisper-local", specs[0].EngineID)
+	require.Equal(t, "fake", specs[0].ModelID)
+}

@@ -1,6 +1,12 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "branding": {
+    "brand": "pan",
+    "targets": [
+      "web-public-v1"
+    ]
+  },
   "skills": {
     "usage": {
       "source": "skills/audio-tools/SKILL.md",
@@ -44,7 +50,7 @@
   "service": {
     "parent": "vrooli",
     "name": "audio-tools",
-    "displayName": "Audio Tools",
+    "displayName": "Pan",
     "description": "Shared audio capabilities: STT, TTS, summarization, audio processing, provider routing (BYOK/LPBS/Local)",
     "version": "0.0.1",
     "type": "business-application",
@@ -159,6 +165,37 @@
           "description": "Build Go API server"
         }
       ]
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "cwd": "api",
+        "port": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
     }
   },
   "dependencies": {

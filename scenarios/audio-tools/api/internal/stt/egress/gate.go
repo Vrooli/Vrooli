@@ -60,6 +60,9 @@ type SegmentDecision struct {
 	// the UI banner. Gate-only — stripped before the segment reaches the wire.
 	Score     float64
 	Threshold float64
+	// SpeakerPolicy is the explicit per-segment verification outcome. It is
+	// empty when speaker policy was not requested.
+	SpeakerPolicy string
 }
 
 // Stage is one ordered post-recognition check. A stage is pure with respect

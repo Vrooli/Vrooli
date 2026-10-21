@@ -12,11 +12,20 @@ import { playRecordingStartCue, playRecordingStopCue, playRecordingFaultCue } fr
 import { WhisperProvider } from "./hooks/voice/WhisperProvider";
 import { PcmVoiceStreamProvider } from "./hooks/voice/PcmVoiceStreamProvider";
 
+// Kyutai needs a complete 50 ms opening frame to preserve its first words.
+// The audio-tools host therefore uses a bounded 50 ms cadence without the
+// shared package's optional 20 ms speculative first frame.
+class AudioToolsPcmVoiceStreamProvider extends PcmVoiceStreamProvider {
+  constructor() {
+    super({ wireBatchSamples: 800 });
+  }
+}
+
 // The package owns orchestration and lifecycle policy. This object is the
 // deliberately narrow scenario boundary for API calls and browser-provider
 // implementations that cannot be shared across hosts.
 export const voiceCoreServices: VoiceCoreServices = {
-  PcmVoiceStreamProvider,
+  PcmVoiceStreamProvider: AudioToolsPcmVoiceStreamProvider,
   getVoiceStreamConfig,
   getWakeWordConfig: async () => {
     const config = await getWakeWordConfig();

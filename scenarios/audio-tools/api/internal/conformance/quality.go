@@ -24,10 +24,12 @@ type QualityObservation struct {
 // score.
 func MeasureQuality(observation QualityObservation) []Assertion {
 	options := eval.DefaultNormalizeOptions()
-	wer := eval.WER(eval.Tokenize(observation.Reference, options), eval.Tokenize(observation.Hypothesis, options))
+	referenceTokens := eval.Tokenize(observation.Reference, options)
+	hypothesisTokens := eval.Tokenize(observation.Hypothesis, options)
+	wer := eval.WER(referenceTokens, hypothesisTokens)
 	presentation := eval.MeasurePresentation(observation.Hypothesis)
-	detail := fmt.Sprintf("wer=%.4f substitutions=%d insertions=%d deletions=%d punctuation_rate=%.4f capitalisation_rate=%.4f",
-		wer.Rate(), wer.Substitutions, wer.Insertions, wer.Deletions, presentation.PunctuationRate, presentation.CapitalisationRate)
+	detail := fmt.Sprintf("wer=%.4f ref_words=%d hyp_words=%d substitutions=%d insertions=%d deletions=%d punctuation_rate=%.4f capitalisation_rate=%.4f",
+		wer.Rate(), len(referenceTokens), len(hypothesisTokens), wer.Substitutions, wer.Insertions, wer.Deletions, presentation.PunctuationRate, presentation.CapitalisationRate)
 	return []Assertion{
 		Measured("word_error_rate_stable", wer.Rate() <= observation.MaxWER, detail),
 		Measured("punctuation_rate_recorded", presentation.PunctuationRate >= observation.MinPunctuationRate, detail),

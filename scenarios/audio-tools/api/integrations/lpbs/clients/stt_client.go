@@ -7,8 +7,8 @@ import (
 )
 
 // STTClient routes Transcribe through the LPBS audio gateway. Implements
-// sttchain.VrooliClient. Today returns Unimplemented until the gateway
-// endpoint ships; this seam exists so main.go can wire it once enabled.
+// sttchain.VrooliClient. The client is composed at bootstrap, but returns an
+// explicit unavailable error until the shared gateway endpoint ships.
 type STTClient struct {
 	UnavailableClient
 }

@@ -89,70 +89,97 @@ func (r *LiveResolver) observe(ctx context.Context, registry *Registry) (map[str
 		defer cancel()
 		return r.run(probeCtx, args...)
 	}
-	var firstErr error
+	// Resource status and acceleration probes are independent. Running them
+	// serially made the read-only engine inventory consume one 10-second probe
+	// budget per local engine, which could starve the evidence board's own
+	// bounded read even while the product API remained healthy.
+	type observation struct {
+		id    string
+		facts EngineFacts
+		err   error
+	}
+	observations := make(chan observation, len(registry.Engines()))
+	var wg sync.WaitGroup
 	for _, engine := range registry.Engines() {
 		if engine.Kind != KindLocalResource || strings.TrimSpace(engine.Resource) == "" {
 			facts[engine.ID] = EngineFacts{PlatformSupported: true, Installed: true, Running: true, Healthy: true, WorkloadCapable: true, Reason: "non-local engine is request-gated"}
 			continue
 		}
-		status, err := runProbe("resource", "status", engine.Resource, "--json")
-		if err != nil {
-			facts[engine.ID] = EngineFacts{SignalUnavailable: true, Reason: "control-plane status unavailable"}
-			if firstErr == nil {
-				firstErr = err
+		engine := engine
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			status, err := runProbe("resource", "status", engine.Resource, "--json")
+			if err != nil {
+				observations <- observation{id: engine.ID, facts: EngineFacts{SignalUnavailable: true, Reason: "control-plane status unavailable"}, err: err}
+				return
 			}
-			continue
-		}
-		var s struct {
-			Installed  bool   `json:"installed"`
-			Running    bool   `json:"running"`
-			Healthy    bool   `json:"healthy"`
-			StatusCode string `json:"status_code"`
-			Resource   struct {
-				ObservedMode string `json:"observed_mode"`
-				StatusCode   string `json:"status_code"`
-			} `json:"resource"`
-		}
-		if err := json.Unmarshal(status, &s); err != nil {
-			facts[engine.ID] = EngineFacts{SignalUnavailable: true, Reason: "control-plane status malformed"}
-			if firstErr == nil {
-				firstErr = err
+			var s struct {
+				Installed  bool   `json:"installed"`
+				Running    bool   `json:"running"`
+				Healthy    bool   `json:"healthy"`
+				Status     string `json:"status"`
+				StatusCode string `json:"status_code"`
+				Resource   struct {
+					ObservedMode string `json:"observed_mode"`
+					StatusCode   string `json:"status_code"`
+				} `json:"resource"`
 			}
-			continue
-		}
-		if r.available != nil && !r.available(ctx, engine.ID) {
-			s.Running = false
-			s.Healthy = false
-		}
-		accelerated := strings.TrimSpace(s.Resource.ObservedMode) != "" && s.Resource.ObservedMode != "cpu"
-		signalUnavailable := false
-		accel, accelErr := runProbe("resource", "acceleration", "explain", engine.Resource, "--json")
-		if accelErr == nil {
-			var a struct {
-				Selected  string `json:"selected"`
-				Placement struct {
-					State string `json:"state"`
-				} `json:"placement"`
+			if err := json.Unmarshal(status, &s); err != nil {
+				observations <- observation{id: engine.ID, facts: EngineFacts{SignalUnavailable: true, Reason: "control-plane status malformed"}, err: err}
+				return
 			}
-			if json.Unmarshal(accel, &a) == nil {
-				accelerated = a.Placement.State == "ok" && a.Selected != "" && a.Selected != "cpu"
+			if r.available != nil && !r.available(ctx, engine.ID) {
+				s.Running = false
+				s.Healthy = false
+			}
+			accelerated := strings.TrimSpace(s.Resource.ObservedMode) != "" && s.Resource.ObservedMode != "cpu"
+			signalUnavailable := false
+			accel, accelErr := runProbe("resource", "acceleration", "explain", engine.Resource, "--json")
+			if accelErr == nil {
+				var a struct {
+					Selected  string `json:"selected"`
+					Placement struct {
+						State string `json:"state"`
+					} `json:"placement"`
+				}
+				if json.Unmarshal(accel, &a) == nil {
+					accelerated = a.Placement.State == "ok" && a.Selected != "" && a.Selected != "cpu"
+				} else {
+					signalUnavailable = true
+				}
 			} else {
 				signalUnavailable = true
 			}
-		} else {
-			signalUnavailable = true
-		}
-		statusCode := s.StatusCode
-		if statusCode == "" {
-			statusCode = s.Resource.StatusCode
-		}
-		facts[engine.ID] = EngineFacts{
-			PlatformSupported: statusCode != "unsupported_platform",
-			Installed:         s.Installed, Running: s.Running, Healthy: s.Healthy,
-			WorkloadCapable:   len(engine.Strategies) > 0,
-			Accelerated:       accelerated,
-			SignalUnavailable: signalUnavailable,
-			Reason:            fmt.Sprintf("control-plane resource status: status_code=%s observed_mode=%s", statusCode, s.Resource.ObservedMode),
+			statusCode := s.StatusCode
+			if statusCode == "" {
+				statusCode = s.Resource.StatusCode
+			}
+			// Resource status has existed in both the lifecycle envelope (`status`)
+			// and the capability envelope (`status_code`). Treat a healthy lifecycle
+			// result as the same positive platform signal when an older control-plane
+			// shape omits both status-code fields; do not infer support from presence
+			// alone or override an explicit unsupported_platform result.
+			if statusCode == "" && (strings.EqualFold(s.Status, "healthy") || strings.EqualFold(s.Status, "ok")) {
+				statusCode = "ok"
+			}
+			observations <- observation{id: engine.ID, facts: EngineFacts{
+				PlatformSupported: statusCode != "unsupported_platform",
+				Installed:         s.Installed, Running: s.Running, Healthy: s.Healthy,
+				WorkloadCapable:   len(engine.Strategies) > 0,
+				Accelerated:       accelerated,
+				SignalUnavailable: signalUnavailable,
+				Reason:            fmt.Sprintf("control-plane resource status: status_code=%s observed_mode=%s", statusCode, s.Resource.ObservedMode),
+			}}
+		}()
+	}
+	wg.Wait()
+	close(observations)
+	var firstErr error
+	for result := range observations {
+		facts[result.id] = result.facts
+		if firstErr == nil && result.err != nil {
+			firstErr = result.err
 		}
 	}
 	r.mu.Lock()

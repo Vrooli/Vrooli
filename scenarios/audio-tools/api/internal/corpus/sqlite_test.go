@@ -39,13 +39,20 @@ func TestRepository_CreateGetList(t *testing.T) {
 	repo, _ := newRepo(t)
 
 	saved, err := repo.Create(ctx, corpus.Clip{
-		ReferenceText: "the quick brown fox",
-		Tags:          []string{"news", "clean"},
-		DurationMs:    1500,
-		SampleRateHz:  16000,
-		Format:        "pcm_s16le",
-		BlobKey:       "clips/2026-06/abc.pcm",
-		Source:        corpus.SourceScripted,
+		ReferenceText:    "the quick brown fox",
+		Tags:             []string{"news", "clean"},
+		DurationMs:       1500,
+		SampleRateHz:     16000,
+		Format:           "pcm_s16le",
+		BlobKey:          "clips/2026-06/abc.pcm",
+		Source:           corpus.SourceScripted,
+		CorpusRevision:   "voice-pilot-en-v1",
+		LicenseReference: "license-1",
+		SpeakerPseudonym: "speaker-01",
+		Split:            corpus.SplitDev,
+		NoiseCondition:   corpus.NoiseClean,
+		SNRDB:            0,
+		ContentSHA256:    "abc123",
 	})
 	require.NoError(t, err)
 	require.NotEmpty(t, saved.ID, "id is generated")
@@ -59,6 +66,12 @@ func TestRepository_CreateGetList(t *testing.T) {
 	require.Equal(t, 16000, got.SampleRateHz)
 	require.Equal(t, "pcm_s16le", got.Format)
 	require.Equal(t, corpus.SourceScripted, got.Source)
+	require.Equal(t, "voice-pilot-en-v1", got.CorpusRevision)
+	require.Equal(t, "license-1", got.LicenseReference)
+	require.Equal(t, "speaker-01", got.SpeakerPseudonym)
+	require.Equal(t, corpus.SplitDev, got.Split)
+	require.Equal(t, corpus.NoiseClean, got.NoiseCondition)
+	require.Equal(t, "abc123", got.ContentSHA256)
 
 	list, err := repo.List(ctx, corpus.ListFilter{})
 	require.NoError(t, err)

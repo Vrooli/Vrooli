@@ -140,8 +140,9 @@ unit tests passed. This proves discovery and conservative collection behavior,
 not browser latency, recognition quality, billing correctness, or fresh-agent
 continuation. No development agent was launched for this check.
 
-Keep pending targets explicit until the operator approves them in the product
-contract. Do not encode the candidate values below as passing requirements.
+The operator adopted the candidate values below on 2026-09-13; the approved
+bands and scope are in the [outcome evidence inventory](#outcome-evidence-inventory).
+Adoption makes them targets, not passing results. Every row still needs evidence.
 
 ### Current access inventory (2026-09-09)
 
@@ -155,7 +156,7 @@ is not a qualification receipt and does not authorize a launch.
 | Native devices | No nominated physical D1–D6 device, browser version, operator or access receipt | Device rows remain unavailable |
 | BYOK provider | Protocol fixtures and configuration boundaries are present; no live key is supplied | Simulated route refusal can be tested; live delivery remains unavailable |
 | Owned hosted provider | LPBS-owned routed fixture seam is the intended owner path; no production account or paid allowance is supplied | Entitlement/inference/settlement fixtures must remain separate from hosted qualification |
-| Acceptance resolvers | Swarm's owner-resolver contract is implemented, but no product-specific Audio/Test Genie resolver is registered | Full-target acceptance cannot be submitted as complete |
+| Acceptance resolvers | The Audio-owned board join is implemented and tested, but no target-aware qualification producer has emitted a current `audio-tools-acceptance-v1` receipt | Full-target acceptance cannot be submitted as complete |
 | Agent authority | Controlled owner stubs and fallback capability fixtures are available; no human-issued development grant is attached | Q2 continuation can be exercised; Q3 real-agent evidence remains pending |
 
 The next access decisions belong to the operator and the named owners: corpus
@@ -165,9 +166,9 @@ explicit unknown and is never filled by a local simulation.
 
 | Decision | Proposed review starting point | Evidence needed before adoption |
 | --- | --- | --- |
-| Interactive latency | Warm click-to-ready p95 ≤ 500 ms; speech-to-visible-partial p95 ≤ 1 s; stop-to-final-tail p95 ≤ 1 s. Report cold readiness separately. | Paced browser traces with permissions already granted, at least 30 attempts per declared route/profile, including failures; separately measure first permission flow. |
+| Interactive latency | Warm press-to-first-accepted-speech p95 ≤ 500 ms; speech-to-visible-partial p95 ≤ 1 s; stop-to-final-tail p95 ≤ 1 s. Report cold readiness separately. | Paced browser traces with permissions already granted, at least 30 attempts per declared route/profile, including failures; readiness ends at the first voiced sample accepted by the capture/transcription path, not button handling or a readiness banner; separately measure first permission flow. |
 | Transcript quality | English pilot: micro-averaged WER ≤ 10% for clean speech, ≤ 20% for the noisy cohort; report every accent/vocabulary subgroup separately. These candidate floors are not measured baselines. | Human-reviewed references, corpus contract below, and real-engine runs; product review must accept the language scope and per-cohort floors. |
-| Reliability and soak | Zero silently lost or duplicated committed intervals in the test cohort; every interrupted interval processed, retained, or explicitly recoverable. Three real 60-minute runs per claimed local engine/profile, with final-tail assertions. | Existing OT-P0-001 still governs all intervals. This sample establishes tested behavior, not a fleet reliability percentage. Recognition mistakes and transport loss are separate metrics. |
+| Reliability and soak | Zero silently lost or duplicated committed intervals in the test cohort; every interrupted interval processed, retained, or explicitly recoverable. Repeated microphone use must pass at least five consecutive warm press/speak/transcribe/stop cycles in one page and browser context, with no refresh, app restart, or manual recovery. Three real 60-minute runs per claimed local engine/profile, with final-tail assertions. | Existing OT-P0-001 still governs all intervals. For repeated-session evidence, retain every cycle's start/stop, first-accepted-speech, transcription, final-drain, error, and recovery result; one failed cycle fails the sequence. This sample establishes tested behavior, not a fleet reliability percentage. Recognition mistakes and transport loss are separate metrics. |
 | Device promise | Qualify profiles D1–D6 below in stages; D1 is the first implementation cohort, not an existing certificate. | Native host receipts for supported claims; emulation only supports simulated claims. |
 | Route fallback | Keep the selected local/BYOK/owned route explicit; propose no automatic switch to a billable route without prior user policy. | Provider-unavailable and revoked-key tests prove the configured fallback and visible reason. |
 | Settlement | Review the single [proposed billing policy](../business/MONETIZATION.md#proposed-voice-billing-policy-v1); do not create a private Audio Tools ledger. | LPBS routed wallet/session fixtures and duplicate/concurrent settlement assertions against the adopted policy revision. |
@@ -181,6 +182,16 @@ boundary next. This proves routing/control flow, not implemented hosted inferenc
 Only then request live-provider budgets and qualify the reviewed device/quality
 matrix. Missing product decisions do not block these authorized instruments, but
 they do block claims that the complete voice target has been accepted.
+
+For the active portable-voice mandate, “external access unavailable” must be
+interpreted against the grant, not against the full product vision. The grant
+authorizes an open-licensed `voice-pilot-en-v1` corpus, the local D1 host, a
+constrained D2 cell, and simulated BYOK/owned route and settlement fixtures.
+Agents must build the corpus/qualification harness and emit honest owner-backed
+receipts for those lanes. Private recordings, physical D3-D6 devices, live
+provider keys, and paid-provider allowance are not required for this mandate and
+must remain excluded rather than stopping local implementation. They can block
+only a later live qualification grant.
 
 ### Published targets and pending decisions
 
@@ -202,14 +213,95 @@ use the stable OT/ATD links below for current work.
 | Evidence UX, mobile recovery, maintainable adapters (former V4), other voice operations | OT-P1-001 through OT-P1-004 | ATD-P1-001 through ATD-P1-004 |
 | Additional native-device expansion | OT-P2-001 | ATD-P2-001; baseline advertised support is already P0 |
 
-The decision sheet still needs explicit adoption of numeric warm/cold latency
-bands, bounded cold-start/admission timeouts, language/subgroup floors, realized
-corpus, nominated native profiles, billing policy and aggregate execution/spend
-allowances. Cold model download/provisioning and human permission time need
-separate measurements; neither is silently folded into a warm-start percentile.
-Document maximum supported session/retention limits and concurrency per profile.
-An agent may improve measured behavior within its grant before these decisions,
-but cannot invent a completed numerical or commercial acceptance contract.
+The operator adopted the decision sheet on 2026-09-13; see the inventory below.
+Still open, and to be proposed by the mandate's agent for review rather than
+fixed silently: bounded cold-start/admission timeouts, maximum supported
+session/retention limits, concurrency per profile, and the billing
+sub-parameters listed in MONETIZATION.md. Cold model download/provisioning and
+human permission time need separate measurements; neither is silently folded
+into a warm-start percentile. An agent cannot invent a completed numerical or
+commercial acceptance contract beyond what the inventory states.
+
+### Outcome evidence inventory
+
+Inventory revision `portable-voice-v1`, bands approved by the operator on
+2026-09-13. Row IDs are the `audio-tools.setpoint-read` row IDs. A row is in
+band only when it reads from a current owner-backed receipt that matches this
+revision, method, cohort, build, device, policy, and corpus identity.
+
+#### Owner-backed board receipt join
+
+The Audio Tools experiment evidence store is the owner of the transcript-free
+board receipts. Each qualification artifact may carry an `acceptance` object in
+`machine_json` with this shape:
+
+```json
+{
+  "target_revision": "portable-voice-v1",
+  "method": "audio-tools-acceptance-v1",
+  "cohort": "voice-pilot-en-v1",
+  "build": "audio-tools-api:<immutable-build>",
+  "device_profile": "D1",
+  "policy_revision": "policy-v1",
+  "corpus_revision": "voice-pilot-en-v1",
+  "acceptance": {
+    "dictation-trust": {"in_band": true, "negative_controls_passed": true}
+  }
+}
+```
+
+The program joins only receipts with a non-empty artifact reference, exact
+target revision, non-empty cohort/build, `in_band: true`, and
+`negative_controls_passed: true`. A required row is green only when every
+required row has a matching receipt in one current identity tuple and no matching
+receipt for that row failed. Out-of-band claims are surfaced as failed rather
+than pending. Missing, malformed, stale, mixed-context, excluded,
+or simulated-as-native receipts remain visible as unknown/failed evidence.
+`shared-voice-capabilities` and `device-qualification` are explicitly excluded
+for this mandate and can never be promoted by this join. This keeps the board a
+read-only resolver over owner evidence; it does not manufacture receipts or
+change a band.
+
+After all required owner producers have fresh passing rows, run
+`audio-tools validation run-acceptance-join`. This owner-side command is the
+only composite producer: it validates the target/method/cohort/policy/corpus
+identity and 24-hour freshness of each source, persists every source artifact
+and execution lane in `details`, and emits one composite acceptance identity
+for the strict board join. Composite evidence is not native evidence:
+simulated rows remain labelled `simulated`, native rows remain labelled
+`native`, and `simulated_as_native` is always false. The command fails with the
+missing row names when a prerequisite is absent.
+
+**Grant scope.** Required evidence is local and simulated: real local engines on
+this Linux host as device profile D1, plus D2 as a 2-vCPU/4-GiB constrained
+container. BYOK and owned/credit routes are proven with LPBS routed fixtures and
+independent fake providers. There are no live keys, paid providers, purchases or
+real money. D3–D6 and live BYOK/owned delivery are excluded from this grant:
+report them as excluded, never as passed. The recognition corpus may be built
+from openly licensed public corpora (for example LibriSpeech, CC BY 4.0, or
+Mozilla Common Voice, CC0), with each license recorded; no private recordings.
+
+| Row | Outcome | Band | Validity |
+| --- | --- | --- | --- |
+| `dictation-trust` | OT-P0-001 | Zero silently lost or duplicated committed intervals across the deterministic transport lane and the interrupted-capture scenario. Three real 60-minute sessions per qualified local engine on D1, each with its known ending phrase fully committed. Every interrupted interval is processed, retained or explicitly recoverable. | Declared fault schedule; failed attempts retained |
+| `provider-parity` | OT-P0-002 | Each engine offered as stable independently meets the `dictation-trust`, `speaker-policy`, `interactive-latency` and `corpus-quality` bands on D1. An engine that does not is visibly not offered as stable. | Per-engine receipts; model revision pinned |
+| `speaker-policy` | OT-P0-003 | Requested verification or extraction exposes an applied or degraded state per segment on batch and native-streaming paths. Required policy fails closed. The verify error rate is operator-visible. | Negative controls: resource down, verify error |
+| `explicit-routing` | OT-P0-004 | The route-refusal and route-fallback scenarios pass for local, simulated BYOK and owned fixture routes. There is no automatic switch to a billable route without a prior user policy, and the actual route is shown. | Simulated routes labelled simulated |
+| `interactive-latency` | OT-P0-005 | Warm click-to-ready p95 ≤ 500 ms. Speech-to-visible-partial p95 ≤ 1 s. Stop-to-final-tail p95 ≤ 1 s. Cold readiness is reported separately. Batch-only routes are identified as batch-only. | ≥ 30 paced attempts per route/profile cohort, failures included, in Audio Tools and Web Console on D1 and D2 |
+| `corpus-quality` | OT-P0-006 | Micro-averaged WER ≤ 10% clean and ≤ 20% noisy (20 dB and 10 dB SNR) on held-out `voice-pilot-en-v1`, which meets the corpus recipe below. Every subgroup is reported; a missing subgroup is unqualified. | Licenses recorded; dev and held-out disjoint; normalization revision pinned |
+| `owned-settlement` | OT-P0-007 | Every "required proof" cell of the adopted billing policy v1 passes on LPBS routed fixtures with an independent fake provider. Local and BYOK incur zero Vrooli debit. | Simulation only; open sub-parameters flagged for review |
+| `host-portability` | OT-P0-008 | D1 (CPU-only and accelerator cells) and D2 each select a compatible path or return an explicit unavailable state. Every claimed route and device has a matching receipt, and D3–D6 are listed as not claimed. | Pinned OS, browser, CPU, memory, accelerator, engine and model |
+| `private-lifecycle` | OT-P0-009 | Each item has a test with a negative control: authorized access, bounded recoverable retention and deletion, metadata-only diagnostics, and explicit consent before a destination change. | Current build |
+| `acceptance-integrity` | OT-P0-010 | The instrument-integrity scenario passes: early EOF, a failed child, a stale receipt, an omitted target and simulated-as-native evidence are all rejected. Every required row reads from an owner-backed receipt. | Program fixtures plus a live read |
+| `provider-evidence` | OT-P1-001 | Dictation Studio persists provider-neutral metrics and promotion verdicts per provider, engine, strategy, policy, fault and replay cell. | Persisted experiment reports |
+| `mobile-recovery` | OT-P1-002 | In a mobile-viewport browser cohort, a user inspects coverage, recovers retained audio and exports metadata-only diagnostics without developer tools. | Emulated device labelled emulated; native mobile excluded |
+| `adapter-maintainability` | OT-P1-003 | Capability and host adapters are versioned and covered by shared conformance tests. No consumer duplicates capture, recovery, routing or billing rules. | Conformance suite result |
+| `shared-voice-capabilities` | OT-P1-004 | Excluded as expansion. Existing TTS and summarization behavior must not regress. | Regression tests only |
+| `device-qualification` | OT-P2-001 | Excluded. | — |
+
+Evidence audit: no band edited, no sensor edited to move a row, every required row
+read from the program as often as its protocol requires, and excluded rows
+reported as excluded.
 
 ### Full mandate and completion contract
 
@@ -253,6 +345,18 @@ billing controls; complete owned delivery through its owner; run permitted live
 and native cohorts; refactor against those behavioral regressions and rerun the
 affected matrix. Refactoring can occur earlier when a broken seam blocks reliable
 tests. Reuse previous valid receipts; this order does not require repeating work.
+
+The bounded labelled policy/adapter simulation is executable with
+`audio-tools validation run-simulated --json`. It exercises explicit local,
+BYOK, and consented-owned routing; bounded reservation/finalization with
+idempotent retry; zero-debit local/BYOK controls; metadata-only lifecycle
+deletion; adapter identity; and acceptance negative controls. It records one
+`audio-tools-acceptance-v1` receipt labelled `execution_lane: simulated` and
+`simulated_as_native: false`. That receipt is valid only for the simulated
+policy/adapter rows. It must not be used as native, provider-parity,
+dictation-trust, mobile-recovery, host-portability, corpus-quality, or
+wall-clock latency proof; those product gates still require their own
+owner-backed receipts when the corresponding paths are available.
 
 Swarm/Agent Manager own launch dispatch, native-goal versus governed fallback,
 continuation, interruption recovery and budgets. Their qualification is a
@@ -317,6 +421,11 @@ and realized corpus IDs. Keep development and held-out qualification recordings
 disjoint. Record every missing subgroup as an unqualified scope, not an excluded
 denominator. Follow the existing report normalization policy; WER can exceed 1
 and must not be clamped. Inspect insertions/deletions/substitutions alongside WER.
+
+The server-owned quality experiment budget permits up to two hours for one
+explicit provider cell. Paired held-out noise cohorts can require more wall time
+than the 60-minute recognition-duration rung; this budget does not authorize
+multi-cell matrices or change any acceptance band.
 Test tail loss with known ending phrases and interval coverage, not WER alone.
 
 Changing references, normalization, corpus composition, or metric computation
@@ -356,17 +465,24 @@ is explicit: the newest successful experiment may be stale or from a different
 engine, corpus, lane or build. The program exposes bounded replay WER/RTF and
 finalization metrics with their limitations. It never converts replay timing to
 speech-to-visible-partial latency and never starts inference or a paid operation.
+Qualification evidence is a repeated response field and is consumed through
+Program Runtime's raw response projection; response metadata is not treated as
+the evidence list. The resolver scans up to 512 persisted rows, using a
+sentinel above that bound rather than silently truncating history. This
+distinction is covered by the board regression.
 
-The v2 program enumerates all 15 targets with `target_revision=portable-voice-v1`.
-It retains the nine original row IDs and adds six; its target strings summarize
-scope, not approved numeric bands. The all-published-targets regression catches
-inventory drift. Every outcome still has a null reading and null in-band value.
-W2 implementation must add owner-backed receipt joins; until then whole-product
-acceptance is unknown by construction. Future acceptance must reject mismatched target,
+The v3 program enumerates all 15 targets with `target_revision=portable-voice-v1`
+and resolves required rows through the owner-backed receipt join. It retains the
+nine original row IDs and adds six; its target strings summarize scope, not
+approved numeric bands. The all-published-targets regression catches inventory
+drift. Missing receipts remain unknown, while the two excluded rows are explicit.
+The join rejects mismatched target,
 method, corpus, build, device or policy revisions; missing attempts; early EOF;
 failed children; missing entitlement/settlement proof; and simulated evidence
-presented as native or live. Fix receipt ownership before adding that join to
-the program. Do not embed billing rules or provider qualification policy in Python.
+presented as native or live. Receipt ownership remains the producer's
+responsibility. The current v3 program consumes only resulting target-aware
+receipts; it does not create them or embed billing rules/provider qualification
+policy in Python.
 
 Run local branch regressions with `python3 -m unittest discover -s
 scenarios/audio-tools/test -p 'test_setpoint_read.py'` from the repository root.

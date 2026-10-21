@@ -79,6 +79,7 @@ const (
 	QualificationFault              = "fault"
 	QualificationBrowserProductPath = "browser_product_path"
 	QualificationDevice             = "device"
+	QualificationCorpusQuality      = "corpus_quality"
 )
 
 // QualificationMeasurement is transcript-free evidence from a dedicated

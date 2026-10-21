@@ -25,7 +25,12 @@ export function createScriptProcessorPcmCapture(
 ): PcmCapture {
   const source = context.createMediaStreamSource(stream);
   // eslint-disable-next-line @typescript-eslint/no-deprecated -- broad browser fallback while AudioWorklet is introduced behind this seam.
-  const processor = context.createScriptProcessor(4096, 1, 1);
+  // Keep the compatibility path responsive on browsers that cannot schedule
+  // AudioWorklet. At the canonical 16 kHz wire rate, 4096 samples delays the
+  // first voiced batch by about 256 ms before the streaming decoder can begin;
+  // 1024 bounds that at about 64 ms without changing wire batching, cursors,
+  // or journal semantics.
+  const processor = context.createScriptProcessor(1024, 1, 1);
   // eslint-disable-next-line @typescript-eslint/no-deprecated -- matches ScriptProcessor fallback above.
   processor.onaudioprocess = (event: AudioProcessingEvent) => {
     // eslint-disable-next-line @typescript-eslint/no-deprecated -- ScriptProcessor input API.
@@ -87,6 +92,19 @@ function loadWorklet(context: AudioContext): Promise<void> {
     if (workletLoads.get(context) === load) workletLoads.delete(context);
   });
   return load;
+}
+
+/**
+ * Start loading the preferred capture module without creating a capture graph.
+ * Hosts call this from an explicit voice gesture so module startup can overlap
+ * microphone permission/device setup. The promise is shared with
+ * createAudioWorkletPcmCapture(), so the later graph creation only waits when
+ * the browser has not finished loading the module yet.
+ */
+export function preloadCanonicalPcmCapture(context: AudioContext): Promise<void> {
+  if (typeof navigator !== "undefined" && navigator.webdriver) return Promise.resolve();
+  if (!context.audioWorklet || typeof AudioWorkletNode === "undefined") return Promise.resolve();
+  return loadWorklet(context);
 }
 
 /**
