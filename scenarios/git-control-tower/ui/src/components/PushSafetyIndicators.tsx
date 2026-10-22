@@ -3,11 +3,15 @@ import { useQuery } from "@tanstack/react-query";
 import type { PushSafetyReport } from "@vrooli/proto-types/git-control-tower/v1/repo/repo_pb";
 import { inspectPushSafety } from "../lib/api-push-safety";
 
-type Safety = { stagedFilesByPath?: ReadonlyMap<string, PushSafetyReport["stagedFiles"][number]>; report?: PushSafetyReport; label: string; review?: () => void; checking?: boolean };
+type ReviewFocus = "staged" | "outgoing";
+type Safety = { stagedFilesByPath?: ReadonlyMap<string, PushSafetyReport["stagedFiles"][number]>; report?: PushSafetyReport; label: string; review?: (focus?: ReviewFocus) => void; checking?: boolean };
 const Context = createContext<Safety>({ label: "" });
 export const usePushSafety = () => useContext(Context);
 
-export function PushSafetyProvider({ repoId, revision, review, paused = false, children }: { repoId?: string; revision: string; paused?: boolean; review: () => void; children: ReactNode }) {
+const mib = (n: bigint) => `${(Number(n) / 1048576).toFixed(2)} MiB`;
+const basename = (path: string) => path.split("/").pop() || path;
+
+export function PushSafetyProvider({ repoId, revision, review, paused = false, children }: { repoId?: string; revision: string; paused?: boolean; review: (focus?: ReviewFocus) => void; children: ReactNode }) {
   const [settled, setSettled] = useState(revision);
   const [now, setNow] = useState(Date.now());
   useEffect(() => { const timer = setTimeout(() => setSettled(revision), 1000); return () => clearTimeout(timer); }, [revision]);
@@ -40,16 +44,28 @@ export function PushSafetyProvider({ repoId, revision, review, paused = false, c
 export function PushSafetyNotice() {
   const { label, review } = usePushSafety();
   if (!review || !label) return null;
-  return <button type="button" onClick={review} className="block max-w-[16rem] whitespace-normal text-xs text-amber-200 text-left" title="Review file-size details">{label} · Review</button>;
+  return <button type="button" onClick={() => review()} className="block max-w-[16rem] whitespace-normal text-xs text-amber-200 text-left" title="Review file-size details">{label} · Review</button>;
 }
 
 export function StagedSafetyNotice() {
   const { report, review } = usePushSafety();
   if (!review || !report?.stagedComplete || !report.stagedFiles.length) return null;
   const count = new Set(report.stagedFiles.flatMap(file => file.paths)).size;
-  const blocked = report.stagedFiles.some(file => file.blocked);
-  return <button type="button" className="text-left text-xs text-amber-200" onClick={review}>
-    {count} large staged file{count === 1 ? "" : "s"}{blocked ? " would block push" : " to review"} · Review
+  const blocked = report.stagedFiles.filter(file => file.blocked);
+  // Name the single largest file and its size against the limit so the operator
+  // can identify and act on the offender without opening the drawer.
+  const largest = report.stagedFiles.reduce((a, b) => (b.bytes > a.bytes ? b : a));
+  const name = basename(largest.paths[0] ?? "staged file");
+  const limit = report.limit > 0n ? `the ${mib(report.limit)} push limit` : "the push limit";
+  const message = blocked.length
+    ? blocked.length === 1
+      ? `${name} (${mib(largest.bytes)}) exceeds ${limit} and would block push — unstage before committing`
+      : `${blocked.length} staged files exceed ${limit} (largest ${name}, ${mib(largest.bytes)}) — unstage before committing`
+    : count === 1
+      ? `${name} (${mib(largest.bytes)}) is large — review before committing`
+      : `${count} large staged files (largest ${name}, ${mib(largest.bytes)}) — review before committing`;
+  return <button type="button" className="block max-w-[18rem] whitespace-normal text-left text-xs text-amber-200" title="Review staged file sizes before committing" onClick={() => review("staged")}>
+    {message} · Review
   </button>;
 }
 
@@ -75,7 +91,7 @@ export function StagedSafetyBadge({ path }: { path: string }) {
   const { stagedFilesByPath, review } = usePushSafety();
   const file = stagedFilesByPath?.get(path);
   if (!file) return null;
-  return <button type="button" className="shrink-0 text-xs text-amber-200" title={`${(Number(file.bytes) / 1048576).toFixed(2)} MiB in the index. ${file.blocked ? "Would block push if committed." : "Large staged file."}`} onClick={event => { event.stopPropagation(); review?.(); }}>{file.blocked ? "Push blocker" : "Large file"}</button>;
+  return <button type="button" className="shrink-0 text-xs text-amber-200" title={`${mib(file.bytes)} in the index. ${file.blocked ? "Would block push if committed." : "Large staged file."}`} onClick={event => { event.stopPropagation(); review?.("staged"); }}>{file.blocked ? "Push blocker" : "Large file"}</button>;
 }
 
 // The report stores paths and commits separately per blob, not exact

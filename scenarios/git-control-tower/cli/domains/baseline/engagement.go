@@ -227,19 +227,21 @@ func decideMode(scenario, requested string, sig modeSignals, cs coreSet) modeDec
 	}
 }
 
-// loadCoreSet seeds the reflexive set from the api-core SSOT constant (always
-// available — the trusted-base hard-stop must hold even with the analyzer down)
-// then best-effort augments it with the live closure from
-// scenario-dependency-analyzer. Unions only add; the trusted base is never
-// shrunk (over-inclusion is the safe bias).
+// loadCoreSet seeds the reflexive set from api-core's current operator-granted
+// authority when it can be loaded, then best-effort augments it with the live
+// closure from scenario-dependency-analyzer. The operator authority is read
+// once so seed and trusted-base membership come from the same snapshot. If the
+// authority cannot be read, no code-owned grants are inferred. Analyzer results
+// only add members; they never shrink the operator-granted trusted base.
 func loadCoreSet(ctx context.Context) coreSet {
 	cs := coreSet{members: map[string]bool{}, trustedBase: map[string]bool{}, source: "fallback"}
-	for _, s := range coreset.DefaultFallbackCoreSet() {
-		cs.members[s] = true
+	authority, _ := coreset.Load("")
+	for _, scenario := range authority.Seed {
+		cs.members[scenario] = true
 	}
-	for _, s := range coreset.TrustedBaseScenarios() {
-		cs.members[s] = true
-		cs.trustedBase[s] = true
+	for _, scenario := range authority.TrustedBase {
+		cs.members[scenario] = true
+		cs.trustedBase[scenario] = true
 	}
 	if out, err := runCommand(ctx, "scenario-dependency-analyzer", "core-set", "--json"); err == nil {
 		var resp struct {

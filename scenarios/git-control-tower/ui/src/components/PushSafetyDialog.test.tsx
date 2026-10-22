@@ -32,6 +32,9 @@ test("blocked push explains historical scope and requires explicit preparation c
   const push = vi.fn(); renderWithProviders(<PushSafetyDialog repoId="one" onClose={vi.fn()} onPush={push} />);
   expect(await screen.findByText("bundle/vault")).toBeVisible();
   expect(screen.queryByRole("button", { name: "Continue to push" })).not.toBeInTheDocument();
+  // Untrack is not offered for already-committed history: it cannot remove a
+  // file from earlier commits -- that is the recovery-prepare flow's job.
+  expect(screen.queryByRole("button", { name: /untrack \(keep local\)/i })).not.toBeInTheDocument();
   expect(screen.getByText(/Deleting the file in a new commit/)).toBeVisible();
   const prepare = screen.getByRole("button", { name: "Prepare recovery" });
   expect(prepare).toBeDisabled(); expect(preparePushRecovery).not.toHaveBeenCalled();
@@ -70,6 +73,31 @@ test("clear inspection still requires a separate push action", async () => {
   const push = vi.fn(); renderWithProviders(<PushSafetyDialog onClose={vi.fn()} onPush={push} />);
   const button = await screen.findByRole("button", { name: "Continue to push" });
   expect(push).not.toHaveBeenCalled(); fireEvent.click(button); expect(push).toHaveBeenCalledTimes(1);
+});
+
+test("staged focus surfaces the staged index, not empty outgoing history", async () => {
+  // Mirrors the real report: outgoing history is clean (nothing committed yet),
+  // but a large file is staged. Opening via a staged review link must show the
+  // staged offender and its size — not the 0.00 MiB outgoing summary.
+  vi.mocked(inspectPushSafety).mockResolvedValue(create(PushSafetyReportSchema, {
+    complete: true, state: "clear", reason: "No outgoing file exceeds the detected host limit.",
+    remote: "origin", branch: "agi", limit: 104857600n, commits: [], largestBlobBytes: 0n, outgoingBytes: 0n,
+    stagedComplete: true, stagedReason: "Checked staged Git objects against the destination file-size policy.",
+    stagedFiles: [{ oid: "index", bytes: 117120078n, paths: ["scenarios/audio-tools/bas/fixtures/dictation-reference-long.wav"], blocked: true }],
+  }));
+  renderWithProviders(<PushSafetyDialog repoId="one" focus="staged" onClose={vi.fn()} onPush={vi.fn()} />);
+  expect(await screen.findByText("scenarios/audio-tools/bas/fixtures/dictation-reference-long.wav")).toBeVisible();
+  expect(screen.getByText(/Largest staged file/)).toBeVisible();
+  expect(screen.getAllByText(/111\.69 MiB/).length).toBeGreaterThan(0);
+  expect(screen.getByText(/of 100\.00 MiB limit/)).toBeVisible();
+  expect(screen.getByText(/would block push if committed/)).toBeVisible();
+  expect(screen.getByText(/How to resolve before committing/)).toBeVisible();
+  // Staged content can be untracked in place (it is not yet committed).
+  expect(screen.getByRole("button", { name: /untrack \(keep local\)/i })).toBeInTheDocument();
+  // The empty-outgoing summary and push bypass must not appear in staged review.
+  expect(screen.queryByText(/outgoing commits/)).not.toBeInTheDocument();
+  expect(screen.queryByText("0.00 MiB of 100.00 MiB limit")).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Continue to push" })).not.toBeInTheDocument();
 });
 
 test("renders push review through the shared narrow-viewport sheet", async () => {

@@ -2,16 +2,50 @@ package repo
 
 import (
 	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
 	"io"
 	"os"
 	"strings"
 	"testing"
+
+	"connectrpc.com/connect"
+	"github.com/vrooli/cli-core/cliapp"
+	repov1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/repo"
+	repoconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/repo/repo_v1connect"
 )
 
+type diffClientStub struct {
+	repoconnect.RepoServiceClient
+	request  *repov1.GetRepoDiffRequest
+	response *repov1.GetRepoDiffResponse
+	err      error
+}
+
+func (s *diffClientStub) GetRepoDiff(_ context.Context, req *connect.Request[repov1.GetRepoDiffRequest]) (*connect.Response[repov1.GetRepoDiffResponse], error) {
+	s.request = req.Msg
+	if s.err != nil {
+		return nil, s.err
+	}
+	return connect.NewResponse(s.response), nil
+}
+
 func TestParseRepoFlags(t *testing.T) {
-	diff := parseDiffFlags([]string{"--path=api/main.go", "--staged"})
+	diff, err := parseDiffFlags([]string{"--path=api/main.go", "--staged"})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if diff.path != "api/main.go" || !diff.staged {
 		t.Fatalf("unexpected diff flags: %#v", diff)
+	}
+
+	historical, err := parseDiffFlags([]string{"--path=src/App.tsx", "--commit=0123456789abcdef0123456789abcdef01234567", "--mode=source", "--json"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if historical.path != "src/App.tsx" || historical.commit != "0123456789abcdef0123456789abcdef01234567" || historical.mode != "source" || !historical.json {
+		t.Fatalf("unexpected source flags: %#v", historical)
 	}
 
 	stage := parseStageFlags([]string{"--scope=scenario:git-control-tower", "ui/src/App.tsx"})
@@ -30,6 +64,102 @@ func TestParseRepoFlags(t *testing.T) {
 	sync := parseSyncStatusFlags([]string{"--fetch", "--remote=origin"})
 	if !sync.fetch || sync.remote != "origin" {
 		t.Fatalf("unexpected sync flags: %#v", sync)
+	}
+}
+
+func TestParseDiffFlagsRequiresExactSourceSelector(t *testing.T) {
+	for _, args := range [][]string{
+		{"--mode=source", "--commit=0123456789abcdef0123456789abcdef01234567"},
+		{"--path=src/App.tsx", "--commit=main", "--mode=source"},
+		{"--path=src/App.tsx", "--commit=0123456789abcdef0123456789abcdef01234567"},
+		{"--path=src/App.tsx", "--commit=0123456789abcdef0123456789abcdef01234567", "--mode=source", "--staged"},
+	} {
+		if _, err := parseDiffFlags(args); err == nil {
+			t.Fatalf("expected invalid source selector to fail: %v", args)
+		}
+	}
+	if !isFullCommitID(strings.Repeat("a", 64)) {
+		t.Fatal("expected full SHA-256 object IDs to be accepted")
+	}
+}
+
+func TestRunDiffReadsExactCommitSourceAndReturnsHashAndByteLength(t *testing.T) {
+	const commitID = "0123456789abcdef0123456789abcdef01234567"
+	const content = "export const answer = 42;\n"
+	client := &diffClientStub{response: &repov1.GetRepoDiffResponse{
+		RepoDir: "/workspace/repo", Path: "src/App.tsx", Mode: "source", FullContent: content,
+		ContentHash: strings.Repeat("a", 64),
+	}}
+	oldFactory := repoClientFactory
+	repoClientFactory = func(*cliapp.ScenarioApp) repoconnect.RepoServiceClient { return client }
+	t.Cleanup(func() { repoClientFactory = oldFactory })
+
+	output := captureStdout(t, func() {
+		if err := runDiff(nil, []string{"--path=src/App.tsx", "--commit=" + commitID, "--mode=source", "--json"}); err != nil {
+			t.Fatal(err)
+		}
+	})
+	if client.request.GetCommit() != commitID || client.request.GetMode() != "source" || client.request.GetPath() != "src/App.tsx" || client.request.GetStaged() {
+		t.Fatalf("unexpected historical source request: %#v", client.request)
+	}
+	var got sourceResponse
+	if err := json.Unmarshal([]byte(output), &got); err != nil {
+		t.Fatalf("source output must be JSON: %v\n%s", err, output)
+	}
+	if got.RequestedCommit != commitID || got.Path != "src/App.tsx" || got.ContentHash != strings.Repeat("a", 64) || got.ContentBytes != len([]byte(content)) || got.Content != content {
+		t.Fatalf("source output lost provenance/content: %#v", got)
+	}
+}
+
+func TestRunDiffDefaultStillRequestsWorkingTreeDiff(t *testing.T) {
+	client := &diffClientStub{response: &repov1.GetRepoDiffResponse{Path: "src/App.tsx", HasDiff: false}}
+	oldFactory := repoClientFactory
+	repoClientFactory = func(*cliapp.ScenarioApp) repoconnect.RepoServiceClient { return client }
+	t.Cleanup(func() { repoClientFactory = oldFactory })
+
+	output := captureStdout(t, func() {
+		if err := runDiff(nil, []string{"--path=src/App.tsx", "--staged"}); err != nil {
+			t.Fatal(err)
+		}
+	})
+	if client.request.GetPath() != "src/App.tsx" || !client.request.GetStaged() || client.request.GetCommit() != "" || client.request.GetMode() != "" {
+		t.Fatalf("default diff semantics changed: %#v", client.request)
+	}
+	if output != "No changes\n" {
+		t.Fatalf("unexpected default output %q", output)
+	}
+}
+
+func TestRunDiffDefaultJSONRendersTypedResponse(t *testing.T) {
+	client := &diffClientStub{response: &repov1.GetRepoDiffResponse{Path: "src/App.tsx", HasDiff: false}}
+	oldFactory := repoClientFactory
+	repoClientFactory = func(*cliapp.ScenarioApp) repoconnect.RepoServiceClient { return client }
+	t.Cleanup(func() { repoClientFactory = oldFactory })
+
+	output := captureStdout(t, func() {
+		if err := runDiff(nil, []string{"--path=src/App.tsx", "--json"}); err != nil {
+			t.Fatal(err)
+		}
+	})
+	var got map[string]any
+	if err := json.Unmarshal([]byte(output), &got); err != nil {
+		t.Fatalf("diff --json must emit JSON: %v\n%s", err, output)
+	}
+	if got["path"] != "src/App.tsx" || got["has_diff"] != nil {
+		t.Fatalf("unexpected typed JSON response: %#v", got)
+	}
+}
+
+func TestRunDiffPropagatesSourceReadErrors(t *testing.T) {
+	wantErr := errors.New("commit is unavailable")
+	client := &diffClientStub{err: wantErr}
+	oldFactory := repoClientFactory
+	repoClientFactory = func(*cliapp.ScenarioApp) repoconnect.RepoServiceClient { return client }
+	t.Cleanup(func() { repoClientFactory = oldFactory })
+
+	err := runDiff(nil, []string{"--path=src/App.tsx", "--commit=0123456789abcdef0123456789abcdef01234567", "--mode=source"})
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("expected source read error %v, got %v", wantErr, err)
 	}
 }
 
@@ -202,4 +332,101 @@ func captureStdout(t *testing.T, fn func()) string {
 		t.Fatalf("closing stdout pipe reader failed: %v", err)
 	}
 	return buf.String()
+}
+
+type trackedBinariesClientStub struct {
+	repoconnect.RepoServiceClient
+	listResp   *repov1.TrackedBinariesResponse
+	listErr    error
+	gotUntrack *repov1.UntrackBinaryRequest
+}
+
+func (s *trackedBinariesClientStub) GetTrackedBinaries(_ context.Context, _ *connect.Request[repov1.GetTrackedBinariesRequest]) (*connect.Response[repov1.TrackedBinariesResponse], error) {
+	if s.listErr != nil {
+		return nil, s.listErr
+	}
+	return connect.NewResponse(s.listResp), nil
+}
+
+func (s *trackedBinariesClientStub) UntrackBinary(_ context.Context, req *connect.Request[repov1.UntrackBinaryRequest]) (*connect.Response[repov1.UntrackBinaryResponse], error) {
+	s.gotUntrack = req.Msg
+	return connect.NewResponse(&repov1.UntrackBinaryResponse{Success: true, RemovedFromIndex: true}), nil
+}
+
+func withTrackedBinariesClient(t *testing.T, client repoconnect.RepoServiceClient) {
+	t.Helper()
+	oldFactory := repoClientFactory
+	repoClientFactory = func(*cliapp.ScenarioApp) repoconnect.RepoServiceClient { return client }
+	t.Cleanup(func() { repoClientFactory = oldFactory })
+}
+
+func TestRunUntrackedListRendersCandidates(t *testing.T) {
+	client := &trackedBinariesClientStub{listResp: &repov1.TrackedBinariesResponse{
+		Binaries: []*repov1.TrackedBinary{{
+			Path: "scenarios/prompt-manager/api/objectives-import", Bytes: 18281673, Format: "elf",
+			OwnerDir: "scenarios/prompt-manager", IgnorePattern: "/api/objectives-import",
+		}},
+		TotalBytes:     18281673,
+		HistoryWarning: "Untracking does not reclaim history.",
+	}}
+	withTrackedBinariesClient(t, client)
+
+	// JSON output preserves the per-candidate remediation fields.
+	jsonOut := captureStdout(t, func() {
+		if err := runUntrackedList(nil, []string{"--json"}); err != nil {
+			t.Fatal(err)
+		}
+	})
+	var got struct {
+		Candidates []untrackedCandidate `json:"candidates"`
+		TotalBytes int64                `json:"total_bytes"`
+	}
+	if err := json.Unmarshal([]byte(jsonOut), &got); err != nil {
+		t.Fatalf("list output must be JSON: %v\n%s", err, jsonOut)
+	}
+	if len(got.Candidates) != 1 || got.Candidates[0].Path != "scenarios/prompt-manager/api/objectives-import" || got.Candidates[0].IgnorePattern != "/api/objectives-import" {
+		t.Fatalf("list lost candidate fields: %#v", got)
+	}
+
+	// Human-readable output names the file, its size, and the ignore target.
+	textOut := captureStdout(t, func() {
+		if err := runUntrackedList(nil, nil); err != nil {
+			t.Fatal(err)
+		}
+	})
+	for _, want := range []string{"objectives-import", "17.43 MiB", "/api/objectives-import", "scenarios/prompt-manager/.gitignore"} {
+		if !strings.Contains(textOut, want) {
+			t.Fatalf("human output missing %q:\n%s", want, textOut)
+		}
+	}
+}
+
+func TestRunUntrackedListReportsEmpty(t *testing.T) {
+	withTrackedBinariesClient(t, &trackedBinariesClientStub{listResp: &repov1.TrackedBinariesResponse{}})
+	out := captureStdout(t, func() {
+		if err := runUntrackedList(nil, nil); err != nil {
+			t.Fatal(err)
+		}
+	})
+	if !strings.Contains(out, "No tracked files flagged") {
+		t.Fatalf("expected empty message, got:\n%s", out)
+	}
+}
+
+func TestRunUntrackRequiresPath(t *testing.T) {
+	if err := runUntrack(nil, nil); err == nil || !strings.Contains(err.Error(), "usage") {
+		t.Fatalf("expected usage error, got %v", err)
+	}
+}
+
+func TestRunUntrackRejectsNonCandidatePath(t *testing.T) {
+	client := &trackedBinariesClientStub{listResp: &repov1.TrackedBinariesResponse{}}
+	withTrackedBinariesClient(t, client)
+	err := runUntrack(nil, []string{"some/tracked/source.go"})
+	if err == nil || !strings.Contains(err.Error(), "not a tracked removal candidate") {
+		t.Fatalf("expected non-candidate guard error, got %v", err)
+	}
+	if client.gotUntrack != nil {
+		t.Fatalf("must not attempt a mutation for a non-candidate path")
+	}
 }

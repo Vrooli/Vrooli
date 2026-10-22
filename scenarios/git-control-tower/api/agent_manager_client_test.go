@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -239,6 +240,52 @@ func TestAgentManagerClient_GetRun(t *testing.T) {
 	}
 	if result.Run.Summary.CostEstimate != 1.23 {
 		t.Errorf("expected cost_estimate 1.23, got %f", result.Run.Summary.CostEstimate)
+	}
+}
+
+func TestAgentManagerClient_GetRunSummaryPreservesInt64TokenCounts(t *testing.T) {
+	for _, test := range []struct {
+		name       string
+		tokensJSON string
+		want       int64
+		wantJSON   string
+		wantError  bool
+	}{
+		{name: "quoted ProtoJSON int64", tokensJSON: `"2147495992"`, want: 2_147_495_992, wantJSON: `{"tokensUsed":2147495992}`},
+		{name: "legacy numeric token count", tokensJSON: `120`, want: 120, wantJSON: `{"tokensUsed":120}`},
+		{name: "out of range rejected", tokensJSON: `"9223372036854775808"`, wantError: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			mux := http.NewServeMux()
+			mux.HandleFunc("/api/v1/runs/run-001", func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(`{"run":{"id":"run-001","summary":{"tokens_used":` + test.tokensJSON + `}}}`))
+			})
+			server := httpx.NewHandlerServer(t, mux)
+			client := newTestAgentManagerClient(server.URL)
+
+			response, err := client.GetRun(context.Background(), "run-001")
+			if test.wantError {
+				if err == nil || !strings.Contains(err.Error(), "tokens_used") {
+					t.Fatalf("GetRun error = %v, want explicit tokens_used decoding error", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("GetRun: %v", err)
+			}
+			projected := wireRunToAPI(&response.Run)
+			if projected.Summary == nil || projected.Summary.TokensUsed != test.want {
+				t.Fatalf("projected summary tokens = %+v, want %d", projected.Summary, test.want)
+			}
+			projectedJSON, err := json.Marshal(projected.Summary)
+			if err != nil {
+				t.Fatalf("marshal projected summary: %v", err)
+			}
+			if string(projectedJSON) != test.wantJSON {
+				t.Fatalf("projected summary JSON = %s, want %s", projectedJSON, test.wantJSON)
+			}
+		})
 	}
 }
 

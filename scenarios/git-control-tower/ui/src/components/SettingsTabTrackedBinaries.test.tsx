@@ -57,7 +57,9 @@ describe("TrackedBinariesSection", () => {
   it("lists tracked binaries with size and ignore target", async () => {
     renderWithQueryClient(<TrackedBinariesSection isMobile={false} repoId="repo-1" />);
 
-    expect(await screen.findByText("scenarios/tidiness-manager/cli/cli")).toBeInTheDocument();
+    // The path is rendered across two spans (dir + emphasized filename); the
+    // full value is preserved as the element title and must stay readable.
+    expect(await screen.findByTitle("scenarios/tidiness-manager/cli/cli")).toBeInTheDocument();
     // Size shows twice on purpose: once as the row's own cost, once in the
     // header total, so the panel answers "how big is this problem" at a glance.
     expect(screen.getAllByText(/8\.1 MB/).length).toBeGreaterThanOrEqual(1);
@@ -88,12 +90,34 @@ describe("TrackedBinariesSection", () => {
     });
   });
 
+  it("renders an oversized non-executable candidate with a friendly reason", async () => {
+    connectMocks.repoClient.getTrackedBinaries.mockResolvedValue({
+      binaries: [{
+        path: "scenarios/audio-tools/bas/fixtures/dictation-reference-long.wav",
+        bytes: 117_120_078,
+        format: "oversized",
+        ownerDir: "scenarios/audio-tools",
+        ignorePattern: "/bas/fixtures/dictation-reference-long.wav",
+        alreadyIgnored: false,
+      }],
+      totalBytes: 117_120_078,
+      historyWarning: oneBinary.history_warning,
+    });
+
+    renderWithQueryClient(<TrackedBinariesSection isMobile={false} repoId="repo-1" />);
+
+    expect(await screen.findByText(/dictation-reference-long\.wav/)).toBeInTheDocument();
+    // The raw "oversized" reason is shown as a human label, not the enum value.
+    expect(screen.getByText(/large file/i)).toBeInTheDocument();
+    expect(screen.queryByText(/^oversized$/i)).not.toBeInTheDocument();
+  });
+
   it("reports a clean repository instead of an empty list", async () => {
     connectMocks.repoClient.getTrackedBinaries.mockResolvedValue({ binaries: [], totalBytes: 0, historyWarning: "" });
 
     renderWithQueryClient(<TrackedBinariesSection isMobile={false} repoId="repo-1" />);
 
-    expect(await screen.findByText(/no compiled binaries are tracked/i)).toBeInTheDocument();
+    expect(await screen.findByText(/no build output or oversized files are tracked/i)).toBeInTheDocument();
   });
 });
 

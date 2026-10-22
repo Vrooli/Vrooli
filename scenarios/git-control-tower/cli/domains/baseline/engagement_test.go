@@ -198,15 +198,33 @@ func TestLoadCoreSetFallbackWhenAnalyzerDown(t *testing.T) {
 	defer f.install()()
 
 	cs := loadCoreSet(context.Background())
-	// The SSOT constant must still seat the trusted base (hard-stop must hold).
+	// The test-only operator authority fixture must still seat the trusted base
+	// when the analyzer is unavailable.
 	if !cs.isTrustedBase("git-control-tower") {
-		t.Errorf("git-control-tower must be trusted base from the constant even with the analyzer down")
+		t.Errorf("git-control-tower from the operator authority fixture must remain trusted when the analyzer is down")
 	}
 	if cs.source != "fallback" {
 		t.Errorf("source = %q, want fallback", cs.source)
 	}
 	if !cs.isMember("test-genie") {
-		t.Errorf("seed members must be present from the constant")
+		t.Errorf("test-genie from the operator authority fixture must remain a core member")
+	}
+}
+
+func TestLoadCoreSetDoesNotInventAuthorityWhenOperatorStateIsMissing(t *testing.T) {
+	// The api-core contract treats absent operator state as no explicit grants.
+	// Keep this case isolated from TestMain's populated authority fixture.
+	t.Setenv("VROOLI_STORAGE_ROOT", t.TempDir())
+	f := newFakeRunner(t)
+	f.failOn["scenario-dependency-analyzer core-set"] = fmt.Errorf("analyzer down")
+	defer f.install()()
+
+	cs := loadCoreSet(context.Background())
+	if len(cs.members) != 0 || len(cs.trustedBase) != 0 {
+		t.Fatalf("missing operator state must not synthesize code-owned grants: members=%v trusted=%v", cs.members, cs.trustedBase)
+	}
+	if cs.source != "fallback" {
+		t.Fatalf("source = %q, want fallback", cs.source)
 	}
 }
 
@@ -225,9 +243,9 @@ func TestLoadCoreSetAugmentsFromAnalyzer(t *testing.T) {
 	if !cs.isMember("audio-tools") {
 		t.Errorf("closure member from the analyzer must be unioned in")
 	}
-	// The constant's trusted base is never shrunk by the analyzer.
+	// An empty analyzer trusted_base does not shrink the operator authority fixture.
 	if !cs.isTrustedBase("git-control-tower") {
-		t.Errorf("constant trusted base must survive an empty analyzer trusted_base")
+		t.Errorf("fixture trusted base must survive an empty analyzer trusted_base")
 	}
 	if cs.source != "analyzer:computed" {
 		t.Errorf("source = %q", cs.source)

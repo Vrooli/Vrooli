@@ -53,6 +53,37 @@ func TestAnalyzeTrackedBinaries_FlagsExecutablesOnly(t *testing.T) {
 	}
 }
 
+// A large non-executable (media, data, soak fixture) is a push/merge hazard
+// even though it is not a build artifact, and the scan's extension speed-filter
+// must not hide it.
+func TestAnalyzeTrackedBinaries_FlagsOversizedNonExecutable(t *testing.T) {
+	git, fs := trackedRepo(map[string]string{
+		"scenarios/demo/bas/fixtures/dictation-reference-long.wav": "RIFF-placeholder",
+		"scenarios/demo/bas/fixtures/small.wav":                    "riff",
+		"scenarios/demo/api/main.go":                               "package main\n",
+	})
+	fs.WithFileSize("/repo/scenarios/demo/bas/fixtures/dictation-reference-long.wav", 117120078)
+
+	resp := analyze(t, git, fs)
+
+	if len(resp.Binaries) != 1 {
+		t.Fatalf("expected exactly 1 oversized candidate, got %+v", resp.Binaries)
+	}
+	got := resp.Binaries[0]
+	if got.Format != reasonOversized {
+		t.Fatalf("format = %q, want %q", got.Format, reasonOversized)
+	}
+	if got.Path != "scenarios/demo/bas/fixtures/dictation-reference-long.wav" {
+		t.Fatalf("path = %q", got.Path)
+	}
+	if got.Bytes != 117120078 {
+		t.Fatalf("bytes = %d, want 117120078", got.Bytes)
+	}
+	if got.OwnerDir != "scenarios/demo" || got.IgnorePattern != "/bas/fixtures/dictation-reference-long.wav" {
+		t.Fatalf("ignore target = %q %q", got.OwnerDir, got.IgnorePattern)
+	}
+}
+
 // Untracking never shrinks the repository; the response must say so or the UI
 // will imply a reclaim that did not happen.
 func TestAnalyzeTrackedBinaries_AlwaysWarnsAboutHistory(t *testing.T) {

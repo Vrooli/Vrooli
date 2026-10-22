@@ -1559,7 +1559,14 @@ export default function App() {
   }, [approvedPreviewMutation, approvedStagedPaths, canUseApprovedMessage]);
 
   const [pushSafetyOpen, setPushSafetyOpen] = useState(false);
-  const handlePush = useCallback(() => setPushSafetyOpen(true), []);
+  const [pushSafetyFocus, setPushSafetyFocus] = useState<"staged" | "outgoing">("outgoing");
+  // Reason-aware entry: the staged-file review links pass "staged"; the Push
+  // button and outgoing-history links open on the default outgoing view. A DOM
+  // event (when wired directly as a button handler) is not the string "staged".
+  const handlePush = useCallback((focus?: unknown) => {
+    setPushSafetyFocus(focus === "staged" ? "staged" : "outgoing");
+    setPushSafetyOpen(true);
+  }, []);
   const runPushAfterSafety = useCallback(() => {
     if (syncActivity) return;
     setSyncActivity({ kind: "push", phase: "preflight", startedAt: Date.now() });
@@ -3000,7 +3007,7 @@ export default function App() {
           onChangeGroupingRules={handleGroupingRulesChange}
           onClose={() => setIsSettingsOpen(false)}
         />
-        {pushSafetyOpen && <PushSafetyDialog key={repoId ?? "active"} repoId={repoId ?? undefined} onClose={() => setPushSafetyOpen(false)} onPush={() => { setPushSafetyOpen(false); runPushAfterSafety(); }} />}
+        {pushSafetyOpen && <PushSafetyDialog key={repoId ?? "active"} repoId={repoId ?? undefined} focus={pushSafetyFocus} onClose={() => setPushSafetyOpen(false)} onPush={() => { setPushSafetyOpen(false); runPushAfterSafety(); }} />}
       <UpstreamInfoModal
           isOpen={isUpstreamInfoOpen}
           localBranch={pushSourceBranch}
@@ -3159,7 +3166,7 @@ export default function App() {
         onClose={() => setIsSettingsOpen(false)}
       />
       {isSourceDistributionOpen && <SourceDistributionPanel repoId={repoId} initialDistributionId={sourceDistributionId} onSelectDistribution={setSourceDistributionId} onClose={() => { setSourceDistributionId(null); setIsSourceDistributionOpen(false); }} />}
-      {pushSafetyOpen && <PushSafetyDialog key={repoId ?? "active"} repoId={repoId ?? undefined} onClose={() => setPushSafetyOpen(false)} onPush={() => { setPushSafetyOpen(false); runPushAfterSafety(); }} />}
+      {pushSafetyOpen && <PushSafetyDialog key={repoId ?? "active"} repoId={repoId ?? undefined} focus={pushSafetyFocus} onClose={() => setPushSafetyOpen(false)} onPush={() => { setPushSafetyOpen(false); runPushAfterSafety(); }} />}
       <UpstreamInfoModal
         isOpen={isUpstreamInfoOpen}
         localBranch={pushSourceBranch}

@@ -372,7 +372,7 @@
         },
         {
           "name": "diff",
-          "description": "Show a working-tree or staged file diff",
+          "description": "Show a working-tree diff or read source from an exact commit",
           "binding": {
             "kind": "connect-rpc",
             "service": "RepoService",
@@ -427,6 +427,40 @@
             "kind": "connect-rpc",
             "service": "RepoService",
             "method": "UnstageFiles"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "requires_confirmation": true,
+            "permissions": [
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "untracked",
+          "description": "List tracked files that should not be committed: build binaries, and files now covered by an ignore rule or over the push limit",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RepoService",
+            "method": "GetTrackedBinaries"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "requires_confirmation": false,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "untrack",
+          "description": "Stop tracking a file but keep it on disk, adding the convention-correct ignore rule; requires exact human confirmation",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RepoService",
+            "method": "UntrackBinary"
           },
           "governance": {
             "effect": "write",

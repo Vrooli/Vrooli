@@ -241,7 +241,8 @@ func TestStartTrustedBaseSkipsNamespaceDetection(t *testing.T) {
 	called, restore := withFakeDetector(true, "x", nil)
 	defer restore()
 
-	// git-control-tower is trusted base → hard-routed to live; the gate is moot.
+	// The test-only operator authority fixture trusts git-control-tower, so it is
+	// hard-routed to live and the namespaceability gate is moot.
 	if _, err := startEngagement(nil, startParams{scenario: "git-control-tower", mode: modeAuto, slug: "wip", signals: modeSignals{operatorConfirm: true}}); err != nil {
 		t.Fatalf("startEngagement: %v", err)
 	}

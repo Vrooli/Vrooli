@@ -38,7 +38,6 @@ export function TrackedBinariesSection({ isMobile, repoId }: TrackedBinariesSect
 
   const textSm = isMobile ? "text-sm" : "text-xs";
   const textXs = isMobile ? "text-xs" : "text-[11px]";
-  const gap = isMobile ? "gap-3" : "gap-2";
   const py = isMobile ? "py-3" : "py-2";
   const px = isMobile ? "px-4" : "px-3";
 
@@ -54,7 +53,7 @@ export function TrackedBinariesSection({ isMobile, repoId }: TrackedBinariesSect
     );
   };
 
-  const heading = <h3 className={`font-semibold text-slate-200 ${textSm}`}>Tracked Binaries</h3>;
+  const heading = <h3 className={`font-semibold text-slate-200 ${textSm}`}>Tracked files to remove</h3>;
 
   if (query.isLoading) {
     return (
@@ -82,7 +81,7 @@ export function TrackedBinariesSection({ isMobile, repoId }: TrackedBinariesSect
         {heading}
         <div className={`flex items-center gap-2 rounded-lg border border-green-900/50 bg-green-950/20 ${px} ${py}`}>
           <Check className="h-4 w-4 text-green-400 shrink-0" />
-          <p className={`${textXs} text-green-300`}>No compiled binaries are tracked in git.</p>
+          <p className={`${textXs} text-green-300`}>No build output or oversized files are tracked in git.</p>
         </div>
       </div>
     );
@@ -93,7 +92,7 @@ export function TrackedBinariesSection({ isMobile, repoId }: TrackedBinariesSect
       <div className="flex items-center justify-between">
         {heading}
         <span className={`${textXs} text-slate-500`}>
-          {binaries.length} {binaries.length === 1 ? "binary" : "binaries"} &middot; {formatBytes(query.data?.total_bytes ?? 0)}
+          {binaries.length} {binaries.length === 1 ? "file" : "files"} &middot; {formatBytes(query.data?.total_bytes ?? 0)}
         </span>
       </div>
 
@@ -105,38 +104,48 @@ export function TrackedBinariesSection({ isMobile, repoId }: TrackedBinariesSect
       )}
 
       <div className="space-y-2">
-        {binaries.map((binary) => (
-          <div
-            key={binary.path}
-            className={`flex items-center justify-between rounded-lg border border-amber-900/40 bg-amber-950/10 ${px} ${py} ${gap}`}
-          >
-            <div className="flex items-start gap-2 flex-1 min-w-0">
-              <HardDrive className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className={`${textSm} text-slate-200 font-mono truncate`} title={binary.path}>
-                  {binary.path}
+        {binaries.map((binary) => {
+          const slash = binary.path.lastIndexOf("/");
+          const dir = slash >= 0 ? binary.path.slice(0, slash + 1) : "";
+          const name = slash >= 0 ? binary.path.slice(slash + 1) : binary.path;
+          const ignoreTarget = binary.owner_dir ? `${binary.owner_dir}/.gitignore` : ".gitignore";
+          const busy = pendingPath === binary.path || untrack.isPending;
+          return (
+            <div
+              key={binary.path}
+              className={`space-y-2 rounded-lg border border-amber-900/40 bg-amber-950/10 ${px} ${py}`}
+            >
+              <div className="flex items-start gap-2">
+                <HardDrive className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                {/* Full path, filename emphasized; wraps instead of truncating so
+                    every name stays readable on a narrow screen. */}
+                <p className={`${textSm} min-w-0 flex-1 break-all font-mono leading-snug`} title={binary.path}>
+                  <span className="text-slate-500">{dir}</span>
+                  <span className="font-semibold text-slate-100">{name}</span>
                 </p>
-                <div className={`flex items-center gap-2 ${textXs} text-slate-500 mt-0.5`}>
-                  <span>{formatBytes(binary.bytes)}</span>
-                  <span className="uppercase">{binary.format}</span>
-                  <span className="truncate">
-                    ignore in {binary.owner_dir ? `${binary.owner_dir}/.gitignore` : ".gitignore"}
-                  </span>
-                  {binary.already_ignored && <span className="text-slate-600">(already ignored)</span>}
-                </div>
+              </div>
+              <p className={`flex flex-wrap items-center gap-x-1.5 gap-y-0.5 ${textXs} text-slate-500`}>
+                <span className="font-medium text-slate-300">{formatBytes(binary.bytes)}</span>
+                <span aria-hidden>&middot;</span>
+                <span className="uppercase">{binary.format === "oversized" ? "large file" : binary.format}</span>
+                <span aria-hidden>&middot;</span>
+                <span className="break-all">ignore in {ignoreTarget}</span>
+                {binary.already_ignored && <span className="text-slate-600">&middot; already ignored</span>}
+              </p>
+              <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={`h-8 px-3 text-xs ${isMobile ? "w-full" : ""}`}
+                  onClick={() => handleUntrack(binary)}
+                  disabled={busy}
+                >
+                  {pendingPath === binary.path ? "Untracking…" : "Untrack & ignore"}
+                </Button>
               </div>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 px-2 text-xs shrink-0"
-              onClick={() => handleUntrack(binary)}
-              disabled={pendingPath === binary.path || untrack.isPending}
-            >
-              {pendingPath === binary.path ? "Untracking..." : "Untrack & ignore"}
-            </Button>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {untrack.isError && (

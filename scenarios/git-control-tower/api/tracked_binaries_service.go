@@ -49,10 +49,24 @@ var binaryScanSkipExts = map[string]struct{}{
 // .gitignore, mirroring the per-resource convention already in the repo.
 var ownerRoots = []string{"scenarios", "resources", "packages", "templates"}
 
+// oversizedTrackedThreshold is the working-tree size above which a tracked file
+// is surfaced for removal regardless of type. A compiled executable is flagged
+// at any size (it is build output); a large non-executable -- a media asset,
+// data file, soak fixture -- is only a removal candidate once it is big enough
+// to be a push or merge hazard. This mirrors the push-safety warning threshold
+// so the two surfaces agree on what "too large to commit" means.
+const oversizedTrackedThreshold int64 = 50 * 1024 * 1024
+
+// reasonExecutable and reasonOversized label why a tracked file was flagged.
+// They populate TrackedBinary.Format, which existing consumers already render.
+const reasonOversized = "oversized"
+
 const untrackHistoryWarning = "Untracking removes these from the working tree and future commits. " +
 	"The bytes remain in git history, so repository size is unchanged until history is rewritten."
 
-// AnalyzeTrackedBinaries reports every compiled executable in the index.
+// AnalyzeTrackedBinaries reports tracked files that should not be committed:
+// every compiled executable (build output at any size), plus any other tracked
+// file over the oversized threshold (a push/merge hazard whatever its type).
 func AnalyzeTrackedBinaries(ctx context.Context, deps HealthDeps, git GitRunner) (*TrackedBinariesResponse, error) {
 	tracked, err := git.ListTrackedFiles(ctx, deps.RepoDir)
 	if err != nil {
@@ -65,11 +79,26 @@ func AnalyzeTrackedBinaries(ctx context.Context, deps HealthDeps, git GitRunner)
 		if rel == "" {
 			continue
 		}
-		if _, skip := binaryScanSkipExts[strings.ToLower(filepath.Ext(rel))]; skip {
-			continue
+		full := filepath.Join(deps.RepoDir, filepath.FromSlash(rel))
+
+		var format string
+		var size int64
+		// Magic-byte classification is the executable signal. Skip the read for
+		// extensions that cannot be a stray build output -- a speed filter over a
+		// whole index, not a correctness boundary.
+		if _, skip := binaryScanSkipExts[strings.ToLower(filepath.Ext(rel))]; !skip {
+			if f, s, ok := classifyExecutable(deps.FS, full); ok {
+				format, size = f, s
+			}
 		}
-		format, size, ok := classifyExecutable(deps.FS, filepath.Join(deps.RepoDir, filepath.FromSlash(rel)))
-		if !ok {
+		// Any tracked file -- including skipped media/data extensions -- is a
+		// candidate once it crosses the oversized threshold.
+		if format == "" {
+			if s, ok := regularFileSize(deps.FS, full); ok && s > oversizedTrackedThreshold {
+				format, size = reasonOversized, s
+			}
+		}
+		if format == "" {
 			continue
 		}
 		ownerDir, pattern := ignoreTargetForBinary(rel)
@@ -116,6 +145,18 @@ func classifyExecutable(fsio FileIO, path string) (format string, size int64, ok
 		}
 	}
 	return "", 0, false
+}
+
+// regularFileSize returns the working-tree size of a regular file. Symlinks are
+// excluded for the same reason classifyExecutable skips them: git stores a
+// symlink's target path, not the target's content, so its on-disk size is
+// meaningless for what the index actually holds.
+func regularFileSize(fsio FileIO, path string) (int64, bool) {
+	info, err := fsio.Lstat(path)
+	if err != nil || info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
+		return 0, false
+	}
+	return info.Size(), true
 }
 
 // ignoreTargetForBinary picks the .gitignore that should own the path and the
@@ -217,7 +258,7 @@ func appendGitignorePattern(fsio FileIO, ignorePath, pattern string) error {
 		b.WriteString("\n")
 	}
 	if len(existing) == 0 {
-		b.WriteString("# Compiled build output. Never commit binaries.\n")
+		b.WriteString("# Build output and oversized files should not be committed.\n")
 	}
 	b.WriteString(pattern)
 	b.WriteString("\n")

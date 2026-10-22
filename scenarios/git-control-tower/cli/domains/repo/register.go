@@ -3,6 +3,7 @@ package repo
 import (
 	"bufio"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -65,6 +66,15 @@ type diffResponse struct {
 		Density     float64 `json:"density"`
 	} `json:"stats"`
 	Raw string `json:"raw"`
+}
+
+type sourceResponse struct {
+	RepoDir         string `json:"repo_dir"`
+	Path            string `json:"path"`
+	RequestedCommit string `json:"requested_commit"`
+	ContentHash     string `json:"content_hash,omitempty"`
+	ContentBytes    int    `json:"content_bytes"`
+	Content         string `json:"content"`
 }
 
 type stageRequest struct {
@@ -132,10 +142,12 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 		Subcommands: []cliapp.Command{
 			{Name: "status", NeedsAPI: true, Description: "Show repository status (branch + changed files)", Run: func(args []string) error { return runStatus(core, args) }},
 			{Name: "groups", NeedsAPI: true, Description: "Show resolved repository change groups", Run: func(args []string) error { return runGroups(core, args) }},
-			{Name: "diff", NeedsAPI: true, Description: "Show git diff (--path=FILE --staged)", Run: func(args []string) error { return runDiff(core, args) }},
+			{Name: "diff", NeedsAPI: true, Description: "Show a working-tree diff or exact-commit source (--path=FILE [--staged] | --path=FILE --commit=OID --mode=source [--json])", Run: func(args []string) error { return runDiff(core, args) }},
 			{Name: "blame", NeedsAPI: true, Description: "Show bounded native line attribution (--path=FILE [--revision=REV] [--start=N --end=N])", Run: func(args []string) error { return runBlame(core, args) }},
 			{Name: "stage", NeedsAPI: true, Description: "Stage files (FILE... or --scope=scenario:name)", Run: func(args []string) error { return runStage(core, args) }},
 			{Name: "unstage", NeedsAPI: true, Description: "Unstage files (FILE... or --scope=scenario:name)", Run: func(args []string) error { return runUnstage(core, args) }},
+			{Name: "untracked", NeedsAPI: true, Description: "List tracked files that should not be committed: build binaries, and files now covered by an ignore rule or over the push limit ([--json])", Run: func(args []string) error { return runUntrackedList(core, args) }},
+			{Name: "untrack", NeedsAPI: true, Description: "Stop tracking a file but keep it on disk, adding an ignore rule (PATH [--pattern=P]); requires interactive human confirmation", Run: func(args []string) error { return runUntrack(core, args) }},
 			{Name: "commit", NeedsAPI: true, Description: "Create a commit (-m MESSAGE [--conventional])", Run: func(args []string) error { return runCommit(core, args) }},
 			{Name: "prepare-push-recovery", NeedsAPI: true, Description: "Review and prepare isolated recovery artifacts (--fingerprint=ID)", Run: func(args []string) error { return runPrepareRecovery(core, args) }},
 			{Name: "push-safety", NeedsAPI: true, Description: "Inspect outgoing file sizes without changing the repository", Run: func(args []string) error { return runPushSafety(core, args) }},
@@ -227,9 +239,12 @@ func runGroups(core *cliapp.ScenarioApp, _ []string) error {
 type diffFlags struct {
 	path   string
 	staged bool
+	commit string
+	mode   string
+	json   bool
 }
 
-func parseDiffFlags(args []string) diffFlags {
+func parseDiffFlags(args []string) (diffFlags, error) {
 	var f diffFlags
 	for _, arg := range args {
 		switch {
@@ -237,9 +252,38 @@ func parseDiffFlags(args []string) diffFlags {
 			f.path = strings.TrimPrefix(arg, "--path=")
 		case arg == "--staged":
 			f.staged = true
+		case strings.HasPrefix(arg, "--commit="):
+			f.commit = strings.TrimPrefix(arg, "--commit=")
+		case strings.HasPrefix(arg, "--mode="):
+			f.mode = strings.TrimPrefix(arg, "--mode=")
+		case arg == "--json":
+			f.json = true
 		}
 	}
-	return f
+	if f.mode == "" && f.commit == "" {
+		return f, nil
+	}
+	if f.path == "" {
+		return f, fmt.Errorf("source mode requires --path=FILE")
+	}
+	if f.staged {
+		return f, fmt.Errorf("--staged cannot be combined with --commit or --mode")
+	}
+	if f.mode != "source" {
+		return f, fmt.Errorf("historical reads require --mode=source")
+	}
+	if !isFullCommitID(f.commit) {
+		return f, fmt.Errorf("source mode requires --commit with a full 40- or 64-character hexadecimal object ID")
+	}
+	return f, nil
+}
+
+func isFullCommitID(commit string) bool {
+	if len(commit) != 40 && len(commit) != 64 {
+		return false
+	}
+	_, err := hex.DecodeString(commit)
+	return err == nil
 }
 
 func runStatus(core *cliapp.ScenarioApp, _ []string) error {
@@ -319,13 +363,55 @@ func formatDiffOutput(parsed *diffResponse) {
 }
 
 func runDiff(core *cliapp.ScenarioApp, args []string) error {
-	f := parseDiffFlags(args)
+	f, err := parseDiffFlags(args)
+	if err != nil {
+		return err
+	}
 	response, err := repoClientFactory(core).GetRepoDiff(context.Background(), connect.NewRequest(&repov1.GetRepoDiffRequest{
 		Path:   f.path,
 		Staged: f.staged,
+		Commit: f.commit,
+		Mode:   f.mode,
 	}))
 	if err != nil {
 		return err
+	}
+	if f.mode == "source" {
+		parsed := sourceResponse{
+			RepoDir: response.Msg.GetRepoDir(), Path: response.Msg.GetPath(),
+			RequestedCommit: f.commit, ContentHash: response.Msg.GetContentHash(),
+			ContentBytes: len([]byte(response.Msg.GetFullContent())), Content: response.Msg.GetFullContent(),
+		}
+		if f.json {
+			body, err := json.MarshalIndent(parsed, "", "  ")
+			if err != nil {
+				return err
+			}
+			cliutil.PrintJSON(body)
+			return nil
+		}
+		fmt.Printf("Source at requested commit %s\n", parsed.RequestedCommit)
+		fmt.Printf("Path: %s\n", parsed.Path)
+		fmt.Printf("Returned content bytes: %d\n", parsed.ContentBytes)
+		if parsed.ContentHash != "" {
+			fmt.Printf("SHA-256: %s\n", parsed.ContentHash)
+		} else {
+			fmt.Println("SHA-256: unavailable for this source representation")
+		}
+		fmt.Println("---")
+		fmt.Print(parsed.Content)
+		if parsed.Content != "" && !strings.HasSuffix(parsed.Content, "\n") {
+			fmt.Println()
+		}
+		return nil
+	}
+	if f.json {
+		body, err := (protojson.MarshalOptions{Multiline: true, UseProtoNames: true}).Marshal(response.Msg)
+		if err != nil {
+			return err
+		}
+		cliutil.PrintJSON(body)
+		return nil
 	}
 
 	if !response.Msg.GetHasDiff() {
@@ -426,6 +512,135 @@ func runUnstage(core *cliapp.ScenarioApp, args []string) error {
 		return err
 	}
 	printUnstageResult(&stageResponse{Success: resp.Msg.Success, Unstaged: resp.Msg.Unstaged, Failed: resp.Msg.Failed, Errors: resp.Msg.Errors})
+	return nil
+}
+
+// untrackedCandidate mirrors one row of the tracked-removal-candidate report for
+// JSON output, keeping the CLI stable if the proto gains fields.
+type untrackedCandidate struct {
+	Path           string `json:"path"`
+	Bytes          int64  `json:"bytes"`
+	Reason         string `json:"reason"`
+	OwnerDir       string `json:"owner_dir,omitempty"`
+	IgnorePattern  string `json:"ignore_pattern"`
+	AlreadyIgnored bool   `json:"already_ignored"`
+}
+
+func mib(bytes int64) string { return fmt.Sprintf("%.2f MiB", float64(bytes)/1048576) }
+
+func runUntrackedList(core *cliapp.ScenarioApp, args []string) error {
+	jsonOut := false
+	for _, arg := range args {
+		if arg == "--json" {
+			jsonOut = true
+		}
+	}
+	resp, err := repoClientFactory(core).GetTrackedBinaries(context.Background(), connect.NewRequest(&repov1.GetTrackedBinariesRequest{}))
+	if err != nil {
+		return err
+	}
+	candidates := make([]untrackedCandidate, 0, len(resp.Msg.GetBinaries()))
+	for _, b := range resp.Msg.GetBinaries() {
+		candidates = append(candidates, untrackedCandidate{
+			Path: b.GetPath(), Bytes: b.GetBytes(), Reason: b.GetFormat(),
+			OwnerDir: b.GetOwnerDir(), IgnorePattern: b.GetIgnorePattern(), AlreadyIgnored: b.GetAlreadyIgnored(),
+		})
+	}
+	if jsonOut {
+		body, err := json.MarshalIndent(map[string]any{"candidates": candidates, "total_bytes": resp.Msg.GetTotalBytes(), "history_warning": resp.Msg.GetHistoryWarning()}, "", "  ")
+		if err != nil {
+			return err
+		}
+		cliutil.PrintJSON(body)
+		return nil
+	}
+	if len(candidates) == 0 {
+		fmt.Println("No tracked files flagged for removal.")
+		return nil
+	}
+	fmt.Printf("Tracked files that should not be committed (%d, %s total):\n", len(candidates), mib(resp.Msg.GetTotalBytes()))
+	for _, c := range candidates {
+		state := "needs ignore rule"
+		if c.AlreadyIgnored {
+			state = "already ignored; needs index removal"
+		}
+		fmt.Printf("  %-9s %10s  %s\n", c.Reason, mib(c.Bytes), c.Path)
+		fmt.Printf("            → untrack adds %q to %s/.gitignore (%s)\n", c.IgnorePattern, ignoreOwnerLabel(c.OwnerDir), state)
+	}
+	if warning := resp.Msg.GetHistoryWarning(); warning != "" {
+		fmt.Printf("\nNote: %s\n", warning)
+	}
+	fmt.Println("\nUntrack one with: git-control-tower repo untrack <path>")
+	return nil
+}
+
+func ignoreOwnerLabel(ownerDir string) string {
+	if strings.TrimSpace(ownerDir) == "" {
+		return "<repo root>"
+	}
+	return ownerDir
+}
+
+func runUntrack(core *cliapp.ScenarioApp, args []string) error {
+	var path, pattern string
+	for _, arg := range args {
+		switch {
+		case strings.HasPrefix(arg, "--pattern="):
+			pattern = strings.TrimPrefix(arg, "--pattern=")
+		case !strings.HasPrefix(arg, "-"):
+			if path == "" {
+				path = arg
+			}
+		}
+	}
+	if path == "" {
+		return fmt.Errorf("usage: repo untrack PATH [--pattern=P]")
+	}
+	// Resolve the server-computed owner directory and ignore pattern for this
+	// path so the ignore rule lands in the convention-correct .gitignore, exactly
+	// as the UI remediation does. This also guards against untracking a path the
+	// server does not consider a removal candidate.
+	listResp, err := repoClientFactory(core).GetTrackedBinaries(context.Background(), connect.NewRequest(&repov1.GetTrackedBinariesRequest{}))
+	if err != nil {
+		return err
+	}
+	var match *repov1.TrackedBinary
+	for _, b := range listResp.Msg.GetBinaries() {
+		if b.GetPath() == path {
+			match = b
+			break
+		}
+	}
+	if match == nil {
+		return fmt.Errorf("%s is not a tracked removal candidate; run 'repo untracked' to see the list", path)
+	}
+	ownerDir := match.GetOwnerDir()
+	if pattern == "" {
+		pattern = match.GetIgnorePattern()
+	}
+	intent, err := confirmRepoMutation(core, "repo.tracked-binaries.untrack")
+	if err != nil {
+		return err
+	}
+	resp, err := repoClientFactory(core).UntrackBinary(context.Background(), connect.NewRequest(&repov1.UntrackBinaryRequest{
+		RepositoryId: intent.repositoryID, IntentId: intent.intentID, Path: path, OwnerDir: ownerDir, IgnorePattern: pattern,
+	}))
+	if err != nil {
+		return err
+	}
+	msg := resp.Msg
+	if !msg.GetSuccess() {
+		return fmt.Errorf("untrack failed: %s", msg.GetError())
+	}
+	fmt.Printf("Untracked %s (kept on disk)\n", path)
+	if msg.GetRemovedFromIndex() {
+		fmt.Println("  - removed from the index")
+	}
+	if added := msg.GetIgnoreAddedTo(); added != "" {
+		fmt.Printf("  + ignore rule %q added to %s\n", pattern, added)
+	} else {
+		fmt.Println("  = ignore rule already present")
+	}
 	return nil
 }
 

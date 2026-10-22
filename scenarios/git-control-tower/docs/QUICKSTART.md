@@ -30,11 +30,22 @@ The CLI installs alongside (`git-control-tower --help`). Common flows:
 
 ```bash
 git-control-tower repo status                    # working-tree status
-git-control-tower repo diff <path>               # unified diff for a file
+git-control-tower repo diff --path=src/App.tsx    # unified diff for a file
+git-control-tower repo diff --path=src/App.tsx --commit=0123456789abcdef0123456789abcdef01234567 --mode=source --json
+                                                  # source at an immutable commit, with the returned hash and byte length
 git-control-tower repo blame <path>              # native blame; add --enrich for linked evidence
 git-control-tower branch list                    # branches + ahead/behind
 git-control-tower review <slug>                  # scenario review report
 ```
+
+The historical source form requires a full 40- or 64-character hexadecimal
+commit object ID and a repository-relative `--path`. It sends the typed
+`GetRepoDiff` request with `mode=source`; `requested_commit` in CLI output is
+the exact commit supplied by the caller (the server response does not echo it).
+For text source, `content_hash` is the API's SHA-256 and `content_bytes` is the
+UTF-8 content length. Binary image source may be represented as base64 and may
+not include a content hash; the byte count then describes the returned
+representation. This command is read-only and does not restore or write files.
 
 ## Authentication modes
 

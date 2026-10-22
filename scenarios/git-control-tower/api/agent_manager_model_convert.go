@@ -14,7 +14,7 @@ func wireRunSummaryToAPI(w *wireRunSummary) *AgentRunSummary {
 		FilesModified: w.FilesModified,
 		FilesCreated:  w.FilesCreated,
 		FilesDeleted:  w.FilesDeleted,
-		TokensUsed:    w.TokensUsed,
+		TokensUsed:    int64(w.TokensUsed),
 		TurnsUsed:     w.TurnsUsed,
 		CostEstimate:  w.CostEstimate,
 	}

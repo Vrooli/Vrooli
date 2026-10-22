@@ -72,7 +72,7 @@ function view(revision="one",repoId="repo-a",client=new QueryClient({defaultOpti
 test("one shared report exposes concise staged and outgoing warnings without mutating",async()=>{
  vi.mocked(inspectPushSafety).mockResolvedValue(report());
  render(view().tree);
- await screen.findByText(/1 large staged file would block push/);
+ await screen.findByText(/staged\.bin.*would block push/);
  expect(screen.getByText(/Push blocked: 1 oversized file ·/)).toBeTruthy();
  expect(screen.queryByText(/Staged file sizes checked/)).toBeNull();
  expect(inspectPushSafety).toHaveBeenCalledTimes(1);
@@ -80,21 +80,21 @@ test("one shared report exposes concise staged and outgoing warnings without mut
 test("repository or observed workspace change immediately removes prior safety claims",async()=>{
  vi.mocked(inspectPushSafety).mockResolvedValue(report());
  const initial=view();const mounted=render(initial.tree);
- await screen.findByText(/1 large staged file would block push/);
+ await screen.findByText(/staged\.bin.*would block push/);
  mounted.rerender(view("two","repo-a",initial.client).tree);
- expect(screen.queryByText(/1 large staged file would block push/)).toBeNull();
+ expect(screen.queryByText(/staged\.bin.*would block push/)).toBeNull();
  expect(screen.queryByText(/Push blocked:/)).toBeNull();
  vi.mocked(inspectPushSafety).mockRejectedValue(new Error("offline"));
  mounted.rerender(view("two","repo-b",initial.client).tree);
  await waitFor(()=>expect(screen.getByText(/Couldn’t verify push file sizes ·/)).toBeTruthy());
- expect(screen.queryByText(/1 large staged file would block push/)).toBeNull();
+ expect(screen.queryByText(/staged\.bin.*would block push/)).toBeNull();
 });
 test("expired reports are not displayed as current",async()=>{
  vi.mocked(inspectPushSafety).mockResolvedValue(report());
  render(view().tree);
- await screen.findByText(/1 large staged file would block push/);
+ await screen.findByText(/staged\.bin.*would block push/);
  vi.spyOn(Date, "now").mockReturnValue(Date.now()+61000);
- await waitFor(()=>expect(screen.queryByText(/1 large staged file would block push/)).toBeNull(),{timeout:6000});
+ await waitFor(()=>expect(screen.queryByText(/staged\.bin.*would block push/)).toBeNull(),{timeout:6000});
 }, 8000);
 
 test("blocked staging stays committable and its badge opens review without a mutation", async () => {

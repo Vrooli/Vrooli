@@ -39,7 +39,7 @@ type AgentRunSummary struct {
 	FilesModified []string `json:"filesModified,omitempty"`
 	FilesCreated  []string `json:"filesCreated,omitempty"`
 	FilesDeleted  []string `json:"filesDeleted,omitempty"`
-	TokensUsed    int      `json:"tokensUsed,omitempty"`
+	TokensUsed    int64    `json:"tokensUsed,omitempty"`
 	TurnsUsed     int      `json:"turnsUsed,omitempty"`
 	CostEstimate  float64  `json:"costEstimate,omitempty"`
 }

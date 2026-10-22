@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -42,12 +44,32 @@ func normalizeEventType(protoValue string) string {
 // ============================================================================
 
 type wireRunSummary struct {
-	FilesModified []string `json:"files_modified,omitempty"`
-	FilesCreated  []string `json:"files_created,omitempty"`
-	FilesDeleted  []string `json:"files_deleted,omitempty"`
-	TokensUsed    int      `json:"tokens_used,omitempty"`
-	TurnsUsed     int      `json:"turns_used,omitempty"`
-	CostEstimate  float64  `json:"cost_estimate,omitempty"`
+	FilesModified []string       `json:"files_modified,omitempty"`
+	FilesCreated  []string       `json:"files_created,omitempty"`
+	FilesDeleted  []string       `json:"files_deleted,omitempty"`
+	TokensUsed    wireTokenCount `json:"tokens_used,omitempty"`
+	TurnsUsed     int            `json:"turns_used,omitempty"`
+	CostEstimate  float64        `json:"cost_estimate,omitempty"`
+}
+
+// wireTokenCount accepts both ProtoJSON's quoted int64 and the numeric int32
+// form emitted by older Agent Manager servers.
+type wireTokenCount int64
+
+func (n *wireTokenCount) UnmarshalJSON(data []byte) error {
+	if err := json.Unmarshal(data, (*int64)(n)); err == nil {
+		return nil
+	}
+	var text string
+	if err := json.Unmarshal(data, &text); err != nil {
+		return fmt.Errorf("tokens_used must be an int64 or decimal string: %w", err)
+	}
+	value, err := strconv.ParseInt(text, 10, 64)
+	if err != nil {
+		return fmt.Errorf("tokens_used is not a valid int64: %w", err)
+	}
+	*n = wireTokenCount(value)
+	return nil
 }
 
 type wireRunActions struct {

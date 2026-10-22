@@ -238,7 +238,11 @@ export interface TrackedBinariesResponse {
 export interface TrackedBinary {
   path: string;
   bytes: number;
-  format: "elf" | "mach-o" | "pe";
+  /**
+   * Why the file was flagged: an executable format ("elf"/"mach-o"/"pe") means
+   * build output; "oversized" means a non-executable over the size threshold.
+   */
+  format: "elf" | "mach-o" | "pe" | "oversized";
   /** Scenario/resource dir that should ignore this path; "" means repo root. */
   owner_dir: string;
   ignore_pattern: string;

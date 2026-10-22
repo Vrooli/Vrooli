@@ -15,6 +15,7 @@ type FakeWriteCall struct {
 // FakeFileIO implements FileIO for tests without touching the real filesystem.
 type FakeFileIO struct {
 	Files    map[string]string
+	Sizes    map[string]int64
 	StatErr  map[string]error
 	ReadErr  error
 	WriteErr error
@@ -25,6 +26,7 @@ type FakeFileIO struct {
 func NewFakeFileIO() *FakeFileIO {
 	return &FakeFileIO{
 		Files:   make(map[string]string),
+		Sizes:   make(map[string]int64),
 		StatErr: make(map[string]error),
 	}
 }
@@ -32,6 +34,14 @@ func NewFakeFileIO() *FakeFileIO {
 // WithFile adds a file with the given content.
 func (f *FakeFileIO) WithFile(path, content string) *FakeFileIO {
 	f.Files[path] = content
+	return f
+}
+
+// WithFileSize overrides the reported Stat size for a path, letting a test model
+// a large file without allocating its bytes. The path must also exist via
+// WithFile (even with placeholder content) so Stat resolves it.
+func (f *FakeFileIO) WithFileSize(path string, size int64) *FakeFileIO {
+	f.Sizes[path] = size
 	return f
 }
 
@@ -81,7 +91,11 @@ func (f *FakeFileIO) Stat(path string) (os.FileInfo, error) {
 	if !ok {
 		return nil, os.ErrNotExist
 	}
-	return &FakeFileInfo{name: path, size: int64(len(content))}, nil
+	size := int64(len(content))
+	if override, ok := f.Sizes[path]; ok {
+		size = override
+	}
+	return &FakeFileInfo{name: path, size: size}, nil
 }
 
 // Lstat mirrors Stat: the fake models regular files only, so there is no link
